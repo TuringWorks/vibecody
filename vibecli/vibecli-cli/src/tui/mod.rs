@@ -14,7 +14,7 @@ use crossterm::{
 };
 use ratatui::{backend::CrosstermBackend, Terminal};
 use std::io;
-use futures::{StreamExt, FutureExt};
+use futures::StreamExt;
 use tokio::sync::mpsc;
 
 use crate::tui::app::{App, TuiMessage};

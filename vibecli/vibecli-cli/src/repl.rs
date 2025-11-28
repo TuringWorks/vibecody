@@ -11,7 +11,6 @@ pub struct VibeHelper {
     validator: MatchingBracketValidator,
     hinter: HistoryHinter,
     highlighter: MatchingBracketHighlighter,
-    colored_prompt: String,
 }
 
 impl VibeHelper {
@@ -21,7 +20,6 @@ impl VibeHelper {
             validator: MatchingBracketValidator::new(),
             hinter: HistoryHinter {},
             highlighter: MatchingBracketHighlighter::new(),
-            colored_prompt: "".to_owned(),
         }
     }
 }
@@ -90,13 +88,9 @@ impl Highlighter for VibeHelper {
     fn highlight_prompt<'b, 's: 'b, 'p: 'b>(
         &'s self,
         prompt: &'p str,
-        default: bool,
+        _default: bool,
     ) -> Cow<'b, str> {
-        if default {
-            Cow::Borrowed(&self.colored_prompt)
-        } else {
-            Cow::Borrowed(prompt)
-        }
+        Cow::Borrowed(prompt)
     }
 
     fn highlight_hint<'h>(&self, hint: &'h str) -> Cow<'h, str> {

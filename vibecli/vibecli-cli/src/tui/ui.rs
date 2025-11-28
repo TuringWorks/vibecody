@@ -29,7 +29,7 @@ pub fn draw(f: &mut Frame, app: &App) {
     draw_input_area(f, app, chunks[2]);
 }
 
-fn draw_file_tree(f: &mut Frame, app: &App, area: Rect) {
+fn draw_file_tree(f: &mut Frame, _app: &App, area: Rect) {
     // Placeholder for file tree
     let block = Block::default().borders(Borders::ALL).title(" File Tree ");
     let p = Paragraph::new("File tree not yet implemented in single-pane view").block(block);

@@ -1,18 +1,20 @@
 
-
 #[derive(Debug, Clone)]
 pub enum TuiMessage {
     User(String),
     Assistant(String),
     System(String),
+    #[allow(dead_code)]
     CommandOutput {
         command: String,
         output: String,
     },
+    #[allow(dead_code)]
     FileList {
         path: String,
         files: Vec<String>,
     },
+    #[allow(dead_code)]
     Diff {
         file: String,
         diff: String,
@@ -50,6 +52,7 @@ impl App {
         }
     }
 
+    #[allow(dead_code)]
     pub fn on_tick(&mut self) {
         // Handle tick events
     }

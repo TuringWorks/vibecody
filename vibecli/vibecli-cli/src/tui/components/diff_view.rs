@@ -27,6 +27,7 @@ impl DiffViewComponent {
         self.scroll = 0;
     }
 
+    #[allow(dead_code)]
     pub fn clear(&mut self) {
         self.hunks.clear();
         self.raw_lines.clear();

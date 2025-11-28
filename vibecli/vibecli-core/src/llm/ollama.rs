@@ -27,6 +27,11 @@ struct OllamaMessage {
 }
 
 #[derive(Debug, Deserialize)]
+struct OllamaError {
+    error: String,
+}
+
+#[derive(Debug, Deserialize)]
 struct OllamaResponse {
     message: OllamaMessage,
     #[allow(dead_code)]
@@ -83,6 +88,14 @@ impl LLMProvider for OllamaProvider {
             .await
             .context("Failed to send request to Ollama")?;
 
+        if !response.status().is_success() {
+            let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+            if let Ok(ollama_error) = serde_json::from_str::<OllamaError>(&error_text) {
+                return Err(anyhow::anyhow!("Ollama error: {}", ollama_error.error));
+            }
+            return Err(anyhow::anyhow!("Ollama request failed: {}", error_text));
+        }
+
         let ollama_response: OllamaResponse = response
             .json()
             .await
@@ -118,6 +131,14 @@ impl LLMProvider for OllamaProvider {
             .send()
             .await
             .context("Failed to send streaming request to Ollama")?;
+
+        if !response.status().is_success() {
+            let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+            if let Ok(ollama_error) = serde_json::from_str::<OllamaError>(&error_text) {
+                return Err(anyhow::anyhow!("Ollama error: {}", ollama_error.error));
+            }
+            return Err(anyhow::anyhow!("Ollama request failed: {}", error_text));
+        }
 
         let stream = response.bytes_stream();
         

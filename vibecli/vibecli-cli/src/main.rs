@@ -81,6 +81,51 @@ async fn main() -> Result<()> {
                 
                 rl.add_history_entry(line.as_str())?;
                 
+                // Handle direct commands
+                if input.starts_with('!') {
+                    let command = input[1..].trim();
+                    if !command.is_empty() {
+                        let require_approval = Config::load()
+                            .map(|c| c.safety.require_approval_for_commands)
+                            .unwrap_or(true);
+
+                        let should_run = if require_approval {
+                            print!("⚡ Execute command: {}? (y/N): ", command);
+                            io::stdout().flush()?;
+                            
+                            let mut confirm = String::new();
+                            io::stdin().read_line(&mut confirm)?;
+                            confirm.trim().to_lowercase() == "y"
+                        } else {
+                            true
+                        };
+
+                        if should_run {
+                            println!("🚀 Executing...");
+                            use std::process::Command;
+                            let output = if cfg!(target_os = "windows") {
+                                Command::new("cmd").args(["/C", command]).output()
+                            } else {
+                                Command::new("sh").arg("-c").arg(command).output()
+                            };
+                            
+                            match output {
+                                Ok(output) => {
+                                    println!("{}", String::from_utf8_lossy(&output.stdout));
+                                    if !output.stderr.is_empty() {
+                                        eprintln!("{}", String::from_utf8_lossy(&output.stderr));
+                                    }
+                                }
+                                Err(e) => eprintln!("❌ Execution failed: {}", e),
+                            }
+                            println!();
+                        } else {
+                            println!("❌ Command execution cancelled\n");
+                        }
+                        continue;
+                    }
+                }
+
                 // Handle commands
                 if input.starts_with('/') {
                     let parts: Vec<&str> = input.splitn(2, ' ').collect();
@@ -339,6 +384,12 @@ async fn main() -> Result<()> {
                     if !conversation_active {
                         messages.clear(); // Start fresh conversation
                         conversation_active = true;
+                        
+                        // Add system prompt for command execution
+                        messages.push(Message {
+                            role: MessageRole::System,
+                            content: "You are a helpful coding assistant. If the user asks you to run a command or execute a file, output the command in a markdown code block with the language 'execute'. For example:\n```execute\npython script.py\n```\nOnly use this for commands you want the user to run immediately.".to_string(),
+                        });
                     }
                     
                     messages.push(Message {
@@ -355,8 +406,63 @@ async fn main() -> Result<()> {
                             println!("{}\n", highlighted);
                             messages.push(Message {
                                 role: MessageRole::Assistant,
-                                content: response,
+                                content: response.clone(),
                             });
+
+                            // Check for execute blocks
+                            if response.contains("```execute") {
+                                let lines: Vec<&str> = response.lines().collect();
+                                let mut in_exec_block = false;
+                                let mut command_to_run = String::new();
+
+                                for line in lines {
+                                    if line.trim().starts_with("```execute") {
+                                        in_exec_block = true;
+                                        continue;
+                                    }
+                                    if in_exec_block {
+                                        if line.trim().starts_with("```") {
+                                            break;
+                                        }
+                                        command_to_run.push_str(line);
+                                        command_to_run.push('\n');
+                                    }
+                                }
+
+                                let command_to_run = command_to_run.trim();
+                                if !command_to_run.is_empty() {
+                                    println!("⚡ Suggested command: {}", command_to_run);
+                                    print!("⚠️  Execute this command? (y/N): ");
+                                    io::stdout().flush()?;
+                                    
+                                    let mut confirm = String::new();
+                                    io::stdin().read_line(&mut confirm)?;
+                                    
+                                    if confirm.trim().to_lowercase() == "y" {
+                                        println!("🚀 Executing...");
+                                        
+                                        use std::process::Command;
+                                        let output = if cfg!(target_os = "windows") {
+                                            Command::new("cmd").args(["/C", command_to_run]).output()
+                                        } else {
+                                            Command::new("sh").arg("-c").arg(command_to_run).output()
+                                        };
+                                        
+                                        match output {
+                                            Ok(output) => {
+                                                println!("{}", String::from_utf8_lossy(&output.stdout));
+                                                if !output.stderr.is_empty() {
+                                                    eprintln!("{}", String::from_utf8_lossy(&output.stderr));
+                                                }
+                                            }
+                                            Err(e) => eprintln!("❌ Execution failed: {}", e),
+                                        }
+                                        println!();
+                                    } else {
+                                        println!("❌ Command execution cancelled\n");
+                                    }
+                                }
+                            }
                         }
                         Err(e) => {
                             eprintln!("❌ Error: {}\n", e);
@@ -390,7 +496,7 @@ async fn main() -> Result<()> {
 fn create_provider(provider_name: &str, model: Option<String>) -> Result<Box<dyn LLMProvider>> {
     match provider_name.to_lowercase().as_str() {
         "ollama" => {
-            let model = model.unwrap_or_else(|| "codellama".to_string());
+            let model = model.unwrap_or_else(|| "qwen3-coder:480b-cloud".to_string());
             Ok(Box::new(OllamaProvider::new(
                 "http://localhost:11434".to_string(),
                 model,
@@ -410,6 +516,7 @@ fn show_help() {
     println!("  /config            - Show current configuration");
     println!("  /help              - Show this help message");
     println!("  /exit              - Exit VibeCLI");
+    println!("  ! <command>        - Execute shell command directly (e.g. !ls)");
     println!("\n💡 Tip: You can also just type a message to chat without using /chat\n");
 }
 
