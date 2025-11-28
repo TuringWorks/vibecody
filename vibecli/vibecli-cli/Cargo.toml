@@ -10,7 +10,9 @@ name = "vibecli"
 path = "src/main.rs"
 
 [dependencies]
-vibecli-core = { path = "../vibecli-core" }
+vibe-core = { path = "../../vibeui/crates/vibe-core" }
+vibe-ai = { path = "../../vibeui/crates/vibe-ai" }
+syntect.workspace = true
 tokio.workspace = true
 clap.workspace = true
 ratatui.workspace = true
@@ -22,3 +24,5 @@ rustyline = { version = "14.0", features = ["derive"] }
 dirs = "5.0"
 futures = "0.3"
 crossterm = { workspace = true, features = ["event-stream"] }
+serde = { workspace = true, features = ["derive"] }
+toml = "0.8"

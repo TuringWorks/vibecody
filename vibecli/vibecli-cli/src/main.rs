@@ -1,8 +1,13 @@
 use clap::Parser;
 use anyhow::Result;
-use vibecli_core::{Config, llm::{OllamaProvider, LLMProvider, Message, MessageRole}, highlight_code_blocks};
+use crate::config::Config;
+use crate::syntax::highlight_code_blocks;
+use vibe_ai::provider::{AIProvider as LLMProvider, Message, MessageRole, ProviderConfig};
+use vibe_ai::providers::ollama::OllamaProvider;
 use std::io::{self, Write};
 
+mod config;
+mod syntax;
 mod diff_viewer;
 use diff_viewer::DiffViewer;
 
@@ -161,7 +166,7 @@ async fn main() -> Result<()> {
                             print!("🤖 ");
                             io::stdout().flush()?;
                             
-                            match llm.chat(&messages).await {
+                            match llm.chat(&messages, None).await {
                                 Ok(response) => {
                                     let highlighted = highlight_code_blocks(&response);
                                     println!("{}\n", highlighted);
@@ -195,7 +200,7 @@ async fn main() -> Result<()> {
                                 },
                             ];
                             
-                            match llm.chat(&gen_messages).await {
+                            match llm.chat(&gen_messages, None).await {
                                 Ok(response) => {
                                     let highlighted = highlight_code_blocks(&response);
                                     println!("\n{}\n", highlighted);
@@ -278,7 +283,7 @@ async fn main() -> Result<()> {
                                         },
                                     ];
                                     
-                                    match llm.chat(&apply_messages).await {
+                                    match llm.chat(&apply_messages, None).await {
                                         Ok(modified_content) => {
                                             // Clean potential markdown blocks from response
                                             let clean_modified = modified_content.lines()
@@ -338,7 +343,7 @@ async fn main() -> Result<()> {
                                 },
                             ];
                             
-                            match llm.chat(&exec_messages).await {
+                            match llm.chat(&exec_messages, None).await {
                                 Ok(command) => {
                                     let command = command.trim();
                                     println!("📝 Suggested command: {}", command);
@@ -400,7 +405,7 @@ async fn main() -> Result<()> {
                     print!("🤖 ");
                     io::stdout().flush()?;
                     
-                    match llm.chat(&messages).await {
+                    match llm.chat(&messages, None).await {
                         Ok(response) => {
                             let highlighted = highlight_code_blocks(&response);
                             println!("{}\n", highlighted);
@@ -497,10 +502,15 @@ fn create_provider(provider_name: &str, model: Option<String>) -> Result<Box<dyn
     match provider_name.to_lowercase().as_str() {
         "ollama" => {
             let model = model.unwrap_or_else(|| "qwen3-coder:480b-cloud".to_string());
-            Ok(Box::new(OllamaProvider::new(
-                "http://localhost:11434".to_string(),
-                model,
-            )))
+            let config = ProviderConfig {
+                provider_type: "ollama".to_string(),
+                api_url: Some("http://localhost:11434".to_string()),
+                model: model,
+                api_key: None,
+                max_tokens: None,
+                temperature: None,
+            };
+            Ok(Box::new(OllamaProvider::new(config)))
         }
         _ => anyhow::bail!("Unknown provider: {}", provider_name),
     }

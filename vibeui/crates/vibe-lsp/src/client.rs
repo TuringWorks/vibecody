@@ -126,12 +126,13 @@ impl LspClient {
         
         let params = InitializeParams {
             process_id: Some(std::process::id()),
+            #[allow(deprecated)]
             root_uri: Some(root_uri),
             capabilities: ClientCapabilities::default(),
             ..Default::default()
         };
 
-        let response = self.send_request("initialize", serde_json::to_value(params)?).await?;
+        let _response = self.send_request("initialize", serde_json::to_value(params)?).await?;
         
         // Send initialized notification
         self.send_notification("initialized", serde_json::json!({})).await?;

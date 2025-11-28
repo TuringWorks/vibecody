@@ -1,4 +1,4 @@
-use vibecli_core::diff::{DiffEngine, DiffHunk};
+use vibe_core::diff::{DiffEngine, DiffHunk};
 
 pub struct DiffViewComponent {
     pub hunks: Vec<DiffHunk>,

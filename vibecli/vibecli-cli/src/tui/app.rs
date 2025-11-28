@@ -38,6 +38,7 @@ pub struct App {
     pub input: String,
     pub file_tree: FileTreeComponent,
     pub diff_view: DiffViewComponent,
+    pub exit_pending: bool,
 }
 
 impl App {
@@ -49,6 +50,7 @@ impl App {
             input: String::new(),
             file_tree: FileTreeComponent::new(),
             diff_view: DiffViewComponent::new(),
+            exit_pending: false,
         }
     }
 

@@ -150,6 +150,7 @@ impl TextBuffer {
     }
 
     /// Convert char index to position
+    #[allow(dead_code)]
     fn char_to_position(&self, char_idx: usize) -> Position {
         let char_idx = char_idx.min(self.rope.len_chars());
         let line = self.rope.char_to_line(char_idx);

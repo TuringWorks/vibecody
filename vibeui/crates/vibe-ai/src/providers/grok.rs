@@ -7,6 +7,7 @@ use async_trait::async_trait;
 /// Grok provider
 pub struct GrokProvider {
     config: ProviderConfig,
+    #[allow(dead_code)]
     client: reqwest::Client,
 }
 

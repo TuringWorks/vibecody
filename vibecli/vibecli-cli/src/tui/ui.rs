@@ -66,9 +66,9 @@ fn draw_diff_view(f: &mut Frame, app: &App, area: Rect) {
             )));
             for line in &hunk.lines {
                 let (prefix, style) = match line.tag {
-                    vibecli_core::diff::DiffTag::Equal => (" ", Style::default().fg(Color::Gray)),
-                    vibecli_core::diff::DiffTag::Insert => ("+", Style::default().fg(Color::Green)),
-                    vibecli_core::diff::DiffTag::Delete => ("-", Style::default().fg(Color::Red)),
+                    vibe_core::diff::DiffTag::Equal => (" ", Style::default().fg(Color::Gray)),
+                    vibe_core::diff::DiffTag::Insert => ("+", Style::default().fg(Color::Green)),
+                    vibe_core::diff::DiffTag::Delete => ("-", Style::default().fg(Color::Red)),
                 };
                 lines.push(Line::from(Span::styled(format!("{}{}", prefix, line.content), style)));
             }

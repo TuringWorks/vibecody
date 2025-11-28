@@ -7,6 +7,7 @@ use async_trait::async_trait;
 /// Claude AI provider (Anthropic)
 pub struct ClaudeProvider {
     config: ProviderConfig,
+    #[allow(dead_code)]
     client: reqwest::Client,
 }
 

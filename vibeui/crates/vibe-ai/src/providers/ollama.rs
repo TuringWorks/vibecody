@@ -26,6 +26,7 @@ struct OllamaOptions {
 #[derive(Debug, Deserialize)]
 struct OllamaResponse {
     response: String,
+    #[allow(dead_code)]
     done: bool,
 }
 
@@ -47,6 +48,7 @@ struct OllamaChatMessage {
 #[derive(Debug, Deserialize)]
 struct OllamaChatResponse {
     message: OllamaChatMessage,
+    #[allow(dead_code)]
     done: bool,
 }
 

@@ -1,8 +1,10 @@
 //! Diff viewing and application
 
-use vibecli_core::{DiffEngine, fs::FileSystem, syntax::highlight_code_blocks};
+use vibe_core::DiffEngine;
+use crate::syntax::highlight_code_blocks;
 use anyhow::Result;
 use std::path::Path;
+use std::fs;
 
 pub struct DiffViewer;
 
@@ -22,11 +24,11 @@ impl DiffViewer {
     pub fn show_file_diff(file_path: &str) -> Result<()> {
         let path = Path::new(file_path);
         
-        if !FileSystem::exists(path) {
+        if !path.exists() {
             anyhow::bail!("File not found: {}", file_path);
         }
         
-        let current_content = FileSystem::read_file(path)?;
+        let current_content = fs::read_to_string(path)?;
         
         // For now, we'll show the file content
         // In a real implementation, we'd compare with a previous version or AI suggestion

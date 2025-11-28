@@ -7,6 +7,7 @@ use async_trait::async_trait;
 /// Gemini provider
 pub struct GeminiProvider {
     config: ProviderConfig,
+    #[allow(dead_code)]
     client: reqwest::Client,
 }
 

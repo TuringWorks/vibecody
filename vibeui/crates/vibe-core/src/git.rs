@@ -2,7 +2,7 @@ use anyhow::Result;
 use git2::{Repository, StatusOptions};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum FileStatus {
@@ -228,3 +228,34 @@ pub fn discard_changes(repo_path: &Path, file_path: &str) -> Result<()> {
     Ok(())
 }
 
+
+
+pub fn is_git_repo(path: &Path) -> bool {
+    Repository::open(path).is_ok()
+}
+
+pub fn get_current_branch(path: &Path) -> Result<String> {
+    let repo = Repository::open(path)?;
+    let head = repo.head()?;
+    Ok(head.shorthand().unwrap_or("DETACHED").to_string())
+}
+
+pub fn get_repo_diff(repo_path: &Path) -> Result<String> {
+    let repo = Repository::open(repo_path)?;
+    // Check if HEAD exists, if not (empty repo), return empty diff
+    if repo.head().is_err() {
+        return Ok(String::new());
+    }
+    
+    let head = repo.head()?.peel_to_tree()?;
+    let diff = repo.diff_tree_to_workdir_with_index(Some(&head), None)?;
+    
+    let mut diff_text = String::new();
+    diff.print(git2::DiffFormat::Patch, |_delta, _hunk, line| {
+        let content = String::from_utf8_lossy(line.content());
+        diff_text.push_str(&content);
+        true
+    })?;
+    
+    Ok(diff_text)
+}

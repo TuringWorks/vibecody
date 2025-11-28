@@ -18,8 +18,14 @@ use futures::StreamExt;
 use tokio::sync::mpsc;
 
 use crate::tui::app::{App, TuiMessage};
-use vibecli_core::llm::{LLMProvider, Message, MessageRole, OllamaProvider, OpenAIProvider, AnthropicProvider, GeminiProvider, GrokProvider};
-use vibecli_core::Config;
+use vibe_ai::provider::{AIProvider as LLMProvider, Message, MessageRole, ProviderConfig};
+use vibe_ai::providers::ollama::OllamaProvider;
+use vibe_ai::providers::openai::OpenAIProvider;
+use vibe_ai::providers::claude::ClaudeProvider;
+use vibe_ai::providers::gemini::GeminiProvider;
+use vibe_ai::providers::grok::GrokProvider;
+use crate::config::Config;
+use vibe_core::git;
 
 use std::sync::Arc;
 
@@ -70,7 +76,15 @@ fn create_provider(provider_name: &str, model: Option<String>) -> Result<Arc<dyn
                 .or_else(|| provider_config.and_then(|c| c.model.clone()))
                 .unwrap_or_else(|| "qwen3-coder:480b-cloud".to_string());
                 
-            Ok(Arc::new(OllamaProvider::new(base_url, model)))
+            let config = ProviderConfig {
+                provider_type: "ollama".to_string(),
+                api_url: Some(base_url),
+                model: model,
+                api_key: None,
+                max_tokens: None,
+                temperature: None,
+            };
+            Ok(Arc::new(OllamaProvider::new(config)))
         }
         "openai" => {
             let api_key = std::env::var("OPENAI_API_KEY")
@@ -82,7 +96,15 @@ fn create_provider(provider_name: &str, model: Option<String>) -> Result<Arc<dyn
                 .or_else(|| provider_config.and_then(|c| c.model.clone()))
                 .unwrap_or_else(|| "gpt-4-turbo".to_string());
                 
-            Ok(Arc::new(OpenAIProvider::new(api_key, model)))
+            let config = ProviderConfig {
+                provider_type: "openai".to_string(),
+                api_url: None,
+                model: model,
+                api_key: Some(api_key),
+                max_tokens: None,
+                temperature: None,
+            };
+            Ok(Arc::new(OpenAIProvider::new(config)))
         }
         "anthropic" | "claude" => {
             let api_key = std::env::var("ANTHROPIC_API_KEY")
@@ -94,7 +116,15 @@ fn create_provider(provider_name: &str, model: Option<String>) -> Result<Arc<dyn
                 .or_else(|| provider_config.and_then(|c| c.model.clone()))
                 .unwrap_or_else(|| "claude-3-opus-20240229".to_string());
                 
-            Ok(Arc::new(AnthropicProvider::new(api_key, model)))
+            let config = ProviderConfig {
+                provider_type: "anthropic".to_string(),
+                api_url: None,
+                model: model,
+                api_key: Some(api_key),
+                max_tokens: None,
+                temperature: None,
+            };
+            Ok(Arc::new(ClaudeProvider::new(config)))
         }
         "gemini" => {
             let api_key = std::env::var("GEMINI_API_KEY")
@@ -106,7 +136,15 @@ fn create_provider(provider_name: &str, model: Option<String>) -> Result<Arc<dyn
                 .or_else(|| provider_config.and_then(|c| c.model.clone()))
                 .unwrap_or_else(|| "gemini-pro".to_string());
                 
-            Ok(Arc::new(GeminiProvider::new(api_key, model)))
+            let config = ProviderConfig {
+                provider_type: "gemini".to_string(),
+                api_url: None,
+                model: model,
+                api_key: Some(api_key),
+                max_tokens: None,
+                temperature: None,
+            };
+            Ok(Arc::new(GeminiProvider::new(config)))
         }
         "grok" => {
             let api_key = std::env::var("GROK_API_KEY")
@@ -118,7 +156,15 @@ fn create_provider(provider_name: &str, model: Option<String>) -> Result<Arc<dyn
                 .or_else(|| provider_config.and_then(|c| c.model.clone()))
                 .unwrap_or_else(|| "grok-beta".to_string());
                 
-            Ok(Arc::new(GrokProvider::new(api_key, model)))
+            let config = ProviderConfig {
+                provider_type: "grok".to_string(),
+                api_url: None,
+                model: model,
+                api_key: Some(api_key),
+                max_tokens: None,
+                temperature: None,
+            };
+            Ok(Arc::new(GrokProvider::new(config)))
         }
         _ => anyhow::bail!("Unknown provider: {}", provider_name),
     }
@@ -140,16 +186,19 @@ async fn run_app<B: ratatui::backend::Backend>(
 
     // Inject Git Context
     let current_dir = std::env::current_dir()?;
-    if vibecli_core::git::GitOps::is_git_repo(&current_dir) {
-        let branch = vibecli_core::git::GitOps::get_current_branch(&current_dir).unwrap_or_default();
-        let status = vibecli_core::git::GitOps::get_status(&current_dir).unwrap_or_default();
-        let diff = vibecli_core::git::GitOps::get_diff(&current_dir).unwrap_or_default();
+    if git::is_git_repo(&current_dir) {
+        let branch = git::get_current_branch(&current_dir).unwrap_or_default();
+        let status = git::get_status(&current_dir).ok();
+        let diff = git::get_repo_diff(&current_dir).unwrap_or_default();
         
         let mut context_msg = format!("Git Context (Branch: {}):\n", branch);
-        if !status.is_empty() {
-            context_msg.push_str("Changed files:\n");
-            for (path, state) in status {
-                context_msg.push_str(&format!("- {} [{}]\n", path, state));
+        
+        if let Some(status) = status {
+            if !status.file_statuses.is_empty() {
+                context_msg.push_str("Changed files:\n");
+                for (path, state) in status.file_statuses {
+                    context_msg.push_str(&format!("- {} [{:?}]\n", path, state));
+                }
             }
         }
         
@@ -190,7 +239,12 @@ async fn run_app<B: ratatui::backend::Backend>(
                 AppEvent::Input(Event::Key(key)) => {
                     match key.code {
                         KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                            app.should_quit = true;
+                            if app.exit_pending {
+                                app.should_quit = true;
+                            } else {
+                                app.exit_pending = true;
+                                app.messages.push(TuiMessage::System("⚠️  Press Ctrl+C again to quit".to_string()));
+                            }
                         }
                         KeyCode::Tab => {
                             app.current_screen = match app.current_screen {
@@ -199,7 +253,33 @@ async fn run_app<B: ratatui::backend::Backend>(
                                 _ => crate::tui::app::CurrentScreen::Chat,
                             };
                         }
+                        KeyCode::Esc => {
+                            app.current_screen = crate::tui::app::CurrentScreen::Chat;
+                        }
+                        KeyCode::Char('?') => {
+                            let help_text = "📚 VibeCLI TUI Commands:
+  /chat              - Switch to chat view
+  /files             - Switch to file tree view
+  /diff [file]       - View diffs
+  /init              - Initialize default config
+  /config            - Show current config
+  /exec <cmd>        - Execute shell command (via AI)
+  ! <cmd>            - Execute shell command directly
+  /quit              - Exit application";
+
+                            if let crate::tui::app::CurrentScreen::Chat = app.current_screen {
+                                if app.input.is_empty() {
+                                    app.messages.push(TuiMessage::System(help_text.to_string()));
+                                } else {
+                                    app.on_key('?');
+                                }
+                            } else {
+                                app.messages.push(TuiMessage::System(help_text.to_string()));
+                                app.current_screen = crate::tui::app::CurrentScreen::Chat;
+                            }
+                        }
                         KeyCode::Char(c) => {
+                            app.exit_pending = false; // Reset exit warning on other input
                             if let crate::tui::app::CurrentScreen::Chat = app.current_screen {
                                 app.on_key(c);
                             }
@@ -226,42 +306,127 @@ async fn run_app<B: ratatui::backend::Backend>(
                         KeyCode::Enter => {
                             if let crate::tui::app::CurrentScreen::Chat = app.current_screen {
                                 if let Some(user_msg) = app.on_enter() {
-                                    if user_msg.starts_with('/') {
-                                        // Handle slash commands
-                                        let parts: Vec<&str> = user_msg.split_whitespace().collect();
-                                        match parts[0] {
-                                            "/quit" | "/exit" => app.should_quit = true,
-                                            "/chat" => app.current_screen = crate::tui::app::CurrentScreen::Chat,
-                                            "/files" => app.current_screen = crate::tui::app::CurrentScreen::FileTree,
-                                            "/diff" => {
-                                                app.current_screen = crate::tui::app::CurrentScreen::DiffView;
-                                                
-                                                if parts.len() > 1 {
-                                                    // Diff specific file
-                                                    let path = parts[1];
-                                                    if let Ok(content) = std::fs::read_to_string(path) {
-                                                        // For now, just show content as we don't have a "previous version" easily available here without git
-                                                        // But if it's a git repo, we could try to get HEAD content.
-                                                        // Let's just show raw content for now or try to get git diff for this path.
-                                                        // Simplified: just show "Loading..." or similar if we can't get diff.
-                                                        app.diff_view.set_diff(&content, &content); 
-                                                    }
+                                    if user_msg.starts_with('/') || user_msg.starts_with('!') {
+                                        // Handle commands
+                                        let is_direct = user_msg.starts_with('!');
+                                        // command_part logic removed as it was unused
+
+                                        if is_direct {
+                                            let cmd_to_run = user_msg[1..].trim();
+                                            if !cmd_to_run.is_empty() {
+                                                // Check safety config
+                                                let config = Config::load().unwrap_or_default();
+                                                if config.safety.require_approval_for_commands {
+                                                    app.messages.push(TuiMessage::System("⚠️  Command execution requires approval. Please disable `require_approval_for_commands` in config to use this feature in TUI.".to_string()));
                                                 } else {
-                                                    // Show full git diff
-                                                    let current_dir = std::env::current_dir().unwrap_or_default();
-                                                    if let Ok(diff) = vibecli_core::git::GitOps::get_diff(&current_dir) {
-                                                        if diff.is_empty() {
-                                                            app.diff_view.set_raw_diff("No changes detected.");
-                                                        } else {
-                                                            app.diff_view.set_raw_diff(&diff);
-                                                        }
+                                                    app.messages.push(TuiMessage::System(format!("🚀 Executing: {}", cmd_to_run)));
+                                                    
+                                                    let output = if cfg!(target_os = "windows") {
+                                                        std::process::Command::new("cmd").args(["/C", cmd_to_run]).output()
                                                     } else {
-                                                        app.diff_view.set_raw_diff("Failed to load git diff or not a git repository.");
+                                                        std::process::Command::new("sh").arg("-c").arg(cmd_to_run).output()
+                                                    };
+
+                                                    match output {
+                                                        Ok(out) => {
+                                                            let stdout = String::from_utf8_lossy(&out.stdout).to_string();
+                                                            let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+                                                            let mut result = String::new();
+                                                            if !stdout.is_empty() { result.push_str(&stdout); }
+                                                            if !stderr.is_empty() { 
+                                                                if !result.is_empty() { result.push_str("\n--- stderr ---\n"); }
+                                                                result.push_str(&stderr); 
+                                                            }
+                                                            app.messages.push(TuiMessage::CommandOutput { command: cmd_to_run.to_string(), output: result });
+                                                        }
+                                                        Err(e) => {
+                                                            app.messages.push(TuiMessage::Error(format!("Execution failed: {}", e)));
+                                                        }
                                                     }
                                                 }
                                             }
-                                            _ => {
-                                                app.messages.push(TuiMessage::System(format!("Unknown command: {}", parts[0])));
+                                        } else {
+                                            let parts: Vec<&str> = user_msg.splitn(2, ' ').collect();
+                                            let command = parts[0];
+                                            let args = if parts.len() > 1 { parts[1] } else { "" };
+
+                                            match command {
+                                                "/quit" | "/exit" => app.should_quit = true,
+                                                "/chat" => app.current_screen = crate::tui::app::CurrentScreen::Chat,
+                                                "/files" => app.current_screen = crate::tui::app::CurrentScreen::FileTree,
+                                                "/help" => {
+                                                    let help_text = "📚 VibeCLI TUI Commands:
+  /chat              - Switch to chat view
+  /files             - Switch to file tree view
+  /diff [file]       - View diffs
+  /init              - Initialize default config
+  /config            - Show current config
+  /exec <cmd>        - Execute shell command (via AI)
+  ! <cmd>            - Execute shell command directly
+  /quit              - Exit application";
+                                                    app.messages.push(TuiMessage::System(help_text.to_string()));
+                                                }
+                                                "/init" => {
+                                                    match Config::default().save() {
+                                                        Ok(_) => app.messages.push(TuiMessage::System("✅ Configuration initialized at ~/.vibecli/config.toml".to_string())),
+                                                        Err(e) => app.messages.push(TuiMessage::Error(format!("Failed to save config: {}", e))),
+                                                    }
+                                                }
+                                                "/config" => {
+                                                    let config = Config::load().unwrap_or_default();
+                                                    let config_str = format!("⚙️  Configuration:\n  Providers:\n    Ollama: {:?}\n  UI: {:?}\n  Safety: {:?}", config.ollama, config.ui, config.safety);
+                                                    app.messages.push(TuiMessage::System(config_str));
+                                                }
+                                                "/exec" => {
+                                                    // For TUI, we just pass this to LLM as a request to generate a command
+                                                    // The LLM will return a ```execute block, which we need to handle in the response parsing
+                                                    // But for now, let's just send it as a user message
+                                                    let llm = llm.clone();
+                                                    let tx = tx.clone();
+                                                    // msg_content removed as it was unused
+                                                    
+                                                    // ... (standard LLM send logic below)
+                                                    // We need to duplicate the send logic here or fall through
+                                                    // Let's fall through to the default handler which sends to LLM
+                                                    // But we need to modify the content
+                                                    app.messages.push(TuiMessage::User(user_msg.clone())); // Show original message
+                                                    
+                                                    let messages = vec![
+                                                        Message { role: MessageRole::System, content: "You are a command generation assistant. Output only the command.".to_string() },
+                                                        Message { role: MessageRole::User, content: args.to_string() }
+                                                    ];
+                                                    
+                                                    tokio::spawn(async move {
+                                                        match llm.chat(&messages, None).await {
+                                                            Ok(response) => { let _ = tx.send(AppEvent::LlmResponse(response)).await; }
+                                                            Err(e) => { let _ = tx.send(AppEvent::Error(e.to_string())).await; }
+                                                        }
+                                                    });
+                                                    continue; // Skip the default send
+                                                }
+                                                "/diff" => {
+                                                    app.current_screen = crate::tui::app::CurrentScreen::DiffView;
+                                                    if !args.is_empty() {
+                                                        if let Ok(content) = std::fs::read_to_string(args) {
+                                                            app.diff_view.set_diff(&content, &content); 
+                                                        }
+                                                    } else {
+                                                        let current_dir = std::env::current_dir().unwrap_or_default();
+                                                        if let Ok(diff) = git::get_repo_diff(&current_dir) {
+                                                            if diff.is_empty() {
+                                                                app.diff_view.set_raw_diff("No changes detected.");
+                                                            } else {
+                                                                app.diff_view.set_raw_diff(&diff);
+                                                            }
+                                                        } else {
+                                                            app.diff_view.set_raw_diff("Failed to load git diff or not a git repository.");
+                                                        }
+                                                    }
+                                                }
+                                                _ => {
+                                                    // If it starts with slash but not matched, it's unknown
+                                                    app.messages.push(TuiMessage::System(format!("Unknown command: {}", command)));
+                                                }
                                             }
                                         }
                                     } else {
@@ -284,7 +449,7 @@ async fn run_app<B: ratatui::backend::Backend>(
                                         }).collect();
                                         
                                         tokio::spawn(async move {
-                                            match llm.chat(&messages).await {
+                                            match llm.chat(&messages, None).await {
                                                 Ok(response) => {
                                                     let _ = tx.send(AppEvent::LlmResponse(response)).await;
                                                 }
