@@ -1,0 +1,28 @@
+[package]
+name = "vibe-core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+ropey.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+# Git integration
+git2 = "0.19"
+
+# File watching
+notify = "7.0"
+
+# Search
+walkdir = "2"
+regex = "1"
+
+# Terminal
+portable-pty = "0.8"

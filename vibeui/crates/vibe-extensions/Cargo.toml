@@ -1,0 +1,18 @@
+[package]
+name = "vibe-extensions"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+# WASM runtime for extensions
+wasmtime = "27.0"
+wasmtime-wasi = "27.0"
