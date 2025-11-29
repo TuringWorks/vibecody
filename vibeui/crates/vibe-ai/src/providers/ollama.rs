@@ -237,8 +237,7 @@ impl AIProvider for OllamaProvider {
         let status = response.status();
         let body_text = response.text().await.context("Failed to read response body")?;
         
-        println!("Ollama Response Status: {}", status);
-        println!("Ollama Response Body: {}", body_text);
+
 
         if !status.is_success() {
             anyhow::bail!("Ollama API error: {}", body_text);

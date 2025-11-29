@@ -12,28 +12,44 @@ pub fn draw(f: &mut Frame, app: &App) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(15), // Header
-            Constraint::Min(1),     // Main Content
+            Constraint::Min(1),     // Main Content (flexible)
             Constraint::Length(3),  // Input
         ].as_ref())
         .split(f.area());
 
-    draw_header(f, app, chunks[0]);
-    
     match app.current_screen {
-        crate::tui::app::CurrentScreen::Chat => draw_main_area(f, app, chunks[1]),
-        crate::tui::app::CurrentScreen::DiffView => draw_diff_view(f, app, chunks[1]),
-        crate::tui::app::CurrentScreen::FileTree => draw_file_tree(f, app, chunks[1]),
+        crate::tui::app::CurrentScreen::Chat => draw_main_area(f, app, chunks[0]),
+        crate::tui::app::CurrentScreen::DiffView => draw_diff_view(f, app, chunks[0]),
+        crate::tui::app::CurrentScreen::FileTree => draw_file_tree(f, app, chunks[0]),
     }
     
-    draw_input_area(f, app, chunks[2]);
+    draw_input_area(f, app, chunks[1]);
 }
 
-fn draw_file_tree(f: &mut Frame, _app: &App, area: Rect) {
-    // Placeholder for file tree
-    let block = Block::default().borders(Borders::ALL).title(" File Tree ");
-    let p = Paragraph::new("File tree not yet implemented in single-pane view").block(block);
-    f.render_widget(p, area);
+// draw_file_tree and draw_diff_view remain the same...
+
+fn draw_file_tree(f: &mut Frame, app: &App, area: Rect) {
+    let title = format!(" File Tree: {} ", app.file_tree.current_dir.display());
+    let block = Block::default().borders(Borders::ALL).title(title);
+    let inner_area = block.inner(area);
+    f.render_widget(block, area);
+
+    let mut items = Vec::new();
+    for (i, path) in app.file_tree.items.iter().enumerate() {
+        let file_name = path.file_name().unwrap_or_default().to_string_lossy();
+        let icon = if path.is_dir() { "📁" } else { "📄" };
+        let style = if i == app.file_tree.selected_index {
+            Style::default().fg(Color::Black).bg(Color::Blue).add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(Color::White)
+        };
+        items.push(Line::from(Span::styled(format!("{} {}", icon, file_name), style)));
+    }
+
+    let paragraph = Paragraph::new(items)
+        .scroll((0, 0)); // TODO: Add scrolling for file tree if needed
+    
+    f.render_widget(paragraph, inner_area);
 }
 
 fn draw_diff_view(f: &mut Frame, app: &App, area: Rect) {
@@ -81,54 +97,33 @@ fn draw_diff_view(f: &mut Frame, app: &App, area: Rect) {
     f.render_widget(paragraph, inner_area);
 }
 
-fn draw_header(f: &mut Frame, _app: &App, area: Rect) {
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::Rgb(255, 165, 0))) // Orange border like Claude
-        .title(" VibeCLI v0.1.0 ");
-
-    let inner_area = block.inner(area);
-    f.render_widget(block, area);
-
-    let chunks = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(40), Constraint::Percentage(60)].as_ref())
-        .split(inner_area);
-
-    // Left: Welcome & Logo
-    let logo_text = vec![
-        Line::from(Span::styled("Welcome back User!", Style::default().add_modifier(Modifier::BOLD))),
-        Line::from(""),
-        Line::from(Span::styled("  o              o     o      o                       ", Style::default().fg(Color::Rgb(255, 100, 100)))),
-        Line::from(Span::styled(" <|>            <|>  _<|>_   <|>                      ", Style::default().fg(Color::Rgb(255, 100, 100)))),
-        Line::from(Span::styled(" < >            < >          / >                      ", Style::default().fg(Color::Rgb(255, 100, 100)))),
-        Line::from(Span::styled("  \\o            o/     o    \\o__ __o       o__  __o  ", Style::default().fg(Color::Rgb(255, 100, 100)))),
-        Line::from(Span::styled("   v\\          /v     <|>    |     v\\     /v      |> ", Style::default().fg(Color::Rgb(255, 100, 100)))),
-        Line::from(Span::styled("    <\\        />      / \\   / \\     <\\   />      //  ", Style::default().fg(Color::Rgb(255, 100, 100)))),
-        Line::from(Span::styled("      \\o    o/        \\o/   \\o/      /   \\o    o/    ", Style::default().fg(Color::Rgb(255, 100, 100)))),
-        Line::from(Span::styled("       v\\  /v          |     |      o     v\\  /v __o ", Style::default().fg(Color::Rgb(255, 100, 100)))),
-        Line::from(Span::styled("        <\\/>          / \\   / \\  __/>      <\\/> __/> ", Style::default().fg(Color::Rgb(255, 100, 100)))),
-        Line::from(""),
-        Line::from(Span::styled("Vibe Model • Vibe Max", Style::default().fg(Color::DarkGray))),
-    ];
-    let logo = Paragraph::new(logo_text).alignment(Alignment::Center);
-    f.render_widget(logo, chunks[0]);
-
-    // Right: Tips & Activity
-    let tips_text = vec![
-        Line::from(Span::styled("Tips for getting started", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))),
-        Line::from("Run /init to initialize project configuration"),
-        Line::from("Run /help to see available commands"),
-        Line::from(""),
-        Line::from(Span::styled("Recent activity", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))),
-        Line::from(Span::styled("No recent activity", Style::default().fg(Color::DarkGray))),
-    ];
-    let tips = Paragraph::new(tips_text).block(Block::default().borders(Borders::LEFT));
-    f.render_widget(tips, chunks[1]);
-}
-
 fn draw_main_area(f: &mut Frame, app: &App, area: Rect) {
     let mut lines = Vec::new();
+
+    // Render Welcome Header if chat is empty
+    if app.messages.is_empty() {
+        let logo_text = vec![
+            Line::from(Span::styled("Welcome back User!", Style::default().add_modifier(Modifier::BOLD))),
+            Line::from(""),
+            Line::from(Span::styled("  o              o     o      o                       ", Style::default().fg(Color::Rgb(255, 100, 100)))),
+            Line::from(Span::styled(" <|>            <|>  _<|>_   <|>                      ", Style::default().fg(Color::Rgb(255, 100, 100)))),
+            Line::from(Span::styled(" < >            < >          / >                      ", Style::default().fg(Color::Rgb(255, 100, 100)))),
+            Line::from(Span::styled("  \\o            o/     o    \\o__ __o       o__  __o  ", Style::default().fg(Color::Rgb(255, 100, 100)))),
+            Line::from(Span::styled("   v\\          /v     <|>    |     v\\     /v      |> ", Style::default().fg(Color::Rgb(255, 100, 100)))),
+            Line::from(Span::styled("    <\\        />      / \\   / \\     <\\   />      //  ", Style::default().fg(Color::Rgb(255, 100, 100)))),
+            Line::from(Span::styled("      \\o    o/        \\o/   \\o/      /   \\o    o/    ", Style::default().fg(Color::Rgb(255, 100, 100)))),
+            Line::from(Span::styled("       v\\  /v          |     |      o     v\\  /v __o ", Style::default().fg(Color::Rgb(255, 100, 100)))),
+            Line::from(Span::styled("        <\\/>          / \\   / \\  __/>      <\\/> __/> ", Style::default().fg(Color::Rgb(255, 100, 100)))),
+            Line::from(""),
+            Line::from(Span::styled("Vibe Model • Vibe Max", Style::default().fg(Color::DarkGray))),
+            Line::from(""),
+            Line::from(Span::styled("Tips for getting started", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))),
+            Line::from("Run /init to initialize project configuration"),
+            Line::from("Run /help to see available commands"),
+            Line::from(""),
+        ];
+        lines.extend(logo_text);
+    }
 
     for msg in &app.messages {
         match msg {
@@ -147,7 +142,10 @@ fn draw_main_area(f: &mut Frame, app: &App, area: Rect) {
                 lines.push(Line::from(""));
             }
             crate::tui::app::TuiMessage::System(content) => {
-                lines.push(Line::from(Span::styled(format!(" Sys: {}", content), Style::default().fg(Color::Yellow))));
+                lines.push(Line::from(Span::styled(" Sys: ", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))));
+                for line in content.lines() {
+                    lines.push(Line::from(Span::styled(line, Style::default().fg(Color::Yellow))));
+                }
                 lines.push(Line::from(""));
             }
             crate::tui::app::TuiMessage::CommandOutput { command, output } => {
@@ -188,11 +186,17 @@ fn draw_main_area(f: &mut Frame, app: &App, area: Rect) {
         }
     }
 
+    // Calculate scroll position (stick to bottom)
+    let total_lines = lines.len() as u16;
+    let view_height = area.height;
+    let max_scroll = total_lines.saturating_sub(view_height);
+    let scroll = max_scroll.saturating_sub(app.scroll_offset);
+
     let block = Block::default(); 
     let paragraph = Paragraph::new(lines)
         .block(block)
-        .wrap(Wrap { trim: false }); // Don't trim to preserve indentation
-        // .scroll((app.scroll, 0)); // TODO: Add scrolling state to App
+        .wrap(Wrap { trim: false })
+        .scroll((scroll, 0));
 
     f.render_widget(paragraph, area);
 }

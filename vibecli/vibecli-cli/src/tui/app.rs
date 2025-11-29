@@ -39,6 +39,7 @@ pub struct App {
     pub file_tree: FileTreeComponent,
     pub diff_view: DiffViewComponent,
     pub exit_pending: bool,
+    pub scroll_offset: u16,
 }
 
 impl App {
@@ -51,6 +52,7 @@ impl App {
             file_tree: FileTreeComponent::new(),
             diff_view: DiffViewComponent::new(),
             exit_pending: false,
+            scroll_offset: 0,
         }
     }
 

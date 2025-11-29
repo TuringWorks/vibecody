@@ -236,6 +236,37 @@ async fn run_app<B: ratatui::backend::Backend>(
 
         if let Some(event) = event {
             match event {
+                AppEvent::Input(Event::Mouse(mouse_event)) => {
+                    match mouse_event.kind {
+                        event::MouseEventKind::ScrollUp => {
+                            match app.current_screen {
+                                crate::tui::app::CurrentScreen::Chat => {
+                                    app.scroll_offset = app.scroll_offset.saturating_add(3);
+                                }
+                                crate::tui::app::CurrentScreen::DiffView => {
+                                    app.diff_view.scroll_up();
+                                }
+                                crate::tui::app::CurrentScreen::FileTree => {
+                                    app.file_tree.previous();
+                                }
+                            }
+                        }
+                        event::MouseEventKind::ScrollDown => {
+                            match app.current_screen {
+                                crate::tui::app::CurrentScreen::Chat => {
+                                    app.scroll_offset = app.scroll_offset.saturating_sub(3);
+                                }
+                                crate::tui::app::CurrentScreen::DiffView => {
+                                    app.diff_view.scroll_down();
+                                }
+                                crate::tui::app::CurrentScreen::FileTree => {
+                                    app.file_tree.next();
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+                }
                 AppEvent::Input(Event::Key(key)) => {
                     match key.code {
                         KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
@@ -244,6 +275,16 @@ async fn run_app<B: ratatui::backend::Backend>(
                             } else {
                                 app.exit_pending = true;
                                 app.messages.push(TuiMessage::System("⚠️  Press Ctrl+C again to quit".to_string()));
+                            }
+                        }
+                        KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                            if let crate::tui::app::CurrentScreen::Chat = app.current_screen {
+                                app.scroll_offset = app.scroll_offset.saturating_add(5);
+                            }
+                        }
+                        KeyCode::Char('d') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                            if let crate::tui::app::CurrentScreen::Chat = app.current_screen {
+                                app.scroll_offset = app.scroll_offset.saturating_sub(5);
                             }
                         }
                         KeyCode::Tab => {
@@ -257,15 +298,28 @@ async fn run_app<B: ratatui::backend::Backend>(
                             app.current_screen = crate::tui::app::CurrentScreen::Chat;
                         }
                         KeyCode::Char('?') => {
-                            let help_text = "📚 VibeCLI TUI Commands:
-  /chat              - Switch to chat view
-  /files             - Switch to file tree view
-  /diff [file]       - View diffs
-  /init              - Initialize default config
-  /config            - Show current config
-  /exec <cmd>        - Execute shell command (via AI)
-  ! <cmd>            - Execute shell command directly
-  /quit              - Exit application";
+                            let help_text = "📚 VibeCLI TUI Commands
+
+  Navigation:
+    /chat              Switch to chat view
+    /files             Switch to file tree view
+    /diff [file]       View diffs
+    PageUp / Ctrl+u    Scroll up
+    PageDown / Ctrl+d  Scroll down
+
+  File Tree:
+    Enter              Open file/dir
+    Backspace          Go up directory
+    Up/Down            Navigate
+
+  Actions:
+    /exec <cmd>        Execute shell command (via AI)
+    ! <cmd>            Execute shell command directly
+    /quit              Exit application
+
+  Configuration:
+    /init              Initialize default config
+    /config            Show current config";
 
                             if let crate::tui::app::CurrentScreen::Chat = app.current_screen {
                                 if app.input.is_empty() {
@@ -285,8 +339,10 @@ async fn run_app<B: ratatui::backend::Backend>(
                             }
                         }
                         KeyCode::Backspace => {
-                            if let crate::tui::app::CurrentScreen::Chat = app.current_screen {
-                                app.on_backspace();
+                            match app.current_screen {
+                                crate::tui::app::CurrentScreen::Chat => app.on_backspace(),
+                                crate::tui::app::CurrentScreen::FileTree => app.file_tree.go_up(),
+                                _ => {}
                             }
                         }
                         KeyCode::Up => {
@@ -303,9 +359,29 @@ async fn run_app<B: ratatui::backend::Backend>(
                                 _ => {}
                             }
                         }
-                        KeyCode::Enter => {
+                        KeyCode::PageUp => {
                             if let crate::tui::app::CurrentScreen::Chat = app.current_screen {
-                                if let Some(user_msg) = app.on_enter() {
+                                app.scroll_offset = app.scroll_offset.saturating_add(5);
+                            }
+                        }
+                        KeyCode::PageDown => {
+                            if let crate::tui::app::CurrentScreen::Chat = app.current_screen {
+                                app.scroll_offset = app.scroll_offset.saturating_sub(5);
+                            }
+                        }
+                        KeyCode::Enter => {
+                            match app.current_screen {
+                                crate::tui::app::CurrentScreen::FileTree => {
+                                    if let Some(file_path) = app.file_tree.enter() {
+                                        // Open file in DiffView for now as a simple viewer
+                                        if let Ok(content) = std::fs::read_to_string(&file_path) {
+                                            app.diff_view.set_diff(&content, &content);
+                                            app.current_screen = crate::tui::app::CurrentScreen::DiffView;
+                                        }
+                                    }
+                                }
+                                crate::tui::app::CurrentScreen::Chat => {
+                                    if let Some(user_msg) = app.on_enter() {
                                     if user_msg.starts_with('/') || user_msg.starts_with('!') {
                                         // Handle commands
                                         let is_direct = user_msg.starts_with('!');
@@ -355,15 +431,28 @@ async fn run_app<B: ratatui::backend::Backend>(
                                                 "/chat" => app.current_screen = crate::tui::app::CurrentScreen::Chat,
                                                 "/files" => app.current_screen = crate::tui::app::CurrentScreen::FileTree,
                                                 "/help" => {
-                                                    let help_text = "📚 VibeCLI TUI Commands:
-  /chat              - Switch to chat view
-  /files             - Switch to file tree view
-  /diff [file]       - View diffs
-  /init              - Initialize default config
-  /config            - Show current config
-  /exec <cmd>        - Execute shell command (via AI)
-  ! <cmd>            - Execute shell command directly
-  /quit              - Exit application";
+                                                    let help_text = "📚 VibeCLI TUI Commands
+
+  Navigation:
+    /chat              Switch to chat view
+    /files             Switch to file tree view
+    /diff [file]       View diffs
+    PageUp / Ctrl+u    Scroll up
+    PageDown / Ctrl+d  Scroll down
+
+  File Tree:
+    Enter              Open file/dir
+    Backspace          Go up directory
+    Up/Down            Navigate
+
+  Actions:
+    /exec <cmd>        Execute shell command (via AI)
+    ! <cmd>            Execute shell command directly
+    /quit              Exit application
+
+  Configuration:
+    /init              Initialize default config
+    /config            Show current config";
                                                     app.messages.push(TuiMessage::System(help_text.to_string()));
                                                 }
                                                 "/init" => {
@@ -460,6 +549,8 @@ async fn run_app<B: ratatui::backend::Backend>(
                                         });
                                     }
                                 }
+                                }
+                                _ => {}
                             }
                         }
                         _ => {}

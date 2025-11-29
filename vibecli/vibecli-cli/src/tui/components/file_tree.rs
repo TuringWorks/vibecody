@@ -44,4 +44,27 @@ impl FileTreeComponent {
             }
         }
     }
+
+    pub fn enter(&mut self) -> Option<PathBuf> {
+        if let Some(path) = self.items.get(self.selected_index) {
+            if path.is_dir() {
+                self.current_dir = path.clone();
+                self.selected_index = 0;
+                self.refresh();
+                None
+            } else {
+                Some(path.clone())
+            }
+        } else {
+            None
+        }
+    }
+
+    pub fn go_up(&mut self) {
+        if let Some(parent) = self.current_dir.parent() {
+            self.current_dir = parent.to_path_buf();
+            self.selected_index = 0;
+            self.refresh();
+        }
+    }
 }
