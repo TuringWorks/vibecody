@@ -1,0 +1,44 @@
+title: VibeCody
+description: AI-powered developer toolchain — VibeCLI terminal assistant + VibeUI desktop editor
+baseurl: ""
+url: ""
+
+theme: minima
+
+markdown: kramdown
+highlighter: rouge
+
+kramdown:
+  input: GFM
+  syntax_highlighter: rouge
+
+plugins:
+  - jekyll-feed
+  - jekyll-seo-tag
+
+nav:
+  - title: Home
+    url: /
+  - title: VibeCLI
+    url: /vibecli/
+  - title: VibeUI
+    url: /vibeui/
+  - title: Configuration
+    url: /configuration/
+  - title: Architecture
+    url: /architecture/
+  - title: Contributing
+    url: /contributing/
+
+header_pages:
+  - index.md
+  - vibecli.md
+  - vibeui.md
+  - configuration.md
+  - architecture.md
+  - contributing.md
+
+minima:
+  skin: dark
+  social_links:
+    github: vibecody
