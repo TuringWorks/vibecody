@@ -36,6 +36,7 @@ header_pages:
   - vibeui.md
   - configuration.md
   - architecture.md
+  - ROADMAP.md
   - contributing.md
 
 minima:
