@@ -11,6 +11,7 @@ pub mod trace;
 pub mod mcp;
 pub mod hooks;
 pub mod planner;
+pub mod multi_agent;
 
 pub use chat::ChatEngine;
 pub use provider::{CodeContext, Message, MessageRole, CompletionStream, ImageAttachment};
@@ -24,3 +25,7 @@ pub use trace::{TraceWriter, TraceEntry, TraceSession, SessionSnapshot, list_tra
 pub use mcp::{McpClient, McpTool, McpServerConfig};
 pub use hooks::{HookConfig, HookDecision, HookEvent, HookHandler, HookRunner};
 pub use planner::{ExecutionPlan, PlanStep, PlanStepStatus, PlannerAgent};
+pub use multi_agent::{
+    MultiAgentOrchestrator, AgentTask, AgentResult, AgentInstance,
+    AgentStatus, OrchestratorEvent, ExecutorFactory, WorktreeManager,
+};

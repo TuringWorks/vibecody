@@ -5,6 +5,7 @@ use crate::syntax::highlight_code_blocks;
 use vibe_ai::provider::{AIProvider as LLMProvider, ImageAttachment, Message, MessageRole, ProviderConfig};
 use vibe_ai::providers::ollama::OllamaProvider;
 use vibe_ai::agent::{AgentContext, AgentEvent, AgentLoop, ApprovalPolicy};
+use vibe_ai::{MultiAgentOrchestrator, OrchestratorEvent, ExecutorFactory};
 use vibe_ai::hooks::HookRunner;
 use vibe_ai::planner::PlannerAgent;
 use vibe_ai::trace::{list_traces, load_session, load_trace, TraceWriter};
@@ -18,7 +19,7 @@ mod diff_viewer;
 mod tool_executor;
 mod memory;
 mod ci;
-use tool_executor::ToolExecutor;
+use tool_executor::{ToolExecutor, VibeCoreWorktreeManager};
 use diff_viewer::DiffViewer;
 use memory::ProjectMemory;
 
@@ -75,6 +76,10 @@ struct Cli {
     /// Enable Plan Mode: generate and show execution plan before running agent.
     #[arg(long)]
     plan: bool,
+
+    /// Run N parallel agents on the same task (requires --agent).
+    #[arg(long, value_name = "N")]
+    parallel: Option<usize>,
 }
 
 #[tokio::main]
@@ -148,7 +153,13 @@ async fn main() -> Result<()> {
 
     // Non-TUI agent mode: --agent "task description"
     if let Some(task) = cli.agent {
-        let llm = create_provider(&cli.provider, cli.model)?;
+        let llm = create_provider(&cli.provider, cli.model.clone())?;
+
+        // Parallel multi-agent mode
+        if let Some(n) = cli.parallel {
+            return run_parallel_agents(llm, &task, &approval_policy, n).await;
+        }
+
         return run_agent_repl_with_context(
             llm, &task, &approval_policy,
             cli.resume.as_deref(),
@@ -678,6 +689,106 @@ async fn main() -> Result<()> {
     if let Some(ref path) = history_path {
         let _ = rl.save_history(path);
     }
+    Ok(())
+}
+
+// ── ExecutorFactory implementation ───────────────────────────────────────────
+
+/// An `ExecutorFactory` that creates a `ToolExecutor` for a given workspace root.
+struct VibeExecutorFactory {
+    sandbox: bool,
+    env_policy: tool_executor::ShellEnvPolicy,
+}
+
+impl ExecutorFactory for VibeExecutorFactory {
+    fn create(&self, workspace_root: std::path::PathBuf) -> Arc<dyn vibe_ai::agent::ToolExecutorTrait> {
+        Arc::new(
+            ToolExecutor::new(workspace_root, self.sandbox)
+                .with_env_policy(self.env_policy.clone()),
+        )
+    }
+}
+
+// ── Parallel multi-agent runner ───────────────────────────────────────────────
+
+async fn run_parallel_agents(
+    llm: Arc<dyn LLMProvider>,
+    task: &str,
+    approval_policy: &str,
+    n: usize,
+) -> Result<()> {
+    let workspace = std::env::current_dir()?;
+    let config = Config::load().unwrap_or_default();
+    let approval = ApprovalPolicy::from_str(approval_policy);
+    let sandbox = config.safety.sandbox;
+    let env_policy = config.safety.shell_environment.to_policy();
+
+    let factory = Arc::new(VibeExecutorFactory { sandbox, env_policy });
+    let manager = Arc::new(VibeCoreWorktreeManager::new(workspace.clone()));
+
+    let mut orchestrator = MultiAgentOrchestrator::new(llm, approval, factory)
+        .with_worktree_manager(manager)
+        .with_max_agents(n);
+
+    if !config.hooks.is_empty() {
+        orchestrator = orchestrator.with_hooks(HookRunner::new(config.hooks));
+    }
+
+    let (event_tx, mut event_rx) = tokio::sync::mpsc::channel::<OrchestratorEvent>(128);
+
+    println!("🚀 Starting {} parallel agents for task: {}", n, task);
+    println!("   Approval: {:?}", approval_policy);
+    println!("   Workspace: {}", workspace.display());
+    println!();
+
+    let task_str = task.to_string();
+    let workspace_clone = workspace.clone();
+    tokio::spawn(async move {
+        let _ = orchestrator.run_parallel(&workspace_clone, &task_str, n, event_tx).await;
+    });
+
+    while let Some(event) = event_rx.recv().await {
+        match event {
+            OrchestratorEvent::AgentStarted { id, task, worktree } => {
+                println!("[Agent {}] Started — worktree: {}", id, worktree.display());
+                println!("[Agent {}] Task: {}", id, task);
+            }
+            OrchestratorEvent::AgentChunk { id, text } => {
+                print!("[Agent {}] {}", id, text);
+                io::stdout().flush()?;
+            }
+            OrchestratorEvent::AgentStep { id, step } => {
+                let icon = if step.approved { "✅" } else { "❌" };
+                println!("\n[Agent {}] {} Step {}: {}", id, icon, step.step_num, step.tool_call.summary());
+            }
+            OrchestratorEvent::AgentComplete { id, summary, branch } => {
+                println!("\n[Agent {}] ✅ Complete — branch: {}", id, branch);
+                println!("[Agent {}] Summary: {}", id, summary);
+            }
+            OrchestratorEvent::AgentError { id, error } => {
+                println!("\n[Agent {}] ❌ Error: {}", id, error);
+            }
+            OrchestratorEvent::AllComplete { results } => {
+                println!("\n\n=== All {} agents complete ===\n", results.len());
+                let successful: Vec<_> = results.iter().filter(|r| r.success).collect();
+                println!("✅ Succeeded: {}/{}", successful.len(), results.len());
+                for r in &results {
+                    let icon = if r.success { "✅" } else { "❌" };
+                    println!("  {} Agent {} — branch: {} ({} steps)", icon, r.id, r.branch, r.steps_taken);
+                    if !r.summary.is_empty() {
+                        let preview: String = r.summary.lines().next().unwrap_or("").to_string();
+                        println!("     {}", preview);
+                    }
+                }
+                if !successful.is_empty() {
+                    println!("\nTo merge the best result:");
+                    println!("  git merge {} --no-ff", successful[0].branch);
+                }
+                break;
+            }
+        }
+    }
+
     Ok(())
 }
 

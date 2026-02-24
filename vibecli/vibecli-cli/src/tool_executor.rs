@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use vibe_ai::agent::ToolExecutorTrait;
 use vibe_ai::tools::{ToolCall, ToolResult};
+use vibe_ai::WorktreeManager;
 use std::path::Path as StdPath;
 use vibe_core::executor::CommandExecutor;
 use vibe_core::search::search_files;
@@ -497,6 +498,30 @@ fn html_to_text(html: &str) -> String {
         }
     }
     result
+}
+
+// ── WorktreeManager implementation ───────────────────────────────────────────
+
+/// `WorktreeManager` backed by `vibe_core::git` (git CLI subprocess).
+pub struct VibeCoreWorktreeManager {
+    /// The primary repository root used as the CWD for `git worktree` commands.
+    pub repo_path: PathBuf,
+}
+
+impl VibeCoreWorktreeManager {
+    pub fn new(repo_path: PathBuf) -> Self {
+        Self { repo_path }
+    }
+}
+
+impl WorktreeManager for VibeCoreWorktreeManager {
+    fn create_worktree(&self, branch: &str, worktree_path: &std::path::Path) -> Result<()> {
+        vibe_core::git::create_worktree(&self.repo_path, branch, worktree_path)
+    }
+
+    fn remove_worktree(&self, worktree_path: &std::path::Path) -> Result<()> {
+        vibe_core::git::remove_worktree(&self.repo_path, worktree_path)
+    }
 }
 
 #[cfg(test)]

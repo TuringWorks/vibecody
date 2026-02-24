@@ -288,6 +288,143 @@ pub fn restore_stash(repo_path: &Path, index: usize) -> Result<()> {
     Ok(())
 }
 
+// ── Git Worktree Management ───────────────────────────────────────────────────
+
+/// Information about a git worktree.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorktreeInfo {
+    /// Branch checked out in this worktree.
+    pub branch: String,
+    /// Absolute path to the worktree directory.
+    pub path: std::path::PathBuf,
+    /// Whether this is the main (primary) worktree.
+    pub is_main: bool,
+}
+
+/// Create a new git worktree at `worktree_path` on a new branch named `branch`.
+///
+/// Equivalent to: `git worktree add <worktree_path> -b <branch>`
+pub fn create_worktree(repo_path: &Path, branch: &str, worktree_path: &Path) -> Result<()> {
+    let output = std::process::Command::new("git")
+        .args(["worktree", "add", "-b", branch, &worktree_path.to_string_lossy()])
+        .current_dir(repo_path)
+        .output()?;
+    if !output.status.success() {
+        let err = String::from_utf8_lossy(&output.stderr);
+        anyhow::bail!("git worktree add failed: {}", err);
+    }
+    Ok(())
+}
+
+/// Remove a git worktree at `worktree_path`.
+///
+/// Equivalent to: `git worktree remove --force <worktree_path>`
+pub fn remove_worktree(repo_path: &Path, worktree_path: &Path) -> Result<()> {
+    let output = std::process::Command::new("git")
+        .args(["worktree", "remove", "--force", &worktree_path.to_string_lossy()])
+        .current_dir(repo_path)
+        .output()?;
+    if !output.status.success() {
+        let err = String::from_utf8_lossy(&output.stderr);
+        anyhow::bail!("git worktree remove failed: {}", err);
+    }
+    Ok(())
+}
+
+/// List all worktrees for the repository.
+pub fn list_worktrees(repo_path: &Path) -> Result<Vec<WorktreeInfo>> {
+    let output = std::process::Command::new("git")
+        .args(["worktree", "list", "--porcelain"])
+        .current_dir(repo_path)
+        .output()?;
+    if !output.status.success() {
+        anyhow::bail!("git worktree list failed");
+    }
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let mut worktrees = Vec::new();
+    let mut current_path = None::<std::path::PathBuf>;
+    let mut current_branch = String::new();
+    let mut is_bare = false;
+
+    for line in stdout.lines() {
+        if line.starts_with("worktree ") {
+            // Save previous entry
+            if let Some(path) = current_path.take() {
+                worktrees.push(WorktreeInfo {
+                    path,
+                    branch: current_branch.clone(),
+                    is_main: worktrees.is_empty(),
+                });
+            }
+            current_path = Some(std::path::PathBuf::from(line.trim_start_matches("worktree ")));
+            current_branch.clear();
+            is_bare = false;
+        } else if line.starts_with("branch ") {
+            current_branch = line.trim_start_matches("branch refs/heads/").to_string();
+        } else if line == "bare" {
+            is_bare = true;
+        }
+    }
+    // Last entry
+    if let Some(path) = current_path {
+        if !is_bare {
+            worktrees.push(WorktreeInfo {
+                path,
+                branch: current_branch,
+                is_main: worktrees.is_empty(),
+            });
+        }
+    }
+    Ok(worktrees)
+}
+
+/// The result of merging a worktree branch back into the current branch.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MergeResult {
+    pub success: bool,
+    pub message: String,
+    pub conflicts: Vec<String>,
+}
+
+/// Merge the branch from a worktree back into HEAD.
+///
+/// Equivalent to: `git merge <branch> --no-ff -m "Merge worktree <branch>"`
+pub fn merge_worktree_branch(repo_path: &Path, branch: &str) -> Result<MergeResult> {
+    let output = std::process::Command::new("git")
+        .args([
+            "merge",
+            branch,
+            "--no-ff",
+            "-m",
+            &format!("Merge worktree branch '{}'", branch),
+        ])
+        .current_dir(repo_path)
+        .output()?;
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+
+    if output.status.success() {
+        Ok(MergeResult {
+            success: true,
+            message: stdout,
+            conflicts: vec![],
+        })
+    } else {
+        // Parse conflict file names from stderr/stdout
+        let conflicts: Vec<String> = stdout
+            .lines()
+            .chain(stderr.lines())
+            .filter(|l| l.contains("CONFLICT") || l.contains("conflict"))
+            .map(|l| l.to_string())
+            .collect();
+        Ok(MergeResult {
+            success: false,
+            message: stderr,
+            conflicts,
+        })
+    }
+}
+
 pub fn get_repo_diff(repo_path: &Path) -> Result<String> {
     let repo = Repository::open(repo_path)?;
     // Check if HEAD exists, if not (empty repo), return empty diff
