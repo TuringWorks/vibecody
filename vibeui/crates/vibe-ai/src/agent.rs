@@ -5,6 +5,7 @@
 
 use crate::hooks::{HookDecision, HookEvent, HookRunner};
 use crate::provider::{AIProvider, Message, MessageRole};
+use crate::skills::SkillLoader;
 use crate::tools::{format_tool_result, parse_tool_calls, ToolCall, ToolResult, TOOL_SYSTEM_PROMPT};
 use anyhow::Result;
 use async_trait::async_trait;
@@ -341,6 +342,27 @@ fn build_system_prompt(context: &AgentContext) -> String {
                 "\n\n## Approved Execution Plan\nThe user has reviewed and approved this plan. Follow it step by step:\n{}",
                 plan
             ));
+        }
+    }
+
+    // 8.1: Auto-activate skills whose triggers match the task or open files
+    if !context.workspace_root.as_os_str().is_empty() {
+        let loader = SkillLoader::new(&context.workspace_root);
+        // Match against open files list and any context text
+        let context_text = context.open_files.join(" ")
+            + context.git_branch.as_deref().unwrap_or("")
+            + context.flow_context.as_deref().unwrap_or("");
+        let skills = loader.matching(&context_text);
+        if !skills.is_empty() {
+            extras.push_str("\n\n## Active Skills");
+            for skill in &skills {
+                extras.push_str(&format!("\n\n### Skill: {}", skill.name));
+                if !skill.description.is_empty() {
+                    extras.push_str(&format!(" — {}", skill.description));
+                }
+                extras.push('\n');
+                extras.push_str(&skill.content);
+            }
         }
     }
 

@@ -12,6 +12,7 @@ pub mod mcp;
 pub mod hooks;
 pub mod planner;
 pub mod multi_agent;
+pub mod skills;
 
 pub use chat::ChatEngine;
 pub use provider::{CodeContext, Message, MessageRole, CompletionStream, ImageAttachment};
@@ -29,3 +30,4 @@ pub use multi_agent::{
     MultiAgentOrchestrator, AgentTask, AgentResult, AgentInstance,
     AgentStatus, OrchestratorEvent, ExecutorFactory, WorktreeManager,
 };
+pub use skills::{Skill, SkillLoader};

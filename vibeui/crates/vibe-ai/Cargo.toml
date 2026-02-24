@@ -27,3 +27,6 @@ toml = "0.8"
 
 # Tool call parsing
 regex.workspace = true
+
+[dev-dependencies]
+tempfile = "3"
