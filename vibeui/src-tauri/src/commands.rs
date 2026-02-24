@@ -1051,9 +1051,10 @@ pub async fn start_agent_task(
         approved_plan: None,
     };
 
-    let executor = Arc::new(TauriToolExecutor::new(workspace_root));
+    let executor = Arc::new(TauriToolExecutor::new(workspace_root.clone()));
     let approval = ApprovalPolicy::from_str(&approval_policy);
-    let agent = AgentLoop::new(provider_arc, approval, executor);
+    let agent = AgentLoop::new(provider_arc, approval, executor)
+        .with_policy(&workspace_root);
 
     let (event_tx, mut event_rx) = tokio::sync::mpsc::channel::<AgentEvent>(64);
     let agent_pending = state.agent_pending.clone();

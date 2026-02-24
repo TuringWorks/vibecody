@@ -5,6 +5,7 @@
 
 use crate::hooks::{HookDecision, HookEvent, HookRunner};
 use crate::otel;
+use crate::policy::AdminPolicy;
 use crate::provider::{AIProvider, Message, MessageRole};
 use crate::skills::SkillLoader;
 use crate::tools::{format_tool_result, parse_tool_calls, ToolCall, ToolResult, TOOL_SYSTEM_PROMPT};
@@ -105,6 +106,8 @@ pub struct AgentLoop {
     pub executor: Arc<dyn ToolExecutorTrait>,
     /// Optional hook runner for intercepting agent events.
     pub hooks: Option<Arc<HookRunner>>,
+    /// Admin policy loaded from `.vibecli/policy.toml`.
+    pub policy: AdminPolicy,
 }
 
 impl AgentLoop {
@@ -119,12 +122,28 @@ impl AgentLoop {
             max_steps: 30,
             executor,
             hooks: None,
+            policy: AdminPolicy::default(),
         }
     }
 
     /// Attach a hook runner to this agent loop.
     pub fn with_hooks(mut self, runner: HookRunner) -> Self {
         self.hooks = Some(Arc::new(runner));
+        self
+    }
+
+    /// Load and apply an admin policy from the workspace root.
+    pub fn with_policy(mut self, workspace_root: &std::path::Path) -> Self {
+        self.policy = AdminPolicy::load(workspace_root);
+        // Policy can restrict max_steps
+        self.max_steps = self.policy.effective_max_steps(self.max_steps);
+        self
+    }
+
+    /// Apply a pre-built admin policy.
+    pub fn with_policy_direct(mut self, policy: AdminPolicy) -> Self {
+        self.max_steps = policy.effective_max_steps(self.max_steps);
+        self.policy = policy;
         self
     }
 
@@ -263,7 +282,24 @@ impl AgentLoop {
                 return Ok(());
             }
 
-            // ── 3a. PreToolUse hook ───────────────────────────────────────────
+            // ── 3a. Admin policy check ────────────────────────────────────────
+            match self.policy.check_tool(call.name()) {
+                crate::policy::PolicyDecision::Block(reason) => {
+                    tracing::warn!(tool = %call.name(), reason = %reason, "Tool call blocked by admin policy");
+                    messages.push(Message {
+                        role: MessageRole::User,
+                        content: format!("❌ Tool call blocked by admin policy: {}", reason),
+                    });
+                    continue;
+                }
+                crate::policy::PolicyDecision::RequireApproval => {
+                    // Policy overrides approval policy for this tool
+                    tracing::info!(tool = %call.name(), "Admin policy requires approval for this tool");
+                }
+                crate::policy::PolicyDecision::Allow => {}
+            }
+
+            // ── 3b. PreToolUse hook ───────────────────────────────────────────
             if let Some(hooks) = &self.hooks {
                 let _hook_span = tracing::info_span!(
                     "agent.hook",
@@ -394,6 +430,10 @@ impl AgentLoop {
     }
 
     fn needs_approval(&self, call: &ToolCall) -> bool {
+        // Policy can force approval even in FullAuto mode
+        if self.policy.requires_approval(call.name()) {
+            return true;
+        }
         match &self.approval {
             ApprovalPolicy::FullAuto => false,
             ApprovalPolicy::AutoEdit => matches!(call, ToolCall::Bash { .. }),
