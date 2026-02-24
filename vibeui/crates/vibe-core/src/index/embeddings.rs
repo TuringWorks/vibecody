@@ -103,6 +103,16 @@ pub struct EmbeddingIndex {
 }
 
 impl EmbeddingIndex {
+    /// Number of chunks in the index.
+    pub fn len(&self) -> usize {
+        self.docs.len()
+    }
+
+    /// Returns `true` if the index contains no chunks.
+    pub fn is_empty(&self) -> bool {
+        self.docs.is_empty()
+    }
+
     // ── Build / update ────────────────────────────────────────────────────────
 
     /// Walk `workspace`, chunk source files, embed each chunk, and build the

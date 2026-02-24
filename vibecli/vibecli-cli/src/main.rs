@@ -9,6 +9,7 @@ use vibe_ai::{MultiAgentOrchestrator, OrchestratorEvent, ExecutorFactory};
 use vibe_ai::hooks::HookRunner;
 use vibe_ai::planner::PlannerAgent;
 use vibe_ai::trace::{list_traces, load_session, load_trace, TraceWriter};
+use vibe_core::index::embeddings::{EmbeddingIndex, EmbeddingProvider};
 use regex::Regex;
 use std::io::{self, Write};
 use std::sync::Arc;
@@ -745,6 +746,108 @@ async fn main() -> Result<()> {
                                 Err(e) => eprintln!("❌ Error: {}\n", e),
                             }
                         }
+                        // ── Codebase semantic index ────────────────────────────────────────
+                        "/index" => {
+                            // Build or refresh the semantic codebase index.
+                            let model = if args.is_empty() { "nomic-embed-text" } else { args };
+                            println!("🔍 Building semantic index with model '{}' …", model);
+                            println!("   (embeds all source files — may take a minute on large repos)");
+                            let provider = EmbeddingProvider::ollama(model);
+                            match EmbeddingIndex::build(&cwd, &provider).await {
+                                Ok(index) => {
+                                    let index_path = cwd.join(".vibecli").join("index.json");
+                                    if let Some(parent) = index_path.parent() {
+                                        let _ = std::fs::create_dir_all(parent);
+                                    }
+                                    match serde_json::to_string(&index) {
+                                        Ok(json) => match std::fs::write(&index_path, json) {
+                                            Ok(_) => println!(
+                                                "✅ Indexed {} chunks → .vibecli/index.json\n",
+                                                index.len()
+                                            ),
+                                            Err(e) => eprintln!("⚠️  Could not save index: {}\n", e),
+                                        },
+                                        Err(e) => eprintln!("⚠️  Could not serialise index: {}\n", e),
+                                    }
+                                }
+                                Err(e) => eprintln!("❌ Index build failed: {}\n   Hint: make sure Ollama is running with `ollama pull {}`\n", e, model),
+                            }
+                        }
+
+                        "/qa" => {
+                            // Codebase Q&A using the semantic index.
+                            if args.is_empty() {
+                                println!("Usage: /qa <question about the codebase>");
+                                println!("       Run /index first to build the semantic index.\n");
+                                continue;
+                            }
+                            let index_path = cwd.join(".vibecli").join("index.json");
+                            if !index_path.exists() {
+                                println!("⚠️  No index found. Run /index first.\n");
+                                continue;
+                            }
+                            let index: EmbeddingIndex = match std::fs::read_to_string(&index_path)
+                                .map_err(anyhow::Error::from)
+                                .and_then(|s| serde_json::from_str(&s).map_err(anyhow::Error::from))
+                            {
+                                Ok(i) => i,
+                                Err(e) => {
+                                    eprintln!("❌ Failed to load index: {}\n", e);
+                                    continue;
+                                }
+                            };
+                            println!("🔍 Searching codebase for: {}", args);
+                            let hits = match index.search(args, 5).await {
+                                Ok(h) => h,
+                                Err(e) => {
+                                    eprintln!("❌ Search failed: {}\n", e);
+                                    continue;
+                                }
+                            };
+                            if hits.is_empty() {
+                                println!("No relevant code found. Try re-running /index.\n");
+                                continue;
+                            }
+                            // Build context from top hits.
+                            let context = hits
+                                .iter()
+                                .enumerate()
+                                .map(|(i, h)| {
+                                    format!(
+                                        "=== [{}] {} (lines {}-{}, score={:.2}) ===\n{}",
+                                        i + 1,
+                                        h.file.display(),
+                                        h.chunk_start,
+                                        h.chunk_end,
+                                        h.score,
+                                        h.text
+                                    )
+                                })
+                                .collect::<Vec<_>>()
+                                .join("\n\n");
+                            let qa_messages = vec![
+                                Message {
+                                    role: MessageRole::System,
+                                    content: format!(
+                                        "You are a codebase assistant. Answer questions using \
+                                         the following source code sections as context. \
+                                         Cite file names and line numbers when relevant.\n\n{}",
+                                        context
+                                    ),
+                                },
+                                Message {
+                                    role: MessageRole::User,
+                                    content: args.to_string(),
+                                },
+                            ];
+                            print!("🤖 ");
+                            io::stdout().flush()?;
+                            match llm.chat(&qa_messages, None).await {
+                                Ok(response) => println!("{}\n", highlight_code_blocks(&response)),
+                                Err(e) => eprintln!("❌ Error: {}\n", e),
+                            }
+                        }
+
                         _ => {
                             println!("❌ Unknown command: {}", command);
                             println!("Type /help for available commands\n");
@@ -1135,6 +1238,8 @@ fn show_help() {
     println!("  /trace view <id>         - View a trace session timeline");
     println!("  /mcp list                - List configured MCP servers");
     println!("  /mcp tools <server>      - List tools on an MCP server");
+    println!("  /index [model]           - Build semantic codebase index (default model: nomic-embed-text)");
+    println!("  /qa <question>           - Ask a question about the codebase using semantic search");
     println!("  /config                  - Show current configuration");
     println!("  /help                    - Show this help message");
     println!("  /exit                    - Exit VibeCLI");
