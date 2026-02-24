@@ -1183,7 +1183,115 @@ async fn run_agent_repl_with_context(
             }
         }
     }
+
+    // ── Auto-commit offer ────────────────────────────────────────────────────
+    // After agent completes, check for uncommitted changes and offer to commit.
+    maybe_offer_commit(&workspace, task, llm.as_ref()).await;
+
     Ok(())
+}
+
+/// After an agent task finishes, check for git changes and offer to commit.
+async fn maybe_offer_commit(workspace: &std::path::Path, task: &str, llm: &dyn LLMProvider) {
+    // Check for changes with `git status --porcelain`
+    let status_out = std::process::Command::new("git")
+        .args(["status", "--porcelain"])
+        .current_dir(workspace)
+        .output();
+
+    let changed = match status_out {
+        Ok(o) if !o.stdout.is_empty() => String::from_utf8_lossy(&o.stdout).to_string(),
+        _ => return, // Not a git repo, or no changes
+    };
+
+    println!("\n📝 Git changes detected:\n{}", changed.trim_end());
+    print!("Commit these changes? (y/N): ");
+    let _ = io::stdout().flush();
+    let mut answer = String::new();
+    if io::stdin().read_line(&mut answer).is_err() {
+        return;
+    }
+    if answer.trim().to_lowercase() != "y" {
+        return;
+    }
+
+    // Get a short git diff for the LLM commit message
+    let diff_out = std::process::Command::new("git")
+        .args(["diff", "--stat", "HEAD"])
+        .current_dir(workspace)
+        .output()
+        .ok()
+        .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
+        .unwrap_or_default();
+
+    println!("🤖 Generating commit message…");
+    let prompt = format!(
+        "Write a short git commit message (max 72 chars, imperative mood) \
+         for these changes made by an AI agent.\n\
+         Agent task: {task}\n\
+         Changed files:\n{changed}\
+         Diff summary:\n{diff_out}\n\
+         Output ONLY the commit message, no explanation.",
+    );
+    let commit_msg = match llm
+        .chat(
+            &[Message { role: MessageRole::User, content: prompt }],
+            None,
+        )
+        .await
+    {
+        Ok(msg) => msg.trim().to_string(),
+        Err(e) => {
+            eprintln!("⚠️  Could not generate commit message: {}", e);
+            format!("agent: {}", &task.chars().take(60).collect::<String>())
+        }
+    };
+
+    println!("   Commit message: {}", commit_msg);
+    print!("   Commit? (y/N/e=edit): ");
+    let _ = io::stdout().flush();
+    let mut confirm = String::new();
+    if io::stdin().read_line(&mut confirm).is_err() {
+        return;
+    }
+    let confirm = confirm.trim().to_lowercase();
+    if confirm == "n" || confirm.is_empty() {
+        return;
+    }
+
+    let final_msg = if confirm == "e" {
+        print!("   Commit message: ");
+        let _ = io::stdout().flush();
+        let mut edited = String::new();
+        let _ = io::stdin().read_line(&mut edited);
+        edited.trim().to_string()
+    } else {
+        commit_msg
+    };
+
+    // Stage all changes and commit
+    let add = std::process::Command::new("git")
+        .args(["add", "-A"])
+        .current_dir(workspace)
+        .status();
+    let commit = std::process::Command::new("git")
+        .args(["commit", "-m", &final_msg])
+        .current_dir(workspace)
+        .output();
+
+    match (add, commit) {
+        (Ok(a), Ok(c)) if a.success() && c.status.success() => {
+            let hash = String::from_utf8_lossy(&c.stdout)
+                .lines()
+                .next()
+                .unwrap_or("")
+                .to_string();
+            println!("✅ Committed: {}\n", hash.trim());
+        }
+        (_, Err(e)) => eprintln!("❌ Commit failed: {}\n", e),
+        (Err(e), _) => eprintln!("❌ git add failed: {}\n", e),
+        _ => eprintln!("❌ Commit failed (check git output above)\n"),
+    }
 }
 
 /// Detect `[path/to/image.png]` patterns in `input`, load images, return (clean_text, images).
