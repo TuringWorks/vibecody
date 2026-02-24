@@ -137,6 +137,9 @@ pub fn run() {
             commands::load_trace_session,
             // Phase 7.3 commands — Next-Edit Prediction
             commands::predict_next_edit,
+            // Hooks Config UI commands
+            commands::get_hooks_config,
+            commands::save_hooks_config,
             // Phase 9.1 commands — Manager View (Parallel Agents)
             commands::start_parallel_agents,
             commands::get_orchestrator_status,

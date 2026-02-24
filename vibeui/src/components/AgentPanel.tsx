@@ -31,7 +31,15 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
     const [pending, setPending] = useState<PendingCall | null>(null);
     const [status, setStatus] = useState<AgentStatus>("idle");
     const [approvalPolicy, setApprovalPolicy] = useState("auto-edit");
+    const [turboMode, setTurboMode] = useState(false);
     const feedEndRef = useRef<HTMLDivElement>(null);
+
+    // Turbo Mode: shortcut that sets approval to full-auto
+    function toggleTurbo() {
+        const next = !turboMode;
+        setTurboMode(next);
+        setApprovalPolicy(next ? "full-auto" : "auto-edit");
+    }
 
     // Auto-scroll step feed
     useEffect(() => {
@@ -160,7 +168,10 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
             <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
                 <select
                     value={approvalPolicy}
-                    onChange={(e) => setApprovalPolicy(e.target.value)}
+                    onChange={(e) => {
+                        setApprovalPolicy(e.target.value);
+                        setTurboMode(e.target.value === "full-auto");
+                    }}
                     disabled={isRunning}
                     style={{
                         fontSize: "12px",
@@ -176,6 +187,27 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
                     <option value="auto-edit">Auto-Edit — auto files, approve bash</option>
                     <option value="full-auto">Full Auto — no prompts</option>
                 </select>
+
+                {/* Turbo Mode toggle */}
+                <button
+                    onClick={toggleTurbo}
+                    disabled={isRunning}
+                    title={turboMode ? "Turbo Mode ON — click to disable full-auto" : "Turbo Mode OFF — click to enable full-auto (no approval prompts)"}
+                    style={{
+                        padding: "4px 8px",
+                        fontSize: "13px",
+                        background: turboMode ? "#fa0" : "var(--bg-tertiary)",
+                        color: turboMode ? "#000" : "var(--text-secondary)",
+                        border: `1px solid ${turboMode ? "#fa0" : "var(--border-color)"}`,
+                        borderRadius: "4px",
+                        cursor: isRunning ? "not-allowed" : "pointer",
+                        fontWeight: turboMode ? 700 : 400,
+                        transition: "all 0.15s",
+                        whiteSpace: "nowrap",
+                    }}
+                >
+                    ⚡ Turbo
+                </button>
 
                 <button
                     className="btn-primary"

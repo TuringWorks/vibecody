@@ -1432,6 +1432,59 @@ pub async fn load_trace_session(session_id: String) -> Result<Vec<TraceEntryInfo
         .collect())
 }
 
+// ── Phase 8 (extra) — Hooks Config UI ─────────────────────────────────────────
+
+/// A simplified hook config descriptor for the UI (avoids exposing internal enum variants).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HookConfigUi {
+    pub event: String,
+    #[serde(default)]
+    pub tools: Vec<String>,
+    /// "command" or "llm"
+    pub handler_type: String,
+    /// Shell command string (for handler_type == "command")
+    pub command: String,
+    /// LLM prompt template (for handler_type == "llm")
+    pub prompt: String,
+    #[serde(default)]
+    pub async_exec: bool,
+}
+
+fn hooks_config_path(workspace_path: Option<&str>) -> std::path::PathBuf {
+    if let Some(ws) = workspace_path {
+        if !ws.is_empty() {
+            return std::path::PathBuf::from(ws).join(".vibecli").join("hooks.json");
+        }
+    }
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    std::path::PathBuf::from(home).join(".vibecli").join("hooks.json")
+}
+
+/// Load hooks configuration for the Hooks Config UI panel.
+#[tauri::command]
+pub async fn get_hooks_config(workspace_path: Option<String>) -> Result<Vec<HookConfigUi>, String> {
+    let path = hooks_config_path(workspace_path.as_deref());
+    if !path.exists() {
+        return Ok(vec![]);
+    }
+    let json = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    serde_json::from_str(&json).map_err(|e| e.to_string())
+}
+
+/// Save hooks configuration from the Hooks Config UI panel.
+#[tauri::command]
+pub async fn save_hooks_config(
+    hooks: Vec<HookConfigUi>,
+    workspace_path: Option<String>,
+) -> Result<(), String> {
+    let path = hooks_config_path(workspace_path.as_deref());
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let json = serde_json::to_string_pretty(&hooks).map_err(|e| e.to_string())?;
+    std::fs::write(&path, json).map_err(|e| e.to_string())
+}
+
 // ── Phase 9.1 — Manager View (Parallel Agent Orchestration) ──────────────────
 
 /// Describes one running or completed parallel agent instance.

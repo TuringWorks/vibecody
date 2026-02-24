@@ -9,6 +9,7 @@ import { HistoryPanel } from "./components/HistoryPanel";
 import { CheckpointPanel } from "./components/CheckpointPanel";
 import { ArtifactsPanel } from "./components/ArtifactsPanel";
 import { ManagerView } from "./components/ManagerView";
+import { HooksPanel } from "./components/HooksPanel";
 import { Terminal } from "./components/Terminal";
 import { detectLanguage, getFileIcon } from "./utils/fileUtils";
 import "./App.css";
@@ -58,7 +59,7 @@ function App() {
   const [showSidebar, setShowSidebar] = useState(true);
   const [activeSidebarTab, setActiveSidebarTab] = useState<"explorer" | "search" | "git">("explorer");
   const [showAIChat, setShowAIChat] = useState(false);
-  const [aiPanelTab, setAiPanelTab] = useState<"chat" | "agent" | "memory" | "history" | "checkpoints" | "artifacts" | "manager">("chat");
+  const [aiPanelTab, setAiPanelTab] = useState<"chat" | "agent" | "memory" | "history" | "checkpoints" | "artifacts" | "manager" | "hooks">("chat");
   const [showTerminal, setShowTerminal] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
 
@@ -1292,7 +1293,7 @@ function App() {
           <aside className="ai-chat-panel" style={{ display: "flex", flexDirection: "column" }}>
             {/* Tab bar */}
             <div style={{ display: "flex", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
-              {(["chat", "agent", "memory", "history", "checkpoints", "artifacts", "manager"] as const).map((tab) => (
+              {(["chat", "agent", "memory", "history", "checkpoints", "artifacts", "manager", "hooks"] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setAiPanelTab(tab)}
@@ -1314,7 +1315,8 @@ function App() {
                     : tab === "history" ? "🕐 History"
                     : tab === "checkpoints" ? "🔖 CPs"
                     : tab === "artifacts" ? "📦 Artifacts"
-                    : "🎛️ Mgr"}
+                    : tab === "manager" ? "🎛️ Mgr"
+                    : "🪝 Hooks"}
                 </button>
               ))}
             </div>
@@ -1354,6 +1356,9 @@ function App() {
               )}
               {aiPanelTab === "manager" && (
                 <ManagerView provider={selectedProvider} />
+              )}
+              {aiPanelTab === "hooks" && (
+                <HooksPanel workspacePath={workspaceFolders[0] || null} />
               )}
             </div>
           </aside>
