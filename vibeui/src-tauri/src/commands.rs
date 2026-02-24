@@ -1242,3 +1242,69 @@ pub async fn restore_checkpoint(
     drop(ws);
     vibe_core::git::restore_stash(&root, index).map_err(|e| e.to_string())
 }
+
+// ─── Phase 5 — Trace / History Commands ───────────────────────────────────────
+
+#[derive(Serialize)]
+pub struct TraceSessionInfo {
+    pub session_id: String,
+    pub timestamp: u64,
+    pub step_count: usize,
+}
+
+#[derive(Serialize)]
+pub struct TraceEntryInfo {
+    pub timestamp: u64,
+    pub session_id: String,
+    pub step: usize,
+    pub tool: String,
+    pub input_summary: String,
+    pub output: String,
+    pub success: bool,
+    pub duration_ms: u64,
+    pub approved_by: String,
+}
+
+fn vibeui_trace_dir() -> std::path::PathBuf {
+    let base = std::env::var("HOME")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|_| std::path::PathBuf::from("."));
+    base.join(".vibeui").join("traces")
+}
+
+/// List all agent trace sessions for the HistoryPanel.
+#[tauri::command]
+pub async fn list_trace_sessions() -> Result<Vec<TraceSessionInfo>, String> {
+    let dir = vibeui_trace_dir();
+    let sessions = vibe_ai::list_traces(&dir);
+    Ok(sessions
+        .into_iter()
+        .map(|s| TraceSessionInfo {
+            session_id: s.session_id,
+            timestamp: s.timestamp,
+            step_count: s.step_count,
+        })
+        .collect())
+}
+
+/// Load all entries from a specific trace session.
+#[tauri::command]
+pub async fn load_trace_session(session_id: String) -> Result<Vec<TraceEntryInfo>, String> {
+    let dir = vibeui_trace_dir();
+    let path = dir.join(format!("{}.jsonl", session_id));
+    let entries = vibe_ai::load_trace(&path);
+    Ok(entries
+        .into_iter()
+        .map(|e| TraceEntryInfo {
+            timestamp: e.timestamp,
+            session_id: e.session_id,
+            step: e.step,
+            tool: e.tool,
+            input_summary: e.input_summary,
+            output: e.output,
+            success: e.success,
+            duration_ms: e.duration_ms,
+            approved_by: e.approved_by,
+        })
+        .collect())
+}

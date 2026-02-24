@@ -21,6 +21,52 @@ pub struct CodeContext {
     pub additional_context: Vec<String>,
 }
 
+/// An image attached to a chat message (for vision-capable providers).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ImageAttachment {
+    /// Base64-encoded image bytes.
+    pub base64: String,
+    /// MIME type: `"image/png"`, `"image/jpeg"`, `"image/gif"`, `"image/webp"`.
+    pub media_type: String,
+}
+
+impl ImageAttachment {
+    /// Read an image file from disk and base64-encode it.
+    pub fn from_path(path: &std::path::Path) -> std::io::Result<Self> {
+        use std::io::Read;
+        let mut bytes = Vec::new();
+        std::fs::File::open(path)?.read_to_end(&mut bytes)?;
+        let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("png");
+        let media_type = match ext.to_lowercase().as_str() {
+            "jpg" | "jpeg" => "image/jpeg",
+            "gif" => "image/gif",
+            "webp" => "image/webp",
+            _ => "image/png",
+        };
+        Ok(Self {
+            base64: base64_encode(&bytes),
+            media_type: media_type.to_string(),
+        })
+    }
+}
+
+/// Simple base64 encoder (no external crate required — standard alphabet).
+fn base64_encode(data: &[u8]) -> String {
+    const CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity((data.len() + 2) / 3 * 4);
+    for chunk in data.chunks(3) {
+        let b0 = chunk[0] as u32;
+        let b1 = if chunk.len() > 1 { chunk[1] as u32 } else { 0 };
+        let b2 = if chunk.len() > 2 { chunk[2] as u32 } else { 0 };
+        let n = (b0 << 16) | (b1 << 8) | b2;
+        out.push(CHARS[((n >> 18) & 0x3F) as usize] as char);
+        out.push(CHARS[((n >> 12) & 0x3F) as usize] as char);
+        out.push(if chunk.len() > 1 { CHARS[((n >> 6) & 0x3F) as usize] as char } else { '=' });
+        out.push(if chunk.len() > 2 { CHARS[(n & 0x3F) as usize] as char } else { '=' });
+    }
+    out
+}
+
 /// Chat message
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Message {
@@ -66,6 +112,25 @@ pub trait AIProvider: Send + Sync {
 
     /// Stream chat response
     async fn stream_chat(&self, messages: &[Message]) -> Result<CompletionStream>;
+
+    /// Chat with optional image attachments (vision).
+    /// Default implementation ignores images and falls back to `chat`.
+    /// Vision-capable providers (Claude, OpenAI) should override this.
+    async fn chat_with_images(
+        &self,
+        messages: &[Message],
+        images: &[ImageAttachment],
+        context: Option<String>,
+    ) -> Result<String> {
+        // Default: ignore images, use text-only chat.
+        let _ = images;
+        self.chat(messages, context).await
+    }
+
+    /// Returns true if this provider supports vision (image) inputs.
+    fn supports_vision(&self) -> bool {
+        false
+    }
 }
 
 /// AI provider configuration

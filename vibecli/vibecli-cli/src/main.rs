@@ -2,9 +2,11 @@ use clap::Parser;
 use anyhow::Result;
 use crate::config::Config;
 use crate::syntax::highlight_code_blocks;
-use vibe_ai::provider::{AIProvider as LLMProvider, Message, MessageRole, ProviderConfig};
+use vibe_ai::provider::{AIProvider as LLMProvider, ImageAttachment, Message, MessageRole, ProviderConfig};
 use vibe_ai::providers::ollama::OllamaProvider;
 use vibe_ai::agent::{AgentContext, AgentEvent, AgentLoop, ApprovalPolicy};
+use vibe_ai::trace::{list_traces, load_trace, TraceWriter};
+use regex::Regex;
 use std::io::{self, Write};
 use std::sync::Arc;
 
@@ -13,6 +15,7 @@ mod syntax;
 mod diff_viewer;
 mod tool_executor;
 mod memory;
+mod ci;
 use tool_executor::ToolExecutor;
 use diff_viewer::DiffViewer;
 use memory::ProjectMemory;
@@ -38,6 +41,18 @@ struct Cli {
     /// Run the agent autonomously on a task (non-TUI mode).
     #[arg(long, value_name = "TASK")]
     agent: Option<String>,
+
+    /// Non-interactive CI/exec mode: run agent, write report to stdout/file, exit with code.
+    #[arg(long, value_name = "TASK")]
+    exec: Option<String>,
+
+    /// Output format for --exec: json (default), markdown, verbose.
+    #[arg(long, default_value = "json")]
+    output_format: String,
+
+    /// Write --exec report to FILE instead of stdout.
+    #[arg(long, value_name = "FILE")]
+    output: Option<String>,
 
     /// Approval policy: prompt before every tool call (default).
     #[arg(long)]
@@ -76,6 +91,49 @@ async fn main() -> Result<()> {
 
     if cli.tui {
         return tui::run(cli.provider, cli.model).await;
+    }
+
+    // Non-interactive CI/exec mode: --exec "task"
+    if let Some(task) = cli.exec {
+        let llm = create_provider(&cli.provider, cli.model.clone())?;
+        let cwd = std::env::current_dir()?;
+        let config = Config::load().unwrap_or_default();
+        let sandbox = config.safety.sandbox;
+        let executor: Arc<dyn vibe_ai::agent::ToolExecutorTrait> =
+            Arc::new(ToolExecutor::new(cwd.clone(), sandbox));
+
+        let trace_dir = dirs::home_dir()
+            .unwrap_or_else(|| cwd.clone())
+            .join(".vibecli")
+            .join("traces");
+        let trace_writer = TraceWriter::new(trace_dir);
+
+        let fmt = ci::CiOutputFormat::from_str(&cli.output_format);
+        let verbose = fmt == ci::CiOutputFormat::Verbose;
+
+        let report = ci::run_ci(
+            &task,
+            ApprovalPolicy::from_str(&approval_policy),
+            llm,
+            executor,
+            Some(trace_writer),
+            verbose,
+        )
+        .await?;
+
+        let output_text = match fmt {
+            ci::CiOutputFormat::Markdown => report.to_markdown(),
+            _ => serde_json::to_string_pretty(&report)?,
+        };
+
+        if let Some(out_path) = cli.output {
+            std::fs::write(&out_path, &output_text)?;
+            eprintln!("Report written to: {}", out_path);
+        } else {
+            println!("{}", output_text);
+        }
+
+        std::process::exit(report.exit_code());
     }
 
     // Non-TUI agent mode: --agent "task description"
@@ -216,19 +274,117 @@ async fn main() -> Result<()> {
                                 _ => println!("Usage: /memory [show|edit]"),
                             }
                         }
+                        "/trace" => {
+                            let trace_dir = dirs::home_dir()
+                                .unwrap_or_else(|| cwd.clone())
+                                .join(".vibecli")
+                                .join("traces");
+                            let sessions = list_traces(&trace_dir);
+                            let parts: Vec<&str> = args.splitn(2, ' ').collect();
+                            match parts[0] {
+                                "view" if parts.len() > 1 => {
+                                    // Find session by ID prefix
+                                    let id_prefix = parts[1];
+                                    if let Some(session) = sessions.iter().find(|s| s.session_id.starts_with(id_prefix)) {
+                                        let entries = load_trace(&session.path);
+                                        println!("\n📋 Trace: {} ({} steps)\n", session.session_id, entries.len());
+                                        for e in &entries {
+                                            let icon = if e.success { "✅" } else { "❌" };
+                                            println!("{} Step {}: {} — {} ({}ms, {})", icon, e.step + 1, e.tool, e.input_summary, e.duration_ms, e.approved_by);
+                                            if !e.output.is_empty() {
+                                                let preview: String = e.output.lines().take(3).collect::<Vec<_>>().join("\n");
+                                                println!("   {}\n", preview);
+                                            }
+                                        }
+                                    } else {
+                                        println!("❌ No trace found with ID prefix: {}", id_prefix);
+                                    }
+                                }
+                                _ => {
+                                    // List sessions
+                                    if sessions.is_empty() {
+                                        println!("📋 No traces found in {}", trace_dir.display());
+                                    } else {
+                                        println!("\n📋 Recent agent traces ({})\n", trace_dir.display());
+                                        for session in sessions.iter().take(10) {
+                                            let dt = std::time::SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(session.timestamp);
+                                            let elapsed = std::time::SystemTime::now().duration_since(dt).unwrap_or_default();
+                                            let age = if elapsed.as_secs() < 3600 {
+                                                format!("{}m ago", elapsed.as_secs() / 60)
+                                            } else if elapsed.as_secs() < 86400 {
+                                                format!("{}h ago", elapsed.as_secs() / 3600)
+                                            } else {
+                                                format!("{}d ago", elapsed.as_secs() / 86400)
+                                            };
+                                            println!("  {} — {} steps — {}", &session.session_id[..8], session.step_count, age);
+                                        }
+                                        println!("\nUse: /trace view <id_prefix>\n");
+                                    }
+                                }
+                            }
+                        }
+                        "/mcp" => {
+                            let config = Config::load().unwrap_or_default();
+                            if config.mcp_servers.is_empty() {
+                                println!("No MCP servers configured.\nAdd [[mcp_servers]] to ~/.vibecli/config.toml\n");
+                                continue;
+                            }
+                            let mcp_parts: Vec<&str> = args.splitn(3, ' ').collect();
+                            match mcp_parts[0] {
+                                "list" | "" => {
+                                    println!("\n🔌 Configured MCP servers:");
+                                    for srv in &config.mcp_servers {
+                                        println!("  {} — {}", srv.name, srv.command);
+                                    }
+                                    println!("\nUse: /mcp tools <server>  or  /mcp call <server> <tool>\n");
+                                }
+                                "tools" if mcp_parts.len() > 1 => {
+                                    let name = mcp_parts[1];
+                                    if let Some(srv_cfg) = config.mcp_servers.iter().find(|s| s.name == name) {
+                                        match vibe_ai::mcp::McpClient::connect(srv_cfg) {
+                                            Ok(mut client) => {
+                                                match client.list_tools() {
+                                                    Ok(tools) => {
+                                                        println!("\n🔧 Tools from '{}':", name);
+                                                        for t in &tools {
+                                                            println!("  {} — {}", t.name, t.description);
+                                                        }
+                                                        println!();
+                                                    }
+                                                    Err(e) => eprintln!("❌ list_tools failed: {}", e),
+                                                }
+                                            }
+                                            Err(e) => eprintln!("❌ Failed to connect to '{}': {}", name, e),
+                                        }
+                                    } else {
+                                        println!("❌ Unknown MCP server: {}", name);
+                                    }
+                                }
+                                _ => println!("Usage: /mcp [list | tools <server>]\n"),
+                            }
+                        }
                         "/chat" => {
                             if args.is_empty() {
-                                println!("Usage: /chat <message>");
+                                println!("Usage: /chat <message>  or  /chat [image.png] <message>");
                                 continue;
                             }
                             conversation_active = true;
+
+                            // Detect [image.png] patterns and load images.
+                            let (text_content, images) = extract_images_from_input(args);
                             messages.push(Message {
                                 role: MessageRole::User,
-                                content: args.to_string(),
+                                content: text_content.clone(),
                             });
                             print!("🤖 ");
                             io::stdout().flush()?;
-                            match llm.chat(&messages, None).await {
+                            let chat_result = if images.is_empty() {
+                                llm.chat(&messages, None).await
+                            } else {
+                                println!("(📷 {} image{})", images.len(), if images.len() > 1 { "s" } else { "" });
+                                llm.chat_with_images(&messages, &images, None).await
+                            };
+                            match chat_result {
                                 Ok(response) => {
                                     let highlighted = highlight_code_blocks(&response);
                                     println!("{}\n", highlighted);
@@ -451,12 +607,20 @@ async fn run_agent_repl(
 
     let agent = AgentLoop::new(llm, approval.clone(), executor.clone());
     let context = AgentContext {
-        workspace_root: workspace,
+        workspace_root: workspace.clone(),
         ..Default::default()
     };
 
+    // Set up trace writer for this session.
+    let trace_dir = dirs::home_dir()
+        .unwrap_or_else(|| workspace.clone())
+        .join(".vibecli")
+        .join("traces");
+    let trace = TraceWriter::new(trace_dir);
+
     println!("🤖 Agent starting: {}", task);
     println!("   Approval policy: {:?}", approval);
+    println!("   Trace: {}", trace.path().display());
     println!("   Press Ctrl+C to stop\n");
 
     let (event_tx, mut event_rx) = tokio::sync::mpsc::channel::<AgentEvent>(50);
@@ -464,6 +628,8 @@ async fn run_agent_repl(
     tokio::spawn(async move {
         let _ = agent.run(&task_str, context, event_tx).await;
     });
+
+    let mut step_start = std::time::Instant::now();
 
     while let Some(event) = event_rx.recv().await {
         match event {
@@ -479,19 +645,25 @@ async fn run_agent_repl(
                 let mut input = String::new();
                 io::stdin().read_line(&mut input)?;
                 let answer = input.trim().to_lowercase();
+                let dur = step_start.elapsed().as_millis() as u64;
+                step_start = std::time::Instant::now();
 
                 if answer == "n" {
                     println!("   ❌ Rejected\n");
+                    trace.record(0, call.name(), &call.summary(), "rejected by user", false, dur, "rejected");
                     let _ = result_tx.send(None);
                 } else {
                     // Execute the tool
                     let result = executor.execute(&call).await;
                     let status = if result.success { "✅" } else { "❌" };
                     println!("   {} {}\n", status, &result.output.lines().next().unwrap_or(""));
+                    trace.record(0, call.name(), &call.summary(), &result.output, result.success, dur, "user");
                     let _ = result_tx.send(Some(result));
                 }
             }
             AgentEvent::ToolCallExecuted(step) => {
+                let dur = step_start.elapsed().as_millis() as u64;
+                step_start = std::time::Instant::now();
                 let status = if step.tool_result.success { "✅" } else { "❌" };
                 println!(
                     "\n{} Step {}: {}",
@@ -499,9 +671,19 @@ async fn run_agent_repl(
                     step.step_num + 1,
                     step.tool_call.summary()
                 );
+                trace.record(
+                    step.step_num,
+                    step.tool_call.name(),
+                    &step.tool_call.summary(),
+                    &step.tool_result.output,
+                    step.tool_result.success,
+                    dur,
+                    "auto",
+                );
             }
             AgentEvent::Complete(summary) => {
                 println!("\n\n✅ Agent complete: {}", summary);
+                println!("   Trace saved: {}", trace.path().display());
                 break;
             }
             AgentEvent::Error(e) => {
@@ -511,6 +693,25 @@ async fn run_agent_repl(
         }
     }
     Ok(())
+}
+
+/// Detect `[path/to/image.png]` patterns in `input`, load images, return (clean_text, images).
+fn extract_images_from_input(input: &str) -> (String, Vec<ImageAttachment>) {
+    let re = Regex::new(r"\[([^\]]+\.(png|jpg|jpeg|gif|webp))\]").unwrap();
+    let mut images = Vec::new();
+
+    // First pass: collect images.
+    for caps in re.captures_iter(input) {
+        let img_path = caps.get(1).map(|m| m.as_str()).unwrap_or("");
+        match ImageAttachment::from_path(std::path::Path::new(img_path)) {
+            Ok(img) => images.push(img),
+            Err(e) => eprintln!("⚠️  Could not load image '{}': {}", img_path, e),
+        }
+    }
+
+    // Second pass: strip image markers from text.
+    let clean = re.replace_all(input, "").trim().to_string();
+    (clean, images)
 }
 
 fn create_provider(provider_name: &str, model: Option<String>) -> Result<Arc<dyn LLMProvider>> {
@@ -532,22 +733,32 @@ fn create_provider(provider_name: &str, model: Option<String>) -> Result<Arc<dyn
 
 fn show_help() {
     println!("\n📚 VibeCLI Commands:");
-    println!("  /chat <message>    - Start or continue a conversation with AI");
-    println!("  /agent <task>      - Run autonomous coding agent on a task");
-    println!("  /generate <prompt> - Generate code from a description");
-    println!("  /diff <file>       - Show diff for a file");
-    println!("  /apply <file>      - Apply AI-suggested changes to a file");
-    println!("  /exec <task>       - Generate and execute a shell command");
-    println!("  /memory [show]     - Show loaded project memory (VIBECLI.md / AGENTS.md)");
-    println!("  /memory edit       - Open project memory in $EDITOR");
-    println!("  /config            - Show current configuration");
-    println!("  /help              - Show this help message");
-    println!("  /exit              - Exit VibeCLI");
-    println!("  ! <command>        - Execute shell command directly (e.g. !ls)");
-    println!("\nAgent flags:");
-    println!("  --suggest          - Prompt before every tool call (default)");
-    println!("  --auto-edit        - Auto file edits, prompt for bash");
-    println!("  --full-auto        - Execute all tool calls autonomously");
+    println!("  /chat <message>          - Chat with AI (supports [image.png] for vision)");
+    println!("  /agent <task>            - Run autonomous coding agent on a task");
+    println!("  /generate <prompt>       - Generate code from a description");
+    println!("  /diff <file>             - Show diff for a file");
+    println!("  /apply <file>            - Apply AI-suggested changes to a file");
+    println!("  /exec <task>             - Generate and execute a shell command");
+    println!("  /memory [show]           - Show loaded project memory (VIBECLI.md / AGENTS.md)");
+    println!("  /memory edit             - Open project memory in $EDITOR");
+    println!("  /trace                   - List recent agent trace sessions");
+    println!("  /trace view <id>         - View a trace session timeline");
+    println!("  /mcp list                - List configured MCP servers");
+    println!("  /mcp tools <server>      - List tools on an MCP server");
+    println!("  /config                  - Show current configuration");
+    println!("  /help                    - Show this help message");
+    println!("  /exit                    - Exit VibeCLI");
+    println!("  ! <command>              - Execute shell command directly (e.g. !ls)");
+    println!("\nCLI flags:");
+    println!("  --agent <task>           - Run agent in REPL mode");
+    println!("  --exec <task>            - CI/non-interactive agent mode");
+    println!("  --suggest                - Prompt before every tool call (default)");
+    println!("  --auto-edit              - Auto file edits, prompt for bash");
+    println!("  --full-auto              - Execute all tool calls autonomously");
+    println!("  --output-format json|md  - Report format for --exec");
+    println!("  --output <file>          - Write --exec report to file");
+    println!("\nMultimodal:");
+    println!("  /chat [screenshot.png] What is this error?  - Attach image to chat");
     println!("\n💡 Tip: You can also just type a message to chat\n");
 }
 

@@ -132,6 +132,9 @@ pub fn run() {
             commands::create_checkpoint,
             commands::list_checkpoints,
             commands::restore_checkpoint,
+            // Phase 5 commands — Trace / History
+            commands::list_trace_sessions,
+            commands::load_trace_session,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

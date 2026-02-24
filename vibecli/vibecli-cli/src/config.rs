@@ -4,6 +4,7 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
+use vibe_ai::mcp::McpServerConfig;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Config {
@@ -13,7 +14,16 @@ pub struct Config {
     pub claude: Option<ProviderConfig>,
     pub gemini: Option<ProviderConfig>,
     pub grok: Option<ProviderConfig>,
-    
+
+    /// MCP server definitions.  Example:
+    /// ```toml
+    /// [[mcp_servers]]
+    /// name = "github"
+    /// command = "npx @modelcontextprotocol/server-github"
+    /// ```
+    #[serde(default)]
+    pub mcp_servers: Vec<McpServerConfig>,
+
     #[serde(default)]
     pub ui: UiConfig,
     #[serde(default)]

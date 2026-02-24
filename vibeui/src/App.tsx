@@ -5,6 +5,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { AIChat } from "./components/AIChat";
 import { AgentPanel } from "./components/AgentPanel";
 import { MemoryPanel } from "./components/MemoryPanel";
+import { HistoryPanel } from "./components/HistoryPanel";
 import { Terminal } from "./components/Terminal";
 import { detectLanguage, getFileIcon } from "./utils/fileUtils";
 import "./App.css";
@@ -54,7 +55,7 @@ function App() {
   const [showSidebar, setShowSidebar] = useState(true);
   const [activeSidebarTab, setActiveSidebarTab] = useState<"explorer" | "search" | "git">("explorer");
   const [showAIChat, setShowAIChat] = useState(false);
-  const [aiPanelTab, setAiPanelTab] = useState<"chat" | "agent" | "memory">("chat");
+  const [aiPanelTab, setAiPanelTab] = useState<"chat" | "agent" | "memory" | "history">("chat");
   const [showTerminal, setShowTerminal] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
 
@@ -1288,7 +1289,7 @@ function App() {
           <aside className="ai-chat-panel" style={{ display: "flex", flexDirection: "column" }}>
             {/* Tab bar */}
             <div style={{ display: "flex", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
-              {(["chat", "agent", "memory"] as const).map((tab) => (
+              {(["chat", "agent", "memory", "history"] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setAiPanelTab(tab)}
@@ -1304,7 +1305,7 @@ function App() {
                     fontWeight: aiPanelTab === tab ? 600 : 400,
                   }}
                 >
-                  {tab === "chat" ? "💬 Chat" : tab === "agent" ? "🤖 Agent" : "📋 Rules"}
+                  {tab === "chat" ? "💬 Chat" : tab === "agent" ? "🤖 Agent" : tab === "memory" ? "📋 Rules" : "🕐 History"}
                 </button>
               ))}
             </div>
@@ -1330,6 +1331,9 @@ function App() {
                 <MemoryPanel
                   workspacePath={workspaceFolders[0] || null}
                 />
+              )}
+              {aiPanelTab === "history" && (
+                <HistoryPanel />
               )}
             </div>
           </aside>
