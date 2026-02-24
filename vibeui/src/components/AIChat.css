@@ -175,3 +175,30 @@
     opacity: 0.5;
     cursor: not-allowed;
 }
+/* ── Mic button ────────────────────────────────────────────────────────────── */
+
+.mic-btn {
+    background: none;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 6px 10px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text-secondary);
+    transition: color 0.2s;
+}
+
+.mic-btn:hover {
+    color: var(--text-primary);
+}
+
+.mic-btn.listening {
+    color: var(--text-danger, #ff4d4f);
+    border-color: var(--text-danger, #ff4d4f);
+    animation: mic-pulse 1s ease-in-out infinite;
+}
+
+@keyframes mic-pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.4; }
+}

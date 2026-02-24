@@ -102,7 +102,7 @@ All previously-identified gaps have been closed:
 | OpenTelemetry | ✅ Closed | `vibe-ai/src/otel.rs` + `vibecli/src/otel_init.rs` |
 | Admin policy enforcement | ✅ Closed | `vibe-ai/src/policy.rs` |
 | Skills system | ✅ Closed | `vibe-ai/src/skills.rs` — SkillLoader |
-| Cloud/remote tasks | ❌ Not planned | — |
+| Cloud/remote tasks | ✅ Closed | `serve.rs` job persistence (`~/.vibecli/jobs/`), GET /jobs, cancel; BackgroundJobsPanel |
 | Agent SDK | ✅ Closed | `packages/agent-sdk/` — TypeScript SDK |
 
 ---
@@ -153,10 +153,10 @@ All previously-identified gaps have been closed:
 | Artifacts system | ✅ Closed | `ArtifactsPanel.tsx` — rich cards + annotations |
 | Manager View | ✅ Closed | `ManagerView.tsx` — 8 parallel agents |
 | Embedding-based codebase index | ✅ Closed | `vibe-core/src/index/embeddings.rs` |
-| Background agents (remote) | ❌ Not implemented | — |
+| Background agents (remote) | ✅ Closed | `serve.rs` job persistence + BackgroundJobsPanel; Jobs tab in AI panel |
 | Agent Skills | ✅ Closed | `vibe-ai/src/skills.rs` |
 | Async artifact feedback | ✅ Closed | ArtifactsPanel annotation queue |
-| Browser integration for web apps | ❌ Not implemented | — |
+| Browser integration for web apps | ✅ Closed | BrowserPanel.tsx (iframe + quick-launch chips); Browser tab in bottom panel |
 | VS Code extension | ✅ Closed | `vscode-extension/src/extension.ts` |
 
 ---

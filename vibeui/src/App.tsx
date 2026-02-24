@@ -10,7 +10,9 @@ import { CheckpointPanel } from "./components/CheckpointPanel";
 import { ArtifactsPanel } from "./components/ArtifactsPanel";
 import { ManagerView } from "./components/ManagerView";
 import { HooksPanel } from "./components/HooksPanel";
+import { BackgroundJobsPanel } from "./components/BackgroundJobsPanel";
 import { Terminal } from "./components/Terminal";
+import { BrowserPanel } from "./components/BrowserPanel";
 import { detectLanguage, getFileIcon } from "./utils/fileUtils";
 import "./App.css";
 import { ThemeToggle } from "./components/ThemeToggle";
@@ -59,8 +61,9 @@ function App() {
   const [showSidebar, setShowSidebar] = useState(true);
   const [activeSidebarTab, setActiveSidebarTab] = useState<"explorer" | "search" | "git">("explorer");
   const [showAIChat, setShowAIChat] = useState(false);
-  const [aiPanelTab, setAiPanelTab] = useState<"chat" | "agent" | "memory" | "history" | "checkpoints" | "artifacts" | "manager" | "hooks">("chat");
+  const [aiPanelTab, setAiPanelTab] = useState<"chat" | "agent" | "memory" | "history" | "checkpoints" | "artifacts" | "manager" | "hooks" | "jobs">("chat");
   const [showTerminal, setShowTerminal] = useState(false);
+  const [bottomTab, setBottomTab] = useState<"terminal" | "browser">("terminal");
   const [showCommandPalette, setShowCommandPalette] = useState(false);
 
   // Modal state
@@ -1293,7 +1296,7 @@ function App() {
           <aside className="ai-chat-panel" style={{ display: "flex", flexDirection: "column" }}>
             {/* Tab bar */}
             <div style={{ display: "flex", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
-              {(["chat", "agent", "memory", "history", "checkpoints", "artifacts", "manager", "hooks"] as const).map((tab) => (
+              {(["chat", "agent", "memory", "history", "checkpoints", "artifacts", "manager", "hooks", "jobs"] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setAiPanelTab(tab)}
@@ -1360,12 +1363,15 @@ function App() {
               {aiPanelTab === "hooks" && (
                 <HooksPanel workspacePath={workspaceFolders[0] || null} />
               )}
+              {aiPanelTab === "jobs" && (
+                <BackgroundJobsPanel />
+              )}
             </div>
           </aside>
         )}
       </div>
 
-      {/* Terminal Panel */}
+      {/* Bottom Panel (Terminal / Browser) */}
       {showTerminal && (
         <>
           <div
@@ -1375,8 +1381,35 @@ function App() {
               startResizing('terminal');
             }}
           />
-          <div className="terminal-panel" style={{ height: `${terminalHeight}px`, borderTop: 'none' }}>
-            <Terminal onClose={() => setShowTerminal(false)} />
+          <div className="terminal-panel" style={{ height: `${terminalHeight}px`, borderTop: 'none', display: 'flex', flexDirection: 'column' }}>
+            {/* Tab bar */}
+            <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-secondary)', flexShrink: 0 }}>
+              {(['terminal', 'browser'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setBottomTab(tab)}
+                  style={{
+                    padding: '4px 14px', fontSize: '12px', border: 'none', cursor: 'pointer',
+                    background: bottomTab === tab ? 'var(--bg-primary)' : 'transparent',
+                    color: bottomTab === tab ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    borderBottom: bottomTab === tab ? '2px solid var(--accent-blue)' : '2px solid transparent',
+                  }}
+                >
+                  {tab === 'terminal' ? '⌨ Terminal' : '🌐 Browser'}
+                </button>
+              ))}
+              <div style={{ flex: 1 }} />
+              <button
+                onClick={() => setShowTerminal(false)}
+                style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '4px 10px', fontSize: '16px' }}
+                title="Close panel"
+              >×</button>
+            </div>
+            {/* Panel content */}
+            <div style={{ flex: 1, overflow: 'hidden' }}>
+              {bottomTab === 'terminal' && <Terminal onClose={() => setShowTerminal(false)} />}
+              {bottomTab === 'browser' && <BrowserPanel />}
+            </div>
           </div>
         </>
       )}
@@ -1397,10 +1430,17 @@ function App() {
         <div className="status-right">
           <button
             className="status-item"
-            onClick={() => setShowTerminal(!showTerminal)}
+            onClick={() => { setBottomTab('terminal'); setShowTerminal(true); }}
+            style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', marginRight: '4px' }}
+          >
+            ⌨ Terminal
+          </button>
+          <button
+            className="status-item"
+            onClick={() => { setBottomTab('browser'); setShowTerminal(true); }}
             style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', marginRight: '10px' }}
           >
-            {showTerminal ? 'Hide Terminal' : 'Show Terminal'}
+            🌐 Browser
           </button>
           <ThemeToggle />
           {currentFile && (

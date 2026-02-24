@@ -86,9 +86,9 @@ permalink: /roadmap/
 | Codebase indexing (semantic) | ✅ Done | Regex/heuristic + embedding-based vector search (Ollama/OpenAI) |
 | Planning agent | ✅ Done | PlannerAgent; plan generation, approval, guided execution |
 | Multi-agent parallel execution | ✅ Done | MultiAgentOrchestrator; git worktrees; ManagerView UI |
-| Web context (@web) | ❌ Missing | — |
+| Web context (@web) | ✅ Done | `@web:<url>` in chat/agent; fetch + HTML-strip; ContextPicker autocomplete |
 | Artifacts (task lists, plans, recordings) | ✅ Done | ArtifactStore + ArtifactsPanel; annotations, async feedback |
-| Voice input | ❌ Missing | — |
+| Voice input | ✅ Done | Web Speech API hook + 🎤 mic button in AIChat; pulse animation |
 | Knowledge base (persistent snippets) | ✅ Done | MemoryPanel + SkillLoader; auto-activating skills |
 
 ---

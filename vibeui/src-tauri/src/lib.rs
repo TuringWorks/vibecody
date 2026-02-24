@@ -146,6 +146,9 @@ pub fn run() {
             commands::merge_agent_branch,
             // ReviewPanel
             commands::run_code_review,
+            // @web context + browser opener
+            commands::fetch_url_for_context,
+            commands::open_external_url,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

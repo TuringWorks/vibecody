@@ -663,7 +663,51 @@ pub async fn send_chat_message(
     })
 }
 
-/// Scan `content` for `@file:<path>` and `@git` references and return the
+/// Fetch a URL, strip HTML tags, and return plain text (≤ 6000 chars).
+pub(crate) async fn fetch_and_strip(url: &str) -> Result<String, String> {
+    let body = reqwest::get(url)
+        .await
+        .map_err(|e| e.to_string())?
+        .text()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    // Strip HTML tags
+    let re_tag = regex::Regex::new(r"<[^>]+>").unwrap();
+    let stripped = re_tag.replace_all(&body, " ");
+
+    // Decode common HTML entities
+    let decoded = stripped
+        .replace("&amp;", "&")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", "\"")
+        .replace("&#39;", "'")
+        .replace("&nbsp;", " ");
+
+    // Collapse whitespace
+    let re_ws = regex::Regex::new(r"\s{2,}").unwrap();
+    let collapsed = re_ws.replace_all(decoded.trim(), " ");
+
+    let text = if collapsed.len() > 6000 {
+        format!("{}…(truncated)", &collapsed[..6000])
+    } else {
+        collapsed.into_owned()
+    };
+    Ok(text)
+}
+
+/// Tauri command: fetch a URL and return plain-text content for AI context injection.
+#[tauri::command]
+pub async fn fetch_url_for_context(url: String) -> Result<String, String> {
+    if !url.starts_with("http://") && !url.starts_with("https://") {
+        return Err("Only http:// and https:// URLs are supported.".to_string());
+    }
+    let text = fetch_and_strip(&url).await?;
+    Ok(format!("=== Web content from {} ===\n{}", url, text))
+}
+
+/// Scan `content` for `@file:<path>`, `@git`, and `@web:<url>` references and return the
 /// resolved context string to append to the system prompt.
 async fn resolve_at_references(content: &str, workspace_lock: &Arc<Mutex<Workspace>>) -> String {
     use regex::Regex;
@@ -718,6 +762,20 @@ async fn resolve_at_references(content: &str, workspace_lock: &Arc<Mutex<Workspa
                 }
             }
             extra.push_str(&git_ctx);
+        }
+    }
+
+    // @web:<url> — fetch the URL and embed plain-text content
+    let re_web = Regex::new(r"@web:(https?://\S+)").unwrap();
+    for cap in re_web.captures_iter(content) {
+        let url = &cap[1];
+        match fetch_and_strip(url).await {
+            Ok(text) => {
+                extra.push_str(&format!("\n### @web:{}\n{}\n", url, text));
+            }
+            Err(e) => {
+                extra.push_str(&format!("\n### @web:{}\n(fetch error: {})\n", url, e));
+            }
         }
     }
 
@@ -1804,6 +1862,21 @@ Scores are 0–10 (10 = excellent). Only report real issues.
     report["target_ref"] = serde_json::Value::String(target_ref.unwrap_or_else(|| "HEAD".to_string()));
 
     Ok(report)
+}
+
+/// Open a URL in the system's default browser using the Tauri opener plugin.
+#[tauri::command]
+pub async fn open_external_url(
+    url: String,
+    app: tauri::AppHandle,
+) -> Result<(), String> {
+    if !url.starts_with("http://") && !url.starts_with("https://") {
+        return Err("Only http:// and https:// URLs are supported.".to_string());
+    }
+    use tauri_plugin_opener::OpenerExt;
+    app.opener()
+        .open_url(&url, None::<&str>)
+        .map_err(|e| e.to_string())
 }
 
 fn extract_json(text: &str) -> String {

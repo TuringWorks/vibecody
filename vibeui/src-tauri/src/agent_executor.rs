@@ -99,6 +99,29 @@ impl TauriToolExecutor {
         }
     }
 
+    async fn web_search(&self, query: &str) -> ToolResult {
+        let encoded = query.replace(' ', "+");
+        let url = format!("https://lite.duckduckgo.com/lite/?q={}", encoded);
+        match crate::commands::fetch_and_strip(&url).await {
+            Ok(text) => {
+                // Extract result lines (skip navigation chrome)
+                let lines: Vec<&str> = text.lines()
+                    .filter(|l| !l.trim().is_empty())
+                    .take(30)
+                    .collect();
+                ToolResult::ok("web_search", lines.join("\n"))
+            }
+            Err(e) => ToolResult::err("web_search", e),
+        }
+    }
+
+    async fn fetch_url(&self, url: &str) -> ToolResult {
+        match crate::commands::fetch_and_strip(url).await {
+            Ok(text) => ToolResult::ok("fetch_url", format!("=== {} ===\n{}", url, text)),
+            Err(e)   => ToolResult::err("fetch_url", e),
+        }
+    }
+
     async fn list_dir(&self, path: &str) -> ToolResult {
         let p = self.resolve(path);
         match std::fs::read_dir(&p) {
@@ -132,13 +155,9 @@ impl TauriToolExecutor {
             ToolCall::Bash { command }            => self.run_bash(command).await,
             ToolCall::SearchFiles { query, glob } => self.search_files(query, glob.as_deref()).await,
             ToolCall::ListDirectory { path }      => self.list_dir(path).await,
-            ToolCall::WebSearch { .. } => {
-                ToolResult::err("web_search", "web_search is handled by the CLI executor; not available in VibeUI agent.")
-            }
-            ToolCall::FetchUrl { .. } => {
-                ToolResult::err("fetch_url", "fetch_url is handled by the CLI executor; not available in VibeUI agent.")
-            }
-            ToolCall::TaskComplete { summary }    => ToolResult::ok("task_complete", summary.clone()),
+            ToolCall::WebSearch { query, .. } => self.web_search(query).await,
+            ToolCall::FetchUrl { url }         => self.fetch_url(url).await,
+            ToolCall::TaskComplete { summary } => ToolResult::ok("task_complete", summary.clone()),
         }
     }
 }
@@ -147,22 +166,18 @@ impl TauriToolExecutor {
 impl ToolExecutorTrait for TauriToolExecutor {
     async fn execute(&self, call: &ToolCall) -> ToolResult {
         match call {
-            ToolCall::ReadFile { path }         => self.read_file(path).await,
+            ToolCall::ReadFile { path }           => self.read_file(path).await,
             ToolCall::WriteFile { path, content } => self.write_file(path, content).await,
-            ToolCall::ApplyPatch { .. }         => {
+            ToolCall::ApplyPatch { .. }           => {
                 // ApplyPatch requires a unified-diff engine; instruct the agent to use write_file.
                 ToolResult::err("apply_patch", "apply_patch is not supported in VibeUI — use write_file with the complete file contents instead.")
             }
-            ToolCall::Bash { command }          => self.run_bash(command).await,
+            ToolCall::Bash { command }            => self.run_bash(command).await,
             ToolCall::SearchFiles { query, glob } => self.search_files(query, glob.as_deref()).await,
-            ToolCall::ListDirectory { path }    => self.list_dir(path).await,
-            ToolCall::WebSearch { .. } => {
-                ToolResult::err("web_search", "web_search is not available in VibeUI agent.")
-            }
-            ToolCall::FetchUrl { .. } => {
-                ToolResult::err("fetch_url", "fetch_url is not available in VibeUI agent.")
-            }
-            ToolCall::TaskComplete { summary }  => ToolResult::ok("task_complete", summary.clone()),
+            ToolCall::ListDirectory { path }      => self.list_dir(path).await,
+            ToolCall::WebSearch { query, .. }     => self.web_search(query).await,
+            ToolCall::FetchUrl { url }            => self.fetch_url(url).await,
+            ToolCall::TaskComplete { summary }    => ToolResult::ok("task_complete", summary.clone()),
         }
     }
 }

@@ -3,6 +3,71 @@ import { invoke } from "@tauri-apps/api/core";
 import { ContextPicker } from "./ContextPicker";
 import "./AIChat.css";
 
+// ── Voice input hook ──────────────────────────────────────────────────────────
+
+// Web Speech API types (not in lib.dom.d.ts by default in some TS configs)
+type SpeechRecognitionCtor = new () => {
+    continuous: boolean;
+    interimResults: boolean;
+    lang: string;
+    onresult: ((event: SpeechRecognitionEvent) => void) | null;
+    onend: (() => void) | null;
+    onerror: (() => void) | null;
+    start(): void;
+    stop(): void;
+};
+type SpeechRecognitionEvent = {
+    results: { length: number; [i: number]: { [0]: { transcript: string } } };
+};
+
+function getSpeechRecognitionCtor(): SpeechRecognitionCtor | null {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const w = window as any;
+    return (w["SpeechRecognition"] ?? w["webkitSpeechRecognition"] ?? null) as SpeechRecognitionCtor | null;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type RecInstance = any;
+
+function useVoiceInput(onTranscript: (text: string) => void) {
+    const [isListening, setIsListening] = useState(false);
+    const recRef = useRef<RecInstance | null>(null);
+
+    const toggle = () => {
+        const SR = getSpeechRecognitionCtor();
+        if (!SR) {
+            alert("Speech recognition is not supported in this environment.");
+            return;
+        }
+
+        if (isListening) {
+            recRef.current?.stop();
+            setIsListening(false);
+            return;
+        }
+
+        const r = new SR();
+        r.continuous = false;
+        r.interimResults = true;
+        r.lang = navigator.language || "en-US";
+
+        r.onresult = (e: SpeechRecognitionEvent) => {
+            const parts: string[] = [];
+            for (let i = 0; i < e.results.length; i++) parts.push(e.results[i][0].transcript);
+            onTranscript(parts.join(""));
+        };
+
+        r.onend = () => setIsListening(false);
+        r.onerror = () => setIsListening(false);
+
+        r.start();
+        recRef.current = r;
+        setIsListening(true);
+    };
+
+    return { isListening, toggle };
+}
+
 interface Message {
     role: "user" | "assistant";
     content: string;
@@ -46,6 +111,9 @@ export function AIChat({ provider, context, fileTree, currentFile, onFileAction,
     const [isLoading, setIsLoading] = useState(false);
     const [pickerQuery, setPickerQuery] = useState<string | null>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const { isListening, toggle: toggleVoice } = useVoiceInput((transcript) =>
+        setInput((prev) => prev + transcript)
+    );
 
     const cleanMessage = (content: string): string => {
         let cleaned = content.replace(/<write_file path="([^"]+)">[\s\S]*?<\/write_file>/g, "✅ Proposed changes to $1");
@@ -148,7 +216,7 @@ export function AIChat({ provider, context, fileTree, currentFile, onFileAction,
             <div className="chat-header">
                 <h3>🤖 AI Assistant</h3>
                 <p className="chat-subtitle">
-                    Ask questions about your code. Type <kbd>@file:</kbd> or <kbd>@git</kbd> to inject context.
+                    Ask questions about your code. Type <kbd>@file:</kbd>, <kbd>@git</kbd>, or <kbd>@web:</kbd> to inject context. Click 🎤 for voice input.
                 </p>
             </div>
 
@@ -198,9 +266,18 @@ export function AIChat({ provider, context, fileTree, currentFile, onFileAction,
                     placeholder="Ask a question… (Enter to send, Shift+Enter for newline, @ for context)"
                     rows={3}
                 />
-                <button onClick={sendMessage} disabled={!input.trim() || isLoading}>
-                    Send
-                </button>
+                <div style={{ display: "flex", gap: "6px", alignSelf: "flex-end" }}>
+                    <button
+                        onClick={toggleVoice}
+                        title={isListening ? "Stop recording" : "Voice input"}
+                        className={`mic-btn${isListening ? " listening" : ""}`}
+                    >
+                        🎤
+                    </button>
+                    <button onClick={sendMessage} disabled={!input.trim() || isLoading}>
+                        Send
+                    </button>
+                </div>
             </div>
         </div>
     );

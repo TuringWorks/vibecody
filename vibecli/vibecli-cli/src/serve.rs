@@ -11,6 +11,9 @@
 //! | POST   | `/chat/stream`            | Streaming chat as SSE                |
 //! | POST   | `/agent`                  | Start an agent task → returns `{session_id}` |
 //! | GET    | `/stream/:session_id`     | SSE stream of agent events           |
+//! | GET    | `/jobs`                   | List all persisted job records       |
+//! | GET    | `/jobs/:id`               | Get a single job record              |
+//! | POST   | `/jobs/:id/cancel`        | Cancel a running job                 |
 //!
 //! # Usage
 //!
@@ -33,14 +36,63 @@ use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     convert::Infallible,
+    path::PathBuf,
     sync::Arc,
-    time::Duration,
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 use tokio::sync::{broadcast, Mutex};
 use tower_http::cors::{Any, CorsLayer};
 
 use vibe_ai::{AgentContext, AgentEvent, AgentLoop, ApprovalPolicy, Message, MessageRole};
 use vibe_ai::provider::AIProvider;
+
+// ── Job record (persisted to disk) ────────────────────────────────────────────
+
+/// A persistent record of a background agent job.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct JobRecord {
+    pub session_id: String,
+    pub task: String,
+    /// "running" | "complete" | "failed" | "cancelled"
+    pub status: String,
+    pub provider: String,
+    pub started_at: u64,
+    pub finished_at: Option<u64>,
+    pub summary: Option<String>,
+}
+
+fn now_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64
+}
+
+fn persist_job(jobs_dir: &std::path::Path, record: &JobRecord) {
+    let path = jobs_dir.join(format!("{}.json", record.session_id));
+    if let Ok(json) = serde_json::to_string_pretty(record) {
+        let _ = std::fs::write(path, json);
+    }
+}
+
+fn load_job(jobs_dir: &std::path::Path, session_id: &str) -> Option<JobRecord> {
+    let path = jobs_dir.join(format!("{}.json", session_id));
+    std::fs::read_to_string(path)
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok())
+}
+
+fn load_all_jobs(jobs_dir: &std::path::Path) -> Vec<JobRecord> {
+    let Ok(entries) = std::fs::read_dir(jobs_dir) else { return vec![] };
+    let mut jobs: Vec<JobRecord> = entries
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().extension().and_then(|x| x.to_str()) == Some("json"))
+        .filter_map(|e| std::fs::read_to_string(e.path()).ok())
+        .filter_map(|s| serde_json::from_str::<JobRecord>(&s).ok())
+        .collect();
+    jobs.sort_by(|a, b| b.started_at.cmp(&a.started_at));
+    jobs
+}
 
 // ── Shared server state ───────────────────────────────────────────────────────
 
@@ -51,8 +103,10 @@ type EventStreams = Arc<Mutex<HashMap<String, broadcast::Sender<AgentEventPayloa
 pub struct ServeState {
     pub provider: Arc<dyn AIProvider>,
     pub approval: ApprovalPolicy,
-    pub workspace_root: std::path::PathBuf,
+    pub workspace_root: PathBuf,
     pub streams: EventStreams,
+    pub jobs_dir: PathBuf,
+    pub provider_name: String,
 }
 
 // ── Request / Response types ──────────────────────────────────────────────────
@@ -212,13 +266,19 @@ async fn start_agent(
     State(state): State<ServeState>,
     Json(req): Json<AgentRequest>,
 ) -> Result<Json<AgentStartResponse>, (StatusCode, String)> {
-    let session_id = format!(
-        "{:x}",
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_millis()
-    );
+    let session_id = format!("{:x}", now_ms());
+
+    // Persist initial job record
+    let mut record = JobRecord {
+        session_id: session_id.clone(),
+        task: req.task.clone(),
+        status: "running".to_string(),
+        provider: state.provider_name.clone(),
+        started_at: now_ms(),
+        finished_at: None,
+        summary: None,
+    };
+    persist_job(&state.jobs_dir, &record);
 
     // Create broadcast channel for SSE fan-out
     let (tx, _) = broadcast::channel::<AgentEventPayload>(256);
@@ -237,6 +297,7 @@ async fn start_agent(
     let workspace_root = state.workspace_root.clone();
     let provider = state.provider.clone();
     let streams = state.streams.clone();
+    let jobs_dir = state.jobs_dir.clone();
 
     tokio::spawn(async move {
         use crate::tool_executor::ToolExecutor;
@@ -268,7 +329,12 @@ async fn start_agent(
                     AgentEventPayload::step(step.step_num, step.tool_call.name(), step.tool_result.success)
                 }
                 AgentEvent::Complete(summary) => {
-                    let p = AgentEventPayload::complete(summary);
+                    let p = AgentEventPayload::complete(summary.clone());
+                    // Persist completion
+                    record.status = "complete".to_string();
+                    record.finished_at = Some(now_ms());
+                    record.summary = Some(summary);
+                    persist_job(&jobs_dir, &record);
                     // Remove the stream after completion
                     let mut s = streams.lock().await;
                     s.remove(&sid);
@@ -277,7 +343,12 @@ async fn start_agent(
                     break;
                 }
                 AgentEvent::Error(msg) => {
-                    let p = AgentEventPayload::error(msg);
+                    let p = AgentEventPayload::error(msg.clone());
+                    // Persist failure
+                    record.status = "failed".to_string();
+                    record.finished_at = Some(now_ms());
+                    record.summary = Some(msg);
+                    persist_job(&jobs_dir, &record);
                     let mut s = streams.lock().await;
                     s.remove(&sid);
                     let _ = tx.send(p.clone());
@@ -290,6 +361,44 @@ async fn start_agent(
     });
 
     Ok(Json(AgentStartResponse { session_id }))
+}
+
+// ── Job endpoints ─────────────────────────────────────────────────────────────
+
+async fn list_jobs(
+    State(state): State<ServeState>,
+) -> Json<Vec<JobRecord>> {
+    Json(load_all_jobs(&state.jobs_dir))
+}
+
+async fn get_job(
+    Path(id): Path<String>,
+    State(state): State<ServeState>,
+) -> Result<Json<JobRecord>, (StatusCode, String)> {
+    load_job(&state.jobs_dir, &id)
+        .map(Json)
+        .ok_or_else(|| (StatusCode::NOT_FOUND, format!("Job '{}' not found", id)))
+}
+
+async fn cancel_job(
+    Path(id): Path<String>,
+    State(state): State<ServeState>,
+) -> Result<Json<JobRecord>, (StatusCode, String)> {
+    // Remove stream (ends SSE)
+    {
+        let mut streams = state.streams.lock().await;
+        streams.remove(&id);
+    }
+
+    // Update persisted record
+    let mut record = load_job(&state.jobs_dir, &id)
+        .ok_or_else(|| (StatusCode::NOT_FOUND, format!("Job '{}' not found", id)))?;
+    if record.status == "running" {
+        record.status = "cancelled".to_string();
+        record.finished_at = Some(now_ms());
+        persist_job(&state.jobs_dir, &record);
+    }
+    Ok(Json(record))
 }
 
 async fn stream_agent(
@@ -325,15 +434,25 @@ async fn stream_agent(
 /// Start the VibeCLI HTTP daemon. Blocks until shutdown.
 pub async fn serve(
     provider: Arc<dyn AIProvider>,
+    provider_name: String,
     approval: ApprovalPolicy,
-    workspace_root: std::path::PathBuf,
+    workspace_root: PathBuf,
     port: u16,
 ) -> Result<()> {
+    // Initialise persistent jobs directory at ~/.vibecli/jobs/
+    let jobs_dir = dirs::home_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join(".vibecli")
+        .join("jobs");
+    std::fs::create_dir_all(&jobs_dir)?;
+
     let state = ServeState {
         provider,
         approval,
         workspace_root,
         streams: Arc::new(Mutex::new(HashMap::new())),
+        jobs_dir,
+        provider_name,
     };
 
     let cors = CorsLayer::new()
@@ -347,12 +466,16 @@ pub async fn serve(
         .route("/chat/stream", post(chat_stream))
         .route("/agent", post(start_agent))
         .route("/stream/:session_id", get(stream_agent))
+        .route("/jobs", get(list_jobs))
+        .route("/jobs/:id", get(get_job))
+        .route("/jobs/:id/cancel", post(cancel_job))
         .layer(cors)
         .with_state(state);
 
     let addr = format!("127.0.0.1:{port}");
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     eprintln!("[vibecli serve] Listening on http://{addr}");
+    eprintln!("[vibecli serve] Jobs persisted at ~/.vibecli/jobs/");
 
     axum::serve(listener, app).await?;
     Ok(())

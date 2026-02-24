@@ -210,7 +210,7 @@ async fn main() -> Result<()> {
         let llm = create_provider(&effective_provider, effective_model.clone())?;
         let cwd = std::env::current_dir()?;
         let approval = ApprovalPolicy::from_str(&approval_policy);
-        return serve::serve(llm, approval, cwd, cli.port).await;
+        return serve::serve(llm, effective_provider.clone(), approval, cwd, cli.port).await;
     }
 
     // MCP server mode: vibecli --mcp-server

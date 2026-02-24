@@ -16,6 +16,7 @@ interface ContextPickerProps {
 
 const SPECIAL_ITEMS = [
     { label: "@git", description: "Inject current git branch, changed files, and diff" },
+    { label: "@web:", description: "Fetch a web page and inject its content" },
 ];
 
 export function ContextPicker({ query, onSelect, onClose }: ContextPickerProps) {
@@ -25,8 +26,15 @@ export function ContextPicker({ query, onSelect, onClose }: ContextPickerProps) 
 
     // Fetch matching files whenever query changes
     useEffect(() => {
-        const isGitPrefix = "git".startsWith(query.toLowerCase()) || query === "";
-        if (isGitPrefix && query.length <= 3) {
+        // If the user is typing a web URL, skip file search
+        if (query.startsWith("web:")) {
+            setFiles([]);
+            return;
+        }
+        const isSpecialPrefix = SPECIAL_ITEMS.some(
+            (s) => s.label.replace("@", "").startsWith(query.toLowerCase())
+        ) && query.length <= 4;
+        if (isSpecialPrefix && query.length <= 4) {
             setFiles([]);
             return;
         }
@@ -36,9 +44,19 @@ export function ContextPicker({ query, onSelect, onClose }: ContextPickerProps) 
     }, [query]);
 
     // Build the combined list: specials first, then files
-    const specials = SPECIAL_ITEMS.filter(
-        (s) => query === "" || s.label.toLowerCase().includes(query.toLowerCase())
-    );
+    let specials: { label: string; description?: string }[];
+    if (query.startsWith("web:")) {
+        // Show a single dynamic item for the URL being typed
+        const urlPart = query.slice(4);
+        specials = [{
+            label: `@web:${urlPart}`,
+            description: urlPart ? `Fetch ${urlPart}` : "Type a URL...",
+        }];
+    } else {
+        specials = SPECIAL_ITEMS.filter(
+            (s) => query === "" || s.label.toLowerCase().includes(query.toLowerCase())
+        );
+    }
     const allItems: { label: string; description?: string }[] = [
         ...specials,
         ...files.map((f) => ({ label: `@file:${f.path}`, description: f.name })),
