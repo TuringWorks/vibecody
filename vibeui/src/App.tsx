@@ -3,6 +3,8 @@ import Editor, { DiffEditor, OnMount } from "@monaco-editor/react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { AIChat } from "./components/AIChat";
+import { AgentPanel } from "./components/AgentPanel";
+import { MemoryPanel } from "./components/MemoryPanel";
 import { Terminal } from "./components/Terminal";
 import { detectLanguage, getFileIcon } from "./utils/fileUtils";
 import "./App.css";
@@ -52,6 +54,7 @@ function App() {
   const [showSidebar, setShowSidebar] = useState(true);
   const [activeSidebarTab, setActiveSidebarTab] = useState<"explorer" | "search" | "git">("explorer");
   const [showAIChat, setShowAIChat] = useState(false);
+  const [aiPanelTab, setAiPanelTab] = useState<"chat" | "agent" | "memory">("chat");
   const [showTerminal, setShowTerminal] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
 
@@ -1280,16 +1283,55 @@ function App() {
           )}
         </main>
 
-        {/* AI Chat Panel */}
+        {/* AI Panel (Chat / Agent / Memory tabs) */}
         {showAIChat && (
-          <aside className="ai-chat-panel">
-            <AIChat
-              provider={selectedProvider}
-              context={editorContent}
-              fileTree={files.map(f => f.path)}
-              currentFile={currentFile}
-              onPendingWrite={handlePendingWrite}
-            />
+          <aside className="ai-chat-panel" style={{ display: "flex", flexDirection: "column" }}>
+            {/* Tab bar */}
+            <div style={{ display: "flex", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
+              {(["chat", "agent", "memory"] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setAiPanelTab(tab)}
+                  style={{
+                    flex: 1,
+                    padding: "8px 4px",
+                    fontSize: "12px",
+                    background: "none",
+                    border: "none",
+                    borderBottom: aiPanelTab === tab ? "2px solid var(--accent-blue, #007acc)" : "2px solid transparent",
+                    color: aiPanelTab === tab ? "var(--text-primary)" : "var(--text-secondary)",
+                    cursor: "pointer",
+                    fontWeight: aiPanelTab === tab ? 600 : 400,
+                  }}
+                >
+                  {tab === "chat" ? "💬 Chat" : tab === "agent" ? "🤖 Agent" : "📋 Rules"}
+                </button>
+              ))}
+            </div>
+
+            {/* Tab content */}
+            <div style={{ flex: 1, overflow: "hidden" }}>
+              {aiPanelTab === "chat" && (
+                <AIChat
+                  provider={selectedProvider}
+                  context={editorContent}
+                  fileTree={files.map(f => f.path)}
+                  currentFile={currentFile}
+                  onPendingWrite={handlePendingWrite}
+                />
+              )}
+              {aiPanelTab === "agent" && (
+                <AgentPanel
+                  provider={selectedProvider}
+                  workspacePath={workspaceFolders[0] || null}
+                />
+              )}
+              {aiPanelTab === "memory" && (
+                <MemoryPanel
+                  workspacePath={workspaceFolders[0] || null}
+                />
+              )}
+            </div>
           </aside>
         )}
       </div>

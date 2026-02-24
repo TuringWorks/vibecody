@@ -14,6 +14,13 @@ use vibe_lsp::manager::LspManager;
 use lsp_types::{CompletionParams, CompletionResponse, HoverParams, Hover, GotoDefinitionParams, GotoDefinitionResponse};
 use tauri::Emitter;
 use crate::flow::FlowTracker;
+use vibe_ai::{ToolCall, ToolResult};
+
+/// Holds a pending tool call awaiting user approval in the agent loop.
+pub struct PendingAgentCall {
+    pub call: ToolCall,
+    pub result_tx: tokio::sync::oneshot::Sender<Option<ToolResult>>,
+}
 
 /// Application state
 pub struct AppState {
@@ -22,6 +29,8 @@ pub struct AppState {
     pub terminal_manager: Arc<TerminalManager>,
     pub lsp_manager: Arc<Mutex<LspManager>>,
     pub flow: Arc<Mutex<FlowTracker>>,
+    /// Slot for a tool call pending user approval during agent execution.
+    pub agent_pending: Arc<Mutex<Option<PendingAgentCall>>>,
 }
 
 /// File operations
@@ -582,6 +591,19 @@ pub async fn send_chat_message(
         - <list_dir path=\"path/to/dir\" />: List directory contents\n\n"
     );
 
+    // Inject project + global AI rules (Phase 4)
+    {
+        let ws = state.workspace.lock().await;
+        if let Some(root) = ws.folders().first() {
+            let rules = crate::memory::combined_rules(root);
+            if !rules.is_empty() {
+                system_prompt.push_str("## AI Rules\n");
+                system_prompt.push_str(&rules);
+                system_prompt.push('\n');
+            }
+        }
+    }
+
     if let Some(files) = &request.file_tree {
         system_prompt.push_str("Available files:\n");
         for file in files {
@@ -962,4 +984,261 @@ pub async fn track_flow_event(
 #[tauri::command]
 pub async fn get_flow_context(state: tauri::State<'_, AppState>) -> Result<String, String> {
     Ok(state.flow.lock().await.context_string(20))
+}
+
+// ─── Phase 4 Commands ─────────────────────────────────────────────────────────
+
+/// Serializable info sent to the frontend when a tool call needs approval.
+#[derive(Serialize, Clone)]
+pub struct AgentPendingPayload {
+    pub name: String,
+    pub summary: String,
+    pub is_destructive: bool,
+}
+
+/// Serializable step info sent to the frontend after a tool call executes.
+#[derive(Serialize, Clone)]
+pub struct AgentStepPayload {
+    pub step_num: usize,
+    pub tool_name: String,
+    pub tool_summary: String,
+    pub output: String,
+    pub success: bool,
+    pub approved: bool,
+}
+
+/// Start an autonomous agent task. Emits Tauri events:
+/// - `agent:chunk`   — streaming LLM text (String)
+/// - `agent:pending` — tool call needs approval (AgentPendingPayload)
+/// - `agent:step`    — step completed (AgentStepPayload)
+/// - `agent:complete`— task done (String summary)
+/// - `agent:error`   — error (String)
+#[tauri::command]
+pub async fn start_agent_task(
+    task: String,
+    approval_policy: String,
+    provider: String,
+    app_handle: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    use vibe_ai::{AgentLoop, AgentContext, ApprovalPolicy, AgentEvent};
+    use crate::agent_executor::TauriToolExecutor;
+
+    // Get the AI provider
+    let provider_arc = {
+        let mut engine = state.chat_engine.lock().await;
+        engine.set_provider_by_name(&provider).map_err(|e| e.to_string())?;
+        engine.active_provider().ok_or("No active provider")?.clone()
+    };
+
+    // Get workspace root
+    let workspace_root = {
+        let ws = state.workspace.lock().await;
+        ws.folders().first().cloned().unwrap_or_else(|| PathBuf::from("."))
+    };
+
+    // Build agent context
+    let git_branch = vibe_core::git::get_current_branch(&workspace_root).ok();
+    let git_diff = vibe_core::git::get_repo_diff(&workspace_root).ok().map(|d| {
+        if d.len() > 2000 { d[..2000].to_string() + "\n…(truncated)" } else { d }
+    });
+    let context = AgentContext {
+        workspace_root: workspace_root.clone(),
+        open_files: vec![],
+        git_branch,
+        git_diff_summary: git_diff,
+    };
+
+    let executor = Arc::new(TauriToolExecutor::new(workspace_root));
+    let approval = ApprovalPolicy::from_str(&approval_policy);
+    let agent = AgentLoop::new(provider_arc, approval, executor);
+
+    let (event_tx, mut event_rx) = tokio::sync::mpsc::channel::<AgentEvent>(64);
+    let agent_pending = state.agent_pending.clone();
+
+    // Spawn the agent loop
+    tokio::spawn(async move {
+        let _ = agent.run(&task, context, event_tx).await;
+    });
+
+    // Bridge agent events → Tauri events
+    tokio::spawn(async move {
+        while let Some(event) = event_rx.recv().await {
+            match event {
+                AgentEvent::StreamChunk(text) => {
+                    let _ = app_handle.emit("agent:chunk", text);
+                }
+                AgentEvent::ToolCallPending { call, result_tx } => {
+                    let payload = AgentPendingPayload {
+                        name: call.name().to_string(),
+                        summary: call.summary(),
+                        is_destructive: call.is_destructive(),
+                    };
+                    // Store for respond_to_agent_approval
+                    {
+                        let mut slot = agent_pending.lock().await;
+                        *slot = Some(PendingAgentCall { call, result_tx });
+                    }
+                    let _ = app_handle.emit("agent:pending", payload);
+                }
+                AgentEvent::ToolCallExecuted(step) => {
+                    let payload = AgentStepPayload {
+                        step_num: step.step_num,
+                        tool_name: step.tool_call.name().to_string(),
+                        tool_summary: step.tool_call.summary(),
+                        output: step.tool_result.output.clone(),
+                        success: step.tool_result.success,
+                        approved: step.approved,
+                    };
+                    let _ = app_handle.emit("agent:step", payload);
+                }
+                AgentEvent::Complete(summary) => {
+                    let _ = app_handle.emit("agent:complete", summary);
+                    break;
+                }
+                AgentEvent::Error(msg) => {
+                    let _ = app_handle.emit("agent:error", msg);
+                    break;
+                }
+            }
+        }
+    });
+
+    Ok(())
+}
+
+/// Respond to an agent tool-call approval prompt.
+/// - `approved = true`  → execute the tool and send result to agent
+/// - `approved = false` → reject (agent receives a "rejected" result)
+#[tauri::command]
+pub async fn respond_to_agent_approval(
+    approved: bool,
+    app_handle: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    use crate::agent_executor::TauriToolExecutor;
+
+    let pending = {
+        let mut slot = state.agent_pending.lock().await;
+        slot.take()
+    };
+
+    let Some(PendingAgentCall { call, result_tx }) = pending else {
+        return Err("No pending agent approval".to_string());
+    };
+
+    if approved {
+        let workspace_root = {
+            let ws = state.workspace.lock().await;
+            ws.folders().first().cloned().unwrap_or_else(|| PathBuf::from("."))
+        };
+        let executor = TauriToolExecutor::new(workspace_root);
+        let result = executor.execute_call(&call).await;
+
+        // Emit a step event so the UI shows what happened
+        let payload = AgentStepPayload {
+            step_num: 0, // step_num not tracked here
+            tool_name: call.name().to_string(),
+            tool_summary: call.summary(),
+            output: result.output.clone(),
+            success: result.success,
+            approved: true,
+        };
+        let _ = app_handle.emit("agent:step", payload);
+
+        let _ = result_tx.send(Some(result));
+    } else {
+        // Rejection: send None — agent will record "rejected by user"
+        let _ = result_tx.send(None);
+    }
+
+    Ok(())
+}
+
+// ─── Memory / Rules Commands ───────────────────────────────────────────────────
+
+/// Get project-level AI rules from `<workspace>/.vibeui.md`.
+#[tauri::command]
+pub async fn get_vibeui_rules(state: tauri::State<'_, AppState>) -> Result<String, String> {
+    let ws = state.workspace.lock().await;
+    let root = ws.folders().first().cloned().ok_or("No workspace folder open")?;
+    drop(ws);
+    Ok(crate::memory::load_workspace_rules(&root))
+}
+
+/// Save project-level AI rules to `<workspace>/.vibeui.md`.
+#[tauri::command]
+pub async fn save_vibeui_rules(
+    content: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    let ws = state.workspace.lock().await;
+    let root = ws.folders().first().cloned().ok_or("No workspace folder open")?;
+    drop(ws);
+    crate::memory::save_workspace_rules(&root, &content).map_err(|e| e.to_string())
+}
+
+/// Get global AI rules from `~/.vibeui/rules.md`.
+#[tauri::command]
+pub async fn get_global_rules() -> Result<String, String> {
+    Ok(crate::memory::load_global_rules())
+}
+
+/// Save global AI rules to `~/.vibeui/rules.md`.
+#[tauri::command]
+pub async fn save_global_rules(content: String) -> Result<(), String> {
+    crate::memory::save_global_rules(&content).map_err(|e| e.to_string())
+}
+
+// ─── Checkpoint Commands ───────────────────────────────────────────────────────
+
+#[derive(Serialize)]
+pub struct CheckpointInfo {
+    pub index: usize,
+    pub message: String,
+    pub oid: String,
+}
+
+/// Create a git stash checkpoint with a label.
+#[tauri::command]
+pub async fn create_checkpoint(
+    label: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<String, String> {
+    let ws = state.workspace.lock().await;
+    let root = ws.folders().first().cloned().ok_or("No workspace folder open")?;
+    drop(ws);
+    let name = format!("vibeui-checkpoint: {}", label);
+    vibe_core::git::create_stash(&root, &name).map_err(|e| e.to_string())
+}
+
+/// List all git stash checkpoints.
+#[tauri::command]
+pub async fn list_checkpoints(
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<CheckpointInfo>, String> {
+    let ws = state.workspace.lock().await;
+    let root = ws.folders().first().cloned().ok_or("No workspace folder open")?;
+    drop(ws);
+    vibe_core::git::list_stashes(&root)
+        .map(|stashes| {
+            stashes.into_iter().map(|s| CheckpointInfo {
+                index: s.index,
+                message: s.message,
+                oid: s.oid,
+            }).collect()
+        })
+        .map_err(|e| e.to_string())
+}
+
+/// Restore (apply) a checkpoint by index. Does not drop the stash.
+#[tauri::command]
+pub async fn restore_checkpoint(
+    index: usize,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    let ws = state.workspace.lock().await;
+    let root = ws.folders().first().cloned().ok_or("No workspace folder open")?;
+    drop(ws);
+    vibe_core::git::restore_stash(&root, index).map_err(|e| e.to_string())
 }

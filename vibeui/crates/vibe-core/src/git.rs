@@ -258,6 +258,36 @@ pub fn pop_stash(repo_path: &Path) -> Result<()> {
     Ok(())
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CheckpointInfo {
+    pub index: usize,
+    pub message: String,
+    pub oid: String,
+}
+
+/// List all stashes as checkpoint info (newest first).
+pub fn list_stashes(repo_path: &Path) -> Result<Vec<CheckpointInfo>> {
+    let mut repo = Repository::open(repo_path)?;
+    let mut stashes = Vec::new();
+    repo.stash_foreach(|index, message, oid| {
+        stashes.push(CheckpointInfo {
+            index,
+            message: message.to_string(),
+            oid: oid.to_string(),
+        });
+        true
+    })?;
+    Ok(stashes)
+}
+
+/// Apply a stash at `index` without dropping it (allows repeated restore).
+pub fn restore_stash(repo_path: &Path, index: usize) -> Result<()> {
+    let mut repo = Repository::open(repo_path)?;
+    let mut opts = git2::StashApplyOptions::new();
+    repo.stash_apply(index, Some(&mut opts))?;
+    Ok(())
+}
+
 pub fn get_repo_diff(repo_path: &Path) -> Result<String> {
     let repo = Repository::open(repo_path)?;
     // Check if HEAD exists, if not (empty repo), return empty diff

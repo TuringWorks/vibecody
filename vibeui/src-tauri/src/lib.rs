@@ -2,6 +2,8 @@
 
 mod commands;
 mod flow;
+mod agent_executor;
+mod memory;
 
 use commands::AppState;
 use std::sync::Arc;
@@ -60,6 +62,7 @@ pub fn run() {
     let terminal_manager = Arc::new(TerminalManager::new());
     let lsp_manager = Arc::new(Mutex::new(LspManager::new()));
     let flow = Arc::new(Mutex::new(flow::FlowTracker::new()));
+    let agent_pending = Arc::new(Mutex::new(None));
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
@@ -70,6 +73,7 @@ pub fn run() {
             terminal_manager,
             lsp_manager,
             flow,
+            agent_pending,
         })
         .invoke_handler(tauri::generate_handler![
             commands::read_file,
@@ -116,6 +120,18 @@ pub fn run() {
             commands::request_inline_completion,
             commands::track_flow_event,
             commands::get_flow_context,
+            // Phase 4 commands — Agent Mode
+            commands::start_agent_task,
+            commands::respond_to_agent_approval,
+            // Phase 4 commands — Memory / Rules
+            commands::get_vibeui_rules,
+            commands::save_vibeui_rules,
+            commands::get_global_rules,
+            commands::save_global_rules,
+            // Phase 4 commands — Checkpoints
+            commands::create_checkpoint,
+            commands::list_checkpoints,
+            commands::restore_checkpoint,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
