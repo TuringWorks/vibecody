@@ -1,0 +1,93 @@
+{
+  "name": "vibecli",
+  "displayName": "VibeCLI",
+  "description": "AI-powered coding assistant powered by VibeCLI — multi-provider, open-source",
+  "version": "0.1.0",
+  "publisher": "vibecody",
+  "repository": "https://github.com/vibecody/vibecody",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["AI", "Chat", "Other"],
+  "activationEvents": ["onStartupFinished"],
+  "contributes": {
+    "commands": [
+      {
+        "command": "vibecli.startAgent",
+        "title": "VibeCLI: Run Agent Task"
+      },
+      {
+        "command": "vibecli.chat",
+        "title": "VibeCLI: Ask Question"
+      },
+      {
+        "command": "vibecli.connectDaemon",
+        "title": "VibeCLI: Connect to Daemon"
+      },
+      {
+        "command": "vibecli.startDaemon",
+        "title": "VibeCLI: Start Daemon"
+      }
+    ],
+    "configuration": {
+      "title": "VibeCLI",
+      "properties": {
+        "vibecli.daemonPort": {
+          "type": "number",
+          "default": 7878,
+          "description": "Port that the VibeCLI daemon listens on"
+        },
+        "vibecli.provider": {
+          "type": "string",
+          "default": "ollama",
+          "enum": ["ollama", "claude", "openai", "gemini", "grok"],
+          "description": "AI provider to use"
+        },
+        "vibecli.approval": {
+          "type": "string",
+          "default": "suggest",
+          "enum": ["suggest", "auto-edit", "full-auto"],
+          "description": "Approval policy for agent tool calls"
+        },
+        "vibecli.inlineCompletions": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable inline (ghost text) completions"
+        }
+      }
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "vibecli-sidebar",
+          "title": "VibeCLI",
+          "icon": "$(hubot)"
+        }
+      ]
+    },
+    "views": {
+      "vibecli-sidebar": [
+        {
+          "type": "webview",
+          "id": "vibecli.chatView",
+          "name": "Chat"
+        }
+      ]
+    }
+  },
+  "main": "./out/extension.js",
+  "scripts": {
+    "compile": "tsc -p .",
+    "watch": "tsc -watch -p .",
+    "package": "vsce package",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "typescript": "^5.3.0"
+  }
+}

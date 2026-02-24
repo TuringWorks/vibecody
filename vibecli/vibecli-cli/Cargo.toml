@@ -30,6 +30,9 @@ async-trait.workspace = true
 regex.workspace = true
 reqwest = { workspace = true }
 urlencoding = "2.1"
+axum.workspace = true
+tower-http.workspace = true
+tokio-stream = { version = "0.1", features = ["sync"] }
 
 # OpenTelemetry (OTLP/HTTP export)
 opentelemetry = { version = "0.27", features = ["trace"] }

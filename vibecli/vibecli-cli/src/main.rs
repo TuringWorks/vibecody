@@ -20,6 +20,7 @@ mod tool_executor;
 mod memory;
 mod ci;
 mod review;
+mod serve;
 mod otel_init;
 use tool_executor::{ToolExecutor, VibeCoreWorktreeManager};
 use diff_viewer::DiffViewer;
@@ -104,6 +105,16 @@ struct Cli {
     /// Post the review to GitHub (requires --pr and GITHUB_TOKEN).
     #[arg(long)]
     post_github: bool,
+
+    // ── Daemon mode ───────────────────────────────────────────────────────────
+
+    /// Start the VibeCLI HTTP daemon (for VS Code extension / Agent SDK).
+    #[arg(long)]
+    serve: bool,
+
+    /// Port for daemon mode (default: 7878).
+    #[arg(long, default_value = "7878")]
+    port: u16,
 }
 
 #[tokio::main]
@@ -132,6 +143,14 @@ async fn main() -> Result<()> {
         .unwrap_or_else(|_| {
             Config::approval_from_flags(cli.suggest, cli.auto_edit, cli.full_auto)
         });
+
+    // Daemon mode: vibecli serve [--port 7878]
+    if cli.serve {
+        let llm = create_provider(&cli.provider, cli.model.clone())?;
+        let cwd = std::env::current_dir()?;
+        let approval = ApprovalPolicy::from_str(&approval_policy);
+        return serve::serve(llm, approval, cwd, cli.port).await;
+    }
 
     if cli.tui {
         return tui::run(cli.provider, cli.model).await;
