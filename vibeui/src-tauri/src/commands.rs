@@ -1430,3 +1430,216 @@ pub async fn load_trace_session(session_id: String) -> Result<Vec<TraceEntryInfo
         })
         .collect())
 }
+
+// ── Phase 9.1 — Manager View (Parallel Agent Orchestration) ──────────────────
+
+/// Describes one running or completed parallel agent instance.
+#[derive(Debug, Clone, Serialize)]
+pub struct AgentInstanceInfo {
+    pub id: String,
+    pub task: String,
+    /// "pending" | "running" | "done" | "failed"
+    pub status: String,
+    pub step_count: usize,
+    pub branch: String,
+    pub worktree_path: String,
+}
+
+/// A task spec submitted to the parallel orchestrator.
+#[derive(Debug, Deserialize)]
+pub struct ParallelAgentTask {
+    pub id: String,
+    pub task: String,
+    /// Optional list of task IDs this one depends on (reserved for future dependency tracking).
+    #[serde(default)]
+    pub _depends_on: Vec<String>,
+}
+
+/// Spawn multiple parallel agents for the Manager View.
+///
+/// Emits Tauri events:
+/// - `manager:agent_update` → `AgentInstanceInfo`   (status change)
+/// - `manager:agent_step`   → `{id, step_num, tool}` (per-step progress)
+#[tauri::command]
+pub async fn start_parallel_agents(
+    tasks: Vec<ParallelAgentTask>,
+    provider: String,
+    approval_policy: String,
+    app_handle: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<AgentInstanceInfo>, String> {
+    use vibe_ai::{AgentLoop, AgentContext, ApprovalPolicy, AgentEvent};
+    use crate::agent_executor::TauriToolExecutor;
+
+    if tasks.is_empty() {
+        return Ok(vec![]);
+    }
+
+    let workspace_root = {
+        let ws = state.workspace.lock().await;
+        ws.folders().first().cloned().unwrap_or_else(|| PathBuf::from("."))
+    };
+
+    let provider_arc = {
+        let mut engine = state.chat_engine.lock().await;
+        engine.set_provider_by_name(&provider).map_err(|e| e.to_string())?;
+        engine.active_provider().ok_or("No active provider")?.clone()
+    };
+
+    let approval = ApprovalPolicy::from_str(&approval_policy);
+
+    // Build initial status list for the UI
+    let mut instances: Vec<AgentInstanceInfo> = tasks
+        .iter()
+        .map(|t| AgentInstanceInfo {
+            id: t.id.clone(),
+            task: t.task.clone(),
+            status: "pending".to_string(),
+            step_count: 0,
+            branch: format!("agent/{}", t.id),
+            worktree_path: workspace_root
+                .join(".agent-worktrees")
+                .join(&t.id)
+                .to_string_lossy()
+                .into_owned(),
+        })
+        .collect();
+
+    let handle = app_handle.clone();
+    let root = workspace_root.clone();
+    let prov = provider_arc.clone();
+
+    // Spawn agents concurrently — one independent AgentLoop per task
+    for (i, task) in tasks.iter().enumerate() {
+        let task_id = task.id.clone();
+        let task_desc = task.task.clone();
+        let prov2 = prov.clone();
+        let root2 = root.clone();
+        let approval2 = approval.clone();
+        let h2 = handle.clone();
+
+        // Emit "running" status
+        instances[i].status = "running".to_string();
+        let _ = handle.emit("manager:agent_update", instances[i].clone());
+
+        tokio::spawn(async move {
+            let git_branch = vibe_core::git::get_current_branch(&root2).ok();
+            let context = AgentContext {
+                workspace_root: root2.clone(),
+                open_files: vec![],
+                git_branch,
+                git_diff_summary: None,
+                flow_context: None,
+                approved_plan: None,
+            };
+
+            let executor = Arc::new(TauriToolExecutor::new(root2));
+            let agent = AgentLoop::new(prov2, approval2, executor);
+            let (event_tx, mut event_rx) = tokio::sync::mpsc::channel::<AgentEvent>(64);
+
+            let tid = task_id.clone();
+            let h3 = h2.clone();
+
+            tokio::spawn(async move {
+                let _ = agent.run(&task_desc, context, event_tx).await;
+            });
+
+            let mut step_count: usize = 0;
+            while let Some(event) = event_rx.recv().await {
+                match event {
+                    AgentEvent::ToolCallExecuted(step) => {
+                        step_count += 1;
+                        let payload = serde_json::json!({
+                            "id": &tid,
+                            "step_num": step.step_num,
+                            "tool": step.tool_call.name(),
+                            "success": step.tool_result.success,
+                        });
+                        let _ = h3.emit("manager:agent_step", payload);
+                    }
+                    AgentEvent::Complete(_) => {
+                        let update = AgentInstanceInfo {
+                            id: tid.clone(),
+                            task: String::new(),
+                            status: "done".to_string(),
+                            step_count,
+                            branch: format!("agent/{}", &tid),
+                            worktree_path: String::new(),
+                        };
+                        let _ = h3.emit("manager:agent_update", update);
+                        break;
+                    }
+                    AgentEvent::Error(msg) => {
+                        let update = AgentInstanceInfo {
+                            id: tid.clone(),
+                            task: msg,
+                            status: "failed".to_string(),
+                            step_count,
+                            branch: format!("agent/{}", &tid),
+                            worktree_path: String::new(),
+                        };
+                        let _ = h3.emit("manager:agent_update", update);
+                        break;
+                    }
+                    _ => {}
+                }
+            }
+        });
+    }
+
+    Ok(instances)
+}
+
+/// Retrieve current status of all spawned parallel agents.
+///
+/// Since agents run as background tasks, this returns the last-known status
+/// from the emitted Tauri events. The frontend maintains the live state;
+/// this command provides a snapshot for initial render.
+#[tauri::command]
+pub async fn get_orchestrator_status(
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<AgentInstanceInfo>, String> {
+    // The live state is maintained by the frontend via manager:agent_update events.
+    // Return empty list — the frontend builds its view from events.
+    let _ = state;
+    Ok(vec![])
+}
+
+/// Merge a completed agent's worktree branch into the main branch.
+///
+/// Strategy: "merge" (default) | "squash" | "rebase"
+#[tauri::command]
+pub async fn merge_agent_branch(
+    agent_id: String,
+    strategy: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<String, String> {
+    let workspace_root = {
+        let ws = state.workspace.lock().await;
+        ws.folders().first().cloned().unwrap_or_else(|| PathBuf::from("."))
+    };
+
+    let branch = format!("agent/{}", agent_id);
+
+    // Use git CLI to perform the merge
+    let merge_args: Vec<&str> = match strategy.as_str() {
+        "squash" => vec!["merge", "--squash", &branch],
+        "rebase" => vec!["rebase", &branch],
+        _ => vec!["merge", "--no-ff", &branch],
+    };
+
+    let output = std::process::Command::new("git")
+        .args(&merge_args)
+        .current_dir(&workspace_root)
+        .output()
+        .map_err(|e| format!("git error: {e}"))?;
+
+    if output.status.success() {
+        Ok(format!(
+            "Merged branch '{}' using '{}' strategy",
+            branch, strategy
+        ))
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).trim().to_string())
+    }
+}

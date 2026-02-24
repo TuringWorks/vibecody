@@ -137,6 +137,10 @@ pub fn run() {
             commands::load_trace_session,
             // Phase 7.3 commands — Next-Edit Prediction
             commands::predict_next_edit,
+            // Phase 9.1 commands — Manager View (Parallel Agents)
+            commands::start_parallel_agents,
+            commands::get_orchestrator_status,
+            commands::merge_agent_branch,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
