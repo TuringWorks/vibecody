@@ -1,10 +1,11 @@
 //! OpenAI provider implementation (ChatGPT, Codex)
 
-use crate::provider::{AIProvider, CodeContext, CompletionResponse, CompletionStream, Message, ProviderConfig};
+use crate::provider::{AIProvider, CodeContext, CompletionResponse, CompletionStream, ImageAttachment, Message, ProviderConfig};
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use futures::stream::StreamExt;
 use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
 
 #[derive(Debug, Serialize)]
 struct OpenAIRequest {
@@ -20,7 +21,7 @@ struct OpenAIRequest {
 #[derive(Debug, Serialize, Deserialize)]
 struct OpenAIMessage {
     role: String,
-    content: String,
+    content: Value,
 }
 
 #[derive(Debug, Deserialize)]
@@ -67,17 +68,61 @@ impl OpenAIProvider {
             .iter()
             .map(|m| OpenAIMessage {
                 role: format!("{:?}", m.role).to_lowercase(),
-                content: m.content.clone(),
+                content: Value::String(m.content.clone()),
             })
             .collect();
 
         if let Some(ctx) = context {
             if let Some(last_msg) = openai_messages.last_mut() {
                 if last_msg.role == "user" {
-                    last_msg.content = format!("Context:\n{}\n\nUser: {}", ctx, last_msg.content);
+                    if let Value::String(ref s) = last_msg.content.clone() {
+                        last_msg.content = Value::String(
+                            format!("Context:\n{}\n\nUser: {}", ctx, s)
+                        );
+                    }
                 }
             }
         }
+        openai_messages
+    }
+
+    /// Build messages with image content blocks for the last user message.
+    fn build_vision_messages(
+        &self,
+        messages: &[Message],
+        images: &[ImageAttachment],
+        context: Option<String>,
+    ) -> Vec<OpenAIMessage> {
+        let mut openai_messages = self.build_messages(messages, context);
+
+        if images.is_empty() {
+            return openai_messages;
+        }
+
+        if let Some(last) = openai_messages.last_mut() {
+            if last.role == "user" {
+                let text = match &last.content {
+                    Value::String(s) => s.clone(),
+                    _ => String::new(),
+                };
+
+                let mut parts: Vec<Value> = images
+                    .iter()
+                    .map(|img| {
+                        json!({
+                            "type": "image_url",
+                            "image_url": {
+                                "url": format!("data:{};base64,{}", img.media_type, img.base64)
+                            }
+                        })
+                    })
+                    .collect();
+
+                parts.push(json!({ "type": "text", "text": text }));
+                last.content = Value::Array(parts);
+            }
+        }
+
         openai_messages
     }
 }
@@ -151,9 +196,13 @@ impl AIProvider for OpenAIProvider {
 
         let openai_response: OpenAIResponse = response.json().await.context("Failed to parse OpenAI response")?;
         
-        openai_response.choices.first()
-            .map(|c| c.message.content.clone())
-            .context("No choices in OpenAI response")
+        let content = openai_response.choices.first()
+            .context("No choices in OpenAI response")?
+            .message.content.clone();
+        match content {
+            Value::String(s) => Ok(s),
+            other => Ok(other.to_string()),
+        }
     }
 
     async fn stream_chat(&self, messages: &[Message]) -> Result<CompletionStream> {
@@ -209,5 +258,58 @@ impl AIProvider for OpenAIProvider {
             .boxed();
 
         Ok(completion_stream)
+    }
+
+    fn supports_vision(&self) -> bool {
+        // GPT-4 Vision, GPT-4o, and GPT-4-turbo models support images
+        let m = &self.config.model;
+        m.contains("gpt-4o") || m.contains("gpt-4-vision") || m.contains("gpt-4-turbo")
+            || m == "gpt-4" || m.contains("o1")
+    }
+
+    async fn chat_with_images(
+        &self,
+        messages: &[Message],
+        images: &[ImageAttachment],
+        context: Option<String>,
+    ) -> Result<String> {
+        if images.is_empty() || !self.supports_vision() {
+            return self.chat(messages, context).await;
+        }
+
+        let api_key = self.config.api_key.as_ref().context("OpenAI API key not found")?;
+        let request = OpenAIRequest {
+            model: self.config.model.clone(),
+            messages: self.build_vision_messages(messages, images, context),
+            temperature: self.config.temperature,
+            max_tokens: self.config.max_tokens,
+            stream: false,
+        };
+
+        let response = self.client
+            .post("https://api.openai.com/v1/chat/completions")
+            .header("Authorization", format!("Bearer {}", api_key))
+            .json(&request)
+            .send()
+            .await
+            .context("Failed to send vision request to OpenAI")?;
+
+        if !response.status().is_success() {
+            let error_text = response.text().await?;
+            anyhow::bail!("OpenAI vision API error: {}", error_text);
+        }
+
+        let openai_response: OpenAIResponse = response
+            .json()
+            .await
+            .context("Failed to parse OpenAI vision response")?;
+
+        let content = openai_response.choices.first()
+            .context("No choices in OpenAI vision response")?
+            .message.content.clone();
+        match content {
+            Value::String(s) => Ok(s),
+            other => Ok(other.to_string()),
+        }
     }
 }

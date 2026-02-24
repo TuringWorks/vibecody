@@ -58,6 +58,11 @@ vibecli --provider gemini
 | `--provider <name>` | `ollama` | AI provider: `ollama`, `openai`, `claude`, `gemini`, `grok` |
 | `--model <name>` | provider default | Override the model for the selected provider |
 | `--tui` | false | Launch the Terminal UI instead of REPL |
+| `--exec <task>` | — | Run an agent task non-interactively (CI mode) |
+| `--auto-edit` | false | Auto-apply file edits; prompt for bash commands |
+| `--full-auto` | false | Auto-execute everything (use with `--sandbox` in CI) |
+| `--output-format <fmt>` | `json` | Report format for `--exec`: `json`, `markdown`, `verbose` |
+| `--output <file>` | stdout | Write `--exec` report to a file instead of stdout |
 
 ---
 
@@ -83,10 +88,16 @@ In REPL mode, the following slash commands are available:
 | Command | Description |
 |---------|-------------|
 | `/chat <message>` | Chat with the AI (maintains conversation history) |
+| `/chat [image.png] <message>` | Chat with a vision model and attach an image |
 | `/generate <prompt>` | Generate code from a natural language description |
+| `/agent <task>` | Run the autonomous agent loop for a multi-step task |
 | `/diff <file>` | Show the git diff for a file |
 | `/apply <file> <changes>` | Apply AI-generated changes to a file (with diff preview) |
 | `/exec <task>` | Generate a shell command from a description and optionally run it |
+| `/trace` | List recent agent session traces |
+| `/trace view <id>` | Show detailed timeline for a trace session |
+| `/mcp list` | List configured MCP servers |
+| `/mcp tools <server>` | List tools provided by an MCP server |
 | `/config` | Display current configuration |
 | `/help` | Show command reference |
 | `/exit` or `/quit` | Exit VibeCLI |
@@ -172,6 +183,78 @@ model = "qwen2.5-coder:7b"
 
 ---
 
+## CI / Non-Interactive Mode
+
+VibeCLI can run agent tasks headlessly — no prompts, no TUI:
+
+```bash
+# Run an agent task and get a JSON report on stdout
+vibecli --exec "add error handling to src/lib.rs" --full-auto
+
+# Write a Markdown report to a file
+vibecli --exec "fix all clippy warnings" --full-auto \
+        --output-format markdown --output report.md
+
+# Stream progress to stderr while writing JSON to stdout
+vibecli --exec "add docstrings to all public functions" \
+        --auto-edit --output-format verbose
+```
+
+**Exit codes:** `0` = success, `1` = partial, `2` = failed, `3` = approval required.
+
+---
+
+## Multimodal Input (Vision)
+
+Claude and GPT-4o providers support image attachments. Use `[path/to/image.png]` syntax in `/chat`:
+
+```
+> /chat [screenshot.png] what error is shown in this screenshot?
+> /chat [diagram.jpg] [schema.png] explain this database design
+```
+
+Images are base64-encoded and sent with the message. Non-vision providers fall back to text-only.
+
+---
+
+## Trace / Audit Log
+
+Every agent session is recorded to `~/.vibecli/traces/<timestamp>.jsonl`. Browse with:
+
+```
+> /trace                   # list recent sessions
+> /trace view 1740000000   # show detailed timeline
+```
+
+Each entry records: step, tool, input summary, output, duration, and approval source (`user` / `auto` / `ci-auto` / `rejected`).
+
+---
+
+## MCP Integration
+
+[Model Context Protocol](https://modelcontextprotocol.io/) servers expose additional tools to the agent. Configure in `~/.vibecli/config.toml`:
+
+```toml
+[[mcp_servers]]
+name = "github"
+command = "npx"
+args = ["@modelcontextprotocol/server-github"]
+
+[[mcp_servers]]
+name = "postgres"
+command = "npx"
+args = ["@modelcontextprotocol/server-postgres", "postgresql://localhost/mydb"]
+```
+
+Then in the REPL:
+
+```
+> /mcp list                # show configured servers
+> /mcp tools github        # list tools from the github server
+```
+
+---
+
 ## Project Structure
 
 ```
@@ -180,6 +263,7 @@ vibecli/
     └── src/
         ├── main.rs         # CLI argument parsing, command dispatch
         ├── config.rs       # Config loading/saving (TOML)
+        ├── ci.rs           # Non-interactive CI mode (--exec)
         ├── diff_viewer.rs  # Renders unified diffs in terminal
         ├── syntax.rs       # Syntax highlighting for code blocks
         ├── repl.rs         # Rustyline helper (tab completion, hints)

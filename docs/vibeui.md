@@ -140,12 +140,28 @@ Press `Cmd+P` (macOS) / `Ctrl+P` (Windows/Linux) to open the Command Palette:
 
 ---
 
+## AI Panel Tabs
+
+The AI panel (toggle with **💬 AI Chat** in the header) has four tabs:
+
+| Tab | Component | Description |
+|-----|-----------|-------------|
+| **💬 Chat** | `AIChat` | Streaming conversation with AI; @ context, diff review |
+| **🤖 Agent** | `AgentPanel` | Autonomous multi-step agent with step timeline and approval UI |
+| **📋 Rules** | `MemoryPanel` | Edit per-workspace `.vibeui.md` and global `~/.vibeui/rules.md` |
+| **🕐 History** | `HistoryPanel` | Audit log of past agent sessions; browse and expand trace entries |
+
+---
+
 ## UI Components
 
 | Component | File | Description |
 |-----------|------|-------------|
 | `App` | `src/App.tsx` | Root component, global state, layout |
 | `AIChat` | `src/components/AIChat.tsx` | Streaming AI chat panel |
+| `AgentPanel` | `src/components/AgentPanel.tsx` | Autonomous agent UI |
+| `MemoryPanel` | `src/components/MemoryPanel.tsx` | Rules / memory editor |
+| `HistoryPanel` | `src/components/HistoryPanel.tsx` | Agent session trace viewer |
 | `GitPanel` | `src/components/GitPanel.tsx` | Full Git workflow panel |
 | `Terminal` | `src/components/Terminal.tsx` | xterm.js terminal integration |
 | `CommandPalette` | `src/components/CommandPalette.tsx` | Fuzzy search command palette |
@@ -198,14 +214,18 @@ AI abstraction layer:
 
 | Module | Description |
 |--------|-------------|
-| `provider` | `AIProvider` trait, `Message`, `CodeContext`, `ProviderConfig` |
+| `provider` | `AIProvider` trait, `Message`, `CodeContext`, `ImageAttachment` |
 | `providers/ollama` | Ollama HTTP API (streaming) |
-| `providers/claude` | Anthropic Claude API (streaming) |
-| `providers/openai` | OpenAI Chat Completions API (streaming) |
+| `providers/claude` | Anthropic Claude API (streaming + vision) |
+| `providers/openai` | OpenAI Chat Completions API (streaming + vision) |
 | `providers/gemini` | Google Gemini API (streaming) |
 | `providers/grok` | xAI Grok API (streaming) |
 | `chat` | `ChatEngine` — session management |
 | `completion` | `CompletionEngine` — inline code completion |
+| `agent` | `AgentLoop` — plan→act→observe loop with approval tiers |
+| `tools` | `ToolCall`, `ToolResult`, prompt-based tool framework |
+| `mcp` | `McpClient` — JSON-RPC 2.0 MCP server integration |
+| `trace` | `TraceWriter` — JSONL audit log per agent session |
 
 ### `vibe-lsp`
 
@@ -214,15 +234,43 @@ Language Server Protocol client:
 - JSON-RPC message framing via `jsonrpc-core` and `tokio-util`
 - Async LSP server process management
 - LSP types from `lsp-types`
-- Foundation for go-to-definition, hover, diagnostics, completions
+- Wired to Monaco for go-to-definition, hover, completions, diagnostics
 
 ### `vibe-extensions`
 
 WASM extension system:
 
-- Powered by `wasmtime` and `wasmtime-wasi`
-- VSCode-compatible extension API (planned)
-- Extensions run in isolated WASM sandboxes
+- Powered by `wasmtime` 27
+- Auto-loads `*.wasm` files from `~/.vibeui/extensions/`
+- Host functions: `host_log`, `host_notify`, `host_read_file`, `host_write_file`
+- String ABI: extensions export `alloc(size) → ptr` and `memory`
+- Extension lifecycle callbacks: `init()`, `on_file_save(path)`, `on_text_change(path, content)`
+
+#### Writing an Extension
+
+Extensions are compiled to `wasm32-unknown-unknown`. A minimal Rust extension:
+
+```rust
+// In your extension's lib.rs (target: wasm32-unknown-unknown)
+extern "C" {
+    fn host_log(ptr: i32, len: i32);
+}
+
+#[no_mangle]
+pub extern "C" fn init() -> i32 {
+    let msg = "Hello from extension!";
+    unsafe { host_log(msg.as_ptr() as i32, msg.len() as i32); }
+    0
+}
+
+#[no_mangle]
+pub extern "C" fn alloc(size: i32) -> i32 {
+    let mut v: Vec<u8> = Vec::with_capacity(size as usize);
+    let ptr = v.as_ptr() as i32;
+    std::mem::forget(v);
+    ptr
+}
+```
 
 ---
 

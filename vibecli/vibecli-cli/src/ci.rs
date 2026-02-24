@@ -89,6 +89,89 @@ impl CiReport {
     }
 }
 
+// ── Tests ─────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_report(outcome: CiOutcome, steps_ok: usize, steps_fail: usize) -> CiReport {
+        let mut steps = Vec::new();
+        for i in 0..steps_ok {
+            steps.push(CiStep {
+                step: i,
+                tool: "read_file".to_string(),
+                input_summary: format!("read_file(src/{}.rs)", i),
+                output: "ok".to_string(),
+                success: true,
+                duration_ms: 10,
+                approved_by: "auto".to_string(),
+            });
+        }
+        for i in steps_ok..steps_ok + steps_fail {
+            steps.push(CiStep {
+                step: i,
+                tool: "bash".to_string(),
+                input_summary: "bash(cargo test)".to_string(),
+                output: "error".to_string(),
+                success: false,
+                duration_ms: 500,
+                approved_by: "ci-auto".to_string(),
+            });
+        }
+        CiReport {
+            task: "test task".to_string(),
+            outcome,
+            steps,
+            summary: "done".to_string(),
+            duration_ms: 1000,
+        }
+    }
+
+    #[test]
+    fn exit_codes() {
+        assert_eq!(make_report(CiOutcome::Success, 1, 0).exit_code(), 0);
+        assert_eq!(make_report(CiOutcome::Partial, 1, 1).exit_code(), 1);
+        assert_eq!(make_report(CiOutcome::Failed, 0, 1).exit_code(), 2);
+        assert_eq!(make_report(CiOutcome::ApprovalRequired, 0, 0).exit_code(), 3);
+    }
+
+    #[test]
+    fn markdown_contains_task_and_outcome() {
+        let report = make_report(CiOutcome::Success, 2, 0);
+        let md = report.to_markdown();
+        assert!(md.contains("test task"));
+        assert!(md.contains("Success"));
+        assert!(md.contains("read_file"));
+    }
+
+    #[test]
+    fn markdown_partial_shows_failure_icon() {
+        let report = make_report(CiOutcome::Partial, 1, 1);
+        let md = report.to_markdown();
+        assert!(md.contains("❌"));
+        assert!(md.contains("✅"));
+    }
+
+    #[test]
+    fn json_round_trip() {
+        let report = make_report(CiOutcome::Partial, 1, 1);
+        let json = serde_json::to_string(&report).unwrap();
+        let back: CiReport = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.task, report.task);
+        assert_eq!(back.steps.len(), report.steps.len());
+    }
+
+    #[test]
+    fn output_format_from_str() {
+        assert_eq!(CiOutputFormat::from_str("json"), CiOutputFormat::Json);
+        assert_eq!(CiOutputFormat::from_str("markdown"), CiOutputFormat::Markdown);
+        assert_eq!(CiOutputFormat::from_str("md"), CiOutputFormat::Markdown);
+        assert_eq!(CiOutputFormat::from_str("verbose"), CiOutputFormat::Verbose);
+        assert_eq!(CiOutputFormat::from_str("unknown"), CiOutputFormat::Json);
+    }
+}
+
 // ── Output format ─────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq)]

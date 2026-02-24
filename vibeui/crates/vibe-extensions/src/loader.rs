@@ -275,6 +275,31 @@ fn default_extension_dir() -> PathBuf {
         .join("extensions")
 }
 
+// ── Tests ─────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    #[test]
+    fn load_from_nonexistent_dir_returns_empty() {
+        let loader = ExtensionLoader::new();
+        let exts = loader.load_from_dir(PathBuf::from("/nonexistent/path/42").as_path());
+        assert!(exts.is_empty());
+    }
+
+    #[test]
+    fn load_from_empty_dir_returns_empty() {
+        let dir = std::env::temp_dir().join("vibe_ext_test_empty");
+        let _ = std::fs::create_dir_all(&dir);
+        let loader = ExtensionLoader::new();
+        let exts = loader.load_from_dir(&dir);
+        assert!(exts.is_empty());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+}
+
 fn wasm_read_str(caller: &mut Caller<HostState>, ptr: i32, len: i32) -> Option<String> {
     let mem = match caller.get_export("memory") {
         Some(Extern::Memory(m)) => m,

@@ -171,6 +171,28 @@ mod tests {
     use std::env::temp_dir;
 
     #[test]
+    fn long_output_truncated() {
+        let dir = temp_dir().join(format!("vibe_trace_trunc_{}", now_secs()));
+        let writer = TraceWriter::new(dir.clone());
+        let long = "x".repeat(800);
+        writer.record(0, "bash", "bash(cmd)", &long, true, 1, "auto");
+
+        let sessions = list_traces(&dir);
+        let entries = load_trace(&sessions[0].path);
+        assert!(entries[0].output.len() < 700, "output should be truncated");
+        assert!(entries[0].output.contains("truncated"));
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn empty_dir_returns_empty() {
+        let dir = temp_dir().join(format!("vibe_trace_empty_{}", now_secs()));
+        let sessions = list_traces(&dir);
+        assert!(sessions.is_empty());
+    }
+
+    #[test]
     fn write_and_load() {
         let dir = temp_dir().join(format!("vibe_trace_test_{}", now_secs()));
         let writer = TraceWriter::new(dir.clone());
