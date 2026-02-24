@@ -1314,19 +1314,123 @@ fn extract_images_from_input(input: &str) -> (String, Vec<ImageAttachment>) {
 }
 
 fn create_provider(provider_name: &str, model: Option<String>) -> Result<Arc<dyn LLMProvider>> {
+    use vibe_ai::providers::{claude, openai, gemini, grok};
+
+    // Helper: look up API key from config, then env var.
+    let cfg = Config::load().unwrap_or_default();
+
     match provider_name.to_lowercase().as_str() {
+        // ── Ollama (local, no API key required) ───────────────────────────────
         "ollama" => {
-            let model = model.unwrap_or_else(|| "qwen3-coder:480b-cloud".to_string());
+            let cfg_model = cfg.ollama.as_ref().and_then(|c| c.model.clone());
+            let api_url = cfg.ollama.as_ref().and_then(|c| c.api_url.clone())
+                .or_else(|| std::env::var("OLLAMA_HOST").ok())
+                .unwrap_or_else(|| "http://localhost:11434".to_string());
+            let model = model
+                .or(cfg_model)
+                .unwrap_or_else(|| "qwen3-coder:480b-cloud".to_string());
             Ok(Arc::new(OllamaProvider::new(ProviderConfig {
                 provider_type: "ollama".to_string(),
-                api_url: Some("http://localhost:11434".to_string()),
+                api_url: Some(api_url),
                 model,
                 api_key: None,
                 max_tokens: None,
                 temperature: None,
             })))
         }
-        _ => anyhow::bail!("Unknown provider: {}", provider_name),
+
+        // ── Anthropic Claude ──────────────────────────────────────────────────
+        "claude" | "anthropic" => {
+            let cfg_key = cfg.claude.as_ref().and_then(|c| c.api_key.clone());
+            let api_key = cfg_key
+                .or_else(|| std::env::var("ANTHROPIC_API_KEY").ok());
+            if api_key.is_none() {
+                eprintln!("⚠️  ANTHROPIC_API_KEY not set (set env var or [claude] api_key in config)");
+            }
+            let cfg_model = cfg.claude.as_ref().and_then(|c| c.model.clone());
+            let model = model
+                .or(cfg_model)
+                .unwrap_or_else(|| "claude-sonnet-4-6".to_string());
+            Ok(Arc::new(claude::ClaudeProvider::new(ProviderConfig {
+                provider_type: "claude".to_string(),
+                api_url: None,
+                model,
+                api_key,
+                max_tokens: None,
+                temperature: None,
+            })))
+        }
+
+        // ── OpenAI ────────────────────────────────────────────────────────────
+        "openai" | "gpt" => {
+            let cfg_key = cfg.openai.as_ref().and_then(|c| c.api_key.clone());
+            let api_key = cfg_key
+                .or_else(|| std::env::var("OPENAI_API_KEY").ok());
+            if api_key.is_none() {
+                eprintln!("⚠️  OPENAI_API_KEY not set (set env var or [openai] api_key in config)");
+            }
+            let cfg_model = cfg.openai.as_ref().and_then(|c| c.model.clone());
+            let model = model
+                .or(cfg_model)
+                .unwrap_or_else(|| "gpt-4o".to_string());
+            Ok(Arc::new(openai::OpenAIProvider::new(ProviderConfig {
+                provider_type: "openai".to_string(),
+                api_url: None,
+                model,
+                api_key,
+                max_tokens: None,
+                temperature: None,
+            })))
+        }
+
+        // ── Google Gemini ─────────────────────────────────────────────────────
+        "gemini" | "google" => {
+            let cfg_key = cfg.gemini.as_ref().and_then(|c| c.api_key.clone());
+            let api_key = cfg_key
+                .or_else(|| std::env::var("GEMINI_API_KEY").ok());
+            if api_key.is_none() {
+                eprintln!("⚠️  GEMINI_API_KEY not set (set env var or [gemini] api_key in config)");
+            }
+            let cfg_model = cfg.gemini.as_ref().and_then(|c| c.model.clone());
+            let model = model
+                .or(cfg_model)
+                .unwrap_or_else(|| "gemini-2.0-flash".to_string());
+            Ok(Arc::new(gemini::GeminiProvider::new(ProviderConfig {
+                provider_type: "gemini".to_string(),
+                api_url: None,
+                model,
+                api_key,
+                max_tokens: None,
+                temperature: None,
+            })))
+        }
+
+        // ── xAI Grok ──────────────────────────────────────────────────────────
+        "grok" | "xai" => {
+            let cfg_key = cfg.grok.as_ref().and_then(|c| c.api_key.clone());
+            let api_key = cfg_key
+                .or_else(|| std::env::var("GROK_API_KEY").ok());
+            if api_key.is_none() {
+                eprintln!("⚠️  GROK_API_KEY not set (set env var or [grok] api_key in config)");
+            }
+            let cfg_model = cfg.grok.as_ref().and_then(|c| c.model.clone());
+            let model = model
+                .or(cfg_model)
+                .unwrap_or_else(|| "grok-3-mini".to_string());
+            Ok(Arc::new(grok::GrokProvider::new(ProviderConfig {
+                provider_type: "grok".to_string(),
+                api_url: None,
+                model,
+                api_key,
+                max_tokens: None,
+                temperature: None,
+            })))
+        }
+
+        _ => anyhow::bail!(
+            "Unknown provider: '{}'. Available: ollama, claude, openai, gemini, grok",
+            provider_name
+        ),
     }
 }
 
@@ -1362,6 +1466,14 @@ fn show_help() {
     println!("  --full-auto              - Execute all tool calls autonomously");
     println!("  --output-format json|md  - Report format for --exec");
     println!("  --output <file>          - Write --exec report to file");
+    println!("  --serve                  - Start HTTP daemon (VS Code extension / Agent SDK)");
+    println!("  --mcp-server             - Run as MCP server (for Claude Desktop etc.)");
+    println!("\nProviders (--provider <name>):");
+    println!("  ollama                   - Local Ollama (default, no key needed)");
+    println!("  claude                   - Anthropic Claude  (ANTHROPIC_API_KEY)");
+    println!("  openai                   - OpenAI GPT-4o     (OPENAI_API_KEY)");
+    println!("  gemini                   - Google Gemini     (GEMINI_API_KEY)");
+    println!("  grok                     - xAI Grok          (GROK_API_KEY)");
     println!("\nMultimodal:");
     println!("  /chat [screenshot.png] What is this error?  - Attach image to chat");
     println!("\n💡 Tip: You can also just type a message to chat\n");

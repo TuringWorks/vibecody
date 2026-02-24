@@ -47,7 +47,7 @@ npm run tauri build
 
 ## Workspace Structure
 
-```
+```t
 vibecody/
 ├── Cargo.toml                  # Workspace root
 ├── vibecli/
@@ -56,6 +56,9 @@ vibecody/
 │       └── src/
 │           ├── main.rs         # Entry point, command routing
 │           ├── config.rs       # TOML config (~/.vibecli/config.toml)
+│           ├── review.rs       # Code review agent
+│           ├── serve.rs        # HTTP daemon for VS Code ext/SDK
+│           ├── otel_init.rs    # OpenTelemetry pipeline
 │           ├── diff_viewer.rs  # Diff rendering
 │           ├── syntax.rs       # Syntax highlighting
 │           ├── repl.rs         # Rustyline REPL helper
@@ -64,17 +67,23 @@ vibecody/
 │               ├── app.rs      # Application state
 │               ├── ui.rs       # Layout & rendering
 │               └── components/ # Chat, DiffView, etc.
-└── vibeui/
-    ├── README.md
-    ├── src/                    # React + TypeScript frontend
-    │   ├── App.tsx             # Root component
-    │   └── components/         # AIChat, GitPanel, Terminal, etc.
-    ├── src-tauri/              # Tauri Rust backend
-    └── crates/                 # Shared Rust library crates
-        ├── vibe-core/          # Text buffer, FS, workspace, Git
-        ├── vibe-ai/            # AI provider abstraction + implementations
-        ├── vibe-lsp/           # Language Server Protocol client
-        └── vibe-extensions/    # WASM-based extension system
+├── vibeui/
+│   ├── README.md
+│   ├── src/                    # React + TypeScript frontend
+│   │   ├── App.tsx             # Root component
+│   │   └── components/         # AIChat, GitPanel, Terminal,
+│   │                           # CheckpointPanel, ManagerView,
+│   │                           # ArtifactsPanel, etc.
+│   ├── src-tauri/              # Tauri Rust backend
+│   └── crates/                 # Shared Rust library crates
+│       ├── vibe-core/          # Text buffer, FS, workspace, Git, index
+│       ├── vibe-ai/            # AI providers, agents, hooks, skills,
+│       │                       # artifacts, policy, planner, OTel
+│       ├── vibe-lsp/           # Language Server Protocol client
+│       └── vibe-extensions/    # WASM-based extension system
+├── vscode-extension/           # VS Code extension (chat + completions)
+└── packages/
+    └── agent-sdk/              # TypeScript Agent SDK
 ```
 
 ---
@@ -84,10 +93,13 @@ vibecody/
 The `vibeui/crates/` libraries are designed to be reused across both VibeCLI and VibeUI:
 
 ### `vibe-core`
-Core editor primitives — text buffer (rope-based), file system operations, workspace management, Git integration, terminal PTY, diff engine, and code search.
+
+Core editor primitives — text buffer (rope-based), file system operations, workspace management, Git integration, terminal PTY, diff engine, code search, and embedding-based codebase indexing.
 
 ### `vibe-ai`
-Unified AI provider abstraction. Supports:
+
+Unified AI provider abstraction with agent loop, hooks, planner, multi-agent orchestration, skills, artifacts, admin policy, trace/session resume, and OpenTelemetry. Supports:
+
 - **Ollama** — Local/private models (default)
 - **Anthropic Claude** — Claude 3.5 Sonnet/Opus
 - **OpenAI** — GPT-4 and variants
@@ -95,10 +107,12 @@ Unified AI provider abstraction. Supports:
 - **xAI Grok** — Grok Beta
 
 ### `vibe-lsp`
+
 Language Server Protocol client for intelligent code features (go-to-definition, diagnostics, completions).
 
 ### `vibe-extensions`
-WASM-based extension runtime (Wasmtime), enabling a VSCode-compatible plugin API.
+
+WASM-based extension runtime (Wasmtime), enabling a plugin API.
 
 ---
 
@@ -188,6 +202,8 @@ Full documentation is available at the [GitHub Pages site](https://vibecody.gith
 - [Architecture Overview](./docs/architecture.md)
 - [VibeCLI Reference](./docs/vibecli.md)
 - [VibeUI Reference](./docs/vibeui.md)
+- [Roadmap](./docs/ROADMAP.md)
+- [Roadmap v2 (Phases 6–9)](./docs/ROADMAP-v2.md)
 - [Configuration Guide](./docs/configuration.md)
 - [Contributing](./docs/contributing.md)
 

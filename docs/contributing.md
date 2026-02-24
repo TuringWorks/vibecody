@@ -42,11 +42,13 @@ Follow the Tauri v2 system prerequisites guide for your OS:
 [tauri.app/start/prerequisites](https://tauri.app/start/prerequisites/)
 
 **macOS quick setup:**
+
 ```bash
 xcode-select --install
 ```
 
 **Linux quick setup:**
+
 ```bash
 sudo apt install libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
 ```
@@ -124,6 +126,7 @@ cargo clippy --workspace -- -D warnings
 ```
 
 Key conventions:
+
 - Use `anyhow::Result` for fallible public APIs
 - Use `thiserror` for library-level error types
 - Prefer `async_trait` for async trait methods
@@ -140,6 +143,7 @@ npx tsc --noEmit
 ```
 
 Key conventions:
+
 - Functional components with hooks
 - Explicit TypeScript types (avoid `any`)
 - CSS modules or co-located `.css` files for component styles
@@ -153,7 +157,7 @@ Key conventions:
 
 Use conventional commits format:
 
-```
+```text
 feat: add streaming support to Gemini provider
 fix: handle empty git repo in get_repo_diff
 docs: update VibeCLI configuration reference
@@ -166,7 +170,7 @@ Types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `perf`, `ci`
 
 ### Branch Names
 
-```
+```text
 feat/gemini-streaming
 fix/ollama-parse-error
 docs/architecture-diagram

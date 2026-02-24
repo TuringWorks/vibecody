@@ -63,6 +63,10 @@ vibecli --provider gemini
 | `--full-auto` | false | Auto-execute everything (use with `--sandbox` in CI) |
 | `--output-format <fmt>` | `json` | Report format for `--exec`: `json`, `markdown`, `verbose` |
 | `--output <file>` | stdout | Write `--exec` report to a file instead of stdout |
+| `--resume <id>` | — | Resume a previous agent session by trace ID |
+| `--parallel <n>` | — | Run task across N parallel agents on git worktrees |
+| `--sandbox` | false | Enable OS-level sandbox (sandbox-exec/bwrap) |
+| `--review` | false | Run code review agent on current diff |
 
 ---
 
@@ -96,6 +100,11 @@ In REPL mode, the following slash commands are available:
 | `/exec <task>` | Generate a shell command from a description and optionally run it |
 | `/trace` | List recent agent session traces |
 | `/trace view <id>` | Show detailed timeline for a trace session |
+| `/plan <task>` | Generate an execution plan without acting |
+| `/review` | Run code review agent on current diff |
+| `/review --pr <n>` | Review a GitHub PR and post comments |
+| `/resume <id>` | Resume a previous agent session |
+| `/skills` | List available skills and their triggers |
 | `/mcp list` | List configured MCP servers |
 | `/mcp tools <server>` | List tools provided by an MCP server |
 | `/config` | Display current configuration |
@@ -255,6 +264,135 @@ Then in the REPL:
 
 ---
 
+## Code Review Agent
+
+Run structured code reviews from the CLI:
+
+```bash
+vibecli review                       # review uncommitted changes
+vibecli review --staged               # review staged changes only
+vibecli review --branch main..HEAD    # review branch diff
+vibecli review --pr 42                # review a GitHub PR
+vibecli review --focus security,perf  # limit review focus
+```
+
+Output is a structured `ReviewReport` with issues (severity: info/warning/critical), suggestions, and a numeric score.
+
+Use `--pr` to post the review directly to a GitHub PR as a comment (via `gh` CLI).
+
+---
+
+## Server Mode (`vibecli serve`)
+
+Run VibeCLI as a long-lived HTTP daemon for the VS Code extension and Agent SDK:
+
+```bash
+vibecli serve --port 7878
+```
+
+Endpoints:
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/health` | Health check |
+| POST | `/chat` | Send chat messages, get response |
+| POST | `/chat/stream` | Streaming SSE chat |
+| POST | `/agent/start` | Start an agent task |
+| GET | `/agent/:id/stream` | Stream agent events via SSE |
+
+---
+
+## Hooks System
+
+Hooks execute on agent events. Configure in `~/.vibecli/hooks.toml` or `.vibecli/hooks.toml`:
+
+```toml
+[[hooks]]
+event = "PreToolUse"
+pattern = "bash"
+handler = { type = "command", command = "echo 'Running shell command' >> /tmp/hooks.log" }
+```
+
+Events: `SessionStart`, `PreToolUse`, `PostToolUse`, `Stop`, `TaskCompleted`, `SubagentStart`.
+
+---
+
+## Plan Mode
+
+Generate execution plans without running tools:
+
+```
+> /plan refactor the auth module to use JWT tokens
+
+📝 Execution Plan:
+  1. Read current auth module (auth.rs)
+  2. Add JWT dependency to Cargo.toml
+  3. Implement JWT token generation
+  4. Update auth middleware
+  5. Write tests
+
+✅ Execute this plan? (y/N):
+```
+
+---
+
+## Skills System
+
+Skills are context snippets that activate based on trigger keywords. Place `.md` files in `.vibecli/skills/` or `~/.vibecli/skills/`:
+
+```markdown
+---
+name: rust-testing
+triggers: [test, testing, cargo test]
+---
+Use `#[tokio::test]` for async tests...
+```
+
+---
+
+## Session Resume
+
+Resume a previous agent session:
+
+```bash
+vibecli --resume 1740000000
+```
+
+Restores the full message history, context, and trace from the JSONL log.
+
+---
+
+## Admin Policy
+
+Workspace administrators can restrict agent behavior via `.vibecli/policy.toml`:
+
+```toml
+[tools]
+deny = ["bash"]
+require_approval = ["write_file", "patch_file"]
+
+[paths]
+deny = ["*.env", "secrets/**"]
+
+[limits]
+max_steps = 10
+```
+
+---
+
+## OpenTelemetry
+
+Export agent tracing spans to any OTLP collector:
+
+```toml
+[otel]
+enabled = true
+endpoint = "http://localhost:4318"
+service_name = "vibecli"
+```
+
+Spans include session ID, task, tool name, and step metadata.
+
 ## Project Structure
 
 ```
@@ -264,6 +402,9 @@ vibecli/
         ├── main.rs         # CLI argument parsing, command dispatch
         ├── config.rs       # Config loading/saving (TOML)
         ├── ci.rs           # Non-interactive CI mode (--exec)
+        ├── review.rs       # Code review agent (vibecli review)
+        ├── serve.rs        # HTTP daemon (vibecli serve)
+        ├── otel_init.rs    # OpenTelemetry pipeline setup
         ├── diff_viewer.rs  # Renders unified diffs in terminal
         ├── syntax.rs       # Syntax highlighting for code blocks
         ├── repl.rs         # Rustyline helper (tab completion, hints)
@@ -287,5 +428,7 @@ vibecli/
 | `rustyline` | REPL readline with history |
 | `syntect` | Syntax highlighting |
 | `tokio` | Async runtime |
-| `vibe-ai` | AI provider abstraction |
-| `vibe-core` | Git, diff, and file utilities |
+| `axum` + `tower-http` | HTTP server (serve mode) |
+| `opentelemetry` + `tracing-opentelemetry` | OTLP tracing |
+| `vibe-ai` | AI provider, agent, hooks, skills, artifacts |
+| `vibe-core` | Git, diff, file utilities, codebase indexing |

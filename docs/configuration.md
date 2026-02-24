@@ -92,6 +92,7 @@ vibecli --tui --provider claude
 1. Install Ollama: [ollama.ai](https://ollama.ai)
 
 2. Pull a coding model:
+
    ```bash
    ollama pull qwen2.5-coder:7b        # Compact, fast
    ollama pull codellama:13b           # Classic coding model
@@ -99,11 +100,13 @@ vibecli --tui --provider claude
    ```
 
 3. Confirm it's running:
+
    ```bash
    curl http://localhost:11434/api/tags
    ```
 
 4. Configure:
+
    ```toml
    [ollama]
    enabled = true
@@ -116,6 +119,7 @@ vibecli --tui --provider claude
 1. Get an API key at [console.anthropic.com](https://console.anthropic.com/)
 
 2. Configure:
+
    ```toml
    [claude]
    enabled = true
@@ -124,6 +128,7 @@ vibecli --tui --provider claude
    ```
 
    Or via environment:
+
    ```bash
    export ANTHROPIC_API_KEY="sk-ant-..."
    ```
@@ -133,6 +138,7 @@ vibecli --tui --provider claude
 1. Get an API key at [platform.openai.com](https://platform.openai.com/)
 
 2. Configure:
+
    ```toml
    [openai]
    enabled = true
@@ -145,6 +151,7 @@ vibecli --tui --provider claude
 1. Get an API key at [aistudio.google.com](https://aistudio.google.com/)
 
 2. Configure:
+
    ```toml
    [gemini]
    enabled = true
@@ -157,6 +164,7 @@ vibecli --tui --provider claude
 1. Get an API key at [x.ai](https://x.ai/)
 
 2. Configure:
+
    ```toml
    [grok]
    enabled = true

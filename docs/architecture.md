@@ -12,28 +12,31 @@ VibeCody is a Rust workspace (monorepo) containing two end-user applications and
 
 ## Workspace Layout
 
-```
+```text
 vibecody/                          ← Cargo workspace root
 ├── vibecli/
 │   └── vibecli-cli/               ← Binary: terminal assistant
-└── vibeui/
-    ├── src/                       ← React + TypeScript frontend
-    ├── src-tauri/                 ← Binary: Tauri desktop app
-    └── crates/
-        ├── vibe-core/             ← Library: editor primitives
-        ├── vibe-ai/               ← Library: AI provider abstraction
-        ├── vibe-lsp/              ← Library: LSP client
-        └── vibe-extensions/       ← Library: WASM extensions
+├── vibeui/
+│   ├── src/                       ← React + TypeScript frontend
+│   ├── src-tauri/                 ← Binary: Tauri desktop app
+│   └── crates/
+│       ├── vibe-core/             ← Library: editor primitives
+│       ├── vibe-ai/               ← Library: AI provider + agent
+│       ├── vibe-lsp/              ← Library: LSP client
+│       └── vibe-extensions/       ← Library: WASM extensions
+├── vscode-extension/              ← VS Code extension
+└── packages/
+    └── agent-sdk/                 ← TypeScript Agent SDK
 ```
 
 ### Dependency Graph
 
-```
-vibecli-cli ──────────────────┐
+```text
+vibecli-cli ──────────────-────┐
                                ▼
                          vibe-ai  ──── reqwest, async-trait, futures
                                │
-vibe-ui (Tauri) ──────────────┤
+vibe-ui (Tauri) ───────-───────┤
                                ▼
                          vibe-core ── ropey, git2, notify, walkdir,
                                │      portable-pty, similar, regex
@@ -136,6 +139,25 @@ Sandboxed shell command execution:
 - Captures stdout/stderr
 - Used by VibeCLI's `!` prefix and `/exec` command
 
+### Codebase Index (`index/`)
+
+Two-layer indexing for codebase intelligence:
+
+| Module | Description |
+|--------|-------------|
+| `mod.rs` + `symbol.rs` | Tree-sitter based symbol extraction |
+| `embeddings.rs` | HNSW vector index with local (Ollama) or cloud (OpenAI) embedding models |
+
+`EmbeddingIndex` supports incremental updates, semantic search, and persistence:
+
+```rust
+impl EmbeddingIndex {
+    pub async fn build(workspace: &Path, provider: &EmbeddingProvider) -> Result<Self>;
+    pub async fn update(&mut self, changed_files: &[PathBuf]) -> Result<()>;
+    pub async fn search(&self, query: &str, k: usize) -> Result<Vec<SearchHit>>;
+}
+```
+
 ---
 
 ## `vibe-ai` — AI Provider Abstraction
@@ -216,6 +238,88 @@ Inline code completion coordinator:
 - Debounces requests
 - Used by VibeUI for as-you-type completions
 
+### Agent Loop (`agent.rs`)
+
+The autonomous plan→act→observe loop:
+
+- Multi-step execution with configurable approval tiers
+- Tool use framework (read, write, patch, bash, search, list, complete)
+- Streaming events via `AgentEvent` enum
+- 30-step maximum with configurable limit
+
+### Planner Agent (`planner.rs`)
+
+Plan Mode — generates structured execution plans without executing:
+
+- `PlannerAgent::plan()` produces `ExecutionPlan` with typed `PlanStep` entries
+- Used by `/plan` in VibeCLI and "Plan first" toggle in VibeUI
+- Steps can be approved individually before execution
+
+### Multi-Agent Orchestrator (`multi_agent.rs`)
+
+Parallel agent execution across isolated git worktrees:
+
+- `MultiAgentOrchestrator::run_parallel()` splits tasks across N agents
+- Each agent operates on its own worktree
+- Results merged back to main branch
+- Events streamed via `OrchestratorEvent`
+
+### Hooks System (`hooks.rs`)
+
+Event-driven hooks matching Claude Code's model:
+
+- Events: `SessionStart`, `PreToolUse`, `PostToolUse`, `Stop`, `TaskCompleted`, `SubagentStart`
+- Handler types: shell commands or LLM evaluations
+- `HookRunner` matches events against configured patterns and executes handlers
+- Supports block/modify/react decisions
+
+### Skills System (`skills.rs`)
+
+Context-aware capability snippets:
+
+- `SkillLoader` discovers skills from workspace and global directories
+- Skills activate based on trigger keyword matching
+- YAML frontmatter + Markdown body format
+
+### Artifacts (`artifacts.rs`)
+
+Structured output from agent operations:
+
+- Types: `TaskList`, `ImplementationPlan`, `FileChange`, `CommandOutput`, `TestResults`, `ReviewReport`, `Text`
+- `ArtifactStore` with annotations and timestamps
+- Async feedback queue for user input
+
+### Admin Policy (`policy.rs`)
+
+Workspace-level security restrictions:
+
+- Loaded from `.vibecli/policy.toml` (workspace) or `~/.vibecli/policy.toml` (global)
+- Tool blocking/approval, path allow/deny lists, step limits
+- Minimal glob matcher (no external crate dependency)
+
+### Trace / Session Resume (`trace.rs`)
+
+JSONL audit logging and session resume:
+
+- `TraceWriter` records every tool call with input, output, timing, and approval source
+- `load_session()` restores full `SessionSnapshot` for `--resume`
+- `list_traces()` for browsing past sessions
+
+### OpenTelemetry (`otel.rs`)
+
+Span attribute constants for the OTLP pipeline:
+
+- Defines `ATTR_SESSION_ID`, `ATTR_TASK`, `SPAN_SESSION`, `SPAN_STEP`, etc.
+- Used by `otel_init.rs` in VibeCLI for tracing spans
+
+### MCP Client (`mcp.rs`)
+
+Model Context Protocol integration:
+
+- JSON-RPC 2.0 over stdio
+- Discovers and invokes tools from external MCP servers
+- `/mcp list` and `/mcp tools <server>` in REPL
+
 ---
 
 ## `vibe-lsp` — Language Server Protocol
@@ -224,7 +328,7 @@ LSP client infrastructure for editor intelligence features.
 
 ### Architecture
 
-```
+```text
 Editor ──→ LspClient ──→ ChildProcess (language server)
                │               │
           JSON-RPC request  stdin/stdout
@@ -236,7 +340,7 @@ Editor ──→ LspClient ──→ ChildProcess (language server)
 - `tokio-util` codec for framed I/O over process stdio
 - Implements the LSP spec types from `lsp-types`
 
-### Planned Features
+### Features
 
 - Go-to-definition
 - Hover documentation
@@ -273,7 +377,7 @@ extension.register_command("my-command", |args| { /* ... */ });
 
 The TUI is built with Ratatui and follows an Elm-like architecture:
 
-```
+```text
 Input Event (crossterm)
         │
         ▼
@@ -302,10 +406,36 @@ pub struct AppState {
 **Rendering (`ui.rs`):**
 
 Uses Ratatui's constraint-based layout system:
+
 - Horizontal split: main content + side panels
 - Vertical split: message history + input box
 - Scrollable list for chat history
 - Syntax-highlighted diff viewer
+
+### VibeCLI Server (`serve.rs`)
+
+HTTP daemon mode (`vibecli serve`) for VS Code extension and Agent SDK:
+
+- Axum-based REST/SSE API
+- Endpoints: `/health`, `/chat`, `/chat/stream`, `/agent/start`, `/agent/{id}/stream`
+- Shared state with event broadcast channels
+
+### Code Review Agent (`review.rs`)
+
+Structured code review mode (`vibecli review`):
+
+- Reviews git diffs (uncommitted, staged, branch, or PR)
+- Produces `ReviewReport` with issues, suggestions, and scoring
+- Posts directly to GitHub PRs via `gh` CLI
+- Focus areas: Security, Performance, Correctness, Style, Testing
+
+### OpenTelemetry Init (`otel_init.rs`)
+
+OTLP pipeline initialization:
+
+- Sets up `tracing-opentelemetry` bridge
+- Exports spans via OTLP/HTTP to any collector (Jaeger, Grafana, etc.)
+- `OtelGuard` ensures flush on shutdown
 
 ---
 
@@ -315,7 +445,7 @@ Tauri bridges the React frontend and Rust backend via IPC.
 
 ### Data Flow (AI Chat Example)
 
-```
+```text
 User types in AIChat.tsx
         │
         ▼
@@ -362,3 +492,25 @@ async fn ai_chat(
 | VibeCLI TUI | `tests.rs` in the `tui` module |
 | VibeUI Tauri | E2E tests in `vibeui/e2e/` |
 | TypeScript | `tsc --noEmit` type checking |
+
+---
+
+## VS Code Extension
+
+The `vscode-extension/` directory contains a full VS Code extension:
+
+- **Chat sidebar** — webview panel communicating with VibeCLI daemon
+- **Inline completions** — `VibeCLIInlineCompletionProvider` with debouncing
+- **Agent mode** — start agent tasks directly from VS Code
+- **API client** — REST calls to `vibecli serve`
+
+---
+
+## Agent SDK
+
+The `packages/agent-sdk/` TypeScript package (`@vibecody/agent-sdk`) provides a programmatic interface for building on VibeCody:
+
+- Connect to VibeCLI daemon
+- Start agent sessions, stream events
+- Chat and completion APIs
+- Typed event handling

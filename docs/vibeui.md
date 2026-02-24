@@ -14,7 +14,7 @@ VibeUI provides a VS Code-like editing experience with a native Rust backend, Mo
 
 ## Architecture Overview
 
-```
+```text
 ┌─────────────────────────────────────────┐
 │           Frontend (React + TS)         │
 │  Monaco Editor │ AI Chat │ Git Panel    │
@@ -49,6 +49,7 @@ VibeUI provides a VS Code-like editing experience with a native Rust backend, Mo
 | Tauri prerequisites | v2 | [tauri.app/start/prerequisites](https://tauri.app/start/prerequisites/) |
 
 On macOS, also ensure Xcode Command Line Tools are installed:
+
 ```bash
 xcode-select --install
 ```
@@ -142,12 +143,15 @@ Press `Cmd+P` (macOS) / `Ctrl+P` (Windows/Linux) to open the Command Palette:
 
 ## AI Panel Tabs
 
-The AI panel (toggle with **💬 AI Chat** in the header) has four tabs:
+The AI panel (toggle with **💬 AI Chat** in the header) has seven tabs:
 
 | Tab | Component | Description |
 |-----|-----------|-------------|
-| **💬 Chat** | `AIChat` | Streaming conversation with AI; @ context, diff review |
-| **🤖 Agent** | `AgentPanel` | Autonomous multi-step agent with step timeline and approval UI |
+| **💬 Chat** | `AIChat` | Streaming conversation with AI; @ context, diff review, multimodal |
+| **🤖 Agent** | `AgentPanel` | Autonomous multi-step agent with step timeline, approval UI, and plan mode |
+| **📝 Checkpoints** | `CheckpointPanel` | Timeline of AI checkpoints with restore, auto-checkpoint |
+| **👥 Manager** | `ManagerView` | Multi-agent orchestration: task board, worktrees, parallel execution |
+| **📦 Artifacts** | `ArtifactsPanel` | Structured output cards with annotations and async feedback |
 | **📋 Rules** | `MemoryPanel` | Edit per-workspace `.vibeui.md` and global `~/.vibeui/rules.md` |
 | **🕐 History** | `HistoryPanel` | Audit log of past agent sessions; browse and expand trace entries |
 
@@ -158,11 +162,14 @@ The AI panel (toggle with **💬 AI Chat** in the header) has four tabs:
 | Component | File | Description |
 |-----------|------|-------------|
 | `App` | `src/App.tsx` | Root component, global state, layout |
-| `AIChat` | `src/components/AIChat.tsx` | Streaming AI chat panel |
-| `AgentPanel` | `src/components/AgentPanel.tsx` | Autonomous agent UI |
+| `AIChat` | `src/components/AIChat.tsx` | Streaming AI chat panel; multimodal input |
+| `AgentPanel` | `src/components/AgentPanel.tsx` | Autonomous agent UI; plan mode toggle |
+| `ManagerView` | `src/components/ManagerView.tsx` | Multi-agent parallel orchestration UI |
+| `CheckpointPanel` | `src/components/CheckpointPanel.tsx` | Checkpoint timeline; restore, auto-checkpoint |
+| `ArtifactsPanel` | `src/components/ArtifactsPanel.tsx` | Rich artifact cards; annotations, feedback |
 | `MemoryPanel` | `src/components/MemoryPanel.tsx` | Rules / memory editor |
 | `HistoryPanel` | `src/components/HistoryPanel.tsx` | Agent session trace viewer |
-| `GitPanel` | `src/components/GitPanel.tsx` | Full Git workflow panel |
+| `GitPanel` | `src/components/GitPanel.tsx` | Full Git workflow panel; PR review |
 | `Terminal` | `src/components/Terminal.tsx` | xterm.js terminal integration |
 | `CommandPalette` | `src/components/CommandPalette.tsx` | Fuzzy search command palette |
 | `ThemeToggle` | `src/components/ThemeToggle.tsx` | Dark/light theme switcher |
@@ -223,9 +230,16 @@ AI abstraction layer:
 | `chat` | `ChatEngine` — session management |
 | `completion` | `CompletionEngine` — inline code completion |
 | `agent` | `AgentLoop` — plan→act→observe loop with approval tiers |
+| `planner` | `PlannerAgent` — plan generation without execution |
+| `multi_agent` | `MultiAgentOrchestrator` — parallel agents on git worktrees |
+| `hooks` | `HookRunner` — event-driven hooks (shell + LLM handlers) |
+| `skills` | `SkillLoader` — auto-activating context snippets |
+| `artifacts` | `ArtifactStore` — structured output with annotations |
+| `policy` | `AdminPolicy` — workspace security restrictions |
 | `tools` | `ToolCall`, `ToolResult`, prompt-based tool framework |
 | `mcp` | `McpClient` — JSON-RPC 2.0 MCP server integration |
-| `trace` | `TraceWriter` — JSONL audit log per agent session |
+| `trace` | `TraceWriter` — JSONL audit log + session resume |
+| `otel` | OpenTelemetry span attribute constants |
 
 ### `vibe-lsp`
 
@@ -309,6 +323,7 @@ See [TESTING.md](https://github.com/vibecody/vibecody/blob/main/vibeui/TESTING.m
 ## Debugging
 
 Open DevTools in the running app:
+
 - **macOS**: `Cmd + Option + I`
 - **Windows/Linux**: `Ctrl + Shift + I`
 
