@@ -144,6 +144,8 @@ pub fn run() {
             commands::start_parallel_agents,
             commands::get_orchestrator_status,
             commands::merge_agent_branch,
+            // ReviewPanel
+            commands::run_code_review,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

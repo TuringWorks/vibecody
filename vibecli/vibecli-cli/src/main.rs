@@ -24,6 +24,8 @@ mod review;
 mod serve;
 mod mcp_server;
 mod otel_init;
+mod plugin;
+use plugin::PluginLoader;
 use tool_executor::{ToolExecutor, VibeCoreWorktreeManager};
 use diff_viewer::DiffViewer;
 use memory::ProjectMemory;
@@ -848,8 +850,90 @@ async fn main() -> Result<()> {
                             }
                         }
 
+                        // ── Plugin management ─────────────────────────────────────────────
+                        "/plugin" => {
+                            let loader = PluginLoader::new();
+                            let parts: Vec<&str> = args.splitn(2, ' ').collect();
+                            match parts[0] {
+                                "list" | "" => {
+                                    let plugins = loader.list();
+                                    if plugins.is_empty() {
+                                        println!("No plugins installed.");
+                                        println!("Install with: /plugin install <path-or-url>\n");
+                                    } else {
+                                        println!("Installed plugins ({}):", plugins.len());
+                                        for (name, version, desc) in &plugins {
+                                            println!("  {} v{}  — {}", name, version, desc);
+                                        }
+                                        println!();
+                                    }
+                                }
+                                "install" => {
+                                    let src = if parts.len() > 1 { parts[1].trim() } else { "" };
+                                    if src.is_empty() {
+                                        println!("Usage: /plugin install <local-path-or-git-url>\n");
+                                        continue;
+                                    }
+                                    print!("📦 Installing plugin from '{}' … ", src);
+                                    io::stdout().flush()?;
+                                    let result = if src.starts_with("http://") || src.starts_with("https://") || src.starts_with("git@") {
+                                        loader.install_from_git(src)
+                                    } else {
+                                        loader.install_from_path(std::path::Path::new(src))
+                                    };
+                                    match result {
+                                        Ok(p) => println!("✅ Installed '{}' v{}\n", p.manifest.name, p.manifest.version),
+                                        Err(e) => eprintln!("❌ Install failed: {}\n", e),
+                                    }
+                                }
+                                "remove" | "uninstall" => {
+                                    let name = if parts.len() > 1 { parts[1].trim() } else { "" };
+                                    if name.is_empty() {
+                                        println!("Usage: /plugin remove <name>\n");
+                                        continue;
+                                    }
+                                    match loader.remove(name) {
+                                        Ok(()) => println!("🗑️  Removed plugin '{}'\n", name),
+                                        Err(e) => eprintln!("❌ Remove failed: {}\n", e),
+                                    }
+                                }
+                                "info" => {
+                                    let name = if parts.len() > 1 { parts[1].trim() } else { "" };
+                                    if name.is_empty() {
+                                        println!("Usage: /plugin info <name>\n");
+                                        continue;
+                                    }
+                                    let plugin_dir = loader.plugins_dir.join(name);
+                                    match loader.load_plugin(&plugin_dir) {
+                                        Ok(p) => {
+                                            println!("Plugin: {} v{}", p.manifest.name, p.manifest.version);
+                                            if !p.manifest.description.is_empty() {
+                                                println!("  {}", p.manifest.description);
+                                            }
+                                            if !p.manifest.author.is_empty() {
+                                                println!("  Author: {}", p.manifest.author);
+                                            }
+                                            println!("  Directory: {}", p.dir.display());
+                                            let skills = p.skills_dir();
+                                            if skills.exists() {
+                                                let count = std::fs::read_dir(&skills)
+                                                    .map(|d| d.count())
+                                                    .unwrap_or(0);
+                                                println!("  Skills: {}", count);
+                                            }
+                                            if !p.manifest.hooks.is_empty() {
+                                                println!("  Hooks: {} configured", p.manifest.hooks.len());
+                                            }
+                                            println!();
+                                        }
+                                        Err(e) => eprintln!("❌ {}\n", e),
+                                    }
+                                }
+                                _ => println!("Usage: /plugin [list|install|remove|info]\n"),
+                            }
+                        }
+
                         _ => {
-                            println!("❌ Unknown command: {}", command);
                             println!("Type /help for available commands\n");
                         }
                     }
@@ -1091,9 +1175,18 @@ async fn run_agent_repl_with_context(
         vec![]
     };
 
+    // Collect skill directories from installed plugins.
+    let plugin_skill_dirs = PluginLoader::new().all_skill_paths()
+        .into_iter()
+        .filter_map(|p| p.parent().map(|d| d.to_path_buf()))
+        .collect::<std::collections::HashSet<_>>()
+        .into_iter()
+        .collect::<Vec<_>>();
+
     let context = AgentContext {
         workspace_root: workspace.clone(),
         approved_plan,
+        extra_skill_dirs: plugin_skill_dirs,
         ..Default::default()
     };
 
@@ -1452,6 +1545,10 @@ fn show_help() {
     println!("  /mcp tools <server>      - List tools on an MCP server");
     println!("  /index [model]           - Build semantic codebase index (default model: nomic-embed-text)");
     println!("  /qa <question>           - Ask a question about the codebase using semantic search");
+    println!("  /plugin list             - List installed plugins");
+    println!("  /plugin install <path>   - Install a plugin from a local path or git URL");
+    println!("  /plugin remove <name>    - Remove an installed plugin");
+    println!("  /plugin info <name>      - Show plugin details");
     println!("  /config                  - Show current configuration");
     println!("  /help                    - Show this help message");
     println!("  /exit                    - Exit VibeCLI");

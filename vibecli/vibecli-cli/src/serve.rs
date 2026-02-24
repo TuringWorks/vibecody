@@ -252,6 +252,7 @@ async fn start_agent(
             git_diff_summary: None,
             flow_context: None,
             approved_plan: None,
+            extra_skill_dirs: vec![],
         };
 
         let (event_tx, mut event_rx) = tokio::sync::mpsc::channel::<AgentEvent>(64);

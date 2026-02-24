@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { ReviewPanel } from './ReviewPanel';
 
 interface GitPanelProps {
     workspacePath: string | null;
@@ -28,6 +29,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
     const [history, setHistory] = useState<CommitInfo[]>([]);
     const [selectedCommit, setSelectedCommit] = useState<CommitInfo | null>(null);
     const [commitFiles, setCommitFiles] = useState<string[]>([]);
+    const [showReview, setShowReview] = useState(false);
 
     useEffect(() => {
         if (workspacePath) {
@@ -385,6 +387,35 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
                 >
                     Commit ({selectedFiles.length} files)
                 </button>
+            </div>
+
+            {/* ── Code Review section ── */}
+            <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: 8 }}>
+                <button
+                    onClick={() => setShowReview(!showReview)}
+                    style={{
+                        width: '100%', textAlign: 'left', padding: '6px 8px',
+                        background: showReview ? 'var(--bg-tertiary)' : 'transparent',
+                        border: 'none', borderRadius: 4, cursor: 'pointer',
+                        color: 'var(--text-primary)', fontSize: 12,
+                        display: 'flex', alignItems: 'center', gap: 6,
+                    }}
+                >
+                    <span>{showReview ? '▼' : '▶'}</span>
+                    <span>🔍 Code Review</span>
+                </button>
+                {showReview && (
+                    <div style={{ marginTop: 8, height: 420, borderRadius: 6, overflow: 'hidden', background: 'var(--bg-secondary)' }}>
+                        <ReviewPanel
+                            workspacePath={workspacePath}
+                            onOpenFile={onCompareFile ? (path) => {
+                                invoke<string>('git_diff', { path: workspacePath, filePath: path })
+                                    .then((diff) => onCompareFile(path, diff))
+                                    .catch(console.error);
+                            } : undefined}
+                        />
+                    </div>
+                )}
             </div>
         </div>
     );

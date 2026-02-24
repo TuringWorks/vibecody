@@ -1049,6 +1049,7 @@ pub async fn start_agent_task(
         git_diff_summary: git_diff,
         flow_context: None,
         approved_plan: None,
+        extra_skill_dirs: vec![],
     };
 
     let executor = Arc::new(TauriToolExecutor::new(workspace_root.clone()));
@@ -1585,6 +1586,7 @@ pub async fn start_parallel_agents(
                 git_diff_summary: None,
                 flow_context: None,
                 approved_plan: None,
+                extra_skill_dirs: vec![],
             };
 
             let executor = Arc::new(TauriToolExecutor::new(root2));
@@ -1696,4 +1698,128 @@ pub async fn merge_agent_branch(
     } else {
         Err(String::from_utf8_lossy(&output.stderr).trim().to_string())
     }
+}
+
+// ── Code Review ───────────────────────────────────────────────────────────────
+
+/// Run an AI-powered code review and return a structured report.
+#[tauri::command]
+pub async fn run_code_review(
+    state: tauri::State<'_, AppState>,
+    workspace_path: String,
+    base_ref: Option<String>,
+    target_ref: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let workspace = PathBuf::from(&workspace_path);
+
+    // Get git diff
+    let base = base_ref.as_deref().unwrap_or("");
+    let diff_args: Vec<&str> = if base.is_empty() {
+        vec!["diff", "HEAD"]
+    } else {
+        vec!["diff", base, target_ref.as_deref().unwrap_or("HEAD")]
+    };
+
+    let diff_output = std::process::Command::new("git")
+        .args(&diff_args)
+        .current_dir(&workspace)
+        .output()
+        .map_err(|e| format!("git error: {e}"))?;
+
+    let diff = String::from_utf8_lossy(&diff_output.stdout).to_string();
+    if diff.trim().is_empty() {
+        return Err("No diff found. Make sure there are uncommitted changes or specify a valid base ref.".to_string());
+    }
+
+    // Truncate very large diffs
+    let diff_for_review = if diff.len() > 20_000 {
+        format!("{}\n...(diff truncated at 20k chars)", &diff[..20_000])
+    } else {
+        diff
+    };
+
+    // Get the active AI provider from the chat engine.
+    let provider = {
+        let engine = state.chat_engine.lock().await;
+        engine.active_provider().ok_or("No active AI provider. Set a provider first.")?.clone()
+    };
+
+    let review_prompt = format!(
+        r#"You are an expert code reviewer. Analyze this git diff and produce a structured review.
+
+Respond ONLY with a JSON object matching this exact schema:
+{{
+  "summary": "2-3 sentence summary of the changes",
+  "issues": [
+    {{
+      "file": "path/to/file.rs",
+      "line": 42,
+      "severity": "critical|warning|info",
+      "category": "security|performance|correctness|style|testing",
+      "description": "What is wrong",
+      "suggested_fix": "How to fix it (optional)"
+    }}
+  ],
+  "suggestions": [
+    {{ "description": "General suggestion", "file": "optional/file.rs" }}
+  ],
+  "score": {{
+    "overall": 7.5,
+    "correctness": 8.0,
+    "security": 9.0,
+    "performance": 7.0,
+    "style": 6.5
+  }},
+  "files_reviewed": ["list", "of", "files"]
+}}
+
+Scores are 0–10 (10 = excellent). Only report real issues.
+
+## Git Diff
+```diff
+{}
+```"#,
+        diff_for_review
+    );
+
+    let messages = vec![
+        vibe_ai::provider::Message {
+            role: vibe_ai::provider::MessageRole::User,
+            content: review_prompt,
+        },
+    ];
+
+    let response = provider
+        .chat(&messages, None)
+        .await
+        .map_err(|e| format!("AI provider error: {e}"))?;
+
+    // Extract JSON from the response (strip markdown code fences if present)
+    let json_str = extract_json(&response);
+    let mut report: serde_json::Value = serde_json::from_str(&json_str)
+        .map_err(|e| format!("Failed to parse review JSON: {e}\n\nRaw: {}", &response[..response.len().min(500)]))?;
+
+    // Inject refs for display
+    report["base_ref"] = serde_json::Value::String(base_ref.unwrap_or_default());
+    report["target_ref"] = serde_json::Value::String(target_ref.unwrap_or_else(|| "HEAD".to_string()));
+
+    Ok(report)
+}
+
+fn extract_json(text: &str) -> String {
+    // Strip ```json ... ``` fences if present
+    let trimmed = text.trim();
+    if let Some(inner) = trimmed.strip_prefix("```json").and_then(|s| s.strip_suffix("```")) {
+        return inner.trim().to_string();
+    }
+    if let Some(inner) = trimmed.strip_prefix("```").and_then(|s| s.strip_suffix("```")) {
+        return inner.trim().to_string();
+    }
+    // Find first { ... } block
+    if let Some(start) = trimmed.find('{') {
+        if let Some(end) = trimmed.rfind('}') {
+            return trimmed[start..=end].to_string();
+        }
+    }
+    trimmed.to_string()
 }

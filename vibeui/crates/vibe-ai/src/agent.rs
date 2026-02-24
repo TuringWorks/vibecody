@@ -85,6 +85,9 @@ pub struct AgentContext {
     pub flow_context: Option<String>,
     /// Pre-approved plan text — injected into system prompt when Plan Mode is used.
     pub approved_plan: Option<String>,
+    /// Extra skill directories to search (e.g. from installed plugins).
+    #[serde(default)]
+    pub extra_skill_dirs: Vec<std::path::PathBuf>,
 }
 
 // ── Tool Executor Trait ───────────────────────────────────────────────────────
@@ -476,7 +479,15 @@ fn build_system_prompt(context: &AgentContext) -> String {
 
     // 8.1: Auto-activate skills whose triggers match the task or open files
     if !context.workspace_root.as_os_str().is_empty() {
-        let loader = SkillLoader::new(&context.workspace_root);
+        // Build a loader that covers workspace, global, and plugin skill dirs.
+        let mut skill_dirs = vec![
+            context.workspace_root.join(".vibecli").join("skills"),
+        ];
+        if let Ok(home) = std::env::var("HOME") {
+            skill_dirs.push(std::path::PathBuf::from(home).join(".vibecli").join("skills"));
+        }
+        skill_dirs.extend(context.extra_skill_dirs.iter().cloned());
+        let loader = SkillLoader::with_dirs(skill_dirs);
         // Match against open files list and any context text
         let context_text = context.open_files.join(" ")
             + context.git_branch.as_deref().unwrap_or("")
