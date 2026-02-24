@@ -21,6 +21,7 @@ mod memory;
 mod ci;
 mod review;
 mod serve;
+mod mcp_server;
 mod otel_init;
 use tool_executor::{ToolExecutor, VibeCoreWorktreeManager};
 use diff_viewer::DiffViewer;
@@ -115,6 +116,15 @@ struct Cli {
     /// Port for daemon mode (default: 7878).
     #[arg(long, default_value = "7878")]
     port: u16,
+
+    // ── MCP server mode ───────────────────────────────────────────────────────
+
+    /// Run as an MCP (Model Context Protocol) server over stdio.
+    /// Exposes read_file, write_file, list_directory, bash, search_files,
+    /// and agent_run as MCP tools. Add to Claude Desktop config.json:
+    /// { "mcpServers": { "vibecli": { "command": "vibecli", "args": ["--mcp-server"] } } }
+    #[arg(long)]
+    mcp_server: bool,
 }
 
 #[tokio::main]
@@ -150,6 +160,15 @@ async fn main() -> Result<()> {
         let cwd = std::env::current_dir()?;
         let approval = ApprovalPolicy::from_str(&approval_policy);
         return serve::serve(llm, approval, cwd, cli.port).await;
+    }
+
+    // MCP server mode: vibecli --mcp-server
+    if cli.mcp_server {
+        let llm = create_provider(&cli.provider, cli.model.clone())?;
+        let cwd = std::env::current_dir()?;
+        let approval = ApprovalPolicy::from_str(&approval_policy);
+        let config = Config::load().unwrap_or_default();
+        return mcp_server::run_server(cwd, llm, approval, config.safety.sandbox).await;
     }
 
     if cli.tui {
