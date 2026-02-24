@@ -26,6 +26,8 @@ mod mcp_server;
 mod otel_init;
 mod plugin;
 use plugin::PluginLoader;
+mod profile;
+use profile::{ProfileManager, ProfileOverrides};
 use tool_executor::{ToolExecutor, VibeCoreWorktreeManager};
 use diff_viewer::DiffViewer;
 use memory::ProjectMemory;
@@ -128,6 +130,20 @@ struct Cli {
     /// { "mcpServers": { "vibecli": { "command": "vibecli", "args": ["--mcp-server"] } } }
     #[arg(long)]
     mcp_server: bool,
+
+    // ── Profile ───────────────────────────────────────────────────────────────
+
+    /// Load a named configuration profile from ~/.vibecli/profiles/<name>.toml.
+    /// Profiles override provider, model, and approval_policy from the base config.
+    /// Example: --profile work  (loads ~/.vibecli/profiles/work.toml)
+    #[arg(long, value_name = "PROFILE")]
+    profile: Option<String>,
+
+    // ── Doctor / health check ─────────────────────────────────────────────────
+
+    /// Run a health check of the VibeCLI installation (providers, config, tools).
+    #[arg(long)]
+    doctor: bool,
 }
 
 #[tokio::main]
@@ -157,9 +173,41 @@ async fn main() -> Result<()> {
             Config::approval_from_flags(cli.suggest, cli.auto_edit, cli.full_auto)
         });
 
+    // ── Doctor mode ───────────────────────────────────────────────────────────
+    if cli.doctor {
+        return run_doctor().await;
+    }
+
+    // ── Profile resolution ────────────────────────────────────────────────────
+    // Load a named profile and use it to override provider / model / approval.
+    // Priority: CLI flags > profile > base config.
+    let (effective_provider, effective_model, approval_policy) =
+        if let Some(profile_name) = cli.profile.as_deref() {
+            match ProfileOverrides::load(profile_name) {
+                Ok(ov) => {
+                    // Profile overrides base; CLI explicit flags override profile.
+                    let provider = ov.provider.unwrap_or_else(|| cli.provider.clone());
+                    let model = cli.model.clone().or(ov.model);
+                    let policy = if cli.suggest || cli.auto_edit || cli.full_auto {
+                        approval_policy.clone()
+                    } else {
+                        ov.approval_policy.unwrap_or_else(|| approval_policy.clone())
+                    };
+                    eprintln!("📋 Profile '{}' → provider={}, approval={}", profile_name, provider, policy);
+                    (provider, model, policy)
+                }
+                Err(e) => {
+                    eprintln!("⚠️  Profile '{}' not found: {}", profile_name, e);
+                    (cli.provider.clone(), cli.model.clone(), approval_policy.clone())
+                }
+            }
+        } else {
+            (cli.provider.clone(), cli.model.clone(), approval_policy.clone())
+        };
+
     // Daemon mode: vibecli serve [--port 7878]
     if cli.serve {
-        let llm = create_provider(&cli.provider, cli.model.clone())?;
+        let llm = create_provider(&effective_provider, effective_model.clone())?;
         let cwd = std::env::current_dir()?;
         let approval = ApprovalPolicy::from_str(&approval_policy);
         return serve::serve(llm, approval, cwd, cli.port).await;
@@ -167,7 +215,7 @@ async fn main() -> Result<()> {
 
     // MCP server mode: vibecli --mcp-server
     if cli.mcp_server {
-        let llm = create_provider(&cli.provider, cli.model.clone())?;
+        let llm = create_provider(&effective_provider, effective_model.clone())?;
         let cwd = std::env::current_dir()?;
         let approval = ApprovalPolicy::from_str(&approval_policy);
         let config = Config::load().unwrap_or_default();
@@ -175,12 +223,12 @@ async fn main() -> Result<()> {
     }
 
     if cli.tui {
-        return tui::run(cli.provider, cli.model).await;
+        return tui::run(effective_provider, effective_model).await;
     }
 
     // Non-interactive CI/exec mode: --exec "task"
     if let Some(task) = cli.exec {
-        let llm = create_provider(&cli.provider, cli.model.clone())?;
+        let llm = create_provider(&effective_provider, effective_model.clone())?;
         let cwd = std::env::current_dir()?;
         let config = Config::load().unwrap_or_default();
         let sandbox = config.safety.sandbox;
@@ -223,7 +271,7 @@ async fn main() -> Result<()> {
 
     // Code review mode: --review
     if cli.review {
-        let llm = create_provider(&cli.provider, cli.model.clone())?;
+        let llm = create_provider(&effective_provider, effective_model.clone())?;
         let workspace = std::env::current_dir()?;
         let config = review::ReviewConfig {
             base_ref: cli.base.unwrap_or_default(),
@@ -264,7 +312,7 @@ async fn main() -> Result<()> {
 
     // Non-TUI agent mode: --agent "task description"
     if let Some(task) = cli.agent {
-        let llm = create_provider(&cli.provider, cli.model.clone())?;
+        let llm = create_provider(&effective_provider, effective_model.clone())?;
 
         // Parallel multi-agent mode
         if let Some(n) = cli.parallel {
@@ -296,20 +344,17 @@ async fn main() -> Result<()> {
     }
 
     println!("🤖 VibeCLI - AI-Powered Coding Assistant");
-    println!("Provider: {}", cli.provider);
-    println!("\nAvailable commands:");
-    println!("  /chat <message>    - Chat with AI");
-    println!("  /agent <task>      - Run autonomous coding agent");
-    println!("  /generate <prompt> - Generate code");
-    println!("  /diff <file>       - Show diff for file");
-    println!("  /apply <file>      - Apply changes to file");
-    println!("  /exec <command>    - Execute command with AI");
-    println!("  /config            - Show configuration");
-    println!("  /help              - Show this help");
-    println!("  /exit              - Exit VibeCLI");
-    println!("\nType a message to chat, or use a command.\n");
+    print!("Provider: {}", effective_provider);
+    if let Some(ref m) = effective_model {
+        print!(" / {}", m);
+    }
+    if let Some(ref p) = cli.profile {
+        print!("  (profile: {})", p);
+    }
+    println!();
+    println!("\nType a message to chat, use a /command, or /help.\n");
 
-    let llm = create_provider(&cli.provider, cli.model)?;
+    let llm = create_provider(&effective_provider, effective_model)?;
 
     // Load project memory (VIBECLI.md / AGENTS.md / CLAUDE.md) and inject as system context
     let cwd = std::env::current_dir()?;
@@ -847,6 +892,80 @@ async fn main() -> Result<()> {
                             match llm.chat(&qa_messages, None).await {
                                 Ok(response) => println!("{}\n", highlight_code_blocks(&response)),
                                 Err(e) => eprintln!("❌ Error: {}\n", e),
+                            }
+                        }
+
+                        // ── Profile management ────────────────────────────────────────────
+                        "/profile" => {
+                            let mgr = ProfileManager::new();
+                            let parts: Vec<&str> = args.splitn(2, ' ').collect();
+                            match parts[0] {
+                                "list" | "" => {
+                                    let profiles = mgr.list();
+                                    if profiles.is_empty() {
+                                        println!("No profiles installed.");
+                                        println!("Create with: /profile create <name> [provider] [approval]\n");
+                                    } else {
+                                        println!("Profiles ({}):", profiles.len());
+                                        for (name, desc) in &profiles {
+                                            println!("  {}  {}", name,
+                                                if desc.is_empty() { String::new() } else { format!("— {}", desc) });
+                                        }
+                                        println!();
+                                    }
+                                }
+                                "show" => {
+                                    let name = if parts.len() > 1 { parts[1].trim() } else { "" };
+                                    if name.is_empty() {
+                                        println!("Usage: /profile show <name>\n");
+                                        continue;
+                                    }
+                                    match mgr.load(name) {
+                                        Ok(p) => {
+                                            println!("Profile: {}", name);
+                                            if !p.description.is_empty() {
+                                                println!("  {}", p.description);
+                                            }
+                                            if let Some(prov) = &p.provider {
+                                                if let Some(t) = &prov.provider_type { println!("  Provider: {}", t); }
+                                                if let Some(m) = &prov.model { println!("  Model: {}", m); }
+                                            }
+                                            if let Some(s) = &p.safety {
+                                                if let Some(a) = &s.approval_policy { println!("  Approval: {}", a); }
+                                                if let Some(sb) = s.sandbox { println!("  Sandbox: {}", sb); }
+                                            }
+                                            println!();
+                                        }
+                                        Err(e) => eprintln!("❌ {}\n", e),
+                                    }
+                                }
+                                "create" => {
+                                    let rest = if parts.len() > 1 { parts[1].trim() } else { "" };
+                                    let mut words = rest.splitn(3, ' ');
+                                    let name = words.next().unwrap_or("").trim();
+                                    let provider = words.next().unwrap_or("ollama").trim();
+                                    let approval = words.next().unwrap_or("suggest").trim();
+                                    if name.is_empty() {
+                                        println!("Usage: /profile create <name> [provider] [approval]\n");
+                                        continue;
+                                    }
+                                    match mgr.create(name, provider, approval) {
+                                        Ok(path) => println!("✅ Created profile '{}' at {}\n", name, path.display()),
+                                        Err(e) => eprintln!("❌ {}\n", e),
+                                    }
+                                }
+                                "delete" | "remove" => {
+                                    let name = if parts.len() > 1 { parts[1].trim() } else { "" };
+                                    if name.is_empty() {
+                                        println!("Usage: /profile delete <name>\n");
+                                        continue;
+                                    }
+                                    match mgr.delete(name) {
+                                        Ok(()) => println!("🗑️  Deleted profile '{}'\n", name),
+                                        Err(e) => eprintln!("❌ {}\n", e),
+                                    }
+                                }
+                                _ => println!("Usage: /profile [list|show|create|delete]\n"),
                             }
                         }
 
@@ -1549,6 +1668,10 @@ fn show_help() {
     println!("  /plugin install <path>   - Install a plugin from a local path or git URL");
     println!("  /plugin remove <name>    - Remove an installed plugin");
     println!("  /plugin info <name>      - Show plugin details");
+    println!("  /profile list            - List named profiles (~/.vibecli/profiles/)");
+    println!("  /profile show <name>     - Show a profile's settings");
+    println!("  /profile create <name>   - Create a new profile interactively");
+    println!("  /profile delete <name>   - Delete a profile");
     println!("  /config                  - Show current configuration");
     println!("  /help                    - Show this help message");
     println!("  /exit                    - Exit VibeCLI");
@@ -1565,6 +1688,8 @@ fn show_help() {
     println!("  --output <file>          - Write --exec report to file");
     println!("  --serve                  - Start HTTP daemon (VS Code extension / Agent SDK)");
     println!("  --mcp-server             - Run as MCP server (for Claude Desktop etc.)");
+    println!("  --profile <name>         - Load a named config profile (~/.vibecli/profiles/<name>.toml)");
+    println!("  --doctor                 - Run health checks on the VibeCLI installation");
     println!("\nProviders (--provider <name>):");
     println!("  ollama                   - Local Ollama (default, no key needed)");
     println!("  claude                   - Anthropic Claude  (ANTHROPIC_API_KEY)");
@@ -1574,6 +1699,131 @@ fn show_help() {
     println!("\nMultimodal:");
     println!("  /chat [screenshot.png] What is this error?  - Attach image to chat");
     println!("\n💡 Tip: You can also just type a message to chat\n");
+}
+
+/// Run a health check of the VibeCLI installation: config, providers, git, plugins, profiles.
+async fn run_doctor() -> Result<()> {
+    println!("\n🩺 VibeCLI Doctor — health check\n");
+
+    // 1. Config file
+    let config_path = dirs::home_dir()
+        .map(|h| h.join(".vibecli").join("config.toml"))
+        .unwrap_or_else(|| std::path::PathBuf::from("~/.vibecli/config.toml"));
+    let config = match Config::load() {
+        Ok(c) => {
+            println!("  ✅ Config     — {} (valid)", config_path.display());
+            c
+        }
+        Err(e) => {
+            println!("  ⚠️  Config     — {} (not found: {})", config_path.display(), e);
+            Config::default()
+        }
+    };
+
+    // 2. Ollama reachability (TCP connect — no reqwest needed)
+    let api_url = config.ollama.as_ref()
+        .and_then(|o| o.api_url.clone())
+        .or_else(|| std::env::var("OLLAMA_HOST").ok())
+        .unwrap_or_else(|| "http://localhost:11434".to_string());
+    // Extract host:port from URL
+    let host_port = api_url
+        .trim_start_matches("http://")
+        .trim_start_matches("https://")
+        .split('/')
+        .next()
+        .unwrap_or("localhost:11434")
+        .to_string();
+    // Ensure port is present
+    let host_port = if host_port.contains(':') {
+        host_port
+    } else {
+        format!("{}:11434", host_port)
+    };
+    print!("  ·  Ollama     — checking {}… ", host_port);
+    io::stdout().flush()?;
+    match host_port.parse::<std::net::SocketAddr>() {
+        Ok(addr) => {
+            match std::net::TcpStream::connect_timeout(&addr, std::time::Duration::from_secs(2)) {
+                Ok(_) => println!("✅ reachable"),
+                Err(_) => println!("❌ not reachable (start with: ollama serve)"),
+            }
+        }
+        Err(_) => println!("⚠️  could not parse address '{}'", host_port),
+    }
+
+    // 3. Cloud provider API keys
+    for (name, env_var, cfg_key) in [
+        ("Claude", "ANTHROPIC_API_KEY", config.claude.as_ref().and_then(|c| c.api_key.clone())),
+        ("OpenAI", "OPENAI_API_KEY",    config.openai.as_ref().and_then(|c| c.api_key.clone())),
+        ("Gemini", "GEMINI_API_KEY",    config.gemini.as_ref().and_then(|c| c.api_key.clone())),
+        ("Grok",   "GROK_API_KEY",      config.grok.as_ref().and_then(|c| c.api_key.clone())),
+    ] {
+        if std::env::var(env_var).is_ok() {
+            println!("  ✅ {:<8} — {} set in environment", name, env_var);
+        } else if cfg_key.is_some() {
+            println!("  ✅ {:<8} — API key in config.toml", name);
+        } else {
+            println!("  ○  {:<8} — no key (set {} if needed)", name, env_var);
+        }
+    }
+
+    // 4. Git binary
+    print!("  ·  Git        — checking binary… ");
+    io::stdout().flush()?;
+    match std::process::Command::new("git").arg("--version").output() {
+        Ok(out) if out.status.success() => {
+            let ver = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            println!("✅ {}", ver);
+        }
+        _ => println!("❌ not found — install git for repository features"),
+    }
+
+    // 5. Plugins
+    let plugins = PluginLoader::new().list();
+    if plugins.is_empty() {
+        println!("  ○  Plugins    — none installed (~/.vibecli/plugins/)");
+    } else {
+        println!("  ✅ Plugins    — {} installed", plugins.len());
+        for (name, ver, _desc) in &plugins {
+            println!("     • {} v{}", name, ver);
+        }
+    }
+
+    // 6. Named profiles
+    let profiles = ProfileManager::new().list();
+    if profiles.is_empty() {
+        println!("  ○  Profiles   — none (~/.vibecli/profiles/)");
+    } else {
+        println!("  ✅ Profiles   — {} available", profiles.len());
+        for (name, desc) in &profiles {
+            let suffix = if desc.is_empty() {
+                String::new()
+            } else {
+                format!(" — {}", desc)
+            };
+            println!("     • {}{}", name, suffix);
+        }
+    }
+
+    // 7. Skills directory
+    match dirs::home_dir().map(|h| h.join(".vibecli").join("skills")) {
+        Some(dir) if dir.exists() => {
+            let count = std::fs::read_dir(&dir).map(|d| d.count()).unwrap_or(0);
+            println!("  ✅ Skills     — {} file(s) in {}", count, dir.display());
+        }
+        _ => println!("  ○  Skills     — no ~/.vibecli/skills/ directory"),
+    }
+
+    // 8. Active profile note
+    if let Some(active) = ProfileManager::read_active() {
+        println!("  📋 Active profile: {}", active);
+    }
+
+    println!();
+    println!("Config file: ~/.vibecli/config.toml");
+    println!("For more information run `vibecli --help`\n");
+
+    Ok(())
 }
 
 async fn show_config() -> Result<()> {
