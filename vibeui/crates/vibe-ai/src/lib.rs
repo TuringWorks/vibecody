@@ -14,6 +14,7 @@ pub mod planner;
 pub mod multi_agent;
 pub mod skills;
 pub mod artifacts;
+pub mod otel;
 
 pub use chat::ChatEngine;
 pub use provider::{CodeContext, Message, MessageRole, CompletionStream, ImageAttachment};

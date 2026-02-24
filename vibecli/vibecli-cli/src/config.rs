@@ -13,6 +13,17 @@ pub struct Config {
     #[serde(default)]
     pub index: IndexConfig,
 
+    /// OpenTelemetry tracing configuration.
+    ///
+    /// ```toml
+    /// [otel]
+    /// enabled = true
+    /// endpoint = "http://localhost:4318"  # OTLP/HTTP
+    /// service_name = "vibecli"
+    /// ```
+    #[serde(default)]
+    pub otel: OtelConfig,
+
     pub ollama: Option<ProviderConfig>,
     pub openai: Option<ProviderConfig>,
     pub claude: Option<ProviderConfig>,
@@ -117,6 +128,42 @@ impl Default for WebSearchConfig {
             enabled: true,
             engine: "duckduckgo".to_string(),
             max_results: 5,
+        }
+    }
+}
+
+/// OpenTelemetry tracing configuration.
+///
+/// ```toml
+/// [otel]
+/// enabled = false
+/// endpoint = "http://localhost:4318"
+/// service_name = "vibecli"
+/// ```
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OtelConfig {
+    /// Whether to enable OTLP export. Defaults to `false`.
+    #[serde(default)]
+    pub enabled: bool,
+    /// OTLP/HTTP endpoint. Defaults to `http://localhost:4318`.
+    #[serde(default = "OtelConfig::default_endpoint")]
+    pub endpoint: String,
+    /// Service name reported in spans. Defaults to `"vibecli"`.
+    #[serde(default = "OtelConfig::default_service_name")]
+    pub service_name: String,
+}
+
+impl OtelConfig {
+    fn default_endpoint() -> String { "http://localhost:4318".to_string() }
+    fn default_service_name() -> String { "vibecli".to_string() }
+}
+
+impl Default for OtelConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            endpoint: Self::default_endpoint(),
+            service_name: Self::default_service_name(),
         }
     }
 }

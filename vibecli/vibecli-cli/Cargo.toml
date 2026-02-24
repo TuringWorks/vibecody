@@ -19,7 +19,7 @@ ratatui.workspace = true
 anyhow.workspace = true
 serde_json.workspace = true
 tracing.workspace = true
-tracing-subscriber.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
 rustyline = { version = "14.0", features = ["derive"] }
 dirs = "5.0"
 futures = "0.3"
@@ -30,3 +30,10 @@ async-trait.workspace = true
 regex.workspace = true
 reqwest = { workspace = true }
 urlencoding = "2.1"
+
+# OpenTelemetry (OTLP/HTTP export)
+opentelemetry = { version = "0.27", features = ["trace"] }
+opentelemetry-otlp = { version = "0.27", features = ["http-proto", "reqwest-client"] }
+opentelemetry_sdk = { version = "0.27", features = ["rt-tokio"] }
+opentelemetry-semantic-conventions = "0.27"
+tracing-opentelemetry = "0.28"

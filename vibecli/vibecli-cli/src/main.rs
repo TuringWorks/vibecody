@@ -20,6 +20,7 @@ mod tool_executor;
 mod memory;
 mod ci;
 mod review;
+mod otel_init;
 use tool_executor::{ToolExecutor, VibeCoreWorktreeManager};
 use diff_viewer::DiffViewer;
 use memory::ProjectMemory;
@@ -107,9 +108,14 @@ struct Cli {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    tracing_subscriber::fmt::init();
-
     let cli = Cli::parse();
+
+    // Initialize tracing (with optional OTLP export if [otel] enabled = true).
+    let otel_config = Config::load()
+        .map(|c| c.otel.clone())
+        .unwrap_or_default();
+    // Keep the guard alive for the entire program.
+    let _otel_guard = otel_init::setup(&otel_config)?;
 
     // Determine approval policy from flags
     let approval_policy = Config::load()

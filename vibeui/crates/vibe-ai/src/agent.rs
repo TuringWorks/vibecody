@@ -4,6 +4,7 @@
 //! repeating until the model calls `task_complete` or `max_steps` is reached.
 
 use crate::hooks::{HookDecision, HookEvent, HookRunner};
+use crate::otel;
 use crate::provider::{AIProvider, Message, MessageRole};
 use crate::skills::SkillLoader;
 use crate::tools::{format_tool_result, parse_tool_calls, ToolCall, ToolResult, TOOL_SYSTEM_PROMPT};
@@ -13,6 +14,7 @@ use futures::StreamExt;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::{mpsc, oneshot};
+use tracing::Instrument;
 
 // ── Approval Policy ───────────────────────────────────────────────────────────
 
@@ -141,8 +143,32 @@ impl AgentLoop {
                 .as_secs()
         );
 
+        // ── Root session span ─────────────────────────────────────────────────
+        let session_span = tracing::info_span!(
+            "agent.session",
+            session_id = %session_id,
+            task = %otel::truncate_task(task, 200),
+        );
+
+        self.run_inner(task, context, event_tx, session_id)
+            .instrument(session_span)
+            .await
+    }
+
+    async fn run_inner(
+        &self,
+        task: &str,
+        context: AgentContext,
+        event_tx: mpsc::Sender<AgentEvent>,
+        session_id: String,
+    ) -> Result<()> {
         // Fire SessionStart hook (non-blocking, best-effort)
         if let Some(hooks) = &self.hooks {
+            let _hook_span = tracing::info_span!(
+                "agent.hook",
+                event = "SessionStart",
+                session_id = %session_id,
+            );
             hooks.run(&HookEvent::SessionStart { session_id: session_id.clone() }).await;
         }
 
@@ -154,26 +180,37 @@ impl AgentLoop {
 
         for step in 0..self.max_steps {
             // ── 1. Stream LLM response ────────────────────────────────────────
-            let mut stream = match self.provider.stream_chat(&messages).await {
-                Ok(s) => s,
-                Err(e) => {
-                    let _ = event_tx.send(AgentEvent::Error(e.to_string())).await;
-                    return Err(e);
-                }
-            };
-
+            let llm_span = tracing::info_span!(
+                "agent.llm_call",
+                step = step,
+                message_count = messages.len(),
+            );
             let mut accumulated = String::new();
-            while let Some(chunk) = stream.next().await {
-                match chunk {
-                    Ok(text) => {
-                        let _ = event_tx.send(AgentEvent::StreamChunk(text.clone())).await;
-                        accumulated.push_str(&text);
-                    }
+            {
+                let _guard = llm_span.enter();
+                let mut stream = match self.provider.stream_chat(&messages).await {
+                    Ok(s) => s,
                     Err(e) => {
+                        tracing::error!(error = %e, "LLM call failed");
                         let _ = event_tx.send(AgentEvent::Error(e.to_string())).await;
                         return Err(e);
                     }
+                };
+
+                while let Some(chunk) = stream.next().await {
+                    match chunk {
+                        Ok(text) => {
+                            let _ = event_tx.send(AgentEvent::StreamChunk(text.clone())).await;
+                            accumulated.push_str(&text);
+                        }
+                        Err(e) => {
+                            tracing::error!(error = %e, "LLM stream error");
+                            let _ = event_tx.send(AgentEvent::Error(e.to_string())).await;
+                            return Err(e);
+                        }
+                    }
                 }
+                tracing::debug!(response_len = accumulated.len(), "LLM response complete");
             }
 
             // ── 2. Parse tool calls ───────────────────────────────────────────
@@ -182,6 +219,12 @@ impl AgentLoop {
                 // Model responded with prose — treat as final answer.
                 // Fire Stop hook
                 if let Some(hooks) = &self.hooks {
+                    let _hook_span = tracing::info_span!(
+                        "agent.hook",
+                        event = "Stop",
+                        reason = "prose_response",
+                        session_id = %session_id,
+                    );
                     hooks.run(&HookEvent::Stop {
                         reason: "prose_response".to_string(),
                         session_id: session_id.clone(),
@@ -205,23 +248,36 @@ impl AgentLoop {
                 };
                 // Fire TaskCompleted hook
                 if let Some(hooks) = &self.hooks {
+                    let _hook_span = tracing::info_span!(
+                        "agent.hook",
+                        event = "TaskCompleted",
+                        session_id = %session_id,
+                    );
                     hooks.run(&HookEvent::TaskCompleted {
                         summary: summary.clone(),
                         session_id: session_id.clone(),
                     }).await;
                 }
+                tracing::info!(step = step, summary = %summary, "Agent task complete");
                 let _ = event_tx.send(AgentEvent::Complete(summary)).await;
                 return Ok(());
             }
 
             // ── 3a. PreToolUse hook ───────────────────────────────────────────
             if let Some(hooks) = &self.hooks {
+                let _hook_span = tracing::info_span!(
+                    "agent.hook",
+                    event = "PreToolUse",
+                    tool = %call.name(),
+                    session_id = %session_id,
+                );
                 let decision = hooks.run(&HookEvent::PreToolUse {
                     call: call.clone(),
                     session_id: session_id.clone(),
                 }).await;
                 match decision {
                     HookDecision::Block { reason } => {
+                        tracing::warn!(tool = %call.name(), reason = %reason, "Tool call blocked by hook");
                         // Tell the model the tool was blocked
                         messages.push(Message {
                             role: MessageRole::User,
@@ -239,42 +295,74 @@ impl AgentLoop {
                 }
             }
 
+            // ── 3b. Execute tool call ─────────────────────────────────────────
+            let step_span = tracing::info_span!(
+                "agent.step",
+                step_num = step,
+                tool = %call.name(),
+            );
             let needs_approval = self.needs_approval(&call);
-            let tool_result = if needs_approval {
-                let (result_tx, result_rx) = oneshot::channel();
-                if event_tx
-                    .send(AgentEvent::ToolCallPending { call: call.clone(), result_tx })
-                    .await
-                    .is_err()
-                {
-                    return Ok(()); // Receiver dropped — caller gone
+            let tool_result = {
+                let _guard = step_span.enter();
+                if needs_approval {
+                    let (result_tx, result_rx) = oneshot::channel();
+                    if event_tx
+                        .send(AgentEvent::ToolCallPending { call: call.clone(), result_tx })
+                        .await
+                        .is_err()
+                    {
+                        return Ok(()); // Receiver dropped — caller gone
+                    }
+                    match result_rx.await {
+                        Ok(Some(result)) => {
+                            tracing::debug!(
+                                tool = %call.name(),
+                                success = result.success,
+                                "Tool call approved and executed",
+                            );
+                            result
+                        }
+                        Ok(None) => {
+                            tracing::info!(tool = %call.name(), "Tool call rejected by user");
+                            ToolResult {
+                                tool_name: call.name().to_string(),
+                                output: "Tool call rejected by user.".to_string(),
+                                success: false,
+                                truncated: false,
+                            }
+                        }
+                        Err(_) => return Ok(()), // Sender dropped
+                    }
+                } else {
+                    // Auto-execute
+                    let result = self.executor.execute(&call).await;
+                    tracing::debug!(
+                        tool = %call.name(),
+                        success = result.success,
+                        truncated = result.truncated,
+                        "Tool call auto-executed",
+                    );
+                    let _ = event_tx
+                        .send(AgentEvent::ToolCallExecuted(AgentStep {
+                            step_num: step,
+                            tool_call: call.clone(),
+                            tool_result: result.clone(),
+                            approved: true,
+                        }))
+                        .await;
+                    result
                 }
-                match result_rx.await {
-                    Ok(Some(result)) => result,
-                    Ok(None) => ToolResult {
-                        tool_name: call.name().to_string(),
-                        output: "Tool call rejected by user.".to_string(),
-                        success: false,
-                        truncated: false,
-                    },
-                    Err(_) => return Ok(()), // Sender dropped
-                }
-            } else {
-                // Auto-execute
-                let result = self.executor.execute(&call).await;
-                let _ = event_tx
-                    .send(AgentEvent::ToolCallExecuted(AgentStep {
-                        step_num: step,
-                        tool_call: call.clone(),
-                        tool_result: result.clone(),
-                        approved: true,
-                    }))
-                    .await;
-                result
             };
 
-            // ── 3b. PostToolUse hook ──────────────────────────────────────────
+            // ── 3c. PostToolUse hook ──────────────────────────────────────────
             if let Some(hooks) = &self.hooks {
+                let _hook_span = tracing::info_span!(
+                    "agent.hook",
+                    event = "PostToolUse",
+                    tool = %call.name(),
+                    tool_success = tool_result.success,
+                    session_id = %session_id,
+                );
                 let decision = hooks.run(&HookEvent::PostToolUse {
                     call: call.clone(),
                     result: tool_result.clone(),
@@ -295,6 +383,7 @@ impl AgentLoop {
             });
         }
 
+        tracing::warn!(max_steps = self.max_steps, "Agent reached maximum step limit");
         let _ = event_tx
             .send(AgentEvent::Error(format!(
                 "Agent reached maximum step limit ({})",
