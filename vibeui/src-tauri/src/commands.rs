@@ -1245,6 +1245,126 @@ pub async fn restore_checkpoint(
     vibe_core::git::restore_stash(&root, index).map_err(|e| e.to_string())
 }
 
+// ─── Phase 7.3 — Next-Edit Prediction ────────────────────────────────────────
+
+/// A single edit event used as input for next-edit prediction.
+#[derive(Deserialize, Debug)]
+pub struct EditEvent {
+    pub line: u32,
+    pub col: u32,
+    pub old_text: String,
+    pub new_text: String,
+    pub elapsed_ms: u64,
+}
+
+/// Predicted next location and replacement text.
+#[derive(Serialize, Debug)]
+pub struct NextEditPrediction {
+    pub target_line: u32,
+    pub target_col: u32,
+    pub suggested_text: String,
+    pub confidence: f32,
+}
+
+/// Predict the next edit a developer will make after a series of recent changes.
+///
+/// Sends the recent edit history to the fast model and parses its JSON response.
+/// Returns `None` if the model has no high-confidence prediction.
+#[tauri::command]
+pub async fn predict_next_edit(
+    state: tauri::State<'_, AppState>,
+    current_file: String,
+    content: String,
+    cursor_line: u32,
+    _cursor_col: u32,
+    recent_edits: Vec<EditEvent>,
+    _provider: String,
+) -> Result<Option<NextEditPrediction>, String> {
+    // Build the prediction prompt
+    let mut edit_lines = String::new();
+    for (i, edit) in recent_edits.iter().enumerate() {
+        edit_lines.push_str(&format!(
+            "{}. Line {}, col {}: {:?} → {:?} ({}ms ago)\n",
+            i + 1, edit.line + 1, edit.col + 1,
+            edit.old_text, edit.new_text, edit.elapsed_ms
+        ));
+    }
+
+    // Count occurrences of old text still in content (to show remaining locations)
+    let first_old = recent_edits.first().map(|e| e.old_text.as_str()).unwrap_or("");
+    let remaining_count = if first_old.is_empty() {
+        0
+    } else {
+        content.matches(first_old).count()
+    };
+
+    let prompt = format!(
+        "Recent edits in `{}`:\n{}\n\
+        The text {:?} still appears {} more time(s) in the file at cursor line {}.\n\
+        Predict the next edit the developer will make. \
+        Respond ONLY with JSON (no markdown, no explanation):\n\
+        {{\"line\": <0-indexed line>, \"col\": <0-indexed col>, \"replacement\": \"<text>\", \"confidence\": <0.0-1.0>}}\n\
+        If you have no confident prediction, respond: {{\"confidence\": 0.0}}",
+        current_file, edit_lines,
+        first_old, remaining_count,
+        cursor_line + 1,
+    );
+
+    let messages = vec![
+        vibe_ai::Message {
+            role: vibe_ai::MessageRole::System,
+            content: "You are a next-edit prediction engine. Output only valid JSON.".to_string(),
+        },
+        vibe_ai::Message {
+            role: vibe_ai::MessageRole::User,
+            content: prompt,
+        },
+    ];
+
+    let engine = state.chat_engine.lock().await;
+    let response = engine.chat(&messages, None).await.map_err(|e| e.to_string())?;
+    drop(engine);
+
+    // Parse the JSON response
+    let raw = response.trim();
+    // Strip markdown code fences if present
+    let json_str = if raw.starts_with("```") {
+        raw.lines()
+            .filter(|l| !l.starts_with("```"))
+            .collect::<Vec<_>>()
+            .join("\n")
+    } else {
+        raw.to_string()
+    };
+
+    #[derive(Deserialize)]
+    struct RawPrediction {
+        #[serde(default)]
+        line: Option<u32>,
+        #[serde(default)]
+        col: Option<u32>,
+        #[serde(default)]
+        replacement: Option<String>,
+        confidence: f32,
+    }
+
+    match serde_json::from_str::<RawPrediction>(&json_str) {
+        Ok(pred) if pred.confidence >= 0.5 => {
+            if let (Some(line), Some(col), Some(replacement)) = (pred.line, pred.col, pred.replacement) {
+                Ok(Some(NextEditPrediction {
+                    target_line: line,
+                    target_col: col,
+                    suggested_text: replacement,
+                    confidence: pred.confidence,
+                }))
+            } else {
+                Ok(None)
+            }
+        }
+        _ => Ok(None),
+    }
+}
+
 // ─── Phase 5 — Trace / History Commands ───────────────────────────────────────
 
 #[derive(Serialize)]

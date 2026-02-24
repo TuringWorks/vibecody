@@ -6,6 +6,7 @@ import { AIChat } from "./components/AIChat";
 import { AgentPanel } from "./components/AgentPanel";
 import { MemoryPanel } from "./components/MemoryPanel";
 import { HistoryPanel } from "./components/HistoryPanel";
+import { CheckpointPanel } from "./components/CheckpointPanel";
 import { Terminal } from "./components/Terminal";
 import { detectLanguage, getFileIcon } from "./utils/fileUtils";
 import "./App.css";
@@ -55,7 +56,7 @@ function App() {
   const [showSidebar, setShowSidebar] = useState(true);
   const [activeSidebarTab, setActiveSidebarTab] = useState<"explorer" | "search" | "git">("explorer");
   const [showAIChat, setShowAIChat] = useState(false);
-  const [aiPanelTab, setAiPanelTab] = useState<"chat" | "agent" | "memory" | "history">("chat");
+  const [aiPanelTab, setAiPanelTab] = useState<"chat" | "agent" | "memory" | "history" | "checkpoints">("chat");
   const [showTerminal, setShowTerminal] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
 
@@ -1289,14 +1290,14 @@ function App() {
           <aside className="ai-chat-panel" style={{ display: "flex", flexDirection: "column" }}>
             {/* Tab bar */}
             <div style={{ display: "flex", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
-              {(["chat", "agent", "memory", "history"] as const).map((tab) => (
+              {(["chat", "agent", "memory", "history", "checkpoints"] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setAiPanelTab(tab)}
                   style={{
                     flex: 1,
                     padding: "8px 4px",
-                    fontSize: "12px",
+                    fontSize: "11px",
                     background: "none",
                     border: "none",
                     borderBottom: aiPanelTab === tab ? "2px solid var(--accent-blue, #007acc)" : "2px solid transparent",
@@ -1305,7 +1306,11 @@ function App() {
                     fontWeight: aiPanelTab === tab ? 600 : 400,
                   }}
                 >
-                  {tab === "chat" ? "💬 Chat" : tab === "agent" ? "🤖 Agent" : tab === "memory" ? "📋 Rules" : "🕐 History"}
+                  {tab === "chat" ? "💬 Chat"
+                    : tab === "agent" ? "🤖 Agent"
+                    : tab === "memory" ? "📋 Rules"
+                    : tab === "history" ? "🕐 History"
+                    : "🔖 Checkpoints"}
                 </button>
               ))}
             </div>
@@ -1334,6 +1339,11 @@ function App() {
               )}
               {aiPanelTab === "history" && (
                 <HistoryPanel />
+              )}
+              {aiPanelTab === "checkpoints" && (
+                <CheckpointPanel
+                  workspacePath={workspaceFolders[0] || null}
+                />
               )}
             </div>
           </aside>

@@ -135,6 +135,8 @@ pub fn run() {
             // Phase 5 commands — Trace / History
             commands::list_trace_sessions,
             commands::load_trace_session,
+            // Phase 7.3 commands — Next-Edit Prediction
+            commands::predict_next_edit,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
