@@ -1,0 +1,463 @@
+//! Embedding-based semantic search index for codebase files.
+//!
+//! Uses local (Ollama) or cloud (OpenAI) embedding models to build a vector
+//! index over source-code chunks. Supports incremental updates and cosine-
+//! similarity search.
+//!
+//! # Quick start
+//! ```no_run
+//! use vibe_core::index::embeddings::{EmbeddingIndex, EmbeddingProvider};
+//! # async fn example() -> anyhow::Result<()> {
+//! let provider = EmbeddingProvider::ollama("nomic-embed-text");
+//! let mut index = EmbeddingIndex::build(std::path::Path::new("."), &provider).await?;
+//! let hits = index.search("authenticate user", 5).await?;
+//! # Ok(()) }
+//! ```
+
+use anyhow::{Context, Result};
+use serde::{Deserialize, Serialize};
+use std::path::{Path, PathBuf};
+
+// ── EmbeddingProvider ─────────────────────────────────────────────────────────
+
+/// Which embedding model to use for vectorising text.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum EmbeddingProvider {
+    Ollama {
+        model: String,
+        /// Default: `http://localhost:11434`
+        api_url: String,
+    },
+    OpenAI {
+        api_key: String,
+        /// Default: `text-embedding-3-small`
+        model: String,
+    },
+}
+
+impl EmbeddingProvider {
+    pub fn ollama(model: impl Into<String>) -> Self {
+        Self::Ollama {
+            model: model.into(),
+            api_url: "http://localhost:11434".to_string(),
+        }
+    }
+
+    pub fn openai(api_key: impl Into<String>) -> Self {
+        Self::OpenAI {
+            api_key: api_key.into(),
+            model: "text-embedding-3-small".to_string(),
+        }
+    }
+
+    /// Call the embedding API and return the embedding vector.
+    pub async fn embed(&self, text: &str) -> Result<Vec<f32>> {
+        match self {
+            Self::Ollama { model, api_url } => {
+                embed_ollama(text, model, api_url).await
+            }
+            Self::OpenAI { api_key, model } => {
+                embed_openai(text, api_key, model).await
+            }
+        }
+    }
+}
+
+// ── EmbeddingDoc ──────────────────────────────────────────────────────────────
+
+/// A chunk of source text with its origin location.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EmbeddingDoc {
+    pub file: PathBuf,
+    pub chunk_start: usize,  // start line (0-indexed)
+    pub chunk_end: usize,    // end line (exclusive)
+    pub text: String,
+}
+
+// ── SearchHit ─────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SearchHit {
+    pub file: PathBuf,
+    pub chunk_start: usize,
+    pub chunk_end: usize,
+    pub text: String,
+    /// Cosine similarity in [0, 1].
+    pub score: f32,
+}
+
+// ── EmbeddingIndex ────────────────────────────────────────────────────────────
+
+/// In-memory vector index over source-code chunks.
+///
+/// Backed by a flat list of `(embedding, doc)` pairs with linear cosine-
+/// similarity search. Suitable for workspaces up to ~50 k tokens; beyond that
+/// consider a persistent ANN index.
+#[derive(Serialize, Deserialize)]
+pub struct EmbeddingIndex {
+    pub provider: EmbeddingProvider,
+    /// Parallel arrays: vectors[i] ↔ docs[i].
+    vectors: Vec<Vec<f32>>,
+    docs: Vec<EmbeddingDoc>,
+}
+
+impl EmbeddingIndex {
+    // ── Build / update ────────────────────────────────────────────────────────
+
+    /// Walk `workspace`, chunk source files, embed each chunk, and build the
+    /// index from scratch.
+    pub async fn build(workspace: &Path, provider: &EmbeddingProvider) -> Result<Self> {
+        let mut index = Self {
+            provider: provider.clone(),
+            vectors: Vec::new(),
+            docs: Vec::new(),
+        };
+        let files = collect_source_files(workspace);
+        tracing::info!("EmbeddingIndex: embedding {} source files", files.len());
+        for path in files {
+            if let Err(e) = index.embed_file(&path).await {
+                tracing::warn!("Failed to embed {}: {}", path.display(), e);
+            }
+        }
+        tracing::info!("EmbeddingIndex: {} chunks indexed", index.docs.len());
+        Ok(index)
+    }
+
+    /// Re-embed changed files, removing their old chunks first.
+    pub async fn update(&mut self, changed_files: &[PathBuf]) -> Result<()> {
+        for path in changed_files {
+            // Remove old chunks for this file
+            let mut i = 0;
+            while i < self.docs.len() {
+                if self.docs[i].file == *path {
+                    self.docs.remove(i);
+                    self.vectors.remove(i);
+                } else {
+                    i += 1;
+                }
+            }
+            // Re-embed the file (if it still exists)
+            if path.exists() {
+                if let Err(e) = self.embed_file(path).await {
+                    tracing::warn!("Failed to re-embed {}: {}", path.display(), e);
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Semantic search: embed `query` and return the top-k most similar chunks.
+    pub async fn search(&self, query: &str, k: usize) -> Result<Vec<SearchHit>> {
+        if self.vectors.is_empty() {
+            return Ok(vec![]);
+        }
+        let query_vec = self.provider.embed(query).await
+            .context("Failed to embed search query")?;
+
+        let mut scored: Vec<(f32, usize)> = self.vectors.iter()
+            .enumerate()
+            .map(|(i, v)| (cosine_similarity(&query_vec, v), i))
+            .collect();
+
+        scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+
+        let hits = scored.into_iter()
+            .take(k)
+            .filter(|(score, _)| *score > 0.0)
+            .map(|(score, i)| {
+                let doc = &self.docs[i];
+                SearchHit {
+                    file: doc.file.clone(),
+                    chunk_start: doc.chunk_start,
+                    chunk_end: doc.chunk_end,
+                    text: doc.text.clone(),
+                    score,
+                }
+            })
+            .collect();
+
+        Ok(hits)
+    }
+
+    // ── Persistence ───────────────────────────────────────────────────────────
+
+    /// Save the index to `path` as compressed JSON.
+    pub fn save(&self, path: &Path) -> Result<()> {
+        let json = serde_json::to_string(self)?;
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        std::fs::write(path, json)?;
+        Ok(())
+    }
+
+    /// Load a previously saved index.
+    pub fn load(path: &Path) -> Result<Self> {
+        let json = std::fs::read_to_string(path)
+            .with_context(|| format!("Cannot read embedding index from {}", path.display()))?;
+        let index: Self = serde_json::from_str(&json)?;
+        Ok(index)
+    }
+
+    /// Number of indexed chunks.
+    pub fn chunk_count(&self) -> usize {
+        self.docs.len()
+    }
+
+    /// Number of unique files indexed.
+    pub fn file_count(&self) -> usize {
+        let mut paths: Vec<&PathBuf> = self.docs.iter().map(|d| &d.file).collect();
+        paths.dedup();
+        paths.len()
+    }
+
+    // ── Internal helpers ──────────────────────────────────────────────────────
+
+    async fn embed_file(&mut self, path: &Path) -> Result<()> {
+        let meta = std::fs::metadata(path)?;
+        if meta.len() > MAX_FILE_SIZE_BYTES {
+            tracing::debug!("Skipping oversized file: {}", path.display());
+            return Ok(());
+        }
+
+        let content = std::fs::read_to_string(path)
+            .with_context(|| format!("Cannot read {}", path.display()))?;
+
+        for chunk in chunk_text(&content) {
+            let vec = self.provider.embed(&chunk.text).await?;
+            self.vectors.push(vec);
+            self.docs.push(EmbeddingDoc {
+                file: path.to_path_buf(),
+                chunk_start: chunk.start,
+                chunk_end: chunk.end,
+                text: chunk.text,
+            });
+        }
+        Ok(())
+    }
+}
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+const MAX_FILE_SIZE_BYTES: u64 = 500 * 1024; // 500 KB
+const CHUNK_LINES: usize = 60;               // ~512 tokens at typical density
+const CHUNK_OVERLAP: usize = 8;              // overlap between consecutive chunks
+
+// ── Chunking ──────────────────────────────────────────────────────────────────
+
+struct TextChunk {
+    start: usize,
+    end: usize,
+    text: String,
+}
+
+fn chunk_text(content: &str) -> Vec<TextChunk> {
+    let lines: Vec<&str> = content.lines().collect();
+    let total = lines.len();
+    if total == 0 {
+        return vec![];
+    }
+
+    let mut chunks = Vec::new();
+    let mut start = 0usize;
+
+    while start < total {
+        let end = (start + CHUNK_LINES).min(total);
+        let text = lines[start..end].join("\n");
+        chunks.push(TextChunk { start, end, text });
+        if end >= total {
+            break;
+        }
+        // Advance with overlap
+        start = end.saturating_sub(CHUNK_OVERLAP);
+    }
+
+    chunks
+}
+
+// ── File collection ───────────────────────────────────────────────────────────
+
+fn collect_source_files(workspace: &Path) -> Vec<PathBuf> {
+    use walkdir::WalkDir;
+
+    const SKIP_DIRS: &[&str] = &[
+        ".git", "node_modules", "target", "dist", "build",
+        "__pycache__", ".venv", "venv", ".tox", ".cargo",
+    ];
+
+    const SOURCE_EXTENSIONS: &[&str] = &[
+        "rs", "py", "ts", "tsx", "js", "jsx", "go", "java", "c", "cpp", "h",
+        "cs", "rb", "swift", "kt", "scala", "ml", "hs", "ex", "exs", "lua",
+        "sh", "bash", "zsh", "fish", "toml", "yaml", "yml", "json", "md",
+    ];
+
+    WalkDir::new(workspace)
+        .follow_links(false)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_type().is_file())
+        .filter(|e| {
+            let path_str = e.path().to_string_lossy();
+            !SKIP_DIRS.iter().any(|d| {
+                path_str.contains(&format!("/{}/", d))
+                    || path_str.contains(&format!("\\{}\\", d))
+            })
+        })
+        .filter(|e| {
+            let ext = e.path().extension().and_then(|x| x.to_str()).unwrap_or("");
+            SOURCE_EXTENSIONS.contains(&ext)
+        })
+        .map(|e| e.path().to_path_buf())
+        .collect()
+}
+
+// ── Cosine similarity ─────────────────────────────────────────────────────────
+
+fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
+    if a.len() != b.len() || a.is_empty() {
+        return 0.0;
+    }
+    let dot: f32 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
+    let norm_a: f32 = a.iter().map(|x| x * x).sum::<f32>().sqrt();
+    let norm_b: f32 = b.iter().map(|x| x * x).sum::<f32>().sqrt();
+    if norm_a == 0.0 || norm_b == 0.0 {
+        return 0.0;
+    }
+    (dot / (norm_a * norm_b)).clamp(-1.0, 1.0)
+}
+
+// ── Ollama embedding call ─────────────────────────────────────────────────────
+
+async fn embed_ollama(text: &str, model: &str, api_url: &str) -> Result<Vec<f32>> {
+    let client = reqwest::Client::new();
+    let url = format!("{}/api/embeddings", api_url.trim_end_matches('/'));
+
+    #[derive(Serialize)]
+    struct OllamaRequest<'a> {
+        model: &'a str,
+        prompt: &'a str,
+    }
+
+    #[derive(Deserialize)]
+    struct OllamaResponse {
+        embedding: Vec<f32>,
+    }
+
+    let resp: OllamaResponse = client
+        .post(&url)
+        .json(&OllamaRequest { model, prompt: text })
+        .send()
+        .await
+        .context("Ollama embedding request failed")?
+        .json()
+        .await
+        .context("Failed to parse Ollama embedding response")?;
+
+    Ok(resp.embedding)
+}
+
+// ── OpenAI embedding call ─────────────────────────────────────────────────────
+
+async fn embed_openai(text: &str, api_key: &str, model: &str) -> Result<Vec<f32>> {
+    let client = reqwest::Client::new();
+
+    #[derive(Serialize)]
+    struct OpenAIRequest<'a> {
+        model: &'a str,
+        input: &'a str,
+    }
+
+    #[derive(Deserialize)]
+    struct OpenAIData {
+        embedding: Vec<f32>,
+    }
+
+    #[derive(Deserialize)]
+    struct OpenAIResponse {
+        data: Vec<OpenAIData>,
+    }
+
+    let resp: OpenAIResponse = client
+        .post("https://api.openai.com/v1/embeddings")
+        .bearer_auth(api_key)
+        .json(&OpenAIRequest { model, input: text })
+        .send()
+        .await
+        .context("OpenAI embedding request failed")?
+        .json()
+        .await
+        .context("Failed to parse OpenAI embedding response")?;
+
+    resp.data
+        .into_iter()
+        .next()
+        .map(|d| d.embedding)
+        .context("OpenAI returned empty embedding data")
+}
+
+// ── Tests ─────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cosine_identical_vectors() {
+        let v = vec![1.0f32, 0.0, 0.0];
+        assert!((cosine_similarity(&v, &v) - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn cosine_orthogonal_vectors() {
+        let a = vec![1.0f32, 0.0, 0.0];
+        let b = vec![0.0f32, 1.0, 0.0];
+        assert!((cosine_similarity(&a, &b)).abs() < 1e-6);
+    }
+
+    #[test]
+    fn cosine_opposite_vectors() {
+        let a = vec![1.0f32, 0.0];
+        let b = vec![-1.0f32, 0.0];
+        assert!((cosine_similarity(&a, &b) + 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn cosine_empty_returns_zero() {
+        assert_eq!(cosine_similarity(&[], &[]), 0.0);
+    }
+
+    #[test]
+    fn chunk_text_small_file() {
+        let content = "line 1\nline 2\nline 3";
+        let chunks = chunk_text(content);
+        assert_eq!(chunks.len(), 1);
+        assert_eq!(chunks[0].start, 0);
+        assert_eq!(chunks[0].end, 3);
+    }
+
+    #[test]
+    fn chunk_text_respects_overlap() {
+        // Create content larger than CHUNK_LINES (60 lines)
+        let content: String = (0..130).map(|i| format!("line {}\n", i)).collect();
+        let chunks = chunk_text(&content);
+        // Second chunk should start before line 60 due to overlap
+        assert!(chunks.len() >= 2);
+        assert!(chunks[1].start < chunks[0].end);
+    }
+
+    #[test]
+    fn collect_source_files_skips_target() {
+        let dir = tempfile::tempdir().unwrap();
+        let src = dir.path().join("src");
+        std::fs::create_dir(&src).unwrap();
+        std::fs::write(src.join("main.rs"), "fn main() {}").unwrap();
+        let target = dir.path().join("target");
+        std::fs::create_dir(&target).unwrap();
+        std::fs::write(target.join("lib.rs"), "// generated").unwrap();
+
+        let files = collect_source_files(dir.path());
+        assert!(files.iter().any(|f| f.ends_with("main.rs")));
+        assert!(!files.iter().any(|f| f.starts_with(&target)));
+    }
+}

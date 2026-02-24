@@ -5,8 +5,10 @@
 //! by modification time for fast incremental updates.
 
 pub mod symbol;
+pub mod embeddings;
 
 pub use symbol::{Language, SymbolInfo, SymbolKind};
+pub use embeddings::{EmbeddingIndex, EmbeddingProvider, EmbeddingDoc, SearchHit};
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};

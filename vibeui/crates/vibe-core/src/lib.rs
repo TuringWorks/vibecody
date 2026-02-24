@@ -16,5 +16,6 @@ pub use file_system::FileSystem;
 pub use workspace::Workspace;
 pub use diff::{DiffEngine, DiffHunk};
 pub use executor::CommandExecutor;
-pub use index::{CodebaseIndex, IndexStats, SymbolInfo, SymbolKind, Language};
+pub use index::{CodebaseIndex, IndexStats, SymbolInfo, SymbolKind, Language,
+               EmbeddingIndex, EmbeddingProvider, EmbeddingDoc, SearchHit};
 pub use context::ContextBuilder;

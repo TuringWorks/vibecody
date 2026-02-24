@@ -10,6 +10,8 @@ use vibe_ai::mcp::McpServerConfig;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Config {
+    #[serde(default)]
+    pub index: IndexConfig,
 
     pub ollama: Option<ProviderConfig>,
     pub openai: Option<ProviderConfig>,
@@ -44,6 +46,50 @@ pub struct Config {
     /// Web search tool configuration.
     #[serde(default)]
     pub tools: ToolsConfig,
+}
+
+/// Embedding index configuration.
+///
+/// ```toml
+/// [index]
+/// enabled = true
+/// embedding_provider = "ollama"
+/// embedding_model = "nomic-embed-text"
+/// rebuild_on_startup = false
+/// max_file_size_kb = 500
+/// ```
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IndexConfig {
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    /// "ollama" or "openai"
+    #[serde(default = "IndexConfig::default_provider")]
+    pub embedding_provider: String,
+    #[serde(default = "IndexConfig::default_model")]
+    pub embedding_model: String,
+    /// Rebuild the full index every time the agent starts.
+    #[serde(default)]
+    pub rebuild_on_startup: bool,
+    #[serde(default = "IndexConfig::default_max_file_size_kb")]
+    pub max_file_size_kb: u64,
+}
+
+impl IndexConfig {
+    fn default_provider() -> String { "ollama".to_string() }
+    fn default_model() -> String { "nomic-embed-text".to_string() }
+    fn default_max_file_size_kb() -> u64 { 500 }
+}
+
+impl Default for IndexConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            embedding_provider: "ollama".to_string(),
+            embedding_model: "nomic-embed-text".to_string(),
+            rebuild_on_startup: false,
+            max_file_size_kb: 500,
+        }
+    }
 }
 
 /// Configuration for agent tools.

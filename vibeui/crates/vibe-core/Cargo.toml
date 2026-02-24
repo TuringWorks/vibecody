@@ -30,5 +30,8 @@ portable-pty = "0.8"
 # Diff
 similar = { version = "2.6", features = ["inline"] }
 
+# HTTP (for embedding API calls)
+reqwest.workspace = true
+
 [dev-dependencies]
 tempfile = "3"
