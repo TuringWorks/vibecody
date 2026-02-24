@@ -12,8 +12,10 @@ mod config;
 mod syntax;
 mod diff_viewer;
 mod tool_executor;
+mod memory;
 use tool_executor::ToolExecutor;
 use diff_viewer::DiffViewer;
+use memory::ProjectMemory;
 
 mod repl;
 use rustyline::error::ReadlineError;
@@ -97,7 +99,22 @@ async fn main() -> Result<()> {
     println!("\nType a message to chat, or use a command.\n");
 
     let llm = create_provider(&cli.provider, cli.model)?;
+
+    // Load project memory (VIBECLI.md / AGENTS.md / CLAUDE.md) and inject as system context
+    let cwd = std::env::current_dir()?;
+    let memory = ProjectMemory::load(&cwd);
+    if !memory.is_empty() {
+        println!("📚 {}", memory.summary());
+    }
+
     let mut messages: Vec<Message> = Vec::new();
+    // Seed system message with memory if available
+    if let Some(mem_content) = memory.combined() {
+        messages.push(Message {
+            role: MessageRole::System,
+            content: mem_content,
+        });
+    }
     let mut conversation_active = false;
 
     let config = rustyline::Config::builder().auto_add_history(true).build();
@@ -181,6 +198,23 @@ async fn main() -> Result<()> {
                                 continue;
                             }
                             run_agent_repl(llm.clone(), args, &approval_policy).await?;
+                        }
+                        "/memory" => {
+                            match args {
+                                "show" | "" => {
+                                    let mem = ProjectMemory::load(&cwd);
+                                    println!("{}", mem.summary());
+                                    if let Some(content) = mem.combined() {
+                                        println!("\n{}", content);
+                                    }
+                                }
+                                "edit" => {
+                                    let path = ProjectMemory::default_repo_path(&cwd);
+                                    let editor = std::env::var("EDITOR").unwrap_or_else(|_| "vi".to_string());
+                                    let _ = std::process::Command::new(&editor).arg(&path).status();
+                                }
+                                _ => println!("Usage: /memory [show|edit]"),
+                            }
                         }
                         "/chat" => {
                             if args.is_empty() {
@@ -504,6 +538,8 @@ fn show_help() {
     println!("  /diff <file>       - Show diff for a file");
     println!("  /apply <file>      - Apply AI-suggested changes to a file");
     println!("  /exec <task>       - Generate and execute a shell command");
+    println!("  /memory [show]     - Show loaded project memory (VIBECLI.md / AGENTS.md)");
+    println!("  /memory edit       - Open project memory in $EDITOR");
     println!("  /config            - Show current configuration");
     println!("  /help              - Show this help message");
     println!("  /exit              - Exit VibeCLI");

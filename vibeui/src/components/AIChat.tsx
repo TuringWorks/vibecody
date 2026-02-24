@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { ContextPicker } from "./ContextPicker";
 import "./AIChat.css";
 
 interface Message {
@@ -27,27 +28,34 @@ interface AIChatProps {
     onPendingWrite?: (path: string, content: string) => void;
 }
 
+/** Extract the `@query` fragment at the cursor position, or null if none. */
+function getAtQuery(text: string, cursorPos: number): { query: string; start: number } | null {
+    const beforeCursor = text.slice(0, cursorPos);
+    // Find the last `@` that is not preceded by a non-whitespace character
+    const match = beforeCursor.match(/(?:^|[\s\n])(@(\S*))$/);
+    if (!match) return null;
+    const fullMatch = match[1]; // the "@..." token
+    const query = match[2];    // everything after @
+    const start = beforeCursor.lastIndexOf(fullMatch);
+    return { query, start };
+}
+
 export function AIChat({ provider, context, fileTree, currentFile, onFileAction, onPendingWrite }: AIChatProps) {
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+    const [pickerQuery, setPickerQuery] = useState<string | null>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     const cleanMessage = (content: string): string => {
-        // Replace <write_file> blocks with a summary
         let cleaned = content.replace(/<write_file path="([^"]+)">[\s\S]*?<\/write_file>/g, "✅ Proposed changes to $1");
-
-        // Hide <read_file> tags
         cleaned = cleaned.replace(/<read_file path="([^"]+)" \/>/g, "📖 Read file $1");
-
-        // Hide <list_dir> tags
         cleaned = cleaned.replace(/<list_dir path="([^"]+)" \/>/g, "📂 Listed directory $1");
-
         return cleaned;
     };
 
     const sendMessage = async () => {
         if (!input.trim()) return;
-
         if (!provider) {
             setMessages(prev => [...prev, {
                 role: "assistant",
@@ -59,78 +67,96 @@ export function AIChat({ provider, context, fileTree, currentFile, onFileAction,
         const userMessage: Message = { role: "user", content: input };
         setMessages([...messages, userMessage]);
         setInput("");
+        setPickerQuery(null);
         setIsLoading(true);
 
         try {
             const response = await invoke<ChatResponse>("send_chat_message", {
                 request: {
                     messages: [...messages, userMessage],
-                    provider: provider,
-                    context: context,
+                    provider,
+                    context,
                     file_tree: fileTree,
-                    current_file: currentFile
+                    current_file: currentFile,
                 },
             });
 
-            console.log("DEBUG: Received response from backend:", response);
-
             let displayContent = cleanMessage(response.message);
-            if (response.tool_output) {
-                // Also clean tool output if needed, or just show it
-                // displayContent += `\n\nTool Output:\n${response.tool_output}`;
-            }
-
             const assistantMessage: Message = { role: "assistant", content: displayContent };
             setMessages((prev) => [...prev, assistantMessage]);
 
-            // Handle pending write if present
-            if (response.pending_write) {
-                console.log("DEBUG: Pending write found in response:", response.pending_write);
-                if (onPendingWrite) {
-                    console.log("DEBUG: Calling onPendingWrite callback");
-                    onPendingWrite(response.pending_write.path, response.pending_write.content);
-                } else {
-                    console.warn("DEBUG: onPendingWrite callback is missing!");
-                }
-            } else {
-                console.log("DEBUG: No pending write in response");
+            if (response.pending_write && onPendingWrite) {
+                onPendingWrite(response.pending_write.path, response.pending_write.content);
             }
-
-            // Trigger file action callback if provided (e.g. to reload editor)
             if (onFileAction) {
                 onFileAction();
             }
         } catch (error) {
             console.error("Failed to send message:", error);
-            const errorMessage: Message = {
+            setMessages((prev) => [...prev, {
                 role: "assistant",
                 content: "Sorry, I encountered an error. Please make sure an AI provider is configured.",
-            };
-            setMessages((prev) => [...prev, errorMessage]);
+            }]);
         } finally {
             setIsLoading(false);
         }
     };
 
-    const handleKeyPress = (e: React.KeyboardEvent) => {
+    const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        const val = e.target.value;
+        setInput(val);
+        const cursor = e.target.selectionStart ?? val.length;
+        const atInfo = getAtQuery(val, cursor);
+        setPickerQuery(atInfo ? atInfo.query : null);
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        // Let ContextPicker handle arrow/enter/escape when visible
+        if (pickerQuery !== null && ["ArrowUp", "ArrowDown", "Enter", "Escape"].includes(e.key)) {
+            e.preventDefault();
+            return;
+        }
         if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
             sendMessage();
         }
+        // Hide picker on space (token ended without selection)
+        if (e.key === " ") {
+            setPickerQuery(null);
+        }
+    };
+
+    const handlePickerSelect = (insertion: string) => {
+        if (!textareaRef.current) return;
+        const cursor = textareaRef.current.selectionStart ?? input.length;
+        const atInfo = getAtQuery(input, cursor);
+        if (atInfo === null) return;
+
+        // Replace `@<query>` at atInfo.start with the selected insertion
+        const before = input.slice(0, atInfo.start);
+        const after = input.slice(atInfo.start + 1 + atInfo.query.length); // skip "@query"
+        const newInput = before + insertion + " " + after;
+        setInput(newInput);
+        setPickerQuery(null);
+
+        // Restore focus
+        setTimeout(() => textareaRef.current?.focus(), 0);
     };
 
     return (
         <div className="ai-chat">
             <div className="chat-header">
                 <h3>🤖 AI Assistant</h3>
-                <p className="chat-subtitle">Ask questions about your code</p>
+                <p className="chat-subtitle">
+                    Ask questions about your code. Type <kbd>@file:</kbd> or <kbd>@git</kbd> to inject context.
+                </p>
             </div>
 
             <div className="chat-messages">
                 {messages.length === 0 ? (
                     <div className="chat-empty">
                         <p>👋 Hi! I'm your AI coding assistant.</p>
-                        <p>Ask me anything about your code!</p>
+                        <p>Ask me anything about your code, or use <kbd>@file:path</kbd> and <kbd>@git</kbd> to inject context.</p>
                     </div>
                 ) : (
                     messages.map((msg, idx) => (
@@ -149,21 +175,27 @@ export function AIChat({ provider, context, fileTree, currentFile, onFileAction,
                         <div className="message-icon">🤖</div>
                         <div className="message-content">
                             <div className="typing-indicator">
-                                <span></span>
-                                <span></span>
-                                <span></span>
+                                <span></span><span></span><span></span>
                             </div>
                         </div>
                     </div>
                 )}
             </div>
 
-            <div className="chat-input">
+            <div className="chat-input" style={{ position: "relative" }}>
+                {pickerQuery !== null && (
+                    <ContextPicker
+                        query={pickerQuery}
+                        onSelect={handlePickerSelect}
+                        onClose={() => setPickerQuery(null)}
+                    />
+                )}
                 <textarea
+                    ref={textareaRef}
                     value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyPress={handleKeyPress}
-                    placeholder="Ask a question... (Enter to send, Shift+Enter for new line)"
+                    onChange={handleInputChange}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Ask a question… (Enter to send, Shift+Enter for newline, @ for context)"
                     rows={3}
                 />
                 <button onClick={sendMessage} disabled={!input.trim() || isLoading}>

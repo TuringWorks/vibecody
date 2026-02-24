@@ -275,6 +275,104 @@ pub async fn get_git_status(
     }
 }
 
+/// Context search for @ picker
+
+#[derive(Serialize)]
+pub struct ContextFileEntry {
+    pub path: String,
+    pub name: String,
+}
+
+/// Return file paths matching `query` within the first workspace folder.
+/// Limited to 20 results for use in the @ picker dropdown.
+#[tauri::command]
+pub async fn search_files_for_context(
+    query: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<ContextFileEntry>, String> {
+    use walkdir::WalkDir;
+
+    let workspace = state.workspace.lock().await;
+    let root = workspace
+        .folders()
+        .first()
+        .cloned()
+        .ok_or("No workspace folder open")?;
+    drop(workspace);
+
+    let q = query.to_lowercase();
+    let mut results = Vec::new();
+
+    for entry in WalkDir::new(&root)
+        .follow_links(false)
+        .max_depth(8)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
+        let path = entry.path();
+        if path.is_dir() {
+            continue;
+        }
+        let path_str = path.to_string_lossy();
+        // Skip common non-source directories
+        if path_str.contains("/target/")
+            || path_str.contains("/node_modules/")
+            || path_str.contains("/.git/")
+            || path_str.contains("/dist/")
+        {
+            continue;
+        }
+        let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        if q.is_empty()
+            || name.to_lowercase().contains(&q)
+            || path_str.to_lowercase().contains(&q)
+        {
+            let rel = path.strip_prefix(&root).unwrap_or(path);
+            results.push(ContextFileEntry {
+                path: rel.to_string_lossy().to_string(),
+                name: name.to_string(),
+            });
+            if results.len() >= 20 {
+                break;
+            }
+        }
+    }
+
+    Ok(results)
+}
+
+/// Return formatted git context (branch + changed files + diff excerpt).
+#[tauri::command]
+pub async fn get_git_context(state: tauri::State<'_, AppState>) -> Result<String, String> {
+    let workspace = state.workspace.lock().await;
+    let root = workspace
+        .folders()
+        .first()
+        .cloned()
+        .ok_or("No workspace folder open")?;
+    drop(workspace);
+
+    let mut ctx = String::new();
+    if let Ok(status) = vibe_core::git::get_status(&root) {
+        ctx.push_str(&format!("Branch: {}\n", status.branch));
+        if !status.file_statuses.is_empty() {
+            ctx.push_str("Changed files:\n");
+            for (file, state) in &status.file_statuses {
+                ctx.push_str(&format!("  {:?} {}\n", state, file));
+            }
+        }
+    }
+    if let Ok(diff) = vibe_core::git::get_repo_diff(&root) {
+        if !diff.is_empty() {
+            let truncated = if diff.len() > 4000 { &diff[..4000] } else { &diff };
+            ctx.push_str("\n```diff\n");
+            ctx.push_str(truncated);
+            ctx.push_str("\n```\n");
+        }
+    }
+    Ok(ctx)
+}
+
 /// Terminal operations
 
 #[tauri::command]
@@ -497,12 +595,27 @@ pub async fn send_chat_message(
     });
     
     // Format context with active filename if available
-    let context = if let (Some(file), Some(content)) = (&request.current_file, &request.context) {
+    let mut context = if let (Some(file), Some(content)) = (&request.current_file, &request.context) {
         Some(format!("Active File: {}\n\nFile Content:\n{}", file, content))
     } else {
-        request.context
+        request.context.clone()
     };
-        
+
+    // Resolve @file:<path> and @git references from the last user message
+    if let Some(last) = request.messages.last() {
+        if last.role == vibe_ai::MessageRole::User {
+            let at_ctx = resolve_at_references(&last.content, &state.workspace).await;
+            if !at_ctx.is_empty() {
+                let base = context.unwrap_or_default();
+                context = Some(if base.is_empty() {
+                    at_ctx
+                } else {
+                    format!("{}\n\n{}", base, at_ctx)
+                });
+            }
+        }
+    }
+
     let response_text = chat_engine
         .chat(&request.messages, context)
         .await
@@ -524,6 +637,67 @@ pub async fn send_chat_message(
         tool_output,
         pending_write,
     })
+}
+
+/// Scan `content` for `@file:<path>` and `@git` references and return the
+/// resolved context string to append to the system prompt.
+async fn resolve_at_references(content: &str, workspace_lock: &Arc<Mutex<Workspace>>) -> String {
+    use regex::Regex;
+    let mut extra = String::new();
+
+    let workspace = workspace_lock.lock().await;
+    let root = workspace.folders().first().cloned();
+    drop(workspace);
+
+    // @file:<path> — read the file and embed its content
+    let re = Regex::new(r"@file:(\S+)").unwrap();
+    for cap in re.captures_iter(content) {
+        let rel = &cap[1];
+        let abs_path = if let Some(ref r) = root {
+            r.join(rel)
+        } else {
+            PathBuf::from(rel)
+        };
+        let ext = abs_path.extension().and_then(|e| e.to_str()).unwrap_or("");
+        match std::fs::read_to_string(&abs_path) {
+            Ok(file_content) => {
+                let snippet = if file_content.len() > 8000 {
+                    format!("{}...(truncated)", &file_content[..8000])
+                } else {
+                    file_content
+                };
+                extra.push_str(&format!(
+                    "\n### @file:{}\n```{}\n{}\n```\n",
+                    rel, ext, snippet
+                ));
+            }
+            Err(_) => {
+                extra.push_str(&format!("\n### @file:{}\n(file not found)\n", rel));
+            }
+        }
+    }
+
+    // @git — inject current branch, changed files, and diff
+    if content.contains("@git") {
+        if let Some(ref r) = root {
+            let mut git_ctx = String::from("\n### @git\n");
+            if let Ok(status) = vibe_core::git::get_status(r) {
+                git_ctx.push_str(&format!("Branch: {}\n", status.branch));
+                for (file, state) in &status.file_statuses {
+                    git_ctx.push_str(&format!("  {:?} {}\n", state, file));
+                }
+            }
+            if let Ok(diff) = vibe_core::git::get_repo_diff(r) {
+                if !diff.is_empty() {
+                    let truncated = if diff.len() > 3000 { &diff[..3000] } else { &diff };
+                    git_ctx.push_str(&format!("```diff\n{}\n```\n", truncated));
+                }
+            }
+            extra.push_str(&git_ctx);
+        }
+    }
+
+    extra
 }
 
 async fn process_tool_calls(response: &str, workspace_lock: &Arc<Mutex<Workspace>>) -> (String, Option<PendingWrite>) {

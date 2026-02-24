@@ -15,6 +15,7 @@ use std::sync::Arc;
 use futures::StreamExt;
 use tokio::sync::mpsc;
 
+use crate::memory::ProjectMemory;
 use crate::tool_executor::ToolExecutor;
 use crate::tui::app::{App, CurrentScreen, PendingApproval, TuiMessage};
 use crate::tui::components::agent_view::AgentStatus;
@@ -184,36 +185,36 @@ async fn run_app<B: ratatui::backend::Backend>(
     let workspace = std::env::current_dir()?;
     let tool_executor = Arc::new(ToolExecutor::new(workspace.clone(), false));
 
-    // Inject Git Context
+    // Inject project memory (VIBECLI.md / AGENTS.md / CLAUDE.md)
+    let memory = ProjectMemory::load(&workspace);
+    if !memory.is_empty() {
+        app.messages.push(TuiMessage::System(format!("📚 {}", memory.summary())));
+        if let Some(mem_content) = memory.combined() {
+            app.messages.push(TuiMessage::System(mem_content));
+        }
+    }
+
+    // Inject smart context via ContextBuilder (git branch + diff, respects token budget)
     if git::is_git_repo(&workspace) {
         let branch = git::get_current_branch(&workspace).unwrap_or_default();
-        let status = git::get_status(&workspace).ok();
         let diff = git::get_repo_diff(&workspace).unwrap_or_default();
+        let changed_files: Vec<String> = git::get_status(&workspace)
+            .map(|s| s.file_statuses.into_keys().collect())
+            .unwrap_or_default();
 
-        let mut context_msg = format!("Git Context (Branch: {}):\n", branch);
-        if let Some(status) = status {
-            if !status.file_statuses.is_empty() {
-                context_msg.push_str("Changed files:\n");
-                for (path, state) in status.file_statuses {
-                    context_msg.push_str(&format!("- {} [{:?}]\n", path, state));
-                }
-            }
+        let context = vibe_core::ContextBuilder::new()
+            .with_git_branch(&branch)
+            .with_git_diff(&diff)
+            .with_git_changed_files(changed_files)
+            .with_token_budget(4_000)
+            .build_for_task("general coding assistance");
+
+        if !context.is_empty() {
+            app.messages.push(TuiMessage::System(format!(
+                "Loaded git context for branch '{}'", branch
+            )));
+            app.messages.push(TuiMessage::System(context));
         }
-        if !diff.is_empty() {
-            let max_len = 2000;
-            if diff.len() > max_len {
-                context_msg.push_str(&format!(
-                    "\nDiff (truncated {}/{} chars):\n{}\n...",
-                    max_len,
-                    diff.len(),
-                    &diff[..max_len]
-                ));
-            } else {
-                context_msg.push_str(&format!("\nDiff:\n{}\n", diff));
-            }
-        }
-        app.messages.push(TuiMessage::System(format!("Loaded git context for branch '{}'", branch)));
-        app.messages.push(TuiMessage::System(context_msg));
     }
 
     loop {
@@ -372,6 +373,10 @@ async fn run_app<B: ratatui::backend::Backend>(
     /exec <cmd>        Execute shell command (via AI)
     ! <cmd>            Execute shell command directly
     /quit              Exit application
+
+  Memory:
+    /memory            Show loaded project memory (VIBECLI.md / AGENTS.md)
+    /memory edit       Open project memory file for editing
 
   Configuration:
     /init              Initialize default config
@@ -664,6 +669,30 @@ async fn handle_chat_input(
                         }
                     }
                 });
+            }
+            "/memory" => {
+                let cwd = std::env::current_dir().unwrap_or_default();
+                match args {
+                    "show" | "" => {
+                        let mem = ProjectMemory::load(&cwd);
+                        app.messages.push(TuiMessage::System(mem.summary()));
+                        if let Some(content) = mem.combined() {
+                            app.messages.push(TuiMessage::System(content));
+                        }
+                    }
+                    "edit" => {
+                        let path = ProjectMemory::default_repo_path(&cwd);
+                        app.messages.push(TuiMessage::System(format!(
+                            "Edit project memory at: {}",
+                            path.display()
+                        )));
+                    }
+                    _ => {
+                        app.messages.push(TuiMessage::System(
+                            "Usage: /memory [show|edit]".to_string(),
+                        ));
+                    }
+                }
             }
             "/diff" => {
                 app.current_screen = CurrentScreen::DiffView;

@@ -103,6 +103,8 @@ pub fn run() {
             commands::lsp_completion,
             commands::lsp_hover,
             commands::lsp_goto_definition,
+            commands::search_files_for_context,
+            commands::get_git_context,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
