@@ -1,0 +1,77 @@
+name: VibeCLI Agent
+description: Run a VibeCLI agent task in CI with AI-powered coding assistance
+inputs:
+  task:
+    description: Task for the agent to perform
+    required: true
+  provider:
+    description: AI provider (ollama/claude/openai/gemini/grok)
+    default: claude
+  approval:
+    description: Approval policy (suggest/auto-edit/full-auto)
+    default: auto-edit
+  output-format:
+    description: Report format (json/markdown/verbose)
+    default: markdown
+  output-file:
+    description: Write report to this file (default stdout)
+    default: ''
+  anthropic-api-key:
+    description: Anthropic API key (for provider=claude)
+    required: false
+  openai-api-key:
+    description: OpenAI API key (for provider=openai)
+    required: false
+  vibecli-version:
+    description: VibeCLI release version to download (default latest)
+    default: latest
+outputs:
+  report:
+    description: Path to the written report file
+    value: ${{ steps.run.outputs.report }}
+  exit-code:
+    description: Agent exit code (0=success, 1=critical issues found)
+    value: ${{ steps.run.outputs.exit-code }}
+runs:
+  using: composite
+  steps:
+    - name: Install VibeCLI
+      shell: bash
+      run: |
+        # Install pre-built binary or build from source
+        if command -v vibecli &> /dev/null; then
+          echo "VibeCLI already installed: $(vibecli --version 2>/dev/null || echo 'unknown version')"
+        elif command -v cargo &> /dev/null; then
+          echo "Building VibeCLI from source..."
+          cargo install vibecli --locked 2>/dev/null || \
+            cargo build --release -p vibecli 2>/dev/null && \
+            echo "$(pwd)/target/release" >> $GITHUB_PATH
+        else
+          echo "::error::VibeCLI not found and cargo not available. Please add cargo to PATH or pre-install vibecli."
+          exit 1
+        fi
+
+    - name: Run VibeCLI agent
+      id: run
+      shell: bash
+      env:
+        ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
+        OPENAI_API_KEY: ${{ inputs.openai-api-key }}
+      run: |
+        ARGS="--${{ inputs.approval }} --provider ${{ inputs.provider }}"
+        ARGS="$ARGS --output-format ${{ inputs.output-format }}"
+
+        if [ -n "${{ inputs.output-file }}" ]; then
+          ARGS="$ARGS --output ${{ inputs.output-file }}"
+          echo "report=${{ inputs.output-file }}" >> $GITHUB_OUTPUT
+        else
+          echo "report=" >> $GITHUB_OUTPUT
+        fi
+
+        set +e
+        vibecli --exec "${{ inputs.task }}" $ARGS
+        EXIT_CODE=$?
+        set -e
+
+        echo "exit-code=$EXIT_CODE" >> $GITHUB_OUTPUT
+        exit $EXIT_CODE

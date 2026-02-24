@@ -7,6 +7,7 @@ import { AgentPanel } from "./components/AgentPanel";
 import { MemoryPanel } from "./components/MemoryPanel";
 import { HistoryPanel } from "./components/HistoryPanel";
 import { CheckpointPanel } from "./components/CheckpointPanel";
+import { ArtifactsPanel } from "./components/ArtifactsPanel";
 import { Terminal } from "./components/Terminal";
 import { detectLanguage, getFileIcon } from "./utils/fileUtils";
 import "./App.css";
@@ -56,7 +57,7 @@ function App() {
   const [showSidebar, setShowSidebar] = useState(true);
   const [activeSidebarTab, setActiveSidebarTab] = useState<"explorer" | "search" | "git">("explorer");
   const [showAIChat, setShowAIChat] = useState(false);
-  const [aiPanelTab, setAiPanelTab] = useState<"chat" | "agent" | "memory" | "history" | "checkpoints">("chat");
+  const [aiPanelTab, setAiPanelTab] = useState<"chat" | "agent" | "memory" | "history" | "checkpoints" | "artifacts">("chat");
   const [showTerminal, setShowTerminal] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
 
@@ -1290,7 +1291,7 @@ function App() {
           <aside className="ai-chat-panel" style={{ display: "flex", flexDirection: "column" }}>
             {/* Tab bar */}
             <div style={{ display: "flex", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
-              {(["chat", "agent", "memory", "history", "checkpoints"] as const).map((tab) => (
+              {(["chat", "agent", "memory", "history", "checkpoints", "artifacts"] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setAiPanelTab(tab)}
@@ -1310,7 +1311,8 @@ function App() {
                     : tab === "agent" ? "🤖 Agent"
                     : tab === "memory" ? "📋 Rules"
                     : tab === "history" ? "🕐 History"
-                    : "🔖 Checkpoints"}
+                    : tab === "checkpoints" ? "🔖 CPs"
+                    : "📦 Artifacts"}
                 </button>
               ))}
             </div>
@@ -1344,6 +1346,9 @@ function App() {
                 <CheckpointPanel
                   workspacePath={workspaceFolders[0] || null}
                 />
+              )}
+              {aiPanelTab === "artifacts" && (
+                <ArtifactsPanel artifacts={[]} />
               )}
             </div>
           </aside>

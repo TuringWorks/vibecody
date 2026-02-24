@@ -13,6 +13,7 @@ pub mod hooks;
 pub mod planner;
 pub mod multi_agent;
 pub mod skills;
+pub mod artifacts;
 
 pub use chat::ChatEngine;
 pub use provider::{CodeContext, Message, MessageRole, CompletionStream, ImageAttachment};
@@ -31,3 +32,4 @@ pub use multi_agent::{
     AgentStatus, OrchestratorEvent, ExecutorFactory, WorktreeManager,
 };
 pub use skills::{Skill, SkillLoader};
+pub use artifacts::{Artifact, AgentArtifact, ArtifactStore, Annotation, TaskItem, ReviewIssueRef};
