@@ -90,6 +90,12 @@ function App() {
   // Extension Manager
   const extensionManagerRef = useRef<ExtensionManager | null>(null);
 
+  // Ref so editor-mount callbacks always see the current provider
+  const selectedProviderRef = useRef<string>(selectedProvider);
+  useEffect(() => {
+    selectedProviderRef.current = selectedProvider;
+  }, [selectedProvider]);
+
   // Derived state for active file
   const activeFile = openFiles.find(f => f.path === activeFilePath);
   const editorContent = activeFile?.content || "";
@@ -253,6 +259,16 @@ function App() {
         isDirty: false
       }]);
       setActiveFilePath(path);
+
+      // Phase 3: Flow tracking
+      invoke("track_flow_event", { kind: "file_open", data: path }).catch(() => {});
+
+      // Phase 3: LSP lifecycle — notify server that document was opened
+      const rootPath = workspaceFolders[0] || "";
+      if (rootPath) {
+        const uri = `file://${path}`;
+        invoke("lsp_did_open", { language, rootPath, uri, text: content }).catch(() => {});
+      }
     } catch (error) {
       console.error("Failed to open file:", error);
       alert("Failed to open file: " + error);
@@ -295,6 +311,8 @@ function App() {
       setOpenFiles(prev => prev.map(f =>
         f.path === activeFilePath ? { ...f, content: value, isDirty: true } : f
       ));
+      // Phase 3: Flow tracking (fire-and-forget)
+      invoke("track_flow_event", { kind: "file_edit", data: activeFilePath }).catch(() => {});
     }
   };
 
@@ -433,6 +451,36 @@ function App() {
       }
     });
 
+    // Phase 3: Inline AI completions (ghost text / FIM)
+    if (typeof (monaco.languages as any).registerInlineCompletionsProvider === 'function') {
+      (monaco.languages as any).registerInlineCompletionsProvider('*', {
+        provideInlineCompletions: async (model: any, position: any) => {
+          const provider = selectedProviderRef.current;
+          if (!provider) return { items: [] };
+
+          const text = model.getValue() as string;
+          const offset = model.getOffsetAt(position) as number;
+          const prefix = text.slice(0, offset);
+          const suffix = text.slice(offset);
+          const language = model.getLanguageId() as string;
+
+          try {
+            const completion = await invoke<string>("request_inline_completion", {
+              prefix,
+              suffix,
+              language,
+              provider,
+            });
+            if (!completion) return { items: [] };
+            return { items: [{ insertText: completion }] };
+          } catch {
+            return { items: [] };
+          }
+        },
+        freeInlineCompletions: () => {},
+      });
+    }
+
     editor.onDidChangeCursorSelection((_) => {
       if (!activeFilePath) return;
 
@@ -490,6 +538,15 @@ function App() {
   const acceptDiff = async () => {
     if (!pendingDiff) return;
     try {
+      // Phase 3: Stash current working-tree changes before applying AI edits
+      // so the user can pop the stash to undo if needed.
+      if (workspaceFolders[0]) {
+        invoke("git_stash_create", {
+          path: workspaceFolders[0],
+          name: `pre-ai-${pendingDiff.path.split('/').pop()}-${Date.now()}`,
+        }).catch(() => {}); // best-effort — ignore if repo has nothing to stash
+      }
+
       await invoke("write_file", { path: pendingDiff.path, content: pendingDiff.modified });
       console.log("Changes saved to disk for:", pendingDiff.path);
 

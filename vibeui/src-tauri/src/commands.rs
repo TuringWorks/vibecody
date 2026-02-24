@@ -13,6 +13,7 @@ use vibe_core::terminal::TerminalManager;
 use vibe_lsp::manager::LspManager;
 use lsp_types::{CompletionParams, CompletionResponse, HoverParams, Hover, GotoDefinitionParams, GotoDefinitionResponse};
 use tauri::Emitter;
+use crate::flow::FlowTracker;
 
 /// Application state
 pub struct AppState {
@@ -20,6 +21,7 @@ pub struct AppState {
     pub chat_engine: Arc<Mutex<ChatEngine>>,
     pub terminal_manager: Arc<TerminalManager>,
     pub lsp_manager: Arc<Mutex<LspManager>>,
+    pub flow: Arc<Mutex<FlowTracker>>,
 }
 
 /// File operations
@@ -789,4 +791,175 @@ pub async fn get_available_ai_providers(state: tauri::State<'_, AppState>) -> Re
     // For now, we rely on what's registered in lib.rs or added here.
     
     Ok(chat_engine.get_provider_names())
+}
+
+// ─── Phase 3 Commands ─────────────────────────────────────────────────────────
+
+/// Git stash: push all current changes as a named stash. Returns the stash OID.
+#[tauri::command]
+pub async fn git_stash_create(
+    path: String,
+    name: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<String, String> {
+    let workspace = state.workspace.lock().await;
+    let root = workspace.folders().first().cloned().unwrap_or_else(|| PathBuf::from(&path));
+    drop(workspace);
+    vibe_core::git::create_stash(&root, &name).map_err(|e| e.to_string())
+}
+
+/// Git stash pop: apply + drop the most recent stash.
+#[tauri::command]
+pub async fn git_stash_pop(
+    path: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    let workspace = state.workspace.lock().await;
+    let root = workspace.folders().first().cloned().unwrap_or_else(|| PathBuf::from(&path));
+    drop(workspace);
+    vibe_core::git::pop_stash(&root).map_err(|e| e.to_string())
+}
+
+/// LSP: notify that a document was opened.
+#[tauri::command]
+pub async fn lsp_did_open(
+    language: String,
+    root_path: String,
+    uri: String,
+    text: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    use lsp_types::{DidOpenTextDocumentParams, TextDocumentItem};
+    let mut manager = state.lsp_manager.lock().await;
+    let client = manager
+        .get_client_for_language(&language, &PathBuf::from(&root_path))
+        .await
+        .map_err(|e| e.to_string())?;
+    let doc_uri: lsp_types::Uri = uri.parse().map_err(|_| "Invalid URI".to_string())?;
+    client
+        .did_open(DidOpenTextDocumentParams {
+            text_document: TextDocumentItem {
+                uri: doc_uri,
+                language_id: language.clone(),
+                version: 1,
+                text,
+            },
+        })
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// LSP: notify that a document's content changed.
+#[tauri::command]
+pub async fn lsp_did_change(
+    language: String,
+    root_path: String,
+    uri: String,
+    text: String,
+    version: i32,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    use lsp_types::{DidChangeTextDocumentParams, VersionedTextDocumentIdentifier, TextDocumentContentChangeEvent};
+    let mut manager = state.lsp_manager.lock().await;
+    let client = manager
+        .get_client_for_language(&language, &PathBuf::from(&root_path))
+        .await
+        .map_err(|e| e.to_string())?;
+    let doc_uri: lsp_types::Uri = uri.parse().map_err(|_| "Invalid URI".to_string())?;
+    client
+        .did_change(DidChangeTextDocumentParams {
+            text_document: VersionedTextDocumentIdentifier { uri: doc_uri, version },
+            content_changes: vec![TextDocumentContentChangeEvent {
+                range: None,
+                range_length: None,
+                text,
+            }],
+        })
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// LSP: notify that a document was saved.
+#[tauri::command]
+pub async fn lsp_did_save(
+    language: String,
+    root_path: String,
+    uri: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    use lsp_types::{DidSaveTextDocumentParams, TextDocumentIdentifier};
+    let mut manager = state.lsp_manager.lock().await;
+    let client = manager
+        .get_client_for_language(&language, &PathBuf::from(&root_path))
+        .await
+        .map_err(|e| e.to_string())?;
+    let doc_uri: lsp_types::Uri = uri.parse().map_err(|_| "Invalid URI".to_string())?;
+    client
+        .did_save(DidSaveTextDocumentParams {
+            text_document: TextDocumentIdentifier { uri: doc_uri },
+            text: None,
+        })
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Inline AI completion using FIM format for Ollama or chat prompt for others.
+/// Returns the completion text (suffix to insert at cursor).
+#[tauri::command]
+pub async fn request_inline_completion(
+    prefix: String,
+    suffix: String,
+    language: String,
+    provider: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<String, String> {
+    let mut chat_engine = state.chat_engine.lock().await;
+    chat_engine.set_provider_by_name(&provider).map_err(|e| e.to_string())?;
+
+    // Use FIM format for Ollama (fill-in-the-middle), chat for others
+    let prompt = if provider.to_lowercase().contains("ollama") {
+        format!(
+            "<|fim_prefix|>{}<|fim_suffix|>{}<|fim_middle|>",
+            &prefix, &suffix
+        )
+    } else {
+        format!(
+            "Complete the following {} code. Return ONLY the code to insert at the cursor, nothing else.\n\nPrefix:\n```{}\n{}\n```\n\nSuffix:\n```{}\n{}\n```\n\nCompletion:",
+            language, language, prefix, language, suffix
+        )
+    };
+
+    let messages = vec![Message {
+        role: vibe_ai::MessageRole::User,
+        content: prompt,
+    }];
+    let result = chat_engine.chat(&messages, None).await.map_err(|e| e.to_string())?;
+
+    // Strip any markdown code fences from the response
+    let clean = result
+        .trim()
+        .trim_start_matches("```")
+        .trim_start_matches(&language)
+        .trim_end_matches("```")
+        .trim()
+        .to_string();
+
+    Ok(clean)
+}
+
+/// Flow tracking: record a developer activity event.
+#[tauri::command]
+pub async fn track_flow_event(
+    kind: String,
+    data: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    state.flow.lock().await.record(&kind, &data);
+    Ok(())
+}
+
+/// Flow context: return recent developer activity as a formatted context string.
+#[tauri::command]
+pub async fn get_flow_context(state: tauri::State<'_, AppState>) -> Result<String, String> {
+    Ok(state.flow.lock().await.context_string(20))
 }

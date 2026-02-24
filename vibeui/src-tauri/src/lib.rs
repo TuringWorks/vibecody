@@ -1,6 +1,7 @@
 //! VibeUI - AI-Powered Code Editor
 
 mod commands;
+mod flow;
 
 use commands::AppState;
 use std::sync::Arc;
@@ -58,21 +59,22 @@ pub fn run() {
     let chat_engine = Arc::new(Mutex::new(chat_engine));
     let terminal_manager = Arc::new(TerminalManager::new());
     let lsp_manager = Arc::new(Mutex::new(LspManager::new()));
+    let flow = Arc::new(Mutex::new(flow::FlowTracker::new()));
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
-        .manage(AppState { 
+        .manage(AppState {
             workspace,
             chat_engine,
             terminal_manager,
             lsp_manager,
+            flow,
         })
         .invoke_handler(tauri::generate_handler![
             commands::read_file,
             commands::write_file,
             commands::list_directory,
-            commands::create_directory,
             commands::create_directory,
             commands::delete_item,
             commands::rename_item,
@@ -105,6 +107,15 @@ pub fn run() {
             commands::lsp_goto_definition,
             commands::search_files_for_context,
             commands::get_git_context,
+            // Phase 3 commands
+            commands::git_stash_create,
+            commands::git_stash_pop,
+            commands::lsp_did_open,
+            commands::lsp_did_change,
+            commands::lsp_did_save,
+            commands::request_inline_completion,
+            commands::track_flow_event,
+            commands::get_flow_context,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

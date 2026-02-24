@@ -240,6 +240,24 @@ pub fn get_current_branch(path: &Path) -> Result<String> {
     Ok(head.shorthand().unwrap_or("DETACHED").to_string())
 }
 
+/// Create a named git stash of all current changes. Returns the stash ref name.
+pub fn create_stash(repo_path: &Path, name: &str) -> Result<String> {
+    let mut repo = Repository::open(repo_path)?;
+    let sig = repo.signature()?;
+    let message = format!("vibeui-pre-ai: {}", name);
+    let stash_oid = repo.stash_save(&sig, &message, None)?;
+    Ok(stash_oid.to_string())
+}
+
+/// Pop (apply + drop) the most recent git stash.
+pub fn pop_stash(repo_path: &Path) -> Result<()> {
+    let mut repo = Repository::open(repo_path)?;
+    let mut stash_opts = git2::StashApplyOptions::new();
+    repo.stash_apply(0, Some(&mut stash_opts))?;
+    repo.stash_drop(0)?;
+    Ok(())
+}
+
 pub fn get_repo_diff(repo_path: &Path) -> Result<String> {
     let repo = Repository::open(repo_path)?;
     // Check if HEAD exists, if not (empty repo), return empty diff
