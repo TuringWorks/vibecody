@@ -2,8 +2,10 @@
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
+use vibe_ai::hooks::HookConfig;
 use vibe_ai::mcp::McpServerConfig;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -24,11 +26,58 @@ pub struct Config {
     #[serde(default)]
     pub mcp_servers: Vec<McpServerConfig>,
 
+    /// Hook definitions.  Example:
+    /// ```toml
+    /// [[hooks]]
+    /// event = "PostToolUse"
+    /// tools = ["write_file"]
+    /// handler = { command = "sh .vibecli/hooks/format.sh" }
+    /// ```
+    #[serde(default)]
+    pub hooks: Vec<HookConfig>,
+
     #[serde(default)]
     pub ui: UiConfig,
     #[serde(default)]
     pub safety: SafetyConfig,
+
+    /// Web search tool configuration.
+    #[serde(default)]
+    pub tools: ToolsConfig,
 }
+
+/// Configuration for agent tools.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ToolsConfig {
+    #[serde(default)]
+    pub web_search: WebSearchConfig,
+}
+
+/// DuckDuckGo (default) or Google CSE web search configuration.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WebSearchConfig {
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    /// "duckduckgo" (default, no key) or "google"
+    #[serde(default = "default_engine")]
+    pub engine: String,
+    #[serde(default = "default_max_results")]
+    pub max_results: usize,
+}
+
+impl Default for WebSearchConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            engine: "duckduckgo".to_string(),
+            max_results: 5,
+        }
+    }
+}
+
+fn default_true() -> bool { true }
+fn default_engine() -> String { "duckduckgo".to_string() }
+fn default_max_results() -> usize { 5 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UiConfig {
@@ -53,6 +102,60 @@ pub struct SafetyConfig {
     /// Wrap agent command execution in an OS-level sandbox when available.
     #[serde(default)]
     pub sandbox: bool,
+    /// Shell environment policy for subprocess tool calls.
+    #[serde(default)]
+    pub shell_environment: ShellEnvironmentConfig,
+}
+
+/// Fine-grained control over what environment variables subprocess tool calls inherit.
+///
+/// ```toml
+/// [safety.shell_environment]
+/// inherit = "core"
+/// include = ["CARGO_HOME", "RUSTUP_HOME"]
+/// exclude = ["AWS_SECRET_*", "*_API_KEY"]
+/// [safety.shell_environment.set]
+/// VIBECLI_AGENT = "1"
+/// ```
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ShellEnvironmentConfig {
+    /// Base inheritance: "all" (default) | "core" | "none"
+    #[serde(default = "ShellEnvironmentConfig::default_inherit")]
+    pub inherit: String,
+    /// Extra variable names / patterns to include.
+    #[serde(default)]
+    pub include: Vec<String>,
+    /// Variable names / patterns to exclude.
+    #[serde(default)]
+    pub exclude: Vec<String>,
+    /// Variables to forcibly set.
+    #[serde(default)]
+    pub set: HashMap<String, String>,
+}
+
+impl ShellEnvironmentConfig {
+    fn default_inherit() -> String { "all".to_string() }
+
+    /// Convert to the ToolExecutor's ShellEnvPolicy.
+    pub fn to_policy(&self) -> crate::tool_executor::ShellEnvPolicy {
+        crate::tool_executor::ShellEnvPolicy {
+            inherit: self.inherit.clone(),
+            include: self.include.clone(),
+            exclude: self.exclude.clone(),
+            set: self.set.clone(),
+        }
+    }
+}
+
+impl Default for ShellEnvironmentConfig {
+    fn default() -> Self {
+        Self {
+            inherit: "all".to_string(),
+            include: vec![],
+            exclude: vec![],
+            set: HashMap::new(),
+        }
+    }
 }
 
 impl SafetyConfig {
@@ -80,6 +183,7 @@ impl Default for SafetyConfig {
             require_approval_for_file_changes: true,
             approval_policy: "suggest".to_string(),
             sandbox: false,
+            shell_environment: ShellEnvironmentConfig::default(),
         }
     }
 }

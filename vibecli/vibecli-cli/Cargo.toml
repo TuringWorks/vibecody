@@ -28,3 +28,5 @@ serde = { workspace = true, features = ["derive"] }
 toml = "0.8"
 async-trait.workspace = true
 regex.workspace = true
+reqwest = { workspace = true }
+urlencoding = "2.1"

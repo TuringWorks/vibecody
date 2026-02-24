@@ -132,6 +132,12 @@ impl TauriToolExecutor {
             ToolCall::Bash { command }            => self.run_bash(command).await,
             ToolCall::SearchFiles { query, glob } => self.search_files(query, glob.as_deref()).await,
             ToolCall::ListDirectory { path }      => self.list_dir(path).await,
+            ToolCall::WebSearch { .. } => {
+                ToolResult::err("web_search", "web_search is handled by the CLI executor; not available in VibeUI agent.")
+            }
+            ToolCall::FetchUrl { .. } => {
+                ToolResult::err("fetch_url", "fetch_url is handled by the CLI executor; not available in VibeUI agent.")
+            }
             ToolCall::TaskComplete { summary }    => ToolResult::ok("task_complete", summary.clone()),
         }
     }
@@ -150,6 +156,12 @@ impl ToolExecutorTrait for TauriToolExecutor {
             ToolCall::Bash { command }          => self.run_bash(command).await,
             ToolCall::SearchFiles { query, glob } => self.search_files(query, glob.as_deref()).await,
             ToolCall::ListDirectory { path }    => self.list_dir(path).await,
+            ToolCall::WebSearch { .. } => {
+                ToolResult::err("web_search", "web_search is not available in VibeUI agent.")
+            }
+            ToolCall::FetchUrl { .. } => {
+                ToolResult::err("fetch_url", "fetch_url is not available in VibeUI agent.")
+            }
             ToolCall::TaskComplete { summary }  => ToolResult::ok("task_complete", summary.clone()),
         }
     }

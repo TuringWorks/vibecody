@@ -1047,6 +1047,8 @@ pub async fn start_agent_task(
         open_files: vec![],
         git_branch,
         git_diff_summary: git_diff,
+        flow_context: None,
+        approved_plan: None,
     };
 
     let executor = Arc::new(TauriToolExecutor::new(workspace_root));

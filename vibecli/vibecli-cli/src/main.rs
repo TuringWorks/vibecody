@@ -5,7 +5,9 @@ use crate::syntax::highlight_code_blocks;
 use vibe_ai::provider::{AIProvider as LLMProvider, ImageAttachment, Message, MessageRole, ProviderConfig};
 use vibe_ai::providers::ollama::OllamaProvider;
 use vibe_ai::agent::{AgentContext, AgentEvent, AgentLoop, ApprovalPolicy};
-use vibe_ai::trace::{list_traces, load_trace, TraceWriter};
+use vibe_ai::hooks::HookRunner;
+use vibe_ai::planner::PlannerAgent;
+use vibe_ai::trace::{list_traces, load_session, load_trace, TraceWriter};
 use regex::Regex;
 use std::io::{self, Write};
 use std::sync::Arc;
@@ -65,6 +67,14 @@ struct Cli {
     /// Approval policy: execute all tool calls without prompting.
     #[arg(long)]
     full_auto: bool,
+
+    /// Resume a previous agent session by session ID (or ID prefix).
+    #[arg(long, value_name = "SESSION_ID")]
+    resume: Option<String>,
+
+    /// Enable Plan Mode: generate and show execution plan before running agent.
+    #[arg(long)]
+    plan: bool,
 }
 
 #[tokio::main]
@@ -139,7 +149,28 @@ async fn main() -> Result<()> {
     // Non-TUI agent mode: --agent "task description"
     if let Some(task) = cli.agent {
         let llm = create_provider(&cli.provider, cli.model)?;
-        return run_agent_repl(llm, &task, &approval_policy).await;
+        return run_agent_repl_with_context(
+            llm, &task, &approval_policy,
+            cli.resume.as_deref(),
+            cli.plan,
+        ).await;
+    }
+
+    // --resume without --agent: list sessions or show usage
+    if let Some(sid) = &cli.resume {
+        let cwd = std::env::current_dir()?;
+        let trace_dir = dirs::home_dir()
+            .unwrap_or_else(|| cwd.clone())
+            .join(".vibecli")
+            .join("traces");
+        let sessions = list_traces(&trace_dir);
+        if let Some(session) = sessions.iter().find(|s| s.session_id.starts_with(sid.as_str())) {
+            println!("📋 Session {} found ({} trace steps)", &session.session_id, session.step_count);
+            println!("Use: vibecli --agent \"<task to continue>\" --resume {}", &session.session_id[..8]);
+        } else {
+            eprintln!("❌ No session found with ID prefix: {}", sid);
+        }
+        return Ok(());
     }
 
     println!("🤖 VibeCLI - AI-Powered Coding Assistant");
@@ -255,7 +286,65 @@ async fn main() -> Result<()> {
                                 println!("Usage: /agent <task description>");
                                 continue;
                             }
-                            run_agent_repl(llm.clone(), args, &approval_policy).await?;
+                            run_agent_repl_with_context(
+                                llm.clone(), args, &approval_policy, None, false
+                            ).await?;
+                        }
+                        "/plan" => {
+                            if args.is_empty() {
+                                println!("Usage: /plan <task description>");
+                                continue;
+                            }
+                            run_agent_repl_with_context(
+                                llm.clone(), args, &approval_policy, None, true
+                            ).await?;
+                        }
+                        "/resume" => {
+                            let trace_dir = dirs::home_dir()
+                                .unwrap_or_else(|| cwd.clone())
+                                .join(".vibecli")
+                                .join("traces");
+                            let sessions = list_traces(&trace_dir);
+                            match args {
+                                "" => {
+                                    // List resumable sessions
+                                    let resumable: Vec<_> = sessions.iter()
+                                        .filter(|s| {
+                                            trace_dir.join(format!("{}-messages.json", s.session_id)).exists()
+                                        })
+                                        .take(10)
+                                        .collect();
+                                    if resumable.is_empty() {
+                                        println!("📋 No resumable sessions (sessions must have saved messages)");
+                                    } else {
+                                        println!("\n📋 Resumable sessions:");
+                                        for s in resumable {
+                                            let elapsed = std::time::Duration::from_secs(
+                                                std::time::SystemTime::now()
+                                                    .duration_since(std::time::UNIX_EPOCH)
+                                                    .unwrap_or_default()
+                                                    .as_secs()
+                                                    .saturating_sub(s.timestamp)
+                                            );
+                                            let age = if elapsed.as_secs() < 3600 {
+                                                format!("{}m ago", elapsed.as_secs() / 60)
+                                            } else {
+                                                format!("{}h ago", elapsed.as_secs() / 3600)
+                                            };
+                                            println!("  {} — {} steps — {}", &s.session_id[..8], s.step_count, age);
+                                        }
+                                        println!("\nUse: /resume <id_prefix> <task to continue>");
+                                    }
+                                }
+                                _ => {
+                                    let parts: Vec<&str> = args.splitn(2, ' ').collect();
+                                    let sid = parts[0];
+                                    let task = if parts.len() > 1 { parts[1] } else { "continue the previous task" };
+                                    run_agent_repl_with_context(
+                                        llm.clone(), task, &approval_policy, Some(sid), false
+                                    ).await?;
+                                }
+                            }
                         }
                         "/memory" => {
                             match args {
@@ -592,41 +681,118 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-/// Run the agent loop in interactive REPL mode (stdio approval prompts).
-async fn run_agent_repl(
+async fn run_agent_repl_with_context(
     llm: Arc<dyn LLMProvider>,
     task: &str,
     approval_policy: &str,
+    resume_session_id: Option<&str>,
+    plan_mode: bool,
 ) -> Result<()> {
     let workspace = std::env::current_dir()?;
     let config = Config::load().unwrap_or_default();
     let approval = ApprovalPolicy::from_str(approval_policy);
     let sandbox = config.safety.sandbox;
+
+    // Apply shell env policy
+    let env_policy = config.safety.shell_environment.to_policy();
     let executor: Arc<dyn vibe_ai::agent::ToolExecutorTrait> =
-        Arc::new(ToolExecutor::new(workspace.clone(), sandbox));
+        Arc::new(ToolExecutor::new(workspace.clone(), sandbox).with_env_policy(env_policy));
 
-    let agent = AgentLoop::new(llm, approval.clone(), executor.clone());
-    let context = AgentContext {
-        workspace_root: workspace.clone(),
-        ..Default::default()
+    // Build hooks from config
+    let hook_runner = if config.hooks.is_empty() {
+        HookRunner::empty()
+    } else {
+        HookRunner::new(config.hooks.clone())
     };
+    let agent = AgentLoop::new(llm.clone(), approval.clone(), executor.clone())
+        .with_hooks(hook_runner);
 
-    // Set up trace writer for this session.
     let trace_dir = dirs::home_dir()
         .unwrap_or_else(|| workspace.clone())
         .join(".vibecli")
         .join("traces");
-    let trace = TraceWriter::new(trace_dir);
+
+    // Plan mode: generate plan before executing
+    let approved_plan: Option<String> = if plan_mode {
+        println!("🧠 Generating execution plan...\n");
+        let planner = PlannerAgent::new(llm.clone());
+        let ctx = AgentContext {
+            workspace_root: workspace.clone(),
+            ..Default::default()
+        };
+        match planner.plan(task, &ctx).await {
+            Ok(plan) => {
+                println!("{}", plan.display());
+                print!("Execute this plan? (y/N/edit): ");
+                io::stdout().flush()?;
+                let mut confirm = String::new();
+                io::stdin().read_line(&mut confirm)?;
+                let answer = confirm.trim().to_lowercase();
+                if answer != "y" && answer != "yes" {
+                    println!("❌ Plan cancelled");
+                    return Ok(());
+                }
+                Some(plan.display())
+            }
+            Err(e) => {
+                eprintln!("⚠️  Plan generation failed: {} — proceeding without plan", e);
+                None
+            }
+        }
+    } else {
+        None
+    };
+
+    // Session resume: load previous messages if --resume
+    let resumed_messages: Vec<Message> = if let Some(sid_prefix) = resume_session_id {
+        let sessions = list_traces(&trace_dir);
+        if let Some(session) = sessions.iter().find(|s| s.session_id.starts_with(sid_prefix)) {
+            match load_session(&session.session_id, &trace_dir) {
+                Some(snapshot) if !snapshot.messages.is_empty() => {
+                    println!("▶️  Resuming session {} ({} messages, {} trace steps)",
+                        &session.session_id[..8.min(session.session_id.len())],
+                        snapshot.messages.len(),
+                        snapshot.trace.len()
+                    );
+                    snapshot.messages
+                }
+                _ => {
+                    println!("⚠️  Session found but no saved messages — starting fresh");
+                    vec![]
+                }
+            }
+        } else {
+            eprintln!("❌ No session found with ID prefix: {}", sid_prefix);
+            return Ok(());
+        }
+    } else {
+        vec![]
+    };
+
+    let context = AgentContext {
+        workspace_root: workspace.clone(),
+        approved_plan,
+        ..Default::default()
+    };
+
+    let trace = TraceWriter::new(trace_dir.clone());
 
     println!("🤖 Agent starting: {}", task);
     println!("   Approval policy: {:?}", approval);
     println!("   Trace: {}", trace.path().display());
+    if !resumed_messages.is_empty() {
+        println!("   Resuming {} prior messages", resumed_messages.len());
+    }
     println!("   Press Ctrl+C to stop\n");
+
+    // Save messages on completion for future resume
+    let trace_for_save = TraceWriter::new(trace_dir);
 
     let (event_tx, mut event_rx) = tokio::sync::mpsc::channel::<AgentEvent>(50);
     let task_str = task.to_string();
+    let context_clone = context.clone();
     tokio::spawn(async move {
-        let _ = agent.run(&task_str, context, event_tx).await;
+        let _ = agent.run(&task_str, context_clone, event_tx).await;
     });
 
     let mut step_start = std::time::Instant::now();
@@ -684,6 +850,9 @@ async fn run_agent_repl(
             AgentEvent::Complete(summary) => {
                 println!("\n\n✅ Agent complete: {}", summary);
                 println!("   Trace saved: {}", trace.path().display());
+                println!("   Resume with: vibecli --resume {}", trace.session_id());
+                // Save context for future resume
+                let _ = trace_for_save.save_context(&context);
                 break;
             }
             AgentEvent::Error(e) => {
@@ -735,6 +904,8 @@ fn show_help() {
     println!("\n📚 VibeCLI Commands:");
     println!("  /chat <message>          - Chat with AI (supports [image.png] for vision)");
     println!("  /agent <task>            - Run autonomous coding agent on a task");
+    println!("  /plan <task>             - Generate execution plan, then run agent");
+    println!("  /resume [id] [task]      - List resumable sessions or resume one");
     println!("  /generate <prompt>       - Generate code from a description");
     println!("  /diff <file>             - Show diff for a file");
     println!("  /apply <file>            - Apply AI-suggested changes to a file");
@@ -751,6 +922,8 @@ fn show_help() {
     println!("  ! <command>              - Execute shell command directly (e.g. !ls)");
     println!("\nCLI flags:");
     println!("  --agent <task>           - Run agent in REPL mode");
+    println!("  --plan                   - Enable plan mode (generate plan before executing)");
+    println!("  --resume <session-id>    - Resume a previous agent session");
     println!("  --exec <task>            - CI/non-interactive agent mode");
     println!("  --suggest                - Prompt before every tool call (default)");
     println!("  --auto-edit              - Auto file edits, prompt for bash");

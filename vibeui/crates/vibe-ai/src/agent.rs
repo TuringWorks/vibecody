@@ -3,6 +3,7 @@
 //! The agent interleaves LLM streaming responses with tool execution,
 //! repeating until the model calls `task_complete` or `max_steps` is reached.
 
+use crate::hooks::{HookDecision, HookEvent, HookRunner};
 use crate::provider::{AIProvider, Message, MessageRole};
 use crate::tools::{format_tool_result, parse_tool_calls, ToolCall, ToolResult, TOOL_SYSTEM_PROMPT};
 use anyhow::Result;
@@ -70,12 +71,16 @@ pub enum AgentEvent {
 // ── Agent Context ─────────────────────────────────────────────────────────────
 
 /// Environmental context injected at agent startup.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct AgentContext {
     pub workspace_root: PathBuf,
     pub open_files: Vec<String>,
     pub git_branch: Option<String>,
     pub git_diff_summary: Option<String>,
+    /// Recent developer activity (from flow tracker) — injected into system prompt.
+    pub flow_context: Option<String>,
+    /// Pre-approved plan text — injected into system prompt when Plan Mode is used.
+    pub approved_plan: Option<String>,
 }
 
 // ── Tool Executor Trait ───────────────────────────────────────────────────────
@@ -95,6 +100,8 @@ pub struct AgentLoop {
     pub approval: ApprovalPolicy,
     pub max_steps: usize,
     pub executor: Arc<dyn ToolExecutorTrait>,
+    /// Optional hook runner for intercepting agent events.
+    pub hooks: Option<Arc<HookRunner>>,
 }
 
 impl AgentLoop {
@@ -108,7 +115,14 @@ impl AgentLoop {
             approval,
             max_steps: 30,
             executor,
+            hooks: None,
         }
+    }
+
+    /// Attach a hook runner to this agent loop.
+    pub fn with_hooks(mut self, runner: HookRunner) -> Self {
+        self.hooks = Some(Arc::new(runner));
+        self
     }
 
     /// Run the agent for `task`, emitting [`AgentEvent`]s via `event_tx`.
@@ -118,6 +132,19 @@ impl AgentLoop {
         context: AgentContext,
         event_tx: mpsc::Sender<AgentEvent>,
     ) -> Result<()> {
+        let session_id = format!(
+            "{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs()
+        );
+
+        // Fire SessionStart hook (non-blocking, best-effort)
+        if let Some(hooks) = &self.hooks {
+            hooks.run(&HookEvent::SessionStart { session_id: session_id.clone() }).await;
+        }
+
         let system_content = build_system_prompt(&context);
         let mut messages: Vec<Message> = vec![
             Message { role: MessageRole::System, content: system_content },
@@ -152,6 +179,13 @@ impl AgentLoop {
             let tool_calls = parse_tool_calls(&accumulated);
             if tool_calls.is_empty() {
                 // Model responded with prose — treat as final answer.
+                // Fire Stop hook
+                if let Some(hooks) = &self.hooks {
+                    hooks.run(&HookEvent::Stop {
+                        reason: "prose_response".to_string(),
+                        session_id: session_id.clone(),
+                    }).await;
+                }
                 let _ = event_tx.send(AgentEvent::Complete(accumulated)).await;
                 return Ok(());
             }
@@ -168,8 +202,40 @@ impl AgentLoop {
                     ToolCall::TaskComplete { summary } => summary.clone(),
                     _ => "Task complete.".to_string(),
                 };
+                // Fire TaskCompleted hook
+                if let Some(hooks) = &self.hooks {
+                    hooks.run(&HookEvent::TaskCompleted {
+                        summary: summary.clone(),
+                        session_id: session_id.clone(),
+                    }).await;
+                }
                 let _ = event_tx.send(AgentEvent::Complete(summary)).await;
                 return Ok(());
+            }
+
+            // ── 3a. PreToolUse hook ───────────────────────────────────────────
+            if let Some(hooks) = &self.hooks {
+                let decision = hooks.run(&HookEvent::PreToolUse {
+                    call: call.clone(),
+                    session_id: session_id.clone(),
+                }).await;
+                match decision {
+                    HookDecision::Block { reason } => {
+                        // Tell the model the tool was blocked
+                        messages.push(Message {
+                            role: MessageRole::User,
+                            content: format!("❌ Tool call blocked by hook: {}", reason),
+                        });
+                        continue;
+                    }
+                    HookDecision::InjectContext { text } => {
+                        messages.push(Message {
+                            role: MessageRole::User,
+                            content: format!("[Hook context] {}", text),
+                        });
+                    }
+                    HookDecision::Allow => {}
+                }
             }
 
             let needs_approval = self.needs_approval(&call);
@@ -205,6 +271,21 @@ impl AgentLoop {
                     .await;
                 result
             };
+
+            // ── 3b. PostToolUse hook ──────────────────────────────────────────
+            if let Some(hooks) = &self.hooks {
+                let decision = hooks.run(&HookEvent::PostToolUse {
+                    call: call.clone(),
+                    result: tool_result.clone(),
+                    session_id: session_id.clone(),
+                }).await;
+                if let HookDecision::InjectContext { text } = decision {
+                    messages.push(Message {
+                        role: MessageRole::User,
+                        content: format!("[Post-hook context] {}", text),
+                    });
+                }
+            }
 
             // ── 4. Feed result back into conversation ─────────────────────────
             messages.push(Message {
@@ -245,5 +326,23 @@ fn build_system_prompt(context: &AgentContext) -> String {
     if let Some(diff) = &context.git_diff_summary {
         extras.push_str(&format!("\nGit diff summary:\n{}", diff));
     }
+
+    // 6.5: Inject recent developer activity (flow context)
+    if let Some(flow) = &context.flow_context {
+        if !flow.is_empty() {
+            extras.push_str(&format!("\n\n## Recent Developer Activity\n{}", flow));
+        }
+    }
+
+    // 6.2: Inject approved execution plan if plan mode was used
+    if let Some(plan) = &context.approved_plan {
+        if !plan.is_empty() {
+            extras.push_str(&format!(
+                "\n\n## Approved Execution Plan\nThe user has reviewed and approved this plan. Follow it step by step:\n{}",
+                plan
+            ));
+        }
+    }
+
     format!("{}{}", TOOL_SYSTEM_PROMPT, extras)
 }

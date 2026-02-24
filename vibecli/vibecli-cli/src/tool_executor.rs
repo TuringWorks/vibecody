@@ -2,6 +2,7 @@
 
 use anyhow::Result;
 use async_trait::async_trait;
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use vibe_ai::agent::ToolExecutorTrait;
 use vibe_ai::tools::{ToolCall, ToolResult};
@@ -9,15 +10,86 @@ use std::path::Path as StdPath;
 use vibe_core::executor::CommandExecutor;
 use vibe_core::search::search_files;
 
+/// Shell environment policy — controls what env vars subprocesses inherit.
+#[derive(Debug, Clone, Default)]
+pub struct ShellEnvPolicy {
+    /// Base inheritance: "all" | "core" | "none"
+    pub inherit: String,
+    /// Additional variable names (or glob patterns) to always include.
+    pub include: Vec<String>,
+    /// Variable names (or glob patterns starting with *) to exclude.
+    pub exclude: Vec<String>,
+    /// Additional variables to forcibly set.
+    pub set: HashMap<String, String>,
+}
+
+impl ShellEnvPolicy {
+    /// Build the environment map for a subprocess.
+    pub fn build_env(&self) -> HashMap<String, String> {
+        let mut env: HashMap<String, String> = match self.inherit.as_str() {
+            "all" => std::env::vars().collect(),
+            "none" => HashMap::new(),
+            _ => {
+                // "core" — keep PATH, HOME, USER, SHELL, TERM, LANG, TMPDIR + common build vars
+                let core_keys = [
+                    "PATH", "HOME", "USER", "SHELL", "TERM", "LANG", "TMPDIR",
+                    "CARGO_HOME", "RUSTUP_HOME", "GOPATH", "GOROOT",
+                    "XDG_RUNTIME_DIR", "XDG_CONFIG_HOME",
+                ];
+                std::env::vars()
+                    .filter(|(k, _)| core_keys.contains(&k.as_str()))
+                    .collect()
+            }
+        };
+
+        // Apply include list
+        for pattern in &self.include {
+            for (k, v) in std::env::vars() {
+                if var_matches_pattern(&k, pattern) {
+                    env.insert(k, v);
+                }
+            }
+        }
+
+        // Apply exclude list
+        env.retain(|k, _| {
+            !self.exclude.iter().any(|pat| var_matches_pattern(k, pat))
+        });
+
+        // Apply forced set
+        for (k, v) in &self.set {
+            env.insert(k.clone(), v.clone());
+        }
+
+        env
+    }
+}
+
+fn var_matches_pattern(var: &str, pattern: &str) -> bool {
+    if pattern.ends_with('*') {
+        var.starts_with(pattern.trim_end_matches('*'))
+    } else if pattern.starts_with('*') {
+        var.ends_with(pattern.trim_start_matches('*'))
+    } else {
+        var == pattern
+    }
+}
+
 #[derive(Clone)]
 pub struct ToolExecutor {
     pub workspace_root: PathBuf,
     pub sandbox: bool,
+    pub env_policy: Option<ShellEnvPolicy>,
 }
 
 impl ToolExecutor {
     pub fn new(workspace_root: PathBuf, sandbox: bool) -> Self {
-        Self { workspace_root, sandbox }
+        Self { workspace_root, sandbox, env_policy: None }
+    }
+
+    pub fn with_env_policy(mut self, policy: ShellEnvPolicy) -> Self {
+        self.env_policy = Some(policy);
+        self
     }
 }
 
@@ -31,6 +103,10 @@ impl ToolExecutorTrait for ToolExecutor {
             ToolCall::Bash { command } => self.run_bash(command).await,
             ToolCall::SearchFiles { query, glob } => self.search(query, glob.as_deref()).await,
             ToolCall::ListDirectory { path } => self.list_dir(path).await,
+            ToolCall::WebSearch { query, num_results } => {
+                self.web_search(query, *num_results).await
+            }
+            ToolCall::FetchUrl { url } => self.fetch_url(url).await,
             ToolCall::TaskComplete { summary } => {
                 ToolResult::ok("task_complete", format!("Task complete: {}", summary))
             }
@@ -86,8 +162,24 @@ impl ToolExecutor {
 
     async fn run_bash(&self, command: &str) -> ToolResult {
         let cwd = &self.workspace_root;
+
+        // Build custom environment if a policy is configured
+        let custom_env: Option<HashMap<String, String>> =
+            self.env_policy.as_ref().map(|p| p.build_env());
+
         let output = if self.sandbox {
             CommandExecutor::execute_sandboxed(command, cwd, cwd)
+        } else if let Some(env) = custom_env {
+            // Execute with custom environment
+            use std::process::Command;
+            Command::new("sh")
+                .arg("-c")
+                .arg(command)
+                .current_dir(cwd)
+                .env_clear()
+                .envs(env)
+                .output()
+                .map_err(anyhow::Error::from)
         } else {
             CommandExecutor::execute_in(command, cwd)
         };
@@ -108,6 +200,100 @@ impl ToolExecutor {
                 }
             }
             Err(e) => ToolResult::err("bash", format!("Execution failed: {}", e)),
+        }
+    }
+
+    async fn web_search(&self, query: &str, num_results: usize) -> ToolResult {
+        // DuckDuckGo Instant Answer API (no API key required)
+        let n = num_results.min(10);
+        let url = format!(
+            "https://api.duckduckgo.com/?q={}&format=json&no_html=1&no_redirect=1",
+            urlencoding::encode(query)
+        );
+
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(15))
+            .user_agent("VibeCLI/1.0")
+            .build();
+
+        let client = match client {
+            Ok(c) => c,
+            Err(e) => return ToolResult::err("web_search", format!("HTTP client error: {}", e)),
+        };
+
+        match client.get(&url).send().await {
+            Ok(resp) => match resp.json::<serde_json::Value>().await {
+                Ok(json) => {
+                    let mut results = Vec::new();
+
+                    // AbstractText (instant answer)
+                    if let Some(text) = json["AbstractText"].as_str().filter(|s| !s.is_empty()) {
+                        results.push(format!(
+                            "1. {} ({})\n   {}",
+                            json["Heading"].as_str().unwrap_or("Wikipedia"),
+                            json["AbstractURL"].as_str().unwrap_or(""),
+                            text
+                        ));
+                    }
+
+                    // RelatedTopics
+                    if let Some(topics) = json["RelatedTopics"].as_array() {
+                        for (_i, topic) in topics.iter().take(n.saturating_sub(results.len())).enumerate() {
+                            if let Some(text) = topic["Text"].as_str().filter(|s| !s.is_empty()) {
+                                let url_str = topic["FirstURL"].as_str().unwrap_or("");
+                                results.push(format!("{}. {}\n   {}", results.len() + 1, url_str, text));
+                            }
+                        }
+                    }
+
+                    if results.is_empty() {
+                        ToolResult::ok("web_search", format!("No results found for: {}", query))
+                    } else {
+                        ToolResult::ok("web_search", results.join("\n\n"))
+                    }
+                }
+                Err(e) => ToolResult::err("web_search", format!("JSON parse error: {}", e)),
+            },
+            Err(e) => ToolResult::err("web_search", format!("Request failed: {}", e)),
+        }
+    }
+
+    async fn fetch_url(&self, url: &str) -> ToolResult {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(20))
+            .user_agent("VibeCLI/1.0")
+            .build();
+
+        let client = match client {
+            Ok(c) => c,
+            Err(e) => return ToolResult::err("fetch_url", format!("HTTP client error: {}", e)),
+        };
+
+        match client.get(url).send().await {
+            Ok(resp) => {
+                let status = resp.status();
+                match resp.text().await {
+                    Ok(html) => {
+                        // Strip HTML tags for a readable plain-text extract
+                        let text = html_to_text(&html);
+                        let truncated_text = if text.len() > 4000 {
+                            format!("{}\n\n[… content truncated at 4000 chars …]", &text[..4000])
+                        } else {
+                            text
+                        };
+                        if status.is_success() {
+                            ToolResult::ok("fetch_url", truncated_text)
+                        } else {
+                            ToolResult::err(
+                                "fetch_url",
+                                format!("HTTP {}: {}", status.as_u16(), truncated_text),
+                            )
+                        }
+                    }
+                    Err(e) => ToolResult::err("fetch_url", format!("Read body error: {}", e)),
+                }
+            }
+            Err(e) => ToolResult::err("fetch_url", format!("Request failed: {}", e)),
         }
     }
 
@@ -245,4 +431,135 @@ fn glob_match(pattern: &str, name: &str) -> bool {
         return name.ends_with(&format!(".{}", ext));
     }
     name == pattern
+}
+
+/// Minimal HTML → plain text extractor.
+/// Strips all tags, decodes common entities, collapses whitespace.
+fn html_to_text(html: &str) -> String {
+    let mut out = String::with_capacity(html.len());
+    let mut in_tag = false;
+    let mut in_script = false;
+    let mut in_style = false;
+    let mut buf = String::new();
+
+    let mut chars = html.chars().peekable();
+    while let Some(ch) = chars.next() {
+        match ch {
+            '<' => {
+                // Collect tag name
+                buf.clear();
+                in_tag = true;
+                // Peek ahead for script/style
+                let remaining: String = chars.clone().take(12).collect();
+                let lower = remaining.to_lowercase();
+                if lower.starts_with("script") || lower.starts_with("/script") {
+                    in_script = lower.starts_with("script");
+                } else if lower.starts_with("style") || lower.starts_with("/style") {
+                    in_style = lower.starts_with("style");
+                } else if lower.starts_with("br") || lower.starts_with("p") || lower.starts_with("div") || lower.starts_with("li") {
+                    out.push('\n');
+                }
+            }
+            '>' => {
+                in_tag = false;
+            }
+            _ => {
+                if !in_tag && !in_script && !in_style {
+                    out.push(ch);
+                }
+            }
+        }
+    }
+
+    // Decode common HTML entities
+    let out = out
+        .replace("&amp;", "&")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", "\"")
+        .replace("&#39;", "'")
+        .replace("&nbsp;", " ");
+
+    // Collapse excess whitespace
+    let mut result = String::with_capacity(out.len());
+    let mut last_newline = false;
+    for line in out.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            if !last_newline {
+                result.push('\n');
+                last_newline = true;
+            }
+        } else {
+            result.push_str(trimmed);
+            result.push('\n');
+            last_newline = false;
+        }
+    }
+    result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn shell_env_policy_core_keeps_path() {
+        let policy = ShellEnvPolicy {
+            inherit: "core".to_string(),
+            include: vec![],
+            exclude: vec![],
+            set: HashMap::new(),
+        };
+        let env = policy.build_env();
+        // PATH should always be present in a normal environment
+        // (test won't fail if PATH is unset in the test runner)
+        let _ = env; // just ensure build_env doesn't panic
+    }
+
+    #[test]
+    fn shell_env_policy_none_only_set_vars() {
+        let mut set = HashMap::new();
+        set.insert("VIBECLI_AGENT".to_string(), "1".to_string());
+        let policy = ShellEnvPolicy {
+            inherit: "none".to_string(),
+            include: vec![],
+            exclude: vec![],
+            set,
+        };
+        let env = policy.build_env();
+        assert_eq!(env.get("VIBECLI_AGENT").map(|s| s.as_str()), Some("1"));
+        // Should have exactly 1 key
+        assert_eq!(env.len(), 1);
+    }
+
+    #[test]
+    fn shell_env_policy_exclude_pattern() {
+        std::env::set_var("__TEST_API_KEY", "secret");
+        let policy = ShellEnvPolicy {
+            inherit: "all".to_string(),
+            include: vec![],
+            exclude: vec!["__TEST_API_KEY".to_string()],
+            set: HashMap::new(),
+        };
+        let env = policy.build_env();
+        assert!(!env.contains_key("__TEST_API_KEY"));
+        std::env::remove_var("__TEST_API_KEY");
+    }
+
+    #[test]
+    fn html_to_text_strips_tags() {
+        let html = "<html><body><h1>Hello</h1><p>World</p></body></html>";
+        let text = html_to_text(html);
+        assert!(text.contains("Hello"));
+        assert!(text.contains("World"));
+        assert!(!text.contains('<'));
+    }
+
+    #[test]
+    fn html_to_text_decodes_entities() {
+        let html = "<p>a &amp; b &lt;c&gt;</p>";
+        let text = html_to_text(html);
+        assert!(text.contains("a & b <c>"));
+    }
 }

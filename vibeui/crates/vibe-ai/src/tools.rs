@@ -90,6 +90,23 @@ List all files and directories at the given path.
 </tool_call>
 ```
 
+### web_search
+Search the web for current information using DuckDuckGo. No API key required.
+```
+<tool_call name="web_search">
+<query>rust async await tutorial</query>
+<num_results>5</num_results>
+</tool_call>
+```
+
+### fetch_url
+Fetch and extract the text content of a web page.
+```
+<tool_call name="fetch_url">
+<url>https://doc.rust-lang.org/book/ch01-00-getting-started.html</url>
+</tool_call>
+```
+
 ### task_complete
 Call this when the task is fully done. Provide a summary of what was accomplished.
 ```
@@ -132,6 +149,15 @@ pub enum ToolCall {
     ListDirectory {
         path: String,
     },
+    /// Search the web using DuckDuckGo (no API key required).
+    WebSearch {
+        query: String,
+        num_results: usize,
+    },
+    /// Fetch the text content of a URL.
+    FetchUrl {
+        url: String,
+    },
     TaskComplete {
         summary: String,
     },
@@ -147,6 +173,8 @@ impl ToolCall {
             ToolCall::Bash { .. } => "bash",
             ToolCall::SearchFiles { .. } => "search_files",
             ToolCall::ListDirectory { .. } => "list_directory",
+            ToolCall::WebSearch { .. } => "web_search",
+            ToolCall::FetchUrl { .. } => "fetch_url",
             ToolCall::TaskComplete { .. } => "task_complete",
         }
     }
@@ -176,6 +204,10 @@ impl ToolCall {
                 None => format!("search_files({:?})", query),
             },
             ToolCall::ListDirectory { path } => format!("list_directory({})", path),
+            ToolCall::WebSearch { query, num_results } => {
+                format!("web_search({:?}, {})", query, num_results)
+            }
+            ToolCall::FetchUrl { url } => format!("fetch_url({})", url),
             ToolCall::TaskComplete { summary } => {
                 let short = if summary.len() > 60 {
                     format!("{}…", &summary[..60])
@@ -189,7 +221,10 @@ impl ToolCall {
 
     /// Returns true if this is a destructive / risky operation.
     pub fn is_destructive(&self) -> bool {
-        matches!(self, ToolCall::Bash { .. } | ToolCall::WriteFile { .. } | ToolCall::ApplyPatch { .. })
+        matches!(
+            self,
+            ToolCall::Bash { .. } | ToolCall::WriteFile { .. } | ToolCall::ApplyPatch { .. }
+        )
     }
 
     /// Returns true if this ends the agent loop.
@@ -287,6 +322,17 @@ fn parse_single_tool(name: &str, body: &str) -> Option<ToolCall> {
         "list_directory" => {
             let path = extract_tag(body, "path").unwrap_or_else(|| ".".to_string());
             Some(ToolCall::ListDirectory { path })
+        }
+        "web_search" => {
+            let query = extract_tag(body, "query")?;
+            let num_results = extract_tag(body, "num_results")
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(5);
+            Some(ToolCall::WebSearch { query, num_results })
+        }
+        "fetch_url" => {
+            let url = extract_tag(body, "url")?;
+            Some(ToolCall::FetchUrl { url })
         }
         "task_complete" => {
             let summary = extract_tag(body, "summary").unwrap_or_default();

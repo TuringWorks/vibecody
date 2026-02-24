@@ -3,7 +3,15 @@
 //! Each agent run writes entries to a configurable directory
 //! (VibeCLI uses `~/.vibecli/traces/<unix_secs>.jsonl`).
 //! Entries capture every tool call, result, timing, and approval source.
+//!
+//! # Session Resume
+//!
+//! `TraceWriter::save_messages()` persists the full message history to
+//! `<session_id>-messages.json` in the same directory. `load_session()` can
+//! then restore a prior conversation for `vibecli --resume <session-id>`.
 
+use crate::agent::AgentContext;
+use crate::provider::Message;
 use serde::{Deserialize, Serialize};
 use std::fs::{self, File, OpenOptions};
 use std::io::{BufRead, BufReader, Write};
@@ -95,6 +103,84 @@ impl TraceWriter {
             }
         }
     }
+
+    /// Persist the full message history for this session.
+    /// Saved as `<session_id>-messages.json` alongside the JSONL trace.
+    pub fn save_messages(&self, messages: &[Message]) -> std::io::Result<()> {
+        let path = self.messages_path();
+        let json = serde_json::to_string_pretty(messages)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+        fs::write(path, json)
+    }
+
+    /// Persist the agent context snapshot for this session.
+    pub fn save_context(&self, ctx: &AgentContext) -> std::io::Result<()> {
+        let path = self.context_path();
+        let json = serde_json::to_string_pretty(ctx)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+        fs::write(path, json)
+    }
+
+    fn messages_path(&self) -> PathBuf {
+        self.path
+            .parent()
+            .unwrap_or_else(|| std::path::Path::new("."))
+            .join(format!("{}-messages.json", self.session_id))
+    }
+
+    fn context_path(&self) -> PathBuf {
+        self.path
+            .parent()
+            .unwrap_or_else(|| std::path::Path::new("."))
+            .join(format!("{}-context.json", self.session_id))
+    }
+}
+
+// ── SessionSnapshot ───────────────────────────────────────────────────────────
+
+/// All the data needed to resume a previous agent session.
+#[derive(Debug, Clone)]
+pub struct SessionSnapshot {
+    pub session_id: String,
+    pub messages: Vec<Message>,
+    pub context: Option<AgentContext>,
+    pub trace: Vec<TraceEntry>,
+}
+
+/// Load a full session snapshot by ID for `vibecli --resume <session_id>`.
+pub fn load_session(session_id: &str, dir: &Path) -> Option<SessionSnapshot> {
+    let jsonl_path = dir.join(format!("{}.jsonl", session_id));
+    if !jsonl_path.exists() {
+        return None;
+    }
+
+    let trace = load_trace(&jsonl_path);
+
+    let messages_path = dir.join(format!("{}-messages.json", session_id));
+    let messages: Vec<Message> = if messages_path.exists() {
+        fs::read_to_string(&messages_path)
+            .ok()
+            .and_then(|s| serde_json::from_str(&s).ok())
+            .unwrap_or_default()
+    } else {
+        vec![]
+    };
+
+    let context_path = dir.join(format!("{}-context.json", session_id));
+    let context: Option<AgentContext> = if context_path.exists() {
+        fs::read_to_string(&context_path)
+            .ok()
+            .and_then(|s| serde_json::from_str(&s).ok())
+    } else {
+        None
+    };
+
+    Some(SessionSnapshot {
+        session_id: session_id.to_string(),
+        messages,
+        context,
+        trace,
+    })
 }
 
 // ── Listing / Loading ─────────────────────────────────────────────────────────

@@ -9,6 +9,8 @@ pub mod tools;
 pub mod agent;
 pub mod trace;
 pub mod mcp;
+pub mod hooks;
+pub mod planner;
 
 pub use chat::ChatEngine;
 pub use provider::{CodeContext, Message, MessageRole, CompletionStream, ImageAttachment};
@@ -18,5 +20,7 @@ pub use tools::{ToolCall, ToolResult, parse_tool_calls, format_tool_result, TOOL
 pub use agent::{
     AgentLoop, AgentEvent, AgentStep, AgentContext, ApprovalPolicy, ToolExecutorTrait,
 };
-pub use trace::{TraceWriter, TraceEntry, TraceSession, list_traces, load_trace};
+pub use trace::{TraceWriter, TraceEntry, TraceSession, SessionSnapshot, list_traces, load_trace, load_session};
 pub use mcp::{McpClient, McpTool, McpServerConfig};
+pub use hooks::{HookConfig, HookDecision, HookEvent, HookHandler, HookRunner};
+pub use planner::{ExecutionPlan, PlanStep, PlanStepStatus, PlannerAgent};
