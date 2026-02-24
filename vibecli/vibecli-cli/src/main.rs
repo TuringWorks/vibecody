@@ -19,6 +19,7 @@ mod diff_viewer;
 mod tool_executor;
 mod memory;
 mod ci;
+mod review;
 use tool_executor::{ToolExecutor, VibeCoreWorktreeManager};
 use diff_viewer::DiffViewer;
 use memory::ProjectMemory;
@@ -80,6 +81,28 @@ struct Cli {
     /// Run N parallel agents on the same task (requires --agent).
     #[arg(long, value_name = "N")]
     parallel: Option<usize>,
+
+    // ── Review mode ───────────────────────────────────────────────────────────
+
+    /// Run code review on git changes.
+    #[arg(long)]
+    review: bool,
+
+    /// Base ref for review diff (default: compare uncommitted changes).
+    #[arg(long, value_name = "REF")]
+    base: Option<String>,
+
+    /// Target ref for review diff (default: working tree).
+    #[arg(long, value_name = "REF")]
+    branch: Option<String>,
+
+    /// Post review as a comment on a GitHub PR number.
+    #[arg(long, value_name = "PR")]
+    pr: Option<u32>,
+
+    /// Post the review to GitHub (requires --pr and GITHUB_TOKEN).
+    #[arg(long)]
+    post_github: bool,
 }
 
 #[tokio::main]
@@ -146,6 +169,47 @@ async fn main() -> Result<()> {
             eprintln!("Report written to: {}", out_path);
         } else {
             println!("{}", output_text);
+        }
+
+        std::process::exit(report.exit_code());
+    }
+
+    // Code review mode: --review
+    if cli.review {
+        let llm = create_provider(&cli.provider, cli.model.clone())?;
+        let workspace = std::env::current_dir()?;
+        let config = review::ReviewConfig {
+            base_ref: cli.base.unwrap_or_default(),
+            target_ref: cli.branch.unwrap_or_default(),
+            post_to_github: cli.post_github,
+            github_pr: cli.pr,
+            workspace,
+            ..Default::default()
+        };
+
+        println!("🔍 Running code review...");
+        if !config.base_ref.is_empty() {
+            println!("   Base: {}", config.base_ref);
+        }
+        if !config.target_ref.is_empty() {
+            println!("   Target: {}", config.target_ref);
+        }
+
+        let report = review::run_review(&config, llm).await?;
+        let markdown = report.to_markdown();
+        println!("{}", markdown);
+
+        if config.post_to_github {
+            if let Some(pr) = config.github_pr {
+                print!("📤 Posting review to PR #{}... ", pr);
+                io::stdout().flush()?;
+                match review::post_to_github_pr(pr, &markdown) {
+                    Ok(_) => println!("✅ Posted!"),
+                    Err(e) => eprintln!("❌ Failed to post: {}", e),
+                }
+            } else {
+                eprintln!("❌ --post-github requires --pr <number>");
+            }
         }
 
         std::process::exit(report.exit_code());
