@@ -24,3 +24,6 @@ dotenvy = "0.15"
 
 # Configuration
 toml = "0.8"
+
+# Tool call parsing
+regex.workspace = true

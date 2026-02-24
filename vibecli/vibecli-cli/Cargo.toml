@@ -26,3 +26,4 @@ futures = "0.3"
 crossterm = { workspace = true, features = ["event-stream"] }
 serde = { workspace = true, features = ["derive"] }
 toml = "0.8"
+async-trait.workspace = true

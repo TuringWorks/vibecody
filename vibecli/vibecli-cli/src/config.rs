@@ -37,6 +37,30 @@ impl Default for UiConfig {
 pub struct SafetyConfig {
     pub require_approval_for_commands: bool,
     pub require_approval_for_file_changes: bool,
+    /// Agent approval policy: "suggest" | "auto-edit" | "full-auto"
+    #[serde(default = "SafetyConfig::default_approval_policy")]
+    pub approval_policy: String,
+    /// Wrap agent command execution in an OS-level sandbox when available.
+    #[serde(default)]
+    pub sandbox: bool,
+}
+
+impl SafetyConfig {
+    fn default_approval_policy() -> String {
+        "suggest".to_string()
+    }
+
+    pub fn approval_policy_from_flags(suggest: bool, auto_edit: bool, full_auto: bool) -> String {
+        if full_auto {
+            "full-auto".to_string()
+        } else if auto_edit {
+            "auto-edit".to_string()
+        } else if suggest {
+            "suggest".to_string()
+        } else {
+            "suggest".to_string()
+        }
+    }
 }
 
 impl Default for SafetyConfig {
@@ -44,6 +68,8 @@ impl Default for SafetyConfig {
         Self {
             require_approval_for_commands: true,
             require_approval_for_file_changes: true,
+            approval_policy: "suggest".to_string(),
+            sandbox: false,
         }
     }
 }
@@ -86,6 +112,11 @@ impl Config {
         let home = dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Could not find home directory"))?;
         Ok(home.join(".vibecli").join("config.toml"))
     }
+    /// Derive approval policy string from boolean CLI flags.
+    pub fn approval_from_flags(suggest: bool, auto_edit: bool, full_auto: bool) -> String {
+        SafetyConfig::approval_policy_from_flags(suggest, auto_edit, full_auto)
+    }
+
     pub fn get_provider_config(&self, name: &str) -> Option<&ProviderConfig> {
         match name.to_lowercase().as_str() {
             "ollama" => self.ollama.as_ref(),
