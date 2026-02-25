@@ -21,6 +21,7 @@ VibeCLI is a Rust-based terminal tool designed to bring the power of LLMs direct
 ## Installation
 
 ### Prerequisites
+
 - Rust (latest stable)
 - `git`
 
@@ -55,6 +56,7 @@ vibecli --tui
 - `--tui`: Launch the Terminal UI mode.
 
 **Example:**
+
 ```bash
 vibecli --tui --provider openai --model gpt-4-turbo
 ```
@@ -123,7 +125,7 @@ You can also use environment variables for API keys (these take precedence over 
 
 ### Project Structure
 
-```
+```text
 vibecli/
 ├── vibecli-core/          # Core logic (LLM, Git, Config, Diff)
 │   ├── src/
