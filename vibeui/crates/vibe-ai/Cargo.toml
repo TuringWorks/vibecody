@@ -33,3 +33,9 @@ walkdir.workspace = true
 
 [dev-dependencies]
 tempfile = "3"
+cucumber = { version = "0.20", features = ["macros"] }
+
+[[test]]
+name = "rules_matching_bdd"
+path = "tests/rules_matching_bdd.rs"
+harness = false

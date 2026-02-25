@@ -40,6 +40,7 @@ mod tui;
 
 #[derive(Parser)]
 #[command(name = "vibecli")]
+#[command(version)]
 #[command(about = "AI-powered coding assistant for the terminal", long_about = None)]
 struct Cli {
     #[arg(short, long, default_value = "ollama")]

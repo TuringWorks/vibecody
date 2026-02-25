@@ -24,16 +24,21 @@ pub fn search_files(root_path: &PathBuf, query: &str, case_sensitive: bool) -> R
     for entry in WalkDir::new(root_path)
         .follow_links(true)
         .into_iter()
-        .filter_map(|e| e.ok()) 
+        .filter_map(|e| e.ok())
     {
         let path = entry.path();
-        
+
         // Skip directories and hidden files/git
         if path.is_dir() {
             continue;
         }
-        
-        if path.to_string_lossy().contains("/.") || path.to_string_lossy().contains("\\.") {
+
+        // Skip hidden files/directories (any component *relative to root* starting with '.')
+        // We strip the root prefix so that root paths like /tmp/.tmpXXX are not penalised.
+        let rel = path.strip_prefix(root_path).unwrap_or(path);
+        if rel.components().any(|c| {
+            c.as_os_str().to_string_lossy().starts_with('.')
+        }) {
             continue;
         }
 
