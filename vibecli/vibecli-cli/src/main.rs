@@ -360,7 +360,36 @@ async fn main() -> Result<()> {
 
     // Non-TUI agent mode: --agent "task description"
     if let Some(task) = cli.agent {
-        let llm = create_provider(&effective_provider, effective_model.clone())?;
+        // ── opusplan routing ─────────────────────────────────────────────────
+        // If [routing] is configured, use separate providers for planning vs execution.
+        let config_for_routing = Config::load().unwrap_or_default();
+        let (exec_provider, exec_model) = if config_for_routing.routing.is_configured() {
+            let (ep, em) = config_for_routing.routing.resolve_execution(
+                &effective_provider,
+                effective_model.as_deref().unwrap_or(""),
+            );
+            if ep != effective_provider || Some(em.as_str()) != effective_model.as_deref() {
+                eprintln!("🔀 opusplan routing: execution → {}:{}", ep, em);
+            }
+            (ep, Some(em))
+        } else {
+            (effective_provider.clone(), effective_model.clone())
+        };
+        let llm = create_provider(&exec_provider, exec_model)?;
+
+        // Build planning LLM only when --plan is requested and routing is configured.
+        let planning_llm: Option<Arc<dyn LLMProvider>> = if cli.plan && config_for_routing.routing.is_configured() {
+            let (pp, pm) = config_for_routing.routing.resolve_planning(
+                &effective_provider,
+                effective_model.as_deref().unwrap_or(""),
+            );
+            if pp != effective_provider || Some(pm.as_str()) != effective_model.as_deref() {
+                eprintln!("🔀 opusplan routing: planning → {}:{}", pp, pm);
+            }
+            Some(create_provider(&pp, Some(pm))?)
+        } else {
+            None
+        };
 
         // Parallel multi-agent mode
         if let Some(n) = cli.parallel {
@@ -372,6 +401,7 @@ async fn main() -> Result<()> {
             cli.resume.as_deref(),
             cli.plan,
             cli.json,
+            planning_llm,
         ).await;
     }
 
@@ -406,7 +436,7 @@ async fn main() -> Result<()> {
     let mut llm = create_provider(&effective_provider, effective_model.clone())?;
     let mut active_provider = effective_provider.clone();
     let mut active_model = effective_model.clone();
-    let mut session_tokens = TokenUsage::default();
+    let session_tokens = TokenUsage::default();
 
     // Load project memory (VIBECLI.md / AGENTS.md / CLAUDE.md) and inject as system context
     let cwd = std::env::current_dir()?;
@@ -506,7 +536,7 @@ async fn main() -> Result<()> {
                                 continue;
                             }
                             run_agent_repl_with_context(
-                                llm.clone(), args, &approval_policy, None, false, false
+                                llm.clone(), args, &approval_policy, None, false, false, None
                             ).await?;
                         }
                         "/plan" => {
@@ -515,7 +545,7 @@ async fn main() -> Result<()> {
                                 continue;
                             }
                             run_agent_repl_with_context(
-                                llm.clone(), args, &approval_policy, None, true, false
+                                llm.clone(), args, &approval_policy, None, true, false, None
                             ).await?;
                         }
                         "/resume" => {
@@ -560,7 +590,7 @@ async fn main() -> Result<()> {
                                     let sid = parts[0];
                                     let task = if parts.len() > 1 { parts[1] } else { "continue the previous task" };
                                     run_agent_repl_with_context(
-                                        llm.clone(), task, &approval_policy, Some(sid), false, false
+                                        llm.clone(), task, &approval_policy, Some(sid), false, false, None
                                     ).await?;
                                 }
                             }
@@ -1439,6 +1469,7 @@ async fn run_agent_repl_with_context(
     resume_session_id: Option<&str>,
     plan_mode: bool,
     json_output: bool,
+    planning_llm: Option<Arc<dyn LLMProvider>>,
 ) -> Result<()> {
     let workspace = std::env::current_dir()?;
     let config = Config::load().unwrap_or_default();
@@ -1464,10 +1495,12 @@ async fn run_agent_repl_with_context(
         .join(".vibecli")
         .join("traces");
 
-    // Plan mode: generate plan before executing
+    // Plan mode: generate plan before executing.
+    // Uses planning_llm (opusplan routing) when provided, otherwise falls back to llm.
     let approved_plan: Option<String> = if plan_mode {
         println!("🧠 Generating execution plan...\n");
-        let planner = PlannerAgent::new(llm.clone());
+        let plan_provider = planning_llm.unwrap_or_else(|| llm.clone());
+        let planner = PlannerAgent::new(plan_provider);
         let ctx = AgentContext {
             workspace_root: workspace.clone(),
             ..Default::default()
@@ -2111,6 +2144,17 @@ async fn run_doctor() -> Result<()> {
     // 8. Active profile note
     if let Some(active) = ProfileManager::read_active() {
         println!("  📋 Active profile: {}", active);
+    }
+
+    // 9. opusplan model routing
+    if config.routing.is_configured() {
+        println!("  🔀 Routing    — opusplan routing configured");
+        let (pp, pm) = config.routing.resolve_planning("(default)", "(default)");
+        let (ep, em) = config.routing.resolve_execution("(default)", "(default)");
+        println!("     Planning  → {}:{}", pp, pm);
+        println!("     Execution → {}:{}", ep, em);
+    } else {
+        println!("  ○  Routing    — opusplan routing not configured (uses --provider/--model)");
     }
 
     println!();

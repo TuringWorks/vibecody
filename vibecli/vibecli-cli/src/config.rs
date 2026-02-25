@@ -67,6 +67,60 @@ pub struct Config {
     /// ```
     #[serde(default)]
     pub memory: MemoryConfig,
+
+    /// opusplan model routing.
+    ///
+    /// Separate provider/model for the planning step vs. the execution step.
+    /// Falls back to `--provider`/`--model` flags when not set.
+    ///
+    /// ```toml
+    /// [routing]
+    /// planning_provider = "claude"
+    /// planning_model = "claude-opus-4-6"
+    /// execution_provider = "claude"
+    /// execution_model = "claude-sonnet-4-6"
+    /// ```
+    #[serde(default)]
+    pub routing: RoutingConfig,
+}
+
+/// Provider/model routing for planning vs. execution steps.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct RoutingConfig {
+    /// Provider used for the planning / thinking step (e.g. "claude").
+    pub planning_provider: Option<String>,
+    /// Model used for the planning step (e.g. "claude-opus-4-6").
+    pub planning_model: Option<String>,
+    /// Provider used for tool-execution steps (e.g. "claude").
+    pub execution_provider: Option<String>,
+    /// Model used for tool-execution steps (e.g. "claude-sonnet-4-6").
+    pub execution_model: Option<String>,
+}
+
+impl RoutingConfig {
+    /// Effective planning provider: routing config → fallback.
+    pub fn resolve_planning(&self, fallback_provider: &str, fallback_model: &str) -> (String, String) {
+        (
+            self.planning_provider.clone().unwrap_or_else(|| fallback_provider.to_string()),
+            self.planning_model.clone().unwrap_or_else(|| fallback_model.to_string()),
+        )
+    }
+
+    /// Effective execution provider: routing config → fallback.
+    pub fn resolve_execution(&self, fallback_provider: &str, fallback_model: &str) -> (String, String) {
+        (
+            self.execution_provider.clone().unwrap_or_else(|| fallback_provider.to_string()),
+            self.execution_model.clone().unwrap_or_else(|| fallback_model.to_string()),
+        )
+    }
+
+    /// Returns true if any routing config is set (planning or execution differs from fallback).
+    pub fn is_configured(&self) -> bool {
+        self.planning_provider.is_some()
+            || self.planning_model.is_some()
+            || self.execution_provider.is_some()
+            || self.execution_model.is_some()
+    }
 }
 
 /// Embedding index configuration.

@@ -30,6 +30,7 @@ import { ExtensionManager } from "./extensions/ExtensionManager";
 // Import worker using Vite's syntax
 import ExtensionHostWorker from "./extensions/ExtensionHost?worker";
 import { CascadePanel } from "./components/CascadePanel";
+import { DiffReviewPanel } from "./components/DiffReviewPanel";
 import { flowContext } from "./utils/FlowContext";
 import { supercompleteEngine } from "./utils/SupercompleteEngine";
 
@@ -1330,23 +1331,29 @@ function App() {
               />
             </div>
           ) : pendingDiff ? (
-            <div className="diff-container" style={{ height: 'calc(100% - 35px)', display: 'flex', flexDirection: 'column' }}>
-              <div className="diff-header" style={{ padding: '10px', background: '#252526', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span>Reviewing changes for: {pendingDiff.path}</span>
-                <div className="diff-actions">
-                  <button className="btn-secondary" onClick={rejectDiff} style={{ marginRight: '10px', background: '#d32f2f' }}>Reject</button>
-                  <button className="btn-primary" onClick={acceptDiff} style={{ background: '#388e3c' }}>Accept</button>
-                </div>
-              </div>
-              <DiffEditor
-                height="100%"
-                language={editorLanguage}
-                theme="vs-dark"
+            <div style={{ height: 'calc(100% - 35px)' }}>
+              <DiffReviewPanel
                 original={pendingDiff.original}
                 modified={pendingDiff.modified}
-                options={{
-                  readOnly: true,
-                  renderSideBySide: true
+                filePath={pendingDiff.path}
+                onApply={(result) => {
+                  if (result === null) {
+                    rejectDiff();
+                  } else {
+                    // Write the assembled (partial-accept) result
+                    invoke("write_file", { path: pendingDiff!.path, content: result })
+                      .then(() => {
+                        const language = detectLanguage(pendingDiff!.path);
+                        setOpenFiles((prev) => {
+                          const exists = prev.some((f) => f.path === pendingDiff!.path);
+                          if (exists) return prev.map((f) => f.path === pendingDiff!.path ? { ...f, content: result, isDirty: false } : f);
+                          return [...prev, { path: pendingDiff!.path, content: result, language, isDirty: false }];
+                        });
+                        setActiveFilePath(pendingDiff!.path);
+                        setPendingDiff(null);
+                      })
+                      .catch(console.error);
+                  }
                 }}
               />
             </div>

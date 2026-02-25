@@ -907,6 +907,37 @@ async fn resolve_at_references(
         }
     }
 
+    // @docs:<name> — fetch library documentation from docs.rs / npmjs.com / pypi.org
+    let re_docs = Regex::new(r"@docs:(\S+)").unwrap();
+    for cap in re_docs.captures_iter(content) {
+        let name_raw = &cap[1];
+        // Detect registry: rs: prefix → docs.rs, py:→pypi, otherwise npm
+        let (registry, name) = if name_raw.starts_with("rs:") {
+            ("rs", name_raw.trim_start_matches("rs:"))
+        } else if name_raw.starts_with("py:") || name_raw.starts_with("pypi:") {
+            let n = name_raw.splitn(2, ':').nth(1).unwrap_or(name_raw);
+            ("py", n)
+        } else {
+            ("rs", name_raw) // default: docs.rs for simple names
+        };
+        let url = match registry {
+            "npm" => format!("https://registry.npmjs.org/{}", name),
+            "py"  => format!("https://pypi.org/pypi/{}/json", name),
+            _     => format!("https://docs.rs/crate/{}/latest/", name),
+        };
+        let mut docs_ctx = format!("\n### @docs:{}\n", name_raw);
+        match fetch_and_strip(&url).await {
+            Ok(text) => {
+                let truncated: String = text.chars().take(3000).collect();
+                docs_ctx.push_str(&truncated);
+            }
+            Err(e) => {
+                docs_ctx.push_str(&format!("(docs fetch error: {})\n", e));
+            }
+        }
+        extra.push_str(&docs_ctx);
+    }
+
     // @codebase:<query> — semantic search over the workspace embedding index
     let re_cb = Regex::new(r"@codebase:(\S+)").unwrap();
     for cap in re_cb.captures_iter(content) {
@@ -2312,6 +2343,231 @@ pub async fn semantic_search_codebase(
 ) -> Result<Vec<SymbolResult>, String> {
     // Uses CodebaseIndex for now; will delegate to EmbeddingIndex once built.
     search_workspace_symbols(query, state).await
+}
+
+// ── @docs context ─────────────────────────────────────────────────────────────
+
+/// Fetch library documentation from an online registry.
+///
+/// `registry`: `"rs"` (docs.rs), `"npm"` (npmjs.com), `"py"` (PyPI).
+/// Returns a plain-text summary (max 4000 chars) suitable for AI injection.
+#[tauri::command]
+pub async fn fetch_doc_content(name: String, registry: String) -> Result<String, String> {
+    let url = match registry.as_str() {
+        "rs" => format!("https://docs.rs/crate/{}/latest/", name),
+        "npm" => format!("https://registry.npmjs.org/{}", name),
+        "py" => format!("https://pypi.org/pypi/{}/json", name),
+        _ => return Err(format!("Unknown registry: {}", registry)),
+    };
+
+    let body = fetch_and_strip(&url).await.map_err(|e| e.to_string())?;
+
+    // For JSON registries, try to extract meaningful fields
+    if registry == "npm" || registry == "py" {
+        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&body) {
+            let summary = if registry == "npm" {
+                let desc = json["description"].as_str().unwrap_or("").to_string();
+                let ver  = json["dist-tags"]["latest"].as_str().unwrap_or("?");
+                let kws: Vec<&str> = json["keywords"].as_array()
+                    .map(|a| a.iter().filter_map(|v| v.as_str()).collect())
+                    .unwrap_or_default();
+                format!(
+                    "Package: {} (npm v{})\n{}\nKeywords: {}",
+                    name, ver, desc, kws.join(", ")
+                )
+            } else {
+                // PyPI JSON
+                let info = &json["info"];
+                let desc = info["summary"].as_str().unwrap_or("").to_string();
+                let ver  = info["version"].as_str().unwrap_or("?");
+                format!("Package: {} (PyPI v{})\n{}", name, ver, desc)
+            };
+            return Ok(summary.chars().take(4000).collect());
+        }
+    }
+
+    // For docs.rs, return stripped HTML text
+    Ok(body.chars().take(4000).collect())
+}
+
+// ── Linter integration ────────────────────────────────────────────────────────
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct LintErrorOut {
+    pub line: usize,
+    pub col: usize,
+    pub severity: String,
+    pub message: String,
+    pub rule: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct LintResultOut {
+    pub errors: Vec<LintErrorOut>,
+    pub warnings: Vec<LintErrorOut>,
+    pub raw_output: String,
+    pub linter_available: bool,
+}
+
+/// Run the appropriate linter for `file_path` and return parsed results.
+///
+/// Supported linters:
+/// - `eslint` — TypeScript/JavaScript
+/// - `cargo-check` — Rust (fast, no borrow-checker bypass)
+/// - `flake8` — Python
+/// - `go-vet` — Go
+#[tauri::command]
+pub async fn run_linter(file_path: String, linter: String) -> Result<LintResultOut, String> {
+    use std::process::Command;
+
+    let path = std::path::Path::new(&file_path);
+    let dir  = path.parent().unwrap_or(std::path::Path::new("."));
+
+    let (prog, args, parse_mode) = match linter.as_str() {
+        "eslint" => (
+            "eslint",
+            vec!["--format", "json", &file_path],
+            "eslint-json",
+        ),
+        "cargo-check" => (
+            "cargo",
+            vec!["check", "--message-format=json", "--quiet"],
+            "cargo-json",
+        ),
+        "flake8" => (
+            "flake8",
+            vec!["--format=%(path)s:%(row)d:%(col)d:%(code)s:%(text)s", &file_path],
+            "flake8-text",
+        ),
+        "go-vet" => (
+            "go",
+            vec!["vet", &file_path],
+            "go-text",
+        ),
+        _ => return Ok(LintResultOut {
+            errors: vec![], warnings: vec![],
+            raw_output: format!("Unknown linter: {}", linter),
+            linter_available: false,
+        }),
+    };
+
+    let output = match Command::new(prog)
+        .args(&args)
+        .current_dir(dir)
+        .output()
+    {
+        Ok(o) => o,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            return Ok(LintResultOut {
+                errors: vec![], warnings: vec![],
+                raw_output: format!("{} not found in PATH", prog),
+                linter_available: false,
+            });
+        }
+        Err(e) => return Err(e.to_string()),
+    };
+
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+    let raw_output = if stdout.is_empty() { stderr.clone() } else { stdout.clone() };
+
+    let (errors, warnings) = match parse_mode {
+        "eslint-json" => parse_eslint_json(&stdout),
+        "cargo-json"  => parse_cargo_json(&stdout),
+        "flake8-text" => parse_flake8_text(&stdout),
+        _             => parse_generic_text(&stderr),
+    };
+
+    Ok(LintResultOut { errors, warnings, raw_output, linter_available: true })
+}
+
+fn parse_eslint_json(output: &str) -> (Vec<LintErrorOut>, Vec<LintErrorOut>) {
+    let mut errors = vec![];
+    let mut warnings = vec![];
+    if let Ok(json) = serde_json::from_str::<serde_json::Value>(output) {
+        if let Some(files) = json.as_array() {
+            for file in files {
+                if let Some(msgs) = file["messages"].as_array() {
+                    for msg in msgs {
+                        let sev = if msg["severity"].as_u64().unwrap_or(2) == 1 { "warning" } else { "error" };
+                        let item = LintErrorOut {
+                            line: msg["line"].as_u64().unwrap_or(1) as usize,
+                            col: msg["column"].as_u64().unwrap_or(1) as usize,
+                            severity: sev.to_string(),
+                            message: msg["message"].as_str().unwrap_or("").to_string(),
+                            rule: msg["ruleId"].as_str().map(|s| s.to_string()),
+                        };
+                        if sev == "error" { errors.push(item); } else { warnings.push(item); }
+                    }
+                }
+            }
+        }
+    }
+    (errors, warnings)
+}
+
+fn parse_cargo_json(output: &str) -> (Vec<LintErrorOut>, Vec<LintErrorOut>) {
+    let mut errors = vec![];
+    let mut warnings = vec![];
+    for line in output.lines() {
+        if let Ok(msg) = serde_json::from_str::<serde_json::Value>(line) {
+            if msg["reason"].as_str() != Some("compiler-message") { continue; }
+            let level = msg["message"]["level"].as_str().unwrap_or("");
+            let text  = msg["message"]["message"].as_str().unwrap_or("").to_string();
+            let spans = msg["message"]["spans"].as_array();
+            let (line_no, col_no) = spans
+                .and_then(|s| s.first())
+                .map(|sp| (
+                    sp["line_start"].as_u64().unwrap_or(1) as usize,
+                    sp["column_start"].as_u64().unwrap_or(1) as usize,
+                ))
+                .unwrap_or((1, 1));
+            let item = LintErrorOut {
+                line: line_no, col: col_no,
+                severity: if level == "error" { "error" } else { "warning" }.to_string(),
+                message: text, rule: None,
+            };
+            if level == "error" { errors.push(item); } else { warnings.push(item); }
+        }
+    }
+    (errors, warnings)
+}
+
+fn parse_flake8_text(output: &str) -> (Vec<LintErrorOut>, Vec<LintErrorOut>) {
+    let mut errors = vec![];
+    let mut warnings = vec![];
+    for line in output.lines() {
+        // Format: path:row:col:code:text
+        let parts: Vec<&str> = line.splitn(5, ':').collect();
+        if parts.len() < 5 { continue; }
+        let row: usize = parts[1].trim().parse().unwrap_or(1);
+        let col: usize = parts[2].trim().parse().unwrap_or(1);
+        let code = parts[3].trim();
+        let msg  = parts[4].trim().to_string();
+        let is_error = code.starts_with('E');
+        let item = LintErrorOut {
+            line: row, col,
+            severity: if is_error { "error" } else { "warning" }.to_string(),
+            message: msg,
+            rule: Some(code.to_string()),
+        };
+        if is_error { errors.push(item); } else { warnings.push(item); }
+    }
+    (errors, warnings)
+}
+
+fn parse_generic_text(output: &str) -> (Vec<LintErrorOut>, Vec<LintErrorOut>) {
+    let errors: Vec<LintErrorOut> = output.lines()
+        .filter(|l| !l.is_empty())
+        .take(20)
+        .map(|l| LintErrorOut {
+            line: 1, col: 1,
+            severity: "error".to_string(),
+            message: l.to_string(),
+            rule: None,
+        })
+        .collect();
+    (errors, vec![])
 }
 
 // ── BYOK Settings ─────────────────────────────────────────────────────────────

@@ -17,6 +17,7 @@ interface ContextPickerProps {
 const SPECIAL_ITEMS = [
     { label: "@git", description: "Inject current git branch, changed files, and diff" },
     { label: "@web:", description: "Fetch a web page and inject its content" },
+    { label: "@docs:", description: "Fetch library docs (e.g. @docs:tokio, @docs:py:requests, @docs:react)" },
     { label: "@folder:", description: "Inject all files in a folder" },
     { label: "@terminal", description: "Inject the last 200 lines of terminal output" },
     { label: "@symbol:", description: "Inject source code of a named symbol (function, struct, etc.)" },
@@ -33,6 +34,7 @@ export function ContextPicker({ query, onSelect, onClose }: ContextPickerProps) 
         // Skip file search for special prefixes that have their own dynamic items
         if (
             query.startsWith("web:") ||
+            query.startsWith("docs:") ||
             query.startsWith("folder:") ||
             query.startsWith("symbol:") ||
             query.startsWith("codebase:")
@@ -60,6 +62,14 @@ export function ContextPicker({ query, onSelect, onClose }: ContextPickerProps) 
         specials = [{
             label: `@web:${urlPart}`,
             description: urlPart ? `Fetch ${urlPart}` : "Type a URL...",
+        }];
+    } else if (query.startsWith("docs:")) {
+        const docsPart = query.slice(5);
+        specials = [{
+            label: `@docs:${docsPart}`,
+            description: docsPart
+                ? `Fetch docs for "${docsPart}" (prefix rs:, py:, or npm:)`
+                : "Type a package name (e.g. tokio, py:requests, npm:react)...",
         }];
     } else if (query.startsWith("folder:")) {
         // Show a single dynamic item for the folder path being typed

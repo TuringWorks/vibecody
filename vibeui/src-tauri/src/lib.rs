@@ -170,6 +170,10 @@ pub fn run() {
             // Symbol + codebase search
             commands::search_workspace_symbols,
             commands::semantic_search_codebase,
+            // @docs context
+            commands::fetch_doc_content,
+            // Linter integration
+            commands::run_linter,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

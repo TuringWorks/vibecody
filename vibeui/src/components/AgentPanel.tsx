@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { flowContext } from "../utils/FlowContext";
+import { runLinter, formatLintForAgent } from "../utils/LinterIntegration";
 
 interface AgentStep {
     step_num: number;
@@ -59,15 +60,35 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
             );
             unlisteners.push(
                 await listen<AgentStep>("agent:step", (e) => {
-                    setSteps((prev) => [...prev, e.payload]);
+                    const step = e.payload;
+                    setSteps((prev) => [...prev, step]);
                     setStreaming("");
                     setPending(null);
                     // Record in Cascade flow
                     flowContext.add({
                         kind: "agent_step",
-                        summary: `${e.payload.tool_name}: ${e.payload.tool_summary}`,
-                        detail: e.payload.output || "",
+                        summary: `${step.tool_name}: ${step.tool_summary}`,
+                        detail: step.output || "",
                     });
+                    // Auto-lint after write_file steps
+                    if (step.tool_name === "write_file" && step.success) {
+                        const filePath = step.tool_summary.split("'")[1] || step.tool_summary;
+                        if (filePath) {
+                            runLinter(filePath).then((result) => {
+                                const msg = formatLintForAgent(result);
+                                if (msg) {
+                                    setSteps((prev) => [...prev, {
+                                        step_num: step.step_num + 0.5,
+                                        tool_name: "linter",
+                                        tool_summary: `Auto-lint: ${filePath.split("/").pop()}`,
+                                        output: msg,
+                                        success: result.errors.length === 0,
+                                        approved: true,
+                                    }]);
+                                }
+                            });
+                        }
+                    }
                 })
             );
             unlisteners.push(
