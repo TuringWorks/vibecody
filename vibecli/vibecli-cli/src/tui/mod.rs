@@ -1,5 +1,6 @@
 pub mod app;
 pub mod ui;
+pub mod theme;
 pub mod components;
 mod tests;
 
@@ -711,6 +712,21 @@ async fn handle_chat_input(
                         Ok(diff) if !diff.is_empty() => app.diff_view.set_raw_diff(&diff),
                         _ => app.diff_view.set_raw_diff("No changes detected."),
                     }
+                }
+            }
+            "/theme" => {
+                use crate::tui::theme::{available_themes, get_theme};
+                if args.is_empty() {
+                    let list = available_themes().join(", ");
+                    app.messages.push(TuiMessage::System(format!(
+                        "Available themes: {}\nCurrent: {}\nUsage: /theme <name>",
+                        list, app.theme.name
+                    )));
+                } else {
+                    let new_theme = get_theme(args);
+                    let name = new_theme.name;
+                    app.theme = new_theme;
+                    app.messages.push(TuiMessage::System(format!("✅ Theme switched to '{}'", name)));
                 }
             }
             _ => {

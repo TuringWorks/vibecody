@@ -1,5 +1,6 @@
 use tokio::sync::oneshot;
 use vibe_ai::tools::{ToolCall, ToolResult};
+use crate::tui::theme::{Theme, get_theme};
 
 #[derive(Debug, Clone)]
 pub enum TuiMessage {
@@ -56,10 +57,14 @@ pub struct App {
     pub scroll_offset: u16,
     /// Pending approval for the current tool call (Suggest mode).
     pub pending_approval: Option<PendingApproval>,
+    /// Active color theme.
+    pub theme: Theme,
 }
 
 impl App {
     pub fn new() -> Self {
+        let config = crate::config::Config::load().unwrap_or_default();
+        let theme_name = config.ui.theme.as_deref().unwrap_or("dark");
         Self {
             current_screen: CurrentScreen::Chat,
             should_quit: false,
@@ -71,6 +76,7 @@ impl App {
             exit_pending: false,
             scroll_offset: 0,
             pending_approval: None,
+            theme: get_theme(theme_name),
         }
     }
 

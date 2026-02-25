@@ -15,6 +15,7 @@ use std::io::{self, Write};
 use std::sync::Arc;
 
 mod config;
+mod schema;
 mod syntax;
 mod diff_viewer;
 mod tool_executor;
@@ -166,6 +167,12 @@ struct Cli {
     /// Emit each agent event as a JSON line to stdout (machine-readable mode).
     #[arg(long)]
     json: bool,
+
+    /// Validate the --exec JSON report against a JSON Schema file.
+    /// Exits non-zero when the output does not conform to the schema.
+    /// Example: --output-schema schema.json
+    #[arg(long, value_name = "SCHEMA_FILE")]
+    output_schema: Option<String>,
 }
 
 #[tokio::main]
@@ -280,6 +287,25 @@ async fn main() -> Result<()> {
             ci::CiOutputFormat::Markdown => report.to_markdown(),
             _ => serde_json::to_string_pretty(&report)?,
         };
+
+        // Optionally validate the JSON output against a JSON Schema.
+        if let Some(schema_path) = &cli.output_schema {
+            let schema_bytes = std::fs::read_to_string(schema_path)
+                .map_err(|e| anyhow::anyhow!("Cannot read schema file '{}': {}", schema_path, e))?;
+            let schema_val: serde_json::Value = serde_json::from_str(&schema_bytes)
+                .map_err(|e| anyhow::anyhow!("Invalid JSON in schema file '{}': {}", schema_path, e))?;
+            let report_val: serde_json::Value = serde_json::from_str(&output_text)
+                .unwrap_or(serde_json::Value::Null);
+            if let Err(errs) = schema::validate(&report_val, &schema_val) {
+                eprintln!("❌ Output does not conform to schema '{}':", schema_path);
+                for e in &errs {
+                    eprintln!("   • {}", e);
+                }
+                std::process::exit(2);
+            } else {
+                eprintln!("✅ Output conforms to schema '{}'", schema_path);
+            }
+        }
 
         if let Some(out_path) = cli.output {
             std::fs::write(&out_path, &output_text)?;

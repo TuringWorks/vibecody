@@ -1,0 +1,72 @@
+name: VibeCLI PR Bot
+
+# Trigger on PR comments that mention @vibecli
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: write  # needed to post comments
+
+jobs:
+  vibecli-bot:
+    # Only run on PR comments (not plain issue comments) that contain @vibecli
+    if: >
+      github.event.issue.pull_request != null &&
+      contains(github.event.comment.body, '@vibecli')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository at PR head
+        uses: actions/checkout@v4
+        with:
+          # Check out the PR branch so the agent sees the PR's code
+          ref: refs/pull/${{ github.event.issue.number }}/head
+          fetch-depth: 0
+
+      # ── Extract task from comment ─────────────────────────────────────────
+      - name: Extract task from comment
+        id: extract
+        run: |
+          # Strip the @vibecli mention and trim whitespace
+          TASK=$(echo "${{ github.event.comment.body }}" \
+            | sed 's/@vibecli//g' \
+            | sed 's/^[[:space:]]*//' \
+            | sed 's/[[:space:]]*$//')
+
+          if [ -z "$TASK" ]; then
+            TASK="Review the changes in this PR and provide feedback."
+          fi
+
+          echo "task=$TASK" >> "$GITHUB_OUTPUT"
+          echo "Extracted task: $TASK"
+
+      # ── React with eyes emoji to acknowledge ─────────────────────────────
+      - name: React to comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.reactions.createForIssueComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: context.payload.comment.id,
+              content: 'eyes'
+            });
+
+      # ── Run VibeCLI agent via composite action ────────────────────────────
+      - name: Run VibeCLI agent
+        uses: ./.github/actions/vibecli-pr-bot
+        with:
+          task: ${{ steps.extract.outputs.task }}
+          pr_number: ${{ github.event.issue.number }}
+          provider: ${{ vars.VIBECLI_PROVIDER || 'claude' }}
+          model: ${{ vars.VIBECLI_MODEL || '' }}
+          approval_policy: full-auto
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY:    ${{ secrets.OPENAI_API_KEY }}
+          GEMINI_API_KEY:    ${{ secrets.GEMINI_API_KEY }}
+          GROK_API_KEY:      ${{ secrets.GROK_API_KEY }}
+          GITHUB_TOKEN:      ${{ secrets.GITHUB_TOKEN }}

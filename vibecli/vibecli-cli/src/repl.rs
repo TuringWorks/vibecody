@@ -33,6 +33,7 @@ static COMMANDS: &[&str] = &[
     "/resume",
     "/rewind",
     "/status",
+    "/theme",
     "/trace",
 ];
 
@@ -52,6 +53,9 @@ static TRACE_SUBS: &[&str] = &["view"];
 
 /// Sub-commands for `/mcp <sub>`
 static MCP_SUBS: &[&str] = &["list", "tools"];
+
+/// Built-in theme names for `/theme <name>` completion
+static THEME_NAMES: &[&str] = &["dark", "light", "monokai", "solarized", "nord"];
 
 // ── Hint strings ─────────────────────────────────────────────────────────────
 
@@ -79,6 +83,7 @@ fn command_hint(cmd: &str) -> Option<&'static str> {
         "/status"  => Some("— show provider, model, session info"),
         "/fork"    => Some("[session-name]  — fork current session into a named branch"),
         "/rewind"  => Some("[list | <timestamp>]  — save or restore a conversation checkpoint"),
+        "/theme"   => Some("[name]  — switch TUI color theme (dark|light|monokai|solarized|nord)"),
         _ => None,
     }
 }
@@ -142,6 +147,7 @@ fn complete_slash(line: &str) -> Option<(usize, Vec<Pair>)> {
                 "/memory"  => Some(MEMORY_SUBS),
                 "/trace"   => Some(TRACE_SUBS),
                 "/mcp"     => Some(MCP_SUBS),
+                "/theme"   => Some(THEME_NAMES),
                 _ => None,
             };
 
