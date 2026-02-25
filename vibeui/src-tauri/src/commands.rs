@@ -2302,10 +2302,12 @@ pub async fn search_workspace_symbols(
 }
 
 /// Search the workspace using keyword/symbol matching for semantic-style context.
-/// Returns up to 5 file snippets relevant to `query`.
+/// Returns up to `limit` file snippets relevant to `query`.
 #[tauri::command]
 pub async fn semantic_search_codebase(
     query: String,
+    #[allow(unused_variables)]
+    limit: Option<usize>,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<SymbolResult>, String> {
     // Uses CodebaseIndex for now; will delegate to EmbeddingIndex once built.

@@ -295,4 +295,3 @@ fn arg_value(args: &[String], flag: &str) -> Option<String> {
         .map(|w| w[1].clone())
 }
 
-use std::cmp::Reverse;

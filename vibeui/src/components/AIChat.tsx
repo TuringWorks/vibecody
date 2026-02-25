@@ -1,6 +1,7 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { ContextPicker } from "./ContextPicker";
+import { flowContext } from "../utils/FlowContext";
 import "./AIChat.css";
 
 // ── Voice input hook ──────────────────────────────────────────────────────────
@@ -91,6 +92,10 @@ interface AIChatProps {
     currentFile?: string | null;
     onFileAction?: () => void;
     onPendingWrite?: (path: string, content: string) => void;
+    /** When set, appends this text to the current input (Cascade flow inject). */
+    pendingInput?: string;
+    /** Called once after pendingInput is consumed. */
+    onPendingInputConsumed?: () => void;
 }
 
 /** Extract the `@query` fragment at the cursor position, or null if none. */
@@ -105,7 +110,7 @@ function getAtQuery(text: string, cursorPos: number): { query: string; start: nu
     return { query, start };
 }
 
-export function AIChat({ provider, context, fileTree, currentFile, onFileAction, onPendingWrite }: AIChatProps) {
+export function AIChat({ provider, context, fileTree, currentFile, onFileAction, onPendingWrite, pendingInput, onPendingInputConsumed }: AIChatProps) {
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState("");
     const [isLoading, setIsLoading] = useState(false);
@@ -114,6 +119,16 @@ export function AIChat({ provider, context, fileTree, currentFile, onFileAction,
     const { isListening, toggle: toggleVoice } = useVoiceInput((transcript) =>
         setInput((prev) => prev + transcript)
     );
+
+    // Consume pendingInput from Cascade "Inject into chat"
+    useEffect(() => {
+        if (pendingInput) {
+            setInput((prev) => prev ? `${prev}\n${pendingInput}` : pendingInput);
+            onPendingInputConsumed?.();
+            textareaRef.current?.focus();
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [pendingInput]);
 
     const cleanMessage = (content: string): string => {
         let cleaned = content.replace(/<write_file path="([^"]+)">[\s\S]*?<\/write_file>/g, "✅ Proposed changes to $1");
@@ -152,6 +167,13 @@ export function AIChat({ provider, context, fileTree, currentFile, onFileAction,
             let displayContent = cleanMessage(response.message);
             const assistantMessage: Message = { role: "assistant", content: displayContent };
             setMessages((prev) => [...prev, assistantMessage]);
+
+            // Record chat exchange in Cascade flow
+            flowContext.add({
+                kind: "chat",
+                summary: userMessage.content.slice(0, 100),
+                detail: `Q: ${userMessage.content}\n\nA: ${displayContent.slice(0, 800)}`,
+            });
 
             if (response.pending_write && onPendingWrite) {
                 onPendingWrite(response.pending_write.path, response.pending_write.content);

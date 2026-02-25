@@ -29,6 +29,9 @@ import "./ActivityBar.css";
 import { ExtensionManager } from "./extensions/ExtensionManager";
 // Import worker using Vite's syntax
 import ExtensionHostWorker from "./extensions/ExtensionHost?worker";
+import { CascadePanel } from "./components/CascadePanel";
+import { flowContext } from "./utils/FlowContext";
+import { supercompleteEngine } from "./utils/SupercompleteEngine";
 
 interface FileEntry {
   path: string;
@@ -65,7 +68,7 @@ function App() {
   const [showSidebar, setShowSidebar] = useState(true);
   const [activeSidebarTab, setActiveSidebarTab] = useState<"explorer" | "search" | "git">("explorer");
   const [showAIChat, setShowAIChat] = useState(false);
-  const [aiPanelTab, setAiPanelTab] = useState<"chat" | "agent" | "memory" | "history" | "checkpoints" | "artifacts" | "manager" | "hooks" | "jobs" | "mcp" | "settings">("chat");
+  const [aiPanelTab, setAiPanelTab] = useState<"chat" | "agent" | "memory" | "history" | "checkpoints" | "artifacts" | "manager" | "hooks" | "jobs" | "mcp" | "settings" | "cascade">("chat");
   const [showTerminal, setShowTerminal] = useState(false);
   const [bottomTab, setBottomTab] = useState<"terminal" | "browser">("terminal");
   const [showCommandPalette, setShowCommandPalette] = useState(false);
@@ -552,8 +555,23 @@ function App() {
             prefix, suffix, language, provider,
           }).catch(() => null);
 
-          const [nextEdit, fim] = await Promise.all([nextEditPromise, fimPromise]);
-          const suggestion = nextEdit ?? fim ?? null;
+          // Supercomplete: cross-file context via embedding search (races alongside FIM+next-edit)
+          const supercompletePromise = supercompleteEngine.predict({
+            filePath,
+            prefix,
+            suffix,
+            language,
+            cursorLine: position.lineNumber - 1,
+            cursorCol: position.column - 1,
+            recentEdits: recentEditsRef.current.slice(-10),
+            provider,
+          }).catch(() => null);
+
+          const [nextEdit, fim, superResult] = await Promise.all([nextEditPromise, fimPromise, supercompletePromise]);
+          // Prefer supercomplete if it has high confidence, else next-edit, else FIM
+          const suggestion = (superResult && superResult.confidence >= 0.65)
+            ? superResult.insertText
+            : nextEdit ?? fim ?? null;
           if (!suggestion) return { items: [] };
           return { items: [{ insertText: suggestion }] };
         },
@@ -1391,7 +1409,7 @@ function App() {
           <aside className="ai-chat-panel" style={{ display: "flex", flexDirection: "column" }}>
             {/* Tab bar */}
             <div style={{ display: "flex", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
-              {(["chat", "agent", "memory", "history", "checkpoints", "artifacts", "manager", "hooks", "jobs", "mcp", "settings"] as const).map((tab) => (
+              {(["chat", "agent", "memory", "history", "checkpoints", "artifacts", "manager", "hooks", "jobs", "mcp", "settings", "cascade"] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setAiPanelTab(tab)}
@@ -1417,7 +1435,8 @@ function App() {
                     : tab === "hooks" ? "🪝 Hooks"
                     : tab === "jobs" ? "📋 Jobs"
                     : tab === "mcp" ? "🔌 MCP"
-                    : "⚙️ Keys"}
+                    : tab === "settings" ? "⚙️ Keys"
+                    : "🌊 Flow"}
                 </button>
               ))}
             </div>
@@ -1470,6 +1489,16 @@ function App() {
               )}
               {aiPanelTab === "settings" && (
                 <SettingsPanel />
+              )}
+              {aiPanelTab === "cascade" && (
+                <CascadePanel
+                  onInjectContext={(text) => {
+                    // Switch to chat tab and append the injected text
+                    setAiPanelTab("chat");
+                    // Emit a custom event that ChatTabManager can listen to
+                    window.dispatchEvent(new CustomEvent("vibeui:inject-context", { detail: text }));
+                  }}
+                />
               )}
             </div>
           </aside>
@@ -1598,6 +1627,15 @@ function App() {
                 }]);
               }
             }
+            // Record accepted inline edit in Cascade flow
+            flowContext.add({
+              kind: "inline_edit",
+              summary: `Inline edit in ${inlineChat.selection.filePath.split("/").pop() ?? "file"} (lines ${inlineChat.selection.startLine + 1}–${inlineChat.selection.endLine + 1})`,
+              detail: `Original:\n${inlineChat.selection.text.slice(0, 400)}\n\nReplaced with:\n${newText.slice(0, 400)}`,
+              filePath: inlineChat.selection.filePath,
+            });
+            // Invalidate supercomplete cache after edit
+            supercompleteEngine.invalidate();
             setInlineChat(null);
           }}
           onReject={() => setInlineChat(null)}

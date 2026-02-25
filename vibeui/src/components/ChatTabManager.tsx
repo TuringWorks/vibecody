@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AIChat } from "./AIChat";
 
 interface ChatTab {
@@ -61,6 +61,22 @@ export function ChatTabManager({
     };
 
     const activeTab = tabs.find((t) => t.id === activeTabId);
+
+    // Per-tab injected context (from Cascade panel "Inject into chat")
+    const [injectedText, setInjectedText] = useState<Record<string, string>>({});
+
+    useEffect(() => {
+        const handler = (e: Event) => {
+            const text = (e as CustomEvent<string>).detail;
+            if (!text) return;
+            setInjectedText((prev) => ({
+                ...prev,
+                [activeTabId]: (prev[activeTabId] ? prev[activeTabId] + "\n" : "") + text,
+            }));
+        };
+        window.addEventListener("vibeui:inject-context", handler);
+        return () => window.removeEventListener("vibeui:inject-context", handler);
+    }, [activeTabId]);
 
     return (
         <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
@@ -151,6 +167,10 @@ export function ChatTabManager({
                             fileTree={fileTree}
                             currentFile={currentFile}
                             onPendingWrite={onPendingWrite}
+                            pendingInput={activeTabId === tab.id ? injectedText[tab.id] : undefined}
+                            onPendingInputConsumed={() =>
+                                setInjectedText((prev) => { const next = { ...prev }; delete next[tab.id]; return next; })
+                            }
                         />
                     </div>
                 ))}

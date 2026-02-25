@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { flowContext } from "../utils/FlowContext";
 
 interface AgentStep {
     step_num: number;
@@ -61,6 +62,12 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
                     setSteps((prev) => [...prev, e.payload]);
                     setStreaming("");
                     setPending(null);
+                    // Record in Cascade flow
+                    flowContext.add({
+                        kind: "agent_step",
+                        summary: `${e.payload.tool_name}: ${e.payload.tool_summary}`,
+                        detail: e.payload.output || "",
+                    });
                 })
             );
             unlisteners.push(
@@ -74,6 +81,12 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
                     setStreaming(e.payload);
                     setPending(null);
                     setStatus("complete");
+                    // Record in Cascade flow
+                    flowContext.add({
+                        kind: "agent_complete",
+                        summary: e.payload || "Agent task complete",
+                        detail: "",
+                    });
                 })
             );
             unlisteners.push(
