@@ -1,0 +1,29 @@
+[package]
+name = "vibe-indexer"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Remote codebase indexing HTTP service for VibeCody"
+
+[[bin]]
+name = "vibe-indexer"
+path = "src/main.rs"
+
+[dependencies]
+vibe-core = { path = "../vibeui/crates/vibe-core" }
+
+# HTTP server
+axum = { workspace = true }
+tower-http = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+
+# For generating job IDs
+uuid = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }

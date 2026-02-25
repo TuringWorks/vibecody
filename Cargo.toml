@@ -8,6 +8,7 @@ members = [
     "vibeui/crates/vibe-ai",
     "vibeui/crates/vibe-extensions",
     "vibeapp/src-tauri",
+    "vibe-indexer",
 ]
 
 [workspace.package]
@@ -68,6 +69,9 @@ regex = "1"
 
 # Terminal
 portable-pty = "0.8"
+
+# Unique IDs
+uuid = { version = "1", features = ["v4"] }
 
 # HTTP server (daemon mode)
 axum = "0.7"
