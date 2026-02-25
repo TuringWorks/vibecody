@@ -11,6 +11,7 @@ import { ArtifactsPanel } from "./components/ArtifactsPanel";
 import { ManagerView } from "./components/ManagerView";
 import { HooksPanel } from "./components/HooksPanel";
 import { BackgroundJobsPanel } from "./components/BackgroundJobsPanel";
+import { McpPanel } from "./components/McpPanel";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { InlineChat } from "./components/InlineChat";
 import type { InlineChatSelection } from "./components/InlineChat";
@@ -64,7 +65,7 @@ function App() {
   const [showSidebar, setShowSidebar] = useState(true);
   const [activeSidebarTab, setActiveSidebarTab] = useState<"explorer" | "search" | "git">("explorer");
   const [showAIChat, setShowAIChat] = useState(false);
-  const [aiPanelTab, setAiPanelTab] = useState<"chat" | "agent" | "memory" | "history" | "checkpoints" | "artifacts" | "manager" | "hooks" | "jobs" | "settings">("chat");
+  const [aiPanelTab, setAiPanelTab] = useState<"chat" | "agent" | "memory" | "history" | "checkpoints" | "artifacts" | "manager" | "hooks" | "jobs" | "mcp" | "settings">("chat");
   const [showTerminal, setShowTerminal] = useState(false);
   const [bottomTab, setBottomTab] = useState<"terminal" | "browser">("terminal");
   const [showCommandPalette, setShowCommandPalette] = useState(false);
@@ -1390,7 +1391,7 @@ function App() {
           <aside className="ai-chat-panel" style={{ display: "flex", flexDirection: "column" }}>
             {/* Tab bar */}
             <div style={{ display: "flex", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
-              {(["chat", "agent", "memory", "history", "checkpoints", "artifacts", "manager", "hooks", "jobs", "settings"] as const).map((tab) => (
+              {(["chat", "agent", "memory", "history", "checkpoints", "artifacts", "manager", "hooks", "jobs", "mcp", "settings"] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setAiPanelTab(tab)}
@@ -1415,6 +1416,7 @@ function App() {
                     : tab === "manager" ? "🎛️ Mgr"
                     : tab === "hooks" ? "🪝 Hooks"
                     : tab === "jobs" ? "📋 Jobs"
+                    : tab === "mcp" ? "🔌 MCP"
                     : "⚙️ Keys"}
                 </button>
               ))}
@@ -1462,6 +1464,9 @@ function App() {
               )}
               {aiPanelTab === "jobs" && (
                 <BackgroundJobsPanel />
+              )}
+              {aiPanelTab === "mcp" && (
+                <McpPanel />
               )}
               {aiPanelTab === "settings" && (
                 <SettingsPanel />

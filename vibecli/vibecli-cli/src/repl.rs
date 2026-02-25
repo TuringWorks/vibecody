@@ -31,6 +31,7 @@ static COMMANDS: &[&str] = &[
     "/qa",
     "/quit",
     "/resume",
+    "/rewind",
     "/status",
     "/trace",
 ];
@@ -77,6 +78,7 @@ fn command_hint(cmd: &str) -> Option<&'static str> {
         "/context" => Some("— show active context window size"),
         "/status"  => Some("— show provider, model, session info"),
         "/fork"    => Some("[session-name]  — fork current session into a named branch"),
+        "/rewind"  => Some("[list | <timestamp>]  — save or restore a conversation checkpoint"),
         _ => None,
     }
 }

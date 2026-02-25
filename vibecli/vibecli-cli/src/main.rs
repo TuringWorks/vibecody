@@ -1170,6 +1170,87 @@ async fn main() -> Result<()> {
                             }
                         }
 
+                        "/rewind" => {
+                            // Checkpoint system: /rewind        → save checkpoint
+                            //                   /rewind list    → list checkpoints
+                            //                   /rewind <n>     → restore to checkpoint N
+                            match args {
+                                "" => {
+                                    // Save current messages as a checkpoint
+                                    let rewind_dir = dirs::home_dir()
+                                        .unwrap_or_else(|| cwd.clone())
+                                        .join(".vibecli")
+                                        .join("rewinds");
+                                    let _ = std::fs::create_dir_all(&rewind_dir);
+                                    let ts = std::time::SystemTime::now()
+                                        .duration_since(std::time::UNIX_EPOCH)
+                                        .unwrap_or_default()
+                                        .as_secs();
+                                    let checkpoint_path = rewind_dir.join(format!("{}.json", ts));
+                                    let save_result = serde_json::to_string(&messages)
+                                        .map_err(|e| e.to_string())
+                                        .and_then(|s| std::fs::write(&checkpoint_path, s).map_err(|e| e.to_string()));
+                                    match save_result {
+                                        Ok(()) => println!("💾 Checkpoint saved ({} messages)\n   Restore with: /rewind {}\n", messages.len(), ts),
+                                        Err(e) => eprintln!("❌ Failed to save checkpoint: {}\n", e),
+                                    }
+                                }
+                                "list" => {
+                                    let rewind_dir = dirs::home_dir()
+                                        .unwrap_or_else(|| cwd.clone())
+                                        .join(".vibecli")
+                                        .join("rewinds");
+                                    let mut entries: Vec<_> = std::fs::read_dir(&rewind_dir)
+                                        .map(|d| d.filter_map(|e| e.ok()).collect())
+                                        .unwrap_or_default();
+                                    entries.sort_by_key(|e| std::cmp::Reverse(e.file_name()));
+                                    if entries.is_empty() {
+                                        println!("No checkpoints saved. Use /rewind to save one.\n");
+                                    } else {
+                                        println!("\n💾 Saved checkpoints:");
+                                        for entry in entries.iter().take(10) {
+                                            let ts_str = entry.file_name().to_string_lossy().replace(".json", "");
+                                            let ts_secs: u64 = ts_str.parse().unwrap_or(0);
+                                            let elapsed = std::time::SystemTime::now()
+                                                .duration_since(std::time::UNIX_EPOCH)
+                                                .unwrap_or_default()
+                                                .as_secs()
+                                                .saturating_sub(ts_secs);
+                                            let age = if elapsed < 3600 { format!("{}m ago", elapsed / 60) }
+                                                      else { format!("{}h ago", elapsed / 3600) };
+                                            // Count messages in checkpoint
+                                            let msg_count = std::fs::read_to_string(entry.path())
+                                                .ok()
+                                                .and_then(|s| serde_json::from_str::<Vec<Message>>(&s).ok())
+                                                .map(|m| m.len())
+                                                .unwrap_or(0);
+                                            println!("  {} — {} messages — {}", ts_str, msg_count, age);
+                                        }
+                                        println!("\nRestore with: /rewind <timestamp>\n");
+                                    }
+                                }
+                                ts_str => {
+                                    let rewind_dir = dirs::home_dir()
+                                        .unwrap_or_else(|| cwd.clone())
+                                        .join(".vibecli")
+                                        .join("rewinds");
+                                    let checkpoint_path = rewind_dir.join(format!("{}.json", ts_str));
+                                    match std::fs::read_to_string(&checkpoint_path)
+                                        .map_err(|e| e.to_string())
+                                        .and_then(|s| serde_json::from_str::<Vec<Message>>(&s).map_err(|e| e.to_string()))
+                                    {
+                                        Ok(restored) => {
+                                            let count = restored.len();
+                                            messages = restored;
+                                            conversation_active = true;
+                                            println!("⏪ Rewound to checkpoint {} ({} messages)\n", ts_str, count);
+                                        }
+                                        Err(e) => eprintln!("❌ Failed to load checkpoint {}: {}\n", ts_str, e),
+                                    }
+                                }
+                            }
+                        }
+
                         _ => {
                             println!("Type /help for available commands\n");
                         }
@@ -1835,6 +1916,9 @@ fn show_help() {
     println!("  /agent <task>            - Run autonomous coding agent on a task");
     println!("  /plan <task>             - Generate execution plan, then run agent");
     println!("  /resume [id] [task]      - List resumable sessions or resume one");
+    println!("  /rewind                  - Save a conversation checkpoint");
+    println!("  /rewind list             - List saved checkpoints");
+    println!("  /rewind <timestamp>      - Restore conversation to a checkpoint");
     println!("  /generate <prompt>       - Generate code from a description");
     println!("  /diff <file>             - Show diff for a file");
     println!("  /apply <file>            - Apply AI-suggested changes to a file");

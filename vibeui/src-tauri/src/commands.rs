@@ -1405,6 +1405,192 @@ pub async fn save_global_rules(content: String) -> Result<(), String> {
     crate::memory::save_global_rules(&content).map_err(|e| e.to_string())
 }
 
+// ─── Rules Directory Commands ──────────────────────────────────────────────────
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub struct RuleFileMeta {
+    pub filename: String,
+    pub name: String,
+    pub path_pattern: Option<String>,
+}
+
+fn rules_dir(scope: &str, workspace_root: Option<&std::path::Path>) -> std::path::PathBuf {
+    if scope == "workspace" {
+        workspace_root
+            .unwrap_or(std::path::Path::new("."))
+            .join(".vibecli")
+            .join("rules")
+    } else {
+        std::path::PathBuf::from(
+            std::env::var("HOME").unwrap_or_else(|_| ".".to_string()),
+        )
+        .join(".vibecli")
+        .join("rules")
+    }
+}
+
+fn parse_rule_meta(content: &str, filename: &str) -> RuleFileMeta {
+    let stem = std::path::Path::new(filename)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or(filename)
+        .to_string();
+    let mut name = stem.clone();
+    let mut path_pattern: Option<String> = None;
+    if content.starts_with("---") {
+        let after = content[3..].trim_start_matches('\n');
+        if let Some(close) = after.find("\n---") {
+            for line in after[..close].lines() {
+                if let Some((k, v)) = line.split_once(':') {
+                    let val = v.trim().trim_matches('"').trim_matches('\'').to_string();
+                    match k.trim() {
+                        "name" => name = val,
+                        "path_pattern" => path_pattern = Some(val),
+                        _ => {}
+                    }
+                }
+            }
+        }
+    }
+    RuleFileMeta { filename: filename.to_string(), name, path_pattern }
+}
+
+/// List all `.md` files in the rules directory (scope: "workspace" | "global").
+#[tauri::command]
+pub async fn list_rule_files(
+    scope: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<RuleFileMeta>, String> {
+    let root = if scope == "workspace" {
+        let ws = state.workspace.lock().await;
+        ws.folders().first().cloned()
+    } else {
+        None
+    };
+    let dir = rules_dir(&scope, root.as_deref());
+    if !dir.is_dir() {
+        return Ok(vec![]);
+    }
+    let mut metas = vec![];
+    let rd = std::fs::read_dir(&dir).map_err(|e| e.to_string())?;
+    for entry in rd.flatten() {
+        let path = entry.path();
+        if path.extension().and_then(|x| x.to_str()) == Some("md") {
+            let filename = path.file_name().and_then(|x| x.to_str()).unwrap_or("").to_string();
+            let content = std::fs::read_to_string(&path).unwrap_or_default();
+            metas.push(parse_rule_meta(&content, &filename));
+        }
+    }
+    metas.sort_by(|a, b| a.filename.cmp(&b.filename));
+    Ok(metas)
+}
+
+/// Read full content of a rule file.
+#[tauri::command]
+pub async fn get_rule_file(
+    scope: String,
+    filename: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<String, String> {
+    let root = if scope == "workspace" {
+        let ws = state.workspace.lock().await;
+        ws.folders().first().cloned()
+    } else {
+        None
+    };
+    let path = rules_dir(&scope, root.as_deref()).join(&filename);
+    std::fs::read_to_string(&path).map_err(|e| e.to_string())
+}
+
+/// Write (create or overwrite) a rule file.
+#[tauri::command]
+pub async fn save_rule_file(
+    scope: String,
+    filename: String,
+    content: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    let root = if scope == "workspace" {
+        let ws = state.workspace.lock().await;
+        ws.folders().first().cloned()
+    } else {
+        None
+    };
+    let dir = rules_dir(&scope, root.as_deref());
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    std::fs::write(dir.join(&filename), content).map_err(|e| e.to_string())
+}
+
+/// Delete a rule file permanently.
+#[tauri::command]
+pub async fn delete_rule_file(
+    scope: String,
+    filename: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    let root = if scope == "workspace" {
+        let ws = state.workspace.lock().await;
+        ws.folders().first().cloned()
+    } else {
+        None
+    };
+    let path = rules_dir(&scope, root.as_deref()).join(&filename);
+    std::fs::remove_file(&path).map_err(|e| e.to_string())
+}
+
+// ─── MCP Server Manager Commands ──────────────────────────────────────────────
+
+fn mcp_config_path() -> std::path::PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    std::path::PathBuf::from(home).join(".vibeui").join("mcp.json")
+}
+
+/// Return all configured MCP servers from `~/.vibeui/mcp.json`.
+#[tauri::command]
+pub async fn get_mcp_servers() -> Result<Vec<serde_json::Value>, String> {
+    let path = mcp_config_path();
+    if !path.exists() {
+        return Ok(vec![]);
+    }
+    let text = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    serde_json::from_str::<Vec<serde_json::Value>>(&text).map_err(|e| e.to_string())
+}
+
+/// Persist the MCP server list to `~/.vibeui/mcp.json`.
+#[tauri::command]
+pub async fn save_mcp_servers(servers: Vec<serde_json::Value>) -> Result<(), String> {
+    let path = mcp_config_path();
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let text = serde_json::to_string_pretty(&servers).map_err(|e| e.to_string())?;
+    std::fs::write(&path, text).map_err(|e| e.to_string())
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub struct McpToolInfo {
+    pub name: String,
+    pub description: String,
+}
+
+/// Spawn a temporary MCP server connection and list its tools.
+#[tauri::command]
+pub async fn test_mcp_server(server: serde_json::Value) -> Result<Vec<McpToolInfo>, String> {
+    let cfg: vibe_ai::mcp::McpServerConfig =
+        serde_json::from_value(server).map_err(|e| format!("Invalid server config: {}", e))?;
+    tokio::task::spawn_blocking(move || {
+        let mut client =
+            vibe_ai::mcp::McpClient::connect(&cfg).map_err(|e| format!("Connect failed: {:#}", e))?;
+        let tools = client.list_tools().map_err(|e| format!("list_tools failed: {:#}", e))?;
+        Ok(tools
+            .into_iter()
+            .map(|t| McpToolInfo { name: t.name, description: t.description })
+            .collect())
+    })
+    .await
+    .map_err(|e| format!("Task error: {}", e))?
+}
+
 // ─── Checkpoint Commands ───────────────────────────────────────────────────────
 
 #[derive(Serialize)]
@@ -1456,6 +1642,18 @@ pub async fn restore_checkpoint(
     let root = ws.folders().first().cloned().ok_or("No workspace folder open")?;
     drop(ws);
     vibe_core::git::restore_stash(&root, index).map_err(|e| e.to_string())
+}
+
+/// Delete (drop) a checkpoint by index permanently.
+#[tauri::command]
+pub async fn delete_checkpoint(
+    index: usize,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    let ws = state.workspace.lock().await;
+    let root = ws.folders().first().cloned().ok_or("No workspace folder open")?;
+    drop(ws);
+    vibe_core::git::drop_stash(&root, index).map_err(|e| e.to_string())
 }
 
 // ─── Phase 7.3 — Next-Edit Prediction ────────────────────────────────────────

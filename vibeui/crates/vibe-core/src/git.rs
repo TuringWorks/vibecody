@@ -280,6 +280,13 @@ pub fn list_stashes(repo_path: &Path) -> Result<Vec<CheckpointInfo>> {
     Ok(stashes)
 }
 
+/// Drop (delete) a stash at `index` permanently.
+pub fn drop_stash(repo_path: &Path, index: usize) -> Result<()> {
+    let mut repo = Repository::open(repo_path)?;
+    repo.stash_drop(index)?;
+    Ok(())
+}
+
 /// Apply a stash at `index` without dropping it (allows repeated restore).
 pub fn restore_stash(repo_path: &Path, index: usize) -> Result<()> {
     let mut repo = Repository::open(repo_path)?;

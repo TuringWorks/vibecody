@@ -1,6 +1,6 @@
 # VibeCody Fit-Gap Analysis & Implementation Roadmap
 
-**Date:** 2026-02-24
+**Date:** 2026-02-25
 **Scope:** VibeCLI (vs Claude Code CLI, Codex CLI) · VibeUI (vs Cursor, Windsurf/Antigravity)
 
 ---
@@ -30,25 +30,25 @@
 | Named profiles | ✅ | ✅ |
 | Doctor command | ✅ | ✅ |
 | REPL tab-completion | ✅ | ✅ |
-| **Image / screenshot attachment (`-i`)** | ❌ | ✅ |
-| **`/model` mid-session switching** | ❌ | ✅ |
-| **`/cost` token + USD tracking** | ❌ | ✅ |
-| **`/context` window usage** | ❌ | ✅ |
-| **`/status` provider status** | ❌ | ✅ |
-| **Named sessions (`--session-name`)** | ❌ | ✅ |
-| **Session forking (`/fork`)** | ❌ | ✅ |
-| **UserPromptSubmit hook event** | ❌ | ✅ |
-| **LLM-based hook execution** | ❌ (stubbed) | ✅ |
-| **Wildcard tool permission patterns** | ❌ | ✅ |
+| **Image / screenshot attachment (`-i`)** | ✅ | ✅ |
+| **`/model` mid-session switching** | ✅ | ✅ |
+| **`/cost` token + USD tracking** | ✅ | ✅ |
+| **`/context` window usage** | ✅ | ✅ |
+| **`/status` provider status** | ✅ | ✅ |
+| **Named sessions (`--session-name`)** | ✅ | ✅ |
+| **Session forking (`/fork`)** | ✅ | ✅ |
+| **UserPromptSubmit hook event** | ✅ | ✅ |
+| **LLM-based hook execution** | ✅ | ✅ |
+| **Wildcard tool permission patterns** | ✅ | ✅ |
 | **`apiKeyHelper` rotating credentials** | ✅ | ✅ |
 | **Extended thinking mode** | ✅ | ✅ |
-| **`--add-dir` additional workspace dirs** | ❌ | ✅ |
-| **JSON streaming output (`--json`)** | ❌ | ✅ |
-| **Typed parallel agent roles** | ❌ | ✅ |
+| **`--add-dir` additional workspace dirs** | ✅ | ✅ |
+| **JSON streaming output (`--json`)** | ✅ | ✅ |
+| **Typed parallel agent roles** | ✅ | ✅ |
 | **Auto memory recording** | ✅ | ✅ |
-| **Rules directory (`.vibecli/rules/`)** | ❌ | ✅ |
-| **CLI `/rewind` session checkpoint** | ❌ | ✅ |
-| **PTY-backed bash tool** | ❌ | ✅ |
+| **Rules directory (`.vibecli/rules/`)** | ✅ | ✅ |
+| **CLI `/rewind` session checkpoint** | ✅ | ✅ |
+| **PTY-backed bash tool** | ✅ | ✅ |
 
 ---
 
@@ -69,7 +69,7 @@
 | PR code review | ✅ | ❌ |
 | Voice input (VibeUI) | ✅ | ❌ |
 | **Sandboxed execution (Docker/macOS)** | ❌ | ✅ |
-| **`--approval=auto-edit`** granular modes | ❌ | ✅ |
+| **`--approval=auto-edit`** granular modes | ✅ | ✅ |
 | **Desktop app (floating window)** | ❌ | ✅ |
 
 ---
@@ -98,21 +98,21 @@
 | Parallel agents (Manager view) | ✅ | ❌ |
 | **Inline chat / Cmd+K edit overlay** | ✅ | ✅ |
 | **Next-edit prediction (Tab ghost text)** | ✅ | ✅ |
-| **@symbol context (LSP-resolved)** | ❌ | ✅ |
-| **@codebase semantic search context** | ❌ | ✅ |
-| **@folder context injection** | ❌ | ✅ |
-| **@terminal context injection** | ❌ | ✅ |
+| **@symbol context (LSP-resolved)** | ✅ | ✅ |
+| **@codebase semantic search context** | ✅ | ✅ |
+| **@folder context injection** | ✅ | ✅ |
+| **@terminal context injection** | ✅ | ✅ |
 | **@docs context (library docs)** | ❌ | ✅ |
-| **@file:path:N-M line-range context** | ❌ | ✅ |
+| **@file:path:N-M line-range context** | ✅ | ✅ |
 | **Chunk-level diff accept/reject** | ❌ | ✅ |
-| **Multiple chat tabs** | ❌ | ✅ |
-| **Per-chat model switching** | ❌ | ✅ |
-| **BYOK settings UI** | ❌ | ✅ |
+| **Multiple chat tabs** | ✅ | ✅ |
+| **Per-chat model switching** | ✅ | ✅ |
+| **BYOK settings UI** | ✅ | ✅ |
 | **Linter integration (auto-fix after write)** | ❌ | ✅ |
-| **MCP server manager UI** | ❌ | ✅ |
-| **Passive context tracking (Flows)** | ❌ | ✅ |
-| **Named checkpoint descriptions** | ❌ | ✅ |
-| **Rules directory UI** | ❌ | ✅ |
+| **MCP server manager UI** | ✅ | ✅ |
+| **Passive context tracking (Flows)** | ✅ | ✅ |
+| **Named checkpoint descriptions** | ✅ | ✅ |
+| **Rules directory UI** | ✅ | ✅ |
 
 ---
 

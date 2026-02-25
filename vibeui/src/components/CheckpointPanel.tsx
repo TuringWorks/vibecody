@@ -26,8 +26,10 @@ export function CheckpointPanel({ workspacePath }: CheckpointPanelProps) {
   const [label, setLabel] = useState("");
   const [loading, setLoading] = useState(false);
   const [restoring, setRestoring] = useState<number | null>(null);
+  const [deleting, setDeleting] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmRestore, setConfirmRestore] = useState<Checkpoint | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<Checkpoint | null>(null);
 
   useEffect(() => {
     if (workspacePath) loadCheckpoints();
@@ -58,6 +60,20 @@ export function CheckpointPanel({ workspacePath }: CheckpointPanelProps) {
       setError(String(e));
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function deleteCheckpoint(index: number) {
+    setDeleting(index);
+    setError(null);
+    try {
+      await invoke("delete_checkpoint", { index });
+      setConfirmDelete(null);
+      await loadCheckpoints();
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setDeleting(null);
     }
   }
 
@@ -189,7 +205,7 @@ export function CheckpointPanel({ workspacePath }: CheckpointPanelProps) {
             {/* Restore button */}
             <button
               onClick={() => setConfirmRestore(cp)}
-              disabled={restoring === cp.index}
+              disabled={restoring === cp.index || deleting === cp.index}
               style={{
                 padding: "3px 8px",
                 fontSize: "11px",
@@ -204,9 +220,82 @@ export function CheckpointPanel({ workspacePath }: CheckpointPanelProps) {
             >
               {restoring === cp.index ? "…" : "Restore"}
             </button>
+
+            {/* Delete button */}
+            <button
+              onClick={() => setConfirmDelete(cp)}
+              disabled={deleting === cp.index || restoring === cp.index}
+              title="Delete checkpoint"
+              style={{
+                padding: "3px 7px",
+                fontSize: "11px",
+                background: "transparent",
+                border: "1px solid var(--border-color)",
+                borderRadius: "3px",
+                color: "var(--text-secondary)",
+                cursor: "pointer",
+                flexShrink: 0,
+                lineHeight: 1,
+              }}
+            >
+              {deleting === cp.index ? "…" : "✕"}
+            </button>
           </div>
         ))}
       </div>
+
+      {/* Confirm delete modal */}
+      {confirmDelete && (
+        <div style={{
+          position: "absolute",
+          inset: 0,
+          background: "rgba(0,0,0,0.5)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 100,
+        }}>
+          <div style={{
+            background: "var(--bg-secondary)",
+            border: "1px solid var(--border-color)",
+            borderRadius: "8px",
+            padding: "20px",
+            maxWidth: "320px",
+            width: "90%",
+          }}>
+            <div style={{ fontSize: "13px", fontWeight: 600, marginBottom: "10px", color: "var(--text-primary)" }}>
+              Delete Checkpoint?
+            </div>
+            <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "16px", lineHeight: 1.5 }}>
+              Permanently delete <strong style={{ color: "var(--text-primary)" }}>
+                "{extractLabel(confirmDelete.message)}"
+              </strong>? This cannot be undone.
+            </div>
+            <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+              <button
+                onClick={() => setConfirmDelete(null)}
+                style={{
+                  padding: "6px 14px", fontSize: "12px",
+                  background: "var(--bg-primary)", border: "1px solid var(--border-color)",
+                  borderRadius: "4px", color: "var(--text-primary)", cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => deleteCheckpoint(confirmDelete.index)}
+                style={{
+                  padding: "6px 14px", fontSize: "12px",
+                  background: "#c0392b", border: "none",
+                  borderRadius: "4px", color: "#fff", cursor: "pointer",
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Confirm restore modal */}
       {confirmRestore && (

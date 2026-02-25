@@ -136,6 +136,7 @@ pub fn run() {
             commands::create_checkpoint,
             commands::list_checkpoints,
             commands::restore_checkpoint,
+            commands::delete_checkpoint,
             // Phase 5 commands — Trace / History
             commands::list_trace_sessions,
             commands::load_trace_session,
@@ -157,6 +158,15 @@ pub fn run() {
             // BYOK Settings
             commands::get_provider_api_keys,
             commands::save_provider_api_keys,
+            // Rules directory
+            commands::list_rule_files,
+            commands::get_rule_file,
+            commands::save_rule_file,
+            commands::delete_rule_file,
+            // MCP server manager
+            commands::get_mcp_servers,
+            commands::save_mcp_servers,
+            commands::test_mcp_server,
             // Symbol + codebase search
             commands::search_workspace_symbols,
             commands::semantic_search_codebase,
