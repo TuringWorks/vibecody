@@ -1,0 +1,64 @@
+<idea-plugin>
+    <id>com.vibecody.vibecli</id>
+    <name>VibeCLI</name>
+    <vendor url="https://github.com/vibecody/vibecody">Vibe Team</vendor>
+
+    <description><![CDATA[
+        AI coding assistant powered by VibeCLI.
+        Connects to a running <code>vibecli serve</code> daemon for Chat, Agent tasks,
+        and inline AI edits (Ctrl+Shift+K).
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.lang</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- Tool Window -->
+        <toolWindow
+            id="VibeCLI"
+            anchor="right"
+            factoryClass="com.vibecody.vibecli.AgentToolWindowFactory"
+            icon="/icons/vibecli.svg"
+            canCloseContents="false"/>
+
+        <!-- Application-level service (daemon connection) -->
+        <applicationService
+            serviceImplementation="com.vibecody.vibecli.VibeCLIService"/>
+
+        <!-- Persistent settings -->
+        <applicationService
+            serviceImplementation="com.vibecody.vibecli.VibeCLISettings"/>
+
+        <!-- Settings page -->
+        <applicationConfigurable
+            parentId="tools"
+            instance="com.vibecody.vibecli.VibeCLISettingsConfigurable"
+            id="com.vibecody.vibecli.settings"
+            displayName="VibeCLI"/>
+    </extensions>
+
+    <actions>
+        <!-- Ctrl+Shift+K — inline edit (mirrors Cursor Cmd+K) -->
+        <action
+            id="VibeCLI.InlineEdit"
+            class="com.vibecody.vibecli.InlineEditAction"
+            text="VibeCLI: Inline AI Edit"
+            description="Apply an AI edit to the selected code">
+            <keyboard-shortcut
+                keymap="$default"
+                first-keystroke="ctrl shift K"/>
+            <add-to-group group-id="EditorPopupMenu" anchor="first"/>
+        </action>
+
+        <!-- Open tool window shortcut -->
+        <action
+            id="VibeCLI.OpenWindow"
+            class="com.vibecody.vibecli.OpenWindowAction"
+            text="VibeCLI: Open AI Panel"
+            description="Open the VibeCLI AI tool window">
+            <keyboard-shortcut
+                keymap="$default"
+                first-keystroke="ctrl shift A"/>
+        </action>
+    </actions>
+</idea-plugin>
