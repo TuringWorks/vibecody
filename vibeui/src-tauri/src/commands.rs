@@ -2451,3 +2451,135 @@ fn extract_json(text: &str) -> String {
     }
     trimmed.to_string()
 }
+
+// ── Unit tests ────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── parse_rule_meta ───────────────────────────────────────────────────────
+
+    #[test]
+    fn parse_rule_meta_no_frontmatter_uses_stem_as_name() {
+        let meta = parse_rule_meta("Just plain content.\n", "rust-safety.md");
+        assert_eq!(meta.filename, "rust-safety.md");
+        assert_eq!(meta.name, "rust-safety");
+        assert!(meta.path_pattern.is_none());
+    }
+
+    #[test]
+    fn parse_rule_meta_full_frontmatter() {
+        let content = "---\nname: my-rule\npath_pattern: \"**/*.rs\"\n---\n\nRule body here.\n";
+        let meta = parse_rule_meta(content, "my-rule.md");
+        assert_eq!(meta.name, "my-rule");
+        assert_eq!(meta.path_pattern.as_deref(), Some("**/*.rs"));
+    }
+
+    #[test]
+    fn parse_rule_meta_name_only_frontmatter() {
+        let content = "---\nname: custom-name\n---\n\nContent.\n";
+        let meta = parse_rule_meta(content, "filename.md");
+        assert_eq!(meta.name, "custom-name");
+        assert!(meta.path_pattern.is_none());
+    }
+
+    #[test]
+    fn parse_rule_meta_path_pattern_only_uses_stem_name() {
+        let content = "---\npath_pattern: '**/*.ts'\n---\n\nContent.\n";
+        let meta = parse_rule_meta(content, "typescript.md");
+        assert_eq!(meta.name, "typescript");          // falls back to file stem
+        assert_eq!(meta.path_pattern.as_deref(), Some("**/*.ts"));
+    }
+
+    #[test]
+    fn parse_rule_meta_single_quoted_values() {
+        let content = "---\nname: 'quoted-name'\npath_pattern: '**/*.py'\n---\n\nBody.\n";
+        let meta = parse_rule_meta(content, "q.md");
+        assert_eq!(meta.name, "quoted-name");
+        assert_eq!(meta.path_pattern.as_deref(), Some("**/*.py"));
+    }
+
+    #[test]
+    fn parse_rule_meta_empty_content() {
+        let meta = parse_rule_meta("", "empty.md");
+        assert_eq!(meta.name, "empty");
+        assert!(meta.path_pattern.is_none());
+    }
+
+    // ── rules_dir ─────────────────────────────────────────────────────────────
+
+    #[test]
+    fn rules_dir_workspace_appends_vibecli_rules() {
+        let root = std::path::Path::new("/some/project");
+        let dir = rules_dir("workspace", Some(root));
+        assert_eq!(dir, std::path::PathBuf::from("/some/project/.vibecli/rules"));
+    }
+
+    #[test]
+    fn rules_dir_global_uses_home_vibecli_rules() {
+        let dir = rules_dir("global", None);
+        let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+        assert_eq!(dir, std::path::PathBuf::from(&home).join(".vibecli").join("rules"));
+    }
+
+    #[test]
+    fn rules_dir_workspace_without_root_falls_back_to_dot() {
+        let dir = rules_dir("workspace", None);
+        assert_eq!(dir, std::path::PathBuf::from("./.vibecli/rules"));
+    }
+
+    // ── mcp_config_path ───────────────────────────────────────────────────────
+
+    #[test]
+    fn mcp_config_path_is_inside_vibeui_home_dir() {
+        let path = mcp_config_path();
+        let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+        assert_eq!(path, std::path::PathBuf::from(&home).join(".vibeui").join("mcp.json"));
+    }
+
+    #[test]
+    fn mcp_config_path_ends_with_json() {
+        let path = mcp_config_path();
+        assert_eq!(path.extension().and_then(|e| e.to_str()), Some("json"));
+    }
+
+    // ── RuleFileMeta serialization ────────────────────────────────────────────
+
+    #[test]
+    fn rule_file_meta_serializes_to_json() {
+        let meta = RuleFileMeta {
+            filename: "rust.md".to_string(),
+            name: "rust".to_string(),
+            path_pattern: Some("**/*.rs".to_string()),
+        };
+        let json = serde_json::to_string(&meta).unwrap();
+        assert!(json.contains("\"filename\":\"rust.md\""));
+        assert!(json.contains("\"path_pattern\":\"**/*.rs\""));
+    }
+
+    #[test]
+    fn rule_file_meta_null_path_pattern_serializes() {
+        let meta = RuleFileMeta {
+            filename: "always.md".to_string(),
+            name: "always".to_string(),
+            path_pattern: None,
+        };
+        let json = serde_json::to_string(&meta).unwrap();
+        assert!(json.contains("\"path_pattern\":null"));
+    }
+
+    // ── McpToolInfo serialization ─────────────────────────────────────────────
+
+    #[test]
+    fn mcp_tool_info_roundtrips_json() {
+        let tool = McpToolInfo {
+            name: "list_repos".to_string(),
+            description: "Lists all repos".to_string(),
+        };
+        let json = serde_json::to_string(&tool).unwrap();
+        let back: McpToolInfo = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.name, "list_repos");
+        assert_eq!(back.description, "Lists all repos");
+    }
+}

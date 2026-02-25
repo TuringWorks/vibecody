@@ -432,6 +432,152 @@ pub fn merge_worktree_branch(repo_path: &Path, branch: &str) -> Result<MergeResu
     }
 }
 
+// ── Tests ─────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::process::Command;
+    use tempfile::TempDir;
+
+    /// Create a minimal git repo with one commit so stash operations work.
+    fn make_git_repo() -> TempDir {
+        let dir = TempDir::new().expect("tempdir");
+        let path = dir.path();
+
+        let run = |args: &[&str]| {
+            let status = Command::new("git")
+                .args(args)
+                .current_dir(path)
+                .output()
+                .expect("git command")
+                .status;
+            assert!(status.success(), "git {:?} failed", args);
+        };
+
+        run(&["init"]);
+        run(&["config", "user.email", "test@test.com"]);
+        run(&["config", "user.name", "Test"]);
+        // Create + commit a file so HEAD exists
+        std::fs::write(path.join("README.md"), "init").unwrap();
+        run(&["add", "README.md"]);
+        run(&["commit", "-m", "init"]);
+        dir
+    }
+
+    // ── is_git_repo ───────────────────────────────────────────────────────────
+
+    #[test]
+    fn is_git_repo_true_for_real_repo() {
+        let dir = make_git_repo();
+        assert!(is_git_repo(dir.path()));
+    }
+
+    #[test]
+    fn is_git_repo_false_for_plain_dir() {
+        let dir = TempDir::new().unwrap();
+        assert!(!is_git_repo(dir.path()));
+    }
+
+    // ── get_current_branch ────────────────────────────────────────────────────
+
+    #[test]
+    fn get_current_branch_returns_main_or_master() {
+        let dir = make_git_repo();
+        let branch = get_current_branch(dir.path()).unwrap();
+        assert!(branch == "main" || branch == "master",
+            "unexpected branch: {branch}");
+    }
+
+    // ── get_status ────────────────────────────────────────────────────────────
+
+    #[test]
+    fn get_status_clean_repo_has_no_modified_files() {
+        let dir = make_git_repo();
+        let status = get_status(dir.path()).unwrap();
+        let modified: Vec<_> = status.file_statuses
+            .values()
+            .filter(|s| **s == FileStatus::Modified)
+            .collect();
+        assert!(modified.is_empty(), "clean repo should have no modified files");
+    }
+
+    #[test]
+    fn get_status_detects_new_untracked_file() {
+        let dir = make_git_repo();
+        std::fs::write(dir.path().join("new.txt"), "hello").unwrap();
+        let status = get_status(dir.path()).unwrap();
+        assert!(
+            status.file_statuses.values().any(|s| *s == FileStatus::New),
+            "untracked file should appear as New"
+        );
+    }
+
+    #[test]
+    fn get_status_detects_modified_file() {
+        let dir = make_git_repo();
+        std::fs::write(dir.path().join("README.md"), "changed").unwrap();
+        let status = get_status(dir.path()).unwrap();
+        assert!(
+            status.file_statuses.values().any(|s| *s == FileStatus::Modified),
+            "changed file should appear as Modified"
+        );
+    }
+
+    // ── stash operations ──────────────────────────────────────────────────────
+
+    #[test]
+    fn list_stashes_empty_on_clean_repo() {
+        let dir = make_git_repo();
+        let stashes = list_stashes(dir.path()).unwrap();
+        assert!(stashes.is_empty(), "clean repo has no stashes");
+    }
+
+    #[test]
+    fn create_and_list_stash() {
+        let dir = make_git_repo();
+        // Dirty the working tree so stash has something to save
+        std::fs::write(dir.path().join("README.md"), "dirty").unwrap();
+        create_stash(dir.path(), "before-test").unwrap();
+        let stashes = list_stashes(dir.path()).unwrap();
+        assert_eq!(stashes.len(), 1);
+        assert!(stashes[0].message.contains("before-test"));
+    }
+
+    #[test]
+    fn drop_stash_removes_entry() {
+        let dir = make_git_repo();
+        std::fs::write(dir.path().join("README.md"), "dirty").unwrap();
+        create_stash(dir.path(), "to-drop").unwrap();
+        assert_eq!(list_stashes(dir.path()).unwrap().len(), 1);
+        drop_stash(dir.path(), 0).unwrap();
+        assert!(list_stashes(dir.path()).unwrap().is_empty(),
+            "stash should be gone after drop");
+    }
+
+    #[test]
+    fn restore_stash_reapplies_changes() {
+        let dir = make_git_repo();
+        let file = dir.path().join("README.md");
+        std::fs::write(&file, "modified content").unwrap();
+        create_stash(dir.path(), "checkpoint").unwrap();
+        // After stash, file is back to original
+        let after_stash = std::fs::read_to_string(&file).unwrap();
+        assert_eq!(after_stash, "init");
+        // Restore brings back the modification
+        restore_stash(dir.path(), 0).unwrap();
+        let after_restore = std::fs::read_to_string(&file).unwrap();
+        assert_eq!(after_restore, "modified content");
+    }
+
+    #[test]
+    fn drop_stash_on_wrong_index_returns_error() {
+        let dir = make_git_repo();
+        let result = drop_stash(dir.path(), 99);
+        assert!(result.is_err(), "dropping nonexistent stash index should fail");
+    }
+}
+
 pub fn get_repo_diff(repo_path: &Path) -> Result<String> {
     let repo = Repository::open(repo_path)?;
     // Check if HEAD exists, if not (empty repo), return empty diff

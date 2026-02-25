@@ -306,4 +306,45 @@ mod tests {
         assert!(command_hint("/profile").is_some());
         assert!(command_hint("/exit").is_none());
     }
+
+    #[test]
+    fn test_rewind_hint_is_present() {
+        // /rewind must expose an inline hint
+        let hint = command_hint("/rewind");
+        assert!(hint.is_some(), "/rewind should have an argument hint");
+        let hint_text = hint.unwrap();
+        assert!(hint_text.contains("list") || hint_text.contains("timestamp"),
+            "hint should describe list / timestamp usage, got: {hint_text}");
+    }
+
+    #[test]
+    fn test_rewind_completion() {
+        // "/rew" should complete to "/rewind"
+        let result = complete_slash("/rew");
+        let (start, pairs) = result.unwrap();
+        assert_eq!(start, 0);
+        assert!(pairs.iter().any(|p| p.display == "/rewind"),
+            "/rew should complete to /rewind");
+    }
+
+    #[test]
+    fn test_rewind_trailing_space() {
+        // completing "/rewind" exactly should offer a trailing-space replacement
+        let result = complete_slash("/rewind");
+        let (_, pairs) = result.unwrap();
+        assert!(pairs.iter().any(|p| p.replacement == "/rewind "),
+            "completion for /rewind should add trailing space");
+    }
+
+    #[test]
+    fn test_all_commands_in_list() {
+        // Spot-check that every command we care about is discoverable
+        for cmd in &["/agent", "/chat", "/rewind", "/fork", "/model", "/cost", "/mcp"] {
+            let result = complete_slash(cmd);
+            assert!(
+                result.map(|(_, v)| v.iter().any(|p| &p.display == cmd)).unwrap_or(false),
+                "{cmd} must be in COMMANDS and completable exactly"
+            );
+        }
+    }
 }

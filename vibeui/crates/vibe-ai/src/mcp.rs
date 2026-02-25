@@ -237,3 +237,95 @@ impl McpClient {
         prompt
     }
 }
+
+// ── Tests ─────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_tool(server: &str, name: &str, desc: &str) -> McpTool {
+        McpTool {
+            name: name.to_string(),
+            description: desc.to_string(),
+            server: server.to_string(),
+            input_schema: serde_json::Value::Null,
+        }
+    }
+
+    // ── McpServerConfig ───────────────────────────────────────────────────────
+
+    #[test]
+    fn server_config_default_has_empty_args_and_env() {
+        let cfg = McpServerConfig {
+            name: "test".to_string(),
+            command: "echo".to_string(),
+            ..Default::default()
+        };
+        assert!(cfg.args.is_empty());
+        assert!(cfg.env.is_empty());
+    }
+
+    #[test]
+    fn server_config_roundtrips_json() {
+        let cfg = McpServerConfig {
+            name: "github".to_string(),
+            command: "npx @modelcontextprotocol/server-github".to_string(),
+            args: vec!["--token".to_string(), "abc".to_string()],
+            env: [("GITHUB_TOKEN".to_string(), "secret".to_string())]
+                .into_iter()
+                .collect(),
+        };
+        let json = serde_json::to_string(&cfg).unwrap();
+        let back: McpServerConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.name, cfg.name);
+        assert_eq!(back.command, cfg.command);
+        assert_eq!(back.args, cfg.args);
+        assert_eq!(back.env.get("GITHUB_TOKEN").map(|s| s.as_str()), Some("secret"));
+    }
+
+    // ── McpTool ───────────────────────────────────────────────────────────────
+
+    #[test]
+    fn mcp_tool_serializes_fields() {
+        let tool = make_tool("github", "list_repos", "Lists repositories");
+        let json = serde_json::to_string(&tool).unwrap();
+        assert!(json.contains("\"name\":\"list_repos\""));
+        assert!(json.contains("\"server\":\"github\""));
+        assert!(json.contains("\"description\":\"Lists repositories\""));
+    }
+
+    // ── tools_prompt ──────────────────────────────────────────────────────────
+
+    #[test]
+    fn tools_prompt_empty_returns_empty_string() {
+        assert_eq!(McpClient::tools_prompt(&[]), "");
+    }
+
+    #[test]
+    fn tools_prompt_contains_mcp_tool_call_format() {
+        let tools = vec![make_tool("github", "list_repos", "Lists repositories")];
+        let prompt = McpClient::tools_prompt(&tools);
+        assert!(prompt.contains("mcp__github__list_repos"),
+            "prompt should contain mcp__<server>__<tool> format");
+        assert!(prompt.contains("Lists repositories"));
+    }
+
+    #[test]
+    fn tools_prompt_contains_all_tools() {
+        let tools = vec![
+            make_tool("github", "list_repos", "List repos"),
+            make_tool("postgres", "query", "Run SQL"),
+        ];
+        let prompt = McpClient::tools_prompt(&tools);
+        assert!(prompt.contains("mcp__github__list_repos"));
+        assert!(prompt.contains("mcp__postgres__query"));
+    }
+
+    #[test]
+    fn tools_prompt_has_mcp_tools_header() {
+        let tools = vec![make_tool("s", "t", "d")];
+        let prompt = McpClient::tools_prompt(&tools);
+        assert!(prompt.contains("## MCP Tools"));
+    }
+}
