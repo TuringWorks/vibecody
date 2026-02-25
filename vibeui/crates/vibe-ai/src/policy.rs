@@ -52,6 +52,13 @@ pub struct AdminPolicy {
     /// Whether to log every policy check to stderr. Useful for auditing.
     #[serde(default)]
     pub audit_log: bool,
+
+    /// Wildcard tool-argument patterns to deny.
+    /// Format: `"bash(rm*)"` — blocks `bash` tool when first argument matches `rm*`.
+    /// Plain glob (no parens) matches just the tool name.
+    /// Example: `["bash(rm*)", "bash(sudo*)"]`
+    #[serde(default)]
+    pub denied_tool_patterns: Vec<String>,
 }
 
 impl AdminPolicy {
@@ -147,6 +154,44 @@ impl AdminPolicy {
         PolicyDecision::Allow
     }
 
+    /// Check a tool call including its primary argument against `denied_tool_patterns`.
+    ///
+    /// Pattern format: `"bash(rm*)"` — tool name + optional arg glob in parentheses.
+    /// Plain `"bash"` matches the tool name regardless of args.
+    pub fn check_tool_with_args(&self, tool_name: &str, primary_arg: &str) -> PolicyDecision {
+        // First run the regular check (exact-name denied_tools)
+        let base = self.check_tool(tool_name);
+        if !matches!(base, PolicyDecision::Allow) {
+            return base;
+        }
+
+        for pattern in &self.denied_tool_patterns {
+            if let Some((tool_pat, arg_pat)) = parse_tool_pattern(pattern) {
+                if glob_match(&tool_pat, tool_name) && glob_match(&arg_pat, primary_arg) {
+                    let reason = format!(
+                        "Tool call '{}({})' blocked by denied_tool_patterns (pattern: {})",
+                        tool_name, primary_arg, pattern
+                    );
+                    if self.audit_log {
+                        eprintln!("[policy] BLOCKED (pattern): {}", reason);
+                    }
+                    return PolicyDecision::Block(reason);
+                }
+            } else {
+                // No parens: treat as plain tool name glob
+                if glob_match(pattern, tool_name) {
+                    let reason = format!("Tool '{}' blocked by denied_tool_patterns", tool_name);
+                    if self.audit_log {
+                        eprintln!("[policy] BLOCKED (pattern): {}", reason);
+                    }
+                    return PolicyDecision::Block(reason);
+                }
+            }
+        }
+
+        PolicyDecision::Allow
+    }
+
     /// Returns true if the policy overrides the approval policy to require
     /// manual approval for this tool.
     pub fn requires_approval(&self, tool_name: &str) -> bool {
@@ -172,6 +217,16 @@ pub enum PolicyDecision {
 }
 
 // ── Glob matching ─────────────────────────────────────────────────────────────
+
+/// Parse `"bash(rm*)"` → `Some(("bash", "rm*"))`. Returns `None` if no parens.
+fn parse_tool_pattern(pattern: &str) -> Option<(String, String)> {
+    let paren = pattern.find('(')?;
+    let end = pattern.rfind(')')?;
+    if end <= paren { return None; }
+    let tool_pat = pattern[..paren].trim().to_string();
+    let arg_pat = pattern[paren + 1..end].trim().to_string();
+    Some((tool_pat, arg_pat))
+}
 
 /// Minimal glob matcher supporting `*`, `**`, and `?`.
 /// Does not require an external crate.

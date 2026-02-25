@@ -9,9 +9,11 @@
 //! - `stdout {"allow": false, "reason": "..."}` → block
 //! - `stdout {"context": "..."}` → inject text into next model turn
 
+use crate::provider::{AIProvider, Message, MessageRole};
 use crate::tools::{ToolCall, ToolResult};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::process::Command;
 
@@ -21,6 +23,8 @@ use tokio::process::Command;
 #[derive(Debug, Clone, Serialize)]
 pub enum HookEvent {
     SessionStart { session_id: String },
+    /// Fires before the agent processes the user's prompt. Blocking cancels the task.
+    UserPromptSubmit { prompt: String, session_id: String },
     PreToolUse { call: ToolCall, session_id: String },
     PostToolUse { call: ToolCall, result: ToolResult, session_id: String },
     Stop { reason: String, session_id: String },
@@ -33,6 +37,7 @@ impl HookEvent {
     pub fn type_name(&self) -> &'static str {
         match self {
             HookEvent::SessionStart { .. } => "SessionStart",
+            HookEvent::UserPromptSubmit { .. } => "UserPromptSubmit",
             HookEvent::PreToolUse { .. } => "PreToolUse",
             HookEvent::PostToolUse { .. } => "PostToolUse",
             HookEvent::Stop { .. } => "Stop",
@@ -53,6 +58,7 @@ impl HookEvent {
     fn session_id(&self) -> &str {
         match self {
             HookEvent::SessionStart { session_id } => session_id,
+            HookEvent::UserPromptSubmit { session_id, .. } => session_id,
             HookEvent::PreToolUse { session_id, .. } => session_id,
             HookEvent::PostToolUse { session_id, .. } => session_id,
             HookEvent::Stop { session_id, .. } => session_id,
@@ -128,15 +134,23 @@ impl HookConfig {
 /// Runs all matching hooks for a given event and returns the aggregate decision.
 pub struct HookRunner {
     configs: Vec<HookConfig>,
+    /// Optional LLM provider for `HookHandler::Llm` hooks.
+    llm_provider: Option<Arc<dyn AIProvider>>,
 }
 
 impl HookRunner {
     pub fn new(configs: Vec<HookConfig>) -> Self {
-        Self { configs }
+        Self { configs, llm_provider: None }
     }
 
     pub fn empty() -> Self {
-        Self { configs: vec![] }
+        Self { configs: vec![], llm_provider: None }
+    }
+
+    /// Attach an LLM provider so `handler = { llm = "..." }` hooks can evaluate.
+    pub fn with_llm_provider(mut self, provider: Arc<dyn AIProvider>) -> Self {
+        self.llm_provider = Some(provider);
+        self
     }
 
     pub fn is_empty(&self) -> bool {
@@ -154,15 +168,16 @@ impl HookRunner {
             if config.async_exec {
                 let cfg = config.clone();
                 let evt = event.clone();
+                let llm = self.llm_provider.clone();
                 tokio::spawn(async move {
-                    if let Err(e) = exec_handler(&cfg, &evt).await {
+                    if let Err(e) = exec_handler(&cfg, &evt, llm).await {
                         tracing::warn!("Async hook error: {}", e);
                     }
                 });
                 continue;
             }
 
-            match exec_handler(config, event).await {
+            match exec_handler(config, event, self.llm_provider.clone()).await {
                 Ok(HookDecision::Allow) => {} // keep going
                 Ok(decision) => return decision,
                 Err(e) => {
@@ -176,11 +191,58 @@ impl HookRunner {
 
 // ── Internal ──────────────────────────────────────────────────────────────────
 
-async fn exec_handler(config: &HookConfig, event: &HookEvent) -> Result<HookDecision> {
+async fn exec_handler(
+    config: &HookConfig,
+    event: &HookEvent,
+    llm: Option<Arc<dyn AIProvider>>,
+) -> Result<HookDecision> {
     match &config.handler {
         HookHandler::Command { shell } => exec_shell_hook(shell, event).await,
-        HookHandler::Llm { prompt: _ } => {
-            tracing::debug!("LLM hook for '{}' skipped — no inline provider", config.event);
+        HookHandler::Llm { prompt } => exec_llm_hook(prompt, event, llm).await,
+    }
+}
+
+async fn exec_llm_hook(
+    prompt: &str,
+    event: &HookEvent,
+    llm: Option<Arc<dyn AIProvider>>,
+) -> Result<HookDecision> {
+    let provider = match llm {
+        Some(p) => p,
+        None => {
+            tracing::debug!("LLM hook for '{}' skipped — no provider set", event.type_name());
+            return Ok(HookDecision::Allow);
+        }
+    };
+
+    let payload = build_payload(event);
+    let payload_str = serde_json::to_string(&payload).unwrap_or_default();
+    let full_prompt = format!("{}\n\nEvent JSON:\n{}", prompt, payload_str);
+
+    let messages = vec![
+        Message { role: MessageRole::User, content: full_prompt },
+    ];
+
+    match provider.chat(&messages, None).await {
+        Ok(response) => {
+            #[derive(Deserialize)]
+            struct LlmHookResponse { ok: bool, reason: Option<String> }
+            // Try to find JSON in the response (model may wrap it in text)
+            let json_str = response
+                .lines()
+                .find(|l| l.trim_start().starts_with('{'))
+                .unwrap_or(&response);
+            if let Ok(resp) = serde_json::from_str::<LlmHookResponse>(json_str) {
+                if !resp.ok {
+                    return Ok(HookDecision::Block {
+                        reason: resp.reason.unwrap_or_else(|| "LLM hook blocked".to_string()),
+                    });
+                }
+            }
+            Ok(HookDecision::Allow)
+        }
+        Err(e) => {
+            tracing::warn!("LLM hook call failed: {} — failing open", e);
             Ok(HookDecision::Allow)
         }
     }
@@ -253,6 +315,13 @@ struct HookPayload {
 
 fn build_payload(event: &HookEvent) -> HookPayload {
     match event {
+        HookEvent::UserPromptSubmit { prompt, session_id } => HookPayload {
+            event: "UserPromptSubmit",
+            session_id: session_id.clone(),
+            tool: None,
+            input: Some(serde_json::json!({ "prompt": prompt })),
+            output: None,
+        },
         HookEvent::PreToolUse { call, session_id } => HookPayload {
             event: "PreToolUse",
             session_id: session_id.clone(),

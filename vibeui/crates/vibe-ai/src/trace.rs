@@ -61,6 +61,16 @@ impl TraceWriter {
         Self { session_id, path }
     }
 
+    /// Like [`new`] but prefixes the session ID with a human-readable name.
+    /// Useful for `--session-name` so traces are easy to identify.
+    /// Example: `new_named(dir, "my-task")` → `"my-task-1700000000.jsonl"`
+    pub fn new_named(dir: PathBuf, name: &str) -> Self {
+        let _ = fs::create_dir_all(&dir);
+        let session_id = format!("{}-{}", name, now_secs());
+        let path = dir.join(format!("{}.jsonl", &session_id));
+        Self { session_id, path }
+    }
+
     /// Unique identifier for this session (also the stem of the trace file).
     pub fn session_id(&self) -> &str {
         &self.session_id

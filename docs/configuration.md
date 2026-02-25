@@ -24,31 +24,32 @@ The file is created automatically with defaults on first run. You can also creat
 [ollama]
 enabled = true
 api_url = "http://localhost:11434"   # Local Ollama endpoint
-model = "qwen2.5-coder:7b"          # Any model pulled via 'ollama pull'
+model = "qwen3-coder:480b-cloud"     # Any model pulled via 'ollama pull'
 
 [claude]
 enabled = false
-api_key = "sk-ant-..."              # Anthropic API key
-model = "claude-3-5-sonnet-20241022"
-# model = "claude-3-opus-20240229"
+api_key = "sk-ant-..."              # Anthropic API key (or use env ANTHROPIC_API_KEY)
+model = "claude-sonnet-4-6"
+# api_key_helper = "~/.vibecli/get-key.sh claude"  # Script that prints a fresh key
+# thinking_budget_tokens = 10000                    # Enable extended thinking mode
 
 [openai]
 enabled = false
-api_key = "sk-..."                  # OpenAI API key
+api_key = "sk-..."                  # OpenAI API key (or OPENAI_API_KEY)
 model = "gpt-4o"
-# model = "gpt-4-turbo"
-# model = "gpt-3.5-turbo"
+# api_key_helper = "~/.vibecli/get-key.sh openai"
 
 [gemini]
 enabled = false
-api_key = "AIza..."                 # Google AI Studio API key
-model = "gemini-1.5-pro"
-# model = "gemini-1.5-flash"
+api_key = "AIza..."                 # Google AI Studio key (or GEMINI_API_KEY)
+model = "gemini-2.0-flash"
+# api_key_helper = "~/.vibecli/get-key.sh gemini"
 
 [grok]
 enabled = false
-api_key = "..."                     # xAI API key
-model = "grok-beta"
+api_key = "..."                     # xAI API key (or GROK_API_KEY)
+model = "grok-3-mini"
+# api_key_helper = "~/.vibecli/get-key.sh grok"
 
 # ── UI ─────────────────────────────────────────────────────────────
 
@@ -60,6 +61,33 @@ theme = "dark"   # "dark" or "light"
 [safety]
 require_approval_for_commands = true      # Prompt before running shell commands
 require_approval_for_file_changes = true  # Prompt before applying AI file edits
+approval_policy = "suggest"               # "suggest" | "auto-edit" | "full-auto"
+
+# Wildcard tool permission patterns
+# denied_tool_patterns = ["bash(rm*)"]   # Block bash calls matching rm*
+# denied_tools = ["bash"]               # Exact-match tool block list
+
+# ── Memory (auto-recording) ─────────────────────────────────────────
+
+[memory]
+auto_record = false           # Append session learnings to ~/.vibecli/memory.md
+min_session_steps = 3         # Minimum tool-use steps before recording triggers
+
+# ── Embedding Index ─────────────────────────────────────────────────
+
+[index]
+enabled = true
+embedding_provider = "ollama"       # "ollama" or "openai"
+embedding_model = "nomic-embed-text"
+rebuild_on_startup = false
+max_file_size_kb = 500
+
+# ── OpenTelemetry (optional) ─────────────────────────────────────────
+
+[otel]
+enabled = false
+endpoint = "http://localhost:4318"  # OTLP/HTTP collector
+service_name = "vibecli"
 ```
 
 ---
@@ -124,7 +152,9 @@ vibecli --tui --provider claude
    [claude]
    enabled = true
    api_key = "sk-ant-..."
-   model = "claude-3-5-sonnet-20241022"
+   model = "claude-sonnet-4-6"
+   # Enable extended thinking (increases latency but improves reasoning):
+   # thinking_budget_tokens = 10000
    ```
 
    Or via environment:
@@ -156,7 +186,7 @@ vibecli --tui --provider claude
    [gemini]
    enabled = true
    api_key = "AIza..."
-   model = "gemini-1.5-pro"
+   model = "gemini-2.0-flash"
    ```
 
 ### xAI Grok
@@ -169,8 +199,31 @@ vibecli --tui --provider claude
    [grok]
    enabled = true
    api_key = "..."
-   model = "grok-beta"
+   model = "grok-3-mini"
    ```
+
+### `apiKeyHelper` — Rotating Credentials
+
+For secrets management (Vault, 1Password CLI, AWS Secrets Manager, etc.), use a helper script instead of a static key:
+
+```toml
+[claude]
+# Script is run before each API call; its stdout is used as the Bearer token.
+# If the script exits non-zero, the static api_key is used as fallback.
+api_key_helper = "~/.vibecli/get-key.sh claude"
+```
+
+Example helper script (`~/.vibecli/get-key.sh`):
+
+```bash
+#!/bin/bash
+# $1 = provider name
+case "$1" in
+  claude)  op read "op://Personal/Anthropic/api_key" ;;
+  openai)  aws secretsmanager get-secret-value --secret-id openai-key --query SecretString --output text ;;
+  *)       echo "" ;;
+esac
+```
 
 ---
 
@@ -196,10 +249,36 @@ Use the provider dropdown in the top bar. The selection is persisted across sess
 
 VibeCLI has a built-in approval gate for potentially destructive actions.
 
-| Setting | Default | Behavior when `true` |
-|---------|---------|---------------------|
-| `require_approval_for_commands` | `true` | Prompts `y/N` before any shell execution (via `!`, `/exec`, or AI-suggested `execute` blocks) |
-| `require_approval_for_file_changes` | `true` | Prompts `y/N` before writing AI-generated content to disk (via `/apply`) |
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `require_approval_for_commands` | `true` | Prompt `y/N` before any shell execution |
+| `require_approval_for_file_changes` | `true` | Prompt `y/N` before applying AI file edits |
+| `approval_policy` | `"suggest"` | `"suggest"` \| `"auto-edit"` \| `"full-auto"` |
+| `denied_tools` | `[]` | Exact tool names to always block |
+| `denied_tool_patterns` | `[]` | Patterns like `"bash(rm*)"` to block tool+argument combos |
+
+### Approval Policies
+
+| Policy | Behavior |
+|--------|----------|
+| `suggest` | Prompts before every tool call (default) |
+| `auto-edit` | Auto-approves file writes; prompts for shell commands |
+| `full-auto` | Approves all tool calls without prompting (use with caution) |
+
+Override at launch: `vibecli --full-auto`, `vibecli --auto-edit`, `vibecli --suggest`
+
+### Wildcard Tool Patterns
+
+Block granular tool+argument combinations without blocking the entire tool:
+
+```toml
+[safety]
+# Block bash calls matching rm* but allow everything else
+denied_tool_patterns = ["bash(rm*)", "bash(sudo*)"]
+
+# Still block specific tools entirely
+denied_tools = ["execute_python"]
+```
 
 **Disable approvals for trusted environments:**
 
@@ -207,9 +286,51 @@ VibeCLI has a built-in approval gate for potentially destructive actions.
 [safety]
 require_approval_for_commands = false
 require_approval_for_file_changes = false
+approval_policy = "full-auto"
 ```
 
 > **Warning:** Disabling command approval allows VibeCLI to execute AI-suggested commands without confirmation. Only disable in trusted, sandboxed environments.
+
+---
+
+## Auto Memory Recording
+
+VibeCLI can automatically summarize completed agent sessions and append key learnings to `~/.vibecli/memory.md`.
+
+```toml
+[memory]
+auto_record = true         # Enable auto-recording (default: false)
+min_session_steps = 3      # Only record sessions with ≥ N tool calls
+```
+
+After a session completes, the LLM generates 1–3 concise bullet points and appends them:
+
+```
+<!-- auto-recorded 2026-02-24 -->
+- Always check for existing tests before adding new ones
+- Use `cargo check` before `cargo build` to catch compile errors faster
+```
+
+The memory file is automatically injected into future agent system prompts.
+
+---
+
+## Rules Directory
+
+Place `.md` files in `.vibecli/rules/` (project-level) or `~/.vibecli/rules/` (global) to inject persistent instructions into the agent system prompt.
+
+Rules support optional YAML-style front-matter to restrict injection to specific file types:
+
+```text
+---
+name: rust-safety
+path_pattern: "**/*.rs"
+---
+When editing Rust files, prefer `?` over `unwrap()`.
+Always add `#[must_use]` to functions returning Result or Option.
+```
+
+Rules without a `path_pattern` always inject. Rules with a pattern only inject when a matching file is open in the session's workspace.
 
 ---
 

@@ -1,6 +1,6 @@
 //! OpenAI provider implementation (ChatGPT, Codex)
 
-use crate::provider::{AIProvider, CodeContext, CompletionResponse, CompletionStream, ImageAttachment, Message, ProviderConfig};
+use crate::provider::{AIProvider, CodeContext, CompletionResponse, CompletionStream, ImageAttachment, Message, ProviderConfig, TokenUsage};
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use futures::stream::StreamExt;
@@ -25,8 +25,16 @@ struct OpenAIMessage {
 }
 
 #[derive(Debug, Deserialize)]
+struct OpenAIUsage {
+    prompt_tokens: u32,
+    completion_tokens: u32,
+}
+
+#[derive(Debug, Deserialize)]
 struct OpenAIResponse {
     choices: Vec<OpenAIChoice>,
+    #[serde(default)]
+    usage: Option<OpenAIUsage>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -138,23 +146,15 @@ impl AIProvider for OpenAIProvider {
     }
 
     async fn complete(&self, context: &CodeContext) -> Result<CompletionResponse> {
-        // Use chat completion for code completion as well, with a system prompt
         let prompt = format!(
             "Complete the following {} code:\n\n{}<CURSOR>{}",
             context.language, context.prefix, context.suffix
         );
-        
         let messages = vec![
             Message { role: crate::provider::MessageRole::System, content: "You are a helpful coding assistant.".to_string() },
             Message { role: crate::provider::MessageRole::User, content: prompt },
         ];
-
-        let response_text = self.chat(&messages, None).await?;
-
-        Ok(CompletionResponse {
-            text: response_text,
-            model: self.config.model.clone(),
-        })
+        self.chat_response(&messages, None).await
     }
 
     async fn stream_complete(&self, context: &CodeContext) -> Result<CompletionStream> {
@@ -171,7 +171,7 @@ impl AIProvider for OpenAIProvider {
         self.stream_chat(&messages).await
     }
 
-    async fn chat(&self, messages: &[Message], context: Option<String>) -> Result<String> {
+    async fn chat_response(&self, messages: &[Message], context: Option<String>) -> Result<CompletionResponse> {
         let api_key = self.config.api_key.as_ref().context("OpenAI API key not found")?;
         let request = OpenAIRequest {
             model: self.config.model.clone(),
@@ -195,14 +195,29 @@ impl AIProvider for OpenAIProvider {
         }
 
         let openai_response: OpenAIResponse = response.json().await.context("Failed to parse OpenAI response")?;
-        
+
         let content = openai_response.choices.first()
             .context("No choices in OpenAI response")?
             .message.content.clone();
-        match content {
-            Value::String(s) => Ok(s),
-            other => Ok(other.to_string()),
-        }
+        let text = match content {
+            Value::String(s) => s,
+            other => other.to_string(),
+        };
+
+        let usage = openai_response.usage.map(|u| TokenUsage {
+            prompt_tokens: u.prompt_tokens,
+            completion_tokens: u.completion_tokens,
+        });
+
+        Ok(CompletionResponse {
+            text,
+            model: self.config.model.clone(),
+            usage,
+        })
+    }
+
+    async fn chat(&self, messages: &[Message], context: Option<String>) -> Result<String> {
+        Ok(self.chat_response(messages, context).await?.text)
     }
 
     async fn stream_chat(&self, messages: &[Message]) -> Result<CompletionStream> {

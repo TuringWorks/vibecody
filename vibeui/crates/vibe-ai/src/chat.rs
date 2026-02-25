@@ -82,6 +82,20 @@ impl ChatEngine {
         self.providers.get(self.active_provider_index)
     }
 
+    /// Remove all cloud providers (Claude, OpenAI, Gemini, Grok) so they can be re-added with new API keys.
+    pub fn clear_cloud_providers(&mut self) {
+        let cloud_prefixes = ["Claude", "OpenAI", "Gemini", "Grok"];
+        self.providers.retain(|p| {
+            let name = p.name();
+            !cloud_prefixes.iter().any(|prefix| name.starts_with(prefix))
+        });
+        if self.providers.is_empty() {
+            self.active_provider_index = 0;
+        } else if self.active_provider_index >= self.providers.len() {
+            self.active_provider_index = self.providers.len() - 1;
+        }
+    }
+
     /// Set the active provider by name
     pub fn set_provider_by_name(&mut self, name: &str) -> Result<()> {
         if let Some(index) = self.providers.iter().position(|p| p.name() == name) {

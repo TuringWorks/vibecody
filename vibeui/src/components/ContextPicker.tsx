@@ -17,6 +17,10 @@ interface ContextPickerProps {
 const SPECIAL_ITEMS = [
     { label: "@git", description: "Inject current git branch, changed files, and diff" },
     { label: "@web:", description: "Fetch a web page and inject its content" },
+    { label: "@folder:", description: "Inject all files in a folder" },
+    { label: "@terminal", description: "Inject the last 200 lines of terminal output" },
+    { label: "@symbol:", description: "Inject source code of a named symbol (function, struct, etc.)" },
+    { label: "@codebase:", description: "Semantic search over the codebase" },
 ];
 
 export function ContextPicker({ query, onSelect, onClose }: ContextPickerProps) {
@@ -26,15 +30,20 @@ export function ContextPicker({ query, onSelect, onClose }: ContextPickerProps) 
 
     // Fetch matching files whenever query changes
     useEffect(() => {
-        // If the user is typing a web URL, skip file search
-        if (query.startsWith("web:")) {
+        // Skip file search for special prefixes that have their own dynamic items
+        if (
+            query.startsWith("web:") ||
+            query.startsWith("folder:") ||
+            query.startsWith("symbol:") ||
+            query.startsWith("codebase:")
+        ) {
             setFiles([]);
             return;
         }
         const isSpecialPrefix = SPECIAL_ITEMS.some(
             (s) => s.label.replace("@", "").startsWith(query.toLowerCase())
-        ) && query.length <= 4;
-        if (isSpecialPrefix && query.length <= 4) {
+        ) && query.length <= 8;
+        if (isSpecialPrefix && query.length <= 8) {
             setFiles([]);
             return;
         }
@@ -51,6 +60,25 @@ export function ContextPicker({ query, onSelect, onClose }: ContextPickerProps) 
         specials = [{
             label: `@web:${urlPart}`,
             description: urlPart ? `Fetch ${urlPart}` : "Type a URL...",
+        }];
+    } else if (query.startsWith("folder:")) {
+        // Show a single dynamic item for the folder path being typed
+        const folderPart = query.slice(7);
+        specials = [{
+            label: `@folder:${folderPart}`,
+            description: folderPart ? `Inject all files in ${folderPart}` : "Type a folder path...",
+        }];
+    } else if (query.startsWith("symbol:")) {
+        const symPart = query.slice(7);
+        specials = [{
+            label: `@symbol:${symPart}`,
+            description: symPart ? `Inject source of symbol "${symPart}"` : "Type a symbol name...",
+        }];
+    } else if (query.startsWith("codebase:")) {
+        const cbPart = query.slice(9);
+        specials = [{
+            label: `@codebase:${cbPart}`,
+            description: cbPart ? `Search codebase for "${cbPart}"` : "Type a search query...",
         }];
     } else {
         specials = SPECIAL_ITEMS.filter(

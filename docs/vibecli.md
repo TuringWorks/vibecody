@@ -79,7 +79,7 @@ Once inside the TUI, type messages naturally or use slash commands:
 | `/chat <message>` | Start or continue a conversation with AI |
 | `/diff` | Show full multi-file git diff of current workspace |
 | `/diff <file>` | Show git diff for a specific file |
-| `/files` | Browse file tree (coming soon) |
+| `/files` | Browse workspace file tree |
 | `/quit` or `/exit` | Exit VibeCLI |
 | `Tab` | Toggle between Chat and Diff views |
 

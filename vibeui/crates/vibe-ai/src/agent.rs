@@ -197,8 +197,30 @@ impl AgentLoop {
         let system_content = build_system_prompt(&context);
         let mut messages: Vec<Message> = vec![
             Message { role: MessageRole::System, content: system_content },
-            Message { role: MessageRole::User, content: task.to_string() },
         ];
+
+        // Fire UserPromptSubmit hook — can block or inject extra context.
+        let user_content = if let Some(hooks) = &self.hooks {
+            match hooks.run(&HookEvent::UserPromptSubmit {
+                prompt: task.to_string(),
+                session_id: session_id.clone(),
+            }).await {
+                HookDecision::Block { reason } => {
+                    tracing::info!(reason = %reason, "UserPromptSubmit blocked by hook");
+                    let _ = event_tx.send(AgentEvent::Error(
+                        format!("Task blocked by hook: {}", reason)
+                    )).await;
+                    return Ok(());
+                }
+                HookDecision::InjectContext { text } => {
+                    format!("{}\n\n[Hook context]\n{}", task, text)
+                }
+                HookDecision::Allow => task.to_string(),
+            }
+        } else {
+            task.to_string()
+        };
+        messages.push(Message { role: MessageRole::User, content: user_content });
 
         for step in 0..self.max_steps {
             // ── 1. Stream LLM response ────────────────────────────────────────
@@ -502,6 +524,21 @@ fn build_system_prompt(context: &AgentContext) -> String {
                 }
                 extras.push('\n');
                 extras.push_str(&skill.content);
+            }
+        }
+    }
+
+    // 13.1: Inject matching rules from `.vibecli/rules/` directory
+    if !context.workspace_root.as_os_str().is_empty() {
+        let rules = crate::rules::RulesLoader::load_for_workspace(&context.workspace_root);
+        let matching: Vec<_> = rules.iter()
+            .filter(|r| r.matches_open_files(&context.open_files))
+            .collect();
+        if !matching.is_empty() {
+            extras.push_str("\n\n## Active Rules");
+            for rule in &matching {
+                extras.push_str(&format!("\n\n### Rule: {}\n", rule.name));
+                extras.push_str(&rule.content);
             }
         }
     }

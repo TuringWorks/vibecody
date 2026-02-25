@@ -2,7 +2,7 @@ use clap::Parser;
 use anyhow::Result;
 use crate::config::Config;
 use crate::syntax::highlight_code_blocks;
-use vibe_ai::provider::{AIProvider as LLMProvider, ImageAttachment, Message, MessageRole, ProviderConfig};
+use vibe_ai::provider::{AIProvider as LLMProvider, ImageAttachment, Message, MessageRole, ProviderConfig, TokenUsage};
 use vibe_ai::providers::ollama::OllamaProvider;
 use vibe_ai::agent::{AgentContext, AgentEvent, AgentLoop, ApprovalPolicy};
 use vibe_ai::{MultiAgentOrchestrator, OrchestratorEvent, ExecutorFactory};
@@ -19,6 +19,7 @@ mod syntax;
 mod diff_viewer;
 mod tool_executor;
 mod memory;
+mod memory_recorder;
 mod ci;
 mod review;
 mod serve;
@@ -144,6 +145,26 @@ struct Cli {
     /// Run a health check of the VibeCLI installation (providers, config, tools).
     #[arg(long)]
     doctor: bool,
+
+    // ── Phase 12 additions ────────────────────────────────────────────────────
+
+    /// Name this session (used as prefix for trace files, e.g. --session-name debug-auth).
+    #[arg(long, value_name = "NAME")]
+    session_name: Option<String>,
+
+    /// Attach one or more image files to the first chat message (vision).
+    /// Example: -i screenshot.png -i diagram.jpg
+    #[arg(short = 'i', long = "image", value_name = "FILE", action = clap::ArgAction::Append)]
+    image: Vec<String>,
+
+    /// Add an extra directory to the context for the agent (besides cwd).
+    /// Can be repeated: --add-dir src --add-dir tests
+    #[arg(long, value_name = "DIR", action = clap::ArgAction::Append)]
+    add_dir: Vec<String>,
+
+    /// Emit each agent event as a JSON line to stdout (machine-readable mode).
+    #[arg(long)]
+    json: bool,
 }
 
 #[tokio::main]
@@ -323,6 +344,7 @@ async fn main() -> Result<()> {
             llm, &task, &approval_policy,
             cli.resume.as_deref(),
             cli.plan,
+            cli.json,
         ).await;
     }
 
@@ -354,7 +376,10 @@ async fn main() -> Result<()> {
     println!();
     println!("\nType a message to chat, use a /command, or /help.\n");
 
-    let llm = create_provider(&effective_provider, effective_model)?;
+    let mut llm = create_provider(&effective_provider, effective_model.clone())?;
+    let mut active_provider = effective_provider.clone();
+    let mut active_model = effective_model.clone();
+    let mut session_tokens = TokenUsage::default();
 
     // Load project memory (VIBECLI.md / AGENTS.md / CLAUDE.md) and inject as system context
     let cwd = std::env::current_dir()?;
@@ -454,7 +479,7 @@ async fn main() -> Result<()> {
                                 continue;
                             }
                             run_agent_repl_with_context(
-                                llm.clone(), args, &approval_policy, None, false
+                                llm.clone(), args, &approval_policy, None, false, false
                             ).await?;
                         }
                         "/plan" => {
@@ -463,7 +488,7 @@ async fn main() -> Result<()> {
                                 continue;
                             }
                             run_agent_repl_with_context(
-                                llm.clone(), args, &approval_policy, None, true
+                                llm.clone(), args, &approval_policy, None, true, false
                             ).await?;
                         }
                         "/resume" => {
@@ -508,7 +533,7 @@ async fn main() -> Result<()> {
                                     let sid = parts[0];
                                     let task = if parts.len() > 1 { parts[1] } else { "continue the previous task" };
                                     run_agent_repl_with_context(
-                                        llm.clone(), task, &approval_policy, Some(sid), false
+                                        llm.clone(), task, &approval_policy, Some(sid), false, false
                                     ).await?;
                                 }
                             }
@@ -1052,6 +1077,99 @@ async fn main() -> Result<()> {
                             }
                         }
 
+                        // ── Phase 12 REPL commands ────────────────────────────────────────
+                        "/model" => {
+                            // /model                    — show current
+                            // /model <provider>          — switch provider, keep model
+                            // /model <provider> <model> — switch both
+                            if args.is_empty() {
+                                println!("Provider: {}  Model: {}\n",
+                                    active_provider,
+                                    active_model.as_deref().unwrap_or("(default)"));
+                            } else {
+                                let model_parts: Vec<&str> = args.splitn(2, ' ').collect();
+                                let new_provider = model_parts[0];
+                                let new_model = model_parts.get(1).map(|s| s.to_string());
+                                match create_provider(new_provider, new_model.clone()) {
+                                    Ok(new_llm) => {
+                                        llm = new_llm;
+                                        active_provider = new_provider.to_string();
+                                        active_model = new_model;
+                                        println!("✅ Switched to provider: {}  model: {}\n",
+                                            active_provider,
+                                            active_model.as_deref().unwrap_or("(default)"));
+                                    }
+                                    Err(e) => eprintln!("❌ Failed to switch provider: {}\n", e),
+                                }
+                            }
+                        }
+                        "/cost" => {
+                            let total = session_tokens.total();
+                            let cost = session_tokens.estimated_cost_usd(
+                                &active_provider,
+                                active_model.as_deref().unwrap_or(""),
+                            );
+                            println!("📊 Session token usage:");
+                            println!("   Prompt tokens:     {}", session_tokens.prompt_tokens);
+                            println!("   Completion tokens: {}", session_tokens.completion_tokens);
+                            println!("   Total:             {}", total);
+                            if cost > 0.0 {
+                                println!("   Estimated cost:    ${:.6}", cost);
+                            } else {
+                                println!("   Estimated cost:    free (local model)");
+                            }
+                            println!();
+                        }
+                        "/context" => {
+                            let char_count: usize = messages.iter().map(|m| m.content.len()).sum();
+                            let approx_tokens = char_count / 4;
+                            println!("📐 Context window:");
+                            println!("   Messages:         {}", messages.len());
+                            println!("   ~Characters:      {}", char_count);
+                            println!("   ~Tokens (est.):   {}", approx_tokens);
+                            println!();
+                        }
+                        "/status" => {
+                            println!("ℹ️  Session status:");
+                            println!("   Provider:  {}", active_provider);
+                            println!("   Model:     {}", active_model.as_deref().unwrap_or("(default)"));
+                            println!("   Messages:  {}", messages.len());
+                            println!("   Tokens:    {} (prompt) + {} (completion) = {}",
+                                session_tokens.prompt_tokens,
+                                session_tokens.completion_tokens,
+                                session_tokens.total());
+                            let cost = session_tokens.estimated_cost_usd(
+                                &active_provider,
+                                active_model.as_deref().unwrap_or(""),
+                            );
+                            if cost > 0.0 {
+                                println!("   Cost est.: ${:.6}", cost);
+                            }
+                            println!();
+                        }
+                        "/fork" => {
+                            // Save a named snapshot of current messages for easy resume
+                            let fork_name = if args.is_empty() {
+                                let ts = std::time::SystemTime::now()
+                                    .duration_since(std::time::UNIX_EPOCH)
+                                    .unwrap_or_default()
+                                    .as_secs();
+                                format!("fork-{}", ts)
+                            } else {
+                                args.replace(' ', "-")
+                            };
+                            let trace_dir = dirs::home_dir()
+                                .unwrap_or_else(|| cwd.clone())
+                                .join(".vibecli")
+                                .join("traces");
+                            let writer = TraceWriter::new_named(trace_dir, &fork_name);
+                            match writer.save_messages(&messages) {
+                                Ok(()) => println!("🍴 Forked session as '{}'\n   Resume with: vibecli --resume {}\n",
+                                    fork_name, writer.session_id()),
+                                Err(e) => eprintln!("❌ Failed to save fork: {}\n", e),
+                            }
+                        }
+
                         _ => {
                             println!("Type /help for available commands\n");
                         }
@@ -1212,6 +1330,7 @@ async fn run_agent_repl_with_context(
     approval_policy: &str,
     resume_session_id: Option<&str>,
     plan_mode: bool,
+    json_output: bool,
 ) -> Result<()> {
     let workspace = std::env::current_dir()?;
     let config = Config::load().unwrap_or_default();
@@ -1223,11 +1342,11 @@ async fn run_agent_repl_with_context(
     let executor: Arc<dyn vibe_ai::agent::ToolExecutorTrait> =
         Arc::new(ToolExecutor::new(workspace.clone(), sandbox).with_env_policy(env_policy));
 
-    // Build hooks from config
+    // Build hooks from config; wire LLM provider so `handler = { llm = "..." }` hooks work.
     let hook_runner = if config.hooks.is_empty() {
         HookRunner::empty()
     } else {
-        HookRunner::new(config.hooks.clone())
+        HookRunner::new(config.hooks.clone()).with_llm_provider(llm.clone())
     };
     let agent = AgentLoop::new(llm.clone(), approval.clone(), executor.clone())
         .with_hooks(hook_runner);
@@ -1330,8 +1449,37 @@ async fn run_agent_repl_with_context(
     });
 
     let mut step_start = std::time::Instant::now();
+    let mut step_count: usize = 0;
 
     while let Some(event) = event_rx.recv().await {
+        // In --json mode, emit a JSON line for each event and skip pretty printing.
+        if json_output {
+            let obj = match &event {
+                AgentEvent::StreamChunk(t) => serde_json::json!({"type":"chunk","text":t}),
+                AgentEvent::ToolCallExecuted(s) => serde_json::json!({
+                    "type":"tool_executed",
+                    "tool": s.tool_call.name(),
+                    "success": s.tool_result.success,
+                    "step": s.step_num,
+                }),
+                AgentEvent::Complete(s) => serde_json::json!({"type":"complete","summary":s}),
+                AgentEvent::Error(e) => serde_json::json!({"type":"error","message":e}),
+                AgentEvent::ToolCallPending { call, .. } => serde_json::json!({"type":"tool_pending","tool":call.name()}),
+            };
+            println!("{}", obj);
+            io::stdout().flush()?;
+            match event {
+                AgentEvent::ToolCallPending { result_tx, call } => {
+                    // In JSON mode auto-execute all tool calls (full-auto behaviour)
+                    let result = executor.execute(&call).await;
+                    let _ = result_tx.send(Some(result));
+                }
+                AgentEvent::Complete(_) | AgentEvent::Error(_) => break,
+                _ => {}
+            }
+            continue;
+        }
+
         match event {
             AgentEvent::StreamChunk(text) => {
                 print!("{}", text);
@@ -1364,6 +1512,7 @@ async fn run_agent_repl_with_context(
             AgentEvent::ToolCallExecuted(step) => {
                 let dur = step_start.elapsed().as_millis() as u64;
                 step_start = std::time::Instant::now();
+                step_count += 1;
                 let status = if step.tool_result.success { "✅" } else { "❌" };
                 println!(
                     "\n{} Step {}: {}",
@@ -1387,6 +1536,18 @@ async fn run_agent_repl_with_context(
                 println!("   Resume with: vibecli --resume {}", trace.session_id());
                 // Save context for future resume
                 let _ = trace_for_save.save_context(&context);
+                // Auto memory recording
+                if config.memory.auto_record && step_count >= config.memory.min_session_steps {
+                    let llm2 = llm.clone();
+                    let task2 = task.to_string();
+                    let summary2 = summary.clone();
+                    let steps2 = step_count;
+                    tokio::spawn(async move {
+                        if let Err(e) = memory_recorder::record_session(llm2, &task2, steps2, &summary2).await {
+                            tracing::warn!("Auto memory recording failed: {}", e);
+                        }
+                    });
+                }
                 break;
             }
             AgentEvent::Error(e) => {
@@ -1548,6 +1709,7 @@ fn create_provider(provider_name: &str, model: Option<String>) -> Result<Arc<dyn
                 api_key: None,
                 max_tokens: None,
                 temperature: None,
+                ..Default::default()
             })))
         }
 
@@ -1563,6 +1725,8 @@ fn create_provider(provider_name: &str, model: Option<String>) -> Result<Arc<dyn
             let model = model
                 .or(cfg_model)
                 .unwrap_or_else(|| "claude-sonnet-4-6".to_string());
+            let api_key_helper = cfg.claude.as_ref().and_then(|c| c.api_key_helper.clone());
+            let thinking = cfg.claude.as_ref().and_then(|c| c.thinking_budget_tokens);
             Ok(Arc::new(claude::ClaudeProvider::new(ProviderConfig {
                 provider_type: "claude".to_string(),
                 api_url: None,
@@ -1570,6 +1734,8 @@ fn create_provider(provider_name: &str, model: Option<String>) -> Result<Arc<dyn
                 api_key,
                 max_tokens: None,
                 temperature: None,
+                api_key_helper,
+                thinking_budget_tokens: thinking,
             })))
         }
 
@@ -1585,6 +1751,7 @@ fn create_provider(provider_name: &str, model: Option<String>) -> Result<Arc<dyn
             let model = model
                 .or(cfg_model)
                 .unwrap_or_else(|| "gpt-4o".to_string());
+            let api_key_helper = cfg.openai.as_ref().and_then(|c| c.api_key_helper.clone());
             Ok(Arc::new(openai::OpenAIProvider::new(ProviderConfig {
                 provider_type: "openai".to_string(),
                 api_url: None,
@@ -1592,6 +1759,8 @@ fn create_provider(provider_name: &str, model: Option<String>) -> Result<Arc<dyn
                 api_key,
                 max_tokens: None,
                 temperature: None,
+                api_key_helper,
+                ..Default::default()
             })))
         }
 
@@ -1607,6 +1776,7 @@ fn create_provider(provider_name: &str, model: Option<String>) -> Result<Arc<dyn
             let model = model
                 .or(cfg_model)
                 .unwrap_or_else(|| "gemini-2.0-flash".to_string());
+            let api_key_helper = cfg.gemini.as_ref().and_then(|c| c.api_key_helper.clone());
             Ok(Arc::new(gemini::GeminiProvider::new(ProviderConfig {
                 provider_type: "gemini".to_string(),
                 api_url: None,
@@ -1614,6 +1784,8 @@ fn create_provider(provider_name: &str, model: Option<String>) -> Result<Arc<dyn
                 api_key,
                 max_tokens: None,
                 temperature: None,
+                api_key_helper,
+                ..Default::default()
             })))
         }
 
@@ -1629,6 +1801,7 @@ fn create_provider(provider_name: &str, model: Option<String>) -> Result<Arc<dyn
             let model = model
                 .or(cfg_model)
                 .unwrap_or_else(|| "grok-3-mini".to_string());
+            let api_key_helper = cfg.grok.as_ref().and_then(|c| c.api_key_helper.clone());
             Ok(Arc::new(grok::GrokProvider::new(ProviderConfig {
                 provider_type: "grok".to_string(),
                 api_url: None,
@@ -1636,6 +1809,8 @@ fn create_provider(provider_name: &str, model: Option<String>) -> Result<Arc<dyn
                 api_key,
                 max_tokens: None,
                 temperature: None,
+                api_key_helper,
+                ..Default::default()
             })))
         }
 

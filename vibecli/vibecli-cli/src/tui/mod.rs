@@ -76,6 +76,7 @@ fn create_provider(provider_name: &str, model: Option<String>) -> Result<Arc<dyn
                 api_key: None,
                 max_tokens: None,
                 temperature: None,
+                ..Default::default()
             })))
         }
         "openai" => {
@@ -93,6 +94,7 @@ fn create_provider(provider_name: &str, model: Option<String>) -> Result<Arc<dyn
                 api_key: Some(api_key),
                 max_tokens: None,
                 temperature: None,
+                ..Default::default()
             })))
         }
         "anthropic" | "claude" => {
@@ -110,6 +112,7 @@ fn create_provider(provider_name: &str, model: Option<String>) -> Result<Arc<dyn
                 api_key: Some(api_key),
                 max_tokens: None,
                 temperature: None,
+                ..Default::default()
             })))
         }
         "gemini" => {
@@ -127,6 +130,7 @@ fn create_provider(provider_name: &str, model: Option<String>) -> Result<Arc<dyn
                 api_key: Some(api_key),
                 max_tokens: None,
                 temperature: None,
+                ..Default::default()
             })))
         }
         "grok" => {
@@ -144,6 +148,7 @@ fn create_provider(provider_name: &str, model: Option<String>) -> Result<Arc<dyn
                 api_key: Some(api_key),
                 max_tokens: None,
                 temperature: None,
+                ..Default::default()
             })))
         }
         _ => anyhow::bail!("Unknown provider: {}", provider_name),

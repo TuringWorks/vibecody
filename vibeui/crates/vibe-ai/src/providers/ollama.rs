@@ -167,6 +167,7 @@ impl AIProvider for OllamaProvider {
         Ok(CompletionResponse {
             text: ollama_response.response,
             model: self.config.model.clone(),
+            usage: None,
         })
     }
 

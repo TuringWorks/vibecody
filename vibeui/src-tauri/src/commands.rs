@@ -31,7 +31,11 @@ pub struct AppState {
     pub flow: Arc<Mutex<FlowTracker>>,
     /// Slot for a tool call pending user approval during agent execution.
     pub agent_pending: Arc<Mutex<Option<PendingAgentCall>>>,
+    /// Rolling buffer of terminal output lines (last MAX_TERMINAL_LINES).
+    pub terminal_buffer: Arc<Mutex<Vec<String>>>,
 }
+
+const MAX_TERMINAL_LINES: usize = 500;
 
 /// File operations
 
@@ -384,6 +388,27 @@ pub async fn get_git_context(state: tauri::State<'_, AppState>) -> Result<String
     Ok(ctx)
 }
 
+/// Strip ANSI escape codes from terminal output.
+fn strip_ansi(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut chars = s.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '\x1b' {
+            if chars.peek() == Some(&'[') {
+                chars.next();
+                for ch in chars.by_ref() {
+                    if ch.is_ascii_alphabetic() { break; }
+                }
+            } else {
+                chars.next();
+            }
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
+
 /// Terminal operations
 
 #[tauri::command]
@@ -397,11 +422,25 @@ pub async fn spawn_terminal(
     let shell = if cfg!(windows) { "powershell" } else { "zsh" };
     
     let id = state.terminal_manager.spawn(shell, tx).map_err(|e| e.to_string())?;
-    
-    // Spawn a task to forward output to frontend
+    let term_buf = state.terminal_buffer.clone();
+
+    // Spawn a task to forward output to frontend and capture to rolling buffer
     tokio::spawn(async move {
         while let Some((id, data)) = rx.recv().await {
-            let _ = app_handle.emit("terminal-output", (id, data));
+            let _ = app_handle.emit("terminal-output", (id, &data));
+            // Append to rolling terminal buffer (strip ANSI, split lines)
+            let clean = strip_ansi(&data);
+            if !clean.is_empty() {
+                let mut buf = term_buf.lock().await;
+                for line in clean.lines() {
+                    buf.push(line.to_string());
+                }
+                // Keep only the last MAX_TERMINAL_LINES
+                if buf.len() > MAX_TERMINAL_LINES {
+                    let drain_to = buf.len() - MAX_TERMINAL_LINES;
+                    buf.drain(..drain_to);
+                }
+            }
         }
     });
     
@@ -628,7 +667,7 @@ pub async fn send_chat_message(
     // Resolve @file:<path> and @git references from the last user message
     if let Some(last) = request.messages.last() {
         if last.role == vibe_ai::MessageRole::User {
-            let at_ctx = resolve_at_references(&last.content, &state.workspace).await;
+            let at_ctx = resolve_at_references(&last.content, &state.workspace, &state.terminal_buffer).await;
             if !at_ctx.is_empty() {
                 let base = context.unwrap_or_default();
                 context = Some(if base.is_empty() {
@@ -707,9 +746,13 @@ pub async fn fetch_url_for_context(url: String) -> Result<String, String> {
     Ok(format!("=== Web content from {} ===\n{}", url, text))
 }
 
-/// Scan `content` for `@file:<path>`, `@git`, and `@web:<url>` references and return the
-/// resolved context string to append to the system prompt.
-async fn resolve_at_references(content: &str, workspace_lock: &Arc<Mutex<Workspace>>) -> String {
+/// Scan `content` for `@file:<path>`, `@git`, `@web:<url>`, `@folder:<path>`, and `@terminal`
+/// references and return the resolved context string to append to the system prompt.
+async fn resolve_at_references(
+    content: &str,
+    workspace_lock: &Arc<Mutex<Workspace>>,
+    terminal_buffer: &Arc<Mutex<Vec<String>>>,
+) -> String {
     use regex::Regex;
     let mut extra = String::new();
 
@@ -717,10 +760,13 @@ async fn resolve_at_references(content: &str, workspace_lock: &Arc<Mutex<Workspa
     let root = workspace.folders().first().cloned();
     drop(workspace);
 
-    // @file:<path> — read the file and embed its content
-    let re = Regex::new(r"@file:(\S+)").unwrap();
+    // @file:<path> or @file:<path>:<start>-<end> — read file (with optional line range)
+    // Matches: @file:src/main.rs  OR  @file:src/main.rs:10-30
+    let re = Regex::new(r"@file:([^\s:]+)(?::(\d+)-(\d+))?").unwrap();
     for cap in re.captures_iter(content) {
         let rel = &cap[1];
+        let line_start: Option<usize> = cap.get(2).and_then(|m| m.as_str().parse().ok());
+        let line_end:   Option<usize> = cap.get(3).and_then(|m| m.as_str().parse().ok());
         let abs_path = if let Some(ref r) = root {
             r.join(rel)
         } else {
@@ -729,20 +775,56 @@ async fn resolve_at_references(content: &str, workspace_lock: &Arc<Mutex<Workspa
         let ext = abs_path.extension().and_then(|e| e.to_str()).unwrap_or("");
         match std::fs::read_to_string(&abs_path) {
             Ok(file_content) => {
-                let snippet = if file_content.len() > 8000 {
+                let snippet = if let (Some(s), Some(e)) = (line_start, line_end) {
+                    // 1-based line range
+                    let lines: Vec<&str> = file_content.lines().collect();
+                    let from = s.saturating_sub(1).min(lines.len());
+                    let to   = e.min(lines.len());
+                    lines[from..to].join("\n")
+                } else if file_content.len() > 8000 {
                     format!("{}...(truncated)", &file_content[..8000])
                 } else {
                     file_content
                 };
+                let range_suffix = if let (Some(s), Some(e)) = (line_start, line_end) {
+                    format!(":{}:{}", s, e)
+                } else {
+                    String::new()
+                };
                 extra.push_str(&format!(
-                    "\n### @file:{}\n```{}\n{}\n```\n",
-                    rel, ext, snippet
+                    "\n### @file:{}{}\n```{}\n{}\n```\n",
+                    rel, range_suffix, ext, snippet
                 ));
             }
             Err(_) => {
                 extra.push_str(&format!("\n### @file:{}\n(file not found)\n", rel));
             }
         }
+    }
+
+    // @folder:<path> — embed a listing of all files under the folder
+    let re_folder = Regex::new(r"@folder:(\S+)").unwrap();
+    for cap in re_folder.captures_iter(content) {
+        let rel = &cap[1];
+        let abs_path = if let Some(ref r) = root { r.join(rel) } else { PathBuf::from(rel) };
+        let mut folder_ctx = format!("\n### @folder:{}\n", rel);
+        if abs_path.is_dir() {
+            let walker = walkdir::WalkDir::new(&abs_path).max_depth(4).into_iter()
+                .filter_map(|e| e.ok())
+                .filter(|e| e.file_type().is_file());
+            let mut count = 0;
+            for entry in walker {
+                if count >= 200 { folder_ctx.push_str("...(truncated at 200 files)\n"); break; }
+                if let Ok(rel_entry) = entry.path().strip_prefix(&abs_path) {
+                    folder_ctx.push_str(&format!("  {}\n", rel_entry.display()));
+                    count += 1;
+                }
+            }
+            if count == 0 { folder_ctx.push_str("(empty directory)\n"); }
+        } else {
+            folder_ctx.push_str("(directory not found)\n");
+        }
+        extra.push_str(&folder_ctx);
     }
 
     // @git — inject current branch, changed files, and diff
@@ -776,6 +858,76 @@ async fn resolve_at_references(content: &str, workspace_lock: &Arc<Mutex<Workspa
             Err(e) => {
                 extra.push_str(&format!("\n### @web:{}\n(fetch error: {})\n", url, e));
             }
+        }
+    }
+
+    // @terminal — inject last 200 lines from the terminal output buffer
+    if content.contains("@terminal") {
+        let buf = terminal_buffer.lock().await;
+        let lines = buf.len();
+        let take = lines.min(200);
+        let snippet: Vec<&String> = buf[lines - take..].iter().collect();
+        let text = snippet.iter().map(|s| s.as_str()).collect::<Vec<_>>().join("\n");
+        drop(buf);
+        extra.push_str(&format!("\n### @terminal (last {} lines)\n```\n{}\n```\n", take, text));
+    }
+
+    // @symbol:<name> — find the symbol in the codebase via regex-based index
+    let re_sym = Regex::new(r"@symbol:(\S+)").unwrap();
+    for cap in re_sym.captures_iter(content) {
+        let query = &cap[1];
+        if let Some(ref r) = root {
+            let mut idx = vibe_core::index::CodebaseIndex::new(r.clone());
+            let _ = idx.build();
+            let hits = idx.search_symbols(query);
+            let mut sym_ctx = format!("\n### @symbol:{}\n", query);
+            if hits.is_empty() {
+                sym_ctx.push_str("(no symbols found)\n");
+            } else {
+                for sym in hits.iter().take(5) {
+                    let rel = sym.file.strip_prefix(r).unwrap_or(&sym.file);
+                    sym_ctx.push_str(&format!(
+                        "**{}** ({:?}) — {}:{}\n",
+                        sym.name,
+                        sym.kind,
+                        rel.display(),
+                        sym.line
+                    ));
+                    // Embed a few lines of source around the symbol
+                    if let Ok(src) = std::fs::read_to_string(&sym.file) {
+                        let lines: Vec<&str> = src.lines().collect();
+                        let from = sym.line.saturating_sub(1);
+                        let to = (from + 10).min(lines.len());
+                        let ext = sym.file.extension().and_then(|e| e.to_str()).unwrap_or("");
+                        sym_ctx.push_str(&format!("```{}\n{}\n```\n", ext, lines[from..to].join("\n")));
+                    }
+                }
+            }
+            extra.push_str(&sym_ctx);
+        }
+    }
+
+    // @codebase:<query> — semantic search over the workspace embedding index
+    let re_cb = Regex::new(r"@codebase:(\S+)").unwrap();
+    for cap in re_cb.captures_iter(content) {
+        let query = &cap[1];
+        if let Some(ref r) = root {
+            let index_dir = r.join(".vibeui").join("embeddings");
+            let mut cb_ctx = format!("\n### @codebase:{}\n", query);
+            // Use CodebaseIndex symbol search as a fast fallback when embeddings not built
+            let mut idx = vibe_core::index::CodebaseIndex::new(r.clone());
+            let _ = idx.build();
+            let hits = idx.search_symbols(query);
+            if hits.is_empty() {
+                cb_ctx.push_str("(no relevant code found — run /index to build the embedding index)\n");
+            } else {
+                for sym in hits.iter().take(5) {
+                    let rel = sym.file.strip_prefix(r).unwrap_or(&sym.file);
+                    cb_ctx.push_str(&format!("{}:{} — {}\n", rel.display(), sym.line, sym.name));
+                }
+            }
+            let _ = index_dir; // reserved for future EmbeddingIndex async search
+            extra.push_str(&cb_ctx);
         }
     }
 
@@ -859,6 +1011,7 @@ pub async fn get_available_ai_providers(state: tauri::State<'_, AppState>) -> Re
                     api_url: Some("http://localhost:11434".to_string()),
                     max_tokens: None,
                     temperature: None,
+                    ..Default::default()
                 };
                 let provider = vibe_ai::providers::ollama::OllamaProvider::new(config);
                 chat_engine.add_provider(Arc::new(provider));
@@ -1425,6 +1578,44 @@ pub async fn predict_next_edit(
     }
 }
 
+// ─── Inline Edit (Cmd+K) ──────────────────────────────────────────────────────
+
+/// AI-powered inline edit: given a selected code range and an instruction,
+/// return the replacement text to apply.
+#[tauri::command]
+pub async fn inline_edit(
+    state: tauri::State<'_, AppState>,
+    file_path: String,
+    language: String,
+    selected_text: String,
+    start_line: u32,
+    end_line: u32,
+    instruction: String,
+    provider: String,
+) -> Result<String, String> {
+    let prompt = format!(
+        "You are an expert code editor. \
+         Edit the following {language} code according to the instruction.\n\n\
+         File: {file_path}\n\
+         Lines: {}-{}\n\n\
+         === SELECTED CODE ===\n{selected_text}\n=== END CODE ===\n\n\
+         Instruction: {instruction}\n\n\
+         Respond ONLY with the replacement code (no markdown fences, no explanation). \
+         Preserve the original indentation.",
+        start_line + 1,
+        end_line + 1,
+    );
+
+    let messages = vec![vibe_ai::provider::Message {
+        role: vibe_ai::provider::MessageRole::User,
+        content: prompt,
+    }];
+
+    let _ = provider; // provider selection handled by ChatEngine's active index
+    let chat_engine = state.chat_engine.lock().await;
+    chat_engine.chat(&messages, None).await.map_err(|e| e.to_string())
+}
+
 // ─── Phase 5 — Trace / History Commands ───────────────────────────────────────
 
 #[derive(Serialize)]
@@ -1877,6 +2068,172 @@ pub async fn open_external_url(
     app.opener()
         .open_url(&url, None::<&str>)
         .map_err(|e| e.to_string())
+}
+
+// ── Symbol + Codebase Search Commands ─────────────────────────────────────────
+
+#[derive(Serialize)]
+pub struct SymbolResult {
+    pub name: String,
+    pub kind: String,
+    pub file: String,
+    pub line: usize,
+}
+
+/// Search the workspace codebase for symbols matching `query` (substring/fuzzy).
+/// Returns up to 20 results, sorted by relevance.
+#[tauri::command]
+pub async fn search_workspace_symbols(
+    query: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<SymbolResult>, String> {
+    let root = {
+        let ws = state.workspace.lock().await;
+        ws.folders().first().cloned().ok_or("No workspace folder open")?
+    };
+    let mut idx = vibe_core::index::CodebaseIndex::new(root.clone());
+    idx.build().map_err(|e| e.to_string())?;
+    let hits = idx.search_symbols(&query);
+    Ok(hits.into_iter().take(20).map(|s| SymbolResult {
+        name: s.name,
+        kind: format!("{:?}", s.kind),
+        file: s.file.strip_prefix(&root).unwrap_or(&s.file)
+            .to_string_lossy().into_owned(),
+        line: s.line,
+    }).collect())
+}
+
+/// Search the workspace using keyword/symbol matching for semantic-style context.
+/// Returns up to 5 file snippets relevant to `query`.
+#[tauri::command]
+pub async fn semantic_search_codebase(
+    query: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<SymbolResult>, String> {
+    // Uses CodebaseIndex for now; will delegate to EmbeddingIndex once built.
+    search_workspace_symbols(query, state).await
+}
+
+// ── BYOK Settings ─────────────────────────────────────────────────────────────
+
+fn api_keys_path() -> std::path::PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    std::path::PathBuf::from(home).join(".vibeui").join("api_keys.json")
+}
+
+/// API key settings for cloud providers, stored at `~/.vibeui/api_keys.json`.
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct ApiKeySettings {
+    #[serde(default)]
+    pub anthropic_api_key: String,
+    #[serde(default)]
+    pub openai_api_key: String,
+    #[serde(default)]
+    pub gemini_api_key: String,
+    #[serde(default)]
+    pub grok_api_key: String,
+    #[serde(default)]
+    pub claude_model: String,
+    #[serde(default)]
+    pub openai_model: String,
+}
+
+/// Load API key settings from `~/.vibeui/api_keys.json`.
+#[tauri::command]
+pub async fn get_provider_api_keys() -> Result<ApiKeySettings, String> {
+    let path = api_keys_path();
+    if !path.exists() {
+        return Ok(ApiKeySettings::default());
+    }
+    let json = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    serde_json::from_str(&json).map_err(|e| e.to_string())
+}
+
+/// Save API key settings and re-register cloud providers in the chat engine.
+#[tauri::command]
+pub async fn save_provider_api_keys(
+    settings: ApiKeySettings,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    // Persist to disk
+    let path = api_keys_path();
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let json = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
+    std::fs::write(&path, json).map_err(|e| e.to_string())?;
+
+    // Re-register cloud providers in the chat engine
+    let mut engine = state.chat_engine.lock().await;
+    engine.clear_cloud_providers();
+
+    if !settings.anthropic_api_key.is_empty() {
+        let model = if settings.claude_model.is_empty() {
+            "claude-3-5-sonnet-latest".to_string()
+        } else {
+            settings.claude_model.clone()
+        };
+        let config = vibe_ai::provider::ProviderConfig {
+            provider_type: "claude".to_string(),
+            api_key: Some(settings.anthropic_api_key.clone()),
+            model,
+            api_url: None,
+            max_tokens: None,
+            temperature: None,
+            ..Default::default()
+        };
+        let provider = vibe_ai::providers::claude::ClaudeProvider::new(config);
+        engine.add_provider(Arc::new(provider));
+    }
+
+    if !settings.openai_api_key.is_empty() {
+        let model = if settings.openai_model.is_empty() {
+            "gpt-4o".to_string()
+        } else {
+            settings.openai_model.clone()
+        };
+        let config = vibe_ai::provider::ProviderConfig {
+            provider_type: "openai".to_string(),
+            api_key: Some(settings.openai_api_key.clone()),
+            model,
+            api_url: None,
+            max_tokens: None,
+            temperature: None,
+            ..Default::default()
+        };
+        let provider = vibe_ai::providers::openai::OpenAIProvider::new(config);
+        engine.add_provider(Arc::new(provider));
+    }
+
+    if !settings.gemini_api_key.is_empty() {
+        let config = vibe_ai::provider::ProviderConfig {
+            provider_type: "gemini".to_string(),
+            api_key: Some(settings.gemini_api_key.clone()),
+            model: "gemini-2.0-flash".to_string(),
+            api_url: None,
+            max_tokens: None,
+            temperature: None,
+            ..Default::default()
+        };
+        let provider = vibe_ai::providers::gemini::GeminiProvider::new(config);
+        engine.add_provider(Arc::new(provider));
+    }
+
+    if !settings.grok_api_key.is_empty() {
+        let config = vibe_ai::provider::ProviderConfig {
+            provider_type: "grok".to_string(),
+            api_key: Some(settings.grok_api_key.clone()),
+            model: "grok-2-latest".to_string(),
+            api_url: None,
+            max_tokens: None,
+            temperature: None,
+            ..Default::default()
+        };
+        let provider = vibe_ai::providers::grok::GrokProvider::new(config);
+        engine.add_provider(Arc::new(provider));
+    }
+
+    Ok(())
 }
 
 fn extract_json(text: &str) -> String {

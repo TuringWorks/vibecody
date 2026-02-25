@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import Editor, { DiffEditor, OnMount } from "@monaco-editor/react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import { AIChat } from "./components/AIChat";
+import { ChatTabManager } from "./components/ChatTabManager";
 import { AgentPanel } from "./components/AgentPanel";
 import { MemoryPanel } from "./components/MemoryPanel";
 import { HistoryPanel } from "./components/HistoryPanel";
@@ -11,6 +11,9 @@ import { ArtifactsPanel } from "./components/ArtifactsPanel";
 import { ManagerView } from "./components/ManagerView";
 import { HooksPanel } from "./components/HooksPanel";
 import { BackgroundJobsPanel } from "./components/BackgroundJobsPanel";
+import { SettingsPanel } from "./components/SettingsPanel";
+import { InlineChat } from "./components/InlineChat";
+import type { InlineChatSelection } from "./components/InlineChat";
 import { Terminal } from "./components/Terminal";
 import { BrowserPanel } from "./components/BrowserPanel";
 import { detectLanguage, getFileIcon } from "./utils/fileUtils";
@@ -61,7 +64,7 @@ function App() {
   const [showSidebar, setShowSidebar] = useState(true);
   const [activeSidebarTab, setActiveSidebarTab] = useState<"explorer" | "search" | "git">("explorer");
   const [showAIChat, setShowAIChat] = useState(false);
-  const [aiPanelTab, setAiPanelTab] = useState<"chat" | "agent" | "memory" | "history" | "checkpoints" | "artifacts" | "manager" | "hooks" | "jobs">("chat");
+  const [aiPanelTab, setAiPanelTab] = useState<"chat" | "agent" | "memory" | "history" | "checkpoints" | "artifacts" | "manager" | "hooks" | "jobs" | "settings">("chat");
   const [showTerminal, setShowTerminal] = useState(false);
   const [bottomTab, setBottomTab] = useState<"terminal" | "browser">("terminal");
   const [showCommandPalette, setShowCommandPalette] = useState(false);
@@ -329,15 +332,58 @@ function App() {
 
   const cursorUpdateTimeoutRef = useRef<number | null>(null);
 
+  // Inline Chat (Cmd+K) state
+  const [inlineChat, setInlineChat] = useState<{
+    selection: InlineChatSelection;
+    position: { top: number; left: number };
+  } | null>(null);
+  const editorRef = useRef<any>(null);
+
+  // Recent edits buffer for next-edit prediction
+  const recentEditsRef = useRef<Array<{
+    line: number; col: number; old_text: string; new_text: string; elapsed_ms: number;
+  }>>([]);
+  const nextEditDebounceRef = useRef<number | null>(null);
+
   const handleEditorDidMount: OnMount = (editor, monaco) => {
-    // Register LSP providers
-    // Note: We register for all languages for now, or we could be more specific
-    // Ideally we should only register once per language, but for simplicity we'll do it on mount
-    // and maybe check if already registered? Monaco doesn't easily let us check.
-    // A better place might be a useEffect that runs once, but we need the 'monaco' instance.
-    // For now, let's just register generic providers that check the language ID.
+    // Store editor reference for Inline Chat
+    editorRef.current = editor;
 
     const getRootPath = () => workspaceFolders[0] || ""; // Simple assumption for MVP
+
+    // ── Cmd+K: open Inline Chat when there's a selection ──────────────────────
+    editor.addCommand(
+      monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK,
+      () => {
+        const selection = editor.getSelection();
+        if (!selection || selection.isEmpty()) return;
+        const model = editor.getModel();
+        if (!model) return;
+        const selectedText = model.getValueInRange(selection);
+        if (!selectedText.trim()) return;
+
+        // Compute pixel position of the selection start
+        const lineTop = editor.getTopForLineNumber(selection.startLineNumber);
+        const scrollTop = editor.getScrollTop();
+        const layoutInfo = editor.getLayoutInfo();
+        const editorDom = editor.getDomNode();
+        const rect = editorDom?.getBoundingClientRect() ?? { top: 0, left: 0 };
+
+        setInlineChat({
+          selection: {
+            text: selectedText,
+            startLine: selection.startLineNumber - 1,
+            endLine: selection.endLineNumber - 1,
+            filePath: activeFilePath ?? "",
+            language: model.getLanguageId(),
+          },
+          position: {
+            top: rect.top + lineTop - scrollTop + 20,
+            left: rect.left + layoutInfo.contentLeft + 20,
+          },
+        });
+      }
+    );
 
     monaco.languages.registerCompletionItemProvider('*', {
       provideCompletionItems: async (model: any, position: any) => {
@@ -474,23 +520,71 @@ function App() {
           const prefix = text.slice(0, offset);
           const suffix = text.slice(offset);
           const language = model.getLanguageId() as string;
+          const filePath = model.uri.path as string;
 
-          try {
-            const completion = await invoke<string>("request_inline_completion", {
-              prefix,
-              suffix,
-              language,
-              provider,
-            });
-            if (!completion) return { items: [] };
-            return { items: [{ insertText: completion }] };
-          } catch {
-            return { items: [] };
+          // Try next-edit prediction first (debounced)
+          if (nextEditDebounceRef.current) {
+            window.clearTimeout(nextEditDebounceRef.current);
           }
+          const nextEditPromise = new Promise<string | null>((resolve) => {
+            nextEditDebounceRef.current = window.setTimeout(async () => {
+              try {
+                const pred = await invoke<{
+                  target_line: number; target_col: number; suggested_text: string; confidence: number;
+                } | null>("predict_next_edit", {
+                  currentFile: filePath,
+                  content: text,
+                  cursorLine: position.lineNumber - 1,
+                  cursorCol: position.column - 1,
+                  recentEdits: recentEditsRef.current.slice(-5),
+                  provider,
+                });
+                resolve(pred && pred.confidence >= 0.5 ? pred.suggested_text : null);
+              } catch {
+                resolve(null);
+              }
+            }, 500);
+          });
+
+          // Also request FIM completion in parallel
+          const fimPromise = invoke<string>("request_inline_completion", {
+            prefix, suffix, language, provider,
+          }).catch(() => null);
+
+          const [nextEdit, fim] = await Promise.all([nextEditPromise, fimPromise]);
+          const suggestion = nextEdit ?? fim ?? null;
+          if (!suggestion) return { items: [] };
+          return { items: [{ insertText: suggestion }] };
         },
         freeInlineCompletions: () => {},
       });
     }
+
+    // Track content changes for next-edit prediction
+    editor.onDidChangeModelContent((event: any) => {
+      const model = editor.getModel();
+      if (!model) return;
+      const now = Date.now();
+      for (const change of event.changes) {
+        recentEditsRef.current.push({
+          line: change.range.startLineNumber - 1,
+          col: change.range.startColumn - 1,
+          old_text: change.rangeLength > 0
+            ? model.getValueInRange(change.range).slice(0, 50)
+            : "",
+          new_text: change.text.slice(0, 50),
+          elapsed_ms: 0,
+        });
+        if (recentEditsRef.current.length > 20) {
+          recentEditsRef.current.shift();
+        }
+        // Update elapsed_ms for all entries
+        recentEditsRef.current = recentEditsRef.current.map((e) => ({
+          ...e,
+          elapsed_ms: now,
+        }));
+      }
+    });
 
     editor.onDidChangeCursorSelection((_) => {
       if (!activeFilePath) return;
@@ -1296,7 +1390,7 @@ function App() {
           <aside className="ai-chat-panel" style={{ display: "flex", flexDirection: "column" }}>
             {/* Tab bar */}
             <div style={{ display: "flex", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
-              {(["chat", "agent", "memory", "history", "checkpoints", "artifacts", "manager", "hooks", "jobs"] as const).map((tab) => (
+              {(["chat", "agent", "memory", "history", "checkpoints", "artifacts", "manager", "hooks", "jobs", "settings"] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setAiPanelTab(tab)}
@@ -1319,7 +1413,9 @@ function App() {
                     : tab === "checkpoints" ? "🔖 CPs"
                     : tab === "artifacts" ? "📦 Artifacts"
                     : tab === "manager" ? "🎛️ Mgr"
-                    : "🪝 Hooks"}
+                    : tab === "hooks" ? "🪝 Hooks"
+                    : tab === "jobs" ? "📋 Jobs"
+                    : "⚙️ Keys"}
                 </button>
               ))}
             </div>
@@ -1327,8 +1423,9 @@ function App() {
             {/* Tab content */}
             <div style={{ flex: 1, overflow: "hidden" }}>
               {aiPanelTab === "chat" && (
-                <AIChat
-                  provider={selectedProvider}
+                <ChatTabManager
+                  defaultProvider={selectedProvider}
+                  availableProviders={aiProviders}
                   context={editorContent}
                   fileTree={files.map(f => f.path)}
                   currentFile={currentFile}
@@ -1365,6 +1462,9 @@ function App() {
               )}
               {aiPanelTab === "jobs" && (
                 <BackgroundJobsPanel />
+              )}
+              {aiPanelTab === "settings" && (
+                <SettingsPanel />
               )}
             </div>
           </aside>
@@ -1468,6 +1568,37 @@ function App() {
         onConfirm={modalConfig.onConfirm}
         onCancel={() => setModalOpen(false)}
       />
+      {/* Inline Chat Overlay (Cmd+K) */}
+      {inlineChat && (
+        <InlineChat
+          selection={inlineChat.selection}
+          position={inlineChat.position}
+          provider={selectedProvider}
+          onAccept={(newText) => {
+            const editor = editorRef.current;
+            if (editor) {
+              const model = editor.getModel();
+              if (model) {
+                const sel = inlineChat.selection;
+                const range = {
+                  startLineNumber: sel.startLine + 1,
+                  startColumn: 1,
+                  endLineNumber: sel.endLine + 1,
+                  endColumn: model.getLineMaxColumn(sel.endLine + 1),
+                };
+                editor.executeEdits("inline-chat", [{
+                  range,
+                  text: newText,
+                  forceMoveMarkers: true,
+                }]);
+              }
+            }
+            setInlineChat(null);
+          }}
+          onReject={() => setInlineChat(null)}
+        />
+      )}
+
       {/* Context Menu */}
       {contextMenu && (
         <div

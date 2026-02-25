@@ -89,7 +89,8 @@ The installer is placed in `src-tauri/target/release/bundle/`.
 - **Batch edits** — `apply_batch_edits` for bulk insert/delete operations
 - **Multi-cursor** — `update_cursors` for synchronised cursor state
 - **Inline AI completions** — ghost-text suggestions via `request_inline_completion` (FIM for Ollama, chat prompt for cloud providers)
-- **Next-Edit Prediction** — `predict_next_edit` analyses recent edits to suggest the next likely change
+- **Next-Edit Prediction** — `predict_next_edit` analyses recent edits to suggest the next likely change; wired as inline completions provider with 500ms debounce + Tab acceptance
+- **Inline Chat (Cmd+K)** — floating `InlineChat` overlay; select code, describe change, view streamed result, Accept to apply edit in-place
 - **File watching** — auto-detects external changes using `notify`
 - **Multi-workspace** — open multiple folders simultaneously
 - **Language detection** — automatic language mode from file extension
@@ -104,7 +105,14 @@ The AI chat panel supports all five providers via the shared `vibe-ai` crate:
 - **Google Gemini**
 - **xAI Grok**
 
-Select the provider from the dropdown in the header. Provider configuration is handled through the settings UI (or environment variables — see [Configuration](../configuration/)).
+Select the provider from the dropdown in the header, or switch per chat tab in `ChatTabManager`. Provider configuration is handled through the **⚙️ Keys** settings tab (BYOK), environment variables, or `~/.vibecli/config.toml`.
+
+#### Provider Advanced Options
+
+| Option | Config key | Description |
+|--------|-----------|-------------|
+| `api_key_helper` | `[claude] api_key_helper = "~/.vibecli/get-key.sh"` | Shell script that emits a fresh API key on stdout; falls back to static `api_key` |
+| `thinking_budget_tokens` | `[claude] thinking_budget_tokens = 10000` | Enable Claude extended thinking mode with N token budget |
 
 #### @ Context System
 
@@ -114,9 +122,14 @@ Type `@` in the chat input to open the **Context Picker** — a dropdown that le
 |-----------|-------------|
 | `@git` | Current branch, changed files, and diff excerpt |
 | `@file:<path>` | Contents of a specific file |
-| `@web:<url>` | Fetched & stripped plain text from a URL |
+| `@file:<path>:N-M` | Specific line range from a file |
+| `@folder:<path>` | Recursive directory tree listing |
+| `@web:<url>` | Fetched & stripped plain text from a URL (6 000 char limit) |
+| `@terminal` | Last 200 lines of terminal output (ANSI-stripped) |
+| `@symbol:<name>` | Symbol search via `CodebaseIndex`, returns source snippet |
+| `@codebase:<query>` | Semantic codebase search via `CodebaseIndex` |
 
-The backend resolves references via `resolve_at_references()` and injects them into the system prompt.
+The backend resolves references via `resolve_at_references()` in `commands.rs` and injects them into the system prompt.
 
 #### Smart Context Builder
 
@@ -266,19 +279,20 @@ Press `Cmd+P` (macOS) / `Ctrl+P` (Windows/Linux) to open the Command Palette:
 
 ## AI Panel Tabs
 
-The AI panel (toggle with **💬 AI Chat** in the header) has nine tabs:
+The AI panel (toggle with **💬 AI Chat** in the header) has ten tabs:
 
 | Tab | Component | Description |
 |-----|-----------|-------------|
-| **💬 Chat** | `AIChat` | Streaming conversation with AI; @ context, diff review, multimodal |
-| **🤖 Agent** | `AgentPanel` | Autonomous multi-step agent with step timeline, approval UI, and plan mode |
-| **📝 Checkpoints** | `CheckpointPanel` | Timeline of AI checkpoints with restore, auto-checkpoint |
-| **👥 Manager** | `ManagerView` | Multi-agent orchestration: task board, worktrees, parallel execution |
-| **📦 Artifacts** | `ArtifactsPanel` | Structured output cards with annotations and async feedback |
-| **📋 Rules** | `MemoryPanel` | Edit per-workspace `.vibeui.md` and global `~/.vibeui/rules.md` |
+| **💬 Chat** | `ChatTabManager` | Multiple independent chat tabs, each with per-tab provider selection; voice input (🎤) |
+| **🤖 Agent** | `AgentPanel` | Autonomous multi-step agent with step timeline, approval UI, Turbo mode, and plan mode |
+| **🧠 Memory** | `MemoryPanel` | Edit per-workspace `.vibeui.md` and global `~/.vibeui/rules.md` |
 | **🕐 History** | `HistoryPanel` | Audit log of past agent sessions; browse and expand trace entries |
-| **⚡ Hooks** | `HooksPanel` | Configure event-driven hooks (PreToolUse, PostToolUse, etc.) |
-| **🔍 Review** | `ReviewPanel` | AI-powered code review with issues, suggestions, and scores |
+| **📝 Checkpoints** | `CheckpointPanel` | Timeline of AI checkpoints with restore, auto-checkpoint |
+| **📦 Artifacts** | `ArtifactsPanel` | Structured output cards with annotations and async feedback |
+| **👥 Manager** | `ManagerView` | Multi-agent orchestration: task board, worktrees, parallel execution |
+| **🪝 Hooks** | `HooksPanel` | Configure event-driven hooks (PreToolUse, PostToolUse, etc.) |
+| **📋 Jobs** | `BackgroundJobsPanel` | Submit tasks to VibeCLI daemon; live SSE stream; job persistence across restarts |
+| **⚙️ Keys** | `SettingsPanel` | BYOK API key management for all cloud providers |
 
 ---
 
@@ -296,7 +310,12 @@ The AI panel (toggle with **💬 AI Chat** in the header) has nine tabs:
 | `HistoryPanel` | `src/components/HistoryPanel.tsx` | Agent session trace viewer |
 | `HooksPanel` | `src/components/HooksPanel.tsx` | Hooks configuration UI; event/handler/filter editor |
 | `ReviewPanel` | `src/components/ReviewPanel.tsx` | AI code review; issues, scores, suggestions |
-| `ContextPicker` | `src/components/ContextPicker.tsx` | @ context dropdown; file, git, web reference picker |
+| `ChatTabManager` | `src/components/ChatTabManager.tsx` | Multi-tab chat manager with per-tab provider selection |
+| `InlineChat` | `src/components/InlineChat.tsx` | Cmd+K floating edit overlay with Accept/Cancel |
+| `BackgroundJobsPanel` | `src/components/BackgroundJobsPanel.tsx` | VibeCLI daemon job queue with live SSE stream |
+| `BrowserPanel` | `src/components/BrowserPanel.tsx` | Embedded iframe browser for localhost previews |
+| `SettingsPanel` | `src/components/SettingsPanel.tsx` | BYOK API key management for all cloud providers |
+| `ContextPicker` | `src/components/ContextPicker.tsx` | @ context dropdown; file, folder, git, web, terminal, symbol picker |
 | `GitPanel` | `src/components/GitPanel.tsx` | Full Git workflow panel; PR review |
 | `Terminal` | `src/components/Terminal.tsx` | xterm.js terminal integration |
 | `CommandPalette` | `src/components/CommandPalette.tsx` | Fuzzy search command palette |
@@ -384,6 +403,11 @@ The React frontend communicates with the Rust backend using Tauri's `invoke()` I
 | `get_available_ai_providers()` | List configured AI providers |
 | `predict_next_edit(current_file, content, cursor_line, recent_edits, provider)` | AI-predicted next edit location + text |
 | `fetch_url_for_context(url)` | Fetch & strip a URL for AI context |
+| `inline_edit(file_path, language, selected_text, start_line, end_line, instruction, provider)` | AI-powered inline edit for Cmd+K overlay |
+| `get_provider_api_keys()` | Load BYOK API key settings |
+| `save_provider_api_keys(settings)` | Persist BYOK API keys to `~/.vibeui/api_keys.json` |
+| `search_workspace_symbols(query, workspace_path)` | Regex-based symbol search across workspace |
+| `semantic_search_codebase(query, workspace_path)` | Semantic codebase search via `CodebaseIndex` |
 
 ### Agent Operations
 
@@ -518,7 +542,8 @@ AI abstraction layer:
 | `hooks` | `HookRunner` — event-driven hooks (shell + LLM handlers) |
 | `skills` | `SkillLoader` — auto-activating context snippets |
 | `artifacts` | `ArtifactStore` — structured output with annotations |
-| `policy` | `AdminPolicy` — workspace security restrictions |
+| `policy` | `AdminPolicy` — glob-based tool allow/deny with `denied_tool_patterns = ["bash(rm*)"]` |
+| `rules` | `RulesLoader` — load `.vibecli/rules/*.md` with YAML front-matter path-pattern filtering |
 | `tools` | `ToolCall`, `ToolResult`, prompt-based tool framework |
 | `mcp` | `McpClient` — JSON-RPC 2.0 MCP server integration |
 | `trace` | `TraceWriter` — JSONL audit log + session resume |

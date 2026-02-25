@@ -1,6 +1,6 @@
-# VibeUI - AI-Powered Code Editor
+# VibeUI — AI-Powered Code Editor
 
-A modern, high-performance code editor built with Rust and Tauri, featuring AI-powered code completion and chat capabilities.
+A modern, high-performance desktop code editor built with Rust + Tauri 2, featuring a full AI agent loop, multi-provider LLM support, LSP integration, Monaco Editor, and a rich extension system.
 
 ## Features
 
@@ -8,113 +8,195 @@ A modern, high-performance code editor built with Rust and Tauri, featuring AI-p
 - ✅ **Efficient Text Buffer**: Built on the `ropey` rope data structure for fast editing of large files
 - ✅ **File System Operations**: Async file I/O with file watching capabilities
 - ✅ **Multi-Workspace Support**: Work with multiple project folders simultaneously
-- 🚧 **Syntax Highlighting**: Monaco Editor integration (in progress)
-- 🚧 **LSP Support**: Language Server Protocol client for intelligent code features
+- ✅ **Syntax Highlighting**: Monaco Editor with full language grammar support
+- ✅ **LSP Support**: Language Server Protocol client for completions, hover, go-to-definition
+- ✅ **Diff View**: Side-by-side diff viewer with Accept/Reject for agent edits
+- ✅ **Inline Chat (Cmd+K)**: Floating AI edit overlay — select code, describe change, apply instantly
+- ✅ **Next-Edit Prediction**: Tab-accepts ghost text powered by `predict_next_edit` (500ms debounce)
+- ✅ **Git Integration**: Branch display, file status indicators, diff view, commit UI
+- ✅ **Terminal**: Integrated PTY-backed terminal panel
+- ✅ **Browser Panel**: Embedded iframe browser for localhost previews (quick-launch: 3000/5173/8080)
+- ✅ **Command Palette**: Fuzzy-search over all editor commands
+- ✅ **Theme System**: Dark/Light toggle with CSS custom properties
+- ✅ **Resizable Panes**: Drag-to-resize sidebar, terminal panel, AI panel
 
 ### AI Integration
-- ✅ **Ollama Support**: Local AI models for code completion and chat
-- 🚧 **Claude**: Anthropic Claude API integration (planned)
-- 🚧 **ChatGPT/OpenAI**: OpenAI API integration (planned)
-- 🚧 **Gemini**: Google Gemini API integration (planned)
-- 🚧 **Grok**: xAI Grok API integration (planned)
+- ✅ **Ollama**: Local AI models — auto-detected, no API key required
+- ✅ **Claude (Anthropic)**: Full streaming chat + agent + extended thinking mode
+- ✅ **OpenAI (ChatGPT)**: GPT-4o and compatible models
+- ✅ **Gemini**: Google Gemini 2.0 Flash and Pro
+- ✅ **Grok (xAI)**: Grok-2 and Grok-3 models
+- ✅ **BYOK Settings**: In-editor API key management (⚙️ Keys tab), keys persisted at `~/.vibeui/api_keys.json`
+- ✅ **`apiKeyHelper`**: Run a custom script to supply rotating credentials per provider
+- ✅ **Multiple Chat Tabs**: Independent chat sessions with per-tab provider selection
+- ✅ **Voice Input**: Web Speech API mic button (🎤) with interim transcript and pulse animation
+- ✅ **@-context system**: `@file:`, `@folder:`, `@git`, `@web:<url>`, `@terminal`, `@symbol:`, `@codebase:`
 
-### Architecture
-- **Backend**: Rust with Tauri 2.0
-- **Frontend**: React + TypeScript with Monaco Editor
-- **Text Processing**: Ropey rope data structure
-- **AI Providers**: Modular plugin system
-- **Extension System**: VSCode-compatible API (planned)
+### AI Agent (Agentic Mode)
+- ✅ **Full Agent Loop**: Multi-step tool-use with streaming events
+- ✅ **Approval Policies**: Suggest / Auto-edit / Full-auto per session
+- ✅ **Turbo Mode**: One-click ⚡ switch to full-auto (amber highlight)
+- ✅ **Plan Mode**: Generate + confirm execution plan before running
+- ✅ **Session Trace**: Full JSONL trace saved per session for audit/replay
+- ✅ **Checkpoints**: Snapshot + restore workspace state before/after agent runs
+- ✅ **MCP Client**: Connect to external Model Context Protocol servers
+- ✅ **Hooks System**: Pre/PostToolUse shell hooks with JSON stdin/stdout protocol
+- ✅ **Hooks Config UI**: Visual hook editor (🪝 Hooks tab)
+- ✅ **Skills**: Auto-loaded `/skills/*.md` slash commands injected into system prompt
+- ✅ **Rules Directory**: `.vibecli/rules/*.md` with YAML front-matter path-pattern injection
+- ✅ **Admin Policy**: Glob-based tool allow/deny lists with `denied_tool_patterns = ["bash(rm*)"]`
+- ✅ **Web Search**: DuckDuckGo Lite integration as agent tool
+- ✅ **Background Jobs**: Submit agent tasks to VibeCLI daemon, persist across restarts (📋 Jobs tab)
+- ✅ **Manager View**: Launch parallel sub-agents per branch, merge results (🧑‍💼 tab)
 
-## Project Structure
+### Context Picker (`@` references)
+| Syntax | Resolves to |
+|--------|-------------|
+| `@file:path` | File contents |
+| `@file:path:N-M` | Specific line range |
+| `@folder:path` | Recursive directory tree |
+| `@git` | Current git diff |
+| `@web:<url>` | Fetched + stripped web page (6000 char limit) |
+| `@terminal` | Last 200 lines of terminal output |
+| `@symbol:name` | Symbol search with source snippet |
+| `@codebase:query` | Semantic codebase search |
+
+### Observability & Artifacts
+- ✅ **Session History**: Browse past agent traces with expandable steps (📜 tab)
+- ✅ **Artifacts Panel**: View files, diffs, annotations, task lists created by agent (📦 tab)
+- ✅ **Memory Panel**: View/edit `~/.vibecli/memory.md` directly in editor (🧠 tab)
+- ✅ **OpenTelemetry**: Optional OTLP/HTTP span export for tracing
+
+### Extension System
+- ✅ **WASM Extensions**: Load WebAssembly plugins via `wasmtime`
+- ✅ **VS Code API Compatibility**: `vscode.window`, `vscode.workspace`, `vscode.commands` shims
+- ✅ **Extension Host Worker**: Sandboxed execution in a Web Worker
+
+---
+
+## Architecture
 
 ```
-vibeUI/
-├── src/                    # React frontend
-├── src-tauri/             # Tauri Rust backend
-├── crates/
-│   ├── vibe-core/         # Text buffer, file system, workspace
-│   ├── vibe-lsp/          # LSP client implementation
-│   ├── vibe-ai/           # AI provider abstraction
-│   └── vibe-extensions/   # Extension system
-└── docs/                  # Documentation
+vibeui/
+├── src/                        # React + TypeScript frontend
+│   ├── App.tsx                 # Root component, Monaco wiring, agent dispatch
+│   └── components/
+│       ├── AIChat.tsx          # Chat panel + voice input
+│       ├── ChatTabManager.tsx  # Multi-tab chat with per-tab provider
+│       ├── AgentPanel.tsx      # Agent runner (Turbo, approval, live events)
+│       ├── InlineChat.tsx      # Cmd+K floating edit overlay
+│       ├── ContextPicker.tsx   # @ autocomplete menu
+│       ├── MemoryPanel.tsx     # ~/.vibecli/memory.md viewer
+│       ├── HistoryPanel.tsx    # Trace session browser
+│       ├── CheckpointPanel.tsx # Workspace snapshot/restore
+│       ├── ArtifactsPanel.tsx  # Agent artifact browser
+│       ├── ManagerView.tsx     # Parallel sub-agent orchestration
+│       ├── HooksPanel.tsx      # Visual hooks editor
+│       ├── BackgroundJobsPanel.tsx # VibeCLI daemon job queue
+│       ├── BrowserPanel.tsx    # Embedded iframe browser
+│       ├── SettingsPanel.tsx   # BYOK API key management
+│       ├── Terminal.tsx        # PTY terminal wrapper
+│       ├── GitPanel.tsx        # Git status + diff
+│       └── ...
+├── src-tauri/                  # Tauri 2 Rust backend
+│   └── src/
+│       ├── commands.rs         # 60+ Tauri commands
+│       ├── agent_executor.rs   # Tool executor (read/write/bash/search/web/MCP)
+│       └── lib.rs              # Plugin registration
+└── crates/
+    ├── vibe-core/              # Text buffer (ropey), FS, Workspace, Git, Terminal, Search
+    ├── vibe-ai/                # AIProvider trait + 5 providers + AgentLoop + MCP + Hooks
+    ├── vibe-lsp/               # LSP client (jsonrpc + tokio-util)
+    └── vibe-extensions/        # WASM extension system (wasmtime)
 ```
+
+---
 
 ## Getting Started
 
 ### Prerequisites
 - Rust (latest stable)
 - Node.js 18+
-- npm or pnpm
+- npm
 
 ### Development
 
-1. **Install dependencies**:
-   ```bash
-   npm install
-   ```
+```bash
+# Install frontend dependencies
+cd vibeui && npm install
 
-2. **Run in development mode**:
-   ```bash
-   npm run tauri dev
-   ```
+# Run in development mode (hot-reload frontend + Rust backend)
+npm run tauri dev
 
-3. **Build for production**:
-   ```bash
-   npm run tauri build
-   ```
+# Build for production
+npm run tauri build
+```
 
-### Testing the Rust Backend
+### Testing
 
 ```bash
-# Run all tests
+# Run all tests (123+ unit tests)
 cargo test --workspace
 
-# Check compilation
-cargo check --workspace
+# Type-check the frontend
+cd vibeui && npx tsc --noEmit
 
-# Run specific crate tests
-cargo test -p vibe-core
-cargo test -p vibe-ai
+# Build Tauri backend only
+cargo build --manifest-path vibeui/src-tauri/Cargo.toml
 ```
+
+---
 
 ## AI Provider Configuration
 
-### Ollama (Local AI)
+### Ollama (Local — No API Key Needed)
+1. Install [Ollama](https://ollama.ai) and start it
+2. Pull a model: `ollama pull codellama` or `ollama pull qwen3-coder`
+3. VibeUI auto-detects all running Ollama models on startup
 
-1. Install Ollama from [ollama.ai](https://ollama.ai)
-2. Pull a code model:
-   ```bash
-   ollama pull codellama
-   ```
-3. The editor will automatically detect and use Ollama if it's running
+### Cloud Providers (via ⚙️ Keys tab in-editor)
+Open the **⚙️ Keys** tab in the AI panel and enter your keys:
 
-### Cloud AI Providers (Coming Soon)
+| Provider | Key variable | Default model |
+|----------|-------------|---------------|
+| Anthropic Claude | `ANTHROPIC_API_KEY` | `claude-sonnet-4-6` |
+| OpenAI | `OPENAI_API_KEY` | `gpt-4o` |
+| Google Gemini | `GEMINI_API_KEY` | `gemini-2.0-flash` |
+| xAI Grok | `GROK_API_KEY` | `grok-2-latest` |
 
-Configuration for Claude, ChatGPT, Gemini, and Grok will be added through the settings UI.
+Keys can also be set via environment variables or `~/.vibecli/config.toml`.
 
-## Development Status
+### `apiKeyHelper` (Rotating Credentials)
+For secrets management systems, configure a helper script in `~/.vibecli/config.toml`:
+```toml
+[claude]
+api_key_helper = "~/.vibecli/get-key.sh claude"
+```
+The script's stdout is used as the Bearer token; static `api_key` is the fallback.
 
-This project is in active development. The following components are currently implemented:
+### Extended Thinking (Claude)
+```toml
+[claude]
+thinking_budget_tokens = 10000
+```
 
-- ✅ Rust workspace with modular crates
-- ✅ Text buffer with undo/redo and multi-cursor support
-- ✅ File system operations with watching
-- ✅ Workspace management
-- ✅ AI provider abstraction
-- ✅ Ollama integration
-- ✅ Tauri commands for frontend-backend communication
-- ✅ Monaco Editor integration
-- ✅ UI components (Sidebar, Status Bar, Tabs)
-- ✅ Terminal integration
-- ✅ Git status visualization
-- ✅ Theme system (Dark/Light)
-- ✅ Command Palette
-- 🚧 LSP client
-- 🚧 Extension system
+---
+
+## Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| `Cmd/Ctrl+K` | Open Inline Chat on selected code |
+| `Cmd/Ctrl+B` | Toggle sidebar |
+| `Cmd/Ctrl+P` / `Cmd/Ctrl+Shift+P` | Command Palette |
+| `Tab` | Accept inline AI suggestion (ghost text) |
+| `Esc` | Dismiss inline suggestion / close Inline Chat |
+
+---
 
 ## Contributing
 
-This is currently a personal project, but contributions and suggestions are welcome!
+Contributions and suggestions are welcome! See [CONTRIBUTING.md](../docs/contributing.md).
 
 ## License
 
@@ -122,7 +204,7 @@ MIT
 
 ## Acknowledgments
 
-- Built with [Tauri](https://tauri.app/)
 - Editor powered by [Monaco Editor](https://microsoft.github.io/monaco-editor/)
-- Text processing with [Ropey](https://github.com/cessen/ropey)
-- AI integration with [Ollama](https://ollama.ai) and cloud providers
+- Desktop runtime: [Tauri 2](https://tauri.app/)
+- Text buffer: [Ropey](https://github.com/cessen/ropey)
+- Local AI: [Ollama](https://ollama.ai)

@@ -57,6 +57,16 @@ pub struct Config {
     /// Web search tool configuration.
     #[serde(default)]
     pub tools: ToolsConfig,
+
+    /// Auto memory recording.
+    ///
+    /// ```toml
+    /// [memory]
+    /// auto_record = true
+    /// min_session_steps = 3
+    /// ```
+    #[serde(default)]
+    pub memory: MemoryConfig,
 }
 
 /// Embedding index configuration.
@@ -281,12 +291,38 @@ impl Default for SafetyConfig {
     }
 }
 
+/// Auto memory recording configuration.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MemoryConfig {
+    /// When true, summarize completed sessions and append key learnings to `~/.vibecli/memory.md`.
+    #[serde(default)]
+    pub auto_record: bool,
+    /// Minimum number of tool-use steps before auto-recording triggers.
+    #[serde(default = "default_min_steps")]
+    pub min_session_steps: usize,
+}
+
+fn default_min_steps() -> usize { 3 }
+
+impl Default for MemoryConfig {
+    fn default() -> Self {
+        Self { auto_record: false, min_session_steps: 3 }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderConfig {
     pub enabled: bool,
     pub api_url: Option<String>,
     pub model: Option<String>,
     pub api_key: Option<String>,
+    /// Helper script path to fetch a rotating API key.
+    /// E.g. `~/.vibecli/get-key.sh claude`
+    #[serde(default)]
+    pub api_key_helper: Option<String>,
+    /// Extended thinking budget tokens (Claude only).
+    #[serde(default)]
+    pub thinking_budget_tokens: Option<u32>,
 }
 
 impl Config {

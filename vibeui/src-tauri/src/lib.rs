@@ -37,6 +37,7 @@ pub fn run() {
                 api_url: ollama_conf.api_url.or_else(|| Some("http://localhost:11434".to_string())),
                 max_tokens: ollama_conf.max_tokens,
                 temperature: ollama_conf.temperature,
+                ..Default::default()
             };
             let provider = providers::ollama::OllamaProvider::new(config);
             chat_engine.add_provider(Arc::new(provider));
@@ -50,6 +51,7 @@ pub fn run() {
             api_url: Some("http://localhost:11434".to_string()),
             max_tokens: None,
             temperature: None,
+            ..Default::default()
         };
         let provider = providers::ollama::OllamaProvider::new(config);
         chat_engine.add_provider(Arc::new(provider));
@@ -63,6 +65,7 @@ pub fn run() {
     let lsp_manager = Arc::new(Mutex::new(LspManager::new()));
     let flow = Arc::new(Mutex::new(flow::FlowTracker::new()));
     let agent_pending = Arc::new(Mutex::new(None));
+    let terminal_buffer = Arc::new(Mutex::new(Vec::<String>::new()));
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
@@ -74,6 +77,7 @@ pub fn run() {
             lsp_manager,
             flow,
             agent_pending,
+            terminal_buffer,
         })
         .invoke_handler(tauri::generate_handler![
             commands::read_file,
@@ -137,6 +141,7 @@ pub fn run() {
             commands::load_trace_session,
             // Phase 7.3 commands — Next-Edit Prediction
             commands::predict_next_edit,
+            commands::inline_edit,
             // Hooks Config UI commands
             commands::get_hooks_config,
             commands::save_hooks_config,
@@ -149,6 +154,12 @@ pub fn run() {
             // @web context + browser opener
             commands::fetch_url_for_context,
             commands::open_external_url,
+            // BYOK Settings
+            commands::get_provider_api_keys,
+            commands::save_provider_api_keys,
+            // Symbol + codebase search
+            commands::search_workspace_symbols,
+            commands::semantic_search_codebase,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

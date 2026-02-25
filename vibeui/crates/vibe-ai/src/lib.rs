@@ -16,6 +16,7 @@ pub mod skills;
 pub mod artifacts;
 pub mod otel;
 pub mod policy;
+pub mod rules;
 
 pub use chat::ChatEngine;
 pub use provider::{CodeContext, Message, MessageRole, CompletionStream, ImageAttachment};
@@ -36,3 +37,4 @@ pub use multi_agent::{
 pub use skills::{Skill, SkillLoader};
 pub use artifacts::{Artifact, AgentArtifact, ArtifactStore, Annotation, TaskItem, ReviewIssueRef};
 pub use policy::{AdminPolicy, PolicyDecision};
+pub use rules::{Rule, RulesLoader};

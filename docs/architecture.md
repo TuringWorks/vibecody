@@ -228,7 +228,7 @@ Session manager on top of `AIProvider`:
 
 - Maintains `Vec<Message>` conversation history
 - Injects system prompts
-- Handles context truncation (planned)
+- Handles context truncation via message history management
 
 ### `CompletionEngine`
 
@@ -360,9 +360,9 @@ Provides a sandbox for third-party extensions via WebAssembly.
 - Extensions are compiled to WASM (targeting `wasm32-wasi`)
 - `wasmtime` hosts and executes extension modules
 - `wasmtime-wasi` provides WASI system call stubs
-- Extensions communicate via a host-defined API (planned)
+- Extensions communicate via a VS Code–compatible host API
 
-### Extension API (Planned)
+### Extension API
 
 ```rust
 // Extension registers lifecycle hooks

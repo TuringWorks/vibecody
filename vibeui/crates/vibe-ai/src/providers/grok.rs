@@ -109,6 +109,7 @@ impl AIProvider for GrokProvider {
         Ok(CompletionResponse {
             text: response_text,
             model: self.config.model.clone(),
+            usage: None,
         })
     }
 

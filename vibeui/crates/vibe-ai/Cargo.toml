@@ -28,5 +28,8 @@ toml = "0.8"
 # Tool call parsing
 regex.workspace = true
 
+# File walking for rules loader
+walkdir.workspace = true
+
 [dev-dependencies]
 tempfile = "3"
