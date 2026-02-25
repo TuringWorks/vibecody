@@ -30,6 +30,12 @@ pub enum HookEvent {
     Stop { reason: String, session_id: String },
     TaskCompleted { summary: String, session_id: String },
     SubagentStart { name: String },
+    /// Fires when a file is written (e.g. by the agent's WriteFile tool or by the editor save).
+    FileSaved { path: String, content: String, language: String },
+    /// Fires when a new file is created.
+    FileCreated { path: String },
+    /// Fires when a file is deleted.
+    FileDeleted { path: String },
 }
 
 impl HookEvent {
@@ -43,6 +49,9 @@ impl HookEvent {
             HookEvent::Stop { .. } => "Stop",
             HookEvent::TaskCompleted { .. } => "TaskCompleted",
             HookEvent::SubagentStart { .. } => "SubagentStart",
+            HookEvent::FileSaved { .. } => "FileSaved",
+            HookEvent::FileCreated { .. } => "FileCreated",
+            HookEvent::FileDeleted { .. } => "FileDeleted",
         }
     }
 
@@ -51,6 +60,16 @@ impl HookEvent {
         match self {
             HookEvent::PreToolUse { call, .. } => Some(call.name()),
             HookEvent::PostToolUse { call, .. } => Some(call.name()),
+            _ => None,
+        }
+    }
+
+    /// File path for file-event hooks (used for path-glob filtering).
+    pub fn file_path(&self) -> Option<&str> {
+        match self {
+            HookEvent::FileSaved { path, .. } => Some(path.as_str()),
+            HookEvent::FileCreated { path } => Some(path.as_str()),
+            HookEvent::FileDeleted { path } => Some(path.as_str()),
             _ => None,
         }
     }
@@ -64,6 +83,9 @@ impl HookEvent {
             HookEvent::Stop { session_id, .. } => session_id,
             HookEvent::TaskCompleted { session_id, .. } => session_id,
             HookEvent::SubagentStart { .. } => "unknown",
+            HookEvent::FileSaved { .. } => "file",
+            HookEvent::FileCreated { .. } => "file",
+            HookEvent::FileDeleted { .. } => "file",
         }
     }
 }
@@ -99,12 +121,17 @@ pub enum HookHandler {
 /// A single hook definition. Multiple hooks can be defined in `[[hooks]]` tables.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HookConfig {
-    /// Event type that triggers this hook: "PreToolUse", "PostToolUse", "Stop", etc.
+    /// Event type that triggers this hook: "PreToolUse", "PostToolUse", "FileSaved", etc.
     pub event: String,
-    /// Optional list of tool names (substring match) to filter.
+    /// Optional list of tool names (substring match) to filter PreToolUse/PostToolUse hooks.
     /// If absent, the hook fires for all tools on this event.
     #[serde(default)]
     pub tools: Option<Vec<String>>,
+    /// Optional glob patterns for file paths (used by FileSaved/FileCreated/FileDeleted hooks).
+    /// Example: `["**/*.rs", "src/**/*.ts"]`
+    /// If absent, the hook fires for all paths.
+    #[serde(default)]
+    pub paths: Option<Vec<String>>,
     /// How to handle the event.
     pub handler: HookHandler,
     /// If true, runs in the background and never blocks the agent.
@@ -118,14 +145,29 @@ impl HookConfig {
         if self.event != event.type_name() {
             return false;
         }
+        // Tool name filter (for PreToolUse / PostToolUse)
         if let Some(filter) = &self.tools {
             match event.tool_name() {
-                Some(name) => filter.iter().any(|t| name.contains(t.as_str())),
-                None => false,
+                Some(name) => {
+                    if !filter.iter().any(|t| name.contains(t.as_str())) {
+                        return false;
+                    }
+                }
+                None => return false,
             }
-        } else {
-            true
         }
+        // Path glob filter (for FileSaved / FileCreated / FileDeleted)
+        if let Some(path_filters) = &self.paths {
+            match event.file_path() {
+                Some(p) => {
+                    if !path_filters.iter().any(|pat| glob_match_path(pat, p)) {
+                        return false;
+                    }
+                }
+                None => return false,
+            }
+        }
+        true
     }
 }
 
@@ -364,7 +406,96 @@ fn build_payload(event: &HookEvent) -> HookPayload {
             input: Some(serde_json::json!({ "name": name })),
             output: None,
         },
+        HookEvent::FileSaved { path, content, language } => HookPayload {
+            event: "FileSaved",
+            session_id: "file".to_string(),
+            tool: None,
+            input: Some(serde_json::json!({
+                "path": path,
+                "language": language,
+                "content_len": content.len()
+            })),
+            output: None,
+        },
+        HookEvent::FileCreated { path } => HookPayload {
+            event: "FileCreated",
+            session_id: "file".to_string(),
+            tool: None,
+            input: Some(serde_json::json!({ "path": path })),
+            output: None,
+        },
+        HookEvent::FileDeleted { path } => HookPayload {
+            event: "FileDeleted",
+            session_id: "file".to_string(),
+            tool: None,
+            input: Some(serde_json::json!({ "path": path })),
+            output: None,
+        },
     }
+}
+
+// ── Path glob matching ─────────────────────────────────────────────────────────
+
+/// Match a glob pattern against a file path.
+/// Supports `**` (any path segments) and `*` (within a single segment).
+fn glob_match_path(pattern: &str, path: &str) -> bool {
+    let pat_parts: Vec<&str> = pattern.split('/').collect();
+    let path_parts: Vec<&str> = path.split('/').collect();
+    glob_parts(&pat_parts, &path_parts)
+}
+
+fn glob_parts(pat: &[&str], path: &[&str]) -> bool {
+    match (pat.first(), path.first()) {
+        (None, None) => true,
+        (None, _) => false,
+        (Some(&"**"), _) => {
+            // ** matches 0 or more path segments
+            for i in 0..=path.len() {
+                if glob_parts(&pat[1..], &path[i..]) {
+                    return true;
+                }
+            }
+            false
+        }
+        (_, None) => pat.iter().all(|p| *p == "**"),
+        (Some(p), Some(s)) => {
+            if segment_match(p, s) {
+                glob_parts(&pat[1..], &path[1..])
+            } else {
+                false
+            }
+        }
+    }
+}
+
+/// Match a single path segment against a pattern (supports `*` wildcard within segment).
+fn segment_match(pattern: &str, s: &str) -> bool {
+    if pattern == "*" {
+        return true;
+    }
+    if !pattern.contains('*') {
+        return pattern == s;
+    }
+    let parts: Vec<&str> = pattern.split('*').collect();
+    let mut pos = 0usize;
+    for (i, part) in parts.iter().enumerate() {
+        if part.is_empty() {
+            continue;
+        }
+        if i == 0 {
+            if !s.starts_with(part) {
+                return false;
+            }
+            pos = part.len();
+        } else if i == parts.len() - 1 {
+            return s[pos..].ends_with(part);
+        } else if let Some(found) = s[pos..].find(part) {
+            pos += found + part.len();
+        } else {
+            return false;
+        }
+    }
+    true
 }
 
 /// JSON response read from a shell hook's stdout.
@@ -395,6 +526,7 @@ mod tests {
             event: "PreToolUse".to_string(),
             tools: None,
             handler: HookHandler::Command { shell: "true".to_string() },
+            paths: None,
             async_exec: false,
         };
         assert!(cfg.matches(&pre_tool_call()));
@@ -406,6 +538,7 @@ mod tests {
             event: "PreToolUse".to_string(),
             tools: Some(vec!["bash".to_string()]),
             handler: HookHandler::Command { shell: "true".to_string() },
+            paths: None,
             async_exec: false,
         };
         assert!(cfg.matches(&pre_tool_call()));
@@ -417,6 +550,7 @@ mod tests {
             event: "PreToolUse".to_string(),
             tools: Some(vec!["write_file".to_string()]),
             handler: HookHandler::Command { shell: "true".to_string() },
+            paths: None,
             async_exec: false,
         };
         assert!(!cfg.matches(&pre_tool_call()));
@@ -428,6 +562,7 @@ mod tests {
             event: "PostToolUse".to_string(),
             tools: None,
             handler: HookHandler::Command { shell: "true".to_string() },
+            paths: None,
             async_exec: false,
         };
         assert!(!cfg.matches(&pre_tool_call()));
@@ -445,6 +580,7 @@ mod tests {
         let runner = HookRunner::new(vec![HookConfig {
             event: "PreToolUse".to_string(),
             tools: None,
+            paths: None,
             handler: HookHandler::Command { shell: "exit 0".to_string() },
             async_exec: false,
         }]);
@@ -457,6 +593,7 @@ mod tests {
         let runner = HookRunner::new(vec![HookConfig {
             event: "PreToolUse".to_string(),
             tools: None,
+            paths: None,
             handler: HookHandler::Command {
                 shell: "echo 'blocked' >&2; exit 2".to_string(),
             },
@@ -471,6 +608,7 @@ mod tests {
         let runner = HookRunner::new(vec![HookConfig {
             event: "PreToolUse".to_string(),
             tools: None,
+            paths: None,
             handler: HookHandler::Command {
                 shell: r#"echo '{"context":"lint passed"}'"#.to_string(),
             },

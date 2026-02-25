@@ -522,6 +522,20 @@ impl WorktreeManager for VibeCoreWorktreeManager {
     fn remove_worktree(&self, worktree_path: &std::path::Path) -> Result<()> {
         vibe_core::git::remove_worktree(&self.repo_path, worktree_path)
     }
+
+    fn create_isolated_worktree(&self, agent_id: &str) -> Result<vibe_ai::IsolatedWorktree> {
+        use std::sync::Arc;
+        // Sanitize agent_id for branch name
+        let safe_id = agent_id.replace(|c: char| !c.is_alphanumeric() && c != '-', "-");
+        let branch = format!("agent/{}", safe_id);
+        let wt_dir = self.repo_path.join(".vibecli").join("worktrees").join(&safe_id);
+        std::fs::create_dir_all(&wt_dir)?;
+        self.create_worktree(&branch, &wt_dir)?;
+        let manager: Arc<dyn WorktreeManager> = Arc::new(VibeCoreWorktreeManager {
+            repo_path: self.repo_path.clone(),
+        });
+        Ok(vibe_ai::IsolatedWorktree::new(wt_dir, branch, agent_id.to_string(), manager))
+    }
 }
 
 #[cfg(test)]

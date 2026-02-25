@@ -84,6 +84,48 @@ impl RulesLoader {
         rules
     }
 
+    /// Load steering files from `<workspace>/.vibecli/steering/` and `~/.vibecli/steering/`.
+    ///
+    /// Steering files always inject (no path-gating) — they provide project-wide context
+    /// injected at the top of every agent system prompt. This mirrors Kiro's "steering files" feature.
+    ///
+    /// Steering file format:
+    /// ```markdown
+    /// ---
+    /// name: architecture
+    /// scope: project
+    /// ---
+    /// This is a Rust monorepo. All shared logic lives in vibeui/crates/.
+    /// ```
+    pub fn load_steering(workspace_root: &Path) -> Vec<Rule> {
+        let mut rules = Self::load(&workspace_root.join(".vibecli").join("steering"));
+        // Global steering (lower priority, skip names already seen)
+        if let Ok(home) = std::env::var("HOME") {
+            let global_dir = PathBuf::from(home).join(".vibecli").join("steering");
+            let seen: std::collections::HashSet<String> =
+                rules.iter().map(|r| r.name.clone()).collect();
+            for mut r in Self::load(&global_dir) {
+                if !seen.contains(&r.name) {
+                    r.path_pattern = None; // steering always injects
+                    rules.push(r);
+                }
+            }
+        }
+        // Steering files always inject — clear path_pattern for all
+        for r in &mut rules {
+            r.path_pattern = None;
+        }
+        rules
+    }
+
+    /// Load both rules and steering files for a workspace.
+    /// Steering files are always-active (no path gating), then rules apply by path pattern.
+    pub fn load_all(workspace_root: &Path) -> Vec<Rule> {
+        let mut all = Self::load_for_workspace(workspace_root);
+        all.extend(Self::load_steering(workspace_root));
+        all
+    }
+
     fn parse_file(path: &Path) -> Option<Rule> {
         let raw = std::fs::read_to_string(path).ok()?;
         let name_default = path

@@ -174,6 +174,12 @@ pub fn run() {
             commands::fetch_doc_content,
             // Linter integration
             commands::run_linter,
+            // Spec-driven development (Phase 16)
+            commands::list_specs,
+            commands::get_spec,
+            commands::generate_spec,
+            commands::update_spec_task,
+            commands::run_spec,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,0 +1,370 @@
+import { useState, useEffect, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
+
+interface SpecTask {
+  id: number;
+  description: string;
+  done: boolean;
+}
+
+interface Spec {
+  name: string;
+  status: "draft" | "approved" | "in-progress" | "done";
+  requirements: string;
+  tasks: SpecTask[];
+  body: string;
+  source: string;
+}
+
+interface SpecPanelProps {
+  workspacePath: string | null;
+  provider?: string;
+}
+
+const STATUS_COLORS: Record<string, string> = {
+  draft: "#888",
+  approved: "#4caf50",
+  "in-progress": "#ff9800",
+  done: "#2196f3",
+};
+
+const STATUS_ICONS: Record<string, string> = {
+  draft: "📝",
+  approved: "✅",
+  "in-progress": "⚙️",
+  done: "🎉",
+};
+
+export function SpecPanel({ workspacePath, provider = "ollama" }: SpecPanelProps) {
+  const [specs, setSpecs] = useState<Spec[]>([]);
+  const [selectedSpec, setSelectedSpec] = useState<Spec | null>(null);
+  const [activeTab, setActiveTab] = useState<"list" | "editor">("list");
+  const [loading, setLoading] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // New spec form
+  const [newSpecName, setNewSpecName] = useState("");
+  const [newSpecRequirements, setNewSpecRequirements] = useState("");
+  const [showNewForm, setShowNewForm] = useState(false);
+
+  const loadSpecs = useCallback(async () => {
+    if (!workspacePath) return;
+    try {
+      setLoading(true);
+      const list = await invoke<Spec[]>("list_specs", { workspacePath });
+      setSpecs(list);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
+  }, [workspacePath]);
+
+  useEffect(() => {
+    loadSpecs();
+  }, [loadSpecs]);
+
+  const openSpec = async (name: string) => {
+    if (!workspacePath) return;
+    try {
+      const spec = await invoke<Spec>("get_spec", { workspacePath, name });
+      setSelectedSpec(spec);
+      setActiveTab("editor");
+    } catch (e) {
+      setError(String(e));
+    }
+  };
+
+  const generateSpec = async () => {
+    if (!workspacePath || !newSpecName.trim() || !newSpecRequirements.trim()) return;
+    try {
+      setGenerating(true);
+      setError(null);
+      const spec = await invoke<Spec>("generate_spec", {
+        workspacePath,
+        name: newSpecName.trim().replace(/\s+/g, "_").toLowerCase(),
+        requirements: newSpecRequirements.trim(),
+        provider,
+      });
+      setSpecs(prev => [...prev, spec]);
+      setSelectedSpec(spec);
+      setActiveTab("editor");
+      setShowNewForm(false);
+      setNewSpecName("");
+      setNewSpecRequirements("");
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const toggleTask = async (taskId: number) => {
+    if (!workspacePath || !selectedSpec) return;
+    try {
+      const updated = await invoke<Spec>("update_spec_task", {
+        workspacePath,
+        name: selectedSpec.name,
+        taskId,
+        done: !selectedSpec.tasks.find(t => t.id === taskId)?.done,
+      });
+      setSelectedSpec(updated);
+      setSpecs(prev => prev.map(s => s.name === updated.name ? updated : s));
+    } catch (e) {
+      setError(String(e));
+    }
+  };
+
+  const runSpec = async () => {
+    if (!workspacePath || !selectedSpec) return;
+    try {
+      setLoading(true);
+      // get the task prompt from the spec
+      const taskPrompt = await invoke<string>("run_spec", { workspacePath, name: selectedSpec.name });
+      if (!taskPrompt) {
+        setError("All tasks are already complete!");
+        return;
+      }
+      // kick off the agent with the spec task
+      await invoke("start_agent_task", { task: taskPrompt, approvalPolicy: "auto-edit", provider });
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const pendingCount = selectedSpec?.tasks.filter(t => !t.done).length ?? 0;
+  const doneCount = selectedSpec?.tasks.filter(t => t.done).length ?? 0;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "var(--bg-primary)", color: "var(--text-primary)", fontSize: "13px" }}>
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "10px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
+        <span style={{ fontWeight: 600 }}>📋 Specs</span>
+        <div style={{ flex: 1 }} />
+        <button
+          onClick={() => setShowNewForm(f => !f)}
+          style={{ padding: "4px 10px", fontSize: "11px", background: "var(--accent-blue, #007acc)", color: "#fff", border: "none", borderRadius: "4px", cursor: "pointer" }}
+        >
+          + New Spec
+        </button>
+        <button
+          onClick={loadSpecs}
+          style={{ padding: "4px 8px", fontSize: "11px", background: "none", border: "1px solid var(--border-color)", borderRadius: "4px", cursor: "pointer", color: "var(--text-secondary)" }}
+        >
+          ↺
+        </button>
+      </div>
+
+      {/* New spec form */}
+      {showNewForm && (
+        <div style={{ padding: "12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", flexDirection: "column", gap: "8px" }}>
+          <input
+            value={newSpecName}
+            onChange={e => setNewSpecName(e.target.value)}
+            placeholder="Spec name (e.g. dark_mode)"
+            style={{ padding: "6px 8px", background: "var(--bg-input, #1e1e1e)", border: "1px solid var(--border-color)", borderRadius: "4px", color: "var(--text-primary)", fontSize: "12px" }}
+          />
+          <textarea
+            value={newSpecRequirements}
+            onChange={e => setNewSpecRequirements(e.target.value)}
+            placeholder="Describe the requirements in natural language..."
+            rows={4}
+            style={{ padding: "6px 8px", background: "var(--bg-input, #1e1e1e)", border: "1px solid var(--border-color)", borderRadius: "4px", color: "var(--text-primary)", fontSize: "12px", resize: "vertical" }}
+          />
+          <div style={{ display: "flex", gap: "8px" }}>
+            <button
+              onClick={generateSpec}
+              disabled={generating || !newSpecName.trim() || !newSpecRequirements.trim()}
+              style={{ flex: 1, padding: "6px", background: "var(--accent-blue, #007acc)", color: "#fff", border: "none", borderRadius: "4px", cursor: "pointer", opacity: generating ? 0.6 : 1 }}
+            >
+              {generating ? "Generating..." : "🤖 Generate Spec"}
+            </button>
+            <button
+              onClick={() => setShowNewForm(false)}
+              style={{ padding: "6px 12px", background: "none", border: "1px solid var(--border-color)", borderRadius: "4px", cursor: "pointer", color: "var(--text-secondary)" }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Error */}
+      {error && (
+        <div style={{ padding: "8px 12px", background: "#ff4d4f22", color: "#ff4d4f", fontSize: "12px", display: "flex", alignItems: "center", gap: "6px" }}>
+          <span>⚠️ {error}</span>
+          <button onClick={() => setError(null)} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "#ff4d4f" }}>✕</button>
+        </div>
+      )}
+
+      {/* Sub-tabs */}
+      <div style={{ display: "flex", borderBottom: "1px solid var(--border-color)" }}>
+        {(["list", "editor"] as const).map(tab => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            style={{
+              flex: 1, padding: "6px", fontSize: "11px", background: "none", border: "none",
+              borderBottom: activeTab === tab ? "2px solid var(--accent-blue, #007acc)" : "2px solid transparent",
+              color: activeTab === tab ? "var(--text-primary)" : "var(--text-secondary)",
+              cursor: "pointer", fontWeight: activeTab === tab ? 600 : 400,
+            }}
+          >
+            {tab === "list" ? `📋 All Specs (${specs.length})` : `📄 ${selectedSpec?.name ?? "Select a spec"}`}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ flex: 1, overflow: "auto" }}>
+        {/* Spec List */}
+        {activeTab === "list" && (
+          <div style={{ padding: "8px" }}>
+            {loading && <div style={{ color: "var(--text-secondary)", padding: "20px", textAlign: "center" }}>Loading...</div>}
+            {!loading && specs.length === 0 && (
+              <div style={{ color: "var(--text-secondary)", padding: "24px", textAlign: "center" }}>
+                <div style={{ fontSize: "32px", marginBottom: "8px" }}>📋</div>
+                <div>No specs yet. Create one to get started.</div>
+              </div>
+            )}
+            {specs.map(spec => {
+              const done = spec.tasks.filter(t => t.done).length;
+              const total = spec.tasks.length;
+              const progress = total > 0 ? (done / total) * 100 : 0;
+              return (
+                <div
+                  key={spec.name}
+                  onClick={() => openSpec(spec.name)}
+                  style={{
+                    padding: "10px 12px", marginBottom: "6px", borderRadius: "6px",
+                    background: "var(--bg-secondary)", border: "1px solid var(--border-color)",
+                    cursor: "pointer", transition: "background 0.15s",
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.background = "var(--bg-hover, #2a2d2e)")}
+                  onMouseLeave={e => (e.currentTarget.style.background = "var(--bg-secondary)")}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span style={{ fontSize: "16px" }}>{STATUS_ICONS[spec.status] ?? "📝"}</span>
+                    <span style={{ fontWeight: 600 }}>{spec.name.replace(/_/g, " ")}</span>
+                    <span style={{ marginLeft: "auto", padding: "2px 6px", borderRadius: "10px", fontSize: "10px", background: STATUS_COLORS[spec.status] + "33", color: STATUS_COLORS[spec.status] }}>
+                      {spec.status}
+                    </span>
+                  </div>
+                  {spec.requirements && (
+                    <div style={{ color: "var(--text-secondary)", fontSize: "11px", marginTop: "4px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {spec.requirements}
+                    </div>
+                  )}
+                  {total > 0 && (
+                    <div style={{ marginTop: "8px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", color: "var(--text-secondary)", marginBottom: "3px" }}>
+                        <span>{done}/{total} tasks</span>
+                        <span>{Math.round(progress)}%</span>
+                      </div>
+                      <div style={{ height: "3px", background: "var(--border-color)", borderRadius: "2px" }}>
+                        <div style={{ width: `${progress}%`, height: "100%", background: progress === 100 ? "#4caf50" : "var(--accent-blue, #007acc)", borderRadius: "2px", transition: "width 0.3s" }} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Spec Editor */}
+        {activeTab === "editor" && selectedSpec && (
+          <div style={{ padding: "12px", display: "flex", flexDirection: "column", gap: "12px" }}>
+            {/* Spec header */}
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+              <h3 style={{ margin: 0, fontSize: "15px" }}>{selectedSpec.name.replace(/_/g, " ")}</h3>
+              <span style={{ padding: "2px 8px", borderRadius: "10px", fontSize: "11px", background: STATUS_COLORS[selectedSpec.status] + "33", color: STATUS_COLORS[selectedSpec.status] }}>
+                {selectedSpec.status}
+              </span>
+              <div style={{ flex: 1 }} />
+              <button
+                onClick={runSpec}
+                disabled={loading || pendingCount === 0}
+                style={{
+                  padding: "5px 12px", fontSize: "11px", background: pendingCount > 0 ? "var(--accent-blue, #007acc)" : "var(--bg-secondary)",
+                  color: pendingCount > 0 ? "#fff" : "var(--text-secondary)", border: "none", borderRadius: "4px",
+                  cursor: pendingCount > 0 ? "pointer" : "not-allowed", opacity: loading ? 0.6 : 1,
+                }}
+                title={pendingCount === 0 ? "All tasks complete" : `Run agent on ${pendingCount} pending tasks`}
+              >
+                {loading ? "Running..." : `🤖 Run Agent (${pendingCount} pending)`}
+              </button>
+            </div>
+
+            {/* Requirements */}
+            {selectedSpec.requirements && (
+              <div style={{ background: "var(--bg-secondary)", borderRadius: "6px", padding: "10px 12px", borderLeft: "3px solid var(--accent-blue, #007acc)" }}>
+                <div style={{ fontSize: "10px", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Requirements</div>
+                <div style={{ fontSize: "12px" }}>{selectedSpec.requirements}</div>
+              </div>
+            )}
+
+            {/* Task list */}
+            <div>
+              <div style={{ fontSize: "12px", fontWeight: 600, marginBottom: "8px", display: "flex", alignItems: "center", gap: "8px" }}>
+                Tasks
+                <span style={{ fontSize: "10px", color: "var(--text-secondary)", fontWeight: 400 }}>
+                  {doneCount}/{selectedSpec.tasks.length} complete
+                </span>
+              </div>
+              {selectedSpec.tasks.length === 0 && (
+                <div style={{ color: "var(--text-secondary)", fontSize: "12px" }}>No tasks generated yet.</div>
+              )}
+              {selectedSpec.tasks.map(task => (
+                <div
+                  key={task.id}
+                  onClick={() => toggleTask(task.id)}
+                  style={{
+                    display: "flex", alignItems: "flex-start", gap: "10px",
+                    padding: "8px 10px", marginBottom: "4px", borderRadius: "5px",
+                    background: task.done ? "var(--bg-secondary)" : "transparent",
+                    border: "1px solid var(--border-color)",
+                    cursor: "pointer", opacity: task.done ? 0.7 : 1,
+                  }}
+                >
+                  <div style={{
+                    width: "16px", height: "16px", borderRadius: "3px", flexShrink: 0, marginTop: "1px",
+                    border: task.done ? "none" : "2px solid var(--border-color)",
+                    background: task.done ? "#4caf50" : "transparent",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}>
+                    {task.done && <span style={{ color: "#fff", fontSize: "10px" }}>✓</span>}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginBottom: "2px" }}>Task {task.id}</div>
+                    <div style={{ fontSize: "12px", textDecoration: task.done ? "line-through" : "none" }}>{task.description}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Body (collapsible) */}
+            {selectedSpec.body && (
+              <details style={{ background: "var(--bg-secondary)", borderRadius: "6px", padding: "10px 12px" }}>
+                <summary style={{ fontSize: "12px", fontWeight: 600, cursor: "pointer", color: "var(--text-secondary)" }}>
+                  📄 Full Spec Document
+                </summary>
+                <pre style={{ marginTop: "8px", fontSize: "11px", whiteSpace: "pre-wrap", wordBreak: "break-word", color: "var(--text-primary)", lineHeight: 1.5 }}>
+                  {selectedSpec.body}
+                </pre>
+              </details>
+            )}
+          </div>
+        )}
+
+        {activeTab === "editor" && !selectedSpec && (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "200px", color: "var(--text-secondary)" }}>
+            Select a spec from the list
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

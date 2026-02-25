@@ -32,7 +32,7 @@ pub use hooks::{HookConfig, HookDecision, HookEvent, HookHandler, HookRunner};
 pub use planner::{ExecutionPlan, PlanStep, PlanStepStatus, PlannerAgent};
 pub use multi_agent::{
     MultiAgentOrchestrator, AgentTask, AgentResult, AgentInstance,
-    AgentStatus, OrchestratorEvent, ExecutorFactory, WorktreeManager,
+    AgentStatus, OrchestratorEvent, ExecutorFactory, WorktreeManager, IsolatedWorktree,
 };
 pub use skills::{Skill, SkillLoader};
 pub use artifacts::{Artifact, AgentArtifact, ArtifactStore, Annotation, TaskItem, ReviewIssueRef};

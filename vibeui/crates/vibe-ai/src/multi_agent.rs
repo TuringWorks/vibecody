@@ -120,6 +120,42 @@ pub trait WorktreeManager: Send + Sync {
     fn create_worktree(&self, branch: &str, worktree_path: &std::path::Path) -> Result<()>;
     /// Remove a worktree.
     fn remove_worktree(&self, worktree_path: &std::path::Path) -> Result<()>;
+    /// Create an isolated worktree for a single agent, auto-cleanup on Drop.
+    /// The worktree is created at `<workspace>/.vibecli/worktrees/<agent_id>/`.
+    fn create_isolated_worktree(&self, agent_id: &str) -> Result<IsolatedWorktree>;
+}
+
+// ── IsolatedWorktree ──────────────────────────────────────────────────────────
+
+/// A temporary git worktree for a single agent.
+/// Automatically deleted when dropped (RAII pattern).
+pub struct IsolatedWorktree {
+    pub path: std::path::PathBuf,
+    pub branch: String,
+    pub agent_id: String,
+    /// Reference to the manager so we can call remove_worktree on drop.
+    manager: Arc<dyn WorktreeManager>,
+}
+
+impl IsolatedWorktree {
+    pub fn new(
+        path: std::path::PathBuf,
+        branch: String,
+        agent_id: String,
+        manager: Arc<dyn WorktreeManager>,
+    ) -> Self {
+        Self { path, branch, agent_id, manager }
+    }
+}
+
+impl Drop for IsolatedWorktree {
+    fn drop(&mut self) {
+        if self.path.exists() {
+            if let Err(e) = self.manager.remove_worktree(&self.path) {
+                tracing::warn!("Failed to clean up worktree for agent {}: {}", self.agent_id, e);
+            }
+        }
+    }
 }
 
 impl MultiAgentOrchestrator {

@@ -35,6 +35,7 @@ use diff_viewer::DiffViewer;
 use memory::ProjectMemory;
 
 mod repl;
+mod spec;
 use rustyline::error::ReadlineError;
 
 mod tui;
@@ -1308,6 +1309,108 @@ async fn main() -> Result<()> {
                             }
                         }
 
+                        // ── Spec-driven development ───────────────────────────────────────
+                        "/spec" => {
+                            use crate::spec::SpecManager;
+                            let cwd = std::env::current_dir()?;
+                            let mgr = SpecManager::for_workspace(&cwd);
+                            let parts: Vec<&str> = if args.is_empty() {
+                                vec!["list"]
+                            } else {
+                                args.splitn(3, ' ').collect()
+                            };
+                            match parts[0] {
+                                "list" | "" => {
+                                    let names = mgr.list();
+                                    if names.is_empty() {
+                                        println!("No specs. Create one with: /spec new <name>\n");
+                                    } else {
+                                        println!("Specs ({}):", names.len());
+                                        for name in &names {
+                                            if let Ok(s) = mgr.load(name) {
+                                                let done = s.completed();
+                                                let total = s.tasks.len();
+                                                println!("  [{}/{}] {} — {}", done, total, name, s.status);
+                                            } else {
+                                                println!("  {}", name);
+                                            }
+                                        }
+                                        println!();
+                                    }
+                                }
+                                "show" => {
+                                    let name = parts.get(1).unwrap_or(&"").trim();
+                                    if name.is_empty() {
+                                        println!("Usage: /spec show <name>\n");
+                                        continue;
+                                    }
+                                    match mgr.load(name) {
+                                        Ok(spec) => {
+                                            println!("\n📋 Spec: {}  [{}]", spec.name, spec.status);
+                                            if !spec.requirements.is_empty() {
+                                                println!("   Requirements: {}", spec.requirements);
+                                            }
+                                            println!("\n   Tasks ({}/{} done):", spec.completed(), spec.tasks.len());
+                                            for task in &spec.tasks {
+                                                let icon = if task.done { "✅" } else { "◻️ " };
+                                                println!("   {} [{}] {}", icon, task.id, task.description);
+                                            }
+                                            println!();
+                                        }
+                                        Err(e) => eprintln!("❌ {}\n", e),
+                                    }
+                                }
+                                "new" => {
+                                    let name = parts.get(1).unwrap_or(&"").trim();
+                                    if name.is_empty() {
+                                        println!("Usage: /spec new <name> [requirements...]\n");
+                                        continue;
+                                    }
+                                    let requirements = parts.get(2).unwrap_or(&"").trim();
+                                    match mgr.init().and_then(|_| mgr.create_empty(name, requirements)) {
+                                        Ok(_) => {
+                                            println!("✅ Spec '{}' created at {}", name, cwd.join(".vibecli/specs").join(format!("{}.md", name)).display());
+                                            println!("   Edit it to add tasks, or use the VibeUI Specs panel to generate one with AI.\n");
+                                        }
+                                        Err(e) => eprintln!("❌ {}\n", e),
+                                    }
+                                }
+                                "done" => {
+                                    let name = parts.get(1).unwrap_or(&"").trim();
+                                    let task_id_str = parts.get(2).unwrap_or(&"").trim();
+                                    if name.is_empty() || task_id_str.is_empty() {
+                                        println!("Usage: /spec done <name> <task-id>\n");
+                                        continue;
+                                    }
+                                    match task_id_str.parse::<u32>() {
+                                        Ok(task_id) => match mgr.complete_task(name, task_id) {
+                                            Ok(()) => println!("✅ Task {} in '{}' marked done\n", task_id, name),
+                                            Err(e) => eprintln!("❌ {}\n", e),
+                                        },
+                                        Err(_) => eprintln!("❌ Invalid task ID '{}'\n", task_id_str),
+                                    }
+                                }
+                                "run" => {
+                                    let name = parts.get(1).unwrap_or(&"").trim();
+                                    if name.is_empty() {
+                                        println!("Usage: /spec run <name>\n");
+                                        continue;
+                                    }
+                                    match mgr.load(name) {
+                                        Ok(spec) => {
+                                            let ctx = spec.context_string();
+                                            println!("🤖 Running agent on spec '{}' ({} pending tasks)…\n", name, spec.pending());
+                                            // Inject spec context into the system prompt for the next agent call
+                                            println!("{}", ctx);
+                                            println!("Use /agent to start the agent with the above spec as context.\n");
+                                        }
+                                        Err(e) => eprintln!("❌ {}\n", e),
+                                    }
+                                }
+                                _ => println!("Usage: /spec [list|show|new|run|done]\n"),
+                            }
+                        }
+
                         _ => {
                             println!("Type /help for available commands\n");
                         }
@@ -2146,7 +2249,29 @@ async fn run_doctor() -> Result<()> {
         println!("  📋 Active profile: {}", active);
     }
 
-    // 9. opusplan model routing
+    // 9. Sandbox availability
+    if config.safety.sandbox {
+        #[cfg(target_os = "macos")]
+        {
+            match std::process::Command::new("sandbox-exec").arg("-n").output() {
+                Ok(_) => println!("  ✅ Sandbox    — sandbox-exec available (macOS Seatbelt)"),
+                Err(_) => println!("  ❌ Sandbox    — sandbox-exec not found (sandbox mode enabled but tool missing)"),
+            }
+        }
+        #[cfg(target_os = "linux")]
+        {
+            match std::process::Command::new("bwrap").arg("--version").output() {
+                Ok(_) => println!("  ✅ Sandbox    — bwrap available (Linux bubblewrap)"),
+                Err(_) => println!("  ❌ Sandbox    — bwrap not found (install: sudo apt install bubblewrap)"),
+            }
+        }
+        #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+        println!("  ⚠️  Sandbox    — enabled but not supported on this OS");
+    } else {
+        println!("  ○  Sandbox    — disabled (set [safety] sandbox = true to enable)");
+    }
+
+    // 10. opusplan model routing
     if config.routing.is_configured() {
         println!("  🔀 Routing    — opusplan routing configured");
         let (pp, pm) = config.routing.resolve_planning("(default)", "(default)");

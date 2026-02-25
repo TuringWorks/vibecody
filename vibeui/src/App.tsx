@@ -30,6 +30,7 @@ import { ExtensionManager } from "./extensions/ExtensionManager";
 // Import worker using Vite's syntax
 import ExtensionHostWorker from "./extensions/ExtensionHost?worker";
 import { CascadePanel } from "./components/CascadePanel";
+import { SpecPanel } from "./components/SpecPanel";
 import { DiffReviewPanel } from "./components/DiffReviewPanel";
 import { flowContext } from "./utils/FlowContext";
 import { supercompleteEngine } from "./utils/SupercompleteEngine";
@@ -69,7 +70,7 @@ function App() {
   const [showSidebar, setShowSidebar] = useState(true);
   const [activeSidebarTab, setActiveSidebarTab] = useState<"explorer" | "search" | "git">("explorer");
   const [showAIChat, setShowAIChat] = useState(false);
-  const [aiPanelTab, setAiPanelTab] = useState<"chat" | "agent" | "memory" | "history" | "checkpoints" | "artifacts" | "manager" | "hooks" | "jobs" | "mcp" | "settings" | "cascade">("chat");
+  const [aiPanelTab, setAiPanelTab] = useState<"chat" | "agent" | "memory" | "history" | "checkpoints" | "artifacts" | "manager" | "hooks" | "jobs" | "mcp" | "settings" | "cascade" | "specs">("chat");
   const [showTerminal, setShowTerminal] = useState(false);
   const [bottomTab, setBottomTab] = useState<"terminal" | "browser">("terminal");
   const [showCommandPalette, setShowCommandPalette] = useState(false);
@@ -1416,7 +1417,7 @@ function App() {
           <aside className="ai-chat-panel" style={{ display: "flex", flexDirection: "column" }}>
             {/* Tab bar */}
             <div style={{ display: "flex", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
-              {(["chat", "agent", "memory", "history", "checkpoints", "artifacts", "manager", "hooks", "jobs", "mcp", "settings", "cascade"] as const).map((tab) => (
+              {(["chat", "agent", "memory", "history", "checkpoints", "artifacts", "manager", "hooks", "jobs", "mcp", "settings", "cascade", "specs"] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setAiPanelTab(tab)}
@@ -1443,6 +1444,7 @@ function App() {
                     : tab === "jobs" ? "📋 Jobs"
                     : tab === "mcp" ? "🔌 MCP"
                     : tab === "settings" ? "⚙️ Keys"
+                    : tab === "specs" ? "📐 Specs"
                     : "🌊 Flow"}
                 </button>
               ))}
@@ -1505,6 +1507,12 @@ function App() {
                     // Emit a custom event that ChatTabManager can listen to
                     window.dispatchEvent(new CustomEvent("vibeui:inject-context", { detail: text }));
                   }}
+                />
+              )}
+              {aiPanelTab === "specs" && (
+                <SpecPanel
+                  workspacePath={workspaceFolders[0] || null}
+                  provider={selectedProvider}
                 />
               )}
             </div>

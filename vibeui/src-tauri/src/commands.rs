@@ -2692,6 +2692,248 @@ pub async fn save_provider_api_keys(
     Ok(())
 }
 
+// ── Spec commands ─────────────────────────────────────────────────────────────
+
+/// Serializable spec task for frontend.
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct SpecTaskDto {
+    pub id: u32,
+    pub description: String,
+    pub done: bool,
+}
+
+/// Serializable spec for frontend.
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct SpecDto {
+    pub name: String,
+    pub status: String,
+    pub requirements: String,
+    pub tasks: Vec<SpecTaskDto>,
+    pub body: String,
+    pub source: String,
+}
+
+fn specs_dir(workspace_path: &str) -> std::path::PathBuf {
+    std::path::PathBuf::from(workspace_path).join(".vibecli").join("specs")
+}
+
+fn parse_spec_file(path: &std::path::Path) -> Option<SpecDto> {
+    let raw = std::fs::read_to_string(path).ok()?;
+    let name = path.file_stem()?.to_str()?.to_string();
+    let mut status = "draft".to_string();
+    let mut requirements = String::new();
+    let mut body = raw.clone();
+    let mut tasks: Vec<SpecTaskDto> = vec![];
+
+    if raw.starts_with("---") {
+        let after_open = raw[3..].trim_start_matches('\n');
+        if let Some(close_pos) = after_open.find("\n---") {
+            let fm = &after_open[..close_pos];
+            body = after_open[close_pos..].trim_start_matches("\n---").trim_start().to_string();
+            for line in fm.lines() {
+                if let Some((k, v)) = line.split_once(':') {
+                    let val = v.trim().trim_matches('"').trim_matches('\'');
+                    match k.trim() {
+                        "status" => status = val.to_string(),
+                        "requirements" => requirements = val.to_string(),
+                        _ => {}
+                    }
+                }
+            }
+        }
+    }
+
+    // Parse task list
+    for line in body.lines() {
+        let line = line.trim();
+        if line.starts_with("- [") && line.len() > 5 {
+            let done = line.starts_with("- [x]");
+            let rest = &line[5..].trim();
+            let (id, desc) = if let Some(stripped) = rest.strip_prefix("**") {
+                if let Some(idx) = stripped.find("**:") {
+                    let id_str = &stripped[..idx];
+                    let desc = stripped[idx + 3..].trim();
+                    (id_str.parse::<u32>().unwrap_or(tasks.len() as u32 + 1), desc.to_string())
+                } else {
+                    (tasks.len() as u32 + 1, rest.to_string())
+                }
+            } else {
+                (tasks.len() as u32 + 1, rest.to_string())
+            };
+            tasks.push(SpecTaskDto { id, description: desc, done });
+        }
+    }
+
+    Some(SpecDto {
+        name,
+        status,
+        requirements,
+        tasks,
+        body,
+        source: path.display().to_string(),
+    })
+}
+
+fn save_spec_file(workspace_path: &str, spec: &SpecDto) -> Result<(), String> {
+    let dir = specs_dir(workspace_path);
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let tasks_md: String = spec.tasks.iter().map(|t| {
+        let check = if t.done { "x" } else { " " };
+        format!("- [{}] **{}**: {}\n", check, t.id, t.description)
+    }).collect();
+    let content = format!(
+        "---\nname: {}\nstatus: {}\nrequirements: {}\n---\n\n{}\n\n## Tasks\n\n{}",
+        spec.name, spec.status, spec.requirements, spec.body, tasks_md
+    );
+    let path = dir.join(format!("{}.md", spec.name));
+    std::fs::write(path, content).map_err(|e| e.to_string())
+}
+
+/// List all specs in the workspace `.vibecli/specs/` directory.
+#[tauri::command]
+pub async fn list_specs(workspace_path: String) -> Result<Vec<SpecDto>, String> {
+    let dir = specs_dir(&workspace_path);
+    if !dir.is_dir() {
+        return Ok(vec![]);
+    }
+    let mut specs: Vec<SpecDto> = std::fs::read_dir(&dir)
+        .map_err(|e| e.to_string())?
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().extension().and_then(|x| x.to_str()) == Some("md"))
+        .filter_map(|e| parse_spec_file(&e.path()))
+        .collect();
+    specs.sort_by(|a, b| a.name.cmp(&b.name));
+    Ok(specs)
+}
+
+/// Get a single spec by name.
+#[tauri::command]
+pub async fn get_spec(workspace_path: String, name: String) -> Result<SpecDto, String> {
+    let path = specs_dir(&workspace_path).join(format!("{}.md", name));
+    parse_spec_file(&path).ok_or_else(|| format!("Spec '{}' not found", name))
+}
+
+/// Generate a new spec from requirements using the LLM.
+#[tauri::command]
+pub async fn generate_spec(
+    workspace_path: String,
+    name: String,
+    requirements: String,
+    provider: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<SpecDto, String> {
+    let prompt = format!(
+        r#"You are a software architect. Generate a spec document for:
+
+Requirements: {requirements}
+
+Output a markdown document with these sections:
+1. ## User Stories (Given/When/Then format)
+2. ## Acceptance Criteria (bullet list)
+3. ## Technical Design (architecture decisions, key files to change)
+4. ## Tasks (5-10 atomic items formatted as: `- [ ] **N**: task description`)
+
+Be concise and focus on implementable tasks. Start directly with the content (no front-matter)."#
+    );
+
+    let messages = vec![vibe_ai::Message {
+        role: vibe_ai::MessageRole::User,
+        content: prompt,
+    }];
+
+    let body = {
+        let mut engine = state.chat_engine.lock().await;
+        let _ = engine.set_provider_by_name(&provider); // ignore if not found, use active
+        engine.chat(&messages, None).await.map_err(|e| e.to_string())?
+    };
+
+    let mut spec = SpecDto {
+        name: name.clone(),
+        status: "draft".to_string(),
+        requirements: requirements.clone(),
+        tasks: vec![],
+        body: body.clone(),
+        source: specs_dir(&workspace_path).join(format!("{}.md", name)).display().to_string(),
+    };
+
+    // Parse tasks from generated body
+    let mut task_id = 1u32;
+    for line in body.lines() {
+        let line = line.trim();
+        if line.starts_with("- [ ]") || line.starts_with("- [x]") {
+            let done = line.starts_with("- [x]");
+            let rest = &line[5..].trim();
+            let desc = if let Some(stripped) = rest.strip_prefix("**") {
+                if let Some(idx) = stripped.find("**:") {
+                    stripped[idx + 3..].trim().to_string()
+                } else {
+                    rest.to_string()
+                }
+            } else {
+                rest.to_string()
+            };
+            spec.tasks.push(SpecTaskDto { id: task_id, description: desc, done });
+            task_id += 1;
+        }
+    }
+
+    save_spec_file(&workspace_path, &spec)?;
+    Ok(spec)
+}
+
+/// Toggle a task's done state in a spec.
+#[tauri::command]
+pub async fn update_spec_task(
+    workspace_path: String,
+    name: String,
+    task_id: u32,
+    done: bool,
+) -> Result<SpecDto, String> {
+    let path = specs_dir(&workspace_path).join(format!("{}.md", name));
+    let mut spec = parse_spec_file(&path).ok_or_else(|| format!("Spec '{}' not found", name))?;
+
+    if let Some(task) = spec.tasks.iter_mut().find(|t| t.id == task_id) {
+        task.done = done;
+    }
+
+    // Auto-update status
+    let all_done = !spec.tasks.is_empty() && spec.tasks.iter().all(|t| t.done);
+    let any_done = spec.tasks.iter().any(|t| t.done);
+    if all_done {
+        spec.status = "done".to_string();
+    } else if any_done && spec.status == "approved" {
+        spec.status = "in-progress".to_string();
+    }
+
+    save_spec_file(&workspace_path, &spec)?;
+    Ok(spec)
+}
+
+/// Build an agent task prompt from a spec's pending tasks.
+/// The frontend should pass the returned string to `start_agent_task`.
+#[tauri::command]
+pub async fn run_spec(
+    workspace_path: String,
+    name: String,
+) -> Result<String, String> {
+    let path = specs_dir(&workspace_path).join(format!("{}.md", name));
+    let spec = parse_spec_file(&path).ok_or_else(|| format!("Spec '{}' not found", name))?;
+
+    let pending: Vec<String> = spec.tasks.iter()
+        .filter(|t| !t.done)
+        .map(|t| format!("{}. {}", t.id, t.description))
+        .collect();
+
+    if pending.is_empty() {
+        return Ok(String::new()); // signals "all done" to frontend
+    }
+
+    Ok(format!(
+        "Spec: {}\nRequirements: {}\n\nWork through these pending tasks in order:\n{}",
+        spec.name, spec.requirements, pending.join("\n")
+    ))
+}
+
 fn extract_json(text: &str) -> String {
     // Strip ```json ... ``` fences if present
     let trimmed = text.trim();

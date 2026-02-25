@@ -257,8 +257,13 @@ pub struct SafetyConfig {
     #[serde(default = "SafetyConfig::default_approval_policy")]
     pub approval_policy: String,
     /// Wrap agent command execution in an OS-level sandbox when available.
+    /// On macOS: uses sandbox-exec (Seatbelt). On Linux: uses bwrap.
     #[serde(default)]
     pub sandbox: bool,
+    /// Optional path to a custom sandbox profile (macOS .sb or Linux bwrap config).
+    /// When unset, a built-in profile is used.
+    #[serde(default)]
+    pub sandbox_profile: Option<String>,
     /// Shell environment policy for subprocess tool calls.
     #[serde(default)]
     pub shell_environment: ShellEnvironmentConfig,
@@ -340,6 +345,7 @@ impl Default for SafetyConfig {
             require_approval_for_file_changes: true,
             approval_policy: "suggest".to_string(),
             sandbox: false,
+            sandbox_profile: None,
             shell_environment: ShellEnvironmentConfig::default(),
         }
     }

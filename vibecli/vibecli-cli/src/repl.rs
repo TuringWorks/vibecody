@@ -32,6 +32,7 @@ static COMMANDS: &[&str] = &[
     "/quit",
     "/resume",
     "/rewind",
+    "/spec",
     "/status",
     "/theme",
     "/trace",
@@ -47,6 +48,9 @@ static PLUGIN_SUBS: &[&str] = &["list", "install", "remove", "info"];
 
 /// Sub-commands for `/memory <sub>`
 static MEMORY_SUBS: &[&str] = &["show", "edit"];
+
+/// Sub-commands for `/spec <sub>`
+static SPEC_SUBS: &[&str] = &["list", "show", "new", "run", "done"];
 
 /// Sub-commands for `/trace <sub>`
 static TRACE_SUBS: &[&str] = &["view"];
@@ -83,6 +87,7 @@ fn command_hint(cmd: &str) -> Option<&'static str> {
         "/status"  => Some("— show provider, model, session info"),
         "/fork"    => Some("[session-name]  — fork current session into a named branch"),
         "/rewind"  => Some("[list | <timestamp>]  — save or restore a conversation checkpoint"),
+        "/spec"    => Some("[list|show <n>|new <n>|run <n>|done <n> <id>]  — spec-driven development"),
         "/theme"   => Some("[name]  — switch TUI color theme (dark|light|monokai|solarized|nord)"),
         _ => None,
     }
@@ -145,6 +150,7 @@ fn complete_slash(line: &str) -> Option<(usize, Vec<Pair>)> {
                 "/profile" => Some(PROFILE_SUBS),
                 "/plugin"  => Some(PLUGIN_SUBS),
                 "/memory"  => Some(MEMORY_SUBS),
+                "/spec"    => Some(SPEC_SUBS),
                 "/trace"   => Some(TRACE_SUBS),
                 "/mcp"     => Some(MCP_SUBS),
                 "/theme"   => Some(THEME_NAMES),

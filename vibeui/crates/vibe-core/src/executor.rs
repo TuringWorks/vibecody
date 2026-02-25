@@ -47,17 +47,34 @@ impl CommandExecutor {
     #[cfg(target_os = "macos")]
     fn execute_sandboxed_impl(command: &str, cwd: &Path, workspace_root: &Path) -> Result<Output> {
         let profile = format!(
-            "(version 1)\n\
-             (deny default)\n\
-             (allow process*)\n\
-             (allow file-read*)\n\
-             (allow file-write* (subpath \"{workspace}\"))\n\
-             (allow file-write* (literal \"/dev/null\"))\n\
-             (deny network*)\n",
+            r#"(version 1)
+(deny default)
+(allow process-exec
+    (literal "/bin/sh")
+    (literal "/bin/bash")
+    (literal "/usr/bin/env")
+    (subpath "/usr/bin")
+    (subpath "/usr/local/bin")
+    (subpath "/opt/homebrew/bin"))
+(allow process-fork)
+(allow process-signal (target self))
+(allow file-read*
+    (subpath "/usr")
+    (subpath "/opt")
+    (subpath "/Library/Developer")
+    (subpath "/private/tmp")
+    (subpath "/tmp"))
+(allow file-read* (subpath "{workspace}"))
+(allow file-write* (subpath "{workspace}"))
+(allow file-write* (literal "/dev/null"))
+(allow file-write* (subpath "/tmp"))
+(allow file-write* (subpath "/private/tmp"))
+(deny network*)
+"#,
             workspace = workspace_root.display()
         );
         let profile_path = std::env::temp_dir().join("vibecli_sandbox.sb");
-        std::fs::write(&profile_path, profile)?;
+        std::fs::write(&profile_path, &profile)?;
         let out = Command::new("sandbox-exec")
             .arg("-f").arg(&profile_path)
             .arg("sh").arg("-c").arg(command)
@@ -72,8 +89,19 @@ impl CommandExecutor {
         let bwrap_ok = Command::new("bwrap").arg("--version").output().is_ok();
         if bwrap_ok {
             let ws = workspace_root.display().to_string();
+            // Read-only bind of system dirs + read-write bind of workspace only
             return Ok(Command::new("bwrap")
-                .args(["--bind", "/", "/", "--dev", "/dev", "--bind", &ws, &ws, "--unshare-net", "sh", "-c", command])
+                .args(["--ro-bind", "/usr", "/usr"])
+                .args(["--ro-bind", "/lib", "/lib"])
+                .args(["--ro-bind", "/lib64", "/lib64"])
+                .args(["--ro-bind", "/bin", "/bin"])
+                .args(["--ro-bind", "/etc/resolv.conf", "/etc/resolv.conf"])
+                .args(["--bind", &ws, &ws])       // workspace: read-write
+                .args(["--dev", "/dev"])
+                .args(["--tmpfs", "/tmp"])
+                .args(["--unshare-net"])           // no network access
+                .args(["--unshare-pid"])           // PID namespace isolation
+                .args(["--", "sh", "-c", command])
                 .current_dir(cwd)
                 .output()?);
         }
