@@ -63,10 +63,16 @@ pub struct OllamaProvider {
 impl OllamaProvider {
     /// Create a new Ollama provider
     pub fn new(config: ProviderConfig) -> Self {
-        let base_url = config
+        let raw_url = config
             .api_url
             .clone()
             .unwrap_or_else(|| "http://localhost:11434".to_string());
+        // Normalize: OLLAMA_HOST env var is often set without a scheme
+        let base_url = if raw_url.starts_with("http://") || raw_url.starts_with("https://") {
+            raw_url
+        } else {
+            format!("http://{}", raw_url)
+        };
         
         let display_name = format!("Ollama ({})", config.model);
 

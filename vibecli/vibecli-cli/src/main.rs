@@ -1199,7 +1199,7 @@ async fn main() -> Result<()> {
                                 content: response,
                             });
                         }
-                        Err(e) => eprintln!("❌ Error: {}\n", e),
+                        Err(e) => eprintln!("❌ Error: {:#}\n", e),
                     }
                 }
             }
@@ -1696,9 +1696,17 @@ fn create_provider(provider_name: &str, model: Option<String>) -> Result<Arc<dyn
         // ── Ollama (local, no API key required) ───────────────────────────────
         "ollama" => {
             let cfg_model = cfg.ollama.as_ref().and_then(|c| c.model.clone());
-            let api_url = cfg.ollama.as_ref().and_then(|c| c.api_url.clone())
-                .or_else(|| std::env::var("OLLAMA_HOST").ok())
-                .unwrap_or_else(|| "http://localhost:11434".to_string());
+            let api_url = {
+                let raw = cfg.ollama.as_ref().and_then(|c| c.api_url.clone())
+                    .or_else(|| std::env::var("OLLAMA_HOST").ok())
+                    .unwrap_or_else(|| "http://localhost:11434".to_string());
+                // Normalize: OLLAMA_HOST is often set without a scheme (e.g. "127.0.0.1:11434")
+                if raw.starts_with("http://") || raw.starts_with("https://") {
+                    raw
+                } else {
+                    format!("http://{}", raw)
+                }
+            };
             let model = model
                 .or(cfg_model)
                 .unwrap_or_else(|| "qwen3-coder:480b-cloud".to_string());
