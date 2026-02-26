@@ -62,16 +62,12 @@ pub struct TelegramGateway {
 
 impl TelegramGateway {
     pub fn new(token: String, allowed_users: Vec<String>) -> Self {
-        Self {
-            token,
-            offset: 0,
-            client: reqwest::Client::builder()
-                .timeout(std::time::Duration::from_secs(35))
-                .user_agent("VibeCLI-Gateway/1.0")
-                .build()
-                .expect("HTTP client"),
-            allowed_users,
-        }
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(35))
+            .user_agent("VibeCLI-Gateway/1.0")
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
+        Self { token, offset: 0, client, allowed_users }
     }
 
     fn base_url(&self) -> String {
@@ -150,16 +146,12 @@ pub struct DiscordGateway {
 
 impl DiscordGateway {
     pub fn new(token: String, channel_id: String) -> Self {
-        Self {
-            token,
-            client: reqwest::Client::builder()
-                .user_agent("VibeCLI-Gateway/1.0 (https://github.com/vibecody/vibecody)")
-                .timeout(std::time::Duration::from_secs(15))
-                .build()
-                .expect("HTTP client"),
-            last_message_id: None,
-            channel_id,
-        }
+        let client = reqwest::Client::builder()
+            .user_agent("VibeCLI-Gateway/1.0 (https://github.com/vibecody/vibecody)")
+            .timeout(std::time::Duration::from_secs(15))
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
+        Self { token, client, last_message_id: None, channel_id }
     }
 }
 
@@ -231,16 +223,12 @@ pub struct SlackGateway {
 
 impl SlackGateway {
     pub fn new(bot_token: String, channel: String) -> Self {
-        Self {
-            bot_token,
-            client: reqwest::Client::builder()
-                .user_agent("VibeCLI-Gateway/1.0")
-                .timeout(std::time::Duration::from_secs(15))
-                .build()
-                .expect("HTTP client"),
-            channel,
-            last_ts: None,
-        }
+        let client = reqwest::Client::builder()
+            .user_agent("VibeCLI-Gateway/1.0")
+            .timeout(std::time::Duration::from_secs(15))
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
+        Self { bot_token, client, channel, last_ts: None }
     }
 }
 

@@ -5,6 +5,8 @@
  */
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { useToast } from "../hooks/useToast";
+import { Toaster } from "./Toaster";
 
 interface TableInfo {
   name: string;
@@ -29,11 +31,15 @@ interface QueryResult {
 type DbType = "sqlite" | "postgres" | "supabase";
 
 interface DatabasePanelProps {
-  workspacePath: string;
+  workspacePath: string | null;
   provider: string;
 }
 
 export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
+  if (!workspacePath) {
+    return <div className="empty-state"><p>Open a workspace folder to use the database browser.</p></div>;
+  }
+  const { toasts, toast, dismiss } = useToast();
   const [dbType, setDbType] = useState<DbType>("sqlite");
   const [connectionString, setConnectionString] = useState("");
   const [tables, setTables] = useState<TableInfo[]>([]);
@@ -64,7 +70,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
       setTables(result);
       setIsConnected(true);
     } catch (e) {
-      alert(`Connection failed: ${e}`);
+      toast.error(`Connection failed: ${e}`);
     } finally {
       setIsLoading(false);
     }
@@ -271,6 +277,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
           )}
         </div>
       </div>
+      <Toaster toasts={toasts} onDismiss={dismiss} />
     </div>
   );
 }

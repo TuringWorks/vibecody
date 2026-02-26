@@ -60,10 +60,12 @@ pub enum JobStatus {
 pub struct AppState {
     /// Active embedding provider config.
     provider: EmbeddingProvider,
-    /// Completed indexes, keyed by job id.
+    /// Completed indexes, keyed by workspace path string.
     indexes: RwLock<HashMap<String, EmbeddingIndex>>,
     /// All jobs (including running/failed).
     jobs: RwLock<HashMap<String, IndexJob>>,
+    /// Directory where completed indexes are persisted (`~/.vibe-indexer/indexes/`).
+    persist_dir: PathBuf,
 }
 
 // ── Request / response types ──────────────────────────────────────────────────
@@ -149,6 +151,16 @@ async fn start_index(
                     job.files_indexed = count;
                     info!("Job {} complete: {} documents indexed", job_id_clone, count);
                     drop(jobs);
+
+                    // Persist to disk so the index survives restarts
+                    let encoded = urlencoding_encode(&workspace);
+                    let save_path = state_clone.persist_dir.join(format!("{}.json", encoded));
+                    if let Err(e) = index.save(&save_path) {
+                        warn!("Could not persist index for {}: {}", workspace, e);
+                    } else {
+                        info!("Persisted index to {}", save_path.display());
+                    }
+
                     state_clone
                         .indexes
                         .write()
@@ -256,10 +268,42 @@ async fn main() -> anyhow::Result<()> {
         },
     };
 
+    // Persistence directory: ~/.vibe-indexer/indexes/
+    let persist_dir = std::env::var("HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| PathBuf::from("."))
+        .join(".vibe-indexer")
+        .join("indexes");
+    std::fs::create_dir_all(&persist_dir).ok();
+
+    // Warm up: load any previously-saved indexes from disk
+    let mut warmed: HashMap<String, EmbeddingIndex> = HashMap::new();
+    if let Ok(rd) = std::fs::read_dir(&persist_dir) {
+        for entry in rd.flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|e| e.to_str()) == Some("json") {
+                // The file stem is a percent-encoded workspace path
+                if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+                    let workspace = urlencoding_decode(stem);
+                    match EmbeddingIndex::load(&path) {
+                        Ok(idx) => {
+                            info!("Loaded persisted index for workspace: {}", workspace);
+                            warmed.insert(workspace, idx);
+                        }
+                        Err(e) => {
+                            warn!("Could not load persisted index {}: {}", path.display(), e);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     let state = Arc::new(AppState {
         provider,
-        indexes: RwLock::new(HashMap::new()),
+        indexes: RwLock::new(warmed),
         jobs: RwLock::new(HashMap::new()),
+        persist_dir,
     });
 
     let app = Router::new()
@@ -293,5 +337,46 @@ fn arg_value(args: &[String], flag: &str) -> Option<String> {
     args.windows(2)
         .find(|w| w[0] == flag)
         .map(|w| w[1].clone())
+}
+
+/// Percent-encode a workspace path so it can be used as a filename.
+/// Encodes any character that is not alphanumeric, `-`, `_`, or `.`.
+fn urlencoding_encode(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for b in s.bytes() {
+        match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' => {
+                out.push(b as char);
+            }
+            _ => {
+                out.push('%');
+                out.push(char::from_digit((b >> 4) as u32, 16).unwrap_or('0').to_ascii_uppercase());
+                out.push(char::from_digit((b & 0xf) as u32, 16).unwrap_or('0').to_ascii_uppercase());
+            }
+        }
+    }
+    out
+}
+
+/// Decode a percent-encoded string back to a workspace path.
+fn urlencoding_decode(s: &str) -> String {
+    let mut out = Vec::with_capacity(s.len());
+    let bytes = s.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%' && i + 2 < bytes.len() {
+            if let (Some(hi), Some(lo)) = (
+                char::from(bytes[i + 1]).to_digit(16),
+                char::from(bytes[i + 2]).to_digit(16),
+            ) {
+                out.push(((hi << 4) | lo) as u8);
+                i += 3;
+                continue;
+            }
+        }
+        out.push(bytes[i]);
+        i += 1;
+    }
+    String::from_utf8_lossy(&out).into_owned()
 }
 

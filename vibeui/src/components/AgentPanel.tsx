@@ -3,6 +3,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { flowContext } from "../utils/FlowContext";
 import { runLinter, formatLintForAgent } from "../utils/LinterIntegration";
+import { useToast } from "../hooks/useToast";
+import { Toaster } from "./Toaster";
 
 interface AgentStep {
     step_num: number;
@@ -27,6 +29,7 @@ interface AgentPanelProps {
 }
 
 export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
+    const { toasts, toast, dismiss } = useToast();
     const [task, setTask] = useState("");
     const [steps, setSteps] = useState<AgentStep[]>([]);
     const [streaming, setStreaming] = useState("");
@@ -34,6 +37,8 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
     const [status, setStatus] = useState<AgentStatus>("idle");
     const [approvalPolicy, setApprovalPolicy] = useState("auto-edit");
     const [turboMode, setTurboMode] = useState(false);
+    const [expandedSteps, setExpandedSteps] = useState<Set<number>>(new Set());
+    const [copiedStep, setCopiedStep] = useState<number | null>(null);
     const feedEndRef = useRef<HTMLDivElement>(null);
 
     // Turbo Mode: shortcut that sets approval to full-auto
@@ -141,11 +146,23 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
         }
     };
 
+    const stopAgent = async () => {
+        try {
+            await invoke("stop_agent_task");
+        } catch {
+            // Best-effort: even if the command fails, reset local state
+        } finally {
+            setStatus("idle");
+            setPending(null);
+            setStreaming("");
+        }
+    };
+
     const approve = async () => {
         try {
             await invoke("respond_to_agent_approval", { approved: true });
         } catch (e) {
-            console.error("Approval failed:", e);
+            toast.error(`Approval failed: ${e}`);
         }
     };
 
@@ -154,7 +171,7 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
             await invoke("respond_to_agent_approval", { approved: false });
             setPending(null);
         } catch (e) {
-            console.error("Rejection failed:", e);
+            toast.error(`Rejection failed: ${e}`);
         }
     };
 
@@ -252,6 +269,16 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
                     {isRunning ? "⏳ Running…" : "▶ Run"}
                 </button>
 
+                {isRunning && (
+                    <button
+                        onClick={stopAgent}
+                        style={{ whiteSpace: "nowrap", padding: "4px 10px", fontSize: "12px", background: "var(--text-danger, #ff4d4f)", color: "#fff", border: "none", borderRadius: "4px", cursor: "pointer" }}
+                        title="Stop the agent"
+                    >
+                        ⏹ Stop
+                    </button>
+                )}
+
                 {(status === "complete" || status === "error") && (
                     <button className="btn-secondary" onClick={reset} style={{ whiteSpace: "nowrap" }}>
                         ↺ Reset
@@ -288,42 +315,58 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
                     </div>
                 )}
 
-                {steps.map((step, i) => (
-                    <div
-                        key={i}
-                        style={{
-                            borderBottom: "1px solid var(--border-color)",
-                            paddingBottom: "6px",
-                        }}
-                    >
+                {steps.map((step, i) => {
+                    const isExpanded = expandedSteps.has(i);
+                    const isTruncated = step.output.length > 600;
+                    const displayOutput = isExpanded || !isTruncated
+                        ? step.output
+                        : step.output.slice(0, 600) + "\n…";
+                    return (
                         <div
-                            style={{
-                                color: step.success
-                                    ? "var(--accent-green, #4ec9b0)"
-                                    : "var(--text-danger, #f44)",
-                                fontWeight: 500,
-                            }}
+                            key={i}
+                            style={{ borderBottom: "1px solid var(--border-color)", paddingBottom: "6px" }}
                         >
-                            {step.success ? "✅" : "❌"} {step.tool_summary}
+                            <div style={{ display: "flex", alignItems: "flex-start", gap: "6px" }}>
+                                <div style={{ flex: 1, color: step.success ? "var(--accent-green, #4ec9b0)" : "var(--text-danger, #f44)", fontWeight: 500 }}>
+                                    {step.success ? "✅" : "❌"} {step.tool_summary}
+                                </div>
+                                {step.output && (
+                                    <button
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(step.output).then(() => {
+                                                setCopiedStep(i);
+                                                setTimeout(() => setCopiedStep(null), 1500);
+                                            });
+                                        }}
+                                        title="Copy step output"
+                                        style={{ flexShrink: 0, background: "none", border: "none", cursor: "pointer", fontSize: "10px", color: copiedStep === i ? "#3fb950" : "var(--text-secondary)", padding: "0 2px" }}
+                                    >
+                                        {copiedStep === i ? "✓" : "⎘"}
+                                    </button>
+                                )}
+                            </div>
+                            {step.output && (
+                                <>
+                                    <pre style={{ margin: "4px 0 0 16px", color: "var(--text-secondary)", whiteSpace: "pre-wrap", maxHeight: isExpanded ? "none" : "160px", overflowY: "auto", fontSize: "11px" }}>
+                                        {displayOutput}
+                                    </pre>
+                                    {isTruncated && (
+                                        <button
+                                            onClick={() => setExpandedSteps(prev => {
+                                                const next = new Set(prev);
+                                                next.has(i) ? next.delete(i) : next.add(i);
+                                                return next;
+                                            })}
+                                            style={{ marginLeft: "16px", fontSize: "10px", background: "none", border: "none", cursor: "pointer", color: "var(--accent-blue, #007acc)", padding: "2px 0" }}
+                                        >
+                                            {isExpanded ? "▲ Collapse" : "▼ Show all"}
+                                        </button>
+                                    )}
+                                </>
+                            )}
                         </div>
-                        {step.output && (
-                            <pre
-                                style={{
-                                    margin: "4px 0 0 16px",
-                                    color: "var(--text-secondary)",
-                                    whiteSpace: "pre-wrap",
-                                    maxHeight: "160px",
-                                    overflowY: "auto",
-                                    fontSize: "11px",
-                                }}
-                            >
-                                {step.output.length > 600
-                                    ? step.output.slice(0, 600) + "\n…"
-                                    : step.output}
-                            </pre>
-                        )}
-                    </div>
-                ))}
+                    );
+                })}
 
                 {/* Streaming LLM text */}
                 {streaming && (
@@ -396,6 +439,7 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
                 {steps.length > 0 && `${steps.length} step${steps.length !== 1 ? "s" : ""} completed`}
                 {workspacePath && ` · ${workspacePath.split("/").pop()}`}
             </div>
+            <Toaster toasts={toasts} onDismiss={dismiss} />
         </div>
     );
 }

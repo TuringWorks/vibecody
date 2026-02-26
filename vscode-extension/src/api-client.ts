@@ -32,6 +32,16 @@ export interface AgentEvent {
   success?: boolean;
 }
 
+export interface JobRecord {
+  session_id: string;
+  task: string;
+  status: 'running' | 'complete' | 'failed' | 'cancelled';
+  provider: string;
+  started_at: number;
+  finished_at?: number;
+  summary?: string;
+}
+
 export class VibeCLIClient {
   private baseUrl: string;
 
@@ -90,6 +100,22 @@ export class VibeCLIClient {
     }
     const data = await res.json() as { session_id: string };
     return { sessionId: data.session_id };
+  }
+
+  /** List recent background jobs. */
+  async listJobs(): Promise<JobRecord[]> {
+    try {
+      const res = await fetch(`${this.baseUrl}/jobs`);
+      if (!res.ok) return [];
+      return (await res.json()) as JobRecord[];
+    } catch {
+      return [];
+    }
+  }
+
+  /** Cancel a running job. */
+  async cancelJob(sessionId: string): Promise<void> {
+    await fetch(`${this.baseUrl}/jobs/${sessionId}/cancel`, { method: 'POST' });
   }
 
   /** Stream agent events for a running session. */

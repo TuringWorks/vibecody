@@ -58,8 +58,8 @@ pub fn run() {
         chat_engine.add_provider(Arc::new(provider));
     }
 
-    // Initialize other providers (placeholders for now, logic would be similar)
-    // if let Some(openai_conf) = ai_config.openai { ... }
+    // Additional providers (OpenAI, Claude, Gemini, etc.) are configured at
+    // runtime via the BYOK settings panel and injected through ChatEngine::add_provider().
 
     let chat_engine = Arc::new(Mutex::new(chat_engine));
     let terminal_manager = Arc::new(TerminalManager::new());
@@ -67,6 +67,7 @@ pub fn run() {
     let flow = Arc::new(Mutex::new(flow::FlowTracker::new()));
     let agent_pending = Arc::new(Mutex::new(None));
     let terminal_buffer = Arc::new(Mutex::new(Vec::<String>::new()));
+    let agent_abort_handle = Arc::new(Mutex::new(None));
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
@@ -79,6 +80,7 @@ pub fn run() {
             flow,
             agent_pending,
             terminal_buffer,
+            agent_abort_handle,
         })
         .invoke_handler(tauri::generate_handler![
             commands::read_file,
@@ -105,6 +107,7 @@ pub fn run() {
             commands::git_list_branches,
             commands::git_switch_branch,
             commands::git_get_history,
+            commands::git_get_commit_files,
             commands::git_discard_changes,
             commands::spawn_terminal,
             commands::write_terminal,
@@ -127,6 +130,7 @@ pub fn run() {
             commands::get_flow_context,
             // Phase 4 commands — Agent Mode
             commands::start_agent_task,
+            commands::stop_agent_task,
             commands::respond_to_agent_approval,
             // Phase 4 commands — Memory / Rules
             commands::get_vibeui_rules,
@@ -197,6 +201,38 @@ pub fn run() {
             commands::query_db,
             commands::generate_sql_query,
             commands::generate_migration,
+            // Phase 26: Supabase
+            commands::get_supabase_config,
+            commands::save_supabase_config,
+            commands::list_supabase_tables,
+            commands::query_supabase,
+            commands::generate_supabase_query,
+            // Phase 26: Auth scaffolding
+            commands::generate_auth_scaffold,
+            commands::write_auth_scaffold,
+            // Phase 26: GitHub Sync
+            commands::has_github_token,
+            commands::save_github_token,
+            commands::get_github_sync_status,
+            commands::github_sync_push,
+            commands::github_sync_pull,
+            commands::list_github_repos,
+            commands::github_create_repo,
+            // Phase 27: Steering Files
+            commands::get_steering_files,
+            commands::save_steering_file,
+            commands::delete_steering_file,
+            // Phase 28: Auto-Memories
+            commands::get_auto_memories,
+            commands::delete_auto_memory,
+            commands::pin_auto_memory,
+            commands::add_auto_memory,
+            // Phase 28: BugBot
+            commands::run_bugbot,
+            // Phase 29: Agent Browser Actions
+            commands::agent_browser_action,
+            // Phase 31: Embedding index
+            commands::build_embedding_index,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

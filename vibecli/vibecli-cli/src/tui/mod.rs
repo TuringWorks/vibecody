@@ -249,6 +249,7 @@ async fn run_app<B: ratatui::backend::Backend>(
                             CurrentScreen::DiffView => app.diff_view.scroll_up(),
                             CurrentScreen::FileTree => app.file_tree.previous(),
                             CurrentScreen::Agent => app.agent_view.scroll_up(),
+                            CurrentScreen::VimEditor => {}
                         },
                         event::MouseEventKind::ScrollDown => match app.current_screen {
                             CurrentScreen::Chat => {
@@ -257,6 +258,7 @@ async fn run_app<B: ratatui::backend::Backend>(
                             CurrentScreen::DiffView => app.diff_view.scroll_down(),
                             CurrentScreen::FileTree => app.file_tree.next(),
                             CurrentScreen::Agent => app.agent_view.scroll_down(),
+                            CurrentScreen::VimEditor => {}
                         },
                         _ => {}
                     }
@@ -264,6 +266,18 @@ async fn run_app<B: ratatui::backend::Backend>(
 
                 // ── Key Events ────────────────────────────────────────────────
                 AppEvent::Input(Event::Key(key)) => {
+                    // VimEditor gets all keys when active
+                    if matches!(app.current_screen, CurrentScreen::VimEditor) {
+                        // Get viewport height for scroll calculations (approximate)
+                        let viewport_h = terminal.size().map(|r| r.height.saturating_sub(4)).unwrap_or(24);
+                        let wants_close = app.vim_editor.handle_key(key, viewport_h);
+                        if wants_close {
+                            app.current_screen = CurrentScreen::Chat;
+                            app.messages.push(TuiMessage::System("Editor closed.".to_string()));
+                        }
+                        continue;
+                    }
+
                     match key.code {
                         KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                             if app.exit_pending {
@@ -378,6 +392,7 @@ async fn run_app<B: ratatui::backend::Backend>(
   Actions:
     /exec <cmd>        Execute shell command (via AI)
     ! <cmd>            Execute shell command directly
+    /edit <file>       Open file in vim-like modal editor
     /quit              Exit application
 
   Memory:
@@ -700,6 +715,17 @@ async fn handle_chat_input(
                     }
                 }
             }
+            "/edit" => {
+                if args.is_empty() {
+                    app.messages.push(TuiMessage::System(
+                        "Usage: /edit <file>  — open file in vim-like editor".to_string(),
+                    ));
+                } else {
+                    let path = std::path::PathBuf::from(args);
+                    app.vim_editor.open(path);
+                    app.current_screen = CurrentScreen::VimEditor;
+                }
+            }
             "/diff" => {
                 app.current_screen = CurrentScreen::DiffView;
                 if !args.is_empty() {
@@ -727,6 +753,58 @@ async fn handle_chat_input(
                     let name = new_theme.name;
                     app.theme = new_theme;
                     app.messages.push(TuiMessage::System(format!("✅ Theme switched to '{}'", name)));
+                }
+            }
+            "/check" => {
+                // Run cargo check (or eslint if package.json present) and populate
+                // the diagnostics panel.
+                let cwd = std::env::current_dir().unwrap_or_default();
+                let use_npm = cwd.join("package.json").exists() && !cwd.join("Cargo.toml").exists();
+                let (prog, prog_args): (&str, &[&str]) = if use_npm {
+                    ("npx", &["eslint", "--format", "json", "."])
+                } else {
+                    ("cargo", &["check", "--message-format=json", "--quiet"])
+                };
+                app.messages.push(TuiMessage::System(format!(
+                    "Running {} {}…", prog, prog_args.join(" ")
+                )));
+                match std::process::Command::new(prog)
+                    .args(prog_args)
+                    .current_dir(&cwd)
+                    .output()
+                {
+                    Err(e) => {
+                        app.messages.push(TuiMessage::Error(format!(
+                            "Failed to run {}: {}", prog, e
+                        )));
+                    }
+                    Ok(out) => {
+                        use crate::tui::components::diagnostics::parse_cargo_check;
+                        let combined = format!(
+                            "{}\n{}",
+                            String::from_utf8_lossy(&out.stdout),
+                            String::from_utf8_lossy(&out.stderr),
+                        );
+                        let diags = parse_cargo_check(&combined);
+                        let summary = app.diagnostics_panel.status.clone();
+                        app.diagnostics_panel.set(diags);
+                        let _ = summary; // used inside set()
+                        app.messages.push(TuiMessage::System(format!(
+                            "Diagnostics: {}", app.diagnostics_panel.status
+                        )));
+                    }
+                }
+            }
+            "/share" => {
+                if args.is_empty() {
+                    app.messages.push(TuiMessage::System(
+                        "Usage: /share <session_id>  — print shareable URL (requires vibecli serve)".to_string()
+                    ));
+                } else {
+                    let url = format!("http://localhost:7878/share/{}", args.trim());
+                    app.messages.push(TuiMessage::System(format!(
+                        "📤 Share URL: {}", url
+                    )));
                 }
             }
             _ => {

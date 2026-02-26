@@ -235,4 +235,48 @@ impl LspClient {
     pub async fn did_save(&mut self, params: DidSaveTextDocumentParams) -> Result<()> {
         self.send_notification("textDocument/didSave", serde_json::to_value(params)?).await
     }
+
+    /// Request document symbols (outline view).
+    pub async fn document_symbols(
+        &mut self,
+        params: DocumentSymbolParams,
+    ) -> Result<Option<DocumentSymbolResponse>> {
+        let res = self
+            .send_request("textDocument/documentSymbol", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(res).ok())
+    }
+
+    /// Request full-document formatting edits.
+    pub async fn formatting(
+        &mut self,
+        params: DocumentFormattingParams,
+    ) -> Result<Option<Vec<TextEdit>>> {
+        let res = self
+            .send_request("textDocument/formatting", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(res).ok())
+    }
+
+    /// Request references for the symbol at a position.
+    pub async fn references(
+        &mut self,
+        params: ReferenceParams,
+    ) -> Result<Option<Vec<Location>>> {
+        let res = self
+            .send_request("textDocument/references", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(res).ok())
+    }
+
+    /// Request rename edits for the symbol at a position.
+    pub async fn rename(
+        &mut self,
+        params: RenameParams,
+    ) -> Result<Option<WorkspaceEdit>> {
+        let res = self
+            .send_request("textDocument/rename", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(res).ok())
+    }
 }

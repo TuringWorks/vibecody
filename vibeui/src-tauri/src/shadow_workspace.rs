@@ -109,7 +109,7 @@ impl ShadowWorkspace {
             stderr,
         };
 
-        self.lint_results.lock().unwrap()
+        self.lint_results.lock().unwrap_or_else(|e| e.into_inner())
             .insert(rel_path.to_string(), lint_result.clone());
 
         let _ = shadow_file; // suppress unused warning
@@ -238,13 +238,13 @@ impl ShadowWorkspace {
         if shadow_file.exists() {
             std::fs::remove_file(shadow_file)?;
         }
-        self.lint_results.lock().unwrap().remove(rel_path);
+        self.lint_results.lock().unwrap_or_else(|e| e.into_inner()).remove(rel_path);
         Ok(())
     }
 
     /// Get cached lint result for a file.
     pub fn get_lint_result(&self, rel_path: &str) -> Option<LintResult> {
-        self.lint_results.lock().unwrap().get(rel_path).cloned()
+        self.lint_results.lock().unwrap_or_else(|e| e.into_inner()).get(rel_path).cloned()
     }
 
     /// Clean up the entire shadow workspace.

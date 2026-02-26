@@ -1,5 +1,45 @@
 //! Tauri commands for frontend-backend communication
 
+use std::sync::OnceLock;
+
+// ── Lazy-compiled regex patterns ──────────────────────────────────────────────
+fn re_html_tag() -> &'static regex::Regex {
+    static R: OnceLock<regex::Regex> = OnceLock::new();
+    R.get_or_init(|| regex::Regex::new(r"<[^>]+>").unwrap())
+}
+fn re_whitespace() -> &'static regex::Regex {
+    static R: OnceLock<regex::Regex> = OnceLock::new();
+    R.get_or_init(|| regex::Regex::new(r"\s{2,}").unwrap())
+}
+fn re_at_file() -> &'static regex::Regex {
+    static R: OnceLock<regex::Regex> = OnceLock::new();
+    R.get_or_init(|| regex::Regex::new(r"@file:([^\s:]+)(?::(\d+)-(\d+))?").unwrap())
+}
+fn re_at_folder() -> &'static regex::Regex {
+    static R: OnceLock<regex::Regex> = OnceLock::new();
+    R.get_or_init(|| regex::Regex::new(r"@folder:(\S+)").unwrap())
+}
+fn re_at_web() -> &'static regex::Regex {
+    static R: OnceLock<regex::Regex> = OnceLock::new();
+    R.get_or_init(|| regex::Regex::new(r"@web:(https?://\S+)").unwrap())
+}
+fn re_at_symbol() -> &'static regex::Regex {
+    static R: OnceLock<regex::Regex> = OnceLock::new();
+    R.get_or_init(|| regex::Regex::new(r"@symbol:(\S+)").unwrap())
+}
+fn re_at_docs() -> &'static regex::Regex {
+    static R: OnceLock<regex::Regex> = OnceLock::new();
+    R.get_or_init(|| regex::Regex::new(r"@docs:(\S+)").unwrap())
+}
+fn re_at_codebase() -> &'static regex::Regex {
+    static R: OnceLock<regex::Regex> = OnceLock::new();
+    R.get_or_init(|| regex::Regex::new(r"@codebase:(\S+)").unwrap())
+}
+fn re_at_github() -> &'static regex::Regex {
+    static R: OnceLock<regex::Regex> = OnceLock::new();
+    R.get_or_init(|| regex::Regex::new(r"@github:([a-zA-Z0-9_\-]+)/([a-zA-Z0-9_\-]+)#(\d+)").unwrap())
+}
+
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -15,6 +55,22 @@ use lsp_types::{CompletionParams, CompletionResponse, HoverParams, Hover, GotoDe
 use tauri::Emitter;
 use crate::flow::FlowTracker;
 use vibe_ai::{ToolCall, ToolResult};
+
+// ── GitHub API types (used by @github: context handler) ───────────────────────
+#[derive(Deserialize)]
+struct GithubIssue {
+    number: u64,
+    title: String,
+    #[serde(default)]
+    body: String,
+    state: String,
+    labels: Vec<GithubLabel>,
+    user: GithubUser,
+}
+#[derive(Deserialize)]
+struct GithubLabel { name: String }
+#[derive(Deserialize)]
+struct GithubUser { login: String }
 
 /// Holds a pending tool call awaiting user approval in the agent loop.
 pub struct PendingAgentCall {
@@ -33,6 +89,8 @@ pub struct AppState {
     pub agent_pending: Arc<Mutex<Option<PendingAgentCall>>>,
     /// Rolling buffer of terminal output lines (last MAX_TERMINAL_LINES).
     pub terminal_buffer: Arc<Mutex<Vec<String>>>,
+    /// Abort handle for the currently running agent task (if any).
+    pub agent_abort_handle: Arc<Mutex<Option<tokio::task::AbortHandle>>>,
 }
 
 const MAX_TERMINAL_LINES: usize = 500;
@@ -119,7 +177,9 @@ pub async fn rename_item(
 ) -> Result<(), String> {
     let workspace = state.workspace.lock().await;
     let from_path = PathBuf::from(&path);
-    let to_path = from_path.parent().unwrap().join(new_name);
+    let parent = from_path.parent()
+        .ok_or_else(|| "Cannot rename a root-level path".to_string())?;
+    let to_path = parent.join(new_name);
     
     workspace
         .file_system()
@@ -523,6 +583,13 @@ pub async fn git_get_history(path: String, limit: usize) -> Result<Vec<vibe_core
         .map_err(|e| e.to_string())
 }
 
+/// Return the files changed in a given commit (by partial or full SHA hash).
+#[tauri::command]
+pub async fn git_get_commit_files(path: String, hash: String) -> Result<Vec<String>, String> {
+    vibe_core::git::get_commit_files(&PathBuf::from(path), &hash)
+        .map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 pub async fn git_discard_changes(path: String, file_path: String) -> Result<(), String> {
     vibe_core::git::discard_changes(&PathBuf::from(path), &file_path)
@@ -582,10 +649,55 @@ pub struct CompletionRequest {
 
 #[tauri::command]
 pub async fn request_ai_completion(
-    _request: CompletionRequest,
+    request: CompletionRequest,
+    state: tauri::State<'_, AppState>,
 ) -> Result<String, String> {
-    // TODO: Implement AI completion
-    Ok("AI completion not yet implemented".to_string())
+    let ctx = &request.context;
+    let language = &ctx.language;
+
+    let provider_name = {
+        let engine = state.chat_engine.lock().await;
+        engine
+            .active_provider()
+            .map(|p| p.name().to_string())
+            .unwrap_or_else(|| "unknown".to_string())
+    };
+
+    // FIM format for Ollama, chat-based for cloud providers
+    let prompt = if provider_name.to_lowercase().contains("ollama") {
+        format!(
+            "<|fim_prefix|>{}<|fim_suffix|>{}<|fim_middle|>",
+            ctx.prefix, ctx.suffix
+        )
+    } else {
+        let extra = if ctx.additional_context.is_empty() {
+            String::new()
+        } else {
+            format!("\n\nAdditional context:\n{}", ctx.additional_context.join("\n---\n"))
+        };
+        format!(
+            "Complete the following {} code. Return ONLY the inserted text, no explanations.\n\nPrefix:\n```{}\n{}\n```\n\nSuffix:\n```{}\n{}\n```{}",
+            language, language, ctx.prefix, language, ctx.suffix, extra
+        )
+    };
+
+    let messages = vec![Message {
+        role: vibe_ai::MessageRole::User,
+        content: prompt,
+    }];
+
+    let engine = state.chat_engine.lock().await;
+    let result = engine.chat(&messages, None).await.map_err(|e| e.to_string())?;
+
+    // Strip any markdown code fences the model may have added
+    let clean = result
+        .trim()
+        .trim_start_matches("```")
+        .trim_start_matches(language.as_str())
+        .trim_end_matches("```")
+        .trim()
+        .to_string();
+    Ok(clean)
 }
 
 #[derive(Serialize, Deserialize)]
@@ -684,17 +796,9 @@ pub async fn send_chat_message(
         .await
         .map_err(|e| e.to_string())?;
 
-    println!("DEBUG: AI Raw Response: {}", response_text);
-
     // Process tool calls
     let (tool_output, pending_write) = process_tool_calls(&response_text, &state.workspace).await;
-    
-    if pending_write.is_some() {
-        println!("DEBUG: Pending write detected!");
-    } else {
-        println!("DEBUG: No pending write detected.");
-    }
-    
+
     Ok(ChatResponse {
         message: response_text,
         tool_output,
@@ -712,8 +816,7 @@ pub(crate) async fn fetch_and_strip(url: &str) -> Result<String, String> {
         .map_err(|e| e.to_string())?;
 
     // Strip HTML tags
-    let re_tag = regex::Regex::new(r"<[^>]+>").unwrap();
-    let stripped = re_tag.replace_all(&body, " ");
+    let stripped = re_html_tag().replace_all(&body, " ");
 
     // Decode common HTML entities
     let decoded = stripped
@@ -725,8 +828,7 @@ pub(crate) async fn fetch_and_strip(url: &str) -> Result<String, String> {
         .replace("&nbsp;", " ");
 
     // Collapse whitespace
-    let re_ws = regex::Regex::new(r"\s{2,}").unwrap();
-    let collapsed = re_ws.replace_all(decoded.trim(), " ");
+    let collapsed = re_whitespace().replace_all(decoded.trim(), " ");
 
     let text = if collapsed.len() > 6000 {
         format!("{}…(truncated)", &collapsed[..6000])
@@ -753,7 +855,6 @@ async fn resolve_at_references(
     workspace_lock: &Arc<Mutex<Workspace>>,
     terminal_buffer: &Arc<Mutex<Vec<String>>>,
 ) -> String {
-    use regex::Regex;
     let mut extra = String::new();
 
     let workspace = workspace_lock.lock().await;
@@ -762,7 +863,7 @@ async fn resolve_at_references(
 
     // @file:<path> or @file:<path>:<start>-<end> — read file (with optional line range)
     // Matches: @file:src/main.rs  OR  @file:src/main.rs:10-30
-    let re = Regex::new(r"@file:([^\s:]+)(?::(\d+)-(\d+))?").unwrap();
+    let re = re_at_file();
     for cap in re.captures_iter(content) {
         let rel = &cap[1];
         let line_start: Option<usize> = cap.get(2).and_then(|m| m.as_str().parse().ok());
@@ -803,8 +904,7 @@ async fn resolve_at_references(
     }
 
     // @folder:<path> — embed a listing of all files under the folder
-    let re_folder = Regex::new(r"@folder:(\S+)").unwrap();
-    for cap in re_folder.captures_iter(content) {
+    for cap in re_at_folder().captures_iter(content) {
         let rel = &cap[1];
         let abs_path = if let Some(ref r) = root { r.join(rel) } else { PathBuf::from(rel) };
         let mut folder_ctx = format!("\n### @folder:{}\n", rel);
@@ -848,8 +948,7 @@ async fn resolve_at_references(
     }
 
     // @web:<url> — fetch the URL and embed plain-text content
-    let re_web = Regex::new(r"@web:(https?://\S+)").unwrap();
-    for cap in re_web.captures_iter(content) {
+    for cap in re_at_web().captures_iter(content) {
         let url = &cap[1];
         match fetch_and_strip(url).await {
             Ok(text) => {
@@ -873,8 +972,7 @@ async fn resolve_at_references(
     }
 
     // @symbol:<name> — find the symbol in the codebase via regex-based index
-    let re_sym = Regex::new(r"@symbol:(\S+)").unwrap();
-    for cap in re_sym.captures_iter(content) {
+    for cap in re_at_symbol().captures_iter(content) {
         let query = &cap[1];
         if let Some(ref r) = root {
             let mut idx = vibe_core::index::CodebaseIndex::new(r.clone());
@@ -908,15 +1006,16 @@ async fn resolve_at_references(
     }
 
     // @docs:<name> — fetch library documentation from docs.rs / npmjs.com / pypi.org
-    let re_docs = Regex::new(r"@docs:(\S+)").unwrap();
-    for cap in re_docs.captures_iter(content) {
+    for cap in re_at_docs().captures_iter(content) {
         let name_raw = &cap[1];
-        // Detect registry: rs: prefix → docs.rs, py:→pypi, otherwise npm
+        // Detect registry: rs:→docs.rs, py:/pypi:→PyPI, npm:→npmjs, else→docs.rs
         let (registry, name) = if name_raw.starts_with("rs:") {
             ("rs", name_raw.trim_start_matches("rs:"))
         } else if name_raw.starts_with("py:") || name_raw.starts_with("pypi:") {
             let n = name_raw.splitn(2, ':').nth(1).unwrap_or(name_raw);
             ("py", n)
+        } else if name_raw.starts_with("npm:") {
+            ("npm", name_raw.trim_start_matches("npm:"))
         } else {
             ("rs", name_raw) // default: docs.rs for simple names
         };
@@ -939,30 +1038,116 @@ async fn resolve_at_references(
     }
 
     // @codebase:<query> — semantic search over the workspace embedding index
-    let re_cb = Regex::new(r"@codebase:(\S+)").unwrap();
-    for cap in re_cb.captures_iter(content) {
+    for cap in re_at_codebase().captures_iter(content) {
         let query = &cap[1];
         if let Some(ref r) = root {
-            let index_dir = r.join(".vibeui").join("embeddings");
+            let index_path = r.join(".vibeui").join("embeddings").join("index.json");
             let mut cb_ctx = format!("\n### @codebase:{}\n", query);
-            // Use CodebaseIndex symbol search as a fast fallback when embeddings not built
-            let mut idx = vibe_core::index::CodebaseIndex::new(r.clone());
-            let _ = idx.build();
-            let hits = idx.search_symbols(query);
-            if hits.is_empty() {
-                cb_ctx.push_str("(no relevant code found — run /index to build the embedding index)\n");
-            } else {
-                for sym in hits.iter().take(5) {
-                    let rel = sym.file.strip_prefix(r).unwrap_or(&sym.file);
-                    cb_ctx.push_str(&format!("{}:{} — {}\n", rel.display(), sym.line, sym.name));
+
+            // Try EmbeddingIndex first (semantic); fall back to CodebaseIndex (keyword)
+            let mut used_semantic = false;
+            if index_path.exists() {
+                use vibe_core::index::embeddings::EmbeddingIndex;
+                match EmbeddingIndex::load(&index_path) {
+                    Ok(emb_idx) => {
+                        match emb_idx.search(query, 5).await {
+                            Ok(hits) => {
+                                if hits.is_empty() {
+                                    cb_ctx.push_str("(no semantically relevant code found)\n");
+                                } else {
+                                    for hit in &hits {
+                                        let rel = hit.file.strip_prefix(r).unwrap_or(&hit.file);
+                                        cb_ctx.push_str(&format!(
+                                            "{}:{}-{} (score {:.2})\n{}\n",
+                                            rel.display(),
+                                            hit.chunk_start,
+                                            hit.chunk_end,
+                                            hit.score,
+                                            hit.text.lines().take(4).collect::<Vec<_>>().join("\n")
+                                        ));
+                                    }
+                                }
+                                used_semantic = true;
+                            }
+                            Err(e) => {
+                                eprintln!("[vibeui] @codebase: semantic search error: {e}");
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("[vibeui] @codebase: could not load embedding index: {e}");
+                    }
                 }
             }
-            let _ = index_dir; // reserved for future EmbeddingIndex async search
+
+            if !used_semantic {
+                // Keyword fallback
+                let mut idx = vibe_core::index::CodebaseIndex::new(r.clone());
+                let _ = idx.build();
+                let hits = idx.search_symbols(query);
+                if hits.is_empty() {
+                    cb_ctx.push_str("(no relevant code found — run /index to build the embedding index)\n");
+                } else {
+                    for sym in hits.iter().take(5) {
+                        let rel = sym.file.strip_prefix(r).unwrap_or(&sym.file);
+                        cb_ctx.push_str(&format!("{}:{} — {}\n", rel.display(), sym.line, sym.name));
+                    }
+                }
+            }
+
             extra.push_str(&cb_ctx);
         }
     }
 
+    // ── @github:owner/repo#N ─────────────────────────────────────────────────
+    for cap in re_at_github().captures_iter(content) {
+        let owner = cap[1].to_string();
+        let repo  = cap[2].to_string();
+        let num: u64 = cap[3].parse().unwrap_or(0);
+        if num == 0 { continue; }
+
+        let api_url = format!(
+            "https://api.github.com/repos/{}/{}/issues/{}",
+            owner, repo, num
+        );
+        let gh_token = std::env::var("GITHUB_TOKEN").ok();
+        let mut gh_ctx = format!("\n=== GitHub Issue: {}/{}#{} ===\n", owner, repo, num);
+        match fetch_github_issue(&api_url, gh_token).await {
+            Ok(issue) => {
+                let labels: Vec<&str> = issue.labels.iter().map(|l| l.name.as_str()).collect();
+                gh_ctx.push_str(&format!(
+                    "Title: {}\nState: {} | Author: {} | Labels: {}\n\n{}\n",
+                    issue.title,
+                    issue.state,
+                    issue.user.login,
+                    if labels.is_empty() { "none".to_string() } else { labels.join(", ") },
+                    issue.body.lines().take(30).collect::<Vec<_>>().join("\n"),
+                ));
+            }
+            Err(e) => {
+                gh_ctx.push_str(&format!("(GitHub fetch error: {})\n", e));
+            }
+        }
+        extra.push_str(&gh_ctx);
+    }
+
     extra
+}
+
+async fn fetch_github_issue(url: &str, token: Option<String>) -> Result<GithubIssue, String> {
+    let client = reqwest::Client::new();
+    let mut req = client
+        .get(url)
+        .header("Accept", "application/vnd.github.v3+json")
+        .header("User-Agent", "vibecli/1.0");
+    if let Some(t) = token {
+        req = req.header("Authorization", format!("Bearer {}", t));
+    }
+    req.send().await
+        .map_err(|e| e.to_string())?
+        .json::<GithubIssue>()
+        .await
+        .map_err(|e| e.to_string())
 }
 
 async fn process_tool_calls(response: &str, workspace_lock: &Arc<Mutex<Workspace>>) -> (String, Option<PendingWrite>) {
@@ -970,7 +1155,6 @@ async fn process_tool_calls(response: &str, workspace_lock: &Arc<Mutex<Workspace
     let mut pending_write = None;
     let workspace = workspace_lock.lock().await;
 
-    println!("DEBUG: Processing tool calls in response of length {}", response.len());
 
     // <read_file path="...">
     let read_tag = "<read_file path=\"";
@@ -1301,11 +1485,13 @@ pub async fn start_agent_task(
 
     let (event_tx, mut event_rx) = tokio::sync::mpsc::channel::<AgentEvent>(64);
     let agent_pending = state.agent_pending.clone();
+    let abort_handle_slot = state.agent_abort_handle.clone();
 
-    // Spawn the agent loop
-    tokio::spawn(async move {
+    // Spawn the agent loop and store its abort handle for stop_agent_task
+    let join = tokio::spawn(async move {
         let _ = agent.run(&task, context, event_tx).await;
     });
+    *abort_handle_slot.lock().await = Some(join.abort_handle());
 
     // Bridge agent events → Tauri events
     tokio::spawn(async move {
@@ -1354,6 +1540,29 @@ pub async fn start_agent_task(
 }
 
 /// Respond to an agent tool-call approval prompt.
+/// Abort the currently running agent task (if any).
+/// Emits `agent:error` with "Agent stopped by user" so the frontend can reset its state.
+#[tauri::command]
+pub async fn stop_agent_task(
+    app_handle: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    let handle = {
+        let mut slot = state.agent_abort_handle.lock().await;
+        slot.take()
+    };
+    if let Some(h) = handle {
+        h.abort();
+    }
+    // Clear any pending approval so the UI doesn't stay blocked
+    {
+        let mut slot = state.agent_pending.lock().await;
+        *slot = None;
+    }
+    let _ = app_handle.emit("agent:error", "Agent stopped by user");
+    Ok(())
+}
+
 /// - `approved = true`  → execute the tool and send result to agent
 /// - `approved = false` → reject (agent receives a "rejected" result)
 #[tauri::command]
@@ -1720,7 +1929,7 @@ pub async fn predict_next_edit(
     cursor_line: u32,
     _cursor_col: u32,
     recent_edits: Vec<EditEvent>,
-    _provider: String,
+    provider: String,
 ) -> Result<Option<NextEditPrediction>, String> {
     // Build the prediction prompt
     let mut edit_lines = String::new();
@@ -1763,7 +1972,10 @@ pub async fn predict_next_edit(
         },
     ];
 
-    let engine = state.chat_engine.lock().await;
+    let mut engine = state.chat_engine.lock().await;
+    if !provider.is_empty() {
+        let _ = engine.set_provider_by_name(&provider);
+    }
     let response = engine.chat(&messages, None).await.map_err(|e| e.to_string())?;
     drop(engine);
 
@@ -1840,8 +2052,10 @@ pub async fn inline_edit(
         content: prompt,
     }];
 
-    let _ = provider; // provider selection handled by ChatEngine's active index
-    let chat_engine = state.chat_engine.lock().await;
+    let mut chat_engine = state.chat_engine.lock().await;
+    if !provider.is_empty() {
+        let _ = chat_engine.set_provider_by_name(&provider);
+    }
     chat_engine.chat(&messages, None).await.map_err(|e| e.to_string())
 }
 
@@ -2332,17 +2546,109 @@ pub async fn search_workspace_symbols(
     }).collect())
 }
 
-/// Search the workspace using keyword/symbol matching for semantic-style context.
-/// Returns up to `limit` file snippets relevant to `query`.
+/// Semantic search over the workspace.
+///
+/// 1. If `.vibeui/embeddings/index.json` exists in the workspace root, loads the
+///    `EmbeddingIndex` and performs cosine-similarity search.
+/// 2. Otherwise falls back to fast keyword/symbol search via `CodebaseIndex`.
 #[tauri::command]
 pub async fn semantic_search_codebase(
     query: String,
-    #[allow(unused_variables)]
     limit: Option<usize>,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<SymbolResult>, String> {
-    // Uses CodebaseIndex for now; will delegate to EmbeddingIndex once built.
-    search_workspace_symbols(query, state).await
+    let k = limit.unwrap_or(8).min(20);
+    let root = {
+        let ws = state.workspace.lock().await;
+        ws.folders().first().cloned().ok_or("No workspace folder open")?
+    };
+
+    // ── Try embedding search first ────────────────────────────────────────────
+    let index_path = root.join(".vibeui").join("embeddings").join("index.json");
+    if index_path.exists() {
+        use vibe_core::index::embeddings::EmbeddingIndex;
+        match EmbeddingIndex::load(&index_path) {
+            Ok(idx) => {
+                match idx.search(&query, k).await {
+                    Ok(hits) => {
+                        return Ok(hits.into_iter().map(|h| {
+                            let rel = h.file.strip_prefix(&root).unwrap_or(&h.file)
+                                .to_string_lossy().into_owned();
+                            SymbolResult {
+                                name: h.text.lines().next().unwrap_or("").trim()
+                                    .chars().take(80).collect(),
+                                kind: format!("snippet (score {:.2})", h.score),
+                                file: rel,
+                                line: h.chunk_start,
+                            }
+                        }).collect());
+                    }
+                    Err(e) => {
+                        eprintln!("[vibeui] EmbeddingIndex search failed ({}); falling back to keyword", e);
+                    }
+                }
+            }
+            Err(e) => {
+                eprintln!("[vibeui] Could not load embedding index ({}); falling back to keyword", e);
+            }
+        }
+    }
+
+    // ── Keyword/symbol fallback ───────────────────────────────────────────────
+    let mut idx2 = vibe_core::index::CodebaseIndex::new(root.clone());
+    idx2.build().map_err(|e| e.to_string())?;
+    let hits = idx2.search_symbols(&query);
+    Ok(hits.into_iter().take(k).map(|s| SymbolResult {
+        name: s.name,
+        kind: format!("{:?}", s.kind),
+        file: s.file.strip_prefix(&root).unwrap_or(&s.file).to_string_lossy().into_owned(),
+        line: s.line,
+    }).collect())
+}
+
+/// Build (or rebuild) the workspace embedding index.
+///
+/// Saves to `<workspace>/.vibeui/embeddings/index.json`.
+/// `provider`: `"ollama"` (default) or `"openai"`.
+/// `model`: embedding model name (default `"nomic-embed-text"` for Ollama).
+#[tauri::command]
+pub async fn build_embedding_index(
+    provider: Option<String>,
+    model: Option<String>,
+    state: tauri::State<'_, AppState>,
+) -> Result<String, String> {
+    use vibe_core::index::embeddings::{EmbeddingIndex, EmbeddingProvider};
+
+    let root = {
+        let ws = state.workspace.lock().await;
+        ws.folders().first().cloned().ok_or("No workspace folder open")?
+    };
+
+    let embedding_provider = match provider.as_deref().unwrap_or("ollama") {
+        "openai" => {
+            let key = std::env::var("OPENAI_API_KEY")
+                .map_err(|_| "OPENAI_API_KEY env var not set".to_string())?;
+            EmbeddingProvider::openai(key)
+        }
+        _ => EmbeddingProvider::ollama(
+            model.as_deref().unwrap_or("nomic-embed-text"),
+        ),
+    };
+
+    let idx = EmbeddingIndex::build(&root, &embedding_provider)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let chunk_count = idx.chunk_count();
+    let file_count = idx.file_count();
+
+    let index_path = root.join(".vibeui").join("embeddings").join("index.json");
+    idx.save(&index_path).map_err(|e| e.to_string())?;
+
+    Ok(format!(
+        "Built embedding index: {} files, {} chunks → {}",
+        file_count, chunk_count, index_path.display()
+    ))
 }
 
 // ── @docs context ─────────────────────────────────────────────────────────────
@@ -2971,7 +3277,7 @@ pub async fn shadow_get_lint_result(
 #[tauri::command]
 pub async fn visual_edit_element(
     state: tauri::State<'_, AppState>,
-    workspace_path: String,
+    _workspace_path: String,
     selector: String,
     instruction: String,
     current_html: String,
@@ -3002,7 +3308,7 @@ pub async fn visual_edit_element(
 #[tauri::command]
 pub async fn generate_component(
     state: tauri::State<'_, AppState>,
-    workspace_path: String,
+    _workspace_path: String,
     description: String,
     provider: String,
 ) -> Result<String, String> {
@@ -3164,6 +3470,7 @@ pub async fn detect_deploy_target(workspace: String) -> Result<DeployTarget, Str
     let scripts = pkg["scripts"].as_object();
     let deps = pkg["dependencies"].as_object();
 
+    let ws = std::path::Path::new(&workspace);
     let (framework, build_cmd, out_dir) = if deps.map(|d| d.contains_key("next")).unwrap_or(false) {
         ("Next.js", "npm run build", ".next")
     } else if deps.map(|d| d.contains_key("@remix-run/react")).unwrap_or(false) {
@@ -3172,7 +3479,11 @@ pub async fn detect_deploy_target(workspace: String) -> Result<DeployTarget, Str
         ("SvelteKit", "npm run build", ".svelte-kit")
     } else if scripts.map(|s| s.contains_key("build")).unwrap_or(false) {
         ("Vite/React", "npm run build", "dist")
-    } else if std::path::Path::new(&workspace).join("Cargo.toml").exists() {
+    } else if ws.join("firebase.json").exists() {
+        ("Firebase", "npm run build 2>/dev/null || true", "public")
+    } else if ws.join("app.yaml").exists() || ws.join("Dockerfile").exists() {
+        ("GCP Cloud Run", "echo 'Deploying from source'", ".")
+    } else if ws.join("Cargo.toml").exists() {
         ("Rust/WASM", "cargo build --release", "target/release")
     } else {
         ("Static", "echo 'Nothing to build'", ".")
@@ -3200,6 +3511,8 @@ pub async fn run_deploy(
         "netlify" => "netlify deploy --prod --dir=dist",
         "railway" => "railway up",
         "github-pages" => "npm run build && npx gh-pages -d dist",
+        "gcp-run" => "gcloud run deploy --source . --platform=managed --region=us-central1 --allow-unauthenticated",
+        "firebase" => "firebase deploy --only hosting",
         _ => return Err(format!("Unknown deploy target: {}", target)),
     };
 
@@ -3220,12 +3533,19 @@ pub async fn run_deploy(
         let _ = app_handle.emit("deploy:log", line.to_string());
     }
 
-    // Try to extract URL from output
+    // Try to extract URL from output.
+    // Firebase prints "Hosting URL: https://…"; Cloud Run prints "Service URL: https://…";
+    // other tools print the URL inline.
     let url = stdout.lines().chain(stderr.lines())
-        .find(|line| line.contains("https://") || line.contains("http://"))
+        .find(|line| {
+            line.contains("https://")
+                || line.to_lowercase().contains("hosting url")
+                || line.to_lowercase().contains("service url")
+        })
         .and_then(|line| {
+            // Prefer the token that starts with https://
             line.split_whitespace()
-                .find(|w| w.starts_with("https://") || w.starts_with("http://"))
+                .find(|w| w.starts_with("https://"))
         })
         .map(|s| s.trim_end_matches([',', '.', '"']).to_string());
 
@@ -3463,6 +3783,415 @@ pub async fn generate_migration(
     engine.chat(&messages, None).await.map_err(|e| e.to_string())
 }
 
+// ── Supabase commands (Phase 26) ──────────────────────────────────────────────
+
+#[derive(serde::Serialize, serde::Deserialize, Default)]
+pub struct SupabaseConfig {
+    pub url: String,
+    pub anon_key: String,
+}
+
+#[tauri::command]
+pub async fn get_supabase_config(workspace_path: String) -> Result<SupabaseConfig, String> {
+    let path = std::path::PathBuf::from(&workspace_path).join(".vibeui").join("supabase.json");
+    if path.exists() {
+        let text = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+        serde_json::from_str(&text).map_err(|e| e.to_string())
+    } else {
+        Ok(SupabaseConfig::default())
+    }
+}
+
+#[tauri::command]
+pub async fn save_supabase_config(workspace_path: String, url: String, anon_key: String) -> Result<(), String> {
+    let dir = std::path::PathBuf::from(&workspace_path).join(".vibeui");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let cfg = SupabaseConfig { url, anon_key };
+    std::fs::write(dir.join("supabase.json"), serde_json::to_string_pretty(&cfg).unwrap())
+        .map_err(|e| e.to_string())
+}
+
+/// List Supabase tables via the PostgREST introspection endpoint.
+#[tauri::command]
+pub async fn list_supabase_tables(url: String, anon_key: String) -> Result<Vec<TableInfo>, String> {
+    // Query pg_tables via RPC or the /rest/v1/ endpoint
+    let client = reqwest::Client::new();
+    let endpoint = format!("{}/rest/v1/", url.trim_end_matches('/'));
+    let resp = client.get(&endpoint)
+        .header("apikey", &anon_key)
+        .header("Authorization", format!("Bearer {}", anon_key))
+        .send().await.map_err(|e| e.to_string())?;
+
+    if !resp.status().is_success() {
+        return Err(format!("Supabase error {}: {}", resp.status(), resp.text().await.unwrap_or_default()));
+    }
+
+    // The root endpoint returns OpenAPI JSON with definitions for each table
+    let json: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
+    let mut tables = Vec::new();
+    if let Some(defs) = json.get("definitions").and_then(|d| d.as_object()) {
+        for name in defs.keys() {
+            tables.push(TableInfo { name: name.clone(), row_count: 0, columns: vec![] });
+        }
+    }
+    // Sort alphabetically
+    tables.sort_by(|a, b| a.name.cmp(&b.name));
+    Ok(tables)
+}
+
+#[derive(serde::Serialize)]
+pub struct SupabaseQueryResult {
+    pub columns: Vec<String>,
+    pub rows: Vec<Vec<String>>,
+    pub error: Option<String>,
+}
+
+/// Run a SELECT query via Supabase PostgREST (table-based URL) or RPC.
+#[tauri::command]
+pub async fn query_supabase(url: String, anon_key: String, sql: String) -> Result<SupabaseQueryResult, String> {
+    // Extract table name and WHERE clause from simple SELECT * FROM <table> LIMIT <n>
+    let sql_lower = sql.trim().to_lowercase();
+    if sql_lower.starts_with("select") {
+        if let Some(from_idx) = sql_lower.find(" from ") {
+            let after_from = sql[from_idx + 6..].trim();
+            let table = after_from.split_whitespace().next()
+                .unwrap_or("").trim_matches('"');
+            let limit = if sql_lower.contains("limit") {
+                sql_lower.split("limit").nth(1)
+                    .and_then(|s| s.trim().split_whitespace().next())
+                    .and_then(|n| n.parse::<u32>().ok())
+                    .unwrap_or(50)
+            } else { 50 };
+
+            let client = reqwest::Client::new();
+            let endpoint = format!("{}/rest/v1/{}", url.trim_end_matches('/'), table);
+            let resp = client.get(&endpoint)
+                .header("apikey", &anon_key)
+                .header("Authorization", format!("Bearer {}", anon_key))
+                .header("Prefer", "count=estimated")
+                .query(&[("limit", limit.to_string())])
+                .send().await.map_err(|e| e.to_string())?;
+
+            if !resp.status().is_success() {
+                let body = resp.text().await.unwrap_or_default();
+                return Ok(SupabaseQueryResult { columns: vec![], rows: vec![], error: Some(body) });
+            }
+
+            let rows_json: Vec<serde_json::Value> = resp.json().await.map_err(|e| e.to_string())?;
+            if rows_json.is_empty() {
+                return Ok(SupabaseQueryResult { columns: vec![], rows: vec![], error: None });
+            }
+            let columns: Vec<String> = rows_json[0].as_object()
+                .map(|o| o.keys().cloned().collect())
+                .unwrap_or_default();
+            let rows: Vec<Vec<String>> = rows_json.iter().map(|row| {
+                columns.iter().map(|col| {
+                    row.get(col).map(|v| match v {
+                        serde_json::Value::Null => "NULL".to_string(),
+                        serde_json::Value::String(s) => s.clone(),
+                        other => other.to_string(),
+                    }).unwrap_or_default()
+                }).collect()
+            }).collect();
+            return Ok(SupabaseQueryResult { columns, rows, error: None });
+        }
+    }
+    Ok(SupabaseQueryResult { columns: vec![], rows: vec![], error: Some("Only SELECT ... FROM <table> queries are supported via PostgREST".to_string()) })
+}
+
+#[tauri::command]
+pub async fn generate_supabase_query(
+    state: tauri::State<'_, AppState>,
+    workspace_path: String,
+    provider: String,
+    description: String,
+    tables: Vec<String>,
+) -> Result<String, String> {
+    use vibe_ai::provider::{Message, MessageRole};
+    let _ = workspace_path;
+    let tables_list = tables.join(", ");
+    let prompt = format!(
+        "Generate a PostgreSQL SELECT query for a Supabase database.\n\
+        Available tables: {tables_list}\n\
+        Request: {description}\n\n\
+        Return ONLY the SQL query, no explanation, no markdown fences."
+    );
+    let messages = vec![Message { role: MessageRole::User, content: prompt }];
+    let mut engine = state.chat_engine.lock().await;
+    if !provider.is_empty() { let _ = engine.set_provider_by_name(&provider); }
+    engine.chat(&messages, None).await.map_err(|e| e.to_string())
+}
+
+// ── Auth scaffolding commands (Phase 26) ──────────────────────────────────────
+
+#[tauri::command]
+pub async fn generate_auth_scaffold(
+    state: tauri::State<'_, AppState>,
+    workspace_path: String,
+    provider: String,
+    auth_provider: String,
+    framework: String,
+    include_middleware: bool,
+    include_tests: bool,
+) -> Result<String, String> {
+    use vibe_ai::provider::{Message, MessageRole};
+    let _ = workspace_path;
+
+    let middleware_note = if include_middleware { "Include auth middleware/guard." } else { "" };
+    let tests_note = if include_tests { "Include unit tests." } else { "" };
+
+    let prompt = format!(
+        "Generate complete authentication code for the following setup:\n\
+        - Auth provider: {auth_provider}\n\
+        - Framework: {framework}\n\
+        - {middleware_note}\n\
+        - {tests_note}\n\n\
+        Include:\n\
+        1. Login / callback / logout route handlers\n\
+        2. Session/token management utilities\n\
+        3. Environment variable documentation (comment at top)\n\
+        {middleware_note}\n\
+        {tests_note}\n\n\
+        Format as a single file with clear section comments. No markdown fences."
+    );
+
+    let messages = vec![Message { role: MessageRole::User, content: prompt }];
+    let mut engine = state.chat_engine.lock().await;
+    if !provider.is_empty() { let _ = engine.set_provider_by_name(&provider); }
+    engine.chat(&messages, None).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn write_auth_scaffold(
+    workspace_path: String,
+    target_path: String,
+    code: String,
+    framework: String,
+) -> Result<(), String> {
+    let workspace_root = std::fs::canonicalize(&workspace_path)
+        .map_err(|e| format!("Invalid workspace path: {}", e))?;
+    let dir = workspace_root.join(&target_path);
+    // Prevent path traversal: ensure the destination stays inside the workspace
+    let canonical_dir = dir.to_str()
+        .map(|s| std::path::PathBuf::from(s))
+        .unwrap_or(dir.clone());
+    // Resolve without requiring it to exist yet — strip ".." components
+    let mut resolved = std::path::PathBuf::new();
+    for component in canonical_dir.components() {
+        match component {
+            std::path::Component::ParentDir => { resolved.pop(); }
+            std::path::Component::CurDir => {}
+            c => resolved.push(c),
+        }
+    }
+    if !resolved.starts_with(&workspace_root) {
+        return Err("target_path must be inside the workspace".to_string());
+    }
+    std::fs::create_dir_all(&resolved).map_err(|e| e.to_string())?;
+    let dir = resolved;
+
+    let ext = match framework.as_str() {
+        "fastapi" => "py",
+        "axum" => "rs",
+        _ => "ts",
+    };
+    let file_name = format!("auth.{}", ext);
+    std::fs::write(dir.join(&file_name), &code).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+// ── GitHub Sync commands (Phase 26) ───────────────────────────────────────────
+
+#[derive(serde::Serialize)]
+pub struct GitHubSyncStatus {
+    pub repo_url: Option<String>,
+    pub branch: String,
+    pub ahead: usize,
+    pub behind: usize,
+    pub has_remote: bool,
+    pub last_synced: Option<String>,
+}
+
+fn load_github_token(workspace_path: &str) -> Option<String> {
+    // Check env first, then workspace .vibeui/github_token
+    if let Ok(t) = std::env::var("GITHUB_TOKEN") {
+        return Some(t);
+    }
+    let path = std::path::PathBuf::from(workspace_path).join(".vibeui").join("github_token");
+    std::fs::read_to_string(path).ok().map(|s| s.trim().to_string())
+}
+
+#[tauri::command]
+pub async fn has_github_token(workspace_path: String) -> Result<bool, String> {
+    Ok(load_github_token(&workspace_path).is_some())
+}
+
+#[tauri::command]
+pub async fn save_github_token(workspace_path: String, token: String) -> Result<(), String> {
+    let dir = std::path::PathBuf::from(&workspace_path).join(".vibeui");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    std::fs::write(dir.join("github_token"), token.trim()).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn get_github_sync_status(workspace_path: String) -> Result<GitHubSyncStatus, String> {
+    use vibe_core::git;
+    let ws = std::path::PathBuf::from(&workspace_path);
+    if !git::is_git_repo(&ws) {
+        return Ok(GitHubSyncStatus { repo_url: None, branch: "main".to_string(), ahead: 0, behind: 0, has_remote: false, last_synced: None });
+    }
+    let branch = git::get_current_branch(&ws).unwrap_or_else(|_| "main".to_string());
+
+    // Get remote URL via git command
+    let remote_output = std::process::Command::new("git")
+        .args(["-C", &workspace_path, "remote", "get-url", "origin"])
+        .output().ok();
+    let repo_url = remote_output
+        .filter(|o| o.status.success())
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .map(|s| s.trim().to_string());
+
+    // ahead/behind via git rev-list
+    let ahead_output = std::process::Command::new("git")
+        .args(["-C", &workspace_path, "rev-list", "--count", "@{u}..HEAD"])
+        .output().ok();
+    let ahead = ahead_output
+        .filter(|o| o.status.success())
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .and_then(|s| s.trim().parse::<usize>().ok())
+        .unwrap_or(0);
+
+    let behind_output = std::process::Command::new("git")
+        .args(["-C", &workspace_path, "rev-list", "--count", "HEAD..@{u}"])
+        .output().ok();
+    let behind = behind_output
+        .filter(|o| o.status.success())
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .and_then(|s| s.trim().parse::<usize>().ok())
+        .unwrap_or(0);
+
+    Ok(GitHubSyncStatus {
+        has_remote: repo_url.is_some(),
+        repo_url,
+        branch,
+        ahead,
+        behind,
+        last_synced: None,
+    })
+}
+
+#[tauri::command]
+pub async fn github_sync_push(workspace_path: String, commit_message: String) -> Result<(), String> {
+    // git add -A && git commit -m ... && git push
+    let status = std::process::Command::new("git")
+        .args(["-C", &workspace_path, "add", "-A"])
+        .status().map_err(|e| e.to_string())?;
+    if !status.success() { return Err("git add failed".to_string()); }
+
+    let status = std::process::Command::new("git")
+        .args(["-C", &workspace_path, "commit", "-m", &commit_message])
+        .status().map_err(|e| e.to_string())?;
+    if !status.success() { return Err("git commit failed (nothing to commit?)".to_string()); }
+
+    let out = std::process::Command::new("git")
+        .args(["-C", &workspace_path, "push"])
+        .output().map_err(|e| e.to_string())?;
+    if !out.status.success() {
+        return Err(String::from_utf8_lossy(&out.stderr).to_string());
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn github_sync_pull(workspace_path: String) -> Result<(), String> {
+    let out = std::process::Command::new("git")
+        .args(["-C", &workspace_path, "pull", "--ff-only"])
+        .output().map_err(|e| e.to_string())?;
+    if !out.status.success() {
+        return Err(String::from_utf8_lossy(&out.stderr).to_string());
+    }
+    Ok(())
+}
+
+#[derive(serde::Serialize)]
+pub struct RepoInfo {
+    pub name: String,
+    pub full_name: String,
+    pub private: bool,
+    pub default_branch: String,
+    pub url: String,
+}
+
+#[tauri::command]
+pub async fn list_github_repos(workspace_path: String) -> Result<Vec<RepoInfo>, String> {
+    let token = load_github_token(&workspace_path)
+        .ok_or("GITHUB_TOKEN not set")?;
+    let client = reqwest::Client::new();
+    let resp = client.get("https://api.github.com/user/repos?per_page=50&sort=updated")
+        .header("Authorization", format!("Bearer {}", token))
+        .header("Accept", "application/vnd.github+json")
+        .header("User-Agent", "vibeui/0.1")
+        .send().await.map_err(|e| e.to_string())?;
+
+    if !resp.status().is_success() {
+        return Err(format!("GitHub API error {}: {}", resp.status(), resp.text().await.unwrap_or_default()));
+    }
+
+    let json: Vec<serde_json::Value> = resp.json().await.map_err(|e| e.to_string())?;
+    Ok(json.iter().filter_map(|r| {
+        Some(RepoInfo {
+            name: r["name"].as_str()?.to_string(),
+            full_name: r["full_name"].as_str()?.to_string(),
+            private: r["private"].as_bool().unwrap_or(false),
+            default_branch: r["default_branch"].as_str().unwrap_or("main").to_string(),
+            url: r["html_url"].as_str()?.to_string(),
+        })
+    }).collect())
+}
+
+#[tauri::command]
+pub async fn github_create_repo(
+    workspace_path: String,
+    name: String,
+    #[allow(non_snake_case)]
+    private: bool,
+) -> Result<String, String> {
+    let token = load_github_token(&workspace_path)
+        .ok_or("GITHUB_TOKEN not set")?;
+    let client = reqwest::Client::new();
+    let body = serde_json::json!({ "name": name, "private": private, "auto_init": false });
+    let resp = client.post("https://api.github.com/user/repos")
+        .header("Authorization", format!("Bearer {}", token))
+        .header("Accept", "application/vnd.github+json")
+        .header("User-Agent", "vibeui/0.1")
+        .json(&body)
+        .send().await.map_err(|e| e.to_string())?;
+
+    if !resp.status().is_success() {
+        return Err(format!("GitHub API error {}: {}", resp.status(), resp.text().await.unwrap_or_default()));
+    }
+
+    let json: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
+    let clone_url = json["clone_url"].as_str().ok_or("No clone_url in response")?.to_string();
+    let html_url = json["html_url"].as_str().unwrap_or(&clone_url).to_string();
+
+    // Add remote and push
+    std::process::Command::new("git")
+        .args(["-C", &workspace_path, "remote", "add", "origin", &clone_url])
+        .status().map_err(|e| e.to_string())?;
+
+    let out = std::process::Command::new("git")
+        .args(["-C", &workspace_path, "push", "-u", "origin", "HEAD"])
+        .output().map_err(|e| e.to_string())?;
+    if !out.status.success() {
+        let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+        // Don't fail on push errors (workspace might be empty)
+        eprintln!("git push warning: {}", stderr);
+    }
+
+    Ok(html_url)
+}
+
 fn extract_json(text: &str) -> String {
     // Strip ```json ... ``` fences if present
     let trimmed = text.trim();
@@ -3479,6 +4208,486 @@ fn extract_json(text: &str) -> String {
         }
     }
     trimmed.to_string()
+}
+
+// ── Auto-Memories ─────────────────────────────────────────────────────────────
+//
+// Auto-extracted facts from agent sessions, stored at `~/.vibeui/auto-memory.json`.
+// Each fact has an id, text, confidence score, tags, and a pinned flag.
+// The VibeUI "Auto-Facts" panel reads/writes this store.
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MemoryFact {
+    pub id: String,
+    pub fact: String,
+    #[serde(default = "default_fact_confidence")]
+    pub confidence: f32,
+    #[serde(default)]
+    pub tags: Vec<String>,
+    #[serde(default)]
+    pub pinned: bool,
+    #[serde(default)]
+    pub session_id: Option<String>,
+}
+
+fn default_fact_confidence() -> f32 { 0.7 }
+
+fn auto_memory_path() -> std::path::PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    std::path::PathBuf::from(home).join(".vibeui").join("auto-memory.json")
+}
+
+fn load_auto_memories() -> Vec<MemoryFact> {
+    std::fs::read_to_string(auto_memory_path())
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_default()
+}
+
+fn save_auto_memories(facts: &[MemoryFact]) -> Result<(), String> {
+    let path = auto_memory_path();
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    std::fs::write(&path, serde_json::to_string_pretty(facts).map_err(|e| e.to_string())?)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn get_auto_memories() -> Result<Vec<MemoryFact>, String> {
+    Ok(load_auto_memories())
+}
+
+#[tauri::command]
+pub async fn delete_auto_memory(id: String) -> Result<bool, String> {
+    let mut facts = load_auto_memories();
+    let before = facts.len();
+    facts.retain(|f| f.id != id);
+    if facts.len() < before {
+        save_auto_memories(&facts)?;
+        Ok(true)
+    } else {
+        Ok(false)
+    }
+}
+
+#[tauri::command]
+pub async fn pin_auto_memory(id: String, pinned: bool) -> Result<bool, String> {
+    let mut facts = load_auto_memories();
+    if let Some(f) = facts.iter_mut().find(|f| f.id == id) {
+        f.pinned = pinned;
+        save_auto_memories(&facts)?;
+        Ok(true)
+    } else {
+        Ok(false)
+    }
+}
+
+/// Manually append a fact to the auto-memory store (for VibeUI "Add Fact" UI).
+#[tauri::command]
+pub async fn add_auto_memory(fact: String, tags: Vec<String>) -> Result<MemoryFact, String> {
+    let id = {
+        let ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis();
+        format!("{:x}", ms)
+    };
+    let new_fact = MemoryFact {
+        id: id.clone(),
+        fact: fact.clone(),
+        confidence: 1.0, // manually added = certain
+        tags,
+        pinned: true,
+        session_id: None,
+    };
+    let mut facts = load_auto_memories();
+    facts.push(new_fact.clone());
+    save_auto_memories(&facts)?;
+    Ok(new_fact)
+}
+
+// ── BugBot ────────────────────────────────────────────────────────────────────
+//
+// AI-powered automated code scanner. Analyzes the workspace for bugs, security
+// issues, and code smells. Returns structured reports with severity and fixes.
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BugReport {
+    pub id: String,
+    pub severity: String,    // "critical" | "high" | "medium" | "low" | "info"
+    pub category: String,    // "security" | "bug" | "perf" | "style" | "smell"
+    pub title: String,
+    pub description: String,
+    pub file_path: Option<String>,
+    pub line_hint: Option<u32>,
+    pub suggestion: String,
+    pub fix_snippet: Option<String>,
+}
+
+#[tauri::command]
+pub async fn run_bugbot(
+    workspace_path: String,
+    scan_scope: String, // "workspace" | "file:<path>"
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<BugReport>, String> {
+    // Collect files to scan
+    let root = std::path::PathBuf::from(&workspace_path);
+    let mut code_snippets: Vec<(String, String)> = Vec::new(); // (path, snippet)
+
+    let target_file = if scan_scope.starts_with("file:") {
+        Some(scan_scope.strip_prefix("file:").unwrap_or("").to_string())
+    } else {
+        None
+    };
+
+    let files_to_scan: Vec<std::path::PathBuf> = if let Some(ref file) = target_file {
+        vec![root.join(file)]
+    } else {
+        // Scan common code files (limit to 20 files for performance)
+        walkdir::WalkDir::new(&root)
+            .max_depth(4)
+            .into_iter()
+            .filter_map(|e| e.ok())
+            .filter(|e| {
+                e.file_type().is_file() && matches!(
+                    e.path().extension().and_then(|x| x.to_str()),
+                    Some("rs" | "ts" | "tsx" | "js" | "jsx" | "py" | "go")
+                ) && !e.path().to_string_lossy().contains("/target/")
+                  && !e.path().to_string_lossy().contains("/node_modules/")
+            })
+            .map(|e| e.into_path())
+            .take(20)
+            .collect()
+    };
+
+    for path in files_to_scan {
+        if let Ok(content) = std::fs::read_to_string(&path) {
+            let rel = path.strip_prefix(&root).unwrap_or(&path);
+            // Only take first 150 lines per file
+            let snippet: String = content.lines().take(150).collect::<Vec<_>>().join("\n");
+            code_snippets.push((rel.to_string_lossy().to_string(), snippet));
+        }
+    }
+
+    if code_snippets.is_empty() {
+        return Ok(vec![]);
+    }
+
+    // Build prompt
+    let files_text: String = code_snippets.iter()
+        .map(|(path, code)| format!("=== {} ===\n{}", path, code))
+        .collect::<Vec<_>>()
+        .join("\n\n");
+
+    let prompt = format!(
+        r#"You are a code security and quality scanner. Analyze the following code and identify bugs, security vulnerabilities, performance issues, and code smells.
+
+Return ONLY a valid JSON array (no markdown, no explanation):
+[
+  {{
+    "severity": "critical|high|medium|low|info",
+    "category": "security|bug|perf|style|smell",
+    "title": "Short issue title",
+    "description": "What the problem is and why it matters",
+    "file_path": "relative/path/to/file.rs",
+    "line_hint": null,
+    "suggestion": "How to fix it",
+    "fix_snippet": null
+  }}
+]
+
+Severity guide: critical=data loss/RCE/auth bypass, high=serious bug, medium=likely bug, low=code smell, info=suggestion.
+Return 3–8 issues maximum. Focus on real problems, not style preferences.
+
+Code to analyze:
+{}
+"#,
+        files_text
+    );
+
+    let messages = vec![Message { role: vibe_ai::MessageRole::User, content: prompt }];
+
+    let engine = state.chat_engine.lock().await;
+    let raw_response = engine.chat(&messages, None).await.map_err(|e| e.to_string())?;
+    drop(engine);
+
+    // Parse JSON from response
+    let json_start = raw_response.find('[').unwrap_or(0);
+    let json_end = raw_response.rfind(']').map(|i| i + 1).unwrap_or(raw_response.len());
+    let json_str = &raw_response[json_start..json_end];
+
+    #[derive(Deserialize)]
+    struct RawReport {
+        severity: String,
+        category: String,
+        title: String,
+        description: String,
+        file_path: Option<String>,
+        line_hint: Option<u32>,
+        suggestion: String,
+        fix_snippet: Option<String>,
+    }
+
+    let raw: Vec<RawReport> = serde_json::from_str(json_str).map_err(|e| format!("Parse error: {e}"))?;
+
+    let mut reports: Vec<BugReport> = raw.into_iter().enumerate().map(|(i, r)| BugReport {
+        id: format!("bug-{}", i),
+        severity: r.severity,
+        category: r.category,
+        title: r.title,
+        description: r.description,
+        file_path: r.file_path,
+        line_hint: r.line_hint,
+        suggestion: r.suggestion,
+        fix_snippet: r.fix_snippet,
+    }).collect();
+
+    // Sort by severity
+    let sev_order = |s: &str| match s { "critical" => 0, "high" => 1, "medium" => 2, "low" => 3, _ => 4 };
+    reports.sort_by_key(|r| sev_order(&r.severity));
+
+    Ok(reports)
+}
+
+// ── Steering Files ─────────────────────────────────────────────────────────────
+//
+// Steering files live in `<workspace>/.vibecli/steering/` (workspace scope) or
+// `~/.vibecli/steering/` (global scope). They are Markdown files that inject
+// project-wide context at the top of every agent system prompt — no path gating.
+// Format mirrors rule files: optional YAML front-matter + body.
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SteeringFileMeta {
+    pub filename: String,
+    pub name: String,
+    /// Optional scope label (scope field from front-matter, e.g. "project" or "global")
+    pub scope_label: Option<String>,
+}
+
+fn steering_dir(scope: &str, workspace_root: Option<&std::path::Path>) -> std::path::PathBuf {
+    if scope == "global" {
+        let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+        std::path::PathBuf::from(home).join(".vibecli").join("steering")
+    } else {
+        workspace_root
+            .map(|r| r.join(".vibecli").join("steering"))
+            .unwrap_or_else(|| std::path::PathBuf::from(".vibecli").join("steering"))
+    }
+}
+
+fn parse_steering_meta(content: &str, filename: &str) -> SteeringFileMeta {
+    let name_default = std::path::Path::new(filename)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("steering")
+        .to_string();
+
+    if content.starts_with("---") {
+        let after = &content[3..];
+        let after = after.trim_start_matches('\n');
+        if let Some(close_pos) = after.find("\n---") {
+            let fm = &after[..close_pos];
+            let mut name: Option<String> = None;
+            let mut scope_label: Option<String> = None;
+            for line in fm.lines() {
+                if let Some((k, v)) = line.split_once(':') {
+                    let val = v.trim().trim_matches('"').trim_matches('\'').to_string();
+                    match k.trim() {
+                        "name" => name = Some(val),
+                        "scope" => scope_label = Some(val),
+                        _ => {}
+                    }
+                }
+            }
+            return SteeringFileMeta {
+                filename: filename.to_string(),
+                name: name.unwrap_or(name_default),
+                scope_label,
+            };
+        }
+    }
+    SteeringFileMeta { filename: filename.to_string(), name: name_default, scope_label: None }
+}
+
+#[tauri::command]
+pub async fn get_steering_files(
+    scope: String,
+    workspace_root: Option<String>,
+) -> Result<Vec<serde_json::Value>, String> {
+    let root = workspace_root.as_deref().map(std::path::Path::new);
+    let dir = steering_dir(&scope, root);
+    if !dir.is_dir() {
+        return Ok(vec![]);
+    }
+    let mut result = Vec::new();
+    let entries = std::fs::read_dir(&dir).map_err(|e| e.to_string())?;
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.extension().and_then(|e| e.to_str()) == Some("md") {
+            let filename = path.file_name().and_then(|n| n.to_str()).unwrap_or("").to_string();
+            let content = std::fs::read_to_string(&path).unwrap_or_default();
+            let meta = parse_steering_meta(&content, &filename);
+            result.push(serde_json::json!({
+                "filename": meta.filename,
+                "name": meta.name,
+                "scope_label": meta.scope_label,
+                "content": content,
+            }));
+        }
+    }
+    result.sort_by(|a, b| a["name"].as_str().cmp(&b["name"].as_str()));
+    Ok(result)
+}
+
+#[tauri::command]
+pub async fn save_steering_file(
+    scope: String,
+    workspace_root: Option<String>,
+    filename: String,
+    content: String,
+) -> Result<(), String> {
+    let root = workspace_root.as_deref().map(std::path::Path::new);
+    let dir = steering_dir(&scope, root);
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    // Sanitize filename
+    let safe = filename.replace(['/', '\\', '\0'], "_");
+    let fname = if safe.ends_with(".md") { safe } else { format!("{}.md", safe) };
+    std::fs::write(dir.join(&fname), &content).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn delete_steering_file(
+    scope: String,
+    workspace_root: Option<String>,
+    filename: String,
+) -> Result<(), String> {
+    let root = workspace_root.as_deref().map(std::path::Path::new);
+    let dir = steering_dir(&scope, root);
+    let path = dir.join(&filename);
+    if path.exists() {
+        std::fs::remove_file(&path).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+// ── Agent Browser Actions ─────────────────────────────────────────────────────
+//
+// Provides headless browser-like actions that the agent can invoke:
+//   Navigate  — fetch a URL, return stripped text content
+//   GetText   — same as Navigate (alias for "read the page text")
+//   Screenshot — capture a region of the screen to a temp PNG, return path
+//   WaitFor   — sleep N milliseconds (useful between actions)
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(tag = "action", rename_all = "snake_case")]
+pub enum BrowserAction {
+    Navigate { url: String },
+    GetText   { url: String },
+    Screenshot { x: Option<i32>, y: Option<i32>, width: Option<i32>, height: Option<i32> },
+    WaitFor   { ms: u64 },
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct BrowserActionResult {
+    pub success: bool,
+    pub output: String,
+}
+
+/// Strip HTML tags and collapse whitespace.  Returns at most `max_chars`.
+fn strip_html(raw: &str, max_chars: usize) -> String {
+    let no_tags = re_html_tag().replace_all(raw, " ");
+    let decoded = no_tags
+        .replace("&amp;", "&")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", "\"")
+        .replace("&#39;", "'")
+        .replace("&nbsp;", " ");
+    let collapsed = re_whitespace().replace_all(&decoded, " ");
+    collapsed.trim().chars().take(max_chars).collect()
+}
+
+#[tauri::command]
+pub async fn agent_browser_action(action: BrowserAction) -> Result<BrowserActionResult, String> {
+    match action {
+        BrowserAction::Navigate { url } | BrowserAction::GetText { url } => {
+            let client = reqwest::Client::builder()
+                .user_agent("VibeCLI/1.0")
+                .timeout(std::time::Duration::from_secs(15))
+                .build()
+                .map_err(|e| e.to_string())?;
+
+            let resp = client.get(&url).send().await.map_err(|e| e.to_string())?;
+            if !resp.status().is_success() {
+                return Ok(BrowserActionResult {
+                    success: false,
+                    output: format!("HTTP {}: {}", resp.status().as_u16(), url),
+                });
+            }
+            let body = resp.text().await.map_err(|e| e.to_string())?;
+            let text = strip_html(&body, 8000);
+            Ok(BrowserActionResult {
+                success: true,
+                output: format!("=== {} ===\n{}", url, text),
+            })
+        }
+
+        BrowserAction::Screenshot { x, y, width, height } => {
+            // Create a temp file for the screenshot
+            let tmp = std::env::temp_dir().join(format!(
+                "vibecli-screenshot-{}.png",
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_millis()
+            ));
+
+            // Build screencapture command (macOS) or scrot (Linux)
+            #[cfg(target_os = "macos")]
+            let result = {
+                let mut cmd = std::process::Command::new("screencapture");
+                cmd.arg("-x"); // no sound
+                if let (Some(rx), Some(ry), Some(rw), Some(rh)) = (x, y, width, height) {
+                    cmd.arg("-R").arg(format!("{},{},{},{}", rx, ry, rw, rh));
+                }
+                cmd.arg(tmp.to_str().unwrap_or("shot.png")).output()
+            };
+
+            #[cfg(not(target_os = "macos"))]
+            let result = {
+                let mut cmd = std::process::Command::new("scrot");
+                if let (Some(rx), Some(ry), Some(rw), Some(rh)) = (x, y, width, height) {
+                    cmd.arg("-a").arg(format!("{},{},{},{}", rx, ry, rw, rh));
+                }
+                cmd.arg(tmp.to_str().unwrap_or("shot.png")).output()
+            };
+
+            match result {
+                Ok(out) if out.status.success() => Ok(BrowserActionResult {
+                    success: true,
+                    output: tmp.to_string_lossy().to_string(),
+                }),
+                Ok(out) => Ok(BrowserActionResult {
+                    success: false,
+                    output: String::from_utf8_lossy(&out.stderr).to_string(),
+                }),
+                Err(e) => Ok(BrowserActionResult {
+                    success: false,
+                    output: format!("Screenshot tool not available: {}", e),
+                }),
+            }
+        }
+
+        BrowserAction::WaitFor { ms } => {
+            let clamped = ms.min(30_000); // max 30 s
+            tokio::time::sleep(tokio::time::Duration::from_millis(clamped)).await;
+            Ok(BrowserActionResult {
+                success: true,
+                output: format!("Waited {}ms", clamped),
+            })
+        }
+    }
 }
 
 // ── Unit tests ────────────────────────────────────────────────────────────────

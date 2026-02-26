@@ -1,5 +1,7 @@
 import { useState, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { useToast } from '../hooks/useToast';
+import { Toaster } from './Toaster';
 
 const QUICK_LAUNCH = [
     { label: 'localhost:3000', url: 'http://localhost:3000' },
@@ -9,6 +11,7 @@ const QUICK_LAUNCH = [
 ];
 
 export function BrowserPanel() {
+    const { toasts, toast, dismiss } = useToast();
     const [urlInput, setUrlInput] = useState('http://localhost:3000');
     const [iframeSrc, setIframeSrc] = useState('');
     const [history, setHistory] = useState<string[]>([]);
@@ -58,7 +61,7 @@ export function BrowserPanel() {
         try {
             await invoke('open_external_url', { url: urlInput });
         } catch (e) {
-            console.error('Failed to open external URL:', e);
+            toast.error(`Failed to open external URL: ${e}`);
         }
     };
 
@@ -151,6 +154,7 @@ export function BrowserPanel() {
                     </div>
                 )}
             </div>
+            <Toaster toasts={toasts} onDismiss={dismiss} />
         </div>
     );
 }

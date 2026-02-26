@@ -3,6 +3,12 @@ use serde::{Deserialize, Serialize};
 use walkdir::WalkDir;
 use regex::RegexBuilder;
 use std::fs;
+use std::io::{BufRead, BufReader};
+
+/// Skip files larger than this to avoid reading multi-MB binaries into memory.
+const MAX_FILE_BYTES: u64 = 10 * 1024 * 1024; // 10 MB
+/// Cap total matches to keep the UI responsive.
+const MAX_TOTAL_RESULTS: usize = 500;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SearchResult {
@@ -13,7 +19,7 @@ pub struct SearchResult {
 
 pub fn search_files(root_path: &PathBuf, query: &str, case_sensitive: bool) -> Result<Vec<SearchResult>, anyhow::Error> {
     let mut results = Vec::new();
-    
+
     // Compile regex
     let re = RegexBuilder::new(query)
         .case_insensitive(!case_sensitive)
@@ -21,7 +27,7 @@ pub fn search_files(root_path: &PathBuf, query: &str, case_sensitive: bool) -> R
         .map_err(|e| anyhow::anyhow!("Invalid regex: {}", e))?;
 
     // Walk directory
-    for entry in WalkDir::new(root_path)
+    'outer: for entry in WalkDir::new(root_path)
         .follow_links(true)
         .into_iter()
         .filter_map(|e| e.ok())
@@ -42,19 +48,28 @@ pub fn search_files(root_path: &PathBuf, query: &str, case_sensitive: bool) -> R
             continue;
         }
 
-        // Read file content
-        // TODO: Use memory mapping or buffered reading for large files
-        if let Ok(content) = fs::read_to_string(path) {
-            for (line_idx, line) in content.lines().enumerate() {
-                if re.is_match(line) {
-                    results.push(SearchResult {
-                        path: path.to_string_lossy().to_string(),
-                        line_number: line_idx + 1,
-                        line_content: line.trim().to_string(),
-                    });
-                    
-                    // Limit results per file/total to avoid freezing?
-                    // For now, let's keep it simple.
+        // Skip files that are too large to scan efficiently
+        if let Ok(meta) = fs::metadata(path) {
+            if meta.len() > MAX_FILE_BYTES {
+                continue;
+            }
+        }
+
+        // Buffered line-by-line reading — avoids loading the whole file at once
+        if let Ok(file) = fs::File::open(path) {
+            let reader = BufReader::new(file);
+            for (line_idx, line_result) in reader.lines().enumerate() {
+                if let Ok(line) = line_result {
+                    if re.is_match(&line) {
+                        results.push(SearchResult {
+                            path: path.to_string_lossy().to_string(),
+                            line_number: line_idx + 1,
+                            line_content: line.trim().to_string(),
+                        });
+                        if results.len() >= MAX_TOTAL_RESULTS {
+                            break 'outer;
+                        }
+                    }
                 }
             }
         }

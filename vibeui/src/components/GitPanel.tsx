@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { ReviewPanel } from './ReviewPanel';
+import { useToast } from '../hooks/useToast';
+import { Toaster } from './Toaster';
 
 interface GitPanelProps {
     workspacePath: string | null;
@@ -20,6 +22,7 @@ interface CommitInfo {
 }
 
 export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
+    const { toasts, toast, dismiss } = useToast();
     const [gitStatus, setGitStatus] = useState<GitStatus | null>(null);
     const [commitMessage, setCommitMessage] = useState('');
     const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
@@ -30,6 +33,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
     const [selectedCommit, setSelectedCommit] = useState<CommitInfo | null>(null);
     const [commitFiles, setCommitFiles] = useState<string[]>([]);
     const [showReview, setShowReview] = useState(false);
+    const [confirmDiscard, setConfirmDiscard] = useState<string | null>(null);
 
     useEffect(() => {
         if (workspacePath) {
@@ -38,12 +42,19 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
         }
     }, [workspacePath]);
 
+    // Auto-refresh git status every 30 seconds
+    useEffect(() => {
+        if (!workspacePath) return;
+        const id = setInterval(loadGitStatus, 30_000);
+        return () => clearInterval(id);
+    }, [workspacePath]);
+
     const loadGitStatus = async () => {
         try {
             const status = await invoke<GitStatus>('get_git_status');
             setGitStatus(status);
         } catch (e) {
-            console.error('Failed to load git status:', e);
+            toast.error(`Failed to load git status: ${e}`);
         }
     };
 
@@ -53,7 +64,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
             const branchList = await invoke<string[]>('git_list_branches', { path: workspacePath });
             setBranches(branchList);
         } catch (e) {
-            console.error('Failed to load branches:', e);
+            toast.error(`Failed to load branches: ${e}`);
         }
     };
 
@@ -63,10 +74,9 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
         try {
             await invoke('git_switch_branch', { path: workspacePath, branch });
             await loadGitStatus();
-            alert(`Switched to branch: ${branch}`);
+            toast.success(`Switched to branch: ${branch}`);
         } catch (e) {
-            console.error('Failed to switch branch:', e);
-            alert(`Failed to switch branch: ${e}`);
+            toast.error(`Failed to switch branch: ${e}`);
         } finally {
             setIsLoading(false);
         }
@@ -80,17 +90,24 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
                 const commits = await invoke<CommitInfo[]>('git_get_history', { path: workspacePath, limit: 50 });
                 setHistory(commits);
             } catch (e) {
-                console.error('Failed to load history:', e);
-                alert(`Failed to load history: ${e}`);
+                toast.error(`Failed to load history: ${e}`);
             }
         }
     };
 
     const handleSelectCommit = async (commit: CommitInfo) => {
         setSelectedCommit(commit);
-        // TODO: Get files changed in this commit
-        // For now, show placeholder
-        setCommitFiles(['file1.txt', 'file2.js', 'file3.css']);
+        setCommitFiles([]);
+        if (!workspacePath) return;
+        try {
+            const files = await invoke<string[]>('git_get_commit_files', {
+                path: workspacePath,
+                hash: commit.hash,
+            });
+            setCommitFiles(files);
+        } catch (e) {
+            toast.error(`Failed to get commit files: ${e}`);
+        }
     };
 
     const handleCompareCommitFile = async (file: string) => {
@@ -99,23 +116,21 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
             const diff = await invoke<string>('git_diff', { path: workspacePath, filePath: file });
             onCompareFile(file, diff);
         } catch (e) {
-            console.error('Failed to get diff:', e);
-            alert(`Failed to get diff: ${e}`);
+            toast.error(`Failed to get diff: ${e}`);
         }
     };
 
     const handleDiscardChanges = async (file: string) => {
         if (!workspacePath) return;
-        if (!confirm(`Discard changes to ${file}?`)) return;
+        setConfirmDiscard(null);
 
         setIsLoading(true);
         try {
             await invoke('git_discard_changes', { path: workspacePath, filePath: file });
             await loadGitStatus();
-            alert('Changes discarded');
+            toast.success('Changes discarded');
         } catch (e) {
-            console.error('Failed to discard changes:', e);
-            alert(`Failed to discard changes: ${e}`);
+            toast.error(`Failed to discard changes: ${e}`);
         } finally {
             setIsLoading(false);
         }
@@ -127,8 +142,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
             const diff = await invoke<string>('git_diff', { path: workspacePath, filePath: file });
             onCompareFile(file, diff);
         } catch (e) {
-            console.error('Failed to get diff:', e);
-            alert(`Failed to get diff: ${e}`);
+            toast.error(`Failed to get diff: ${e}`);
         }
     };
 
@@ -145,10 +159,9 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
             setCommitMessage('');
             setSelectedFiles([]);
             await loadGitStatus();
-            alert('Committed successfully!');
+            toast.success('Committed successfully!');
         } catch (e) {
-            console.error('Failed to commit:', e);
-            alert(`Failed to commit: ${e}`);
+            toast.error(`Failed to commit: ${e}`);
         } finally {
             setIsLoading(false);
         }
@@ -164,10 +177,9 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
                 remote: 'origin',
                 branch: gitStatus.branch,
             });
-            alert('Pushed successfully!');
+            toast.success('Pushed successfully!');
         } catch (e) {
-            console.error('Failed to push:', e);
-            alert(`Failed to push: ${e}`);
+            toast.error(`Failed to push: ${e}`);
         } finally {
             setIsLoading(false);
         }
@@ -184,10 +196,9 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
                 branch: gitStatus.branch,
             });
             await loadGitStatus();
-            alert('Pulled successfully!');
+            toast.success('Pulled successfully!');
         } catch (e) {
-            console.error('Failed to pull:', e);
-            alert(`Failed to pull: ${e}`);
+            toast.error(`Failed to pull: ${e}`);
         } finally {
             setIsLoading(false);
         }
@@ -340,20 +351,31 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
                                     >
                                         Diff
                                     </button>
-                                    <button
-                                        onClick={() => handleDiscardChanges(file)}
-                                        style={{
-                                            background: 'none',
-                                            border: 'none',
-                                            color: 'var(--text-danger, #ff4d4f)',
-                                            cursor: 'pointer',
-                                            fontSize: '10px',
-                                            padding: '2px 4px',
-                                        }}
-                                        title="Discard"
-                                    >
-                                        ✕
-                                    </button>
+                                    {confirmDiscard === file ? (
+                                        <>
+                                            <span style={{ fontSize: '10px', color: 'var(--text-danger, #ff4d4f)' }}>Discard?</span>
+                                            <button
+                                                onClick={() => handleDiscardChanges(file)}
+                                                style={{ background: 'none', border: 'none', color: 'var(--text-danger, #ff4d4f)', cursor: 'pointer', fontSize: '10px', padding: '2px 4px', fontWeight: 600 }}
+                                            >
+                                                Yes
+                                            </button>
+                                            <button
+                                                onClick={() => setConfirmDiscard(null)}
+                                                style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '10px', padding: '2px 4px' }}
+                                            >
+                                                No
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <button
+                                            onClick={() => setConfirmDiscard(file)}
+                                            style={{ background: 'none', border: 'none', color: 'var(--text-danger, #ff4d4f)', cursor: 'pointer', fontSize: '10px', padding: '2px 4px' }}
+                                            title="Discard changes"
+                                        >
+                                            ✕
+                                        </button>
+                                    )}
                                 </div>
                             ))
                         )}
@@ -417,6 +439,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
                     </div>
                 )}
             </div>
+            <Toaster toasts={toasts} onDismiss={dismiss} />
         </div>
     );
 }

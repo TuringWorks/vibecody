@@ -63,10 +63,11 @@ impl CompletionEngine {
 
         let response = provider.complete(context).await?;
 
+        let confidence = estimate_confidence(&response.text);
         Ok(Completion {
             text: response.text,
             provider: provider.name().to_string(),
-            confidence: 0.8, // TODO: Calculate confidence based on model
+            confidence,
         })
     }
 
@@ -91,6 +92,37 @@ impl Default for CompletionEngine {
     fn default() -> Self {
         Self::new()
     }
+}
+
+/// Estimate completion confidence from the returned text.
+///
+/// Heuristics (all contribute additively, capped at 1.0):
+/// - Non-empty response: base 0.5
+/// - Response length ≥ 10 chars: +0.2
+/// - Response length ≥ 50 chars: +0.1 (substantial suggestion)
+/// - No uncertainty markers ("I don't know", "I'm not sure", etc.): +0.1
+/// - Ends with a syntactically plausible token (`;`, `}`, `)`, `\n`): +0.1
+fn estimate_confidence(text: &str) -> f32 {
+    if text.trim().is_empty() {
+        return 0.0;
+    }
+    let mut score: f32 = 0.5;
+    let len = text.len();
+    if len >= 10  { score += 0.2; }
+    if len >= 50  { score += 0.1; }
+
+    let lower = text.to_lowercase();
+    let uncertain = ["i don't know", "i'm not sure", "i cannot", "i can't",
+                     "i am not sure", "unable to", "not available"];
+    if !uncertain.iter().any(|u| lower.contains(u)) {
+        score += 0.1;
+    }
+
+    if text.trim_end().ends_with(|c| matches!(c, ';' | '}' | ')' | '\n' | ',')) {
+        score += 0.1;
+    }
+
+    score.min(1.0)
 }
 
 #[cfg(test)]

@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { useToast } from "../hooks/useToast";
 import { ContextPicker } from "./ContextPicker";
 import { flowContext } from "../utils/FlowContext";
 import "./AIChat.css";
@@ -33,11 +34,12 @@ type RecInstance = any;
 function useVoiceInput(onTranscript: (text: string) => void) {
     const [isListening, setIsListening] = useState(false);
     const recRef = useRef<RecInstance | null>(null);
+    const { toast } = useToast();
 
     const toggle = () => {
         const SR = getSpeechRecognitionCtor();
         if (!SR) {
-            alert("Speech recognition is not supported in this environment.");
+            toast.warn("Speech recognition is not supported in this environment.");
             return;
         }
 
@@ -115,10 +117,18 @@ export function AIChat({ provider, context, fileTree, currentFile, onFileAction,
     const [input, setInput] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [pickerQuery, setPickerQuery] = useState<string | null>(null);
+    const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+    const cancelledRef = useRef(false);
     const { isListening, toggle: toggleVoice } = useVoiceInput((transcript) =>
         setInput((prev) => prev + transcript)
     );
+
+    // Auto-scroll to latest message
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, [messages, isLoading]);
 
     // Consume pendingInput from Cascade "Inject into chat"
     useEffect(() => {
@@ -151,6 +161,7 @@ export function AIChat({ provider, context, fileTree, currentFile, onFileAction,
         setMessages([...messages, userMessage]);
         setInput("");
         setPickerQuery(null);
+        cancelledRef.current = false;
         setIsLoading(true);
 
         try {
@@ -164,6 +175,7 @@ export function AIChat({ provider, context, fileTree, currentFile, onFileAction,
                 },
             });
 
+            if (cancelledRef.current) return; // user stopped generation
             let displayContent = cleanMessage(response.message);
             const assistantMessage: Message = { role: "assistant", content: displayContent };
             setMessages((prev) => [...prev, assistantMessage]);
@@ -236,7 +248,29 @@ export function AIChat({ provider, context, fileTree, currentFile, onFileAction,
     return (
         <div className="ai-chat">
             <div className="chat-header">
-                <h3>🤖 AI Assistant</h3>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <h3 style={{ margin: 0 }}>🤖 AI Assistant</h3>
+                    <div style={{ display: "flex", gap: "6px" }}>
+                        {isLoading && (
+                            <button
+                                onClick={() => { cancelledRef.current = true; setIsLoading(false); }}
+                                style={{ fontSize: "11px", padding: "2px 8px", background: "var(--text-danger, #ff4d4f)", color: "#fff", border: "none", borderRadius: "4px", cursor: "pointer" }}
+                                title="Stop generation"
+                            >
+                                ⏹ Stop
+                            </button>
+                        )}
+                        {messages.length > 0 && !isLoading && (
+                            <button
+                                onClick={() => setMessages([])}
+                                style={{ fontSize: "11px", padding: "2px 8px", background: "var(--bg-tertiary)", color: "var(--text-secondary)", border: "1px solid var(--border-color)", borderRadius: "4px", cursor: "pointer" }}
+                                title="Clear chat history"
+                            >
+                                🗑 Clear
+                            </button>
+                        )}
+                    </div>
+                </div>
                 <p className="chat-subtitle">
                     Ask questions about your code. Type <kbd>@file:</kbd>, <kbd>@git</kbd>, or <kbd>@web:</kbd> to inject context. Click 🎤 for voice input.
                 </p>
@@ -254,8 +288,28 @@ export function AIChat({ provider, context, fileTree, currentFile, onFileAction,
                             <div className="message-icon">
                                 {msg.role === "user" ? "👤" : "🤖"}
                             </div>
-                            <div className="message-content">
+                            <div className="message-content" style={{ position: "relative" }}>
                                 <pre>{msg.content}</pre>
+                                {msg.role === "assistant" && (
+                                    <button
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(msg.content).then(() => {
+                                                setCopiedIdx(idx);
+                                                setTimeout(() => setCopiedIdx(null), 1500);
+                                            });
+                                        }}
+                                        title="Copy response"
+                                        style={{
+                                            position: "absolute", top: "4px", right: "4px",
+                                            background: "var(--bg-tertiary)", border: "1px solid var(--border-color)",
+                                            borderRadius: "4px", cursor: "pointer", fontSize: "11px",
+                                            padding: "2px 6px", color: copiedIdx === idx ? "#3fb950" : "var(--text-secondary)",
+                                            opacity: 0.8,
+                                        }}
+                                    >
+                                        {copiedIdx === idx ? "✓ Copied" : "Copy"}
+                                    </button>
+                                )}
                             </div>
                         </div>
                     ))
@@ -270,6 +324,7 @@ export function AIChat({ provider, context, fileTree, currentFile, onFileAction,
                         </div>
                     </div>
                 )}
+                <div ref={messagesEndRef} />
             </div>
 
             <div className="chat-input" style={{ position: "relative" }}>

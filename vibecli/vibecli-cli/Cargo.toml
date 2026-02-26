@@ -36,6 +36,7 @@ tokio-stream = { version = "0.1", features = ["sync"] }
 tempfile = "3"
 walkdir = { workspace = true }
 rusqlite = { workspace = true }
+notify = { workspace = true }
 
 # OpenTelemetry (OTLP/HTTP export)
 opentelemetry = { version = "0.27", features = ["trace"] }

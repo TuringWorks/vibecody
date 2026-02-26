@@ -31,6 +31,11 @@ regex.workspace = true
 # File walking for rules loader
 walkdir.workspace = true
 
+# AWS SigV4 signing (Bedrock)
+sha2.workspace = true
+hmac.workspace = true
+hex.workspace = true
+
 [dev-dependencies]
 tempfile = "3"
 cucumber = { version = "0.20", features = ["macros"] }

@@ -61,6 +61,23 @@ export interface HookConfig {
   command: string;
 }
 
+export interface JobRecord {
+  /** Unique session identifier */
+  session_id: string;
+  /** Natural-language task description */
+  task: string;
+  /** Job status */
+  status: 'running' | 'complete' | 'failed' | 'cancelled';
+  /** AI provider used */
+  provider: string;
+  /** Unix milliseconds when the job started */
+  started_at: number;
+  /** Unix milliseconds when the job finished (if done) */
+  finished_at?: number;
+  /** Short completion summary from the agent */
+  summary?: string;
+}
+
 // ── VibeCLIAgent ─────────────────────────────────────────────────────────────
 
 /**
@@ -77,6 +94,8 @@ export interface HookConfig {
 export class VibeCLIAgent {
   private baseUrl: string;
   private approval: string;
+  /** Session ID of the most-recently started run (set by `run()`). */
+  private lastSessionId: string | null = null;
 
   constructor(options: AgentOptions = {}) {
     const host = options.host ?? 'localhost';
@@ -107,6 +126,7 @@ export class VibeCLIAgent {
     }
 
     const { session_id } = await startRes.json() as { session_id: string };
+    this.lastSessionId = session_id;
 
     // Stream events
     const streamRes = await fetch(`${this.baseUrl}/stream/${session_id}`);
@@ -147,6 +167,51 @@ export class VibeCLIAgent {
     }
     for await (const data of readSseLines(res.body)) {
       yield data;
+    }
+  }
+
+  /**
+   * List all background jobs (sorted newest-first).
+   */
+  async listJobs(): Promise<JobRecord[]> {
+    const res = await fetch(`${this.baseUrl}/jobs`);
+    if (!res.ok) {
+      throw new AgentError(`listJobs failed: ${res.status} ${await res.text()}`);
+    }
+    return res.json() as Promise<JobRecord[]>;
+  }
+
+  /**
+   * Get a single job by session ID. Returns null if not found.
+   */
+  async getJob(sessionId: string): Promise<JobRecord | null> {
+    const res = await fetch(`${this.baseUrl}/jobs/${encodeURIComponent(sessionId)}`);
+    if (res.status === 404) return null;
+    if (!res.ok) {
+      throw new AgentError(`getJob failed: ${res.status} ${await res.text()}`);
+    }
+    return res.json() as Promise<JobRecord>;
+  }
+
+  /**
+   * Stop the most recently started agent run (equivalent to `cancelJob(lastSessionId)`).
+   * No-op if no run has been started or the job is already finished.
+   */
+  async stop(): Promise<void> {
+    if (!this.lastSessionId) return;
+    await this.cancelJob(this.lastSessionId);
+    this.lastSessionId = null;
+  }
+
+  /**
+   * Cancel a running job. No-op if the job is already finished.
+   */
+  async cancelJob(sessionId: string): Promise<void> {
+    const res = await fetch(`${this.baseUrl}/jobs/${encodeURIComponent(sessionId)}/cancel`, {
+      method: 'POST',
+    });
+    if (!res.ok) {
+      throw new AgentError(`cancelJob failed: ${res.status} ${await res.text()}`);
     }
   }
 

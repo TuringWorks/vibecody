@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useToast } from "./hooks/useToast";
+import { Toaster } from "./components/Toaster";
 import Editor, { DiffEditor, OnMount } from "@monaco-editor/react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -34,6 +36,11 @@ import { SpecPanel } from "./components/SpecPanel";
 import { DesignMode } from "./components/DesignMode";
 import { DeployPanel } from "./components/DeployPanel";
 import { DatabasePanel } from "./components/DatabasePanel";
+import { SupabasePanel } from "./components/SupabasePanel";
+import { AuthPanel } from "./components/AuthPanel";
+import { GitHubSyncPanel } from "./components/GitHubSyncPanel";
+import SteeringPanel from "./components/SteeringPanel";
+import { BugBotPanel } from "./components/BugBotPanel";
 import { DiffReviewPanel } from "./components/DiffReviewPanel";
 import { flowContext } from "./utils/FlowContext";
 import { supercompleteEngine } from "./utils/SupercompleteEngine";
@@ -64,6 +71,7 @@ interface OpenFile {
 }
 
 function App() {
+  const { toasts, toast, dismiss } = useToast();
   const [openFiles, setOpenFiles] = useState<OpenFile[]>([]);
   const [activeFilePath, setActiveFilePath] = useState<string | null>(null);
   const [workspaceFolders, setWorkspaceFolders] = useState<string[]>([]);
@@ -73,7 +81,7 @@ function App() {
   const [showSidebar, setShowSidebar] = useState(true);
   const [activeSidebarTab, setActiveSidebarTab] = useState<"explorer" | "search" | "git">("explorer");
   const [showAIChat, setShowAIChat] = useState(false);
-  const [aiPanelTab, setAiPanelTab] = useState<"chat" | "agent" | "memory" | "history" | "checkpoints" | "artifacts" | "manager" | "hooks" | "jobs" | "mcp" | "settings" | "cascade" | "specs" | "design" | "deploy" | "database">("chat");
+  const [aiPanelTab, setAiPanelTab] = useState<"chat" | "agent" | "memory" | "history" | "checkpoints" | "artifacts" | "manager" | "hooks" | "jobs" | "mcp" | "settings" | "cascade" | "specs" | "design" | "deploy" | "database" | "supabase" | "auth" | "github" | "steering" | "bugbot">("chat");
   const [showTerminal, setShowTerminal] = useState(false);
   const [bottomTab, setBottomTab] = useState<"terminal" | "browser">("terminal");
   const [showCommandPalette, setShowCommandPalette] = useState(false);
@@ -98,6 +106,7 @@ function App() {
 
   // Context Menu
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; file: FileEntry } | null>(null);
+  const [pendingDeleteFile, setPendingDeleteFile] = useState<{ name: string; path: string } | null>(null);
 
   // Resizable Panes State
   const [sidebarWidth, setSidebarWidth] = useState(250);
@@ -162,7 +171,7 @@ function App() {
       (window as any).extensionManager = manager;
       console.log("Extension Manager initialized");
     } catch (e) {
-      console.error("Failed to initialize extension worker:", e);
+      toast.error(`Failed to initialize extension worker: ${e}`);
     }
   }, []);
 
@@ -210,7 +219,7 @@ function App() {
       }
     } catch (error) {
       console.error("Failed to open folder:", error);
-      alert(`Failed to open folder: ${error}\n\nMake sure the dialog plugin is properly configured.\n\nError details: ${JSON.stringify(error)}`);
+      toast.error(`Failed to open folder: ${error}`);
     }
   };
 
@@ -294,7 +303,7 @@ function App() {
       }
     } catch (error) {
       console.error("Failed to open file:", error);
-      alert("Failed to open file: " + error);
+      toast.error("Failed to open file: " + error);
     }
   };
 
@@ -323,7 +332,7 @@ function App() {
       ));
     } catch (error) {
       console.error("Failed to save file:", error);
-      alert("Failed to save file: " + error);
+      toast.error("Failed to save file: " + error);
     }
     // Refresh git status after save
     fetchGitStatus();
@@ -630,7 +639,7 @@ function App() {
         }));
 
         invoke("update_cursors", { path: activeFilePath, cursors })
-          .catch(err => console.error("Failed to update cursors:", err));
+          .catch(() => { /* best-effort: cursor sync failures are non-critical */ });
       }, 100); // Debounce 100ms
     });
   };
@@ -700,7 +709,7 @@ function App() {
       // alert("Changes saved to disk!"); 
     } catch (error) {
       console.error("Failed to accept changes:", error);
-      alert("Failed to save changes: " + error);
+      toast.error("Failed to save changes: " + error);
     }
   };
 
@@ -722,7 +731,7 @@ function App() {
 
   const handleNewFile = () => {
     if (!currentDirectory) {
-      alert("Please open a folder first.");
+      toast.warn("Please open a folder first.");
       return;
     }
 
@@ -748,7 +757,7 @@ function App() {
           openFile(path);
         } catch (error) {
           console.error("Failed to create file:", error);
-          alert("Failed to create file: " + error);
+          toast.error("Failed to create file: " + error);
         }
       }
     });
@@ -757,7 +766,7 @@ function App() {
 
   const handleNewFolder = () => {
     if (!currentDirectory) {
-      alert("Please open a folder first.");
+      toast.warn("Please open a folder first.");
       return;
     }
 
@@ -780,7 +789,7 @@ function App() {
           loadDirectory(currentDirectory);
         } catch (error) {
           console.error("Failed to create folder:", error);
-          alert("Failed to create folder: " + error);
+          toast.error("Failed to create folder: " + error);
         }
       }
     });
@@ -799,7 +808,7 @@ function App() {
       setSearchResults(results);
     } catch (error) {
       console.error("Search failed:", error);
-      alert("Search failed: " + error);
+      toast.error("Search failed: " + error);
     } finally {
       setIsSearching(false);
     }
@@ -807,7 +816,11 @@ function App() {
 
   const handleSearchResultClick = async (result: SearchResult) => {
     await openFile(result.path);
-    // TODO: Scroll to line number (requires editor ref)
+    // Scroll Monaco editor to the matching line once the file is open
+    if (result.line_number && editorRef.current) {
+      editorRef.current.revealLineInCenter(result.line_number);
+      editorRef.current.setPosition({ lineNumber: result.line_number, column: 1 });
+    }
   };
 
   // Define commands for command palette
@@ -933,7 +946,7 @@ function App() {
           }
         } catch (e) {
           console.error("Failed to rename:", e);
-          alert(`Failed to rename: ${e}`);
+          toast.error(`Failed to rename: ${e}`);
         }
         setModalOpen(false);
       }
@@ -941,22 +954,25 @@ function App() {
     setModalOpen(true);
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!contextMenu) return;
     const file = contextMenu.file;
     setContextMenu(null);
+    setPendingDeleteFile({ name: file.name, path: file.path });
+  };
 
-    if (confirm(`Are you sure you want to delete ${file.name}?`)) {
-      try {
-        await invoke('delete_item', { path: file.path });
-        if (currentDirectory) loadDirectory(currentDirectory);
-        if (openFiles.some(f => f.path === file.path)) {
-          closeFile(file.path);
-        }
-      } catch (e) {
-        console.error("Failed to delete:", e);
-        alert(`Failed to delete: ${e}`);
+  const confirmDelete = async () => {
+    if (!pendingDeleteFile) return;
+    const { path, name } = pendingDeleteFile;
+    setPendingDeleteFile(null);
+    try {
+      await invoke('delete_item', { path });
+      if (currentDirectory) loadDirectory(currentDirectory);
+      if (openFiles.some(f => f.path === path)) {
+        closeFile(path);
       }
+    } catch (e) {
+      toast.error(`Failed to delete ${name}: ${e}`);
     }
   };
 
@@ -1051,6 +1067,7 @@ function App() {
 
   return (
     <div className="app" onMouseUp={stopResizing}>
+      <Toaster toasts={toasts} onDismiss={dismiss} />
       {/* Header */}
       <header className="header">
         <div className="header-left">
@@ -1420,7 +1437,7 @@ function App() {
           <aside className="ai-chat-panel" style={{ display: "flex", flexDirection: "column" }}>
             {/* Tab bar */}
             <div style={{ display: "flex", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
-              {(["chat", "agent", "memory", "history", "checkpoints", "artifacts", "manager", "hooks", "jobs", "mcp", "settings", "cascade", "specs", "design", "deploy", "database"] as const).map((tab) => (
+              {(["chat", "agent", "memory", "history", "checkpoints", "artifacts", "manager", "hooks", "jobs", "mcp", "settings", "cascade", "specs", "design", "deploy", "database", "supabase", "auth", "github", "steering", "bugbot"] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setAiPanelTab(tab)}
@@ -1451,6 +1468,11 @@ function App() {
                     : tab === "design" ? "🎨 Design"
                     : tab === "deploy" ? "🚀 Deploy"
                     : tab === "database" ? "🗄️ DB"
+                    : tab === "supabase" ? "🐘 Supabase"
+                    : tab === "auth" ? "🔐 Auth"
+                    : tab === "github" ? "🐙 GH Sync"
+                    : tab === "steering" ? "🧭 Steering"
+                    : tab === "bugbot" ? "🐛 BugBot"
                     : "🌊 Flow"}
                 </button>
               ))}
@@ -1523,19 +1545,46 @@ function App() {
               )}
               {aiPanelTab === "design" && (
                 <DesignMode
-                  workspacePath={workspaceFolders[0] || "."}
+                  workspacePath={workspaceFolders[0] || null}
                   provider={selectedProvider}
                 />
               )}
               {aiPanelTab === "deploy" && (
                 <DeployPanel
-                  workspacePath={workspaceFolders[0] || "."}
+                  workspacePath={workspaceFolders[0] || null}
                 />
               )}
               {aiPanelTab === "database" && (
                 <DatabasePanel
-                  workspacePath={workspaceFolders[0] || "."}
+                  workspacePath={workspaceFolders[0] || null}
                   provider={selectedProvider}
+                />
+              )}
+              {aiPanelTab === "supabase" && (
+                <SupabasePanel
+                  workspacePath={workspaceFolders[0] || null}
+                  provider={selectedProvider}
+                />
+              )}
+              {aiPanelTab === "auth" && (
+                <AuthPanel
+                  workspacePath={workspaceFolders[0] || null}
+                  provider={selectedProvider}
+                />
+              )}
+              {aiPanelTab === "github" && (
+                <GitHubSyncPanel
+                  workspacePath={workspaceFolders[0] || null}
+                />
+              )}
+              {aiPanelTab === "steering" && (
+                <SteeringPanel
+                  workspaceRoot={workspaceFolders[0] || undefined}
+                />
+              )}
+              {aiPanelTab === "bugbot" && (
+                <BugBotPanel
+                  workspacePath={workspaceFolders[0] || undefined}
                 />
               )}
             </div>
@@ -1678,6 +1727,44 @@ function App() {
           }}
           onReject={() => setInlineChat(null)}
         />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {pendingDeleteFile && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000,
+          }}
+          onClick={() => setPendingDeleteFile(null)}
+        >
+          <div
+            style={{
+              background: 'var(--bg-secondary)', border: '1px solid var(--border-color)',
+              borderRadius: '8px', padding: '20px 24px', minWidth: '300px', maxWidth: '400px',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ fontWeight: 600, marginBottom: '8px', fontSize: '14px' }}>Delete file?</div>
+            <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '16px', wordBreak: 'break-all' }}>
+              {pendingDeleteFile.name}
+            </div>
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setPendingDeleteFile(null)}
+                style={{ padding: '6px 14px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'transparent', color: 'var(--text-primary)', cursor: 'pointer', fontSize: '13px' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                style={{ padding: '6px 14px', borderRadius: '4px', border: 'none', background: 'var(--text-danger, #ff4d4f)', color: '#fff', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Context Menu */}

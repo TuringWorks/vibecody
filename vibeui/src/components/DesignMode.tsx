@@ -15,7 +15,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { VisualEditor, SelectedElement } from "./VisualEditor";
 
 interface DesignModeProps {
-  workspacePath: string;
+  workspacePath: string | null;
   provider: string;
 }
 
@@ -25,6 +25,9 @@ interface GeneratedFile {
 }
 
 export function DesignMode({ workspacePath, provider }: DesignModeProps) {
+  if (!workspacePath) {
+    return <div className="empty-state"><p>Open a workspace folder to use the design editor.</p></div>;
+  }
   const [previewUrl, setPreviewUrl] = useState("http://localhost:5173");
   const [visualEditEnabled, setVisualEditEnabled] = useState(false);
   const [selectedElement, setSelectedElement] = useState<SelectedElement | null>(null);

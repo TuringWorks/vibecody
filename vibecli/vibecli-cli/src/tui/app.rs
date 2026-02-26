@@ -32,11 +32,14 @@ pub enum CurrentScreen {
     FileTree,
     DiffView,
     Agent,
+    VimEditor,
 }
 
 use crate::tui::components::agent_view::AgentViewComponent;
+use crate::tui::components::diagnostics::DiagnosticsComponent;
 use crate::tui::components::file_tree::FileTreeComponent;
 use crate::tui::components::diff_view::DiffViewComponent;
+use crate::tui::components::vim_editor::VimEditorComponent;
 
 /// Holds a pending tool-call approval: the call to show the user and the
 /// channel to send the approved result (or None for rejection) back to the agent.
@@ -53,12 +56,15 @@ pub struct App {
     pub file_tree: FileTreeComponent,
     pub diff_view: DiffViewComponent,
     pub agent_view: AgentViewComponent,
+    pub vim_editor: VimEditorComponent,
     pub exit_pending: bool,
     pub scroll_offset: u16,
     /// Pending approval for the current tool call (Suggest mode).
     pub pending_approval: Option<PendingApproval>,
     /// Active color theme.
     pub theme: Theme,
+    /// Diagnostics pane (populated by /check command).
+    pub diagnostics_panel: DiagnosticsComponent,
 }
 
 impl App {
@@ -73,10 +79,12 @@ impl App {
             file_tree: FileTreeComponent::new(),
             diff_view: DiffViewComponent::new(),
             agent_view: AgentViewComponent::new(),
+            vim_editor: VimEditorComponent::new(),
             exit_pending: false,
             scroll_offset: 0,
             pending_approval: None,
             theme: get_theme(theme_name),
+            diagnostics_panel: DiagnosticsComponent::new(),
         }
     }
 

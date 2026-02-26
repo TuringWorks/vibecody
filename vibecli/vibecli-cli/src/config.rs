@@ -35,6 +35,27 @@ pub struct Config {
     pub openrouter: Option<ProviderConfig>,
     /// Azure OpenAI service (AZURE_OPENAI_API_KEY + azure_openai.api_url).
     pub azure_openai: Option<ProviderConfig>,
+    /// AWS Bedrock — run Claude/Titan/Llama via AWS.
+    ///
+    /// ```toml
+    /// [bedrock]
+    /// enabled = true
+    /// region = "us-east-1"
+    /// model = "anthropic.claude-3-5-sonnet-20241022-v2:0"
+    /// # Credentials come from the standard AWS env vars:
+    /// # AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN
+    /// ```
+    pub bedrock: Option<BedrockConfig>,
+    /// GitHub Copilot — use the Copilot API for completions/chat.
+    ///
+    /// ```toml
+    /// [copilot]
+    /// enabled = true
+    /// # Token is loaded from ~/.config/github-copilot/hosts.json automatically.
+    /// # You may also set COPILOT_TOKEN env var.
+    /// model = "gpt-4o"
+    /// ```
+    pub copilot: Option<CopilotConfig>,
 
     /// MCP server definitions.  Example:
     /// ```toml
@@ -99,6 +120,15 @@ pub struct Config {
     /// ```
     #[serde(default)]
     pub gateway: GatewayConfig,
+
+    /// Linear API key for issue tracking integration.
+    /// Alternatively, set the LINEAR_API_KEY environment variable.
+    ///
+    /// ```toml
+    /// linear_api_key = "lin_api_..."
+    /// ```
+    #[serde(default)]
+    pub linear_api_key: Option<String>,
 }
 
 /// Gateway configuration (inlined here to avoid circular dependency with gateway module).
@@ -463,6 +493,97 @@ pub struct ProviderConfig {
     pub thinking_budget_tokens: Option<u32>,
 }
 
+/// AWS Bedrock provider configuration.
+///
+/// Credentials are resolved via the standard AWS credential chain:
+/// `AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY` (+ optional `AWS_SESSION_TOKEN`),
+/// `~/.aws/credentials`, EC2/ECS instance roles, etc.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BedrockConfig {
+    /// Whether this provider is active.
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    /// AWS region (default: `us-east-1`).
+    #[serde(default = "BedrockConfig::default_region")]
+    pub region: String,
+    /// Bedrock model ID (default: `anthropic.claude-3-5-sonnet-20241022-v2:0`).
+    #[serde(default = "BedrockConfig::default_model")]
+    pub model: String,
+    /// Optional cross-account IAM role ARN to assume before calling Bedrock.
+    pub role_arn: Option<String>,
+}
+
+impl BedrockConfig {
+    fn default_region() -> String { "us-east-1".to_string() }
+    fn default_model() -> String { "anthropic.claude-3-5-sonnet-20241022-v2:0".to_string() }
+}
+
+impl Default for BedrockConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            region: Self::default_region(),
+            model: Self::default_model(),
+            role_arn: None,
+        }
+    }
+}
+
+/// GitHub Copilot provider configuration.
+///
+/// The OAuth token is resolved from (in order):
+/// 1. `COPILOT_TOKEN` environment variable
+/// 2. `~/.config/github-copilot/hosts.json` (written by the official VS Code extension)
+/// 3. This config's `token` field
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CopilotConfig {
+    /// Whether this provider is active.
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    /// Model to request (default: `gpt-4o`).
+    #[serde(default = "CopilotConfig::default_model")]
+    pub model: String,
+    /// Explicit OAuth token (prefer env var or hosts.json for security).
+    pub token: Option<String>,
+}
+
+impl CopilotConfig {
+    fn default_model() -> String { "gpt-4o".to_string() }
+
+    /// Resolve the Copilot token from env → hosts.json → config field.
+    pub fn resolve_token(&self) -> Option<String> {
+        // 1. Environment variable
+        if let Ok(t) = std::env::var("COPILOT_TOKEN") {
+            return Some(t);
+        }
+        // 2. VS Code Copilot hosts.json
+        let hosts_path = std::env::var("HOME").ok()
+            .map(|h| std::path::PathBuf::from(h).join(".config").join("github-copilot").join("hosts.json"));
+        if let Some(path) = hosts_path {
+            if let Ok(raw) = std::fs::read_to_string(&path) {
+                // hosts.json structure: { "github.com": { "oauth_token": "..." } }
+                if let Ok(v) = serde_json::from_str::<serde_json::Value>(&raw) {
+                    if let Some(tok) = v["github.com"]["oauth_token"].as_str() {
+                        return Some(tok.to_string());
+                    }
+                }
+            }
+        }
+        // 3. Config field
+        self.token.clone()
+    }
+}
+
+impl Default for CopilotConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            model: Self::default_model(),
+            token: None,
+        }
+    }
+}
+
 impl Config {
     pub fn load() -> Result<Self> {
         let config_path = Self::config_path()?;
@@ -511,4 +632,5 @@ impl Config {
             _ => None,
         }
     }
+
 }

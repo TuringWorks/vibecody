@@ -8,6 +8,8 @@ pub mod grok;
 pub mod groq;
 pub mod openrouter;
 pub mod azure_openai;
+pub mod bedrock;
+pub mod copilot;
 
 pub use ollama::OllamaProvider;
 pub use claude::ClaudeProvider;
@@ -17,3 +19,5 @@ pub use grok::GrokProvider;
 pub use groq::GroqProvider;
 pub use openrouter::OpenRouterProvider;
 pub use azure_openai::AzureOpenAIProvider;
+pub use bedrock::BedrockProvider;
+pub use copilot::CopilotProvider;

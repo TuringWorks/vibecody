@@ -23,6 +23,8 @@ static COMMANDS: &[&str] = &[
     "/generate",
     "/help",
     "/index",
+    "/jobs",
+    "/linear",
     "/memory",
     "/mcp",
     "/model",
@@ -31,13 +33,18 @@ static COMMANDS: &[&str] = &[
     "/profile",
     "/qa",
     "/quit",
+    "/remind",
     "/resume",
     "/rewind",
+    "/schedule",
+    "/share",
+    "/snippet",
     "/spec",
     "/status",
     "/team",
     "/theme",
     "/trace",
+    "/workflow",
 ];
 
 // ── Sub-command tables ────────────────────────────────────────────────────────
@@ -65,6 +72,18 @@ static TRACE_SUBS: &[&str] = &["view"];
 
 /// Sub-commands for `/mcp <sub>`
 static MCP_SUBS: &[&str] = &["list", "tools"];
+
+/// Sub-commands for `/snippet <sub>`
+static SNIPPET_SUBS: &[&str] = &["list", "save", "use", "show", "delete"];
+
+/// Sub-commands for `/linear <sub>`
+static LINEAR_SUBS: &[&str] = &["list", "new", "open", "attach"];
+
+/// Sub-commands for `/remind <sub>`
+static REMIND_SUBS: &[&str] = &["in", "list", "cancel"];
+
+/// Sub-commands for `/schedule <sub>`
+static SCHEDULE_SUBS: &[&str] = &["every", "list", "cancel"];
 
 /// Built-in theme names for `/theme <name>` completion
 static THEME_NAMES: &[&str] = &["dark", "light", "monokai", "solarized", "nord"];
@@ -94,11 +113,17 @@ fn command_hint(cmd: &str) -> Option<&'static str> {
         "/context" => Some("— show active context window size"),
         "/status"  => Some("— show provider, model, session info"),
         "/fork"    => Some("[session-name]  — fork current session into a named branch"),
-        "/rewind"  => Some("[list | <timestamp>]  — save or restore a conversation checkpoint"),
-        "/spec"    => Some("[list|show <n>|new <n>|run <n>|done <n> <id>]  — spec-driven development"),
-        "/agents"  => Some("[list|status|new <name> <task>]  — background agent definitions"),
-        "/team"    => Some("[show|knowledge [list|add|remove]|sync]  — team knowledge store"),
-        "/theme"   => Some("[name]  — switch TUI color theme (dark|light|monokai|solarized|nord)"),
+        "/rewind"   => Some("[list | <timestamp>]  — save or restore a conversation checkpoint"),
+        "/spec"     => Some("[list|show <n>|new <n>|run <n>|done <n> <id>]  — spec-driven development"),
+        "/agents"   => Some("[list|status|new <name> <task>]  — background agent definitions"),
+        "/team"     => Some("[show|knowledge [list|add|remove]|sync]  — team knowledge store"),
+        "/theme"    => Some("[name]  — switch TUI color theme (dark|light|monokai|solarized|nord)"),
+        "/snippet"  => Some("[list|save <name>|use <name>|show <name>|delete <name>]"),
+        "/linear"   => Some("[list|new \"title\"|open <id>|attach <id>]  — Linear issue tracker"),
+        "/remind"   => Some("in <dur> \"task\"  |  list  |  cancel <id>"),
+        "/schedule" => Some("every <dur> \"task\"  |  list  |  cancel <id>"),
+        "/jobs"     => Some("— list background agent jobs"),
+        "/share"    => Some("<session_id>  — print shareable URL for a session (requires vibecli serve)"),
         _ => None,
     }
 }
@@ -157,15 +182,19 @@ fn complete_slash(line: &str) -> Option<(usize, Vec<Pair>)> {
         // ── Space typed: complete sub-commands or file paths ───────────────
         Some(after_space) => {
             let subs: Option<&[&str]> = match first {
-                "/profile" => Some(PROFILE_SUBS),
-                "/plugin"  => Some(PLUGIN_SUBS),
-                "/memory"  => Some(MEMORY_SUBS),
-                "/spec"    => Some(SPEC_SUBS),
-                "/agents"  => Some(AGENTS_SUBS),
-                "/team"    => Some(TEAM_SUBS),
-                "/trace"   => Some(TRACE_SUBS),
-                "/mcp"     => Some(MCP_SUBS),
-                "/theme"   => Some(THEME_NAMES),
+                "/profile"  => Some(PROFILE_SUBS),
+                "/plugin"   => Some(PLUGIN_SUBS),
+                "/memory"   => Some(MEMORY_SUBS),
+                "/spec"     => Some(SPEC_SUBS),
+                "/agents"   => Some(AGENTS_SUBS),
+                "/team"     => Some(TEAM_SUBS),
+                "/trace"    => Some(TRACE_SUBS),
+                "/mcp"      => Some(MCP_SUBS),
+                "/theme"    => Some(THEME_NAMES),
+                "/snippet"  => Some(SNIPPET_SUBS),
+                "/linear"   => Some(LINEAR_SUBS),
+                "/remind"   => Some(REMIND_SUBS),
+                "/schedule" => Some(SCHEDULE_SUBS),
                 _ => None,
             };
 

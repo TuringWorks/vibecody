@@ -215,6 +215,50 @@ pub fn get_history(repo_path: &Path, limit: usize) -> Result<Vec<CommitInfo>> {
     Ok(commits)
 }
 
+/// Return the list of files changed in a given commit (by SHA hash string).
+///
+/// Each entry is a relative path string.  For merge commits the diff is taken
+/// against the first parent; for the root commit the diff is taken against an
+/// empty tree.
+pub fn get_commit_files(repo_path: &Path, hash: &str) -> Result<Vec<String>> {
+    let repo = Repository::open(repo_path)?;
+    let oid = repo.revparse_single(hash)?.id();
+    let commit = repo.find_commit(oid)?;
+
+    let tree = commit.tree()?;
+    let parent_tree = if commit.parent_count() > 0 {
+        Some(commit.parent(0)?.tree()?)
+    } else {
+        None
+    };
+
+    let diff = repo.diff_tree_to_tree(
+        parent_tree.as_ref(),
+        Some(&tree),
+        None,
+    )?;
+
+    let mut files = Vec::new();
+    diff.foreach(
+        &mut |delta, _progress| {
+            if let Some(path) = delta.new_file().path() {
+                files.push(path.to_string_lossy().into_owned());
+            } else if let Some(path) = delta.old_file().path() {
+                // deleted file — report old path
+                files.push(path.to_string_lossy().into_owned());
+            }
+            true
+        },
+        None,
+        None,
+        None,
+    )?;
+
+    files.sort();
+    files.dedup();
+    Ok(files)
+}
+
 pub fn discard_changes(repo_path: &Path, file_path: &str) -> Result<()> {
     let repo = Repository::open(repo_path)?;
     

@@ -1,11 +1,22 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { useToast } from "../hooks/useToast";
+import { Toaster } from "./Toaster";
 
 interface MemoryPanelProps {
     workspacePath?: string | null;
 }
 
-type RulesTab = "workspace" | "global" | "directory";
+type RulesTab = "workspace" | "global" | "directory" | "auto";
+
+interface MemoryFact {
+    id: string;
+    fact: string;
+    confidence: number;
+    tags: string[];
+    pinned: boolean;
+    session_id: string | null;
+}
 
 interface RuleFileMeta {
     filename: string;
@@ -320,9 +331,208 @@ function DirRulesTab({ workspacePath }: { workspacePath?: string | null }) {
     );
 }
 
+// ── AutoFactsTab ──────────────────────────────────────────────────────────────
+
+function AutoFactsTab() {
+    const [facts, setFacts] = useState<MemoryFact[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [newFact, setNewFact] = useState("");
+    const [newTags, setNewTags] = useState("");
+    const [adding, setAdding] = useState(false);
+    const [showAdd, setShowAdd] = useState(false);
+
+    const load = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const result = await invoke<MemoryFact[]>("get_auto_memories");
+            // Sort: pinned first, then by confidence desc
+            result.sort((a, b) => {
+                if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+                return b.confidence - a.confidence;
+            });
+            setFacts(result);
+        } catch (e) {
+            setError(String(e));
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => { load(); }, [load]);
+
+    async function togglePin(id: string, pinned: boolean) {
+        try {
+            await invoke("pin_auto_memory", { id, pinned: !pinned });
+            await load();
+        } catch (e) {
+            setError(String(e));
+        }
+    }
+
+    async function deleteFact(id: string) {
+        try {
+            await invoke("delete_auto_memory", { id });
+            setFacts((prev) => prev.filter((f) => f.id !== id));
+        } catch (e) {
+            setError(String(e));
+        }
+    }
+
+    async function addFact() {
+        if (!newFact.trim()) return;
+        setAdding(true);
+        try {
+            const tags = newTags.split(",").map((t) => t.trim()).filter(Boolean);
+            await invoke("add_auto_memory", { fact: newFact.trim(), tags });
+            setNewFact("");
+            setNewTags("");
+            setShowAdd(false);
+            await load();
+        } catch (e) {
+            setError(String(e));
+        } finally {
+            setAdding(false);
+        }
+    }
+
+    function confidenceColor(c: number) {
+        if (c >= 0.85) return "#a6e3a1"; // green
+        if (c >= 0.65) return "#fab387"; // orange
+        return "#f38ba8"; // red
+    }
+
+    return (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, height: "100%" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                    {facts.length} fact{facts.length !== 1 ? "s" : ""} extracted from sessions
+                </span>
+                <button
+                    onClick={() => setShowAdd((v) => !v)}
+                    style={{ marginLeft: "auto", padding: "3px 8px", fontSize: 11, borderRadius: 4, background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", color: "var(--text-primary)", cursor: "pointer" }}
+                >
+                    + Add Fact
+                </button>
+                <button
+                    onClick={load}
+                    style={{ padding: "3px 8px", fontSize: 11, borderRadius: 4, background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", color: "var(--text-primary)", cursor: "pointer" }}
+                >
+                    ↻
+                </button>
+            </div>
+
+            {showAdd && (
+                <div style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: 6, padding: 10, display: "flex", flexDirection: "column", gap: 6 }}>
+                    <textarea
+                        autoFocus
+                        placeholder="Enter a fact to remember across sessions…"
+                        value={newFact}
+                        onChange={(e) => setNewFact(e.target.value)}
+                        rows={2}
+                        style={{ resize: "none", padding: "4px 8px", fontSize: 12, borderRadius: 4, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontFamily: "inherit" }}
+                    />
+                    <input
+                        type="text"
+                        placeholder="Tags (comma-separated, e.g. rust, testing)"
+                        value={newTags}
+                        onChange={(e) => setNewTags(e.target.value)}
+                        style={{ padding: "4px 8px", fontSize: 12, borderRadius: 4, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)" }}
+                    />
+                    <div style={{ display: "flex", gap: 6 }}>
+                        <button
+                            onClick={addFact}
+                            disabled={adding || !newFact.trim()}
+                            style={{ padding: "4px 12px", fontSize: 12, borderRadius: 4, background: "var(--accent-blue, #007acc)", color: "#fff", border: "none", cursor: "pointer" }}
+                        >
+                            {adding ? "Saving…" : "Save"}
+                        </button>
+                        <button
+                            onClick={() => setShowAdd(false)}
+                            style={{ padding: "4px 12px", fontSize: 12, borderRadius: 4, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", color: "var(--text-primary)", cursor: "pointer" }}
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {error && (
+                <div style={{ fontSize: 12, color: "#f44", padding: "4px 8px", background: "rgba(220,50,50,0.15)", borderRadius: 4 }}>
+                    {error}
+                </div>
+            )}
+
+            <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 4 }}>
+                {loading && <div style={{ fontSize: 12, color: "var(--text-secondary)", padding: 8, textAlign: "center" }}>Loading…</div>}
+                {!loading && facts.length === 0 && (
+                    <div style={{ fontSize: 12, color: "var(--text-secondary)", padding: 16, textAlign: "center", lineHeight: 1.6 }}>
+                        No auto-extracted memories yet.<br />
+                        Facts are extracted automatically after agent sessions complete.<br />
+                        You can also click "+ Add Fact" to add manually.
+                    </div>
+                )}
+                {facts.map((f) => (
+                    <div
+                        key={f.id}
+                        style={{
+                            display: "flex",
+                            alignItems: "flex-start",
+                            gap: 8,
+                            padding: "8px 10px",
+                            borderRadius: 6,
+                            background: f.pinned ? "rgba(137,180,250,0.08)" : "var(--bg-tertiary)",
+                            border: f.pinned ? "1px solid rgba(137,180,250,0.3)" : "1px solid var(--border-color)",
+                        }}
+                    >
+                        <button
+                            onClick={() => togglePin(f.id, f.pinned)}
+                            title={f.pinned ? "Unpin" : "Pin"}
+                            style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, opacity: f.pinned ? 1 : 0.4, flexShrink: 0, padding: 0, lineHeight: 1, color: "#89b4fa" }}
+                        >
+                            📌
+                        </button>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 12, lineHeight: 1.5 }}>{f.fact}</div>
+                            <div style={{ display: "flex", gap: 6, marginTop: 4, flexWrap: "wrap", alignItems: "center" }}>
+                                <span style={{ fontSize: 10, color: confidenceColor(f.confidence), fontWeight: 600 }}>
+                                    {Math.round(f.confidence * 100)}% conf
+                                </span>
+                                {f.tags.map((t) => (
+                                    <span key={t} style={{ fontSize: 10, padding: "1px 5px", borderRadius: 3, background: "rgba(255,255,255,0.08)", color: "var(--text-secondary)" }}>
+                                        {t}
+                                    </span>
+                                ))}
+                                {f.session_id && (
+                                    <span style={{ fontSize: 10, color: "var(--text-secondary)", opacity: 0.6 }}>
+                                        from session {f.session_id.slice(0, 8)}
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => deleteFact(f.id)}
+                            title="Delete"
+                            style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: "#6c7086", flexShrink: 0, padding: "0 2px", lineHeight: 1 }}
+                        >
+                            ✕
+                        </button>
+                    </div>
+                ))}
+            </div>
+
+            <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+                Stored at <code style={{ fontSize: 10 }}>~/.vibeui/auto-memory.json</code>
+            </div>
+        </div>
+    );
+}
+
 // ── MemoryPanel ───────────────────────────────────────────────────────────────
 
 export function MemoryPanel({ workspacePath }: MemoryPanelProps) {
+    const { toasts, toast, dismiss } = useToast();
     const [activeTab, setActiveTab] = useState<RulesTab>("workspace");
     const [workspaceRules, setWorkspaceRules] = useState("");
     const [globalRules, setGlobalRules] = useState("");
@@ -352,7 +562,7 @@ export function MemoryPanel({ workspacePath }: MemoryPanelProps) {
             setSaved(true);
             setTimeout(() => setSaved(false), 2000);
         } catch (e) {
-            alert("Failed to save: " + e);
+            toast.error("Failed to save: " + e);
         } finally {
             setSaving(false);
         }
@@ -367,6 +577,7 @@ export function MemoryPanel({ workspacePath }: MemoryPanelProps) {
         { id: "workspace", label: "Project" },
         { id: "global", label: "Global" },
         { id: "directory", label: "Dir Rules" },
+        { id: "auto", label: "✨ Auto-Facts" },
     ];
 
     return (
@@ -404,8 +615,15 @@ export function MemoryPanel({ workspacePath }: MemoryPanelProps) {
                 </div>
             )}
 
+            {/* Auto-Facts tab */}
+            {activeTab === "auto" && (
+                <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
+                    <AutoFactsTab />
+                </div>
+            )}
+
             {/* Single-file rules tabs */}
-            {activeTab !== "directory" && (
+            {activeTab !== "directory" && activeTab !== "auto" && (
                 <>
                     {activeTab === "workspace" && !workspacePath && (
                         <div style={{ fontSize: "12px", color: "#f4a", padding: "6px", background: "rgba(255,68,170,0.1)", borderRadius: "4px" }}>
@@ -448,6 +666,7 @@ export function MemoryPanel({ workspacePath }: MemoryPanelProps) {
                             : `💾 Save ${activeTab === "workspace" ? "Project" : "Global"} Rules`}
                     </button>
 
+
                     <div style={{ fontSize: "11px", color: "var(--text-secondary)" }}>
                         {activeTab === "workspace"
                             ? "Saved to <workspace>/.vibeui.md — commit it with your project."
@@ -455,6 +674,7 @@ export function MemoryPanel({ workspacePath }: MemoryPanelProps) {
                     </div>
                 </>
             )}
+            <Toaster toasts={toasts} onDismiss={dismiss} />
         </div>
     );
 }

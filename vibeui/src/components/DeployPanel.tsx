@@ -28,13 +28,18 @@ const TARGETS = [
   { id: "netlify", label: "Netlify", icon: "◆", color: "#00C7B7" },
   { id: "railway", label: "Railway", icon: "🚂", color: "#0B0D0E" },
   { id: "github-pages", label: "GitHub Pages", icon: "⚙", color: "#24292e" },
+  { id: "gcp-run", label: "GCP Cloud Run", icon: "☁", color: "#4285F4" },
+  { id: "firebase", label: "Firebase Hosting", icon: "🔥", color: "#F57C00" },
 ];
 
 interface DeployPanelProps {
-  workspacePath: string;
+  workspacePath: string | null;
 }
 
 export function DeployPanel({ workspacePath }: DeployPanelProps) {
+  if (!workspacePath) {
+    return <div className="empty-state"><p>Open a workspace folder to use the deploy panel.</p></div>;
+  }
   const [detected, setDetected] = useState<DeployTarget | null>(null);
   const [selectedTarget, setSelectedTarget] = useState("vercel");
   const [isDeploying, setIsDeploying] = useState(false);

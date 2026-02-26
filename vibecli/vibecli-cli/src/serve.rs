@@ -17,6 +17,7 @@
 //! | GET    | `/sessions`               | HTML index of all agent sessions     |
 //! | GET    | `/sessions.json`          | JSON list of all sessions            |
 //! | GET    | `/view/:id`               | HTML page for a specific session     |
+//! | GET    | `/share/:id`              | Shareable readonly session view (adds "Shared" banner) |
 //!
 //! # Usage
 //!
@@ -174,7 +175,7 @@ impl AgentEventPayload {
 // ── Route handlers ────────────────────────────────────────────────────────────
 
 async fn health() -> impl IntoResponse {
-    (StatusCode::OK, "ok")
+    Json(serde_json::json!({ "status": "ok" }))
 }
 
 async fn chat(
@@ -477,6 +478,7 @@ pub async fn serve(
         .route("/sessions", get(sessions_index_html))
         .route("/sessions.json", get(sessions_json))
         .route("/view/:id", get(view_session))
+        .route("/share/:id", get(share_session))
         .layer(cors)
         .with_state(state);
 
@@ -519,6 +521,43 @@ async fn sessions_json() -> impl IntoResponse {
             let json = serde_json::to_string(&sessions).unwrap_or_else(|_| "[]".into());
             (StatusCode::OK, [("content-type", "application/json")], json)
         }
+    }
+}
+
+/// Shareable readonly view of a session — identical to `/view/:id` but injects
+/// a green "Shared" banner and a `noindex` meta tag so search engines don't index it.
+async fn share_session(Path(id): Path<String>) -> impl IntoResponse {
+    match SessionStore::open_default() {
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            [("content-type", "text/plain")],
+            format!("Failed to open session store: {}", e),
+        ),
+        Ok(store) => match store.get_session_detail(&id) {
+            Err(e) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                [("content-type", "text/plain")],
+                format!("DB error: {}", e),
+            ),
+            Ok(None) => (
+                StatusCode::NOT_FOUND,
+                [("content-type", "text/html; charset=utf-8")],
+                format!(
+                    "<h1>Session not found</h1><p>No session with ID: <code>{}</code></p><p><a href=\"/sessions\">All sessions</a></p>",
+                    id
+                ),
+            ),
+            Ok(Some(detail)) => {
+                let html = render_session_html(&detail);
+                // Inject noindex meta and a "Shared" banner.
+                let banner = r#"<meta name="robots" content="noindex,nofollow">
+<div style="background:#1a3a1a;border-bottom:1px solid #3fb950;padding:8px 24px;margin-bottom:20px;border-radius:4px;color:#3fb950;font-size:13px">
+  📤 <strong>Shared session</strong> — readonly view
+</div>"#;
+                let html = html.replace("<body>", &format!("<body>\n{}", banner));
+                (StatusCode::OK, [("content-type", "text/html; charset=utf-8")], html)
+            }
+        },
     }
 }
 

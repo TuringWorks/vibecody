@@ -80,3 +80,8 @@ tower-http = { version = "0.6", features = ["cors"] }
 
 # SQLite (session store)
 rusqlite = { version = "0.31", features = ["bundled"] }
+
+# Crypto (AWS SigV4 signing)
+sha2 = "0.10"
+hmac = "0.12"
+hex = "0.4"

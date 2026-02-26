@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
+import { useToast } from '../hooks/useToast';
+import { Toaster } from './Toaster';
 
 interface JobRecord {
     session_id: string;
@@ -26,6 +28,7 @@ const PROVIDERS = ['ollama', 'claude', 'openai', 'gemini', 'grok'];
 const APPROVALS = ['suggest', 'auto-edit', 'full-auto'];
 
 export function BackgroundJobsPanel({ daemonUrl = 'http://localhost:7878' }: BackgroundJobsPanelProps) {
+    const { toasts, toast, dismiss } = useToast();
     const [jobs, setJobs] = useState<JobRecord[]>([]);
     const [daemonOnline, setDaemonOnline] = useState(false);
     const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -39,7 +42,7 @@ export function BackgroundJobsPanel({ daemonUrl = 'http://localhost:7878' }: Bac
     const fetchJobs = async () => {
         try {
             const res = await fetch(`${daemonUrl}/jobs`);
-            if (!res.ok) throw new Error('not ok');
+            if (!res.ok) throw new Error(await res.text());
             const data: JobRecord[] = await res.json();
             setJobs(data);
             setDaemonOnline(true);
@@ -55,6 +58,14 @@ export function BackgroundJobsPanel({ daemonUrl = 'http://localhost:7878' }: Bac
         return () => clearInterval(id);
     }, [daemonUrl]);
 
+    // Close all open EventSources on unmount to prevent resource leaks
+    useEffect(() => {
+        return () => {
+            Object.values(esRefs.current).forEach(es => es.close());
+            esRefs.current = {};
+        };
+    }, []);
+
     const submitJob = async () => {
         if (!task.trim()) return;
         setSubmitting(true);
@@ -68,7 +79,7 @@ export function BackgroundJobsPanel({ daemonUrl = 'http://localhost:7878' }: Bac
             setTask('');
             await fetchJobs();
         } catch (e) {
-            alert(`Failed to submit job: ${e}`);
+            toast.error(`Failed to submit job: ${e}`);
         } finally {
             setSubmitting(false);
         }
@@ -79,7 +90,7 @@ export function BackgroundJobsPanel({ daemonUrl = 'http://localhost:7878' }: Bac
             await fetch(`${daemonUrl}/jobs/${id}/cancel`, { method: 'POST' });
             await fetchJobs();
         } catch (e) {
-            alert(`Failed to cancel: ${e}`);
+            toast.error(`Failed to cancel: ${e}`);
         }
     };
 
@@ -244,6 +255,7 @@ export function BackgroundJobsPanel({ daemonUrl = 'http://localhost:7878' }: Bac
                     </div>
                 ))}
             </div>
+            <Toaster toasts={toasts} onDismiss={dismiss} />
         </div>
     );
 }

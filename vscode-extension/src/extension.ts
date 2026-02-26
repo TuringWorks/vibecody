@@ -8,7 +8,7 @@
  */
 
 import * as vscode from 'vscode';
-import { VibeCLIClient, type AgentEvent } from './api-client';
+import { VibeCLIClient, type AgentEvent, type JobRecord } from './api-client';
 
 let client: VibeCLIClient;
 let statusBarItem: vscode.StatusBarItem;
@@ -38,6 +38,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.commands.registerCommand('vibecli.startDaemon', handleStartDaemon),
     vscode.commands.registerCommand('vibecli.startAgent', handleStartAgent),
     vscode.commands.registerCommand('vibecli.chat', handleChat),
+    vscode.commands.registerCommand('vibecli.inlineEdit', handleInlineEdit),
+    vscode.commands.registerCommand('vibecli.viewJobs', handleViewJobs),
+    vscode.commands.registerCommand('vibecli.sendSelection', handleSendSelection),
   );
 
   // Register inline completion provider
@@ -180,6 +183,156 @@ async function handleChat(): Promise<void> {
   vscode.window.showTextDocument(doc, { preview: true });
 }
 
+// ── Inline Edit (Cmd+Shift+K) ─────────────────────────────────────────────────
+
+async function handleInlineEdit(): Promise<void> {
+  if (!daemonConnected) {
+    vscode.window.showWarningMessage('VibeCLI daemon not connected. Run "VibeCLI: Start Daemon" first.');
+    return;
+  }
+
+  const editor = vscode.window.activeTextEditor;
+  const selection = editor?.document.getText(editor.selection) ?? '';
+  const filePath = editor?.document.fileName ?? '';
+  const lang = editor?.document.languageId ?? '';
+
+  const instruction = await vscode.window.showInputBox({
+    prompt: 'Inline edit instruction',
+    placeHolder: 'e.g. Add error handling, Rename to camelCase, Add JSDoc',
+  });
+  if (!instruction) return;
+
+  const task = selection
+    ? `File: ${filePath}\n\`\`\`${lang}\n${selection}\n\`\`\`\n\nInstruction: ${instruction}`
+    : instruction;
+
+  const config = vscode.workspace.getConfiguration('vibecli');
+  const approval = config.get<string>('approval', 'suggest');
+
+  const outputChannel = vscode.window.createOutputChannel('VibeCLI Inline Edit');
+  outputChannel.show();
+  outputChannel.appendLine(`[inline-edit] ${instruction}`);
+
+  try {
+    const { sessionId } = await client.startAgent(task, approval);
+    for await (const event of client.streamAgent(sessionId)) {
+      formatEventToOutput(outputChannel, event);
+      if (event.type === 'complete' || event.type === 'error') break;
+    }
+  } catch (err) {
+    outputChannel.appendLine(`[error] ${err}`);
+  }
+}
+
+// ── View Jobs ─────────────────────────────────────────────────────────────────
+
+async function handleViewJobs(): Promise<void> {
+  if (!daemonConnected) {
+    vscode.window.showWarningMessage('VibeCLI daemon not connected.');
+    return;
+  }
+
+  const jobs = await client.listJobs();
+  if (jobs.length === 0) {
+    vscode.window.showInformationMessage('No VibeCLI background jobs found.');
+    return;
+  }
+
+  const statusIcon = (s: JobRecord['status']) =>
+    s === 'complete' ? '✅' : s === 'running' ? '🟡' : s === 'failed' ? '❌' : '⛔';
+
+  const picks = jobs.map((j) => ({
+    label: `${statusIcon(j.status)} ${j.task.slice(0, 60)}${j.task.length > 60 ? '…' : ''}`,
+    description: `${j.status} · ${j.provider}`,
+    detail: j.summary ?? `Session: ${j.session_id}`,
+    job: j,
+  }));
+
+  const selected = await vscode.window.showQuickPick(picks, {
+    title: `VibeCLI Jobs (${jobs.length})`,
+    placeHolder: 'Select a job to view or cancel',
+    matchOnDetail: true,
+  });
+
+  if (!selected) return;
+
+  const job = selected.job;
+
+  if (job.status === 'running') {
+    const action = await vscode.window.showQuickPick(
+      ['Stream live output', 'Cancel job', 'Dismiss'],
+      { title: `Job: ${job.task.slice(0, 50)}` },
+    );
+    if (action === 'Stream live output') {
+      const ch = vscode.window.createOutputChannel(`VibeCLI Job: ${job.session_id.slice(0, 8)}`);
+      ch.show();
+      ch.appendLine(`[streaming] ${job.task}`);
+      for await (const event of client.streamAgent(job.session_id)) {
+        formatEventToOutput(ch, event);
+        if (event.type === 'complete' || event.type === 'error') break;
+      }
+    } else if (action === 'Cancel job') {
+      await client.cancelJob(job.session_id);
+      vscode.window.showInformationMessage(`Cancelled job ${job.session_id.slice(0, 8)}`);
+    }
+  } else if (job.summary) {
+    // Show summary in a markdown document
+    const doc = await vscode.workspace.openTextDocument({
+      content: `# Job: ${job.task}\n\nStatus: **${job.status}**\n\nSession: \`${job.session_id}\`\n\n---\n\n${job.summary}`,
+      language: 'markdown',
+    });
+    vscode.window.showTextDocument(doc, { preview: true });
+  }
+}
+
+// ── Send Selection to Agent ───────────────────────────────────────────────────
+
+async function handleSendSelection(): Promise<void> {
+  if (!daemonConnected) {
+    vscode.window.showWarningMessage('VibeCLI daemon not connected.');
+    return;
+  }
+
+  const editor = vscode.window.activeTextEditor;
+  if (!editor) {
+    vscode.window.showWarningMessage('No active editor.');
+    return;
+  }
+
+  const selection = editor.document.getText(editor.selection);
+  const filePath = editor.document.fileName;
+  const lang = editor.document.languageId;
+
+  if (!selection.trim()) {
+    vscode.window.showWarningMessage('Select some code first, then run this command.');
+    return;
+  }
+
+  const question = await vscode.window.showInputBox({
+    prompt: 'What do you want to do with the selection?',
+    placeHolder: 'e.g. Explain this, Add tests, Refactor, Fix the bug',
+  });
+  if (!question) return;
+
+  const task = `File: ${filePath}\n\`\`\`${lang}\n${selection}\n\`\`\`\n\nTask: ${question}`;
+  const config = vscode.workspace.getConfiguration('vibecli');
+  const approval = config.get<string>('approval', 'suggest');
+
+  const outputChannel = vscode.window.createOutputChannel('VibeCLI');
+  outputChannel.show();
+  outputChannel.appendLine(`[task] ${question}`);
+
+  try {
+    const { sessionId } = await client.startAgent(task, approval);
+    for await (const event of client.streamAgent(sessionId)) {
+      formatEventToOutput(outputChannel, event);
+      if (event.type === 'complete' || event.type === 'error') break;
+    }
+  } catch (err) {
+    outputChannel.appendLine(`[error] ${err}`);
+  }
+}
+
 function formatEventToOutput(channel: vscode.OutputChannel, event: AgentEvent): void {
   switch (event.type) {
     case 'chunk':
@@ -263,18 +416,36 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
     webviewView.webview.options = { enableScripts: true };
     webviewView.webview.html = getChatHtml(webviewView.webview);
 
-    // Forward messages from webview → daemon
+    // Forward messages from webview → daemon (streaming)
     webviewView.webview.onDidReceiveMessage(async (msg: { type: string; content: string }) => {
       if (msg.type !== 'send') return;
       if (!daemonConnected) {
         webviewView.webview.postMessage({ type: 'error', content: 'Daemon not connected.' });
         return;
       }
+
+      // Auto-inject current file context if an editor is active
+      const editor = vscode.window.activeTextEditor;
+      const fileCtx = editor
+        ? `\n\n[Current file: ${editor.document.fileName} (${editor.document.languageId})]`
+        : '';
+      const userContent = msg.content + fileCtx;
+
       try {
-        const response = await client.chat([{ role: 'user', content: msg.content }]);
-        webviewView.webview.postMessage({ type: 'response', content: response });
-      } catch (e) {
-        webviewView.webview.postMessage({ type: 'error', content: String(e) });
+        let accumulated = '';
+        for await (const chunk of client.chatStream([{ role: 'user', content: userContent }])) {
+          accumulated += chunk;
+          webviewView.webview.postMessage({ type: 'chunk', content: chunk });
+        }
+        webviewView.webview.postMessage({ type: 'done', content: accumulated });
+      } catch {
+        // Fall back to non-streaming
+        try {
+          const response = await client.chat([{ role: 'user', content: userContent }]);
+          webviewView.webview.postMessage({ type: 'response', content: response });
+        } catch (e2) {
+          webviewView.webview.postMessage({ type: 'error', content: String(e2) });
+        }
       }
     });
   }
@@ -332,10 +503,26 @@ function getChatHtml(_webview: vscode.Webview): string {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
     });
 
+    let streamingDiv = null;
     window.addEventListener('message', (e) => {
       const msg = e.data;
-      if (msg.type === 'response') appendMsg('assistant', msg.content);
-      if (msg.type === 'error') appendMsg('error', 'Error: ' + msg.content);
+      if (msg.type === 'response') {
+        appendMsg('assistant', msg.content);
+        streamingDiv = null;
+      } else if (msg.type === 'chunk') {
+        if (!streamingDiv) {
+          streamingDiv = document.createElement('div');
+          streamingDiv.className = 'msg assistant';
+          messages.appendChild(streamingDiv);
+        }
+        streamingDiv.textContent += msg.content;
+        messages.scrollTop = messages.scrollHeight;
+      } else if (msg.type === 'done') {
+        streamingDiv = null;
+      } else if (msg.type === 'error') {
+        appendMsg('error', 'Error: ' + msg.content);
+        streamingDiv = null;
+      }
     });
   </script>
 </body>

@@ -36,14 +36,17 @@ use memory::ProjectMemory;
 
 mod repl;
 mod spec;
+mod workflow;
 mod background_agents;
 mod team;
 mod memory_auto;
 mod bugbot;
 mod scheduler;
 mod gateway;
+mod linear;
 mod session_store;
 use session_store::SessionStore;
+mod notebook;
 use rustyline::error::ReadlineError;
 
 mod tui;
@@ -190,6 +193,54 @@ struct Cli {
     /// Example: --output-schema schema.json
     #[arg(long, value_name = "SCHEMA_FILE")]
     output_schema: Option<String>,
+
+    // ── Notebook runner ───────────────────────────────────────────────────────
+
+    /// Run a .vibe notebook file (executable Markdown with code cells).
+    /// Supported languages: bash, sh, python, python3, ruby, node, js, deno, rust
+    /// Example: vibecli --notebook script.vibe
+    #[arg(long, value_name = "FILE")]
+    notebook: Option<String>,
+
+    /// Continue running notebook cells even if one fails (default: stop on first error).
+    #[arg(long)]
+    continue_on_error: bool,
+
+    // ── Copilot OAuth ─────────────────────────────────────────────────────────
+
+    /// Authenticate with GitHub Copilot via device flow.
+    /// Prints a GITHUB_TOKEN to save to your shell profile.
+    #[arg(long)]
+    copilot_login: bool,
+
+    // ── Worktree isolation ─────────────────────────────────────────────────────
+
+    /// Use git worktree isolation for this agent session.
+    /// The agent runs in a fresh worktree branch; changes are not applied to
+    /// the current branch unless explicitly merged. Mirrors Claude Code's -w flag.
+    #[arg(long)]
+    worktree: bool,
+
+    // ── Watch mode ─────────────────────────────────────────────────────────────
+
+    /// Watch the current directory for file changes and run the agent task
+    /// automatically whenever a file matching --watch-glob changes.
+    /// Example: vibecli --watch --agent "Run tests after changes" --watch-glob "**/*.rs"
+    #[arg(long)]
+    watch: bool,
+
+    /// Glob pattern for --watch mode (default: "**/*.{rs,ts,tsx,py,go,js,jsx}").
+    #[arg(long, value_name = "GLOB", default_value = "**/*.{rs,ts,tsx,py,go,js,jsx}")]
+    watch_glob: String,
+
+    // ── Sandbox ────────────────────────────────────────────────────────────────
+
+    /// Enable sandbox isolation for shell commands executed by the agent.
+    /// On macOS, wraps bash calls in `sandbox-exec` (Seatbelt).
+    /// On Linux, wraps in `bwrap` if available.
+    /// Overrides config.safety.sandbox = true/false.
+    #[arg(long)]
+    sandbox: bool,
 }
 
 #[tokio::main]
@@ -219,9 +270,35 @@ async fn main() -> Result<()> {
             Config::approval_from_flags(cli.suggest, cli.auto_edit, cli.full_auto)
         });
 
+    // Resolve sandbox flag: CLI --sandbox overrides config
+    let sandbox_enabled = {
+        let from_config = Config::load().map(|c| c.safety.sandbox).unwrap_or(false);
+        cli.sandbox || from_config
+    };
+
     // ── Doctor mode ───────────────────────────────────────────────────────────
     if cli.doctor {
         return run_doctor().await;
+    }
+
+    // ── Copilot device-flow login ─────────────────────────────────────────────
+    if cli.copilot_login {
+        match vibe_ai::providers::copilot::run_device_flow().await {
+            Ok(token) => {
+                println!("✅ GitHub token obtained!");
+                println!("Add to your shell profile:");
+                println!("  export GITHUB_TOKEN={}", token);
+            }
+            Err(e) => eprintln!("❌ Copilot login failed: {}", e),
+        }
+        return Ok(());
+    }
+
+    // ── Notebook runner ───────────────────────────────────────────────────────
+    if let Some(notebook_path) = cli.notebook.as_deref() {
+        let path = std::path::Path::new(notebook_path);
+        let ok = notebook::run_notebook(path, cli.continue_on_error)?;
+        std::process::exit(if ok { 0 } else { 1 });
     }
 
     // ── Profile resolution ────────────────────────────────────────────────────
@@ -403,6 +480,15 @@ async fn main() -> Result<()> {
         std::process::exit(report.exit_code());
     }
 
+    // Watch mode: --watch [--agent "task"] [--watch-glob "**/*.rs"]
+    if cli.watch {
+        let watch_task = cli.agent.clone().unwrap_or_else(|| {
+            "A file changed. Analyze the change and take any helpful action (e.g. run tests, fix errors).".to_string()
+        });
+        let llm = create_provider(&effective_provider, effective_model.clone())?;
+        return run_watch_mode(llm, &watch_task, &approval_policy, &cli.watch_glob, sandbox_enabled).await;
+    }
+
     // Non-TUI agent mode: --agent "task description"
     if let Some(task) = cli.agent {
         // ── opusplan routing ─────────────────────────────────────────────────
@@ -440,6 +526,38 @@ async fn main() -> Result<()> {
         if let Some(n) = cli.parallel {
             return run_parallel_agents(llm, &task, &approval_policy, n).await;
         }
+
+        // Worktree isolation mode (--worktree flag)
+        let worktree_branch_hint: Option<String> = if cli.worktree {
+            use vibe_ai::WorktreeManager;
+            let cwd = std::env::current_dir()?;
+            let manager = tool_executor::VibeCoreWorktreeManager::new(cwd.clone());
+            let agent_id = format!("wt-{}", std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs());
+            match manager.create_isolated_worktree(&agent_id) {
+                Ok(wt) => {
+                    let wt_path = wt.path.clone();
+                    let branch = wt.branch.clone();
+                    eprintln!("🌿 Worktree isolation: branch '{}' at {}", branch, wt_path.display());
+                    eprintln!("   After the agent completes, merge with:");
+                    eprintln!("   git merge {}", branch);
+                    // Change CWD to the worktree so the agent runs there
+                    let _ = std::env::set_current_dir(&wt_path);
+                    // Don't drop the wt handle — keep worktree alive for the session
+                    std::mem::forget(wt);
+                    Some(branch)
+                }
+                Err(e) => {
+                    eprintln!("⚠️  Could not create worktree ({}). Running in current directory.", e);
+                    None
+                }
+            }
+        } else {
+            None
+        };
+        let _ = worktree_branch_hint; // used for display only
 
         let exec_model_str = exec_model.clone().unwrap_or_default();
         return run_agent_repl_with_context(
@@ -1431,17 +1549,23 @@ async fn main() -> Result<()> {
                                             let age = if elapsed < 3600 { format!("{}m ago", elapsed / 60) }
                                                       else { format!("{}h ago", elapsed / 3600) };
                                             // Count messages in checkpoint
-                                            let msg_count = std::fs::read_to_string(entry.path())
-                                                .ok()
-                                                .and_then(|s| serde_json::from_str::<Vec<Message>>(&s).ok())
-                                                .map(|m| m.len())
-                                                .unwrap_or(0);
-                                            println!("  {} — {} messages — {}", ts_str, msg_count, age);
+                                            let msg_info = match std::fs::read_to_string(entry.path()) {
+                                                Err(e) => format!("(unreadable: {})", e),
+                                                Ok(s) => match serde_json::from_str::<Vec<Message>>(&s) {
+                                                    Ok(m) => format!("{} messages", m.len()),
+                                                    Err(e) => format!("(corrupt: {})", e),
+                                                },
+                                            };
+                                            println!("  {} — {} — {}", ts_str, msg_info, age);
                                         }
                                         println!("\nRestore with: /rewind <timestamp>\n");
                                     }
                                 }
                                 ts_str => {
+                                    // Validate: timestamps are numeric only (prevents path traversal)
+                                    if !ts_str.chars().all(|c| c.is_ascii_digit()) {
+                                        eprintln!("❌ Invalid checkpoint ID '{}'. Expected a numeric timestamp.\n", ts_str);
+                                    } else {
                                     let rewind_dir = dirs::home_dir()
                                         .unwrap_or_else(|| cwd.clone())
                                         .join(".vibecli")
@@ -1459,6 +1583,7 @@ async fn main() -> Result<()> {
                                         }
                                         Err(e) => eprintln!("❌ Failed to load checkpoint {}: {}\n", ts_str, e),
                                     }
+                                    } // end else (valid timestamp)
                                 }
                             }
                         }
@@ -1562,6 +1687,164 @@ async fn main() -> Result<()> {
                                     }
                                 }
                                 _ => println!("Usage: /spec [list|show|new|run|done]\n"),
+                            }
+                        }
+
+                        // ── Code Complete workflow ──────────────────────────────────────
+                        "/workflow" => {
+                            use crate::workflow::WorkflowManager;
+                            let cwd = std::env::current_dir()?;
+                            let mgr = WorkflowManager::for_workspace(&cwd);
+                            let parts: Vec<&str> = if args.is_empty() {
+                                vec!["list"]
+                            } else {
+                                args.splitn(3, ' ').collect()
+                            };
+                            match parts[0] {
+                                "list" | "" => {
+                                    let names = mgr.list();
+                                    if names.is_empty() {
+                                        println!("No workflows. Create one with: /workflow new <name> <description>\n");
+                                    } else {
+                                        println!("Workflows ({}):", names.len());
+                                        for name in &names {
+                                            if let Ok(w) = mgr.load(name) {
+                                                let pct = w.overall_progress();
+                                                println!("  {} — {} [{:.0}%]", name, w.current_stage.label(), pct);
+                                            }
+                                        }
+                                        println!();
+                                    }
+                                }
+                                "show" => {
+                                    let name = parts.get(1).unwrap_or(&"").trim();
+                                    if name.is_empty() {
+                                        println!("Usage: /workflow show <name>\n");
+                                        continue;
+                                    }
+                                    match mgr.load(name) {
+                                        Ok(w) => {
+                                            println!("\n🏗️  Workflow: {}  [{:.0}% complete]", w.name, w.overall_progress());
+                                            println!("   {}\n", w.description);
+                                            for stage in &w.stages {
+                                                let marker = if stage.stage == w.current_stage { "▶" }
+                                                    else if stage.status == crate::workflow::StageStatus::Complete { "✅" }
+                                                    else if stage.status == crate::workflow::StageStatus::Skipped { "⏭" }
+                                                    else { "○" };
+                                                let pct = if stage.checklist.is_empty() { String::new() }
+                                                    else { format!(" ({}/{})", stage.completed_count(), stage.total_count()) };
+                                                println!("   {} {}. {}{}", marker, stage.stage.index() + 1, stage.stage.label(), pct);
+                                            }
+                                            println!();
+                                            // Show current stage checklist
+                                            let current = w.current_stage_data();
+                                            if !current.checklist.is_empty() {
+                                                println!("   Current stage checklist:");
+                                                for item in &current.checklist {
+                                                    let check = if item.done { "✓" } else { " " };
+                                                    println!("     [{}] {}: {}", check, item.id, item.description);
+                                                }
+                                                println!();
+                                            }
+                                        }
+                                        Err(e) => eprintln!("❌ {}\n", e),
+                                    }
+                                }
+                                "new" => {
+                                    let name = parts.get(1).unwrap_or(&"").trim();
+                                    if name.is_empty() {
+                                        println!("Usage: /workflow new <name> <description>\n");
+                                        continue;
+                                    }
+                                    let description = parts.get(2).unwrap_or(&"").trim();
+                                    match mgr.create(name, description) {
+                                        Ok(_) => {
+                                            println!("✅ Workflow '{}' created with 8 stages (Code Complete methodology)", name);
+                                            println!("   Current stage: Requirements");
+                                            println!("   Use /workflow generate {} to AI-generate a checklist for the current stage.\n", name);
+                                        }
+                                        Err(e) => eprintln!("❌ {}\n", e),
+                                    }
+                                }
+                                "advance" => {
+                                    let name = parts.get(1).unwrap_or(&"").trim();
+                                    if name.is_empty() {
+                                        println!("Usage: /workflow advance <name>\n");
+                                        continue;
+                                    }
+                                    match mgr.advance_stage(name) {
+                                        Ok(w) => {
+                                            println!("✅ Advanced to stage: {}\n", w.current_stage.label());
+                                        }
+                                        Err(e) => eprintln!("❌ {}\n", e),
+                                    }
+                                }
+                                "check" => {
+                                    let name = parts.get(1).unwrap_or(&"").trim();
+                                    let item_id_str = parts.get(2).unwrap_or(&"").trim();
+                                    if name.is_empty() || item_id_str.is_empty() {
+                                        println!("Usage: /workflow check <name> <item-id>\n");
+                                        continue;
+                                    }
+                                    match item_id_str.parse::<u32>() {
+                                        Ok(item_id) => {
+                                            if let Ok(w) = mgr.load(name) {
+                                                let stage_idx = w.current_stage.index();
+                                                let currently_done = w.stages[stage_idx]
+                                                    .checklist.iter()
+                                                    .find(|c| c.id == item_id)
+                                                    .map(|c| c.done)
+                                                    .unwrap_or(false);
+                                                match mgr.toggle_checklist_item(name, stage_idx, item_id, !currently_done) {
+                                                    Ok(_) => println!("✅ Toggled item {} in '{}'\n", item_id, name),
+                                                    Err(e) => eprintln!("❌ {}\n", e),
+                                                }
+                                            } else {
+                                                eprintln!("❌ Workflow '{}' not found\n", name);
+                                            }
+                                        }
+                                        Err(_) => eprintln!("❌ Invalid item ID: {}\n", item_id_str),
+                                    }
+                                }
+                                "generate" => {
+                                    let name = parts.get(1).unwrap_or(&"").trim();
+                                    if name.is_empty() {
+                                        println!("Usage: /workflow generate <name>\n");
+                                        continue;
+                                    }
+                                    match mgr.load(name) {
+                                        Ok(w) => {
+                                            let prompt = crate::workflow::stage_checklist_prompt(
+                                                &w.current_stage,
+                                                &w.description,
+                                            );
+                                            println!("🤖 Generating {} checklist for '{}'...", w.current_stage.label(), name);
+                                            match llm.chat(&[], Some(prompt)).await {
+                                                Ok(response) => {
+                                                    let items = crate::workflow::parse_checklist_response(&response);
+                                                    if items.is_empty() {
+                                                        println!("⚠️  Could not parse checklist from response.\n");
+                                                    } else {
+                                                        let stage_idx = w.current_stage.index();
+                                                        match mgr.set_stage_checklist(name, stage_idx, items.clone()) {
+                                                            Ok(_) => {
+                                                                println!("✅ Generated {} checklist items:", items.len());
+                                                                for item in &items {
+                                                                    println!("   [ ] {}: {}", item.id, item.description);
+                                                                }
+                                                                println!();
+                                                            }
+                                                            Err(e) => eprintln!("❌ {}\n", e),
+                                                        }
+                                                    }
+                                                }
+                                                Err(e) => eprintln!("❌ LLM error: {}\n", e),
+                                            }
+                                        }
+                                        Err(e) => eprintln!("❌ {}\n", e),
+                                    }
+                                }
+                                _ => println!("Usage: /workflow [new|list|show|advance|check|generate]\n"),
                             }
                         }
 
@@ -1760,6 +2043,11 @@ async fn main() -> Result<()> {
                         // Usage: /schedule every <duration> "<task>"
                         //        /schedule list
                         //        /schedule cancel <id>
+                        "/linear" => {
+                            let output = crate::linear::handle_linear_command(args).await;
+                            print!("{}", output);
+                        }
+
                         "/schedule" => {
                             use crate::scheduler::{Scheduler, parse_duration, format_relative, format_interval};
                             let sched = Scheduler::new();
@@ -1806,34 +2094,273 @@ async fn main() -> Result<()> {
                             }
                         }
 
+                        // ── /snippet — save/list/use named code snippets ──────────────
+                        "/snippet" => {
+                            let snippet_dir = dirs::home_dir()
+                                .unwrap_or_else(|| cwd.clone())
+                                .join(".vibecli")
+                                .join("snippets");
+                            let _ = std::fs::create_dir_all(&snippet_dir);
+
+                            let sub_parts: Vec<&str> = args.splitn(3, ' ').collect();
+                            let sub = sub_parts.first().copied().unwrap_or("").trim();
+
+                            match sub {
+                                "list" | "" => {
+                                    match std::fs::read_dir(&snippet_dir) {
+                                        Ok(entries) => {
+                                            let mut names: Vec<String> = entries
+                                                .filter_map(|e| e.ok())
+                                                .filter_map(|e| {
+                                                    let p = e.path();
+                                                    if p.extension().and_then(|x| x.to_str()) == Some("md") {
+                                                        p.file_stem().map(|s| s.to_string_lossy().to_string())
+                                                    } else { None }
+                                                })
+                                                .collect();
+                                            names.sort();
+                                            if names.is_empty() {
+                                                println!("No snippets saved yet. Use: /snippet save <name>\n");
+                                            } else {
+                                                println!("📌 Saved snippets ({}):", names.len());
+                                                for n in &names { println!("  - {}", n); }
+                                                println!();
+                                            }
+                                        }
+                                        Err(e) => eprintln!("❌ {}\n", e),
+                                    }
+                                }
+                                "save" => {
+                                    let name = sub_parts.get(1).copied().unwrap_or("").trim();
+                                    if name.is_empty() {
+                                        println!("Usage: /snippet save <name>\n       Saves the last AI response as a named snippet.\n");
+                                    } else if !is_safe_name(name) {
+                                        eprintln!("❌ Invalid snippet name '{}'. Use only letters, digits, hyphens and underscores.\n", name);
+                                    } else {
+                                        // Find the last assistant message
+                                        let last_assistant = messages.iter().rev()
+                                            .find(|m| m.role == MessageRole::Assistant)
+                                            .map(|m| m.content.clone());
+                                        match last_assistant {
+                                            Some(content) => {
+                                                let path = snippet_dir.join(format!("{}.md", name));
+                                                match std::fs::write(&path, &content) {
+                                                    Ok(()) => println!("💾 Snippet '{}' saved.\n", name),
+                                                    Err(e) => eprintln!("❌ Failed to save: {}\n", e),
+                                                }
+                                            }
+                                            None => println!("⚠️  No assistant message in current session to save.\n"),
+                                        }
+                                    }
+                                }
+                                "use" | "insert" => {
+                                    let name = sub_parts.get(1).copied().unwrap_or("").trim();
+                                    if name.is_empty() {
+                                        println!("Usage: /snippet use <name>\n       Injects snippet as context in the next message.\n");
+                                    } else if !is_safe_name(name) {
+                                        eprintln!("❌ Invalid snippet name '{}'.\n", name);
+                                    } else {
+                                        let path = snippet_dir.join(format!("{}.md", name));
+                                        match std::fs::read_to_string(&path) {
+                                            Ok(content) => {
+                                                println!("📌 Snippet '{}':\n---\n{}\n---\n", name, content);
+                                                // Inject as a user context message
+                                                messages.push(Message {
+                                                    role: MessageRole::User,
+                                                    content: format!("Here is the '{}' snippet for reference:\n\n{}", name, content),
+                                                });
+                                                messages.push(Message {
+                                                    role: MessageRole::Assistant,
+                                                    content: format!("Got it — I've noted the '{}' snippet.", name),
+                                                });
+                                            }
+                                            Err(_) => println!("⚠️  Snippet '{}' not found.\n", name),
+                                        }
+                                    }
+                                }
+                                "delete" | "rm" => {
+                                    let name = sub_parts.get(1).copied().unwrap_or("").trim();
+                                    if name.is_empty() {
+                                        println!("Usage: /snippet delete <name>\n");
+                                    } else if !is_safe_name(name) {
+                                        eprintln!("❌ Invalid snippet name '{}'.\n", name);
+                                    } else {
+                                        let path = snippet_dir.join(format!("{}.md", name));
+                                        match std::fs::remove_file(&path) {
+                                            Ok(()) => println!("🗑️  Snippet '{}' deleted.\n", name),
+                                            Err(_) => println!("⚠️  Snippet '{}' not found.\n", name),
+                                        }
+                                    }
+                                }
+                                "show" | "cat" => {
+                                    let name = sub_parts.get(1).copied().unwrap_or("").trim();
+                                    if name.is_empty() {
+                                        println!("Usage: /snippet show <name>\n");
+                                    } else if !is_safe_name(name) {
+                                        eprintln!("❌ Invalid snippet name '{}'.\n", name);
+                                    } else {
+                                        let path = snippet_dir.join(format!("{}.md", name));
+                                        match std::fs::read_to_string(&path) {
+                                            Ok(content) => {
+                                                println!("📌 Snippet '{}':\n---\n{}\n---\n", name, content);
+                                            }
+                                            Err(_) => println!("⚠️  Snippet '{}' not found.\n", name),
+                                        }
+                                    }
+                                }
+                                _ => println!("Usage: /snippet [list|save <name>|use <name>|show <name>|delete <name>]\n"),
+                            }
+                        }
+
+                        // ── /jobs ──────────────────────────────────────────────────────────
+                        // Usage: /jobs           → list recent jobs
+                        //        /jobs <id>      → show full detail for a job
+                        "/jobs" => {
+                            let jobs_dir = {
+                                let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+                                std::path::PathBuf::from(home).join(".vibecli").join("jobs")
+                            };
+
+                            if !args.is_empty() {
+                                // Show detail for a single job
+                                let job_path = jobs_dir.join(format!("{}.json", args));
+                                if !job_path.exists() {
+                                    eprintln!("❌ Job not found: {}\n", args);
+                                } else {
+                                    match std::fs::read_to_string(&job_path)
+                                        .map_err(|e| e.to_string())
+                                        .and_then(|s| serde_json::from_str::<crate::serve::JobRecord>(&s).map_err(|e| e.to_string()))
+                                    {
+                                        Ok(rec) => {
+                                            let icon = match rec.status.as_str() {
+                                                "complete"  => "✅",
+                                                "running"   => "🟡",
+                                                "failed"    => "❌",
+                                                "cancelled" => "⛔",
+                                                _           => "❓",
+                                            };
+                                            println!("\n{} Job: {}", icon, rec.session_id);
+                                            println!("  Status  : {}", rec.status);
+                                            println!("  Provider: {}", rec.provider);
+                                            println!("  Task    : {}", rec.task);
+                                            let started = rec.started_at / 1000;
+                                            let elapsed_now = std::time::SystemTime::now()
+                                                .duration_since(std::time::UNIX_EPOCH)
+                                                .unwrap_or_default()
+                                                .as_secs()
+                                                .saturating_sub(started);
+                                            println!("  Started : {}s ago", elapsed_now);
+                                            if let Some(fin) = rec.finished_at {
+                                                let duration_ms = fin.saturating_sub(rec.started_at);
+                                                println!("  Duration: {:.1}s", duration_ms as f64 / 1000.0);
+                                            }
+                                            if let Some(summary) = &rec.summary {
+                                                println!("  Summary : {}", summary);
+                                            }
+                                            println!();
+                                        }
+                                        Err(e) => eprintln!("❌ Failed to read job record: {}\n", e),
+                                    }
+                                }
+                            } else if !jobs_dir.exists() {
+                                println!("No background jobs found (jobs directory does not exist).\n");
+                            } else {
+                                let mut records: Vec<crate::serve::JobRecord> = Vec::new();
+                                if let Ok(rd) = std::fs::read_dir(&jobs_dir) {
+                                    for entry in rd.flatten() {
+                                        let p = entry.path();
+                                        if p.extension().and_then(|e| e.to_str()) == Some("json") {
+                                            if let Ok(raw) = std::fs::read_to_string(&p) {
+                                                if let Ok(rec) = serde_json::from_str::<crate::serve::JobRecord>(&raw) {
+                                                    records.push(rec);
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                records.sort_by(|a, b| b.started_at.cmp(&a.started_at));
+                                if records.is_empty() {
+                                    println!("No background jobs found.\n");
+                                } else {
+                                    println!("{:<38} {:<10} {}", "SESSION ID", "STATUS", "TASK");
+                                    println!("{}", "-".repeat(80));
+                                    for rec in records.iter().take(20) {
+                                        let icon = match rec.status.as_str() {
+                                            "complete"  => "✅",
+                                            "running"   => "🟡",
+                                            "failed"    => "❌",
+                                            "cancelled" => "⛔",
+                                            _           => "❓",
+                                        };
+                                        let preview: String = rec.task.chars().take(50).collect();
+                                        let preview = if rec.task.len() > 50 { format!("{}…", preview) } else { preview };
+                                        println!("{:<38} {} {:<9} {}", rec.session_id, icon, rec.status, preview);
+                                    }
+                                    println!("  (use /jobs <session_id> for full detail)\n");
+                                }
+                            }
+                        }
+
+                        "/share" => {
+                            if args.is_empty() {
+                                println!("Usage: /share <session_id>\n\
+                                         Prints a shareable URL for a session when 'vibecli serve' is running.\n\
+                                         Example: /share 193abc4def\n");
+                            } else {
+                                let port: u16 = 7878; // default daemon port
+                                let url = format!("http://localhost:{}/share/{}", port, args.trim());
+                                println!("📤  Shareable session URL:\n    {}\n", url);
+                                println!("    (The daemon must be running: vibecli serve --port {})\n", port);
+                            }
+                        }
+
                         _ => {
                             println!("Type /help for available commands\n");
                         }
                     }
                 } else {
-                    // Regular chat
+                    // Regular chat (with @ context expansion and streaming)
                     if !conversation_active {
                         messages.clear();
                         conversation_active = true;
                         messages.push(Message {
                             role: MessageRole::System,
-                            content: "You are a helpful coding assistant. If the user asks you to run a command, output it in a ```execute block.".to_string(),
+                            content: "You are a helpful coding assistant. If the user asks you to run a command, output it in a ```execute block.\n\nContext references (@file:, @web:, @docs:, @git) are automatically expanded before each message.".to_string(),
                         });
                     }
+                    // Expand @file:, @web:, @docs:, @git references
+                    let expanded = expand_at_refs(input).await;
                     messages.push(Message {
                         role: MessageRole::User,
-                        content: input.to_string(),
+                        content: expanded,
                     });
                     print!("🤖 ");
                     io::stdout().flush()?;
-                    match llm.chat(&messages, None).await {
-                        Ok(response) => {
-                            let highlighted = highlight_code_blocks(&response);
-                            println!("{}\n", highlighted);
-                            messages.push(Message {
-                                role: MessageRole::Assistant,
-                                content: response,
-                            });
+                    // Stream the response token by token
+                    match llm.stream_chat(&messages).await {
+                        Ok(mut stream) => {
+                            use futures::StreamExt;
+                            let mut full_response = String::new();
+                            while let Some(chunk) = stream.next().await {
+                                match chunk {
+                                    Ok(text) => {
+                                        print!("{}", text);
+                                        io::stdout().flush().ok();
+                                        full_response.push_str(&text);
+                                    }
+                                    Err(e) => {
+                                        eprintln!("\n❌ Stream error: {:#}", e);
+                                        break;
+                                    }
+                                }
+                            }
+                            println!("\n");
+                            if !full_response.is_empty() {
+                                messages.push(Message {
+                                    role: MessageRole::Assistant,
+                                    content: full_response,
+                                });
+                            }
                         }
                         Err(e) => eprintln!("❌ Error: {:#}\n", e),
                     }
@@ -2363,7 +2890,7 @@ fn extract_images_from_input(input: &str) -> (String, Vec<ImageAttachment>) {
 }
 
 fn create_provider(provider_name: &str, model: Option<String>) -> Result<Arc<dyn LLMProvider>> {
-    use vibe_ai::providers::{claude, openai, gemini, grok, groq, openrouter, azure_openai};
+    use vibe_ai::providers::{claude, openai, gemini, grok, groq, openrouter, azure_openai, bedrock, copilot};
 
     // Helper: look up API key from config, then env var.
     let cfg = Config::load().unwrap_or_default();
@@ -2576,11 +3103,64 @@ fn create_provider(provider_name: &str, model: Option<String>) -> Result<Arc<dyn
             })))
         }
 
+        // ── AWS Bedrock ───────────────────────────────────────────────────────
+        "bedrock" | "aws" | "aws-bedrock" => {
+            let region = std::env::var("AWS_REGION")
+                .or_else(|_| std::env::var("AWS_DEFAULT_REGION"))
+                .ok();
+            let secret_key = std::env::var("AWS_SECRET_ACCESS_KEY").ok();
+            if std::env::var("AWS_ACCESS_KEY_ID").is_err() {
+                eprintln!("⚠️  AWS_ACCESS_KEY_ID not set");
+            }
+            if secret_key.is_none() {
+                eprintln!("⚠️  AWS_SECRET_ACCESS_KEY not set");
+            }
+            let model = model.unwrap_or_else(|| "anthropic.claude-3-sonnet-20240229-v1:0".to_string());
+            Ok(Arc::new(bedrock::BedrockProvider::new(ProviderConfig {
+                provider_type: "bedrock".to_string(),
+                api_url: region, // reuse api_url field for region
+                model,
+                api_key: secret_key,
+                max_tokens: None,
+                temperature: None,
+                ..Default::default()
+            })))
+        }
+
+        // ── GitHub Copilot ────────────────────────────────────────────────────
+        "copilot" | "github-copilot" => {
+            let api_key = std::env::var("GITHUB_TOKEN").ok();
+            if api_key.is_none() {
+                eprintln!("⚠️  GITHUB_TOKEN not set (required for GitHub Copilot)");
+                eprintln!("   Run: vibecli --copilot-login  to authenticate via device flow");
+            }
+            let model = model.unwrap_or_else(|| "gpt-4o".to_string());
+            Ok(Arc::new(copilot::CopilotProvider::new(ProviderConfig {
+                provider_type: "copilot".to_string(),
+                api_url: None,
+                model,
+                api_key,
+                max_tokens: None,
+                temperature: None,
+                ..Default::default()
+            })))
+        }
+
         _ => anyhow::bail!(
-            "Unknown provider: '{}'. Available: ollama, claude, openai, gemini, grok, groq, openrouter, azure",
+            "Unknown provider: '{}'. Available: ollama, claude, openai, gemini, grok, groq, openrouter, azure, bedrock, copilot",
             provider_name
         ),
     }
+}
+
+/// Validate a user-supplied name used to build file paths (snippets, etc.).
+/// Rejects anything containing path separators or parent-directory components.
+fn is_safe_name(name: &str) -> bool {
+    !name.is_empty()
+        && !name.contains('/')
+        && !name.contains('\\')
+        && !name.contains("..")
+        && name.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_' || c == '.')
 }
 
 fn show_help() {
@@ -2613,6 +3193,7 @@ fn show_help() {
     println!("  /profile create <name>   - Create a new profile interactively");
     println!("  /profile delete <name>   - Delete a profile");
     println!("  /spec                    - Spec-driven development (list|show|new|run|done)");
+    println!("  /workflow                - Code Complete workflow (new|list|show|advance|check|generate)");
     println!("  /agents                  - Background agents (list|status|new)");
     println!("  /team                    - Team knowledge store (show|knowledge|sync)");
     println!("  /remind in <dur> \"task\"  - Set a one-time reminder (30s, 10m, 2h, 1d)");
@@ -2621,10 +3202,27 @@ fn show_help() {
     println!("  /schedule every <dur> \"t\"- Set a recurring task (every 10m, 1h, 1d)");
     println!("  /schedule list           - List scheduled jobs");
     println!("  /schedule cancel <id>    - Cancel a scheduled job");
+    println!("  /linear list             - List Linear issues assigned to you");
+    println!("  /linear new \"title\"      - Create a new Linear issue");
+    println!("  /linear open <id>        - Open a Linear issue in the browser");
+    println!("  /linear attach <id>      - Link current session to a Linear issue");
+    println!("  /snippet list            - List saved code snippets");
+    println!("  /snippet save <name>     - Save last AI response as a named snippet");
+    println!("  /snippet use <name>      - Inject snippet as context for next message");
+    println!("  /snippet show <name>     - Display snippet contents");
+    println!("  /snippet delete <name>   - Delete a saved snippet");
+    println!("  /jobs                    - List persisted background jobs (~/.vibecli/jobs/)");
+    println!("  /jobs <session_id>       - Show full detail for a specific job");
     println!("  /config                  - Show current configuration");
     println!("  /help                    - Show this help message");
     println!("  /exit                    - Exit VibeCLI");
     println!("  ! <command>              - Execute shell command directly (e.g. !ls)");
+    println!("\n@ context references (in any message):");
+    println!("  @file:<path>             - Inject file contents as context");
+    println!("  @file:<path>:<N-M>       - Inject specific line range");
+    println!("  @web:<url>               - Fetch and inject web page content");
+    println!("  @docs:<pkg>              - Fetch library docs (e.g. @docs:tokio, @docs:py:requests)");
+    println!("  @git                     - Inject git status and recent commits");
     println!("\nCLI flags:");
     println!("  --agent <task>           - Run agent in REPL mode");
     println!("  --plan                   - Enable plan mode (generate plan before executing)");
@@ -2638,6 +3236,7 @@ fn show_help() {
     println!("  --serve                  - Start HTTP daemon (VS Code extension / Agent SDK)");
     println!("  --mcp-server             - Run as MCP server (for Claude Desktop etc.)");
     println!("  --gateway <platform>     - Start messaging bot (telegram|discord|slack)");
+    println!("  --worktree               - Run agent in isolated git worktree branch");
     println!("  --profile <name>         - Load a named config profile (~/.vibecli/profiles/<name>.toml)");
     println!("  --doctor                 - Run health checks on the VibeCLI installation");
     println!("\nProviders (--provider <name>):");
@@ -2841,4 +3440,414 @@ async fn show_config() -> Result<()> {
         }
     }
     Ok(())
+}
+
+// ── Watch Mode ────────────────────────────────────────────────────────────────
+
+/// Watch the CWD for changes and run an agent task on each change.
+async fn run_watch_mode(
+    llm: Arc<dyn LLMProvider>,
+    task_template: &str,
+    approval_policy: &str,
+    watch_glob: &str,
+    sandbox: bool,
+) -> Result<()> {
+    use notify::{Event, EventKind, RecursiveMode, Watcher};
+    use std::sync::mpsc;
+    use std::time::Duration as StdDuration;
+
+    let cwd = std::env::current_dir()?;
+    let glob_pattern = watch_glob.to_string();
+    let task_template = task_template.to_string();
+
+    eprintln!("👁  Watching {} for changes (glob: {})…", cwd.display(), glob_pattern);
+    eprintln!("   Task on change: {}", &task_template[..task_template.len().min(80)]);
+    eprintln!("   Press Ctrl+C to stop.\n");
+
+    let (tx, rx) = mpsc::channel::<Result<Event, notify::Error>>();
+
+    let mut watcher = notify::recommended_watcher(move |res| {
+        let _ = tx.send(res);
+    })?;
+
+    watcher.watch(&cwd, RecursiveMode::Recursive)?;
+
+    // Debounce: wait 500ms after last event before triggering
+    let debounce = StdDuration::from_millis(500);
+    let mut last_trigger = std::time::Instant::now()
+        .checked_sub(StdDuration::from_secs(10))
+        .unwrap_or_else(std::time::Instant::now);
+
+    loop {
+        // Collect all pending events
+        let mut changed_paths: Vec<String> = Vec::new();
+        loop {
+            match rx.recv_timeout(StdDuration::from_millis(100)) {
+                Ok(Ok(event)) => {
+                    if matches!(event.kind, EventKind::Modify(_) | EventKind::Create(_) | EventKind::Remove(_)) {
+                        for path in &event.paths {
+                            let rel = path.strip_prefix(&cwd).unwrap_or(path);
+                            let rel_str = rel.to_string_lossy().to_string();
+                            // Skip hidden dirs and target/
+                            if rel_str.starts_with('.') || rel_str.contains("/target/") || rel_str.contains("/node_modules/") {
+                                continue;
+                            }
+                            // Apply glob filter (simple: check extension match)
+                            let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+                            let exts = glob_pattern.trim_matches(|c| c == '{' || c == '}')
+                                .split(',')
+                                .filter_map(|p| p.rsplit('.').next().map(|s| s.to_string()))
+                                .collect::<Vec<_>>();
+                            if exts.is_empty() || exts.iter().any(|e| e == ext || e == "*") {
+                                changed_paths.push(rel_str);
+                            }
+                        }
+                    }
+                }
+                Ok(Err(e)) => eprintln!("[watch] Error: {}", e),
+                Err(mpsc::RecvTimeoutError::Timeout) => break,
+                Err(mpsc::RecvTimeoutError::Disconnected) => return Ok(()),
+            }
+        }
+
+        if !changed_paths.is_empty() && last_trigger.elapsed() >= debounce {
+            last_trigger = std::time::Instant::now();
+            changed_paths.dedup();
+            let files_list = changed_paths.join(", ");
+            let task = format!("{}\n\nChanged files: {}", task_template, files_list);
+
+            eprintln!("\n🔄 Change detected: {}", files_list);
+            eprintln!("   Running agent task…\n");
+
+            let workspace_root = cwd.clone();
+            let executor: Arc<dyn vibe_ai::agent::ToolExecutorTrait> =
+                Arc::new(ToolExecutor::new(workspace_root.clone(), sandbox)
+                    .with_provider(llm.clone()));
+
+            let approval = ApprovalPolicy::from_str(approval_policy);
+            let (event_tx, mut event_rx) = tokio::sync::mpsc::channel(64);
+            let agent = AgentLoop::new(llm.clone(), approval, executor);
+
+            let task_clone = task.clone();
+            let ctx = vibe_ai::AgentContext {
+                workspace_root: workspace_root.clone(),
+                open_files: vec![],
+                git_branch: None,
+                git_diff_summary: None,
+                flow_context: None,
+                approved_plan: None,
+                extra_skill_dirs: vec![],
+            };
+            tokio::spawn(async move {
+                let _ = agent.run(&task_clone, ctx, event_tx).await;
+            });
+
+            while let Some(event) = event_rx.recv().await {
+                match event {
+                    AgentEvent::StreamChunk(text) => {
+                        print!("{}", text);
+                    }
+                    AgentEvent::ToolCallExecuted(step) => {
+                        eprintln!("  🔧 {} → {}", step.tool_call.name(), if step.tool_result.success { "✓" } else { "✗" });
+                    }
+                    AgentEvent::Complete(summary) => {
+                        eprintln!("\n✅ Agent complete: {}\n", summary);
+                        break;
+                    }
+                    AgentEvent::Error(e) => {
+                        eprintln!("\n❌ Agent error: {}\n", e);
+                        break;
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        // Small yield to prevent busy-loop
+        tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+    }
+}
+
+// ── REPL @ context expansion ──────────────────────────────────────────────────
+//
+// Resolves `@file:path`, `@web:url`, `@docs:name`, and `@git` references in
+// a user message, injecting their content as context before the message.
+// Returns the expanded message string.
+
+pub async fn expand_at_refs(input: &str) -> String {
+    use regex::Regex;
+    let mut extra = Vec::<String>::new();
+    let mut result = input.to_string();
+
+    // ── @file:path ────────────────────────────────────────────────────────────
+    let re_file = Regex::new(r"@file:(\S+)").unwrap();
+    for cap in re_file.captures_iter(input) {
+        let raw_path = &cap[1];
+        // Support line-range  @file:path:N-M
+        let (file_path, line_range) = if let Some(idx) = raw_path.rfind(':') {
+            let candidate = &raw_path[idx + 1..];
+            if candidate.chars().next().map(|c| c.is_ascii_digit()).unwrap_or(false) {
+                (&raw_path[..idx], Some(candidate))
+            } else {
+                (raw_path, None)
+            }
+        } else {
+            (raw_path, None)
+        };
+
+        match std::fs::read_to_string(file_path) {
+            Ok(content) => {
+                let text = if let Some(range) = line_range {
+                    let parts: Vec<&str> = range.splitn(2, '-').collect();
+                    let start: usize = parts[0].parse().unwrap_or(1);
+                    let end: usize = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(start);
+                    content
+                        .lines()
+                        .enumerate()
+                        .filter(|(i, _)| *i + 1 >= start && *i + 1 <= end)
+                        .map(|(_, l)| l)
+                        .collect::<Vec<_>>()
+                        .join("\n")
+                } else {
+                    content.chars().take(8000).collect()
+                };
+                extra.push(format!(
+                    "=== File: {} ===\n```\n{}\n```",
+                    file_path, text
+                ));
+            }
+            Err(e) => {
+                extra.push(format!("(Could not read {}: {})", file_path, e));
+            }
+        }
+        result = result.replacen(&cap[0], "", 1);
+    }
+
+    // ── @git ──────────────────────────────────────────────────────────────────
+    if result.contains("@git") {
+        let stat = std::process::Command::new("git")
+            .args(["diff", "--stat", "HEAD"])
+            .output()
+            .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
+            .unwrap_or_default();
+        let log = std::process::Command::new("git")
+            .args(["log", "--oneline", "-5"])
+            .output()
+            .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
+            .unwrap_or_default();
+        extra.push(format!("=== Git status ===\n{}\n=== Recent commits ===\n{}", stat.trim(), log.trim()));
+        result = result.replace("@git", "");
+    }
+
+    // ── @web:url ──────────────────────────────────────────────────────────────
+    let re_web = Regex::new(r"@web:(\S+)").unwrap();
+    for cap in re_web.captures_iter(input) {
+        let url = &cap[1];
+        let text = fetch_and_strip_url(url, 6000).await;
+        extra.push(format!("=== Web: {} ===\n{}", url, text));
+        result = result.replacen(&cap[0], "", 1);
+    }
+
+    // ── @docs:name ────────────────────────────────────────────────────────────
+    let re_docs = Regex::new(r"@docs:(\S+)").unwrap();
+    for cap in re_docs.captures_iter(input) {
+        let name_raw = &cap[1];
+        // Detect registry: rs: → docs.rs, py:/pypi: → PyPI, npm: → npmjs, default → docs.rs
+        let (registry, clean_name) = if name_raw.starts_with("rs:") {
+            ("docs.rs", name_raw.trim_start_matches("rs:"))
+        } else if name_raw.starts_with("py:") || name_raw.starts_with("pypi:") {
+            ("pypi", name_raw.split(':').last().unwrap_or(name_raw))
+        } else if name_raw.starts_with("npm:") {
+            ("npm", name_raw.trim_start_matches("npm:"))
+        } else {
+            ("docs.rs", name_raw.as_ref())
+        };
+
+        let url = match registry {
+            "pypi" => format!("https://pypi.org/pypi/{}/json", clean_name),
+            "npm"  => format!("https://registry.npmjs.org/{}", clean_name),
+            _      => format!("https://docs.rs/{}/latest/{}/index.html", clean_name, clean_name.replace('-', "_")),
+        };
+        let text = fetch_and_strip_url(&url, 4000).await;
+        extra.push(format!("=== Docs: {} ({}) ===\n{}", clean_name, registry, text));
+        result = result.replacen(&cap[0], "", 1);
+    }
+
+    // ── @symbol:name — search for a symbol across the codebase ───────────────
+    let re_sym = regex::Regex::new(r"@symbol:(\S+)").unwrap();
+    for cap in re_sym.captures_iter(input) {
+        let sym_name = &cap[1];
+        // Quick grep-based symbol search: find function/class/struct/const definitions
+        let output = std::process::Command::new("grep")
+            .args([
+                "-rn",
+                "--include=*.rs",
+                "--include=*.ts",
+                "--include=*.tsx",
+                "--include=*.js",
+                "--include=*.py",
+                "--include=*.go",
+                "-E",
+                &format!(
+                    r"(fn|function|class|struct|enum|const|type|def|interface)\s+{}(\s|[(<{{]|$)",
+                    regex::escape(sym_name)
+                ),
+                ".",
+            ])
+            .output()
+            .ok();
+        let text = output
+            .filter(|o| o.status.success())
+            .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
+            .unwrap_or_default();
+        if text.trim().is_empty() {
+            extra.push(format!("=== Symbol: {} ===\n(not found)", sym_name));
+        } else {
+            let lines: String = text.lines().take(20).collect::<Vec<_>>().join("\n");
+            extra.push(format!("=== Symbol: {} ===\n{}", sym_name, lines));
+        }
+        result = result.replacen(&cap[0], "", 1);
+    }
+
+    // ── @codebase:query — keyword search across the workspace ────────────────
+    let re_cb = regex::Regex::new(r"@codebase:(\S+)").unwrap();
+    for cap in re_cb.captures_iter(input) {
+        let query = &cap[1];
+        let output = std::process::Command::new("grep")
+            .args([
+                "-rn",
+                "--include=*.rs",
+                "--include=*.ts",
+                "--include=*.tsx",
+                "--include=*.js",
+                "--include=*.py",
+                "--include=*.go",
+                "-i",
+                query,
+                ".",
+            ])
+            .output()
+            .ok();
+        let text = output
+            .filter(|o| o.status.success())
+            .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
+            .unwrap_or_default();
+        if text.trim().is_empty() {
+            extra.push(format!("=== Codebase search: {} ===\n(no matches)", query));
+        } else {
+            let lines: String = text.lines().take(20).collect::<Vec<_>>().join("\n");
+            extra.push(format!("=== Codebase search: {} ===\n{}", query, lines));
+        }
+        result = result.replacen(&cap[0], "", 1);
+    }
+
+    // ── @github:owner/repo#N — inject GitHub issue / PR content ──────────────
+    let re_github = regex::Regex::new(r"@github:([a-zA-Z0-9_\-]+)/([a-zA-Z0-9_\-]+)#(\d+)").unwrap();
+    // Collect matches first to avoid mutable/immutable borrow conflict.
+    let github_caps: Vec<(String, String, String, String)> = re_github
+        .captures_iter(&result.clone())
+        .map(|cap| (
+            cap[0].to_string(),
+            cap[1].to_string(),
+            cap[2].to_string(),
+            cap[3].to_string(),
+        ))
+        .collect();
+    for (matched, owner, repo, num) in github_caps {
+        let api_url = format!(
+            "https://api.github.com/repos/{}/{}/issues/{}",
+            owner, repo, num
+        );
+        let text = fetch_github_issue_text(&api_url).await;
+        extra.push(format!("=== GitHub Issue: {}/{}#{} ===\n{}", owner, repo, num, text));
+        result = result.replacen(&matched, "", 1);
+    }
+
+    // ── Assemble ──────────────────────────────────────────────────────────────
+    let result = result.trim().to_string();
+    if extra.is_empty() {
+        return result;
+    }
+    format!("{}\n\n{}", extra.join("\n\n"), result)
+}
+
+/// Fetch a GitHub issue/PR JSON from the API and return a plain-text summary.
+async fn fetch_github_issue_text(api_url: &str) -> String {
+    let client = match reqwest::Client::builder()
+        .user_agent("VibeCLI/1.0")
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+    {
+        Ok(c) => c,
+        Err(e) => return format!("(could not build HTTP client: {})", e),
+    };
+    let mut req = client
+        .get(api_url)
+        .header("Accept", "application/vnd.github.v3+json");
+    if let Ok(token) = std::env::var("GITHUB_TOKEN") {
+        req = req.header("Authorization", format!("Bearer {}", token));
+    }
+    let body = match req.send().await {
+        Ok(resp) => match resp.text().await {
+            Ok(b) => b,
+            Err(e) => return format!("(GitHub response read error: {})", e),
+        },
+        Err(e) => return format!("(GitHub fetch error: {})", e),
+    };
+    // Parse minimal summary from GitHub issue JSON.
+    if let Ok(v) = serde_json::from_str::<serde_json::Value>(&body) {
+        let title  = v["title"].as_str().unwrap_or("(no title)");
+        let state  = v["state"].as_str().unwrap_or("unknown");
+        let author = v["user"]["login"].as_str().unwrap_or("unknown");
+        let labels: Vec<&str> = v["labels"]
+            .as_array()
+            .map(|a| a.iter().filter_map(|l| l["name"].as_str()).collect())
+            .unwrap_or_default();
+        let body_text = v["body"].as_str().unwrap_or("").to_string();
+        let snippet: String = body_text.lines().take(20).collect::<Vec<_>>().join("\n");
+        format!(
+            "Title: {}\nState: {} | Author: {} | Labels: {}\n\n{}",
+            title,
+            state,
+            author,
+            if labels.is_empty() { "none".to_string() } else { labels.join(", ") },
+            snippet,
+        )
+    } else {
+        body.chars().take(3000).collect()
+    }
+}
+
+/// Fetch a URL and return stripped plain text, capped at `max_chars`.
+async fn fetch_and_strip_url(url: &str, max_chars: usize) -> String {
+    let client = match reqwest::Client::builder()
+        .user_agent("VibeCLI/1.0")
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+    {
+        Ok(c) => c,
+        Err(e) => return format!("(HTTP client error: {})", e),
+    };
+
+    match client.get(url).send().await {
+        Ok(resp) if resp.status().is_success() => {
+            match resp.text().await {
+                Ok(body) => {
+                    // Simple HTML strip: remove tags, decode entities
+                    let re_tags = regex::Regex::new(r"<[^>]+>").unwrap();
+                    let no_tags = re_tags.replace_all(&body, " ");
+                    let decoded = no_tags
+                        .replace("&amp;", "&").replace("&lt;", "<")
+                        .replace("&gt;", ">").replace("&quot;", "\"")
+                        .replace("&nbsp;", " ").replace("&#39;", "'");
+                    let re_ws = regex::Regex::new(r"\s{2,}").unwrap();
+                    let collapsed = re_ws.replace_all(decoded.trim(), " ");
+                    collapsed.chars().take(max_chars).collect()
+                }
+                Err(e) => format!("(Read body error: {})", e),
+            }
+        }
+        Ok(resp) => format!("(HTTP {})", resp.status()),
+        Err(e) => format!("(Request failed: {})", e),
+    }
 }

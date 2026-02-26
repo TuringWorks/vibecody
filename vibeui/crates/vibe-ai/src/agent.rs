@@ -435,6 +435,33 @@ impl AgentLoop {
                         content: format!("[Post-hook context] {}", text),
                     });
                 }
+
+                // ── 3d. File-event hooks (FileSaved / FileCreated) ────────────
+                // Fire these after a successful WriteFile so hooks can react to
+                // specific file patterns (e.g. auto-format on save, run tests).
+                if tool_result.success {
+                    let file_event = match &call {
+                        ToolCall::WriteFile { path, content } => {
+                            // Detect creation vs update by checking if file was
+                            // readable before this write (best-effort: non-blocking).
+                            let lang = path.rsplit('.').next().unwrap_or("").to_string();
+                            Some(HookEvent::FileSaved {
+                                path: path.clone(),
+                                content: content.clone(),
+                                language: lang,
+                            })
+                        }
+                        ToolCall::Bash { command } if command.contains("mkdir") || command.contains("touch") => {
+                            // Best-effort: if bash creates a file, fire FileCreated.
+                            None // too ambiguous to infer path reliably
+                        }
+                        _ => None,
+                    };
+
+                    if let Some(ev) = file_event {
+                        let _ = hooks.run(&ev).await;
+                    }
+                }
             }
 
             // ── 4. Feed result back into conversation ─────────────────────────

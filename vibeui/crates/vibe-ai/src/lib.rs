@@ -20,6 +20,9 @@ pub mod rules;
 
 pub use chat::ChatEngine;
 pub use provider::{CodeContext, Message, MessageRole, CompletionStream, ImageAttachment};
+pub use providers::{
+    BedrockProvider, CopilotProvider, AzureOpenAIProvider, OpenRouterProvider, GroqProvider,
+};
 pub use config::AIConfig;
 pub use completion::CompletionEngine;
 pub use tools::{ToolCall, ToolResult, parse_tool_calls, format_tool_result, TOOL_SYSTEM_PROMPT};

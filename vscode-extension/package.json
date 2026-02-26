@@ -13,21 +13,26 @@
   "activationEvents": ["onStartupFinished"],
   "contributes": {
     "commands": [
+      { "command": "vibecli.startAgent",     "title": "VibeCLI: Run Agent Task" },
+      { "command": "vibecli.chat",           "title": "VibeCLI: Ask Question" },
+      { "command": "vibecli.connectDaemon",  "title": "VibeCLI: Connect to Daemon" },
+      { "command": "vibecli.startDaemon",    "title": "VibeCLI: Start Daemon" },
+      { "command": "vibecli.inlineEdit",     "title": "VibeCLI: Inline Edit (selection)" },
+      { "command": "vibecli.viewJobs",       "title": "VibeCLI: View Background Jobs" },
+      { "command": "vibecli.sendSelection",  "title": "VibeCLI: Send Selection to Agent" }
+    ],
+    "keybindings": [
       {
-        "command": "vibecli.startAgent",
-        "title": "VibeCLI: Run Agent Task"
+        "command": "vibecli.inlineEdit",
+        "key": "ctrl+shift+k",
+        "mac": "cmd+shift+k",
+        "when": "editorTextFocus"
       },
       {
-        "command": "vibecli.chat",
-        "title": "VibeCLI: Ask Question"
-      },
-      {
-        "command": "vibecli.connectDaemon",
-        "title": "VibeCLI: Connect to Daemon"
-      },
-      {
-        "command": "vibecli.startDaemon",
-        "title": "VibeCLI: Start Daemon"
+        "command": "vibecli.sendSelection",
+        "key": "ctrl+shift+enter",
+        "mac": "cmd+shift+enter",
+        "when": "editorHasSelection"
       }
     ],
     "configuration": {

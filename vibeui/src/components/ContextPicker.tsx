@@ -22,6 +22,7 @@ const SPECIAL_ITEMS = [
     { label: "@terminal", description: "Inject the last 200 lines of terminal output" },
     { label: "@symbol:", description: "Inject source code of a named symbol (function, struct, etc.)" },
     { label: "@codebase:", description: "Semantic search over the codebase" },
+    { label: "@github:", description: "Fetch a GitHub issue or PR (e.g. @github:owner/repo#42)" },
 ];
 
 export function ContextPicker({ query, onSelect, onClose }: ContextPickerProps) {
@@ -37,7 +38,8 @@ export function ContextPicker({ query, onSelect, onClose }: ContextPickerProps) 
             query.startsWith("docs:") ||
             query.startsWith("folder:") ||
             query.startsWith("symbol:") ||
-            query.startsWith("codebase:")
+            query.startsWith("codebase:") ||
+            query.startsWith("github:")
         ) {
             setFiles([]);
             return;
@@ -89,6 +91,14 @@ export function ContextPicker({ query, onSelect, onClose }: ContextPickerProps) 
         specials = [{
             label: `@codebase:${cbPart}`,
             description: cbPart ? `Search codebase for "${cbPart}"` : "Type a search query...",
+        }];
+    } else if (query.startsWith("github:")) {
+        const ghPart = query.slice(7);
+        specials = [{
+            label: `@github:${ghPart}`,
+            description: ghPart
+                ? `Fetch GitHub issue/PR: @github:${ghPart}`
+                : "Type owner/repo#N (e.g. torvalds/linux#1234)...",
         }];
     } else {
         specials = SPECIAL_ITEMS.filter(

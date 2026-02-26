@@ -11,10 +11,14 @@ use crate::tui::components::agent_view::AgentStatus;
 use vibe_ai::agent::AgentStep;
 
 pub fn draw(f: &mut Frame, app: &App) {
+    // Diagnostics pane is 4 lines tall; hide it when there are no items to save space.
+    let diag_height = if app.diagnostics_panel.items.is_empty() { 0 } else { 4 };
+
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Min(1),
+            Constraint::Length(diag_height),
             Constraint::Length(3),
         ].as_ref())
         .split(f.area());
@@ -24,9 +28,17 @@ pub fn draw(f: &mut Frame, app: &App) {
         CurrentScreen::DiffView => draw_diff_view(f, app, chunks[0]),
         CurrentScreen::FileTree => draw_file_tree(f, app, chunks[0]),
         CurrentScreen::Agent => draw_agent_view(f, app, chunks[0]),
+        CurrentScreen::VimEditor => {
+            // Vim editor renders itself into the full available area (no input strip)
+            app.vim_editor.render(f, chunks[0]);
+            return;
+        }
     }
 
-    draw_input_area(f, app, chunks[1]);
+    if diag_height > 0 {
+        draw_diagnostics_panel(f, app, chunks[1]);
+    }
+    draw_input_area(f, app, chunks[2]);
 }
 
 fn draw_file_tree(f: &mut Frame, app: &App, area: Rect) {
@@ -387,4 +399,56 @@ fn draw_input_area(f: &mut Frame, app: &App, area: Rect) {
         .alignment(Alignment::Right)
         .style(Style::default().fg(t.dim));
     f.render_widget(status, status_chunks[1]);
+}
+
+// ── Diagnostics panel ─────────────────────────────────────────────────────────
+
+fn draw_diagnostics_panel(f: &mut Frame, app: &App, area: Rect) {
+    use crate::tui::components::diagnostics::DiagSeverity;
+    use ratatui::style::Color;
+
+    let t = &app.theme;
+    let dp = &app.diagnostics_panel;
+
+    let count = dp.items.len();
+    let title = format!(" Diagnostics ({}) — /check to refresh ", count);
+    let block = Block::default()
+        .borders(Borders::TOP)
+        .title(title)
+        .title_style(Style::default().fg(t.secondary).add_modifier(Modifier::BOLD));
+    let inner = block.inner(area);
+    f.render_widget(block, area);
+
+    let lines: Vec<Line> = dp
+        .items
+        .iter()
+        .map(|d| {
+            let (icon, color) = match d.severity {
+                DiagSeverity::Error   => ("E", Color::Red),
+                DiagSeverity::Warning => ("W", Color::Yellow),
+                DiagSeverity::Info    => ("I", Color::Cyan),
+            };
+            let loc = if d.line > 0 {
+                format!("{}:{}", d.file, d.line)
+            } else {
+                d.file.clone()
+            };
+            Line::from(vec![
+                Span::styled(format!("[{}]", icon), Style::default().fg(color)),
+                Span::raw(" "),
+                if !loc.is_empty() {
+                    Span::styled(format!("{}: ", loc), Style::default().fg(t.dim))
+                } else {
+                    Span::raw("")
+                },
+                Span::styled(
+                    d.message.chars().take(120).collect::<String>(),
+                    Style::default().fg(t.text),
+                ),
+            ])
+        })
+        .collect();
+
+    let para = Paragraph::new(lines).scroll((dp.scroll, 0));
+    f.render_widget(para, inner);
 }
