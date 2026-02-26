@@ -27,8 +27,9 @@
 
 use anyhow::Result;
 use axum::{
-    extract::{Path, State},
-    http::StatusCode,
+    extract::{Path, Request, State},
+    http::{header, HeaderValue, StatusCode},
+    middleware::{self, Next},
     response::{
         sse::{Event, KeepAlive, Sse},
         IntoResponse,
@@ -46,7 +47,7 @@ use std::{
 };
 use tokio::sync::{broadcast, Mutex};
 use rand::Rng;
-use tower_http::cors::{Any, CorsLayer};
+use tower_http::cors::CorsLayer;
 
 use vibe_ai::{AgentContext, AgentEvent, AgentLoop, ApprovalPolicy, Message, MessageRole};
 use vibe_ai::provider::AIProvider;
@@ -113,6 +114,9 @@ pub struct ServeState {
     pub streams: EventStreams,
     pub jobs_dir: PathBuf,
     pub provider_name: String,
+    /// Bearer token required on all non-health/non-viewer endpoints.
+    /// Generated randomly on daemon startup and printed to stderr.
+    pub api_token: String,
 }
 
 // ── Request / Response types ──────────────────────────────────────────────────
@@ -437,6 +441,33 @@ async fn stream_agent(
     Ok(Sse::new(stream).keep_alive(KeepAlive::new().interval(Duration::from_secs(15))))
 }
 
+// ── Auth middleware ───────────────────────────────────────────────────────────
+
+/// Axum middleware that enforces bearer-token authentication.
+/// Rejects requests that don't carry the correct `Authorization: Bearer <token>`.
+async fn require_auth(
+    State(state): State<ServeState>,
+    req: Request,
+    next: Next,
+) -> impl IntoResponse {
+    let auth_header = req
+        .headers()
+        .get(header::AUTHORIZATION)
+        .and_then(|v| v.to_str().ok());
+
+    match auth_header {
+        Some(val) if val == format!("Bearer {}", state.api_token) => {
+            next.run(req).await.into_response()
+        }
+        _ => (
+            StatusCode::UNAUTHORIZED,
+            [("content-type", "application/json")],
+            r#"{"error":"Missing or invalid Authorization: Bearer <token>"}"#,
+        )
+            .into_response(),
+    }
+}
+
 // ── Server startup ────────────────────────────────────────────────────────────
 
 /// Start the VibeCLI HTTP daemon. Blocks until shutdown.
@@ -454,6 +485,9 @@ pub async fn serve(
         .join("jobs");
     std::fs::create_dir_all(&jobs_dir)?;
 
+    // Generate a random bearer token for this daemon session
+    let api_token = format!("{:032x}", rand::thread_rng().gen::<u128>());
+
     let state = ServeState {
         provider,
         approval,
@@ -461,15 +495,22 @@ pub async fn serve(
         streams: Arc::new(Mutex::new(HashMap::new())),
         jobs_dir,
         provider_name,
+        api_token: api_token.clone(),
     };
 
+    // CORS: restrict to localhost origins only
     let cors = CorsLayer::new()
-        .allow_origin(Any)
-        .allow_methods(Any)
-        .allow_headers(Any);
+        .allow_origin([
+            "http://localhost".parse::<HeaderValue>().unwrap(),
+            "http://127.0.0.1".parse::<HeaderValue>().unwrap(),
+            format!("http://localhost:{port}").parse::<HeaderValue>().unwrap(),
+            format!("http://127.0.0.1:{port}").parse::<HeaderValue>().unwrap(),
+        ])
+        .allow_methods(tower_http::cors::Any)
+        .allow_headers(tower_http::cors::Any);
 
-    let app = Router::new()
-        .route("/health", get(health))
+    // Routes that require bearer-token auth (API endpoints)
+    let authed_routes = Router::new()
         .route("/chat", post(chat))
         .route("/chat/stream", post(chat_stream))
         .route("/agent", post(start_agent))
@@ -477,7 +518,12 @@ pub async fn serve(
         .route("/jobs", get(list_jobs))
         .route("/jobs/:id", get(get_job))
         .route("/jobs/:id/cancel", post(cancel_job))
-        // Web session viewer
+        .route_layer(middleware::from_fn_with_state(state.clone(), require_auth));
+
+    // Public routes (health check + read-only session viewer)
+    let app = Router::new()
+        .route("/health", get(health))
+        .merge(authed_routes)
         .route("/sessions", get(sessions_index_html))
         .route("/sessions.json", get(sessions_json))
         .route("/view/:id", get(view_session))
@@ -488,6 +534,7 @@ pub async fn serve(
     let addr = format!("127.0.0.1:{port}");
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     eprintln!("[vibecli serve] Listening on http://{addr}");
+    eprintln!("[vibecli serve] API token: {api_token}");
     eprintln!("[vibecli serve] Jobs persisted at ~/.vibecli/jobs/");
     eprintln!("[vibecli serve] Session viewer at http://{addr}/sessions");
 

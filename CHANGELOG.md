@@ -8,6 +8,21 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **Phase 40**: Code Complete workflow system (`workflow.rs`) — 8-stage development pipeline
+  inspired by Steve McConnell's *Code Complete*: Requirements → Architecture → Design →
+  Construction Planning → Coding → Quality Assurance → Integration & Testing → Code Complete;
+  workflows stored as YAML front-matter markdown files in `.vibecli/workflows/`; `/workflow`
+  REPL command with `new|list|show|advance|check|generate` sub-commands; `/workflow generate`
+  uses LLM to populate the checklist for the current stage; `progress_pct()` shown in
+  `/workflow show` stage summary; TUI tab-completion for all sub-commands; 11 unit tests;
+  127 tests passing total.
+- **Phase 40**: Red Team security testing module (`redteam.rs`) — autonomous 5-stage pentest
+  pipeline (Recon → Analysis → Exploitation → Validation → Report); 15 attack vectors including
+  SQL injection, XSS, SSRF, IDOR, path traversal, auth bypass; `run_recon()`, `analyze_recon()`,
+  `exploit_candidate()` async stages; `RedTeamManager` with JSON-persisted sessions at
+  `~/.vibecli/redteam/`; `/redteam scan|list|show|report|config` REPL commands; `--redteam`
+  CLI flag; `start_redteam_scan` VibeUI Tauri command; `RedTeamCfg` in `config.rs`
+  (`max_depth`, `timeout_secs`, `parallel_agents`, `auto_report`).
 - **Phase 39**: LSP / linter diagnostics panel in VibeCLI TUI — `DiagnosticsComponent`
   (`tui/components/diagnostics.rs`); `/check` TUI command runs `cargo check --message-format=json`
   (or `npx eslint --format json` for npm projects), parses output via `parse_cargo_check()`,

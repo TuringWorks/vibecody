@@ -154,7 +154,14 @@ pub struct BedrockProvider {
 
 impl BedrockProvider {
     pub fn new(config: ProviderConfig) -> Self {
-        Self { config, client: reqwest::Client::new() }
+        Self {
+            config,
+            client: reqwest::Client::builder()
+                .timeout(std::time::Duration::from_secs(90))
+                .connect_timeout(std::time::Duration::from_secs(10))
+                .build()
+                .unwrap_or_else(|_| reqwest::Client::new()),
+        }
     }
 
     fn region(&self) -> String {
