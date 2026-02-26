@@ -158,6 +158,10 @@ impl TauriToolExecutor {
             ToolCall::WebSearch { query, .. } => self.web_search(query).await,
             ToolCall::FetchUrl { url }         => self.fetch_url(url).await,
             ToolCall::TaskComplete { summary } => ToolResult::ok("task_complete", summary.clone()),
+            ToolCall::SpawnAgent { .. }        => ToolResult::err(
+                "spawn_agent",
+                "spawn_agent is not supported in VibeUI — use the CLI for sub-agent spawning.",
+            ),
         }
     }
 }
@@ -178,6 +182,10 @@ impl ToolExecutorTrait for TauriToolExecutor {
             ToolCall::WebSearch { query, .. }     => self.web_search(query).await,
             ToolCall::FetchUrl { url }            => self.fetch_url(url).await,
             ToolCall::TaskComplete { summary }    => ToolResult::ok("task_complete", summary.clone()),
+            ToolCall::SpawnAgent { .. }           => ToolResult::err(
+                "spawn_agent",
+                "spawn_agent is not supported in VibeUI — use the CLI for sub-agent spawning.",
+            ),
         }
     }
 }

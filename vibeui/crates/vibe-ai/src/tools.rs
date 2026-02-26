@@ -115,6 +115,16 @@ Call this when the task is fully done. Provide a summary of what was accomplishe
 </tool_call>
 ```
 
+### spawn_agent
+Delegate an independent sub-task to a child agent. The child runs with the same tools and
+workspace. Use this to parallelize work or isolate complex sub-problems.
+```
+<tool_call name="spawn_agent">
+<task>Write unit tests for src/utils.rs and verify they pass with cargo test.</task>
+<max_steps>10</max_steps>
+</tool_call>
+```
+
 ## Important Rules
 - Output ONLY the `<tool_call>` block when calling a tool — no prose before or after.
 - After a tool result, you may think briefly then call the next tool or conclude.
@@ -161,6 +171,15 @@ pub enum ToolCall {
     TaskComplete {
         summary: String,
     },
+    /// Spawn a sub-agent to complete a sub-task autonomously.
+    /// The sub-agent runs with the same tools and approval policy as the parent.
+    /// Use this to delegate independent work streams or specialized tasks.
+    SpawnAgent {
+        /// The task or question for the sub-agent to complete.
+        task: String,
+        /// Maximum number of steps the sub-agent can take (default: 10).
+        max_steps: Option<usize>,
+    },
 }
 
 impl ToolCall {
@@ -176,6 +195,7 @@ impl ToolCall {
             ToolCall::WebSearch { .. } => "web_search",
             ToolCall::FetchUrl { .. } => "fetch_url",
             ToolCall::TaskComplete { .. } => "task_complete",
+            ToolCall::SpawnAgent { .. } => "spawn_agent",
         }
     }
 
@@ -216,6 +236,10 @@ impl ToolCall {
                 };
                 format!("task_complete: {}", short)
             }
+            ToolCall::SpawnAgent { task, max_steps } => {
+                let short = if task.len() > 60 { format!("{}…", &task[..60]) } else { task.clone() };
+                format!("spawn_agent(task={:?}, max_steps={})", short, max_steps.unwrap_or(10))
+            }
         }
     }
 
@@ -224,6 +248,7 @@ impl ToolCall {
         matches!(
             self,
             ToolCall::Bash { .. } | ToolCall::WriteFile { .. } | ToolCall::ApplyPatch { .. }
+                | ToolCall::SpawnAgent { .. }
         )
     }
 
@@ -337,6 +362,12 @@ fn parse_single_tool(name: &str, body: &str) -> Option<ToolCall> {
         "task_complete" => {
             let summary = extract_tag(body, "summary").unwrap_or_default();
             Some(ToolCall::TaskComplete { summary })
+        }
+        "spawn_agent" => {
+            let task = extract_tag(body, "task")?;
+            let max_steps = extract_tag(body, "max_steps")
+                .and_then(|s| s.parse().ok());
+            Some(ToolCall::SpawnAgent { task, max_steps })
         }
         _ => None,
     }

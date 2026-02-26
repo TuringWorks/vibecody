@@ -305,7 +305,7 @@ async fn main() -> Result<()> {
         let config = Config::load().unwrap_or_default();
         let sandbox = config.safety.sandbox;
         let executor: Arc<dyn vibe_ai::agent::ToolExecutorTrait> =
-            Arc::new(ToolExecutor::new(cwd.clone(), sandbox));
+            Arc::new(ToolExecutor::new(cwd.clone(), sandbox).with_provider(llm.clone()));
 
         let trace_dir = dirs::home_dir()
             .unwrap_or_else(|| cwd.clone())
@@ -704,6 +704,81 @@ async fn main() -> Result<()> {
                                 }
                             }
                         }
+                        // ── /search ────────────────────────────────────────────────────────
+                        // Full-text search across all session traces and messages.
+                        // Usage: /search <query>
+                        "/search" => {
+                            if args.is_empty() {
+                                println!("Usage: /search <query>\n");
+                                continue;
+                            }
+                            let query = args.to_lowercase();
+                            let trace_dir = dirs::home_dir()
+                                .unwrap_or_else(|| cwd.clone())
+                                .join(".vibecli")
+                                .join("traces");
+                            let sessions = list_traces(&trace_dir);
+
+                            if sessions.is_empty() {
+                                println!("No traces found. Run an agent first.\n");
+                                continue;
+                            }
+
+                            let mut hits: Vec<(String, u64, Vec<String>)> = Vec::new(); // (session_id, ts, matching_lines)
+
+                            for session in &sessions {
+                                let mut matching: Vec<String> = Vec::new();
+
+                                // Search JSONL trace entries
+                                let entries = load_trace(&session.path);
+                                for entry in &entries {
+                                    let haystack = format!("{} {}", entry.tool, entry.input_summary).to_lowercase();
+                                    if query.split_whitespace().all(|w| haystack.contains(w)) {
+                                        matching.push(format!("[step {}] {}: {}", entry.step + 1, entry.tool, &entry.input_summary[..entry.input_summary.len().min(80)]));
+                                    }
+                                }
+
+                                // Search messages sidecar
+                                let msgs_path = session.path.with_extension("").to_string_lossy().to_string() + "-messages.json";
+                                if let Ok(msgs_raw) = std::fs::read_to_string(&msgs_path) {
+                                    if let Ok(msgs) = serde_json::from_str::<Vec<serde_json::Value>>(&msgs_raw) {
+                                        for msg in &msgs {
+                                            let content = msg["content"].as_str().unwrap_or("").to_lowercase();
+                                            if query.split_whitespace().all(|w| content.contains(w)) {
+                                                let role = msg["role"].as_str().unwrap_or("?");
+                                                let preview: String = content.chars().take(120).collect();
+                                                matching.push(format!("[{}] {}", role, preview));
+                                                if matching.len() >= 3 { break; }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                if !matching.is_empty() {
+                                    hits.push((session.session_id.clone(), session.timestamp, matching));
+                                }
+                            }
+
+                            if hits.is_empty() {
+                                println!("No sessions found matching '{}'\n", args);
+                            } else {
+                                println!("\n🔍 Search results for '{}' ({} sessions match)\n", args, hits.len());
+                                for (id, ts, lines) in hits.iter().take(10) {
+                                    let elapsed = std::time::SystemTime::now()
+                                        .duration_since(std::time::UNIX_EPOCH + std::time::Duration::from_secs(*ts))
+                                        .unwrap_or_default();
+                                    let age = if elapsed.as_secs() < 3600 { format!("{}m ago", elapsed.as_secs() / 60) }
+                                        else if elapsed.as_secs() < 86400 { format!("{}h ago", elapsed.as_secs() / 3600) }
+                                        else { format!("{}d ago", elapsed.as_secs() / 86400) };
+                                    println!("  📋 {} ({})", &id[..id.len().min(12)], age);
+                                    for line in lines.iter().take(2) {
+                                        println!("     {}", line);
+                                    }
+                                    println!("  → /trace view {} | /resume {}\n", &id[..id.len().min(8)], &id[..id.len().min(8)]);
+                                }
+                            }
+                        }
+
                         "/mcp" => {
                             let config = Config::load().unwrap_or_default();
                             if config.mcp_servers.is_empty() {
@@ -1754,13 +1829,15 @@ async fn main() -> Result<()> {
 struct VibeExecutorFactory {
     sandbox: bool,
     env_policy: tool_executor::ShellEnvPolicy,
+    provider: Arc<dyn LLMProvider>,
 }
 
 impl ExecutorFactory for VibeExecutorFactory {
     fn create(&self, workspace_root: std::path::PathBuf) -> Arc<dyn vibe_ai::agent::ToolExecutorTrait> {
         Arc::new(
             ToolExecutor::new(workspace_root, self.sandbox)
-                .with_env_policy(self.env_policy.clone()),
+                .with_env_policy(self.env_policy.clone())
+                .with_provider(self.provider.clone()),
         )
     }
 }
@@ -1779,7 +1856,7 @@ async fn run_parallel_agents(
     let sandbox = config.safety.sandbox;
     let env_policy = config.safety.shell_environment.to_policy();
 
-    let factory = Arc::new(VibeExecutorFactory { sandbox, env_policy });
+    let factory = Arc::new(VibeExecutorFactory { sandbox, env_policy, provider: llm.clone() });
     let manager = Arc::new(VibeCoreWorktreeManager::new(workspace.clone()));
 
     let mut orchestrator = MultiAgentOrchestrator::new(llm, approval, factory)
@@ -1872,7 +1949,8 @@ async fn run_agent_repl_with_context(
                 search_cfg.engine.clone(),
                 search_cfg.resolve_tavily_key(),
                 search_cfg.resolve_brave_key(),
-            ));
+            )
+            .with_provider(llm.clone()));
 
     // Build hooks from config; wire LLM provider so `handler = { llm = "..." }` hooks work.
     let hook_runner = if config.hooks.is_empty() {

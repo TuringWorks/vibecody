@@ -4,7 +4,9 @@ use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use vibe_ai::agent::ToolExecutorTrait;
+use std::sync::Arc;
+use vibe_ai::agent::{AgentContext, AgentEvent, AgentLoop, ApprovalPolicy, ToolExecutorTrait};
+use vibe_ai::provider::AIProvider;
 use vibe_ai::tools::{ToolCall, ToolResult};
 use vibe_ai::WorktreeManager;
 use std::path::Path as StdPath;
@@ -87,6 +89,8 @@ pub struct ToolExecutor {
     pub tavily_api_key: Option<String>,
     /// API key for Brave Search (if engine = "brave").
     pub brave_api_key: Option<String>,
+    /// LLM provider used when spawning sub-agents via `spawn_agent` tool.
+    pub provider: Option<Arc<dyn AIProvider>>,
 }
 
 impl ToolExecutor {
@@ -98,6 +102,7 @@ impl ToolExecutor {
             search_engine: "duckduckgo".to_string(),
             tavily_api_key: None,
             brave_api_key: None,
+            provider: None,
         }
     }
 
@@ -110,6 +115,11 @@ impl ToolExecutor {
         self.search_engine = engine;
         self.tavily_api_key = tavily_key;
         self.brave_api_key = brave_key;
+        self
+    }
+
+    pub fn with_provider(mut self, provider: Arc<dyn AIProvider>) -> Self {
+        self.provider = Some(provider);
         self
     }
 }
@@ -130,6 +140,9 @@ impl ToolExecutorTrait for ToolExecutor {
             ToolCall::FetchUrl { url } => self.fetch_url(url).await,
             ToolCall::TaskComplete { summary } => {
                 ToolResult::ok("task_complete", format!("Task complete: {}", summary))
+            }
+            ToolCall::SpawnAgent { task, max_steps } => {
+                self.spawn_sub_agent(task, *max_steps).await
             }
         }
     }
@@ -490,6 +503,84 @@ impl ToolExecutor {
         } else {
             self.workspace_root.join(p)
         }
+    }
+
+    /// Spawn a nested AgentLoop to complete a delegated sub-task.
+    /// Requires a provider to be set via `with_provider()`.
+    pub async fn spawn_sub_agent(&self, task: &str, max_steps: Option<usize>) -> ToolResult {
+        let provider = match &self.provider {
+            Some(p) => p.clone(),
+            None => {
+                return ToolResult::err(
+                    "spawn_agent",
+                    "No LLM provider configured for sub-agent. Call with_provider() on ToolExecutor.",
+                )
+            }
+        };
+
+        // Build a child executor that shares everything (including the provider ref).
+        let child_executor: Arc<dyn ToolExecutorTrait> = Arc::new(ToolExecutor {
+            workspace_root: self.workspace_root.clone(),
+            sandbox: self.sandbox,
+            env_policy: self.env_policy.clone(),
+            search_engine: self.search_engine.clone(),
+            tavily_api_key: self.tavily_api_key.clone(),
+            brave_api_key: self.brave_api_key.clone(),
+            provider: self.provider.clone(),
+        });
+
+        let mut agent = AgentLoop::new(provider, ApprovalPolicy::FullAuto, child_executor);
+        agent.max_steps = max_steps.unwrap_or(10);
+
+        let context = AgentContext {
+            workspace_root: self.workspace_root.clone(),
+            ..Default::default()
+        };
+
+        let (event_tx, mut event_rx) =
+            tokio::sync::mpsc::channel::<AgentEvent>(64);
+
+        let task_owned = task.to_string();
+        let handle = tokio::spawn(async move {
+            agent.run(&task_owned, context, event_tx).await
+        });
+
+        let mut summary = String::new();
+        let mut steps: Vec<String> = Vec::new();
+
+        while let Some(event) = event_rx.recv().await {
+            match event {
+                AgentEvent::Complete(s) => {
+                    summary = s;
+                    break;
+                }
+                AgentEvent::Error(e) => {
+                    return ToolResult::err("spawn_agent", format!("Sub-agent error: {}", e));
+                }
+                AgentEvent::ToolCallExecuted(step) => {
+                    steps.push(format!(
+                        "  [step {}] {} → {}",
+                        step.step_num,
+                        step.tool_call.summary(),
+                        if step.tool_result.success { "ok" } else { "err" }
+                    ));
+                }
+                _ => {}
+            }
+        }
+
+        let _ = handle.await;
+
+        let mut output = String::new();
+        if !steps.is_empty() {
+            output.push_str("Steps:\n");
+            output.push_str(&steps.join("\n"));
+            output.push_str("\n\n");
+        }
+        output.push_str("Summary: ");
+        output.push_str(if summary.is_empty() { "Sub-agent completed." } else { &summary });
+
+        ToolResult::ok("spawn_agent", output)
     }
 }
 
