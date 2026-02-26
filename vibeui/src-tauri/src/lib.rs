@@ -240,6 +240,12 @@ pub fn run() {
             commands::agent_browser_action,
             // Phase 31: Embedding index
             commands::build_embedding_index,
+            // Phase 41: Red Team
+            commands::start_redteam_scan,
+            commands::get_redteam_sessions,
+            commands::get_redteam_findings,
+            commands::generate_redteam_report,
+            commands::cancel_redteam_scan,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

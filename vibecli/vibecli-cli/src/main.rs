@@ -41,6 +41,7 @@ mod background_agents;
 mod team;
 mod memory_auto;
 mod bugbot;
+mod redteam;
 mod scheduler;
 mod gateway;
 mod linear;
@@ -241,6 +242,24 @@ struct Cli {
     /// Overrides config.safety.sandbox = true/false.
     #[arg(long)]
     sandbox: bool,
+
+    // ── Red Team mode (Phase 41) ──────────────────────────────────────────────
+
+    /// Run autonomous red team security scan against a target URL.
+    /// Requires explicit user consent. Only test applications you own/control.
+    /// Example: vibecli --redteam http://localhost:3000
+    #[arg(long, value_name = "URL")]
+    redteam: Option<String>,
+
+    /// YAML configuration file for red team scan (auth flows, scope, depth).
+    /// Example: vibecli --redteam http://localhost:3000 --redteam-config auth.yaml
+    #[arg(long, value_name = "FILE")]
+    redteam_config: Option<String>,
+
+    /// Generate a report from a previous red team session ID.
+    /// Example: vibecli --redteam-report rt-20260226T143025
+    #[arg(long, value_name = "SESSION_ID")]
+    redteam_report: Option<String>,
 }
 
 #[tokio::main]
@@ -478,6 +497,41 @@ async fn main() -> Result<()> {
         }
 
         std::process::exit(report.exit_code());
+    }
+
+    // Red Team mode: --redteam <url>
+    if let Some(target_url) = cli.redteam {
+        let llm = create_provider(&effective_provider, effective_model.clone())?;
+        let mut rt_config = redteam::RedTeamConfig {
+            target_url,
+            source_path: Some(std::env::current_dir()?),
+            ..Default::default()
+        };
+
+        // Load YAML config if provided.
+        if let Some(config_path) = cli.redteam_config {
+            let yaml_str = std::fs::read_to_string(&config_path)?;
+            rt_config = serde_yaml::from_str(&yaml_str).unwrap_or(rt_config);
+        }
+
+        let session = redteam::run_redteam_pipeline(rt_config, llm).await?;
+        let exit_code = if session.findings.iter().any(|f| f.severity == redteam::CvssSeverity::Critical) {
+            2
+        } else if session.findings.iter().any(|f| f.severity == redteam::CvssSeverity::High) {
+            1
+        } else {
+            0
+        };
+        std::process::exit(exit_code);
+    }
+
+    // Red Team report: --redteam-report <session-id>
+    if let Some(session_id) = cli.redteam_report {
+        let manager = redteam::RedTeamManager::new()?;
+        let session = manager.load_session(&session_id)?;
+        let report = redteam::generate_report(&session);
+        println!("{}", report);
+        std::process::exit(0);
     }
 
     // Watch mode: --watch [--agent "task"] [--watch-glob "**/*.rs"]
@@ -2311,6 +2365,104 @@ async fn main() -> Result<()> {
                                 let url = format!("http://localhost:{}/share/{}", port, args.trim());
                                 println!("📤  Shareable session URL:\n    {}\n", url);
                                 println!("    (The daemon must be running: vibecli serve --port {})\n", port);
+                            }
+                        }
+
+                        "/redteam" => {
+                            let parts: Vec<&str> = if args.is_empty() {
+                                vec!["help"]
+                            } else {
+                                args.splitn(3, ' ').collect()
+                            };
+                            match parts[0] {
+                                "scan" => {
+                                    let target = parts.get(1).unwrap_or(&"").trim();
+                                    if target.is_empty() {
+                                        println!("Usage: /redteam scan <url> [--repo <path>]\n");
+                                        continue;
+                                    }
+                                    let llm = create_provider(&effective_provider, effective_model.clone())?;
+                                    let mut rt_config = redteam::RedTeamConfig {
+                                        target_url: target.to_string(),
+                                        source_path: Some(std::env::current_dir()?),
+                                        ..Default::default()
+                                    };
+                                    // Check for --repo flag in remaining args.
+                                    if let Some(rest) = parts.get(2) {
+                                        if rest.contains("--repo") {
+                                            let repo_path = rest.replace("--repo", "").trim().to_string();
+                                            if !repo_path.is_empty() {
+                                                rt_config.source_path = Some(std::path::PathBuf::from(repo_path));
+                                            }
+                                        }
+                                    }
+                                    match redteam::run_redteam_pipeline(rt_config, llm).await {
+                                        Ok(session) => {
+                                            println!("{}", redteam::format_findings(&session.findings));
+                                        }
+                                        Err(e) => eprintln!("❌ Red team scan failed: {}\n", e),
+                                    }
+                                }
+                                "list" => {
+                                    match redteam::RedTeamManager::new().and_then(|m| m.list_sessions()) {
+                                        Ok(sessions) => {
+                                            if sessions.is_empty() {
+                                                println!("No red team sessions. Start one with: /redteam scan <url>\n");
+                                            } else {
+                                                println!("Red Team Sessions ({}):", sessions.len());
+                                                for s in &sessions {
+                                                    println!("  {}", s.summary_line());
+                                                }
+                                                println!();
+                                            }
+                                        }
+                                        Err(e) => eprintln!("❌ {}\n", e),
+                                    }
+                                }
+                                "show" => {
+                                    let id = parts.get(1).unwrap_or(&"").trim();
+                                    if id.is_empty() {
+                                        println!("Usage: /redteam show <session-id>\n");
+                                        continue;
+                                    }
+                                    match redteam::RedTeamManager::new().and_then(|m| m.load_session(id)) {
+                                        Ok(session) => {
+                                            println!("{}", redteam::format_findings(&session.findings));
+                                        }
+                                        Err(e) => eprintln!("❌ {}\n", e),
+                                    }
+                                }
+                                "report" => {
+                                    let id = parts.get(1).unwrap_or(&"").trim();
+                                    if id.is_empty() {
+                                        println!("Usage: /redteam report <session-id>\n");
+                                        continue;
+                                    }
+                                    match redteam::RedTeamManager::new().and_then(|m| m.load_session(id)) {
+                                        Ok(session) => {
+                                            println!("{}", redteam::generate_report(&session));
+                                        }
+                                        Err(e) => eprintln!("❌ {}\n", e),
+                                    }
+                                }
+                                "config" => {
+                                    let rt_cfg = Config::load().unwrap_or_default().redteam;
+                                    println!("Red Team Configuration (from ~/.vibecli/config.toml):");
+                                    println!("  max_depth: {}", rt_cfg.max_depth);
+                                    println!("  timeout_secs: {}", rt_cfg.timeout_secs);
+                                    println!("  parallel_agents: {}", rt_cfg.parallel_agents);
+                                    println!("  auto_report: {}", rt_cfg.auto_report);
+                                    println!();
+                                }
+                                _ => {
+                                    println!("🛡️  Red Team Commands:");
+                                    println!("  /redteam scan <url> [--repo <path>]  — run security scan");
+                                    println!("  /redteam list                        — list all sessions");
+                                    println!("  /redteam show <id>                   — show findings");
+                                    println!("  /redteam report <id>                 — generate full report");
+                                    println!("  /redteam config                      — show configuration");
+                                    println!();
+                                }
                             }
                         }
 

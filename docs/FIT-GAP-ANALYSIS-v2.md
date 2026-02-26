@@ -630,10 +630,36 @@ These represent the remaining frontier for VibeCLI + VibeUI competitive parity:
 | MCP OAuth 2.0 install flow | Medium | L | Cursor | tauri-plugin-oauth + PKCE |
 | LSP diagnostics in TUI | Low | L | opencode | Wire vibe-lsp into TUI |
 | GCP / Firebase deploy target | Low | M | Antigravity | Add to DeployPanel |
-| Security scanning (OWASP/CWE patterns) | Medium | M | Amazon Q | Extend bugbot.rs |
+| Security scanning (OWASP/CWE patterns) | Medium | M | Amazon Q | ✅ Phase 38 + Phase 41 (15 CWE patterns) |
+| Red team / autonomous pentest pipeline | High | L | Shannon (KeygraphHQ) | ✅ Phase 41: redteam.rs 5-stage pipeline |
 | Zed-style GPU terminal | Low | XL | Warp/Zed | Out of scope (webview limitation) |
 | Remote VM / cloud agent execution | Low | XL | Warp | Cloud infrastructure required |
 
 ---
 
-*Updated 2026-02-26 — reflects all phases 12–37 complete. All file paths reference the VibeCody monorepo at github.com/TuringWorks/vibecody.*
+## Part S — Shannon Comparison (Phase 41)
+
+VibeCody Phase 41 adds an autonomous red team security scanning module inspired by
+[Shannon](https://github.com/KeygraphHQ/shannon). See full comparison at
+[`docs/SHANNON-COMPARISON.md`](/shannon-comparison/).
+
+Key differences:
+- **Shannon**: Standalone pentesting tool, TypeScript + Temporal + Docker, Claude-primary, ~$50/scan, AGPL-3.0
+- **VibeCody RedTeam**: Integrated into development workflow, Rust + Tokio, 10+ LLM providers, per-token cost, MIT
+
+### Phase 41 Deliverables
+
+| Component | File | Description |
+|-----------|------|-------------|
+| Red team pipeline | `vibecli/vibecli-cli/src/redteam.rs` | 5-stage pipeline: Recon → Analysis → Exploitation → Validation → Report |
+| Expanded CWE scanner | `vibecli/vibecli-cli/src/bugbot.rs` | 15 CWE patterns (7 original + 8 new: SSRF, XXE, deserialization, NoSQL, template injection, IDOR, CSRF, cleartext) |
+| CLI flags | `--redteam <url>`, `--redteam-config`, `--redteam-report` | Non-interactive scanning mode |
+| REPL commands | `/redteam scan\|list\|show\|report\|config` | Interactive security scanning |
+| VibeUI panel | `RedTeamPanel.tsx` | Pipeline visualization, findings feed, report export |
+| Tauri commands | 5 commands | start_redteam_scan, get_redteam_sessions, get_redteam_findings, generate_redteam_report, cancel_redteam_scan |
+| Config | `[redteam]` in config.toml | max_depth, timeout_secs, parallel_agents, scope_patterns, auto_report |
+| Comparison doc | `docs/SHANNON-COMPARISON.md` | Full Shannon vs VibeCody feature matrix |
+
+---
+
+*Updated 2026-02-26 — reflects all phases 12–41 complete. All file paths reference the VibeCody monorepo at github.com/TuringWorks/vibecody.*

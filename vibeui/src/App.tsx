@@ -42,6 +42,7 @@ import { AuthPanel } from "./components/AuthPanel";
 import { GitHubSyncPanel } from "./components/GitHubSyncPanel";
 import SteeringPanel from "./components/SteeringPanel";
 import { BugBotPanel } from "./components/BugBotPanel";
+import { RedTeamPanel } from "./components/RedTeamPanel";
 import { DiffReviewPanel } from "./components/DiffReviewPanel";
 import { flowContext } from "./utils/FlowContext";
 import { supercompleteEngine } from "./utils/SupercompleteEngine";
@@ -1438,7 +1439,7 @@ function App() {
           <aside className="ai-chat-panel" style={{ display: "flex", flexDirection: "column" }}>
             {/* Tab bar */}
             <div style={{ display: "flex", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
-              {(["chat", "agent", "memory", "history", "checkpoints", "artifacts", "manager", "hooks", "jobs", "mcp", "settings", "cascade", "specs", "workflow", "design", "deploy", "database", "supabase", "auth", "github", "steering", "bugbot"] as const).map((tab) => (
+              {(["chat", "agent", "memory", "history", "checkpoints", "artifacts", "manager", "hooks", "jobs", "mcp", "settings", "cascade", "specs", "workflow", "design", "deploy", "database", "supabase", "auth", "github", "steering", "bugbot", "redteam"] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setAiPanelTab(tab)}
@@ -1475,6 +1476,7 @@ function App() {
                     : tab === "github" ? "🐙 GH Sync"
                     : tab === "steering" ? "🧭 Steering"
                     : tab === "bugbot" ? "🐛 BugBot"
+                    : tab === "redteam" ? "🛡️ RedTeam"
                     : "🌊 Flow"}
                 </button>
               ))}
@@ -1593,6 +1595,12 @@ function App() {
               {aiPanelTab === "bugbot" && (
                 <BugBotPanel
                   workspacePath={workspaceFolders[0] || undefined}
+                />
+              )}
+              {aiPanelTab === "redteam" && (
+                <RedTeamPanel
+                  workspacePath={workspaceFolders[0] || null}
+                  provider={selectedProvider}
                 />
               )}
             </div>

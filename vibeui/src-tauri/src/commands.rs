@@ -5152,6 +5152,159 @@ pub async fn agent_browser_action(action: BrowserAction) -> Result<BrowserAction
     }
 }
 
+// ── Red Team Security Scanning (Phase 41) ─────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RedTeamFinding {
+    pub id: String,
+    pub attack_vector: String,
+    pub cvss_score: f64,
+    pub severity: String,
+    pub url: String,
+    pub location: String,
+    pub title: String,
+    pub description: String,
+    pub poc: String,
+    pub remediation: String,
+    pub source_file: Option<String>,
+    pub source_line: Option<u32>,
+    pub confirmed: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RedTeamSessionInfo {
+    pub id: String,
+    pub target_url: String,
+    pub current_stage: String,
+    pub findings: Vec<RedTeamFinding>,
+    pub started_at: String,
+    pub finished_at: Option<String>,
+}
+
+#[tauri::command]
+pub async fn start_redteam_scan(
+    url: String,
+    _config: Option<serde_json::Value>,
+) -> Result<String, String> {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let ts = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    let session_id = format!("rt-{}", ts);
+
+    // Create session directory.
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    let sessions_dir = std::path::PathBuf::from(&home).join(".vibeui").join("redteam");
+    std::fs::create_dir_all(&sessions_dir).map_err(|e| e.to_string())?;
+
+    // Save a placeholder session.
+    let session = RedTeamSessionInfo {
+        id: session_id.clone(),
+        target_url: url.clone(),
+        current_stage: "Recon".to_string(),
+        findings: vec![],
+        started_at: format!("{}", ts),
+        finished_at: None,
+    };
+    let path = sessions_dir.join(format!("{}.json", &session_id));
+    let json = serde_json::to_string_pretty(&session).map_err(|e| e.to_string())?;
+    std::fs::write(&path, &json).map_err(|e| e.to_string())?;
+
+    Ok(session_id)
+}
+
+#[tauri::command]
+pub async fn get_redteam_sessions() -> Result<Vec<RedTeamSessionInfo>, String> {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    let sessions_dir = std::path::PathBuf::from(&home).join(".vibeui").join("redteam");
+    if !sessions_dir.exists() {
+        return Ok(vec![]);
+    }
+
+    let mut sessions: Vec<RedTeamSessionInfo> = Vec::new();
+    let entries = std::fs::read_dir(&sessions_dir).map_err(|e| e.to_string())?;
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.extension().and_then(|e| e.to_str()) == Some("json") {
+            if let Ok(json) = std::fs::read_to_string(&path) {
+                if let Ok(session) = serde_json::from_str::<RedTeamSessionInfo>(&json) {
+                    sessions.push(session);
+                }
+            }
+        }
+    }
+    sessions.sort_by(|a, b| b.started_at.cmp(&a.started_at));
+    Ok(sessions)
+}
+
+#[tauri::command]
+pub async fn get_redteam_findings(session_id: String) -> Result<Vec<RedTeamFinding>, String> {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    let path = std::path::PathBuf::from(&home)
+        .join(".vibeui").join("redteam").join(format!("{}.json", session_id));
+
+    let json = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let session: RedTeamSessionInfo = serde_json::from_str(&json).map_err(|e| e.to_string())?;
+    Ok(session.findings)
+}
+
+#[tauri::command]
+pub async fn generate_redteam_report(session_id: String) -> Result<String, String> {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    let path = std::path::PathBuf::from(&home)
+        .join(".vibeui").join("redteam").join(format!("{}.json", session_id));
+
+    let json = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let session: RedTeamSessionInfo = serde_json::from_str(&json).map_err(|e| e.to_string())?;
+
+    let mut report = String::new();
+    report.push_str("# Security Assessment Report\n\n");
+    report.push_str(&format!("**Target:** {}\n", session.target_url));
+    report.push_str(&format!("**Session:** {}\n", session.id));
+    report.push_str(&format!("**Date:** {}\n", session.started_at));
+    report.push_str("\n---\n\n## Findings\n\n");
+
+    if session.findings.is_empty() {
+        report.push_str("No vulnerabilities were identified.\n");
+    } else {
+        let mut sorted = session.findings.clone();
+        sorted.sort_by(|a, b| b.cvss_score.partial_cmp(&a.cvss_score).unwrap_or(std::cmp::Ordering::Equal));
+
+        for (i, f) in sorted.iter().enumerate() {
+            report.push_str(&format!("### {}. {} (CVSS: {:.1})\n\n", i + 1, f.title, f.cvss_score));
+            report.push_str(&format!("- **Severity:** {}\n", f.severity));
+            report.push_str(&format!("- **URL:** `{}`\n", f.url));
+            report.push_str(&format!("- **Parameter:** `{}`\n", f.location));
+            report.push_str(&format!("- **Confirmed:** {}\n", if f.confirmed { "Yes" } else { "Unconfirmed" }));
+            report.push_str(&format!("\n**Description:** {}\n", f.description));
+            report.push_str(&format!("\n**PoC:**\n```\n{}\n```\n", f.poc));
+            report.push_str(&format!("\n**Remediation:** {}\n\n---\n\n", f.remediation));
+        }
+    }
+
+    report.push_str("\n*Generated by VibeCody Red Team Module*\n");
+    Ok(report)
+}
+
+#[tauri::command]
+pub async fn cancel_redteam_scan(session_id: String) -> Result<(), String> {
+    // Mark session as cancelled.
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    let path = std::path::PathBuf::from(&home)
+        .join(".vibeui").join("redteam").join(format!("{}.json", session_id));
+
+    if path.exists() {
+        let json = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+        let mut session: RedTeamSessionInfo = serde_json::from_str(&json).map_err(|e| e.to_string())?;
+        session.current_stage = "Cancelled".to_string();
+        session.finished_at = Some("cancelled".to_string());
+        let updated = serde_json::to_string_pretty(&session).map_err(|e| e.to_string())?;
+        std::fs::write(&path, &updated).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 // ── Unit tests ────────────────────────────────────────────────────────────────
 
 #[cfg(test)]

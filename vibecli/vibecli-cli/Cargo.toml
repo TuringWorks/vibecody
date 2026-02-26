@@ -38,6 +38,7 @@ rand = "0.8"
 walkdir = { workspace = true }
 rusqlite = { workspace = true }
 notify = { workspace = true }
+serde_yaml = "0.9"
 
 # OpenTelemetry (OTLP/HTTP export)
 opentelemetry = { version = "0.27", features = ["trace"] }

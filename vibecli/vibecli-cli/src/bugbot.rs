@@ -127,6 +127,63 @@ pub fn detect_security_patterns(diff: &str) -> Vec<BugReport> {
             "Possible open redirect: redirect target may be user-controlled",
             "Validate redirect URLs against an allowlist of trusted domains before redirecting",
         ),
+        // ── Phase 41: Red Team expanded CWE coverage ──────────────────────────
+        (
+            r#"(?i)(fetch|axios|requests?\.(get|post)|http\.get|urllib)\s*\(\s*[^)]*(?:url|uri|href|endpoint|target|host|addr)"#,
+            "CWE-918",
+            Severity::Error,
+            "Possible SSRF: server-side request with user-controllable URL",
+            "Validate and allowlist target URLs; block private IP ranges (127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16)",
+        ),
+        (
+            r#"(?i)(XMLParser|DOMParser|etree\.parse|SAXParser|DocumentBuilder)\s*\("#,
+            "CWE-611",
+            Severity::Error,
+            "Possible XXE: XML parser may process external entities",
+            "Disable external entity processing: set XMLConstants.FEATURE_SECURE_PROCESSING or equivalent for your parser",
+        ),
+        (
+            r#"(?i)(pickle\.loads?|yaml\.load\s*\(|yaml\.unsafe_load|marshal\.loads?|unserialize\s*\(|ObjectInputStream)"#,
+            "CWE-502",
+            Severity::Error,
+            "Possible insecure deserialization: untrusted data passed to unsafe deserializer",
+            "Never deserialize untrusted data; use yaml.safe_load, JSON, or schema-validated formats",
+        ),
+        (
+            r#"(?i)\$where\s*:|\.find\s*\(\s*\{[^}]*\$(?:regex|where|gt|lt|ne|in)\b"#,
+            "CWE-943",
+            Severity::Error,
+            "Possible NoSQL injection: MongoDB operator in query with potential user input",
+            "Sanitize query parameters; use typed schemas; avoid $where and JavaScript execution operators",
+        ),
+        (
+            r#"(?i)(render_template_string|Template\s*\(\s*(?:request|params|query|user|body)|Jinja2\.from_string|\.render\s*\(\s*(?:req|params))"#,
+            "CWE-1336",
+            Severity::Error,
+            "Possible template injection: user-controlled data passed to template engine",
+            "Never pass user input directly to template constructors; use pre-compiled templates with variable interpolation",
+        ),
+        (
+            r#"(?i)/(?:api|v\d)/\w+/\d+|(?:findById|get_by_id|find_one)\s*\(\s*(?:req\.|params\.|request\.)"#,
+            "CWE-639",
+            Severity::Warning,
+            "Possible IDOR: resource accessed by sequential ID without apparent authorization check",
+            "Verify the requesting user is authorized to access the specific resource; use UUIDs over sequential IDs",
+        ),
+        (
+            r#"(?i)(app\.(post|put|patch|delete)|router\.(post|put|patch|delete))\s*\(\s*["'][^"']+"#,
+            "CWE-352",
+            Severity::Warning,
+            "Possible missing CSRF protection: state-changing endpoint without apparent token validation",
+            "Implement CSRF tokens for all state-changing requests; use SameSite=Strict cookie attribute",
+        ),
+        (
+            r#"(?i)["']http://[a-z0-9][\w\.-]+\.(com|io|org|net|dev)/api"#,
+            "CWE-319",
+            Severity::Warning,
+            "Possible cleartext transmission: API endpoint using HTTP instead of HTTPS",
+            "Use HTTPS for all API endpoints; enable HSTS; redirect HTTP to HTTPS",
+        ),
     ];
 
     // Compile once (called once per review_diff invocation, not in a tight loop).
@@ -286,7 +343,10 @@ Diff:
     /// Fetch PR diff from GitHub.
     pub async fn fetch_pr_diff(&self, owner: &str, repo: &str, pr_number: u64) -> Result<String> {
         let url = format!("https://api.github.com/repos/{}/{}/pulls/{}", owner, repo, pr_number);
-        let client = reqwest::Client::new();
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(30))
+            .connect_timeout(std::time::Duration::from_secs(10))
+            .build()?;
         let mut req = client.get(&url)
             .header("Accept", "application/vnd.github.v3.diff")
             .header("User-Agent", "vibecli-bugbot/1.0");
@@ -314,7 +374,10 @@ Diff:
         let token = self.gh_token.as_ref()
             .ok_or_else(|| anyhow::anyhow!("GITHUB_TOKEN not set"))?;
 
-        let client = reqwest::Client::new();
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(30))
+            .connect_timeout(std::time::Duration::from_secs(10))
+            .build()?;
         let url = format!(
             "https://api.github.com/repos/{}/{}/pulls/{}/reviews",
             owner, repo, pr_number
@@ -474,5 +537,65 @@ mod tests {
 "#;
         let reports = detect_security_patterns(diff);
         assert!(reports.is_empty(), "clean diff should yield no findings");
+    }
+
+    #[test]
+    fn detect_ssrf_pattern() {
+        let diff = r#"diff --git a/src/proxy.py b/src/proxy.py
+--- a/src/proxy.py
++++ b/src/proxy.py
+@@ -1,3 +1,4 @@
+ def proxy(request):
++    resp = requests.get(url=request.params.target_url)
+ }
+"#;
+        let reports = detect_security_patterns(diff);
+        assert!(!reports.is_empty(), "should detect SSRF");
+        assert!(reports[0].message.contains("CWE-918"));
+    }
+
+    #[test]
+    fn detect_insecure_deserialization() {
+        let diff = r#"diff --git a/src/handler.py b/src/handler.py
+--- a/src/handler.py
++++ b/src/handler.py
+@@ -1,3 +1,4 @@
+ def load(data):
++    obj = pickle.loads(data)
+ }
+"#;
+        let reports = detect_security_patterns(diff);
+        assert!(!reports.is_empty(), "should detect insecure deserialization");
+        assert!(reports[0].message.contains("CWE-502"));
+    }
+
+    #[test]
+    fn detect_nosql_injection() {
+        let diff = r#"diff --git a/src/users.js b/src/users.js
+--- a/src/users.js
++++ b/src/users.js
+@@ -1,3 +1,4 @@
+ function getUser(req) {
++    db.users.find({ $where: "this.name == '" + req.body.name + "'" })
+ }
+"#;
+        let reports = detect_security_patterns(diff);
+        assert!(!reports.is_empty(), "should detect NoSQL injection");
+        assert!(reports[0].message.contains("CWE-943"));
+    }
+
+    #[test]
+    fn detect_cleartext_api() {
+        let diff = r#"diff --git a/src/config.ts b/src/config.ts
+--- a/src/config.ts
++++ b/src/config.ts
+@@ -1,3 +1,4 @@
+ const config = {
++    apiUrl: "http://payments.example.com/api/charge",
+ }
+"#;
+        let reports = detect_security_patterns(diff);
+        assert!(!reports.is_empty(), "should detect cleartext HTTP API");
+        assert!(reports[0].message.contains("CWE-319"));
     }
 }

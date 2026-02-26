@@ -129,6 +129,65 @@ pub struct Config {
     /// ```
     #[serde(default)]
     pub linear_api_key: Option<String>,
+
+    /// Red team security scanning configuration.
+    ///
+    /// ```toml
+    /// [redteam]
+    /// max_depth = 3
+    /// timeout_secs = 300
+    /// parallel_agents = 3
+    /// auto_report = true
+    /// ```
+    #[serde(default)]
+    pub redteam: RedTeamCfg,
+}
+
+/// Configuration for the red team security scanning module.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RedTeamCfg {
+    /// Maximum crawl depth for reconnaissance (default: 3).
+    #[serde(default = "RedTeamCfg::default_max_depth")]
+    pub max_depth: usize,
+    /// Per-stage timeout in seconds (default: 300).
+    #[serde(default = "RedTeamCfg::default_timeout")]
+    pub timeout_secs: u64,
+    /// Number of parallel exploitation agents (default: 3).
+    #[serde(default = "RedTeamCfg::default_parallel")]
+    pub parallel_agents: usize,
+    /// URL patterns in scope (glob-style, default: ["*"]).
+    #[serde(default = "RedTeamCfg::default_scope")]
+    pub scope_patterns: Vec<String>,
+    /// URL patterns to exclude from testing.
+    #[serde(default)]
+    pub exclude_patterns: Vec<String>,
+    /// Path to auth configuration YAML file.
+    #[serde(default)]
+    pub auth_config: Option<String>,
+    /// Automatically generate report after scan completion (default: true).
+    #[serde(default = "default_true")]
+    pub auto_report: bool,
+}
+
+impl RedTeamCfg {
+    fn default_max_depth() -> usize { 3 }
+    fn default_timeout() -> u64 { 300 }
+    fn default_parallel() -> usize { 3 }
+    fn default_scope() -> Vec<String> { vec!["*".to_string()] }
+}
+
+impl Default for RedTeamCfg {
+    fn default() -> Self {
+        Self {
+            max_depth: 3,
+            timeout_secs: 300,
+            parallel_agents: 3,
+            scope_patterns: vec!["*".to_string()],
+            exclude_patterns: vec![],
+            auth_config: None,
+            auto_report: true,
+        }
+    }
 }
 
 /// Gateway configuration (inlined here to avoid circular dependency with gateway module).
