@@ -81,15 +81,35 @@ pub struct ToolExecutor {
     pub workspace_root: PathBuf,
     pub sandbox: bool,
     pub env_policy: Option<ShellEnvPolicy>,
+    /// Web search engine: "duckduckgo" | "tavily" | "brave"
+    pub search_engine: String,
+    /// API key for Tavily (if engine = "tavily").
+    pub tavily_api_key: Option<String>,
+    /// API key for Brave Search (if engine = "brave").
+    pub brave_api_key: Option<String>,
 }
 
 impl ToolExecutor {
     pub fn new(workspace_root: PathBuf, sandbox: bool) -> Self {
-        Self { workspace_root, sandbox, env_policy: None }
+        Self {
+            workspace_root,
+            sandbox,
+            env_policy: None,
+            search_engine: "duckduckgo".to_string(),
+            tavily_api_key: None,
+            brave_api_key: None,
+        }
     }
 
     pub fn with_env_policy(mut self, policy: ShellEnvPolicy) -> Self {
         self.env_policy = Some(policy);
+        self
+    }
+
+    pub fn with_search_config(mut self, engine: String, tavily_key: Option<String>, brave_key: Option<String>) -> Self {
+        self.search_engine = engine;
+        self.tavily_api_key = tavily_key;
+        self.brave_api_key = brave_key;
         self
     }
 }
@@ -205,6 +225,14 @@ impl ToolExecutor {
     }
 
     async fn web_search(&self, query: &str, num_results: usize) -> ToolResult {
+        match self.search_engine.as_str() {
+            "tavily" => self.tavily_search(query, num_results).await,
+            "brave" => self.brave_search(query, num_results).await,
+            _ => self.duckduckgo_search(query, num_results).await,
+        }
+    }
+
+    async fn duckduckgo_search(&self, query: &str, num_results: usize) -> ToolResult {
         // DuckDuckGo Instant Answer API (no API key required)
         let n = num_results.min(10);
         let url = format!(
@@ -212,12 +240,11 @@ impl ToolExecutor {
             urlencoding::encode(query)
         );
 
-        let client = reqwest::Client::builder()
+        let client = match reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(15))
             .user_agent("VibeCLI/1.0")
-            .build();
-
-        let client = match client {
+            .build()
+        {
             Ok(c) => c,
             Err(e) => return ToolResult::err("web_search", format!("HTTP client error: {}", e)),
         };
@@ -226,8 +253,6 @@ impl ToolExecutor {
             Ok(resp) => match resp.json::<serde_json::Value>().await {
                 Ok(json) => {
                     let mut results = Vec::new();
-
-                    // AbstractText (instant answer)
                     if let Some(text) = json["AbstractText"].as_str().filter(|s| !s.is_empty()) {
                         results.push(format!(
                             "1. {} ({})\n   {}",
@@ -236,17 +261,14 @@ impl ToolExecutor {
                             text
                         ));
                     }
-
-                    // RelatedTopics
                     if let Some(topics) = json["RelatedTopics"].as_array() {
-                        for (_i, topic) in topics.iter().take(n.saturating_sub(results.len())).enumerate() {
+                        for topic in topics.iter().take(n.saturating_sub(results.len())) {
                             if let Some(text) = topic["Text"].as_str().filter(|s| !s.is_empty()) {
                                 let url_str = topic["FirstURL"].as_str().unwrap_or("");
                                 results.push(format!("{}. {}\n   {}", results.len() + 1, url_str, text));
                             }
                         }
                     }
-
                     if results.is_empty() {
                         ToolResult::ok("web_search", format!("No results found for: {}", query))
                     } else {
@@ -256,6 +278,113 @@ impl ToolExecutor {
                 Err(e) => ToolResult::err("web_search", format!("JSON parse error: {}", e)),
             },
             Err(e) => ToolResult::err("web_search", format!("Request failed: {}", e)),
+        }
+    }
+
+    async fn tavily_search(&self, query: &str, num_results: usize) -> ToolResult {
+        let api_key = match &self.tavily_api_key {
+            Some(k) => k.clone(),
+            None => return ToolResult::err("web_search", "Tavily API key not configured. Set TAVILY_API_KEY or tools.web_search.tavily_api_key in config."),
+        };
+
+        let client = match reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(20))
+            .user_agent("VibeCLI/1.0")
+            .build()
+        {
+            Ok(c) => c,
+            Err(e) => return ToolResult::err("web_search", format!("HTTP client error: {}", e)),
+        };
+
+        let payload = serde_json::json!({
+            "api_key": api_key,
+            "query": query,
+            "max_results": num_results.min(10),
+            "search_depth": "basic",
+            "include_answer": true,
+        });
+
+        match client.post("https://api.tavily.com/search").json(&payload).send().await {
+            Ok(resp) => match resp.json::<serde_json::Value>().await {
+                Ok(json) => {
+                    let mut output = Vec::new();
+                    // Include Tavily's AI-generated answer if present
+                    if let Some(answer) = json["answer"].as_str().filter(|s| !s.is_empty()) {
+                        output.push(format!("**Answer:** {}", answer));
+                    }
+                    // Include individual results
+                    if let Some(results) = json["results"].as_array() {
+                        for (i, result) in results.iter().enumerate() {
+                            let title = result["title"].as_str().unwrap_or("Untitled");
+                            let url = result["url"].as_str().unwrap_or("");
+                            let content = result["content"].as_str().unwrap_or("");
+                            let score = result["score"].as_f64().unwrap_or(0.0);
+                            output.push(format!(
+                                "{}. **{}** ({:.2})\n   {}\n   {}",
+                                i + 1, title, score, url,
+                                if content.len() > 200 { &content[..200] } else { content }
+                            ));
+                        }
+                    }
+                    if output.is_empty() {
+                        ToolResult::ok("web_search", format!("No results found for: {}", query))
+                    } else {
+                        ToolResult::ok("web_search", output.join("\n\n"))
+                    }
+                }
+                Err(e) => ToolResult::err("web_search", format!("Tavily JSON parse error: {}", e)),
+            },
+            Err(e) => ToolResult::err("web_search", format!("Tavily request failed: {}", e)),
+        }
+    }
+
+    async fn brave_search(&self, query: &str, num_results: usize) -> ToolResult {
+        let api_key = match &self.brave_api_key {
+            Some(k) => k.clone(),
+            None => return ToolResult::err("web_search", "Brave API key not configured. Set BRAVE_API_KEY or tools.web_search.brave_api_key in config."),
+        };
+
+        let client = match reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(15))
+            .user_agent("VibeCLI/1.0")
+            .build()
+        {
+            Ok(c) => c,
+            Err(e) => return ToolResult::err("web_search", format!("HTTP client error: {}", e)),
+        };
+
+        let url = format!(
+            "https://api.search.brave.com/res/v1/web/search?q={}&count={}",
+            urlencoding::encode(query),
+            num_results.min(10)
+        );
+
+        match client.get(&url)
+            .header("Accept", "application/json")
+            .header("Accept-Encoding", "gzip")
+            .header("X-Subscription-Token", &api_key)
+            .send().await
+        {
+            Ok(resp) => match resp.json::<serde_json::Value>().await {
+                Ok(json) => {
+                    let mut output = Vec::new();
+                    if let Some(results) = json["web"]["results"].as_array() {
+                        for (i, result) in results.iter().enumerate() {
+                            let title = result["title"].as_str().unwrap_or("Untitled");
+                            let url = result["url"].as_str().unwrap_or("");
+                            let desc = result["description"].as_str().unwrap_or("");
+                            output.push(format!("{}. **{}**\n   {}\n   {}", i + 1, title, url, desc));
+                        }
+                    }
+                    if output.is_empty() {
+                        ToolResult::ok("web_search", format!("No results found for: {}", query))
+                    } else {
+                        ToolResult::ok("web_search", output.join("\n\n"))
+                    }
+                }
+                Err(e) => ToolResult::err("web_search", format!("Brave JSON parse error: {}", e)),
+            },
+            Err(e) => ToolResult::err("web_search", format!("Brave request failed: {}", e)),
         }
     }
 

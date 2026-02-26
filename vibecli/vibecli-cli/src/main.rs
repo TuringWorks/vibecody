@@ -40,6 +40,8 @@ mod background_agents;
 mod team;
 mod memory_auto;
 mod bugbot;
+mod scheduler;
+mod gateway;
 use rustyline::error::ReadlineError;
 
 mod tui;
@@ -138,6 +140,14 @@ struct Cli {
     /// { "mcpServers": { "vibecli": { "command": "vibecli", "args": ["--mcp-server"] } } }
     #[arg(long)]
     mcp_server: bool,
+
+    // ── Gateway mode (Phase 21) ────────────────────────────────────────────────
+
+    /// Start as a messaging gateway bot: "telegram" | "discord" | "slack".
+    /// Requires the corresponding token in config or environment variable.
+    /// Example: vibecli --gateway telegram --provider claude
+    #[arg(long, value_name = "PLATFORM")]
+    gateway: Option<String>,
 
     // ── Profile ───────────────────────────────────────────────────────────────
 
@@ -254,6 +264,34 @@ async fn main() -> Result<()> {
         let approval = ApprovalPolicy::from_str(&approval_policy);
         let config = Config::load().unwrap_or_default();
         return mcp_server::run_server(cwd, llm, approval, config.safety.sandbox).await;
+    }
+
+    // Gateway mode: vibecli --gateway telegram|discord|slack
+    if let Some(ref platform) = cli.gateway {
+        let llm = create_provider(&effective_provider, effective_model.clone())?;
+        let config = Config::load().unwrap_or_default();
+        let gw_cfg = &config.gateway;
+        let platform_box: Box<dyn gateway::GatewayPlatform> = match platform.as_str() {
+            "telegram" => {
+                let token = gw_cfg.resolve_telegram_token()
+                    .ok_or_else(|| anyhow::anyhow!("Telegram token not configured. Set TELEGRAM_BOT_TOKEN or gateway.telegram_token in config."))?;
+                Box::new(gateway::TelegramGateway::new(token, gw_cfg.allowed_users.clone()))
+            }
+            "discord" => {
+                let token = gw_cfg.resolve_discord_token()
+                    .ok_or_else(|| anyhow::anyhow!("Discord token not configured. Set DISCORD_BOT_TOKEN or gateway.discord_token in config."))?;
+                let channel = gw_cfg.discord_channel_id.clone().unwrap_or_default();
+                Box::new(gateway::DiscordGateway::new(token, channel))
+            }
+            "slack" => {
+                let token = gw_cfg.resolve_slack_bot_token()
+                    .ok_or_else(|| anyhow::anyhow!("Slack token not configured. Set SLACK_BOT_TOKEN or gateway.slack_bot_token in config."))?;
+                let channel = gw_cfg.slack_channel_id.clone().unwrap_or_default();
+                Box::new(gateway::SlackGateway::new(token, channel))
+            }
+            other => return Err(anyhow::anyhow!("Unknown gateway platform: '{}'. Use: telegram, discord, slack", other)),
+        };
+        return gateway::run_gateway(platform_box, llm).await;
     }
 
     if cli.tui {
@@ -1556,6 +1594,106 @@ async fn main() -> Result<()> {
                             }
                         }
 
+                        // ── /remind ────────────────────────────────────────────────────────
+                        // Usage: /remind in <duration> "<task>"
+                        //        /remind list
+                        //        /remind cancel <id>
+                        "/remind" => {
+                            use crate::scheduler::{Scheduler, parse_duration, format_relative, format_interval};
+                            let sched = Scheduler::new();
+                            let parts: Vec<&str> = args.splitn(3, ' ').collect();
+                            match parts.first().copied().unwrap_or("") {
+                                "list" => {
+                                    let jobs = sched.list();
+                                    if jobs.is_empty() {
+                                        println!("No scheduled reminders.\n");
+                                    } else {
+                                        println!("Scheduled reminders:");
+                                        for j in &jobs {
+                                            let when = match &j.schedule {
+                                                crate::scheduler::ScheduleExpr::Once { at_ms } => format_relative(*at_ms),
+                                                crate::scheduler::ScheduleExpr::Recurring { interval_secs, next_at_ms } =>
+                                                    format!("{} (next: {})", format_interval(*interval_secs), format_relative(*next_at_ms)),
+                                            };
+                                            println!("  [{}] {} — {}", j.id, when, j.task);
+                                        }
+                                        println!();
+                                    }
+                                }
+                                "cancel" => {
+                                    let id = parts.get(1).unwrap_or(&"").trim();
+                                    match sched.cancel(id) {
+                                        Ok(Some(j)) => println!("✅ Cancelled reminder [{}]: {}\n", j.id, j.task),
+                                        Ok(None) => println!("⚠️  No reminder found with id prefix '{}'\n", id),
+                                        Err(e) => eprintln!("❌ {}\n", e),
+                                    }
+                                }
+                                "in" => {
+                                    let dur_str = parts.get(1).unwrap_or(&"").trim();
+                                    let task = parts.get(2).unwrap_or(&"").trim().trim_matches('"');
+                                    if let Some(secs) = parse_duration(dur_str) {
+                                        match sched.add_in(task, secs) {
+                                            Ok(j) => println!("✅ Reminder [{}] set: '{}' in {}\n", j.id, j.task, dur_str),
+                                            Err(e) => eprintln!("❌ {}\n", e),
+                                        }
+                                    } else {
+                                        println!("⚠️  Invalid duration '{}'. Use: 30s, 10m, 2h, 1d\n", dur_str);
+                                    }
+                                }
+                                _ => println!("Usage: /remind in <dur> \"<task>\" | /remind list | /remind cancel <id>\n"),
+                            }
+                        }
+
+                        // ── /schedule ──────────────────────────────────────────────────────
+                        // Usage: /schedule every <duration> "<task>"
+                        //        /schedule list
+                        //        /schedule cancel <id>
+                        "/schedule" => {
+                            use crate::scheduler::{Scheduler, parse_duration, format_relative, format_interval};
+                            let sched = Scheduler::new();
+                            let parts: Vec<&str> = args.splitn(3, ' ').collect();
+                            match parts.first().copied().unwrap_or("") {
+                                "list" => {
+                                    let jobs = sched.list();
+                                    if jobs.is_empty() {
+                                        println!("No scheduled jobs.\n");
+                                    } else {
+                                        println!("Scheduled jobs:");
+                                        for j in &jobs {
+                                            let when = match &j.schedule {
+                                                crate::scheduler::ScheduleExpr::Once { at_ms } => format_relative(*at_ms),
+                                                crate::scheduler::ScheduleExpr::Recurring { interval_secs, next_at_ms } =>
+                                                    format!("{} (next: {})", format_interval(*interval_secs), format_relative(*next_at_ms)),
+                                            };
+                                            println!("  [{}] {} — {} (triggered {} times)", j.id, when, j.task, j.triggered_count);
+                                        }
+                                        println!();
+                                    }
+                                }
+                                "cancel" => {
+                                    let id = parts.get(1).unwrap_or(&"").trim();
+                                    match sched.cancel(id) {
+                                        Ok(Some(j)) => println!("✅ Cancelled job [{}]: {}\n", j.id, j.task),
+                                        Ok(None) => println!("⚠️  No job found with id prefix '{}'\n", id),
+                                        Err(e) => eprintln!("❌ {}\n", e),
+                                    }
+                                }
+                                "every" => {
+                                    let dur_str = parts.get(1).unwrap_or(&"").trim();
+                                    let task = parts.get(2).unwrap_or(&"").trim().trim_matches('"');
+                                    if let Some(secs) = parse_duration(dur_str) {
+                                        match sched.add_recurring(task, secs) {
+                                            Ok(j) => println!("✅ Recurring job [{}]: '{}' every {}\n", j.id, j.task, dur_str),
+                                            Err(e) => eprintln!("❌ {}\n", e),
+                                        }
+                                    } else {
+                                        println!("⚠️  Invalid interval '{}'. Use: 30s, 10m, 2h, 1d\n", dur_str);
+                                    }
+                                }
+                                _ => println!("Usage: /schedule every <interval> \"<task>\" | /schedule list | /schedule cancel <id>\n"),
+                            }
+                        }
+
                         _ => {
                             println!("Type /help for available commands\n");
                         }
@@ -1724,10 +1862,17 @@ async fn run_agent_repl_with_context(
     let approval = ApprovalPolicy::from_str(approval_policy);
     let sandbox = config.safety.sandbox;
 
-    // Apply shell env policy
+    // Apply shell env policy and search engine config
     let env_policy = config.safety.shell_environment.to_policy();
+    let search_cfg = &config.tools.web_search;
     let executor: Arc<dyn vibe_ai::agent::ToolExecutorTrait> =
-        Arc::new(ToolExecutor::new(workspace.clone(), sandbox).with_env_policy(env_policy));
+        Arc::new(ToolExecutor::new(workspace.clone(), sandbox)
+            .with_env_policy(env_policy)
+            .with_search_config(
+                search_cfg.engine.clone(),
+                search_cfg.resolve_tavily_key(),
+                search_cfg.resolve_brave_key(),
+            ));
 
     // Build hooks from config; wire LLM provider so `handler = { llm = "..." }` hooks work.
     let hook_runner = if config.hooks.is_empty() {
@@ -2328,6 +2473,12 @@ fn show_help() {
     println!("  /spec                    - Spec-driven development (list|show|new|run|done)");
     println!("  /agents                  - Background agents (list|status|new)");
     println!("  /team                    - Team knowledge store (show|knowledge|sync)");
+    println!("  /remind in <dur> \"task\"  - Set a one-time reminder (30s, 10m, 2h, 1d)");
+    println!("  /remind list             - List active reminders");
+    println!("  /remind cancel <id>      - Cancel a reminder");
+    println!("  /schedule every <dur> \"t\"- Set a recurring task (every 10m, 1h, 1d)");
+    println!("  /schedule list           - List scheduled jobs");
+    println!("  /schedule cancel <id>    - Cancel a scheduled job");
     println!("  /config                  - Show current configuration");
     println!("  /help                    - Show this help message");
     println!("  /exit                    - Exit VibeCLI");
@@ -2344,6 +2495,7 @@ fn show_help() {
     println!("  --output <file>          - Write --exec report to file");
     println!("  --serve                  - Start HTTP daemon (VS Code extension / Agent SDK)");
     println!("  --mcp-server             - Run as MCP server (for Claude Desktop etc.)");
+    println!("  --gateway <platform>     - Start messaging bot (telegram|discord|slack)");
     println!("  --profile <name>         - Load a named config profile (~/.vibecli/profiles/<name>.toml)");
     println!("  --doctor                 - Run health checks on the VibeCLI installation");
     println!("\nProviders (--provider <name>):");

@@ -88,6 +88,52 @@ pub struct Config {
     /// ```
     #[serde(default)]
     pub routing: RoutingConfig,
+
+    /// Messaging gateway configuration (Telegram, Discord, Slack bot mode).
+    ///
+    /// ```toml
+    /// [gateway]
+    /// platform = "telegram"
+    /// telegram_token = "1234567:ABCDEF..."
+    /// allowed_users = ["@alice"]
+    /// ```
+    #[serde(default)]
+    pub gateway: GatewayConfig,
+}
+
+/// Gateway configuration (inlined here to avoid circular dependency with gateway module).
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct GatewayConfig {
+    /// Platform: "telegram" | "discord" | "slack"
+    pub platform: Option<String>,
+    pub telegram_token: Option<String>,
+    pub discord_token: Option<String>,
+    pub slack_bot_token: Option<String>,
+    pub slack_app_token: Option<String>,
+    /// Optional whitelist of usernames/user-ids allowed to use the bot.
+    #[serde(default)]
+    pub allowed_users: Vec<String>,
+    /// Maximum characters to send back in a single message (default 4000).
+    #[serde(default = "GatewayConfig::default_max_len")]
+    pub max_response_length: usize,
+    /// Discord channel ID to monitor.
+    pub discord_channel_id: Option<String>,
+    /// Slack channel ID to monitor.
+    pub slack_channel_id: Option<String>,
+}
+
+impl GatewayConfig {
+    fn default_max_len() -> usize { 4000 }
+
+    pub fn resolve_telegram_token(&self) -> Option<String> {
+        self.telegram_token.clone().or_else(|| std::env::var("TELEGRAM_BOT_TOKEN").ok())
+    }
+    pub fn resolve_discord_token(&self) -> Option<String> {
+        self.discord_token.clone().or_else(|| std::env::var("DISCORD_BOT_TOKEN").ok())
+    }
+    pub fn resolve_slack_bot_token(&self) -> Option<String> {
+        self.slack_bot_token.clone().or_else(|| std::env::var("SLACK_BOT_TOKEN").ok())
+    }
 }
 
 /// Provider/model routing for planning vs. execution steps.
@@ -180,16 +226,40 @@ pub struct ToolsConfig {
     pub web_search: WebSearchConfig,
 }
 
-/// DuckDuckGo (default) or Google CSE web search configuration.
+/// Web search configuration supporting DuckDuckGo (default), Tavily, and Brave Search.
+///
+/// ```toml
+/// [tools.web_search]
+/// enabled = true
+/// engine = "tavily"          # "duckduckgo" | "tavily" | "brave"
+/// max_results = 5
+/// tavily_api_key = "tvly-..."     # or TAVILY_API_KEY env var
+/// brave_api_key = "BSA..."        # or BRAVE_API_KEY env var
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WebSearchConfig {
     #[serde(default = "default_true")]
     pub enabled: bool,
-    /// "duckduckgo" (default, no key) or "google"
+    /// "duckduckgo" (default, no key) | "tavily" | "brave"
     #[serde(default = "default_engine")]
     pub engine: String,
     #[serde(default = "default_max_results")]
     pub max_results: usize,
+    /// Tavily API key (https://app.tavily.com). Falls back to TAVILY_API_KEY env var.
+    pub tavily_api_key: Option<String>,
+    /// Brave Search API key (https://api.search.brave.com). Falls back to BRAVE_API_KEY env var.
+    pub brave_api_key: Option<String>,
+}
+
+impl WebSearchConfig {
+    /// Resolve Tavily API key: config field first, then TAVILY_API_KEY env var.
+    pub fn resolve_tavily_key(&self) -> Option<String> {
+        self.tavily_api_key.clone().or_else(|| std::env::var("TAVILY_API_KEY").ok())
+    }
+    /// Resolve Brave API key: config field first, then BRAVE_API_KEY env var.
+    pub fn resolve_brave_key(&self) -> Option<String> {
+        self.brave_api_key.clone().or_else(|| std::env::var("BRAVE_API_KEY").ok())
+    }
 }
 
 impl Default for WebSearchConfig {
@@ -198,6 +268,8 @@ impl Default for WebSearchConfig {
             enabled: true,
             engine: "duckduckgo".to_string(),
             max_results: 5,
+            tavily_api_key: None,
+            brave_api_key: None,
         }
     }
 }
