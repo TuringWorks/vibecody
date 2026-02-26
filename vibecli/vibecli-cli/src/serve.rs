@@ -14,6 +14,9 @@
 //! | GET    | `/jobs`                   | List all persisted job records       |
 //! | GET    | `/jobs/:id`               | Get a single job record              |
 //! | POST   | `/jobs/:id/cancel`        | Cancel a running job                 |
+//! | GET    | `/sessions`               | HTML index of all agent sessions     |
+//! | GET    | `/sessions.json`          | JSON list of all sessions            |
+//! | GET    | `/view/:id`               | HTML page for a specific session     |
 //!
 //! # Usage
 //!
@@ -45,6 +48,7 @@ use tower_http::cors::{Any, CorsLayer};
 
 use vibe_ai::{AgentContext, AgentEvent, AgentLoop, ApprovalPolicy, Message, MessageRole};
 use vibe_ai::provider::AIProvider;
+use crate::session_store::{SessionStore, render_session_html, render_sessions_index_html};
 
 // ── Job record (persisted to disk) ────────────────────────────────────────────
 
@@ -469,6 +473,10 @@ pub async fn serve(
         .route("/jobs", get(list_jobs))
         .route("/jobs/:id", get(get_job))
         .route("/jobs/:id/cancel", post(cancel_job))
+        // Web session viewer
+        .route("/sessions", get(sessions_index_html))
+        .route("/sessions.json", get(sessions_json))
+        .route("/view/:id", get(view_session))
         .layer(cors)
         .with_state(state);
 
@@ -476,7 +484,66 @@ pub async fn serve(
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     eprintln!("[vibecli serve] Listening on http://{addr}");
     eprintln!("[vibecli serve] Jobs persisted at ~/.vibecli/jobs/");
+    eprintln!("[vibecli serve] Session viewer at http://{addr}/sessions");
 
     axum::serve(listener, app).await?;
     Ok(())
+}
+
+// ── Web session viewer handlers ───────────────────────────────────────────────
+
+async fn sessions_index_html() -> impl IntoResponse {
+    match SessionStore::open_default() {
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            [("content-type", "text/plain")],
+            format!("Failed to open session store: {}", e),
+        ),
+        Ok(store) => {
+            let sessions = store.list_sessions(200).unwrap_or_default();
+            let html = render_sessions_index_html(&sessions);
+            (StatusCode::OK, [("content-type", "text/html; charset=utf-8")], html)
+        }
+    }
+}
+
+async fn sessions_json() -> impl IntoResponse {
+    match SessionStore::open_default() {
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            [("content-type", "application/json")],
+            format!("{{\"error\":\"{}\"}}", e),
+        ),
+        Ok(store) => {
+            let sessions = store.list_sessions(200).unwrap_or_default();
+            let json = serde_json::to_string(&sessions).unwrap_or_else(|_| "[]".into());
+            (StatusCode::OK, [("content-type", "application/json")], json)
+        }
+    }
+}
+
+async fn view_session(Path(id): Path<String>) -> impl IntoResponse {
+    match SessionStore::open_default() {
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            [("content-type", "text/plain")],
+            format!("Failed to open session store: {}", e),
+        ),
+        Ok(store) => match store.get_session_detail(&id) {
+            Err(e) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                [("content-type", "text/plain")],
+                format!("DB error: {}", e),
+            ),
+            Ok(None) => (
+                StatusCode::NOT_FOUND,
+                [("content-type", "text/html; charset=utf-8")],
+                format!("<h1>Session not found</h1><p>No session with ID: <code>{}</code></p><p><a href=\"/sessions\">All sessions</a></p>", id),
+            ),
+            Ok(Some(detail)) => {
+                let html = render_session_html(&detail);
+                (StatusCode::OK, [("content-type", "text/html; charset=utf-8")], html)
+            }
+        },
+    }
 }

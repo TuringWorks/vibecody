@@ -42,6 +42,8 @@ mod memory_auto;
 mod bugbot;
 mod scheduler;
 mod gateway;
+mod session_store;
+use session_store::SessionStore;
 use rustyline::error::ReadlineError;
 
 mod tui;
@@ -418,7 +420,7 @@ async fn main() -> Result<()> {
         } else {
             (effective_provider.clone(), effective_model.clone())
         };
-        let llm = create_provider(&exec_provider, exec_model)?;
+        let llm = create_provider(&exec_provider, exec_model.clone())?;
 
         // Build planning LLM only when --plan is requested and routing is configured.
         let planning_llm: Option<Arc<dyn LLMProvider>> = if cli.plan && config_for_routing.routing.is_configured() {
@@ -439,12 +441,15 @@ async fn main() -> Result<()> {
             return run_parallel_agents(llm, &task, &approval_policy, n).await;
         }
 
+        let exec_model_str = exec_model.clone().unwrap_or_default();
         return run_agent_repl_with_context(
             llm, &task, &approval_policy,
             cli.resume.as_deref(),
             cli.plan,
             cli.json,
             planning_llm,
+            &exec_provider,
+            &exec_model_str,
         ).await;
     }
 
@@ -579,7 +584,8 @@ async fn main() -> Result<()> {
                                 continue;
                             }
                             run_agent_repl_with_context(
-                                llm.clone(), args, &approval_policy, None, false, false, None
+                                llm.clone(), args, &approval_policy, None, false, false, None,
+                                &active_provider, active_model.as_deref().unwrap_or(""),
                             ).await?;
                         }
                         "/plan" => {
@@ -588,7 +594,8 @@ async fn main() -> Result<()> {
                                 continue;
                             }
                             run_agent_repl_with_context(
-                                llm.clone(), args, &approval_policy, None, true, false, None
+                                llm.clone(), args, &approval_policy, None, true, false, None,
+                                &active_provider, active_model.as_deref().unwrap_or(""),
                             ).await?;
                         }
                         "/resume" => {
@@ -633,7 +640,8 @@ async fn main() -> Result<()> {
                                     let sid = parts[0];
                                     let task = if parts.len() > 1 { parts[1] } else { "continue the previous task" };
                                     run_agent_repl_with_context(
-                                        llm.clone(), task, &approval_policy, Some(sid), false, false, None
+                                        llm.clone(), task, &approval_policy, Some(sid), false, false, None,
+                                        &active_provider, active_model.as_deref().unwrap_or(""),
                                     ).await?;
                                 }
                             }
@@ -712,6 +720,35 @@ async fn main() -> Result<()> {
                                 println!("Usage: /search <query>\n");
                                 continue;
                             }
+                            // Fast SQLite search when DB is available
+                            if let Ok(store) = SessionStore::open_default() {
+                                match store.search(args) {
+                                    Ok(results) if !results.is_empty() => {
+                                        println!("\n🔍 Search results for '{}' ({} sessions)\n", args, results.len());
+                                        let now_ms = std::time::SystemTime::now()
+                                            .duration_since(std::time::UNIX_EPOCH)
+                                            .unwrap_or_default()
+                                            .as_millis() as u64;
+                                        for s in results.iter().take(10) {
+                                            let age_s = now_ms.saturating_sub(s.started_at) / 1000;
+                                            let age = if age_s < 3600 { format!("{}m ago", age_s/60) }
+                                                       else if age_s < 86400 { format!("{}h ago", age_s/3600) }
+                                                       else { format!("{}d ago", age_s/86400) };
+                                            println!("  {} [{}] {} — {} — {} steps",
+                                                &s.id[..8.min(s.id.len())],
+                                                s.status, s.task, age, s.step_count);
+                                        }
+                                        println!();
+                                        continue;
+                                    }
+                                    Ok(_) => {
+                                        println!("No sessions found matching '{}'\n", args);
+                                        continue;
+                                    }
+                                    Err(_) => {} // fall through to JSONL search
+                                }
+                            }
+                            // Fallback: JSONL search
                             let query = args.to_lowercase();
                             let trace_dir = dirs::home_dir()
                                 .unwrap_or_else(|| cwd.clone())
@@ -1933,6 +1970,8 @@ async fn run_agent_repl_with_context(
     plan_mode: bool,
     json_output: bool,
     planning_llm: Option<Arc<dyn LLMProvider>>,
+    provider_name: &str,
+    model_name: &str,
 ) -> Result<()> {
     let workspace = std::env::current_dir()?;
     let config = Config::load().unwrap_or_default();
@@ -2042,6 +2081,14 @@ async fn run_agent_repl_with_context(
 
     let trace = TraceWriter::new(trace_dir.clone());
 
+    // Open SQLite session store (non-fatal if unavailable)
+    let db = SessionStore::open_default().ok();
+    let session_id = trace.session_id().to_string();
+    if let Some(ref store) = db {
+        let _ = store.insert_session(&session_id, task, provider_name, model_name);
+        let _ = store.insert_message(&session_id, "user", task);
+    }
+
     println!("🤖 Agent starting: {}", task);
     println!("   Approval policy: {:?}", approval);
     println!("   Trace: {}", trace.path().display());
@@ -2141,11 +2188,25 @@ async fn run_agent_repl_with_context(
                     dur,
                     "auto",
                 );
+                if let Some(ref store) = db {
+                    let _ = store.insert_step(
+                        &session_id,
+                        step.step_num,
+                        step.tool_call.name(),
+                        &step.tool_call.summary(),
+                        &step.tool_result.output,
+                        step.tool_result.success,
+                    );
+                }
             }
             AgentEvent::Complete(summary) => {
                 println!("\n\n✅ Agent complete: {}", summary);
                 println!("   Trace saved: {}", trace.path().display());
                 println!("   Resume with: vibecli --resume {}", trace.session_id());
+                if let Some(ref store) = db {
+                    let _ = store.insert_message(&session_id, "assistant", &summary);
+                    let _ = store.finish_session(&session_id, "complete", Some(&summary));
+                }
                 // Save context for future resume
                 let _ = trace_for_save.save_context(&context);
                 // Auto memory recording
@@ -2164,6 +2225,9 @@ async fn run_agent_repl_with_context(
             }
             AgentEvent::Error(e) => {
                 eprintln!("\n❌ Agent error: {}", e);
+                if let Some(ref store) = db {
+                    let _ = store.finish_session(&session_id, "failed", Some(&e));
+                }
                 break;
             }
         }
