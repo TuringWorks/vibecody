@@ -188,6 +188,15 @@ pub fn run() {
             commands::visual_edit_element,
             commands::generate_component,
             commands::import_figma,
+            // Deploy + Database (Phase 20)
+            commands::detect_deploy_target,
+            commands::run_deploy,
+            commands::get_deploy_history,
+            commands::find_sqlite_files,
+            commands::list_db_tables,
+            commands::query_db,
+            commands::generate_sql_query,
+            commands::generate_migration,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

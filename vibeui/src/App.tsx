@@ -32,6 +32,8 @@ import ExtensionHostWorker from "./extensions/ExtensionHost?worker";
 import { CascadePanel } from "./components/CascadePanel";
 import { SpecPanel } from "./components/SpecPanel";
 import { DesignMode } from "./components/DesignMode";
+import { DeployPanel } from "./components/DeployPanel";
+import { DatabasePanel } from "./components/DatabasePanel";
 import { DiffReviewPanel } from "./components/DiffReviewPanel";
 import { flowContext } from "./utils/FlowContext";
 import { supercompleteEngine } from "./utils/SupercompleteEngine";
@@ -71,7 +73,7 @@ function App() {
   const [showSidebar, setShowSidebar] = useState(true);
   const [activeSidebarTab, setActiveSidebarTab] = useState<"explorer" | "search" | "git">("explorer");
   const [showAIChat, setShowAIChat] = useState(false);
-  const [aiPanelTab, setAiPanelTab] = useState<"chat" | "agent" | "memory" | "history" | "checkpoints" | "artifacts" | "manager" | "hooks" | "jobs" | "mcp" | "settings" | "cascade" | "specs" | "design">("chat");
+  const [aiPanelTab, setAiPanelTab] = useState<"chat" | "agent" | "memory" | "history" | "checkpoints" | "artifacts" | "manager" | "hooks" | "jobs" | "mcp" | "settings" | "cascade" | "specs" | "design" | "deploy" | "database">("chat");
   const [showTerminal, setShowTerminal] = useState(false);
   const [bottomTab, setBottomTab] = useState<"terminal" | "browser">("terminal");
   const [showCommandPalette, setShowCommandPalette] = useState(false);
@@ -1418,7 +1420,7 @@ function App() {
           <aside className="ai-chat-panel" style={{ display: "flex", flexDirection: "column" }}>
             {/* Tab bar */}
             <div style={{ display: "flex", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
-              {(["chat", "agent", "memory", "history", "checkpoints", "artifacts", "manager", "hooks", "jobs", "mcp", "settings", "cascade", "specs", "design"] as const).map((tab) => (
+              {(["chat", "agent", "memory", "history", "checkpoints", "artifacts", "manager", "hooks", "jobs", "mcp", "settings", "cascade", "specs", "design", "deploy", "database"] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setAiPanelTab(tab)}
@@ -1447,6 +1449,8 @@ function App() {
                     : tab === "settings" ? "⚙️ Keys"
                     : tab === "specs" ? "📐 Specs"
                     : tab === "design" ? "🎨 Design"
+                    : tab === "deploy" ? "🚀 Deploy"
+                    : tab === "database" ? "🗄️ DB"
                     : "🌊 Flow"}
                 </button>
               ))}
@@ -1519,6 +1523,17 @@ function App() {
               )}
               {aiPanelTab === "design" && (
                 <DesignMode
+                  workspacePath={workspaceFolders[0] || "."}
+                  provider={selectedProvider}
+                />
+              )}
+              {aiPanelTab === "deploy" && (
+                <DeployPanel
+                  workspacePath={workspaceFolders[0] || "."}
+                />
+              )}
+              {aiPanelTab === "database" && (
+                <DatabasePanel
                   workspacePath={workspaceFolders[0] || "."}
                   provider={selectedProvider}
                 />

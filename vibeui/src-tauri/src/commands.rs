@@ -3129,6 +3129,340 @@ pub async fn import_figma(
     Ok(files)
 }
 
+// ── Deploy commands (Phase 20) ───────────────────────────────────────────────
+
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+pub struct DeployTarget {
+    pub target: String,
+    pub build_cmd: String,
+    pub out_dir: String,
+    pub detected_framework: String,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+pub struct DeployRecord {
+    pub id: String,
+    pub target: String,
+    pub url: Option<String>,
+    pub timestamp: u64,
+    pub status: String,
+}
+
+/// Detect project type and recommend a deploy target.
+#[tauri::command]
+pub async fn detect_deploy_target(workspace: String) -> Result<DeployTarget, String> {
+    let pkg_path = std::path::Path::new(&workspace).join("package.json");
+    let pkg: serde_json::Value = if pkg_path.exists() {
+        std::fs::read_to_string(&pkg_path)
+            .ok()
+            .and_then(|s| serde_json::from_str(&s).ok())
+            .unwrap_or_default()
+    } else {
+        serde_json::Value::Null
+    };
+
+    let scripts = pkg["scripts"].as_object();
+    let deps = pkg["dependencies"].as_object();
+
+    let (framework, build_cmd, out_dir) = if deps.map(|d| d.contains_key("next")).unwrap_or(false) {
+        ("Next.js", "npm run build", ".next")
+    } else if deps.map(|d| d.contains_key("@remix-run/react")).unwrap_or(false) {
+        ("Remix", "npm run build", "build")
+    } else if deps.map(|d| d.contains_key("@sveltejs/kit")).unwrap_or(false) {
+        ("SvelteKit", "npm run build", ".svelte-kit")
+    } else if scripts.map(|s| s.contains_key("build")).unwrap_or(false) {
+        ("Vite/React", "npm run build", "dist")
+    } else if std::path::Path::new(&workspace).join("Cargo.toml").exists() {
+        ("Rust/WASM", "cargo build --release", "target/release")
+    } else {
+        ("Static", "echo 'Nothing to build'", ".")
+    };
+
+    Ok(DeployTarget {
+        target: "vercel".to_string(),
+        build_cmd: build_cmd.to_string(),
+        out_dir: out_dir.to_string(),
+        detected_framework: framework.to_string(),
+    })
+}
+
+/// Run a deployment to the specified target.
+#[tauri::command]
+pub async fn run_deploy(
+    app_handle: tauri::AppHandle,
+    target: String,
+    workspace: String,
+) -> Result<serde_json::Value, String> {
+    use tauri::Emitter;
+
+    let deploy_cmd = match target.as_str() {
+        "vercel" => "vercel deploy --yes",
+        "netlify" => "netlify deploy --prod --dir=dist",
+        "railway" => "railway up",
+        "github-pages" => "npm run build && npx gh-pages -d dist",
+        _ => return Err(format!("Unknown deploy target: {}", target)),
+    };
+
+    let _ = app_handle.emit("deploy:log", format!("Running: {}", deploy_cmd));
+
+    let output = std::process::Command::new("sh")
+        .arg("-c")
+        .arg(deploy_cmd)
+        .current_dir(&workspace)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+
+    // Emit logs line by line
+    for line in stdout.lines().chain(stderr.lines()) {
+        let _ = app_handle.emit("deploy:log", line.to_string());
+    }
+
+    // Try to extract URL from output
+    let url = stdout.lines().chain(stderr.lines())
+        .find(|line| line.contains("https://") || line.contains("http://"))
+        .and_then(|line| {
+            line.split_whitespace()
+                .find(|w| w.starts_with("https://") || w.starts_with("http://"))
+        })
+        .map(|s| s.trim_end_matches([',', '.', '"']).to_string());
+
+    // Persist record
+    let record = DeployRecord {
+        id: format!("{:x}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis()),
+        target,
+        url: url.clone(),
+        timestamp: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis() as u64,
+        status: if output.status.success() { "success".to_string() } else { "failed".to_string() },
+    };
+
+    if let Some(home) = std::env::var("HOME").ok().map(PathBuf::from) {
+        let history_path = home.join(".vibecli").join("deploy-history.json");
+        let mut history: Vec<DeployRecord> = std::fs::read_to_string(&history_path)
+            .ok()
+            .and_then(|s| serde_json::from_str(&s).ok())
+            .unwrap_or_default();
+        history.insert(0, record);
+        history.truncate(20);
+        if let Some(parent) = history_path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        let _ = std::fs::write(&history_path, serde_json::to_string_pretty(&history).unwrap_or_default());
+    }
+
+    Ok(serde_json::json!({ "url": url, "success": output.status.success() }))
+}
+
+/// Get deployment history.
+#[tauri::command]
+pub async fn get_deploy_history() -> Vec<DeployRecord> {
+    std::env::var("HOME").ok().map(PathBuf::from)
+        .map(|h| h.join(".vibecli").join("deploy-history.json"))
+        .and_then(|p| std::fs::read_to_string(p).ok())
+        .and_then(|s| serde_json::from_str::<Vec<DeployRecord>>(&s).ok())
+        .unwrap_or_default()
+}
+
+// ── Database commands (Phase 20) ─────────────────────────────────────────────
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Default)]
+pub struct ColumnInfo {
+    pub name: String,
+    pub data_type: String,
+    pub nullable: bool,
+    pub primary_key: bool,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+pub struct TableInfo {
+    pub name: String,
+    pub row_count: i64,
+    pub columns: Vec<ColumnInfo>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+pub struct QueryResult {
+    pub columns: Vec<String>,
+    pub rows: Vec<serde_json::Value>,
+    pub row_count: usize,
+    pub error: Option<String>,
+}
+
+/// Find SQLite database files in the workspace.
+#[tauri::command]
+pub async fn find_sqlite_files(workspace_path: String) -> Vec<String> {
+    walkdir::WalkDir::new(&workspace_path)
+        .max_depth(3)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| {
+            let ext = e.path().extension().and_then(|x| x.to_str()).unwrap_or("");
+            e.file_type().is_file() && matches!(ext, "db" | "sqlite" | "sqlite3")
+        })
+        .filter_map(|e| e.path().to_str().map(|s| s.to_string()))
+        .collect()
+}
+
+/// List tables in a database. Only SQLite is supported in the backend; Postgres/Supabase
+/// would require additional crates — returns an informative error for those.
+#[tauri::command]
+pub async fn list_db_tables(connection_string: String, db_type: String) -> Result<Vec<TableInfo>, String> {
+    match db_type.as_str() {
+        "sqlite" => list_sqlite_tables(&connection_string),
+        "postgres" | "supabase" => Err("PostgreSQL/Supabase support requires installing the pg feature. Use vibecli with --db-url for direct SQL access.".to_string()),
+        _ => Err(format!("Unknown db type: {}", db_type)),
+    }
+}
+
+fn list_sqlite_tables(path: &str) -> Result<Vec<TableInfo>, String> {
+    // Read SQLite master table directly via raw file parsing using rusqlite-compatible approach
+    // We use a simple shell command to avoid adding rusqlite dependency
+    let output = std::process::Command::new("sqlite3")
+        .arg(path)
+        .arg(".tables")
+        .output()
+        .map_err(|_| "sqlite3 CLI not found. Install sqlite3 to use the Database panel.".to_string())?;
+
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+
+    let tables_raw = String::from_utf8_lossy(&output.stdout).to_string();
+    let table_names: Vec<&str> = tables_raw.split_whitespace().collect();
+
+    let mut tables = Vec::new();
+    for name in &table_names {
+        // Get row count
+        let row_count: i64 = std::process::Command::new("sqlite3")
+            .arg(path)
+            .arg(format!("SELECT COUNT(*) FROM \"{}\";", name))
+            .output()
+            .map(|o| String::from_utf8_lossy(&o.stdout).trim().parse().unwrap_or(0))
+            .unwrap_or(0);
+
+        // Get columns
+        let pragma_str = std::process::Command::new("sqlite3")
+            .arg(path)
+            .arg(format!("PRAGMA table_info(\"{}\");", name))
+            .output()
+            .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
+            .unwrap_or_default();
+        let columns: Vec<ColumnInfo> = pragma_str.lines()
+            .filter_map(|line| {
+                let parts: Vec<&str> = line.split('|').collect();
+                if parts.len() >= 6 {
+                    Some(ColumnInfo {
+                        name: parts[1].to_string(),
+                        data_type: parts[2].to_string(),
+                        nullable: parts[3] == "0",
+                        primary_key: parts[5] != "0",
+                    })
+                } else { None }
+            })
+            .collect();
+
+        tables.push(TableInfo { name: name.to_string(), row_count, columns });
+    }
+
+    Ok(tables)
+}
+
+/// Execute a SQL query and return results as JSON.
+#[tauri::command]
+pub async fn query_db(
+    connection_string: String,
+    db_type: String,
+    sql: String,
+) -> Result<QueryResult, String> {
+    match db_type.as_str() {
+        "sqlite" => query_sqlite(&connection_string, &sql),
+        _ => Err("Only SQLite is currently supported in the GUI. Use vibecli --db-url for other databases.".to_string()),
+    }
+}
+
+fn query_sqlite(path: &str, sql: &str) -> Result<QueryResult, String> {
+    let output = std::process::Command::new("sqlite3")
+        .arg("-json")
+        .arg(path)
+        .arg(sql)
+        .output()
+        .map_err(|_| "sqlite3 CLI not found".to_string())?;
+
+    if !output.status.success() {
+        let err = String::from_utf8_lossy(&output.stderr).to_string();
+        return Ok(QueryResult { columns: vec![], rows: vec![], row_count: 0, error: Some(err) });
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    if stdout.trim().is_empty() {
+        return Ok(QueryResult { columns: vec![], rows: vec![], row_count: 0, error: None });
+    }
+
+    let rows: Vec<serde_json::Value> = serde_json::from_str(&stdout)
+        .unwrap_or_default();
+    let columns: Vec<String> = rows.first()
+        .and_then(|r| r.as_object())
+        .map(|o| o.keys().cloned().collect())
+        .unwrap_or_default();
+    let row_count = rows.len();
+
+    Ok(QueryResult { columns, rows, row_count, error: None })
+}
+
+/// Generate a SQL query from a natural-language description using the LLM.
+#[tauri::command]
+pub async fn generate_sql_query(
+    state: tauri::State<'_, AppState>,
+    description: String,
+    schema: String,
+    provider: String,
+) -> Result<String, String> {
+    use vibe_ai::provider::{Message, MessageRole};
+
+    let prompt = format!(
+        "Generate a SQL query for the following request.\n\
+        Schema:\n{schema}\n\n\
+        Request: {description}\n\n\
+        Return ONLY the SQL query, no explanation, no markdown."
+    );
+
+    let messages = vec![Message { role: MessageRole::User, content: prompt }];
+    let mut engine = state.chat_engine.lock().await;
+    if !provider.is_empty() {
+        let _ = engine.set_provider_by_name(&provider);
+    }
+    engine.chat(&messages, None).await.map_err(|e| e.to_string())
+}
+
+/// Generate a SQL migration script using the LLM.
+#[tauri::command]
+pub async fn generate_migration(
+    state: tauri::State<'_, AppState>,
+    connection_string: String,
+    db_type: String,
+    description: String,
+    provider: String,
+) -> Result<String, String> {
+    use vibe_ai::provider::{Message, MessageRole};
+
+    let prompt = format!(
+        "Generate a SQL migration script for a {} database.\n\
+        Description: {description}\n\n\
+        Return ONLY the SQL, no explanation, no markdown. Include IF NOT EXISTS / IF EXISTS guards.",
+        db_type
+    );
+
+    let messages = vec![Message { role: MessageRole::User, content: prompt }];
+    let mut engine = state.chat_engine.lock().await;
+    if !provider.is_empty() {
+        let _ = engine.set_provider_by_name(&provider);
+    }
+    let _ = connection_string;
+    engine.chat(&messages, None).await.map_err(|e| e.to_string())
+}
+
 fn extract_json(text: &str) -> String {
     // Strip ```json ... ``` fences if present
     let trimmed = text.trim();
