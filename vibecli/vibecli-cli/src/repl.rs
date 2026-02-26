@@ -85,6 +85,9 @@ static REMIND_SUBS: &[&str] = &["in", "list", "cancel"];
 /// Sub-commands for `/schedule <sub>`
 static SCHEDULE_SUBS: &[&str] = &["every", "list", "cancel"];
 
+/// Sub-commands for `/workflow <sub>`
+static WORKFLOW_SUBS: &[&str] = &["new", "list", "show", "advance", "check", "generate"];
+
 /// Built-in theme names for `/theme <name>` completion
 static THEME_NAMES: &[&str] = &["dark", "light", "monokai", "solarized", "nord"];
 
@@ -124,6 +127,7 @@ fn command_hint(cmd: &str) -> Option<&'static str> {
         "/schedule" => Some("every <dur> \"task\"  |  list  |  cancel <id>"),
         "/jobs"     => Some("— list background agent jobs"),
         "/share"    => Some("<session_id>  — print shareable URL for a session (requires vibecli serve)"),
+        "/workflow" => Some("[new <name>|list|show <n>|advance <n>|check <n> <id>|generate <n>]  — Code Complete workflow"),
         _ => None,
     }
 }
@@ -195,6 +199,7 @@ fn complete_slash(line: &str) -> Option<(usize, Vec<Pair>)> {
                 "/linear"   => Some(LINEAR_SUBS),
                 "/remind"   => Some(REMIND_SUBS),
                 "/schedule" => Some(SCHEDULE_SUBS),
+                "/workflow" => Some(WORKFLOW_SUBS),
                 _ => None,
             };
 
