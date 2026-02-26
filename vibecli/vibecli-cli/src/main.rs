@@ -1732,7 +1732,7 @@ async fn main() -> Result<()> {
                                                     else if stage.status == crate::workflow::StageStatus::Skipped { "⏭" }
                                                     else { "○" };
                                                 let pct = if stage.checklist.is_empty() { String::new() }
-                                                    else { format!(" ({}/{})", stage.completed_count(), stage.total_count()) };
+                                                    else { format!(" ({}/{} — {:.0}%)", stage.completed_count(), stage.total_count(), stage.progress_pct()) };
                                                 println!("   {} {}. {}{}", marker, stage.stage.index() + 1, stage.stage.label(), pct);
                                             }
                                             println!();

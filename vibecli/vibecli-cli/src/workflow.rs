@@ -184,6 +184,7 @@ impl StageData {
         self.checklist.len()
     }
 
+    #[allow(dead_code)]
     pub fn progress_pct(&self) -> f64 {
         if self.checklist.is_empty() {
             return 0.0;
@@ -235,6 +236,7 @@ impl Workflow {
     }
 
     /// Get mutable reference to current stage data.
+    #[allow(dead_code)]
     pub fn current_stage_data_mut(&mut self) -> &mut StageData {
         let idx = self.current_stage.index();
         &mut self.stages[idx]
@@ -299,6 +301,7 @@ impl WorkflowManager {
         }
     }
 
+    #[allow(dead_code)]
     pub fn new(workflows_dir: PathBuf) -> Self {
         Self { workflows_dir }
     }

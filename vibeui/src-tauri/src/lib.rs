@@ -185,6 +185,13 @@ pub fn run() {
             commands::generate_spec,
             commands::update_spec_task,
             commands::run_spec,
+            // Code Complete Workflow
+            commands::list_workflows,
+            commands::get_workflow,
+            commands::create_workflow,
+            commands::advance_workflow_stage,
+            commands::update_workflow_checklist_item,
+            commands::generate_stage_checklist,
             // Shadow workspace / lint preview (Phase 18)
             commands::shadow_write_and_lint,
             commands::shadow_get_lint_result,
