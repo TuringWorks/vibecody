@@ -1517,13 +1517,80 @@ end
 | Enhanced skill packages (SKILL.md format) | Medium | M | 21 |
 | Single binary releases (cargo-dist) | High | S | 21 |
 | Skill marketplace / registry | Medium | XL | 21 |
-| Subagent spawning from tools | Medium | M | 21 |
+| Subagent spawning from tools | Medium | M | 21 | ✅ |
 
 ---
 
-## Part N — Final Competitive Positioning After All Phases
+## Part N — Phase 22: Session Search & Subagent Spawning ✅
 
-After completing Phases 16–21, VibeCLI + VibeUI becomes the **most complete AI development platform** across all dimensions:
+**Goal:** Complete two high-leverage developer-experience features — full-text search across all agent sessions, and the ability for an agent to delegate sub-tasks to a child agent at runtime.
+
+### N.1 Session Full-Text Search (`/search`)
+
+**Problem:** As VibeCLI accumulates hundreds of trace sessions, finding a past session by keyword requires manual file inspection.
+
+**Implementation (commit `5cc22f1`'s predecessor):**
+
+```bash
+/search <keyword>              # search all traces
+/search fix authentication     # multi-keyword AND search
+```
+
+Scans two sources per session:
+1. **JSONL trace entries** — `tool` name + `input_summary` field
+2. **`-messages.json` sidecars** — full message `content` (user + assistant turns)
+
+Returns: session ID, age (e.g. "3h ago"), up to 3 matching snippets, plus
+`/trace view <id>` and `/resume <id>` navigation hints.
+
+**Files modified:** `vibecli/vibecli-cli/src/main.rs` — added `/search` REPL handler
+
+---
+
+### N.2 Subagent Spawning (`spawn_agent` tool)
+
+**Problem:** A single agent loop is limited to sequential tool calls. Complex tasks (e.g. "audit security AND write tests AND update docs") benefit from concurrent delegation.
+
+**Implementation (commit `5cc22f1`):**
+
+New `ToolCall::SpawnAgent { task, max_steps }` variant:
+
+```xml
+<tool_call name="spawn_agent">
+<task>Write unit tests for src/utils.rs and verify they pass.</task>
+<max_steps>10</max_steps>
+</tool_call>
+```
+
+Architecture:
+- `ToolExecutor` gains a `provider: Option<Arc<dyn AIProvider>>` field + `with_provider()` builder
+- `spawn_sub_agent()` creates a child `AgentLoop` (FullAuto, no approval required) with:
+  - Same workspace root + sandbox policy + search config
+  - Shared provider reference (not cloned state)
+  - Independent message history
+- Child events are collected via `tokio::mpsc` channel; step log + final summary returned
+- Parent receives the sub-agent's summary as a tool result, continues its own loop
+- Depth is unconstrained (sub-agents can spawn sub-sub-agents), controlled via `max_steps`
+- `TauriToolExecutor` returns "not supported" error (VibeUI lacks daemon context)
+
+**Files modified:**
+- `vibeui/crates/vibe-ai/src/tools.rs` — `SpawnAgent` variant, parsing, system prompt
+- `vibecli/vibecli-cli/src/tool_executor.rs` — `provider` field, `with_provider()`, `spawn_sub_agent()`
+- `vibeui/src-tauri/src/agent_executor.rs` — stub SpawnAgent match arm
+- `vibecli/vibecli-cli/src/main.rs` — wire `with_provider()` at all executor instantiation sites
+
+### N.3 Gap Status After Phase 22
+
+| Gap | Status |
+|-----|--------|
+| Session full-text search | ✅ `/search` REPL command |
+| Subagent spawning from tools | ✅ `spawn_agent` tool + `spawn_sub_agent()` |
+
+---
+
+## Part O — Final Competitive Positioning After All Phases
+
+After completing Phases 16–22, VibeCLI + VibeUI becomes the **most complete AI development platform** across all dimensions:
 
 | Dimension | VibeCLI | Warp | Kiro | opencode | Claude Code | PicoClaw |
 |-----------|---------|------|------|----------|-------------|----------|
@@ -1538,6 +1605,8 @@ After completing Phases 16–21, VibeCLI + VibeUI becomes the **most complete AI
 | SQLite sessions | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ |
 | Multi-agent visual UI | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
 | WASM extensions | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Subagent spawning | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Session full-text search | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 
 | Dimension | VibeUI | Cursor | Windsurf | Replit | Base44 | Lovable |
 |-----------|--------|--------|----------|--------|--------|---------|
