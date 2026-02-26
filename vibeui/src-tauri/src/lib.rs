@@ -184,6 +184,10 @@ pub fn run() {
             // Shadow workspace / lint preview (Phase 18)
             commands::shadow_write_and_lint,
             commands::shadow_get_lint_result,
+            // Visual Builder (Phase 19)
+            commands::visual_edit_element,
+            commands::generate_component,
+            commands::import_figma,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

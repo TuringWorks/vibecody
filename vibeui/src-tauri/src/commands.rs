@@ -2964,6 +2964,171 @@ pub async fn shadow_get_lint_result(
         .and_then(|sw| sw.get_lint_result(&rel_path))
 }
 
+// ── Visual Editor commands (Phase 19) ────────────────────────────────────────
+
+/// AI-powered visual element edit.
+/// Receives selected element info from inspector.js and produces an edited version.
+#[tauri::command]
+pub async fn visual_edit_element(
+    state: tauri::State<'_, AppState>,
+    workspace_path: String,
+    selector: String,
+    instruction: String,
+    current_html: String,
+    react_component: Option<String>,
+) -> Result<String, String> {
+    use vibe_ai::provider::{Message, MessageRole};
+    let component_hint = react_component.as_deref()
+        .map(|c| format!(" (React component: {})", c))
+        .unwrap_or_default();
+
+    let prompt = format!(
+        "You are editing a UI element in a web application.\n\
+        Selector: {selector}{component_hint}\n\
+        Current HTML:\n{current_html}\n\n\
+        Instruction: {instruction}\n\n\
+        Return ONLY the updated HTML/JSX for this element. No explanations.",
+    );
+
+    let messages = vec![
+        Message { role: MessageRole::User, content: prompt },
+    ];
+
+    let engine = state.chat_engine.lock().await;
+    engine.chat(&messages, None).await.map_err(|e| e.to_string())
+}
+
+/// Generate a new React/HTML component from a natural-language description.
+#[tauri::command]
+pub async fn generate_component(
+    state: tauri::State<'_, AppState>,
+    workspace_path: String,
+    description: String,
+    provider: String,
+) -> Result<String, String> {
+    use vibe_ai::provider::{Message, MessageRole};
+
+    let prompt = format!(
+        "Generate a complete React functional component for: {description}\n\n\
+        Requirements:\n\
+        - Use TypeScript with proper types\n\
+        - Use CSS-in-JS (style prop) or CSS modules\n\
+        - Make it self-contained\n\
+        - Export as default and named export\n\n\
+        Return ONLY the component code, no explanations."
+    );
+
+    let messages = vec![
+        Message { role: MessageRole::User, content: prompt },
+    ];
+
+    let mut engine = state.chat_engine.lock().await;
+    if !provider.is_empty() {
+        let _ = engine.set_provider_by_name(&provider);
+    }
+    engine.chat(&messages, None).await.map_err(|e| e.to_string())
+}
+
+/// Import a Figma design and generate React components from it.
+#[tauri::command]
+pub async fn import_figma(
+    state: tauri::State<'_, AppState>,
+    url: String,
+    token: String,
+    workspace_path: String,
+    provider: String,
+) -> Result<Vec<serde_json::Value>, String> {
+    // Extract file key from URL: https://www.figma.com/file/{key}/...
+    let key = url.split('/').nth(5).unwrap_or("").to_string();
+    if key.is_empty() {
+        return Err("Invalid Figma URL — expected https://www.figma.com/file/{key}/...".to_string());
+    }
+
+    // Fetch Figma file metadata
+    let figma_url = format!("https://api.figma.com/v1/files/{}", key);
+    let client = reqwest::Client::new();
+    let resp = client.get(&figma_url)
+        .header("X-Figma-Token", &token)
+        .send().await.map_err(|e| e.to_string())?;
+
+    if !resp.status().is_success() {
+        return Err(format!("Figma API error: {}", resp.status()));
+    }
+
+    let figma_data: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
+
+    // Extract document name and top-level frames
+    let doc_name = figma_data["name"].as_str().unwrap_or("Design").to_string();
+    let frames: Vec<String> = figma_data["document"]["children"]
+        .as_array()
+        .map(|pages| {
+            pages.iter()
+                .flat_map(|page| {
+                    page["children"].as_array()
+                        .map(|frames| {
+                            frames.iter()
+                                .filter_map(|f| f["name"].as_str().map(|s| s.to_string()))
+                                .take(5)
+                                .collect::<Vec<_>>()
+                        })
+                        .unwrap_or_default()
+                })
+                .take(10)
+                .collect()
+        })
+        .unwrap_or_default();
+
+    // Use LLM to generate React components for the frames
+    use vibe_ai::provider::{Message, MessageRole};
+    let prompt = format!(
+        "Generate React TypeScript components for a Figma design named '{doc_name}'.\n\
+        Frames/screens to implement: {frames}\n\n\
+        For each frame, create a simple React component with:\n\
+        - Placeholder content matching the frame name\n\
+        - Basic layout structure\n\
+        - TypeScript types\n\n\
+        Return a JSON array:\n\
+        [{{\n\
+          \"path\": \"src/components/FrameName.tsx\",\n\
+          \"content\": \"// Component code\"\n\
+        }}]",
+        frames = frames.join(", ")
+    );
+
+    let messages = vec![Message { role: MessageRole::User, content: prompt }];
+    let mut engine = state.chat_engine.lock().await;
+    if !provider.is_empty() {
+        let _ = engine.set_provider_by_name(&provider);
+    }
+
+    let response = engine.chat(&messages, None).await.map_err(|e| e.to_string())?;
+
+    // Parse JSON response
+    let json_start = response.find('[').unwrap_or(0);
+    let json_end = response.rfind(']').map(|i| i + 1).unwrap_or(response.len());
+    let files: Vec<serde_json::Value> = serde_json::from_str(&response[json_start..json_end])
+        .unwrap_or_else(|_| {
+            // Fallback: create a single placeholder component
+            vec![serde_json::json!({
+                "path": format!("src/components/{}.tsx", doc_name.replace(' ', "")),
+                "content": format!("// Generated from Figma: {}\nexport function {} () {{\n  return <div>{}</div>;\n}}", doc_name, doc_name.replace(' ', ""), doc_name)
+            })]
+        });
+
+    // Optionally write files to workspace
+    for file in &files {
+        if let (Some(path), Some(content)) = (file["path"].as_str(), file["content"].as_str()) {
+            let full_path = std::path::Path::new(&workspace_path).join(path);
+            if let Some(parent) = full_path.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            let _ = std::fs::write(&full_path, content);
+        }
+    }
+
+    Ok(files)
+}
+
 fn extract_json(text: &str) -> String {
     // Strip ```json ... ``` fences if present
     let trimmed = text.trim();
