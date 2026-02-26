@@ -9,7 +9,7 @@ use vibe_ai::agent::{AgentContext, AgentEvent, AgentLoop, ApprovalPolicy, ToolEx
 use vibe_ai::provider::AIProvider;
 use vibe_ai::tools::{ToolCall, ToolResult};
 use vibe_ai::WorktreeManager;
-use std::path::Path as StdPath;
+use std::path::Path as StdPath; // used in search() glob filter
 use vibe_core::executor::CommandExecutor;
 use vibe_core::search::search_files;
 
@@ -150,7 +150,10 @@ impl ToolExecutorTrait for ToolExecutor {
 
 impl ToolExecutor {
     async fn read_file(&self, path: &str) -> ToolResult {
-        let resolved = self.resolve(path);
+        let resolved = match self.resolve_safe(path) {
+            Ok(p) => p,
+            Err(e) => return ToolResult::err("read_file", e),
+        };
         match std::fs::read_to_string(&resolved) {
             Ok(content) => ToolResult::ok("read_file", content),
             Err(e) => ToolResult::err("read_file", format!("Cannot read {}: {}", resolved.display(), e)),
@@ -158,7 +161,10 @@ impl ToolExecutor {
     }
 
     async fn write_file(&self, path: &str, content: &str) -> ToolResult {
-        let resolved = self.resolve(path);
+        let resolved = match self.resolve_safe(path) {
+            Ok(p) => p,
+            Err(e) => return ToolResult::err("write_file", e),
+        };
         if let Some(parent) = resolved.parent() {
             if let Err(e) = std::fs::create_dir_all(parent) {
                 return ToolResult::err("write_file", format!("Cannot create directories: {}", e));
@@ -174,7 +180,10 @@ impl ToolExecutor {
     }
 
     async fn apply_patch(&self, path: &str, patch: &str) -> ToolResult {
-        let resolved = self.resolve(path);
+        let resolved = match self.resolve_safe(path) {
+            Ok(p) => p,
+            Err(e) => return ToolResult::err("apply_patch", e),
+        };
         let original = match std::fs::read_to_string(&resolved) {
             Ok(c) => c,
             Err(e) => {
@@ -476,7 +485,10 @@ impl ToolExecutor {
     }
 
     async fn list_dir(&self, path: &str) -> ToolResult {
-        let resolved = self.resolve(path);
+        let resolved = match self.resolve_safe(path) {
+            Ok(p) => p,
+            Err(e) => return ToolResult::err("list_directory", e),
+        };
         match std::fs::read_dir(&resolved) {
             Ok(entries) => {
                 let mut lines = Vec::new();
@@ -496,13 +508,68 @@ impl ToolExecutor {
         }
     }
 
-    fn resolve(&self, path: &str) -> PathBuf {
-        let p = Path::new(path);
-        if p.is_absolute() {
-            p.to_path_buf()
+    /// Resolve a user-supplied path, ensuring it stays within the workspace root.
+    ///
+    /// Absolute paths are accepted only if they fall inside the workspace.
+    /// Relative paths are joined to the workspace root.  In both cases the
+    /// result is canonicalized (symlinks resolved, `..` collapsed) and
+    /// jail-checked against the canonical workspace root.
+    ///
+    /// Returns `Err` with a descriptive message on path traversal attempts.
+    fn resolve_safe(&self, path: &str) -> Result<PathBuf, String> {
+        let candidate = {
+            let p = Path::new(path);
+            if p.is_absolute() {
+                p.to_path_buf()
+            } else {
+                self.workspace_root.join(p)
+            }
+        };
+
+        // Canonicalize workspace root (must succeed; it's a known directory).
+        let canonical_root = self.workspace_root.canonicalize().map_err(|e| {
+            format!("Cannot canonicalize workspace root: {}", e)
+        })?;
+
+        // For existing files we can canonicalize directly.
+        // For new files (write_file, create_dir) the file may not exist yet,
+        // so we canonicalize the nearest existing ancestor and append the rest.
+        let canonical = if candidate.exists() {
+            candidate.canonicalize().map_err(|e| {
+                format!("Cannot canonicalize path '{}': {}", path, e)
+            })?
         } else {
-            self.workspace_root.join(p)
+            // Walk up until we find an existing ancestor, then re-join.
+            let mut existing = candidate.clone();
+            let mut remainder = Vec::new();
+            while !existing.exists() {
+                if let Some(name) = existing.file_name() {
+                    remainder.push(name.to_os_string());
+                } else {
+                    break;
+                }
+                existing = match existing.parent() {
+                    Some(p) => p.to_path_buf(),
+                    None => break,
+                };
+            }
+            let mut base = existing.canonicalize().map_err(|e| {
+                format!("Cannot canonicalize ancestor of '{}': {}", path, e)
+            })?;
+            for component in remainder.into_iter().rev() {
+                base.push(component);
+            }
+            base
+        };
+
+        if !canonical.starts_with(&canonical_root) {
+            return Err(format!(
+                "Path traversal blocked: '{}' resolves outside workspace",
+                path
+            ));
         }
+
+        Ok(canonical)
     }
 
     /// Spawn a nested AgentLoop to complete a delegated sub-task.
@@ -804,6 +871,43 @@ mod tests {
         let env = policy.build_env();
         assert!(!env.contains_key("__TEST_API_KEY"));
         std::env::remove_var("__TEST_API_KEY");
+    }
+
+    #[test]
+    fn resolve_safe_blocks_path_traversal() {
+        let tmp = std::env::temp_dir().join(format!("vibe_resolve_test_{}", std::process::id()));
+        std::fs::create_dir_all(&tmp).unwrap();
+        let executor = ToolExecutor::new(tmp.clone(), false);
+
+        // Relative traversal must be blocked
+        let result = executor.resolve_safe("../../etc/passwd");
+        assert!(result.is_err(), "relative traversal should be blocked");
+        assert!(result.unwrap_err().contains("traversal blocked"));
+
+        // Absolute path outside workspace must be blocked
+        let result = executor.resolve_safe("/etc/passwd");
+        assert!(result.is_err(), "absolute path outside workspace should be blocked");
+
+        // Normal relative path within workspace must succeed
+        std::fs::write(tmp.join("test.txt"), "ok").unwrap();
+        let result = executor.resolve_safe("test.txt");
+        assert!(result.is_ok(), "normal relative path should succeed");
+
+        // Clean up
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn resolve_safe_allows_new_file_in_workspace() {
+        let tmp = std::env::temp_dir().join(format!("vibe_resolve_new_{}", std::process::id()));
+        std::fs::create_dir_all(&tmp).unwrap();
+        let executor = ToolExecutor::new(tmp.clone(), false);
+
+        // Non-existent file in workspace should succeed
+        let result = executor.resolve_safe("subdir/new_file.rs");
+        assert!(result.is_ok(), "new file path inside workspace should succeed");
+
+        let _ = std::fs::remove_dir_all(&tmp);
     }
 
     #[test]

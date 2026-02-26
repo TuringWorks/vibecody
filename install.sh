@@ -65,6 +65,36 @@ URL="https://github.com/${REPO}/releases/download/${VERSION}/${ARCHIVE}"
 echo "Downloading ${URL}..."
 curl -fsSL --progress-bar "$URL" -o "${TMP}/${ARCHIVE}"
 
+# ── Verify SHA256 checksum ───────────────────────────────────────────────────
+
+SUMS_URL="https://github.com/${REPO}/releases/download/${VERSION}/SHA256SUMS.txt"
+echo "Verifying checksum..."
+if curl -fsSL "$SUMS_URL" -o "${TMP}/SHA256SUMS.txt" 2>/dev/null; then
+  EXPECTED=$(grep "$ARCHIVE" "${TMP}/SHA256SUMS.txt" | awk '{print $1}')
+  if [ -n "$EXPECTED" ]; then
+    if command -v sha256sum >/dev/null 2>&1; then
+      ACTUAL=$(sha256sum "${TMP}/${ARCHIVE}" | awk '{print $1}')
+    elif command -v shasum >/dev/null 2>&1; then
+      ACTUAL=$(shasum -a 256 "${TMP}/${ARCHIVE}" | awk '{print $1}')
+    else
+      echo "  Warning: no sha256sum or shasum found; skipping verification" >&2
+      ACTUAL="$EXPECTED"
+    fi
+    if [ "$ACTUAL" != "$EXPECTED" ]; then
+      echo "  Checksum mismatch!" >&2
+      echo "  Expected: $EXPECTED" >&2
+      echo "  Got:      $ACTUAL" >&2
+      rm -rf "$TMP"
+      exit 1
+    fi
+    echo "  Checksum OK ($EXPECTED)"
+  else
+    echo "  Warning: archive not found in SHA256SUMS.txt; skipping verification" >&2
+  fi
+else
+  echo "  Warning: could not download SHA256SUMS.txt; skipping verification" >&2
+fi
+
 echo "Extracting..."
 tar -xzf "${TMP}/${ARCHIVE}" -C "${TMP}"
 

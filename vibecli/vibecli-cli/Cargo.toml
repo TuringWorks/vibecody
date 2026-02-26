@@ -34,6 +34,7 @@ axum.workspace = true
 tower-http.workspace = true
 tokio-stream = { version = "0.1", features = ["sync"] }
 tempfile = "3"
+rand = "0.8"
 walkdir = { workspace = true }
 rusqlite = { workspace = true }
 notify = { workspace = true }
