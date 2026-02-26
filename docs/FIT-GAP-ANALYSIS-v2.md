@@ -1588,9 +1588,59 @@ Architecture:
 
 ---
 
+## Part P — Phase 23: SQLite Session Store + Web Session Viewer ✅
+
+**Goal:** Close the "SQLite session storage" and "web-viewable agent sessions" gaps from the original competitive matrix.
+
+### P.1 SQLite Session Store
+
+**Problem:** JSONL trace files work but searching hundreds of sessions is slow (linear file scan). No way to share or view sessions in a browser.
+
+**Implementation (commit `acfb7e2`):**
+
+New file: `vibecli/vibecli-cli/src/session_store.rs`
+
+Schema (WAL mode, FK enforcement):
+```sql
+sessions (id, task, provider, model, started_at, finished_at, status, summary, step_count)
+messages (id, session_id, role, content, created_at)
+steps    (id, session_id, step_num, tool_name, input_summary, output, success, created_at)
+```
+
+Written in parallel with existing JSONL traces (fully backwards-compatible).
+
+Integration in `run_agent_repl_with_context`:
+- Session created with `insert_session()` at start
+- Task injected as first user `message`
+- Each `AgentEvent::ToolCallExecuted` → `insert_step()`
+- `AgentEvent::Complete` → `insert_message("assistant", summary)` + `finish_session("complete")`
+- `AgentEvent::Error` → `finish_session("failed")`
+
+Fast `/search` in REPL:
+- Tries `SessionStore::search()` first (SQL multi-keyword AND across task + steps + messages)
+- Falls back to existing JSONL scan if DB unavailable
+
+### P.2 Web Session Viewer
+
+Three new HTTP endpoints in `serve.rs`:
+- `GET /sessions` — dark-mode HTML index listing all sessions (clickable, status badges, age, step count)
+- `GET /sessions.json` — machine-readable JSON list
+- `GET /view/:id` — full dark-mode HTML page for one session: task header, tool-call timeline, conversation thread
+
+All HTML is self-contained (no CDN, no React). Hover on a step row reveals its full output.
+
+### P.3 Gap Status After Phase 23
+
+| Gap | Status |
+|-----|--------|
+| SQLite session storage | ✅ `~/.vibecli/sessions.db` |
+| Web-viewable agent sessions | ✅ `GET /view/:id` via daemon |
+
+---
+
 ## Part O — Final Competitive Positioning After All Phases
 
-After completing Phases 16–22, VibeCLI + VibeUI becomes the **most complete AI development platform** across all dimensions:
+After completing Phases 16–23, VibeCLI + VibeUI becomes the **most complete AI development platform** across all dimensions:
 
 | Dimension | VibeCLI | Warp | Kiro | opencode | Claude Code | PicoClaw |
 |-----------|---------|------|------|----------|-------------|----------|
@@ -1603,6 +1653,7 @@ After completing Phases 16–22, VibeCLI + VibeUI becomes the **most complete AI
 | Team knowledge store | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
 | OS-level sandboxing | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | SQLite sessions | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ |
+| Web session viewer | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ |
 | Multi-agent visual UI | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
 | WASM extensions | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Subagent spawning | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
