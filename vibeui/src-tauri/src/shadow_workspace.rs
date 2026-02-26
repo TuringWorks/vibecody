@@ -73,8 +73,11 @@ impl ShadowWorkspace {
 
     /// Write proposed content to the shadow workspace.
     /// Returns the shadow file path.
+    ///
+    /// The relative path is jail-checked to prevent traversal outside the
+    /// shadow directory (e.g. `../../.ssh/id_rsa`).
     pub fn sync_file(&self, rel_path: &str, content: &str) -> Result<PathBuf> {
-        let shadow_file = self.path.join(rel_path);
+        let shadow_file = Self::safe_join(&self.path, rel_path)?;
         if let Some(parent) = shadow_file.parent() {
             std::fs::create_dir_all(parent)?;
         }
@@ -85,7 +88,7 @@ impl ShadowWorkspace {
     /// Run the appropriate linter for the file extension.
     /// Returns LintResult with diagnostics.
     pub fn run_lint(&self, rel_path: &str) -> Result<LintResult> {
-        let shadow_file = self.path.join(rel_path);
+        let shadow_file = Self::safe_join(&self.path, rel_path)?;
 
         let ext = Path::new(rel_path)
             .extension()
@@ -222,9 +225,11 @@ impl ShadowWorkspace {
     }
 
     /// Accept a shadow file — copy it to the real workspace.
+    ///
+    /// Both the shadow path and real destination are jail-checked.
     pub fn accept_file(&self, rel_path: &str) -> Result<()> {
-        let shadow_file = self.path.join(rel_path);
-        let real_file = self.real_root.join(rel_path);
+        let shadow_file = Self::safe_join(&self.path, rel_path)?;
+        let real_file = Self::safe_join(&self.real_root, rel_path)?;
         if let Some(parent) = real_file.parent() {
             std::fs::create_dir_all(parent)?;
         }
@@ -234,7 +239,7 @@ impl ShadowWorkspace {
 
     /// Discard a shadow file.
     pub fn discard_file(&self, rel_path: &str) -> Result<()> {
-        let shadow_file = self.path.join(rel_path);
+        let shadow_file = Self::safe_join(&self.path, rel_path)?;
         if shadow_file.exists() {
             std::fs::remove_file(shadow_file)?;
         }
@@ -245,6 +250,49 @@ impl ShadowWorkspace {
     /// Get cached lint result for a file.
     pub fn get_lint_result(&self, rel_path: &str) -> Option<LintResult> {
         self.lint_results.lock().unwrap_or_else(|e| e.into_inner()).get(rel_path).cloned()
+    }
+
+    /// Join `base` and `rel_path`, then verify the result stays inside `base`.
+    ///
+    /// Prevents path traversal attacks where `rel_path` contains `..` or
+    /// absolute components that would escape the intended directory.
+    fn safe_join(base: &Path, rel_path: &str) -> Result<PathBuf> {
+        // Reject obviously absolute paths in rel_path
+        if Path::new(rel_path).is_absolute() {
+            anyhow::bail!(
+                "Path traversal blocked: relative path '{}' is absolute",
+                rel_path
+            );
+        }
+
+        // Canonicalize base for comparison (must exist).
+        // Use the canonical form for both joining and comparison so that
+        // macOS symlinks like /var → /private/var don't cause false positives.
+        let canonical_base = base.canonicalize().unwrap_or_else(|_| base.to_path_buf());
+        let joined = canonical_base.join(rel_path);
+
+        // Normalize manually: resolve . and .. without touching the filesystem,
+        // so this works for files that don't exist yet.
+        let mut resolved = PathBuf::new();
+        for component in joined.components() {
+            match component {
+                std::path::Component::ParentDir => {
+                    resolved.pop();
+                }
+                std::path::Component::CurDir => {}
+                c => resolved.push(c),
+            }
+        }
+
+        if !resolved.starts_with(&canonical_base) {
+            anyhow::bail!(
+                "Path traversal blocked: '{}' escapes directory '{}'",
+                rel_path,
+                base.display()
+            );
+        }
+
+        Ok(resolved)
     }
 
     /// Clean up the entire shadow workspace.
@@ -312,6 +360,20 @@ mod tests {
         let real_path = tmp.join("src/main.rs");
         assert!(real_path.exists());
         assert_eq!(std::fs::read_to_string(real_path).unwrap(), "fn main() {}");
+    }
+
+    #[test]
+    fn sync_file_blocks_path_traversal() {
+        let tmp = std::env::temp_dir().join(format!("vibe_sw_trav_{}", std::process::id()));
+        std::fs::create_dir_all(&tmp).unwrap();
+        let shadow = ShadowWorkspace::new(&tmp).unwrap();
+
+        let result = shadow.sync_file("../../etc/passwd", "pwned");
+        assert!(result.is_err(), "path traversal must be blocked");
+        let err_msg = result.unwrap_err().to_string();
+        assert!(err_msg.contains("traversal blocked"), "error should mention traversal: {}", err_msg);
+
+        let _ = std::fs::remove_dir_all(&tmp);
     }
 
     #[test]
