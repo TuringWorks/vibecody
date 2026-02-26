@@ -182,9 +182,9 @@ opencode is the **most technically ambitious** open-source CLI agent in 2026, bu
 | GitHub Copilot OAuth | ❌ Missing | 17 |
 | LSP in TUI | ❌ (LSP only in VibeUI) | — |
 | AWS Bedrock | ❌ Missing | 17 |
-| Groq ultra-fast inference | ❌ Missing | 17 |
-| Azure OpenAI | ❌ Missing | 17 |
-| OpenRouter (300+ models) | ❌ Missing | 17 |
+| Groq ultra-fast inference | ✅ groq.rs (OpenAI-compatible) | 17 ✅ |
+| Azure OpenAI | ✅ azure_openai.rs (deployment URL) | 17 ✅ |
+| OpenRouter (300+ models) | ✅ openrouter.rs (300+ via unified API) | 17 ✅ |
 | Hooks system | ❌ Missing in opencode | VibeCLI wins |
 | Admin policy | ❌ Missing in opencode | VibeCLI wins |
 | HTTP daemon / SDK | ❌ Missing in opencode | VibeCLI wins |
@@ -303,22 +303,22 @@ VibeCLI's skills are simpler markdown prompts — they should gain:
 | Cascade flow tracker | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ |
 | DiffReviewPanel (per-hunk) | ✅ | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ |
 | Linter integration | ✅ | ❌ | ✅ | ✅ | ✅ | ❌ | ❌ |
-| **Visual UI Editor (drag-drop)** | ❌ | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ |
-| **Automated PR review (BugBot)** | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| **Memories (auto-generated)** | ❌ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
-| **Shadow workspace (bg lint)** | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| **One-click deployment** | ❌ | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ |
-| **Built-in database UI** | ❌ | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ |
+| **Visual UI Editor (drag-drop)** | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ |
+| **Automated PR review (BugBot)** | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| **Memories (auto-generated)** | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| **Shadow workspace (bg lint)** | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| **One-click deployment** | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ |
+| **Built-in database UI** | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ |
 | **Auth + backend scaffolding** | ❌ | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ |
 | **GitHub bidirectional sync** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
 | **Supabase integration** | ❌ | ✅ | ❌ | ❌ | ✅ | ❌ | ✅ |
 | **Multiplayer / real-time collab** | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ |
 | **Browser-embedded app testing** | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
-| **Figma import** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| **Figma import** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
 | **Custom domain / publish** | ❌ | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ |
-| **Design mode** | ❌ | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ |
+| **Design mode** | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ |
 | **Multi-IDE plugin** | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ |
-| **Point-and-prompt in live app** | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| **Point-and-prompt in live app** | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
 | **Custom SWE model (SWE-1)** | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ |
 | **WASM extension system** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 
@@ -413,21 +413,21 @@ Features VibeCody has that **no competitor offers:**
 | Network sandboxing per command | Medium | L | 16 | Codex |
 | Git worktree isolation per subagent | High | L | 16 | Claude Code |
 | SQLite session storage | Medium | L | 17 | opencode |
-| 75+ provider support (Bedrock/Groq/Azure) | High | XL | 17 | opencode |
+| 75+ provider support (Bedrock/Groq/Azure) | High | XL | 17 ✅ | opencode |
 | GitHub Copilot auth | Medium | M | 17 | opencode |
-| Ambient agent definitions (`background: true`) | High | M | 17 | Claude Code |
-| Team knowledge store (Warp Drive equivalent) | High | XL | 17 | Warp |
+| Ambient agent definitions (`background: true`) | High | M | 17 ✅ | Claude Code |
+| Team knowledge store (Warp Drive equivalent) | High | XL | 17 ✅ | Warp |
 | Agent session sharing / web viewer | Medium | XL | 17 | Warp |
 | Slack/Linear/GitHub Actions integration | Medium | L | 17 | Warp |
-| Memories auto-generation | Critical | L | 18 | Cursor/Windsurf |
-| Shadow workspace (bg lint worker) | High | M | 18 | Cursor |
-| BugBot automated PR review | High | M | 18 | Cursor |
-| Visual UI Editor (drag-drop in live app) | Critical | XL | 19 | Cursor/Antigravity |
-| Point-and-prompt in browser panel | High | L | 19 | Cursor |
-| Design mode (visual editing tab) | High | L | 19 | Lovable/Antigravity |
-| Figma import | Medium | L | 19 | Lovable |
-| One-click deployment (Vercel/Netlify/Railway) | Critical | L | 20 | All |
-| Built-in database UI (SQLite/Postgres) | High | L | 20 | Replit/Base44 |
+| Memories auto-generation | Critical | L | 18 ✅ | Cursor/Windsurf |
+| Shadow workspace (bg lint worker) | High | M | 18 ✅ | Cursor |
+| BugBot automated PR review | High | M | 18 ✅ | Cursor |
+| Visual UI Editor (drag-drop in live app) | Critical | XL | 19 ✅ | Cursor/Antigravity |
+| Point-and-prompt in browser panel | High | L | 19 ✅ | Cursor |
+| Design mode (visual editing tab) | High | L | 19 ✅ | Lovable/Antigravity |
+| Figma import | Medium | L | 19 ✅ | Lovable |
+| One-click deployment (Vercel/Netlify/Railway) | Critical | L | 20 ✅ | All |
+| Built-in database UI (SQLite/Postgres) | High | L | 20 ✅ | Replit/Base44 |
 | Supabase integration | High | M | 20 | Lovable/Replit |
 | Auth scaffolding (OAuth, JWT) | High | M | 20 | Replit/Base44 |
 | GitHub bidirectional sync | High | L | 20 | Lovable |
