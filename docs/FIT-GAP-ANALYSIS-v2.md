@@ -33,12 +33,12 @@
 | Rules directory | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ |
 | Wildcard tool permissions | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ |
 | opusplan model routing | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **OS-level sandboxing** | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| **Network sandboxing** | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| **Spec-driven development** | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
-| **Steering files** | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ |
-| **File-event hooks (save/create/delete)** | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
-| **Git worktree isolation per subagent** | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ |
+| **OS-level sandboxing** | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| **Network sandboxing** | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| **Spec-driven development** | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ |
+| **Steering files** | ✅ | ❌ | ✅ | ✅ | ❌ | ❌ |
+| **File-event hooks (save/create/delete)** | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ |
+| **Git worktree isolation per subagent** | ✅ | ❌ | ✅ | ❌ | ❌ | ✅ |
 | **SQLite session storage** | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ |
 | **Team knowledge store (Drive)** | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ |
 | **Ambient agent session sharing** | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ |

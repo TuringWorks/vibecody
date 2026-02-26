@@ -2934,6 +2934,36 @@ pub async fn run_spec(
     ))
 }
 
+// ── Shadow Workspace commands ─────────────────────────────────────────────────
+
+use crate::shadow_workspace::{LintResult, ShadowWorkspace};
+
+/// Write proposed file content to the shadow workspace and run lint.
+/// Returns the lint result so the frontend can annotate the diff.
+#[tauri::command]
+pub async fn shadow_write_and_lint(
+    workspace_path: String,
+    rel_path: String,
+    content: String,
+) -> Result<LintResult, String> {
+    let root = std::path::Path::new(&workspace_path);
+    let shadow = ShadowWorkspace::new(root).map_err(|e| e.to_string())?;
+    shadow.sync_file(&rel_path, &content).map_err(|e| e.to_string())?;
+    shadow.run_lint(&rel_path).map_err(|e| e.to_string())
+}
+
+/// Get a cached lint result for a file path (relative).
+/// Returns null if no lint result is cached.
+#[tauri::command]
+pub async fn shadow_get_lint_result(
+    workspace_path: String,
+    rel_path: String,
+) -> Option<LintResult> {
+    let root = std::path::Path::new(&workspace_path);
+    ShadowWorkspace::new(root).ok()
+        .and_then(|sw| sw.get_lint_result(&rel_path))
+}
+
 fn extract_json(text: &str) -> String {
     // Strip ```json ... ``` fences if present
     let trimmed = text.trim();

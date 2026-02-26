@@ -38,6 +38,8 @@ mod repl;
 mod spec;
 mod background_agents;
 mod team;
+mod memory_auto;
+mod bugbot;
 use rustyline::error::ReadlineError;
 
 mod tui;

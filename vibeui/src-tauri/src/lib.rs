@@ -4,6 +4,7 @@ mod commands;
 mod flow;
 mod agent_executor;
 mod memory;
+pub mod shadow_workspace;
 
 use commands::AppState;
 use std::sync::Arc;
@@ -180,6 +181,9 @@ pub fn run() {
             commands::generate_spec,
             commands::update_spec_task,
             commands::run_spec,
+            // Shadow workspace / lint preview (Phase 18)
+            commands::shadow_write_and_lint,
+            commands::shadow_get_lint_result,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
