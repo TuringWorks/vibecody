@@ -237,9 +237,9 @@ opencode is the **most technically ambitious** open-source CLI agent in 2026, bu
 | PicoClaw Feature | VibeCLI Status | Roadmap Phase |
 |-----------------|----------------|---------------|
 | Single binary releases (cargo dist / goreleaser) | Partial (cargo build only) | 21 |
-| Messaging gateway (Telegram/Discord/Slack) | ❌ Missing | 21 |
-| AI-optimized web search (Tavily) | Partial (DuckDuckGo Lite) | 21 |
-| Built-in cron/scheduling | ❌ Missing | 21 |
+| Messaging gateway (Telegram/Discord/Slack) | ✅ gateway.rs + --gateway flag | 21 ✅ |
+| AI-optimized web search (Tavily) | ✅ Tavily + Brave + DDG multi-engine | 21 ✅ |
+| Built-in cron/scheduling | ✅ scheduler.rs + /remind + /schedule | 21 ✅ |
 | Subagent spawning from tools | ❌ (multi-agent via CLI only) | 21 |
 | Skills as distributable packages | Partial (simple markdown files) | 21 |
 | Cold start <1 second | Partial (~2-5s Rust startup) | — |
