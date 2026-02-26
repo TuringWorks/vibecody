@@ -29,6 +29,12 @@ pub struct Config {
     pub claude: Option<ProviderConfig>,
     pub gemini: Option<ProviderConfig>,
     pub grok: Option<ProviderConfig>,
+    /// Groq ultra-fast inference (GROQ_API_KEY).
+    pub groq: Option<ProviderConfig>,
+    /// OpenRouter unified gateway — 300+ models (OPENROUTER_API_KEY).
+    pub openrouter: Option<ProviderConfig>,
+    /// Azure OpenAI service (AZURE_OPENAI_API_KEY + azure_openai.api_url).
+    pub azure_openai: Option<ProviderConfig>,
 
     /// MCP server definitions.  Example:
     /// ```toml
@@ -427,6 +433,9 @@ impl Config {
             "claude" | "anthropic" => self.claude.as_ref(),
             "gemini" => self.gemini.as_ref(),
             "grok" => self.grok.as_ref(),
+            "groq" => self.groq.as_ref(),
+            "openrouter" => self.openrouter.as_ref(),
+            "azure_openai" | "azure" => self.azure_openai.as_ref(),
             _ => None,
         }
     }

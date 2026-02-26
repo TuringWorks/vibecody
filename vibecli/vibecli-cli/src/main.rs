@@ -36,6 +36,8 @@ use memory::ProjectMemory;
 
 mod repl;
 mod spec;
+mod background_agents;
+mod team;
 use rustyline::error::ReadlineError;
 
 mod tui;
@@ -1411,6 +1413,147 @@ async fn main() -> Result<()> {
                             }
                         }
 
+                        // ── /agents ────────────────────────────────────────────────────
+                        "/agents" => {
+                            use crate::background_agents::BackgroundAgentManager;
+                            let cwd = std::env::current_dir()?;
+                            let mgr = BackgroundAgentManager::for_workspace(&cwd);
+                            let parts: Vec<&str> = if args.is_empty() {
+                                vec!["list"]
+                            } else {
+                                args.splitn(3, ' ').collect()
+                            };
+                            match parts[0] {
+                                "list" | "" => {
+                                    let names = mgr.list_defs();
+                                    if names.is_empty() {
+                                        println!("No agents defined. Create one in .vibecli/agents/<name>.toml\n");
+                                    } else {
+                                        println!("Background agents ({}):", names.len());
+                                        for name in &names {
+                                            if let Ok(def) = mgr.load_def(name) {
+                                                println!("  {} — {} [trigger: {}]", def.name, def.task, def.trigger);
+                                            } else {
+                                                println!("  {}", name);
+                                            }
+                                        }
+                                        println!();
+                                    }
+                                }
+                                "status" => {
+                                    let runs = mgr.list_runs();
+                                    if runs.is_empty() {
+                                        println!("No background agents have run this session.\n");
+                                    } else {
+                                        println!("Agent runs ({}):", runs.len());
+                                        for run in &runs {
+                                            let summary = run.summary.as_deref().unwrap_or("—");
+                                            println!("  [{}] {} — {} → {}", run.id, run.name, run.status, summary);
+                                        }
+                                        println!();
+                                    }
+                                }
+                                "new" => {
+                                    let name = parts.get(1).unwrap_or(&"").trim();
+                                    let task = parts.get(2).unwrap_or(&"").trim();
+                                    if name.is_empty() {
+                                        println!("Usage: /agents new <name> <task description>\n");
+                                        continue;
+                                    }
+                                    let _ = mgr.init();
+                                    let task = if task.is_empty() { "Your task here" } else { task };
+                                    match mgr.create_template(name, task) {
+                                        Ok(_) => println!("✅ Agent '{}' created at .vibecli/agents/{}.toml\n", name, name),
+                                        Err(e) => eprintln!("❌ {}\n", e),
+                                    }
+                                }
+                                _ => println!("Usage: /agents [list|status|new <name> <task>]\n"),
+                            }
+                        }
+
+                        // ── /team ──────────────────────────────────────────────────────
+                        "/team" => {
+                            use crate::team::TeamManager;
+                            let cwd = std::env::current_dir()?;
+                            let mgr = TeamManager::for_workspace(&cwd);
+                            let parts: Vec<&str> = if args.is_empty() {
+                                vec!["show"]
+                            } else {
+                                args.splitn(4, ' ').collect()
+                            };
+                            match parts[0] {
+                                "show" | "" => {
+                                    let cfg = mgr.load();
+                                    let team_name = cfg.team.name.as_deref().unwrap_or("(unnamed)");
+                                    println!("Team: {}", team_name);
+                                    if cfg.knowledge.is_empty() {
+                                        println!("  No knowledge entries.");
+                                    } else {
+                                        println!("  Knowledge ({}):", cfg.knowledge.len());
+                                        for k in &cfg.knowledge {
+                                            println!("    - {}: {}", k.name, k.content);
+                                        }
+                                    }
+                                    if !cfg.shared_commands.is_empty() {
+                                        println!("  Shared commands:");
+                                        for cmd in &cfg.shared_commands {
+                                            println!("    - {} → `{}`", cmd.name, cmd.command);
+                                        }
+                                    }
+                                    println!();
+                                }
+                                "knowledge" => {
+                                    let sub = parts.get(1).unwrap_or(&"").trim();
+                                    match sub {
+                                        "list" | "" => {
+                                            let cfg = mgr.load();
+                                            if cfg.knowledge.is_empty() {
+                                                println!("No team knowledge entries.\n");
+                                            } else {
+                                                for k in &cfg.knowledge {
+                                                    let tags = if k.tags.is_empty() { String::new() } else { format!(" [{}]", k.tags.join(", ")) };
+                                                    println!("  {}{}: {}", k.name, tags, k.content);
+                                                }
+                                                println!();
+                                            }
+                                        }
+                                        "add" => {
+                                            let name = parts.get(2).unwrap_or(&"").trim();
+                                            let content = parts.get(3).unwrap_or(&"").trim();
+                                            if name.is_empty() || content.is_empty() {
+                                                println!("Usage: /team knowledge add <name> <content>\n");
+                                                continue;
+                                            }
+                                            match mgr.add_knowledge(name, content, vec![]) {
+                                                Ok(()) => println!("✅ Added team knowledge '{}'.\n", name),
+                                                Err(e) => eprintln!("❌ {}\n", e),
+                                            }
+                                        }
+                                        "remove" => {
+                                            let name = parts.get(2).unwrap_or(&"").trim();
+                                            if name.is_empty() {
+                                                println!("Usage: /team knowledge remove <name>\n");
+                                                continue;
+                                            }
+                                            match mgr.remove_knowledge(name) {
+                                                Ok(true) => println!("✅ Removed '{}'.\n", name),
+                                                Ok(false) => println!("⚠️  '{}' not found.\n", name),
+                                                Err(e) => eprintln!("❌ {}\n", e),
+                                            }
+                                        }
+                                        _ => println!("Usage: /team knowledge [list|add|remove]\n"),
+                                    }
+                                }
+                                "sync" => {
+                                    match mgr.sync().await {
+                                        Ok(msg) => println!("✅ {}\n", msg),
+                                        Err(e) => eprintln!("❌ Sync failed: {}\n", e),
+                                    }
+                                }
+                                _ => println!("Usage: /team [show|knowledge [list|add|remove]|sync]\n"),
+                            }
+                        }
+
                         _ => {
                             println!("Type /help for available commands\n");
                         }
@@ -1931,7 +2074,7 @@ fn extract_images_from_input(input: &str) -> (String, Vec<ImageAttachment>) {
 }
 
 fn create_provider(provider_name: &str, model: Option<String>) -> Result<Arc<dyn LLMProvider>> {
-    use vibe_ai::providers::{claude, openai, gemini, grok};
+    use vibe_ai::providers::{claude, openai, gemini, grok, groq, openrouter, azure_openai};
 
     // Helper: look up API key from config, then env var.
     let cfg = Config::load().unwrap_or_default();
@@ -2066,8 +2209,86 @@ fn create_provider(provider_name: &str, model: Option<String>) -> Result<Arc<dyn
             })))
         }
 
+        // ── Groq ──────────────────────────────────────────────────────────────
+        "groq" => {
+            let cfg_key = cfg.groq.as_ref().and_then(|c| c.api_key.clone());
+            let api_key = cfg_key
+                .or_else(|| std::env::var("GROQ_API_KEY").ok());
+            if api_key.is_none() {
+                eprintln!("⚠️  GROQ_API_KEY not set (set env var or [groq] api_key in config)");
+            }
+            let cfg_model = cfg.groq.as_ref().and_then(|c| c.model.clone());
+            let model = model
+                .or(cfg_model)
+                .unwrap_or_else(|| "llama-3.3-70b-versatile".to_string());
+            let api_key_helper = cfg.groq.as_ref().and_then(|c| c.api_key_helper.clone());
+            Ok(Arc::new(groq::GroqProvider::new(ProviderConfig {
+                provider_type: "groq".to_string(),
+                api_url: None,
+                model,
+                api_key,
+                max_tokens: None,
+                temperature: None,
+                api_key_helper,
+                ..Default::default()
+            })))
+        }
+
+        // ── OpenRouter ────────────────────────────────────────────────────────
+        "openrouter" => {
+            let cfg_key = cfg.openrouter.as_ref().and_then(|c| c.api_key.clone());
+            let api_key = cfg_key
+                .or_else(|| std::env::var("OPENROUTER_API_KEY").ok());
+            if api_key.is_none() {
+                eprintln!("⚠️  OPENROUTER_API_KEY not set (set env var or [openrouter] api_key in config)");
+            }
+            let cfg_model = cfg.openrouter.as_ref().and_then(|c| c.model.clone());
+            let model = model
+                .or(cfg_model)
+                .unwrap_or_else(|| "anthropic/claude-3.5-sonnet".to_string());
+            let api_key_helper = cfg.openrouter.as_ref().and_then(|c| c.api_key_helper.clone());
+            Ok(Arc::new(openrouter::OpenRouterProvider::new(ProviderConfig {
+                provider_type: "openrouter".to_string(),
+                api_url: None,
+                model,
+                api_key,
+                max_tokens: None,
+                temperature: None,
+                api_key_helper,
+                ..Default::default()
+            })))
+        }
+
+        // ── Azure OpenAI ──────────────────────────────────────────────────────
+        "azure" | "azure_openai" => {
+            let cfg = cfg.azure_openai.as_ref();
+            let api_key = cfg.and_then(|c| c.api_key.clone())
+                .or_else(|| std::env::var("AZURE_OPENAI_API_KEY").ok());
+            if api_key.is_none() {
+                eprintln!("⚠️  AZURE_OPENAI_API_KEY not set");
+            }
+            let api_url = cfg.and_then(|c| c.api_url.clone())
+                .or_else(|| std::env::var("AZURE_OPENAI_ENDPOINT").ok());
+            if api_url.is_none() {
+                eprintln!("⚠️  azure_openai.api_url not set (e.g. https://myresource.openai.azure.com)");
+            }
+            let cfg_model = cfg.and_then(|c| c.model.clone());
+            let model = model
+                .or(cfg_model)
+                .unwrap_or_else(|| "gpt-4o".to_string());
+            Ok(Arc::new(azure_openai::AzureOpenAIProvider::new(ProviderConfig {
+                provider_type: "azure_openai".to_string(),
+                api_url,
+                model,
+                api_key,
+                max_tokens: None,
+                temperature: None,
+                ..Default::default()
+            })))
+        }
+
         _ => anyhow::bail!(
-            "Unknown provider: '{}'. Available: ollama, claude, openai, gemini, grok",
+            "Unknown provider: '{}'. Available: ollama, claude, openai, gemini, grok, groq, openrouter, azure",
             provider_name
         ),
     }
@@ -2102,6 +2323,9 @@ fn show_help() {
     println!("  /profile show <name>     - Show a profile's settings");
     println!("  /profile create <name>   - Create a new profile interactively");
     println!("  /profile delete <name>   - Delete a profile");
+    println!("  /spec                    - Spec-driven development (list|show|new|run|done)");
+    println!("  /agents                  - Background agents (list|status|new)");
+    println!("  /team                    - Team knowledge store (show|knowledge|sync)");
     println!("  /config                  - Show current configuration");
     println!("  /help                    - Show this help message");
     println!("  /exit                    - Exit VibeCLI");
@@ -2126,6 +2350,9 @@ fn show_help() {
     println!("  openai                   - OpenAI GPT-4o     (OPENAI_API_KEY)");
     println!("  gemini                   - Google Gemini     (GEMINI_API_KEY)");
     println!("  grok                     - xAI Grok          (GROK_API_KEY)");
+    println!("  groq                     - Groq ultra-fast   (GROQ_API_KEY)");
+    println!("  openrouter               - OpenRouter 300+   (OPENROUTER_API_KEY)");
+    println!("  azure                    - Azure OpenAI      (AZURE_OPENAI_API_KEY + api_url)");
     println!("\nMultimodal:");
     println!("  /chat [screenshot.png] What is this error?  - Attach image to chat");
     println!("\n💡 Tip: You can also just type a message to chat\n");

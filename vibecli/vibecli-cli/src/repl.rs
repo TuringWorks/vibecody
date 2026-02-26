@@ -10,6 +10,7 @@ use std::borrow::Cow;
 
 static COMMANDS: &[&str] = &[
     "/agent",
+    "/agents",
     "/apply",
     "/chat",
     "/config",
@@ -34,6 +35,7 @@ static COMMANDS: &[&str] = &[
     "/rewind",
     "/spec",
     "/status",
+    "/team",
     "/theme",
     "/trace",
 ];
@@ -51,6 +53,12 @@ static MEMORY_SUBS: &[&str] = &["show", "edit"];
 
 /// Sub-commands for `/spec <sub>`
 static SPEC_SUBS: &[&str] = &["list", "show", "new", "run", "done"];
+
+/// Sub-commands for `/agents <sub>`
+static AGENTS_SUBS: &[&str] = &["list", "status", "new"];
+
+/// Sub-commands for `/team <sub>`
+static TEAM_SUBS: &[&str] = &["show", "knowledge", "sync"];
 
 /// Sub-commands for `/trace <sub>`
 static TRACE_SUBS: &[&str] = &["view"];
@@ -88,6 +96,8 @@ fn command_hint(cmd: &str) -> Option<&'static str> {
         "/fork"    => Some("[session-name]  — fork current session into a named branch"),
         "/rewind"  => Some("[list | <timestamp>]  — save or restore a conversation checkpoint"),
         "/spec"    => Some("[list|show <n>|new <n>|run <n>|done <n> <id>]  — spec-driven development"),
+        "/agents"  => Some("[list|status|new <name> <task>]  — background agent definitions"),
+        "/team"    => Some("[show|knowledge [list|add|remove]|sync]  — team knowledge store"),
         "/theme"   => Some("[name]  — switch TUI color theme (dark|light|monokai|solarized|nord)"),
         _ => None,
     }
@@ -151,6 +161,8 @@ fn complete_slash(line: &str) -> Option<(usize, Vec<Pair>)> {
                 "/plugin"  => Some(PLUGIN_SUBS),
                 "/memory"  => Some(MEMORY_SUBS),
                 "/spec"    => Some(SPEC_SUBS),
+                "/agents"  => Some(AGENTS_SUBS),
+                "/team"    => Some(TEAM_SUBS),
                 "/trace"   => Some(TRACE_SUBS),
                 "/mcp"     => Some(MCP_SUBS),
                 "/theme"   => Some(THEME_NAMES),
