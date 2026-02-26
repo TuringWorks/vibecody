@@ -130,6 +130,7 @@ impl VimEditorComponent {
     }
 
     /// Set buffer content without a file path (e.g. scratch buffer).
+    #[allow(dead_code)]
     pub fn set_content(&mut self, content: &str) {
         let mut ls: Vec<String> = content.lines().map(str::to_owned).collect();
         if ls.is_empty() { ls.push(String::new()); }
@@ -158,6 +159,7 @@ impl VimEditorComponent {
     }
 
     /// True if the user wants to quit cleanly (no unsaved changes or :q! requested).
+    #[allow(dead_code)]
     pub fn wants_quit(&self) -> bool {
         !self.modified
     }
@@ -336,7 +338,6 @@ impl VimEditorComponent {
 
     /// Process a key event. Returns `true` if the editor wants to close.
     pub fn handle_key(&mut self, key: crossterm::event::KeyEvent, viewport_height: u16) -> bool {
-        use crossterm::event::{KeyCode, KeyModifiers};
         let vp = viewport_height as usize;
 
         match self.mode {
@@ -361,7 +362,7 @@ impl VimEditorComponent {
     // ── Normal mode ───────────────────────────────────────────────────────────
 
     fn handle_normal(&mut self, key: crossterm::event::KeyEvent, vp: usize) -> bool {
-        use crossterm::event::{KeyCode, KeyModifiers};
+        use crossterm::event::KeyCode;
 
         // Handle pending two-char sequences
         if let Some(first) = self.pending_key.take() {
@@ -381,7 +382,6 @@ impl VimEditorComponent {
             KeyCode::Char('j') | KeyCode::Down  => { let n = self.take_count(); self.move_down(n); }
             KeyCode::Char('k') | KeyCode::Up    => { let n = self.take_count(); self.move_up(n); }
             KeyCode::Char('w') => { let n = self.take_count(); for _ in 0..n { self.move_word_forward(); } }
-            KeyCode::Char('b') => { let n = self.take_count(); for _ in 0..n { self.move_word_back(); } }
             KeyCode::Char('0') => { self.cursor.1 = 0; self.count_buf.clear(); }
             KeyCode::Char('$') => {
                 let len = self.lines[self.cursor.0].len().saturating_sub(1);
@@ -404,15 +404,18 @@ impl VimEditorComponent {
                 self.pending_key = Some('g');
             }
 
-            // Page scroll
-            KeyCode::Char('f') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            // Page scroll (must come before unguarded Char('b')/Char('f'))
+            KeyCode::Char('f') if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) => {
                 let n = self.take_count();
                 self.move_down(vp.saturating_sub(2) * n);
             }
-            KeyCode::Char('b') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            KeyCode::Char('b') if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) => {
                 let n = self.take_count();
                 self.move_up(vp.saturating_sub(2) * n);
             }
+
+            // Word back
+            KeyCode::Char('b') => { let n = self.take_count(); for _ in 0..n { self.move_word_back(); } }
 
             // Insert mode entry
             KeyCode::Char('i') => { self.count_buf.clear(); self.mode = VimMode::Insert; }
@@ -534,7 +537,7 @@ impl VimEditorComponent {
     // ── Insert mode ───────────────────────────────────────────────────────────
 
     fn handle_insert(&mut self, key: crossterm::event::KeyEvent) {
-        use crossterm::event::{KeyCode, KeyModifiers};
+        use crossterm::event::{KeyCode};
         match key.code {
             KeyCode::Esc => {
                 self.mode = VimMode::Normal;
@@ -948,6 +951,7 @@ impl VimEditorComponent {
     }
 
     /// Current line count.
+    #[allow(dead_code)]
     pub fn line_count(&self) -> usize { self.lines.len() }
 }
 
@@ -958,6 +962,7 @@ mod tests {
     use super::*;
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
+    #[allow(dead_code)]
     fn key(code: KeyCode) -> KeyEvent {
         KeyEvent::new(code, KeyModifiers::NONE)
     }

@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! BugBot — automated PR/diff review using LLM analysis.
 //!
 //! Usage:

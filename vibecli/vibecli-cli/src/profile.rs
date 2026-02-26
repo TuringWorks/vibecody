@@ -31,7 +31,7 @@
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 // ── Profile manifest ──────────────────────────────────────────────────────────
 
@@ -166,6 +166,7 @@ sandbox = false
             .filter(|s| !s.is_empty())
     }
 
+    #[allow(dead_code)]
     pub fn write_active(name: &str) -> Result<()> {
         let path = Self::active_profile_path()
             .context("Cannot determine home directory")?;
@@ -185,6 +186,7 @@ pub struct ProfileOverrides {
     pub provider: Option<String>,
     pub model: Option<String>,
     pub approval_policy: Option<String>,
+    #[allow(dead_code)]
     pub sandbox: Option<bool>,
 }
 

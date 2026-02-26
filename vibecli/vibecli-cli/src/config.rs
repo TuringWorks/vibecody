@@ -551,6 +551,7 @@ impl CopilotConfig {
     fn default_model() -> String { "gpt-4o".to_string() }
 
     /// Resolve the Copilot token from env → hosts.json → config field.
+    #[allow(dead_code)]
     pub fn resolve_token(&self) -> Option<String> {
         // 1. Environment variable
         if let Ok(t) = std::env::var("COPILOT_TOKEN") {

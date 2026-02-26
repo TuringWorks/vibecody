@@ -128,6 +128,7 @@ impl ProjectMemory {
     }
 
     /// Return the path for the global memory file (scratch pad).
+    #[allow(dead_code)]
     pub fn global_path() -> Option<PathBuf> {
         dirs::home_dir().map(|h| h.join(".vibecli").join("memory.md"))
     }
@@ -135,12 +136,14 @@ impl ProjectMemory {
     // ── Legacy accessors (backward compatibility) ──────────────────────────
 
     /// The first project-level content found, for backward-compat callers.
+    #[allow(dead_code)]
     pub fn repo_content(&self) -> Option<&str> {
         self.levels.iter().find(|l| l.label == "project" || l.label == "directory")
             .map(|l| l.content.as_str())
     }
 
     /// The first project-level path found, for backward-compat callers.
+    #[allow(dead_code)]
     pub fn repo_path(&self) -> Option<&Path> {
         self.levels.iter().find(|l| l.label == "project" || l.label == "directory")
             .map(|l| l.path.as_path())

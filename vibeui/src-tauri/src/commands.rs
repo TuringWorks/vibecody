@@ -59,6 +59,7 @@ use vibe_ai::{ToolCall, ToolResult};
 // ── GitHub API types (used by @github: context handler) ───────────────────────
 #[derive(Deserialize)]
 struct GithubIssue {
+    #[allow(dead_code)]
     number: u64,
     title: String,
     #[serde(default)]
@@ -95,11 +96,56 @@ pub struct AppState {
 
 const MAX_TERMINAL_LINES: usize = 500;
 
+// ── Path safety ─────────────────────────────────────────────────────────────
+
+/// Verify that `path` stays within the workspace root directories.
+///
+/// Canonicalizes the path and checks it is a descendant of at least one
+/// workspace folder.  Returns the validated `PathBuf` on success or a
+/// human-readable error string on path-traversal attempts.
+fn safe_resolve_path(workspace: &Workspace, path: &str) -> Result<PathBuf, String> {
+    let path_buf = PathBuf::from(path);
+
+    // For existing paths: canonicalize directly.
+    // For new paths: normalize manually (collapse .. components).
+    let canonical = if path_buf.exists() {
+        path_buf.canonicalize().map_err(|e| format!("Cannot resolve path '{}': {}", path, e))?
+    } else {
+        let mut resolved = PathBuf::new();
+        for component in path_buf.components() {
+            match component {
+                std::path::Component::ParentDir => { resolved.pop(); }
+                std::path::Component::CurDir => {}
+                c => resolved.push(c),
+            }
+        }
+        resolved
+    };
+
+    // Check against each workspace folder.
+    for folder in workspace.folders() {
+        let root = if folder.exists() {
+            folder.canonicalize().unwrap_or_else(|_| folder.clone())
+        } else {
+            folder.clone()
+        };
+        if canonical.starts_with(&root) {
+            return Ok(path_buf);
+        }
+    }
+
+    Err(format!(
+        "Path traversal blocked: '{}' is outside workspace boundaries",
+        path
+    ))
+}
+
 /// File operations
 
 #[tauri::command]
 pub async fn read_file(path: String, state: tauri::State<'_, AppState>) -> Result<String, String> {
     let workspace = state.workspace.lock().await;
+    safe_resolve_path(&workspace, &path)?;
     workspace
         .file_system()
         .read_file(&PathBuf::from(path))
@@ -114,6 +160,7 @@ pub async fn write_file(
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
     let workspace = state.workspace.lock().await;
+    safe_resolve_path(&workspace, &path)?;
     workspace
         .file_system()
         .write_file(&PathBuf::from(path), &content)
@@ -127,6 +174,7 @@ pub async fn list_directory(
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<FileEntry>, String> {
     let workspace = state.workspace.lock().await;
+    safe_resolve_path(&workspace, &path)?;
     workspace
         .file_system()
         .list_directory(&PathBuf::from(path))
@@ -140,6 +188,7 @@ pub async fn create_directory(
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
     let workspace = state.workspace.lock().await;
+    safe_resolve_path(&workspace, &path)?;
     workspace
         .file_system()
         .create_directory(&PathBuf::from(path))
@@ -153,6 +202,7 @@ pub async fn delete_item(
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
     let workspace = state.workspace.lock().await;
+    safe_resolve_path(&workspace, &path)?;
     let path_buf = PathBuf::from(path);
     if path_buf.is_dir() {
         workspace
@@ -176,11 +226,14 @@ pub async fn rename_item(
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
     let workspace = state.workspace.lock().await;
+    safe_resolve_path(&workspace, &path)?;
     let from_path = PathBuf::from(&path);
     let parent = from_path.parent()
         .ok_or_else(|| "Cannot rename a root-level path".to_string())?;
-    let to_path = parent.join(new_name);
-    
+    let to_path = parent.join(&new_name);
+    // Also verify destination stays in workspace
+    safe_resolve_path(&workspace, &to_path.to_string_lossy())?;
+
     workspace
         .file_system()
         .rename_item(&from_path, &to_path)
@@ -3238,6 +3291,415 @@ pub async fn run_spec(
         "Spec: {}\nRequirements: {}\n\nWork through these pending tasks in order:\n{}",
         spec.name, spec.requirements, pending.join("\n")
     ))
+}
+
+// ── Code Complete Workflow commands ──────────────────────────────────────────
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct WorkflowChecklistItemDto {
+    pub id: u32,
+    pub description: String,
+    pub done: bool,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct WorkflowStageDto {
+    pub stage: String,
+    pub label: String,
+    pub status: String,
+    pub checklist: Vec<WorkflowChecklistItemDto>,
+    pub body: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct WorkflowDto {
+    pub name: String,
+    pub description: String,
+    pub current_stage: usize,
+    pub stages: Vec<WorkflowStageDto>,
+    pub created_at: String,
+    pub overall_progress: f64,
+}
+
+const STAGE_LABELS: [&str; 8] = [
+    "Requirements",
+    "Architecture",
+    "Design",
+    "Construction Planning",
+    "Coding",
+    "Quality Assurance",
+    "Integration & Testing",
+    "Code Complete",
+];
+
+fn workflows_dir(workspace_path: &str) -> std::path::PathBuf {
+    std::path::PathBuf::from(workspace_path)
+        .join(".vibecli")
+        .join("workflows")
+}
+
+fn parse_workflow_file(path: &std::path::Path) -> Option<WorkflowDto> {
+    let raw = std::fs::read_to_string(path).ok()?;
+    let name = path.file_stem()?.to_str()?.to_string();
+    let mut description = String::new();
+    let mut current_stage: usize = 0;
+    let mut created_at = String::new();
+    let mut body = raw.clone();
+
+    // Parse front-matter
+    if raw.starts_with("---") {
+        let after_open = raw[3..].trim_start_matches('\n');
+        if let Some(close_pos) = after_open.find("\n---") {
+            let fm = &after_open[..close_pos];
+            body = after_open[close_pos..].trim_start_matches("\n---").trim_start().to_string();
+            for line in fm.lines() {
+                if let Some((k, v)) = line.split_once(':') {
+                    let key = k.trim();
+                    let val = v.trim().trim_matches('"').trim_matches('\'');
+                    match key {
+                        "description" => description = val.to_string(),
+                        "current_stage" => current_stage = val.parse().unwrap_or(0),
+                        "created_at" => created_at = val.to_string(),
+                        _ => {}
+                    }
+                }
+            }
+        }
+    }
+
+    // Parse stages
+    let mut stages: Vec<WorkflowStageDto> = STAGE_LABELS
+        .iter()
+        .map(|label| WorkflowStageDto {
+            stage: label.to_string(),
+            label: label.to_string(),
+            status: "not-started".to_string(),
+            checklist: vec![],
+            body: String::new(),
+        })
+        .collect();
+
+    let mut current_section: Option<usize> = None;
+    let mut section_lines: Vec<String> = vec![];
+
+    for line in body.lines() {
+        if line.starts_with("## Stage: ") {
+            if let Some(idx) = current_section {
+                flush_workflow_stage_section(&mut stages[idx], &section_lines);
+            }
+            section_lines.clear();
+            let label = &line["## Stage: ".len()..];
+            current_section = STAGE_LABELS.iter().position(|l| *l == label.trim());
+        } else if current_section.is_some() {
+            section_lines.push(line.to_string());
+        }
+    }
+    if let Some(idx) = current_section {
+        flush_workflow_stage_section(&mut stages[idx], &section_lines);
+    }
+
+    let total: usize = stages.iter().map(|s| s.checklist.len()).sum();
+    let done: usize = stages.iter().map(|s| s.checklist.iter().filter(|c| c.done).count()).sum();
+    let overall_progress = if total == 0 { 0.0 } else { (done as f64 / total as f64) * 100.0 };
+
+    Some(WorkflowDto {
+        name,
+        description,
+        current_stage,
+        stages,
+        created_at,
+        overall_progress,
+    })
+}
+
+fn flush_workflow_stage_section(stage: &mut WorkflowStageDto, lines: &[String]) {
+    let mut body_lines: Vec<String> = vec![];
+    let mut in_checklist = false;
+
+    for line in lines {
+        let trimmed = line.trim();
+        if trimmed.starts_with("<!-- status:") && trimmed.ends_with("-->") {
+            stage.status = trimmed["<!-- status:".len()..trimmed.len() - 3].trim().to_string();
+            continue;
+        }
+        if trimmed == "### Checklist" {
+            in_checklist = true;
+            continue;
+        }
+        if in_checklist && trimmed.starts_with("- [") && trimmed.len() > 5 {
+            let done = trimmed.starts_with("- [x]");
+            let rest = trimmed[5..].trim();
+            let (id, desc) = if let Some(stripped) = rest.strip_prefix("**") {
+                if let Some(idx) = stripped.find("**:") {
+                    let id_str = &stripped[..idx];
+                    let d = stripped[idx + 3..].trim();
+                    (id_str.parse::<u32>().unwrap_or(stage.checklist.len() as u32 + 1), d.to_string())
+                } else {
+                    (stage.checklist.len() as u32 + 1, rest.to_string())
+                }
+            } else {
+                (stage.checklist.len() as u32 + 1, rest.to_string())
+            };
+            stage.checklist.push(WorkflowChecklistItemDto { id, description: desc, done });
+            continue;
+        }
+        if in_checklist && trimmed.is_empty() && !stage.checklist.is_empty() {
+            in_checklist = false;
+            continue;
+        }
+        if !in_checklist {
+            body_lines.push(line.clone());
+        }
+    }
+    stage.body = body_lines.join("\n").trim().to_string();
+}
+
+fn save_workflow_file(workspace_path: &str, workflow: &WorkflowDto) -> Result<(), String> {
+    let dir = workflows_dir(workspace_path);
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let path = dir.join(format!("{}.md", workflow.name));
+
+    let mut out = String::new();
+    out.push_str("---\n");
+    out.push_str(&format!("name: {}\n", workflow.name));
+    out.push_str(&format!("description: {}\n", workflow.description));
+    out.push_str(&format!("current_stage: {}\n", workflow.current_stage));
+    out.push_str(&format!("created_at: {}\n", workflow.created_at));
+    out.push_str("---\n\n");
+
+    for stage in &workflow.stages {
+        out.push_str(&format!("## Stage: {}\n", stage.label));
+        out.push_str(&format!("<!-- status: {} -->\n\n", stage.status));
+        if !stage.body.is_empty() {
+            out.push_str(&stage.body);
+            out.push_str("\n\n");
+        }
+        if !stage.checklist.is_empty() {
+            out.push_str("### Checklist\n\n");
+            for item in &stage.checklist {
+                let check = if item.done { "x" } else { " " };
+                out.push_str(&format!("- [{}] **{}**: {}\n", check, item.id, item.description));
+            }
+            out.push('\n');
+        }
+    }
+
+    std::fs::write(&path, out).map_err(|e| e.to_string())
+}
+
+fn workflow_now_ts() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let secs = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
+    format!("{}", secs)
+}
+
+/// List all workflows in the workspace.
+#[tauri::command]
+pub async fn list_workflows(workspace_path: String) -> Result<Vec<WorkflowDto>, String> {
+    let dir = workflows_dir(&workspace_path);
+    if !dir.is_dir() {
+        return Ok(vec![]);
+    }
+    let mut workflows: Vec<WorkflowDto> = std::fs::read_dir(&dir)
+        .map_err(|e| e.to_string())?
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().extension().and_then(|x| x.to_str()) == Some("md"))
+        .filter_map(|e| parse_workflow_file(&e.path()))
+        .collect();
+    workflows.sort_by(|a, b| a.name.cmp(&b.name));
+    Ok(workflows)
+}
+
+/// Get a single workflow by name.
+#[tauri::command]
+pub async fn get_workflow(workspace_path: String, name: String) -> Result<WorkflowDto, String> {
+    let path = workflows_dir(&workspace_path).join(format!("{}.md", name));
+    parse_workflow_file(&path).ok_or_else(|| format!("Workflow '{}' not found", name))
+}
+
+/// Create a new workflow with 8 Code Complete stages.
+#[tauri::command]
+pub async fn create_workflow(
+    workspace_path: String,
+    name: String,
+    description: String,
+) -> Result<WorkflowDto, String> {
+    let now = workflow_now_ts();
+    let workflow = WorkflowDto {
+        name: name.clone(),
+        description,
+        current_stage: 0,
+        stages: STAGE_LABELS.iter().enumerate().map(|(i, label)| WorkflowStageDto {
+            stage: label.to_string(),
+            label: label.to_string(),
+            status: if i == 0 { "in-progress".to_string() } else { "not-started".to_string() },
+            checklist: vec![],
+            body: String::new(),
+        }).collect(),
+        created_at: now,
+        overall_progress: 0.0,
+    };
+    save_workflow_file(&workspace_path, &workflow)?;
+    Ok(workflow)
+}
+
+/// Advance workflow to the next stage.
+#[tauri::command]
+pub async fn advance_workflow_stage(
+    workspace_path: String,
+    name: String,
+) -> Result<WorkflowDto, String> {
+    let path = workflows_dir(&workspace_path).join(format!("{}.md", name));
+    let mut workflow = parse_workflow_file(&path).ok_or_else(|| format!("Workflow '{}' not found", name))?;
+
+    let idx = workflow.current_stage;
+    workflow.stages[idx].status = "complete".to_string();
+
+    if idx + 1 < workflow.stages.len() {
+        workflow.current_stage = idx + 1;
+        workflow.stages[idx + 1].status = "in-progress".to_string();
+    }
+
+    // Recalculate progress
+    let total: usize = workflow.stages.iter().map(|s| s.checklist.len()).sum();
+    let done: usize = workflow.stages.iter().map(|s| s.checklist.iter().filter(|c| c.done).count()).sum();
+    workflow.overall_progress = if total == 0 { 0.0 } else { (done as f64 / total as f64) * 100.0 };
+
+    save_workflow_file(&workspace_path, &workflow)?;
+    Ok(workflow)
+}
+
+/// Toggle a checklist item in a workflow stage.
+#[tauri::command]
+pub async fn update_workflow_checklist_item(
+    workspace_path: String,
+    name: String,
+    stage_index: usize,
+    item_id: u32,
+    done: bool,
+) -> Result<WorkflowDto, String> {
+    let path = workflows_dir(&workspace_path).join(format!("{}.md", name));
+    let mut workflow = parse_workflow_file(&path).ok_or_else(|| format!("Workflow '{}' not found", name))?;
+
+    if stage_index >= workflow.stages.len() {
+        return Err(format!("Invalid stage index: {}", stage_index));
+    }
+    let stage = &mut workflow.stages[stage_index];
+    if let Some(item) = stage.checklist.iter_mut().find(|c| c.id == item_id) {
+        item.done = done;
+    } else {
+        return Err(format!("Checklist item {} not found in stage {}", item_id, stage_index));
+    }
+
+    // Auto-update stage status
+    if stage.checklist.iter().all(|c| c.done) && !stage.checklist.is_empty() {
+        stage.status = "complete".to_string();
+    } else if stage.checklist.iter().any(|c| c.done) {
+        stage.status = "in-progress".to_string();
+    }
+
+    // Recalculate progress
+    let total: usize = workflow.stages.iter().map(|s| s.checklist.len()).sum();
+    let done_count: usize = workflow.stages.iter().map(|s| s.checklist.iter().filter(|c| c.done).count()).sum();
+    workflow.overall_progress = if total == 0 { 0.0 } else { (done_count as f64 / total as f64) * 100.0 };
+
+    save_workflow_file(&workspace_path, &workflow)?;
+    Ok(workflow)
+}
+
+/// AI-generate a checklist for a workflow stage.
+#[tauri::command]
+pub async fn generate_stage_checklist(
+    workspace_path: String,
+    name: String,
+    stage_index: usize,
+    provider: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<WorkflowDto, String> {
+    let path = workflows_dir(&workspace_path).join(format!("{}.md", name));
+    let mut workflow = parse_workflow_file(&path).ok_or_else(|| format!("Workflow '{}' not found", name))?;
+
+    if stage_index >= workflow.stages.len() {
+        return Err(format!("Invalid stage index: {}", stage_index));
+    }
+
+    let stage_label = &STAGE_LABELS[stage_index];
+    let stage_guidance = match stage_index {
+        0 => "functional requirements, non-functional requirements, user stories, scope boundaries, error handling, data constraints",
+        1 => "subsystem decomposition, communication strategy, data storage, error/logging strategy, security, build vs buy, scalability",
+        2 => "class/module identification, API design, data structures, design patterns, coupling/cohesion, edge cases, state management",
+        3 => "language/framework confirmation, coding standards, dev environment, branching strategy, integration order, CI/CD, task breakdown, risk mitigation",
+        4 => "naming conventions, defensive programming, no magic numbers, short functions, DRY, straightforward control structures, WHY comments, input validation",
+        5 => "code review, unit tests, integration tests, linter/static analysis, security scan, performance profiling, error handling tests, accessibility",
+        6 => "module integration, end-to-end tests, regression tests, load testing, cross-platform testing, migration testing, API validation, logging/monitoring",
+        7 => "all features implemented, README updated, API docs, CHANGELOG, license, no TODOs left, externalized config, version tagged, deployment runbook, monitoring plan",
+        _ => "",
+    };
+
+    let prompt = format!(
+        "You are a software construction expert following Steve McConnell's Code Complete methodology.\n\n\
+        Generate a checklist for the **{stage_label}** stage of this project:\n\n\
+        Project: {desc}\n\n\
+        Include items for: {stage_guidance}\n\n\
+        Output ONLY a numbered list of 8-12 specific, actionable checklist items. One per line, like:\n\
+        1. Description of first item\n\
+        2. Description of second item",
+        stage_label = stage_label,
+        desc = workflow.description,
+        stage_guidance = stage_guidance,
+    );
+
+    let messages = vec![vibe_ai::Message {
+        role: vibe_ai::MessageRole::User,
+        content: prompt,
+    }];
+
+    let response = {
+        let mut engine = state.chat_engine.lock().await;
+        let _ = engine.set_provider_by_name(&provider);
+        engine.chat(&messages, None).await.map_err(|e| e.to_string())?
+    };
+
+    // Parse numbered list
+    let mut items: Vec<WorkflowChecklistItemDto> = vec![];
+    let mut next_id = 1u32;
+    for line in response.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() { continue; }
+        // Match "N. text" or "N) text" or "- text"
+        let desc = if let Some(rest) = trimmed.strip_prefix("- ") {
+            rest.trim().to_string()
+        } else {
+            let mut chars = trimmed.chars().peekable();
+            let mut num_s = String::new();
+            while let Some(&c) = chars.peek() {
+                if c.is_ascii_digit() { num_s.push(c); chars.next(); } else { break; }
+            }
+            if !num_s.is_empty() {
+                if let Some(&c) = chars.peek() {
+                    if c == '.' || c == ')' { chars.next(); chars.collect::<String>().trim().to_string() } else { continue; }
+                } else { continue; }
+            } else { continue; }
+        };
+        if !desc.is_empty() {
+            items.push(WorkflowChecklistItemDto { id: next_id, description: desc, done: false });
+            next_id += 1;
+        }
+    }
+
+    if items.is_empty() {
+        return Err("Could not parse checklist from AI response".to_string());
+    }
+
+    workflow.stages[stage_index].checklist = items;
+    if workflow.stages[stage_index].status == "not-started" {
+        workflow.stages[stage_index].status = "in-progress".to_string();
+    }
+
+    save_workflow_file(&workspace_path, &workflow)?;
+    // Re-read for accurate progress
+    let updated = parse_workflow_file(&path).ok_or("Failed to reload workflow")?;
+    Ok(updated)
 }
 
 // ── Shadow Workspace commands ─────────────────────────────────────────────────

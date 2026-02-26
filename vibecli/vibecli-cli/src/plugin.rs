@@ -89,11 +89,13 @@ impl Plugin {
     }
 
     /// Path to the `commands/` sub-directory.
+    #[allow(dead_code)]
     pub fn commands_dir(&self) -> PathBuf {
         self.dir.join("commands")
     }
 
     /// Resolved hook entries (command paths made absolute).
+    #[allow(dead_code)]
     pub fn resolved_hooks(&self) -> Vec<(String, Vec<String>, PathBuf, bool)> {
         self.manifest
             .hooks

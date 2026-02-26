@@ -74,6 +74,7 @@ impl HookEvent {
         }
     }
 
+    #[allow(dead_code)]
     fn session_id(&self) -> &str {
         match self {
             HookEvent::SessionStart { session_id } => session_id,

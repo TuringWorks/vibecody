@@ -45,6 +45,7 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 use tokio::sync::{broadcast, Mutex};
+use rand::Rng;
 use tower_http::cors::{Any, CorsLayer};
 
 use vibe_ai::{AgentContext, AgentEvent, AgentLoop, ApprovalPolicy, Message, MessageRole};
@@ -120,6 +121,7 @@ pub struct ServeState {
 pub struct ChatRequest {
     pub messages: Vec<ChatMessage>,
     #[serde(default)]
+    #[allow(dead_code)]
     pub model: Option<String>,
 }
 
@@ -271,7 +273,8 @@ async fn start_agent(
     State(state): State<ServeState>,
     Json(req): Json<AgentRequest>,
 ) -> Result<Json<AgentStartResponse>, (StatusCode, String)> {
-    let session_id = format!("{:x}", now_ms());
+    // Use a cryptographically random 128-bit hex ID to prevent session enumeration.
+    let session_id = format!("{:032x}", rand::thread_rng().gen::<u128>());
 
     // Persist initial job record
     let mut record = JobRecord {

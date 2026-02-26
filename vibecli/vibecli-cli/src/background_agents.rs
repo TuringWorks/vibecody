@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Ambient / background agent definitions.
 //!
 //! Background agents are defined as TOML files in `.vibecli/agents/`:

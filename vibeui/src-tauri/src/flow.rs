@@ -18,6 +18,7 @@ pub struct FlowEvent {
     /// Payload: path, command, etc.
     pub data: String,
     /// Unix timestamp (seconds).
+    #[allow(dead_code)]
     pub timestamp: u64,
 }
 

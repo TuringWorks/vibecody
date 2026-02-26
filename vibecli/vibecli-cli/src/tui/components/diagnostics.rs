@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Diagnostics panel component for the VibeCLI TUI.
 //!
 //! Populated by `/check` (cargo check / eslint / flake8) and displayed as a
