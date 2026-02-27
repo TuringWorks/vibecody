@@ -93,6 +93,7 @@ Shannon is a standalone autonomous pentesting tool ("The Red Team to your vibe-c
 ## 3. Architectural Comparison
 
 ### Shannon Architecture
+
 ```
 CLI (./shannon) → Docker Compose → Temporal Worker
   └─ 5-Phase Pipeline:
@@ -106,6 +107,7 @@ CLI (./shannon) → Docker Compose → Temporal Worker
 ```
 
 ### VibeCody Red Team Architecture
+
 ```
 CLI (vibecli --redteam) or REPL (/redteam scan) or VibeUI (RedTeamPanel)
   └─ 5-Stage Pipeline (redteam.rs):

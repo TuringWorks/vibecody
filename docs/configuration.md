@@ -114,6 +114,10 @@ API keys can be set as environment variables instead of (or in addition to) the 
 | `GEMINI_API_KEY` | Google Gemini |
 | `GROK_API_KEY` | xAI Grok |
 | `OLLAMA_HOST` | Ollama base URL (overrides `api_url`) |
+| `GITHUB_TOKEN` | GitHub personal access token (for `@github:` context) |
+| `JIRA_BASE_URL` | Jira instance URL, e.g. `https://myorg.atlassian.net` |
+| `JIRA_EMAIL` | Jira account email (for basic auth) |
+| `JIRA_API_TOKEN` | Jira API token (for basic auth) |
 
 **Example:**
 
@@ -316,7 +320,7 @@ min_session_steps = 3      # Only record sessions with ≥ N tool calls
 
 After a session completes, the LLM generates 1–3 concise bullet points and appends them:
 
-```
+```text
 <!-- auto-recorded 2026-02-24 -->
 - Always check for existing tests before adding new ones
 - Use `cargo check` before `cargo build` to catch compile errors faster

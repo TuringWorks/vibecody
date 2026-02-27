@@ -281,6 +281,7 @@ These features VibeCody has that **none** of the competitors offer cleanly:
 #### 12.1 `/model` Mid-Session Switching
 
 **Files to modify:**
+
 - `vibecli/vibecli-cli/src/repl.rs` — add `"/model"` to `COMMANDS` array; dispatch to handler
 - `vibecli/vibecli-cli/src/main.rs` — hold provider in `Arc<Mutex<Arc<dyn AIProvider>>>` for hot-swap
 
@@ -295,6 +296,7 @@ These features VibeCody has that **none** of the competitors offer cleanly:
 ```
 
 **Acceptance criteria:**
+
 - `/model ollama/codellama` switches immediately; subsequent turns use new provider
 - `/model` with no args prints current provider and model
 - Invalid provider name prints error without crashing
@@ -304,6 +306,7 @@ These features VibeCody has that **none** of the competitors offer cleanly:
 #### 12.2 `/cost` Token Tracking
 
 **Files to modify:**
+
 - `vibeui/crates/vibe-ai/src/provider.rs` — add `TokenUsage { prompt_tokens: u32, completion_tokens: u32 }` to `CompletionResponse`
 - `vibeui/crates/vibe-ai/src/providers/claude.rs` — parse `usage` field from Claude API response
 - `vibeui/crates/vibe-ai/src/providers/openai.rs` — parse `usage` field from OpenAI API response
@@ -323,6 +326,7 @@ static PROVIDER_PRICING: &[(&str, f64, f64)] = &[
 ```
 
 **Acceptance criteria:**
+
 - `/cost` shows prompt tokens, completion tokens, total, and estimated USD cost
 - Ollama shows token count but `$0.00`
 
@@ -331,10 +335,12 @@ static PROVIDER_PRICING: &[(&str, f64, f64)] = &[
 #### 12.3 UserPromptSubmit Hook Event
 
 **Files to modify:**
+
 - `vibeui/crates/vibe-ai/src/hooks.rs` — add `HookEvent::UserPromptSubmit { prompt: String, session_id: String }`
 - `vibeui/crates/vibe-ai/src/agent.rs` — fire hook in `run_inner` before building the messages vec; if `HookDecision::Block`, emit `AgentEvent::Error` and return
 
 **Acceptance criteria:**
+
 - Hook fires before every new agent task
 - `exit 2` cancels the task with the hook's reason message
 - `{"context": "..."}` JSON response prepends extra context to the user message
@@ -344,6 +350,7 @@ static PROVIDER_PRICING: &[(&str, f64, f64)] = &[
 #### 12.4 LLM Hook Execution
 
 **Files to modify:**
+
 - `vibeui/crates/vibe-ai/src/hooks.rs` — implement the stubbed `HookHandler::Llm` arm; `HookRunner` accepts optional `Arc<dyn AIProvider>`
 
 ```rust
@@ -365,6 +372,7 @@ impl HookRunner {
 ```
 
 **Acceptance criteria:**
+
 - `handler = { llm = "Is this command safe? Respond {\"ok\": true} or {\"ok\": false, \"reason\": \"...\"}" }` works
 - LLM hook shares the same provider as the running agent
 
@@ -373,6 +381,7 @@ impl HookRunner {
 #### 12.5 Multiple Chat Tabs in VibeUI
 
 **Files to modify:**
+
 - `vibeui/src/App.tsx` — replace single `<AIChat />` with `<ChatTabManager />`
 - New `vibeui/src/components/ChatTabManager.tsx` — manages array of `{ id, title, messages, provider, model }` states
 
@@ -392,6 +401,7 @@ const [activeChatTabId, setActiveChatTabId] = useState("default");
 ```
 
 **Acceptance criteria:**
+
 - `+` button creates new tab with independent conversation
 - Switching tabs preserves message history
 - Each tab has its own provider/model dropdown
@@ -402,12 +412,14 @@ const [activeChatTabId, setActiveChatTabId] = useState("default");
 #### 12.6 Chunk-Level Diff Accept/Reject
 
 **Files to modify:**
+
 - New `vibeui/src/components/DiffReviewPanel.tsx` — parse unified diff into hunks; per-hunk Accept/Reject buttons
 - `vibeui/src-tauri/src/agent_executor.rs` — buffer `FileChange` artifacts; emit `agent:files_pending_review` before writing
 - `vibeui/src-tauri/src/commands.rs` — add `apply_file_changes(changes: Vec<FileChange>)` and `discard_file_changes()` Tauri commands
 - `vibeui/src/App.tsx` — listen for `agent:files_pending_review`; show `DiffReviewPanel` modal
 
 **Acceptance criteria:**
+
 - Agent changes are held until user approves
 - Per-hunk accept/reject works for new files and modifications
 - "Accept All" applies all immediately; "Reject All" discards all
@@ -418,11 +430,13 @@ const [activeChatTabId, setActiveChatTabId] = useState("default");
 #### 12.7 BYOK Settings UI
 
 **Files to modify:**
+
 - New `vibeui/src/components/SettingsPanel.tsx` — inputs for API keys + Ollama URL; Save button
 - `vibeui/src-tauri/src/commands.rs` — `get_provider_settings()` and `save_provider_settings()` Tauri commands reading `~/.vibecli/config.toml`
 - `vibeui/src/App.tsx` — add `"settings"` to `aiPanelTab` union type
 
 **Acceptance criteria:**
+
 - Keys are displayed masked (last 4 chars visible)
 - Saving writes to config without overwriting other fields
 - New keys take effect immediately for subsequent requests
@@ -432,11 +446,13 @@ const [activeChatTabId, setActiveChatTabId] = useState("default");
 #### 12.8 `@symbol`, `@codebase`, `@folder`, `@terminal` Context
 
 **Files to modify:**
+
 - `vibeui/src/components/ContextPicker.tsx` — add new prefix handlers for each context type
 - `vibeui/src-tauri/src/commands.rs` — `search_workspace_symbols(query)`, `semantic_search_codebase(query)` Tauri commands
 - `vibeui/crates/vibe-lsp/src/features.rs` — `workspace_symbol(query) -> Vec<SymbolInfo>` LSP call
 
 **Acceptance criteria:**
+
 - `@SymbolName` resolves via LSP to function/struct source code
 - `@codebase:query` runs embedding search; top-5 snippets injected
 - `@folder:src/components` lists all files under that path
@@ -449,6 +465,7 @@ const [activeChatTabId, setActiveChatTabId] = useState("default");
 #### 13.1 Rules Directory (`.vibecli/rules/`)
 
 **Files to create/modify:**
+
 - New `vibeui/crates/vibe-ai/src/rules.rs` — `Rule { name, path_pattern, content }`, `RulesLoader::load(dir)`, `matching(open_files)`
 - `vibeui/crates/vibe-ai/src/agent.rs` — inject matching rules into `build_system_prompt()` after skills section
 
@@ -469,6 +486,7 @@ pub struct Rule {
 ```
 
 **Acceptance criteria:**
+
 - Rules with `path_pattern: "**/*.ts"` only inject when TypeScript files are open
 - Rules with no pattern always inject
 - `/memory show` displays active rules alongside memory content
@@ -478,11 +496,13 @@ pub struct Rule {
 #### 13.2 Auto Memory Recording
 
 **Files to modify:**
+
 - New `vibecli/vibecli-cli/src/memory_recorder.rs` — `MemoryRecorder::record_session(trace, messages, provider)` — LLM summarizes → appends to memory.md
 - `vibecli/vibecli-cli/src/main.rs` — call after `AgentLoop::run()` completes if `config.memory.auto_record = true`
 - `vibecli/vibecli-cli/src/config.rs` — add `MemoryConfig { auto_record: bool, min_session_steps: usize }`
 
 **Acceptance criteria:**
+
 - After a 5+ step session, 1-3 learning bullet points appended to `~/.vibecli/memory.md`
 - Feature is opt-in via `[memory] auto_record = true`
 - Recording is async and doesn't delay session completion
@@ -492,6 +512,7 @@ pub struct Rule {
 #### 13.3 Wildcard Tool Permission Patterns
 
 **Files to modify:**
+
 - `vibeui/crates/vibe-ai/src/policy.rs` — add `tool_patterns: Vec<String>` to `AdminPolicy`; parse `tool(arg_pattern)` syntax; use existing `glob_match()` in `check_tool_with_args()`
 
 ```rust
@@ -512,6 +533,7 @@ fn check_tool_with_args(&self, tool_name: &str, primary_arg: &str) -> PolicyDeci
 ```
 
 **Acceptance criteria:**
+
 - `denied_tool_patterns = ["bash(rm*)"]` blocks `bash(rm -rf .)` but allows `bash(cargo build)`
 - Existing `denied_tools` exact-match continues to work
 
@@ -520,10 +542,12 @@ fn check_tool_with_args(&self, tool_name: &str, primary_arg: &str) -> PolicyDeci
 #### 13.4 `apiKeyHelper` Rotating Credentials
 
 **Files to modify:**
+
 - `vibecli/vibecli-cli/src/config.rs` — add `api_key_helper: Option<String>` to `ProviderConfig`
 - Each provider (`claude.rs`, `openai.rs`, etc.) — add `resolve_api_key()` async method; run helper script; use stdout as Bearer token
 
 **Acceptance criteria:**
+
 - `api_key_helper = "~/.vibecli/get-key.sh claude"` executed before each API call
 - If script exits non-zero, falls back to static `api_key`
 
@@ -532,11 +556,13 @@ fn check_tool_with_args(&self, tool_name: &str, primary_arg: &str) -> PolicyDeci
 #### 13.5 MCP Server Manager UI
 
 **Files to modify:**
+
 - New `vibeui/src/components/McpManagerPanel.tsx` — list configured servers with status indicator; Add/Remove/Test buttons; tool browser per server
 - `vibeui/src-tauri/src/commands.rs` — `list_mcp_servers()`, `add_mcp_server()`, `remove_mcp_server()`, `test_mcp_server()`, `list_mcp_server_tools()` Tauri commands
 - `vibeui/src/App.tsx` — add `"mcp"` to `aiPanelTab`
 
 **Acceptance criteria:**
+
 - Configured MCP servers from config appear in the list
 - "Test" button spawns server, runs initialize, reports tool count
 - Tool browser shows names and descriptions
@@ -548,6 +574,7 @@ fn check_tool_with_args(&self, tool_name: &str, primary_arg: &str) -> PolicyDeci
 #### 14.1 Inline Chat / Cmd+K Edit Overlay
 
 **Files to modify:**
+
 - `vibeui/src/App.tsx` — register Monaco `addCommand(KeyMod.CtrlCmd | KeyCode.KeyK, ...)` after editor mount; capture selection + range; show `<InlineChat>`
 - New `vibeui/src/components/InlineChat.tsx` — Monaco overlay widget; text input; streaming response; Accept/Reject buttons
 - `vibeui/src-tauri/src/commands.rs` — `inline_edit(request: InlineEditRequest) -> String` Tauri command
@@ -568,6 +595,7 @@ interface InlineChatProps {
 ```
 
 **Acceptance criteria:**
+
 - Cmd+K opens floating input within 100ms
 - Response streams in real-time in overlay
 - Accept replaces selection; Reject/Escape closes with no changes
@@ -578,11 +606,13 @@ interface InlineChatProps {
 #### 14.2 Next-Edit Prediction (Tab Acceptance)
 
 **Files to modify:**
+
 - `vibeui/src/App.tsx` — in Monaco `onMount`, register `monaco.languages.registerInlineCompletionItemProvider('*', { provideInlineCompletions: ... })`; call `invoke("predict_next_edit", {...})` with 500ms debounce
 
 The `predict_next_edit` Tauri command (Phase 7.3) is already implemented — only the frontend wiring is needed.
 
 **Acceptance criteria:**
+
 - Ghost text appears after 500ms of cursor inactivity
 - Tab accepts suggestion; Escape dismisses
 - Debounced to avoid excessive API calls
@@ -592,11 +622,13 @@ The `predict_next_edit` Tauri command (Phase 7.3) is already implemented — onl
 #### 14.3 Linter Integration (Auto-Fix After Write)
 
 **Files to modify:**
+
 - New `vibeui/src/utils/LinterIntegration.ts` — `runLinter(filePath, fileType): Promise<LintResult>`; reads from `.vibecli/linters.toml` or uses defaults (eslint, cargo clippy, etc.)
 - `vibeui/src/components/AgentPanel.tsx` — after `write_file` step, call `runLinter`; if errors, inject as next agent context
 - New Tauri command `inject_agent_context(text: String)` — appends user message to running agent's queue
 
 **Acceptance criteria:**
+
 - After writing a `.ts` file, eslint runs automatically (if configured)
 - Lint errors injected as "[Linter] eslint found 2 errors: ..."
 - Agent gets one auto-fix turn before returning to user
@@ -606,9 +638,11 @@ The `predict_next_edit` Tauri command (Phase 7.3) is already implemented — onl
 #### 14.4 PTY-Backed Bash Tool
 
 **Files to modify:**
+
 - `vibecli/vibecli-cli/src/tool_executor.rs` — implement `exec_bash_pty()` using `portable_pty` (already in Cargo.toml via vibe-core); strip ANSI codes before returning; enforce 120s timeout
 
 **Acceptance criteria:**
+
 - Interactive programs (npm install, cargo build) work correctly
 - Output still capped at `MAX_TOOL_OUTPUT` chars
 - Backward-compatible: existing tests pass unchanged
@@ -618,11 +652,13 @@ The `predict_next_edit` Tauri command (Phase 7.3) is already implemented — onl
 #### 14.5 `@docs` Context (Library Documentation)
 
 **Files to modify:**
+
 - `vibeui/src/components/ContextPicker.tsx` — add `@docs:` special prefix
 - New `vibeui/src/utils/DocsResolver.ts` — `resolveDoc(name): Promise<string>`; detects language from open files; fetches from docs.rs/npmjs.com/pypi
 - New Tauri command `fetch_doc_content(name, registry)` — HTTP fetch from Rust side (avoids CORS)
 
 **Acceptance criteria:**
+
 - `@docs:tokio` fetches and injects tokio crate API summary
 - Results cached for 24 hours
 - Fetch errors show inline warning
@@ -632,6 +668,7 @@ The `predict_next_edit` Tauri command (Phase 7.3) is already implemented — onl
 #### 14.6 opusplan Model Routing
 
 **Files to modify:**
+
 - `vibecli/vibecli-cli/src/config.rs` — add `[routing]` section with `planning_provider`, `planning_model`, `execution_provider`, `execution_model`
 - `vibecli/vibecli-cli/src/main.rs` — build two providers; pass `planning_provider` to `PlannerAgent::new()` and `execution_provider` to `AgentLoop::new()`
 
@@ -645,6 +682,7 @@ execution_model = "claude-sonnet-4-6"
 ```
 
 **Acceptance criteria:**
+
 - `/plan` uses `planning_model`; `--agent` uses `execution_model`
 - Falls back to `--provider`/`--model` flags if routing config absent
 - `vibecli --doctor` shows active planning and execution models
@@ -656,11 +694,13 @@ execution_model = "claude-sonnet-4-6"
 #### 15.1 Remote Codebase Indexing Service
 
 **Files to create:**
+
 - New `vibe-indexer/` Cargo workspace member — Axum HTTP server with `POST /index`, `GET /index/status/:id`, `POST /search` endpoints; uses same `EmbeddingIndex` from `vibe-core`
 - `vibeui/crates/vibe-core/src/index/remote.rs` — `RemoteEmbeddingIndex` implementing same `search()` interface over HTTP
 - `vibeui/crates/vibe-core/src/index/mod.rs` — add `IndexBackend::Remote { url, api_key }` variant
 
 **Acceptance criteria:**
+
 - Indexes 100K-file monorepo in under 5 minutes
 - Search latency under 200ms
 - Configured via `[index] backend = "remote"` + `url`
@@ -670,12 +710,14 @@ execution_model = "claude-sonnet-4-6"
 #### 15.2 JetBrains Plugin
 
 **Files to create:**
+
 - New `jetbrains-plugin/` directory with Kotlin/Gradle plugin structure
 - `VibeCLIService.kt` — HTTP client connecting to `vibecli serve` daemon
 - `AgentToolWindow.kt` — IntelliJ tool window with Chat and Agent panels
 - `InlineEditAction.kt` — Cmd+K equivalent using daemon API
 
 **Acceptance criteria:**
+
 - Installs from JetBrains Marketplace ZIP
 - Connects to local `vibecli serve` daemon
 - Chat and agent task submission works
@@ -686,6 +728,7 @@ execution_model = "claude-sonnet-4-6"
 #### 15.3 `@vibecli` GitHub PR Bot
 
 **Files to create:**
+
 - `.github/workflows/pr-bot.yml` — triggered by `issue_comment` events containing `@vibecli`
 - `.github/actions/vibecli-pr-bot/action.yml` — composite action: install VibeCLI, run agent on PR context, post comment
 
@@ -707,6 +750,7 @@ jobs:
 ```
 
 **Acceptance criteria:**
+
 - `@vibecli fix TypeScript errors` triggers agent on PR diff
 - Result posted as reply to triggering comment
 - Works with all supported providers via GitHub Secrets
@@ -774,6 +818,7 @@ jobs:
 ## 10. Implementation Sequence Recommendations
 
 **Start Phase 12 with** the highest-leverage items first:
+
 1. `/model` switching (small, unblocks per-chat model in VibeUI)
 2. `/cost` display (small, high visibility)
 3. Multiple chat tabs (medium, high user value)
@@ -781,16 +826,19 @@ jobs:
 5. Image attachment `-i` flag (tiny, `ImageAttachment::from_path` already exists)
 
 **Start Phase 13 with:**
+
 1. Rules directory (enables path-targeted context injection in Phase 14)
 2. Auto memory recording (differentiates from all competitors)
 3. Wildcard tool patterns (closes admin policy gap cleanly)
 
 **Start Phase 14 with:**
+
 1. Inline chat Cmd+K (largest competitive gap vs Cursor, highest effort — start early)
 2. Linter integration (leverages existing LSP plumbing in vibe-lsp)
 3. opusplan routing (small change, big marketing value)
 
 **Phase 15 items** should be evaluated quarterly based on user demand:
+
 - JetBrains plugin → enterprise adoption
 - Remote indexing → large monorepos
 - GitHub PR bot → organic discovery

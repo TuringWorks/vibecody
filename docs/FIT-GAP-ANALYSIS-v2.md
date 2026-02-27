@@ -1,4 +1,5 @@
 # VibeCody Fit-Gap Analysis v2 — Full Competitive Landscape
+
 **Date:** 2026-02-26 (updated)
 **VibeCLI competitors:** Codex CLI, Warp 2.0, Kiro, opencode, Claude Code, Aider, Cline, Continue.dev, Amazon Q Developer
 **VibeUI competitors:** Antigravity (Google), Cursor, Windsurf, Replit, Base44, Lovable, Zed AI, Void
@@ -73,6 +74,8 @@
 | cargo audit in CI | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ |
 | Code Complete workflow (8-stage) | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | LSP diagnostics panel (TUI) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| @jira issue context | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ |
+| @github issue context | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ |
 | Streaming REPL chat (token-by-token) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Tab-completion for REPL commands | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
 
@@ -81,6 +84,7 @@
 ### A.2 Competitor Deep-Dive
 
 #### Codex CLI (OpenAI)
+
 - **Approval modes:** read-only / auto (default) / full-access; `/permissions` mid-session switching
 - **OS sandbox:** macOS Seatbelt, Docker, Windows Sandbox — default blocks network + limits filesystem writes
 - **Network approval:** rich host/protocol context shown in prompts; structured network approval IDs per command
@@ -93,6 +97,7 @@
 Warp is the **most complete** VibeCLI competitor in 2026. It ships as a single app with four integrated pillars.
 
 **Core Architecture (4 pillars):**
+
 - **Code:** full editor with AI inline completions, natural language to command
 - **Agents:** autonomous multi-step task execution with terminal access
 - **Terminal:** GPU-accelerated, block-based output, SSH, tmux multiplexing
@@ -100,6 +105,7 @@ Warp is the **most complete** VibeCLI competitor in 2026. It ships as a single a
 
 **Warp Drive (biggest gap vs VibeCLI):**
 Warp Drive is a *shared knowledge base for humans and agents*:
+
 - Centralized MCP server configurations (all team members get the same MCP setup)
 - Shared rules (coding standards, tool preferences) — checked in but synced via Drive
 - Shared commands: team-curated bash one-liners, named and searchable
@@ -108,22 +114,26 @@ Warp Drive is a *shared knowledge base for humans and agents*:
 - Prompts: reusable AI prompt templates shared across team
 
 **Multi-Agent Orchestration:**
+
 - Native agent status panel with per-agent autonomy settings
 - Notifications when agents complete or need input
 - Up to N agents running concurrently; each gets own context window
 - Indexed 120,000+ codebases; processed trillions of LLM tokens in 2025
 
 **Ambient Agent Session Sharing (unique to Warp):**
+
 - Remote VM agents (cloud-based execution) viewable in Warp web viewer
 - Anyone with the share link can: inspect context/logs, give follow-up instructions, fork the session to their local environment
 - Real-time session streaming — watch agent work live
 
 **SSH + Remote Development:**
+
 - SSH via tmux Control Mode (Warpify remote connections)
 - Remote sessions get full Warp UI features: completions, AI, blocks
 - Warp for Windows: native Windows terminal with agentic features (2026)
 
 **External Integrations:**
+
 - Slack: trigger agents from Slack, receive results back
 - Linear: create/update issues from terminal; link tasks to agent runs
 - GitHub Actions: dispatch workflows from Warp; agents triggered by CI failures
@@ -147,6 +157,7 @@ Warp Drive is a *shared knowledge base for humans and agents*:
 **Remaining gap:** ambient session sharing, remote VM execution, GPU terminal
 
 #### Kiro (Amazon, VS Code fork)
+
 - **Spec-driven development:** NL requirements → user stories + acceptance criteria → technical design → task list
 - **Steering files:** project-scope context (coding standards, workflows) — analogous to `.cursorrules` but more structured
 - **Agent hooks:** automated triggers on file-system events (save, create, delete) — not just tool-use hooks
@@ -185,6 +196,7 @@ opencode is the **most technically ambitious** open-source CLI agent in 2026, bu
 **Remaining gap:** None material — VibeCLI matches or exceeds opencode on all axes.
 
 #### Claude Code (Anthropic)
+
 - **Subagents:** up to 7 parallel with `--worktree (-w)` git worktree isolation
 - **Background agents:** `background: true` in agent definition — always runs async
 - **Hooks:** SubagentStop event with `last_assistant_message` field
@@ -193,6 +205,7 @@ opencode is the **most technically ambitious** open-source CLI agent in 2026, bu
 - **VibeCLI status:** ✅ worktree isolation (`--worktree`), ✅ background agents (background_agents.rs), ✅ 4-level VIBECLI.md, ❌ MCP OAuth not yet
 
 #### Aider (Paul Gauthier)
+
 - **Strength:** Best-in-class git commit workflow — auto-commits every AI change with descriptive messages
 - **Strength:** Wide LLM support (any OpenAI-compatible API, 50+ models)
 - **Strength:** Architect + Editor dual-model mode (cheap fast model for edits, expensive model for planning)
@@ -201,6 +214,7 @@ opencode is the **most technically ambitious** open-source CLI agent in 2026, bu
 - **VibeCLI gap to close:** Architect+Editor dual-model routing → ✅ already done via `opusplan` routing (planning_provider + execution_provider in config.rs)
 
 #### Cline (formerly Claude Dev)
+
 - **Strength:** Best VS Code agent (1M+ installs); deeply integrated into VS Code editor state
 - **Strength:** Shows diffs inline in editor, gets approval from editor UI not terminal
 - **Strength:** Auto-detects API errors and suggests cheaper models
@@ -209,14 +223,16 @@ opencode is the **most technically ambitious** open-source CLI agent in 2026, bu
 - **VibeCLI gap to close:** Better inline editor integration via VS Code extension ✅ (done in Phase 9.2 + Phase 31)
 
 #### Continue.dev (open source)
+
 - **Strength:** Most customizable open-source VS Code/JetBrains plugin
 - **Strength:** Any model via any provider; full `config.json` YAML customization
 - **Strength:** Context providers: `@codebase`, `@docs`, `@web`, `@terminal`, `@github`, `@jira`
 - **Strength:** Built-in embedding for codebase Q&A
 - **Weakness:** No agent mode (yet); just chat + tab completions; no CLI
-- **VibeCLI gap to close:** Continue's @github/@jira context providers → partial (we have @git, @docs, @web; missing @jira)
+- **VibeCLI gap to close:** ✅ Closed — @github and @jira context providers implemented in Phase 42
 
 #### Amazon Q Developer
+
 - **Strength:** Deep AWS integration; security scanning against OWASP/CWEs
 - **Strength:** `/dev` command generates multi-file changes with PR-style diff view
 - **Strength:** `/test` command generates comprehensive unit tests
@@ -284,7 +300,7 @@ opencode is the **most technically ambitious** open-source CLI agent in 2026, bu
 | Multiplayer / real-time collab | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ | ✅ | ❌ |
 | Browser-embedded app testing | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Figma import | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
-| Custom domain / publish | ❌ | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ | ❌ | ❌ |
+| Custom domain / publish | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ | ❌ | ❌ |
 | Design mode | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ |
 | Point-and-prompt in live app | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Custom SWE model (SWE-1) | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
@@ -297,6 +313,7 @@ opencode is the **most technically ambitious** open-source CLI agent in 2026, bu
 | Inline confirmation dialogs | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Git auto-refresh | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ |
 | MCP server manager UI | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| MCP OAuth 2.0 install flow | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Path traversal protection | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 ---
@@ -304,11 +321,13 @@ opencode is the **most technically ambitious** open-source CLI agent in 2026, bu
 ### B.2 Competitor Deep-Dive
 
 #### Google Antigravity (Nov 2025, Gemini 3)
+
 - Agent-first IDE from Google, deeply integrated with Gemini 3 and Google Cloud/Firebase
 - **Unique:** native Firebase/GCP one-click deploy, Gemini 3 multimodal (image-to-code, video understanding)
 - **VibeUI gap:** GCP/Firebase deployment, multimodal file attachment in chat
 
 #### Cursor 2.0+
+
 - **Composer:** up to 8 parallel agents using git worktrees or remote machines
 - **Shadow workspace:** background hidden window that runs lint checks on AI-proposed code before showing diffs
 - **BugBot:** automated PR reviewer triggered on every PR; "Fix in Cursor" deep-link to problematic code
@@ -320,6 +339,7 @@ opencode is the **most technically ambitious** open-source CLI agent in 2026, bu
 - **Remaining gap:** MCP OAuth install, remote machine agents
 
 #### Windsurf (Codeium)
+
 - **Cascade:** tracks ALL actions to infer intent — no re-prompting needed
 - **SWE-1 model family:** purpose-built for software engineering; free to use
 - **Supercomplete:** cross-file multi-line prediction
@@ -328,6 +348,7 @@ opencode is the **most technically ambitious** open-source CLI agent in 2026, bu
 - **Remaining gap:** SWE-1-style fine-tuned model support, full cross-IDE plugin coverage
 
 #### Replit
+
 - **Agent 3:** 10x more autonomous; browser-embedded testing (AI controls cursor in live app)
 - **Self-healing:** proprietary test system, 3x faster + 10x cheaper than Computer Use
 - **Built-in stack:** auth + database (PostgreSQL) + hosting + monitoring in one click
@@ -336,12 +357,14 @@ opencode is the **most technically ambitious** open-source CLI agent in 2026, bu
 - **Remaining gap:** multiplayer/CRDT collab, hosted cloud environment
 
 #### Base44 (acquired by Wix)
+
 - **All-in-one:** UI + database + auth + hosting — no external services
 - **Press Publish → live:** zero deployment friction
 - **VibeUI status:** ✅ deploy panel, ✅ database UI, ✅ auth scaffolding, ❌ custom domain, ❌ fully hosted stack
 - **Remaining gap:** self-contained hosting stack, press-to-publish UX, custom domains
 
 #### Lovable 2.0
+
 - **Full-stack generation:** React + Supabase from NL description
 - **GitHub bidirectional sync:** real-time sync to/from GitHub repo
 - **Supabase integration:** auth, database, storage out-of-the-box
@@ -350,6 +373,7 @@ opencode is the **most technically ambitious** open-source CLI agent in 2026, bu
 - **VibeUI status:** ✅ GitHub sync, ✅ Supabase, ✅ Design mode, ✅ Figma import, ❌ custom domain, ❌ multiplayer
 
 #### Zed AI (Zed Industries)
+
 - **AI-native editor** written in Rust + GPUI; sub-1ms keystrokes
 - **Agent panel:** Claude-native integration; task delegation from editor
 - **Context:** @file, @symbol, @web built-in; LSP hovers in chat
@@ -359,6 +383,7 @@ opencode is the **most technically ambitious** open-source CLI agent in 2026, bu
 - **VibeCLI gap:** Zed has no agent API / daemon; VibeCLI wins here
 
 #### Void (Open Source Cursor Alternative)
+
 - **Open source** drop-in Cursor replacement (VS Code fork)
 - **Bring Your Own Keys:** all providers, fully local
 - **Agent:** multi-file editing with checkpoint system
@@ -516,46 +541,55 @@ Completed. See git commit history.
 ## Part Q — Phases 24–37: Recent Completions
 
 ### Phase 24: Vim TUI Editor ✅
+
 Full modal editor in VibeCLI TUI — Normal/Insert/Visual/VisualLine/Command/Search modes, hjkl/dd/yy/p/u/gg/G/Ctrl+f/b, /search+n/N, :w/:q/:wq/:set number.
 
 ### Phase 25: AWS Bedrock + GitHub Copilot + Notebook Runner ✅
+
 - AWS Bedrock via manual SigV4 (sha2+hmac+hex, no chrono dependency)
 - GitHub Copilot device-flow OAuth + 30min token cache
 - `.vibe` notebook format: YAML frontmatter + markdown + bash/python/rust/node cells
 
 ### Phase 26: Supabase + Auth + GitHub Sync ✅
+
 - SupabasePanel: PostgREST introspection, SQL queries, AI-generated queries
 - AuthPanel: 4 auth providers × 5 frameworks, AI-generated scaffold code
 - GitHubSyncPanel: ahead/behind, commit+push, pull, create repo
 
 ### Phase 27: Steering Files + Release Pipeline ✅
+
 - SteeringPanel.tsx: workspace/global scopes, templates, CRUD
 - `.github/workflows/release.yml`: macOS arm64/x86, Linux musl amd64/aarch64, Windows x64
 - `install.sh`: curl one-liner with OS+arch detection
 
 ### Phase 28: Auto-Memories + BugBot + Linear ✅
+
 - AutoFactsTab in MemoryPanel with confidence badges, pin/delete/add
 - BugBotPanel: severity/category filters, expand-to-details, fix snippets
 - `/linear list/new/open/attach` REPL commands + GraphQL client
 
 ### Phase 29: File-Event Hooks + --watch + Neovim Plugin + Browser Actions ✅
+
 - `HookEvent::FileSaved` fired after WriteFile in agent.rs
 - `--watch/--watch-glob/--sandbox` flags + `run_watch_mode()` via notify crate
 - Neovim plugin: `:VibeCLI`, `:VibeCLIAsk`, `:VibeCLIInline`, SSE streaming
 - `agent_browser_action`: Navigate/GetText via reqwest, Screenshot via screencapture
 
 ### Phase 30: REPL Streaming + Context Expansion + Snippets ✅
+
 - `stream_chat()` with `futures::StreamExt` token-by-token output
 - `expand_at_refs()` in main.rs for @file:/@web:/@docs:/@git
 - `/snippet save/list/use/show/delete` at `~/.vibecli/snippets/`
 
 ### Phase 31: Embedding Index + VS Code v2 + Neovim CMP ✅
+
 - `semantic_search_codebase` upgraded to EmbeddingIndex → cosine fallback → keyword
 - `build_embedding_index` Tauri command (ollama/openai providers)
 - VS Code ext: `vibecli.inlineEdit` (Cmd+Shift+K), streaming chat webview, auto file-ctx
 - `cmp_vibecli.lua`: slash-commands + @context completions for Neovim
 
 ### Phases 32–37: Quality + Security + Polish ✅
+
 - **Toast system**: `useToast` hook + `Toaster` component; all `alert()` calls replaced
 - **AgentPanel**: Stop button (AbortHandle), Copy (clipboard), Expand/Collapse per step
 - **AIChat**: Clear + Stop generation, auto-scroll, copy on assistant messages
@@ -695,6 +729,7 @@ VibeCody Phase 41 adds an autonomous red team security scanning module inspired 
 [`docs/SHANNON-COMPARISON.md`](/shannon-comparison/).
 
 Key differences:
+
 - **Shannon**: Standalone pentesting tool, TypeScript + Temporal + Docker, Claude-primary, ~$50/scan, AGPL-3.0
 - **VibeCody RedTeam**: Integrated into development workflow, Rust + Tokio, 10+ LLM providers, per-token cost, MIT
 
@@ -771,31 +806,31 @@ covering supply chain security, daemon hardening, data protection, and defense-i
 
 ### Security Architecture Summary
 
-```
+```text
 ┌───────────────────────────────────────────────────┐
-│                   VibeCLI Daemon                   │
+│                   VibeCLI Daemon                  │
 │                                                   │
-│  ┌─────────┐  ┌──────────┐  ┌──────────────────┐ │
-│  │  CORS   │→ │  Auth    │→ │  Rate Limiter    │ │
-│  │localhost│  │ Bearer   │  │  60 req/60s      │ │
-│  └─────────┘  └──────────┘  └──────────────────┘ │
+│  ┌─────────┐  ┌──────────┐  ┌──────────────────┐  │
+│  │  CORS   │→ │  Auth    │→ │  Rate Limiter    │  │
+│  │localhost│  │ Bearer   │  │  60 req/60s      │  │
+│  └─────────┘  └──────────┘  └──────────────────┘  │
 │       │             │              │              │
 │       ▼             ▼              ▼              │
 │  ┌──────────────────────────────────────────────┐ │
-│  │  Security Headers (CSP, X-Frame, nosniff)   │ │
+│  │  Security Headers (CSP, X-Frame, nosniff)    │ │
 │  └──────────────────────────────────────────────┘ │
 │  ┌──────────────────────────────────────────────┐ │
 │  │  Body Size Limit (1 MB)                      │ │
 │  └──────────────────────────────────────────────┘ │
 │       │                                           │
 │       ▼                                           │
-│  ┌────────────┐  ┌────────────┐  ┌────────────┐ │
-│  │ /chat      │  │ /agent     │  │ /sessions  │ │
-│  │ /jobs      │  │ /stream    │  │ /view/:id  │ │
-│  │ (authed)   │  │ (authed)   │  │ (public)   │ │
-│  └────────────┘  └────────────┘  └────────────┘ │
-│       │               │              │           │
-│       ▼               ▼              ▼           │
+│  ┌────────────┐  ┌────────────┐  ┌────────────┐   │
+│  │ /chat      │  │ /agent     │  │ /sessions  │   │
+│  │ /jobs      │  │ /stream    │  │ /view/:id  │   │
+│  │ (authed)   │  │ (authed)   │  │ (public)   │   │
+│  └────────────┘  └────────────┘  └────────────┘   │
+│       │               │              │            │
+│       ▼               ▼              ▼            │
 │  ┌──────────────────────────────────────────────┐ │
 │  │  Error Sanitization (generic 500 messages)   │ │
 │  └──────────────────────────────────────────────┘ │
@@ -808,7 +843,7 @@ covering supply chain security, daemon hardening, data protection, and defense-i
 └───────────────────────────────────────────────────┘
 
 ┌───────────────────────────────────────────────────┐
-│               Supply Chain Security                │
+│               Supply Chain Security               │
 │  ✓ SHA-256 checksum verification (install.sh)     │
 │  ✓ SHA-pinned GitHub Actions (6 actions)          │
 │  ✓ cargo audit in CI (blocks release on CVEs)     │
@@ -816,11 +851,11 @@ covering supply chain security, daemon hardening, data protection, and defense-i
 └───────────────────────────────────────────────────┘
 
 ┌───────────────────────────────────────────────────┐
-│               Runtime Protections                  │
+│               Runtime Protections                 │
 │  ✓ Path traversal jail-check (all file ops)       │
 │  ✓ Cryptographic session IDs (128-bit random)     │
 │  ✓ HTTP client timeouts (90s/30s + 10s connect)   │
-│  ✓ Regex-hardened command blocklist                │
+│  ✓ Regex-hardened command blocklist               │
 │  ✓ Randomized temp file paths (TOCTOU prevention) │
 │  ✓ OS sandbox (macOS sandbox-exec, Linux bwrap)   │
 │  ✓ Gemini API key in header (not URL)             │

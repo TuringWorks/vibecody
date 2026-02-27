@@ -16,7 +16,7 @@ VibeUI provides a VS Code-like editing experience with a native Rust backend, Mo
 
 ```text
 ┌──────────────────────────────────────────────────────────────────┐
-│                    Frontend (React + TypeScript)                  │
+│                    Frontend (React + TypeScript)                 │
 │  Monaco Editor │ AI Chat │ Agent Panel  │ Manager View           │
 │  Git Panel │ Terminal │ Command Palette │ Review Panel           │
 │  Checkpoints │ Artifacts │ Hooks Config │ History                │
@@ -24,7 +24,7 @@ VibeUI provides a VS Code-like editing experience with a native Rust backend, Mo
 └──────────────────────────┬───────────────────────────────────────┘
                            │ Tauri IPC (invoke / events)
 ┌──────────────────────────▼───────────────────────────────────────┐
-│                   Tauri Rust Backend                              │
+│                   Tauri Rust Backend                             │
 │  commands.rs    — 60+ Tauri commands (files, git, AI, agent …)   │
 │  agent_executor — ToolExecutorTrait for agent tool calls         │
 │  flow.rs        — Flow Awareness Engine (activity tracking)      │
@@ -32,10 +32,10 @@ VibeUI provides a VS Code-like editing experience with a native Rust backend, Mo
 └──────────────────────────┬───────────────────────────────────────┘
                            │
          ┌─────────────────┴──────────────────────┐
-         │          Rust Library Crates            │
+         │          Rust Library Crates           │
          ├─────────────┬──────────────────────────┤
          │ vibe-core   │ vibe-ai                  │
-         │ vibe-lsp    │ vibe-extensions           │
+         │ vibe-lsp    │ vibe-extensions          │
          └─────────────┴──────────────────────────┘
 ```
 
@@ -128,8 +128,12 @@ Type `@` in the chat input to open the **Context Picker** — a dropdown that le
 | `@terminal` | Last 200 lines of terminal output (ANSI-stripped) |
 | `@symbol:<name>` | Symbol search via `CodebaseIndex`, returns source snippet |
 | `@codebase:<query>` | Semantic codebase search via `CodebaseIndex` |
+| `@github:owner/repo#N` | Fetch GitHub issue/PR title, state, author, labels, body |
+| `@jira:PROJECT-123` | Fetch Jira issue summary, status, assignee, description |
 
 The backend resolves references via `resolve_at_references()` in `commands.rs` and injects them into the system prompt.
+
+**Jira** requires `JIRA_BASE_URL`, `JIRA_EMAIL`, and `JIRA_API_TOKEN` environment variables. **GitHub** uses optional `GITHUB_TOKEN` for higher rate limits.
 
 #### Smart Context Builder
 
@@ -295,6 +299,14 @@ The AI panel (toggle with **💬 AI Chat** in the header) has the following tabs
 | **⚙️ Keys** | `SettingsPanel` | BYOK API key management for all cloud providers |
 | **📐 Specs** | `SpecPanel` | Spec-driven development: AI-generated user stories, tasks, and acceptance criteria |
 | **🏗️ Workflow** | `WorkflowPanel` | Code Complete 8-stage development pipeline with AI-generated checklists per stage |
+| **🛡️ RedTeam** | `RedTeamPanel` | Autonomous 5-stage pentest pipeline with findings feed, CVSS scores, and report export |
+| **🔌 MCP** | `McpPanel` | MCP server management with OAuth 2.0 install flow and tool testing |
+| **🚀 Deploy** | `DeployPanel` | Deploy to 6 targets (Vercel/Netlify/Railway/GH Pages/GCP/Firebase) with custom domain support |
+| **🐛 BugBot** | `BugBotPanel` | AI code scanner with severity/category filter and fix snippets |
+| **🐘 Supabase** | `SupabasePanel` | Supabase connection, table browser, SQL editor, AI query |
+| **🔐 Auth** | `AuthPanel` | Auth scaffold generator (4 providers × 5 frameworks) |
+| **🐙 GH Sync** | `GitHubSyncPanel` | GitHub sync with ahead/behind status, push/pull, repo management |
+| **🧭 Steering** | `SteeringPanel` | Workspace/global steering files with templates |
 
 ---
 
@@ -481,6 +493,44 @@ The React frontend communicates with the Rust backend using Tauri's `invoke()` I
 | Command | Description |
 |---------|-------------|
 | `run_code_review(workspace_path, base_ref?, target_ref?)` | Run AI code review, return structured report |
+
+### MCP Server Management
+
+| Command | Description |
+|---------|-------------|
+| `get_mcp_servers()` | Load configured MCP servers from `~/.vibeui/mcp.json` |
+| `save_mcp_servers(servers)` | Persist MCP server configurations |
+| `test_mcp_server(server)` | Test a server and list its tools |
+| `initiate_mcp_oauth(server_name, client_id, auth_url, token_url, redirect_uri, scopes)` | Build OAuth URL and open browser for authorization |
+| `complete_mcp_oauth(server_name, auth_code, client_id, token_url, redirect_uri)` | Exchange auth code for token, persist to `~/.vibeui/mcp-tokens.json` |
+| `get_mcp_token_status(server_name)` | Check OAuth token status (connected/expired) |
+
+#### MCP OAuth Flow
+
+The MCP panel supports OAuth 2.0 for authenticating with MCP servers:
+
+1. Click **OAuth** on a server → enter Client ID, Auth URL, Token URL, and Scopes
+2. Click **Open Browser** → authorize in your browser
+3. Paste the authorization code back into the modal
+4. Token is exchanged and stored at `~/.vibeui/mcp-tokens.json`
+
+Connected servers show a green **🔑 OAuth** badge.
+
+### Deploy & Custom Domains
+
+| Command | Description |
+|---------|-------------|
+| `detect_deploy_target(workspace)` | Auto-detect deploy target from project files |
+| `run_deploy(target, workspace)` | Deploy to selected target (Vercel/Netlify/Railway/GH Pages/GCP/Firebase) |
+| `get_deploy_history()` | List previous deployments |
+| `set_custom_domain(target, domain)` | Configure a custom domain for the selected target |
+
+#### Custom Domain Support
+
+After deploying, enter a custom domain in the **🌐 Custom Domain** field:
+
+- **Vercel**: calls the Vercel REST API (requires `VERCEL_TOKEN` env var)
+- **Other targets**: returns CNAME record instructions for manual DNS configuration
 
 ### Code Complete Workflow
 

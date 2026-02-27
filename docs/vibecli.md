@@ -134,7 +134,7 @@ In REPL mode, the following slash commands are available:
 
 ### Chat with AI
 
-```
+```text
 > /chat explain how the ropey crate works
 > What are the time complexities for common rope operations?
 ```
@@ -143,7 +143,7 @@ Once a conversation is started, you can type freely without `/chat`.
 
 ### Generate Code
 
-```
+```text
 > /generate a Rust function that parses TOML from a string and returns a HashMap
 💾 Save to file? (y/N or filename): parser.rs
 ✅ Saved to: parser.rs
@@ -151,7 +151,7 @@ Once a conversation is started, you can type freely without `/chat`.
 
 ### Apply AI Changes to a File
 
-```
+```text
 > /apply src/main.rs add proper error handling using anyhow
 
 📊 Proposed changes:
@@ -165,7 +165,7 @@ Once a conversation is started, you can type freely without `/chat`.
 
 ### AI-Suggested Command
 
-```
+```text
 > /exec list all Rust files modified in the last 7 days
 📝 Suggested command: find . -name "*.rs" -mtime -7
 ⚠️  Execute this command? (y/N): y
@@ -224,6 +224,33 @@ vibecli --exec "add docstrings to all public functions" \
 ```
 
 **Exit codes:** `0` = success, `1` = partial, `2` = failed, `3` = approval required.
+
+---
+
+## @ Context Types
+
+VibeCLI supports inline context injection using `@` references in chat messages:
+
+| Reference | Description |
+|-----------|-------------|
+| `@file:<path>` | Contents of a specific file |
+| `@file:<path>:N-M` | Specific line range from a file |
+| `@folder:<path>` | Recursive directory tree listing |
+| `@web:<url>` | Fetched & stripped plain text from a URL |
+| `@docs:<lib>` | Library documentation (e.g. `@docs:tokio`, `@docs:npm:express`, `@docs:py:requests`) |
+| `@git` | Current branch, changed files, and diff excerpt |
+| `@terminal` | Last 200 lines of terminal output |
+| `@symbol:<name>` | Source code for a named symbol (function, struct, etc.) |
+| `@codebase:<query>` | Semantic search over the codebase |
+| `@github:owner/repo#N` | Fetch a GitHub issue or PR (uses `GITHUB_TOKEN` env var) |
+| `@jira:PROJECT-123` | Fetch a Jira issue (uses `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN` env vars) |
+
+Example:
+
+```
+> /chat @jira:AUTH-456 explain this ticket and suggest an implementation plan
+> /chat @github:torvalds/linux#1234 summarize this issue
+```
 
 ---
 

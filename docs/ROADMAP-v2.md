@@ -53,6 +53,9 @@ All nine roadmap phases (1–5 original, 6–9 in this document) are complete. V
 | Code Complete workflow (8-stage) | ✅ /workflow | ✅ WorkflowPanel |
 | LSP diagnostics panel | ✅ /check TUI command | — |
 | Session sharing | ✅ /share | — |
+| @jira context | ✅ @jira:PROJECT-123 | ✅ ContextPicker |
+| MCP OAuth install flow | — | ✅ McpPanel OAuth modal |
+| Custom domain / publish | — | ✅ DeployPanel domain config |
 | VibeCLI daemon (serve) | ✅ | — |
 | VS Code extension | ✅ | — |
 | Agent SDK (TypeScript) | ✅ | — |
@@ -1170,6 +1173,18 @@ vibeui (React + Tauri)
 | RedTeamPanel.tsx | ✅ | Pipeline stage visualization, target URL input, findings feed with severity badges + CVSS scores, expand-to-details with PoC + remediation, report export button; 🛡️ RedTeam tab in AI panel |
 | Tauri commands | ✅ | start_redteam_scan, get_redteam_sessions, get_redteam_findings, generate_redteam_report, cancel_redteam_scan |
 | Shannon comparison doc | ✅ | `docs/SHANNON-COMPARISON.md` — full feature matrix, architectural comparison, integration opportunities |
+
+---
+
+## 7.11 Phase 42 — Jira Context, MCP OAuth, Custom Domains ✅
+
+**Status:** Complete
+
+| Item | Status | Details |
+|------|--------|---------|
+| `@jira:PROJECT-123` context | ✅ | VibeCLI `expand_at_refs()` + VibeUI `resolve_at_references()` + `ContextPicker.tsx` autocomplete; Jira REST API v2 with basic auth; env vars: `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN` |
+| MCP OAuth install flow | ✅ | `McpPanel.tsx` two-step modal (configure → paste auth code); 3 Tauri commands (`initiate_mcp_oauth`, `complete_mcp_oauth`, `get_mcp_token_status`); tokens at `~/.vibeui/mcp-tokens.json`; green 🔑 badge |
+| Custom domain / publish | ✅ | `DeployPanel.tsx` domain input + `set_custom_domain` Tauri command; Vercel REST API with `VERCEL_TOKEN`; CNAME instructions for other targets |
 
 ---
 
