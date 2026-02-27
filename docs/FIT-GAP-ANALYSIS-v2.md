@@ -596,6 +596,13 @@ After all completed phases, VibeCLI + VibeUI is the **most complete AI developme
 | Notebook runner | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Linear/Slack/Telegram/Discord | ✅ all 4 | Partial | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Path traversal protection | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Secrets scrubbing in traces | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ |
+| Daemon bearer-token auth | ✅ | — | — | — | — | — | — | — |
+| Rate limiting + body limits | ✅ | — | — | — | — | — | — | — |
+| Security headers (CSP/HSTS) | ✅ | — | — | — | — | — | — | — |
+| Graceful shutdown (SIGTERM) | ✅ | — | — | — | — | — | — | — |
+| cargo audit + SHA-pinned CI | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ |
+| Restrictive config file perms | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ |
 | /rewind checkpoints | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | /snippet library | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 
@@ -706,4 +713,120 @@ Key differences:
 
 ---
 
-*Updated 2026-02-26 — reflects all phases 12–41 complete (including Phase 40 Code Complete Workflow). All file paths reference the VibeCody monorepo at github.com/TuringWorks/vibecody.*
+## Part T — Security Hardening Audit (Post Phase 42)
+
+A comprehensive application security review was performed across the VibeCody codebase,
+covering supply chain security, daemon hardening, data protection, and defense-in-depth.
+20 findings were identified across 4 priority tiers and all have been resolved.
+
+### Audit Scope
+
+| Area | Files Reviewed | Findings |
+|------|----------------|----------|
+| Supply chain (install, CI) | `install.sh`, `release.yml` | 3 |
+| HTTP daemon security | `serve.rs` | 8 |
+| Path traversal / file ops | `tool_executor.rs`, `shadow_workspace.rs`, `commands.rs`, `executor.rs` | 4 |
+| Data protection (traces/logs) | `trace.rs`, `session_store.rs`, `config.rs` | 3 |
+| Provider security | `bedrock.rs`, `copilot.rs`, `bugbot.rs`, `gemini.rs` | 3 |
+
+### P0 — Critical (3 items, all resolved)
+
+| # | Finding | Fix | File |
+|---|---------|-----|------|
+| P0-1 | Binary installer has no integrity verification | SHA-256 checksum download + verification; hard-fail on mismatch | `install.sh` |
+| P0-2 | File operations allow path traversal outside workspace | `resolve_safe()` canonicalize + jail-check; `safe_join()` in shadow workspace; `safe_resolve_path()` in Tauri commands | `tool_executor.rs`, `shadow_workspace.rs`, `commands.rs` |
+| P0-3 | Session IDs are predictable (millisecond timestamps) | 128-bit cryptographic random hex IDs via `rand::thread_rng().gen::<u128>()` | `serve.rs` |
+
+### P1 — High (4 items, all resolved)
+
+| # | Finding | Fix | File |
+|---|---------|-----|------|
+| P1-1 | Daemon accepts requests from any origin, no authentication | CORS restricted to localhost; bearer-token auth middleware on all API endpoints; token generated per-session | `serve.rs` |
+| P1-2 | Session viewer HTML may have XSS | Verified: `escape_html()` applied to all 16 user-controlled fields (already in place) | `session_store.rs` |
+| P1-3 | HTTP clients have no timeouts (resource exhaustion) | `reqwest::Client::builder()` with 90s/10s timeouts (Bedrock, Copilot); 30s/10s (BugBot) | `bedrock.rs`, `copilot.rs`, `bugbot.rs` |
+| P1-4 | GitHub Actions use mutable tags (supply chain risk) | All 6 actions pinned to full commit SHAs with version comments | `release.yml` |
+
+### P2 — Medium (7 items, all resolved)
+
+| # | Finding | Fix | File |
+|---|---------|-----|------|
+| P2-1 | API keys/tokens can leak into JSONL traces and SQLite sessions | `redact_secrets()` with 9 regex patterns; applied to `record()` and `save_messages()`; 7 unit tests | `trace.rs` |
+| P2-2 | No request body size limit (memory exhaustion) | `DefaultBodyLimit::max(1 MB)` layer on all endpoints | `serve.rs` |
+| P2-3 | Error responses leak internal paths, DB errors, LLM error bodies | Generic `"Internal server error"` messages; real errors logged via `tracing::error!()` | `serve.rs` |
+| P2-4 | Temp file paths are predictable (TOCTOU race) | Screenshot: 128-bit random hex; sandbox profile: PID + 64-bit random | `commands.rs`, `executor.rs` |
+| P2-5 | No dependency vulnerability scanning in CI | `cargo audit` job added before build matrix; blocks release on known CVEs | `release.yml` |
+| P2-6 | No rate limiting on daemon endpoints | Sliding-window rate limiter (60 req/60s) on authenticated endpoints; 429 response with `retry-after` | `serve.rs` |
+| P2-7 | Gemini API key embedded in URL query parameter | Moved to `x-goog-api-key` HTTP header (Google's recommended approach) | `gemini.rs` |
+
+### P3 — Low / Hardening (6 items, all resolved)
+
+| # | Finding | Fix | File |
+|---|---------|-----|------|
+| P3-1 | No security response headers on HTTP responses | `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Content-Security-Policy`, `Referrer-Policy: no-referrer` | `serve.rs` |
+| P3-2 | Shadow workspace uses predictable PID-only temp path | PID + 64-bit random hex suffix | `shadow_workspace.rs` |
+| P3-3 | Log injection via unsanitized user strings in `tracing::warn!` | Switched to structured field syntax (`file = %file`) | `review.rs`, `executor.rs` |
+| P3-4 | No graceful shutdown (SIGTERM leaves jobs stuck as "running") | `shutdown_signal()` handles SIGINT + SIGTERM; wired into `axum::serve().with_graceful_shutdown()` | `serve.rs` |
+| P3-5 | Command blocklist easily bypassed (whitespace, flag reorder, quoting) | Regex-based matching with normalized whitespace; 8 patterns covering `rm`, `dd`, fork bombs, `mkfs`, `chmod 777`, `shred` | `executor.rs` |
+| P3-6 | Config file with API keys world-readable (default umask 0644) | `~/.vibecli/` dir set to `0o700`; config.toml and job files set to `0o600` (Unix) | `config.rs`, `serve.rs` |
+
+### Security Architecture Summary
+
+```
+┌───────────────────────────────────────────────────┐
+│                   VibeCLI Daemon                   │
+│                                                   │
+│  ┌─────────┐  ┌──────────┐  ┌──────────────────┐ │
+│  │  CORS   │→ │  Auth    │→ │  Rate Limiter    │ │
+│  │localhost│  │ Bearer   │  │  60 req/60s      │ │
+│  └─────────┘  └──────────┘  └──────────────────┘ │
+│       │             │              │              │
+│       ▼             ▼              ▼              │
+│  ┌──────────────────────────────────────────────┐ │
+│  │  Security Headers (CSP, X-Frame, nosniff)   │ │
+│  └──────────────────────────────────────────────┘ │
+│  ┌──────────────────────────────────────────────┐ │
+│  │  Body Size Limit (1 MB)                      │ │
+│  └──────────────────────────────────────────────┘ │
+│       │                                           │
+│       ▼                                           │
+│  ┌────────────┐  ┌────────────┐  ┌────────────┐ │
+│  │ /chat      │  │ /agent     │  │ /sessions  │ │
+│  │ /jobs      │  │ /stream    │  │ /view/:id  │ │
+│  │ (authed)   │  │ (authed)   │  │ (public)   │ │
+│  └────────────┘  └────────────┘  └────────────┘ │
+│       │               │              │           │
+│       ▼               ▼              ▼           │
+│  ┌──────────────────────────────────────────────┐ │
+│  │  Error Sanitization (generic 500 messages)   │ │
+│  └──────────────────────────────────────────────┘ │
+│  ┌──────────────────────────────────────────────┐ │
+│  │  Trace Writer (redact_secrets → JSONL/SQLite)│ │
+│  └──────────────────────────────────────────────┘ │
+│  ┌──────────────────────────────────────────────┐ │
+│  │  Graceful Shutdown (SIGINT/SIGTERM handler)  │ │
+│  └──────────────────────────────────────────────┘ │
+└───────────────────────────────────────────────────┘
+
+┌───────────────────────────────────────────────────┐
+│               Supply Chain Security                │
+│  ✓ SHA-256 checksum verification (install.sh)     │
+│  ✓ SHA-pinned GitHub Actions (6 actions)          │
+│  ✓ cargo audit in CI (blocks release on CVEs)     │
+│  ✓ File permissions 0o600 on config (API keys)    │
+└───────────────────────────────────────────────────┘
+
+┌───────────────────────────────────────────────────┐
+│               Runtime Protections                  │
+│  ✓ Path traversal jail-check (all file ops)       │
+│  ✓ Cryptographic session IDs (128-bit random)     │
+│  ✓ HTTP client timeouts (90s/30s + 10s connect)   │
+│  ✓ Regex-hardened command blocklist                │
+│  ✓ Randomized temp file paths (TOCTOU prevention) │
+│  ✓ OS sandbox (macOS sandbox-exec, Linux bwrap)   │
+│  ✓ Gemini API key in header (not URL)             │
+└───────────────────────────────────────────────────┘
+```
+
+---
+
+*Updated 2026-02-26 — reflects all phases 12–42 complete, plus full security hardening audit (P0–P3, 20 items). All file paths reference the VibeCody monorepo at github.com/TuringWorks/vibecody.*
