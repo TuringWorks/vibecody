@@ -172,6 +172,9 @@ pub fn run() {
             commands::get_mcp_servers,
             commands::save_mcp_servers,
             commands::test_mcp_server,
+            commands::initiate_mcp_oauth,
+            commands::complete_mcp_oauth,
+            commands::get_mcp_token_status,
             // Symbol + codebase search
             commands::search_workspace_symbols,
             commands::semantic_search_codebase,
@@ -203,6 +206,7 @@ pub fn run() {
             commands::detect_deploy_target,
             commands::run_deploy,
             commands::get_deploy_history,
+            commands::set_custom_domain,
             commands::find_sqlite_files,
             commands::list_db_tables,
             commands::query_db,

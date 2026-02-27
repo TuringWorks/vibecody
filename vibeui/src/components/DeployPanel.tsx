@@ -46,6 +46,9 @@ export function DeployPanel({ workspacePath }: DeployPanelProps) {
   const [logs, setLogs] = useState<string[]>([]);
   const [deployedUrl, setDeployedUrl] = useState<string | null>(null);
   const [history, setHistory] = useState<DeployRecord[]>([]);
+  const [customDomain, setCustomDomain] = useState("");
+  const [domainResult, setDomainResult] = useState<{ domain: string; cname_target: string; instructions: string } | null>(null);
+  const [domainBusy, setDomainBusy] = useState(false);
   const logsEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -90,6 +93,22 @@ export function DeployPanel({ workspacePath }: DeployPanelProps) {
     } finally {
       setIsDeploying(false);
       unlisten();
+    }
+  };
+
+  const handleSetDomain = async () => {
+    if (!customDomain.trim()) return;
+    setDomainBusy(true);
+    setDomainResult(null);
+    try {
+      const result = await invoke<{ domain: string; cname_target: string; instructions: string }>(
+        "set_custom_domain", { target: selectedTarget, domain: customDomain.trim() }
+      );
+      setDomainResult(result);
+    } catch (e) {
+      setDomainResult({ domain: customDomain, cname_target: "", instructions: `Error: ${e}` });
+    } finally {
+      setDomainBusy(false);
     }
   };
 
@@ -159,6 +178,36 @@ export function DeployPanel({ workspacePath }: DeployPanelProps) {
           </a>
         </div>
       )}
+
+      {/* Custom Domain */}
+      <div>
+        <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>🌐 Custom Domain</div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <input
+            type="text"
+            value={customDomain}
+            onChange={(e) => setCustomDomain(e.target.value)}
+            placeholder="myapp.example.com"
+            onKeyDown={(e) => e.key === "Enter" && handleSetDomain()}
+            style={{ flex: 1, padding: "6px 10px", fontSize: 12, fontFamily: "monospace", background: "var(--bg-secondary, #1e1e2e)", border: "1px solid var(--border, #2a2a3e)", borderRadius: 4, color: "var(--text-primary, #cdd6f4)", outline: "none" }}
+          />
+          <button
+            onClick={handleSetDomain}
+            disabled={domainBusy || !customDomain.trim()}
+            style={{ padding: "6px 12px", fontSize: 12, background: "#6366f1", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", whiteSpace: "nowrap" }}
+          >
+            {domainBusy ? "…" : "Add Domain"}
+          </button>
+        </div>
+        {domainResult && (
+          <div style={{ marginTop: 8, background: "var(--bg-secondary, #1e1e2e)", border: "1px solid var(--border, #2a2a3e)", borderRadius: 6, padding: 10 }}>
+            <div style={{ fontSize: 11, color: "#cba6f7", marginBottom: 4 }}>DNS Instructions</div>
+            <pre style={{ fontSize: 11, margin: 0, whiteSpace: "pre-wrap", fontFamily: "monospace", color: "var(--text-primary, #cdd6f4)" }}>
+              {domainResult.instructions}
+            </pre>
+          </div>
+        )}
+      </div>
 
       {/* Log stream */}
       {logs.length > 0 && (

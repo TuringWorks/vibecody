@@ -1960,6 +1960,128 @@ pub async fn test_mcp_server(server: serde_json::Value) -> Result<Vec<McpToolInf
     .map_err(|e| format!("Task error: {}", e))?
 }
 
+// ─── MCP OAuth Commands ────────────────────────────────────────────────────────
+
+fn mcp_token_path() -> std::path::PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    std::path::PathBuf::from(home).join(".vibeui").join("mcp-tokens.json")
+}
+
+fn load_mcp_tokens() -> serde_json::Map<String, serde_json::Value> {
+    let path = mcp_token_path();
+    if let Ok(text) = std::fs::read_to_string(&path) {
+        if let Ok(serde_json::Value::Object(map)) = serde_json::from_str(&text) {
+            return map;
+        }
+    }
+    serde_json::Map::new()
+}
+
+fn save_mcp_tokens(tokens: &serde_json::Map<String, serde_json::Value>) -> Result<(), String> {
+    let path = mcp_token_path();
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let text = serde_json::to_string_pretty(&serde_json::Value::Object(tokens.clone()))
+        .map_err(|e| e.to_string())?;
+    std::fs::write(&path, text).map_err(|e| e.to_string())
+}
+
+/// Build the OAuth authorization URL and open it in the system browser.
+/// The caller is responsible for listening to the redirect and passing the code
+/// to `complete_mcp_oauth`.
+#[tauri::command]
+pub async fn initiate_mcp_oauth(
+    app: tauri::AppHandle,
+    server_name: String,
+    client_id: String,
+    auth_url: String,
+    redirect_uri: String,
+    scopes: String,
+) -> Result<String, String> {
+    use tauri_plugin_opener::OpenerExt;
+    // Validate the auth_url starts with https
+    if !auth_url.starts_with("https://") && !auth_url.starts_with("http://localhost") {
+        return Err("auth_url must start with https:// or http://localhost".to_string());
+    }
+    let state_token = format!("vibecli-{}-{}", server_name, std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs());
+    let oauth_url = {
+        let params: Vec<(&str, &str)> = vec![
+            ("client_id",     &client_id),
+            ("redirect_uri",  &redirect_uri),
+            ("response_type", "code"),
+            ("scope",         &scopes),
+            ("state",         &state_token),
+        ];
+        let qs: String = url::form_urlencoded::Serializer::new(String::new())
+            .extend_pairs(params)
+            .finish();
+        format!("{}?{}", auth_url, qs)
+    };
+    app.opener()
+        .open_url(&oauth_url, None::<&str>)
+        .map_err(|e| format!("Failed to open browser: {}", e))?;
+    Ok(state_token)
+}
+
+/// Exchange an authorization code for a token and persist it.
+#[tauri::command]
+pub async fn complete_mcp_oauth(
+    server_name: String,
+    code: String,
+    token_url: String,
+    client_id: String,
+    redirect_uri: String,
+) -> Result<String, String> {
+    if !token_url.starts_with("https://") && !token_url.starts_with("http://localhost") {
+        return Err("token_url must start with https:// or http://localhost".to_string());
+    }
+    let client = reqwest::Client::new();
+    let resp = client
+        .post(&token_url)
+        .form(&[
+            ("grant_type",    "authorization_code"),
+            ("code",          &code),
+            ("client_id",     &client_id),
+            ("redirect_uri",  &redirect_uri),
+        ])
+        .send()
+        .await
+        .map_err(|e| format!("Token request failed: {}", e))?;
+    let body: serde_json::Value = resp.json().await.map_err(|e| format!("Token parse error: {}", e))?;
+    let access_token = body["access_token"].as_str()
+        .ok_or_else(|| format!("No access_token in response: {}", body))?
+        .to_string();
+    // Persist token
+    let mut tokens = load_mcp_tokens();
+    tokens.insert(server_name.clone(), serde_json::json!({
+        "access_token": access_token,
+        "token_type":   body["token_type"].as_str().unwrap_or("Bearer"),
+        "expires_in":   body["expires_in"].as_u64().unwrap_or(3600),
+        "obtained_at":  std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs(),
+    }));
+    save_mcp_tokens(&tokens)?;
+    Ok(access_token)
+}
+
+/// Return whether a token is stored for the given MCP server name.
+#[tauri::command]
+pub async fn get_mcp_token_status(server_name: String) -> Result<serde_json::Value, String> {
+    let tokens = load_mcp_tokens();
+    if let Some(rec) = tokens.get(&server_name) {
+        let obtained = rec["obtained_at"].as_u64().unwrap_or(0);
+        let expires  = rec["expires_in"].as_u64().unwrap_or(3600);
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs();
+        let expired = now > obtained + expires;
+        Ok(serde_json::json!({ "connected": true, "expired": expired }))
+    } else {
+        Ok(serde_json::json!({ "connected": false, "expired": true }))
+    }
+}
+
 // ─── Checkpoint Commands ───────────────────────────────────────────────────────
 
 #[derive(Serialize)]
@@ -4121,6 +4243,102 @@ pub async fn get_deploy_history() -> Vec<DeployRecord> {
         .and_then(|p| std::fs::read_to_string(p).ok())
         .and_then(|s| serde_json::from_str::<Vec<DeployRecord>>(&s).ok())
         .unwrap_or_default()
+}
+
+// ── Custom domain (Phase 42) ──────────────────────────────────────────────────
+
+#[derive(serde::Serialize)]
+pub struct CustomDomainResult {
+    pub domain: String,
+    pub cname_target: String,
+    pub instructions: String,
+}
+
+/// Attempt to add a custom domain alias to a deployed project.
+///
+/// For Vercel it calls the Vercel REST API (requires `VERCEL_TOKEN` + `VERCEL_PROJECT_ID` env vars).
+/// For all other targets it returns CNAME record instructions the user can apply manually.
+#[tauri::command]
+pub async fn set_custom_domain(
+    target: String,
+    domain: String,
+) -> Result<CustomDomainResult, String> {
+    // Validate domain (must not be empty, no scheme prefix)
+    let domain = domain.trim().trim_start_matches("https://").trim_start_matches("http://").to_string();
+    if domain.is_empty() || domain.contains('/') {
+        return Err("Invalid domain — provide a bare hostname like myapp.example.com".to_string());
+    }
+
+    match target.as_str() {
+        "vercel" => {
+            let token = std::env::var("VERCEL_TOKEN")
+                .map_err(|_| "Set VERCEL_TOKEN environment variable to use Vercel custom domains")?;
+            let project_id = std::env::var("VERCEL_PROJECT_ID")
+                .unwrap_or_else(|_| "my-project".to_string());
+            let client = reqwest::Client::new();
+            let resp = client
+                .post(format!("https://api.vercel.com/v9/projects/{}/domains", project_id))
+                .bearer_auth(&token)
+                .json(&serde_json::json!({ "name": domain }))
+                .send()
+                .await
+                .map_err(|e| format!("Vercel API error: {}", e))?;
+            if resp.status().is_success() {
+                Ok(CustomDomainResult {
+                    domain: domain.clone(),
+                    cname_target: "cname.vercel-dns.com".to_string(),
+                    instructions: format!(
+                        "Domain {} added to Vercel.\nAdd a CNAME record:\n  {} → cname.vercel-dns.com",
+                        domain, domain
+                    ),
+                })
+            } else {
+                let body = resp.text().await.unwrap_or_default();
+                Err(format!("Vercel API returned error: {}", body))
+            }
+        }
+        "netlify" => Ok(CustomDomainResult {
+            domain: domain.clone(),
+            cname_target: "apex-loadbalancer.netlify.com".to_string(),
+            instructions: format!(
+                "To point {} to Netlify:\n  Add a CNAME record:\n    {} → apex-loadbalancer.netlify.com\n  Or use Netlify DNS for automatic management.",
+                domain, domain
+            ),
+        }),
+        "railway" => Ok(CustomDomainResult {
+            domain: domain.clone(),
+            cname_target: "railway.app".to_string(),
+            instructions: format!(
+                "To use {} with Railway:\n  1. In Railway dashboard → Settings → Domains → Add Domain\n  2. Add a CNAME record:\n     {} → your-app.railway.app",
+                domain, domain
+            ),
+        }),
+        "github-pages" => Ok(CustomDomainResult {
+            domain: domain.clone(),
+            cname_target: "your-username.github.io".to_string(),
+            instructions: format!(
+                "To use {} with GitHub Pages:\n  1. Create a CNAME file in your repo root containing: {}\n  2. Add a CNAME record: {} → your-username.github.io\n  3. Enable the domain in repo Settings → Pages",
+                domain, domain, domain
+            ),
+        }),
+        "gcp-run" => Ok(CustomDomainResult {
+            domain: domain.clone(),
+            cname_target: "ghs.googlehosted.com".to_string(),
+            instructions: format!(
+                "To map {} to Cloud Run:\n  gcloud beta run domain-mappings create --service SERVICE_NAME --domain {}\n  Then add a CNAME record: {} → ghs.googlehosted.com",
+                domain, domain, domain
+            ),
+        }),
+        "firebase" => Ok(CustomDomainResult {
+            domain: domain.clone(),
+            cname_target: "firebase-app.web.app".to_string(),
+            instructions: format!(
+                "To connect {} to Firebase Hosting:\n  firebase hosting:sites:add {}\n  Then follow the DNS instructions shown by the Firebase CLI.",
+                domain, domain
+            ),
+        }),
+        _ => Err(format!("Custom domain not supported for target: {}", target)),
+    }
 }
 
 // ── Database commands (Phase 20) ─────────────────────────────────────────────

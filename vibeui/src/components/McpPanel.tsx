@@ -13,6 +13,19 @@ interface McpToolInfo {
     description: string;
 }
 
+interface OAuthForm {
+    serverName: string;
+    clientId: string;
+    authUrl: string;
+    tokenUrl: string;
+    redirectUri: string;
+    scopes: string;
+    authCode: string;
+    step: "config" | "code";
+    busy: boolean;
+    msg: string | null;
+}
+
 const EMPTY_SERVER: McpServer = { name: "", command: "", args: [], env: {} };
 
 export function McpPanel() {
@@ -24,10 +37,71 @@ export function McpPanel() {
     const [testing, setTesting] = useState<number | null>(null);
     const [testResult, setTestResult] = useState<Record<number, McpToolInfo[] | string>>({});
     const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
+    const [oauthForm, setOauthForm] = useState<OAuthForm | null>(null);
+    const [tokenStatus, setTokenStatus] = useState<Record<string, boolean>>({});
 
     useEffect(() => {
         loadServers();
     }, []);
+
+    // Load token status for all servers whenever the list changes
+    useEffect(() => {
+        servers.forEach((srv) => {
+            invoke<{ connected: boolean; expired: boolean }>("get_mcp_token_status", { serverName: srv.name })
+                .then((s) => setTokenStatus((prev) => ({ ...prev, [srv.name]: s.connected && !s.expired })))
+                .catch(() => {});
+        });
+    }, [servers]);
+
+    function startOAuth(serverName: string) {
+        setOauthForm({
+            serverName,
+            clientId: "",
+            authUrl: "",
+            tokenUrl: "",
+            redirectUri: "http://localhost:7879/oauth/callback",
+            scopes: "read",
+            authCode: "",
+            step: "config",
+            busy: false,
+            msg: null,
+        });
+    }
+
+    async function initiateOAuth() {
+        if (!oauthForm) return;
+        setOauthForm((f) => f && { ...f, busy: true, msg: null });
+        try {
+            await invoke("initiate_mcp_oauth", {
+                serverName: oauthForm.serverName,
+                clientId: oauthForm.clientId,
+                authUrl: oauthForm.authUrl,
+                redirectUri: oauthForm.redirectUri,
+                scopes: oauthForm.scopes,
+            });
+            setOauthForm((f) => f && { ...f, busy: false, step: "code", msg: "Browser opened. Paste the authorization code below." });
+        } catch (e) {
+            setOauthForm((f) => f && { ...f, busy: false, msg: `Error: ${e}` });
+        }
+    }
+
+    async function completeOAuth() {
+        if (!oauthForm) return;
+        setOauthForm((f) => f && { ...f, busy: true, msg: null });
+        try {
+            await invoke("complete_mcp_oauth", {
+                serverName: oauthForm.serverName,
+                code: oauthForm.authCode,
+                tokenUrl: oauthForm.tokenUrl,
+                clientId: oauthForm.clientId,
+                redirectUri: oauthForm.redirectUri,
+            });
+            setTokenStatus((prev) => ({ ...prev, [oauthForm.serverName]: true }));
+            setOauthForm(null);
+        } catch (e) {
+            setOauthForm((f) => f && { ...f, busy: false, msg: `Token exchange failed: ${e}` });
+        }
+    }
 
     async function loadServers() {
         setError(null);
@@ -156,6 +230,11 @@ export function McpPanel() {
                             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                                 <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", flex: 1 }}>
                                     {srv.name}
+                                    {tokenStatus[srv.name] && (
+                                        <span style={{ marginLeft: 6, fontSize: "10px", color: "#a6e3a1", background: "rgba(166,227,161,0.15)", padding: "1px 5px", borderRadius: 3 }}>
+                                            🔑 OAuth
+                                        </span>
+                                    )}
                                 </span>
                                 <button
                                     onClick={() => testServer(idx)}
@@ -163,6 +242,13 @@ export function McpPanel() {
                                     style={{ padding: "2px 8px", fontSize: "11px", background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "3px", color: "var(--text-primary)", cursor: "pointer" }}
                                 >
                                     {testing === idx ? "Testing…" : "Test"}
+                                </button>
+                                <button
+                                    onClick={() => startOAuth(srv.name)}
+                                    style={{ padding: "2px 8px", fontSize: "11px", background: tokenStatus[srv.name] ? "rgba(166,227,161,0.15)" : "var(--bg-tertiary)", border: `1px solid ${tokenStatus[srv.name] ? "#a6e3a1" : "var(--border-color)"}`, borderRadius: "3px", color: tokenStatus[srv.name] ? "#a6e3a1" : "var(--text-primary)", cursor: "pointer" }}
+                                    title="Connect via OAuth"
+                                >
+                                    OAuth
                                 </button>
                                 <button
                                     onClick={() => startEdit(idx)}
@@ -283,6 +369,61 @@ export function McpPanel() {
                             >
                                 {saving ? "Saving…" : editIdx === null ? "Add" : "Save"}
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* OAuth Setup Modal */}
+            {oauthForm && (
+                <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 110 }}>
+                    <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "8px", padding: "20px", width: "380px", display: "flex", flexDirection: "column", gap: "10px" }}>
+                        <div style={{ fontSize: "13px", fontWeight: 600 }}>
+                            🔑 OAuth Setup — {oauthForm.serverName}
+                        </div>
+                        {oauthForm.step === "config" ? (
+                            <>
+                                <label style={{ fontSize: "12px", display: "flex", flexDirection: "column", gap: "3px" }}>
+                                    Client ID
+                                    <input type="text" value={oauthForm.clientId} onChange={(e) => setOauthForm((f) => f && { ...f, clientId: e.target.value })} placeholder="your-client-id" style={inputStyle} />
+                                </label>
+                                <label style={{ fontSize: "12px", display: "flex", flexDirection: "column", gap: "3px" }}>
+                                    Authorization URL
+                                    <input type="text" value={oauthForm.authUrl} onChange={(e) => setOauthForm((f) => f && { ...f, authUrl: e.target.value })} placeholder="https://provider.example.com/oauth/authorize" style={inputStyle} />
+                                </label>
+                                <label style={{ fontSize: "12px", display: "flex", flexDirection: "column", gap: "3px" }}>
+                                    Token URL
+                                    <input type="text" value={oauthForm.tokenUrl} onChange={(e) => setOauthForm((f) => f && { ...f, tokenUrl: e.target.value })} placeholder="https://provider.example.com/oauth/token" style={inputStyle} />
+                                </label>
+                                <label style={{ fontSize: "12px", display: "flex", flexDirection: "column", gap: "3px" }}>
+                                    Scopes (space-separated)
+                                    <input type="text" value={oauthForm.scopes} onChange={(e) => setOauthForm((f) => f && { ...f, scopes: e.target.value })} placeholder="read write" style={inputStyle} />
+                                </label>
+                            </>
+                        ) : (
+                            <label style={{ fontSize: "12px", display: "flex", flexDirection: "column", gap: "3px" }}>
+                                Authorization Code
+                                <input autoFocus type="text" value={oauthForm.authCode} onChange={(e) => setOauthForm((f) => f && { ...f, authCode: e.target.value })} placeholder="Paste the code from your browser" style={inputStyle} />
+                            </label>
+                        )}
+                        {oauthForm.msg && (
+                            <div style={{ fontSize: "11px", padding: "6px 8px", borderRadius: "4px", background: oauthForm.msg.startsWith("Error") ? "rgba(220,50,50,0.15)" : "rgba(166,227,161,0.15)", color: oauthForm.msg.startsWith("Error") ? "#f44" : "#a6e3a1" }}>
+                                {oauthForm.msg}
+                            </div>
+                        )}
+                        <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end", marginTop: "4px" }}>
+                            <button onClick={() => setOauthForm(null)} style={{ padding: "6px 14px", fontSize: "12px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "4px", color: "var(--text-primary)", cursor: "pointer" }}>
+                                Cancel
+                            </button>
+                            {oauthForm.step === "config" ? (
+                                <button onClick={initiateOAuth} disabled={oauthForm.busy || !oauthForm.clientId || !oauthForm.authUrl} style={{ padding: "6px 14px", fontSize: "12px", background: "var(--accent-blue, #007acc)", border: "none", borderRadius: "4px", color: "#fff", cursor: "pointer" }}>
+                                    {oauthForm.busy ? "Opening…" : "Open Browser"}
+                                </button>
+                            ) : (
+                                <button onClick={completeOAuth} disabled={oauthForm.busy || !oauthForm.authCode} style={{ padding: "6px 14px", fontSize: "12px", background: "#a6e3a1", border: "none", borderRadius: "4px", color: "#1e1e2e", cursor: "pointer", fontWeight: 600 }}>
+                                    {oauthForm.busy ? "Exchanging…" : "Connect"}
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
