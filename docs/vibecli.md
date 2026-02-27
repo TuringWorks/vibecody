@@ -341,6 +341,10 @@ Endpoints:
 | POST | `/chat/stream` | Streaming SSE chat |
 | POST | `/agent/start` | Start an agent task |
 | GET | `/agent/:id/stream` | Stream agent events via SSE |
+| GET | `/ws/collab/:room_id` | WebSocket for CRDT collab (token auth via `?token=`) |
+| POST | `/collab/rooms` | Create a collab room |
+| GET | `/collab/rooms` | List active collab rooms |
+| GET | `/collab/rooms/:id/peers` | List peers in a room |
 
 ---
 
@@ -580,3 +584,4 @@ vibecli/
 | `opentelemetry` + `tracing-opentelemetry` | OTLP tracing |
 | `vibe-ai` | AI provider, agent, hooks, skills, artifacts |
 | `vibe-core` | Git, diff, file utilities, codebase indexing |
+| `vibe-collab` | CRDT multiplayer collaboration (yrs + DashMap + Axum WS) |

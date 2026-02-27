@@ -56,6 +56,7 @@ All nine roadmap phases (1–5 original, 6–9 in this document) are complete. V
 | @jira context | ✅ @jira:PROJECT-123 | ✅ ContextPicker |
 | MCP OAuth install flow | — | ✅ McpPanel OAuth modal |
 | Custom domain / publish | — | ✅ DeployPanel domain config |
+| CRDT multiplayer collab | ✅ serve.rs WS | ✅ CollabPanel + useCollab |
 | VibeCLI daemon (serve) | ✅ | — |
 | VS Code extension | ✅ | — |
 | Agent SDK (TypeScript) | ✅ | — |
@@ -1059,6 +1060,7 @@ for await (const event of agent.run('Add TypeScript strict mode to all files')) 
 | Agent skills | ✅ | ❌ | ✅ | ❌ |
 | Multi-provider (5+) | ✅ | partial | partial | ✅ |
 | Rust native backend | ✅ | ❌ | ❌ | partial |
+| CRDT multiplayer collab | ✅ | ❌ | ❌ | ❌ |
 
 ---
 
@@ -1092,6 +1094,13 @@ vibe-core
 ├── context.rs         (smart context builder: flow + semantic + git)
 ├── executor.rs        (sandboxed execution + shell env policy)
 └── git.rs             (worktree: create, remove, merge)
+
+vibe-collab
+├── server.rs          (CollabServer: DashMap room registry)
+├── room.rs            (CollabRoom: Y.Doc + peer list + broadcast)
+├── protocol.rs        (Yjs binary sync: SyncStep1/2/Update)
+├── awareness.rs       (cursor state + 8-color palette)
+└── error.rs
 
 vibe-extensions
 └── loader.rs          (wasmtime WASM host)
@@ -1196,6 +1205,37 @@ vibeui (React + Tauri)
 |------|--------|---------|
 | Test runner system | ✅ | `detect_test_framework` + `run_tests` Tauri commands; auto-detects Cargo/npm/pytest/Go; streams `test:log` events; parses structured output; `TestPanel.tsx` (🧪 Tests tab) with framework badge, live log, filter tabs, pass/fail badges; `/test` REPL command in VibeCLI |
 | AI commit message generation | ✅ | `generate_commit_message` Tauri command; `git diff --staged` → AI prompt → imperative one-liner; "✨ AI" button in `GitPanel.tsx` fills commit textarea |
+
+## 7.13 Phase 43 — CRDT Multiplayer Collaboration ✅
+
+**Status:** Complete
+
+Real-time collaborative editing powered by [yrs](https://github.com/y-crdt/y-crdt) (the Rust port of Yjs). Multiple users edit the same file simultaneously with automatic conflict resolution via CRDTs.
+
+| Item | Status | Details |
+|------|--------|---------|
+| `vibe-collab` crate | ✅ | New shared crate: `CollabServer` (DashMap room registry), `CollabRoom` (Y.Doc per room, Y.Text per file path, broadcast fan-out), `protocol.rs` (Yjs binary sync: SyncStep1/SyncStep2/Update), `awareness.rs` (cursor state + 8-color peer palette), `error.rs` |
+| WebSocket transport | ✅ | Axum 0.7 `extract::ws` handler at `/ws/collab/:room_id`; bearer token auth via query param; binary frames for Yjs sync, text frames for JSON session coordination; peer join/leave broadcast |
+| REST room management | ✅ | `POST /collab/rooms` (create), `GET /collab/rooms` (list), `GET /collab/rooms/:room_id/peers` (peer list); protected by existing auth + rate-limit middleware |
+| Tauri commands | ✅ | `create_collab_session`, `join_collab_session`, `leave_collab_session`, `list_collab_peers`, `get_collab_status` — 5 new commands registered in `lib.rs` |
+| `CollabPanel.tsx` | ✅ | Create/join room UI, peer list with color indicators, copy invite link, leave session; "👥 Collab" 25th AI panel tab |
+| `useCollab.ts` hook | ✅ | React hook managing WebSocket connection, Y.Doc lifecycle, awareness state, peer tracking, reconnection |
+| NPM dependencies | ✅ | `yjs ^13.6.0`, `y-monaco ^0.1.6`, `y-websocket ^2.0.0` added to `vibeui/package.json` |
+| Tests | ✅ | 15 unit tests: room lifecycle, peer management, room full, Y.Doc sync convergence, incremental updates, message serialization, color cycling, server cleanup |
+
+### Architecture
+
+```text
+  Client A (VibeUI)              VibeCLI Daemon                Client B (VibeUI)
+  ┌──────────────┐               ┌──────────────┐             ┌──────────────┐
+  │ Monaco Editor│               │  CollabServer │             │ Monaco Editor│
+  │      ↕       │               │  ┌──────────┐│             │      ↕       │
+  │ y-monaco     │──WebSocket──→ │  │CollabRoom││ ←─WebSocket─│ y-monaco     │
+  │ Y.Doc (JS)   │  (binary)     │  │ Y.Doc(Rs)││   (binary)  │ Y.Doc (JS)   │
+  │ y-websocket  │               │  │ broadcast ││             │ y-websocket  │
+  └──────────────┘               │  └──────────┘│             └──────────────┘
+                                 └──────────────┘
+```
 
 ---
 

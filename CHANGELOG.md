@@ -8,6 +8,18 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **Phase 43**: CRDT multiplayer collaboration — new `vibe-collab` crate powered by `yrs` (Yjs
+  Rust port) + `dashmap` concurrent room registry; `CollabServer` manages rooms, `CollabRoom`
+  holds a `Y.Doc` per room with per-file `Y.Text` and broadcast fan-out; Yjs binary sync protocol
+  (SyncStep1/SyncStep2/Update) over Axum 0.7 WebSocket; `AwarenessState` for cursor tracking with
+  8-color peer palette; `serve.rs` gains `/ws/collab/:room_id` WebSocket handler (token auth via
+  query param) + REST endpoints (`POST /collab/rooms`, `GET /collab/rooms`,
+  `GET /collab/rooms/:room_id/peers`); 5 Tauri commands (`create_collab_session`,
+  `join_collab_session`, `leave_collab_session`, `list_collab_peers`, `get_collab_status`);
+  `CollabPanel.tsx` (create/join room, peer list with color indicators, copy invite link, leave
+  session); `useCollab.ts` React hook for WebSocket lifecycle and awareness state; "👥 Collab"
+  25th AI panel tab; `yjs`, `y-monaco`, `y-websocket` npm dependencies added; 15 unit tests
+  (room lifecycle, peer management, Y.Doc sync convergence, incremental updates).
 - **Phase 43**: Test runner system — `detect_test_framework` auto-detects Cargo/npm/pytest/Go
   from project files; `run_tests` Tauri command spawns test subprocess and streams `test:log`
   events to the frontend; parses `cargo test --message-format=json`, pytest `-v`, and go test

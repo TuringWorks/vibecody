@@ -36,6 +36,7 @@ VibeUI provides a VS Code-like editing experience with a native Rust backend, Mo
          ├─────────────┬──────────────────────────┤
          │ vibe-core   │ vibe-ai                  │
          │ vibe-lsp    │ vibe-extensions          │
+         │ vibe-collab │                          │
          └─────────────┴──────────────────────────┘
 ```
 
@@ -308,6 +309,7 @@ The AI panel (toggle with **💬 AI Chat** in the header) has the following tabs
 | **🐙 GH Sync** | `GitHubSyncPanel` | GitHub sync with ahead/behind status, push/pull, repo management |
 | **🧭 Steering** | `SteeringPanel` | Workspace/global steering files with templates |
 | **🧪 Tests** | `TestPanel` | Test runner with framework detection, live log stream, filter tabs, pass/fail badges |
+| **👥 Collab** | `CollabPanel` | CRDT multiplayer collaboration: create/join rooms, peer list with color indicators, copy invite link |
 
 ---
 
@@ -341,6 +343,7 @@ The AI panel (toggle with **💬 AI Chat** in the header) has the following tabs
 | `GitHubSyncPanel` | `src/components/GitHubSyncPanel.tsx` | GitHub sync with commit/push/pull and repo management |
 | `SteeringPanel` | `src/components/SteeringPanel.tsx` | Workspace/global steering files with templates |
 | `TestPanel` | `src/components/TestPanel.tsx` | Test runner with framework detection, ▶ Run Tests, live log stream, filter tabs, pass/fail badges |
+| `CollabPanel` | `src/components/CollabPanel.tsx` | CRDT multiplayer session management: create/join rooms, peer list with color indicators, invite link |
 | `DatabasePanel` | `src/components/DatabasePanel.tsx` | SQLite/PostgreSQL browser with AI query generation |
 | `ContextPicker` | `src/components/ContextPicker.tsx` | @ context dropdown; file, folder, git, web, terminal, symbol, github, jira picker |
 | `GitPanel` | `src/components/GitPanel.tsx` | Full Git workflow panel; PR review; AI commit message button (✨ AI) |
@@ -562,6 +565,16 @@ After deploying, enter a custom domain in the **🌐 Custom Domain** field:
 | `run_tests(app, workspace, command?)` | Run tests, stream `test:log` events, return `TestRunResult` with summary and per-test details |
 | `generate_commit_message(workspace)` | Run `git diff --staged` → AI prompt → imperative one-liner commit message |
 
+### Multiplayer Collaboration
+
+| Command | Description |
+|---------|-------------|
+| `create_collab_session(room_id?, user_name, daemon_port?)` | Create a new collab room; returns room ID, peer ID, and WebSocket URL |
+| `join_collab_session(room_id, user_name, daemon_port?)` | Join an existing collab room by ID |
+| `leave_collab_session()` | Leave the current collab session (WebSocket cleanup handled by frontend) |
+| `list_collab_peers(room_id, daemon_port?, api_token?)` | List connected peers in a room via daemon REST API |
+| `get_collab_status(room_id?)` | Get collab connection status (connected, room_id, peer_count) |
+
 ### Flow Tracking
 
 | Command | Description |
@@ -632,6 +645,18 @@ AI abstraction layer:
 | `mcp` | `McpClient` — JSON-RPC 2.0 MCP server integration |
 | `trace` | `TraceWriter` — JSONL audit log + session resume |
 | `otel` | OpenTelemetry span attribute constants |
+
+### `vibe-collab`
+
+CRDT-based multiplayer collaboration:
+
+| Module | Description |
+|--------|-------------|
+| `server` | `CollabServer` — DashMap concurrent room registry, get_or_create_room, cleanup empty rooms |
+| `room` | `CollabRoom` — Y.Doc per room, Y.Text per file path, peer list, broadcast channel fan-out |
+| `protocol` | Yjs binary sync protocol (SyncStep1/SyncStep2/Update), encode/decode/apply helpers |
+| `awareness` | `PeerInfo`, `CursorState`, `AwarenessState`, 8-color peer palette |
+| `error` | `CollabError` enum with HTTP status code conversion |
 
 ### `vibe-lsp`
 
