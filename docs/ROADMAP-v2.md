@@ -1188,6 +1188,17 @@ vibeui (React + Tauri)
 
 ---
 
+## 7.12 Phase 43 — Test Runner & AI Commit Message ✅
+
+**Status:** Complete
+
+| Item | Status | Details |
+|------|--------|---------|
+| Test runner system | ✅ | `detect_test_framework` + `run_tests` Tauri commands; auto-detects Cargo/npm/pytest/Go; streams `test:log` events; parses structured output; `TestPanel.tsx` (🧪 Tests tab) with framework badge, live log, filter tabs, pass/fail badges; `/test` REPL command in VibeCLI |
+| AI commit message generation | ✅ | `generate_commit_message` Tauri command; `git diff --staged` → AI prompt → imperative one-liner; "✨ AI" button in `GitPanel.tsx` fills commit textarea |
+
+---
+
 ## 8. VibeCody Wins — Competitive Position
 
 With all phases complete, VibeCody is the **only** developer toolchain that combines:

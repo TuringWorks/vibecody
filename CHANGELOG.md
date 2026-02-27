@@ -8,6 +8,35 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **Phase 43**: Test runner system — `detect_test_framework` auto-detects Cargo/npm/pytest/Go
+  from project files; `run_tests` Tauri command spawns test subprocess and streams `test:log`
+  events to the frontend; parses `cargo test --message-format=json`, pytest `-v`, and go test
+  `-v` output into structured `TestRunResult` with per-test details; `TestPanel.tsx` (🧪 Tests
+  AI panel tab) shows framework badge, ▶ Run Tests button, custom command input, pass-rate
+  progress bar, pass/fail/ignored counts, per-test rows with colored status icons and expandable
+  output; `/test [command]` REPL command in VibeCLI auto-detects and runs tests.
+- **Phase 43**: AI commit message generation — `generate_commit_message` Tauri command runs
+  `git diff --staged`, feeds diff to the active AI provider, returns an imperative one-liner
+  commit message; "✨ AI" button in `GitPanel.tsx` fills the commit textarea on click.
+- **Phase 43**: `TestPanel.tsx` — full test runner UI in a new "🧪 Tests" AI panel tab; shows
+  framework badge (Cargo/npm/pytest/Go), ▶ Run Tests button, custom command input, pass-rate
+  progress bar, pass/fail/ignored counts, per-test rows with colored status icons and expandable
+  output, and live log stream during execution.
+- **Phase 43**: `detect_test_framework` Tauri command — auto-detects Cargo.toml → cargo,
+  package.json (with `test` script) → npm/yarn/bun, pytest.ini/pyproject.toml → pytest,
+  go.mod → go test.
+- **Phase 43**: `run_tests` Tauri command — spawns test subprocess, streams `test:log` events
+  to the frontend, parses `cargo test --message-format=json` (name/event/exec_time/stdout),
+  pytest `-v` (PASSED/FAILED line patterns), and go test `-v` (--- PASS/FAIL: lines), returns
+  `TestRunResult` with summary counts and per-test details.
+- **Phase 43**: `generate_commit_message` Tauri command — runs `git diff --staged --stat` +
+  `git diff --staged --unified=3`, feeds diff to the active AI provider with a concise prompt,
+  returns the AI-generated one-liner message.
+- **Phase 43**: "✨ AI" button overlaid on the commit message textarea in `GitPanel.tsx` —
+  calls `generate_commit_message` and fills the textarea on success.
+- **Phase 43**: `/test` REPL command in VibeCLI — auto-detects test framework from CWD and
+  runs tests; accepts an optional custom command override; added to COMMANDS array with hint
+  "[command]  — run project tests (auto-detects cargo/npm/pytest/go)".
 - **Phase 42**: `@jira:PROJECT-123` context in both VibeCLI (`expand_at_refs`) and VibeUI
   (`resolve_at_references`): fetches Jira issue summary, status, assignee, and description
   via REST API v2; uses `JIRA_BASE_URL` + `JIRA_EMAIL` + `JIRA_API_TOKEN` env vars;

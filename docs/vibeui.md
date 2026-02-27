@@ -307,6 +307,7 @@ The AI panel (toggle with **💬 AI Chat** in the header) has the following tabs
 | **🔐 Auth** | `AuthPanel` | Auth scaffold generator (4 providers × 5 frameworks) |
 | **🐙 GH Sync** | `GitHubSyncPanel` | GitHub sync with ahead/behind status, push/pull, repo management |
 | **🧭 Steering** | `SteeringPanel` | Workspace/global steering files with templates |
+| **🧪 Tests** | `TestPanel` | Test runner with framework detection, live log stream, filter tabs, pass/fail badges |
 
 ---
 
@@ -339,9 +340,10 @@ The AI panel (toggle with **💬 AI Chat** in the header) has the following tabs
 | `AuthPanel` | `src/components/AuthPanel.tsx` | Auth scaffold generator (4 providers × 5 frameworks) |
 | `GitHubSyncPanel` | `src/components/GitHubSyncPanel.tsx` | GitHub sync with commit/push/pull and repo management |
 | `SteeringPanel` | `src/components/SteeringPanel.tsx` | Workspace/global steering files with templates |
+| `TestPanel` | `src/components/TestPanel.tsx` | Test runner with framework detection, ▶ Run Tests, live log stream, filter tabs, pass/fail badges |
 | `DatabasePanel` | `src/components/DatabasePanel.tsx` | SQLite/PostgreSQL browser with AI query generation |
 | `ContextPicker` | `src/components/ContextPicker.tsx` | @ context dropdown; file, folder, git, web, terminal, symbol, github, jira picker |
-| `GitPanel` | `src/components/GitPanel.tsx` | Full Git workflow panel; PR review |
+| `GitPanel` | `src/components/GitPanel.tsx` | Full Git workflow panel; PR review; AI commit message button (✨ AI) |
 | `Terminal` | `src/components/Terminal.tsx` | xterm.js terminal integration |
 | `CommandPalette` | `src/components/CommandPalette.tsx` | Fuzzy search command palette |
 | `ThemeToggle` | `src/components/ThemeToggle.tsx` | Dark/light theme switcher |
@@ -551,6 +553,14 @@ After deploying, enter a custom domain in the **🌐 Custom Domain** field:
 | `advance_workflow_stage(workspace_path, name)` | Mark current stage complete, advance to next |
 | `update_workflow_checklist_item(workspace_path, name, stage_index, item_id, done)` | Toggle a checklist item |
 | `generate_stage_checklist(workspace_path, name, stage_index, provider)` | AI-generate checklist for a stage |
+
+### Test Runner
+
+| Command | Description |
+|---------|-------------|
+| `detect_test_framework(workspace)` | Auto-detect test framework from project files (Cargo/npm/pytest/Go) |
+| `run_tests(app, workspace, command?)` | Run tests, stream `test:log` events, return `TestRunResult` with summary and per-test details |
+| `generate_commit_message(workspace)` | Run `git diff --staged` → AI prompt → imperative one-liner commit message |
 
 ### Flow Tracking
 

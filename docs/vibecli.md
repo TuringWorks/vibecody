@@ -121,6 +121,7 @@ In REPL mode, the following slash commands are available:
 | `/redteam show <id>` | Display findings for a session |
 | `/redteam report <id>` | Generate a full pentest report |
 | `/redteam config` | Show current red team configuration |
+| `/test [command]` | Run project tests (auto-detects cargo/npm/pytest/go); optional custom command override |
 | `/config` | Display current configuration |
 | `/help` | Show command reference |
 | `/exit` or `/quit` | Exit VibeCLI |
