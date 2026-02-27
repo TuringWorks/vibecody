@@ -659,14 +659,27 @@ impl Config {
 
     pub fn save(&self) -> Result<()> {
         let config_path = Self::config_path()?;
-        
+
         if let Some(parent) = config_path.parent() {
             fs::create_dir_all(parent)?;
+            // Restrict directory to owner-only on Unix (may contain API keys)
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                let _ = fs::set_permissions(parent, fs::Permissions::from_mode(0o700));
+            }
         }
-        
+
         let content = toml::to_string_pretty(self)?;
-        fs::write(&config_path, content)?;
-        
+        fs::write(&config_path, &content)?;
+
+        // Restrict config file to owner-only on Unix (contains API keys)
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(&config_path, fs::Permissions::from_mode(0o600))?;
+        }
+
         Ok(())
     }
 

@@ -62,7 +62,7 @@ impl ShadowWorkspace {
     pub fn new(real_root: &Path) -> Result<Self> {
         let shadow_path = std::env::temp_dir()
             .join("vibecli_shadow")
-            .join(format!("{}", std::process::id()));
+            .join(format!("{}-{:016x}", std::process::id(), rand::random::<u64>()));
         std::fs::create_dir_all(&shadow_path)?;
         Ok(Self {
             path: shadow_path,

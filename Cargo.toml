@@ -76,7 +76,7 @@ uuid = { version = "1", features = ["v4"] }
 # HTTP server (daemon mode)
 axum = "0.7"
 tower = "0.4"
-tower-http = { version = "0.6", features = ["cors"] }
+tower-http = { version = "0.6", features = ["cors", "set-header"] }
 
 # SQLite (session store)
 rusqlite = { version = "0.31", features = ["bundled"] }

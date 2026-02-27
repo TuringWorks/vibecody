@@ -235,7 +235,7 @@ pub async fn run_review(config: &ReviewConfig, llm: Arc<dyn AIProvider>) -> Resu
                 }
             }
             Err(e) => {
-                tracing::warn!("Failed to review chunk for {}: {}", file, e);
+                tracing::warn!(file = %file, error = %e, "Failed to review chunk");
             }
         }
     }

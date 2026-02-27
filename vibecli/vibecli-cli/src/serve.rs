@@ -48,6 +48,7 @@ use std::{
 use tokio::sync::{broadcast, Mutex};
 use rand::Rng;
 use tower_http::cors::CorsLayer;
+use tower_http::set_header::SetResponseHeaderLayer;
 
 use vibe_ai::{AgentContext, AgentEvent, AgentLoop, ApprovalPolicy, Message, MessageRole};
 use vibe_ai::provider::AIProvider;
@@ -78,7 +79,12 @@ fn now_ms() -> u64 {
 fn persist_job(jobs_dir: &std::path::Path, record: &JobRecord) {
     let path = jobs_dir.join(format!("{}.json", record.session_id));
     if let Ok(json) = serde_json::to_string_pretty(record) {
-        let _ = std::fs::write(path, json);
+        let _ = std::fs::write(&path, json);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let _ = std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600));
+        }
     }
 }
 
@@ -595,6 +601,23 @@ pub async fn serve(
         .route("/view/:id", get(view_session))
         .route("/share/:id", get(share_session))
         .layer(DefaultBodyLimit::max(1024 * 1024)) // 1 MB max request body
+        // Security response headers
+        .layer(SetResponseHeaderLayer::overriding(
+            header::X_CONTENT_TYPE_OPTIONS,
+            HeaderValue::from_static("nosniff"),
+        ))
+        .layer(SetResponseHeaderLayer::overriding(
+            header::X_FRAME_OPTIONS,
+            HeaderValue::from_static("DENY"),
+        ))
+        .layer(SetResponseHeaderLayer::overriding(
+            axum::http::HeaderName::from_static("referrer-policy"),
+            HeaderValue::from_static("no-referrer"),
+        ))
+        .layer(SetResponseHeaderLayer::overriding(
+            axum::http::HeaderName::from_static("content-security-policy"),
+            HeaderValue::from_static("default-src 'self'; script-src 'none'; style-src 'unsafe-inline'"),
+        ))
         .layer(cors)
         .with_state(state);
 
@@ -605,8 +628,33 @@ pub async fn serve(
     eprintln!("[vibecli serve] Jobs persisted at ~/.vibecli/jobs/");
     eprintln!("[vibecli serve] Session viewer at http://{addr}/sessions");
 
-    axum::serve(listener, app).await?;
+    axum::serve(listener, app)
+        .with_graceful_shutdown(shutdown_signal())
+        .await?;
+    eprintln!("[vibecli serve] Shutting down gracefully");
     Ok(())
+}
+
+/// Wait for SIGINT (Ctrl+C) or SIGTERM for graceful shutdown.
+async fn shutdown_signal() {
+    let ctrl_c = tokio::signal::ctrl_c();
+
+    #[cfg(unix)]
+    {
+        let mut sigterm =
+            tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+                .expect("failed to install SIGTERM handler");
+        tokio::select! {
+            _ = ctrl_c => { eprintln!("\n[vibecli serve] Received SIGINT, shutting down..."); }
+            _ = sigterm.recv() => { eprintln!("[vibecli serve] Received SIGTERM, shutting down..."); }
+        }
+    }
+
+    #[cfg(not(unix))]
+    {
+        ctrl_c.await.expect("failed to install Ctrl+C handler");
+        eprintln!("\n[vibecli serve] Received Ctrl+C, shutting down...");
+    }
 }
 
 // ── Web session viewer handlers ───────────────────────────────────────────────

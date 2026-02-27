@@ -109,7 +109,7 @@ impl CommandExecutor {
                 .current_dir(cwd)
                 .output()?);
         }
-        tracing::warn!("bwrap not available — running without sandbox: {}", command);
+        tracing::warn!(command = %command, "bwrap not available — running without sandbox");
         Self::execute_in(command, cwd)
     }
 
@@ -118,19 +118,41 @@ impl CommandExecutor {
         Self::execute_in(command, cwd)
     }
 
-    /// Returns true if the command appears safe (basic blocklist).
+    /// Returns true if the command appears safe (blocklist check).
+    ///
+    /// Normalizes whitespace and checks for dangerous patterns using regex
+    /// to resist bypass via extra spaces, flag reordering, or quoting.
     pub fn is_safe_command(command: &str) -> bool {
-        let dangerous = [
-            "rm -rf /",
-            "rm -rf ~",
-            "del /f /s",
-            "format c:",
-            "mkfs",
-            "dd if=",
-            ":(){ :|:& };:",
-            "> /dev/sda",
-        ];
-        !dangerous.iter().any(|d| command.contains(d))
+        use std::sync::OnceLock;
+
+        static DANGEROUS: OnceLock<Vec<regex::Regex>> = OnceLock::new();
+        let patterns = DANGEROUS.get_or_init(|| {
+            [
+                // rm with recursive+force on root, home, or all
+                r"rm\s+(-[a-zA-Z]*r[a-zA-Z]*f[a-zA-Z]*|-[a-zA-Z]*f[a-zA-Z]*r[a-zA-Z]*|--recursive\s+--force|--force\s+--recursive)\s+[/~]",
+                // Windows del with force+recursive
+                r"(?i)del\s+/[fFs]\s+/[sS]",
+                // Disk format / mkfs
+                r"(?i)(format\s+[a-z]:|mkfs[\s.])",
+                // dd writing to disk devices
+                r"dd\s+.*\bif=",
+                // Fork bomb patterns
+                r":\(\)\s*\{[^}]*\|\s*:.*\};?\s*:",
+                // Direct write to block devices
+                r">\s*/dev/(sd[a-z]|nvme|vd[a-z]|hd[a-z]|disk)",
+                // chmod 777 on root
+                r"chmod\s+(-[a-zA-Z]*R[a-zA-Z]*\s+)?777\s+/\s*$",
+                // Wiping commands
+                r"shred\s+.*\s+/",
+            ]
+            .iter()
+            .filter_map(|p| regex::Regex::new(p).ok())
+            .collect()
+        });
+
+        // Normalize whitespace (tabs, multiple spaces → single space)
+        let normalized: String = command.split_whitespace().collect::<Vec<_>>().join(" ");
+        !patterns.iter().any(|re| re.is_match(&normalized))
     }
 
     /// Execute with an optional approval gate. Returns an error if the command

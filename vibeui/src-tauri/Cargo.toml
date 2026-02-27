@@ -31,6 +31,7 @@ lsp-types.workspace = true
 walkdir.workspace = true
 regex.workspace = true
 reqwest.workspace = true
+url.workspace = true
 rand = "0.8"
 
 # Local crates
