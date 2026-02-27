@@ -1844,14 +1844,17 @@ async fn main() -> Result<()> {
                                         Ok(item_id) => {
                                             if let Ok(w) = mgr.load(name) {
                                                 let stage_idx = w.current_stage.index();
-                                                let currently_done = w.stages[stage_idx]
+                                                if let Some(item) = w.stages[stage_idx]
                                                     .checklist.iter()
                                                     .find(|c| c.id == item_id)
-                                                    .map(|c| c.done)
-                                                    .unwrap_or(false);
-                                                match mgr.toggle_checklist_item(name, stage_idx, item_id, !currently_done) {
-                                                    Ok(_) => println!("✅ Toggled item {} in '{}'\n", item_id, name),
-                                                    Err(e) => eprintln!("❌ {}\n", e),
+                                                {
+                                                    let currently_done = item.done;
+                                                    match mgr.toggle_checklist_item(name, stage_idx, item_id, !currently_done) {
+                                                        Ok(_) => println!("✅ Toggled item {} in '{}'\n", item_id, name),
+                                                        Err(e) => eprintln!("❌ {}\n", e),
+                                                    }
+                                                } else {
+                                                    eprintln!("❌ Checklist item {} not found in current stage\n", item_id);
                                                 }
                                             } else {
                                                 eprintln!("❌ Workflow '{}' not found\n", name);
@@ -2463,6 +2466,52 @@ async fn main() -> Result<()> {
                                     println!("  /redteam config                      — show configuration");
                                     println!();
                                 }
+                            }
+                        }
+
+                        // ── /test ──────────────────────────────────────────────────────
+                        "/test" => {
+                            let cwd = std::env::current_dir()?;
+                            let ws = cwd.to_string_lossy().to_string();
+                            // Auto-detect or use custom command
+                            let cmd = if args.trim().is_empty() {
+                                // Auto-detect
+                                if cwd.join("Cargo.toml").exists() {
+                                    "cargo test".to_string()
+                                } else if cwd.join("package.json").exists() {
+                                    "npm test".to_string()
+                                } else if cwd.join("pytest.ini").exists() || cwd.join("pyproject.toml").exists() || cwd.join("setup.py").exists() {
+                                    "python -m pytest -v".to_string()
+                                } else if cwd.join("go.mod").exists() {
+                                    "go test ./...".to_string()
+                                } else {
+                                    println!("❌ Cannot detect test framework. Use: /test <command>\n");
+                                    continue;
+                                }
+                            } else {
+                                args.trim().to_string()
+                            };
+                            let _ = ws;
+                            println!("🧪 Running: {}\n", cmd);
+                            let (prog, cmd_args) = if cmd.starts_with("cargo") {
+                                ("cargo", vec!["test"])
+                            } else if cmd.starts_with("npm") {
+                                ("npm", vec!["test"])
+                            } else if cmd.starts_with("python") || cmd.starts_with("pytest") {
+                                ("python", vec!["-m", "pytest", "-v"])
+                            } else if cmd.starts_with("go test") {
+                                ("go", vec!["test", "./..."])
+                            } else {
+                                ("sh", vec!["-c", &cmd])
+                            };
+                            let status = std::process::Command::new(prog)
+                                .args(&cmd_args)
+                                .current_dir(&cwd)
+                                .status();
+                            match status {
+                                Ok(s) if s.success() => println!("✅ Tests passed\n"),
+                                Ok(_) => println!("❌ Tests failed\n"),
+                                Err(e) => println!("❌ Failed to run tests: {}\n", e),
                             }
                         }
 

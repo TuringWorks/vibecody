@@ -106,14 +106,15 @@ export function WorkflowPanel({ workspacePath, provider = "ollama" }: WorkflowPa
 
   const toggleItem = async (stageIndex: number, itemId: number) => {
     if (!workspacePath || !selected) return;
+    const item = selected.stages[stageIndex]?.checklist.find((c) => c.id === itemId);
+    if (!item) return;
     try {
-      const item = selected.stages[stageIndex].checklist.find((c) => c.id === itemId);
       const updated = await invoke<Workflow>("update_workflow_checklist_item", {
         workspacePath,
         name: selected.name,
         stageIndex,
         itemId,
-        done: !item?.done,
+        done: !item.done,
       });
       setSelected(updated);
       setWorkflows((prev) => prev.map((w) => (w.name === updated.name ? updated : w)));

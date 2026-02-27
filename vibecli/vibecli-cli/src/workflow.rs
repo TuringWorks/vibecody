@@ -367,15 +367,21 @@ impl WorkflowManager {
         let mut workflow = self.load(name)?;
         let idx = workflow.current_stage.index();
 
+        // Cannot advance past final stage
+        if workflow.current_stage.next().is_none() {
+            anyhow::bail!(
+                "Already at final stage '{}' — cannot advance further",
+                workflow.current_stage.label()
+            );
+        }
+
         // Mark current as complete
         workflow.stages[idx].status = StageStatus::Complete;
 
-        // Advance to next stage if possible
-        if let Some(next) = workflow.current_stage.next() {
-            workflow.current_stage = next;
-            let next_idx = next.index();
-            workflow.stages[next_idx].status = StageStatus::InProgress;
-        }
+        // Advance to next stage
+        let next = workflow.current_stage.next().unwrap();
+        workflow.current_stage = next;
+        workflow.stages[next.index()].status = StageStatus::InProgress;
 
         self.save(&workflow)?;
         Ok(workflow)
@@ -400,10 +406,13 @@ impl WorkflowManager {
             anyhow::bail!("Checklist item {} not found in stage {}", item_id, stage_index);
         }
 
-        // Auto-update stage status
+        // Auto-update stage status based on checklist completion
         if stage.checklist.iter().all(|c| c.done) && !stage.checklist.is_empty() {
             stage.status = StageStatus::Complete;
         } else if stage.checklist.iter().any(|c| c.done) {
+            stage.status = StageStatus::InProgress;
+        } else if !stage.checklist.is_empty() {
+            // All items unchecked — revert to InProgress (not Complete/NotStarted)
             stage.status = StageStatus::InProgress;
         }
 
@@ -903,5 +912,80 @@ mod tests {
         assert!(loaded.stages[0].checklist[0].done);
         assert!(!loaded.stages[0].checklist[1].done);
         assert!(loaded.stages[0].body.contains("design notes"));
+    }
+
+    #[test]
+    fn toggle_nonexistent_item_errors() {
+        let tmp = TempDir::new().unwrap();
+        let mgr = WorkflowManager::new(tmp.path().to_path_buf());
+
+        mgr.create("app", "Test").unwrap();
+        mgr.set_stage_checklist(
+            "app",
+            0,
+            vec![ChecklistItem::new(1, "Item one")],
+        )
+        .unwrap();
+
+        let result = mgr.toggle_checklist_item("app", 0, 999, true);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("not found"));
+    }
+
+    #[test]
+    fn advance_past_final_stage_errors() {
+        let tmp = TempDir::new().unwrap();
+        let mgr = WorkflowManager::new(tmp.path().to_path_buf());
+
+        mgr.create("app", "Test").unwrap();
+        // Advance through all 7 transitions (Requirements → CodeComplete)
+        for _ in 0..7 {
+            mgr.advance_stage("app").unwrap();
+        }
+        let workflow = mgr.load("app").unwrap();
+        assert_eq!(workflow.current_stage, WorkflowStage::CodeComplete);
+
+        // 8th advance should error
+        let result = mgr.advance_stage("app");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("cannot advance"));
+    }
+
+    #[test]
+    fn status_reverts_to_in_progress_when_all_unchecked() {
+        let tmp = TempDir::new().unwrap();
+        let mgr = WorkflowManager::new(tmp.path().to_path_buf());
+
+        mgr.create("app", "Test").unwrap();
+        mgr.set_stage_checklist(
+            "app",
+            0,
+            vec![
+                ChecklistItem::new(1, "Item one"),
+                ChecklistItem::new(2, "Item two"),
+            ],
+        )
+        .unwrap();
+
+        // Check both items → status becomes Complete
+        mgr.toggle_checklist_item("app", 0, 1, true).unwrap();
+        let w = mgr.toggle_checklist_item("app", 0, 2, true).unwrap();
+        assert_eq!(w.stages[0].status, StageStatus::Complete);
+
+        // Uncheck both items → status should revert to InProgress (not NotStarted)
+        mgr.toggle_checklist_item("app", 0, 1, false).unwrap();
+        let w = mgr.toggle_checklist_item("app", 0, 2, false).unwrap();
+        assert_eq!(w.stages[0].status, StageStatus::InProgress);
+    }
+
+    #[test]
+    fn invalid_stage_index_errors() {
+        let tmp = TempDir::new().unwrap();
+        let mgr = WorkflowManager::new(tmp.path().to_path_buf());
+
+        mgr.create("app", "Test").unwrap();
+        let result = mgr.toggle_checklist_item("app", 99, 1, true);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Invalid stage index"));
     }
 }

@@ -27,6 +27,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
     const [commitMessage, setCommitMessage] = useState('');
     const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(false);
+    const [generatingMsg, setGeneratingMsg] = useState(false);
     const [branches, setBranches] = useState<string[]>([]);
     const [showHistory, setShowHistory] = useState(false);
     const [history, setHistory] = useState<CommitInfo[]>([]);
@@ -143,6 +144,18 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
             onCompareFile(file, diff);
         } catch (e) {
             toast.error(`Failed to get diff: ${e}`);
+        }
+    };
+
+    const handleGenerateMsg = async () => {
+        setGeneratingMsg(true);
+        try {
+            const msg = await invoke<string>('generate_commit_message');
+            setCommitMessage(msg);
+        } catch (e) {
+            toast.error(`AI commit message failed: ${e}`);
+        } finally {
+            setGeneratingMsg(false);
         }
     };
 
@@ -384,23 +397,42 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
             </div>
 
             <div>
-                <textarea
-                    value={commitMessage}
-                    onChange={(e) => setCommitMessage(e.target.value)}
-                    placeholder="Commit message..."
-                    style={{
-                        width: '100%',
-                        minHeight: '50px',
-                        padding: '6px',
-                        background: 'var(--bg-tertiary)',
-                        border: '1px solid var(--border-color)',
-                        color: 'var(--text-primary)',
-                        borderRadius: '4px',
-                        marginBottom: '6px',
-                        fontFamily: 'inherit',
-                        fontSize: '12px',
-                    }}
-                />
+                <div style={{ position: 'relative' }}>
+                    <textarea
+                        value={commitMessage}
+                        onChange={(e) => setCommitMessage(e.target.value)}
+                        placeholder="Commit message..."
+                        style={{
+                            width: '100%',
+                            minHeight: '50px',
+                            padding: '6px',
+                            paddingRight: '60px',
+                            background: 'var(--bg-tertiary)',
+                            border: '1px solid var(--border-color)',
+                            color: 'var(--text-primary)',
+                            borderRadius: '4px',
+                            marginBottom: '6px',
+                            fontFamily: 'inherit',
+                            fontSize: '12px',
+                            boxSizing: 'border-box',
+                        }}
+                    />
+                    <button
+                        onClick={handleGenerateMsg}
+                        disabled={generatingMsg}
+                        title="Generate commit message with AI"
+                        style={{
+                            position: 'absolute', top: '4px', right: '4px',
+                            padding: '2px 7px', fontSize: '10px', fontWeight: 600,
+                            background: generatingMsg ? 'var(--bg-secondary)' : 'rgba(99,102,241,0.2)',
+                            color: generatingMsg ? 'var(--text-secondary)' : '#a5b4fc',
+                            border: '1px solid rgba(99,102,241,0.4)', borderRadius: '3px',
+                            cursor: generatingMsg ? 'not-allowed' : 'pointer',
+                        }}
+                    >
+                        {generatingMsg ? '…' : '✨ AI'}
+                    </button>
+                </div>
                 <button
                     className="btn-primary"
                     onClick={handleCommit}
