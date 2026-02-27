@@ -3,7 +3,7 @@
 **VibeCLI competitors:** Codex CLI, Warp 2.0, Kiro, opencode, Claude Code, Aider, Cline, Continue.dev, Amazon Q Developer
 **VibeUI competitors:** Antigravity (Google), Cursor, Windsurf, Replit, Base44, Lovable, Zed AI, Void
 
-> **Status:** All Phases 12–31 ✅ complete. Phases 32–37 polish/security ✅ complete. This document reflects the current state of the codebase as of 2026-02-26.
+> **Status:** All Phases 12–31 ✅ complete. Phases 32–42 polish/security ✅ complete. Security hardening audit (P0–P3, 20 items) ✅ complete. This document reflects the current state of the codebase as of 2026-02-26.
 
 ---
 
@@ -63,6 +63,14 @@
 | Background job persistence + REST | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Red team / autonomous pentest | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | OWASP/CWE static scanner (15 patterns) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Secrets scrubbing in traces/logs | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Daemon auth (bearer token) + CORS | ✅ | — | — | — | — | — | — | — | — | — |
+| Rate limiting on API endpoints | ✅ | — | — | — | — | — | — | — | — | — |
+| Security response headers (CSP/X-Frame) | ✅ | — | — | — | — | — | — | — | — | — |
+| Graceful shutdown (SIGTERM handler) | ✅ | — | — | — | — | — | — | — | — | — |
+| Binary checksum verification (install) | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ |
+| SHA-pinned CI actions | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ |
+| cargo audit in CI | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ |
 | Code Complete workflow (8-stage) | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | LSP diagnostics panel (TUI) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Streaming REPL chat (token-by-token) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
@@ -386,6 +394,7 @@ Features VibeCody has that **no competitor offers:**
 | **Messaging gateway (4 platforms)** | Telegram + Discord + Slack + Teams — no other coding tool supports all 4 |
 | **Linear issue integration** | Native /linear REPL commands; only CLI tool to integrate issue tracking |
 | **Path traversal protection** | Validated file operations, `is_safe_name()`, canonicalized paths |
+| **Full security hardening (20 items)** | P0–P3 audit: secret scrubbing, bearer auth, rate limiting, CSP headers, graceful shutdown, cargo audit, SHA-pinned CI, file permissions |
 
 ---
 
