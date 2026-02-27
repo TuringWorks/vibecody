@@ -866,4 +866,4 @@ covering supply chain security, daemon hardening, data protection, and defense-i
 
 ---
 
-*Updated 2026-02-26 — reflects all phases 12–42 complete, plus full security hardening audit (P0–P3, 20 items). All file paths reference the VibeCody monorepo at github.com/TuringWorks/vibecody.*
+*Updated 2026-02-27 — reflects all phases 12–43 complete, plus full security hardening audit (P0–P3, 20 items) and test runner integration (VibeCLI `/test` + VibeUI TestPanel). All file paths reference the VibeCody monorepo at github.com/TuringWorks/vibecody.*

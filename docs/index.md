@@ -51,6 +51,7 @@ Both VibeCLI and VibeUI share the `vibe-ai` provider abstraction, supporting:
 - AI-assisted code apply with interactive confirmation
 - Direct shell command execution with approval gate
 - Code Complete workflow: 8-stage development pipeline with AI-generated checklists
+- Built-in test runner with auto-detection of Cargo, npm, pytest, and Go
 
 ### VibeUI Highlights
 
@@ -62,6 +63,7 @@ Both VibeCLI and VibeUI share the `vibe-ai` provider abstraction, supporting:
 - LSP client foundation
 - WASM extension system (Wasmtime)
 - Dark / light theme toggle
+- Test runner panel with live log streaming and pass/fail visualization
 
 ---
 

@@ -483,6 +483,39 @@ Sessions are persisted as JSON at `~/.vibecli/redteam/`. Findings include CVSS s
 
 ---
 
+## Test Runner
+
+Run project tests directly from the REPL with auto-detection of the test framework:
+
+```
+> /test
+
+🧪 Running: cargo test
+...
+✅ Tests passed
+
+> /test npm test -- --coverage
+
+🧪 Running: npm test -- --coverage
+...
+✅ Tests passed
+```
+
+### Framework Auto-Detection
+
+| File Detected | Command Used |
+|---------------|-------------|
+| `Cargo.toml` | `cargo test` |
+| `package.json` | `npm test` |
+| `pytest.ini` / `pyproject.toml` / `setup.py` | `python -m pytest -v` |
+| `go.mod` | `go test ./...` |
+
+If no framework is detected, provide a custom command: `/test <command>`.
+
+In VibeUI, the **🧪 Tests** panel provides a richer experience with live streaming log output, per-test pass/fail results, expandable failure details, filter tabs (All / Failed / Passed), and a custom command input field.
+
+---
+
 ## Skills System
 
 Skills are context snippets that activate based on trigger keywords. Place `.md` files in `.vibecli/skills/` or `~/.vibecli/skills/`:
