@@ -202,7 +202,7 @@ opencode is the **most technically ambitious** open-source CLI agent in 2026, bu
 - **Hooks:** SubagentStop event with `last_assistant_message` field
 - **CLAUDE.md hierarchy:** 4-level loading (home → repo root → subfolder → current dir)
 - **MCP OAuth:** full OAuth2 for MCP server auth
-- **VibeCLI status:** ✅ worktree isolation (`--worktree`), ✅ background agents (background_agents.rs), ✅ 4-level VIBECLI.md, ❌ MCP OAuth not yet
+- **VibeCLI status:** ✅ worktree isolation (`--worktree`), ✅ background agents (background_agents.rs), ✅ 4-level VIBECLI.md, ✅ MCP OAuth (Phase 42)
 
 #### Aider (Paul Gauthier)
 
@@ -336,7 +336,7 @@ opencode is the **most technically ambitious** open-source CLI agent in 2026, bu
 - **Background agents:** high-risk (network/FS access) and low-risk categories
 - **One-click MCP install** with OAuth
 - **VibeUI status:** ✅ Shadow workspace, ✅ BugBot, ✅ Memories, ✅ Visual Editor, ✅ parallel agents with Manager view
-- **Remaining gap:** MCP OAuth install, remote machine agents
+- **Remaining gap:** remote machine agents
 
 #### Windsurf (Codeium)
 
@@ -360,8 +360,8 @@ opencode is the **most technically ambitious** open-source CLI agent in 2026, bu
 
 - **All-in-one:** UI + database + auth + hosting — no external services
 - **Press Publish → live:** zero deployment friction
-- **VibeUI status:** ✅ deploy panel, ✅ database UI, ✅ auth scaffolding, ❌ custom domain, ❌ fully hosted stack
-- **Remaining gap:** self-contained hosting stack, press-to-publish UX, custom domains
+- **VibeUI status:** ✅ deploy panel, ✅ database UI, ✅ auth scaffolding, ✅ custom domain (Phase 42), ❌ fully hosted stack
+- **Remaining gap:** self-contained hosting stack, press-to-publish UX
 
 #### Lovable 2.0
 
@@ -370,7 +370,7 @@ opencode is the **most technically ambitious** open-source CLI agent in 2026, bu
 - **Supabase integration:** auth, database, storage out-of-the-box
 - **Multiplayer:** real-time collaborative editing (April 2025)
 - **Figma import** + **Deploy:** Netlify, Vercel, custom domains
-- **VibeUI status:** ✅ GitHub sync, ✅ Supabase, ✅ Design mode, ✅ Figma import, ❌ custom domain, ❌ multiplayer
+- **VibeUI status:** ✅ GitHub sync, ✅ Supabase, ✅ Design mode, ✅ Figma import, ✅ custom domain (Phase 42), ❌ multiplayer
 
 #### Zed AI (Zed Industries)
 

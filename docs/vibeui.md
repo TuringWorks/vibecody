@@ -331,7 +331,16 @@ The AI panel (toggle with **💬 AI Chat** in the header) has the following tabs
 | `SettingsPanel` | `src/components/SettingsPanel.tsx` | BYOK API key management for all cloud providers |
 | `SpecPanel` | `src/components/SpecPanel.tsx` | Spec-driven development with AI task generation |
 | `WorkflowPanel` | `src/components/WorkflowPanel.tsx` | Code Complete 8-stage workflow with pipeline visualization and checklists |
-| `ContextPicker` | `src/components/ContextPicker.tsx` | @ context dropdown; file, folder, git, web, terminal, symbol picker |
+| `RedTeamPanel` | `src/components/RedTeamPanel.tsx` | Autonomous pentest pipeline with 5-stage visualization and CVSS findings |
+| `McpPanel` | `src/components/McpPanel.tsx` | MCP server management with OAuth 2.0, tool testing, add/edit/delete |
+| `DeployPanel` | `src/components/DeployPanel.tsx` | Deploy to 6 targets with custom domain support and history |
+| `BugBotPanel` | `src/components/BugBotPanel.tsx` | AI code scanner with severity badges and fix snippets |
+| `SupabasePanel` | `src/components/SupabasePanel.tsx` | Supabase connection, table browser, SQL, AI queries |
+| `AuthPanel` | `src/components/AuthPanel.tsx` | Auth scaffold generator (4 providers × 5 frameworks) |
+| `GitHubSyncPanel` | `src/components/GitHubSyncPanel.tsx` | GitHub sync with commit/push/pull and repo management |
+| `SteeringPanel` | `src/components/SteeringPanel.tsx` | Workspace/global steering files with templates |
+| `DatabasePanel` | `src/components/DatabasePanel.tsx` | SQLite/PostgreSQL browser with AI query generation |
+| `ContextPicker` | `src/components/ContextPicker.tsx` | @ context dropdown; file, folder, git, web, terminal, symbol, github, jira picker |
 | `GitPanel` | `src/components/GitPanel.tsx` | Full Git workflow panel; PR review |
 | `Terminal` | `src/components/Terminal.tsx` | xterm.js terminal integration |
 | `CommandPalette` | `src/components/CommandPalette.tsx` | Fuzzy search command palette |
