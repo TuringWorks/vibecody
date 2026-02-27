@@ -23,6 +23,7 @@ const SPECIAL_ITEMS = [
     { label: "@symbol:", description: "Inject source code of a named symbol (function, struct, etc.)" },
     { label: "@codebase:", description: "Semantic search over the codebase" },
     { label: "@github:", description: "Fetch a GitHub issue or PR (e.g. @github:owner/repo#42)" },
+    { label: "@jira:", description: "Fetch a Jira issue (e.g. @jira:PROJ-123) — needs JIRA_BASE_URL env" },
 ];
 
 export function ContextPicker({ query, onSelect, onClose }: ContextPickerProps) {
@@ -39,7 +40,8 @@ export function ContextPicker({ query, onSelect, onClose }: ContextPickerProps) 
             query.startsWith("folder:") ||
             query.startsWith("symbol:") ||
             query.startsWith("codebase:") ||
-            query.startsWith("github:")
+            query.startsWith("github:") ||
+        query.startsWith("jira:")
         ) {
             setFiles([]);
             return;
@@ -99,6 +101,14 @@ export function ContextPicker({ query, onSelect, onClose }: ContextPickerProps) 
             description: ghPart
                 ? `Fetch GitHub issue/PR: @github:${ghPart}`
                 : "Type owner/repo#N (e.g. torvalds/linux#1234)...",
+        }];
+    } else if (query.startsWith("jira:")) {
+        const jiraPart = query.slice(5);
+        specials = [{
+            label: `@jira:${jiraPart}`,
+            description: jiraPart
+                ? `Fetch Jira issue: ${jiraPart}`
+                : "Type issue key (e.g. PROJ-123)...",
         }];
     } else {
         specials = SPECIAL_ITEMS.filter(

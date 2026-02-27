@@ -3915,12 +3915,71 @@ pub async fn expand_at_refs(input: &str) -> String {
         result = result.replacen(&matched, "", 1);
     }
 
+    // ── @jira:PROJECT-123 — inject Jira issue content ────────────────────────
+    let re_jira = regex::Regex::new(r"@jira:([A-Z][A-Z0-9_]+-\d+)").unwrap();
+    let jira_caps: Vec<(String, String)> = re_jira
+        .captures_iter(&result.clone())
+        .map(|cap| (cap[0].to_string(), cap[1].to_string()))
+        .collect();
+    if !jira_caps.is_empty() {
+        let base_url = std::env::var("JIRA_BASE_URL").unwrap_or_default();
+        let token    = std::env::var("JIRA_API_TOKEN").unwrap_or_default();
+        let email    = std::env::var("JIRA_EMAIL").unwrap_or_default();
+        for (matched, issue_key) in jira_caps {
+            let text = if base_url.is_empty() {
+                "(set JIRA_BASE_URL, JIRA_EMAIL, JIRA_API_TOKEN to fetch Jira issues)".to_string()
+            } else {
+                let api_url = format!("{}/rest/api/2/issue/{}", base_url.trim_end_matches('/'), issue_key);
+                fetch_jira_issue_text(&api_url, &email, &token).await
+            };
+            extra.push(format!("=== Jira Issue: {} ===\n{}", issue_key, text));
+            result = result.replacen(&matched, "", 1);
+        }
+    }
+
     // ── Assemble ──────────────────────────────────────────────────────────────
     let result = result.trim().to_string();
     if extra.is_empty() {
         return result;
     }
     format!("{}\n\n{}", extra.join("\n\n"), result)
+}
+
+/// Fetch a Jira issue via the REST API v2 and return a plain-text summary.
+async fn fetch_jira_issue_text(api_url: &str, email: &str, token: &str) -> String {
+    let client = match reqwest::Client::builder()
+        .user_agent("VibeCLI/1.0")
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+    {
+        Ok(c) => c,
+        Err(e) => return format!("(could not build HTTP client: {})", e),
+    };
+    let mut req = client.get(api_url).header("Accept", "application/json");
+    if !email.is_empty() && !token.is_empty() {
+        req = req.basic_auth(email, Some(token));
+    }
+    let body = match req.send().await {
+        Ok(resp) => match resp.text().await {
+            Ok(b) => b,
+            Err(e) => return format!("(Jira response read error: {})", e),
+        },
+        Err(e) => return format!("(Jira fetch error: {})", e),
+    };
+    if let Ok(v) = serde_json::from_str::<serde_json::Value>(&body) {
+        let summary  = v["fields"]["summary"].as_str().unwrap_or("(no summary)");
+        let status   = v["fields"]["status"]["name"].as_str().unwrap_or("unknown");
+        let assignee = v["fields"]["assignee"]["displayName"].as_str().unwrap_or("unassigned");
+        let desc_raw = v["fields"]["description"].as_str().unwrap_or("");
+        let snippet: String = desc_raw.lines().take(20).collect::<Vec<_>>().join("\n");
+        format!(
+            "Summary: {}\nStatus: {} | Assignee: {}\n\n{}",
+            summary, status, assignee,
+            if snippet.is_empty() { "(no description)".to_string() } else { snippet },
+        )
+    } else {
+        body.chars().take(3000).collect()
+    }
 }
 
 /// Fetch a GitHub issue/PR JSON from the API and return a plain-text summary.

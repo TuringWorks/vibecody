@@ -27,7 +27,7 @@
 
 use anyhow::Result;
 use axum::{
-    extract::{Path, Request, State},
+    extract::{DefaultBodyLimit, Path, Request, State},
     http::{header, HeaderValue, StatusCode},
     middleware::{self, Next},
     response::{
@@ -207,13 +207,19 @@ async fn chat(
         .provider
         .stream_chat(&messages)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(|e| {
+            tracing::error!("chat provider error: {e}");
+            (StatusCode::INTERNAL_SERVER_ERROR, "LLM provider error".to_string())
+        })?;
 
     let mut accumulated = String::new();
     while let Some(chunk) = stream.next().await {
         match chunk {
             Ok(text) => accumulated.push_str(&text),
-            Err(e) => return Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string())),
+            Err(e) => {
+                tracing::error!("chat stream error: {e}");
+                return Err((StatusCode::INTERNAL_SERVER_ERROR, "Stream error".to_string()));
+            }
         }
     }
 
@@ -468,6 +474,62 @@ async fn require_auth(
     }
 }
 
+// ── Rate limiting middleware ─────────────────────────────────────────────────
+
+/// Simple sliding-window rate limiter: max `limit` requests per `window`.
+/// Shared across all clients (single-daemon deployment).
+struct RateLimiter {
+    /// Ring buffer of request timestamps (unix millis).
+    timestamps: std::sync::Mutex<Vec<u64>>,
+    limit: usize,
+    window_ms: u64,
+}
+
+impl RateLimiter {
+    fn new(limit: usize, window: Duration) -> Self {
+        Self {
+            timestamps: std::sync::Mutex::new(Vec::with_capacity(limit)),
+            limit,
+            window_ms: window.as_millis() as u64,
+        }
+    }
+
+    /// Returns true if the request should be allowed.
+    fn check(&self) -> bool {
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64;
+        let mut ts = self.timestamps.lock().unwrap_or_else(|e| e.into_inner());
+        let cutoff = now.saturating_sub(self.window_ms);
+        ts.retain(|&t| t > cutoff);
+        if ts.len() >= self.limit {
+            false
+        } else {
+            ts.push(now);
+            true
+        }
+    }
+}
+
+/// Axum middleware that enforces a global request rate limit.
+async fn rate_limit(
+    State(limiter): State<Arc<RateLimiter>>,
+    req: Request,
+    next: Next,
+) -> impl IntoResponse {
+    if limiter.check() {
+        next.run(req).await.into_response()
+    } else {
+        (
+            StatusCode::TOO_MANY_REQUESTS,
+            [("content-type", "application/json"), ("retry-after", "5")],
+            r#"{"error":"Rate limit exceeded. Try again shortly."}"#,
+        )
+            .into_response()
+    }
+}
+
 // ── Server startup ────────────────────────────────────────────────────────────
 
 /// Start the VibeCLI HTTP daemon. Blocks until shutdown.
@@ -509,6 +571,9 @@ pub async fn serve(
         .allow_methods(tower_http::cors::Any)
         .allow_headers(tower_http::cors::Any);
 
+    // Rate limiter: 60 requests per 60 seconds (global across all authed endpoints)
+    let limiter = Arc::new(RateLimiter::new(60, Duration::from_secs(60)));
+
     // Routes that require bearer-token auth (API endpoints)
     let authed_routes = Router::new()
         .route("/chat", post(chat))
@@ -518,6 +583,7 @@ pub async fn serve(
         .route("/jobs", get(list_jobs))
         .route("/jobs/:id", get(get_job))
         .route("/jobs/:id/cancel", post(cancel_job))
+        .route_layer(middleware::from_fn_with_state(limiter, rate_limit))
         .route_layer(middleware::from_fn_with_state(state.clone(), require_auth));
 
     // Public routes (health check + read-only session viewer)
@@ -528,6 +594,7 @@ pub async fn serve(
         .route("/sessions.json", get(sessions_json))
         .route("/view/:id", get(view_session))
         .route("/share/:id", get(share_session))
+        .layer(DefaultBodyLimit::max(1024 * 1024)) // 1 MB max request body
         .layer(cors)
         .with_state(state);
 
@@ -546,11 +613,14 @@ pub async fn serve(
 
 async fn sessions_index_html() -> impl IntoResponse {
     match SessionStore::open_default() {
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            [("content-type", "text/plain")],
-            format!("Failed to open session store: {}", e),
-        ),
+        Err(e) => {
+            tracing::error!("session store open error: {e}");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                [("content-type", "text/plain")],
+                "Internal server error".to_string(),
+            )
+        }
         Ok(store) => {
             let sessions = store.list_sessions(200).unwrap_or_default();
             let html = render_sessions_index_html(&sessions);
@@ -561,11 +631,14 @@ async fn sessions_index_html() -> impl IntoResponse {
 
 async fn sessions_json() -> impl IntoResponse {
     match SessionStore::open_default() {
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            [("content-type", "application/json")],
-            format!("{{\"error\":\"{}\"}}", e),
-        ),
+        Err(e) => {
+            tracing::error!("session store open error: {e}");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                [("content-type", "application/json")],
+                r#"{"error":"Internal server error"}"#.to_string(),
+            )
+        }
         Ok(store) => {
             let sessions = store.list_sessions(200).unwrap_or_default();
             let json = serde_json::to_string(&sessions).unwrap_or_else(|_| "[]".into());
@@ -578,24 +651,27 @@ async fn sessions_json() -> impl IntoResponse {
 /// a green "Shared" banner and a `noindex` meta tag so search engines don't index it.
 async fn share_session(Path(id): Path<String>) -> impl IntoResponse {
     match SessionStore::open_default() {
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            [("content-type", "text/plain")],
-            format!("Failed to open session store: {}", e),
-        ),
-        Ok(store) => match store.get_session_detail(&id) {
-            Err(e) => (
+        Err(e) => {
+            tracing::error!("session store open error: {e}");
+            (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 [("content-type", "text/plain")],
-                format!("DB error: {}", e),
-            ),
+                "Internal server error".to_string(),
+            )
+        }
+        Ok(store) => match store.get_session_detail(&id) {
+            Err(e) => {
+                tracing::error!("session detail error: {e}");
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    [("content-type", "text/plain")],
+                    "Internal server error".to_string(),
+                )
+            }
             Ok(None) => (
                 StatusCode::NOT_FOUND,
                 [("content-type", "text/html; charset=utf-8")],
-                format!(
-                    "<h1>Session not found</h1><p>No session with ID: <code>{}</code></p><p><a href=\"/sessions\">All sessions</a></p>",
-                    id
-                ),
+                "<h1>Session not found</h1><p><a href=\"/sessions\">All sessions</a></p>".to_string(),
             ),
             Ok(Some(detail)) => {
                 let html = render_session_html(&detail);
@@ -613,21 +689,27 @@ async fn share_session(Path(id): Path<String>) -> impl IntoResponse {
 
 async fn view_session(Path(id): Path<String>) -> impl IntoResponse {
     match SessionStore::open_default() {
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            [("content-type", "text/plain")],
-            format!("Failed to open session store: {}", e),
-        ),
-        Ok(store) => match store.get_session_detail(&id) {
-            Err(e) => (
+        Err(e) => {
+            tracing::error!("session store open error: {e}");
+            (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 [("content-type", "text/plain")],
-                format!("DB error: {}", e),
-            ),
+                "Internal server error".to_string(),
+            )
+        }
+        Ok(store) => match store.get_session_detail(&id) {
+            Err(e) => {
+                tracing::error!("session detail error: {e}");
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    [("content-type", "text/plain")],
+                    "Internal server error".to_string(),
+                )
+            }
             Ok(None) => (
                 StatusCode::NOT_FOUND,
                 [("content-type", "text/html; charset=utf-8")],
-                format!("<h1>Session not found</h1><p>No session with ID: <code>{}</code></p><p><a href=\"/sessions\">All sessions</a></p>", id),
+                "<h1>Session not found</h1><p><a href=\"/sessions\">All sessions</a></p>".to_string(),
             ),
             Ok(Some(detail)) => {
                 let html = render_session_html(&detail);

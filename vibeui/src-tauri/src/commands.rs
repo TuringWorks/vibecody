@@ -39,6 +39,10 @@ fn re_at_github() -> &'static regex::Regex {
     static R: OnceLock<regex::Regex> = OnceLock::new();
     R.get_or_init(|| regex::Regex::new(r"@github:([a-zA-Z0-9_\-]+)/([a-zA-Z0-9_\-]+)#(\d+)").unwrap())
 }
+fn re_at_jira() -> &'static regex::Regex {
+    static R: OnceLock<regex::Regex> = OnceLock::new();
+    R.get_or_init(|| regex::Regex::new(r"@jira:([A-Z][A-Z0-9_]+-\d+)").unwrap())
+}
 
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -56,7 +60,7 @@ use tauri::Emitter;
 use crate::flow::FlowTracker;
 use vibe_ai::{ToolCall, ToolResult};
 
-// ── GitHub API types (used by @github: context handler) ───────────────────────
+// ── GitHub + Jira API types (used by @github: / @jira: context handlers) ──────
 #[derive(Deserialize)]
 struct GithubIssue {
     #[allow(dead_code)]
@@ -72,6 +76,23 @@ struct GithubIssue {
 struct GithubLabel { name: String }
 #[derive(Deserialize)]
 struct GithubUser { login: String }
+
+#[derive(Deserialize)]
+struct JiraIssue {
+    fields: JiraFields,
+}
+#[derive(Deserialize)]
+struct JiraFields {
+    summary: String,
+    #[serde(default)]
+    description: Option<String>,
+    status: JiraStatus,
+    assignee: Option<JiraAssignee>,
+}
+#[derive(Deserialize)]
+struct JiraStatus { name: String }
+#[derive(Deserialize)]
+struct JiraAssignee { #[serde(rename = "displayName")] display_name: String }
 
 /// Holds a pending tool call awaiting user approval in the agent loop.
 pub struct PendingAgentCall {
@@ -1184,7 +1205,62 @@ async fn resolve_at_references(
         extra.push_str(&gh_ctx);
     }
 
+    // ── @jira:PROJECT-123 ─────────────────────────────────────────────────────
+    let jira_caps: Vec<String> = re_at_jira()
+        .captures_iter(content)
+        .map(|cap| cap[1].to_string())
+        .collect();
+    if !jira_caps.is_empty() {
+        let base_url = std::env::var("JIRA_BASE_URL").unwrap_or_default();
+        let email    = std::env::var("JIRA_EMAIL").unwrap_or_default();
+        let token    = std::env::var("JIRA_API_TOKEN").unwrap_or_default();
+        for issue_key in jira_caps {
+            let mut jira_ctx = format!("\n=== Jira Issue: {} ===\n", issue_key);
+            if base_url.is_empty() {
+                jira_ctx.push_str("(set JIRA_BASE_URL, JIRA_EMAIL, JIRA_API_TOKEN to fetch Jira issues)\n");
+            } else {
+                let api_url = format!("{}/rest/api/2/issue/{}", base_url.trim_end_matches('/'), issue_key);
+                match fetch_jira_issue(&api_url, &email, &token).await {
+                    Ok(issue) => {
+                        let assignee = issue.fields.assignee
+                            .map(|a| a.display_name)
+                            .unwrap_or_else(|| "unassigned".to_string());
+                        let desc = issue.fields.description.unwrap_or_default();
+                        let snippet: String = desc.lines().take(20).collect::<Vec<_>>().join("\n");
+                        jira_ctx.push_str(&format!(
+                            "Summary: {}\nStatus: {} | Assignee: {}\n\n{}\n",
+                            issue.fields.summary,
+                            issue.fields.status.name,
+                            assignee,
+                            if snippet.is_empty() { "(no description)" } else { &snippet },
+                        ));
+                    }
+                    Err(e) => {
+                        jira_ctx.push_str(&format!("(Jira fetch error: {})\n", e));
+                    }
+                }
+            }
+            extra.push_str(&jira_ctx);
+        }
+    }
+
     extra
+}
+
+async fn fetch_jira_issue(url: &str, email: &str, token: &str) -> Result<JiraIssue, String> {
+    let client = reqwest::Client::new();
+    let mut req = client
+        .get(url)
+        .header("Accept", "application/json")
+        .header("User-Agent", "vibecli/1.0");
+    if !email.is_empty() && !token.is_empty() {
+        req = req.basic_auth(email, Some(token));
+    }
+    req.send().await
+        .map_err(|e| e.to_string())?
+        .json::<JiraIssue>()
+        .await
+        .map_err(|e| e.to_string())
 }
 
 async fn fetch_github_issue(url: &str, token: Option<String>) -> Result<GithubIssue, String> {
@@ -5097,13 +5173,12 @@ pub async fn agent_browser_action(action: BrowserAction) -> Result<BrowserAction
 
         BrowserAction::Screenshot { x, y, width, height } => {
             // Create a temp file for the screenshot
-            let tmp = std::env::temp_dir().join(format!(
-                "vibecli-screenshot-{}.png",
-                std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap_or_default()
-                    .as_millis()
-            ));
+            let tmp = {
+                let mut path = std::env::temp_dir().join("vibecli-screenshots");
+                let _ = std::fs::create_dir_all(&path);
+                path.push(format!("{:032x}.png", rand::random::<u128>()));
+                path
+            };
 
             // Build screencapture command (macOS) or scrot (Linux)
             #[cfg(target_os = "macos")]

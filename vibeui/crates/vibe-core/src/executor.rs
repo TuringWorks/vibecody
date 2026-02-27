@@ -73,7 +73,11 @@ impl CommandExecutor {
 "#,
             workspace = workspace_root.display()
         );
-        let profile_path = std::env::temp_dir().join("vibecli_sandbox.sb");
+        let profile_path = std::env::temp_dir().join(format!(
+            "vibecli_sandbox_{}_{:016x}.sb",
+            std::process::id(),
+            rand::random::<u64>()
+        ));
         std::fs::write(&profile_path, &profile)?;
         let out = Command::new("sandbox-exec")
             .arg("-f").arg(&profile_path)

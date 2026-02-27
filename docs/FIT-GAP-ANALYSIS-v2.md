@@ -387,21 +387,21 @@ Features VibeCody has that **no competitor offers:**
 
 ## Part D — Gap Priority Matrix (Updated Status)
 
-All gaps from Phases 16–31 are now resolved. This table shows **remaining** open gaps as of 2026-02-26:
+All gaps from Phases 16–41 are now resolved. This table shows **remaining** open gaps as of 2026-02-26:
 
 | Gap | Impact | Status | Competitor |
 |-----|--------|--------|------------|
-| Ambient agent session sharing | Medium | ❌ Open | Warp/Claude Code |
-| Custom domain / publish | Medium | ❌ Open | Base44/Lovable/Replit |
 | Multiplayer / real-time collaboration | Medium | ❌ Open | Lovable/Replit/Zed |
-| MCP OAuth install | Medium | ❌ Open | Cursor |
-| @jira / @github context | Low | ❌ Open | Continue.dev |
 | Remote VM agent execution | Low | ❌ Open | Warp |
 | SWE-1-style fine-tuned model | Low | ❌ Open | Windsurf |
-| GCP / Firebase deploy target | Low | ❌ Open | Antigravity |
 | GPU-accelerated terminal | Low | ❌ Open | Warp/Zed |
-| LSP diagnostics in TUI | Low | ❌ Open | opencode |
-| Security scanning (OWASP/CWE) | Medium | Partial (bugbot) | Amazon Q |
+| Ambient agent session sharing | Medium | ✅ Phase 39 | Warp/Claude Code |
+| GCP / Firebase deploy target | Low | ✅ Phase 38 | Antigravity |
+| LSP diagnostics in TUI | Low | ✅ Phase 39 | opencode |
+| Security scanning (OWASP/CWE) | Medium | ✅ Phase 38/40 | Amazon Q |
+| @jira / @github context | Low | ✅ Phase 42 | Continue.dev |
+| MCP OAuth install | Medium | ✅ Phase 42 | Cursor |
+| Custom domain / publish | Medium | ✅ Phase 42 | Base44/Lovable/Replit |
 
 ### Previously Closed Gaps (Phases 16–37)
 

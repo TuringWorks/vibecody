@@ -147,12 +147,13 @@ impl AIProvider for GeminiProvider {
         };
 
         let url = format!(
-            "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}",
-            self.config.model, api_key
+            "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent",
+            self.config.model
         );
 
         let response = self.client
             .post(&url)
+            .header("x-goog-api-key", api_key)
             .json(&request)
             .send()
             .await
@@ -187,12 +188,13 @@ impl AIProvider for GeminiProvider {
         };
 
         let url = format!(
-            "https://generativelanguage.googleapis.com/v1beta/models/{}:streamGenerateContent?key={}",
-            self.config.model, api_key
+            "https://generativelanguage.googleapis.com/v1beta/models/{}:streamGenerateContent",
+            self.config.model
         );
 
         let response = self.client
             .post(&url)
+            .header("x-goog-api-key", api_key)
             .json(&request)
             .send()
             .await

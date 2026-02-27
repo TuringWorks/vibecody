@@ -97,11 +97,14 @@ impl TraceWriter {
             session_id: self.session_id.clone(),
             step,
             tool: tool.to_string(),
-            input_summary: input_summary.to_string(),
-            output: if output.len() > 600 {
-                format!("{}\n…(truncated)", &output[..600])
-            } else {
-                output.to_string()
+            input_summary: redact_secrets(input_summary),
+            output: {
+                let truncated = if output.len() > 600 {
+                    format!("{}\n…(truncated)", &output[..600])
+                } else {
+                    output.to_string()
+                };
+                redact_secrets(&truncated)
             },
             success,
             duration_ms,
@@ -116,11 +119,12 @@ impl TraceWriter {
 
     /// Persist the full message history for this session.
     /// Saved as `<session_id>-messages.json` alongside the JSONL trace.
+    /// Secrets are scrubbed before writing.
     pub fn save_messages(&self, messages: &[Message]) -> std::io::Result<()> {
         let path = self.messages_path();
         let json = serde_json::to_string_pretty(messages)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
-        fs::write(path, json)
+        fs::write(path, redact_secrets(&json))
     }
 
     /// Persist the agent context snapshot for this session.
@@ -245,6 +249,50 @@ pub fn load_trace(path: &Path) -> Vec<TraceEntry> {
         .collect()
 }
 
+// ── Secrets scrubbing ────────────────────────────────────────────────────────
+
+/// Redact common secret patterns from a string before persisting to traces.
+///
+/// Matches API keys (sk-*, ghp_*, Bearer tokens, etc.),
+/// AWS credentials, private keys, and passwords in common config formats.
+pub fn redact_secrets(input: &str) -> String {
+    use std::sync::OnceLock;
+
+    static RE: OnceLock<Vec<(regex::Regex, &'static str)>> = OnceLock::new();
+    let patterns = RE.get_or_init(|| {
+        [
+            // OpenAI / Anthropic / generic sk- keys
+            (r"sk-[a-zA-Z0-9_-]{20,}", "[REDACTED_API_KEY]"),
+            // GitHub tokens (ghp_, gho_, ghs_, ghr_, github_pat_)
+            (r"gh[psohr]_[a-zA-Z0-9_]{20,}", "[REDACTED_GITHUB_TOKEN]"),
+            (r"github_pat_[a-zA-Z0-9_]{20,}", "[REDACTED_GITHUB_TOKEN]"),
+            // Bearer tokens in headers
+            (r"(?i)(Bearer\s+)[a-zA-Z0-9_.+/=-]{20,}", "${1}[REDACTED]"),
+            // AWS access keys (AKIA...)
+            (r"AKIA[A-Z0-9]{16}", "[REDACTED_AWS_KEY]"),
+            // AWS secret keys (40 char base64-like after known prefixes)
+            (r"(?i)(aws_secret_access_key\s*[=:]\s*)[A-Za-z0-9/+=]{30,}", "${1}[REDACTED]"),
+            // Generic password/secret/token in config-like lines (exclude '[' to avoid re-redacting)
+            (r#"(?i)((?:password|secret|token|api_key|apikey|api-key)\s*[=:]\s*["']?)[^\s"'\[]{8,}"#, "${1}[REDACTED]"),
+            // API key in URL query param (?key=...)
+            (r"(?i)([?&]key=)[a-zA-Z0-9_-]{20,}", "${1}[REDACTED]"),
+            // Private key blocks
+            (r"(?s)(-----BEGIN (?:RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----).*?(-----END (?:RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----)", "$1\n[REDACTED]\n$2"),
+        ]
+        .iter()
+        .filter_map(|(pat, replacement)| {
+            regex::Regex::new(pat).ok().map(|re| (re, *replacement))
+        })
+        .collect()
+    });
+
+    let mut result = input.to_string();
+    for (re, replacement) in patterns {
+        result = re.replace_all(&result, *replacement).to_string();
+    }
+    result
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 fn now_secs() -> u64 {
@@ -279,6 +327,59 @@ mod tests {
         assert!(entries[0].output.contains("truncated"));
 
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn redact_openai_key() {
+        let input = "Using API key sk-abcdefghij1234567890abcdefghij to call GPT";
+        let result = redact_secrets(input);
+        assert!(!result.contains("sk-abcdefghij"), "OpenAI key should be redacted");
+        assert!(result.contains("[REDACTED_API_KEY]"));
+    }
+
+    #[test]
+    fn redact_github_token() {
+        let input = "token=ghp_xyzABCDEFGHIJ1234567890abcdef";
+        let result = redact_secrets(input);
+        assert!(!result.contains("ghp_xyz"), "GitHub token should be redacted");
+        assert!(result.contains("[REDACTED_GITHUB_TOKEN]"));
+    }
+
+    #[test]
+    fn redact_bearer_token() {
+        let input = "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0";
+        let result = redact_secrets(input);
+        assert!(!result.contains("eyJhbGci"), "Bearer token should be redacted");
+        assert!(result.contains("Bearer [REDACTED]"));
+    }
+
+    #[test]
+    fn redact_aws_key() {
+        let input = "AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE";
+        let result = redact_secrets(input);
+        assert!(!result.contains("AKIAIOSFODNN7EXAMPLE"), "AWS key should be redacted");
+    }
+
+    #[test]
+    fn redact_api_key_in_url() {
+        let input = "https://api.example.com/v1/generate?key=AIzaSyDGHJKL1234567890abcdef";
+        let result = redact_secrets(input);
+        assert!(!result.contains("AIzaSy"), "URL API key should be redacted");
+        assert!(result.contains("?key=[REDACTED]"));
+    }
+
+    #[test]
+    fn redact_password_in_config() {
+        let input = r#"password = "superSecretPass123!""#;
+        let result = redact_secrets(input);
+        assert!(!result.contains("superSecretPass"), "Password should be redacted");
+    }
+
+    #[test]
+    fn no_false_positive_on_short_values() {
+        let input = "Using model gpt-4 with temperature 0.7";
+        let result = redact_secrets(input);
+        assert_eq!(input, result, "Short normal values should not be redacted");
     }
 
     #[test]

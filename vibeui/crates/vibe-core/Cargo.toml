@@ -30,6 +30,9 @@ portable-pty = "0.8"
 # Diff
 similar = { version = "2.6", features = ["inline"] }
 
+# Crypto-safe random (temp file names, etc.)
+rand = "0.8"
+
 # HTTP (for embedding API calls)
 reqwest.workspace = true
 
