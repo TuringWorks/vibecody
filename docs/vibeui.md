@@ -279,7 +279,7 @@ Press `Cmd+P` (macOS) / `Ctrl+P` (Windows/Linux) to open the Command Palette:
 
 ## AI Panel Tabs
 
-The AI panel (toggle with **💬 AI Chat** in the header) has ten tabs:
+The AI panel (toggle with **💬 AI Chat** in the header) has the following tabs:
 
 | Tab | Component | Description |
 |-----|-----------|-------------|
@@ -293,6 +293,8 @@ The AI panel (toggle with **💬 AI Chat** in the header) has ten tabs:
 | **🪝 Hooks** | `HooksPanel` | Configure event-driven hooks (PreToolUse, PostToolUse, etc.) |
 | **📋 Jobs** | `BackgroundJobsPanel` | Submit tasks to VibeCLI daemon; live SSE stream; job persistence across restarts |
 | **⚙️ Keys** | `SettingsPanel` | BYOK API key management for all cloud providers |
+| **📐 Specs** | `SpecPanel` | Spec-driven development: AI-generated user stories, tasks, and acceptance criteria |
+| **🏗️ Workflow** | `WorkflowPanel` | Code Complete 8-stage development pipeline with AI-generated checklists per stage |
 
 ---
 
@@ -315,6 +317,8 @@ The AI panel (toggle with **💬 AI Chat** in the header) has ten tabs:
 | `BackgroundJobsPanel` | `src/components/BackgroundJobsPanel.tsx` | VibeCLI daemon job queue with live SSE stream |
 | `BrowserPanel` | `src/components/BrowserPanel.tsx` | Embedded iframe browser for localhost previews |
 | `SettingsPanel` | `src/components/SettingsPanel.tsx` | BYOK API key management for all cloud providers |
+| `SpecPanel` | `src/components/SpecPanel.tsx` | Spec-driven development with AI task generation |
+| `WorkflowPanel` | `src/components/WorkflowPanel.tsx` | Code Complete 8-stage workflow with pipeline visualization and checklists |
 | `ContextPicker` | `src/components/ContextPicker.tsx` | @ context dropdown; file, folder, git, web, terminal, symbol picker |
 | `GitPanel` | `src/components/GitPanel.tsx` | Full Git workflow panel; PR review |
 | `Terminal` | `src/components/Terminal.tsx` | xterm.js terminal integration |
@@ -477,6 +481,17 @@ The React frontend communicates with the Rust backend using Tauri's `invoke()` I
 | Command | Description |
 |---------|-------------|
 | `run_code_review(workspace_path, base_ref?, target_ref?)` | Run AI code review, return structured report |
+
+### Code Complete Workflow
+
+| Command | Description |
+|---------|-------------|
+| `list_workflows(workspace_path)` | List all workflows with stage progress |
+| `get_workflow(workspace_path, name)` | Get a workflow by name |
+| `create_workflow(workspace_path, name, description)` | Create a new 8-stage workflow |
+| `advance_workflow_stage(workspace_path, name)` | Mark current stage complete, advance to next |
+| `update_workflow_checklist_item(workspace_path, name, stage_index, item_id, done)` | Toggle a checklist item |
+| `generate_stage_checklist(workspace_path, name, stage_index, provider)` | AI-generate checklist for a stage |
 
 ### Flow Tracking
 

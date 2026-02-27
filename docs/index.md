@@ -50,6 +50,7 @@ Both VibeCLI and VibeUI share the `vibe-ai` provider abstraction, supporting:
 - Multi-file diff view with syntax highlighting
 - AI-assisted code apply with interactive confirmation
 - Direct shell command execution with approval gate
+- Code Complete workflow: 8-stage development pipeline with AI-generated checklists
 
 ### VibeUI Highlights
 

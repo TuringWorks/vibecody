@@ -637,6 +637,37 @@ These represent the remaining frontier for VibeCLI + VibeUI competitive parity:
 
 ---
 
+## Part R — Code Complete Workflow (Phase 40)
+
+Phase 40 introduces a structured application development workflow based on Steve McConnell's
+*Code Complete* (2nd Edition). The system guides developers through 8 stages from requirements
+gathering to release-ready code, with AI-generated checklists at each quality gate.
+
+### Phase 40 Deliverables
+
+| Component | File | Description |
+|-----------|------|-------------|
+| Workflow engine | `vibecli/vibecli-cli/src/workflow.rs` | WorkflowStage (8), ChecklistItem, StageData, Workflow, WorkflowManager; 11 unit tests |
+| LLM prompts | `workflow.rs` | `stage_checklist_prompt()` — per-stage guidance (requirements, architecture, design, etc.) |
+| Checklist parser | `workflow.rs` | `parse_checklist_response()` — numbered/bulleted list extraction from LLM output |
+| REPL commands | `/workflow new\|list\|show\|advance\|check\|generate` | Full interactive workflow management |
+| VibeUI panel | `WorkflowPanel.tsx` | Pipeline visualization (8 circles), checklist toggles, AI generate, 80% advance gate |
+| Tauri commands | 6 commands | list_workflows, get_workflow, create_workflow, advance_workflow_stage, update_workflow_checklist_item, generate_stage_checklist |
+| File format | `.vibecli/workflows/*.md` | YAML front-matter + `## Stage:` sections + `### Checklist` with `- [ ]` items |
+
+### The 8 Stages
+
+1. **Requirements** — Functional/non-functional reqs, user stories, scope, data constraints
+2. **Architecture** — Subsystem decomposition, data storage, security, error strategy, build-vs-buy
+3. **Design** — Classes, interfaces, patterns, algorithms, coupling/cohesion, edge cases
+4. **Construction Planning** — Language/framework, coding standards, CI/CD, integration order, estimates
+5. **Coding** — Naming, defensive programming, DRY, control flow, comments, input validation
+6. **Quality Assurance** — Code review, unit tests, static analysis, security scan, performance
+7. **Integration & Testing** — E2E, regression, load testing, cross-platform, API validation
+8. **Code Complete** — All features done, docs updated, no TODOs, version tagged, deploy runbook
+
+---
+
 ## Part S — Shannon Comparison (Phase 41)
 
 VibeCody Phase 41 adds an autonomous red team security scanning module inspired by
@@ -662,4 +693,4 @@ Key differences:
 
 ---
 
-*Updated 2026-02-26 — reflects all phases 12–41 complete. All file paths reference the VibeCody monorepo at github.com/TuringWorks/vibecody.*
+*Updated 2026-02-26 — reflects all phases 12–41 complete (including Phase 40 Code Complete Workflow). All file paths reference the VibeCody monorepo at github.com/TuringWorks/vibecody.*

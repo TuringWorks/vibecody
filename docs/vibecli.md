@@ -107,6 +107,12 @@ In REPL mode, the following slash commands are available:
 | `/skills` | List available skills and their triggers |
 | `/mcp list` | List configured MCP servers |
 | `/mcp tools <server>` | List tools provided by an MCP server |
+| `/workflow new <name> <desc>` | Create a Code Complete workflow (8-stage development pipeline) |
+| `/workflow list` | List all workflows with current stage and progress |
+| `/workflow show <name>` | Display workflow stages, checklist progress, and current stage items |
+| `/workflow advance <name>` | Mark current stage complete and advance to the next |
+| `/workflow check <name> <id>` | Toggle a checklist item in the current stage |
+| `/workflow generate <name>` | AI-generate a checklist for the current stage |
 | `/config` | Display current configuration |
 | `/help` | Show command reference |
 | `/exit` or `/quit` | Exit VibeCLI |
@@ -333,6 +339,61 @@ Generate execution plans without running tools:
 
 ✅ Execute this plan? (y/N):
 ```
+
+---
+
+## Code Complete Workflow
+
+Guide application development through 8 structured stages inspired by Steve McConnell's *Code Complete*. Each stage has an AI-generated checklist that serves as a quality gate before advancing.
+
+### The 8 Stages
+
+| # | Stage | Focus |
+|---|-------|-------|
+| 1 | **Requirements** | User stories, functional/non-functional reqs, scope boundaries |
+| 2 | **Architecture** | Subsystem decomposition, data design, security, build-vs-buy |
+| 3 | **Design** | Classes, interfaces, patterns, algorithms, state management |
+| 4 | **Construction Planning** | Tooling, coding standards, CI/CD, integration order, estimates |
+| 5 | **Coding** | Implementation, defensive programming, naming, DRY, control flow |
+| 6 | **Quality Assurance** | Code review, unit tests, static analysis, security scan |
+| 7 | **Integration & Testing** | E2E tests, regression, performance, cross-platform |
+| 8 | **Code Complete** | Docs, changelog, no TODOs, version tag, deploy runbook |
+
+### Usage
+
+```
+> /workflow new my_app Build a REST API for user management
+
+✅ Workflow 'my_app' created with 8 stages (Code Complete methodology)
+   Current stage: Requirements
+   Use /workflow generate my_app to AI-generate a checklist for the current stage.
+
+> /workflow generate my_app
+
+🤖 Generating Requirements checklist for 'my_app'...
+✅ Generated 10 checklist items:
+   [ ] 1: Define core user CRUD endpoints (GET, POST, PUT, DELETE)
+   [ ] 2: Specify authentication method (JWT vs session)
+   ...
+
+> /workflow check my_app 1
+✅ Toggled item 1 in 'my_app'
+
+> /workflow show my_app
+
+🏗️  Workflow: my_app  [12% complete]
+   Build a REST API for user management
+
+   ▶ 1. Requirements (1/10)
+   ○ 2. Architecture
+   ○ 3. Design
+   ...
+
+> /workflow advance my_app
+✅ Advanced to stage: Architecture
+```
+
+Workflows are stored as markdown files in `.vibecli/workflows/` with YAML front-matter. The stage advancement gate requires ≥80% checklist completion in VibeUI.
 
 ---
 
