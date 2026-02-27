@@ -312,6 +312,28 @@ Span attribute constants for the OTLP pipeline:
 - Defines `ATTR_SESSION_ID`, `ATTR_TASK`, `SPAN_SESSION`, `SPAN_STEP`, etc.
 - Used by `otel_init.rs` in VibeCLI for tracing spans
 
+### Red Team Pipeline (`redteam.rs`)
+
+Autonomous 5-stage penetration testing module:
+
+- **Recon** → endpoint enumeration, tech fingerprinting
+- **Analysis** → white-box LLM-assisted vulnerability identification using codebase index
+- **Exploitation** → active HTTP-based validation with browser actions
+- **Validation** → confirm exploitability, generate PoC payloads
+- **Report** → markdown report with CVSS scores + remediation
+
+Key types: `AttackVector` (15 variants), `CvssSeverity`, `RedTeamSession`, `VulnFinding`, `RedTeamManager`
+
+Sessions persisted as JSON at `~/.vibecli/redteam/`. Integrates with `bugbot.rs` CWE patterns and existing agent browser actions.
+
+### BugBot Static Scanner (`bugbot.rs`)
+
+OWASP/CWE static pattern scanner:
+
+- 15 regex-based vulnerability patterns (CWE-89, CWE-79, CWE-22, CWE-798, CWE-338, CWE-78, CWE-601, CWE-918, CWE-611, CWE-502, CWE-943, CWE-1336, CWE-639, CWE-352, CWE-319)
+- Runs before LLM analysis on every diff
+- Results merged with LLM findings (static first)
+
 ### MCP Client (`mcp.rs`)
 
 Model Context Protocol integration:

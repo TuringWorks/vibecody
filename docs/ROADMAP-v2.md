@@ -48,6 +48,11 @@ All nine roadmap phases (1–5 original, 6–9 in this document) are complete. V
 | Artifacts | ✅ | ✅ ArtifactsPanel |
 | OpenTelemetry | ✅ | — |
 | GitHub Actions | ✅ | — |
+| Red team pentest pipeline (5-stage) | ✅ --redteam + /redteam | ✅ RedTeamPanel |
+| OWASP/CWE static scanner (15 patterns) | ✅ bugbot.rs | ✅ BugBotPanel |
+| Code Complete workflow (8-stage) | ✅ /workflow | ✅ WorkflowPanel |
+| LSP diagnostics panel | ✅ /check TUI command | — |
+| Session sharing | ✅ /share | — |
 | VibeCLI daemon (serve) | ✅ | — |
 | VS Code extension | ✅ | — |
 | Agent SDK (TypeScript) | ✅ | — |

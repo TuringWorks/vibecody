@@ -67,6 +67,9 @@ vibecli --provider gemini
 | `--parallel <n>` | — | Run task across N parallel agents on git worktrees |
 | `--sandbox` | false | Enable OS-level sandbox (sandbox-exec/bwrap) |
 | `--review` | false | Run code review agent on current diff |
+| `--redteam <url>` | — | Run autonomous red team scan against target URL |
+| `--redteam-config <file>` | — | YAML config file for auth flows, scope, depth |
+| `--redteam-report <id>` | — | Generate pentest report from a previous session |
 
 ---
 
@@ -113,6 +116,11 @@ In REPL mode, the following slash commands are available:
 | `/workflow advance <name>` | Mark current stage complete and advance to the next |
 | `/workflow check <name> <id>` | Toggle a checklist item in the current stage |
 | `/workflow generate <name>` | AI-generate a checklist for the current stage |
+| `/redteam scan <url>` | Start an autonomous red team scan against a target URL |
+| `/redteam list` | List all red team sessions |
+| `/redteam show <id>` | Display findings for a session |
+| `/redteam report <id>` | Generate a full pentest report |
+| `/redteam config` | Show current red team configuration |
 | `/config` | Display current configuration |
 | `/help` | Show command reference |
 | `/exit` or `/quit` | Exit VibeCLI |
@@ -397,6 +405,52 @@ Workflows are stored as markdown files in `.vibecli/workflows/` with YAML front-
 
 ---
 
+## Red Team Security Testing
+
+Run autonomous penetration tests against applications you build with VibeCody. The red team module executes a 5-stage pipeline: **Recon → Analysis → Exploitation → Validation → Report**.
+
+### 5-Stage Pipeline
+
+| # | Stage | Focus |
+|---|-------|-------|
+| 1 | **Recon** | Target discovery, tech fingerprinting, endpoint enumeration |
+| 2 | **Analysis** | Source-code-aware vulnerability identification (white-box) |
+| 3 | **Exploitation** | Active validation via HTTP requests + browser actions |
+| 4 | **Validation** | Confirm exploitability, generate PoC payloads |
+| 5 | **Report** | Structured findings with CVSS scores + remediation |
+
+### Attack Vectors
+
+15 built-in attack vectors covering OWASP Top 10: SQL injection, XSS, SSRF, IDOR, path traversal, auth bypass, command injection, mass assignment, open redirect, XXE, insecure deserialization, NoSQL injection, template injection, CSRF, and cleartext transmission.
+
+### Usage
+
+```bash
+# Non-interactive scan (CI mode)
+vibecli --redteam http://localhost:3000
+
+# With auth config and scope restrictions
+vibecli --redteam http://localhost:3000 --redteam-config auth.yaml
+
+# Generate report from a previous session
+vibecli --redteam-report <session-id>
+```
+
+```
+# Interactive REPL
+> /redteam scan http://localhost:3000
+> /redteam list
+> /redteam show <session-id>
+> /redteam report <session-id>
+> /redteam config
+```
+
+Sessions are persisted as JSON at `~/.vibecli/redteam/`. Findings include CVSS severity scores, PoC payloads, and remediation guidance.
+
+> **Authorization**: Red team features require explicit user consent and target only user-controlled applications (localhost / staging).
+
+---
+
 ## Skills System
 
 Skills are context snippets that activate based on trigger keywords. Place `.md` files in `.vibecli/skills/` or `~/.vibecli/skills/`:
@@ -469,6 +523,11 @@ vibecli/
         ├── diff_viewer.rs  # Renders unified diffs in terminal
         ├── syntax.rs       # Syntax highlighting for code blocks
         ├── repl.rs         # Rustyline helper (tab completion, hints)
+        ├── redteam.rs      # Red team 5-stage pentest pipeline
+        ├── bugbot.rs       # OWASP/CWE static scanner (15 patterns)
+        ├── workflow.rs     # Code Complete 8-stage workflow
+        ├── scheduler.rs    # /remind and /schedule commands
+        ├── gateway.rs      # Telegram/Discord/Slack/Linear messaging
         └── tui/
             ├── mod.rs      # TUI run loop and event handling
             ├── app.rs      # TUI application state machine

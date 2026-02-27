@@ -88,6 +88,17 @@ max_file_size_kb = 500
 enabled = false
 endpoint = "http://localhost:4318"  # OTLP/HTTP collector
 service_name = "vibecli"
+
+# ── Red Team Security Testing ─────────────────────────────────────────
+
+[redteam]
+max_depth = 3                      # Max crawl depth for endpoint recon
+timeout_secs = 300                 # Per-stage timeout
+parallel_agents = 3                # Concurrent exploitation agents
+scope_patterns = ["*"]             # URL patterns in scope
+exclude_patterns = []              # URLs to skip
+auth_config = ""                   # Path to auth YAML file
+auto_report = true                 # Auto-generate report on completion
 ```
 
 ---

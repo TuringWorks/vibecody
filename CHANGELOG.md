@@ -8,6 +8,23 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **Phase 42**: `@jira:PROJECT-123` context in both VibeCLI (`expand_at_refs`) and VibeUI
+  (`resolve_at_references`): fetches Jira issue summary, status, assignee, and description
+  via REST API v2; uses `JIRA_BASE_URL` + `JIRA_EMAIL` + `JIRA_API_TOKEN` env vars;
+  `re_at_jira()` OnceLock regex + `JiraIssue`/`JiraFields` Deserialize types;
+  `ContextPicker.tsx` autocompletes `@jira:` with a dynamic hint `PROJ-123`; file-search
+  skipped for `jira:` prefix.
+- **Phase 42**: MCP OAuth install flow in `McpPanel.tsx` — each server gains an "OAuth" button
+  that opens a two-step modal: enter Client ID / Auth URL / Token URL / Scopes → "Open Browser"
+  launches the OAuth authorization URL; paste the authorization code back to complete the token
+  exchange; token stored at `~/.vibeui/mcp-tokens.json`; green `🔑 OAuth` badge on connected
+  servers; three new Tauri commands: `initiate_mcp_oauth` (URL builder + system browser),
+  `complete_mcp_oauth` (code exchange + persist), `get_mcp_token_status` (expiry check);
+  `url.workspace = true` added to `vibeui/src-tauri/Cargo.toml`.
+- **Phase 42**: Custom domain / publish in `DeployPanel.tsx` — "🌐 Custom Domain" input below
+  the deploy button; `set_custom_domain` Tauri command returns per-provider DNS instructions:
+  Vercel calls the REST API (requires `VERCEL_TOKEN`); Netlify/Railway/GitHub Pages/GCP Cloud
+  Run/Firebase Hosting return CNAME record instructions; result rendered in a pre block.
 - **Phase 40**: Code Complete workflow system (`workflow.rs`) — 8-stage development pipeline
   inspired by Steve McConnell's *Code Complete*: Requirements → Architecture → Design →
   Construction Planning → Coding → Quality Assurance → Integration & Testing → Code Complete;
@@ -16,13 +33,18 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   uses LLM to populate the checklist for the current stage; `progress_pct()` shown in
   `/workflow show` stage summary; TUI tab-completion for all sub-commands; 11 unit tests;
   127 tests passing total.
-- **Phase 40**: Red Team security testing module (`redteam.rs`) — autonomous 5-stage pentest
+- **Phase 41**: Red Team security testing module (`redteam.rs`) — autonomous 5-stage pentest
   pipeline (Recon → Analysis → Exploitation → Validation → Report); 15 attack vectors including
   SQL injection, XSS, SSRF, IDOR, path traversal, auth bypass; `run_recon()`, `analyze_recon()`,
   `exploit_candidate()` async stages; `RedTeamManager` with JSON-persisted sessions at
   `~/.vibecli/redteam/`; `/redteam scan|list|show|report|config` REPL commands; `--redteam`
   CLI flag; `start_redteam_scan` VibeUI Tauri command; `RedTeamCfg` in `config.rs`
   (`max_depth`, `timeout_secs`, `parallel_agents`, `auto_report`).
+- **Phase 41**: Extended `detect_security_patterns()` in `bugbot.rs` with 8 additional CWE patterns:
+  CWE-918 (SSRF), CWE-611 (XXE), CWE-502 (insecure deserialization), CWE-943 (NoSQL injection),
+  CWE-1336 (template injection), CWE-639 (IDOR), CWE-352 (missing CSRF), CWE-319 (cleartext
+  transmission); total 15 vulnerability patterns; `RedTeamPanel.tsx` added as 🛡️ RedTeam tab in
+  VibeUI AI panel; `docs/SHANNON-COMPARISON.md` feature comparison document.
 - **Phase 39**: LSP / linter diagnostics panel in VibeCLI TUI — `DiagnosticsComponent`
   (`tui/components/diagnostics.rs`); `/check` TUI command runs `cargo check --message-format=json`
   (or `npx eslint --format json` for npm projects), parses output via `parse_cargo_check()`,
