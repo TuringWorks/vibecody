@@ -137,6 +137,59 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Phase 32**: `BedrockConfig` and `CopilotConfig` structs in VibeCLI config.
 - **Phase 32**: Monaco `revealLineInCenter` + `setPosition` scroll-to-line in `App.tsx`.
 
+### Security
+- **P0**: SHA-256 checksum verification in `install.sh` — downloaded binaries are verified
+  against `SHA256SUMS.txt` before installation; hard-fails on mismatch.
+- **P0**: Path traversal prevention — `resolve_safe()` in `tool_executor.rs`, `safe_join()`
+  in `shadow_workspace.rs`, and `safe_resolve_path()` in `commands.rs` canonicalize and
+  jail-check all file paths against workspace/shadow boundaries; blocks `../` escapes.
+- **P0**: Cryptographic session IDs — `serve.rs` daemon sessions now use 128-bit random hex
+  IDs (`rand::thread_rng().gen::<u128>()`) instead of predictable millisecond timestamps.
+- **P1**: CORS restriction + bearer-token auth on daemon — `serve.rs` CORS limited to
+  localhost origins only; API endpoints require `Authorization: Bearer <token>` (random
+  token generated on startup, printed to stderr); health check and session viewer remain
+  public.
+- **P1**: HTTP client timeouts — `reqwest::Client::builder()` with 90s request / 10s connect
+  timeout on `bedrock.rs` and `copilot.rs`; 30s / 10s on `bugbot.rs` (PR diff fetch and
+  review posting). Prevents resource exhaustion from hung connections.
+- **P1**: GitHub Actions SHA pinning — all 6 actions in `release.yml` pinned to full commit
+  SHAs (`actions/checkout@11bd719...`, `dtolnay/rust-toolchain@631a55b...`, etc.) to prevent
+  tag mutation supply-chain attacks.
+- **P2**: Secrets scrubbing in traces — `redact_secrets()` in `trace.rs` applies 9 regex
+  patterns (OpenAI `sk-*`, GitHub `ghp_*`, Bearer tokens, AWS `AKIA*`, URL `?key=` params,
+  PEM private keys, generic `password=`/`secret=`/`api_key=`) before writing to JSONL traces
+  and message sidecars; 7 unit tests.
+- **P2**: Request body size limits — `DefaultBodyLimit::max(1 MB)` layer on all daemon
+  endpoints prevents memory exhaustion from oversized requests.
+- **P2**: Error response sanitization — all 6 error handlers in `serve.rs` replaced with
+  generic `"Internal server error"` messages; real errors logged server-side via
+  `tracing::error!()`. Session-not-found responses no longer echo the requested ID.
+- **P2**: Temp file TOCTOU fixes — screenshot path changed from millisecond timestamp to
+  128-bit random hex; sandbox profile path changed from fixed `/tmp/vibecli_sandbox.sb` to
+  PID + 64-bit random suffix.
+- **P2**: `cargo audit` in CI — new `audit` job in `release.yml` runs before the build
+  matrix; blocks release if known vulnerabilities exist.
+- **P2**: Rate limiting — sliding-window rate limiter (60 req/60s) on all authenticated API
+  endpoints; returns `429 Too Many Requests` with `retry-after` header.
+- **P2**: Gemini API key moved from URL query parameter (`?key=`) to `x-goog-api-key` header
+  to prevent key leakage in error messages and logs.
+- **P3**: Security response headers — `X-Content-Type-Options: nosniff`, `X-Frame-Options:
+  DENY`, `Content-Security-Policy: default-src 'self'; script-src 'none'`, and
+  `Referrer-Policy: no-referrer` added to all daemon HTTP responses.
+- **P3**: Graceful shutdown — `shutdown_signal()` handles SIGINT/SIGTERM; wired into
+  `axum::serve().with_graceful_shutdown()` for clean drain of SSE streams and in-flight
+  requests.
+- **P3**: Restrictive file permissions — `~/.vibecli/` directory set to `0o700`, config file
+  and job files set to `0o600` (owner-only) on Unix to protect API keys.
+- **P3**: Hardened command blocklist — `is_safe_command()` upgraded from substring matching to
+  regex-based detection; normalizes whitespace; resists flag-reorder, quoting, and spacing
+  bypasses; 8 patterns covering `rm -rf`, `dd`, fork bombs, `mkfs`, `chmod 777 /`, `shred`.
+- **P3**: Log injection prevention — `tracing::warn!` calls in `review.rs` and `executor.rs`
+  switched from format-string interpolation to structured field syntax (`file = %file`) to
+  prevent field injection in JSON-format log sinks.
+- **P3**: Shadow workspace temp path randomized — PID + 64-bit random hex suffix prevents
+  TOCTOU pre-creation race by local attackers.
+
 ### Changed
 - **Phase 33**: Removed 4 `println!("DEBUG: ...")` calls from `commands.rs`.
 - **Phase 33**: `estimate_confidence()` heuristic replaces hardcoded `0.8` in `completion.rs`.
