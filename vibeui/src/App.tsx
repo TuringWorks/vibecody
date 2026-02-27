@@ -43,7 +43,10 @@ import { GitHubSyncPanel } from "./components/GitHubSyncPanel";
 import SteeringPanel from "./components/SteeringPanel";
 import { BugBotPanel } from "./components/BugBotPanel";
 import { RedTeamPanel } from "./components/RedTeamPanel";
+import { TestPanel } from "./components/TestPanel";
 import { DiffReviewPanel } from "./components/DiffReviewPanel";
+import { CollabPanel } from "./components/CollabPanel";
+import { useCollab } from "./hooks/useCollab";
 import { flowContext } from "./utils/FlowContext";
 import { supercompleteEngine } from "./utils/SupercompleteEngine";
 
@@ -83,7 +86,7 @@ function App() {
   const [showSidebar, setShowSidebar] = useState(true);
   const [activeSidebarTab, setActiveSidebarTab] = useState<"explorer" | "search" | "git">("explorer");
   const [showAIChat, setShowAIChat] = useState(false);
-  const [aiPanelTab, setAiPanelTab] = useState<"chat" | "agent" | "memory" | "history" | "checkpoints" | "artifacts" | "manager" | "hooks" | "jobs" | "mcp" | "settings" | "cascade" | "specs" | "workflow" | "design" | "deploy" | "database" | "supabase" | "auth" | "github" | "steering" | "bugbot">("chat");
+  const [aiPanelTab, setAiPanelTab] = useState<"chat" | "agent" | "memory" | "history" | "checkpoints" | "artifacts" | "manager" | "hooks" | "jobs" | "mcp" | "settings" | "cascade" | "specs" | "workflow" | "design" | "deploy" | "database" | "supabase" | "auth" | "github" | "steering" | "bugbot" | "redteam" | "tests" | "collab">("chat");
   const [showTerminal, setShowTerminal] = useState(false);
   const [bottomTab, setBottomTab] = useState<"terminal" | "browser">("terminal");
   const [showCommandPalette, setShowCommandPalette] = useState(false);
@@ -97,6 +100,9 @@ function App() {
   }>({ title: '', placeholder: '', onConfirm: () => { } });
   const [currentDirectory, setCurrentDirectory] = useState<string | null>(null);
   const [pendingDiff, setPendingDiff] = useState<{ path: string; original: string; modified: string } | null>(null);
+
+  // Collab (CRDT multiplayer)
+  const collab = useCollab();
 
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
@@ -1439,7 +1445,7 @@ function App() {
           <aside className="ai-chat-panel" style={{ display: "flex", flexDirection: "column" }}>
             {/* Tab bar */}
             <div style={{ display: "flex", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
-              {(["chat", "agent", "memory", "history", "checkpoints", "artifacts", "manager", "hooks", "jobs", "mcp", "settings", "cascade", "specs", "workflow", "design", "deploy", "database", "supabase", "auth", "github", "steering", "bugbot", "redteam"] as const).map((tab) => (
+              {(["chat", "agent", "memory", "history", "checkpoints", "artifacts", "manager", "hooks", "jobs", "mcp", "settings", "cascade", "specs", "workflow", "design", "deploy", "database", "supabase", "auth", "github", "steering", "bugbot", "redteam", "tests", "collab"] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setAiPanelTab(tab)}
@@ -1477,6 +1483,8 @@ function App() {
                     : tab === "steering" ? "🧭 Steering"
                     : tab === "bugbot" ? "🐛 BugBot"
                     : tab === "redteam" ? "🛡️ RedTeam"
+                    : tab === "tests" ? "🧪 Tests"
+                    : tab === "collab" ? "👥 Collab"
                     : "🌊 Flow"}
                 </button>
               ))}
@@ -1601,6 +1609,19 @@ function App() {
                 <RedTeamPanel
                   workspacePath={workspaceFolders[0] || null}
                   provider={selectedProvider}
+                />
+              )}
+              {aiPanelTab === "tests" && (
+                <TestPanel workspacePath={workspaceFolders[0] || null} />
+              )}
+              {aiPanelTab === "collab" && (
+                <CollabPanel
+                  connected={collab.connected}
+                  roomId={collab.roomId}
+                  peerId={collab.peerId}
+                  peers={collab.peers}
+                  onConnect={collab.connect}
+                  onDisconnect={collab.disconnect}
                 />
               )}
             </div>

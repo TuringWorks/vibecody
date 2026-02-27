@@ -175,6 +175,10 @@ pub fn run() {
             commands::initiate_mcp_oauth,
             commands::complete_mcp_oauth,
             commands::get_mcp_token_status,
+            // Test runner (Phase 43)
+            commands::detect_test_framework,
+            commands::run_tests,
+            commands::generate_commit_message,
             // Symbol + codebase search
             commands::search_workspace_symbols,
             commands::semantic_search_codebase,
@@ -250,6 +254,12 @@ pub fn run() {
             commands::get_redteam_findings,
             commands::generate_redteam_report,
             commands::cancel_redteam_scan,
+            // Phase 43: CRDT Collab
+            commands::create_collab_session,
+            commands::join_collab_session,
+            commands::leave_collab_session,
+            commands::list_collab_peers,
+            commands::get_collab_status,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

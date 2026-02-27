@@ -50,8 +50,11 @@ use rand::Rng;
 use tower_http::cors::CorsLayer;
 use tower_http::set_header::SetResponseHeaderLayer;
 
+use axum::extract::ws::{Message as WsMessage, WebSocket, WebSocketUpgrade};
+use axum::extract::Query;
 use vibe_ai::{AgentContext, AgentEvent, AgentLoop, ApprovalPolicy, Message, MessageRole};
 use vibe_ai::provider::AIProvider;
+use vibe_collab::{CollabMessage, CollabServer, PeerInfo, SyncBroadcast};
 use crate::session_store::{SessionStore, render_session_html, render_sessions_index_html};
 
 // ── Job record (persisted to disk) ────────────────────────────────────────────
@@ -123,6 +126,8 @@ pub struct ServeState {
     /// Bearer token required on all non-health/non-viewer endpoints.
     /// Generated randomly on daemon startup and printed to stderr.
     pub api_token: String,
+    /// CRDT collaboration server for multiplayer editing.
+    pub collab_server: Arc<CollabServer>,
 }
 
 // ── Request / Response types ──────────────────────────────────────────────────
@@ -556,6 +561,8 @@ pub async fn serve(
     // Generate a random bearer token for this daemon session
     let api_token = format!("{:032x}", rand::thread_rng().gen::<u128>());
 
+    let collab_server = Arc::new(CollabServer::new(20));
+
     let state = ServeState {
         provider,
         approval,
@@ -564,6 +571,7 @@ pub async fn serve(
         jobs_dir,
         provider_name,
         api_token: api_token.clone(),
+        collab_server,
     };
 
     // CORS: restrict to localhost origins only
@@ -589,12 +597,16 @@ pub async fn serve(
         .route("/jobs", get(list_jobs))
         .route("/jobs/:id", get(get_job))
         .route("/jobs/:id/cancel", post(cancel_job))
+        .route("/collab/rooms", post(create_collab_room))
+        .route("/collab/rooms", get(list_collab_rooms))
+        .route("/collab/rooms/:room_id/peers", get(list_collab_peers))
         .route_layer(middleware::from_fn_with_state(limiter, rate_limit))
         .route_layer(middleware::from_fn_with_state(state.clone(), require_auth));
 
-    // Public routes (health check + read-only session viewer)
+    // Public routes (health check + read-only session viewer + WebSocket collab)
     let app = Router::new()
         .route("/health", get(health))
+        .route("/ws/collab/:room_id", get(ws_collab_handler))
         .merge(authed_routes)
         .route("/sessions", get(sessions_index_html))
         .route("/sessions.json", get(sessions_json))
@@ -633,6 +645,213 @@ pub async fn serve(
         .await?;
     eprintln!("[vibecli serve] Shutting down gracefully");
     Ok(())
+}
+
+// ── Collab endpoints ──────────────────────────────────────────────────────────
+
+#[derive(Debug, Deserialize)]
+struct CreateRoomRequest {
+    room_id: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct RoomInfo {
+    room_id: String,
+    peer_count: usize,
+}
+
+async fn create_collab_room(
+    State(state): State<ServeState>,
+    Json(req): Json<CreateRoomRequest>,
+) -> Json<RoomInfo> {
+    let room_id = req
+        .room_id
+        .unwrap_or_else(|| format!("{:016x}", rand::thread_rng().gen::<u64>()));
+    let room = state.collab_server.get_or_create_room(&room_id);
+    let peer_count = room.peer_count().await;
+    Json(RoomInfo { room_id, peer_count })
+}
+
+async fn list_collab_rooms(
+    State(state): State<ServeState>,
+) -> Json<Vec<String>> {
+    Json(state.collab_server.list_rooms())
+}
+
+async fn list_collab_peers(
+    Path(room_id): Path<String>,
+    State(state): State<ServeState>,
+) -> Result<Json<Vec<PeerInfo>>, (StatusCode, String)> {
+    let room = state
+        .collab_server
+        .get_room(&room_id)
+        .ok_or_else(|| (StatusCode::NOT_FOUND, format!("Room '{}' not found", room_id)))?;
+    Ok(Json(room.list_peers().await))
+}
+
+#[derive(Debug, Deserialize)]
+struct WsCollabParams {
+    token: String,
+    name: Option<String>,
+}
+
+async fn ws_collab_handler(
+    Path(room_id): Path<String>,
+    Query(params): Query<WsCollabParams>,
+    State(state): State<ServeState>,
+    ws: WebSocketUpgrade,
+) -> impl IntoResponse {
+    // Authenticate via query param token
+    if params.token != state.api_token {
+        return (StatusCode::UNAUTHORIZED, "Invalid token").into_response();
+    }
+
+    let name = params.name.unwrap_or_else(|| "Anonymous".to_string());
+    let room = state.collab_server.get_or_create_room(&room_id);
+    let collab_server = state.collab_server.clone();
+
+    ws.on_upgrade(move |socket| handle_collab_ws(socket, room, name, room_id, collab_server))
+        .into_response()
+}
+
+async fn handle_collab_ws(
+    mut socket: WebSocket,
+    room: std::sync::Arc<vibe_collab::CollabRoom>,
+    name: String,
+    room_id: String,
+    collab_server: Arc<CollabServer>,
+) {
+
+    // Generate a peer ID and add to room
+    let peer_id = format!("{:016x}", rand::thread_rng().gen::<u64>());
+    let peer = match room.add_peer(peer_id.clone(), name).await {
+        Ok(p) => p,
+        Err(e) => {
+            let err_msg = CollabMessage::Error {
+                message: e.to_string(),
+            };
+            let _ = socket
+                .send(WsMessage::Text(serde_json::to_string(&err_msg).unwrap().into()))
+                .await;
+            return;
+        }
+    };
+
+    // Send Welcome message with current peer list
+    let peers = room.list_peers().await;
+    let welcome = CollabMessage::Welcome {
+        room_id: room_id.clone(),
+        peer_id: peer_id.clone(),
+        peers,
+    };
+    if socket
+        .send(WsMessage::Text(serde_json::to_string(&welcome).unwrap().into()))
+        .await
+        .is_err()
+    {
+        room.remove_peer(&peer_id).await;
+        return;
+    }
+
+    // Send current doc state as SyncStep1
+    let state_msg = room.encode_state().await;
+    if socket.send(WsMessage::Binary(state_msg.into())).await.is_err() {
+        room.remove_peer(&peer_id).await;
+        return;
+    }
+
+    // Broadcast PeerJoined to other peers
+    let joined_msg = CollabMessage::PeerJoined { peer: peer.clone() };
+    let joined_json = serde_json::to_string(&joined_msg).unwrap();
+    let _ = room.sync_tx.send(SyncBroadcast {
+        sender_peer_id: peer_id.clone(),
+        data: joined_json.into_bytes(),
+    });
+
+    // Subscribe to broadcast channel for fan-out
+    let mut broadcast_rx = room.sync_tx.subscribe();
+
+    // Main loop: receive from WS + fan-out from broadcast
+    loop {
+        tokio::select! {
+            // Incoming message from this peer's WebSocket
+            msg = socket.recv() => {
+                match msg {
+                    Some(Ok(WsMessage::Binary(data))) => {
+                        // Binary frame = Yjs sync protocol
+                        let data_vec: Vec<u8> = data.into();
+                        match room.apply_message(&data_vec).await {
+                            Ok(Some(reply)) => {
+                                // Send reply (e.g. SyncStep2) back to sender
+                                let _ = socket.send(WsMessage::Binary(reply.into())).await;
+                            }
+                            Ok(None) => {}
+                            Err(e) => {
+                                tracing::warn!(peer_id, "collab sync error: {e}");
+                            }
+                        }
+                        // Broadcast the update to all other peers
+                        let _ = room.sync_tx.send(SyncBroadcast {
+                            sender_peer_id: peer_id.clone(),
+                            data: data_vec,
+                        });
+                    }
+                    Some(Ok(WsMessage::Text(text))) => {
+                        // Text frame = JSON CollabMessage (awareness, file_opened, etc.)
+                        if let Ok(_collab_msg) = serde_json::from_str::<CollabMessage>(&text) {
+                            // Broadcast awareness updates to all other peers
+                            let _ = room.sync_tx.send(SyncBroadcast {
+                                sender_peer_id: peer_id.clone(),
+                                data: text.as_bytes().to_vec(),
+                            });
+                        }
+                    }
+                    Some(Ok(WsMessage::Close(_))) | None => break,
+                    _ => {}
+                }
+            }
+            // Outgoing broadcast from other peers
+            broadcast = broadcast_rx.recv() => {
+                match broadcast {
+                    Ok(sync_broadcast) if sync_broadcast.sender_peer_id != peer_id => {
+                        // Determine if binary or text
+                        let data = &sync_broadcast.data;
+                        if let Ok(text) = std::str::from_utf8(data) {
+                            if text.starts_with('{') {
+                                // JSON text message
+                                let _ = socket.send(WsMessage::Text(text.to_string().into())).await;
+                            } else {
+                                let _ = socket.send(WsMessage::Binary(data.clone().into())).await;
+                            }
+                        } else {
+                            // Binary Yjs update
+                            let _ = socket.send(WsMessage::Binary(data.clone().into())).await;
+                        }
+                    }
+                    Err(_) => break, // channel closed
+                    _ => {} // skip own messages
+                }
+            }
+        }
+    }
+
+    // Peer disconnected — clean up
+    let room_empty = room.remove_peer(&peer_id).await;
+
+    // Broadcast PeerLeft
+    let left_msg = CollabMessage::PeerLeft {
+        peer_id: peer_id.clone(),
+    };
+    let _ = room.sync_tx.send(SyncBroadcast {
+        sender_peer_id: peer_id,
+        data: serde_json::to_string(&left_msg).unwrap().into_bytes(),
+    });
+
+    // Clean up empty rooms
+    if room_empty {
+        collab_server.remove_room(&room_id);
+        tracing::info!(room_id, "removed empty collab room");
+    }
 }
 
 /// Wait for SIGINT (Ctrl+C) or SIGTERM for graceful shutdown.

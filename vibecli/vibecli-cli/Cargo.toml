@@ -39,6 +39,7 @@ walkdir = { workspace = true }
 rusqlite = { workspace = true }
 notify = { workspace = true }
 serde_yaml = "0.9"
+vibe-collab = { path = "../../vibeui/crates/vibe-collab" }
 
 # OpenTelemetry (OTLP/HTTP export)
 opentelemetry = { version = "0.27", features = ["trace"] }

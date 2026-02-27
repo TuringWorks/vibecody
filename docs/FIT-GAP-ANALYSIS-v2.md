@@ -4,7 +4,7 @@
 **VibeCLI competitors:** Codex CLI, Warp 2.0, Kiro, opencode, Claude Code, Aider, Cline, Continue.dev, Amazon Q Developer
 **VibeUI competitors:** Antigravity (Google), Cursor, Windsurf, Replit, Base44, Lovable, Zed AI, Void
 
-> **Status:** All Phases 12–31 ✅ complete. Phases 32–42 polish/security ✅ complete. Security hardening audit (P0–P3, 20 items) ✅ complete. This document reflects the current state of the codebase as of 2026-02-26.
+> **Status:** All Phases 12–31 ✅ complete. Phases 32–43 polish/security/features ✅ complete. Security hardening audit (P0–P3, 20 items) ✅ complete. This document reflects the current state of the codebase as of 2026-02-27.
 
 ---
 
@@ -78,6 +78,8 @@
 | @github issue context | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ |
 | Streaming REPL chat (token-by-token) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Tab-completion for REPL commands | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Integrated test runner (auto-detect framework) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| AI commit message generation | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 
 ---
 
@@ -354,7 +356,7 @@ opencode is the **most technically ambitious** open-source CLI agent in 2026, bu
 - **Built-in stack:** auth + database (PostgreSQL) + hosting + monitoring in one click
 - **Multiplayer:** real-time collaboration on same Repl
 - **VibeUI status:** ✅ browser app testing (agent_browser_action), ✅ built-in DB+auth, ❌ multiplayer not yet
-- **Remaining gap:** multiplayer/CRDT collab, hosted cloud environment
+- **Remaining gap:** hosted cloud environment (multiplayer CRDT collab closed in Phase 43)
 
 #### Base44 (acquired by Wix)
 
@@ -677,7 +679,7 @@ These represent the remaining frontier for VibeCLI + VibeUI competitive parity:
 
 | Gap | Impact | Effort | Competitor | Notes |
 |-----|--------|--------|------------|-------|
-| Multiplayer / real-time CRDT collab | High | XL | Replit/Lovable/Zed | `vibe-collab` crate (yrs) planned |
+| ~~Multiplayer / real-time CRDT collab~~ | ~~High~~ | ~~XL~~ | ~~Replit/Lovable/Zed~~ | ✅ Phase 43: `vibe-collab` crate (yrs+DashMap+Axum WS), CollabPanel.tsx, useCollab.ts |
 | Custom domain / publish UX | Medium | M | Base44/Lovable | Deploy panel missing final step |
 | Ambient agent session sharing | Medium | L | Warp/Claude Code | Share link → browser session view |
 | @jira / @github issue context | Medium | M | Continue.dev | Extend resolve_at_references |

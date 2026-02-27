@@ -2082,6 +2082,247 @@ pub async fn get_mcp_token_status(server_name: String) -> Result<serde_json::Val
     }
 }
 
+// ─── Test Runner (Phase 43) ───────────────────────────────────────────────────
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct TestResult {
+    pub name: String,
+    pub status: String, // "passed" | "failed" | "ignored" | "running"
+    pub duration_ms: Option<u64>,
+    pub output: Option<String>,
+}
+
+#[derive(Serialize)]
+pub struct TestRunResult {
+    pub framework: String,
+    pub passed: u32,
+    pub failed: u32,
+    pub ignored: u32,
+    pub total: u32,
+    pub duration_ms: u64,
+    pub tests: Vec<TestResult>,
+}
+
+/// Detect which test framework the workspace uses.
+#[tauri::command]
+pub async fn detect_test_framework(workspace: String) -> String {
+    let ws = std::path::Path::new(&workspace);
+    if ws.join("Cargo.toml").exists() { return "cargo test".to_string(); }
+    // Check package.json for test script
+    if let Ok(txt) = std::fs::read_to_string(ws.join("package.json")) {
+        if let Ok(v) = serde_json::from_str::<serde_json::Value>(&txt) {
+            if v["scripts"]["test"].is_string() {
+                let mgr = if ws.join("bun.lockb").exists() { "bun" }
+                    else if ws.join("yarn.lock").exists() { "yarn" }
+                    else { "npm" };
+                return format!("{} test", mgr);
+            }
+        }
+    }
+    if ws.join("pytest.ini").exists() || ws.join("pyproject.toml").exists() || ws.join("setup.py").exists() {
+        return "pytest".to_string();
+    }
+    if ws.join("go.mod").exists() { return "go test ./...".to_string(); }
+    "unknown".to_string()
+}
+
+/// Run tests in the workspace and return parsed results.
+///
+/// Emits `test:log` events for each output line so the frontend can show a live stream.
+#[tauri::command]
+pub async fn run_tests(
+    app: tauri::AppHandle,
+    workspace: String,
+    command: Option<String>,
+) -> Result<TestRunResult, String> {
+    let framework = detect_test_framework(workspace.clone()).await;
+    let cmd_str = command.unwrap_or_else(|| framework.clone());
+    if cmd_str == "unknown" {
+        return Err("Could not detect a test framework. Set a custom command.".to_string());
+    }
+
+    let started = std::time::Instant::now();
+    let _ = app.emit("test:log", format!("$ {}", cmd_str));
+
+    let (prog, args_str) = if cmd_str.starts_with("cargo") {
+        ("cargo", "test --message-format=json --quiet")
+    } else if cmd_str.starts_with("bun") {
+        ("bun", "test")
+    } else if cmd_str.starts_with("yarn") {
+        ("yarn", "test --json 2>&1 || true")
+    } else if cmd_str.starts_with("npm") {
+        ("npm", "test -- --json 2>&1 || true")
+    } else if cmd_str.starts_with("pytest") {
+        ("python", "-m pytest -v --tb=short --no-header 2>&1 || true")
+    } else if cmd_str.starts_with("go test") {
+        ("go", "test -v ./... 2>&1 || true")
+    } else {
+        // custom command: run via sh
+        let output = std::process::Command::new("sh")
+            .arg("-c")
+            .arg(&cmd_str)
+            .current_dir(&workspace)
+            .output()
+            .map_err(|e| format!("Failed to run: {}", e))?;
+        let text = String::from_utf8_lossy(&output.stdout).to_string()
+            + &String::from_utf8_lossy(&output.stderr);
+        for line in text.lines() {
+            let _ = app.emit("test:log", line.to_string());
+        }
+        let elapsed = started.elapsed().as_millis() as u64;
+        let passed = if output.status.success() { 1 } else { 0 };
+        let failed = 1 - passed;
+        return Ok(TestRunResult {
+            framework: cmd_str,
+            passed, failed, ignored: 0, total: 1, duration_ms: elapsed,
+            tests: vec![TestResult {
+                name: "Test run".to_string(),
+                status: if output.status.success() { "passed".to_string() } else { "failed".to_string() },
+                duration_ms: Some(elapsed),
+                output: if !output.status.success() { Some(text.chars().take(2000).collect()) } else { None },
+            }],
+        });
+    };
+
+    let output = std::process::Command::new(prog)
+        .args(args_str.split_whitespace())
+        .current_dir(&workspace)
+        .output()
+        .map_err(|e| format!("Failed to run {} {}: {}", prog, args_str, e))?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+    let combined = format!("{}{}", stdout, stderr);
+
+    for line in combined.lines().take(500) {
+        let _ = app.emit("test:log", line.to_string());
+    }
+
+    let elapsed = started.elapsed().as_millis() as u64;
+
+    // Parse results based on framework
+    let mut tests: Vec<TestResult> = Vec::new();
+
+    if prog == "cargo" {
+        // Parse cargo test JSON events
+        for line in stdout.lines() {
+            let Ok(v) = serde_json::from_str::<serde_json::Value>(line) else { continue };
+            if v["type"].as_str() != Some("test") { continue; }
+            let event  = v["event"].as_str().unwrap_or("");
+            let name   = v["name"].as_str().unwrap_or("?").to_string();
+            let dur_ms = v["exec_time"].as_f64().map(|s| (s * 1000.0) as u64);
+            let stdout_val = v["stdout"].as_str().map(|s| s.to_string());
+            let status = match event {
+                "ok"      => "passed",
+                "failed"  => "failed",
+                "ignored" => "ignored",
+                _         => "running",
+            };
+            tests.push(TestResult { name, status: status.to_string(), duration_ms: dur_ms, output: stdout_val });
+        }
+    } else {
+        // Generic line-by-line parsing for pytest/go/npm
+        for line in combined.lines() {
+            let trimmed = line.trim();
+            if prog == "python" {
+                // pytest: "PASSED path/test.py::func_name" or "FAILED path::func"
+                if let Some(rest) = trimmed.strip_prefix("PASSED ") {
+                    tests.push(TestResult { name: rest.trim().to_string(), status: "passed".to_string(), duration_ms: None, output: None });
+                } else if let Some(rest) = trimmed.strip_prefix("FAILED ") {
+                    tests.push(TestResult { name: rest.trim().to_string(), status: "failed".to_string(), duration_ms: None, output: None });
+                }
+            } else if prog == "go" {
+                // go test: "--- PASS: TestName (0.00s)"
+                if trimmed.starts_with("--- PASS: ") {
+                    let parts: Vec<&str> = trimmed[10..].split_whitespace().collect();
+                    let name = parts.first().unwrap_or(&"?").to_string();
+                    let dur: Option<u64> = parts.get(1).and_then(|s| s.trim_matches(['(','s',')']).parse::<f64>().ok()).map(|s| (s * 1000.0) as u64);
+                    tests.push(TestResult { name, status: "passed".to_string(), duration_ms: dur, output: None });
+                } else if trimmed.starts_with("--- FAIL: ") {
+                    let parts: Vec<&str> = trimmed[10..].split_whitespace().collect();
+                    let name = parts.first().unwrap_or(&"?").to_string();
+                    tests.push(TestResult { name, status: "failed".to_string(), duration_ms: None, output: None });
+                }
+            }
+        }
+        // If we couldn't parse individual tests, synthesize a single result
+        if tests.is_empty() {
+            tests.push(TestResult {
+                name: "Test suite".to_string(),
+                status: if output.status.success() { "passed".to_string() } else { "failed".to_string() },
+                duration_ms: Some(elapsed),
+                output: if !output.status.success() { Some(combined.chars().take(2000).collect()) } else { None },
+            });
+        }
+    }
+
+    let passed  = tests.iter().filter(|t| t.status == "passed").count() as u32;
+    let failed  = tests.iter().filter(|t| t.status == "failed").count() as u32;
+    let ignored = tests.iter().filter(|t| t.status == "ignored").count() as u32;
+    let total   = tests.len() as u32;
+
+    Ok(TestRunResult { framework, passed, failed, ignored, total, duration_ms: elapsed, tests })
+}
+
+// ─── AI Commit Message (Phase 43) ─────────────────────────────────────────────
+
+/// Generate a commit message for the current git diff using the active LLM provider.
+#[tauri::command]
+pub async fn generate_commit_message(
+    state: tauri::State<'_, AppState>,
+) -> Result<String, String> {
+    // Get the workspace path
+    let ws = state.workspace.lock().await;
+    let ws_path = ws.folders().first()
+        .cloned()
+        .ok_or_else(|| "No workspace open".to_string())?;
+    drop(ws);
+
+    // Run git diff --staged
+    let diff_output = std::process::Command::new("git")
+        .args(["diff", "--staged", "--stat", "--diff-algorithm=histogram"])
+        .current_dir(&ws_path)
+        .output()
+        .map_err(|e| format!("git diff failed: {}", e))?;
+    let stat = String::from_utf8_lossy(&diff_output.stdout);
+
+    let diff_output2 = std::process::Command::new("git")
+        .args(["diff", "--staged", "--unified=3"])
+        .current_dir(&ws_path)
+        .output()
+        .map_err(|e| format!("git diff body failed: {}", e))?;
+    let diff_body = String::from_utf8_lossy(&diff_output2.stdout);
+
+    if stat.trim().is_empty() && diff_body.trim().is_empty() {
+        return Err("No staged changes. Stage files first with git add.".to_string());
+    }
+
+    let prompt = format!(
+        r#"Write a concise git commit message for the following staged diff.
+Rules: imperative mood, ≤72 chars subject line, no trailing period, no "feat:"/"fix:" prefix.
+Optionally add a blank line + 1-3 bullet body lines for complex changes.
+
+--- stat ---
+{}
+--- diff (first 4000 chars) ---
+{}
+---
+Respond with the commit message only, no explanation."#,
+        stat.trim(),
+        diff_body.chars().take(4000).collect::<String>()
+    );
+
+    let engine = state.chat_engine.lock().await;
+    let messages = vec![vibe_ai::Message {
+        role: vibe_ai::MessageRole::User,
+        content: prompt,
+    }];
+    engine.chat(&messages, None)
+        .await
+        .map(|r| r.trim().to_string())
+        .map_err(|e| e.to_string())
+}
+
 // ─── Checkpoint Commands ───────────────────────────────────────────────────────
 
 #[derive(Serialize)]
@@ -3751,12 +3992,16 @@ pub async fn advance_workflow_stage(
     let mut workflow = parse_workflow_file(&path).ok_or_else(|| format!("Workflow '{}' not found", name))?;
 
     let idx = workflow.current_stage;
-    workflow.stages[idx].status = "complete".to_string();
-
-    if idx + 1 < workflow.stages.len() {
-        workflow.current_stage = idx + 1;
-        workflow.stages[idx + 1].status = "in-progress".to_string();
+    if idx >= workflow.stages.len() {
+        return Err(format!("Invalid current stage index: {}", idx));
     }
+    if idx + 1 >= workflow.stages.len() {
+        return Err(format!("Already at final stage '{}' — cannot advance further", workflow.stages[idx].label));
+    }
+
+    workflow.stages[idx].status = "complete".to_string();
+    workflow.current_stage = idx + 1;
+    workflow.stages[idx + 1].status = "in-progress".to_string();
 
     // Recalculate progress
     let total: usize = workflow.stages.iter().map(|s| s.checklist.len()).sum();
@@ -3789,10 +4034,13 @@ pub async fn update_workflow_checklist_item(
         return Err(format!("Checklist item {} not found in stage {}", item_id, stage_index));
     }
 
-    // Auto-update stage status
+    // Auto-update stage status based on checklist completion
     if stage.checklist.iter().all(|c| c.done) && !stage.checklist.is_empty() {
         stage.status = "complete".to_string();
     } else if stage.checklist.iter().any(|c| c.done) {
+        stage.status = "in-progress".to_string();
+    } else if !stage.checklist.is_empty() {
+        // All items unchecked — revert to in-progress
         stage.status = "in-progress".to_string();
     }
 
@@ -5596,6 +5844,122 @@ pub async fn cancel_redteam_scan(session_id: String) -> Result<(), String> {
         std::fs::write(&path, &updated).map_err(|e| e.to_string())?;
     }
     Ok(())
+}
+
+// ── Collab (Phase 43) ───────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CollabSessionInfo {
+    pub room_id: String,
+    pub peer_id: String,
+    pub ws_url: String,
+    pub peers: Vec<CollabPeerInfo>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CollabPeerInfo {
+    pub peer_id: String,
+    pub name: String,
+    pub color: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CollabStatus {
+    pub connected: bool,
+    pub room_id: Option<String>,
+    pub peer_count: usize,
+}
+
+#[tauri::command]
+pub async fn create_collab_session(
+    room_id: Option<String>,
+    user_name: String,
+    daemon_port: Option<u16>,
+) -> Result<CollabSessionInfo, String> {
+    let port = daemon_port.unwrap_or(7878);
+    let room = room_id.unwrap_or_else(|| format!("{:016x}", rand::random::<u64>()));
+    let ws_url = format!("ws://127.0.0.1:{port}/ws/collab/{room}");
+    Ok(CollabSessionInfo {
+        room_id: room,
+        peer_id: format!("{:016x}", rand::random::<u64>()),
+        ws_url,
+        peers: vec![CollabPeerInfo {
+            peer_id: format!("{:016x}", rand::random::<u64>()),
+            name: user_name,
+            color: "#61afef".to_string(),
+        }],
+    })
+}
+
+#[tauri::command]
+pub async fn join_collab_session(
+    room_id: String,
+    user_name: String,
+    daemon_port: Option<u16>,
+) -> Result<CollabSessionInfo, String> {
+    let port = daemon_port.unwrap_or(7878);
+    let ws_url = format!("ws://127.0.0.1:{port}/ws/collab/{room_id}");
+    Ok(CollabSessionInfo {
+        room_id,
+        peer_id: format!("{:016x}", rand::random::<u64>()),
+        ws_url,
+        peers: vec![CollabPeerInfo {
+            peer_id: format!("{:016x}", rand::random::<u64>()),
+            name: user_name,
+            color: "#e06c75".to_string(),
+        }],
+    })
+}
+
+#[tauri::command]
+pub async fn leave_collab_session() -> Result<(), String> {
+    // The actual disconnect is handled by the frontend closing the WebSocket.
+    // This command is a no-op placeholder for cleanup if needed.
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn list_collab_peers(
+    room_id: String,
+    daemon_port: Option<u16>,
+    api_token: Option<String>,
+) -> Result<Vec<CollabPeerInfo>, String> {
+    let port = daemon_port.unwrap_or(7878);
+    let url = format!("http://127.0.0.1:{port}/collab/rooms/{room_id}/peers");
+    let client = reqwest::Client::new();
+    let mut req = client.get(&url);
+    if let Some(token) = api_token {
+        req = req.header("Authorization", format!("Bearer {token}"));
+    }
+    let resp = req
+        .send()
+        .await
+        .map_err(|e| format!("Failed to connect to daemon: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(format!("Daemon returned status {}", resp.status()));
+    }
+    let peers: Vec<serde_json::Value> = resp.json().await.map_err(|e| e.to_string())?;
+    Ok(peers
+        .into_iter()
+        .map(|p| CollabPeerInfo {
+            peer_id: p["peer_id"].as_str().unwrap_or("").to_string(),
+            name: p["name"].as_str().unwrap_or("").to_string(),
+            color: p["color"].as_str().unwrap_or("#888").to_string(),
+        })
+        .collect())
+}
+
+#[tauri::command]
+pub async fn get_collab_status(
+    room_id: Option<String>,
+) -> Result<CollabStatus, String> {
+    // Status is managed client-side via the useCollab hook;
+    // this command provides a bridge for non-React callers.
+    Ok(CollabStatus {
+        connected: room_id.is_some(),
+        room_id,
+        peer_count: 0,
+    })
 }
 
 // ── Unit tests ────────────────────────────────────────────────────────────────

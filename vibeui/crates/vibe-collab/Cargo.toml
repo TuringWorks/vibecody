@@ -1,0 +1,22 @@
+[package]
+name = "vibe-collab"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "CRDT-based multiplayer collaboration for VibeCody"
+
+[dependencies]
+yrs = "0.21"
+dashmap = "6"
+axum = { workspace = true, features = ["ws"] }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+uuid = { workspace = true }
+rand = "0.8"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util", "macros"] }
