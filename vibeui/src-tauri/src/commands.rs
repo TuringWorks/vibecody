@@ -1806,8 +1806,8 @@ fn parse_rule_meta(content: &str, filename: &str) -> RuleFileMeta {
         .to_string();
     let mut name = stem.clone();
     let mut path_pattern: Option<String> = None;
-    if content.starts_with("---") {
-        let after = content[3..].trim_start_matches('\n');
+    if let Some(after_prefix) = content.strip_prefix("---") {
+        let after = after_prefix.trim_start_matches('\n');
         if let Some(close) = after.find("\n---") {
             for line in after[..close].lines() {
                 if let Some((k, v)) = line.split_once(':') {
@@ -2233,13 +2233,13 @@ pub async fn run_tests(
                 }
             } else if prog == "go" {
                 // go test: "--- PASS: TestName (0.00s)"
-                if trimmed.starts_with("--- PASS: ") {
-                    let parts: Vec<&str> = trimmed[10..].split_whitespace().collect();
+                if let Some(after_pass) = trimmed.strip_prefix("--- PASS: ") {
+                    let parts: Vec<&str> = after_pass.split_whitespace().collect();
                     let name = parts.first().unwrap_or(&"?").to_string();
                     let dur: Option<u64> = parts.get(1).and_then(|s| s.trim_matches(['(','s',')']).parse::<f64>().ok()).map(|s| (s * 1000.0) as u64);
                     tests.push(TestResult { name, status: "passed".to_string(), duration_ms: dur, output: None });
-                } else if trimmed.starts_with("--- FAIL: ") {
-                    let parts: Vec<&str> = trimmed[10..].split_whitespace().collect();
+                } else if let Some(after_fail) = trimmed.strip_prefix("--- FAIL: ") {
+                    let parts: Vec<&str> = after_fail.split_whitespace().collect();
                     let name = parts.first().unwrap_or(&"?").to_string();
                     tests.push(TestResult { name, status: "failed".to_string(), duration_ms: None, output: None });
                 }
@@ -3523,8 +3523,8 @@ fn parse_spec_file(path: &std::path::Path) -> Option<SpecDto> {
     let mut body = raw.clone();
     let mut tasks: Vec<SpecTaskDto> = vec![];
 
-    if raw.starts_with("---") {
-        let after_open = raw[3..].trim_start_matches('\n');
+    if let Some(after_prefix) = raw.strip_prefix("---") {
+        let after_open = after_prefix.trim_start_matches('\n');
         if let Some(close_pos) = after_open.find("\n---") {
             let fm = &after_open[..close_pos];
             body = after_open[close_pos..].trim_start_matches("\n---").trim_start().to_string();
@@ -3544,9 +3544,10 @@ fn parse_spec_file(path: &std::path::Path) -> Option<SpecDto> {
     // Parse task list
     for line in body.lines() {
         let line = line.trim();
-        if line.starts_with("- [") && line.len() > 5 {
+        let rest_opt = line.strip_prefix("- [x] ").or_else(|| line.strip_prefix("- [ ] "));
+        if let Some(rest) = rest_opt {
             let done = line.starts_with("- [x]");
-            let rest = &line[5..].trim();
+            let rest = rest.trim();
             let (id, desc) = if let Some(stripped) = rest.strip_prefix("**") {
                 if let Some(idx) = stripped.find("**:") {
                     let id_str = &stripped[..idx];
@@ -3786,8 +3787,8 @@ fn parse_workflow_file(path: &std::path::Path) -> Option<WorkflowDto> {
     let mut body = raw.clone();
 
     // Parse front-matter
-    if raw.starts_with("---") {
-        let after_open = raw[3..].trim_start_matches('\n');
+    if let Some(after_prefix) = raw.strip_prefix("---") {
+        let after_open = after_prefix.trim_start_matches('\n');
         if let Some(close_pos) = after_open.find("\n---") {
             let fm = &after_open[..close_pos];
             body = after_open[close_pos..].trim_start_matches("\n---").trim_start().to_string();
@@ -3827,7 +3828,7 @@ fn parse_workflow_file(path: &std::path::Path) -> Option<WorkflowDto> {
                 flush_workflow_stage_section(&mut stages[idx], &section_lines);
             }
             section_lines.clear();
-            let label = &line["## Stage: ".len()..];
+            let label = line.strip_prefix("## Stage: ").unwrap_or("");
             current_section = STAGE_LABELS.iter().position(|l| *l == label.trim());
         } else if current_section.is_some() {
             section_lines.push(line.to_string());
@@ -3857,17 +3858,18 @@ fn flush_workflow_stage_section(stage: &mut WorkflowStageDto, lines: &[String]) 
 
     for line in lines {
         let trimmed = line.trim();
-        if trimmed.starts_with("<!-- status:") && trimmed.ends_with("-->") {
-            stage.status = trimmed["<!-- status:".len()..trimmed.len() - 3].trim().to_string();
+        if let Some(inner) = trimmed.strip_prefix("<!-- status:").and_then(|s| s.strip_suffix("-->")) {
+            stage.status = inner.trim().to_string();
             continue;
         }
         if trimmed == "### Checklist" {
             in_checklist = true;
             continue;
         }
-        if in_checklist && trimmed.starts_with("- [") && trimmed.len() > 5 {
+        let checklist_rest = if in_checklist { trimmed.strip_prefix("- [x] ").or_else(|| trimmed.strip_prefix("- [ ] ")) } else { None };
+        if let Some(rest) = checklist_rest {
             let done = trimmed.starts_with("- [x]");
-            let rest = trimmed[5..].trim();
+            let rest = rest.trim();
             let (id, desc) = if let Some(stripped) = rest.strip_prefix("**") {
                 if let Some(idx) = stripped.find("**:") {
                     let id_str = &stripped[..idx];
@@ -4320,7 +4322,8 @@ pub async fn import_figma(
     // Parse JSON response
     let json_start = response.find('[').unwrap_or(0);
     let json_end = response.rfind(']').map(|i| i + 1).unwrap_or(response.len());
-    let files: Vec<serde_json::Value> = serde_json::from_str(&response[json_start..json_end])
+    let json_slice = if json_start < json_end { &response[json_start..json_end] } else { "[]" };
+    let files: Vec<serde_json::Value> = serde_json::from_str(json_slice)
         .unwrap_or_else(|_| {
             // Fallback: create a single placeholder component
             vec![serde_json::json!({
@@ -4854,10 +4857,12 @@ pub struct SupabaseQueryResult {
 #[tauri::command]
 pub async fn query_supabase(url: String, anon_key: String, sql: String) -> Result<SupabaseQueryResult, String> {
     // Extract table name and WHERE clause from simple SELECT * FROM <table> LIMIT <n>
-    let sql_lower = sql.trim().to_lowercase();
+    let sql_trimmed = sql.trim();
+    let sql_lower = sql_trimmed.to_lowercase();
     if sql_lower.starts_with("select") {
+        // Use the lowercased version's index safely — both strings have identical byte lengths for ASCII keywords
         if let Some(from_idx) = sql_lower.find(" from ") {
-            let after_from = sql[from_idx + 6..].trim();
+            let after_from = &sql_trimmed[from_idx + " from ".len()..].trim();
             let table = after_from.split_whitespace().next()
                 .unwrap_or("").trim_matches('"');
             let limit = if sql_lower.contains("limit") {
@@ -5419,7 +5424,7 @@ Code to analyze:
     // Parse JSON from response
     let json_start = raw_response.find('[').unwrap_or(0);
     let json_end = raw_response.rfind(']').map(|i| i + 1).unwrap_or(raw_response.len());
-    let json_str = &raw_response[json_start..json_end];
+    let json_str = if json_start < json_end { &raw_response[json_start..json_end] } else { "[]" };
 
     #[derive(Deserialize)]
     struct RawReport {
@@ -5487,9 +5492,8 @@ fn parse_steering_meta(content: &str, filename: &str) -> SteeringFileMeta {
         .unwrap_or("steering")
         .to_string();
 
-    if content.starts_with("---") {
-        let after = &content[3..];
-        let after = after.trim_start_matches('\n');
+    if let Some(after_prefix) = content.strip_prefix("---") {
+        let after = after_prefix.trim_start_matches('\n');
         if let Some(close_pos) = after.find("\n---") {
             let fm = &after[..close_pos];
             let mut name: Option<String> = None;

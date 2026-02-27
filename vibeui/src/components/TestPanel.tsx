@@ -71,11 +71,13 @@ export function TestPanel({ workspacePath }: TestPanelProps) {
         setLiveLog([]);
         setExpanded(new Set());
 
-        // Subscribe to streaming test events
+        // Clean up any previous listener before subscribing
         unlistenRef.current?.();
-        unlistenRef.current = await listen<string>("test:log", (e) => {
+        unlistenRef.current = null;
+        const unlisten = await listen<string>("test:log", (e) => {
             setLiveLog((prev) => [...prev.slice(-200), e.payload]);
         });
+        unlistenRef.current = unlisten;
 
         try {
             const res = await invoke<TestRunResult>("run_tests", {
@@ -92,7 +94,7 @@ export function TestPanel({ workspacePath }: TestPanelProps) {
             });
         } finally {
             setRunning(false);
-            unlistenRef.current?.();
+            unlisten();
             unlistenRef.current = null;
         }
     }

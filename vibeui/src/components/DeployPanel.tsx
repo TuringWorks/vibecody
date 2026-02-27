@@ -50,6 +50,12 @@ export function DeployPanel({ workspacePath }: DeployPanelProps) {
   const [domainResult, setDomainResult] = useState<{ domain: string; cname_target: string; instructions: string } | null>(null);
   const [domainBusy, setDomainBusy] = useState(false);
   const logsEndRef = useRef<HTMLDivElement>(null);
+  const deployUnlistenRef = useRef<(() => void) | null>(null);
+
+  // Clean up deploy listener on unmount
+  useEffect(() => {
+    return () => { deployUnlistenRef.current?.(); };
+  }, []);
 
   useEffect(() => {
     if (workspacePath) {
@@ -72,9 +78,11 @@ export function DeployPanel({ workspacePath }: DeployPanelProps) {
     setDeployedUrl(null);
 
     // Listen for streaming log events
+    deployUnlistenRef.current?.();
     const unlisten = await listen<string>("deploy:log", (e) => {
       setLogs(prev => [...prev, e.payload]);
     });
+    deployUnlistenRef.current = unlisten;
 
     try {
       const result = await invoke<{ url: string | null }>("run_deploy", {
@@ -93,6 +101,7 @@ export function DeployPanel({ workspacePath }: DeployPanelProps) {
     } finally {
       setIsDeploying(false);
       unlisten();
+      deployUnlistenRef.current = null;
     }
   };
 

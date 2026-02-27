@@ -730,9 +730,9 @@ async fn handle_collab_ws(
             let err_msg = CollabMessage::Error {
                 message: e.to_string(),
             };
-            let _ = socket
-                .send(WsMessage::Text(serde_json::to_string(&err_msg).unwrap().into()))
-                .await;
+            if let Ok(json) = serde_json::to_string(&err_msg) {
+                let _ = socket.send(WsMessage::Text(json.into())).await;
+            }
             return;
         }
     };
@@ -744,8 +744,9 @@ async fn handle_collab_ws(
         peer_id: peer_id.clone(),
         peers,
     };
+    let welcome_json = serde_json::to_string(&welcome).unwrap_or_default();
     if socket
-        .send(WsMessage::Text(serde_json::to_string(&welcome).unwrap().into()))
+        .send(WsMessage::Text(welcome_json.into()))
         .await
         .is_err()
     {
@@ -762,11 +763,12 @@ async fn handle_collab_ws(
 
     // Broadcast PeerJoined to other peers
     let joined_msg = CollabMessage::PeerJoined { peer: peer.clone() };
-    let joined_json = serde_json::to_string(&joined_msg).unwrap();
-    let _ = room.sync_tx.send(SyncBroadcast {
-        sender_peer_id: peer_id.clone(),
-        data: joined_json.into_bytes(),
-    });
+    if let Ok(joined_json) = serde_json::to_string(&joined_msg) {
+        let _ = room.sync_tx.send(SyncBroadcast {
+            sender_peer_id: peer_id.clone(),
+            data: joined_json.into_bytes(),
+        });
+    }
 
     // Subscribe to broadcast channel for fan-out
     let mut broadcast_rx = room.sync_tx.subscribe();
@@ -842,10 +844,12 @@ async fn handle_collab_ws(
     let left_msg = CollabMessage::PeerLeft {
         peer_id: peer_id.clone(),
     };
-    let _ = room.sync_tx.send(SyncBroadcast {
-        sender_peer_id: peer_id,
-        data: serde_json::to_string(&left_msg).unwrap().into_bytes(),
-    });
+    if let Ok(left_json) = serde_json::to_string(&left_msg) {
+        let _ = room.sync_tx.send(SyncBroadcast {
+            sender_peer_id: peer_id,
+            data: left_json.into_bytes(),
+        });
+    }
 
     // Clean up empty rooms
     if room_empty {
