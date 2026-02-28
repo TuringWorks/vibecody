@@ -57,6 +57,9 @@ All nine roadmap phases (1–5 original, 6–9 in this document) are complete. V
 | MCP OAuth install flow | — | ✅ McpPanel OAuth modal |
 | Custom domain / publish | — | ✅ DeployPanel domain config |
 | CRDT multiplayer collab | ✅ serve.rs WS | ✅ CollabPanel + useCollab |
+| Code coverage | — | ✅ detect_coverage_tool + run_coverage |
+| Multi-model comparison | — | ✅ compare_models |
+| HTTP Playground | — | ✅ send_http_request + discover_api_endpoints |
 | VibeCLI daemon (serve) | ✅ | — |
 | VS Code extension | ✅ | — |
 | Agent SDK (TypeScript) | ✅ | — |
@@ -1061,6 +1064,9 @@ for await (const event of agent.run('Add TypeScript strict mode to all files')) 
 | Multi-provider (5+) | ✅ | partial | partial | ✅ |
 | Rust native backend | ✅ | ❌ | ❌ | partial |
 | CRDT multiplayer collab | ✅ | ❌ | ❌ | ❌ |
+| Code coverage panel | ✅ | ❌ | ❌ | ❌ |
+| Multi-model comparison | ✅ | ❌ | ❌ | ❌ |
+| HTTP Playground | ✅ | ❌ | ❌ | ❌ |
 
 ---
 
@@ -1236,6 +1242,19 @@ Real-time collaborative editing powered by [yrs](https://github.com/y-crdt/y-crd
   └──────────────┘               │  └──────────┘│             └──────────────┘
                                  └──────────────┘
 ```
+
+---
+
+## 7.14 Phase 44 — Code Coverage, Multi-Model Comparison, HTTP Playground ✅
+
+**Status:** Complete
+
+| Item | Status | Details |
+|------|--------|---------|
+| Code coverage panel | ✅ | `detect_coverage_tool` (cargo-llvm-cov/nyc/coverage.py/go-cover) + `run_coverage` Tauri commands; LCOV and Go coverprofile parsers; `CoverageResult` with per-file uncovered lines and total percentage |
+| Multi-model comparison | ✅ | `compare_models` Tauri command; parallel `tokio::join!` dual-provider call; `build_temp_provider` factory (6 providers); `CompareResult` with timing, tokens, errors |
+| HTTP Playground | ✅ | `send_http_request` (method/URL/headers/body, 30s timeout, URL validation); `discover_api_endpoints` (regex grep for Express/Axum/FastAPI/Spring route patterns, 8 file types, max 60 results) |
+| Safety hardening | ✅ | Replaced `unwrap()` in 9 files: bugbot.rs, gateway.rs, redteam.rs, agent.rs, chat.rs, buffer.rs, git.rs, index/mod.rs, remote.rs |
 
 ---
 

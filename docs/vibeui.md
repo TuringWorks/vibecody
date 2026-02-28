@@ -565,6 +565,26 @@ After deploying, enter a custom domain in the **🌐 Custom Domain** field:
 | `run_tests(app, workspace, command?)` | Run tests, stream `test:log` events, return `TestRunResult` with summary and per-test details |
 | `generate_commit_message(workspace)` | Run `git diff --staged` → AI prompt → imperative one-liner commit message |
 
+### Code Coverage
+
+| Command | Description |
+|---------|-------------|
+| `detect_coverage_tool(workspace)` | Auto-detect coverage tool (cargo-llvm-cov / nyc / coverage.py / go-cover) |
+| `run_coverage(app, workspace, tool)` | Run coverage, parse LCOV/Go coverprofile, return `CoverageResult` with per-file percentages and uncovered lines |
+
+### Multi-Model Comparison
+
+| Command | Description |
+|---------|-------------|
+| `compare_models(prompt, provider_a, model_a, provider_b, model_b)` | Send same prompt to two providers in parallel, return `CompareResult` with timing, tokens, and errors |
+
+### HTTP Playground
+
+| Command | Description |
+|---------|-------------|
+| `send_http_request(method, url, headers, body?)` | Send HTTP request with 30s timeout, return `HttpResponseData` (status, headers, body, duration) |
+| `discover_api_endpoints(workspace)` | Grep workspace for Express/Axum/FastAPI/Spring route patterns (max 60 results) |
+
 ### Multiplayer Collaboration
 
 | Command | Description |

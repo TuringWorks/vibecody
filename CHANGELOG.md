@@ -8,6 +8,23 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **Phase 44**: Code coverage panel — `detect_coverage_tool` auto-detects cargo-llvm-cov / nyc /
+  coverage.py / go-cover; `run_coverage` Tauri command runs coverage, parses LCOV and Go
+  coverprofile formats into `FileCoverage` entries with per-file percentages and uncovered line
+  numbers; `CoverageResult` struct with total percentage and raw output fallback extraction.
+- **Phase 44**: Multi-model comparison — `compare_models` Tauri command sends the same prompt to
+  two providers in parallel via `tokio::join!`; returns `CompareResult` with per-model response
+  content, duration, token count, and errors; `build_temp_provider` factory supports 6 provider
+  types (Claude/OpenAI/Gemini/Grok/Groq/Ollama) with env-var API key resolution.
+- **Phase 44**: HTTP Playground — `send_http_request` Tauri command (method, URL, headers, body)
+  with 30s timeout and URL validation; returns `HttpResponseData` (status, headers, body,
+  duration); `discover_api_endpoints` greps workspace for Express/Axum/FastAPI/Spring route
+  patterns across 8 file types (max 60 results, depth 6).
+- **Phase 44**: Safety hardening — replaced `unwrap()` with proper error handling in 9 files:
+  bugbot.rs (JSON slice bounds), gateway.rs (port bind panics → graceful return), redteam.rs
+  (JSON slice + recon unwrap), agent.rs (empty tool_calls → Complete event), chat.rs
+  (active_conversation_mut), buffer.rs (char count vs byte len), git.rs (branch ref name),
+  index/mod.rs (NaN-safe sort), remote.rs (client builder + header value).
 - **Phase 43**: CRDT multiplayer collaboration — new `vibe-collab` crate powered by `yrs` (Yjs
   Rust port) + `dashmap` concurrent room registry; `CollabServer` manages rooms, `CollabRoom`
   holds a `Y.Doc` per room with per-file `Y.Text` and broadcast fan-out; Yjs binary sync protocol

@@ -427,7 +427,7 @@ Features VibeCody has that **no competitor offers:**
 
 ## Part D — Gap Priority Matrix (Updated Status)
 
-All gaps from Phases 16–43 are now resolved. Only low-impact infrastructure gaps remain as of 2026-02-28:
+All gaps from Phases 16–44 are now resolved. Only low-impact infrastructure gaps remain as of 2026-02-28:
 
 | Gap | Impact | Status | Competitor |
 |-----|--------|--------|------------|
@@ -651,7 +651,10 @@ After all completed phases, VibeCLI + VibeUI is the **most complete AI developme
 | Built-in DB UI | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ | ❌ | ❌ |
 | Supabase integration | ✅ | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ |
 | GitHub sync | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
-| Multiplayer | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ | ✅ | ❌ |
+| Multiplayer | ✅ | ❌ | ❌ | ✅ | ❌ | ✅ | ✅ | ❌ |
+| Code coverage UI | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Multi-model comparison | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| HTTP Playground | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Voice input | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | WASM extensions | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ |
 | OTel tracing | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
