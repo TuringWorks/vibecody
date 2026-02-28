@@ -1472,7 +1472,13 @@ async fn main() -> Result<()> {
                                     active_model.as_deref().unwrap_or("(default)"));
                             } else {
                                 let model_parts: Vec<&str> = args.splitn(2, ' ').collect();
-                                let new_provider = model_parts[0];
+                                let new_provider = match model_parts.first() {
+                                    Some(p) if !p.is_empty() => p,
+                                    _ => {
+                                        println!("Usage: /model <provider> [model]\n");
+                                        continue;
+                                    }
+                                };
                                 let new_model = model_parts.get(1).map(|s| s.to_string());
                                 match create_provider(new_provider, new_model.clone()) {
                                     Ok(new_llm) => {
@@ -3800,7 +3806,13 @@ pub async fn expand_at_refs(input: &str) -> String {
             Ok(content) => {
                 let text = if let Some(range) = line_range {
                     let parts: Vec<&str> = range.splitn(2, '-').collect();
-                    let start: usize = parts[0].parse().unwrap_or(1);
+                    let start: usize = match parts[0].parse() {
+                        Ok(n) if n > 0 => n,
+                        _ => {
+                            eprintln!("⚠️  Invalid line range '{}', showing full file", range);
+                            1
+                        }
+                    };
                     let end: usize = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(start);
                     content
                         .lines()

@@ -4814,7 +4814,8 @@ pub async fn save_supabase_config(workspace_path: String, url: String, anon_key:
     let dir = std::path::PathBuf::from(&workspace_path).join(".vibeui");
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     let cfg = SupabaseConfig { url, anon_key };
-    std::fs::write(dir.join("supabase.json"), serde_json::to_string_pretty(&cfg).unwrap())
+    let json = serde_json::to_string_pretty(&cfg).map_err(|e| e.to_string())?;
+    std::fs::write(dir.join("supabase.json"), json)
         .map_err(|e| e.to_string())
 }
 

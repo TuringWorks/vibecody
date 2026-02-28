@@ -575,13 +575,17 @@ pub async fn serve(
     };
 
     // CORS: restrict to localhost origins only
+    let origins: Vec<HeaderValue> = [
+        "http://localhost".to_string(),
+        "http://127.0.0.1".to_string(),
+        format!("http://localhost:{port}"),
+        format!("http://127.0.0.1:{port}"),
+    ]
+    .into_iter()
+    .filter_map(|s| s.parse::<HeaderValue>().ok())
+    .collect();
     let cors = CorsLayer::new()
-        .allow_origin([
-            "http://localhost".parse::<HeaderValue>().unwrap(),
-            "http://127.0.0.1".parse::<HeaderValue>().unwrap(),
-            format!("http://localhost:{port}").parse::<HeaderValue>().unwrap(),
-            format!("http://127.0.0.1:{port}").parse::<HeaderValue>().unwrap(),
-        ])
+        .allow_origin(origins)
         .allow_methods(tower_http::cors::Any)
         .allow_headers(tower_http::cors::Any);
 
