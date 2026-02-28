@@ -1,6 +1,6 @@
 # VibeCody Fit-Gap Analysis v2 — Full Competitive Landscape
 
-**Date:** 2026-02-26 (updated)
+**Date:** 2026-02-28 (updated)
 **VibeCLI competitors:** Codex CLI, Warp 2.0, Kiro, opencode, Claude Code, Aider, Cline, Continue.dev, Amazon Q Developer
 **VibeUI competitors:** Antigravity (Google), Cursor, Windsurf, Replit, Base44, Lovable, Zed AI, Void
 
@@ -355,8 +355,8 @@ opencode is the **most technically ambitious** open-source CLI agent in 2026, bu
 - **Self-healing:** proprietary test system, 3x faster + 10x cheaper than Computer Use
 - **Built-in stack:** auth + database (PostgreSQL) + hosting + monitoring in one click
 - **Multiplayer:** real-time collaboration on same Repl
-- **VibeUI status:** ✅ browser app testing (agent_browser_action), ✅ built-in DB+auth, ❌ multiplayer not yet
-- **Remaining gap:** hosted cloud environment (multiplayer CRDT collab closed in Phase 43)
+- **VibeUI status:** ✅ browser app testing (agent_browser_action), ✅ built-in DB+auth, ✅ multiplayer (Phase 43 vibe-collab)
+- **Remaining gap:** hosted cloud environment
 
 #### Base44 (acquired by Wix)
 
@@ -427,14 +427,14 @@ Features VibeCody has that **no competitor offers:**
 
 ## Part D — Gap Priority Matrix (Updated Status)
 
-All gaps from Phases 16–41 are now resolved. This table shows **remaining** open gaps as of 2026-02-26:
+All gaps from Phases 16–43 are now resolved. Only low-impact infrastructure gaps remain as of 2026-02-28:
 
 | Gap | Impact | Status | Competitor |
 |-----|--------|--------|------------|
-| Multiplayer / real-time collaboration | Medium | ❌ Open | Lovable/Replit/Zed |
 | Remote VM agent execution | Low | ❌ Open | Warp |
 | SWE-1-style fine-tuned model | Low | ❌ Open | Windsurf |
 | GPU-accelerated terminal | Low | ❌ Open | Warp/Zed |
+| Multiplayer / real-time collaboration | Medium | ✅ Phase 43 | Lovable/Replit/Zed |
 | Ambient agent session sharing | Medium | ✅ Phase 39 | Warp/Claude Code |
 | GCP / Firebase deploy target | Low | ✅ Phase 38 | Antigravity |
 | LSP diagnostics in TUI | Low | ✅ Phase 39 | opencode |
@@ -675,21 +675,22 @@ After all completed phases, VibeCLI + VibeUI is the **most complete AI developme
 
 ## Part R — Next Horizon Gaps (Post Phase 37)
 
-These represent the remaining frontier for VibeCLI + VibeUI competitive parity:
+All high- and medium-impact gaps are now closed. Only low-impact infrastructure items remain open:
 
 | Gap | Impact | Effort | Competitor | Notes |
 |-----|--------|--------|------------|-------|
-| ~~Multiplayer / real-time CRDT collab~~ | ~~High~~ | ~~XL~~ | ~~Replit/Lovable/Zed~~ | ✅ Phase 43: `vibe-collab` crate (yrs+DashMap+Axum WS), CollabPanel.tsx, useCollab.ts |
-| Custom domain / publish UX | Medium | M | Base44/Lovable | Deploy panel missing final step |
-| Ambient agent session sharing | Medium | L | Warp/Claude Code | Share link → browser session view |
-| @jira / @github issue context | Medium | M | Continue.dev | Extend resolve_at_references |
-| MCP OAuth 2.0 install flow | Medium | L | Cursor | tauri-plugin-oauth + PKCE |
-| LSP diagnostics in TUI | Low | L | opencode | Wire vibe-lsp into TUI |
-| GCP / Firebase deploy target | Low | M | Antigravity | Add to DeployPanel |
-| Security scanning (OWASP/CWE patterns) | Medium | M | Amazon Q | ✅ Phase 38 + Phase 41 (15 CWE patterns) |
-| Red team / autonomous pentest pipeline | High | L | Shannon (KeygraphHQ) | ✅ Phase 41: redteam.rs 5-stage pipeline |
 | Zed-style GPU terminal | Low | XL | Warp/Zed | Out of scope (webview limitation) |
 | Remote VM / cloud agent execution | Low | XL | Warp | Cloud infrastructure required |
+| SWE-1-style fine-tuned model | Low | XL | Windsurf | Requires custom model training |
+| ~~Multiplayer / real-time CRDT collab~~ | ~~High~~ | ~~XL~~ | ~~Replit/Lovable/Zed~~ | ✅ Phase 43: `vibe-collab` crate (yrs+DashMap+Axum WS), CollabPanel.tsx, useCollab.ts |
+| ~~Red team / autonomous pentest pipeline~~ | ~~High~~ | ~~L~~ | ~~Shannon~~ | ✅ Phase 41: redteam.rs 5-stage pipeline |
+| ~~Security scanning (OWASP/CWE patterns)~~ | ~~Medium~~ | ~~M~~ | ~~Amazon Q~~ | ✅ Phase 38 + Phase 41 (15 CWE patterns) |
+| ~~Custom domain / publish UX~~ | ~~Medium~~ | ~~M~~ | ~~Base44/Lovable~~ | ✅ Phase 42: DeployPanel + set_custom_domain |
+| ~~Ambient agent session sharing~~ | ~~Medium~~ | ~~L~~ | ~~Warp/Claude Code~~ | ✅ Phase 39: /share + GET /share/:id |
+| ~~@jira / @github issue context~~ | ~~Medium~~ | ~~M~~ | ~~Continue.dev~~ | ✅ Phase 42: resolve_at_references + ContextPicker |
+| ~~MCP OAuth 2.0 install flow~~ | ~~Medium~~ | ~~L~~ | ~~Cursor~~ | ✅ Phase 42: McpPanel OAuth modal |
+| ~~LSP diagnostics in TUI~~ | ~~Low~~ | ~~L~~ | ~~opencode~~ | ✅ Phase 39: DiagnosticsComponent + /check |
+| ~~GCP / Firebase deploy target~~ | ~~Low~~ | ~~M~~ | ~~Antigravity~~ | ✅ Phase 38: DeployPanel 6 targets |
 
 ---
 
