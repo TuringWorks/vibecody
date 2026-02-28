@@ -149,9 +149,10 @@ struct Cli {
 
     // ── Gateway mode (Phase 21) ────────────────────────────────────────────────
 
-    /// Start as a messaging gateway bot: "telegram" | "discord" | "slack".
-    /// Requires the corresponding token in config or environment variable.
-    /// Example: vibecli --gateway telegram --provider claude
+    /// Start as a messaging gateway bot.
+    /// Supported: telegram, discord, slack, signal, matrix (element),
+    ///            twilio (sms), whatsapp, imessage (macOS), teams.
+    /// Requires the corresponding token/config. Example: vibecli --gateway signal
     #[arg(long, value_name = "PLATFORM")]
     gateway: Option<String>,
 
@@ -364,7 +365,7 @@ async fn main() -> Result<()> {
         return mcp_server::run_server(cwd, llm, approval, config.safety.sandbox).await;
     }
 
-    // Gateway mode: vibecli --gateway telegram|discord|slack
+    // Gateway mode: vibecli --gateway telegram|discord|slack|signal|matrix|twilio|whatsapp|imessage|teams
     if let Some(ref platform) = cli.gateway {
         let llm = create_provider(&effective_provider, effective_model.clone())?;
         let config = Config::load().unwrap_or_default();
@@ -387,7 +388,64 @@ async fn main() -> Result<()> {
                 let channel = gw_cfg.slack_channel_id.clone().unwrap_or_default();
                 Box::new(gateway::SlackGateway::new(token, channel))
             }
-            other => return Err(anyhow::anyhow!("Unknown gateway platform: '{}'. Use: telegram, discord, slack", other)),
+            "signal" => {
+                let api_url = gw_cfg.resolve_signal_api_url()
+                    .ok_or_else(|| anyhow::anyhow!("Signal API URL not configured. Set SIGNAL_API_URL or gateway.signal_api_url in config."))?;
+                let phone = gw_cfg.resolve_signal_phone_number()
+                    .ok_or_else(|| anyhow::anyhow!("Signal phone number not configured. Set SIGNAL_PHONE_NUMBER or gateway.signal_phone_number in config."))?;
+                Box::new(gateway::SignalGateway::new(api_url, phone))
+            }
+            "matrix" | "element" => {
+                let hs = gw_cfg.resolve_matrix_homeserver_url()
+                    .ok_or_else(|| anyhow::anyhow!("Matrix homeserver URL not configured. Set MATRIX_HOMESERVER_URL or gateway.matrix_homeserver_url in config."))?;
+                let token = gw_cfg.resolve_matrix_access_token()
+                    .ok_or_else(|| anyhow::anyhow!("Matrix access token not configured. Set MATRIX_ACCESS_TOKEN or gateway.matrix_access_token in config."))?;
+                let room = gw_cfg.resolve_matrix_room_id()
+                    .ok_or_else(|| anyhow::anyhow!("Matrix room ID not configured. Set MATRIX_ROOM_ID or gateway.matrix_room_id in config."))?;
+                let user = gw_cfg.resolve_matrix_user_id().unwrap_or_default();
+                Box::new(gateway::MatrixGateway::new(hs, token, room, user))
+            }
+            "twilio" | "sms" => {
+                let sid = gw_cfg.resolve_twilio_account_sid()
+                    .ok_or_else(|| anyhow::anyhow!("Twilio Account SID not configured. Set TWILIO_ACCOUNT_SID or gateway.twilio_account_sid in config."))?;
+                let auth = gw_cfg.resolve_twilio_auth_token()
+                    .ok_or_else(|| anyhow::anyhow!("Twilio Auth Token not configured. Set TWILIO_AUTH_TOKEN or gateway.twilio_auth_token in config."))?;
+                let from = gw_cfg.resolve_twilio_from_number()
+                    .ok_or_else(|| anyhow::anyhow!("Twilio From number not configured. Set TWILIO_FROM_NUMBER or gateway.twilio_from_number in config."))?;
+                Box::new(gateway::TwilioGateway::new(sid, auth, from))
+            }
+            "whatsapp" => {
+                let token = gw_cfg.resolve_whatsapp_access_token()
+                    .ok_or_else(|| anyhow::anyhow!("WhatsApp access token not configured. Set WHATSAPP_ACCESS_TOKEN or gateway.whatsapp_access_token in config."))?;
+                let phone_id = gw_cfg.resolve_whatsapp_phone_number_id()
+                    .ok_or_else(|| anyhow::anyhow!("WhatsApp Phone Number ID not configured. Set WHATSAPP_PHONE_NUMBER_ID or gateway.whatsapp_phone_number_id in config."))?;
+                let verify = gw_cfg.resolve_whatsapp_verify_token().unwrap_or_else(|| "vibecli".to_string());
+                let port = gw_cfg.whatsapp_webhook_port.unwrap_or(8443);
+                Box::new(gateway::WhatsAppGateway::new(token, phone_id, verify, port).await)
+            }
+            #[cfg(target_os = "macos")]
+            "imessage" => {
+                let db_path = gw_cfg.resolve_imessage_db_path();
+                Box::new(gateway::IMessageGateway::new(db_path))
+            }
+            #[cfg(not(target_os = "macos"))]
+            "imessage" => {
+                return Err(anyhow::anyhow!("iMessage gateway is only available on macOS."));
+            }
+            "teams" => {
+                let tenant = gw_cfg.resolve_teams_tenant_id()
+                    .ok_or_else(|| anyhow::anyhow!("Teams Tenant ID not configured. Set TEAMS_TENANT_ID or gateway.teams_tenant_id in config."))?;
+                let client_id = gw_cfg.resolve_teams_client_id()
+                    .ok_or_else(|| anyhow::anyhow!("Teams Client ID not configured. Set TEAMS_CLIENT_ID or gateway.teams_client_id in config."))?;
+                let secret = gw_cfg.resolve_teams_client_secret()
+                    .ok_or_else(|| anyhow::anyhow!("Teams Client Secret not configured. Set TEAMS_CLIENT_SECRET or gateway.teams_client_secret in config."))?;
+                let port = gw_cfg.teams_webhook_port.unwrap_or(3978);
+                Box::new(gateway::TeamsGateway::new(tenant, client_id, secret, port).await)
+            }
+            other => return Err(anyhow::anyhow!(
+                "Unknown gateway platform: '{}'. Use: telegram, discord, slack, signal, matrix, twilio, whatsapp, imessage, teams",
+                other
+            )),
         };
         return gateway::run_gateway(platform_box, llm).await;
     }

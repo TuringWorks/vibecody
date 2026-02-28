@@ -193,7 +193,7 @@ impl Default for RedTeamCfg {
 /// Gateway configuration (inlined here to avoid circular dependency with gateway module).
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct GatewayConfig {
-    /// Platform: "telegram" | "discord" | "slack"
+    /// Platform: "telegram" | "discord" | "slack" | "teams" | "twilio" | "whatsapp" | "signal" | "imessage" | "matrix"
     pub platform: Option<String>,
     pub telegram_token: Option<String>,
     pub discord_token: Option<String>,
@@ -209,8 +209,57 @@ pub struct GatewayConfig {
     pub discord_channel_id: Option<String>,
     /// Slack channel ID to monitor.
     pub slack_channel_id: Option<String>,
+
+    // ── Signal ──
+    /// Base URL of the signal-cli REST API (e.g. "http://localhost:8080").
+    pub signal_api_url: Option<String>,
+    /// Registered phone number for signal-cli (e.g. "+15551234567").
+    pub signal_phone_number: Option<String>,
+
+    // ── Matrix ──
+    /// Matrix homeserver URL (e.g. "https://matrix.org").
+    pub matrix_homeserver_url: Option<String>,
+    /// Matrix access token for the bot account.
+    pub matrix_access_token: Option<String>,
+    /// Matrix room ID to monitor (e.g. "!abc123:matrix.org").
+    pub matrix_room_id: Option<String>,
+    /// Matrix user ID of the bot (e.g. "@vibecli:matrix.org") — used to skip own messages.
+    pub matrix_user_id: Option<String>,
+
+    // ── Twilio SMS ──
+    /// Twilio Account SID (starts with "AC").
+    pub twilio_account_sid: Option<String>,
+    /// Twilio Auth Token.
+    pub twilio_auth_token: Option<String>,
+    /// Twilio sender phone number (e.g. "+15559876543").
+    pub twilio_from_number: Option<String>,
+
+    // ── WhatsApp (Meta Cloud API) ──
+    /// WhatsApp Business permanent access token.
+    pub whatsapp_access_token: Option<String>,
+    /// WhatsApp Phone Number ID from Meta Business dashboard.
+    pub whatsapp_phone_number_id: Option<String>,
+    /// Verify token for webhook registration.
+    pub whatsapp_verify_token: Option<String>,
+    /// Port for the WhatsApp webhook receiver (default 8443).
+    pub whatsapp_webhook_port: Option<u16>,
+
+    // ── iMessage (macOS only) ──
+    /// Path to the Messages chat.db (default: ~/Library/Messages/chat.db).
+    pub imessage_db_path: Option<String>,
+
+    // ── Microsoft Teams ──
+    /// Azure AD Tenant ID.
+    pub teams_tenant_id: Option<String>,
+    /// Azure Bot Client ID.
+    pub teams_client_id: Option<String>,
+    /// Azure Bot Client Secret.
+    pub teams_client_secret: Option<String>,
+    /// Port for the Teams webhook receiver (default 3978).
+    pub teams_webhook_port: Option<u16>,
 }
 
+#[allow(dead_code)]
 impl GatewayConfig {
     fn default_max_len() -> usize { 4000 }
 
@@ -222,6 +271,66 @@ impl GatewayConfig {
     }
     pub fn resolve_slack_bot_token(&self) -> Option<String> {
         self.slack_bot_token.clone().or_else(|| std::env::var("SLACK_BOT_TOKEN").ok())
+    }
+
+    // ── Signal ──
+    pub fn resolve_signal_api_url(&self) -> Option<String> {
+        self.signal_api_url.clone().or_else(|| std::env::var("SIGNAL_API_URL").ok())
+    }
+    pub fn resolve_signal_phone_number(&self) -> Option<String> {
+        self.signal_phone_number.clone().or_else(|| std::env::var("SIGNAL_PHONE_NUMBER").ok())
+    }
+
+    // ── Matrix ──
+    pub fn resolve_matrix_homeserver_url(&self) -> Option<String> {
+        self.matrix_homeserver_url.clone().or_else(|| std::env::var("MATRIX_HOMESERVER_URL").ok())
+    }
+    pub fn resolve_matrix_access_token(&self) -> Option<String> {
+        self.matrix_access_token.clone().or_else(|| std::env::var("MATRIX_ACCESS_TOKEN").ok())
+    }
+    pub fn resolve_matrix_room_id(&self) -> Option<String> {
+        self.matrix_room_id.clone().or_else(|| std::env::var("MATRIX_ROOM_ID").ok())
+    }
+    pub fn resolve_matrix_user_id(&self) -> Option<String> {
+        self.matrix_user_id.clone().or_else(|| std::env::var("MATRIX_USER_ID").ok())
+    }
+
+    // ── Twilio SMS ──
+    pub fn resolve_twilio_account_sid(&self) -> Option<String> {
+        self.twilio_account_sid.clone().or_else(|| std::env::var("TWILIO_ACCOUNT_SID").ok())
+    }
+    pub fn resolve_twilio_auth_token(&self) -> Option<String> {
+        self.twilio_auth_token.clone().or_else(|| std::env::var("TWILIO_AUTH_TOKEN").ok())
+    }
+    pub fn resolve_twilio_from_number(&self) -> Option<String> {
+        self.twilio_from_number.clone().or_else(|| std::env::var("TWILIO_FROM_NUMBER").ok())
+    }
+
+    // ── WhatsApp ──
+    pub fn resolve_whatsapp_access_token(&self) -> Option<String> {
+        self.whatsapp_access_token.clone().or_else(|| std::env::var("WHATSAPP_ACCESS_TOKEN").ok())
+    }
+    pub fn resolve_whatsapp_phone_number_id(&self) -> Option<String> {
+        self.whatsapp_phone_number_id.clone().or_else(|| std::env::var("WHATSAPP_PHONE_NUMBER_ID").ok())
+    }
+    pub fn resolve_whatsapp_verify_token(&self) -> Option<String> {
+        self.whatsapp_verify_token.clone().or_else(|| std::env::var("WHATSAPP_VERIFY_TOKEN").ok())
+    }
+
+    // ── iMessage ──
+    pub fn resolve_imessage_db_path(&self) -> Option<String> {
+        self.imessage_db_path.clone().or_else(|| std::env::var("IMESSAGE_DB_PATH").ok())
+    }
+
+    // ── Teams ──
+    pub fn resolve_teams_tenant_id(&self) -> Option<String> {
+        self.teams_tenant_id.clone().or_else(|| std::env::var("TEAMS_TENANT_ID").ok())
+    }
+    pub fn resolve_teams_client_id(&self) -> Option<String> {
+        self.teams_client_id.clone().or_else(|| std::env::var("TEAMS_CLIENT_ID").ok())
+    }
+    pub fn resolve_teams_client_secret(&self) -> Option<String> {
+        self.teams_client_secret.clone().or_else(|| std::env::var("TEAMS_CLIENT_SECRET").ok())
     }
 }
 
