@@ -27,6 +27,17 @@ pub struct SessionRow {
     pub status: String, // "running" | "complete" | "failed"
     pub summary: Option<String>,
     pub step_count: i64,
+    /// Parent session ID for recursive subagent trees (None for root sessions).
+    pub parent_session_id: Option<String>,
+    /// Nesting depth (0 for root sessions).
+    pub depth: i64,
+}
+
+/// A tree node for recursive subagent visualization.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentTreeNode {
+    pub session: SessionRow,
+    pub children: Vec<AgentTreeNode>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -124,7 +135,24 @@ impl SessionStore {
             CREATE INDEX IF NOT EXISTS idx_sessions_started ON sessions(started_at DESC);
             "#,
         )?;
+        // Migration: add parent_session_id and depth columns (idempotent).
+        self.maybe_add_column("sessions", "parent_session_id", "TEXT")?;
+        self.maybe_add_column("sessions", "depth", "INTEGER NOT NULL DEFAULT 0")?;
+        // Index for tree queries.
+        let _ = self.conn.execute_batch(
+            "CREATE INDEX IF NOT EXISTS idx_sessions_parent ON sessions(parent_session_id);"
+        );
         Ok(())
+    }
+
+    /// Idempotent ALTER TABLE — silently ignores "duplicate column" errors.
+    fn maybe_add_column(&self, table: &str, column: &str, col_type: &str) -> Result<()> {
+        let sql = format!("ALTER TABLE {} ADD COLUMN {} {}", table, column, col_type);
+        match self.conn.execute(&sql, []) {
+            Ok(_) => Ok(()),
+            Err(e) if e.to_string().contains("duplicate column") => Ok(()),
+            Err(e) => Err(e.into()),
+        }
     }
 
     // ── Write ─────────────────────────────────────────────────────────────────
@@ -137,11 +165,24 @@ impl SessionStore {
         provider: &str,
         model: &str,
     ) -> Result<()> {
+        self.insert_session_with_parent(id, task, provider, model, None, 0)
+    }
+
+    /// Insert a new session record with parent tracking for recursive subagent trees.
+    pub fn insert_session_with_parent(
+        &self,
+        id: &str,
+        task: &str,
+        provider: &str,
+        model: &str,
+        parent_session_id: Option<&str>,
+        depth: u32,
+    ) -> Result<()> {
         let now = now_ms();
         self.conn.execute(
-            "INSERT OR IGNORE INTO sessions (id, task, provider, model, started_at, status)
-             VALUES (?1, ?2, ?3, ?4, ?5, 'running')",
-            params![id, task, provider, model, now],
+            "INSERT OR IGNORE INTO sessions (id, task, provider, model, started_at, status, parent_session_id, depth)
+             VALUES (?1, ?2, ?3, ?4, ?5, 'running', ?6, ?7)",
+            params![id, task, provider, model, now, parent_session_id, depth as i64],
         )?;
         Ok(())
     }
@@ -198,7 +239,7 @@ impl SessionStore {
     /// List the most recent sessions (newest first).
     pub fn list_sessions(&self, limit: usize) -> Result<Vec<SessionRow>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, task, provider, model, started_at, finished_at, status, summary, step_count
+            "SELECT id, task, provider, model, started_at, finished_at, status, summary, step_count, parent_session_id, depth
              FROM sessions ORDER BY started_at DESC LIMIT ?1",
         )?;
         let rows = stmt.query_map(params![limit as i64], row_to_session)?;
@@ -208,7 +249,7 @@ impl SessionStore {
     /// Get a single session by ID.
     pub fn get_session(&self, id: &str) -> Result<Option<SessionRow>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, task, provider, model, started_at, finished_at, status, summary, step_count
+            "SELECT id, task, provider, model, started_at, finished_at, status, summary, step_count, parent_session_id, depth
              FROM sessions WHERE id = ?1",
         )?;
         let mut rows = stmt.query_map(params![id], row_to_session)?;
@@ -323,6 +364,49 @@ impl SessionStore {
         Ok(results)
     }
 
+    /// Get all direct children of a session.
+    pub fn get_children(&self, parent_id: &str) -> Result<Vec<SessionRow>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, task, provider, model, started_at, finished_at, status, summary, step_count, parent_session_id, depth
+             FROM sessions WHERE parent_session_id = ?1 ORDER BY started_at ASC",
+        )?;
+        let rows = stmt.query_map(params![parent_id], row_to_session)?;
+        Ok(rows.filter_map(|r| r.ok()).collect())
+    }
+
+    /// Build a full agent tree rooted at a given session ID.
+    pub fn get_tree(&self, root_id: &str) -> Result<Option<AgentTreeNode>> {
+        let session = match self.get_session(root_id)? {
+            Some(s) => s,
+            None => return Ok(None),
+        };
+        let children = self.build_tree_children(root_id)?;
+        Ok(Some(AgentTreeNode { session, children }))
+    }
+
+    fn build_tree_children(&self, parent_id: &str) -> Result<Vec<AgentTreeNode>> {
+        let children = self.get_children(parent_id)?;
+        let mut nodes = Vec::new();
+        for child in children {
+            let grandchildren = self.build_tree_children(&child.id)?;
+            nodes.push(AgentTreeNode {
+                session: child,
+                children: grandchildren,
+            });
+        }
+        Ok(nodes)
+    }
+
+    /// List root sessions (no parent) from the last 24 hours with child counts.
+    pub fn list_root_sessions(&self, limit: usize) -> Result<Vec<SessionRow>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, task, provider, model, started_at, finished_at, status, summary, step_count, parent_session_id, depth
+             FROM sessions WHERE parent_session_id IS NULL ORDER BY started_at DESC LIMIT ?1",
+        )?;
+        let rows = stmt.query_map(params![limit as i64], row_to_session)?;
+        Ok(rows.filter_map(|r| r.ok()).collect())
+    }
+
     /// Count of all sessions.
     pub fn count(&self) -> Result<i64> {
         let n: i64 =
@@ -344,6 +428,8 @@ fn row_to_session(row: &rusqlite::Row) -> rusqlite::Result<SessionRow> {
         status: row.get(6)?,
         summary: row.get(7)?,
         step_count: row.get(8)?,
+        parent_session_id: row.get(9).unwrap_or(None),
+        depth: row.get(10).unwrap_or(0),
     })
 }
 
@@ -730,6 +816,60 @@ mod tests {
         let html = render_session_html(&detail);
         assert!(html.contains("All done"));
         assert!(!html.contains("<dangerous>")); // must be escaped
+    }
+
+    #[test]
+    fn test_insert_session_with_parent() {
+        let store = open_temp();
+        store.insert_session("root", "Main task", "claude", "claude-3").unwrap();
+        store.insert_session_with_parent("child1", "Sub-task 1", "claude", "claude-3", Some("root"), 1).unwrap();
+        let child = store.get_session("child1").unwrap().unwrap();
+        assert_eq!(child.parent_session_id.as_deref(), Some("root"));
+        assert_eq!(child.depth, 1);
+    }
+
+    #[test]
+    fn test_get_children() {
+        let store = open_temp();
+        store.insert_session("root", "Main task", "claude", "claude-3").unwrap();
+        store.insert_session_with_parent("c1", "Child 1", "claude", "claude-3", Some("root"), 1).unwrap();
+        store.insert_session_with_parent("c2", "Child 2", "claude", "claude-3", Some("root"), 1).unwrap();
+        store.insert_session_with_parent("gc1", "Grandchild", "claude", "claude-3", Some("c1"), 2).unwrap();
+        let children = store.get_children("root").unwrap();
+        assert_eq!(children.len(), 2);
+        let grandchildren = store.get_children("c1").unwrap();
+        assert_eq!(grandchildren.len(), 1);
+    }
+
+    #[test]
+    fn test_get_tree() {
+        let store = open_temp();
+        store.insert_session("root", "Main task", "claude", "claude-3").unwrap();
+        store.insert_session_with_parent("c1", "Child 1", "claude", "claude-3", Some("root"), 1).unwrap();
+        store.insert_session_with_parent("c2", "Child 2", "claude", "claude-3", Some("root"), 1).unwrap();
+        store.insert_session_with_parent("gc1", "Grandchild", "claude", "claude-3", Some("c1"), 2).unwrap();
+        let tree = store.get_tree("root").unwrap().unwrap();
+        assert_eq!(tree.session.id, "root");
+        assert_eq!(tree.children.len(), 2);
+        assert_eq!(tree.children[0].children.len(), 1);
+        assert_eq!(tree.children[0].children[0].session.id, "gc1");
+    }
+
+    #[test]
+    fn test_list_root_sessions() {
+        let store = open_temp();
+        store.insert_session("root1", "Task 1", "claude", "claude-3").unwrap();
+        store.insert_session("root2", "Task 2", "ollama", "llama3").unwrap();
+        store.insert_session_with_parent("child", "Sub", "claude", "claude-3", Some("root1"), 1).unwrap();
+        let roots = store.list_root_sessions(10).unwrap();
+        assert_eq!(roots.len(), 2); // only root sessions, not child
+    }
+
+    #[test]
+    fn test_migration_idempotent() {
+        let store = open_temp();
+        // Calling create_schema again should not error (columns already exist).
+        assert!(store.create_schema().is_ok());
     }
 
     #[test]

@@ -3802,6 +3802,9 @@ async fn run_watch_mode(
                 flow_context: None,
                 approved_plan: None,
                 extra_skill_dirs: vec![],
+                parent_session_id: None,
+                depth: 0,
+                active_agent_counter: None,
             };
             tokio::spawn(async move {
                 let _ = agent.run(&task_clone, ctx, event_tx).await;

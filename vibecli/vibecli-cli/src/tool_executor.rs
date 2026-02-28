@@ -577,7 +577,8 @@ impl ToolExecutor {
 
     /// Spawn a nested AgentLoop to complete a delegated sub-task.
     /// Requires a provider to be set via `with_provider()`.
-    pub async fn spawn_sub_agent(&self, task: &str, max_steps: Option<usize>) -> ToolResult {
+    /// Supports recursive subagent trees with depth limits and global agent caps.
+    pub async fn spawn_sub_agent(&self, task: &str, max_steps: Option<usize>, max_depth: Option<u32>) -> ToolResult {
         let provider = match &self.provider {
             Some(p) => p.clone(),
             None => {
@@ -588,7 +589,41 @@ impl ToolExecutor {
             }
         };
 
+        // ── Depth and counter checks ──────────────────────────────────────────
+        let current_depth = self.parent_context.as_ref().map(|c| c.depth).unwrap_or(0);
+        let depth_limit = max_depth.unwrap_or(3).min(5); // hard max 5
+        if current_depth >= depth_limit {
+            return ToolResult::err(
+                "spawn_agent",
+                format!("Maximum agent nesting depth ({}) exceeded at depth {}", depth_limit, current_depth),
+            );
+        }
+
+        // Get or create the global agent counter
+        let counter = self.parent_context.as_ref()
+            .and_then(|c| c.active_agent_counter.clone())
+            .unwrap_or_else(|| std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0)));
+
+        let active = counter.load(std::sync::atomic::Ordering::Relaxed);
+        if active >= 20 {
+            return ToolResult::err(
+                "spawn_agent",
+                format!("Global agent limit (20) reached — {} agents active across the tree", active),
+            );
+        }
+        counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+
         // Build a child executor that shares everything (including the provider ref).
+        let child_context = AgentContext {
+            workspace_root: self.workspace_root.clone(),
+            parent_session_id: self.parent_context.as_ref()
+                .and_then(|c| c.parent_session_id.clone())
+                .or_else(|| Some(format!("root-{}", std::process::id()))),
+            depth: current_depth + 1,
+            active_agent_counter: Some(counter.clone()),
+            ..Default::default()
+        };
+
         let child_executor: Arc<dyn ToolExecutorTrait> = Arc::new(ToolExecutor {
             workspace_root: self.workspace_root.clone(),
             sandbox: self.sandbox,
@@ -597,22 +632,18 @@ impl ToolExecutor {
             tavily_api_key: self.tavily_api_key.clone(),
             brave_api_key: self.brave_api_key.clone(),
             provider: self.provider.clone(),
+            parent_context: Some(child_context.clone()),
         });
 
         let mut agent = AgentLoop::new(provider, ApprovalPolicy::FullAuto, child_executor);
         agent.max_steps = max_steps.unwrap_or(10);
-
-        let context = AgentContext {
-            workspace_root: self.workspace_root.clone(),
-            ..Default::default()
-        };
 
         let (event_tx, mut event_rx) =
             tokio::sync::mpsc::channel::<AgentEvent>(64);
 
         let task_owned = task.to_string();
         let handle = tokio::spawn(async move {
-            agent.run(&task_owned, context, event_tx).await
+            agent.run(&task_owned, child_context, event_tx).await
         });
 
         let mut summary = String::new();
@@ -625,6 +656,7 @@ impl ToolExecutor {
                     break;
                 }
                 AgentEvent::Error(e) => {
+                    counter.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
                     return ToolResult::err("spawn_agent", format!("Sub-agent error: {}", e));
                 }
                 AgentEvent::ToolCallExecuted(step) => {
@@ -640,8 +672,10 @@ impl ToolExecutor {
         }
 
         let _ = handle.await;
+        counter.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
 
         let mut output = String::new();
+        output.push_str(&format!("[depth {}/{}] ", current_depth + 1, depth_limit));
         if !steps.is_empty() {
             output.push_str("Steps:\n");
             output.push_str(&steps.join("\n"));

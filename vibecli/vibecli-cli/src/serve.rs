@@ -343,6 +343,9 @@ async fn start_agent(
             flow_context: None,
             approved_plan: None,
             extra_skill_dirs: vec![],
+            parent_session_id: None,
+            depth: 0,
+            active_agent_counter: None,
         };
 
         let (event_tx, mut event_rx) = tokio::sync::mpsc::channel::<AgentEvent>(64);
