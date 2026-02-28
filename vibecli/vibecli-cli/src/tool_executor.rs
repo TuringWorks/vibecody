@@ -91,6 +91,8 @@ pub struct ToolExecutor {
     pub brave_api_key: Option<String>,
     /// LLM provider used when spawning sub-agents via `spawn_agent` tool.
     pub provider: Option<Arc<dyn AIProvider>>,
+    /// Parent agent context for recursive subagent tree tracking.
+    pub parent_context: Option<AgentContext>,
 }
 
 impl ToolExecutor {
@@ -103,6 +105,7 @@ impl ToolExecutor {
             tavily_api_key: None,
             brave_api_key: None,
             provider: None,
+            parent_context: None,
         }
     }
 
@@ -141,8 +144,8 @@ impl ToolExecutorTrait for ToolExecutor {
             ToolCall::TaskComplete { summary } => {
                 ToolResult::ok("task_complete", format!("Task complete: {}", summary))
             }
-            ToolCall::SpawnAgent { task, max_steps } => {
-                self.spawn_sub_agent(task, *max_steps).await
+            ToolCall::SpawnAgent { task, max_steps, max_depth } => {
+                self.spawn_sub_agent(task, *max_steps, *max_depth).await
             }
         }
     }

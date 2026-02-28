@@ -88,6 +88,15 @@ pub struct AgentContext {
     /// Extra skill directories to search (e.g. from installed plugins).
     #[serde(default)]
     pub extra_skill_dirs: Vec<std::path::PathBuf>,
+    /// Session ID of the parent agent (`None` for root agents).
+    #[serde(default)]
+    pub parent_session_id: Option<String>,
+    /// Current nesting depth (0 for root agents).
+    #[serde(default)]
+    pub depth: u32,
+    /// Shared counter of total active agents across the tree (runtime only).
+    #[serde(skip)]
+    pub active_agent_counter: Option<std::sync::Arc<std::sync::atomic::AtomicU32>>,
 }
 
 // ── Tool Executor Trait ───────────────────────────────────────────────────────

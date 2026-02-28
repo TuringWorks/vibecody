@@ -118,10 +118,12 @@ Call this when the task is fully done. Provide a summary of what was accomplishe
 ### spawn_agent
 Delegate an independent sub-task to a child agent. The child runs with the same tools and
 workspace. Use this to parallelize work or isolate complex sub-problems.
+The child can spawn its own sub-agents up to `max_depth` levels deep (default: 3, hard max: 5).
 ```
 <tool_call name="spawn_agent">
 <task>Write unit tests for src/utils.rs and verify they pass with cargo test.</task>
 <max_steps>10</max_steps>
+<max_depth>3</max_depth>
 </tool_call>
 ```
 
@@ -179,6 +181,8 @@ pub enum ToolCall {
         task: String,
         /// Maximum number of steps the sub-agent can take (default: 10).
         max_steps: Option<usize>,
+        /// Maximum recursion depth for sub-agents spawned by this child (default: 3, hard max: 5).
+        max_depth: Option<u32>,
     },
 }
 
@@ -236,9 +240,9 @@ impl ToolCall {
                 };
                 format!("task_complete: {}", short)
             }
-            ToolCall::SpawnAgent { task, max_steps } => {
+            ToolCall::SpawnAgent { task, max_steps, max_depth } => {
                 let short = if task.len() > 60 { format!("{}…", &task[..60]) } else { task.clone() };
-                format!("spawn_agent(task={:?}, max_steps={})", short, max_steps.unwrap_or(10))
+                format!("spawn_agent(task={:?}, max_steps={}, max_depth={})", short, max_steps.unwrap_or(10), max_depth.unwrap_or(3))
             }
         }
     }
@@ -367,7 +371,9 @@ fn parse_single_tool(name: &str, body: &str) -> Option<ToolCall> {
             let task = extract_tag(body, "task")?;
             let max_steps = extract_tag(body, "max_steps")
                 .and_then(|s| s.parse().ok());
-            Some(ToolCall::SpawnAgent { task, max_steps })
+            let max_depth = extract_tag(body, "max_depth")
+                .and_then(|s| s.parse().ok());
+            Some(ToolCall::SpawnAgent { task, max_steps, max_depth })
         }
         _ => None,
     }
