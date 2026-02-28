@@ -1605,6 +1605,9 @@ pub async fn start_agent_task(
         flow_context: None,
         approved_plan: None,
         extra_skill_dirs: vec![],
+        parent_session_id: None,
+        depth: 0,
+        active_agent_counter: None,
     };
 
     let executor = Arc::new(TauriToolExecutor::new(workspace_root.clone()));
@@ -2771,6 +2774,9 @@ pub async fn start_parallel_agents(
                 flow_context: None,
                 approved_plan: None,
                 extra_skill_dirs: vec![],
+                parent_session_id: None,
+                depth: 0,
+                active_agent_counter: None,
             };
 
             let executor = Arc::new(TauriToolExecutor::new(root2));
