@@ -4,7 +4,7 @@
 **VibeCLI competitors:** Codex CLI, Warp 2.0, Kiro, opencode, Claude Code, Aider, Cline, Continue.dev, Amazon Q Developer
 **VibeUI competitors:** Antigravity (Google), Cursor, Windsurf, Replit, Base44, Lovable, Zed AI, Void
 
-> **Status:** All Phases 12–31 ✅ complete. Phases 32–43 polish/security/features ✅ complete. Security hardening audit (P0–P3, 20 items) ✅ complete. This document reflects the current state of the codebase as of 2026-02-27.
+> **Status:** All Phases 12–31 ✅ complete. Phases 32–44 polish/security/features ✅ complete. Security hardening audit (P0–P3, 20 items) ✅ complete. This document reflects the current state of the codebase as of 2026-02-28.
 
 ---
 
@@ -47,7 +47,7 @@
 | Web-viewable agent sessions | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Team knowledge store | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Ambient agent session sharing | ✅ | ❌ | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Slack/Linear/Telegram/Discord | ✅ (all 4) | ❌ | ✅ (Slack) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Messaging gateway (9 platforms) | ✅ (9) | ❌ | ✅ (Slack) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | 75+ LLM providers via OpenRouter | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ | ✅ | ✅ | ❌ |
 | GitHub Copilot auth | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ | ✅ | ✅ | ❌ |
 | AWS Bedrock provider | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ |
@@ -80,6 +80,10 @@
 | Tab-completion for REPL commands | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Integrated test runner (auto-detect framework) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
 | AI commit message generation | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Subagent tree tracking (max_depth) | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Code coverage UI | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Multi-model comparison | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| HTTP Playground | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 
 ---
 
@@ -443,7 +447,7 @@ All gaps from Phases 16–44 are now resolved. Only low-impact infrastructure ga
 | MCP OAuth install | Medium | ✅ Phase 42 | Cursor |
 | Custom domain / publish | Medium | ✅ Phase 42 | Base44/Lovable/Replit |
 
-### Previously Closed Gaps (Phases 16–37)
+### Previously Closed Gaps (Phases 16–44)
 
 | Phase | Gap | Status |
 |-------|-----|--------|
@@ -472,7 +476,7 @@ All gaps from Phases 16–44 are now resolved. Only low-impact infrastructure ga
 | 20 | GitHub bidirectional sync | ✅ GitHubSyncPanel.tsx |
 | 20 | Browser-embedded app testing | ✅ agent_browser_action |
 | 21 | Tavily/Brave web search | ✅ multi-engine search |
-| 21 | Messaging gateway | ✅ gateway.rs (Telegram/Discord/Slack) |
+| 21 | Messaging gateway (3 platforms) | ✅ gateway.rs (Telegram/Discord/Slack) |
 | 21 | Built-in scheduling | ✅ scheduler.rs + /schedule |
 | 21 | Single binary releases | ✅ install.sh + release.yml |
 | 22 | Session full-text search | ✅ /search REPL command |
@@ -511,6 +515,24 @@ All gaps from Phases 16–44 are now resolved. Only low-impact infrastructure ga
 | 37 | Path traversal security | ✅ is_safe_name() + canonicalize |
 | 37 | EventSource cleanup | ✅ useEffect unmount cleanup |
 | 37 | File delete modal | ✅ pendingDeleteFile state + modal |
+| 38 | @github issue context | ✅ fetch_github_issue + ContextPicker |
+| 38 | GCP/Firebase deploy targets | ✅ DeployPanel 6 targets |
+| 38 | OWASP/CWE static scanner (15) | ✅ detect_security_patterns in bugbot.rs |
+| 39 | Ambient session sharing | ✅ /share + GET /share/:id |
+| 39 | LSP diagnostics TUI panel | ✅ DiagnosticsComponent + /check |
+| 40 | Code Complete workflow (8-stage) | ✅ workflow.rs + WorkflowPanel.tsx |
+| 41 | Red team pentest pipeline | ✅ redteam.rs (5 stages, 15 CWE) |
+| 42 | @jira issue context | ✅ resolve_at_references + ContextPicker |
+| 42 | MCP OAuth 2.0 flow | ✅ McpPanel OAuth modal |
+| 42 | Custom domain publish | ✅ set_custom_domain + DeployPanel |
+| 43 | Multiplayer CRDT collab | ✅ vibe-collab crate + CollabPanel.tsx |
+| 43 | Test runner integration | ✅ TestPanel.tsx + /test REPL |
+| 43 | AI commit message gen | ✅ generate_commit_message + GitPanel |
+| 44 | Code coverage UI | ✅ CoveragePanel.tsx + LCOV/Go parsing |
+| 44 | Multi-model comparison | ✅ MultiModelPanel.tsx + tokio::join |
+| 44 | HTTP Playground | ✅ HttpPlayground.tsx + endpoint discovery |
+| 44 | Subagent tree tracking | ✅ session_store.rs parent/depth/max_depth |
+| 44 | Messaging gateway expansion | ✅ +6 platforms (Signal/Matrix/Twilio/WhatsApp/iMessage/Teams) |
 
 ---
 
@@ -619,7 +641,7 @@ After all completed phases, VibeCLI + VibeUI is the **most complete AI developme
 | Spec-driven dev | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | HTTP daemon + SDK | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | OTel tracing | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Messaging gateway (4 platforms) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Messaging gateway (9 platforms) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Scheduling / cron agents | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Team knowledge store | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | OS-level sandboxing | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
@@ -630,7 +652,7 @@ After all completed phases, VibeCLI + VibeUI is the **most complete AI developme
 | Subagent spawning | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ |
 | Vim TUI editor | ✅ | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ |
 | Notebook runner | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Linear/Slack/Telegram/Discord | ✅ all 4 | Partial | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Messaging (9 platforms) | ✅ all 9 | Partial | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Path traversal protection | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Secrets scrubbing in traces | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ |
 | Daemon bearer-token auth | ✅ | — | — | — | — | — | — | — |
@@ -870,4 +892,4 @@ covering supply chain security, daemon hardening, data protection, and defense-i
 
 ---
 
-*Updated 2026-02-27 — reflects all phases 12–43 complete, plus full security hardening audit (P0–P3, 20 items) and test runner integration (VibeCLI `/test` + VibeUI TestPanel). All file paths reference the VibeCody monorepo at github.com/TuringWorks/vibecody.*
+*Updated 2026-02-28 — reflects all phases 12–44 complete, plus full security hardening audit (P0–P3, 20 items), 9-platform messaging gateway (Telegram/Discord/Slack/Signal/Matrix/Twilio SMS/WhatsApp/iMessage/Teams), code coverage UI, multi-model comparison, HTTP playground, and subagent tree tracking. All file paths reference the VibeCody monorepo at github.com/TuringWorks/vibecody.*
