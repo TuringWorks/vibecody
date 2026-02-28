@@ -182,7 +182,9 @@ pub fn switch_branch(repo_path: &Path, branch: &str) -> Result<()> {
     let reference = branch_ref.get();
     
     // Set HEAD to the branch
-    repo.set_head(reference.name().unwrap())?;
+    let ref_name = reference.name()
+        .ok_or_else(|| anyhow::anyhow!("Branch reference has non-UTF-8 name"))?;
+    repo.set_head(ref_name)?;
     
     // Checkout the branch
     repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force()))?;

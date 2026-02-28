@@ -174,7 +174,7 @@ impl CodebaseIndex {
                 if score > 0.0 { Some((score, s)) } else { None }
             })
             .collect();
-        scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+        scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
         scored.into_iter().map(|(_, s)| s.clone()).collect()
     }
 
@@ -218,7 +218,7 @@ impl CodebaseIndex {
                 (score, s)
             })
             .collect();
-        scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+        scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
         scored
             .into_iter()
             .take(limit)

@@ -82,7 +82,7 @@ impl RemoteEmbeddingIndex {
     pub async fn start_indexing(&self) -> Result<String> {
         let body = serde_json::json!({ "workspace": self.workspace });
         let resp = self
-            .client()
+            .client()?
             .post(format!("{}/index", self.url))
             .json(&body)
             .send()
@@ -106,7 +106,7 @@ impl RemoteEmbeddingIndex {
 
         loop {
             let status: JobStatus = self
-                .client()
+                .client()?
                 .get(format!("{}/index/status/{}", self.url, job_id))
                 .send()
                 .await
@@ -147,7 +147,7 @@ impl RemoteEmbeddingIndex {
     pub async fn search(&self, query: &str, k: usize) -> Result<Vec<SearchHit>> {
         let req = SearchRequest { query, workspace: &self.workspace, limit: k };
         let resp: SearchResponse = self
-            .client()
+            .client()?
             .post(format!("{}/search", self.url))
             .json(&req)
             .send()
@@ -164,24 +164,29 @@ impl RemoteEmbeddingIndex {
 
     /// Check if the remote service is reachable.
     pub async fn is_healthy(&self) -> bool {
-        self.client()
+        let client = match self.client() {
+            Ok(c) => c,
+            Err(_) => return false,
+        };
+        client
             .get(format!("{}/health", self.url))
             .send()
             .await
             .is_ok()
     }
 
-    fn client(&self) -> reqwest::Client {
+    fn client(&self) -> Result<reqwest::Client> {
         let mut builder = reqwest::Client::builder();
         if let Some(key) = &self.api_key {
             let mut headers = reqwest::header::HeaderMap::new();
             headers.insert(
                 "X-Api-Key",
-                reqwest::header::HeaderValue::from_str(key).expect("valid header value"),
+                reqwest::header::HeaderValue::from_str(key)
+                    .map_err(|e| anyhow::anyhow!("Invalid API key header value: {}", e))?,
             );
             builder = builder.default_headers(headers);
         }
-        builder.build().expect("reqwest client")
+        builder.build().context("Failed to build reqwest client")
     }
 }
 

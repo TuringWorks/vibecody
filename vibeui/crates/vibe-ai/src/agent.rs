@@ -284,7 +284,13 @@ impl AgentLoop {
             });
 
             // ── 3. Handle first tool call (one tool per turn) ─────────────────
-            let call = tool_calls.into_iter().next().unwrap();
+            let call = match tool_calls.into_iter().next() {
+                Some(c) => c,
+                None => {
+                    let _ = event_tx.send(AgentEvent::Complete(accumulated)).await;
+                    return Ok(());
+                }
+            };
             if call.is_terminal() {
                 let summary = match &call {
                     ToolCall::TaskComplete { summary } => summary.clone(),

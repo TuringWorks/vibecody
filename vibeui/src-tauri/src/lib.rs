@@ -260,6 +260,14 @@ pub fn run() {
             commands::leave_collab_session,
             commands::list_collab_peers,
             commands::get_collab_status,
+            // Phase 44: Code Coverage
+            commands::detect_coverage_tool,
+            commands::run_coverage,
+            // Phase 44: Multi-Model Comparison
+            commands::compare_models,
+            // Phase 44: HTTP Playground
+            commands::send_http_request,
+            commands::discover_api_endpoints,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

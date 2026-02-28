@@ -633,9 +633,11 @@ Return [] if no vulnerabilities are found.
         Ok(response) => {
             let json_start = response.find('[').unwrap_or(0);
             let json_end = response.rfind(']').map(|i| i + 1).unwrap_or(response.len());
-            let json_str = &response[json_start..json_end];
-            if let Ok(parsed) = serde_json::from_str::<Vec<VulnCandidate>>(json_str) {
-                candidates = parsed;
+            if json_start < json_end {
+                let json_str = &response[json_start..json_end];
+                if let Ok(parsed) = serde_json::from_str::<Vec<VulnCandidate>>(json_str) {
+                    candidates = parsed;
+                }
             }
         }
         Err(e) => {
@@ -994,7 +996,16 @@ pub async fn run_redteam_pipeline(
     let start = std::time::Instant::now();
 
     let workspace = config.source_path.as_deref();
-    match analyze_source(workspace, session.recon.as_ref().unwrap(), llm.as_ref()).await {
+    let recon = match session.recon.as_ref() {
+        Some(r) => r,
+        None => {
+            mark_stage_error(&mut session, "Analysis", "Recon data missing");
+            println!("   ⚠ Skipping analysis: recon data not available");
+            manager.save_session(&session)?;
+            return Ok(session);
+        }
+    };
+    match analyze_source(workspace, recon, llm.as_ref()).await {
         Ok(candidates) => {
             let dur = start.elapsed().as_secs_f64();
             println!("   ✅ Identified {} vulnerability candidates ({:.1}s)", candidates.len(), dur);

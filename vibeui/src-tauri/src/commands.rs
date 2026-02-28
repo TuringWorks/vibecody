@@ -5967,6 +5967,394 @@ pub async fn get_collab_status(
     })
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// Phase 44 — Code Coverage Panel
+// ══════════════════════════════════════════════════════════════════════════════
+
+/// Per-file coverage entry returned by `run_coverage`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileCoverage {
+    pub path: String,
+    pub covered: u32,
+    pub total: u32,
+    pub pct: f32,
+    pub uncovered_lines: Vec<u32>,
+}
+
+/// Aggregate coverage result.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CoverageResult {
+    pub framework: String,
+    pub total_pct: f32,
+    pub files: Vec<FileCoverage>,
+    pub raw_output: String,
+}
+
+/// Detect which coverage tool the project uses.
+#[tauri::command]
+pub async fn detect_coverage_tool(workspace: String) -> Result<String, String> {
+    let ws = PathBuf::from(&workspace);
+    if ws.join("Cargo.toml").exists() {
+        return Ok("cargo-llvm-cov".to_string());
+    }
+    if ws.join("package.json").exists() {
+        if let Ok(content) = std::fs::read_to_string(ws.join("package.json")) {
+            if content.contains("\"nyc\"") || content.contains("\"c8\"") || content.contains("\"istanbul\"") {
+                return Ok("nyc".to_string());
+            }
+            if content.contains("\"coverage\"") {
+                return Ok("npm-coverage".to_string());
+            }
+        }
+        return Ok("npm-coverage".to_string());
+    }
+    if ws.join("pytest.ini").exists() || ws.join("pyproject.toml").exists() || ws.join("setup.py").exists() {
+        return Ok("coverage.py".to_string());
+    }
+    if ws.join("go.mod").exists() {
+        return Ok("go-cover".to_string());
+    }
+    Err("No coverage tool detected in this workspace".to_string())
+}
+
+/// Run coverage for the workspace and return structured results.
+#[tauri::command]
+pub async fn run_coverage(
+    app: tauri::AppHandle,
+    workspace: String,
+    tool: String,
+) -> Result<CoverageResult, String> {
+    let ws = PathBuf::from(&workspace);
+    let (prog, args): (&str, &[&str]) = match tool.as_str() {
+        "cargo-llvm-cov" => ("cargo", &["llvm-cov", "--lcov", "--output-path", "coverage.lcov"]),
+        "nyc"            => ("npx",   &["nyc", "--reporter=lcov", "npm", "test"]),
+        "npm-coverage"   => ("npm",   &["run", "coverage"]),
+        "coverage.py"    => ("python",&["-m", "pytest", "--cov", "--cov-report=lcov:coverage.lcov", "-q"]),
+        "go-cover"       => ("go",    &["test", "./...", "-coverprofile=coverage.out"]),
+        _                => return Err(format!("Unknown coverage tool: {tool}")),
+    };
+
+    let _ = &app; // reserved for future event streaming
+    let output = tokio::process::Command::new(prog)
+        .args(args)
+        .current_dir(&ws)
+        .output()
+        .await
+        .map_err(|e| format!("Failed to run {prog}: {e}"))?;
+
+    let raw_output = String::from_utf8_lossy(&output.stdout).to_string()
+        + &String::from_utf8_lossy(&output.stderr);
+
+    // Determine LCOV file path
+    let lcov_path = if tool == "go-cover" {
+        ws.join("coverage.out")
+    } else {
+        ws.join("coverage.lcov")
+    };
+
+    let files = if lcov_path.exists() {
+        let content = std::fs::read_to_string(&lcov_path).unwrap_or_default();
+        if tool == "go-cover" { parse_go_coverage(&content) } else { parse_lcov(&content) }
+    } else {
+        Vec::new()
+    };
+
+    let (total_covered, total_lines) = files.iter().fold((0u32, 0u32), |(ac, at), f| (ac + f.covered, at + f.total));
+    let total_pct = if total_lines > 0 {
+        (total_covered as f32 / total_lines as f32) * 100.0
+    } else {
+        extract_pct_from_raw(&raw_output)
+    };
+
+    Ok(CoverageResult { framework: tool, total_pct, files, raw_output })
+}
+
+/// Parse LCOV format into FileCoverage entries.
+fn parse_lcov(lcov: &str) -> Vec<FileCoverage> {
+    let mut files = Vec::new();
+    let mut current_file: Option<String> = None;
+    let mut covered = 0u32;
+    let mut total = 0u32;
+    let mut uncovered: Vec<u32> = Vec::new();
+
+    for line in lcov.lines() {
+        if let Some(path) = line.strip_prefix("SF:") {
+            current_file = Some(path.to_string());
+            covered = 0; total = 0; uncovered.clear();
+        } else if let Some(da) = line.strip_prefix("DA:") {
+            let parts: Vec<&str> = da.splitn(2, ',').collect();
+            if parts.len() == 2 {
+                if let Ok(ln) = parts[0].parse::<u32>() {
+                    total += 1;
+                    let count: i64 = parts[1].parse().unwrap_or(0);
+                    if count > 0 { covered += 1; } else { uncovered.push(ln); }
+                }
+            }
+        } else if line == "end_of_record" {
+            if let Some(path) = current_file.take() {
+                let pct = if total > 0 { (covered as f32 / total as f32) * 100.0 } else { 100.0 };
+                files.push(FileCoverage { path, covered, total, pct, uncovered_lines: uncovered.clone() });
+            }
+        }
+    }
+    files
+}
+
+/// Parse `go test -coverprofile` output into FileCoverage entries.
+fn parse_go_coverage(cov: &str) -> Vec<FileCoverage> {
+    use std::collections::HashMap;
+    // Format: "pkg/file.go:start.col,end.col numStmts count"
+    let mut data: HashMap<String, (u32, u32, Vec<u32>)> = HashMap::new();
+
+    for line in cov.lines().skip(1) {
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        if parts.len() < 3 { continue; }
+        let count: i64 = parts[2].parse().unwrap_or(0);
+        let path = parts[0].split(':').next().unwrap_or("").to_string();
+        let start_line: u32 = parts[0].split(':').nth(1)
+            .and_then(|s| s.split(',').next())
+            .and_then(|s| s.split('.').next())
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(0);
+        let entry = data.entry(path).or_insert((0, 0, Vec::new()));
+        entry.1 += 1;
+        if count > 0 { entry.0 += 1; } else { entry.2.push(start_line); }
+    }
+
+    data.into_iter().map(|(path, (cov, tot, unc))| {
+        let pct = if tot > 0 { (cov as f32 / tot as f32) * 100.0 } else { 100.0 };
+        FileCoverage { path, covered: cov, total: tot, pct, uncovered_lines: unc }
+    }).collect()
+}
+
+/// Extract the first percentage value from raw command output as a fallback.
+fn extract_pct_from_raw(raw: &str) -> f32 {
+    static RE: OnceLock<regex::Regex> = OnceLock::new();
+    let re = RE.get_or_init(|| regex::Regex::new(r"(\d+(?:\.\d+)?)\s*%").unwrap());
+    for cap in re.captures_iter(raw) {
+        if let Ok(pct) = cap[1].parse::<f32>() {
+            return pct;
+        }
+    }
+    0.0
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Phase 44 — Multi-Model Comparison
+// ══════════════════════════════════════════════════════════════════════════════
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModelResponse {
+    pub provider: String,
+    pub model: String,
+    pub content: String,
+    pub duration_ms: u64,
+    pub tokens: Option<u32>,
+    pub error: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CompareResult {
+    pub a: ModelResponse,
+    pub b: ModelResponse,
+}
+
+/// Build a temporary provider instance by type name (reads API key from env).
+fn build_temp_provider(provider_type: &str, model: &str)
+    -> Option<Arc<dyn vibe_ai::provider::AIProvider>>
+{
+    use vibe_ai::providers;
+    use vibe_ai::provider::ProviderConfig;
+
+    let cfg = ProviderConfig {
+        provider_type: provider_type.to_string(),
+        api_key: match provider_type {
+            "claude" | "anthropic" => std::env::var("ANTHROPIC_API_KEY").ok(),
+            "openai"               => std::env::var("OPENAI_API_KEY").ok(),
+            "gemini"               => std::env::var("GEMINI_API_KEY").ok(),
+            "grok"                 => std::env::var("GROK_API_KEY").ok(),
+            "groq"                 => std::env::var("GROQ_API_KEY").ok(),
+            "ollama"               => Some(String::new()),
+            _                      => None,
+        },
+        model: model.to_string(),
+        ..Default::default()
+    };
+
+    let p: Arc<dyn vibe_ai::provider::AIProvider> = match provider_type {
+        "claude" | "anthropic" => Arc::new(providers::ClaudeProvider::new(cfg)),
+        "openai"               => Arc::new(providers::OpenAIProvider::new(cfg)),
+        "gemini"               => Arc::new(providers::GeminiProvider::new(cfg)),
+        "grok"                 => Arc::new(providers::GrokProvider::new(cfg)),
+        "groq"                 => Arc::new(providers::GroqProvider::new(cfg)),
+        "ollama"               => Arc::new(providers::OllamaProvider::new(cfg)),
+        _                      => return None,
+    };
+    Some(p)
+}
+
+/// Call a single provider with a prompt and return a `ModelResponse`.
+async fn call_provider(provider_type: &str, model: &str, prompt: &str) -> ModelResponse {
+    use vibe_ai::provider::{Message, MessageRole};
+    let start = std::time::Instant::now();
+    let messages = vec![Message { role: MessageRole::User, content: prompt.to_string() }];
+
+    let Some(provider) = build_temp_provider(provider_type, model) else {
+        return ModelResponse {
+            provider: provider_type.to_string(), model: model.to_string(),
+            content: String::new(), duration_ms: 0, tokens: None,
+            error: Some(format!("Provider '{provider_type}' is not configured")),
+        };
+    };
+
+    match provider.chat_response(&messages, None).await {
+        Ok(resp) => ModelResponse {
+            provider: provider_type.to_string(),
+            model: model.to_string(),
+            content: resp.text,
+            duration_ms: start.elapsed().as_millis() as u64,
+            tokens: resp.usage.map(|u| u.total()),
+            error: None,
+        },
+        Err(e) => ModelResponse {
+            provider: provider_type.to_string(),
+            model: model.to_string(),
+            content: String::new(),
+            duration_ms: start.elapsed().as_millis() as u64,
+            tokens: None,
+            error: Some(e.to_string()),
+        },
+    }
+}
+
+/// Send the same prompt to two providers in parallel and return both responses.
+#[tauri::command]
+pub async fn compare_models(
+    prompt: String,
+    provider_a: String,
+    model_a: String,
+    provider_b: String,
+    model_b: String,
+) -> Result<CompareResult, String> {
+    let (a, b) = tokio::join!(
+        call_provider(&provider_a, &model_a, &prompt),
+        call_provider(&provider_b, &model_b, &prompt),
+    );
+    Ok(CompareResult { a, b })
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Phase 44 — HTTP Playground
+// ══════════════════════════════════════════════════════════════════════════════
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HttpRequestHeader {
+    pub key: String,
+    pub value: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HttpResponseData {
+    pub status: u16,
+    pub status_text: String,
+    pub headers: Vec<HttpRequestHeader>,
+    pub body: String,
+    pub duration_ms: u64,
+}
+
+/// Send an HTTP request and return the response.
+#[tauri::command]
+pub async fn send_http_request(
+    method: String,
+    url: String,
+    headers: Vec<HttpRequestHeader>,
+    body: Option<String>,
+) -> Result<HttpResponseData, String> {
+    if !url.starts_with("http://") && !url.starts_with("https://") {
+        return Err("URL must start with http:// or https://".to_string());
+    }
+
+    let start = std::time::Instant::now();
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let method_parsed = reqwest::Method::from_bytes(method.to_uppercase().as_bytes())
+        .map_err(|e| e.to_string())?;
+
+    let mut req = client.request(method_parsed, &url);
+    for h in &headers {
+        req = req.header(h.key.as_str(), h.value.as_str());
+    }
+    if let Some(b) = body {
+        req = req.body(b);
+    }
+
+    let resp = req.send().await.map_err(|e| e.to_string())?;
+    let duration_ms = start.elapsed().as_millis() as u64;
+    let status = resp.status();
+    let resp_headers: Vec<HttpRequestHeader> = resp.headers().iter()
+        .map(|(k, v)| HttpRequestHeader {
+            key: k.to_string(),
+            value: v.to_str().unwrap_or("").to_string(),
+        })
+        .collect();
+    let body_text = resp.text().await.map_err(|e| e.to_string())?;
+
+    Ok(HttpResponseData {
+        status: status.as_u16(),
+        status_text: status.canonical_reason().unwrap_or("").to_string(),
+        headers: resp_headers,
+        body: body_text,
+        duration_ms,
+    })
+}
+
+/// Grep the workspace for common API route patterns.
+#[tauri::command]
+pub async fn discover_api_endpoints(workspace: String) -> Result<Vec<String>, String> {
+    static PATTERNS: &[&str] = &[
+        r"app\.(get|post|put|delete|patch)\s*\(",
+        r"router\.(get|post|put|delete|patch)\s*\(",
+        r#"@(Get|Post|Put|Delete|Patch)\s*\("#,
+        r"\.route\s*\(",
+        r#"axum::Router::new\(\)"#,
+    ];
+    let compiled: Vec<regex::Regex> = PATTERNS.iter()
+        .filter_map(|p| regex::Regex::new(p).ok())
+        .collect();
+
+    let ws = PathBuf::from(&workspace);
+    let mut endpoints = Vec::new();
+
+    for entry in walkdir::WalkDir::new(&ws)
+        .follow_links(false)
+        .max_depth(6)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| {
+            let ext = e.path().extension().and_then(|x| x.to_str()).unwrap_or("");
+            matches!(ext, "js" | "ts" | "jsx" | "tsx" | "rs" | "py" | "go" | "java")
+        })
+        .take(500)
+    {
+        if endpoints.len() >= 60 { break; }
+        if let Ok(content) = std::fs::read_to_string(entry.path()) {
+            for line in content.lines() {
+                let trimmed = line.trim().to_string();
+                if compiled.iter().any(|re| re.is_match(&trimmed)) {
+                    if !endpoints.contains(&trimmed) {
+                        endpoints.push(trimmed);
+                        if endpoints.len() >= 60 { break; }
+                    }
+                }
+            }
+        }
+    }
+    Ok(endpoints)
+}
+
 // ── Unit tests ────────────────────────────────────────────────────────────────
 
 #[cfg(test)]

@@ -746,9 +746,13 @@ impl WhatsAppGateway {
 
         let addr: std::net::SocketAddr = ([0, 0, 0, 0], port).into();
         eprintln!("[whatsapp] Webhook listening on :{}", port);
-        let listener = tokio::net::TcpListener::bind(addr).await.unwrap_or_else(|e| {
-            panic!("[whatsapp] Failed to bind port {}: {}", port, e);
-        });
+        let listener = match tokio::net::TcpListener::bind(addr).await {
+            Ok(l) => l,
+            Err(e) => {
+                eprintln!("[whatsapp] Failed to bind port {}: {}", port, e);
+                return;
+            }
+        };
         let _ = axum::serve(listener, app).await;
     }
 }
@@ -852,9 +856,13 @@ impl TeamsGateway {
         let app = Router::new().route("/api/messages", post(handler));
         let addr: std::net::SocketAddr = ([0, 0, 0, 0], port).into();
         eprintln!("[teams] Bot Framework webhook on :{}", port);
-        let listener = tokio::net::TcpListener::bind(addr).await.unwrap_or_else(|e| {
-            panic!("[teams] Failed to bind port {}: {}", port, e);
-        });
+        let listener = match tokio::net::TcpListener::bind(addr).await {
+            Ok(l) => l,
+            Err(e) => {
+                eprintln!("[teams] Failed to bind port {}: {}", port, e);
+                return;
+            }
+        };
         let _ = axum::serve(listener, app).await;
     }
 

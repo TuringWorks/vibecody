@@ -311,8 +311,12 @@ Diff:
             Ok(response) => {
                 let json_start = response.find('[').unwrap_or(0);
                 let json_end = response.rfind(']').map(|i| i + 1).unwrap_or(response.len());
-                let json_str = &response[json_start..json_end];
-                serde_json::from_str::<Vec<BugReport>>(json_str).unwrap_or_default()
+                if json_start < json_end {
+                    let json_str = &response[json_start..json_end];
+                    serde_json::from_str::<Vec<BugReport>>(json_str).unwrap_or_default()
+                } else {
+                    vec![]
+                }
             }
             Err(_) => vec![],
         };

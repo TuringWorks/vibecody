@@ -259,7 +259,7 @@ impl TextBuffer {
         match edit {
             Edit::Insert { position, text } => {
                 let start_char = self.position_to_char(position);
-                let end_char = start_char + text.len();
+                let end_char = start_char + text.chars().count();
                 self.rope.remove(start_char..end_char);
             }
             Edit::Delete { range, deleted_text } => {
