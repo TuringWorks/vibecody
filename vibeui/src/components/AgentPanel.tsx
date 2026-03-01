@@ -85,7 +85,7 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
                                     setSteps((prev) => [...prev, {
                                         step_num: step.step_num + 0.5,
                                         tool_name: "linter",
-                                        tool_summary: `Auto-lint: ${filePath.split("/").pop()}`,
+                                        tool_summary: `Auto-lint: ${filePath.split("/").pop() || "file"}`,
                                         output: msg,
                                         success: result.errors.length === 0,
                                         approved: true,

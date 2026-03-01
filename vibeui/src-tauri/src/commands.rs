@@ -513,7 +513,7 @@ pub async fn get_git_context(state: tauri::State<'_, AppState>) -> Result<String
     }
     if let Ok(diff) = vibe_core::git::get_repo_diff(&root) {
         if !diff.is_empty() {
-            let truncated = if diff.len() > 4000 { &diff[..4000] } else { &diff };
+            let truncated = if diff.len() > 4000 { &diff[..diff.char_indices().nth(4000).map(|(i,_)| i).unwrap_or(diff.len())] } else { &diff };
             ctx.push_str("\n```diff\n");
             ctx.push_str(truncated);
             ctx.push_str("\n```\n");
@@ -905,7 +905,8 @@ pub(crate) async fn fetch_and_strip(url: &str) -> Result<String, String> {
     let collapsed = re_whitespace().replace_all(decoded.trim(), " ");
 
     let text = if collapsed.len() > 6000 {
-        format!("{}…(truncated)", &collapsed[..6000])
+        let safe_end = collapsed.char_indices().nth(6000).map(|(i,_)| i).unwrap_or(collapsed.len());
+        format!("{}…(truncated)", &collapsed[..safe_end])
     } else {
         collapsed.into_owned()
     };
@@ -957,7 +958,8 @@ async fn resolve_at_references(
                     let to   = e.min(lines.len());
                     lines[from..to].join("\n")
                 } else if file_content.len() > 8000 {
-                    format!("{}...(truncated)", &file_content[..8000])
+                    let safe_end = file_content.char_indices().nth(8000).map(|(i,_)| i).unwrap_or(file_content.len());
+                    format!("{}...(truncated)", &file_content[..safe_end])
                 } else {
                     file_content
                 };
@@ -1013,7 +1015,7 @@ async fn resolve_at_references(
             }
             if let Ok(diff) = vibe_core::git::get_repo_diff(r) {
                 if !diff.is_empty() {
-                    let truncated = if diff.len() > 3000 { &diff[..3000] } else { &diff };
+                    let truncated = if diff.len() > 3000 { &diff[..diff.char_indices().nth(3000).map(|(i,_)| i).unwrap_or(diff.len())] } else { &diff };
                     git_ctx.push_str(&format!("```diff\n{}\n```\n", truncated));
                 }
             }
@@ -6455,6 +6457,333 @@ pub async fn get_arena_history() -> Result<(Vec<ArenaVote>, Vec<ArenaStats>), St
         .collect();
 
     Ok((votes, stats))
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Phase 45 — Cost & Performance Observatory
+// ══════════════════════════════════════════════════════════════════════════════
+
+/// A single AI call cost record.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CostEntry {
+    pub session_id: String,
+    pub provider: String,
+    pub model: String,
+    pub prompt_tokens: u32,
+    pub completion_tokens: u32,
+    pub cost_usd: f64,
+    pub timestamp_ms: u64,
+    pub task_hint: Option<String>,
+}
+
+/// Per-provider aggregate for the cost dashboard.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProviderCostSummary {
+    pub provider: String,
+    pub total_cost_usd: f64,
+    pub total_tokens: u32,
+    pub call_count: u32,
+}
+
+/// Full cost metrics payload returned to the frontend.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CostMetrics {
+    pub entries: Vec<CostEntry>,
+    pub by_provider: Vec<ProviderCostSummary>,
+    pub total_cost_usd: f64,
+    pub total_tokens: u32,
+    pub budget_limit_usd: Option<f64>,
+    pub budget_remaining_usd: Option<f64>,
+}
+
+fn cost_log_path() -> PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    PathBuf::from(home).join(".vibeui").join("cost-log.jsonl")
+}
+
+fn cost_config_path() -> PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    PathBuf::from(home).join(".vibeui").join("cost-config.json")
+}
+
+/// Append a cost entry to the JSONL log. Called from send_chat_message / agent flow.
+#[tauri::command]
+pub async fn record_cost_entry(
+    session_id: String,
+    provider: String,
+    model: String,
+    prompt_tokens: u32,
+    completion_tokens: u32,
+    task_hint: Option<String>,
+) -> Result<(), String> {
+    use vibe_ai::provider::TokenUsage;
+    let usage = TokenUsage { prompt_tokens, completion_tokens };
+    let cost_usd = usage.estimated_cost_usd(&provider, &model);
+    let timestamp_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64;
+
+    let entry = CostEntry { session_id, provider, model, prompt_tokens, completion_tokens, cost_usd, timestamp_ms, task_hint };
+    let line = serde_json::to_string(&entry).map_err(|e| e.to_string())?;
+
+    let path = cost_log_path();
+    if let Some(p) = path.parent() { let _ = std::fs::create_dir_all(p); }
+    let mut file = std::fs::OpenOptions::new().create(true).append(true).open(&path)
+        .map_err(|e| e.to_string())?;
+    use std::io::Write;
+    writeln!(file, "{}", line).map_err(|e| e.to_string())
+}
+
+/// Load all cost entries and compute aggregates.
+#[tauri::command]
+pub async fn get_cost_metrics() -> Result<CostMetrics, String> {
+    // Load entries
+    let log_path = cost_log_path();
+    let mut entries: Vec<CostEntry> = Vec::new();
+    if log_path.exists() {
+        let content = std::fs::read_to_string(&log_path).unwrap_or_default();
+        for line in content.lines() {
+            if let Ok(e) = serde_json::from_str::<CostEntry>(line) {
+                entries.push(e);
+            }
+        }
+    }
+
+    // Sort newest first
+    entries.sort_by(|a, b| b.timestamp_ms.cmp(&a.timestamp_ms));
+
+    // Aggregate by provider
+    let mut by_provider: std::collections::HashMap<String, ProviderCostSummary> = std::collections::HashMap::new();
+    for e in &entries {
+        let s = by_provider.entry(e.provider.clone()).or_insert(ProviderCostSummary {
+            provider: e.provider.clone(), total_cost_usd: 0.0, total_tokens: 0, call_count: 0,
+        });
+        s.total_cost_usd += e.cost_usd;
+        s.total_tokens += e.prompt_tokens + e.completion_tokens;
+        s.call_count += 1;
+    }
+    let mut by_provider_vec: Vec<ProviderCostSummary> = by_provider.into_values().collect();
+    by_provider_vec.sort_by(|a, b| b.total_cost_usd.partial_cmp(&a.total_cost_usd).unwrap_or(std::cmp::Ordering::Equal));
+
+    let total_cost_usd: f64 = entries.iter().map(|e| e.cost_usd).sum();
+    let total_tokens: u32 = entries.iter().map(|e| e.prompt_tokens + e.completion_tokens).sum();
+
+    // Load budget limit
+    let budget_limit_usd = if cost_config_path().exists() {
+        std::fs::read_to_string(cost_config_path()).ok()
+            .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
+            .and_then(|v| v["budget_limit_usd"].as_f64())
+    } else {
+        None
+    };
+
+    let budget_remaining_usd = budget_limit_usd.map(|lim| (lim - total_cost_usd).max(0.0));
+
+    Ok(CostMetrics { entries, by_provider: by_provider_vec, total_cost_usd, total_tokens, budget_limit_usd, budget_remaining_usd })
+}
+
+/// Set or clear the monthly budget limit.
+#[tauri::command]
+pub async fn set_cost_limit(limit_usd: Option<f64>) -> Result<(), String> {
+    let path = cost_config_path();
+    if let Some(p) = path.parent() { let _ = std::fs::create_dir_all(p); }
+    let json = serde_json::json!({ "budget_limit_usd": limit_usd });
+    std::fs::write(&path, serde_json::to_string_pretty(&json).unwrap())
+        .map_err(|e| e.to_string())
+}
+
+/// Clear all cost history.
+#[tauri::command]
+pub async fn clear_cost_history() -> Result<(), String> {
+    let path = cost_log_path();
+    if path.exists() {
+        std::fs::remove_file(&path).map_err(|e| e.to_string())
+    } else {
+        Ok(())
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Phase 45 — AI Git Workflow Enhancements
+// ══════════════════════════════════════════════════════════════════════════════
+
+/// Suggest a git branch name for a given task description.
+#[tauri::command]
+pub async fn suggest_branch_name(
+    state: tauri::State<'_, AppState>,
+    task_description: String,
+) -> Result<String, String> {
+    use vibe_ai::provider::{Message, MessageRole};
+    let engine = state.chat_engine.lock().await;
+    let prompt = format!(
+        "Generate a concise, lowercase, hyphen-separated git branch name for this task (no spaces, \
+         no special chars except hyphens, max 50 chars, just the name with no explanation):\n\n{}",
+        task_description.trim()
+    );
+    let messages = vec![Message { role: MessageRole::User, content: prompt }];
+    let result = engine.chat(&messages, None).await.map_err(|e| e.to_string())?;
+    // Clean up: strip quotes, backticks, whitespace
+    let name = result.trim()
+        .trim_matches('`')
+        .trim_matches('"')
+        .trim_matches('\'')
+        .to_lowercase()
+        .replace(' ', "-");
+    Ok(name)
+}
+
+/// AI-assisted merge conflict resolution.
+#[tauri::command]
+pub async fn resolve_merge_conflict(
+    state: tauri::State<'_, AppState>,
+    file_path: String,
+    conflict_text: String,
+) -> Result<String, String> {
+    use vibe_ai::provider::{Message, MessageRole};
+    let engine = state.chat_engine.lock().await;
+    let prompt = format!(
+        "You are a code merge conflict resolver. Analyze this merge conflict and return ONLY the \
+         resolved code (no explanation, no markdown fences). Choose the best resolution that \
+         preserves functionality from both sides, or ours if ambiguous.\n\
+         \nFile: {}\n\n```\n{}\n```",
+        file_path, conflict_text
+    );
+    let messages = vec![Message { role: MessageRole::User, content: prompt }];
+    engine.chat(&messages, None).await.map_err(|e| e.to_string())
+}
+
+/// Generate a CHANGELOG entry from recent git commits.
+#[tauri::command]
+pub async fn generate_changelog(
+    state: tauri::State<'_, AppState>,
+    workspace: String,
+    since_ref: Option<String>,
+) -> Result<String, String> {
+    use vibe_ai::provider::{Message, MessageRole};
+    // Get git log
+    let since = since_ref.as_deref().unwrap_or("HEAD~20");
+    let log_output = tokio::process::Command::new("git")
+        .args(["log", &format!("{}..HEAD", since), "--oneline", "--no-merges"])
+        .current_dir(&workspace)
+        .output()
+        .await
+        .map_err(|e| e.to_string())?;
+    let log = String::from_utf8_lossy(&log_output.stdout).to_string();
+    if log.trim().is_empty() {
+        return Ok("No new commits found since the specified reference.".to_string());
+    }
+
+    let engine = state.chat_engine.lock().await;
+    let prompt = format!(
+        "Convert these git commits into a concise, user-facing CHANGELOG entry in Keep a Changelog \
+         format (## [Unreleased] section with ### Added / ### Fixed / ### Changed subsections as \
+         appropriate). Group related commits. Use imperative mood. Return only the markdown:\n\n{}",
+        log
+    );
+    let messages = vec![Message { role: MessageRole::User, content: prompt }];
+    engine.chat(&messages, None).await.map_err(|e| e.to_string())
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Phase 45 — Codemod & Lint Auto-Fix
+// ══════════════════════════════════════════════════════════════════════════════
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AutofixResult {
+    pub framework: String,
+    pub files_changed: u32,
+    pub diff: String,
+    pub stdout: String,
+}
+
+/// Run the linter in auto-fix mode and return the resulting diff.
+#[tauri::command]
+pub async fn run_autofix(workspace: String, framework: Option<String>) -> Result<AutofixResult, String> {
+    let ws = PathBuf::from(&workspace);
+
+    // Auto-detect framework if not specified
+    let fw = match framework.as_deref() {
+        Some(f) => f.to_string(),
+        None => {
+            if ws.join("Cargo.toml").exists() { "clippy".to_string() }
+            else if ws.join("package.json").exists() { "eslint".to_string() }
+            else if ws.join("pyproject.toml").exists() || ws.join("setup.py").exists() { "ruff".to_string() }
+            else if ws.join("go.mod").exists() { "gofmt".to_string() }
+            else { return Err("Cannot detect linter framework".to_string()); }
+        }
+    };
+
+    // Run fix command
+    let (prog, args): (&str, &[&str]) = match fw.as_str() {
+        "clippy"  => ("cargo", &["clippy", "--fix", "--allow-dirty", "--allow-staged", "-q"]),
+        "eslint"  => ("npx",   &["eslint", "--fix", "."]),
+        "ruff"    => ("ruff",  &["check", "--fix", "."]),
+        "gofmt"   => ("gofmt", &["-w", "."]),
+        "prettier"=> ("npx",   &["prettier", "--write", "."]),
+        _         => return Err(format!("Unknown autofix framework: {fw}")),
+    };
+
+    let output = tokio::process::Command::new(prog)
+        .args(args)
+        .current_dir(&ws)
+        .output()
+        .await
+        .map_err(|e| format!("Failed to run autofix: {e}"))?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string()
+        + &String::from_utf8_lossy(&output.stderr);
+
+    // Get the diff of changes
+    let diff_stat = tokio::process::Command::new("git")
+        .args(["diff", "--stat"])
+        .current_dir(&ws)
+        .output()
+        .await
+        .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
+        .unwrap_or_default();
+
+    let diff = tokio::process::Command::new("git")
+        .args(["diff", "--unified=3"])
+        .current_dir(&ws)
+        .output()
+        .await
+        .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
+        .unwrap_or_default();
+
+    // Count changed files from stat
+    let files_changed = diff_stat.lines()
+        .filter(|l| l.contains('|'))
+        .count() as u32;
+
+    Ok(AutofixResult { framework: fw, files_changed, diff, stdout })
+}
+
+/// Apply or revert an autofix: stage all changes (apply) or restore (revert).
+#[tauri::command]
+pub async fn apply_autofix(workspace: String, apply: bool) -> Result<(), String> {
+    let ws = PathBuf::from(&workspace);
+    let args: &[&str] = if apply {
+        &["add", "-u"]
+    } else {
+        &["restore", "--staged", "."]
+    };
+    tokio::process::Command::new("git")
+        .args(args)
+        .current_dir(&ws)
+        .output()
+        .await
+        .map_err(|e| e.to_string())?;
+    if !apply {
+        // Also restore working tree
+        tokio::process::Command::new("git")
+            .args(["restore", "."])
+            .current_dir(&ws)
+            .output()
+            .await
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
 }
 
 // ── Unit tests ────────────────────────────────────────────────────────────────

@@ -271,6 +271,18 @@ pub fn run() {
             // Phase 44b: Arena Mode
             commands::save_arena_vote,
             commands::get_arena_history,
+            // Phase 45: Cost Observatory
+            commands::record_cost_entry,
+            commands::get_cost_metrics,
+            commands::set_cost_limit,
+            commands::clear_cost_history,
+            // Phase 45: AI Git Workflow
+            commands::suggest_branch_name,
+            commands::resolve_merge_conflict,
+            commands::generate_changelog,
+            // Phase 45: Codemod & Auto-Fix
+            commands::run_autofix,
+            commands::apply_autofix,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

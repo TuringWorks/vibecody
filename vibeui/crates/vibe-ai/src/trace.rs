@@ -100,7 +100,8 @@ impl TraceWriter {
             input_summary: redact_secrets(input_summary),
             output: {
                 let truncated = if output.len() > 600 {
-                    format!("{}\n…(truncated)", &output[..600])
+                    let safe_end = output.char_indices().nth(600).map(|(i,_)| i).unwrap_or(output.len());
+                    format!("{}\n…(truncated)", &output[..safe_end])
                 } else {
                     output.to_string()
                 };

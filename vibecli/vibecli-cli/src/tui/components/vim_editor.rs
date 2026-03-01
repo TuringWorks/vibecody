@@ -194,10 +194,31 @@ impl VimEditorComponent {
 
     // ── Normal-mode motions ───────────────────────────────────────────────────
 
-    fn move_left(&mut self)  { if self.cursor.1 > 0 { self.cursor.1 -= 1; } }
+    fn move_left(&mut self) {
+        if self.cursor.1 > 0 {
+            let line = &self.lines[self.cursor.0];
+            // Find the previous char boundary
+            self.cursor.1 = line[..self.cursor.1]
+                .char_indices()
+                .next_back()
+                .map(|(i, _)| i)
+                .unwrap_or(0);
+        }
+    }
     fn move_right(&mut self) {
-        let len = self.lines[self.cursor.0].len().saturating_sub(1);
-        if self.cursor.1 < len { self.cursor.1 += 1; }
+        let line = &self.lines[self.cursor.0];
+        let max = if self.mode == VimMode::Insert { line.len() } else { line.len().saturating_sub(1) };
+        if self.cursor.1 < max {
+            // Find the next char boundary
+            self.cursor.1 = line[self.cursor.1..]
+                .char_indices()
+                .nth(1)
+                .map(|(i, _)| self.cursor.1 + i)
+                .unwrap_or(line.len());
+            if self.mode != VimMode::Insert && self.cursor.1 > max {
+                self.cursor.1 = max;
+            }
+        }
     }
     fn move_up(&mut self, n: usize) {
         self.cursor.0 = self.cursor.0.saturating_sub(n);
@@ -460,7 +481,7 @@ impl VimEditorComponent {
                 self.save_undo();
                 let col = self.cursor.1;
                 let line = &mut self.lines[self.cursor.0];
-                if col < line.len() {
+                if col < line.len() && line.is_char_boundary(col) {
                     line.remove(col);
                     self.modified = true;
                 }
@@ -558,8 +579,15 @@ impl VimEditorComponent {
             }
             KeyCode::Backspace => {
                 if self.cursor.1 > 0 {
-                    self.lines[self.cursor.0].remove(self.cursor.1 - 1);
-                    self.cursor.1 -= 1;
+                    // Find the char boundary before cursor
+                    let line = &self.lines[self.cursor.0];
+                    let prev_boundary = line[..self.cursor.1]
+                        .char_indices()
+                        .next_back()
+                        .map(|(i, _)| i)
+                        .unwrap_or(0);
+                    let removed = self.lines[self.cursor.0].remove(prev_boundary);
+                    self.cursor.1 -= removed.len_utf8();
                     self.modified = true;
                 } else if self.cursor.0 > 0 {
                     // Merge with previous line
@@ -576,7 +604,7 @@ impl VimEditorComponent {
                 let row = self.cursor.0;
                 let col = self.cursor.1;
                 let line_len = self.lines[row].len();
-                if col < line_len {
+                if col < line_len && self.lines[row].is_char_boundary(col) {
                     self.lines[row].remove(col);
                     self.modified = true;
                 } else if row + 1 < self.lines.len() {
@@ -588,15 +616,17 @@ impl VimEditorComponent {
             KeyCode::Tab => {
                 let row = self.cursor.0;
                 let col = self.cursor.1;
-                self.lines[row].insert_str(col, "    ");
-                self.cursor.1 += 4;
-                self.modified = true;
+                if self.lines[row].is_char_boundary(col) {
+                    self.lines[row].insert_str(col, "    ");
+                    self.cursor.1 += 4;
+                    self.modified = true;
+                }
             }
             KeyCode::Char(c) if !key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) => {
                 let row = self.cursor.0;
                 let col = self.cursor.1;
                 self.lines[row].insert(col, c);
-                self.cursor.1 += 1;
+                self.cursor.1 += c.len_utf8();
                 self.modified = true;
             }
             _ => {}

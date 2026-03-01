@@ -217,7 +217,8 @@ impl ToolCall {
             }
             ToolCall::Bash { command } => {
                 let cmd = if command.len() > 60 {
-                    format!("{}…", &command[..60])
+                    let end = command.char_indices().nth(60).map(|(i,_)| i).unwrap_or(command.len());
+                    format!("{}…", &command[..end])
                 } else {
                     command.clone()
                 };
@@ -234,14 +235,15 @@ impl ToolCall {
             ToolCall::FetchUrl { url } => format!("fetch_url({})", url),
             ToolCall::TaskComplete { summary } => {
                 let short = if summary.len() > 60 {
-                    format!("{}…", &summary[..60])
+                    let end = summary.char_indices().nth(60).map(|(i,_)| i).unwrap_or(summary.len());
+                    format!("{}…", &summary[..end])
                 } else {
                     summary.clone()
                 };
                 format!("task_complete: {}", short)
             }
             ToolCall::SpawnAgent { task, max_steps, max_depth } => {
-                let short = if task.len() > 60 { format!("{}…", &task[..60]) } else { task.clone() };
+                let short = if task.len() > 60 { let end = task.char_indices().nth(60).map(|(i,_)| i).unwrap_or(task.len()); format!("{}…", &task[..end]) } else { task.clone() };
                 format!("spawn_agent(task={:?}, max_steps={}, max_depth={})", short, max_steps.unwrap_or(10), max_depth.unwrap_or(3))
             }
         }

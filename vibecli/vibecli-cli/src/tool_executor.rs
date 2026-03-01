@@ -347,7 +347,7 @@ impl ToolExecutor {
                             output.push(format!(
                                 "{}. **{}** ({:.2})\n   {}\n   {}",
                                 i + 1, title, score, url,
-                                if content.len() > 200 { &content[..200] } else { content }
+                                if content.len() > 200 { &content[..content.char_indices().nth(200).map(|(i,_)| i).unwrap_or(content.len())] } else { content }
                             ));
                         }
                     }
@@ -432,7 +432,8 @@ impl ToolExecutor {
                         // Strip HTML tags for a readable plain-text extract
                         let text = html_to_text(&html);
                         let truncated_text = if text.len() > 4000 {
-                            format!("{}\n\n[… content truncated at 4000 chars …]", &text[..4000])
+                            let safe: String = text.chars().take(4000).collect();
+                            format!("{}\n\n[… content truncated at 4000 chars …]", safe)
                         } else {
                             text
                         };

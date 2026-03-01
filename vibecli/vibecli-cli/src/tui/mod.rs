@@ -517,7 +517,7 @@ async fn run_app<B: ratatui::backend::Backend>(
                     app.agent_view.status = AgentStatus::Complete(summary.clone());
                     app.messages.push(TuiMessage::System(format!(
                         "✅ Agent complete: {}",
-                        if summary.len() > 80 { &summary[..80] } else { &summary }
+                        if summary.len() > 80 { &summary[..summary.char_indices().nth(80).map(|(i,_)| i).unwrap_or(summary.len())] } else { &summary }
                     )));
                 }
                 AppEvent::AgentError(e) => {
