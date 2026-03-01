@@ -2658,6 +2658,51 @@ async fn main() -> Result<()> {
                             }
                         }
 
+                        // ── /autofix ───────────────────────────────────────────────────
+                        "/autofix" => {
+                            let cwd = std::env::current_dir()?;
+                            let fw = if args.trim().is_empty() {
+                                // Auto-detect
+                                if cwd.join("Cargo.toml").exists() { "cargo clippy --fix --allow-dirty --allow-staged -q" }
+                                else if cwd.join("package.json").exists() { "npx eslint --fix ." }
+                                else if cwd.join("pyproject.toml").exists() || cwd.join("setup.py").exists() { "ruff check --fix ." }
+                                else if cwd.join("go.mod").exists() { "gofmt -w ." }
+                                else { println!("❌ Cannot detect linter. Use: /autofix <clippy|eslint|ruff|gofmt|prettier>\n"); continue; }
+                            } else {
+                                match args.trim() {
+                                    "clippy"   => "cargo clippy --fix --allow-dirty --allow-staged -q",
+                                    "eslint"   => "npx eslint --fix .",
+                                    "ruff"     => "ruff check --fix .",
+                                    "gofmt"    => "gofmt -w .",
+                                    "prettier" => "npx prettier --write .",
+                                    other      => { println!("❌ Unknown framework: {}. Use clippy|eslint|ruff|gofmt|prettier\n", other); continue; }
+                                }
+                            };
+                            println!("🔧 Running: {}\n", fw);
+                            let status = std::process::Command::new("sh")
+                                .args(["-c", fw])
+                                .current_dir(&cwd)
+                                .status();
+                            match status {
+                                Ok(s) if s.success() => {
+                                    // Show diff
+                                    let diff = std::process::Command::new("git")
+                                        .args(["diff", "--stat"])
+                                        .current_dir(&cwd)
+                                        .output()
+                                        .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
+                                        .unwrap_or_default();
+                                    if diff.trim().is_empty() {
+                                        println!("✅ No issues found — code is already clean!\n");
+                                    } else {
+                                        println!("✅ Fixed! Changes:\n{}\nUse `git add -u && git commit` to apply.\n", diff);
+                                    }
+                                }
+                                Ok(_) => println!("⚠️  Autofix ran with warnings/errors. Check output above.\n"),
+                                Err(e) => println!("❌ Failed to run autofix: {}\n", e),
+                            }
+                        }
+
                         _ => {
                             println!("Type /help for available commands\n");
                         }
