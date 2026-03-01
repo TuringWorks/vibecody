@@ -35,14 +35,14 @@ impl TerminalManager {
         let master = pair.master;
 
         let id = {
-            let mut next_id = self.next_id.lock().unwrap();
+            let mut next_id = self.next_id.lock().unwrap_or_else(|e| e.into_inner());
             let id = *next_id;
             *next_id += 1;
             id
         };
 
         {
-            let mut ptys = self.ptys.lock().unwrap();
+            let mut ptys = self.ptys.lock().unwrap_or_else(|e| e.into_inner());
             ptys.insert(id, master);
         }
 
@@ -67,7 +67,7 @@ impl TerminalManager {
     }
 
     pub fn write(&self, id: u32, data: &str) -> Result<()> {
-        let mut ptys = self.ptys.lock().unwrap();
+        let mut ptys = self.ptys.lock().unwrap_or_else(|e| e.into_inner());
         if let Some(master) = ptys.get_mut(&id) {
             write!(master.take_writer()?, "{}", data)?;
         }
@@ -75,7 +75,7 @@ impl TerminalManager {
     }
 
     pub fn resize(&self, id: u32, rows: u16, cols: u16) -> Result<()> {
-        let mut ptys = self.ptys.lock().unwrap();
+        let mut ptys = self.ptys.lock().unwrap_or_else(|e| e.into_inner());
         if let Some(master) = ptys.get_mut(&id) {
             master.resize(PtySize {
                 rows,

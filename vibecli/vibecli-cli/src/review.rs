@@ -333,7 +333,7 @@ fn split_diff_by_file(diff: &str) -> Vec<(String, String)> {
             if !current_file.is_empty() && !current_chunk.is_empty() {
                 chunks.push((current_file.clone(), current_chunk.clone()));
             }
-            current_file = line.split(" b/").last().unwrap_or("unknown").to_string();
+            current_file = line.split(" b/").nth(1).unwrap_or("unknown").to_string();
             current_chunk = line.to_string();
             current_chunk.push('\n');
         } else {

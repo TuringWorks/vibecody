@@ -55,7 +55,13 @@ impl LspClient {
         tokio::spawn(async move {
             let mut stdin = stdin;
             while let Some(msg) = req_rx.recv().await {
-                let body = serde_json::to_string(&msg).unwrap();
+                let body = match serde_json::to_string(&msg) {
+                    Ok(b) => b,
+                    Err(e) => {
+                        eprintln!("Failed to serialize LSP message: {}", e);
+                        continue;
+                    }
+                };
                 let header = format!("Content-Length: {}\r\n\r\n", body.len());
                 if let Err(e) = stdin.write_all(header.as_bytes()).await {
                     eprintln!("Failed to write header: {}", e);

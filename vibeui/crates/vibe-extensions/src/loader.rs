@@ -64,12 +64,17 @@ impl Extension {
         };
 
         let bytes = arg.as_bytes().to_vec();
-        let len = bytes.len() as i32;
+        let len = i32::try_from(bytes.len())
+            .map_err(|_| anyhow::anyhow!("String too large for WASM allocation ({} bytes)", bytes.len()))?;
 
         // alloc(len) → ptr (i32)
         let mut results = [Val::I32(0)];
         alloc.call(&mut self.store, &[Val::I32(len)], &mut results)?;
-        let ptr = results[0].unwrap_i32() as usize;
+        let ptr_val = results[0].unwrap_i32();
+        if ptr_val < 0 {
+            anyhow::bail!("WASM alloc returned error code: {}", ptr_val);
+        }
+        let ptr = ptr_val as usize;
 
         // Write string bytes into WASM linear memory.
         let memory = self
