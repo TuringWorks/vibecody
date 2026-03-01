@@ -8,6 +8,21 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **Phase 45**: Cost & Performance Observatory — `record_cost_entry` appends AI call cost
+  records to `~/.vibeui/cost-log.jsonl` (JSONL); `get_cost_metrics` loads entries, computes
+  per-provider aggregates (`ProviderCostSummary`), and returns total cost/tokens plus
+  budget remaining; `set_cost_limit` sets monthly budget cap; `clear_cost_history` wipes log.
+- **Phase 45**: AI Git Workflow — `suggest_branch_name` generates concise hyphenated branch
+  names from task descriptions via LLM; `resolve_merge_conflict` AI-resolves merge conflicts
+  preserving both sides; `generate_changelog` converts `git log --oneline` into Keep-a-Changelog
+  format with Added/Fixed/Changed sections via LLM.
+- **Phase 45**: Codemod & Lint Auto-Fix — `run_autofix` auto-detects linter
+  (clippy/eslint/ruff/gofmt/prettier), runs fix mode, returns `AutofixResult` with diff and
+  file count; `apply_autofix` stages changes or reverts via `git restore`.
+- **Phase 45**: UTF-8 safety — replaced byte-index string slicing with `char_indices()` across
+  tool_executor.rs (web search truncation), tools.rs (ToolCall display), trace.rs (output
+  truncation), commands.rs (git diff + @file + @web truncation), tui/mod.rs (agent summary),
+  vim_editor.rs (cursor movement, backspace, delete, insert, tab — all char-boundary-safe).
 - **Phase 44**: Arena Mode — blind A/B model comparison with hidden identities; `ArenaPanel.tsx`
   (🥊 Arena tab) with randomized provider assignment, vote buttons (A better / B better / Tie /
   Both bad), post-vote identity reveal with timing/token stats, persistent leaderboard with

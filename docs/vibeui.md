@@ -312,6 +312,9 @@ The AI panel (toggle with **💬 AI Chat** in the header) has the following tabs
 | **🧪 Tests** | `TestPanel` | Test runner with framework detection, live log stream, filter tabs, pass/fail badges |
 | **👥 Collab** | `CollabPanel` | CRDT multiplayer collaboration: create/join rooms, peer list with color indicators, copy invite link |
 | **🥊 Arena** | `ArenaPanel` | Blind A/B model comparison: hidden identities, vote (A/B/Tie/Both bad), reveal, persistent leaderboard |
+| **📊 Coverage** | `CoveragePanel` | Code coverage: auto-detect tool, run coverage, per-file % bars, uncovered lines, filter tabs, raw output |
+| **⚖️ Compare** | `MultiModelPanel` | Side-by-side dual-provider comparison: provider/model selectors, timing/tokens, Ctrl+Enter |
+| **🌐 HTTP** | `HttpPlayground` | HTTP request builder: method/URL/headers/body, quick-launch localhost, route discovery, response viewer with JSON pretty-print |
 
 ---
 
@@ -587,6 +590,30 @@ After deploying, enter a custom domain in the **🌐 Custom Domain** field:
 |---------|-------------|
 | `send_http_request(method, url, headers, body?)` | Send HTTP request with 30s timeout, return `HttpResponseData` (status, headers, body, duration) |
 | `discover_api_endpoints(workspace)` | Grep workspace for Express/Axum/FastAPI/Spring route patterns (max 60 results) |
+
+### Cost & Performance Observatory
+
+| Command | Description |
+|---------|-------------|
+| `record_cost_entry(session_id, provider, model, prompt_tokens, completion_tokens, task_hint?)` | Append cost record to `~/.vibeui/cost-log.jsonl` with `estimated_cost_usd` pricing |
+| `get_cost_metrics()` | Load all entries, compute per-provider aggregates, total cost/tokens, budget remaining |
+| `set_cost_limit(limit_usd?)` | Set or clear monthly budget cap (persisted at `~/.vibeui/cost-config.json`) |
+| `clear_cost_history()` | Delete the cost log file |
+
+### AI Git Workflow
+
+| Command | Description |
+|---------|-------------|
+| `suggest_branch_name(task_description)` | AI-generated concise hyphenated branch name from task description |
+| `resolve_merge_conflict(file_path, conflict_text)` | AI-resolved merge conflict preserving both sides |
+| `generate_changelog(workspace, since_ref?)` | Convert `git log` into Keep-a-Changelog format via LLM |
+
+### Codemod & Lint Auto-Fix
+
+| Command | Description |
+|---------|-------------|
+| `run_autofix(workspace, framework?)` | Auto-detect and run linter fix mode (clippy/eslint/ruff/gofmt/prettier), return diff + file count |
+| `apply_autofix(workspace, apply)` | Stage fixed changes (`apply=true`) or revert via `git restore` (`apply=false`) |
 
 ### Arena Mode (Blind A/B Comparison)
 

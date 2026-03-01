@@ -84,6 +84,9 @@
 | Code coverage UI | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
 | Multi-model comparison | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | HTTP Playground | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Cost observatory | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| AI git workflow | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Codemod auto-fix | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Arena Mode (blind A/B voting) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
 | Live Preview element selection | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
 
@@ -433,7 +436,7 @@ Features VibeCody has that **no competitor offers:**
 
 ## Part D — Gap Priority Matrix (Updated Status)
 
-All gaps from Phases 16–44 are now resolved. Only low-impact infrastructure gaps remain as of 2026-02-28:
+All gaps from Phases 16–45 are now resolved. Only low-impact infrastructure gaps remain as of 2026-02-28:
 
 | Gap | Impact | Status | Competitor |
 |-----|--------|--------|------------|
@@ -533,6 +536,9 @@ All gaps from Phases 16–44 are now resolved. Only low-impact infrastructure ga
 | 44 | Code coverage UI | ✅ CoveragePanel.tsx + LCOV/Go parsing |
 | 44 | Multi-model comparison | ✅ MultiModelPanel.tsx + tokio::join |
 | 44 | HTTP Playground | ✅ HttpPlayground.tsx + endpoint discovery |
+| 45 | Cost observatory | ✅ record_cost_entry + get_cost_metrics + budget limit |
+| 45 | AI git workflow | ✅ suggest_branch_name + resolve_merge_conflict + generate_changelog |
+| 45 | Codemod auto-fix | ✅ run_autofix (5 frameworks) + apply_autofix |
 | 44 | Subagent tree tracking | ✅ session_store.rs parent/depth/max_depth |
 | 44 | Messaging gateway expansion | ✅ +6 platforms (Signal/Matrix/Twilio/WhatsApp/iMessage/Teams) |
 | 44 | Arena Mode (blind A/B voting) | ✅ ArenaPanel.tsx + save_arena_vote + leaderboard |
@@ -668,6 +674,9 @@ After all completed phases, VibeCLI + VibeUI is the **most complete AI developme
 | Restrictive config file perms | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ |
 | /rewind checkpoints | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | /snippet library | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Cost observatory | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| AI git workflow (branch/merge/changelog) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Codemod auto-fix (5 frameworks) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 
 ### VibeUI Positioning
 
@@ -682,6 +691,8 @@ After all completed phases, VibeCLI + VibeUI is the **most complete AI developme
 | Code coverage UI | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Multi-model comparison | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | HTTP Playground | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Cost observatory | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Codemod auto-fix | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Voice input | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | WASM extensions | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ |
 | OTel tracing | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |

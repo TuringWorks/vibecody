@@ -60,6 +60,9 @@ All nine roadmap phases (1–5 original, 6–9 in this document) are complete. V
 | Code coverage | — | ✅ detect_coverage_tool + run_coverage |
 | Multi-model comparison | — | ✅ compare_models |
 | HTTP Playground | — | ✅ send_http_request + discover_api_endpoints |
+| Cost observatory | — | ✅ record_cost_entry + get_cost_metrics |
+| AI git workflow | — | ✅ suggest_branch_name + resolve_merge_conflict + generate_changelog |
+| Codemod auto-fix | — | ✅ run_autofix + apply_autofix |
 | VibeCLI daemon (serve) | ✅ | — |
 | VS Code extension | ✅ | — |
 | Agent SDK (TypeScript) | ✅ | — |
@@ -1067,6 +1070,9 @@ for await (const event of agent.run('Add TypeScript strict mode to all files')) 
 | Code coverage panel | ✅ | ❌ | ❌ | ❌ |
 | Multi-model comparison | ✅ | ❌ | ❌ | ❌ |
 | HTTP Playground | ✅ | ❌ | ❌ | ❌ |
+| Cost observatory | ✅ | ❌ | ❌ | ❌ |
+| AI git workflow | ✅ | ❌ | ❌ | ❌ |
+| Codemod auto-fix | ✅ | ❌ | ❌ | ❌ |
 
 ---
 
@@ -1265,6 +1271,17 @@ Real-time collaborative editing powered by [yrs](https://github.com/y-crdt/y-crd
 | Arena Mode | ✅ | `ArenaPanel.tsx` (🥊 Arena tab) — blind A/B model comparison: randomized provider assignment, hidden identities, vote buttons (A/B/Tie/Both bad), post-vote reveal with timing/tokens, persistent leaderboard at `~/.vibeui/arena-votes.json`; `save_arena_vote` + `get_arena_history` Tauri commands; `/arena` REPL command with `compare`/`stats`/`history` sub-commands |
 | Live Preview with Element Selection | ✅ | BrowserPanel gains inspect mode toggle (🔍, localhost-only); injects `inspector.js` into iframe; postMessage listener for `vibe:element-selected`; element info overlay (tag, selector, React component, parent chain, outerHTML); "Send to Chat" via `vibeui:inject-context`; `inspector.js` gains `parentChain` in `buildInfo()`; `@html-selected` context type in ContextPicker + `resolve_at_references()` |
 | Recursive Subagent Trees | ✅ | `AgentContext` gains `parent_session_id`, `depth`, shared `active_agent_counter`; `ToolCall::SpawnAgent` gains `max_depth`; `spawn_sub_agent()` enforces depth ≤ 5, per-parent children ≤ 10, global agents ≤ 20; `session_store.rs` gains tree schema + `get_children()`/`get_tree()`/`list_root_sessions()` queries; 5 new unit tests |
+
+## 7.16 Phase 45 — Cost Observatory, AI Git Workflow, Codemod Auto-Fix ✅
+
+**Status:** Complete
+
+| Item | Status | Details |
+|------|--------|---------|
+| Cost & Performance Observatory | ✅ | `record_cost_entry` appends to `~/.vibeui/cost-log.jsonl` (JSONL); `get_cost_metrics` computes per-provider aggregates + budget remaining; `set_cost_limit` + `clear_cost_history`; uses `TokenUsage::estimated_cost_usd()` pricing |
+| AI Git Workflow | ✅ | `suggest_branch_name` (LLM-generated from task description); `resolve_merge_conflict` (AI merge resolution); `generate_changelog` (`git log` → Keep-a-Changelog format via LLM) |
+| Codemod & Lint Auto-Fix | ✅ | `run_autofix` auto-detects clippy/eslint/ruff/gofmt/prettier, runs fix mode, returns `AutofixResult` with diff + file count; `apply_autofix` stages or reverts via git |
+| UTF-8 safety | ✅ | Char-boundary-safe string slicing across 6 Rust files (tool_executor, tools, trace, commands, tui/mod, vim_editor); prevents panics on multi-byte characters |
 
 ---
 
