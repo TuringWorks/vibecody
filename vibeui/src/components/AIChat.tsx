@@ -296,7 +296,7 @@ export function AIChat({ provider, context, fileTree, currentFile, onFileAction,
                                             navigator.clipboard.writeText(msg.content).then(() => {
                                                 setCopiedIdx(idx);
                                                 setTimeout(() => setCopiedIdx(null), 1500);
-                                            });
+                                            }).catch(() => {});
                                         }}
                                         title="Copy response"
                                         style={{

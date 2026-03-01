@@ -342,7 +342,7 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
                                             navigator.clipboard.writeText(step.output).then(() => {
                                                 setCopiedStep(i);
                                                 setTimeout(() => setCopiedStep(null), 1500);
-                                            });
+                                            }).catch(() => {});
                                         }}
                                         title="Copy step output"
                                         style={{ flexShrink: 0, background: "none", border: "none", cursor: "pointer", fontSize: "10px", color: copiedStep === i ? "#3fb950" : "var(--text-secondary)", padding: "0 2px" }}

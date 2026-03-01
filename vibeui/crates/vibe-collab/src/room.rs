@@ -95,20 +95,12 @@ impl CollabRoom {
 
     /// Get or create a Y.Text for the given file path.
     pub async fn get_or_create_text(&self, file_path: &str) -> String {
-        let doc = self.doc.read().await;
-        let txn = doc.transact();
-        match txn.get_text(file_path) {
-            Some(text) => text.get_string(&txn),
-            None => {
-                drop(txn);
-                drop(doc);
-                // Need write access
-                let doc = self.doc.write().await;
-                let mut txn = doc.transact_mut();
-                let text = txn.get_or_insert_text(file_path);
-                text.get_string(&txn)
-            }
-        }
+        // Take a write lock directly to avoid a TOCTOU race between a read
+        // lock that misses the text and a subsequent write lock that creates it.
+        let doc = self.doc.write().await;
+        let mut txn = doc.transact_mut();
+        let text = txn.get_or_insert_text(file_path);
+        text.get_string(&txn)
     }
 
     /// Encode the current document state as a SyncStep1 message.

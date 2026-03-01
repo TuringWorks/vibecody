@@ -118,11 +118,15 @@ export function BrowserPanel() {
     };
 
     const refresh = () => {
-        if (iframeSrc) {
-            // Force reload by temporarily clearing then restoring
-            setIframeSrc('');
-            setTimeout(() => setIframeSrc(iframeSrc), 50);
-        }
+        // Capture current URL before clearing, so the setTimeout callback
+        // restores the correct URL even if the user navigated in the meantime.
+        setIframeSrc(prev => {
+            if (prev) {
+                const saved = prev;
+                setTimeout(() => setIframeSrc(saved), 50);
+            }
+            return '';
+        });
     };
 
     const openExternal = async () => {

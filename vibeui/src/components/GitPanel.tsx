@@ -555,7 +555,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
                         <div style={{ marginTop: 5, display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg-secondary)', padding: '4px 8px', borderRadius: 4 }}>
                             <code style={{ flex: 1, fontSize: 11, color: '#4fc3f7' }}>{suggestedBranch}</code>
                             <button
-                                onClick={() => { navigator.clipboard.writeText(suggestedBranch); toast.success('Copied!'); }}
+                                onClick={() => { navigator.clipboard.writeText(suggestedBranch).then(() => toast.success('Copied!')).catch(() => {}); }}
                                 style={{ background: 'none', border: 'none', color: 'var(--text-muted, #888)', cursor: 'pointer', fontSize: 10 }}
                             >
                                 📋
@@ -599,7 +599,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
                                         style={{ width: '100%', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4, padding: 6, fontFamily: 'inherit', fontSize: 11, boxSizing: 'border-box' }}
                                     />
                                     <button
-                                        onClick={() => { navigator.clipboard.writeText(changelog); toast.success('Copied!'); }}
+                                        onClick={() => { navigator.clipboard.writeText(changelog).then(() => toast.success('Copied!')).catch(() => {}); }}
                                         style={{ position: 'absolute', top: 4, right: 4, background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 3, padding: '2px 6px', cursor: 'pointer', fontSize: 10, color: 'var(--text-muted, #888)' }}
                                     >
                                         📋
@@ -650,7 +650,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
                                         style={{ width: '100%', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4, padding: 6, fontFamily: 'inherit', fontSize: 11, boxSizing: 'border-box' }}
                                     />
                                     <button
-                                        onClick={() => { navigator.clipboard.writeText(conflictResolution); toast.success('Copied!'); }}
+                                        onClick={() => { navigator.clipboard.writeText(conflictResolution).then(() => toast.success('Copied!')).catch(() => {}); }}
                                         style={{ position: 'absolute', top: 4, right: 4, background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 3, padding: '2px 6px', cursor: 'pointer', fontSize: 10, color: 'var(--text-muted, #888)' }}
                                     >
                                         📋 Copy resolution

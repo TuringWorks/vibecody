@@ -64,7 +64,7 @@ export function CascadePanel({ onInjectContext }: CascadePanelProps) {
 
   const handleCopyAll = useCallback(async () => {
     const summary = flowContext.getContextSummary(4000);
-    await navigator.clipboard.writeText(summary);
+    try { await navigator.clipboard.writeText(summary); } catch { /* clipboard may be unavailable */ }
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }, []);
