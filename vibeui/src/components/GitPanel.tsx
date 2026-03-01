@@ -35,6 +35,18 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
     const [commitFiles, setCommitFiles] = useState<string[]>([]);
     const [showReview, setShowReview] = useState(false);
     const [confirmDiscard, setConfirmDiscard] = useState<string | null>(null);
+    const [branchTask, setBranchTask] = useState('');
+    const [suggestingBranch, setSuggestingBranch] = useState(false);
+    const [suggestedBranch, setSuggestedBranch] = useState<string | null>(null);
+    const [showChangelog, setShowChangelog] = useState(false);
+    const [changelog, setChangelog] = useState('');
+    const [generatingChangelog, setGeneratingChangelog] = useState(false);
+    const [changelogRef, setChangelogRef] = useState('HEAD~10');
+    const [showConflictModal, setShowConflictModal] = useState(false);
+    const [conflictText, setConflictText] = useState('');
+    const [conflictFile, setConflictFile] = useState('');
+    const [resolvingConflict, setResolvingConflict] = useState(false);
+    const [conflictResolution, setConflictResolution] = useState('');
 
     useEffect(() => {
         if (workspacePath) {
@@ -134,6 +146,53 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
             toast.error(`Failed to discard changes: ${e}`);
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const handleSuggestBranch = async () => {
+        if (!branchTask.trim()) return;
+        setSuggestingBranch(true);
+        setSuggestedBranch(null);
+        try {
+            const name = await invoke<string>('suggest_branch_name', { taskDescription: branchTask });
+            setSuggestedBranch(name);
+        } catch (e) {
+            toast.error(`Branch suggestion failed: ${e}`);
+        } finally {
+            setSuggestingBranch(false);
+        }
+    };
+
+    const handleGenerateChangelog = async () => {
+        if (!workspacePath) return;
+        setGeneratingChangelog(true);
+        setChangelog('');
+        try {
+            const result = await invoke<string>('generate_changelog', {
+                workspace: workspacePath,
+                sinceRef: changelogRef || null,
+            });
+            setChangelog(result);
+        } catch (e) {
+            toast.error(`Changelog generation failed: ${e}`);
+        } finally {
+            setGeneratingChangelog(false);
+        }
+    };
+
+    const handleResolveConflict = async () => {
+        if (!workspacePath || !conflictText.trim()) return;
+        setResolvingConflict(true);
+        try {
+            const resolved = await invoke<string>('resolve_merge_conflict', {
+                filePath: conflictFile,
+                conflictText,
+            });
+            setConflictResolution(resolved);
+        } catch (e) {
+            toast.error(`Conflict resolution failed: ${e}`);
+        } finally {
+            setResolvingConflict(false);
         }
     };
 
@@ -471,6 +530,138 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
                     </div>
                 )}
             </div>
+            {/* ── AI Git Tools section ── */}
+            <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: 8 }}>
+                {/* Branch Name Suggester */}
+                <div style={{ marginBottom: 10 }}>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted, #888)', marginBottom: 4 }}>🌿 AI Branch Name</div>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                        <input
+                            value={branchTask}
+                            onChange={e => setBranchTask(e.target.value)}
+                            onKeyDown={e => e.key === 'Enter' && handleSuggestBranch()}
+                            placeholder="Describe the task…"
+                            style={{ flex: 1, background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4, padding: '3px 6px', fontFamily: 'inherit', fontSize: 11 }}
+                        />
+                        <button
+                            onClick={handleSuggestBranch}
+                            disabled={suggestingBranch || !branchTask.trim()}
+                            style={{ background: 'rgba(99,102,241,0.2)', color: '#a5b4fc', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontSize: 11 }}
+                        >
+                            {suggestingBranch ? '…' : '✨'}
+                        </button>
+                    </div>
+                    {suggestedBranch && (
+                        <div style={{ marginTop: 5, display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg-secondary)', padding: '4px 8px', borderRadius: 4 }}>
+                            <code style={{ flex: 1, fontSize: 11, color: '#4fc3f7' }}>{suggestedBranch}</code>
+                            <button
+                                onClick={() => { navigator.clipboard.writeText(suggestedBranch); toast.success('Copied!'); }}
+                                style={{ background: 'none', border: 'none', color: 'var(--text-muted, #888)', cursor: 'pointer', fontSize: 10 }}
+                            >
+                                📋
+                            </button>
+                        </div>
+                    )}
+                </div>
+
+                {/* Changelog Generator */}
+                <div style={{ marginBottom: 10 }}>
+                    <button
+                        onClick={() => setShowChangelog(c => !c)}
+                        style={{ width: '100%', textAlign: 'left', padding: '5px 0', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-primary)', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}
+                    >
+                        <span>{showChangelog ? '▼' : '▶'}</span>
+                        <span>📄 Generate Changelog</span>
+                    </button>
+                    {showChangelog && (
+                        <div style={{ marginTop: 6 }}>
+                            <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+                                <input
+                                    value={changelogRef}
+                                    onChange={e => setChangelogRef(e.target.value)}
+                                    placeholder="since (e.g. HEAD~10 or v1.2.0)"
+                                    style={{ flex: 1, background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4, padding: '3px 6px', fontFamily: 'inherit', fontSize: 11 }}
+                                />
+                                <button
+                                    onClick={handleGenerateChangelog}
+                                    disabled={generatingChangelog}
+                                    style={{ background: 'rgba(99,102,241,0.2)', color: '#a5b4fc', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontSize: 11 }}
+                                >
+                                    {generatingChangelog ? '…' : '✨ Generate'}
+                                </button>
+                            </div>
+                            {changelog && (
+                                <div style={{ position: 'relative' }}>
+                                    <textarea
+                                        value={changelog}
+                                        onChange={e => setChangelog(e.target.value)}
+                                        rows={8}
+                                        style={{ width: '100%', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4, padding: 6, fontFamily: 'inherit', fontSize: 11, boxSizing: 'border-box' }}
+                                    />
+                                    <button
+                                        onClick={() => { navigator.clipboard.writeText(changelog); toast.success('Copied!'); }}
+                                        style={{ position: 'absolute', top: 4, right: 4, background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 3, padding: '2px 6px', cursor: 'pointer', fontSize: 10, color: 'var(--text-muted, #888)' }}
+                                    >
+                                        📋
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                {/* Merge Conflict Resolver */}
+                <div>
+                    <button
+                        onClick={() => setShowConflictModal(c => !c)}
+                        style={{ width: '100%', textAlign: 'left', padding: '5px 0', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-primary)', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}
+                    >
+                        <span>{showConflictModal ? '▼' : '▶'}</span>
+                        <span>⚡ Resolve Merge Conflict</span>
+                    </button>
+                    {showConflictModal && (
+                        <div style={{ marginTop: 6 }}>
+                            <input
+                                value={conflictFile}
+                                onChange={e => setConflictFile(e.target.value)}
+                                placeholder="File path (e.g. src/main.rs)"
+                                style={{ width: '100%', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4, padding: '3px 6px', fontFamily: 'inherit', fontSize: 11, marginBottom: 5, boxSizing: 'border-box' }}
+                            />
+                            <textarea
+                                value={conflictText}
+                                onChange={e => setConflictText(e.target.value)}
+                                placeholder="Paste the conflict block here (<<<<<<< HEAD ... ======= ... >>>>>>> branch)..."
+                                rows={6}
+                                style={{ width: '100%', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4, padding: 6, fontFamily: 'inherit', fontSize: 11, marginBottom: 5, boxSizing: 'border-box' }}
+                            />
+                            <button
+                                onClick={handleResolveConflict}
+                                disabled={resolvingConflict || !conflictText.trim()}
+                                style={{ width: '100%', background: 'rgba(99,102,241,0.2)', color: '#a5b4fc', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 4, padding: '4px 0', cursor: 'pointer', fontSize: 11, marginBottom: 5 }}
+                            >
+                                {resolvingConflict ? '⏳ Resolving…' : '✨ AI Resolve'}
+                            </button>
+                            {conflictResolution && (
+                                <div style={{ position: 'relative' }}>
+                                    <textarea
+                                        value={conflictResolution}
+                                        onChange={e => setConflictResolution(e.target.value)}
+                                        rows={8}
+                                        style={{ width: '100%', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4, padding: 6, fontFamily: 'inherit', fontSize: 11, boxSizing: 'border-box' }}
+                                    />
+                                    <button
+                                        onClick={() => { navigator.clipboard.writeText(conflictResolution); toast.success('Copied!'); }}
+                                        style={{ position: 'absolute', top: 4, right: 4, background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 3, padding: '2px 6px', cursor: 'pointer', fontSize: 10, color: 'var(--text-muted, #888)' }}
+                                    >
+                                        📋 Copy resolution
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            </div>
+
             <Toaster toasts={toasts} onDismiss={dismiss} />
         </div>
     );

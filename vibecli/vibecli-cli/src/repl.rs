@@ -13,6 +13,7 @@ static COMMANDS: &[&str] = &[
     "/agents",
     "/arena",
     "/apply",
+    "/autofix",
     "/chat",
     "/config",
     "/cost",
@@ -107,6 +108,7 @@ fn command_hint(cmd: &str) -> Option<&'static str> {
     match cmd {
         "/agent"   => Some("<task description>"),
         "/arena"   => Some("[compare <p1> <p2>|stats|history]  — blind A/B model comparison arena"),
+        "/autofix" => Some("[clippy|eslint|ruff|gofmt|prettier]  — run linter auto-fix and show diff"),
         "/plan"    => Some("<task description>"),
         "/chat"    => Some("<message>"),
         "/generate"=> Some("<description>"),
