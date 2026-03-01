@@ -6916,4 +6916,436 @@ mod tests {
         assert_eq!(back.name, "list_repos");
         assert_eq!(back.description, "Lists all repos");
     }
+
+    // ── Phase 44: parse_lcov ──────────────────────────────────────────────────
+
+    #[test]
+    fn parse_lcov_single_file_full_coverage() {
+        let lcov = "SF:src/main.rs\nDA:1,1\nDA:2,1\nDA:3,1\nend_of_record\n";
+        let files = parse_lcov(lcov);
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].path, "src/main.rs");
+        assert_eq!(files[0].covered, 3);
+        assert_eq!(files[0].total, 3);
+        assert!((files[0].pct - 100.0).abs() < 0.01);
+        assert!(files[0].uncovered_lines.is_empty());
+    }
+
+    #[test]
+    fn parse_lcov_partial_coverage_tracks_uncovered_lines() {
+        let lcov = "SF:src/lib.rs\nDA:1,1\nDA:2,0\nDA:3,1\nDA:4,0\nend_of_record\n";
+        let files = parse_lcov(lcov);
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].covered, 2);
+        assert_eq!(files[0].total, 4);
+        assert!((files[0].pct - 50.0).abs() < 0.01);
+        assert_eq!(files[0].uncovered_lines, vec![2, 4]);
+    }
+
+    #[test]
+    fn parse_lcov_multiple_files() {
+        let lcov = "SF:a.rs\nDA:1,1\nend_of_record\nSF:b.rs\nDA:1,0\nDA:2,0\nend_of_record\n";
+        let files = parse_lcov(lcov);
+        assert_eq!(files.len(), 2);
+        assert_eq!(files[0].path, "a.rs");
+        assert_eq!(files[0].covered, 1);
+        assert_eq!(files[1].path, "b.rs");
+        assert_eq!(files[1].covered, 0);
+        assert_eq!(files[1].uncovered_lines, vec![1, 2]);
+    }
+
+    #[test]
+    fn parse_lcov_empty_input() {
+        let files = parse_lcov("");
+        assert!(files.is_empty());
+    }
+
+    #[test]
+    fn parse_lcov_no_da_lines_gives_100_pct() {
+        let lcov = "SF:empty.rs\nend_of_record\n";
+        let files = parse_lcov(lcov);
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].total, 0);
+        assert!((files[0].pct - 100.0).abs() < 0.01);
+    }
+
+    // ── Phase 44: parse_go_coverage ───────────────────────────────────────────
+
+    #[test]
+    fn parse_go_coverage_valid_output() {
+        let cov = "mode: set\npkg/main.go:10.1,20.1 3 1\npkg/main.go:25.1,30.1 2 0\n";
+        let files = parse_go_coverage(cov);
+        assert_eq!(files.len(), 1);
+        let f = &files[0];
+        assert_eq!(f.path, "pkg/main.go");
+        assert_eq!(f.covered, 1);
+        assert_eq!(f.total, 2);
+        assert!((f.pct - 50.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn parse_go_coverage_multiple_files() {
+        let cov = "mode: set\na.go:1.1,2.1 1 1\nb.go:1.1,2.1 1 0\n";
+        let files = parse_go_coverage(cov);
+        assert_eq!(files.len(), 2);
+    }
+
+    #[test]
+    fn parse_go_coverage_empty_input() {
+        let files = parse_go_coverage("mode: set\n");
+        assert!(files.is_empty());
+    }
+
+    #[test]
+    fn parse_go_coverage_skips_malformed_lines() {
+        let cov = "mode: set\nbad line\nok.go:1.1,2.1 1 1\n";
+        let files = parse_go_coverage(cov);
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].covered, 1);
+    }
+
+    // ── Phase 44: extract_pct_from_raw ────────────────────────────────────────
+
+    #[test]
+    fn extract_pct_with_decimal() {
+        assert!((extract_pct_from_raw("Coverage: 85.5%") - 85.5).abs() < 0.01);
+    }
+
+    #[test]
+    fn extract_pct_integer() {
+        assert!((extract_pct_from_raw("Total: 92 %") - 92.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn extract_pct_returns_first_match() {
+        assert!((extract_pct_from_raw("Pass: 90%, Fail: 10%") - 90.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn extract_pct_no_match_returns_zero() {
+        assert!((extract_pct_from_raw("no numbers here")).abs() < 0.01);
+    }
+
+    #[test]
+    fn extract_pct_empty_string() {
+        assert!((extract_pct_from_raw("")).abs() < 0.01);
+    }
+
+    // ── Phase 44: detect_coverage_tool ────────────────────────────────────────
+
+    #[tokio::test]
+    async fn detect_coverage_tool_rust_project() {
+        let dir = std::env::temp_dir().join(format!("vibe_cov_rust_{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&dir);
+        std::fs::write(dir.join("Cargo.toml"), "[package]\nname = \"test\"").unwrap();
+        let result = detect_coverage_tool(dir.to_string_lossy().to_string()).await;
+        assert_eq!(result.unwrap(), "cargo-llvm-cov");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn detect_coverage_tool_node_project() {
+        let dir = std::env::temp_dir().join(format!("vibe_cov_node_{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&dir);
+        std::fs::write(dir.join("package.json"), r#"{"name":"test"}"#).unwrap();
+        let result = detect_coverage_tool(dir.to_string_lossy().to_string()).await;
+        assert_eq!(result.unwrap(), "npm-coverage");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn detect_coverage_tool_python_project() {
+        let dir = std::env::temp_dir().join(format!("vibe_cov_py_{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&dir);
+        std::fs::write(dir.join("pyproject.toml"), "[project]").unwrap();
+        let result = detect_coverage_tool(dir.to_string_lossy().to_string()).await;
+        assert_eq!(result.unwrap(), "coverage.py");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn detect_coverage_tool_go_project() {
+        let dir = std::env::temp_dir().join(format!("vibe_cov_go_{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&dir);
+        std::fs::write(dir.join("go.mod"), "module test").unwrap();
+        let result = detect_coverage_tool(dir.to_string_lossy().to_string()).await;
+        assert_eq!(result.unwrap(), "go-cover");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn detect_coverage_tool_unknown_returns_error() {
+        let dir = std::env::temp_dir().join(format!("vibe_cov_unk_{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&dir);
+        let result = detect_coverage_tool(dir.to_string_lossy().to_string()).await;
+        assert!(result.is_err());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn detect_coverage_tool_nyc_in_package_json() {
+        let dir = std::env::temp_dir().join(format!("vibe_cov_nyc_{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&dir);
+        std::fs::write(dir.join("package.json"), r#"{"devDependencies":{"nyc":"^15"}}"#).unwrap();
+        let result = detect_coverage_tool(dir.to_string_lossy().to_string()).await;
+        assert_eq!(result.unwrap(), "nyc");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    // ── Phase 44: discover_api_endpoints ──────────────────────────────────────
+
+    #[tokio::test]
+    async fn discover_api_endpoints_finds_express_routes() {
+        let dir = std::env::temp_dir().join(format!("vibe_ep_expr_{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&dir);
+        std::fs::write(dir.join("server.js"), "app.get('/api/users', handler);\napp.post('/api/users', create);").unwrap();
+        let result = discover_api_endpoints(dir.to_string_lossy().to_string()).await.unwrap();
+        assert!(result.len() >= 2);
+        assert!(result.iter().any(|e| e.contains("app.get")));
+        assert!(result.iter().any(|e| e.contains("app.post")));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn discover_api_endpoints_finds_axum_routes() {
+        let dir = std::env::temp_dir().join(format!("vibe_ep_axum_{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&dir);
+        std::fs::write(dir.join("main.rs"), "let app = axum::Router::new()\n    .route(\"/health\", get(health));").unwrap();
+        let result = discover_api_endpoints(dir.to_string_lossy().to_string()).await.unwrap();
+        assert!(!result.is_empty());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn discover_api_endpoints_empty_workspace() {
+        let dir = std::env::temp_dir().join(format!("vibe_ep_empty_{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&dir);
+        let result = discover_api_endpoints(dir.to_string_lossy().to_string()).await.unwrap();
+        assert!(result.is_empty());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn discover_api_endpoints_deduplicates() {
+        let dir = std::env::temp_dir().join(format!("vibe_ep_dedup_{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&dir);
+        std::fs::write(dir.join("a.js"), "app.get('/x', h);").unwrap();
+        std::fs::write(dir.join("b.js"), "app.get('/x', h);").unwrap();
+        let result = discover_api_endpoints(dir.to_string_lossy().to_string()).await.unwrap();
+        let count = result.iter().filter(|e| e.contains("app.get('/x'")).count();
+        assert_eq!(count, 1);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    // ── Phase 44: build_temp_provider ─────────────────────────────────────────
+
+    #[test]
+    fn build_temp_provider_ollama_always_succeeds() {
+        let p = build_temp_provider("ollama", "codellama");
+        assert!(p.is_some());
+    }
+
+    #[test]
+    fn build_temp_provider_unknown_returns_none() {
+        let p = build_temp_provider("nonexistent-provider", "model");
+        assert!(p.is_none());
+    }
+
+    #[test]
+    fn build_temp_provider_claude_returns_some() {
+        let p = build_temp_provider("claude", "claude-sonnet-4-6");
+        assert!(p.is_some());
+    }
+
+    #[test]
+    fn build_temp_provider_anthropic_alias() {
+        let p = build_temp_provider("anthropic", "claude-sonnet-4-6");
+        assert!(p.is_some());
+    }
+
+    // ── Phase 44: FileCoverage serialization ──────────────────────────────────
+
+    #[test]
+    fn file_coverage_roundtrips_json() {
+        let fc = FileCoverage {
+            path: "src/main.rs".to_string(),
+            covered: 10, total: 15, pct: 66.67,
+            uncovered_lines: vec![3, 7, 11, 14, 15],
+        };
+        let json = serde_json::to_string(&fc).unwrap();
+        let back: FileCoverage = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.path, "src/main.rs");
+        assert_eq!(back.covered, 10);
+        assert_eq!(back.uncovered_lines.len(), 5);
+    }
+
+    #[test]
+    fn coverage_result_roundtrips_json() {
+        let cr = CoverageResult {
+            framework: "cargo-llvm-cov".to_string(),
+            total_pct: 85.0,
+            files: vec![],
+            raw_output: "test output".to_string(),
+        };
+        let json = serde_json::to_string(&cr).unwrap();
+        let back: CoverageResult = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.framework, "cargo-llvm-cov");
+        assert!((back.total_pct - 85.0).abs() < 0.01);
+    }
+
+    // ── Phase 44: ModelResponse / CompareResult serialization ─────────────────
+
+    #[test]
+    fn model_response_roundtrips_json() {
+        let mr = ModelResponse {
+            provider: "ollama".to_string(),
+            model: "codellama".to_string(),
+            content: "Hello world".to_string(),
+            duration_ms: 123,
+            tokens: Some(42),
+            error: None,
+        };
+        let json = serde_json::to_string(&mr).unwrap();
+        let back: ModelResponse = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.provider, "ollama");
+        assert_eq!(back.tokens, Some(42));
+        assert!(back.error.is_none());
+    }
+
+    #[test]
+    fn model_response_with_error_roundtrips() {
+        let mr = ModelResponse {
+            provider: "openai".to_string(),
+            model: "gpt-4o".to_string(),
+            content: String::new(),
+            duration_ms: 0,
+            tokens: None,
+            error: Some("API key not set".to_string()),
+        };
+        let json = serde_json::to_string(&mr).unwrap();
+        let back: ModelResponse = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.error.as_deref(), Some("API key not set"));
+    }
+
+    // ── Phase 44: HttpResponseData serialization ──────────────────────────────
+
+    #[test]
+    fn http_response_data_roundtrips_json() {
+        let resp = HttpResponseData {
+            status: 200,
+            status_text: "OK".to_string(),
+            headers: vec![HttpRequestHeader { key: "content-type".to_string(), value: "application/json".to_string() }],
+            body: r#"{"ok":true}"#.to_string(),
+            duration_ms: 55,
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        let back: HttpResponseData = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.status, 200);
+        assert_eq!(back.headers.len(), 1);
+        assert_eq!(back.headers[0].key, "content-type");
+    }
+
+    // ── Phase 45: cost_log_path / cost_config_path ────────────────────────────
+
+    #[test]
+    fn cost_log_path_ends_with_jsonl() {
+        let path = cost_log_path();
+        assert!(path.to_string_lossy().ends_with("cost-log.jsonl"));
+    }
+
+    #[test]
+    fn cost_log_path_is_inside_vibeui() {
+        let path = cost_log_path();
+        assert!(path.to_string_lossy().contains(".vibeui"));
+    }
+
+    #[test]
+    fn cost_config_path_ends_with_json() {
+        let path = cost_config_path();
+        assert!(path.to_string_lossy().ends_with("cost-config.json"));
+    }
+
+    #[test]
+    fn cost_config_path_is_inside_vibeui() {
+        let path = cost_config_path();
+        assert!(path.to_string_lossy().contains(".vibeui"));
+    }
+
+    // ── Phase 45: CostEntry serialization ─────────────────────────────────────
+
+    #[test]
+    fn cost_entry_roundtrips_json() {
+        let entry = CostEntry {
+            session_id: "sess-1".to_string(),
+            provider: "claude".to_string(),
+            model: "claude-sonnet-4-6".to_string(),
+            prompt_tokens: 100,
+            completion_tokens: 50,
+            cost_usd: 0.0045,
+            timestamp_ms: 1709100000000,
+            task_hint: Some("fix bug".to_string()),
+        };
+        let json = serde_json::to_string(&entry).unwrap();
+        let back: CostEntry = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.session_id, "sess-1");
+        assert_eq!(back.provider, "claude");
+        assert_eq!(back.prompt_tokens, 100);
+        assert!((back.cost_usd - 0.0045).abs() < 0.0001);
+        assert_eq!(back.task_hint.as_deref(), Some("fix bug"));
+    }
+
+    #[test]
+    fn cost_entry_null_task_hint_roundtrips() {
+        let entry = CostEntry {
+            session_id: "s".to_string(),
+            provider: "ollama".to_string(),
+            model: "codellama".to_string(),
+            prompt_tokens: 10,
+            completion_tokens: 5,
+            cost_usd: 0.0,
+            timestamp_ms: 0,
+            task_hint: None,
+        };
+        let json = serde_json::to_string(&entry).unwrap();
+        let back: CostEntry = serde_json::from_str(&json).unwrap();
+        assert!(back.task_hint.is_none());
+    }
+
+    #[test]
+    fn cost_metrics_roundtrips_json() {
+        let metrics = CostMetrics {
+            entries: vec![],
+            by_provider: vec![ProviderCostSummary {
+                provider: "openai".to_string(),
+                total_cost_usd: 1.50,
+                total_tokens: 5000,
+                call_count: 10,
+            }],
+            total_cost_usd: 1.50,
+            total_tokens: 5000,
+            budget_limit_usd: Some(10.0),
+            budget_remaining_usd: Some(8.50),
+        };
+        let json = serde_json::to_string(&metrics).unwrap();
+        let back: CostMetrics = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.by_provider.len(), 1);
+        assert_eq!(back.by_provider[0].call_count, 10);
+        assert!((back.budget_remaining_usd.unwrap() - 8.50).abs() < 0.01);
+    }
+
+    // ── Phase 45: AutofixResult serialization ─────────────────────────────────
+
+    #[test]
+    fn autofix_result_roundtrips_json() {
+        let result = AutofixResult {
+            framework: "eslint".to_string(),
+            files_changed: 3,
+            diff: "--- a.js\n+++ b.js".to_string(),
+            stdout: "Fixed 3 files".to_string(),
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        let back: AutofixResult = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.framework, "eslint");
+        assert_eq!(back.files_changed, 3);
+    }
 }
