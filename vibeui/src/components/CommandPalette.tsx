@@ -120,8 +120,12 @@ export const CommandPalette = ({ isOpen, onClose, commands }: CommandPaletteProp
 
     if (!isOpen) return null;
 
+    const activeDescendant = filteredCommands[selectedIndex]?.id
+        ? `cmd-${filteredCommands[selectedIndex].id}`
+        : undefined;
+
     return (
-        <div className="command-palette-overlay" onClick={onClose}>
+        <div className="command-palette-overlay" role="dialog" aria-modal="true" aria-label="Command Palette" onClick={onClose}>
             <div className="command-palette" onClick={(e) => e.stopPropagation()}>
                 <div className="command-palette-header">
                     <input
@@ -131,20 +135,28 @@ export const CommandPalette = ({ isOpen, onClose, commands }: CommandPaletteProp
                         placeholder="Type a command or search..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
+                        role="combobox"
+                        aria-expanded="true"
+                        aria-controls="command-palette-listbox"
+                        aria-activedescendant={activeDescendant}
+                        aria-autocomplete="list"
                     />
                 </div>
-                <div className="command-palette-list" ref={listRef}>
+                <div className="command-palette-list" ref={listRef} id="command-palette-listbox" role="listbox">
                     {Object.keys(groupedCommands).length === 0 ? (
                         <div className="command-palette-empty">No commands found</div>
                     ) : (
                         Object.entries(groupedCommands).map(([category, categoryCommands]) => (
                             <div key={category} className="command-category">
                                 <div className="command-category-header">{category}</div>
-                                {categoryCommands.map((command, _) => {
+                                {categoryCommands.map((command) => {
                                     const globalIndex = filteredCommands.indexOf(command);
                                     return (
                                         <div
                                             key={command.id}
+                                            id={`cmd-${command.id}`}
+                                            role="option"
+                                            aria-selected={globalIndex === selectedIndex}
                                             className={`command-item ${globalIndex === selectedIndex ? 'selected' : ''}`}
                                             onClick={() => executeCommand(command)}
                                             onMouseEnter={() => setSelectedIndex(globalIndex)}

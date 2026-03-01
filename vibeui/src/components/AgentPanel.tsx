@@ -185,8 +185,14 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
 
     const isRunning = status === "running";
 
+    const statusLabel = status === "running" ? "Agent is running"
+        : status === "complete" ? "Agent task complete"
+        : status === "error" ? "Agent encountered an error"
+        : "Agent idle";
+
     return (
         <div style={{ display: "flex", flexDirection: "column", height: "100%", padding: "12px", gap: "8px" }}>
+            <div className="sr-only" aria-live="polite">{statusLabel}</div>
             <div style={{ fontWeight: 600, fontSize: "14px" }}>🤖 Agent Mode</div>
             <p style={{ fontSize: "12px", color: "var(--text-secondary)", margin: 0 }}>
                 Describe a task — the agent plans and executes it autonomously using file, search, and bash tools.

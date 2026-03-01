@@ -55,6 +55,7 @@ import { ArenaPanel } from "./components/ArenaPanel";
 import { useCollab } from "./hooks/useCollab";
 import { flowContext } from "./utils/FlowContext";
 import { supercompleteEngine } from "./utils/SupercompleteEngine";
+import { OnboardingTour } from "./components/OnboardingTour";
 
 interface FileEntry {
   path: string;
@@ -96,6 +97,12 @@ function App() {
   const [showTerminal, setShowTerminal] = useState(false);
   const [bottomTab, setBottomTab] = useState<"terminal" | "browser">("terminal");
   const [showCommandPalette, setShowCommandPalette] = useState(false);
+  const [showTour, setShowTour] = useState(() => !localStorage.getItem('vibeui-onboarding-complete'));
+
+  const completeTour = useCallback(() => {
+    localStorage.setItem('vibeui-onboarding-complete', 'true');
+    setShowTour(false);
+  }, []);
 
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
@@ -191,16 +198,54 @@ function App() {
 
   // Global keyboard shortcuts
   useEffect(() => {
+    const AI_TABS = ["chat", "agent", "memory", "history", "checkpoints", "artifacts", "manager", "hooks", "jobs"] as const;
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Cmd+K (Mac) or Ctrl+K (Windows/Linux) to open command palette
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      const mod = e.metaKey || e.ctrlKey;
+      // Cmd+K — command palette
+      if (mod && e.key === 'k') {
         e.preventDefault();
         setShowCommandPalette(true);
       }
-      // Cmd+B (Mac) or Ctrl+B (Windows/Linux) to toggle sidebar
-      if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
+      // Cmd+B — toggle sidebar
+      if (mod && e.key === 'b') {
         e.preventDefault();
         setShowSidebar(prev => !prev);
+      }
+      // Cmd+J — toggle AI panel
+      if (mod && !e.shiftKey && e.key === 'j') {
+        e.preventDefault();
+        setShowAIChat(prev => !prev);
+      }
+      // Cmd+` — toggle terminal
+      if (mod && e.key === '`') {
+        e.preventDefault();
+        setShowTerminal(prev => !prev);
+      }
+      // Cmd+Shift+P — command palette (VS Code alias)
+      if (mod && e.shiftKey && e.key === 'P') {
+        e.preventDefault();
+        setShowCommandPalette(true);
+      }
+      // Cmd+1..9 — switch AI tab
+      if (mod && !e.shiftKey && e.key >= '1' && e.key <= '9') {
+        const idx = parseInt(e.key) - 1;
+        if (idx < AI_TABS.length) {
+          e.preventDefault();
+          setShowAIChat(true);
+          setAiPanelTab(AI_TABS[idx]);
+        }
+      }
+      // Cmd+Shift+E — focus explorer
+      if (mod && e.shiftKey && e.key === 'E') {
+        e.preventDefault();
+        setActiveSidebarTab('explorer');
+        setShowSidebar(true);
+      }
+      // Cmd+Shift+G — focus git
+      if (mod && e.shiftKey && e.key === 'G') {
+        e.preventDefault();
+        setActiveSidebarTab('git');
+        setShowSidebar(true);
       }
     };
 
@@ -884,6 +929,7 @@ function App() {
       label: 'Toggle AI Chat',
       category: 'Editor',
       icon: '💬',
+      shortcut: '⌘J',
       action: () => setShowAIChat(prev => !prev),
     },
     {
@@ -899,6 +945,7 @@ function App() {
       label: 'Toggle Terminal',
       category: 'View',
       icon: '⌨️',
+      shortcut: '⌘`',
       action: () => setShowTerminal(prev => !prev),
     },
     {
@@ -906,9 +953,21 @@ function App() {
       label: 'Show Explorer',
       category: 'View',
       icon: '📂',
+      shortcut: '⌘⇧E',
       action: () => {
         setShowSidebar(true);
         setActiveSidebarTab('explorer');
+      },
+    },
+    {
+      id: 'view.git',
+      label: 'Show Source Control',
+      category: 'View',
+      icon: '🔀',
+      shortcut: '⌘⇧G',
+      action: () => {
+        setShowSidebar(true);
+        setActiveSidebarTab('git');
       },
     },
     // Debug
@@ -1081,11 +1140,12 @@ function App() {
 
   return (
     <div className="app" onMouseUp={stopResizing}>
+      <a href="#main-editor" className="skip-to-content">Skip to editor</a>
       <Toaster toasts={toasts} onDismiss={dismiss} />
       {/* Header */}
       <header className="header">
         <div className="header-left">
-          <button className="icon-button" onClick={() => setShowSidebar(!showSidebar)}>
+          <button className="icon-button" onClick={() => setShowSidebar(!showSidebar)} aria-label="Toggle sidebar">
             ☰
           </button>
           <h1 className="app-title">VibeUI</h1>
@@ -1134,7 +1194,7 @@ function App() {
       <div className="main-container">
         {/* Activity Bar */}
         <div className="activity-bar">
-          <div
+          <button
             className={`activity-bar-item ${activeSidebarTab === 'explorer' && showSidebar ? 'active' : ''}`}
             onClick={() => {
               if (activeSidebarTab === 'explorer' && showSidebar) {
@@ -1145,10 +1205,12 @@ function App() {
               }
             }}
             title="Explorer"
+            aria-label="Explorer (⌘⇧E)"
+            style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}
           >
             <Files size={24} />
-          </div>
-          <div
+          </button>
+          <button
             className={`activity-bar-item ${activeSidebarTab === 'search' && showSidebar ? 'active' : ''}`}
             onClick={() => {
               if (activeSidebarTab === 'search' && showSidebar) {
@@ -1159,10 +1221,12 @@ function App() {
               }
             }}
             title="Search"
+            aria-label="Search"
+            style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}
           >
             <Search size={24} />
-          </div>
-          <div
+          </button>
+          <button
             className={`activity-bar-item ${activeSidebarTab === 'git' && showSidebar ? 'active' : ''}`}
             onClick={() => {
               if (activeSidebarTab === 'git' && showSidebar) {
@@ -1173,13 +1237,15 @@ function App() {
               }
             }}
             title="Source Control"
+            aria-label="Source Control (⌘⇧G)"
+            style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}
           >
             <GitGraph size={24} />
-          </div>
+          </button>
           <div className="activity-bar-spacer" />
-          <div className="activity-bar-item" title="Settings">
+          <button className="activity-bar-item" title="Settings" aria-label="Settings" style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}>
             <Settings size={24} />
-          </div>
+          </button>
         </div>
 
         {/* Sidebar */}
@@ -1305,7 +1371,7 @@ function App() {
         )}
 
         {/* Editor Area */}
-        <main className="editor-container">
+        <main id="main-editor" className="editor-container">
           {/* Tab Bar */}
           {openFiles.length > 0 && (
             <div className="tab-bar">
@@ -1421,26 +1487,35 @@ function App() {
                 <button className="btn-primary" onClick={openFolder}>
                   📁 Open Folder
                 </button>
+                <button className="btn-secondary" onClick={() => setShowTour(true)}>
+                  🎓 Take a Tour
+                </button>
               </div>
               <div className="features">
-                <h3>Quick Start</h3>
-                <ul>
-                  <li>1️⃣ Click "Open Folder" to browse your project</li>
-                  <li>2️⃣ Click on any file in the sidebar to open it</li>
-                  <li>3️⃣ Edit your code with Monaco Editor</li>
-                  <li>4️⃣ Save with ⌘S (Mac) or Ctrl+S (Windows/Linux)</li>
-                </ul>
+                <h3>Keyboard Shortcuts</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 24px', textAlign: 'left', marginBottom: '24px' }}>
+                  {[
+                    ['⌘K', 'Command Palette'],
+                    ['⌘J', 'Toggle AI Panel'],
+                    ['⌘B', 'Toggle Sidebar'],
+                    ['⌘`', 'Toggle Terminal'],
+                    ['⌘⇧E', 'Explorer'],
+                    ['⌘⇧G', 'Source Control'],
+                    ['⌘S', 'Save File'],
+                    ['⌘1-9', 'Switch AI Tab'],
+                  ].map(([key, desc]) => (
+                    <div key={key} style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                      <kbd>{key}</kbd> {desc}
+                    </div>
+                  ))}
+                </div>
                 <h3>Features</h3>
                 <ul>
                   <li>✨ AI-powered code completion (Ollama ready)</li>
-                  <li>💬 AI chat assistant (coming soon)</li>
-                  <li>🚀 Fast text editing with Rust backend</li>
-                  <li>🔌 VSCode plugin support (in development)</li>
                   <li>🤖 Multiple AI providers: Ollama, Claude, ChatGPT, Gemini, Grok</li>
+                  <li>🚀 Fast text editing with Rust backend</li>
+                  <li>🔌 VSCode + JetBrains + Neovim plugin support</li>
                 </ul>
-                <p style={{ marginTop: '24px', fontSize: '13px', color: 'var(--text-secondary)' }}>
-                  💡 Tip: Try opening the vibeUI folder to see this project's code!
-                </p>
               </div>
             </div>
           )}
@@ -1450,10 +1525,14 @@ function App() {
         {showAIChat && (
           <aside className="ai-chat-panel" style={{ display: "flex", flexDirection: "column" }}>
             {/* Tab bar */}
-            <div style={{ display: "flex", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
+            <div role="tablist" aria-label="AI Panel tabs" style={{ display: "flex", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
               {(["chat", "agent", "memory", "history", "checkpoints", "artifacts", "manager", "hooks", "jobs", "mcp", "settings", "cascade", "specs", "workflow", "design", "deploy", "database", "supabase", "auth", "github", "steering", "bugbot", "redteam", "tests", "collab", "coverage", "compare", "http", "arena", "cost", "autofix"] as const).map((tab) => (
                 <button
                   key={tab}
+                  role="tab"
+                  aria-selected={aiPanelTab === tab}
+                  tabIndex={aiPanelTab === tab ? 0 : -1}
+                  id={`ai-tab-${tab}`}
                   onClick={() => setAiPanelTab(tab)}
                   style={{
                     flex: 1,
@@ -1503,7 +1582,7 @@ function App() {
             </div>
 
             {/* Tab content */}
-            <div style={{ flex: 1, overflow: "hidden" }}>
+            <div role="tabpanel" aria-labelledby={`ai-tab-${aiPanelTab}`} style={{ flex: 1, overflow: "hidden" }}>
               {aiPanelTab === "chat" && (
                 <ChatTabManager
                   defaultProvider={selectedProvider}
@@ -1671,10 +1750,13 @@ function App() {
           />
           <div className="terminal-panel" style={{ height: `${terminalHeight}px`, borderTop: 'none', display: 'flex', flexDirection: 'column' }}>
             {/* Tab bar */}
-            <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-secondary)', flexShrink: 0 }}>
+            <div role="tablist" aria-label="Bottom panel tabs" style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-secondary)', flexShrink: 0 }}>
               {(['terminal', 'browser'] as const).map((tab) => (
                 <button
                   key={tab}
+                  role="tab"
+                  aria-selected={bottomTab === tab}
+                  tabIndex={bottomTab === tab ? 0 : -1}
                   onClick={() => setBottomTab(tab)}
                   style={{
                     padding: '4px 14px', fontSize: '12px', border: 'none', cursor: 'pointer',
@@ -1691,6 +1773,7 @@ function App() {
                 onClick={() => setShowTerminal(false)}
                 style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '4px 10px', fontSize: '16px' }}
                 title="Close panel"
+                aria-label="Close panel"
               >×</button>
             </div>
             {/* Panel content */}
@@ -1730,6 +1813,9 @@ function App() {
           >
             🌐 Browser
           </button>
+          <span style={{ opacity: 0.7, fontSize: '11px', cursor: 'pointer' }} onClick={() => setShowCommandPalette(true)}>
+            ⌘K Command Palette
+          </span>
           <ThemeToggle />
           {currentFile && (
             <>
@@ -1799,6 +1885,9 @@ function App() {
       {/* Delete Confirmation Modal */}
       {pendingDeleteFile && (
         <div
+          role="alertdialog"
+          aria-modal="true"
+          aria-label="Confirm delete"
           style={{
             position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000,
@@ -1818,6 +1907,7 @@ function App() {
             </div>
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
               <button
+                autoFocus
                 onClick={() => setPendingDeleteFile(null)}
                 style={{ padding: '6px 14px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'transparent', color: 'var(--text-primary)', cursor: 'pointer', fontSize: '13px' }}
               >
@@ -1832,6 +1922,11 @@ function App() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Onboarding Tour */}
+      {showTour && workspaceFolders.length > 0 && (
+        <OnboardingTour onComplete={completeTour} />
       )}
 
       {/* Context Menu */}

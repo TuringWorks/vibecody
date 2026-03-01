@@ -1018,4 +1018,28 @@ mod tests {
         let text = html_to_text(html);
         assert!(text.contains("a & b <c>"));
     }
+
+    #[test]
+    fn decode_html_entities_all_six_entities() {
+        // Entities are concatenated without separating spaces; verify each
+        // one is decoded to its literal character.
+        let input = "&amp;&lt;&gt;&quot;&#39;&nbsp;";
+        let out = decode_html_entities(input);
+        assert_eq!(out, "&<>\"' ");
+    }
+
+    #[test]
+    fn decode_html_entities_literal_ampersand_passthrough() {
+        // Unknown entity — the '&' should be emitted literally.
+        let input = "&unknown; hello &amp; world";
+        let out = decode_html_entities(input);
+        assert!(out.contains("&unknown;") || out.starts_with('&'));
+        assert!(out.contains("& world"));
+    }
+
+    #[test]
+    fn decode_html_entities_no_entities() {
+        let input = "no entities here";
+        assert_eq!(decode_html_entities(input), input);
+    }
 }

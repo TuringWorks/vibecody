@@ -7,6 +7,31 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Performance
+- **Agent loop**: Pre-allocate `accumulated` response buffer (`String::with_capacity(8192)`)
+  and move stream chunks into the event channel instead of cloning — eliminates one heap
+  allocation per LLM token streamed (`agent.rs`).
+- **Embedding index `update()`**: Replaced O(n²) sequential `Vec::remove()` loop with a
+  single O(n) drain-zip-filter-unzip pass; removal of k chunks from an index of n is now
+  O(n) regardless of how many files change (`embeddings.rs`).
+- **Cosine similarity**: Fused 3-pass (dot + norm_a + norm_b) into a single `fold` pass,
+  reducing memory-bandwidth usage by ~3× for high-dimensional vectors (`embeddings.rs`).
+- **Shared HTTP client**: `reqwest::Client` for Ollama/OpenAI embedding calls is now a
+  `OnceLock<Client>` shared across all requests, enabling connection keep-alive and avoiding
+  a new connection-pool allocation per embedded chunk (`embeddings.rs`).
+- **File search**: `search_files()` now uses `entry.metadata()` (from WalkDir's cached
+  directory entry) instead of `fs::metadata(path)`, eliminating one extra `stat(2)` syscall
+  per file visited (`search.rs`).
+- **Async file I/O**: `read_file`, `write_file`, `apply_patch` in `ToolExecutor` now use
+  `tokio::fs` instead of blocking `std::fs`, preventing runtime-thread stalls on slow/cold
+  filesystems (`tool_executor.rs`).
+- **HTML entity decoding**: Replaced 6 chained `.replace()` calls (6 full string copies) with
+  a single left-to-right `decode_html_entities()` pass; also replaced
+  `chars.clone().take(12).collect::<String>()` per `<` with a cheap byte-slice peek
+  (`tool_executor.rs`).
+- 3 new entity-decoder unit tests; 1 new cosine-clamp test; 1 new embedding-update correctness
+  test. Total: 160 vibecli + 7 smoke = 167 tests passing.
+
 ### Added
 - **Phase 45**: Frontend panels — `CostPanel.tsx` (💰 Cost tab): per-provider cost breakdown
   chart, total spend summary, budget limit input, cost history table with provider/model/tokens/

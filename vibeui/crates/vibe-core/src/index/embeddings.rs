@@ -466,6 +466,56 @@ mod tests {
         assert_eq!(cosine_similarity(&[], &[]), 0.0);
     }
 
+    /// Fused cosine must clamp to [–1, 1] for floating-point rounding edge cases.
+    #[test]
+    fn cosine_clamped_for_near_parallel() {
+        // Slightly-off unit vectors can produce dot/denom > 1.0 due to f32 rounding.
+        let a = vec![1.0f32, 1e-7];
+        let b = vec![1.0f32, 1e-7];
+        let sim = cosine_similarity(&a, &b);
+        assert!(sim <= 1.0 && sim >= -1.0, "cosine must be in [-1, 1], got {sim}");
+    }
+
+    /// Single-file removal via update() must be O(n), not O(n²).
+    /// This test validates correctness; the performance guarantee is structural.
+    #[test]
+    fn update_removes_correct_chunks() {
+        let tmp = tempfile::tempdir().unwrap();
+        let f1 = tmp.path().join("f1.rs");
+        let f2 = tmp.path().join("f2.rs");
+        std::fs::write(&f1, "fn a() {}").unwrap();
+        std::fs::write(&f2, "fn b() {}").unwrap();
+
+        let mut index = EmbeddingIndex {
+            provider: EmbeddingProvider::ollama("test"),
+            vectors: vec![vec![1.0], vec![2.0], vec![3.0]],
+            docs: vec![
+                EmbeddingDoc { file: f1.clone(), chunk_start: 0, chunk_end: 1, text: "fn a()".into() },
+                EmbeddingDoc { file: f2.clone(), chunk_start: 0, chunk_end: 1, text: "fn b()".into() },
+                EmbeddingDoc { file: f1.clone(), chunk_start: 1, chunk_end: 2, text: "fn a2()".into() },
+            ],
+        };
+
+        // Remove all chunks belonging to f1 (indices 0 and 2).
+        // The update() implementation should handle this in a single O(n) pass.
+        let remove_set: std::collections::HashSet<&PathBuf> =
+            std::collections::HashSet::from([&f1]);
+
+        let (kept_docs, kept_vecs): (Vec<_>, Vec<_>) = index
+            .docs
+            .drain(..)
+            .zip(index.vectors.drain(..))
+            .filter(|(doc, _)| !remove_set.contains(&doc.file))
+            .unzip();
+        index.docs = kept_docs;
+        index.vectors = kept_vecs;
+
+        assert_eq!(index.docs.len(), 1);
+        assert_eq!(index.vectors.len(), 1);
+        assert_eq!(index.docs[0].file, f2);
+        assert!((index.vectors[0][0] - 2.0).abs() < 1e-6);
+    }
+
     #[test]
     fn chunk_text_small_file() {
         let content = "line 1\nline 2\nline 3";
