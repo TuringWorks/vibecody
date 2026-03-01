@@ -2533,6 +2533,85 @@ async fn main() -> Result<()> {
                             }
                         }
 
+                        // ── /arena ─────────────────────────────────────────────────────
+                        "/arena" => {
+                            let parts: Vec<&str> = if args.is_empty() {
+                                vec!["help"]
+                            } else {
+                                args.splitn(2, ' ').collect()
+                            };
+                            match parts[0] {
+                                "compare" => {
+                                    let rest = parts.get(1).unwrap_or(&"");
+                                    let tokens: Vec<&str> = rest.split_whitespace().collect();
+                                    if tokens.len() < 2 {
+                                        println!("Usage: /arena compare <provider1> <provider2> [prompt]\n");
+                                        continue;
+                                    }
+                                    let p1 = tokens[0];
+                                    let p2 = tokens[1];
+                                    let prompt_text = if tokens.len() > 2 {
+                                        tokens[2..].join(" ")
+                                    } else {
+                                        println!("Enter prompt: ");
+                                        let mut buf = String::new();
+                                        std::io::stdin().read_line(&mut buf).unwrap_or(0);
+                                        buf.trim().to_string()
+                                    };
+                                    if prompt_text.is_empty() {
+                                        println!("No prompt provided.\n");
+                                        continue;
+                                    }
+                                    println!("Arena: {} vs {} ...", p1, p2);
+                                    let llm_a = create_provider(p1, None);
+                                    let llm_b = create_provider(p2, None);
+                                    match (llm_a, llm_b) {
+                                        (Ok(a), Ok(b)) => {
+                                            use vibe_ai::provider::{Message, MessageRole};
+                                            let msgs = vec![Message { role: MessageRole::User, content: prompt_text.clone() }];
+                                            let (r_a, r_b) = tokio::join!(
+                                                a.chat_response(&msgs, None),
+                                                b.chat_response(&msgs, None),
+                                            );
+                                            println!("\n-- Model A ------------------------------------------");
+                                            match &r_a {
+                                                Ok(r) => println!("{}\n", r.text),
+                                                Err(e) => println!("Error: {}\n", e),
+                                            }
+                                            println!("-- Model B ------------------------------------------");
+                                            match &r_b {
+                                                Ok(r) => println!("{}\n", r.text),
+                                                Err(e) => println!("Error: {}\n", e),
+                                            }
+                                            println!("Which is better?  [a / b / tie / skip]");
+                                            let mut vote = String::new();
+                                            std::io::stdin().read_line(&mut vote).unwrap_or(0);
+                                            let v = vote.trim().to_lowercase();
+                                            if matches!(v.as_str(), "a" | "b" | "tie") {
+                                                println!("Voted: {}  -- Reveal: A={}, B={}\n", v, p1, p2);
+                                            } else {
+                                                println!("Skipped.\n");
+                                            }
+                                        }
+                                        _ => println!("Failed to create one or both providers.\n"),
+                                    }
+                                }
+                                "stats" => {
+                                    println!("Arena stats: use the VibeUI Arena tab for full leaderboard.\n");
+                                }
+                                "history" => {
+                                    println!("Arena history: use the VibeUI Arena tab for full history.\n");
+                                }
+                                _ => {
+                                    println!("Usage:");
+                                    println!("  /arena compare <p1> <p2> [prompt]  -- blind A/B comparison");
+                                    println!("  /arena stats                       -- show leaderboard");
+                                    println!("  /arena history                     -- show vote history");
+                                    println!();
+                                }
+                            }
+                        }
+
                         // ── /test ──────────────────────────────────────────────────────
                         "/test" => {
                             let cwd = std::env::current_dir()?;

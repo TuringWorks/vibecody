@@ -268,6 +268,9 @@ pub fn run() {
             // Phase 44: HTTP Playground
             commands::send_http_request,
             commands::discover_api_endpoints,
+            // Phase 44b: Arena Mode
+            commands::save_arena_vote,
+            commands::get_arena_history,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

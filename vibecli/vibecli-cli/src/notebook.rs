@@ -102,8 +102,9 @@ fn extract_frontmatter(content: &str) -> (NotebookMeta, &str) {
                     description = v.trim().to_string();
                 }
             }
-            let body_start = 3 + end + 5; // "---\n" + fm + "\n---\n"
-            return (NotebookMeta { name, description }, &content[body_start..]);
+            // Skip past the closing "\n---\n" (5 bytes) to get the body
+            let body = &rest[end + 5..];
+            return (NotebookMeta { name, description }, body);
         }
     }
     (NotebookMeta { name, description }, content)

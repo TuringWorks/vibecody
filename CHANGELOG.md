@@ -8,6 +8,28 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **Phase 44**: Arena Mode — blind A/B model comparison with hidden identities; `ArenaPanel.tsx`
+  (🥊 Arena tab) with randomized provider assignment, vote buttons (A better / B better / Tie /
+  Both bad), post-vote identity reveal with timing/token stats, persistent leaderboard with
+  win/loss/tie/win-rate per provider, "Send winner to Chat" via `vibeui:inject-context`; Tauri
+  commands `save_arena_vote` (persists to `~/.vibeui/arena-votes.json`) and `get_arena_history`
+  (loads votes + computes per-provider stats); VibeCLI `/arena` REPL command with `compare`,
+  `stats`, `history` sub-commands.
+- **Phase 44**: Live Preview with Element Selection — BrowserPanel gains inspect mode toggle
+  (🔍 button, localhost-only); injects `inspector.js` into iframe on activate; postMessage
+  listener captures `vibe:element-selected` events; element info overlay panel shows tag name,
+  CSS selector, React component (if detected), parent chain (3 ancestors), and truncated
+  outerHTML; "Send to Chat" button dispatches `vibeui:inject-context` with formatted `@html-selected`
+  context; `inspector.js` upgraded with `parentChain` in `buildInfo()`; `@html-selected` added
+  to ContextPicker SPECIAL_ITEMS and `resolve_at_references()`.
+- **Phase 44**: Recursive Subagent Trees — agents can spawn child agents that spawn grandchildren
+  up to 5 levels deep; `AgentContext` gains `parent_session_id`, `depth`, and shared
+  `active_agent_counter` (Arc<AtomicU32>); `ToolCall::SpawnAgent` gains `max_depth` parameter;
+  `ToolExecutor::spawn_sub_agent()` enforces depth limit (max 5), per-parent child cap (10 via
+  session store), and global agent cap (20 via atomic counter); `session_store.rs` gains
+  `parent_session_id`/`depth` columns with idempotent `maybe_add_column()` migration,
+  `get_children()`/`get_tree()`/`list_root_sessions()` queries, and `AgentTreeNode` struct;
+  5 new unit tests for tree operations.
 - **Phase 44**: Code coverage panel — `detect_coverage_tool` auto-detects cargo-llvm-cov / nyc /
   coverage.py / go-cover; `run_coverage` Tauri command runs coverage, parses LCOV and Go
   coverprofile formats into `FileCoverage` entries with per-file percentages and uncovered line

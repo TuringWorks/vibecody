@@ -1256,6 +1256,16 @@ Real-time collaborative editing powered by [yrs](https://github.com/y-crdt/y-crd
 | HTTP Playground | ✅ | `send_http_request` (method/URL/headers/body, 30s timeout, URL validation); `discover_api_endpoints` (regex grep for Express/Axum/FastAPI/Spring route patterns, 8 file types, max 60 results) |
 | Safety hardening | ✅ | Replaced `unwrap()` in 9 files: bugbot.rs, gateway.rs, redteam.rs, agent.rs, chat.rs, buffer.rs, git.rs, index/mod.rs, remote.rs |
 
+## 7.15 Phase 44 — Arena Mode, Live Preview, Recursive Subagent Trees ✅
+
+**Status:** Complete
+
+| Item | Status | Details |
+|------|--------|---------|
+| Arena Mode | ✅ | `ArenaPanel.tsx` (🥊 Arena tab) — blind A/B model comparison: randomized provider assignment, hidden identities, vote buttons (A/B/Tie/Both bad), post-vote reveal with timing/tokens, persistent leaderboard at `~/.vibeui/arena-votes.json`; `save_arena_vote` + `get_arena_history` Tauri commands; `/arena` REPL command with `compare`/`stats`/`history` sub-commands |
+| Live Preview with Element Selection | ✅ | BrowserPanel gains inspect mode toggle (🔍, localhost-only); injects `inspector.js` into iframe; postMessage listener for `vibe:element-selected`; element info overlay (tag, selector, React component, parent chain, outerHTML); "Send to Chat" via `vibeui:inject-context`; `inspector.js` gains `parentChain` in `buildInfo()`; `@html-selected` context type in ContextPicker + `resolve_at_references()` |
+| Recursive Subagent Trees | ✅ | `AgentContext` gains `parent_session_id`, `depth`, shared `active_agent_counter`; `ToolCall::SpawnAgent` gains `max_depth`; `spawn_sub_agent()` enforces depth ≤ 5, per-parent children ≤ 10, global agents ≤ 20; `session_store.rs` gains tree schema + `get_children()`/`get_tree()`/`list_root_sessions()` queries; 5 new unit tests |
+
 ---
 
 ## 8. VibeCody Wins — Competitive Position

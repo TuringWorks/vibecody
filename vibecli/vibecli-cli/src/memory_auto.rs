@@ -106,6 +106,9 @@ Session:
                 // Extract JSON array from response (strip any surrounding text)
                 let json_start = response.find('[').unwrap_or(0);
                 let json_end = response.rfind(']').map(|i| i + 1).unwrap_or(response.len());
+                if json_start >= json_end || json_end > response.len() {
+                    return vec![];
+                }
                 let json_str = &response[json_start..json_end];
 
                 #[derive(Deserialize)]

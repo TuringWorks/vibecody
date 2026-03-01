@@ -1034,6 +1034,11 @@ async fn resolve_at_references(
         }
     }
 
+    // @html-selected — context injected from Browser panel element inspector (UI-side)
+    if content.contains("@html-selected") {
+        extra.push_str("\n### @html-selected\n[HTML element context injected from Browser panel]\n");
+    }
+
     // @terminal — inject last 200 lines from the terminal output buffer
     if content.contains("@terminal") {
         let buf = terminal_buffer.lock().await;
@@ -6359,6 +6364,97 @@ pub async fn discover_api_endpoints(workspace: String) -> Result<Vec<String>, St
         }
     }
     Ok(endpoints)
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Phase 44b — Arena Mode (blind A/B voting)
+// ══════════════════════════════════════════════════════════════════════════════
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ArenaVote {
+    pub timestamp: String,
+    pub prompt: String,
+    pub provider_a: String,
+    pub model_a: String,
+    pub provider_b: String,
+    pub model_b: String,
+    pub winner: String, // "a", "b", "tie", "both_bad"
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ArenaStats {
+    pub provider: String,
+    pub wins: u32,
+    pub losses: u32,
+    pub ties: u32,
+    pub total: u32,
+    pub win_rate: f64,
+}
+
+/// Save an arena vote to ~/.vibeui/arena-votes.json
+#[tauri::command]
+pub async fn save_arena_vote(vote: ArenaVote) -> Result<(), String> {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    let dir = PathBuf::from(home).join(".vibeui");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let path = dir.join("arena-votes.json");
+    let mut votes: Vec<ArenaVote> = if path.exists() {
+        let data = std::fs::read_to_string(&path).unwrap_or_else(|_| "[]".into());
+        serde_json::from_str(&data).unwrap_or_default()
+    } else {
+        Vec::new()
+    };
+    votes.push(vote);
+    let json = serde_json::to_string_pretty(&votes).map_err(|e| e.to_string())?;
+    std::fs::write(&path, json).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// Load arena vote history and compute per-provider stats.
+#[tauri::command]
+pub async fn get_arena_history() -> Result<(Vec<ArenaVote>, Vec<ArenaStats>), String> {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    let path = PathBuf::from(home).join(".vibeui").join("arena-votes.json");
+    let votes: Vec<ArenaVote> = if path.exists() {
+        let data = std::fs::read_to_string(&path).unwrap_or_else(|_| "[]".into());
+        serde_json::from_str(&data).unwrap_or_default()
+    } else {
+        Vec::new()
+    };
+
+    // Compute per-provider stats from vote history
+    let mut stats_map: std::collections::HashMap<String, (u32, u32, u32)> =
+        std::collections::HashMap::new();
+    for v in &votes {
+        let entry_a = stats_map.entry(v.provider_a.clone()).or_insert((0, 0, 0));
+        match v.winner.as_str() {
+            "a" => { entry_a.0 += 1; }
+            "b" => { entry_a.1 += 1; }
+            "tie" => { entry_a.2 += 1; }
+            _ => {} // "both_bad" — no score change
+        }
+        let entry_b = stats_map.entry(v.provider_b.clone()).or_insert((0, 0, 0));
+        match v.winner.as_str() {
+            "a" => { entry_b.1 += 1; }
+            "b" => { entry_b.0 += 1; }
+            "tie" => { entry_b.2 += 1; }
+            _ => {}
+        }
+    }
+    let stats: Vec<ArenaStats> = stats_map
+        .into_iter()
+        .map(|(provider, (wins, losses, ties))| {
+            let total = wins + losses + ties;
+            let win_rate = if total > 0 {
+                (wins as f64) / (total as f64)
+            } else {
+                0.0
+            };
+            ArenaStats { provider, wins, losses, ties, total, win_rate }
+        })
+        .collect();
+
+    Ok((votes, stats))
 }
 
 // ── Unit tests ────────────────────────────────────────────────────────────────

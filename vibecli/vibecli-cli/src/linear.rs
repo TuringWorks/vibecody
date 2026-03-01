@@ -55,14 +55,12 @@ pub struct LinearClient {
 impl LinearClient {
     /// Create a client from API key.
     pub fn new(api_key: String) -> Self {
-        Self {
-            api_key,
-            client: reqwest::Client::builder()
-                .user_agent("VibeCLI/1.0")
-                .timeout(std::time::Duration::from_secs(15))
-                .build()
-                .expect("HTTP client"),
-        }
+        let client = reqwest::Client::builder()
+            .user_agent("VibeCLI/1.0")
+            .timeout(std::time::Duration::from_secs(15))
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
+        Self { api_key, client }
     }
 
     /// Try to resolve the API key from env or config.

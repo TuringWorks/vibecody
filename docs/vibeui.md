@@ -131,6 +131,7 @@ Type `@` in the chat input to open the **Context Picker** — a dropdown that le
 | `@codebase:<query>` | Semantic codebase search via `CodebaseIndex` |
 | `@github:owner/repo#N` | Fetch GitHub issue/PR title, state, author, labels, body |
 | `@jira:PROJECT-123` | Fetch Jira issue summary, status, assignee, description |
+| `@html-selected` | Inject the last HTML element selected via Browser panel inspect mode |
 
 The backend resolves references via `resolve_at_references()` in `commands.rs` and injects them into the system prompt.
 
@@ -310,6 +311,7 @@ The AI panel (toggle with **💬 AI Chat** in the header) has the following tabs
 | **🧭 Steering** | `SteeringPanel` | Workspace/global steering files with templates |
 | **🧪 Tests** | `TestPanel` | Test runner with framework detection, live log stream, filter tabs, pass/fail badges |
 | **👥 Collab** | `CollabPanel` | CRDT multiplayer collaboration: create/join rooms, peer list with color indicators, copy invite link |
+| **🥊 Arena** | `ArenaPanel` | Blind A/B model comparison: hidden identities, vote (A/B/Tie/Both bad), reveal, persistent leaderboard |
 
 ---
 
@@ -330,7 +332,8 @@ The AI panel (toggle with **💬 AI Chat** in the header) has the following tabs
 | `ChatTabManager` | `src/components/ChatTabManager.tsx` | Multi-tab chat manager with per-tab provider selection |
 | `InlineChat` | `src/components/InlineChat.tsx` | Cmd+K floating edit overlay with Accept/Cancel |
 | `BackgroundJobsPanel` | `src/components/BackgroundJobsPanel.tsx` | VibeCLI daemon job queue with live SSE stream |
-| `BrowserPanel` | `src/components/BrowserPanel.tsx` | Embedded iframe browser for localhost previews |
+| `BrowserPanel` | `src/components/BrowserPanel.tsx` | Embedded iframe browser with inspect mode (🔍), element selection, Send to Chat |
+| `ArenaPanel` | `src/components/ArenaPanel.tsx` | Blind A/B model comparison with voting, leaderboard, and Send winner to Chat |
 | `SettingsPanel` | `src/components/SettingsPanel.tsx` | BYOK API key management for all cloud providers |
 | `SpecPanel` | `src/components/SpecPanel.tsx` | Spec-driven development with AI task generation |
 | `WorkflowPanel` | `src/components/WorkflowPanel.tsx` | Code Complete 8-stage workflow with pipeline visualization and checklists |
@@ -345,7 +348,7 @@ The AI panel (toggle with **💬 AI Chat** in the header) has the following tabs
 | `TestPanel` | `src/components/TestPanel.tsx` | Test runner with framework detection, ▶ Run Tests, live log stream, filter tabs, pass/fail badges |
 | `CollabPanel` | `src/components/CollabPanel.tsx` | CRDT multiplayer session management: create/join rooms, peer list with color indicators, invite link |
 | `DatabasePanel` | `src/components/DatabasePanel.tsx` | SQLite/PostgreSQL browser with AI query generation |
-| `ContextPicker` | `src/components/ContextPicker.tsx` | @ context dropdown; file, folder, git, web, terminal, symbol, github, jira picker |
+| `ContextPicker` | `src/components/ContextPicker.tsx` | @ context dropdown; file, folder, git, web, terminal, symbol, github, jira, html-selected picker |
 | `GitPanel` | `src/components/GitPanel.tsx` | Full Git workflow panel; PR review; AI commit message button (✨ AI) |
 | `Terminal` | `src/components/Terminal.tsx` | xterm.js terminal integration |
 | `CommandPalette` | `src/components/CommandPalette.tsx` | Fuzzy search command palette |
@@ -584,6 +587,13 @@ After deploying, enter a custom domain in the **🌐 Custom Domain** field:
 |---------|-------------|
 | `send_http_request(method, url, headers, body?)` | Send HTTP request with 30s timeout, return `HttpResponseData` (status, headers, body, duration) |
 | `discover_api_endpoints(workspace)` | Grep workspace for Express/Axum/FastAPI/Spring route patterns (max 60 results) |
+
+### Arena Mode (Blind A/B Comparison)
+
+| Command | Description |
+|---------|-------------|
+| `save_arena_vote(vote)` | Persist a blind vote to `~/.vibeui/arena-votes.json` (provider A/B, winner, prompt, timestamp) |
+| `get_arena_history()` | Load all arena votes and compute per-provider stats (wins/losses/ties/win-rate) |
 
 ### Multiplayer Collaboration
 

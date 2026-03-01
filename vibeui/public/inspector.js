@@ -100,6 +100,15 @@
             reactComponent: getReactComponent(el),
             boundingRect: { top: rect.top, left: rect.left, width: rect.width, height: rect.height },
             styles: getStyles(el),
+            parentChain: (function() {
+                const chain = [];
+                let p = el.parentElement;
+                for (let i = 0; i < 3 && p && p !== document.body; i++) {
+                    chain.push(p.tagName.toLowerCase() + (p.className ? '.' + Array.from(p.classList).slice(0, 1).join('.') : ''));
+                    p = p.parentElement;
+                }
+                return chain;
+            })(),
         };
     }
 

@@ -122,6 +122,9 @@ In REPL mode, the following slash commands are available:
 | `/redteam report <id>` | Generate a full pentest report |
 | `/redteam config` | Show current red team configuration |
 | `/test [command]` | Run project tests (auto-detects cargo/npm/pytest/go); optional custom command override |
+| `/arena compare <p1> <p2> [prompt]` | Blind A/B model comparison — hidden identities, vote, reveal |
+| `/arena stats` | Show arena leaderboard (wins/losses/ties per provider) |
+| `/arena history` | Show arena vote history |
 | `/config` | Display current configuration |
 | `/help` | Show command reference |
 | `/exit` or `/quit` | Exit VibeCLI |

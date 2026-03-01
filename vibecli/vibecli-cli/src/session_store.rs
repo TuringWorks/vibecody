@@ -583,9 +583,10 @@ pub fn render_session_html(detail: &SessionDetail) -> String {
                 "user"   => "user",
                 _        => "assistant",
             };
-            // Truncate very long messages
+            // Truncate very long messages (char-safe)
             let preview = if msg.content.len() > 4000 {
-                format!("{}…\n[truncated {} chars]", &msg.content[..4000], msg.content.len())
+                let truncated: String = msg.content.chars().take(4000).collect();
+                format!("{}…\n[truncated {} chars]", truncated, msg.content.chars().count())
             } else {
                 msg.content.clone()
             };

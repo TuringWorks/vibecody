@@ -24,6 +24,7 @@ const SPECIAL_ITEMS = [
     { label: "@codebase:", description: "Semantic search over the codebase" },
     { label: "@github:", description: "Fetch a GitHub issue or PR (e.g. @github:owner/repo#42)" },
     { label: "@jira:", description: "Fetch a Jira issue (e.g. @jira:PROJ-123) — needs JIRA_BASE_URL env" },
+    { label: "@html-selected", description: "Inject the last HTML element selected in the Browser panel" },
 ];
 
 export function ContextPicker({ query, onSelect, onClose }: ContextPickerProps) {
@@ -41,7 +42,8 @@ export function ContextPicker({ query, onSelect, onClose }: ContextPickerProps) 
             query.startsWith("symbol:") ||
             query.startsWith("codebase:") ||
             query.startsWith("github:") ||
-        query.startsWith("jira:")
+            query.startsWith("jira:") ||
+            query.startsWith("html-selected")
         ) {
             setFiles([]);
             return;

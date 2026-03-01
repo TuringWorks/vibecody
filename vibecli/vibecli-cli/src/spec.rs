@@ -255,22 +255,24 @@ impl SpecManager {
         // Parse task list from body
         for line in body.lines() {
             let line = line.trim();
-            if line.starts_with("- [") && line.len() > 5 {
-                let done = line.starts_with("- [x]");
-                let rest = &line[5..].trim();
-                let (id, desc) = if let Some(stripped) = rest.strip_prefix("**") {
-                    if let Some(idx) = stripped.find("**:") {
-                        let id_str = &stripped[..idx];
-                        let desc = stripped[idx + 3..].trim();
-                        (id_str.parse::<u32>().unwrap_or(tasks.len() as u32 + 1), desc.to_string())
-                    } else {
-                        (tasks.len() as u32 + 1, rest.to_string())
-                    }
+            let (rest, done) = if let Some(r) = line.strip_prefix("- [x] ") {
+                (r.trim(), true)
+            } else if let Some(r) = line.strip_prefix("- [ ] ") {
+                (r.trim(), false)
+            } else {
+                continue;
+            };
+            if rest.is_empty() { continue; }
+            let (id, desc) = if let Some(stripped) = rest.strip_prefix("**") {
+                if let Some((id_part, desc_part)) = stripped.split_once("**:") {
+                    (id_part.parse::<u32>().unwrap_or(tasks.len() as u32 + 1), desc_part.trim().to_string())
                 } else {
                     (tasks.len() as u32 + 1, rest.to_string())
-                };
-                tasks.push(SpecTask { id, description: desc, done });
-            }
+                }
+            } else {
+                (tasks.len() as u32 + 1, rest.to_string())
+            };
+            tasks.push(SpecTask { id, description: desc, done });
         }
 
         Ok(Spec {

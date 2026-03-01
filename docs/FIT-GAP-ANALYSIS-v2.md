@@ -84,6 +84,8 @@
 | Code coverage UI | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
 | Multi-model comparison | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | HTTP Playground | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Arena Mode (blind A/B voting) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
+| Live Preview element selection | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
 
 ---
 
@@ -533,6 +535,9 @@ All gaps from Phases 16–44 are now resolved. Only low-impact infrastructure ga
 | 44 | HTTP Playground | ✅ HttpPlayground.tsx + endpoint discovery |
 | 44 | Subagent tree tracking | ✅ session_store.rs parent/depth/max_depth |
 | 44 | Messaging gateway expansion | ✅ +6 platforms (Signal/Matrix/Twilio/WhatsApp/iMessage/Teams) |
+| 44 | Arena Mode (blind A/B voting) | ✅ ArenaPanel.tsx + save_arena_vote + leaderboard |
+| 44 | Live Preview element selection | ✅ BrowserPanel inspect mode + inspector.js parentChain + @html-selected |
+| 44 | Recursive subagent tree depth/counter | ✅ AgentContext depth/counter + spawn_sub_agent enforcement |
 
 ---
 
@@ -892,4 +897,4 @@ covering supply chain security, daemon hardening, data protection, and defense-i
 
 ---
 
-*Updated 2026-02-28 — reflects all phases 12–44 complete, plus full security hardening audit (P0–P3, 20 items), 9-platform messaging gateway (Telegram/Discord/Slack/Signal/Matrix/Twilio SMS/WhatsApp/iMessage/Teams), code coverage UI, multi-model comparison, HTTP playground, and subagent tree tracking. All file paths reference the VibeCody monorepo at github.com/TuringWorks/vibecody.*
+*Updated 2026-02-28 — reflects all phases 12–44 complete, plus full security hardening audit (P0–P3, 20 items), 9-platform messaging gateway (Telegram/Discord/Slack/Signal/Matrix/Twilio SMS/WhatsApp/iMessage/Teams), code coverage UI, multi-model comparison, HTTP playground, subagent tree tracking, Arena Mode (blind A/B voting with leaderboard), and Live Preview element selection with inspect mode. All file paths reference the VibeCody monorepo at github.com/TuringWorks/vibecody.*

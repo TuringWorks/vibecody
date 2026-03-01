@@ -871,18 +871,21 @@ async fn shutdown_signal() {
 
     #[cfg(unix)]
     {
-        let mut sigterm =
-            tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
-                .expect("failed to install SIGTERM handler");
-        tokio::select! {
-            _ = ctrl_c => { eprintln!("\n[vibecli serve] Received SIGINT, shutting down..."); }
-            _ = sigterm.recv() => { eprintln!("[vibecli serve] Received SIGTERM, shutting down..."); }
+        if let Ok(mut sigterm) = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()) {
+            tokio::select! {
+                _ = ctrl_c => { eprintln!("\n[vibecli serve] Received SIGINT, shutting down..."); }
+                _ = sigterm.recv() => { eprintln!("[vibecli serve] Received SIGTERM, shutting down..."); }
+            }
+        } else {
+            // Fallback to Ctrl+C only if SIGTERM handler fails
+            let _ = ctrl_c.await;
+            eprintln!("\n[vibecli serve] Received SIGINT, shutting down...");
         }
     }
 
     #[cfg(not(unix))]
     {
-        ctrl_c.await.expect("failed to install Ctrl+C handler");
+        let _ = ctrl_c.await;
         eprintln!("\n[vibecli serve] Received Ctrl+C, shutting down...");
     }
 }

@@ -254,8 +254,7 @@ impl AIProvider for OpenAIProvider {
                 let mut content = String::new();
                 
                 for line in chunk_str.lines() {
-                    if line.starts_with("data: ") {
-                        let data = &line[6..];
+                    if let Some(data) = line.strip_prefix("data: ") {
                         if data == "[DONE]" {
                             continue;
                         }

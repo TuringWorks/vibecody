@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useToast } from '../hooks/useToast';
 import { Toaster } from './Toaster';
@@ -17,6 +17,75 @@ export function BrowserPanel() {
     const [history, setHistory] = useState<string[]>([]);
     const [histIdx, setHistIdx] = useState(-1);
     const iframeRef = useRef<HTMLIFrameElement>(null);
+    const [inspectMode, setInspectMode] = useState(false);
+    const [selectedElement, setSelectedElement] = useState<{
+        selector: string;
+        outerHTML: string;
+        tagName: string;
+        reactComponent: string | null;
+        styles: Record<string, string>;
+        parentChain?: string[];
+    } | null>(null);
+
+    // Listen for element-selected postMessages from the inspector
+    useEffect(() => {
+        const handler = (e: MessageEvent) => {
+            if (e.data?.type === 'vibe:element-selected') {
+                setSelectedElement(e.data.data);
+            }
+        };
+        window.addEventListener('message', handler);
+        return () => window.removeEventListener('message', handler);
+    }, []);
+
+    const toggleInspect = () => {
+        const iframe = iframeRef.current;
+        if (!iframe?.contentWindow) return;
+
+        if (!inspectMode) {
+            // Only allow inspect on localhost URLs
+            if (!iframeSrc.includes('localhost') && !iframeSrc.includes('127.0.0.1')) {
+                toast.error('Inspect mode only works on localhost URLs');
+                return;
+            }
+            // Inject inspector.js
+            try {
+                const script = document.createElement('script');
+                script.src = '/inspector.js';
+                iframe.contentDocument?.body.appendChild(script);
+            } catch {
+                toast.error('Cannot inject inspector — cross-origin restriction');
+                return;
+            }
+        } else {
+            // Deactivate inspector
+            try {
+                iframe.contentWindow.postMessage({ type: 'vibe:deactivate-inspector' }, '*');
+            } catch { /* ignore */ }
+            setSelectedElement(null);
+        }
+        setInspectMode(!inspectMode);
+    };
+
+    const sendToChat = () => {
+        if (!selectedElement) return;
+        const chain = selectedElement.parentChain?.join(' > ') || '';
+        const styleStr = Object.entries(selectedElement.styles || {})
+            .filter(([, v]) => v && v !== 'normal' && v !== 'rgba(0, 0, 0, 0)')
+            .map(([k, v]) => `${k}=${v}`)
+            .slice(0, 6)
+            .join(', ');
+        const context = [
+            `@html-selected: <${selectedElement.tagName}> ${selectedElement.selector}`,
+            chain ? `Parent chain: ${chain}` : '',
+            selectedElement.reactComponent ? `React: <${selectedElement.reactComponent}>` : '',
+            styleStr ? `Styles: ${styleStr}` : '',
+            `HTML:\n${selectedElement.outerHTML.slice(0, 500)}`,
+        ].filter(Boolean).join('\n');
+
+        window.dispatchEvent(new CustomEvent('vibeui:inject-context', { detail: context }));
+        toast.success('Element sent to Chat');
+    };
 
     const navigate = (url: string) => {
         const target = url.startsWith('http') ? url : `http://${url}`;
@@ -110,6 +179,19 @@ export function BrowserPanel() {
                     title="Open in system browser"
                     style={{ ...navBtnStyle, fontSize: '11px', padding: '3px 8px' }}
                 >↗</button>
+
+                <div style={{ width: '1px', height: '16px', background: 'var(--border-color)', margin: '0 4px' }} />
+                <button
+                    onClick={toggleInspect}
+                    disabled={!iframeSrc}
+                    title={inspectMode ? "Disable Inspect" : "Enable Inspect"}
+                    style={{
+                        ...navBtnStyle,
+                        background: inspectMode ? 'rgba(99,102,241,0.2)' : 'none',
+                        borderColor: inspectMode ? '#6366f1' : 'var(--border-color)',
+                        color: inspectMode ? '#6366f1' : 'var(--text-primary)',
+                    }}
+                >🔍</button>
             </div>
 
             {/* Quick-launch chips */}
@@ -151,6 +233,48 @@ export function BrowserPanel() {
                     }}>
                         <div style={{ fontSize: '32px' }}>🌐</div>
                         <div>Enter a URL or click a quick-launch chip to preview</div>
+                    </div>
+                )}
+                {selectedElement && inspectMode && (
+                    <div style={{
+                        position: 'absolute', bottom: 0, left: 0, right: 0,
+                        background: 'var(--bg-secondary)', borderTop: '1px solid var(--border-color)',
+                        padding: '8px 12px', fontSize: '12px', fontFamily: 'monospace',
+                        maxHeight: '180px', overflowY: 'auto',
+                    }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                            <span style={{ fontWeight: 'bold', color: '#6366f1' }}>
+                                &lt;{selectedElement.tagName}&gt;
+                                {selectedElement.reactComponent && (
+                                    <span style={{ color: '#ce93d8', marginLeft: '8px' }}>
+                                        React: &lt;{selectedElement.reactComponent}&gt;
+                                    </span>
+                                )}
+                            </span>
+                            <button
+                                onClick={sendToChat}
+                                style={{
+                                    background: 'var(--accent-blue, #007acc)', color: '#fff',
+                                    border: 'none', borderRadius: '4px', padding: '3px 10px',
+                                    cursor: 'pointer', fontSize: '11px',
+                                }}
+                            >Send to Chat</button>
+                        </div>
+                        <div style={{ color: 'var(--text-secondary)', marginBottom: '2px' }}>
+                            {selectedElement.selector}
+                        </div>
+                        {selectedElement.parentChain && selectedElement.parentChain.length > 0 && (
+                            <div style={{ color: 'var(--text-muted, #888)', marginBottom: '2px' }}>
+                                Chain: {selectedElement.parentChain.join(' > ')}
+                            </div>
+                        )}
+                        <pre style={{
+                            margin: '4px 0 0 0', padding: '6px', background: 'var(--bg-tertiary)',
+                            borderRadius: '3px', fontSize: '11px', whiteSpace: 'pre-wrap',
+                            maxHeight: '80px', overflowY: 'auto', color: 'var(--text-primary)',
+                        }}>
+                            {selectedElement.outerHTML.slice(0, 500)}
+                        </pre>
                     </div>
                 )}
             </div>

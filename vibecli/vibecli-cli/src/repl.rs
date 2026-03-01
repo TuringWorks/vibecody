@@ -11,6 +11,7 @@ use std::borrow::Cow;
 static COMMANDS: &[&str] = &[
     "/agent",
     "/agents",
+    "/arena",
     "/apply",
     "/chat",
     "/config",
@@ -90,6 +91,9 @@ static SCHEDULE_SUBS: &[&str] = &["every", "list", "cancel"];
 /// Sub-commands for `/workflow <sub>`
 static WORKFLOW_SUBS: &[&str] = &["new", "list", "show", "advance", "check", "generate"];
 
+/// Sub-commands for `/arena <sub>`
+static ARENA_SUBS: &[&str] = &["compare", "stats", "history"];
+
 /// Sub-commands for `/redteam <sub>`
 static REDTEAM_SUBS: &[&str] = &["scan", "list", "show", "report", "config"];
 
@@ -102,6 +106,7 @@ static THEME_NAMES: &[&str] = &["dark", "light", "monokai", "solarized", "nord"]
 fn command_hint(cmd: &str) -> Option<&'static str> {
     match cmd {
         "/agent"   => Some("<task description>"),
+        "/arena"   => Some("[compare <p1> <p2>|stats|history]  — blind A/B model comparison arena"),
         "/plan"    => Some("<task description>"),
         "/chat"    => Some("<message>"),
         "/generate"=> Some("<description>"),
@@ -193,6 +198,7 @@ fn complete_slash(line: &str) -> Option<(usize, Vec<Pair>)> {
         // ── Space typed: complete sub-commands or file paths ───────────────
         Some(after_space) => {
             let subs: Option<&[&str]> = match first {
+                "/arena"    => Some(ARENA_SUBS),
                 "/profile"  => Some(PROFILE_SUBS),
                 "/plugin"   => Some(PLUGIN_SUBS),
                 "/memory"   => Some(MEMORY_SUBS),
