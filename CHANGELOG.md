@@ -8,6 +8,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **Phase 45**: Frontend panels — `CostPanel.tsx` (💰 Cost tab): per-provider cost breakdown
+  chart, total spend summary, budget limit input, cost history table with provider/model/tokens/
+  cost columns, clear history button. `AutofixPanel.tsx` (🔧 Autofix tab): auto-detect linter
+  framework, run fix mode, diff preview with file count, apply/revert buttons. `GitPanel.tsx`
+  gains 3 AI Git tools: 🌿 AI Branch Name (task input + suggest + copy), 📄 Generate Changelog
+  (since-ref input + editable markdown result + copy), ⚡ Resolve Merge Conflict (file path +
+  conflict textarea + AI resolve + copy resolution). `/autofix` REPL command added.
 - **Phase 45**: Cost & Performance Observatory — `record_cost_entry` appends AI call cost
   records to `~/.vibeui/cost-log.jsonl` (JSONL); `get_cost_metrics` loads entries, computes
   per-provider aggregates (`ProviderCostSummary`), and returns total cost/tokens plus

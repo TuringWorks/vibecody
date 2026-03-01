@@ -315,6 +315,8 @@ The AI panel (toggle with **💬 AI Chat** in the header) has the following tabs
 | **📊 Coverage** | `CoveragePanel` | Code coverage: auto-detect tool, run coverage, per-file % bars, uncovered lines, filter tabs, raw output |
 | **⚖️ Compare** | `MultiModelPanel` | Side-by-side dual-provider comparison: provider/model selectors, timing/tokens, Ctrl+Enter |
 | **🌐 HTTP** | `HttpPlayground` | HTTP request builder: method/URL/headers/body, quick-launch localhost, route discovery, response viewer with JSON pretty-print |
+| **💰 Cost** | `CostPanel` | AI cost observatory: per-provider breakdown, total spend, budget limit, cost history table, clear history |
+| **🔧 Autofix** | `AutofixPanel` | Codemod auto-fix: detect linter (clippy/eslint/ruff/gofmt/prettier), run fix, diff preview, apply/revert |
 
 ---
 
@@ -337,6 +339,8 @@ The AI panel (toggle with **💬 AI Chat** in the header) has the following tabs
 | `BackgroundJobsPanel` | `src/components/BackgroundJobsPanel.tsx` | VibeCLI daemon job queue with live SSE stream |
 | `BrowserPanel` | `src/components/BrowserPanel.tsx` | Embedded iframe browser with inspect mode (🔍), element selection, Send to Chat |
 | `ArenaPanel` | `src/components/ArenaPanel.tsx` | Blind A/B model comparison with voting, leaderboard, and Send winner to Chat |
+| `CostPanel` | `src/components/CostPanel.tsx` | AI cost observatory with per-provider breakdown, budget limit, and history |
+| `AutofixPanel` | `src/components/AutofixPanel.tsx` | Codemod auto-fix with linter detection, diff preview, and apply/revert |
 | `SettingsPanel` | `src/components/SettingsPanel.tsx` | BYOK API key management for all cloud providers |
 | `SpecPanel` | `src/components/SpecPanel.tsx` | Spec-driven development with AI task generation |
 | `WorkflowPanel` | `src/components/WorkflowPanel.tsx` | Code Complete 8-stage workflow with pipeline visualization and checklists |

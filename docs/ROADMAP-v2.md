@@ -1281,6 +1281,10 @@ Real-time collaborative editing powered by [yrs](https://github.com/y-crdt/y-crd
 | Cost & Performance Observatory | ✅ | `record_cost_entry` appends to `~/.vibeui/cost-log.jsonl` (JSONL); `get_cost_metrics` computes per-provider aggregates + budget remaining; `set_cost_limit` + `clear_cost_history`; uses `TokenUsage::estimated_cost_usd()` pricing |
 | AI Git Workflow | ✅ | `suggest_branch_name` (LLM-generated from task description); `resolve_merge_conflict` (AI merge resolution); `generate_changelog` (`git log` → Keep-a-Changelog format via LLM) |
 | Codemod & Lint Auto-Fix | ✅ | `run_autofix` auto-detects clippy/eslint/ruff/gofmt/prettier, runs fix mode, returns `AutofixResult` with diff + file count; `apply_autofix` stages or reverts via git |
+| Frontend: CostPanel | ✅ | `CostPanel.tsx` (💰 Cost tab) — per-provider cost breakdown, total spend, budget limit input, cost history table, clear history |
+| Frontend: AutofixPanel | ✅ | `AutofixPanel.tsx` (🔧 Autofix tab) — auto-detect linter, run fix, diff preview with file count, apply/revert |
+| Frontend: AI Git tools | ✅ | `GitPanel.tsx` — 🌿 AI Branch Name (suggest + copy), 📄 Generate Changelog (since-ref + editable result), ⚡ Resolve Merge Conflict (AI resolve + copy) |
+| VibeCLI /autofix | ✅ | `/autofix` added to REPL COMMANDS array |
 | UTF-8 safety | ✅ | Char-boundary-safe string slicing across 6 Rust files (tool_executor, tools, trace, commands, tui/mod, vim_editor); prevents panics on multi-byte characters |
 
 ---
