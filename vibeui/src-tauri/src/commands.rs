@@ -3562,10 +3562,8 @@ fn parse_spec_file(path: &std::path::Path) -> Option<SpecDto> {
             let done = line.starts_with("- [x]");
             let rest = rest.trim();
             let (id, desc) = if let Some(stripped) = rest.strip_prefix("**") {
-                if let Some(idx) = stripped.find("**:") {
-                    let id_str = &stripped[..idx];
-                    let desc = stripped[idx + 3..].trim();
-                    (id_str.parse::<u32>().unwrap_or(tasks.len() as u32 + 1), desc.to_string())
+                if let Some((id_str, after)) = stripped.split_once("**:") {
+                    (id_str.parse::<u32>().unwrap_or(tasks.len() as u32 + 1), after.trim().to_string())
                 } else {
                     (tasks.len() as u32 + 1, rest.to_string())
                 }
@@ -3672,12 +3670,13 @@ Be concise and focus on implementable tasks. Start directly with the content (no
     let mut task_id = 1u32;
     for line in body.lines() {
         let line = line.trim();
-        if line.starts_with("- [ ]") || line.starts_with("- [x]") {
+        let checkbox_rest = line.strip_prefix("- [x] ").or_else(|| line.strip_prefix("- [ ] "));
+        if let Some(rest) = checkbox_rest {
             let done = line.starts_with("- [x]");
-            let rest = &line[5..].trim();
+            let rest = rest.trim();
             let desc = if let Some(stripped) = rest.strip_prefix("**") {
-                if let Some(idx) = stripped.find("**:") {
-                    stripped[idx + 3..].trim().to_string()
+                if let Some((_id_part, after)) = stripped.split_once("**:") {
+                    after.trim().to_string()
                 } else {
                     rest.to_string()
                 }
@@ -3884,10 +3883,8 @@ fn flush_workflow_stage_section(stage: &mut WorkflowStageDto, lines: &[String]) 
             let done = trimmed.starts_with("- [x]");
             let rest = rest.trim();
             let (id, desc) = if let Some(stripped) = rest.strip_prefix("**") {
-                if let Some(idx) = stripped.find("**:") {
-                    let id_str = &stripped[..idx];
-                    let d = stripped[idx + 3..].trim();
-                    (id_str.parse::<u32>().unwrap_or(stage.checklist.len() as u32 + 1), d.to_string())
+                if let Some((id_str, after)) = stripped.split_once("**:") {
+                    (id_str.parse::<u32>().unwrap_or(stage.checklist.len() as u32 + 1), after.trim().to_string())
                 } else {
                     (stage.checklist.len() as u32 + 1, rest.to_string())
                 }
@@ -6589,8 +6586,8 @@ pub async fn set_cost_limit(limit_usd: Option<f64>) -> Result<(), String> {
     let path = cost_config_path();
     if let Some(p) = path.parent() { let _ = std::fs::create_dir_all(p); }
     let json = serde_json::json!({ "budget_limit_usd": limit_usd });
-    std::fs::write(&path, serde_json::to_string_pretty(&json).unwrap())
-        .map_err(|e| e.to_string())
+    let serialized = serde_json::to_string_pretty(&json).map_err(|e| e.to_string())?;
+    std::fs::write(&path, serialized).map_err(|e| e.to_string())
 }
 
 /// Clear all cost history.

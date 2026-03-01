@@ -693,7 +693,7 @@ async fn main() -> Result<()> {
         let sessions = list_traces(&trace_dir);
         if let Some(session) = sessions.iter().find(|s| s.session_id.starts_with(sid.as_str())) {
             println!("📋 Session {} found ({} trace steps)", &session.session_id, session.step_count);
-            println!("Use: vibecli --agent \"<task to continue>\" --resume {}", &session.session_id[..8]);
+            println!("Use: vibecli --agent \"<task to continue>\" --resume {}", &session.session_id[..session.session_id.len().min(8)]);
         } else {
             eprintln!("❌ No session found with ID prefix: {}", sid);
         }
@@ -860,7 +860,7 @@ async fn main() -> Result<()> {
                                             } else {
                                                 format!("{}h ago", elapsed.as_secs() / 3600)
                                             };
-                                            println!("  {} — {} steps — {}", &s.session_id[..8], s.step_count, age);
+                                            println!("  {} — {} steps — {}", &s.session_id[..s.session_id.len().min(8)], s.step_count, age);
                                         }
                                         println!("\nUse: /resume <id_prefix> <task to continue>");
                                     }
@@ -935,7 +935,7 @@ async fn main() -> Result<()> {
                                             } else {
                                                 format!("{}d ago", elapsed.as_secs() / 86400)
                                             };
-                                            println!("  {} — {} steps — {}", &session.session_id[..8], session.step_count, age);
+                                            println!("  {} — {} steps — {}", &session.session_id[..session.session_id.len().min(8)], session.step_count, age);
                                         }
                                         println!("\nUse: /trace view <id_prefix>\n");
                                     }
