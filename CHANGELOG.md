@@ -7,6 +7,36 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Accessibility (WCAG 2.1 AA)
+- **Keyboard shortcuts**: 8 new shortcuts — `Cmd+J` toggle AI panel, `Cmd+`` toggle terminal,
+  `Cmd+Shift+P` command palette (VS Code alias), `Cmd+1`–`Cmd+9` switch AI tab, `Cmd+Shift+E`
+  focus explorer, `Cmd+Shift+G` focus git panel (`App.tsx`).
+- **Focus-visible outlines**: All interactive elements show 2px blue outline on keyboard focus
+  (`:focus-visible`), suppressed on mouse (`:focus`) — meets WCAG 2.4.7 (`App.css`).
+- **Command palette ARIA**: `role="dialog"`, `role="combobox"` on input, `role="listbox"` on list,
+  `role="option"` on items, `aria-activedescendant` for screen reader tracking (`CommandPalette.tsx`).
+- **Modal focus trap**: Tab cycles within modal; Escape closes; previous focus restored on close;
+  `aria-modal="true"`, `aria-labelledby` (`Modal.tsx`).
+- **Agent status announcements**: `aria-live="polite"` region announces agent status changes
+  (running / complete / error / idle) to screen readers (`AgentPanel.tsx`).
+- **Skip-to-content link**: Hidden link appears on Tab focus, jumps past sidebar to main editor
+  region (`App.css` + `App.tsx`).
+- **Screen-reader utility**: `.sr-only` CSS class for visually-hidden accessible text (`App.css`).
+- **OnboardingTour component**: First-run guided tour (localStorage gate), dismissible, introduces
+  key features to new users (`OnboardingTour.tsx`).
+- **EmptyState / LoadingSpinner components**: Reusable UI primitives for consistent empty and
+  loading states across panels (`EmptyState.tsx`, `LoadingSpinner.tsx`).
+
+### Provider Hardening
+- **HTTP client timeouts (all providers)**: Every AI provider now uses `reqwest::Client::builder()`
+  with 90s request + 10s connect timeouts — Ollama, OpenAI, Claude, Gemini, Groq, OpenRouter,
+  Azure OpenAI, Bedrock, Copilot (`*.rs` in `providers/`).
+- **Copilot device flow hardening**: Token exchange and device flow use timeout-configured client;
+  error handling improved (`copilot.rs`).
+- **Gemini streaming**: Improved SSE chunk parsing and error resilience (`gemini.rs`).
+- **Agent stream buffer**: Pre-allocated `String::with_capacity(8192)` + move instead of clone
+  per token, eliminating one heap allocation per LLM token streamed (`agent.rs`).
+
 ### Performance
 - **Agent loop**: Pre-allocate `accumulated` response buffer (`String::with_capacity(8192)`)
   and move stream chunks into the event channel instead of cloning — eliminates one heap

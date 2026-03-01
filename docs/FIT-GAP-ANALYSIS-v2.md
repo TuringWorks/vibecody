@@ -4,7 +4,7 @@
 **VibeCLI competitors:** Codex CLI, Warp 2.0, Kiro, opencode, Claude Code, Aider, Cline, Continue.dev, Amazon Q Developer
 **VibeUI competitors:** Antigravity (Google), Cursor, Windsurf, Replit, Base44, Lovable, Zed AI, Void
 
-> **Status:** All Phases 12–31 ✅ complete. Phases 32–44 polish/security/features ✅ complete. Security hardening audit (P0–P3, 20 items) ✅ complete. This document reflects the current state of the codebase as of 2026-02-28.
+> **Status:** All Phases 12–31 ✅ complete. Phases 32–46 polish/security/features/accessibility ✅ complete. Security hardening audit (P0–P3, 20 items) ✅ complete. This document reflects the current state of the codebase as of 2026-03-01.
 
 ---
 
@@ -436,7 +436,7 @@ Features VibeCody has that **no competitor offers:**
 
 ## Part D — Gap Priority Matrix (Updated Status)
 
-All gaps from Phases 16–45 are now resolved. Only low-impact infrastructure gaps remain as of 2026-02-28:
+All gaps from Phases 16–46 are now resolved. Only low-impact infrastructure gaps remain as of 2026-03-01:
 
 | Gap | Impact | Status | Competitor |
 |-----|--------|--------|------------|
@@ -452,7 +452,7 @@ All gaps from Phases 16–45 are now resolved. Only low-impact infrastructure ga
 | MCP OAuth install | Medium | ✅ Phase 42 | Cursor |
 | Custom domain / publish | Medium | ✅ Phase 42 | Base44/Lovable/Replit |
 
-### Previously Closed Gaps (Phases 16–44)
+### Previously Closed Gaps (Phases 16–46)
 
 | Phase | Gap | Status |
 |-------|-----|--------|
@@ -544,6 +544,13 @@ All gaps from Phases 16–45 are now resolved. Only low-impact infrastructure ga
 | 44 | Arena Mode (blind A/B voting) | ✅ ArenaPanel.tsx + save_arena_vote + leaderboard |
 | 44 | Live Preview element selection | ✅ BrowserPanel inspect mode + inspector.js parentChain + @html-selected |
 | 44 | Recursive subagent tree depth/counter | ✅ AgentContext depth/counter + spawn_sub_agent enforcement |
+| 46 | HTTP client timeouts (all providers) | ✅ 90s/10s timeouts on Ollama, OpenAI, Claude, Gemini, Groq, OpenRouter, Azure OpenAI |
+| 46 | WCAG 2.1 AA keyboard navigation | ✅ 8 shortcuts (Cmd+J/`/Shift+P/1-9/Shift+E/G), focus-visible outlines |
+| 46 | Command palette ARIA roles | ✅ dialog/combobox/listbox/option + aria-activedescendant |
+| 46 | Modal focus trap + restore | ✅ Tab cycling, Escape close, previous focus restore, aria-modal |
+| 46 | Agent aria-live announcements | ✅ aria-live="polite" status region in AgentPanel |
+| 46 | Skip-to-content link | ✅ Hidden link appears on Tab, jumps past sidebar |
+| 46 | Onboarding tour | ✅ OnboardingTour.tsx first-run guided walkthrough |
 
 ---
 
@@ -822,7 +829,7 @@ covering supply chain security, daemon hardening, data protection, and defense-i
 |---|---------|-----|------|
 | P1-1 | Daemon accepts requests from any origin, no authentication | CORS restricted to localhost; bearer-token auth middleware on all API endpoints; token generated per-session | `serve.rs` |
 | P1-2 | Session viewer HTML may have XSS | Verified: `escape_html()` applied to all 16 user-controlled fields (already in place) | `session_store.rs` |
-| P1-3 | HTTP clients have no timeouts (resource exhaustion) | `reqwest::Client::builder()` with 90s/10s timeouts (Bedrock, Copilot); 30s/10s (BugBot) | `bedrock.rs`, `copilot.rs`, `bugbot.rs` |
+| P1-3 | HTTP clients have no timeouts (resource exhaustion) | `reqwest::Client::builder()` with 90s/10s timeouts on **all 9 providers** (Ollama, OpenAI, Claude, Gemini, Groq, OpenRouter, Azure OpenAI, Bedrock, Copilot); 30s/10s (BugBot) | `ollama.rs`, `openai.rs`, `claude.rs`, `gemini.rs`, `groq.rs`, `openrouter.rs`, `azure_openai.rs`, `bedrock.rs`, `copilot.rs`, `bugbot.rs` |
 | P1-4 | GitHub Actions use mutable tags (supply chain risk) | All 6 actions pinned to full commit SHAs with version comments | `release.yml` |
 
 ### P2 — Medium (7 items, all resolved)
@@ -908,4 +915,4 @@ covering supply chain security, daemon hardening, data protection, and defense-i
 
 ---
 
-*Updated 2026-02-28 — reflects all phases 12–44 complete, plus full security hardening audit (P0–P3, 20 items), 9-platform messaging gateway (Telegram/Discord/Slack/Signal/Matrix/Twilio SMS/WhatsApp/iMessage/Teams), code coverage UI, multi-model comparison, HTTP playground, subagent tree tracking, Arena Mode (blind A/B voting with leaderboard), and Live Preview element selection with inspect mode. All file paths reference the VibeCody monorepo at github.com/TuringWorks/vibecody.*
+*Updated 2026-03-01 — reflects all phases 12–46 complete, plus full security hardening audit (P0–P3, 20 items), WCAG 2.1 AA accessibility (keyboard nav, ARIA roles, focus traps, skip links), HTTP client timeouts on all 9 AI providers, 9-platform messaging gateway, code coverage UI, multi-model comparison, HTTP playground, cost observatory, codemod auto-fix, Arena Mode, and onboarding tour. All file paths reference the VibeCody monorepo at github.com/TuringWorks/vibecody.*

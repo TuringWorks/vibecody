@@ -1051,6 +1051,7 @@ for await (const event of agent.run('Add TypeScript strict mode to all files')) 
 | Ollama first-class | ✅ | ❌ | ❌ | partial | partial | ❌ |
 | Open source | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Rust native | ✅ | ✅ | ❌ | ❌ | ❌ | partial |
+| Provider timeout hardening | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 
 | Capability | VibeUI | Cursor | Windsurf | Antigravity |
 |-----------|--------|--------|----------|-------------|
@@ -1073,6 +1074,10 @@ for await (const event of agent.run('Add TypeScript strict mode to all files')) 
 | Cost observatory | ✅ | ❌ | ❌ | ❌ |
 | AI git workflow | ✅ | ❌ | ❌ | ❌ |
 | Codemod auto-fix | ✅ | ❌ | ❌ | ❌ |
+| WCAG 2.1 AA accessibility | ✅ | partial | partial | partial |
+| Keyboard shortcuts (8+) | ✅ | ✅ | ✅ | partial |
+| Onboarding tour | ✅ | ✅ | ❌ | ❌ |
+| Provider timeout hardening | ✅ | ❌ | ❌ | ❌ |
 
 ---
 
@@ -1287,6 +1292,24 @@ Real-time collaborative editing powered by [yrs](https://github.com/y-crdt/y-crd
 | VibeCLI /autofix | ✅ | `/autofix` added to REPL COMMANDS array |
 | UTF-8 safety | ✅ | Char-boundary-safe string slicing across 6 Rust files (tool_executor, tools, trace, commands, tui/mod, vim_editor); prevents panics on multi-byte characters |
 
+## 7.17 Phase 46 — Provider Hardening + WCAG 2.1 AA Accessibility ✅
+
+**Status:** Complete
+
+| Item | Status | Details |
+|------|--------|---------|
+| HTTP client timeouts (all providers) | ✅ | Every AI provider uses `reqwest::Client::builder()` with 90s request + 10s connect timeouts — Ollama, OpenAI, Claude, Gemini, Groq, OpenRouter, Azure OpenAI (previously only Bedrock, Copilot, BugBot had timeouts) |
+| Copilot device flow hardening | ✅ | Token exchange and device flow use timeout-configured client; improved error handling (`copilot.rs`) |
+| Gemini streaming improvements | ✅ | Improved SSE chunk parsing and error resilience (`gemini.rs`) |
+| Agent stream buffer optimization | ✅ | Pre-allocated `String::with_capacity(8192)` + move instead of clone per LLM token (`agent.rs`) |
+| WCAG 2.1 AA keyboard navigation | ✅ | 8 new keyboard shortcuts: `Cmd+J` AI panel, `Cmd+`` terminal, `Cmd+Shift+P` palette, `Cmd+1-9` AI tabs, `Cmd+Shift+E` explorer, `Cmd+Shift+G` git; `focus-visible` outlines on all interactive elements |
+| Command palette ARIA | ✅ | `role="dialog"`, `role="combobox"`, `role="listbox"`, `role="option"`, `aria-activedescendant` for screen reader navigation (`CommandPalette.tsx`) |
+| Modal focus trap | ✅ | Tab cycles within modal; Escape closes; previous focus restored; `aria-modal`, `aria-labelledby` (`Modal.tsx`) |
+| Agent status announcements | ✅ | `aria-live="polite"` region announces status changes to screen readers (`AgentPanel.tsx`) |
+| Skip-to-content link | ✅ | Hidden link appears on Tab focus, jumps past sidebar to editor (`App.css` + `App.tsx`) |
+| OnboardingTour component | ✅ | First-run guided tour (localStorage gate), dismissible (`OnboardingTour.tsx`, 116 lines) |
+| EmptyState + LoadingSpinner | ✅ | Reusable UI primitives for consistent empty/loading states (`EmptyState.tsx`, `LoadingSpinner.tsx`) |
+
 ---
 
 ## 8. VibeCody Wins — Competitive Position
@@ -1305,3 +1328,5 @@ With all phases complete, VibeCody is the **only** developer toolchain that comb
 |8.| **Privacy by design** | embeddings computed locally via Ollama, code never leaves your machine |
 |9.| **Shell environment policy** | production-grade CI env control matching Codex CLI |
 |10.| **Artifacts + Manager View** | Antigravity-style orchestration in an open-source tool |
+|11.| **WCAG 2.1 AA accessible** | focus traps, ARIA roles, keyboard nav, skip links — no competitor matches this |
+|12.| **Provider hardening** | HTTP timeouts on every provider; no silent hangs on slow/down APIs |

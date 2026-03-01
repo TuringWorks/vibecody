@@ -362,6 +362,9 @@ The AI panel (toggle with **💬 AI Chat** in the header) has the following tabs
 | `ThemeToggle` | `src/components/ThemeToggle.tsx` | Dark/light theme switcher |
 | `Modal` | `src/components/Modal.tsx` | Reusable modal dialog |
 | `MarkdownPreview` | `src/components/MarkdownPreview.tsx` | Rendered markdown preview |
+| `OnboardingTour` | `src/components/OnboardingTour.tsx` | First-run guided tour with feature highlights; localStorage-gated, dismissible |
+| `EmptyState` | `src/components/EmptyState.tsx` | Reusable empty state placeholder with icon and message |
+| `LoadingSpinner` | `src/components/LoadingSpinner.tsx` | Reusable loading spinner with optional label |
 
 ---
 
@@ -819,8 +822,32 @@ Tracks developer activity in a 100-event ring buffer:
 |----------|--------|
 | `Cmd/Ctrl + S` | Save file |
 | `Cmd/Ctrl + P` | Command palette |
+| `Cmd/Ctrl + K` | Command palette |
+| `Cmd/Ctrl + Shift + P` | Command palette (VS Code alias) |
+| `Cmd/Ctrl + B` | Toggle sidebar |
+| `Cmd/Ctrl + J` | Toggle AI panel |
+| `Cmd/Ctrl + `` ` `` | Toggle terminal |
+| `Cmd/Ctrl + 1`–`9` | Switch AI panel tab (Chat=1, Agent=2, Memory=3, …) |
+| `Cmd/Ctrl + Shift + E` | Focus explorer sidebar |
+| `Cmd/Ctrl + Shift + G` | Focus git sidebar |
 | `Cmd/Ctrl + Option/Alt + I` | Open DevTools |
 | `Tab` | Indent selection (in editor) |
+
+---
+
+## Accessibility (WCAG 2.1 AA)
+
+VibeUI implements WCAG 2.1 Level AA accessibility:
+
+| Feature | Description |
+|---------|-------------|
+| Focus-visible outlines | 2px blue outline on keyboard focus (`:focus-visible`); suppressed on mouse click |
+| Skip-to-content link | Hidden link appears on first Tab press, jumps past sidebar to editor region |
+| Command palette ARIA | `role="dialog"`, `combobox` input, `listbox` results, `option` items, `aria-activedescendant` |
+| Modal focus trap | Tab cycles within modal; Escape closes; previous focus restored on close |
+| Agent status announcements | `aria-live="polite"` region announces running/complete/error/idle to screen readers |
+| Screen-reader utility | `.sr-only` CSS class for visually-hidden accessible text |
+| Onboarding tour | First-run guided walkthrough (localStorage gate), dismissible |
 
 ---
 
