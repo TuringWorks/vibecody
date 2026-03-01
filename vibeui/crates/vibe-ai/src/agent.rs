@@ -238,7 +238,9 @@ impl AgentLoop {
                 step = step,
                 message_count = messages.len(),
             );
-            let mut accumulated = String::new();
+            // Pre-allocate a generous initial capacity to avoid realloc on
+            // typical-sized LLM responses (~4–8 KB).
+            let mut accumulated = String::with_capacity(8192);
             {
                 let _guard = llm_span.enter();
                 let mut stream = match self.provider.stream_chat(&messages).await {
@@ -253,8 +255,10 @@ impl AgentLoop {
                 while let Some(chunk) = stream.next().await {
                     match chunk {
                         Ok(text) => {
-                            let _ = event_tx.send(AgentEvent::StreamChunk(text.clone())).await;
+                            // Borrow `text` for accumulated first, then move it
+                            // into the channel event — avoids a clone() per chunk.
                             accumulated.push_str(&text);
+                            let _ = event_tx.send(AgentEvent::StreamChunk(text)).await;
                         }
                         Err(e) => {
                             tracing::error!(error = %e, "LLM stream error");

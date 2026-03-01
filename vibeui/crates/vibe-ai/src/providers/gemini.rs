@@ -62,7 +62,11 @@ impl GeminiProvider {
     pub fn new(config: ProviderConfig) -> Self {
         Self {
             config,
-            client: reqwest::Client::new(),
+            client: reqwest::Client::builder()
+                .timeout(std::time::Duration::from_secs(90))
+                .connect_timeout(std::time::Duration::from_secs(10))
+                .build()
+                .unwrap_or_else(|_| reqwest::Client::new()),
         }
     }
 
@@ -210,21 +214,12 @@ impl AIProvider for GeminiProvider {
         let completion_stream = stream
             .map(|chunk| {
                 let chunk = chunk?;
-                // Gemini stream returns a JSON array of responses, but chunked.
-                // This is a simplification; robust parsing might need a proper JSON stream parser.
-                // However, for SSE-like behavior, we might need to handle partial JSONs if not careful.
-                // But Gemini returns a standard HTTP response with a JSON array if not using SSE?
-                // Actually, streamGenerateContent returns a stream of partial responses.
-                // Let's assume we get valid JSON objects or a list.
-                // For simplicity in this iteration, we'll try to parse the chunk as a partial response.
-                // Note: Real implementation might need more robust framing handling.
-                
-                // Hacky parsing for now: remove '[' at start, ']' at end, and split by ','? 
-                // Or just try to parse the chunk.
-                
-                // Let's try to parse as GeminiResponse.
+                // Gemini streamGenerateContent returns a JSON array of response objects.
+                // Chunks may contain full or partial JSON. Try multiple parse strategies.
+
+                // Strategy 1: parse as a single GeminiResponse object.
                 if let Ok(response) = serde_json::from_slice::<GeminiResponse>(&chunk) {
-                     if let Some(candidates) = response.candidates {
+                    if let Some(candidates) = response.candidates {
                         if let Some(candidate) = candidates.first() {
                             if let Some(part) = candidate.content.parts.first() {
                                 return Ok(part.text.clone());
@@ -232,10 +227,43 @@ impl AIProvider for GeminiProvider {
                         }
                     }
                 }
-                
-                // If direct parse fails, it might be wrapped in an array or comma separated.
-                // For now, return empty string to avoid breaking the stream if parse fails.
-                Ok(String::new()) 
+
+                // Strategy 2: parse as a JSON array of GeminiResponse objects.
+                if let Ok(responses) = serde_json::from_slice::<Vec<GeminiResponse>>(&chunk) {
+                    let mut content = String::new();
+                    for response in responses {
+                        if let Some(candidates) = response.candidates {
+                            if let Some(candidate) = candidates.first() {
+                                if let Some(part) = candidate.content.parts.first() {
+                                    content.push_str(&part.text);
+                                }
+                            }
+                        }
+                    }
+                    if !content.is_empty() {
+                        return Ok(content);
+                    }
+                }
+
+                // Strategy 3: strip leading/trailing array punctuation and try
+                // to extract individual JSON objects separated by commas.
+                let text = String::from_utf8_lossy(&chunk);
+                let trimmed = text.trim().trim_start_matches('[').trim_start_matches(',')
+                    .trim_end_matches(']').trim_end_matches(',').trim();
+                if !trimmed.is_empty() {
+                    if let Ok(response) = serde_json::from_str::<GeminiResponse>(trimmed) {
+                        if let Some(candidates) = response.candidates {
+                            if let Some(candidate) = candidates.first() {
+                                if let Some(part) = candidate.content.parts.first() {
+                                    return Ok(part.text.clone());
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Chunk could not be parsed — return empty to keep the stream alive.
+                Ok(String::new())
             })
             .boxed();
 

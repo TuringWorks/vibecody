@@ -48,8 +48,10 @@ pub fn search_files(root_path: &PathBuf, query: &str, case_sensitive: bool) -> R
             continue;
         }
 
-        // Skip files that are too large to scan efficiently
-        if let Ok(meta) = fs::metadata(path) {
+        // Skip files that are too large to scan efficiently.
+        // Use the metadata already held by the WalkDir entry to avoid an
+        // extra stat(2) syscall per file.
+        if let Ok(meta) = entry.metadata() {
             if meta.len() > MAX_FILE_BYTES {
                 continue;
             }

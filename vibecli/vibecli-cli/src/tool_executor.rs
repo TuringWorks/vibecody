@@ -157,7 +157,9 @@ impl ToolExecutor {
             Ok(p) => p,
             Err(e) => return ToolResult::err("read_file", e),
         };
-        match std::fs::read_to_string(&resolved) {
+        // Use tokio::fs to avoid blocking the async runtime thread on slow
+        // filesystems (NFS, cold page-cache, USB drives).
+        match tokio::fs::read_to_string(&resolved).await {
             Ok(content) => ToolResult::ok("read_file", content),
             Err(e) => ToolResult::err("read_file", format!("Cannot read {}: {}", resolved.display(), e)),
         }
@@ -169,11 +171,11 @@ impl ToolExecutor {
             Err(e) => return ToolResult::err("write_file", e),
         };
         if let Some(parent) = resolved.parent() {
-            if let Err(e) = std::fs::create_dir_all(parent) {
+            if let Err(e) = tokio::fs::create_dir_all(parent).await {
                 return ToolResult::err("write_file", format!("Cannot create directories: {}", e));
             }
         }
-        match std::fs::write(&resolved, content) {
+        match tokio::fs::write(&resolved, content).await {
             Ok(_) => ToolResult::ok(
                 "write_file",
                 format!("Written {} bytes to {}", content.len(), resolved.display()),
@@ -187,7 +189,7 @@ impl ToolExecutor {
             Ok(p) => p,
             Err(e) => return ToolResult::err("apply_patch", e),
         };
-        let original = match std::fs::read_to_string(&resolved) {
+        let original = match tokio::fs::read_to_string(&resolved).await {
             Ok(c) => c,
             Err(e) => {
                 return ToolResult::err(
@@ -200,7 +202,7 @@ impl ToolExecutor {
             Ok(p) => p,
             Err(e) => return ToolResult::err("apply_patch", format!("Patch failed: {}", e)),
         };
-        match std::fs::write(&resolved, &patched) {
+        match tokio::fs::write(&resolved, &patched).await {
             Ok(_) => ToolResult::ok("apply_patch", format!("Patch applied to {}", resolved.display())),
             Err(e) => ToolResult::err("apply_patch", format!("Cannot write patched file: {}", e)),
         }
@@ -759,52 +761,105 @@ fn glob_match(pattern: &str, name: &str) -> bool {
     name == pattern
 }
 
+/// Decode the six most common HTML entities in a single left-to-right pass,
+/// avoiding the six separate `.replace()` calls that each allocate and copy
+/// the whole string.
+fn decode_html_entities(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut rest = s;
+    while let Some(amp) = rest.find('&') {
+        out.push_str(&rest[..amp]);
+        rest = &rest[amp..];
+        // Try each entity in order; fall back to emitting '&' literally.
+        if let Some(tail) = rest.strip_prefix("&amp;") {
+            out.push('&');
+            rest = tail;
+        } else if let Some(tail) = rest.strip_prefix("&lt;") {
+            out.push('<');
+            rest = tail;
+        } else if let Some(tail) = rest.strip_prefix("&gt;") {
+            out.push('>');
+            rest = tail;
+        } else if let Some(tail) = rest.strip_prefix("&quot;") {
+            out.push('"');
+            rest = tail;
+        } else if let Some(tail) = rest.strip_prefix("&#39;") {
+            out.push('\'');
+            rest = tail;
+        } else if let Some(tail) = rest.strip_prefix("&nbsp;") {
+            out.push(' ');
+            rest = tail;
+        } else {
+            out.push('&');
+            rest = &rest[1..];
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
 /// Minimal HTML → plain text extractor.
-/// Strips all tags, decodes common entities, collapses whitespace.
+/// Strips all tags, decodes common HTML entities, collapses whitespace.
 fn html_to_text(html: &str) -> String {
     let mut out = String::with_capacity(html.len());
     let mut in_tag = false;
     let mut in_script = false;
     let mut in_style = false;
-    let mut buf = String::new();
 
-    let mut chars = html.chars().peekable();
-    while let Some(ch) = chars.next() {
+    // Work on byte indices for cheap lookahead instead of cloning the char
+    // iterator on every '<' (the previous approach allocated a fresh String of
+    // up-to-12 characters for every tag encountered).
+    let bytes = html.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        let ch = bytes[i];
         match ch {
-            '<' => {
-                // Collect tag name
-                buf.clear();
+            b'<' => {
                 in_tag = true;
-                // Peek ahead for script/style
-                let remaining: String = chars.clone().take(12).collect();
-                let lower = remaining.to_lowercase();
-                if lower.starts_with("script") || lower.starts_with("/script") {
-                    in_script = lower.starts_with("script");
-                } else if lower.starts_with("style") || lower.starts_with("/style") {
-                    in_style = lower.starts_with("style");
-                } else if lower.starts_with("br") || lower.starts_with("p") || lower.starts_with("div") || lower.starts_with("li") {
+                // Peek ahead up to 12 ASCII bytes for tag-name classification.
+                let peek_end = (i + 1 + 12).min(bytes.len());
+                let peek = bytes[i + 1..peek_end]
+                    .iter()
+                    .map(|b| b.to_ascii_lowercase())
+                    .collect::<Vec<u8>>();
+                if peek.starts_with(b"script") {
+                    in_script = true;
+                } else if peek.starts_with(b"/script") {
+                    in_script = false;
+                } else if peek.starts_with(b"style") {
+                    in_style = true;
+                } else if peek.starts_with(b"/style") {
+                    in_style = false;
+                } else if peek.starts_with(b"br")
+                    || peek.starts_with(b"p")
+                    || peek.starts_with(b"div")
+                    || peek.starts_with(b"li")
+                {
                     out.push('\n');
                 }
             }
-            '>' => {
+            b'>' => {
                 in_tag = false;
             }
             _ => {
                 if !in_tag && !in_script && !in_style {
-                    out.push(ch);
+                    // Re-interpret the current position as a UTF-8 char.
+                    if let Some(c) = html[i..].chars().next() {
+                        out.push(c);
+                        // Advance by the full UTF-8 char width, not just 1.
+                        i += c.len_utf8();
+                        continue;
+                    }
                 }
             }
         }
+        i += 1;
     }
 
-    // Decode common HTML entities
-    let out = out
-        .replace("&amp;", "&")
-        .replace("&lt;", "<")
-        .replace("&gt;", ">")
-        .replace("&quot;", "\"")
-        .replace("&#39;", "'")
-        .replace("&nbsp;", " ");
+    // Decode common HTML entities in a single pass using a tiny state machine
+    // instead of six chained .replace() calls (each of which allocates and
+    // copies the full string).
+    let out = decode_html_entities(&out);
 
     // Collapse excess whitespace
     let mut result = String::with_capacity(out.len());

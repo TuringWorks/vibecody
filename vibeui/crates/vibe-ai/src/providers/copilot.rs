@@ -325,15 +325,24 @@ pub async fn run_device_flow() -> Result<String> {
     use serde_json::Value;
 
     const CLIENT_ID: &str = "Iv1.b507a08c87ecfe98"; // GitHub CLI public app
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .connect_timeout(std::time::Duration::from_secs(10))
+        .build()
+        .unwrap_or_else(|_| reqwest::Client::new());
 
     // Step 1: request device code
-    let resp = client
+    let device_resp = client
         .post("https://github.com/login/device/code")
         .header("Accept", "application/json")
         .form(&[("client_id", CLIENT_ID), ("scope", "read:user copilot")])
-        .send().await?
-        .json::<Value>().await?;
+        .send().await?;
+    if !device_resp.status().is_success() {
+        let status = device_resp.status();
+        let body = device_resp.text().await.unwrap_or_default();
+        bail!("GitHub device code request failed ({}): {}", status, body);
+    }
+    let resp = device_resp.json::<Value>().await?;
 
     let device_code = resp["device_code"].as_str().context("no device_code")?.to_string();
     let user_code = resp["user_code"].as_str().unwrap_or("???");
@@ -349,7 +358,7 @@ pub async fn run_device_flow() -> Result<String> {
     loop {
         tokio::time::sleep(tokio::time::Duration::from_secs(interval_secs)).await;
 
-        let poll = client
+        let poll_resp = client
             .post("https://github.com/login/oauth/access_token")
             .header("Accept", "application/json")
             .form(&[
@@ -357,8 +366,13 @@ pub async fn run_device_flow() -> Result<String> {
                 ("device_code", &device_code),
                 ("grant_type", "urn:ietf:params:oauth:grant-type:device_code"),
             ])
-            .send().await?
-            .json::<Value>().await?;
+            .send().await?;
+        if !poll_resp.status().is_success() {
+            let status = poll_resp.status();
+            let body = poll_resp.text().await.unwrap_or_default();
+            bail!("GitHub OAuth poll failed ({}): {}", status, body);
+        }
+        let poll = poll_resp.json::<Value>().await?;
 
         if let Some(token) = poll["access_token"].as_str() {
             return Ok(token.to_string());

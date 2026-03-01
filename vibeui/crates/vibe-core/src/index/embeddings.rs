@@ -136,18 +136,25 @@ impl EmbeddingIndex {
 
     /// Re-embed changed files, removing their old chunks first.
     pub async fn update(&mut self, changed_files: &[PathBuf]) -> Result<()> {
+        if changed_files.is_empty() {
+            return Ok(());
+        }
+        // Build a hash-set for O(1) membership tests.
+        let remove_set: std::collections::HashSet<&PathBuf> = changed_files.iter().collect();
+
+        // Single O(n) pass: drain both parallel vecs simultaneously and keep
+        // only the entries whose file is NOT in the removal set.
+        let (kept_docs, kept_vecs): (Vec<_>, Vec<_>) = self
+            .docs
+            .drain(..)
+            .zip(self.vectors.drain(..))
+            .filter(|(doc, _)| !remove_set.contains(&doc.file))
+            .unzip();
+        self.docs = kept_docs;
+        self.vectors = kept_vecs;
+
+        // Re-embed each changed file that still exists.
         for path in changed_files {
-            // Remove old chunks for this file
-            let mut i = 0;
-            while i < self.docs.len() {
-                if self.docs[i].file == *path {
-                    self.docs.remove(i);
-                    self.vectors.remove(i);
-                } else {
-                    i += 1;
-                }
-            }
-            // Re-embed the file (if it still exists)
             if path.exists() {
                 if let Err(e) = self.embed_file(path).await {
                     tracing::warn!("Failed to re-embed {}: {}", path.display(), e);
@@ -324,23 +331,45 @@ fn collect_source_files(workspace: &Path) -> Vec<PathBuf> {
 
 // ── Cosine similarity ─────────────────────────────────────────────────────────
 
+/// Cosine similarity computed in a single fused pass (one traversal of the
+/// two slices instead of three), reducing memory-bandwidth usage by ~3×.
 fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
     if a.len() != b.len() || a.is_empty() {
         return 0.0;
     }
-    let dot: f32 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
-    let norm_a: f32 = a.iter().map(|x| x * x).sum::<f32>().sqrt();
-    let norm_b: f32 = b.iter().map(|x| x * x).sum::<f32>().sqrt();
-    if norm_a == 0.0 || norm_b == 0.0 {
+    let (dot, norm_a_sq, norm_b_sq) = a
+        .iter()
+        .zip(b.iter())
+        .fold((0.0f32, 0.0f32, 0.0f32), |(dot, na, nb), (x, y)| {
+            (dot + x * y, na + x * x, nb + y * y)
+        });
+    let denom = norm_a_sq.sqrt() * norm_b_sq.sqrt();
+    if denom == 0.0 {
         return 0.0;
     }
-    (dot / (norm_a * norm_b)).clamp(-1.0, 1.0)
+    (dot / denom).clamp(-1.0, 1.0)
+}
+
+// ── Shared HTTP client ────────────────────────────────────────────────────────
+
+/// A single `reqwest::Client` shared across all embedding calls.
+/// Creating a new Client per request allocates a connection pool each time;
+/// reusing one allows the runtime to keep-alive connections to Ollama/OpenAI.
+static HTTP_CLIENT: std::sync::OnceLock<reqwest::Client> = std::sync::OnceLock::new();
+
+fn http_client() -> &'static reqwest::Client {
+    HTTP_CLIENT.get_or_init(|| {
+        reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(120))
+            .build()
+            .expect("failed to build embedding HTTP client")
+    })
 }
 
 // ── Ollama embedding call ─────────────────────────────────────────────────────
 
 async fn embed_ollama(text: &str, model: &str, api_url: &str) -> Result<Vec<f32>> {
-    let client = reqwest::Client::new();
+    let client = http_client();
     let url = format!("{}/api/embeddings", api_url.trim_end_matches('/'));
 
     #[derive(Serialize)]
@@ -370,7 +399,7 @@ async fn embed_ollama(text: &str, model: &str, api_url: &str) -> Result<Vec<f32>
 // ── OpenAI embedding call ─────────────────────────────────────────────────────
 
 async fn embed_openai(text: &str, api_key: &str, model: &str) -> Result<Vec<f32>> {
-    let client = reqwest::Client::new();
+    let client = http_client();
 
     #[derive(Serialize)]
     struct OpenAIRequest<'a> {
