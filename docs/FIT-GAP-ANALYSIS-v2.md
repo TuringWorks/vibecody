@@ -436,7 +436,7 @@ Features VibeCody has that **no competitor offers:**
 
 ## Part D — Gap Priority Matrix (Updated Status)
 
-All gaps from Phases 16–46 are now resolved. Only low-impact infrastructure gaps remain as of 2026-03-01:
+All gaps from Phases 16–46 are now resolved. Only low-impact infrastructure gaps remain. **508 unit tests** pass across the workspace (as of 2026-03-01):
 
 | Gap | Impact | Status | Competitor |
 |-----|--------|--------|------------|
@@ -551,6 +551,7 @@ All gaps from Phases 16–46 are now resolved. Only low-impact infrastructure ga
 | 46 | Agent aria-live announcements | ✅ aria-live="polite" status region in AgentPanel |
 | 46 | Skip-to-content link | ✅ Hidden link appears on Tab, jumps past sidebar |
 | 46 | Onboarding tour | ✅ OnboardingTour.tsx first-run guided walkthrough |
+| — | Test coverage expansion (164 new tests) | ✅ provider.rs (22), tools.rs (30), diff.rs (12), search.rs (8), executor.rs (18), symbol.rs (16), bedrock.rs (13), error.rs (13) — total 508 |
 
 ---
 

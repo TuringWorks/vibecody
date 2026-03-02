@@ -7,6 +7,23 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Testing
+- **164 new unit tests** across 8 files, bringing the workspace total from 344 → **508 tests**.
+  - `provider.rs` (22): TokenUsage pricing for all 6 tiers, ProviderConfig builder/serialization,
+    base64 padding, Message/CompletionResponse serde roundtrips.
+  - `tools.rs` (30): ToolCall::name/is_destructive/is_terminal/summary for all 10 tools,
+    ToolResult::ok/err/truncation, format_tool_result, parse edge cases (list_directory default,
+    web_search defaults, spawn_agent, unknown tool, multiple calls).
+  - `diff.rs` (12): generate_diff identical/changed/added/removed/empty, format_unified_diff
+    headers, apply_diff roundtrip for all change types, hunk line counts.
+  - `search.rs` (8): search_files matching/multi-file/case-sensitivity/hidden-files/invalid-regex.
+  - `executor.rs` (18): is_safe_command blocklist (10 dangerous patterns), execute/execute_in,
+    execute_with_approval, output_to_string stdout/stderr/both/empty.
+  - `symbol.rs` (16): Language/SymbolKind enums, extract_symbols for Rust/Python/Go/TypeScript.
+  - `bedrock.rs` (13): SHA-256 known vectors, HMAC-SHA256, SigV4 signing key derivation,
+    epoch_days_to_ymd calendar math (epoch/2000/leap-day/year-end), sigv4_auth_header.
+  - `error.rs` (13): CollabError Display for all 8 variants, StatusCode conversion.
+
 ### Accessibility (WCAG 2.1 AA)
 - **Keyboard shortcuts**: 8 new shortcuts — `Cmd+J` toggle AI panel, `Cmd+`` toggle terminal,
   `Cmd+Shift+P` command palette (VS Code alias), `Cmd+1`–`Cmd+9` switch AI tab, `Cmd+Shift+E`
@@ -60,7 +77,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `chars.clone().take(12).collect::<String>()` per `<` with a cheap byte-slice peek
   (`tool_executor.rs`).
 - 3 new entity-decoder unit tests; 1 new cosine-clamp test; 1 new embedding-update correctness
-  test. Total: 160 vibecli + 7 smoke = 167 tests passing.
+  test. Total: **508 tests** passing across the workspace (164 new in this release).
 
 ### Added
 - **Phase 45**: Frontend panels — `CostPanel.tsx` (💰 Cost tab): per-provider cost breakdown

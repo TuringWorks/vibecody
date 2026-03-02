@@ -1310,6 +1310,22 @@ Real-time collaborative editing powered by [yrs](https://github.com/y-crdt/y-crd
 | OnboardingTour component | ✅ | First-run guided tour (localStorage gate), dismissible (`OnboardingTour.tsx`, 116 lines) |
 | EmptyState + LoadingSpinner | ✅ | Reusable UI primitives for consistent empty/loading states (`EmptyState.tsx`, `LoadingSpinner.tsx`) |
 
+## 7.18 Test Coverage Expansion ✅
+
+**Status:** Complete
+
+| Item | Status | Details |
+|------|--------|---------|
+| provider.rs tests (22) | ✅ | TokenUsage total/add/estimated_cost_usd for all 6 pricing tiers (Claude Opus/Sonnet/Haiku, GPT-4o/4-turbo/3.5, Ollama free); ProviderConfig builder chain + serialization; base64 padding; Message/CompletionResponse serde |
+| tools.rs tests (30) | ✅ | ToolCall::name/is_destructive/is_terminal/summary for all 10 tool types; ToolResult::ok/err/truncation; format_tool_result success/error/truncated; parse edge cases (defaults, unknown, multiple calls) |
+| diff.rs tests (12) | ✅ | DiffEngine::generate_diff (identical/changed/added/removed/empty-to-content/content-to-empty); format_unified_diff headers/prefixes; apply_diff roundtrip; hunk line counts |
+| search.rs tests (8) | ✅ | search_files matching/multi-file/case-sensitive/insensitive/no-match/hidden-files-skipped/invalid-regex/trimmed-content |
+| executor.rs tests (18) | ✅ | is_safe_command blocklist (rm -rf, fork bomb, mkfs, dd, chmod 777, shred, device write) + safe commands; execute/execute_in; execute_with_approval gate; output_to_string stdout/stderr/both/empty |
+| symbol.rs tests (16) | ✅ | Language::from_extension (11 exts + case-insensitive), is_source, as_str; SymbolKind::as_str (11 kinds); SymbolInfo::format_ref; extract_symbols for Rust/Python/Go/TypeScript/Unknown; deduplication |
+| bedrock.rs SigV4 tests (13) | ✅ | sha256_hex known vectors; hmac_sha256 determinism/different-keys; derive_signing_key date/region variations; epoch_days_to_ymd (epoch/2000/2024/leap-day/year-end); sigv4_auth_header format/determinism/payload |
+| collab error.rs tests (13) | ✅ | CollabError Display for all 8 variants; StatusCode conversion (NOT_FOUND/CONFLICT/UNAUTHORIZED/BAD_REQUEST/INTERNAL_SERVER_ERROR) |
+| Total | ✅ | **508 tests** passing across workspace (was 344) |
+
 ---
 
 ## 8. VibeCody Wins — Competitive Position
