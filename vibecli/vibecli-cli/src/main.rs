@@ -2736,6 +2736,124 @@ async fn main() -> Result<()> {
                         }
 
                         // ── /autofix ───────────────────────────────────────────────────
+                        "/deploy" => {
+                            let cwd = std::env::current_dir()?;
+
+                            // Deploy target table: (id, cli_tool, deploy_cmd, description)
+                            let deploy_targets: &[(&str, &str, &str, &str)] = &[
+                                ("vercel",          "vercel",     "vercel deploy --yes",                                   "Vercel"),
+                                ("netlify",         "netlify",    "netlify deploy --prod --dir=dist",                      "Netlify"),
+                                ("railway",         "railway",    "railway up",                                            "Railway"),
+                                ("github-pages",    "gh",         "npm run build && npx gh-pages -d dist",                 "GitHub Pages"),
+                                ("gcp",             "gcloud",     "gcloud run deploy --source . --platform=managed --region=us-central1 --allow-unauthenticated", "GCP Cloud Run"),
+                                ("firebase",        "firebase",   "firebase deploy --only hosting",                        "Firebase"),
+                                ("aws-apprunner",   "aws",        "copilot deploy 2>&1 || aws apprunner create-service --service-name $(basename $(pwd)) --source-configuration '{}'", "AWS App Runner"),
+                                ("aws-s3",          "aws",        "npm run build 2>/dev/null; aws s3 sync dist/ s3://$(basename $(pwd))-deploy --delete", "AWS S3 + CloudFront"),
+                                ("aws-lambda",      "serverless", "serverless deploy",                                     "AWS Lambda (Serverless)"),
+                                ("aws-ecs",         "aws",        "docker build -t app . && aws ecs update-service --cluster default --service $(basename $(pwd)) --force-new-deployment", "AWS ECS/Fargate"),
+                                ("azure-appservice", "az",        "az webapp up --name $(basename $(pwd))",                "Azure App Service"),
+                                ("azure-container", "az",         "az containerapp up --name $(basename $(pwd)) --source .", "Azure Container Apps"),
+                                ("azure-static",    "swa",        "swa deploy --app-location . --output-location dist",   "Azure Static Web Apps"),
+                                ("digitalocean",    "doctl",      "doctl apps create --spec .do/app.yaml",                 "DigitalOcean App Platform"),
+                                ("kubernetes",      "kubectl",    "kubectl apply -f k8s/ 2>&1 || kubectl apply -f .",      "Kubernetes"),
+                                ("helm",            "helm",       "helm upgrade --install $(basename $(pwd)) .",           "Kubernetes (Helm)"),
+                                ("oci",             "oci",        "fn deploy --app $(basename $(pwd))",                    "Oracle Cloud"),
+                                ("ibm",             "ibmcloud",   "ibmcloud ce app create --name $(basename $(pwd)) --build-source .", "IBM Code Engine"),
+                            ];
+
+                            fn cli_available(tool: &str) -> bool {
+                                std::process::Command::new("sh")
+                                    .args(["-c", &format!("command -v {} >/dev/null 2>&1", tool)])
+                                    .status()
+                                    .map(|s| s.success())
+                                    .unwrap_or(false)
+                            }
+
+                            let target_arg = args.trim().to_lowercase();
+
+                            if target_arg == "list" || target_arg == "help" {
+                                println!("Available deploy targets:\n");
+                                for (key, cli, _, desc) in deploy_targets {
+                                    let mark = if cli_available(cli) { "✅" } else { "❌" };
+                                    println!("  {mark} {key:<18} {desc} (requires: {cli})");
+                                }
+                                println!("\nUsage: /deploy <target>  or  /deploy  (auto-detect)\n");
+                                continue;
+                            }
+
+                            // Auto-detect target if none given
+                            let resolved = if target_arg.is_empty() {
+                                if cwd.join("serverless.yml").exists() || cwd.join("serverless.ts").exists() {
+                                    "aws-lambda"
+                                } else if cwd.join("Chart.yaml").exists() {
+                                    "helm"
+                                } else if cwd.join("k8s").is_dir() {
+                                    "kubernetes"
+                                } else if cwd.join("Dockerfile").exists() {
+                                    if cli_available("aws") { "aws-apprunner" }
+                                    else if cli_available("az") { "azure-container" }
+                                    else if cli_available("doctl") { "digitalocean" }
+                                    else if cli_available("gcloud") { "gcp" }
+                                    else { "vercel" }
+                                } else if cwd.join("firebase.json").exists() {
+                                    "firebase"
+                                } else if cwd.join("vercel.json").exists() {
+                                    "vercel"
+                                } else if cwd.join("netlify.toml").exists() {
+                                    "netlify"
+                                } else if cwd.join("package.json").exists() {
+                                    "vercel"
+                                } else {
+                                    println!("❌ Cannot auto-detect deploy target. Use: /deploy <target>");
+                                    println!("Run /deploy list to see available targets.\n");
+                                    continue;
+                                }
+                            } else {
+                                // Resolve aliases
+                                match target_arg.as_str() {
+                                    "aws" => {
+                                        if cwd.join("serverless.yml").exists() || cwd.join("serverless.ts").exists() { "aws-lambda" }
+                                        else if cwd.join("Dockerfile").exists() { "aws-apprunner" }
+                                        else { "aws-s3" }
+                                    }
+                                    "azure" => {
+                                        if cwd.join("Dockerfile").exists() { "azure-container" }
+                                        else if cwd.join("staticwebapp.config.json").exists() { "azure-static" }
+                                        else { "azure-appservice" }
+                                    }
+                                    "k8s" | "kube" => "kubernetes",
+                                    "do" => "digitalocean",
+                                    "oracle" => "oci",
+                                    "gcp" | "google" => "gcp",
+                                    other => other,
+                                }
+                            };
+
+                            let entry = deploy_targets.iter().find(|(k, _, _, _)| *k == resolved);
+                            match entry {
+                                Some((_, cli, cmd, desc)) => {
+                                    if !cli_available(cli) {
+                                        println!("❌ {} CLI not found (required for {}). Install it first.\n", cli, desc);
+                                        continue;
+                                    }
+                                    println!("🚀 Deploying to {} ({})...\n", resolved, desc);
+                                    println!("Running: {}\n", cmd);
+                                    let status = std::process::Command::new("sh")
+                                        .args(["-c", cmd])
+                                        .current_dir(&cwd)
+                                        .status();
+                                    match status {
+                                        Ok(s) if s.success() => println!("\n✅ Deployment succeeded!\n"),
+                                        Ok(_) => println!("\n❌ Deployment failed. Check output above.\n"),
+                                        Err(e) => println!("\n❌ Failed to run deploy: {}\n", e),
+                                    }
+                                }
+                                None => {
+                                    println!("❌ Unknown target: {}. Run /deploy list for options.\n", resolved);
+                                }
+                            }
+                        }
+
                         "/autofix" => {
                             let cwd = std::env::current_dir()?;
                             let fw = if args.trim().is_empty() {

@@ -4520,12 +4520,25 @@ pub async fn import_figma(
 
 // ── Deploy commands (Phase 20) ───────────────────────────────────────────────
 
+/// Check if a CLI tool is installed and available on PATH.
+fn check_cli_available(tool: &str) -> bool {
+    std::process::Command::new("sh")
+        .args(["-c", &format!("command -v {} >/dev/null 2>&1", tool)])
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false)
+}
+
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
 pub struct DeployTarget {
     pub target: String,
     pub build_cmd: String,
     pub out_dir: String,
     pub detected_framework: String,
+    #[serde(default)]
+    pub recommended_targets: Vec<String>,
+    #[serde(default)]
+    pub required_cli: Option<String>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
@@ -4572,11 +4585,57 @@ pub async fn detect_deploy_target(workspace: String) -> Result<DeployTarget, Str
         ("Static", "echo 'Nothing to build'", ".")
     };
 
+    // Build recommended targets list based on project markers
+    let mut recommended = Vec::new();
+    if ws.join("serverless.yml").exists() || ws.join("serverless.ts").exists() {
+        recommended.push("aws-lambda".to_string());
+    }
+    if ws.join("Dockerfile").exists() {
+        recommended.extend_from_slice(&[
+            "aws-apprunner".to_string(),
+            "gcp-run".to_string(),
+            "azure-containerapp".to_string(),
+            "digitalocean".to_string(),
+            "kubernetes".to_string(),
+        ]);
+    }
+    if ws.join("Chart.yaml").exists() {
+        recommended.push("kubernetes-helm".to_string());
+    } else if ws.join("k8s").is_dir() {
+        recommended.push("kubernetes".to_string());
+    }
+    if ws.join("staticwebapp.config.json").exists() {
+        recommended.push("azure-staticweb".to_string());
+    }
+    if ws.join("firebase.json").exists() && !recommended.contains(&"firebase".to_string()) {
+        recommended.push("firebase".to_string());
+    }
+    if ws.join("vercel.json").exists() {
+        recommended.push("vercel".to_string());
+    }
+    if ws.join("netlify.toml").exists() {
+        recommended.push("netlify".to_string());
+    }
+    if framework == "Static" && recommended.is_empty() {
+        recommended.extend_from_slice(&[
+            "aws-s3".to_string(),
+            "netlify".to_string(),
+            "vercel".to_string(),
+        ]);
+    }
+    if recommended.is_empty() {
+        recommended.push("vercel".to_string());
+    }
+
+    let default_target = recommended.first().cloned().unwrap_or_else(|| "vercel".to_string());
+
     Ok(DeployTarget {
-        target: "vercel".to_string(),
+        target: default_target,
         build_cmd: build_cmd.to_string(),
         out_dir: out_dir.to_string(),
         detected_framework: framework.to_string(),
+        recommended_targets: recommended,
+        required_cli: None,
     })
 }
 
@@ -4589,13 +4648,99 @@ pub async fn run_deploy(
 ) -> Result<serde_json::Value, String> {
     use tauri::Emitter;
 
-    let deploy_cmd = match target.as_str() {
+    let deploy_cmd: &str = match target.as_str() {
+        // ── PaaS ──
         "vercel" => "vercel deploy --yes",
         "netlify" => "netlify deploy --prod --dir=dist",
         "railway" => "railway up",
         "github-pages" => "npm run build && npx gh-pages -d dist",
+        // ── Google ──
         "gcp-run" => "gcloud run deploy --source . --platform=managed --region=us-central1 --allow-unauthenticated",
         "firebase" => "firebase deploy --only hosting",
+        // ── AWS ──
+        "aws-apprunner" => {
+            if !check_cli_available("aws") {
+                return Err("AWS CLI not installed. Install: https://aws.amazon.com/cli/".into());
+            }
+            "copilot deploy 2>&1 || aws apprunner create-service --service-name $(basename $(pwd)) --source-configuration '{\"AutoDeploymentsEnabled\":true,\"CodeRepository\":{\"RepositoryUrl\":\".\",\"SourceCodeVersion\":{\"Type\":\"BRANCH\",\"Value\":\"main\"}}}' 2>&1"
+        }
+        "aws-s3" => {
+            if !check_cli_available("aws") {
+                return Err("AWS CLI not installed. Install: https://aws.amazon.com/cli/".into());
+            }
+            "npm run build 2>/dev/null; aws s3 sync dist/ s3://$(basename $(pwd))-deploy --delete 2>&1 && echo 'Uploaded to S3. Create a CloudFront distribution for HTTPS.'"
+        }
+        "aws-lambda" => {
+            if check_cli_available("serverless") {
+                "serverless deploy 2>&1"
+            } else if check_cli_available("sam") {
+                "sam build && sam deploy --no-confirm-changeset 2>&1"
+            } else {
+                return Err("Install Serverless Framework (npm i -g serverless) or AWS SAM CLI for Lambda deploys.".into());
+            }
+        }
+        "aws-ecs" => {
+            if !check_cli_available("aws") {
+                return Err("AWS CLI not installed. Install: https://aws.amazon.com/cli/".into());
+            }
+            "ACCOUNT=$(aws sts get-caller-identity --query Account --output text) && REGION=$(aws configure get region || echo us-east-1) && REPO=$ACCOUNT.dkr.ecr.$REGION.amazonaws.com/$(basename $(pwd)) && aws ecr describe-repositories --repository-names $(basename $(pwd)) 2>/dev/null || aws ecr create-repository --repository-name $(basename $(pwd)) && docker build -t app . && aws ecr get-login-password | docker login --username AWS --password-stdin $REPO && docker tag app:latest $REPO:latest && docker push $REPO:latest && aws ecs update-service --cluster default --service $(basename $(pwd)) --force-new-deployment 2>&1"
+        }
+        // ── Azure ──
+        "azure-appservice" => {
+            if !check_cli_available("az") {
+                return Err("Azure CLI not installed. Install: https://learn.microsoft.com/en-us/cli/azure/install-azure-cli".into());
+            }
+            "az webapp up --name $(basename $(pwd)) --runtime 'NODE:18-lts' 2>&1"
+        }
+        "azure-containerapp" => {
+            if !check_cli_available("az") {
+                return Err("Azure CLI not installed.".into());
+            }
+            "az containerapp up --name $(basename $(pwd)) --source . 2>&1"
+        }
+        "azure-staticweb" => {
+            if check_cli_available("swa") {
+                "npm run build 2>/dev/null; swa deploy --app-location . --output-location dist 2>&1"
+            } else if check_cli_available("az") {
+                "npm run build 2>/dev/null; az staticwebapp create --name $(basename $(pwd)) --source . 2>&1"
+            } else {
+                return Err("Install Azure SWA CLI (npm i -g @azure/static-web-apps-cli) or Azure CLI.".into());
+            }
+        }
+        // ── DigitalOcean ──
+        "digitalocean" => {
+            if !check_cli_available("doctl") {
+                return Err("doctl not installed. Install: https://docs.digitalocean.com/reference/doctl/how-to/install/".into());
+            }
+            "doctl apps create --spec .do/app.yaml 2>&1 || doctl apps update $(doctl apps list --format ID --no-header | head -1) --spec .do/app.yaml 2>&1"
+        }
+        // ── Kubernetes ──
+        "kubernetes" => {
+            if !check_cli_available("kubectl") {
+                return Err("kubectl not installed. Install: https://kubernetes.io/docs/tasks/tools/".into());
+            }
+            "kubectl apply -f k8s/ 2>&1 || kubectl apply -f . 2>&1"
+        }
+        "kubernetes-helm" => {
+            if !check_cli_available("helm") {
+                return Err("Helm not installed. Install: https://helm.sh/docs/intro/install/".into());
+            }
+            "helm upgrade --install $(basename $(pwd)) . 2>&1"
+        }
+        // ── Oracle Cloud ──
+        "oci" => {
+            if !check_cli_available("oci") {
+                return Err("OCI CLI not installed. Install: https://docs.oracle.com/en-us/iaas/Content/API/SDKDocs/cliinstall.htm".into());
+            }
+            "fn deploy --app $(basename $(pwd)) 2>&1 || docker build -t app . && echo 'Image built. Push to OCI Container Registry and create a Container Instance.'"
+        }
+        // ── IBM Cloud ──
+        "ibm-cloud" => {
+            if !check_cli_available("ibmcloud") {
+                return Err("IBM Cloud CLI not installed. Install: https://cloud.ibm.com/docs/cli".into());
+            }
+            "ibmcloud ce project select --name default 2>&1; ibmcloud ce app create --name $(basename $(pwd)) --build-source . 2>&1 || ibmcloud ce app update --name $(basename $(pwd)) --build-source . 2>&1"
+        }
         _ => return Err(format!("Unknown deploy target: {}", target)),
     };
 
@@ -4624,6 +4769,12 @@ pub async fn run_deploy(
             line.contains("https://")
                 || line.to_lowercase().contains("hosting url")
                 || line.to_lowercase().contains("service url")
+                || line.to_lowercase().contains("app url")
+                || line.to_lowercase().contains("endpoint")
+                || line.to_lowercase().contains("webapp url")
+                || line.to_lowercase().contains("external ip")
+                || line.to_lowercase().contains("load balancer")
+                || line.contains("s3://")
         })
         .and_then(|line| {
             // Prefer the token that starts with https://
@@ -4758,6 +4909,68 @@ pub async fn set_custom_domain(
             instructions: format!(
                 "To connect {} to Firebase Hosting:\n  firebase hosting:sites:add {}\n  Then follow the DNS instructions shown by the Firebase CLI.",
                 domain, domain
+            ),
+        }),
+        // ── AWS ──
+        "aws-apprunner" | "aws-ecs" | "aws-s3" | "aws-lambda" => Ok(CustomDomainResult {
+            domain: domain.clone(),
+            cname_target: "your-distribution.cloudfront.net".to_string(),
+            instructions: format!(
+                "To use {} with AWS:\n  1. Create a CloudFront distribution pointing to your service\n  2. Request an ACM certificate for {}\n  3. Add a CNAME record: {} → your-distribution.cloudfront.net",
+                domain, domain, domain
+            ),
+        }),
+        // ── Azure ──
+        "azure-appservice" | "azure-containerapp" => Ok(CustomDomainResult {
+            domain: domain.clone(),
+            cname_target: "your-app.azurewebsites.net".to_string(),
+            instructions: format!(
+                "To use {} with Azure:\n  az webapp config hostname add --webapp-name <app> --hostname {}\n  Add a CNAME record: {} → your-app.azurewebsites.net",
+                domain, domain, domain
+            ),
+        }),
+        "azure-staticweb" => Ok(CustomDomainResult {
+            domain: domain.clone(),
+            cname_target: "your-app.azurestaticapps.net".to_string(),
+            instructions: format!(
+                "To use {} with Azure Static Web Apps:\n  az staticwebapp hostname set -n <app> --hostname {}\n  Add a CNAME record: {} → your-app.azurestaticapps.net",
+                domain, domain, domain
+            ),
+        }),
+        // ── DigitalOcean ──
+        "digitalocean" => Ok(CustomDomainResult {
+            domain: domain.clone(),
+            cname_target: "your-app.ondigitalocean.app".to_string(),
+            instructions: format!(
+                "To use {} with DigitalOcean:\n  1. In App Platform dashboard → Settings → Domains → Add Domain\n  2. Add a CNAME record: {} → your-app.ondigitalocean.app",
+                domain, domain
+            ),
+        }),
+        // ── Kubernetes ──
+        "kubernetes" | "kubernetes-helm" => Ok(CustomDomainResult {
+            domain: domain.clone(),
+            cname_target: "EXTERNAL-IP".to_string(),
+            instructions: format!(
+                "To use {} with Kubernetes:\n  1. Get your LoadBalancer IP: kubectl get svc -o wide\n  2. Add an A record: {} → EXTERNAL-IP\n  3. (Optional) Install cert-manager for automatic TLS",
+                domain, domain
+            ),
+        }),
+        // ── OCI ──
+        "oci" => Ok(CustomDomainResult {
+            domain: domain.clone(),
+            cname_target: "your-lb.oci.oraclecloud.com".to_string(),
+            instructions: format!(
+                "To use {} with Oracle Cloud:\n  1. Configure a Load Balancer with your container\n  2. Add a CNAME record: {} → your-lb.oci.oraclecloud.com\n  3. Add an OCI WAF or SSL cert",
+                domain, domain
+            ),
+        }),
+        // ── IBM Cloud ──
+        "ibm-cloud" => Ok(CustomDomainResult {
+            domain: domain.clone(),
+            cname_target: "your-app.codeengine.appdomain.cloud".to_string(),
+            instructions: format!(
+                "To use {} with IBM Code Engine:\n  ibmcloud ce domainmapping create --domain-name {} --target your-app\n  Add a CNAME record: {} → your-app.codeengine.appdomain.cloud",
+                domain, domain, domain
             ),
         }),
         _ => Err(format!("Custom domain not supported for target: {}", target)),

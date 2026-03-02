@@ -18,6 +18,7 @@ static COMMANDS: &[&str] = &[
     "/config",
     "/cost",
     "/context",
+    "/deploy",
     "/diff",
     "/exec",
     "/exit",
@@ -96,6 +97,14 @@ static WORKFLOW_SUBS: &[&str] = &["new", "list", "show", "advance", "check", "ge
 /// Sub-commands for `/arena <sub>`
 static ARENA_SUBS: &[&str] = &["compare", "stats", "history"];
 
+/// Sub-commands for `/deploy <sub>`
+static DEPLOY_SUBS: &[&str] = &[
+    "list", "vercel", "netlify", "railway", "github-pages",
+    "gcp", "firebase", "aws", "aws-apprunner", "aws-s3", "aws-lambda", "aws-ecs",
+    "azure", "azure-appservice", "azure-container", "azure-static",
+    "digitalocean", "kubernetes", "helm", "oci", "ibm",
+];
+
 /// Sub-commands for `/redteam <sub>`
 static REDTEAM_SUBS: &[&str] = &["scan", "list", "show", "report", "config"];
 
@@ -112,6 +121,7 @@ fn command_hint(cmd: &str) -> Option<&'static str> {
         "/autofix" => Some("[clippy|eslint|ruff|gofmt|prettier]  — run linter auto-fix and show diff"),
         "/plan"    => Some("<task description>"),
         "/chat"    => Some("<message>"),
+        "/deploy"  => Some("[target|list]  — deploy to cloud (aws|azure|gcp|vercel|k8s|digitalocean|...)"),
         "/generate"=> Some("<description>"),
         "/diff"    => Some("<file>"),
         "/apply"   => Some("<file> <changes>"),
@@ -203,6 +213,7 @@ fn complete_slash(line: &str) -> Option<(usize, Vec<Pair>)> {
         Some(after_space) => {
             let subs: Option<&[&str]> = match first {
                 "/arena"    => Some(ARENA_SUBS),
+                "/deploy"   => Some(DEPLOY_SUBS),
                 "/profile"  => Some(PROFILE_SUBS),
                 "/plugin"   => Some(PLUGIN_SUBS),
                 "/memory"   => Some(MEMORY_SUBS),

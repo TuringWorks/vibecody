@@ -13,6 +13,8 @@ interface DeployTarget {
   build_cmd: string;
   out_dir: string;
   detected_framework: string;
+  recommended_targets?: string[];
+  required_cli?: string;
 }
 
 interface DeployRecord {
@@ -24,12 +26,29 @@ interface DeployRecord {
 }
 
 const TARGETS = [
-  { id: "vercel", label: "Vercel", icon: "▲", color: "#000" },
-  { id: "netlify", label: "Netlify", icon: "◆", color: "#00C7B7" },
-  { id: "railway", label: "Railway", icon: "🚂", color: "#0B0D0E" },
-  { id: "github-pages", label: "GitHub Pages", icon: "⚙", color: "#24292e" },
-  { id: "gcp-run", label: "GCP Cloud Run", icon: "☁", color: "#4285F4" },
-  { id: "firebase", label: "Firebase Hosting", icon: "🔥", color: "#F57C00" },
+  // PaaS
+  { id: "vercel", label: "Vercel", icon: "▲" },
+  { id: "netlify", label: "Netlify", icon: "◆" },
+  { id: "railway", label: "Railway", icon: "🚂" },
+  { id: "github-pages", label: "GitHub Pages", icon: "⚙" },
+  // Google
+  { id: "gcp-run", label: "GCP Cloud Run", icon: "☁" },
+  { id: "firebase", label: "Firebase", icon: "🔥" },
+  // AWS
+  { id: "aws-apprunner", label: "AWS App Runner", icon: "🟠" },
+  { id: "aws-s3", label: "AWS S3 + CF", icon: "📦" },
+  { id: "aws-lambda", label: "AWS Lambda", icon: "λ" },
+  { id: "aws-ecs", label: "AWS ECS", icon: "🐳" },
+  // Azure
+  { id: "azure-appservice", label: "Azure App Svc", icon: "🔵" },
+  { id: "azure-containerapp", label: "Azure Container", icon: "📦" },
+  { id: "azure-staticweb", label: "Azure Static", icon: "⚡" },
+  // Others
+  { id: "digitalocean", label: "DigitalOcean", icon: "🌊" },
+  { id: "kubernetes", label: "Kubernetes", icon: "☸" },
+  { id: "kubernetes-helm", label: "Helm", icon: "⎈" },
+  { id: "oci", label: "Oracle Cloud", icon: "🔴" },
+  { id: "ibm-cloud", label: "IBM Code Engine", icon: "🔷" },
 ];
 
 interface DeployPanelProps {
@@ -135,28 +154,34 @@ export function DeployPanel({ workspacePath }: DeployPanelProps) {
       {/* Target selection */}
       <div>
         <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Deploy Target</div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-          {TARGETS.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setSelectedTarget(t.id)}
-              style={{
-                background: selectedTarget === t.id ? "var(--accent-blue, #6366f1)" : "var(--bg-secondary, #1e1e2e)",
-                border: `1px solid ${selectedTarget === t.id ? "var(--accent-blue, #6366f1)" : "var(--border, #2a2a3e)"}`,
-                borderRadius: 6,
-                padding: "10px 8px",
-                cursor: "pointer",
-                color: "var(--text-primary, #cdd6f4)",
-                fontSize: 13,
-                fontWeight: selectedTarget === t.id ? 600 : 400,
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-              }}
-            >
-              <span>{t.icon}</span> {t.label}
-            </button>
-          ))}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, maxHeight: 260, overflowY: "auto" }}>
+          {TARGETS.map((t) => {
+            const isRec = detected?.recommended_targets?.includes(t.id);
+            return (
+              <button
+                key={t.id}
+                onClick={() => setSelectedTarget(t.id)}
+                style={{
+                  background: selectedTarget === t.id ? "var(--accent-blue, #6366f1)" : "var(--bg-secondary, #1e1e2e)",
+                  border: `1px solid ${selectedTarget === t.id ? "var(--accent-blue, #6366f1)" : "var(--border, #2a2a3e)"}`,
+                  borderRadius: 6,
+                  padding: "7px 6px",
+                  cursor: "pointer",
+                  color: "var(--text-primary, #cdd6f4)",
+                  fontSize: 11,
+                  fontWeight: selectedTarget === t.id ? 600 : 400,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                }}
+              >
+                <span>{t.icon}</span> {t.label}
+                {isRec && <span style={{ fontSize: 9, color: "#a6e3a1", marginLeft: 2 }}>★</span>}
+              </button>
+            );
+          })}
         </div>
       </div>
 

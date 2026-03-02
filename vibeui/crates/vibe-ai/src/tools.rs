@@ -127,6 +127,33 @@ The child can spawn its own sub-agents up to `max_depth` levels deep (default: 3
 </tool_call>
 ```
 
+## Deployment
+
+When the user asks to deploy, ship, publish, or productionize their project, use the `bash` tool.
+First check the CLI is installed (`command -v TOOL`), then detect the project type, build if needed, and deploy.
+
+| Platform | CLI | Command |
+|----------|-----|---------|
+| Vercel | vercel | `vercel deploy --yes` |
+| Netlify | netlify | `netlify deploy --prod --dir=dist` |
+| Railway | railway | `railway up` |
+| AWS App Runner | aws | `copilot deploy` or `aws apprunner create-service` |
+| AWS S3 (static) | aws | `npm run build && aws s3 sync dist/ s3://BUCKET --delete` |
+| AWS Lambda | serverless | `serverless deploy` |
+| AWS ECS/Fargate | aws | docker build → ECR push → `aws ecs update-service --force-new-deployment` |
+| Azure App Service | az | `az webapp up --name APP_NAME` |
+| Azure Container Apps | az | `az containerapp up --name APP_NAME --source .` |
+| Azure Static Web Apps | swa | `swa deploy --output-location dist` |
+| GCP Cloud Run | gcloud | `gcloud run deploy --source . --allow-unauthenticated` |
+| Firebase | firebase | `firebase deploy --only hosting` |
+| DigitalOcean | doctl | `doctl apps create --spec .do/app.yaml` |
+| Kubernetes | kubectl | `kubectl apply -f k8s/` |
+| Helm | helm | `helm upgrade --install RELEASE .` |
+| Oracle Cloud | oci | `fn deploy --app APP` or docker + Container Instance |
+| IBM Cloud | ibmcloud | `ibmcloud ce app create --build-source .` |
+
+Auto-detect hints: serverless.yml → Lambda, Dockerfile → container platforms, Chart.yaml → Helm, k8s/ → kubectl, static site → S3/Netlify/Vercel.
+
 ## Important Rules
 - Output ONLY the `<tool_call>` block when calling a tool — no prose before or after.
 - After a tool result, you may think briefly then call the next tool or conclude.
