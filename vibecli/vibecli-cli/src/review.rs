@@ -365,7 +365,8 @@ async fn review_chunk(
 
     // Truncate very large diffs
     let diff_truncated = if diff.len() > MAX_DIFF_CHARS {
-        format!("{}\n... (truncated)", &diff[..MAX_DIFF_CHARS])
+        let end = diff.char_indices().nth(MAX_DIFF_CHARS).map(|(i, _)| i).unwrap_or(diff.len());
+        format!("{}\n... (truncated)", &diff[..end])
     } else {
         diff.to_string()
     };

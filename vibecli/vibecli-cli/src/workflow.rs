@@ -368,18 +368,18 @@ impl WorkflowManager {
         let idx = workflow.current_stage.index();
 
         // Cannot advance past final stage
-        if workflow.current_stage.next().is_none() {
-            anyhow::bail!(
+        let next = match workflow.current_stage.next() {
+            Some(n) => n,
+            None => anyhow::bail!(
                 "Already at final stage '{}' — cannot advance further",
                 workflow.current_stage.label()
-            );
-        }
+            ),
+        };
 
         // Mark current as complete
         workflow.stages[idx].status = StageStatus::Complete;
 
         // Advance to next stage
-        let next = workflow.current_stage.next().unwrap();
         workflow.current_stage = next;
         workflow.stages[next.index()].status = StageStatus::InProgress;
 

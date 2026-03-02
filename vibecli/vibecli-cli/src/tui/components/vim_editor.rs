@@ -842,20 +842,21 @@ impl VimEditorComponent {
                 let is_cursor = is_cursor_row && col == self.cursor.1;
                 let in_visual = vis_lo.map_or(false, |lo| col >= lo) && vis_hi.map_or(false, |hi| col <= hi);
                 let in_search = search_pat.as_ref().map_or(false, |pat| {
-                    line_str[..col.min(line_str.len())].to_lowercase().ends_with(pat.as_str()) ||
-                    {
-                        // simpler: check if col is inside any match
-                        let lower = line_str.to_lowercase();
-                        let mut m = false;
-                        let mut s = 0;
-                        while let Some(idx) = lower[s..].find(pat.as_str()) {
-                            let start = s + idx;
-                            let end = start + pat.len();
-                            if col >= start && col < end { m = true; break; }
-                            s = start + 1;
+                    // Use char indices for correct multi-byte UTF-8 handling
+                    let lower_chars: Vec<char> = line_str.to_lowercase().chars().collect();
+                    let pat_chars: Vec<char> = pat.chars().collect();
+                    if pat_chars.is_empty() { return false; }
+                    let mut m = false;
+                    let mut s = 0usize;
+                    while s + pat_chars.len() <= lower_chars.len() {
+                        if lower_chars[s..s + pat_chars.len()] == pat_chars[..] {
+                            if col >= s && col < s + pat_chars.len() { m = true; break; }
+                            s += 1;
+                        } else {
+                            s += 1;
                         }
-                        m
                     }
+                    m
                 });
 
                 let style = if is_cursor {

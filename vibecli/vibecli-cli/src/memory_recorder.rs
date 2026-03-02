@@ -91,11 +91,18 @@ fn chrono_now_utc() -> String {
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_secs())
         .unwrap_or(0);
-    // Format as YYYY-MM-DD (approximate, good enough for a comment)
-    let days = secs / 86400;
-    let year = 1970 + days / 365;
-    let day_of_year = days % 365;
-    let month = (day_of_year / 30 + 1).min(12);
-    let day = day_of_year % 30 + 1;
-    format!("{:04}-{:02}-{:02}", year, month, day)
+    // Civil date from unix timestamp (handles leap years correctly)
+    let mut days = (secs / 86400) as i64;
+    // Shift epoch from 1970-01-01 to 0000-03-01 for easier leap year math
+    days += 719468; // days from 0000-03-01 to 1970-01-01
+    let era = days / 146097; // 400-year era
+    let doe = days - era * 146097; // day of era [0, 146096]
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365; // year of era
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100); // day of year [0, 365]
+    let mp = (5 * doy + 2) / 153; // month starting from March=0
+    let d = doy - (153 * mp + 2) / 5 + 1; // day [1, 31]
+    let m = if mp < 10 { mp + 3 } else { mp - 9 }; // month [1, 12]
+    let y = if m <= 2 { y + 1 } else { y };
+    format!("{:04}-{:02}-{:02}", y, m, d)
 }

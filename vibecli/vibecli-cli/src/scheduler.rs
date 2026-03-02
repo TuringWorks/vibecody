@@ -95,7 +95,7 @@ impl Scheduler {
         let job = ScheduledJob {
             id: Self::short_id(),
             task: task.to_string(),
-            schedule: ScheduleExpr::Once { at_ms: now + secs * 1000 },
+            schedule: ScheduleExpr::Once { at_ms: now.saturating_add(secs.saturating_mul(1000)) },
             triggered_count: 0,
             created_at: now,
             last_triggered: None,
@@ -115,7 +115,7 @@ impl Scheduler {
             task: task.to_string(),
             schedule: ScheduleExpr::Recurring {
                 interval_secs,
-                next_at_ms: now + interval_secs * 1000,
+                next_at_ms: now.saturating_add(interval_secs.saturating_mul(1000)),
             },
             triggered_count: 0,
             created_at: now,
@@ -170,7 +170,7 @@ impl Scheduler {
                 match &mut job.schedule {
                     ScheduleExpr::Once { .. } => { job.active = false; }
                     ScheduleExpr::Recurring { interval_secs, next_at_ms } => {
-                        *next_at_ms = now + *interval_secs * 1000;
+                        *next_at_ms = now.saturating_add(interval_secs.saturating_mul(1000));
                     }
                 }
                 due.push(job.clone());
