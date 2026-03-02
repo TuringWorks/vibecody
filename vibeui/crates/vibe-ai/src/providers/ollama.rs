@@ -109,7 +109,11 @@ impl OllamaProvider {
     /// List available Ollama models
     pub async fn list_models(base_url: Option<String>) -> Result<Vec<String>> {
         let base_url = base_url.unwrap_or_else(|| "http://localhost:11434".to_string());
-        let client = reqwest::Client::new();
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(10))
+            .connect_timeout(std::time::Duration::from_secs(5))
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
         
         let response = client
             .get(format!("{}/api/tags", base_url))
