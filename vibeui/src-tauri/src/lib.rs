@@ -299,6 +299,13 @@ pub fn run() {
             commands::generate_k8s_manifests,
             commands::run_kubectl_command,
             commands::generate_argocd_app,
+            // Phase 7.23: Environment & Secrets Manager
+            commands::get_env_files,
+            commands::read_env_file,
+            commands::save_env_file,
+            commands::delete_env_var,
+            commands::get_env_environments,
+            commands::set_active_environment,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -8412,3 +8412,279 @@ pub async fn generate_argocd_app(
     );
     Ok(yaml)
 }
+
+// ── Environment & Secrets Manager ────────────────────────────────────────────
+
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+pub struct EnvFileInfo {
+    pub filename: String,
+    pub environment: String,
+    pub var_count: usize,
+    pub last_modified: u64,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+pub struct EnvEntry {
+    pub key: String,
+    pub value: String,
+    pub is_secret: bool,
+    pub comment: Option<String>,
+}
+
+fn is_secret_key(key: &str) -> bool {
+    let upper = key.to_uppercase();
+    ["SECRET", "TOKEN", "PASSWORD", "CREDENTIAL", "PRIVATE", "API_KEY", "_KEY"]
+        .iter()
+        .any(|pat| upper.contains(pat))
+}
+
+fn env_filename_to_environment(filename: &str) -> String {
+    if filename == ".env" || filename == ".env.local" {
+        "default".to_string()
+    } else if let Some(suffix) = filename.strip_prefix(".env.") {
+        suffix.trim_end_matches(".local").to_string()
+    } else {
+        "default".to_string()
+    }
+}
+
+fn parse_env_content(content: &str, reveal: bool) -> Vec<EnvEntry> {
+    let mut entries = Vec::new();
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            continue;
+        }
+        if let Some(eq_pos) = trimmed.find('=') {
+            let key = trimmed[..eq_pos].trim().to_string();
+            let mut value = trimmed[eq_pos + 1..].trim().to_string();
+            // Strip surrounding quotes
+            if (value.starts_with('"') && value.ends_with('"'))
+                || (value.starts_with('\'') && value.ends_with('\''))
+            {
+                value = value[1..value.len() - 1].to_string();
+            }
+            let secret = is_secret_key(&key);
+            let display_value = if secret && !reveal {
+                "\u{2022}\u{2022}\u{2022}\u{2022}\u{2022}\u{2022}\u{2022}\u{2022}".to_string()
+            } else {
+                value
+            };
+            entries.push(EnvEntry {
+                key,
+                value: display_value,
+                is_secret: secret,
+                comment: None,
+            });
+        }
+    }
+    entries
+}
+
+/// List all .env* files in a workspace.
+#[tauri::command]
+pub async fn get_env_files(workspace: String) -> Result<Vec<EnvFileInfo>, String> {
+    let ws = std::path::PathBuf::from(&workspace);
+    if !ws.is_dir() {
+        return Err("Workspace directory not found".to_string());
+    }
+    let mut files = Vec::new();
+    let entries = std::fs::read_dir(&ws).map_err(|e| e.to_string())?;
+    for entry in entries.flatten() {
+        let name = entry.file_name().to_string_lossy().to_string();
+        if !name.starts_with(".env") {
+            continue;
+        }
+        // Only match .env, .env.*, .env.local, .env.*.local
+        if name != ".env" && !name.starts_with(".env.") {
+            continue;
+        }
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+        let content = std::fs::read_to_string(&path).unwrap_or_default();
+        let var_count = content
+            .lines()
+            .filter(|l| {
+                let t = l.trim();
+                !t.is_empty() && !t.starts_with('#') && t.contains('=')
+            })
+            .count();
+        let last_modified = entry
+            .metadata()
+            .ok()
+            .and_then(|m| m.modified().ok())
+            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        let environment = env_filename_to_environment(&name);
+        files.push(EnvFileInfo {
+            filename: name,
+            environment,
+            var_count,
+            last_modified,
+        });
+    }
+    files.sort_by(|a, b| a.filename.cmp(&b.filename));
+    Ok(files)
+}
+
+/// Read and parse a .env file into structured entries.
+#[tauri::command]
+pub async fn read_env_file(
+    workspace: String,
+    filename: String,
+    reveal: Option<bool>,
+) -> Result<Vec<EnvEntry>, String> {
+    let path = std::path::PathBuf::from(&workspace).join(&filename);
+    if !path.is_file() {
+        return Ok(Vec::new());
+    }
+    // Prevent path traversal
+    let canonical = path.canonicalize().map_err(|e| e.to_string())?;
+    let ws_canonical = std::path::PathBuf::from(&workspace)
+        .canonicalize()
+        .map_err(|e| e.to_string())?;
+    if !canonical.starts_with(&ws_canonical) {
+        return Err("Path traversal not allowed".to_string());
+    }
+    let content = std::fs::read_to_string(&canonical).map_err(|e| e.to_string())?;
+    Ok(parse_env_content(&content, reveal.unwrap_or(false)))
+}
+
+/// Save entries to a .env file.
+#[tauri::command]
+pub async fn save_env_file(
+    workspace: String,
+    filename: String,
+    entries: Vec<EnvEntry>,
+) -> Result<(), String> {
+    let path = std::path::PathBuf::from(&workspace).join(&filename);
+    // Prevent path traversal
+    let ws_canonical = std::path::PathBuf::from(&workspace)
+        .canonicalize()
+        .map_err(|e| e.to_string())?;
+    // For new files, just check the parent is within workspace
+    if let Ok(canonical) = path.canonicalize() {
+        if !canonical.starts_with(&ws_canonical) {
+            return Err("Path traversal not allowed".to_string());
+        }
+    } else {
+        // New file — ensure parent is the workspace
+        let parent = path
+            .parent()
+            .ok_or("Invalid path")?
+            .canonicalize()
+            .map_err(|e| e.to_string())?;
+        if !parent.starts_with(&ws_canonical) {
+            return Err("Path traversal not allowed".to_string());
+        }
+    }
+    // Validate keys
+    let key_re = regex::Regex::new(r"^[A-Za-z_][A-Za-z0-9_]*$").unwrap();
+    for entry in &entries {
+        if entry.key.is_empty() {
+            return Err("Empty key not allowed".to_string());
+        }
+        if !key_re.is_match(&entry.key) {
+            return Err(format!("Invalid key name: {}", entry.key));
+        }
+    }
+    // Check for duplicate keys
+    let mut seen = std::collections::HashSet::new();
+    for entry in &entries {
+        if !seen.insert(&entry.key) {
+            return Err(format!("Duplicate key: {}", entry.key));
+        }
+    }
+    // Build file content
+    let mut lines = Vec::new();
+    for entry in &entries {
+        if let Some(comment) = &entry.comment {
+            lines.push(format!("# {}", comment));
+        }
+        // Quote values that contain spaces or special characters
+        if entry.value.contains(' ')
+            || entry.value.contains('#')
+            || entry.value.contains('"')
+            || entry.value.contains('\'')
+        {
+            let escaped = entry.value.replace('\\', "\\\\").replace('"', "\\\"");
+            lines.push(format!("{}=\"{}\"", entry.key, escaped));
+        } else {
+            lines.push(format!("{}={}", entry.key, entry.value));
+        }
+    }
+    let content = lines.join("\n") + "\n";
+    std::fs::write(&path, &content).map_err(|e| e.to_string())?;
+    // Set secure permissions on Unix
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600));
+    }
+    Ok(())
+}
+
+/// Delete a specific key from a .env file.
+#[tauri::command]
+pub async fn delete_env_var(
+    workspace: String,
+    filename: String,
+    key: String,
+) -> Result<(), String> {
+    let path = std::path::PathBuf::from(&workspace).join(&filename);
+    if !path.is_file() {
+        return Err(format!("File not found: {}", filename));
+    }
+    let canonical = path.canonicalize().map_err(|e| e.to_string())?;
+    let ws_canonical = std::path::PathBuf::from(&workspace)
+        .canonicalize()
+        .map_err(|e| e.to_string())?;
+    if !canonical.starts_with(&ws_canonical) {
+        return Err("Path traversal not allowed".to_string());
+    }
+    let content = std::fs::read_to_string(&canonical).map_err(|e| e.to_string())?;
+    let filtered: Vec<&str> = content
+        .lines()
+        .filter(|line| {
+            let trimmed = line.trim();
+            if let Some(eq_pos) = trimmed.find('=') {
+                let line_key = trimmed[..eq_pos].trim();
+                line_key != key
+            } else {
+                true // Keep comments and blank lines
+            }
+        })
+        .collect();
+    let new_content = filtered.join("\n") + "\n";
+    std::fs::write(&canonical, &new_content).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// Get list of detected environments from .env files.
+#[tauri::command]
+pub async fn get_env_environments(workspace: String) -> Result<Vec<String>, String> {
+    let files = get_env_files(workspace).await?;
+    let mut envs: Vec<String> = files.iter().map(|f| f.environment.clone()).collect();
+    envs.sort();
+    envs.dedup();
+    if !envs.contains(&"default".to_string()) {
+        envs.insert(0, "default".to_string());
+    }
+    Ok(envs)
+}
+
+/// Set the active environment for the workspace.
+#[tauri::command]
+pub async fn set_active_environment(
+    workspace: String,
+    environment: String,
+) -> Result<(), String> {
+    let vibeui_dir = std::path::PathBuf::from(&workspace).join(".vibeui");
+    std::fs::create_dir_all(&vibeui_dir).map_err(|e| e.to_string())?;
+    let path = vibeui_dir.join("active-env.txt");
+    std::fs::write(&path, &environment).map_err(|e| e.to_string())?;
+    Ok(())
+}
