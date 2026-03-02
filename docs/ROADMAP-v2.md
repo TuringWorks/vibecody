@@ -1346,6 +1346,24 @@ Real-time collaborative editing powered by [yrs](https://github.com/y-crdt/y-crd
 | scheduler.rs tests (16) | ✅ | format_interval (s/m/h/d), parse_duration edge cases, ScheduleExpr serde roundtrip |
 | Total | ✅ | **664 tests** passing across workspace (was 508; +153 new) |
 
+## 7.18c Test Coverage Expansion Round 3 ✅
+
+**Status:** Complete
+
+| Item | Status | Details |
+|------|--------|---------|
+| index/mod.rs tests (30) | ✅ | score_symbol, tokenize, should_skip expanded, build/search/refresh with tempfiles, relevant_symbols ranking, serde |
+| hooks.rs tests (37) | ✅ | type_name all 10 variants, tool_name, file_path, glob_match_path, segment_match, path filters, HookHandler/HookConfig/build_payload serde |
+| buffer.rs tests (25) | ✅ | from_file, save/save_as, apply_edits batch, cursors, slice, line_len, Position/Range/Edit serde, undo/redo empty no-op |
+| git.rs tests (19) | ✅ | list_branches, get_history, get_commit_files, get_diff, discard_changes, commit, switch_branch, pop_stash, struct serde |
+| rules.rs tests (14) | ✅ | RulesLoader::load with/without frontmatter, glob_match, load_for_workspace dedup, load_steering clears path, Rule serde |
+| background_agents.rs tests (14) | ✅ | cancel_run, Display/serde, AgentDef serde, AgentRun lifecycle, init, list/get runs |
+| team.rs tests (10) | ✅ | context_string edge cases, TeamConfig serde, save/load, add_knowledge dedup, remove_knowledge |
+| linear.rs tests (9) | ✅ | priority_label all values, LinearIssue serde, handle_linear_command subcommands |
+| context.rs tests (8) | ✅ | with_index, with_open_files, token_budget, empty/missing inputs |
+| config.rs tests (7) | ✅ | load_from_file, serde roundtrip, empty/invalid TOML |
+| Total | ✅ | **829 tests** passing across workspace (was 664; +173 new across 10 files) |
+
 ---
 
 ## 7.19 Phase 7.19 — Context Window Safety + Process Manager ✅

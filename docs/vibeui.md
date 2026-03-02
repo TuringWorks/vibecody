@@ -853,13 +853,13 @@ VibeUI implements WCAG 2.1 Level AA accessibility:
 
 ## Testing
 
-**664 tests** pass across the workspace (as of 2026-03-02).
+**829 tests** pass across the workspace (as of 2026-03-02).
 
 | Crate | Tests | Key coverage areas |
 |-------|-------|--------------------|
-| vibecli-cli | 216 | session store, workflow, REPL, redteam, gateway, bugbot, vim editor, tool executor, scheduler, notebook, review, schema, syntax highlighting, diff viewer, MCP server |
-| vibe-ai | 177 | tools parsing/formatting, trace redaction, hooks, policy, skills, artifacts, planner, provider pricing, SigV4 signing, chat engine, completion confidence, multi-agent orchestration |
-| vibe-core | 105 | buffer, git, context, file system, workspace, index, embeddings, diff engine, search, executor safety, symbol extraction |
+| vibecli-cli | 245 | session store, workflow, REPL, redteam, gateway, bugbot, vim editor, tool executor, scheduler, notebook, review, schema, syntax highlighting, diff viewer, MCP server, background agents, team, linear |
+| vibe-ai | 232 | tools parsing/formatting, trace redaction, hooks (type_name/glob_match/path filters), policy, skills, artifacts, planner, provider pricing, SigV4 signing, chat engine, completion confidence, multi-agent orchestration, rules (loader/frontmatter/steering), config (load/serde) |
+| vibe-core | 186 | buffer (from_file/save/apply_edits/slice/cursors), git (branches/history/commit/diff/discard/stash), context (builder/index/open_files), file system, workspace, index (build/search/refresh/score/tokenize), embeddings, diff engine, search, executor safety, symbol extraction |
 | vibe-ui (Tauri) | 92 | parse_lcov, parse_go_coverage, detect_coverage_tool, discover_api_endpoints, cost paths, serialization, flow tracker, memory rules, agent executor |
 | vibe-collab | 28 | room lifecycle, server registry, protocol sync, awareness, error Display/StatusCode |
 | vibe-lsp | 9 | LSP manager default configs, client lookup |
@@ -869,7 +869,7 @@ VibeUI implements WCAG 2.1 Level AA accessibility:
 | vibe-extensions | 2 | loader basics |
 
 ```bash
-# Rust unit tests (all 664)
+# Rust unit tests (all 829)
 cargo test --workspace
 
 # Specific crates

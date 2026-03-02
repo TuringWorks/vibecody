@@ -8,7 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Testing
-- **317 new unit tests** across 20 files, bringing the workspace total from 344 → **664 tests**.
+- **490 new unit tests** across 30 files, bringing the workspace total from 344 → **829 tests**.
 - **Round 1 (164 tests)** across 8 files:
   - `provider.rs` (22): TokenUsage pricing for all 6 tiers, ProviderConfig builder/serialization,
     base64 padding, Message/CompletionResponse serde roundtrips.
@@ -49,6 +49,32 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     AgentResult serialization, AgentInstance clone, branch_name with large IDs.
   - `scheduler.rs` (16): format_interval (s/m/h/d/zero/boundaries), parse_duration whitespace/zero/large,
     ScheduleExpr Once/Recurring serde roundtrip, ScheduledJob deserialization.
+- **Round 3 (173 tests)** across 10 files:
+  - `index/mod.rs` (30): score_symbol exact/prefix/contains/no-match, tokenize split/filter/lowercase,
+    should_skip expanded (git/.hidden/min.js/lockfiles/pycache), build/search/refresh with tempfiles,
+    relevant_symbols ranking, IndexSearchResult serde, relevance_score name/sig/file/no-match.
+  - `hooks.rs` (37): type_name all 10 variants, tool_name pre/post/none, file_path saved/created/deleted,
+    is_empty, matches with path filters, glob_match_path double-star/single-star/exact, segment_match
+    star/prefix/suffix, HookHandler/HookConfig serde, build_payload pre_tool/file_saved/subagent.
+  - `buffer.rs` (25): from_file/save/save_as with tempfiles, line_len/line out-of-bounds, apply_edits
+    batch insert/delete, cursors default/set_cursors, slice single-line/cross-line, Position/Range/Edit
+    serde, undo/redo empty stack no-op, delete empty range no-op.
+  - `git.rs` (19): list_branches, get_history with limit, get_commit_files, get_diff changed/unchanged,
+    get_repo_diff clean/dirty, discard_changes, commit new file, switch_branch, pop_stash,
+    FileStatus/CommitInfo/CheckpointInfo/WorktreeInfo/MergeResult serde.
+  - `rules.rs` (14): empty/no-pattern match, load from tempdir with/without frontmatter, skip non-md,
+    glob_match double-star/exact/question-mark, load_for_workspace dedup, load_steering clears
+    path_pattern, load_all combines, Rule serde.
+  - `background_agents.rs` (14): cancel_run, AgentRunStatus Display/serde, AgentDef serde, AgentRun
+    new/finish, init creates dir, list_runs sorted, get_run nonexistent, load_def error, for_workspace.
+  - `team.rs` (10): context_string empty/shared_commands/no-name/tags/no-tags, TeamConfig serde,
+    save/load roundtrip, add_knowledge dedup, remove_knowledge nonexistent.
+  - `linear.rs` (9): priority_label all values including edge cases, LinearIssue serde with/without
+    assignee, handle_linear_command unknown/attach-empty/new-empty/open-empty/no-key.
+  - `context.rs` (8): with_token_budget, with_git_changed_files, with_open_files real/nonexistent,
+    with_index + relevant symbols, empty diff not shown, no changed files omits section, Default.
+  - `config.rs` (7): default all-none, load_from_file success/nonexistent/invalid TOML,
+    ProviderConfigFile serde, AIConfig serde, empty TOML loads as default.
 
 ### Accessibility (WCAG 2.1 AA)
 - **Keyboard shortcuts**: 8 new shortcuts — `Cmd+J` toggle AI panel, `Cmd+`` toggle terminal,
@@ -103,7 +129,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `chars.clone().take(12).collect::<String>()` per `<` with a cheap byte-slice peek
   (`tool_executor.rs`).
 - 3 new entity-decoder unit tests; 1 new cosine-clamp test; 1 new embedding-update correctness
-  test. Total: **664 tests** passing across the workspace (317 new in this release).
+  test. Total: **829 tests** passing across the workspace (490 new in this release).
 
 ### Phase 7.21: Real-time Chat Streaming in AIChat
 - **`stream_chat_message` Tauri command** (`commands.rs`): Immediately returns `Ok(())` and

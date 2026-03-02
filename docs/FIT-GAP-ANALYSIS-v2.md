@@ -436,7 +436,7 @@ Features VibeCody has that **no competitor offers:**
 
 ## Part D — Gap Priority Matrix (Updated Status)
 
-All gaps from Phases 16–46 are now resolved. Only low-impact infrastructure gaps remain. **664 unit tests** pass across the workspace (as of 2026-03-02):
+All gaps from Phases 16–46 are now resolved. Only low-impact infrastructure gaps remain. **829 unit tests** pass across the workspace (as of 2026-03-02):
 
 | Gap | Impact | Status | Competitor |
 |-----|--------|--------|------------|
@@ -551,7 +551,7 @@ All gaps from Phases 16–46 are now resolved. Only low-impact infrastructure ga
 | 46 | Agent aria-live announcements | ✅ aria-live="polite" status region in AgentPanel |
 | 46 | Skip-to-content link | ✅ Hidden link appears on Tab, jumps past sidebar |
 | 46 | Onboarding tour | ✅ OnboardingTour.tsx first-run guided walkthrough |
-| — | Test coverage expansion (317 new tests) | ✅ Round 1: provider.rs (22), tools.rs (30), diff.rs (12), search.rs (8), executor.rs (18), symbol.rs (16), bedrock.rs (13), error.rs (13). Round 2: flow.rs (17), syntax.rs (22), diff_viewer.rs (9), memory.rs (6), chat.rs (14), completion.rs (16), agent_executor.rs (10), mcp_server.rs (12), manager.rs (9), workspace.rs (12), multi_agent.rs (10), scheduler.rs (16) — total **664** |
+| — | Test coverage expansion (490 new tests) | ✅ Round 1: provider.rs (22), tools.rs (30), diff.rs (12), search.rs (8), executor.rs (18), symbol.rs (16), bedrock.rs (13), error.rs (13). Round 2: flow.rs (17), syntax.rs (22), diff_viewer.rs (9), memory.rs (6), chat.rs (14), completion.rs (16), agent_executor.rs (10), mcp_server.rs (12), manager.rs (9), workspace.rs (12), multi_agent.rs (10), scheduler.rs (16). Round 3: index/mod.rs (30), hooks.rs (37), buffer.rs (25), git.rs (19), rules.rs (14), background_agents.rs (14), team.rs (10), linear.rs (9), context.rs (8), config.rs (7) — total **829** |
 
 ---
 
