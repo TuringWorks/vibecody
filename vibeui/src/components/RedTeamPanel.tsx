@@ -94,8 +94,11 @@ export function RedTeamPanel({ workspacePath, provider }: Props) {
 
       // Poll for completion (simplified — in production would use SSE).
       let done = false;
-      while (!done) {
+      let attempts = 0;
+      const maxAttempts = 150; // 5 minute timeout at 2s intervals
+      while (!done && attempts < maxAttempts) {
         await new Promise((r) => setTimeout(r, 2000));
+        attempts++;
         try {
           const findings = await invoke<VulnFinding[]>("get_redteam_findings", { sessionId });
           const sess: RedTeamSession = {
@@ -115,6 +118,9 @@ export function RedTeamPanel({ workspacePath, provider }: Props) {
             return STAGES[Math.min(idx + 1, STAGES.length - 1)];
           });
         }
+      }
+      if (!done) {
+        setError("Scan timed out after 5 minutes");
       }
     } catch (e: any) {
       setError(e?.toString() || "Scan failed");

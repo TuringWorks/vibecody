@@ -4,7 +4,7 @@
  * Create/join rooms, see connected peers with color indicators, copy invite link, leave session.
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
 interface CollabSessionInfo {
@@ -40,6 +40,13 @@ export function CollabPanel({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+    };
+  }, []);
 
   const handleCreate = useCallback(async () => {
     setLoading(true);
@@ -82,8 +89,12 @@ export function CollabPanel({
     if (roomId) {
       navigator.clipboard.writeText(roomId).then(() => {
         setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      });
+        if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+        copyTimeoutRef.current = setTimeout(() => {
+          setCopied(false);
+          copyTimeoutRef.current = null;
+        }, 2000);
+      }).catch(() => {});
     }
   }, [roomId]);
 

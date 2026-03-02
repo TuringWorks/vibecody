@@ -94,7 +94,7 @@ export function TestPanel({ workspacePath }: TestPanelProps) {
             });
         } finally {
             setRunning(false);
-            unlisten();
+            unlistenRef.current?.();
             unlistenRef.current = null;
         }
     }

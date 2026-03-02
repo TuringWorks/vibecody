@@ -96,7 +96,7 @@ export function CostPanel() {
     ? (metrics?.entries ?? [])
     : (metrics?.entries ?? []).slice(0, 20);
 
-  const maxProviderCost = Math.max(...(metrics?.by_provider.map(p => p.total_cost_usd) ?? [0]));
+  const maxProviderCost = Math.max(...(metrics?.by_provider?.map(p => p.total_cost_usd) ?? [0]));
 
   return (
     <div style={{ padding: "12px", fontFamily: "monospace", fontSize: "13px", height: "100%", overflowY: "auto" }}>
