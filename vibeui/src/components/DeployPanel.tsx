@@ -100,7 +100,7 @@ export function DeployPanel({ workspacePath }: DeployPanelProps) {
       setLogs(prev => [...prev, `❌ Deployment failed: ${e}`]);
     } finally {
       setIsDeploying(false);
-      unlisten();
+      deployUnlistenRef.current?.();
       deployUnlistenRef.current = null;
     }
   };

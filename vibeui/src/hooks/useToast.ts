@@ -9,7 +9,7 @@
  *   toast.warn("No active provider set.");
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 
 export type ToastVariant = "success" | "error" | "info" | "warn";
 
@@ -38,15 +38,32 @@ const DURATION: Record<ToastVariant, number> = {
 
 export function useToast(): { toasts: Toast[]; toast: ToastApi; dismiss: (id: number) => void } {
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const timersRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
+
+  useEffect(() => {
+    return () => {
+      timersRef.current.forEach(t => clearTimeout(t));
+      timersRef.current.clear();
+    };
+  }, []);
 
   const dismiss = useCallback((id: number) => {
     setToasts(prev => prev.filter(t => t.id !== id));
+    const timer = timersRef.current.get(id);
+    if (timer) {
+      clearTimeout(timer);
+      timersRef.current.delete(id);
+    }
   }, []);
 
   const add = useCallback((message: string, variant: ToastVariant) => {
     const id = _nextId++;
     setToasts(prev => [...prev, { id, message, variant }]);
-    setTimeout(() => dismiss(id), DURATION[variant]);
+    const timer = setTimeout(() => {
+      timersRef.current.delete(id);
+      dismiss(id);
+    }, DURATION[variant]);
+    timersRef.current.set(id, timer);
   }, [dismiss]);
 
   const toast: ToastApi = {
