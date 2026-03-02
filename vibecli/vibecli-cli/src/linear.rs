@@ -133,7 +133,7 @@ impl LinearClient {
                 identifier: n["identifier"].as_str().unwrap_or("").to_string(),
                 title: n["title"].as_str().unwrap_or("").to_string(),
                 state: n["state"]["name"].as_str().unwrap_or("").to_string(),
-                priority: n["priority"].as_u64().unwrap_or(0) as u8,
+                priority: n["priority"].as_u64().unwrap_or(0).min(255) as u8,
                 url: n["url"].as_str().unwrap_or("").to_string(),
                 assignee: n["assignee"]["name"].as_str().map(|s| s.to_string()),
             })
@@ -184,7 +184,7 @@ impl LinearClient {
             identifier: n["identifier"].as_str().unwrap_or("").to_string(),
             title: n["title"].as_str().unwrap_or("").to_string(),
             state: n["state"]["name"].as_str().unwrap_or("").to_string(),
-            priority: n["priority"].as_u64().unwrap_or(0) as u8,
+            priority: n["priority"].as_u64().unwrap_or(0).min(255) as u8,
             url: n["url"].as_str().unwrap_or("").to_string(),
             assignee: n["assignee"]["name"].as_str().map(|s| s.to_string()),
         })
@@ -217,7 +217,7 @@ impl LinearClient {
             identifier: n["identifier"].as_str().unwrap_or("").to_string(),
             title: n["title"].as_str().unwrap_or("").to_string(),
             state: n["state"]["name"].as_str().unwrap_or("").to_string(),
-            priority: n["priority"].as_u64().unwrap_or(0) as u8,
+            priority: n["priority"].as_u64().unwrap_or(0).min(255) as u8,
             url: n["url"].as_str().unwrap_or("").to_string(),
             assignee: n["assignee"]["name"].as_str().map(|s| s.to_string()),
         })

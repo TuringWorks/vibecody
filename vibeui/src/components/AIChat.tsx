@@ -57,7 +57,9 @@ function useVoiceInput(onTranscript: (text: string) => void) {
 
         r.onresult = (e: SpeechRecognitionEvent) => {
             const parts: string[] = [];
-            for (let i = 0; i < e.results.length; i++) parts.push(e.results[i][0].transcript);
+            for (let i = 0; i < e.results.length; i++) {
+                if (e.results[i] && e.results[i][0]) parts.push(e.results[i][0].transcript);
+            }
             onTranscript(parts.join(""));
         };
 
