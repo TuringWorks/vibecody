@@ -79,6 +79,28 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - 3 new entity-decoder unit tests; 1 new cosine-clamp test; 1 new embedding-update correctness
   test. Total: **508 tests** passing across the workspace (164 new in this release).
 
+### Phase 7.21: Real-time Chat Streaming in AIChat
+- **`stream_chat_message` Tauri command** (`commands.rs`): Immediately returns `Ok(())` and
+  spawns a background tokio task that calls `provider.stream_chat()` and emits three event types:
+  `chat:chunk` (each token as it arrives), `chat:complete` (full `ChatResponse` with tool-call
+  processing), and `chat:error`. Any previously running chat stream is automatically cancelled
+  before starting a new one. `ChatResponse` gained `#[derive(Clone)]` to satisfy the Tauri emitter
+  bound. Added `futures = "0.3"` to `vibeui/src-tauri/Cargo.toml`.
+- **`stop_chat_stream` Tauri command** (`commands.rs`): Aborts the background task via the stored
+  `AbortHandle`. The frontend commits any partial text as the final assistant message.
+- **`AppState.chat_abort_handle`** (`commands.rs` + `lib.rs`): New `Arc<Mutex<Option<AbortHandle>>>`
+  field — mirrors `agent_abort_handle` already used by the agent pipeline.
+- **`AIChat.tsx` streaming rewrite**:
+  - `sendMessage` now calls `invoke("stream_chat_message")` (non-blocking kick-start) instead of
+    the blocking `invoke("send_chat_message")`.
+  - A one-time `useEffect` registers `chat:chunk`, `chat:complete`, `chat:error` Tauri event
+    listeners that build up `streamingText` state token-by-token.
+  - While streaming: the typing-indicator is replaced with live text and a blinking cursor.
+  - After first chunk: `streamStartMsRef` / `streamCharsRef` compute `tokensPerSec` on every
+    chunk; an ⚡ badge shows `N tok/s · ~M tokens` below the text (hides on completion).
+  - `stopMessage` callback: invokes `stop_chat_stream` + commits the partial streaming text as the
+    final assistant message. The ⏹ Stop button now calls this instead of just flipping `isLoading`.
+
 ### Phase 7.20: Streaming Metrics + REPL Session Commands
 - **`/sessions` REPL command** (`repl.rs` + `main.rs`): Lists last 15 root sessions from SQLite
   (`SessionStore::list_root_sessions(15)`) with ID, status icon (✅/🟡/❌), step count, task

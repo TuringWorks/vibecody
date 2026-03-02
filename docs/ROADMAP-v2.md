@@ -1363,6 +1363,26 @@ Real-time collaborative editing powered by [yrs](https://github.com/y-crdt/y-crd
 
 ---
 
+## 7.21 Phase 7.21 — Real-time Chat Streaming ✅
+
+**Status:** Complete
+
+| Item | Status | Details |
+|------|--------|---------|
+| `stream_chat_message` Tauri cmd | ✅ | Spawns tokio task; emits `chat:chunk`/`chat:complete`/`chat:error` events; cancels prior stream |
+| `stop_chat_stream` Tauri cmd | ✅ | Aborts background task via `AbortHandle`; adds partial text as final message |
+| `AppState.chat_abort_handle` | ✅ | `Arc<Mutex<Option<AbortHandle>>>` — same pattern as `agent_abort_handle` |
+| `futures = "0.3"` dependency | ✅ | Added to `vibeui/src-tauri/Cargo.toml` |
+| `ChatResponse` Clone | ✅ | Added `#[derive(Clone)]` so response can be emitted via Tauri events |
+| `AIChat.tsx` streaming mode | ✅ | `invoke("stream_chat_message")` kick-starts; `chat:chunk` listener builds text live |
+| Live streaming text display | ✅ | Shows `streamingText` with blinking cursor while loading; replaces typing-indicator once first chunk arrives |
+| Tok/s speed badge | ✅ | `⚡ N tok/s · ~M tokens` line below streaming text; uses same `streamStartMsRef`/`streamCharsRef` pattern as AgentPanel |
+| Stop button wired | ✅ | Calls `stopMessage()` which invokes `stop_chat_stream` + commits partial text |
+| `useCallback`/`listen` imports | ✅ | Clean TypeScript, `tsc --noEmit` passes |
+| Tests | ✅ | **513 passing** (no regression) |
+
+---
+
 ## 8. VibeCody Wins — Competitive Position
 
 With all phases complete, VibeCody is the **only** developer toolchain that combines:
