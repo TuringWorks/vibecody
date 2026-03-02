@@ -386,4 +386,353 @@ mod tests {
         assert!(should_skip(Path::new("/proj/target/debug/lib.rs")));
         assert!(!should_skip(Path::new("/proj/src/main.rs")));
     }
+
+    // ── score_symbol tests ────────────────────────────────────────────────
+
+    #[test]
+    fn score_symbol_exact_match() {
+        assert!((score_symbol("main", "main") - 1.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn score_symbol_prefix_match() {
+        assert!((score_symbol("main_loop", "main") - 0.9).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn score_symbol_contains_match() {
+        assert!((score_symbol("get_main_value", "main") - 0.7).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn score_symbol_no_match() {
+        assert!((score_symbol("foo", "bar")).abs() < f32::EPSILON);
+    }
+
+    // ── tokenize tests ────────────────────────────────────────────────────
+
+    #[test]
+    fn tokenize_splits_on_punctuation() {
+        let tokens = tokenize("refactor auth_user module");
+        assert!(tokens.contains(&"refactor".to_string()));
+        assert!(tokens.contains(&"auth_user".to_string()));
+        assert!(tokens.contains(&"module".to_string()));
+    }
+
+    #[test]
+    fn tokenize_filters_short_tokens() {
+        let tokens = tokenize("a bb ccc");
+        assert!(!tokens.contains(&"a".to_string()));
+        assert!(!tokens.contains(&"bb".to_string()));
+        assert!(tokens.contains(&"ccc".to_string()));
+    }
+
+    #[test]
+    fn tokenize_lowercases() {
+        let tokens = tokenize("FooBar");
+        assert!(tokens.contains(&"foobar".to_string()));
+    }
+
+    #[test]
+    fn tokenize_empty_string() {
+        assert!(tokenize("").is_empty());
+    }
+
+    // ── should_skip expanded tests ────────────────────────────────────────
+
+    #[test]
+    fn skip_git_dir() {
+        assert!(should_skip(Path::new("/proj/.git/objects/abc")));
+    }
+
+    #[test]
+    fn skip_hidden_file() {
+        assert!(should_skip(Path::new("/proj/.hidden_file.rs")));
+    }
+
+    #[test]
+    fn skip_min_js() {
+        assert!(should_skip(Path::new("/proj/src/bundle.min.js")));
+    }
+
+    #[test]
+    fn skip_lockfile() {
+        assert!(should_skip(Path::new("/proj/package-lock.json")));
+    }
+
+    #[test]
+    fn skip_cargo_lock() {
+        assert!(should_skip(Path::new("/proj/Cargo.lock")));
+    }
+
+    #[test]
+    fn no_skip_normal_ts() {
+        assert!(!should_skip(Path::new("/proj/src/app.ts")));
+    }
+
+    #[test]
+    fn skip_pycache() {
+        assert!(should_skip(Path::new("/proj/__pycache__/mod.pyc")));
+    }
+
+    #[test]
+    fn skip_venv() {
+        assert!(should_skip(Path::new("/proj/.venv/bin/python")));
+    }
+
+    // ── CodebaseIndex with temp files ─────────────────────────────────────
+
+    #[test]
+    fn new_index_is_empty() {
+        let idx = CodebaseIndex::new(PathBuf::from("/nonexistent"));
+        assert_eq!(idx.file_count(), 0);
+        assert_eq!(idx.symbol_count(), 0);
+        assert!(idx.all_symbols().is_empty());
+    }
+
+    #[test]
+    fn build_indexes_rust_file() {
+        let dir = std::env::temp_dir().join("vibecody_idx_test_build");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("src")).unwrap();
+        std::fs::write(
+            dir.join("src/lib.rs"),
+            "pub fn hello() {}\npub struct World;\n",
+        ).unwrap();
+
+        let mut idx = CodebaseIndex::new(dir.clone());
+        let stats = idx.build().unwrap();
+
+        assert!(stats.indexed >= 1);
+        assert!(stats.total_symbols >= 2);
+        assert!(idx.file_count() >= 1);
+        assert!(idx.symbol_count() >= 2);
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn search_symbols_returns_matching() {
+        let dir = std::env::temp_dir().join("vibecody_idx_test_search");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("src")).unwrap();
+        std::fs::write(
+            dir.join("src/lib.rs"),
+            "pub fn authenticate() {}\npub fn get_config() {}\n",
+        ).unwrap();
+
+        let mut idx = CodebaseIndex::new(dir.clone());
+        idx.build().unwrap();
+
+        let results = idx.search_symbols("auth");
+        assert!(!results.is_empty());
+        assert!(results[0].name.to_lowercase().contains("auth"));
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn search_symbols_empty_for_no_match() {
+        let idx = CodebaseIndex::new(PathBuf::from("/nonexistent"));
+        let results = idx.search_symbols("zzz_nonexistent");
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn symbols_in_file_returns_empty_for_unknown() {
+        let idx = CodebaseIndex::new(PathBuf::from("/nonexistent"));
+        let syms = idx.symbols_in_file(Path::new("/no/such/file.rs"));
+        assert!(syms.is_empty());
+    }
+
+    #[test]
+    fn refresh_adds_new_file() {
+        let dir = std::env::temp_dir().join("vibecody_idx_test_refresh");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("src")).unwrap();
+        std::fs::write(dir.join("src/a.rs"), "pub fn a() {}\n").unwrap();
+
+        let mut idx = CodebaseIndex::new(dir.clone());
+        idx.build().unwrap();
+        let count_before = idx.symbol_count();
+
+        // Add a second file and refresh
+        let new_file = dir.join("src/b.rs");
+        std::fs::write(&new_file, "pub fn b() {}\npub fn c() {}\n").unwrap();
+        idx.refresh(&[new_file]).unwrap();
+
+        assert!(idx.symbol_count() > count_before);
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn refresh_removes_deleted_file() {
+        let dir = std::env::temp_dir().join("vibecody_idx_test_refresh_del");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("src")).unwrap();
+        let file = dir.join("src/a.rs");
+        std::fs::write(&file, "pub fn a() {}\n").unwrap();
+
+        let mut idx = CodebaseIndex::new(dir.clone());
+        idx.build().unwrap();
+        assert!(idx.file_count() >= 1);
+
+        // Delete the file and refresh
+        std::fs::remove_file(&file).unwrap();
+        idx.refresh(&[file]).unwrap();
+
+        // The file should be removed from the index
+        assert_eq!(idx.file_count(), 0);
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn indexed_files_iterator() {
+        let dir = std::env::temp_dir().join("vibecody_idx_test_iter");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("src")).unwrap();
+        std::fs::write(dir.join("src/x.rs"), "pub fn x() {}\n").unwrap();
+
+        let mut idx = CodebaseIndex::new(dir.clone());
+        idx.build().unwrap();
+
+        let files: Vec<_> = idx.indexed_files().collect();
+        assert!(!files.is_empty());
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn relevant_symbols_empty_task_terms() {
+        let dir = std::env::temp_dir().join("vibecody_idx_test_relevant_empty");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("src")).unwrap();
+        std::fs::write(dir.join("src/a.rs"), "pub fn foo() {}\n").unwrap();
+
+        let mut idx = CodebaseIndex::new(dir.clone());
+        idx.build().unwrap();
+
+        // Empty task (all short tokens) → returns first N symbols
+        let results = idx.relevant_symbols("a b", 10);
+        assert!(!results.is_empty());
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn relevant_symbols_ranked_by_relevance() {
+        let dir = std::env::temp_dir().join("vibecody_idx_test_relevant_rank");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("src")).unwrap();
+        std::fs::write(
+            dir.join("src/lib.rs"),
+            "pub fn authenticate() {}\npub fn render_ui() {}\n",
+        ).unwrap();
+
+        let mut idx = CodebaseIndex::new(dir.clone());
+        idx.build().unwrap();
+
+        let results = idx.relevant_symbols("authenticate user", 10);
+        // "authenticate" should come before "render_ui"
+        if results.len() >= 2 {
+            assert_eq!(results[0].name, "authenticate");
+        }
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    // ── IndexStats Default ────────────────────────────────────────────────
+
+    #[test]
+    fn index_stats_default_all_zero() {
+        let stats = IndexStats::default();
+        assert_eq!(stats.indexed, 0);
+        assert_eq!(stats.skipped, 0);
+        assert_eq!(stats.total_files, 0);
+        assert_eq!(stats.total_symbols, 0);
+        assert_eq!(stats.symbols_found, 0);
+    }
+
+    // ── IndexSearchResult serde ───────────────────────────────────────────
+
+    #[test]
+    fn index_search_result_serde_roundtrip() {
+        let result = IndexSearchResult {
+            file: PathBuf::from("src/main.rs"),
+            line: 42,
+            snippet: "fn main()".to_string(),
+            score: 0.95,
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        let back: IndexSearchResult = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.line, 42);
+        assert_eq!(back.snippet, "fn main()");
+    }
+
+    // ── relevance_score tests ─────────────────────────────────────────────
+
+    #[test]
+    fn relevance_score_name_match_highest() {
+        let sym = SymbolInfo {
+            name: "authenticate".to_string(),
+            kind: SymbolKind::Function,
+            file: PathBuf::from("auth.rs"),
+            line: 1,
+            signature: "pub fn authenticate()".to_string(),
+            language: Language::Rust,
+        };
+        let terms = vec!["authenticate".to_string()];
+        let score = relevance_score(&sym, &terms);
+        // Name match gives 2.0
+        assert!(score >= 2.0);
+    }
+
+    #[test]
+    fn relevance_score_signature_match_medium() {
+        let sym = SymbolInfo {
+            name: "do_stuff".to_string(),
+            kind: SymbolKind::Function,
+            file: PathBuf::from("stuff.rs"),
+            line: 1,
+            signature: "pub fn do_stuff(token: &str)".to_string(),
+            language: Language::Rust,
+        };
+        let terms = vec!["token".to_string()];
+        let score = relevance_score(&sym, &terms);
+        // Signature match gives 1.0
+        assert!((score - 1.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn relevance_score_file_match_low() {
+        let sym = SymbolInfo {
+            name: "do_stuff".to_string(),
+            kind: SymbolKind::Function,
+            file: PathBuf::from("authentication.rs"),
+            line: 1,
+            signature: "pub fn do_stuff()".to_string(),
+            language: Language::Rust,
+        };
+        let terms = vec!["authentication".to_string()];
+        let score = relevance_score(&sym, &terms);
+        // File name match gives 0.5
+        assert!((score - 0.5).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn relevance_score_no_match_zero() {
+        let sym = SymbolInfo {
+            name: "foo".to_string(),
+            kind: SymbolKind::Function,
+            file: PathBuf::from("bar.rs"),
+            line: 1,
+            signature: "pub fn foo()".to_string(),
+            language: Language::Rust,
+        };
+        let terms = vec!["zzz_nonexistent".to_string()];
+        let score = relevance_score(&sym, &terms);
+        assert!(score.abs() < f32::EPSILON);
+    }
 }

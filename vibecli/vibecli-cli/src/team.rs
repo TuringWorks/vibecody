@@ -256,4 +256,141 @@ mod tests {
         assert!(ctx.contains("Acme"));
         assert!(ctx.contains("cargo check"));
     }
+
+    // ── context_string edge cases ──────────────────────────────────────────
+
+    #[test]
+    fn context_string_empty_when_no_knowledge_or_commands() {
+        let cfg = TeamConfig::default();
+        assert!(cfg.context_string().is_empty());
+    }
+
+    #[test]
+    fn context_string_includes_shared_commands() {
+        let cfg = TeamConfig {
+            team: TeamInfo { name: None, knowledge_base_url: None },
+            knowledge: vec![],
+            shared_commands: vec![SharedCommand {
+                name: "deploy".to_string(),
+                command: "npm run deploy".to_string(),
+                description: "Deploy to prod".to_string(),
+            }],
+            shared_mcp: vec![],
+        };
+        let ctx = cfg.context_string();
+        assert!(ctx.contains("Team Knowledge"));
+        assert!(ctx.contains("npm run deploy"));
+        assert!(ctx.contains("Deploy to prod"));
+    }
+
+    #[test]
+    fn context_string_no_team_name_uses_default_header() {
+        let cfg = TeamConfig {
+            team: TeamInfo { name: None, knowledge_base_url: None },
+            knowledge: vec![KnowledgeEntry {
+                name: "k".into(), content: "v".into(), tags: vec![],
+            }],
+            shared_commands: vec![],
+            shared_mcp: vec![],
+        };
+        let ctx = cfg.context_string();
+        assert!(ctx.contains("Team Knowledge"));
+    }
+
+    #[test]
+    fn context_string_knowledge_tags_shown() {
+        let cfg = TeamConfig {
+            team: TeamInfo { name: Some("T".into()), knowledge_base_url: None },
+            knowledge: vec![KnowledgeEntry {
+                name: "tip".into(),
+                content: "do it".into(),
+                tags: vec!["ops".into(), "dev".into()],
+            }],
+            shared_commands: vec![],
+            shared_mcp: vec![],
+        };
+        let ctx = cfg.context_string();
+        assert!(ctx.contains("[ops, dev]"));
+    }
+
+    #[test]
+    fn context_string_knowledge_no_tags() {
+        let cfg = TeamConfig {
+            team: TeamInfo { name: Some("T".into()), knowledge_base_url: None },
+            knowledge: vec![KnowledgeEntry {
+                name: "tip".into(),
+                content: "do it".into(),
+                tags: vec![],
+            }],
+            shared_commands: vec![],
+            shared_mcp: vec![],
+        };
+        let ctx = cfg.context_string();
+        // No brackets when no tags
+        assert!(!ctx.contains("["));
+    }
+
+    // ── TeamConfig serde ───────────────────────────────────────────────────
+
+    #[test]
+    fn team_config_serde_roundtrip() {
+        let cfg = TeamConfig {
+            team: TeamInfo { name: Some("Acme".into()), knowledge_base_url: None },
+            knowledge: vec![KnowledgeEntry {
+                name: "k".into(), content: "v".into(), tags: vec!["t".into()],
+            }],
+            shared_commands: vec![SharedCommand {
+                name: "c".into(), command: "cmd".into(), description: "d".into(),
+            }],
+            shared_mcp: vec![SharedMcp {
+                name: "m".into(), command: "mcmd".into(), args: vec!["--arg".into()],
+            }],
+        };
+        let toml_str = toml::to_string(&cfg).unwrap();
+        let back: TeamConfig = toml::from_str(&toml_str).unwrap();
+        assert_eq!(back.team.name, Some("Acme".into()));
+        assert_eq!(back.knowledge.len(), 1);
+        assert_eq!(back.shared_commands.len(), 1);
+        assert_eq!(back.shared_mcp.len(), 1);
+    }
+
+    // ── TeamManager save/load ──────────────────────────────────────────────
+
+    #[test]
+    fn save_and_load_roundtrip() {
+        let tmp = TempDir::new().unwrap();
+        let mgr = TeamManager::for_workspace(tmp.path());
+        let cfg = TeamConfig {
+            team: TeamInfo { name: Some("Test Team".into()), knowledge_base_url: None },
+            knowledge: vec![],
+            shared_commands: vec![],
+            shared_mcp: vec![],
+        };
+        mgr.save(&cfg).unwrap();
+        let loaded = mgr.load();
+        assert_eq!(loaded.team.name, Some("Test Team".into()));
+    }
+
+    // ── add_knowledge deduplicates by name ─────────────────────────────────
+
+    #[test]
+    fn add_knowledge_dedup_by_name() {
+        let tmp = TempDir::new().unwrap();
+        let mgr = TeamManager::for_workspace(tmp.path());
+        mgr.add_knowledge("deploy", "version 1", vec![]).unwrap();
+        mgr.add_knowledge("deploy", "version 2", vec![]).unwrap();
+        let cfg = mgr.load();
+        assert_eq!(cfg.knowledge.len(), 1);
+        assert!(cfg.knowledge[0].content.contains("version 2"));
+    }
+
+    // ── remove_knowledge returns false for missing ─────────────────────────
+
+    #[test]
+    fn remove_knowledge_nonexistent_returns_false() {
+        let tmp = TempDir::new().unwrap();
+        let mgr = TeamManager::for_workspace(tmp.path());
+        let removed = mgr.remove_knowledge("nonexistent").unwrap();
+        assert!(!removed);
+    }
 }

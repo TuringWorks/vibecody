@@ -301,4 +301,149 @@ mod tests {
         assert_eq!(updated.status, AgentRunStatus::Complete);
         assert_eq!(updated.summary.as_deref(), Some("Build passed"));
     }
+
+    // ── cancel_run ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn cancel_run_sets_cancelled() {
+        let tmp = TempDir::new().unwrap();
+        let mgr = BackgroundAgentManager::new(tmp.path().to_path_buf());
+        let def = mgr.create_template("runner", "Run").unwrap();
+        let run = mgr.start_run(&def);
+
+        mgr.cancel_run(&run.id);
+        let updated = mgr.get_run(&run.id).unwrap();
+        assert_eq!(updated.status, AgentRunStatus::Cancelled);
+        assert!(updated.finished_at.is_some());
+    }
+
+    // ── AgentRunStatus Display ─────────────────────────────────────────────
+
+    #[test]
+    fn agent_run_status_display() {
+        assert_eq!(format!("{}", AgentRunStatus::Running), "running");
+        assert_eq!(format!("{}", AgentRunStatus::Complete), "complete");
+        assert_eq!(format!("{}", AgentRunStatus::Failed), "failed");
+        assert_eq!(format!("{}", AgentRunStatus::Cancelled), "cancelled");
+    }
+
+    // ── AgentRunStatus serde ───────────────────────────────────────────────
+
+    #[test]
+    fn agent_run_status_serde_roundtrip() {
+        for status in [AgentRunStatus::Running, AgentRunStatus::Complete, AgentRunStatus::Failed, AgentRunStatus::Cancelled] {
+            let json = serde_json::to_string(&status).unwrap();
+            let back: AgentRunStatus = serde_json::from_str(&json).unwrap();
+            assert_eq!(back, status);
+        }
+    }
+
+    // ── AgentDef serde ─────────────────────────────────────────────────────
+
+    #[test]
+    fn agent_def_serde_roundtrip() {
+        let def = AgentDef {
+            name: "test".to_string(),
+            background: true,
+            trigger: "on_demand".to_string(),
+            trigger_paths: vec!["**/*.rs".to_string()],
+            task: "Run tests".to_string(),
+            approval_policy: "full-auto".to_string(),
+            max_steps: 20,
+            provider: Some("ollama".to_string()),
+            model: None,
+        };
+        let toml_str = toml::to_string(&def).unwrap();
+        let back: AgentDef = toml::from_str(&toml_str).unwrap();
+        assert_eq!(back.name, "test");
+        assert_eq!(back.trigger_paths, vec!["**/*.rs"]);
+        assert_eq!(back.provider, Some("ollama".to_string()));
+    }
+
+    // ── AgentRun ───────────────────────────────────────────────────────────
+
+    #[test]
+    fn agent_run_new_sets_running() {
+        let run = AgentRun::new("id-1", "runner", "do stuff");
+        assert_eq!(run.id, "id-1");
+        assert_eq!(run.name, "runner");
+        assert_eq!(run.status, AgentRunStatus::Running);
+        assert!(run.finished_at.is_none());
+        assert!(run.summary.is_none());
+    }
+
+    #[test]
+    fn agent_run_finish_sets_fields() {
+        let mut run = AgentRun::new("id-2", "worker", "task");
+        run.finish(AgentRunStatus::Failed, Some("error msg".to_string()));
+        assert_eq!(run.status, AgentRunStatus::Failed);
+        assert!(run.finished_at.is_some());
+        assert_eq!(run.summary.as_deref(), Some("error msg"));
+    }
+
+    // ── BackgroundAgentManager::init ───────────────────────────────────────
+
+    #[test]
+    fn init_creates_agents_dir() {
+        let tmp = TempDir::new().unwrap();
+        let dir = tmp.path().join("subdir").join("agents");
+        let mgr = BackgroundAgentManager::new(dir.clone());
+        mgr.init().unwrap();
+        assert!(dir.is_dir());
+    }
+
+    // ── list_runs / get_run ────────────────────────────────────────────────
+
+    #[test]
+    fn list_runs_sorted_newest_first() {
+        let tmp = TempDir::new().unwrap();
+        let mgr = BackgroundAgentManager::new(tmp.path().to_path_buf());
+        let d1 = mgr.create_template("a", "A").unwrap();
+        let d2 = mgr.create_template("b", "B").unwrap();
+        let _r1 = mgr.start_run(&d1);
+        std::thread::sleep(std::time::Duration::from_millis(5));
+        let _r2 = mgr.start_run(&d2);
+
+        let runs = mgr.list_runs();
+        assert_eq!(runs.len(), 2);
+        assert!(runs[0].started_at >= runs[1].started_at);
+    }
+
+    #[test]
+    fn get_run_nonexistent_returns_none() {
+        let tmp = TempDir::new().unwrap();
+        let mgr = BackgroundAgentManager::new(tmp.path().to_path_buf());
+        assert!(mgr.get_run("nonexistent-id").is_none());
+    }
+
+    // ── load_def nonexistent ───────────────────────────────────────────────
+
+    #[test]
+    fn load_def_nonexistent_returns_error() {
+        let tmp = TempDir::new().unwrap();
+        let mgr = BackgroundAgentManager::new(tmp.path().to_path_buf());
+        let result = mgr.load_def("nonexistent");
+        assert!(result.is_err());
+    }
+
+    // ── list_defs on empty dir ─────────────────────────────────────────────
+
+    #[test]
+    fn list_defs_empty_when_no_dir() {
+        let tmp = TempDir::new().unwrap();
+        // Point to a dir that doesn't exist yet
+        let mgr = BackgroundAgentManager::new(tmp.path().join("no_such_dir"));
+        assert!(mgr.list_defs().is_empty());
+    }
+
+    // ── for_workspace ──────────────────────────────────────────────────────
+
+    #[test]
+    fn for_workspace_sets_correct_path() {
+        let tmp = TempDir::new().unwrap();
+        let mgr = BackgroundAgentManager::for_workspace(tmp.path());
+        // Init should create the .vibecli/agents dir
+        mgr.init().unwrap();
+        assert!(tmp.path().join(".vibecli").join("agents").is_dir());
+    }
 }

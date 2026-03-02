@@ -396,11 +396,251 @@ mod tests {
         let mut buffer = TextBuffer::from_str("Hello");
         buffer.insert(Position::new(0, 5), " World").unwrap();
         assert_eq!(buffer.text(), "Hello World");
-        
+
         buffer.undo().unwrap();
         assert_eq!(buffer.text(), "Hello");
-        
+
         buffer.redo().unwrap();
         assert_eq!(buffer.text(), "Hello World");
+    }
+
+    // ── from_file / save / save_as ────────────────────────────────────────
+
+    #[test]
+    fn from_file_reads_content() {
+        let dir = std::env::temp_dir().join("vibecody_buf_from_file");
+        let _ = std::fs::create_dir_all(&dir);
+        let file = dir.join("test.txt");
+        std::fs::write(&file, "line1\nline2\n").unwrap();
+
+        let buf = TextBuffer::from_file(file.clone()).unwrap();
+        assert_eq!(buf.line_count(), 3); // "line1\n", "line2\n", "" (trailing)
+        assert!(buf.file_path().is_some());
+        assert_eq!(buf.file_path().unwrap(), &file);
+        assert!(!buf.is_modified());
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn from_file_nonexistent_returns_error() {
+        let result = TextBuffer::from_file(std::path::PathBuf::from("/nonexistent/file.txt"));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn save_without_path_returns_error() {
+        let mut buf = TextBuffer::from_str("hello");
+        let result = buf.save();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("No file path"));
+    }
+
+    #[test]
+    fn save_writes_content_to_file() {
+        let dir = std::env::temp_dir().join("vibecody_buf_save");
+        let _ = std::fs::create_dir_all(&dir);
+        let file = dir.join("save_test.txt");
+        std::fs::write(&file, "original").unwrap();
+
+        let mut buf = TextBuffer::from_file(file.clone()).unwrap();
+        buf.insert(Position::new(0, 8), " modified").unwrap();
+        assert!(buf.is_modified());
+
+        buf.save().unwrap();
+        assert!(!buf.is_modified());
+
+        let saved = std::fs::read_to_string(&file).unwrap();
+        assert_eq!(saved, "original modified");
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn save_as_sets_new_path() {
+        let dir = std::env::temp_dir().join("vibecody_buf_save_as");
+        let _ = std::fs::create_dir_all(&dir);
+        let new_file = dir.join("new_file.txt");
+
+        let mut buf = TextBuffer::from_str("content");
+        buf.save_as(new_file.clone()).unwrap();
+
+        assert_eq!(buf.file_path().unwrap(), &new_file);
+        assert!(!buf.is_modified());
+        let saved = std::fs::read_to_string(&new_file).unwrap();
+        assert_eq!(saved, "content");
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    // ── file_path ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn file_path_none_for_new_buffer() {
+        let buf = TextBuffer::new();
+        assert!(buf.file_path().is_none());
+    }
+
+    // ── line_len ──────────────────────────────────────────────────────────
+
+    #[test]
+    fn line_len_returns_char_count() {
+        let buf = TextBuffer::from_str("abc\nde\n");
+        assert_eq!(buf.line_len(0), 4); // "abc\n"
+        assert_eq!(buf.line_len(1), 3); // "de\n"
+    }
+
+    #[test]
+    fn line_len_out_of_bounds() {
+        let buf = TextBuffer::from_str("abc");
+        assert_eq!(buf.line_len(999), 0);
+    }
+
+    // ── line ──────────────────────────────────────────────────────────────
+
+    #[test]
+    fn line_out_of_bounds_returns_none() {
+        let buf = TextBuffer::from_str("abc");
+        assert!(buf.line(999).is_none());
+    }
+
+    // ── apply_edits ───────────────────────────────────────────────────────
+
+    #[test]
+    fn apply_edits_batch_inserts() {
+        let mut buf = TextBuffer::from_str("aaa\nbbb\nccc\n");
+        buf.apply_edits(vec![
+            Edit::Insert { position: Position::new(0, 3), text: "1".to_string() },
+            Edit::Insert { position: Position::new(1, 3), text: "2".to_string() },
+        ]).unwrap();
+        let text = buf.text();
+        assert!(text.contains("aaa1"));
+        assert!(text.contains("bbb2"));
+        assert!(buf.is_modified());
+    }
+
+    #[test]
+    fn apply_edits_batch_deletes() {
+        let mut buf = TextBuffer::from_str("abcdef");
+        buf.apply_edits(vec![
+            Edit::Delete {
+                range: Range { start: Position::new(0, 0), end: Position::new(0, 3) },
+                deleted_text: String::new(),
+            },
+        ]).unwrap();
+        assert_eq!(buf.text(), "def");
+    }
+
+    // ── cursors ───────────────────────────────────────────────────────────
+
+    #[test]
+    fn default_cursor_at_origin() {
+        let buf = TextBuffer::new();
+        let cursors = buf.cursors();
+        assert_eq!(cursors.len(), 1);
+        assert_eq!(cursors[0].position, Position::new(0, 0));
+        assert!(cursors[0].selection.is_none());
+    }
+
+    #[test]
+    fn set_cursors_replaces_all() {
+        let mut buf = TextBuffer::from_str("hello");
+        buf.set_cursors(vec![
+            Cursor { position: Position::new(0, 2), selection: None },
+            Cursor { position: Position::new(0, 4), selection: None },
+        ]);
+        assert_eq!(buf.cursors().len(), 2);
+        assert_eq!(buf.cursors()[1].position, Position::new(0, 4));
+    }
+
+    // ── slice ─────────────────────────────────────────────────────────────
+
+    #[test]
+    fn slice_extracts_range() {
+        let buf = TextBuffer::from_str("Hello World");
+        let sliced = buf.slice(Range {
+            start: Position::new(0, 0),
+            end: Position::new(0, 5),
+        });
+        assert_eq!(sliced, "Hello");
+    }
+
+    #[test]
+    fn slice_across_lines() {
+        let buf = TextBuffer::from_str("abc\ndef\n");
+        let sliced = buf.slice(Range {
+            start: Position::new(0, 2),
+            end: Position::new(1, 2),
+        });
+        assert_eq!(sliced, "c\nde");
+    }
+
+    // ── Default trait ─────────────────────────────────────────────────────
+
+    #[test]
+    fn default_is_empty() {
+        let buf = TextBuffer::default();
+        assert_eq!(buf.text(), "");
+        assert!(!buf.is_modified());
+    }
+
+    // ── Position / Range / Edit serde ─────────────────────────────────────
+
+    #[test]
+    fn position_new() {
+        let p = Position::new(5, 10);
+        assert_eq!(p.line, 5);
+        assert_eq!(p.column, 10);
+    }
+
+    #[test]
+    fn position_serde_roundtrip() {
+        let p = Position::new(3, 7);
+        let json = serde_json::to_string(&p).unwrap();
+        let back: Position = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, p);
+    }
+
+    #[test]
+    fn range_serde_roundtrip() {
+        let r = Range { start: Position::new(1, 2), end: Position::new(3, 4) };
+        let json = serde_json::to_string(&r).unwrap();
+        let back: Range = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, r);
+    }
+
+    #[test]
+    fn edit_insert_serde() {
+        let edit = Edit::Insert { position: Position::new(0, 0), text: "hi".to_string() };
+        let json = serde_json::to_string(&edit).unwrap();
+        assert!(json.contains("hi"));
+    }
+
+    // ── undo on empty stack is no-op ──────────────────────────────────────
+
+    #[test]
+    fn undo_empty_stack_is_noop() {
+        let mut buf = TextBuffer::from_str("hello");
+        buf.undo().unwrap();
+        assert_eq!(buf.text(), "hello");
+    }
+
+    #[test]
+    fn redo_empty_stack_is_noop() {
+        let mut buf = TextBuffer::from_str("hello");
+        buf.redo().unwrap();
+        assert_eq!(buf.text(), "hello");
+    }
+
+    // ── delete no-op for empty range ──────────────────────────────────────
+
+    #[test]
+    fn delete_empty_range_is_noop() {
+        let mut buf = TextBuffer::from_str("hello");
+        buf.delete(Range {
+            start: Position::new(0, 3),
+            end: Position::new(0, 3),
+        }).unwrap();
+        assert_eq!(buf.text(), "hello");
     }
 }

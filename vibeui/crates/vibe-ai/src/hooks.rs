@@ -618,4 +618,303 @@ mod tests {
         let decision = runner.run(&pre_tool_call()).await;
         assert!(matches!(decision, HookDecision::InjectContext { .. }));
     }
+
+    // ── type_name tests ───────────────────────────────────────────────────
+
+    #[test]
+    fn type_name_session_start() {
+        let e = HookEvent::SessionStart { session_id: "s".into() };
+        assert_eq!(e.type_name(), "SessionStart");
+    }
+
+    #[test]
+    fn type_name_user_prompt_submit() {
+        let e = HookEvent::UserPromptSubmit { prompt: "hi".into(), session_id: "s".into() };
+        assert_eq!(e.type_name(), "UserPromptSubmit");
+    }
+
+    #[test]
+    fn type_name_stop() {
+        let e = HookEvent::Stop { reason: "done".into(), session_id: "s".into() };
+        assert_eq!(e.type_name(), "Stop");
+    }
+
+    #[test]
+    fn type_name_task_completed() {
+        let e = HookEvent::TaskCompleted { summary: "ok".into(), session_id: "s".into() };
+        assert_eq!(e.type_name(), "TaskCompleted");
+    }
+
+    #[test]
+    fn type_name_subagent_start() {
+        let e = HookEvent::SubagentStart { name: "worker".into() };
+        assert_eq!(e.type_name(), "SubagentStart");
+    }
+
+    #[test]
+    fn type_name_file_saved() {
+        let e = HookEvent::FileSaved { path: "/a.rs".into(), content: "c".into(), language: "rust".into() };
+        assert_eq!(e.type_name(), "FileSaved");
+    }
+
+    #[test]
+    fn type_name_file_created() {
+        let e = HookEvent::FileCreated { path: "/a.rs".into() };
+        assert_eq!(e.type_name(), "FileCreated");
+    }
+
+    #[test]
+    fn type_name_file_deleted() {
+        let e = HookEvent::FileDeleted { path: "/a.rs".into() };
+        assert_eq!(e.type_name(), "FileDeleted");
+    }
+
+    // ── tool_name tests ───────────────────────────────────────────────────
+
+    #[test]
+    fn tool_name_pre_tool_use() {
+        let e = pre_tool_call();
+        assert!(e.tool_name().is_some());
+        assert_eq!(e.tool_name().unwrap(), "bash");
+    }
+
+    #[test]
+    fn tool_name_none_for_non_tool_events() {
+        let e = HookEvent::SessionStart { session_id: "s".into() };
+        assert!(e.tool_name().is_none());
+    }
+
+    #[test]
+    fn tool_name_post_tool_use() {
+        let e = HookEvent::PostToolUse {
+            call: ToolCall::Bash { command: "ls".to_string() },
+            result: crate::tools::ToolResult { tool_name: "bash".into(), output: "ok".into(), success: true, truncated: false },
+            session_id: "s".into(),
+        };
+        assert_eq!(e.tool_name(), Some("bash"));
+    }
+
+    // ── file_path tests ───────────────────────────────────────────────────
+
+    #[test]
+    fn file_path_file_saved() {
+        let e = HookEvent::FileSaved { path: "/src/main.rs".into(), content: "".into(), language: "rust".into() };
+        assert_eq!(e.file_path(), Some("/src/main.rs"));
+    }
+
+    #[test]
+    fn file_path_file_created() {
+        let e = HookEvent::FileCreated { path: "/new.ts".into() };
+        assert_eq!(e.file_path(), Some("/new.ts"));
+    }
+
+    #[test]
+    fn file_path_file_deleted() {
+        let e = HookEvent::FileDeleted { path: "/old.py".into() };
+        assert_eq!(e.file_path(), Some("/old.py"));
+    }
+
+    #[test]
+    fn file_path_none_for_non_file_events() {
+        let e = HookEvent::Stop { reason: "done".into(), session_id: "s".into() };
+        assert!(e.file_path().is_none());
+    }
+
+    // ── HookRunner::is_empty ──────────────────────────────────────────────
+
+    #[test]
+    fn runner_is_empty() {
+        assert!(HookRunner::empty().is_empty());
+    }
+
+    #[test]
+    fn runner_not_empty() {
+        let runner = HookRunner::new(vec![HookConfig {
+            event: "PreToolUse".to_string(),
+            tools: None,
+            paths: None,
+            handler: HookHandler::Command { shell: "true".to_string() },
+            async_exec: false,
+        }]);
+        assert!(!runner.is_empty());
+    }
+
+    // ── HookConfig::matches with path filter ──────────────────────────────
+
+    #[test]
+    fn hook_matches_path_filter() {
+        let cfg = HookConfig {
+            event: "FileSaved".to_string(),
+            tools: None,
+            paths: Some(vec!["**/*.rs".to_string()]),
+            handler: HookHandler::Command { shell: "true".to_string() },
+            async_exec: false,
+        };
+        let event = HookEvent::FileSaved {
+            path: "src/main.rs".into(),
+            content: "".into(),
+            language: "rust".into(),
+        };
+        assert!(cfg.matches(&event));
+    }
+
+    #[test]
+    fn hook_rejects_non_matching_path() {
+        let cfg = HookConfig {
+            event: "FileSaved".to_string(),
+            tools: None,
+            paths: Some(vec!["**/*.rs".to_string()]),
+            handler: HookHandler::Command { shell: "true".to_string() },
+            async_exec: false,
+        };
+        let event = HookEvent::FileSaved {
+            path: "src/app.ts".into(),
+            content: "".into(),
+            language: "ts".into(),
+        };
+        assert!(!cfg.matches(&event));
+    }
+
+    #[test]
+    fn hook_path_filter_on_non_file_event_returns_false() {
+        let cfg = HookConfig {
+            event: "SessionStart".to_string(),
+            tools: None,
+            paths: Some(vec!["**/*.rs".to_string()]),
+            handler: HookHandler::Command { shell: "true".to_string() },
+            async_exec: false,
+        };
+        let event = HookEvent::SessionStart { session_id: "s".into() };
+        assert!(!cfg.matches(&event));
+    }
+
+    // ── glob_match_path tests ──────────────────────────────────────────────
+
+    #[test]
+    fn glob_match_double_star() {
+        assert!(glob_match_path("**/*.rs", "src/main.rs"));
+        assert!(glob_match_path("**/*.rs", "a/b/c/lib.rs"));
+        assert!(!glob_match_path("**/*.rs", "src/main.ts"));
+    }
+
+    #[test]
+    fn glob_match_single_star() {
+        assert!(glob_match_path("src/*", "src/main.rs"));
+        assert!(!glob_match_path("src/*", "src/sub/main.rs"));
+    }
+
+    #[test]
+    fn glob_match_exact() {
+        assert!(glob_match_path("Makefile", "Makefile"));
+        assert!(!glob_match_path("Makefile", "Rakefile"));
+    }
+
+    #[test]
+    fn glob_match_no_pattern() {
+        assert!(glob_match_path("**", "anything/at/all"));
+    }
+
+    // ── segment_match tests ────────────────────────────────────────────────
+
+    #[test]
+    fn segment_match_star_matches_any() {
+        assert!(segment_match("*", "anything"));
+        assert!(segment_match("*", ""));
+    }
+
+    #[test]
+    fn segment_match_exact() {
+        assert!(segment_match("foo", "foo"));
+        assert!(!segment_match("foo", "bar"));
+    }
+
+    #[test]
+    fn segment_match_prefix_star() {
+        assert!(segment_match("*.rs", "main.rs"));
+        assert!(!segment_match("*.rs", "main.ts"));
+    }
+
+    #[test]
+    fn segment_match_suffix_star() {
+        assert!(segment_match("test_*", "test_foo"));
+        assert!(!segment_match("test_*", "prod_foo"));
+    }
+
+    // ── HookHandler serde ──────────────────────────────────────────────────
+
+    #[test]
+    fn hook_handler_command_serde() {
+        let handler = HookHandler::Command { shell: "echo hi".to_string() };
+        let json = serde_json::to_string(&handler).unwrap();
+        let back: HookHandler = serde_json::from_str(&json).unwrap();
+        if let HookHandler::Command { shell } = back {
+            assert_eq!(shell, "echo hi");
+        } else {
+            panic!("expected Command");
+        }
+    }
+
+    #[test]
+    fn hook_handler_llm_serde() {
+        let handler = HookHandler::Llm { prompt: "check safety".to_string() };
+        let json = serde_json::to_string(&handler).unwrap();
+        let back: HookHandler = serde_json::from_str(&json).unwrap();
+        if let HookHandler::Llm { prompt } = back {
+            assert_eq!(prompt, "check safety");
+        } else {
+            panic!("expected Llm");
+        }
+    }
+
+    // ── HookConfig serde ───────────────────────────────────────────────────
+
+    #[test]
+    fn hook_config_serde_roundtrip() {
+        let cfg = HookConfig {
+            event: "PreToolUse".to_string(),
+            tools: Some(vec!["bash".to_string()]),
+            paths: None,
+            handler: HookHandler::Command { shell: "true".to_string() },
+            async_exec: true,
+        };
+        let json = serde_json::to_string(&cfg).unwrap();
+        let back: HookConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.event, "PreToolUse");
+        assert!(back.async_exec);
+        assert_eq!(back.tools.unwrap(), vec!["bash"]);
+    }
+
+    // ── build_payload tests ────────────────────────────────────────────────
+
+    #[test]
+    fn build_payload_pre_tool_use() {
+        let event = pre_tool_call();
+        let payload = build_payload(&event);
+        assert_eq!(payload.event, "PreToolUse");
+        assert_eq!(payload.tool, Some("bash".to_string()));
+        assert_eq!(payload.session_id, "test-session");
+    }
+
+    #[test]
+    fn build_payload_file_saved() {
+        let event = HookEvent::FileSaved {
+            path: "/a.rs".into(),
+            content: "hello".into(),
+            language: "rust".into(),
+        };
+        let payload = build_payload(&event);
+        assert_eq!(payload.event, "FileSaved");
+        assert_eq!(payload.session_id, "file");
+        let input = payload.input.unwrap();
+        assert_eq!(input["path"], "/a.rs");
+        assert_eq!(input["content_len"], 5);
+    }
+
+    #[test]
+    fn build_payload_subagent_start() {
+        let event = HookEvent::SubagentStart { name: "worker".into() };
+        let payload = build_payload(&event);
+        assert_eq!(payload.event, "SubagentStart");
+        assert_eq!(payload.session_id, "unknown");
+    }
 }

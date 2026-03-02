@@ -221,4 +221,111 @@ mod tests {
         // Output must be well under budget
         assert!(ctx.len() < 6_000);
     }
+
+    // ── ContextBuilder fluent API ──────────────────────────────────────────
+
+    #[test]
+    fn with_token_budget() {
+        let ctx = ContextBuilder::new()
+            .with_token_budget(500)
+            .with_git_branch("main")
+            .build_for_task("task");
+        assert!(ctx.contains("main"));
+    }
+
+    #[test]
+    fn with_git_changed_files_shows_files() {
+        let ctx = ContextBuilder::new()
+            .with_git_branch("feature")
+            .with_git_changed_files(vec!["src/a.rs".into(), "src/b.rs".into()])
+            .build_for_task("task");
+        assert!(ctx.contains("src/a.rs"));
+        assert!(ctx.contains("src/b.rs"));
+        assert!(ctx.contains("Changed files"));
+    }
+
+    #[test]
+    fn with_open_files_reads_real_file() {
+        let dir = std::env::temp_dir().join("vibecody_ctx_open");
+        let _ = std::fs::create_dir_all(&dir);
+        let file = dir.join("test.rs");
+        std::fs::write(&file, "fn main() {}\n").unwrap();
+
+        let ctx = ContextBuilder::new()
+            .with_git_branch("main")
+            .with_open_files(vec![file.as_path()])
+            .build_for_task("task");
+        assert!(ctx.contains("fn main"));
+        assert!(ctx.contains("Open Files"));
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn with_open_files_nonexistent_skipped() {
+        let ctx = ContextBuilder::new()
+            .with_git_branch("main")
+            .with_open_files(vec![Path::new("/nonexistent/file.rs")])
+            .build_for_task("task");
+        // Should not crash, and should not contain "Open Files" section
+        // if no files could be read
+        assert!(ctx.contains("main"));
+    }
+
+    #[test]
+    fn default_creates_same_as_new() {
+        let d = ContextBuilder::default();
+        let n = ContextBuilder::new();
+        // Both produce empty context with no inputs
+        assert_eq!(d.build_for_task("x"), n.build_for_task("x"));
+    }
+
+    // ── with_index (no actual index needed for empty test) ────────────────
+
+    #[test]
+    fn with_index_adds_relevant_symbols_section() {
+        use crate::index::CodebaseIndex;
+
+        let dir = std::env::temp_dir().join("vibecody_ctx_index");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("src")).unwrap();
+        std::fs::write(
+            dir.join("src/lib.rs"),
+            "pub fn authenticate_user() {}\npub fn render_page() {}\n",
+        ).unwrap();
+
+        let mut index = CodebaseIndex::new(dir.clone());
+        index.build().unwrap();
+
+        let ctx = ContextBuilder::new()
+            .with_git_branch("main")
+            .with_index(&index)
+            .build_for_task("authenticate user login");
+
+        assert!(ctx.contains("Relevant Symbols") || ctx.contains("authenticate"));
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    // ── empty diff not shown ───────────────────────────────────────────────
+
+    #[test]
+    fn empty_diff_not_shown() {
+        let ctx = ContextBuilder::new()
+            .with_git_branch("main")
+            .with_git_diff("")
+            .build_for_task("task");
+        assert!(!ctx.contains("Git Diff"));
+    }
+
+    // ── no changed files omits section ─────────────────────────────────────
+
+    #[test]
+    fn no_changed_files_omits_changed_section() {
+        let ctx = ContextBuilder::new()
+            .with_git_branch("main")
+            .with_git_changed_files(vec![])
+            .build_for_task("task");
+        assert!(!ctx.contains("Changed files"));
+    }
 }

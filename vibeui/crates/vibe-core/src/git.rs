@@ -622,6 +622,226 @@ mod tests {
         let result = drop_stash(dir.path(), 99);
         assert!(result.is_err(), "dropping nonexistent stash index should fail");
     }
+
+    // ── list_branches ──────────────────────────────────────────────────────
+
+    #[test]
+    fn list_branches_includes_default() {
+        let dir = make_git_repo();
+        let branches = list_branches(dir.path()).unwrap();
+        assert!(!branches.is_empty(), "should have at least one branch");
+        assert!(
+            branches.iter().any(|b| b == "main" || b == "master"),
+            "default branch should be listed"
+        );
+    }
+
+    // ── get_history ────────────────────────────────────────────────────────
+
+    #[test]
+    fn get_history_returns_initial_commit() {
+        let dir = make_git_repo();
+        let history = get_history(dir.path(), 10).unwrap();
+        assert!(!history.is_empty());
+        assert!(history[0].message.contains("init"));
+    }
+
+    #[test]
+    fn get_history_respects_limit() {
+        let dir = make_git_repo();
+        // Make a second commit
+        std::fs::write(dir.path().join("second.txt"), "second").unwrap();
+        let run = |args: &[&str]| {
+            Command::new("git").args(args).current_dir(dir.path()).output().unwrap();
+        };
+        run(&["add", "second.txt"]);
+        run(&["commit", "-m", "second"]);
+
+        let history = get_history(dir.path(), 1).unwrap();
+        assert_eq!(history.len(), 1);
+        assert!(history[0].message.contains("second"));
+    }
+
+    // ── get_commit_files ───────────────────────────────────────────────────
+
+    #[test]
+    fn get_commit_files_lists_changed_files() {
+        let dir = make_git_repo();
+        // The initial commit should have README.md
+        let history = get_history(dir.path(), 1).unwrap();
+        let hash = &history[0].hash;
+        let files = get_commit_files(dir.path(), hash).unwrap();
+        assert!(files.contains(&"README.md".to_string()));
+    }
+
+    // ── get_diff ───────────────────────────────────────────────────────────
+
+    #[test]
+    fn get_diff_shows_changes() {
+        let dir = make_git_repo();
+        std::fs::write(dir.path().join("README.md"), "changed content").unwrap();
+        let diff = get_diff(dir.path(), "README.md").unwrap();
+        assert!(!diff.is_empty(), "diff should show changes");
+        assert!(diff.contains("changed content") || diff.contains("README"));
+    }
+
+    #[test]
+    fn get_diff_unchanged_file_empty() {
+        let dir = make_git_repo();
+        let diff = get_diff(dir.path(), "README.md").unwrap();
+        assert!(diff.is_empty(), "unchanged file should have empty diff");
+    }
+
+    // ── get_repo_diff ──────────────────────────────────────────────────────
+
+    #[test]
+    fn get_repo_diff_on_clean_repo_is_empty() {
+        let dir = make_git_repo();
+        let diff = get_repo_diff(dir.path()).unwrap();
+        assert!(diff.is_empty());
+    }
+
+    #[test]
+    fn get_repo_diff_shows_all_changes() {
+        let dir = make_git_repo();
+        std::fs::write(dir.path().join("README.md"), "changed").unwrap();
+        std::fs::write(dir.path().join("new.txt"), "new file").unwrap();
+        let diff = get_repo_diff(dir.path()).unwrap();
+        assert!(!diff.is_empty());
+    }
+
+    // ── discard_changes ────────────────────────────────────────────────────
+
+    #[test]
+    fn discard_changes_restores_file() {
+        let dir = make_git_repo();
+        let file = dir.path().join("README.md");
+        std::fs::write(&file, "dirty content").unwrap();
+        assert_eq!(std::fs::read_to_string(&file).unwrap(), "dirty content");
+
+        discard_changes(dir.path(), "README.md").unwrap();
+        assert_eq!(std::fs::read_to_string(&file).unwrap(), "init");
+    }
+
+    // ── commit ─────────────────────────────────────────────────────────────
+
+    #[test]
+    fn commit_creates_new_commit() {
+        let dir = make_git_repo();
+        std::fs::write(dir.path().join("new.txt"), "hello").unwrap();
+        let run = |args: &[&str]| {
+            Command::new("git").args(args).current_dir(dir.path()).output().unwrap();
+        };
+        run(&["add", "new.txt"]);
+
+        commit(dir.path(), "add new file", vec!["new.txt".to_string()]).unwrap();
+
+        let history = get_history(dir.path(), 1).unwrap();
+        assert!(history[0].message.contains("add new file"));
+    }
+
+    // ── switch_branch ──────────────────────────────────────────────────────
+
+    #[test]
+    fn switch_branch_changes_head() {
+        let dir = make_git_repo();
+        // Create a new branch
+        let run = |args: &[&str]| {
+            Command::new("git").args(args).current_dir(dir.path()).output().unwrap();
+        };
+        run(&["branch", "feature-x"]);
+
+        switch_branch(dir.path(), "feature-x").unwrap();
+        let branch = get_current_branch(dir.path()).unwrap();
+        assert_eq!(branch, "feature-x");
+    }
+
+    // ── FileStatus / GitStatus serde ───────────────────────────────────────
+
+    #[test]
+    fn file_status_serde_roundtrip() {
+        let status = FileStatus::Modified;
+        let json = serde_json::to_string(&status).unwrap();
+        let back: FileStatus = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, FileStatus::Modified);
+    }
+
+    #[test]
+    fn commit_info_serde_roundtrip() {
+        let ci = CommitInfo {
+            hash: "abc123".to_string(),
+            author: "Test".to_string(),
+            message: "init".to_string(),
+            timestamp: 1234567890,
+        };
+        let json = serde_json::to_string(&ci).unwrap();
+        let back: CommitInfo = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.hash, "abc123");
+        assert_eq!(back.timestamp, 1234567890);
+    }
+
+    #[test]
+    fn checkpoint_info_serde_roundtrip() {
+        let cp = CheckpointInfo {
+            index: 0,
+            message: "before test".to_string(),
+            oid: "def456".to_string(),
+        };
+        let json = serde_json::to_string(&cp).unwrap();
+        let back: CheckpointInfo = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.message, "before test");
+    }
+
+    #[test]
+    fn worktree_info_serde_roundtrip() {
+        let wt = WorktreeInfo {
+            branch: "main".to_string(),
+            path: std::path::PathBuf::from("/tmp/wt"),
+            is_main: true,
+        };
+        let json = serde_json::to_string(&wt).unwrap();
+        let back: WorktreeInfo = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.branch, "main");
+        assert!(back.is_main);
+    }
+
+    #[test]
+    fn merge_result_serde_roundtrip() {
+        let mr = MergeResult {
+            success: true,
+            message: "Merged".to_string(),
+            conflicts: vec![],
+        };
+        let json = serde_json::to_string(&mr).unwrap();
+        let back: MergeResult = serde_json::from_str(&json).unwrap();
+        assert!(back.success);
+        assert!(back.conflicts.is_empty());
+    }
+
+    // ── is_git_repo on non-repo returns false ──────────────────────────────
+
+    #[test]
+    fn not_a_git_repo_for_nonexistent_path() {
+        assert!(!is_git_repo(Path::new("/nonexistent/path/xyz")));
+    }
+
+    // ── pop_stash ──────────────────────────────────────────────────────────
+
+    #[test]
+    fn pop_stash_restores_and_removes() {
+        let dir = make_git_repo();
+        let file = dir.path().join("README.md");
+        std::fs::write(&file, "stashed content").unwrap();
+        create_stash(dir.path(), "to-pop").unwrap();
+        // After stash, file reverts
+        assert_eq!(std::fs::read_to_string(&file).unwrap(), "init");
+
+        pop_stash(dir.path()).unwrap();
+        // File restored
+        assert_eq!(std::fs::read_to_string(&file).unwrap(), "stashed content");
+        // Stash should be gone
+        assert!(list_stashes(dir.path()).unwrap().is_empty());
+    }
 }
 
 pub fn get_repo_diff(repo_path: &Path) -> Result<String> {

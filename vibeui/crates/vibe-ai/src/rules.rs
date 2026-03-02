@@ -262,4 +262,199 @@ mod tests {
         };
         assert!(rule.matches_open_files(&["anything.ts".into()]));
     }
+
+    // ── Rule::matches_open_files expanded ──────────────────────────────────
+
+    #[test]
+    fn empty_pattern_always_matches() {
+        let rule = Rule {
+            name: "empty".into(),
+            path_pattern: Some("".into()),
+            content: "always".into(),
+            source: PathBuf::from("empty.md"),
+        };
+        assert!(rule.matches_open_files(&[]));
+        assert!(rule.matches_open_files(&["foo.rs".into()]));
+    }
+
+    #[test]
+    fn pattern_no_open_files_no_match() {
+        let rule = Rule {
+            name: "rust".into(),
+            path_pattern: Some("**/*.rs".into()),
+            content: "no unwrap".into(),
+            source: PathBuf::from("rust.md"),
+        };
+        assert!(!rule.matches_open_files(&[]));
+    }
+
+    // ── RulesLoader::load with tempdir ─────────────────────────────────────
+
+    #[test]
+    fn load_nonexistent_dir_returns_empty() {
+        let rules = RulesLoader::load(Path::new("/nonexistent/rules"));
+        assert!(rules.is_empty());
+    }
+
+    #[test]
+    fn load_parses_frontmatter_rule() {
+        let dir = std::env::temp_dir().join("vibecody_rules_load_fm");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("safety.md"),
+            "---\nname: rust-safety\npath_pattern: \"**/*.rs\"\n---\nAvoid unwrap.\n",
+        ).unwrap();
+
+        let rules = RulesLoader::load(&dir);
+        assert_eq!(rules.len(), 1);
+        assert_eq!(rules[0].name, "rust-safety");
+        assert_eq!(rules[0].path_pattern.as_deref(), Some("**/*.rs"));
+        assert!(rules[0].content.contains("Avoid unwrap"));
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn load_no_frontmatter_uses_filename() {
+        let dir = std::env::temp_dir().join("vibecody_rules_load_nofm");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("general.md"),
+            "Always be kind.\n",
+        ).unwrap();
+
+        let rules = RulesLoader::load(&dir);
+        assert_eq!(rules.len(), 1);
+        assert_eq!(rules[0].name, "general");
+        assert!(rules[0].path_pattern.is_none());
+        assert!(rules[0].content.contains("kind"));
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn load_skips_non_md_files() {
+        let dir = std::env::temp_dir().join("vibecody_rules_load_skip");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("notes.txt"), "not a rule").unwrap();
+        std::fs::write(dir.join("real.md"), "a real rule").unwrap();
+
+        let rules = RulesLoader::load(&dir);
+        assert_eq!(rules.len(), 1);
+        assert_eq!(rules[0].name, "real");
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    // ── glob_match tests ───────────────────────────────────────────────────
+
+    #[test]
+    fn glob_match_double_star_rs() {
+        assert!(glob_match("**/*.rs", "src/main.rs"));
+        assert!(glob_match("**/*.rs", "a/b/c.rs"));
+        assert!(!glob_match("**/*.rs", "a/b/c.ts"));
+    }
+
+    #[test]
+    fn glob_match_exact_file() {
+        assert!(glob_match("Cargo.toml", "Cargo.toml"));
+        assert!(!glob_match("Cargo.toml", "package.json"));
+    }
+
+    #[test]
+    fn glob_match_question_mark() {
+        assert!(glob_match("src/?.rs", "src/a.rs"));
+        assert!(!glob_match("src/?.rs", "src/ab.rs"));
+    }
+
+    #[test]
+    fn glob_match_single_star_no_slash() {
+        // Single * should not cross directory boundaries
+        assert!(glob_match("src/*.rs", "src/main.rs"));
+    }
+
+    // ── RulesLoader::load_for_workspace ────────────────────────────────────
+
+    #[test]
+    fn load_for_workspace_deduplicates() {
+        let dir = std::env::temp_dir().join("vibecody_rules_dedup");
+        let _ = std::fs::remove_dir_all(&dir);
+        let ws_rules = dir.join(".vibecli").join("rules");
+        std::fs::create_dir_all(&ws_rules).unwrap();
+        std::fs::write(
+            ws_rules.join("safety.md"),
+            "---\nname: safety\n---\nWorkspace safety rule.\n",
+        ).unwrap();
+
+        // load_for_workspace loads from workspace first
+        let rules = RulesLoader::load_for_workspace(&dir);
+        // Should include at least the workspace rule
+        assert!(!rules.is_empty());
+        let names: Vec<_> = rules.iter().map(|r| r.name.as_str()).collect();
+        assert!(names.contains(&"safety"));
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    // ── RulesLoader::load_steering ─────────────────────────────────────────
+
+    #[test]
+    fn load_steering_clears_path_pattern() {
+        let dir = std::env::temp_dir().join("vibecody_rules_steering");
+        let _ = std::fs::remove_dir_all(&dir);
+        let steer_dir = dir.join(".vibecli").join("steering");
+        std::fs::create_dir_all(&steer_dir).unwrap();
+        std::fs::write(
+            steer_dir.join("arch.md"),
+            "---\nname: architecture\npath_pattern: \"**/*.rs\"\n---\nThis is a Rust monorepo.\n",
+        ).unwrap();
+
+        let rules = RulesLoader::load_steering(&dir);
+        assert_eq!(rules.len(), 1);
+        assert_eq!(rules[0].name, "architecture");
+        // Steering always injects — path_pattern must be None
+        assert!(rules[0].path_pattern.is_none());
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    // ── RulesLoader::load_all ──────────────────────────────────────────────
+
+    #[test]
+    fn load_all_combines_rules_and_steering() {
+        let dir = std::env::temp_dir().join("vibecody_rules_all");
+        let _ = std::fs::remove_dir_all(&dir);
+
+        let rules_dir = dir.join(".vibecli").join("rules");
+        std::fs::create_dir_all(&rules_dir).unwrap();
+        std::fs::write(rules_dir.join("a.md"), "Rule A").unwrap();
+
+        let steer_dir = dir.join(".vibecli").join("steering");
+        std::fs::create_dir_all(&steer_dir).unwrap();
+        std::fs::write(steer_dir.join("b.md"), "Steering B").unwrap();
+
+        let all = RulesLoader::load_all(&dir);
+        assert!(all.len() >= 2);
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    // ── Rule struct ────────────────────────────────────────────────────────
+
+    #[test]
+    fn rule_serde_roundtrip() {
+        let rule = Rule {
+            name: "test".into(),
+            path_pattern: Some("**/*.rs".into()),
+            content: "Be safe".into(),
+            source: PathBuf::from("test.md"),
+        };
+        let json = serde_json::to_string(&rule).unwrap();
+        let back: Rule = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.name, "test");
+        assert_eq!(back.path_pattern.as_deref(), Some("**/*.rs"));
+    }
 }

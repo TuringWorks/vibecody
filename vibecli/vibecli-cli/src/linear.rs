@@ -339,4 +339,102 @@ mod tests {
         assert!(client.is_some());
         std::env::remove_var("LINEAR_API_KEY");
     }
+
+    // ── priority_label all values ──────────────────────────────────────────
+
+    #[test]
+    fn priority_label_all_values() {
+        let make = |p: u8| LinearIssue {
+            id: "x".into(), identifier: "T-1".into(), title: "t".into(),
+            state: "Todo".into(), priority: p, url: "u".into(), assignee: None,
+        };
+        assert_eq!(make(0).priority_label(), "⬜ None");
+        assert_eq!(make(1).priority_label(), "🔴 Urgent");
+        assert_eq!(make(2).priority_label(), "🟠 High");
+        assert_eq!(make(3).priority_label(), "🟡 Medium");
+        assert_eq!(make(4).priority_label(), "🟢 Low");
+        assert_eq!(make(5).priority_label(), "⬜ None");
+        assert_eq!(make(255).priority_label(), "⬜ None");
+    }
+
+    // ── LinearIssue serde ──────────────────────────────────────────────────
+
+    #[test]
+    fn linear_issue_serde_roundtrip() {
+        let issue = LinearIssue {
+            id: "abc-123".into(),
+            identifier: "ENG-42".into(),
+            title: "Fix bug".into(),
+            state: "In Progress".into(),
+            priority: 2,
+            url: "https://linear.app/issue/ENG-42".into(),
+            assignee: Some("Alice".into()),
+        };
+        let json = serde_json::to_string(&issue).unwrap();
+        let back: LinearIssue = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.identifier, "ENG-42");
+        assert_eq!(back.priority, 2);
+        assert_eq!(back.assignee, Some("Alice".into()));
+    }
+
+    #[test]
+    fn linear_issue_no_assignee() {
+        let issue = LinearIssue {
+            id: "x".into(), identifier: "T-1".into(), title: "t".into(),
+            state: "Todo".into(), priority: 0, url: "u".into(), assignee: None,
+        };
+        let json = serde_json::to_string(&issue).unwrap();
+        let back: LinearIssue = serde_json::from_str(&json).unwrap();
+        assert!(back.assignee.is_none());
+    }
+
+    // ── handle_linear_command unknown subcommand ───────────────────────────
+
+    #[tokio::test]
+    async fn handle_linear_command_unknown_sub_shows_usage() {
+        // Set a fake key so we get past the "not configured" check
+        std::env::set_var("LINEAR_API_KEY", "fake-key-for-test");
+        let output = handle_linear_command("unknown_sub").await;
+        assert!(output.contains("Usage:"), "unknown sub should show usage");
+        std::env::remove_var("LINEAR_API_KEY");
+    }
+
+    // ── handle_linear_command attach ───────────────────────────────────────
+
+    #[tokio::test]
+    async fn handle_linear_command_attach_empty_id() {
+        std::env::set_var("LINEAR_API_KEY", "fake-key-for-test");
+        let output = handle_linear_command("attach").await;
+        assert!(output.contains("Usage:"));
+        std::env::remove_var("LINEAR_API_KEY");
+    }
+
+    // ── handle_linear_command new empty title ──────────────────────────────
+
+    #[tokio::test]
+    async fn handle_linear_command_new_empty_title() {
+        std::env::set_var("LINEAR_API_KEY", "fake-key-for-test");
+        let output = handle_linear_command("new").await;
+        assert!(output.contains("Usage:"));
+        std::env::remove_var("LINEAR_API_KEY");
+    }
+
+    // ── handle_linear_command open empty id ─────────────────────────────────
+
+    #[tokio::test]
+    async fn handle_linear_command_open_empty_id() {
+        std::env::set_var("LINEAR_API_KEY", "fake-key-for-test");
+        let output = handle_linear_command("open").await;
+        assert!(output.contains("Usage:"));
+        std::env::remove_var("LINEAR_API_KEY");
+    }
+
+    // ── no API key shows warning ───────────────────────────────────────────
+
+    #[tokio::test]
+    async fn handle_linear_command_no_key_shows_warning() {
+        std::env::remove_var("LINEAR_API_KEY");
+        let output = handle_linear_command("list").await;
+        assert!(output.contains("not configured") || output.contains("LINEAR_API_KEY"));
+    }
 }
