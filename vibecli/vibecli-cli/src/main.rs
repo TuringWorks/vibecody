@@ -1001,7 +1001,8 @@ async fn main() -> Result<()> {
                                 for entry in &entries {
                                     let haystack = format!("{} {}", entry.tool, entry.input_summary).to_lowercase();
                                     if query.split_whitespace().all(|w| haystack.contains(w)) {
-                                        matching.push(format!("[step {}] {}: {}", entry.step + 1, entry.tool, &entry.input_summary[..entry.input_summary.len().min(80)]));
+                                        let summary_end = entry.input_summary.char_indices().nth(80).map(|(i,_)| i).unwrap_or(entry.input_summary.len());
+                                        matching.push(format!("[step {}] {}: {}", entry.step + 1, entry.tool, &entry.input_summary[..summary_end]));
                                     }
                                 }
 
@@ -3850,7 +3851,8 @@ async fn run_watch_mode(
     let task_template = task_template.to_string();
 
     eprintln!("👁  Watching {} for changes (glob: {})…", cwd.display(), glob_pattern);
-    eprintln!("   Task on change: {}", &task_template[..task_template.len().min(80)]);
+    let task_end = task_template.char_indices().nth(80).map(|(i,_)| i).unwrap_or(task_template.len());
+    eprintln!("   Task on change: {}", &task_template[..task_end]);
     eprintln!("   Press Ctrl+C to stop.\n");
 
     let (tx, rx) = mpsc::channel::<Result<Event, notify::Error>>();

@@ -196,9 +196,10 @@ fn parse_plan_from_response(response: &str) -> Result<ExecutionPlan> {
         }
     }
 
+    let end = response.char_indices().nth(500).map(|(i,_)| i).unwrap_or(response.len());
     bail!(
         "Could not parse execution plan from model response.\nResponse was:\n{}",
-        &response[..response.len().min(500)]
+        &response[..end]
     )
 }
 

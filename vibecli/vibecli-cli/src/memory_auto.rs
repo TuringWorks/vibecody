@@ -68,7 +68,10 @@ impl MemoryAutoExtractor {
         let conversation: String = messages.iter()
             .filter(|m| matches!(m.role, MessageRole::User | MessageRole::Assistant))
             .take(40) // cap to avoid token overload
-            .map(|m| format!("[{:?}]: {}", m.role, &m.content[..m.content.len().min(500)]))
+            .map(|m| {
+                let end = m.content.char_indices().nth(500).map(|(i,_)| i).unwrap_or(m.content.len());
+                format!("[{:?}]: {}", m.role, &m.content[..end])
+            })
             .collect::<Vec<_>>()
             .join("\n");
 

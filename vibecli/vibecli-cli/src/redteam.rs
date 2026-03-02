@@ -595,7 +595,8 @@ pub async fn analyze_source(
         if !source_files.is_empty() {
             context.push_str("\n## Source Code Excerpts\n");
             for (path, content) in &source_files {
-                context.push_str(&format!("\n### {}\n```\n{}\n```\n", path, &content[..content.len().min(2000)]));
+                let end = content.char_indices().nth(2000).map(|(i,_)| i).unwrap_or(content.len());
+                context.push_str(&format!("\n### {}\n```\n{}\n```\n", path, &content[..end]));
             }
         }
     }

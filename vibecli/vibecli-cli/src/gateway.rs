@@ -961,7 +961,8 @@ pub async fn run_gateway(
         match gateway.poll().await {
             Ok(incoming) => {
                 for msg in incoming {
-                    eprintln!("[gateway] {} @{}: {}", msg.platform, msg.user, &msg.text[..msg.text.len().min(80)]);
+                    let text_end = msg.text.char_indices().nth(80).map(|(i,_)| i).unwrap_or(msg.text.len());
+                    eprintln!("[gateway] {} @{}: {}", msg.platform, msg.user, &msg.text[..text_end]);
 
                     // Simple direct LLM response (non-agent for speed)
                     let messages = vec![

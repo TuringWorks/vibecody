@@ -1602,7 +1602,10 @@ pub async fn start_agent_task(
     // Build agent context
     let git_branch = vibe_core::git::get_current_branch(&workspace_root).ok();
     let git_diff = vibe_core::git::get_repo_diff(&workspace_root).ok().map(|d| {
-        if d.len() > 2000 { d[..2000].to_string() + "\n…(truncated)" } else { d }
+        if d.len() > 2000 {
+            let end = d.char_indices().nth(2000).map(|(i,_)| i).unwrap_or(d.len());
+            d[..end].to_string() + "\n…(truncated)"
+        } else { d }
     });
     let context = AgentContext {
         workspace_root: workspace_root.clone(),
@@ -2930,7 +2933,10 @@ pub async fn run_code_review(
 
     // Truncate very large diffs
     let diff_for_review = if diff.len() > 20_000 {
-        format!("{}\n...(diff truncated at 20k chars)", &diff[..20_000])
+        {
+            let end = diff.char_indices().nth(20_000).map(|(i,_)| i).unwrap_or(diff.len());
+            format!("{}\n...(diff truncated at 20k chars)", &diff[..end])
+        }
     } else {
         diff
     };
@@ -2994,7 +3000,10 @@ Scores are 0–10 (10 = excellent). Only report real issues.
     // Extract JSON from the response (strip markdown code fences if present)
     let json_str = extract_json(&response);
     let mut report: serde_json::Value = serde_json::from_str(&json_str)
-        .map_err(|e| format!("Failed to parse review JSON: {e}\n\nRaw: {}", &response[..response.len().min(500)]))?;
+        .map_err(|e| {
+            let end = response.char_indices().nth(500).map(|(i,_)| i).unwrap_or(response.len());
+            format!("Failed to parse review JSON: {e}\n\nRaw: {}", &response[..end])
+        })?;
 
     // Inject refs for display
     report["base_ref"] = serde_json::Value::String(base_ref.unwrap_or_default());
@@ -7344,5 +7353,118 @@ mod tests {
         let back: AutofixResult = serde_json::from_str(&json).unwrap();
         assert_eq!(back.framework, "eslint");
         assert_eq!(back.files_changed, 3);
+    }
+}
+
+// ── Phase 7.19: Process Manager ───────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProcessInfo {
+    pub pid: u32,
+    pub name: String,
+    pub cpu_pct: f32,
+    pub mem_kb: u64,
+    pub status: String,
+}
+
+/// List running processes (top 60 by memory, cross-platform).
+///
+/// On macOS/Linux uses `ps aux --sort=-%mem` (BSD ps on macOS, GNU ps on Linux).
+/// On Windows uses `tasklist /FO CSV`.
+#[tauri::command]
+pub async fn list_processes() -> Result<Vec<ProcessInfo>, String> {
+    #[cfg(target_os = "windows")]
+    {
+        let out = tokio::process::Command::new("tasklist")
+            .args(["/FO", "CSV", "/NH"])
+            .output()
+            .await
+            .map_err(|e| e.to_string())?;
+        let stdout = String::from_utf8_lossy(&out.stdout);
+        let mut procs = Vec::new();
+        for line in stdout.lines().take(60) {
+            // CSV columns: "Image Name","PID","Session Name","Session#","Mem Usage"
+            let cols: Vec<&str> = line.splitn(6, ',').collect();
+            if cols.len() < 5 { continue; }
+            let name = cols[0].trim_matches('"').to_string();
+            let pid: u32 = cols[1].trim_matches('"').parse().unwrap_or(0);
+            let mem_str = cols[4].trim_matches('"').replace(',', "").replace(" K", "");
+            let mem_kb: u64 = mem_str.trim().parse().unwrap_or(0);
+            procs.push(ProcessInfo { pid, name, cpu_pct: 0.0, mem_kb, status: "running".to_string() });
+        }
+        return Ok(procs);
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        // `ps aux` columns: USER PID %CPU %MEM VSZ RSS TTY STAT START TIME COMMAND
+        let out = tokio::process::Command::new("ps")
+            .args(["aux", "--sort=-%mem"])
+            .output()
+            .await;
+        // macOS `ps` doesn't support --sort; fall back without it
+        let out = match out {
+            Ok(o) if o.status.success() => o,
+            _ => tokio::process::Command::new("ps")
+                .args(["aux"])
+                .output()
+                .await
+                .map_err(|e| e.to_string())?,
+        };
+        let stdout = String::from_utf8_lossy(&out.stdout);
+        let mut procs: Vec<ProcessInfo> = stdout
+            .lines()
+            .skip(1) // skip header
+            .take(60)
+            .filter_map(|line| {
+                let cols: Vec<&str> = line.split_whitespace().collect();
+                if cols.len() < 11 { return None; }
+                let pid: u32 = cols[1].parse().ok()?;
+                let cpu_pct: f32 = cols[2].parse().unwrap_or(0.0);
+                let rss_kb: u64 = cols[5].parse().unwrap_or(0);
+                let stat = cols[7].to_string();
+                // Command is everything from column 10 onward
+                let name = cols[10..].join(" ");
+                // Trim full path to basename for readability
+                let name = name.rsplit('/').next().unwrap_or(&name).to_string();
+                Some(ProcessInfo { pid, name, cpu_pct, mem_kb: rss_kb, status: stat })
+            })
+            .collect();
+        // Sort by memory desc on macOS (ps aux there doesn't support --sort)
+        procs.sort_by(|a, b| b.mem_kb.cmp(&a.mem_kb));
+        Ok(procs)
+    }
+}
+
+/// Send SIGTERM (graceful stop) to a process by PID.
+///
+/// On Windows this calls `taskkill /PID <pid> /F`.
+#[tauri::command]
+pub async fn kill_process(pid: u32) -> Result<(), String> {
+    if pid == 0 {
+        return Err("Invalid PID 0".to_string());
+    }
+    #[cfg(target_os = "windows")]
+    {
+        tokio::process::Command::new("taskkill")
+            .args(["/PID", &pid.to_string(), "/F"])
+            .output()
+            .await
+            .map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        // Safety: SIGTERM is non-destructive; only lets process clean up.
+        // Using `kill` shell command avoids unsafe libc calls.
+        let out = tokio::process::Command::new("kill")
+            .args(["-TERM", &pid.to_string()])
+            .output()
+            .await
+            .map_err(|e| e.to_string())?;
+        if !out.status.success() {
+            let stderr = String::from_utf8_lossy(&out.stderr);
+            return Err(format!("kill failed: {}", stderr.trim()));
+        }
+        Ok(())
     }
 }
