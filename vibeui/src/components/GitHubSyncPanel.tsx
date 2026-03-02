@@ -19,9 +19,6 @@ interface RepoInfo {
 }
 
 export function GitHubSyncPanel({ workspacePath }: { workspacePath: string | null }) {
-  if (!workspacePath) {
-    return <div className="empty-state"><p>Open a workspace folder to use GitHub sync.</p></div>;
-  }
   const [status, setStatus] = useState<GitHubSyncStatus | null>(null);
   const [repos, setRepos] = useState<RepoInfo[]>([]);
   const [commitMsg, setCommitMsg] = useState("");
@@ -35,9 +32,14 @@ export function GitHubSyncPanel({ workspacePath }: { workspacePath: string | nul
   const [tokenSaved, setTokenSaved] = useState(false);
 
   useEffect(() => {
+    if (!workspacePath) return;
     loadStatus();
     checkToken();
   }, [workspacePath]);
+
+  if (!workspacePath) {
+    return <div className="empty-state"><p>Open a workspace folder to use GitHub sync.</p></div>;
+  }
 
   const checkToken = async () => {
     try {

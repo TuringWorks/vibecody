@@ -56,9 +56,6 @@ interface DeployPanelProps {
 }
 
 export function DeployPanel({ workspacePath }: DeployPanelProps) {
-  if (!workspacePath) {
-    return <div className="empty-state"><p>Open a workspace folder to use the deploy panel.</p></div>;
-  }
   const [detected, setDetected] = useState<DeployTarget | null>(null);
   const [selectedTarget, setSelectedTarget] = useState("vercel");
   const [isDeploying, setIsDeploying] = useState(false);
@@ -90,6 +87,10 @@ export function DeployPanel({ workspacePath }: DeployPanelProps) {
   useEffect(() => {
     logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [logs]);
+
+  if (!workspacePath) {
+    return <div className="empty-state"><p>Open a workspace folder to use the deploy panel.</p></div>;
+  }
 
   const handleDeploy = async () => {
     setIsDeploying(true);

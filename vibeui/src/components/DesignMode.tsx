@@ -25,9 +25,6 @@ interface GeneratedFile {
 }
 
 export function DesignMode({ workspacePath, provider }: DesignModeProps) {
-  if (!workspacePath) {
-    return <div className="empty-state"><p>Open a workspace folder to use the design editor.</p></div>;
-  }
   const [previewUrl, setPreviewUrl] = useState("http://localhost:5173");
   const [visualEditEnabled, setVisualEditEnabled] = useState(false);
   const [selectedElement, setSelectedElement] = useState<SelectedElement | null>(null);
@@ -40,6 +37,10 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
   const [figmaResult, setFigmaResult] = useState<GeneratedFile[]>([]);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const iframeContainerRef = useRef<HTMLDivElement>(null);
+
+  if (!workspacePath) {
+    return <div className="empty-state"><p>Open a workspace folder to use the design editor.</p></div>;
+  }
 
   // Inject inspector.js into the iframe
   const injectInspector = useCallback(() => {

@@ -18,9 +18,6 @@ interface QueryResult {
 }
 
 export function SupabasePanel({ workspacePath, provider }: { workspacePath: string | null; provider: string }) {
-  if (!workspacePath) {
-    return <div className="empty-state"><p>Open a workspace folder to use the Supabase panel.</p></div>;
-  }
   const [config, setConfig] = useState<SupabaseConfig>({ url: "", anon_key: "" });
   const [connected, setConnected] = useState(false);
   const [tables, setTables] = useState<TableInfo[]>([]);
@@ -31,6 +28,10 @@ export function SupabasePanel({ workspacePath, provider }: { workspacePath: stri
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"tables" | "query" | "ai">("tables");
+
+  if (!workspacePath) {
+    return <div className="empty-state"><p>Open a workspace folder to use the Supabase panel.</p></div>;
+  }
 
   // Load saved config on mount
   useEffect(() => {

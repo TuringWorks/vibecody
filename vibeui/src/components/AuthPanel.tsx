@@ -12,9 +12,6 @@ interface AuthConfig {
 }
 
 export function AuthPanel({ workspacePath, provider }: { workspacePath: string | null; provider: string }) {
-  if (!workspacePath) {
-    return <div className="empty-state"><p>Open a workspace folder to generate auth scaffolding.</p></div>;
-  }
   const [config, setConfig] = useState<AuthConfig>({
     auth_provider: "github",
     framework: "nextjs",
@@ -26,6 +23,10 @@ export function AuthPanel({ workspacePath, provider }: { workspacePath: string |
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+
+  if (!workspacePath) {
+    return <div className="empty-state"><p>Open a workspace folder to generate auth scaffolding.</p></div>;
+  }
 
   const generate = async () => {
     setLoading(true);

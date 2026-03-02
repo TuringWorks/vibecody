@@ -367,11 +367,10 @@ async fn start_agent(
                     record.finished_at = Some(now_ms());
                     record.summary = Some(summary);
                     persist_job(&jobs_dir, &record);
-                    // Remove the stream after completion
+                    // Broadcast final event before removing stream
+                    let _ = tx.send(p.clone());
                     let mut s = streams.lock().await;
                     s.remove(&sid);
-                    // Broadcast final event then break
-                    let _ = tx.send(p.clone());
                     break;
                 }
                 AgentEvent::Error(msg) => {
@@ -381,9 +380,10 @@ async fn start_agent(
                     record.finished_at = Some(now_ms());
                     record.summary = Some(msg);
                     persist_job(&jobs_dir, &record);
+                    // Broadcast error event before removing stream
+                    let _ = tx.send(p.clone());
                     let mut s = streams.lock().await;
                     s.remove(&sid);
-                    let _ = tx.send(p.clone());
                     break;
                 }
                 _ => continue,

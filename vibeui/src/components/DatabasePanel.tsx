@@ -36,9 +36,6 @@ interface DatabasePanelProps {
 }
 
 export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
-  if (!workspacePath) {
-    return <div className="empty-state"><p>Open a workspace folder to use the database browser.</p></div>;
-  }
   const { toasts, toast, dismiss } = useToast();
   const [dbType, setDbType] = useState<DbType>("sqlite");
   const [connectionString, setConnectionString] = useState("");
@@ -62,6 +59,10 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
         .catch(() => null);
     }
   }, [dbType, workspacePath]);
+
+  if (!workspacePath) {
+    return <div className="empty-state"><p>Open a workspace folder to use the database browser.</p></div>;
+  }
 
   const handleConnect = async () => {
     setIsLoading(true);

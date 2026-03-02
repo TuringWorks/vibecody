@@ -536,6 +536,29 @@ impl GatewayPlatform for TwilioGateway {
                     message_id: Some(sid),
                 });
             }
+
+            // If bookmark SID was not found in this batch (stale/rotated off page),
+            // treat all inbound messages as new to avoid silently dropping them.
+            if !found_last && self.last_message_sid.is_some() {
+                batch.clear();
+                for msg in msgs {
+                    let sid = msg["sid"].as_str().unwrap_or("").to_string();
+                    let direction = msg["direction"].as_str().unwrap_or("");
+                    if direction != "inbound" { continue; }
+                    let body = msg["body"].as_str().unwrap_or("").to_string();
+                    let from = msg["from"].as_str().unwrap_or("unknown").to_string();
+                    if body.is_empty() { continue; }
+                    self.last_message_sid = Some(sid.clone());
+                    batch.push(IncomingMessage {
+                        platform: "twilio".to_string(),
+                        chat_id: from.clone(),
+                        user: from,
+                        text: body,
+                        message_id: Some(sid),
+                    });
+                }
+            }
+
             batch.reverse();
             messages.extend(batch);
         }
