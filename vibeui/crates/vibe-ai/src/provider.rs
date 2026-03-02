@@ -270,3 +270,194 @@ impl ProviderConfig {
         self.api_key.clone()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── TokenUsage ───────────────────────────────────────────────────────
+
+    #[test]
+    fn token_usage_total() {
+        let u = TokenUsage { prompt_tokens: 100, completion_tokens: 50 };
+        assert_eq!(u.total(), 150);
+    }
+
+    #[test]
+    fn token_usage_total_zero() {
+        let u = TokenUsage::default();
+        assert_eq!(u.total(), 0);
+    }
+
+    #[test]
+    fn token_usage_add() {
+        let mut a = TokenUsage { prompt_tokens: 10, completion_tokens: 20 };
+        let b = TokenUsage { prompt_tokens: 5, completion_tokens: 15 };
+        a.add(&b);
+        assert_eq!(a.prompt_tokens, 15);
+        assert_eq!(a.completion_tokens, 35);
+        assert_eq!(a.total(), 50);
+    }
+
+    #[test]
+    fn estimated_cost_claude_opus() {
+        let u = TokenUsage { prompt_tokens: 1_000_000, completion_tokens: 1_000_000 };
+        let cost = u.estimated_cost_usd("claude", "claude-opus-4-20250514");
+        // 15.0 + 75.0 = 90.0
+        assert!((cost - 90.0).abs() < 0.01, "got {}", cost);
+    }
+
+    #[test]
+    fn estimated_cost_claude_sonnet() {
+        let u = TokenUsage { prompt_tokens: 1_000_000, completion_tokens: 1_000_000 };
+        let cost = u.estimated_cost_usd("claude", "claude-sonnet-4-20250514");
+        // 3.0 + 15.0 = 18.0
+        assert!((cost - 18.0).abs() < 0.01, "got {}", cost);
+    }
+
+    #[test]
+    fn estimated_cost_claude_haiku() {
+        let u = TokenUsage { prompt_tokens: 1_000_000, completion_tokens: 1_000_000 };
+        let cost = u.estimated_cost_usd("claude", "claude-haiku-4-20250101");
+        // 0.8 + 4.0 = 4.8
+        assert!((cost - 4.8).abs() < 0.01, "got {}", cost);
+    }
+
+    #[test]
+    fn estimated_cost_gpt4o() {
+        let u = TokenUsage { prompt_tokens: 1_000_000, completion_tokens: 1_000_000 };
+        let cost = u.estimated_cost_usd("openai", "gpt-4o-2024-08-06");
+        // 2.5 + 10.0 = 12.5
+        assert!((cost - 12.5).abs() < 0.01, "got {}", cost);
+    }
+
+    #[test]
+    fn estimated_cost_gpt4_turbo() {
+        let u = TokenUsage { prompt_tokens: 1_000_000, completion_tokens: 1_000_000 };
+        let cost = u.estimated_cost_usd("openai", "gpt-4-turbo-preview");
+        // 10.0 + 30.0 = 40.0
+        assert!((cost - 40.0).abs() < 0.01, "got {}", cost);
+    }
+
+    #[test]
+    fn estimated_cost_gpt35() {
+        let u = TokenUsage { prompt_tokens: 1_000_000, completion_tokens: 1_000_000 };
+        let cost = u.estimated_cost_usd("openai", "gpt-3.5-turbo");
+        // 0.5 + 1.5 = 2.0
+        assert!((cost - 2.0).abs() < 0.01, "got {}", cost);
+    }
+
+    #[test]
+    fn estimated_cost_ollama_free() {
+        let u = TokenUsage { prompt_tokens: 1_000_000, completion_tokens: 1_000_000 };
+        let cost = u.estimated_cost_usd("ollama", "llama3.1");
+        assert!((cost - 0.0).abs() < 0.001, "local model should be free, got {}", cost);
+    }
+
+    #[test]
+    fn estimated_cost_unknown_provider_free() {
+        let u = TokenUsage { prompt_tokens: 500, completion_tokens: 500 };
+        let cost = u.estimated_cost_usd("custom", "my-model");
+        assert!((cost - 0.0).abs() < 0.001);
+    }
+
+    // ── ProviderConfig ───────────────────────────────────────────────────
+
+    #[test]
+    fn provider_config_new() {
+        let cfg = ProviderConfig::new("claude".into(), "claude-sonnet-4".into());
+        assert_eq!(cfg.provider_type, "claude");
+        assert_eq!(cfg.model, "claude-sonnet-4");
+        assert!(cfg.api_key.is_none());
+        assert!(cfg.api_url.is_none());
+        assert!(cfg.max_tokens.is_none());
+        assert!(cfg.temperature.is_none());
+    }
+
+    #[test]
+    fn provider_config_builder_chain() {
+        let cfg = ProviderConfig::new("openai".into(), "gpt-4o".into())
+            .with_api_key("sk-test".into())
+            .with_api_url("https://api.openai.com".into())
+            .with_max_tokens(4096)
+            .with_temperature(0.7);
+        assert_eq!(cfg.api_key.as_deref(), Some("sk-test"));
+        assert_eq!(cfg.api_url.as_deref(), Some("https://api.openai.com"));
+        assert_eq!(cfg.max_tokens, Some(4096));
+        assert!((cfg.temperature.unwrap() - 0.7).abs() < 0.001);
+    }
+
+    #[test]
+    fn provider_config_serialization_roundtrip() {
+        let cfg = ProviderConfig::new("gemini".into(), "gemini-pro".into())
+            .with_api_key("test-key".into());
+        let json = serde_json::to_string(&cfg).unwrap();
+        let decoded: ProviderConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(decoded.provider_type, "gemini");
+        assert_eq!(decoded.model, "gemini-pro");
+        assert_eq!(decoded.api_key.as_deref(), Some("test-key"));
+    }
+
+    // ── base64_encode ────────────────────────────────────────────────────
+
+    #[test]
+    fn base64_encode_empty() {
+        assert_eq!(base64_encode(b""), "");
+    }
+
+    #[test]
+    fn base64_encode_hello() {
+        // "Hello" = SGVsbG8=
+        assert_eq!(base64_encode(b"Hello"), "SGVsbG8=");
+    }
+
+    #[test]
+    fn base64_encode_padding() {
+        // "Hi" = SGk=  (2 bytes → 1 padding)
+        assert_eq!(base64_encode(b"Hi"), "SGk=");
+        // "A" = QQ==  (1 byte → 2 padding)
+        assert_eq!(base64_encode(b"A"), "QQ==");
+        // "Hel" = SGVs (3 bytes → no padding)
+        assert_eq!(base64_encode(b"Hel"), "SGVs");
+    }
+
+    // ── Message / MessageRole ────────────────────────────────────────────
+
+    #[test]
+    fn message_role_serde() {
+        let msg = Message { role: MessageRole::User, content: "test".into() };
+        let json = serde_json::to_string(&msg).unwrap();
+        assert!(json.contains("\"user\""));
+        let decoded: Message = serde_json::from_str(&json).unwrap();
+        assert_eq!(decoded.role, MessageRole::User);
+    }
+
+    #[test]
+    fn message_role_system() {
+        let json = r#"{"role":"system","content":"sys"}"#;
+        let msg: Message = serde_json::from_str(json).unwrap();
+        assert_eq!(msg.role, MessageRole::System);
+    }
+
+    // ── CompletionResponse ───────────────────────────────────────────────
+
+    #[test]
+    fn completion_response_with_usage() {
+        let resp = CompletionResponse {
+            text: "hello".into(),
+            model: "test".into(),
+            usage: Some(TokenUsage { prompt_tokens: 10, completion_tokens: 5 }),
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        assert!(json.contains("\"usage\""));
+        let decoded: CompletionResponse = serde_json::from_str(&json).unwrap();
+        assert_eq!(decoded.usage.unwrap().total(), 15);
+    }
+
+    #[test]
+    fn completion_response_without_usage() {
+        let json = r#"{"text":"hi","model":"m"}"#;
+        let resp: CompletionResponse = serde_json::from_str(json).unwrap();
+        assert!(resp.usage.is_none());
+    }
+}

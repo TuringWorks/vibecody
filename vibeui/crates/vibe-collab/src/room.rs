@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::{broadcast, RwLock};
-use yrs::{Doc, GetString, ReadTxn, Transact, WriteTxn};
+use yrs::{Doc, GetString, Transact, WriteTxn};
 
 use crate::awareness::{color_for_peer, PeerInfo};
 use crate::error::CollabError;

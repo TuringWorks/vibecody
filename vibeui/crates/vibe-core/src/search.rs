@@ -79,3 +79,81 @@ pub fn search_files(root_path: &PathBuf, query: &str, case_sensitive: bool) -> R
 
     Ok(results)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    fn setup_test_dir() -> tempfile::TempDir {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(dir.path().join("hello.rs"), "fn main() {\n    println!(\"hello\");\n}\n").unwrap();
+        fs::write(dir.path().join("lib.rs"), "pub fn add(a: i32, b: i32) -> i32 {\n    a + b\n}\n").unwrap();
+        fs::write(dir.path().join("readme.txt"), "This is a readme file.\n").unwrap();
+        dir
+    }
+
+    #[test]
+    fn search_finds_matching_lines() {
+        let dir = setup_test_dir();
+        let results = search_files(&dir.path().to_path_buf(), "fn main", true).unwrap();
+        assert_eq!(results.len(), 1);
+        assert!(results[0].path.contains("hello.rs"));
+        assert_eq!(results[0].line_number, 1);
+    }
+
+    #[test]
+    fn search_finds_multiple_files() {
+        let dir = setup_test_dir();
+        let results = search_files(&dir.path().to_path_buf(), r"fn\s+\w+", true).unwrap();
+        assert!(results.len() >= 2, "should match in both .rs files, got {}", results.len());
+    }
+
+    #[test]
+    fn search_case_insensitive() {
+        let dir = setup_test_dir();
+        let results = search_files(&dir.path().to_path_buf(), "FN MAIN", false).unwrap();
+        assert_eq!(results.len(), 1);
+    }
+
+    #[test]
+    fn search_case_sensitive_no_match() {
+        let dir = setup_test_dir();
+        let results = search_files(&dir.path().to_path_buf(), "FN MAIN", true).unwrap();
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn search_no_results() {
+        let dir = setup_test_dir();
+        let results = search_files(&dir.path().to_path_buf(), "zzz_nonexistent_zzz", true).unwrap();
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn search_skips_hidden_files() {
+        let dir = setup_test_dir();
+        fs::create_dir_all(dir.path().join(".hidden")).unwrap();
+        fs::write(dir.path().join(".hidden/secret.rs"), "fn main() {}\n").unwrap();
+        let results = search_files(&dir.path().to_path_buf(), "fn main", true).unwrap();
+        // Should only find hello.rs, not .hidden/secret.rs
+        assert_eq!(results.len(), 1);
+        assert!(results[0].path.contains("hello.rs"));
+    }
+
+    #[test]
+    fn search_invalid_regex_returns_error() {
+        let dir = setup_test_dir();
+        let result = search_files(&dir.path().to_path_buf(), "[invalid", true);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn search_result_line_content_is_trimmed() {
+        let dir = setup_test_dir();
+        let results = search_files(&dir.path().to_path_buf(), "println", true).unwrap();
+        assert_eq!(results.len(), 1);
+        // Line content should be trimmed
+        assert!(!results[0].line_content.starts_with(' '));
+    }
+}

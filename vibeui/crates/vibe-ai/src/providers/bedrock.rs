@@ -366,3 +366,125 @@ impl AIProvider for BedrockProvider {
         self.chat(messages, context).await
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── sha256_hex ───────────────────────────────────────────────────────
+
+    #[test]
+    fn sha256_hex_empty() {
+        // SHA-256 of empty string is well-known
+        let h = sha256_hex(b"");
+        assert_eq!(h, "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
+    }
+
+    #[test]
+    fn sha256_hex_hello() {
+        let h = sha256_hex(b"hello");
+        assert_eq!(h, "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824");
+    }
+
+    // ── hmac_sha256 ──────────────────────────────────────────────────────
+
+    #[test]
+    fn hmac_sha256_deterministic() {
+        let a = hmac_sha256(b"key", b"data");
+        let b = hmac_sha256(b"key", b"data");
+        assert_eq!(a, b);
+        assert_eq!(a.len(), 32); // SHA-256 output is 32 bytes
+    }
+
+    #[test]
+    fn hmac_sha256_different_keys_differ() {
+        let a = hmac_sha256(b"key1", b"data");
+        let b = hmac_sha256(b"key2", b"data");
+        assert_ne!(a, b);
+    }
+
+    // ── derive_signing_key ───────────────────────────────────────────────
+
+    #[test]
+    fn derive_signing_key_deterministic() {
+        let k1 = derive_signing_key("secret", "20240101", "us-east-1", "bedrock");
+        let k2 = derive_signing_key("secret", "20240101", "us-east-1", "bedrock");
+        assert_eq!(k1, k2);
+        assert_eq!(k1.len(), 32);
+    }
+
+    #[test]
+    fn derive_signing_key_differs_by_date() {
+        let k1 = derive_signing_key("secret", "20240101", "us-east-1", "bedrock");
+        let k2 = derive_signing_key("secret", "20240102", "us-east-1", "bedrock");
+        assert_ne!(k1, k2);
+    }
+
+    #[test]
+    fn derive_signing_key_differs_by_region() {
+        let k1 = derive_signing_key("secret", "20240101", "us-east-1", "bedrock");
+        let k2 = derive_signing_key("secret", "20240101", "eu-west-1", "bedrock");
+        assert_ne!(k1, k2);
+    }
+
+    // ── epoch_days_to_ymd ────────────────────────────────────────────────
+
+    #[test]
+    fn epoch_days_to_ymd_unix_epoch() {
+        // Day 0 = 1970-01-01
+        assert_eq!(epoch_days_to_ymd(0), (1970, 1, 1));
+    }
+
+    #[test]
+    fn epoch_days_to_ymd_known_dates() {
+        // 2000-01-01 = day 10957
+        assert_eq!(epoch_days_to_ymd(10957), (2000, 1, 1));
+        // 2024-01-01 = day 19723
+        assert_eq!(epoch_days_to_ymd(19723), (2024, 1, 1));
+    }
+
+    #[test]
+    fn epoch_days_to_ymd_leap_day() {
+        // 2024-02-29 = day 19782 (2024 is a leap year)
+        assert_eq!(epoch_days_to_ymd(19782), (2024, 2, 29));
+    }
+
+    #[test]
+    fn epoch_days_to_ymd_end_of_year() {
+        // 2023-12-31 = day 19722
+        assert_eq!(epoch_days_to_ymd(19722), (2023, 12, 31));
+    }
+
+    // ── sigv4_auth_header ────────────────────────────────────────────────
+
+    #[test]
+    fn sigv4_auth_header_format() {
+        let header = sigv4_auth_header(
+            "AKIAIOSFODNN7EXAMPLE",
+            "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+            "us-east-1",
+            "bedrock-runtime.us-east-1.amazonaws.com",
+            "/model/test/converse",
+            b"{}",
+            "20240101T120000Z",
+        );
+        assert!(header.starts_with("AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/"));
+        assert!(header.contains("us-east-1/bedrock/aws4_request"));
+        assert!(header.contains("SignedHeaders=content-type;host;x-amz-date"));
+        assert!(header.contains("Signature="));
+    }
+
+    #[test]
+    fn sigv4_auth_header_deterministic() {
+        let a = sigv4_auth_header("AK", "SK", "us-east-1", "h", "/p", b"{}", "20240101T120000Z");
+        let b = sigv4_auth_header("AK", "SK", "us-east-1", "h", "/p", b"{}", "20240101T120000Z");
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn sigv4_auth_header_differs_by_payload() {
+        let a = sigv4_auth_header("AK", "SK", "us-east-1", "h", "/p", b"{}", "20240101T120000Z");
+        let b = sigv4_auth_header("AK", "SK", "us-east-1", "h", "/p", b"{\"x\":1}", "20240101T120000Z");
+        assert_ne!(a, b);
+    }
+}

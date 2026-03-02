@@ -488,4 +488,251 @@ fn main() {
         assert!(matches!(&calls[0], ToolCall::SearchFiles { query, glob: Some(g) }
             if query == "fn main" && g == "*.rs"));
     }
+
+    // ── ToolCall::name() ─────────────────────────────────────────────────
+
+    #[test]
+    fn tool_call_names() {
+        assert_eq!(ToolCall::ReadFile { path: "a".into() }.name(), "read_file");
+        assert_eq!(ToolCall::WriteFile { path: "a".into(), content: "b".into() }.name(), "write_file");
+        assert_eq!(ToolCall::ApplyPatch { path: "a".into(), patch: "b".into() }.name(), "apply_patch");
+        assert_eq!(ToolCall::Bash { command: "ls".into() }.name(), "bash");
+        assert_eq!(ToolCall::SearchFiles { query: "q".into(), glob: None }.name(), "search_files");
+        assert_eq!(ToolCall::ListDirectory { path: ".".into() }.name(), "list_directory");
+        assert_eq!(ToolCall::WebSearch { query: "q".into(), num_results: 5 }.name(), "web_search");
+        assert_eq!(ToolCall::FetchUrl { url: "u".into() }.name(), "fetch_url");
+        assert_eq!(ToolCall::TaskComplete { summary: "s".into() }.name(), "task_complete");
+        assert_eq!(ToolCall::SpawnAgent { task: "t".into(), max_steps: None, max_depth: None }.name(), "spawn_agent");
+    }
+
+    // ── ToolCall::is_destructive() ───────────────────────────────────────
+
+    #[test]
+    fn is_destructive_true_for_bash() {
+        assert!(ToolCall::Bash { command: "rm -rf /".into() }.is_destructive());
+    }
+
+    #[test]
+    fn is_destructive_true_for_write() {
+        assert!(ToolCall::WriteFile { path: "a".into(), content: "b".into() }.is_destructive());
+    }
+
+    #[test]
+    fn is_destructive_true_for_patch() {
+        assert!(ToolCall::ApplyPatch { path: "a".into(), patch: "b".into() }.is_destructive());
+    }
+
+    #[test]
+    fn is_destructive_true_for_spawn() {
+        assert!(ToolCall::SpawnAgent { task: "t".into(), max_steps: None, max_depth: None }.is_destructive());
+    }
+
+    #[test]
+    fn is_destructive_false_for_read() {
+        assert!(!ToolCall::ReadFile { path: "a".into() }.is_destructive());
+        assert!(!ToolCall::SearchFiles { query: "q".into(), glob: None }.is_destructive());
+        assert!(!ToolCall::ListDirectory { path: ".".into() }.is_destructive());
+        assert!(!ToolCall::WebSearch { query: "q".into(), num_results: 5 }.is_destructive());
+        assert!(!ToolCall::FetchUrl { url: "u".into() }.is_destructive());
+        assert!(!ToolCall::TaskComplete { summary: "done".into() }.is_destructive());
+    }
+
+    // ── ToolCall::is_terminal() ──────────────────────────────────────────
+
+    #[test]
+    fn is_terminal_only_for_task_complete() {
+        assert!(ToolCall::TaskComplete { summary: "done".into() }.is_terminal());
+        assert!(!ToolCall::ReadFile { path: "a".into() }.is_terminal());
+        assert!(!ToolCall::Bash { command: "ls".into() }.is_terminal());
+    }
+
+    // ── ToolCall::summary() ──────────────────────────────────────────────
+
+    #[test]
+    fn summary_read_file() {
+        let s = ToolCall::ReadFile { path: "/src/main.rs".into() }.summary();
+        assert_eq!(s, "read_file(/src/main.rs)");
+    }
+
+    #[test]
+    fn summary_write_file_counts_lines() {
+        let s = ToolCall::WriteFile { path: "a.rs".into(), content: "line1\nline2\nline3\n".into() }.summary();
+        assert!(s.contains("3 lines"), "got: {}", s);
+    }
+
+    #[test]
+    fn summary_apply_patch_counts_hunks() {
+        let patch = "@@ -1,3 +1,4 @@\n foo\n+bar\n@@ -10,2 +11,3 @@\n baz\n+qux\n";
+        let s = ToolCall::ApplyPatch { path: "a.rs".into(), patch: patch.into() }.summary();
+        assert!(s.contains("2 hunks"), "got: {}", s);
+    }
+
+    #[test]
+    fn summary_bash_truncates_long_command() {
+        let long_cmd = "a".repeat(100);
+        let s = ToolCall::Bash { command: long_cmd }.summary();
+        assert!(s.contains("…"), "long command should be truncated");
+        assert!(s.len() < 100);
+    }
+
+    #[test]
+    fn summary_search_with_glob() {
+        let s = ToolCall::SearchFiles { query: "foo".into(), glob: Some("*.rs".into()) }.summary();
+        assert!(s.contains("*.rs"), "got: {}", s);
+    }
+
+    #[test]
+    fn summary_search_without_glob() {
+        let s = ToolCall::SearchFiles { query: "bar".into(), glob: None }.summary();
+        assert!(s.contains("bar") && !s.contains("in"), "got: {}", s);
+    }
+
+    #[test]
+    fn summary_spawn_agent() {
+        let s = ToolCall::SpawnAgent { task: "do stuff".into(), max_steps: Some(5), max_depth: Some(2) }.summary();
+        assert!(s.contains("max_steps=5"), "got: {}", s);
+        assert!(s.contains("max_depth=2"), "got: {}", s);
+    }
+
+    #[test]
+    fn summary_spawn_agent_defaults() {
+        let s = ToolCall::SpawnAgent { task: "x".into(), max_steps: None, max_depth: None }.summary();
+        assert!(s.contains("max_steps=10"), "default should be 10, got: {}", s);
+        assert!(s.contains("max_depth=3"), "default should be 3, got: {}", s);
+    }
+
+    // ── ToolResult ───────────────────────────────────────────────────────
+
+    #[test]
+    fn tool_result_ok_short_output() {
+        let r = ToolResult::ok("read_file", "hello");
+        assert!(r.success);
+        assert!(!r.truncated);
+        assert_eq!(r.output, "hello");
+        assert_eq!(r.tool_name, "read_file");
+    }
+
+    #[test]
+    fn tool_result_ok_truncates_long_output() {
+        let long = "x".repeat(MAX_TOOL_OUTPUT + 500);
+        let r = ToolResult::ok("bash", long);
+        assert!(r.truncated);
+        assert!(r.success);
+        assert!(r.output.contains("truncated"));
+    }
+
+    #[test]
+    fn tool_result_err() {
+        let r = ToolResult::err("bash", "command not found");
+        assert!(!r.success);
+        assert!(!r.truncated);
+        assert!(r.output.starts_with("ERROR:"));
+        assert!(r.output.contains("command not found"));
+    }
+
+    // ── format_tool_result ───────────────────────────────────────────────
+
+    #[test]
+    fn format_tool_result_success() {
+        let call = ToolCall::ReadFile { path: "a.rs".into() };
+        let result = ToolResult { tool_name: "read_file".into(), output: "fn main() {}".into(), success: true, truncated: false };
+        let formatted = format_tool_result(&call, &result);
+        assert!(formatted.starts_with("✅"));
+        assert!(formatted.contains("read_file"));
+        assert!(formatted.contains("fn main()"));
+    }
+
+    #[test]
+    fn format_tool_result_error() {
+        let call = ToolCall::Bash { command: "bad".into() };
+        let result = ToolResult::err("bash", "not found");
+        let formatted = format_tool_result(&call, &result);
+        assert!(formatted.starts_with("❌"));
+    }
+
+    #[test]
+    fn format_tool_result_truncated_note() {
+        let call = ToolCall::Bash { command: "cat big".into() };
+        let result = ToolResult { tool_name: "bash".into(), output: "data".into(), success: true, truncated: true };
+        let formatted = format_tool_result(&call, &result);
+        assert!(formatted.contains("truncated"));
+    }
+
+    // ── parse edge cases ─────────────────────────────────────────────────
+
+    #[test]
+    fn parse_list_directory_default_path() {
+        let text = r#"<tool_call name="list_directory">
+</tool_call>"#;
+        let calls = parse_tool_calls(text);
+        assert_eq!(calls.len(), 1);
+        assert!(matches!(&calls[0], ToolCall::ListDirectory { path } if path == "."));
+    }
+
+    #[test]
+    fn parse_web_search() {
+        let text = r#"<tool_call name="web_search">
+<query>rust async</query>
+<num_results>3</num_results>
+</tool_call>"#;
+        let calls = parse_tool_calls(text);
+        assert_eq!(calls.len(), 1);
+        assert!(matches!(&calls[0], ToolCall::WebSearch { query, num_results: 3 } if query == "rust async"));
+    }
+
+    #[test]
+    fn parse_web_search_default_num_results() {
+        let text = r#"<tool_call name="web_search">
+<query>hello</query>
+</tool_call>"#;
+        let calls = parse_tool_calls(text);
+        assert!(matches!(&calls[0], ToolCall::WebSearch { num_results: 5, .. }));
+    }
+
+    #[test]
+    fn parse_fetch_url() {
+        let text = r#"<tool_call name="fetch_url">
+<url>https://example.com</url>
+</tool_call>"#;
+        let calls = parse_tool_calls(text);
+        assert!(matches!(&calls[0], ToolCall::FetchUrl { url } if url == "https://example.com"));
+    }
+
+    #[test]
+    fn parse_spawn_agent() {
+        let text = r#"<tool_call name="spawn_agent">
+<task>Write tests</task>
+<max_steps>5</max_steps>
+<max_depth>2</max_depth>
+</tool_call>"#;
+        let calls = parse_tool_calls(text);
+        assert_eq!(calls.len(), 1);
+        assert!(matches!(&calls[0], ToolCall::SpawnAgent { task, max_steps: Some(5), max_depth: Some(2) } if task == "Write tests"));
+    }
+
+    #[test]
+    fn parse_unknown_tool_ignored() {
+        let text = r#"<tool_call name="delete_universe">
+<target>everything</target>
+</tool_call>"#;
+        let calls = parse_tool_calls(text);
+        assert!(calls.is_empty());
+    }
+
+    #[test]
+    fn parse_multiple_tool_calls() {
+        let text = r#"
+<tool_call name="read_file">
+<path>a.rs</path>
+</tool_call>
+Some text in between
+<tool_call name="bash">
+<command>ls</command>
+</tool_call>
+"#;
+        let calls = parse_tool_calls(text);
+        assert_eq!(calls.len(), 2);
+        assert_eq!(calls[0].name(), "read_file");
+        assert_eq!(calls[1].name(), "bash");
+    }
 }

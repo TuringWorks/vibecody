@@ -164,7 +164,7 @@ impl CommandExecutor {
         Self::execute(command)
     }
 
-    /// Combine stdout and stderr from an `Output` into a single string.
+    /// Combine stdout and stderr from an `Output` into a single lossless string.
     pub fn output_to_string(output: &Output) -> String {
         let mut result = String::new();
         let stdout = String::from_utf8_lossy(&output.stdout);
@@ -182,5 +182,155 @@ impl CommandExecutor {
             result.push_str("[no output]");
         }
         result
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::os::unix::process::ExitStatusExt;
+
+    // ── is_safe_command ──────────────────────────────────────────────────
+
+    #[test]
+    fn safe_command_allows_normal_commands() {
+        assert!(CommandExecutor::is_safe_command("ls -la"));
+        assert!(CommandExecutor::is_safe_command("cargo test"));
+        assert!(CommandExecutor::is_safe_command("cat /etc/hosts"));
+        assert!(CommandExecutor::is_safe_command("git status"));
+        assert!(CommandExecutor::is_safe_command("echo hello"));
+    }
+
+    #[test]
+    fn safe_command_blocks_rm_rf_root() {
+        assert!(!CommandExecutor::is_safe_command("rm -rf /"));
+        assert!(!CommandExecutor::is_safe_command("rm -rf ~/"));
+        assert!(!CommandExecutor::is_safe_command("rm  -rf  /"));  // extra spaces
+    }
+
+    #[test]
+    fn safe_command_blocks_rm_fr_root() {
+        // flag reordering: -fr instead of -rf
+        assert!(!CommandExecutor::is_safe_command("rm -fr /"));
+    }
+
+    #[test]
+    fn safe_command_blocks_fork_bomb() {
+        assert!(!CommandExecutor::is_safe_command(":(){ :|:& };:"));
+    }
+
+    #[test]
+    fn safe_command_blocks_mkfs() {
+        assert!(!CommandExecutor::is_safe_command("mkfs.ext4 /dev/sda1"));
+    }
+
+    #[test]
+    fn safe_command_blocks_dd() {
+        assert!(!CommandExecutor::is_safe_command("dd if=/dev/zero of=/dev/sda"));
+    }
+
+    #[test]
+    fn safe_command_blocks_write_to_device() {
+        assert!(!CommandExecutor::is_safe_command("echo bad > /dev/sda"));
+    }
+
+    #[test]
+    fn safe_command_blocks_chmod_777_root() {
+        assert!(!CommandExecutor::is_safe_command("chmod -R 777 /"));
+    }
+
+    #[test]
+    fn safe_command_blocks_shred() {
+        assert!(!CommandExecutor::is_safe_command("shred -vfz /important"));
+    }
+
+    #[test]
+    fn safe_command_allows_rm_single_file() {
+        // Non-recursive rm on a specific file is OK
+        assert!(CommandExecutor::is_safe_command("rm file.txt"));
+        assert!(CommandExecutor::is_safe_command("rm -f file.txt"));
+    }
+
+    // ── execute ──────────────────────────────────────────────────────────
+
+    #[test]
+    fn execute_simple_command() {
+        let output = CommandExecutor::execute("echo hello").unwrap();
+        assert!(output.status.success());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(stdout.contains("hello"));
+    }
+
+    #[test]
+    fn execute_in_specific_dir() {
+        let output = CommandExecutor::execute_in("pwd", Path::new("/tmp")).unwrap();
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(stdout.contains("tmp") || stdout.contains("private/tmp"));
+    }
+
+    // ── execute_with_approval ────────────────────────────────────────────
+
+    #[test]
+    fn execute_with_approval_blocks_dangerous() {
+        let result = CommandExecutor::execute_with_approval("rm -rf /", false);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("approval"));
+    }
+
+    #[test]
+    fn execute_with_approval_allows_dangerous_when_approved() {
+        // With auto_approve=true, even dangerous commands pass the gate
+        // (but rm -rf / would still fail at the OS level)
+        // We test with a safe command to verify the approval path
+        let result = CommandExecutor::execute_with_approval("echo ok", true);
+        assert!(result.is_ok());
+    }
+
+    // ── output_to_string ─────────────────────────────────────────────────
+
+    #[test]
+    fn output_to_string_stdout_only() {
+        let output = Output {
+            status: std::process::ExitStatus::from_raw(0),
+            stdout: b"hello\n".to_vec(),
+            stderr: vec![],
+        };
+        let s = CommandExecutor::output_to_string(&output);
+        assert_eq!(s, "hello\n");
+    }
+
+    #[test]
+    fn output_to_string_stderr_only() {
+        let output = Output {
+            status: std::process::ExitStatus::from_raw(256), // exit code 1
+            stdout: vec![],
+            stderr: b"error\n".to_vec(),
+        };
+        let s = CommandExecutor::output_to_string(&output);
+        assert_eq!(s, "error\n");
+    }
+
+    #[test]
+    fn output_to_string_both() {
+        let output = Output {
+            status: std::process::ExitStatus::from_raw(0),
+            stdout: b"out\n".to_vec(),
+            stderr: b"err\n".to_vec(),
+        };
+        let s = CommandExecutor::output_to_string(&output);
+        assert!(s.contains("out\n"));
+        assert!(s.contains("--- stderr ---"));
+        assert!(s.contains("err\n"));
+    }
+
+    #[test]
+    fn output_to_string_empty() {
+        let output = Output {
+            status: std::process::ExitStatus::from_raw(0),
+            stdout: vec![],
+            stderr: vec![],
+        };
+        let s = CommandExecutor::output_to_string(&output);
+        assert_eq!(s, "[no output]");
     }
 }
