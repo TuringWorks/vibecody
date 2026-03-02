@@ -2898,6 +2898,219 @@ async fn main() -> Result<()> {
                             }
                         }
 
+                        "/env" => {
+                            let sub_parts: Vec<&str> = args.splitn(2, ' ').collect();
+                            let subcmd = sub_parts.first().copied().unwrap_or("").trim();
+                            let sub_args = if sub_parts.len() > 1 { sub_parts[1].trim() } else { "" };
+                            let cwd = std::env::current_dir().unwrap_or_default();
+
+                            fn is_secret_key(key: &str) -> bool {
+                                let upper = key.to_uppercase();
+                                ["SECRET", "TOKEN", "PASSWORD", "CREDENTIAL", "PRIVATE", "API_KEY", "_KEY"]
+                                    .iter()
+                                    .any(|pat| upper.contains(pat))
+                            }
+
+                            fn parse_env_file(path: &std::path::Path) -> Vec<(String, String)> {
+                                let content = match std::fs::read_to_string(path) {
+                                    Ok(c) => c,
+                                    Err(_) => return Vec::new(),
+                                };
+                                let mut entries = Vec::new();
+                                for line in content.lines() {
+                                    let trimmed = line.trim();
+                                    if trimmed.is_empty() || trimmed.starts_with('#') {
+                                        continue;
+                                    }
+                                    if let Some(eq_pos) = trimmed.find('=') {
+                                        let key = trimmed[..eq_pos].trim().to_string();
+                                        let mut value = trimmed[eq_pos + 1..].trim().to_string();
+                                        if (value.starts_with('"') && value.ends_with('"'))
+                                            || (value.starts_with('\'') && value.ends_with('\''))
+                                        {
+                                            value = value[1..value.len() - 1].to_string();
+                                        }
+                                        entries.push((key, value));
+                                    }
+                                }
+                                entries
+                            }
+
+                            // Determine active env file
+                            let active_env_path = cwd.join(".vibeui").join("active-env.txt");
+                            let active_env = std::fs::read_to_string(&active_env_path)
+                                .map(|s| s.trim().to_string())
+                                .unwrap_or_else(|_| "default".to_string());
+                            let env_filename = if active_env == "default" { ".env".to_string() } else { format!(".env.{}", active_env) };
+                            let env_path = cwd.join(&env_filename);
+
+                            match subcmd {
+                                "" | "list" => {
+                                    if !env_path.exists() {
+                                        println!("\n📋 No {} file found. Use `/env create` or `/env set KEY value`.\n", env_filename);
+                                    } else {
+                                        let entries = parse_env_file(&env_path);
+                                        println!("\n🔑 Environment: {} ({})", active_env, env_filename);
+                                        if entries.is_empty() {
+                                            println!("  (empty)\n");
+                                        } else {
+                                            for (key, value) in &entries {
+                                                if is_secret_key(key) {
+                                                    println!("  {:<30} ••••••••  🔒", key);
+                                                } else {
+                                                    println!("  {:<30} {}", key, value);
+                                                }
+                                            }
+                                            println!("  ({} variables)\n", entries.len());
+                                        }
+                                    }
+                                }
+                                "files" => {
+                                    println!("\n📁 Environment files:");
+                                    let mut found = false;
+                                    if let Ok(dir) = std::fs::read_dir(&cwd) {
+                                        let mut files: Vec<_> = dir
+                                            .flatten()
+                                            .filter(|e| {
+                                                let name = e.file_name().to_string_lossy().to_string();
+                                                name == ".env" || name.starts_with(".env.")
+                                            })
+                                            .collect();
+                                        files.sort_by_key(|e| e.file_name());
+                                        for entry in &files {
+                                            found = true;
+                                            let name = entry.file_name().to_string_lossy().to_string();
+                                            let entries = parse_env_file(&entry.path());
+                                            let marker = if name == env_filename { " ← active" } else { "" };
+                                            println!("  {} ({} vars){}", name, entries.len(), marker);
+                                        }
+                                    }
+                                    if !found {
+                                        println!("  (no .env files found)");
+                                    }
+                                    println!();
+                                }
+                                "get" => {
+                                    let key = sub_args.trim();
+                                    if key.is_empty() {
+                                        println!("Usage: /env get <KEY>\n");
+                                    } else {
+                                        let entries = parse_env_file(&env_path);
+                                        match entries.iter().find(|(k, _)| k == key) {
+                                            Some((k, v)) => println!("\n  {}={}\n", k, v),
+                                            None => println!("\n  Key \"{}\" not found in {}\n", key, env_filename),
+                                        }
+                                    }
+                                }
+                                "set" => {
+                                    let set_parts: Vec<&str> = sub_args.splitn(2, ' ').collect();
+                                    let key = set_parts.first().copied().unwrap_or("").trim().to_uppercase();
+                                    let value = if set_parts.len() > 1 { set_parts[1].trim() } else { "" };
+                                    if key.is_empty() || value.is_empty() {
+                                        println!("Usage: /env set <KEY> <value>\n");
+                                    } else {
+                                        // Read existing content (or empty)
+                                        let content = std::fs::read_to_string(&env_path).unwrap_or_default();
+                                        let mut lines: Vec<String> = content.lines().map(|l| l.to_string()).collect();
+                                        let mut found = false;
+                                        for line in &mut lines {
+                                            let trimmed = line.trim();
+                                            if let Some(eq_pos) = trimmed.find('=') {
+                                                let line_key = trimmed[..eq_pos].trim();
+                                                if line_key == key {
+                                                    *line = format!("{}={}", key, value);
+                                                    found = true;
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                        if !found {
+                                            lines.push(format!("{}={}", key, value));
+                                        }
+                                        let new_content = lines.join("\n") + "\n";
+                                        match std::fs::write(&env_path, &new_content) {
+                                            Ok(_) => {
+                                                #[cfg(unix)]
+                                                {
+                                                    use std::os::unix::fs::PermissionsExt;
+                                                    let _ = std::fs::set_permissions(&env_path, std::fs::Permissions::from_mode(0o600));
+                                                }
+                                                let action = if found { "Updated" } else { "Added" };
+                                                println!("✅ {} {}={} in {}\n", action, key, value, env_filename);
+                                            }
+                                            Err(e) => println!("❌ Failed to write {}: {}\n", env_filename, e),
+                                        }
+                                    }
+                                }
+                                "delete" => {
+                                    let key = sub_args.trim();
+                                    if key.is_empty() {
+                                        println!("Usage: /env delete <KEY>\n");
+                                    } else if !env_path.exists() {
+                                        println!("❌ {} not found\n", env_filename);
+                                    } else {
+                                        let content = std::fs::read_to_string(&env_path).unwrap_or_default();
+                                        let filtered: Vec<&str> = content
+                                            .lines()
+                                            .filter(|line| {
+                                                let trimmed = line.trim();
+                                                if let Some(eq_pos) = trimmed.find('=') {
+                                                    trimmed[..eq_pos].trim() != key
+                                                } else {
+                                                    true
+                                                }
+                                            })
+                                            .collect();
+                                        let new_content = filtered.join("\n") + "\n";
+                                        match std::fs::write(&env_path, &new_content) {
+                                            Ok(_) => println!("🗑️  Deleted {} from {}\n", key, env_filename),
+                                            Err(e) => println!("❌ Failed to write {}: {}\n", env_filename, e),
+                                        }
+                                    }
+                                }
+                                "switch" => {
+                                    let env_name = sub_args.trim();
+                                    if env_name.is_empty() {
+                                        println!("Usage: /env switch <environment>\n  Current: {} ({})\n", active_env, env_filename);
+                                    } else {
+                                        let vibeui_dir = cwd.join(".vibeui");
+                                        let _ = std::fs::create_dir_all(&vibeui_dir);
+                                        let target_file = if env_name == "default" { ".env".to_string() } else { format!(".env.{}", env_name) };
+                                        match std::fs::write(vibeui_dir.join("active-env.txt"), env_name) {
+                                            Ok(_) => println!("🔄 Switched to environment: {} ({})\n", env_name, target_file),
+                                            Err(e) => println!("❌ Failed to switch: {}\n", e),
+                                        }
+                                    }
+                                }
+                                "create" => {
+                                    let env_name = sub_args.trim().to_lowercase();
+                                    if env_name.is_empty() {
+                                        println!("Usage: /env create <environment>\n  Example: /env create staging\n");
+                                    } else {
+                                        let new_file = cwd.join(format!(".env.{}", env_name));
+                                        if new_file.exists() {
+                                            println!("⚠️  .env.{} already exists\n", env_name);
+                                        } else {
+                                            match std::fs::write(&new_file, "") {
+                                                Ok(_) => {
+                                                    #[cfg(unix)]
+                                                    {
+                                                        use std::os::unix::fs::PermissionsExt;
+                                                        let _ = std::fs::set_permissions(&new_file, std::fs::Permissions::from_mode(0o600));
+                                                    }
+                                                    println!("✅ Created .env.{}\n  Use `/env switch {}` to activate it.\n", env_name, env_name);
+                                                }
+                                                Err(e) => println!("❌ Failed to create .env.{}: {}\n", env_name, e),
+                                            }
+                                        }
+                                    }
+                                }
+                                _ => {
+                                    println!("Usage: /env [list|get <key>|set <key> <val>|delete <key>|switch <env>|files|create <env>]\n");
+                                }
+                            }
+                        }
+
                         _ => {
                             println!("Type /help for available commands\n");
                         }
