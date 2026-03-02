@@ -198,13 +198,13 @@ impl BackgroundAgentManager {
     pub fn start_run(&self, def: &AgentDef) -> AgentRun {
         let id = format!("{}-{}", def.name, Self::short_id());
         let run = AgentRun::new(&id, &def.name, &def.task);
-        self.runs.lock().unwrap().insert(id.clone(), run.clone());
+        self.runs.lock().unwrap_or_else(|e| e.into_inner()).insert(id.clone(), run.clone());
         run
     }
 
     /// Update the status of a run.
     pub fn finish_run(&self, id: &str, status: AgentRunStatus, summary: Option<String>) {
-        let mut runs = self.runs.lock().unwrap();
+        let mut runs = self.runs.lock().unwrap_or_else(|e| e.into_inner());
         if let Some(run) = runs.get_mut(id) {
             run.finish(status, summary);
         }
@@ -217,7 +217,7 @@ impl BackgroundAgentManager {
 
     /// List all runs (sorted newest first).
     pub fn list_runs(&self) -> Vec<AgentRun> {
-        let runs = self.runs.lock().unwrap();
+        let runs = self.runs.lock().unwrap_or_else(|e| e.into_inner());
         let mut list: Vec<AgentRun> = runs.values().cloned().collect();
         list.sort_by(|a, b| b.started_at.cmp(&a.started_at));
         list
@@ -225,7 +225,7 @@ impl BackgroundAgentManager {
 
     /// Get a specific run by ID.
     pub fn get_run(&self, id: &str) -> Option<AgentRun> {
-        self.runs.lock().unwrap().get(id).cloned()
+        self.runs.lock().unwrap_or_else(|e| e.into_inner()).get(id).cloned()
     }
 
     /// Create a starter template in the agents directory.

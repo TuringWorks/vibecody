@@ -157,7 +157,9 @@ impl TeamManager {
     pub fn save(&self, config: &TeamConfig) -> Result<()> {
         let path = self.team_toml_path()
             .ok_or_else(|| anyhow::anyhow!("No workspace set for team config"))?;
-        std::fs::create_dir_all(path.parent().unwrap())?;
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
         let content = toml::to_string_pretty(config)?;
         std::fs::write(&path, content)?;
         Ok(())
