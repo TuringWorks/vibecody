@@ -1326,6 +1326,26 @@ Real-time collaborative editing powered by [yrs](https://github.com/y-crdt/y-crd
 | collab error.rs tests (13) | ✅ | CollabError Display for all 8 variants; StatusCode conversion (NOT_FOUND/CONFLICT/UNAUTHORIZED/BAD_REQUEST/INTERNAL_SERVER_ERROR) |
 | Total | ✅ | **508 tests** passing across workspace (was 344) |
 
+## 7.18b Test Coverage Expansion Round 2 ✅
+
+**Status:** Complete
+
+| Item | Status | Details |
+|------|--------|---------|
+| flow.rs tests (17) | ✅ | FlowTracker ring buffer eviction, dedup of opens/edits, context_string category filtering, limit param, unknown kind |
+| syntax.rs tests (22) | ✅ | detect_language (Rust/Python/JS/Go/prose/empty), highlight with/without language, highlight_code_blocks fenced/unclosed/empty/multiple |
+| diff_viewer.rs tests (9) | ✅ | colorize_diff ANSI (+green/-red/@@cyan), header lines not colored, context uncolored, mixed diff |
+| memory.rs tests (6) | ✅ | combined_rules section headers, save/load roundtrip, missing file returns empty |
+| chat.rs tests (14) | ✅ | Conversation role accessors, ChatEngine providers/conversations, out-of-bounds errors, serde |
+| completion.rs tests (16) | ✅ | estimate_confidence (empty/short/medium/long, syntactic endings, uncertainty markers, cap at 1.0) |
+| agent_executor.rs tests (10) | ✅ | truncate at/over limit, resolve paths, execute_call routing (unsupported tools, missing file) |
+| mcp_server.rs tests (12) | ✅ | resolve paths, tool_defs (6 tools, required params, inputSchema), RpcOk/RpcErr serde |
+| manager.rs tests (9) | ✅ | LspManager 4 default configs, client lookup, default() equivalence |
+| workspace.rs tests (12) | ✅ | from_config, setting types, dedup, close_file, WorkspaceConfig serde |
+| multi_agent.rs tests (10) | ✅ | AgentTask/Status/Result serde, AgentInstance clone, branch_name |
+| scheduler.rs tests (16) | ✅ | format_interval (s/m/h/d), parse_duration edge cases, ScheduleExpr serde roundtrip |
+| Total | ✅ | **664 tests** passing across workspace (was 508; +153 new) |
+
 ---
 
 ## 7.19 Phase 7.19 — Context Window Safety + Process Manager ✅

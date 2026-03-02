@@ -853,22 +853,23 @@ VibeUI implements WCAG 2.1 Level AA accessibility:
 
 ## Testing
 
-**508 tests** pass across the workspace (as of 2026-03-01).
+**664 tests** pass across the workspace (as of 2026-03-02).
 
 | Crate | Tests | Key coverage areas |
 |-------|-------|--------------------|
-| vibecli-cli | 160 | session store, workflow, REPL, redteam, gateway, bugbot, vim editor, tool executor, scheduler, notebook, review, schema |
-| vibe-ai | 132 | tools parsing/formatting, trace redaction, hooks, policy, skills, artifacts, planner, provider pricing, SigV4 signing |
-| vibe-core | 93 | buffer, git, context, file system, workspace, index, embeddings, diff engine, search, executor safety, symbol extraction |
+| vibecli-cli | 216 | session store, workflow, REPL, redteam, gateway, bugbot, vim editor, tool executor, scheduler, notebook, review, schema, syntax highlighting, diff viewer, MCP server |
+| vibe-ai | 177 | tools parsing/formatting, trace redaction, hooks, policy, skills, artifacts, planner, provider pricing, SigV4 signing, chat engine, completion confidence, multi-agent orchestration |
+| vibe-core | 105 | buffer, git, context, file system, workspace, index, embeddings, diff engine, search, executor safety, symbol extraction |
+| vibe-ui (Tauri) | 92 | parse_lcov, parse_go_coverage, detect_coverage_tool, discover_api_endpoints, cost paths, serialization, flow tracker, memory rules, agent executor |
 | vibe-collab | 28 | room lifecycle, server registry, protocol sync, awareness, error Display/StatusCode |
-| vibe-ui (Tauri) | 58 | parse_lcov, parse_go_coverage, detect_coverage_tool, discover_api_endpoints, cost paths, serialization roundtrips |
-| vibe-extensions | 2 | loader basics |
-| smoke tests | 7 | end-to-end CLI integration |
+| vibe-lsp | 9 | LSP manager default configs, client lookup |
 | vibe-indexer | 10 | file persistence, index lifecycle |
 | vibeapp | 9 | desktop app basics |
+| smoke tests | 7 | end-to-end CLI integration |
+| vibe-extensions | 2 | loader basics |
 
 ```bash
-# Rust unit tests (all 508)
+# Rust unit tests (all 664)
 cargo test --workspace
 
 # Specific crates

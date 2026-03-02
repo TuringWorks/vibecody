@@ -8,7 +8,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Testing
-- **164 new unit tests** across 8 files, bringing the workspace total from 344 → **508 tests**.
+- **317 new unit tests** across 20 files, bringing the workspace total from 344 → **664 tests**.
+- **Round 1 (164 tests)** across 8 files:
   - `provider.rs` (22): TokenUsage pricing for all 6 tiers, ProviderConfig builder/serialization,
     base64 padding, Message/CompletionResponse serde roundtrips.
   - `tools.rs` (30): ToolCall::name/is_destructive/is_terminal/summary for all 10 tools,
@@ -23,6 +24,31 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - `bedrock.rs` (13): SHA-256 known vectors, HMAC-SHA256, SigV4 signing key derivation,
     epoch_days_to_ymd calendar math (epoch/2000/leap-day/year-end), sigv4_auth_header.
   - `error.rs` (13): CollabError Display for all 8 variants, StatusCode conversion.
+- **Round 2 (153 tests)** across 12 files:
+  - `flow.rs` (17): FlowTracker ring buffer eviction at 100 events, dedup of opens/edits,
+    context_string category filtering (opens/edits/cmds), limit parameter, unknown kind ignored.
+  - `syntax.rs` (22): detect_language heuristics (Rust/Python/JS/Go/prose/empty), highlight
+    with language/without/unknown, highlight_code_blocks (fenced/no-lang/unclosed/empty/multiple).
+  - `diff_viewer.rs` (9): colorize_diff ANSI coloring (+green/-red/@@cyan), header lines not
+    colored, context lines uncolored, mixed diff, empty input.
+  - `memory.rs` (6): combined_rules section headers, workspace-only rules, save/load roundtrip,
+    missing file returns empty, global_rules_path structure.
+  - `chat.rs` (14): Conversation role accessors, ChatEngine default/providers/conversations,
+    set_active_provider/conversation out-of-bounds errors, active_conversation_mut, serde.
+  - `completion.rs` (16): estimate_confidence empty/short/medium/long, syntactic endings
+    (;/}/)/,), uncertainty markers (case-insensitive), cap at 1.0, Completion struct.
+  - `agent_executor.rs` (10): truncate at/over MAX_OUTPUT limit, resolve absolute/relative/dot/empty
+    paths, execute_call routing (apply_patch/spawn_agent errors, task_complete, missing file).
+  - `mcp_server.rs` (12): resolve paths, tool_defs (6 tools, name/description/inputSchema fields),
+    expected tool names, required params, RpcOk/RpcErr serialization.
+  - `manager.rs` (9): LspManager 4 default configs (rust-analyzer, typescript-language-server,
+    pylsp), client lookup returns None for unknown, default() equivalence.
+  - `workspace.rs` (12): from_config, default name, add_folder dedup, setting types
+    (string/number/bool/array), setting overwrite, close_file not open, WorkspaceConfig serde.
+  - `multi_agent.rs` (10): AgentTask new/serialization, AgentStatus serde (4 variants)/equality,
+    AgentResult serialization, AgentInstance clone, branch_name with large IDs.
+  - `scheduler.rs` (16): format_interval (s/m/h/d/zero/boundaries), parse_duration whitespace/zero/large,
+    ScheduleExpr Once/Recurring serde roundtrip, ScheduledJob deserialization.
 
 ### Accessibility (WCAG 2.1 AA)
 - **Keyboard shortcuts**: 8 new shortcuts — `Cmd+J` toggle AI panel, `Cmd+`` toggle terminal,
@@ -77,7 +103,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `chars.clone().take(12).collect::<String>()` per `<` with a cheap byte-slice peek
   (`tool_executor.rs`).
 - 3 new entity-decoder unit tests; 1 new cosine-clamp test; 1 new embedding-update correctness
-  test. Total: **508 tests** passing across the workspace (164 new in this release).
+  test. Total: **664 tests** passing across the workspace (317 new in this release).
 
 ### Phase 7.21: Real-time Chat Streaming in AIChat
 - **`stream_chat_message` Tauri command** (`commands.rs`): Immediately returns `Ok(())` and
