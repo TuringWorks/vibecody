@@ -1,5 +1,6 @@
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { useToast } from "../hooks/useToast";
 import { ContextPicker } from "./ContextPicker";
 import { flowContext } from "../utils/FlowContext";
@@ -116,19 +117,75 @@ export function AIChat({ provider, context, fileTree, currentFile, onFileAction,
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+    const [streamingText, setStreamingText] = useState(""); // live assistant text while streaming
     const [pickerQuery, setPickerQuery] = useState<string | null>(null);
     const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const cancelledRef = useRef(false);
+    // Streaming speed metrics
+    const streamStartMsRef = useRef<number | null>(null);
+    const streamCharsRef = useRef<number>(0);
+    const [tokensPerSec, setTokensPerSec] = useState<number | null>(null);
     const { isListening, toggle: toggleVoice } = useVoiceInput((transcript) =>
         setInput((prev) => prev + transcript)
     );
 
-    // Auto-scroll to latest message
+    // Auto-scroll to latest message or new streaming chunk
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, [messages, isLoading]);
+    }, [messages, streamingText, isLoading]);
+
+    // Register Tauri chat stream event listeners once
+    useEffect(() => {
+        const unlisteners: Array<() => void> = [];
+        (async () => {
+            unlisteners.push(
+                await listen<string>("chat:chunk", (e) => {
+                    const now = Date.now();
+                    const chunk = e.payload;
+                    if (streamStartMsRef.current === null) streamStartMsRef.current = now;
+                    streamCharsRef.current += chunk.length;
+                    const elapsedSec = (now - streamStartMsRef.current) / 1000;
+                    if (elapsedSec > 0) {
+                        setTokensPerSec(Math.round((streamCharsRef.current / 4) / elapsedSec));
+                    }
+                    setStreamingText((prev) => prev + chunk);
+                })
+            );
+            unlisteners.push(
+                await listen<ChatResponse>("chat:complete", (e) => {
+                    const response = e.payload;
+                    const displayContent = cleanMessage(response.message);
+                    setMessages((prev) => {
+                        // Replace the in-progress streaming entry with final message
+                        const updated = [...prev, { role: "assistant" as const, content: displayContent }];
+                        return updated;
+                    });
+                    setStreamingText("");
+                    setTokensPerSec(null);
+                    setIsLoading(false);
+                    if (response.pending_write && onPendingWrite) {
+                        onPendingWrite(response.pending_write.path, response.pending_write.content);
+                    }
+                    if (onFileAction) onFileAction();
+                })
+            );
+            unlisteners.push(
+                await listen<string>("chat:error", (e) => {
+                    setMessages((prev) => [...prev, {
+                        role: "assistant",
+                        content: `❌ ${e.payload}`,
+                    }]);
+                    setStreamingText("");
+                    setTokensPerSec(null);
+                    setIsLoading(false);
+                })
+            );
+        })();
+        return () => unlisteners.forEach((fn) => fn());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [onFileAction, onPendingWrite]);
 
     // Consume pendingInput from Cascade "Inject into chat"
     useEffect(() => {
@@ -147,7 +204,7 @@ export function AIChat({ provider, context, fileTree, currentFile, onFileAction,
         return cleaned;
     };
 
-    const sendMessage = async () => {
+    const sendMessage = useCallback(async () => {
         if (!input.trim()) return;
         if (!provider) {
             setMessages(prev => [...prev, {
@@ -158,14 +215,26 @@ export function AIChat({ provider, context, fileTree, currentFile, onFileAction,
         }
 
         const userMessage: Message = { role: "user", content: input };
-        setMessages([...messages, userMessage]);
+        setMessages((prev) => [...prev, userMessage]);
         setInput("");
         setPickerQuery(null);
         cancelledRef.current = false;
         setIsLoading(true);
+        setStreamingText("");
+        setTokensPerSec(null);
+        streamStartMsRef.current = null;
+        streamCharsRef.current = 0;
+
+        // Record user message in Cascade flow immediately
+        flowContext.add({
+            kind: "chat",
+            summary: userMessage.content.slice(0, 100),
+            detail: `Q: ${userMessage.content}`,
+        });
 
         try {
-            const response = await invoke<ChatResponse>("send_chat_message", {
+            // Kick off streaming — response arrives via chat:chunk / chat:complete / chat:error events.
+            await invoke("stream_chat_message", {
                 request: {
                     messages: [...messages, userMessage],
                     provider,
@@ -174,35 +243,33 @@ export function AIChat({ provider, context, fileTree, currentFile, onFileAction,
                     current_file: currentFile,
                 },
             });
-
-            if (cancelledRef.current) return; // user stopped generation
-            let displayContent = cleanMessage(response.message);
-            const assistantMessage: Message = { role: "assistant", content: displayContent };
-            setMessages((prev) => [...prev, assistantMessage]);
-
-            // Record chat exchange in Cascade flow
-            flowContext.add({
-                kind: "chat",
-                summary: userMessage.content.slice(0, 100),
-                detail: `Q: ${userMessage.content}\n\nA: ${displayContent.slice(0, 800)}`,
-            });
-
-            if (response.pending_write && onPendingWrite) {
-                onPendingWrite(response.pending_write.path, response.pending_write.content);
-            }
-            if (onFileAction) {
-                onFileAction();
-            }
         } catch (error) {
-            console.error("Failed to send message:", error);
+            console.error("Failed to start chat stream:", error);
             setMessages((prev) => [...prev, {
                 role: "assistant",
                 content: "Sorry, I encountered an error. Please make sure an AI provider is configured.",
             }]);
-        } finally {
+            setStreamingText("");
             setIsLoading(false);
         }
-    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [input, provider, context, fileTree, currentFile, messages]);
+
+    const stopMessage = useCallback(async () => {
+        cancelledRef.current = true;
+        await invoke("stop_chat_stream").catch(() => {});
+        // Commit whatever was streamed so far as the final message
+        setMessages((prev) => {
+            if (streamingText) {
+                return [...prev, { role: "assistant" as const, content: cleanMessage(streamingText) }];
+            }
+            return prev;
+        });
+        setStreamingText("");
+        setTokensPerSec(null);
+        setIsLoading(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [streamingText]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         const val = e.target.value;
@@ -253,7 +320,7 @@ export function AIChat({ provider, context, fileTree, currentFile, onFileAction,
                     <div style={{ display: "flex", gap: "6px" }}>
                         {isLoading && (
                             <button
-                                onClick={() => { cancelledRef.current = true; setIsLoading(false); }}
+                                onClick={stopMessage}
                                 style={{ fontSize: "11px", padding: "2px 8px", background: "var(--text-danger, #ff4d4f)", color: "#fff", border: "none", borderRadius: "4px", cursor: "pointer" }}
                                 title="Stop generation"
                             >
@@ -318,9 +385,40 @@ export function AIChat({ provider, context, fileTree, currentFile, onFileAction,
                     <div className="message message-assistant">
                         <div className="message-icon">🤖</div>
                         <div className="message-content">
-                            <div className="typing-indicator">
-                                <span></span><span></span><span></span>
-                            </div>
+                            {streamingText ? (
+                                <>
+                                    <div style={{ whiteSpace: "pre-wrap" }}>
+                                        {streamingText}
+                                        {/* blinking cursor */}
+                                        <span style={{
+                                            display: "inline-block",
+                                            width: "2px",
+                                            height: "1em",
+                                            background: "currentColor",
+                                            verticalAlign: "text-bottom",
+                                            animation: "blink 1s step-end infinite",
+                                            marginLeft: 1,
+                                        }} />
+                                    </div>
+                                    {tokensPerSec !== null && (
+                                        <div
+                                            aria-live="polite"
+                                            style={{
+                                                marginTop: 4,
+                                                fontSize: 11,
+                                                color: "var(--text-muted)",
+                                                fontVariantNumeric: "tabular-nums",
+                                            }}
+                                        >
+                                            ⚡ {tokensPerSec} tok/s · ~{Math.round(streamCharsRef.current / 4)} tokens
+                                        </div>
+                                    )}
+                                </>
+                            ) : (
+                                <div className="typing-indicator">
+                                    <span></span><span></span><span></span>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}

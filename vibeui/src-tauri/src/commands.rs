@@ -113,6 +113,8 @@ pub struct AppState {
     pub terminal_buffer: Arc<Mutex<Vec<String>>>,
     /// Abort handle for the currently running agent task (if any).
     pub agent_abort_handle: Arc<Mutex<Option<tokio::task::AbortHandle>>>,
+    /// Abort handle for the currently running chat stream (if any).
+    pub chat_abort_handle: Arc<Mutex<Option<tokio::task::AbortHandle>>>,
 }
 
 const MAX_TERMINAL_LINES: usize = 500;
@@ -789,7 +791,7 @@ pub struct PendingWrite {
     pub content: String,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 pub struct ChatResponse {
     pub message: String,
     pub tool_output: String,
@@ -878,6 +880,157 @@ pub async fn send_chat_message(
         tool_output,
         pending_write,
     })
+}
+
+// ── Streaming chat (Phase 7.21) ───────────────────────────────────────────────
+
+/// Start a streaming chat response.
+///
+/// Immediately returns `Ok(())` and spawns a background task that:
+/// - Emits `chat:chunk` events for each token
+/// - Emits `chat:complete` with the full assembled text when done
+/// - Emits `chat:error` on failure
+///
+/// Call `stop_chat_stream` to cancel an in-progress stream.
+#[tauri::command]
+pub async fn stream_chat_message(
+    mut request: ChatRequest,
+    app_handle: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    // Cancel any previously running chat stream.
+    {
+        let mut handle = state.chat_abort_handle.lock().await;
+        if let Some(h) = handle.take() {
+            h.abort();
+        }
+    }
+
+    // Set provider and clone it so we can release the lock before spawning.
+    let provider = {
+        let mut engine = state.chat_engine.lock().await;
+        engine.set_provider_by_name(&request.provider)
+            .map_err(|e| e.to_string())?;
+        engine.active_provider()
+            .ok_or_else(|| "No active provider".to_string())?
+            .clone()
+    };
+
+    // Inject system prompt (same as send_chat_message)
+    let mut system_prompt = String::from(
+        "You are an advanced coding assistant with access to the file system.\n\
+        You can use the following tools by outputting XML tags:\n\
+        - <read_file path=\"path/to/file\" />: Read file content\n\
+        - <write_file path=\"path/to/file\">content</write_file>: Write content to file\n\
+        - <list_dir path=\"path/to/dir\" />: List directory contents\n\n"
+    );
+    {
+        let ws = state.workspace.lock().await;
+        if let Some(root) = ws.folders().first() {
+            let rules = crate::memory::combined_rules(root);
+            if !rules.is_empty() {
+                system_prompt.push_str("## AI Rules\n");
+                system_prompt.push_str(&rules);
+                system_prompt.push('\n');
+            }
+        }
+    }
+    if let Some(files) = &request.file_tree {
+        system_prompt.push_str("Available files:\n");
+        for file in files {
+            system_prompt.push_str(&format!("- {}\n", file));
+        }
+        system_prompt.push_str("\n");
+    }
+    request.messages.insert(0, vibe_ai::Message {
+        role: vibe_ai::MessageRole::System,
+        content: system_prompt,
+    });
+
+    // Resolve @-context references
+    let context = {
+        let mut ctx = if let (Some(file), Some(content)) = (&request.current_file, &request.context) {
+            Some(format!("Active File: {}\n\nFile Content:\n{}", file, content))
+        } else {
+            request.context.clone()
+        };
+        if let Some(last) = request.messages.last() {
+            if last.role == vibe_ai::MessageRole::User {
+                let at_ctx = resolve_at_references(&last.content, &state.workspace, &state.terminal_buffer).await;
+                if !at_ctx.is_empty() {
+                    let base = ctx.unwrap_or_default();
+                    ctx = Some(if base.is_empty() { at_ctx } else { format!("{}\n\n{}", base, at_ctx) });
+                }
+            }
+        }
+        ctx
+    };
+
+    // Inject context as a leading user message if present
+    let mut messages = request.messages.clone();
+    if let Some(ctx_text) = context {
+        if !ctx_text.is_empty() {
+            // Inject as the second message (after system) so the model sees it.
+            let insert_pos = if messages.first().map(|m| m.role == vibe_ai::MessageRole::System).unwrap_or(false) { 1 } else { 0 };
+            messages.insert(insert_pos, vibe_ai::Message {
+                role: vibe_ai::MessageRole::User,
+                content: format!("[Context]\n{}", ctx_text),
+            });
+        }
+    }
+
+    let workspace = state.workspace.clone();
+    let abort_store = state.chat_abort_handle.clone();
+
+    let join_handle = tokio::spawn(async move {
+        use futures::StreamExt;
+        let mut stream = match provider.stream_chat(&messages).await {
+            Ok(s) => s,
+            Err(e) => {
+                let _ = app_handle.emit("chat:error", e.to_string());
+                return;
+            }
+        };
+        let mut accumulated = String::with_capacity(4096);
+        while let Some(chunk) = stream.next().await {
+            match chunk {
+                Ok(text) => {
+                    accumulated.push_str(&text);
+                    let _ = app_handle.emit("chat:chunk", text.clone());
+                }
+                Err(e) => {
+                    let _ = app_handle.emit("chat:error", e.to_string());
+                    return;
+                }
+            }
+        }
+        // Process tool calls in the completed response (same as send_chat_message)
+        let (tool_output, pending_write) = process_tool_calls(&accumulated, &workspace).await;
+        let response = ChatResponse {
+            message: accumulated,
+            tool_output,
+            pending_write,
+        };
+        let _ = app_handle.emit("chat:complete", response);
+    });
+
+    // Store abort handle so stop_chat_stream can cancel it.
+    {
+        let mut handle = abort_store.lock().await;
+        *handle = Some(join_handle.abort_handle());
+    }
+
+    Ok(())
+}
+
+/// Cancel any in-progress chat stream.
+#[tauri::command]
+pub async fn stop_chat_stream(state: tauri::State<'_, AppState>) -> Result<(), String> {
+    let mut handle = state.chat_abort_handle.lock().await;
+    if let Some(h) = handle.take() {
+        h.abort();
+    }
+    Ok(())
 }
 
 /// Fetch a URL, strip HTML tags, and return plain text (≤ 6000 chars).
