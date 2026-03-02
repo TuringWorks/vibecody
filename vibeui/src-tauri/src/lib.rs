@@ -291,6 +291,14 @@ pub fn run() {
             // Phase 7.21: Chat Streaming
             commands::stream_chat_message,
             commands::stop_chat_stream,
+            // Phase 7.22: CI/CD & Kubernetes Deployment Hub
+            commands::detect_build_type,
+            commands::generate_cicd_config,
+            commands::generate_release_workflow,
+            commands::list_k8s_contexts,
+            commands::generate_k8s_manifests,
+            commands::run_kubectl_command,
+            commands::generate_argocd_app,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

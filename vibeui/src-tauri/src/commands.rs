@@ -7834,3 +7834,581 @@ pub async fn kill_process(pid: u32) -> Result<(), String> {
         Ok(())
     }
 }
+
+// ─── Phase 7.22: CI/CD & Kubernetes Deployment Hub ────────────────────────
+
+/// Detect build type from workspace files.
+#[tauri::command]
+pub async fn detect_build_type(workspace: String) -> Result<String, String> {
+    let path = std::path::Path::new(&workspace);
+    if path.join("Cargo.toml").exists() {
+        return Ok("rust".to_string());
+    }
+    if path.join("go.mod").exists() {
+        return Ok("go".to_string());
+    }
+    if path.join("pom.xml").exists() || path.join("build.gradle").exists() {
+        return Ok("java".to_string());
+    }
+    // Check for .csproj files
+    if let Ok(entries) = std::fs::read_dir(path) {
+        for entry in entries.flatten() {
+            if entry.path().extension().map(|e| e == "csproj").unwrap_or(false) {
+                return Ok("dotnet".to_string());
+            }
+        }
+    }
+    if path.join("requirements.txt").exists() || path.join("pyproject.toml").exists() {
+        return Ok("python".to_string());
+    }
+    if path.join("package.json").exists() {
+        return Ok("node".to_string());
+    }
+    Ok("unknown".to_string())
+}
+
+fn cicd_output_path(platform: &str) -> (&'static str, &'static str) {
+    match platform {
+        "github"    => (".github/workflows", "ci.yml"),
+        "gitlab"    => (".", ".gitlab-ci.yml"),
+        "circleci"  => (".circleci", "config.yml"),
+        "jenkins"   => (".", "Jenkinsfile"),
+        "bitbucket" => (".", "bitbucket-pipelines.yml"),
+        _           => (".", "ci.yml"),
+    }
+}
+
+fn build_cicd_template(platform: &str, build_type: &str) -> String {
+    match (platform, build_type) {
+        // ── GitHub Actions ────────────────────────────────────────────────────
+        ("github", "rust") => r#"name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test --workspace
+      - run: cargo build --release
+"#.to_string(),
+        ("github", "node") => r#"name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+"#.to_string(),
+        ("github", "go") => r#"name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+      - run: go test ./...
+      - run: go build ./...
+"#.to_string(),
+        ("github", "python") => r#"name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements.txt
+      - run: pytest
+"#.to_string(),
+        ("github", "java") => r#"name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+      - run: mvn --batch-mode test
+      - run: mvn --batch-mode package -DskipTests
+"#.to_string(),
+        ("github", "dotnet") => r#"name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.x'
+      - run: dotnet restore
+      - run: dotnet build --no-restore
+      - run: dotnet test --no-build --verbosity normal
+"#.to_string(),
+        ("github", bt) => format!(
+            "name: CI\non:\n  push:\n    branches: [main]\n  pull_request:\n    branches: [main]\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: echo \"Add your {} test/build commands here\"\n", bt),
+
+        // ── GitLab CI ────────────────────────────────────────────────────────
+        ("gitlab", "rust") => r#"stages:
+  - test
+  - build
+
+test:
+  image: rust:latest
+  stage: test
+  script:
+    - cargo test --workspace
+
+build:
+  image: rust:latest
+  stage: build
+  script:
+    - cargo build --release
+  artifacts:
+    paths:
+      - target/release/
+    expire_in: 1 hour
+"#.to_string(),
+        ("gitlab", "node") => r#"stages:
+  - test
+  - build
+
+test:
+  image: node:20-alpine
+  stage: test
+  cache:
+    paths:
+      - node_modules/
+  script:
+    - npm ci
+    - npm test
+
+build:
+  image: node:20-alpine
+  stage: build
+  script:
+    - npm ci
+    - npm run build
+  artifacts:
+    paths:
+      - dist/
+"#.to_string(),
+        ("gitlab", "go") => r#"stages:
+  - test
+  - build
+
+test:
+  image: golang:1.22
+  stage: test
+  script:
+    - go test ./...
+
+build:
+  image: golang:1.22
+  stage: build
+  script:
+    - go build -o app ./...
+  artifacts:
+    paths:
+      - app
+"#.to_string(),
+        ("gitlab", "python") => r#"stages:
+  - test
+
+test:
+  image: python:3.12-slim
+  stage: test
+  script:
+    - pip install -r requirements.txt
+    - pytest
+"#.to_string(),
+        ("gitlab", bt) => format!(
+            "stages:\n  - test\n  - build\n\ntest:\n  stage: test\n  script:\n    - echo \"Add your {} test commands here\"\n\nbuild:\n  stage: build\n  script:\n    - echo \"Add your {} build commands here\"\n", bt, bt),
+
+        // ── CircleCI ─────────────────────────────────────────────────────────
+        ("circleci", "rust") => r#"version: 2.1
+jobs:
+  build-and-test:
+    docker:
+      - image: cimg/rust:1.77
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - v1-cargo-{{ checksum "Cargo.lock" }}
+      - run:
+          name: Run tests
+          command: cargo test --workspace
+      - run:
+          name: Build release
+          command: cargo build --release
+      - save_cache:
+          key: v1-cargo-{{ checksum "Cargo.lock" }}
+          paths:
+            - ~/.cargo
+
+workflows:
+  main:
+    jobs:
+      - build-and-test
+"#.to_string(),
+        ("circleci", "node") => r#"version: 2.1
+jobs:
+  build-and-test:
+    docker:
+      - image: cimg/node:20.0
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - v1-npm-{{ checksum "package-lock.json" }}
+      - run: npm ci
+      - save_cache:
+          key: v1-npm-{{ checksum "package-lock.json" }}
+          paths:
+            - node_modules
+      - run: npm test
+      - run: npm run build
+
+workflows:
+  main:
+    jobs:
+      - build-and-test
+"#.to_string(),
+        ("circleci", bt) => format!(
+            "version: 2.1\njobs:\n  build-and-test:\n    docker:\n      - image: cimg/base:stable\n    steps:\n      - checkout\n      - run:\n          name: Test\n          command: echo \"Add your {} test commands here\"\n      - run:\n          name: Build\n          command: echo \"Add your {} build commands here\"\n\nworkflows:\n  main:\n    jobs:\n      - build-and-test\n", bt, bt),
+
+        // ── Jenkins ──────────────────────────────────────────────────────────
+        ("jenkins", "rust") => r#"pipeline {
+    agent {
+        docker { image 'rust:latest' }
+    }
+    environment {
+        CARGO_HOME = "${WORKSPACE}/.cargo"
+    }
+    stages {
+        stage('Test') {
+            steps {
+                sh 'cargo test --workspace'
+            }
+        }
+        stage('Build') {
+            steps {
+                sh 'cargo build --release'
+                archiveArtifacts artifacts: 'target/release/*', onlyIfSuccessful: true
+            }
+        }
+    }
+}
+"#.to_string(),
+        ("jenkins", "node") => r#"pipeline {
+    agent {
+        docker { image 'node:20-alpine' }
+    }
+    stages {
+        stage('Install') {
+            steps { sh 'npm ci' }
+        }
+        stage('Test') {
+            steps { sh 'npm test' }
+        }
+        stage('Build') {
+            steps {
+                sh 'npm run build'
+                archiveArtifacts artifacts: 'dist/**', onlyIfSuccessful: true
+            }
+        }
+    }
+}
+"#.to_string(),
+        ("jenkins", bt) => format!(
+            "pipeline {{\n    agent any\n    stages {{\n        stage('Test') {{\n            steps {{\n                sh 'echo \"Add your {} test commands here\"'\n            }}\n        }}\n        stage('Build') {{\n            steps {{\n                sh 'echo \"Add your {} build commands here\"'\n            }}\n        }}\n    }}\n}}\n", bt, bt),
+
+        // ── Bitbucket Pipelines ───────────────────────────────────────────────
+        ("bitbucket", "rust") => r#"image: rust:latest
+
+pipelines:
+  default:
+    - step:
+        name: Test
+        caches:
+          - cargo
+        script:
+          - cargo test --workspace
+    - step:
+        name: Build
+        script:
+          - cargo build --release
+
+definitions:
+  caches:
+    cargo: ~/.cargo
+"#.to_string(),
+        ("bitbucket", "node") => r#"image: node:20-alpine
+
+pipelines:
+  default:
+    - step:
+        name: Install & Test
+        caches:
+          - node
+        script:
+          - npm ci
+          - npm test
+    - step:
+        name: Build
+        script:
+          - npm run build
+        artifacts:
+          - dist/**
+"#.to_string(),
+        ("bitbucket", bt) => format!(
+            "image: ubuntu:22.04\n\npipelines:\n  default:\n    - step:\n        name: Test\n        script:\n          - echo \"Add your {} test commands here\"\n    - step:\n        name: Build\n        script:\n          - echo \"Add your {} build commands here\"\n", bt, bt),
+
+        // ── Fallback ─────────────────────────────────────────────────────────
+        (plat, bt) => format!("# CI/CD config for {} ({})\n# Customize this template for your project\n", plat, bt),
+    }
+}
+
+/// Generate a CI/CD configuration file for the given platform and build type.
+/// Writes the file into the workspace and returns the generated content.
+#[tauri::command]
+pub async fn generate_cicd_config(
+    workspace: String,
+    platform: String,
+    build_type: String,
+) -> Result<String, String> {
+    let content = build_cicd_template(&platform, &build_type);
+    let (dir, filename) = cicd_output_path(&platform);
+    let output_path = std::path::Path::new(&workspace).join(dir).join(filename);
+    if let Some(parent) = output_path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    std::fs::write(&output_path, &content).map_err(|e| e.to_string())?;
+    Ok(content)
+}
+
+/// Generate a GitHub Actions release workflow for producing cross-platform binaries.
+#[tauri::command]
+pub async fn generate_release_workflow(
+    workspace: String,
+    build_type: String,
+    targets: Vec<String>,
+) -> Result<String, String> {
+    let matrix_entries: Vec<String> = targets.iter().map(|t| {
+        let (os, target_triple, artifact) = match t.as_str() {
+            "linux-x64"   => ("ubuntu-latest",  "x86_64-unknown-linux-musl",   "app-linux-x64"),
+            "linux-arm64" => ("ubuntu-latest",  "aarch64-unknown-linux-musl",  "app-linux-arm64"),
+            "macos-arm64" => ("macos-latest",   "aarch64-apple-darwin",         "app-macos-arm64"),
+            "macos-x64"   => ("macos-13",        "x86_64-apple-darwin",          "app-macos-x64"),
+            "windows-x64" => ("windows-latest", "x86_64-pc-windows-msvc",       "app-windows-x64.exe"),
+            _             => ("ubuntu-latest",  "x86_64-unknown-linux-musl",   "app-linux-x64"),
+        };
+        format!("          - os: {}\n            target: {}\n            artifact: {}", os, target_triple, artifact)
+    }).collect();
+
+    let (install_steps, build_cmd) = match build_type.as_str() {
+        "rust" => (
+            "      - uses: dtolnay/rust-toolchain@stable\n        with:\n          targets: ${{ matrix.target }}\n      - uses: Swatinem/rust-cache@v2\n      - run: cargo install cross --git https://github.com/cross-rs/cross".to_string(),
+            "cross build --release --target ${{ matrix.target }}".to_string(),
+        ),
+        "node" => (
+            "      - uses: actions/setup-node@v4\n        with:\n          node-version: '20'\n          cache: 'npm'\n      - run: npm ci".to_string(),
+            "npm run build".to_string(),
+        ),
+        "go" => (
+            "      - uses: actions/setup-go@v5\n        with:\n          go-version: '1.22'".to_string(),
+            "go build -o ${{ matrix.artifact }} ./...".to_string(),
+        ),
+        _ => (String::new(), "echo 'Add build command'".to_string()),
+    };
+
+    let content = format!(
+        "name: Release\non:\n  push:\n    tags:\n      - 'v*'\njobs:\n  build:\n    strategy:\n      matrix:\n        include:\n{matrix}\n    runs-on: ${{{{ matrix.os }}}}\n    steps:\n      - uses: actions/checkout@v4\n{install}\n      - name: Build\n        run: {build}\n      - name: Upload artifact\n        uses: actions/upload-artifact@v4\n        with:\n          name: ${{{{ matrix.artifact }}}}\n          path: ${{{{ matrix.artifact }}}}\n  release:\n    needs: build\n    runs-on: ubuntu-latest\n    permissions:\n      contents: write\n    steps:\n      - name: Download all artifacts\n        uses: actions/download-artifact@v4\n      - name: Create GitHub Release\n        uses: softprops/action-gh-release@v2\n        with:\n          files: '**/*'\n",
+        matrix = matrix_entries.join("\n"),
+        install = install_steps,
+        build = build_cmd,
+    );
+
+    let output_path = std::path::Path::new(&workspace).join(".github/workflows/release.yml");
+    if let Some(parent) = output_path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    std::fs::write(&output_path, &content).map_err(|e| e.to_string())?;
+    Ok(content)
+}
+
+// ─── Phase 7.22: Kubernetes & ArgoCD ──────────────────────────────────────
+
+/// List available kubectl contexts from the local kubeconfig.
+#[tauri::command]
+pub async fn list_k8s_contexts() -> Result<Vec<String>, String> {
+    let out = tokio::process::Command::new("kubectl")
+        .args(["config", "get-contexts", "-o", "name"])
+        .output()
+        .await;
+    match out {
+        Ok(o) => {
+            let stdout = String::from_utf8_lossy(&o.stdout);
+            let contexts: Vec<String> = stdout
+                .lines()
+                .map(|l| l.trim().to_string())
+                .filter(|l| !l.is_empty())
+                .collect();
+            Ok(contexts)
+        }
+        Err(_) => Ok(vec![]), // kubectl not installed — return empty, not error
+    }
+}
+
+/// Generate Kubernetes manifests: Deployment + Service + optional Ingress + HPA.
+#[tauri::command]
+pub async fn generate_k8s_manifests(
+    app_name: String,
+    image: String,
+    port: u16,
+    replicas: u32,
+    namespace: String,
+    ingress_host: Option<String>,
+) -> Result<String, String> {
+    let max_replicas = (replicas * 3).max(3);
+
+    let deployment = format!(
+        "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: {name}\n  namespace: {ns}\n  labels:\n    app: {name}\nspec:\n  replicas: {rep}\n  selector:\n    matchLabels:\n      app: {name}\n  template:\n    metadata:\n      labels:\n        app: {name}\n    spec:\n      containers:\n        - name: {name}\n          image: {img}\n          ports:\n            - containerPort: {port}\n          resources:\n            requests:\n              cpu: \"100m\"\n              memory: \"128Mi\"\n            limits:\n              cpu: \"500m\"\n              memory: \"512Mi\"\n          livenessProbe:\n            httpGet:\n              path: /\n              port: {port}\n            initialDelaySeconds: 15\n            periodSeconds: 20\n",
+        name = app_name, ns = namespace, rep = replicas, img = image, port = port
+    );
+
+    let service = format!(
+        "---\napiVersion: v1\nkind: Service\nmetadata:\n  name: {name}\n  namespace: {ns}\n  labels:\n    app: {name}\nspec:\n  type: ClusterIP\n  selector:\n    app: {name}\n  ports:\n    - port: 80\n      targetPort: {port}\n",
+        name = app_name, ns = namespace, port = port
+    );
+
+    let ingress = if let Some(host) = ingress_host {
+        format!(
+            "---\napiVersion: networking.k8s.io/v1\nkind: Ingress\nmetadata:\n  name: {name}\n  namespace: {ns}\n  annotations:\n    kubernetes.io/ingress.class: nginx\nspec:\n  rules:\n    - host: {host}\n      http:\n        paths:\n          - path: /\n            pathType: Prefix\n            backend:\n              service:\n                name: {name}\n                port:\n                  number: 80\n",
+            name = app_name, ns = namespace, host = host
+        )
+    } else {
+        String::new()
+    };
+
+    let hpa = format!(
+        "---\napiVersion: autoscaling/v2\nkind: HorizontalPodAutoscaler\nmetadata:\n  name: {name}\n  namespace: {ns}\nspec:\n  scaleTargetRef:\n    apiVersion: apps/v1\n    kind: Deployment\n    name: {name}\n  minReplicas: 1\n  maxReplicas: {max}\n  metrics:\n    - type: Resource\n      resource:\n        name: cpu\n        target:\n          type: Utilization\n          averageUtilization: 70\n",
+        name = app_name, ns = namespace, max = max_replicas
+    );
+
+    Ok(format!("{deployment}{service}{ingress}{hpa}"))
+}
+
+/// Run a kubectl command against the specified context and namespace.
+/// Destructive commands are blocked for safety.
+#[tauri::command]
+pub async fn run_kubectl_command(
+    context: Option<String>,
+    namespace: String,
+    command: String,
+) -> Result<String, String> {
+    const BLOCKED: &[&str] = &[
+        "delete namespace",
+        "delete cluster",
+        "--force --grace-period=0",
+        "delete node",
+    ];
+    let cmd_lower = command.to_lowercase();
+    for blocked in BLOCKED {
+        if cmd_lower.contains(blocked) {
+            return Err(format!("Command blocked for safety: contains '{}'", blocked));
+        }
+    }
+
+    let parts: Vec<&str> = command.split_whitespace().collect();
+    if parts.is_empty() {
+        return Err("Empty command".to_string());
+    }
+
+    let mut args: Vec<String> = Vec::new();
+    if let Some(ctx) = &context {
+        if !ctx.is_empty() {
+            args.push(format!("--context={}", ctx));
+        }
+    }
+    if !namespace.is_empty() {
+        args.push(format!("--namespace={}", namespace));
+    }
+    args.extend(parts.iter().map(|s| s.to_string()));
+
+    let out = tokio::time::timeout(
+        std::time::Duration::from_secs(30),
+        tokio::process::Command::new("kubectl").args(&args).output(),
+    )
+    .await
+    .map_err(|_| "kubectl command timed out after 30 seconds".to_string())?
+    .map_err(|e| format!("Failed to run kubectl: {}", e))?;
+
+    let stdout = String::from_utf8_lossy(&out.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+    if stdout.is_empty() && !stderr.is_empty() {
+        Ok(stderr)
+    } else if !stderr.is_empty() {
+        Ok(format!("{}\n{}", stdout.trim_end(), stderr.trim_end()))
+    } else {
+        Ok(stdout)
+    }
+}
+
+/// Generate an ArgoCD Application CR YAML string.
+#[tauri::command]
+pub async fn generate_argocd_app(
+    app_name: String,
+    repo_url: String,
+    path: String,
+    namespace: String,
+    server: String,
+) -> Result<String, String> {
+    let yaml = format!(
+        "apiVersion: argoproj.io/v1alpha1\nkind: Application\nmetadata:\n  name: {name}\n  namespace: argocd\nspec:\n  project: default\n  source:\n    repoURL: {repo}\n    targetRevision: HEAD\n    path: {path}\n  destination:\n    server: {server}\n    namespace: {ns}\n  syncPolicy:\n    automated:\n      prune: true\n      selfHeal: true\n    syncOptions:\n      - CreateNamespace=true\n",
+        name = app_name, repo = repo_url, path = path, server = server, ns = namespace
+    );
+    Ok(yaml)
+}
