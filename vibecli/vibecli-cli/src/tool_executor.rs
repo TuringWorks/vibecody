@@ -495,11 +495,11 @@ impl ToolExecutor {
             Ok(p) => p,
             Err(e) => return ToolResult::err("list_directory", e),
         };
-        match std::fs::read_dir(&resolved) {
-            Ok(entries) => {
+        match tokio::fs::read_dir(&resolved).await {
+            Ok(mut entries) => {
                 let mut lines = Vec::new();
-                for entry in entries.flatten() {
-                    let meta = entry.metadata().ok();
+                while let Ok(Some(entry)) = entries.next_entry().await {
+                    let meta = entry.metadata().await.ok();
                     let is_dir = meta.map(|m| m.is_dir()).unwrap_or(false);
                     let name = entry.file_name().to_string_lossy().to_string();
                     lines.push(if is_dir { format!("{}/", name) } else { name });

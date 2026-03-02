@@ -749,7 +749,6 @@ function App() {
       console.log("Changes saved to disk for:", pendingDiff.path);
 
       setPendingDiff(null);
-      setPendingDiff(null);
 
       // Update or add to open files
       const filename = pendingDiff.path.split('/').pop() || pendingDiff.path.split('\\').pop() || '';
