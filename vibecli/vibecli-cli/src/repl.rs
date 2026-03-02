@@ -20,6 +20,7 @@ static COMMANDS: &[&str] = &[
     "/context",
     "/deploy",
     "/diff",
+    "/env",
     "/exec",
     "/exit",
     "/fork",
@@ -97,6 +98,9 @@ static WORKFLOW_SUBS: &[&str] = &["new", "list", "show", "advance", "check", "ge
 /// Sub-commands for `/arena <sub>`
 static ARENA_SUBS: &[&str] = &["compare", "stats", "history"];
 
+/// Sub-commands for `/env <sub>`
+static ENV_SUBS: &[&str] = &["list", "get", "set", "delete", "switch", "files", "create"];
+
 /// Sub-commands for `/deploy <sub>`
 static DEPLOY_SUBS: &[&str] = &[
     "list", "vercel", "netlify", "railway", "github-pages",
@@ -122,6 +126,7 @@ fn command_hint(cmd: &str) -> Option<&'static str> {
         "/plan"    => Some("<task description>"),
         "/chat"    => Some("<message>"),
         "/deploy"  => Some("[target|list]  — deploy to cloud (aws|azure|gcp|vercel|k8s|digitalocean|...)"),
+        "/env"     => Some("[list|get <key>|set <key> <val>|delete <key>|switch <env>|files|create <env>]"),
         "/generate"=> Some("<description>"),
         "/diff"    => Some("<file>"),
         "/apply"   => Some("<file> <changes>"),
@@ -214,6 +219,7 @@ fn complete_slash(line: &str) -> Option<(usize, Vec<Pair>)> {
             let subs: Option<&[&str]> = match first {
                 "/arena"    => Some(ARENA_SUBS),
                 "/deploy"   => Some(DEPLOY_SUBS),
+                "/env"      => Some(ENV_SUBS),
                 "/profile"  => Some(PROFILE_SUBS),
                 "/plugin"   => Some(PLUGIN_SUBS),
                 "/memory"   => Some(MEMORY_SUBS),
