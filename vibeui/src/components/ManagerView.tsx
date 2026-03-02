@@ -226,7 +226,7 @@ export function ManagerView({ provider }: ManagerViewProps) {
         }
         return next;
       });
-    }).then((fn) => unsubs.push(fn));
+    }).then((fn) => unsubs.push(fn)).catch(() => {});
 
     listen<AgentStepEvent>("manager:agent_step", (e) => {
       const step = e.payload;
@@ -236,7 +236,7 @@ export function ManagerView({ provider }: ManagerViewProps) {
         next.set(step.id, [...list, step]);
         return next;
       });
-    }).then((fn) => unsubs.push(fn));
+    }).then((fn) => unsubs.push(fn)).catch(() => {});
 
     return () => unsubs.forEach((fn) => fn());
   }, []);

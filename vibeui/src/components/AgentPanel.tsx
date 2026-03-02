@@ -123,7 +123,7 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
                                         approved: true,
                                     }]);
                                 }
-                            });
+                            }).catch(() => {});
                         }
                     }
                 })
