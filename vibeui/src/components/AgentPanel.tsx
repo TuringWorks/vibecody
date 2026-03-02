@@ -41,6 +41,16 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
     const [copiedStep, setCopiedStep] = useState<number | null>(null);
     const feedEndRef = useRef<HTMLDivElement>(null);
 
+    // ── Streaming metrics ─────────────────────────────────────────────────────
+    // Track tokens-per-second and time-to-first-token during LLM streaming.
+    const streamStartMsRef = useRef<number | null>(null);
+    const streamCharsRef = useRef<number>(0);
+    const [streamMetrics, setStreamMetrics] = useState<{
+        tokensPerSec: number;
+        ttftMs: number | null;
+        totalTokens: number;
+    } | null>(null);
+
     // Turbo Mode: shortcut that sets approval to full-auto
     function toggleTurbo() {
         const next = !turboMode;
@@ -60,7 +70,29 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
         (async () => {
             unlisteners.push(
                 await listen<string>("agent:chunk", (e) => {
-                    setStreaming((prev) => prev + e.payload);
+                    const now = Date.now();
+                    const chunk = e.payload;
+                    setStreaming((prev) => prev + chunk);
+
+                    // Record time-to-first-token on first chunk
+                    const ttft = streamStartMsRef.current === null ? null : undefined;
+                    if (streamStartMsRef.current === null) {
+                        streamStartMsRef.current = now;
+                    }
+
+                    // Accumulate chars; estimate 1 token ≈ 4 chars
+                    streamCharsRef.current += chunk.length;
+                    const elapsedSec = (now - streamStartMsRef.current) / 1000;
+                    const estimatedTokens = Math.round(streamCharsRef.current / 4);
+                    const tokensPerSec = elapsedSec > 0
+                        ? Math.round(estimatedTokens / elapsedSec)
+                        : 0;
+
+                    setStreamMetrics({
+                        tokensPerSec,
+                        ttftMs: ttft === null ? now - (streamStartMsRef.current ?? now) : null,
+                        totalTokens: estimatedTokens,
+                    });
                 })
             );
             unlisteners.push(
@@ -133,6 +165,10 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
         setStreaming("");
         setPending(null);
         setStatus("running");
+        // Reset streaming metrics
+        streamStartMsRef.current = null;
+        streamCharsRef.current = 0;
+        setStreamMetrics(null);
 
         try {
             await invoke("start_agent_task", {
@@ -390,6 +426,33 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
                                 }}
                             />
                         )}
+                    </div>
+                )}
+
+                {/* Streaming metrics badge */}
+                {streamMetrics && isRunning && (
+                    <div
+                        aria-live="polite"
+                        aria-label="Streaming speed"
+                        style={{
+                            display: "inline-flex",
+                            gap: 10,
+                            fontSize: 11,
+                            color: "var(--text-muted)",
+                            padding: "2px 6px",
+                            background: "var(--bg-secondary)",
+                            borderRadius: 4,
+                            border: "1px solid var(--border)",
+                            marginTop: 4,
+                            fontVariantNumeric: "tabular-nums",
+                        }}
+                    >
+                        <span title="Estimated tokens per second">
+                            ⚡ {streamMetrics.tokensPerSec} tok/s
+                        </span>
+                        <span title="Total estimated tokens streamed so far">
+                            ~{streamMetrics.totalTokens} tokens
+                        </span>
                     </div>
                 )}
 

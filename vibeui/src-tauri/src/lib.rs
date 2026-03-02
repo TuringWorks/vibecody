@@ -68,6 +68,7 @@ pub fn run() {
     let agent_pending = Arc::new(Mutex::new(None));
     let terminal_buffer = Arc::new(Mutex::new(Vec::<String>::new()));
     let agent_abort_handle = Arc::new(Mutex::new(None));
+    let chat_abort_handle = Arc::new(Mutex::new(None));
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
@@ -81,6 +82,7 @@ pub fn run() {
             agent_pending,
             terminal_buffer,
             agent_abort_handle,
+            chat_abort_handle,
         })
         .invoke_handler(tauri::generate_handler![
             commands::read_file,
@@ -283,6 +285,12 @@ pub fn run() {
             // Phase 45: Codemod & Auto-Fix
             commands::run_autofix,
             commands::apply_autofix,
+            // Phase 7.19: Process Manager
+            commands::list_processes,
+            commands::kill_process,
+            // Phase 7.21: Chat Streaming
+            commands::stream_chat_message,
+            commands::stop_chat_stream,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

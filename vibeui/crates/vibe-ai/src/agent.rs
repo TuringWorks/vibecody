@@ -120,6 +120,10 @@ pub struct AgentLoop {
     pub hooks: Option<Arc<HookRunner>>,
     /// Admin policy loaded from `.vibecli/policy.toml`.
     pub policy: AdminPolicy,
+    /// Maximum token budget for the conversation history.
+    /// Middle messages are pruned when the estimate exceeds this value.
+    /// `None` uses the default of 80 000 tokens.
+    pub max_context_tokens: Option<usize>,
 }
 
 impl AgentLoop {
@@ -135,7 +139,15 @@ impl AgentLoop {
             executor,
             hooks: None,
             policy: AdminPolicy::default(),
+            max_context_tokens: None,
         }
+    }
+
+    /// Set the maximum context budget in tokens (1 token ≈ 4 chars).
+    /// Middle messages are pruned each step to stay within this limit.
+    pub fn with_context_limit(mut self, tokens: usize) -> Self {
+        self.max_context_tokens = Some(tokens);
+        self
     }
 
     /// Attach a hook runner to this agent loop.
@@ -232,6 +244,12 @@ impl AgentLoop {
         messages.push(Message { role: MessageRole::User, content: user_content });
 
         for step in 0..self.max_steps {
+            // ── 0. Context window safety ──────────────────────────────────────
+            // Prune middle messages to keep within the provider's context limit.
+            // Default budget: 80 000 tokens (~320 KB of text), overridable via
+            // AgentLoop::with_context_limit().
+            prune_messages(&mut messages, self.max_context_tokens.unwrap_or(80_000));
+
             // ── 1. Stream LLM response ────────────────────────────────────────
             let llm_span = tracing::info_span!(
                 "agent.llm_call",
@@ -510,6 +528,123 @@ impl AgentLoop {
             ApprovalPolicy::AutoEdit => matches!(call, ToolCall::Bash { .. }),
             ApprovalPolicy::Suggest => true,
         }
+    }
+}
+
+// ── Context Window Safety ──────────────────────────────────────────────────────
+
+/// Rough token estimate: 1 token ≈ 4 chars of English text.
+/// Adds a small per-message overhead (role + framing tokens).
+pub fn estimate_tokens(messages: &[Message]) -> usize {
+    messages.iter().map(|m| m.content.len() / 4 + 8).sum()
+}
+
+/// Prune message history to fit within `budget` tokens.
+///
+/// Always preserves:
+/// - Index 0: system prompt
+/// - Index 1: initial user task
+/// - Last `keep_tail` messages: recent tool results and LLM responses
+///
+/// Middle messages are removed and replaced with a single placeholder.
+pub fn prune_messages(messages: &mut Vec<Message>, budget: usize) {
+    if estimate_tokens(messages) <= budget {
+        return;
+    }
+    let keep_tail = 6;
+    // Need at least system + task + placeholder + tail to do anything useful
+    if messages.len() <= 2 + keep_tail {
+        return;
+    }
+    let tail_start = messages.len() - keep_tail;
+    let mid_count = tail_start.saturating_sub(2);
+    if mid_count == 0 {
+        return;
+    }
+    // Remove the middle messages and insert a summary placeholder
+    messages.drain(2..tail_start);
+    messages.insert(2, Message {
+        role: MessageRole::User,
+        content: format!(
+            "[Context pruned: {} intermediate messages removed to fit context window. \
+             Full session stored at ~/.vibecli/sessions/]",
+            mid_count
+        ),
+    });
+}
+
+#[cfg(test)]
+mod context_tests {
+    use super::*;
+    use crate::provider::MessageRole;
+
+    fn make_msg(role: MessageRole, content: &str) -> Message {
+        Message { role, content: content.to_string() }
+    }
+
+    #[test]
+    fn estimate_tokens_empty() {
+        assert_eq!(estimate_tokens(&[]), 0);
+    }
+
+    #[test]
+    fn estimate_tokens_basic() {
+        let msgs = vec![make_msg(MessageRole::User, "abcdefgh")]; // 8 chars / 4 = 2 + 8 = 10
+        assert_eq!(estimate_tokens(&msgs), 10);
+    }
+
+    #[test]
+    fn prune_noop_when_under_budget() {
+        let mut msgs = vec![
+            make_msg(MessageRole::System, "system"),
+            make_msg(MessageRole::User, "task"),
+            make_msg(MessageRole::Assistant, "response"),
+        ];
+        let original_len = msgs.len();
+        prune_messages(&mut msgs, 1_000_000);
+        assert_eq!(msgs.len(), original_len, "should not prune when under budget");
+    }
+
+    #[test]
+    fn prune_removes_middle_and_inserts_placeholder() {
+        // Build a conversation with system + task + 10 middle messages + 6 tail
+        let mut msgs = vec![
+            make_msg(MessageRole::System, "system prompt"),
+            make_msg(MessageRole::User, "initial task"),
+        ];
+        for i in 0..10 {
+            msgs.push(make_msg(MessageRole::Assistant, &format!("response {}", i)));
+            msgs.push(make_msg(MessageRole::User, &format!("tool result {}", i)));
+        }
+        for i in 0..6 {
+            msgs.push(make_msg(MessageRole::Assistant, &format!("tail {}", i)));
+        }
+        // Force prune by using a tiny budget
+        prune_messages(&mut msgs, 0);
+        // system + task + placeholder + 6 tail = 9
+        assert_eq!(msgs.len(), 9);
+        assert!(msgs[2].content.contains("Context pruned"));
+        assert!(msgs[2].content.contains("20")); // 20 middle messages removed
+        // Tail messages preserved
+        assert!(msgs[3].content.starts_with("tail "));
+        assert!(msgs[8].content.starts_with("tail "));
+    }
+
+    #[test]
+    fn prune_noop_when_too_few_messages() {
+        let mut msgs = vec![
+            make_msg(MessageRole::System, "system"),
+            make_msg(MessageRole::User, "task"),
+            make_msg(MessageRole::Assistant, "a"),
+            make_msg(MessageRole::User, "b"),
+            make_msg(MessageRole::Assistant, "c"),
+            make_msg(MessageRole::User, "d"),
+            make_msg(MessageRole::Assistant, "e"),
+            make_msg(MessageRole::User, "f"),
+        ]; // 8 messages total = 2 + 6, nothing to drain
+        let original_len = msgs.len();
+        prune_messages(&mut msgs, 0);
+        assert_eq!(msgs.len(), original_len, "nothing to drain when only tail + header");
     }
 }
 

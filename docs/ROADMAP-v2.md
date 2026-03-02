@@ -1328,6 +1328,41 @@ Real-time collaborative editing powered by [yrs](https://github.com/y-crdt/y-crd
 
 ---
 
+## 7.19 Phase 7.19 — Context Window Safety + Process Manager ✅
+
+**Status:** Complete
+
+| Item | Status | Details |
+|------|--------|---------|
+| `estimate_tokens()` | ✅ | 1 token ≈ 4 chars + 8/msg overhead; fast O(n) pass |
+| `prune_messages()` | ✅ | Drains middle messages, preserves system+task+last-6; inserts placeholder |
+| `AgentLoop.with_context_limit()` | ✅ | Builder method; default 80 000 tokens |
+| Context pruning in agent step loop | ✅ | Called at top of each step before `stream_chat` |
+| `list_processes` Tauri cmd | ✅ | `ps aux` (POSIX) / `tasklist /FO CSV` (Windows); sorted by memory |
+| `kill_process(pid)` Tauri cmd | ✅ | `kill -TERM` (POSIX) / `taskkill /F` (Windows) |
+| `ProcessPanel.tsx` | ✅ | Filterable table, 5s auto-refresh, mem KB/MB/GB, status emoji, Kill+confirm |
+| `⚙️ Procs` AI panel tab | ✅ | 32nd tab in App.tsx |
+| Unit tests (5) | ✅ | estimate_empty, estimate_basic, prune_noop_under_budget, prune_removes_middle, prune_noop_too_few |
+| Total tests | ✅ | **513** (508 + 5 new) |
+
+---
+
+## 7.20 Phase 7.20 — Streaming Metrics + REPL Session Commands ✅
+
+**Status:** Complete
+
+| Item | Status | Details |
+|------|--------|---------|
+| `/sessions` REPL command | ✅ | Lists last 15 root sessions from SQLite with ID, status, steps, task preview, age, resume hint |
+| `/sessions <prefix>` filter | ✅ | Filters list by session ID prefix |
+| `/resume` SQLite fallback | ✅ | When JSONL trace has no messages sidecar, falls back to `store.get_messages(id)`; pure SQLite lookup when no JSONL exists |
+| Token streaming speed (`tok/s`) | ✅ | `streamStartMsRef` + `streamCharsRef` → `tokensPerSec = chars/4/secs`; displayed as ⚡ badge |
+| Total tokens display | ✅ | Estimated total tokens shown next to tok/s during streaming |
+| `streamMetrics` state in `AgentPanel.tsx` | ✅ | `{ tokensPerSec, ttftMs, totalTokens }` — reset on each agent start |
+| Metrics badge visibility | ✅ | Shown only when `isRunning && streamMetrics` — hides after completion |
+
+---
+
 ## 8. VibeCody Wins — Competitive Position
 
 With all phases complete, VibeCody is the **only** developer toolchain that combines:

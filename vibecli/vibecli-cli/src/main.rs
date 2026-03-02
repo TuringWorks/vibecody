@@ -2423,6 +2423,82 @@ async fn main() -> Result<()> {
                             }
                         }
 
+                        "/sessions" => {
+                            // List recent agent sessions from SQLite store.
+                            // With no args: show last 15 root sessions.
+                            // With a prefix: filter by session ID prefix.
+                            match SessionStore::open_default() {
+                                Ok(store) => {
+                                    match store.list_root_sessions(15) {
+                                        Ok(sessions) if sessions.is_empty() => {
+                                            println!("📋 No sessions recorded yet. Sessions are saved when you run /agent tasks.\n");
+                                        }
+                                        Ok(sessions) => {
+                                            let filter = args.trim().to_lowercase();
+                                            let filtered: Vec<_> = sessions.iter()
+                                                .filter(|s| {
+                                                    filter.is_empty() || s.id.starts_with(&filter)
+                                                })
+                                                .collect();
+                                            if filtered.is_empty() {
+                                                println!("No sessions matching '{}'.\n", args.trim());
+                                            } else {
+                                                println!("\n📋 Recent sessions ({}):\n", filtered.len());
+                                                println!("  {:<10}  {:<8}  {:<7}  {:<5}  Task",
+                                                    "ID", "Status", "Steps", "Model");
+                                                println!("  {}", "─".repeat(72));
+                                                for s in &filtered {
+                                                    // Human-readable elapsed time
+                                                    let now_ms = std::time::SystemTime::now()
+                                                        .duration_since(std::time::UNIX_EPOCH)
+                                                        .unwrap_or_default()
+                                                        .as_millis() as u64;
+                                                    let elapsed_s = now_ms.saturating_sub(s.started_at) / 1000;
+                                                    let age = if elapsed_s < 60 {
+                                                        format!("{}s", elapsed_s)
+                                                    } else if elapsed_s < 3600 {
+                                                        format!("{}m", elapsed_s / 60)
+                                                    } else {
+                                                        format!("{}h", elapsed_s / 3600)
+                                                    };
+                                                    let status_icon = match s.status.as_str() {
+                                                        "complete" => "✅",
+                                                        "running"  => "🟡",
+                                                        "failed"   => "❌",
+                                                        _          => "⚪",
+                                                    };
+                                                    let task_preview = if s.task.len() > 45 {
+                                                        format!("{}…", &s.task[..45])
+                                                    } else {
+                                                        s.task.clone()
+                                                    };
+                                                    let model_short = s.model.rsplit('/').next()
+                                                        .unwrap_or(&s.model)
+                                                        .chars().take(12).collect::<String>();
+                                                    println!("  {:<10}  {} {:<7}  {:>5}  {} — {}",
+                                                        &s.id[..s.id.len().min(10)],
+                                                        status_icon, s.status,
+                                                        s.step_count,
+                                                        task_preview,
+                                                        model_short,
+                                                    );
+                                                    println!("              ({} ago)  /resume {} \"continue the task\"",
+                                                        age, &s.id[..s.id.len().min(10)]);
+                                                }
+                                                println!();
+                                            }
+                                        }
+                                        Err(e) => {
+                                            println!("⚠️  Could not read session store: {}\n", e);
+                                        }
+                                    }
+                                }
+                                Err(e) => {
+                                    println!("⚠️  Session store unavailable: {}\n", e);
+                                }
+                            }
+                        }
+
                         "/share" => {
                             if args.is_empty() {
                                 println!("Usage: /share <session_id>\n\
@@ -2957,6 +3033,7 @@ async fn run_agent_repl_with_context(
 
     // Session resume: load previous messages if --resume
     let resumed_messages: Vec<Message> = if let Some(sid_prefix) = resume_session_id {
+        // 1. Try JSONL traces first (fastest, preserves full message objects)
         let sessions = list_traces(&trace_dir);
         if let Some(session) = sessions.iter().find(|s| s.session_id.starts_with(sid_prefix)) {
             match load_session(&session.session_id, &trace_dir) {
@@ -2969,13 +3046,77 @@ async fn run_agent_repl_with_context(
                     snapshot.messages
                 }
                 _ => {
-                    println!("⚠️  Session found but no saved messages — starting fresh");
-                    vec![]
+                    // JSONL trace exists but no messages sidecar — try SQLite
+                    println!("⚠️  No JSONL messages for session — trying SQLite history …");
+                    if let Ok(store) = SessionStore::open_default() {
+                        let full_id = session.session_id.clone();
+                        match store.get_messages(&full_id) {
+                            Ok(rows) if !rows.is_empty() => {
+                                let msgs: Vec<Message> = rows.into_iter()
+                                    .filter_map(|r| {
+                                        let role = match r.role.as_str() {
+                                            "user"      => Some(MessageRole::User),
+                                            "assistant" => Some(MessageRole::Assistant),
+                                            "system"    => Some(MessageRole::System),
+                                            _           => None,
+                                        };
+                                        role.map(|role| Message { role, content: r.content })
+                                    })
+                                    .collect();
+                                println!("▶️  Restored {} messages from SQLite for session {}",
+                                    msgs.len(), &full_id[..8.min(full_id.len())]);
+                                msgs
+                            }
+                            _ => {
+                                println!("⚠️  Session found but no saved messages — starting fresh");
+                                vec![]
+                            }
+                        }
+                    } else {
+                        println!("⚠️  Session found but no saved messages — starting fresh");
+                        vec![]
+                    }
                 }
             }
         } else {
-            eprintln!("❌ No session found with ID prefix: {}", sid_prefix);
-            return Ok(());
+            // 2. No JSONL trace — fall back to pure SQLite lookup
+            match SessionStore::open_default() {
+                Ok(store) => {
+                    // Find session by ID prefix
+                    let all = store.list_root_sessions(50).unwrap_or_default();
+                    if let Some(row) = all.iter().find(|r| r.id.starts_with(sid_prefix)) {
+                        match store.get_messages(&row.id) {
+                            Ok(msgs) if !msgs.is_empty() => {
+                                let messages: Vec<Message> = msgs.into_iter()
+                                    .filter_map(|r| {
+                                        let role = match r.role.as_str() {
+                                            "user"      => Some(MessageRole::User),
+                                            "assistant" => Some(MessageRole::Assistant),
+                                            "system"    => Some(MessageRole::System),
+                                            _           => None,
+                                        };
+                                        role.map(|role| Message { role, content: r.content })
+                                    })
+                                    .collect();
+                                println!("▶️  Restored {} messages from SQLite for session {}",
+                                    messages.len(), &row.id[..row.id.len().min(10)]);
+                                messages
+                            }
+                            _ => {
+                                eprintln!("❌ Session '{}' found in SQLite but has no messages.", sid_prefix);
+                                return Ok(());
+                            }
+                        }
+                    } else {
+                        eprintln!("❌ No session found with ID prefix: {}", sid_prefix);
+                        return Ok(());
+                    }
+                }
+                Err(_) => {
+                    eprintln!("❌ No session found with ID prefix: {}", sid_prefix);
+                    return Ok(());
+                }
+            }
         }
     } else {
         vec![]

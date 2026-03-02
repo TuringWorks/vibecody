@@ -79,6 +79,41 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - 3 new entity-decoder unit tests; 1 new cosine-clamp test; 1 new embedding-update correctness
   test. Total: **508 tests** passing across the workspace (164 new in this release).
 
+### Phase 7.20: Streaming Metrics + REPL Session Commands
+- **`/sessions` REPL command** (`repl.rs` + `main.rs`): Lists last 15 root sessions from SQLite
+  (`SessionStore::list_root_sessions(15)`) with ID, status icon (✅/🟡/❌), step count, task
+  preview (45 chars), model name, elapsed age ("Xm ago"), and an inline `/resume` hint for each
+  row. Optional `prefix` argument filters by session ID. No-DB and empty gracefully handled.
+- **Enhanced `/resume` with SQLite fallback** (`main.rs`): When a JSONL trace exists but has no
+  `-messages.json` sidecar, the agent now falls back to `store.get_messages(id)` from SQLite and
+  converts `MessageRow` → `Vec<Message>` with full role mapping
+  (user/assistant/system). When no JSONL trace exists at all, performs a pure SQLite prefix
+  lookup across all root sessions. Prints clear feedback for each path taken.
+- **Streaming tok/s metrics in `AgentPanel.tsx`**: Added `streamStartMsRef`,
+  `streamCharsRef`, and `streamMetrics` state tracking to the `agent:chunk` listener.
+  Computes `tokensPerSec = chars/4/elapsedSec` and `totalTokens = chars/4` live.
+  A compact ⚡ badge (`{N} tok/s · ~{M} tokens`) appears below the streaming text while the
+  agent is running; disappears on completion or error. Metrics reset on each new agent start.
+
+### Phase 7.19: Context Window Safety + Process Manager
+- **Context window safety (`agent.rs`)**: Added `estimate_tokens()` (1 token ≈ 4 chars) and
+  `prune_messages()` to the agent loop. Before each LLM call the conversation history is checked
+  against a configurable token budget (default 80 000 tokens). If over budget, middle messages
+  (indices 2..tail−6) are drained and replaced with a single placeholder, preserving the system
+  prompt, initial task, and the last 6 messages (recent tool results + LLM responses). 5 new unit
+  tests cover estimate/prune semantics. `AgentLoop` gains `max_context_tokens: Option<usize>` field
+  and a `with_context_limit(n)` builder method.
+- **Process Manager panel (`ProcessPanel.tsx` + Tauri commands)**:
+  - `list_processes` Tauri command: runs `ps aux` (macOS/Linux) or `tasklist /FO CSV` (Windows),
+    returns up to 60 `ProcessInfo` records (pid, name, cpu_pct, mem_kb, status), sorted by memory.
+  - `kill_process(pid)` Tauri command: sends SIGTERM via `kill -TERM <pid>` (POSIX) or
+    `taskkill /PID <pid> /F` (Windows). Returns error if kill fails.
+  - `ProcessPanel.tsx`: searchable/filterable live process table (auto-refresh every 5 s), memory
+    formatted as KB/MB/GB, status emoji badges (🟢/😴/💀/⏸️), per-row Kill button with confirm
+    dialog, optimistic row removal, aria-live feedback banner, footer with count display.
+  - `⚙️ Procs` tab added as 32nd AI panel tab in `App.tsx`.
+- **Total tests: 513** (508 + 5 new context pruning tests), all passing.
+
 ### Added
 - **Phase 45**: Frontend panels — `CostPanel.tsx` (💰 Cost tab): per-provider cost breakdown
   chart, total spend summary, budget limit input, cost history table with provider/model/tokens/
