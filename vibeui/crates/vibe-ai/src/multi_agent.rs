@@ -405,4 +405,91 @@ mod tests {
         let n = tasks.len().min(8); // max_agents = 8
         assert_eq!(n, 8);
     }
+
+    #[test]
+    fn agent_task_new() {
+        let task = AgentTask::new(5, "implement feature");
+        assert_eq!(task.id, 5);
+        assert_eq!(task.description, "implement feature");
+        assert!(task.branch_label.is_none());
+    }
+
+    #[test]
+    fn agent_task_serialization() {
+        let task = AgentTask::new(1, "test task");
+        let json = serde_json::to_string(&task).unwrap();
+        let deser: AgentTask = serde_json::from_str(&json).unwrap();
+        assert_eq!(deser.id, 1);
+        assert_eq!(deser.description, "test task");
+    }
+
+    #[test]
+    fn agent_status_serialization() {
+        let statuses = vec![
+            (AgentStatus::Pending, "\"pending\""),
+            (AgentStatus::Running, "\"running\""),
+            (AgentStatus::Complete, "\"complete\""),
+            (AgentStatus::Failed, "\"failed\""),
+        ];
+        for (status, expected) in statuses {
+            let json = serde_json::to_string(&status).unwrap();
+            assert_eq!(json, expected);
+        }
+    }
+
+    #[test]
+    fn agent_status_deserialization() {
+        let pending: AgentStatus = serde_json::from_str("\"pending\"").unwrap();
+        assert_eq!(pending, AgentStatus::Pending);
+        let running: AgentStatus = serde_json::from_str("\"running\"").unwrap();
+        assert_eq!(running, AgentStatus::Running);
+    }
+
+    #[test]
+    fn agent_status_equality() {
+        assert_eq!(AgentStatus::Pending, AgentStatus::Pending);
+        assert_ne!(AgentStatus::Pending, AgentStatus::Running);
+    }
+
+    #[test]
+    fn agent_result_serialization() {
+        let result = AgentResult {
+            id: 0,
+            task: "fix tests".to_string(),
+            branch: "vibe-agent-0".to_string(),
+            worktree: PathBuf::from("/tmp/wt"),
+            success: true,
+            summary: "All tests pass".to_string(),
+            steps_taken: 5,
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(json.contains("\"success\":true"));
+        assert!(json.contains("\"steps_taken\":5"));
+        let deser: AgentResult = serde_json::from_str(&json).unwrap();
+        assert_eq!(deser.id, 0);
+        assert_eq!(deser.summary, "All tests pass");
+    }
+
+    #[test]
+    fn agent_instance_clone() {
+        let inst = AgentInstance {
+            id: 1,
+            task: "task".to_string(),
+            worktree: PathBuf::from("/wt"),
+            branch: "branch".to_string(),
+            status: AgentStatus::Running,
+            steps: vec![],
+            summary: None,
+            error: None,
+        };
+        let cloned = inst.clone();
+        assert_eq!(cloned.id, 1);
+        assert_eq!(cloned.status, AgentStatus::Running);
+    }
+
+    #[test]
+    fn agent_task_branch_name_with_large_id() {
+        let task = AgentTask::new(999, "task");
+        assert_eq!(task.branch_name(), "vibe-agent-999");
+    }
 }

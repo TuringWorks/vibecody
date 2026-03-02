@@ -177,15 +177,119 @@ mod tests {
     #[test]
     fn test_settings() {
         let mut workspace = Workspace::new("Test".to_string());
-        
+
         workspace.set_setting(
             "theme".to_string(),
             serde_json::json!("dark")
         );
-        
+
         assert_eq!(
             workspace.get_setting("theme"),
             Some(&serde_json::json!("dark"))
         );
+    }
+
+    #[test]
+    fn workspace_name() {
+        let ws = Workspace::new("My Project".to_string());
+        assert_eq!(ws.name(), "My Project");
+    }
+
+    #[test]
+    fn workspace_default() {
+        let ws = Workspace::default();
+        assert_eq!(ws.name(), "Untitled Workspace");
+        assert!(ws.folders().is_empty());
+    }
+
+    #[test]
+    fn workspace_from_config() {
+        let config = WorkspaceConfig {
+            name: "FromConfig".to_string(),
+            folders: vec![PathBuf::from("/a"), PathBuf::from("/b")],
+            settings: HashMap::new(),
+        };
+        let ws = Workspace::from_config(config);
+        assert_eq!(ws.name(), "FromConfig");
+        assert_eq!(ws.folders().len(), 2);
+    }
+
+    #[test]
+    fn workspace_add_folder_deduplication() {
+        let mut ws = Workspace::new("Test".to_string());
+        let path = PathBuf::from("/test");
+        ws.add_folder(path.clone()).ok();
+        ws.add_folder(path.clone()).ok();
+        // Adding the same folder twice should not duplicate
+        assert_eq!(ws.folders().len(), 1);
+    }
+
+    #[test]
+    fn workspace_folders_empty_initially() {
+        let ws = Workspace::new("Test".to_string());
+        assert!(ws.folders().is_empty());
+    }
+
+    #[test]
+    fn workspace_setting_overwrite() {
+        let mut ws = Workspace::new("Test".to_string());
+        ws.set_setting("key".to_string(), serde_json::json!(1));
+        ws.set_setting("key".to_string(), serde_json::json!(2));
+        assert_eq!(ws.get_setting("key"), Some(&serde_json::json!(2)));
+    }
+
+    #[test]
+    fn workspace_get_setting_missing() {
+        let ws = Workspace::new("Test".to_string());
+        assert!(ws.get_setting("nonexistent").is_none());
+    }
+
+    #[test]
+    fn workspace_setting_types() {
+        let mut ws = Workspace::new("Test".to_string());
+        ws.set_setting("string".to_string(), serde_json::json!("hello"));
+        ws.set_setting("number".to_string(), serde_json::json!(42));
+        ws.set_setting("bool".to_string(), serde_json::json!(true));
+        ws.set_setting("array".to_string(), serde_json::json!([1, 2, 3]));
+        assert_eq!(ws.get_setting("string"), Some(&serde_json::json!("hello")));
+        assert_eq!(ws.get_setting("number"), Some(&serde_json::json!(42)));
+        assert_eq!(ws.get_setting("bool"), Some(&serde_json::json!(true)));
+    }
+
+    #[test]
+    fn workspace_open_files_initially_empty() {
+        let ws = Workspace::new("Test".to_string());
+        assert!(ws.open_files().is_empty());
+    }
+
+    #[test]
+    fn workspace_get_buffer_missing() {
+        let ws = Workspace::new("Test".to_string());
+        assert!(ws.get_buffer(&PathBuf::from("/nonexistent")).is_none());
+    }
+
+    #[test]
+    fn workspace_close_file_not_open() {
+        let mut ws = Workspace::new("Test".to_string());
+        let result = ws.close_file(&PathBuf::from("/not_open"));
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn workspace_config_serialization() {
+        let config = WorkspaceConfig {
+            name: "Serde Test".to_string(),
+            folders: vec![PathBuf::from("/a")],
+            settings: {
+                let mut m = HashMap::new();
+                m.insert("theme".to_string(), serde_json::json!("dark"));
+                m
+            },
+        };
+        let json = serde_json::to_string(&config).unwrap();
+        let deser: WorkspaceConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(deser.name, "Serde Test");
+        assert_eq!(deser.folders.len(), 1);
+        assert_eq!(deser.settings.get("theme"), Some(&serde_json::json!("dark")));
     }
 }

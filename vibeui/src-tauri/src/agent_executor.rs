@@ -166,6 +166,117 @@ impl TauriToolExecutor {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── truncate ─────────────────────────────────────────────────────────────
+
+    #[test]
+    fn truncate_short_string_unchanged() {
+        let s = "hello".to_string();
+        let (out, truncated) = TauriToolExecutor::truncate(s);
+        assert_eq!(out, "hello");
+        assert!(!truncated);
+    }
+
+    #[test]
+    fn truncate_exact_limit_unchanged() {
+        let s = "a".repeat(MAX_OUTPUT);
+        let (out, truncated) = TauriToolExecutor::truncate(s);
+        assert_eq!(out.len(), MAX_OUTPUT);
+        assert!(!truncated);
+    }
+
+    #[test]
+    fn truncate_over_limit() {
+        let s = "a".repeat(MAX_OUTPUT + 100);
+        let (out, truncated) = TauriToolExecutor::truncate(s);
+        assert!(truncated);
+        assert!(out.ends_with("…(truncated)"));
+        // Length is MAX_OUTPUT + the truncation marker
+        assert!(out.len() < MAX_OUTPUT + 100);
+    }
+
+    #[test]
+    fn truncate_empty_string() {
+        let (out, truncated) = TauriToolExecutor::truncate(String::new());
+        assert_eq!(out, "");
+        assert!(!truncated);
+    }
+
+    // ── resolve ──────────────────────────────────────────────────────────────
+
+    #[test]
+    fn resolve_absolute_path_returned_as_is() {
+        let exec = TauriToolExecutor::new(PathBuf::from("/workspace"));
+        let result = exec.resolve("/etc/passwd");
+        assert_eq!(result, PathBuf::from("/etc/passwd"));
+    }
+
+    #[test]
+    fn resolve_relative_path_joined_to_workspace() {
+        let exec = TauriToolExecutor::new(PathBuf::from("/workspace"));
+        let result = exec.resolve("src/main.rs");
+        assert_eq!(result, PathBuf::from("/workspace/src/main.rs"));
+    }
+
+    #[test]
+    fn resolve_dot_path() {
+        let exec = TauriToolExecutor::new(PathBuf::from("/workspace"));
+        let result = exec.resolve(".");
+        assert_eq!(result, PathBuf::from("/workspace/."));
+    }
+
+    #[test]
+    fn resolve_empty_path() {
+        let exec = TauriToolExecutor::new(PathBuf::from("/workspace"));
+        let result = exec.resolve("");
+        assert_eq!(result, PathBuf::from("/workspace/"));
+    }
+
+    // ── execute_call routing ─────────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn execute_call_apply_patch_returns_error() {
+        let exec = TauriToolExecutor::new(PathBuf::from("/tmp"));
+        let call = ToolCall::ApplyPatch { path: "test.rs".into(), patch: "test".into() };
+        let result = exec.execute_call(&call).await;
+        assert!(!result.success);
+        assert!(result.output.contains("not supported"));
+    }
+
+    #[tokio::test]
+    async fn execute_call_spawn_agent_returns_error() {
+        let exec = TauriToolExecutor::new(PathBuf::from("/tmp"));
+        let call = ToolCall::SpawnAgent {
+            task: "test".into(),
+            max_steps: None,
+            max_depth: None,
+        };
+        let result = exec.execute_call(&call).await;
+        assert!(!result.success);
+        assert!(result.output.contains("not supported"));
+    }
+
+    #[tokio::test]
+    async fn execute_call_task_complete() {
+        let exec = TauriToolExecutor::new(PathBuf::from("/tmp"));
+        let call = ToolCall::TaskComplete { summary: "done".into() };
+        let result = exec.execute_call(&call).await;
+        assert!(result.success);
+        assert_eq!(result.output, "done");
+    }
+
+    #[tokio::test]
+    async fn execute_call_read_file_missing() {
+        let exec = TauriToolExecutor::new(PathBuf::from("/tmp"));
+        let call = ToolCall::ReadFile { path: "/tmp/nonexistent_vibeui_test_file_xyz".into() };
+        let result = exec.execute_call(&call).await;
+        assert!(!result.success);
+    }
+}
+
 #[async_trait]
 impl ToolExecutorTrait for TauriToolExecutor {
     async fn execute(&self, call: &ToolCall) -> ToolResult {

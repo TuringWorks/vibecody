@@ -60,3 +60,70 @@ impl Default for LspManager {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn new_has_default_configs() {
+        let mgr = LspManager::new();
+        assert!(mgr.server_configs.contains_key("rust"));
+        assert!(mgr.server_configs.contains_key("typescript"));
+        assert!(mgr.server_configs.contains_key("javascript"));
+        assert!(mgr.server_configs.contains_key("python"));
+    }
+
+    #[test]
+    fn new_has_four_default_configs() {
+        let mgr = LspManager::new();
+        assert_eq!(mgr.server_configs.len(), 4);
+    }
+
+    #[test]
+    fn new_has_no_clients_initially() {
+        let mgr = LspManager::new();
+        assert!(mgr.clients.is_empty());
+    }
+
+    #[test]
+    fn default_rust_config_is_rust_analyzer() {
+        let mgr = LspManager::new();
+        let (cmd, args) = mgr.server_configs.get("rust").unwrap();
+        assert_eq!(cmd, "rust-analyzer");
+        assert!(args.is_empty());
+    }
+
+    #[test]
+    fn default_typescript_config() {
+        let mgr = LspManager::new();
+        let (cmd, args) = mgr.server_configs.get("typescript").unwrap();
+        assert_eq!(cmd, "typescript-language-server");
+        assert_eq!(args, &["--stdio"]);
+    }
+
+    #[test]
+    fn default_python_config_is_pylsp() {
+        let mgr = LspManager::new();
+        let (cmd, _) = mgr.server_configs.get("python").unwrap();
+        assert_eq!(cmd, "pylsp");
+    }
+
+    #[test]
+    fn get_client_for_unknown_language_returns_none() {
+        let mgr = LspManager::new();
+        assert!(mgr.get_client("haskell").is_none());
+    }
+
+    #[test]
+    fn get_client_mut_for_unknown_returns_none() {
+        let mut mgr = LspManager::new();
+        assert!(mgr.get_client_mut("cobol").is_none());
+    }
+
+    #[test]
+    fn default_is_same_as_new() {
+        let mgr = LspManager::default();
+        assert_eq!(mgr.server_configs.len(), 4);
+    }
+}

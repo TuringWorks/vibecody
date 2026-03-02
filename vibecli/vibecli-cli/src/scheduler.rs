@@ -292,4 +292,100 @@ mod tests {
         assert!(json.contains("\"id\":\"abc123\""));
         assert!(json.contains("\"type\":\"once\""));
     }
+
+    // ── format_interval ──────────────────────────────────────────────────────
+
+    #[test]
+    fn format_interval_seconds() {
+        assert_eq!(format_interval(30), "every 30s");
+    }
+
+    #[test]
+    fn format_interval_exact_minute() {
+        assert_eq!(format_interval(60), "every 1m");
+    }
+
+    #[test]
+    fn format_interval_hours() {
+        assert_eq!(format_interval(7200), "every 2h");
+    }
+
+    #[test]
+    fn format_interval_days() {
+        assert_eq!(format_interval(86400), "every 1d");
+    }
+
+    #[test]
+    fn format_interval_zero() {
+        assert_eq!(format_interval(0), "every 0s");
+    }
+
+    #[test]
+    fn format_interval_boundary_59s() {
+        assert_eq!(format_interval(59), "every 59s");
+    }
+
+    #[test]
+    fn format_interval_boundary_59m() {
+        assert_eq!(format_interval(3540), "every 59m"); // 59*60
+    }
+
+    #[test]
+    fn format_interval_boundary_23h() {
+        assert_eq!(format_interval(82800), "every 23h"); // 23*3600
+    }
+
+    // ── parse_duration edge cases ────────────────────────────────────────────
+
+    #[test]
+    fn parse_duration_with_whitespace() {
+        assert_eq!(parse_duration(" 5m "), Some(300));
+    }
+
+    #[test]
+    fn parse_duration_zero() {
+        assert_eq!(parse_duration("0s"), Some(0));
+        assert_eq!(parse_duration("0m"), Some(0));
+    }
+
+    #[test]
+    fn parse_duration_large_value() {
+        assert_eq!(parse_duration("365d"), Some(365 * 86400));
+    }
+
+    // ── ScheduleExpr serialization ───────────────────────────────────────────
+
+    #[test]
+    fn schedule_expr_once_roundtrip() {
+        let expr = ScheduleExpr::Once { at_ms: 12345 };
+        let json = serde_json::to_string(&expr).unwrap();
+        let deser: ScheduleExpr = serde_json::from_str(&json).unwrap();
+        match deser {
+            ScheduleExpr::Once { at_ms } => assert_eq!(at_ms, 12345),
+            _ => panic!("Expected Once"),
+        }
+    }
+
+    #[test]
+    fn schedule_expr_recurring_roundtrip() {
+        let expr = ScheduleExpr::Recurring { interval_secs: 3600, next_at_ms: 99999 };
+        let json = serde_json::to_string(&expr).unwrap();
+        let deser: ScheduleExpr = serde_json::from_str(&json).unwrap();
+        match deser {
+            ScheduleExpr::Recurring { interval_secs, next_at_ms } => {
+                assert_eq!(interval_secs, 3600);
+                assert_eq!(next_at_ms, 99999);
+            }
+            _ => panic!("Expected Recurring"),
+        }
+    }
+
+    #[test]
+    fn scheduled_job_deserialization() {
+        let json = r#"{"id":"x","task":"t","schedule":{"type":"once","at_ms":1000},"triggered_count":0,"created_at":500,"last_triggered":null,"active":true}"#;
+        let job: ScheduledJob = serde_json::from_str(json).unwrap();
+        assert_eq!(job.id, "x");
+        assert_eq!(job.task, "t");
+        assert!(job.active);
+    }
 }

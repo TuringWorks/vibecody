@@ -508,3 +508,123 @@ fn resolve(root: &PathBuf, path: &str) -> PathBuf {
         root.join(p)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── resolve ──────────────────────────────────────────────────────────────
+
+    #[test]
+    fn resolve_absolute_path_unchanged() {
+        let root = PathBuf::from("/workspace");
+        let result = resolve(&root, "/etc/hosts");
+        assert_eq!(result, PathBuf::from("/etc/hosts"));
+    }
+
+    #[test]
+    fn resolve_relative_path_joined() {
+        let root = PathBuf::from("/workspace");
+        let result = resolve(&root, "src/main.rs");
+        assert_eq!(result, PathBuf::from("/workspace/src/main.rs"));
+    }
+
+    #[test]
+    fn resolve_empty_path() {
+        let root = PathBuf::from("/workspace");
+        let result = resolve(&root, "");
+        assert_eq!(result, PathBuf::from("/workspace/"));
+    }
+
+    #[test]
+    fn resolve_dot() {
+        let root = PathBuf::from("/workspace");
+        let result = resolve(&root, ".");
+        assert_eq!(result, PathBuf::from("/workspace/."));
+    }
+
+    // ── tool_defs ────────────────────────────────────────────────────────────
+
+    #[test]
+    fn tool_defs_returns_six_tools() {
+        let defs = tool_defs();
+        assert_eq!(defs.len(), 6);
+    }
+
+    #[test]
+    fn tool_defs_all_have_name() {
+        for def in tool_defs() {
+            assert!(def["name"].is_string(), "tool missing name: {:?}", def);
+        }
+    }
+
+    #[test]
+    fn tool_defs_all_have_description() {
+        for def in tool_defs() {
+            assert!(def["description"].is_string(), "tool missing description: {:?}", def);
+        }
+    }
+
+    #[test]
+    fn tool_defs_all_have_input_schema() {
+        for def in tool_defs() {
+            assert!(def["inputSchema"].is_object(), "tool missing inputSchema: {:?}", def);
+            assert_eq!(def["inputSchema"]["type"].as_str(), Some("object"));
+        }
+    }
+
+    #[test]
+    fn tool_defs_expected_tool_names() {
+        let defs = tool_defs();
+        let names: Vec<&str> = defs.iter().map(|d| d["name"].as_str().unwrap()).collect();
+        assert!(names.contains(&"read_file"));
+        assert!(names.contains(&"write_file"));
+        assert!(names.contains(&"list_directory"));
+        assert!(names.contains(&"bash"));
+        assert!(names.contains(&"search_files"));
+        assert!(names.contains(&"agent_run"));
+    }
+
+    #[test]
+    fn tool_defs_read_file_requires_path() {
+        let defs = tool_defs();
+        let read = defs.iter().find(|d| d["name"] == "read_file").unwrap();
+        let required = read["inputSchema"]["required"].as_array().unwrap();
+        assert!(required.iter().any(|v| v == "path"));
+    }
+
+    #[test]
+    fn tool_defs_write_file_requires_path_and_content() {
+        let defs = tool_defs();
+        let write = defs.iter().find(|d| d["name"] == "write_file").unwrap();
+        let required = write["inputSchema"]["required"].as_array().unwrap();
+        assert!(required.iter().any(|v| v == "path"));
+        assert!(required.iter().any(|v| v == "content"));
+    }
+
+    // ── RpcOk / RpcErr serialization ─────────────────────────────────────────
+
+    #[test]
+    fn rpc_ok_serializes() {
+        let ok = RpcOk {
+            jsonrpc: "2.0",
+            id: json!(1),
+            result: json!({"tools": []}),
+        };
+        let s = serde_json::to_string(&ok).unwrap();
+        assert!(s.contains("\"jsonrpc\":\"2.0\""));
+        assert!(s.contains("\"id\":1"));
+    }
+
+    #[test]
+    fn rpc_err_serializes() {
+        let err = RpcErr {
+            jsonrpc: "2.0",
+            id: json!(42),
+            error: ErrObj { code: -32600, message: "Invalid Request".to_string() },
+        };
+        let s = serde_json::to_string(&err).unwrap();
+        assert!(s.contains("-32600"));
+        assert!(s.contains("Invalid Request"));
+    }
+}

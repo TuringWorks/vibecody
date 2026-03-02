@@ -94,7 +94,7 @@ impl Default for SyntaxHighlighter {
     }
 }
 
-/// Extract and highlight code blocks from markdown-style text
+/// Extract and highlight code blocks from markdown-style text.
 pub fn highlight_code_blocks(text: &str) -> String {
     let highlighter = SyntaxHighlighter::new();
     let mut result = String::new();
@@ -130,4 +130,166 @@ pub fn highlight_code_blocks(text: &str) -> String {
     }
 
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── detect_language ──────────────────────────────────────────────────────
+
+    #[test]
+    fn detect_language_rust() {
+        assert_eq!(
+            SyntaxHighlighter::detect_language("fn main() -> () {}"),
+            Some("rust".to_string())
+        );
+    }
+
+    #[test]
+    fn detect_language_python() {
+        assert_eq!(
+            SyntaxHighlighter::detect_language("def hello():\n    pass"),
+            Some("python".to_string())
+        );
+    }
+
+    #[test]
+    fn detect_language_python_import() {
+        assert_eq!(
+            SyntaxHighlighter::detect_language("import os\nos.getcwd()"),
+            Some("python".to_string())
+        );
+    }
+
+    #[test]
+    fn detect_language_javascript_function() {
+        assert_eq!(
+            SyntaxHighlighter::detect_language("function greet(name) { return name; }"),
+            Some("javascript".to_string())
+        );
+    }
+
+    #[test]
+    fn detect_language_javascript_const() {
+        assert_eq!(
+            SyntaxHighlighter::detect_language("const x = 42;"),
+            Some("javascript".to_string())
+        );
+    }
+
+    #[test]
+    fn detect_language_javascript_let() {
+        assert_eq!(
+            SyntaxHighlighter::detect_language("let y = 'hello';"),
+            Some("javascript".to_string())
+        );
+    }
+
+    #[test]
+    fn detect_language_go() {
+        assert_eq!(
+            SyntaxHighlighter::detect_language("package main\nfunc main() {}"),
+            Some("go".to_string())
+        );
+    }
+
+    #[test]
+    fn detect_language_none_for_prose() {
+        assert_eq!(
+            SyntaxHighlighter::detect_language("This is just some plain English text."),
+            None
+        );
+    }
+
+    #[test]
+    fn detect_language_empty() {
+        assert_eq!(SyntaxHighlighter::detect_language(""), None);
+    }
+
+    // ── SyntaxHighlighter::new / highlight ───────────────────────────────────
+
+    #[test]
+    fn highlighter_new_does_not_panic() {
+        let _h = SyntaxHighlighter::new();
+    }
+
+    #[test]
+    fn highlight_plain_text_returns_non_empty() {
+        let h = SyntaxHighlighter::new();
+        let out = h.highlight("hello world\n", None);
+        assert!(out.contains("hello world"));
+    }
+
+    #[test]
+    fn highlight_with_language_returns_ansi() {
+        let h = SyntaxHighlighter::new();
+        let out = h.highlight("fn main() {}\n", Some("rust"));
+        // ANSI codes start with ESC
+        assert!(out.contains('\x1b'));
+    }
+
+    #[test]
+    fn highlight_unknown_language_falls_back() {
+        let h = SyntaxHighlighter::new();
+        // Unknown language should not panic; falls back to plain text
+        let out = h.highlight("hello\n", Some("nonexistent_language_xyz"));
+        assert!(out.contains("hello"));
+    }
+
+    #[test]
+    fn highlight_ranges_returns_non_empty() {
+        let h = SyntaxHighlighter::new();
+        let ranges = h.highlight_ranges("let x = 42;\n", Some("js"));
+        assert!(!ranges.is_empty());
+    }
+
+    // ── highlight_code_blocks ────────────────────────────────────────────────
+
+    #[test]
+    fn highlight_code_blocks_no_code() {
+        let input = "Just some text\nand more text\n";
+        let out = highlight_code_blocks(input);
+        assert!(out.contains("Just some text"));
+        assert!(out.contains("and more text"));
+    }
+
+    #[test]
+    fn highlight_code_blocks_with_fenced_block() {
+        let input = "Before\n```rust\nfn foo() {}\n```\nAfter\n";
+        let out = highlight_code_blocks(input);
+        assert!(out.contains("Before"));
+        assert!(out.contains("After"));
+        // The code block should be highlighted (contains ANSI reset at minimum)
+        assert!(out.contains("\x1b[0m"));
+    }
+
+    #[test]
+    fn highlight_code_blocks_no_language_tag() {
+        let input = "```\nhello world\n```\n";
+        let out = highlight_code_blocks(input);
+        assert!(out.contains("hello world") || out.contains('\x1b'));
+    }
+
+    #[test]
+    fn highlight_code_blocks_unclosed_fence_no_panic() {
+        let input = "```rust\nfn main() {}\n";
+        // Should not panic even if the fence is never closed
+        let _out = highlight_code_blocks(input);
+    }
+
+    #[test]
+    fn highlight_code_blocks_empty_input() {
+        let out = highlight_code_blocks("");
+        assert!(out.is_empty());
+    }
+
+    #[test]
+    fn highlight_code_blocks_multiple_blocks() {
+        let input = "Text\n```py\nx = 1\n```\nMiddle\n```js\nvar y = 2;\n```\nEnd\n";
+        let out = highlight_code_blocks(input);
+        assert!(out.contains("Text"));
+        assert!(out.contains("Middle"));
+        assert!(out.contains("End"));
+    }
 }

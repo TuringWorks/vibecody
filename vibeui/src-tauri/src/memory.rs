@@ -61,3 +61,69 @@ pub fn save_global_rules(content: &str) -> std::io::Result<()> {
     }
     std::fs::write(path, content)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn combined_rules_both_empty() {
+        let dir = std::env::temp_dir().join("vibeui_test_empty_rules");
+        let _ = std::fs::create_dir_all(&dir);
+        // No .vibeui.md file → empty workspace rules
+        let out = combined_rules(&dir);
+        // May or may not have global rules depending on environment,
+        // but the workspace section should be absent
+        assert!(!out.contains("## Project AI Rules"));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn combined_rules_workspace_only() {
+        let dir = std::env::temp_dir().join("vibeui_test_ws_rules");
+        let _ = std::fs::create_dir_all(&dir);
+        std::fs::write(dir.join(".vibeui.md"), "Always use Rust").unwrap();
+        let out = combined_rules(&dir);
+        assert!(out.contains("## Project AI Rules"));
+        assert!(out.contains("Always use Rust"));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn save_and_load_workspace_rules_roundtrip() {
+        let dir = std::env::temp_dir().join("vibeui_test_roundtrip");
+        let _ = std::fs::create_dir_all(&dir);
+        save_workspace_rules(&dir, "test content").unwrap();
+        let loaded = load_workspace_rules(&dir);
+        assert_eq!(loaded, "test content");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn load_workspace_rules_missing_file() {
+        let dir = std::env::temp_dir().join("vibeui_test_no_rules_file");
+        let _ = std::fs::create_dir_all(&dir);
+        // Ensure file doesn't exist
+        let _ = std::fs::remove_file(dir.join(".vibeui.md"));
+        let result = load_workspace_rules(&dir);
+        assert!(result.is_empty());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn combined_rules_has_section_headers() {
+        let dir = std::env::temp_dir().join("vibeui_test_headers");
+        let _ = std::fs::create_dir_all(&dir);
+        std::fs::write(dir.join(".vibeui.md"), "project rule").unwrap();
+        let out = combined_rules(&dir);
+        assert!(out.contains("## Project AI Rules\n"));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn global_rules_path_is_under_home() {
+        let path = global_rules_path();
+        assert!(path.to_string_lossy().contains(".vibeui"));
+        assert!(path.to_string_lossy().ends_with("rules.md"));
+    }
+}

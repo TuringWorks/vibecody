@@ -104,3 +104,176 @@ impl Default for FlowTracker {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn new_tracker_is_empty() {
+        let tracker = FlowTracker::new();
+        assert!(tracker.events.is_empty());
+        assert_eq!(tracker.context_string(10), "");
+    }
+
+    #[test]
+    fn default_is_same_as_new() {
+        let tracker = FlowTracker::default();
+        assert!(tracker.events.is_empty());
+    }
+
+    #[test]
+    fn record_adds_event() {
+        let mut tracker = FlowTracker::new();
+        tracker.record("file_open", "src/main.rs");
+        assert_eq!(tracker.events.len(), 1);
+        assert_eq!(tracker.events[0].kind, "file_open");
+        assert_eq!(tracker.events[0].data, "src/main.rs");
+        assert!(tracker.events[0].timestamp > 0);
+    }
+
+    #[test]
+    fn record_multiple_events() {
+        let mut tracker = FlowTracker::new();
+        tracker.record("file_open", "a.rs");
+        tracker.record("file_edit", "a.rs");
+        tracker.record("terminal_cmd", "cargo build");
+        assert_eq!(tracker.events.len(), 3);
+    }
+
+    #[test]
+    fn ring_buffer_evicts_oldest_at_capacity() {
+        let mut tracker = FlowTracker::new();
+        for i in 0..MAX_EVENTS {
+            tracker.record("file_open", &format!("file_{}.rs", i));
+        }
+        assert_eq!(tracker.events.len(), MAX_EVENTS);
+
+        // Add one more — oldest (file_0.rs) should be evicted
+        tracker.record("file_open", "overflow.rs");
+        assert_eq!(tracker.events.len(), MAX_EVENTS);
+        assert_eq!(tracker.events.front().unwrap().data, "file_1.rs");
+        assert_eq!(tracker.events.back().unwrap().data, "overflow.rs");
+    }
+
+    #[test]
+    fn context_string_empty_tracker() {
+        let tracker = FlowTracker::new();
+        assert_eq!(tracker.context_string(50), "");
+    }
+
+    #[test]
+    fn context_string_file_opens() {
+        let mut tracker = FlowTracker::new();
+        tracker.record("file_open", "src/main.rs");
+        tracker.record("file_open", "src/lib.rs");
+        let ctx = tracker.context_string(10);
+        assert!(ctx.contains("## Recent Activity"));
+        assert!(ctx.contains("Recently opened files:"));
+        assert!(ctx.contains("src/main.rs"));
+        assert!(ctx.contains("src/lib.rs"));
+    }
+
+    #[test]
+    fn context_string_file_edits_and_saves() {
+        let mut tracker = FlowTracker::new();
+        tracker.record("file_edit", "a.rs");
+        tracker.record("file_save", "b.rs");
+        let ctx = tracker.context_string(10);
+        assert!(ctx.contains("Recently edited files:"));
+        assert!(ctx.contains("a.rs"));
+        assert!(ctx.contains("b.rs"));
+    }
+
+    #[test]
+    fn context_string_terminal_commands() {
+        let mut tracker = FlowTracker::new();
+        tracker.record("terminal_cmd", "cargo build");
+        tracker.record("terminal_cmd", "cargo test");
+        let ctx = tracker.context_string(10);
+        assert!(ctx.contains("Recent terminal commands:"));
+        assert!(ctx.contains("cargo build"));
+        assert!(ctx.contains("cargo test"));
+        // Commands are joined with "; "
+        assert!(ctx.contains("; "));
+    }
+
+    #[test]
+    fn context_string_deduplicates_opens() {
+        let mut tracker = FlowTracker::new();
+        tracker.record("file_open", "src/main.rs");
+        tracker.record("file_open", "src/main.rs");
+        tracker.record("file_open", "src/main.rs");
+        let ctx = tracker.context_string(10);
+        // Should only appear once after dedup
+        let count = ctx.matches("src/main.rs").count();
+        assert_eq!(count, 1);
+    }
+
+    #[test]
+    fn context_string_deduplicates_edits() {
+        let mut tracker = FlowTracker::new();
+        tracker.record("file_edit", "a.rs");
+        tracker.record("file_edit", "a.rs");
+        tracker.record("file_edit", "b.rs");
+        let ctx = tracker.context_string(10);
+        let count = ctx.matches("a.rs").count();
+        assert_eq!(count, 1);
+    }
+
+    #[test]
+    fn context_string_limits_opens_to_five() {
+        let mut tracker = FlowTracker::new();
+        for i in 0..10 {
+            tracker.record("file_open", &format!("file_{}.rs", i));
+        }
+        let ctx = tracker.context_string(100);
+        // Only last 5 unique opens should appear
+        assert!(!ctx.contains("file_0.rs"));
+        assert!(ctx.contains("file_9.rs"));
+    }
+
+    #[test]
+    fn context_string_limit_parameter() {
+        let mut tracker = FlowTracker::new();
+        tracker.record("file_open", "a.rs");
+        tracker.record("terminal_cmd", "cargo build");
+        tracker.record("file_open", "b.rs");
+        // limit=1 should only show the most recent event (b.rs)
+        let ctx = tracker.context_string(1);
+        assert!(ctx.contains("b.rs"));
+        assert!(!ctx.contains("cargo build"));
+    }
+
+    #[test]
+    fn context_string_only_terminal_no_files() {
+        let mut tracker = FlowTracker::new();
+        tracker.record("terminal_cmd", "ls -la");
+        let ctx = tracker.context_string(10);
+        assert!(ctx.contains("Recent terminal commands:"));
+        assert!(!ctx.contains("opened"));
+        assert!(!ctx.contains("edited"));
+    }
+
+    #[test]
+    fn context_string_mixed_categories() {
+        let mut tracker = FlowTracker::new();
+        tracker.record("file_open", "main.rs");
+        tracker.record("file_edit", "lib.rs");
+        tracker.record("terminal_cmd", "cargo test");
+        let ctx = tracker.context_string(10);
+        assert!(ctx.contains("Recently opened files:"));
+        assert!(ctx.contains("Recently edited files:"));
+        assert!(ctx.contains("Recent terminal commands:"));
+    }
+
+    #[test]
+    fn context_string_unknown_kind_is_ignored() {
+        let mut tracker = FlowTracker::new();
+        tracker.record("unknown_kind", "something");
+        let ctx = tracker.context_string(10);
+        // The header appears since events is non-empty, but no category section
+        assert!(ctx.contains("## Recent Activity"));
+        assert!(!ctx.contains("something"));
+    }
+}

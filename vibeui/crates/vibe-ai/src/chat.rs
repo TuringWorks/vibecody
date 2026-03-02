@@ -241,4 +241,122 @@ mod tests {
         conversation.add_assistant_message("Hi there!".to_string());
         assert_eq!(conversation.messages.len(), 2);
     }
+
+    #[test]
+    fn conversation_add_system_message() {
+        let mut c = Conversation::new("sys".to_string());
+        c.add_system_message("You are helpful.".to_string());
+        assert_eq!(c.messages.len(), 1);
+        assert_eq!(c.messages[0].role, MessageRole::System);
+        assert_eq!(c.messages[0].content, "You are helpful.");
+    }
+
+    #[test]
+    fn conversation_add_user_message() {
+        let mut c = Conversation::new("u".to_string());
+        c.add_user_message("hi".to_string());
+        assert_eq!(c.messages[0].role, MessageRole::User);
+    }
+
+    #[test]
+    fn conversation_add_assistant_message() {
+        let mut c = Conversation::new("a".to_string());
+        c.add_assistant_message("hello".to_string());
+        assert_eq!(c.messages[0].role, MessageRole::Assistant);
+    }
+
+    #[test]
+    fn conversation_id() {
+        let c = Conversation::new("my-id".to_string());
+        assert_eq!(c.id, "my-id");
+    }
+
+    #[test]
+    fn engine_default() {
+        let engine = ChatEngine::default();
+        assert!(engine.active_provider().is_none());
+        assert!(engine.conversations().is_empty());
+    }
+
+    #[test]
+    fn engine_get_provider_names_empty() {
+        let engine = ChatEngine::new();
+        assert!(engine.get_provider_names().is_empty());
+    }
+
+    #[test]
+    fn engine_set_active_provider_out_of_bounds() {
+        let mut engine = ChatEngine::new();
+        let result = engine.set_active_provider(0);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("out of bounds"));
+    }
+
+    #[test]
+    fn engine_set_active_conversation_out_of_bounds() {
+        let mut engine = ChatEngine::new();
+        let result = engine.set_active_conversation(0);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("out of bounds"));
+    }
+
+    #[test]
+    fn engine_new_conversation_sets_active() {
+        let mut engine = ChatEngine::new();
+        let idx = engine.new_conversation("c1".to_string());
+        assert_eq!(idx, 0);
+        assert!(engine.active_conversation().is_some());
+        assert_eq!(engine.active_conversation().unwrap().id, "c1");
+    }
+
+    #[test]
+    fn engine_multiple_conversations() {
+        let mut engine = ChatEngine::new();
+        engine.new_conversation("c1".to_string());
+        engine.new_conversation("c2".to_string());
+        assert_eq!(engine.conversations().len(), 2);
+        // Last created is active
+        assert_eq!(engine.active_conversation().unwrap().id, "c2");
+    }
+
+    #[test]
+    fn engine_set_active_conversation_valid() {
+        let mut engine = ChatEngine::new();
+        engine.new_conversation("c1".to_string());
+        engine.new_conversation("c2".to_string());
+        engine.set_active_conversation(0).unwrap();
+        assert_eq!(engine.active_conversation().unwrap().id, "c1");
+    }
+
+    #[test]
+    fn engine_active_conversation_mut() {
+        let mut engine = ChatEngine::new();
+        engine.new_conversation("c1".to_string());
+        let conv = engine.active_conversation_mut().unwrap();
+        conv.add_user_message("test".to_string());
+        assert_eq!(engine.active_conversation().unwrap().messages.len(), 1);
+    }
+
+    #[test]
+    fn engine_no_active_conversation_initially() {
+        let engine = ChatEngine::new();
+        assert!(engine.active_conversation().is_none());
+    }
+
+    #[test]
+    fn conversation_serialization_roundtrip() {
+        let mut c = Conversation::new("serde-test".to_string());
+        c.add_user_message("hello".to_string());
+        let json = serde_json::to_string(&c).unwrap();
+        let c2: Conversation = serde_json::from_str(&json).unwrap();
+        assert_eq!(c2.id, "serde-test");
+        assert_eq!(c2.messages.len(), 1);
+    }
+
+    #[test]
+    fn clear_cloud_providers_with_no_providers() {
+        let mut engine = ChatEngine::new();
+        engine.clear_cloud_providers();
+        assert!(engine.providers.is_empty());
+    }
 }
