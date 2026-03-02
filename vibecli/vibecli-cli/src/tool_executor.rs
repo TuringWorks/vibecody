@@ -720,8 +720,8 @@ fn apply_unified_patch(original: &str, patch: &str) -> Result<String> {
         for line in hunk_str[header_end..].lines().skip(1) {
             if line.starts_with('-') {
                 orig_idx += 1;
-            } else if line.starts_with('+') {
-                result.push(line[1..].to_string());
+            } else if let Some(added) = line.strip_prefix('+') {
+                result.push(added.to_string());
             } else if line.starts_with(' ') || line.is_empty() {
                 if orig_idx < orig_lines.len() {
                     result.push(orig_lines[orig_idx].to_string());

@@ -302,7 +302,10 @@ Diff:
 {}
 ```
 "#,
-            &diff[..diff.len().min(8000)]
+            {
+                let end = diff.char_indices().nth(8000).map(|(i, _)| i).unwrap_or(diff.len());
+                &diff[..end]
+            }
         );
 
         let msgs = vec![Message { role: MessageRole::User, content: prompt }];

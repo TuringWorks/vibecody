@@ -194,17 +194,17 @@ function M._stream_session(session_id)
               elseif ev.type == "complete" then
                 table.insert(lines, "")
                 table.insert(lines, "---")
-                table.insert(lines, "✅ Complete: " .. (ev.summary or "done"))
+                table.insert(lines, "✅ Complete: " .. (ev.content or "done"))
                 vim.schedule(function()
                   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
                   vim.notify("[VibeCLI] Task complete.", vim.log.levels.INFO)
                 end)
               elseif ev.type == "error" then
                 table.insert(lines, "")
-                table.insert(lines, "❌ Error: " .. (ev.message or "unknown"))
+                table.insert(lines, "❌ Error: " .. (ev.content or "unknown"))
                 vim.schedule(function()
                   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
-                  vim.notify("[VibeCLI] Task failed: " .. (ev.message or ""), vim.log.levels.ERROR)
+                  vim.notify("[VibeCLI] Task failed: " .. (ev.content or ""), vim.log.levels.ERROR)
                 end)
               end
             end
