@@ -53,6 +53,8 @@ import { CostPanel } from "./components/CostPanel";
 import { AutofixPanel } from "./components/AutofixPanel";
 import { ArenaPanel } from "./components/ArenaPanel";
 import ProcessPanel from "./components/ProcessPanel";
+import CicdPanel from "./components/CicdPanel";
+import K8sPanel from "./components/K8sPanel";
 import { useCollab } from "./hooks/useCollab";
 import { flowContext } from "./utils/FlowContext";
 import { supercompleteEngine } from "./utils/SupercompleteEngine";
@@ -94,7 +96,7 @@ function App() {
   const [showSidebar, setShowSidebar] = useState(true);
   const [activeSidebarTab, setActiveSidebarTab] = useState<"explorer" | "search" | "git">("explorer");
   const [showAIChat, setShowAIChat] = useState(false);
-  const [aiPanelTab, setAiPanelTab] = useState<"chat" | "agent" | "memory" | "history" | "checkpoints" | "artifacts" | "manager" | "hooks" | "jobs" | "mcp" | "settings" | "cascade" | "specs" | "workflow" | "design" | "deploy" | "database" | "supabase" | "auth" | "github" | "steering" | "bugbot" | "redteam" | "tests" | "collab" | "coverage" | "compare" | "http" | "arena" | "cost" | "autofix" | "processes">("chat");
+  const [aiPanelTab, setAiPanelTab] = useState<"chat" | "agent" | "memory" | "history" | "checkpoints" | "artifacts" | "manager" | "hooks" | "jobs" | "mcp" | "settings" | "cascade" | "specs" | "workflow" | "design" | "deploy" | "database" | "supabase" | "auth" | "github" | "steering" | "bugbot" | "redteam" | "tests" | "collab" | "coverage" | "compare" | "http" | "arena" | "cost" | "autofix" | "processes" | "cicd" | "k8s">("chat");
   const [showTerminal, setShowTerminal] = useState(false);
   const [bottomTab, setBottomTab] = useState<"terminal" | "browser">("terminal");
   const [showCommandPalette, setShowCommandPalette] = useState(false);
@@ -1526,7 +1528,7 @@ function App() {
           <aside className="ai-chat-panel" style={{ display: "flex", flexDirection: "column" }}>
             {/* Tab bar */}
             <div role="tablist" aria-label="AI Panel tabs" style={{ display: "flex", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
-              {(["chat", "agent", "memory", "history", "checkpoints", "artifacts", "manager", "hooks", "jobs", "mcp", "settings", "cascade", "specs", "workflow", "design", "deploy", "database", "supabase", "auth", "github", "steering", "bugbot", "redteam", "tests", "collab", "coverage", "compare", "http", "arena", "cost", "autofix", "processes"] as const).map((tab) => (
+              {(["chat", "agent", "memory", "history", "checkpoints", "artifacts", "manager", "hooks", "jobs", "mcp", "settings", "cascade", "specs", "workflow", "design", "deploy", "database", "supabase", "auth", "github", "steering", "bugbot", "redteam", "tests", "collab", "coverage", "compare", "http", "arena", "cost", "autofix", "processes", "cicd", "k8s"] as const).map((tab) => (
                 <button
                   key={tab}
                   role="tab"
@@ -1577,6 +1579,8 @@ function App() {
                     : tab === "cost" ? "💰 Cost"
                     : tab === "autofix" ? "🔧 Autofix"
                     : tab === "processes" ? "⚙️ Procs"
+                    : tab === "cicd" ? "🔄 CI/CD"
+                    : tab === "k8s" ? "☸️ K8s"
                     : "🌊 Flow"}
                 </button>
               ))}
@@ -1736,6 +1740,12 @@ function App() {
               )}
               {aiPanelTab === "processes" && (
                 <ProcessPanel />
+              )}
+              {aiPanelTab === "cicd" && (
+                <CicdPanel workspacePath={workspaceFolders[0] || null} />
+              )}
+              {aiPanelTab === "k8s" && (
+                <K8sPanel workspacePath={workspaceFolders[0] || null} />
               )}
             </div>
           </aside>
