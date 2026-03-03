@@ -108,7 +108,7 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
     navigator.clipboard.writeText(manifestYaml).then(() => {
       setManifestCopied(true);
       setTimeout(() => setManifestCopied(false), 1500);
-    });
+    }).catch(() => {});
   };
 
   // ── Deploy ──
@@ -465,7 +465,7 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
               {argoYaml && (
                 <>
                   <button
-                    onClick={() => { navigator.clipboard.writeText(argoYaml); setArgoCopied(true); setTimeout(() => setArgoCopied(false), 1500); }}
+                    onClick={() => { navigator.clipboard.writeText(argoYaml).then(() => { setArgoCopied(true); setTimeout(() => setArgoCopied(false), 1500); }).catch(() => {}); }}
                     style={{ padding: "7px 14px", fontSize: 12, background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 6, cursor: "pointer" }}
                   >
                     {argoCopied ? "✓ Copied" : "📋 Copy YAML"}

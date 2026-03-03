@@ -119,14 +119,14 @@ export default function CicdPanel({ workspacePath }: CicdPanelProps) {
     navigator.clipboard.writeText(text).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
-    });
+    }).catch(() => {});
   };
 
   const handleCopySecret = (secret: string) => {
     navigator.clipboard.writeText(secret).then(() => {
       setSecretsCopied(secret);
       setTimeout(() => setSecretsCopied(null), 1500);
-    });
+    }).catch(() => {});
   };
 
   const toggleTarget = (id: string) => {
