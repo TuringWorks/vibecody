@@ -94,8 +94,12 @@ export function TestPanel({ workspacePath }: TestPanelProps) {
             });
         } finally {
             setRunning(false);
-            unlistenRef.current?.();
-            unlistenRef.current = null;
+            // Only clean up if we still own the listener (a second runTests
+            // call may have already replaced it with its own listener).
+            if (unlistenRef.current === unlisten) {
+                unlisten();
+                unlistenRef.current = null;
+            }
         }
     }
 

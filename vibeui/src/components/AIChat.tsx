@@ -140,52 +140,58 @@ export function AIChat({ provider, context, fileTree, currentFile, onFileAction,
 
     // Register Tauri chat stream event listeners once
     useEffect(() => {
+        let cancelled = false;
         const unlisteners: Array<() => void> = [];
         (async () => {
-            unlisteners.push(
-                await listen<string>("chat:chunk", (e) => {
-                    const now = Date.now();
-                    const chunk = e.payload;
-                    if (streamStartMsRef.current === null) streamStartMsRef.current = now;
-                    streamCharsRef.current += chunk.length;
-                    const elapsedSec = (now - streamStartMsRef.current) / 1000;
-                    if (elapsedSec > 0) {
-                        setTokensPerSec(Math.round((streamCharsRef.current / 4) / elapsedSec));
-                    }
-                    setStreamingText((prev) => prev + chunk);
-                })
-            );
-            unlisteners.push(
-                await listen<ChatResponse>("chat:complete", (e) => {
-                    const response = e.payload;
-                    const displayContent = cleanMessage(response.message);
-                    setMessages((prev) => {
-                        // Replace the in-progress streaming entry with final message
-                        const updated = [...prev, { role: "assistant" as const, content: displayContent }];
-                        return updated;
-                    });
-                    setStreamingText("");
-                    setTokensPerSec(null);
-                    setIsLoading(false);
-                    if (response.pending_write && onPendingWrite) {
-                        onPendingWrite(response.pending_write.path, response.pending_write.content);
-                    }
-                    if (onFileAction) onFileAction();
-                })
-            );
-            unlisteners.push(
-                await listen<string>("chat:error", (e) => {
-                    setMessages((prev) => [...prev, {
-                        role: "assistant",
-                        content: `❌ ${e.payload}`,
-                    }]);
-                    setStreamingText("");
-                    setTokensPerSec(null);
-                    setIsLoading(false);
-                })
-            );
+            const u1 = await listen<string>("chat:chunk", (e) => {
+                const now = Date.now();
+                const chunk = e.payload;
+                if (streamStartMsRef.current === null) streamStartMsRef.current = now;
+                streamCharsRef.current += chunk.length;
+                const elapsedSec = (now - streamStartMsRef.current) / 1000;
+                if (elapsedSec > 0) {
+                    setTokensPerSec(Math.round((streamCharsRef.current / 4) / elapsedSec));
+                }
+                setStreamingText((prev) => prev + chunk);
+            });
+            if (cancelled) { u1(); return; }
+            unlisteners.push(u1);
+
+            const u2 = await listen<ChatResponse>("chat:complete", (e) => {
+                const response = e.payload;
+                const displayContent = cleanMessage(response.message);
+                setMessages((prev) => {
+                    // Replace the in-progress streaming entry with final message
+                    const updated = [...prev, { role: "assistant" as const, content: displayContent }];
+                    return updated;
+                });
+                setStreamingText("");
+                setTokensPerSec(null);
+                setIsLoading(false);
+                if (response.pending_write && onPendingWrite) {
+                    onPendingWrite(response.pending_write.path, response.pending_write.content);
+                }
+                if (onFileAction) onFileAction();
+            });
+            if (cancelled) { u2(); return; }
+            unlisteners.push(u2);
+
+            const u3 = await listen<string>("chat:error", (e) => {
+                setMessages((prev) => [...prev, {
+                    role: "assistant",
+                    content: `❌ ${e.payload}`,
+                }]);
+                setStreamingText("");
+                setTokensPerSec(null);
+                setIsLoading(false);
+            });
+            if (cancelled) { u3(); return; }
+            unlisteners.push(u3);
         })();
-        return () => unlisteners.forEach((fn) => fn());
+        return () => {
+            cancelled = true;
+            unlisteners.forEach((fn) => fn());
+        };
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [onFileAction, onPendingWrite]);
 

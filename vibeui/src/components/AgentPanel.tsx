@@ -65,98 +65,106 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
 
     // Register Tauri event listeners
     useEffect(() => {
+        let cancelled = false;
         const unlisteners: Array<() => void> = [];
 
         (async () => {
-            unlisteners.push(
-                await listen<string>("agent:chunk", (e) => {
-                    const now = Date.now();
-                    const chunk = e.payload;
-                    setStreaming((prev) => prev + chunk);
+            const u1 = await listen<string>("agent:chunk", (e) => {
+                const now = Date.now();
+                const chunk = e.payload;
+                setStreaming((prev) => prev + chunk);
 
-                    // Record time-to-first-token on first chunk
-                    const ttft = streamStartMsRef.current === null ? null : undefined;
-                    if (streamStartMsRef.current === null) {
-                        streamStartMsRef.current = now;
+                // Record time-to-first-token on first chunk
+                const ttft = streamStartMsRef.current === null ? null : undefined;
+                if (streamStartMsRef.current === null) {
+                    streamStartMsRef.current = now;
+                }
+
+                // Accumulate chars; estimate 1 token ≈ 4 chars
+                streamCharsRef.current += chunk.length;
+                const elapsedSec = (now - streamStartMsRef.current) / 1000;
+                const estimatedTokens = Math.round(streamCharsRef.current / 4);
+                const tokensPerSec = elapsedSec > 0
+                    ? Math.round(estimatedTokens / elapsedSec)
+                    : 0;
+
+                setStreamMetrics({
+                    tokensPerSec,
+                    ttftMs: ttft === null ? now - (streamStartMsRef.current ?? now) : null,
+                    totalTokens: estimatedTokens,
+                });
+            });
+            if (cancelled) { u1(); return; }
+            unlisteners.push(u1);
+
+            const u2 = await listen<AgentStep>("agent:step", (e) => {
+                const step = e.payload;
+                setSteps((prev) => [...prev, step]);
+                setStreaming("");
+                setPending(null);
+                // Record in Cascade flow
+                flowContext.add({
+                    kind: "agent_step",
+                    summary: `${step.tool_name}: ${step.tool_summary}`,
+                    detail: step.output || "",
+                });
+                // Auto-lint after write_file steps
+                if (step.tool_name === "write_file" && step.success) {
+                    const filePath = step.tool_summary.split("'")[1] || step.tool_summary;
+                    if (filePath) {
+                        runLinter(filePath).then((result) => {
+                            const msg = formatLintForAgent(result);
+                            if (msg) {
+                                setSteps((prev) => [...prev, {
+                                    step_num: step.step_num + 0.5,
+                                    tool_name: "linter",
+                                    tool_summary: `Auto-lint: ${filePath.split("/").pop() || "file"}`,
+                                    output: msg,
+                                    success: result.errors.length === 0,
+                                    approved: true,
+                                }]);
+                            }
+                        }).catch(() => {});
                     }
+                }
+            });
+            if (cancelled) { u2(); return; }
+            unlisteners.push(u2);
 
-                    // Accumulate chars; estimate 1 token ≈ 4 chars
-                    streamCharsRef.current += chunk.length;
-                    const elapsedSec = (now - streamStartMsRef.current) / 1000;
-                    const estimatedTokens = Math.round(streamCharsRef.current / 4);
-                    const tokensPerSec = elapsedSec > 0
-                        ? Math.round(estimatedTokens / elapsedSec)
-                        : 0;
+            const u3 = await listen<PendingCall>("agent:pending", (e) => {
+                setStreaming("");
+                setPending(e.payload);
+            });
+            if (cancelled) { u3(); return; }
+            unlisteners.push(u3);
 
-                    setStreamMetrics({
-                        tokensPerSec,
-                        ttftMs: ttft === null ? now - (streamStartMsRef.current ?? now) : null,
-                        totalTokens: estimatedTokens,
-                    });
-                })
-            );
-            unlisteners.push(
-                await listen<AgentStep>("agent:step", (e) => {
-                    const step = e.payload;
-                    setSteps((prev) => [...prev, step]);
-                    setStreaming("");
-                    setPending(null);
-                    // Record in Cascade flow
-                    flowContext.add({
-                        kind: "agent_step",
-                        summary: `${step.tool_name}: ${step.tool_summary}`,
-                        detail: step.output || "",
-                    });
-                    // Auto-lint after write_file steps
-                    if (step.tool_name === "write_file" && step.success) {
-                        const filePath = step.tool_summary.split("'")[1] || step.tool_summary;
-                        if (filePath) {
-                            runLinter(filePath).then((result) => {
-                                const msg = formatLintForAgent(result);
-                                if (msg) {
-                                    setSteps((prev) => [...prev, {
-                                        step_num: step.step_num + 0.5,
-                                        tool_name: "linter",
-                                        tool_summary: `Auto-lint: ${filePath.split("/").pop() || "file"}`,
-                                        output: msg,
-                                        success: result.errors.length === 0,
-                                        approved: true,
-                                    }]);
-                                }
-                            }).catch(() => {});
-                        }
-                    }
-                })
-            );
-            unlisteners.push(
-                await listen<PendingCall>("agent:pending", (e) => {
-                    setStreaming("");
-                    setPending(e.payload);
-                })
-            );
-            unlisteners.push(
-                await listen<string>("agent:complete", (e) => {
-                    setStreaming(e.payload);
-                    setPending(null);
-                    setStatus("complete");
-                    // Record in Cascade flow
-                    flowContext.add({
-                        kind: "agent_complete",
-                        summary: e.payload || "Agent task complete",
-                        detail: "",
-                    });
-                })
-            );
-            unlisteners.push(
-                await listen<string>("agent:error", (e) => {
-                    setStreaming((prev) => (prev ? prev + "\n\n" : "") + "❌ " + e.payload);
-                    setPending(null);
-                    setStatus("error");
-                })
-            );
+            const u4 = await listen<string>("agent:complete", (e) => {
+                setStreaming(e.payload);
+                setPending(null);
+                setStatus("complete");
+                // Record in Cascade flow
+                flowContext.add({
+                    kind: "agent_complete",
+                    summary: e.payload || "Agent task complete",
+                    detail: "",
+                });
+            });
+            if (cancelled) { u4(); return; }
+            unlisteners.push(u4);
+
+            const u5 = await listen<string>("agent:error", (e) => {
+                setStreaming((prev) => (prev ? prev + "\n\n" : "") + "❌ " + e.payload);
+                setPending(null);
+                setStatus("error");
+            });
+            if (cancelled) { u5(); return; }
+            unlisteners.push(u5);
         })();
 
-        return () => unlisteners.forEach((fn) => fn());
+        return () => {
+            cancelled = true;
+            unlisteners.forEach((fn) => fn());
+        };
     }, []);
 
     const startAgent = async () => {

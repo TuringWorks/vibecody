@@ -4427,7 +4427,8 @@ pub async fn import_figma(
     provider: String,
 ) -> Result<Vec<serde_json::Value>, String> {
     // Extract file key from URL: https://www.figma.com/file/{key}/...
-    let key = url.split('/').nth(5).unwrap_or("").to_string();
+    // Split: ["https:", "", "www.figma.com", "file", "{key}", ...]
+    let key = url.split('/').nth(4).unwrap_or("").to_string();
     if key.is_empty() {
         return Err("Invalid Figma URL — expected https://www.figma.com/file/{key}/...".to_string());
     }
