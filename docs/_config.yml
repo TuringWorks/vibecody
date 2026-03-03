@@ -37,6 +37,10 @@ header_pages:
   - configuration.md
   - architecture.md
   - ROADMAP.md
+  - ROADMAP-v2.md
+  - FIT-GAP-ANALYSIS-v2.md
+  - SHANNON-COMPARISON.md
+  - CHANGELOG.md
   - contributing.md
 
 minima:

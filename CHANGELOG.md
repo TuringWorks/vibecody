@@ -8,7 +8,20 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Testing
-- **490 new unit tests** across 30 files, bringing the workspace total from 344 → **829 tests**.
+- **645 new unit tests** across 40+ files, bringing the workspace total from 344 → **984 tests** (956 main + 28 vibe-collab).
+- **Round 4 (155 tests)** across 12 files:
+  - `serve.rs` (25): now_ms, persist/load jobs, JobRecord serde, AgentEventPayload constructors,
+    ChatMessage/ChatRequest/AgentRequest serde, RateLimiter sliding window.
+  - `config.rs` (26): Config default, approval_policy_from_flags, RoutingConfig resolve/is_configured,
+    GatewayConfig resolve helpers, CopilotConfig/BedrockConfig, IndexConfig, OtelConfig, WebSearchConfig,
+    TOML roundtrip, ProviderConfig, RedTeamCfg.
+  - `review.rs` (19): split_diff_by_file edge cases, compute_score ranges, exit_code mapping,
+    to_markdown output, extract_files_from_diff, ReviewConfig default, serde roundtrips.
+  - `session_store.rs` (38): escape_html (all 5 entities), format_ts/format_age/chrono_simple,
+    render_sessions_index_html/render_session_html, count/search multi-keyword, full lifecycle,
+    list ordering, tree hierarchy with parent/depth, serde roundtrips.
+  - Provider tests (48 across 8 files): claude (8), openai (8), gemini (5), grok (4), groq (5),
+    openrouter (5), azure_openai (7), copilot (6) — name, is_available, config serde, response deser.
 - **Round 1 (164 tests)** across 8 files:
   - `provider.rs` (22): TokenUsage pricing for all 6 tiers, ProviderConfig builder/serialization,
     base64 padding, Message/CompletionResponse serde roundtrips.
@@ -75,6 +88,26 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     with_index + relevant symbols, empty diff not shown, no changed files omits section, Default.
   - `config.rs` (7): default all-none, load_from_file success/nonexistent/invalid TOML,
     ProviderConfigFile serde, AIConfig serde, empty TOML loads as default.
+
+### Tech Debt & Code Quality
+- **vibe-indexer HTTP handlers**: Replaced 3 `.unwrap()` panics on `serde_json::to_value()` with match blocks returning HTTP 500.
+- **OnceLock regex**: Converted 10 `Regex::new().unwrap()` calls in `expand_at_refs()` to `static OnceLock<Regex>` pattern (compiled once, reused).
+- **tracing over eprintln**: Replaced 7 `eprintln!` in `policy.rs` with `tracing::warn!/debug!` and 3 in `client.rs` with `tracing::error!`.
+- **Dead code removal**: Deleted empty `tui/components/chat.rs` placeholder, removed unused `_util` module from `background_agents.rs`, removed empty `on_tick()` method.
+- **Debug log cleanup**: Removed ~20 `console.log`/`console.error` calls from `App.tsx` (all DEBUG-prefixed + informational logs; kept legitimate error handlers).
+
+### Performance Benchmarks
+- **Criterion benchmark suite** for vibe-core hot paths (`vibeui/crates/vibe-core/benches/index_bench.rs`):
+  - `cosine_similarity` (384d ~363ns, 1536d ~1.2µs, 1000-vector batch ~311µs)
+  - `extract_symbols` (50 fns ~1.7ms, 500 fns ~2.4ms)
+  - `index_build` (100 files ~1.1ms)
+  - `search_symbols` and `relevant_symbols` (~25ns and ~105ns for 1000-symbol index)
+- Made `cosine_similarity` public API for benchmarking and external use.
+
+### Documentation
+- **Serve endpoint table**: Expanded from 9 → 16 routes with auth requirements.
+- **Jekyll navigation**: Added ROADMAP-v2, FIT-GAP-ANALYSIS-v2, SHANNON-COMPARISON, CHANGELOG to header pages.
+- **Test counts**: Updated across all docs to reflect 984 total tests.
 
 ### Accessibility (WCAG 2.1 AA)
 - **Keyboard shortcuts**: 8 new shortcuts — `Cmd+J` toggle AI panel, `Cmd+`` toggle terminal,

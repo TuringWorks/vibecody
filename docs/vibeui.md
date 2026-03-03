@@ -853,15 +853,17 @@ VibeUI implements WCAG 2.1 Level AA accessibility:
 
 ## Testing
 
-**829 tests** pass across the workspace (as of 2026-03-02).
+**984 tests** pass across the workspace (956 main + 28 vibe-collab; as of 2026-03-03).
 
 | Crate | Tests | Key coverage areas |
 |-------|-------|--------------------|
-| vibecli-cli | 245 | session store, workflow, REPL, redteam, gateway, bugbot, vim editor, tool executor, scheduler, notebook, review, schema, syntax highlighting, diff viewer, MCP server, background agents, team, linear |
-| vibe-ai | 232 | tools parsing/formatting, trace redaction, hooks (type_name/glob_match/path filters), policy, skills, artifacts, planner, provider pricing, SigV4 signing, chat engine, completion confidence, multi-agent orchestration, rules (loader/frontmatter/steering), config (load/serde) |
-| vibe-core | 186 | buffer (from_file/save/apply_edits/slice/cursors), git (branches/history/commit/diff/discard/stash), context (builder/index/open_files), file system, workspace, index (build/search/refresh/score/tokenize), embeddings, diff engine, search, executor safety, symbol extraction |
+| vibecli-cli | 354 | session store (38), serve (25), config (26), review (19), workflow, REPL, redteam, gateway, bugbot, vim editor, tool executor, scheduler, notebook, schema, syntax highlighting, diff viewer, MCP server, background agents, team, linear |
+| vibe-ai | 280 | tools parsing/formatting, trace redaction, hooks, policy, skills, artifacts, planner, provider pricing, SigV4 signing, chat engine, completion confidence, multi-agent orchestration, rules, config, providers (claude/openai/gemini/grok/groq/openrouter/azure/copilot — 48 tests) |
+| vibe-core | 186 | buffer, git, context, file system, workspace, index (build/search/refresh/score/tokenize), embeddings (cosine similarity, chunking), diff engine, search, executor safety, symbol extraction |
 | vibe-ui (Tauri) | 92 | parse_lcov, parse_go_coverage, detect_coverage_tool, discover_api_endpoints, cost paths, serialization, flow tracker, memory rules, agent executor |
 | vibe-collab | 28 | room lifecycle, server registry, protocol sync, awareness, error Display/StatusCode |
+
+**Benchmarks:** 8 Criterion benchmarks covering cosine similarity (384d/1536d/batch), symbol extraction (50/500 fns), index build (100 files), symbol search, and relevance scoring.
 | vibe-lsp | 9 | LSP manager default configs, client lookup |
 | vibe-indexer | 10 | file persistence, index lifecycle |
 | vibeapp | 9 | desktop app basics |

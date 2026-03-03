@@ -1362,7 +1362,7 @@ Real-time collaborative editing powered by [yrs](https://github.com/y-crdt/y-crd
 | linear.rs tests (9) | ✅ | priority_label all values, LinearIssue serde, handle_linear_command subcommands |
 | context.rs tests (8) | ✅ | with_index, with_open_files, token_budget, empty/missing inputs |
 | config.rs tests (7) | ✅ | load_from_file, serde roundtrip, empty/invalid TOML |
-| Total | ✅ | **829 tests** passing across workspace (was 664; +173 new across 10 files) |
+| Total | ✅ | **984 tests** passing across workspace (956 main + 28 vibe-collab; Round 4 added 155 tests) |
 
 ---
 
