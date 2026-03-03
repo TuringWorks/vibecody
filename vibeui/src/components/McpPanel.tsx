@@ -49,7 +49,7 @@ export function McpPanel() {
         servers.forEach((srv) => {
             invoke<{ connected: boolean; expired: boolean }>("get_mcp_token_status", { serverName: srv.name })
                 .then((s) => setTokenStatus((prev) => ({ ...prev, [srv.name]: s.connected && !s.expired })))
-                .catch(() => {});
+                .catch(() => setTokenStatus((prev) => ({ ...prev, [srv.name]: false })));
         });
     }, [servers]);
 
@@ -215,7 +215,7 @@ export function McpPanel() {
                     const isErr = typeof res === "string";
                     return (
                         <div
-                            key={idx}
+                            key={srv.name}
                             style={{
                                 border: "1px solid var(--border-color)",
                                 borderRadius: "6px",

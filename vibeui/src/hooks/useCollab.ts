@@ -99,8 +99,12 @@ export function useCollab() {
       };
 
       ws.onclose = () => {
-        setState((prev) => ({ ...prev, connected: false }));
-        wsRef.current = null;
+        // Only update state if this is still the active websocket;
+        // a new connect() call may have already replaced it.
+        if (wsRef.current === ws) {
+          setState((prev) => ({ ...prev, connected: false }));
+          wsRef.current = null;
+        }
       };
 
       ws.onerror = () => {
