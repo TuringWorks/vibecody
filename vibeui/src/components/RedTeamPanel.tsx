@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -68,14 +68,18 @@ export function RedTeamPanel({ workspacePath, provider }: Props) {
   const [expandedFinding, setExpandedFinding] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Track mount status so polling loop stops on unmount
+  const mountedRef = useRef(true);
+  useEffect(() => { return () => { mountedRef.current = false; }; }, []);
+
   // Load sessions list.
   const loadSessions = useCallback(async () => {
     try {
       const list = await invoke<RedTeamSession[]>("get_redteam_sessions");
-      setSessions(list);
+      if (mountedRef.current) setSessions(list);
     } catch (e) {
       // Command may not exist yet — tolerate.
-      setSessions([]);
+      if (mountedRef.current) setSessions([]);
     }
   }, []);
 
@@ -96,8 +100,9 @@ export function RedTeamPanel({ workspacePath, provider }: Props) {
       let done = false;
       let attempts = 0;
       const maxAttempts = 150; // 5 minute timeout at 2s intervals
-      while (!done && attempts < maxAttempts) {
+      while (!done && attempts < maxAttempts && mountedRef.current) {
         await new Promise((r) => setTimeout(r, 2000));
+        if (!mountedRef.current) break;
         attempts++;
         try {
           const findings = await invoke<VulnFinding[]>("get_redteam_findings", { sessionId });
@@ -109,25 +114,29 @@ export function RedTeamPanel({ workspacePath, provider }: Props) {
             started_at: new Date().toISOString(),
             finished_at: new Date().toISOString(),
           };
-          setActiveSession(sess);
+          if (mountedRef.current) setActiveSession(sess);
           done = true;
         } catch {
           // Still running — update stage indicator.
-          setCurrentStage((prev) => {
-            const idx = STAGES.indexOf(prev || "Recon");
-            return STAGES[Math.min(idx + 1, STAGES.length - 1)];
-          });
+          if (mountedRef.current) {
+            setCurrentStage((prev) => {
+              const idx = STAGES.indexOf(prev || "Recon");
+              return STAGES[Math.min(idx + 1, STAGES.length - 1)];
+            });
+          }
         }
       }
-      if (!done) {
+      if (!done && mountedRef.current) {
         setError("Scan timed out after 5 minutes");
       }
     } catch (e: any) {
-      setError(e?.toString() || "Scan failed");
+      if (mountedRef.current) setError(e?.toString() || "Scan failed");
     } finally {
-      setScanning(false);
-      setCurrentStage(null);
-      loadSessions();
+      if (mountedRef.current) {
+        setScanning(false);
+        setCurrentStage(null);
+        loadSessions();
+      }
     }
   }, [targetUrl, workspacePath, loadSessions]);
 
