@@ -9,7 +9,7 @@ pub mod embeddings;
 pub mod remote;
 
 pub use symbol::{Language, SymbolInfo, SymbolKind};
-pub use embeddings::{EmbeddingIndex, EmbeddingProvider, EmbeddingDoc, SearchHit};
+pub use embeddings::{EmbeddingIndex, EmbeddingProvider, EmbeddingDoc, SearchHit, cosine_similarity};
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};

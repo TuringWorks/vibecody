@@ -8955,3 +8955,688 @@ pub async fn run_profiler(
         _ => Err(format!("Unknown profiler tool: {tool}")),
     }
 }
+
+// ─── Phase 7.25: Docker & Container Management ────────────────────────────
+
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+pub struct DockerContainer {
+    pub id: String,
+    pub name: String,
+    pub image: String,
+    pub status: String,
+    pub ports: String,
+    pub created: String,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+pub struct DockerImage {
+    pub id: String,
+    pub repository: String,
+    pub tag: String,
+    pub size: String,
+    pub created: String,
+}
+
+/// List all Docker containers (running + stopped).
+#[tauri::command]
+pub async fn list_docker_containers() -> Result<Vec<DockerContainer>, String> {
+    let out = tokio::process::Command::new("docker")
+        .args([
+            "ps", "-a",
+            "--format",
+            "{{.ID}}\t{{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}\t{{.CreatedAt}}",
+        ])
+        .output()
+        .await
+        .map_err(|e| format!("Failed to run docker: {e}"))?;
+
+    if !out.status.success() {
+        let err = String::from_utf8_lossy(&out.stderr);
+        return Err(format!("docker ps failed: {}", err.trim()));
+    }
+
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let containers = stdout
+        .lines()
+        .filter(|l| !l.is_empty())
+        .map(|line| {
+            let cols: Vec<&str> = line.splitn(6, '\t').collect();
+            DockerContainer {
+                id: cols.first().unwrap_or(&"").to_string(),
+                name: cols.get(1).unwrap_or(&"").to_string(),
+                image: cols.get(2).unwrap_or(&"").to_string(),
+                status: cols.get(3).unwrap_or(&"").to_string(),
+                ports: cols.get(4).unwrap_or(&"").to_string(),
+                created: cols.get(5).unwrap_or(&"").to_string(),
+            }
+        })
+        .collect();
+    Ok(containers)
+}
+
+/// Perform an action on a container: start | stop | restart | remove | logs.
+#[tauri::command]
+pub async fn docker_container_action(
+    container_id: String,
+    action: String,
+    tail_lines: Option<u32>,
+) -> Result<String, String> {
+    if container_id.is_empty() {
+        return Err("Container ID required".to_string());
+    }
+    // Safety: only allow known actions
+    let (cmd_args, timeout_secs): (Vec<String>, u64) = match action.as_str() {
+        "start"   => (vec!["start".into(), container_id.clone()], 30),
+        "stop"    => (vec!["stop".into(), container_id.clone()], 30),
+        "restart" => (vec!["restart".into(), container_id.clone()], 30),
+        "remove"  => (vec!["rm".into(), "-f".into(), container_id.clone()], 15),
+        "logs"    => {
+            let n = tail_lines.unwrap_or(100).to_string();
+            (vec!["logs".into(), "--tail".into(), n, "--timestamps".into(), container_id.clone()], 15)
+        }
+        _ => return Err(format!("Unknown action: {action}")),
+    };
+
+    let out = tokio::time::timeout(
+        std::time::Duration::from_secs(timeout_secs),
+        tokio::process::Command::new("docker").args(&cmd_args).output(),
+    )
+    .await
+    .map_err(|_| format!("docker {action} timed out"))?
+    .map_err(|e| format!("Failed to run docker {action}: {e}"))?;
+
+    let stdout = String::from_utf8_lossy(&out.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+    if !out.status.success() && action != "logs" {
+        return Err(format!("docker {action} failed: {}", stderr.trim()));
+    }
+    if stdout.is_empty() { Ok(stderr) } else { Ok(format!("{stdout}{stderr}")) }
+}
+
+/// List Docker images.
+#[tauri::command]
+pub async fn list_docker_images() -> Result<Vec<DockerImage>, String> {
+    let out = tokio::process::Command::new("docker")
+        .args([
+            "images",
+            "--format",
+            "{{.ID}}\t{{.Repository}}\t{{.Tag}}\t{{.Size}}\t{{.CreatedAt}}",
+        ])
+        .output()
+        .await
+        .map_err(|e| format!("Failed to run docker: {e}"))?;
+
+    if !out.status.success() {
+        let err = String::from_utf8_lossy(&out.stderr);
+        return Err(format!("docker images failed: {}", err.trim()));
+    }
+
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let images = stdout
+        .lines()
+        .filter(|l| !l.is_empty())
+        .map(|line| {
+            let cols: Vec<&str> = line.splitn(5, '\t').collect();
+            DockerImage {
+                id: cols.first().unwrap_or(&"").to_string(),
+                repository: cols.get(1).unwrap_or(&"").to_string(),
+                tag: cols.get(2).unwrap_or(&"").to_string(),
+                size: cols.get(3).unwrap_or(&"").to_string(),
+                created: cols.get(4).unwrap_or(&"").to_string(),
+            }
+        })
+        .collect();
+    Ok(images)
+}
+
+/// Run a docker-compose command in the workspace.
+/// Allowed actions: up, down, ps, logs, pull, build, restart.
+#[tauri::command]
+pub async fn docker_compose_action(
+    workspace: String,
+    action: String,
+    service: Option<String>,
+) -> Result<String, String> {
+    const ALLOWED: &[&str] = &["up", "down", "ps", "logs", "pull", "build", "restart", "stop", "start"];
+    if !ALLOWED.contains(&action.as_str()) {
+        return Err(format!("Unknown compose action: {action}"));
+    }
+
+    let ws = std::path::PathBuf::from(&workspace);
+
+    // Detect compose file
+    let compose_file = ["docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml"]
+        .iter()
+        .find(|f| ws.join(f).exists())
+        .map(|f| f.to_string())
+        .unwrap_or_else(|| "docker-compose.yml".to_string());
+
+    let mut args = vec![
+        "compose".to_string(),
+        "-f".to_string(),
+        compose_file,
+        action.clone(),
+    ];
+
+    // Flags for specific actions
+    if action == "up" {
+        args.push("-d".to_string());
+    }
+    if action == "logs" {
+        args.extend(["--tail".to_string(), "100".to_string(), "--timestamps".to_string()]);
+    }
+    if let Some(svc) = service {
+        if !svc.is_empty() {
+            args.push(svc);
+        }
+    }
+
+    let timeout_secs: u64 = match action.as_str() {
+        "up" | "build" | "pull" => 300,
+        _ => 60,
+    };
+
+    let out = tokio::time::timeout(
+        std::time::Duration::from_secs(timeout_secs),
+        tokio::process::Command::new("docker")
+            .args(&args)
+            .current_dir(&ws)
+            .output(),
+    )
+    .await
+    .map_err(|_| format!("docker compose {action} timed out"))?
+    .map_err(|e| format!("Failed to run docker compose {action}: {e}"))?;
+
+    let stdout = String::from_utf8_lossy(&out.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+    if !out.status.success() && action != "logs" && action != "ps" {
+        return Err(format!("docker compose {action} failed:\n{stderr}"));
+    }
+    if stdout.is_empty() { Ok(stderr) } else { Ok(format!("{stdout}{stderr}")) }
+}
+
+/// Pull a Docker image.
+#[tauri::command]
+pub async fn docker_pull_image(image: String) -> Result<String, String> {
+    if image.is_empty() {
+        return Err("Image name required".to_string());
+    }
+    // Validate: image name must not contain shell metacharacters
+    if image.chars().any(|c| matches!(c, ';' | '&' | '|' | '$' | '`' | '\n' | '\r')) {
+        return Err("Invalid image name".to_string());
+    }
+
+    let out = tokio::time::timeout(
+        std::time::Duration::from_secs(300),
+        tokio::process::Command::new("docker")
+            .args(["pull", &image])
+            .output(),
+    )
+    .await
+    .map_err(|_| "docker pull timed out after 5 minutes".to_string())?
+    .map_err(|e| format!("Failed to run docker pull: {e}"))?;
+
+    let stdout = String::from_utf8_lossy(&out.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+    if !out.status.success() {
+        return Err(format!("docker pull failed: {}", stderr.trim()));
+    }
+    Ok(format!("{stdout}{stderr}"))
+}
+
+// ── Dependency Manager ───────────────────────────────────────────────────────
+
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+pub struct DepInfo {
+    pub name: String,
+    pub current: String,
+    pub latest: String,
+    pub wanted: String,
+    pub dep_type: String,
+    pub is_outdated: bool,
+    pub is_vulnerable: bool,
+    pub vulnerability: Option<String>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct DepsResult {
+    pub manager: String,
+    pub deps: Vec<DepInfo>,
+    pub total: usize,
+    pub outdated: usize,
+    pub vulnerable: usize,
+    pub raw_output: String,
+}
+
+/// Auto-detect the package manager for the workspace.
+#[tauri::command]
+pub async fn detect_package_manager(workspace: String) -> Result<String, String> {
+    let ws = std::path::PathBuf::from(&workspace);
+    if ws.join("package.json").exists() {
+        if ws.join("pnpm-lock.yaml").exists() { return Ok("pnpm".to_string()); }
+        if ws.join("yarn.lock").exists() { return Ok("yarn".to_string()); }
+        return Ok("npm".to_string());
+    }
+    if ws.join("Cargo.toml").exists() { return Ok("cargo".to_string()); }
+    if ws.join("go.mod").exists() { return Ok("go".to_string()); }
+    if ws.join("requirements.txt").exists() || ws.join("pyproject.toml").exists() || ws.join("setup.py").exists() {
+        return Ok("pip".to_string());
+    }
+    Err("No package manager detected in this workspace".to_string())
+}
+
+fn parse_npm_outdated(output: &str) -> Vec<DepInfo> {
+    let val: serde_json::Value = match serde_json::from_str(output) { Ok(v) => v, Err(_) => return Vec::new() };
+    let obj = match val.as_object() { Some(o) => o, None => return Vec::new() };
+    obj.iter().map(|(name, info)| {
+        let current = info.get("current").and_then(|v| v.as_str()).unwrap_or("").to_string();
+        let wanted = info.get("wanted").and_then(|v| v.as_str()).unwrap_or("").to_string();
+        let latest = info.get("latest").and_then(|v| v.as_str()).unwrap_or("").to_string();
+        let dep_type = info.get("type").and_then(|v| v.as_str()).unwrap_or("dependencies").to_string();
+        DepInfo { name: name.clone(), is_outdated: current != latest, current, latest, wanted, dep_type, is_vulnerable: false, vulnerability: None }
+    }).collect()
+}
+
+fn parse_npm_audit(output: &str, deps: &mut Vec<DepInfo>) {
+    let val: serde_json::Value = match serde_json::from_str(output) { Ok(v) => v, Err(_) => return };
+    if let Some(vulns) = val.get("vulnerabilities").and_then(|v| v.as_object()) {
+        for (pkg, info) in vulns {
+            let severity = info.get("severity").and_then(|v| v.as_str()).unwrap_or("unknown");
+            let title = info.get("via").and_then(|v| v.as_array()).and_then(|arr| arr.first())
+                .and_then(|v| if let Some(s) = v.as_str() { Some(s.to_string()) } else { v.get("title").and_then(|t| t.as_str()).map(|s| s.to_string()) })
+                .unwrap_or_else(|| severity.to_string());
+            if let Some(dep) = deps.iter_mut().find(|d| d.name == *pkg) {
+                dep.is_vulnerable = true;
+                dep.vulnerability = Some(format!("{} ({})", title, severity));
+            } else {
+                deps.push(DepInfo { name: pkg.clone(), current: String::new(), latest: String::new(), wanted: String::new(), dep_type: "dependencies".to_string(), is_outdated: false, is_vulnerable: true, vulnerability: Some(format!("{} ({})", title, severity)) });
+            }
+        }
+    }
+}
+
+fn parse_pip_outdated(output: &str) -> Vec<DepInfo> {
+    let val: serde_json::Value = match serde_json::from_str(output) { Ok(v) => v, Err(_) => return Vec::new() };
+    let arr = match val.as_array() { Some(a) => a, None => return Vec::new() };
+    arr.iter().map(|item| {
+        let name = item.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string();
+        let current = item.get("version").and_then(|v| v.as_str()).unwrap_or("").to_string();
+        let latest = item.get("latest_version").and_then(|v| v.as_str()).unwrap_or("").to_string();
+        DepInfo { name, is_outdated: current != latest, wanted: latest.clone(), current, latest, dep_type: "dependencies".to_string(), is_vulnerable: false, vulnerability: None }
+    }).collect()
+}
+
+fn parse_go_outdated(output: &str) -> Vec<DepInfo> {
+    let mut deps = Vec::new();
+    // go list -m -u -json all outputs concatenated JSON objects
+    let mut buf = String::new();
+    let mut depth = 0i32;
+    for ch in output.chars() {
+        buf.push(ch);
+        if ch == '{' { depth += 1; }
+        if ch == '}' { depth -= 1; if depth == 0 {
+            if let Ok(val) = serde_json::from_str::<serde_json::Value>(&buf) {
+                let path = val.get("Path").and_then(|v| v.as_str()).unwrap_or("");
+                let version = val.get("Version").and_then(|v| v.as_str()).unwrap_or("");
+                let update_ver = val.get("Update").and_then(|u| u.get("Version")).and_then(|v| v.as_str()).unwrap_or("");
+                if !path.is_empty() && !version.is_empty() {
+                    let is_outdated = !update_ver.is_empty() && update_ver != version;
+                    deps.push(DepInfo {
+                        name: path.to_string(), current: version.to_string(),
+                        latest: if update_ver.is_empty() { version.to_string() } else { update_ver.to_string() },
+                        wanted: if update_ver.is_empty() { version.to_string() } else { update_ver.to_string() },
+                        dep_type: "module".to_string(), is_outdated, is_vulnerable: false, vulnerability: None,
+                    });
+                }
+            }
+            buf.clear();
+        }}
+    }
+    deps
+}
+
+fn parse_cargo_dry_run(output: &str) -> Vec<DepInfo> {
+    let re = regex::Regex::new(r"Updating\s+(\S+)\s+v(\S+)\s+->\s+v(\S+)").unwrap();
+    re.captures_iter(output).map(|cap| {
+        let name = cap[1].to_string();
+        let current = cap[2].to_string();
+        let latest = cap[3].to_string();
+        DepInfo { name, is_outdated: current != latest, wanted: latest.clone(), current, latest, dep_type: "dependencies".to_string(), is_vulnerable: false, vulnerability: None }
+    }).collect()
+}
+
+/// Scan dependencies for the workspace.
+#[tauri::command]
+pub async fn scan_dependencies(workspace: String, manager: String) -> Result<DepsResult, String> {
+    let ws = std::path::PathBuf::from(&workspace);
+    let timeout_dur = std::time::Duration::from_secs(60);
+
+    match manager.as_str() {
+        "npm" | "yarn" | "pnpm" => {
+            let prog = &manager;
+            let outdated_out = tokio::time::timeout(timeout_dur,
+                tokio::process::Command::new(prog).args(["outdated", "--json"]).current_dir(&ws).output(),
+            ).await.map_err(|_| format!("{prog} outdated timed out"))?.map_err(|e| format!("Failed to run {prog} outdated: {e}"))?;
+
+            let outdated_text = String::from_utf8_lossy(&outdated_out.stdout).to_string();
+            let mut deps = parse_npm_outdated(&outdated_text);
+
+            // Audit (best-effort)
+            let mut raw = outdated_text;
+            if let Ok(Ok(audit)) = tokio::time::timeout(timeout_dur,
+                tokio::process::Command::new(prog).args(["audit", "--json"]).current_dir(&ws).output(),
+            ).await {
+                let audit_text = String::from_utf8_lossy(&audit.stdout).to_string();
+                parse_npm_audit(&audit_text, &mut deps);
+                raw.push_str("\n--- audit ---\n");
+                raw.push_str(&audit_text);
+            }
+
+            let total = deps.len();
+            let outdated = deps.iter().filter(|d| d.is_outdated).count();
+            let vulnerable = deps.iter().filter(|d| d.is_vulnerable).count();
+            deps.sort_by(|a, b| b.is_vulnerable.cmp(&a.is_vulnerable).then(b.is_outdated.cmp(&a.is_outdated)).then(a.name.cmp(&b.name)));
+            Ok(DepsResult { manager, deps, total, outdated, vulnerable, raw_output: raw })
+        }
+        "cargo" => {
+            let dry_out = tokio::time::timeout(timeout_dur,
+                tokio::process::Command::new("cargo").args(["update", "--dry-run"]).current_dir(&ws).output(),
+            ).await.map_err(|_| "cargo update --dry-run timed out".to_string())?.map_err(|e| format!("Failed to run cargo: {e}"))?;
+
+            let raw = String::from_utf8_lossy(&dry_out.stderr).to_string();
+            let mut deps = parse_cargo_dry_run(&raw);
+            let mut full_raw = raw;
+
+            // cargo audit (optional)
+            if let Ok(Ok(audit)) = tokio::time::timeout(timeout_dur,
+                tokio::process::Command::new("cargo").args(["audit", "--json"]).current_dir(&ws).output(),
+            ).await {
+                let audit_text = String::from_utf8_lossy(&audit.stdout).to_string();
+                if let Ok(val) = serde_json::from_str::<serde_json::Value>(&audit_text) {
+                    if let Some(list) = val.pointer("/vulnerabilities/list").and_then(|v| v.as_array()) {
+                        for vuln in list {
+                            let pkg = vuln.pointer("/package/name").and_then(|v| v.as_str()).unwrap_or("");
+                            let id = vuln.pointer("/advisory/id").and_then(|v| v.as_str()).unwrap_or("");
+                            let title = vuln.pointer("/advisory/title").and_then(|v| v.as_str()).unwrap_or("");
+                            if let Some(dep) = deps.iter_mut().find(|d| d.name == pkg) {
+                                dep.is_vulnerable = true;
+                                dep.vulnerability = Some(format!("{}: {}", id, title));
+                            }
+                        }
+                    }
+                }
+                full_raw.push_str("\n--- cargo audit ---\n");
+                full_raw.push_str(&audit_text);
+            }
+
+            let total = deps.len(); let outdated = deps.iter().filter(|d| d.is_outdated).count(); let vulnerable = deps.iter().filter(|d| d.is_vulnerable).count();
+            deps.sort_by(|a, b| b.is_vulnerable.cmp(&a.is_vulnerable).then(a.name.cmp(&b.name)));
+            Ok(DepsResult { manager, deps, total, outdated, vulnerable, raw_output: full_raw })
+        }
+        "pip" => {
+            let out = tokio::time::timeout(timeout_dur,
+                tokio::process::Command::new("pip").args(["list", "--outdated", "--format", "json"]).current_dir(&ws).output(),
+            ).await.map_err(|_| "pip list timed out".to_string())?.map_err(|e| format!("Failed to run pip: {e}"))?;
+
+            let raw = String::from_utf8_lossy(&out.stdout).to_string();
+            let deps = parse_pip_outdated(&raw);
+            let total = deps.len(); let outdated = deps.iter().filter(|d| d.is_outdated).count(); let vulnerable = 0;
+            Ok(DepsResult { manager, deps, total, outdated, vulnerable, raw_output: raw })
+        }
+        "go" => {
+            let out = tokio::time::timeout(timeout_dur,
+                tokio::process::Command::new("go").args(["list", "-m", "-u", "-json", "all"]).current_dir(&ws).output(),
+            ).await.map_err(|_| "go list timed out".to_string())?.map_err(|e| format!("Failed to run go list: {e}"))?;
+
+            let raw = String::from_utf8_lossy(&out.stdout).to_string();
+            let mut deps = parse_go_outdated(&raw);
+            deps.retain(|d| !d.current.is_empty());
+            let total = deps.len(); let outdated = deps.iter().filter(|d| d.is_outdated).count(); let vulnerable = 0;
+            Ok(DepsResult { manager, deps, total, outdated, vulnerable, raw_output: raw })
+        }
+        _ => Err(format!("Unsupported package manager: {manager}")),
+    }
+}
+
+/// Upgrade a specific dependency.
+#[tauri::command]
+pub async fn upgrade_dependency(workspace: String, manager: String, package: String, version: Option<String>) -> Result<String, String> {
+    let ws = std::path::PathBuf::from(&workspace);
+    if package.is_empty() { return Err("Package name required".to_string()); }
+    if package.chars().any(|c| matches!(c, ';' | '&' | '|' | '$' | '`' | '\n' | '\r')) { return Err("Invalid package name".to_string()); }
+
+    let ver = version.unwrap_or_else(|| "latest".to_string());
+    let (prog, args): (&str, Vec<String>) = match manager.as_str() {
+        "npm" => ("npm", vec!["install".into(), format!("{}@{}", package, ver)]),
+        "yarn" => ("yarn", vec!["upgrade".into(), format!("{}@{}", package, ver)]),
+        "pnpm" => ("pnpm", vec!["update".into(), format!("{}@{}", package, ver)]),
+        "cargo" => ("cargo", vec!["update".into(), "-p".into(), package.clone()]),
+        "pip" => if ver == "latest" { ("pip", vec!["install".into(), "--upgrade".into(), package.clone()]) } else { ("pip", vec!["install".into(), format!("{}=={}", package, ver)]) },
+        "go" => { let spec = if ver == "latest" { format!("{}@latest", package) } else { format!("{}@{}", package, ver) }; ("go", vec!["get".into(), spec]) }
+        _ => return Err(format!("Unsupported manager: {manager}")),
+    };
+
+    let args_ref: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+    let out = tokio::time::timeout(std::time::Duration::from_secs(30),
+        tokio::process::Command::new(prog).args(&args_ref).current_dir(&ws).output(),
+    ).await.map_err(|_| "Upgrade timed out".to_string())?.map_err(|e| format!("Failed to upgrade: {e}"))?;
+
+    let stdout = String::from_utf8_lossy(&out.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+    if !out.status.success() { return Err(format!("Upgrade failed: {}", stderr.trim())); }
+    Ok(format!("{stdout}{stderr}"))
+}
+
+// ─── Phase 7.27: Database Migration Manager ───────────────────────────────
+
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+pub struct MigrationEntry {
+    pub name: String,
+    pub applied_at: Option<String>,
+    pub state: String, // "applied" | "pending" | "failed"
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct MigrationStatus {
+    pub tool: String,
+    pub applied: Vec<MigrationEntry>,
+    pub pending: Vec<MigrationEntry>,
+    pub raw_output: String,
+}
+
+fn detect_migration_tool(ws: &std::path::Path) -> &'static str {
+    if ws.join("prisma").join("schema.prisma").exists() || ws.join("schema.prisma").exists() {
+        return "prisma";
+    }
+    if ws.join("diesel.toml").exists() || ws.join("migrations").join(".gitkeep").exists() && ws.join("Cargo.toml").exists() {
+        return "diesel";
+    }
+    if ws.join("alembic.ini").exists() || ws.join("alembic").is_dir() {
+        return "alembic";
+    }
+    if ws.join("flyway.conf").exists() || ws.join("src").join("main").join("resources").join("db").join("migration").is_dir() {
+        return "flyway";
+    }
+    if ws.join("go.mod").exists() {
+        // golang-migrate: look for migrations dir
+        if ws.join("migrations").is_dir() || ws.join("db").join("migrations").is_dir() {
+            return "golang-migrate";
+        }
+    }
+    "unknown"
+}
+
+fn parse_prisma_status(output: &str) -> (Vec<MigrationEntry>, Vec<MigrationEntry>) {
+    let mut applied = Vec::new();
+    let mut pending = Vec::new();
+    for line in output.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with("Prisma") { continue; }
+        if let Some(name) = trimmed.strip_prefix("✔ ").or_else(|| trimmed.strip_prefix("+ ")) {
+            applied.push(MigrationEntry { name: name.trim().to_string(), applied_at: None, state: "applied".to_string() });
+        } else if let Some(name) = trimmed.strip_prefix("✗ ").or_else(|| trimmed.strip_prefix("- ")) {
+            pending.push(MigrationEntry { name: name.trim().to_string(), applied_at: None, state: "pending".to_string() });
+        } else if trimmed.contains("(not yet applied)") || trimmed.contains("pending") {
+            pending.push(MigrationEntry { name: trimmed.to_string(), applied_at: None, state: "pending".to_string() });
+        } else if trimmed.starts_with("20") && trimmed.len() > 14 {
+            // timestamp-based migration names
+            applied.push(MigrationEntry { name: trimmed.to_string(), applied_at: None, state: "applied".to_string() });
+        }
+    }
+    (applied, pending)
+}
+
+fn parse_diesel_status(output: &str) -> (Vec<MigrationEntry>, Vec<MigrationEntry>) {
+    let mut applied = Vec::new();
+    let mut pending = Vec::new();
+    for line in output.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() { continue; }
+        if trimmed.starts_with("Running migration") || trimmed.starts_with("[X]") {
+            let name = trimmed.trim_start_matches("[X]").trim_start_matches("Running migration").trim().to_string();
+            if !name.is_empty() {
+                applied.push(MigrationEntry { name, applied_at: None, state: "applied".to_string() });
+            }
+        } else if trimmed.starts_with("[ ]") {
+            let name = trimmed.trim_start_matches("[ ]").trim().to_string();
+            if !name.is_empty() {
+                pending.push(MigrationEntry { name, applied_at: None, state: "pending".to_string() });
+            }
+        }
+    }
+    (applied, pending)
+}
+
+/// Detect migration tool and return current migration status.
+#[tauri::command]
+pub async fn get_migration_status(workspace: String) -> Result<MigrationStatus, String> {
+    let ws = std::path::PathBuf::from(&workspace);
+    let tool = detect_migration_tool(&ws);
+
+    if tool == "unknown" {
+        return Ok(MigrationStatus {
+            tool: "unknown".to_string(),
+            applied: Vec::new(),
+            pending: Vec::new(),
+            raw_output: String::new(),
+        });
+    }
+
+    let (cmd, args): (&str, Vec<&str>) = match tool {
+        "prisma"         => ("npx", vec!["prisma", "migrate", "status"]),
+        "diesel"         => ("diesel", vec!["migration", "list"]),
+        "alembic"        => ("alembic", vec!["history"]),
+        "flyway"         => ("flyway", vec!["info"]),
+        "golang-migrate" => ("migrate", vec!["-database", "${DATABASE_URL}", "-path", "migrations", "version"]),
+        _                => return Err("Unknown tool".to_string()),
+    };
+
+    let out = tokio::time::timeout(
+        std::time::Duration::from_secs(30),
+        tokio::process::Command::new(cmd).args(&args).current_dir(&ws).output(),
+    )
+    .await
+    .map_err(|_| "Migration status timed out".to_string())?
+    .map_err(|e| format!("Failed to get migration status: {e}"))?;
+
+    let raw = String::from_utf8_lossy(&out.stdout).to_string()
+            + &String::from_utf8_lossy(&out.stderr);
+
+    let (applied, pending) = match tool {
+        "prisma" => parse_prisma_status(&raw),
+        "diesel" => parse_diesel_status(&raw),
+        _ => {
+            // Generic: lines with "applied" / "pending" keywords
+            let mut app = Vec::new();
+            let mut pend = Vec::new();
+            for line in raw.lines() {
+                let l = line.to_lowercase();
+                let name = line.trim().to_string();
+                if name.is_empty() { continue; }
+                if l.contains("applied") || l.contains("[x]") || l.contains("✔") {
+                    app.push(MigrationEntry { name, applied_at: None, state: "applied".to_string() });
+                } else if l.contains("pending") || l.contains("[ ]") || l.contains("not applied") {
+                    pend.push(MigrationEntry { name, applied_at: None, state: "pending".to_string() });
+                }
+            }
+            (app, pend)
+        }
+    };
+
+    Ok(MigrationStatus { tool: tool.to_string(), applied, pending, raw_output: raw })
+}
+
+/// Run a migration action: migrate | rollback | generate | status.
+#[tauri::command]
+pub async fn run_migration_action(
+    workspace: String,
+    tool: String,
+    action: String,
+    extra: Option<String>,
+) -> Result<String, String> {
+    let ws = std::path::PathBuf::from(&workspace);
+
+    const ALLOWED_ACTIONS: &[&str] = &["migrate", "rollback", "generate", "status", "reset"];
+    if !ALLOWED_ACTIONS.contains(&action.as_str()) {
+        return Err(format!("Unknown action: {action}"));
+    }
+
+    let (cmd, args): (&str, Vec<String>) = match (tool.as_str(), action.as_str()) {
+        ("prisma", "migrate")  => ("npx", vec!["prisma".into(), "migrate".into(), "deploy".into()]),
+        ("prisma", "rollback") => return Err("Prisma does not support rollback directly. Use `prisma migrate reset` with caution.".to_string()),
+        ("prisma", "generate") => ("npx", {
+            let name = extra.as_deref().unwrap_or("migration");
+            vec!["prisma".into(), "migrate".into(), "dev".into(), "--name".into(), name.into()]
+        }),
+        ("prisma", "status")   => ("npx", vec!["prisma".into(), "migrate".into(), "status".into()]),
+
+        ("diesel", "migrate")  => ("diesel", vec!["migration".into(), "run".into()]),
+        ("diesel", "rollback") => ("diesel", vec!["migration".into(), "revert".into()]),
+        ("diesel", "generate") => ("diesel", {
+            let name = extra.as_deref().unwrap_or("new_migration");
+            vec!["migration".into(), "generate".into(), "--diff-file".into(), name.into()]
+        }),
+        ("diesel", "status")   => ("diesel", vec!["migration".into(), "list".into()]),
+
+        ("alembic", "migrate")  => ("alembic", vec!["upgrade".into(), "head".into()]),
+        ("alembic", "rollback") => ("alembic", vec!["downgrade".into(), "-1".into()]),
+        ("alembic", "generate") => ("alembic", {
+            let name = extra.as_deref().unwrap_or("auto");
+            vec!["revision".into(), "--autogenerate".into(), "-m".into(), name.into()]
+        }),
+        ("alembic", "status")   => ("alembic", vec!["current".into()]),
+
+        ("flyway", "migrate")   => ("flyway", vec!["migrate".into()]),
+        ("flyway", "rollback")  => ("flyway", vec!["undo".into()]),
+        ("flyway", "status")    => ("flyway", vec!["info".into()]),
+        ("flyway", "generate")  => return Err("Flyway uses SQL files — create a new .sql file in the migrations directory.".to_string()),
+
+        ("golang-migrate", "migrate")  => ("migrate", vec!["-path".into(), "migrations".into(), "-database".into(), "${DATABASE_URL}".into(), "up".into()]),
+        ("golang-migrate", "rollback") => ("migrate", vec!["-path".into(), "migrations".into(), "-database".into(), "${DATABASE_URL}".into(), "down".into(), "1".into()]),
+        ("golang-migrate", "generate") => {
+            let name = extra.as_deref().unwrap_or("new_migration");
+            return Ok(format!("Create: migrations/$(date +%Y%m%d%H%M%S)_{name}.up.sql and .down.sql"));
+        },
+        ("golang-migrate", "status")   => ("migrate", vec!["-path".into(), "migrations".into(), "-database".into(), "${DATABASE_URL}".into(), "version".into()]),
+
+        _ => return Err(format!("Unsupported tool/action: {tool}/{action}")),
+    };
+
+    let timeout_secs: u64 = if action == "migrate" || action == "reset" { 60 } else { 30 };
+
+    let out = tokio::time::timeout(
+        std::time::Duration::from_secs(timeout_secs),
+        tokio::process::Command::new(cmd).args(&args).current_dir(&ws).output(),
+    )
+    .await
+    .map_err(|_| format!("Migration {action} timed out"))?
+    .map_err(|e| format!("Failed to run migration {action}: {e}"))?;
+
+    let stdout = String::from_utf8_lossy(&out.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+
+    if !out.status.success() && action != "status" {
+        return Err(format!("Migration {action} failed:\n{stderr}"));
+    }
+    if stdout.is_empty() { Ok(stderr) } else { Ok(format!("{stdout}{stderr}")) }
+}

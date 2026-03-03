@@ -3219,6 +3219,180 @@ async fn main() -> Result<()> {
                             }
                         }
 
+                        "/deps" => {
+                            let sub_parts: Vec<&str> = args.splitn(2, ' ').collect();
+                            let subcmd = sub_parts.first().copied().unwrap_or("").trim();
+                            let sub_args = if sub_parts.len() > 1 { sub_parts[1].trim() } else { "" };
+                            let cwd = std::env::current_dir().unwrap_or_default();
+
+                            // Detect package manager
+                            let manager = if cwd.join("pnpm-lock.yaml").exists() {
+                                "pnpm"
+                            } else if cwd.join("yarn.lock").exists() {
+                                "yarn"
+                            } else if cwd.join("package.json").exists() {
+                                "npm"
+                            } else if cwd.join("Cargo.toml").exists() {
+                                "cargo"
+                            } else if cwd.join("go.mod").exists() {
+                                "go"
+                            } else if cwd.join("requirements.txt").exists()
+                                || cwd.join("pyproject.toml").exists()
+                                || cwd.join("setup.py").exists()
+                            {
+                                "pip"
+                            } else {
+                                println!("❌ No package manager detected in current directory.\n");
+                                continue;
+                            };
+
+                            match subcmd {
+                                "" | "scan" | "outdated" | "vulnerable" | "list" => {
+                                    println!("📦 Scanning dependencies ({})...\n", manager);
+                                    let outdated_cmd = match manager {
+                                        "npm" => "npm outdated --json",
+                                        "yarn" => "yarn outdated --json",
+                                        "pnpm" => "pnpm outdated --format json",
+                                        "cargo" => "cargo update --dry-run",
+                                        "pip" => "pip list --outdated --format json",
+                                        "go" => "go list -m -u -json all",
+                                        _ => { println!("❌ Unsupported manager: {}\n", manager); continue; }
+                                    };
+
+                                    let output = std::process::Command::new("sh")
+                                        .args(["-c", outdated_cmd])
+                                        .current_dir(&cwd)
+                                        .output();
+
+                                    match output {
+                                        Ok(o) => {
+                                            let stdout = String::from_utf8_lossy(&o.stdout).to_string();
+                                            let stderr = String::from_utf8_lossy(&o.stderr).to_string();
+
+                                            // Parse results based on manager
+                                            let mut deps: Vec<(String, String, String, bool)> = Vec::new(); // (name, current, latest, is_outdated)
+
+                                            match manager {
+                                                "npm" | "pnpm" => {
+                                                    if let Ok(val) = serde_json::from_str::<serde_json::Value>(&stdout) {
+                                                        if let Some(obj) = val.as_object() {
+                                                            for (name, info) in obj {
+                                                                let current = info.get("current").and_then(|v| v.as_str()).unwrap_or("?").to_string();
+                                                                let latest = info.get("latest").and_then(|v| v.as_str()).unwrap_or("?").to_string();
+                                                                let outdated = current != latest;
+                                                                deps.push((name.clone(), current, latest, outdated));
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                                "pip" => {
+                                                    if let Ok(arr) = serde_json::from_str::<Vec<serde_json::Value>>(&stdout) {
+                                                        for item in &arr {
+                                                            let name = item.get("name").and_then(|v| v.as_str()).unwrap_or("?").to_string();
+                                                            let current = item.get("version").and_then(|v| v.as_str()).unwrap_or("?").to_string();
+                                                            let latest = item.get("latest_version").and_then(|v| v.as_str()).unwrap_or("?").to_string();
+                                                            deps.push((name, current, latest, true));
+                                                        }
+                                                    }
+                                                }
+                                                "go" => {
+                                                    for line in stdout.lines() {
+                                                        if let Ok(val) = serde_json::from_str::<serde_json::Value>(line) {
+                                                            let path = val.get("Path").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                                            let version = val.get("Version").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                                            if let Some(update) = val.get("Update") {
+                                                                let new_ver = update.get("Version").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                                                if !new_ver.is_empty() && new_ver != version {
+                                                                    deps.push((path, version, new_ver, true));
+                                                                }
+                                                            } else if subcmd == "list" || subcmd.is_empty() {
+                                                                deps.push((path, version.clone(), version, false));
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                                "cargo" => {
+                                                    // Parse cargo update --dry-run text output
+                                                    let text = if !stderr.is_empty() { &stderr } else { &stdout };
+                                                    for line in text.lines() {
+                                                        if line.contains("Updating") && line.contains("->") {
+                                                            let parts: Vec<&str> = line.split_whitespace().collect();
+                                                            if parts.len() >= 5 {
+                                                                let name = parts[1].to_string();
+                                                                let current = parts[2].trim_start_matches('v').to_string();
+                                                                let latest = parts[4].trim_start_matches('v').to_string();
+                                                                deps.push((name, current, latest, true));
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                                _ => {}
+                                            }
+
+                                            // Filter based on subcommand
+                                            let show_deps: Vec<&(String, String, String, bool)> = match subcmd {
+                                                "outdated" => deps.iter().filter(|d| d.3).collect(),
+                                                _ => deps.iter().collect(),
+                                            };
+
+                                            if show_deps.is_empty() {
+                                                println!("  ✅ All dependencies are up to date!\n");
+                                            } else {
+                                                // Print table header
+                                                println!("  {:<30} {:>12} {:>12}   Status", "Package", "Current", "Latest");
+                                                println!("  {}", "-".repeat(72));
+                                                let mut outdated_count = 0;
+                                                for (name, current, latest, is_outdated) in &show_deps {
+                                                    let status = if *is_outdated { "⬆ outdated" } else { "✓" };
+                                                    if *is_outdated { outdated_count += 1; }
+                                                    let display_name = if name.len() > 28 { &name[..28] } else { name };
+                                                    println!("  {:<30} {:>12} {:>12}   {}", display_name, current, latest, status);
+                                                }
+                                                println!("\n  Total: {} | Outdated: {}\n", show_deps.len(), outdated_count);
+                                            }
+                                        }
+                                        Err(e) => {
+                                            println!("❌ Failed to run {}: {}\n", outdated_cmd, e);
+                                        }
+                                    }
+                                }
+                                "upgrade" => {
+                                    if sub_args.is_empty() {
+                                        println!("Usage: /deps upgrade <package>\n");
+                                        continue;
+                                    }
+                                    let pkg = sub_args.split_whitespace().next().unwrap_or("");
+                                    // Validate package name
+                                    if pkg.chars().any(|c| ";|&$`\\\"'(){}[]<>!".contains(c)) {
+                                        println!("❌ Invalid package name.\n");
+                                        continue;
+                                    }
+                                    let upgrade_cmd = match manager {
+                                        "npm" => format!("npm install {}@latest", pkg),
+                                        "yarn" => format!("yarn upgrade {}@latest", pkg),
+                                        "pnpm" => format!("pnpm update {}@latest", pkg),
+                                        "cargo" => format!("cargo update -p {}", pkg),
+                                        "pip" => format!("pip install --upgrade {}", pkg),
+                                        "go" => format!("go get {}@latest", pkg),
+                                        _ => { println!("❌ Unsupported manager.\n"); continue; }
+                                    };
+                                    println!("📦 Upgrading {} ({})...", pkg, manager);
+                                    let status = std::process::Command::new("sh")
+                                        .args(["-c", &upgrade_cmd])
+                                        .current_dir(&cwd)
+                                        .status();
+                                    match status {
+                                        Ok(s) if s.success() => println!("✅ {} upgraded successfully.\n", pkg),
+                                        Ok(_) => println!("⚠️  Upgrade completed with warnings. Check output above.\n"),
+                                        Err(e) => println!("❌ Failed to upgrade {}: {}\n", pkg, e),
+                                    }
+                                }
+                                _ => {
+                                    println!("Usage: /deps [scan|outdated|vulnerable|upgrade <pkg>|list]\n");
+                                }
+                            }
+                        }
+
                         _ => {
                             println!("Type /help for available commands\n");
                         }

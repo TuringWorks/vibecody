@@ -309,6 +309,16 @@ pub fn run() {
             // Phase 7.24: Performance Profiler
             commands::detect_profiler_tool,
             commands::run_profiler,
+            // Phase 7.25: Docker & Container Management
+            commands::list_docker_containers,
+            commands::docker_container_action,
+            commands::list_docker_images,
+            commands::docker_compose_action,
+            commands::docker_pull_image,
+            // Phase 7.25: Dependency Manager
+            commands::detect_package_manager,
+            commands::scan_dependencies,
+            commands::upgrade_dependency,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

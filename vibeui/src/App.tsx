@@ -57,6 +57,9 @@ import CicdPanel from "./components/CicdPanel";
 import { EnvPanel } from "./components/EnvPanel";
 import { ProfilerPanel } from "./components/ProfilerPanel";
 import K8sPanel from "./components/K8sPanel";
+import { DockerPanel } from "./components/DockerPanel";
+import { DepsPanel } from "./components/DepsPanel";
+import { ApiDocsPanel } from "./components/ApiDocsPanel";
 import { useCollab } from "./hooks/useCollab";
 import { flowContext } from "./utils/FlowContext";
 import { supercompleteEngine } from "./utils/SupercompleteEngine";
@@ -98,7 +101,7 @@ function App() {
   const [showSidebar, setShowSidebar] = useState(true);
   const [activeSidebarTab, setActiveSidebarTab] = useState<"explorer" | "search" | "git">("explorer");
   const [showAIChat, setShowAIChat] = useState(false);
-  const [aiPanelTab, setAiPanelTab] = useState<"chat" | "agent" | "memory" | "history" | "checkpoints" | "artifacts" | "manager" | "hooks" | "jobs" | "mcp" | "settings" | "cascade" | "specs" | "workflow" | "design" | "deploy" | "database" | "supabase" | "auth" | "github" | "steering" | "bugbot" | "redteam" | "tests" | "collab" | "coverage" | "compare" | "http" | "arena" | "cost" | "autofix" | "processes" | "cicd" | "k8s" | "env" | "profiler">("chat");
+  const [aiPanelTab, setAiPanelTab] = useState<"chat" | "agent" | "memory" | "history" | "checkpoints" | "artifacts" | "manager" | "hooks" | "jobs" | "mcp" | "settings" | "cascade" | "specs" | "workflow" | "design" | "deploy" | "database" | "supabase" | "auth" | "github" | "steering" | "bugbot" | "redteam" | "tests" | "collab" | "coverage" | "compare" | "http" | "arena" | "cost" | "autofix" | "processes" | "cicd" | "k8s" | "env" | "profiler" | "docker" | "deps" | "apidocs">("chat");
   const [showTerminal, setShowTerminal] = useState(false);
   const [bottomTab, setBottomTab] = useState<"terminal" | "browser">("terminal");
   const [showCommandPalette, setShowCommandPalette] = useState(false);
@@ -1498,7 +1501,7 @@ function App() {
           <aside className="ai-chat-panel" style={{ display: "flex", flexDirection: "column" }}>
             {/* Tab bar */}
             <div role="tablist" aria-label="AI Panel tabs" style={{ display: "flex", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
-              {(["chat", "agent", "memory", "history", "checkpoints", "artifacts", "manager", "hooks", "jobs", "mcp", "settings", "cascade", "specs", "workflow", "design", "deploy", "database", "supabase", "auth", "github", "steering", "bugbot", "redteam", "tests", "collab", "coverage", "compare", "http", "arena", "cost", "autofix", "processes", "cicd", "k8s", "env", "profiler"] as const).map((tab) => (
+              {(["chat", "agent", "memory", "history", "checkpoints", "artifacts", "manager", "hooks", "jobs", "mcp", "settings", "cascade", "specs", "workflow", "design", "deploy", "database", "supabase", "auth", "github", "steering", "bugbot", "redteam", "tests", "collab", "coverage", "compare", "http", "arena", "cost", "autofix", "processes", "cicd", "k8s", "env", "profiler", "docker", "deps", "apidocs"] as const).map((tab) => (
                 <button
                   key={tab}
                   role="tab"
@@ -1553,6 +1556,9 @@ function App() {
                     : tab === "k8s" ? "☸️ K8s"
                     : tab === "env" ? "🔑 Env"
                     : tab === "profiler" ? "🔥 Profiler"
+                    : tab === "docker" ? "🐳 Docker"
+                    : tab === "deps" ? "📦 Deps"
+                    : tab === "apidocs" ? "📖 API Docs"
                     : "🌊 Flow"}
                 </button>
               ))}
@@ -1724,6 +1730,15 @@ function App() {
               )}
               {aiPanelTab === "profiler" && (
                 <ProfilerPanel workspacePath={workspaceFolders[0] || null} />
+              )}
+              {aiPanelTab === "docker" && (
+                <DockerPanel workspacePath={workspaceFolders[0] || null} />
+              )}
+              {aiPanelTab === "deps" && (
+                <DepsPanel workspacePath={workspaceFolders[0] || null} />
+              )}
+              {aiPanelTab === "apidocs" && (
+                <ApiDocsPanel workspacePath={workspaceFolders[0] || null} />
               )}
             </div>
           </aside>

@@ -19,6 +19,7 @@ static COMMANDS: &[&str] = &[
     "/cost",
     "/context",
     "/deploy",
+    "/deps",
     "/diff",
     "/env",
     "/exec",
@@ -105,6 +106,9 @@ static PROFILER_SUBS: &[&str] = &["run", "top", "list-tools"];
 /// Sub-commands for `/env <sub>`
 static ENV_SUBS: &[&str] = &["list", "get", "set", "delete", "switch", "files", "create"];
 
+/// Sub-commands for `/deps <sub>`
+static DEPS_SUBS: &[&str] = &["scan", "outdated", "vulnerable", "upgrade", "list"];
+
 /// Sub-commands for `/deploy <sub>`
 static DEPLOY_SUBS: &[&str] = &[
     "list", "vercel", "netlify", "railway", "github-pages",
@@ -129,6 +133,7 @@ fn command_hint(cmd: &str) -> Option<&'static str> {
         "/autofix" => Some("[clippy|eslint|ruff|gofmt|prettier]  — run linter auto-fix and show diff"),
         "/plan"    => Some("<task description>"),
         "/chat"    => Some("<message>"),
+        "/deps"    => Some("[scan|outdated|vulnerable|upgrade <pkg>|list]  — dependency management"),
         "/deploy"  => Some("[target|list]  — deploy to cloud (aws|azure|gcp|vercel|k8s|digitalocean|...)"),
         "/env"     => Some("[list|get <key>|set <key> <val>|delete <key>|switch <env>|files|create <env>]"),
         "/profiler"=> Some("[run [target]|top|list-tools]  — CPU/memory profiling"),
@@ -223,6 +228,7 @@ fn complete_slash(line: &str) -> Option<(usize, Vec<Pair>)> {
         Some(after_space) => {
             let subs: Option<&[&str]> = match first {
                 "/arena"    => Some(ARENA_SUBS),
+                "/deps"     => Some(DEPS_SUBS),
                 "/deploy"   => Some(DEPLOY_SUBS),
                 "/env"      => Some(ENV_SUBS),
                 "/profiler" => Some(PROFILER_SUBS),

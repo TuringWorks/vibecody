@@ -333,7 +333,7 @@ fn collect_source_files(workspace: &Path) -> Vec<PathBuf> {
 
 /// Cosine similarity computed in a single fused pass (one traversal of the
 /// two slices instead of three), reducing memory-bandwidth usage by ~3×.
-fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
+pub fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
     if a.len() != b.len() || a.is_empty() {
         return 0.0;
     }

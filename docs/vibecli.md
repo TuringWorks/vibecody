@@ -335,19 +335,28 @@ Run VibeCLI as a long-lived HTTP daemon for the VS Code extension and Agent SDK:
 vibecli serve --port 7878
 ```
 
+**Security**: All authenticated routes require a `Bearer <token>` header and are rate-limited to 60 requests per 60 seconds. Request bodies are limited to 1 MB. Responses include CSP, X-Frame-Options, and other security headers.
+
 Endpoints:
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/health` | Health check |
-| POST | `/chat` | Send chat messages, get response |
-| POST | `/chat/stream` | Streaming SSE chat |
-| POST | `/agent/start` | Start an agent task |
-| GET | `/agent/:id/stream` | Stream agent events via SSE |
-| GET | `/ws/collab/:room_id` | WebSocket for CRDT collab (token auth via `?token=`) |
-| POST | `/collab/rooms` | Create a collab room |
-| GET | `/collab/rooms` | List active collab rooms |
-| GET | `/collab/rooms/:id/peers` | List peers in a room |
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/health` | No | Liveness check — returns `{"status":"ok"}` |
+| POST | `/chat` | Yes | Single-turn chat, returns accumulated response |
+| POST | `/chat/stream` | Yes | Streaming chat via Server-Sent Events |
+| POST | `/agent` | Yes | Start an agent task, returns `{session_id}` |
+| GET | `/stream/:session_id` | Yes | SSE stream of agent events in real-time |
+| GET | `/jobs` | Yes | List all persisted background job records |
+| GET | `/jobs/:id` | Yes | Get a single job record by ID |
+| POST | `/jobs/:id/cancel` | Yes | Cancel a running background job |
+| GET | `/sessions` | No | HTML index page of all agent sessions |
+| GET | `/sessions.json` | No | JSON array of all session metadata |
+| GET | `/view/:id` | No | Dark-mode HTML viewer for a session trace |
+| GET | `/share/:id` | No | Shareable readonly session view (noindex) |
+| GET | `/ws/collab/:room_id` | Token | WebSocket for CRDT collab (`?token=` query param) |
+| POST | `/collab/rooms` | Yes | Create or get a collaboration room |
+| GET | `/collab/rooms` | Yes | List all active collaboration rooms |
+| GET | `/collab/rooms/:room_id/peers` | Yes | List peers in a room (names, cursor colors) |
 
 ---
 
@@ -601,8 +610,9 @@ vibecli/
             ├── app.rs      # TUI application state machine
             ├── ui.rs       # Ratatui layout and widget rendering
             └── components/
-                ├── chat.rs       # Chat message list widget
-                └── diff_view.rs  # Multi-file diff viewer widget
+                ├── diff_view.rs  # Multi-file diff viewer widget
+                ├── vim_editor.rs # Vim-style modal editor (Normal/Insert/Visual/Command)
+                └── diagnostics.rs # Cargo/eslint diagnostics panel
 ```
 
 ---
