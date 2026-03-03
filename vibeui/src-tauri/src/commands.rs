@@ -8688,3 +8688,269 @@ pub async fn set_active_environment(
     std::fs::write(&path, &environment).map_err(|e| e.to_string())?;
     Ok(())
 }
+
+// ── Performance Profiler ─────────────────────────────────────────────────────
+
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+pub struct ProfileHotspot {
+    pub function_name: String,
+    pub file: Option<String>,
+    pub self_pct: f32,
+    pub total_pct: f32,
+    pub samples: u64,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct ProfileResult {
+    pub tool: String,
+    pub hotspots: Vec<ProfileHotspot>,
+    pub total_samples: u64,
+    pub duration_secs: f32,
+    pub raw_output: String,
+}
+
+/// Auto-detect the appropriate profiling tool for the workspace.
+#[tauri::command]
+pub async fn detect_profiler_tool(workspace: String) -> Result<String, String> {
+    let ws = std::path::PathBuf::from(&workspace);
+    if ws.join("Cargo.toml").exists() {
+        return Ok("cargo-flamegraph".to_string());
+    }
+    if ws.join("package.json").exists() {
+        return Ok("clinic".to_string());
+    }
+    if ws.join("go.mod").exists() {
+        return Ok("go-pprof".to_string());
+    }
+    if ws.join("pyproject.toml").exists()
+        || ws.join("setup.py").exists()
+        || ws.join("requirements.txt").exists()
+    {
+        return Ok("py-spy".to_string());
+    }
+    Err("No profiling tool detected for this workspace".to_string())
+}
+
+fn parse_pprof_top(output: &str) -> Vec<ProfileHotspot> {
+    let re = regex::Regex::new(
+        r"(?m)^\s*([\d.]+)(%?)\s+[\d.]+%?\s+([\d.]+)(%?)\s+[\d.]+%?\s+(.+)$"
+    ).unwrap();
+    let mut hotspots = Vec::new();
+    for cap in re.captures_iter(output) {
+        let self_val: f32 = cap[1].parse().unwrap_or(0.0);
+        let total_val: f32 = cap[3].parse().unwrap_or(0.0);
+        let func_name = cap[5].trim().to_string();
+        if func_name.is_empty() || func_name == "flat" {
+            continue;
+        }
+        hotspots.push(ProfileHotspot {
+            function_name: func_name,
+            file: None,
+            self_pct: self_val,
+            total_pct: total_val,
+            samples: 0,
+        });
+    }
+    hotspots
+}
+
+fn parse_speedscope_json(content: &str) -> Vec<ProfileHotspot> {
+    let val: serde_json::Value = match serde_json::from_str(content) {
+        Ok(v) => v,
+        Err(_) => return Vec::new(),
+    };
+    let mut counts: std::collections::HashMap<String, u64> = std::collections::HashMap::new();
+    let frames = val.pointer("/shared/frames").and_then(|v| v.as_array());
+    let profiles = val.get("profiles").and_then(|v| v.as_array());
+    if let (Some(frames), Some(profiles)) = (frames, profiles) {
+        for profile in profiles {
+            if let Some(samples) = profile.get("samples").and_then(|s| s.as_array()) {
+                for sample in samples {
+                    if let Some(stack) = sample.as_array() {
+                        for idx in stack {
+                            if let Some(i) = idx.as_u64() {
+                                if let Some(frame) = frames.get(i as usize) {
+                                    let name = frame.get("name").and_then(|n| n.as_str()).unwrap_or("unknown");
+                                    *counts.entry(name.to_string()).or_insert(0) += 1;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    let total: u64 = counts.values().sum();
+    let mut hotspots: Vec<ProfileHotspot> = counts
+        .into_iter()
+        .map(|(name, count)| {
+            let pct = if total > 0 { (count as f32 / total as f32) * 100.0 } else { 0.0 };
+            ProfileHotspot {
+                function_name: name,
+                file: None,
+                self_pct: pct,
+                total_pct: pct,
+                samples: count,
+            }
+        })
+        .collect();
+    hotspots.sort_by(|a, b| b.self_pct.partial_cmp(&a.self_pct).unwrap_or(std::cmp::Ordering::Equal));
+    hotspots
+}
+
+/// Run a profiler and return structured results.
+#[tauri::command]
+pub async fn run_profiler(
+    _app: tauri::AppHandle,
+    workspace: String,
+    tool: String,
+    target: Option<String>,
+) -> Result<ProfileResult, String> {
+    let ws = std::path::PathBuf::from(&workspace);
+    let target_str = target.unwrap_or_default();
+    let start = std::time::Instant::now();
+
+    match tool.as_str() {
+        "cargo-flamegraph" => {
+            // Use cargo bench or just build + run with flamegraph
+            let mut args = vec!["flamegraph", "--output", "profile.svg"];
+            if !target_str.is_empty() {
+                args.push("--");
+                args.push(&target_str);
+            }
+            let output = tokio::time::timeout(
+                std::time::Duration::from_secs(120),
+                tokio::process::Command::new("cargo")
+                    .args(&args)
+                    .current_dir(&ws)
+                    .output(),
+            )
+            .await
+            .map_err(|_| "Profiler timed out after 120 seconds".to_string())?
+            .map_err(|e| format!("Failed to run cargo flamegraph: {e}"))?;
+
+            let raw = String::from_utf8_lossy(&output.stdout).to_string()
+                + &String::from_utf8_lossy(&output.stderr);
+            let duration = start.elapsed().as_secs_f32();
+
+            // Try to parse SVG title tags for hotspot data
+            let svg_path = ws.join("profile.svg");
+            let mut hotspots = Vec::new();
+            if svg_path.exists() {
+                let svg_content = std::fs::read_to_string(&svg_path).unwrap_or_default();
+                let title_re = regex::Regex::new(r"<title>([^<]+)\s+\((\d+)\s+samples?,\s+([\d.]+)%\)</title>").unwrap();
+                for cap in title_re.captures_iter(&svg_content) {
+                    let func_name = cap[1].trim().to_string();
+                    let samples: u64 = cap[2].parse().unwrap_or(0);
+                    let pct: f32 = cap[3].parse().unwrap_or(0.0);
+                    hotspots.push(ProfileHotspot {
+                        function_name: func_name,
+                        file: None,
+                        self_pct: pct,
+                        total_pct: pct,
+                        samples,
+                    });
+                }
+                hotspots.sort_by(|a, b| b.self_pct.partial_cmp(&a.self_pct).unwrap_or(std::cmp::Ordering::Equal));
+                hotspots.dedup_by(|a, b| a.function_name == b.function_name);
+            }
+
+            let total_samples = hotspots.iter().map(|h| h.samples).sum();
+            Ok(ProfileResult { tool, hotspots, total_samples, duration_secs: duration, raw_output: raw })
+        }
+
+        "go-pprof" => {
+            // Run go test with CPU profile, then parse with pprof -top
+            let test_output = tokio::time::timeout(
+                std::time::Duration::from_secs(120),
+                tokio::process::Command::new("go")
+                    .args(["test", "-bench=.", "-benchtime=3s", "-cpuprofile=cpu.prof", "./..."])
+                    .current_dir(&ws)
+                    .output(),
+            )
+            .await
+            .map_err(|_| "go test timed out after 120 seconds".to_string())?
+            .map_err(|e| format!("Failed to run go test: {e}"))?;
+
+            let mut raw = String::from_utf8_lossy(&test_output.stdout).to_string()
+                + &String::from_utf8_lossy(&test_output.stderr);
+
+            let prof_path = ws.join("cpu.prof");
+            let mut hotspots = Vec::new();
+            if prof_path.exists() {
+                let pprof_output = tokio::process::Command::new("go")
+                    .args(["tool", "pprof", "-top", "cpu.prof"])
+                    .current_dir(&ws)
+                    .output()
+                    .await
+                    .map_err(|e| format!("Failed to run pprof: {e}"))?;
+                let pprof_text = String::from_utf8_lossy(&pprof_output.stdout).to_string();
+                raw.push_str("\n--- pprof top ---\n");
+                raw.push_str(&pprof_text);
+                hotspots = parse_pprof_top(&pprof_text);
+            }
+
+            let duration = start.elapsed().as_secs_f32();
+            let total_samples = hotspots.iter().map(|h| h.samples).sum();
+            Ok(ProfileResult { tool, hotspots, total_samples, duration_secs: duration, raw_output: raw })
+        }
+
+        "py-spy" => {
+            let target_cmd = if target_str.is_empty() { "python -c 'import time; time.sleep(1)'".to_string() } else { format!("python {target_str}") };
+            let output = tokio::time::timeout(
+                std::time::Duration::from_secs(120),
+                tokio::process::Command::new("sh")
+                    .args(["-c", &format!("py-spy record --format speedscope -o profile.json -- {target_cmd}")])
+                    .current_dir(&ws)
+                    .output(),
+            )
+            .await
+            .map_err(|_| "py-spy timed out after 120 seconds".to_string())?
+            .map_err(|e| format!("Failed to run py-spy: {e}"))?;
+
+            let raw = String::from_utf8_lossy(&output.stdout).to_string()
+                + &String::from_utf8_lossy(&output.stderr);
+            let duration = start.elapsed().as_secs_f32();
+
+            let json_path = ws.join("profile.json");
+            let hotspots = if json_path.exists() {
+                let content = std::fs::read_to_string(&json_path).unwrap_or_default();
+                parse_speedscope_json(&content)
+            } else {
+                Vec::new()
+            };
+
+            let total_samples = hotspots.iter().map(|h| h.samples).sum();
+            Ok(ProfileResult { tool, hotspots, total_samples, duration_secs: duration, raw_output: raw })
+        }
+
+        "clinic" => {
+            let target_cmd = if target_str.is_empty() { "node .".to_string() } else { format!("node {target_str}") };
+            let output = tokio::time::timeout(
+                std::time::Duration::from_secs(120),
+                tokio::process::Command::new("sh")
+                    .args(["-c", &format!("npx clinic doctor --autocannon -- {target_cmd}")])
+                    .current_dir(&ws)
+                    .output(),
+            )
+            .await
+            .map_err(|_| "clinic timed out after 120 seconds".to_string())?
+            .map_err(|e| format!("Failed to run clinic: {e}"))?;
+
+            let raw = String::from_utf8_lossy(&output.stdout).to_string()
+                + &String::from_utf8_lossy(&output.stderr);
+            let duration = start.elapsed().as_secs_f32();
+
+            // clinic outputs HTML reports; structured parsing is complex — return raw output
+            Ok(ProfileResult {
+                tool,
+                hotspots: Vec::new(),
+                total_samples: 0,
+                duration_secs: duration,
+                raw_output: raw,
+            })
+        }
+
+        _ => Err(format!("Unknown profiler tool: {tool}")),
+    }
+}

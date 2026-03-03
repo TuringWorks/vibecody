@@ -35,6 +35,7 @@ static COMMANDS: &[&str] = &[
     "/plan",
     "/plugin",
     "/profile",
+    "/profiler",
     "/qa",
     "/quit",
     "/redteam",
@@ -98,6 +99,9 @@ static WORKFLOW_SUBS: &[&str] = &["new", "list", "show", "advance", "check", "ge
 /// Sub-commands for `/arena <sub>`
 static ARENA_SUBS: &[&str] = &["compare", "stats", "history"];
 
+/// Sub-commands for `/profiler <sub>`
+static PROFILER_SUBS: &[&str] = &["run", "top", "list-tools"];
+
 /// Sub-commands for `/env <sub>`
 static ENV_SUBS: &[&str] = &["list", "get", "set", "delete", "switch", "files", "create"];
 
@@ -127,6 +131,7 @@ fn command_hint(cmd: &str) -> Option<&'static str> {
         "/chat"    => Some("<message>"),
         "/deploy"  => Some("[target|list]  — deploy to cloud (aws|azure|gcp|vercel|k8s|digitalocean|...)"),
         "/env"     => Some("[list|get <key>|set <key> <val>|delete <key>|switch <env>|files|create <env>]"),
+        "/profiler"=> Some("[run [target]|top|list-tools]  — CPU/memory profiling"),
         "/generate"=> Some("<description>"),
         "/diff"    => Some("<file>"),
         "/apply"   => Some("<file> <changes>"),
@@ -220,6 +225,7 @@ fn complete_slash(line: &str) -> Option<(usize, Vec<Pair>)> {
                 "/arena"    => Some(ARENA_SUBS),
                 "/deploy"   => Some(DEPLOY_SUBS),
                 "/env"      => Some(ENV_SUBS),
+                "/profiler" => Some(PROFILER_SUBS),
                 "/profile"  => Some(PROFILE_SUBS),
                 "/plugin"   => Some(PLUGIN_SUBS),
                 "/memory"   => Some(MEMORY_SUBS),

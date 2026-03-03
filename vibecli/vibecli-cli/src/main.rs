@@ -3111,6 +3111,114 @@ async fn main() -> Result<()> {
                             }
                         }
 
+                        "/profiler" => {
+                            let sub_parts: Vec<&str> = args.splitn(2, ' ').collect();
+                            let subcmd = sub_parts.first().copied().unwrap_or("").trim();
+                            let sub_args = if sub_parts.len() > 1 { sub_parts[1].trim() } else { "" };
+                            let cwd = std::env::current_dir().unwrap_or_default();
+
+                            fn detect_prof_tool(cwd: &std::path::Path) -> Option<&'static str> {
+                                if cwd.join("Cargo.toml").exists() { Some("cargo-flamegraph") }
+                                else if cwd.join("package.json").exists() { Some("clinic") }
+                                else if cwd.join("go.mod").exists() { Some("go-pprof") }
+                                else if cwd.join("pyproject.toml").exists() || cwd.join("setup.py").exists() { Some("py-spy") }
+                                else { None }
+                            }
+
+                            fn prof_cli_available(tool: &str) -> bool {
+                                std::process::Command::new("sh")
+                                    .args(["-c", &format!("command -v {} >/dev/null 2>&1", tool)])
+                                    .status()
+                                    .map(|s| s.success())
+                                    .unwrap_or(false)
+                            }
+
+                            match subcmd {
+                                "list-tools" => {
+                                    println!("\n🔥 Profiling tools:");
+                                    let tools = [
+                                        ("cargo-flamegraph", "flamegraph", "Rust CPU profiling (perf/dtrace + flamegraph)"),
+                                        ("clinic",           "clinic",     "Node.js performance diagnostics"),
+                                        ("py-spy",           "py-spy",     "Python sampling profiler"),
+                                        ("go-pprof",         "go",         "Go built-in CPU profiling"),
+                                    ];
+                                    for (name, cli, desc) in &tools {
+                                        let mark = if prof_cli_available(cli) { "✅" } else { "❌" };
+                                        println!("  {mark} {name:<20} {desc} (requires: {cli})");
+                                    }
+                                    println!();
+                                }
+                                "" | "run" => {
+                                    let tool = match detect_prof_tool(&cwd) {
+                                        Some(t) => t,
+                                        None => { println!("❌ No profiler detected. Use `/profiler list-tools`.\n"); continue; }
+                                    };
+                                    let cli_name = match tool {
+                                        "cargo-flamegraph" => "flamegraph",
+                                        "clinic" => "clinic",
+                                        "py-spy" => "py-spy",
+                                        "go-pprof" => "go",
+                                        _ => tool,
+                                    };
+                                    if !prof_cli_available(cli_name) {
+                                        println!("❌ {} not found. Install it first.\n", cli_name);
+                                        continue;
+                                    }
+                                    let target_arg = if subcmd == "run" && !sub_args.is_empty() { sub_args } else { "" };
+
+                                    println!("🔥 Profiling with {}...\n", tool);
+
+                                    let cmd_str = match tool {
+                                        "cargo-flamegraph" => {
+                                            if target_arg.is_empty() {
+                                                "cargo flamegraph --output profile.svg 2>&1".to_string()
+                                            } else {
+                                                format!("cargo flamegraph --output profile.svg -- {} 2>&1", target_arg)
+                                            }
+                                        }
+                                        "go-pprof" => {
+                                            "go test -bench=. -benchtime=3s -cpuprofile=cpu.prof ./... 2>&1 && go tool pprof -top cpu.prof 2>&1".to_string()
+                                        }
+                                        "py-spy" => {
+                                            let t = if target_arg.is_empty() { "python -c 'import time; time.sleep(1)'" } else { target_arg };
+                                            format!("py-spy record --format speedscope -o profile.json -- {} 2>&1", t)
+                                        }
+                                        "clinic" => {
+                                            let t = if target_arg.is_empty() { "node ." } else { target_arg };
+                                            format!("npx clinic doctor -- {} 2>&1", t)
+                                        }
+                                        _ => { println!("❌ Unknown tool\n"); continue; }
+                                    };
+
+                                    let status = std::process::Command::new("sh")
+                                        .args(["-c", &cmd_str])
+                                        .current_dir(&cwd)
+                                        .status();
+                                    match status {
+                                        Ok(s) if s.success() => {
+                                            // For go-pprof, parse the top output
+                                            if tool == "go-pprof" {
+                                                let pprof_out = std::process::Command::new("go")
+                                                    .args(["tool", "pprof", "-top", "cpu.prof"])
+                                                    .current_dir(&cwd)
+                                                    .output();
+                                                if let Ok(out) = pprof_out {
+                                                    let text = String::from_utf8_lossy(&out.stdout);
+                                                    println!("\n{}", text);
+                                                }
+                                            }
+                                            println!("✅ Profiling complete.\n");
+                                        }
+                                        Ok(_) => println!("⚠️  Profiler exited with warnings. Check output above.\n"),
+                                        Err(e) => println!("❌ Failed to run profiler: {}\n", e),
+                                    }
+                                }
+                                _ => {
+                                    println!("Usage: /profiler [run [target]|list-tools]\n");
+                                }
+                            }
+                        }
+
                         _ => {
                             println!("Type /help for available commands\n");
                         }

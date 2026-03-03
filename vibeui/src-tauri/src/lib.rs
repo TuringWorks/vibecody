@@ -306,6 +306,9 @@ pub fn run() {
             commands::delete_env_var,
             commands::get_env_environments,
             commands::set_active_environment,
+            // Phase 7.24: Performance Profiler
+            commands::detect_profiler_tool,
+            commands::run_profiler,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
