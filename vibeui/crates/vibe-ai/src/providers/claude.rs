@@ -392,3 +392,86 @@ impl AIProvider for ClaudeProvider {
             .context("No content in Claude vision response")
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::provider::MessageRole;
+
+    fn test_config() -> ProviderConfig {
+        ProviderConfig {
+            provider_type: "claude".into(),
+            api_key: Some("test-key".into()),
+            api_url: Some("https://api.anthropic.com".into()),
+            model: "claude-sonnet-4-20250514".into(),
+            temperature: None,
+            max_tokens: None,
+            api_key_helper: None,
+            thinking_budget_tokens: None,
+        }
+    }
+
+    #[test]
+    fn name_is_claude() {
+        let p = ClaudeProvider::new(test_config());
+        assert_eq!(p.name(), "Claude");
+    }
+
+    #[tokio::test]
+    async fn is_available_with_key() {
+        let p = ClaudeProvider::new(test_config());
+        assert!(p.is_available().await);
+    }
+
+    #[tokio::test]
+    async fn is_not_available_without_key() {
+        let mut cfg = test_config();
+        cfg.api_key = None;
+        let p = ClaudeProvider::new(cfg);
+        assert!(!p.is_available().await);
+    }
+
+    #[test]
+    fn supports_vision() {
+        let p = ClaudeProvider::new(test_config());
+        assert!(p.supports_vision());
+    }
+
+    #[test]
+    fn build_messages_extracts_system() {
+        let p = ClaudeProvider::new(test_config());
+        let msgs = vec![
+            Message { role: MessageRole::System, content: "sys".into() },
+            Message { role: MessageRole::User, content: "hi".into() },
+        ];
+        let (claude_msgs, sys) = p.build_messages(&msgs, None);
+        assert_eq!(sys.as_deref(), Some("sys"));
+        assert_eq!(claude_msgs.len(), 1);
+        assert_eq!(claude_msgs[0].role, "user");
+    }
+
+    #[test]
+    fn claude_request_serde() {
+        let req = ClaudeRequest {
+            model: "claude-sonnet-4-20250514".into(),
+            messages: vec![ClaudeMessage { role: "user".into(), content: Value::String("hi".into()) }],
+            max_tokens: Some(1024),
+            temperature: None,
+            stream: false,
+            system: None,
+            thinking: None,
+        };
+        let json = serde_json::to_value(&req).unwrap();
+        assert_eq!(json["model"], "claude-sonnet-4-20250514");
+        assert!(json.get("system").is_none()); // skip_serializing_if
+        assert!(json.get("thinking").is_none());
+    }
+
+    #[test]
+    fn claude_response_deser() {
+        let json = r#"{"content":[{"text":"hello world"}],"usage":{"input_tokens":10,"output_tokens":5}}"#;
+        let resp: ClaudeResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.content[0].text, "hello world");
+        assert_eq!(resp.usage.unwrap().output_tokens, 5);
+    }
+}

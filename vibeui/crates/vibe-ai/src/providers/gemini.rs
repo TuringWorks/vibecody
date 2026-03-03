@@ -270,3 +270,62 @@ impl AIProvider for GeminiProvider {
         Ok(completion_stream)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_config() -> ProviderConfig {
+        ProviderConfig {
+            provider_type: "gemini".into(),
+            api_key: Some("AIza-test".into()),
+            api_url: None,
+            model: "gemini-2.0-flash".into(),
+            temperature: None,
+            max_tokens: None,
+            api_key_helper: None,
+            thinking_budget_tokens: None,
+        }
+    }
+
+    #[test]
+    fn name_is_gemini() {
+        let p = GeminiProvider::new(test_config());
+        assert_eq!(p.name(), "Gemini");
+    }
+
+    #[tokio::test]
+    async fn is_available_with_key() {
+        let p = GeminiProvider::new(test_config());
+        assert!(p.is_available().await);
+    }
+
+    #[tokio::test]
+    async fn not_available_without_key() {
+        let mut cfg = test_config();
+        cfg.api_key = None;
+        let p = GeminiProvider::new(cfg);
+        assert!(!p.is_available().await);
+    }
+
+    #[test]
+    fn gemini_request_serde() {
+        let req = GeminiRequest {
+            contents: vec![GeminiContent {
+                role: "user".into(),
+                parts: vec![GeminiPart { text: "hello".into() }],
+            }],
+            generation_config: Some(GeminiConfig { temperature: Some(0.5), max_output_tokens: Some(100) }),
+        };
+        let json = serde_json::to_value(&req).unwrap();
+        assert_eq!(json["contents"][0]["role"], "user");
+        assert_eq!(json["generation_config"]["temperature"], 0.5);
+    }
+
+    #[test]
+    fn gemini_response_deser() {
+        let json = r#"{"candidates":[{"content":{"parts":[{"text":"world"}]}}]}"#;
+        let resp: GeminiResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.candidates.unwrap()[0].content.parts[0].text, "world");
+    }
+}

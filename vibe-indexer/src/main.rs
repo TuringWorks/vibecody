@@ -190,7 +190,10 @@ async fn index_status(
 ) -> impl IntoResponse {
     let jobs = state.jobs.read().await;
     match jobs.get(&id) {
-        Some(job) => (StatusCode::OK, Json(serde_json::to_value(job).unwrap())),
+        Some(job) => match serde_json::to_value(job) {
+            Ok(v) => (StatusCode::OK, Json(v)),
+            Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "error": e.to_string() }))),
+        },
         None => (
             StatusCode::NOT_FOUND,
             Json(serde_json::json!({ "error": format!("Job '{}' not found", id) })),
@@ -222,7 +225,10 @@ async fn search(
     match index.search(&req.query, req.limit).await {
         Ok(hits) => {
             let total = hits.len();
-            (StatusCode::OK, Json(serde_json::to_value(SearchResponse { hits, total }).unwrap()))
+            match serde_json::to_value(SearchResponse { hits, total }) {
+                Ok(v) => (StatusCode::OK, Json(v)),
+                Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "error": e.to_string() }))),
+            }
         }
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -236,7 +242,10 @@ async fn list_jobs(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     let jobs = state.jobs.read().await;
     let mut list: Vec<&IndexJob> = jobs.values().collect();
     list.sort_by_key(|j| std::cmp::Reverse(j.started_at));
-    Json(serde_json::to_value(&list).unwrap())
+    match serde_json::to_value(&list) {
+        Ok(v) => Json(v),
+        Err(e) => Json(serde_json::json!({ "error": e.to_string() })),
+    }
 }
 
 // ── CLI + main ────────────────────────────────────────────────────────────────

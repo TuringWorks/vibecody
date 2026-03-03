@@ -208,3 +208,53 @@ impl AIProvider for OpenRouterProvider {
         self.chat(messages, context).await
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_config() -> ProviderConfig {
+        ProviderConfig {
+            provider_type: "openrouter".into(),
+            api_key: Some("sk-or-test".into()),
+            api_url: None,
+            model: "anthropic/claude-3.5-sonnet".into(),
+            temperature: None,
+            max_tokens: None,
+            api_key_helper: None,
+            thinking_budget_tokens: None,
+        }
+    }
+
+    #[test]
+    fn name_is_openrouter() {
+        let p = OpenRouterProvider::new(test_config());
+        assert_eq!(p.name(), "OpenRouter");
+    }
+
+    #[tokio::test]
+    async fn is_available_with_key() {
+        let p = OpenRouterProvider::new(test_config());
+        assert!(p.is_available().await);
+    }
+
+    #[tokio::test]
+    async fn not_available_without_key() {
+        let mut cfg = test_config();
+        cfg.api_key = None;
+        let p = OpenRouterProvider::new(cfg);
+        assert!(!p.is_available().await);
+    }
+
+    #[test]
+    fn base_url_constant() {
+        assert_eq!(OPENROUTER_BASE_URL, "https://openrouter.ai/api/v1");
+    }
+
+    #[test]
+    fn or_response_deser() {
+        let json = r#"{"choices":[{"message":{"role":"assistant","content":"ok"}}],"usage":{"prompt_tokens":2,"completion_tokens":1}}"#;
+        let resp: ORResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.choices[0].message.content, "ok");
+    }
+}

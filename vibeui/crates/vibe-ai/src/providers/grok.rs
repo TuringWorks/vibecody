@@ -213,3 +213,48 @@ impl AIProvider for GrokProvider {
         Ok(completion_stream)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_config() -> ProviderConfig {
+        ProviderConfig {
+            provider_type: "grok".into(),
+            api_key: Some("xai-test".into()),
+            api_url: None,
+            model: "grok-2".into(),
+            temperature: None,
+            max_tokens: None,
+            api_key_helper: None,
+            thinking_budget_tokens: None,
+        }
+    }
+
+    #[test]
+    fn name_is_grok() {
+        let p = GrokProvider::new(test_config());
+        assert_eq!(p.name(), "Grok");
+    }
+
+    #[tokio::test]
+    async fn is_available_with_key() {
+        let p = GrokProvider::new(test_config());
+        assert!(p.is_available().await);
+    }
+
+    #[tokio::test]
+    async fn not_available_without_key() {
+        let mut cfg = test_config();
+        cfg.api_key = None;
+        let p = GrokProvider::new(cfg);
+        assert!(!p.is_available().await);
+    }
+
+    #[test]
+    fn grok_response_deser() {
+        let json = r#"{"choices":[{"message":{"role":"assistant","content":"hi"}}]}"#;
+        let resp: GrokResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.choices[0].message.content, "hi");
+    }
+}

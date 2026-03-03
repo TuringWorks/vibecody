@@ -201,3 +201,54 @@ impl AIProvider for GroqProvider {
         self.chat(messages, context).await
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_config() -> ProviderConfig {
+        ProviderConfig {
+            provider_type: "groq".into(),
+            api_key: Some("gsk_test".into()),
+            api_url: None,
+            model: "llama-3.3-70b-versatile".into(),
+            temperature: None,
+            max_tokens: None,
+            api_key_helper: None,
+            thinking_budget_tokens: None,
+        }
+    }
+
+    #[test]
+    fn name_is_groq() {
+        let p = GroqProvider::new(test_config());
+        assert_eq!(p.name(), "Groq");
+    }
+
+    #[tokio::test]
+    async fn is_available_with_key() {
+        let p = GroqProvider::new(test_config());
+        assert!(p.is_available().await);
+    }
+
+    #[tokio::test]
+    async fn not_available_without_key() {
+        let mut cfg = test_config();
+        cfg.api_key = None;
+        let p = GroqProvider::new(cfg);
+        assert!(!p.is_available().await);
+    }
+
+    #[test]
+    fn base_url_constant() {
+        assert_eq!(GROQ_BASE_URL, "https://api.groq.com/openai/v1");
+    }
+
+    #[test]
+    fn groq_response_deser() {
+        let json = r#"{"choices":[{"message":{"role":"assistant","content":"fast"}}],"usage":{"prompt_tokens":5,"completion_tokens":1}}"#;
+        let resp: GroqResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.choices[0].message.content, "fast");
+        assert_eq!(resp.usage.unwrap().completion_tokens, 1);
+    }
+}

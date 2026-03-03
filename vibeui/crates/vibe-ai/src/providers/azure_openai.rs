@@ -224,3 +224,69 @@ impl AIProvider for AzureOpenAIProvider {
         self.chat(messages, context).await
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_config() -> ProviderConfig {
+        ProviderConfig {
+            provider_type: "azure_openai".into(),
+            api_key: Some("az-test-key".into()),
+            api_url: Some("https://myresource.openai.azure.com".into()),
+            model: "gpt-4o".into(),
+            temperature: None,
+            max_tokens: None,
+            api_key_helper: None,
+            thinking_budget_tokens: None,
+        }
+    }
+
+    #[test]
+    fn name_is_azure_openai() {
+        let p = AzureOpenAIProvider::new(test_config());
+        assert_eq!(p.name(), "AzureOpenAI");
+    }
+
+    #[tokio::test]
+    async fn is_available_with_key_and_url() {
+        let p = AzureOpenAIProvider::new(test_config());
+        assert!(p.is_available().await);
+    }
+
+    #[tokio::test]
+    async fn not_available_without_key() {
+        let mut cfg = test_config();
+        cfg.api_key = None;
+        let p = AzureOpenAIProvider::new(cfg);
+        assert!(!p.is_available().await);
+    }
+
+    #[tokio::test]
+    async fn not_available_without_url() {
+        let mut cfg = test_config();
+        cfg.api_url = None;
+        let p = AzureOpenAIProvider::new(cfg);
+        assert!(!p.is_available().await);
+    }
+
+    #[test]
+    fn endpoint_url_assembly() {
+        let p = AzureOpenAIProvider::new(test_config());
+        let url = p.endpoint_url();
+        assert!(url.starts_with("https://myresource.openai.azure.com/openai/deployments/gpt-4o/chat/completions"));
+        assert!(url.contains("api-version=2024-12-01-preview"));
+    }
+
+    #[test]
+    fn with_api_version() {
+        let p = AzureOpenAIProvider::new(test_config()).with_api_version("2025-01-01");
+        let url = p.endpoint_url();
+        assert!(url.contains("api-version=2025-01-01"));
+    }
+
+    #[test]
+    fn default_api_version() {
+        assert_eq!(DEFAULT_API_VERSION, "2024-12-01-preview");
+    }
+}

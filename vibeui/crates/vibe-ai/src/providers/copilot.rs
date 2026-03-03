@@ -387,3 +387,63 @@ pub async fn run_device_flow() -> Result<String> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_config() -> ProviderConfig {
+        ProviderConfig {
+            provider_type: "copilot".into(),
+            api_key: None,
+            api_url: None,
+            model: "gpt-4o".into(),
+            temperature: None,
+            max_tokens: None,
+            api_key_helper: None,
+            thinking_budget_tokens: None,
+        }
+    }
+
+    #[test]
+    fn name_is_copilot() {
+        let p = CopilotProvider::new(test_config());
+        assert_eq!(p.name(), "Copilot");
+    }
+
+    #[test]
+    fn copilot_token_expired() {
+        let token = CopilotToken { token: "tok".into(), expires_at: 0 };
+        assert!(token.is_expired());
+    }
+
+    #[test]
+    fn copilot_token_not_expired() {
+        let token = CopilotToken {
+            token: "tok".into(),
+            expires_at: u64::MAX,
+        };
+        assert!(!token.is_expired());
+    }
+
+    #[test]
+    fn copilot_constants() {
+        assert!(COPILOT_TOKEN_URL.contains("github.com"));
+        assert!(COPILOT_BASE_URL.contains("githubcopilot.com"));
+    }
+
+    #[test]
+    fn copilot_token_response_deser() {
+        let json = r#"{"token":"ghu_abc123","expires_at":1700000000}"#;
+        let resp: CopilotTokenResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.token, "ghu_abc123");
+        assert_eq!(resp.expires_at, Some(1700000000));
+    }
+
+    #[test]
+    fn chat_response_deser() {
+        let json = r#"{"choices":[{"message":{"role":"assistant","content":"hi"}}],"usage":{"prompt_tokens":3,"completion_tokens":1}}"#;
+        let resp: ChatResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.choices[0].message.content, "hi");
+    }
+}

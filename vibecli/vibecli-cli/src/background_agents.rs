@@ -246,19 +246,6 @@ impl BackgroundAgentManager {
     }
 }
 
-// ── (short_id is now a method on BackgroundAgentManager) ─────────────────────
-#[allow(dead_code)]
-mod _util {
-    pub fn short_id() -> String {
-        use std::time::{SystemTime, UNIX_EPOCH};
-        let millis = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_millis();
-        format!("{:x}", millis & 0xFFFFFF)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

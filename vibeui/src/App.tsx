@@ -195,7 +195,7 @@ function App() {
       manager.setWorker(worker);
       extensionManagerRef.current = manager;
       (window as any).extensionManager = manager;
-      console.log("Extension Manager initialized");
+      // Extension Manager initialized
     } catch (e) {
       toast.error(`Failed to initialize extension worker: ${e}`);
     }
@@ -259,27 +259,17 @@ function App() {
   }, []);
 
   const openFolder = async () => {
-    console.log("openFolder called");
     try {
-      console.log("Calling dialog.open...");
       const selected = await open({
         directory: true,
         multiple: false,
         title: "Open Folder",
       });
 
-      console.log("Dialog result:", selected);
-
       if (selected && typeof selected === 'string') {
-        console.log("Selected folder:", selected);
         await invoke("add_workspace_folder", { path: selected });
         setWorkspaceFolders([...workspaceFolders, selected]);
         loadDirectory(selected);
-      } else if (selected === null) {
-        // User cancelled the dialog
-        console.log("Folder selection cancelled");
-      } else {
-        console.log("Unexpected dialog result type:", typeof selected, selected);
       }
     } catch (error) {
       console.error("Failed to open folder:", error);
@@ -304,7 +294,7 @@ function App() {
       const status = await invoke<GitStatus>("get_git_status");
       setGitStatus(status);
     } catch (error) {
-      console.log("Git status fetch failed (maybe not a git repo):", error);
+      // Not a git repo or git not available — expected in some workspaces
       setGitStatus(null);
     }
   };
@@ -388,7 +378,6 @@ function App() {
     if (!activeFilePath || !activeFile) return;
     try {
       await invoke("write_file", { path: activeFilePath, content: activeFile.content });
-      console.log("File saved successfully");
 
       // Update dirty state
       setOpenFiles(prev => prev.map(f =>
@@ -709,16 +698,13 @@ function App() {
   };
 
   const handlePendingWrite = async (path: string, content: string) => {
-    console.log("DEBUG: handlePendingWrite called for path:", path);
     try {
       // Read current file content for diff
       let original = "";
       try {
         original = await invoke<string>("read_file", { path });
-        console.log("DEBUG: Original content loaded, length:", original.length);
-      } catch (e) {
-        // File might not exist yet
-        console.log("File does not exist, creating new file diff");
+      } catch (_e) {
+        // File might not exist yet — treat as new file
       }
 
       setPendingDiff({
@@ -726,12 +712,6 @@ function App() {
         original,
         modified: content
       });
-      console.log("DEBUG: setPendingDiff called");
-
-      // Ensure file is open (or at least active context)
-      // For diff view, we might not need to add it to tabs yet, 
-      // but if accepted it should be.
-      // For now, let's just make sure we track it if we accept.
     } catch (error) {
       console.error("Failed to prepare diff:", error);
     }
@@ -750,7 +730,6 @@ function App() {
       }
 
       await invoke("write_file", { path: pendingDiff.path, content: pendingDiff.modified });
-      console.log("Changes saved to disk for:", pendingDiff.path);
 
       setPendingDiff(null);
 
@@ -810,11 +789,8 @@ function App() {
         const cleanDir = currentDirectory.endsWith(separator) ? currentDirectory : currentDirectory + separator;
         const path = cleanDir + name;
 
-        console.log("DEBUG: Attempting to create file at:", path);
-
         try {
           await invoke("write_file", { path, content: "" });
-          console.log("DEBUG: File created successfully");
           loadDirectory(currentDirectory);
           // Optionally open the new file
           openFile(path);
@@ -844,11 +820,8 @@ function App() {
         const cleanDir = currentDirectory.endsWith(separator) ? currentDirectory : currentDirectory + separator;
         const path = cleanDir + name;
 
-        console.log("DEBUG: Attempting to create folder at:", path);
-
         try {
           await invoke("create_directory", { path });
-          console.log("DEBUG: Folder created successfully");
           loadDirectory(currentDirectory);
         } catch (error) {
           console.error("Failed to create folder:", error);
@@ -988,7 +961,6 @@ function App() {
           });
         `;
         extensionManagerRef.current?.loadExtension(code);
-        console.log("Test extension loaded! Try running 'extension.helloWorld' command.");
         (window as any).lastExtensionMessage = "Test extension loaded";
       }
     },
@@ -1172,11 +1144,7 @@ function App() {
           </select>
           <button
             className="btn-secondary"
-            onClick={() => {
-              console.log("AI Chat button clicked, current state:", showAIChat);
-              setShowAIChat(!showAIChat);
-              console.log("AI Chat toggled to:", !showAIChat);
-            }}
+            onClick={() => setShowAIChat(!showAIChat)}
             title="Toggle AI Chat"
           >
             💬 AI Chat

@@ -603,4 +603,306 @@ mod tests {
         let empty = "";
         assert!(empty.trim().is_empty());
     }
+
+    // ── split_diff_by_file tests ─────────────────────────────────────────────
+
+    #[test]
+    fn split_diff_by_file_empty_diff() {
+        let chunks = split_diff_by_file("");
+        assert!(chunks.is_empty());
+    }
+
+    #[test]
+    fn split_diff_by_file_no_git_header() {
+        // Diff without "diff --git" header falls back to single "(all changes)" chunk.
+        let diff = "+++ b/foo.rs\n-old line\n+new line\n";
+        let chunks = split_diff_by_file(diff);
+        assert_eq!(chunks.len(), 1);
+        assert_eq!(chunks[0].0, "(all changes)");
+        assert!(chunks[0].1.contains("+new line"));
+    }
+
+    #[test]
+    fn split_diff_by_file_single_file() {
+        let diff = "diff --git a/src/main.rs b/src/main.rs\nindex abc..def 100644\n--- a/src/main.rs\n+++ b/src/main.rs\n@@ -1 +1 @@\n-old\n+new\n";
+        let chunks = split_diff_by_file(diff);
+        assert_eq!(chunks.len(), 1);
+        assert_eq!(chunks[0].0, "src/main.rs");
+        assert!(chunks[0].1.contains("-old"));
+        assert!(chunks[0].1.contains("+new"));
+    }
+
+    #[test]
+    fn split_diff_by_file_three_files() {
+        let diff = "\
+diff --git a/a.rs b/a.rs\n+a content\n\
+diff --git a/b.rs b/b.rs\n+b content\n\
+diff --git a/c.rs b/c.rs\n+c content\n";
+        let chunks = split_diff_by_file(diff);
+        assert_eq!(chunks.len(), 3);
+        assert_eq!(chunks[0].0, "a.rs");
+        assert_eq!(chunks[1].0, "b.rs");
+        assert_eq!(chunks[2].0, "c.rs");
+    }
+
+    // ── compute_score tests ──────────────────────────────────────────────────
+
+    #[test]
+    fn compute_score_all_critical_clamps_to_zero() {
+        // 6 critical security issues = 6 * 2.0 = 12.0 deduction, clamped to 0.
+        let issues: Vec<ReviewIssue> = (0..6)
+            .map(|i| ReviewIssue {
+                file: "vuln.rs".into(),
+                line: i,
+                severity: Severity::Critical,
+                category: ReviewFocus::Security,
+                description: format!("critical issue {}", i),
+                suggested_fix: None,
+            })
+            .collect();
+        let score = compute_score(&issues);
+        assert_eq!(score.security, 0.0);
+        // Other dimensions untouched
+        assert_eq!(score.correctness, 10.0);
+        assert_eq!(score.performance, 10.0);
+        assert_eq!(score.style, 10.0);
+        // Overall = (10 + 0 + 10 + 10) / 4 = 7.5
+        assert!((score.overall - 7.5).abs() < 0.01);
+    }
+
+    #[test]
+    fn compute_score_mix_of_severities() {
+        let issues = vec![
+            ReviewIssue {
+                file: "a.rs".into(), line: 1,
+                severity: Severity::Critical, category: ReviewFocus::Correctness,
+                description: "bug".into(), suggested_fix: None,
+            },
+            ReviewIssue {
+                file: "b.rs".into(), line: 2,
+                severity: Severity::Warning, category: ReviewFocus::Style,
+                description: "naming".into(), suggested_fix: None,
+            },
+            ReviewIssue {
+                file: "c.rs".into(), line: 3,
+                severity: Severity::Info, category: ReviewFocus::Performance,
+                description: "minor".into(), suggested_fix: None,
+            },
+        ];
+        let score = compute_score(&issues);
+        assert!((score.correctness - 8.0).abs() < 0.01); // 10 - 2.0
+        assert!((score.style - 9.5).abs() < 0.01);       // 10 - 0.5
+        assert!((score.performance - 9.9).abs() < 0.01);  // 10 - 0.1
+        assert_eq!(score.security, 10.0);                 // untouched
+    }
+
+    #[test]
+    fn compute_score_single_warning() {
+        let issues = vec![ReviewIssue {
+            file: "x.rs".into(), line: 5,
+            severity: Severity::Warning, category: ReviewFocus::Performance,
+            description: "slow".into(), suggested_fix: None,
+        }];
+        let score = compute_score(&issues);
+        assert!((score.performance - 9.5).abs() < 0.01);
+        assert_eq!(score.correctness, 10.0);
+        assert_eq!(score.security, 10.0);
+        assert_eq!(score.style, 10.0);
+    }
+
+    // ── exit_code tests ──────────────────────────────────────────────────────
+
+    #[test]
+    fn exit_code_zero_when_no_critical() {
+        let report = ReviewReport {
+            base_ref: String::new(), target_ref: String::new(),
+            summary: "ok".into(),
+            issues: vec![
+                ReviewIssue {
+                    file: "a.rs".into(), line: 1,
+                    severity: Severity::Warning, category: ReviewFocus::Style,
+                    description: "meh".into(), suggested_fix: None,
+                },
+                ReviewIssue {
+                    file: "b.rs".into(), line: 2,
+                    severity: Severity::Info, category: ReviewFocus::Correctness,
+                    description: "note".into(), suggested_fix: None,
+                },
+            ],
+            suggestions: vec![],
+            score: ReviewScore { overall: 9.0, correctness: 9.0, security: 10.0, performance: 10.0, style: 9.0 },
+            files_reviewed: vec![],
+        };
+        assert_eq!(report.exit_code(), 0);
+    }
+
+    #[test]
+    fn exit_code_one_when_critical_present() {
+        let report = ReviewReport {
+            base_ref: String::new(), target_ref: String::new(),
+            summary: "bad".into(),
+            issues: vec![ReviewIssue {
+                file: "a.rs".into(), line: 1,
+                severity: Severity::Critical, category: ReviewFocus::Security,
+                description: "vuln".into(), suggested_fix: None,
+            }],
+            suggestions: vec![],
+            score: ReviewScore { overall: 5.0, correctness: 10.0, security: 5.0, performance: 10.0, style: 10.0 },
+            files_reviewed: vec![],
+        };
+        assert_eq!(report.exit_code(), 1);
+    }
+
+    // ── to_markdown tests ────────────────────────────────────────────────────
+
+    #[test]
+    fn to_markdown_contains_expected_sections() {
+        let report = ReviewReport {
+            base_ref: "develop".into(), target_ref: "feature".into(),
+            summary: "Overall the change is good.".into(),
+            issues: vec![],
+            suggestions: vec![ReviewSuggestion { description: "Add docs".into(), file: Some("lib.rs".into()) }],
+            score: ReviewScore { overall: 10.0, correctness: 10.0, security: 10.0, performance: 10.0, style: 10.0 },
+            files_reviewed: vec!["lib.rs".into(), "main.rs".into()],
+        };
+        let md = report.to_markdown();
+        assert!(md.contains("# VibeCLI Code Review"));
+        assert!(md.contains("**Diff:** `develop..feature`"));
+        assert!(md.contains("lib.rs, main.rs") || md.contains("main.rs, lib.rs"));
+        assert!(md.contains("## Summary"));
+        assert!(md.contains("## Scores"));
+        assert!(md.contains("10.0/10"));
+        assert!(md.contains("## Suggestions"));
+        assert!(md.contains("Add docs (`lib.rs`)"));
+        assert!(md.contains("*Generated by VibeCLI*"));
+        // No Issues section when there are no issues
+        assert!(!md.contains("## Issues"));
+    }
+
+    // ── extract_files_from_diff tests ────────────────────────────────────────
+
+    #[test]
+    fn extract_files_from_diff_ignores_dev_null() {
+        let diff = "+++ b/new_file.rs\n+++ b//dev/null\n";
+        let files = extract_files_from_diff(diff);
+        assert!(files.contains(&"new_file.rs".to_string()));
+        // /dev/null is filtered out
+        assert!(!files.iter().any(|f| f.contains("dev/null")));
+    }
+
+    #[test]
+    fn extract_files_from_diff_deduplicates() {
+        let diff = "+++ b/src/foo.rs\n+++ b/src/foo.rs\n+++ b/src/bar.rs\n";
+        let files = extract_files_from_diff(diff);
+        let foo_count = files.iter().filter(|f| *f == "src/foo.rs").count();
+        assert_eq!(foo_count, 1);
+        assert_eq!(files.len(), 2);
+    }
+
+    #[test]
+    fn extract_files_from_diff_empty() {
+        let files = extract_files_from_diff("");
+        assert!(files.is_empty());
+    }
+
+    // ── Display trait tests ──────────────────────────────────────────────────
+
+    #[test]
+    fn review_focus_display_all_variants() {
+        assert_eq!(format!("{}", ReviewFocus::Security), "Security");
+        assert_eq!(format!("{}", ReviewFocus::Performance), "Performance");
+        assert_eq!(format!("{}", ReviewFocus::Correctness), "Correctness");
+        assert_eq!(format!("{}", ReviewFocus::Style), "Style");
+        assert_eq!(format!("{}", ReviewFocus::Testing), "Testing");
+    }
+
+    #[test]
+    fn severity_display_and_ordering() {
+        assert_eq!(format!("{}", Severity::Info), "Info");
+        assert_eq!(format!("{}", Severity::Warning), "Warning");
+        assert_eq!(format!("{}", Severity::Critical), "Critical");
+        // Ordering: Info < Warning < Critical
+        assert!(Severity::Info < Severity::Warning);
+        assert!(Severity::Warning < Severity::Critical);
+        assert!(Severity::Info < Severity::Critical);
+    }
+
+    // ── ReviewConfig default tests ───────────────────────────────────────────
+
+    #[test]
+    fn review_config_default_values() {
+        let cfg = ReviewConfig::default();
+        assert_eq!(cfg.base_ref, "");
+        assert_eq!(cfg.target_ref, "");
+        assert!(!cfg.post_to_github);
+        assert!(cfg.github_pr.is_none());
+        assert_eq!(cfg.focus.len(), 3);
+        assert!(cfg.focus.contains(&ReviewFocus::Correctness));
+        assert!(cfg.focus.contains(&ReviewFocus::Security));
+        assert!(cfg.focus.contains(&ReviewFocus::Performance));
+        // Style and Testing are NOT in default focus
+        assert!(!cfg.focus.contains(&ReviewFocus::Style));
+        assert!(!cfg.focus.contains(&ReviewFocus::Testing));
+    }
+
+    // ── Serde roundtrip tests ────────────────────────────────────────────────
+
+    #[test]
+    fn review_issue_serde_roundtrip() {
+        let issue = ReviewIssue {
+            file: "src/auth.rs".into(),
+            line: 42,
+            severity: Severity::Critical,
+            category: ReviewFocus::Security,
+            description: "SQL injection vulnerability".into(),
+            suggested_fix: Some("Use parameterized queries".into()),
+        };
+        let json = serde_json::to_string(&issue).unwrap();
+        let deserialized: ReviewIssue = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.file, "src/auth.rs");
+        assert_eq!(deserialized.line, 42);
+        assert_eq!(deserialized.severity, Severity::Critical);
+        assert_eq!(deserialized.category, ReviewFocus::Security);
+        assert_eq!(deserialized.description, "SQL injection vulnerability");
+        assert_eq!(deserialized.suggested_fix.as_deref(), Some("Use parameterized queries"));
+    }
+
+    #[test]
+    fn review_suggestion_serde_roundtrip() {
+        let suggestion = ReviewSuggestion {
+            description: "Consider adding integration tests".into(),
+            file: Some("tests/".into()),
+        };
+        let json = serde_json::to_string(&suggestion).unwrap();
+        let deserialized: ReviewSuggestion = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.description, "Consider adding integration tests");
+        assert_eq!(deserialized.file.as_deref(), Some("tests/"));
+
+        // Also test with None file
+        let suggestion_no_file = ReviewSuggestion {
+            description: "Use clippy".into(),
+            file: None,
+        };
+        let json2 = serde_json::to_string(&suggestion_no_file).unwrap();
+        let deserialized2: ReviewSuggestion = serde_json::from_str(&json2).unwrap();
+        assert!(deserialized2.file.is_none());
+    }
+
+    #[test]
+    fn review_score_serde_roundtrip() {
+        let score = ReviewScore {
+            overall: 8.5,
+            correctness: 9.0,
+            security: 7.5,
+            performance: 9.0,
+            style: 8.0,
+        };
+        let json = serde_json::to_string(&score).unwrap();
+        let deserialized: ReviewScore = serde_json::from_str(&json).unwrap();
+        assert!((deserialized.overall - 8.5).abs() < f32::EPSILON);
+        assert!((deserialized.correctness - 9.0).abs() < f32::EPSILON);
+        assert!((deserialized.security - 7.5).abs() < f32::EPSILON);
+        assert!((deserialized.performance - 9.0).abs() < f32::EPSILON);
+        assert!((deserialized.style - 8.0).abs() < f32::EPSILON);
+    }
 }

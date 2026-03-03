@@ -10,7 +10,7 @@ use vibe_ai::hooks::HookRunner;
 use vibe_ai::planner::PlannerAgent;
 use vibe_ai::trace::{list_traces, load_session, load_trace, TraceWriter};
 use vibe_core::index::embeddings::{EmbeddingIndex, EmbeddingProvider};
-use regex::Regex;
+
 use std::io::{self, Write};
 use std::sync::Arc;
 
@@ -3842,7 +3842,7 @@ async fn maybe_offer_commit(workspace: &std::path::Path, task: &str, llm: &dyn L
 
 /// Detect `[path/to/image.png]` patterns in `input`, load images, return (clean_text, images).
 fn extract_images_from_input(input: &str) -> (String, Vec<ImageAttachment>) {
-    let re = Regex::new(r"\[([^\]]+\.(png|jpg|jpeg|gif|webp))\]").unwrap();
+    let re = re_image_attachment();
     let mut images = Vec::new();
 
     // First pass: collect images.
@@ -4542,6 +4542,49 @@ async fn run_watch_mode(
     }
 }
 
+// ── Lazy-compiled regex patterns for @-ref expansion ─────────────────────────
+
+fn re_at_file() -> &'static regex::Regex {
+    static R: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    R.get_or_init(|| regex::Regex::new(r"@file:(\S+)").unwrap())
+}
+fn re_at_web() -> &'static regex::Regex {
+    static R: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    R.get_or_init(|| regex::Regex::new(r"@web:(\S+)").unwrap())
+}
+fn re_at_docs() -> &'static regex::Regex {
+    static R: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    R.get_or_init(|| regex::Regex::new(r"@docs:(\S+)").unwrap())
+}
+fn re_at_symbol() -> &'static regex::Regex {
+    static R: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    R.get_or_init(|| regex::Regex::new(r"@symbol:(\S+)").unwrap())
+}
+fn re_at_codebase() -> &'static regex::Regex {
+    static R: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    R.get_or_init(|| regex::Regex::new(r"@codebase:(\S+)").unwrap())
+}
+fn re_at_github() -> &'static regex::Regex {
+    static R: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    R.get_or_init(|| regex::Regex::new(r"@github:([a-zA-Z0-9_\-]+)/([a-zA-Z0-9_\-]+)#(\d+)").unwrap())
+}
+fn re_at_jira() -> &'static regex::Regex {
+    static R: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    R.get_or_init(|| regex::Regex::new(r"@jira:([A-Z][A-Z0-9_]+-\d+)").unwrap())
+}
+fn re_image_attachment() -> &'static regex::Regex {
+    static R: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    R.get_or_init(|| regex::Regex::new(r"\[([^\]]+\.(png|jpg|jpeg|gif|webp))\]").unwrap())
+}
+fn re_html_tags() -> &'static regex::Regex {
+    static R: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    R.get_or_init(|| regex::Regex::new(r"<[^>]+>").unwrap())
+}
+fn re_collapse_whitespace() -> &'static regex::Regex {
+    static R: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    R.get_or_init(|| regex::Regex::new(r"\s{2,}").unwrap())
+}
+
 // ── REPL @ context expansion ──────────────────────────────────────────────────
 //
 // Resolves `@file:path`, `@web:url`, `@docs:name`, and `@git` references in
@@ -4549,13 +4592,11 @@ async fn run_watch_mode(
 // Returns the expanded message string.
 
 pub async fn expand_at_refs(input: &str) -> String {
-    use regex::Regex;
     let mut extra = Vec::<String>::new();
     let mut result = input.to_string();
 
     // ── @file:path ────────────────────────────────────────────────────────────
-    let re_file = Regex::new(r"@file:(\S+)").unwrap();
-    for cap in re_file.captures_iter(input) {
+    for cap in re_at_file().captures_iter(input) {
         let raw_path = &cap[1];
         // Support line-range  @file:path:N-M
         let (file_path, line_range) = if let Some(idx) = raw_path.rfind(':') {
@@ -4620,8 +4661,7 @@ pub async fn expand_at_refs(input: &str) -> String {
     }
 
     // ── @web:url ──────────────────────────────────────────────────────────────
-    let re_web = Regex::new(r"@web:(\S+)").unwrap();
-    for cap in re_web.captures_iter(input) {
+    for cap in re_at_web().captures_iter(input) {
         let url = &cap[1];
         let text = fetch_and_strip_url(url, 6000).await;
         extra.push(format!("=== Web: {} ===\n{}", url, text));
@@ -4629,8 +4669,7 @@ pub async fn expand_at_refs(input: &str) -> String {
     }
 
     // ── @docs:name ────────────────────────────────────────────────────────────
-    let re_docs = Regex::new(r"@docs:(\S+)").unwrap();
-    for cap in re_docs.captures_iter(input) {
+    for cap in re_at_docs().captures_iter(input) {
         let name_raw = &cap[1];
         // Detect registry: rs: → docs.rs, py:/pypi: → PyPI, npm: → npmjs, default → docs.rs
         let (registry, clean_name) = if name_raw.starts_with("rs:") {
@@ -4654,8 +4693,7 @@ pub async fn expand_at_refs(input: &str) -> String {
     }
 
     // ── @symbol:name — search for a symbol across the codebase ───────────────
-    let re_sym = regex::Regex::new(r"@symbol:(\S+)").unwrap();
-    for cap in re_sym.captures_iter(input) {
+    for cap in re_at_symbol().captures_iter(input) {
         let sym_name = &cap[1];
         // Quick grep-based symbol search: find function/class/struct/const definitions
         let output = std::process::Command::new("grep")
@@ -4690,8 +4728,7 @@ pub async fn expand_at_refs(input: &str) -> String {
     }
 
     // ── @codebase:query — keyword search across the workspace ────────────────
-    let re_cb = regex::Regex::new(r"@codebase:(\S+)").unwrap();
-    for cap in re_cb.captures_iter(input) {
+    for cap in re_at_codebase().captures_iter(input) {
         let query = &cap[1];
         let output = std::process::Command::new("grep")
             .args([
@@ -4722,9 +4759,8 @@ pub async fn expand_at_refs(input: &str) -> String {
     }
 
     // ── @github:owner/repo#N — inject GitHub issue / PR content ──────────────
-    let re_github = regex::Regex::new(r"@github:([a-zA-Z0-9_\-]+)/([a-zA-Z0-9_\-]+)#(\d+)").unwrap();
     // Collect matches first to avoid mutable/immutable borrow conflict.
-    let github_caps: Vec<(String, String, String, String)> = re_github
+    let github_caps: Vec<(String, String, String, String)> = re_at_github()
         .captures_iter(&result.clone())
         .map(|cap| (
             cap[0].to_string(),
@@ -4744,8 +4780,7 @@ pub async fn expand_at_refs(input: &str) -> String {
     }
 
     // ── @jira:PROJECT-123 — inject Jira issue content ────────────────────────
-    let re_jira = regex::Regex::new(r"@jira:([A-Z][A-Z0-9_]+-\d+)").unwrap();
-    let jira_caps: Vec<(String, String)> = re_jira
+    let jira_caps: Vec<(String, String)> = re_at_jira()
         .captures_iter(&result.clone())
         .map(|cap| (cap[0].to_string(), cap[1].to_string()))
         .collect();
@@ -4873,14 +4908,12 @@ async fn fetch_and_strip_url(url: &str, max_chars: usize) -> String {
             match resp.text().await {
                 Ok(body) => {
                     // Simple HTML strip: remove tags, decode entities
-                    let re_tags = regex::Regex::new(r"<[^>]+>").unwrap();
-                    let no_tags = re_tags.replace_all(&body, " ");
+                    let no_tags = re_html_tags().replace_all(&body, " ");
                     let decoded = no_tags
                         .replace("&amp;", "&").replace("&lt;", "<")
                         .replace("&gt;", ">").replace("&quot;", "\"")
                         .replace("&nbsp;", " ").replace("&#39;", "'");
-                    let re_ws = regex::Regex::new(r"\s{2,}").unwrap();
-                    let collapsed = re_ws.replace_all(decoded.trim(), " ");
+                    let collapsed = re_collapse_whitespace().replace_all(decoded.trim(), " ");
                     collapsed.chars().take(max_chars).collect()
                 }
                 Err(e) => format!("(Read body error: {})", e),

@@ -58,17 +58,17 @@ impl LspClient {
                 let body = match serde_json::to_string(&msg) {
                     Ok(b) => b,
                     Err(e) => {
-                        eprintln!("Failed to serialize LSP message: {}", e);
+                        tracing::error!("Failed to serialize LSP message: {}", e);
                         continue;
                     }
                 };
                 let header = format!("Content-Length: {}\r\n\r\n", body.len());
                 if let Err(e) = stdin.write_all(header.as_bytes()).await {
-                    eprintln!("Failed to write header: {}", e);
+                    tracing::error!("Failed to write header: {}", e);
                     break;
                 }
                 if let Err(e) = stdin.write_all(body.as_bytes()).await {
-                    eprintln!("Failed to write body: {}", e);
+                    tracing::error!("Failed to write body: {}", e);
                     break;
                 }
             }

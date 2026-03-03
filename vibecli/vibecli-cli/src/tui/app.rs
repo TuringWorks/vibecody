@@ -9,7 +9,6 @@ pub enum TuiMessage {
     /// Live streaming response — shown with animated cursor.
     AssistantStreaming(String),
     System(String),
-    #[allow(dead_code)]
     CommandOutput {
         command: String,
         output: String,
@@ -87,9 +86,6 @@ impl App {
             diagnostics_panel: DiagnosticsComponent::new(),
         }
     }
-
-    #[allow(dead_code)]
-    pub fn on_tick(&mut self) {}
 
     pub fn on_key(&mut self, c: char) {
         self.input.push(c);

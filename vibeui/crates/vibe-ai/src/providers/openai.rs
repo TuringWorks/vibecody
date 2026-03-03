@@ -331,3 +331,80 @@ impl AIProvider for OpenAIProvider {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::provider::MessageRole;
+
+    fn test_config() -> ProviderConfig {
+        ProviderConfig {
+            provider_type: "openai".into(),
+            api_key: Some("sk-test".into()),
+            api_url: Some("https://api.openai.com".into()),
+            model: "gpt-4o".into(),
+            temperature: None,
+            max_tokens: None,
+            api_key_helper: None,
+            thinking_budget_tokens: None,
+        }
+    }
+
+    #[test]
+    fn name_is_openai() {
+        let p = OpenAIProvider::new(test_config());
+        assert_eq!(p.name(), "OpenAI");
+    }
+
+    #[tokio::test]
+    async fn is_available_with_key() {
+        let p = OpenAIProvider::new(test_config());
+        assert!(p.is_available().await);
+    }
+
+    #[tokio::test]
+    async fn not_available_without_key() {
+        let mut cfg = test_config();
+        cfg.api_key = None;
+        let p = OpenAIProvider::new(cfg);
+        assert!(!p.is_available().await);
+    }
+
+    #[test]
+    fn supports_vision() {
+        let p = OpenAIProvider::new(test_config());
+        assert!(p.supports_vision());
+    }
+
+    #[test]
+    fn build_messages_basic() {
+        let p = OpenAIProvider::new(test_config());
+        let msgs = vec![
+            Message { role: MessageRole::User, content: "hello".into() },
+        ];
+        let result = p.build_messages(&msgs, None);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].role, "user");
+    }
+
+    #[test]
+    fn build_messages_with_context() {
+        let p = OpenAIProvider::new(test_config());
+        let msgs = vec![
+            Message { role: MessageRole::User, content: "hello".into() },
+        ];
+        let result = p.build_messages(&msgs, Some("ctx".into()));
+        assert_eq!(result.len(), 1);
+        let content = result[0].content.as_str().unwrap();
+        assert!(content.contains("ctx"));
+        assert!(content.contains("hello"));
+    }
+
+    #[test]
+    fn openai_response_deser() {
+        let json = r#"{"choices":[{"message":{"role":"assistant","content":"hi"}}],"usage":{"prompt_tokens":3,"completion_tokens":1}}"#;
+        let resp: OpenAIResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.choices.len(), 1);
+        assert_eq!(resp.usage.unwrap().completion_tokens, 1);
+    }
+}

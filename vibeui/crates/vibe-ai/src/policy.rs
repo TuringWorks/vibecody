@@ -97,7 +97,7 @@ impl AdminPolicy {
             if denied.to_lowercase() == tool_lower || denied == "*" {
                 let reason = format!("Tool '{}' is blocked by admin policy", tool_name);
                 if self.audit_log {
-                    eprintln!("[policy] BLOCKED: {}", reason);
+                    tracing::warn!("[policy] BLOCKED: {}", reason);
                 }
                 return PolicyDecision::Block(reason);
             }
@@ -107,14 +107,14 @@ impl AdminPolicy {
         for required in &self.require_approval_tools {
             if required.to_lowercase() == tool_lower || required == "*" {
                 if self.audit_log {
-                    eprintln!("[policy] REQUIRE_APPROVAL: {}", tool_name);
+                    tracing::debug!("[policy] REQUIRE_APPROVAL: {}", tool_name);
                 }
                 return PolicyDecision::RequireApproval;
             }
         }
 
         if self.audit_log {
-            eprintln!("[policy] ALLOW: {}", tool_name);
+            tracing::debug!("[policy] ALLOW: {}", tool_name);
         }
         PolicyDecision::Allow
     }
@@ -130,7 +130,7 @@ impl AdminPolicy {
                     path, pattern
                 );
                 if self.audit_log {
-                    eprintln!("[policy] PATH_BLOCKED: {}", reason);
+                    tracing::warn!("[policy] PATH_BLOCKED: {}", reason);
                 }
                 return PolicyDecision::Block(reason);
             }
@@ -145,7 +145,7 @@ impl AdminPolicy {
                     path
                 );
                 if self.audit_log {
-                    eprintln!("[policy] PATH_NOT_ALLOWED: {}", reason);
+                    tracing::warn!("[policy] PATH_NOT_ALLOWED: {}", reason);
                 }
                 return PolicyDecision::Block(reason);
             }
@@ -173,7 +173,7 @@ impl AdminPolicy {
                         tool_name, primary_arg, pattern
                     );
                     if self.audit_log {
-                        eprintln!("[policy] BLOCKED (pattern): {}", reason);
+                        tracing::warn!("[policy] BLOCKED (pattern): {}", reason);
                     }
                     return PolicyDecision::Block(reason);
                 }
@@ -182,7 +182,7 @@ impl AdminPolicy {
                 if glob_match(pattern, tool_name) {
                     let reason = format!("Tool '{}' blocked by denied_tool_patterns", tool_name);
                     if self.audit_log {
-                        eprintln!("[policy] BLOCKED (pattern): {}", reason);
+                        tracing::warn!("[policy] BLOCKED (pattern): {}", reason);
                     }
                     return PolicyDecision::Block(reason);
                 }

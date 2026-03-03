@@ -999,3 +999,299 @@ async fn view_session(Path(id): Path<String>) -> impl IntoResponse {
         },
     }
 }
+
+// ── Tests ──────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── now_ms ─────────────────────────────────────────────────────────────
+
+    #[test]
+    fn now_ms_returns_reasonable_timestamp() {
+        let ts = now_ms();
+        // Should be after 2024-01-01 and before 2100-01-01 (in millis)
+        let jan_2024 = 1_704_067_200_000u64;
+        let jan_2100 = 4_102_444_800_000u64;
+        assert!(ts > jan_2024, "timestamp {ts} should be after 2024");
+        assert!(ts < jan_2100, "timestamp {ts} should be before 2100");
+    }
+
+    #[test]
+    fn now_ms_is_monotonic() {
+        let t1 = now_ms();
+        let t2 = now_ms();
+        assert!(t2 >= t1, "second call should be >= first");
+    }
+
+    // ── persist_job / load_job / load_all_jobs ─────────────────────────────
+
+    fn make_job(id: &str, started_at: u64) -> JobRecord {
+        JobRecord {
+            session_id: id.to_string(),
+            task: format!("task for {id}"),
+            status: "running".to_string(),
+            provider: "ollama".to_string(),
+            started_at,
+            finished_at: None,
+            summary: None,
+        }
+    }
+
+    #[test]
+    fn persist_and_load_job_roundtrip() {
+        let dir = tempfile::tempdir().unwrap();
+        let job = make_job("abc123", 1_700_000_000_000);
+        persist_job(dir.path(), &job);
+
+        let loaded = load_job(dir.path(), "abc123");
+        assert!(loaded.is_some());
+        let loaded = loaded.unwrap();
+        assert_eq!(loaded.session_id, "abc123");
+        assert_eq!(loaded.task, "task for abc123");
+        assert_eq!(loaded.status, "running");
+        assert_eq!(loaded.provider, "ollama");
+        assert_eq!(loaded.started_at, 1_700_000_000_000);
+        assert!(loaded.finished_at.is_none());
+        assert!(loaded.summary.is_none());
+    }
+
+    #[test]
+    fn persist_and_load_job_with_optional_fields() {
+        let dir = tempfile::tempdir().unwrap();
+        let job = JobRecord {
+            session_id: "done1".to_string(),
+            task: "fix bug".to_string(),
+            status: "complete".to_string(),
+            provider: "claude".to_string(),
+            started_at: 1_700_000_000_000,
+            finished_at: Some(1_700_000_060_000),
+            summary: Some("Fixed the null pointer".to_string()),
+        };
+        persist_job(dir.path(), &job);
+
+        let loaded = load_job(dir.path(), "done1").unwrap();
+        assert_eq!(loaded.finished_at, Some(1_700_000_060_000));
+        assert_eq!(loaded.summary.as_deref(), Some("Fixed the null pointer"));
+    }
+
+    #[test]
+    fn load_job_nonexistent_returns_none() {
+        let dir = tempfile::tempdir().unwrap();
+        assert!(load_job(dir.path(), "nonexistent").is_none());
+    }
+
+    #[test]
+    fn load_all_jobs_empty_dir() {
+        let dir = tempfile::tempdir().unwrap();
+        let jobs = load_all_jobs(dir.path());
+        assert!(jobs.is_empty());
+    }
+
+    #[test]
+    fn load_all_jobs_nonexistent_dir() {
+        let jobs = load_all_jobs(std::path::Path::new("/tmp/vibecli_test_nonexistent_99999"));
+        assert!(jobs.is_empty());
+    }
+
+    #[test]
+    fn load_all_jobs_returns_sorted_by_started_at_desc() {
+        let dir = tempfile::tempdir().unwrap();
+        persist_job(dir.path(), &make_job("old", 1_000));
+        persist_job(dir.path(), &make_job("mid", 2_000));
+        persist_job(dir.path(), &make_job("new", 3_000));
+
+        let jobs = load_all_jobs(dir.path());
+        assert_eq!(jobs.len(), 3);
+        assert_eq!(jobs[0].session_id, "new");
+        assert_eq!(jobs[1].session_id, "mid");
+        assert_eq!(jobs[2].session_id, "old");
+    }
+
+    #[test]
+    fn load_all_jobs_ignores_non_json_files() {
+        let dir = tempfile::tempdir().unwrap();
+        persist_job(dir.path(), &make_job("real", 1_000));
+        // Write a non-json file
+        std::fs::write(dir.path().join("notes.txt"), "not a job").unwrap();
+        let jobs = load_all_jobs(dir.path());
+        assert_eq!(jobs.len(), 1);
+        assert_eq!(jobs[0].session_id, "real");
+    }
+
+    #[test]
+    fn persist_overwrites_existing_job() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut job = make_job("sess1", 1_000);
+        persist_job(dir.path(), &job);
+
+        job.status = "complete".to_string();
+        job.finished_at = Some(2_000);
+        job.summary = Some("done".to_string());
+        persist_job(dir.path(), &job);
+
+        let loaded = load_job(dir.path(), "sess1").unwrap();
+        assert_eq!(loaded.status, "complete");
+        assert_eq!(loaded.finished_at, Some(2_000));
+    }
+
+    // ── JobRecord serde roundtrip ──────────────────────────────────────────
+
+    #[test]
+    fn job_record_serde_roundtrip() {
+        let job = JobRecord {
+            session_id: "s1".to_string(),
+            task: "deploy".to_string(),
+            status: "failed".to_string(),
+            provider: "openai".to_string(),
+            started_at: 999,
+            finished_at: Some(1001),
+            summary: Some("timeout".to_string()),
+        };
+        let json = serde_json::to_string(&job).unwrap();
+        let deserialized: JobRecord = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.session_id, job.session_id);
+        assert_eq!(deserialized.task, job.task);
+        assert_eq!(deserialized.status, job.status);
+        assert_eq!(deserialized.provider, job.provider);
+        assert_eq!(deserialized.started_at, job.started_at);
+        assert_eq!(deserialized.finished_at, job.finished_at);
+        assert_eq!(deserialized.summary, job.summary);
+    }
+
+    #[test]
+    fn job_record_deserialize_with_missing_optionals() {
+        let json = r#"{"session_id":"x","task":"t","status":"running","provider":"p","started_at":0}"#;
+        let job: JobRecord = serde_json::from_str(json).unwrap();
+        assert!(job.finished_at.is_none());
+        assert!(job.summary.is_none());
+    }
+
+    // ── AgentEventPayload constructors ─────────────────────────────────────
+
+    #[test]
+    fn agent_event_payload_chunk() {
+        let p = AgentEventPayload::chunk("hello".to_string());
+        assert_eq!(p.kind, "chunk");
+        assert_eq!(p.content.as_deref(), Some("hello"));
+        assert!(p.step_num.is_none());
+        assert!(p.tool_name.is_none());
+        assert!(p.success.is_none());
+    }
+
+    #[test]
+    fn agent_event_payload_step() {
+        let p = AgentEventPayload::step(3, "read_file", true);
+        assert_eq!(p.kind, "step");
+        assert!(p.content.is_none());
+        assert_eq!(p.step_num, Some(3));
+        assert_eq!(p.tool_name.as_deref(), Some("read_file"));
+        assert_eq!(p.success, Some(true));
+    }
+
+    #[test]
+    fn agent_event_payload_step_failure() {
+        let p = AgentEventPayload::step(7, "write_file", false);
+        assert_eq!(p.success, Some(false));
+        assert_eq!(p.step_num, Some(7));
+    }
+
+    #[test]
+    fn agent_event_payload_complete() {
+        let p = AgentEventPayload::complete("All done".to_string());
+        assert_eq!(p.kind, "complete");
+        assert_eq!(p.content.as_deref(), Some("All done"));
+        assert!(p.step_num.is_none());
+        assert!(p.tool_name.is_none());
+        assert!(p.success.is_none());
+    }
+
+    #[test]
+    fn agent_event_payload_error() {
+        let p = AgentEventPayload::error("something broke".to_string());
+        assert_eq!(p.kind, "error");
+        assert_eq!(p.content.as_deref(), Some("something broke"));
+        assert!(p.step_num.is_none());
+    }
+
+    // ── ChatMessage serde roundtrip ────────────────────────────────────────
+
+    #[test]
+    fn chat_message_serde_roundtrip() {
+        let msg = ChatMessage {
+            role: "user".to_string(),
+            content: "Hello, world!".to_string(),
+        };
+        let json = serde_json::to_string(&msg).unwrap();
+        let parsed: ChatMessage = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.role, "user");
+        assert_eq!(parsed.content, "Hello, world!");
+    }
+
+    // ── ChatRequest deserialization ────────────────────────────────────────
+
+    #[test]
+    fn chat_request_with_model() {
+        let json = r#"{"messages":[{"role":"user","content":"hi"}],"model":"gpt-4"}"#;
+        let req: ChatRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.messages.len(), 1);
+        assert_eq!(req.model.as_deref(), Some("gpt-4"));
+    }
+
+    #[test]
+    fn chat_request_without_model() {
+        let json = r#"{"messages":[{"role":"user","content":"hi"}]}"#;
+        let req: ChatRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.messages.len(), 1);
+        assert!(req.model.is_none());
+    }
+
+    // ── AgentRequest deserialization ───────────────────────────────────────
+
+    #[test]
+    fn agent_request_with_approval() {
+        let json = r#"{"task":"fix bug","approval":"full-auto"}"#;
+        let req: AgentRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.task, "fix bug");
+        assert_eq!(req.approval.as_deref(), Some("full-auto"));
+    }
+
+    #[test]
+    fn agent_request_without_approval() {
+        let json = r#"{"task":"refactor"}"#;
+        let req: AgentRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.task, "refactor");
+        assert!(req.approval.is_none());
+    }
+
+    // ── RateLimiter ────────────────────────────────────────────────────────
+
+    #[test]
+    fn rate_limiter_allows_within_limit() {
+        let rl = RateLimiter::new(5, Duration::from_secs(60));
+        for _ in 0..5 {
+            assert!(rl.check(), "should allow requests within limit");
+        }
+    }
+
+    #[test]
+    fn rate_limiter_blocks_when_exceeded() {
+        let rl = RateLimiter::new(3, Duration::from_secs(60));
+        assert!(rl.check());
+        assert!(rl.check());
+        assert!(rl.check());
+        // 4th should be blocked
+        assert!(!rl.check(), "should block after limit exceeded");
+        assert!(!rl.check(), "should keep blocking");
+    }
+
+    #[test]
+    fn rate_limiter_new_fields() {
+        let rl = RateLimiter::new(10, Duration::from_secs(30));
+        assert_eq!(rl.limit, 10);
+        assert_eq!(rl.window_ms, 30_000);
+        let ts = rl.timestamps.lock().unwrap();
+        assert!(ts.is_empty());
+    }
+}

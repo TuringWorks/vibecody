@@ -816,3 +816,264 @@ impl Config {
     }
 
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn config_default_has_expected_sub_defaults() {
+        let cfg = Config::default();
+        assert!(cfg.index.enabled);
+        assert!(!cfg.otel.enabled);
+        assert!(cfg.ollama.is_none());
+        assert!(cfg.claude.is_none());
+        assert!(cfg.mcp_servers.is_empty());
+        assert!(cfg.hooks.is_empty());
+        assert_eq!(cfg.safety.approval_policy, "suggest");
+        assert!(!cfg.memory.auto_record);
+        assert!(!cfg.routing.is_configured());
+        assert!(cfg.gateway.platform.is_none());
+        assert!(cfg.linear_api_key.is_none());
+        assert_eq!(cfg.redteam.max_depth, 3);
+    }
+
+    #[test]
+    fn approval_policy_full_auto() {
+        assert_eq!(SafetyConfig::approval_policy_from_flags(false, false, true), "full-auto");
+    }
+
+    #[test]
+    fn approval_policy_auto_edit() {
+        assert_eq!(SafetyConfig::approval_policy_from_flags(false, true, false), "auto-edit");
+    }
+
+    #[test]
+    fn approval_policy_suggest_explicit() {
+        assert_eq!(SafetyConfig::approval_policy_from_flags(true, false, false), "suggest");
+    }
+
+    #[test]
+    fn approval_policy_none_defaults_to_suggest() {
+        assert_eq!(SafetyConfig::approval_policy_from_flags(false, false, false), "suggest");
+    }
+
+    #[test]
+    fn routing_resolve_planning_custom() {
+        let r = RoutingConfig {
+            planning_provider: Some("claude".into()),
+            planning_model: Some("opus".into()),
+            ..Default::default()
+        };
+        assert_eq!(r.resolve_planning("ollama", "llama3"), ("claude".into(), "opus".into()));
+    }
+
+    #[test]
+    fn routing_resolve_planning_fallback() {
+        let r = RoutingConfig::default();
+        assert_eq!(r.resolve_planning("ollama", "llama3"), ("ollama".into(), "llama3".into()));
+    }
+
+    #[test]
+    fn routing_resolve_execution_custom() {
+        let r = RoutingConfig {
+            execution_provider: Some("openai".into()),
+            execution_model: Some("gpt-4o".into()),
+            ..Default::default()
+        };
+        assert_eq!(r.resolve_execution("ollama", "llama3"), ("openai".into(), "gpt-4o".into()));
+    }
+
+    #[test]
+    fn routing_is_configured_none() {
+        assert!(!RoutingConfig::default().is_configured());
+    }
+
+    #[test]
+    fn routing_is_configured_partial() {
+        let r = RoutingConfig { planning_provider: Some("claude".into()), ..Default::default() };
+        assert!(r.is_configured());
+    }
+
+    #[test]
+    fn routing_is_configured_all() {
+        let r = RoutingConfig {
+            planning_provider: Some("claude".into()),
+            planning_model: Some("opus".into()),
+            execution_provider: Some("openai".into()),
+            execution_model: Some("gpt-4o".into()),
+        };
+        assert!(r.is_configured());
+    }
+
+    #[test]
+    fn gateway_resolve_telegram_token_from_config() {
+        let g = GatewayConfig { telegram_token: Some("tok123".into()), ..Default::default() };
+        assert_eq!(g.resolve_telegram_token(), Some("tok123".into()));
+    }
+
+    #[test]
+    fn gateway_default_max_len_is_4000() {
+        assert_eq!(GatewayConfig::default_max_len(), 4000);
+        // The serde default function returns 4000; verify via TOML deserialization.
+        let g: GatewayConfig = toml::from_str("").expect("empty toml");
+        assert_eq!(g.max_response_length, 4000);
+    }
+
+    #[test]
+    fn copilot_resolve_token_from_config_field() {
+        let c = CopilotConfig { token: Some("ghp_abc".into()), ..Default::default() };
+        // When env var and hosts.json are absent, config field is used.
+        // We cannot guarantee env is clean, so just check it returns Some.
+        assert!(c.resolve_token().is_some());
+    }
+
+    #[test]
+    fn copilot_default() {
+        let c = CopilotConfig::default();
+        assert!(c.enabled);
+        assert_eq!(c.model, "gpt-4o");
+        assert!(c.token.is_none());
+    }
+
+    #[test]
+    fn bedrock_default() {
+        let b = BedrockConfig::default();
+        assert!(b.enabled);
+        assert_eq!(b.region, "us-east-1");
+        assert_eq!(b.model, "anthropic.claude-3-5-sonnet-20241022-v2:0");
+        assert!(b.role_arn.is_none());
+    }
+
+    #[test]
+    fn index_config_default() {
+        let i = IndexConfig::default();
+        assert!(i.enabled);
+        assert_eq!(i.embedding_provider, "ollama");
+        assert_eq!(i.embedding_model, "nomic-embed-text");
+        assert!(!i.rebuild_on_startup);
+        assert_eq!(i.max_file_size_kb, 500);
+    }
+
+    #[test]
+    fn otel_config_default() {
+        let o = OtelConfig::default();
+        assert!(!o.enabled);
+        assert_eq!(o.endpoint, "http://localhost:4318");
+        assert_eq!(o.service_name, "vibecli");
+    }
+
+    #[test]
+    fn web_search_config_default_and_resolve_keys() {
+        let w = WebSearchConfig::default();
+        assert!(w.enabled);
+        assert_eq!(w.engine, "duckduckgo");
+        assert_eq!(w.max_results, 5);
+        assert!(w.tavily_api_key.is_none());
+        assert!(w.brave_api_key.is_none());
+
+        let w2 = WebSearchConfig { tavily_api_key: Some("tvly-key".into()), ..Default::default() };
+        assert_eq!(w2.resolve_tavily_key(), Some("tvly-key".into()));
+
+        let w3 = WebSearchConfig { brave_api_key: Some("BSA-key".into()), ..Default::default() };
+        assert_eq!(w3.resolve_brave_key(), Some("BSA-key".into()));
+    }
+
+    #[test]
+    fn config_toml_serde_roundtrip() {
+        let mut cfg = Config::default();
+        cfg.ollama = Some(ProviderConfig {
+            enabled: true,
+            api_url: Some("http://localhost:11434".into()),
+            model: Some("llama3".into()),
+            api_key: None,
+            api_key_helper: None,
+            thinking_budget_tokens: None,
+        });
+        cfg.routing = RoutingConfig {
+            planning_provider: Some("claude".into()),
+            planning_model: Some("opus".into()),
+            execution_provider: None,
+            execution_model: None,
+        };
+        let toml_str = toml::to_string_pretty(&cfg).expect("serialize");
+        let cfg2: Config = toml::from_str(&toml_str).expect("deserialize");
+        assert!(cfg2.ollama.is_some());
+        let ollama = cfg2.ollama.unwrap();
+        assert!(ollama.enabled);
+        assert_eq!(ollama.model.as_deref(), Some("llama3"));
+        assert_eq!(cfg2.routing.planning_provider.as_deref(), Some("claude"));
+        assert!(cfg2.routing.execution_provider.is_none());
+    }
+
+    #[test]
+    fn provider_config_serde_roundtrip() {
+        let pc = ProviderConfig {
+            enabled: true,
+            api_url: Some("http://example.com".into()),
+            model: Some("test-model".into()),
+            api_key: Some("sk-test".into()),
+            api_key_helper: Some("./get-key.sh".into()),
+            thinking_budget_tokens: Some(8000),
+        };
+        let toml_str = toml::to_string_pretty(&pc).expect("serialize");
+        let pc2: ProviderConfig = toml::from_str(&toml_str).expect("deserialize");
+        assert!(pc2.enabled);
+        assert_eq!(pc2.api_url.as_deref(), Some("http://example.com"));
+        assert_eq!(pc2.model.as_deref(), Some("test-model"));
+        assert_eq!(pc2.api_key.as_deref(), Some("sk-test"));
+        assert_eq!(pc2.api_key_helper.as_deref(), Some("./get-key.sh"));
+        assert_eq!(pc2.thinking_budget_tokens, Some(8000));
+    }
+
+    #[test]
+    fn redteam_cfg_default() {
+        let r = RedTeamCfg::default();
+        assert_eq!(r.max_depth, 3);
+        assert_eq!(r.timeout_secs, 300);
+        assert_eq!(r.parallel_agents, 3);
+        assert_eq!(r.scope_patterns, vec!["*".to_string()]);
+        assert!(r.exclude_patterns.is_empty());
+        assert!(r.auth_config.is_none());
+        assert!(r.auto_report);
+    }
+
+    #[test]
+    fn shell_environment_config_default() {
+        let s = ShellEnvironmentConfig::default();
+        assert_eq!(s.inherit, "all");
+        assert!(s.include.is_empty());
+        assert!(s.exclude.is_empty());
+        assert!(s.set.is_empty());
+    }
+
+    #[test]
+    fn memory_config_default() {
+        let m = MemoryConfig::default();
+        assert!(!m.auto_record);
+        assert_eq!(m.min_session_steps, 3);
+    }
+
+    #[test]
+    fn get_provider_config_various_names() {
+        let mut cfg = Config::default();
+        cfg.claude = Some(ProviderConfig {
+            enabled: true, api_url: None, model: None,
+            api_key: None, api_key_helper: None, thinking_budget_tokens: None,
+        });
+        assert!(cfg.get_provider_config("claude").is_some());
+        assert!(cfg.get_provider_config("anthropic").is_some());
+        assert!(cfg.get_provider_config("Claude").is_some());
+        assert!(cfg.get_provider_config("CLAUDE").is_some());
+        assert!(cfg.get_provider_config("ollama").is_none());
+        assert!(cfg.get_provider_config("unknown").is_none());
+        assert!(cfg.get_provider_config("azure").is_none());
+        assert!(cfg.get_provider_config("azure_openai").is_none());
+    }
+
+    #[test]
+    fn ui_config_default_theme_is_dark() {
+        let u = UiConfig::default();
+        assert_eq!(u.theme.as_deref(), Some("dark"));
+    }
+}
