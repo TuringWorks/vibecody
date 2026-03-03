@@ -540,14 +540,16 @@ export function MemoryPanel({ workspacePath }: MemoryPanelProps) {
     const [saved, setSaved] = useState(false);
 
     useEffect(() => {
+        let cancelled = false;
         if (workspacePath) {
             invoke<string>("get_vibeui_rules")
-                .then(setWorkspaceRules)
-                .catch(() => setWorkspaceRules(""));
+                .then((r) => { if (!cancelled) setWorkspaceRules(r); })
+                .catch(() => { if (!cancelled) setWorkspaceRules(""); });
         }
         invoke<string>("get_global_rules")
-            .then(setGlobalRules)
-            .catch(() => setGlobalRules(""));
+            .then((r) => { if (!cancelled) setGlobalRules(r); })
+            .catch(() => { if (!cancelled) setGlobalRules(""); });
+        return () => { cancelled = true; };
     }, [workspacePath]);
 
     const save = async () => {

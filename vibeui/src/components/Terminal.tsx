@@ -38,57 +38,58 @@ export function Terminal({ onClose }: TerminalProps) {
         xtermRef.current = term;
         fitAddonRef.current = fitAddon;
 
+        let disposed = false;
+        let unlisten: (() => void) | null = null;
+
+        const handleResize = () => {
+            if (disposed) return;
+            fitAddon.fit();
+            if (terminalIdRef.current !== null) {
+                invoke('resize_terminal', {
+                    id: terminalIdRef.current,
+                    rows: term.rows,
+                    cols: term.cols,
+                });
+            }
+        };
+
         // Spawn terminal backend
         const initTerminal = async () => {
             try {
                 const id = await invoke<number>('spawn_terminal');
+                if (disposed) return;
                 terminalIdRef.current = id;
 
-                // Listen for output
-                const unlisten = await listen<[number, string]>('terminal-output', (event) => {
+                const u = await listen<[number, string]>('terminal-output', (event) => {
                     const [eventId, data] = event.payload;
                     if (eventId === id) {
                         term.write(data);
                     }
                 });
+                if (disposed) { u(); return; }
+                unlisten = u;
 
-                // Handle input
                 term.onData((data) => {
                     invoke('write_terminal', { id, data });
                 });
 
-                // Handle resize
-                const handleResize = () => {
-                    fitAddon.fit();
-                    if (terminalIdRef.current !== null) {
-                        invoke('resize_terminal', {
-                            id: terminalIdRef.current,
-                            rows: term.rows,
-                            cols: term.cols,
-                        });
-                    }
-                };
-
                 window.addEventListener('resize', handleResize);
-
-                // Initial resize
                 handleResize();
-
-                return () => {
-                    unlisten();
-                    window.removeEventListener('resize', handleResize);
-                    term.dispose();
-                };
             } catch (error) {
                 console.error('Failed to spawn terminal:', error);
-                term.write('\r\nFailed to spawn terminal backend.\r\n');
+                if (!disposed) {
+                    term.write('\r\nFailed to spawn terminal backend.\r\n');
+                }
             }
         };
 
-        const cleanupPromise = initTerminal();
+        initTerminal();
 
         return () => {
-            cleanupPromise.then(cleanup => cleanup && cleanup());
+            disposed = true;
+            if (unlisten) unlisten();
+            window.removeEventListener('resize', handleResize);
+            term.dispose();
         };
     }, []);
 

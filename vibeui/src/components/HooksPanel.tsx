@@ -210,9 +210,11 @@ export function HooksPanel({ workspacePath }: HooksPanelProps) {
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     invoke<HookConfig[]>("get_hooks_config", { workspacePath: workspacePath || null })
-      .then((h) => setHooks(h))
-      .catch(() => setHooks([]));
+      .then((h) => { if (!cancelled) setHooks(h); })
+      .catch(() => { if (!cancelled) setHooks([]); });
+    return () => { cancelled = true; };
   }, [workspacePath]);
 
   function addHook() {

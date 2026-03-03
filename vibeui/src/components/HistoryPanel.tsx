@@ -25,10 +25,6 @@ export function HistoryPanel() {
     const [entries, setEntries] = useState<TraceEntry[]>([]);
     const [loading, setLoading] = useState(false);
 
-    useEffect(() => {
-        loadSessions();
-    }, []);
-
     const loadSessions = async () => {
         try {
             const result = await invoke<TraceSession[]>("list_trace_sessions");
@@ -38,6 +34,14 @@ export function HistoryPanel() {
             setSessions([]);
         }
     };
+
+    useEffect(() => {
+        let cancelled = false;
+        invoke<TraceSession[]>("list_trace_sessions")
+            .then((result) => { if (!cancelled) setSessions(result); })
+            .catch(() => { if (!cancelled) setSessions([]); });
+        return () => { cancelled = true; };
+    }, []);
 
     const loadTrace = async (sessionId: string) => {
         setSelected(sessionId);

@@ -46,11 +46,13 @@ export function McpPanel() {
 
     // Load token status for all servers whenever the list changes
     useEffect(() => {
+        let cancelled = false;
         servers.forEach((srv) => {
             invoke<{ connected: boolean; expired: boolean }>("get_mcp_token_status", { serverName: srv.name })
-                .then((s) => setTokenStatus((prev) => ({ ...prev, [srv.name]: s.connected && !s.expired })))
-                .catch(() => setTokenStatus((prev) => ({ ...prev, [srv.name]: false })));
+                .then((s) => { if (!cancelled) setTokenStatus((prev) => ({ ...prev, [srv.name]: s.connected && !s.expired })); })
+                .catch(() => { if (!cancelled) setTokenStatus((prev) => ({ ...prev, [srv.name]: false })); });
         });
+        return () => { cancelled = true; };
     }, [servers]);
 
     function startOAuth(serverName: string) {

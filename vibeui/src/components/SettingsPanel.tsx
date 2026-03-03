@@ -24,9 +24,11 @@ export function SettingsPanel() {
     const [showKey, setShowKey] = useState<Record<string, boolean>>({});
 
     useEffect(() => {
+        let cancelled = false;
         invoke<ApiKeySettings>("get_provider_api_keys")
-            .then((s) => setSettings(s))
+            .then((s) => { if (!cancelled) setSettings(s); })
             .catch(() => {});
+        return () => { cancelled = true; };
     }, []);
 
     const handleSave = async () => {
