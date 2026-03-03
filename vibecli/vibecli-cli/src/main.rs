@@ -3393,6 +3393,137 @@ async fn main() -> Result<()> {
                             }
                         }
 
+                        "/migration" => {
+                            let sub_parts: Vec<&str> = args.splitn(2, ' ').collect();
+                            let subcmd = sub_parts.first().copied().unwrap_or("").trim();
+                            let sub_args = if sub_parts.len() > 1 { sub_parts[1].trim() } else { "" };
+                            let cwd = std::env::current_dir().unwrap_or_default();
+
+                            // Detect migration tool
+                            let tool = if cwd.join("prisma").join("schema.prisma").exists()
+                                || cwd.join("schema.prisma").exists()
+                            {
+                                "prisma"
+                            } else if cwd.join("diesel.toml").exists() {
+                                "diesel"
+                            } else if cwd.join("alembic.ini").exists() {
+                                "alembic"
+                            } else if cwd.join("flyway.conf").exists() {
+                                "flyway"
+                            } else if cwd.join("go.mod").exists() && cwd.join("migrations").exists() {
+                                "golang-migrate"
+                            } else {
+                                println!("❌ No migration tool detected. Supported: Prisma, Diesel, Alembic, Flyway, golang-migrate.\n");
+                                continue;
+                            };
+
+                            match subcmd {
+                                "" | "status" => {
+                                    println!("🔷 Migration status ({})...\n", tool);
+                                    let status_cmd = match tool {
+                                        "prisma" => "npx prisma migrate status",
+                                        "diesel" => "diesel migration list",
+                                        "alembic" => "alembic current",
+                                        "flyway" => "flyway info",
+                                        "golang-migrate" => "migrate -path migrations version",
+                                        _ => { println!("❌ Unsupported tool.\n"); continue; }
+                                    };
+                                    let output = std::process::Command::new("sh")
+                                        .args(["-c", status_cmd])
+                                        .current_dir(&cwd)
+                                        .output();
+                                    match output {
+                                        Ok(o) => {
+                                            let stdout = String::from_utf8_lossy(&o.stdout);
+                                            let stderr = String::from_utf8_lossy(&o.stderr);
+                                            if !stdout.trim().is_empty() { println!("{}", stdout); }
+                                            if !stderr.trim().is_empty() { println!("{}", stderr); }
+                                            if stdout.trim().is_empty() && stderr.trim().is_empty() {
+                                                println!("  (no output)\n");
+                                            }
+                                        }
+                                        Err(e) => println!("❌ Failed to run {}: {}\n", status_cmd, e),
+                                    }
+                                }
+                                "migrate" => {
+                                    println!("🔷 Running migrations ({})...\n", tool);
+                                    let migrate_cmd = match tool {
+                                        "prisma" => "npx prisma migrate deploy",
+                                        "diesel" => "diesel migration run",
+                                        "alembic" => "alembic upgrade head",
+                                        "flyway" => "flyway migrate",
+                                        "golang-migrate" => "migrate -path migrations -database $DATABASE_URL up",
+                                        _ => { println!("❌ Unsupported tool.\n"); continue; }
+                                    };
+                                    let status = std::process::Command::new("sh")
+                                        .args(["-c", migrate_cmd])
+                                        .current_dir(&cwd)
+                                        .status();
+                                    match status {
+                                        Ok(s) if s.success() => println!("✅ Migrations applied successfully.\n"),
+                                        Ok(_) => println!("⚠️  Migration completed with warnings. Check output above.\n"),
+                                        Err(e) => println!("❌ Failed to run migrations: {}\n", e),
+                                    }
+                                }
+                                "rollback" => {
+                                    println!("🔷 Rolling back last migration ({})...\n", tool);
+                                    let rollback_cmd = match tool {
+                                        "prisma" => "npx prisma migrate reset --skip-seed",
+                                        "diesel" => "diesel migration revert",
+                                        "alembic" => "alembic downgrade -1",
+                                        "flyway" => "flyway undo",
+                                        "golang-migrate" => "migrate -path migrations -database $DATABASE_URL down 1",
+                                        _ => { println!("❌ Unsupported tool.\n"); continue; }
+                                    };
+                                    let status = std::process::Command::new("sh")
+                                        .args(["-c", rollback_cmd])
+                                        .current_dir(&cwd)
+                                        .status();
+                                    match status {
+                                        Ok(s) if s.success() => println!("✅ Rollback completed.\n"),
+                                        Ok(_) => println!("⚠️  Rollback completed with warnings.\n"),
+                                        Err(e) => println!("❌ Failed to rollback: {}\n", e),
+                                    }
+                                }
+                                "generate" => {
+                                    if sub_args.is_empty() {
+                                        println!("Usage: /migration generate <name>\n");
+                                        continue;
+                                    }
+                                    let name = sub_args.split_whitespace().next().unwrap_or("");
+                                    // Validate name (alphanumeric + underscores/hyphens)
+                                    if !name.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-') {
+                                        println!("❌ Invalid migration name. Use alphanumeric, hyphens, and underscores only.\n");
+                                        continue;
+                                    }
+                                    println!("🔷 Generating migration '{}' ({})...\n", name, tool);
+                                    let gen_cmd = match tool {
+                                        "prisma" => format!("npx prisma migrate dev --name {}", name),
+                                        "diesel" => format!("diesel migration generate {}", name),
+                                        "alembic" => format!("alembic revision -m \"{}\"", name),
+                                        "flyway" => {
+                                            println!("  Flyway migrations are created manually. Create a new file:\n  sql/V<version>__{}.sql\n", name);
+                                            continue;
+                                        }
+                                        "golang-migrate" => format!("migrate create -ext sql -dir migrations -seq {}", name),
+                                        _ => { println!("❌ Unsupported tool.\n"); continue; }
+                                    };
+                                    let status = std::process::Command::new("sh")
+                                        .args(["-c", &gen_cmd])
+                                        .current_dir(&cwd)
+                                        .status();
+                                    match status {
+                                        Ok(s) if s.success() => println!("✅ Migration '{}' generated.\n", name),
+                                        Ok(_) => println!("⚠️  Generation completed with warnings.\n"),
+                                        Err(e) => println!("❌ Failed to generate migration: {}\n", e),
+                                    }
+                                }
+                                _ => {
+                                    println!("Usage: /migration [status|migrate|rollback|generate <name>]\n");
+                                }
+                            }
+                        }
+
                         _ => {
                             println!("Type /help for available commands\n");
                         }

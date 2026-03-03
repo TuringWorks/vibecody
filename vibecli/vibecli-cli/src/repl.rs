@@ -32,6 +32,7 @@ static COMMANDS: &[&str] = &[
     "/linear",
     "/memory",
     "/mcp",
+    "/migration",
     "/model",
     "/plan",
     "/plugin",
@@ -100,6 +101,9 @@ static WORKFLOW_SUBS: &[&str] = &["new", "list", "show", "advance", "check", "ge
 /// Sub-commands for `/arena <sub>`
 static ARENA_SUBS: &[&str] = &["compare", "stats", "history"];
 
+/// Sub-commands for `/migration <sub>`
+static MIGRATION_SUBS: &[&str] = &["status", "migrate", "rollback", "generate"];
+
 /// Sub-commands for `/profiler <sub>`
 static PROFILER_SUBS: &[&str] = &["run", "top", "list-tools"];
 
@@ -149,6 +153,7 @@ fn command_hint(cmd: &str) -> Option<&'static str> {
         "/memory"  => Some("[show|edit]"),
         "/trace"   => Some("[view <id>]"),
         "/mcp"     => Some("[list|tools <server>]"),
+        "/migration" => Some("[status|migrate|rollback|generate <name>]  — database migration management"),
         "/model"   => Some("<provider> [model]  — switch active model"),
         "/cost"    => Some("— show token usage & estimated cost for this session"),
         "/context" => Some("— show active context window size"),
@@ -235,6 +240,7 @@ fn complete_slash(line: &str) -> Option<(usize, Vec<Pair>)> {
                 "/profile"  => Some(PROFILE_SUBS),
                 "/plugin"   => Some(PLUGIN_SUBS),
                 "/memory"   => Some(MEMORY_SUBS),
+                "/migration" => Some(MIGRATION_SUBS),
                 "/spec"     => Some(SPEC_SUBS),
                 "/agents"   => Some(AGENTS_SUBS),
                 "/team"     => Some(TEAM_SUBS),

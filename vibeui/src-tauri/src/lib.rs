@@ -218,6 +218,8 @@ pub fn run() {
             commands::query_db,
             commands::generate_sql_query,
             commands::generate_migration,
+            commands::get_migration_status,
+            commands::run_migration_action,
             // Phase 26: Supabase
             commands::get_supabase_config,
             commands::save_supabase_config,
