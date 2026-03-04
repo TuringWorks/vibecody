@@ -331,6 +331,11 @@ pub fn run() {
             // Phase 7.28b: Notebook / Scratchpad
             commands::execute_notebook_cell,
             commands::ai_notebook_assist,
+            // Phase 7.29: SSH Remote Manager
+            commands::list_ssh_profiles,
+            commands::save_ssh_profile,
+            commands::delete_ssh_profile,
+            commands::run_ssh_command,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

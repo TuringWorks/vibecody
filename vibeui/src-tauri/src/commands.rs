@@ -10436,7 +10436,7 @@ pub async fn run_ssh_command(
     command: String,
 ) -> Result<SshCommandResult, String> {
     // Basic input validation
-    if host.contains(|c: char| c == ';' || c == '&' || c == '|' || c == '`' || c == '$') {
+    if host.contains([';', '&', '|', '`', '$']) {
         return Err("Invalid host".to_string());
     }
     if command.is_empty() {
