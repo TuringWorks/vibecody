@@ -9866,3 +9866,431 @@ pub async fn analyze_logs(
     let response = provider.chat(&messages, None).await.map_err(|e| format!("AI error: {e}"))?;
     Ok(response)
 }
+
+// ── Phase 7.28: Script Runner & Task Manager ─────────────────────────────────
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ProjectScript {
+    pub category: String, // "npm", "make", "cargo", "python", "custom"
+    pub name: String,
+    pub command: String,
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ScriptCategories {
+    pub scripts: Vec<ProjectScript>,
+    pub detected_tools: Vec<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ScriptRunResult {
+    pub command: String,
+    pub exit_code: i32,
+    pub duration_ms: u64,
+    pub output: String,
+    pub success: bool,
+}
+
+/// Detect all runnable scripts/tasks in the workspace.
+#[tauri::command]
+pub async fn detect_project_scripts(workspace: String) -> Result<ScriptCategories, String> {
+    let ws = std::path::Path::new(&workspace)
+        .canonicalize()
+        .map_err(|e| format!("Invalid workspace: {e}"))?;
+
+    let mut scripts: Vec<ProjectScript> = Vec::new();
+    let mut detected_tools: Vec<String> = Vec::new();
+
+    // ── npm / yarn / pnpm scripts (package.json) ──────────────────────────
+    let pkg_json = ws.join("package.json");
+    if pkg_json.exists() {
+        detected_tools.push("node".to_string());
+        if let Ok(content) = tokio::fs::read_to_string(&pkg_json).await {
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+                if let Some(obj) = json.get("scripts").and_then(|s| s.as_object()) {
+                    let runner = if ws.join("yarn.lock").exists() {
+                        "yarn"
+                    } else if ws.join("pnpm-lock.yaml").exists() {
+                        "pnpm"
+                    } else {
+                        "npm run"
+                    };
+                    for (name, val) in obj {
+                        scripts.push(ProjectScript {
+                            category: "npm".to_string(),
+                            name: name.clone(),
+                            command: format!("{runner} {name}"),
+                            description: val.as_str().map(|s| s.to_string()),
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Cargo tasks ───────────────────────────────────────────────────────
+    if ws.join("Cargo.toml").exists() {
+        detected_tools.push("cargo".to_string());
+        for (name, command, description) in [
+            ("build", "cargo build", "Compile the project"),
+            ("build --release", "cargo build --release", "Compile optimised binary"),
+            ("test", "cargo test", "Run all tests"),
+            ("clippy", "cargo clippy --all-targets", "Run linter"),
+            ("fmt", "cargo fmt", "Format source code"),
+            ("check", "cargo check", "Type-check without building"),
+            ("run", "cargo run", "Run the default binary"),
+            ("doc", "cargo doc --open", "Build and open documentation"),
+            ("audit", "cargo audit", "Check for vulnerabilities"),
+            ("clean", "cargo clean", "Remove build artifacts"),
+        ] {
+            scripts.push(ProjectScript {
+                category: "cargo".to_string(),
+                name: name.to_string(),
+                command: command.to_string(),
+                description: Some(description.to_string()),
+            });
+        }
+        // Detect custom binary targets from Cargo.toml
+        if let Ok(content) = tokio::fs::read_to_string(ws.join("Cargo.toml")).await {
+            for line in content.lines() {
+                let t = line.trim();
+                if t.starts_with("name = ") && content.contains("[[bin]]") {
+                    if let Some(name) = t.strip_prefix("name = \"").and_then(|s| s.strip_suffix('"')) {
+                        scripts.push(ProjectScript {
+                            category: "cargo".to_string(),
+                            name: format!("run --bin {name}"),
+                            command: format!("cargo run --bin {name}"),
+                            description: Some(format!("Run binary '{name}'")),
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Makefile targets ──────────────────────────────────────────────────
+    let makefile = ws.join("Makefile");
+    if makefile.exists() {
+        detected_tools.push("make".to_string());
+        if let Ok(content) = tokio::fs::read_to_string(&makefile).await {
+            for line in content.lines() {
+                // Match `target:` lines that don't start with tab (real targets)
+                if !line.starts_with('\t') && !line.starts_with('#') && !line.starts_with('.') {
+                    if let Some(target) = line.split(':').next() {
+                        let target = target.trim();
+                        if !target.is_empty() && target.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-') {
+                            // Extract inline comment as description
+                            let desc = line.splitn(2, "##").nth(1).map(|s| s.trim().to_string());
+                            scripts.push(ProjectScript {
+                                category: "make".to_string(),
+                                name: target.to_string(),
+                                command: format!("make {target}"),
+                                description: desc,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Python tasks ──────────────────────────────────────────────────────
+    let has_pyproject = ws.join("pyproject.toml").exists();
+    let has_setup = ws.join("setup.py").exists();
+    let has_manage = ws.join("manage.py").exists();
+    if has_pyproject || has_setup || has_manage {
+        detected_tools.push("python".to_string());
+        if has_manage {
+            for (name, command, description) in [
+                ("runserver", "python manage.py runserver", "Start Django dev server"),
+                ("migrate", "python manage.py migrate", "Apply database migrations"),
+                ("makemigrations", "python manage.py makemigrations", "Create migration files"),
+                ("test", "python manage.py test", "Run Django tests"),
+                ("shell", "python manage.py shell", "Open Django shell"),
+                ("collectstatic", "python manage.py collectstatic", "Collect static files"),
+            ] {
+                scripts.push(ProjectScript {
+                    category: "python".to_string(),
+                    name: name.to_string(),
+                    command: command.to_string(),
+                    description: Some(description.to_string()),
+                });
+            }
+        } else {
+            for (name, command, description) in [
+                ("test", "python -m pytest -v", "Run tests with pytest"),
+                ("lint", "python -m flake8 .", "Lint with flake8"),
+                ("format", "python -m black .", "Format with black"),
+                ("typecheck", "python -m mypy .", "Type-check with mypy"),
+                ("install", "pip install -e .", "Install in editable mode"),
+                ("install-dev", "pip install -r requirements-dev.txt", "Install dev requirements"),
+            ] {
+                scripts.push(ProjectScript {
+                    category: "python".to_string(),
+                    name: name.to_string(),
+                    command: command.to_string(),
+                    description: Some(description.to_string()),
+                });
+            }
+            // Read [tool.taskipy.tasks] or scripts from pyproject.toml
+            if let Ok(content) = tokio::fs::read_to_string(ws.join("pyproject.toml")).await {
+                let mut in_tasks = false;
+                for line in content.lines() {
+                    let t = line.trim();
+                    if t == "[tool.taskipy.tasks]" { in_tasks = true; continue; }
+                    if in_tasks && t.starts_with('[') { break; }
+                    if in_tasks {
+                        if let Some((name, rest)) = t.split_once('=') {
+                            let cmd = rest.trim().trim_matches('"').to_string();
+                            scripts.push(ProjectScript {
+                                category: "python".to_string(),
+                                name: name.trim().to_string(),
+                                command: format!("python -m taskipy {}", name.trim()),
+                                description: Some(cmd),
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Go tasks ──────────────────────────────────────────────────────────
+    if ws.join("go.mod").exists() {
+        detected_tools.push("go".to_string());
+        for (name, command, description) in [
+            ("build", "go build ./...", "Build all packages"),
+            ("test", "go test ./...", "Run all tests"),
+            ("test -race", "go test -race ./...", "Run tests with race detector"),
+            ("vet", "go vet ./...", "Run go vet"),
+            ("fmt", "gofmt -w .", "Format code"),
+            ("mod tidy", "go mod tidy", "Tidy module dependencies"),
+            ("generate", "go generate ./...", "Run go:generate"),
+            ("run", "go run .", "Run main package"),
+        ] {
+            scripts.push(ProjectScript {
+                category: "go".to_string(),
+                name: name.to_string(),
+                command: command.to_string(),
+                description: Some(description.to_string()),
+            });
+        }
+    }
+
+    // ── Just (justfile) ───────────────────────────────────────────────────
+    let justfile = ws.join("justfile");
+    if !justfile.exists() {
+        let justfile = ws.join("Justfile");
+        if justfile.exists() {
+            detected_tools.push("just".to_string());
+        }
+    } else {
+        detected_tools.push("just".to_string());
+    }
+    let justfile_path = if ws.join("justfile").exists() {
+        Some(ws.join("justfile"))
+    } else if ws.join("Justfile").exists() {
+        Some(ws.join("Justfile"))
+    } else {
+        None
+    };
+    if let Some(jf) = justfile_path {
+        if let Ok(content) = tokio::fs::read_to_string(&jf).await {
+            for line in content.lines() {
+                if !line.starts_with(' ') && !line.starts_with('\t') && !line.starts_with('#') && !line.starts_with('@') {
+                    if let Some(name) = line.split(':').next() {
+                        let name = name.trim();
+                        if !name.is_empty() && name.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-') {
+                            let desc = line.splitn(2, '#').nth(1).map(|s| s.trim().to_string());
+                            scripts.push(ProjectScript {
+                                category: "just".to_string(),
+                                name: name.to_string(),
+                                command: format!("just {name}"),
+                                description: desc,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(ScriptCategories { scripts, detected_tools })
+}
+
+/// Run a project script, emitting `script:log` events for live output.
+#[tauri::command]
+pub async fn run_project_script(
+    app: tauri::AppHandle,
+    workspace: String,
+    command: String,
+) -> Result<ScriptRunResult, String> {
+    let ws = std::path::Path::new(&workspace)
+        .canonicalize()
+        .map_err(|e| format!("Invalid workspace: {e}"))?;
+
+    // Safety: block destructive shell patterns
+    const BLOCKED: &[&str] = &[
+        "rm -rf /", "rm -rf ~", ":(){:|:&};:", "dd if=/dev/zero",
+        "mkfs", "shutdown", "reboot", "halt",
+    ];
+    let cmd_lower = command.to_lowercase();
+    for pat in BLOCKED {
+        if cmd_lower.contains(pat) {
+            return Err(format!("Blocked command: contains '{pat}'"));
+        }
+    }
+
+    let _ = app.emit("script:log", format!("$ {command}"));
+    let started = std::time::Instant::now();
+
+    let child = tokio::process::Command::new("sh")
+        .args(["-c", &command])
+        .current_dir(&ws)
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("Failed to spawn: {e}"))?;
+
+    // Collect output with timeout (5 minutes)
+    let output = tokio::time::timeout(
+        std::time::Duration::from_secs(300),
+        child.wait_with_output(),
+    )
+    .await
+    .map_err(|_| "Script timed out after 5 minutes".to_string())?
+    .map_err(|e| format!("Process error: {e}"))?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+    let combined = format!("{stdout}{stderr}");
+
+    for line in combined.lines() {
+        let _ = app.emit("script:log", line.to_string());
+    }
+
+    let exit_code = output.status.code().unwrap_or(-1);
+    let duration_ms = started.elapsed().as_millis() as u64;
+    let success = output.status.success();
+
+    let _ = app.emit(
+        "script:log",
+        format!("\n[Exited with code {exit_code} in {:.1}s]", duration_ms as f64 / 1000.0),
+    );
+
+    Ok(ScriptRunResult {
+        command,
+        exit_code,
+        duration_ms,
+        output: combined,
+        success,
+    })
+}
+
+// ── Phase 7.28b: Notebook / Scratchpad ──────────────────────────────────────
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct CellOutput {
+    pub stdout: String,
+    pub stderr: String,
+    pub exit_code: i32,
+    pub duration_ms: u64,
+}
+
+#[tauri::command]
+pub async fn execute_notebook_cell(
+    workspace: String,
+    language: String,
+    code: String,
+) -> Result<CellOutput, String> {
+    if code.trim().is_empty() {
+        return Err("Empty cell".to_string());
+    }
+
+    let tmp_dir = std::env::temp_dir().join(format!("vibe-notebook-{}", std::process::id()));
+    tokio::fs::create_dir_all(&tmp_dir).await.map_err(|e| format!("Temp dir: {e}"))?;
+
+    let started = std::time::Instant::now();
+    let ws = std::path::Path::new(&workspace);
+
+    let (prog, args): (String, Vec<String>) = match language.as_str() {
+        "bash" | "sh" => ("sh".into(), vec!["-c".into(), code.clone()]),
+        "python" | "python3" => {
+            let f = tmp_dir.join("cell.py");
+            tokio::fs::write(&f, &code).await.map_err(|e| format!("Write: {e}"))?;
+            ("python3".into(), vec![f.display().to_string()])
+        }
+        "node" | "javascript" | "js" => {
+            let f = tmp_dir.join("cell.js");
+            tokio::fs::write(&f, &code).await.map_err(|e| format!("Write: {e}"))?;
+            ("node".into(), vec![f.display().to_string()])
+        }
+        "ruby" => {
+            let f = tmp_dir.join("cell.rb");
+            tokio::fs::write(&f, &code).await.map_err(|e| format!("Write: {e}"))?;
+            ("ruby".into(), vec![f.display().to_string()])
+        }
+        "rust" => {
+            let f = tmp_dir.join("cell.rs");
+            let out = tmp_dir.join("cell_out");
+            tokio::fs::write(&f, &code).await.map_err(|e| format!("Write: {e}"))?;
+            ("sh".into(), vec![
+                "-c".into(),
+                format!("rustc -o {} {} && {}", out.display(), f.display(), out.display()),
+            ])
+        }
+        "go" => {
+            let f = tmp_dir.join("cell.go");
+            tokio::fs::write(&f, &code).await.map_err(|e| format!("Write: {e}"))?;
+            ("go".into(), vec!["run".into(), f.display().to_string()])
+        }
+        _ => return Err(format!("Unsupported language: {language}. Use bash, python, node, ruby, rust, or go.")),
+    };
+
+    let result = tokio::time::timeout(
+        std::time::Duration::from_secs(30),
+        tokio::process::Command::new(&prog)
+            .args(&args)
+            .current_dir(ws)
+            .output(),
+    )
+    .await
+    .map_err(|_| "Cell execution timed out (30s)".to_string())?
+    .map_err(|e| format!("Failed to run {prog}: {e}"))?;
+
+    let duration_ms = started.elapsed().as_millis() as u64;
+
+    // Clean up temp files (best effort)
+    let _ = tokio::fs::remove_dir_all(&tmp_dir).await;
+
+    Ok(CellOutput {
+        stdout: String::from_utf8_lossy(&result.stdout).to_string(),
+        stderr: String::from_utf8_lossy(&result.stderr).to_string(),
+        exit_code: result.status.code().unwrap_or(-1),
+        duration_ms,
+    })
+}
+
+#[tauri::command]
+pub async fn ai_notebook_assist(
+    state: tauri::State<'_, AppState>,
+    cell_code: String,
+    cell_output: String,
+    question: String,
+) -> Result<String, String> {
+    let prompt = format!(
+        "Given this code:\n```\n{}\n```\n\nAnd its output:\n```\n{}\n```\n\n{}",
+        cell_code.chars().take(2000).collect::<String>(),
+        cell_output.chars().take(2000).collect::<String>(),
+        if question.is_empty() { "Explain what this code does and suggest improvements." } else { &question },
+    );
+
+    let engine = state.chat_engine.lock().await;
+    let provider = engine.active_provider().ok_or("No AI provider configured")?;
+    let messages = vec![vibe_ai::provider::Message {
+        role: vibe_ai::provider::MessageRole::User,
+        content: prompt,
+    }];
+    provider.chat(&messages, None).await.map_err(|e| format!("AI error: {e}"))
+}

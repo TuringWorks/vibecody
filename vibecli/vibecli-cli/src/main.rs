@@ -3536,6 +3536,37 @@ async fn main() -> Result<()> {
                             }
                         }
 
+                        "/notebook" => {
+                            let file_arg = args.trim();
+                            if file_arg.is_empty() {
+                                println!("Usage: /notebook <file.vibe>\n");
+                                println!("  Run a .vibe notebook file with executable code cells.\n");
+                                println!("  Example: /notebook demo.vibe\n");
+                                continue;
+                            }
+                            let cwd = std::env::current_dir().unwrap_or_default();
+                            let path = if std::path::Path::new(file_arg).is_absolute() {
+                                std::path::PathBuf::from(file_arg)
+                            } else {
+                                cwd.join(file_arg)
+                            };
+                            if !path.exists() {
+                                println!("❌ File not found: {}\n", path.display());
+                                continue;
+                            }
+                            println!("📓 Running notebook: {}\n", path.display());
+                            match notebook::run_notebook(&path, false) {
+                                Ok(success) => {
+                                    if success {
+                                        println!("\n✅ All cells passed.\n");
+                                    } else {
+                                        println!("\n⚠️  Some cells failed.\n");
+                                    }
+                                }
+                                Err(e) => println!("❌ Notebook error: {}\n", e),
+                            }
+                        }
+
                         "/migration" => {
                             let sub_parts: Vec<&str> = args.splitn(2, ' ').collect();
                             let subcmd = sub_parts.first().copied().unwrap_or("").trim();

@@ -325,6 +325,12 @@ pub fn run() {
             commands::discover_log_sources,
             commands::tail_log_file,
             commands::analyze_logs,
+            // Phase 7.28: Script Runner & Task Manager
+            commands::detect_project_scripts,
+            commands::run_project_script,
+            // Phase 7.28b: Notebook / Scratchpad
+            commands::execute_notebook_cell,
+            commands::ai_notebook_assist,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
