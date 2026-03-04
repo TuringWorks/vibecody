@@ -650,8 +650,8 @@ impl GatewayPlatform for IMessageGateway {
 
         for row in rows {
             let (rowid, text, handle_id) = row?;
+            self.last_rowid = rowid; // always advance past this row
             if text.is_empty() { continue; }
-            self.last_rowid = rowid;
 
             messages.push(IncomingMessage {
                 platform: "imessage".to_string(),

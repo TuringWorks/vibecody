@@ -766,13 +766,16 @@ pub async fn request_ai_completion(
     let result = engine.chat(&messages, None).await.map_err(|e| e.to_string())?;
 
     // Strip any markdown code fences the model may have added
-    let clean = result
-        .trim()
-        .trim_start_matches("```")
-        .trim_start_matches(language.as_str())
-        .trim_end_matches("```")
-        .trim()
-        .to_string();
+    // NOTE: Use strip_prefix (exact literal match), NOT trim_start_matches
+    // (which treats the &str as a character set and strips individual chars)
+    let mut clean = result.trim();
+    if let Some(rest) = clean.strip_prefix("```") {
+        clean = rest.strip_prefix(language.as_str()).unwrap_or(rest);
+    }
+    if let Some(rest) = clean.strip_suffix("```") {
+        clean = rest;
+    }
+    let clean = clean.trim().to_string();
     Ok(clean)
 }
 
@@ -1673,13 +1676,16 @@ pub async fn request_inline_completion(
     let result = chat_engine.chat(&messages, None).await.map_err(|e| e.to_string())?;
 
     // Strip any markdown code fences from the response
-    let clean = result
-        .trim()
-        .trim_start_matches("```")
-        .trim_start_matches(&language)
-        .trim_end_matches("```")
-        .trim()
-        .to_string();
+    // NOTE: Use strip_prefix (exact literal match), NOT trim_start_matches
+    // (which treats the &str as a character set and strips individual chars)
+    let mut clean = result.trim();
+    if let Some(rest) = clean.strip_prefix("```") {
+        clean = rest.strip_prefix(language.as_str()).unwrap_or(rest);
+    }
+    if let Some(rest) = clean.strip_suffix("```") {
+        clean = rest;
+    }
+    let clean = clean.trim().to_string();
 
     Ok(clean)
 }
@@ -5019,16 +5025,45 @@ pub async fn find_sqlite_files(workspace_path: String) -> Vec<String> {
         .collect()
 }
 
+/// Validate a SQLite file path: block traversal, resolve symlinks, reject sensitive paths.
+fn validate_sqlite_path(path: &str) -> Result<(), String> {
+    if path.contains("..") {
+        return Err("Invalid database path: traversal not allowed".to_string());
+    }
+    let p = std::path::Path::new(path);
+    if !p.exists() {
+        return Err("Database file does not exist".to_string());
+    }
+    // Resolve symlinks to the real path
+    let canonical = p.canonicalize().map_err(|e| format!("Cannot resolve path: {}", e))?;
+    let canon_str = canonical.to_string_lossy();
+    // Block common sensitive directories
+    let blocked = ["/etc", "/var", "/usr", "/bin", "/sbin", "/private/etc"];
+    for prefix in &blocked {
+        if canon_str.starts_with(prefix) {
+            return Err("Access to system directories is not allowed".to_string());
+        }
+    }
+    // Block home-directory dotfiles (e.g. ~/.ssh, ~/.gnupg)
+    if let Some(home) = std::env::var_os("HOME").map(std::path::PathBuf::from) {
+        let home_str = home.to_string_lossy();
+        if canon_str.starts_with(home_str.as_ref()) {
+            let relative = &canon_str[home_str.len()..];
+            if relative.starts_with("/.") {
+                return Err("Access to hidden home directory files is not allowed".to_string());
+            }
+        }
+    }
+    Ok(())
+}
+
 /// List tables in a database. Only SQLite is supported in the backend; Postgres/Supabase
 /// would require additional crates — returns an informative error for those.
 #[tauri::command]
 pub async fn list_db_tables(connection_string: String, db_type: String) -> Result<Vec<TableInfo>, String> {
-    // Validate: SQLite paths must not contain path traversal sequences
+    // Validate: SQLite paths — resolve symlinks, block traversal and sensitive paths
     if db_type == "sqlite" {
-        let p = std::path::Path::new(&connection_string);
-        if connection_string.contains("..") || p.is_absolute() && !p.exists() {
-            return Err("Invalid database path".to_string());
-        }
+        validate_sqlite_path(&connection_string)?;
     }
     match db_type.as_str() {
         "sqlite" => list_sqlite_tables(&connection_string),
@@ -5097,12 +5132,9 @@ pub async fn query_db(
     db_type: String,
     sql: String,
 ) -> Result<QueryResult, String> {
-    // Validate: SQLite paths must not contain path traversal sequences
+    // Validate: SQLite paths — resolve symlinks, block traversal and sensitive paths
     if db_type == "sqlite" {
-        let p = std::path::Path::new(&connection_string);
-        if connection_string.contains("..") || p.is_absolute() && !p.exists() {
-            return Err("Invalid database path".to_string());
-        }
+        validate_sqlite_path(&connection_string)?;
     }
     match db_type.as_str() {
         "sqlite" => query_sqlite(&connection_string, &sql),
@@ -9773,8 +9805,7 @@ pub async fn tail_log_file(
 ) -> Result<LogResult, String> {
     let max_lines = lines.unwrap_or(500).min(5000);
 
-    let raw_lines: Vec<String> = if source.starts_with("cmd:") {
-        let cmd_str = &source[4..];
+    let raw_lines: Vec<String> = if let Some(cmd_str) = source.strip_prefix("cmd:") {
         let out = tokio::time::timeout(
             std::time::Duration::from_secs(30),
             tokio::process::Command::new("sh")
@@ -9981,7 +10012,7 @@ pub async fn detect_project_scripts(workspace: String) -> Result<ScriptCategorie
                         let target = target.trim();
                         if !target.is_empty() && target.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-') {
                             // Extract inline comment as description
-                            let desc = line.splitn(2, "##").nth(1).map(|s| s.trim().to_string());
+                            let desc = line.split_once("##").map(|(_, s)| s.trim().to_string());
                             scripts.push(ProjectScript {
                                 category: "make".to_string(),
                                 name: target.to_string(),
@@ -10102,7 +10133,7 @@ pub async fn detect_project_scripts(workspace: String) -> Result<ScriptCategorie
                     if let Some(name) = line.split(':').next() {
                         let name = name.trim();
                         if !name.is_empty() && name.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-') {
-                            let desc = line.splitn(2, '#').nth(1).map(|s| s.trim().to_string());
+                            let desc = line.split_once('#').map(|(_, s)| s.trim().to_string());
                             scripts.push(ProjectScript {
                                 category: "just".to_string(),
                                 name: name.to_string(),
@@ -10293,4 +10324,177 @@ pub async fn ai_notebook_assist(
         content: prompt,
     }];
     provider.chat(&messages, None).await.map_err(|e| format!("AI error: {e}"))
+}
+
+// ── Phase 7.29: SSH Remote Manager ───────────────────────────────────────────
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SshProfile {
+    pub id: String,
+    pub name: String,
+    pub host: String,
+    pub port: u16,
+    pub user: String,
+    pub key_path: Option<String>,
+    pub notes: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SshCommandResult {
+    pub stdout: String,
+    pub stderr: String,
+    pub exit_code: i32,
+    pub duration_ms: u64,
+    pub success: bool,
+}
+
+fn ssh_profiles_path() -> std::path::PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    std::path::PathBuf::from(home).join(".vibeui").join("ssh-profiles.json")
+}
+
+/// List saved SSH connection profiles.
+#[tauri::command]
+pub async fn list_ssh_profiles() -> Result<Vec<SshProfile>, String> {
+    let path = ssh_profiles_path();
+    if !path.exists() {
+        return Ok(vec![]);
+    }
+    let content = tokio::fs::read_to_string(&path).await
+        .map_err(|e| format!("Read error: {e}"))?;
+    serde_json::from_str::<Vec<SshProfile>>(&content)
+        .map_err(|e| format!("Parse error: {e}"))
+}
+
+/// Save (add or update) an SSH connection profile.
+#[tauri::command]
+pub async fn save_ssh_profile(profile: SshProfile) -> Result<(), String> {
+    let path = ssh_profiles_path();
+    if let Some(parent) = path.parent() {
+        tokio::fs::create_dir_all(parent).await
+            .map_err(|e| format!("Mkdir error: {e}"))?;
+    }
+
+    let mut profiles = if path.exists() {
+        let content = tokio::fs::read_to_string(&path).await
+            .map_err(|e| format!("Read error: {e}"))?;
+        serde_json::from_str::<Vec<SshProfile>>(&content).unwrap_or_default()
+    } else {
+        vec![]
+    };
+
+    // Upsert by id
+    if let Some(pos) = profiles.iter().position(|p| p.id == profile.id) {
+        profiles[pos] = profile;
+    } else {
+        profiles.push(profile);
+    }
+
+    let json = serde_json::to_string_pretty(&profiles)
+        .map_err(|e| format!("Serialize error: {e}"))?;
+    tokio::fs::write(&path, json).await
+        .map_err(|e| format!("Write error: {e}"))?;
+
+    // Restrict permissions
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600));
+    }
+    Ok(())
+}
+
+/// Delete an SSH connection profile by id.
+#[tauri::command]
+pub async fn delete_ssh_profile(id: String) -> Result<(), String> {
+    let path = ssh_profiles_path();
+    if !path.exists() { return Ok(()); }
+
+    let content = tokio::fs::read_to_string(&path).await
+        .map_err(|e| format!("Read error: {e}"))?;
+    let mut profiles: Vec<SshProfile> = serde_json::from_str(&content).unwrap_or_default();
+    profiles.retain(|p| p.id != id);
+
+    let json = serde_json::to_string_pretty(&profiles)
+        .map_err(|e| format!("Serialize error: {e}"))?;
+    tokio::fs::write(&path, json).await
+        .map_err(|e| format!("Write error: {e}"))?;
+    Ok(())
+}
+
+/// Run a single command on a remote host via SSH.
+///
+/// Uses the system `ssh` binary with BatchMode (no password prompts) and a
+/// 30-second connect timeout. Emits `ssh:log` events for live streaming.
+#[tauri::command]
+pub async fn run_ssh_command(
+    app: tauri::AppHandle,
+    host: String,
+    port: u16,
+    user: String,
+    key_path: Option<String>,
+    command: String,
+) -> Result<SshCommandResult, String> {
+    // Basic input validation
+    if host.contains(|c: char| c == ';' || c == '&' || c == '|' || c == '`' || c == '$') {
+        return Err("Invalid host".to_string());
+    }
+    if command.is_empty() {
+        return Err("Command cannot be empty".to_string());
+    }
+
+    let _ = app.emit("ssh:log", format!("$ ssh {}@{}:{} -- {}", user, host, port, command));
+    let started = std::time::Instant::now();
+
+    let mut args: Vec<String> = vec![
+        "-o".to_string(), "BatchMode=yes".to_string(),
+        "-o".to_string(), "ConnectTimeout=10".to_string(),
+        "-o".to_string(), "StrictHostKeyChecking=accept-new".to_string(),
+        "-p".to_string(), port.to_string(),
+    ];
+
+    if let Some(key) = key_path {
+        if !key.is_empty() {
+            // Validate key path is within home dir
+            if let Ok(expanded) = std::path::Path::new(&key).canonicalize() {
+                let home_str = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+                let home_path = std::path::PathBuf::from(&home_str);
+                if expanded.starts_with(&home_path) {
+                    args.push("-i".to_string());
+                    args.push(expanded.to_string_lossy().to_string());
+                }
+            }
+        }
+    }
+
+    args.push(format!("{}@{}", user, host));
+    args.push(command.clone());
+
+    let output = tokio::time::timeout(
+        std::time::Duration::from_secs(30),
+        tokio::process::Command::new("ssh")
+            .args(&args)
+            .output(),
+    )
+    .await
+    .map_err(|_| "SSH command timed out after 30s".to_string())?
+    .map_err(|e| format!("Failed to run ssh: {e}"))?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+
+    for line in stdout.lines().chain(stderr.lines()) {
+        let _ = app.emit("ssh:log", line.to_string());
+    }
+
+    let exit_code = output.status.code().unwrap_or(-1);
+    let duration_ms = started.elapsed().as_millis() as u64;
+    let success = output.status.success();
+
+    let _ = app.emit(
+        "ssh:log",
+        format!("[Exit {exit_code} in {:.1}s]", duration_ms as f64 / 1000.0),
+    );
+
+    Ok(SshCommandResult { stdout, stderr, exit_code, duration_ms, success })
 }
