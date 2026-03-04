@@ -274,7 +274,7 @@ function App() {
 
       if (selected && typeof selected === 'string') {
         await invoke("add_workspace_folder", { path: selected });
-        setWorkspaceFolders([...workspaceFolders, selected]);
+        setWorkspaceFolders((prev) => [...prev, selected]);
         loadDirectory(selected);
       }
     } catch (error) {
@@ -613,7 +613,7 @@ function App() {
                   content: text,
                   cursorLine: position.lineNumber - 1,
                   cursorCol: position.column - 1,
-                  recentEdits: recentEditsRef.current.slice(-5),
+                  recentEdits: recentEditsRef.current.slice(-5).map(e => ({ ...e, elapsed_ms: Date.now() - e.elapsed_ms })),
                   provider,
                 });
                 resolve(pred && pred.confidence >= 0.5 ? pred.suggested_text : null);
@@ -636,7 +636,7 @@ function App() {
             language,
             cursorLine: position.lineNumber - 1,
             cursorCol: position.column - 1,
-            recentEdits: recentEditsRef.current.slice(-10),
+            recentEdits: recentEditsRef.current.slice(-10).map(e => ({ ...e, elapsed_ms: Date.now() - e.elapsed_ms })),
             provider,
           }).catch(() => null);
 
@@ -665,16 +665,11 @@ function App() {
             ? model.getValueInRange(change.range).slice(0, 50)
             : "",
           new_text: change.text.slice(0, 50),
-          elapsed_ms: 0,
+          elapsed_ms: now, // store creation timestamp; converted to relative age at read time
         });
         if (recentEditsRef.current.length > 20) {
           recentEditsRef.current.shift();
         }
-        // Update elapsed_ms for all entries
-        recentEditsRef.current = recentEditsRef.current.map((e) => ({
-          ...e,
-          elapsed_ms: now,
-        }));
       }
     });
 

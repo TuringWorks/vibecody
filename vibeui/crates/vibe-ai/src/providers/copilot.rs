@@ -292,11 +292,16 @@ impl AIProvider for CopilotProvider {
             bail!("Copilot API error {}: {}", status, body);
         }
 
-        let stream = resp.bytes_stream().map(|chunk| {
+        // Buffer SSE lines across chunk boundaries — HTTP chunks may split mid-line
+        let mut line_buf = String::new();
+        let stream = resp.bytes_stream().map(move |chunk| {
             let chunk = chunk?;
             let text = String::from_utf8_lossy(&chunk);
+            line_buf.push_str(&text);
             let mut content = String::new();
-            for line in text.lines() {
+            while let Some(nl) = line_buf.find('\n') {
+                let line = line_buf[..nl].trim_end_matches('\r').to_string();
+                line_buf = line_buf[nl + 1..].to_string();
                 if let Some(data) = line.strip_prefix("data: ") {
                     if data == "[DONE]" { continue; }
                     if let Ok(r) = serde_json::from_str::<StreamResponse>(data) {

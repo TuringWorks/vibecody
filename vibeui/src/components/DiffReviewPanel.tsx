@@ -15,7 +15,7 @@
  *    rejected hunks revert to `original` lines.
  */
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 
 // ── Diff types ────────────────────────────────────────────────────────────────
 
@@ -202,6 +202,11 @@ export function DiffReviewPanel({ original, modified, filePath, onApply }: DiffR
   const [hunks, setHunks] = useState<DiffHunk[]>(() =>
     rawHunks.map((h) => ({ ...h, accepted: true }))
   );
+
+  // Sync hunks state when props (original/modified) change after mount
+  useEffect(() => {
+    setHunks(rawHunks.map((h) => ({ ...h, accepted: true })));
+  }, [rawHunks]);
 
   const noChanges = hunks.length === 0;
   const acceptedCount = hunks.filter((h) => h.accepted).length;

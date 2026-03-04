@@ -31,6 +31,13 @@ export function ChatTabManager({
     ]);
     const [activeTabId, setActiveTabId] = useState("tab-1");
 
+    // Update first tab's provider once it loads (initial render has provider="")
+    useEffect(() => {
+        if (defaultProvider) {
+            setTabs((prev) => prev.map((t) => t.provider === "" ? { ...t, provider: defaultProvider } : t));
+        }
+    }, [defaultProvider]);
+
     const addTab = () => {
         nextTabId++;
         const newTab: ChatTab = {
