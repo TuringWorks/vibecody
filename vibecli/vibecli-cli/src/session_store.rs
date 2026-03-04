@@ -316,7 +316,12 @@ impl SessionStore {
 
         // Build a LIKE pattern for each keyword across sessions + steps + messages
         // Using a sub-query approach: get session IDs that match all keywords
-        let like_pattern = |kw: &str| format!("%{}%", kw.to_lowercase());
+        let like_pattern = |kw: &str| {
+            let escaped = kw.to_lowercase()
+                .replace('%', "\\%")
+                .replace('_', "\\_");
+            format!("%{}%", escaped)
+        };
 
         // Collect candidate session IDs from steps + messages + task
         let mut candidate_sets: Vec<std::collections::HashSet<String>> = Vec::new();
@@ -325,12 +330,12 @@ impl SessionStore {
             let pat = like_pattern(kw);
             let mut stmt = self.conn.prepare(
                 "SELECT DISTINCT session_id FROM steps
-                 WHERE LOWER(tool_name) LIKE ?1 OR LOWER(input_summary) LIKE ?1
+                 WHERE LOWER(tool_name) LIKE ?1 ESCAPE '\\' OR LOWER(input_summary) LIKE ?1 ESCAPE '\\'
                  UNION
                  SELECT DISTINCT session_id FROM messages
-                 WHERE LOWER(content) LIKE ?1
+                 WHERE LOWER(content) LIKE ?1 ESCAPE '\\'
                  UNION
-                 SELECT id FROM sessions WHERE LOWER(task) LIKE ?1",
+                 SELECT id FROM sessions WHERE LOWER(task) LIKE ?1 ESCAPE '\\'",
             )?;
             let ids: std::collections::HashSet<String> = stmt
                 .query_map(params![pat], |row| row.get(0))?

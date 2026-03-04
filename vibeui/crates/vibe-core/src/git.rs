@@ -403,11 +403,13 @@ pub fn list_worktrees(repo_path: &Path) -> Result<Vec<WorktreeInfo>> {
         if line.starts_with("worktree ") {
             // Save previous entry
             if let Some(path) = current_path.take() {
-                worktrees.push(WorktreeInfo {
-                    path,
-                    branch: current_branch.clone(),
-                    is_main: worktrees.is_empty(),
-                });
+                if !is_bare {
+                    worktrees.push(WorktreeInfo {
+                        path,
+                        branch: current_branch.clone(),
+                        is_main: worktrees.is_empty(),
+                    });
+                }
             }
             current_path = Some(std::path::PathBuf::from(line.trim_start_matches("worktree ")));
             current_branch.clear();

@@ -110,9 +110,21 @@ pub fn parse_cargo_check(output: &str) -> Vec<TuiDiagnostic> {
 
         // Fallback: text lines like "error[E0609]: msg" or "warning: msg"
         let (severity, rest) = if line.starts_with("error") {
-            (DiagSeverity::Error, line.trim_start_matches("error").trim_start_matches(|c: char| c == '[' || c.is_alphanumeric()))
+            let after = line.trim_start_matches("error");
+            let after = if after.starts_with('[') {
+                after.split_once(']').map(|(_, r)| r).unwrap_or(after)
+            } else {
+                after
+            };
+            (DiagSeverity::Error, after)
         } else if line.starts_with("warning") {
-            (DiagSeverity::Warning, line.trim_start_matches("warning"))
+            let after = line.trim_start_matches("warning");
+            let after = if after.starts_with('[') {
+                after.split_once(']').map(|(_, r)| r).unwrap_or(after)
+            } else {
+                after
+            };
+            (DiagSeverity::Warning, after)
         } else {
             continue;
         };

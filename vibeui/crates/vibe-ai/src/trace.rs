@@ -276,6 +276,10 @@ pub fn redact_secrets(input: &str) -> String {
             (r"(?i)(aws_secret_access_key\s*[=:]\s*)[A-Za-z0-9/+=]{30,}", "${1}[REDACTED]"),
             // Generic password/secret/token in config-like lines (exclude '[' to avoid re-redacting)
             (r#"(?i)((?:password|secret|token|api_key|apikey|api-key)\s*[=:]\s*["']?)[^\s"'\[]{8,}"#, "${1}[REDACTED]"),
+            // Groq API keys (gsk_...)
+            (r"gsk_[a-zA-Z0-9]{20,}", "[REDACTED_GROQ_KEY]"),
+            // Grok / xAI API keys (xai-...)
+            (r"xai-[a-zA-Z0-9_-]{20,}", "[REDACTED_GROK_KEY]"),
             // API key in URL query param (?key=...)
             (r"(?i)([?&]key=)[a-zA-Z0-9_-]{20,}", "${1}[REDACTED]"),
             // Private key blocks
