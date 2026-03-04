@@ -124,7 +124,7 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
                                     approved: true,
                                 }]);
                             }
-                        }).catch(() => {});
+                        }).catch((e: unknown) => console.error("Agent event error:", e));
                     }
                 }
             });

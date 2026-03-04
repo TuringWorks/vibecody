@@ -2682,6 +2682,7 @@ pub async fn predict_next_edit(
 /// AI-powered inline edit: given a selected code range and an instruction,
 /// return the replacement text to apply.
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn inline_edit(
     state: tauri::State<'_, AppState>,
     file_path: String,
@@ -9653,4 +9654,215 @@ pub async fn run_migration_action(
         return Err(format!("Migration {action} failed:\n{stderr}"));
     }
     if stdout.is_empty() { Ok(stderr) } else { Ok(format!("{stdout}{stderr}")) }
+}
+
+// ── Phase 7.27: Log Viewer & Analyzer ───────────────────────────────────────
+
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+pub struct LogEntry {
+    pub line_number: usize,
+    pub timestamp: Option<String>,
+    pub level: String,
+    pub message: String,
+    pub raw: String,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct LogResult {
+    pub source: String,
+    pub entries: Vec<LogEntry>,
+    pub total_lines: usize,
+    pub error_count: usize,
+    pub warn_count: usize,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct LogSource {
+    pub name: String,
+    pub path: String,
+    pub size_bytes: u64,
+    pub source_type: String,
+}
+
+fn classify_log_level(line: &str) -> &'static str {
+    let upper = line.to_uppercase();
+    if upper.contains("ERROR") || upper.contains("FATAL") || upper.contains("PANIC") {
+        "error"
+    } else if upper.contains("WARN") {
+        "warn"
+    } else if upper.contains("INFO") {
+        "info"
+    } else if upper.contains("DEBUG") {
+        "debug"
+    } else if upper.contains("TRACE") {
+        "trace"
+    } else {
+        "unknown"
+    }
+}
+
+fn extract_timestamp(line: &str) -> Option<String> {
+    // ISO 8601: 2024-01-15T10:30:00 or 2024-01-15 10:30:00
+    let re_iso = regex::Regex::new(r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}").ok()?;
+    if let Some(m) = re_iso.find(line) {
+        return Some(m.as_str().to_string());
+    }
+    // Common log format: [15/Jan/2024:10:30:00]
+    let re_clf = regex::Regex::new(r"\[\d{2}/\w{3}/\d{4}:\d{2}:\d{2}:\d{2}").ok()?;
+    if let Some(m) = re_clf.find(line) {
+        return Some(m.as_str().trim_start_matches('[').to_string());
+    }
+    None
+}
+
+fn level_priority(level: &str) -> u8 {
+    match level {
+        "error" => 0,
+        "warn" => 1,
+        "info" => 2,
+        "debug" => 3,
+        "trace" => 4,
+        _ => 5,
+    }
+}
+
+#[tauri::command]
+pub async fn discover_log_sources(workspace: String) -> Result<Vec<LogSource>, String> {
+    let ws = std::path::Path::new(&workspace);
+    if !ws.is_dir() {
+        return Err("Workspace is not a directory".to_string());
+    }
+
+    let mut sources = Vec::new();
+    let walker = walkdir::WalkDir::new(ws)
+        .max_depth(4)
+        .follow_links(false)
+        .into_iter()
+        .filter_entry(|e| {
+            let name = e.file_name().to_string_lossy();
+            !name.starts_with('.') && name != "node_modules" && name != "target" && name != "__pycache__"
+        });
+
+    for entry in walker.filter_map(|e| e.ok()) {
+        if sources.len() >= 50 { break; }
+        let path = entry.path();
+        if !path.is_file() { continue; }
+        let name = path.file_name().unwrap_or_default().to_string_lossy();
+        if name.ends_with(".log") || name == "npm-debug.log" || name == "yarn-error.log" {
+            if let Ok(meta) = std::fs::metadata(path) {
+                sources.push(LogSource {
+                    name: name.to_string(),
+                    path: path.display().to_string(),
+                    size_bytes: meta.len(),
+                    source_type: "file".to_string(),
+                });
+            }
+        }
+    }
+
+    sources.sort_by(|a, b| b.size_bytes.cmp(&a.size_bytes));
+    Ok(sources)
+}
+
+#[tauri::command]
+pub async fn tail_log_file(
+    workspace: String,
+    source: String,
+    lines: Option<usize>,
+    filter_level: Option<String>,
+) -> Result<LogResult, String> {
+    let max_lines = lines.unwrap_or(500).min(5000);
+
+    let raw_lines: Vec<String> = if source.starts_with("cmd:") {
+        let cmd_str = &source[4..];
+        let out = tokio::time::timeout(
+            std::time::Duration::from_secs(30),
+            tokio::process::Command::new("sh")
+                .args(["-c", cmd_str])
+                .output(),
+        )
+        .await
+        .map_err(|_| "Command timed out".to_string())?
+        .map_err(|e| format!("Failed to run command: {e}"))?;
+
+        let text = String::from_utf8_lossy(&out.stdout).to_string()
+            + &String::from_utf8_lossy(&out.stderr);
+        text.lines().map(|l| l.to_string()).collect()
+    } else {
+        let ws = std::path::Path::new(&workspace).canonicalize()
+            .map_err(|e| format!("Invalid workspace: {e}"))?;
+        let file_path = std::path::Path::new(&source).canonicalize()
+            .map_err(|e| format!("File not found: {e}"))?;
+        if !file_path.starts_with(&ws) {
+            return Err("Access denied: file outside workspace".to_string());
+        }
+
+        let content = tokio::fs::read_to_string(&file_path).await
+            .map_err(|e| format!("Failed to read file: {e}"))?;
+        let all_lines: Vec<String> = content.lines().map(|l| l.to_string()).collect();
+        let skip = if all_lines.len() > max_lines { all_lines.len() - max_lines } else { 0 };
+        all_lines[skip..].to_vec()
+    };
+
+    let filter_prio = filter_level.as_deref().map(level_priority);
+
+    let mut entries = Vec::new();
+    let mut error_count = 0;
+    let mut warn_count = 0;
+
+    for (i, line) in raw_lines.iter().enumerate() {
+        let level = classify_log_level(line);
+        if level == "error" { error_count += 1; }
+        if level == "warn" { warn_count += 1; }
+
+        if let Some(max_prio) = filter_prio {
+            if level_priority(level) > max_prio { continue; }
+        }
+
+        entries.push(LogEntry {
+            line_number: i + 1,
+            timestamp: extract_timestamp(line),
+            level: level.to_string(),
+            message: line.clone(),
+            raw: line.clone(),
+        });
+    }
+
+    Ok(LogResult {
+        source: source.clone(),
+        entries,
+        total_lines: raw_lines.len(),
+        error_count,
+        warn_count,
+    })
+}
+
+#[tauri::command]
+pub async fn analyze_logs(
+    state: tauri::State<'_, AppState>,
+    entries: Vec<String>,
+) -> Result<String, String> {
+    let truncated: Vec<&String> = entries.iter().take(100).collect();
+    if truncated.is_empty() {
+        return Err("No log entries to analyze".to_string());
+    }
+
+    let log_text = truncated.iter().map(|s| s.as_str()).collect::<Vec<_>>().join("\n");
+    let prompt = format!(
+        "Analyze these log entries. Identify errors, recurring patterns, probable root causes, and suggest fixes.\n\n```\n{}\n```",
+        log_text
+    );
+
+    let engine = state.chat_engine.lock().await;
+    let provider = engine.active_provider().ok_or("No AI provider configured")?;
+
+    let messages = vec![
+        vibe_ai::provider::Message {
+            role: vibe_ai::provider::MessageRole::User,
+            content: prompt,
+        },
+    ];
+
+    let response = provider.chat(&messages, None).await.map_err(|e| format!("AI error: {e}"))?;
+    Ok(response)
 }

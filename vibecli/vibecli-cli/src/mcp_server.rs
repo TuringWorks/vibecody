@@ -24,7 +24,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use vibe_ai::agent::{AgentContext, AgentEvent, AgentLoop, ApprovalPolicy, ToolExecutorTrait};
@@ -500,7 +500,7 @@ async fn run_agent(
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-fn resolve(root: &PathBuf, path: &str) -> PathBuf {
+fn resolve(root: &Path, path: &str) -> PathBuf {
     let p = PathBuf::from(path);
     if p.is_absolute() {
         p

@@ -30,6 +30,7 @@ static COMMANDS: &[&str] = &[
     "/index",
     "/jobs",
     "/linear",
+    "/logs",
     "/memory",
     "/mcp",
     "/migration",
@@ -88,6 +89,9 @@ static SNIPPET_SUBS: &[&str] = &["list", "save", "use", "show", "delete"];
 
 /// Sub-commands for `/linear <sub>`
 static LINEAR_SUBS: &[&str] = &["list", "new", "open", "attach"];
+
+/// Sub-commands for `/logs <sub>`
+static LOGS_SUBS: &[&str] = &["tail", "sources", "errors", "analyze"];
 
 /// Sub-commands for `/remind <sub>`
 static REMIND_SUBS: &[&str] = &["in", "list", "cancel"];
@@ -153,6 +157,7 @@ fn command_hint(cmd: &str) -> Option<&'static str> {
         "/memory"  => Some("[show|edit]"),
         "/trace"   => Some("[view <id>]"),
         "/mcp"     => Some("[list|tools <server>]"),
+        "/logs"    => Some("[tail <file>|sources|errors <file>|analyze <file>]  — log viewer & analyzer"),
         "/migration" => Some("[status|migrate|rollback|generate <name>]  — database migration management"),
         "/model"   => Some("<provider> [model]  — switch active model"),
         "/cost"    => Some("— show token usage & estimated cost for this session"),
@@ -236,6 +241,7 @@ fn complete_slash(line: &str) -> Option<(usize, Vec<Pair>)> {
                 "/deps"     => Some(DEPS_SUBS),
                 "/deploy"   => Some(DEPLOY_SUBS),
                 "/env"      => Some(ENV_SUBS),
+                "/logs"     => Some(LOGS_SUBS),
                 "/profiler" => Some(PROFILER_SUBS),
                 "/profile"  => Some(PROFILE_SUBS),
                 "/plugin"   => Some(PLUGIN_SUBS),

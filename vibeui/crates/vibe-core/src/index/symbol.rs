@@ -2,7 +2,7 @@
 
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum Language {
@@ -103,7 +103,7 @@ impl SymbolInfo {
 // ── Extraction ────────────────────────────────────────────────────────────────
 
 /// Extract symbols from `content` using language-specific regex patterns.
-pub fn extract_symbols(path: &PathBuf, content: &str, language: &Language) -> Vec<SymbolInfo> {
+pub fn extract_symbols(path: &Path, content: &str, language: &Language) -> Vec<SymbolInfo> {
     match language {
         Language::Rust => extract_with_patterns(path, content, Language::Rust, RUST_PATTERNS),
         Language::TypeScript => extract_with_patterns(path, content, Language::TypeScript, TS_PATTERNS),
@@ -114,11 +114,11 @@ pub fn extract_symbols(path: &PathBuf, content: &str, language: &Language) -> Ve
     }
 }
 
-fn extract_with_patterns<'a>(
-    path: &PathBuf,
+fn extract_with_patterns(
+    path: &Path,
     content: &str,
     language: Language,
-    patterns: &'a [(&'static str, SymbolKind)],
+    patterns: &[(&'static str, SymbolKind)],
 ) -> Vec<SymbolInfo>
 where
     SymbolKind: Clone,
@@ -142,7 +142,7 @@ where
                         symbols.push(SymbolInfo {
                             name,
                             kind: kind.clone(),
-                            file: path.clone(),
+                            file: path.to_path_buf(),
                             line: line_idx + 1,
                             signature: line.trim().chars().take(120).collect(),
                             language: language.clone(),

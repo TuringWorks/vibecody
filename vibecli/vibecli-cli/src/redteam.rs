@@ -352,6 +352,7 @@ pub struct RedTeamSession {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct StageStatus {
     pub started: bool,
     pub completed: bool,
@@ -359,11 +360,6 @@ pub struct StageStatus {
     pub duration_secs: Option<f64>,
 }
 
-impl Default for StageStatus {
-    fn default() -> Self {
-        Self { started: false, completed: false, error: None, duration_secs: None }
-    }
-}
 
 impl RedTeamSession {
     pub fn new(config: RedTeamConfig) -> Self {
@@ -899,12 +895,12 @@ pub fn generate_report(session: &RedTeamSession) -> String {
         "VibeCLI Red Team identified **{} vulnerabilities** ({} confirmed exploitable):\n\n",
         session.findings.len(), confirmed
     ));
-    report.push_str(&format!("| Severity | Count |\n|----------|-------|\n"));
+    report.push_str("| Severity | Count |\n|----------|-------|\n");
     report.push_str(&format!("| 🔴 Critical | {} |\n", critical));
     report.push_str(&format!("| 🟠 High | {} |\n", high));
     report.push_str(&format!("| 🟡 Medium | {} |\n", medium));
     report.push_str(&format!("| 🔵 Low | {} |\n", low));
-    report.push_str("\n");
+    report.push('\n');
 
     // Recon Summary
     if let Some(recon) = &session.recon {
@@ -912,7 +908,7 @@ pub fn generate_report(session: &RedTeamSession) -> String {
         report.push_str(&format!("- **Endpoints discovered:** {}\n", recon.endpoints.len()));
         report.push_str(&format!("- **Input points found:** {}\n", recon.input_points.len()));
         report.push_str(&format!("- **Technologies detected:** {}\n", recon.technologies.join(", ")));
-        report.push_str("\n");
+        report.push('\n');
     }
 
     // Detailed Findings
@@ -938,7 +934,7 @@ pub fn generate_report(session: &RedTeamSession) -> String {
                 if let Some(line) = finding.source_line {
                     report.push_str(&format!(":{}", line));
                 }
-                report.push_str("\n");
+                report.push('\n');
             }
 
             report.push_str(&format!("\n**Description:**\n{}\n\n", finding.description));

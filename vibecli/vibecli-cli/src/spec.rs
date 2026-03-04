@@ -21,18 +21,15 @@ use walkdir::WalkDir;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
+#[derive(Default)]
 pub enum SpecStatus {
+    #[default]
     Draft,
     Approved,
     InProgress,
     Done,
 }
 
-impl Default for SpecStatus {
-    fn default() -> Self {
-        SpecStatus::Draft
-    }
-}
 
 impl fmt::Display for SpecStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -227,8 +224,8 @@ impl SpecManager {
         let mut tasks: Vec<SpecTask> = vec![];
 
         // Parse front-matter
-        if raw.starts_with("---") {
-            let after_open = raw[3..].trim_start_matches('\n');
+        if let Some(stripped) = raw.strip_prefix("---") {
+            let after_open = stripped.trim_start_matches('\n');
             if let Some(close_pos) = after_open.find("\n---") {
                 let fm = &after_open[..close_pos];
                 body = after_open[close_pos..].trim_start_matches("\n---").trim_start().to_string();

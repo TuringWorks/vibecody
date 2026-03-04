@@ -3,7 +3,7 @@
 use crate::client::LspClient;
 use anyhow::Result;
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::Path;
 
 /// LSP manager
 pub struct LspManager {
@@ -28,18 +28,19 @@ impl LspManager {
     }
 
     /// Get or create a client for the given language
-    pub async fn get_client_for_language(&mut self, language: &str, root_path: &PathBuf) -> Result<&mut LspClient> {
+    pub async fn get_client_for_language(&mut self, language: &str, root_path: &Path) -> Result<&mut LspClient> {
         if !self.clients.contains_key(language) {
             if let Some((cmd, args)) = self.server_configs.get(language) {
                 let mut client = LspClient::new(cmd.clone(), args.clone());
-                client.initialize(root_path.clone()).await?;
+                client.initialize(root_path.to_path_buf()).await?;
                 self.clients.insert(language.to_string(), client);
             } else {
                 return Err(anyhow::anyhow!("No LSP server configured for language: {}", language));
             }
         }
         
-        Ok(self.clients.get_mut(language).unwrap())
+        self.clients.get_mut(language)
+            .ok_or_else(|| anyhow::anyhow!("LSP client for '{}' missing after initialization", language))
     }
 
     pub fn add_client(&mut self, language: String, client: LspClient) {

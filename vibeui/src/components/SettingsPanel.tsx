@@ -27,7 +27,7 @@ export function SettingsPanel() {
         let cancelled = false;
         invoke<ApiKeySettings>("get_provider_api_keys")
             .then((s) => { if (!cancelled) setSettings(s); })
-            .catch(() => {});
+            .catch((e: unknown) => { if (!cancelled) console.error("Failed to load API keys:", e); });
         return () => { cancelled = true; };
     }, []);
 

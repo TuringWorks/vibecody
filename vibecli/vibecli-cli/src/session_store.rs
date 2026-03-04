@@ -687,8 +687,8 @@ fn format_ts(ms: u64) -> String {
     // Simple ISO-like: seconds since epoch → human-readable
     let secs = ms / 1000;
     // We just show relative + rough absolute
-    let dt = chrono_simple(secs);
-    dt
+    
+    chrono_simple(secs)
 }
 
 fn format_age(started_ms: u64) -> String {

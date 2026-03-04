@@ -23,7 +23,7 @@
 //! print(1 + 1)
 //! ```
 //!
-//! ```rust
+//! ```text
 //! fn main() { println!("Hello Rust"); }
 //! ```
 //!

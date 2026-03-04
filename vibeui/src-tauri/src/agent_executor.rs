@@ -85,7 +85,7 @@ impl TauriToolExecutor {
         match vibe_core::search::search_files(&self.workspace_root, query, false) {
             Ok(results) => {
                 let iter = results.iter().filter(|r| {
-                    glob.map_or(true, |g| r.path.contains(g))
+                    glob.is_none_or(|g| r.path.contains(g))
                 });
                 let lines: Vec<String> = iter.take(30).map(|r| {
                     format!("{}:{}: {}", r.path, r.line_number, r.line_content.trim())

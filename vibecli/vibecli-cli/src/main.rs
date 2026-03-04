@@ -3394,6 +3394,148 @@ async fn main() -> Result<()> {
                             }
                         }
 
+                        "/logs" => {
+                            let sub_parts: Vec<&str> = args.splitn(2, ' ').collect();
+                            let subcmd = sub_parts.first().copied().unwrap_or("").trim();
+                            let sub_args = if sub_parts.len() > 1 { sub_parts[1].trim() } else { "" };
+                            let cwd = std::env::current_dir().unwrap_or_default();
+
+                            match subcmd {
+                                "" | "sources" => {
+                                    println!("📋 Scanning for log files...\n");
+                                    let mut found: Vec<(String, String)> = Vec::new();
+                                    for entry in walkdir::WalkDir::new(&cwd)
+                                        .max_depth(4)
+                                        .follow_links(false)
+                                        .into_iter()
+                                        .filter_entry(|e| {
+                                            let n = e.file_name().to_string_lossy();
+                                            !n.starts_with('.') && n != "node_modules" && n != "target" && n != "__pycache__"
+                                        })
+                                        .filter_map(|e| e.ok())
+                                    {
+                                        if found.len() >= 30 { break; }
+                                        let path = entry.path();
+                                        if path.is_file() {
+                                            let name = path.file_name().unwrap_or_default().to_string_lossy();
+                                            if name.ends_with(".log") {
+                                                let size = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
+                                                let size_str = if size >= 1_048_576 {
+                                                    format!("{:.1} MB", size as f64 / 1_048_576.0)
+                                                } else if size >= 1_024 {
+                                                    format!("{:.1} KB", size as f64 / 1_024.0)
+                                                } else {
+                                                    format!("{} B", size)
+                                                };
+                                                found.push((path.display().to_string(), size_str));
+                                            }
+                                        }
+                                    }
+                                    if found.is_empty() {
+                                        println!("  No log files found.\n");
+                                    } else {
+                                        println!("  {:<50} {:>10}", "File", "Size");
+                                        println!("  {}", "-".repeat(62));
+                                        for (path, size) in &found {
+                                            let display = if path.len() > 48 { &path[path.len()-48..] } else { path.as_str() };
+                                            println!("  {:<50} {:>10}", display, size);
+                                        }
+                                        println!("\n  Found {} log file(s). Use `/logs tail <path>` to view.\n", found.len());
+                                    }
+                                }
+                                "tail" => {
+                                    if sub_args.is_empty() {
+                                        println!("Usage: /logs tail <file_path>\n");
+                                        continue;
+                                    }
+                                    let file_path = std::path::Path::new(sub_args);
+                                    let abs_path = if file_path.is_absolute() { file_path.to_path_buf() } else { cwd.join(file_path) };
+                                    match std::fs::read_to_string(&abs_path) {
+                                        Ok(content) => {
+                                            let lines: Vec<&str> = content.lines().collect();
+                                            let skip = if lines.len() > 50 { lines.len() - 50 } else { 0 };
+                                            println!("📋 Last {} lines of {}:\n", lines.len().min(50), sub_args);
+                                            for line in &lines[skip..] {
+                                                let upper = line.to_uppercase();
+                                                if upper.contains("ERROR") || upper.contains("FATAL") {
+                                                    println!("  \x1b[31m{}\x1b[0m", line);
+                                                } else if upper.contains("WARN") {
+                                                    println!("  \x1b[33m{}\x1b[0m", line);
+                                                } else {
+                                                    println!("  {}", line);
+                                                }
+                                            }
+                                            println!();
+                                        }
+                                        Err(e) => println!("❌ Failed to read {}: {}\n", sub_args, e),
+                                    }
+                                }
+                                "errors" => {
+                                    if sub_args.is_empty() {
+                                        println!("Usage: /logs errors <file_path>\n");
+                                        continue;
+                                    }
+                                    let file_path = std::path::Path::new(sub_args);
+                                    let abs_path = if file_path.is_absolute() { file_path.to_path_buf() } else { cwd.join(file_path) };
+                                    match std::fs::read_to_string(&abs_path) {
+                                        Ok(content) => {
+                                            let mut error_count = 0usize;
+                                            let mut warn_count = 0usize;
+                                            println!("📋 Errors/warnings in {}:\n", sub_args);
+                                            for line in content.lines() {
+                                                let upper = line.to_uppercase();
+                                                if upper.contains("ERROR") || upper.contains("FATAL") || upper.contains("PANIC") {
+                                                    println!("  \x1b[31m{}\x1b[0m", line);
+                                                    error_count += 1;
+                                                } else if upper.contains("WARN") {
+                                                    println!("  \x1b[33m{}\x1b[0m", line);
+                                                    warn_count += 1;
+                                                }
+                                            }
+                                            if error_count == 0 && warn_count == 0 {
+                                                println!("  ✅ No errors or warnings found.\n");
+                                            } else {
+                                                println!("\n  Errors: {} | Warnings: {}\n", error_count, warn_count);
+                                            }
+                                        }
+                                        Err(e) => println!("❌ Failed to read {}: {}\n", sub_args, e),
+                                    }
+                                }
+                                "analyze" => {
+                                    if sub_args.is_empty() {
+                                        println!("Usage: /logs analyze <file_path>\n");
+                                        continue;
+                                    }
+                                    let file_path = std::path::Path::new(sub_args);
+                                    let abs_path = if file_path.is_absolute() { file_path.to_path_buf() } else { cwd.join(file_path) };
+                                    match std::fs::read_to_string(&abs_path) {
+                                        Ok(content) => {
+                                            let lines: Vec<&str> = content.lines().collect();
+                                            let tail: Vec<&str> = lines.iter().rev().take(100).copied().collect::<Vec<_>>().into_iter().rev().collect();
+                                            let log_text = tail.join("\n");
+                                            println!("📋 Analyzing last {} lines with AI...\n", tail.len());
+                                            let prompt = format!(
+                                                "Analyze these log entries. Identify errors, recurring patterns, probable root causes, and suggest fixes.\n\n```\n{}\n```",
+                                                log_text
+                                            );
+                                            let msgs = vec![vibe_ai::provider::Message {
+                                                role: vibe_ai::provider::MessageRole::User,
+                                                content: prompt,
+                                            }];
+                                            match llm.chat(&msgs, None).await {
+                                                Ok(response) => println!("{}\n", response),
+                                                Err(e) => println!("❌ AI analysis failed: {}\n", e),
+                                            }
+                                        }
+                                        Err(e) => println!("❌ Failed to read {}: {}\n", sub_args, e),
+                                    }
+                                }
+                                _ => {
+                                    println!("Usage: /logs [tail <file>|sources|errors <file>|analyze <file>]\n");
+                                }
+                            }
+                        }
+
                         "/migration" => {
                             let sub_parts: Vec<&str> = args.splitn(2, ' ').collect();
                             let subcmd = sub_parts.first().copied().unwrap_or("").trim();
@@ -3700,6 +3842,7 @@ async fn run_parallel_agents(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn run_agent_repl_with_context(
     llm: Arc<dyn LLMProvider>,
     task: &str,

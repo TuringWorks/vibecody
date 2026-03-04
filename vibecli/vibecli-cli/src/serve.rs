@@ -738,7 +738,7 @@ async fn handle_collab_ws(
                 message: e.to_string(),
             };
             if let Ok(json) = serde_json::to_string(&err_msg) {
-                let _ = socket.send(WsMessage::Text(json.into())).await;
+                let _ = socket.send(WsMessage::Text(json)).await;
             }
             return;
         }
@@ -753,7 +753,7 @@ async fn handle_collab_ws(
     };
     let welcome_json = serde_json::to_string(&welcome).unwrap_or_default();
     if socket
-        .send(WsMessage::Text(welcome_json.into()))
+        .send(WsMessage::Text(welcome_json))
         .await
         .is_err()
     {
@@ -763,7 +763,7 @@ async fn handle_collab_ws(
 
     // Send current doc state as SyncStep1
     let state_msg = room.encode_state().await;
-    if socket.send(WsMessage::Binary(state_msg.into())).await.is_err() {
+    if socket.send(WsMessage::Binary(state_msg)).await.is_err() {
         room.remove_peer(&peer_id).await;
         return;
     }
@@ -788,11 +788,11 @@ async fn handle_collab_ws(
                 match msg {
                     Some(Ok(WsMessage::Binary(data))) => {
                         // Binary frame = Yjs sync protocol
-                        let data_vec: Vec<u8> = data.into();
+                        let data_vec: Vec<u8> = data;
                         match room.apply_message(&data_vec).await {
                             Ok(Some(reply)) => {
                                 // Send reply (e.g. SyncStep2) back to sender
-                                let _ = socket.send(WsMessage::Binary(reply.into())).await;
+                                let _ = socket.send(WsMessage::Binary(reply)).await;
                             }
                             Ok(None) => {}
                             Err(e) => {
@@ -828,13 +828,13 @@ async fn handle_collab_ws(
                         if let Ok(text) = std::str::from_utf8(data) {
                             if text.starts_with('{') {
                                 // JSON text message
-                                let _ = socket.send(WsMessage::Text(text.to_string().into())).await;
+                                let _ = socket.send(WsMessage::Text(text.to_string())).await;
                             } else {
-                                let _ = socket.send(WsMessage::Binary(data.clone().into())).await;
+                                let _ = socket.send(WsMessage::Binary(data.clone())).await;
                             }
                         } else {
                             // Binary Yjs update
-                            let _ = socket.send(WsMessage::Binary(data.clone().into())).await;
+                            let _ = socket.send(WsMessage::Binary(data.clone())).await;
                         }
                     }
                     Err(_) => break, // channel closed

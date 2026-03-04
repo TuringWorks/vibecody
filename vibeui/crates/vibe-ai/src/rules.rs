@@ -135,10 +135,9 @@ impl RulesLoader {
             .to_string();
 
         // Parse optional YAML front-matter (--- ... ---)
-        if raw.starts_with("---") {
+        if let Some(stripped) = raw.strip_prefix("---") {
             // Find closing ---
-            let after_open = &raw[3..];
-            let after_open = after_open.trim_start_matches('\n');
+            let after_open = stripped.trim_start_matches('\n');
             if let Some(close_pos) = after_open.find("\n---") {
                 let fm = &after_open[..close_pos];
                 let body = after_open[close_pos..].trim_start_matches("\n---").trim_start().to_string();

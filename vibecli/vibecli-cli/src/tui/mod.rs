@@ -547,9 +547,9 @@ async fn handle_chat_input(
     tx: mpsc::Sender<AppEvent>,
     workspace: &std::path::Path,
 ) {
-    if user_msg.starts_with('!') {
+    if let Some(cmd) = user_msg.strip_prefix('!') {
         // Direct shell command
-        let cmd = user_msg[1..].trim();
+        let cmd = cmd.trim();
         if !cmd.is_empty() {
             let config = Config::load().unwrap_or_default();
             if config.safety.require_approval_for_commands {

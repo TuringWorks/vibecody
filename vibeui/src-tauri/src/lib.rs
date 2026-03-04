@@ -321,6 +321,10 @@ pub fn run() {
             commands::detect_package_manager,
             commands::scan_dependencies,
             commands::upgrade_dependency,
+            // Phase 7.27: Log Viewer & Analyzer
+            commands::discover_log_sources,
+            commands::tail_log_file,
+            commands::analyze_logs,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

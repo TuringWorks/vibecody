@@ -72,7 +72,7 @@ export default function CicdPanel({ workspacePath }: CicdPanelProps) {
     if (!workspacePath) return;
     invoke<string>("detect_build_type", { workspace: workspacePath })
       .then((bt) => setBuildType(bt as BuildType))
-      .catch(() => {});
+      .catch((e: unknown) => console.error("Failed to detect build type:", e));
   }, [workspacePath]);
 
   const handleGenerate = async () => {

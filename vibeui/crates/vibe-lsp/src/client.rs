@@ -90,7 +90,7 @@ impl LspClient {
                                 
                                 // Read body
                                 let mut body = vec![0; len];
-                                if let Ok(_) = reader.read_exact(&mut body).await {
+                                if (reader.read_exact(&mut body).await).is_ok() {
                                     if let Ok(val) = serde_json::from_slice::<Value>(&body) {
                                         let _ = res_tx.send(val).await;
                                     }

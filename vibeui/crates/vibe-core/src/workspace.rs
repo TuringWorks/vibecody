@@ -3,7 +3,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::buffer::TextBuffer;
 use crate::file_system::FileSystem;
@@ -86,7 +86,8 @@ impl Workspace {
             let buffer = TextBuffer::from_file(path.clone())?;
             self.open_buffers.insert(path.clone(), buffer);
         }
-        Ok(self.open_buffers.get(&path).unwrap())
+        self.open_buffers.get(&path)
+            .ok_or_else(|| anyhow::anyhow!("Buffer for '{}' missing after insertion", path.display()))
     }
 
     /// Get an open buffer
@@ -130,14 +131,14 @@ impl Workspace {
     }
 
     /// Save workspace configuration to a file
-    pub async fn save_config(&self, path: &PathBuf) -> Result<()> {
+    pub async fn save_config(&self, path: &Path) -> Result<()> {
         let json = serde_json::to_string_pretty(&self.config)?;
         self.file_system.write_file(path, &json).await?;
         Ok(())
     }
 
     /// Load workspace configuration from a file
-    pub async fn load_config(path: &PathBuf) -> Result<WorkspaceConfig> {
+    pub async fn load_config(path: &Path) -> Result<WorkspaceConfig> {
         let fs = FileSystem::new();
         let json = fs.read_file(path).await?;
         let config: WorkspaceConfig = serde_json::from_str(&json)?;

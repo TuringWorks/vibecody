@@ -59,7 +59,7 @@ function severityIcon(sev: string): string {
 
 // ── Component ────────────────────────────────────────────────────────────────
 
-export function RedTeamPanel({ workspacePath, provider }: Props) {
+export function RedTeamPanel({ workspacePath, provider: _provider }: Props) {
   const [targetUrl, setTargetUrl] = useState("http://localhost:3000");
   const [scanning, setScanning] = useState(false);
   const [currentStage, setCurrentStage] = useState<string | null>(null);

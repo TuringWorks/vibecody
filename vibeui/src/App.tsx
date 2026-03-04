@@ -45,6 +45,7 @@ import { BugBotPanel } from "./components/BugBotPanel";
 import { RedTeamPanel } from "./components/RedTeamPanel";
 import { TestPanel } from "./components/TestPanel";
 import { DiffReviewPanel } from "./components/DiffReviewPanel";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { CollabPanel } from "./components/CollabPanel";
 import { CoveragePanel } from "./components/CoveragePanel";
 import { MultiModelPanel } from "./components/MultiModelPanel";
@@ -61,6 +62,7 @@ import { DockerPanel } from "./components/DockerPanel";
 import { DepsPanel } from "./components/DepsPanel";
 import { ApiDocsPanel } from "./components/ApiDocsPanel";
 import { MigrationsPanel } from "./components/MigrationsPanel";
+import { LogPanel } from "./components/LogPanel";
 import { useCollab } from "./hooks/useCollab";
 import { flowContext } from "./utils/FlowContext";
 import { supercompleteEngine } from "./utils/SupercompleteEngine";
@@ -102,7 +104,7 @@ function App() {
   const [showSidebar, setShowSidebar] = useState(true);
   const [activeSidebarTab, setActiveSidebarTab] = useState<"explorer" | "search" | "git">("explorer");
   const [showAIChat, setShowAIChat] = useState(false);
-  const [aiPanelTab, setAiPanelTab] = useState<"chat" | "agent" | "memory" | "history" | "checkpoints" | "artifacts" | "manager" | "hooks" | "jobs" | "mcp" | "settings" | "cascade" | "specs" | "workflow" | "design" | "deploy" | "database" | "supabase" | "auth" | "github" | "steering" | "bugbot" | "redteam" | "tests" | "collab" | "coverage" | "compare" | "http" | "arena" | "cost" | "autofix" | "processes" | "cicd" | "k8s" | "env" | "profiler" | "docker" | "deps" | "apidocs" | "migrations">("chat");
+  const [aiPanelTab, setAiPanelTab] = useState<"chat" | "agent" | "memory" | "history" | "checkpoints" | "artifacts" | "manager" | "hooks" | "jobs" | "mcp" | "settings" | "cascade" | "specs" | "workflow" | "design" | "deploy" | "database" | "supabase" | "auth" | "github" | "steering" | "bugbot" | "redteam" | "tests" | "collab" | "coverage" | "compare" | "http" | "arena" | "cost" | "autofix" | "processes" | "cicd" | "k8s" | "env" | "profiler" | "docker" | "deps" | "apidocs" | "migrations" | "logs">("chat");
   const [showTerminal, setShowTerminal] = useState(false);
   const [bottomTab, setBottomTab] = useState<"terminal" | "browser">("terminal");
   const [showCommandPalette, setShowCommandPalette] = useState(false);
@@ -721,43 +723,7 @@ function App() {
     }
   };
 
-  const acceptDiff = async () => {
-    if (!pendingDiff) return;
-    try {
-      // Phase 3: Stash current working-tree changes before applying AI edits
-      // so the user can pop the stash to undo if needed.
-      if (workspaceFolders[0]) {
-        invoke("git_stash_create", {
-          path: workspaceFolders[0],
-          name: `pre-ai-${pendingDiff.path.split('/').pop()}-${Date.now()}`,
-        }).catch(() => {}); // best-effort — ignore if repo has nothing to stash
-      }
-
-      await invoke("write_file", { path: pendingDiff.path, content: pendingDiff.modified });
-
-      setPendingDiff(null);
-
-      // Update or add to open files
-      const filename = pendingDiff.path.split('/').pop() || pendingDiff.path.split('\\').pop() || '';
-      const language = detectLanguage(filename);
-
-      setOpenFiles(prev => {
-        const exists = prev.some(f => f.path === pendingDiff.path);
-        if (exists) {
-          return prev.map(f => f.path === pendingDiff.path ? { ...f, content: pendingDiff.modified, isDirty: false } : f);
-        } else {
-          return [...prev, { path: pendingDiff.path, content: pendingDiff.modified, language, isDirty: false }];
-        }
-      });
-      setActiveFilePath(pendingDiff.path);
-
-      // Optional: Show a small notification or just rely on the UI update
-      // alert("Changes saved to disk!"); 
-    } catch (error) {
-      console.error("Failed to accept changes:", error);
-      toast.error("Failed to save changes: " + error);
-    }
-  };
+  // acceptDiff was removed — DiffReviewPanel handles accept/reject inline
 
   const rejectDiff = () => {
     setPendingDiff(null);
@@ -1502,7 +1468,7 @@ function App() {
           <aside className="ai-chat-panel" style={{ display: "flex", flexDirection: "column" }}>
             {/* Tab bar */}
             <div role="tablist" aria-label="AI Panel tabs" style={{ display: "flex", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
-              {(["chat", "agent", "memory", "history", "checkpoints", "artifacts", "manager", "hooks", "jobs", "mcp", "settings", "cascade", "specs", "workflow", "design", "deploy", "database", "supabase", "auth", "github", "steering", "bugbot", "redteam", "tests", "collab", "coverage", "compare", "http", "arena", "cost", "autofix", "processes", "cicd", "k8s", "env", "profiler", "docker", "deps", "apidocs", "migrations"] as const).map((tab) => (
+              {(["chat", "agent", "memory", "history", "checkpoints", "artifacts", "manager", "hooks", "jobs", "mcp", "settings", "cascade", "specs", "workflow", "design", "deploy", "database", "supabase", "auth", "github", "steering", "bugbot", "redteam", "tests", "collab", "coverage", "compare", "http", "arena", "cost", "autofix", "processes", "cicd", "k8s", "env", "profiler", "docker", "deps", "apidocs", "migrations", "logs"] as const).map((tab) => (
                 <button
                   key={tab}
                   role="tab"
@@ -1561,6 +1527,7 @@ function App() {
                     : tab === "deps" ? "📦 Deps"
                     : tab === "apidocs" ? "📖 API Docs"
                     : tab === "migrations" ? "🔷 Migrations"
+                    : tab === "logs" ? "📋 Logs"
                     : "🌊 Flow"}
                 </button>
               ))}
@@ -1568,6 +1535,7 @@ function App() {
 
             {/* Tab content */}
             <div role="tabpanel" aria-labelledby={`ai-tab-${aiPanelTab}`} style={{ flex: 1, overflow: "hidden" }}>
+              <ErrorBoundary>
               {aiPanelTab === "chat" && (
                 <ChatTabManager
                   defaultProvider={selectedProvider}
@@ -1745,6 +1713,10 @@ function App() {
               {aiPanelTab === "migrations" && (
                 <MigrationsPanel workspacePath={workspaceFolders[0] || null} />
               )}
+              {aiPanelTab === "logs" && (
+                <LogPanel workspacePath={workspaceFolders[0] || null} />
+              )}
+              </ErrorBoundary>
             </div>
           </aside>
         )}

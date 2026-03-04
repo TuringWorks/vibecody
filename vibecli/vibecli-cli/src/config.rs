@@ -601,13 +601,11 @@ impl SafetyConfig {
         "suggest".to_string()
     }
 
-    pub fn approval_policy_from_flags(suggest: bool, auto_edit: bool, full_auto: bool) -> String {
+    pub fn approval_policy_from_flags(_suggest: bool, auto_edit: bool, full_auto: bool) -> String {
         if full_auto {
             "full-auto".to_string()
         } else if auto_edit {
             "auto-edit".to_string()
-        } else if suggest {
-            "suggest".to_string()
         } else {
             "suggest".to_string()
         }

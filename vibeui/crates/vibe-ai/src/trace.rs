@@ -82,6 +82,7 @@ impl TraceWriter {
     }
 
     /// Append one entry to the log.
+    #[allow(clippy::too_many_arguments)]
     pub fn record(
         &self,
         step: usize,
@@ -124,7 +125,7 @@ impl TraceWriter {
     pub fn save_messages(&self, messages: &[Message]) -> std::io::Result<()> {
         let path = self.messages_path();
         let json = serde_json::to_string_pretty(messages)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+            .map_err(std::io::Error::other)?;
         fs::write(path, redact_secrets(&json))
     }
 
@@ -132,7 +133,7 @@ impl TraceWriter {
     pub fn save_context(&self, ctx: &AgentContext) -> std::io::Result<()> {
         let path = self.context_path();
         let json = serde_json::to_string_pretty(ctx)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+            .map_err(std::io::Error::other)?;
         fs::write(path, json)
     }
 
@@ -245,7 +246,7 @@ pub fn load_trace(path: &Path) -> Vec<TraceEntry> {
     };
     BufReader::new(f)
         .lines()
-        .flatten()
+        .map_while(Result::ok)
         .filter_map(|l| serde_json::from_str(&l).ok())
         .collect()
 }

@@ -112,7 +112,7 @@ impl CollabRoom {
     /// Apply a binary sync message from a peer. Returns an optional reply message.
     pub async fn apply_message(&self, msg: &[u8]) -> Result<Option<Vec<u8>>, CollabError> {
         let doc = self.doc.write().await;
-        protocol::apply_sync_message(&doc, msg).map_err(|e| CollabError::YrsError(e))
+        protocol::apply_sync_message(&doc, msg).map_err(CollabError::YrsError)
     }
 
     /// Get the number of connected peers.

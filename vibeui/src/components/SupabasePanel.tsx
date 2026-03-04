@@ -35,7 +35,7 @@ export function SupabasePanel({ workspacePath, provider }: { workspacePath: stri
     let cancelled = false;
     invoke<SupabaseConfig>("get_supabase_config", { workspacePath })
       .then(cfg => { if (!cancelled && cfg.url) { setConfig(cfg); setConnected(true); fetchTables(cfg); } })
-      .catch(() => {});
+      .catch((e: unknown) => { if (!cancelled) console.error("Failed to load Supabase config:", e); });
     return () => { cancelled = true; };
   }, [workspacePath]);
 

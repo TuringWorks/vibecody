@@ -102,18 +102,15 @@ impl fmt::Display for WorkflowStage {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
+#[derive(Default)]
 pub enum StageStatus {
+    #[default]
     NotStarted,
     InProgress,
     Complete,
     Skipped,
 }
 
-impl Default for StageStatus {
-    fn default() -> Self {
-        Self::NotStarted
-    }
-}
 
 impl fmt::Display for StageStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -447,8 +444,8 @@ impl WorkflowManager {
         let mut body = raw.to_string();
 
         // Parse front-matter
-        if raw.starts_with("---") {
-            let after_open = raw[3..].trim_start_matches('\n');
+        if let Some(stripped) = raw.strip_prefix("---") {
+            let after_open = stripped.trim_start_matches('\n');
             if let Some(close_pos) = after_open.find("\n---") {
                 let fm = &after_open[..close_pos];
                 body = after_open[close_pos..]
@@ -484,14 +481,13 @@ impl WorkflowManager {
         let mut section_lines: Vec<String> = vec![];
 
         for line in body.lines() {
-            if line.starts_with("## Stage: ") {
+            if let Some(label) = line.strip_prefix("## Stage: ") {
                 // Flush previous section
                 if let Some(idx) = current_section {
                     flush_stage_section(&mut stages[idx], &section_lines);
                 }
                 section_lines.clear();
 
-                let label = &line["## Stage: ".len()..];
                 if let Some(stage) = WorkflowStage::from_label(label) {
                     current_section = Some(stage.index());
                 } else {

@@ -197,8 +197,10 @@ impl RemoteEmbeddingIndex {
 /// Add `[index] backend = "remote"` + `url = "http://…"` to `~/.vibecli/config.toml`
 /// or `.vibecli/config.toml` to opt into the remote backend.
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub enum IndexBackend {
     /// Use the local in-process `EmbeddingIndex`.
+    #[default]
     Local,
     /// Delegate to a `vibe-indexer` HTTP service.
     Remote {
@@ -209,9 +211,6 @@ pub enum IndexBackend {
     },
 }
 
-impl Default for IndexBackend {
-    fn default() -> Self { Self::Local }
-}
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 

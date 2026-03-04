@@ -118,7 +118,7 @@ fn estimate_confidence(text: &str) -> f32 {
         score += 0.1;
     }
 
-    if text.trim_end().ends_with(|c| matches!(c, ';' | '}' | ')' | '\n' | ',')) {
+    if text.trim_end().ends_with([';', '}', ')', '\n', ',']) {
         score += 0.1;
     }
 
