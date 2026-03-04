@@ -836,7 +836,7 @@ pub async fn send_chat_message(
         for file in files {
             system_prompt.push_str(&format!("- {}\n", file));
         }
-        system_prompt.push_str("\n");
+        system_prompt.push('\n');
     }
 
     // Prepend system message
@@ -940,7 +940,7 @@ pub async fn stream_chat_message(
         for file in files {
             system_prompt.push_str(&format!("- {}\n", file));
         }
-        system_prompt.push_str("\n");
+        system_prompt.push('\n');
     }
     request.messages.insert(0, vibe_ai::Message {
         role: vibe_ai::MessageRole::System,
@@ -1246,7 +1246,7 @@ async fn resolve_at_references(
         let (registry, name) = if name_raw.starts_with("rs:") {
             ("rs", name_raw.trim_start_matches("rs:"))
         } else if name_raw.starts_with("py:") || name_raw.starts_with("pypi:") {
-            let n = name_raw.splitn(2, ':').nth(1).unwrap_or(name_raw);
+            let n = name_raw.split_once(':').map(|x| x.1).unwrap_or(name_raw);
             ("py", n)
         } else if name_raw.starts_with("npm:") {
             ("npm", name_raw.trim_start_matches("npm:"))
@@ -5022,6 +5022,13 @@ pub async fn find_sqlite_files(workspace_path: String) -> Vec<String> {
 /// would require additional crates — returns an informative error for those.
 #[tauri::command]
 pub async fn list_db_tables(connection_string: String, db_type: String) -> Result<Vec<TableInfo>, String> {
+    // Validate: SQLite paths must not contain path traversal sequences
+    if db_type == "sqlite" {
+        let p = std::path::Path::new(&connection_string);
+        if connection_string.contains("..") || p.is_absolute() && !p.exists() {
+            return Err("Invalid database path".to_string());
+        }
+    }
     match db_type.as_str() {
         "sqlite" => list_sqlite_tables(&connection_string),
         "postgres" | "supabase" => Err("PostgreSQL/Supabase support requires installing the pg feature. Use vibecli with --db-url for direct SQL access.".to_string()),
@@ -5089,6 +5096,13 @@ pub async fn query_db(
     db_type: String,
     sql: String,
 ) -> Result<QueryResult, String> {
+    // Validate: SQLite paths must not contain path traversal sequences
+    if db_type == "sqlite" {
+        let p = std::path::Path::new(&connection_string);
+        if connection_string.contains("..") || p.is_absolute() && !p.exists() {
+            return Err("Invalid database path".to_string());
+        }
+    }
     match db_type.as_str() {
         "sqlite" => query_sqlite(&connection_string, &sql),
         _ => Err("Only SQLite is currently supported in the GUI. Use vibecli --db-url for other databases.".to_string()),
@@ -5254,7 +5268,7 @@ pub async fn query_supabase(url: String, anon_key: String, sql: String) -> Resul
                 .unwrap_or("").trim_matches('"');
             let limit = if sql_lower.contains("limit") {
                 sql_lower.split("limit").nth(1)
-                    .and_then(|s| s.trim().split_whitespace().next())
+                    .and_then(|s| s.split_whitespace().next())
                     .and_then(|n| n.parse::<u32>().ok())
                     .unwrap_or(50)
             } else { 50 };
@@ -5369,7 +5383,7 @@ pub async fn write_auth_scaffold(
     let dir = workspace_root.join(&target_path);
     // Prevent path traversal: ensure the destination stays inside the workspace
     let canonical_dir = dir.to_str()
-        .map(|s| std::path::PathBuf::from(s))
+        .map(std::path::PathBuf::from)
         .unwrap_or(dir.clone());
     // Resolve without requiring it to exist yet — strip ".." components
     let mut resolved = std::path::PathBuf::new();
@@ -6729,12 +6743,11 @@ pub async fn discover_api_endpoints(workspace: String) -> Result<Vec<String>, St
         if let Ok(content) = std::fs::read_to_string(entry.path()) {
             for line in content.lines() {
                 let trimmed = line.trim().to_string();
-                if compiled.iter().any(|re| re.is_match(&trimmed)) {
-                    if !endpoints.contains(&trimmed) {
+                if compiled.iter().any(|re| re.is_match(&trimmed))
+                    && !endpoints.contains(&trimmed) {
                         endpoints.push(trimmed);
                         if endpoints.len() >= 60 { break; }
                     }
-                }
             }
         }
     }
@@ -8460,8 +8473,9 @@ fn parse_env_content(content: &str, reveal: bool) -> Vec<EnvEntry> {
             let key = trimmed[..eq_pos].trim().to_string();
             let mut value = trimmed[eq_pos + 1..].trim().to_string();
             // Strip surrounding quotes
-            if (value.starts_with('"') && value.ends_with('"'))
-                || (value.starts_with('\'') && value.ends_with('\''))
+            if value.len() >= 2
+                && ((value.starts_with('"') && value.ends_with('"'))
+                    || (value.starts_with('\'') && value.ends_with('\'')))
             {
                 value = value[1..value.len() - 1].to_string();
             }

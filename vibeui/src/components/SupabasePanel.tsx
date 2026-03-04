@@ -29,16 +29,19 @@ export function SupabasePanel({ workspacePath, provider }: { workspacePath: stri
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"tables" | "query" | "ai">("tables");
 
+  // Load saved config on mount (must be before early return to satisfy Rules of Hooks)
+  useEffect(() => {
+    if (!workspacePath) return;
+    let cancelled = false;
+    invoke<SupabaseConfig>("get_supabase_config", { workspacePath })
+      .then(cfg => { if (!cancelled && cfg.url) { setConfig(cfg); setConnected(true); fetchTables(cfg); } })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [workspacePath]);
+
   if (!workspacePath) {
     return <div className="empty-state"><p>Open a workspace folder to use the Supabase panel.</p></div>;
   }
-
-  // Load saved config on mount
-  useEffect(() => {
-    invoke<SupabaseConfig>("get_supabase_config", { workspacePath })
-      .then(cfg => { if (cfg.url) { setConfig(cfg); setConnected(true); fetchTables(cfg); } })
-      .catch(() => {});
-  }, [workspacePath]);
 
   const fetchTables = async (cfg?: SupabaseConfig) => {
     const c = cfg || config;

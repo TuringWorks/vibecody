@@ -756,8 +756,8 @@ async fn main() -> Result<()> {
                 rl.add_history_entry(line.as_str())?;
 
                 // Direct shell command
-                if input.starts_with('!') {
-                    let command = input[1..].trim();
+                if let Some(shell_cmd) = input.strip_prefix('!') {
+                    let command = shell_cmd.trim();
                     if !command.is_empty() {
                         let require_approval = Config::load()
                             .map(|c| c.safety.require_approval_for_commands)
@@ -2404,7 +2404,7 @@ async fn main() -> Result<()> {
                                 if records.is_empty() {
                                     println!("No background jobs found.\n");
                                 } else {
-                                    println!("{:<38} {:<10} {}", "SESSION ID", "STATUS", "TASK");
+                                    println!("{:<38} {:<10} TASK", "SESSION ID", "STATUS");
                                     println!("{}", "-".repeat(80));
                                     for rec in records.iter().take(20) {
                                         let icon = match rec.status.as_str() {
@@ -2925,8 +2925,9 @@ async fn main() -> Result<()> {
                                     if let Some(eq_pos) = trimmed.find('=') {
                                         let key = trimmed[..eq_pos].trim().to_string();
                                         let mut value = trimmed[eq_pos + 1..].trim().to_string();
-                                        if (value.starts_with('"') && value.ends_with('"'))
-                                            || (value.starts_with('\'') && value.ends_with('\''))
+                                        if value.len() >= 2
+                                            && ((value.starts_with('"') && value.ends_with('"'))
+                                                || (value.starts_with('\'') && value.ends_with('\'')))
                                         {
                                             value = value[1..value.len() - 1].to_string();
                                         }
@@ -4930,7 +4931,7 @@ pub async fn expand_at_refs(input: &str) -> String {
                     content
                         .lines()
                         .enumerate()
-                        .filter(|(i, _)| *i + 1 >= start && *i + 1 <= end)
+                        .filter(|(i, _)| *i + 1 >= start && *i < end)
                         .map(|(_, l)| l)
                         .collect::<Vec<_>>()
                         .join("\n")
@@ -4980,11 +4981,11 @@ pub async fn expand_at_refs(input: &str) -> String {
         let (registry, clean_name) = if name_raw.starts_with("rs:") {
             ("docs.rs", name_raw.trim_start_matches("rs:"))
         } else if name_raw.starts_with("py:") || name_raw.starts_with("pypi:") {
-            ("pypi", name_raw.split(':').last().unwrap_or(name_raw))
+            ("pypi", name_raw.split(':').next_back().unwrap_or(name_raw))
         } else if name_raw.starts_with("npm:") {
             ("npm", name_raw.trim_start_matches("npm:"))
         } else {
-            ("docs.rs", name_raw.as_ref())
+            ("docs.rs", name_raw)
         };
 
         let url = match registry {

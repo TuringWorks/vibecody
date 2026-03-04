@@ -105,9 +105,15 @@ async function handleStartDaemon(): Promise<void> {
   const port = config.get<number>('daemonPort', 7878);
   const provider = config.get<string>('provider', 'ollama');
 
-  const terminal = vscode.window.createTerminal('VibeCLI Daemon');
-  terminal.sendText(`vibecli serve --port ${port} --provider ${provider}`);
-  terminal.show();
+  // Reuse existing daemon terminal if one already exists
+  const existing = vscode.window.terminals.find((t) => t.name === 'VibeCLI Daemon');
+  if (existing) {
+    existing.show();
+  } else {
+    const terminal = vscode.window.createTerminal('VibeCLI Daemon');
+    terminal.sendText(`vibecli serve --port ${port} --provider ${provider}`);
+    terminal.show();
+  }
 
   // Wait a moment then re-check
   await new Promise((r) => setTimeout(r, 2000));

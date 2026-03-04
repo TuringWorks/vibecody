@@ -231,23 +231,28 @@ impl VimEditorComponent {
     }
     fn move_word_forward(&mut self) {
         let row = self.cursor.0;
-        let col = self.cursor.1;
         let line = &self.lines[row];
-        let chars: Vec<char> = line.chars().collect();
-        let mut i = col + 1;
-        while i < chars.len() && chars[i].is_alphanumeric() { i += 1; }
-        while i < chars.len() && !chars[i].is_alphanumeric() { i += 1; }
-        self.cursor.1 = i.min(chars.len().saturating_sub(1));
+        // Collect (byte_offset, char) pairs so we work in char indices but store byte offsets
+        let indices: Vec<(usize, char)> = line.char_indices().collect();
+        if indices.is_empty() { return; }
+        // Find which char index corresponds to our current byte offset
+        let char_idx = indices.iter().position(|(b, _)| *b >= self.cursor.1).unwrap_or(indices.len().saturating_sub(1));
+        let mut i = char_idx + 1;
+        while i < indices.len() && indices[i].1.is_alphanumeric() { i += 1; }
+        while i < indices.len() && !indices[i].1.is_alphanumeric() { i += 1; }
+        let target = i.min(indices.len().saturating_sub(1));
+        self.cursor.1 = indices[target].0;
     }
     fn move_word_back(&mut self) {
-        let col = self.cursor.1;
         let line = &self.lines[self.cursor.0];
-        let chars: Vec<char> = line.chars().collect();
-        if col == 0 { return; }
-        let mut i = col.saturating_sub(1);
-        while i > 0 && !chars[i].is_alphanumeric() { i -= 1; }
-        while i > 0 && chars[i - 1].is_alphanumeric() { i -= 1; }
-        self.cursor.1 = i;
+        let indices: Vec<(usize, char)> = line.char_indices().collect();
+        if indices.is_empty() || self.cursor.1 == 0 { return; }
+        // Find which char index corresponds to our current byte offset
+        let char_idx = indices.iter().position(|(b, _)| *b >= self.cursor.1).unwrap_or(indices.len().saturating_sub(1));
+        let mut i = char_idx.saturating_sub(1);
+        while i > 0 && !indices[i].1.is_alphanumeric() { i -= 1; }
+        while i > 0 && indices[i - 1].1.is_alphanumeric() { i -= 1; }
+        self.cursor.1 = indices[i].0;
     }
 
     // ── Mutation helpers (all save undo snap) ─────────────────────────────────
@@ -563,8 +568,14 @@ impl VimEditorComponent {
             KeyCode::Esc => {
                 self.mode = VimMode::Normal;
                 // Adjust col: in normal mode col can't exceed len-1
+                // Must use char_indices to find the previous char boundary (cursor.1 is a byte offset)
                 if !self.lines[self.cursor.0].is_empty() && self.cursor.1 > 0 {
-                    self.cursor.1 -= 1;
+                    let line = &self.lines[self.cursor.0];
+                    self.cursor.1 = line[..self.cursor.1]
+                        .char_indices()
+                        .next_back()
+                        .map(|(i, _)| i)
+                        .unwrap_or(0);
                 }
             }
             KeyCode::Enter => {
@@ -840,8 +851,8 @@ impl VimEditorComponent {
                 }
                 let ch = chars[col];
                 let is_cursor = is_cursor_row && col == self.cursor.1;
-                let in_visual = vis_lo.map_or(false, |lo| col >= lo) && vis_hi.map_or(false, |hi| col <= hi);
-                let in_search = search_pat.as_ref().map_or(false, |pat| {
+                let in_visual = vis_lo.is_some_and(|lo| col >= lo) && vis_hi.is_some_and(|hi| col <= hi);
+                let in_search = search_pat.as_ref().is_some_and(|pat| {
                     // Use char indices for correct multi-byte UTF-8 handling
                     let lower_chars: Vec<char> = line_str.to_lowercase().chars().collect();
                     let pat_chars: Vec<char> = pat.chars().collect();
