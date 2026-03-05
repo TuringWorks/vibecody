@@ -406,6 +406,11 @@ pub fn run() {
             // Phase 7.34: Project Scaffolding
             commands::list_scaffold_templates,
             commands::generate_scaffold,
+            // Phase 7.35: Service Health Monitor
+            commands::get_health_monitors,
+            commands::save_health_monitors,
+            commands::check_service_health,
+            commands::check_all_services,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

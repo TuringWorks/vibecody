@@ -13251,3 +13251,98 @@ app.listen(3000, () => console.log("Server on http://localhost:3000"));
 
     Ok(result)
 }
+
+// ── Phase 7.35: Service Health Monitor ────────────────────────────────────────
+
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+pub struct HealthMonitor {
+    pub id: String,
+    pub label: String,
+    pub url: String,
+    pub expected_status: u16,
+    pub timeout_ms: u64,
+}
+
+#[derive(serde::Serialize)]
+pub struct HealthCheckResult {
+    pub id: String,
+    pub url: String,
+    pub ok: bool,
+    pub status_code: Option<u16>,
+    pub latency_ms: u64,
+    pub timestamp: u64,
+    pub error: Option<String>,
+}
+
+fn health_monitors_path() -> std::path::PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    std::path::PathBuf::from(home).join(".vibeui").join("health-monitors.json")
+}
+
+#[tauri::command]
+pub async fn get_health_monitors() -> Result<Vec<HealthMonitor>, String> {
+    let path = health_monitors_path();
+    if !path.exists() {
+        return Ok(vec![]);
+    }
+    let data = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    serde_json::from_str(&data).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn save_health_monitors(monitors: Vec<HealthMonitor>) -> Result<(), String> {
+    let path = health_monitors_path();
+    std::fs::create_dir_all(path.parent().unwrap()).map_err(|e| e.to_string())?;
+    let data = serde_json::to_string_pretty(&monitors).map_err(|e| e.to_string())?;
+    std::fs::write(&path, &data).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn check_service_health(monitor: HealthMonitor) -> Result<HealthCheckResult, String> {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let start = std::time::Instant::now();
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
+    let timeout = std::time::Duration::from_millis(monitor.timeout_ms.min(30_000));
+
+    let client = reqwest::Client::builder()
+        .timeout(timeout)
+        .danger_accept_invalid_certs(false)
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    match client.get(&monitor.url).send().await {
+        Ok(resp) => {
+            let latency_ms = start.elapsed().as_millis() as u64;
+            let status = resp.status().as_u16();
+            let ok = status == monitor.expected_status || (monitor.expected_status == 200 && status < 400);
+            Ok(HealthCheckResult {
+                id: monitor.id,
+                url: monitor.url,
+                ok,
+                status_code: Some(status),
+                latency_ms,
+                timestamp: now,
+                error: if ok { None } else { Some(format!("HTTP {status}")) },
+            })
+        }
+        Err(e) => {
+            let latency_ms = start.elapsed().as_millis() as u64;
+            Ok(HealthCheckResult {
+                id: monitor.id,
+                url: monitor.url,
+                ok: false,
+                status_code: None,
+                latency_ms,
+                timestamp: now,
+                error: Some(e.to_string()),
+            })
+        }
+    }
+}
+
+#[tauri::command]
+pub async fn check_all_services(monitors: Vec<HealthMonitor>) -> Result<Vec<HealthCheckResult>, String> {
+    let futs: Vec<_> = monitors.into_iter().map(|m| check_service_health(m)).collect();
+    let results = futures::future::join_all(futs).await;
+    Ok(results.into_iter().filter_map(|r| r.ok()).collect())
+}
