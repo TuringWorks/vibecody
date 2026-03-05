@@ -62,6 +62,9 @@ static COMMANDS: &[&str] = &[
     "/trace",
     "/transform",
     "/marketplace",
+    "/voice",
+    "/discover",
+    "/pair",
     "/workflow",
 ];
 
@@ -203,6 +206,9 @@ fn command_hint(cmd: &str) -> Option<&'static str> {
         "/share"    => Some("<session_id>  — print shareable URL for a session (requires vibecli serve)"),
         "/workflow" => Some("[new <name>|list|show <n>|advance <n>|check <n> <id>|generate <n>]  — Code Complete workflow"),
         "/redteam"  => Some("[scan <url>|list|show <id>|report <id>|config]  — autonomous security scanning"),
+        "/voice"    => Some("[transcribe <file>|speak <text>]  — voice transcription (Whisper) & TTS (ElevenLabs)"),
+        "/discover" => Some("— discover VibeCLI peers on the local network"),
+        "/pair"     => Some("[host:port]  — generate device pairing URL with one-time token"),
         _ => None,
     }
 }

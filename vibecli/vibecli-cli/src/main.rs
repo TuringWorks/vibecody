@@ -4198,6 +4198,80 @@ async fn main() -> Result<()> {
                             }
                         }
 
+                        "/voice" => {
+                            let sub_parts: Vec<&str> = args.splitn(2, ' ').collect();
+                            let subcmd = sub_parts.first().copied().unwrap_or("").trim();
+                            let sub_args = if sub_parts.len() > 1 { sub_parts[1].trim() } else { "" };
+                            let vcfg = Config::load().unwrap_or_default().voice;
+
+                            match subcmd {
+                                "transcribe" if !sub_args.is_empty() => {
+                                    let key = vcfg.resolve_whisper_api_key(None).unwrap_or_default();
+                                    if key.is_empty() {
+                                        println!("❌ Set GROQ_API_KEY or voice.whisper_api_key in config.\n");
+                                    } else {
+                                        let audio_path = std::path::Path::new(sub_args);
+                                        match voice::transcribe_audio(audio_path, &key).await {
+                                            Ok(text) => println!("📝 Transcription:\n{}\n", text),
+                                            Err(e) => println!("❌ Transcription failed: {e}\n"),
+                                        }
+                                    }
+                                }
+                                "speak" if !sub_args.is_empty() => {
+                                    let key = vcfg.resolve_elevenlabs_api_key().unwrap_or_default();
+                                    let voice_id = vcfg.resolve_elevenlabs_voice_id();
+                                    if key.is_empty() {
+                                        println!("❌ Set ELEVENLABS_API_KEY or voice.elevenlabs_api_key in config.\n");
+                                    } else {
+                                        match voice::text_to_speech(sub_args, &key, &voice_id).await {
+                                            Ok(bytes) => {
+                                                let out_path = std::env::temp_dir().join("vibecli_tts.mp3");
+                                                if let Err(e) = std::fs::write(&out_path, &bytes) {
+                                                    println!("❌ Failed to write audio: {e}\n");
+                                                } else {
+                                                    println!("🔊 Audio saved to {}\n", out_path.display());
+                                                }
+                                            }
+                                            Err(e) => println!("❌ TTS failed: {e}\n"),
+                                        }
+                                    }
+                                }
+                                _ => {
+                                    println!("Usage: /voice [transcribe <file>|speak <text>]\n");
+                                }
+                            }
+                        }
+
+                        "/discover" => {
+                            println!("🔍 Scanning for VibeCLI peers on local network...\n");
+                            match discovery::discover_peers(5).await {
+                                Ok(peers) if peers.is_empty() => {
+                                    println!("No peers found. Start another VibeCLI with --serve.\n");
+                                }
+                                Ok(peers) => {
+                                    println!("Found {} peer(s):", peers.len());
+                                    for p in &peers {
+                                        println!("  {} — {}:{}", p.name, p.host, p.port);
+                                    }
+                                    println!();
+                                }
+                                Err(e) => println!("❌ Discovery failed: {e}\n"),
+                            }
+                        }
+
+                        "/pair" => {
+                            let host_port = if args.trim().is_empty() {
+                                "localhost:7878".to_string()
+                            } else {
+                                args.trim().to_string()
+                            };
+                            let parts: Vec<&str> = host_port.splitn(2, ':').collect();
+                            let host = parts[0];
+                            let port: u16 = parts.get(1).and_then(|p| p.parse().ok()).unwrap_or(7878);
+                            let (url, token) = pairing::generate_pairing_url(host, port);
+                            print!("{}", pairing::render_pairing_display(&url, &token));
+                        }
+
                         _ => {
                             println!("Type /help for available commands\n");
                         }
