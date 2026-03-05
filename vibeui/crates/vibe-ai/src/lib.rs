@@ -23,7 +23,8 @@ pub use chat::ChatEngine;
 pub use provider::{CodeContext, Message, MessageRole, CompletionStream, ImageAttachment};
 pub use providers::{
     BedrockProvider, CopilotProvider, AzureOpenAIProvider, OpenRouterProvider, GroqProvider,
-    LocalEditProvider,
+    LocalEditProvider, MistralProvider, CerebrasProvider, DeepSeekProvider, ZhipuProvider,
+    VercelAIProvider, FailoverProvider,
 };
 pub use config::AIConfig;
 pub use completion::CompletionEngine;
@@ -39,7 +40,7 @@ pub use multi_agent::{
     MultiAgentOrchestrator, AgentTask, AgentResult, AgentInstance,
     AgentStatus, OrchestratorEvent, ExecutorFactory, WorktreeManager, IsolatedWorktree,
 };
-pub use skills::{Skill, SkillLoader};
+pub use skills::{Skill, SkillLoader, SkillWatcher, SkillInstaller};
 pub use artifacts::{Artifact, AgentArtifact, ArtifactStore, Annotation, TaskItem, ReviewIssueRef};
 pub use policy::{AdminPolicy, PolicyDecision};
 pub use rules::{Rule, RulesLoader};
