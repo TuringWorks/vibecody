@@ -78,31 +78,31 @@ VibeCody has closed **97% of previously identified competitive gaps** (89/92 fea
 
 | # | Gap | Competitors | Effort | Impact |
 |---|-----|-------------|--------|--------|
-| 1 | **Cloud-isolated agent execution** | Cursor, Copilot, Codex, Devin | XL | Agents run in VMs/containers, produce PRs, not just local worktrees |
-| 2 | **Agent Teams (peer-to-peer)** | Claude Code | L | Agents communicate directly with each other, share findings, challenge assumptions |
-| 3 | **CI-integrated AI review** | Cursor BugBot, Continue, Copilot | L | Auto-review PRs as GitHub App, post status checks, auto-fix in cloud |
-| 4 | **Computer use / visual self-testing** | Cursor, Devin | XL | Agents launch & test the app visually, record screenshots/video |
+| 1 | ✅ **Cloud-isolated agent execution** | Cursor, Copilot, Codex, Devin | XL | Docker-based agent execution (cloud_agent.rs, `--cloud` flag) |
+| 2 | ✅ **Agent Teams (peer-to-peer)** | Claude Code | L | AgentTeam with TeamMessageBus (agent_team.rs, `/team` REPL) |
+| 3 | ✅ **CI-integrated AI review** | Cursor BugBot, Continue, Copilot | L | GitHub App webhook (github_app.rs, `/webhook/github` route) |
+| 4 | ✅ **Computer use / visual self-testing** | Cursor, Devin | XL | Screenshot capture + visual assertions (computer_use.rs, VisualTestPanel) |
 
 ### B.2 — High Priority (Strong differentiation)
 
 | # | Gap | Competitors | Effort | Impact |
 |---|-----|-------------|--------|--------|
-| 5 | **Agent Client Protocol (ACP)** | Zed, JetBrains, Cursor | M | Open protocol for IDE-agnostic agent integration |
-| 6 | **Plugin marketplace** | Claude Code, Copilot | M | Discovery, install, rating for community plugins |
-| 7 | **HTTP hooks** | Claude Code | S | POST JSON to URL, receive JSON back (vs shell-only hooks) |
-| 8 | **Code transformation agent** (`/transform`) | Amazon Q, Devin | L | Automated language/framework upgrades across entire repos |
-| 9 | **Trace visualization dashboard** | Codex | M | Visual inspector for agent session traces (not just JSONL) |
+| 5 | ✅ **Agent Client Protocol (ACP)** | Zed, JetBrains, Cursor | M | ACP server (acp.rs, `/acp/v1/*` routes in serve.rs) |
+| 6 | ✅ **Plugin marketplace** | Claude Code, Copilot | M | Marketplace client (marketplace.rs, MarketplacePanel, `/marketplace` REPL) |
+| 7 | ✅ **HTTP hooks** | Claude Code | S | HookHandler::Http variant (hooks.rs, HooksPanel HTTP type) |
+| 8 | ✅ **Code transformation agent** (`/transform`) | Amazon Q, Devin | L | TransformType enum + AI plan/execute (transform.rs, `/transform` REPL) |
+| 9 | ✅ **Trace visualization dashboard** | Codex | M | TraceDashboard.tsx (timeline view, step filters, color-coded) |
 
 ### B.3 — Medium Priority (Polish & differentiation)
 
 | # | Gap | Competitors | Effort | Impact |
 |---|-----|-------------|--------|--------|
-| 10 | **Mermaid/diagram rendering in CLI** | Cursor | S | ASCII art diagrams in terminal output |
-| 11 | **Interactive UI in agent responses** | Cursor | M | Agents render buttons, forms, charts in chat |
-| 12 | **AI checks as CI quality gate** | Continue.dev | M | Enforce AI review rules in CI pipeline (pass/fail) |
-| 13 | **Open next-edit model (Instinct-like)** | Continue (Instinct 7B) | M | Fine-tuned local model for next-edit, no API dependency |
-| 14 | **Visual edit mode (click-to-modify)** | Lovable, Bolt v2 | S | Click UI elements to modify without prompts |
-| 15 | **Full-stack app generation from screenshot** | v0, Bolt, Lovable | L | Upload design → generate complete app |
+| 10 | ✅ **Mermaid/diagram rendering in CLI** | Cursor | S | mermaid_ascii.rs (graph/flowchart/sequence, 21 tests) |
+| 11 | ✅ **Interactive UI in agent responses** | Cursor | M | AgentUIRenderer.tsx (buttons/form/table blocks) |
+| 12 | ✅ **AI checks as CI quality gate** | Continue.dev | M | GitHub Action (.github/actions/vibecli-review/action.yml) |
+| 13 | ✅ **Open next-edit model (Instinct-like)** | Continue (Instinct 7B) | M | LocalEditProvider (local_edit.rs, Ollama FIM) |
+| 14 | ✅ **Visual edit mode (click-to-modify)** | Lovable, Bolt v2 | S | VisualEditOverlay.tsx (enhanced BrowserPanel inspect) |
+| 15 | ✅ **Full-stack app generation from screenshot** | v0, Bolt, Lovable | L | ScreenshotToApp.tsx + generate_app_from_image Tauri cmd |
 
 ### B.4 — Low Priority (Future consideration)
 
