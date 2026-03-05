@@ -75,7 +75,7 @@ export function TestPanel({ workspacePath }: TestPanelProps) {
         unlistenRef.current?.();
         unlistenRef.current = null;
         const unlisten = await listen<string>("test:log", (e) => {
-            setLiveLog((prev) => [...prev.slice(-200), e.payload]);
+            setLiveLog((prev) => [...prev.slice(-199), e.payload]);
         });
         unlistenRef.current = unlisten;
 
