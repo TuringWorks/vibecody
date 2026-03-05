@@ -7,7 +7,7 @@ permalink: /roadmap-v2/
 # VibeCody Competitive Roadmap v2
 
 **Date:** February 2026
-**Scope:** Detailed fit-gap analysis and feature-by-feature implementation plan to surpass Codex CLI, Claude Code (VibeCLI), and Cursor, Windsurf, Google Antigravity (VibeUI).
+**Scope:** Detailed fit-gap analysis and feature-by-feature implementation plan to surpass Codex CLI, Claude Code (VibeCLI), and Cursor, Windsurf, Google Antigravity, Trae (VibeUI).
 
 ---
 
@@ -154,6 +154,18 @@ All previously-identified gaps have been closed:
 - **Async feedback** — comment on artifact without interrupting agent execution (most unique capability in the field)
 - **Multi-model** — Gemini 3 Pro/Flash natively; Claude Sonnet 4.5 + Opus 4.5; GPT-OSS 120B
 - **Free during preview** — no cost barrier for adoption
+
+#### Trae (ByteDance, January 2025) Key Capabilities
+
+- **AI-native IDE** — VS Code fork by ByteDance with 6M+ users; three modes: Chat, Builder (agent), SOLO (fully autonomous)
+- **Free models** — Claude 3.7 Sonnet + GPT-4o at no cost; Pro ($10/month) adds Gemini 2.5 Pro + higher rate limits
+- **MCP support** — built-in MCP client with server manager UI and growing marketplace
+- **Multimodal** — image upload (screenshot-to-code), voice input, @web/@docs/@codebase/@terminal context
+- **Browser preview** — integrated web preview panel with Vercel one-click deploy
+- **Rules files** — `.trae/rules` for project-level AI context
+- **Open-source agent** — trae-agent framework released under MIT license
+- **No BYOK** — users cannot bring their own API keys; locked to ByteDance-provided models
+- **Privacy concern** — ByteDance ownership creates enterprise adoption friction (data sovereignty)
 
 #### VibeUI Gaps — All Critical/High Items Closed ✅
 
