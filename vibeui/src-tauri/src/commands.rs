@@ -12900,3 +12900,354 @@ pub async fn generate_compliance_report(
         }
     }))
 }
+
+// ── Phase 7.34: Project Scaffolding ───────────────────────────────────────────
+
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+pub struct ScaffoldTemplate {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub language: String,
+    pub framework: String,
+    pub tags: Vec<String>,
+}
+
+#[derive(serde::Serialize)]
+pub struct ScaffoldFile {
+    pub path: String,
+    pub content: String,
+}
+
+#[derive(serde::Serialize)]
+pub struct ScaffoldResult {
+    pub files: Vec<ScaffoldFile>,
+    pub install_command: Option<String>,
+    pub dev_command: Option<String>,
+    pub notes: String,
+}
+
+/// List built-in scaffold templates
+#[tauri::command]
+pub async fn list_scaffold_templates() -> Result<Vec<ScaffoldTemplate>, String> {
+    Ok(vec![
+        ScaffoldTemplate { id: "rust-cli".into(), name: "Rust CLI".into(), description: "Clap-based CLI with error handling".into(), language: "Rust".into(), framework: "Clap".into(), tags: vec!["rust".into(), "cli".into()] },
+        ScaffoldTemplate { id: "rust-axum".into(), name: "Rust Axum API".into(), description: "REST API with Axum, Tower, and serde".into(), language: "Rust".into(), framework: "Axum".into(), tags: vec!["rust".into(), "api".into(), "web".into()] },
+        ScaffoldTemplate { id: "react-ts".into(), name: "React + TypeScript".into(), description: "Vite-powered React app with TS".into(), language: "TypeScript".into(), framework: "React".into(), tags: vec!["react".into(), "typescript".into(), "frontend".into()] },
+        ScaffoldTemplate { id: "nextjs".into(), name: "Next.js App".into(), description: "Next.js 14 with App Router and Tailwind".into(), language: "TypeScript".into(), framework: "Next.js".into(), tags: vec!["react".into(), "next".into(), "fullstack".into()] },
+        ScaffoldTemplate { id: "fastapi".into(), name: "FastAPI".into(), description: "Python FastAPI with pydantic and uvicorn".into(), language: "Python".into(), framework: "FastAPI".into(), tags: vec!["python".into(), "api".into()] },
+        ScaffoldTemplate { id: "go-gin".into(), name: "Go Gin API".into(), description: "Gin REST API with structured logging".into(), language: "Go".into(), framework: "Gin".into(), tags: vec!["go".into(), "api".into()] },
+        ScaffoldTemplate { id: "tauri-react".into(), name: "Tauri + React".into(), description: "Desktop app with Tauri 2 + React + TS".into(), language: "Rust/TypeScript".into(), framework: "Tauri".into(), tags: vec!["tauri".into(), "desktop".into(), "rust".into()] },
+        ScaffoldTemplate { id: "express-ts".into(), name: "Express + TypeScript".into(), description: "Node.js Express API with TypeScript".into(), language: "TypeScript".into(), framework: "Express".into(), tags: vec!["node".into(), "api".into(), "typescript".into()] },
+    ])
+}
+
+/// Generate scaffold files for a given template and project name
+#[tauri::command]
+pub async fn generate_scaffold(template_id: String, project_name: String, output_dir: String) -> Result<ScaffoldResult, String> {
+    // Validate project name
+    if !project_name.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_') {
+        return Err(format!("Invalid project name: {project_name}"));
+    }
+    let name = &project_name;
+
+    let result = match template_id.as_str() {
+        "rust-cli" => ScaffoldResult {
+            files: vec![
+                ScaffoldFile { path: "Cargo.toml".into(), content: format!(r#"[package]
+name = "{name}"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+clap = {{ version = "4", features = ["derive"] }}
+anyhow = "1"
+"#) },
+                ScaffoldFile { path: "src/main.rs".into(), content: format!(r#"use clap::{{Parser, Subcommand}};
+
+#[derive(Parser)]
+#[command(name = "{name}", about = "A CLI application")]
+struct Cli {{
+    #[command(subcommand)]
+    command: Commands,
+}}
+
+#[derive(Subcommand)]
+enum Commands {{
+    /// Run the main command
+    Run {{ input: String }},
+}}
+
+fn main() {{
+    let cli = Cli::parse();
+    match cli.command {{
+        Commands::Run {{ input }} => {{
+            println!("Running with: {{}}", input);
+        }}
+    }}
+}}
+"#) },
+                ScaffoldFile { path: ".gitignore".into(), content: "/target\n".into() },
+                ScaffoldFile { path: "README.md".into(), content: format!("# {name}\n\nA Rust CLI application.\n\n## Usage\n\n```bash\ncargo run -- run <input>\n```\n") },
+            ],
+            install_command: None,
+            dev_command: Some("cargo run".into()),
+            notes: "Run `cargo build --release` to create a release binary.".into(),
+        },
+        "rust-axum" => ScaffoldResult {
+            files: vec![
+                ScaffoldFile { path: "Cargo.toml".into(), content: format!(r#"[package]
+name = "{name}"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = "0.7"
+tokio = {{ version = "1", features = ["full"] }}
+serde = {{ version = "1", features = ["derive"] }}
+serde_json = "1"
+tower-http = {{ version = "0.5", features = ["cors", "trace"] }}
+tracing = "0.1"
+tracing-subscriber = "0.3"
+"#) },
+                ScaffoldFile { path: "src/main.rs".into(), content: r#"use axum::{routing::get, Router, Json};
+use serde::Serialize;
+
+#[derive(Serialize)]
+struct Health { status: String }
+
+async fn health() -> Json<Health> {
+    Json(Health { status: "ok".into() })
+}
+
+#[tokio::main]
+async fn main() {
+    tracing_subscriber::fmt::init();
+    let app = Router::new().route("/health", get(health));
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    tracing::info!("listening on {}", listener.local_addr().unwrap());
+    axum::serve(listener, app).await.unwrap();
+}
+"#.into() },
+                ScaffoldFile { path: ".gitignore".into(), content: "/target\n".into() },
+            ],
+            install_command: None,
+            dev_command: Some("cargo run".into()),
+            notes: "API will be available at http://localhost:3000".into(),
+        },
+        "react-ts" => ScaffoldResult {
+            files: vec![
+                ScaffoldFile { path: "package.json".into(), content: format!(r#"{{
+  "name": "{name}",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {{
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  }},
+  "dependencies": {{
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  }},
+  "devDependencies": {{
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@vitejs/plugin-react": "^4.0.0",
+    "typescript": "^5.0.0",
+    "vite": "^5.0.0"
+  }}
+}}
+"#) },
+                ScaffoldFile { path: "index.html".into(), content: format!(r#"<!DOCTYPE html>
+<html lang="en">
+  <head><meta charset="UTF-8"><title>{name}</title></head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+"#) },
+                ScaffoldFile { path: "src/main.tsx".into(), content: r#"import React from "react";
+import ReactDOM from "react-dom/client";
+import App from "./App";
+
+ReactDOM.createRoot(document.getElementById("root")!).render(
+  <React.StrictMode><App /></React.StrictMode>
+);
+"#.into() },
+                ScaffoldFile { path: "src/App.tsx".into(), content: format!(r#"export default function App() {{
+  return <h1>{name}</h1>;
+}}
+"#) },
+                ScaffoldFile { path: "tsconfig.json".into(), content: r#"{"compilerOptions":{"target":"ES2020","useDefineForClassFields":true,"lib":["ES2020","DOM"],"module":"ESNext","skipLibCheck":true,"moduleResolution":"bundler","allowImportingTsExtensions":true,"noEmit":true,"strict":true,"jsx":"react-jsx"},"include":["src"]}"#.into() },
+                ScaffoldFile { path: ".gitignore".into(), content: "node_modules\ndist\n".into() },
+            ],
+            install_command: Some("npm install".into()),
+            dev_command: Some("npm run dev".into()),
+            notes: "Run npm install then npm run dev to start.".into(),
+        },
+        "fastapi" => ScaffoldResult {
+            files: vec![
+                ScaffoldFile { path: "main.py".into(), content: r#"from fastapi import FastAPI
+from pydantic import BaseModel
+
+app = FastAPI()
+
+class Item(BaseModel):
+    name: str
+    value: float
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+@app.post("/items")
+def create_item(item: Item):
+    return {"created": item.model_dump()}
+"#.into() },
+                ScaffoldFile { path: "requirements.txt".into(), content: "fastapi>=0.100.0\nuvicorn[standard]>=0.23.0\npydantic>=2.0.0\n".into() },
+                ScaffoldFile { path: ".gitignore".into(), content: "__pycache__\n*.pyc\n.venv\n".into() },
+                ScaffoldFile { path: "README.md".into(), content: format!("# {name}\n\n```bash\npip install -r requirements.txt\nuvicorn main:app --reload\n```\n") },
+            ],
+            install_command: Some("pip install -r requirements.txt".into()),
+            dev_command: Some("uvicorn main:app --reload".into()),
+            notes: "API docs at http://localhost:8000/docs".into(),
+        },
+        "go-gin" => ScaffoldResult {
+            files: vec![
+                ScaffoldFile { path: "go.mod".into(), content: format!("module {name}\n\ngo 1.21\n\nrequire github.com/gin-gonic/gin v1.9.1\n") },
+                ScaffoldFile { path: "main.go".into(), content: r#"package main
+
+import (
+    "net/http"
+    "github.com/gin-gonic/gin"
+)
+
+func main() {
+    r := gin.Default()
+    r.GET("/health", func(c *gin.Context) {
+        c.JSON(http.StatusOK, gin.H{"status": "ok"})
+    })
+    r.Run(":8080")
+}
+"#.into() },
+                ScaffoldFile { path: ".gitignore".into(), content: "*.exe\n*.out\n".into() },
+            ],
+            install_command: Some("go mod tidy".into()),
+            dev_command: Some("go run main.go".into()),
+            notes: "API at http://localhost:8080".into(),
+        },
+        "express-ts" => ScaffoldResult {
+            files: vec![
+                ScaffoldFile { path: "package.json".into(), content: format!(r#"{{
+  "name": "{name}",
+  "version": "0.1.0",
+  "scripts": {{
+    "dev": "ts-node src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  }},
+  "dependencies": {{
+    "express": "^4.18.0"
+  }},
+  "devDependencies": {{
+    "@types/express": "^4.17.0",
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.0.0"
+  }}
+}}
+"#) },
+                ScaffoldFile { path: "src/index.ts".into(), content: r#"import express from "express";
+const app = express();
+app.use(express.json());
+app.get("/health", (_req, res) => res.json({ status: "ok" }));
+app.listen(3000, () => console.log("Server on http://localhost:3000"));
+"#.into() },
+                ScaffoldFile { path: "tsconfig.json".into(), content: r#"{"compilerOptions":{"target":"ES2020","module":"commonjs","outDir":"dist","strict":true},"include":["src"]}"#.into() },
+                ScaffoldFile { path: ".gitignore".into(), content: "node_modules\ndist\n".into() },
+            ],
+            install_command: Some("npm install".into()),
+            dev_command: Some("npm run dev".into()),
+            notes: "API at http://localhost:3000".into(),
+        },
+        "nextjs" => ScaffoldResult {
+            files: vec![
+                ScaffoldFile { path: "package.json".into(), content: format!(r#"{{
+  "name": "{name}",
+  "version": "0.1.0",
+  "scripts": {{
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  }},
+  "dependencies": {{
+    "next": "14",
+    "react": "^18",
+    "react-dom": "^18"
+  }},
+  "devDependencies": {{
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "typescript": "^5"
+  }}
+}}
+"#) },
+                ScaffoldFile { path: "app/page.tsx".into(), content: format!("export default function Home() {{\n  return <main><h1>{name}</h1></main>;\n}}\n") },
+                ScaffoldFile { path: "app/layout.tsx".into(), content: format!("export default function RootLayout({{ children }}: {{ children: React.ReactNode }}) {{\n  return <html lang=\"en\"><body>{{children}}</body></html>;\n}}\n") },
+                ScaffoldFile { path: ".gitignore".into(), content: "node_modules\n.next\n".into() },
+            ],
+            install_command: Some("npm install".into()),
+            dev_command: Some("npm run dev".into()),
+            notes: "App at http://localhost:3000".into(),
+        },
+        "tauri-react" => ScaffoldResult {
+            files: vec![
+                ScaffoldFile { path: "package.json".into(), content: format!(r#"{{
+  "name": "{name}",
+  "version": "0.1.0",
+  "scripts": {{
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "tauri": "tauri"
+  }},
+  "dependencies": {{
+    "react": "^18",
+    "react-dom": "^18",
+    "@tauri-apps/api": "^2"
+  }},
+  "devDependencies": {{
+    "@tauri-apps/cli": "^2",
+    "@vitejs/plugin-react": "^4",
+    "typescript": "^5",
+    "vite": "^5"
+  }}
+}}
+"#) },
+                ScaffoldFile { path: "src-tauri/Cargo.toml".into(), content: format!("[package]\nname = \"{name}\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[lib]\nname = \"{name}\"\ncrate-type = [\"cdylib\", \"rlib\"]\n\n[dependencies]\ntauri = {{ version = \"2\", features = [] }}\nserde = {{ version = \"1\", features = [\"derive\"] }}\nserde_json = \"1\"\n") },
+                ScaffoldFile { path: "src-tauri/src/lib.rs".into(), content: "#[cfg_attr(mobile, tauri::mobile_entry_point)]\npub fn run() {\n    tauri::Builder::default()\n        .run(tauri::generate_context!())\n        .expect(\"error while running tauri application\");\n}\n".into() },
+                ScaffoldFile { path: "src/App.tsx".into(), content: format!("export default function App() {{\n  return <h1>{name}</h1>;\n}}\n") },
+                ScaffoldFile { path: ".gitignore".into(), content: "node_modules\ndist\nsrc-tauri/target\n".into() },
+            ],
+            install_command: Some("npm install".into()),
+            dev_command: Some("npm run tauri dev".into()),
+            notes: "Requires Rust and the Tauri CLI prerequisites.".into(),
+        },
+        _ => return Err(format!("Unknown template: {template_id}")),
+    };
+
+    // Write files to output_dir if it is non-empty
+    if !output_dir.is_empty() {
+        let root = std::path::PathBuf::from(&output_dir);
+        for f in &result.files {
+            let dest = root.join(&f.path);
+            if let Some(parent) = dest.parent() {
+                std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+            }
+            std::fs::write(&dest, &f.content).map_err(|e| e.to_string())?;
+        }
+    }
+
+    Ok(result)
+}

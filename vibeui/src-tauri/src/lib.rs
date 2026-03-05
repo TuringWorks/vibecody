@@ -403,6 +403,9 @@ pub fn run() {
             commands::get_cloud_agent_status,
             // Phase 8.18: Compliance Reporting
             commands::generate_compliance_report,
+            // Phase 7.34: Project Scaffolding
+            commands::list_scaffold_templates,
+            commands::generate_scaffold,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
