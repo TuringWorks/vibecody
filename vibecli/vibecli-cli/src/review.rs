@@ -312,7 +312,6 @@ fn get_diff(config: &ReviewConfig) -> Result<String> {
 
 fn extract_files_from_diff(diff: &str) -> Vec<String> {
     diff.lines()
-        .filter(|l| l.starts_with("+++ b/") || l.starts_with("--- a/"))
         .filter(|l| l.starts_with("+++ b/"))
         .map(|l| l.trim_start_matches("+++ b/").to_string())
         .filter(|f| f != "/dev/null")
