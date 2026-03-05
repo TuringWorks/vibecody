@@ -76,15 +76,16 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
                 const chunk = e.payload;
                 setStreaming((prev) => prev + chunk);
 
-                // Record time-to-first-token on first chunk
-                const ttft = streamStartMsRef.current === null ? null : undefined;
-                if (streamStartMsRef.current === null) {
-                    streamStartMsRef.current = now;
-                }
+                // Compute TTFT on first chunk only (before chars are accumulated)
+                const isFirstChunk = streamCharsRef.current === 0;
+                const ttftMs = isFirstChunk && streamStartMsRef.current
+                    ? now - streamStartMsRef.current
+                    : null;
 
                 // Accumulate chars; estimate 1 token ≈ 4 chars
                 streamCharsRef.current += chunk.length;
-                const elapsedSec = (now - streamStartMsRef.current) / 1000;
+                const startTime = streamStartMsRef.current ?? now;
+                const elapsedSec = (now - startTime) / 1000;
                 const estimatedTokens = Math.round(streamCharsRef.current / 4);
                 const tokensPerSec = elapsedSec > 0
                     ? Math.round(estimatedTokens / elapsedSec)
@@ -92,7 +93,7 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
 
                 setStreamMetrics({
                     tokensPerSec,
-                    ttftMs: ttft === null ? now - (streamStartMsRef.current ?? now) : null,
+                    ttftMs,
                     totalTokens: estimatedTokens,
                 });
             });
@@ -175,8 +176,8 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
         setStreaming("");
         setPending(null);
         setStatus("running");
-        // Reset streaming metrics
-        streamStartMsRef.current = null;
+        // Reset streaming metrics — record submit time for TTFT calculation
+        streamStartMsRef.current = Date.now();
         streamCharsRef.current = 0;
         setStreamMetrics(null);
 
