@@ -3698,6 +3698,179 @@ async fn main() -> Result<()> {
                             }
                         }
 
+                        "/bisect" => {
+                            let sub_parts: Vec<&str> = args.splitn(3, ' ').collect();
+                            let subcmd = sub_parts.first().copied().unwrap_or("").trim();
+                            let cwd = std::env::current_dir().unwrap_or_default();
+                            match subcmd {
+                                "start" => {
+                                    let bad = sub_parts.get(1).copied().unwrap_or("").trim();
+                                    let good = sub_parts.get(2).copied().unwrap_or("").trim();
+                                    if bad.is_empty() || good.is_empty() {
+                                        println!("Usage: /bisect start <bad-commit> <good-commit>\n");
+                                        continue;
+                                    }
+                                    let output = std::process::Command::new("git")
+                                        .args(["bisect", "start", bad, good])
+                                        .current_dir(&cwd)
+                                        .output();
+                                    match output {
+                                        Ok(o) => {
+                                            let out = String::from_utf8_lossy(&o.stdout);
+                                            let err = String::from_utf8_lossy(&o.stderr);
+                                            println!("{out}{err}");
+                                        }
+                                        Err(e) => println!("❌ Failed to start bisect: {e}\n"),
+                                    }
+                                }
+                                "good" | "bad" | "skip" => {
+                                    let output = std::process::Command::new("git")
+                                        .args(["bisect", subcmd])
+                                        .current_dir(&cwd)
+                                        .output();
+                                    match output {
+                                        Ok(o) => {
+                                            let out = String::from_utf8_lossy(&o.stdout);
+                                            let err = String::from_utf8_lossy(&o.stderr);
+                                            print!("{out}{err}");
+                                            if out.contains("is the first bad commit") {
+                                                println!("\n🎯 Culprit found!\n");
+                                            }
+                                        }
+                                        Err(e) => println!("❌ Bisect step failed: {e}\n"),
+                                    }
+                                }
+                                "reset" => {
+                                    let _ = std::process::Command::new("git")
+                                        .args(["bisect", "reset"])
+                                        .current_dir(&cwd)
+                                        .status();
+                                    println!("✅ Bisect session reset.\n");
+                                }
+                                "log" => {
+                                    let output = std::process::Command::new("git")
+                                        .args(["bisect", "log"])
+                                        .current_dir(&cwd)
+                                        .output();
+                                    match output {
+                                        Ok(o) => print!("{}", String::from_utf8_lossy(&o.stdout)),
+                                        Err(e) => println!("❌ Failed to get bisect log: {e}\n"),
+                                    }
+                                }
+                                "analyze" => {
+                                    let output = std::process::Command::new("git")
+                                        .args(["bisect", "log"])
+                                        .current_dir(&cwd)
+                                        .output();
+                                    match output {
+                                        Ok(o) => {
+                                            let log_text = String::from_utf8_lossy(&o.stdout);
+                                            if log_text.trim().is_empty() {
+                                                println!("No bisect log available. Start a bisect session first.\n");
+                                                continue;
+                                            }
+                                            println!("🤖 Analyzing bisect session...\n");
+                                            let prompt = format!(
+                                                "Analyze this git bisect log and identify the root cause commit. \
+                                                 Explain what likely went wrong.\n\n```\n{}\n```",
+                                                log_text
+                                            );
+                                            let msgs = vec![Message {
+                                                role: MessageRole::User,
+                                                content: prompt,
+                                            }];
+                                            match llm.chat(&msgs, None).await {
+                                                Ok(resp) => println!("{resp}\n"),
+                                                Err(e) => println!("❌ AI error: {e}\n"),
+                                            }
+                                        }
+                                        Err(e) => println!("❌ Failed to get bisect log: {e}\n"),
+                                    }
+                                }
+                                _ => {
+                                    println!("Usage: /bisect [start <bad> <good>|good|bad|skip|reset|log|analyze]\n");
+                                }
+                            }
+                        }
+
+                        "/markers" => {
+                            let subcmd = args.trim();
+                            let cwd = std::env::current_dir().unwrap_or_default();
+                            match subcmd {
+                                "scan" | "list" | "" => {
+                                    println!("🔖 Scanning for code markers...\n");
+                                    let re = regex::Regex::new(r"(?i)\b(TODO|FIXME|HACK|BUG|NOTE|XXX)\b[:\s]*(.*)")
+                                        .unwrap();
+                                    let extensions = &["rs","ts","tsx","js","jsx","py","go","java","rb","c","cpp","h"];
+                                    let mut count = 0u32;
+                                    for entry in walkdir::WalkDir::new(&cwd)
+                                        .follow_links(false)
+                                        .max_depth(8)
+                                        .into_iter()
+                                        .filter_map(|e| e.ok())
+                                    {
+                                        let path = entry.path();
+                                        let ps = path.to_string_lossy();
+                                        if ps.contains("/.git/") || ps.contains("/node_modules/")
+                                            || ps.contains("/target/") || ps.contains("/dist/") {
+                                            continue;
+                                        }
+                                        if !path.is_file() { continue; }
+                                        let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+                                        if !extensions.contains(&ext) { continue; }
+                                        let content = match std::fs::read_to_string(path) {
+                                            Ok(c) => c,
+                                            Err(_) => continue,
+                                        };
+                                        let rel = path.strip_prefix(&cwd).unwrap_or(path);
+                                        for (i, line) in content.lines().enumerate() {
+                                            if let Some(caps) = re.captures(line) {
+                                                let mtype = caps.get(1).map(|m| m.as_str().to_uppercase()).unwrap_or_default();
+                                                let text = caps.get(2).map(|m| m.as_str().trim()).unwrap_or("");
+                                                println!("  \x1b[36m{}:{}\x1b[m  [\x1b[33m{}\x1b[m]  {}", rel.display(), i + 1, mtype, text);
+                                                count += 1;
+                                                if count >= 200 { break; }
+                                            }
+                                        }
+                                        if count >= 200 { break; }
+                                    }
+                                    println!("\n📍 Found {} markers.\n", count);
+                                }
+                                "bookmarks" => {
+                                    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+                                    let bp = std::path::PathBuf::from(&home).join(".vibeui").join("bookmarks.json");
+                                    match std::fs::read_to_string(&bp) {
+                                        Ok(s) => {
+                                            let bookmarks: Vec<serde_json::Value> = serde_json::from_str(&s).unwrap_or_default();
+                                            if bookmarks.is_empty() {
+                                                println!("No bookmarks saved.\n");
+                                            } else {
+                                                println!("🔖 Bookmarks:\n");
+                                                for b in &bookmarks {
+                                                    let file = b.get("file").and_then(|v| v.as_str()).unwrap_or("?");
+                                                    let line = b.get("line").and_then(|v| v.as_u64()).unwrap_or(0);
+                                                    let label = b.get("label").and_then(|v| v.as_str()).unwrap_or("");
+                                                    println!("  {}:{}  {}", file, line, label);
+                                                }
+                                                println!();
+                                            }
+                                        }
+                                        Err(_) => println!("No bookmarks file found.\n"),
+                                    }
+                                }
+                                _ => {
+                                    println!("Usage: /markers [scan|list|bookmarks]\n");
+                                }
+                            }
+                        }
+
+                        "/mock" => {
+                            println!("🎭 Mock server management is available in VibeUI's Mock tab.\n");
+                            println!("  The mock server requires the VibeUI runtime (Tauri) to host the");
+                            println!("  HTTP server. Use the 🎭 Mock tab to start/stop, add routes, view");
+                            println!("  request logs, and import from OpenAPI specs.\n");
+                        }
+
                         _ => {
                             println!("Type /help for available commands\n");
                         }

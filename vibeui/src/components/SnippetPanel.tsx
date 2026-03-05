@@ -1,0 +1,303 @@
+/**
+ * SnippetPanel — Snippet Library & Templates.
+ *
+ * List/create/delete code snippets (shared with VibeCLI at ~/.vibecli/snippets/).
+ * AI-powered snippet generation. Search/filter by language and tags.
+ */
+import { useState, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
+
+interface SnippetMeta {
+  name: string;
+  description: string;
+  language: string;
+  tags: string[];
+  created_at: string;
+}
+
+interface SnippetPanelProps {
+  workspacePath: string | null;
+}
+
+const LANG_OPTIONS = ["", "rust", "typescript", "javascript", "python", "go", "java", "ruby", "bash", "sql", "html", "css"];
+
+export function SnippetPanel({ workspacePath: _workspacePath }: SnippetPanelProps) {
+  const [snippets, setSnippets] = useState<SnippetMeta[]>([]);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [content, setContent] = useState("");
+  const [search, setSearch] = useState("");
+  const [langFilter, setLangFilter] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Create form
+  const [creating, setCreating] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newLang, setNewLang] = useState("");
+  const [newTags, setNewTags] = useState("");
+  const [newContent, setNewContent] = useState("");
+  const [generating, setGenerating] = useState(false);
+  const [genDesc, setGenDesc] = useState("");
+
+  const loadSnippets = async () => {
+    try {
+      const result = await invoke<SnippetMeta[]>("list_snippets");
+      setSnippets(result);
+    } catch (e: unknown) {
+      setError(String(e));
+    }
+  };
+
+  useEffect(() => { loadSnippets(); }, []);
+
+  const selectSnippet = async (name: string) => {
+    setSelected(name);
+    setCreating(false);
+    try {
+      const c = await invoke<string>("get_snippet", { name });
+      setContent(c);
+    } catch (e: unknown) {
+      setError(String(e));
+    }
+  };
+
+  const handleSave = async () => {
+    if (!newName.trim()) { setError("Name is required"); return; }
+    setLoading(true);
+    setError(null);
+    try {
+      await invoke("save_snippet", { name: newName.trim(), content: newContent, language: newLang, tags: newTags });
+      setCreating(false);
+      setNewName(""); setNewLang(""); setNewTags(""); setNewContent("");
+      await loadSnippets();
+    } catch (e: unknown) {
+      setError(String(e));
+    }
+    setLoading(false);
+  };
+
+  const handleDelete = async (name: string) => {
+    try {
+      await invoke("delete_snippet", { name });
+      if (selected === name) { setSelected(null); setContent(""); }
+      await loadSnippets();
+    } catch (e: unknown) {
+      setError(String(e));
+    }
+  };
+
+  const handleGenerate = async () => {
+    if (!genDesc.trim()) return;
+    setGenerating(true);
+    setError(null);
+    try {
+      const result = await invoke<string>("generate_snippet", { description: genDesc, language: newLang || "typescript" });
+      setNewContent(result);
+    } catch (e: unknown) {
+      setError(String(e));
+    }
+    setGenerating(false);
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(content).catch(() => {});
+  };
+
+  const handleInsert = () => {
+    window.dispatchEvent(new CustomEvent("vibeui:inject-context", { detail: content }));
+  };
+
+  const filtered = snippets.filter((s) => {
+    if (search && !s.name.toLowerCase().includes(search.toLowerCase()) && !s.description.toLowerCase().includes(search.toLowerCase())) return false;
+    if (langFilter && s.language !== langFilter) return false;
+    return true;
+  });
+
+  // Extract content without frontmatter for display
+  const displayContent = (raw: string) => {
+    const lines = raw.split("\n");
+    let inFm = false;
+    let pastFm = false;
+    const out: string[] = [];
+    for (const line of lines) {
+      if (line.trim() === "---") {
+        if (!inFm && !pastFm) { inFm = true; continue; }
+        if (inFm) { inFm = false; pastFm = true; continue; }
+      }
+      if (!inFm) out.push(line);
+    }
+    return out.join("\n").trim();
+  };
+
+  return (
+    <div style={{ display: "flex", height: "100%", overflow: "hidden" }}>
+      {/* Left: snippet list */}
+      <div style={{
+        width: "40%", borderRight: "1px solid var(--border, #2a2a3e)",
+        display: "flex", flexDirection: "column", overflow: "hidden",
+      }}>
+        <div style={{ display: "flex", gap: 4, padding: "8px 8px 4px", flexWrap: "wrap" }}>
+          <input
+            placeholder="Search..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ ...inputStyle, flex: 1 }}
+          />
+          <select value={langFilter} onChange={(e) => setLangFilter(e.target.value)} style={selectStyle}>
+            <option value="">All langs</option>
+            {LANG_OPTIONS.filter(Boolean).map((l) => <option key={l} value={l}>{l}</option>)}
+          </select>
+        </div>
+        <div style={{ padding: "4px 8px" }}>
+          <button onClick={() => { setCreating(true); setSelected(null); }} style={{ ...btnStyle, width: "100%", background: "#6366f1", color: "#fff" }}>
+            + New Snippet
+          </button>
+        </div>
+
+        <div style={{ flex: 1, overflowY: "auto" }}>
+          {filtered.map((s) => (
+            <div
+              key={s.name}
+              onClick={() => selectSnippet(s.name)}
+              style={{
+                padding: "6px 8px", cursor: "pointer", fontSize: 11,
+                borderBottom: "1px solid var(--border, #2a2a3e)",
+                background: selected === s.name ? "rgba(99,102,241,0.1)" : "transparent",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <span style={{ fontWeight: 600 }}>{s.name}</span>
+                {s.language && (
+                  <span style={{
+                    padding: "1px 4px", borderRadius: 3, fontSize: 9, fontWeight: 600,
+                    background: "#89b4fa", color: "#1e1e2e",
+                  }}>
+                    {s.language}
+                  </span>
+                )}
+              </div>
+              {s.description && (
+                <div style={{ fontSize: 10, opacity: 0.6, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {s.description}
+                </div>
+              )}
+              {s.tags.length > 0 && (
+                <div style={{ display: "flex", gap: 3, marginTop: 2 }}>
+                  {s.tags.map((t) => (
+                    <span key={t} style={{ fontSize: 9, padding: "0 4px", borderRadius: 2, background: "rgba(203,166,247,0.15)", color: "#cba6f7" }}>
+                      {t}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+          {filtered.length === 0 && (
+            <div style={{ padding: 16, textAlign: "center", opacity: 0.5, fontSize: 11 }}>
+              No snippets found.
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Right: detail or create */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        {error && (
+          <div style={{ padding: "6px 8px", fontSize: 11, color: "#f38ba8", background: "rgba(243,139,168,0.05)" }}>
+            {error}
+          </div>
+        )}
+
+        {/* Detail view */}
+        {selected && !creating && (
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            <div style={{ display: "flex", gap: 6, padding: "8px 8px", alignItems: "center", borderBottom: "1px solid var(--border, #2a2a3e)" }}>
+              <span style={{ fontWeight: 600, fontSize: 12 }}>{selected}</span>
+              <div style={{ flex: 1 }} />
+              <button onClick={handleCopy} style={btnStyle}>Copy</button>
+              <button onClick={handleInsert} style={{ ...btnStyle, color: "#89b4fa" }}>Insert</button>
+              <button onClick={() => handleDelete(selected)} style={{ ...btnStyle, color: "#f38ba8" }}>Delete</button>
+            </div>
+            <pre style={{
+              flex: 1, margin: 0, padding: "8px 10px", overflowY: "auto",
+              fontFamily: "monospace", fontSize: 12, lineHeight: 1.5,
+              background: "var(--bg-primary, #11111b)", color: "var(--text-primary, #cdd6f4)",
+              whiteSpace: "pre-wrap", wordBreak: "break-all",
+            }}>
+              {displayContent(content)}
+            </pre>
+          </div>
+        )}
+
+        {/* Create view */}
+        {creating && (
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "auto", padding: "8px 10px", gap: 8 }}>
+            <div style={{ display: "flex", gap: 6 }}>
+              <input placeholder="Snippet name..." value={newName} onChange={(e) => setNewName(e.target.value)} style={{ ...inputStyle, flex: 1 }} />
+              <select value={newLang} onChange={(e) => setNewLang(e.target.value)} style={selectStyle}>
+                <option value="">Language</option>
+                {LANG_OPTIONS.filter(Boolean).map((l) => <option key={l} value={l}>{l}</option>)}
+              </select>
+            </div>
+            <input placeholder="Tags (comma-separated)..." value={newTags} onChange={(e) => setNewTags(e.target.value)} style={inputStyle} />
+
+            {/* AI Generate */}
+            <div style={{ display: "flex", gap: 6 }}>
+              <input placeholder="Describe what to generate..." value={genDesc} onChange={(e) => setGenDesc(e.target.value)} style={{ ...inputStyle, flex: 1 }} />
+              <button onClick={handleGenerate} disabled={generating} style={{ ...btnStyle, color: "#89b4fa" }}>
+                {generating ? "..." : "AI Generate"}
+              </button>
+            </div>
+
+            <textarea
+              value={newContent}
+              onChange={(e) => setNewContent(e.target.value)}
+              placeholder="Snippet code..."
+              style={{
+                flex: 1, minHeight: 120, padding: "8px 10px",
+                fontFamily: "monospace", fontSize: 12, lineHeight: 1.5,
+                background: "var(--bg-primary, #11111b)", color: "var(--text-primary, #cdd6f4)",
+                border: "1px solid var(--border, #2a2a3e)", borderRadius: 4,
+                outline: "none", resize: "vertical",
+              }}
+            />
+
+            <div style={{ display: "flex", gap: 6 }}>
+              <button onClick={handleSave} disabled={loading} style={{ ...btnStyle, background: "#6366f1", color: "#fff", flex: 1 }}>
+                {loading ? "Saving..." : "Save Snippet"}
+              </button>
+              <button onClick={() => setCreating(false)} style={btnStyle}>Cancel</button>
+            </div>
+          </div>
+        )}
+
+        {/* Empty state */}
+        {!selected && !creating && (
+          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", opacity: 0.5, fontSize: 12 }}>
+            Select a snippet or create a new one.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const btnStyle: React.CSSProperties = {
+  padding: "4px 10px", fontSize: 11, fontWeight: 600,
+  border: "1px solid var(--border, #2a2a3e)", borderRadius: 4,
+  background: "var(--bg-secondary, #1e1e2e)", color: "var(--text-primary, #cdd6f4)",
+  cursor: "pointer",
+};
+
+const inputStyle: React.CSSProperties = {
+  padding: "4px 8px", fontSize: 11, borderRadius: 4,
+  border: "1px solid var(--border, #2a2a3e)",
+  background: "var(--bg-primary, #11111b)", color: "var(--text-primary, #cdd6f4)",
+  outline: "none",
+};
+
+const selectStyle: React.CSSProperties = {
+  padding: "4px 6px", fontSize: 11, borderRadius: 4,
+  border: "1px solid var(--border, #2a2a3e)",
+  background: "var(--bg-primary, #11111b)", color: "var(--text-primary, #cdd6f4)",
+};

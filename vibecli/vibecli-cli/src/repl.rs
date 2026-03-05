@@ -14,6 +14,7 @@ static COMMANDS: &[&str] = &[
     "/arena",
     "/apply",
     "/autofix",
+    "/bisect",
     "/chat",
     "/config",
     "/cost",
@@ -31,8 +32,10 @@ static COMMANDS: &[&str] = &[
     "/jobs",
     "/linear",
     "/logs",
+    "/markers",
     "/memory",
     "/mcp",
+    "/mock",
     "/migration",
     "/model",
     "/notebook",
@@ -106,6 +109,15 @@ static WORKFLOW_SUBS: &[&str] = &["new", "list", "show", "advance", "check", "ge
 /// Sub-commands for `/arena <sub>`
 static ARENA_SUBS: &[&str] = &["compare", "stats", "history"];
 
+/// Sub-commands for `/bisect <sub>`
+static BISECT_SUBS: &[&str] = &["start", "good", "bad", "skip", "reset", "log", "analyze"];
+
+/// Sub-commands for `/markers <sub>`
+static MARKERS_SUBS: &[&str] = &["scan", "list", "bookmarks"];
+
+/// Sub-commands for `/mock <sub>`
+static MOCK_SUBS: &[&str] = &["start", "stop", "add", "remove", "list", "log", "import"];
+
 /// Sub-commands for `/migration <sub>`
 static MIGRATION_SUBS: &[&str] = &["status", "migrate", "rollback", "generate"];
 
@@ -140,6 +152,7 @@ fn command_hint(cmd: &str) -> Option<&'static str> {
         "/agent"   => Some("<task description>"),
         "/arena"   => Some("[compare <p1> <p2>|stats|history]  — blind A/B model comparison arena"),
         "/autofix" => Some("[clippy|eslint|ruff|gofmt|prettier]  — run linter auto-fix and show diff"),
+        "/bisect"  => Some("[start <bad> <good>|good|bad|skip|reset|log|analyze]  — git bisect workflow"),
         "/plan"    => Some("<task description>"),
         "/chat"    => Some("<message>"),
         "/deps"    => Some("[scan|outdated|vulnerable|upgrade <pkg>|list]  — dependency management"),
@@ -159,6 +172,8 @@ fn command_hint(cmd: &str) -> Option<&'static str> {
         "/trace"   => Some("[view <id>]"),
         "/mcp"     => Some("[list|tools <server>]"),
         "/logs"    => Some("[tail <file>|sources|errors <file>|analyze <file>]  — log viewer & analyzer"),
+        "/markers" => Some("[scan|list|bookmarks]  — scan TODO/FIXME/HACK markers & manage bookmarks"),
+        "/mock"    => Some("[start <port>|stop|add|remove|list|log|import]  — API mock server (VibeUI)"),
         "/migration" => Some("[status|migrate|rollback|generate <name>]  — database migration management"),
         "/model"   => Some("<provider> [model]  — switch active model"),
         "/notebook" => Some("<file.vibe>  — run interactive notebook cells"),
@@ -240,10 +255,13 @@ fn complete_slash(line: &str) -> Option<(usize, Vec<Pair>)> {
         Some(after_space) => {
             let subs: Option<&[&str]> = match first {
                 "/arena"    => Some(ARENA_SUBS),
+                "/bisect"   => Some(BISECT_SUBS),
                 "/deps"     => Some(DEPS_SUBS),
                 "/deploy"   => Some(DEPLOY_SUBS),
                 "/env"      => Some(ENV_SUBS),
                 "/logs"     => Some(LOGS_SUBS),
+                "/markers"  => Some(MARKERS_SUBS),
+                "/mock"     => Some(MOCK_SUBS),
                 "/profiler" => Some(PROFILER_SUBS),
                 "/profile"  => Some(PROFILE_SUBS),
                 "/plugin"   => Some(PLUGIN_SUBS),

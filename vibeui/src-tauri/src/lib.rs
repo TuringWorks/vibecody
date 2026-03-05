@@ -83,6 +83,9 @@ pub fn run() {
             terminal_buffer,
             agent_abort_handle,
             chat_abort_handle,
+            mock_server_handle: Arc::new(Mutex::new(None)),
+            mock_routes: Arc::new(Mutex::new(Vec::new())),
+            mock_request_log: Arc::new(Mutex::new(Vec::new())),
         })
         .invoke_handler(tauri::generate_handler![
             commands::read_file,
@@ -336,6 +339,34 @@ pub fn run() {
             commands::save_ssh_profile,
             commands::delete_ssh_profile,
             commands::run_ssh_command,
+            // Phase 7.30: Bookmark & TODO Manager
+            commands::scan_code_markers,
+            commands::add_bookmark,
+            commands::remove_bookmark,
+            commands::get_bookmarks,
+            // Phase 7.30: Git Bisect Assistant
+            commands::git_bisect_start,
+            commands::git_bisect_step,
+            commands::git_bisect_reset,
+            commands::git_bisect_log,
+            commands::ai_bisect_analyze,
+            // Phase 7.30: Snippet Library
+            commands::list_snippets,
+            commands::get_snippet,
+            commands::save_snippet,
+            commands::delete_snippet,
+            commands::generate_snippet,
+            // Phase 7.30: API Mock Server
+            commands::start_mock_server,
+            commands::stop_mock_server,
+            commands::add_mock_route,
+            commands::remove_mock_route,
+            commands::list_mock_routes,
+            commands::get_mock_request_log,
+            commands::generate_mocks_from_spec,
+            // Phase 7.31: GraphQL Playground
+            commands::run_graphql_query,
+            commands::introspect_graphql_schema,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

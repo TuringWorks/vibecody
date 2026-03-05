@@ -115,6 +115,12 @@ pub struct AppState {
     pub agent_abort_handle: Arc<Mutex<Option<tokio::task::AbortHandle>>>,
     /// Abort handle for the currently running chat stream (if any).
     pub chat_abort_handle: Arc<Mutex<Option<tokio::task::AbortHandle>>>,
+    /// Mock server handle (Phase 7.30).
+    pub mock_server_handle: Arc<Mutex<Option<tokio::task::JoinHandle<()>>>>,
+    /// Mock server route registry.
+    pub mock_routes: Arc<Mutex<Vec<MockRoute>>>,
+    /// Mock server captured request log.
+    pub mock_request_log: Arc<Mutex<Vec<MockRequest>>>,
 }
 
 const MAX_TERMINAL_LINES: usize = 500;
@@ -10497,4 +10503,834 @@ pub async fn run_ssh_command(
     );
 
     Ok(SshCommandResult { stdout, stderr, exit_code, duration_ms, success })
+}
+
+// ── Phase 7.30 Feature 1: Bookmark & TODO Manager ──────────────────────────
+
+fn re_code_marker() -> &'static regex::Regex {
+    static R: OnceLock<regex::Regex> = OnceLock::new();
+    R.get_or_init(|| regex::Regex::new(r"(?i)\b(TODO|FIXME|HACK|BUG|NOTE|XXX)\b[:\s]*(.*)").unwrap())
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CodeMarker {
+    pub file: String,
+    pub line: u32,
+    pub marker_type: String,
+    pub text: String,
+    pub context_line: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Bookmark {
+    pub id: String,
+    pub workspace: String,
+    pub file: String,
+    pub line: u32,
+    pub label: String,
+    pub created_at: u64,
+}
+
+fn bookmarks_path() -> PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    PathBuf::from(home).join(".vibeui").join("bookmarks.json")
+}
+
+const SOURCE_EXTENSIONS: &[&str] = &[
+    "rs", "ts", "tsx", "js", "jsx", "py", "go", "java", "kt", "swift",
+    "c", "cpp", "h", "hpp", "cs", "rb", "lua", "sh", "bash", "zsh",
+];
+
+#[tauri::command]
+pub async fn scan_code_markers(workspace: String) -> Result<Vec<CodeMarker>, String> {
+    let ws = PathBuf::from(&workspace);
+    if !ws.is_dir() {
+        return Err("Workspace directory not found".to_string());
+    }
+    let re = re_code_marker();
+    let mut markers = Vec::new();
+
+    for entry in walkdir::WalkDir::new(&ws)
+        .follow_links(false)
+        .max_depth(8)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
+        let path = entry.path();
+        let path_str = path.to_string_lossy();
+        if path_str.contains("/.git/")
+            || path_str.contains("/node_modules/")
+            || path_str.contains("/target/")
+            || path_str.contains("/dist/")
+            || path_str.contains("/.next/")
+        {
+            continue;
+        }
+        if !path.is_file() {
+            continue;
+        }
+        let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+        if !SOURCE_EXTENSIONS.contains(&ext) {
+            continue;
+        }
+        let content = match std::fs::read_to_string(path) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+        for (i, line) in content.lines().enumerate() {
+            if let Some(caps) = re.captures(line) {
+                let marker_type = caps.get(1).map(|m| m.as_str().to_uppercase()).unwrap_or_default();
+                let text = caps.get(2).map(|m| m.as_str().trim().to_string()).unwrap_or_default();
+                let rel = path.strip_prefix(&ws).unwrap_or(path).to_string_lossy().to_string();
+                markers.push(CodeMarker {
+                    file: rel,
+                    line: (i + 1) as u32,
+                    marker_type,
+                    text,
+                    context_line: line.trim().to_string(),
+                });
+                if markers.len() >= 500 {
+                    return Ok(markers);
+                }
+            }
+        }
+    }
+    Ok(markers)
+}
+
+#[tauri::command]
+pub async fn add_bookmark(workspace: String, file: String, line: u32, label: String) -> Result<(), String> {
+    let bp = bookmarks_path();
+    if let Some(parent) = bp.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    let mut bookmarks: Vec<Bookmark> = match std::fs::read_to_string(&bp) {
+        Ok(s) => serde_json::from_str(&s).unwrap_or_default(),
+        Err(_) => Vec::new(),
+    };
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64;
+    bookmarks.push(Bookmark {
+        id: format!("{:x}", now & 0xFFFF_FFFF_FFFF),
+        workspace,
+        file,
+        line,
+        label,
+        created_at: now,
+    });
+    let json = serde_json::to_string_pretty(&bookmarks).map_err(|e| e.to_string())?;
+    std::fs::write(&bp, json).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn remove_bookmark(_workspace: String, id: String) -> Result<(), String> {
+    let bp = bookmarks_path();
+    let mut bookmarks: Vec<Bookmark> = match std::fs::read_to_string(&bp) {
+        Ok(s) => serde_json::from_str(&s).unwrap_or_default(),
+        Err(_) => return Ok(()),
+    };
+    bookmarks.retain(|b| b.id != id);
+    let json = serde_json::to_string_pretty(&bookmarks).map_err(|e| e.to_string())?;
+    std::fs::write(&bp, json).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn get_bookmarks(workspace: String) -> Result<Vec<Bookmark>, String> {
+    let bp = bookmarks_path();
+    let bookmarks: Vec<Bookmark> = match std::fs::read_to_string(&bp) {
+        Ok(s) => serde_json::from_str(&s).unwrap_or_default(),
+        Err(_) => Vec::new(),
+    };
+    Ok(bookmarks.into_iter().filter(|b| b.workspace == workspace).collect())
+}
+
+// ── Phase 7.30 Feature 2: Git Bisect Assistant ─────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BisectStepResult {
+    pub current_commit: String,
+    pub commit_message: String,
+    pub commits_remaining: Option<u32>,
+    pub is_done: bool,
+    pub culprit_commit: Option<String>,
+}
+
+fn validate_git_ref(s: &str) -> Result<(), String> {
+    if s.is_empty() {
+        return Err("Git ref cannot be empty".to_string());
+    }
+    if s.contains(';') || s.contains('|') || s.contains('&') || s.contains('`')
+        || s.contains('$') || s.contains('\n') || s.contains('\r')
+    {
+        return Err("Invalid characters in git ref".to_string());
+    }
+    Ok(())
+}
+
+async fn run_git_cmd(workspace: &str, args: &[&str]) -> Result<String, String> {
+    let output = tokio::time::timeout(
+        std::time::Duration::from_secs(30),
+        tokio::process::Command::new("git")
+            .args(args)
+            .current_dir(workspace)
+            .output(),
+    )
+    .await
+    .map_err(|_| "Git command timed out after 30s".to_string())?
+    .map_err(|e| format!("Failed to run git: {e}"))?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+    if !output.status.success() && stdout.is_empty() {
+        Err(stderr)
+    } else {
+        Ok(format!("{stdout}{stderr}"))
+    }
+}
+
+#[tauri::command]
+pub async fn git_bisect_start(workspace: String, bad: String, good: String) -> Result<String, String> {
+    validate_git_ref(&bad)?;
+    validate_git_ref(&good)?;
+    run_git_cmd(&workspace, &["bisect", "start", &bad, &good]).await
+}
+
+#[tauri::command]
+pub async fn git_bisect_step(workspace: String, verdict: String) -> Result<BisectStepResult, String> {
+    if !["good", "bad", "skip"].contains(&verdict.as_str()) {
+        return Err("Verdict must be 'good', 'bad', or 'skip'".to_string());
+    }
+    let output = run_git_cmd(&workspace, &["bisect", &verdict]).await?;
+
+    let mut result = BisectStepResult {
+        current_commit: String::new(),
+        commit_message: String::new(),
+        commits_remaining: None,
+        is_done: false,
+        culprit_commit: None,
+    };
+
+    if output.contains("is the first bad commit") {
+        result.is_done = true;
+        // Extract SHA from first line like "abc123def is the first bad commit"
+        if let Some(sha) = output.split_whitespace().next() {
+            result.culprit_commit = Some(sha.to_string());
+            result.current_commit = sha.to_string();
+        }
+        result.commit_message = output.lines().next().unwrap_or("").to_string();
+    } else {
+        // Parse "Bisecting: N revisions left to test after this (roughly M steps)"
+        for line in output.lines() {
+            if line.starts_with("Bisecting:") {
+                if let Some(n) = line.split_whitespace().nth(1) {
+                    result.commits_remaining = n.parse().ok();
+                }
+            }
+            if line.starts_with('[') {
+                // "[abc123] commit message"
+                let trimmed = line.trim_start_matches('[');
+                if let Some(end) = trimmed.find(']') {
+                    result.current_commit = trimmed[..end].to_string();
+                    result.commit_message = trimmed[end + 1..].trim().to_string();
+                }
+            }
+        }
+    }
+    Ok(result)
+}
+
+#[tauri::command]
+pub async fn git_bisect_reset(workspace: String) -> Result<String, String> {
+    run_git_cmd(&workspace, &["bisect", "reset"]).await
+}
+
+#[tauri::command]
+pub async fn git_bisect_log(workspace: String) -> Result<String, String> {
+    let log = run_git_cmd(&workspace, &["bisect", "log"]).await?;
+    Ok(log.chars().take(10_000).collect())
+}
+
+#[tauri::command]
+pub async fn ai_bisect_analyze(
+    state: tauri::State<'_, AppState>,
+    _workspace: String,
+    bisect_log: String,
+) -> Result<String, String> {
+    let engine = state.chat_engine.lock().await;
+    let provider = engine.active_provider().ok_or("No AI provider configured")?;
+    let prompt = format!(
+        "Analyze this git bisect session log and identify the root cause commit. \
+         Explain what likely went wrong and suggest investigation steps.\n\n\
+         Bisect log:\n```\n{}\n```",
+        bisect_log
+    );
+    let messages = vec![vibe_ai::provider::Message {
+        role: vibe_ai::provider::MessageRole::User,
+        content: prompt,
+    }];
+    provider.chat(&messages, None).await.map_err(|e| format!("AI error: {e}"))
+}
+
+// ── Phase 7.30 Feature 3: Snippet Library ──────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SnippetMeta {
+    pub name: String,
+    pub description: String,
+    pub language: String,
+    pub tags: Vec<String>,
+    pub created_at: String,
+}
+
+fn snippets_dir() -> PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    PathBuf::from(home).join(".vibecli").join("snippets")
+}
+
+fn is_safe_snippet_name(name: &str) -> bool {
+    !name.is_empty()
+        && name.len() <= 64
+        && name.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+}
+
+#[tauri::command]
+pub async fn list_snippets() -> Result<Vec<SnippetMeta>, String> {
+    let dir = snippets_dir();
+    if !dir.is_dir() {
+        return Ok(Vec::new());
+    }
+    let mut snippets = Vec::new();
+    let entries = std::fs::read_dir(&dir).map_err(|e| e.to_string())?;
+    for entry in entries.filter_map(|e| e.ok()) {
+        let path = entry.path();
+        if path.extension().and_then(|e| e.to_str()) != Some("md") {
+            continue;
+        }
+        let name = path.file_stem().and_then(|s| s.to_str()).unwrap_or("").to_string();
+        let content = std::fs::read_to_string(&path).unwrap_or_default();
+
+        let mut language = String::new();
+        let mut tags = Vec::new();
+        let mut created_at = String::new();
+        let mut description = String::new();
+        let mut in_frontmatter = false;
+        let mut past_frontmatter = false;
+
+        for line in content.lines() {
+            if line.trim() == "---" {
+                if !in_frontmatter && !past_frontmatter {
+                    in_frontmatter = true;
+                    continue;
+                } else if in_frontmatter {
+                    in_frontmatter = false;
+                    past_frontmatter = true;
+                    continue;
+                }
+            }
+            if in_frontmatter {
+                if let Some(val) = line.strip_prefix("language:") {
+                    language = val.trim().to_string();
+                } else if let Some(val) = line.strip_prefix("tags:") {
+                    let raw = val.trim().trim_start_matches('[').trim_end_matches(']');
+                    tags = raw.split(',').map(|t| t.trim().to_string()).filter(|t| !t.is_empty()).collect();
+                } else if let Some(val) = line.strip_prefix("created_at:") {
+                    created_at = val.trim().to_string();
+                }
+            } else if past_frontmatter || !in_frontmatter {
+                let trimmed = line.trim();
+                if !trimmed.is_empty() && description.is_empty() {
+                    description = trimmed.to_string();
+                }
+            }
+        }
+        snippets.push(SnippetMeta { name, description, language, tags, created_at });
+    }
+    snippets.sort_by(|a, b| a.name.cmp(&b.name));
+    Ok(snippets)
+}
+
+#[tauri::command]
+pub async fn get_snippet(name: String) -> Result<String, String> {
+    if !is_safe_snippet_name(&name) {
+        return Err("Invalid snippet name".to_string());
+    }
+    let path = snippets_dir().join(format!("{name}.md"));
+    tokio::fs::read_to_string(&path).await.map_err(|e| format!("Failed to read snippet: {e}"))
+}
+
+#[tauri::command]
+pub async fn save_snippet(name: String, content: String, language: String, tags: String) -> Result<(), String> {
+    if !is_safe_snippet_name(&name) {
+        return Err("Invalid snippet name (alphanumeric, hyphens, underscores only)".to_string());
+    }
+    let dir = snippets_dir();
+    tokio::fs::create_dir_all(&dir).await.map_err(|e| e.to_string())?;
+    let now = chrono_lite_now();
+    let full = format!("---\nlanguage: {language}\ntags: [{tags}]\ncreated_at: {now}\n---\n\n{content}");
+    tokio::fs::write(dir.join(format!("{name}.md")), full).await.map_err(|e| e.to_string())
+}
+
+fn chrono_lite_now() -> String {
+    let d = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default();
+    let secs = d.as_secs();
+    // Simple ISO-ish timestamp without chrono crate
+    format!("{secs}")
+}
+
+#[tauri::command]
+pub async fn delete_snippet(name: String) -> Result<(), String> {
+    if !is_safe_snippet_name(&name) {
+        return Err("Invalid snippet name".to_string());
+    }
+    let path = snippets_dir().join(format!("{name}.md"));
+    tokio::fs::remove_file(&path).await.map_err(|e| format!("Failed to delete snippet: {e}"))
+}
+
+#[tauri::command]
+pub async fn generate_snippet(
+    state: tauri::State<'_, AppState>,
+    description: String,
+    language: String,
+) -> Result<String, String> {
+    let engine = state.chat_engine.lock().await;
+    let provider = engine.active_provider().ok_or("No AI provider configured")?;
+    let prompt = format!(
+        "Generate a concise, reusable code snippet in {language} for the following description. \
+         Include brief comments. Return only the code, no explanations.\n\nDescription: {description}"
+    );
+    let messages = vec![vibe_ai::provider::Message {
+        role: vibe_ai::provider::MessageRole::User,
+        content: prompt,
+    }];
+    provider.chat(&messages, None).await.map_err(|e| format!("AI error: {e}"))
+}
+
+// ── Phase 7.30 Feature 4: API Mock Server ──────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MockRoute {
+    pub id: String,
+    pub method: String,
+    pub path: String,
+    pub status: u16,
+    pub body: String,
+    pub headers: String,
+    pub delay_ms: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MockRequest {
+    pub timestamp: u64,
+    pub method: String,
+    pub path: String,
+    pub headers: String,
+    pub body: String,
+    pub matched_route_id: Option<String>,
+}
+
+#[tauri::command]
+pub async fn start_mock_server(
+    state: tauri::State<'_, AppState>,
+    port: u16,
+) -> Result<String, String> {
+    if port < 1024 {
+        return Err("Port must be >= 1024".to_string());
+    }
+    let mut handle_lock = state.mock_server_handle.lock().await;
+    if handle_lock.is_some() {
+        return Err("Mock server is already running. Stop it first.".to_string());
+    }
+
+    let routes = state.mock_routes.clone();
+    let log = state.mock_request_log.clone();
+
+    let listener = tokio::net::TcpListener::bind(format!("127.0.0.1:{port}"))
+        .await
+        .map_err(|e| format!("Failed to bind port {port}: {e}"))?;
+
+    let handle = tokio::spawn(async move {
+        let routes_ext = routes.clone();
+        let log_ext = log.clone();
+
+        let app = axum::Router::new()
+            .fallback(move |req: axum::extract::Request| {
+                let routes = routes_ext.clone();
+                let log = log_ext.clone();
+                async move {
+                    let method = req.method().to_string();
+                    let path = req.uri().path().to_string();
+                    let headers_str = format!("{:?}", req.headers());
+                    let body_bytes = axum::body::to_bytes(req.into_body(), 1_048_576)
+                        .await
+                        .unwrap_or_default();
+                    let body_str = String::from_utf8_lossy(&body_bytes).to_string();
+
+                    let routes_lock = routes.lock().await;
+                    let matched = routes_lock.iter().find(|r| {
+                        r.method.eq_ignore_ascii_case(&method) && r.path == path
+                    });
+
+                    let now = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_millis() as u64;
+
+                    let (status, resp_body, matched_id, delay) = if let Some(route) = matched {
+                        (route.status, route.body.clone(), Some(route.id.clone()), route.delay_ms)
+                    } else {
+                        (404, r#"{"error":"no matching mock route"}"#.to_string(), None, 0)
+                    };
+                    drop(routes_lock);
+
+                    // Log the request
+                    let mut log_lock = log.lock().await;
+                    if log_lock.len() < 1000 {
+                        log_lock.push(MockRequest {
+                            timestamp: now,
+                            method,
+                            path,
+                            headers: headers_str,
+                            body: body_str,
+                            matched_route_id: matched_id,
+                        });
+                    }
+                    drop(log_lock);
+
+                    if delay > 0 {
+                        tokio::time::sleep(std::time::Duration::from_millis(delay.min(10_000))).await;
+                    }
+
+                    axum::response::Response::builder()
+                        .status(status)
+                        .header("content-type", "application/json")
+                        .header("access-control-allow-origin", "*")
+                        .body(axum::body::Body::from(resp_body))
+                        .unwrap_or_else(|_| {
+                            axum::response::Response::builder()
+                                .status(500)
+                                .body(axum::body::Body::from("internal error"))
+                                .unwrap()
+                        })
+                }
+            });
+
+        let _ = axum::serve(listener, app).await;
+    });
+
+    *handle_lock = Some(handle);
+    Ok(format!("Mock server started on http://127.0.0.1:{port}"))
+}
+
+#[tauri::command]
+pub async fn stop_mock_server(state: tauri::State<'_, AppState>) -> Result<(), String> {
+    let mut handle_lock = state.mock_server_handle.lock().await;
+    if let Some(handle) = handle_lock.take() {
+        handle.abort();
+    }
+    state.mock_request_log.lock().await.clear();
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn add_mock_route(
+    state: tauri::State<'_, AppState>,
+    method: String,
+    path: String,
+    status: u16,
+    body: String,
+    headers: String,
+) -> Result<(), String> {
+    let valid_methods = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"];
+    let method_upper = method.to_uppercase();
+    if !valid_methods.contains(&method_upper.as_str()) {
+        return Err(format!("Invalid HTTP method: {method}"));
+    }
+    if !(100..=599).contains(&status) {
+        return Err("Status code must be between 100 and 599".to_string());
+    }
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64;
+    let route = MockRoute {
+        id: format!("{:x}", now & 0xFFFF_FFFF_FFFF),
+        method: method_upper,
+        path,
+        status,
+        body,
+        headers,
+        delay_ms: 0,
+    };
+    state.mock_routes.lock().await.push(route);
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn remove_mock_route(state: tauri::State<'_, AppState>, id: String) -> Result<(), String> {
+    state.mock_routes.lock().await.retain(|r| r.id != id);
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn list_mock_routes(state: tauri::State<'_, AppState>) -> Result<Vec<MockRoute>, String> {
+    Ok(state.mock_routes.lock().await.clone())
+}
+
+#[tauri::command]
+pub async fn get_mock_request_log(state: tauri::State<'_, AppState>) -> Result<Vec<MockRequest>, String> {
+    Ok(state.mock_request_log.lock().await.clone())
+}
+
+#[tauri::command]
+pub async fn generate_mocks_from_spec(
+    state: tauri::State<'_, AppState>,
+    spec_path: String,
+) -> Result<Vec<MockRoute>, String> {
+    let content = tokio::fs::read_to_string(&spec_path)
+        .await
+        .map_err(|e| format!("Failed to read spec: {e}"))?;
+    let content: String = content.chars().take(30_000).collect();
+
+    let engine = state.chat_engine.lock().await;
+    let provider = engine.active_provider().ok_or("No AI provider configured")?;
+    let prompt = format!(
+        "Parse this OpenAPI/Swagger spec and generate a JSON array of mock routes. \
+         Each route object must have: method (string), path (string), status (number, default 200), \
+         body (JSON string for the response). Return ONLY a valid JSON array, no explanation.\n\n\
+         ```\n{content}\n```"
+    );
+    let messages = vec![vibe_ai::provider::Message {
+        role: vibe_ai::provider::MessageRole::User,
+        content: prompt,
+    }];
+    let response = provider.chat(&messages, None).await.map_err(|e| format!("AI error: {e}"))?;
+
+    // Parse AI response as JSON array
+    let trimmed = response.trim();
+    let json_str = if let Some(start) = trimmed.find('[') {
+        if let Some(end) = trimmed.rfind(']') {
+            &trimmed[start..=end]
+        } else {
+            trimmed
+        }
+    } else {
+        trimmed
+    };
+
+    let parsed: Vec<serde_json::Value> = serde_json::from_str(json_str)
+        .map_err(|e| format!("Failed to parse AI response as JSON: {e}"))?;
+
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64;
+
+    let mut routes = Vec::new();
+    for (i, val) in parsed.iter().enumerate() {
+        let route = MockRoute {
+            id: format!("{:x}", (now + i as u64) & 0xFFFF_FFFF_FFFF),
+            method: val.get("method").and_then(|v| v.as_str()).unwrap_or("GET").to_uppercase(),
+            path: val.get("path").and_then(|v| v.as_str()).unwrap_or("/").to_string(),
+            status: val.get("status").and_then(|v| v.as_u64()).unwrap_or(200) as u16,
+            body: val.get("body").map(|v| v.to_string()).unwrap_or_else(|| "{}".to_string()),
+            headers: String::new(),
+            delay_ms: 0,
+        };
+        routes.push(route);
+    }
+
+    // Add routes to the shared registry
+    let mut lock = state.mock_routes.lock().await;
+    lock.extend(routes.clone());
+
+    Ok(routes)
+}
+
+// ── Phase 7.31: GraphQL Playground ───────────────────────────────────────────
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GraphQLResult {
+    pub data: Option<serde_json::Value>,
+    pub errors: Option<serde_json::Value>,
+    pub status: u16,
+    pub duration_ms: u64,
+    pub raw: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GraphQLSchemaField {
+    pub name: String,
+    pub kind: String,
+    pub description: Option<String>,
+    pub fields: Option<Vec<GraphQLSchemaField>>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GraphQLType {
+    pub name: String,
+    pub kind: String,
+    pub description: Option<String>,
+    pub fields: Vec<GraphQLSchemaField>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GraphQLSchema {
+    pub query_type: Option<String>,
+    pub mutation_type: Option<String>,
+    pub subscription_type: Option<String>,
+    pub types: Vec<GraphQLType>,
+}
+
+/// Execute a GraphQL query/mutation against the given endpoint.
+#[tauri::command]
+pub async fn run_graphql_query(
+    url: String,
+    query: String,
+    variables: Option<serde_json::Value>,
+    headers: Option<std::collections::HashMap<String, String>>,
+    operation_name: Option<String>,
+) -> Result<GraphQLResult, String> {
+    // URL validation
+    if !url.starts_with("http://") && !url.starts_with("https://") {
+        return Err("URL must start with http:// or https://".to_string());
+    }
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .map_err(|e| format!("Client error: {e}"))?;
+
+    let mut body = serde_json::json!({ "query": query });
+    if let Some(vars) = variables {
+        body["variables"] = vars;
+    }
+    if let Some(op) = operation_name {
+        if !op.is_empty() {
+            body["operationName"] = serde_json::Value::String(op);
+        }
+    }
+
+    let mut req = client.post(&url)
+        .header("Content-Type", "application/json")
+        .header("Accept", "application/json");
+
+    if let Some(hdrs) = headers {
+        for (k, v) in hdrs {
+            req = req.header(&k, &v);
+        }
+    }
+
+    let started = std::time::Instant::now();
+    let resp = req.json(&body).send().await
+        .map_err(|e| format!("Request failed: {e}"))?;
+
+    let status = resp.status().as_u16();
+    let duration_ms = started.elapsed().as_millis() as u64;
+    let raw = resp.text().await
+        .map_err(|e| format!("Failed to read body: {e}"))?;
+
+    let parsed: serde_json::Value = serde_json::from_str(&raw)
+        .unwrap_or(serde_json::Value::String(raw.clone()));
+
+    let data = parsed.get("data").cloned();
+    let errors = parsed.get("errors").cloned();
+
+    Ok(GraphQLResult { data, errors, status, duration_ms, raw })
+}
+
+/// Introspect a GraphQL endpoint and return simplified type information.
+#[tauri::command]
+pub async fn introspect_graphql_schema(
+    url: String,
+    headers: Option<std::collections::HashMap<String, String>>,
+) -> Result<GraphQLSchema, String> {
+    const INTROSPECTION_QUERY: &str = r#"
+    {
+      __schema {
+        queryType { name }
+        mutationType { name }
+        subscriptionType { name }
+        types {
+          name kind description
+          fields(includeDeprecated: false) {
+            name description
+            type { name kind ofType { name kind } }
+          }
+        }
+      }
+    }"#;
+
+    let result = run_graphql_query(
+        url,
+        INTROSPECTION_QUERY.to_string(),
+        None,
+        headers,
+        Some("IntrospectionQuery".to_string()),
+    ).await?;
+
+    let schema_val = result.data
+        .as_ref()
+        .and_then(|d| d.get("__schema"))
+        .ok_or("No __schema in response")?;
+
+    let query_type = schema_val.get("queryType")
+        .and_then(|t| t.get("name"))
+        .and_then(|n| n.as_str())
+        .map(|s| s.to_string());
+
+    let mutation_type = schema_val.get("mutationType")
+        .and_then(|t| t.get("name"))
+        .and_then(|n| n.as_str())
+        .map(|s| s.to_string());
+
+    let subscription_type = schema_val.get("subscriptionType")
+        .and_then(|t| t.get("name"))
+        .and_then(|n| n.as_str())
+        .map(|s| s.to_string());
+
+    let types = schema_val.get("types")
+        .and_then(|t| t.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|t| {
+                    let name = t.get("name")?.as_str()?.to_string();
+                    // Filter built-in introspection types
+                    if name.starts_with("__") { return None; }
+                    let kind = t.get("kind")?.as_str()?.to_string();
+                    if kind == "SCALAR" && ["String", "Int", "Float", "Boolean", "ID"].contains(&name.as_str()) {
+                        return None;
+                    }
+                    let description = t.get("description")
+                        .and_then(|d| d.as_str())
+                        .filter(|s| !s.is_empty())
+                        .map(|s| s.to_string());
+                    let fields = t.get("fields")
+                        .and_then(|f| f.as_array())
+                        .map(|farr| {
+                            farr.iter().filter_map(|f| {
+                                let fname = f.get("name")?.as_str()?.to_string();
+                                let fkind = f.get("type")
+                                    .and_then(|ft| ft.get("kind"))
+                                    .and_then(|k| k.as_str())
+                                    .unwrap_or("SCALAR")
+                                    .to_string();
+                                let fdesc = f.get("description")
+                                    .and_then(|d| d.as_str())
+                                    .filter(|s| !s.is_empty())
+                                    .map(|s| s.to_string());
+                                Some(GraphQLSchemaField { name: fname, kind: fkind, description: fdesc, fields: None })
+                            }).collect::<Vec<_>>()
+                        })
+                        .unwrap_or_default();
+                    Some(GraphQLType { name, kind, description, fields })
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+
+    Ok(GraphQLSchema { query_type, mutation_type, subscription_type, types })
 }

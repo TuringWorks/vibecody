@@ -67,6 +67,11 @@ import { ScriptPanel } from "./components/ScriptPanel";
 import { NotebookPanel } from "./components/NotebookPanel";
 import { SshPanel } from "./components/SshPanel";
 import { UtilitiesPanel } from "./components/UtilitiesPanel";
+import { BookmarkPanel } from "./components/BookmarkPanel";
+import { BisectPanel } from "./components/BisectPanel";
+import { SnippetPanel } from "./components/SnippetPanel";
+import { MockServerPanel } from "./components/MockServerPanel";
+import { GraphQLPanel } from "./components/GraphQLPanel";
 import { useCollab } from "./hooks/useCollab";
 import { flowContext } from "./utils/FlowContext";
 import { supercompleteEngine } from "./utils/SupercompleteEngine";
@@ -108,7 +113,7 @@ function App() {
   const [showSidebar, setShowSidebar] = useState(true);
   const [activeSidebarTab, setActiveSidebarTab] = useState<"explorer" | "search" | "git">("explorer");
   const [showAIChat, setShowAIChat] = useState(false);
-  const [aiPanelTab, setAiPanelTab] = useState<"chat" | "agent" | "memory" | "history" | "checkpoints" | "artifacts" | "manager" | "hooks" | "jobs" | "mcp" | "settings" | "cascade" | "specs" | "workflow" | "design" | "deploy" | "database" | "supabase" | "auth" | "github" | "steering" | "bugbot" | "redteam" | "tests" | "collab" | "coverage" | "compare" | "http" | "arena" | "cost" | "autofix" | "processes" | "cicd" | "k8s" | "env" | "profiler" | "docker" | "deps" | "apidocs" | "migrations" | "logs" | "scripts" | "notebook" | "ssh" | "utils">("chat");
+  const [aiPanelTab, setAiPanelTab] = useState<"chat" | "agent" | "memory" | "history" | "checkpoints" | "artifacts" | "manager" | "hooks" | "jobs" | "mcp" | "settings" | "cascade" | "specs" | "workflow" | "design" | "deploy" | "database" | "supabase" | "auth" | "github" | "steering" | "bugbot" | "redteam" | "tests" | "collab" | "coverage" | "compare" | "http" | "arena" | "cost" | "autofix" | "processes" | "cicd" | "k8s" | "env" | "profiler" | "docker" | "deps" | "apidocs" | "migrations" | "logs" | "scripts" | "notebook" | "ssh" | "utils" | "markers" | "bisect" | "snippets" | "mock" | "graphql">("chat");
   const [showTerminal, setShowTerminal] = useState(false);
   const [bottomTab, setBottomTab] = useState<"terminal" | "browser">("terminal");
   const [showCommandPalette, setShowCommandPalette] = useState(false);
@@ -1467,7 +1472,7 @@ function App() {
           <aside className="ai-chat-panel" style={{ display: "flex", flexDirection: "column" }}>
             {/* Tab bar */}
             <div role="tablist" aria-label="AI Panel tabs" style={{ display: "flex", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
-              {(["chat", "agent", "memory", "history", "checkpoints", "artifacts", "manager", "hooks", "jobs", "mcp", "settings", "cascade", "specs", "workflow", "design", "deploy", "database", "supabase", "auth", "github", "steering", "bugbot", "redteam", "tests", "collab", "coverage", "compare", "http", "arena", "cost", "autofix", "processes", "cicd", "k8s", "env", "profiler", "docker", "deps", "apidocs", "migrations", "logs", "scripts", "notebook", "ssh", "utils"] as const).map((tab) => (
+              {(["chat", "agent", "memory", "history", "checkpoints", "artifacts", "manager", "hooks", "jobs", "mcp", "settings", "cascade", "specs", "workflow", "design", "deploy", "database", "supabase", "auth", "github", "steering", "bugbot", "redteam", "tests", "collab", "coverage", "compare", "http", "arena", "cost", "autofix", "processes", "cicd", "k8s", "env", "profiler", "docker", "deps", "apidocs", "migrations", "logs", "scripts", "notebook", "ssh", "utils", "markers", "bisect", "snippets", "mock", "graphql"] as const).map((tab) => (
                 <button
                   key={tab}
                   role="tab"
@@ -1531,6 +1536,11 @@ function App() {
                     : tab === "notebook" ? "📓 Notebook"
                     : tab === "ssh" ? "🔒 SSH"
                     : tab === "utils" ? "🛠 Utils"
+                    : tab === "markers" ? "🔖 Markers"
+                    : tab === "bisect" ? "🔍 Bisect"
+                    : tab === "snippets" ? "✂️ Snippets"
+                    : tab === "mock" ? "🎭 Mock"
+                    : tab === "graphql" ? "⬡ GraphQL"
                     : "🌊 Flow"}
                 </button>
               ))}
@@ -1730,6 +1740,21 @@ function App() {
               )}
               {aiPanelTab === "utils" && (
                 <UtilitiesPanel />
+              )}
+              {aiPanelTab === "markers" && (
+                <BookmarkPanel workspacePath={workspaceFolders[0] || null} />
+              )}
+              {aiPanelTab === "bisect" && (
+                <BisectPanel workspacePath={workspaceFolders[0] || null} />
+              )}
+              {aiPanelTab === "snippets" && (
+                <SnippetPanel workspacePath={workspaceFolders[0] || null} />
+              )}
+              {aiPanelTab === "mock" && (
+                <MockServerPanel />
+              )}
+              {aiPanelTab === "graphql" && (
+                <GraphQLPanel />
               )}
               </ErrorBoundary>
             </div>
