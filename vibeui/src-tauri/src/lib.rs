@@ -370,6 +370,10 @@ pub fn run() {
             // Phase 7.32: Code Metrics + Load Tester
             commands::analyze_code_metrics,
             commands::run_load_test,
+            // Phase 7.33: Network Tools
+            commands::scan_open_ports,
+            commands::dns_lookup,
+            commands::check_tls_cert,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

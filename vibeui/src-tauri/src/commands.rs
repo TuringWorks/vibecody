@@ -11644,3 +11644,257 @@ pub async fn run_load_test(
         status_codes: sc,
     })
 }
+
+// ── Phase 7.33: Network Tools ─────────────────────────────────────────────────
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct OpenPort {
+    pub port: u16,
+    pub protocol: String, // "tcp" | "udp"
+    pub pid: Option<u32>,
+    pub process: Option<String>,
+    pub state: String,
+    pub address: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DnsRecord {
+    pub record_type: String,
+    pub value: String,
+    pub ttl: Option<u32>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct TlsCertInfo {
+    pub subject: String,
+    pub issuer: String,
+    pub not_before: String,
+    pub not_after: String,
+    pub san: Vec<String>,
+    pub serial: String,
+    pub valid: bool,
+    pub days_remaining: i64,
+    pub raw: String,
+}
+
+/// Scan open ports on localhost using `lsof -i` (macOS/Linux).
+#[tauri::command]
+pub async fn scan_open_ports(host: Option<String>) -> Result<Vec<OpenPort>, String> {
+    let target = host.as_deref().unwrap_or("localhost");
+
+    // Use lsof on macOS/Linux; fall back to netstat
+    let out = if cfg!(target_os = "windows") {
+        tokio::time::timeout(
+            std::time::Duration::from_secs(15),
+            tokio::process::Command::new("netstat")
+                .args(["-ano"])
+                .output(),
+        ).await.map_err(|_| "Timeout".to_string())?
+         .map_err(|e| format!("netstat error: {e}"))?
+    } else if target == "localhost" || target == "127.0.0.1" || target == "0.0.0.0" {
+        tokio::time::timeout(
+            std::time::Duration::from_secs(10),
+            tokio::process::Command::new("lsof")
+                .args(["-i", "-n", "-P"])
+                .output(),
+        ).await.map_err(|_| "Timeout".to_string())?
+         .map_err(|e| format!("lsof error: {e}"))?
+    } else {
+        // For remote host scanning use nc or skip
+        return Err("Remote port scanning not supported — connect to localhost".to_string());
+    };
+
+    let text = String::from_utf8_lossy(&out.stdout).to_string();
+    let mut ports: Vec<OpenPort> = Vec::new();
+    let mut seen: std::collections::HashSet<(u16, String)> = std::collections::HashSet::new();
+
+    if cfg!(target_os = "windows") {
+        // Parse netstat -ano output
+        for line in text.lines().skip(4) {
+            let cols: Vec<&str> = line.split_whitespace().collect();
+            if cols.len() < 4 { continue; }
+            let proto = cols[0].to_lowercase();
+            if !proto.starts_with("tcp") && !proto.starts_with("udp") { continue; }
+            let addr = cols[1];
+            let state = if cols.len() >= 4 { cols[3] } else { "" };
+            let pid = cols.last().and_then(|p| p.parse::<u32>().ok());
+            if let Some(port) = addr.rsplit(':').next().and_then(|p| p.parse::<u16>().ok()) {
+                if seen.insert((port, proto.clone())) {
+                    ports.push(OpenPort { port, protocol: proto, pid, process: None, state: state.to_string(), address: addr.to_string() });
+                }
+            }
+        }
+    } else {
+        // Parse lsof -i output
+        // COMMAND   PID   USER   FD   TYPE DEVICE SIZE/OFF NODE NAME
+        // node    12345 user   23u  IPv4 ...      0t0  TCP *:3000 (LISTEN)
+        for line in text.lines().skip(1) {
+            let cols: Vec<&str> = line.split_whitespace().collect();
+            if cols.len() < 9 { continue; }
+            let process = cols[0].to_string();
+            let pid = cols[1].parse::<u32>().ok();
+            let name = cols[8]; // e.g. "*:3000" or "127.0.0.1:5432"
+            let proto = if name.contains("TCP") || cols[7].eq_ignore_ascii_case("TCP") { "tcp" }
+                        else if name.contains("UDP") || cols[7].eq_ignore_ascii_case("UDP") { "udp" }
+                        else { cols[7].to_lowercase().as_str().to_string().leak() };
+            // Find the address:port part
+            let addr_field = cols.iter().rev().find(|&&c| c.contains(':') || c.contains("->")).copied().unwrap_or(name);
+            let clean = addr_field.trim_end_matches(" (LISTEN)").trim_end_matches(" (ESTABLISHED)");
+            // Take the local side (before ->)
+            let local = clean.split("->").next().unwrap_or(clean);
+            if let Some(port) = local.rsplit(':').next().and_then(|p| p.parse::<u16>().ok()) {
+                let state = if line.contains("(LISTEN)") { "LISTEN" }
+                            else if line.contains("(ESTABLISHED)") { "ESTABLISHED" }
+                            else { "OPEN" };
+                let key = (port, proto.to_string());
+                if seen.insert(key) {
+                    ports.push(OpenPort {
+                        port, protocol: proto.to_string(), pid, process: Some(process),
+                        state: state.to_string(), address: local.to_string(),
+                    });
+                }
+            }
+        }
+    }
+
+    ports.sort_by_key(|p| p.port);
+    Ok(ports)
+}
+
+/// DNS lookup for a domain using `dig` or `host`.
+#[tauri::command]
+pub async fn dns_lookup(domain: String, record_type: Option<String>) -> Result<Vec<DnsRecord>, String> {
+    // Basic domain validation
+    if domain.contains(|c: char| c == ';' || c == '&' || c == '|' || c == '`' || c == '$' || c == ' ') {
+        return Err("Invalid domain".to_string());
+    }
+
+    let rtype = record_type.as_deref().unwrap_or("A").to_uppercase();
+    let valid_types = ["A", "AAAA", "CNAME", "MX", "TXT", "NS", "SOA", "PTR", "SRV", "ANY"];
+    if !valid_types.contains(&rtype.as_str()) {
+        return Err(format!("Invalid record type: {rtype}"));
+    }
+
+    // Try dig first, fall back to host
+    let (prog, args): (&str, Vec<String>) = if std::process::Command::new("dig").arg("--version").output().is_ok() {
+        ("dig", vec!["+short".to_string(), format!("{domain}"), rtype.clone()])
+    } else {
+        ("host", vec!["-t".to_string(), rtype.clone(), domain.clone()])
+    };
+
+    let out = tokio::time::timeout(
+        std::time::Duration::from_secs(10),
+        tokio::process::Command::new(prog).args(&args).output(),
+    ).await.map_err(|_| "DNS lookup timed out".to_string())?
+     .map_err(|e| format!("DNS error: {e}"))?;
+
+    let text = String::from_utf8_lossy(&out.stdout).to_string();
+    let mut records: Vec<DnsRecord> = Vec::new();
+
+    for line in text.lines() {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with(';') { continue; }
+        records.push(DnsRecord {
+            record_type: rtype.clone(),
+            value: line.to_string(),
+            ttl: None,
+        });
+    }
+
+    if records.is_empty() && !out.status.success() {
+        let err = String::from_utf8_lossy(&out.stderr).to_string();
+        return Err(format!("DNS lookup failed: {err}"));
+    }
+
+    Ok(records)
+}
+
+/// Inspect TLS/SSL certificate of a remote host using `openssl s_client`.
+#[tauri::command]
+pub async fn check_tls_cert(host: String, port: Option<u16>) -> Result<TlsCertInfo, String> {
+    // Validate host
+    if host.contains(|c: char| c == ';' || c == '&' || c == '|' || c == '`' || c == '$' || c == ' ') {
+        return Err("Invalid host".to_string());
+    }
+
+    let port = port.unwrap_or(443);
+    let target = format!("{host}:{port}");
+
+    // Use openssl s_client to retrieve cert
+    let out = tokio::time::timeout(
+        std::time::Duration::from_secs(15),
+        tokio::process::Command::new("openssl")
+            .args(["s_client", "-connect", &target, "-servername", &host, "-showcerts"])
+            .stdin(std::process::Stdio::null())
+            .output(),
+    ).await.map_err(|_| "TLS check timed out".to_string())?
+     .map_err(|e| format!("openssl error: {e}. Is openssl installed?"))?;
+
+    let raw = String::from_utf8_lossy(&out.stderr).to_string()
+        + &String::from_utf8_lossy(&out.stdout);
+
+    // Parse cert fields from openssl output
+    fn extract(text: &str, prefix: &str) -> String {
+        text.lines()
+            .find(|l| l.trim().to_lowercase().contains(&prefix.to_lowercase()))
+            .map(|l| l.trim().to_string())
+            .unwrap_or_default()
+    }
+
+    let subject = extract(&raw, "subject=");
+    let issuer  = extract(&raw, "issuer=");
+    let not_before = extract(&raw, "not before");
+    let not_after  = extract(&raw, "not after");
+    let serial  = extract(&raw, "serial number");
+
+    // Parse SAN (Subject Alternative Names)
+    let san: Vec<String> = raw.lines()
+        .find(|l| l.contains("DNS:"))
+        .map(|l| l.split(',')
+            .filter_map(|s| {
+                let s = s.trim();
+                if s.starts_with("DNS:") { Some(s["DNS:".len()..].to_string()) }
+                else { None }
+            })
+            .collect())
+        .unwrap_or_default();
+
+    // Estimate days remaining from "Not After" date
+    // openssl outputs dates like: "Not After : Dec 31 23:59:59 2025 GMT"
+    let days_remaining = {
+        let date_str = not_after.splitn(2, ':').nth(1).unwrap_or("").trim();
+        // Try to parse with chrono-style; use a rough calculation
+        let parts: Vec<&str> = date_str.split_whitespace().collect();
+        if parts.len() >= 4 {
+            let month = match parts[0] {
+                "Jan" => 1u32, "Feb" => 2, "Mar" => 3, "Apr" => 4,
+                "May" => 5, "Jun" => 6, "Jul" => 7, "Aug" => 8,
+                "Sep" => 9, "Oct" => 10, "Nov" => 11, "Dec" => 12, _ => 0,
+            };
+            let day  = parts[1].parse::<u32>().unwrap_or(0);
+            let year = parts[3].parse::<i64>().unwrap_or(0);
+            // Very rough day estimate (good enough for display)
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs() as i64;
+            // Compute target unix time approximately
+            let days_in_year: i64 = (year - 1970) * 365 + (year - 1969) / 4;
+            let month_days: [i64; 12] = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
+            let day_of_year = month_days[month.saturating_sub(1) as usize] + day as i64;
+            let target_ts = (days_in_year + day_of_year) * 86400;
+            (target_ts - now) / 86400
+        } else { 0 }
+    };
+
+    let valid = days_remaining > 0 && raw.contains("Verify return code: 0");
+
+    Ok(TlsCertInfo {
+        subject: subject.replace("subject=", "").trim().to_string(),
+        issuer: issuer.replace("issuer=", "").trim().to_string(),
+        not_before: not_before.replace("Not Before:", "").trim().to_string(),
+        not_after: not_after.replace("Not After :", "").trim().to_string(),
+        san, serial: serial.replace("Serial Number:", "").trim().to_string(),
+        valid, days_remaining, raw,
+    })
+}
