@@ -97,13 +97,12 @@ export const CommandPalette = ({ isOpen, onClose, commands }: CommandPaletteProp
 
     // Scroll selected item into view
     useEffect(() => {
-        if (listRef.current) {
-            const selectedElement = listRef.current.children[selectedIndex] as HTMLElement;
-            if (selectedElement) {
-                selectedElement.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-            }
+        const cmdId = filteredCommands[selectedIndex]?.id;
+        if (cmdId) {
+            const el = document.getElementById(`cmd-${cmdId}`);
+            if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
         }
-    }, [selectedIndex]);
+    }, [selectedIndex, filteredCommands]);
 
     const executeCommand = (command: Command) => {
         command.action();

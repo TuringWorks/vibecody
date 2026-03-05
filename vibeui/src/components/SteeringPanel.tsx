@@ -64,6 +64,7 @@ export default function SteeringPanel({ workspaceRoot }: SteeringPanelProps) {
   }, [scope, workspaceRoot]);
 
   useEffect(() => {
+    setError(null);
     load();
     setSelected(null);
     setIsNew(false);

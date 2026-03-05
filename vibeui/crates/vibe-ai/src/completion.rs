@@ -107,7 +107,7 @@ fn estimate_confidence(text: &str) -> f32 {
         return 0.0;
     }
     let mut score: f32 = 0.5;
-    let len = text.len();
+    let len = text.chars().count();
     if len >= 10  { score += 0.2; }
     if len >= 50  { score += 0.1; }
 

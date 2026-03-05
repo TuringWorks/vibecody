@@ -4001,6 +4001,79 @@ async fn main() -> Result<()> {
                             println!("  request logs, and import from OpenAPI specs.\n");
                         }
 
+                        "/compliance" => {
+                            let framework = if args.is_empty() { "SOC2" } else { args.trim() };
+                            match compliance::generate_report_for(framework) {
+                                Ok(report) => {
+                                    let md = compliance::report_to_markdown(&report);
+                                    println!("{md}");
+                                }
+                                Err(e) => println!("❌ Failed to generate report: {e}\n"),
+                            }
+                        }
+
+                        "/transform" => {
+                            let cwd = std::env::current_dir()?;
+                            match args.trim() {
+                                "" | "detect" => {
+                                    let transforms = transform::detect_transforms(&cwd);
+                                    if transforms.is_empty() {
+                                        println!("No applicable transforms detected in this workspace.\n");
+                                    } else {
+                                        println!("Detected transforms:");
+                                        for t in &transforms {
+                                            println!("  - {:?}", t);
+                                        }
+                                        println!("\nUse /transform plan <type> to create a migration plan.\n");
+                                    }
+                                }
+                                _ => {
+                                    println!("Usage: /transform [detect]\n");
+                                    println!("  detect — scan workspace for applicable transforms");
+                                }
+                            }
+                        }
+
+                        "/marketplace" => {
+                            let m = marketplace::Marketplace::new();
+                            match args.trim() {
+                                "" | "list" => {
+                                    match m.load_cached() {
+                                        Ok(index) => {
+                                            if index.plugins.is_empty() {
+                                                println!("No plugins in marketplace.\n");
+                                            } else {
+                                                println!("📦 Marketplace ({} plugins):", index.plugins.len());
+                                                for p in &index.plugins {
+                                                    println!("  {} v{} — {}", p.name, p.version, p.description);
+                                                }
+                                                println!();
+                                            }
+                                        }
+                                        Err(e) => println!("❌ Failed to load marketplace: {e}\n"),
+                                    }
+                                }
+                                _ if args.starts_with("search ") => {
+                                    let query = args.trim_start_matches("search ").trim();
+                                    let results = m.search(query).await;
+                                    match results {
+                                        Ok(hits) if hits.is_empty() => println!("No plugins matching '{query}'.\n"),
+                                        Ok(hits) => {
+                                            println!("Search results for '{query}':");
+                                            for p in &hits {
+                                                println!("  {} v{} — {}", p.name, p.version, p.description);
+                                            }
+                                            println!();
+                                        }
+                                        Err(e) => println!("❌ Search failed: {e}\n"),
+                                    }
+                                }
+                                _ => {
+                                    println!("Usage: /marketplace [list|search <query>]\n");
+                                }
+                            }
+                        }
+
                         _ => {
                             println!("Type /help for available commands\n");
                         }
