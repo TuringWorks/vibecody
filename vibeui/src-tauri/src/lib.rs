@@ -374,6 +374,33 @@ pub fn run() {
             commands::scan_open_ports,
             commands::dns_lookup,
             commands::check_tls_cert,
+            // Phase 8.1: Agent Teams
+            commands::start_agent_team,
+            commands::get_team_status,
+            commands::send_team_message,
+            // Phase 8.2: CI/CD Review Bot
+            commands::get_ci_review_config,
+            commands::save_ci_review_config,
+            commands::get_ci_review_history,
+            // Phase 8.4: Plugin Marketplace
+            commands::get_marketplace_plugins,
+            commands::search_marketplace,
+            commands::install_marketplace_plugin,
+            // Phase 8.5: Code Transform
+            commands::detect_transform,
+            commands::plan_transform,
+            commands::execute_transform,
+            // Phase 8.13: Local Edit Model
+            commands::configure_local_edit_model,
+            commands::get_local_edit_config,
+            // Phase 8.14: Screenshot to App
+            commands::generate_app_from_image,
+            // Phase 8.11: Computer Use / Visual Self-Testing
+            commands::take_screenshot,
+            commands::get_visual_test_results,
+            // Phase 8.17: Cloud-Isolated Agent Execution (Docker)
+            commands::start_cloud_agent,
+            commands::get_cloud_agent_status,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

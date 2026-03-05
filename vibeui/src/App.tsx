@@ -75,6 +75,15 @@ import { GraphQLPanel } from "./components/GraphQLPanel";
 import { CodeMetricsPanel } from "./components/CodeMetricsPanel";
 import { LoadTestPanel } from "./components/LoadTestPanel";
 import { NetworkPanel } from "./components/NetworkPanel";
+import { AgentTeamPanel } from "./components/AgentTeamPanel";
+import { CIReviewPanel } from "./components/CIReviewPanel";
+import { TraceDashboard } from "./components/TraceDashboard";
+import { MarketplacePanel } from "./components/MarketplacePanel";
+import { TransformPanel } from "./components/TransformPanel";
+import { AgentRecordingPanel } from "./components/AgentRecordingPanel";
+import { ScreenshotToApp } from "./components/ScreenshotToApp";
+import { VisualTestPanel } from "./components/VisualTestPanel";
+import { CloudAgentPanel } from "./components/CloudAgentPanel";
 import { useCollab } from "./hooks/useCollab";
 import { flowContext } from "./utils/FlowContext";
 import { supercompleteEngine } from "./utils/SupercompleteEngine";
@@ -116,7 +125,7 @@ function App() {
   const [showSidebar, setShowSidebar] = useState(true);
   const [activeSidebarTab, setActiveSidebarTab] = useState<"explorer" | "search" | "git">("explorer");
   const [showAIChat, setShowAIChat] = useState(false);
-  const [aiPanelTab, setAiPanelTab] = useState<"chat" | "agent" | "memory" | "history" | "checkpoints" | "artifacts" | "manager" | "hooks" | "jobs" | "mcp" | "settings" | "cascade" | "specs" | "workflow" | "design" | "deploy" | "database" | "supabase" | "auth" | "github" | "steering" | "bugbot" | "redteam" | "tests" | "collab" | "coverage" | "compare" | "http" | "arena" | "cost" | "autofix" | "processes" | "cicd" | "k8s" | "env" | "profiler" | "docker" | "deps" | "apidocs" | "migrations" | "logs" | "scripts" | "notebook" | "ssh" | "utils" | "markers" | "bisect" | "snippets" | "mock" | "graphql" | "metrics" | "loadtest" | "network">("chat");
+  const [aiPanelTab, setAiPanelTab] = useState<"chat" | "agent" | "memory" | "history" | "checkpoints" | "artifacts" | "manager" | "hooks" | "jobs" | "mcp" | "settings" | "cascade" | "specs" | "workflow" | "design" | "deploy" | "database" | "supabase" | "auth" | "github" | "steering" | "bugbot" | "redteam" | "tests" | "collab" | "coverage" | "compare" | "http" | "arena" | "cost" | "autofix" | "processes" | "cicd" | "k8s" | "env" | "profiler" | "docker" | "deps" | "apidocs" | "migrations" | "logs" | "scripts" | "notebook" | "ssh" | "utils" | "markers" | "bisect" | "snippets" | "mock" | "graphql" | "metrics" | "loadtest" | "network" | "teams" | "cibot" | "traces" | "marketplace" | "transform" | "img2app" | "recording" | "visualtest" | "cloud">("chat");
   const [showTerminal, setShowTerminal] = useState(false);
   const [bottomTab, setBottomTab] = useState<"terminal" | "browser">("terminal");
   const [showCommandPalette, setShowCommandPalette] = useState(false);
@@ -1475,7 +1484,7 @@ function App() {
           <aside className="ai-chat-panel" style={{ display: "flex", flexDirection: "column" }}>
             {/* Tab bar */}
             <div role="tablist" aria-label="AI Panel tabs" style={{ display: "flex", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
-              {(["chat", "agent", "memory", "history", "checkpoints", "artifacts", "manager", "hooks", "jobs", "mcp", "settings", "cascade", "specs", "workflow", "design", "deploy", "database", "supabase", "auth", "github", "steering", "bugbot", "redteam", "tests", "collab", "coverage", "compare", "http", "arena", "cost", "autofix", "processes", "cicd", "k8s", "env", "profiler", "docker", "deps", "apidocs", "migrations", "logs", "scripts", "notebook", "ssh", "utils", "markers", "bisect", "snippets", "mock", "graphql", "metrics", "loadtest", "network"] as const).map((tab) => (
+              {(["chat", "agent", "memory", "history", "checkpoints", "artifacts", "manager", "hooks", "jobs", "mcp", "settings", "cascade", "specs", "workflow", "design", "deploy", "database", "supabase", "auth", "github", "steering", "bugbot", "redteam", "tests", "collab", "coverage", "compare", "http", "arena", "cost", "autofix", "processes", "cicd", "k8s", "env", "profiler", "docker", "deps", "apidocs", "migrations", "logs", "scripts", "notebook", "ssh", "utils", "markers", "bisect", "snippets", "mock", "graphql", "metrics", "loadtest", "network", "teams", "cibot", "traces", "marketplace", "transform", "img2app", "recording", "visualtest", "cloud"] as const).map((tab) => (
                 <button
                   key={tab}
                   role="tab"
@@ -1547,6 +1556,15 @@ function App() {
                     : tab === "metrics" ? "📊 Metrics"
                     : tab === "loadtest" ? "⚡ Load Test"
                     : tab === "network" ? "🔌 Network"
+                    : tab === "teams" ? "👥 Teams"
+                    : tab === "cibot" ? "🤖 CI Bot"
+                    : tab === "traces" ? "📈 Traces"
+                    : tab === "marketplace" ? "🏪 Market"
+                    : tab === "transform" ? "🔄 Transform"
+                    : tab === "img2app" ? "📸 Img2App"
+                    : tab === "recording" ? "🎬 Recording"
+                    : tab === "visualtest" ? "👁️ Visual"
+                    : tab === "cloud" ? "☁️ Cloud"
                     : "🌊 Flow"}
                 </button>
               ))}
@@ -1770,6 +1788,30 @@ function App() {
               )}
               {aiPanelTab === "network" && (
                 <NetworkPanel />
+              )}
+              {aiPanelTab === "teams" && (
+                <AgentTeamPanel />
+              )}
+              {aiPanelTab === "cibot" && (
+                <CIReviewPanel />
+              )}
+              {aiPanelTab === "traces" && (
+                <TraceDashboard />
+              )}
+              {aiPanelTab === "marketplace" && (
+                <MarketplacePanel />
+              )}
+              {aiPanelTab === "transform" && (
+                <TransformPanel />
+              )}
+              {aiPanelTab === "img2app" && (
+                <ScreenshotToApp workspacePath={workspaceFolders[0] || null} />
+              )}
+              {aiPanelTab === "recording" && (
+                <AgentRecordingPanel />
+              )}
+              {aiPanelTab === "visualtest" && (
+                <VisualTestPanel />
               )}
               </ErrorBoundary>
             </div>

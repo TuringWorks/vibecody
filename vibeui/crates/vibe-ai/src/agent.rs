@@ -98,6 +98,12 @@ pub struct AgentContext {
     /// Shared counter of total active agents across the tree (runtime only).
     #[serde(skip)]
     pub active_agent_counter: Option<std::sync::Arc<std::sync::atomic::AtomicU32>>,
+    /// Optional team message bus for peer-to-peer agent communication.
+    #[serde(skip)]
+    pub team_bus: Option<crate::agent_team::TeamMessageBus>,
+    /// Agent's own ID within a team (for sending messages).
+    #[serde(default)]
+    pub team_agent_id: Option<String>,
 }
 
 // ── Tool Executor Trait ───────────────────────────────────────────────────────

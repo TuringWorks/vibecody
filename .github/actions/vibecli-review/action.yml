@@ -1,0 +1,67 @@
+name: 'VibeCLI AI Code Review'
+description: 'Run VibeCody AI code review on pull requests'
+inputs:
+  vibecli-version:
+    description: 'VibeCLI version to install'
+    required: false
+    default: 'latest'
+  severity-threshold:
+    description: 'Minimum severity to fail (info, warning, critical)'
+    required: false
+    default: 'warning'
+  provider:
+    description: 'AI provider to use'
+    required: false
+    default: 'ollama'
+  api-key:
+    description: 'API key for the AI provider'
+    required: false
+  base-ref:
+    description: 'Base ref to diff against'
+    required: false
+    default: '${{ github.event.pull_request.base.sha }}'
+outputs:
+  findings-count:
+    description: 'Number of findings'
+    value: ${{ steps.review.outputs.findings_count }}
+  exit-code:
+    description: 'Review exit code'
+    value: ${{ steps.review.outputs.exit_code }}
+runs:
+  using: 'composite'
+  steps:
+    - name: Install VibeCLI
+      shell: bash
+      run: |
+        # Download and install vibecli
+        if [ "${{ inputs.vibecli-version }}" = "latest" ]; then
+          curl -fsSL https://raw.githubusercontent.com/vibecody/vibecody/main/install.sh | bash
+        else
+          curl -fsSL https://raw.githubusercontent.com/vibecody/vibecody/main/install.sh | bash -s -- --version "${{ inputs.vibecli-version }}"
+        fi
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+    - name: Run AI Review
+      id: review
+      shell: bash
+      env:
+        OPENAI_API_KEY: ${{ inputs.api-key }}
+        ANTHROPIC_API_KEY: ${{ inputs.api-key }}
+      run: |
+        set +e
+        # Run review in CI mode; captures structured JSON + GitHub Actions annotations
+        OUTPUT=$(vibecli --review --ci-mode \
+          --base "${{ inputs.base-ref }}" \
+          --provider "${{ inputs.provider }}" \
+          --severity-threshold "${{ inputs.severity-threshold }}" \
+          2>&1)
+        EXIT_CODE=$?
+        echo "$OUTPUT"
+
+        echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
+
+        # Extract findings count from the CI-mode JSON output
+        FINDINGS=$(echo "$OUTPUT" | grep -E '^\{' | head -1 | jq -r '.findings_count // .issues | if type == "array" then length else . end' 2>/dev/null || echo "0")
+        echo "findings_count=$FINDINGS" >> $GITHUB_OUTPUT
+
+        exit $EXIT_CODE

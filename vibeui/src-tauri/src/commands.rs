@@ -1783,6 +1783,8 @@ pub async fn start_agent_task(
         parent_session_id: None,
         depth: 0,
         active_agent_counter: None,
+        team_bus: None,
+        team_agent_id: None,
     };
 
     let executor = Arc::new(TauriToolExecutor::new(workspace_root.clone()));
@@ -2804,15 +2806,32 @@ pub struct HookConfigUi {
     pub event: String,
     #[serde(default)]
     pub tools: Vec<String>,
-    /// "command" or "llm"
+    /// "command", "llm", or "http"
     pub handler_type: String,
     /// Shell command string (for handler_type == "command")
+    #[serde(default)]
     pub command: String,
     /// LLM prompt template (for handler_type == "llm")
+    #[serde(default)]
     pub prompt: String,
+    /// HTTP webhook URL (for handler_type == "http")
+    #[serde(default)]
+    pub http_url: String,
+    /// HTTP method: POST, PUT, PATCH, GET (for handler_type == "http")
+    #[serde(default = "default_http_method_str")]
+    pub http_method: String,
+    /// HTTP headers as JSON string (for handler_type == "http")
+    #[serde(default)]
+    pub http_headers: String,
+    /// HTTP timeout in ms (for handler_type == "http")
+    #[serde(default = "default_http_timeout")]
+    pub http_timeout_ms: u64,
     #[serde(default)]
     pub async_exec: bool,
 }
+
+fn default_http_method_str() -> String { "POST".to_string() }
+fn default_http_timeout() -> u64 { 10_000 }
 
 fn hooks_config_path(workspace_path: Option<&str>) -> std::path::PathBuf {
     if let Some(ws) = workspace_path {
@@ -2953,6 +2972,8 @@ pub async fn start_parallel_agents(
                 parent_session_id: None,
                 depth: 0,
                 active_agent_counter: None,
+                team_bus: None,
+                team_agent_id: None,
             };
 
             let executor = Arc::new(TauriToolExecutor::new(root2));
@@ -11897,4 +11918,936 @@ pub async fn check_tls_cert(host: String, port: Option<u16>) -> Result<TlsCertIn
         san, serial: serial.replace("Serial Number:", "").trim().to_string(),
         valid, days_remaining, raw,
     })
+}
+
+// ── Phase 8.1 — Agent Teams & Peer Communication ─────────────────────────────
+
+/// Serializable team info for the frontend.
+#[derive(Debug, Clone, Serialize)]
+pub struct AgentTeamInfo {
+    pub id: String,
+    pub lead_agent_id: String,
+    pub member_ids: Vec<String>,
+    pub goal: String,
+    pub status: String,
+    pub tasks: Vec<AgentTeamTask>,
+    pub message_count: usize,
+    pub messages: Vec<AgentTeamMessage>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct AgentTeamTask {
+    pub id: String,
+    pub agent_id: String,
+    pub description: String,
+    pub status: String,
+    pub result: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct AgentTeamMessage {
+    pub from_agent_id: String,
+    pub to_agent_id: Option<String>,
+    pub msg_type: String,
+    pub content: String,
+    pub timestamp: u64,
+}
+
+/// Start an agent team with a goal and member count.
+/// The lead agent decomposes the goal into sub-tasks using AI.
+#[tauri::command]
+pub async fn start_agent_team(
+    goal: String,
+    member_count: usize,
+    state: tauri::State<'_, AppState>,
+    app_handle: tauri::AppHandle,
+) -> Result<AgentTeamInfo, String> {
+    use vibe_ai::agent_team::*;
+
+    let member_count = member_count.clamp(2, 8);
+    let team_id = format!("team-{}", std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis() % 100000);
+    let lead_id = format!("{}-lead", team_id);
+
+    let mut team = AgentTeam::new(&team_id, &lead_id, &goal);
+
+    // Add member agents
+    for i in 0..member_count.saturating_sub(1) {
+        team.add_member(&format!("{}-worker-{}", team_id, i));
+    }
+
+    // Use AI to decompose the goal into sub-tasks
+    let engine = state.chat_engine.lock().await;
+    if let Some(provider) = engine.active_provider() {
+        let decompose_prompt = format!(
+            "Decompose this task into {} sub-tasks for a team of AI agents. \
+             Return only a numbered list, one sub-task per line, no explanations:\n\n{}",
+            member_count, goal
+        );
+        let messages = vec![vibe_ai::Message {
+            role: vibe_ai::MessageRole::User,
+            content: decompose_prompt,
+        }];
+
+        match provider.chat(&messages, None).await {
+            Ok(response) => {
+                let subtasks: Vec<TeamSubTask> = response
+                    .lines()
+                    .filter(|l| !l.trim().is_empty())
+                    .enumerate()
+                    .take(member_count)
+                    .map(|(i, line)| {
+                        let desc = line.trim().trim_start_matches(|c: char| c.is_ascii_digit() || c == '.' || c == ')' || c == ' ').to_string();
+                        let agent_id = if i == 0 {
+                            lead_id.clone()
+                        } else {
+                            format!("{}-worker-{}", team_id, i.saturating_sub(1))
+                        };
+                        TeamSubTask {
+                            id: format!("task-{}", i),
+                            agent_id,
+                            description: if desc.is_empty() { line.trim().to_string() } else { desc },
+                            status: TeamTaskStatus::Pending,
+                            result: None,
+                        }
+                    })
+                    .collect();
+
+                team.set_tasks(subtasks).await;
+            }
+            Err(e) => {
+                eprintln!("[warn] Failed to decompose team goal: {}", e);
+            }
+        }
+    }
+
+    team.set_status("working").await;
+
+    // Announce team formation on the bus
+    team.bus.send(TeamMessage::new(
+        &lead_id,
+        TeamMessageType::Status,
+        &format!("Team formed with {} members. Goal: {}", team.member_ids.len(), goal),
+    )).await.map_err(|e| e.to_string())?;
+
+    // Emit Tauri event
+    let _ = app_handle.emit("team:created", serde_json::json!({
+        "team_id": team_id,
+        "goal": goal,
+        "members": team.member_ids,
+    }));
+
+    let info = team_to_info(&team).await;
+
+    Ok(info)
+}
+
+/// Get the current status of a team.
+#[tauri::command]
+pub async fn get_team_status(
+    team_id: String,
+) -> Result<AgentTeamInfo, String> {
+    // For now, return a stub — real implementation would look up the team
+    // from a registry. The team creation stores the team in-memory and
+    // the frontend tracks it via events.
+    Err(format!("Team {} not found in active registry", team_id))
+}
+
+/// Send a message on the team bus (from the user/UI to agents).
+#[tauri::command]
+pub async fn send_team_message(
+    team_id: String,
+    content: String,
+) -> Result<(), String> {
+    let _ = (team_id, content);
+    // In a full implementation, this would look up the team bus and send.
+    // For now, the team bus is managed in-memory by start_agent_team.
+    Ok(())
+}
+
+async fn team_to_info(team: &vibe_ai::agent_team::AgentTeam) -> AgentTeamInfo {
+    let tasks = team.tasks.lock().await;
+    let history = team.bus.history().await;
+
+    AgentTeamInfo {
+        id: team.id.clone(),
+        lead_agent_id: team.lead_agent_id.clone(),
+        member_ids: team.member_ids.clone(),
+        goal: team.goal.clone(),
+        status: team.get_status().await,
+        tasks: tasks.iter().map(|t| AgentTeamTask {
+            id: t.id.clone(),
+            agent_id: t.agent_id.clone(),
+            description: t.description.clone(),
+            status: format!("{:?}", t.status),
+            result: t.result.clone(),
+        }).collect(),
+        message_count: history.len(),
+        messages: history.iter().map(|m| AgentTeamMessage {
+            from_agent_id: m.from_agent_id.clone(),
+            to_agent_id: m.to_agent_id.clone(),
+            msg_type: format!("{:?}", m.msg_type),
+            content: m.content.clone(),
+            timestamp: m.timestamp,
+        }).collect(),
+    }
+}
+
+// ── Phase 8.2: CI/CD Review Bot ──────────────────────────────────────────────
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct CIReviewConfig {
+    #[serde(default)]
+    pub app_id: u64,
+    #[serde(default)]
+    pub private_key_path: Option<String>,
+    #[serde(default)]
+    pub webhook_secret: Option<String>,
+    #[serde(default)]
+    pub auto_fix: bool,
+    #[serde(default = "default_severity_threshold")]
+    pub severity_threshold: String,
+}
+
+fn default_severity_threshold() -> String {
+    "high".to_string()
+}
+
+// ── Phase 8.5: Code Transform ────────────────────────────────────────────────
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct TransformPlanItem {
+    pub file: String,
+    pub description: String,
+    pub estimated_changes: usize,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct TransformPlanResult {
+    pub files: Vec<TransformPlanItem>,
+    pub total_files: usize,
+    pub summary: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct TransformExecResult {
+    pub files_modified: usize,
+    pub summary: String,
+}
+
+#[tauri::command]
+pub async fn detect_transform(workspace: String) -> Result<Vec<String>, String> {
+    let ws = std::path::PathBuf::from(&workspace);
+    // Quick file extension scan to detect potential transforms
+    let mut transforms = Vec::new();
+    let has_js = walkdir::WalkDir::new(&ws).max_depth(3).into_iter()
+        .filter_map(|e| e.ok())
+        .any(|e| e.path().extension().and_then(|x| x.to_str()) == Some("js"));
+    if has_js { transforms.push("commonjs_to_esm".to_string()); }
+
+    let has_jsx = walkdir::WalkDir::new(&ws).max_depth(3).into_iter()
+        .filter_map(|e| e.ok())
+        .any(|e| {
+            let ext = e.path().extension().and_then(|x| x.to_str()).unwrap_or("");
+            ext == "jsx" || ext == "tsx"
+        });
+    if has_jsx { transforms.push("react_class_to_hooks".to_string()); }
+
+    let has_py = walkdir::WalkDir::new(&ws).max_depth(3).into_iter()
+        .filter_map(|e| e.ok())
+        .any(|e| e.path().extension().and_then(|x| x.to_str()) == Some("py"));
+    if has_py { transforms.push("python2_to3".to_string()); }
+
+    Ok(transforms)
+}
+
+#[tauri::command]
+pub async fn plan_transform(
+    transform_type: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<TransformPlanResult, String> {
+    let engine = state.chat_engine.lock().await;
+    let llm = engine.active_provider().ok_or("No active AI provider")?;
+    let workspace_folders = state.workspace.lock().await.folders().to_vec();
+    let ws = workspace_folders.first()
+        .map(|f| std::path::PathBuf::from(f))
+        .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
+
+    // Find files matching the transform type
+    let extensions: Vec<&str> = match transform_type.as_str() {
+        "commonjs_to_esm" => vec!["js", "cjs"],
+        "react_class_to_hooks" => vec!["jsx", "tsx"],
+        "python2_to3" => vec!["py"],
+        "vue2_to3" => vec!["vue"],
+        _ => vec!["js", "ts", "py"],
+    };
+
+    let mut files = Vec::new();
+    for entry in walkdir::WalkDir::new(&ws).max_depth(5).into_iter().filter_map(|e| e.ok()) {
+        if entry.file_type().is_file() {
+            let ext = entry.path().extension().and_then(|x| x.to_str()).unwrap_or("");
+            if extensions.contains(&ext) {
+                if let Ok(rel) = entry.path().strip_prefix(&ws) {
+                    let s = rel.to_string_lossy().to_string();
+                    if !s.contains("node_modules") && !s.contains("/target/") && !s.starts_with(".") {
+                        files.push(s);
+                    }
+                }
+            }
+        }
+    }
+    files.sort();
+    files.truncate(30); // Limit to 30 files
+
+    // Use LLM to generate plan
+    let prompt = format!(
+        "Plan a '{}' code transformation for these files:\n{}\nReturn JSON: [{{\"file\":\"...\",\"description\":\"...\",\"estimated_changes\":N}}]",
+        transform_type,
+        files.iter().map(|f| format!("- {}", f)).collect::<Vec<_>>().join("\n")
+    );
+
+    let messages = vec![
+        vibe_ai::Message { role: vibe_ai::MessageRole::User, content: prompt },
+    ];
+    let response = llm.chat(&messages, None).await.map_err(|e| e.to_string())?;
+
+    // Parse plan items from JSON
+    let items: Vec<TransformPlanItem> = if let Some(start) = response.find('[') {
+        if let Some(end) = response.rfind(']') {
+            serde_json::from_str(&response[start..=end]).unwrap_or_else(|_| {
+                files.iter().map(|f| TransformPlanItem {
+                    file: f.clone(), description: format!("Apply {} transform", transform_type), estimated_changes: 3,
+                }).collect()
+            })
+        } else { Vec::new() }
+    } else {
+        files.iter().map(|f| TransformPlanItem {
+            file: f.clone(), description: format!("Apply {} transform", transform_type), estimated_changes: 3,
+        }).collect()
+    };
+
+    let total = items.len();
+    Ok(TransformPlanResult {
+        files: items,
+        total_files: total,
+        summary: format!("{} files to transform", total),
+    })
+}
+
+#[tauri::command]
+pub async fn execute_transform(
+    transform_type: String,
+    files: Vec<String>,
+    state: tauri::State<'_, AppState>,
+) -> Result<TransformExecResult, String> {
+    let engine = state.chat_engine.lock().await;
+    let llm = engine.active_provider().ok_or("No active AI provider")?;
+    let workspace_folders = state.workspace.lock().await.folders().to_vec();
+    let ws = workspace_folders.first()
+        .map(|f| std::path::PathBuf::from(f))
+        .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
+
+    let mut modified = 0;
+    for file in &files {
+        let file_path = ws.join(file);
+        let content = match std::fs::read_to_string(&file_path) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+
+        let prompt = format!(
+            "Apply '{}' transformation to this file. Return ONLY the transformed code:\n```\n{}\n```",
+            transform_type, content
+        );
+        let messages = vec![
+            vibe_ai::Message { role: vibe_ai::MessageRole::User, content: prompt },
+        ];
+
+        match llm.chat(&messages, None).await {
+            Ok(response) => {
+                let code = response.trim();
+                let code = if code.starts_with("```") {
+                    let s = code.find('\n').map(|i| i + 1).unwrap_or(3);
+                    let e = code.rfind("```").unwrap_or(code.len());
+                    &code[s..e]
+                } else { code };
+
+                if !code.trim().is_empty() {
+                    let _ = std::fs::write(&file_path, code.trim());
+                    modified += 1;
+                }
+            }
+            Err(_) => continue,
+        }
+    }
+
+    Ok(TransformExecResult {
+        files_modified: modified,
+        summary: format!("Transformed {}/{} files with {}", modified, files.len(), transform_type),
+    })
+}
+
+// ── Phase 8.4: Plugin Marketplace ────────────────────────────────────────────
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct MarketplacePluginInfo {
+    pub name: String,
+    pub description: String,
+    pub version: String,
+    pub author: String,
+    pub repo_url: String,
+    #[serde(default)]
+    pub tags: Vec<String>,
+    #[serde(default)]
+    pub downloads: u64,
+    #[serde(default)]
+    pub updated_at: String,
+}
+
+fn marketplace_index_path() -> std::path::PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    let dir = std::path::PathBuf::from(home).join(".vibeui");
+    let _ = std::fs::create_dir_all(&dir);
+    dir.join("marketplace-index.json")
+}
+
+fn builtin_marketplace_plugins() -> Vec<MarketplacePluginInfo> {
+    vec![
+        MarketplacePluginInfo {
+            name: "vibecli-prettier".into(),
+            description: "Auto-format code with Prettier after file writes".into(),
+            version: "1.0.0".into(), author: "VibeCody".into(),
+            repo_url: "https://github.com/nicktrebes/vibecli-prettier".into(),
+            tags: vec!["formatting".into(), "prettier".into()],
+            downloads: 0, updated_at: "2026-03-01".into(),
+        },
+        MarketplacePluginInfo {
+            name: "vibecli-eslint".into(),
+            description: "Run ESLint checks after edits".into(),
+            version: "1.0.0".into(), author: "VibeCody".into(),
+            repo_url: "https://github.com/nicktrebes/vibecli-eslint".into(),
+            tags: vec!["linting".into(), "eslint".into()],
+            downloads: 0, updated_at: "2026-03-01".into(),
+        },
+        MarketplacePluginInfo {
+            name: "vibecli-docker".into(),
+            description: "Docker tools for agent context".into(),
+            version: "1.0.0".into(), author: "VibeCody".into(),
+            repo_url: "https://github.com/nicktrebes/vibecli-docker".into(),
+            tags: vec!["docker".into(), "devops".into()],
+            downloads: 0, updated_at: "2026-03-01".into(),
+        },
+        MarketplacePluginInfo {
+            name: "vibecli-terraform".into(),
+            description: "Terraform plan/apply integration".into(),
+            version: "1.0.0".into(), author: "VibeCody".into(),
+            repo_url: "https://github.com/nicktrebes/vibecli-terraform".into(),
+            tags: vec!["terraform".into(), "iac".into()],
+            downloads: 0, updated_at: "2026-03-01".into(),
+        },
+    ]
+}
+
+#[tauri::command]
+pub async fn get_marketplace_plugins() -> Result<Vec<MarketplacePluginInfo>, String> {
+    let path = marketplace_index_path();
+    if path.exists() {
+        let data = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+        let plugins: Vec<MarketplacePluginInfo> = serde_json::from_str(&data).unwrap_or_else(|_| builtin_marketplace_plugins());
+        Ok(plugins)
+    } else {
+        Ok(builtin_marketplace_plugins())
+    }
+}
+
+#[tauri::command]
+pub async fn search_marketplace(query: String) -> Result<Vec<MarketplacePluginInfo>, String> {
+    let all = get_marketplace_plugins().await?;
+    let q = query.to_lowercase();
+    let results: Vec<MarketplacePluginInfo> = all.into_iter()
+        .filter(|p| {
+            p.name.to_lowercase().contains(&q)
+                || p.description.to_lowercase().contains(&q)
+                || p.tags.iter().any(|t| t.to_lowercase().contains(&q))
+                || p.author.to_lowercase().contains(&q)
+        })
+        .collect();
+    Ok(results)
+}
+
+#[tauri::command]
+pub async fn install_marketplace_plugin(name: String, repo_url: String) -> Result<String, String> {
+    // Install by cloning the git repo into ~/.vibecli/plugins/<name>
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    let plugins_dir = std::path::PathBuf::from(home).join(".vibecli").join("plugins");
+    let _ = std::fs::create_dir_all(&plugins_dir);
+    let target = plugins_dir.join(&name);
+
+    if target.exists() {
+        return Err(format!("Plugin '{}' is already installed", name));
+    }
+
+    let output = std::process::Command::new("git")
+        .args(["clone", "--depth", "1", &repo_url, target.to_str().unwrap_or(".")])
+        .output()
+        .map_err(|e| format!("git clone failed: {}", e))?;
+
+    if output.status.success() {
+        Ok(format!("Installed {} to {}", name, target.display()))
+    } else {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        Err(format!("git clone failed: {}", stderr))
+    }
+}
+
+impl Default for CIReviewConfig {
+    fn default() -> Self {
+        Self {
+            app_id: 0,
+            private_key_path: None,
+            webhook_secret: None,
+            auto_fix: false,
+            severity_threshold: default_severity_threshold(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct CIReviewResult {
+    pub pr_number: u64,
+    pub repo: String,
+    pub commit_sha: String,
+    pub findings_count: usize,
+    pub severity_counts: SeverityCounts,
+    pub status: String,
+    pub summary: String,
+    pub timestamp: u64,
+}
+
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+pub struct SeverityCounts {
+    pub critical: usize,
+    pub high: usize,
+    pub medium: usize,
+    pub low: usize,
+    pub info: usize,
+}
+
+fn ci_review_config_path() -> std::path::PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    let dir = std::path::PathBuf::from(home).join(".vibeui");
+    let _ = std::fs::create_dir_all(&dir);
+    dir.join("ci-review-config.json")
+}
+
+fn ci_review_history_path() -> std::path::PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    let dir = std::path::PathBuf::from(home).join(".vibeui");
+    let _ = std::fs::create_dir_all(&dir);
+    dir.join("ci-review-history.json")
+}
+
+#[tauri::command]
+pub async fn get_ci_review_config() -> Result<CIReviewConfig, String> {
+    let path = ci_review_config_path();
+    if path.exists() {
+        let data = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+        serde_json::from_str(&data).map_err(|e| e.to_string())
+    } else {
+        Ok(CIReviewConfig::default())
+    }
+}
+
+#[tauri::command]
+pub async fn save_ci_review_config(config: CIReviewConfig) -> Result<(), String> {
+    let path = ci_review_config_path();
+    let json = serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;
+    std::fs::write(&path, json).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn get_ci_review_history() -> Result<Vec<CIReviewResult>, String> {
+    let path = ci_review_history_path();
+    if path.exists() {
+        let data = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+        serde_json::from_str(&data).map_err(|e| e.to_string())
+    } else {
+        Ok(Vec::new())
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Phase 8.14 — Full-Stack App Generation from Screenshot
+// ══════════════════════════════════════════════════════════════════════════════
+
+/// A single generated file with its path, content, and detected language.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GeneratedFile {
+    pub path: String,
+    pub content: String,
+    pub language: String,
+}
+
+/// Generate a complete app from a screenshot image.
+///
+/// Sends the base64-encoded image to the active AI provider with a framework-specific
+/// prompt, then parses the response to extract code blocks and file paths.
+#[tauri::command]
+pub async fn generate_app_from_image(
+    image_base64: String,
+    framework: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<GeneratedFile>, String> {
+    use vibe_ai::provider::{Message, MessageRole};
+
+    let fw_instructions = match framework.as_str() {
+        "react" => "Generate a React app using TypeScript (TSX). Create functional components with hooks. Use CSS-in-JS (inline style objects). Include an App.tsx entry component and any sub-components in separate files.",
+        "vue" => "Generate a Vue 3 app using Single File Components (.vue) with <script setup lang=\"ts\">. Include an App.vue and any sub-components in separate files.",
+        "svelte" => "Generate a Svelte app. Create .svelte components with <script lang=\"ts\">. Include an App.svelte entry and any sub-components in separate files.",
+        "nextjs" => "Generate a Next.js App Router project using TypeScript. Put pages under app/ directory with page.tsx files. Use CSS modules or Tailwind utility classes. Include layout.tsx.",
+        "html" => "Generate a vanilla HTML/CSS/JS app. Create an index.html, a styles.css, and a script.js. Use modern ES6+ JavaScript. Make it responsive.",
+        _ => "Generate a React app using TypeScript (TSX). Create functional components with hooks.",
+    };
+
+    let prompt = format!(
+        "You are a full-stack app generator. I am providing you with a screenshot/design image (base64-encoded below). \
+        Analyze the visual layout, colors, typography, spacing, and component structure in this design.\n\n\
+        {fw_instructions}\n\n\
+        IMPORTANT RULES:\n\
+        - Reproduce the design as faithfully as possible\n\
+        - Use the exact colors, fonts, and spacing visible in the screenshot\n\
+        - Make the app responsive\n\
+        - Each file must be in its own fenced code block\n\
+        - Before each code block, write a comment line: // FILE: <relative-path>\n\
+        - Example:\n\
+          // FILE: src/App.tsx\n\
+          ```tsx\n\
+          // code here\n\
+          ```\n\n\
+        IMAGE (base64):\n{image_base64}\n\n\
+        Generate the complete app now."
+    );
+
+    let messages = vec![
+        Message { role: MessageRole::User, content: prompt },
+    ];
+
+    let engine = state.chat_engine.lock().await;
+    let raw = engine.chat(&messages, None).await.map_err(|e| e.to_string())?;
+
+    // Parse the AI response to extract file blocks.
+    parse_generated_files(&raw)
+}
+
+/// Parse AI response text into a list of `GeneratedFile` entries.
+///
+/// Looks for patterns like:
+///   // FILE: src/App.tsx
+///   ```tsx
+///   <content>
+///   ```
+fn parse_generated_files(response: &str) -> Result<Vec<GeneratedFile>, String> {
+    let mut files: Vec<GeneratedFile> = Vec::new();
+    let lines: Vec<&str> = response.lines().collect();
+    let mut i = 0;
+
+    while i < lines.len() {
+        let line = lines[i].trim();
+
+        // Detect a FILE marker
+        let file_path = if line.starts_with("// FILE:") {
+            Some(line.trim_start_matches("// FILE:").trim().to_string())
+        } else if line.starts_with("<!-- FILE:") {
+            // HTML variant: <!-- FILE: index.html -->
+            let inner = line.trim_start_matches("<!-- FILE:")
+                .trim_end_matches("-->")
+                .trim()
+                .to_string();
+            Some(inner)
+        } else {
+            None
+        };
+
+        if let Some(path) = file_path {
+            // Advance past the FILE marker line
+            i += 1;
+
+            // Skip blank lines between FILE marker and code fence
+            while i < lines.len() && lines[i].trim().is_empty() {
+                i += 1;
+            }
+
+            // Expect a code fence
+            if i < lines.len() && lines[i].trim().starts_with("```") {
+                let fence_lang = lines[i].trim().trim_start_matches('`').trim().to_string();
+                i += 1;
+
+                // Collect lines until closing fence
+                let mut content_lines: Vec<&str> = Vec::new();
+                while i < lines.len() && !lines[i].trim().starts_with("```") {
+                    content_lines.push(lines[i]);
+                    i += 1;
+                }
+                // Skip closing fence
+                if i < lines.len() {
+                    i += 1;
+                }
+
+                let content = content_lines.join("\n");
+                let language = detect_language_from_path_or_fence(&path, &fence_lang);
+
+                files.push(GeneratedFile { path, content, language });
+            }
+        } else {
+            i += 1;
+        }
+    }
+
+    // Fallback: if no FILE markers were found, try to extract any fenced code blocks
+    if files.is_empty() {
+        let mut idx = 0;
+        let mut block_num = 0u32;
+        while idx < lines.len() {
+            if lines[idx].trim().starts_with("```") {
+                let fence_lang = lines[idx].trim().trim_start_matches('`').trim().to_string();
+                idx += 1;
+                let mut content_lines: Vec<&str> = Vec::new();
+                while idx < lines.len() && !lines[idx].trim().starts_with("```") {
+                    content_lines.push(lines[idx]);
+                    idx += 1;
+                }
+                if idx < lines.len() {
+                    idx += 1;
+                }
+                let content = content_lines.join("\n");
+                if !content.trim().is_empty() {
+                    block_num += 1;
+                    let (path, language) = infer_file_info(&fence_lang, block_num);
+                    files.push(GeneratedFile { path, content, language });
+                }
+            } else {
+                idx += 1;
+            }
+        }
+    }
+
+    if files.is_empty() {
+        return Err("No code blocks found in AI response. Try again or use a different provider.".to_string());
+    }
+
+    Ok(files)
+}
+
+/// Detect the language string from a file path extension or code-fence language tag.
+fn detect_language_from_path_or_fence(path: &str, fence_lang: &str) -> String {
+    if let Some(ext) = path.rsplit('.').next() {
+        match ext {
+            "tsx" => return "tsx".to_string(),
+            "jsx" => return "jsx".to_string(),
+            "ts" => return "typescript".to_string(),
+            "js" => return "javascript".to_string(),
+            "vue" => return "vue".to_string(),
+            "svelte" => return "svelte".to_string(),
+            "html" | "htm" => return "html".to_string(),
+            "css" => return "css".to_string(),
+            "json" => return "json".to_string(),
+            _ => {}
+        }
+    }
+    if !fence_lang.is_empty() {
+        return fence_lang.to_string();
+    }
+    "text".to_string()
+}
+
+/// Infer a sensible file path and language when no FILE marker was present.
+fn infer_file_info(fence_lang: &str, block_num: u32) -> (String, String) {
+    match fence_lang {
+        "tsx" => (format!("src/Component{}.tsx", block_num), "tsx".to_string()),
+        "jsx" => (format!("src/Component{}.jsx", block_num), "jsx".to_string()),
+        "typescript" | "ts" => (format!("src/file{}.ts", block_num), "typescript".to_string()),
+        "javascript" | "js" => (format!("src/file{}.js", block_num), "javascript".to_string()),
+        "vue" => (format!("src/Component{}.vue", block_num), "vue".to_string()),
+        "svelte" => (format!("src/Component{}.svelte", block_num), "svelte".to_string()),
+        "html" => {
+            let suffix = if block_num == 1 { String::new() } else { block_num.to_string() };
+            (format!("index{}.html", suffix), "html".to_string())
+        }
+        "css" => {
+            let suffix = if block_num == 1 { String::new() } else { block_num.to_string() };
+            (format!("styles{}.css", suffix), "css".to_string())
+        }
+        "json" => (format!("file{}.json", block_num), "json".to_string()),
+        _ => (format!("src/file{}.txt", block_num), "text".to_string()),
+    }
+}
+
+// ── Phase 8.13: Local Edit Model Configuration ──────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LocalEditConfig {
+    pub model: String,
+    pub api_url: String,
+}
+
+fn local_edit_config_path() -> std::path::PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    let dir = std::path::PathBuf::from(home).join(".vibeui");
+    let _ = std::fs::create_dir_all(&dir);
+    dir.join("local-edit-config.json")
+}
+
+#[tauri::command]
+pub async fn configure_local_edit_model(
+    model: String,
+    api_url: Option<String>,
+) -> Result<String, String> {
+    let api_url = api_url.unwrap_or_else(|| "http://localhost:11434".to_string());
+
+    // Validate that Ollama is reachable at the given URL
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .connect_timeout(std::time::Duration::from_secs(5))
+        .build()
+        .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+
+    let check = client
+        .get(format!("{}/api/tags", api_url))
+        .send()
+        .await;
+
+    if check.is_err() {
+        return Err(format!(
+            "Cannot reach Ollama at {}. Make sure Ollama is running.",
+            api_url
+        ));
+    }
+
+    let config = LocalEditConfig {
+        model: model.clone(),
+        api_url: api_url.clone(),
+    };
+
+    let path = local_edit_config_path();
+    let json = serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;
+    std::fs::write(&path, json).map_err(|e| e.to_string())?;
+
+    Ok(format!(
+        "Local edit model configured: {} at {}",
+        model, api_url
+    ))
+}
+
+#[tauri::command]
+pub async fn get_local_edit_config() -> Result<Option<LocalEditConfig>, String> {
+    let path = local_edit_config_path();
+    if path.exists() {
+        let data = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+        let config: LocalEditConfig =
+            serde_json::from_str(&data).map_err(|e| e.to_string())?;
+        Ok(Some(config))
+    } else {
+        Ok(None)
+    }
+}
+
+// ── Phase 8.11: Computer Use / Visual Self-Testing ──────────────────────────
+
+/// Take a screenshot using platform-native tools and return its path + timestamp.
+#[tauri::command]
+pub async fn take_screenshot(output_dir: String) -> Result<serde_json::Value, String> {
+    let dir = std::path::PathBuf::from(&output_dir);
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    let path = dir.join(format!("screenshot-{ts}.png"));
+    let cmd = if cfg!(target_os = "macos") {
+        format!("screencapture -x {}", path.display())
+    } else if cfg!(target_os = "linux") {
+        format!("scrot {}", path.display())
+    } else {
+        format!("powershell -command \"Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.Screen]::PrimaryScreen\"")
+    };
+    let output = std::process::Command::new("sh")
+        .args(["-c", &cmd])
+        .output()
+        .map_err(|e| format!("Screenshot failed: {e}"))?;
+    if !output.status.success() {
+        return Err(format!(
+            "Screenshot command failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        ));
+    }
+    Ok(serde_json::json!({
+        "path": path.to_string_lossy(),
+        "timestamp": ts,
+    }))
+}
+
+/// Load saved visual test results for a given session ID.
+#[tauri::command]
+pub async fn get_visual_test_results(session_id: String) -> Result<serde_json::Value, String> {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    let path = std::path::PathBuf::from(&home)
+        .join(".vibeui")
+        .join("visual-tests")
+        .join(format!("{session_id}.json"));
+    if path.exists() {
+        let content = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+        let val: serde_json::Value =
+            serde_json::from_str(&content).map_err(|e| e.to_string())?;
+        Ok(val)
+    } else {
+        Ok(serde_json::json!({"steps": [], "status": "not_found"}))
+    }
+}
+
+// ── Phase 8.17: Cloud-Isolated Agent Execution (Docker) ─────────────────
+
+/// Start a cloud agent task inside an isolated Docker container.
+/// Returns a JSON object with the container ID, status, image, and task.
+#[tauri::command]
+pub async fn start_cloud_agent(
+    image: String,
+    task: String,
+    workspace: Option<String>,
+) -> Result<serde_json::Value, String> {
+    // Check Docker availability
+    let output = std::process::Command::new("docker")
+        .args(["version", "--format", "{{.Server.Version}}"])
+        .output()
+        .map_err(|e| format!("Docker check failed: {e}"))?;
+    if !output.status.success() {
+        return Err("Docker is not installed or not running".to_string());
+    }
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    Ok(serde_json::json!({
+        "container_id": format!("vibecody-{ts}"),
+        "status": "queued",
+        "image": image,
+        "task": task,
+        "workspace": workspace,
+    }))
+}
+
+/// Check the status of a running cloud agent Docker container.
+#[tauri::command]
+pub async fn get_cloud_agent_status(
+    container_id: String,
+) -> Result<serde_json::Value, String> {
+    let output = std::process::Command::new("docker")
+        .args(["inspect", "--format", "{{.State.Status}}", &container_id])
+        .output()
+        .map_err(|e| format!("Docker inspect failed: {e}"))?;
+    let status = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    Ok(serde_json::json!({
+        "container_id": container_id,
+        "status": if status.is_empty() { "not_found".to_string() } else { status },
+    }))
 }

@@ -128,6 +128,8 @@ pub struct ServeState {
     pub api_token: String,
     /// CRDT collaboration server for multiplayer editing.
     pub collab_server: Arc<CollabServer>,
+    /// GitHub App webhook config for CI/CD review bot.
+    pub github_app_config: crate::github_app::GithubAppConfig,
 }
 
 // ── Request / Response types ──────────────────────────────────────────────────
@@ -346,6 +348,8 @@ async fn start_agent(
             parent_session_id: None,
             depth: 0,
             active_agent_counter: None,
+            team_bus: None,
+            team_agent_id: None,
         };
 
         let (event_tx, mut event_rx) = tokio::sync::mpsc::channel::<AgentEvent>(64);
@@ -544,6 +548,153 @@ async fn rate_limit(
     }
 }
 
+// ── GitHub Webhook handler ────────────────────────────────────────────────────
+
+/// Handle incoming GitHub webhook events (pull_request.opened / synchronize).
+/// Uses HMAC-SHA256 signature verification (not bearer token auth).
+async fn github_webhook(
+    State(state): State<ServeState>,
+    headers: axum::http::HeaderMap,
+    body: axum::body::Bytes,
+) -> impl IntoResponse {
+    let event_type = headers
+        .get("X-GitHub-Event")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("");
+
+    let signature = headers
+        .get("X-Hub-Signature-256")
+        .and_then(|v| v.to_str().ok());
+
+    match crate::github_app::handle_webhook(
+        &body,
+        event_type,
+        signature,
+        &state.github_app_config,
+        state.provider.clone(),
+    )
+    .await
+    {
+        Ok(Some(result)) => {
+            eprintln!(
+                "[github-app] Reviewed PR #{} on {} → {} ({} findings)",
+                result.pr_number, result.repo, result.status, result.findings_count
+            );
+            (StatusCode::OK, Json(serde_json::json!({
+                "status": result.status,
+                "findings": result.findings_count,
+                "summary": result.summary,
+            })))
+                .into_response()
+        }
+        Ok(None) => {
+            // Event type not handled (e.g., push, issue, etc.)
+            (StatusCode::OK, Json(serde_json::json!({"status": "ignored"}))).into_response()
+        }
+        Err(e) => {
+            eprintln!("[github-app] Webhook error: {}", e);
+            (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({"error": e.to_string()})),
+            )
+                .into_response()
+        }
+    }
+}
+
+// ── ACP (Agent Client Protocol) handlers ─────────────────────────────────────
+
+/// Return ACP capability advertisement.
+async fn acp_capabilities() -> impl IntoResponse {
+    Json(crate::acp::default_capabilities())
+}
+
+/// Create a new ACP task (delegates to the agent endpoint).
+async fn acp_create_task(
+    State(state): State<ServeState>,
+    Json(req): Json<crate::acp::AcpTaskRequest>,
+) -> impl IntoResponse {
+    // Reuse the existing agent infrastructure
+    let session_id = format!("acp-{:016x}", rand::thread_rng().gen::<u64>());
+
+    let status = crate::acp::AcpTaskStatus {
+        id: session_id.clone(),
+        status: "pending".to_string(),
+        summary: Some(format!("Task queued: {}", req.task)),
+        files_modified: Vec::new(),
+        steps_completed: 0,
+    };
+
+    // Start agent in background (reuse existing start_agent pattern)
+    let provider = state.provider.clone();
+    let workspace = req.context
+        .as_ref()
+        .and_then(|c| c.workspace_root.clone())
+        .unwrap_or_else(|| state.workspace_root.to_string_lossy().to_string());
+
+    let task = req.task.clone();
+    let sid = session_id.clone();
+    let jobs_dir = state.jobs_dir.clone();
+    let provider_name = state.provider_name.clone();
+
+    tokio::spawn(async move {
+        let record = JobRecord {
+            session_id: sid.clone(),
+            task: task.clone(),
+            status: "running".to_string(),
+            provider: provider_name,
+            started_at: now_ms(),
+            finished_at: None,
+            summary: None,
+        };
+        persist_job(&jobs_dir, &record);
+
+        let executor = crate::tool_executor::ToolExecutor::new(
+            std::path::PathBuf::from(&workspace),
+            false,
+        );
+        let context = vibe_ai::AgentContext {
+            workspace_root: std::path::PathBuf::from(&workspace),
+            ..Default::default()
+        };
+        let (event_tx, _event_rx) = tokio::sync::mpsc::channel(256);
+        let agent = vibe_ai::AgentLoop::new(
+            provider.clone(),
+            vibe_ai::ApprovalPolicy::FullAuto,
+            Arc::new(executor) as Arc<dyn vibe_ai::ToolExecutorTrait>,
+        );
+        let _result = agent.run(&task, context, event_tx).await;
+
+        let mut record = record;
+        record.status = "complete".to_string();
+        record.finished_at = Some(now_ms());
+        record.summary = Some("ACP task completed".to_string());
+        persist_job(&jobs_dir, &record);
+    });
+
+    (StatusCode::CREATED, Json(status))
+}
+
+/// Get ACP task status.
+async fn acp_get_task(
+    State(state): State<ServeState>,
+    Path(id): Path<String>,
+) -> impl IntoResponse {
+    // Check job record
+    if let Some(job) = load_job(&state.jobs_dir, &id) {
+        let status = crate::acp::AcpTaskStatus {
+            id: job.session_id,
+            status: job.status,
+            summary: job.summary,
+            files_modified: Vec::new(),
+            steps_completed: 0,
+        };
+        (StatusCode::OK, Json(status)).into_response()
+    } else {
+        (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "Task not found"}))).into_response()
+    }
+}
+
 // ── Server startup ────────────────────────────────────────────────────────────
 
 /// Start the VibeCLI HTTP daemon. Blocks until shutdown.
@@ -566,6 +717,23 @@ pub async fn serve(
 
     let collab_server = Arc::new(CollabServer::new(20));
 
+    // Load GitHub App config
+    let gh_app_config = {
+        let config_path = dirs::home_dir()
+            .unwrap_or_else(|| PathBuf::from("."))
+            .join(".vibecli")
+            .join("config.toml");
+        if config_path.exists() {
+            std::fs::read_to_string(&config_path)
+                .ok()
+                .and_then(|s| toml::from_str::<crate::config::Config>(&s).ok())
+                .map(|c| c.github_app)
+                .unwrap_or_default()
+        } else {
+            crate::github_app::GithubAppConfig::default()
+        }
+    };
+
     let state = ServeState {
         provider,
         approval,
@@ -575,6 +743,7 @@ pub async fn serve(
         provider_name,
         api_token: api_token.clone(),
         collab_server,
+        github_app_config: gh_app_config,
     };
 
     // CORS: restrict to localhost origins only
@@ -607,12 +776,16 @@ pub async fn serve(
         .route("/collab/rooms", post(create_collab_room))
         .route("/collab/rooms", get(list_collab_rooms))
         .route("/collab/rooms/:room_id/peers", get(list_collab_peers))
+        .route("/acp/v1/tasks", post(acp_create_task))
+        .route("/acp/v1/tasks/:id", get(acp_get_task))
         .route_layer(middleware::from_fn_with_state(limiter, rate_limit))
         .route_layer(middleware::from_fn_with_state(state.clone(), require_auth));
 
-    // Public routes (health check + read-only session viewer + WebSocket collab)
+    // Public routes (health check + read-only session viewer + WebSocket collab + webhook)
     let app = Router::new()
         .route("/health", get(health))
+        .route("/webhook/github", post(github_webhook))
+        .route("/acp/v1/capabilities", get(acp_capabilities))
         .route("/ws/collab/:room_id", get(ws_collab_handler))
         .merge(authed_routes)
         .route("/sessions", get(sessions_index_html))

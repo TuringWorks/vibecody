@@ -16,6 +16,7 @@ static COMMANDS: &[&str] = &[
     "/autofix",
     "/bisect",
     "/chat",
+    "/compliance",
     "/config",
     "/cost",
     "/context",
@@ -80,7 +81,7 @@ static SPEC_SUBS: &[&str] = &["list", "show", "new", "run", "done"];
 static AGENTS_SUBS: &[&str] = &["list", "status", "new"];
 
 /// Sub-commands for `/team <sub>`
-static TEAM_SUBS: &[&str] = &["show", "knowledge", "sync"];
+static TEAM_SUBS: &[&str] = &["create", "status", "messages", "show", "knowledge", "sync"];
 
 /// Sub-commands for `/trace <sub>`
 static TRACE_SUBS: &[&str] = &["view"];
@@ -138,6 +139,9 @@ static DEPLOY_SUBS: &[&str] = &[
     "digitalocean", "kubernetes", "helm", "oci", "ibm",
 ];
 
+/// Sub-commands for `/compliance <sub>`
+static COMPLIANCE_SUBS: &[&str] = &["soc2", "fedramp"];
+
 /// Sub-commands for `/redteam <sub>`
 static REDTEAM_SUBS: &[&str] = &["scan", "list", "show", "report", "config"];
 
@@ -177,6 +181,7 @@ fn command_hint(cmd: &str) -> Option<&'static str> {
         "/migration" => Some("[status|migrate|rollback|generate <name>]  — database migration management"),
         "/model"   => Some("<provider> [model]  — switch active model"),
         "/notebook" => Some("<file.vibe>  — run interactive notebook cells"),
+        "/compliance" => Some("[soc2|fedramp]  — generate compliance report (SOC2/FedRAMP)"),
         "/cost"    => Some("— show token usage & estimated cost for this session"),
         "/context" => Some("— show active context window size"),
         "/status"  => Some("— show provider, model, session info"),
@@ -184,7 +189,7 @@ fn command_hint(cmd: &str) -> Option<&'static str> {
         "/rewind"   => Some("[list | <timestamp>]  — save or restore a conversation checkpoint"),
         "/spec"     => Some("[list|show <n>|new <n>|run <n>|done <n> <id>]  — spec-driven development"),
         "/agents"   => Some("[list|status|new <name> <task>]  — background agent definitions"),
-        "/team"     => Some("[show|knowledge [list|add|remove]|sync]  — team knowledge store"),
+        "/team"     => Some("[create <goal>|status|messages|show|knowledge|sync]  — agent teams & peer communication"),
         "/test"     => Some("[command]  — run project tests (auto-detects cargo/npm/pytest/go)"),
         "/theme"    => Some("[name]  — switch TUI color theme (dark|light|monokai|solarized|nord)"),
         "/snippet"  => Some("[list|save <name>|use <name>|show <name>|delete <name>]"),
@@ -279,6 +284,7 @@ fn complete_slash(line: &str) -> Option<(usize, Vec<Pair>)> {
                 "/schedule" => Some(SCHEDULE_SUBS),
                 "/workflow" => Some(WORKFLOW_SUBS),
                 "/redteam"  => Some(REDTEAM_SUBS),
+                "/compliance" => Some(COMPLIANCE_SUBS),
                 _ => None,
             };
 

@@ -1,10 +1,12 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { flowContext } from "../utils/FlowContext";
 import { runLinter, formatLintForAgent } from "../utils/LinterIntegration";
 import { useToast } from "../hooks/useToast";
 import { Toaster } from "./Toaster";
+import { AgentUIRenderer, parseVibeUIBlocks, stripVibeUIBlocks } from "./AgentUIRenderer";
+import type { VibeUIAction } from "./AgentUIRenderer";
 
 interface AgentStep {
     step_num: number;
@@ -227,6 +229,24 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
         setTask("");
     };
 
+    // Handle interactive UI actions from AgentUIRenderer blocks
+    const handleVibeUIAction = useCallback((action: VibeUIAction) => {
+        const message = action.type === "button_click"
+            ? `User selected: ${action.value}`
+            : `User submitted form: ${JSON.stringify(action.value)}`;
+        // Inject the action as a follow-up agent task
+        invoke("start_agent_task", {
+            task: message,
+            approvalPolicy,
+            provider,
+        }).catch((e) => {
+            toast.error(`Action failed: ${e}`);
+        });
+        setStatus("running");
+        setStreaming("");
+        setPending(null);
+    }, [approvalPolicy, provider, toast]);
+
     const isRunning = status === "running";
 
     const statusLabel = status === "running" ? "Agent is running"
@@ -367,10 +387,12 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
 
                 {steps.map((step, i) => {
                     const isExpanded = expandedSteps.has(i);
-                    const isTruncated = step.output.length > 600;
+                    const vibeBlocks = step.output ? parseVibeUIBlocks(step.output) : [];
+                    const textOutput = vibeBlocks.length > 0 ? stripVibeUIBlocks(step.output) : step.output;
+                    const isTruncated = textOutput.length > 600;
                     const displayOutput = isExpanded || !isTruncated
-                        ? step.output
-                        : step.output.slice(0, 600) + "\n…";
+                        ? textOutput
+                        : textOutput.slice(0, 600) + "\n…";
                     return (
                         <div
                             key={i}
@@ -395,7 +417,7 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
                                     </button>
                                 )}
                             </div>
-                            {step.output && (
+                            {textOutput && (
                                 <>
                                     <pre style={{ margin: "4px 0 0 16px", color: "var(--text-secondary)", whiteSpace: "pre-wrap", maxHeight: isExpanded ? "none" : "160px", overflowY: "auto", fontSize: "11px" }}>
                                         {displayOutput}
@@ -414,28 +436,44 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
                                     )}
                                 </>
                             )}
+                            {vibeBlocks.length > 0 && (
+                                <div style={{ marginLeft: 16 }}>
+                                    <AgentUIRenderer blocks={vibeBlocks} onAction={handleVibeUIAction} />
+                                </div>
+                            )}
                         </div>
                     );
                 })}
 
-                {/* Streaming LLM text */}
-                {streaming && (
-                    <div style={{ color: "var(--text-primary)", whiteSpace: "pre-wrap" }}>
-                        {streaming}
-                        {isRunning && (
-                            <span
-                                style={{
-                                    display: "inline-block",
-                                    width: "2px",
-                                    height: "1em",
-                                    background: "currentColor",
-                                    verticalAlign: "text-bottom",
-                                    animation: "blink 1s step-end infinite",
-                                }}
-                            />
-                        )}
-                    </div>
-                )}
+                {/* Streaming LLM text + interactive UI blocks */}
+                {streaming && (() => {
+                    const streamBlocks = parseVibeUIBlocks(streaming);
+                    const streamText = streamBlocks.length > 0 ? stripVibeUIBlocks(streaming) : streaming;
+                    return (
+                        <>
+                            {streamText && (
+                                <div style={{ color: "var(--text-primary)", whiteSpace: "pre-wrap" }}>
+                                    {streamText}
+                                    {isRunning && (
+                                        <span
+                                            style={{
+                                                display: "inline-block",
+                                                width: "2px",
+                                                height: "1em",
+                                                background: "currentColor",
+                                                verticalAlign: "text-bottom",
+                                                animation: "blink 1s step-end infinite",
+                                            }}
+                                        />
+                                    )}
+                                </div>
+                            )}
+                            {streamBlocks.length > 0 && (
+                                <AgentUIRenderer blocks={streamBlocks} onAction={handleVibeUIAction} />
+                            )}
+                        </>
+                    );
+                })()}
 
                 {/* Streaming metrics badge */}
                 {streamMetrics && isRunning && (

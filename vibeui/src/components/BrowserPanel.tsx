@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useToast } from '../hooks/useToast';
 import { Toaster } from './Toaster';
+import { VisualEditOverlay } from './VisualEditOverlay';
 
 const QUICK_LAUNCH = [
     { label: 'localhost:3000', url: 'http://localhost:3000' },
@@ -18,6 +19,7 @@ export function BrowserPanel() {
     const [histIdx, setHistIdx] = useState(-1);
     const iframeRef = useRef<HTMLIFrameElement>(null);
     const [inspectMode, setInspectMode] = useState(false);
+    const [editMode, setEditMode] = useState(false);
     const [selectedElement, setSelectedElement] = useState<{
         selector: string;
         outerHTML: string;
@@ -239,7 +241,7 @@ export function BrowserPanel() {
                         <div>Enter a URL or click a quick-launch chip to preview</div>
                     </div>
                 )}
-                {selectedElement && inspectMode && (
+                {selectedElement && inspectMode && !editMode && (
                     <div style={{
                         position: 'absolute', bottom: 0, left: 0, right: 0,
                         background: 'var(--bg-secondary)', borderTop: '1px solid var(--border-color)',
@@ -255,14 +257,24 @@ export function BrowserPanel() {
                                     </span>
                                 )}
                             </span>
-                            <button
-                                onClick={sendToChat}
-                                style={{
-                                    background: 'var(--accent-blue, #007acc)', color: '#fff',
-                                    border: 'none', borderRadius: '4px', padding: '3px 10px',
-                                    cursor: 'pointer', fontSize: '11px',
-                                }}
-                            >Send to Chat</button>
+                            <div style={{ display: 'flex', gap: '6px' }}>
+                                <button
+                                    onClick={() => setEditMode(true)}
+                                    style={{
+                                        background: '#6366f1', color: '#fff',
+                                        border: 'none', borderRadius: '4px', padding: '3px 10px',
+                                        cursor: 'pointer', fontSize: '11px', fontWeight: 600,
+                                    }}
+                                >Edit</button>
+                                <button
+                                    onClick={sendToChat}
+                                    style={{
+                                        background: 'var(--accent-blue, #007acc)', color: '#fff',
+                                        border: 'none', borderRadius: '4px', padding: '3px 10px',
+                                        cursor: 'pointer', fontSize: '11px',
+                                    }}
+                                >Send to Chat</button>
+                            </div>
                         </div>
                         <div style={{ color: 'var(--text-secondary)', marginBottom: '2px' }}>
                             {selectedElement.selector}
@@ -280,6 +292,16 @@ export function BrowserPanel() {
                             {selectedElement.outerHTML.slice(0, 500)}
                         </pre>
                     </div>
+                )}
+                {selectedElement && inspectMode && editMode && (
+                    <VisualEditOverlay
+                        element={selectedElement}
+                        onClose={() => setEditMode(false)}
+                        onApply={(desc) => {
+                            window.dispatchEvent(new CustomEvent('vibeui:inject-context', { detail: desc }));
+                            toast.success('Edit applied');
+                        }}
+                    />
                 )}
             </div>
             <Toaster toasts={toasts} onDismiss={dismiss} />

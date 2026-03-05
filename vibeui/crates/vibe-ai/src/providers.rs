@@ -10,6 +10,7 @@ pub mod openrouter;
 pub mod azure_openai;
 pub mod bedrock;
 pub mod copilot;
+pub mod local_edit;
 
 pub use ollama::OllamaProvider;
 pub use claude::ClaudeProvider;
@@ -21,3 +22,4 @@ pub use openrouter::OpenRouterProvider;
 pub use azure_openai::AzureOpenAIProvider;
 pub use bedrock::BedrockProvider;
 pub use copilot::CopilotProvider;
+pub use local_edit::LocalEditProvider;

@@ -48,8 +48,17 @@ mod linear;
 mod session_store;
 use session_store::SessionStore;
 mod notebook;
+mod cloud_agent;
+mod mermaid_ascii;
+mod github_app;
+mod marketplace;
+mod transform;
+mod acp;
+mod compliance;
+mod screen_recorder;
 use rustyline::error::ReadlineError;
 
+mod computer_use;
 mod tui;
 
 #[derive(Parser)]
@@ -127,6 +136,14 @@ struct Cli {
     /// Post the review to GitHub (requires --pr and GITHUB_TOKEN).
     #[arg(long)]
     post_github: bool,
+
+    /// CI mode: output structured JSON review, exit 1 if findings exceed threshold.
+    #[arg(long)]
+    ci_mode: bool,
+
+    /// Minimum severity to fail in CI mode: critical, warning/high (default), info/medium/low.
+    #[arg(long, default_value = "warning")]
+    severity_threshold: String,
 
     // ── Daemon mode ───────────────────────────────────────────────────────────
 
@@ -244,6 +261,20 @@ struct Cli {
     #[arg(long)]
     sandbox: bool,
 
+    /// Disable all network access for agent execution. Blocks WebSearch and
+    /// FetchUrl tools, and wraps shell commands in OS-level network isolation
+    /// (`sandbox-exec -n no-network` on macOS, `unshare --net` on Linux).
+    #[arg(long)]
+    no_network: bool,
+
+    // ── Screen Recording (Phase 8.16) ──────────────────────────────────────────
+
+    /// Record agent actions as a sequence of screenshots that can be
+    /// assembled into GIF artifacts. Frames are saved under
+    /// ~/.vibecli/recordings/<session-id>/.
+    #[arg(long)]
+    record: bool,
+
     // ── Red Team mode (Phase 41) ──────────────────────────────────────────────
 
     /// Run autonomous red team security scan against a target URL.
@@ -261,6 +292,14 @@ struct Cli {
     /// Example: vibecli --redteam-report rt-20260226T143025
     #[arg(long, value_name = "SESSION_ID")]
     redteam_report: Option<String>,
+
+    // ── Cloud Agent (Phase 8.17) ──────────────────────────────────────────────
+
+    /// Run the agent task inside an isolated Docker container.
+    /// Requires Docker to be installed and running. Combine with --agent to
+    /// specify the task. Example: vibecli --cloud --agent "fix all clippy warnings"
+    #[arg(long)]
+    cloud: bool,
 }
 
 #[tokio::main]
@@ -295,6 +334,9 @@ async fn main() -> Result<()> {
         let from_config = Config::load().map(|c| c.safety.sandbox).unwrap_or(false);
         cli.sandbox || from_config
     };
+
+    // Resolve --no-network flag
+    let no_network = cli.no_network;
 
     // ── Doctor mode ───────────────────────────────────────────────────────────
     if cli.doctor {
@@ -460,8 +502,9 @@ async fn main() -> Result<()> {
         let cwd = std::env::current_dir()?;
         let config = Config::load().unwrap_or_default();
         let sandbox = config.safety.sandbox;
-        let executor: Arc<dyn vibe_ai::agent::ToolExecutorTrait> =
-            Arc::new(ToolExecutor::new(cwd.clone(), sandbox).with_provider(llm.clone()));
+        let mut te = ToolExecutor::new(cwd.clone(), sandbox).with_provider(llm.clone());
+        if no_network { te = te.with_no_network(); }
+        let executor: Arc<dyn vibe_ai::agent::ToolExecutorTrait> = Arc::new(te);
 
         let trace_dir = dirs::home_dir()
             .unwrap_or_else(|| cwd.clone())
@@ -538,6 +581,45 @@ async fn main() -> Result<()> {
         }
 
         let report = review::run_review(&config, llm).await?;
+
+        if cli.ci_mode {
+            // CI mode: structured JSON output with GitHub Actions annotations
+            let json_report = serde_json::json!({
+                "files_reviewed": report.files_reviewed.len(),
+                "findings_count": report.issues.len(),
+                "issues": report.issues,
+                "score": report.score,
+                "summary": report.summary,
+            });
+            println!("{}", serde_json::to_string_pretty(&json_report)?);
+
+            // Emit GitHub Actions annotations for each issue
+            for issue in &report.issues {
+                let level = match issue.severity {
+                    review::Severity::Critical => "error",
+                    review::Severity::Warning => "warning",
+                    review::Severity::Info => "notice",
+                };
+                println!(
+                    "::{level} file={},line={}::{}: {}",
+                    issue.file, issue.line, issue.category, issue.description
+                );
+            }
+
+            // Exit with code based on severity threshold
+            // Accepts both original values (critical/high/medium/low) and
+            // human-friendly aliases (warning = high, info = low)
+            let has_failures = report.issues.iter().any(|i| {
+                match cli.severity_threshold.as_str() {
+                    "critical" => matches!(i.severity, review::Severity::Critical),
+                    "high" | "warning" => matches!(i.severity, review::Severity::Critical | review::Severity::Warning),
+                    "medium" | "low" | "info" => true,
+                    _ => matches!(i.severity, review::Severity::Critical),
+                }
+            });
+            std::process::exit(if has_failures { 1 } else { 0 });
+        }
+
         let markdown = report.to_markdown();
         println!("{}", markdown);
 
@@ -592,13 +674,47 @@ async fn main() -> Result<()> {
         std::process::exit(0);
     }
 
+    // Cloud Agent mode: --cloud --agent "task"
+    if cli.cloud {
+        let cloud_task = cli.agent.clone().unwrap_or_else(|| {
+            "Run tests and report results".to_string()
+        });
+        eprintln!("☁️  Cloud Agent mode — running task in Docker container");
+        let config = cloud_agent::CloudAgentConfig {
+            workspace_mount: Some(
+                std::env::current_dir()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_string(),
+            ),
+            ..Default::default()
+        };
+        match cloud_agent::start_cloud_agent(&config, &cloud_task).await {
+            Ok(status) => {
+                eprintln!("   Container: {}", status.container_id);
+                eprintln!("   Status:    {}", status.status);
+                for line in &status.logs {
+                    println!("{}", line);
+                }
+                if status.status == "failed" {
+                    std::process::exit(1);
+                }
+            }
+            Err(e) => {
+                eprintln!("❌ Cloud agent failed: {}", e);
+                std::process::exit(1);
+            }
+        }
+        return Ok(());
+    }
+
     // Watch mode: --watch [--agent "task"] [--watch-glob "**/*.rs"]
     if cli.watch {
         let watch_task = cli.agent.clone().unwrap_or_else(|| {
             "A file changed. Analyze the change and take any helpful action (e.g. run tests, fix errors).".to_string()
         });
         let llm = create_provider(&effective_provider, effective_model.clone())?;
-        return run_watch_mode(llm, &watch_task, &approval_policy, &cli.watch_glob, sandbox_enabled).await;
+        return run_watch_mode(llm, &watch_task, &approval_policy, &cli.watch_glob, sandbox_enabled, no_network).await;
     }
 
     // Non-TUI agent mode: --agent "task description"
@@ -636,7 +752,7 @@ async fn main() -> Result<()> {
 
         // Parallel multi-agent mode
         if let Some(n) = cli.parallel {
-            return run_parallel_agents(llm, &task, &approval_policy, n).await;
+            return run_parallel_agents(llm, &task, &approval_policy, n, no_network).await;
         }
 
         // Worktree isolation mode (--worktree flag)
@@ -671,6 +787,10 @@ async fn main() -> Result<()> {
         };
         let _ = worktree_branch_hint; // used for display only
 
+        if cli.record {
+            eprintln!("🎬 Screen recording enabled — frames will be saved to ~/.vibecli/recordings/");
+        }
+
         let exec_model_str = exec_model.clone().unwrap_or_default();
         return run_agent_repl_with_context(
             llm, &task, &approval_policy,
@@ -680,6 +800,7 @@ async fn main() -> Result<()> {
             planning_llm,
             &exec_provider,
             &exec_model_str,
+            no_network,
         ).await;
     }
 
@@ -816,6 +937,7 @@ async fn main() -> Result<()> {
                             run_agent_repl_with_context(
                                 llm.clone(), args, &approval_policy, None, false, false, None,
                                 &active_provider, active_model.as_deref().unwrap_or(""),
+                                no_network,
                             ).await?;
                         }
                         "/plan" => {
@@ -826,6 +948,7 @@ async fn main() -> Result<()> {
                             run_agent_repl_with_context(
                                 llm.clone(), args, &approval_policy, None, true, false, None,
                                 &active_provider, active_model.as_deref().unwrap_or(""),
+                                no_network,
                             ).await?;
                         }
                         "/resume" => {
@@ -872,6 +995,7 @@ async fn main() -> Result<()> {
                                     run_agent_repl_with_context(
                                         llm.clone(), task, &approval_policy, Some(sid), false, false, None,
                                         &active_provider, active_model.as_deref().unwrap_or(""),
+                                        no_network,
                                     ).await?;
                                 }
                             }
@@ -1358,7 +1482,10 @@ async fn main() -> Result<()> {
                             print!("🤖 ");
                             io::stdout().flush()?;
                             match llm.chat(&qa_messages, None).await {
-                                Ok(response) => println!("{}\n", highlight_code_blocks(&response)),
+                                Ok(response) => {
+                                    let rendered = mermaid_ascii::render_mermaid_blocks(&response);
+                                    println!("{}\n", highlight_code_blocks(&rendered));
+                                }
                                 Err(e) => eprintln!("❌ Error: {}\n", e),
                             }
                         }
@@ -3914,7 +4041,13 @@ async fn main() -> Result<()> {
                                     }
                                 }
                             }
-                            println!("\n");
+                            // If the response contains mermaid blocks, re-render with ASCII art
+                            if full_response.contains("```mermaid") {
+                                let rendered = mermaid_ascii::render_mermaid_blocks(&full_response);
+                                println!("\n\n{}\n", rendered);
+                            } else {
+                                println!("\n");
+                            }
                             if !full_response.is_empty() {
                                 messages.push(Message {
                                     role: MessageRole::Assistant,
@@ -3954,15 +4087,16 @@ struct VibeExecutorFactory {
     sandbox: bool,
     env_policy: tool_executor::ShellEnvPolicy,
     provider: Arc<dyn LLMProvider>,
+    no_network: bool,
 }
 
 impl ExecutorFactory for VibeExecutorFactory {
     fn create(&self, workspace_root: std::path::PathBuf) -> Arc<dyn vibe_ai::agent::ToolExecutorTrait> {
-        Arc::new(
-            ToolExecutor::new(workspace_root, self.sandbox)
-                .with_env_policy(self.env_policy.clone())
-                .with_provider(self.provider.clone()),
-        )
+        let mut te = ToolExecutor::new(workspace_root, self.sandbox)
+            .with_env_policy(self.env_policy.clone())
+            .with_provider(self.provider.clone());
+        if self.no_network { te = te.with_no_network(); }
+        Arc::new(te)
     }
 }
 
@@ -3973,6 +4107,7 @@ async fn run_parallel_agents(
     task: &str,
     approval_policy: &str,
     n: usize,
+    no_network: bool,
 ) -> Result<()> {
     let workspace = std::env::current_dir()?;
     let config = Config::load().unwrap_or_default();
@@ -3980,7 +4115,7 @@ async fn run_parallel_agents(
     let sandbox = config.safety.sandbox;
     let env_policy = config.safety.shell_environment.to_policy();
 
-    let factory = Arc::new(VibeExecutorFactory { sandbox, env_policy, provider: llm.clone() });
+    let factory = Arc::new(VibeExecutorFactory { sandbox, env_policy, provider: llm.clone(), no_network });
     let manager = Arc::new(VibeCoreWorktreeManager::new(workspace.clone()));
 
     let mut orchestrator = MultiAgentOrchestrator::new(llm, approval, factory)
@@ -4060,6 +4195,7 @@ async fn run_agent_repl_with_context(
     planning_llm: Option<Arc<dyn LLMProvider>>,
     provider_name: &str,
     model_name: &str,
+    no_network: bool,
 ) -> Result<()> {
     let workspace = std::env::current_dir()?;
     let config = Config::load().unwrap_or_default();
@@ -4069,15 +4205,16 @@ async fn run_agent_repl_with_context(
     // Apply shell env policy and search engine config
     let env_policy = config.safety.shell_environment.to_policy();
     let search_cfg = &config.tools.web_search;
-    let executor: Arc<dyn vibe_ai::agent::ToolExecutorTrait> =
-        Arc::new(ToolExecutor::new(workspace.clone(), sandbox)
-            .with_env_policy(env_policy)
-            .with_search_config(
-                search_cfg.engine.clone(),
-                search_cfg.resolve_tavily_key(),
-                search_cfg.resolve_brave_key(),
-            )
-            .with_provider(llm.clone()));
+    let mut te = ToolExecutor::new(workspace.clone(), sandbox)
+        .with_env_policy(env_policy)
+        .with_search_config(
+            search_cfg.engine.clone(),
+            search_cfg.resolve_tavily_key(),
+            search_cfg.resolve_brave_key(),
+        )
+        .with_provider(llm.clone());
+    if no_network { te = te.with_no_network(); }
+    let executor: Arc<dyn vibe_ai::agent::ToolExecutorTrait> = Arc::new(te);
 
     // Build hooks from config; wire LLM provider so `handler = { llm = "..." }` hooks work.
     let hook_runner = if config.hooks.is_empty() {
@@ -5077,6 +5214,7 @@ async fn run_watch_mode(
     approval_policy: &str,
     watch_glob: &str,
     sandbox: bool,
+    no_network: bool,
 ) -> Result<()> {
     use notify::{Event, EventKind, RecursiveMode, Watcher};
     use std::sync::mpsc;
@@ -5147,9 +5285,10 @@ async fn run_watch_mode(
             eprintln!("   Running agent task…\n");
 
             let workspace_root = cwd.clone();
-            let executor: Arc<dyn vibe_ai::agent::ToolExecutorTrait> =
-                Arc::new(ToolExecutor::new(workspace_root.clone(), sandbox)
-                    .with_provider(llm.clone()));
+            let mut te = ToolExecutor::new(workspace_root.clone(), sandbox)
+                .with_provider(llm.clone());
+            if no_network { te = te.with_no_network(); }
+            let executor: Arc<dyn vibe_ai::agent::ToolExecutorTrait> = Arc::new(te);
 
             let approval = ApprovalPolicy::from_str(approval_policy);
             let (event_tx, mut event_rx) = tokio::sync::mpsc::channel(64);
@@ -5167,6 +5306,8 @@ async fn run_watch_mode(
                 parent_session_id: None,
                 depth: 0,
                 active_agent_counter: None,
+                team_bus: None,
+                team_agent_id: None,
             };
             tokio::spawn(async move {
                 let _ = agent.run(&task_clone, ctx, event_tx).await;

@@ -93,6 +93,10 @@ pub struct ToolExecutor {
     pub provider: Option<Arc<dyn AIProvider>>,
     /// Parent agent context for recursive subagent tree tracking.
     pub parent_context: Option<AgentContext>,
+    /// When true, all network access is blocked: WebSearch and FetchUrl tools
+    /// return errors, and shell commands are wrapped in OS-level network
+    /// isolation (`sandbox-exec -n no-network` on macOS, `unshare --net` on Linux).
+    pub network_disabled: bool,
 }
 
 impl ToolExecutor {
@@ -106,6 +110,7 @@ impl ToolExecutor {
             brave_api_key: None,
             provider: None,
             parent_context: None,
+            network_disabled: false,
         }
     }
 
@@ -125,11 +130,31 @@ impl ToolExecutor {
         self.provider = Some(provider);
         self
     }
+
+    /// Enable internet-disabled sandbox mode. Blocks WebSearch, FetchUrl, and
+    /// wraps shell commands in OS-level network isolation.
+    pub fn with_no_network(mut self) -> Self {
+        self.network_disabled = true;
+        self
+    }
 }
 
 #[async_trait]
 impl ToolExecutorTrait for ToolExecutor {
     async fn execute(&self, call: &ToolCall) -> ToolResult {
+        // Block network-dependent tools when --no-network is active.
+        if self.network_disabled {
+            match call {
+                ToolCall::WebSearch { .. } => {
+                    return ToolResult::err("web_search", "Network access is disabled in sandbox mode");
+                }
+                ToolCall::FetchUrl { .. } => {
+                    return ToolResult::err("fetch_url", "Network access is disabled in sandbox mode");
+                }
+                _ => {}
+            }
+        }
+
         match call {
             ToolCall::ReadFile { path } => self.read_file(path).await,
             ToolCall::WriteFile { path, content } => self.write_file(path, content).await,
@@ -215,21 +240,44 @@ impl ToolExecutor {
         let custom_env: Option<HashMap<String, String>> =
             self.env_policy.as_ref().map(|p| p.build_env());
 
+        // When network is disabled, wrap the command in OS-level network
+        // isolation so subprocesses cannot reach the internet.
+        let effective_command: std::borrow::Cow<'_, str> = if self.network_disabled {
+            // Escape the inner command for safe embedding in a single-quoted shell arg.
+            // Replace every ' with '\'' (end quote, escaped quote, start quote).
+            let escaped = command.replace('\'', "'\\''");
+            if cfg!(target_os = "macos") {
+                // macOS Seatbelt: sandbox-exec with the built-in "no-network" profile
+                std::borrow::Cow::Owned(format!(
+                    "sandbox-exec -n no-network sh -c '{}'",
+                    escaped
+                ))
+            } else {
+                // Linux: unshare(1) creates a new network namespace with no interfaces
+                std::borrow::Cow::Owned(format!(
+                    "unshare --net sh -c '{}'",
+                    escaped
+                ))
+            }
+        } else {
+            std::borrow::Cow::Borrowed(command)
+        };
+
         let output = if self.sandbox {
-            CommandExecutor::execute_sandboxed(command, cwd, cwd)
+            CommandExecutor::execute_sandboxed(&effective_command, cwd, cwd)
         } else if let Some(env) = custom_env {
             // Execute with custom environment
             use std::process::Command;
             Command::new("sh")
                 .arg("-c")
-                .arg(command)
+                .arg(effective_command.as_ref())
                 .current_dir(cwd)
                 .env_clear()
                 .envs(env)
                 .output()
                 .map_err(anyhow::Error::from)
         } else {
-            CommandExecutor::execute_in(command, cwd)
+            CommandExecutor::execute_in(&effective_command, cwd)
         };
 
         match output {
@@ -636,6 +684,7 @@ impl ToolExecutor {
             brave_api_key: self.brave_api_key.clone(),
             provider: self.provider.clone(),
             parent_context: Some(child_context.clone()),
+            network_disabled: self.network_disabled,
         });
 
         let mut agent = AgentLoop::new(provider, ApprovalPolicy::FullAuto, child_executor);
@@ -1042,5 +1091,56 @@ mod tests {
     fn decode_html_entities_no_entities() {
         let input = "no entities here";
         assert_eq!(decode_html_entities(input), input);
+    }
+
+    // ── Network-disabled sandbox tests ───────────────────────────────────────
+
+    #[tokio::test]
+    async fn no_network_blocks_web_search() {
+        let tmp = std::env::temp_dir().join(format!("vibe_nonet_ws_{}", std::process::id()));
+        std::fs::create_dir_all(&tmp).unwrap();
+        let executor = ToolExecutor::new(tmp.clone(), false).with_no_network();
+
+        let call = ToolCall::WebSearch { query: "rust lang".to_string(), num_results: 3 };
+        let result = executor.execute(&call).await;
+        assert!(!result.success);
+        assert!(result.output.contains("Network access is disabled in sandbox mode"));
+
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[tokio::test]
+    async fn no_network_blocks_fetch_url() {
+        let tmp = std::env::temp_dir().join(format!("vibe_nonet_fu_{}", std::process::id()));
+        std::fs::create_dir_all(&tmp).unwrap();
+        let executor = ToolExecutor::new(tmp.clone(), false).with_no_network();
+
+        let call = ToolCall::FetchUrl { url: "https://example.com".to_string() };
+        let result = executor.execute(&call).await;
+        assert!(!result.success);
+        assert!(result.output.contains("Network access is disabled in sandbox mode"));
+
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[tokio::test]
+    async fn no_network_allows_non_network_tools() {
+        let tmp = std::env::temp_dir().join(format!("vibe_nonet_rw_{}", std::process::id()));
+        std::fs::create_dir_all(&tmp).unwrap();
+        std::fs::write(tmp.join("hello.txt"), "world").unwrap();
+        let executor = ToolExecutor::new(tmp.clone(), false).with_no_network();
+
+        // ReadFile should still work
+        let call = ToolCall::ReadFile { path: "hello.txt".to_string() };
+        let result = executor.execute(&call).await;
+        assert!(result.success, "ReadFile should work in no-network mode");
+        assert!(result.output.contains("world"));
+
+        // TaskComplete should still work
+        let call = ToolCall::TaskComplete { summary: "done".to_string() };
+        let result = executor.execute(&call).await;
+        assert!(result.success, "TaskComplete should work in no-network mode");
+
+        let _ = std::fs::remove_dir_all(&tmp);
     }
 }

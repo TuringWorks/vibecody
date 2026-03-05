@@ -6,9 +6,13 @@ import { invoke } from "@tauri-apps/api/core";
 interface HookConfig {
   event: string;
   tools: string[];
-  handler_type: "command" | "llm";
+  handler_type: "command" | "llm" | "http";
   command: string;
   prompt: string;
+  http_url: string;
+  http_method: string;
+  http_headers: string;
+  http_timeout_ms: number;
   async_exec: boolean;
 }
 
@@ -95,6 +99,8 @@ function HookRow({
           <div style={{ fontSize: "10px", color: "var(--text-secondary)" }}>
             {hook.handler_type === "command"
               ? hook.command || "(no command)"
+              : hook.handler_type === "http"
+              ? hook.http_url || "(no URL)"
               : hook.prompt.slice(0, 50) || "(no prompt)"}
             {hook.async_exec && <span style={{ marginLeft: "6px", color: "#5af" }}>async</span>}
           </div>
@@ -129,11 +135,12 @@ function HookRow({
               <div style={labelStyle}>Handler</div>
               <select
                 value={hook.handler_type}
-                onChange={(e) => update({ handler_type: e.target.value as "command" | "llm" })}
+                onChange={(e) => update({ handler_type: e.target.value as "command" | "llm" | "http" })}
                 style={inputStyle}
               >
                 <option value="command">Shell Command</option>
                 <option value="llm">LLM Evaluation</option>
+                <option value="http">HTTP Webhook</option>
               </select>
             </div>
           </div>
@@ -156,7 +163,7 @@ function HookRow({
             />
           </div>
 
-          {/* Command or LLM prompt */}
+          {/* Command, LLM prompt, or HTTP webhook */}
           {hook.handler_type === "command" ? (
             <div>
               <div style={labelStyle}>Shell Command</div>
@@ -169,6 +176,56 @@ function HookRow({
               />
               <div style={{ fontSize: "10px", color: "var(--text-secondary)", marginTop: "3px" }}>
                 Event JSON piped to stdin. Exit 0 = allow, exit 2 = block, stdout = context injection.
+              </div>
+            </div>
+          ) : hook.handler_type === "http" ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              <div style={{ display: "flex", gap: "10px" }}>
+                <div style={{ flex: 1 }}>
+                  <div style={labelStyle}>Webhook URL</div>
+                  <input
+                    type="text"
+                    value={hook.http_url}
+                    onChange={(e) => update({ http_url: e.target.value })}
+                    placeholder="https://example.com/webhook"
+                    style={inputStyle}
+                  />
+                </div>
+                <div style={{ width: "100px" }}>
+                  <div style={labelStyle}>Method</div>
+                  <select
+                    value={hook.http_method}
+                    onChange={(e) => update({ http_method: e.target.value })}
+                    style={inputStyle}
+                  >
+                    <option value="POST">POST</option>
+                    <option value="PUT">PUT</option>
+                    <option value="PATCH">PATCH</option>
+                    <option value="GET">GET</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <div style={labelStyle}>Headers (JSON, optional)</div>
+                <input
+                  type="text"
+                  value={hook.http_headers}
+                  onChange={(e) => update({ http_headers: e.target.value })}
+                  placeholder='{"Authorization": "Bearer ..."}'
+                  style={{ ...inputStyle, fontFamily: "monospace", fontSize: "10px" }}
+                />
+              </div>
+              <div>
+                <div style={labelStyle}>Timeout (ms)</div>
+                <input
+                  type="number"
+                  value={hook.http_timeout_ms}
+                  onChange={(e) => update({ http_timeout_ms: parseInt(e.target.value) || 10000 })}
+                  style={{ ...inputStyle, width: "100px" }}
+                />
+              </div>
+              <div style={{ fontSize: "10px", color: "var(--text-secondary)" }}>
+                POSTs event JSON to URL. Response: {`{"decision": "allow"|"block"|"inject", "reason": "...", "context": "..."}`}
               </div>
             </div>
           ) : (
@@ -220,7 +277,7 @@ export function HooksPanel({ workspacePath }: HooksPanelProps) {
   function addHook() {
     setHooks((prev) => [
       ...prev,
-      { event: "PreToolUse", tools: [], handler_type: "command", command: "", prompt: "", async_exec: false },
+      { event: "PreToolUse", tools: [], handler_type: "command", command: "", prompt: "", http_url: "", http_method: "POST", http_headers: "", http_timeout_ms: 10000, async_exec: false },
     ]);
     setDirty(true);
   }
@@ -358,10 +415,9 @@ export function HooksPanel({ workspacePath }: HooksPanelProps) {
         {hooks.length > 0 && (
           <div style={{ marginTop: "12px", padding: "10px", background: "var(--bg-secondary)", borderRadius: "5px", fontSize: "10px", color: "var(--text-secondary)" }}>
             <div style={{ fontWeight: 600, marginBottom: "4px" }}>Hook Protocol</div>
-            <div>• Exit 0 → allow tool call</div>
-            <div>• Exit 2 → block tool call (reason on stdout)</div>
-            <div>• Other exit → allow with stdout injected as context</div>
-            <div style={{ marginTop: "4px" }}>Event JSON is piped to stdin of shell commands.</div>
+            <div><b>Shell:</b> Exit 0 → allow, Exit 2 → block, stdout JSON → context injection</div>
+            <div><b>LLM:</b> Prompt receives event JSON, reply {`{"ok": true/false}`}</div>
+            <div><b>HTTP:</b> POST event JSON to URL, response {`{"decision": "allow"|"block"|"inject"}`}</div>
           </div>
         )}
       </div>

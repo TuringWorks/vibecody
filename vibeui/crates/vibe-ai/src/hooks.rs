@@ -115,7 +115,21 @@ pub enum HookHandler {
     /// Single-turn LLM evaluation. The prompt template receives the event JSON.
     /// Expected response: `{"ok": true}` or `{"ok": false, "reason": "..."}`.
     Llm { prompt: String },
+    /// HTTP webhook. POSTs event JSON to URL, parses response for decision.
+    /// Response JSON: `{"decision": "allow"|"block"|"inject", "reason": "...", "context": "..."}`
+    Http {
+        url: String,
+        #[serde(default = "default_http_method")]
+        method: String,
+        #[serde(default)]
+        headers: std::collections::HashMap<String, String>,
+        #[serde(default = "default_http_timeout_ms")]
+        timeout_ms: u64,
+    },
 }
+
+fn default_http_method() -> String { "POST".to_string() }
+fn default_http_timeout_ms() -> u64 { 10_000 }
 
 // ── HookConfig ────────────────────────────────────────────────────────────────
 
@@ -242,6 +256,9 @@ async fn exec_handler(
     match &config.handler {
         HookHandler::Command { shell } => exec_shell_hook(shell, event).await,
         HookHandler::Llm { prompt } => exec_llm_hook(prompt, event, llm).await,
+        HookHandler::Http { url, method, headers, timeout_ms } => {
+            exec_http_hook(url, method, headers, *timeout_ms, event).await
+        }
     }
 }
 
@@ -289,6 +306,85 @@ async fn exec_llm_hook(
             Ok(HookDecision::Allow)
         }
     }
+}
+
+async fn exec_http_hook(
+    url: &str,
+    method: &str,
+    headers: &std::collections::HashMap<String, String>,
+    timeout_ms: u64,
+    event: &HookEvent,
+) -> Result<HookDecision> {
+    let payload = build_payload(event);
+    let payload_json = serde_json::to_value(&payload)?;
+
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_millis(timeout_ms))
+        .connect_timeout(Duration::from_secs(5))
+        .build()?;
+
+    let mut request = match method.to_uppercase().as_str() {
+        "GET" => client.get(url),
+        "PUT" => client.put(url),
+        "PATCH" => client.patch(url),
+        _ => client.post(url), // default POST
+    };
+
+    request = request
+        .header("Content-Type", "application/json")
+        .header("User-Agent", "VibeCody-Hooks/1.0");
+
+    for (key, val) in headers {
+        request = request.header(key.as_str(), val.as_str());
+    }
+
+    request = request.json(&payload_json);
+
+    let response = request.send().await?;
+    let body = response.text().await.unwrap_or_default();
+
+    if body.is_empty() {
+        return Ok(HookDecision::Allow);
+    }
+
+    #[derive(Deserialize)]
+    struct HttpHookResponse {
+        decision: Option<String>,
+        // Backwards compat with shell-style responses
+        allow: Option<bool>,
+        reason: Option<String>,
+        context: Option<String>,
+    }
+
+    if let Ok(resp) = serde_json::from_str::<HttpHookResponse>(&body) {
+        // Check explicit decision field first
+        if let Some(decision) = &resp.decision {
+            match decision.as_str() {
+                "block" => {
+                    return Ok(HookDecision::Block {
+                        reason: resp.reason.unwrap_or_else(|| "Blocked by HTTP hook".to_string()),
+                    });
+                }
+                "inject" => {
+                    if let Some(ctx) = resp.context {
+                        return Ok(HookDecision::InjectContext { text: ctx });
+                    }
+                }
+                _ => {} // "allow" or unknown → allow
+            }
+        }
+        // Fall back to allow/context fields
+        if resp.allow == Some(false) {
+            return Ok(HookDecision::Block {
+                reason: resp.reason.unwrap_or_else(|| "Blocked by HTTP hook".to_string()),
+            });
+        }
+        if let Some(ctx) = resp.context {
+            return Ok(HookDecision::InjectContext { text: ctx });
+        }
+    }
+
+    Ok(HookDecision::Allow)
 }
 
 async fn exec_shell_hook(shell: &str, event: &HookEvent) -> Result<HookDecision> {
@@ -841,6 +937,58 @@ mod tests {
     }
 
     // ── HookHandler serde ──────────────────────────────────────────────────
+
+    #[test]
+    fn hook_handler_http_serde() {
+        let handler = HookHandler::Http {
+            url: "https://example.com/hook".to_string(),
+            method: "POST".to_string(),
+            headers: std::collections::HashMap::from([("Authorization".to_string(), "Bearer tok".to_string())]),
+            timeout_ms: 5000,
+        };
+        let json = serde_json::to_string(&handler).unwrap();
+        let back: HookHandler = serde_json::from_str(&json).unwrap();
+        if let HookHandler::Http { url, method, headers, timeout_ms } = back {
+            assert_eq!(url, "https://example.com/hook");
+            assert_eq!(method, "POST");
+            assert_eq!(headers.get("Authorization").unwrap(), "Bearer tok");
+            assert_eq!(timeout_ms, 5000);
+        } else {
+            panic!("expected Http");
+        }
+    }
+
+    #[test]
+    fn hook_handler_http_defaults() {
+        // Deserialize with minimal fields (method + timeout_ms use defaults)
+        let json = r#"{"http":{"url":"https://example.com"}}"#;
+        let handler: HookHandler = serde_json::from_str(json).unwrap();
+        if let HookHandler::Http { url, method, headers, timeout_ms } = handler {
+            assert_eq!(url, "https://example.com");
+            assert_eq!(method, "POST");
+            assert!(headers.is_empty());
+            assert_eq!(timeout_ms, 10000);
+        } else {
+            panic!("expected Http");
+        }
+    }
+
+    #[test]
+    fn hook_config_http_matches() {
+        let cfg = HookConfig {
+            event: "PreToolUse".to_string(),
+            tools: None,
+            paths: None,
+            handler: HookHandler::Http {
+                url: "https://example.com/hook".to_string(),
+                method: "POST".to_string(),
+                headers: std::collections::HashMap::new(),
+                timeout_ms: 10000,
+            },
+            async_exec: false,
+        };
+        assert!(cfg.matches(&pre_tool_call()));
+    }
 
     #[test]
     fn hook_handler_command_serde() {

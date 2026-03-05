@@ -141,6 +141,19 @@ pub struct Config {
     /// ```
     #[serde(default)]
     pub redteam: RedTeamCfg,
+
+    /// GitHub App CI/CD review bot configuration.
+    ///
+    /// ```toml
+    /// [github_app]
+    /// app_id = 12345
+    /// private_key_path = "path/to/key.pem"
+    /// webhook_secret = "your-webhook-secret"
+    /// auto_fix = false
+    /// severity_threshold = "high"
+    /// ```
+    #[serde(default)]
+    pub github_app: crate::github_app::GithubAppConfig,
 }
 
 /// Configuration for the red team security scanning module.
