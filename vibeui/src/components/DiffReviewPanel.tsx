@@ -118,9 +118,9 @@ function buildHunks(diffed: DiffLine[]): Omit<DiffHunk, "accepted">[] {
 
 function assembleFinal(
   originalLines: string[],
-  modifiedLines: string[],
+  _modifiedLines: string[],
   hunks: DiffHunk[],
-  allDiffed: DiffLine[],
+  _allDiffed: DiffLine[],
 ): string {
   // For each hunk, track which original line numbers it touches
   // Accept → use modified side; reject → keep original

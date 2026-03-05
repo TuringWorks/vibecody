@@ -67,17 +67,17 @@ export function AuthPanel({ workspacePath, provider }: { workspacePath: string |
     }
   };
 
-  const s: Record<string, React.CSSProperties> = {
-    panel: { display: "flex", flexDirection: "column", height: "100%", background: "var(--bg-primary)", color: "var(--text-primary)", fontSize: "13px" },
-    header: { padding: "10px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" },
-    content: { flex: 1, overflow: "auto", padding: "12px", display: "flex", flexDirection: "column", gap: "12px" },
-    label: { display: "block", marginBottom: "4px", fontSize: "11px", color: "var(--text-secondary)" },
-    select: { width: "100%", background: "var(--bg-tertiary, #2d2d2d)", border: "1px solid var(--border-color)", color: "var(--text-primary)", padding: "6px 8px", borderRadius: "4px", fontSize: "12px" },
-    input: { width: "100%", background: "var(--bg-tertiary, #2d2d2d)", border: "1px solid var(--border-color)", color: "var(--text-primary)", padding: "6px 8px", borderRadius: "4px", fontSize: "12px", boxSizing: "border-box" as const },
-    btn: { padding: "8px 16px", background: "var(--accent-blue, #007acc)", color: "#fff", border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "13px", fontWeight: 600 },
-    code: { background: "var(--bg-secondary)", padding: "10px", borderRadius: "4px", fontSize: "11px", fontFamily: "monospace", whiteSpace: "pre" as const, overflow: "auto", maxHeight: "300px", border: "1px solid var(--border-color)" },
-    row: { display: "flex", gap: "8px", alignItems: "center" },
-    chip: (active: boolean) => ({ padding: "4px 12px", border: `1px solid ${active ? "var(--accent-blue, #007acc)" : "var(--border-color)"}`, borderRadius: "12px", cursor: "pointer", fontSize: "12px", background: active ? "rgba(0,122,204,0.15)" : "transparent", color: active ? "var(--accent-blue, #007acc)" : "var(--text-secondary)" }),
+  const s = {
+    panel: { display: "flex", flexDirection: "column", height: "100%", background: "var(--bg-primary)", color: "var(--text-primary)", fontSize: "13px" } as React.CSSProperties,
+    header: { padding: "10px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" } as React.CSSProperties,
+    content: { flex: 1, overflow: "auto", padding: "12px", display: "flex", flexDirection: "column", gap: "12px" } as React.CSSProperties,
+    label: { display: "block", marginBottom: "4px", fontSize: "11px", color: "var(--text-secondary)" } as React.CSSProperties,
+    select: { width: "100%", background: "var(--bg-tertiary, #2d2d2d)", border: "1px solid var(--border-color)", color: "var(--text-primary)", padding: "6px 8px", borderRadius: "4px", fontSize: "12px" } as React.CSSProperties,
+    input: { width: "100%", background: "var(--bg-tertiary, #2d2d2d)", border: "1px solid var(--border-color)", color: "var(--text-primary)", padding: "6px 8px", borderRadius: "4px", fontSize: "12px", boxSizing: "border-box" as const } as React.CSSProperties,
+    btn: { padding: "8px 16px", background: "var(--accent-blue, #007acc)", color: "#fff", border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "13px", fontWeight: 600 } as React.CSSProperties,
+    code: { background: "var(--bg-secondary)", padding: "10px", borderRadius: "4px", fontSize: "11px", fontFamily: "monospace", whiteSpace: "pre" as const, overflow: "auto", maxHeight: "300px", border: "1px solid var(--border-color)" } as React.CSSProperties,
+    row: { display: "flex", gap: "8px", alignItems: "center" } as React.CSSProperties,
+    chip: (active: boolean): React.CSSProperties => ({ padding: "4px 12px", border: `1px solid ${active ? "var(--accent-blue, #007acc)" : "var(--border-color)"}`, borderRadius: "12px", cursor: "pointer", fontSize: "12px", background: active ? "rgba(0,122,204,0.15)" : "transparent", color: active ? "var(--accent-blue, #007acc)" : "var(--text-secondary)" }),
   };
 
   const AUTH_PROVIDERS: { value: AuthProvider; label: string; icon: string }[] = [

@@ -115,15 +115,15 @@ export function GitHubSyncPanel({ workspacePath }: { workspacePath: string | nul
     finally { setLoading(false); }
   };
 
-  const s: Record<string, React.CSSProperties> = {
-    panel: { display: "flex", flexDirection: "column", height: "100%", background: "var(--bg-primary)", color: "var(--text-primary)", fontSize: "13px" },
-    header: { padding: "10px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" },
-    tabs: { display: "flex", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" },
-    tab: (active: boolean) => ({ padding: "6px 14px", border: "none", cursor: "pointer", fontSize: "12px", background: "none", borderBottom: active ? "2px solid var(--accent-blue)" : "2px solid transparent", color: active ? "var(--text-primary)" : "var(--text-secondary)" }),
-    content: { flex: 1, overflow: "auto", padding: "12px", display: "flex", flexDirection: "column", gap: "10px" },
-    input: { width: "100%", background: "var(--bg-tertiary, #2d2d2d)", border: "1px solid var(--border-color)", color: "var(--text-primary)", padding: "6px 8px", borderRadius: "4px", fontSize: "12px", boxSizing: "border-box" as const },
-    btn: (variant?: "danger" | "secondary") => ({ padding: "6px 14px", background: variant === "danger" ? "#c0392b" : variant === "secondary" ? "var(--bg-secondary)" : "var(--accent-blue, #007acc)", color: variant === "secondary" ? "var(--text-primary)" : "#fff", border: variant === "secondary" ? "1px solid var(--border-color)" : "none", borderRadius: "4px", cursor: "pointer", fontSize: "12px" }),
-    statusBadge: (n: number, type: "ahead" | "behind") => ({ padding: "2px 8px", borderRadius: "10px", fontSize: "11px", background: n > 0 ? (type === "ahead" ? "rgba(0,200,83,0.15)" : "rgba(244,67,54,0.15)") : "var(--bg-secondary)", color: n > 0 ? (type === "ahead" ? "#00c853" : "#f44336") : "var(--text-secondary)" }),
+  const s = {
+    panel: { display: "flex", flexDirection: "column", height: "100%", background: "var(--bg-primary)", color: "var(--text-primary)", fontSize: "13px" } as React.CSSProperties,
+    header: { padding: "10px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" } as React.CSSProperties,
+    tabs: { display: "flex", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" } as React.CSSProperties,
+    tab: (active: boolean): React.CSSProperties => ({ padding: "6px 14px", border: "none", cursor: "pointer", fontSize: "12px", background: "none", borderBottom: active ? "2px solid var(--accent-blue)" : "2px solid transparent", color: active ? "var(--text-primary)" : "var(--text-secondary)" }),
+    content: { flex: 1, overflow: "auto", padding: "12px", display: "flex", flexDirection: "column", gap: "10px" } as React.CSSProperties,
+    input: { width: "100%", background: "var(--bg-tertiary, #2d2d2d)", border: "1px solid var(--border-color)", color: "var(--text-primary)", padding: "6px 8px", borderRadius: "4px", fontSize: "12px", boxSizing: "border-box" as const } as React.CSSProperties,
+    btn: (variant?: "danger" | "secondary"): React.CSSProperties => ({ padding: "6px 14px", background: variant === "danger" ? "#c0392b" : variant === "secondary" ? "var(--bg-secondary)" : "var(--accent-blue, #007acc)", color: variant === "secondary" ? "var(--text-primary)" : "#fff", border: variant === "secondary" ? "1px solid var(--border-color)" : "none", borderRadius: "4px", cursor: "pointer", fontSize: "12px" }),
+    statusBadge: (n: number, type: "ahead" | "behind"): React.CSSProperties => ({ padding: "2px 8px", borderRadius: "10px", fontSize: "11px", background: n > 0 ? (type === "ahead" ? "rgba(0,200,83,0.15)" : "rgba(244,67,54,0.15)") : "var(--bg-secondary)", color: n > 0 ? (type === "ahead" ? "#00c853" : "#f44336") : "var(--text-secondary)" }),
   };
 
   return (

@@ -112,17 +112,17 @@ export function SupabasePanel({ workspacePath, provider }: { workspacePath: stri
     setActiveTab("query");
   };
 
-  const s: Record<string, React.CSSProperties> = {
-    panel: { display: "flex", flexDirection: "column", height: "100%", background: "var(--bg-primary)", color: "var(--text-primary)", fontSize: "13px" },
-    header: { padding: "10px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" },
-    tabs: { display: "flex", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" },
-    tab: (active: boolean) => ({ padding: "6px 14px", border: "none", cursor: "pointer", fontSize: "12px", background: "none", borderBottom: active ? "2px solid var(--accent-blue, #007acc)" : "2px solid transparent", color: active ? "var(--text-primary)" : "var(--text-secondary)" }),
-    input: { width: "100%", background: "var(--bg-tertiary, #2d2d2d)", border: "1px solid var(--border-color)", color: "var(--text-primary)", padding: "6px 8px", borderRadius: "4px", fontSize: "12px", boxSizing: "border-box" as const },
-    btn: { padding: "6px 12px", background: "var(--accent-blue, #007acc)", color: "#fff", border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "12px" },
-    content: { flex: 1, overflow: "auto", padding: "12px" },
-    table: { borderCollapse: "collapse" as const, width: "100%", fontSize: "12px" },
-    th: { background: "var(--bg-secondary)", padding: "4px 8px", textAlign: "left" as const, borderBottom: "1px solid var(--border-color)" },
-    td: { padding: "4px 8px", borderBottom: "1px solid var(--border-color, rgba(255,255,255,0.1))" },
+  const s = {
+    panel: { display: "flex", flexDirection: "column", height: "100%", background: "var(--bg-primary)", color: "var(--text-primary)", fontSize: "13px" } as React.CSSProperties,
+    header: { padding: "10px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" } as React.CSSProperties,
+    tabs: { display: "flex", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" } as React.CSSProperties,
+    tab: (active: boolean): React.CSSProperties => ({ padding: "6px 14px", border: "none", cursor: "pointer", fontSize: "12px", background: "none", borderBottom: active ? "2px solid var(--accent-blue, #007acc)" : "2px solid transparent", color: active ? "var(--text-primary)" : "var(--text-secondary)" }),
+    input: { width: "100%", background: "var(--bg-tertiary, #2d2d2d)", border: "1px solid var(--border-color)", color: "var(--text-primary)", padding: "6px 8px", borderRadius: "4px", fontSize: "12px", boxSizing: "border-box" as const } as React.CSSProperties,
+    btn: { padding: "6px 12px", background: "var(--accent-blue, #007acc)", color: "#fff", border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "12px" } as React.CSSProperties,
+    content: { flex: 1, overflow: "auto", padding: "12px" } as React.CSSProperties,
+    table: { borderCollapse: "collapse" as const, width: "100%", fontSize: "12px" } as React.CSSProperties,
+    th: { background: "var(--bg-secondary)", padding: "4px 8px", textAlign: "left" as const, borderBottom: "1px solid var(--border-color)" } as React.CSSProperties,
+    td: { padding: "4px 8px", borderBottom: "1px solid var(--border-color, rgba(255,255,255,0.1))" } as React.CSSProperties,
   };
 
   return (
