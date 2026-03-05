@@ -185,6 +185,185 @@ pub struct Config {
     /// ```
     #[serde(default)]
     pub voice: VoiceConfig,
+
+    /// Container sandbox configuration (Docker, Podman, OpenSandbox).
+    ///
+    /// ```toml
+    /// [sandbox_config]
+    /// runtime = "auto"              # "docker" | "podman" | "opensandbox" | "auto"
+    /// image = "ubuntu:22.04"
+    /// timeout_secs = 3600
+    ///
+    /// [sandbox_config.resources]
+    /// cpus = "2.0"
+    /// memory = "4g"
+    /// pids_limit = 256
+    ///
+    /// [sandbox_config.network]
+    /// mode = "restricted"
+    /// allowed_domains = ["github.com", "registry.npmjs.org"]
+    ///
+    /// [sandbox_config.opensandbox]
+    /// api_url = "http://localhost:8080"
+    /// api_key = ""                  # or OPEN_SANDBOX_API_KEY env
+    /// ```
+    #[serde(default)]
+    pub sandbox_config: SandboxConfig,
+}
+
+/// Container sandbox configuration.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SandboxConfig {
+    /// Runtime: "auto" | "docker" | "podman" | "opensandbox"
+    #[serde(default = "SandboxConfig::default_runtime")]
+    pub runtime: String,
+    /// Default container image.
+    #[serde(default = "SandboxConfig::default_image")]
+    pub image: String,
+    /// Container timeout in seconds (default: 3600).
+    #[serde(default = "SandboxConfig::default_timeout")]
+    pub timeout_secs: u64,
+    /// Resource limits.
+    #[serde(default)]
+    pub resources: ResourceLimitsConfig,
+    /// Network policy.
+    #[serde(default)]
+    pub network: NetworkPolicyConfig,
+    /// OpenSandbox remote settings.
+    #[serde(default)]
+    pub opensandbox: OpenSandboxConfig,
+    /// Private registry authentication.
+    #[serde(default)]
+    pub registry: RegistryConfig,
+}
+
+impl SandboxConfig {
+    fn default_runtime() -> String { "auto".to_string() }
+    fn default_image() -> String { "ubuntu:22.04".to_string() }
+    fn default_timeout() -> u64 { 3600 }
+
+    /// Convert to a ContainerConfig for creating a container.
+    pub fn to_container_config(&self) -> crate::container_runtime::ContainerConfig {
+        use crate::container_runtime::*;
+        ContainerConfig {
+            image: self.image.clone(),
+            name: None,
+            env: vec![],
+            volumes: vec![],
+            resource_limits: ResourceLimits {
+                cpus: self.resources.cpus.as_deref().and_then(|s| s.parse().ok()),
+                memory_bytes: self
+                    .resources
+                    .memory
+                    .as_deref()
+                    .and_then(|s| parse_memory_string(s).ok()),
+                pids_limit: self.resources.pids_limit,
+            },
+            network_policy: match self.network.mode.as_str() {
+                "none" => NetworkPolicy::None,
+                "restricted" => NetworkPolicy::Restricted {
+                    allowed_domains: self.network.allowed_domains.clone(),
+                },
+                _ => NetworkPolicy::Full,
+            },
+            timeout_secs: self.timeout_secs,
+            working_dir: Some("/workspace".to_string()),
+        }
+    }
+}
+
+impl Default for SandboxConfig {
+    fn default() -> Self {
+        Self {
+            runtime: "auto".to_string(),
+            image: "ubuntu:22.04".to_string(),
+            timeout_secs: 3600,
+            resources: ResourceLimitsConfig::default(),
+            network: NetworkPolicyConfig::default(),
+            opensandbox: OpenSandboxConfig::default(),
+            registry: RegistryConfig::default(),
+        }
+    }
+}
+
+/// Resource limits config (string values parsed at use time).
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ResourceLimitsConfig {
+    /// CPU cores as a string (e.g. "2.0").
+    pub cpus: Option<String>,
+    /// Memory as a string (e.g. "4g", "512m").
+    pub memory: Option<String>,
+    /// Maximum PIDs.
+    pub pids_limit: Option<u32>,
+}
+
+/// Network policy config.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NetworkPolicyConfig {
+    /// "none" | "restricted" | "full"
+    #[serde(default = "NetworkPolicyConfig::default_mode")]
+    pub mode: String,
+    /// Domains allowed when mode = "restricted".
+    #[serde(default)]
+    pub allowed_domains: Vec<String>,
+}
+
+impl NetworkPolicyConfig {
+    fn default_mode() -> String { "full".to_string() }
+}
+
+impl Default for NetworkPolicyConfig {
+    fn default() -> Self {
+        Self {
+            mode: "full".to_string(),
+            allowed_domains: vec![],
+        }
+    }
+}
+
+/// OpenSandbox remote service configuration.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct OpenSandboxConfig {
+    /// OpenSandbox API URL (e.g. "http://localhost:8080").
+    pub api_url: Option<String>,
+    /// API key for OpenSandbox (falls back to OPEN_SANDBOX_API_KEY env var).
+    pub api_key: Option<String>,
+}
+
+#[allow(dead_code)]
+impl OpenSandboxConfig {
+    pub fn resolve_api_url(&self) -> String {
+        self.api_url
+            .clone()
+            .or_else(|| std::env::var("OPEN_SANDBOX_API_URL").ok())
+            .unwrap_or_else(|| "http://localhost:8080".to_string())
+    }
+
+    pub fn resolve_api_key(&self) -> Option<String> {
+        self.api_key
+            .clone()
+            .or_else(|| std::env::var("OPEN_SANDBOX_API_KEY").ok())
+    }
+}
+
+/// Private container registry authentication.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct RegistryConfig {
+    /// Registry URL.
+    pub url: Option<String>,
+    /// Registry username.
+    pub username: Option<String>,
+    /// Registry password (falls back to REGISTRY_PASSWORD env var).
+    pub password: Option<String>,
+}
+
+#[allow(dead_code)]
+impl RegistryConfig {
+    pub fn resolve_password(&self) -> Option<String> {
+        self.password
+            .clone()
+            .or_else(|| std::env::var("REGISTRY_PASSWORD").ok())
+    }
 }
 
 /// Configuration for the red team security scanning module.
@@ -1168,6 +1347,9 @@ mod tests {
         assert!(cfg.gateway.platform.is_none());
         assert!(cfg.linear_api_key.is_none());
         assert_eq!(cfg.redteam.max_depth, 3);
+        assert_eq!(cfg.sandbox_config.runtime, "auto");
+        assert_eq!(cfg.sandbox_config.image, "ubuntu:22.04");
+        assert_eq!(cfg.sandbox_config.timeout_secs, 3600);
     }
 
     #[test]

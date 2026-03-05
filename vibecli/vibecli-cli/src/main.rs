@@ -63,6 +63,11 @@ mod voice;
 mod discovery;
 mod tailscale;
 mod pairing;
+mod container_runtime;
+mod docker_runtime;
+mod podman_runtime;
+mod opensandbox_client;
+mod container_tool_executor;
 mod tui;
 
 #[derive(Parser)]
@@ -320,6 +325,15 @@ struct Cli {
     /// Combine with --serve: vibecli --serve --tailscale
     #[arg(long)]
     tailscale: bool,
+
+    // ── Container Sandbox Runtime (Phase sandbox) ─────────────────────────────
+
+    /// Container runtime for sandbox execution: docker, podman, opensandbox, auto.
+    /// When set, agent tool calls (bash, file read/write) execute inside a
+    /// container instead of the local filesystem. Defaults to config value or "auto".
+    /// Example: vibecli --sandbox-runtime docker --agent "ls /etc"
+    #[arg(long, value_name = "RUNTIME")]
+    sandbox_runtime: Option<String>,
 }
 
 #[tokio::main]
@@ -4306,6 +4320,148 @@ async fn main() -> Result<()> {
                             print!("{}", pairing::render_pairing_display(&url, &token));
                         }
 
+                        "/sandbox" => {
+                            let sub_parts: Vec<&str> = args.splitn(2, ' ').collect();
+                            let subcmd = sub_parts.first().copied().unwrap_or("").trim();
+                            let sub_args = if sub_parts.len() > 1 { sub_parts[1].trim() } else { "" };
+                            let sb_cfg = Config::load().unwrap_or_default().sandbox_config;
+
+                            match subcmd {
+                                "runtime" | "" | "status" => {
+                                    println!("🔍 Detecting container runtimes...\n");
+                                    let docker = docker_runtime::DockerRuntime::new();
+                                    let podman = podman_runtime::PodmanRuntime::new();
+                                    let osb_url = sb_cfg.opensandbox.resolve_api_url();
+                                    let osb_key = sb_cfg.opensandbox.resolve_api_key();
+                                    let osb = opensandbox_client::OpenSandboxRuntime::new(osb_url, osb_key);
+
+                                    let docker_ok = docker.is_available().await;
+                                    let podman_ok = podman.is_available().await;
+                                    let osb_ok = osb.is_available().await;
+
+                                    use container_runtime::ContainerRuntime;
+                                    let dv = if docker_ok { docker.version().await.unwrap_or_default() } else { "-".into() };
+                                    let pv = if podman_ok { podman.version().await.unwrap_or_default() } else { "-".into() };
+                                    let ov = if osb_ok { "available".to_string() } else { "-".into() };
+
+                                    println!("  Docker:      {} ({})", if docker_ok { "✅" } else { "❌" }, dv);
+                                    println!("  Podman:      {} ({})", if podman_ok { "✅" } else { "❌" }, pv);
+                                    println!("  OpenSandbox: {} ({})", if osb_ok { "✅" } else { "❌" }, ov);
+                                    println!("  Config:      runtime={}, image={}", sb_cfg.runtime, sb_cfg.image);
+                                    println!();
+                                }
+                                "start" => {
+                                    let image = if sub_args.is_empty() { &sb_cfg.image } else { sub_args };
+                                    println!("🚀 Starting sandbox container (image: {image})...\n");
+                                    match container_runtime::detect_runtime(&sb_cfg).await {
+                                        Ok(rt) => {
+                                            let mut cfg = sb_cfg.to_container_config();
+                                            cfg.image = image.to_string();
+                                            let cwd = std::env::current_dir().unwrap_or_default();
+                                            cfg.volumes.push(container_runtime::VolumeMount {
+                                                host_path: cwd.to_string_lossy().to_string(),
+                                                container_path: "/workspace".to_string(),
+                                                read_only: false,
+                                            });
+                                            match rt.create(&cfg).await {
+                                                Ok(info) => {
+                                                    println!("✅ Container started: {} ({})", info.id, info.runtime);
+                                                    println!("   Image: {}", info.image);
+                                                    println!("   Status: {}\n", info.status);
+                                                }
+                                                Err(e) => println!("❌ Failed to start: {e}\n"),
+                                            }
+                                        }
+                                        Err(e) => println!("❌ No runtime available: {e}\n"),
+                                    }
+                                }
+                                "stop" => {
+                                    if sub_args.is_empty() {
+                                        println!("Usage: /sandbox stop <container_id>\n");
+                                    } else {
+                                        match container_runtime::detect_runtime(&sb_cfg).await {
+                                            Ok(rt) => {
+                                                match rt.stop(sub_args).await {
+                                                    Ok(()) => println!("✅ Container stopped: {sub_args}\n"),
+                                                    Err(e) => println!("❌ Stop failed: {e}\n"),
+                                                }
+                                                let _ = rt.remove(sub_args).await;
+                                            }
+                                            Err(e) => println!("❌ No runtime: {e}\n"),
+                                        }
+                                    }
+                                }
+                                "list" => {
+                                    match container_runtime::detect_runtime(&sb_cfg).await {
+                                        Ok(rt) => {
+                                            match rt.list().await {
+                                                Ok(containers) if containers.is_empty() => {
+                                                    println!("No VibeCody sandbox containers running.\n");
+                                                }
+                                                Ok(containers) => {
+                                                    println!("📦 VibeCody Sandbox Containers:\n");
+                                                    for c in &containers {
+                                                        println!("  {} | {} | {} | {}", &c.id[..12.min(c.id.len())], c.image, c.status, c.runtime);
+                                                    }
+                                                    println!();
+                                                }
+                                                Err(e) => println!("❌ List failed: {e}\n"),
+                                            }
+                                        }
+                                        Err(e) => println!("❌ No runtime: {e}\n"),
+                                    }
+                                }
+                                "exec" if !sub_args.is_empty() => {
+                                    match container_runtime::detect_runtime(&sb_cfg).await {
+                                        Ok(rt) => {
+                                            match rt.list().await {
+                                                Ok(containers) if !containers.is_empty() => {
+                                                    let id = &containers[0].id;
+                                                    match rt.exec(id, sub_args, None).await {
+                                                        Ok(result) => {
+                                                            print!("{}", result.stdout);
+                                                            if !result.stderr.is_empty() {
+                                                                eprint!("{}", result.stderr);
+                                                            }
+                                                            if result.exit_code != 0 {
+                                                                println!("[exit code: {}]", result.exit_code);
+                                                            }
+                                                            println!();
+                                                        }
+                                                        Err(e) => println!("❌ Exec failed: {e}\n"),
+                                                    }
+                                                }
+                                                Ok(_) => println!("No running sandbox. Use /sandbox start first.\n"),
+                                                Err(e) => println!("❌ {e}\n"),
+                                            }
+                                        }
+                                        Err(e) => println!("❌ No runtime: {e}\n"),
+                                    }
+                                }
+                                "logs" => {
+                                    let tail: Option<u32> = sub_args.parse().ok();
+                                    match container_runtime::detect_runtime(&sb_cfg).await {
+                                        Ok(rt) => {
+                                            match rt.list().await {
+                                                Ok(containers) if !containers.is_empty() => {
+                                                    let id = &containers[0].id;
+                                                    match rt.logs(id, tail.or(Some(50))).await {
+                                                        Ok(logs) => println!("{logs}\n"),
+                                                        Err(e) => println!("❌ Logs failed: {e}\n"),
+                                                    }
+                                                }
+                                                _ => println!("No running sandbox.\n"),
+                                            }
+                                        }
+                                        Err(e) => println!("❌ No runtime: {e}\n"),
+                                    }
+                                }
+                                _ => {
+                                    println!("Usage: /sandbox [status|start [image]|stop <id>|list|exec <cmd>|logs [n]|runtime]\n");
+                                }
+                            }
+                        }
+
                         _ => {
                             println!("Type /help for available commands\n");
                         }
@@ -5596,7 +5752,35 @@ async fn run_doctor() -> Result<()> {
         println!("  ○  Sandbox    — disabled (set [safety] sandbox = true to enable)");
     }
 
-    // 10. opusplan model routing
+    // 10. Container runtimes
+    {
+        use container_runtime::ContainerRuntime;
+        let docker = docker_runtime::DockerRuntime::new();
+        let podman = podman_runtime::PodmanRuntime::new();
+        if docker.is_available().await {
+            let ver = docker.version().await.unwrap_or_default();
+            println!("  ✅ Docker     — {ver}");
+        } else {
+            println!("  ○  Docker     — not found");
+        }
+        if podman.is_available().await {
+            let ver = podman.version().await.unwrap_or_default();
+            println!("  ✅ Podman     — {ver}");
+        } else {
+            println!("  ○  Podman     — not found");
+        }
+        let osb_url = config.sandbox_config.opensandbox.resolve_api_url();
+        let osb_key = config.sandbox_config.opensandbox.resolve_api_key();
+        let osb = opensandbox_client::OpenSandboxRuntime::new(osb_url, osb_key);
+        if osb.is_available().await {
+            println!("  ✅ OpenSandbox — reachable");
+        } else {
+            println!("  ○  OpenSandbox — not configured/reachable");
+        }
+        println!("  📦 Sandbox cfg — runtime={}, image={}", config.sandbox_config.runtime, config.sandbox_config.image);
+    }
+
+    // 11. opusplan model routing
     if config.routing.is_configured() {
         println!("  🔀 Routing    — opusplan routing configured");
         let (pp, pm) = config.routing.resolve_planning("(default)", "(default)");
