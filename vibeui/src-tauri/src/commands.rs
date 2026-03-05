@@ -13346,3 +13346,168 @@ pub async fn check_all_services(monitors: Vec<HealthMonitor>) -> Result<Vec<Heal
     let results = futures::future::join_all(futs).await;
     Ok(results.into_iter().filter_map(|r| r.ok()).collect())
 }
+
+// ── Phase 7.36: WebSocket Tester ──────────────────────────────────────────────
+
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+pub struct WsConfig {
+    pub id: String,
+    pub label: String,
+    pub url: String,
+    pub protocols: Vec<String>,
+}
+
+fn ws_configs_path() -> std::path::PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    std::path::PathBuf::from(home).join(".vibeui").join("ws-configs.json")
+}
+
+#[tauri::command]
+pub async fn get_ws_configs() -> Result<Vec<WsConfig>, String> {
+    let path = ws_configs_path();
+    if !path.exists() { return Ok(vec![]); }
+    let data = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    serde_json::from_str(&data).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn save_ws_configs(configs: Vec<WsConfig>) -> Result<(), String> {
+    let path = ws_configs_path();
+    std::fs::create_dir_all(path.parent().unwrap()).map_err(|e| e.to_string())?;
+    std::fs::write(
+        &path,
+        serde_json::to_string_pretty(&configs).map_err(|e| e.to_string())?,
+    ).map_err(|e| e.to_string())
+}
+
+// ── Phase 7.37: Color Palette & Design Token Manager ──────────────────────────
+
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+pub struct ColorToken {
+    pub name: String,
+    pub value: String,   // hex
+    pub comment: Option<String>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+pub struct ColorPalette {
+    pub id: String,
+    pub name: String,
+    pub tokens: Vec<ColorToken>,
+}
+
+fn palettes_path() -> std::path::PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    std::path::PathBuf::from(home).join(".vibeui").join("color-palettes.json")
+}
+
+#[tauri::command]
+pub async fn get_color_palettes() -> Result<Vec<ColorPalette>, String> {
+    let path = palettes_path();
+    if !path.exists() { return Ok(vec![]); }
+    let data = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    serde_json::from_str(&data).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn save_color_palettes(palettes: Vec<ColorPalette>) -> Result<(), String> {
+    let path = palettes_path();
+    std::fs::create_dir_all(path.parent().unwrap()).map_err(|e| e.to_string())?;
+    std::fs::write(&path, serde_json::to_string_pretty(&palettes).map_err(|e| e.to_string())?)
+        .map_err(|e| e.to_string())
+}
+
+/// Scan workspace files for CSS custom properties (--name: #hex)
+#[tauri::command]
+pub async fn scan_css_variables(workspace: String) -> Result<Vec<ColorToken>, String> {
+    use std::io::BufRead;
+    let re = regex::Regex::new(r"--([a-zA-Z0-9_-]+)\s*:\s*(#[0-9a-fA-F]{3,8}|rgb[a]?\([^)]+\))")
+        .map_err(|e| e.to_string())?;
+    let root = std::path::Path::new(&workspace);
+    let mut tokens: Vec<ColorToken> = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+
+    for entry in walkdir::WalkDir::new(root).max_depth(6).into_iter().filter_map(|e| e.ok()) {
+        let path = entry.path();
+        let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+        if !matches!(ext, "css" | "scss" | "sass" | "less" | "tsx" | "ts" | "js" | "jsx") { continue; }
+        if path.to_string_lossy().contains("node_modules") || path.to_string_lossy().contains("/target/") { continue; }
+        if let Ok(file) = std::fs::File::open(path) {
+            for line in std::io::BufReader::new(file).lines().flatten() {
+                for cap in re.captures_iter(&line) {
+                    let name = cap[1].to_string();
+                    let value = cap[2].to_string();
+                    if seen.insert(name.clone()) {
+                        tokens.push(ColorToken { name, value, comment: None });
+                    }
+                }
+            }
+        }
+        if tokens.len() >= 200 { break; }
+    }
+    Ok(tokens)
+}
+
+/// Export a palette to CSS variables, Tailwind, SCSS, or JSON
+#[tauri::command]
+pub async fn export_color_palette(palette: ColorPalette, format: String) -> Result<String, String> {
+    let out = match format.as_str() {
+        "css" => {
+            let vars: String = palette.tokens.iter()
+                .map(|t| format!("  --{}: {};", t.name, t.value))
+                .collect::<Vec<_>>().join("\n");
+            format!(":root {{\n{}\n}}", vars)
+        }
+        "scss" => palette.tokens.iter()
+            .map(|t| format!("${}: {};", t.name.replace('-', "_"), t.value))
+            .collect::<Vec<_>>().join("\n"),
+        "tailwind" => {
+            let entries: String = palette.tokens.iter()
+                .map(|t| format!("      \"{}\": \"{}\",", t.name, t.value))
+                .collect::<Vec<_>>().join("\n");
+            format!("// tailwind.config.js extend\ncolors: {{\n{}\n}},", entries)
+        }
+        "json" => {
+            let map: serde_json::Map<String, serde_json::Value> = palette.tokens.iter()
+                .map(|t| (t.name.clone(), serde_json::Value::String(t.value.clone())))
+                .collect();
+            serde_json::to_string_pretty(&map).map_err(|e| e.to_string())?
+        }
+        _ => return Err(format!("Unknown format: {format}")),
+    };
+    Ok(out)
+}
+
+// ── Phase 7.38: Markdown File Browser ─────────────────────────────────────────
+
+#[derive(serde::Serialize)]
+pub struct MarkdownFile {
+    pub path: String,
+    pub name: String,
+    pub size_bytes: u64,
+}
+
+/// List all .md and .mdx files in the workspace (max depth 8, skips node_modules/target)
+#[tauri::command]
+pub async fn list_markdown_files(workspace: String) -> Result<Vec<MarkdownFile>, String> {
+    let root = std::path::Path::new(&workspace);
+    let mut files = Vec::new();
+    for entry in walkdir::WalkDir::new(root).max_depth(8).into_iter().filter_map(|e| e.ok()) {
+        let path = entry.path();
+        let lossy = path.to_string_lossy();
+        if lossy.contains("node_modules") || lossy.contains("/target/") || lossy.contains("/.git/") {
+            continue;
+        }
+        let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+        if !matches!(ext, "md" | "mdx") { continue; }
+        let size_bytes = entry.metadata().map(|m| m.len()).unwrap_or(0);
+        files.push(MarkdownFile {
+            path: path.to_string_lossy().into_owned(),
+            name: path.file_name().and_then(|n| n.to_str()).unwrap_or("").to_string(),
+            size_bytes,
+        });
+        if files.len() >= 500 { break; }
+    }
+    files.sort_by(|a, b| a.path.cmp(&b.path));
+    Ok(files)
+}

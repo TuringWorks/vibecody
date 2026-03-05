@@ -411,6 +411,16 @@ pub fn run() {
             commands::save_health_monitors,
             commands::check_service_health,
             commands::check_all_services,
+            // Phase 7.36: WebSocket Tester
+            commands::get_ws_configs,
+            commands::save_ws_configs,
+            // Phase 7.37: Color Palette & Design Token Manager
+            commands::get_color_palettes,
+            commands::save_color_palettes,
+            commands::scan_css_variables,
+            commands::export_color_palette,
+            // Phase 7.38: Markdown Editor
+            commands::list_markdown_files,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
