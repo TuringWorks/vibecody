@@ -79,7 +79,7 @@ impl OpenAIProvider {
         let mut openai_messages: Vec<OpenAIMessage> = messages
             .iter()
             .map(|m| OpenAIMessage {
-                role: format!("{:?}", m.role).to_lowercase(),
+                role: m.role.as_str().to_string(),
                 content: Value::String(m.content.clone()),
             })
             .collect();

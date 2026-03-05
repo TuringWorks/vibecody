@@ -82,6 +82,17 @@ pub enum MessageRole {
     Assistant,
 }
 
+impl MessageRole {
+    /// Return the lowercase API string for this role.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::System => "system",
+            Self::User => "user",
+            Self::Assistant => "assistant",
+        }
+    }
+}
+
 /// Token usage statistics returned by a provider response.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct TokenUsage {

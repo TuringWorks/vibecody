@@ -220,7 +220,7 @@ impl AIProvider for OllamaProvider {
         let mut ollama_messages: Vec<OllamaChatMessage> = messages
             .iter()
             .map(|m| OllamaChatMessage {
-                role: format!("{:?}", m.role).to_lowercase(),
+                role: m.role.as_str().to_string(),
                 content: m.content.clone(),
             })
             .collect();
@@ -268,7 +268,7 @@ impl AIProvider for OllamaProvider {
         let ollama_messages: Vec<OllamaChatMessage> = messages
             .iter()
             .map(|m| OllamaChatMessage {
-                role: format!("{:?}", m.role).to_lowercase(),
+                role: m.role.as_str().to_string(),
                 content: m.content.clone(),
             })
             .collect();

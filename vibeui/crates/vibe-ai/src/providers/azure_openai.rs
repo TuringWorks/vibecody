@@ -108,7 +108,7 @@ impl AzureOpenAIProvider {
 
     fn build_messages(&self, messages: &[Message], context: Option<String>) -> Vec<AzMessage> {
         let mut result: Vec<AzMessage> = messages.iter().map(|m| AzMessage {
-            role: format!("{:?}", m.role).to_lowercase(),
+            role: m.role.as_str().to_string(),
             content: Value::String(m.content.clone()),
         }).collect();
         if let Some(ctx) = context {

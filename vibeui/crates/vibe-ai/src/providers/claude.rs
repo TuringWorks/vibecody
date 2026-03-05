@@ -105,7 +105,7 @@ impl ClaudeProvider {
                     Value::String(m.content.clone())
                 };
                 claude_messages.push(ClaudeMessage {
-                    role: format!("{:?}", m.role).to_lowercase(),
+                    role: m.role.as_str().to_string(),
                     content,
                 });
             }
@@ -159,7 +159,7 @@ impl ClaudeProvider {
                 Value::String(m.content.clone())
             };
             claude_messages.push(ClaudeMessage {
-                role: format!("{:?}", m.role).to_lowercase(),
+                role: m.role.as_str().to_string(),
                 content,
             });
         }

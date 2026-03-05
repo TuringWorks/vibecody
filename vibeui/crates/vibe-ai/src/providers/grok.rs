@@ -71,7 +71,7 @@ impl GrokProvider {
         let mut grok_messages: Vec<GrokMessage> = messages
             .iter()
             .map(|m| GrokMessage {
-                role: format!("{:?}", m.role).to_lowercase(),
+                role: m.role.as_str().to_string(),
                 content: m.content.clone(),
             })
             .collect();

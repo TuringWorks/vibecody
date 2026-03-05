@@ -659,6 +659,7 @@ impl ToolExecutor {
                     break;
                 }
                 AgentEvent::Error(e) => {
+                    handle.abort();
                     counter.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
                     return ToolResult::err("spawn_agent", format!("Sub-agent error: {}", e));
                 }

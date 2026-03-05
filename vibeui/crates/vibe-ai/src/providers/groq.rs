@@ -85,7 +85,7 @@ impl GroqProvider {
 
     fn build_messages(&self, messages: &[Message], context: Option<String>) -> Vec<GroqMessage> {
         let mut result: Vec<GroqMessage> = messages.iter().map(|m| GroqMessage {
-            role: format!("{:?}", m.role).to_lowercase(),
+            role: m.role.as_str().to_string(),
             content: m.content.clone(),
         }).collect();
         if let Some(ctx) = context {

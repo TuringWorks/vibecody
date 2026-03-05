@@ -91,7 +91,7 @@ impl OpenRouterProvider {
 
     fn build_messages(&self, messages: &[Message], context: Option<String>) -> Vec<ORMessage> {
         let mut result: Vec<ORMessage> = messages.iter().map(|m| ORMessage {
-            role: format!("{:?}", m.role).to_lowercase(),
+            role: m.role.as_str().to_string(),
             content: m.content.clone(),
         }).collect();
         if let Some(ctx) = context {
