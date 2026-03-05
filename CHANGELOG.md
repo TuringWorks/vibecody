@@ -7,8 +7,20 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Features (Phases 7.26–7.34)
+- **Phase 7.26**: API Documentation Viewer (`ApiDocsPanel.tsx`) — load OpenAPI 3.x/Swagger 2.x, endpoint list grouped by tag, "Try It" sub-panel.
+- **Phase 7.27**: Log Viewer (`LogPanel.tsx`) — tail logs, search, AI-powered analysis. `ErrorBoundary` component wrapping all AI panel tabs.
+- **Phase 7.28**: Script Runner (`ScriptPanel.tsx`) — auto-detects npm/cargo/make/python/go/just scripts, live output. Notebook Panel (`NotebookPanel.tsx`) — executable code cells with inline output.
+- **Phase 7.29**: SSH Remote Manager (`SshPanel.tsx`) — profile CRUD, quick-command chips, remote command execution.
+- **Phase 7.30**: Bookmark Manager (`BookmarkPanel.tsx`), Git Bisect Assistant (`BisectPanel.tsx`), Snippet Library (`SnippetPanel.tsx`), API Mock Server (`MockServerPanel.tsx`).
+- **Phase 7.31**: GraphQL Playground (`GraphQLPanel.tsx`) — schema introspection, variable editor, query execution.
+- **Phase 7.32**: Code Metrics (`CodeMetricsPanel.tsx`) — LOC/file/function counts, language breakdown. Load Test (`LoadTestPanel.tsx`) — HTTP load testing with latency percentiles.
+- **Phase 7.33**: Network Tools — port scanner, DNS lookup, TLS inspector.
+- **Phase 7.34**: Agent Teams (`AgentTeamPanel.tsx`), Cloud Agents (`CloudAgentPanel.tsx`), CI Review Bot, Marketplace (`MarketplacePanel.tsx`), Visual Testing, Code Transforms (`TransformPanel.tsx`), ACP protocol, Screen Recording.
+- **64 AI panel tabs** total across all features.
+
 ### Testing
-- **645 new unit tests** across 40+ files, bringing the workspace total from 344 → **984 tests** (956 main + 28 vibe-collab).
+- **735 new unit tests** across 50+ files, bringing the workspace total from 344 → **1074 tests** (1046 main + 28 vibe-collab).
 - **Round 4 (155 tests)** across 12 files:
   - `serve.rs` (25): now_ms, persist/load jobs, JobRecord serde, AgentEventPayload constructors,
     ChatMessage/ChatRequest/AgentRequest serde, RateLimiter sliding window.
@@ -107,7 +119,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Documentation
 - **Serve endpoint table**: Expanded from 9 → 16 routes with auth requirements.
 - **Jekyll navigation**: Added ROADMAP-v2, FIT-GAP-ANALYSIS-v2, SHANNON-COMPARISON, CHANGELOG to header pages.
-- **Test counts**: Updated across all docs to reflect 984 total tests.
+- **Test counts**: Updated across all docs to reflect 1074 total tests.
 
 ### Accessibility (WCAG 2.1 AA)
 - **Keyboard shortcuts**: 8 new shortcuts — `Cmd+J` toggle AI panel, `Cmd+`` toggle terminal,
