@@ -72,6 +72,8 @@ import { BisectPanel } from "./components/BisectPanel";
 import { SnippetPanel } from "./components/SnippetPanel";
 import { MockServerPanel } from "./components/MockServerPanel";
 import { GraphQLPanel } from "./components/GraphQLPanel";
+import { CodeMetricsPanel } from "./components/CodeMetricsPanel";
+import { LoadTestPanel } from "./components/LoadTestPanel";
 import { useCollab } from "./hooks/useCollab";
 import { flowContext } from "./utils/FlowContext";
 import { supercompleteEngine } from "./utils/SupercompleteEngine";
@@ -113,7 +115,7 @@ function App() {
   const [showSidebar, setShowSidebar] = useState(true);
   const [activeSidebarTab, setActiveSidebarTab] = useState<"explorer" | "search" | "git">("explorer");
   const [showAIChat, setShowAIChat] = useState(false);
-  const [aiPanelTab, setAiPanelTab] = useState<"chat" | "agent" | "memory" | "history" | "checkpoints" | "artifacts" | "manager" | "hooks" | "jobs" | "mcp" | "settings" | "cascade" | "specs" | "workflow" | "design" | "deploy" | "database" | "supabase" | "auth" | "github" | "steering" | "bugbot" | "redteam" | "tests" | "collab" | "coverage" | "compare" | "http" | "arena" | "cost" | "autofix" | "processes" | "cicd" | "k8s" | "env" | "profiler" | "docker" | "deps" | "apidocs" | "migrations" | "logs" | "scripts" | "notebook" | "ssh" | "utils" | "markers" | "bisect" | "snippets" | "mock" | "graphql">("chat");
+  const [aiPanelTab, setAiPanelTab] = useState<"chat" | "agent" | "memory" | "history" | "checkpoints" | "artifacts" | "manager" | "hooks" | "jobs" | "mcp" | "settings" | "cascade" | "specs" | "workflow" | "design" | "deploy" | "database" | "supabase" | "auth" | "github" | "steering" | "bugbot" | "redteam" | "tests" | "collab" | "coverage" | "compare" | "http" | "arena" | "cost" | "autofix" | "processes" | "cicd" | "k8s" | "env" | "profiler" | "docker" | "deps" | "apidocs" | "migrations" | "logs" | "scripts" | "notebook" | "ssh" | "utils" | "markers" | "bisect" | "snippets" | "mock" | "graphql" | "metrics" | "loadtest">("chat");
   const [showTerminal, setShowTerminal] = useState(false);
   const [bottomTab, setBottomTab] = useState<"terminal" | "browser">("terminal");
   const [showCommandPalette, setShowCommandPalette] = useState(false);
@@ -1472,7 +1474,7 @@ function App() {
           <aside className="ai-chat-panel" style={{ display: "flex", flexDirection: "column" }}>
             {/* Tab bar */}
             <div role="tablist" aria-label="AI Panel tabs" style={{ display: "flex", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
-              {(["chat", "agent", "memory", "history", "checkpoints", "artifacts", "manager", "hooks", "jobs", "mcp", "settings", "cascade", "specs", "workflow", "design", "deploy", "database", "supabase", "auth", "github", "steering", "bugbot", "redteam", "tests", "collab", "coverage", "compare", "http", "arena", "cost", "autofix", "processes", "cicd", "k8s", "env", "profiler", "docker", "deps", "apidocs", "migrations", "logs", "scripts", "notebook", "ssh", "utils", "markers", "bisect", "snippets", "mock", "graphql"] as const).map((tab) => (
+              {(["chat", "agent", "memory", "history", "checkpoints", "artifacts", "manager", "hooks", "jobs", "mcp", "settings", "cascade", "specs", "workflow", "design", "deploy", "database", "supabase", "auth", "github", "steering", "bugbot", "redteam", "tests", "collab", "coverage", "compare", "http", "arena", "cost", "autofix", "processes", "cicd", "k8s", "env", "profiler", "docker", "deps", "apidocs", "migrations", "logs", "scripts", "notebook", "ssh", "utils", "markers", "bisect", "snippets", "mock", "graphql", "metrics", "loadtest"] as const).map((tab) => (
                 <button
                   key={tab}
                   role="tab"
@@ -1541,6 +1543,8 @@ function App() {
                     : tab === "snippets" ? "✂️ Snippets"
                     : tab === "mock" ? "🎭 Mock"
                     : tab === "graphql" ? "⬡ GraphQL"
+                    : tab === "metrics" ? "📊 Metrics"
+                    : tab === "loadtest" ? "⚡ Load Test"
                     : "🌊 Flow"}
                 </button>
               ))}
@@ -1755,6 +1759,12 @@ function App() {
               )}
               {aiPanelTab === "graphql" && (
                 <GraphQLPanel />
+              )}
+              {aiPanelTab === "metrics" && (
+                <CodeMetricsPanel workspacePath={workspaceFolders[0] || null} />
+              )}
+              {aiPanelTab === "loadtest" && (
+                <LoadTestPanel />
               )}
               </ErrorBoundary>
             </div>

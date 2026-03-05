@@ -11334,3 +11334,313 @@ pub async fn introspect_graphql_schema(
 
     Ok(GraphQLSchema { query_type, mutation_type, subscription_type, types })
 }
+
+// ── Phase 7.32: Code Metrics Analyzer ────────────────────────────────────────
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct LanguageStat {
+    pub language: String,
+    pub extension: String,
+    pub file_count: usize,
+    pub lines: usize,
+    pub code_lines: usize,
+    pub comment_lines: usize,
+    pub blank_lines: usize,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct FileComplexity {
+    pub path: String,
+    pub lines: usize,
+    pub complexity: usize,
+    pub language: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct CodeMetrics {
+    pub total_files: usize,
+    pub total_lines: usize,
+    pub total_code_lines: usize,
+    pub total_comment_lines: usize,
+    pub total_blank_lines: usize,
+    pub languages: Vec<LanguageStat>,
+    pub largest_files: Vec<FileComplexity>,
+    pub most_complex: Vec<FileComplexity>,
+}
+
+fn ext_to_language(ext: &str) -> Option<&'static str> {
+    match ext {
+        "rs"                              => Some("Rust"),
+        "ts" | "tsx"                      => Some("TypeScript"),
+        "js" | "jsx" | "mjs" | "cjs"     => Some("JavaScript"),
+        "py"                              => Some("Python"),
+        "go"                              => Some("Go"),
+        "java"                            => Some("Java"),
+        "c" | "h"                         => Some("C"),
+        "cpp" | "cc" | "cxx" | "hpp"     => Some("C++"),
+        "cs"                              => Some("C#"),
+        "rb"                              => Some("Ruby"),
+        "php"                             => Some("PHP"),
+        "swift"                           => Some("Swift"),
+        "kt" | "kts"                      => Some("Kotlin"),
+        "sh" | "bash" | "zsh"            => Some("Shell"),
+        "sql"                             => Some("SQL"),
+        "html" | "htm"                    => Some("HTML"),
+        "css" | "scss" | "sass" | "less" => Some("CSS"),
+        "json"                            => Some("JSON"),
+        "yaml" | "yml"                    => Some("YAML"),
+        "toml"                            => Some("TOML"),
+        "md" | "mdx"                      => Some("Markdown"),
+        "lua"                             => Some("Lua"),
+        "zig"                             => Some("Zig"),
+        "dart"                            => Some("Dart"),
+        _                                 => None,
+    }
+}
+
+fn count_branch_complexity(line: &str, ext: &str) -> usize {
+    let kws: &[&str] = match ext {
+        "rs"            => &["if ", "else if", "match ", "while ", "for ", "loop ", "&&", "||"],
+        "ts"|"tsx"|"js"|"jsx" => &["if ", "else if", "while ", "for ", "switch ", "&&", "||", "??"],
+        "py"            => &["if ", "elif ", "while ", "for ", "and ", "or ", "except "],
+        "go"            => &["if ", "else if", "for ", "switch ", "select ", "&&", "||"],
+        "java"|"cs"     => &["if ", "else if", "while ", "for ", "switch ", "&&", "||", "catch "],
+        _               => &["if ", "while ", "for ", "&&", "||"],
+    };
+    kws.iter().filter(|&&kw| line.contains(kw)).count()
+}
+
+fn line_is_comment(line: &str, ext: &str) -> bool {
+    let t = line.trim();
+    match ext {
+        "rs"|"ts"|"tsx"|"js"|"jsx"|"go"|"java"|"cs"|"cpp"|"c"|"swift"|"kt" =>
+            t.starts_with("//") || t.starts_with("/*") || t.starts_with('*'),
+        "py"|"rb" => t.starts_with('#'),
+        "html"|"htm" => t.starts_with("<!--"),
+        "css"|"scss"|"sass" => t.starts_with("/*") || t.starts_with('*'),
+        _ => t.starts_with('#') || t.starts_with("//"),
+    }
+}
+
+/// Analyse source-code metrics (LOC, language breakdown, complexity) for a workspace.
+#[tauri::command]
+pub async fn analyze_code_metrics(workspace: String) -> Result<CodeMetrics, String> {
+    use std::collections::HashMap;
+
+    let ws = std::path::Path::new(&workspace)
+        .canonicalize()
+        .map_err(|e| format!("Invalid workspace: {e}"))?;
+
+    const SKIP_DIRS: &[&str] = &[
+        "node_modules", ".git", "target", "dist", "build", ".next",
+        "vendor", "__pycache__", ".venv", "venv", ".gradle", "out", ".cache",
+    ];
+
+    let mut lang_map: HashMap<String, LanguageStat> = HashMap::new();
+    let mut all_files: Vec<FileComplexity> = Vec::new();
+
+    for entry in walkdir::WalkDir::new(&ws)
+        .follow_links(false)
+        .max_depth(12)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
+        if entry.file_type().is_dir() { continue; }
+
+        let path = entry.path();
+        let skip = path.ancestors().any(|a| {
+            a.file_name().and_then(|n| n.to_str())
+                .map(|n| SKIP_DIRS.contains(&n))
+                .unwrap_or(false)
+        });
+        if skip { continue; }
+
+        let ext = path.extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("")
+            .to_lowercase();
+        let lang = match ext_to_language(&ext) {
+            Some(l) => l,
+            None => continue,
+        };
+
+        // Skip files > 1 MB
+        if entry.metadata().map(|m| m.len()).unwrap_or(0) > 1_048_576 { continue; }
+
+        let content = match tokio::fs::read_to_string(path).await {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+
+        let mut total = 0usize;
+        let mut code = 0usize;
+        let mut comments = 0usize;
+        let mut blank = 0usize;
+        let mut complexity = 0usize;
+
+        for line in content.lines() {
+            total += 1;
+            if line.trim().is_empty() {
+                blank += 1;
+            } else if line_is_comment(line, &ext) {
+                comments += 1;
+            } else {
+                code += 1;
+                complexity += count_branch_complexity(line, &ext);
+            }
+        }
+
+        let rel = path.strip_prefix(&ws).unwrap_or(path).to_string_lossy().to_string();
+        all_files.push(FileComplexity { path: rel, lines: total, complexity, language: lang.to_string() });
+
+        let stat = lang_map.entry(lang.to_string()).or_insert_with(|| LanguageStat {
+            language: lang.to_string(), extension: ext.clone(),
+            file_count: 0, lines: 0, code_lines: 0, comment_lines: 0, blank_lines: 0,
+        });
+        stat.file_count += 1;
+        stat.lines += total;
+        stat.code_lines += code;
+        stat.comment_lines += comments;
+        stat.blank_lines += blank;
+    }
+
+    let total_files = all_files.len();
+    let total_lines: usize = all_files.iter().map(|f| f.lines).sum();
+    let total_code_lines: usize = lang_map.values().map(|l| l.code_lines).sum();
+    let total_comment_lines: usize = lang_map.values().map(|l| l.comment_lines).sum();
+    let total_blank_lines: usize = lang_map.values().map(|l| l.blank_lines).sum();
+
+    let mut languages: Vec<LanguageStat> = lang_map.into_values().collect();
+    languages.sort_by(|a, b| b.lines.cmp(&a.lines));
+
+    let mut largest_files = all_files.clone();
+    largest_files.sort_by(|a, b| b.lines.cmp(&a.lines));
+    largest_files.truncate(10);
+
+    let mut most_complex = all_files;
+    most_complex.sort_by(|a, b| b.complexity.cmp(&a.complexity));
+    most_complex.truncate(10);
+
+    Ok(CodeMetrics {
+        total_files, total_lines, total_code_lines, total_comment_lines, total_blank_lines,
+        languages, largest_files, most_complex,
+    })
+}
+
+// ── Phase 7.32: HTTP Load Tester ─────────────────────────────────────────────
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct LoadTestResult {
+    pub total_requests: u32,
+    pub success: u32,
+    pub failed: u32,
+    pub duration_ms: u64,
+    pub requests_per_sec: f64,
+    pub avg_ms: f64,
+    pub min_ms: u64,
+    pub max_ms: u64,
+    pub p50_ms: u64,
+    pub p90_ms: u64,
+    pub p99_ms: u64,
+    pub status_codes: std::collections::HashMap<u16, u32>,
+}
+
+/// Run a concurrent HTTP load test. Emits `loadtest:progress` events every 10 requests.
+#[tauri::command]
+pub async fn run_load_test(
+    app: tauri::AppHandle,
+    url: String,
+    method: String,
+    body: Option<String>,
+    headers: Option<std::collections::HashMap<String, String>>,
+    concurrency: u32,
+    total: u32,
+) -> Result<LoadTestResult, String> {
+    if !url.starts_with("http://") && !url.starts_with("https://") {
+        return Err("URL must start with http:// or https://".to_string());
+    }
+    let total = total.min(10_000);
+    let concurrency = concurrency.clamp(1, 200);
+
+    let client = std::sync::Arc::new(
+        reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(30))
+            .build()
+            .map_err(|e| format!("Client error: {e}"))?
+    );
+
+    let method_parsed = reqwest::Method::from_bytes(method.to_uppercase().as_bytes())
+        .map_err(|_| format!("Invalid method: {method}"))?;
+
+    let sem = std::sync::Arc::new(tokio::sync::Semaphore::new(concurrency as usize));
+    let started_global = std::time::Instant::now();
+
+    type LatVec = std::sync::Arc<tokio::sync::Mutex<Vec<u64>>>;
+    type CodeMap = std::sync::Arc<tokio::sync::Mutex<std::collections::HashMap<u16, u32>>>;
+
+    let latencies: LatVec = std::sync::Arc::new(tokio::sync::Mutex::new(Vec::with_capacity(total as usize)));
+    let status_codes: CodeMap = std::sync::Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new()));
+    let completed = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0));
+    let success_ctr = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0));
+
+    let mut handles = Vec::with_capacity(total as usize);
+
+    for _ in 0..total {
+        let (client, sem, latencies, status_codes, completed, success_ctr) = (
+            client.clone(), sem.clone(), latencies.clone(), status_codes.clone(),
+            completed.clone(), success_ctr.clone(),
+        );
+        let (url, method, body, headers, app, total) = (
+            url.clone(), method_parsed.clone(), body.clone(), headers.clone(), app.clone(), total,
+        );
+
+        handles.push(tokio::spawn(async move {
+            let _permit = sem.acquire().await;
+            let t0 = std::time::Instant::now();
+            let mut req = client.request(method, &url);
+            if let Some(h) = headers { for (k, v) in h { req = req.header(&k, &v); } }
+            if let Some(b) = body { req = req.body(b); }
+            let elapsed = match req.send().await {
+                Ok(resp) => {
+                    let ms = t0.elapsed().as_millis() as u64;
+                    let code = resp.status().as_u16();
+                    *status_codes.lock().await.entry(code).or_insert(0) += 1;
+                    if resp.status().is_success() {
+                        success_ctr.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                    }
+                    ms
+                }
+                Err(_) => {
+                    *status_codes.lock().await.entry(0).or_insert(0) += 1;
+                    t0.elapsed().as_millis() as u64
+                }
+            };
+            latencies.lock().await.push(elapsed);
+            let done = completed.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
+            if done % 10 == 0 || done == total {
+                let _ = app.emit("loadtest:progress", done);
+            }
+        }));
+    }
+
+    for h in handles { let _ = h.await; }
+
+    let duration_ms = started_global.elapsed().as_millis() as u64;
+    let success = success_ctr.load(std::sync::atomic::Ordering::Relaxed);
+    let failed = total - success;
+
+    let mut lats = latencies.lock().await.clone();
+    lats.sort_unstable();
+    let n = lats.len();
+    let avg_ms = if n == 0 { 0.0 } else { lats.iter().sum::<u64>() as f64 / n as f64 };
+    let p = |pct: usize| lats.get(n * pct / 100).copied().unwrap_or(0);
+
+    let sc = status_codes.lock().await.clone();
+    Ok(LoadTestResult {
+        total_requests: total, success, failed, duration_ms,
+        requests_per_sec: if duration_ms == 0 { 0.0 } else { total as f64 / (duration_ms as f64 / 1000.0) },
+        avg_ms, min_ms: lats.first().copied().unwrap_or(0), max_ms: lats.last().copied().unwrap_or(0),
+        p50_ms: p(50), p90_ms: p(90), p99_ms: p(99),
+        status_codes: sc,
+    })
+}

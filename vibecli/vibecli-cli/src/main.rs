@@ -3799,8 +3799,11 @@ async fn main() -> Result<()> {
                             match subcmd {
                                 "scan" | "list" | "" => {
                                     println!("🔖 Scanning for code markers...\n");
-                                    let re = regex::Regex::new(r"(?i)\b(TODO|FIXME|HACK|BUG|NOTE|XXX)\b[:\s]*(.*)")
-                                        .unwrap();
+                                    fn markers_re() -> &'static regex::Regex {
+                                        static RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+                                        RE.get_or_init(|| regex::Regex::new(r"(?i)\b(TODO|FIXME|HACK|BUG|NOTE|XXX)\b[:\s]*(.*)").unwrap())
+                                    }
+                                    let re = markers_re();
                                     let extensions = &["rs","ts","tsx","js","jsx","py","go","java","rb","c","cpp","h"];
                                     let mut count = 0u32;
                                     for entry in walkdir::WalkDir::new(&cwd)

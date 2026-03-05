@@ -367,6 +367,9 @@ pub fn run() {
             // Phase 7.31: GraphQL Playground
             commands::run_graphql_query,
             commands::introspect_graphql_schema,
+            // Phase 7.32: Code Metrics + Load Tester
+            commands::analyze_code_metrics,
+            commands::run_load_test,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
