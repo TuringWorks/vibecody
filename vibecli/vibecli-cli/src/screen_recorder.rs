@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Agent screen recording — captures screenshots during agent execution.
 
 use anyhow::Result;

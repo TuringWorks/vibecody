@@ -60,6 +60,8 @@ static COMMANDS: &[&str] = &[
     "/test",
     "/theme",
     "/trace",
+    "/transform",
+    "/marketplace",
     "/workflow",
 ];
 

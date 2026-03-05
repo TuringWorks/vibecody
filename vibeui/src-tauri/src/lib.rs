@@ -401,6 +401,8 @@ pub fn run() {
             // Phase 8.17: Cloud-Isolated Agent Execution (Docker)
             commands::start_cloud_agent,
             commands::get_cloud_agent_status,
+            // Phase 8.18: Compliance Reporting
+            commands::generate_compliance_report,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

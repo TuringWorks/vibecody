@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Computer Use / Visual Self-Testing — agents can launch apps, take
 //! screenshots, and make visual assertions via an LLM.
 

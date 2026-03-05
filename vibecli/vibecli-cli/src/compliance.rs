@@ -1,3 +1,4 @@
+#![allow(dead_code, clippy::upper_case_acronyms)]
 //! Compliance report generation for SOC2/FedRAMP preparation.
 
 use anyhow::Result;

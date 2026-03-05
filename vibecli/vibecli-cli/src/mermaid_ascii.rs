@@ -183,7 +183,7 @@ fn try_parse_node_def(s: &str) -> Option<Node> {
     let s = s.trim().trim_end_matches(';');
 
     // Find the ID (everything before the first bracket-type char)
-    let id_end = s.find(|c: char| c == '[' || c == '(' || c == '{')?;
+    let id_end = s.find(['[', '(', '{'])?;
     let id = s[..id_end].trim().to_string();
     if id.is_empty() {
         return None;
@@ -223,11 +223,11 @@ fn try_parse_edge_with_parts(s: &str) -> Option<(Edge, &str, String)> {
             let left = s[..arrow_pos].trim();
             let right_part = &s[arrow_pos + arrow.len()..];
 
-            let (label, to_part) = if right_part.starts_with('|') {
+            let (label, to_part) = if let Some(stripped) = right_part.strip_prefix('|') {
                 // A -->|label| B
-                if let Some(end_pipe) = right_part[1..].find('|') {
-                    let lbl = right_part[1..1+end_pipe].to_string();
-                    let rest = right_part[2+end_pipe..].trim().to_string();
+                if let Some(end_pipe) = stripped.find('|') {
+                    let lbl = stripped[..end_pipe].to_string();
+                    let rest = stripped[end_pipe + 1..].trim().to_string();
                     (Some(lbl), rest)
                 } else {
                     (None, right_part.trim().to_string())
@@ -256,7 +256,7 @@ fn try_parse_edge_with_parts(s: &str) -> Option<(Edge, &str, String)> {
 fn extract_node_id(s: &str) -> String {
     let s = s.trim();
     // If it has brackets, extract ID before them
-    if let Some(pos) = s.find(|c: char| c == '[' || c == '(' || c == '{') {
+    if let Some(pos) = s.find(['[', '(', '{']) {
         s[..pos].trim().to_string()
     } else {
         s.to_string()
@@ -458,8 +458,7 @@ fn render_sequence(source: &str) -> String {
         }
 
         // participant A as Alice
-        if line.starts_with("participant ") {
-            let rest = &line["participant ".len()..];
+        if let Some(rest) = line.strip_prefix("participant ") {
             let name = if let Some(pos) = rest.find(" as ") {
                 rest[pos + 4..].trim().to_string()
             } else {

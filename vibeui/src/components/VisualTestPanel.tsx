@@ -63,7 +63,7 @@ export function VisualTestPanel() {
     // Take an initial screenshot
     try {
       const home =
-        (typeof process !== "undefined" && process.env?.HOME) || "~";
+        "~";
       const outputDir = `${home}/.vibeui/visual-tests/${id}`;
       const result = await invoke<{ path: string; timestamp: number }>(
         "take_screenshot",
@@ -86,7 +86,7 @@ export function VisualTestPanel() {
     setError(null);
     try {
       const home =
-        (typeof process !== "undefined" && process.env?.HOME) || "~";
+        "~";
       const outputDir = `${home}/.vibeui/visual-tests/${sessionId}`;
       const result = await invoke<{ path: string; timestamp: number }>(
         "take_screenshot",

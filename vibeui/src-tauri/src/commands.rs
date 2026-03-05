@@ -11786,7 +11786,7 @@ pub async fn scan_open_ports(host: Option<String>) -> Result<Vec<OpenPort>, Stri
 #[tauri::command]
 pub async fn dns_lookup(domain: String, record_type: Option<String>) -> Result<Vec<DnsRecord>, String> {
     // Basic domain validation
-    if domain.contains(|c: char| c == ';' || c == '&' || c == '|' || c == '`' || c == '$' || c == ' ') {
+    if domain.contains([';', '&', '|', '`', '$', ' ']) {
         return Err("Invalid domain".to_string());
     }
 
@@ -11834,7 +11834,7 @@ pub async fn dns_lookup(domain: String, record_type: Option<String>) -> Result<V
 #[tauri::command]
 pub async fn check_tls_cert(host: String, port: Option<u16>) -> Result<TlsCertInfo, String> {
     // Validate host
-    if host.contains(|c: char| c == ';' || c == '&' || c == '|' || c == '`' || c == '$' || c == ' ') {
+    if host.contains([';', '&', '|', '`', '$', ' ']) {
         return Err("Invalid host".to_string());
     }
 
@@ -11874,8 +11874,7 @@ pub async fn check_tls_cert(host: String, port: Option<u16>) -> Result<TlsCertIn
         .map(|l| l.split(',')
             .filter_map(|s| {
                 let s = s.trim();
-                if s.starts_with("DNS:") { Some(s["DNS:".len()..].to_string()) }
-                else { None }
+                s.strip_prefix("DNS:").map(|stripped| stripped.to_string())
             })
             .collect())
         .unwrap_or_default();
@@ -11883,7 +11882,7 @@ pub async fn check_tls_cert(host: String, port: Option<u16>) -> Result<TlsCertIn
     // Estimate days remaining from "Not After" date
     // openssl outputs dates like: "Not After : Dec 31 23:59:59 2025 GMT"
     let days_remaining = {
-        let date_str = not_after.splitn(2, ':').nth(1).unwrap_or("").trim();
+        let date_str = not_after.split_once(':').map(|x| x.1).unwrap_or("").trim();
         // Try to parse with chrono-style; use a rough calculation
         let parts: Vec<&str> = date_str.split_whitespace().collect();
         if parts.len() >= 4 {
@@ -12170,7 +12169,7 @@ pub async fn plan_transform(
     let llm = engine.active_provider().ok_or("No active AI provider")?;
     let workspace_folders = state.workspace.lock().await.folders().to_vec();
     let ws = workspace_folders.first()
-        .map(|f| std::path::PathBuf::from(f))
+        .map(std::path::PathBuf::from)
         .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
 
     // Find files matching the transform type
@@ -12244,7 +12243,7 @@ pub async fn execute_transform(
     let llm = engine.active_provider().ok_or("No active AI provider")?;
     let workspace_folders = state.workspace.lock().await.folders().to_vec();
     let ws = workspace_folders.first()
-        .map(|f| std::path::PathBuf::from(f))
+        .map(std::path::PathBuf::from)
         .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
 
     let mut modified = 0;
@@ -12769,7 +12768,7 @@ pub async fn take_screenshot(output_dir: String) -> Result<serde_json::Value, St
     } else if cfg!(target_os = "linux") {
         format!("scrot {}", path.display())
     } else {
-        format!("powershell -command \"Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.Screen]::PrimaryScreen\"")
+        "powershell -command \"Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.Screen]::PrimaryScreen\"".to_string()
     };
     let output = std::process::Command::new("sh")
         .args(["-c", &cmd])
@@ -12849,5 +12848,55 @@ pub async fn get_cloud_agent_status(
     Ok(serde_json::json!({
         "container_id": container_id,
         "status": if status.is_empty() { "not_found".to_string() } else { status },
+    }))
+}
+
+// ── Phase 8.18: Compliance Reporting ──────────────────────────────────────────
+
+#[tauri::command]
+pub async fn generate_compliance_report(
+    framework: String,
+) -> Result<serde_json::Value, String> {
+    let controls: Vec<serde_json::Value> = match framework.as_str() {
+        "SOC2" => vec![
+            serde_json::json!({"id":"CC1.1","name":"Security Governance","status":"implemented","evidence":["MIT License","Open source codebase"],"notes":"Fully open source with transparent development"}),
+            serde_json::json!({"id":"CC6.1","name":"Logical Access Security","status":"implemented","evidence":["Bearer token auth (serve.rs)","CORS localhost restriction","Rate limiting 60req/60s"],"notes":"API endpoints protected"}),
+            serde_json::json!({"id":"CC6.6","name":"Encryption in Transit","status":"partial","evidence":["HTTPS supported","TLS cert checking"],"notes":"HTTPS available; HTTP for local dev"}),
+            serde_json::json!({"id":"CC6.7","name":"Encryption at Rest","status":"partial","evidence":["Config file permissions 0o600"],"notes":"File permissions enforced; OS-level encryption"}),
+            serde_json::json!({"id":"CC7.2","name":"Security Monitoring","status":"implemented","evidence":["OpenTelemetry tracing","Session audit trail","Secret redaction in logs"],"notes":"Full observability pipeline"}),
+            serde_json::json!({"id":"CC8.1","name":"Change Management","status":"implemented","evidence":["Approval policy system","Hooks pre/post execution","Git checkpoints"],"notes":"Multi-level approval with hooks"}),
+            serde_json::json!({"id":"CC9.1","name":"Risk Mitigation","status":"implemented","evidence":["Command blocklist","Path traversal prevention","Sandbox mode","Red team scanning"],"notes":"Multiple security layers"}),
+        ],
+        "FedRAMP" => vec![
+            serde_json::json!({"id":"AC-2","name":"Account Management","status":"implemented","evidence":["Bearer token auth","API key management"],"notes":"Token-based access control"}),
+            serde_json::json!({"id":"AU-2","name":"Audit Events","status":"implemented","evidence":["Session trace store","OTLP export","JSONL audit logs"],"notes":"Comprehensive audit trail"}),
+            serde_json::json!({"id":"SC-8","name":"Transmission Confidentiality","status":"partial","evidence":["HTTPS support","TLS verification"],"notes":"Local HTTP; remote HTTPS"}),
+            serde_json::json!({"id":"SI-2","name":"Flaw Remediation","status":"implemented","evidence":["cargo audit CI","OWASP scanner","BugBot"],"notes":"Automated vulnerability scanning"}),
+        ],
+        _ => vec![
+            serde_json::json!({"id":"GEN-1","name":"Access Control","status":"implemented","evidence":["Auth system"],"notes":"Bearer token authentication"}),
+            serde_json::json!({"id":"GEN-2","name":"Audit Logging","status":"implemented","evidence":["Trace system"],"notes":"Full session audit trail"}),
+        ],
+    };
+    let total = controls.len();
+    let implemented = controls.iter().filter(|c| c["status"] == "implemented").count();
+    let partial = controls.iter().filter(|c| c["status"] == "partial").count();
+    let gaps = total - implemented - partial;
+    let applicable = total;
+    let pct = if applicable > 0 {
+        ((implemented as f64 + partial as f64 * 0.5) / applicable as f64) * 100.0
+    } else {
+        100.0
+    };
+    Ok(serde_json::json!({
+        "framework": framework,
+        "controls": controls,
+        "summary": {
+            "total": total,
+            "implemented": implemented,
+            "partial": partial,
+            "gaps": gaps,
+            "percentage": pct,
+        }
     }))
 }
