@@ -482,7 +482,7 @@ impl AgentLoop {
                         ToolCall::WriteFile { path, content } => {
                             // Detect creation vs update by checking if file was
                             // readable before this write (best-effort: non-blocking).
-                            let lang = path.rsplit('.').next().unwrap_or("").to_string();
+                            let lang = path.rsplit_once('.').map(|(_, ext)| ext).unwrap_or("").to_string();
                             Some(HookEvent::FileSaved {
                                 path: path.clone(),
                                 content: content.clone(),

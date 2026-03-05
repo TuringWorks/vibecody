@@ -46,7 +46,6 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
   const [nlQuery, setNlQuery] = useState("");
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [_page, setPage] = useState(0);
   const PAGE_SIZE = 50;
 
   useEffect(() => {
@@ -79,7 +78,6 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
 
   const handleTableClick = async (tableName: string) => {
     setSelectedTable(tableName);
-    setPage(0);
     const sql = `SELECT * FROM "${tableName}" LIMIT ${PAGE_SIZE} OFFSET 0`;
     setSqlQuery(sql);
     await runQuery(sql);

@@ -107,9 +107,15 @@ Session:
         match self.llm.chat(&extract_msgs, None).await {
             Ok(response) => {
                 // Extract JSON array from response (strip any surrounding text)
-                let json_start = response.find('[').unwrap_or(0);
-                let json_end = response.rfind(']').map(|i| i + 1).unwrap_or(response.len());
-                if json_start >= json_end || json_end > response.len() {
+                let json_start = match response.find('[') {
+                    Some(i) => i,
+                    None => return vec![],
+                };
+                let json_end = match response.rfind(']') {
+                    Some(i) => i + 1,
+                    None => return vec![],
+                };
+                if json_start >= json_end {
                     return vec![];
                 }
                 let json_str = &response[json_start..json_end];
