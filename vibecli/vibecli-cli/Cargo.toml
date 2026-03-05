@@ -28,7 +28,7 @@ serde = { workspace = true, features = ["derive"] }
 toml = "0.8"
 async-trait.workspace = true
 regex.workspace = true
-reqwest = { workspace = true }
+reqwest = { workspace = true, features = ["multipart"] }
 urlencoding = "2.1"
 axum.workspace = true
 tower-http.workspace = true

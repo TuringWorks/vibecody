@@ -56,6 +56,25 @@ pub struct Config {
     /// model = "gpt-4o"
     /// ```
     pub copilot: Option<CopilotConfig>,
+    /// Mistral AI native API (MISTRAL_API_KEY).
+    pub mistral: Option<ProviderConfig>,
+    /// Cerebras ultra-fast inference (CEREBRAS_API_KEY).
+    pub cerebras: Option<ProviderConfig>,
+    /// DeepSeek code-focused models (DEEPSEEK_API_KEY).
+    pub deepseek: Option<ProviderConfig>,
+    /// Zhipu GLM — Chinese market AI models (ZHIPU_API_KEY, format: "id.secret").
+    pub zhipu: Option<ProviderConfig>,
+    /// Vercel AI Gateway — unified proxy (VERCEL_AI_API_KEY + api_url required).
+    pub vercel_ai: Option<ProviderConfig>,
+
+    /// Provider failover chain — try providers in order.
+    ///
+    /// ```toml
+    /// [failover]
+    /// chain = ["claude", "openai", "gemini"]
+    /// ```
+    #[serde(default)]
+    pub failover: FailoverConfig,
 
     /// MCP server definitions.  Example:
     /// ```toml
@@ -154,6 +173,18 @@ pub struct Config {
     /// ```
     #[serde(default)]
     pub github_app: crate::github_app::GithubAppConfig,
+
+    /// Voice & media configuration (Whisper transcription, ElevenLabs TTS).
+    ///
+    /// ```toml
+    /// [voice]
+    /// whisper_api_key = "gsk_..."     # or reuses groq.api_key / GROQ_API_KEY
+    /// elevenlabs_api_key = "..."      # or ELEVENLABS_API_KEY
+    /// elevenlabs_voice_id = "..."     # ElevenLabs voice to use
+    /// tts_enabled = false             # Enable TTS output for gateway
+    /// ```
+    #[serde(default)]
+    pub voice: VoiceConfig,
 }
 
 /// Configuration for the red team security scanning module.
@@ -201,6 +232,47 @@ impl Default for RedTeamCfg {
             auto_report: true,
         }
     }
+}
+
+/// Voice and media configuration.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct VoiceConfig {
+    /// Groq API key for Whisper transcription (falls back to groq.api_key or GROQ_API_KEY).
+    pub whisper_api_key: Option<String>,
+    /// ElevenLabs API key for TTS output.
+    pub elevenlabs_api_key: Option<String>,
+    /// ElevenLabs voice ID.
+    pub elevenlabs_voice_id: Option<String>,
+    /// Enable TTS output for gateway responses.
+    #[serde(default)]
+    pub tts_enabled: bool,
+}
+
+#[allow(dead_code)]
+impl VoiceConfig {
+    pub fn resolve_whisper_api_key(&self, groq_key: Option<&str>) -> Option<String> {
+        self.whisper_api_key.clone()
+            .or_else(|| groq_key.map(|s| s.to_string()))
+            .or_else(|| std::env::var("GROQ_API_KEY").ok())
+    }
+    pub fn resolve_elevenlabs_api_key(&self) -> Option<String> {
+        self.elevenlabs_api_key.clone()
+            .or_else(|| std::env::var("ELEVENLABS_API_KEY").ok())
+    }
+    pub fn resolve_elevenlabs_voice_id(&self) -> String {
+        self.elevenlabs_voice_id.clone()
+            .or_else(|| std::env::var("ELEVENLABS_VOICE_ID").ok())
+            .unwrap_or_else(|| "21m00Tcm4TlvDq8ikWAM".to_string()) // Rachel default
+    }
+}
+
+/// Provider failover chain configuration.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct FailoverConfig {
+    /// Ordered list of provider names to try in sequence.
+    /// Example: `["claude", "openai", "gemini"]`
+    #[serde(default)]
+    pub chain: Vec<String>,
 }
 
 /// Gateway configuration (inlined here to avoid circular dependency with gateway module).
@@ -270,6 +342,115 @@ pub struct GatewayConfig {
     pub teams_client_secret: Option<String>,
     /// Port for the Teams webhook receiver (default 3978).
     pub teams_webhook_port: Option<u16>,
+
+    // ── Google Chat ──
+    /// Google service account JSON (or token string) for Chat API.
+    pub googlechat_service_account_json: Option<String>,
+    /// Google Chat space ID (e.g. "spaces/AAAA...").
+    pub googlechat_space_id: Option<String>,
+
+    // ── Mattermost ──
+    /// Mattermost server URL (e.g. "https://mattermost.example.com").
+    pub mattermost_url: Option<String>,
+    /// Mattermost personal access token or bot token.
+    pub mattermost_token: Option<String>,
+    /// Mattermost channel ID to monitor.
+    pub mattermost_channel_id: Option<String>,
+
+    // ── IRC ──
+    /// IRC server hostname (e.g. "irc.libera.chat").
+    pub irc_server: Option<String>,
+    /// IRC server port (default 6667).
+    pub irc_port: Option<u16>,
+    /// IRC nickname for the bot.
+    pub irc_nick: Option<String>,
+    /// IRC channel to join (e.g. "#vibecli").
+    pub irc_channel: Option<String>,
+
+    // ── LINE ──
+    /// LINE channel access token.
+    pub line_channel_access_token: Option<String>,
+    /// LINE channel secret for webhook verification.
+    pub line_channel_secret: Option<String>,
+
+    // ── Twitch ──
+    /// Twitch OAuth token (oauth:...).
+    pub twitch_oauth_token: Option<String>,
+    /// Twitch channel name to join.
+    pub twitch_channel: Option<String>,
+    /// Twitch bot nickname.
+    pub twitch_nick: Option<String>,
+
+    // ── Nextcloud Talk ──
+    /// Nextcloud server URL (e.g. "https://cloud.example.com").
+    pub nextcloud_url: Option<String>,
+    /// Nextcloud username.
+    pub nextcloud_user: Option<String>,
+    /// Nextcloud password or app password.
+    pub nextcloud_password: Option<String>,
+    /// Nextcloud Talk room token.
+    pub nextcloud_room_token: Option<String>,
+
+    // ── WebChat ──
+    /// Port for the WebChat HTTP endpoint (default 8090).
+    pub webchat_port: Option<u16>,
+
+    // ── Nostr ──
+    /// Nostr private key (nsec format).
+    pub nostr_private_key: Option<String>,
+    /// Nostr relay URLs.
+    #[serde(default)]
+    pub nostr_relay_urls: Vec<String>,
+
+    // ── Feishu (Lark) ──
+    /// Feishu app ID.
+    pub feishu_app_id: Option<String>,
+    /// Feishu app secret.
+    pub feishu_app_secret: Option<String>,
+
+    // ── DingTalk ──
+    /// DingTalk robot access token.
+    pub dingtalk_access_token: Option<String>,
+    /// DingTalk robot webhook secret.
+    pub dingtalk_webhook_secret: Option<String>,
+
+    // ── QQ ──
+    /// QQ Bot app ID.
+    pub qq_app_id: Option<String>,
+    /// QQ Bot token.
+    pub qq_token: Option<String>,
+
+    // ── WeCom (WeChat Work) ──
+    /// WeCom corp ID.
+    pub wecom_corp_id: Option<String>,
+    /// WeCom agent ID.
+    pub wecom_agent_id: Option<String>,
+    /// WeCom app secret.
+    pub wecom_secret: Option<String>,
+
+    // ── Zalo ──
+    /// Zalo OA access token.
+    pub zalo_access_token: Option<String>,
+
+    // ── BlueBubbles ──
+    /// BlueBubbles server URL (e.g. "http://localhost:1234").
+    pub bluebubbles_url: Option<String>,
+    /// BlueBubbles server password.
+    pub bluebubbles_password: Option<String>,
+
+    // ── Synology Chat ──
+    /// Synology NAS URL.
+    pub synology_url: Option<String>,
+    /// Synology Chat incoming webhook URL.
+    pub synology_incoming_url: Option<String>,
+    /// Synology Chat bot token.
+    pub synology_token: Option<String>,
+
+    // ── Tlon (Urbit) ──
+    /// Urbit ship URL (e.g. "http://localhost:8080").
+    pub tlon_ship_url: Option<String>,
+    /// Urbit ship access code (+code).
+    pub tlon_ship_code: Option<String>,
 }
 
 #[allow(dead_code)]
@@ -344,6 +525,141 @@ impl GatewayConfig {
     }
     pub fn resolve_teams_client_secret(&self) -> Option<String> {
         self.teams_client_secret.clone().or_else(|| std::env::var("TEAMS_CLIENT_SECRET").ok())
+    }
+
+    // ── Google Chat ──
+    pub fn resolve_googlechat_service_account_json(&self) -> Option<String> {
+        self.googlechat_service_account_json.clone().or_else(|| std::env::var("GOOGLE_CHAT_SERVICE_ACCOUNT_JSON").ok())
+    }
+    pub fn resolve_googlechat_space_id(&self) -> Option<String> {
+        self.googlechat_space_id.clone().or_else(|| std::env::var("GOOGLE_CHAT_SPACE_ID").ok())
+    }
+
+    // ── Mattermost ──
+    pub fn resolve_mattermost_url(&self) -> Option<String> {
+        self.mattermost_url.clone().or_else(|| std::env::var("MATTERMOST_URL").ok())
+    }
+    pub fn resolve_mattermost_token(&self) -> Option<String> {
+        self.mattermost_token.clone().or_else(|| std::env::var("MATTERMOST_TOKEN").ok())
+    }
+    pub fn resolve_mattermost_channel_id(&self) -> Option<String> {
+        self.mattermost_channel_id.clone().or_else(|| std::env::var("MATTERMOST_CHANNEL_ID").ok())
+    }
+
+    // ── IRC ──
+    pub fn resolve_irc_server(&self) -> Option<String> {
+        self.irc_server.clone().or_else(|| std::env::var("IRC_SERVER").ok())
+    }
+    pub fn resolve_irc_nick(&self) -> Option<String> {
+        self.irc_nick.clone().or_else(|| std::env::var("IRC_NICK").ok())
+    }
+    pub fn resolve_irc_channel(&self) -> Option<String> {
+        self.irc_channel.clone().or_else(|| std::env::var("IRC_CHANNEL").ok())
+    }
+
+    // ── LINE ──
+    pub fn resolve_line_channel_access_token(&self) -> Option<String> {
+        self.line_channel_access_token.clone().or_else(|| std::env::var("LINE_CHANNEL_ACCESS_TOKEN").ok())
+    }
+    pub fn resolve_line_channel_secret(&self) -> Option<String> {
+        self.line_channel_secret.clone().or_else(|| std::env::var("LINE_CHANNEL_SECRET").ok())
+    }
+
+    // ── Twitch ──
+    pub fn resolve_twitch_oauth_token(&self) -> Option<String> {
+        self.twitch_oauth_token.clone().or_else(|| std::env::var("TWITCH_OAUTH_TOKEN").ok())
+    }
+    pub fn resolve_twitch_channel(&self) -> Option<String> {
+        self.twitch_channel.clone().or_else(|| std::env::var("TWITCH_CHANNEL").ok())
+    }
+    pub fn resolve_twitch_nick(&self) -> Option<String> {
+        self.twitch_nick.clone().or_else(|| std::env::var("TWITCH_NICK").ok())
+    }
+
+    // ── Nextcloud Talk ──
+    pub fn resolve_nextcloud_url(&self) -> Option<String> {
+        self.nextcloud_url.clone().or_else(|| std::env::var("NEXTCLOUD_URL").ok())
+    }
+    pub fn resolve_nextcloud_user(&self) -> Option<String> {
+        self.nextcloud_user.clone().or_else(|| std::env::var("NEXTCLOUD_USER").ok())
+    }
+    pub fn resolve_nextcloud_password(&self) -> Option<String> {
+        self.nextcloud_password.clone().or_else(|| std::env::var("NEXTCLOUD_PASSWORD").ok())
+    }
+    pub fn resolve_nextcloud_room_token(&self) -> Option<String> {
+        self.nextcloud_room_token.clone().or_else(|| std::env::var("NEXTCLOUD_ROOM_TOKEN").ok())
+    }
+
+    // ── Nostr ──
+    pub fn resolve_nostr_private_key(&self) -> Option<String> {
+        self.nostr_private_key.clone().or_else(|| std::env::var("NOSTR_PRIVATE_KEY").ok())
+    }
+
+    // ── Feishu (Lark) ──
+    pub fn resolve_feishu_app_id(&self) -> Option<String> {
+        self.feishu_app_id.clone().or_else(|| std::env::var("FEISHU_APP_ID").ok())
+    }
+    pub fn resolve_feishu_app_secret(&self) -> Option<String> {
+        self.feishu_app_secret.clone().or_else(|| std::env::var("FEISHU_APP_SECRET").ok())
+    }
+
+    // ── DingTalk ──
+    pub fn resolve_dingtalk_access_token(&self) -> Option<String> {
+        self.dingtalk_access_token.clone().or_else(|| std::env::var("DINGTALK_ACCESS_TOKEN").ok())
+    }
+    pub fn resolve_dingtalk_webhook_secret(&self) -> Option<String> {
+        self.dingtalk_webhook_secret.clone().or_else(|| std::env::var("DINGTALK_WEBHOOK_SECRET").ok())
+    }
+
+    // ── QQ ──
+    pub fn resolve_qq_app_id(&self) -> Option<String> {
+        self.qq_app_id.clone().or_else(|| std::env::var("QQ_APP_ID").ok())
+    }
+    pub fn resolve_qq_token(&self) -> Option<String> {
+        self.qq_token.clone().or_else(|| std::env::var("QQ_TOKEN").ok())
+    }
+
+    // ── WeCom ──
+    pub fn resolve_wecom_corp_id(&self) -> Option<String> {
+        self.wecom_corp_id.clone().or_else(|| std::env::var("WECOM_CORP_ID").ok())
+    }
+    pub fn resolve_wecom_agent_id(&self) -> Option<String> {
+        self.wecom_agent_id.clone().or_else(|| std::env::var("WECOM_AGENT_ID").ok())
+    }
+    pub fn resolve_wecom_secret(&self) -> Option<String> {
+        self.wecom_secret.clone().or_else(|| std::env::var("WECOM_SECRET").ok())
+    }
+
+    // ── Zalo ──
+    pub fn resolve_zalo_access_token(&self) -> Option<String> {
+        self.zalo_access_token.clone().or_else(|| std::env::var("ZALO_ACCESS_TOKEN").ok())
+    }
+
+    // ── BlueBubbles ──
+    pub fn resolve_bluebubbles_url(&self) -> Option<String> {
+        self.bluebubbles_url.clone().or_else(|| std::env::var("BLUEBUBBLES_URL").ok())
+    }
+    pub fn resolve_bluebubbles_password(&self) -> Option<String> {
+        self.bluebubbles_password.clone().or_else(|| std::env::var("BLUEBUBBLES_PASSWORD").ok())
+    }
+
+    // ── Synology Chat ──
+    pub fn resolve_synology_url(&self) -> Option<String> {
+        self.synology_url.clone().or_else(|| std::env::var("SYNOLOGY_URL").ok())
+    }
+    pub fn resolve_synology_incoming_url(&self) -> Option<String> {
+        self.synology_incoming_url.clone().or_else(|| std::env::var("SYNOLOGY_INCOMING_URL").ok())
+    }
+    pub fn resolve_synology_token(&self) -> Option<String> {
+        self.synology_token.clone().or_else(|| std::env::var("SYNOLOGY_TOKEN").ok())
+    }
+
+    // ── Tlon (Urbit) ──
+    pub fn resolve_tlon_ship_url(&self) -> Option<String> {
+        self.tlon_ship_url.clone().or_else(|| std::env::var("TLON_SHIP_URL").ok())
+    }
+    pub fn resolve_tlon_ship_code(&self) -> Option<String> {
+        self.tlon_ship_code.clone().or_else(|| std::env::var("TLON_SHIP_CODE").ok())
     }
 }
 
@@ -822,6 +1138,11 @@ impl Config {
             "groq" => self.groq.as_ref(),
             "openrouter" => self.openrouter.as_ref(),
             "azure_openai" | "azure" => self.azure_openai.as_ref(),
+            "mistral" => self.mistral.as_ref(),
+            "cerebras" => self.cerebras.as_ref(),
+            "deepseek" => self.deepseek.as_ref(),
+            "zhipu" | "glm" => self.zhipu.as_ref(),
+            "vercel_ai" | "vercel" => self.vercel_ai.as_ref(),
             _ => None,
         }
     }

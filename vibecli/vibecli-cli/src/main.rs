@@ -59,6 +59,10 @@ mod screen_recorder;
 use rustyline::error::ReadlineError;
 
 mod computer_use;
+mod voice;
+mod discovery;
+mod tailscale;
+mod pairing;
 mod tui;
 
 #[derive(Parser)]
@@ -484,8 +488,128 @@ async fn main() -> Result<()> {
                 let port = gw_cfg.teams_webhook_port.unwrap_or(3978);
                 Box::new(gateway::TeamsGateway::new(tenant, client_id, secret, port).await)
             }
+            "googlechat" | "google-chat" | "google_chat" | "gchat" => {
+                let sa_json = gw_cfg.resolve_googlechat_service_account_json()
+                    .ok_or_else(|| anyhow::anyhow!("Google Chat service account not configured. Set GOOGLE_CHAT_SERVICE_ACCOUNT_JSON or gateway.googlechat_service_account_json in config."))?;
+                let space = gw_cfg.resolve_googlechat_space_id()
+                    .ok_or_else(|| anyhow::anyhow!("Google Chat space ID not configured. Set GOOGLE_CHAT_SPACE_ID or gateway.googlechat_space_id in config."))?;
+                Box::new(gateway::GoogleChatGateway::new(sa_json, space))
+            }
+            "mattermost" => {
+                let url = gw_cfg.resolve_mattermost_url()
+                    .ok_or_else(|| anyhow::anyhow!("Mattermost URL not configured. Set MATTERMOST_URL or gateway.mattermost_url in config."))?;
+                let token = gw_cfg.resolve_mattermost_token()
+                    .ok_or_else(|| anyhow::anyhow!("Mattermost token not configured. Set MATTERMOST_TOKEN or gateway.mattermost_token in config."))?;
+                let channel_id = gw_cfg.resolve_mattermost_channel_id()
+                    .ok_or_else(|| anyhow::anyhow!("Mattermost channel ID not configured. Set MATTERMOST_CHANNEL_ID or gateway.mattermost_channel_id in config."))?;
+                Box::new(gateway::MattermostGateway::new(url, token, channel_id))
+            }
+            "irc" => {
+                let server = gw_cfg.resolve_irc_server()
+                    .ok_or_else(|| anyhow::anyhow!("IRC server not configured. Set IRC_SERVER or gateway.irc_server in config."))?;
+                let port = gw_cfg.irc_port.unwrap_or(6667);
+                let nick = gw_cfg.resolve_irc_nick().unwrap_or_else(|| "vibecli".to_string());
+                let channel = gw_cfg.resolve_irc_channel()
+                    .ok_or_else(|| anyhow::anyhow!("IRC channel not configured. Set IRC_CHANNEL or gateway.irc_channel in config."))?;
+                Box::new(gateway::IRCGateway::new(server, port, nick, channel))
+            }
+            "line" => {
+                let token = gw_cfg.resolve_line_channel_access_token()
+                    .ok_or_else(|| anyhow::anyhow!("LINE channel access token not configured. Set LINE_CHANNEL_ACCESS_TOKEN or gateway.line_channel_access_token in config."))?;
+                let secret = gw_cfg.resolve_line_channel_secret().unwrap_or_default();
+                Box::new(gateway::LINEGateway::new(token, secret))
+            }
+            "twitch" => {
+                let oauth = gw_cfg.resolve_twitch_oauth_token()
+                    .ok_or_else(|| anyhow::anyhow!("Twitch OAuth token not configured. Set TWITCH_OAUTH_TOKEN or gateway.twitch_oauth_token in config."))?;
+                let channel = gw_cfg.resolve_twitch_channel()
+                    .ok_or_else(|| anyhow::anyhow!("Twitch channel not configured. Set TWITCH_CHANNEL or gateway.twitch_channel in config."))?;
+                let nick = gw_cfg.resolve_twitch_nick().unwrap_or_else(|| "vibecli".to_string());
+                Box::new(gateway::TwitchGateway::new(oauth, channel, nick))
+            }
+            "nextcloud" | "nextcloud-talk" | "nextcloud_talk" => {
+                let url = gw_cfg.resolve_nextcloud_url()
+                    .ok_or_else(|| anyhow::anyhow!("Nextcloud URL not configured. Set NEXTCLOUD_URL or gateway.nextcloud_url in config."))?;
+                let user = gw_cfg.resolve_nextcloud_user()
+                    .ok_or_else(|| anyhow::anyhow!("Nextcloud user not configured. Set NEXTCLOUD_USER or gateway.nextcloud_user in config."))?;
+                let password = gw_cfg.resolve_nextcloud_password()
+                    .ok_or_else(|| anyhow::anyhow!("Nextcloud password not configured. Set NEXTCLOUD_PASSWORD or gateway.nextcloud_password in config."))?;
+                let room_token = gw_cfg.resolve_nextcloud_room_token()
+                    .ok_or_else(|| anyhow::anyhow!("Nextcloud room token not configured. Set NEXTCLOUD_ROOM_TOKEN or gateway.nextcloud_room_token in config."))?;
+                Box::new(gateway::NextcloudTalkGateway::new(url, user, password, room_token))
+            }
+            "webchat" | "web-chat" | "web_chat" => {
+                let port = gw_cfg.webchat_port.unwrap_or(8090);
+                Box::new(gateway::WebChatGateway::new(port))
+            }
+            "nostr" => {
+                let private_key = gw_cfg.resolve_nostr_private_key()
+                    .ok_or_else(|| anyhow::anyhow!("Nostr private key not configured. Set NOSTR_PRIVATE_KEY or gateway.nostr_private_key in config."))?;
+                let relay_urls = if gw_cfg.nostr_relay_urls.is_empty() {
+                    vec!["wss://relay.damus.io".to_string()]
+                } else {
+                    gw_cfg.nostr_relay_urls.clone()
+                };
+                Box::new(gateway::NostrGateway::new(private_key, relay_urls))
+            }
+            "feishu" | "lark" => {
+                let app_id = gw_cfg.resolve_feishu_app_id()
+                    .ok_or_else(|| anyhow::anyhow!("Feishu app ID not configured. Set FEISHU_APP_ID or gateway.feishu_app_id in config."))?;
+                let app_secret = gw_cfg.resolve_feishu_app_secret()
+                    .ok_or_else(|| anyhow::anyhow!("Feishu app secret not configured. Set FEISHU_APP_SECRET or gateway.feishu_app_secret in config."))?;
+                Box::new(gateway::FeishuGateway::new(app_id, app_secret))
+            }
+            "dingtalk" | "ding" => {
+                let access_token = gw_cfg.resolve_dingtalk_access_token()
+                    .ok_or_else(|| anyhow::anyhow!("DingTalk access token not configured. Set DINGTALK_ACCESS_TOKEN or gateway.dingtalk_access_token in config."))?;
+                let webhook_secret = gw_cfg.resolve_dingtalk_webhook_secret().unwrap_or_default();
+                Box::new(gateway::DingTalkGateway::new(access_token, webhook_secret))
+            }
+            "qq" => {
+                let app_id = gw_cfg.resolve_qq_app_id()
+                    .ok_or_else(|| anyhow::anyhow!("QQ app ID not configured. Set QQ_APP_ID or gateway.qq_app_id in config."))?;
+                let token = gw_cfg.resolve_qq_token()
+                    .ok_or_else(|| anyhow::anyhow!("QQ token not configured. Set QQ_TOKEN or gateway.qq_token in config."))?;
+                Box::new(gateway::QQGateway::new(app_id, token))
+            }
+            "wecom" | "wechat-work" | "wechat_work" => {
+                let corp_id = gw_cfg.resolve_wecom_corp_id()
+                    .ok_or_else(|| anyhow::anyhow!("WeCom corp ID not configured. Set WECOM_CORP_ID or gateway.wecom_corp_id in config."))?;
+                let agent_id = gw_cfg.resolve_wecom_agent_id()
+                    .ok_or_else(|| anyhow::anyhow!("WeCom agent ID not configured. Set WECOM_AGENT_ID or gateway.wecom_agent_id in config."))?;
+                let secret = gw_cfg.resolve_wecom_secret()
+                    .ok_or_else(|| anyhow::anyhow!("WeCom secret not configured. Set WECOM_SECRET or gateway.wecom_secret in config."))?;
+                Box::new(gateway::WeComGateway::new(corp_id, agent_id, secret))
+            }
+            "zalo" => {
+                let access_token = gw_cfg.resolve_zalo_access_token()
+                    .ok_or_else(|| anyhow::anyhow!("Zalo access token not configured. Set ZALO_ACCESS_TOKEN or gateway.zalo_access_token in config."))?;
+                Box::new(gateway::ZaloGateway::new(access_token))
+            }
+            "bluebubbles" | "blue-bubbles" | "blue_bubbles" => {
+                let url = gw_cfg.resolve_bluebubbles_url()
+                    .ok_or_else(|| anyhow::anyhow!("BlueBubbles URL not configured. Set BLUEBUBBLES_URL or gateway.bluebubbles_url in config."))?;
+                let password = gw_cfg.resolve_bluebubbles_password()
+                    .ok_or_else(|| anyhow::anyhow!("BlueBubbles password not configured. Set BLUEBUBBLES_PASSWORD or gateway.bluebubbles_password in config."))?;
+                Box::new(gateway::BlueBubblesGateway::new(url, password))
+            }
+            "synology" | "synology-chat" | "synology_chat" => {
+                let url = gw_cfg.resolve_synology_url()
+                    .ok_or_else(|| anyhow::anyhow!("Synology URL not configured. Set SYNOLOGY_URL or gateway.synology_url in config."))?;
+                let incoming_url = gw_cfg.resolve_synology_incoming_url()
+                    .ok_or_else(|| anyhow::anyhow!("Synology incoming URL not configured. Set SYNOLOGY_INCOMING_URL or gateway.synology_incoming_url in config."))?;
+                let token = gw_cfg.resolve_synology_token().unwrap_or_default();
+                Box::new(gateway::SynologyChatGateway::new(url, incoming_url, token))
+            }
+            "tlon" | "urbit" => {
+                let ship_url = gw_cfg.resolve_tlon_ship_url()
+                    .ok_or_else(|| anyhow::anyhow!("Tlon ship URL not configured. Set TLON_SHIP_URL or gateway.tlon_ship_url in config."))?;
+                let ship_code = gw_cfg.resolve_tlon_ship_code()
+                    .ok_or_else(|| anyhow::anyhow!("Tlon ship code not configured. Set TLON_SHIP_CODE or gateway.tlon_ship_code in config."))?;
+                Box::new(gateway::TlonGateway::new(ship_url, ship_code))
+            }
             other => return Err(anyhow::anyhow!(
-                "Unknown gateway platform: '{}'. Use: telegram, discord, slack, signal, matrix, twilio, whatsapp, imessage, teams",
+                "Unknown gateway platform: '{}'. Use: telegram, discord, slack, signal, matrix, twilio, whatsapp, imessage, teams, googlechat, mattermost, irc, line, twitch, nextcloud, webchat, nostr, feishu, dingtalk, qq, wecom, zalo, bluebubbles, synology, tlon",
                 other
             )),
         };
@@ -4726,7 +4850,7 @@ fn extract_images_from_input(input: &str) -> (String, Vec<ImageAttachment>) {
 }
 
 fn create_provider(provider_name: &str, model: Option<String>) -> Result<Arc<dyn LLMProvider>> {
-    use vibe_ai::providers::{claude, openai, gemini, grok, groq, openrouter, azure_openai, bedrock, copilot};
+    use vibe_ai::providers::{claude, openai, gemini, grok, groq, openrouter, azure_openai, bedrock, copilot, mistral, cerebras, deepseek, zhipu, vercel_ai};
 
     // Helper: look up API key from config, then env var.
     let cfg = Config::load().unwrap_or_default();
@@ -4982,8 +5106,136 @@ fn create_provider(provider_name: &str, model: Option<String>) -> Result<Arc<dyn
             })))
         }
 
+        // ── Mistral ────────────────────────────────────────────────────────
+        "mistral" => {
+            let cfg_key = cfg.mistral.as_ref().and_then(|c| c.api_key.clone());
+            let api_key = cfg_key
+                .or_else(|| std::env::var("MISTRAL_API_KEY").ok());
+            if api_key.is_none() {
+                eprintln!("⚠️  MISTRAL_API_KEY not set (set env var or [mistral] api_key in config)");
+            }
+            let cfg_model = cfg.mistral.as_ref().and_then(|c| c.model.clone());
+            let model = model
+                .or(cfg_model)
+                .unwrap_or_else(|| "mistral-large-latest".to_string());
+            let api_key_helper = cfg.mistral.as_ref().and_then(|c| c.api_key_helper.clone());
+            Ok(Arc::new(mistral::MistralProvider::new(ProviderConfig {
+                provider_type: "mistral".to_string(),
+                api_url: None,
+                model,
+                api_key,
+                max_tokens: None,
+                temperature: None,
+                api_key_helper,
+                ..Default::default()
+            })))
+        }
+
+        // ── Cerebras ─────────────────────────────────────────────────────────
+        "cerebras" => {
+            let cfg_key = cfg.cerebras.as_ref().and_then(|c| c.api_key.clone());
+            let api_key = cfg_key
+                .or_else(|| std::env::var("CEREBRAS_API_KEY").ok());
+            if api_key.is_none() {
+                eprintln!("⚠️  CEREBRAS_API_KEY not set (set env var or [cerebras] api_key in config)");
+            }
+            let cfg_model = cfg.cerebras.as_ref().and_then(|c| c.model.clone());
+            let model = model
+                .or(cfg_model)
+                .unwrap_or_else(|| "llama3.1-70b".to_string());
+            let api_key_helper = cfg.cerebras.as_ref().and_then(|c| c.api_key_helper.clone());
+            Ok(Arc::new(cerebras::CerebrasProvider::new(ProviderConfig {
+                provider_type: "cerebras".to_string(),
+                api_url: None,
+                model,
+                api_key,
+                max_tokens: None,
+                temperature: None,
+                api_key_helper,
+                ..Default::default()
+            })))
+        }
+
+        // ── DeepSeek ─────────────────────────────────────────────────────────
+        "deepseek" => {
+            let cfg_key = cfg.deepseek.as_ref().and_then(|c| c.api_key.clone());
+            let api_key = cfg_key
+                .or_else(|| std::env::var("DEEPSEEK_API_KEY").ok());
+            if api_key.is_none() {
+                eprintln!("⚠️  DEEPSEEK_API_KEY not set (set env var or [deepseek] api_key in config)");
+            }
+            let cfg_model = cfg.deepseek.as_ref().and_then(|c| c.model.clone());
+            let model = model
+                .or(cfg_model)
+                .unwrap_or_else(|| "deepseek-coder".to_string());
+            let api_key_helper = cfg.deepseek.as_ref().and_then(|c| c.api_key_helper.clone());
+            Ok(Arc::new(deepseek::DeepSeekProvider::new(ProviderConfig {
+                provider_type: "deepseek".to_string(),
+                api_url: None,
+                model,
+                api_key,
+                max_tokens: None,
+                temperature: None,
+                api_key_helper,
+                ..Default::default()
+            })))
+        }
+
+        // ── Zhipu GLM ────────────────────────────────────────────────────────
+        "zhipu" | "glm" => {
+            let cfg_key = cfg.zhipu.as_ref().and_then(|c| c.api_key.clone());
+            let api_key = cfg_key
+                .or_else(|| std::env::var("ZHIPU_API_KEY").ok());
+            if api_key.is_none() {
+                eprintln!("⚠️  ZHIPU_API_KEY not set (format: id.secret)");
+            }
+            let cfg_model = cfg.zhipu.as_ref().and_then(|c| c.model.clone());
+            let model = model
+                .or(cfg_model)
+                .unwrap_or_else(|| "glm-4".to_string());
+            let api_key_helper = cfg.zhipu.as_ref().and_then(|c| c.api_key_helper.clone());
+            Ok(Arc::new(zhipu::ZhipuProvider::new(ProviderConfig {
+                provider_type: "zhipu".to_string(),
+                api_url: None,
+                model,
+                api_key,
+                max_tokens: None,
+                temperature: None,
+                api_key_helper,
+                ..Default::default()
+            })))
+        }
+
+        // ── Vercel AI Gateway ────────────────────────────────────────────────
+        "vercel_ai" | "vercel" => {
+            let cfg_ref = cfg.vercel_ai.as_ref();
+            let api_key = cfg_ref.and_then(|c| c.api_key.clone())
+                .or_else(|| std::env::var("VERCEL_AI_API_KEY").ok());
+            if api_key.is_none() {
+                eprintln!("⚠️  VERCEL_AI_API_KEY not set");
+            }
+            let api_url = cfg_ref.and_then(|c| c.api_url.clone())
+                .or_else(|| std::env::var("VERCEL_AI_GATEWAY_URL").ok());
+            if api_url.is_none() {
+                eprintln!("⚠️  vercel_ai.api_url not set (your Vercel AI Gateway endpoint)");
+            }
+            let cfg_model = cfg_ref.and_then(|c| c.model.clone());
+            let model = model
+                .or(cfg_model)
+                .unwrap_or_else(|| "gpt-4o".to_string());
+            Ok(Arc::new(vercel_ai::VercelAIProvider::new(ProviderConfig {
+                provider_type: "vercel_ai".to_string(),
+                api_url,
+                model,
+                api_key,
+                max_tokens: None,
+                temperature: None,
+                ..Default::default()
+            })))
+        }
+
         _ => anyhow::bail!(
-            "Unknown provider: '{}'. Available: ollama, claude, openai, gemini, grok, groq, openrouter, azure, bedrock, copilot",
+            "Unknown provider: '{}'. Available: ollama, claude, openai, gemini, grok, groq, openrouter, azure, bedrock, copilot, mistral, cerebras, deepseek, zhipu, vercel",
             provider_name
         ),
     }

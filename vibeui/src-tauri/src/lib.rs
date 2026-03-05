@@ -421,6 +421,14 @@ pub fn run() {
             commands::export_color_palette,
             // Phase 7.38: Markdown Editor
             commands::list_markdown_files,
+            // Canvas / A2UI Visual Workspace
+            commands::save_canvas_workflow,
+            commands::load_canvas_workflow,
+            commands::list_canvas_workflows,
+            commands::run_canvas_workflow,
+            // Voice & Media
+            commands::transcribe_audio,
+            commands::text_to_speech,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

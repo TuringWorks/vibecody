@@ -13195,7 +13195,7 @@ app.listen(3000, () => console.log("Server on http://localhost:3000"));
 }}
 "#) },
                 ScaffoldFile { path: "app/page.tsx".into(), content: format!("export default function Home() {{\n  return <main><h1>{name}</h1></main>;\n}}\n") },
-                ScaffoldFile { path: "app/layout.tsx".into(), content: format!("export default function RootLayout({{ children }}: {{ children: React.ReactNode }}) {{\n  return <html lang=\"en\"><body>{{children}}</body></html>;\n}}\n") },
+                ScaffoldFile { path: "app/layout.tsx".into(), content: "export default function RootLayout({ children }: { children: React.ReactNode }) {\n  return <html lang=\"en\"><body>{children}</body></html>;\n}\n".into() },
                 ScaffoldFile { path: ".gitignore".into(), content: "node_modules\n.next\n".into() },
             ],
             install_command: Some("npm install".into()),
@@ -13342,7 +13342,7 @@ pub async fn check_service_health(monitor: HealthMonitor) -> Result<HealthCheckR
 
 #[tauri::command]
 pub async fn check_all_services(monitors: Vec<HealthMonitor>) -> Result<Vec<HealthCheckResult>, String> {
-    let futs: Vec<_> = monitors.into_iter().map(|m| check_service_health(m)).collect();
+    let futs: Vec<_> = monitors.into_iter().map(check_service_health).collect();
     let results = futures::future::join_all(futs).await;
     Ok(results.into_iter().filter_map(|r| r.ok()).collect())
 }
@@ -13433,7 +13433,7 @@ pub async fn scan_css_variables(workspace: String) -> Result<Vec<ColorToken>, St
         if !matches!(ext, "css" | "scss" | "sass" | "less" | "tsx" | "ts" | "js" | "jsx") { continue; }
         if path.to_string_lossy().contains("node_modules") || path.to_string_lossy().contains("/target/") { continue; }
         if let Ok(file) = std::fs::File::open(path) {
-            for line in std::io::BufReader::new(file).lines().flatten() {
+            for line in std::io::BufReader::new(file).lines().map_while(Result::ok) {
                 for cap in re.captures_iter(&line) {
                     let name = cap[1].to_string();
                     let value = cap[2].to_string();
@@ -13510,4 +13510,170 @@ pub async fn list_markdown_files(workspace: String) -> Result<Vec<MarkdownFile>,
     }
     files.sort_by(|a, b| a.path.cmp(&b.path));
     Ok(files)
+}
+
+// ── Canvas / A2UI Visual Workspace commands ──────────────────────────────────
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct CanvasNode {
+    pub id: String,
+    #[serde(rename = "type")]
+    pub node_type: String,
+    pub label: String,
+    pub x: f64,
+    pub y: f64,
+    pub config: std::collections::HashMap<String, String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct CanvasEdge {
+    pub from: String,
+    pub to: String,
+    pub label: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct CanvasWorkflow {
+    pub name: String,
+    pub nodes: Vec<CanvasNode>,
+    pub edges: Vec<CanvasEdge>,
+}
+
+fn canvas_dir() -> std::path::PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    let dir = std::path::PathBuf::from(home)
+        .join(".vibeui")
+        .join("canvas");
+    let _ = std::fs::create_dir_all(&dir);
+    dir
+}
+
+#[tauri::command]
+pub async fn save_canvas_workflow(workflow: CanvasWorkflow) -> Result<(), String> {
+    let path = canvas_dir().join(format!("{}.json", workflow.name.replace(' ', "_")));
+    let json = serde_json::to_string_pretty(&workflow).map_err(|e| e.to_string())?;
+    std::fs::write(path, json).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn load_canvas_workflow(name: String) -> Result<CanvasWorkflow, String> {
+    let path = canvas_dir().join(format!("{}.json", name.replace(' ', "_")));
+    let json = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
+    serde_json::from_str(&json).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn list_canvas_workflows() -> Result<Vec<CanvasWorkflow>, String> {
+    let dir = canvas_dir();
+    let mut workflows = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|e| e.to_str()) == Some("json") {
+                if let Ok(json) = std::fs::read_to_string(&path) {
+                    if let Ok(wf) = serde_json::from_str::<CanvasWorkflow>(&json) {
+                        workflows.push(wf);
+                    }
+                }
+            }
+        }
+    }
+    Ok(workflows)
+}
+
+#[tauri::command]
+pub async fn run_canvas_workflow(workflow: CanvasWorkflow) -> Result<String, String> {
+    // Convert canvas workflow to a description of the pipeline for now
+    let mut desc = format!("Running workflow '{}' with {} nodes:\n", workflow.name, workflow.nodes.len());
+    for node in &workflow.nodes {
+        desc.push_str(&format!("  - {} ({}: {})\n", node.label, node.node_type, node.id));
+    }
+    for edge in &workflow.edges {
+        desc.push_str(&format!("  {} -> {}\n", edge.from, edge.to));
+    }
+    Ok(desc)
+}
+
+// ── Voice / Transcription commands ───────────────────────────────────────────
+
+#[tauri::command]
+pub async fn transcribe_audio(audio_path: String) -> Result<String, String> {
+    // Resolve Whisper API key from env
+    let api_key = std::env::var("GROQ_API_KEY")
+        .map_err(|_| "GROQ_API_KEY not set (needed for Whisper transcription)".to_string())?;
+
+    let path = std::path::Path::new(&audio_path);
+    if !path.exists() {
+        return Err(format!("Audio file not found: {}", audio_path));
+    }
+
+    // Build multipart form
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(60))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let file_bytes = tokio::fs::read(path).await.map_err(|e| e.to_string())?;
+    let file_name = path.file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("audio.wav")
+        .to_string();
+
+    let part = reqwest::multipart::Part::bytes(file_bytes)
+        .file_name(file_name)
+        .mime_str("audio/wav")
+        .map_err(|e| e.to_string())?;
+
+    let form = reqwest::multipart::Form::new()
+        .text("model", "whisper-large-v3")
+        .part("file", part);
+
+    let resp = client
+        .post("https://api.groq.com/openai/v1/audio/transcriptions")
+        .header("Authorization", format!("Bearer {}", api_key))
+        .multipart(form)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if !resp.status().is_success() {
+        let err = resp.text().await.map_err(|e| e.to_string())?;
+        return Err(format!("Whisper API error: {}", err));
+    }
+
+    let body: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
+    Ok(body["text"].as_str().unwrap_or("").to_string())
+}
+
+#[tauri::command]
+pub async fn text_to_speech(text: String) -> Result<Vec<u8>, String> {
+    let api_key = std::env::var("ELEVENLABS_API_KEY")
+        .map_err(|_| "ELEVENLABS_API_KEY not set".to_string())?;
+    let voice_id = std::env::var("ELEVENLABS_VOICE_ID")
+        .unwrap_or_else(|_| "21m00Tcm4TlvDq8ikWAM".to_string());
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let url = format!("https://api.elevenlabs.io/v1/text-to-speech/{}", voice_id);
+    let resp = client
+        .post(&url)
+        .header("xi-api-key", &api_key)
+        .json(&serde_json::json!({
+            "text": text,
+            "model_id": "eleven_multilingual_v2",
+            "voice_settings": { "stability": 0.5, "similarity_boost": 0.5 }
+        }))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if !resp.status().is_success() {
+        let err = resp.text().await.map_err(|e| e.to_string())?;
+        return Err(format!("ElevenLabs API error: {}", err));
+    }
+
+    Ok(resp.bytes().await.map_err(|e| e.to_string())?.to_vec())
 }

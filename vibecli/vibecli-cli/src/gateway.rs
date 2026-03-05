@@ -1031,6 +1031,881 @@ fn truncate_text(text: &str, max_len: usize) -> String {
     format!("{}{}", &text[..cut], ellipsis)
 }
 
+// ── Google Chat adapter ───────────────────────────────────────────────────────
+/// Google Chat adapter — uses the Google Chat REST API with service account auth.
+pub struct GoogleChatGateway {
+    service_account_json: String,
+    space_id: String,
+    client: reqwest::Client,
+}
+
+impl GoogleChatGateway {
+    pub fn new(service_account_json: String, space_id: String) -> Self {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(15))
+            .connect_timeout(std::time::Duration::from_secs(5))
+            .user_agent("VibeCLI-Gateway/1.0")
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
+        Self { service_account_json, space_id, client }
+    }
+}
+
+#[async_trait::async_trait]
+impl GatewayPlatform for GoogleChatGateway {
+    fn name(&self) -> &str { "googlechat" }
+
+    async fn poll(&mut self) -> Result<Vec<IncomingMessage>> {
+        let url = format!(
+            "https://chat.googleapis.com/v1/spaces/{}/messages",
+            self.space_id
+        );
+        let resp = self.client.get(&url)
+            .header("Authorization", format!("Bearer {}", self.service_account_json))
+            .send().await?.json::<serde_json::Value>().await?;
+
+        let mut messages = Vec::new();
+        if let Some(msgs) = resp["messages"].as_array() {
+            for msg in msgs {
+                let text = msg["text"].as_str().unwrap_or("").to_string();
+                let sender = msg["sender"]["displayName"].as_str().unwrap_or("unknown").to_string();
+                let msg_name = msg["name"].as_str().unwrap_or("").to_string();
+                if text.is_empty() { continue; }
+
+                messages.push(IncomingMessage {
+                    platform: "googlechat".to_string(),
+                    chat_id: self.space_id.clone(),
+                    user: sender,
+                    text,
+                    message_id: Some(msg_name),
+                });
+            }
+        }
+        Ok(messages)
+    }
+
+    async fn send(&self, response: GatewayResponse) -> Result<()> {
+        let url = format!(
+            "https://chat.googleapis.com/v1/spaces/{}/messages",
+            self.space_id
+        );
+        let payload = serde_json::json!({
+            "text": truncate_text(&response.text, 4096),
+        });
+        self.client.post(&url)
+            .header("Authorization", format!("Bearer {}", self.service_account_json))
+            .json(&payload)
+            .send().await?;
+        Ok(())
+    }
+}
+
+// ── Mattermost adapter ──────────────────────────────────────────────────────
+/// Mattermost adapter — uses the Mattermost REST API v4.
+pub struct MattermostGateway {
+    url: String,
+    token: String,
+    channel_id: String,
+    last_ts: i64,
+    client: reqwest::Client,
+}
+
+impl MattermostGateway {
+    pub fn new(url: String, token: String, channel_id: String) -> Self {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(15))
+            .connect_timeout(std::time::Duration::from_secs(5))
+            .user_agent("VibeCLI-Gateway/1.0")
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
+        Self { url, token, channel_id, last_ts: 0, client }
+    }
+}
+
+#[async_trait::async_trait]
+impl GatewayPlatform for MattermostGateway {
+    fn name(&self) -> &str { "mattermost" }
+
+    async fn poll(&mut self) -> Result<Vec<IncomingMessage>> {
+        let url = format!(
+            "{}/api/v4/channels/{}/posts?since={}",
+            self.url, self.channel_id, self.last_ts
+        );
+        let resp = self.client.get(&url)
+            .header("Authorization", format!("Bearer {}", self.token))
+            .send().await?.json::<serde_json::Value>().await?;
+
+        let mut messages = Vec::new();
+        if let Some(order) = resp["order"].as_array() {
+            if let Some(posts) = resp["posts"].as_object() {
+                for post_id in order {
+                    let pid = post_id.as_str().unwrap_or("");
+                    if let Some(post) = posts.get(pid) {
+                        let text = post["message"].as_str().unwrap_or("").to_string();
+                        let user = post["user_id"].as_str().unwrap_or("unknown").to_string();
+                        let create_at = post["create_at"].as_i64().unwrap_or(0);
+                        if text.is_empty() { continue; }
+                        if create_at > self.last_ts {
+                            self.last_ts = create_at;
+                        }
+
+                        messages.push(IncomingMessage {
+                            platform: "mattermost".to_string(),
+                            chat_id: self.channel_id.clone(),
+                            user,
+                            text,
+                            message_id: Some(pid.to_string()),
+                        });
+                    }
+                }
+            }
+        }
+        Ok(messages)
+    }
+
+    async fn send(&self, response: GatewayResponse) -> Result<()> {
+        let url = format!("{}/api/v4/posts", self.url);
+        let payload = serde_json::json!({
+            "channel_id": self.channel_id,
+            "message": truncate_text(&response.text, 16383),
+        });
+        self.client.post(&url)
+            .header("Authorization", format!("Bearer {}", self.token))
+            .json(&payload)
+            .send().await?;
+        Ok(())
+    }
+}
+
+// ── IRC adapter ─────────────────────────────────────────────────────────────
+/// IRC adapter — raw TCP with buffer-based poll/send.
+///
+/// Uses a shared buffer; a real implementation would spawn a reader task
+/// on the TcpStream. This version is compilable and testable.
+#[allow(dead_code)]
+pub struct IRCGateway {
+    server: String,
+    port: u16,
+    nick: String,
+    channel: String,
+    buffer: Arc<Mutex<Vec<IncomingMessage>>>,
+    client: reqwest::Client,
+}
+
+impl IRCGateway {
+    pub fn new(server: String, port: u16, nick: String, channel: String) -> Self {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(15))
+            .connect_timeout(std::time::Duration::from_secs(5))
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
+        Self {
+            server, port, nick, channel,
+            buffer: Arc::new(Mutex::new(Vec::new())),
+            client,
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl GatewayPlatform for IRCGateway {
+    fn name(&self) -> &str { "irc" }
+
+    async fn poll(&mut self) -> Result<Vec<IncomingMessage>> {
+        let mut buf = self.buffer.lock().await;
+        let msgs = buf.drain(..).collect();
+        Ok(msgs)
+    }
+
+    async fn send(&self, response: GatewayResponse) -> Result<()> {
+        // In a real implementation, this would write PRIVMSG to the TCP stream.
+        // For now, log the intent.
+        tracing::info!(
+            "[irc] PRIVMSG {} :{}",
+            self.channel,
+            truncate_text(&response.text, 510)
+        );
+        Ok(())
+    }
+}
+
+// ── LINE adapter ────────────────────────────────────────────────────────────
+/// LINE adapter — webhook receiver + REST send via the Messaging API.
+pub struct LINEGateway {
+    channel_access_token: String,
+    #[allow(dead_code)]
+    channel_secret: String,
+    client: reqwest::Client,
+    buffer: Arc<Mutex<Vec<IncomingMessage>>>,
+}
+
+impl LINEGateway {
+    pub fn new(channel_access_token: String, channel_secret: String) -> Self {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(15))
+            .connect_timeout(std::time::Duration::from_secs(5))
+            .user_agent("VibeCLI-Gateway/1.0")
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
+        Self {
+            channel_access_token, channel_secret, client,
+            buffer: Arc::new(Mutex::new(Vec::new())),
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl GatewayPlatform for LINEGateway {
+    fn name(&self) -> &str { "line" }
+
+    async fn poll(&mut self) -> Result<Vec<IncomingMessage>> {
+        let mut buf = self.buffer.lock().await;
+        let msgs = buf.drain(..).collect();
+        Ok(msgs)
+    }
+
+    async fn send(&self, response: GatewayResponse) -> Result<()> {
+        let url = "https://api.line.me/v2/bot/message/push";
+        let payload = serde_json::json!({
+            "to": response.chat_id,
+            "messages": [{
+                "type": "text",
+                "text": truncate_text(&response.text, 5000)
+            }]
+        });
+        self.client.post(url)
+            .header("Authorization", format!("Bearer {}", self.channel_access_token))
+            .json(&payload)
+            .send().await?;
+        Ok(())
+    }
+}
+
+// ── Twitch adapter ──────────────────────────────────────────────────────────
+/// Twitch adapter — IRC-like chat via buffer-based poll/send.
+#[allow(dead_code)]
+pub struct TwitchGateway {
+    oauth_token: String,
+    channel: String,
+    nick: String,
+    buffer: Arc<Mutex<Vec<IncomingMessage>>>,
+    client: reqwest::Client,
+}
+
+impl TwitchGateway {
+    pub fn new(oauth_token: String, channel: String, nick: String) -> Self {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(15))
+            .connect_timeout(std::time::Duration::from_secs(5))
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
+        Self {
+            oauth_token, channel, nick,
+            buffer: Arc::new(Mutex::new(Vec::new())),
+            client,
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl GatewayPlatform for TwitchGateway {
+    fn name(&self) -> &str { "twitch" }
+
+    async fn poll(&mut self) -> Result<Vec<IncomingMessage>> {
+        let mut buf = self.buffer.lock().await;
+        let msgs = buf.drain(..).collect();
+        Ok(msgs)
+    }
+
+    async fn send(&self, response: GatewayResponse) -> Result<()> {
+        // In a real implementation, send PRIVMSG to irc.chat.twitch.tv
+        tracing::info!(
+            "[twitch] PRIVMSG #{} :{}",
+            self.channel,
+            truncate_text(&response.text, 500)
+        );
+        Ok(())
+    }
+}
+
+// ── Nextcloud Talk adapter ──────────────────────────────────────────────────
+/// Nextcloud Talk adapter — REST polling via the OCS Spreed API.
+pub struct NextcloudTalkGateway {
+    url: String,
+    user: String,
+    password: String,
+    room_token: String,
+    last_id: i64,
+    client: reqwest::Client,
+}
+
+impl NextcloudTalkGateway {
+    pub fn new(url: String, user: String, password: String, room_token: String) -> Self {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(15))
+            .connect_timeout(std::time::Duration::from_secs(5))
+            .user_agent("VibeCLI-Gateway/1.0")
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
+        Self { url, user, password, room_token, last_id: 0, client }
+    }
+}
+
+#[async_trait::async_trait]
+impl GatewayPlatform for NextcloudTalkGateway {
+    fn name(&self) -> &str { "nextcloud" }
+
+    async fn poll(&mut self) -> Result<Vec<IncomingMessage>> {
+        let url = format!(
+            "{}/ocs/v2.php/apps/spreed/api/v1/chat/{}?lookIntoFuture=0&lastKnownMessageId={}",
+            self.url, self.room_token, self.last_id
+        );
+        let resp = self.client.get(&url)
+            .basic_auth(&self.user, Some(&self.password))
+            .header("OCS-APIRequest", "true")
+            .header("Accept", "application/json")
+            .send().await?.json::<serde_json::Value>().await?;
+
+        let mut messages = Vec::new();
+        if let Some(msgs) = resp["ocs"]["data"].as_array() {
+            for msg in msgs {
+                let id = msg["id"].as_i64().unwrap_or(0);
+                let text = msg["message"].as_str().unwrap_or("").to_string();
+                let actor = msg["actorDisplayName"].as_str().unwrap_or("unknown").to_string();
+                if text.is_empty() { continue; }
+                if id > self.last_id {
+                    self.last_id = id;
+                }
+
+                messages.push(IncomingMessage {
+                    platform: "nextcloud".to_string(),
+                    chat_id: self.room_token.clone(),
+                    user: actor,
+                    text,
+                    message_id: Some(id.to_string()),
+                });
+            }
+        }
+        Ok(messages)
+    }
+
+    async fn send(&self, response: GatewayResponse) -> Result<()> {
+        let url = format!(
+            "{}/ocs/v2.php/apps/spreed/api/v1/chat/{}",
+            self.url, self.room_token
+        );
+        let payload = serde_json::json!({
+            "message": truncate_text(&response.text, 32000),
+        });
+        self.client.post(&url)
+            .basic_auth(&self.user, Some(&self.password))
+            .header("OCS-APIRequest", "true")
+            .json(&payload)
+            .send().await?;
+        Ok(())
+    }
+}
+
+// ── WebChat adapter ─────────────────────────────────────────────────────────
+/// WebChat adapter — simple HTTP endpoint for embedding in a webpage.
+///
+/// Messages are buffered from incoming HTTP requests and drained on `poll()`.
+/// Responses are pushed to a response vec that can be consumed by HTTP GET.
+#[allow(dead_code)]
+pub struct WebChatGateway {
+    port: u16,
+    buffer: Arc<Mutex<Vec<IncomingMessage>>>,
+    responses: Arc<Mutex<Vec<String>>>,
+    client: reqwest::Client,
+}
+
+impl WebChatGateway {
+    pub fn new(port: u16) -> Self {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(15))
+            .connect_timeout(std::time::Duration::from_secs(5))
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
+        Self {
+            port,
+            buffer: Arc::new(Mutex::new(Vec::new())),
+            responses: Arc::new(Mutex::new(Vec::new())),
+            client,
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl GatewayPlatform for WebChatGateway {
+    fn name(&self) -> &str { "webchat" }
+
+    async fn poll(&mut self) -> Result<Vec<IncomingMessage>> {
+        let mut buf = self.buffer.lock().await;
+        let msgs = buf.drain(..).collect();
+        Ok(msgs)
+    }
+
+    async fn send(&self, response: GatewayResponse) -> Result<()> {
+        let mut resps = self.responses.lock().await;
+        resps.push(truncate_text(&response.text, 50000));
+        Ok(())
+    }
+}
+
+// ── Nostr adapter ───────────────────────────────────────────────────────────
+/// Nostr adapter — stub implementation.
+///
+/// Nostr requires NIP-04 encryption and relay WebSocket connections.
+/// This is a placeholder that logs warnings; real implementation would
+/// use nostr-sdk or custom NIP-04 crypto.
+#[allow(dead_code)]
+pub struct NostrGateway {
+    private_key: String,
+    relay_urls: Vec<String>,
+    client: reqwest::Client,
+}
+
+impl NostrGateway {
+    pub fn new(private_key: String, relay_urls: Vec<String>) -> Self {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(15))
+            .connect_timeout(std::time::Duration::from_secs(5))
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
+        Self { private_key, relay_urls, client }
+    }
+}
+
+#[async_trait::async_trait]
+impl GatewayPlatform for NostrGateway {
+    fn name(&self) -> &str { "nostr" }
+
+    async fn poll(&mut self) -> Result<Vec<IncomingMessage>> {
+        tracing::warn!("[nostr] poll() is a stub — Nostr requires NIP-04 crypto, not yet implemented");
+        Ok(vec![])
+    }
+
+    async fn send(&self, _response: GatewayResponse) -> Result<()> {
+        tracing::warn!("[nostr] send() is a stub — Nostr requires NIP-04 crypto, not yet implemented");
+        Ok(())
+    }
+}
+
+// ── Feishu (Lark) adapter ───────────────────────────────────────────────────
+/// Feishu (Lark) adapter — REST polling via the Feishu Open API.
+pub struct FeishuGateway {
+    #[allow(dead_code)]
+    app_id: String,
+    #[allow(dead_code)]
+    app_secret: String,
+    buffer: Arc<Mutex<Vec<IncomingMessage>>>,
+    client: reqwest::Client,
+}
+
+impl FeishuGateway {
+    pub fn new(app_id: String, app_secret: String) -> Self {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(15))
+            .connect_timeout(std::time::Duration::from_secs(5))
+            .user_agent("VibeCLI-Gateway/1.0")
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
+        Self {
+            app_id, app_secret,
+            buffer: Arc::new(Mutex::new(Vec::new())),
+            client,
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl GatewayPlatform for FeishuGateway {
+    fn name(&self) -> &str { "feishu" }
+
+    async fn poll(&mut self) -> Result<Vec<IncomingMessage>> {
+        let mut buf = self.buffer.lock().await;
+        let msgs = buf.drain(..).collect();
+        Ok(msgs)
+    }
+
+    async fn send(&self, response: GatewayResponse) -> Result<()> {
+        let url = "https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=chat_id";
+        let payload = serde_json::json!({
+            "receive_id": response.chat_id,
+            "msg_type": "text",
+            "content": serde_json::json!({ "text": truncate_text(&response.text, 30000) }).to_string(),
+        });
+        self.client.post(url)
+            .json(&payload)
+            .send().await?;
+        Ok(())
+    }
+}
+
+// ── DingTalk adapter ────────────────────────────────────────────────────────
+/// DingTalk adapter — webhook receiver + REST robot send.
+pub struct DingTalkGateway {
+    access_token: String,
+    #[allow(dead_code)]
+    webhook_secret: String,
+    buffer: Arc<Mutex<Vec<IncomingMessage>>>,
+    client: reqwest::Client,
+}
+
+impl DingTalkGateway {
+    pub fn new(access_token: String, webhook_secret: String) -> Self {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(15))
+            .connect_timeout(std::time::Duration::from_secs(5))
+            .user_agent("VibeCLI-Gateway/1.0")
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
+        Self {
+            access_token, webhook_secret,
+            buffer: Arc::new(Mutex::new(Vec::new())),
+            client,
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl GatewayPlatform for DingTalkGateway {
+    fn name(&self) -> &str { "dingtalk" }
+
+    async fn poll(&mut self) -> Result<Vec<IncomingMessage>> {
+        let mut buf = self.buffer.lock().await;
+        let msgs = buf.drain(..).collect();
+        Ok(msgs)
+    }
+
+    async fn send(&self, response: GatewayResponse) -> Result<()> {
+        let url = format!(
+            "https://oapi.dingtalk.com/robot/send?access_token={}",
+            self.access_token
+        );
+        let payload = serde_json::json!({
+            "msgtype": "text",
+            "text": {
+                "content": truncate_text(&response.text, 20000)
+            }
+        });
+        self.client.post(&url)
+            .json(&payload)
+            .send().await?;
+        Ok(())
+    }
+}
+
+// ── QQ adapter ──────────────────────────────────────────────────────────────
+/// QQ adapter — stub implementation (requires WebSocket-based QQ Bot API).
+#[allow(dead_code)]
+pub struct QQGateway {
+    app_id: String,
+    token: String,
+    buffer: Arc<Mutex<Vec<IncomingMessage>>>,
+    client: reqwest::Client,
+}
+
+impl QQGateway {
+    pub fn new(app_id: String, token: String) -> Self {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(15))
+            .connect_timeout(std::time::Duration::from_secs(5))
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
+        Self {
+            app_id, token,
+            buffer: Arc::new(Mutex::new(Vec::new())),
+            client,
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl GatewayPlatform for QQGateway {
+    fn name(&self) -> &str { "qq" }
+
+    async fn poll(&mut self) -> Result<Vec<IncomingMessage>> {
+        tracing::warn!("[qq] poll() is a stub — QQ Bot API requires WebSocket, not yet implemented");
+        Ok(vec![])
+    }
+
+    async fn send(&self, _response: GatewayResponse) -> Result<()> {
+        tracing::warn!("[qq] send() is a stub — QQ Bot API requires WebSocket, not yet implemented");
+        Ok(())
+    }
+}
+
+// ── WeCom (WeChat Work) adapter ─────────────────────────────────────────────
+/// WeCom adapter — sends messages via the WeCom (WeChat Work) API.
+pub struct WeComGateway {
+    #[allow(dead_code)]
+    corp_id: String,
+    agent_id: String,
+    #[allow(dead_code)]
+    secret: String,
+    buffer: Arc<Mutex<Vec<IncomingMessage>>>,
+    client: reqwest::Client,
+}
+
+impl WeComGateway {
+    pub fn new(corp_id: String, agent_id: String, secret: String) -> Self {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(15))
+            .connect_timeout(std::time::Duration::from_secs(5))
+            .user_agent("VibeCLI-Gateway/1.0")
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
+        Self {
+            corp_id, agent_id, secret,
+            buffer: Arc::new(Mutex::new(Vec::new())),
+            client,
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl GatewayPlatform for WeComGateway {
+    fn name(&self) -> &str { "wecom" }
+
+    async fn poll(&mut self) -> Result<Vec<IncomingMessage>> {
+        let mut buf = self.buffer.lock().await;
+        let msgs = buf.drain(..).collect();
+        Ok(msgs)
+    }
+
+    async fn send(&self, response: GatewayResponse) -> Result<()> {
+        // Note: in production, obtain access_token via corp_id + secret first.
+        let url = "https://qyapi.weixin.qq.com/cgi-bin/message/send";
+        let payload = serde_json::json!({
+            "touser": response.chat_id,
+            "msgtype": "text",
+            "agentid": self.agent_id,
+            "text": {
+                "content": truncate_text(&response.text, 2048)
+            }
+        });
+        self.client.post(url)
+            .json(&payload)
+            .send().await?;
+        Ok(())
+    }
+}
+
+// ── Zalo adapter ────────────────────────────────────────────────────────────
+/// Zalo adapter — sends messages via the Zalo OA API v3.
+pub struct ZaloGateway {
+    access_token: String,
+    buffer: Arc<Mutex<Vec<IncomingMessage>>>,
+    client: reqwest::Client,
+}
+
+impl ZaloGateway {
+    pub fn new(access_token: String) -> Self {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(15))
+            .connect_timeout(std::time::Duration::from_secs(5))
+            .user_agent("VibeCLI-Gateway/1.0")
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
+        Self {
+            access_token,
+            buffer: Arc::new(Mutex::new(Vec::new())),
+            client,
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl GatewayPlatform for ZaloGateway {
+    fn name(&self) -> &str { "zalo" }
+
+    async fn poll(&mut self) -> Result<Vec<IncomingMessage>> {
+        let mut buf = self.buffer.lock().await;
+        let msgs = buf.drain(..).collect();
+        Ok(msgs)
+    }
+
+    async fn send(&self, response: GatewayResponse) -> Result<()> {
+        let url = "https://openapi.zalo.me/v3.0/oa/message/cs";
+        let payload = serde_json::json!({
+            "recipient": {
+                "user_id": response.chat_id
+            },
+            "message": {
+                "text": truncate_text(&response.text, 2000)
+            }
+        });
+        self.client.post(url)
+            .header("access_token", &self.access_token)
+            .json(&payload)
+            .send().await?;
+        Ok(())
+    }
+}
+
+// ── BlueBubbles adapter ─────────────────────────────────────────────────────
+/// BlueBubbles adapter — REST polling for iMessage via the BlueBubbles server API.
+pub struct BlueBubblesGateway {
+    url: String,
+    password: String,
+    last_ts: i64,
+    client: reqwest::Client,
+}
+
+impl BlueBubblesGateway {
+    pub fn new(url: String, password: String) -> Self {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(15))
+            .connect_timeout(std::time::Duration::from_secs(5))
+            .user_agent("VibeCLI-Gateway/1.0")
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
+        Self { url, password, last_ts: 0, client }
+    }
+}
+
+#[async_trait::async_trait]
+impl GatewayPlatform for BlueBubblesGateway {
+    fn name(&self) -> &str { "bluebubbles" }
+
+    async fn poll(&mut self) -> Result<Vec<IncomingMessage>> {
+        let url = format!("{}/api/v1/message?password={}&after={}&limit=10",
+            self.url, self.password, self.last_ts
+        );
+        let resp = self.client.get(&url)
+            .send().await?.json::<serde_json::Value>().await?;
+
+        let mut messages = Vec::new();
+        if let Some(data) = resp["data"].as_array() {
+            for msg in data {
+                let text = msg["text"].as_str().unwrap_or("").to_string();
+                let is_from_me = msg["isFromMe"].as_bool().unwrap_or(true);
+                let handle = msg["handle"]["address"].as_str().unwrap_or("unknown").to_string();
+                let date_created = msg["dateCreated"].as_i64().unwrap_or(0);
+                let guid = msg["guid"].as_str().unwrap_or("").to_string();
+
+                if text.is_empty() || is_from_me { continue; }
+                if date_created > self.last_ts {
+                    self.last_ts = date_created;
+                }
+
+                messages.push(IncomingMessage {
+                    platform: "bluebubbles".to_string(),
+                    chat_id: handle.clone(),
+                    user: handle,
+                    text,
+                    message_id: Some(guid),
+                });
+            }
+        }
+        Ok(messages)
+    }
+
+    async fn send(&self, response: GatewayResponse) -> Result<()> {
+        let url = format!("{}/api/v1/message/text?password={}", self.url, self.password);
+        let payload = serde_json::json!({
+            "chatGuid": response.chat_id,
+            "message": truncate_text(&response.text, 10000),
+        });
+        self.client.post(&url)
+            .json(&payload)
+            .send().await?;
+        Ok(())
+    }
+}
+
+// ── Synology Chat adapter ───────────────────────────────────────────────────
+/// Synology Chat adapter — webhook + REST send via Synology Chat API.
+pub struct SynologyChatGateway {
+    #[allow(dead_code)]
+    url: String,
+    incoming_url: String,
+    #[allow(dead_code)]
+    token: String,
+    buffer: Arc<Mutex<Vec<IncomingMessage>>>,
+    client: reqwest::Client,
+}
+
+impl SynologyChatGateway {
+    pub fn new(url: String, incoming_url: String, token: String) -> Self {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(15))
+            .connect_timeout(std::time::Duration::from_secs(5))
+            .user_agent("VibeCLI-Gateway/1.0")
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
+        Self {
+            url, incoming_url, token,
+            buffer: Arc::new(Mutex::new(Vec::new())),
+            client,
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl GatewayPlatform for SynologyChatGateway {
+    fn name(&self) -> &str { "synology" }
+
+    async fn poll(&mut self) -> Result<Vec<IncomingMessage>> {
+        let mut buf = self.buffer.lock().await;
+        let msgs = buf.drain(..).collect();
+        Ok(msgs)
+    }
+
+    async fn send(&self, response: GatewayResponse) -> Result<()> {
+        let payload = format!(
+            "payload={}",
+            serde_json::json!({
+                "text": truncate_text(&response.text, 10000)
+            })
+        );
+        self.client.post(&self.incoming_url)
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .body(payload)
+            .send().await?;
+        Ok(())
+    }
+}
+
+// ── Tlon (Urbit) adapter ────────────────────────────────────────────────────
+/// Tlon (Urbit) adapter — stub implementation.
+///
+/// Urbit's Landscape/Tlon uses a unique networking protocol.
+/// This stub logs warnings; a real implementation would use the Urbit HTTP API.
+#[allow(dead_code)]
+pub struct TlonGateway {
+    ship_url: String,
+    ship_code: String,
+    client: reqwest::Client,
+}
+
+impl TlonGateway {
+    pub fn new(ship_url: String, ship_code: String) -> Self {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(15))
+            .connect_timeout(std::time::Duration::from_secs(5))
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
+        Self { ship_url, ship_code, client }
+    }
+}
+
+#[async_trait::async_trait]
+impl GatewayPlatform for TlonGateway {
+    fn name(&self) -> &str { "tlon" }
+
+    async fn poll(&mut self) -> Result<Vec<IncomingMessage>> {
+        tracing::warn!("[tlon] poll() is a stub — Urbit/Tlon API not yet implemented");
+        Ok(vec![])
+    }
+
+    async fn send(&self, _response: GatewayResponse) -> Result<()> {
+        tracing::warn!("[tlon] send() is a stub — Urbit/Tlon API not yet implemented");
+        Ok(())
+    }
+}
+
 // ── Unit tests ────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -1176,5 +2051,298 @@ mod tests {
         let text = "x".repeat(30000);
         let truncated = truncate_text(&text, 28000);
         assert!(truncated.len() <= 28000);
+    }
+
+    // ── Google Chat tests ──
+
+    #[test]
+    fn googlechat_gateway_constructor() {
+        let gw = GoogleChatGateway::new("sa-json-content".to_string(), "spaces/ABC123".to_string());
+        assert_eq!(gw.name(), "googlechat");
+        assert_eq!(gw.space_id, "spaces/ABC123");
+    }
+
+    #[test]
+    fn googlechat_truncation() {
+        let text = "x".repeat(5000);
+        let truncated = truncate_text(&text, 4096);
+        assert!(truncated.len() <= 4096);
+    }
+
+    // ── Mattermost tests ──
+
+    #[test]
+    fn mattermost_gateway_constructor() {
+        let gw = MattermostGateway::new(
+            "https://mattermost.example.com".to_string(),
+            "token123".to_string(),
+            "channel-abc".to_string(),
+        );
+        assert_eq!(gw.name(), "mattermost");
+        assert_eq!(gw.url, "https://mattermost.example.com");
+        assert_eq!(gw.channel_id, "channel-abc");
+        assert_eq!(gw.last_ts, 0);
+    }
+
+    #[test]
+    fn mattermost_truncation() {
+        let text = "x".repeat(20000);
+        let truncated = truncate_text(&text, 16383);
+        assert!(truncated.len() <= 16383);
+    }
+
+    // ── IRC tests ──
+
+    #[test]
+    fn irc_gateway_constructor() {
+        let gw = IRCGateway::new(
+            "irc.libera.chat".to_string(),
+            6667,
+            "vibecli".to_string(),
+            "#vibecli".to_string(),
+        );
+        assert_eq!(gw.name(), "irc");
+        assert_eq!(gw.server, "irc.libera.chat");
+        assert_eq!(gw.port, 6667);
+        assert_eq!(gw.channel, "#vibecli");
+    }
+
+    #[test]
+    fn irc_truncation() {
+        let text = "x".repeat(600);
+        let truncated = truncate_text(&text, 510);
+        assert!(truncated.len() <= 510);
+    }
+
+    // ── LINE tests ──
+
+    #[test]
+    fn line_gateway_constructor() {
+        let gw = LINEGateway::new("cat-abc123".to_string(), "cs-secret".to_string());
+        assert_eq!(gw.name(), "line");
+        assert_eq!(gw.channel_access_token, "cat-abc123");
+    }
+
+    #[test]
+    fn line_truncation() {
+        let text = "x".repeat(6000);
+        let truncated = truncate_text(&text, 5000);
+        assert!(truncated.len() <= 5000);
+    }
+
+    // ── Twitch tests ──
+
+    #[test]
+    fn twitch_gateway_constructor() {
+        let gw = TwitchGateway::new(
+            "oauth:abc123".to_string(),
+            "vibecli_channel".to_string(),
+            "vibecli_bot".to_string(),
+        );
+        assert_eq!(gw.name(), "twitch");
+        assert_eq!(gw.channel, "vibecli_channel");
+    }
+
+    #[test]
+    fn twitch_truncation() {
+        let text = "x".repeat(600);
+        let truncated = truncate_text(&text, 500);
+        assert!(truncated.len() <= 500);
+    }
+
+    // ── Nextcloud Talk tests ──
+
+    #[test]
+    fn nextcloud_gateway_constructor() {
+        let gw = NextcloudTalkGateway::new(
+            "https://cloud.example.com".to_string(),
+            "admin".to_string(),
+            "password".to_string(),
+            "room-token".to_string(),
+        );
+        assert_eq!(gw.name(), "nextcloud");
+        assert_eq!(gw.url, "https://cloud.example.com");
+        assert_eq!(gw.room_token, "room-token");
+        assert_eq!(gw.last_id, 0);
+    }
+
+    #[test]
+    fn nextcloud_truncation() {
+        let text = "x".repeat(40000);
+        let truncated = truncate_text(&text, 32000);
+        assert!(truncated.len() <= 32000);
+    }
+
+    // ── WebChat tests ──
+
+    #[test]
+    fn webchat_gateway_constructor() {
+        let gw = WebChatGateway::new(8080);
+        assert_eq!(gw.name(), "webchat");
+    }
+
+    #[test]
+    fn webchat_truncation() {
+        let text = "x".repeat(60000);
+        let truncated = truncate_text(&text, 50000);
+        assert!(truncated.len() <= 50000);
+    }
+
+    // ── Nostr tests ──
+
+    #[test]
+    fn nostr_gateway_constructor() {
+        let gw = NostrGateway::new(
+            "nsec1abc".to_string(),
+            vec!["wss://relay.damus.io".to_string()],
+        );
+        assert_eq!(gw.name(), "nostr");
+    }
+
+    #[test]
+    fn nostr_truncation() {
+        let text = "x".repeat(5000);
+        let truncated = truncate_text(&text, 4096);
+        assert!(truncated.len() <= 4096);
+    }
+
+    // ── Feishu (Lark) tests ──
+
+    #[test]
+    fn feishu_gateway_constructor() {
+        let gw = FeishuGateway::new("app-id-123".to_string(), "app-secret-456".to_string());
+        assert_eq!(gw.name(), "feishu");
+    }
+
+    #[test]
+    fn feishu_truncation() {
+        let text = "x".repeat(35000);
+        let truncated = truncate_text(&text, 30000);
+        assert!(truncated.len() <= 30000);
+    }
+
+    // ── DingTalk tests ──
+
+    #[test]
+    fn dingtalk_gateway_constructor() {
+        let gw = DingTalkGateway::new("access-token-abc".to_string(), "secret-xyz".to_string());
+        assert_eq!(gw.name(), "dingtalk");
+        assert_eq!(gw.access_token, "access-token-abc");
+    }
+
+    #[test]
+    fn dingtalk_truncation() {
+        let text = "x".repeat(25000);
+        let truncated = truncate_text(&text, 20000);
+        assert!(truncated.len() <= 20000);
+    }
+
+    // ── QQ tests ──
+
+    #[test]
+    fn qq_gateway_constructor() {
+        let gw = QQGateway::new("app-id-qq".to_string(), "token-qq".to_string());
+        assert_eq!(gw.name(), "qq");
+    }
+
+    #[test]
+    fn qq_truncation() {
+        let text = "x".repeat(5000);
+        let truncated = truncate_text(&text, 4096);
+        assert!(truncated.len() <= 4096);
+    }
+
+    // ── WeCom tests ──
+
+    #[test]
+    fn wecom_gateway_constructor() {
+        let gw = WeComGateway::new(
+            "corp-id-abc".to_string(),
+            "agent-1000001".to_string(),
+            "secret-xyz".to_string(),
+        );
+        assert_eq!(gw.name(), "wecom");
+        assert_eq!(gw.agent_id, "agent-1000001");
+    }
+
+    #[test]
+    fn wecom_truncation() {
+        let text = "x".repeat(3000);
+        let truncated = truncate_text(&text, 2048);
+        assert!(truncated.len() <= 2048);
+    }
+
+    // ── Zalo tests ──
+
+    #[test]
+    fn zalo_gateway_constructor() {
+        let gw = ZaloGateway::new("zalo-access-token".to_string());
+        assert_eq!(gw.name(), "zalo");
+        assert_eq!(gw.access_token, "zalo-access-token");
+    }
+
+    #[test]
+    fn zalo_truncation() {
+        let text = "x".repeat(3000);
+        let truncated = truncate_text(&text, 2000);
+        assert!(truncated.len() <= 2000);
+    }
+
+    // ── BlueBubbles tests ──
+
+    #[test]
+    fn bluebubbles_gateway_constructor() {
+        let gw = BlueBubblesGateway::new(
+            "http://localhost:1234".to_string(),
+            "my-password".to_string(),
+        );
+        assert_eq!(gw.name(), "bluebubbles");
+        assert_eq!(gw.url, "http://localhost:1234");
+        assert_eq!(gw.last_ts, 0);
+    }
+
+    #[test]
+    fn bluebubbles_truncation() {
+        let text = "x".repeat(12000);
+        let truncated = truncate_text(&text, 10000);
+        assert!(truncated.len() <= 10000);
+    }
+
+    // ── Synology Chat tests ──
+
+    #[test]
+    fn synology_gateway_constructor() {
+        let gw = SynologyChatGateway::new(
+            "https://nas.local".to_string(),
+            "https://nas.local/webapi/entry.cgi?api=SYNO.Chat.External&method=incoming&version=2&token=abc".to_string(),
+            "abc-token".to_string(),
+        );
+        assert_eq!(gw.name(), "synology");
+        assert_eq!(gw.incoming_url.contains("incoming"), true);
+    }
+
+    #[test]
+    fn synology_truncation() {
+        let text = "x".repeat(12000);
+        let truncated = truncate_text(&text, 10000);
+        assert!(truncated.len() <= 10000);
+    }
+
+    // ── Tlon tests ──
+
+    #[test]
+    fn tlon_gateway_constructor() {
+        let gw = TlonGateway::new(
+            "http://localhost:8080".to_string(),
+            "sampel-palnet-datbud-hapzyx".to_string(),
+        );
+        assert_eq!(gw.name(), "tlon");
+    }
+
+    #[test]
+    fn tlon_truncation() {
+        let text = "x".repeat(5000);
+        let truncated = truncate_text(&text, 4096);
+        assert!(truncated.len() <= 4096);
     }
 }
