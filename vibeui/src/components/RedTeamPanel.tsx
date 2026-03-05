@@ -89,6 +89,7 @@ export function RedTeamPanel({ workspacePath, provider: _provider }: Props) {
     setError(null);
     setScanning(true);
     setCurrentStage("Recon");
+    const scanStartTime = new Date().toISOString();
 
     try {
       const sessionId = await invoke<string>("start_redteam_scan", {
@@ -111,14 +112,14 @@ export function RedTeamPanel({ workspacePath, provider: _provider }: Props) {
             target_url: targetUrl,
             current_stage: "Report",
             findings,
-            started_at: new Date().toISOString(),
+            started_at: scanStartTime,
             finished_at: new Date().toISOString(),
           };
           if (mountedRef.current) setActiveSession(sess);
           done = true;
         } catch {
-          // Still running — update stage indicator.
-          if (mountedRef.current) {
+          // Still running — advance stage every 3 polls (~6s) rather than every poll
+          if (mountedRef.current && attempts % 3 === 0) {
             setCurrentStage((prev) => {
               const idx = STAGES.indexOf(prev || "Recon");
               return STAGES[Math.min(idx + 1, STAGES.length - 1)];

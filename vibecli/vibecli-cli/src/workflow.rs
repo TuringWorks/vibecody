@@ -523,7 +523,7 @@ fn flush_stage_section(stage: &mut StageData, lines: &[String]) {
 
         // Parse <!-- status: ... --> comment
         if trimmed.starts_with("<!-- status:") && trimmed.ends_with("-->") {
-            let inner = &trimmed["<!-- status:".len()..trimmed.len() - 3].trim();
+            let inner = trimmed["<!-- status:".len()..trimmed.len() - 3].trim();
             stage.status = StageStatus::from_str(inner);
             continue;
         }
