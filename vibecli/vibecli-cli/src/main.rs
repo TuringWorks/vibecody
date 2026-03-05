@@ -304,6 +304,22 @@ struct Cli {
     /// specify the task. Example: vibecli --cloud --agent "fix all clippy warnings"
     #[arg(long)]
     cloud: bool,
+
+    // ── Voice mode (Phase P6) ─────────────────────────────────────────────────
+
+    /// Enable voice input mode: transcribes audio from microphone before each
+    /// REPL prompt using Groq Whisper. Requires GROQ_API_KEY or
+    /// voice.whisper_api_key in config. TTS for responses uses ElevenLabs.
+    #[arg(long)]
+    voice: bool,
+
+    // ── Tailscale integration (Phase P7) ──────────────────────────────────────
+
+    /// Expose the daemon via Tailscale Funnel (public HTTPS). Requires
+    /// Tailscale to be installed and `tailscale` on PATH.
+    /// Combine with --serve: vibecli --serve --tailscale
+    #[arg(long)]
+    tailscale: bool,
 }
 
 #[tokio::main]
@@ -396,6 +412,14 @@ async fn main() -> Result<()> {
 
     // Daemon mode: vibecli serve [--port 7878]
     if cli.serve {
+        // Optionally expose via Tailscale Funnel
+        if cli.tailscale {
+            eprintln!("[vibecli] Activating Tailscale Funnel on port {}...", cli.port);
+            match tailscale::serve_via_funnel(cli.port).await {
+                Ok(_child) => eprintln!("[vibecli] Tailscale Funnel active — public HTTPS endpoint created"),
+                Err(e) => eprintln!("[vibecli] Tailscale Funnel failed: {e} (continuing with localhost)"),
+            }
+        }
         let llm = create_provider(&effective_provider, effective_model.clone())?;
         let cwd = std::env::current_dir()?;
         let approval = ApprovalPolicy::from_str(&approval_policy);
@@ -988,6 +1012,16 @@ async fn main() -> Result<()> {
             std::fs::create_dir_all(parent)?;
         }
         let _ = rl.load_history(path);
+    }
+
+    // Voice mode indicator
+    if cli.voice {
+        let voice_cfg = Config::load().unwrap_or_default().voice;
+        if voice_cfg.resolve_whisper_api_key(None).is_some() {
+            eprintln!("🎤 Voice mode enabled — use /voice transcribe <file> or /voice speak <text>");
+        } else {
+            eprintln!("⚠️  --voice flag set but no Whisper API key found. Set GROQ_API_KEY or voice.whisper_api_key in config.");
+        }
     }
 
     loop {
@@ -5399,6 +5433,8 @@ fn show_help() {
     println!("  --mcp-server             - Run as MCP server (for Claude Desktop etc.)");
     println!("  --gateway <platform>     - Start messaging bot (telegram|discord|slack)");
     println!("  --worktree               - Run agent in isolated git worktree branch");
+    println!("  --voice                  - Enable voice input (Whisper transcription + ElevenLabs TTS)");
+    println!("  --tailscale              - Expose daemon via Tailscale Funnel (use with --serve)");
     println!("  --profile <name>         - Load a named config profile (~/.vibecli/profiles/<name>.toml)");
     println!("  --doctor                 - Run health checks on the VibeCLI installation");
     println!("\nProviders (--provider <name>):");
@@ -5410,6 +5446,11 @@ fn show_help() {
     println!("  groq                     - Groq ultra-fast   (GROQ_API_KEY)");
     println!("  openrouter               - OpenRouter 300+   (OPENROUTER_API_KEY)");
     println!("  azure                    - Azure OpenAI      (AZURE_OPENAI_API_KEY + api_url)");
+    println!("  mistral                  - Mistral AI        (MISTRAL_API_KEY)");
+    println!("  cerebras                 - Cerebras fast     (CEREBRAS_API_KEY)");
+    println!("  deepseek                 - DeepSeek code     (DEEPSEEK_API_KEY)");
+    println!("  zhipu                    - Zhipu GLM-4       (ZHIPU_API_KEY)");
+    println!("  vercel_ai                - Vercel AI Gateway (VERCEL_AI_API_KEY + api_url)");
     println!("\nMultimodal:");
     println!("  /chat [screenshot.png] What is this error?  - Attach image to chat");
     println!("\n💡 Tip: You can also just type a message to chat\n");

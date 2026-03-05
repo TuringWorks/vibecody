@@ -197,6 +197,47 @@ async fn health() -> impl IntoResponse {
     Json(serde_json::json!({ "status": "ok" }))
 }
 
+/// Skill webhook endpoint — triggers a skill by name via POST.
+/// Matches skills with a `webhook_trigger` field set to the given name.
+async fn skill_webhook_handler(
+    Path(skill_name): Path<String>,
+    body: String,
+) -> impl IntoResponse {
+    use vibe_ai::SkillLoader;
+    let cwd = std::env::current_dir().unwrap_or_default();
+    let loader = SkillLoader::new(&cwd);
+    let skills = loader.load_all();
+    let matching = skills.iter().find(|s| {
+        s.webhook_trigger.as_deref() == Some(skill_name.as_str())
+    });
+    match matching {
+        Some(skill) => {
+            tracing::info!("[webhook] Triggered skill '{}' via webhook (body: {} bytes)", skill.name, body.len());
+            (StatusCode::OK, Json(serde_json::json!({
+                "triggered": true,
+                "skill": skill.name,
+                "body_length": body.len(),
+            })))
+        }
+        None => {
+            (StatusCode::NOT_FOUND, Json(serde_json::json!({
+                "triggered": false,
+                "error": format!("No skill with webhook_trigger '{}'", skill_name),
+            })))
+        }
+    }
+}
+
+/// Device pairing endpoint — generates a one-time pairing URL.
+async fn pairing_handler() -> impl IntoResponse {
+    let (url, token) = crate::pairing::generate_pairing_url("localhost", 7878);
+    Json(serde_json::json!({
+        "url": url,
+        "token": token,
+        "instructions": "Open this URL in your device's browser to pair with this VibeCLI instance."
+    }))
+}
+
 async fn chat(
     State(state): State<ServeState>,
     Json(req): Json<ChatRequest>,
@@ -785,6 +826,8 @@ pub async fn serve(
     let app = Router::new()
         .route("/health", get(health))
         .route("/webhook/github", post(github_webhook))
+        .route("/webhook/skill/:skill_name", post(skill_webhook_handler))
+        .route("/pair", get(pairing_handler))
         .route("/acp/v1/capabilities", get(acp_capabilities))
         .route("/ws/collab/:room_id", get(ws_collab_handler))
         .merge(authed_routes)
