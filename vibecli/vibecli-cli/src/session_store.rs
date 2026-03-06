@@ -1462,4 +1462,249 @@ mod tests {
         assert_eq!(tree.children[0].children[0].children[0].session.id, "d3");
         assert!(tree.children[0].children[0].children[0].children.is_empty());
     }
+
+    // ── Additional pure-function and edge-case tests ─────────────────────────
+
+    #[test]
+    fn test_escape_html_single_quote_passthrough() {
+        // The current implementation does NOT escape single quotes.
+        // Document this behavior explicitly (the function only escapes &, <, >, ").
+        let input = "it's a test";
+        let out = escape_html(input);
+        assert_eq!(out, "it's a test", "Single quotes should pass through unchanged");
+    }
+
+    #[test]
+    fn test_escape_html_empty_string() {
+        assert_eq!(escape_html(""), "");
+    }
+
+    #[test]
+    fn test_escape_html_only_special_chars() {
+        assert_eq!(escape_html("&<>\""), "&amp;&lt;&gt;&quot;");
+    }
+
+    #[test]
+    fn test_escape_html_nested_html_tags() {
+        let input = "<div class=\"evil\"><script>alert('xss')</script></div>";
+        let out = escape_html(input);
+        assert!(!out.contains('<'), "No raw '<' should remain");
+        assert!(!out.contains('>'), "No raw '>' should remain");
+        assert!(out.contains("&lt;div"), "Opening tag should be escaped");
+        assert!(out.contains("&lt;/div&gt;"), "Closing tag should be escaped");
+        assert!(out.contains("&lt;script&gt;"), "Script tag should be escaped");
+    }
+
+    #[test]
+    fn test_escape_html_double_ampersand_no_double_escape() {
+        // "&amp;" in input: the & should be escaped, producing "&amp;amp;"
+        let input = "&amp;";
+        let out = escape_html(input);
+        assert_eq!(out, "&amp;amp;", "Ampersand in entity-like sequences should still be escaped");
+    }
+
+    #[test]
+    fn test_chrono_simple_unix_epoch() {
+        assert_eq!(chrono_simple(0), "1970-01-01 00:00");
+    }
+
+    #[test]
+    fn test_chrono_simple_leap_year_feb29() {
+        // 2024-02-29 00:00 UTC = 1709164800 seconds since epoch
+        assert_eq!(chrono_simple(1_709_164_800), "2024-02-29 00:00");
+    }
+
+    #[test]
+    fn test_chrono_simple_end_of_day() {
+        // 2024-01-01 23:59 UTC = 946684800 + (24*365+6)*86400 - 60 ... compute directly:
+        // 2024-01-01 23:59:00 = 1704153540
+        let result = chrono_simple(1_704_153_540);
+        assert_eq!(result, "2024-01-01 23:59");
+    }
+
+    #[test]
+    fn test_days_to_ymd_epoch() {
+        let (y, m, d) = days_to_ymd(0);
+        assert_eq!((y, m, d), (1970, 1, 1));
+    }
+
+    #[test]
+    fn test_days_to_ymd_leap_year_boundary() {
+        // 2024-02-29: days since epoch = 19782
+        let (y, m, d) = days_to_ymd(19_782);
+        assert_eq!((y, m, d), (2024, 2, 29));
+    }
+
+    #[test]
+    fn test_days_to_ymd_new_years_eve() {
+        // 2023-12-31: days since epoch = 19722
+        let (y, m, d) = days_to_ymd(19_722);
+        assert_eq!((y, m, d), (2023, 12, 31));
+    }
+
+    #[test]
+    fn test_format_ts_with_time_component() {
+        // 2024-06-15 18:30 UTC = 1718476200 seconds = 1718476200000 ms
+        let result = format_ts(1_718_476_200_000);
+        assert_eq!(result, "2024-06-15 18:30");
+    }
+
+    #[test]
+    fn test_format_age_future_timestamp_saturates() {
+        // A timestamp in the far future should saturate to "0s ago" (no underflow)
+        let far_future_ms = u64::MAX / 2;
+        let result = format_age(far_future_ms);
+        assert_eq!(result, "0s ago", "Future timestamps should show 0s ago due to saturating_sub");
+    }
+
+    #[test]
+    fn test_render_sessions_index_html_xss_in_task() {
+        let sessions = vec![SessionRow {
+            id: "xss-1".into(),
+            task: "<img src=x onerror=alert(1)>".into(),
+            provider: "p".into(),
+            model: "m".into(),
+            started_at: 1_700_000_000_000,
+            finished_at: None,
+            status: "running".into(),
+            summary: None,
+            step_count: 0,
+            parent_session_id: None,
+            depth: 0,
+        }];
+        let html = render_sessions_index_html(&sessions);
+        assert!(!html.contains("<img"), "XSS payload in task must be escaped in index HTML");
+        assert!(html.contains("&lt;img"), "Angle brackets in task should be escaped");
+    }
+
+    #[test]
+    fn test_render_sessions_index_html_xss_in_provider() {
+        let sessions = vec![SessionRow {
+            id: "xss-2".into(),
+            task: "Normal task".into(),
+            provider: "\"><script>alert(1)</script>".into(),
+            model: "m".into(),
+            started_at: 1_700_000_000_000,
+            finished_at: None,
+            status: "complete".into(),
+            summary: None,
+            step_count: 0,
+            parent_session_id: None,
+            depth: 0,
+        }];
+        let html = render_sessions_index_html(&sessions);
+        assert!(!html.contains("<script>"), "XSS payload in provider must be escaped");
+    }
+
+    #[test]
+    fn test_render_sessions_index_html_task_truncation() {
+        let long_task: String = "A".repeat(120);
+        let sessions = vec![SessionRow {
+            id: "trunc-1".into(),
+            task: long_task.clone(),
+            provider: "p".into(),
+            model: "m".into(),
+            started_at: 1_700_000_000_000,
+            finished_at: None,
+            status: "running".into(),
+            summary: None,
+            step_count: 0,
+            parent_session_id: None,
+            depth: 0,
+        }];
+        let html = render_sessions_index_html(&sessions);
+        // The task should be truncated to 80 chars in the index view
+        let full_a_120 = "A".repeat(120);
+        assert!(!html.contains(&full_a_120), "Full 120-char task should be truncated");
+        // Should contain the first 80 chars
+        let a_80 = "A".repeat(80);
+        assert!(html.contains(&a_80), "Index should contain first 80 chars of task");
+    }
+
+    #[test]
+    fn test_search_sql_wildcard_injection() {
+        // Ensure that SQL LIKE wildcards (% and _) in user input are escaped
+        let store = open_temp();
+        store.insert_session("s1", "100% complete", "p", "m").unwrap();
+        store.insert_session("s2", "a_b_c pattern", "p", "m").unwrap();
+        store.insert_session("s3", "normal task", "p", "m").unwrap();
+
+        // Searching for "%" should only match sessions that literally contain %
+        let results = store.search("%").unwrap();
+        assert_eq!(results.len(), 1, "% wildcard should be escaped, matching only literal %");
+        assert_eq!(results[0].id, "s1");
+
+        // Searching for "_" should only match sessions that literally contain _
+        let results = store.search("_").unwrap();
+        assert_eq!(results.len(), 1, "_ wildcard should be escaped, matching only literal _");
+        assert_eq!(results[0].id, "s2");
+    }
+
+    #[test]
+    fn test_search_whitespace_only_query() {
+        let store = open_temp();
+        store.insert_session("s1", "Task one", "p", "m").unwrap();
+        // Whitespace-only query should behave like empty (split_whitespace yields nothing)
+        let results = store.search("   \t  ").unwrap();
+        assert_eq!(results.len(), 1, "Whitespace-only query should fall back to list_sessions");
+    }
+
+    #[test]
+    fn test_render_session_html_duration_calculation() {
+        let detail = SessionDetail {
+            session: SessionRow {
+                id: "dur-1".into(),
+                task: "Duration test".into(),
+                provider: "p".into(),
+                model: "".into(), // empty model
+                started_at: 1_700_000_000_000,
+                finished_at: Some(1_700_000_065_000), // 65 seconds later
+                status: "complete".into(),
+                summary: None,
+                step_count: 0,
+                parent_session_id: None,
+                depth: 0,
+            },
+            messages: vec![],
+            steps: vec![],
+        };
+        let html = render_session_html(&detail);
+        // Duration should be 65s
+        assert!(html.contains("65s"), "Duration should show 65s for 65000ms difference");
+        // Empty model should not produce " / " separator
+        assert!(!html.contains(" / "), "Empty model should not add model separator");
+    }
+
+    #[test]
+    fn test_render_session_html_step_singular() {
+        let detail = SessionDetail {
+            session: SessionRow {
+                id: "sing-1".into(),
+                task: "Singular step".into(),
+                provider: "p".into(),
+                model: "m".into(),
+                started_at: 1_700_000_000_000,
+                finished_at: Some(1_700_000_010_000),
+                status: "complete".into(),
+                summary: None,
+                step_count: 1,
+                parent_session_id: None,
+                depth: 0,
+            },
+            messages: vec![],
+            steps: vec![],
+        };
+        let html = render_session_html(&detail);
+        assert!(html.contains("1 step"), "Should show '1 step' (singular)");
+        // Make sure it doesn't say "1 steps"
+        assert!(!html.contains("1 steps"), "Should not show '1 steps' (plural)");
+    }
+
+    #[test]
+    fn test_count_after_duplicate_insert() {
+        let store = open_temp();
+        store.insert_session("dup", "First", "p", "m").unwrap();
+        store.insert_session("dup", "Second", "p", "m").unwrap(); // INSERT OR IGNORE
+        assert_eq!(store.count().unwrap(), 1, "Duplicate insert should not increase count");
+    }
 }

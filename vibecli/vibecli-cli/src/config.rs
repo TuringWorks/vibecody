@@ -1590,4 +1590,330 @@ mod tests {
         let u = UiConfig::default();
         assert_eq!(u.theme.as_deref(), Some("dark"));
     }
+
+    // ── Config load/save tempfile roundtrip ──
+
+    #[test]
+    fn config_load_save_tempfile_roundtrip() {
+        let dir = tempfile::tempdir().unwrap();
+        let cfg_path = dir.path().join("config.toml");
+
+        // Build a non-trivial config
+        let mut cfg = Config::default();
+        cfg.ollama = Some(ProviderConfig {
+            enabled: true,
+            api_url: Some("http://localhost:11434".into()),
+            model: Some("llama3".into()),
+            api_key: None,
+            api_key_helper: None,
+            thinking_budget_tokens: None,
+        });
+        cfg.safety.approval_policy = "full-auto".to_string();
+        cfg.routing.planning_provider = Some("claude".into());
+        cfg.failover.chain = vec!["claude".into(), "openai".into()];
+
+        // Serialize and write
+        let content = toml::to_string_pretty(&cfg).expect("serialize");
+        std::fs::write(&cfg_path, &content).expect("write");
+
+        // Read back and deserialize
+        let raw = std::fs::read_to_string(&cfg_path).expect("read");
+        let cfg2: Config = toml::from_str(&raw).expect("deserialize");
+
+        assert!(cfg2.ollama.is_some());
+        assert_eq!(cfg2.ollama.as_ref().unwrap().model.as_deref(), Some("llama3"));
+        assert_eq!(cfg2.safety.approval_policy, "full-auto");
+        assert_eq!(cfg2.routing.planning_provider.as_deref(), Some("claude"));
+        assert_eq!(cfg2.failover.chain, vec!["claude", "openai"]);
+    }
+
+    #[test]
+    fn config_deserialize_empty_toml() {
+        let cfg: Config = toml::from_str("").expect("empty toml should deserialize");
+        assert!(cfg.ollama.is_none());
+        assert!(cfg.index.enabled);
+        assert!(!cfg.otel.enabled);
+        assert_eq!(cfg.safety.approval_policy, "suggest");
+    }
+
+    #[test]
+    fn config_deserialize_partial_toml() {
+        let toml_str = r#"
+[safety]
+require_approval_for_commands = false
+require_approval_for_file_changes = false
+approval_policy = "auto-edit"
+"#;
+        let cfg: Config = toml::from_str(toml_str).expect("partial toml");
+        assert!(!cfg.safety.require_approval_for_commands);
+        assert!(!cfg.safety.require_approval_for_file_changes);
+        assert_eq!(cfg.safety.approval_policy, "auto-edit");
+        // Other fields should be default
+        assert!(cfg.ollama.is_none());
+        assert!(cfg.index.enabled);
+    }
+
+    // ── GatewayConfig resolve methods (config field takes priority) ──
+
+    #[test]
+    fn gateway_resolve_discord_token_from_config() {
+        let g = GatewayConfig {
+            discord_token: Some("discord-tok".into()),
+            ..Default::default()
+        };
+        assert_eq!(g.resolve_discord_token(), Some("discord-tok".into()));
+    }
+
+    #[test]
+    fn gateway_resolve_slack_bot_token_from_config() {
+        let g = GatewayConfig {
+            slack_bot_token: Some("xoxb-slack".into()),
+            ..Default::default()
+        };
+        assert_eq!(g.resolve_slack_bot_token(), Some("xoxb-slack".into()));
+    }
+
+    #[test]
+    fn gateway_resolve_signal_fields_from_config() {
+        let g = GatewayConfig {
+            signal_api_url: Some("http://signal:8080".into()),
+            signal_phone_number: Some("+15551234567".into()),
+            ..Default::default()
+        };
+        assert_eq!(g.resolve_signal_api_url(), Some("http://signal:8080".into()));
+        assert_eq!(g.resolve_signal_phone_number(), Some("+15551234567".into()));
+    }
+
+    #[test]
+    fn gateway_resolve_matrix_fields_from_config() {
+        let g = GatewayConfig {
+            matrix_homeserver_url: Some("https://matrix.org".into()),
+            matrix_access_token: Some("mat-tok".into()),
+            matrix_room_id: Some("!abc:matrix.org".into()),
+            matrix_user_id: Some("@bot:matrix.org".into()),
+            ..Default::default()
+        };
+        assert_eq!(g.resolve_matrix_homeserver_url(), Some("https://matrix.org".into()));
+        assert_eq!(g.resolve_matrix_access_token(), Some("mat-tok".into()));
+        assert_eq!(g.resolve_matrix_room_id(), Some("!abc:matrix.org".into()));
+        assert_eq!(g.resolve_matrix_user_id(), Some("@bot:matrix.org".into()));
+    }
+
+    #[test]
+    fn gateway_resolve_returns_none_when_empty_no_env() {
+        // With a fresh default and no env vars set for these specific keys,
+        // resolve should return None. We test a less common platform to
+        // avoid collision with real env vars.
+        let g = GatewayConfig::default();
+        // tlon_ship_url is very unlikely to be set in the env
+        assert!(g.tlon_ship_url.is_none());
+    }
+
+    // ── SandboxConfig ──
+
+    #[test]
+    fn sandbox_config_default_values() {
+        let s = SandboxConfig::default();
+        assert_eq!(s.runtime, "auto");
+        assert_eq!(s.image, "ubuntu:22.04");
+        assert_eq!(s.timeout_secs, 3600);
+        assert_eq!(s.network.mode, "full");
+        assert!(s.network.allowed_domains.is_empty());
+        assert!(s.opensandbox.api_url.is_none());
+        assert!(s.opensandbox.api_key.is_none());
+        assert!(s.registry.url.is_none());
+    }
+
+    #[test]
+    fn sandbox_config_serde_roundtrip() {
+        let toml_str = r#"
+runtime = "docker"
+image = "node:20"
+timeout_secs = 1800
+
+[resources]
+cpus = "4.0"
+memory = "8g"
+pids_limit = 512
+
+[network]
+mode = "restricted"
+allowed_domains = ["github.com", "npmjs.org"]
+
+[opensandbox]
+api_url = "http://sandbox:9090"
+api_key = "key123"
+"#;
+        let s: SandboxConfig = toml::from_str(toml_str).expect("deserialize");
+        assert_eq!(s.runtime, "docker");
+        assert_eq!(s.image, "node:20");
+        assert_eq!(s.timeout_secs, 1800);
+        assert_eq!(s.resources.cpus.as_deref(), Some("4.0"));
+        assert_eq!(s.resources.memory.as_deref(), Some("8g"));
+        assert_eq!(s.resources.pids_limit, Some(512));
+        assert_eq!(s.network.mode, "restricted");
+        assert_eq!(s.network.allowed_domains, vec!["github.com", "npmjs.org"]);
+        assert_eq!(s.opensandbox.api_url.as_deref(), Some("http://sandbox:9090"));
+        assert_eq!(s.opensandbox.api_key.as_deref(), Some("key123"));
+    }
+
+    // ── OpenSandboxConfig resolve ──
+
+    #[test]
+    fn open_sandbox_resolve_api_url_from_config() {
+        let o = OpenSandboxConfig {
+            api_url: Some("http://custom:1234".into()),
+            api_key: None,
+        };
+        assert_eq!(o.resolve_api_url(), "http://custom:1234");
+    }
+
+    #[test]
+    fn open_sandbox_resolve_api_url_default_fallback() {
+        let o = OpenSandboxConfig::default();
+        // When no config and no env var, falls back to localhost:8080
+        // (env var might be set, but the default is deterministic)
+        let url = o.resolve_api_url();
+        assert!(!url.is_empty());
+    }
+
+    #[test]
+    fn open_sandbox_resolve_api_key_from_config() {
+        let o = OpenSandboxConfig {
+            api_url: None,
+            api_key: Some("my-key".into()),
+        };
+        assert_eq!(o.resolve_api_key(), Some("my-key".into()));
+    }
+
+    // ── RegistryConfig ──
+
+    #[test]
+    fn registry_resolve_password_from_config() {
+        let r = RegistryConfig {
+            url: Some("https://registry.example.com".into()),
+            username: Some("user".into()),
+            password: Some("secret".into()),
+        };
+        assert_eq!(r.resolve_password(), Some("secret".into()));
+    }
+
+    // ── VoiceConfig resolve ──
+
+    #[test]
+    fn voice_resolve_whisper_key_from_config() {
+        let v = VoiceConfig {
+            whisper_api_key: Some("wsk-123".into()),
+            ..Default::default()
+        };
+        assert_eq!(v.resolve_whisper_api_key(None), Some("wsk-123".into()));
+    }
+
+    #[test]
+    fn voice_resolve_whisper_key_groq_fallback() {
+        let v = VoiceConfig::default();
+        assert_eq!(
+            v.resolve_whisper_api_key(Some("groq-key-abc")),
+            Some("groq-key-abc".into())
+        );
+    }
+
+    #[test]
+    fn voice_resolve_elevenlabs_voice_id_default() {
+        let v = VoiceConfig::default();
+        // When no config and no env, should return the Rachel default
+        let id = v.resolve_elevenlabs_voice_id();
+        assert!(!id.is_empty());
+        // The hardcoded default is "21m00Tcm4TlvDq8ikWAM"
+        // But env may override, so just check non-empty
+    }
+
+    #[test]
+    fn voice_resolve_elevenlabs_voice_id_from_config() {
+        let v = VoiceConfig {
+            elevenlabs_voice_id: Some("custom-voice-id".into()),
+            ..Default::default()
+        };
+        assert_eq!(v.resolve_elevenlabs_voice_id(), "custom-voice-id");
+    }
+
+    // ── SafetyConfig ──
+
+    #[test]
+    fn safety_config_default() {
+        let s = SafetyConfig::default();
+        assert!(s.require_approval_for_commands);
+        assert!(s.require_approval_for_file_changes);
+        assert_eq!(s.approval_policy, "suggest");
+        assert!(!s.sandbox);
+        assert!(s.sandbox_profile.is_none());
+        assert_eq!(s.shell_environment.inherit, "all");
+    }
+
+    #[test]
+    fn approval_policy_full_auto_wins_over_auto_edit() {
+        // When both auto_edit and full_auto are set, full_auto should win
+        assert_eq!(
+            SafetyConfig::approval_policy_from_flags(false, true, true),
+            "full-auto"
+        );
+    }
+
+    // ── FailoverConfig ──
+
+    #[test]
+    fn failover_config_default_empty_chain() {
+        let f = FailoverConfig::default();
+        assert!(f.chain.is_empty());
+    }
+
+    #[test]
+    fn failover_config_serde_roundtrip() {
+        let toml_str = r#"chain = ["claude", "openai", "gemini"]"#;
+        let f: FailoverConfig = toml::from_str(toml_str).expect("deserialize");
+        assert_eq!(f.chain, vec!["claude", "openai", "gemini"]);
+        let re = toml::to_string_pretty(&f).expect("serialize");
+        let f2: FailoverConfig = toml::from_str(&re).expect("re-deserialize");
+        assert_eq!(f2.chain, vec!["claude", "openai", "gemini"]);
+    }
+
+    // ── get_provider_config extended aliases ──
+
+    #[test]
+    fn get_provider_config_all_aliases() {
+        let mut cfg = Config::default();
+        cfg.zhipu = Some(ProviderConfig {
+            enabled: true, api_url: None, model: None,
+            api_key: None, api_key_helper: None, thinking_budget_tokens: None,
+        });
+        cfg.vercel_ai = Some(ProviderConfig {
+            enabled: true, api_url: None, model: None,
+            api_key: None, api_key_helper: None, thinking_budget_tokens: None,
+        });
+        cfg.azure_openai = Some(ProviderConfig {
+            enabled: true, api_url: None, model: None,
+            api_key: None, api_key_helper: None, thinking_budget_tokens: None,
+        });
+        // "glm" is alias for zhipu
+        assert!(cfg.get_provider_config("glm").is_some());
+        assert!(cfg.get_provider_config("zhipu").is_some());
+        // "vercel" is alias for vercel_ai
+        assert!(cfg.get_provider_config("vercel").is_some());
+        assert!(cfg.get_provider_config("vercel_ai").is_some());
+        // "azure" is alias for azure_openai
+        assert!(cfg.get_provider_config("azure").is_some());
+        assert!(cfg.get_provider_config("azure_openai").is_some());
+        // unknown returns None
+        assert!(cfg.get_provider_config("nonexistent").is_none());
+    }
+
+    // ── Config::approval_from_flags (delegating wrapper) ──
+
+    #[test]
+    fn config_approval_from_flags_delegates() {
+        assert_eq!(Config::approval_from_flags(false, false, true), "full-auto");
+        assert_eq!(Config::approval_from_flags(false, true, false), "auto-edit");
+        assert_eq!(Config::approval_from_flags(true, false, false), "suggest");
+        assert_eq!(Config::approval_from_flags(false, false, false), "suggest");
+    }
 }

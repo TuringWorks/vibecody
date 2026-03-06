@@ -1510,4 +1510,233 @@ mod tests {
         let ts = rl.timestamps.lock().unwrap();
         assert!(ts.is_empty());
     }
+
+    #[test]
+    fn rate_limiter_zero_limit_always_blocks() {
+        let rl = RateLimiter::new(0, Duration::from_secs(60));
+        assert!(!rl.check(), "zero-limit limiter should always block");
+        assert!(!rl.check());
+    }
+
+    #[test]
+    fn rate_limiter_limit_one() {
+        let rl = RateLimiter::new(1, Duration::from_secs(60));
+        assert!(rl.check(), "first request should pass");
+        assert!(!rl.check(), "second request should be blocked");
+    }
+
+    #[test]
+    fn rate_limiter_expired_entries_are_pruned() {
+        // Use a very short window so entries expire immediately
+        let rl = RateLimiter::new(2, Duration::from_millis(1));
+        assert!(rl.check());
+        assert!(rl.check());
+        // Both slots consumed; sleep to let them expire
+        std::thread::sleep(Duration::from_millis(5));
+        // After expiry, the window should have room again
+        assert!(rl.check(), "should allow after old entries expire");
+    }
+
+    #[test]
+    fn rate_limiter_large_window() {
+        let rl = RateLimiter::new(3, Duration::from_secs(3600));
+        assert_eq!(rl.window_ms, 3_600_000);
+        assert!(rl.check());
+        assert!(rl.check());
+        assert!(rl.check());
+        assert!(!rl.check());
+    }
+
+    // ── AgentEventPayload JSON structure ─────────────────────────────────
+
+    #[test]
+    fn agent_event_payload_chunk_json_has_type_field() {
+        let p = AgentEventPayload::chunk("text".to_string());
+        let json = serde_json::to_value(&p).unwrap();
+        // The field is renamed to "type" in JSON
+        assert_eq!(json["type"], "chunk");
+        assert_eq!(json["content"], "text");
+        assert!(json.get("step_num").unwrap().is_null());
+        assert!(json.get("tool_name").unwrap().is_null());
+        assert!(json.get("success").unwrap().is_null());
+    }
+
+    #[test]
+    fn agent_event_payload_step_json_structure() {
+        let p = AgentEventPayload::step(1, "bash", true);
+        let json = serde_json::to_value(&p).unwrap();
+        assert_eq!(json["type"], "step");
+        assert_eq!(json["step_num"], 1);
+        assert_eq!(json["tool_name"], "bash");
+        assert_eq!(json["success"], true);
+        assert!(json.get("content").unwrap().is_null());
+    }
+
+    #[test]
+    fn agent_event_payload_complete_json_structure() {
+        let p = AgentEventPayload::complete("summary".to_string());
+        let json = serde_json::to_value(&p).unwrap();
+        assert_eq!(json["type"], "complete");
+        assert_eq!(json["content"], "summary");
+    }
+
+    #[test]
+    fn agent_event_payload_error_json_structure() {
+        let p = AgentEventPayload::error("fail".to_string());
+        let json = serde_json::to_value(&p).unwrap();
+        assert_eq!(json["type"], "error");
+        assert_eq!(json["content"], "fail");
+    }
+
+    #[test]
+    fn agent_event_payload_chunk_empty_string() {
+        let p = AgentEventPayload::chunk(String::new());
+        assert_eq!(p.kind, "chunk");
+        assert_eq!(p.content.as_deref(), Some(""));
+    }
+
+    #[test]
+    fn agent_event_payload_step_zero() {
+        let p = AgentEventPayload::step(0, "", false);
+        assert_eq!(p.step_num, Some(0));
+        assert_eq!(p.tool_name.as_deref(), Some(""));
+        assert_eq!(p.success, Some(false));
+    }
+
+    // ── JobRecord edge cases ────────────────────────────────────────────
+
+    #[test]
+    fn job_record_all_statuses_roundtrip() {
+        for status in &["running", "complete", "failed", "cancelled"] {
+            let job = JobRecord {
+                session_id: format!("s-{status}"),
+                task: "t".to_string(),
+                status: status.to_string(),
+                provider: "p".to_string(),
+                started_at: 100,
+                finished_at: None,
+                summary: None,
+            };
+            let json = serde_json::to_string(&job).unwrap();
+            let parsed: JobRecord = serde_json::from_str(&json).unwrap();
+            assert_eq!(parsed.status, *status);
+        }
+    }
+
+    #[test]
+    fn job_record_json_field_names() {
+        let job = make_job("field-test", 42);
+        let json = serde_json::to_value(&job).unwrap();
+        assert!(json.get("session_id").is_some());
+        assert!(json.get("task").is_some());
+        assert!(json.get("status").is_some());
+        assert!(json.get("provider").is_some());
+        assert!(json.get("started_at").is_some());
+        assert!(json.get("finished_at").is_some());
+        assert!(json.get("summary").is_some());
+        // Should have exactly 7 fields
+        assert_eq!(json.as_object().unwrap().len(), 7);
+    }
+
+    #[test]
+    fn load_all_jobs_ignores_malformed_json() {
+        let dir = tempfile::tempdir().unwrap();
+        persist_job(dir.path(), &make_job("good", 1_000));
+        // Write a malformed JSON file with .json extension
+        std::fs::write(dir.path().join("bad.json"), "not valid json {{{").unwrap();
+        let jobs = load_all_jobs(dir.path());
+        assert_eq!(jobs.len(), 1);
+        assert_eq!(jobs[0].session_id, "good");
+    }
+
+    #[test]
+    fn persist_job_creates_file_on_disk() {
+        let dir = tempfile::tempdir().unwrap();
+        let job = make_job("disk-check", 500);
+        persist_job(dir.path(), &job);
+        let path = dir.path().join("disk-check.json");
+        assert!(path.exists(), "persist_job should create a file");
+        let contents = std::fs::read_to_string(&path).unwrap();
+        assert!(contents.contains("disk-check"));
+        assert!(contents.contains("\"started_at\""));
+    }
+
+    #[test]
+    fn persist_job_writes_pretty_json() {
+        let dir = tempfile::tempdir().unwrap();
+        let job = make_job("pretty", 100);
+        persist_job(dir.path(), &job);
+        let contents = std::fs::read_to_string(dir.path().join("pretty.json")).unwrap();
+        // Pretty JSON should contain newlines and indentation
+        assert!(contents.contains('\n'), "should be pretty-printed");
+        assert!(contents.contains("  "), "should have indentation");
+    }
+
+    // ── AgentStartResponse serde ────────────────────────────────────────
+
+    #[test]
+    fn agent_start_response_serializes() {
+        let resp = AgentStartResponse {
+            session_id: "abc-123".to_string(),
+        };
+        let json = serde_json::to_value(&resp).unwrap();
+        assert_eq!(json["session_id"], "abc-123");
+        assert_eq!(json.as_object().unwrap().len(), 1);
+    }
+
+    // ── ChatResponse serde ──────────────────────────────────────────────
+
+    #[test]
+    fn chat_response_serializes() {
+        let resp = ChatResponse {
+            content: "Hello!".to_string(),
+        };
+        let json = serde_json::to_value(&resp).unwrap();
+        assert_eq!(json["content"], "Hello!");
+    }
+
+    // ── RoomInfo / CreateRoomRequest serde ───────────────────────────────
+
+    #[test]
+    fn room_info_serializes() {
+        let info = RoomInfo {
+            room_id: "room-42".to_string(),
+            peer_count: 3,
+        };
+        let json = serde_json::to_value(&info).unwrap();
+        assert_eq!(json["room_id"], "room-42");
+        assert_eq!(json["peer_count"], 3);
+    }
+
+    #[test]
+    fn create_room_request_with_room_id() {
+        let json = r#"{"room_id":"my-room"}"#;
+        let req: CreateRoomRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.room_id.as_deref(), Some("my-room"));
+    }
+
+    #[test]
+    fn create_room_request_without_room_id() {
+        let json = r#"{}"#;
+        let req: CreateRoomRequest = serde_json::from_str(json).unwrap();
+        assert!(req.room_id.is_none());
+    }
+
+    // ── ChatRequest with multiple messages ──────────────────────────────
+
+    #[test]
+    fn chat_request_multiple_messages() {
+        let json = r#"{"messages":[
+            {"role":"system","content":"You are helpful."},
+            {"role":"user","content":"Hi"},
+            {"role":"assistant","content":"Hello!"},
+            {"role":"user","content":"Bye"}
+        ]}"#;
+        let req: ChatRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.messages.len(), 4);
+        assert_eq!(req.messages[0].role, "system");
+        assert_eq!(req.messages[1].role, "user");
+        assert_eq!(req.messages[2].role, "assistant");
+        assert_eq!(req.messages[3].content, "Bye");
+    }
 }
