@@ -389,6 +389,66 @@ mod tests {
     }
 
     #[test]
+    fn redact_groq_key() {
+        let input = "Sending request with gsk_abc123DEF456ghi789jklmno to Groq API";
+        let result = redact_secrets(input);
+        assert!(!result.contains("gsk_abc123"), "Groq key should be redacted");
+        assert!(result.contains("[REDACTED_GROQ_KEY]"));
+    }
+
+    #[test]
+    fn redact_grok_xai_key() {
+        let input = "Using xai-abcdefghij1234567890klmnopqrst for Grok API";
+        let result = redact_secrets(input);
+        assert!(!result.contains("xai-abcdefghij"), "Grok/xAI key should be redacted");
+        assert!(result.contains("[REDACTED_GROK_KEY]"));
+    }
+
+    #[test]
+    fn redact_pem_private_key() {
+        let input = "Config:\n-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEA0Z3VS5JJcds3xfn/ygWyF...\nmore key data here\n-----END RSA PRIVATE KEY-----\nDone.";
+        let result = redact_secrets(input);
+        assert!(!result.contains("MIIEpAIBAAKCAQEA0Z3VS5JJcds3xfn"), "PEM private key body should be redacted");
+        assert!(result.contains("-----BEGIN RSA PRIVATE KEY-----"));
+        assert!(result.contains("-----END RSA PRIVATE KEY-----"));
+        assert!(result.contains("[REDACTED]"));
+    }
+
+    #[test]
+    fn redact_aws_secret_access_key_config_line() {
+        let input = "aws_secret_access_key = wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY";
+        let result = redact_secrets(input);
+        assert!(!result.contains("wJalrXUtnFEMI"), "AWS secret key value should be redacted");
+        assert!(result.contains("aws_secret_access_key = [REDACTED]"));
+    }
+
+    #[test]
+    fn redact_multiple_different_secrets() {
+        let input = concat!(
+            "openai=sk-proj_abcdefghij1234567890 ",
+            "github=ghp_xyzABCDEFGHIJ1234567890abcdef ",
+            "groq=gsk_abc123DEF456ghi789jklmno ",
+            "grok=xai-abcdefghij1234567890klmnopqrst"
+        );
+        let result = redact_secrets(input);
+        assert!(result.contains("[REDACTED_API_KEY]"), "OpenAI key should be redacted");
+        assert!(result.contains("[REDACTED_GITHUB_TOKEN]"), "GitHub token should be redacted");
+        assert!(result.contains("[REDACTED_GROQ_KEY]"), "Groq key should be redacted");
+        assert!(result.contains("[REDACTED_GROK_KEY]"), "Grok key should be redacted");
+        assert!(!result.contains("sk-proj_"), "raw OpenAI key must not survive");
+        assert!(!result.contains("ghp_xyz"), "raw GitHub token must not survive");
+        assert!(!result.contains("gsk_abc"), "raw Groq key must not survive");
+        assert!(!result.contains("xai-abc"), "raw Grok key must not survive");
+    }
+
+    #[test]
+    fn clean_text_unchanged() {
+        let input = "Running cargo build --release in /home/user/project. Status: OK. 42 tests passed.";
+        let result = redact_secrets(input);
+        assert_eq!(input, result, "Text with no secrets should be returned unchanged");
+    }
+
+    #[test]
     fn empty_dir_returns_empty() {
         let dir = temp_dir().join(format!("vibe_trace_empty_{}", now_secs()));
         let sessions = list_traces(&dir);

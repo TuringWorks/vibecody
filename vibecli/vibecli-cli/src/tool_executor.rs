@@ -1143,4 +1143,179 @@ mod tests {
 
         let _ = std::fs::remove_dir_all(&tmp);
     }
+
+    // ── var_matches_pattern tests ────────────────────────────────────────────
+
+    #[test]
+    fn var_matches_pattern_prefix_wildcard() {
+        // `AWS_*` should match any variable starting with `AWS_`
+        assert!(var_matches_pattern("AWS_SECRET", "AWS_*"));
+        assert!(var_matches_pattern("AWS_ACCESS_KEY_ID", "AWS_*"));
+        assert!(var_matches_pattern("AWS_", "AWS_*")); // exact prefix, no suffix chars
+    }
+
+    #[test]
+    fn var_matches_pattern_suffix_wildcard() {
+        // `*_KEY` should match any variable ending with `_KEY`
+        assert!(var_matches_pattern("API_KEY", "*_KEY"));
+        assert!(var_matches_pattern("SECRET_KEY", "*_KEY"));
+        assert!(var_matches_pattern("_KEY", "*_KEY")); // just the suffix
+    }
+
+    #[test]
+    fn var_matches_pattern_exact_match() {
+        assert!(var_matches_pattern("HOME", "HOME"));
+        assert!(var_matches_pattern("PATH", "PATH"));
+    }
+
+    #[test]
+    fn var_matches_pattern_no_match() {
+        assert!(!var_matches_pattern("HOME", "PATH"));
+        assert!(!var_matches_pattern("AWS_SECRET", "*_KEY"));
+        assert!(!var_matches_pattern("MY_VAR", "AWS_*"));
+    }
+
+    #[test]
+    fn var_matches_pattern_star_matches_everything() {
+        // A bare `*` has both starts_with('*') and ends_with('*'), so the
+        // function takes the ends_with branch first: pattern = `*`, trimmed
+        // prefix is `""`, and `var.starts_with("")` is always true.
+        assert!(var_matches_pattern("ANYTHING", "*"));
+        assert!(var_matches_pattern("", "*"));
+        assert!(var_matches_pattern("AWS_SECRET_KEY", "*"));
+    }
+
+    // ── glob_match tests ─────────────────────────────────────────────────────
+
+    #[test]
+    fn glob_match_star_matches_everything() {
+        assert!(glob_match("*", "foo.rs"));
+        assert!(glob_match("*", "anything"));
+        assert!(glob_match("*", ""));
+    }
+
+    #[test]
+    fn glob_match_extension_rs() {
+        assert!(glob_match("*.rs", "foo.rs"));
+        assert!(glob_match("*.rs", "my_module.rs"));
+        assert!(glob_match("*.rs", ".rs")); // just the extension
+    }
+
+    #[test]
+    fn glob_match_extension_tsx_does_not_match_rs() {
+        assert!(!glob_match("*.tsx", "foo.rs"));
+        assert!(!glob_match("*.tsx", "component.ts")); // ts != tsx
+    }
+
+    #[test]
+    fn glob_match_exact_name() {
+        assert!(glob_match("Cargo.toml", "Cargo.toml"));
+        assert!(!glob_match("Cargo.toml", "package.json"));
+    }
+
+    #[test]
+    fn glob_match_star_dot_edge_case() {
+        // `*.` — strip_prefix("*.") yields "", so we check name.ends_with(".")
+        assert!(glob_match("*.", "trailing."));
+        assert!(!glob_match("*.", "no_trailing_dot"));
+    }
+
+    // ── parse_hunk_start tests ───────────────────────────────────────────────
+
+    #[test]
+    fn parse_hunk_start_minus_sign() {
+        // Standard unified diff header
+        let line = "@@ -1,3 +1,4 @@";
+        let start = parse_hunk_start(line, '-').unwrap();
+        assert_eq!(start, 1);
+    }
+
+    #[test]
+    fn parse_hunk_start_plus_sign() {
+        let line = "@@ -1,3 +1,4 @@";
+        let start = parse_hunk_start(line, '+').unwrap();
+        assert_eq!(start, 1);
+    }
+
+    #[test]
+    fn parse_hunk_start_larger_line_numbers() {
+        let line = "@@ -42,10 +57,12 @@";
+        assert_eq!(parse_hunk_start(line, '-').unwrap(), 42);
+        assert_eq!(parse_hunk_start(line, '+').unwrap(), 57);
+    }
+
+    #[test]
+    fn parse_hunk_start_missing_comma() {
+        // Some diffs omit the count when it's 1: `@@ -10 +10 @@`
+        let line = "@@ -10 +10 @@";
+        assert_eq!(parse_hunk_start(line, '-').unwrap(), 10);
+        assert_eq!(parse_hunk_start(line, '+').unwrap(), 10);
+    }
+
+    #[test]
+    fn parse_hunk_start_malformed_header() {
+        // No `-` or `+` token present — function returns Ok(1) as fallback
+        let line = "@@ some garbage @@";
+        assert_eq!(parse_hunk_start(line, '-').unwrap(), 1);
+        assert_eq!(parse_hunk_start(line, '+').unwrap(), 1);
+    }
+
+    // ── decode_html_entities additional tests ────────────────────────────────
+
+    #[test]
+    fn decode_html_entities_multiple_in_sequence() {
+        // Multiple entities interspersed with regular text
+        let input = "a &amp; b &lt; c &gt; d";
+        assert_eq!(decode_html_entities(input), "a & b < c > d");
+    }
+
+    #[test]
+    fn decode_html_entities_entity_at_end_of_string() {
+        let input = "trailing ampersand &amp;";
+        assert_eq!(decode_html_entities(input), "trailing ampersand &");
+
+        let input2 = "quote at end &quot;";
+        assert_eq!(decode_html_entities(input2), "quote at end \"");
+    }
+
+    #[test]
+    fn decode_html_entities_no_entities_passthrough() {
+        // Plain text with no `&` at all should pass through unchanged
+        let input = "Hello, world! Nothing special here.";
+        assert_eq!(decode_html_entities(input), input);
+    }
+
+    #[test]
+    fn decode_html_entities_all_six_types_individually() {
+        assert_eq!(decode_html_entities("&amp;"), "&");
+        assert_eq!(decode_html_entities("&lt;"), "<");
+        assert_eq!(decode_html_entities("&gt;"), ">");
+        assert_eq!(decode_html_entities("&quot;"), "\"");
+        assert_eq!(decode_html_entities("&#39;"), "'");
+        assert_eq!(decode_html_entities("&nbsp;"), " ");
+    }
+
+    #[test]
+    fn decode_html_entities_mixed_known_and_unknown() {
+        // Unknown entity `&foo;` should have its `&` emitted literally,
+        // while known `&amp;` should decode.
+        let input = "&foo; &amp; &bar;";
+        let out = decode_html_entities(input);
+        assert!(out.contains("& "), "known &amp; should become &");
+        // The unknown `&foo;` — the `&` is emitted literally, then `foo;`
+        // follows as-is.
+        assert!(out.contains("&foo;"));
+    }
+
+    #[test]
+    fn decode_html_entities_consecutive_entities() {
+        // Back-to-back entities with no separating text
+        let input = "&lt;&gt;&amp;";
+        assert_eq!(decode_html_entities(input), "<>&");
+    }
+
+    #[test]
+    fn decode_html_entities_empty_string() {
+        assert_eq!(decode_html_entities(""), "");
+    }
 }

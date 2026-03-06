@@ -148,4 +148,181 @@ mod tests {
         let p = FailoverProvider { chain: vec![], name: name.to_string() };
         assert_eq!(p.name(), "Failover(A -> B -> C)");
     }
+
+    // ── name formatting with real providers ──────────────────────────────
+
+    /// A minimal mock provider for testing name generation.
+    struct MockProvider {
+        mock_name: String,
+    }
+
+    impl MockProvider {
+        fn new(name: &str) -> Self {
+            Self { mock_name: name.to_string() }
+        }
+    }
+
+    #[async_trait]
+    impl AIProvider for MockProvider {
+        fn name(&self) -> &str { &self.mock_name }
+        async fn is_available(&self) -> bool { false }
+        async fn complete(&self, _ctx: &CodeContext) -> Result<CompletionResponse> {
+            anyhow::bail!("mock")
+        }
+        async fn stream_complete(&self, _ctx: &CodeContext) -> Result<CompletionStream> {
+            anyhow::bail!("mock")
+        }
+        async fn chat(&self, _msgs: &[Message], _ctx: Option<String>) -> Result<String> {
+            anyhow::bail!("mock")
+        }
+        async fn stream_chat(&self, _msgs: &[Message]) -> Result<CompletionStream> {
+            anyhow::bail!("mock")
+        }
+    }
+
+    #[test]
+    fn name_with_single_provider() {
+        let chain: Vec<Arc<dyn AIProvider>> = vec![
+            Arc::new(MockProvider::new("Claude")),
+        ];
+        let p = FailoverProvider::new(chain);
+        assert_eq!(p.name(), "Failover(Claude)");
+    }
+
+    #[test]
+    fn name_with_two_providers() {
+        let chain: Vec<Arc<dyn AIProvider>> = vec![
+            Arc::new(MockProvider::new("Claude")),
+            Arc::new(MockProvider::new("Ollama")),
+        ];
+        let p = FailoverProvider::new(chain);
+        assert_eq!(p.name(), "Failover(Claude -> Ollama)");
+    }
+
+    #[test]
+    fn name_with_three_providers() {
+        let chain: Vec<Arc<dyn AIProvider>> = vec![
+            Arc::new(MockProvider::new("OpenAI")),
+            Arc::new(MockProvider::new("Groq")),
+            Arc::new(MockProvider::new("Grok")),
+        ];
+        let p = FailoverProvider::new(chain);
+        assert_eq!(p.name(), "Failover(OpenAI -> Groq -> Grok)");
+    }
+
+    // ── empty chain error behavior ───────────────────────────────────────
+
+    #[tokio::test]
+    async fn empty_chain_complete_errors() {
+        let p = FailoverProvider::new(vec![]);
+        let ctx = CodeContext {
+            language: "rust".into(),
+            file_path: None,
+            prefix: "".into(),
+            suffix: "".into(),
+            additional_context: vec![],
+        };
+        let result = p.complete(&ctx).await;
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(err_msg.contains("No providers"), "expected 'No providers' error, got: {}", err_msg);
+    }
+
+    #[tokio::test]
+    async fn empty_chain_chat_errors() {
+        let p = FailoverProvider::new(vec![]);
+        let msgs = vec![Message {
+            role: crate::provider::MessageRole::User,
+            content: "hello".into(),
+        }];
+        let result = p.chat(&msgs, None).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("No providers"));
+    }
+
+    #[tokio::test]
+    async fn empty_chain_stream_complete_errors() {
+        let p = FailoverProvider::new(vec![]);
+        let ctx = CodeContext {
+            language: "py".into(),
+            file_path: None,
+            prefix: "".into(),
+            suffix: "".into(),
+            additional_context: vec![],
+        };
+        assert!(p.stream_complete(&ctx).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn empty_chain_stream_chat_errors() {
+        let p = FailoverProvider::new(vec![]);
+        let msgs = vec![Message {
+            role: crate::provider::MessageRole::User,
+            content: "hi".into(),
+        }];
+        assert!(p.stream_chat(&msgs).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn empty_chain_chat_response_errors() {
+        let p = FailoverProvider::new(vec![]);
+        let msgs = vec![Message {
+            role: crate::provider::MessageRole::User,
+            content: "hi".into(),
+        }];
+        assert!(p.chat_response(&msgs, None).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn empty_chain_chat_with_images_errors() {
+        let p = FailoverProvider::new(vec![]);
+        let msgs = vec![Message {
+            role: crate::provider::MessageRole::User,
+            content: "describe".into(),
+        }];
+        assert!(p.chat_with_images(&msgs, &[], None).await.is_err());
+    }
+
+    // ── is_available with providers ──────────────────────────────────────
+
+    /// A provider that reports as available.
+    struct AvailableProvider;
+
+    #[async_trait]
+    impl AIProvider for AvailableProvider {
+        fn name(&self) -> &str { "Available" }
+        async fn is_available(&self) -> bool { true }
+        async fn complete(&self, _ctx: &CodeContext) -> Result<CompletionResponse> {
+            anyhow::bail!("not implemented")
+        }
+        async fn stream_complete(&self, _ctx: &CodeContext) -> Result<CompletionStream> {
+            anyhow::bail!("not implemented")
+        }
+        async fn chat(&self, _msgs: &[Message], _ctx: Option<String>) -> Result<String> {
+            anyhow::bail!("not implemented")
+        }
+        async fn stream_chat(&self, _msgs: &[Message]) -> Result<CompletionStream> {
+            anyhow::bail!("not implemented")
+        }
+    }
+
+    #[tokio::test]
+    async fn is_available_true_if_any_provider_available() {
+        let chain: Vec<Arc<dyn AIProvider>> = vec![
+            Arc::new(MockProvider::new("Offline")),  // is_available returns false
+            Arc::new(AvailableProvider),               // is_available returns true
+        ];
+        let p = FailoverProvider::new(chain);
+        assert!(p.is_available().await);
+    }
+
+    #[tokio::test]
+    async fn is_available_false_if_all_unavailable() {
+        let chain: Vec<Arc<dyn AIProvider>> = vec![
+            Arc::new(MockProvider::new("A")),
+            Arc::new(MockProvider::new("B")),
+        ];
+        let p = FailoverProvider::new(chain);
+        assert!(!p.is_available().await);
+    }
 }

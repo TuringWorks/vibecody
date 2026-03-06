@@ -310,7 +310,7 @@ mod tests {
     fn test_build_prompt() {
         let config = ProviderConfig::new("ollama".to_string(), "codellama".to_string());
         let provider = OllamaProvider::new(config);
-        
+
         let context = CodeContext {
             language: "rust".to_string(),
             file_path: None,
@@ -318,9 +318,191 @@ mod tests {
             suffix: "\n}".to_string(),
             additional_context: vec![],
         };
-        
+
         let prompt = provider.build_prompt(&context);
         assert!(prompt.contains("rust"));
         assert!(prompt.contains("fn main()"));
+    }
+
+    // ── build_options ────────────────────────────────────────────────────
+
+    #[test]
+    fn build_options_none_when_no_config() {
+        let config = ProviderConfig::new("ollama".to_string(), "codellama".to_string());
+        let provider = OllamaProvider::new(config);
+        assert!(provider.build_options().is_none());
+    }
+
+    #[test]
+    fn build_options_some_when_temperature_set() {
+        let config = ProviderConfig::new("ollama".to_string(), "codellama".to_string())
+            .with_temperature(0.5);
+        let provider = OllamaProvider::new(config);
+        let opts = provider.build_options();
+        assert!(opts.is_some());
+        let opts = opts.unwrap();
+        assert!((opts.temperature.unwrap() - 0.5).abs() < 0.001);
+        assert!(opts.num_predict.is_none());
+    }
+
+    #[test]
+    fn build_options_some_when_max_tokens_set() {
+        let config = ProviderConfig::new("ollama".to_string(), "codellama".to_string())
+            .with_max_tokens(256);
+        let provider = OllamaProvider::new(config);
+        let opts = provider.build_options();
+        assert!(opts.is_some());
+        let opts = opts.unwrap();
+        assert!(opts.temperature.is_none());
+        assert_eq!(opts.num_predict, Some(256));
+    }
+
+    #[test]
+    fn build_options_both_set() {
+        let config = ProviderConfig::new("ollama".to_string(), "codellama".to_string())
+            .with_temperature(0.9)
+            .with_max_tokens(1024);
+        let provider = OllamaProvider::new(config);
+        let opts = provider.build_options().unwrap();
+        assert!((opts.temperature.unwrap() - 0.9).abs() < 0.001);
+        assert_eq!(opts.num_predict, Some(1024));
+    }
+
+    // ── URL normalization in new() ───────────────────────────────────────
+
+    #[test]
+    fn url_default_when_none() {
+        let config = ProviderConfig::new("ollama".to_string(), "codellama".to_string());
+        let provider = OllamaProvider::new(config);
+        assert_eq!(provider.base_url, "http://localhost:11434");
+    }
+
+    #[test]
+    fn url_preserves_http_prefix() {
+        let config = ProviderConfig::new("ollama".to_string(), "codellama".to_string())
+            .with_api_url("http://myhost:11434".to_string());
+        let provider = OllamaProvider::new(config);
+        assert_eq!(provider.base_url, "http://myhost:11434");
+    }
+
+    #[test]
+    fn url_preserves_https_prefix() {
+        let config = ProviderConfig::new("ollama".to_string(), "codellama".to_string())
+            .with_api_url("https://ollama.example.com".to_string());
+        let provider = OllamaProvider::new(config);
+        assert_eq!(provider.base_url, "https://ollama.example.com");
+    }
+
+    #[test]
+    fn url_prepends_http_when_no_scheme() {
+        let config = ProviderConfig::new("ollama".to_string(), "codellama".to_string())
+            .with_api_url("192.168.1.100:11434".to_string());
+        let provider = OllamaProvider::new(config);
+        assert_eq!(provider.base_url, "http://192.168.1.100:11434");
+    }
+
+    #[test]
+    fn url_prepends_http_for_hostname_only() {
+        let config = ProviderConfig::new("ollama".to_string(), "codellama".to_string())
+            .with_api_url("ollama-server".to_string());
+        let provider = OllamaProvider::new(config);
+        assert_eq!(provider.base_url, "http://ollama-server");
+    }
+
+    // ── display name ────────────────────────────────────────────────────
+
+    #[test]
+    fn display_name_includes_model() {
+        let config = ProviderConfig::new("ollama".to_string(), "llama3.1:8b".to_string());
+        let provider = OllamaProvider::new(config);
+        assert_eq!(provider.name(), "Ollama (llama3.1:8b)");
+    }
+
+    // ── request serde with skip_serializing_if ──────────────────────────
+
+    #[test]
+    fn ollama_request_omits_none_options() {
+        let req = OllamaRequest {
+            model: "codellama".to_string(),
+            prompt: "test".to_string(),
+            stream: false,
+            options: None,
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        assert!(!json.contains("options"), "options should be omitted when None");
+        assert!(json.contains("\"model\""));
+        assert!(json.contains("\"prompt\""));
+        assert!(json.contains("\"stream\""));
+    }
+
+    #[test]
+    fn ollama_request_includes_options_when_some() {
+        let req = OllamaRequest {
+            model: "codellama".to_string(),
+            prompt: "test".to_string(),
+            stream: false,
+            options: Some(OllamaOptions {
+                temperature: Some(0.7),
+                num_predict: Some(100),
+            }),
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        assert!(json.contains("\"options\""));
+        assert!(json.contains("\"temperature\""));
+        assert!(json.contains("\"num_predict\""));
+    }
+
+    #[test]
+    fn ollama_options_omits_none_fields() {
+        let opts = OllamaOptions {
+            temperature: None,
+            num_predict: Some(512),
+        };
+        let json = serde_json::to_string(&opts).unwrap();
+        assert!(!json.contains("temperature"), "temperature should be omitted when None");
+        assert!(json.contains("\"num_predict\":512"));
+    }
+
+    #[test]
+    fn ollama_options_omits_both_none_fields() {
+        let opts = OllamaOptions {
+            temperature: None,
+            num_predict: None,
+        };
+        let json = serde_json::to_string(&opts).unwrap();
+        // Should be an empty object
+        assert_eq!(json, "{}");
+    }
+
+    #[test]
+    fn ollama_chat_request_omits_none_options() {
+        let req = OllamaChatRequest {
+            model: "llama3".to_string(),
+            messages: vec![OllamaChatMessage {
+                role: "user".to_string(),
+                content: "hello".to_string(),
+            }],
+            stream: false,
+            options: None,
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        assert!(!json.contains("options"));
+    }
+
+    #[test]
+    fn ollama_response_deser() {
+        let json = r#"{"response":"Hello world","done":true}"#;
+        let resp: OllamaResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.response, "Hello world");
+        assert!(resp.done);
+    }
+
+    #[test]
+    fn ollama_chat_response_deser() {
+        let json = r#"{"message":{"role":"assistant","content":"reply"},"done":true}"#;
+        let resp: OllamaChatResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.message.role, "assistant");
+        assert_eq!(resp.message.content, "reply");
+        assert!(resp.done);
     }
 }

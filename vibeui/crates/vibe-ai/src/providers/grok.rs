@@ -257,4 +257,141 @@ mod tests {
         let resp: GrokResponse = serde_json::from_str(json).unwrap();
         assert_eq!(resp.choices[0].message.content, "hi");
     }
+
+    // ── build_messages: context injection ────────────────────────────────
+
+    #[test]
+    fn build_messages_no_context_passthrough() {
+        let p = GrokProvider::new(test_config());
+        let messages = vec![
+            Message { role: crate::provider::MessageRole::System, content: "sys".into() },
+            Message { role: crate::provider::MessageRole::User, content: "hello".into() },
+        ];
+        let result = p.build_messages(&messages, None);
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].role, "system");
+        assert_eq!(result[0].content, "sys");
+        assert_eq!(result[1].role, "user");
+        assert_eq!(result[1].content, "hello");
+    }
+
+    #[test]
+    fn build_messages_context_appended_to_last_user() {
+        let p = GrokProvider::new(test_config());
+        let messages = vec![
+            Message { role: crate::provider::MessageRole::User, content: "explain this".into() },
+        ];
+        let result = p.build_messages(&messages, Some("fn foo() {}".into()));
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].role, "user");
+        assert!(result[0].content.starts_with("Context:\nfn foo() {}"));
+        assert!(result[0].content.ends_with("User: explain this"));
+    }
+
+    #[test]
+    fn build_messages_context_not_injected_when_last_is_assistant() {
+        let p = GrokProvider::new(test_config());
+        let messages = vec![
+            Message { role: crate::provider::MessageRole::User, content: "hi".into() },
+            Message { role: crate::provider::MessageRole::Assistant, content: "hello".into() },
+        ];
+        let result = p.build_messages(&messages, Some("some context".into()));
+        // Context should NOT be injected because last message role is "assistant"
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[1].role, "assistant");
+        assert_eq!(result[1].content, "hello"); // unchanged
+    }
+
+    #[test]
+    fn build_messages_context_injected_into_correct_last_user() {
+        let p = GrokProvider::new(test_config());
+        let messages = vec![
+            Message { role: crate::provider::MessageRole::System, content: "system prompt".into() },
+            Message { role: crate::provider::MessageRole::User, content: "first question".into() },
+            Message { role: crate::provider::MessageRole::Assistant, content: "first answer".into() },
+            Message { role: crate::provider::MessageRole::User, content: "second question".into() },
+        ];
+        let result = p.build_messages(&messages, Some("ctx data".into()));
+        assert_eq!(result.len(), 4);
+        // First user message should be unchanged
+        assert_eq!(result[1].content, "first question");
+        // Last user message should have context injected
+        assert!(result[3].content.contains("ctx data"));
+        assert!(result[3].content.contains("second question"));
+    }
+
+    #[test]
+    fn build_messages_empty_messages() {
+        let p = GrokProvider::new(test_config());
+        let result = p.build_messages(&[], None);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn build_messages_empty_messages_with_context() {
+        let p = GrokProvider::new(test_config());
+        // Context with no messages — no last_mut to inject into
+        let result = p.build_messages(&[], Some("ctx".into()));
+        assert!(result.is_empty());
+    }
+
+    // ── request serde ────────────────────────────────────────────────────
+
+    #[test]
+    fn grok_request_omits_none_temperature() {
+        let req = GrokRequest {
+            model: "grok-2".into(),
+            messages: vec![GrokMessage { role: "user".into(), content: "hi".into() }],
+            temperature: None,
+            max_tokens: None,
+            stream: false,
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        assert!(!json.contains("temperature"), "temperature should be omitted when None");
+        assert!(!json.contains("max_tokens"), "max_tokens should be omitted when None");
+    }
+
+    #[test]
+    fn grok_request_includes_temperature_when_set() {
+        let req = GrokRequest {
+            model: "grok-2".into(),
+            messages: vec![],
+            temperature: Some(0.3),
+            max_tokens: Some(2048),
+            stream: false,
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        assert!(json.contains("\"temperature\""));
+        assert!(json.contains("\"max_tokens\""));
+    }
+
+    #[test]
+    fn grok_stream_response_deser() {
+        let json = r#"{"choices":[{"delta":{"content":"tok"}}]}"#;
+        let resp: GrokStreamResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.choices[0].delta.content.as_deref(), Some("tok"));
+    }
+
+    #[test]
+    fn grok_stream_response_deser_null_content() {
+        let json = r#"{"choices":[{"delta":{}}]}"#;
+        let resp: GrokStreamResponse = serde_json::from_str(json).unwrap();
+        assert!(resp.choices[0].delta.content.is_none());
+    }
+
+    // ── role mapping ─────────────────────────────────────────────────────
+
+    #[test]
+    fn build_messages_maps_roles_correctly() {
+        let p = GrokProvider::new(test_config());
+        let messages = vec![
+            Message { role: crate::provider::MessageRole::System, content: "s".into() },
+            Message { role: crate::provider::MessageRole::User, content: "u".into() },
+            Message { role: crate::provider::MessageRole::Assistant, content: "a".into() },
+        ];
+        let result = p.build_messages(&messages, None);
+        assert_eq!(result[0].role, "system");
+        assert_eq!(result[1].role, "user");
+        assert_eq!(result[2].role, "assistant");
+    }
 }

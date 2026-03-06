@@ -251,4 +251,164 @@ mod tests {
         assert_eq!(resp.choices[0].message.content, "fast");
         assert_eq!(resp.usage.unwrap().completion_tokens, 1);
     }
+
+    // ── build_messages: context injection ────────────────────────────────
+
+    #[test]
+    fn build_messages_no_context_passthrough() {
+        let p = GroqProvider::new(test_config());
+        let messages = vec![
+            Message { role: crate::provider::MessageRole::System, content: "sys".into() },
+            Message { role: crate::provider::MessageRole::User, content: "hello".into() },
+        ];
+        let result = p.build_messages(&messages, None);
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].role, "system");
+        assert_eq!(result[0].content, "sys");
+        assert_eq!(result[1].role, "user");
+        assert_eq!(result[1].content, "hello");
+    }
+
+    #[test]
+    fn build_messages_context_appended_to_last_user() {
+        let p = GroqProvider::new(test_config());
+        let messages = vec![
+            Message { role: crate::provider::MessageRole::User, content: "explain this".into() },
+        ];
+        let result = p.build_messages(&messages, Some("fn bar() {}".into()));
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].role, "user");
+        assert!(result[0].content.starts_with("Context:\nfn bar() {}"));
+        assert!(result[0].content.ends_with("User: explain this"));
+    }
+
+    #[test]
+    fn build_messages_context_not_injected_when_last_is_assistant() {
+        let p = GroqProvider::new(test_config());
+        let messages = vec![
+            Message { role: crate::provider::MessageRole::User, content: "hi".into() },
+            Message { role: crate::provider::MessageRole::Assistant, content: "hello back".into() },
+        ];
+        let result = p.build_messages(&messages, Some("some context".into()));
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[1].role, "assistant");
+        assert_eq!(result[1].content, "hello back"); // unchanged
+    }
+
+    #[test]
+    fn build_messages_context_injected_into_last_user_in_multi_turn() {
+        let p = GroqProvider::new(test_config());
+        let messages = vec![
+            Message { role: crate::provider::MessageRole::System, content: "prompt".into() },
+            Message { role: crate::provider::MessageRole::User, content: "q1".into() },
+            Message { role: crate::provider::MessageRole::Assistant, content: "a1".into() },
+            Message { role: crate::provider::MessageRole::User, content: "q2".into() },
+        ];
+        let result = p.build_messages(&messages, Some("ctx".into()));
+        assert_eq!(result.len(), 4);
+        // First user message untouched
+        assert_eq!(result[1].content, "q1");
+        // Last user message has context injected
+        assert!(result[3].content.contains("ctx"));
+        assert!(result[3].content.contains("q2"));
+    }
+
+    #[test]
+    fn build_messages_empty_messages() {
+        let p = GroqProvider::new(test_config());
+        let result = p.build_messages(&[], None);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn build_messages_empty_messages_with_context() {
+        let p = GroqProvider::new(test_config());
+        let result = p.build_messages(&[], Some("ctx".into()));
+        assert!(result.is_empty());
+    }
+
+    // ── role mapping ─────────────────────────────────────────────────────
+
+    #[test]
+    fn build_messages_maps_roles_correctly() {
+        let p = GroqProvider::new(test_config());
+        let messages = vec![
+            Message { role: crate::provider::MessageRole::System, content: "s".into() },
+            Message { role: crate::provider::MessageRole::User, content: "u".into() },
+            Message { role: crate::provider::MessageRole::Assistant, content: "a".into() },
+        ];
+        let result = p.build_messages(&messages, None);
+        assert_eq!(result[0].role, "system");
+        assert_eq!(result[1].role, "user");
+        assert_eq!(result[2].role, "assistant");
+    }
+
+    // ── base_url ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn base_url_default() {
+        let p = GroqProvider::new(test_config());
+        assert_eq!(p.base_url(), "https://api.groq.com/openai/v1");
+    }
+
+    #[test]
+    fn base_url_custom() {
+        let mut cfg = test_config();
+        cfg.api_url = Some("https://custom.groq.proxy/v1".into());
+        let p = GroqProvider::new(cfg);
+        assert_eq!(p.base_url(), "https://custom.groq.proxy/v1");
+    }
+
+    // ── request serde ────────────────────────────────────────────────────
+
+    #[test]
+    fn groq_request_omits_none_fields() {
+        let req = GroqRequest {
+            model: "llama-3.3-70b-versatile".into(),
+            messages: vec![GroqMessage { role: "user".into(), content: "hi".into() }],
+            temperature: None,
+            max_tokens: None,
+            stream: false,
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        assert!(!json.contains("temperature"), "temperature should be omitted when None");
+        assert!(!json.contains("max_tokens"), "max_tokens should be omitted when None");
+    }
+
+    #[test]
+    fn groq_request_includes_set_fields() {
+        let req = GroqRequest {
+            model: "llama-3.3-70b-versatile".into(),
+            messages: vec![],
+            temperature: Some(0.5),
+            max_tokens: Some(4096),
+            stream: true,
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        assert!(json.contains("\"temperature\""));
+        assert!(json.contains("\"max_tokens\""));
+        assert!(json.contains("\"stream\":true"));
+    }
+
+    #[test]
+    fn groq_response_deser_without_usage() {
+        let json = r#"{"choices":[{"message":{"role":"assistant","content":"ok"}}]}"#;
+        let resp: GroqResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.choices[0].message.content, "ok");
+        assert!(resp.usage.is_none());
+    }
+
+    #[test]
+    fn groq_stream_response_deser() {
+        let json = r#"{"choices":[{"delta":{"content":"chunk"}}]}"#;
+        let resp: GroqStreamResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.choices[0].delta.content.as_deref(), Some("chunk"));
+    }
+
+    #[test]
+    fn groq_stream_response_deser_null_content() {
+        let json = r#"{"choices":[{"delta":{}}]}"#;
+        let resp: GroqStreamResponse = serde_json::from_str(json).unwrap();
+        assert!(resp.choices[0].delta.content.is_none());
+    }
 }
