@@ -6,7 +6,7 @@ export interface Command {
     id: string;
     label: string;
     category: string;
-    icon?: string;
+    icon?: React.ReactNode;
     shortcut?: string;
     action: () => void;
 }

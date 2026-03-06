@@ -26,7 +26,8 @@ import { CommandPalette, Command } from "./components/CommandPalette";
 import Modal from "./components/Modal";
 import { GitPanel } from "./components/GitPanel";
 import { MarkdownPreview } from "./components/MarkdownPreview";
-import { FilePlus, FolderPlus, FolderOpen, Files, Search, GitGraph, Settings } from "lucide-react";
+import { FilePlus, FolderPlus, FolderOpen, Files, Search, GitGraph, Settings, Menu, MessageSquare, Save, Terminal as TerminalIcon, PanelLeft, Puzzle, Hand, Sparkles, Bot, Rocket, Plug, Eye, FileText, GraduationCap } from "lucide-react";
+import { TAB_META, DEFAULT_TAB_META } from "./constants/tabMeta";
 import "./ActivityBar.css";
 import { ExtensionManager } from "./extensions/ExtensionManager";
 // Import worker using Vite's syntax
@@ -100,6 +101,10 @@ import { EncodingPanel } from "./components/EncodingPanel";
 import { NumberBasePanel } from "./components/NumberBasePanel";
 import { DataGenPanel } from "./components/DataGenPanel";
 import { TimestampPanel } from "./components/TimestampPanel";
+import { ColorConverterPanel } from "./components/ColorConverterPanel";
+import { CidrPanel } from "./components/CidrPanel";
+import { CsvPanel } from "./components/CsvPanel";
+import { UnitConverterPanel } from "./components/UnitConverterPanel";
 import { SandboxPanel } from "./components/SandboxPanel";
 import { useCollab } from "./hooks/useCollab";
 import { flowContext } from "./utils/FlowContext";
@@ -142,7 +147,7 @@ function App() {
   const [showSidebar, setShowSidebar] = useState(true);
   const [activeSidebarTab, setActiveSidebarTab] = useState<"explorer" | "search" | "git">("explorer");
   const [showAIChat, setShowAIChat] = useState(false);
-  const [aiPanelTab, setAiPanelTab] = useState<"chat" | "agent" | "memory" | "history" | "checkpoints" | "artifacts" | "manager" | "hooks" | "jobs" | "mcp" | "settings" | "cascade" | "specs" | "workflow" | "design" | "deploy" | "database" | "supabase" | "auth" | "github" | "steering" | "bugbot" | "redteam" | "tests" | "collab" | "coverage" | "compare" | "http" | "arena" | "cost" | "autofix" | "processes" | "cicd" | "k8s" | "env" | "profiler" | "docker" | "deps" | "apidocs" | "migrations" | "logs" | "scripts" | "notebook" | "ssh" | "utils" | "markers" | "bisect" | "snippets" | "mock" | "graphql" | "metrics" | "loadtest" | "network" | "teams" | "cibot" | "traces" | "marketplace" | "transform" | "img2app" | "recording" | "visualtest" | "cloud" | "compliance" | "scaffold" | "health" | "websocket" | "colors" | "markdown" | "difftool" | "canvas" | "cron" | "regex" | "jwt" | "jsontools" | "encoding" | "numbers" | "datagen" | "timestamp" | "sandbox">("chat");
+  const [aiPanelTab, setAiPanelTab] = useState<"chat" | "agent" | "memory" | "history" | "checkpoints" | "artifacts" | "manager" | "hooks" | "jobs" | "mcp" | "settings" | "cascade" | "specs" | "workflow" | "design" | "deploy" | "database" | "supabase" | "auth" | "github" | "steering" | "bugbot" | "redteam" | "tests" | "collab" | "coverage" | "compare" | "http" | "arena" | "cost" | "autofix" | "processes" | "cicd" | "k8s" | "env" | "profiler" | "docker" | "deps" | "apidocs" | "migrations" | "logs" | "scripts" | "notebook" | "ssh" | "utils" | "markers" | "bisect" | "snippets" | "mock" | "graphql" | "metrics" | "loadtest" | "network" | "teams" | "cibot" | "traces" | "marketplace" | "transform" | "img2app" | "recording" | "visualtest" | "cloud" | "compliance" | "scaffold" | "health" | "websocket" | "colors" | "markdown" | "difftool" | "canvas" | "cron" | "regex" | "jwt" | "jsontools" | "encoding" | "numbers" | "datagen" | "timestamp" | "colorconv" | "cidr" | "csv" | "units" | "sandbox">("chat");
   const [showTerminal, setShowTerminal] = useState(false);
   const [bottomTab, setBottomTab] = useState<"terminal" | "browser">("terminal");
   const [showCommandPalette, setShowCommandPalette] = useState(false);
@@ -869,7 +874,7 @@ function App() {
       id: 'file.openFolder',
       label: 'Open Folder',
       category: 'File',
-      icon: '📁',
+      icon: <FolderOpen size={16} strokeWidth={1.5} />,
       shortcut: '⌘O',
       action: openFolder,
     },
@@ -877,7 +882,7 @@ function App() {
       id: 'file.save',
       label: 'Save File',
       category: 'File',
-      icon: '💾',
+      icon: <Save size={16} strokeWidth={1.5} />,
       shortcut: '⌘S',
       action: saveFile,
     },
@@ -885,14 +890,14 @@ function App() {
       id: 'file.createFile',
       label: 'Create New File',
       category: 'File',
-      icon: '📄',
+      icon: <FilePlus size={16} strokeWidth={1.5} />,
       action: handleNewFile,
     },
     {
       id: 'file.createFolder',
       label: 'Create New Folder',
       category: 'File',
-      icon: '📁',
+      icon: <FolderPlus size={16} strokeWidth={1.5} />,
       action: handleNewFolder,
     },
     // Editor actions
@@ -900,7 +905,7 @@ function App() {
       id: 'editor.toggleSidebar',
       label: 'Toggle Sidebar',
       category: 'Editor',
-      icon: '☰',
+      icon: <PanelLeft size={16} strokeWidth={1.5} />,
       shortcut: '⌘B',
       action: () => setShowSidebar(prev => !prev),
     },
@@ -908,7 +913,7 @@ function App() {
       id: 'editor.toggleAIChat',
       label: 'Toggle AI Chat',
       category: 'Editor',
-      icon: '💬',
+      icon: <MessageSquare size={16} strokeWidth={1.5} />,
       shortcut: '⌘J',
       action: () => setShowAIChat(prev => !prev),
     },
@@ -916,7 +921,7 @@ function App() {
       id: 'editor.search',
       label: 'Search in Files',
       category: 'Editor',
-      icon: '🔍',
+      icon: <Search size={16} strokeWidth={1.5} />,
       action: () => setActiveSidebarTab('search'),
     },
     // View
@@ -924,7 +929,7 @@ function App() {
       id: 'view.toggleTerminal',
       label: 'Toggle Terminal',
       category: 'View',
-      icon: '⌨️',
+      icon: <TerminalIcon size={16} strokeWidth={1.5} />,
       shortcut: '⌘`',
       action: () => setShowTerminal(prev => !prev),
     },
@@ -932,7 +937,7 @@ function App() {
       id: 'view.explorer',
       label: 'Show Explorer',
       category: 'View',
-      icon: '📂',
+      icon: <FolderOpen size={16} strokeWidth={1.5} />,
       shortcut: '⌘⇧E',
       action: () => {
         setShowSidebar(true);
@@ -943,7 +948,7 @@ function App() {
       id: 'view.git',
       label: 'Show Source Control',
       category: 'View',
-      icon: '🔀',
+      icon: <GitGraph size={16} strokeWidth={1.5} />,
       shortcut: '⌘⇧G',
       action: () => {
         setShowSidebar(true);
@@ -955,7 +960,7 @@ function App() {
       id: 'debug.loadTestExtension',
       label: 'Load Test Extension',
       category: 'Debug',
-      icon: '🧩',
+      icon: <Puzzle size={16} strokeWidth={1.5} />,
       action: () => {
         const code = `
           console.log('Hello from extension!');
@@ -971,7 +976,7 @@ function App() {
       id: 'extension.helloWorld',
       label: 'Hello World (Extension)',
       category: 'Extension',
-      icon: '👋',
+      icon: <Hand size={16} strokeWidth={1.5} />,
       action: () => {
         extensionManagerRef.current?.executeCommand('extension.helloWorld');
       }
@@ -1125,7 +1130,7 @@ function App() {
       <header className="header">
         <div className="header-left">
           <button className="icon-button" onClick={() => setShowSidebar(!showSidebar)} aria-label="Toggle sidebar">
-            ☰
+            <Menu size={18} strokeWidth={1.5} />
           </button>
           <h1 className="app-title">VibeUI</h1>
         </div>
@@ -1150,17 +1155,17 @@ function App() {
             onClick={() => setShowAIChat(!showAIChat)}
             title="Toggle AI Chat"
           >
-            💬 AI Chat
+            <MessageSquare size={14} strokeWidth={1.5} /> AI Chat
           </button>
           <button className="btn-primary" onClick={saveFile} disabled={!currentFile}>
-            💾 Save {currentFile && "(⌘S)"}
+            <Save size={14} strokeWidth={1.5} /> Save {currentFile && "(⌘S)"}
           </button>
           {currentFile && currentFile.endsWith('.md') && (
             <button
               className="btn-secondary"
               onClick={() => setShowMarkdownPreview(!showMarkdownPreview)}
             >
-              {showMarkdownPreview ? '📝 Edit' : '👁️ Preview'}
+              {showMarkdownPreview ? <><FileText size={14} strokeWidth={1.5} /> Edit</> : <><Eye size={14} strokeWidth={1.5} /> Preview</>}
             </button>
           )}
         </div>
@@ -1460,10 +1465,10 @@ function App() {
               <p>AI-Powered Code Editor built with Rust + Tauri</p>
               <div className="welcome-actions">
                 <button className="btn-primary" onClick={openFolder}>
-                  📁 Open Folder
+                  <FolderOpen size={14} strokeWidth={1.5} /> Open Folder
                 </button>
                 <button className="btn-secondary" onClick={() => setShowTour(true)}>
-                  🎓 Take a Tour
+                  <GraduationCap size={14} strokeWidth={1.5} /> Take a Tour
                 </button>
               </div>
               <div className="features">
@@ -1486,10 +1491,10 @@ function App() {
                 </div>
                 <h3>Features</h3>
                 <ul>
-                  <li>✨ AI-powered code completion (Ollama ready)</li>
-                  <li>🤖 Multiple AI providers: Ollama, Claude, ChatGPT, Gemini, Grok</li>
-                  <li>🚀 Fast text editing with Rust backend</li>
-                  <li>🔌 VSCode + JetBrains + Neovim plugin support</li>
+                  <li><Sparkles size={14} strokeWidth={1.5} style={{ verticalAlign: -2 }} /> AI-powered code completion (Ollama ready)</li>
+                  <li><Bot size={14} strokeWidth={1.5} style={{ verticalAlign: -2 }} /> Multiple AI providers: Ollama, Claude, ChatGPT, Gemini, Grok</li>
+                  <li><Rocket size={14} strokeWidth={1.5} style={{ verticalAlign: -2 }} /> Fast text editing with Rust backend</li>
+                  <li><Plug size={14} strokeWidth={1.5} style={{ verticalAlign: -2 }} /> VSCode + JetBrains + Neovim plugin support</li>
                 </ul>
               </div>
             </div>
@@ -1501,7 +1506,7 @@ function App() {
           <aside className="ai-chat-panel" style={{ display: "flex", flexDirection: "column" }}>
             {/* Tab bar */}
             <div role="tablist" aria-label="AI Panel tabs" style={{ display: "flex", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
-              {(["chat", "agent", "memory", "history", "checkpoints", "artifacts", "manager", "hooks", "jobs", "mcp", "settings", "cascade", "specs", "workflow", "design", "deploy", "database", "supabase", "auth", "github", "steering", "bugbot", "redteam", "tests", "collab", "coverage", "compare", "http", "arena", "cost", "autofix", "processes", "cicd", "k8s", "env", "profiler", "docker", "deps", "apidocs", "migrations", "logs", "scripts", "notebook", "ssh", "utils", "markers", "bisect", "snippets", "mock", "graphql", "metrics", "loadtest", "network", "teams", "cibot", "traces", "marketplace", "transform", "img2app", "recording", "visualtest", "cloud", "compliance", "scaffold", "health", "websocket", "colors", "markdown", "difftool", "canvas", "cron", "regex", "jwt", "jsontools", "encoding", "numbers", "datagen", "timestamp", "sandbox"] as const).map((tab) => (
+              {(["chat", "agent", "memory", "history", "checkpoints", "artifacts", "manager", "hooks", "jobs", "mcp", "settings", "cascade", "specs", "workflow", "design", "deploy", "database", "supabase", "auth", "github", "steering", "bugbot", "redteam", "tests", "collab", "coverage", "compare", "http", "arena", "cost", "autofix", "processes", "cicd", "k8s", "env", "profiler", "docker", "deps", "apidocs", "migrations", "logs", "scripts", "notebook", "ssh", "utils", "markers", "bisect", "snippets", "mock", "graphql", "metrics", "loadtest", "network", "teams", "cibot", "traces", "marketplace", "transform", "img2app", "recording", "visualtest", "cloud", "compliance", "scaffold", "health", "websocket", "colors", "markdown", "difftool", "canvas", "cron", "regex", "jwt", "jsontools", "encoding", "numbers", "datagen", "timestamp", "colorconv", "cidr", "csv", "units", "sandbox"] as const).map((tab) => (
                 <button
                   key={tab}
                   role="tab"
@@ -1518,88 +1523,18 @@ function App() {
                     borderBottom: aiPanelTab === tab ? "2px solid var(--accent-blue, #007acc)" : "2px solid transparent",
                     color: aiPanelTab === tab ? "var(--text-primary)" : "var(--text-secondary)",
                     cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "3px",
                     fontWeight: aiPanelTab === tab ? 600 : 400,
                   }}
                 >
-                  {tab === "chat" ? "💬 Chat"
-                    : tab === "agent" ? "🤖 Agent"
-                    : tab === "memory" ? "📋 Rules"
-                    : tab === "history" ? "🕐 History"
-                    : tab === "checkpoints" ? "🔖 CPs"
-                    : tab === "artifacts" ? "📦 Artifacts"
-                    : tab === "manager" ? "🎛️ Mgr"
-                    : tab === "hooks" ? "🪝 Hooks"
-                    : tab === "jobs" ? "📋 Jobs"
-                    : tab === "mcp" ? "🔌 MCP"
-                    : tab === "settings" ? "⚙️ Keys"
-                    : tab === "specs" ? "📐 Specs"
-                    : tab === "workflow" ? "🏗️ Workflow"
-                    : tab === "design" ? "🎨 Design"
-                    : tab === "deploy" ? "🚀 Deploy"
-                    : tab === "database" ? "🗄️ DB"
-                    : tab === "supabase" ? "🐘 Supabase"
-                    : tab === "auth" ? "🔐 Auth"
-                    : tab === "github" ? "🐙 GH Sync"
-                    : tab === "steering" ? "🧭 Steering"
-                    : tab === "bugbot" ? "🐛 BugBot"
-                    : tab === "redteam" ? "🛡️ RedTeam"
-                    : tab === "tests" ? "🧪 Tests"
-                    : tab === "collab" ? "👥 Collab"
-                    : tab === "coverage" ? "📊 Coverage"
-                    : tab === "compare" ? "⚖️ Compare"
-                    : tab === "http" ? "🌐 HTTP"
-                    : tab === "arena" ? "🥊 Arena"
-                    : tab === "cost" ? "💰 Cost"
-                    : tab === "autofix" ? "🔧 Autofix"
-                    : tab === "processes" ? "⚙️ Procs"
-                    : tab === "cicd" ? "🔄 CI/CD"
-                    : tab === "k8s" ? "☸️ K8s"
-                    : tab === "env" ? "🔑 Env"
-                    : tab === "profiler" ? "🔥 Profiler"
-                    : tab === "docker" ? "🐳 Docker"
-                    : tab === "deps" ? "📦 Deps"
-                    : tab === "apidocs" ? "📖 API Docs"
-                    : tab === "migrations" ? "🔷 Migrations"
-                    : tab === "logs" ? "📋 Logs"
-                    : tab === "scripts" ? "🚀 Scripts"
-                    : tab === "notebook" ? "📓 Notebook"
-                    : tab === "ssh" ? "🔒 SSH"
-                    : tab === "utils" ? "🛠 Utils"
-                    : tab === "markers" ? "🔖 Markers"
-                    : tab === "bisect" ? "🔍 Bisect"
-                    : tab === "snippets" ? "✂️ Snippets"
-                    : tab === "mock" ? "🎭 Mock"
-                    : tab === "graphql" ? "⬡ GraphQL"
-                    : tab === "metrics" ? "📊 Metrics"
-                    : tab === "loadtest" ? "⚡ Load Test"
-                    : tab === "network" ? "🔌 Network"
-                    : tab === "teams" ? "👥 Teams"
-                    : tab === "cibot" ? "🤖 CI Bot"
-                    : tab === "traces" ? "📈 Traces"
-                    : tab === "marketplace" ? "🏪 Market"
-                    : tab === "transform" ? "🔄 Transform"
-                    : tab === "img2app" ? "📸 Img2App"
-                    : tab === "recording" ? "🎬 Recording"
-                    : tab === "visualtest" ? "👁️ Visual"
-                    : tab === "cloud" ? "☁️ Cloud"
-                    : tab === "compliance" ? "📋 Comply"
-                    : tab === "scaffold" ? "🏗️ Scaffold"
-                    : tab === "health" ? "💓 Health"
-                    : tab === "websocket" ? "🔌 WS"
-                    : tab === "colors" ? "🎨 Colors"
-                    : tab === "markdown" ? "📝 Markdown"
-                    : tab === "difftool" ? "⬛ Diff"
-                    : tab === "canvas" ? "🎨 Canvas"
-                    : tab === "cron" ? "⏰ Cron"
-                    : tab === "regex" ? "🔍 Regex"
-                    : tab === "jwt" ? "🔐 JWT"
-                    : tab === "jsontools" ? "🛠 JSON"
-                    : tab === "encoding" ? "🔡 Encoding"
-                    : tab === "numbers" ? "🔢 Numbers"
-                    : tab === "datagen" ? "🎲 Data"
-                    : tab === "timestamp" ? "🕐 Time"
-                    : tab === "sandbox" ? "📦 Sandbox"
-                    : "🌊 Flow"}
+                  {(() => {
+                    const meta = TAB_META[tab] || DEFAULT_TAB_META;
+                    const Icon = meta.icon;
+                    return <><Icon size={14} strokeWidth={1.5} />{meta.label}</>;
+                  })()}
                 </button>
               ))}
             </div>
@@ -1897,6 +1832,18 @@ function App() {
               )}
               {aiPanelTab === "timestamp" && (
                 <TimestampPanel />
+              )}
+              {aiPanelTab === "colorconv" && (
+                <ColorConverterPanel />
+              )}
+              {aiPanelTab === "cidr" && (
+                <CidrPanel />
+              )}
+              {aiPanelTab === "csv" && (
+                <CsvPanel />
+              )}
+              {aiPanelTab === "units" && (
+                <UnitConverterPanel />
               )}
               {aiPanelTab === "sandbox" && (
                 <SandboxPanel />
