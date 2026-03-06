@@ -388,4 +388,175 @@ mod tests {
         let shadow_path = shadow.path.join("src/foo.rs");
         assert!(!shadow_path.exists());
     }
+
+    // ── safe_join tests ──────────────────────────────────────────────────
+
+    #[test]
+    fn safe_join_blocks_absolute_path() {
+        let tmp = std::env::temp_dir().join(format!("vibe_sj_abs_{}", std::process::id()));
+        std::fs::create_dir_all(&tmp).unwrap();
+
+        let result = ShadowWorkspace::safe_join(&tmp, "/etc/passwd");
+        assert!(result.is_err(), "absolute path must be rejected");
+        let msg = result.unwrap_err().to_string();
+        assert!(
+            msg.contains("traversal blocked"),
+            "error should mention traversal: {}",
+            msg
+        );
+
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn safe_join_blocks_dot_dot_traversal() {
+        let tmp = std::env::temp_dir().join(format!("vibe_sj_dotdot_{}", std::process::id()));
+        std::fs::create_dir_all(&tmp).unwrap();
+
+        let result = ShadowWorkspace::safe_join(&tmp, "../../../etc/shadow");
+        assert!(result.is_err(), "../ traversal must be rejected");
+        let msg = result.unwrap_err().to_string();
+        assert!(
+            msg.contains("traversal blocked"),
+            "error should mention traversal: {}",
+            msg
+        );
+
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn safe_join_allows_valid_deep_path() {
+        let tmp = std::env::temp_dir().join(format!("vibe_sj_deep_{}", std::process::id()));
+        std::fs::create_dir_all(&tmp).unwrap();
+
+        let result = ShadowWorkspace::safe_join(&tmp, "src/main.rs");
+        assert!(result.is_ok(), "valid relative path should be allowed");
+        let resolved = result.unwrap();
+        assert!(
+            resolved.ends_with("src/main.rs"),
+            "resolved path should end with src/main.rs, got {:?}",
+            resolved
+        );
+
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn safe_join_allows_dot_component() {
+        let tmp = std::env::temp_dir().join(format!("vibe_sj_dot_{}", std::process::id()));
+        std::fs::create_dir_all(&tmp).unwrap();
+
+        // A path with ./  should be allowed since it stays inside the base
+        let result = ShadowWorkspace::safe_join(&tmp, "./src/foo.rs");
+        assert!(result.is_ok(), "path with . component should be allowed");
+        let resolved = result.unwrap();
+        assert!(
+            resolved.ends_with("src/foo.rs"),
+            "resolved path should end with src/foo.rs, got {:?}",
+            resolved
+        );
+
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    // ── parse_eslint_json tests ──────────────────────────────────────────
+
+    #[test]
+    fn parse_eslint_json_severity_2_is_error() {
+        let json = r#"[{
+            "messages": [
+                {
+                    "line": 10,
+                    "column": 5,
+                    "severity": 2,
+                    "message": "Unexpected var",
+                    "ruleId": "no-var"
+                }
+            ]
+        }]"#;
+        let diags = parse_eslint_json(json);
+        assert_eq!(diags.len(), 1);
+        assert_eq!(diags[0].severity, "error");
+        assert_eq!(diags[0].line, 10);
+        assert_eq!(diags[0].column, 5);
+        assert_eq!(diags[0].message, "Unexpected var");
+        assert_eq!(diags[0].rule, Some("no-var".to_string()));
+    }
+
+    #[test]
+    fn parse_eslint_json_empty_messages() {
+        let json = r#"[{"messages": []}]"#;
+        let diags = parse_eslint_json(json);
+        assert!(diags.is_empty(), "empty messages array should produce no diagnostics");
+    }
+
+    #[test]
+    fn parse_eslint_json_malformed_json() {
+        let diags = parse_eslint_json("not valid json at all {{{");
+        assert!(
+            diags.is_empty(),
+            "malformed JSON should produce empty vec, got {} items",
+            diags.len()
+        );
+    }
+
+    // ── LintResult counter tests ─────────────────────────────────────────
+
+    #[test]
+    fn lint_result_error_and_warning_counts() {
+        let result = LintResult {
+            file: "test.rs".to_string(),
+            diagnostics: vec![
+                LintDiagnostic {
+                    line: 1,
+                    column: 1,
+                    severity: "error".to_string(),
+                    message: "err1".to_string(),
+                    rule: None,
+                },
+                LintDiagnostic {
+                    line: 2,
+                    column: 1,
+                    severity: "warning".to_string(),
+                    message: "warn1".to_string(),
+                    rule: None,
+                },
+                LintDiagnostic {
+                    line: 3,
+                    column: 1,
+                    severity: "error".to_string(),
+                    message: "err2".to_string(),
+                    rule: None,
+                },
+                LintDiagnostic {
+                    line: 4,
+                    column: 1,
+                    severity: "info".to_string(),
+                    message: "info1".to_string(),
+                    rule: None,
+                },
+            ],
+            success: false,
+            stdout: String::new(),
+            stderr: String::new(),
+        };
+
+        assert_eq!(result.error_count(), 2, "should count 2 errors");
+        assert_eq!(result.warning_count(), 1, "should count 1 warning");
+    }
+
+    #[test]
+    fn lint_result_counts_with_no_diagnostics() {
+        let result = LintResult {
+            file: "clean.rs".to_string(),
+            diagnostics: vec![],
+            success: true,
+            stdout: String::new(),
+            stderr: String::new(),
+        };
+
+        assert_eq!(result.error_count(), 0);
+        assert_eq!(result.warning_count(), 0);
+    }
 }

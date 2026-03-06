@@ -249,4 +249,199 @@ mod tests {
         assert_eq!(resp.choices[0].message.content, "fast");
         assert_eq!(resp.usage.unwrap().prompt_tokens, 10);
     }
+
+    // ── build_messages context injection ────────────────────────────────
+
+    #[test]
+    fn build_messages_without_context() {
+        use crate::provider::MessageRole;
+        let p = CerebrasProvider::new(test_config());
+        let msgs = vec![
+            Message { role: MessageRole::System, content: "You are helpful.".into() },
+            Message { role: MessageRole::User, content: "Hello".into() },
+        ];
+        let result = p.build_messages(&msgs, None);
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].role, "system");
+        assert_eq!(result[0].content, "You are helpful.");
+        assert_eq!(result[1].role, "user");
+        assert_eq!(result[1].content, "Hello");
+    }
+
+    #[test]
+    fn build_messages_with_context_injects_into_last_user() {
+        use crate::provider::MessageRole;
+        let p = CerebrasProvider::new(test_config());
+        let msgs = vec![
+            Message { role: MessageRole::User, content: "Explain".into() },
+        ];
+        let result = p.build_messages(&msgs, Some("source code here".into()));
+        assert_eq!(result.len(), 1);
+        assert!(result[0].content.starts_with("Context:\nsource code here"));
+        assert!(result[0].content.contains("User: Explain"));
+    }
+
+    #[test]
+    fn build_messages_context_only_last_user_affected() {
+        use crate::provider::MessageRole;
+        let p = CerebrasProvider::new(test_config());
+        let msgs = vec![
+            Message { role: MessageRole::User, content: "First".into() },
+            Message { role: MessageRole::Assistant, content: "Mid".into() },
+            Message { role: MessageRole::User, content: "Last".into() },
+        ];
+        let result = p.build_messages(&msgs, Some("ctx".into()));
+        // First user unchanged
+        assert_eq!(result[0].content, "First");
+        // Last user gets context
+        assert!(result[2].content.starts_with("Context:\nctx"));
+        assert!(result[2].content.contains("User: Last"));
+    }
+
+    #[test]
+    fn build_messages_context_not_injected_when_last_is_assistant() {
+        use crate::provider::MessageRole;
+        let p = CerebrasProvider::new(test_config());
+        let msgs = vec![
+            Message { role: MessageRole::User, content: "Q".into() },
+            Message { role: MessageRole::Assistant, content: "A".into() },
+        ];
+        let result = p.build_messages(&msgs, Some("ignored context".into()));
+        assert_eq!(result[1].content, "A");
+        assert_eq!(result[0].content, "Q");
+    }
+
+    #[test]
+    fn build_messages_empty_input() {
+        let p = CerebrasProvider::new(test_config());
+        let result = p.build_messages(&[], None);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn build_messages_empty_input_with_context() {
+        let p = CerebrasProvider::new(test_config());
+        let result = p.build_messages(&[], Some("ctx".into()));
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn build_messages_role_mapping() {
+        use crate::provider::MessageRole;
+        let p = CerebrasProvider::new(test_config());
+        let msgs = vec![
+            Message { role: MessageRole::System, content: "s".into() },
+            Message { role: MessageRole::User, content: "u".into() },
+            Message { role: MessageRole::Assistant, content: "a".into() },
+        ];
+        let result = p.build_messages(&msgs, None);
+        assert_eq!(result[0].role, "system");
+        assert_eq!(result[1].role, "user");
+        assert_eq!(result[2].role, "assistant");
+    }
+
+    // ── name / availability ─────────────────────────────────────────────
+
+    #[test]
+    fn name_returns_cerebras() {
+        let p = CerebrasProvider::new(test_config());
+        assert_eq!(p.name(), "Cerebras");
+    }
+
+    #[tokio::test]
+    async fn availability_tracks_api_key() {
+        let p_with = CerebrasProvider::new(test_config());
+        assert!(p_with.is_available().await);
+
+        let mut cfg = test_config();
+        cfg.api_key = None;
+        let p_without = CerebrasProvider::new(cfg);
+        assert!(!p_without.is_available().await);
+    }
+
+    // ── base_url ────────────────────────────────────────────────────────
+
+    #[test]
+    fn base_url_custom_override() {
+        let mut cfg = test_config();
+        cfg.api_url = Some("https://cerebras-proxy.example.com/v1".into());
+        let p = CerebrasProvider::new(cfg);
+        assert_eq!(p.base_url(), "https://cerebras-proxy.example.com/v1");
+    }
+
+    #[test]
+    fn base_url_default_value() {
+        let p = CerebrasProvider::new(test_config());
+        assert_eq!(p.base_url(), "https://api.cerebras.ai/v1");
+    }
+
+    // ── request / response serialization ────────────────────────────────
+
+    #[test]
+    fn cerebras_request_serde_minimal() {
+        let req = CerebrasRequest {
+            model: "llama3.1-70b".into(),
+            messages: vec![CerebrasMessage { role: "user".into(), content: "hi".into() }],
+            temperature: None,
+            max_tokens: None,
+            stream: false,
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        let val: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(val["model"], "llama3.1-70b");
+        assert_eq!(val["stream"], false);
+        assert!(val.get("temperature").is_none());
+        assert!(val.get("max_tokens").is_none());
+    }
+
+    #[test]
+    fn cerebras_request_serde_full() {
+        let req = CerebrasRequest {
+            model: "llama-3.3-70b".into(),
+            messages: vec![
+                CerebrasMessage { role: "system".into(), content: "sys".into() },
+                CerebrasMessage { role: "user".into(), content: "usr".into() },
+            ],
+            temperature: Some(0.8),
+            max_tokens: Some(512),
+            stream: true,
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        let val: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(val["temperature"], 0.8);
+        assert_eq!(val["max_tokens"], 512);
+        assert_eq!(val["stream"], true);
+        assert_eq!(val["messages"].as_array().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn cerebras_response_deser_no_usage() {
+        let json = r#"{"choices":[{"message":{"role":"assistant","content":"ok"}}]}"#;
+        let resp: CerebrasResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.choices[0].message.content, "ok");
+        assert!(resp.usage.is_none());
+    }
+
+    #[test]
+    fn cerebras_stream_response_deser() {
+        let json = r#"{"choices":[{"delta":{"content":"tok"}}]}"#;
+        let resp: CerebrasStreamResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.choices[0].delta.content.as_ref().unwrap(), "tok");
+    }
+
+    #[test]
+    fn cerebras_stream_response_deser_null_content() {
+        let json = r#"{"choices":[{"delta":{"content":null}}]}"#;
+        let resp: CerebrasStreamResponse = serde_json::from_str(json).unwrap();
+        assert!(resp.choices[0].delta.content.is_none());
+    }
+
+    #[test]
+    fn cerebras_message_roundtrip() {
+        let msg = CerebrasMessage { role: "user".into(), content: "test data".into() };
+        let json = serde_json::to_string(&msg).unwrap();
+        let msg2: CerebrasMessage = serde_json::from_str(&json).unwrap();
+        assert_eq!(msg.role, msg2.role);
+        assert_eq!(msg.content, msg2.content);
+    }
 }

@@ -250,4 +250,190 @@ mod tests {
         assert_eq!(resp.choices[0].message.content, "hello");
         assert_eq!(resp.usage.unwrap().completion_tokens, 1);
     }
+
+    // ── build_messages context injection ────────────────────────────────
+
+    #[test]
+    fn build_messages_without_context() {
+        use crate::provider::MessageRole;
+        let p = MistralProvider::new(test_config());
+        let msgs = vec![
+            Message { role: MessageRole::System, content: "Be helpful.".into() },
+            Message { role: MessageRole::User, content: "Hello".into() },
+        ];
+        let result = p.build_messages(&msgs, None);
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].role, "system");
+        assert_eq!(result[0].content, "Be helpful.");
+        assert_eq!(result[1].role, "user");
+        assert_eq!(result[1].content, "Hello");
+    }
+
+    #[test]
+    fn build_messages_with_context_prepends_to_last_user() {
+        use crate::provider::MessageRole;
+        let p = MistralProvider::new(test_config());
+        let msgs = vec![
+            Message { role: MessageRole::User, content: "Explain this".into() },
+        ];
+        let result = p.build_messages(&msgs, Some("file.rs contents".into()));
+        assert_eq!(result.len(), 1);
+        assert!(result[0].content.starts_with("Context:\nfile.rs contents"));
+        assert!(result[0].content.contains("User: Explain this"));
+    }
+
+    #[test]
+    fn build_messages_context_only_affects_last_user_message() {
+        use crate::provider::MessageRole;
+        let p = MistralProvider::new(test_config());
+        let msgs = vec![
+            Message { role: MessageRole::User, content: "First".into() },
+            Message { role: MessageRole::Assistant, content: "Reply".into() },
+            Message { role: MessageRole::User, content: "Second".into() },
+        ];
+        let result = p.build_messages(&msgs, Some("ctx".into()));
+        // First user message unchanged
+        assert_eq!(result[0].content, "First");
+        // Last message is user, gets context
+        assert!(result[2].content.starts_with("Context:\nctx"));
+        assert!(result[2].content.contains("User: Second"));
+    }
+
+    #[test]
+    fn build_messages_context_skipped_when_last_is_not_user() {
+        use crate::provider::MessageRole;
+        let p = MistralProvider::new(test_config());
+        let msgs = vec![
+            Message { role: MessageRole::User, content: "Q".into() },
+            Message { role: MessageRole::Assistant, content: "A".into() },
+        ];
+        let result = p.build_messages(&msgs, Some("some context".into()));
+        // Last message is assistant, context should NOT be injected
+        assert_eq!(result[1].content, "A");
+        assert_eq!(result[0].content, "Q");
+    }
+
+    #[test]
+    fn build_messages_empty_messages() {
+        let p = MistralProvider::new(test_config());
+        let result = p.build_messages(&[], None);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn build_messages_role_mapping() {
+        use crate::provider::MessageRole;
+        let p = MistralProvider::new(test_config());
+        let msgs = vec![
+            Message { role: MessageRole::System, content: "sys".into() },
+            Message { role: MessageRole::User, content: "usr".into() },
+            Message { role: MessageRole::Assistant, content: "ast".into() },
+        ];
+        let result = p.build_messages(&msgs, None);
+        assert_eq!(result[0].role, "system");
+        assert_eq!(result[1].role, "user");
+        assert_eq!(result[2].role, "assistant");
+    }
+
+    // ── name / availability ─────────────────────────────────────────────
+
+    #[test]
+    fn name_returns_correct_string() {
+        let p = MistralProvider::new(test_config());
+        assert_eq!(p.name(), "Mistral");
+        // Verify it is a static str, not dynamic
+        let name: &str = p.name();
+        assert!(!name.is_empty());
+    }
+
+    #[tokio::test]
+    async fn availability_reflects_api_key_presence() {
+        let mut cfg = test_config();
+        cfg.api_key = Some("key".into());
+        let p = MistralProvider::new(cfg);
+        assert!(p.is_available().await);
+
+        let mut cfg2 = test_config();
+        cfg2.api_key = None;
+        let p2 = MistralProvider::new(cfg2);
+        assert!(!p2.is_available().await);
+    }
+
+    // ── base_url ────────────────────────────────────────────────────────
+
+    #[test]
+    fn base_url_uses_custom_when_provided() {
+        let mut cfg = test_config();
+        cfg.api_url = Some("https://custom.mistral.example.com/v1".into());
+        let p = MistralProvider::new(cfg);
+        assert_eq!(p.base_url(), "https://custom.mistral.example.com/v1");
+    }
+
+    #[test]
+    fn base_url_falls_back_to_default() {
+        let p = MistralProvider::new(test_config());
+        assert_eq!(p.base_url(), "https://api.mistral.ai/v1");
+    }
+
+    // ── request serialization ───────────────────────────────────────────
+
+    #[test]
+    fn mistral_request_serde_stream_false() {
+        let req = MistralRequest {
+            model: "mistral-large-latest".into(),
+            messages: vec![MistralMessage { role: "user".into(), content: "hi".into() }],
+            temperature: None,
+            max_tokens: None,
+            stream: false,
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        let val: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(val["model"], "mistral-large-latest");
+        assert_eq!(val["stream"], false);
+        // temperature and max_tokens should be omitted (skip_serializing_if)
+        assert!(val.get("temperature").is_none());
+        assert!(val.get("max_tokens").is_none());
+    }
+
+    #[test]
+    fn mistral_request_serde_with_all_fields() {
+        let req = MistralRequest {
+            model: "codestral-latest".into(),
+            messages: vec![
+                MistralMessage { role: "system".into(), content: "sys".into() },
+                MistralMessage { role: "user".into(), content: "code".into() },
+            ],
+            temperature: Some(0.5),
+            max_tokens: Some(2048),
+            stream: true,
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        let val: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(val["temperature"], 0.5);
+        assert_eq!(val["max_tokens"], 2048);
+        assert_eq!(val["stream"], true);
+        assert_eq!(val["messages"].as_array().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn mistral_response_deser_no_usage() {
+        let json = r#"{"choices":[{"message":{"role":"assistant","content":"ok"}}]}"#;
+        let resp: MistralResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.choices[0].message.content, "ok");
+        assert!(resp.usage.is_none());
+    }
+
+    #[test]
+    fn mistral_stream_response_deser() {
+        let json = r#"{"choices":[{"delta":{"content":"tok"}}]}"#;
+        let resp: MistralStreamResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.choices[0].delta.content.as_ref().unwrap(), "tok");
+    }
+
+    #[test]
+    fn mistral_stream_response_deser_null_content() {
+        let json = r#"{"choices":[{"delta":{"content":null}}]}"#;
+        let resp: MistralStreamResponse = serde_json::from_str(json).unwrap();
+        assert!(resp.choices[0].delta.content.is_none());
+    }
 }

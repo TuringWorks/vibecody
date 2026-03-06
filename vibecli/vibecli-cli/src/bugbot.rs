@@ -605,4 +605,83 @@ mod tests {
         assert!(!reports.is_empty(), "should detect cleartext HTTP API");
         assert!(reports[0].message.contains("CWE-319"));
     }
+
+    #[test]
+    fn line_counter_accuracy_with_context_lines() {
+        // @@ -1,0 +1,5 @$ header means new-file starts at line 1.
+        // 3 context lines + 1 added line with a secret → the secret is on line 4.
+        let diff = r#"diff --git a/src/app.rs b/src/app.rs
+--- a/src/app.rs
++++ b/src/app.rs
+@@ -1,0 +1,5 @@
+ line one
+ line two
+ line three
++    let api_key = "sk-AAAA1234BBBB5678";
+ line five
+"#;
+        let reports = detect_security_patterns(diff);
+        assert_eq!(reports.len(), 1, "exactly one finding expected");
+        assert!(reports[0].message.contains("CWE-798"));
+        assert_eq!(reports[0].file, "src/app.rs");
+        // 3 context lines advance counter to 3, then the added line increments to 4.
+        assert_eq!(reports[0].line, 4, "secret should be reported at line 4");
+    }
+
+    #[test]
+    fn removed_lines_not_reported() {
+        // A line prefixed with `-` that contains a secret should NOT generate a finding
+        // because it is being removed, not added.
+        let diff = r#"diff --git a/src/old.rs b/src/old.rs
+--- a/src/old.rs
++++ b/src/old.rs
+@@ -1,4 +1,3 @@
+ fn main() {
+-    let api_key = "sk-REMOVEDKEY12345678";
+     println!("clean now");
+ }
+"#;
+        let reports = detect_security_patterns(diff);
+        assert!(reports.is_empty(), "removed lines with secrets should not be reported");
+    }
+
+    #[test]
+    fn no_security_issues_returns_empty() {
+        let diff = r#"diff --git a/src/lib.rs b/src/lib.rs
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -10,6 +10,8 @@
+ use std::collections::HashMap;
+
++fn add(a: i32, b: i32) -> i32 {
++    a + b
++}
+
+ fn existing() {}
+"#;
+        let reports = detect_security_patterns(diff);
+        assert!(reports.is_empty(), "diff with no security issues should return empty vec");
+    }
+
+    #[test]
+    fn bugreport_icon_all_variants() {
+        let make_report = |severity: Severity| BugReport {
+            file: "f.rs".to_string(),
+            line: 1,
+            severity,
+            message: "test".to_string(),
+            suggestion: None,
+            fix_command: None,
+            category: None,
+        };
+
+        let error_report = make_report(Severity::Error);
+        assert_eq!(error_report.icon(), "❌");
+
+        let warning_report = make_report(Severity::Warning);
+        assert_eq!(warning_report.icon(), "⚠️ ");
+
+        let info_report = make_report(Severity::Info);
+        assert_eq!(info_report.icon(), "ℹ️ ");
+    }
 }

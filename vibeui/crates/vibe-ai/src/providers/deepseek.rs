@@ -249,4 +249,193 @@ mod tests {
         assert_eq!(resp.choices[0].message.content, "code");
         assert_eq!(resp.usage.unwrap().completion_tokens, 3);
     }
+
+    // ── build_messages context injection ────────────────────────────────
+
+    #[test]
+    fn build_messages_without_context() {
+        use crate::provider::MessageRole;
+        let p = DeepSeekProvider::new(test_config());
+        let msgs = vec![
+            Message { role: MessageRole::System, content: "System prompt".into() },
+            Message { role: MessageRole::User, content: "Help me".into() },
+        ];
+        let result = p.build_messages(&msgs, None);
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].role, "system");
+        assert_eq!(result[0].content, "System prompt");
+        assert_eq!(result[1].role, "user");
+        assert_eq!(result[1].content, "Help me");
+    }
+
+    #[test]
+    fn build_messages_with_context_prepends_to_last_user() {
+        use crate::provider::MessageRole;
+        let p = DeepSeekProvider::new(test_config());
+        let msgs = vec![
+            Message { role: MessageRole::User, content: "Review this".into() },
+        ];
+        let result = p.build_messages(&msgs, Some("fn main() {}".into()));
+        assert_eq!(result.len(), 1);
+        assert!(result[0].content.starts_with("Context:\nfn main() {}"));
+        assert!(result[0].content.contains("User: Review this"));
+    }
+
+    #[test]
+    fn build_messages_context_only_modifies_last_user() {
+        use crate::provider::MessageRole;
+        let p = DeepSeekProvider::new(test_config());
+        let msgs = vec![
+            Message { role: MessageRole::User, content: "First Q".into() },
+            Message { role: MessageRole::Assistant, content: "First A".into() },
+            Message { role: MessageRole::User, content: "Second Q".into() },
+        ];
+        let result = p.build_messages(&msgs, Some("context data".into()));
+        // First user message should be unchanged
+        assert_eq!(result[0].content, "First Q");
+        // Last user message should have context injected
+        assert!(result[2].content.starts_with("Context:\ncontext data"));
+        assert!(result[2].content.contains("User: Second Q"));
+    }
+
+    #[test]
+    fn build_messages_context_ignored_when_last_is_assistant() {
+        use crate::provider::MessageRole;
+        let p = DeepSeekProvider::new(test_config());
+        let msgs = vec![
+            Message { role: MessageRole::User, content: "Q".into() },
+            Message { role: MessageRole::Assistant, content: "A".into() },
+        ];
+        let result = p.build_messages(&msgs, Some("extra ctx".into()));
+        // Last message is assistant, context NOT injected
+        assert_eq!(result[1].content, "A");
+    }
+
+    #[test]
+    fn build_messages_empty_input() {
+        let p = DeepSeekProvider::new(test_config());
+        let result = p.build_messages(&[], Some("ctx".into()));
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn build_messages_role_mapping_all_roles() {
+        use crate::provider::MessageRole;
+        let p = DeepSeekProvider::new(test_config());
+        let msgs = vec![
+            Message { role: MessageRole::System, content: "s".into() },
+            Message { role: MessageRole::User, content: "u".into() },
+            Message { role: MessageRole::Assistant, content: "a".into() },
+        ];
+        let result = p.build_messages(&msgs, None);
+        assert_eq!(result[0].role, "system");
+        assert_eq!(result[1].role, "user");
+        assert_eq!(result[2].role, "assistant");
+    }
+
+    // ── name / availability ─────────────────────────────────────────────
+
+    #[test]
+    fn name_returns_deepseek() {
+        let p = DeepSeekProvider::new(test_config());
+        assert_eq!(p.name(), "DeepSeek");
+    }
+
+    #[tokio::test]
+    async fn availability_tracks_api_key() {
+        let p_with = DeepSeekProvider::new(test_config());
+        assert!(p_with.is_available().await);
+
+        let mut cfg = test_config();
+        cfg.api_key = None;
+        let p_without = DeepSeekProvider::new(cfg);
+        assert!(!p_without.is_available().await);
+    }
+
+    // ── base_url ────────────────────────────────────────────────────────
+
+    #[test]
+    fn base_url_custom_override() {
+        let mut cfg = test_config();
+        cfg.api_url = Some("https://my-proxy.example.com/v1".into());
+        let p = DeepSeekProvider::new(cfg);
+        assert_eq!(p.base_url(), "https://my-proxy.example.com/v1");
+    }
+
+    #[test]
+    fn base_url_default_value() {
+        let p = DeepSeekProvider::new(test_config());
+        assert_eq!(p.base_url(), "https://api.deepseek.com/v1");
+    }
+
+    // ── request serialization ───────────────────────────────────────────
+
+    #[test]
+    fn deepseek_request_serde_minimal() {
+        let req = DeepSeekRequest {
+            model: "deepseek-coder".into(),
+            messages: vec![DeepSeekMessage { role: "user".into(), content: "test".into() }],
+            temperature: None,
+            max_tokens: None,
+            stream: false,
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        let val: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(val["model"], "deepseek-coder");
+        assert_eq!(val["stream"], false);
+        // Optional fields should be omitted
+        assert!(val.get("temperature").is_none());
+        assert!(val.get("max_tokens").is_none());
+    }
+
+    #[test]
+    fn deepseek_request_serde_full() {
+        let req = DeepSeekRequest {
+            model: "deepseek-chat".into(),
+            messages: vec![
+                DeepSeekMessage { role: "system".into(), content: "sys".into() },
+                DeepSeekMessage { role: "user".into(), content: "usr".into() },
+            ],
+            temperature: Some(0.3),
+            max_tokens: Some(4096),
+            stream: true,
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        let val: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(val["temperature"], 0.3);
+        assert_eq!(val["max_tokens"], 4096);
+        assert_eq!(val["stream"], true);
+        assert_eq!(val["messages"].as_array().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn deepseek_response_deser_no_usage() {
+        let json = r#"{"choices":[{"message":{"role":"assistant","content":"done"}}]}"#;
+        let resp: DeepSeekResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.choices[0].message.content, "done");
+        assert!(resp.usage.is_none());
+    }
+
+    #[test]
+    fn deepseek_stream_response_deser() {
+        let json = r#"{"choices":[{"delta":{"content":"token"}}]}"#;
+        let resp: DeepSeekStreamResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.choices[0].delta.content.as_ref().unwrap(), "token");
+    }
+
+    #[test]
+    fn deepseek_stream_response_deser_null_content() {
+        let json = r#"{"choices":[{"delta":{"content":null}}]}"#;
+        let resp: DeepSeekStreamResponse = serde_json::from_str(json).unwrap();
+        assert!(resp.choices[0].delta.content.is_none());
+    }
+
+    #[test]
+    fn deepseek_message_deser_roundtrip() {
+        let msg = DeepSeekMessage { role: "user".into(), content: "hello world".into() };
+        let json = serde_json::to_string(&msg).unwrap();
+        let msg2: DeepSeekMessage = serde_json::from_str(&json).unwrap();
+        assert_eq!(msg.role, msg2.role);
+        assert_eq!(msg.content, msg2.content);
+    }
 }

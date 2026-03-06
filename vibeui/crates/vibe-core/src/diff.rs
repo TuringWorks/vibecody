@@ -260,4 +260,68 @@ mod tests {
         assert_eq!(h.old_count, 3); // a, b, c
         assert_eq!(h.new_count, 3); // a, B, c
     }
+
+    #[test]
+    fn generate_diff_both_empty_strings() {
+        let hunks = DiffEngine::generate_diff("", "");
+        // Two empty strings have no changes, so no hunks should be produced
+        assert!(
+            hunks.is_empty(),
+            "diff of two empty strings should produce no hunks, got {} hunks",
+            hunks.len()
+        );
+    }
+
+    #[test]
+    fn generate_diff_single_line_middle_char_changed() {
+        // Single-line files diffed at the line level: the entire line is
+        // replaced, so the hunk should start at old_start=1 / new_start=1.
+        let original = "abcdef\n";
+        let modified = "abXdef\n";
+        let hunks = DiffEngine::generate_diff(original, modified);
+        assert_eq!(hunks.len(), 1, "expected exactly one hunk");
+
+        let h = &hunks[0];
+        assert_eq!(h.old_start, 1, "old_start should be 1");
+        assert_eq!(h.new_start, 1, "new_start should be 1");
+
+        // The hunk must contain a delete of the old line and an insert of the new line
+        let deletes: Vec<_> = h.lines.iter().filter(|l| l.tag == DiffTag::Delete).collect();
+        let inserts: Vec<_> = h.lines.iter().filter(|l| l.tag == DiffTag::Insert).collect();
+        assert_eq!(deletes.len(), 1);
+        assert_eq!(inserts.len(), 1);
+        assert!(deletes[0].content.contains("abcdef"));
+        assert!(inserts[0].content.contains("abXdef"));
+    }
+
+    #[test]
+    fn format_unified_diff_empty_hunks() {
+        // With an empty slice of hunks the formatter should still produce
+        // the file header lines (--- and +++) but no @@ sections.
+        let output = DiffEngine::format_unified_diff(
+            &[],
+            Path::new("old.txt"),
+            Path::new("new.txt"),
+        );
+        assert!(
+            output.contains("--- old.txt"),
+            "header should contain --- even with empty hunks"
+        );
+        assert!(
+            output.contains("+++ new.txt"),
+            "header should contain +++ even with empty hunks"
+        );
+        assert!(
+            !output.contains("@@"),
+            "no @@ hunk headers should appear when hunks slice is empty"
+        );
+    }
+
+    #[test]
+    fn apply_diff_empty_hunks_returns_empty() {
+        // Applying an empty set of hunks should produce an empty string,
+        // because apply_diff rebuilds content solely from hunk lines.
+        let result = DiffEngine::apply_diff("anything\n", &[]).unwrap();
+        assert_eq!(result, "", "apply_diff with no hunks should produce empty string");
+    }
 }

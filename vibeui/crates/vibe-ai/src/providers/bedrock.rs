@@ -487,4 +487,306 @@ mod tests {
         let b = sigv4_auth_header("AK", "SK", "us-east-1", "h", "/p", b"{\"x\":1}", "20240101T120000Z");
         assert_ne!(a, b);
     }
+
+    // ── epoch_days_to_ymd — additional known dates ──────────────────────
+
+    #[test]
+    fn epoch_days_to_ymd_2000_01_01() {
+        // 2000-01-01 is day 10957 from Unix epoch
+        assert_eq!(epoch_days_to_ymd(10957), (2000, 1, 1));
+    }
+
+    #[test]
+    fn epoch_days_to_ymd_leap_year_2000_feb29() {
+        // 2000 is a leap year (divisible by 400); 2000-02-29 is day 10957+59 = 11016
+        assert_eq!(epoch_days_to_ymd(11016), (2000, 2, 29));
+    }
+
+    #[test]
+    fn epoch_days_to_ymd_non_leap_1900_equivalent() {
+        // Day 1 = 1970-01-02
+        assert_eq!(epoch_days_to_ymd(1), (1970, 1, 2));
+    }
+
+    #[test]
+    fn epoch_days_to_ymd_mid_year() {
+        // 1970-07-01 = day 181 (31+28+31+30+31+30 = 181)
+        assert_eq!(epoch_days_to_ymd(181), (1970, 7, 1));
+    }
+
+    #[test]
+    fn epoch_days_to_ymd_2024_leap_feb28() {
+        // 2024-02-28 = day 19781 (day before the leap day we already test)
+        assert_eq!(epoch_days_to_ymd(19781), (2024, 2, 28));
+    }
+
+    #[test]
+    fn epoch_days_to_ymd_2024_mar01() {
+        // 2024-03-01 = day 19783 (day after the leap day)
+        assert_eq!(epoch_days_to_ymd(19783), (2024, 3, 1));
+    }
+
+    #[test]
+    fn epoch_days_to_ymd_far_future() {
+        // 2100-01-01 = day 47482
+        assert_eq!(epoch_days_to_ymd(47482), (2100, 1, 1));
+    }
+
+    // ── utc_datetime format ─────────────────────────────────────────────
+
+    #[test]
+    fn utc_datetime_format_matches_pattern() {
+        let dt = BedrockProvider::utc_datetime();
+        // Must be exactly 16 characters: YYYYMMDDTHHMMSSZ
+        assert_eq!(dt.len(), 16, "utc_datetime should be 16 chars: {}", dt);
+        assert!(dt.ends_with('Z'), "utc_datetime should end with Z: {}", dt);
+        assert_eq!(&dt[8..9], "T", "utc_datetime should have T at position 8: {}", dt);
+        // All chars except T and Z should be digits
+        for (i, c) in dt.chars().enumerate() {
+            if i == 8 {
+                assert_eq!(c, 'T');
+            } else if i == 15 {
+                assert_eq!(c, 'Z');
+            } else {
+                assert!(c.is_ascii_digit(), "char at position {} should be a digit, got '{}'", i, c);
+            }
+        }
+    }
+
+    #[test]
+    fn utc_datetime_year_is_reasonable() {
+        let dt = BedrockProvider::utc_datetime();
+        let year: u32 = dt[..4].parse().unwrap();
+        assert!(year >= 2024 && year <= 2100, "year {} seems unreasonable", year);
+    }
+
+    // ── model ID percent-encoding ───────────────────────────────────────
+
+    #[test]
+    fn model_id_colon_percent_encoding() {
+        let model_id = "anthropic.claude-3-sonnet-20240229-v1:0";
+        let encoded: String = model_id.chars().map(|c| match c {
+            ':' => "%3A".to_string(),
+            '/' => "%2F".to_string(),
+            c => c.to_string(),
+        }).collect();
+        assert_eq!(encoded, "anthropic.claude-3-sonnet-20240229-v1%3A0");
+        assert!(!encoded.contains(':'));
+    }
+
+    #[test]
+    fn model_id_slash_percent_encoding() {
+        let model_id = "us.meta/llama3-8b-instruct-v1:0";
+        let encoded: String = model_id.chars().map(|c| match c {
+            ':' => "%3A".to_string(),
+            '/' => "%2F".to_string(),
+            c => c.to_string(),
+        }).collect();
+        assert_eq!(encoded, "us.meta%2Fllama3-8b-instruct-v1%3A0");
+        assert!(!encoded.contains(':'));
+        assert!(!encoded.contains('/'));
+    }
+
+    #[test]
+    fn model_id_no_special_chars_unchanged() {
+        let model_id = "amazon.titan-text-express-v1";
+        let encoded: String = model_id.chars().map(|c| match c {
+            ':' => "%3A".to_string(),
+            '/' => "%2F".to_string(),
+            c => c.to_string(),
+        }).collect();
+        assert_eq!(encoded, model_id);
+    }
+
+    // ── build_converse_request ──────────────────────────────────────────
+
+    fn test_bedrock_config() -> ProviderConfig {
+        ProviderConfig {
+            provider_type: "bedrock".into(),
+            api_key: Some("test_secret_key".into()),
+            api_url: Some("us-east-1".into()),
+            model: "anthropic.claude-3-sonnet-20240229-v1:0".into(),
+            temperature: Some(0.7),
+            max_tokens: Some(1024),
+            api_key_helper: None,
+            thinking_budget_tokens: None,
+        }
+    }
+
+    #[test]
+    fn build_converse_request_system_message_placement() {
+        let provider = BedrockProvider::new(test_bedrock_config());
+        let messages = vec![
+            Message { role: MessageRole::System, content: "You are helpful.".into() },
+            Message { role: MessageRole::User, content: "Hello".into() },
+        ];
+        let req = provider.build_converse_request(&messages, None);
+
+        // System messages should be in the system blocks, not in chat messages
+        assert!(req.system.is_some());
+        let sys_blocks = req.system.as_ref().unwrap();
+        assert_eq!(sys_blocks.len(), 1);
+        assert_eq!(sys_blocks[0].text, "You are helpful.");
+
+        // Only the user message should appear in messages
+        assert_eq!(req.messages.len(), 1);
+        assert_eq!(req.messages[0].role, "user");
+        assert_eq!(req.messages[0].content[0].text, "Hello");
+    }
+
+    #[test]
+    fn build_converse_request_context_injection() {
+        let provider = BedrockProvider::new(test_bedrock_config());
+        let messages = vec![
+            Message { role: MessageRole::User, content: "What is this?".into() },
+        ];
+        let req = provider.build_converse_request(&messages, Some("file: main.rs".into()));
+
+        assert_eq!(req.messages.len(), 1);
+        assert!(req.messages[0].content[0].text.starts_with("Context:\nfile: main.rs"));
+        assert!(req.messages[0].content[0].text.contains("User: What is this?"));
+    }
+
+    #[test]
+    fn build_converse_request_no_context_leaves_message_intact() {
+        let provider = BedrockProvider::new(test_bedrock_config());
+        let messages = vec![
+            Message { role: MessageRole::User, content: "Hello".into() },
+        ];
+        let req = provider.build_converse_request(&messages, None);
+
+        assert_eq!(req.messages[0].content[0].text, "Hello");
+    }
+
+    #[test]
+    fn build_converse_request_no_system_messages_yields_none() {
+        let provider = BedrockProvider::new(test_bedrock_config());
+        let messages = vec![
+            Message { role: MessageRole::User, content: "Hi".into() },
+            Message { role: MessageRole::Assistant, content: "Hello".into() },
+        ];
+        let req = provider.build_converse_request(&messages, None);
+
+        assert!(req.system.is_none());
+    }
+
+    #[test]
+    fn build_converse_request_multiple_system_messages() {
+        let provider = BedrockProvider::new(test_bedrock_config());
+        let messages = vec![
+            Message { role: MessageRole::System, content: "Rule 1".into() },
+            Message { role: MessageRole::System, content: "Rule 2".into() },
+            Message { role: MessageRole::User, content: "Go".into() },
+        ];
+        let req = provider.build_converse_request(&messages, None);
+
+        let sys = req.system.as_ref().unwrap();
+        assert_eq!(sys.len(), 2);
+        assert_eq!(sys[0].text, "Rule 1");
+        assert_eq!(sys[1].text, "Rule 2");
+    }
+
+    #[test]
+    fn build_converse_request_assistant_role_mapping() {
+        let provider = BedrockProvider::new(test_bedrock_config());
+        let messages = vec![
+            Message { role: MessageRole::User, content: "Hi".into() },
+            Message { role: MessageRole::Assistant, content: "Hello!".into() },
+            Message { role: MessageRole::User, content: "How?".into() },
+        ];
+        let req = provider.build_converse_request(&messages, None);
+
+        assert_eq!(req.messages.len(), 3);
+        assert_eq!(req.messages[0].role, "user");
+        assert_eq!(req.messages[1].role, "assistant");
+        assert_eq!(req.messages[1].content[0].text, "Hello!");
+        assert_eq!(req.messages[2].role, "user");
+    }
+
+    #[test]
+    fn build_converse_request_inference_config() {
+        let provider = BedrockProvider::new(test_bedrock_config());
+        let messages = vec![
+            Message { role: MessageRole::User, content: "test".into() },
+        ];
+        let req = provider.build_converse_request(&messages, None);
+
+        let ic = req.inference_config.as_ref().unwrap();
+        assert_eq!(ic.max_tokens, Some(1024));
+        assert_eq!(ic.temperature, Some(0.7));
+    }
+
+    #[test]
+    fn build_converse_request_serializes_to_valid_json() {
+        let provider = BedrockProvider::new(test_bedrock_config());
+        let messages = vec![
+            Message { role: MessageRole::System, content: "Be helpful".into() },
+            Message { role: MessageRole::User, content: "Hello".into() },
+        ];
+        let req = provider.build_converse_request(&messages, Some("ctx".into()));
+        let json = serde_json::to_string(&req).unwrap();
+
+        // Verify it round-trips as valid JSON
+        let val: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert!(val["system"].is_array());
+        assert!(val["messages"].is_array());
+        assert!(val["inferenceConfig"].is_object());
+    }
+
+    // ── Bedrock provider name ───────────────────────────────────────────
+
+    #[test]
+    fn bedrock_provider_name() {
+        let provider = BedrockProvider::new(test_bedrock_config());
+        assert_eq!(provider.name(), "Bedrock");
+    }
+
+    // ── ConverseResponse deserialization ─────────────────────────────────
+
+    #[test]
+    fn converse_response_deser_full() {
+        let json = r#"{
+            "output": {
+                "message": {
+                    "content": [{"text": "Hello world"}]
+                }
+            },
+            "usage": {
+                "inputTokens": 10,
+                "outputTokens": 5
+            }
+        }"#;
+        let resp: ConverseResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.output.message.content[0].text.as_ref().unwrap(), "Hello world");
+        let usage = resp.usage.unwrap();
+        assert_eq!(usage.input_tokens.unwrap(), 10);
+        assert_eq!(usage.output_tokens.unwrap(), 5);
+    }
+
+    #[test]
+    fn converse_response_deser_no_usage() {
+        let json = r#"{
+            "output": {
+                "message": {
+                    "content": [{"text": "test"}]
+                }
+            }
+        }"#;
+        let resp: ConverseResponse = serde_json::from_str(json).unwrap();
+        assert!(resp.usage.is_none());
+    }
+
+    #[test]
+    fn converse_response_deser_multiple_content_blocks() {
+        let json = r#"{
+            "output": {
+                "message": {
+                    "content": [{"text": "part1"}, {"text": "part2"}]
+                }
+            }
+        }"#;
+        let resp: ConverseResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.output.message.content.len(), 2);
+        assert_eq!(resp.output.message.content[1].text.as_ref().unwrap(), "part2");
+    }
 }

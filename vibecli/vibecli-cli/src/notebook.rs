@@ -376,4 +376,83 @@ print(2 + 2)
         assert_eq!(nb.meta.name, "");
         assert_eq!(nb.cells.len(), 1);
     }
+
+    #[test]
+    fn test_is_supported_language_all_supported() {
+        let supported = ["bash", "sh", "python", "python3", "ruby", "node", "js", "javascript", "deno", "rust"];
+        for lang in &supported {
+            assert!(
+                is_supported_language(lang),
+                "'{}' should be a supported language",
+                lang
+            );
+        }
+    }
+
+    #[test]
+    fn test_is_supported_language_unsupported() {
+        let unsupported = ["go", "java", "c", "cpp", "typescript", "ts", "perl", "lua", "haskell", ""];
+        for lang in &unsupported {
+            assert!(
+                !is_supported_language(lang),
+                "'{}' should NOT be a supported language",
+                lang
+            );
+        }
+    }
+
+    #[test]
+    fn test_frontmatter_with_extra_unknown_keys() {
+        let content = "---\nname: My NB\nauthor: Alice\nversion: 2.0\ndescription: desc here\ntags: test,demo\n---\n\n```bash\necho ok\n```\n";
+        let nb = Notebook::parse(content).unwrap();
+        assert_eq!(nb.meta.name, "My NB");
+        assert_eq!(nb.meta.description, "desc here");
+        // Unknown keys (author, version, tags) are silently ignored
+        assert_eq!(nb.cells.len(), 1);
+    }
+
+    #[test]
+    fn test_frontmatter_missing_name_description_defaults_empty() {
+        // Frontmatter block present but with no name or description keys
+        let content = "---\nauthor: Bob\nversion: 1.0\n---\n\n```bash\necho hi\n```\n";
+        let nb = Notebook::parse(content).unwrap();
+        assert_eq!(nb.meta.name, "", "name should default to empty string");
+        assert_eq!(nb.meta.description, "", "description should default to empty string");
+        assert_eq!(nb.cells.len(), 1);
+    }
+
+    #[test]
+    fn test_consecutive_code_fences_no_prose_between() {
+        let content = "```bash\necho one\n```\n```python\nprint('two')\n```\n```sh\necho three\n```\n";
+        let nb = Notebook::parse(content).unwrap();
+        assert_eq!(nb.cells.len(), 3, "all three consecutive cells should be parsed");
+        assert_eq!(nb.cells[0].language, "bash");
+        assert_eq!(nb.cells[0].source, "echo one");
+        assert_eq!(nb.cells[1].language, "python");
+        assert_eq!(nb.cells[1].source, "print('two')");
+        assert_eq!(nb.cells[2].language, "sh");
+        assert_eq!(nb.cells[2].source, "echo three");
+    }
+
+    #[test]
+    fn test_code_cell_at_end_of_file_no_trailing_newline() {
+        // File ends immediately after the closing fence, no trailing newline
+        let content = "```bash\necho final```";
+        // The closing ``` is on the same line as content, so the parser sees
+        // the line "echo final```" which does not equal "```" by itself.
+        // This means the cell source collects everything until EOF.
+        let nb = Notebook::parse(content).unwrap();
+        // The parser will consume lines until it finds a line that is exactly "```".
+        // Since "echo final```" != "```", the cell collects that line.
+        assert_eq!(nb.cells.len(), 1);
+        assert_eq!(nb.cells[0].language, "bash");
+        assert!(nb.cells[0].source.contains("echo final"));
+
+        // Now test: closing fence on its own line but no trailing newline
+        let content2 = "```bash\necho last\n```";
+        let nb2 = Notebook::parse(content2).unwrap();
+        assert_eq!(nb2.cells.len(), 1, "cell should be parsed even without trailing newline");
+        assert_eq!(nb2.cells[0].language, "bash");
+        assert_eq!(nb2.cells[0].source, "echo last");
+    }
 }
