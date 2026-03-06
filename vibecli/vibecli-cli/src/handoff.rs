@@ -2,6 +2,7 @@
 //!
 //! Generates a WARRIOR-style 7-section handoff document from an agent session,
 //! enabling smooth session continuity and context preservation.
+#![allow(dead_code)]
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};

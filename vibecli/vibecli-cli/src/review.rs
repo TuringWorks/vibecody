@@ -524,7 +524,10 @@ fn compute_score(issues: &[ReviewIssue]) -> ReviewScore {
 }
 
 // ── Multi-Perspective Review ─────────────────────────────────────────────────
+// These types are scaffolded for the multi-perspective review feature
+// and will be wired into the CLI once the UX is finalized.
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ReviewPerspective {
@@ -540,6 +543,7 @@ pub enum ReviewPerspective {
     DevOpsEngineer,
 }
 
+#[allow(dead_code)]
 impl ReviewPerspective {
     pub const ALL: &'static [Self] = &[
         Self::Architect,
@@ -582,6 +586,7 @@ impl std::fmt::Display for ReviewPerspective {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MultiPerspectiveReport {
     pub perspectives_used: Vec<String>,
@@ -590,6 +595,7 @@ pub struct MultiPerspectiveReport {
     pub summary: String,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PerspectiveFinding {
     pub perspective: String,
@@ -598,6 +604,7 @@ pub struct PerspectiveFinding {
     pub summary: String,
 }
 
+#[allow(dead_code)]
 impl MultiPerspectiveReport {
     pub fn to_markdown(&self) -> String {
         let mut md = String::new();
@@ -643,6 +650,7 @@ impl MultiPerspectiveReport {
 }
 
 /// Run multi-perspective code review on a git diff.
+#[allow(dead_code)]
 pub async fn run_multi_perspective_review(
     config: &ReviewConfig,
     perspectives: &[ReviewPerspective],
@@ -748,6 +756,7 @@ Diff:
     })
 }
 
+#[allow(dead_code)]
 fn parse_perspective_response(response: &str) -> (Vec<ReviewIssue>, Vec<ReviewSuggestion>, String) {
     let raw = response.trim();
     let json_str = if raw.starts_with("```") {
