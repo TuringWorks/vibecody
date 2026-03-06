@@ -98,6 +98,7 @@ import { JwtPanel } from "./components/JwtPanel";
 import { JsonToolsPanel } from "./components/JsonToolsPanel";
 import { EncodingPanel } from "./components/EncodingPanel";
 import { NumberBasePanel } from "./components/NumberBasePanel";
+import { SandboxPanel } from "./components/SandboxPanel";
 import { useCollab } from "./hooks/useCollab";
 import { flowContext } from "./utils/FlowContext";
 import { supercompleteEngine } from "./utils/SupercompleteEngine";
