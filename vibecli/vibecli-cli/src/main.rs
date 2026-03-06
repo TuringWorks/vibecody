@@ -68,6 +68,8 @@ mod docker_runtime;
 mod podman_runtime;
 mod opensandbox_client;
 mod container_tool_executor;
+mod verification;
+mod handoff;
 mod tui;
 
 #[derive(Parser)]
@@ -4462,6 +4464,117 @@ async fn main() -> Result<()> {
                             }
                         }
 
+                        "/verify" => {
+                            let sub = args.trim();
+                            let categories = match sub {
+                                "security" => vec![verification::VerificationCategory::Security],
+                                "performance" => vec![verification::VerificationCategory::Performance],
+                                "testing" => vec![verification::VerificationCategory::Testing],
+                                "quick" => vec![
+                                    verification::VerificationCategory::CodeQuality,
+                                    verification::VerificationCategory::Testing,
+                                    verification::VerificationCategory::Security,
+                                ],
+                                _ => verification::VerificationCategory::ALL.to_vec(), // "full" or default
+                            };
+                            let workspace = std::env::current_dir()?;
+                            println!("🔍 Running verification ({} categories)...\n", categories.len());
+                            match verification::run_verification(&workspace, &categories, llm.clone()).await {
+                                Ok(report) => {
+                                    println!("{}", report.to_markdown());
+                                }
+                                Err(e) => println!("❌ Verification failed: {}\n", e),
+                            }
+                        }
+
+                        "/handoff" => {
+                            let sub_parts: Vec<&str> = args.splitn(2, ' ').collect();
+                            let subcmd = sub_parts.first().copied().unwrap_or("").trim();
+                            let sub_args = if sub_parts.len() > 1 { sub_parts[1].trim() } else { "" };
+                            let store = handoff::HandoffStore::new();
+                            match subcmd {
+                                "list" | "" => {
+                                    let ids = store.list();
+                                    if ids.is_empty() {
+                                        println!("No handoff documents found.\n");
+                                    } else {
+                                        println!("📋 Handoff documents:\n");
+                                        for id in &ids {
+                                            println!("  - {}", id);
+                                        }
+                                        println!();
+                                    }
+                                }
+                                "show" => {
+                                    if sub_args.is_empty() {
+                                        println!("Usage: /handoff show <session-id>\n");
+                                    } else {
+                                        match store.load_markdown(sub_args) {
+                                            Ok(md) => println!("{}\n", md),
+                                            Err(e) => println!("❌ {}\n", e),
+                                        }
+                                    }
+                                }
+                                "create" => {
+                                    println!("📝 Handoff documents are auto-generated at agent session end.\n");
+                                    println!("Use /handoff list to see existing handoffs.\n");
+                                }
+                                _ => {
+                                    println!("Usage: /handoff [list|show <id>|create]\n");
+                                }
+                            }
+                        }
+
+                        "/orient" => {
+                            let workspace = std::env::current_dir()?;
+                            println!("🧭 Analyzing project...\n");
+                            let orient_prompt = format!(
+                                "Analyze the project at {} and provide a structured orientation:\n\
+                                1. Language(s) and framework(s) detected\n\
+                                2. Project architecture (monorepo/single/library/app)\n\
+                                3. Key entry points and configuration files\n\
+                                4. Build system and dependencies\n\
+                                5. Testing setup\n\
+                                6. CI/CD configuration\n\
+                                7. Recent git activity summary\n\n\
+                                Be concise and factual.",
+                                workspace.display()
+                            );
+                            let orient_msgs = vec![
+                                Message { role: MessageRole::System, content: "You are a project analyst. Provide structured, factual project orientations.".to_string() },
+                                Message { role: MessageRole::User, content: orient_prompt },
+                            ];
+                            match llm.chat(&orient_msgs, None).await {
+                                Ok(resp) => println!("{}\n", resp),
+                                Err(e) => println!("❌ Orient failed: {}\n", e),
+                            }
+                        }
+
+                        "/research" => {
+                            if args.trim().is_empty() {
+                                println!("Usage: /research <topic>\n");
+                            } else {
+                                println!("🔬 Researching: {}...\n", args.trim());
+                                let research_prompt = format!(
+                                    "Research the following topic in the context of the current codebase:\n\n{}\n\n\
+                                    Provide:\n\
+                                    1. What exists in the codebase related to this topic\n\
+                                    2. Relevant patterns and best practices\n\
+                                    3. Recommended approach based on the project's architecture\n\
+                                    4. Potential pitfalls to avoid",
+                                    args.trim()
+                                );
+                                let research_msgs = vec![
+                                    Message { role: MessageRole::System, content: "You are a technical researcher. Provide thorough but concise research summaries.".to_string() },
+                                    Message { role: MessageRole::User, content: research_prompt },
+                                ];
+                                match llm.chat(&research_msgs, None).await {
+                                    Ok(resp) => println!("{}\n", resp),
+                                    Err(e) => println!("❌ Research failed: {}\n", e),
+                                }
+                            }
+                        }
+
                         _ => {
                             println!("Type /help for available commands\n");
                         }
@@ -4875,6 +4988,7 @@ async fn run_agent_repl_with_context(
                 AgentEvent::Complete(s) => serde_json::json!({"type":"complete","summary":s}),
                 AgentEvent::Error(e) => serde_json::json!({"type":"error","message":e}),
                 AgentEvent::ToolCallPending { call, .. } => serde_json::json!({"type":"tool_pending","tool":call.name()}),
+                AgentEvent::CircuitBreak { ref state, ref reason } => serde_json::json!({"type":"circuit_break","state":state.to_string(),"reason":reason}),
             };
             println!("{}", obj);
             io::stdout().flush()?;
@@ -4885,6 +4999,7 @@ async fn run_agent_repl_with_context(
                     let _ = result_tx.send(Some(result));
                 }
                 AgentEvent::Complete(_) | AgentEvent::Error(_) => break,
+                AgentEvent::CircuitBreak { ref state, .. } if *state == vibe_ai::agent::AgentHealthState::Blocked => break,
                 _ => {}
             }
             continue;
@@ -4980,6 +5095,15 @@ async fn run_agent_repl_with_context(
                     let _ = store.finish_session(&session_id, "failed", Some(&e));
                 }
                 break;
+            }
+            AgentEvent::CircuitBreak { state, reason } => {
+                eprintln!("\n{}", reason);
+                if state == vibe_ai::agent::AgentHealthState::Blocked {
+                    if let Some(ref store) = db {
+                        let _ = store.finish_session(&session_id, "blocked", Some(&reason));
+                    }
+                    break;
+                }
             }
         }
     }

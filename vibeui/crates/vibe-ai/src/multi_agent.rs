@@ -365,6 +365,15 @@ async fn run_single_agent(
                 let _ = event_tx.send(OrchestratorEvent::AgentError { id, error: err }).await;
                 break;
             }
+            AgentEvent::CircuitBreak { state, reason } => {
+                // Treat circuit break as an error in parallel mode
+                let msg = format!("Circuit breaker: {} — {}", state, reason);
+                let _ = event_tx.send(OrchestratorEvent::AgentError { id, error: msg.clone() }).await;
+                if state == crate::agent::AgentHealthState::Blocked {
+                    final_summary = msg;
+                    break;
+                }
+            }
         }
     }
 

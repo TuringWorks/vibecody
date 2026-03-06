@@ -523,6 +523,308 @@ fn compute_score(issues: &[ReviewIssue]) -> ReviewScore {
     score
 }
 
+// ── Multi-Perspective Review ─────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReviewPerspective {
+    Architect,
+    SecurityExpert,
+    PerformanceEngineer,
+    TestingSpecialist,
+    UxReviewer,
+    Maintainability,
+    ApiDesigner,
+    DataModeler,
+    AccessibilityAuditor,
+    DevOpsEngineer,
+}
+
+impl ReviewPerspective {
+    pub const ALL: &'static [Self] = &[
+        Self::Architect,
+        Self::SecurityExpert,
+        Self::PerformanceEngineer,
+        Self::TestingSpecialist,
+        Self::Maintainability,
+    ];
+
+    pub fn system_prompt(&self) -> &'static str {
+        match self {
+            Self::Architect => "You are a senior software architect. Focus on design patterns, separation of concerns, modularity, coupling, cohesion, and scalability.",
+            Self::SecurityExpert => "You are a security expert. Focus on authentication, authorization, injection attacks, data exposure, cryptographic issues, and supply chain risks.",
+            Self::PerformanceEngineer => "You are a performance engineer. Focus on algorithmic complexity, memory usage, I/O patterns, caching opportunities, and bottlenecks.",
+            Self::TestingSpecialist => "You are a testing specialist. Focus on test coverage, edge cases, test quality, mocking practices, and regression risks.",
+            Self::UxReviewer => "You are a UX reviewer. Focus on user-facing error messages, accessibility, API ergonomics, and developer experience.",
+            Self::Maintainability => "You are a maintainability reviewer. Focus on code readability, documentation, naming conventions, technical debt, and future extensibility.",
+            Self::ApiDesigner => "You are an API designer. Focus on RESTful conventions, backwards compatibility, versioning, error formats, and pagination.",
+            Self::DataModeler => "You are a data modeler. Focus on schema design, normalization, indexes, migrations, and data integrity constraints.",
+            Self::AccessibilityAuditor => "You are an accessibility auditor. Focus on WCAG compliance, ARIA attributes, keyboard navigation, screen reader support, and color contrast.",
+            Self::DevOpsEngineer => "You are a DevOps engineer. Focus on deployability, configuration management, logging, monitoring, CI/CD, and infrastructure as code.",
+        }
+    }
+}
+
+impl std::fmt::Display for ReviewPerspective {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Architect => write!(f, "Architect"),
+            Self::SecurityExpert => write!(f, "Security Expert"),
+            Self::PerformanceEngineer => write!(f, "Performance Engineer"),
+            Self::TestingSpecialist => write!(f, "Testing Specialist"),
+            Self::UxReviewer => write!(f, "UX Reviewer"),
+            Self::Maintainability => write!(f, "Maintainability"),
+            Self::ApiDesigner => write!(f, "API Designer"),
+            Self::DataModeler => write!(f, "Data Modeler"),
+            Self::AccessibilityAuditor => write!(f, "Accessibility Auditor"),
+            Self::DevOpsEngineer => write!(f, "DevOps Engineer"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MultiPerspectiveReport {
+    pub perspectives_used: Vec<String>,
+    pub findings: Vec<PerspectiveFinding>,
+    pub merged_issues: Vec<ReviewIssue>,
+    pub summary: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PerspectiveFinding {
+    pub perspective: String,
+    pub issues: Vec<ReviewIssue>,
+    pub suggestions: Vec<ReviewSuggestion>,
+    pub summary: String,
+}
+
+impl MultiPerspectiveReport {
+    pub fn to_markdown(&self) -> String {
+        let mut md = String::new();
+        md.push_str("# Multi-Perspective Code Review\n\n");
+        md.push_str(&format!(
+            "**Perspectives:** {}\n\n",
+            self.perspectives_used.join(", ")
+        ));
+        md.push_str("## Summary\n\n");
+        md.push_str(&self.summary);
+        md.push_str("\n\n");
+
+        md.push_str(&format!("## Merged Issues ({})\n\n", self.merged_issues.len()));
+        let mut sorted = self.merged_issues.clone();
+        sorted.sort_by(|a, b| b.severity.cmp(&a.severity));
+        for issue in &sorted {
+            let icon = match issue.severity {
+                Severity::Critical => "🔴",
+                Severity::Warning => "🟡",
+                Severity::Info => "🔵",
+            };
+            md.push_str(&format!(
+                "- {} **{}** `{}:{}` — {}\n",
+                icon, issue.severity, issue.file, issue.line, issue.description
+            ));
+        }
+        md.push('\n');
+
+        for finding in &self.findings {
+            md.push_str(&format!("### {} Perspective\n\n", finding.perspective));
+            md.push_str(&format!("{}\n\n", finding.summary));
+            if !finding.suggestions.is_empty() {
+                for s in &finding.suggestions {
+                    md.push_str(&format!("- {}\n", s.description));
+                }
+                md.push('\n');
+            }
+        }
+
+        md.push_str("---\n*Generated by VibeCLI Multi-Perspective Review*\n");
+        md
+    }
+}
+
+/// Run multi-perspective code review on a git diff.
+pub async fn run_multi_perspective_review(
+    config: &ReviewConfig,
+    perspectives: &[ReviewPerspective],
+    llm: Arc<dyn AIProvider>,
+) -> Result<MultiPerspectiveReport> {
+    let diff = get_diff(config)?;
+    if diff.trim().is_empty() {
+        return Ok(MultiPerspectiveReport {
+            perspectives_used: perspectives.iter().map(|p| p.to_string()).collect(),
+            findings: vec![],
+            merged_issues: vec![],
+            summary: "No changes found to review.".to_string(),
+        });
+    }
+
+    let diff_truncated = if diff.len() > MAX_DIFF_CHARS * 2 {
+        let end = diff.char_indices().nth(MAX_DIFF_CHARS * 2).map(|(i, _)| i).unwrap_or(diff.len());
+        format!("{}\n... (truncated)", &diff[..end])
+    } else {
+        diff.clone()
+    };
+
+    let mut findings: Vec<PerspectiveFinding> = Vec::new();
+    let mut all_issues: Vec<ReviewIssue> = Vec::new();
+
+    for perspective in perspectives {
+        let prompt = format!(
+            r#"Review this git diff from your perspective as a {}.
+
+Respond with ONLY valid JSON:
+{{
+  "summary": "one-sentence perspective-specific summary",
+  "issues": [
+    {{
+      "file": "filename",
+      "line": 0,
+      "severity": "critical|warning|info",
+      "category": "security|performance|correctness|style|testing",
+      "description": "description",
+      "suggested_fix": "fix or null"
+    }}
+  ],
+  "suggestions": [
+    {{ "description": "suggestion", "file": "optional_file or null" }}
+  ]
+}}
+
+Diff:
+```
+{}
+```"#,
+            perspective, diff_truncated
+        );
+
+        let messages = vec![
+            Message {
+                role: MessageRole::System,
+                content: perspective.system_prompt().to_string(),
+            },
+            Message {
+                role: MessageRole::User,
+                content: prompt,
+            },
+        ];
+
+        match llm.chat(&messages, None).await {
+            Ok(response) => {
+                let (issues, suggestions, summary) = parse_perspective_response(&response);
+                all_issues.extend(issues.clone());
+                findings.push(PerspectiveFinding {
+                    perspective: perspective.to_string(),
+                    issues,
+                    suggestions,
+                    summary,
+                });
+            }
+            Err(e) => {
+                tracing::warn!(perspective = %perspective, error = %e, "Perspective review failed");
+                findings.push(PerspectiveFinding {
+                    perspective: perspective.to_string(),
+                    issues: vec![],
+                    suggestions: vec![],
+                    summary: format!("Failed: {}", e),
+                });
+            }
+        }
+    }
+
+    all_issues.dedup_by(|a, b| a.file == b.file && a.line == b.line && a.description == b.description);
+
+    let summary = format!(
+        "Reviewed from {} perspectives. Found {} total issues ({} critical).",
+        perspectives.len(),
+        all_issues.len(),
+        all_issues.iter().filter(|i| i.severity == Severity::Critical).count()
+    );
+
+    Ok(MultiPerspectiveReport {
+        perspectives_used: perspectives.iter().map(|p| p.to_string()).collect(),
+        findings,
+        merged_issues: all_issues,
+        summary,
+    })
+}
+
+fn parse_perspective_response(response: &str) -> (Vec<ReviewIssue>, Vec<ReviewSuggestion>, String) {
+    let raw = response.trim();
+    let json_str = if raw.starts_with("```") {
+        raw.lines()
+            .filter(|l| !l.starts_with("```"))
+            .collect::<Vec<_>>()
+            .join("\n")
+    } else {
+        raw.to_string()
+    };
+
+    #[derive(Deserialize)]
+    struct RawResp {
+        #[serde(default)]
+        summary: String,
+        #[serde(default)]
+        issues: Vec<RawIssue>,
+        #[serde(default)]
+        suggestions: Vec<RawSugg>,
+    }
+
+    #[derive(Deserialize)]
+    struct RawIssue {
+        #[serde(default)]
+        file: String,
+        #[serde(default)]
+        line: u32,
+        #[serde(default = "default_sev")]
+        severity: String,
+        #[serde(default)]
+        category: String,
+        #[serde(default)]
+        description: String,
+        #[serde(default)]
+        suggested_fix: Option<String>,
+    }
+
+    #[derive(Deserialize)]
+    struct RawSugg {
+        #[serde(default)]
+        description: String,
+        #[serde(default)]
+        file: Option<String>,
+    }
+
+    fn default_sev() -> String { "info".to_string() }
+
+    let parsed: RawResp = serde_json::from_str(&json_str)
+        .unwrap_or(RawResp { summary: String::new(), issues: vec![], suggestions: vec![] });
+
+    let issues = parsed.issues.into_iter().map(|i| ReviewIssue {
+        file: i.file,
+        line: i.line,
+        severity: match i.severity.as_str() {
+            "critical" => Severity::Critical,
+            "warning" => Severity::Warning,
+            _ => Severity::Info,
+        },
+        category: match i.category.as_str() {
+            "security" => ReviewFocus::Security,
+            "performance" => ReviewFocus::Performance,
+            "style" => ReviewFocus::Style,
+            "testing" => ReviewFocus::Testing,
+            _ => ReviewFocus::Correctness,
+        },
+        description: i.description,
+        suggested_fix: i.suggested_fix,
+    }).collect();
+
+    let suggestions = parsed.suggestions.into_iter().map(|s| ReviewSuggestion {
+        description: s.description,
+        file: s.file,
+    }).collect();
+
+    (issues, suggestions, parsed.summary)
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -1111,5 +1413,77 @@ diff --git a/README.md b/README.md\n+added readme\n";
         let info_pos = md.find("info issue").unwrap();
         assert!(crit_pos < warn_pos, "Critical should come before Warning");
         assert!(warn_pos < info_pos, "Warning should come before Info");
+    }
+
+    // ── Multi-Perspective Review tests ──────────────────────────────────
+
+    #[test]
+    fn perspective_display_all_variants() {
+        assert_eq!(format!("{}", ReviewPerspective::Architect), "Architect");
+        assert_eq!(format!("{}", ReviewPerspective::SecurityExpert), "Security Expert");
+        assert_eq!(format!("{}", ReviewPerspective::PerformanceEngineer), "Performance Engineer");
+        assert_eq!(format!("{}", ReviewPerspective::TestingSpecialist), "Testing Specialist");
+        assert_eq!(format!("{}", ReviewPerspective::UxReviewer), "UX Reviewer");
+        assert_eq!(format!("{}", ReviewPerspective::Maintainability), "Maintainability");
+        assert_eq!(format!("{}", ReviewPerspective::DevOpsEngineer), "DevOps Engineer");
+    }
+
+    #[test]
+    fn perspective_system_prompts_nonempty() {
+        for p in ReviewPerspective::ALL {
+            assert!(!p.system_prompt().is_empty(), "{} has empty prompt", p);
+        }
+    }
+
+    #[test]
+    fn perspective_all_has_five() {
+        assert_eq!(ReviewPerspective::ALL.len(), 5);
+    }
+
+    #[test]
+    fn parse_perspective_response_valid() {
+        let json = r#"{"summary": "Good code", "issues": [{"file": "a.rs", "line": 10, "severity": "warning", "category": "security", "description": "weak hash"}], "suggestions": [{"description": "Use bcrypt"}]}"#;
+        let (issues, suggestions, summary) = parse_perspective_response(json);
+        assert_eq!(summary, "Good code");
+        assert_eq!(issues.len(), 1);
+        assert_eq!(issues[0].severity, Severity::Warning);
+        assert_eq!(suggestions.len(), 1);
+    }
+
+    #[test]
+    fn parse_perspective_response_invalid() {
+        let (issues, suggestions, summary) = parse_perspective_response("not json at all");
+        assert!(issues.is_empty());
+        assert!(suggestions.is_empty());
+        assert!(summary.is_empty());
+    }
+
+    #[test]
+    fn multi_perspective_report_markdown() {
+        let report = MultiPerspectiveReport {
+            perspectives_used: vec!["Architect".into(), "Security Expert".into()],
+            findings: vec![
+                PerspectiveFinding {
+                    perspective: "Architect".into(),
+                    issues: vec![],
+                    suggestions: vec![ReviewSuggestion { description: "Decouple modules".into(), file: None }],
+                    summary: "Good architecture overall.".into(),
+                },
+            ],
+            merged_issues: vec![ReviewIssue {
+                file: "main.rs".into(),
+                line: 5,
+                severity: Severity::Warning,
+                category: ReviewFocus::Correctness,
+                description: "unused variable".into(),
+                suggested_fix: None,
+            }],
+            summary: "Reviewed from 2 perspectives. Found 1 total issues (0 critical).".into(),
+        };
+        let md = report.to_markdown();
+        assert!(md.contains("Multi-Perspective Code Review"));
+        assert!(md.contains("Architect"));
+        assert!(md.contains("Decouple modules"));
+        assert!(md.contains("unused variable"));
     }
 }

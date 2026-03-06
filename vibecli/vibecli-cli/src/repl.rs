@@ -67,6 +67,10 @@ static COMMANDS: &[&str] = &[
     "/discover",
     "/pair",
     "/workflow",
+    "/verify",
+    "/handoff",
+    "/orient",
+    "/research",
 ];
 
 // ── Sub-command tables ────────────────────────────────────────────────────────
@@ -154,6 +158,12 @@ static COMPLIANCE_SUBS: &[&str] = &["soc2", "fedramp"];
 /// Sub-commands for `/redteam <sub>`
 static REDTEAM_SUBS: &[&str] = &["scan", "list", "show", "report", "config"];
 
+/// Sub-commands for `/verify <sub>`
+static VERIFY_SUBS: &[&str] = &["full", "quick", "security", "performance", "testing"];
+
+/// Sub-commands for `/handoff <sub>`
+static HANDOFF_SUBS: &[&str] = &["list", "show", "create"];
+
 /// Built-in theme names for `/theme <name>` completion
 static THEME_NAMES: &[&str] = &["dark", "light", "monokai", "solarized", "nord"];
 
@@ -214,6 +224,10 @@ fn command_hint(cmd: &str) -> Option<&'static str> {
         "/discover" => Some("— discover VibeCLI peers on the local network"),
         "/pair"     => Some("[host:port]  — generate device pairing URL with one-time token"),
         "/sandbox"  => Some("[status|start|stop|list|exec <cmd>|logs|runtime]  — container sandbox management"),
+        "/verify"   => Some("[full|quick|security|performance|testing]  — structured verification checklist"),
+        "/handoff"  => Some("[list|show <id>|create]  — session handoff documents"),
+        "/orient"   => Some("— analyze current project structure and stack"),
+        "/research" => Some("<topic>  — research a topic in context of the codebase"),
         _ => None,
     }
 }
@@ -299,6 +313,8 @@ fn complete_slash(line: &str) -> Option<(usize, Vec<Pair>)> {
                 "/workflow" => Some(WORKFLOW_SUBS),
                 "/redteam"  => Some(REDTEAM_SUBS),
                 "/compliance" => Some(COMPLIANCE_SUBS),
+                "/verify"   => Some(VERIFY_SUBS),
+                "/handoff"  => Some(HANDOFF_SUBS),
                 _ => None,
             };
 

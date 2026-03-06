@@ -357,6 +357,12 @@ Endpoints:
 | POST | `/collab/rooms` | Yes | Create or get a collaboration room |
 | GET | `/collab/rooms` | Yes | List all active collaboration rooms |
 | GET | `/collab/rooms/:room_id/peers` | Yes | List peers in a room (names, cursor colors) |
+| POST | `/acp/v1/tasks` | Yes | Create an ACP (Agent Communication Protocol) task |
+| GET | `/acp/v1/tasks/:id` | Yes | Get an ACP task by ID |
+| GET | `/acp/v1/capabilities` | No | List ACP server capabilities |
+| POST | `/webhook/github` | No | GitHub App webhook receiver for CI review bot |
+| POST | `/webhook/skill/:skill_name` | No | Trigger a skill by webhook name |
+| GET | `/pair` | No | Device pairing endpoint — generates a one-time pairing URL |
 
 ---
 

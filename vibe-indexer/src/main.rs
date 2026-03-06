@@ -243,8 +243,11 @@ async fn list_jobs(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     let mut list: Vec<&IndexJob> = jobs.values().collect();
     list.sort_by_key(|j| std::cmp::Reverse(j.started_at));
     match serde_json::to_value(&list) {
-        Ok(v) => Json(v),
-        Err(e) => Json(serde_json::json!({ "error": e.to_string() })),
+        Ok(v) => (StatusCode::OK, Json(v)),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({ "error": e.to_string() })),
+        ),
     }
 }
 

@@ -657,6 +657,13 @@ async fn handle_chat_input(
                             }
                             AgentEvent::Complete(s) => AppEvent::AgentComplete(s),
                             AgentEvent::Error(e) => AppEvent::AgentError(e),
+                            AgentEvent::CircuitBreak { state, reason } => {
+                                if state == vibe_ai::agent::AgentHealthState::Blocked {
+                                    AppEvent::AgentError(reason)
+                                } else {
+                                    AppEvent::AgentChunk(reason)
+                                }
+                            }
                         };
                         if tx_clone.send(app_ev).await.is_err() {
                             break;

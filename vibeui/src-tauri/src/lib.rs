@@ -278,6 +278,8 @@ pub fn run() {
             // Phase 44b: Arena Mode
             commands::save_arena_vote,
             commands::get_arena_history,
+            // Phase VI: Project Dashboard
+            commands::get_project_dashboard,
             // Phase 45: Cost Observatory
             commands::record_cost_entry,
             commands::get_cost_metrics,

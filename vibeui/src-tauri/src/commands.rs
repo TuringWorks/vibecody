@@ -1841,6 +1841,17 @@ pub async fn start_agent_task(
                     let _ = app_handle.emit("agent:error", msg);
                     break;
                 }
+                AgentEvent::CircuitBreak { state, reason } => {
+                    let payload = serde_json::json!({
+                        "state": state.to_string(),
+                        "reason": reason,
+                    });
+                    let _ = app_handle.emit("agent:circuit_break", payload);
+                    if state == vibe_ai::agent::AgentHealthState::Blocked {
+                        let _ = app_handle.emit("agent:error", format!("Agent blocked: {}", reason));
+                        break;
+                    }
+                }
             }
         }
     });
@@ -13937,6 +13948,144 @@ pub async fn get_sandbox_metrics(
         "memory_usage": mem_str,
         "pids": pids,
     }))
+}
+
+// ── Project Dashboard ────────────────────────────────────────────────────────
+
+#[derive(serde::Serialize)]
+pub struct DashboardData {
+    pub project_name: String,
+    pub languages: Vec<String>,
+    pub total_files: usize,
+    pub total_lines: usize,
+    pub git_branch: String,
+    pub git_uncommitted: usize,
+    pub recent_commits: usize,
+    pub test_framework: String,
+    pub has_ci: bool,
+    pub open_todos: usize,
+    pub agent_sessions: usize,
+}
+
+#[tauri::command]
+pub async fn get_project_dashboard() -> Result<DashboardData, String> {
+    let workspace = std::env::current_dir().map_err(|e| e.to_string())?;
+    let project_name = workspace
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| "unknown".into());
+
+    // Detect languages
+    let mut languages = Vec::new();
+    let markers = [
+        ("Cargo.toml", "Rust"), ("package.json", "TypeScript/JavaScript"),
+        ("go.mod", "Go"), ("pyproject.toml", "Python"), ("requirements.txt", "Python"),
+        ("Gemfile", "Ruby"), ("build.gradle", "Java/Kotlin"),
+    ];
+    for (file, lang) in &markers {
+        if workspace.join(file).exists() && !languages.contains(&lang.to_string()) {
+            languages.push(lang.to_string());
+        }
+    }
+
+    // Count files and lines (shallow, skip heavy dirs)
+    let mut total_files = 0usize;
+    let mut total_lines = 0usize;
+    let skip_dirs = ["node_modules", "target", "dist", ".git", "build", "__pycache__"];
+    if let Ok(entries) = walkdir::WalkDir::new(&workspace).max_depth(5).into_iter()
+        .filter_entry(|e| {
+            let name = e.file_name().to_string_lossy();
+            !skip_dirs.iter().any(|s| name.as_ref() == *s)
+        })
+        .collect::<Result<Vec<_>, _>>()
+    {
+        for entry in entries {
+            if entry.file_type().is_file() {
+                total_files += 1;
+                if let Ok(content) = std::fs::read_to_string(entry.path()) {
+                    total_lines += content.lines().count();
+                }
+            }
+        }
+    }
+
+    // Git info
+    let git_branch = std::process::Command::new("git")
+        .args(["rev-parse", "--abbrev-ref", "HEAD"])
+        .current_dir(&workspace)
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .unwrap_or_default();
+
+    let git_uncommitted = std::process::Command::new("git")
+        .args(["status", "--porcelain"])
+        .current_dir(&workspace)
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).lines().count())
+        .unwrap_or(0);
+
+    let recent_commits = std::process::Command::new("git")
+        .args(["rev-list", "--count", "--since=7.days", "HEAD"])
+        .current_dir(&workspace)
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().parse::<usize>().unwrap_or(0))
+        .unwrap_or(0);
+
+    // Test framework detection
+    let test_framework = if workspace.join("Cargo.toml").exists() { "cargo test".to_string() }
+        else if workspace.join("package.json").exists() {
+            let pkg = std::fs::read_to_string(workspace.join("package.json")).unwrap_or_default();
+            if pkg.contains("jest") { "jest".into() }
+            else if pkg.contains("vitest") { "vitest".into() }
+            else if pkg.contains("mocha") { "mocha".into() }
+            else { String::new() }
+        }
+        else if workspace.join("pytest.ini").exists() || workspace.join("pyproject.toml").exists() { "pytest".into() }
+        else if workspace.join("go.mod").exists() { "go test".into() }
+        else { String::new() };
+
+    // CI detection
+    let has_ci = workspace.join(".github/workflows").exists()
+        || workspace.join(".gitlab-ci.yml").exists()
+        || workspace.join("Jenkinsfile").exists();
+
+    // TODO count (quick grep)
+    let open_todos = std::process::Command::new("grep")
+        .args(["-r", "--include=*.rs", "--include=*.ts", "--include=*.tsx",
+               "--include=*.py", "--include=*.go", "-c", "TODO\\|FIXME\\|HACK"])
+        .arg(".")
+        .current_dir(&workspace)
+        .output()
+        .map(|o| {
+            String::from_utf8_lossy(&o.stdout)
+                .lines()
+                .filter_map(|l| l.rsplit(':').next()?.parse::<usize>().ok())
+                .sum()
+        })
+        .unwrap_or(0);
+
+    // Agent sessions count
+    let sessions_dir = dirs::home_dir()
+        .unwrap_or_default()
+        .join(".vibecli")
+        .join("sessions");
+    let agent_sessions = std::fs::read_dir(&sessions_dir)
+        .map(|rd| rd.count())
+        .unwrap_or(0);
+
+    Ok(DashboardData {
+        project_name,
+        languages,
+        total_files,
+        total_lines,
+        git_branch,
+        git_uncommitted,
+        recent_commits,
+        test_framework,
+        has_ci,
+        open_todos,
+        agent_sessions,
+    })
 }
 
 /// Detect which container binary is available (docker or podman).

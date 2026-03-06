@@ -12,10 +12,205 @@ use crate::tools::{format_tool_result, parse_tool_calls, ToolCall, ToolResult, T
 use anyhow::Result;
 use async_trait::async_trait;
 use futures::StreamExt;
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::{mpsc, oneshot};
 use tracing::Instrument;
+
+// ── Circuit Breaker ─────────────────────────────────────────────────────────
+
+/// Health state of the agent loop, inspired by fire-flow's error classification.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AgentHealthState {
+    /// Agent is making forward progress (default).
+    Progress,
+    /// No file changes for `stall_threshold` steps — agent may be stuck.
+    Stalled,
+    /// Same error hash repeated `spin_threshold` times — agent is retrying the same failing action.
+    Spinning,
+    /// Output volume declining by more than `degradation_pct` — context may be rotting.
+    Degraded,
+    /// An external blocker prevents progress (e.g. missing dependency, permission denied).
+    Blocked,
+}
+
+impl std::fmt::Display for AgentHealthState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Progress => write!(f, "PROGRESS"),
+            Self::Stalled => write!(f, "STALLED"),
+            Self::Spinning => write!(f, "SPINNING"),
+            Self::Degraded => write!(f, "DEGRADED"),
+            Self::Blocked => write!(f, "BLOCKED"),
+        }
+    }
+}
+
+/// Monitors agent health and triggers circuit breaks when the agent is stuck.
+#[derive(Debug, Clone)]
+pub struct CircuitBreaker {
+    /// Steps since last file change (WriteFile/ApplyPatch success).
+    pub steps_since_file_change: u32,
+    /// Hashes of recent error outputs — detects repeated failures.
+    pub recent_error_hashes: Vec<u64>,
+    /// Output volume (chars) per step — detects declining response quality.
+    pub output_volumes: Vec<usize>,
+    /// Number of approach rotation suggestions made so far.
+    pub approach_rotations: u32,
+    /// Current health state.
+    pub state: AgentHealthState,
+
+    // Thresholds (configurable)
+    /// Stall threshold: steps without file changes before triggering.
+    pub stall_threshold: u32,
+    /// Spin threshold: repeated identical errors before triggering.
+    pub spin_threshold: u32,
+    /// Degradation percentage: output volume decline % to trigger.
+    pub degradation_pct: f64,
+    /// Maximum approach rotations before declaring BLOCKED.
+    pub max_rotations: u32,
+}
+
+impl Default for CircuitBreaker {
+    fn default() -> Self {
+        Self {
+            steps_since_file_change: 0,
+            recent_error_hashes: Vec::new(),
+            output_volumes: Vec::new(),
+            approach_rotations: 0,
+            state: AgentHealthState::Progress,
+            stall_threshold: 5,
+            spin_threshold: 3,
+            degradation_pct: 50.0,
+            max_rotations: 3,
+        }
+    }
+}
+
+impl CircuitBreaker {
+    /// Record a step outcome. Returns the new health state if it changed.
+    pub fn record_step(
+        &mut self,
+        tool_call: &ToolCall,
+        tool_result: &ToolResult,
+        output_len: usize,
+    ) -> Option<AgentHealthState> {
+        let old_state = self.state.clone();
+
+        // Track file changes
+        let is_file_change = matches!(tool_call, ToolCall::WriteFile { .. } | ToolCall::ApplyPatch { .. })
+            && tool_result.success;
+        if is_file_change {
+            self.steps_since_file_change = 0;
+        } else {
+            self.steps_since_file_change += 1;
+        }
+
+        // Track error hashes for spin detection
+        if !tool_result.success {
+            let mut hasher = DefaultHasher::new();
+            tool_result.output.hash(&mut hasher);
+            self.recent_error_hashes.push(hasher.finish());
+            // Keep only last 10 error hashes
+            if self.recent_error_hashes.len() > 10 {
+                self.recent_error_hashes.remove(0);
+            }
+        } else {
+            // Successful step clears recent errors
+            self.recent_error_hashes.clear();
+        }
+
+        // Track output volumes for degradation detection
+        self.output_volumes.push(output_len);
+
+        // Evaluate health
+        self.state = self.evaluate();
+
+        if self.state != old_state {
+            Some(self.state.clone())
+        } else {
+            None
+        }
+    }
+
+    fn evaluate(&mut self) -> AgentHealthState {
+        // Check for BLOCKED (too many rotations)
+        if self.approach_rotations >= self.max_rotations {
+            return AgentHealthState::Blocked;
+        }
+
+        // Check for SPINNING (same error repeated)
+        if self.recent_error_hashes.len() >= self.spin_threshold as usize {
+            let last = self.recent_error_hashes.last().copied();
+            if let Some(hash) = last {
+                let repeats = self.recent_error_hashes.iter()
+                    .rev()
+                    .take(self.spin_threshold as usize)
+                    .filter(|h| **h == hash)
+                    .count();
+                if repeats >= self.spin_threshold as usize {
+                    self.approach_rotations += 1;
+                    return AgentHealthState::Spinning;
+                }
+            }
+        }
+
+        // Check for STALLED (no file changes)
+        if self.steps_since_file_change >= self.stall_threshold {
+            self.approach_rotations += 1;
+            return AgentHealthState::Stalled;
+        }
+
+        // Check for DEGRADED (output volume declining)
+        if self.output_volumes.len() >= 6 {
+            let recent_3: f64 = self.output_volumes.iter().rev().take(3).sum::<usize>() as f64;
+            let earlier_3: f64 = self.output_volumes.iter().rev().skip(3).take(3).sum::<usize>() as f64;
+            if earlier_3 > 0.0 {
+                let decline = ((earlier_3 - recent_3) / earlier_3) * 100.0;
+                if decline >= self.degradation_pct {
+                    return AgentHealthState::Degraded;
+                }
+            }
+        }
+
+        AgentHealthState::Progress
+    }
+
+    /// Generate a rotation hint message for the agent.
+    pub fn rotation_hint(&self) -> String {
+        match &self.state {
+            AgentHealthState::Stalled => {
+                format!(
+                    "⚠️ CIRCUIT BREAKER: Agent appears STALLED — no file changes for {} steps. \
+                     Try a different approach: re-read the requirements, search for existing patterns, \
+                     or break the task into smaller sub-tasks. (Rotation {}/{})",
+                    self.steps_since_file_change, self.approach_rotations, self.max_rotations
+                )
+            }
+            AgentHealthState::Spinning => {
+                format!(
+                    "⚠️ CIRCUIT BREAKER: Agent appears SPINNING — same error repeated {} times. \
+                     Stop retrying the failing approach. Try: (1) read error output carefully, \
+                     (2) search codebase for correct patterns, (3) simplify the approach. (Rotation {}/{})",
+                    self.spin_threshold, self.approach_rotations, self.max_rotations
+                )
+            }
+            AgentHealthState::Degraded => {
+                "⚠️ CIRCUIT BREAKER: Agent output DEGRADING — responses getting shorter. \
+                 Context may be rotting. Consider completing the current sub-task and starting fresh."
+                    .to_string()
+            }
+            AgentHealthState::Blocked => {
+                "🛑 CIRCUIT BREAKER: Agent is BLOCKED after multiple approach rotations. \
+                 Stopping to avoid wasting resources. Please review the situation manually."
+                    .to_string()
+            }
+            AgentHealthState::Progress => String::new(),
+        }
+    }
+}
 
 // ── Approval Policy ───────────────────────────────────────────────────────────
 
@@ -71,6 +266,11 @@ pub enum AgentEvent {
     Complete(String),
     /// An unrecoverable error occurred.
     Error(String),
+    /// Circuit breaker triggered — agent health state changed.
+    CircuitBreak {
+        state: AgentHealthState,
+        reason: String,
+    },
 }
 
 // ── Agent Context ─────────────────────────────────────────────────────────────
@@ -131,6 +331,12 @@ pub struct AgentLoop {
     /// Middle messages are pruned when the estimate exceeds this value.
     /// `None` uses the default of 80 000 tokens.
     pub max_context_tokens: Option<usize>,
+    /// Enable circuit breaker for stall/spin/degradation detection.
+    pub circuit_breaker_enabled: bool,
+    /// Enable pre-completion double-check (re-read files, run build, run tests).
+    pub double_check_enabled: bool,
+    /// Enable per-task atomic commits after successful write_file/apply_patch.
+    pub atomic_commits: bool,
 }
 
 impl AgentLoop {
@@ -147,7 +353,28 @@ impl AgentLoop {
             hooks: None,
             policy: AdminPolicy::default(),
             max_context_tokens: None,
+            circuit_breaker_enabled: true,
+            double_check_enabled: false,
+            atomic_commits: false,
         }
+    }
+
+    /// Enable or disable the circuit breaker (default: enabled).
+    pub fn with_circuit_breaker(mut self, enabled: bool) -> Self {
+        self.circuit_breaker_enabled = enabled;
+        self
+    }
+
+    /// Enable pre-completion double-check (re-read modified files, run build/tests).
+    pub fn with_double_check(mut self, enabled: bool) -> Self {
+        self.double_check_enabled = enabled;
+        self
+    }
+
+    /// Enable per-task atomic commits after successful file writes.
+    pub fn with_atomic_commits(mut self, enabled: bool) -> Self {
+        self.atomic_commits = enabled;
+        self
     }
 
     /// Set the maximum context budget in tokens (1 token ≈ 4 chars).
@@ -221,6 +448,12 @@ impl AgentLoop {
             );
             hooks.run(&HookEvent::SessionStart { session_id: session_id.clone() }).await;
         }
+
+        let mut circuit_breaker = if self.circuit_breaker_enabled {
+            Some(CircuitBreaker::default())
+        } else {
+            None
+        };
 
         let system_content = build_system_prompt(&context);
         let mut messages: Vec<Message> = vec![
@@ -330,6 +563,38 @@ impl AgentLoop {
                 }
             };
             if call.is_terminal() {
+                // ── Pre-completion double-check ───────────────────────────────
+                if self.double_check_enabled {
+                    let ws = &context.workspace_root;
+                    // Try to run a build check
+                    let build_ok = if ws.join("Cargo.toml").exists() {
+                        std::process::Command::new("cargo")
+                            .args(["check", "--quiet"])
+                            .current_dir(ws)
+                            .output()
+                            .map(|o| o.status.success())
+                            .unwrap_or(true)
+                    } else if ws.join("package.json").exists() {
+                        std::process::Command::new("npm")
+                            .args(["run", "build", "--if-present"])
+                            .current_dir(ws)
+                            .output()
+                            .map(|o| o.status.success())
+                            .unwrap_or(true)
+                    } else {
+                        true
+                    };
+
+                    if !build_ok {
+                        tracing::warn!("Double-check: build failed, injecting retry hint");
+                        messages.push(Message {
+                            role: MessageRole::User,
+                            content: "IMPORTANT: The build/check failed after your task_complete. Please investigate and fix the build errors before completing.".to_string(),
+                        });
+                        continue;
+                    }
+                }
+
                 let summary = match &call {
                     ToolCall::TaskComplete { summary } => summary.clone(),
                     _ => "Task complete.".to_string(),
@@ -508,11 +773,51 @@ impl AgentLoop {
                 }
             }
 
+            // ── 3e. Atomic commits ─────────────────────────────────────────────
+            if self.atomic_commits && tool_result.success {
+                if let ToolCall::WriteFile { path, .. } | ToolCall::ApplyPatch { path, .. } = &call {
+                    let ws = context.workspace_root.clone();
+                    let p = path.clone();
+                    let _ = std::process::Command::new("git")
+                        .args(["add", &p])
+                        .current_dir(&ws)
+                        .output();
+                    let msg = format!("agent: update {}", p.rsplit('/').next().unwrap_or(&p));
+                    let _ = std::process::Command::new("git")
+                        .args(["commit", "-m", &msg, "--allow-empty-message"])
+                        .current_dir(&ws)
+                        .output();
+                }
+            }
+
             // ── 4. Feed result back into conversation ─────────────────────────
             messages.push(Message {
                 role: MessageRole::User,
                 content: format_tool_result(&call, &tool_result),
             });
+
+            // ── 5. Circuit breaker evaluation ─────────────────────────────────
+            if let Some(ref mut cb) = circuit_breaker {
+                if let Some(new_state) = cb.record_step(&call, &tool_result, accumulated.len()) {
+                    let hint = cb.rotation_hint();
+                    let _ = event_tx.send(AgentEvent::CircuitBreak {
+                        state: new_state.clone(),
+                        reason: hint.clone(),
+                    }).await;
+
+                    if new_state == AgentHealthState::Blocked {
+                        tracing::warn!("Circuit breaker: agent BLOCKED after {} rotations", cb.max_rotations);
+                        let _ = event_tx.send(AgentEvent::Error(hint)).await;
+                        return Ok(());
+                    }
+
+                    // Inject rotation hint into conversation so the model adjusts
+                    messages.push(Message {
+                        role: MessageRole::User,
+                        content: hint,
+                    });
+                }
+            }
         }
 
         tracing::warn!(max_steps = self.max_steps, "Agent reached maximum step limit");
@@ -732,4 +1037,161 @@ fn build_system_prompt(context: &AgentContext) -> String {
     }
 
     format!("{}{}", TOOL_SYSTEM_PROMPT, extras)
+}
+
+#[cfg(test)]
+mod circuit_breaker_tests {
+    use super::*;
+    use crate::tools::ToolCall;
+
+    fn ok_result(tool: &str) -> ToolResult {
+        ToolResult { tool_name: tool.to_string(), output: "ok".to_string(), success: true, truncated: false }
+    }
+
+    fn err_result(tool: &str, msg: &str) -> ToolResult {
+        ToolResult { tool_name: tool.to_string(), output: msg.to_string(), success: false, truncated: false }
+    }
+
+    #[test]
+    fn default_state_is_progress() {
+        let cb = CircuitBreaker::default();
+        assert_eq!(cb.state, AgentHealthState::Progress);
+    }
+
+    #[test]
+    fn file_write_resets_stall_counter() {
+        let mut cb = CircuitBreaker::default();
+        let write_call = ToolCall::WriteFile { path: "test.rs".into(), content: "fn main(){}".into() };
+        cb.record_step(&write_call, &ok_result("write_file"), 100);
+        assert_eq!(cb.steps_since_file_change, 0);
+    }
+
+    #[test]
+    fn stall_detected_after_threshold() {
+        let mut cb = CircuitBreaker { stall_threshold: 3, ..Default::default() };
+        let bash = ToolCall::Bash { command: "ls".into() };
+        for _ in 0..2 {
+            cb.record_step(&bash, &ok_result("bash"), 100);
+        }
+        assert_eq!(cb.state, AgentHealthState::Progress);
+        // Third step triggers stall
+        let state = cb.record_step(&bash, &ok_result("bash"), 100);
+        assert!(state.is_some());
+        assert_eq!(cb.state, AgentHealthState::Stalled);
+    }
+
+    #[test]
+    fn spin_detected_on_repeated_errors() {
+        let mut cb = CircuitBreaker { spin_threshold: 3, stall_threshold: 100, ..Default::default() };
+        let bash = ToolCall::Bash { command: "cargo build".into() };
+        let err = err_result("bash", "error[E0308]: mismatched types");
+        for _ in 0..2 {
+            cb.record_step(&bash, &err, 100);
+        }
+        assert_eq!(cb.state, AgentHealthState::Progress);
+        let state = cb.record_step(&bash, &err, 100);
+        assert!(state.is_some());
+        assert_eq!(cb.state, AgentHealthState::Spinning);
+    }
+
+    #[test]
+    fn blocked_after_max_rotations() {
+        let mut cb = CircuitBreaker { stall_threshold: 1, max_rotations: 2, ..Default::default() };
+        let bash = ToolCall::Bash { command: "ls".into() };
+        // First stall → rotation 1
+        cb.record_step(&bash, &ok_result("bash"), 100);
+        assert_eq!(cb.state, AgentHealthState::Stalled);
+        // Reset stall by writing a file
+        let write = ToolCall::WriteFile { path: "x".into(), content: "y".into() };
+        cb.record_step(&write, &ok_result("write_file"), 100);
+        // Second stall → rotation 2 → now at max
+        cb.record_step(&bash, &ok_result("bash"), 100);
+        assert_eq!(cb.approach_rotations, 2);
+        // Next eval should be BLOCKED
+        cb.record_step(&bash, &ok_result("bash"), 100);
+        assert_eq!(cb.state, AgentHealthState::Blocked);
+    }
+
+    #[test]
+    fn degradation_detected() {
+        let mut cb = CircuitBreaker { stall_threshold: 100, degradation_pct: 50.0, ..Default::default() };
+        let bash = ToolCall::Bash { command: "ls".into() };
+        // 3 high-volume steps
+        for _ in 0..3 {
+            cb.record_step(&bash, &ok_result("bash"), 1000);
+        }
+        // 3 low-volume steps (>50% decline)
+        for _ in 0..3 {
+            cb.record_step(&bash, &ok_result("bash"), 100);
+        }
+        assert_eq!(cb.state, AgentHealthState::Degraded);
+    }
+
+    #[test]
+    fn successful_step_clears_error_hashes() {
+        let mut cb = CircuitBreaker::default();
+        let bash = ToolCall::Bash { command: "test".into() };
+        cb.record_step(&bash, &err_result("bash", "fail"), 100);
+        cb.record_step(&bash, &err_result("bash", "fail"), 100);
+        assert_eq!(cb.recent_error_hashes.len(), 2);
+        cb.record_step(&bash, &ok_result("bash"), 100);
+        assert!(cb.recent_error_hashes.is_empty());
+    }
+
+    #[test]
+    fn rotation_hint_is_empty_when_progress() {
+        let cb = CircuitBreaker::default();
+        assert!(cb.rotation_hint().is_empty());
+    }
+
+    #[test]
+    fn health_state_display() {
+        assert_eq!(AgentHealthState::Progress.to_string(), "PROGRESS");
+        assert_eq!(AgentHealthState::Stalled.to_string(), "STALLED");
+        assert_eq!(AgentHealthState::Spinning.to_string(), "SPINNING");
+        assert_eq!(AgentHealthState::Degraded.to_string(), "DEGRADED");
+        assert_eq!(AgentHealthState::Blocked.to_string(), "BLOCKED");
+    }
+
+    #[test]
+    fn agent_loop_builder_double_check() {
+        let provider: Arc<dyn crate::provider::AIProvider> = Arc::new(
+            crate::providers::ollama::OllamaProvider::new(crate::provider::ProviderConfig::default())
+        );
+        let exec: Arc<dyn ToolExecutorTrait> = Arc::new(DummyExecutor);
+        let agent = AgentLoop::new(provider, ApprovalPolicy::FullAuto, exec)
+            .with_double_check(true);
+        assert!(agent.double_check_enabled);
+    }
+
+    #[test]
+    fn agent_loop_builder_atomic_commits() {
+        let provider: Arc<dyn crate::provider::AIProvider> = Arc::new(
+            crate::providers::ollama::OllamaProvider::new(crate::provider::ProviderConfig::default())
+        );
+        let exec: Arc<dyn ToolExecutorTrait> = Arc::new(DummyExecutor);
+        let agent = AgentLoop::new(provider, ApprovalPolicy::FullAuto, exec)
+            .with_atomic_commits(true);
+        assert!(agent.atomic_commits);
+    }
+
+    #[test]
+    fn agent_loop_defaults_off() {
+        let provider: Arc<dyn crate::provider::AIProvider> = Arc::new(
+            crate::providers::ollama::OllamaProvider::new(crate::provider::ProviderConfig::default())
+        );
+        let exec: Arc<dyn ToolExecutorTrait> = Arc::new(DummyExecutor);
+        let agent = AgentLoop::new(provider, ApprovalPolicy::FullAuto, exec);
+        assert!(!agent.double_check_enabled);
+        assert!(!agent.atomic_commits);
+        assert!(agent.circuit_breaker_enabled);
+    }
+
+    struct DummyExecutor;
+    #[async_trait::async_trait]
+    impl ToolExecutorTrait for DummyExecutor {
+        async fn execute(&self, _call: &ToolCall) -> ToolResult {
+            ToolResult::ok("test", "ok")
+        }
+    }
 }

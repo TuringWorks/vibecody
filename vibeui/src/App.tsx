@@ -54,6 +54,7 @@ import { HttpPlayground } from "./components/HttpPlayground";
 import { CostPanel } from "./components/CostPanel";
 import { AutofixPanel } from "./components/AutofixPanel";
 import { ArenaPanel } from "./components/ArenaPanel";
+import DashboardPanel from "./components/DashboardPanel";
 import ProcessPanel from "./components/ProcessPanel";
 import CicdPanel from "./components/CicdPanel";
 import { EnvPanel } from "./components/EnvPanel";
@@ -148,7 +149,7 @@ function App() {
   const [showSidebar, setShowSidebar] = useState(true);
   const [activeSidebarTab, setActiveSidebarTab] = useState<"explorer" | "search" | "git">("explorer");
   const [showAIChat, setShowAIChat] = useState(false);
-  const [aiPanelTab, setAiPanelTab] = useState<"chat" | "agent" | "memory" | "history" | "checkpoints" | "artifacts" | "manager" | "hooks" | "jobs" | "mcp" | "settings" | "cascade" | "specs" | "workflow" | "design" | "deploy" | "database" | "supabase" | "auth" | "github" | "steering" | "bugbot" | "redteam" | "tests" | "collab" | "coverage" | "compare" | "http" | "arena" | "cost" | "autofix" | "processes" | "cicd" | "k8s" | "env" | "profiler" | "docker" | "deps" | "apidocs" | "migrations" | "logs" | "scripts" | "notebook" | "ssh" | "utils" | "markers" | "bisect" | "snippets" | "mock" | "graphql" | "metrics" | "loadtest" | "network" | "teams" | "cibot" | "traces" | "marketplace" | "transform" | "img2app" | "recording" | "visualtest" | "cloud" | "compliance" | "scaffold" | "health" | "websocket" | "colors" | "markdown" | "difftool" | "canvas" | "cron" | "regex" | "jwt" | "jsontools" | "encoding" | "numbers" | "datagen" | "timestamp" | "colorconv" | "cidr" | "csv" | "units" | "unicode" | "sandbox">("chat");
+  const [aiPanelTab, setAiPanelTab] = useState<"chat" | "agent" | "memory" | "history" | "checkpoints" | "artifacts" | "manager" | "hooks" | "jobs" | "mcp" | "settings" | "cascade" | "specs" | "workflow" | "design" | "deploy" | "database" | "supabase" | "auth" | "github" | "steering" | "bugbot" | "redteam" | "tests" | "collab" | "coverage" | "compare" | "http" | "arena" | "cost" | "autofix" | "processes" | "cicd" | "k8s" | "env" | "profiler" | "docker" | "deps" | "apidocs" | "migrations" | "logs" | "scripts" | "notebook" | "ssh" | "utils" | "markers" | "bisect" | "snippets" | "mock" | "graphql" | "metrics" | "loadtest" | "network" | "teams" | "cibot" | "traces" | "marketplace" | "transform" | "img2app" | "recording" | "visualtest" | "cloud" | "compliance" | "scaffold" | "health" | "websocket" | "colors" | "markdown" | "difftool" | "canvas" | "cron" | "regex" | "jwt" | "jsontools" | "encoding" | "numbers" | "datagen" | "timestamp" | "colorconv" | "cidr" | "csv" | "units" | "unicode" | "sandbox" | "dashboard">("chat");
   const [showTerminal, setShowTerminal] = useState(false);
   const [bottomTab, setBottomTab] = useState<"terminal" | "browser">("terminal");
   const [showCommandPalette, setShowCommandPalette] = useState(false);
@@ -231,7 +232,6 @@ function App() {
     // Initialize Extension Manager
     const manager = new ExtensionManager({
       showInformationMessage: (message) => {
-        console.log(`[Extension Info] ${message}`);
         (window as any).lastExtensionMessage = message;
       },
       showErrorMessage: (message) => {
@@ -1507,7 +1507,7 @@ function App() {
           <aside className="ai-chat-panel" style={{ display: "flex", flexDirection: "column" }}>
             {/* Tab bar */}
             <div role="tablist" aria-label="AI Panel tabs" style={{ display: "flex", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
-              {(["chat", "agent", "memory", "history", "checkpoints", "artifacts", "manager", "hooks", "jobs", "mcp", "settings", "cascade", "specs", "workflow", "design", "deploy", "database", "supabase", "auth", "github", "steering", "bugbot", "redteam", "tests", "collab", "coverage", "compare", "http", "arena", "cost", "autofix", "processes", "cicd", "k8s", "env", "profiler", "docker", "deps", "apidocs", "migrations", "logs", "scripts", "notebook", "ssh", "utils", "markers", "bisect", "snippets", "mock", "graphql", "metrics", "loadtest", "network", "teams", "cibot", "traces", "marketplace", "transform", "img2app", "recording", "visualtest", "cloud", "compliance", "scaffold", "health", "websocket", "colors", "markdown", "difftool", "canvas", "cron", "regex", "jwt", "jsontools", "encoding", "numbers", "datagen", "timestamp", "colorconv", "cidr", "csv", "units", "unicode", "sandbox"] as const).map((tab) => (
+              {(["chat", "agent", "memory", "history", "checkpoints", "artifacts", "manager", "hooks", "jobs", "mcp", "settings", "cascade", "specs", "workflow", "design", "deploy", "database", "supabase", "auth", "github", "steering", "bugbot", "redteam", "tests", "collab", "coverage", "compare", "http", "arena", "cost", "autofix", "processes", "cicd", "k8s", "env", "profiler", "docker", "deps", "apidocs", "migrations", "logs", "scripts", "notebook", "ssh", "utils", "markers", "bisect", "snippets", "mock", "graphql", "metrics", "loadtest", "network", "teams", "cibot", "traces", "marketplace", "transform", "img2app", "recording", "visualtest", "cloud", "compliance", "scaffold", "health", "websocket", "colors", "markdown", "difftool", "canvas", "cron", "regex", "jwt", "jsontools", "encoding", "numbers", "datagen", "timestamp", "colorconv", "cidr", "csv", "units", "unicode", "sandbox", "dashboard"] as const).map((tab) => (
                 <button
                   key={tab}
                   role="tab"
@@ -1851,6 +1851,9 @@ function App() {
               )}
               {aiPanelTab === "sandbox" && (
                 <SandboxPanel />
+              )}
+              {aiPanelTab === "dashboard" && (
+                <DashboardPanel />
               )}
               </ErrorBoundary>
             </div>

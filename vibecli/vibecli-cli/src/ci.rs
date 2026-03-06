@@ -323,6 +323,16 @@ pub async fn run_ci(
                 outcome = CiOutcome::Failed;
                 break;
             }
+            AgentEvent::CircuitBreak { state, reason } => {
+                if verbose {
+                    eprintln!("{}", reason);
+                }
+                if state == vibe_ai::agent::AgentHealthState::Blocked {
+                    summary = reason;
+                    outcome = CiOutcome::Failed;
+                    break;
+                }
+            }
         }
     }
 

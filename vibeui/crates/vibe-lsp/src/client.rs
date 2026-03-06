@@ -109,7 +109,7 @@ impl LspClient {
             let mut line = String::new();
             while let Ok(n) = reader.read_line(&mut line).await {
                 if n == 0 { break; }
-                eprintln!("LSP Stderr: {}", line.trim());
+                tracing::error!("LSP Stderr: {}", line.trim());
                 line.clear();
             }
         });

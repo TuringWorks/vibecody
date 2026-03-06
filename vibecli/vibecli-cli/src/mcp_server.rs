@@ -492,6 +492,12 @@ async fn run_agent(
                 break;
             }
             AgentEvent::StreamChunk(_) => {}
+            AgentEvent::CircuitBreak { state, reason } => {
+                log.push(format!("⚠ Circuit break ({}): {}", state, reason));
+                if state == vibe_ai::agent::AgentHealthState::Blocked {
+                    break;
+                }
+            }
         }
     }
 
