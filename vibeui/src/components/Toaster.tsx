@@ -18,8 +18,8 @@ interface ToasterProps {
 const ICONS: Record<string, string> = {
   success: "✓",
   error:   "✕",
-  warn:    "⚠",
-  info:    "ℹ",
+  warn:    "!",
+  info:    "i",
 };
 
 export function Toaster({ toasts, onDismiss }: ToasterProps) {

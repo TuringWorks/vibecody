@@ -104,6 +104,7 @@ export const TAB_META: Record<string, TabMeta> = {
   cidr:        { icon: Globe,              label: "CIDR" },
   csv:         { icon: FileText,           label: "CSV" },
   units:       { icon: Ruler,              label: "Units" },
+  unicode:     { icon: Hash,               label: "Unicode" },
 };
 
 export const DEFAULT_TAB_META: TabMeta = { icon: Workflow, label: "Flow" };

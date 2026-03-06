@@ -365,7 +365,7 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
                     color: "var(--text-primary, #cdd6f4)", padding: "2px 4px", flexShrink: 0,
                   }}
                 >
-                  {revealedKeys.has(entry.key) ? "🙈" : "👁"}
+                  {revealedKeys.has(entry.key) ? "Hide" : "Show"}
                 </button>
               )}
               {/* Delete */}

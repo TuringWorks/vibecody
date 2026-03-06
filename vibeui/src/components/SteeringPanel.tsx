@@ -1,295 +1,296 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+// lucide-react icons not needed
 
 interface SteeringFile {
-  filename: string;
-  name: string;
-  scope_label: string | null;
-  content: string;
+ filename: string;
+ name: string;
+ scope_label: string | null;
+ content: string;
 }
 
 interface SteeringPanelProps {
-  workspaceRoot?: string;
+ workspaceRoot?: string;
 }
 
 const SCOPE_OPTIONS = [
-  { value: "workspace", label: "Workspace (.vibecli/steering/)" },
-  { value: "global", label: "Global (~/.vibecli/steering/)" },
+ { value: "workspace", label: "Workspace (.vibecli/steering/)" },
+ { value: "global", label: "Global (~/.vibecli/steering/)" },
 ];
 
 const TEMPLATES = [
-  {
-    label: "Architecture",
-    filename: "architecture.md",
-    content:
-      "---\nname: architecture\nscope: project\n---\n\n# Project Architecture\n\nDescribe the high-level architecture here. This will be injected into every agent prompt.\n\n- Framework: \n- State management: \n- Key directories: \n",
-  },
-  {
-    label: "Code Style",
-    filename: "code-style.md",
-    content:
-      "---\nname: code-style\nscope: project\n---\n\n# Code Style Guidelines\n\n- Language: \n- Formatting: \n- Naming conventions: \n- Anti-patterns to avoid: \n",
-  },
-  {
-    label: "Tech Stack",
-    filename: "tech-stack.md",
-    content:
-      "---\nname: tech-stack\nscope: project\n---\n\n# Technology Stack\n\nAlways use these technologies when generating code for this project:\n\n- Frontend: \n- Backend: \n- Database: \n- Testing: \n",
-  },
+ {
+ label: "Architecture",
+ filename: "architecture.md",
+ content:
+ "---\nname: architecture\nscope: project\n---\n\n# Project Architecture\n\nDescribe the high-level architecture here. This will be injected into every agent prompt.\n\n- Framework: \n- State management: \n- Key directories: \n",
+ },
+ {
+ label: "Code Style",
+ filename: "code-style.md",
+ content:
+ "---\nname: code-style\nscope: project\n---\n\n# Code Style Guidelines\n\n- Language: \n- Formatting: \n- Naming conventions: \n- Anti-patterns to avoid: \n",
+ },
+ {
+ label: "Tech Stack",
+ filename: "tech-stack.md",
+ content:
+ "---\nname: tech-stack\nscope: project\n---\n\n# Technology Stack\n\nAlways use these technologies when generating code for this project:\n\n- Frontend: \n- Backend: \n- Database: \n- Testing: \n",
+ },
 ];
 
 export default function SteeringPanel({ workspaceRoot }: SteeringPanelProps) {
-  const [scope, setScope] = useState<"workspace" | "global">("workspace");
-  const [files, setFiles] = useState<SteeringFile[]>([]);
-  const [selected, setSelected] = useState<SteeringFile | null>(null);
-  const [editContent, setEditContent] = useState("");
-  const [editFilename, setEditFilename] = useState("");
-  const [isNew, setIsNew] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [showTemplates, setShowTemplates] = useState(false);
-  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
+ const [scope, setScope] = useState<"workspace" | "global">("workspace");
+ const [files, setFiles] = useState<SteeringFile[]>([]);
+ const [selected, setSelected] = useState<SteeringFile | null>(null);
+ const [editContent, setEditContent] = useState("");
+ const [editFilename, setEditFilename] = useState("");
+ const [isNew, setIsNew] = useState(false);
+ const [saving, setSaving] = useState(false);
+ const [error, setError] = useState<string | null>(null);
+ const [showTemplates, setShowTemplates] = useState(false);
+ const [pendingDelete, setPendingDelete] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    try {
-      const result = await invoke<SteeringFile[]>("get_steering_files", {
-        scope,
-        workspaceRoot: workspaceRoot || null,
-      });
-      setFiles(result);
-      setError(null);
-    } catch (e) {
-      setError(String(e));
-    }
-  }, [scope, workspaceRoot]);
+ const load = useCallback(async () => {
+ try {
+ const result = await invoke<SteeringFile[]>("get_steering_files", {
+ scope,
+ workspaceRoot: workspaceRoot || null,
+ });
+ setFiles(result);
+ setError(null);
+ } catch (e) {
+ setError(String(e));
+ }
+ }, [scope, workspaceRoot]);
 
-  useEffect(() => {
-    setError(null);
-    load();
-    setSelected(null);
-    setIsNew(false);
-  }, [load]);
+ useEffect(() => {
+ setError(null);
+ load();
+ setSelected(null);
+ setIsNew(false);
+ }, [load]);
 
-  function selectFile(f: SteeringFile) {
-    setSelected(f);
-    setEditContent(f.content);
-    setEditFilename(f.filename);
-    setIsNew(false);
-    setShowTemplates(false);
-  }
+ function selectFile(f: SteeringFile) {
+ setSelected(f);
+ setEditContent(f.content);
+ setEditFilename(f.filename);
+ setIsNew(false);
+ setShowTemplates(false);
+ }
 
-  function startNew() {
-    setSelected(null);
-    setEditFilename("");
-    setEditContent("---\nname: \nscope: project\n---\n\n");
-    setIsNew(true);
-    setShowTemplates(false);
-  }
+ function startNew() {
+ setSelected(null);
+ setEditFilename("");
+ setEditContent("---\nname: \nscope: project\n---\n\n");
+ setIsNew(true);
+ setShowTemplates(false);
+ }
 
-  function useTemplate(tpl: (typeof TEMPLATES)[number]) {
-    setEditFilename(tpl.filename);
-    setEditContent(tpl.content);
-    setIsNew(true);
-    setSelected(null);
-    setShowTemplates(false);
-  }
+ function useTemplate(tpl: (typeof TEMPLATES)[number]) {
+ setEditFilename(tpl.filename);
+ setEditContent(tpl.content);
+ setIsNew(true);
+ setSelected(null);
+ setShowTemplates(false);
+ }
 
-  async function save() {
-    if (!editFilename.trim()) {
-      setError("Filename is required");
-      return;
-    }
-    setSaving(true);
-    setError(null);
-    try {
-      await invoke("save_steering_file", {
-        scope,
-        workspaceRoot: workspaceRoot || null,
-        filename: editFilename.trim(),
-        content: editContent,
-      });
-      await load();
-      setIsNew(false);
-    } catch (e) {
-      setError(String(e));
-    } finally {
-      setSaving(false);
-    }
-  }
+ async function save() {
+ if (!editFilename.trim()) {
+ setError("Filename is required");
+ return;
+ }
+ setSaving(true);
+ setError(null);
+ try {
+ await invoke("save_steering_file", {
+ scope,
+ workspaceRoot: workspaceRoot || null,
+ filename: editFilename.trim(),
+ content: editContent,
+ });
+ await load();
+ setIsNew(false);
+ } catch (e) {
+ setError(String(e));
+ } finally {
+ setSaving(false);
+ }
+ }
 
-  async function deleteFile(filename: string) {
-    if (pendingDelete !== filename) { setPendingDelete(filename); return; }
-    setPendingDelete(null);
-    try {
-      await invoke("delete_steering_file", {
-        scope,
-        workspaceRoot: workspaceRoot || null,
-        filename,
-      });
-      if (selected?.filename === filename) {
-        setSelected(null);
-        setIsNew(false);
-      }
-      await load();
-    } catch (e) {
-      setError(String(e));
-    }
-  }
+ async function deleteFile(filename: string) {
+ if (pendingDelete !== filename) { setPendingDelete(filename); return; }
+ setPendingDelete(null);
+ try {
+ await invoke("delete_steering_file", {
+ scope,
+ workspaceRoot: workspaceRoot || null,
+ filename,
+ });
+ if (selected?.filename === filename) {
+ setSelected(null);
+ setIsNew(false);
+ }
+ await load();
+ } catch (e) {
+ setError(String(e));
+ }
+ }
 
-  const editing = isNew || selected !== null;
+ const editing = isNew || selected !== null;
 
-  return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", gap: 8, padding: 8, fontSize: 13 }}>
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-        <span style={{ fontWeight: 600, fontSize: 14 }}>🧭 Steering Files</span>
-        <select
-          value={scope}
-          onChange={(e) => setScope(e.target.value as "workspace" | "global")}
-          style={{ fontSize: 12, padding: "2px 4px", borderRadius: 4, background: "#1e1e2e", color: "#cdd6f4", border: "1px solid #45475a" }}
-        >
-          {SCOPE_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
-        </select>
-        <button onClick={startNew} style={btnStyle}>+ New</button>
-        <button onClick={() => setShowTemplates((v) => !v)} style={btnStyle}>Templates</button>
-        <button onClick={load} style={btnStyle}>↻ Refresh</button>
-      </div>
+ return (
+ <div style={{ display: "flex", flexDirection: "column", height: "100%", gap: 8, padding: 8, fontSize: 13 }}>
+ {/* Header */}
+ <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+ <span style={{ fontWeight: 600, fontSize: 14 }}>Steering Files</span>
+ <select
+ value={scope}
+ onChange={(e) => setScope(e.target.value as "workspace" | "global")}
+ style={{ fontSize: 12, padding: "2px 4px", borderRadius: 4, background: "#1e1e2e", color: "#cdd6f4", border: "1px solid #45475a" }}
+ >
+ {SCOPE_OPTIONS.map((o) => (
+ <option key={o.value} value={o.value}>{o.label}</option>
+ ))}
+ </select>
+ <button onClick={startNew} style={btnStyle}>+ New</button>
+ <button onClick={() => setShowTemplates((v) => !v)} style={btnStyle}>Templates</button>
+ <button onClick={load} style={btnStyle}>↻ Refresh</button>
+ </div>
 
-      {error && (
-        <div style={{ background: "#ff4d4f22", color: "#ff4d4f", borderRadius: 4, padding: "4px 8px", fontSize: 12 }}>
-          {error}
-        </div>
-      )}
+ {error && (
+ <div style={{ background: "#ff4d4f22", color: "#ff4d4f", borderRadius: 4, padding: "4px 8px", fontSize: 12 }}>
+ {error}
+ </div>
+ )}
 
-      {/* Templates dropdown */}
-      {showTemplates && (
-        <div style={{ background: "#1e1e2e", border: "1px solid #45475a", borderRadius: 6, padding: 8, display: "flex", gap: 6, flexWrap: "wrap" }}>
-          <span style={{ color: "#6c7086", fontSize: 11, width: "100%" }}>Choose a template to get started:</span>
-          {TEMPLATES.map((tpl) => (
-            <button key={tpl.label} onClick={() => useTemplate(tpl)} style={{ ...btnStyle, padding: "4px 10px" }}>
-              {tpl.label}
-            </button>
-          ))}
-        </div>
-      )}
+ {/* Templates dropdown */}
+ {showTemplates && (
+ <div style={{ background: "#1e1e2e", border: "1px solid #45475a", borderRadius: 6, padding: 8, display: "flex", gap: 6, flexWrap: "wrap" }}>
+ <span style={{ color: "#6c7086", fontSize: 11, width: "100%" }}>Choose a template to get started:</span>
+ {TEMPLATES.map((tpl) => (
+ <button key={tpl.label} onClick={() => useTemplate(tpl)} style={{ ...btnStyle, padding: "4px 10px" }}>
+ {tpl.label}
+ </button>
+ ))}
+ </div>
+ )}
 
-      <div style={{ display: "flex", gap: 8, flex: 1, minHeight: 0 }}>
-        {/* File list */}
-        <div style={{ width: 160, flexShrink: 0, overflowY: "auto", background: "#1e1e2e", borderRadius: 6, padding: 4 }}>
-          {files.length === 0 && (
-            <div style={{ color: "#6c7086", fontSize: 12, padding: 8, textAlign: "center" }}>
-              No steering files.<br />Click "+ New" to create one.
-            </div>
-          )}
-          {files.map((f) => (
-            <div
-              key={f.filename}
-              onClick={() => selectFile(f)}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                padding: "5px 6px",
-                borderRadius: 4,
-                cursor: "pointer",
-                background: selected?.filename === f.filename ? "#313244" : "transparent",
-                marginBottom: 2,
-              }}
-            >
-              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }} title={f.filename}>
-                {f.name || f.filename}
-              </span>
-              {pendingDelete === f.filename ? (
-                <span style={{ display: "flex", gap: 2 }} onClick={(e) => e.stopPropagation()}>
-                  <button
-                    onClick={() => deleteFile(f.filename)}
-                    title="Confirm delete"
-                    style={{ background: "none", border: "none", color: "#f38ba8", cursor: "pointer", fontSize: 10, padding: "0 2px", lineHeight: 1, fontWeight: 600 }}
-                  >
-                    Del
-                  </button>
-                  <button
-                    onClick={() => setPendingDelete(null)}
-                    title="Cancel"
-                    style={{ background: "none", border: "none", color: "#6c7086", cursor: "pointer", fontSize: 10, padding: "0 2px", lineHeight: 1 }}
-                  >
-                    ✕
-                  </button>
-                </span>
-              ) : (
-                <button
-                  onClick={(e) => { e.stopPropagation(); deleteFile(f.filename); }}
-                  title="Delete"
-                  style={{ background: "none", border: "none", color: "#6c7086", cursor: "pointer", fontSize: 12, padding: "0 2px", lineHeight: 1 }}
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
+ <div style={{ display: "flex", gap: 8, flex: 1, minHeight: 0 }}>
+ {/* File list */}
+ <div style={{ width: 160, flexShrink: 0, overflowY: "auto", background: "#1e1e2e", borderRadius: 6, padding: 4 }}>
+ {files.length === 0 && (
+ <div style={{ color: "#6c7086", fontSize: 12, padding: 8, textAlign: "center" }}>
+ No steering files.<br />Click "+ New" to create one.
+ </div>
+ )}
+ {files.map((f) => (
+ <div
+ key={f.filename}
+ onClick={() => selectFile(f)}
+ style={{
+ display: "flex",
+ alignItems: "center",
+ justifyContent: "space-between",
+ padding: "5px 6px",
+ borderRadius: 4,
+ cursor: "pointer",
+ background: selected?.filename === f.filename ? "#313244" : "transparent",
+ marginBottom: 2,
+ }}
+ >
+ <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }} title={f.filename}>
+ {f.name || f.filename}
+ </span>
+ {pendingDelete === f.filename ? (
+ <span style={{ display: "flex", gap: 2 }} onClick={(e) => e.stopPropagation()}>
+ <button
+ onClick={() => deleteFile(f.filename)}
+ title="Confirm delete"
+ style={{ background: "none", border: "none", color: "#f38ba8", cursor: "pointer", fontSize: 10, padding: "0 2px", lineHeight: 1, fontWeight: 600 }}
+ >
+ Del
+ </button>
+ <button
+ onClick={() => setPendingDelete(null)}
+ title="Cancel"
+ style={{ background: "none", border: "none", color: "#6c7086", cursor: "pointer", fontSize: 10, padding: "0 2px", lineHeight: 1 }}
+ >
+ ✕
+ </button>
+ </span>
+ ) : (
+ <button
+ onClick={(e) => { e.stopPropagation(); deleteFile(f.filename); }}
+ title="Delete"
+ style={{ background: "none", border: "none", color: "#6c7086", cursor: "pointer", fontSize: 12, padding: "0 2px", lineHeight: 1 }}
+ >
+ ✕
+ </button>
+ )}
+ </div>
+ ))}
+ </div>
 
-        {/* Editor */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6, minHeight: 0 }}>
-          {!editing ? (
-            <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "#6c7086", fontSize: 13 }}>
-              Select a steering file or click "+ New"
-            </div>
-          ) : (
-            <>
-              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                <input
-                  type="text"
-                  placeholder="filename.md"
-                  value={editFilename}
-                  onChange={(e) => setEditFilename(e.target.value)}
-                  disabled={!isNew}
-                  style={{ flex: 1, padding: "4px 8px", borderRadius: 4, background: "#1e1e2e", color: "#cdd6f4", border: "1px solid #45475a", fontSize: 12 }}
-                />
-                <button onClick={save} disabled={saving} style={{ ...btnStyle, background: saving ? "#313244" : "#89b4fa22", color: "#89b4fa" }}>
-                  {saving ? "Saving…" : "Save"}
-                </button>
-              </div>
+ {/* Editor */}
+ <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6, minHeight: 0 }}>
+ {!editing ? (
+ <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "#6c7086", fontSize: 13 }}>
+ Select a steering file or click "+ New"
+ </div>
+ ) : (
+ <>
+ <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+ <input
+ type="text"
+ placeholder="filename.md"
+ value={editFilename}
+ onChange={(e) => setEditFilename(e.target.value)}
+ disabled={!isNew}
+ style={{ flex: 1, padding: "4px 8px", borderRadius: 4, background: "#1e1e2e", color: "#cdd6f4", border: "1px solid #45475a", fontSize: 12 }}
+ />
+ <button onClick={save} disabled={saving} style={{ ...btnStyle, background: saving ? "#313244" : "#89b4fa22", color: "#89b4fa" }}>
+ {saving ? "Saving…" : "Save"}
+ </button>
+ </div>
 
-              <textarea
-                value={editContent}
-                onChange={(e) => setEditContent(e.target.value)}
-                spellCheck={false}
-                style={{
-                  flex: 1,
-                  resize: "none",
-                  padding: 10,
-                  borderRadius: 6,
-                  background: "#181825",
-                  color: "#cdd6f4",
-                  border: "1px solid #313244",
-                  fontSize: 13,
-                  fontFamily: "monospace",
-                  lineHeight: 1.6,
-                  minHeight: 200,
-                }}
-              />
+ <textarea
+ value={editContent}
+ onChange={(e) => setEditContent(e.target.value)}
+ spellCheck={false}
+ style={{
+ flex: 1,
+ resize: "none",
+ padding: 10,
+ borderRadius: 6,
+ background: "#181825",
+ color: "#cdd6f4",
+ border: "1px solid #313244",
+ fontSize: 13,
+ fontFamily: "monospace",
+ lineHeight: 1.6,
+ minHeight: 200,
+ }}
+ />
 
-              <div style={{ color: "#6c7086", fontSize: 11 }}>
-                Steering files inject into every agent prompt. Use YAML front-matter:{" "}
-                <code style={{ background: "#1e1e2e", padding: "1px 4px", borderRadius: 3 }}>--- name: my-doc scope: project ---</code>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
-  );
+ <div style={{ color: "#6c7086", fontSize: 11 }}>
+ Steering files inject into every agent prompt. Use YAML front-matter:{" "}
+ <code style={{ background: "#1e1e2e", padding: "1px 4px", borderRadius: 3 }}>--- name: my-doc scope: project ---</code>
+ </div>
+ </>
+ )}
+ </div>
+ </div>
+ </div>
+ );
 }
 
 const btnStyle: React.CSSProperties = {
-  padding: "3px 8px",
-  borderRadius: 4,
-  border: "1px solid #45475a",
-  background: "#313244",
-  color: "#cdd6f4",
-  cursor: "pointer",
-  fontSize: 12,
+ padding: "3px 8px",
+ borderRadius: 4,
+ border: "1px solid #45475a",
+ background: "#313244",
+ color: "#cdd6f4",
+ cursor: "pointer",
+ fontSize: 12,
 };

@@ -25,7 +25,7 @@ export const ThemeToggle = () => {
             title="Toggle theme"
             style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}
         >
-            {theme === 'dark' ? '🌙' : '☀️'}
+            {theme === 'dark' ? 'Moon' : 'Sun'}
         </button>
     );
 };

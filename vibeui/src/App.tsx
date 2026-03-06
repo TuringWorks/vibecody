@@ -105,6 +105,7 @@ import { ColorConverterPanel } from "./components/ColorConverterPanel";
 import { CidrPanel } from "./components/CidrPanel";
 import { CsvPanel } from "./components/CsvPanel";
 import { UnitConverterPanel } from "./components/UnitConverterPanel";
+import { UnicodePanel } from "./components/UnicodePanel";
 import { SandboxPanel } from "./components/SandboxPanel";
 import { useCollab } from "./hooks/useCollab";
 import { flowContext } from "./utils/FlowContext";
@@ -147,7 +148,7 @@ function App() {
   const [showSidebar, setShowSidebar] = useState(true);
   const [activeSidebarTab, setActiveSidebarTab] = useState<"explorer" | "search" | "git">("explorer");
   const [showAIChat, setShowAIChat] = useState(false);
-  const [aiPanelTab, setAiPanelTab] = useState<"chat" | "agent" | "memory" | "history" | "checkpoints" | "artifacts" | "manager" | "hooks" | "jobs" | "mcp" | "settings" | "cascade" | "specs" | "workflow" | "design" | "deploy" | "database" | "supabase" | "auth" | "github" | "steering" | "bugbot" | "redteam" | "tests" | "collab" | "coverage" | "compare" | "http" | "arena" | "cost" | "autofix" | "processes" | "cicd" | "k8s" | "env" | "profiler" | "docker" | "deps" | "apidocs" | "migrations" | "logs" | "scripts" | "notebook" | "ssh" | "utils" | "markers" | "bisect" | "snippets" | "mock" | "graphql" | "metrics" | "loadtest" | "network" | "teams" | "cibot" | "traces" | "marketplace" | "transform" | "img2app" | "recording" | "visualtest" | "cloud" | "compliance" | "scaffold" | "health" | "websocket" | "colors" | "markdown" | "difftool" | "canvas" | "cron" | "regex" | "jwt" | "jsontools" | "encoding" | "numbers" | "datagen" | "timestamp" | "colorconv" | "cidr" | "csv" | "units" | "sandbox">("chat");
+  const [aiPanelTab, setAiPanelTab] = useState<"chat" | "agent" | "memory" | "history" | "checkpoints" | "artifacts" | "manager" | "hooks" | "jobs" | "mcp" | "settings" | "cascade" | "specs" | "workflow" | "design" | "deploy" | "database" | "supabase" | "auth" | "github" | "steering" | "bugbot" | "redteam" | "tests" | "collab" | "coverage" | "compare" | "http" | "arena" | "cost" | "autofix" | "processes" | "cicd" | "k8s" | "env" | "profiler" | "docker" | "deps" | "apidocs" | "migrations" | "logs" | "scripts" | "notebook" | "ssh" | "utils" | "markers" | "bisect" | "snippets" | "mock" | "graphql" | "metrics" | "loadtest" | "network" | "teams" | "cibot" | "traces" | "marketplace" | "transform" | "img2app" | "recording" | "visualtest" | "cloud" | "compliance" | "scaffold" | "health" | "websocket" | "colors" | "markdown" | "difftool" | "canvas" | "cron" | "regex" | "jwt" | "jsontools" | "encoding" | "numbers" | "datagen" | "timestamp" | "colorconv" | "cidr" | "csv" | "units" | "unicode" | "sandbox">("chat");
   const [showTerminal, setShowTerminal] = useState(false);
   const [bottomTab, setBottomTab] = useState<"terminal" | "browser">("terminal");
   const [showCommandPalette, setShowCommandPalette] = useState(false);
@@ -1506,7 +1507,7 @@ function App() {
           <aside className="ai-chat-panel" style={{ display: "flex", flexDirection: "column" }}>
             {/* Tab bar */}
             <div role="tablist" aria-label="AI Panel tabs" style={{ display: "flex", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
-              {(["chat", "agent", "memory", "history", "checkpoints", "artifacts", "manager", "hooks", "jobs", "mcp", "settings", "cascade", "specs", "workflow", "design", "deploy", "database", "supabase", "auth", "github", "steering", "bugbot", "redteam", "tests", "collab", "coverage", "compare", "http", "arena", "cost", "autofix", "processes", "cicd", "k8s", "env", "profiler", "docker", "deps", "apidocs", "migrations", "logs", "scripts", "notebook", "ssh", "utils", "markers", "bisect", "snippets", "mock", "graphql", "metrics", "loadtest", "network", "teams", "cibot", "traces", "marketplace", "transform", "img2app", "recording", "visualtest", "cloud", "compliance", "scaffold", "health", "websocket", "colors", "markdown", "difftool", "canvas", "cron", "regex", "jwt", "jsontools", "encoding", "numbers", "datagen", "timestamp", "colorconv", "cidr", "csv", "units", "sandbox"] as const).map((tab) => (
+              {(["chat", "agent", "memory", "history", "checkpoints", "artifacts", "manager", "hooks", "jobs", "mcp", "settings", "cascade", "specs", "workflow", "design", "deploy", "database", "supabase", "auth", "github", "steering", "bugbot", "redteam", "tests", "collab", "coverage", "compare", "http", "arena", "cost", "autofix", "processes", "cicd", "k8s", "env", "profiler", "docker", "deps", "apidocs", "migrations", "logs", "scripts", "notebook", "ssh", "utils", "markers", "bisect", "snippets", "mock", "graphql", "metrics", "loadtest", "network", "teams", "cibot", "traces", "marketplace", "transform", "img2app", "recording", "visualtest", "cloud", "compliance", "scaffold", "health", "websocket", "colors", "markdown", "difftool", "canvas", "cron", "regex", "jwt", "jsontools", "encoding", "numbers", "datagen", "timestamp", "colorconv", "cidr", "csv", "units", "unicode", "sandbox"] as const).map((tab) => (
                 <button
                   key={tab}
                   role="tab"
@@ -1845,6 +1846,9 @@ function App() {
               {aiPanelTab === "units" && (
                 <UnitConverterPanel />
               )}
+              {aiPanelTab === "unicode" && (
+                <UnicodePanel />
+              )}
               {aiPanelTab === "sandbox" && (
                 <SandboxPanel />
               )}
@@ -1881,7 +1885,7 @@ function App() {
                     borderBottom: bottomTab === tab ? '2px solid var(--accent-blue)' : '2px solid transparent',
                   }}
                 >
-                  {tab === 'terminal' ? '⌨ Terminal' : '🌐 Browser'}
+                  {tab === 'terminal' ? 'Terminal' : 'Browser'}
                 </button>
               ))}
               <div style={{ flex: 1 }} />
@@ -1920,14 +1924,14 @@ function App() {
             onClick={() => { setBottomTab('terminal'); setShowTerminal(true); }}
             style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', marginRight: '4px' }}
           >
-            ⌨ Terminal
+            Terminal
           </button>
           <button
             className="status-item"
             onClick={() => { setBottomTab('browser'); setShowTerminal(true); }}
             style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', marginRight: '10px' }}
           >
-            🌐 Browser
+            Browser
           </button>
           <span style={{ opacity: 0.7, fontSize: '11px', cursor: 'pointer' }} onClick={() => setShowCommandPalette(true)}>
             ⌘K Command Palette
