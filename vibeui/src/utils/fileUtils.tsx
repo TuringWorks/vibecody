@@ -94,56 +94,34 @@ export function formatFileSize(bytes: number): string {
     return (bytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB';
 }
 
+import React from "react";
+import type { LucideIcon } from "lucide-react";
+import {
+    Folder, FileCode, Atom, Cog, Coffee, Gem, Globe,
+    Palette, Braces, Settings, FileText, File, BookOpen,
+    Image, Paintbrush, Archive,
+} from "lucide-react";
+
+const ICON_SIZE = 16;
+const ICON_STROKE = 1.5;
+
+const FILE_ICONS: Record<string, LucideIcon> = {
+    js: FileCode, ts: FileCode, jsx: Atom, tsx: Atom,
+    rs: Cog, py: FileCode, go: FileCode, java: Coffee,
+    rb: Gem, php: FileCode,
+    html: Globe, css: Palette, scss: Palette,
+    json: Braces, yaml: Settings, yml: Settings, toml: Settings, xml: FileCode,
+    md: FileText, txt: File, pdf: BookOpen,
+    png: Image, jpg: Image, jpeg: Image, gif: Image, svg: Paintbrush,
+    zip: Archive, tar: Archive, gz: Archive,
+};
+
 /**
  * Get file icon based on type
  */
-export function getFileIcon(filename: string, isDirectory: boolean): string {
-    if (isDirectory) return '📁';
-
-    const ext = filename.split('.').pop()?.toLowerCase();
-
-    const iconMap: Record<string, string> = {
-        // Code
-        'js': '📜',
-        'ts': '📘',
-        'jsx': '⚛️',
-        'tsx': '⚛️',
-        'rs': '🦀',
-        'py': '🐍',
-        'go': '🐹',
-        'java': '☕',
-        'rb': '💎',
-        'php': '🐘',
-
-        // Web
-        'html': '🌐',
-        'css': '🎨',
-        'scss': '🎨',
-
-        // Config
-        'json': '📋',
-        'yaml': '⚙️',
-        'yml': '⚙️',
-        'toml': '⚙️',
-        'xml': '📋',
-
-        // Docs
-        'md': '📝',
-        'txt': '📄',
-        'pdf': '📕',
-
-        // Images
-        'png': '🖼️',
-        'jpg': '🖼️',
-        'jpeg': '🖼️',
-        'gif': '🖼️',
-        'svg': '🎨',
-
-        // Others
-        'zip': '📦',
-        'tar': '📦',
-        'gz': '📦',
-    };
-
-    return iconMap[ext || ''] || '📄';
+export function getFileIcon(filename: string, isDirectory: boolean): React.ReactElement {
+    if (isDirectory) return <Folder size={ICON_SIZE} strokeWidth={ICON_STROKE} />;
+    const ext = filename.split('.').pop()?.toLowerCase() || '';
+    const Icon = FILE_ICONS[ext] || File;
+    return <Icon size={ICON_SIZE} strokeWidth={ICON_STROKE} />;
 }
