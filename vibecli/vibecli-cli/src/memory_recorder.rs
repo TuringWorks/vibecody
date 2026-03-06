@@ -113,6 +113,7 @@ fn unix_secs_to_date_string(secs: u64) -> String {
 
 /// Extract bullet lines from a response string.
 /// Returns lines whose trimmed form starts with '-'.
+#[cfg(test)]
 fn extract_bullets(response: &str) -> Vec<&str> {
     response
         .lines()
