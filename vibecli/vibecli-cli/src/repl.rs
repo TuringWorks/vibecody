@@ -50,6 +50,7 @@ static COMMANDS: &[&str] = &[
     "/remind",
     "/resume",
     "/rewind",
+    "/sandbox",
     "/schedule",
     "/sessions",
     "/share",
@@ -111,6 +112,9 @@ static SCHEDULE_SUBS: &[&str] = &["every", "list", "cancel"];
 
 /// Sub-commands for `/workflow <sub>`
 static WORKFLOW_SUBS: &[&str] = &["new", "list", "show", "advance", "check", "generate"];
+
+/// Sub-commands for `/sandbox <sub>`
+static SANDBOX_SUBS: &[&str] = &["status", "start", "stop", "list", "exec", "logs", "runtime"];
 
 /// Sub-commands for `/arena <sub>`
 static ARENA_SUBS: &[&str] = &["compare", "stats", "history"];
@@ -209,6 +213,7 @@ fn command_hint(cmd: &str) -> Option<&'static str> {
         "/voice"    => Some("[transcribe <file>|speak <text>]  — voice transcription (Whisper) & TTS (ElevenLabs)"),
         "/discover" => Some("— discover VibeCLI peers on the local network"),
         "/pair"     => Some("[host:port]  — generate device pairing URL with one-time token"),
+        "/sandbox"  => Some("[status|start|stop|list|exec <cmd>|logs|runtime]  — container sandbox management"),
         _ => None,
     }
 }
@@ -289,6 +294,7 @@ fn complete_slash(line: &str) -> Option<(usize, Vec<Pair>)> {
                 "/snippet"  => Some(SNIPPET_SUBS),
                 "/linear"   => Some(LINEAR_SUBS),
                 "/remind"   => Some(REMIND_SUBS),
+                "/sandbox"  => Some(SANDBOX_SUBS),
                 "/schedule" => Some(SCHEDULE_SUBS),
                 "/workflow" => Some(WORKFLOW_SUBS),
                 "/redteam"  => Some(REDTEAM_SUBS),
