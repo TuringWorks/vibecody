@@ -5,6 +5,7 @@
  * Flow: detect project type → show recommended target → Deploy → stream logs → show URL
  */
 import { useState, useEffect, useRef } from "react";
+import { Circle } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 
@@ -47,7 +48,7 @@ const TARGETS = [
  { id: "digitalocean", label: "DigitalOcean", icon: "" },
  { id: "kubernetes", label: "Kubernetes", icon: "ship" },
  { id: "kubernetes-helm", label: "Helm", icon: "" },
- { id: "oci", label: "Oracle Cloud", icon: "🔴" },
+ { id: "oci", label: "Oracle Cloud", icon: <Circle size={14} strokeWidth={0} fill="#f44336" /> },
  { id: "ibm-cloud", label: "IBM Code Engine", icon: "" },
 ];
 

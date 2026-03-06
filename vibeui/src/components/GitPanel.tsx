@@ -534,7 +534,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: 8 }}>
  {/* Branch Name Suggester */}
  <div style={{ marginBottom: 10 }}>
- <div style={{ fontSize: 11, color: 'var(--text-muted, #888)', marginBottom: 4 }}>🌿 AI Branch Name</div>
+ <div style={{ fontSize: 11, color: 'var(--text-muted, #888)', marginBottom: 4 }}>AI Branch Name</div>
  <div style={{ display: 'flex', gap: 6 }}>
  <input
  value={branchTask}

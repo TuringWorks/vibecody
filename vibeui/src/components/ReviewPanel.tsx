@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { Lightbulb } from 'lucide-react';
 
 // ── Types (mirrors review.rs) ──────────────────────────────────────────────
 
@@ -294,7 +295,7 @@ export function ReviewPanel({ workspacePath, onOpenFile }: ReviewPanelProps) {
  {report.suggestions.length > 0 && (
  <div style={{ background: '#1f2937', borderRadius: 6, padding: 12 }}>
  <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8, color: '#e5e7eb' }}>
- 💡 Suggestions ({report.suggestions.length})
+ <Lightbulb size={14} strokeWidth={1.5} /> Suggestions ({report.suggestions.length})
  </div>
  {report.suggestions.map((s, i) => (
  <div key={i} style={{ fontSize: 12, color: '#d1d5db', marginBottom: 4, paddingLeft: 8, borderLeft: '2px solid #374151' }}>

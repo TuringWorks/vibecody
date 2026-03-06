@@ -177,7 +177,7 @@ function TestResultsBody({ passed, failed, skipped, output }: { passed: number; 
  <div style={{ display: "flex", gap: "12px", marginBottom: "8px" }}>
  <span style={{ fontSize: "12px", color: "#4c4" }}> {passed} passed</span>
  {failed > 0 && <span style={{ fontSize: "12px", color: "#f44" }}> {failed} failed</span>}
- {skipped > 0 && <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>⏭ {skipped} skipped</span>}
+ {skipped > 0 && <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>{skipped} skipped</span>}
  </div>
  {output && (
  <pre style={{ fontSize: "10px", maxHeight: "100px", overflowY: "auto", margin: 0, color: "var(--text-secondary)" }}>

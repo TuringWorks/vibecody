@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Clock, CircleCheck, CircleX, Square } from 'lucide-react';
 import { useToast } from '../hooks/useToast';
 import { Toaster } from './Toaster';
 
@@ -17,11 +18,11 @@ interface BackgroundJobsPanelProps {
  daemonUrl?: string;
 }
 
-const STATUS_ICONS: Record<string, string> = {
- running: '🟡',
- complete: '',
- failed: '',
- cancelled: '⬜',
+const STATUS_ICONS: Record<string, React.ReactNode> = {
+ running: <Clock size={14} strokeWidth={1.5} style={{ color: "#facc15" }} />,
+ complete: <CircleCheck size={14} strokeWidth={1.5} style={{ color: "#a6e3a1" }} />,
+ failed: <CircleX size={14} strokeWidth={1.5} style={{ color: "#f38ba8" }} />,
+ cancelled: <Square size={14} strokeWidth={1.5} />,
 };
 
 const PROVIDERS = ['ollama', 'claude', 'openai', 'gemini', 'grok'];

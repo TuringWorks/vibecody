@@ -228,7 +228,7 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  display: "flex", alignItems: "center", gap: 10,
  }}
  >
- <span style={{ fontSize: 18 }}>🖥</span>
+ <span style={{ fontSize: 18 }}></span>
  <div style={{ flex: 1 }}>
  <div style={{ fontSize: 12, fontWeight: 600 }}>{p.name}</div>
  <div style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "monospace" }}>

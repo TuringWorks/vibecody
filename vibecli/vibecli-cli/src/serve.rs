@@ -738,6 +738,80 @@ async fn acp_get_task(
 
 // ── Server startup ────────────────────────────────────────────────────────────
 
+/// Build the full axum router with all middleware, CORS, auth, and routes.
+/// Extracted so that tests can call it with `tower::ServiceExt::oneshot()`
+/// without binding to a TCP port.
+pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
+    // CORS: restrict to localhost origins only
+    let origins: Vec<HeaderValue> = [
+        "http://localhost".to_string(),
+        "http://127.0.0.1".to_string(),
+        format!("http://localhost:{port}"),
+        format!("http://127.0.0.1:{port}"),
+    ]
+    .into_iter()
+    .filter_map(|s| s.parse::<HeaderValue>().ok())
+    .collect();
+    let cors = CorsLayer::new()
+        .allow_origin(origins)
+        .allow_methods(tower_http::cors::Any)
+        .allow_headers(tower_http::cors::Any);
+
+    // Rate limiter: 60 requests per 60 seconds (global across all authed endpoints)
+    let limiter = Arc::new(RateLimiter::new(60, Duration::from_secs(60)));
+
+    // Routes that require bearer-token auth (API endpoints)
+    let authed_routes = Router::new()
+        .route("/chat", post(chat))
+        .route("/chat/stream", post(chat_stream))
+        .route("/agent", post(start_agent))
+        .route("/stream/:session_id", get(stream_agent))
+        .route("/jobs", get(list_jobs))
+        .route("/jobs/:id", get(get_job))
+        .route("/jobs/:id/cancel", post(cancel_job))
+        .route("/collab/rooms", post(create_collab_room))
+        .route("/collab/rooms", get(list_collab_rooms))
+        .route("/collab/rooms/:room_id/peers", get(list_collab_peers))
+        .route("/acp/v1/tasks", post(acp_create_task))
+        .route("/acp/v1/tasks/:id", get(acp_get_task))
+        .route_layer(middleware::from_fn_with_state(limiter, rate_limit))
+        .route_layer(middleware::from_fn_with_state(state.clone(), require_auth));
+
+    // Public routes (health check + read-only session viewer + WebSocket collab + webhook)
+    Router::new()
+        .route("/health", get(health))
+        .route("/webhook/github", post(github_webhook))
+        .route("/webhook/skill/:skill_name", post(skill_webhook_handler))
+        .route("/pair", get(pairing_handler))
+        .route("/acp/v1/capabilities", get(acp_capabilities))
+        .route("/ws/collab/:room_id", get(ws_collab_handler))
+        .merge(authed_routes)
+        .route("/sessions", get(sessions_index_html))
+        .route("/sessions.json", get(sessions_json))
+        .route("/view/:id", get(view_session))
+        .route("/share/:id", get(share_session))
+        .layer(DefaultBodyLimit::max(1024 * 1024)) // 1 MB max request body
+        // Security response headers
+        .layer(SetResponseHeaderLayer::overriding(
+            header::X_CONTENT_TYPE_OPTIONS,
+            HeaderValue::from_static("nosniff"),
+        ))
+        .layer(SetResponseHeaderLayer::overriding(
+            header::X_FRAME_OPTIONS,
+            HeaderValue::from_static("DENY"),
+        ))
+        .layer(SetResponseHeaderLayer::overriding(
+            axum::http::HeaderName::from_static("referrer-policy"),
+            HeaderValue::from_static("no-referrer"),
+        ))
+        .layer(SetResponseHeaderLayer::overriding(
+            axum::http::HeaderName::from_static("content-security-policy"),
+            HeaderValue::from_static("default-src 'self'; script-src 'none'; style-src 'unsafe-inline'"),
+        ))
+        .layer(cors)
+        .with_state(state)
+}
+
 /// Start the VibeCLI HTTP daemon. Blocks until shutdown.
 pub async fn serve(
     provider: Arc<dyn AIProvider>,
@@ -787,74 +861,7 @@ pub async fn serve(
         github_app_config: gh_app_config,
     };
 
-    // CORS: restrict to localhost origins only
-    let origins: Vec<HeaderValue> = [
-        "http://localhost".to_string(),
-        "http://127.0.0.1".to_string(),
-        format!("http://localhost:{port}"),
-        format!("http://127.0.0.1:{port}"),
-    ]
-    .into_iter()
-    .filter_map(|s| s.parse::<HeaderValue>().ok())
-    .collect();
-    let cors = CorsLayer::new()
-        .allow_origin(origins)
-        .allow_methods(tower_http::cors::Any)
-        .allow_headers(tower_http::cors::Any);
-
-    // Rate limiter: 60 requests per 60 seconds (global across all authed endpoints)
-    let limiter = Arc::new(RateLimiter::new(60, Duration::from_secs(60)));
-
-    // Routes that require bearer-token auth (API endpoints)
-    let authed_routes = Router::new()
-        .route("/chat", post(chat))
-        .route("/chat/stream", post(chat_stream))
-        .route("/agent", post(start_agent))
-        .route("/stream/:session_id", get(stream_agent))
-        .route("/jobs", get(list_jobs))
-        .route("/jobs/:id", get(get_job))
-        .route("/jobs/:id/cancel", post(cancel_job))
-        .route("/collab/rooms", post(create_collab_room))
-        .route("/collab/rooms", get(list_collab_rooms))
-        .route("/collab/rooms/:room_id/peers", get(list_collab_peers))
-        .route("/acp/v1/tasks", post(acp_create_task))
-        .route("/acp/v1/tasks/:id", get(acp_get_task))
-        .route_layer(middleware::from_fn_with_state(limiter, rate_limit))
-        .route_layer(middleware::from_fn_with_state(state.clone(), require_auth));
-
-    // Public routes (health check + read-only session viewer + WebSocket collab + webhook)
-    let app = Router::new()
-        .route("/health", get(health))
-        .route("/webhook/github", post(github_webhook))
-        .route("/webhook/skill/:skill_name", post(skill_webhook_handler))
-        .route("/pair", get(pairing_handler))
-        .route("/acp/v1/capabilities", get(acp_capabilities))
-        .route("/ws/collab/:room_id", get(ws_collab_handler))
-        .merge(authed_routes)
-        .route("/sessions", get(sessions_index_html))
-        .route("/sessions.json", get(sessions_json))
-        .route("/view/:id", get(view_session))
-        .route("/share/:id", get(share_session))
-        .layer(DefaultBodyLimit::max(1024 * 1024)) // 1 MB max request body
-        // Security response headers
-        .layer(SetResponseHeaderLayer::overriding(
-            header::X_CONTENT_TYPE_OPTIONS,
-            HeaderValue::from_static("nosniff"),
-        ))
-        .layer(SetResponseHeaderLayer::overriding(
-            header::X_FRAME_OPTIONS,
-            HeaderValue::from_static("DENY"),
-        ))
-        .layer(SetResponseHeaderLayer::overriding(
-            axum::http::HeaderName::from_static("referrer-policy"),
-            HeaderValue::from_static("no-referrer"),
-        ))
-        .layer(SetResponseHeaderLayer::overriding(
-            axum::http::HeaderName::from_static("content-security-policy"),
-            HeaderValue::from_static("default-src 'self'; script-src 'none'; style-src 'unsafe-inline'"),
-        ))
-        .layer(cors)
-        .with_state(state);
+    let app = build_router(state, port);
 
     let addr = format!("127.0.0.1:{port}");
     let listener = tokio::net::TcpListener::bind(&addr).await?;
@@ -1738,5 +1745,518 @@ mod tests {
         assert_eq!(req.messages[1].role, "user");
         assert_eq!(req.messages[2].role, "assistant");
         assert_eq!(req.messages[3].content, "Bye");
+    }
+
+    // ── HTTP integration tests (oneshot, no TCP binding) ────────────────
+
+    mod http_integration {
+        use super::*;
+        use axum::body::Body;
+        use axum::http::{Request, StatusCode};
+        use tower::ServiceExt; // for oneshot()
+
+        /// A minimal mock AIProvider that never contacts a real LLM.
+        struct MockProvider;
+
+        #[async_trait::async_trait]
+        impl AIProvider for MockProvider {
+            fn name(&self) -> &str { "mock" }
+            async fn is_available(&self) -> bool { true }
+            async fn complete(
+                &self,
+                _ctx: &vibe_ai::provider::CodeContext,
+            ) -> anyhow::Result<vibe_ai::provider::CompletionResponse> {
+                Ok(vibe_ai::provider::CompletionResponse {
+                    text: "mock completion".to_string(),
+                    model: "mock".to_string(),
+                    usage: None,
+                })
+            }
+            async fn stream_complete(
+                &self,
+                _ctx: &vibe_ai::provider::CodeContext,
+            ) -> anyhow::Result<vibe_ai::provider::CompletionStream> {
+                let stream = futures::stream::once(async { Ok("mock".to_string()) });
+                Ok(Box::pin(stream))
+            }
+            async fn chat(
+                &self,
+                _messages: &[vibe_ai::provider::Message],
+                _context: Option<String>,
+            ) -> anyhow::Result<String> {
+                Ok("mock chat response".to_string())
+            }
+            async fn stream_chat(
+                &self,
+                _messages: &[vibe_ai::provider::Message],
+            ) -> anyhow::Result<vibe_ai::provider::CompletionStream> {
+                let stream = futures::stream::once(async { Ok("mock stream".to_string()) });
+                Ok(Box::pin(stream))
+            }
+        }
+
+        /// Create a test router with a known API token.
+        /// Returns `(Router, TempDir)` — the caller must hold onto the `TempDir`
+        /// so the temporary directory is not deleted while the router still
+        /// references it.
+        fn test_app(token: &str) -> (Router, tempfile::TempDir) {
+            let tmp_dir = tempfile::tempdir().unwrap();
+            let state = ServeState {
+                provider: Arc::new(MockProvider),
+                approval: ApprovalPolicy::FullAuto,
+                workspace_root: tmp_dir.path().to_path_buf(),
+                streams: Arc::new(Mutex::new(HashMap::new())),
+                jobs_dir: tmp_dir.path().to_path_buf(),
+                provider_name: "mock".to_string(),
+                api_token: token.to_string(),
+                collab_server: Arc::new(CollabServer::new(5)),
+                github_app_config: crate::github_app::GithubAppConfig::default(),
+            };
+            (build_router(state, 7878), tmp_dir)
+        }
+
+        /// Helper: collect response body bytes into a String.
+        async fn body_string(body: Body) -> String {
+            let bytes = axum::body::to_bytes(body, 1024 * 1024 * 2).await.unwrap();
+            String::from_utf8(bytes.to_vec()).unwrap()
+        }
+
+        // ── GET /health ────────────────────────────────────────────────
+
+        #[tokio::test]
+        async fn health_returns_200_ok() {
+            let (app, _tmp) = test_app("test-token");
+            let req = Request::builder()
+                .uri("/health")
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::OK);
+        }
+
+        #[tokio::test]
+        async fn health_returns_json_with_status_ok() {
+            let (app, _tmp) = test_app("test-token");
+            let req = Request::builder()
+                .uri("/health")
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            let body = body_string(resp.into_body()).await;
+            let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+            assert_eq!(json["status"], "ok");
+        }
+
+        #[tokio::test]
+        async fn health_does_not_require_auth() {
+            let (app, _tmp) = test_app("secret-token");
+            // No Authorization header — should still work
+            let req = Request::builder()
+                .uri("/health")
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::OK);
+        }
+
+        // ── Auth: unauthenticated requests to protected routes → 401 ──
+
+        #[tokio::test]
+        async fn chat_without_auth_returns_401() {
+            let (app, _tmp) = test_app("secret-token");
+            let req = Request::builder()
+                .method("POST")
+                .uri("/chat")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"messages":[{"role":"user","content":"hi"}]}"#))
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+        }
+
+        #[tokio::test]
+        async fn agent_without_auth_returns_401() {
+            let (app, _tmp) = test_app("my-secret");
+            let req = Request::builder()
+                .method("POST")
+                .uri("/agent")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"task":"do stuff"}"#))
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+        }
+
+        #[tokio::test]
+        async fn jobs_without_auth_returns_401() {
+            let (app, _tmp) = test_app("my-secret");
+            let req = Request::builder()
+                .uri("/jobs")
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+        }
+
+        #[tokio::test]
+        async fn chat_with_wrong_token_returns_401() {
+            let (app, _tmp) = test_app("correct-token");
+            let req = Request::builder()
+                .method("POST")
+                .uri("/chat")
+                .header("content-type", "application/json")
+                .header("authorization", "Bearer wrong-token")
+                .body(Body::from(r#"{"messages":[{"role":"user","content":"hi"}]}"#))
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+        }
+
+        #[tokio::test]
+        async fn chat_with_correct_token_returns_200() {
+            let (app, _tmp) = test_app("correct-token");
+            let req = Request::builder()
+                .method("POST")
+                .uri("/chat")
+                .header("content-type", "application/json")
+                .header("authorization", "Bearer correct-token")
+                .body(Body::from(r#"{"messages":[{"role":"user","content":"hi"}]}"#))
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::OK);
+        }
+
+        #[tokio::test]
+        async fn jobs_with_correct_token_returns_200() {
+            let (app, _tmp) = test_app("my-token");
+            let req = Request::builder()
+                .uri("/jobs")
+                .header("authorization", "Bearer my-token")
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::OK);
+        }
+
+        #[tokio::test]
+        async fn unauthorized_response_body_contains_error() {
+            let (app, _tmp) = test_app("secret");
+            let req = Request::builder()
+                .method("POST")
+                .uri("/chat")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"messages":[]}"#))
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+            let body = body_string(resp.into_body()).await;
+            assert!(
+                body.contains("error") && body.contains("Authorization"),
+                "401 body should mention Authorization; got: {body}"
+            );
+        }
+
+        // ── GET /sessions (HTML) ───────────────────────────────────────
+
+        #[tokio::test]
+        async fn sessions_html_returns_200_with_html_content_type() {
+            let (app, _tmp) = test_app("tok");
+            let req = Request::builder()
+                .uri("/sessions")
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            // sessions may return 200 or 500 depending on whether the SQLite
+            // store exists; we accept both but verify the content-type header.
+            let status = resp.status();
+            assert!(
+                status == StatusCode::OK || status == StatusCode::INTERNAL_SERVER_ERROR,
+                "Expected 200 or 500, got {status}"
+            );
+            if status == StatusCode::OK {
+                let ct = resp
+                    .headers()
+                    .get("content-type")
+                    .and_then(|v| v.to_str().ok())
+                    .unwrap_or("");
+                assert!(
+                    ct.contains("text/html"),
+                    "sessions should be text/html; got {ct}"
+                );
+            }
+        }
+
+        // ── GET /sessions.json (JSON) ──────────────────────────────────
+
+        #[tokio::test]
+        async fn sessions_json_returns_json_content_type() {
+            let (app, _tmp) = test_app("tok");
+            let req = Request::builder()
+                .uri("/sessions.json")
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            let status = resp.status();
+            assert!(
+                status == StatusCode::OK || status == StatusCode::INTERNAL_SERVER_ERROR,
+                "Expected 200 or 500, got {status}"
+            );
+            let ct = resp
+                .headers()
+                .get("content-type")
+                .and_then(|v| v.to_str().ok())
+                .unwrap_or("");
+            assert!(
+                ct.contains("application/json"),
+                "sessions.json content-type should be application/json; got {ct}"
+            );
+        }
+
+        // ── Security headers ──────────────────────────────────────────
+
+        #[tokio::test]
+        async fn security_header_x_content_type_options() {
+            let (app, _tmp) = test_app("t");
+            let req = Request::builder()
+                .uri("/health")
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            let val = resp
+                .headers()
+                .get("x-content-type-options")
+                .and_then(|v| v.to_str().ok());
+            assert_eq!(val, Some("nosniff"));
+        }
+
+        #[tokio::test]
+        async fn security_header_x_frame_options() {
+            let (app, _tmp) = test_app("t");
+            let req = Request::builder()
+                .uri("/health")
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            let val = resp
+                .headers()
+                .get("x-frame-options")
+                .and_then(|v| v.to_str().ok());
+            assert_eq!(val, Some("DENY"));
+        }
+
+        #[tokio::test]
+        async fn security_header_referrer_policy() {
+            let (app, _tmp) = test_app("t");
+            let req = Request::builder()
+                .uri("/health")
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            let val = resp
+                .headers()
+                .get("referrer-policy")
+                .and_then(|v| v.to_str().ok());
+            assert_eq!(val, Some("no-referrer"));
+        }
+
+        #[tokio::test]
+        async fn security_header_content_security_policy() {
+            let (app, _tmp) = test_app("t");
+            let req = Request::builder()
+                .uri("/health")
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            let val = resp
+                .headers()
+                .get("content-security-policy")
+                .and_then(|v| v.to_str().ok())
+                .unwrap_or("");
+            assert!(
+                val.contains("default-src") && val.contains("script-src"),
+                "CSP should contain default-src and script-src; got: {val}"
+            );
+        }
+
+        #[tokio::test]
+        async fn security_headers_present_on_authed_route() {
+            let (app, _tmp) = test_app("tok");
+            let req = Request::builder()
+                .uri("/jobs")
+                .header("authorization", "Bearer tok")
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert!(resp.headers().get("x-frame-options").is_some());
+            assert!(resp.headers().get("x-content-type-options").is_some());
+            assert!(resp.headers().get("referrer-policy").is_some());
+            assert!(resp.headers().get("content-security-policy").is_some());
+        }
+
+        // ── CORS headers ──────────────────────────────────────────────
+
+        #[tokio::test]
+        async fn cors_preflight_returns_ok() {
+            let (app, _tmp) = test_app("t");
+            let req = Request::builder()
+                .method("OPTIONS")
+                .uri("/health")
+                .header("origin", "http://localhost:7878")
+                .header("access-control-request-method", "GET")
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::OK);
+            // CORS should echo back allowed origin
+            let acao = resp
+                .headers()
+                .get("access-control-allow-origin")
+                .and_then(|v| v.to_str().ok())
+                .unwrap_or("");
+            assert!(
+                acao.contains("localhost"),
+                "CORS should allow localhost origin; got: {acao}"
+            );
+        }
+
+        #[tokio::test]
+        async fn cors_disallowed_origin_gets_no_acao_header() {
+            let (app, _tmp) = test_app("t");
+            let req = Request::builder()
+                .method("OPTIONS")
+                .uri("/health")
+                .header("origin", "https://evil.example.com")
+                .header("access-control-request-method", "GET")
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            let acao = resp
+                .headers()
+                .get("access-control-allow-origin")
+                .and_then(|v| v.to_str().ok());
+            assert!(
+                acao.is_none(),
+                "Disallowed origin should not get ACAO header; got: {:?}",
+                acao
+            );
+        }
+
+        // ── Body size limit enforcement ──────────────────────────────
+
+        #[tokio::test]
+        async fn oversized_body_is_rejected() {
+            let (app, _tmp) = test_app("tok");
+            // Create a body larger than 1 MB (the configured limit)
+            let large_body = "x".repeat(1024 * 1024 + 1);
+            let req = Request::builder()
+                .method("POST")
+                .uri("/chat")
+                .header("content-type", "application/json")
+                .header("authorization", "Bearer tok")
+                .body(Body::from(large_body))
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            // Should be 413 Payload Too Large (axum's DefaultBodyLimit)
+            assert_eq!(
+                resp.status(),
+                StatusCode::PAYLOAD_TOO_LARGE,
+                "Body > 1 MB should be rejected with 413"
+            );
+        }
+
+        // ── ACP capabilities (public route) ──────────────────────────
+
+        #[tokio::test]
+        async fn acp_capabilities_returns_200() {
+            let (app, _tmp) = test_app("t");
+            let req = Request::builder()
+                .uri("/acp/v1/capabilities")
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::OK);
+        }
+
+        // ── 404 for unknown routes ────────────────────────────────────
+
+        #[tokio::test]
+        async fn unknown_route_returns_404() {
+            let (app, _tmp) = test_app("t");
+            let req = Request::builder()
+                .uri("/nonexistent")
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+        }
+
+        // ── Chat endpoint response content ────────────────────────────
+
+        #[tokio::test]
+        async fn chat_response_contains_mock_content() {
+            let (app, _tmp) = test_app("tok");
+            let req = Request::builder()
+                .method("POST")
+                .uri("/chat")
+                .header("content-type", "application/json")
+                .header("authorization", "Bearer tok")
+                .body(Body::from(r#"{"messages":[{"role":"user","content":"hello"}]}"#))
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::OK);
+            let body = body_string(resp.into_body()).await;
+            let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+            assert!(
+                json["content"].as_str().unwrap().contains("mock"),
+                "Chat response should come from MockProvider; got: {body}"
+            );
+        }
+
+        // ── Jobs list initially empty ─────────────────────────────────
+
+        #[tokio::test]
+        async fn jobs_list_initially_empty() {
+            let (app, _tmp) = test_app("tok");
+            let req = Request::builder()
+                .uri("/jobs")
+                .header("authorization", "Bearer tok")
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::OK);
+            let body = body_string(resp.into_body()).await;
+            let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+            assert!(json.is_array());
+            assert_eq!(json.as_array().unwrap().len(), 0);
+        }
+
+        // ── GET /jobs/:id for nonexistent job → 404 ──────────────────
+
+        #[tokio::test]
+        async fn get_nonexistent_job_returns_404() {
+            let (app, _tmp) = test_app("tok");
+            let req = Request::builder()
+                .uri("/jobs/nonexistent-id")
+                .header("authorization", "Bearer tok")
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+        }
+
+        // ── POST /jobs/:id/cancel for nonexistent job → 404 ──────────
+
+        #[tokio::test]
+        async fn cancel_nonexistent_job_returns_404() {
+            let (app, _tmp) = test_app("tok");
+            let req = Request::builder()
+                .method("POST")
+                .uri("/jobs/nonexistent-id/cancel")
+                .header("authorization", "Bearer tok")
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+        }
     }
 }

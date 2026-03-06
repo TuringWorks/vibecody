@@ -25,7 +25,7 @@ const FRAMEWORKS = ["SOC2", "FedRAMP", "HIPAA", "GDPR", "ISO27001"] as const;
 
 const statusBadge = (s: string) => {
  if (s === "implemented") return { label: "Implemented", color: "#4ade80" };
- if (s === "partial") return { label: "🟡 Partial", color: "#facc15" };
+ if (s === "partial") return { label: "Partial", color: "#facc15" };
  if (s === "not_implemented") return { label: "Gap", color: "#f87171" };
  return { label: "N/A", color: "#888" };
 };
@@ -116,7 +116,7 @@ export function CompliancePanel() {
  </div>
  <div style={{ display: "flex", gap: 16, marginTop: 8, fontSize: 11, color: "#aaa" }}>
  <span> {report.summary.implemented} implemented</span>
- <span>🟡 {report.summary.partial} partial</span>
+ <span style={{ color: "#facc15" }}>{report.summary.partial} partial</span>
  <span> {report.summary.gaps} gaps</span>
  </div>
  </div>

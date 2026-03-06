@@ -112,7 +112,7 @@ function AgentCard({
  )}
  {agent.branch && (
  <span style={{ marginLeft: "8px", opacity: 0.6 }}>
- 🌿 {agent.branch}
+ {agent.branch}
  </span>
  )}
  </div>

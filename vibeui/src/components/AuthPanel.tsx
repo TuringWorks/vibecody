@@ -1,4 +1,5 @@
-import { useState } from "react";
+import React, { useState } from "react";
+import { Mail } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 
 type AuthProvider = "github" | "google" | "email" | "jwt";
@@ -80,10 +81,10 @@ export function AuthPanel({ workspacePath, provider }: { workspacePath: string |
  chip: (active: boolean): React.CSSProperties => ({ padding: "4px 12px", border: `1px solid ${active ? "var(--accent-blue, #007acc)" : "var(--border-color)"}`, borderRadius: "12px", cursor: "pointer", fontSize: "12px", background: active ? "rgba(0,122,204,0.15)" : "transparent", color: active ? "var(--accent-blue, #007acc)" : "var(--text-secondary)" }),
  };
 
- const AUTH_PROVIDERS: { value: AuthProvider; label: string; icon: string }[] = [
+ const AUTH_PROVIDERS: { value: AuthProvider; label: string; icon: React.ReactNode }[] = [
  { value: "github", label: "GitHub OAuth", icon: "" },
  { value: "google", label: "Google OAuth", icon: "" },
- { value: "email", label: "Email + Password", icon: "📧" },
+ { value: "email", label: "Email + Password", icon: <Mail size={14} strokeWidth={1.5} /> },
  { value: "jwt", label: "JWT / Bearer", icon: "" },
  ];
 

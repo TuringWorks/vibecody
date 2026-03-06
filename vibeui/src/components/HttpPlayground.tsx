@@ -165,7 +165,7 @@ export function HttpPlayground({ workspacePath }: { workspacePath: string | null
  <div>
  <div style={{ display: "flex", alignItems: "center", marginBottom: "4px" }}>
  <span style={{ color: "var(--text-muted, #888)", fontSize: "11px" }}>Headers</span>
- <button onClick={addHeader} style={{ marginLeft: "8px", background: "none", color: "var(--accent, #007acc)", border: "none", cursor: "pointer", fontSize: "12px", padding: "0 4px" }}>＋</button>
+ <button onClick={addHeader} style={{ marginLeft: "8px", background: "none", color: "var(--accent, #007acc)", border: "none", cursor: "pointer", fontSize: "12px", padding: "0 4px" }}>+</button>
  </div>
  <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
  {headers.map((h, i) => (

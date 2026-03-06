@@ -1253,7 +1253,7 @@ function App() {
                 <div className="file-tree">
                   {currentDirectory && (
                     <div className="file-item directory" onClick={handleGoUp} title="Go to Parent">
-                      <span className="file-icon">📂</span>
+                      <span className="file-icon"><FolderOpen size={14} strokeWidth={1.5} /></span>
                       <span className="file-name">..</span>
                     </div>
                   )}

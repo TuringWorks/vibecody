@@ -4,6 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 import { useToast } from "../hooks/useToast";
 import { ContextPicker } from "./ContextPicker";
 import { flowContext } from "../utils/FlowContext";
+import { Mic, User } from "lucide-react";
 import "./AIChat.css";
 
 // ── Voice input hook ──────────────────────────────────────────────────────────
@@ -347,7 +348,7 @@ export function AIChat({ provider, context, fileTree, currentFile, onFileAction,
  </div>
  </div>
  <p className="chat-subtitle">
- Ask questions about your code. Type <kbd>@file:</kbd>, <kbd>@git</kbd>, or <kbd>@web:</kbd> to inject context. Click 🎤 for voice input.
+ Ask questions about your code. Type <kbd>@file:</kbd>, <kbd>@git</kbd>, or <kbd>@web:</kbd> to inject context. Click the mic icon for voice input.
  </p>
  </div>
 
@@ -361,7 +362,7 @@ export function AIChat({ provider, context, fileTree, currentFile, onFileAction,
  messages.map((msg, idx) => (
  <div key={idx} className={`message message-${msg.role}`}>
  <div className="message-icon">
- {msg.role === "user" ? "👤" : ""}
+ {msg.role === "user" ? <User size={14} strokeWidth={1.5} /> : ""}
  </div>
  <div className="message-content" style={{ position: "relative" }}>
  <pre>{msg.content}</pre>
@@ -455,7 +456,7 @@ export function AIChat({ provider, context, fileTree, currentFile, onFileAction,
  title={isListening ? "Stop recording" : "Voice input"}
  className={`mic-btn${isListening ? " listening" : ""}`}
  >
- 🎤
+ <Mic size={14} strokeWidth={1.5} />
  </button>
  <button onClick={sendMessage} disabled={!input.trim() || isLoading}>
  Send

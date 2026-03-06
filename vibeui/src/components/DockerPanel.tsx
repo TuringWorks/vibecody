@@ -6,7 +6,8 @@
  * - Images: list local images, pull new image
  * - Compose: up/down/ps/logs/build/restart per service
  */
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { Circle } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 
 type SubTab = "containers" | "images" | "compose";
@@ -40,12 +41,12 @@ const statusColor = (status: string) => {
  return "#cdd6f4";
 };
 
-const statusIcon = (status: string) => {
+const statusIcon = (status: string): React.ReactNode => {
  const s = status.toLowerCase();
- if (s.startsWith("up")) return "🟢";
- if (s.startsWith("exited")) return "🔴";
- if (s.startsWith("paused")) return "paused";
- return "⚪";
+ if (s.startsWith("up")) return <Circle size={10} strokeWidth={0} fill="#a6e3a1" />;
+ if (s.startsWith("exited")) return <Circle size={10} strokeWidth={0} fill="#f38ba8" />;
+ if (s.startsWith("paused")) return <Circle size={10} strokeWidth={0} fill="#cdd6f4" />;
+ return <Circle size={10} strokeWidth={0} fill="#cdd6f4" />;
 };
 
 export function DockerPanel({ workspacePath }: DockerPanelProps) {
@@ -377,7 +378,7 @@ export function DockerPanel({ workspacePath }: DockerPanelProps) {
  { action: "down", label: "Down", variant: "secondary" },
  { action: "ps", label: " ps", variant: "secondary" },
  { action: "logs", label: "Logs", variant: "secondary" },
- { action: "build", label: "🔨 Build", variant: "secondary" },
+ { action: "build", label: "Build", variant: "secondary" },
  { action: "restart", label: "↻ Restart", variant: "secondary" },
  { action: "pull", label: "Pull", variant: "secondary" },
  ].map(({ action, label, variant }) => (

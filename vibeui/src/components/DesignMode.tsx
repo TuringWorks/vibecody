@@ -173,7 +173,7 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
  }}
  title="Toggle visual element selection"
  >
- {visualEditEnabled ? "✋ Exit Edit" : "👆 Visual Edit"}
+ {visualEditEnabled ? "Exit Edit" : "Visual Edit"}
  </button>
  </div>
 

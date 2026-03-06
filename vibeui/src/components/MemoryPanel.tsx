@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useToast } from "../hooks/useToast";
 import { Toaster } from "./Toaster";
+import { Pin } from "lucide-react";
 
 interface MemoryPanelProps {
  workspacePath?: string | null;
@@ -491,7 +492,7 @@ function AutoFactsTab() {
  title={f.pinned ? "Unpin" : "Pin"}
  style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, opacity: f.pinned ? 1 : 0.4, flexShrink: 0, padding: 0, lineHeight: 1, color: "#89b4fa" }}
  >
- 📌
+ <Pin size={14} strokeWidth={1.5} />
  </button>
  <div style={{ flex: 1, minWidth: 0 }}>
  <div style={{ fontSize: 12, lineHeight: 1.5 }}>{f.fact}</div>

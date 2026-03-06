@@ -51,3 +51,6 @@ opentelemetry-otlp = { version = "0.27", features = ["http-proto", "reqwest-clie
 opentelemetry_sdk = { version = "0.27", features = ["rt-tokio"] }
 opentelemetry-semantic-conventions = "0.27"
 tracing-opentelemetry = "0.28"
+
+[dev-dependencies]
+tower.workspace = true

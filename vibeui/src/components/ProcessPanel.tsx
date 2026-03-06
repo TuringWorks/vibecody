@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { Circle } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -19,13 +20,13 @@ function fmtMem(kb: number): string {
  return `${kb} KB`;
 }
 
-function statusBadge(status: string): string {
+function statusBadge(status: string): React.ReactNode {
  const s = status.toUpperCase();
- if (s.startsWith("S")) return "😴"; // sleeping
- if (s.startsWith("R")) return "🟢"; // running
- if (s.startsWith("Z")) return "💀"; // zombie
- if (s.startsWith("T")) return "paused"; // stopped
- return "⚪";
+ if (s.startsWith("S")) return <Circle size={12} strokeWidth={0} fill="#f9e2af" />; // sleeping
+ if (s.startsWith("R")) return <Circle size={12} strokeWidth={0} fill="#a6e3a1" />; // running
+ if (s.startsWith("Z")) return <Circle size={12} strokeWidth={0} fill="#f38ba8" />; // zombie
+ if (s.startsWith("T")) return <Circle size={12} strokeWidth={0} fill="#89b4fa" />; // stopped
+ return <Circle size={12} strokeWidth={0} fill="#cdd6f4" />;
 }
 
 // ── Main component ─────────────────────────────────────────────────────────────

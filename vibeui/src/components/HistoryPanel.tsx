@@ -72,7 +72,7 @@ export function HistoryPanel() {
  case "search_files": return "";
  case "list_directory": return "";
  case "task_complete": return "";
- default: return "🔹";
+ default: return "";
  }
  };
 

@@ -157,7 +157,7 @@ export function GitHubSyncPanel({ workspacePath }: { workspacePath: string | nul
  <div style={s.tabs}>
  {(["sync", "repos", "create"] as const).map(t => (
  <button key={t} style={s.tab(activeTab === t)} onClick={() => { setActiveTab(t); if (t === "repos") listRepos(); }}>
- {t === "sync" ? "Sync" : t === "repos" ? "📚 Repos" : "New Repo"}
+ {t === "sync" ? "Sync" : t === "repos" ? "Repos" : "New Repo"}
  </button>
  ))}
  </div>

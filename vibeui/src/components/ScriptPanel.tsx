@@ -36,7 +36,7 @@ interface ScriptPanelProps {
 const CATEGORY_ICONS: Record<string, string> = {
  npm: "",
  cargo: "",
- make: "🔨",
+ make: "",
  python: "",
  go: "",
  just: "",

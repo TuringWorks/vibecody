@@ -76,7 +76,7 @@ export function VisualEditor({ onEdit, workspacePath, iframeOffset = { top: 0, l
   if (!selected) {
     return (
       <div className="visual-editor-hint">
-        <span>👆 Click an element in the preview to select it</span>
+        <span>Click an element in the preview to select it</span>
       </div>
     );
   }

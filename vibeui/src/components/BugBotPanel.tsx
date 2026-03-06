@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Circle } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 
 interface BugReport {
@@ -25,12 +26,12 @@ const SEVERITY_COLOR: Record<string, string> = {
  info: "#89b4fa",
 };
 
-const SEVERITY_ICON: Record<string, string> = {
- critical: "🔴",
- high: "",
- medium: "🟡",
- low: "🟢",
- info: "",
+const SEVERITY_ICON: Record<string, React.ReactNode> = {
+ critical: <Circle size={10} strokeWidth={0} fill="#f38ba8" />,
+ high: <Circle size={10} strokeWidth={0} fill="#fab387" />,
+ medium: <Circle size={10} strokeWidth={0} fill="#f9e2af" />,
+ low: <Circle size={10} strokeWidth={0} fill="#a6e3a1" />,
+ info: <Circle size={10} strokeWidth={0} fill="#89b4fa" />,
 };
 
 const CATEGORY_LABEL: Record<string, string> = {

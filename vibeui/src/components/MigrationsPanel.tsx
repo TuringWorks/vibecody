@@ -28,7 +28,7 @@ const TOOL_ICONS: Record<string, string> = {
  prisma: "",
  diesel: "",
  alembic: "",
- flyway: "🦅",
+ flyway: "",
  "golang-migrate": "",
  unknown: "",
 };
@@ -174,7 +174,7 @@ export function MigrationsPanel({ workspacePath }: MigrationsPanelProps) {
  opacity: actionLoading === "rollback" ? 0.7 : 1,
  }}
  >
- {actionLoading === "rollback" ? "Rolling back…" : "⏪ Rollback"}
+ {actionLoading === "rollback" ? "Rolling back…" : "Rollback"}
  </button>
  <button
  onClick={() => runAction("status")}

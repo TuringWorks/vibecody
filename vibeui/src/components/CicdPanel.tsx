@@ -1,16 +1,17 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
+import { GitBranch, Circle, Container } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 
 type Platform = "github" | "gitlab" | "circleci" | "jenkins" | "bitbucket";
 type BuildType = "rust" | "node" | "go" | "python" | "java" | "dotnet" | "unknown";
 type SubTab = "config" | "release" | "secrets";
 
-const PLATFORMS: { id: Platform; label: string; icon: string }[] = [
+const PLATFORMS: { id: Platform; label: string; icon: React.ReactNode }[] = [
  { id: "github", label: "GitHub Actions", icon: "" },
- { id: "gitlab", label: "GitLab CI", icon: "🦊" },
- { id: "circleci", label: "CircleCI", icon: "⭕" },
+ { id: "gitlab", label: "GitLab CI", icon: <GitBranch size={14} strokeWidth={1.5} /> },
+ { id: "circleci", label: "CircleCI", icon: <Circle size={14} strokeWidth={1.5} /> },
  { id: "jenkins", label: "Jenkins", icon: "" },
- { id: "bitbucket", label: "Bitbucket Pipelines", icon: "🪣" },
+ { id: "bitbucket", label: "Bitbucket Pipelines", icon: <Container size={14} strokeWidth={1.5} /> },
 ];
 
 const BUILD_TYPES: { id: BuildType; label: string }[] = [
