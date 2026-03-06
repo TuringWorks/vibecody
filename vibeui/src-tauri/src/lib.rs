@@ -401,6 +401,16 @@ pub fn run() {
             // Phase 8.17: Cloud-Isolated Agent Execution (Docker)
             commands::start_cloud_agent,
             commands::get_cloud_agent_status,
+            // Container Sandbox Management (Docker/Podman/OpenSandbox)
+            commands::detect_sandbox_runtime,
+            commands::create_sandbox,
+            commands::stop_sandbox,
+            commands::list_sandboxes,
+            commands::sandbox_exec,
+            commands::get_sandbox_logs,
+            commands::pause_sandbox,
+            commands::resume_sandbox,
+            commands::get_sandbox_metrics,
             // Phase 8.18: Compliance Reporting
             commands::generate_compliance_report,
             // Phase 7.34: Project Scaffolding

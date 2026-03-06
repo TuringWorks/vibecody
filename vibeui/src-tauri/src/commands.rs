@@ -13677,3 +13677,279 @@ pub async fn text_to_speech(text: String) -> Result<Vec<u8>, String> {
 
     Ok(resp.bytes().await.map_err(|e| e.to_string())?.to_vec())
 }
+
+// ── Container Sandbox Management ─────────────────────────────────────────────
+
+/// Detect available container runtimes and their versions.
+#[tauri::command]
+pub async fn detect_sandbox_runtime() -> Result<serde_json::Value, String> {
+    let docker_ver = tokio::process::Command::new("docker")
+        .args(["version", "--format", "{{.Server.Version}}"])
+        .output()
+        .await
+        .ok()
+        .filter(|o| o.status.success())
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string());
+
+    let podman_ver = tokio::process::Command::new("podman")
+        .args(["version", "--format", "{{.Version}}"])
+        .output()
+        .await
+        .ok()
+        .filter(|o| o.status.success())
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string());
+
+    let active = if docker_ver.is_some() {
+        "docker"
+    } else if podman_ver.is_some() {
+        "podman"
+    } else {
+        "none"
+    };
+
+    Ok(serde_json::json!({
+        "docker": docker_ver,
+        "podman": podman_ver,
+        "opensandbox": null,
+        "active": active,
+    }))
+}
+
+/// Create a sandbox container.
+#[tauri::command]
+pub async fn create_sandbox(
+    image: Option<String>,
+    cpus: Option<f64>,
+    memory: Option<String>,
+    network_mode: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let img = image.unwrap_or_else(|| "ubuntu:22.04".to_string());
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    let name = format!("vibecody-sb-{}", &format!("{:x}", ts)[..12.min(format!("{:x}", ts).len())]);
+
+    let mut args = vec![
+        "run".to_string(), "-d".to_string(),
+        "--label".to_string(), "vibecody=sandbox".to_string(),
+        "--name".to_string(), name.clone(),
+    ];
+
+    if let Some(c) = cpus {
+        args.push("--cpus".to_string());
+        args.push(format!("{c}"));
+    }
+    if let Some(ref m) = memory {
+        args.push("--memory".to_string());
+        args.push(m.clone());
+    }
+    match network_mode.as_deref() {
+        Some("none") => {
+            args.push("--network".to_string());
+            args.push("none".to_string());
+        }
+        _ => {}
+    }
+
+    args.push(img.clone());
+    args.push("tail".to_string());
+    args.push("-f".to_string());
+    args.push("/dev/null".to_string());
+
+    // Try Docker first, then Podman
+    let binary = if tokio::process::Command::new("docker")
+        .args(["version"])
+        .output()
+        .await
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+    {
+        "docker"
+    } else {
+        "podman"
+    };
+
+    let output = tokio::process::Command::new(binary)
+        .args(&args)
+        .output()
+        .await
+        .map_err(|e| format!("{binary} run failed: {e}"))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("{binary} run failed: {}", stderr.trim()));
+    }
+
+    let container_id = String::from_utf8_lossy(&output.stdout).trim().to_string();
+
+    Ok(serde_json::json!({
+        "id": container_id,
+        "name": name,
+        "image": img,
+        "status": "running",
+        "runtime": binary,
+    }))
+}
+
+/// Stop a sandbox container.
+#[tauri::command]
+pub async fn stop_sandbox(container_id: String) -> Result<(), String> {
+    let binary = detect_container_binary().await;
+    let _ = tokio::process::Command::new(&binary)
+        .args(["stop", &container_id])
+        .output()
+        .await;
+    let _ = tokio::process::Command::new(&binary)
+        .args(["rm", "-f", &container_id])
+        .output()
+        .await;
+    Ok(())
+}
+
+/// List all VibeCody sandbox containers.
+#[tauri::command]
+pub async fn list_sandboxes() -> Result<Vec<serde_json::Value>, String> {
+    let binary = detect_container_binary().await;
+    let output = tokio::process::Command::new(&binary)
+        .args([
+            "ps", "-a",
+            "--filter", "label=vibecody=sandbox",
+            "--format", "{{.ID}}\t{{.Names}}\t{{.Image}}\t{{.Status}}\t{{.CreatedAt}}",
+        ])
+        .output()
+        .await
+        .map_err(|e| format!("{binary} ps failed: {e}"))?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let containers: Vec<serde_json::Value> = stdout
+        .lines()
+        .filter(|l| !l.is_empty())
+        .map(|line| {
+            let cols: Vec<&str> = line.splitn(5, '\t').collect();
+            serde_json::json!({
+                "id": cols.first().unwrap_or(&""),
+                "name": cols.get(1).unwrap_or(&""),
+                "image": cols.get(2).unwrap_or(&""),
+                "status": cols.get(3).unwrap_or(&""),
+                "created_at": cols.get(4).unwrap_or(&""),
+                "runtime": binary,
+            })
+        })
+        .collect();
+
+    Ok(containers)
+}
+
+/// Execute a command inside a sandbox container.
+#[tauri::command]
+pub async fn sandbox_exec(
+    container_id: String,
+    command: String,
+) -> Result<serde_json::Value, String> {
+    let binary = detect_container_binary().await;
+    let output = tokio::process::Command::new(&binary)
+        .args(["exec", &container_id, "sh", "-c", &command])
+        .output()
+        .await
+        .map_err(|e| format!("{binary} exec failed: {e}"))?;
+
+    Ok(serde_json::json!({
+        "exit_code": output.status.code().unwrap_or(-1),
+        "stdout": String::from_utf8_lossy(&output.stdout).to_string(),
+        "stderr": String::from_utf8_lossy(&output.stderr).to_string(),
+    }))
+}
+
+/// Get sandbox container logs.
+#[tauri::command]
+pub async fn get_sandbox_logs(
+    container_id: String,
+    tail: Option<u32>,
+) -> Result<String, String> {
+    let binary = detect_container_binary().await;
+    let tail_str = tail.unwrap_or(100).to_string();
+    let output = tokio::process::Command::new(&binary)
+        .args(["logs", "--tail", &tail_str, &container_id])
+        .output()
+        .await
+        .map_err(|e| format!("{binary} logs failed: {e}"))?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+    Ok(format!("{stdout}{stderr}"))
+}
+
+/// Pause a sandbox container.
+#[tauri::command]
+pub async fn pause_sandbox(container_id: String) -> Result<(), String> {
+    let binary = detect_container_binary().await;
+    let output = tokio::process::Command::new(&binary)
+        .args(["pause", &container_id])
+        .output()
+        .await
+        .map_err(|e| format!("{binary} pause failed: {e}"))?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("pause failed: {}", stderr.trim()));
+    }
+    Ok(())
+}
+
+/// Resume a paused sandbox container.
+#[tauri::command]
+pub async fn resume_sandbox(container_id: String) -> Result<(), String> {
+    let binary = detect_container_binary().await;
+    let output = tokio::process::Command::new(&binary)
+        .args(["unpause", &container_id])
+        .output()
+        .await
+        .map_err(|e| format!("{binary} unpause failed: {e}"))?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("resume failed: {}", stderr.trim()));
+    }
+    Ok(())
+}
+
+/// Get sandbox container resource metrics.
+#[tauri::command]
+pub async fn get_sandbox_metrics(
+    container_id: String,
+) -> Result<serde_json::Value, String> {
+    let binary = detect_container_binary().await;
+    let output = tokio::process::Command::new(&binary)
+        .args(["stats", "--no-stream", "--format",
+               "{{.CPUPerc}}\t{{.MemUsage}}\t{{.PIDs}}", &container_id])
+        .output()
+        .await
+        .map_err(|e| format!("{binary} stats failed: {e}"))?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parts: Vec<&str> = stdout.trim().split('\t').collect();
+
+    let cpu = parts.first().unwrap_or(&"0%").trim_end_matches('%').parse::<f64>().unwrap_or(0.0);
+    let mem_str = parts.get(1).unwrap_or(&"0B / 0B");
+    let pids = parts.get(2).unwrap_or(&"0").trim().parse::<u32>().unwrap_or(0);
+
+    Ok(serde_json::json!({
+        "cpu_usage_percent": cpu,
+        "memory_usage": mem_str,
+        "pids": pids,
+    }))
+}
+
+/// Detect which container binary is available (docker or podman).
+async fn detect_container_binary() -> String {
+    if tokio::process::Command::new("docker")
+        .args(["version"])
+        .output()
+        .await
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+    {
+        "docker".to_string()
+    } else {
+        "podman".to_string()
+    }
+}
