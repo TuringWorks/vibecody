@@ -289,4 +289,65 @@ mod tests {
     fn default_api_version() {
         assert_eq!(DEFAULT_API_VERSION, "2024-12-01-preview");
     }
+
+    #[test]
+    fn endpoint_url_strips_trailing_slash() {
+        let mut cfg = test_config();
+        cfg.api_url = Some("https://myresource.openai.azure.com/".into());
+        let p = AzureOpenAIProvider::new(cfg);
+        let url = p.endpoint_url();
+        assert!(!url.contains("azure.com//openai"));
+        assert!(url.starts_with("https://myresource.openai.azure.com/openai/deployments/"));
+    }
+
+    #[test]
+    fn build_messages_maps_roles() {
+        use crate::provider::MessageRole;
+        let p = AzureOpenAIProvider::new(test_config());
+        let messages = vec![
+            Message { role: MessageRole::System, content: "sys".into() },
+            Message { role: MessageRole::User, content: "usr".into() },
+            Message { role: MessageRole::Assistant, content: "ast".into() },
+        ];
+        let result = p.build_messages(&messages, None);
+        assert_eq!(result[0].role, "system");
+        assert_eq!(result[1].role, "user");
+        assert_eq!(result[2].role, "assistant");
+    }
+
+    #[test]
+    fn build_messages_appends_context_to_last_user() {
+        use crate::provider::MessageRole;
+        let p = AzureOpenAIProvider::new(test_config());
+        let messages = vec![
+            Message { role: MessageRole::User, content: "hello".into() },
+        ];
+        let result = p.build_messages(&messages, Some("ctx".into()));
+        let content = result[0].content.as_str().unwrap();
+        assert!(content.contains("Context:\nctx"));
+        assert!(content.contains("hello"));
+    }
+
+    #[test]
+    fn az_request_skips_none_optional_fields() {
+        let req = AzRequest {
+            messages: vec![],
+            temperature: None,
+            max_tokens: None,
+            stream: false,
+        };
+        let json = serde_json::to_value(&req).unwrap();
+        assert!(json.get("temperature").is_none());
+        assert!(json.get("max_tokens").is_none());
+    }
+
+    #[test]
+    fn az_response_deser_with_usage() {
+        let json = r#"{"choices":[{"message":{"role":"assistant","content":"hi"}}],"usage":{"prompt_tokens":10,"completion_tokens":5}}"#;
+        let resp: AzResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.choices[0].message.content, "hi");
+        let usage = resp.usage.unwrap();
+        assert_eq!(usage.prompt_tokens, 10);
+        assert_eq!(usage.completion_tokens, 5);
+    }
 }

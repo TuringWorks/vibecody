@@ -904,4 +904,212 @@ diff --git a/c.rs b/c.rs\n+c content\n";
         assert!((deserialized.performance - 9.0).abs() < f32::EPSILON);
         assert!((deserialized.style - 8.0).abs() < f32::EPSILON);
     }
+
+    // ── Additional split_diff_by_file edge cases ────────────────────────────
+
+    #[test]
+    fn split_diff_by_file_binary_file() {
+        // Binary files in git diffs still have a "diff --git" header
+        let diff = "diff --git a/image.png b/image.png\nBinary files a/image.png and b/image.png differ\n";
+        let chunks = split_diff_by_file(diff);
+        assert_eq!(chunks.len(), 1);
+        assert_eq!(chunks[0].0, "image.png");
+        assert!(chunks[0].1.contains("Binary files"));
+    }
+
+    #[test]
+    fn split_diff_by_file_no_b_slash_in_header() {
+        // If "diff --git" line lacks " b/", the parser falls back to "unknown"
+        let diff = "diff --git weird_format\n+some content\n";
+        let chunks = split_diff_by_file(diff);
+        assert_eq!(chunks.len(), 1);
+        assert_eq!(chunks[0].0, "unknown");
+    }
+
+    #[test]
+    fn split_diff_by_file_mixed_binary_and_text() {
+        let diff = "\
+diff --git a/src/lib.rs b/src/lib.rs\n--- a/src/lib.rs\n+++ b/src/lib.rs\n@@ -1 +1 @@\n-old\n+new\n\
+diff --git a/logo.png b/logo.png\nBinary files differ\n\
+diff --git a/README.md b/README.md\n+added readme\n";
+        let chunks = split_diff_by_file(diff);
+        assert_eq!(chunks.len(), 3);
+        assert_eq!(chunks[0].0, "src/lib.rs");
+        assert_eq!(chunks[1].0, "logo.png");
+        assert_eq!(chunks[2].0, "README.md");
+    }
+
+    // ── Additional compute_score edge cases ─────────────────────────────────
+
+    #[test]
+    fn compute_score_multiple_warnings_same_category() {
+        // 4 warnings in performance = 4 * 0.5 = 2.0 deduction
+        let issues: Vec<ReviewIssue> = (0..4)
+            .map(|i| ReviewIssue {
+                file: "perf.rs".into(),
+                line: i,
+                severity: Severity::Warning,
+                category: ReviewFocus::Performance,
+                description: format!("slow op {}", i),
+                suggested_fix: None,
+            })
+            .collect();
+        let score = compute_score(&issues);
+        assert!((score.performance - 8.0).abs() < 0.01); // 10.0 - 2.0
+        assert_eq!(score.correctness, 10.0);
+        assert_eq!(score.security, 10.0);
+        assert_eq!(score.style, 10.0);
+    }
+
+    #[test]
+    fn compute_score_testing_deducts_from_correctness() {
+        // Testing category should deduct from correctness
+        let issues = vec![ReviewIssue {
+            file: "test.rs".into(), line: 1,
+            severity: Severity::Critical, category: ReviewFocus::Testing,
+            description: "missing tests".into(), suggested_fix: None,
+        }];
+        let score = compute_score(&issues);
+        assert!((score.correctness - 8.0).abs() < 0.01); // 10 - 2.0
+        assert_eq!(score.security, 10.0);
+    }
+
+    #[test]
+    fn compute_score_all_categories_hit() {
+        // One critical issue in every category
+        let issues = vec![
+            ReviewIssue {
+                file: "a.rs".into(), line: 1,
+                severity: Severity::Critical, category: ReviewFocus::Correctness,
+                description: "bug".into(), suggested_fix: None,
+            },
+            ReviewIssue {
+                file: "b.rs".into(), line: 2,
+                severity: Severity::Critical, category: ReviewFocus::Security,
+                description: "vuln".into(), suggested_fix: None,
+            },
+            ReviewIssue {
+                file: "c.rs".into(), line: 3,
+                severity: Severity::Critical, category: ReviewFocus::Performance,
+                description: "slow".into(), suggested_fix: None,
+            },
+            ReviewIssue {
+                file: "d.rs".into(), line: 4,
+                severity: Severity::Critical, category: ReviewFocus::Style,
+                description: "ugly".into(), suggested_fix: None,
+            },
+        ];
+        let score = compute_score(&issues);
+        assert!((score.correctness - 8.0).abs() < 0.01);
+        assert!((score.security - 8.0).abs() < 0.01);
+        assert!((score.performance - 8.0).abs() < 0.01);
+        assert!((score.style - 8.0).abs() < 0.01);
+        assert!((score.overall - 8.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn compute_score_info_only_barely_reduces() {
+        let issues = vec![ReviewIssue {
+            file: "x.rs".into(), line: 1,
+            severity: Severity::Info, category: ReviewFocus::Style,
+            description: "nit".into(), suggested_fix: None,
+        }];
+        let score = compute_score(&issues);
+        assert!((score.style - 9.9).abs() < 0.01); // 10.0 - 0.1
+    }
+
+    // ── Additional exit_code tests ──────────────────────────────────────────
+
+    #[test]
+    fn exit_code_zero_when_no_issues() {
+        let report = ReviewReport {
+            base_ref: String::new(), target_ref: String::new(),
+            summary: "clean".into(),
+            issues: vec![],
+            suggestions: vec![],
+            score: ReviewScore { overall: 10.0, correctness: 10.0, security: 10.0, performance: 10.0, style: 10.0 },
+            files_reviewed: vec![],
+        };
+        assert_eq!(report.exit_code(), 0);
+    }
+
+    #[test]
+    fn exit_code_one_with_mixed_including_critical() {
+        let report = ReviewReport {
+            base_ref: String::new(), target_ref: String::new(),
+            summary: "mixed".into(),
+            issues: vec![
+                ReviewIssue {
+                    file: "a.rs".into(), line: 1,
+                    severity: Severity::Info, category: ReviewFocus::Style,
+                    description: "nit".into(), suggested_fix: None,
+                },
+                ReviewIssue {
+                    file: "b.rs".into(), line: 2,
+                    severity: Severity::Critical, category: ReviewFocus::Security,
+                    description: "vuln".into(), suggested_fix: None,
+                },
+                ReviewIssue {
+                    file: "c.rs".into(), line: 3,
+                    severity: Severity::Warning, category: ReviewFocus::Performance,
+                    description: "slow".into(), suggested_fix: None,
+                },
+            ],
+            suggestions: vec![],
+            score: ReviewScore { overall: 5.0, correctness: 10.0, security: 5.0, performance: 9.5, style: 9.9 },
+            files_reviewed: vec![],
+        };
+        assert_eq!(report.exit_code(), 1);
+    }
+
+    // ── Additional to_markdown tests ────────────────────────────────────────
+
+    #[test]
+    fn to_markdown_no_diff_refs_omits_diff_line() {
+        let report = ReviewReport {
+            base_ref: String::new(), target_ref: String::new(),
+            summary: "Quick review.".into(),
+            issues: vec![],
+            suggestions: vec![],
+            score: ReviewScore { overall: 10.0, correctness: 10.0, security: 10.0, performance: 10.0, style: 10.0 },
+            files_reviewed: vec![],
+        };
+        let md = report.to_markdown();
+        assert!(!md.contains("**Diff:**"));
+    }
+
+    #[test]
+    fn to_markdown_sorts_issues_critical_first() {
+        let report = ReviewReport {
+            base_ref: "main".into(), target_ref: "HEAD".into(),
+            summary: "Issues found.".into(),
+            issues: vec![
+                ReviewIssue {
+                    file: "a.rs".into(), line: 1,
+                    severity: Severity::Info, category: ReviewFocus::Style,
+                    description: "info issue".into(), suggested_fix: None,
+                },
+                ReviewIssue {
+                    file: "b.rs".into(), line: 2,
+                    severity: Severity::Critical, category: ReviewFocus::Security,
+                    description: "critical issue".into(), suggested_fix: None,
+                },
+                ReviewIssue {
+                    file: "c.rs".into(), line: 3,
+                    severity: Severity::Warning, category: ReviewFocus::Performance,
+                    description: "warning issue".into(), suggested_fix: None,
+                },
+            ],
+            suggestions: vec![],
+            score: ReviewScore { overall: 7.0, correctness: 10.0, security: 8.0, performance: 9.5, style: 9.9 },
+            files_reviewed: vec!["a.rs".into(), "b.rs".into(), "c.rs".into()],
+        };
+        let md = report.to_markdown();
+        // Critical should appear before Warning, which should appear before Info
+        let crit_pos = md.find("critical issue").unwrap();
+        let warn_pos = md.find("warning issue").unwrap();
+        let info_pos = md.find("info issue").unwrap();
+        assert!(crit_pos < warn_pos, "Critical should come before Warning");
+        assert!(warn_pos < info_pos, "Warning should come before Info");
+    }
 }

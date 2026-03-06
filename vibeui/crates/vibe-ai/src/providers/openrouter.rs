@@ -257,4 +257,62 @@ mod tests {
         let resp: ORResponse = serde_json::from_str(json).unwrap();
         assert_eq!(resp.choices[0].message.content, "ok");
     }
+
+    #[test]
+    fn base_url_defaults_to_constant() {
+        let p = OpenRouterProvider::new(test_config());
+        assert_eq!(p.base_url(), OPENROUTER_BASE_URL);
+    }
+
+    #[test]
+    fn base_url_uses_custom_when_set() {
+        let mut cfg = test_config();
+        cfg.api_url = Some("https://custom.proxy.com/v1".into());
+        let p = OpenRouterProvider::new(cfg);
+        assert_eq!(p.base_url(), "https://custom.proxy.com/v1");
+    }
+
+    #[test]
+    fn build_messages_maps_roles() {
+        use crate::provider::MessageRole;
+        let p = OpenRouterProvider::new(test_config());
+        let messages = vec![
+            Message { role: MessageRole::System, content: "sys".into() },
+            Message { role: MessageRole::User, content: "q".into() },
+            Message { role: MessageRole::Assistant, content: "a".into() },
+        ];
+        let result = p.build_messages(&messages, None);
+        assert_eq!(result[0].role, "system");
+        assert_eq!(result[1].role, "user");
+        assert_eq!(result[2].role, "assistant");
+    }
+
+    #[test]
+    fn build_messages_appends_context() {
+        use crate::provider::MessageRole;
+        let p = OpenRouterProvider::new(test_config());
+        let messages = vec![
+            Message { role: MessageRole::User, content: "query".into() },
+        ];
+        let result = p.build_messages(&messages, Some("extra context".into()));
+        assert!(result[0].content.contains("Context:"));
+        assert!(result[0].content.contains("extra context"));
+        assert!(result[0].content.contains("query"));
+    }
+
+    #[test]
+    fn or_request_serializes_correctly() {
+        let req = ORRequest {
+            model: "anthropic/claude-3.5-sonnet".into(),
+            messages: vec![ORMessage { role: "user".into(), content: "test".into() }],
+            temperature: Some(0.5),
+            max_tokens: Some(2048),
+            stream: false,
+        };
+        let json = serde_json::to_value(&req).unwrap();
+        assert_eq!(json["model"], "anthropic/claude-3.5-sonnet");
+        assert_eq!(json["temperature"], 0.5);
+        assert_eq!(json["max_tokens"], 2048);
+        assert_eq!(json["stream"], false);
+    }
 }

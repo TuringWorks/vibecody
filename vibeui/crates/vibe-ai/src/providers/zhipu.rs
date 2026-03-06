@@ -379,4 +379,74 @@ mod tests {
         assert_eq!(resp.choices[0].message.content, "你好");
         assert_eq!(resp.usage.unwrap().completion_tokens, 2);
     }
+
+    #[test]
+    fn base_url_defaults_to_constant() {
+        let p = ZhipuProvider::new(test_config());
+        assert_eq!(p.base_url(), ZHIPU_BASE_URL);
+    }
+
+    #[test]
+    fn base_url_uses_custom_when_set() {
+        let mut cfg = test_config();
+        cfg.api_url = Some("https://custom.zhipu.example/v4".into());
+        let p = ZhipuProvider::new(cfg);
+        assert_eq!(p.base_url(), "https://custom.zhipu.example/v4");
+    }
+
+    #[test]
+    fn build_messages_maps_roles() {
+        use crate::provider::MessageRole;
+        let p = ZhipuProvider::new(test_config());
+        let messages = vec![
+            Message { role: MessageRole::System, content: "sys".into() },
+            Message { role: MessageRole::User, content: "q".into() },
+        ];
+        let result = p.build_messages(&messages, None);
+        assert_eq!(result[0].role, "system");
+        assert_eq!(result[1].role, "user");
+        assert_eq!(result[1].content, "q");
+    }
+
+    #[test]
+    fn build_messages_appends_context() {
+        use crate::provider::MessageRole;
+        let p = ZhipuProvider::new(test_config());
+        let messages = vec![
+            Message { role: MessageRole::User, content: "query".into() },
+        ];
+        let result = p.build_messages(&messages, Some("background".into()));
+        assert!(result[0].content.contains("Context:"));
+        assert!(result[0].content.contains("background"));
+        assert!(result[0].content.contains("query"));
+    }
+
+    #[test]
+    fn zhipu_request_serializes_correctly() {
+        let req = ZhipuRequest {
+            model: "glm-4".into(),
+            messages: vec![ZhipuMessage { role: "user".into(), content: "hi".into() }],
+            temperature: Some(0.5),
+            max_tokens: None,
+            stream: false,
+        };
+        let json = serde_json::to_value(&req).unwrap();
+        assert_eq!(json["model"], "glm-4");
+        assert_eq!(json["temperature"], 0.5);
+        assert!(json.get("max_tokens").is_none()); // skip_serializing_if
+        assert_eq!(json["stream"], false);
+    }
+
+    #[test]
+    fn base64_url_encode_basic() {
+        // "Hello" -> base64url "SGVsbG8"
+        let result = base64_url_encode(b"Hello");
+        assert_eq!(result, "SGVsbG8");
+    }
+
+    #[test]
+    fn base64_url_encode_empty() {
+        let result = base64_url_encode(b"");
+        assert_eq!(result, "");
+    }
 }

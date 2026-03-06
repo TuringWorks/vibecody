@@ -255,4 +255,70 @@ mod tests {
         assert_eq!(resp.choices[0].message.content, "proxied");
         assert_eq!(resp.usage.unwrap().prompt_tokens, 6);
     }
+
+    #[test]
+    fn base_url_returns_configured_value() {
+        let p = VercelAIProvider::new(test_config());
+        assert_eq!(p.base_url().unwrap(), "https://my-gateway.vercel.app/v1");
+    }
+
+    #[test]
+    fn base_url_errors_when_not_set() {
+        let mut cfg = test_config();
+        cfg.api_url = None;
+        let p = VercelAIProvider::new(cfg);
+        assert!(p.base_url().is_err());
+    }
+
+    #[test]
+    fn build_messages_maps_roles() {
+        use crate::provider::MessageRole;
+        let p = VercelAIProvider::new(test_config());
+        let messages = vec![
+            Message { role: MessageRole::System, content: "sys".into() },
+            Message { role: MessageRole::User, content: "usr".into() },
+            Message { role: MessageRole::Assistant, content: "ast".into() },
+        ];
+        let result = p.build_messages(&messages, None);
+        assert_eq!(result[0].role, "system");
+        assert_eq!(result[1].role, "user");
+        assert_eq!(result[2].role, "assistant");
+    }
+
+    #[test]
+    fn build_messages_appends_context() {
+        use crate::provider::MessageRole;
+        let p = VercelAIProvider::new(test_config());
+        let messages = vec![
+            Message { role: MessageRole::User, content: "ask".into() },
+        ];
+        let result = p.build_messages(&messages, Some("relevant info".into()));
+        assert!(result[0].content.contains("Context:"));
+        assert!(result[0].content.contains("relevant info"));
+        assert!(result[0].content.contains("ask"));
+    }
+
+    #[test]
+    fn vercel_ai_request_serializes_correctly() {
+        let req = VercelAIRequest {
+            model: "gpt-4o".into(),
+            messages: vec![VercelAIMessage { role: "user".into(), content: "test".into() }],
+            temperature: Some(0.25),
+            max_tokens: Some(512),
+            stream: true,
+        };
+        let json = serde_json::to_value(&req).unwrap();
+        assert_eq!(json["model"], "gpt-4o");
+        assert_eq!(json["temperature"], 0.25);
+        assert_eq!(json["max_tokens"], 512);
+        assert_eq!(json["stream"], true);
+    }
+
+    #[test]
+    fn vercel_ai_response_without_usage() {
+        let json = r#"{"choices":[{"message":{"role":"assistant","content":"no usage"}}]}"#;
+        let resp: VercelAIResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.choices[0].message.content, "no usage");
+        assert!(resp.usage.is_none());
+    }
 }

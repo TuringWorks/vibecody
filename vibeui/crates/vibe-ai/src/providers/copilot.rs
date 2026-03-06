@@ -451,4 +451,72 @@ mod tests {
         let resp: ChatResponse = serde_json::from_str(json).unwrap();
         assert_eq!(resp.choices[0].message.content, "hi");
     }
+
+    #[test]
+    fn build_messages_maps_roles() {
+        let p = CopilotProvider::new(test_config());
+        let messages = vec![
+            Message { role: MessageRole::System, content: "sys".into() },
+            Message { role: MessageRole::User, content: "usr".into() },
+            Message { role: MessageRole::Assistant, content: "ast".into() },
+        ];
+        let result = p.build_messages(&messages, None);
+        assert_eq!(result.len(), 3);
+        assert_eq!(result[0].role, "system");
+        assert_eq!(result[1].role, "user");
+        assert_eq!(result[2].role, "assistant");
+    }
+
+    #[test]
+    fn build_messages_appends_context_to_last_user() {
+        let p = CopilotProvider::new(test_config());
+        let messages = vec![
+            Message { role: MessageRole::User, content: "hello".into() },
+        ];
+        let result = p.build_messages(&messages, Some("file.rs contents".into()));
+        assert!(result[0].content.contains("Context:"));
+        assert!(result[0].content.contains("file.rs contents"));
+        assert!(result[0].content.contains("hello"));
+    }
+
+    #[test]
+    fn build_messages_no_context_leaves_content_unchanged() {
+        let p = CopilotProvider::new(test_config());
+        let messages = vec![
+            Message { role: MessageRole::User, content: "world".into() },
+        ];
+        let result = p.build_messages(&messages, None);
+        assert_eq!(result[0].content, "world");
+    }
+
+    #[test]
+    fn chat_request_serializes_stream_field() {
+        let req = ChatRequest {
+            model: "gpt-4o".into(),
+            messages: vec![ChatMessage { role: "user".into(), content: "hi".into() }],
+            temperature: None,
+            max_tokens: None,
+            stream: true,
+        };
+        let json = serde_json::to_value(&req).unwrap();
+        assert_eq!(json["stream"], true);
+        assert_eq!(json["model"], "gpt-4o");
+        // temperature and max_tokens should be absent (skip_serializing_if)
+        assert!(json.get("temperature").is_none());
+        assert!(json.get("max_tokens").is_none());
+    }
+
+    #[test]
+    fn chat_request_includes_optional_fields() {
+        let req = ChatRequest {
+            model: "gpt-4o".into(),
+            messages: vec![],
+            temperature: Some(0.75),
+            max_tokens: Some(1024),
+            stream: false,
+        };
+        let json = serde_json::to_value(&req).unwrap();
+        assert_eq!(json["temperature"], 0.75);
+        assert_eq!(json["max_tokens"], 1024);
+    }
 }

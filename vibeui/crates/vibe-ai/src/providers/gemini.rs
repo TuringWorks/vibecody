@@ -328,4 +328,58 @@ mod tests {
         let resp: GeminiResponse = serde_json::from_str(json).unwrap();
         assert_eq!(resp.candidates.unwrap()[0].content.parts[0].text, "world");
     }
+
+    #[test]
+    fn build_contents_maps_roles_correctly() {
+        use crate::provider::MessageRole;
+        let p = GeminiProvider::new(test_config());
+        let messages = vec![
+            Message { role: MessageRole::User, content: "hi".into() },
+            Message { role: MessageRole::Assistant, content: "hello".into() },
+            Message { role: MessageRole::System, content: "sys prompt".into() },
+        ];
+        let contents = p.build_contents(&messages, None);
+        assert_eq!(contents[0].role, "user");
+        assert_eq!(contents[1].role, "model"); // Gemini uses "model" for assistant
+        assert_eq!(contents[2].role, "user");  // System mapped to user
+    }
+
+    #[test]
+    fn build_contents_appends_context() {
+        use crate::provider::MessageRole;
+        let p = GeminiProvider::new(test_config());
+        let messages = vec![
+            Message { role: MessageRole::User, content: "question".into() },
+        ];
+        let contents = p.build_contents(&messages, Some("context data".into()));
+        assert!(contents[0].parts[0].text.contains("Context:"));
+        assert!(contents[0].parts[0].text.contains("context data"));
+        assert!(contents[0].parts[0].text.contains("question"));
+    }
+
+    #[test]
+    fn build_contents_no_context_unchanged() {
+        use crate::provider::MessageRole;
+        let p = GeminiProvider::new(test_config());
+        let messages = vec![
+            Message { role: MessageRole::User, content: "raw".into() },
+        ];
+        let contents = p.build_contents(&messages, None);
+        assert_eq!(contents[0].parts[0].text, "raw");
+    }
+
+    #[test]
+    fn gemini_config_skips_none_fields() {
+        let cfg = GeminiConfig { temperature: None, max_output_tokens: None };
+        let json = serde_json::to_value(&cfg).unwrap();
+        assert!(json.get("temperature").is_none());
+        assert!(json.get("max_output_tokens").is_none());
+    }
+
+    #[test]
+    fn gemini_response_empty_candidates() {
+        let json = r#"{"candidates":null}"#;
+        let resp: GeminiResponse = serde_json::from_str(json).unwrap();
+        assert!(resp.candidates.is_none());
+    }
 }

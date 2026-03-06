@@ -233,17 +233,115 @@ mod tests {
     async fn test_list_directory() {
         let dir = tempdir().unwrap();
         let fs = FileSystem::new();
-        
+
         // Create some test files
         fs.write_file(&dir.path().join("file1.txt"), "test").await.unwrap();
         fs.write_file(&dir.path().join("file2.txt"), "test").await.unwrap();
         fs.create_directory(&dir.path().join("subdir")).await.unwrap();
-        
+
         let entries = fs.list_directory(dir.path()).await.unwrap();
         assert_eq!(entries.len(), 3);
-        
+
         // Directory should be first
         assert!(entries[0].is_directory);
         assert_eq!(entries[0].name, "subdir");
+    }
+
+    #[tokio::test]
+    async fn test_delete_file() {
+        let dir = tempdir().unwrap();
+        let fs = FileSystem::new();
+        let path = dir.path().join("to_delete.txt");
+
+        fs.write_file(&path, "goodbye").await.unwrap();
+        assert!(fs.exists(&path).await);
+
+        fs.delete_file(&path).await.unwrap();
+        assert!(!fs.exists(&path).await);
+    }
+
+    #[tokio::test]
+    async fn test_rename_item() {
+        let dir = tempdir().unwrap();
+        let fs = FileSystem::new();
+        let src = dir.path().join("original.txt");
+        let dst = dir.path().join("renamed.txt");
+
+        fs.write_file(&src, "content").await.unwrap();
+        assert!(fs.exists(&src).await);
+
+        fs.rename_item(&src, &dst).await.unwrap();
+        assert!(!fs.exists(&src).await);
+        assert!(fs.exists(&dst).await);
+
+        let content = fs.read_file(&dst).await.unwrap();
+        assert_eq!(content, "content");
+    }
+
+    #[tokio::test]
+    async fn test_exists_and_is_directory() {
+        let dir = tempdir().unwrap();
+        let fs = FileSystem::new();
+
+        // Non-existent path
+        assert!(!fs.exists(&dir.path().join("nope")).await);
+
+        // Create a directory and verify
+        let sub = dir.path().join("mydir");
+        fs.create_directory(&sub).await.unwrap();
+        assert!(fs.exists(&sub).await);
+        assert!(fs.is_directory(&sub).await);
+        assert!(!fs.is_file(&sub).await);
+
+        // Create a file and verify
+        let file = dir.path().join("myfile.txt");
+        fs.write_file(&file, "data").await.unwrap();
+        assert!(fs.exists(&file).await);
+        assert!(fs.is_file(&file).await);
+        assert!(!fs.is_directory(&file).await);
+    }
+
+    #[tokio::test]
+    async fn test_metadata_reading() {
+        let dir = tempdir().unwrap();
+        let fs = FileSystem::new();
+        let path = dir.path().join("meta_test.txt");
+
+        fs.write_file(&path, "hello world").await.unwrap();
+
+        let entry = fs.metadata(&path).await.unwrap();
+        assert_eq!(entry.name, "meta_test.txt");
+        assert!(!entry.is_directory);
+        // "hello world" is 11 bytes
+        assert_eq!(entry.size, Some(11));
+        assert!(entry.modified.is_some());
+        assert_eq!(entry.path, path);
+    }
+
+    #[tokio::test]
+    async fn test_delete_directory() {
+        let dir = tempdir().unwrap();
+        let fs = FileSystem::new();
+        let sub = dir.path().join("nested");
+        let file_in_sub = sub.join("inner.txt");
+
+        fs.create_directory(&sub).await.unwrap();
+        fs.write_file(&file_in_sub, "inner content").await.unwrap();
+        assert!(fs.exists(&file_in_sub).await);
+
+        fs.delete_directory(&sub).await.unwrap();
+        assert!(!fs.exists(&sub).await);
+        assert!(!fs.exists(&file_in_sub).await);
+    }
+
+    #[tokio::test]
+    async fn test_write_file_creates_parent_dirs() {
+        let dir = tempdir().unwrap();
+        let fs = FileSystem::new();
+        let deeply_nested = dir.path().join("a").join("b").join("c").join("file.txt");
+
+        fs.write_file(&deeply_nested, "deep").await.unwrap();
+        let content = fs.read_file(&deeply_nested).await.unwrap();
+        assert_eq!(content, "deep");
     }
 }
