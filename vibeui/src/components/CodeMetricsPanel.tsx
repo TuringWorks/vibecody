@@ -102,8 +102,8 @@ export function CodeMetricsPanel({ workspacePath }: CodeMetricsPanelProps) {
  style={{
  padding: "5px 14px", fontSize: 11, fontWeight: view === id ? 600 : 400,
  background: view === id ? "rgba(99,102,241,0.15)" : "transparent",
- color: view === id ? "#6366f1" : "var(--text-muted)",
- border: "none", borderBottom: view === id ? "2px solid #6366f1" : "2px solid transparent",
+ color: view === id ? "var(--accent-color, #6366f1)" : "var(--text-muted)",
+ border: "none", borderBottom: view === id ? "2px solid var(--accent-color, #6366f1)" : "2px solid transparent",
  cursor: "pointer",
  }}
  >
@@ -129,8 +129,8 @@ export function CodeMetricsPanel({ workspacePath }: CodeMetricsPanelProps) {
  disabled={scanning}
  style={{
  padding: "6px 16px", fontSize: 12, fontWeight: 600,
- background: scanning ? "var(--bg-secondary)" : "#6366f1",
- color: scanning ? "var(--text-muted)" : "#fff",
+ background: scanning ? "var(--bg-secondary)" : "var(--accent-color, #6366f1)",
+ color: scanning ? "var(--text-muted)" : "var(--text-primary, #fff)",
  border: "none", borderRadius: 4, cursor: scanning ? "not-allowed" : "pointer",
  }}
  >

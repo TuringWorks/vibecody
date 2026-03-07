@@ -99,7 +99,7 @@ function Swatch({ token, onEdit, onRemove }: {
  return (
  <div style={{ borderRadius: 8, overflow: "hidden", border: "1px solid var(--border-color)", cursor: "pointer" }} onClick={copy}>
  <div style={{ background: token.value, height: 56, display: "flex", alignItems: "flex-end", justifyContent: "flex-end", padding: "4px 6px", gap: 4 }}>
- <button onClick={e => { e.stopPropagation(); onEdit(token); }} style={{ background: "rgba(0,0,0,0.4)", border: "none", borderRadius: 3, color: "#fff", fontSize: 9, padding: "1px 5px", cursor: "pointer" }}></button>
+ <button onClick={e => { e.stopPropagation(); onEdit(token); }} style={{ background: "rgba(0,0,0,0.4)", border: "none", borderRadius: 3, color: "var(--text-primary, #fff)", fontSize: 9, padding: "1px 5px", cursor: "pointer" }}></button>
  <button onClick={e => { e.stopPropagation(); onRemove(); }} style={{ background: "rgba(0,0,0,0.4)", border: "none", borderRadius: 3, color: "var(--text-danger, #f38ba8)", fontSize: 9, padding: "1px 5px", cursor: "pointer" }}>✕</button>
  </div>
  <div style={{ padding: "5px 7px", background: "var(--bg-secondary)" }}>
@@ -261,13 +261,13 @@ export function ColorPalettePanel({ workspacePath }: { workspacePath: string | n
  onChange={e => setNewName(e.target.value)}
  onBlur={() => { save(palettes.map(p => p.id === activeId ? { ...p, name: newName } : p)); setNewName(null); }}
  onKeyDown={e => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
- style={{ flex: 1, fontSize: 13, fontWeight: 600, background: "transparent", border: "none", borderBottom: "1px solid #6366f1", outline: "none", color: "var(--text-primary)" }}
+ style={{ flex: 1, fontSize: 13, fontWeight: 600, background: "transparent", border: "none", borderBottom: "1px solid var(--accent-primary, #6366f1)", outline: "none", color: "var(--text-primary)" }}
  />
  ) : (
  <span style={{ fontSize: 13, fontWeight: 600, cursor: "pointer", flex: 1 }} onClick={() => setNewName(active.name)} title="Click to rename">{active.name}</span>
  )}
  <span style={{ fontSize: 10, color: "var(--text-muted)" }}>{active.tokens.length} tokens</span>
- <button onClick={addToken} style={{ padding: "3px 12px", fontSize: 11, fontWeight: 700, background: "var(--accent-primary, #6366f1)", border: "none", borderRadius: 4, color: "#fff", cursor: "pointer" }}>+ Color</button>
+ <button onClick={addToken} style={{ padding: "3px 12px", fontSize: 11, fontWeight: 700, background: "var(--accent-primary, #6366f1)", border: "none", borderRadius: 4, color: "var(--text-primary, #fff)", cursor: "pointer" }}>+ Color</button>
  <select value={exportFmt} onChange={e => setExportFmt(e.target.value as ExportFormat)} style={{ fontSize: 10, padding: "3px 6px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)" }}>
  {EXPORT_FORMATS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
  </select>
@@ -287,7 +287,7 @@ export function ColorPalettePanel({ workspacePath }: { workspacePath: string | n
  <input value={editToken.value} onChange={e => setEditToken({ ...editToken, value: e.target.value })} style={{ padding: "3px 8px", fontSize: 11, fontFamily: "monospace", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none", width: 100 }} />
  </div>
  <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{hexToRgb(editToken.value)}</div>
- <button onClick={commitEdit} style={{ padding: "4px 14px", fontSize: 11, fontWeight: 700, background: "var(--accent-primary, #6366f1)", border: "none", borderRadius: 4, color: "#fff", cursor: "pointer", marginLeft: "auto" }}>✓ Done</button>
+ <button onClick={commitEdit} style={{ padding: "4px 14px", fontSize: 11, fontWeight: 700, background: "var(--accent-primary, #6366f1)", border: "none", borderRadius: 4, color: "var(--text-primary, #fff)", cursor: "pointer", marginLeft: "auto" }}>✓ Done</button>
  </div>
  )}
 

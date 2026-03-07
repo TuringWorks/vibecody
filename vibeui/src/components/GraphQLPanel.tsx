@@ -198,8 +198,8 @@ export function GraphQLPanel() {
  style={{
  padding: "6px 14px", fontSize: 11, fontWeight: active ? 600 : 400,
  background: active ? "rgba(99,102,241,0.15)" : "transparent",
- color: active ? "#6366f1" : "var(--text-muted)",
- border: "none", borderBottom: active ? "2px solid #6366f1" : "2px solid transparent",
+ color: active ? "var(--accent-color, #6366f1)" : "var(--text-muted)",
+ border: "none", borderBottom: active ? "2px solid var(--accent-color, #6366f1)" : "2px solid transparent",
  cursor: "pointer",
  }}
  >
@@ -246,8 +246,8 @@ export function GraphQLPanel() {
  disabled={running || !url || !query.trim()}
  style={{
  padding: "5px 14px", fontSize: 11, fontWeight: 600, cursor: "pointer",
- background: running ? "var(--bg-secondary)" : "#6366f1",
- color: running ? "var(--text-muted)" : "#fff",
+ background: running ? "var(--bg-secondary)" : "var(--accent-color, #6366f1)",
+ color: running ? "var(--text-muted)" : "var(--text-primary, #fff)",
  border: "none", borderRadius: 4,
  }}
  >
@@ -361,7 +361,7 @@ export function GraphQLPanel() {
  <span style={{
  fontSize: 10, fontWeight: 600, padding: "1px 6px", borderRadius: 10,
  background: result.errors ? "rgba(243,139,168,0.15)" : "rgba(166,227,161,0.15)",
- color: result.errors ? "#f38ba8" : "#a6e3a1",
+ color: result.errors ? "var(--error-color, #f38ba8)" : "var(--success-color, #a6e3a1)",
  }}>
  {result.status} {result.errors ? "errors" : "OK"}
  </span>
@@ -375,8 +375,8 @@ export function GraphQLPanel() {
  onClick={() => setViewTab(v)}
  style={{
  padding: "2px 8px", fontSize: 10, borderRadius: 3,
- background: viewTab === v ? "#6366f1" : "var(--bg-secondary)",
- color: viewTab === v ? "#fff" : "var(--text-muted)",
+ background: viewTab === v ? "var(--accent-color, #6366f1)" : "var(--bg-secondary)",
+ color: viewTab === v ? "var(--text-primary, #fff)" : "var(--text-muted)",
  border: "1px solid var(--border-color)", cursor: "pointer",
  }}
  >
@@ -389,11 +389,11 @@ export function GraphQLPanel() {
 
  <div style={{ flex: 1, overflow: "auto", padding: 10, fontFamily: "monospace", fontSize: 11, lineHeight: 1.6, background: "var(--bg-primary, #0d1117)", color: "var(--text-primary, #e6edf3)", whiteSpace: "pre-wrap", wordBreak: "break-all" }}>
  {!result && !running && (
- <span style={{ color: "#6b7280" }}>
+ <span style={{ color: "var(--text-secondary, #6b7280)" }}>
  Run a query to see results here.{"\n"}Tip: Cmd+Enter to run.
  </span>
  )}
- {running && <span style={{ color: "#89dceb" }}>Running…▌</span>}
+ {running && <span style={{ color: "var(--info-color, #89dceb)" }}>Running…▌</span>}
  {result && viewTab === "raw" && result.raw}
  {result && viewTab === "result" && (() => {
  if (result.errors) {
@@ -504,7 +504,7 @@ export function GraphQLPanel() {
  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
  <span style={{ fontSize: 10, fontFamily: "monospace", color: "var(--text-info, #89b4fa)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{entry.url}</span>
  <span style={{ fontSize: 10, color: "var(--text-muted)", flexShrink: 0, marginLeft: 8 }}>{new Date(entry.timestamp).toLocaleTimeString()} · {entry.duration_ms}ms</span>
- <span style={{ marginLeft: 6, fontSize: 10, color: entry.success ? "#a6e3a1" : "#f38ba8" }}>{entry.success ? "" : ""}</span>
+ <span style={{ marginLeft: 6, fontSize: 10, color: entry.success ? "var(--success-color, #a6e3a1)" : "var(--error-color, #f38ba8)" }}>{entry.success ? "" : ""}</span>
  </div>
  <pre style={{ margin: 0, fontSize: 10, color: "var(--text-muted)", overflow: "hidden", maxHeight: 40, fontFamily: "monospace", whiteSpace: "pre-wrap" }}>
  {entry.query.slice(0, 120)}{entry.query.length > 120 ? "…" : ""}

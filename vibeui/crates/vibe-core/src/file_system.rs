@@ -344,4 +344,215 @@ mod tests {
         let content = fs.read_file(&deeply_nested).await.unwrap();
         assert_eq!(content, "deep");
     }
+
+    #[tokio::test]
+    async fn test_read_nonexistent_file_returns_error() {
+        let dir = tempdir().unwrap();
+        let fs = FileSystem::new();
+        let missing = dir.path().join("does_not_exist.txt");
+
+        let result = fs.read_file(&missing).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_delete_nonexistent_file_returns_error() {
+        let dir = tempdir().unwrap();
+        let fs = FileSystem::new();
+        let missing = dir.path().join("ghost.txt");
+
+        let result = fs.delete_file(&missing).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_list_nonexistent_directory_returns_error() {
+        let dir = tempdir().unwrap();
+        let fs = FileSystem::new();
+        let missing = dir.path().join("no_such_dir");
+
+        let result = fs.list_directory(&missing).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_metadata_nonexistent_path_returns_error() {
+        let dir = tempdir().unwrap();
+        let fs = FileSystem::new();
+        let missing = dir.path().join("vanished.txt");
+
+        let result = fs.metadata(&missing).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_write_empty_content() {
+        let dir = tempdir().unwrap();
+        let fs = FileSystem::new();
+        let path = dir.path().join("empty.txt");
+
+        fs.write_file(&path, "").await.unwrap();
+        let content = fs.read_file(&path).await.unwrap();
+        assert_eq!(content, "");
+
+        let entry = fs.metadata(&path).await.unwrap();
+        assert_eq!(entry.size, Some(0));
+    }
+
+    #[tokio::test]
+    async fn test_overwrite_existing_file() {
+        let dir = tempdir().unwrap();
+        let fs = FileSystem::new();
+        let path = dir.path().join("overwrite.txt");
+
+        fs.write_file(&path, "first").await.unwrap();
+        assert_eq!(fs.read_file(&path).await.unwrap(), "first");
+
+        fs.write_file(&path, "second").await.unwrap();
+        assert_eq!(fs.read_file(&path).await.unwrap(), "second");
+    }
+
+    #[tokio::test]
+    async fn test_list_directory_sorts_dirs_first_then_alpha() {
+        let dir = tempdir().unwrap();
+        let fs = FileSystem::new();
+
+        // Create files and dirs with names that test alphabetical sorting
+        fs.write_file(&dir.path().join("zebra.txt"), "z").await.unwrap();
+        fs.write_file(&dir.path().join("alpha.txt"), "a").await.unwrap();
+        fs.create_directory(&dir.path().join("beta_dir")).await.unwrap();
+        fs.create_directory(&dir.path().join("aaa_dir")).await.unwrap();
+        fs.write_file(&dir.path().join("middle.txt"), "m").await.unwrap();
+
+        let entries = fs.list_directory(dir.path()).await.unwrap();
+        assert_eq!(entries.len(), 5);
+
+        // Directories come first, sorted alphabetically
+        assert!(entries[0].is_directory);
+        assert_eq!(entries[0].name, "aaa_dir");
+        assert!(entries[1].is_directory);
+        assert_eq!(entries[1].name, "beta_dir");
+
+        // Then files, sorted alphabetically
+        assert!(!entries[2].is_directory);
+        assert_eq!(entries[2].name, "alpha.txt");
+        assert!(!entries[3].is_directory);
+        assert_eq!(entries[3].name, "middle.txt");
+        assert!(!entries[4].is_directory);
+        assert_eq!(entries[4].name, "zebra.txt");
+    }
+
+    #[tokio::test]
+    async fn test_list_empty_directory() {
+        let dir = tempdir().unwrap();
+        let fs = FileSystem::new();
+
+        let entries = fs.list_directory(dir.path()).await.unwrap();
+        assert!(entries.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_metadata_for_directory() {
+        let dir = tempdir().unwrap();
+        let fs = FileSystem::new();
+        let sub = dir.path().join("mydir");
+        fs.create_directory(&sub).await.unwrap();
+
+        let entry = fs.metadata(&sub).await.unwrap();
+        assert_eq!(entry.name, "mydir");
+        assert!(entry.is_directory);
+        // Directories should have no size
+        assert_eq!(entry.size, None);
+        assert!(entry.modified.is_some());
+    }
+
+    #[test]
+    fn test_default_trait() {
+        let fs = FileSystem::default();
+        // Verify it constructs without panic and has no watchers
+        assert!(fs.watchers.is_empty());
+    }
+
+    #[test]
+    fn test_subscribe_returns_receiver() {
+        let fs = FileSystem::new();
+        let _rx = fs.subscribe();
+        // Getting a second subscriber should also work
+        let _rx2 = fs.subscribe();
+    }
+
+    #[test]
+    fn test_file_entry_clone_and_debug() {
+        let entry = FileEntry {
+            path: PathBuf::from("/tmp/test.txt"),
+            name: "test.txt".to_string(),
+            is_directory: false,
+            size: Some(42),
+            modified: None,
+        };
+        let cloned = entry.clone();
+        assert_eq!(cloned.name, "test.txt");
+        assert_eq!(cloned.size, Some(42));
+        assert!(!cloned.is_directory);
+        // Debug trait should work
+        let debug_str = format!("{:?}", entry);
+        assert!(debug_str.contains("test.txt"));
+    }
+
+    #[test]
+    fn test_file_change_event_variants() {
+        let created = FileChangeEvent::Created(PathBuf::from("/a"));
+        let modified = FileChangeEvent::Modified(PathBuf::from("/b"));
+        let deleted = FileChangeEvent::Deleted(PathBuf::from("/c"));
+        let renamed = FileChangeEvent::Renamed {
+            from: PathBuf::from("/d"),
+            to: PathBuf::from("/e"),
+        };
+
+        // Verify Debug formatting works for all variants
+        assert!(format!("{:?}", created).contains("Created"));
+        assert!(format!("{:?}", modified).contains("Modified"));
+        assert!(format!("{:?}", deleted).contains("Deleted"));
+        assert!(format!("{:?}", renamed).contains("Renamed"));
+
+        // Verify Clone works
+        let cloned = created.clone();
+        assert!(format!("{:?}", cloned).contains("Created"));
+    }
+
+    #[tokio::test]
+    async fn test_is_directory_and_is_file_for_nonexistent() {
+        let dir = tempdir().unwrap();
+        let fs = FileSystem::new();
+        let missing = dir.path().join("nonexistent");
+
+        assert!(!fs.is_directory(&missing).await);
+        assert!(!fs.is_file(&missing).await);
+    }
+
+    #[tokio::test]
+    async fn test_rename_nonexistent_returns_error() {
+        let dir = tempdir().unwrap();
+        let fs = FileSystem::new();
+        let src = dir.path().join("no_src.txt");
+        let dst = dir.path().join("no_dst.txt");
+
+        let result = fs.rename_item(&src, &dst).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_delete_nonempty_directory() {
+        let dir = tempdir().unwrap();
+        let fs = FileSystem::new();
+        let sub = dir.path().join("parent");
+        let nested = sub.join("child").join("grandchild");
+
+        fs.create_directory(&nested).await.unwrap();
+        fs.write_file(&nested.join("file.txt"), "data").await.unwrap();
+
+        // delete_directory (remove_dir_all) should remove everything recursively
+        fs.delete_directory(&sub).await.unwrap();
+        assert!(!fs.exists(&sub).await);
+    }
 }

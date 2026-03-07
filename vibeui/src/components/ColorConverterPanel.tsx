@@ -129,7 +129,7 @@ function CopyBtn({ text }: { text: string }) {
  const [ok, setOk] = useState(false);
  return (
  <button onClick={() => { navigator.clipboard.writeText(text); setOk(true); setTimeout(() => setOk(false), 1400); }}
- style={{ fontSize: 9, padding: "1px 6px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: ok ? "#a6e3a1" : "var(--text-muted)", cursor: "pointer", flexShrink: 0 }}>
+ style={{ fontSize: 9, padding: "1px 6px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: ok ? "var(--success-color, #a6e3a1)" : "var(--text-muted)", cursor: "pointer", flexShrink: 0 }}>
  {ok ? "✓" : ""}
  </button>
  );
@@ -207,12 +207,12 @@ export function ColorConverterPanel() {
  <span style={{ fontSize: 12, fontWeight: 700, color: hexNorm }}>Aa</span>
  </div>
  <div>
- <div style={{ fontSize: 15, fontWeight: 700, fontFamily: "monospace", color: ratio >= 7 ? "#a6e3a1" : ratio >= 4.5 ? "#f9e2af" : "#f38ba8" }}>{ratio.toFixed(2)}:1</div>
+ <div style={{ fontSize: 15, fontWeight: 700, fontFamily: "monospace", color: ratio >= 7 ? "var(--success-color, #a6e3a1)" : ratio >= 4.5 ? "var(--warning-color, #f9e2af)" : "var(--error-color, #f38ba8)" }}>{ratio.toFixed(2)}:1</div>
  <div style={{ fontSize: 9, color: "var(--text-muted)" }}>on {isLightBg ? "light" : "dark"} bg</div>
  </div>
  <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
  {([["AA", aa],["AAA", aaa],["AA-lg", aaLg],["AAA-lg", aaaLg]] as [string,boolean][]).map(([label, pass]) => (
- <span key={label} style={{ fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 4, background: pass ? "rgba(166,227,161,0.15)" : "rgba(243,139,168,0.1)", border: `1px solid ${pass ? "#a6e3a1" : "#f38ba8"}`, color: pass ? "#a6e3a1" : "#f38ba8" }}>{pass ? "✓" : "✕"} {label}</span>
+ <span key={label} style={{ fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 4, background: pass ? "rgba(166,227,161,0.15)" : "rgba(243,139,168,0.1)", border: `1px solid ${pass ? "var(--success-color, #a6e3a1)" : "var(--error-color, #f38ba8)"}`, color: pass ? "var(--success-color, #a6e3a1)" : "var(--error-color, #f38ba8)" }}>{pass ? "✓" : "✕"} {label}</span>
  ))}
  </div>
  </div>
@@ -234,7 +234,7 @@ export function ColorConverterPanel() {
  <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
  <span style={{ fontSize: 13, fontWeight: 600 }}>Color Converter</span>
  {TABS.map(t => (
- <button key={t.id} onClick={() => setSubTab(t.id)} style={{ padding: "2px 10px", fontSize: 10, borderRadius: 10, background: subTab === t.id ? "rgba(99,102,241,0.2)" : "var(--bg-primary)", border: `1px solid ${subTab === t.id ? "#6366f1" : "var(--border-color)"}`, color: subTab === t.id ? "#89b4fa" : "var(--text-muted)", cursor: "pointer", fontWeight: subTab === t.id ? 700 : 400 }}>{t.label}</button>
+ <button key={t.id} onClick={() => setSubTab(t.id)} style={{ padding: "2px 10px", fontSize: 10, borderRadius: 10, background: subTab === t.id ? "rgba(99,102,241,0.2)" : "var(--bg-primary)", border: `1px solid ${subTab === t.id ? "var(--accent-color, #6366f1)" : "var(--border-color)"}`, color: subTab === t.id ? "var(--info-color, #89b4fa)" : "var(--text-muted)", cursor: "pointer", fontWeight: subTab === t.id ? 700 : 400 }}>{t.label}</button>
  ))}
  </div>
 
@@ -248,7 +248,7 @@ export function ColorConverterPanel() {
  </div>
  {/* Hex input */}
  <input value={hex} onChange={e => handleHexInput(e.target.value)} maxLength={7} spellCheck={false}
- style={{ width: 100, padding: "5px 8px", fontSize: 13, fontFamily: "monospace", fontWeight: 700, background: "var(--bg-primary)", border: `1px solid ${hexToRgb(hex) ? "var(--border-color)" : "#f38ba8"}`, borderRadius: 4, color: hexNorm, outline: "none", letterSpacing: "0.05em" }} />
+ style={{ width: 100, padding: "5px 8px", fontSize: 13, fontFamily: "monospace", fontWeight: 700, background: "var(--bg-primary)", border: `1px solid ${hexToRgb(hex) ? "var(--border-color)" : "var(--error-color, #f38ba8)"}`, borderRadius: 4, color: hexNorm, outline: "none", letterSpacing: "0.05em" }} />
  {/* Alpha */}
  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
  <span style={{ fontSize: 10, color: "var(--text-muted)" }}>α:</span>
@@ -260,7 +260,7 @@ export function ColorConverterPanel() {
  {/* Luminance */}
  <span style={{ fontSize: 10, color: "var(--text-muted)", marginLeft: "auto" }}>
  L: <span style={{ fontFamily: "monospace" }}>{luminance(rgb).toFixed(3)}</span>
- <span style={{ marginLeft: 8, fontSize: 9, padding: "1px 6px", borderRadius: 10, background: luminance(rgb) > 0.5 ? "rgba(249,226,175,0.15)" : "rgba(30,30,46,0.5)", border: "1px solid var(--border-color)", color: luminance(rgb) > 0.5 ? "#f9e2af" : "#89b4fa" }}>
+ <span style={{ marginLeft: 8, fontSize: 9, padding: "1px 6px", borderRadius: 10, background: luminance(rgb) > 0.5 ? "rgba(249,226,175,0.15)" : "rgba(30,30,46,0.5)", border: "1px solid var(--border-color)", color: luminance(rgb) > 0.5 ? "var(--warning-color, #f9e2af)" : "var(--info-color, #89b4fa)" }}>
  {luminance(rgb) > 0.5 ? "light" : "dark"}
  </span>
  </span>

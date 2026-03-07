@@ -124,7 +124,7 @@ export function ScreenshotToApp({ workspacePath }: { workspacePath: string | nul
       case "svelte": return "#ff3e00";
       case "html": return "#e34f26";
       case "css": return "#264de4";
-      default: return "#888";
+      default: return "var(--text-secondary, #888)";
     }
   };
 

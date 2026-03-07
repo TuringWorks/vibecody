@@ -139,8 +139,8 @@ export function NetworkPanel() {
  style={{
  padding: "6px 16px", fontSize: 11, fontWeight: tool === id ? 600 : 400,
  background: tool === id ? "rgba(99,102,241,0.15)" : "transparent",
- color: tool === id ? "#6366f1" : "var(--text-muted)",
- border: "none", borderBottom: tool === id ? "2px solid #6366f1" : "2px solid transparent",
+ color: tool === id ? "var(--accent-color, #6366f1)" : "var(--text-muted)",
+ border: "none", borderBottom: tool === id ? "2px solid var(--accent-color, #6366f1)" : "2px solid transparent",
  cursor: "pointer",
  }}
  >
@@ -154,8 +154,8 @@ export function NetworkPanel() {
  disabled={loading || disabled}
  style={{
  padding: "6px 16px", fontSize: 11, fontWeight: 600,
- background: loading || disabled ? "var(--bg-secondary)" : "#6366f1",
- color: loading || disabled ? "var(--text-muted)" : "#fff",
+ background: loading || disabled ? "var(--bg-secondary)" : "var(--accent-color, #6366f1)",
+ color: loading || disabled ? "var(--text-muted)" : "var(--text-primary, #fff)",
  border: "none", borderRadius: 4, cursor: loading || disabled ? "not-allowed" : "pointer",
  }}
  >
@@ -318,16 +318,16 @@ export function NetworkPanel() {
  <div style={{
  padding: "10px 14px", borderRadius: 6, display: "flex", justifyContent: "space-between", alignItems: "center",
  background: tlsCert.valid ? "rgba(166,227,161,0.1)" : "rgba(243,139,168,0.1)",
- border: `1px solid ${tlsCert.valid ? "#a6e3a1" : "#f38ba8"}`,
+ border: `1px solid ${tlsCert.valid ? "var(--success-color, #a6e3a1)" : "var(--error-color, #f38ba8)"}`,
  }}>
  <div>
- <span style={{ fontSize: 14, fontWeight: 700, color: tlsCert.valid ? "#a6e3a1" : "#f38ba8" }}>
+ <span style={{ fontSize: 14, fontWeight: 700, color: tlsCert.valid ? "var(--success-color, #a6e3a1)" : "var(--error-color, #f38ba8)" }}>
  {tlsCert.valid ? "Valid" : "Invalid / Expired"}
  </span>
  <span style={{ marginLeft: 10, fontSize: 11, color: "var(--text-muted)" }}>{tlsHost}:{tlsPort}</span>
  </div>
  <div style={{ textAlign: "right" }}>
- <div style={{ fontSize: 20, fontWeight: 700, color: tlsCert.days_remaining > 30 ? "#a6e3a1" : tlsCert.days_remaining > 7 ? "#f9e2af" : "#f38ba8" }}>
+ <div style={{ fontSize: 20, fontWeight: 700, color: tlsCert.days_remaining > 30 ? "var(--success-color, #a6e3a1)" : tlsCert.days_remaining > 7 ? "var(--warning-color, #f9e2af)" : "var(--error-color, #f38ba8)" }}>
  {tlsCert.days_remaining}d
  </div>
  <div style={{ fontSize: 9, color: "var(--text-muted)" }}>remaining</div>

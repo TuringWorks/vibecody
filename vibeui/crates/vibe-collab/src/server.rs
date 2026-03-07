@@ -146,4 +146,134 @@ mod tests {
         let removed_again = server.remove_room("to-remove");
         assert!(!removed_again);
     }
+
+    #[tokio::test]
+    async fn test_server_creation_defaults() {
+        let server = CollabServer::new(5);
+        assert_eq!(server.room_count(), 0);
+        assert!(server.list_rooms().is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_get_room_returns_none_for_missing() {
+        let server = CollabServer::new(10);
+        assert!(server.get_room("nonexistent").is_none());
+    }
+
+    #[tokio::test]
+    async fn test_get_room_returns_some_for_existing() {
+        let server = CollabServer::new(10);
+        server.get_or_create_room("existing");
+        let room = server.get_room("existing");
+        assert!(room.is_some());
+        assert_eq!(room.unwrap().id, "existing");
+    }
+
+    #[tokio::test]
+    async fn test_get_or_create_room_returns_same_arc() {
+        let server = CollabServer::new(10);
+        let room1 = server.get_or_create_room("shared");
+        let room2 = server.get_or_create_room("shared");
+        // Both should point to the same underlying allocation
+        assert!(Arc::ptr_eq(&room1, &room2));
+    }
+
+    #[tokio::test]
+    async fn test_room_inherits_max_peers_from_server() {
+        let server = CollabServer::new(3);
+        let room = server.get_or_create_room("limited");
+        assert_eq!(room.max_peers, 3);
+
+        // Verify the limit is enforced
+        room.add_peer("p1".to_string(), "A".to_string()).await.unwrap();
+        room.add_peer("p2".to_string(), "B".to_string()).await.unwrap();
+        room.add_peer("p3".to_string(), "C".to_string()).await.unwrap();
+        let result = room.add_peer("p4".to_string(), "D".to_string()).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_cleanup_mixed_rooms() {
+        let server = CollabServer::new(10);
+
+        // Create an occupied room
+        let occupied = server.get_or_create_room("occupied");
+        occupied.add_peer("p1".to_string(), "Alice".to_string()).await.unwrap();
+
+        // Create two empty rooms
+        server.get_or_create_room("empty1");
+        server.get_or_create_room("empty2");
+        assert_eq!(server.room_count(), 3);
+
+        let cleaned = server.cleanup_empty_rooms().await;
+        assert_eq!(cleaned, 2);
+        assert_eq!(server.room_count(), 1);
+
+        // The occupied room should still be accessible
+        assert!(server.get_room("occupied").is_some());
+        assert!(server.get_room("empty1").is_none());
+        assert!(server.get_room("empty2").is_none());
+    }
+
+    #[tokio::test]
+    async fn test_remove_room_then_recreate() {
+        let server = CollabServer::new(10);
+        let room1 = server.get_or_create_room("recycled");
+        room1.add_peer("p1".to_string(), "Alice".to_string()).await.unwrap();
+        assert_eq!(room1.peer_count().await, 1);
+
+        server.remove_room("recycled");
+        assert_eq!(server.room_count(), 0);
+
+        // Re-create — should be a fresh room with no peers
+        let room2 = server.get_or_create_room("recycled");
+        assert_eq!(room2.peer_count().await, 0);
+        assert!(!Arc::ptr_eq(&room1, &room2));
+    }
+
+    #[tokio::test]
+    async fn test_many_rooms() {
+        let server = CollabServer::new(10);
+        for i in 0..50 {
+            server.get_or_create_room(&format!("room-{i}"));
+        }
+        assert_eq!(server.room_count(), 50);
+        assert_eq!(server.list_rooms().len(), 50);
+    }
+
+    #[tokio::test]
+    async fn test_remove_nonexistent_room_returns_false() {
+        let server = CollabServer::new(10);
+        assert!(!server.remove_room("ghost"));
+    }
+
+    #[tokio::test]
+    async fn test_cleanup_empty_on_empty_server() {
+        let server = CollabServer::new(10);
+        let cleaned = server.cleanup_empty_rooms().await;
+        assert_eq!(cleaned, 0);
+    }
+
+    #[tokio::test]
+    async fn test_room_lifecycle_create_use_cleanup() {
+        let server = CollabServer::new(10);
+
+        // Create room and add peers
+        let room = server.get_or_create_room("lifecycle");
+        room.add_peer("p1".to_string(), "Alice".to_string()).await.unwrap();
+        room.add_peer("p2".to_string(), "Bob".to_string()).await.unwrap();
+
+        // Cleanup should not remove it
+        let cleaned = server.cleanup_empty_rooms().await;
+        assert_eq!(cleaned, 0);
+
+        // Remove peers
+        room.remove_peer("p1").await;
+        room.remove_peer("p2").await;
+
+        // Now cleanup should remove it
+        let cleaned = server.cleanup_empty_rooms().await;
+        assert_eq!(cleaned, 1);
+        assert_eq!(server.room_count(), 0);
+    }
 }

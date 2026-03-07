@@ -102,7 +102,7 @@ export function TraceDashboard() {
  {selectedSession && (
  <button onClick={() => { setSelectedSession(null); setSteps([]); }} style={{
  ...chipStyle, cursor: "pointer", background: "rgba(99,102,241,0.15)",
- border: "1px solid #6366f1",
+ border: "1px solid var(--accent-color, #6366f1)",
  }}>
  Back to list
  </button>
@@ -186,7 +186,7 @@ export function TraceDashboard() {
  {(["all", "prompt", "tool_call", "file_edit", "test", "error"] as const).map((k) => (
  <button key={k} onClick={() => setFilter(k)} style={{
  ...chipStyle, cursor: "pointer",
- border: filter === k ? "1px solid #6366f1" : "1px solid var(--border-color)",
+ border: filter === k ? "1px solid var(--accent-color, #6366f1)" : "1px solid var(--border-color)",
  background: filter === k ? "rgba(99,102,241,0.15)" : "transparent",
  }}>
  {k !== "all" && (
@@ -247,7 +247,7 @@ export function TraceDashboard() {
  <div style={{ fontSize: 9, fontWeight: 700, opacity: 0.5, marginBottom: 2 }}>INPUT</div>
  <pre style={{
  fontSize: 10, padding: "4px 6px", borderRadius: 3, margin: 0,
- background: "rgba(0,0,0,0.2)", whiteSpace: "pre-wrap",
+ background: "var(--bg-secondary)", whiteSpace: "pre-wrap",
  maxHeight: 150, overflowY: "auto",
  }}>
  {s.input_summary}
@@ -259,7 +259,7 @@ export function TraceDashboard() {
  <div style={{ fontSize: 9, fontWeight: 700, opacity: 0.5, marginBottom: 2 }}>OUTPUT</div>
  <pre style={{
  fontSize: 10, padding: "4px 6px", borderRadius: 3, margin: 0,
- background: "rgba(0,0,0,0.2)", whiteSpace: "pre-wrap",
+ background: "var(--bg-secondary)", whiteSpace: "pre-wrap",
  maxHeight: 200, overflowY: "auto",
  }}>
  {s.output.slice(0, 2000)}{s.output.length > 2000 ? "..." : ""}

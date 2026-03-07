@@ -159,7 +159,7 @@ export default function SteeringPanel({ workspaceRoot }: SteeringPanelProps) {
  </div>
 
  {error && (
- <div style={{ background: "#ff4d4f22", color: "#ff4d4f", borderRadius: 4, padding: "4px 8px", fontSize: 12 }}>
+ <div style={{ background: "var(--error-bg, rgba(243,139,168,0.05))", color: "var(--error-color, #f38ba8)", borderRadius: 4, padding: "4px 8px", fontSize: 12 }}>
  {error}
  </div>
  )}
@@ -249,7 +249,7 @@ export default function SteeringPanel({ workspaceRoot }: SteeringPanelProps) {
  disabled={!isNew}
  style={{ flex: 1, padding: "4px 8px", borderRadius: 4, background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: 12 }}
  />
- <button onClick={save} disabled={saving} style={{ ...btnStyle, background: saving ? "var(--bg-secondary)" : "#89b4fa22", color: "var(--text-info, #89b4fa)" }}>
+ <button onClick={save} disabled={saving} style={{ ...btnStyle, background: saving ? "var(--bg-secondary)" : "rgba(137,180,250,0.13)", color: "var(--text-info, #89b4fa)" }}>
  {saving ? "Saving…" : "Save"}
  </button>
  </div>

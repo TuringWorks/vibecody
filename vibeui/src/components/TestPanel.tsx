@@ -144,8 +144,8 @@ export function TestPanel({ workspacePath }: TestPanelProps) {
  disabled={running}
  style={{
  marginLeft: "auto", padding: "4px 12px", fontSize: 12,
- background: running ? "var(--bg-tertiary)" : "#6366f1",
- color: running ? "var(--text-secondary)" : "#fff",
+ background: running ? "var(--bg-tertiary)" : "var(--accent-color, #6366f1)",
+ color: running ? "var(--text-secondary)" : "var(--text-primary, #fff)",
  border: "none", borderRadius: 4, cursor: running ? "not-allowed" : "pointer",
  fontWeight: 600,
  }}
@@ -173,12 +173,12 @@ export function TestPanel({ workspacePath }: TestPanelProps) {
  {/* Pass-rate ring (simple colored bar) */}
  <div style={{ flex: 1 }}>
  <div style={{ height: 4, borderRadius: 2, background: "var(--bg-tertiary)", overflow: "hidden" }}>
- <div style={{ height: "100%", width: `${passRate}%`, background: result.failed > 0 ? "#f38ba8" : "#a6e3a1", transition: "width 0.4s" }} />
+ <div style={{ height: "100%", width: `${passRate}%`, background: result.failed > 0 ? "var(--error-color, #f38ba8)" : "var(--success-color, #a6e3a1)", transition: "width 0.4s" }} />
  </div>
  <div style={{ marginTop: 4, display: "flex", gap: 12, fontSize: 11 }}>
  <span style={{ color: "var(--text-success, #a6e3a1)" }}>✓ {result.passed}</span>
  {result.failed > 0 && <span style={{ color: "var(--text-danger, #f38ba8)" }}>✗ {result.failed}</span>}
- {result.ignored > 0 && <span style={{ color: "#a6adc8" }}>⊘ {result.ignored}</span>}
+ {result.ignored > 0 && <span style={{ color: "var(--text-secondary, #a6adc8)" }}>⊘ {result.ignored}</span>}
  <span style={{ color: "var(--text-secondary)", marginLeft: "auto" }}>
  {result.duration_ms < 1000
  ? `${result.duration_ms}ms`
@@ -198,8 +198,8 @@ export function TestPanel({ workspacePath }: TestPanelProps) {
  onClick={() => setFilter(f)}
  style={{
  padding: "2px 10px", fontSize: 11, borderRadius: 3, cursor: "pointer",
- background: filter === f ? "var(--accent-blue, #6366f1)" : "var(--bg-secondary)",
- color: filter === f ? "#fff" : "var(--text-secondary)",
+ background: filter === f ? "var(--accent-color, #6366f1)" : "var(--bg-secondary)",
+ color: filter === f ? "var(--text-primary, #fff)" : "var(--text-secondary)",
  border: "1px solid var(--border-color)",
  }}
  >
@@ -225,7 +225,7 @@ export function TestPanel({ workspacePath }: TestPanelProps) {
  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
  <span style={{
  fontSize: 10, flexShrink: 0,
- color: t.status === "passed" ? "#a6e3a1" : t.status === "failed" ? "#f38ba8" : t.status === "ignored" ? "#a6adc8" : "#f9e2af",
+ color: t.status === "passed" ? "var(--success-color, #a6e3a1)" : t.status === "failed" ? "var(--error-color, #f38ba8)" : t.status === "ignored" ? "var(--text-secondary, #a6adc8)" : "var(--warning-color, #f9e2af)",
  }}>
  {t.status === "passed" ? "✓" : t.status === "failed" ? "✗" : t.status === "ignored" ? "⊘" : "…"}
  </span>
