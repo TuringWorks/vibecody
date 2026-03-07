@@ -464,6 +464,15 @@ impl ToolExecutor {
     }
 
     async fn fetch_url(&self, url: &str) -> ToolResult {
+        // Validate URL scheme to prevent file://, javascript:, data: etc.
+        let url_lower = url.to_lowercase();
+        if !url_lower.starts_with("http://") && !url_lower.starts_with("https://") {
+            return ToolResult::err(
+                "fetch_url",
+                format!("Only http:// and https:// URLs are allowed, got: {}", url.chars().take(50).collect::<String>()),
+            );
+        }
+
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(20))
             .user_agent("VibeCLI/1.0")

@@ -85,6 +85,34 @@ impl ClaudeProvider {
         }
     }
 
+    const DEFAULT_API_URL: &'static str = "https://api.anthropic.com/v1/messages";
+
+    fn api_url(&self) -> &str {
+        self.config.api_url.as_deref().unwrap_or(Self::DEFAULT_API_URL)
+    }
+
+    /// Translate a raw Claude API error response into a user-friendly message.
+    fn translate_api_error(status: u16, body: &str) -> String {
+        // Try to parse as JSON to extract the message field
+        if let Ok(v) = serde_json::from_str::<Value>(body) {
+            let msg = v.pointer("/error/message")
+                .and_then(|m| m.as_str())
+                .unwrap_or(body);
+            let err_type = v.pointer("/error/type")
+                .and_then(|t| t.as_str())
+                .unwrap_or("");
+            return match (status, err_type) {
+                (401, _) => format!("Authentication failed: {}. Check your ANTHROPIC_API_KEY or api_key_helper in config.", msg),
+                (403, _) => format!("Access denied: {}. Your API key may lack permissions for this model.", msg),
+                (429, _) => format!("Rate limited: {}. Wait a moment or check your Anthropic plan limits.", msg),
+                (404, _) => format!("Model not found: {}. Check your model name in config.", msg),
+                (529, _) | (503, _) => format!("Claude is temporarily overloaded: {}. Retry in a few seconds.", msg),
+                _ => format!("Claude API error (HTTP {}): {}", status, msg),
+            };
+        }
+        format!("Claude API error (HTTP {}): {}", status, body)
+    }
+
     fn build_messages(&self, messages: &[Message], context: Option<String>) -> (Vec<ClaudeMessage>, Option<String>) {
         let mut claude_messages = Vec::new();
         let mut system_prompt = None;
@@ -217,7 +245,7 @@ impl AIProvider for ClaudeProvider {
         };
 
         let response = self.client
-            .post("https://api.anthropic.com/v1/messages")
+            .post(self.api_url())
             .header("x-api-key", &api_key)
             .header("anthropic-version", "2023-06-01")
             .header("content-type", "application/json")
@@ -227,8 +255,9 @@ impl AIProvider for ClaudeProvider {
             .context("Failed to send request to Claude")?;
 
         if !response.status().is_success() {
+            let status = response.status().as_u16();
             let error_text = response.text().await?;
-            anyhow::bail!("Claude API error: {}", error_text);
+            anyhow::bail!("{}", Self::translate_api_error(status, &error_text));
         }
 
         let claude_response: ClaudeResponse = response.json().await.context("Failed to parse Claude response")?;
@@ -264,7 +293,7 @@ impl AIProvider for ClaudeProvider {
         };
 
         let response = self.client
-            .post("https://api.anthropic.com/v1/messages")
+            .post(self.api_url())
             .header("x-api-key", &api_key)
             .header("anthropic-version", "2023-06-01")
             .header("content-type", "application/json")
@@ -274,8 +303,9 @@ impl AIProvider for ClaudeProvider {
             .context("Failed to send request to Claude")?;
 
         if !response.status().is_success() {
+            let status = response.status().as_u16();
             let error_text = response.text().await?;
-            anyhow::bail!("Claude API error: {}", error_text);
+            anyhow::bail!("{}", Self::translate_api_error(status, &error_text));
         }
 
         let claude_response: ClaudeResponse = response.json().await.context("Failed to parse Claude response")?;
@@ -300,7 +330,7 @@ impl AIProvider for ClaudeProvider {
         };
 
         let response = self.client
-            .post("https://api.anthropic.com/v1/messages")
+            .post(self.api_url())
             .header("x-api-key", &api_key)
             .header("anthropic-version", "2023-06-01")
             .header("content-type", "application/json")
@@ -310,8 +340,9 @@ impl AIProvider for ClaudeProvider {
             .context("Failed to send request to Claude")?;
 
         if !response.status().is_success() {
+            let status = response.status().as_u16();
             let error_text = response.text().await?;
-            anyhow::bail!("Claude API error: {}", error_text);
+            anyhow::bail!("{}", Self::translate_api_error(status, &error_text));
         }
 
         let stream = response.bytes_stream();
@@ -369,7 +400,7 @@ impl AIProvider for ClaudeProvider {
 
         let response = self
             .client
-            .post("https://api.anthropic.com/v1/messages")
+            .post(self.api_url())
             .header("x-api-key", &api_key)
             .header("anthropic-version", "2023-06-01")
             .header("content-type", "application/json")

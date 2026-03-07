@@ -75,6 +75,30 @@ impl OpenAIProvider {
         }
     }
 
+    const DEFAULT_API_URL: &'static str = "https://api.openai.com/v1/chat/completions";
+
+    fn api_url(&self) -> &str {
+        self.config.api_url.as_deref().unwrap_or(Self::DEFAULT_API_URL)
+    }
+
+    /// Translate a raw OpenAI API error response into a user-friendly message.
+    fn translate_api_error(status: u16, body: &str) -> String {
+        if let Ok(v) = serde_json::from_str::<Value>(body) {
+            let msg = v.pointer("/error/message")
+                .and_then(|m| m.as_str())
+                .unwrap_or(body);
+            return match status {
+                401 => format!("Authentication failed: {}. Check your OPENAI_API_KEY or api_key_helper in config.", msg),
+                403 => format!("Access denied: {}. Your API key may lack permissions for this model.", msg),
+                429 => format!("Rate limited: {}. Wait a moment or check your OpenAI plan limits.", msg),
+                404 => format!("Model not found: {}. Check your model name in config.", msg),
+                503 => format!("OpenAI is temporarily overloaded: {}. Retry in a few seconds.", msg),
+                _ => format!("OpenAI API error (HTTP {}): {}", status, msg),
+            };
+        }
+        format!("OpenAI API error (HTTP {}): {}", status, body)
+    }
+
     fn build_messages(&self, messages: &[Message], context: Option<String>) -> Vec<OpenAIMessage> {
         let mut openai_messages: Vec<OpenAIMessage> = messages
             .iter()
@@ -186,7 +210,7 @@ impl AIProvider for OpenAIProvider {
         };
 
         let response = self.client
-            .post("https://api.openai.com/v1/chat/completions")
+            .post(self.api_url())
             .header("Authorization", format!("Bearer {}", api_key))
             .json(&request)
             .send()
@@ -194,8 +218,9 @@ impl AIProvider for OpenAIProvider {
             .context("Failed to send request to OpenAI")?;
 
         if !response.status().is_success() {
+            let status = response.status().as_u16();
             let error_text = response.text().await?;
-            anyhow::bail!("OpenAI API error: {}", error_text);
+            anyhow::bail!("{}", Self::translate_api_error(status, &error_text));
         }
 
         let openai_response: OpenAIResponse = response.json().await.context("Failed to parse OpenAI response")?;
@@ -235,7 +260,7 @@ impl AIProvider for OpenAIProvider {
         };
 
         let response = self.client
-            .post("https://api.openai.com/v1/chat/completions")
+            .post(self.api_url())
             .header("Authorization", format!("Bearer {}", api_key))
             .json(&request)
             .send()
@@ -243,8 +268,9 @@ impl AIProvider for OpenAIProvider {
             .context("Failed to send request to OpenAI")?;
 
         if !response.status().is_success() {
+            let status = response.status().as_u16();
             let error_text = response.text().await?;
-            anyhow::bail!("OpenAI API error: {}", error_text);
+            anyhow::bail!("{}", Self::translate_api_error(status, &error_text));
         }
 
         let stream = response.bytes_stream();
@@ -305,7 +331,7 @@ impl AIProvider for OpenAIProvider {
         };
 
         let response = self.client
-            .post("https://api.openai.com/v1/chat/completions")
+            .post(self.api_url())
             .header("Authorization", format!("Bearer {}", api_key))
             .json(&request)
             .send()

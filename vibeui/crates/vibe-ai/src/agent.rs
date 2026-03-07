@@ -566,19 +566,21 @@ impl AgentLoop {
                 // ── Pre-completion double-check ───────────────────────────────
                 if self.double_check_enabled {
                     let ws = &context.workspace_root;
-                    // Try to run a build check
+                    // Try to run a build check (async to avoid blocking the tokio runtime)
                     let build_ok = if ws.join("Cargo.toml").exists() {
-                        std::process::Command::new("cargo")
+                        tokio::process::Command::new("cargo")
                             .args(["check", "--quiet"])
                             .current_dir(ws)
                             .output()
+                            .await
                             .map(|o| o.status.success())
                             .unwrap_or(true)
                     } else if ws.join("package.json").exists() {
-                        std::process::Command::new("npm")
+                        tokio::process::Command::new("npm")
                             .args(["run", "build", "--if-present"])
                             .current_dir(ws)
                             .output()
+                            .await
                             .map(|o| o.status.success())
                             .unwrap_or(true)
                     } else {
@@ -778,15 +780,17 @@ impl AgentLoop {
                 if let ToolCall::WriteFile { path, .. } | ToolCall::ApplyPatch { path, .. } = &call {
                     let ws = context.workspace_root.clone();
                     let p = path.clone();
-                    let _ = std::process::Command::new("git")
+                    let _ = tokio::process::Command::new("git")
                         .args(["add", &p])
                         .current_dir(&ws)
-                        .output();
+                        .output()
+                        .await;
                     let msg = format!("agent: update {}", p.rsplit('/').next().unwrap_or(&p));
-                    let _ = std::process::Command::new("git")
+                    let _ = tokio::process::Command::new("git")
                         .args(["commit", "-m", &msg, "--allow-empty-message"])
                         .current_dir(&ws)
-                        .output();
+                        .output()
+                        .await;
                 }
             }
 
