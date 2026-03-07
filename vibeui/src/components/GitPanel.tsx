@@ -570,14 +570,14 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  <button
  onClick={handleSuggestBranch}
  disabled={suggestingBranch || !branchTask.trim()}
- style={{ background: 'rgba(99,102,241,0.2)', color: '#a5b4fc', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontSize: 11 }}
+ style={{ background: 'rgba(99,102,241,0.2)', color: 'var(--accent-color, #007acc)', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontSize: 11 }}
  >
  {suggestingBranch ? '…' : ''}
  </button>
  </div>
  {suggestedBranch && (
  <div style={{ marginTop: 5, display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg-secondary)', padding: '4px 8px', borderRadius: 4 }}>
- <code style={{ flex: 1, fontSize: 11, color: '#4fc3f7' }}>{suggestedBranch}</code>
+ <code style={{ flex: 1, fontSize: 11, color: 'var(--info-color, #2196f3)' }}>{suggestedBranch}</code>
  <button
  onClick={() => { navigator.clipboard.writeText(suggestedBranch).then(() => toast.success('Copied!')).catch(() => {}); }}
  style={{ background: 'none', border: 'none', color: 'var(--text-muted, #888)', cursor: 'pointer', fontSize: 10 }}
@@ -609,7 +609,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  <button
  onClick={handleGenerateChangelog}
  disabled={generatingChangelog}
- style={{ background: 'rgba(99,102,241,0.2)', color: '#a5b4fc', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontSize: 11 }}
+ style={{ background: 'rgba(99,102,241,0.2)', color: 'var(--accent-color, #007acc)', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontSize: 11 }}
  >
  {generatingChangelog ? '…' : ' Generate'}
  </button>
@@ -661,7 +661,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  <button
  onClick={handleResolveConflict}
  disabled={resolvingConflict || !conflictText.trim()}
- style={{ width: '100%', background: 'rgba(99,102,241,0.2)', color: '#a5b4fc', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 4, padding: '4px 0', cursor: 'pointer', fontSize: 11, marginBottom: 5 }}
+ style={{ width: '100%', background: 'rgba(99,102,241,0.2)', color: 'var(--accent-color, #007acc)', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 4, padding: '4px 0', cursor: 'pointer', fontSize: 11, marginBottom: 5 }}
  >
  {resolvingConflict ? ' Resolving…' : ' AI Resolve'}
  </button>

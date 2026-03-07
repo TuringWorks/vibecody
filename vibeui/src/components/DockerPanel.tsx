@@ -37,16 +37,16 @@ interface DockerPanelProps {
 
 const statusColor = (status: string) => {
  const s = status.toLowerCase();
- if (s.startsWith("up")) return "#a6e3a1";
- if (s.startsWith("exited")) return "#f38ba8";
- if (s.startsWith("paused")) return "#f9e2af";
+ if (s.startsWith("up")) return "var(--success-color, #4caf50)";
+ if (s.startsWith("exited")) return "var(--error-color, #f44336)";
+ if (s.startsWith("paused")) return "var(--warning-color, #ff9800)";
  return "var(--text-primary)";
 };
 
 const statusIcon = (status: string): React.ReactNode => {
  const s = status.toLowerCase();
- if (s.startsWith("up")) return <Circle size={10} strokeWidth={0} fill="#a6e3a1" />;
- if (s.startsWith("exited")) return <Circle size={10} strokeWidth={0} fill="#f38ba8" />;
+ if (s.startsWith("up")) return <Circle size={10} strokeWidth={0} fill="var(--success-color, #4caf50)" />;
+ if (s.startsWith("exited")) return <Circle size={10} strokeWidth={0} fill="var(--error-color, #f44336)" />;
  if (s.startsWith("paused")) return <Circle size={10} strokeWidth={0} fill="var(--text-primary)" />;
  return <Circle size={10} strokeWidth={0} fill="var(--text-primary)" />;
 };
@@ -182,14 +182,14 @@ export function DockerPanel({ workspacePath }: DockerPanelProps) {
  const btnStyle = (variant: "primary" | "secondary" | "danger" = "secondary"): React.CSSProperties => ({
  padding: "4px 10px", fontSize: 11, borderRadius: 4, border: "none", cursor: "pointer",
  background: variant === "primary" ? "var(--accent-color)"
- : variant === "danger" ? "#3a1a1a"
+ : variant === "danger" ? "rgba(244, 67, 54, 0.1)"
  : "var(--bg-secondary)",
- color: variant === "primary" ? "#fff"
- : variant === "danger" ? "#f38ba8"
+ color: variant === "primary" ? "var(--text-primary, #e0e0e0)"
+ : variant === "danger" ? "var(--error-color, #f44336)"
  : "var(--text-secondary)",
  borderWidth: variant === "danger" ? 1 : 0,
  borderStyle: "solid",
- borderColor: variant === "danger" ? "#f38ba8" : "transparent",
+ borderColor: variant === "danger" ? "var(--error-color, #f44336)" : "transparent",
  });
 
  const terminal: React.CSSProperties = {

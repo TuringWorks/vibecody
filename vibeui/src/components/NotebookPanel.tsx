@@ -171,7 +171,7 @@ export function NotebookPanel({ workspacePath }: NotebookPanelProps) {
  <button onClick={() => addCell("code")} style={toolBtnStyle}>+ Code</button>
  <button onClick={() => addCell("markdown")} style={toolBtnStyle}>+ Markdown</button>
  <div style={{ flex: 1 }} />
- <button onClick={runAll} disabled={runningAll} style={{ ...toolBtnStyle, background: "var(--accent-primary, #6366f1)", color: "#fff" }}>
+ <button onClick={runAll} disabled={runningAll} style={{ ...toolBtnStyle, background: "var(--accent-color, #007acc)", color: "var(--text-primary, #e0e0e0)" }}>
  {runningAll ? "Running..." : "Run All"}
  </button>
  <button onClick={clearAll} style={toolBtnStyle}>Clear All</button>
@@ -312,7 +312,7 @@ export function NotebookPanel({ workspacePath }: NotebookPanelProps) {
  }}>
  {/* Status bar */}
  <div style={{ display: "flex", gap: 8, marginBottom: 4, fontSize: 10, opacity: 0.6 }}>
- <span style={{ color: cell.output.exit_code === 0 ? "#a6e3a1" : "#f38ba8" }}>
+ <span style={{ color: cell.output.exit_code === 0 ? "var(--success-color, #4caf50)" : "var(--error-color, #f44336)" }}>
  exit: {cell.output.exit_code}
  </span>
  {cell.output.duration_ms > 0 && <span>{cell.output.duration_ms}ms</span>}

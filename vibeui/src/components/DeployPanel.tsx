@@ -192,8 +192,8 @@ export function DeployPanel({ workspacePath }: DeployPanelProps) {
  onClick={handleDeploy}
  disabled={isDeploying}
  style={{
- background: isDeploying ? "var(--bg-tertiary)" : "#6366f1",
- color: "#fff",
+ background: isDeploying ? "var(--bg-tertiary)" : "var(--accent-color, #007acc)",
+ color: "var(--text-primary, #e0e0e0)",
  border: "none",
  borderRadius: 6,
  padding: "10px 0",
@@ -207,7 +207,7 @@ export function DeployPanel({ workspacePath }: DeployPanelProps) {
 
  {/* Deployed URL */}
  {deployedUrl && (
- <div style={{ background: "rgba(166,227,161,0.1)", border: "1px solid #a6e3a1", borderRadius: 6, padding: 10 }}>
+ <div style={{ background: "rgba(166,227,161,0.1)", border: "1px solid var(--success-color, #4caf50)", borderRadius: 6, padding: 10 }}>
  <div style={{ fontSize: 12, color: "var(--text-success, #a6e3a1)", marginBottom: 4 }}>Live at</div>
  <a href={deployedUrl} target="_blank" rel="noopener noreferrer" style={{ color: "var(--text-info, #89b4fa)", fontSize: 13, fontFamily: "monospace" }}>
  {deployedUrl}
@@ -230,7 +230,7 @@ export function DeployPanel({ workspacePath }: DeployPanelProps) {
  <button
  onClick={handleSetDomain}
  disabled={domainBusy || !customDomain.trim()}
- style={{ padding: "6px 12px", fontSize: 12, background: "var(--accent-primary, #6366f1)", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", whiteSpace: "nowrap" }}
+ style={{ padding: "6px 12px", fontSize: 12, background: "var(--accent-color, #007acc)", color: "var(--text-primary, #e0e0e0)", border: "none", borderRadius: 4, cursor: "pointer", whiteSpace: "nowrap" }}
  >
  {domainBusy ? "…" : "Add Domain"}
  </button>

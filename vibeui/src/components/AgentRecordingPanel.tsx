@@ -32,8 +32,8 @@ const headerStyle: React.CSSProperties = {
 };
 
 const badgeStyle: React.CSSProperties = {
-  background: "#7c3aed",
-  color: "#fff",
+  background: "var(--accent-color, #7c3aed)",
+  color: "var(--text-primary, #fff)",
   borderRadius: 10,
   padding: "2px 8px",
   fontSize: 11,
@@ -56,7 +56,7 @@ const frameRowStyle: React.CSSProperties = {
   alignItems: "center",
   gap: 10,
   padding: "6px 0",
-  borderBottom: "1px solid #333350",
+  borderBottom: "1px solid var(--border-color, #333350)",
 };
 
 const thumbStyle: React.CSSProperties = {
@@ -64,8 +64,8 @@ const thumbStyle: React.CSSProperties = {
   height: 50,
   objectFit: "cover",
   borderRadius: 4,
-  border: "1px solid #444",
-  background: "#111",
+  border: "1px solid var(--border-color, #444)",
+  background: "var(--bg-primary, #111)",
 };
 
 function formatTs(ts: number): string {
@@ -112,8 +112,8 @@ export function AgentRecordingPanel() {
           onClick={load}
           disabled={loading}
           style={{
-            background: "#7c3aed",
-            color: "#fff",
+            background: "var(--accent-color, #7c3aed)",
+            color: "var(--text-primary, #fff)",
             border: "none",
             borderRadius: 4,
             padding: "4px 12px",
@@ -126,7 +126,7 @@ export function AgentRecordingPanel() {
       </div>
 
       {error && (
-        <div style={{ color: "#f44336", marginBottom: 8, fontSize: 12 }}>{error}</div>
+        <div style={{ color: "var(--error-color, #f44336)", marginBottom: 8, fontSize: 12 }}>{error}</div>
       )}
 
       {!loading && recordings.length === 0 && (
@@ -140,7 +140,7 @@ export function AgentRecordingPanel() {
           key={rec.session_id}
           style={{
             ...sessionCardStyle,
-            borderColor: expanded.has(rec.session_id) ? "#7c3aed" : "transparent",
+            borderColor: expanded.has(rec.session_id) ? "var(--accent-color, #7c3aed)" : "transparent",
           }}
           onClick={() => toggle(rec.session_id)}
         >
@@ -148,7 +148,7 @@ export function AgentRecordingPanel() {
             <span style={{ fontWeight: 600 }}>{rec.session_id}</span>
             <span style={badgeStyle}>{rec.frames.length} frames</span>
           </div>
-          <div style={{ fontSize: 11, color: "#999", marginTop: 4 }}>
+          <div style={{ fontSize: 11, color: "var(--text-secondary, #999)", marginTop: 4 }}>
             {formatTs(rec.started_at)}
             {rec.finished_at && <span> — {formatTs(rec.finished_at)}</span>}
           </div>
@@ -170,7 +170,7 @@ export function AgentRecordingPanel() {
                   />
                   <div>
                     <div style={{ fontWeight: 500, fontSize: 12 }}>{frame.caption}</div>
-                    <div style={{ fontSize: 11, color: "#999" }}>{formatTs(frame.timestamp)}</div>
+                    <div style={{ fontSize: 11, color: "var(--text-secondary, #999)" }}>{formatTs(frame.timestamp)}</div>
                   </div>
                 </div>
               ))}

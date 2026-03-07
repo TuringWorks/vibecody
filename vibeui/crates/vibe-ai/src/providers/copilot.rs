@@ -519,4 +519,160 @@ mod tests {
         assert_eq!(json["temperature"], 0.75);
         assert_eq!(json["max_tokens"], 1024);
     }
+
+    // ── stream response deserialization ─────────────────────────────────
+
+    #[test]
+    fn stream_response_deser() {
+        let json = r#"{"choices":[{"delta":{"content":"streamed token"}}]}"#;
+        let resp: StreamResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.choices[0].delta.content.as_ref().unwrap(), "streamed token");
+    }
+
+    #[test]
+    fn stream_response_deser_null_content() {
+        let json = r#"{"choices":[{"delta":{"content":null}}]}"#;
+        let resp: StreamResponse = serde_json::from_str(json).unwrap();
+        assert!(resp.choices[0].delta.content.is_none());
+    }
+
+    #[test]
+    fn stream_response_deser_empty_choices() {
+        let json = r#"{"choices":[]}"#;
+        let resp: StreamResponse = serde_json::from_str(json).unwrap();
+        assert!(resp.choices.is_empty());
+    }
+
+    // ── build_messages edge cases ───────────────────────────────────────
+
+    #[test]
+    fn build_messages_empty_input() {
+        let p = CopilotProvider::new(test_config());
+        let result = p.build_messages(&[], None);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn build_messages_empty_input_with_context() {
+        let p = CopilotProvider::new(test_config());
+        let result = p.build_messages(&[], Some("ctx".into()));
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn build_messages_context_only_affects_last_user() {
+        let p = CopilotProvider::new(test_config());
+        let messages = vec![
+            Message { role: MessageRole::User, content: "first".into() },
+            Message { role: MessageRole::Assistant, content: "mid".into() },
+            Message { role: MessageRole::User, content: "second".into() },
+        ];
+        let result = p.build_messages(&messages, Some("bg info".into()));
+        // First user message unchanged
+        assert_eq!(result[0].content, "first");
+        // Last user message gets context prepended
+        assert!(result[2].content.starts_with("Context:\nbg info"));
+        assert!(result[2].content.contains("User: second"));
+    }
+
+    #[test]
+    fn build_messages_context_skipped_when_last_is_assistant() {
+        let p = CopilotProvider::new(test_config());
+        let messages = vec![
+            Message { role: MessageRole::User, content: "q".into() },
+            Message { role: MessageRole::Assistant, content: "a".into() },
+        ];
+        let result = p.build_messages(&messages, Some("ignored ctx".into()));
+        // Last message is assistant, so context is NOT injected
+        assert_eq!(result[1].content, "a");
+        assert_eq!(result[0].content, "q");
+    }
+
+    // ── chat response deserialization edge cases ────────────────────────
+
+    #[test]
+    fn chat_response_deser_no_usage() {
+        let json = r#"{"choices":[{"message":{"role":"assistant","content":"ok"}}]}"#;
+        let resp: ChatResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.choices[0].message.content, "ok");
+        assert!(resp.usage.is_none());
+    }
+
+    #[test]
+    fn chat_response_deser_multiple_choices() {
+        let json = r#"{"choices":[{"message":{"role":"assistant","content":"a1"}},{"message":{"role":"assistant","content":"a2"}}],"usage":{"prompt_tokens":3,"completion_tokens":2}}"#;
+        let resp: ChatResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.choices.len(), 2);
+        assert_eq!(resp.choices[1].message.content, "a2");
+    }
+
+    // ── chat message roundtrip ──────────────────────────────────────────
+
+    #[test]
+    fn chat_message_roundtrip() {
+        let msg = ChatMessage { role: "user".into(), content: "hello world".into() };
+        let json = serde_json::to_string(&msg).unwrap();
+        let msg2: ChatMessage = serde_json::from_str(&json).unwrap();
+        assert_eq!(msg.role, msg2.role);
+        assert_eq!(msg.content, msg2.content);
+    }
+
+    // ── copilot token response edge cases ───────────────────────────────
+
+    #[test]
+    fn copilot_token_response_deser_no_expires() {
+        let json = r#"{"token":"ghu_xyz"}"#;
+        let resp: CopilotTokenResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.token, "ghu_xyz");
+        assert!(resp.expires_at.is_none());
+    }
+
+    #[test]
+    fn copilot_token_boundary_expired() {
+        // Token that expires exactly now should be considered expired (60s buffer)
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        let token = CopilotToken { token: "tok".into(), expires_at: now + 30 };
+        // expires_at is within the 60s buffer, so should be expired
+        assert!(token.is_expired());
+    }
+
+    #[test]
+    fn copilot_token_far_future_not_expired() {
+        let token = CopilotToken {
+            token: "tok".into(),
+            expires_at: u64::MAX / 2, // very far future
+        };
+        assert!(!token.is_expired());
+    }
+
+    // ── provider config preserved ───────────────────────────────────────
+
+    #[test]
+    fn provider_preserves_model_config() {
+        let mut cfg = test_config();
+        cfg.model = "claude-3.5-sonnet".into();
+        cfg.temperature = Some(0.5);
+        cfg.max_tokens = Some(2048);
+        let p = CopilotProvider::new(cfg);
+        assert_eq!(p.config.model, "claude-3.5-sonnet");
+        assert_eq!(p.config.temperature, Some(0.5));
+        assert_eq!(p.config.max_tokens, Some(2048));
+    }
+
+    // ── constants validation ────────────────────────────────────────────
+
+    #[test]
+    fn copilot_base_url_ends_with_domain() {
+        assert!(COPILOT_BASE_URL.starts_with("https://"));
+        assert!(!COPILOT_BASE_URL.ends_with('/'));
+    }
+
+    #[test]
+    fn copilot_token_url_is_https() {
+        assert!(COPILOT_TOKEN_URL.starts_with("https://"));
+    }
 }

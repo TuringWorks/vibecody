@@ -12,7 +12,7 @@ use vibe_ai::agent::AgentStep;
 
 pub fn draw(f: &mut Frame, app: &App) {
     // Diagnostics pane is 4 lines tall; hide it when there are no items to save space.
-    let diag_height = if app.diagnostics_panel.items.is_empty() { 0 } else { 4 };
+    let diag_height = diag_panel_height(app.diagnostics_panel.items.len());
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -313,10 +313,7 @@ fn draw_main_area(f: &mut Frame, app: &App, area: Rect) {
         }
     }
 
-    let total_lines = lines.len() as u16;
-    let view_height = area.height;
-    let max_scroll = total_lines.saturating_sub(view_height);
-    let scroll = max_scroll.saturating_sub(app.scroll_offset);
+    let scroll = compute_scroll(lines.len() as u16, area.height, app.scroll_offset);
 
     let paragraph = Paragraph::new(lines)
         .block(Block::default())
@@ -364,6 +361,38 @@ fn draw_input_area(f: &mut Frame, app: &App, area: Rect) {
 }
 
 // ── Diagnostics panel ─────────────────────────────────────────────────────────
+
+/// Compute the vertical scroll offset for an auto-scrolling view.
+///
+/// `total_lines` is the number of content lines, `view_height` is the visible
+/// rows, and `user_offset` is how far the user has scrolled back from the
+/// bottom. Returns the `(row, col)` scroll value suitable for
+/// `Paragraph::scroll`.
+pub(crate) fn compute_scroll(total_lines: u16, view_height: u16, user_offset: u16) -> u16 {
+    let max_scroll = total_lines.saturating_sub(view_height);
+    max_scroll.saturating_sub(user_offset)
+}
+
+/// Classify a diff line for syntax coloring.  Returns a tag used to pick the
+/// appropriate theme color.
+#[cfg(test)]
+pub(crate) fn classify_diff_line(line: &str) -> &'static str {
+    if line.starts_with('+') {
+        "added"
+    } else if line.starts_with('-') {
+        "removed"
+    } else if line.starts_with("@@") {
+        "hunk_header"
+    } else {
+        "context"
+    }
+}
+
+/// Compute the diagnostics panel height: 4 lines when items exist, 0
+/// otherwise.
+pub(crate) fn diag_panel_height(item_count: usize) -> u16 {
+    if item_count == 0 { 0 } else { 4 }
+}
 
 fn draw_diagnostics_panel(f: &mut Frame, app: &App, area: Rect) {
     use crate::tui::components::diagnostics::DiagSeverity;
@@ -413,4 +442,108 @@ fn draw_diagnostics_panel(f: &mut Frame, app: &App, area: Rect) {
 
     let para = Paragraph::new(lines).scroll((dp.scroll, 0));
     f.render_widget(para, inner);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── compute_scroll ────────────────────────────────────────────────────
+
+    #[test]
+    fn compute_scroll_content_fits_in_view() {
+        // 10 lines in a 20-line view: max_scroll = 0, result = 0
+        assert_eq!(compute_scroll(10, 20, 0), 0);
+    }
+
+    #[test]
+    fn compute_scroll_content_exceeds_view_no_offset() {
+        // 50 lines in a 20-line view: max_scroll = 30, offset = 0 → scroll = 30
+        assert_eq!(compute_scroll(50, 20, 0), 30);
+    }
+
+    #[test]
+    fn compute_scroll_with_user_offset() {
+        // 50 lines, 20 view, user scrolled back 10 → 30 - 10 = 20
+        assert_eq!(compute_scroll(50, 20, 10), 20);
+    }
+
+    #[test]
+    fn compute_scroll_user_offset_exceeds_max() {
+        // 50 lines, 20 view, max_scroll = 30, user offset 50 → saturating_sub → 0
+        assert_eq!(compute_scroll(50, 20, 50), 0);
+    }
+
+    #[test]
+    fn compute_scroll_zero_lines() {
+        assert_eq!(compute_scroll(0, 20, 0), 0);
+    }
+
+    #[test]
+    fn compute_scroll_zero_height() {
+        // 10 lines in a 0-height view: max_scroll = 10
+        assert_eq!(compute_scroll(10, 0, 0), 10);
+    }
+
+    #[test]
+    fn compute_scroll_equal_content_and_view() {
+        // Exact fit: no scrolling needed
+        assert_eq!(compute_scroll(20, 20, 0), 0);
+    }
+
+    // ── classify_diff_line ────────────────────────────────────────────────
+
+    #[test]
+    fn classify_added_line() {
+        assert_eq!(classify_diff_line("+added line"), "added");
+    }
+
+    #[test]
+    fn classify_removed_line() {
+        assert_eq!(classify_diff_line("-removed line"), "removed");
+    }
+
+    #[test]
+    fn classify_hunk_header() {
+        assert_eq!(classify_diff_line("@@ -1,3 +1,4 @@"), "hunk_header");
+    }
+
+    #[test]
+    fn classify_context_line() {
+        assert_eq!(classify_diff_line(" unchanged line"), "context");
+    }
+
+    #[test]
+    fn classify_empty_line() {
+        assert_eq!(classify_diff_line(""), "context");
+    }
+
+    #[test]
+    fn classify_plus_only() {
+        assert_eq!(classify_diff_line("+"), "added");
+    }
+
+    #[test]
+    fn classify_minus_only() {
+        assert_eq!(classify_diff_line("-"), "removed");
+    }
+
+    #[test]
+    fn classify_at_but_not_double() {
+        // Single @ is context, not a hunk header
+        assert_eq!(classify_diff_line("@ something"), "context");
+    }
+
+    // ── diag_panel_height ─────────────────────────────────────────────────
+
+    #[test]
+    fn diag_panel_height_zero_items() {
+        assert_eq!(diag_panel_height(0), 0);
+    }
+
+    #[test]
+    fn diag_panel_height_some_items() {
+        assert_eq!(diag_panel_height(1), 4);
+        assert_eq!(diag_panel_height(100), 4);
+    }
 }

@@ -113,7 +113,7 @@ export function BugBotPanel({ workspacePath }: BugBotPanelProps) {
  borderRadius: 5,
  border: "none",
  background: scanning ? "var(--bg-secondary)" : "var(--accent-blue, #007acc)",
- color: "#fff",
+ color: "var(--text-primary, #fff)",
  cursor: scanning ? "default" : "pointer",
  fontWeight: 600,
  fontSize: 12,
@@ -136,7 +136,7 @@ export function BugBotPanel({ workspacePath }: BugBotPanelProps) {
  </div>
 
  {error && (
- <div style={{ background: "#ff4d4f22", color: "#ff4d4f", borderRadius: 5, padding: "6px 10px", fontSize: 12 }}>
+ <div style={{ background: "rgba(244,67,54,0.13)", color: "var(--error-color, #ff4d4f)", borderRadius: 5, padding: "6px 10px", fontSize: 12 }}>
  {error}
  </div>
  )}
@@ -238,7 +238,7 @@ export function BugBotPanel({ workspacePath }: BugBotPanelProps) {
  <span style={{ fontSize: 10, padding: "1px 5px", borderRadius: 3, background: `${SEVERITY_COLOR[report.severity]}22`, color: SEVERITY_COLOR[report.severity], fontWeight: 600 }}>
  {report.severity.toUpperCase()}
  </span>
- <span style={{ fontSize: 10, padding: "1px 5px", borderRadius: 3, background: "rgba(255,255,255,0.07)", color: "var(--text-secondary)" }}>
+ <span style={{ fontSize: 10, padding: "1px 5px", borderRadius: 3, background: "var(--bg-secondary)", color: "var(--text-secondary)" }}>
  {CATEGORY_LABEL[report.category] || report.category}
  </span>
  {report.file_path && (

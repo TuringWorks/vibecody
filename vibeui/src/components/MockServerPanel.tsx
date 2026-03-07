@@ -166,18 +166,18 @@ export function MockServerPanel() {
           style={{ ...inputStyle, width: 60, textAlign: "center" }}
         />
         {!running ? (
-          <button onClick={handleStart} disabled={loading} style={{ ...btnStyle, background: "#a6e3a1", color: "var(--bg-tertiary)" }}>
+          <button onClick={handleStart} disabled={loading} style={{ ...btnStyle, background: "var(--success-color, #4caf50)", color: "var(--bg-tertiary)" }}>
             {loading ? "..." : "Start"}
           </button>
         ) : (
-          <button onClick={handleStop} style={{ ...btnStyle, background: "#f38ba8", color: "var(--bg-tertiary)" }}>
+          <button onClick={handleStop} style={{ ...btnStyle, background: "var(--error-color, #f44336)", color: "var(--bg-tertiary)" }}>
             Stop
           </button>
         )}
         <span style={{
           fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 10,
           background: running ? "rgba(166,227,161,0.15)" : "rgba(108,112,134,0.15)",
-          color: running ? "#a6e3a1" : "#6c7086",
+          color: running ? "var(--success-color, #4caf50)" : "var(--text-secondary, #aaa)",
         }}>
           {running ? `Running :${port}` : "Stopped"}
         </span>
@@ -223,7 +223,7 @@ export function MockServerPanel() {
               </select>
               <input placeholder="/api/path" value={addPath} onChange={(e) => setAddPath(e.target.value)} style={{ ...inputStyle, flex: 1, minWidth: 120 }} />
               <input placeholder="200" value={addStatus} onChange={(e) => setAddStatus(e.target.value)} style={{ ...inputStyle, width: 50, textAlign: "center" }} />
-              <button onClick={handleAddRoute} style={{ ...btnStyle, background: "var(--accent-primary, #6366f1)", color: "#fff" }}>Add</button>
+              <button onClick={handleAddRoute} style={{ ...btnStyle, background: "var(--accent-color, #007acc)", color: "var(--text-primary, #e0e0e0)" }}>Add</button>
             </div>
             <input
               placeholder='Response body JSON...'
@@ -293,7 +293,7 @@ export function MockServerPanel() {
                 <span style={{
                   fontSize: 9, padding: "1px 6px", borderRadius: 3,
                   background: r.matched_route_id ? "rgba(166,227,161,0.15)" : "rgba(243,139,168,0.15)",
-                  color: r.matched_route_id ? "#a6e3a1" : "#f38ba8",
+                  color: r.matched_route_id ? "var(--success-color, #4caf50)" : "var(--error-color, #f44336)",
                 }}>
                   {r.matched_route_id ? "matched" : "no match"}
                 </span>

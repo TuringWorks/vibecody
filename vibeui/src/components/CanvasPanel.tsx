@@ -154,7 +154,7 @@ export default function CanvasPanel() {
  <div style={{ display: "flex", height: "100%", background: "var(--bg-primary, #1e1e1e)", color: "var(--text-secondary, #ccc)" }}>
  {/* Palette sidebar */}
  {showPalette && (
- <div style={{ width: 180, borderRight: "1px solid #333", padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+ <div style={{ width: 180, borderRight: "1px solid var(--border-color, #333)", padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
  <div style={{ fontWeight: 600, marginBottom: 8 }}>Node Palette</div>
  {(["provider", "skill", "tool", "gateway", "transform"] as CanvasNode["type"][]).map(type => (
  <button
@@ -173,20 +173,20 @@ export default function CanvasPanel() {
  + {type.charAt(0).toUpperCase() + type.slice(1)}
  </button>
  ))}
- <hr style={{ borderColor: "#333", margin: "8px 0" }} />
+ <hr style={{ borderColor: "var(--border-color, #333)", margin: "8px 0" }} />
  <div style={{ fontSize: 11, opacity: 0.7 }}>
  Click a node type to add it to the canvas. Drag nodes to position. Right-click to connect.
  </div>
 
- <hr style={{ borderColor: "#333", margin: "8px 0" }} />
+ <hr style={{ borderColor: "var(--border-color, #333)", margin: "8px 0" }} />
  <div style={{ fontWeight: 600 }}>Workflows</div>
  {workflows.map((w, i) => (
  <button
  key={i}
  onClick={() => setCurrentWorkflow(w)}
  style={{
- background: "#2a2a2a",
- border: "1px solid #444",
+ background: "var(--bg-secondary, #2a2a2a)",
+ border: "1px solid var(--border-color, #444)",
  color: "var(--text-secondary, #ccc)",
  padding: "4px 8px",
  borderRadius: 4,
@@ -204,7 +204,7 @@ export default function CanvasPanel() {
  {/* Canvas */}
  <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
  {/* Toolbar */}
- <div style={{ display: "flex", gap: 8, padding: "8px 12px", borderBottom: "1px solid #333", alignItems: "center" }}>
+ <div style={{ display: "flex", gap: 8, padding: "8px 12px", borderBottom: "1px solid var(--border-color, #333)", alignItems: "center" }}>
  <button onClick={() => setShowPalette(!showPalette)} style={{ background: "var(--bg-secondary, #333)", border: "none", color: "var(--text-secondary, #ccc)", padding: "4px 8px", borderRadius: 4, cursor: "pointer" }}>
  {showPalette ? "◀" : ""} Palette
  </button>
@@ -212,16 +212,16 @@ export default function CanvasPanel() {
  value={newName || currentWorkflow.name}
  onChange={e => setNewName(e.target.value)}
  placeholder="Workflow name"
- style={{ background: "#2a2a2a", border: "1px solid #444", color: "var(--text-secondary, #ccc)", padding: "4px 8px", borderRadius: 4, flex: 1, maxWidth: 200 }}
+ style={{ background: "var(--bg-secondary, #2a2a2a)", border: "1px solid var(--border-color, #444)", color: "var(--text-secondary, #ccc)", padding: "4px 8px", borderRadius: 4, flex: 1, maxWidth: 200 }}
  />
- <button onClick={handleSave} style={{ background: "#10b981", border: "none", color: "#fff", padding: "4px 12px", borderRadius: 4, cursor: "pointer" }}>
+ <button onClick={handleSave} style={{ background: "var(--success-color, #10b981)", border: "none", color: "var(--text-primary, #fff)", padding: "4px 12px", borderRadius: 4, cursor: "pointer" }}>
  Save
  </button>
- <button onClick={handleRun} style={{ background: "#4a9eff", border: "none", color: "#fff", padding: "4px 12px", borderRadius: 4, cursor: "pointer" }}>
+ <button onClick={handleRun} style={{ background: "var(--accent-color, #4a9eff)", border: "none", color: "var(--text-primary, #fff)", padding: "4px 12px", borderRadius: 4, cursor: "pointer" }}>
  Run
  </button>
  {connecting && (
- <span style={{ color: "#f59e0b", fontSize: 12 }}>Click a target node to connect...</span>
+ <span style={{ color: "var(--warning-color, #f59e0b)", fontSize: 12 }}>Click a target node to connect...</span>
  )}
  <span style={{ marginLeft: "auto", fontSize: 12, opacity: 0.5 }}>
  {currentWorkflow.nodes.length} nodes, {currentWorkflow.edges.length} edges
@@ -239,7 +239,7 @@ export default function CanvasPanel() {
  {/* Grid pattern */}
  <defs>
  <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
- <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#2a2a2a" strokeWidth="0.5" />
+ <path d="M 20 0 L 0 0 0 20" fill="none" stroke="var(--border-color, #2a2a2a)" strokeWidth="0.5" />
  </pattern>
  </defs>
  <rect width="100%" height="100%" fill="url(#grid)" />
@@ -255,12 +255,12 @@ export default function CanvasPanel() {
  <path
  d={`M ${from.x} ${from.y} Q ${midX} ${from.y} ${to.x} ${to.y}`}
  fill="none"
- stroke="#555"
+ stroke="var(--text-secondary, #555)"
  strokeWidth={2}
  markerEnd="url(#arrowhead)"
  />
  {edge.label && (
- <text x={midX} y={midY - 5} fill="#777" fontSize={10} textAnchor="middle">
+ <text x={midX} y={midY - 5} fill="var(--text-secondary, #777)" fontSize={10} textAnchor="middle">
  {edge.label}
  </text>
  )}
@@ -271,7 +271,7 @@ export default function CanvasPanel() {
  {/* Arrow marker */}
  <defs>
  <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
- <polygon points="0 0, 10 3.5, 0 7" fill="#555" />
+ <polygon points="0 0, 10 3.5, 0 7" fill="var(--text-secondary, #555)" />
  </marker>
  </defs>
 
@@ -290,7 +290,7 @@ export default function CanvasPanel() {
  height={NODE_HEIGHT}
  rx={6}
  fill={NODE_COLORS[node.type] + "22"}
- stroke={selectedNode === node.id ? "#fff" : NODE_COLORS[node.type]}
+ stroke={selectedNode === node.id ? "var(--text-primary, #fff)" : NODE_COLORS[node.type]}
  strokeWidth={selectedNode === node.id ? 2 : 1}
  />
  <circle
@@ -302,7 +302,7 @@ export default function CanvasPanel() {
  <text
  x={node.x + 24}
  y={node.y + NODE_HEIGHT / 2 + 4}
- fill="#ccc"
+ fill="var(--text-secondary, #ccc)"
  fontSize={12}
  fontFamily="monospace"
  >
@@ -312,7 +312,7 @@ export default function CanvasPanel() {
  <text
  x={node.x + NODE_WIDTH - 16}
  y={node.y + 14}
- fill="#666"
+ fill="var(--text-secondary, #666)"
  fontSize={12}
  style={{ cursor: "pointer" }}
  onClick={(e) => { e.stopPropagation(); deleteNode(node.id); }}

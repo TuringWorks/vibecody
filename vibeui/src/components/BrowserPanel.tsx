@@ -227,8 +227,8 @@ export function BrowserPanel() {
  style={{
  ...navBtnStyle,
  background: inspectMode ? 'rgba(99,102,241,0.2)' : 'none',
- borderColor: inspectMode ? '#6366f1' : 'var(--border-color)',
- color: inspectMode ? '#6366f1' : 'var(--text-primary)',
+ borderColor: inspectMode ? 'var(--accent-color, #007acc)' : 'var(--border-color)',
+ color: inspectMode ? 'var(--accent-color, #007acc)' : 'var(--text-primary)',
  }}
  ></button>
  <button
@@ -237,8 +237,8 @@ export function BrowserPanel() {
  style={{
  ...navBtnStyle,
  background: cdpConnected ? 'rgba(34,197,94,0.2)' : 'none',
- borderColor: cdpConnected ? '#22c55e' : 'var(--border-color)',
- color: cdpConnected ? '#22c55e' : 'var(--text-primary)',
+ borderColor: cdpConnected ? 'var(--success-color, #4caf50)' : 'var(--border-color)',
+ color: cdpConnected ? 'var(--success-color, #4caf50)' : 'var(--text-primary)',
  fontSize: '11px', padding: '3px 8px',
  }}
  >CDP</button>
@@ -263,7 +263,7 @@ export function BrowserPanel() {
  style={{
  padding: '2px 8px', fontSize: '11px',
  background: iframeSrc === url ? 'var(--accent-blue)' : 'var(--bg-tertiary)',
- color: iframeSrc === url ? '#fff' : 'var(--text-secondary)',
+ color: iframeSrc === url ? 'var(--text-primary, #e0e0e0)' : 'var(--text-secondary)',
  border: '1px solid var(--border-color)', borderRadius: '10px',
  cursor: 'pointer',
  }}
@@ -287,7 +287,7 @@ export function BrowserPanel() {
  }} onClick={() => { setUrlInput(t.url); navigate(t.url); }}>
  <span style={{
  padding: '0 4px', borderRadius: 2, fontSize: 9,
- background: 'rgba(34,197,94,0.15)', color: '#22c55e',
+ background: 'rgba(34,197,94,0.15)', color: 'var(--success-color, #4caf50)',
  }}>PAGE</span>
  <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{t.title.slice(0, 40)}</span>
  <span style={{ color: 'var(--text-secondary)', fontFamily: 'monospace', fontSize: 10 }}>
@@ -329,10 +329,10 @@ export function BrowserPanel() {
  maxHeight: '180px', overflowY: 'auto',
  }}>
  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
- <span style={{ fontWeight: 'bold', color: '#6366f1' }}>
+ <span style={{ fontWeight: 'bold', color: 'var(--accent-color, #007acc)' }}>
  &lt;{selectedElement.tagName}&gt;
  {selectedElement.reactComponent && (
- <span style={{ color: '#ce93d8', marginLeft: '8px' }}>
+ <span style={{ color: 'var(--text-secondary, #aaa)', marginLeft: '8px' }}>
  React: &lt;{selectedElement.reactComponent}&gt;
  </span>
  )}
@@ -341,7 +341,7 @@ export function BrowserPanel() {
  <button
  onClick={() => setEditMode(true)}
  style={{
- background: '#6366f1', color: '#fff',
+ background: 'var(--accent-color, #007acc)', color: 'var(--text-primary, #e0e0e0)',
  border: 'none', borderRadius: '4px', padding: '3px 10px',
  cursor: 'pointer', fontSize: '11px', fontWeight: 600,
  }}
@@ -349,7 +349,7 @@ export function BrowserPanel() {
  <button
  onClick={sendToChat}
  style={{
- background: 'var(--accent-blue, #007acc)', color: '#fff',
+ background: 'var(--accent-color, #007acc)', color: 'var(--text-primary, #e0e0e0)',
  border: 'none', borderRadius: '4px', padding: '3px 10px',
  cursor: 'pointer', fontSize: '11px',
  }}

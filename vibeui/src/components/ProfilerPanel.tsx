@@ -117,7 +117,7 @@ export function ProfilerPanel({ workspacePath }: ProfilerPanelProps) {
           disabled={running || !tool}
           style={{
             padding: "8px 18px", fontSize: 13, fontWeight: 700,
-            background: running ? "var(--bg-tertiary)" : "#f38ba8",
+            background: running ? "var(--bg-tertiary)" : "var(--accent-color, #007acc)",
             color: "var(--bg-tertiary)", border: "none", borderRadius: 6,
             cursor: running || !tool ? "not-allowed" : "pointer",
             whiteSpace: "nowrap",
@@ -129,7 +129,7 @@ export function ProfilerPanel({ workspacePath }: ProfilerPanelProps) {
 
       {/* Error */}
       {error && (
-        <div style={{ background: "rgba(243,139,168,0.15)", border: "1px solid #f38ba8", borderRadius: 6, padding: 8, fontSize: 11, color: "var(--text-danger, #f38ba8)" }}>
+        <div style={{ background: "rgba(243,139,168,0.15)", border: "1px solid var(--error-color, #f44336)", borderRadius: 6, padding: 8, fontSize: 11, color: "var(--error-color, #f44336)" }}>
           {error}
         </div>
       )}

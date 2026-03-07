@@ -190,7 +190,7 @@ export default function CicdPanel({ workspacePath }: CicdPanelProps) {
  border: "1px solid",
  borderColor: buildType === bt.id ? "var(--accent-color)" : "var(--border-color)",
  background: buildType === bt.id ? "var(--accent-color)" : "transparent",
- color: buildType === bt.id ? "#fff" : "var(--text-secondary)",
+ color: buildType === bt.id ? "var(--text-primary, #e0e0e0)" : "var(--text-secondary)",
  cursor: "pointer",
  }}
  >
@@ -216,7 +216,7 @@ export default function CicdPanel({ workspacePath }: CicdPanelProps) {
  border: "1px solid",
  borderColor: platform === p.id ? "var(--accent-color)" : "var(--border-color)",
  background: platform === p.id ? "var(--accent-color)" : "var(--bg-secondary)",
- color: platform === p.id ? "#fff" : "var(--text-secondary)",
+ color: platform === p.id ? "var(--text-primary, #e0e0e0)" : "var(--text-secondary)",
  cursor: "pointer",
  }}
  >
@@ -235,7 +235,7 @@ export default function CicdPanel({ workspacePath }: CicdPanelProps) {
  padding: "7px 16px",
  fontSize: 13,
  background: "var(--accent-color)",
- color: "#fff",
+ color: "var(--text-primary, #e0e0e0)",
  border: "none",
  borderRadius: 6,
  cursor: loading ? "wait" : "pointer",
@@ -306,7 +306,7 @@ export default function CicdPanel({ workspacePath }: CicdPanelProps) {
  padding: "4px 10px", fontSize: 12, borderRadius: 12, border: "1px solid",
  borderColor: buildType === bt.id ? "var(--accent-color)" : "var(--border-color)",
  background: buildType === bt.id ? "var(--accent-color)" : "transparent",
- color: buildType === bt.id ? "#fff" : "var(--text-secondary)",
+ color: buildType === bt.id ? "var(--text-primary, #e0e0e0)" : "var(--text-secondary)",
  cursor: "pointer",
  }}
  >{bt.label}</button>
@@ -336,7 +336,7 @@ export default function CicdPanel({ workspacePath }: CicdPanelProps) {
  disabled={loading || !workspacePath || releaseTargets.size === 0}
  style={{
  alignSelf: "flex-start", padding: "7px 16px", fontSize: 13,
- background: "var(--accent-color)", color: "#fff", border: "none",
+ background: "var(--accent-color)", color: "var(--text-primary, #e0e0e0)", border: "none",
  borderRadius: 6, cursor: loading ? "wait" : "pointer", opacity: loading ? 0.7 : 1,
  }}
  >
@@ -378,7 +378,7 @@ export default function CicdPanel({ workspacePath }: CicdPanelProps) {
  padding: "4px 10px", fontSize: 12, borderRadius: 12, border: "1px solid",
  borderColor: platform === p.id ? "var(--accent-color)" : "var(--border-color)",
  background: platform === p.id ? "var(--accent-color)" : "transparent",
- color: platform === p.id ? "#fff" : "var(--text-secondary)",
+ color: platform === p.id ? "var(--text-primary, #e0e0e0)" : "var(--text-secondary)",
  cursor: "pointer",
  }}>{p.icon} {p.label}</button>
  ))}

@@ -254,7 +254,7 @@ export function DiffReviewPanel({ original, modified, filePath, onApply }: DiffR
  onClick={handleApply}
  style={{
  ...btnStyle("var(--accent-blue, #007acc)"),
- color: "#fff",
+ color: "var(--text-primary, #e0e0e0)",
  fontWeight: 600,
  }}
  >
@@ -310,13 +310,13 @@ function HunkBlock({ hunk, onToggle }: { hunk: DiffHunk; onToggle: () => void })
  style={{
  padding: "2px 10px", borderRadius: 3, border: "none",
  background: hunk.accepted ? "#2d5a27" : "#5a2727",
- color: "#fff", cursor: "pointer", fontWeight: 600, fontSize: 11,
+ color: "var(--text-primary, #e0e0e0)", cursor: "pointer", fontWeight: 600, fontSize: 11,
  }}
  >
  {hunk.accepted ? "✓ Accept" : "✗ Reject"}
  </button>
- <span style={{ color: "#4ec54a" }}>+{insertCount}</span>
- <span style={{ color: "#e05454" }}>-{deleteCount}</span>
+ <span style={{ color: "var(--success-color, #4caf50)" }}>+{insertCount}</span>
+ <span style={{ color: "var(--error-color, #f44336)" }}>-{deleteCount}</span>
  </div>
 
  {/* Hunk lines */}
@@ -332,8 +332,8 @@ function HunkBlock({ hunk, onToggle }: { hunk: DiffHunk; onToggle: () => void })
  ? "rgba(100,40,40,0.25)"
  : "transparent",
  borderLeft: `3px solid ${
- line.kind === "insert" ? "#4ec54a"
- : line.kind === "delete" ? "#e05454"
+ line.kind === "insert" ? "var(--success-color, #4caf50)"
+ : line.kind === "delete" ? "var(--error-color, #f44336)"
  : "transparent"
  }`,
  }}

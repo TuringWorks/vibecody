@@ -63,15 +63,15 @@ const S = {
         padding: "6px 14px",
         fontSize: 12,
         fontWeight: 500 as const,
-        background: "#7c3aed",
+        background: "var(--accent-color, #007acc)",
         color: "var(--text-primary, #e0e0e0)",
-        border: "1px solid #7c3aed",
+        border: "1px solid var(--accent-color, #007acc)",
         borderRadius: 4,
         cursor: "pointer",
         transition: "background 0.15s",
     },
-    btnHover: { background: "#6d28d9" },
-    label: { display: "block", fontSize: 11, color: "#aaa", marginBottom: 2 },
+    btnHover: { background: "var(--accent-color, #007acc)" },
+    label: { display: "block", fontSize: 11, color: "var(--text-secondary, #aaa)", marginBottom: 2 },
     input: {
         width: "100%",
         boxSizing: "border-box" as const,
@@ -79,7 +79,7 @@ const S = {
         fontSize: 12,
         background: "var(--bg-tertiary)",
         color: "var(--text-primary, #e0e0e0)",
-        border: "1px solid #444",
+        border: "1px solid var(--border-color, #333)",
         borderRadius: 4,
         outline: "none",
     },
@@ -92,13 +92,13 @@ const S = {
     th: {
         textAlign: "left" as const,
         padding: "6px 8px",
-        borderBottom: "2px solid #444",
+        borderBottom: "2px solid var(--border-color, #333)",
         background: "var(--bg-secondary)",
         fontWeight: 600,
         fontSize: 11,
-        color: "#bbb",
+        color: "var(--text-secondary, #aaa)",
     },
-    td: { padding: "5px 8px", borderBottom: "1px solid #333" },
+    td: { padding: "5px 8px", borderBottom: "1px solid var(--border-color, #333)" },
     evenRow: { background: "rgba(124,58,237,0.06)" },
 };
 
@@ -112,8 +112,8 @@ function ButtonsBlock({ props, onAction }: { props: Record<string, unknown>; onA
                 <button
                     key={opt}
                     style={S.btn}
-                    onMouseEnter={(e) => { (e.currentTarget.style.background = "#6d28d9"); }}
-                    onMouseLeave={(e) => { (e.currentTarget.style.background = "#7c3aed"); }}
+                    onMouseEnter={(e) => { (e.currentTarget.style.opacity = "0.85"); }}
+                    onMouseLeave={(e) => { (e.currentTarget.style.opacity = "1"); }}
                     onClick={() => onAction({ type: "button_click", value: opt })}
                 >
                     {opt}

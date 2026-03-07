@@ -95,7 +95,7 @@ function BaseInput({ label, prefix, value, onChange, valid, mono = true }: {
  <span style={{ width: 60, fontSize: 10, fontWeight: 700, color: "var(--text-muted)", flexShrink: 0 }}>{label}</span>
  <span style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "monospace", flexShrink: 0 }}>{prefix}</span>
  <input value={value} onChange={e => onChange(e.target.value)} spellCheck={false}
- style={{ flex: 1, padding: "4px 8px", fontSize: 12, fontFamily: mono ? "monospace" : "inherit", background: !valid && value ? "rgba(243,139,168,0.08)" : "var(--bg-primary)", border: `1px solid ${!valid && value ? "#f38ba8" : "var(--border-color)"}`, borderRadius: 4, color: "var(--text-primary)", outline: "none" }} />
+ style={{ flex: 1, padding: "4px 8px", fontSize: 12, fontFamily: mono ? "monospace" : "inherit", background: !valid && value ? "rgba(243,139,168,0.08)" : "var(--bg-primary)", border: `1px solid ${!valid && value ? "var(--error-color, #f38ba8)" : "var(--border-color)"}`, borderRadius: 4, color: "var(--text-primary)", outline: "none" }} />
  </div>
  );
 }
@@ -208,17 +208,17 @@ export function NumberBasePanel() {
  <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
  <span style={{ fontSize: 13, fontWeight: 600 }}>Number Bases</span>
  {(["convert","bitwise","float32"] as SubTab[]).map(t => (
- <button key={t} onClick={() => setSubTab(t)} style={{ padding: "2px 10px", fontSize: 10, borderRadius: 10, background: subTab === t ? "rgba(99,102,241,0.2)" : "var(--bg-primary)", border: `1px solid ${subTab === t ? "#6366f1" : "var(--border-color)"}`, color: subTab === t ? "#89b4fa" : "var(--text-muted)", cursor: "pointer", fontWeight: subTab === t ? 700 : 400 }}>
+ <button key={t} onClick={() => setSubTab(t)} style={{ padding: "2px 10px", fontSize: 10, borderRadius: 10, background: subTab === t ? "rgba(99,102,241,0.2)" : "var(--bg-primary)", border: `1px solid ${subTab === t ? "var(--accent-color, #6366f1)" : "var(--border-color)"}`, color: subTab === t ? "var(--info-color, #89b4fa)" : "var(--text-muted)", cursor: "pointer", fontWeight: subTab === t ? 700 : 400 }}>
  {t === "convert" ? "Convert" : t === "bitwise" ? "Bitwise" : "Float32"}
  </button>
  ))}
  <div style={{ marginLeft: "auto", display: "flex", gap: 6, alignItems: "center" }}>
  {/* Bit width */}
  {BIT_WIDTHS.map(w => (
- <button key={w} onClick={() => setBits(w)} style={{ padding: "2px 8px", fontSize: 10, borderRadius: 4, background: bits === w ? "rgba(99,102,241,0.2)" : "var(--bg-primary)", border: `1px solid ${bits === w ? "#6366f1" : "var(--border-color)"}`, color: bits === w ? "#89b4fa" : "var(--text-muted)", cursor: "pointer" }}>{w}-bit</button>
+ <button key={w} onClick={() => setBits(w)} style={{ padding: "2px 8px", fontSize: 10, borderRadius: 4, background: bits === w ? "rgba(99,102,241,0.2)" : "var(--bg-primary)", border: `1px solid ${bits === w ? "var(--accent-color, #6366f1)" : "var(--border-color)"}`, color: bits === w ? "var(--info-color, #89b4fa)" : "var(--text-muted)", cursor: "pointer" }}>{w}-bit</button>
  ))}
  <label style={{ fontSize: 10, color: "var(--text-muted)", display: "flex", gap: 4, alignItems: "center", cursor: "pointer" }}>
- <input type="checkbox" checked={signed} onChange={e => setSigned(e.target.checked)} style={{ accentColor: "#6366f1" }} />
+ <input type="checkbox" checked={signed} onChange={e => setSigned(e.target.checked)} style={{ accentColor: "var(--accent-color, #6366f1)" }} />
  signed
  </label>
  </div>
@@ -280,7 +280,7 @@ export function NumberBasePanel() {
  ["A << 4", bitwiseOps.SHL4, "#fab387"],
  ["A >> 4", bitwiseOps.SHR4, "#f9e2af"],
  ] as [string, bigint, string][]).map(([label, result, colour]) => (
- <div key={label} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)", padding: "5px 0", display: "flex", gap: 10, alignItems: "center" }}>
+ <div key={label} style={{ borderBottom: "1px solid var(--border-color, rgba(255,255,255,0.04))", padding: "5px 0", display: "flex", gap: 10, alignItems: "center" }}>
  <span style={{ width: 80, fontSize: 11, fontWeight: 700, color: "var(--text-muted)", flexShrink: 0, fontFamily: "monospace" }}>{label}</span>
  <span style={{ fontFamily: "monospace", fontSize: 11, color: colour, flex: 1 }}>0x{result.toString(16).toUpperCase().padStart(bits / 4, "0")}</span>
  <span style={{ fontFamily: "monospace", fontSize: 10, color: "var(--text-muted)" }}>{result.toString(10)}</span>

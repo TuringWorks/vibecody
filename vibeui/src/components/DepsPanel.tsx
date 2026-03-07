@@ -126,8 +126,8 @@ export function DepsPanel({ workspacePath }: DepsPanelProps) {
           disabled={scanning || !manager}
           style={{
             padding: "6px 16px", fontSize: 12, fontWeight: 600,
-            background: scanning ? "var(--bg-tertiary)" : "#6366f1",
-            color: "#fff", border: "none", borderRadius: 6,
+            background: scanning ? "var(--bg-tertiary)" : "var(--accent-color, #007acc)",
+            color: "var(--text-primary, #e0e0e0)", border: "none", borderRadius: 6,
             cursor: scanning || !manager ? "not-allowed" : "pointer",
           }}
         >
@@ -150,10 +150,10 @@ export function DepsPanel({ workspacePath }: DepsPanelProps) {
             border: "1px solid var(--border-color)",
           }}>
             <span>Total: <strong>{result.total}</strong></span>
-            <span style={{ color: result.outdated > 0 ? "#fab387" : "inherit" }}>
+            <span style={{ color: result.outdated > 0 ? "var(--warning-color, #ff9800)" : "inherit" }}>
               Outdated: <strong>{result.outdated}</strong>
             </span>
-            <span style={{ color: result.vulnerable > 0 ? "#f38ba8" : "inherit" }}>
+            <span style={{ color: result.vulnerable > 0 ? "var(--error-color, #f44336)" : "inherit" }}>
               Vulnerable: <strong>{result.vulnerable}</strong>
             </span>
           </div>
@@ -211,7 +211,7 @@ export function DepsPanel({ workspacePath }: DepsPanelProps) {
                   </span>
                   <span style={{ textAlign: "right", fontFamily: "monospace", opacity: 0.7 }}>{dep.current}</span>
                   <span style={{ textAlign: "right", fontFamily: "monospace", opacity: 0.7 }}>{dep.wanted}</span>
-                  <span style={{ textAlign: "right", fontFamily: "monospace", color: dep.is_outdated ? "#fab387" : "inherit" }}>
+                  <span style={{ textAlign: "right", fontFamily: "monospace", color: dep.is_outdated ? "var(--warning-color, #ff9800)" : "inherit" }}>
                     {dep.latest}
                   </span>
                   <span style={{ textAlign: "center", fontSize: 10 }}>

@@ -76,9 +76,9 @@ function artifactLabel(a: ArtifactPayload): string {
 
 function severityColor(severity: string): string {
  switch (severity) {
- case "critical": return "#f44";
- case "warning": return "#fa0";
- default: return "#5af";
+ case "critical": return "var(--error-color, #f44)";
+ case "warning": return "var(--warning-color, #fa0)";
+ default: return "var(--info-color, #5af)";
  }
 }
 
@@ -89,7 +89,7 @@ function TaskListBody({ items }: { items: TaskItem[] }) {
  <div>
  {items.map((item) => (
  <div key={item.id} style={{ display: "flex", alignItems: "flex-start", gap: "8px", marginBottom: "4px" }}>
- <span style={{ color: item.done ? "#4c4" : "var(--text-secondary)", marginTop: "2px" }}>
+ <span style={{ color: item.done ? "var(--success-color, #4c4)" : "var(--text-secondary)", marginTop: "2px" }}>
  {item.done ? "☑" : "☐"}
  </span>
  <span style={{ fontSize: "12px", color: item.done ? "var(--text-secondary)" : "var(--text-primary)", textDecoration: item.done ? "line-through" : "none" }}>
@@ -160,11 +160,11 @@ function CommandOutputBody({ command, stdout, stderr, exit_code }: { command: st
  </pre>
  )}
  {stderr && (
- <pre style={{ fontSize: "11px", margin: "0 0 4px 0", color: "#f44", maxHeight: "80px", overflowY: "auto" }}>
+ <pre style={{ fontSize: "11px", margin: "0 0 4px 0", color: "var(--error-color, #f44)", maxHeight: "80px", overflowY: "auto" }}>
  {stderr.trim()}
  </pre>
  )}
- <div style={{ fontSize: "10px", color: exit_code === 0 ? "#4c4" : "#f44" }}>
+ <div style={{ fontSize: "10px", color: exit_code === 0 ? "var(--success-color, #4c4)" : "var(--error-color, #f44)" }}>
  Exit code: {exit_code}
  </div>
  </div>
@@ -175,8 +175,8 @@ function TestResultsBody({ passed, failed, skipped, output }: { passed: number; 
  return (
  <div>
  <div style={{ display: "flex", gap: "12px", marginBottom: "8px" }}>
- <span style={{ fontSize: "12px", color: "#4c4" }}> {passed} passed</span>
- {failed > 0 && <span style={{ fontSize: "12px", color: "#f44" }}> {failed} failed</span>}
+ <span style={{ fontSize: "12px", color: "var(--success-color, #4c4)" }}> {passed} passed</span>
+ {failed > 0 && <span style={{ fontSize: "12px", color: "var(--error-color, #f44)" }}> {failed} failed</span>}
  {skipped > 0 && <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>{skipped} skipped</span>}
  </div>
  {output && (
@@ -192,7 +192,7 @@ function ReviewReportBody({ issues, summary, score }: { issues: ReviewIssueRef[]
  return (
  <div>
  <div style={{ fontSize: "12px", color: "var(--text-primary)", marginBottom: "8px" }}>{summary}</div>
- <div style={{ fontSize: "11px", color: score >= 8 ? "#4c4" : score >= 5 ? "#fa0" : "#f44", marginBottom: "8px" }}>
+ <div style={{ fontSize: "11px", color: score >= 8 ? "var(--success-color, #4c4)" : score >= 5 ? "var(--warning-color, #fa0)" : "var(--error-color, #f44)", marginBottom: "8px" }}>
  Score: {score.toFixed(1)}/10
  </div>
  {issues.map((issue, i) => (
@@ -281,7 +281,7 @@ function ArtifactCard({
  <div style={{ fontSize: "10px", color: "var(--text-secondary)" }}>
  Step {artifact.step}
  {pendingAnnotations.length > 0 && (
- <span style={{ marginLeft: "8px", color: "#fa0" }}>
+ <span style={{ marginLeft: "8px", color: "var(--warning-color, #fa0)" }}>
  {pendingAnnotations.length} pending note{pendingAnnotations.length > 1 ? "s" : ""}
  </span>
  )}
@@ -300,7 +300,7 @@ function ArtifactCard({
  <div style={{ marginTop: "10px", paddingTop: "8px", borderTop: "1px solid var(--border-color)" }}>
  {artifact.annotations.map((ann, i) => (
  <div key={i} style={{ marginBottom: "4px", display: "flex", gap: "6px", alignItems: "flex-start" }}>
- <span style={{ fontSize: "10px", color: ann.applied ? "#4c4" : "#fa0" }}>
+ <span style={{ fontSize: "10px", color: ann.applied ? "var(--success-color, #4c4)" : "var(--warning-color, #fa0)" }}>
  {ann.applied ? "✔" : ""}
  </span>
  <span style={{ fontSize: "11px", color: ann.applied ? "var(--text-secondary)" : "var(--text-primary)", fontStyle: "italic" }}>
@@ -334,7 +334,7 @@ function ArtifactCard({
  outline: "none",
  }}
  />
- <button onClick={submitAnnotation} style={{ padding: "4px 8px", fontSize: "11px", background: "var(--accent-blue, #007acc)", color: "#fff", border: "none", borderRadius: "3px", cursor: "pointer" }}>
+ <button onClick={submitAnnotation} style={{ padding: "4px 8px", fontSize: "11px", background: "var(--accent-color, #007acc)", color: "var(--text-primary, #fff)", border: "none", borderRadius: "3px", cursor: "pointer" }}>
  Add
  </button>
  <button onClick={() => setShowAnnotationForm(false)} style={{ padding: "4px 6px", fontSize: "11px", background: "none", border: "1px solid var(--border-color)", borderRadius: "3px", color: "var(--text-secondary)", cursor: "pointer" }}>

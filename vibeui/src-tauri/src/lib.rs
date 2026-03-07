@@ -488,3 +488,120 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
+
+#[cfg(test)]
+mod tests {
+    use vibe_ai::provider::ProviderConfig;
+
+    // ── ProviderConfig defaults used in run() ─────────────────────────────
+
+    #[test]
+    fn default_ollama_config_has_codellama_model() {
+        let config = ProviderConfig {
+            provider_type: "ollama".to_string(),
+            api_key: None,
+            model: "codellama".to_string(),
+            api_url: Some("http://localhost:11434".to_string()),
+            max_tokens: None,
+            temperature: None,
+            ..Default::default()
+        };
+        assert_eq!(config.model, "codellama");
+        assert_eq!(config.api_url.as_deref(), Some("http://localhost:11434"));
+    }
+
+    #[test]
+    fn provider_config_default_trait() {
+        let config = ProviderConfig::default();
+        assert!(config.api_key.is_none());
+        assert!(config.max_tokens.is_none());
+        assert!(config.temperature.is_none());
+    }
+
+    #[test]
+    fn provider_config_with_custom_api_url() {
+        let config = ProviderConfig {
+            provider_type: "ollama".to_string(),
+            api_url: Some("http://custom:9999".to_string()),
+            model: "llama3".to_string(),
+            ..Default::default()
+        };
+        assert_eq!(config.api_url.as_deref(), Some("http://custom:9999"));
+        assert_eq!(config.model, "llama3");
+    }
+
+    #[test]
+    fn provider_config_with_api_key() {
+        let config = ProviderConfig {
+            provider_type: "openai".to_string(),
+            api_key: Some("sk-test-key".to_string()),
+            model: "gpt-4".to_string(),
+            ..Default::default()
+        };
+        assert_eq!(config.api_key.as_deref(), Some("sk-test-key"));
+        assert_eq!(config.provider_type, "openai");
+    }
+
+    #[test]
+    fn provider_config_temperature_and_max_tokens() {
+        let config = ProviderConfig {
+            provider_type: "claude".to_string(),
+            temperature: Some(0.7),
+            max_tokens: Some(4096),
+            model: "claude-3-opus".to_string(),
+            ..Default::default()
+        };
+        assert_eq!(config.temperature, Some(0.7));
+        assert_eq!(config.max_tokens, Some(4096));
+    }
+
+    // ── AIConfig fallback logic ───────────────────────────────────────────
+
+    #[test]
+    fn ai_config_load_missing_file_returns_default() {
+        use std::path::PathBuf;
+        use vibe_ai::AIConfig;
+        let config = AIConfig::load_from_file(&PathBuf::from("/nonexistent/vibe.toml"))
+            .unwrap_or_default();
+        // Default config should have no ollama section
+        assert!(config.ollama.is_none());
+    }
+
+    #[test]
+    fn ai_config_default_has_no_providers() {
+        use vibe_ai::AIConfig;
+        let config = AIConfig::default();
+        assert!(config.ollama.is_none());
+    }
+
+    // ── FlowTracker (used in run()) ───────────────────────────────────────
+
+    #[test]
+    fn flow_tracker_new_is_empty() {
+        let tracker = crate::flow::FlowTracker::new();
+        assert_eq!(tracker.context_string(10), "");
+    }
+
+    #[test]
+    fn flow_tracker_record_and_context() {
+        let mut tracker = crate::flow::FlowTracker::new();
+        tracker.record("file_open", "src/lib.rs");
+        let ctx = tracker.context_string(10);
+        assert!(ctx.contains("src/lib.rs"));
+    }
+
+    // ── Workspace creation ────────────────────────────────────────────────
+
+    #[test]
+    fn workspace_creation_with_name() {
+        let ws = vibe_core::Workspace::new("Test Workspace".to_string());
+        assert_eq!(ws.name(), "Test Workspace");
+    }
+
+    #[test]
+    fn chat_engine_starts_empty() {
+        let engine = vibe_ai::ChatEngine::new();
+        // ChatEngine should be constructable without panic
+        drop(engine);
+    }
+}

@@ -89,7 +89,7 @@ export function AgentTeamPanel() {
           <span style={{
             fontSize: 10, padding: "2px 8px", borderRadius: 10, fontWeight: 600,
             background: team.status === "working" ? "rgba(137,180,250,0.15)" : "rgba(108,112,134,0.15)",
-            color: team.status === "working" ? "#89b4fa" : "#6c7086",
+            color: team.status === "working" ? "var(--info-color, #89b4fa)" : "var(--text-secondary, #6c7086)",
           }}>
             {team.status}
           </span>
@@ -122,7 +122,7 @@ export function AgentTeamPanel() {
             />
           </div>
           <button onClick={handleCreate} disabled={loading || !goal.trim()} style={{
-            ...btnStyle, background: "var(--accent-primary, #6366f1)", color: "#fff", fontWeight: 700,
+            ...btnStyle, background: "var(--accent-primary, #6366f1)", color: "var(--text-primary, #fff)", fontWeight: 700,
             opacity: loading || !goal.trim() ? 0.5 : 1,
           }}>
             {loading ? "Creating Team..." : "Create Team"}
@@ -144,7 +144,7 @@ export function AgentTeamPanel() {
                 onClick={() => setTab(t)}
                 style={{
                   padding: "3px 10px", fontSize: 10, fontWeight: 600, borderRadius: 4, cursor: "pointer",
-                  border: tab === t ? "1px solid #6366f1" : "1px solid var(--border-color)",
+                  border: tab === t ? "1px solid var(--accent-color, #6366f1)" : "1px solid var(--border-color)",
                   background: tab === t ? "rgba(99,102,241,0.15)" : "transparent",
                   color: "var(--text-primary)",
                 }}
@@ -168,7 +168,7 @@ export function AgentTeamPanel() {
                     <div key={id} style={{
                       padding: "4px 8px", fontSize: 10, borderRadius: 4,
                       background: id === team.lead_agent_id ? "rgba(99,102,241,0.15)" : "var(--bg-primary)",
-                      border: id === team.lead_agent_id ? "1px solid #6366f1" : "1px solid var(--border-color)",
+                      border: id === team.lead_agent_id ? "1px solid var(--accent-color, #6366f1)" : "1px solid var(--border-color)",
                     }}>
                       {id === team.lead_agent_id ? "Lead: " : ""}{id.split("-").pop()}
                     </div>

@@ -321,4 +321,178 @@ mod tests {
         assert_eq!(resp.choices[0].message.content, "no usage");
         assert!(resp.usage.is_none());
     }
+
+    // ── stream response deserialization ─────────────────────────────────
+
+    #[test]
+    fn vercel_ai_stream_response_deser() {
+        let json = r#"{"choices":[{"delta":{"content":"streamed"}}]}"#;
+        let resp: VercelAIStreamResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.choices[0].delta.content.as_ref().unwrap(), "streamed");
+    }
+
+    #[test]
+    fn vercel_ai_stream_response_deser_null_content() {
+        let json = r#"{"choices":[{"delta":{"content":null}}]}"#;
+        let resp: VercelAIStreamResponse = serde_json::from_str(json).unwrap();
+        assert!(resp.choices[0].delta.content.is_none());
+    }
+
+    #[test]
+    fn vercel_ai_stream_response_deser_empty_choices() {
+        let json = r#"{"choices":[]}"#;
+        let resp: VercelAIStreamResponse = serde_json::from_str(json).unwrap();
+        assert!(resp.choices.is_empty());
+    }
+
+    // ── request serialization edge cases ────────────────────────────────
+
+    #[test]
+    fn vercel_ai_request_serde_minimal() {
+        let req = VercelAIRequest {
+            model: "claude-3-opus".into(),
+            messages: vec![VercelAIMessage { role: "user".into(), content: "hi".into() }],
+            temperature: None,
+            max_tokens: None,
+            stream: false,
+        };
+        let json = serde_json::to_value(&req).unwrap();
+        assert_eq!(json["model"], "claude-3-opus");
+        assert_eq!(json["stream"], false);
+        // Optional fields omitted via skip_serializing_if
+        assert!(json.get("temperature").is_none());
+        assert!(json.get("max_tokens").is_none());
+    }
+
+    #[test]
+    fn vercel_ai_request_serde_multiple_messages() {
+        let req = VercelAIRequest {
+            model: "gpt-4o".into(),
+            messages: vec![
+                VercelAIMessage { role: "system".into(), content: "sys".into() },
+                VercelAIMessage { role: "user".into(), content: "u1".into() },
+                VercelAIMessage { role: "assistant".into(), content: "a1".into() },
+                VercelAIMessage { role: "user".into(), content: "u2".into() },
+            ],
+            temperature: Some(0.5),
+            max_tokens: Some(4096),
+            stream: true,
+        };
+        let json = serde_json::to_value(&req).unwrap();
+        assert_eq!(json["messages"].as_array().unwrap().len(), 4);
+        assert_eq!(json["temperature"], 0.5);
+        assert_eq!(json["max_tokens"], 4096);
+    }
+
+    // ── message roundtrip ───────────────────────────────────────────────
+
+    #[test]
+    fn vercel_ai_message_roundtrip() {
+        let msg = VercelAIMessage { role: "user".into(), content: "test input".into() };
+        let json = serde_json::to_string(&msg).unwrap();
+        let msg2: VercelAIMessage = serde_json::from_str(&json).unwrap();
+        assert_eq!(msg.role, msg2.role);
+        assert_eq!(msg.content, msg2.content);
+    }
+
+    // ── build_messages edge cases ───────────────────────────────────────
+
+    #[test]
+    fn build_messages_empty_input() {
+        let p = VercelAIProvider::new(test_config());
+        let result = p.build_messages(&[], None);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn build_messages_empty_input_with_context() {
+        let p = VercelAIProvider::new(test_config());
+        let result = p.build_messages(&[], Some("ctx".into()));
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn build_messages_context_only_affects_last_user() {
+        use crate::provider::MessageRole;
+        let p = VercelAIProvider::new(test_config());
+        let messages = vec![
+            Message { role: MessageRole::User, content: "first".into() },
+            Message { role: MessageRole::Assistant, content: "mid".into() },
+            Message { role: MessageRole::User, content: "second".into() },
+        ];
+        let result = p.build_messages(&messages, Some("background".into()));
+        // First user message unchanged
+        assert_eq!(result[0].content, "first");
+        // Last user message gets context
+        assert!(result[2].content.starts_with("Context:\nbackground"));
+        assert!(result[2].content.contains("User: second"));
+    }
+
+    #[test]
+    fn build_messages_context_skipped_when_last_is_assistant() {
+        use crate::provider::MessageRole;
+        let p = VercelAIProvider::new(test_config());
+        let messages = vec![
+            Message { role: MessageRole::User, content: "q".into() },
+            Message { role: MessageRole::Assistant, content: "a".into() },
+        ];
+        let result = p.build_messages(&messages, Some("some ctx".into()));
+        assert_eq!(result[1].content, "a");
+        assert_eq!(result[0].content, "q");
+    }
+
+    // ── availability edge cases ─────────────────────────────────────────
+
+    #[tokio::test]
+    async fn available_requires_both_key_and_url() {
+        // Both present
+        let p = VercelAIProvider::new(test_config());
+        assert!(p.is_available().await);
+
+        // Key only
+        let mut cfg = test_config();
+        cfg.api_url = None;
+        assert!(!VercelAIProvider::new(cfg).is_available().await);
+
+        // URL only
+        let mut cfg2 = test_config();
+        cfg2.api_key = None;
+        assert!(!VercelAIProvider::new(cfg2).is_available().await);
+
+        // Neither
+        let cfg3 = ProviderConfig {
+            provider_type: "vercel_ai".into(),
+            api_key: None,
+            api_url: None,
+            model: "m".into(),
+            temperature: None,
+            max_tokens: None,
+            api_key_helper: None,
+            thinking_budget_tokens: None,
+        };
+        assert!(!VercelAIProvider::new(cfg3).is_available().await);
+    }
+
+    // ── response with multiple choices ──────────────────────────────────
+
+    #[test]
+    fn vercel_ai_response_multiple_choices() {
+        let json = r#"{"choices":[{"message":{"role":"assistant","content":"first"}},{"message":{"role":"assistant","content":"second"}}],"usage":{"prompt_tokens":5,"completion_tokens":2}}"#;
+        let resp: VercelAIResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.choices.len(), 2);
+        assert_eq!(resp.choices[0].message.content, "first");
+        assert_eq!(resp.choices[1].message.content, "second");
+    }
+
+    // ── provider config is preserved ────────────────────────────────────
+
+    #[test]
+    fn provider_preserves_model_config() {
+        let mut cfg = test_config();
+        cfg.model = "custom-model-v2".into();
+        let p = VercelAIProvider::new(cfg);
+        assert_eq!(p.name(), "VercelAI");
+        // Model is stored in config
+        assert_eq!(p.config.model, "custom-model-v2");
+    }
 }

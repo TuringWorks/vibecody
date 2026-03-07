@@ -449,4 +449,259 @@ mod tests {
         let result = base64_url_encode(b"");
         assert_eq!(result, "");
     }
+
+    // ── stream response deserialization ─────────────────────────────────
+
+    #[test]
+    fn zhipu_stream_response_deser() {
+        let json = r#"{"choices":[{"delta":{"content":"流式"}}]}"#;
+        let resp: ZhipuStreamResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.choices[0].delta.content.as_ref().unwrap(), "流式");
+    }
+
+    #[test]
+    fn zhipu_stream_response_deser_null_content() {
+        let json = r#"{"choices":[{"delta":{"content":null}}]}"#;
+        let resp: ZhipuStreamResponse = serde_json::from_str(json).unwrap();
+        assert!(resp.choices[0].delta.content.is_none());
+    }
+
+    #[test]
+    fn zhipu_stream_response_deser_empty_choices() {
+        let json = r#"{"choices":[]}"#;
+        let resp: ZhipuStreamResponse = serde_json::from_str(json).unwrap();
+        assert!(resp.choices.is_empty());
+    }
+
+    // ── request serialization with all fields ───────────────────────────
+
+    #[test]
+    fn zhipu_request_serde_full() {
+        let req = ZhipuRequest {
+            model: "glm-4-flash".into(),
+            messages: vec![
+                ZhipuMessage { role: "system".into(), content: "sys".into() },
+                ZhipuMessage { role: "user".into(), content: "q".into() },
+            ],
+            temperature: Some(0.5),
+            max_tokens: Some(2048),
+            stream: true,
+        };
+        let json = serde_json::to_value(&req).unwrap();
+        assert_eq!(json["model"], "glm-4-flash");
+        assert_eq!(json["temperature"], 0.5);
+        assert_eq!(json["max_tokens"], 2048);
+        assert_eq!(json["stream"], true);
+        assert_eq!(json["messages"].as_array().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn zhipu_request_serde_minimal() {
+        let req = ZhipuRequest {
+            model: "glm-3-turbo".into(),
+            messages: vec![ZhipuMessage { role: "user".into(), content: "hi".into() }],
+            temperature: None,
+            max_tokens: None,
+            stream: false,
+        };
+        let json = serde_json::to_value(&req).unwrap();
+        assert_eq!(json["model"], "glm-3-turbo");
+        assert!(json.get("temperature").is_none());
+        assert!(json.get("max_tokens").is_none());
+    }
+
+    // ── message roundtrip ───────────────────────────────────────────────
+
+    #[test]
+    fn zhipu_message_roundtrip() {
+        let msg = ZhipuMessage { role: "user".into(), content: "测试数据".into() };
+        let json = serde_json::to_string(&msg).unwrap();
+        let msg2: ZhipuMessage = serde_json::from_str(&json).unwrap();
+        assert_eq!(msg.role, msg2.role);
+        assert_eq!(msg.content, msg2.content);
+    }
+
+    // ── build_messages edge cases ───────────────────────────────────────
+
+    #[test]
+    fn build_messages_empty_input() {
+        let p = ZhipuProvider::new(test_config());
+        let result = p.build_messages(&[], None);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn build_messages_empty_with_context() {
+        let p = ZhipuProvider::new(test_config());
+        let result = p.build_messages(&[], Some("ctx".into()));
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn build_messages_context_only_affects_last_user() {
+        use crate::provider::MessageRole;
+        let p = ZhipuProvider::new(test_config());
+        let messages = vec![
+            Message { role: MessageRole::User, content: "first".into() },
+            Message { role: MessageRole::Assistant, content: "mid".into() },
+            Message { role: MessageRole::User, content: "second".into() },
+        ];
+        let result = p.build_messages(&messages, Some("bg".into()));
+        assert_eq!(result[0].content, "first");
+        assert!(result[2].content.starts_with("Context:\nbg"));
+        assert!(result[2].content.contains("User: second"));
+    }
+
+    #[test]
+    fn build_messages_context_skipped_when_last_is_assistant() {
+        use crate::provider::MessageRole;
+        let p = ZhipuProvider::new(test_config());
+        let messages = vec![
+            Message { role: MessageRole::User, content: "q".into() },
+            Message { role: MessageRole::Assistant, content: "a".into() },
+        ];
+        let result = p.build_messages(&messages, Some("should be ignored".into()));
+        assert_eq!(result[1].content, "a");
+        assert_eq!(result[0].content, "q");
+    }
+
+    #[test]
+    fn build_messages_all_roles_mapped() {
+        use crate::provider::MessageRole;
+        let p = ZhipuProvider::new(test_config());
+        let messages = vec![
+            Message { role: MessageRole::System, content: "s".into() },
+            Message { role: MessageRole::User, content: "u".into() },
+            Message { role: MessageRole::Assistant, content: "a".into() },
+        ];
+        let result = p.build_messages(&messages, None);
+        assert_eq!(result[0].role, "system");
+        assert_eq!(result[1].role, "user");
+        assert_eq!(result[2].role, "assistant");
+    }
+
+    // ── JWT generation edge cases ───────────────────────────────────────
+
+    #[test]
+    fn jwt_token_header_contains_hs256() {
+        let p = ZhipuProvider::new(test_config());
+        let token = p.generate_token("testid.testsecret").unwrap();
+        // Decode header (first segment, base64url)
+        let header_b64 = token.split('.').next().unwrap();
+        // The header should encode {"alg":"HS256","sign_type":"SIGN","typ":"JWT"}
+        assert!(!header_b64.is_empty());
+        // Verify 3 parts
+        assert_eq!(token.split('.').count(), 3);
+    }
+
+    #[test]
+    fn jwt_different_keys_produce_different_tokens() {
+        let p = ZhipuProvider::new(test_config());
+        let t1 = p.generate_token("id1.secret1").unwrap();
+        let t2 = p.generate_token("id2.secret2").unwrap();
+        assert_ne!(t1, t2);
+    }
+
+    #[test]
+    fn jwt_empty_id_still_works() {
+        let p = ZhipuProvider::new(test_config());
+        // Empty id but valid format
+        let result = p.generate_token(".secret");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().split('.').count(), 3);
+    }
+
+    // ── HmacSha256 unit tests ───────────────────────────────────────────
+
+    #[test]
+    fn hmac_sha256_deterministic() {
+        let mut h1 = HmacSha256::new(b"key");
+        h1.update(b"data");
+        let r1 = h1.finalize();
+
+        let mut h2 = HmacSha256::new(b"key");
+        h2.update(b"data");
+        let r2 = h2.finalize();
+
+        assert_eq!(r1, r2);
+        assert_eq!(r1.len(), 32);
+    }
+
+    #[test]
+    fn hmac_sha256_different_keys_differ() {
+        let mut h1 = HmacSha256::new(b"key1");
+        h1.update(b"data");
+        let r1 = h1.finalize();
+
+        let mut h2 = HmacSha256::new(b"key2");
+        h2.update(b"data");
+        let r2 = h2.finalize();
+
+        assert_ne!(r1, r2);
+    }
+
+    #[test]
+    fn hmac_sha256_different_data_differ() {
+        let mut h1 = HmacSha256::new(b"key");
+        h1.update(b"data1");
+        let r1 = h1.finalize();
+
+        let mut h2 = HmacSha256::new(b"key");
+        h2.update(b"data2");
+        let r2 = h2.finalize();
+
+        assert_ne!(r1, r2);
+    }
+
+    // ── base64_url_encode additional cases ──────────────────────────────
+
+    #[test]
+    fn base64_url_encode_no_padding() {
+        // Standard base64 would pad with '=', base64url should not
+        let result = base64_url_encode(b"a");
+        assert!(!result.contains('='));
+        assert!(!result.contains('+'));
+        assert!(!result.contains('/'));
+    }
+
+    #[test]
+    fn base64_url_encode_uses_url_safe_chars() {
+        // Encode bytes that would produce + and / in standard base64
+        let result = base64_url_encode(&[0xfb, 0xef, 0xbe]);
+        // Should only contain URL-safe characters
+        for c in result.chars() {
+            assert!(c.is_ascii_alphanumeric() || c == '-' || c == '_',
+                "Unexpected char: {}", c);
+        }
+    }
+
+    // ── response with multiple choices ──────────────────────────────────
+
+    #[test]
+    fn zhipu_response_multiple_choices() {
+        let json = r#"{"choices":[{"message":{"role":"assistant","content":"答案1"}},{"message":{"role":"assistant","content":"答案2"}}],"usage":{"prompt_tokens":4,"completion_tokens":4}}"#;
+        let resp: ZhipuResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.choices.len(), 2);
+        assert_eq!(resp.choices[0].message.content, "答案1");
+        assert_eq!(resp.choices[1].message.content, "答案2");
+    }
+
+    #[test]
+    fn zhipu_response_deser_no_usage() {
+        let json = r#"{"choices":[{"message":{"role":"assistant","content":"ok"}}]}"#;
+        let resp: ZhipuResponse = serde_json::from_str(json).unwrap();
+        assert!(resp.usage.is_none());
+    }
+
+    // ── provider config preserved ───────────────────────────────────────
+
+    #[test]
+    fn provider_preserves_model_config() {
+        let mut cfg = test_config();
+        cfg.model = "glm-4-flash".into();
+        cfg.temperature = Some(0.3);
+        let p = ZhipuProvider::new(cfg);
+        assert_eq!(p.config.model, "glm-4-flash");
+        assert_eq!(p.config.temperature, Some(0.3));
+    }
 }

@@ -169,7 +169,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
  <button
  onClick={handleConnect}
  disabled={isLoading}
- style={{ width: "100%", background: "var(--accent-primary, #6366f1)", color: "#fff", border: "none", borderRadius: 4, padding: "5px 0", cursor: "pointer", fontSize: 12, fontWeight: 600 }}
+ style={{ width: "100%", background: "var(--accent-color, #007acc)", color: "var(--text-primary, #e0e0e0)", border: "none", borderRadius: 4, padding: "5px 0", cursor: "pointer", fontSize: 12, fontWeight: 600 }}
  >
  {isConnected ? "Reconnect" : "Connect"}
  </button>
@@ -218,7 +218,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
  placeholder="Ask in plain English (e.g., 'Show users signed up this week')"
  style={{ flex: 1, background: "var(--bg-secondary)", border: "1px solid var(--border-subtle, #44445a)", borderRadius: 4, color: "inherit", padding: "5px 8px", fontSize: 12 }}
  />
- <button onClick={handleNlQuery} disabled={isLoading} style={{ background: "var(--accent-primary, #6366f1)", color: "#fff", border: "none", borderRadius: 4, padding: "5px 12px", cursor: "pointer", fontSize: 12 }}>Ask AI</button>
+ <button onClick={handleNlQuery} disabled={isLoading} style={{ background: "var(--accent-primary, #6366f1)", color: "var(--text-primary, #e0e0e0)", border: "none", borderRadius: 4, padding: "5px 12px", cursor: "pointer", fontSize: 12 }}>Ask AI</button>
  </div>
  {/* SQL editor */}
  <div style={{ display: "flex", gap: 8 }}>
@@ -230,7 +230,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
  style={{ flex: 1, background: "var(--bg-secondary)", border: "1px solid var(--border-subtle, #44445a)", borderRadius: 4, color: "inherit", padding: "5px 8px", fontSize: 12, fontFamily: "monospace", resize: "none" }}
  />
  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
- <button onClick={() => runQuery(sqlQuery)} disabled={isLoading || !sqlQuery.trim()} style={{ background: "var(--accent-primary, #6366f1)", color: "#fff", border: "none", borderRadius: 4, padding: "4px 10px", cursor: "pointer", fontSize: 11 }}>Run</button>
+ <button onClick={() => runQuery(sqlQuery)} disabled={isLoading || !sqlQuery.trim()} style={{ background: "var(--accent-primary, #6366f1)", color: "var(--text-primary, #e0e0e0)", border: "none", borderRadius: 4, padding: "4px 10px", cursor: "pointer", fontSize: 11 }}>Run</button>
  <button onClick={handleGenerateMigration} disabled={isLoading} style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-subtle, #44445a)", borderRadius: 4, padding: "4px 6px", cursor: "pointer", fontSize: 10, color: "inherit" }}>+ Migration</button>
  </div>
  </div>
@@ -240,7 +240,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
  <div style={{ flex: 1, overflow: "auto", padding: 12 }}>
  {isLoading && <div style={{ opacity: 0.5 }}>Loading…</div>}
  {queryResult?.error && (
- <div style={{ color: "var(--text-danger, #f38ba8)", fontFamily: "monospace", fontSize: 12, padding: 8, background: "rgba(243,139,168,0.1)", borderRadius: 4 }}>
+ <div style={{ color: "var(--error-color, #f44336)", fontFamily: "monospace", fontSize: 12, padding: 8, background: "rgba(243,139,168,0.1)", borderRadius: 4 }}>
  {queryResult.error}
  </div>
  )}

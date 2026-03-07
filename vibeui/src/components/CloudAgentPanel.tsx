@@ -73,10 +73,10 @@ export function CloudAgentPanel() {
   };
 
   const statusColor = (s: string) => {
-    if (s === "complete" || s === "running") return "#4ec9b0";
-    if (s === "failed") return "#f44747";
-    if (s === "queued") return "#dcdcaa";
-    return "#cccccc";
+    if (s === "complete" || s === "running") return "var(--success-color, #4caf50)";
+    if (s === "failed") return "var(--error-color, #f44336)";
+    if (s === "queued") return "var(--warning-color, #ff9800)";
+    return "var(--text-secondary, #aaa)";
   };
 
   return (
@@ -100,8 +100,8 @@ export function CloudAgentPanel() {
                 border: "1px solid var(--border-color)",
                 borderRadius: 4,
                 cursor: "pointer",
-                background: image === preset.value ? "var(--accent-blue)" : "var(--bg-secondary)",
-                color: image === preset.value ? "#fff" : "var(--text-secondary)",
+                background: image === preset.value ? "var(--accent-color, #007acc)" : "var(--bg-secondary)",
+                color: image === preset.value ? "var(--text-primary, #e0e0e0)" : "var(--text-secondary)",
               }}
             >
               {preset.label}
@@ -180,8 +180,8 @@ export function CloudAgentPanel() {
           style={{
             padding: "6px 16px",
             fontSize: 12,
-            background: launching ? "var(--bg-secondary)" : "var(--accent-blue)",
-            color: "#fff",
+            background: launching ? "var(--bg-secondary)" : "var(--accent-color, #007acc)",
+            color: "var(--text-primary, #e0e0e0)",
             border: "none",
             borderRadius: 4,
             cursor: launching || !task.trim() ? "not-allowed" : "pointer",
@@ -214,11 +214,11 @@ export function CloudAgentPanel() {
           style={{
             padding: "8px 12px",
             marginBottom: 12,
-            background: "rgba(244, 71, 71, 0.15)",
-            border: "1px solid #f44747",
+            background: "rgba(244, 67, 54, 0.15)",
+            border: "1px solid var(--error-color, #f44336)",
             borderRadius: 4,
             fontSize: 12,
-            color: "#f44747",
+            color: "var(--error-color, #f44336)",
           }}
         >
           {error}
@@ -267,7 +267,7 @@ export function CloudAgentPanel() {
             style={{
               padding: "8px 10px",
               background: "var(--bg-primary, #1e1e1e)",
-              color: "#d4d4d4",
+              color: "var(--text-primary, #e0e0e0)",
               border: "1px solid var(--border-color)",
               borderRadius: 4,
               fontSize: 11,

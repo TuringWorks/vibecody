@@ -34,9 +34,9 @@ const TOOL_ICONS: Record<string, string> = {
 };
 
 const STATE_COLORS: Record<string, string> = {
- applied: "#a6e3a1",
- pending: "#f9e2af",
- failed: "#f38ba8",
+ applied: "var(--success-color, #4caf50)",
+ pending: "var(--warning-color, #ff9800)",
+ failed: "var(--error-color, #f44336)",
 };
 
 const STATE_ICONS: Record<string, string> = {
@@ -156,7 +156,7 @@ export function MigrationsPanel({ workspacePath }: MigrationsPanelProps) {
  style={{
  padding: "6px 12px", fontSize: 12, fontWeight: 600,
  background: status.pending.length > 0 ? "var(--accent-color)" : "var(--bg-secondary)",
- color: status.pending.length > 0 ? "#fff" : "var(--text-muted)",
+ color: status.pending.length > 0 ? "var(--text-primary, #e0e0e0)" : "var(--text-muted)",
  border: "none", borderRadius: 4, cursor: status.pending.length > 0 ? "pointer" : "default",
  opacity: actionLoading === "migrate" ? 0.7 : 1,
  }}
@@ -168,8 +168,8 @@ export function MigrationsPanel({ workspacePath }: MigrationsPanelProps) {
  disabled={!!actionLoading || status.applied.length === 0}
  style={{
  padding: "6px 12px", fontSize: 12,
- background: "#3a1a1a", color: "var(--text-danger, #f38ba8)",
- border: "1px solid #f38ba8", borderRadius: 4,
+ background: "rgba(244,67,54,0.15)", color: "var(--error-color, #f44336)",
+ border: "1px solid var(--error-color, #f44336)", borderRadius: 4,
  cursor: status.applied.length > 0 ? "pointer" : "default",
  opacity: actionLoading === "rollback" ? 0.7 : 1,
  }}

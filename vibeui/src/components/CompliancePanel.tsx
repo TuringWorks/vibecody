@@ -24,9 +24,9 @@ interface ComplianceReport {
 const FRAMEWORKS = ["SOC2", "FedRAMP", "HIPAA", "GDPR", "ISO27001"] as const;
 
 const statusBadge = (s: string) => {
- if (s === "implemented") return { label: "Implemented", color: "#4ade80" };
- if (s === "partial") return { label: "Partial", color: "#facc15" };
- if (s === "not_implemented") return { label: "Gap", color: "#f87171" };
+ if (s === "implemented") return { label: "Implemented", color: "var(--success-color, #4ade80)" };
+ if (s === "partial") return { label: "Partial", color: "var(--warning-color, #facc15)" };
+ if (s === "not_implemented") return { label: "Gap", color: "var(--error-color, #f87171)" };
  return { label: "N/A", color: "var(--text-secondary)" };
 };
 
@@ -79,7 +79,7 @@ export function CompliancePanel() {
  <button
  onClick={generate}
  disabled={loading}
- style={{ padding: "5px 14px", background: "#7c3aed", color: "#fff", border: "none", borderRadius: 4, fontSize: 12, cursor: "pointer" }}
+ style={{ padding: "5px 14px", background: "var(--accent-color, #7c3aed)", color: "var(--text-primary, #fff)", border: "none", borderRadius: 4, fontSize: 12, cursor: "pointer" }}
  >
  {loading ? "Generating..." : "Generate Report"}
  </button>
@@ -93,10 +93,10 @@ export function CompliancePanel() {
  )}
  </div>
 
- {error && <div style={{ color: "#f87171", marginBottom: 12 }}>{error}</div>}
+ {error && <div style={{ color: "var(--error-color, #f87171)", marginBottom: 12 }}>{error}</div>}
 
  {!report && !loading && !error && (
-  <div style={{ textAlign: "center", padding: "40px 16px", color: "#6b7280", lineHeight: 1.7 }}>
+  <div style={{ textAlign: "center", padding: "40px 16px", color: "var(--text-secondary, #6b7280)", lineHeight: 1.7 }}>
    <div style={{ fontSize: 28, marginBottom: 8 }}>🛡️</div>
    <div style={{ fontSize: 13 }}>No compliance report yet</div>
    <div style={{ fontSize: 11, marginTop: 4 }}>
@@ -106,9 +106,9 @@ export function CompliancePanel() {
  )}
 
  {loading && (
-  <div style={{ textAlign: "center", padding: "40px 16px", color: "#9ca3af", fontSize: 13 }}>
+  <div style={{ textAlign: "center", padding: "40px 16px", color: "var(--text-secondary, #9ca3af)", fontSize: 13 }}>
    Generating {framework} compliance report…<br />
-   <span style={{ fontSize: 11, color: "#6b7280" }}>This may take 15–30 seconds</span>
+   <span style={{ fontSize: 11, color: "var(--text-secondary, #6b7280)" }}>This may take 15–30 seconds</span>
   </div>
  )}
 
@@ -125,7 +125,7 @@ export function CompliancePanel() {
  style={{
  height: "100%",
  width: `${Math.min(report.summary.percentage, 100)}%`,
- background: report.summary.percentage >= 80 ? "#4ade80" : report.summary.percentage >= 50 ? "#facc15" : "#f87171",
+ background: report.summary.percentage >= 80 ? "var(--success-color, #4ade80)" : report.summary.percentage >= 50 ? "var(--warning-color, #facc15)" : "var(--error-color, #f87171)",
  borderRadius: 4,
  transition: "width 0.3s",
  }}
@@ -133,7 +133,7 @@ export function CompliancePanel() {
  </div>
  <div style={{ display: "flex", gap: 16, marginTop: 8, fontSize: 11, color: "var(--text-secondary)" }}>
  <span> {report.summary.implemented} implemented</span>
- <span style={{ color: "#facc15" }}>{report.summary.partial} partial</span>
+ <span style={{ color: "var(--warning-color, #facc15)" }}>{report.summary.partial} partial</span>
  <span> {report.summary.gaps} gaps</span>
  </div>
  </div>
