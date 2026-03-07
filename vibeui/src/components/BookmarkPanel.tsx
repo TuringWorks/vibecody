@@ -110,16 +110,16 @@ export function BookmarkPanel({ workspacePath }: BookmarkPanelProps) {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
       {/* Sub-tabs */}
-      <div style={{ display: "flex", gap: 4, padding: "8px 12px", borderBottom: "1px solid var(--border, #2a2a3e)" }}>
+      <div style={{ display: "flex", gap: 4, padding: "8px 12px", borderBottom: "1px solid var(--border, var(--bg-secondary))" }}>
         {(["markers", "bookmarks"] as const).map((t) => (
           <button
             key={t}
             onClick={() => { setTab(t); if (t === "bookmarks") loadBookmarks(); }}
             style={{
               padding: "4px 12px", fontSize: 11, fontWeight: 600, borderRadius: 4, cursor: "pointer",
-              border: "1px solid var(--border, #2a2a3e)",
-              background: tab === t ? "var(--accent, #6366f1)" : "var(--bg-secondary, #1e1e2e)",
-              color: tab === t ? "#fff" : "var(--text-primary, #cdd6f4)",
+              border: "1px solid var(--border, var(--bg-secondary))",
+              background: tab === t ? "var(--accent, #6366f1)" : "var(--bg-secondary)",
+              color: tab === t ? "#fff" : "var(--text-primary)",
             }}
           >
             {t === "markers" ? "Markers" : "Bookmarks"}
@@ -156,9 +156,9 @@ export function BookmarkPanel({ workspacePath }: BookmarkPanelProps) {
                 onClick={() => setTypeFilter(t)}
                 style={{
                   padding: "2px 8px", fontSize: 10, fontWeight: 600, borderRadius: 3, cursor: "pointer",
-                  border: typeFilter === t ? "1px solid var(--accent, #6366f1)" : "1px solid var(--border, #2a2a3e)",
+                  border: typeFilter === t ? "1px solid var(--accent, #6366f1)" : "1px solid var(--border, var(--bg-secondary))",
                   background: typeFilter === t ? "rgba(99,102,241,0.2)" : "transparent",
-                  color: t === "ALL" ? "var(--text-primary, #cdd6f4)" : (markerColor[t] || "#cdd6f4"),
+                  color: t === "ALL" ? "var(--text-primary)" : (markerColor[t] || "var(--text-primary)"),
                 }}
               >
                 {t}
@@ -173,13 +173,13 @@ export function BookmarkPanel({ workspacePath }: BookmarkPanelProps) {
                 onClick={() => openFile(m.file, m.line)}
                 style={{
                   display: "flex", gap: 8, alignItems: "center", padding: "4px 6px",
-                  borderBottom: "1px solid var(--border, #2a2a3e)", cursor: "pointer",
+                  borderBottom: "1px solid var(--border, var(--bg-secondary))", cursor: "pointer",
                   fontSize: 11,
                 }}
               >
                 <span style={{
                   padding: "1px 5px", borderRadius: 3, fontWeight: 600, fontSize: 9,
-                  background: markerColor[m.marker_type] || "#6c7086", color: "#1e1e2e",
+                  background: markerColor[m.marker_type] || "#6c7086", color: "var(--bg-tertiary)",
                   whiteSpace: "nowrap",
                 }}>
                   {m.marker_type}
@@ -226,7 +226,7 @@ export function BookmarkPanel({ workspacePath }: BookmarkPanelProps) {
                 onClick={() => openFile(b.file, b.line)}
                 style={{
                   display: "flex", gap: 8, alignItems: "center", padding: "4px 6px",
-                  borderBottom: "1px solid var(--border, #2a2a3e)", cursor: "pointer",
+                  borderBottom: "1px solid var(--border, var(--bg-secondary))", cursor: "pointer",
                   fontSize: 11,
                 }}
               >
@@ -252,19 +252,19 @@ export function BookmarkPanel({ workspacePath }: BookmarkPanelProps) {
 
 const btnStyle: React.CSSProperties = {
   padding: "4px 10px", fontSize: 11, fontWeight: 600,
-  border: "1px solid var(--border, #2a2a3e)", borderRadius: 4,
-  background: "var(--bg-secondary, #1e1e2e)", color: "var(--text-primary, #cdd6f4)",
+  border: "1px solid var(--border, var(--bg-secondary))", borderRadius: 4,
+  background: "var(--bg-secondary)", color: "var(--text-primary)",
   cursor: "pointer",
 };
 
 const inputStyle: React.CSSProperties = {
   padding: "4px 8px", fontSize: 11, borderRadius: 4,
-  border: "1px solid var(--border, #2a2a3e)",
-  background: "var(--bg-primary, #11111b)", color: "var(--text-primary, #cdd6f4)",
+  border: "1px solid var(--border, var(--bg-secondary))",
+  background: "var(--bg-primary, #11111b)", color: "var(--text-primary)",
   outline: "none",
 };
 
 const cellBtn: React.CSSProperties = {
   background: "none", border: "none", cursor: "pointer",
-  fontSize: 12, padding: "0 3px", color: "var(--text-primary, #cdd6f4)", opacity: 0.7,
+  fontSize: 12, padding: "0 3px", color: "var(--text-primary)", opacity: 0.7,
 };

@@ -147,7 +147,7 @@ export default function SteeringPanel({ workspaceRoot }: SteeringPanelProps) {
  <select
  value={scope}
  onChange={(e) => setScope(e.target.value as "workspace" | "global")}
- style={{ fontSize: 12, padding: "2px 4px", borderRadius: 4, background: "#1e1e2e", color: "#cdd6f4", border: "1px solid #45475a" }}
+ style={{ fontSize: 12, padding: "2px 4px", borderRadius: 4, background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-color)" }}
  >
  {SCOPE_OPTIONS.map((o) => (
  <option key={o.value} value={o.value}>{o.label}</option>
@@ -166,7 +166,7 @@ export default function SteeringPanel({ workspaceRoot }: SteeringPanelProps) {
 
  {/* Templates dropdown */}
  {showTemplates && (
- <div style={{ background: "#1e1e2e", border: "1px solid #45475a", borderRadius: 6, padding: 8, display: "flex", gap: 6, flexWrap: "wrap" }}>
+ <div style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: 6, padding: 8, display: "flex", gap: 6, flexWrap: "wrap" }}>
  <span style={{ color: "#6c7086", fontSize: 11, width: "100%" }}>Choose a template to get started:</span>
  {TEMPLATES.map((tpl) => (
  <button key={tpl.label} onClick={() => useTemplate(tpl)} style={{ ...btnStyle, padding: "4px 10px" }}>
@@ -178,7 +178,7 @@ export default function SteeringPanel({ workspaceRoot }: SteeringPanelProps) {
 
  <div style={{ display: "flex", gap: 8, flex: 1, minHeight: 0 }}>
  {/* File list */}
- <div style={{ width: 160, flexShrink: 0, overflowY: "auto", background: "#1e1e2e", borderRadius: 6, padding: 4 }}>
+ <div style={{ width: 160, flexShrink: 0, overflowY: "auto", background: "var(--bg-tertiary)", borderRadius: 6, padding: 4 }}>
  {files.length === 0 && (
  <div style={{ color: "#6c7086", fontSize: 12, padding: 8, textAlign: "center" }}>
  No steering files.<br />Click "+ New" to create one.
@@ -195,7 +195,7 @@ export default function SteeringPanel({ workspaceRoot }: SteeringPanelProps) {
  padding: "5px 6px",
  borderRadius: 4,
  cursor: "pointer",
- background: selected?.filename === f.filename ? "#313244" : "transparent",
+ background: selected?.filename === f.filename ? "var(--bg-secondary)" : "transparent",
  marginBottom: 2,
  }}
  >
@@ -247,9 +247,9 @@ export default function SteeringPanel({ workspaceRoot }: SteeringPanelProps) {
  value={editFilename}
  onChange={(e) => setEditFilename(e.target.value)}
  disabled={!isNew}
- style={{ flex: 1, padding: "4px 8px", borderRadius: 4, background: "#1e1e2e", color: "#cdd6f4", border: "1px solid #45475a", fontSize: 12 }}
+ style={{ flex: 1, padding: "4px 8px", borderRadius: 4, background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: 12 }}
  />
- <button onClick={save} disabled={saving} style={{ ...btnStyle, background: saving ? "#313244" : "#89b4fa22", color: "#89b4fa" }}>
+ <button onClick={save} disabled={saving} style={{ ...btnStyle, background: saving ? "var(--bg-secondary)" : "#89b4fa22", color: "#89b4fa" }}>
  {saving ? "Saving…" : "Save"}
  </button>
  </div>
@@ -263,9 +263,9 @@ export default function SteeringPanel({ workspaceRoot }: SteeringPanelProps) {
  resize: "none",
  padding: 10,
  borderRadius: 6,
- background: "#181825",
- color: "#cdd6f4",
- border: "1px solid #313244",
+ background: "var(--bg-primary)",
+ color: "var(--text-primary)",
+ border: "1px solid var(--bg-secondary)",
  fontSize: 13,
  fontFamily: "monospace",
  lineHeight: 1.6,
@@ -275,7 +275,7 @@ export default function SteeringPanel({ workspaceRoot }: SteeringPanelProps) {
 
  <div style={{ color: "#6c7086", fontSize: 11 }}>
  Steering files inject into every agent prompt. Use YAML front-matter:{" "}
- <code style={{ background: "#1e1e2e", padding: "1px 4px", borderRadius: 3 }}>--- name: my-doc scope: project ---</code>
+ <code style={{ background: "var(--bg-tertiary)", padding: "1px 4px", borderRadius: 3 }}>--- name: my-doc scope: project ---</code>
  </div>
  </>
  )}
@@ -288,9 +288,9 @@ export default function SteeringPanel({ workspaceRoot }: SteeringPanelProps) {
 const btnStyle: React.CSSProperties = {
  padding: "3px 8px",
  borderRadius: 4,
- border: "1px solid #45475a",
- background: "#313244",
- color: "#cdd6f4",
+ border: "1px solid var(--border-color)",
+ background: "var(--bg-secondary)",
+ color: "var(--text-primary)",
  cursor: "pointer",
  fontSize: 12,
 };

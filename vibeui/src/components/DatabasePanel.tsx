@@ -134,11 +134,11 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
  };
 
  return (
- <div style={{ display: "flex", height: "100%", background: "var(--bg-primary, #1a1b26)", color: "var(--text-primary, #cdd6f4)" }}>
+ <div style={{ display: "flex", height: "100%", background: "var(--bg-primary, #1a1b26)", color: "var(--text-primary)" }}>
  {/* Left: Tables list */}
- <div style={{ width: 200, borderRight: "1px solid var(--border, #2a2a3e)", display: "flex", flexDirection: "column" }}>
+ <div style={{ width: 200, borderRight: "1px solid var(--border, var(--bg-secondary))", display: "flex", flexDirection: "column" }}>
  {/* Connection area */}
- <div style={{ padding: 12, borderBottom: "1px solid var(--border, #2a2a3e)" }}>
+ <div style={{ padding: 12, borderBottom: "1px solid var(--border, var(--bg-secondary))" }}>
  <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
  {(["sqlite", "postgres", "supabase"] as DbType[]).map((t) => (
  <button
@@ -146,13 +146,13 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
  onClick={() => { setDbType(t); setIsConnected(false); setTables([]); }}
  style={{
  flex: 1,
- background: dbType === t ? "var(--accent-blue, #6366f1)" : "var(--bg-secondary, #1e1e2e)",
+ background: dbType === t ? "var(--accent-blue, #6366f1)" : "var(--bg-secondary)",
  border: "none",
  borderRadius: 4,
  padding: "3px 0",
  fontSize: 10,
  cursor: "pointer",
- color: "var(--text-primary, #cdd6f4)",
+ color: "var(--text-primary)",
  fontWeight: dbType === t ? 600 : 400,
  }}
  >
@@ -164,7 +164,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
  value={connectionString}
  onChange={(e) => setConnectionString(e.target.value)}
  placeholder={dbType === "sqlite" ? "path/to/db.sqlite" : dbType === "postgres" ? "postgresql://..." : "https://xxx.supabase.co"}
- style={{ width: "100%", background: "var(--bg-secondary, #1e1e2e)", border: "1px solid var(--border-subtle, #44445a)", borderRadius: 4, color: "inherit", padding: "4px 6px", fontSize: 11, boxSizing: "border-box", marginBottom: 6 }}
+ style={{ width: "100%", background: "var(--bg-secondary)", border: "1px solid var(--border-subtle, #44445a)", borderRadius: 4, color: "inherit", padding: "4px 6px", fontSize: 11, boxSizing: "border-box", marginBottom: 6 }}
  />
  <button
  onClick={handleConnect}
@@ -188,12 +188,12 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
  display: "block",
  width: "100%",
  textAlign: "left",
- background: selectedTable === t.name ? "var(--bg-tertiary, #2a2a3e)" : "none",
+ background: selectedTable === t.name ? "var(--bg-tertiary)" : "none",
  border: "none",
  borderRadius: 4,
  padding: "5px 8px",
  cursor: "pointer",
- color: "var(--text-primary, #cdd6f4)",
+ color: "var(--text-primary)",
  fontSize: 12,
  marginBottom: 2,
  }}
@@ -208,7 +208,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
  {/* Right: Query + Results */}
  <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
  {/* Query toolbar */}
- <div style={{ padding: 12, borderBottom: "1px solid var(--border, #2a2a3e)", display: "flex", flexDirection: "column", gap: 8 }}>
+ <div style={{ padding: 12, borderBottom: "1px solid var(--border, var(--bg-secondary))", display: "flex", flexDirection: "column", gap: 8 }}>
  {/* NL query */}
  <div style={{ display: "flex", gap: 8 }}>
  <input
@@ -216,7 +216,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
  onChange={(e) => setNlQuery(e.target.value)}
  onKeyDown={(e) => e.key === "Enter" && handleNlQuery()}
  placeholder="Ask in plain English (e.g., 'Show users signed up this week')"
- style={{ flex: 1, background: "var(--bg-secondary, #1e1e2e)", border: "1px solid var(--border-subtle, #44445a)", borderRadius: 4, color: "inherit", padding: "5px 8px", fontSize: 12 }}
+ style={{ flex: 1, background: "var(--bg-secondary)", border: "1px solid var(--border-subtle, #44445a)", borderRadius: 4, color: "inherit", padding: "5px 8px", fontSize: 12 }}
  />
  <button onClick={handleNlQuery} disabled={isLoading} style={{ background: "#6366f1", color: "#fff", border: "none", borderRadius: 4, padding: "5px 12px", cursor: "pointer", fontSize: 12 }}>Ask AI</button>
  </div>
@@ -227,11 +227,11 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
  onChange={(e) => setSqlQuery(e.target.value)}
  rows={2}
  placeholder="SELECT * FROM users LIMIT 50"
- style={{ flex: 1, background: "var(--bg-secondary, #1e1e2e)", border: "1px solid var(--border-subtle, #44445a)", borderRadius: 4, color: "inherit", padding: "5px 8px", fontSize: 12, fontFamily: "monospace", resize: "none" }}
+ style={{ flex: 1, background: "var(--bg-secondary)", border: "1px solid var(--border-subtle, #44445a)", borderRadius: 4, color: "inherit", padding: "5px 8px", fontSize: 12, fontFamily: "monospace", resize: "none" }}
  />
  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
  <button onClick={() => runQuery(sqlQuery)} disabled={isLoading || !sqlQuery.trim()} style={{ background: "#6366f1", color: "#fff", border: "none", borderRadius: 4, padding: "4px 10px", cursor: "pointer", fontSize: 11 }}>Run</button>
- <button onClick={handleGenerateMigration} disabled={isLoading} style={{ background: "var(--bg-secondary, #1e1e2e)", border: "1px solid var(--border-subtle, #44445a)", borderRadius: 4, padding: "4px 6px", cursor: "pointer", fontSize: 10, color: "inherit" }}>+ Migration</button>
+ <button onClick={handleGenerateMigration} disabled={isLoading} style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-subtle, #44445a)", borderRadius: 4, padding: "4px 6px", cursor: "pointer", fontSize: 10, color: "inherit" }}>+ Migration</button>
  </div>
  </div>
  </div>
@@ -250,17 +250,17 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
  <div style={{ overflowX: "auto" }}>
  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, fontFamily: "monospace" }}>
  <thead>
- <tr style={{ background: "var(--bg-secondary, #1e1e2e)" }}>
+ <tr style={{ background: "var(--bg-secondary)" }}>
  {queryResult.columns.map((col) => (
- <th key={col} style={{ padding: "4px 8px", textAlign: "left", borderBottom: "1px solid var(--border, #2a2a3e)", fontWeight: 600, whiteSpace: "nowrap" }}>{col}</th>
+ <th key={col} style={{ padding: "4px 8px", textAlign: "left", borderBottom: "1px solid var(--border, var(--bg-secondary))", fontWeight: 600, whiteSpace: "nowrap" }}>{col}</th>
  ))}
  </tr>
  </thead>
  <tbody>
  {queryResult.rows.slice(0, PAGE_SIZE).map((row, i) => (
- <tr key={i} style={{ background: i % 2 === 0 ? "transparent" : "var(--bg-secondary, #1e1e2e)" }}>
+ <tr key={i} style={{ background: i % 2 === 0 ? "transparent" : "var(--bg-secondary)" }}>
  {queryResult.columns.map((col) => (
- <td key={col} style={{ padding: "3px 8px", borderBottom: "1px solid var(--border, #2a2a3e)", opacity: row[col] === null ? 0.3 : 1, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+ <td key={col} style={{ padding: "3px 8px", borderBottom: "1px solid var(--border, var(--bg-secondary))", opacity: row[col] === null ? 0.3 : 1, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
  {row[col] === null ? "NULL" : String(row[col])}
  </td>
  ))}

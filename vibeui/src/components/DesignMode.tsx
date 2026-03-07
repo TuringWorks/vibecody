@@ -122,9 +122,9 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
  const iframeRect = iframeContainerRef.current?.getBoundingClientRect();
 
  return (
- <div style={{ display: "flex", height: "100%", background: "var(--bg-primary, #1a1b26)", color: "var(--text-primary, #cdd6f4)" }}>
+ <div style={{ display: "flex", height: "100%", background: "var(--bg-primary, #1a1b26)", color: "var(--text-primary)" }}>
  {/* Left: Component tree */}
- <div style={{ width: 200, borderRight: "1px solid var(--border, #2a2a3e)", padding: 12, overflowY: "auto", flexShrink: 0 }}>
+ <div style={{ width: 200, borderRight: "1px solid var(--border, var(--bg-secondary))", padding: 12, overflowY: "auto", flexShrink: 0 }}>
  <div style={{ fontWeight: 600, marginBottom: 12, fontSize: 13 }}>Components</div>
  <div style={{ fontSize: 12, opacity: 0.6 }}>
  Component tree from your project files will appear here once a live dev server is running.
@@ -134,11 +134,11 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
  onClick={() => setShowFigmaDialog(true)}
  style={{
  width: "100%",
- background: "var(--bg-secondary, #1e1e2e)",
- border: "1px solid var(--border, #2a2a3e)",
+ background: "var(--bg-secondary)",
+ border: "1px solid var(--border, var(--bg-secondary))",
  borderRadius: 6,
  padding: "6px 10px",
- color: "var(--text-primary, #cdd6f4)",
+ color: "var(--text-primary)",
  cursor: "pointer",
  fontSize: 12,
  }}
@@ -151,18 +151,18 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
  {/* Center: Live preview */}
  <div style={{ flex: 1, display: "flex", flexDirection: "column", position: "relative" }}>
  {/* Toolbar */}
- <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 12px", borderBottom: "1px solid var(--border, #2a2a3e)", background: "var(--bg-secondary, #1e1e2e)" }}>
+ <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 12px", borderBottom: "1px solid var(--border, var(--bg-secondary))", background: "var(--bg-secondary)" }}>
  <input
  value={previewUrl}
  onChange={(e) => setPreviewUrl(e.target.value)}
  onKeyDown={(e) => e.key === "Enter" && iframeRef.current?.setAttribute("src", previewUrl)}
- style={{ flex: 1, background: "var(--bg-tertiary, #2a2a3e)", border: "1px solid var(--border-subtle, #44445a)", borderRadius: 4, color: "inherit", padding: "3px 8px", fontSize: 12 }}
+ style={{ flex: 1, background: "var(--bg-tertiary)", border: "1px solid var(--border-subtle, #44445a)", borderRadius: 4, color: "inherit", padding: "3px 8px", fontSize: 12 }}
  />
  <button onClick={() => iframeRef.current?.setAttribute("src", previewUrl)} style={{ background: "none", border: "none", cursor: "pointer", color: "inherit", fontSize: 14 }}>↺</button>
  <button
  onClick={handleVisualEditToggle}
  style={{
- background: visualEditEnabled ? "#6366f1" : "var(--bg-tertiary, #2a2a3e)",
+ background: visualEditEnabled ? "#6366f1" : "var(--bg-tertiary)",
  border: "1px solid var(--border-subtle, #44445a)",
  borderRadius: 4,
  padding: "3px 10px",
@@ -200,7 +200,7 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
  </div>
 
  {/* Right: AI Chat + Property Inspector */}
- <div style={{ width: 280, borderLeft: "1px solid var(--border, #2a2a3e)", padding: 12, overflowY: "auto", flexShrink: 0, display: "flex", flexDirection: "column", gap: 12 }}>
+ <div style={{ width: 280, borderLeft: "1px solid var(--border, var(--bg-secondary))", padding: 12, overflowY: "auto", flexShrink: 0, display: "flex", flexDirection: "column", gap: 12 }}>
  {/* Generate component */}
  <div>
  <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Generate Component</div>
@@ -209,7 +209,7 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
  onChange={(e) => setAiInstruction(e.target.value)}
  placeholder="Describe a component to generate..."
  rows={3}
- style={{ width: "100%", resize: "vertical", background: "var(--bg-secondary, #1e1e2e)", border: "1px solid var(--border-subtle, #44445a)", borderRadius: 4, color: "inherit", padding: 8, fontSize: 12, boxSizing: "border-box" }}
+ style={{ width: "100%", resize: "vertical", background: "var(--bg-secondary)", border: "1px solid var(--border-subtle, #44445a)", borderRadius: 4, color: "inherit", padding: 8, fontSize: 12, boxSizing: "border-box" }}
  />
  <button
  onClick={handleGenerateComponent}
@@ -219,7 +219,7 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
  {isGenerating ? "Generating…" : "Generate"}
  </button>
  {generationResult && (
- <pre style={{ marginTop: 8, fontSize: 11, color: "#a6e3a1", overflowX: "auto", whiteSpace: "pre-wrap", background: "var(--bg-secondary, #1e1e2e)", borderRadius: 4, padding: 8 }}>
+ <pre style={{ marginTop: 8, fontSize: 11, color: "#a6e3a1", overflowX: "auto", whiteSpace: "pre-wrap", background: "var(--bg-secondary)", borderRadius: 4, padding: 8 }}>
  {generationResult}
  </pre>
  )}
@@ -244,14 +244,14 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
  {/* Figma import dialog */}
  {showFigmaDialog && (
  <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
- <div style={{ background: "var(--bg-secondary, #1e1e2e)", borderRadius: 8, padding: 24, width: 400, border: "1px solid var(--border, #2a2a3e)" }}>
+ <div style={{ background: "var(--bg-secondary)", borderRadius: 8, padding: 24, width: 400, border: "1px solid var(--border, var(--bg-secondary))" }}>
  <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 16 }}>Import from Figma</div>
  <label style={{ fontSize: 12, display: "block", marginBottom: 4 }}>Figma File URL</label>
  <input
  value={figmaUrl}
  onChange={(e) => setFigmaUrl(e.target.value)}
  placeholder="https://www.figma.com/file/..."
- style={{ width: "100%", background: "var(--bg-tertiary, #2a2a3e)", border: "1px solid var(--border-subtle, #44445a)", borderRadius: 4, color: "inherit", padding: "6px 8px", fontSize: 12, marginBottom: 12, boxSizing: "border-box" }}
+ style={{ width: "100%", background: "var(--bg-tertiary)", border: "1px solid var(--border-subtle, #44445a)", borderRadius: 4, color: "inherit", padding: "6px 8px", fontSize: 12, marginBottom: 12, boxSizing: "border-box" }}
  />
  <label style={{ fontSize: 12, display: "block", marginBottom: 4 }}>Figma API Token</label>
  <input
@@ -259,7 +259,7 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
  value={figmaToken}
  onChange={(e) => setFigmaToken(e.target.value)}
  placeholder="figd_..."
- style={{ width: "100%", background: "var(--bg-tertiary, #2a2a3e)", border: "1px solid var(--border-subtle, #44445a)", borderRadius: 4, color: "inherit", padding: "6px 8px", fontSize: 12, marginBottom: 16, boxSizing: "border-box" }}
+ style={{ width: "100%", background: "var(--bg-tertiary)", border: "1px solid var(--border-subtle, #44445a)", borderRadius: 4, color: "inherit", padding: "6px 8px", fontSize: 12, marginBottom: 16, boxSizing: "border-box" }}
  />
  {figmaResult.length > 0 && (
  <div style={{ marginBottom: 16 }}>
@@ -279,7 +279,7 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
  </button>
  <button
  onClick={() => { setShowFigmaDialog(false); setFigmaResult([]); }}
- style={{ flex: 1, background: "var(--bg-tertiary, #2a2a3e)", border: "1px solid var(--border-subtle, #44445a)", borderRadius: 4, padding: "8px 0", cursor: "pointer", fontSize: 13, color: "inherit" }}
+ style={{ flex: 1, background: "var(--bg-tertiary)", border: "1px solid var(--border-subtle, #44445a)", borderRadius: 4, padding: "8px 0", cursor: "pointer", fontSize: 13, color: "inherit" }}
  >
  Cancel
  </button>

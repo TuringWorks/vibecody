@@ -88,8 +88,8 @@ export function ProfilerPanel({ workspacePath }: ProfilerPanelProps) {
       {/* Tool badge */}
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <div style={{
-          background: "var(--bg-secondary, #1e1e2e)", borderRadius: 6, padding: "6px 12px",
-          border: "1px solid var(--border, #2a2a3e)", fontSize: 12, fontWeight: 600,
+          background: "var(--bg-secondary)", borderRadius: 6, padding: "6px 12px",
+          border: "1px solid var(--border, var(--bg-secondary))", fontSize: 12, fontWeight: 600,
         }}>
           {tool ? toolLabel[tool] || tool : "No profiler detected"}
         </div>
@@ -107,9 +107,9 @@ export function ProfilerPanel({ workspacePath }: ProfilerPanelProps) {
           placeholder={tool === "cargo-flamegraph" ? "target binary (optional)" : tool === "py-spy" ? "script.py" : tool === "clinic" ? "server.js" : "target (optional)"}
           style={{
             flex: 1, padding: "8px 10px", fontSize: 12, fontFamily: "monospace",
-            background: "var(--bg-secondary, #1e1e2e)",
-            border: "1px solid var(--border, #2a2a3e)", borderRadius: 4,
-            color: "var(--text-primary, #cdd6f4)", outline: "none",
+            background: "var(--bg-secondary)",
+            border: "1px solid var(--border, var(--bg-secondary))", borderRadius: 4,
+            color: "var(--text-primary)", outline: "none",
           }}
         />
         <button
@@ -117,8 +117,8 @@ export function ProfilerPanel({ workspacePath }: ProfilerPanelProps) {
           disabled={running || !tool}
           style={{
             padding: "8px 18px", fontSize: 13, fontWeight: 700,
-            background: running ? "var(--bg-tertiary, #2a2a3e)" : "#f38ba8",
-            color: "#1e1e2e", border: "none", borderRadius: 6,
+            background: running ? "var(--bg-tertiary)" : "#f38ba8",
+            color: "var(--bg-tertiary)", border: "none", borderRadius: 6,
             cursor: running || !tool ? "not-allowed" : "pointer",
             whiteSpace: "nowrap",
           }}
@@ -139,8 +139,8 @@ export function ProfilerPanel({ workspacePath }: ProfilerPanelProps) {
         <>
           {/* Summary bar */}
           <div style={{
-            background: "var(--bg-secondary, #1e1e2e)", borderRadius: 6, padding: 10,
-            border: "1px solid var(--border, #2a2a3e)", display: "flex", gap: 16, fontSize: 12,
+            background: "var(--bg-secondary)", borderRadius: 6, padding: 10,
+            border: "1px solid var(--border, var(--bg-secondary))", display: "flex", gap: 16, fontSize: 12,
           }}>
             <span>Duration: <strong>{result.duration_secs.toFixed(1)}s</strong></span>
             <span>Samples: <strong>{result.total_samples.toLocaleString()}</strong></span>
@@ -159,7 +159,7 @@ export function ProfilerPanel({ workspacePath }: ProfilerPanelProps) {
               <div style={{
                 display: "grid", gridTemplateColumns: "1fr 70px 70px 80px",
                 gap: 4, padding: "6px 8px", fontSize: 11, fontWeight: 600,
-                borderBottom: "1px solid var(--border, #2a2a3e)", opacity: 0.7,
+                borderBottom: "1px solid var(--border, var(--bg-secondary))", opacity: 0.7,
               }}>
                 <span>Function</span>
                 <span style={{ textAlign: "right" }}>Self%</span>
@@ -173,7 +173,7 @@ export function ProfilerPanel({ workspacePath }: ProfilerPanelProps) {
                   style={{
                     display: "grid", gridTemplateColumns: "1fr 70px 70px 80px",
                     gap: 4, padding: "5px 8px", fontSize: 11,
-                    borderBottom: "1px solid var(--border, #2a2a3e)",
+                    borderBottom: "1px solid var(--border, var(--bg-secondary))",
                     background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.02)",
                   }}
                 >
@@ -223,10 +223,10 @@ export function ProfilerPanel({ workspacePath }: ProfilerPanelProps) {
             </button>
             {showRaw && (
               <pre style={{
-                marginTop: 8, background: "var(--bg-secondary, #1e1e2e)", borderRadius: 6,
+                marginTop: 8, background: "var(--bg-secondary)", borderRadius: 6,
                 padding: 10, fontSize: 10, fontFamily: "monospace", maxHeight: 200,
-                overflowY: "auto", whiteSpace: "pre-wrap", color: "var(--text-primary, #cdd6f4)",
-                border: "1px solid var(--border, #2a2a3e)",
+                overflowY: "auto", whiteSpace: "pre-wrap", color: "var(--text-primary)",
+                border: "1px solid var(--border, var(--bg-secondary))",
               }}>
                 {result.raw_output || "(no output)"}
               </pre>

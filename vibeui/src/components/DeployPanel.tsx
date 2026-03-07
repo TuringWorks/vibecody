@@ -146,7 +146,7 @@ export function DeployPanel({ workspacePath }: DeployPanelProps) {
  <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 16, height: "100%", overflowY: "auto" }}>
  {/* Detected project */}
  {detected && (
- <div style={{ background: "var(--bg-secondary, #1e1e2e)", borderRadius: 8, padding: 12, border: "1px solid var(--border, #2a2a3e)" }}>
+ <div style={{ background: "var(--bg-secondary)", borderRadius: 8, padding: 12, border: "1px solid var(--border, var(--bg-secondary))" }}>
  <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 4 }}>Detected Project</div>
  <div style={{ fontWeight: 600 }}>{detected.detected_framework || "Static Site"}</div>
  <div style={{ fontSize: 11, opacity: 0.6, fontFamily: "monospace" }}>Build: {detected.build_cmd}</div>
@@ -164,12 +164,12 @@ export function DeployPanel({ workspacePath }: DeployPanelProps) {
  key={t.id}
  onClick={() => setSelectedTarget(t.id)}
  style={{
- background: selectedTarget === t.id ? "var(--accent-blue, #6366f1)" : "var(--bg-secondary, #1e1e2e)",
- border: `1px solid ${selectedTarget === t.id ? "var(--accent-blue, #6366f1)" : "var(--border, #2a2a3e)"}`,
+ background: selectedTarget === t.id ? "var(--accent-blue, #6366f1)" : "var(--bg-secondary)",
+ border: `1px solid ${selectedTarget === t.id ? "var(--accent-blue, #6366f1)" : "var(--border, var(--bg-secondary))"}`,
  borderRadius: 6,
  padding: "7px 6px",
  cursor: "pointer",
- color: "var(--text-primary, #cdd6f4)",
+ color: "var(--text-primary)",
  fontSize: 11,
  fontWeight: selectedTarget === t.id ? 600 : 400,
  display: "flex",
@@ -192,7 +192,7 @@ export function DeployPanel({ workspacePath }: DeployPanelProps) {
  onClick={handleDeploy}
  disabled={isDeploying}
  style={{
- background: isDeploying ? "var(--bg-tertiary, #2a2a3e)" : "#6366f1",
+ background: isDeploying ? "var(--bg-tertiary)" : "#6366f1",
  color: "#fff",
  border: "none",
  borderRadius: 6,
@@ -225,7 +225,7 @@ export function DeployPanel({ workspacePath }: DeployPanelProps) {
  onChange={(e) => setCustomDomain(e.target.value)}
  placeholder="myapp.example.com"
  onKeyDown={(e) => e.key === "Enter" && handleSetDomain()}
- style={{ flex: 1, padding: "6px 10px", fontSize: 12, fontFamily: "monospace", background: "var(--bg-secondary, #1e1e2e)", border: "1px solid var(--border, #2a2a3e)", borderRadius: 4, color: "var(--text-primary, #cdd6f4)", outline: "none" }}
+ style={{ flex: 1, padding: "6px 10px", fontSize: 12, fontFamily: "monospace", background: "var(--bg-secondary)", border: "1px solid var(--border, var(--bg-secondary))", borderRadius: 4, color: "var(--text-primary)", outline: "none" }}
  />
  <button
  onClick={handleSetDomain}
@@ -236,9 +236,9 @@ export function DeployPanel({ workspacePath }: DeployPanelProps) {
  </button>
  </div>
  {domainResult && (
- <div style={{ marginTop: 8, background: "var(--bg-secondary, #1e1e2e)", border: "1px solid var(--border, #2a2a3e)", borderRadius: 6, padding: 10 }}>
+ <div style={{ marginTop: 8, background: "var(--bg-secondary)", border: "1px solid var(--border, var(--bg-secondary))", borderRadius: 6, padding: 10 }}>
  <div style={{ fontSize: 11, color: "#cba6f7", marginBottom: 4 }}>DNS Instructions</div>
- <pre style={{ fontSize: 11, margin: 0, whiteSpace: "pre-wrap", fontFamily: "monospace", color: "var(--text-primary, #cdd6f4)" }}>
+ <pre style={{ fontSize: 11, margin: 0, whiteSpace: "pre-wrap", fontFamily: "monospace", color: "var(--text-primary)" }}>
  {domainResult.instructions}
  </pre>
  </div>
@@ -247,7 +247,7 @@ export function DeployPanel({ workspacePath }: DeployPanelProps) {
 
  {/* Log stream */}
  {logs.length > 0 && (
- <div style={{ background: "var(--bg-secondary, #1e1e2e)", borderRadius: 6, padding: 10, maxHeight: 200, overflowY: "auto", fontFamily: "monospace", fontSize: 11 }}>
+ <div style={{ background: "var(--bg-secondary)", borderRadius: 6, padding: 10, maxHeight: 200, overflowY: "auto", fontFamily: "monospace", fontSize: 11 }}>
  {logs.map((line, i) => (
  <div key={i} style={{ opacity: 0.8 }}>{line}</div>
  ))}
@@ -260,7 +260,7 @@ export function DeployPanel({ workspacePath }: DeployPanelProps) {
  <div>
  <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>History</div>
  {history.slice(0, 5).map((rec) => (
- <div key={rec.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: "1px solid var(--border, #2a2a3e)", fontSize: 12 }}>
+ <div key={rec.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: "1px solid var(--border, var(--bg-secondary))", fontSize: 12 }}>
  <span>{rec.status === "success" ? "" : rec.status === "running" ? "" : ""}</span>
  <span style={{ opacity: 0.7 }}>{rec.target}</span>
  {rec.url && <a href={rec.url} target="_blank" rel="noopener noreferrer" style={{ color: "#89b4fa", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{rec.url}</a>}

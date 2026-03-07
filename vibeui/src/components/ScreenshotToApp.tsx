@@ -129,7 +129,7 @@ export function ScreenshotToApp({ workspacePath }: { workspacePath: string | nul
   };
 
   return (
-    <div style={{ padding: "12px", fontFamily: "monospace", fontSize: "13px", height: "100%", overflowY: "auto", background: "#1e1e2e" }}>
+    <div style={{ padding: "12px", fontFamily: "monospace", fontSize: "13px", height: "100%", overflowY: "auto", background: "var(--bg-tertiary)" }}>
       <div style={{ fontWeight: "bold", marginBottom: "12px", color: "#e0e0e0" }}>
         Screenshot to App
       </div>
@@ -147,7 +147,7 @@ export function ScreenshotToApp({ workspacePath }: { workspacePath: string | nul
           textAlign: "center",
           cursor: "pointer",
           marginBottom: "12px",
-          background: "#2a2a3e",
+          background: "var(--bg-secondary)",
           color: "#888",
           transition: "border-color 0.2s",
         }}
@@ -200,7 +200,7 @@ export function ScreenshotToApp({ workspacePath }: { workspacePath: string | nul
             style={{
               display: "flex", alignItems: "center", gap: "4px",
               padding: "4px 10px", borderRadius: "4px", cursor: "pointer",
-              background: framework === fw.value ? "#7c3aed" : "#2a2a3e",
+              background: framework === fw.value ? "#7c3aed" : "var(--bg-secondary)",
               color: framework === fw.value ? "#fff" : "#ccc",
               border: `1px solid ${framework === fw.value ? "#7c3aed" : "#444"}`,
               fontSize: "12px",
@@ -240,7 +240,7 @@ export function ScreenshotToApp({ workspacePath }: { workspacePath: string | nul
       {/* Progress indicator */}
       {generating && (
         <div style={{
-          background: "#2a2a3e", borderRadius: "4px", padding: "12px",
+          background: "var(--bg-secondary)", borderRadius: "4px", padding: "12px",
           marginBottom: "12px", color: "#7c3aed", textAlign: "center",
           fontSize: "12px",
         }}>
@@ -309,7 +309,7 @@ export function ScreenshotToApp({ workspacePath }: { workspacePath: string | nul
                 style={{
                   display: "flex", alignItems: "center", gap: "8px",
                   padding: "8px 10px", cursor: "pointer",
-                  background: "#2a2a3e",
+                  background: "var(--bg-secondary)",
                 }}
               >
                 <span style={{
@@ -366,7 +366,7 @@ export function ScreenshotToApp({ workspacePath }: { workspacePath: string | nul
       {/* Info box when idle */}
       {!generating && files.length === 0 && !error && (
         <div style={{
-          background: "#2a2a3e", padding: "12px", borderRadius: "6px",
+          background: "var(--bg-secondary)", padding: "12px", borderRadius: "6px",
           color: "#888", fontSize: "12px", lineHeight: "1.6",
         }}>
           <div style={{ marginBottom: "4px", fontWeight: "bold", color: "#ccc" }}>

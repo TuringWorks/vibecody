@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { TAB_GROUPS } from "../constants/tabGroups";
 import { TAB_META, DEFAULT_TAB_META } from "../constants/tabMeta";
 import { Search, ChevronDown, ChevronRight } from "lucide-react";
@@ -40,6 +40,29 @@ export function GroupedTabBar({ activeTab, onTabChange }: Props) {
   };
 
   const isSearching = search.trim().length > 0;
+
+  // Flat list of visible (non-collapsed, filtered) tab ids for arrow-key nav
+  const visibleTabs = useMemo(() => {
+    return filteredGroups.flatMap((g) =>
+      (!isSearching && collapsed[g.label]) ? [] : g.tabs
+    );
+  }, [filteredGroups, collapsed, isSearching]);
+
+  const handleTabKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      const idx = visibleTabs.indexOf(activeTab);
+      let next: number | null = null;
+      if (e.key === "ArrowDown") next = Math.min(idx + 1, visibleTabs.length - 1);
+      else if (e.key === "ArrowUp") next = Math.max(idx - 1, 0);
+      else if (e.key === "Home") next = 0;
+      else if (e.key === "End") next = visibleTabs.length - 1;
+      if (next !== null && next !== idx) {
+        e.preventDefault();
+        onTabChange(visibleTabs[next]);
+      }
+    },
+    [activeTab, visibleTabs, onTabChange],
+  );
 
   return (
     <div className="grouped-tab-bar">
@@ -96,6 +119,7 @@ export function GroupedTabBar({ activeTab, onTabChange }: Props) {
                         id={`ai-tab-${tab}`}
                         className={`tab-item${isActive ? " tab-item--active" : ""}`}
                         onClick={() => onTabChange(tab)}
+                        onKeyDown={handleTabKeyDown}
                       >
                         <Icon size={14} strokeWidth={1.5} />
                         <span>{meta.label}</span>

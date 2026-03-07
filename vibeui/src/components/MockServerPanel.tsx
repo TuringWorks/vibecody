@@ -156,7 +156,7 @@ export function MockServerPanel() {
       {/* Server controls */}
       <div style={{
         display: "flex", gap: 6, padding: "8px 12px", alignItems: "center",
-        borderBottom: "1px solid var(--border, #2a2a3e)",
+        borderBottom: "1px solid var(--border, var(--bg-secondary))",
       }}>
         <span style={{ fontSize: 11, fontWeight: 600 }}>Port:</span>
         <input
@@ -166,11 +166,11 @@ export function MockServerPanel() {
           style={{ ...inputStyle, width: 60, textAlign: "center" }}
         />
         {!running ? (
-          <button onClick={handleStart} disabled={loading} style={{ ...btnStyle, background: "#a6e3a1", color: "#1e1e2e" }}>
+          <button onClick={handleStart} disabled={loading} style={{ ...btnStyle, background: "#a6e3a1", color: "var(--bg-tertiary)" }}>
             {loading ? "..." : "Start"}
           </button>
         ) : (
-          <button onClick={handleStop} style={{ ...btnStyle, background: "#f38ba8", color: "#1e1e2e" }}>
+          <button onClick={handleStop} style={{ ...btnStyle, background: "#f38ba8", color: "var(--bg-tertiary)" }}>
             Stop
           </button>
         )}
@@ -186,16 +186,16 @@ export function MockServerPanel() {
       </div>
 
       {/* Sub-tabs */}
-      <div style={{ display: "flex", gap: 4, padding: "6px 12px", borderBottom: "1px solid var(--border, #2a2a3e)" }}>
+      <div style={{ display: "flex", gap: 4, padding: "6px 12px", borderBottom: "1px solid var(--border, var(--bg-secondary))" }}>
         {(["routes", "log", "import"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
             style={{
               padding: "3px 10px", fontSize: 10, fontWeight: 600, borderRadius: 4, cursor: "pointer",
-              border: tab === t ? "1px solid var(--accent, #6366f1)" : "1px solid var(--border, #2a2a3e)",
+              border: tab === t ? "1px solid var(--accent, #6366f1)" : "1px solid var(--border, var(--bg-secondary))",
               background: tab === t ? "rgba(99,102,241,0.15)" : "transparent",
-              color: "var(--text-primary, #cdd6f4)",
+              color: "var(--text-primary)",
             }}
           >
             {t === "routes" ? "Routes" : t === "log" ? "Request Log" : "Import"}
@@ -236,11 +236,11 @@ export function MockServerPanel() {
             {routes.map((r) => (
               <div key={r.id} style={{
                 display: "flex", gap: 8, alignItems: "center", padding: "4px 6px",
-                borderBottom: "1px solid var(--border, #2a2a3e)", fontSize: 11,
+                borderBottom: "1px solid var(--border, var(--bg-secondary))", fontSize: 11,
               }}>
                 <span style={{
                   padding: "1px 6px", borderRadius: 3, fontWeight: 700, fontSize: 10,
-                  color: "#1e1e2e", background: methodColor[r.method] || "#6c7086",
+                  color: "var(--bg-tertiary)", background: methodColor[r.method] || "#6c7086",
                 }}>
                   {r.method}
                 </span>
@@ -277,14 +277,14 @@ export function MockServerPanel() {
             {requestLog.map((r, i) => (
               <div key={i} style={{
                 display: "flex", gap: 8, alignItems: "center", padding: "4px 6px",
-                borderBottom: "1px solid var(--border, #2a2a3e)", fontSize: 11,
+                borderBottom: "1px solid var(--border, var(--bg-secondary))", fontSize: 11,
               }}>
                 <span style={{ fontSize: 9, opacity: 0.4, fontFamily: "monospace" }}>
                   {new Date(r.timestamp).toLocaleTimeString()}
                 </span>
                 <span style={{
                   padding: "1px 5px", borderRadius: 3, fontWeight: 700, fontSize: 9,
-                  color: "#1e1e2e", background: methodColor[r.method] || "#6c7086",
+                  color: "var(--bg-tertiary)", background: methodColor[r.method] || "#6c7086",
                 }}>
                   {r.method}
                 </span>
@@ -342,25 +342,25 @@ export function MockServerPanel() {
 
 const btnStyle: React.CSSProperties = {
   padding: "4px 10px", fontSize: 11, fontWeight: 600,
-  border: "1px solid var(--border, #2a2a3e)", borderRadius: 4,
-  background: "var(--bg-secondary, #1e1e2e)", color: "var(--text-primary, #cdd6f4)",
+  border: "1px solid var(--border, var(--bg-secondary))", borderRadius: 4,
+  background: "var(--bg-secondary)", color: "var(--text-primary)",
   cursor: "pointer",
 };
 
 const inputStyle: React.CSSProperties = {
   padding: "4px 8px", fontSize: 11, borderRadius: 4,
-  border: "1px solid var(--border, #2a2a3e)",
-  background: "var(--bg-primary, #11111b)", color: "var(--text-primary, #cdd6f4)",
+  border: "1px solid var(--border, var(--bg-secondary))",
+  background: "var(--bg-primary, #11111b)", color: "var(--text-primary)",
   outline: "none",
 };
 
 const selectStyle: React.CSSProperties = {
   padding: "4px 6px", fontSize: 11, borderRadius: 4,
-  border: "1px solid var(--border, #2a2a3e)",
-  background: "var(--bg-primary, #11111b)", color: "var(--text-primary, #cdd6f4)",
+  border: "1px solid var(--border, var(--bg-secondary))",
+  background: "var(--bg-primary, #11111b)", color: "var(--text-primary)",
 };
 
 const cellBtn: React.CSSProperties = {
   background: "none", border: "none", cursor: "pointer",
-  fontSize: 12, padding: "0 3px", color: "var(--text-primary, #cdd6f4)", opacity: 0.7,
+  fontSize: 12, padding: "0 3px", color: "var(--text-primary)", opacity: 0.7,
 };

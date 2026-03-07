@@ -18,7 +18,7 @@ const panelStyle: React.CSSProperties = {
   padding: 12,
   height: "100%",
   overflow: "auto",
-  background: "#1e1e2e",
+  background: "var(--bg-tertiary)",
   color: "#e0e0e0",
   fontFamily: "var(--font-family, 'Segoe UI', system-ui, sans-serif)",
   fontSize: 13,
@@ -42,7 +42,7 @@ const badgeStyle: React.CSSProperties = {
 };
 
 const sessionCardStyle: React.CSSProperties = {
-  background: "#2a2a3e",
+  background: "var(--bg-secondary)",
   borderRadius: 6,
   padding: 10,
   marginBottom: 8,

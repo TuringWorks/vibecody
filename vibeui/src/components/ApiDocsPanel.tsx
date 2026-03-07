@@ -56,7 +56,7 @@ const METHOD_COLORS: Record<string, { bg: string; color: string }> = {
 };
 
 const methodStyle = (method: string) => {
- const c = METHOD_COLORS[method.toUpperCase()] ?? { bg: "#1a1a2a", color: "#cdd6f4" };
+ const c = METHOD_COLORS[method.toUpperCase()] ?? { bg: "#1a1a2a", color: "var(--text-primary)" };
  return { background: c.bg, color: c.color, padding: "2px 6px", borderRadius: 3, fontSize: 10, fontWeight: 700, fontFamily: "monospace", flexShrink: 0 as const };
 };
 
@@ -240,7 +240,7 @@ function EndpointRow({ endpoint, serverUrl }: { endpoint: Endpoint; serverUrl: s
  <div key={code} style={{ display: "flex", gap: 8, fontSize: 11, lineHeight: 1.7 }}>
  <span style={{
  fontFamily: "monospace", fontWeight: 700, minWidth: 40,
- color: code.startsWith("2") ? "#a6e3a1" : code.startsWith("4") ? "#fab387" : code.startsWith("5") ? "#f38ba8" : "#cdd6f4",
+ color: code.startsWith("2") ? "#a6e3a1" : code.startsWith("4") ? "#fab387" : code.startsWith("5") ? "#f38ba8" : "var(--text-primary)",
  }}>{code}</span>
  <span style={{ color: "var(--text-secondary)" }}>{resp.description}</span>
  </div>

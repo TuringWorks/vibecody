@@ -159,8 +159,8 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
           onChange={(e) => { setSelectedSource(e.target.value); setCustomPath(""); }}
           style={{
             flex: 1, minWidth: 180, padding: "5px 8px", fontSize: 12,
-            background: "var(--bg-secondary, #1e1e2e)", color: "var(--text-primary, #cdd6f4)",
-            border: "1px solid var(--border, #2a2a3e)", borderRadius: 6,
+            background: "var(--bg-secondary)", color: "var(--text-primary)",
+            border: "1px solid var(--border, var(--bg-secondary))", borderRadius: 6,
           }}
         >
           {sources.length === 0 && <option value="">No log files found</option>}
@@ -177,8 +177,8 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
           onChange={(e) => setCustomPath(e.target.value)}
           style={{
             flex: 1, minWidth: 150, padding: "5px 8px", fontSize: 12,
-            background: "var(--bg-secondary, #1e1e2e)", color: "var(--text-primary, #cdd6f4)",
-            border: "1px solid var(--border, #2a2a3e)", borderRadius: 6,
+            background: "var(--bg-secondary)", color: "var(--text-primary)",
+            border: "1px solid var(--border, var(--bg-secondary))", borderRadius: 6,
           }}
         />
         <button
@@ -186,7 +186,7 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
           disabled={loading}
           style={{
             padding: "5px 14px", fontSize: 12, fontWeight: 600,
-            background: loading ? "var(--bg-tertiary, #2a2a3e)" : "#6366f1",
+            background: loading ? "var(--bg-tertiary)" : "#6366f1",
             color: "#fff", border: "none", borderRadius: 6,
             cursor: loading ? "not-allowed" : "pointer",
           }}
@@ -202,8 +202,8 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
           onChange={(e) => setLineCount(Number(e.target.value))}
           style={{
             padding: "4px 6px", fontSize: 11,
-            background: "var(--bg-secondary, #1e1e2e)", color: "var(--text-primary, #cdd6f4)",
-            border: "1px solid var(--border, #2a2a3e)", borderRadius: 4,
+            background: "var(--bg-secondary)", color: "var(--text-primary)",
+            border: "1px solid var(--border, var(--bg-secondary))", borderRadius: 4,
           }}
         >
           <option value={100}>100 lines</option>
@@ -219,9 +219,9 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
             onClick={() => setLevelFilter(lv)}
             style={{
               padding: "3px 10px", fontSize: 11, borderRadius: 12,
-              background: levelFilter === lv ? (lv === "all" ? "#6366f1" : levelColor[lv]) : "var(--bg-secondary, #1e1e2e)",
-              border: `1px solid ${levelFilter === lv ? "transparent" : "var(--border, #2a2a3e)"}`,
-              color: levelFilter === lv ? "#fff" : "var(--text-primary, #cdd6f4)",
+              background: levelFilter === lv ? (lv === "all" ? "#6366f1" : levelColor[lv]) : "var(--bg-secondary)",
+              border: `1px solid ${levelFilter === lv ? "transparent" : "var(--border, var(--bg-secondary))"}`,
+              color: levelFilter === lv ? "#fff" : "var(--text-primary)",
               cursor: "pointer", fontWeight: levelFilter === lv ? 600 : 400,
             }}
           >
@@ -247,8 +247,8 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
           onChange={(e) => setSearch(e.target.value)}
           style={{
             flex: 1, minWidth: 120, padding: "4px 8px", fontSize: 11,
-            background: "var(--bg-secondary, #1e1e2e)", color: "var(--text-primary, #cdd6f4)",
-            border: "1px solid var(--border, #2a2a3e)", borderRadius: 4,
+            background: "var(--bg-secondary)", color: "var(--text-primary)",
+            border: "1px solid var(--border, var(--bg-secondary))", borderRadius: 4,
           }}
         />
       </div>
@@ -264,8 +264,8 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
       {result && (
         <div style={{
           display: "flex", gap: 12, fontSize: 12,
-          background: "var(--bg-secondary, #1e1e2e)", borderRadius: 6, padding: "6px 10px",
-          border: "1px solid var(--border, #2a2a3e)",
+          background: "var(--bg-secondary)", borderRadius: 6, padding: "6px 10px",
+          border: "1px solid var(--border, var(--bg-secondary))",
         }}>
           <span>Lines: <strong>{result.total_lines}</strong></span>
           <span style={{ color: result.error_count > 0 ? "#f38ba8" : "inherit" }}>
@@ -281,8 +281,8 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
             disabled={analyzing || filtered.length === 0}
             style={{
               padding: "2px 10px", fontSize: 11, fontWeight: 600,
-              background: analyzing ? "var(--bg-tertiary, #2a2a3e)" : "#a6e3a1",
-              color: "#1e1e2e", border: "none", borderRadius: 4,
+              background: analyzing ? "var(--bg-tertiary)" : "#a6e3a1",
+              color: "var(--bg-tertiary)", border: "none", borderRadius: 4,
               cursor: analyzing ? "not-allowed" : "pointer",
             }}
           >
@@ -294,8 +294,8 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
       {/* AI Analysis */}
       {analysis && (
         <div style={{
-          background: "var(--bg-secondary, #1e1e2e)", borderRadius: 6, padding: 10,
-          border: "1px solid var(--border, #2a2a3e)", fontSize: 12,
+          background: "var(--bg-secondary)", borderRadius: 6, padding: 10,
+          border: "1px solid var(--border, var(--bg-secondary))", fontSize: 12,
           maxHeight: 200, overflowY: "auto", whiteSpace: "pre-wrap",
           fontFamily: "inherit", lineHeight: 1.5,
         }}>
@@ -316,8 +316,8 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
       {result && filtered.length > 0 ? (
         <div style={{
           flex: 1, overflowY: "auto", fontFamily: "monospace", fontSize: 11,
-          background: "var(--bg-secondary, #1e1e2e)", borderRadius: 6,
-          border: "1px solid var(--border, #2a2a3e)", padding: 4,
+          background: "var(--bg-secondary)", borderRadius: 6,
+          border: "1px solid var(--border, var(--bg-secondary))", padding: 4,
         }}>
           {filtered.map((entry) => (
             <div

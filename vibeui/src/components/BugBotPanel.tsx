@@ -112,7 +112,7 @@ export function BugBotPanel({ workspacePath }: BugBotPanelProps) {
  padding: "5px 14px",
  borderRadius: 5,
  border: "none",
- background: scanning ? "#313244" : "var(--accent-blue, #007acc)",
+ background: scanning ? "var(--bg-secondary)" : "var(--accent-blue, #007acc)",
  color: "#fff",
  cursor: scanning ? "default" : "pointer",
  fontWeight: 600,
@@ -166,7 +166,7 @@ export function BugBotPanel({ workspacePath }: BugBotPanelProps) {
  )}
  <button
  onClick={() => { setFilterSeverity("all"); setFilterCategory("all"); }}
- style={{ padding: "2px 8px", borderRadius: 4, border: "1px solid #45475a", background: "transparent", color: "#6c7086", cursor: "pointer", fontSize: 11 }}
+ style={{ padding: "2px 8px", borderRadius: 4, border: "1px solid var(--border-color)", background: "transparent", color: "var(--text-secondary)", cursor: "pointer", fontSize: 11 }}
  >
  Clear filters
  </button>
@@ -186,8 +186,8 @@ export function BugBotPanel({ workspacePath }: BugBotPanelProps) {
  style={{
  padding: "2px 7px",
  borderRadius: 4,
- border: "1px solid #45475a",
- background: filterCategory === c ? "#313244" : "transparent",
+ border: "1px solid var(--border-color)",
+ background: filterCategory === c ? "var(--bg-secondary)" : "transparent",
  color: filterCategory === c ? "var(--text-primary)" : "var(--text-secondary)",
  cursor: "pointer",
  fontSize: 11,
@@ -238,7 +238,7 @@ export function BugBotPanel({ workspacePath }: BugBotPanelProps) {
  <span style={{ fontSize: 10, padding: "1px 5px", borderRadius: 3, background: `${SEVERITY_COLOR[report.severity]}22`, color: SEVERITY_COLOR[report.severity], fontWeight: 600 }}>
  {report.severity.toUpperCase()}
  </span>
- <span style={{ fontSize: 10, padding: "1px 5px", borderRadius: 3, background: "#ffffff11", color: "var(--text-secondary)" }}>
+ <span style={{ fontSize: 10, padding: "1px 5px", borderRadius: 3, background: "rgba(255,255,255,0.07)", color: "var(--text-secondary)" }}>
  {CATEGORY_LABEL[report.category] || report.category}
  </span>
  {report.file_path && (
@@ -255,7 +255,7 @@ export function BugBotPanel({ workspacePath }: BugBotPanelProps) {
 
  {/* Expanded detail */}
  {expanded === report.id && (
- <div style={{ borderTop: "1px solid #313244", padding: "10px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
+ <div style={{ borderTop: "1px solid var(--bg-secondary)", padding: "10px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
  <div>
  <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 3 }}>PROBLEM</div>
  <div style={{ fontSize: 12, lineHeight: 1.6 }}>{report.description}</div>
@@ -267,7 +267,7 @@ export function BugBotPanel({ workspacePath }: BugBotPanelProps) {
  {report.fix_snippet && (
  <div>
  <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 3 }}>FIX</div>
- <pre style={{ fontSize: 11, background: "#181825", padding: 8, borderRadius: 4, margin: 0, overflow: "auto", lineHeight: 1.5, color: "#cdd6f4" }}>
+ <pre style={{ fontSize: 11, background: "var(--bg-primary)", padding: 8, borderRadius: 4, margin: 0, overflow: "auto", lineHeight: 1.5, color: "var(--text-primary)" }}>
  {report.fix_snippet}
  </pre>
  </div>
@@ -290,8 +290,8 @@ export function BugBotPanel({ workspacePath }: BugBotPanelProps) {
 const selectStyle: React.CSSProperties = {
  padding: "4px 8px",
  borderRadius: 4,
- border: "1px solid #45475a",
- background: "#1e1e2e",
- color: "#cdd6f4",
+ border: "1px solid var(--border-color)",
+ background: "var(--bg-tertiary)",
+ color: "var(--text-primary)",
  fontSize: 12,
 };

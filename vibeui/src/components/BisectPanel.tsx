@@ -125,7 +125,7 @@ export function BisectPanel({ workspacePath }: BisectPanelProps) {
       {/* Header */}
       <div style={{
         display: "flex", gap: 6, padding: "8px 12px", alignItems: "center",
-        borderBottom: "1px solid var(--border, #2a2a3e)",
+        borderBottom: "1px solid var(--border, var(--bg-secondary))",
       }}>
         <span style={{ fontSize: 12, fontWeight: 600 }}>Git Bisect</span>
         <div style={{ flex: 1 }} />
@@ -178,7 +178,7 @@ export function BisectPanel({ workspacePath }: BisectPanelProps) {
             {/* Current commit */}
             <div style={{
               padding: "8px 10px", borderRadius: 6,
-              background: "var(--bg-primary, #11111b)", border: "1px solid var(--border, #2a2a3e)",
+              background: "var(--bg-primary, #11111b)", border: "1px solid var(--border, var(--bg-secondary))",
             }}>
               <div style={{ fontSize: 10, fontWeight: 600, opacity: 0.6, marginBottom: 4 }}>Current Commit</div>
               {current.current_commit && (
@@ -291,14 +291,14 @@ export function BisectPanel({ workspacePath }: BisectPanelProps) {
 
 const btnStyle: React.CSSProperties = {
   padding: "4px 10px", fontSize: 11, fontWeight: 600,
-  border: "1px solid var(--border, #2a2a3e)", borderRadius: 4,
-  background: "var(--bg-secondary, #1e1e2e)", color: "var(--text-primary, #cdd6f4)",
+  border: "1px solid var(--border, var(--bg-secondary))", borderRadius: 4,
+  background: "var(--bg-secondary)", color: "var(--text-primary)",
   cursor: "pointer",
 };
 
 const inputStyle: React.CSSProperties = {
   padding: "6px 8px", fontSize: 12, borderRadius: 4,
-  border: "1px solid var(--border, #2a2a3e)",
-  background: "var(--bg-primary, #11111b)", color: "var(--text-primary, #cdd6f4)",
+  border: "1px solid var(--border, var(--bg-secondary))",
+  background: "var(--bg-primary, #11111b)", color: "var(--text-primary)",
   outline: "none", fontFamily: "monospace",
 };

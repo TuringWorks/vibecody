@@ -70,7 +70,7 @@ export function TransformPanel() {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
       <div style={{
-        padding: "8px 12px", borderBottom: "1px solid var(--border, #2a2a3e)",
+        padding: "8px 12px", borderBottom: "1px solid var(--border, var(--bg-secondary))",
         display: "flex", alignItems: "center", gap: 8,
       }}>
         <span style={{ fontSize: 14, fontWeight: 700 }}>Code Transform</span>
@@ -86,9 +86,9 @@ export function TransformPanel() {
           {TRANSFORMS.map((t) => (
             <button key={t.id} onClick={() => { setSelected(t.id); setPlan(null); setResult(null); }} style={{
               padding: "6px 10px", borderRadius: 4, textAlign: "left", cursor: "pointer",
-              border: selected === t.id ? "1px solid #6366f1" : "1px solid var(--border, #2a2a3e)",
+              border: selected === t.id ? "1px solid #6366f1" : "1px solid var(--border, var(--bg-secondary))",
               background: selected === t.id ? "rgba(99,102,241,0.15)" : "var(--bg-primary, #11111b)",
-              color: "var(--text-primary, #cdd6f4)",
+              color: "var(--text-primary)",
             }}>
               <div style={{ fontSize: 11, fontWeight: 600 }}>{t.label}</div>
               <div style={{ fontSize: 10, opacity: 0.6 }}>{t.description}</div>
@@ -122,7 +122,7 @@ export function TransformPanel() {
                 <div key={i} style={{
                   padding: "4px 8px", fontSize: 10, borderRadius: 3,
                   background: "var(--bg-primary, #11111b)",
-                  border: "1px solid var(--border, #2a2a3e)",
+                  border: "1px solid var(--border, var(--bg-secondary))",
                 }}>
                   <div style={{ fontWeight: 600, fontFamily: "monospace" }}>{p.file}</div>
                   <div style={{ opacity: 0.6 }}>{p.description} (~{p.estimated_changes} changes)</div>
@@ -130,7 +130,7 @@ export function TransformPanel() {
               ))}
             </div>
             <button onClick={handleExecute} disabled={executing} style={{
-              ...btnStyle, background: "#a6e3a1", color: "#1e1e2e", fontWeight: 700,
+              ...btnStyle, background: "#a6e3a1", color: "var(--bg-tertiary)", fontWeight: 700,
               opacity: executing ? 0.5 : 1, width: "100%",
             }}>
               {executing ? `Transforming... ${progress}%` : "Execute Transform"}
@@ -150,7 +150,7 @@ export function TransformPanel() {
 
 const btnStyle: React.CSSProperties = {
   padding: "6px 12px", fontSize: 12, fontWeight: 600,
-  border: "1px solid var(--border, #2a2a3e)", borderRadius: 4,
-  background: "var(--bg-secondary, #1e1e2e)", color: "var(--text-primary, #cdd6f4)",
+  border: "1px solid var(--border, var(--bg-secondary))", borderRadius: 4,
+  background: "var(--bg-secondary)", color: "var(--text-primary)",
   cursor: "pointer",
 };

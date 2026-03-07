@@ -118,7 +118,7 @@ const DashboardPanel: React.FC = () => {
 const Card: React.FC<{ label: string; value: string; color?: string }> = ({ label, value, color }) => (
   <div style={{
     padding: "8px 12px",
-    background: "#1e1e2e",
+    background: "var(--bg-tertiary)",
     borderRadius: 6,
     border: "1px solid #333",
   }}>

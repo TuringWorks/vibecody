@@ -96,7 +96,7 @@ export function VisualEditor({ onEdit, workspacePath, iframeOffset = { top: 0, l
           top,
           left,
           zIndex: 9999,
-          background: "var(--bg-secondary, #1e1e2e)",
+          background: "var(--bg-secondary)",
           border: "1px solid var(--border, #6366f1)",
           borderRadius: 8,
           padding: "10px 12px",
@@ -128,10 +128,10 @@ export function VisualEditor({ onEdit, workspacePath, iframeOffset = { top: 0, l
             placeholder="Change this to..."
             style={{
               flex: 1,
-              background: "var(--bg-tertiary, #2a2a3e)",
+              background: "var(--bg-tertiary)",
               border: "1px solid var(--border-subtle, #44445a)",
               borderRadius: 4,
-              color: "var(--text-primary, #cdd6f4)",
+              color: "var(--text-primary)",
               padding: "5px 8px",
               fontSize: 13,
             }}
@@ -162,7 +162,7 @@ export function VisualEditor({ onEdit, workspacePath, iframeOffset = { top: 0, l
               key={action}
               onClick={() => setInstruction(action)}
               style={{
-                background: "var(--bg-tertiary, #2a2a3e)",
+                background: "var(--bg-tertiary)",
                 border: "1px solid var(--border-subtle, #44445a)",
                 borderRadius: 12,
                 padding: "2px 8px",
@@ -190,7 +190,7 @@ export function VisualEditor({ onEdit, workspacePath, iframeOffset = { top: 0, l
         </details>
 
         {lastResult && (
-          <div style={{ marginTop: 8, fontSize: 12, color: "#a6e3a1", fontFamily: "monospace" }}>
+          <div style={{ marginTop: 8, fontSize: 12, color: "var(--text-success, #a6e3a1)", fontFamily: "monospace" }}>
             {lastResult}
           </div>
         )}

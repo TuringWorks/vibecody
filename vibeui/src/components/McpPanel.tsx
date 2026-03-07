@@ -422,7 +422,7 @@ export function McpPanel() {
  {oauthForm.busy ? "Opening…" : "Open Browser"}
  </button>
  ) : (
- <button onClick={completeOAuth} disabled={oauthForm.busy || !oauthForm.authCode} style={{ padding: "6px 14px", fontSize: "12px", background: "#a6e3a1", border: "none", borderRadius: "4px", color: "#1e1e2e", cursor: "pointer", fontWeight: 600 }}>
+ <button onClick={completeOAuth} disabled={oauthForm.busy || !oauthForm.authCode} style={{ padding: "6px 14px", fontSize: "12px", background: "#a6e3a1", border: "none", borderRadius: "4px", color: "var(--bg-tertiary)", cursor: "pointer", fontWeight: 600 }}>
  {oauthForm.busy ? "Exchanging…" : "Connect"}
  </button>
  )}

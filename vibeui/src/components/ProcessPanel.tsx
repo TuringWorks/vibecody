@@ -26,7 +26,7 @@ function statusBadge(status: string): React.ReactNode {
  if (s.startsWith("R")) return <Circle size={12} strokeWidth={0} fill="#a6e3a1" />; // running
  if (s.startsWith("Z")) return <Circle size={12} strokeWidth={0} fill="#f38ba8" />; // zombie
  if (s.startsWith("T")) return <Circle size={12} strokeWidth={0} fill="#89b4fa" />; // stopped
- return <Circle size={12} strokeWidth={0} fill="#cdd6f4" />;
+ return <Circle size={12} strokeWidth={0} fill="var(--text-primary)" />;
 }
 
 // ── Main component ─────────────────────────────────────────────────────────────

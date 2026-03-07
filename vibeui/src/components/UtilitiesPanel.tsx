@@ -215,7 +215,7 @@ function RegexTool() {
  let cursor = 0;
  for (const m of matches) {
  if (m.index > cursor) parts.push(text.slice(cursor, m.index).replace(/</g, "&lt;"));
- parts.push(`<mark style="background:#f9e2af;color:#1e1e2e;border-radius:2px">${m[0].replace(/</g, "&lt;")}</mark>`);
+ parts.push(`<mark style="background:#f9e2af;color:var(--bg-tertiary);border-radius:2px">${m[0].replace(/</g, "&lt;")}</mark>`);
  cursor = m.index + m[0].length;
  }
  parts.push(text.slice(cursor).replace(/</g, "&lt;"));

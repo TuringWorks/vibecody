@@ -67,7 +67,7 @@ export function MarketplacePanel() {
     <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
       {/* Header */}
       <div style={{
-        padding: "8px 12px", borderBottom: "1px solid var(--border, #2a2a3e)",
+        padding: "8px 12px", borderBottom: "1px solid var(--border, var(--bg-secondary))",
         display: "flex", alignItems: "center", gap: 8,
       }}>
         <span style={{ fontSize: 14, fontWeight: 700 }}>Marketplace</span>
@@ -111,7 +111,7 @@ export function MarketplacePanel() {
             {filtered.map((p) => (
               <div key={p.name} style={{
                 padding: "8px 10px", borderRadius: 6,
-                border: "1px solid var(--border, #2a2a3e)",
+                border: "1px solid var(--border, var(--bg-secondary))",
                 background: "var(--bg-primary, #11111b)",
               }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
@@ -153,13 +153,13 @@ export function MarketplacePanel() {
 
 const chipStyle: React.CSSProperties = {
   padding: "3px 8px", fontSize: 10, fontWeight: 600, borderRadius: 4, cursor: "pointer",
-  border: "1px solid var(--border, #2a2a3e)",
-  background: "transparent", color: "var(--text-primary, #cdd6f4)",
+  border: "1px solid var(--border, var(--bg-secondary))",
+  background: "transparent", color: "var(--text-primary)",
 };
 
 const inputStyle: React.CSSProperties = {
   padding: "4px 8px", fontSize: 11, borderRadius: 4,
-  border: "1px solid var(--border, #2a2a3e)",
-  background: "var(--bg-primary, #11111b)", color: "var(--text-primary, #cdd6f4)",
+  border: "1px solid var(--border, var(--bg-secondary))",
+  background: "var(--bg-primary, #11111b)", color: "var(--text-primary)",
   outline: "none",
 };

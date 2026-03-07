@@ -71,7 +71,7 @@ export function CIReviewPanel() {
     <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
       {/* Header */}
       <div style={{
-        padding: "8px 12px", borderBottom: "1px solid var(--border, #2a2a3e)",
+        padding: "8px 12px", borderBottom: "1px solid var(--border, var(--bg-secondary))",
         display: "flex", alignItems: "center", gap: 8,
       }}>
         <span style={{ fontSize: 14, fontWeight: 700 }}>CI/CD Review Bot</span>
@@ -213,14 +213,14 @@ export function CIReviewPanel() {
               {reviews.map((r, i) => (
                 <div key={i} style={{
                   padding: "6px 8px", borderRadius: 4,
-                  border: "1px solid var(--border, #2a2a3e)",
+                  border: "1px solid var(--border, var(--bg-secondary))",
                   background: "var(--bg-primary, #11111b)",
                 }}>
                   <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4 }}>
                     <span style={{
                       fontSize: 9, padding: "1px 6px", borderRadius: 3, fontWeight: 700,
                       background: r.status === "success" ? "#a6e3a1" : "#f38ba8",
-                      color: "#1e1e2e",
+                      color: "var(--bg-tertiary)",
                     }}>
                       {r.status}
                     </span>
@@ -270,15 +270,15 @@ export function CIReviewPanel() {
 
 const btnStyle: React.CSSProperties = {
   padding: "6px 12px", fontSize: 12, fontWeight: 600,
-  border: "1px solid var(--border, #2a2a3e)", borderRadius: 4,
-  background: "var(--bg-secondary, #1e1e2e)", color: "var(--text-primary, #cdd6f4)",
+  border: "1px solid var(--border, var(--bg-secondary))", borderRadius: 4,
+  background: "var(--bg-secondary)", color: "var(--text-primary)",
   cursor: "pointer",
 };
 
 const inputStyle: React.CSSProperties = {
   padding: "5px 8px", fontSize: 11, borderRadius: 4, width: "100%", boxSizing: "border-box" as const,
-  border: "1px solid var(--border, #2a2a3e)",
-  background: "var(--bg-primary, #11111b)", color: "var(--text-primary, #cdd6f4)",
+  border: "1px solid var(--border, var(--bg-secondary))",
+  background: "var(--bg-primary, #11111b)", color: "var(--text-primary)",
   outline: "none",
 };
 

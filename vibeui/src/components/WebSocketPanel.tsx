@@ -28,7 +28,7 @@ interface WsMessage {
 const DIR_COLORS: Record<MsgDirection, string> = {
  sent: "#89b4fa",
  received: "#a6e3a1",
- system: "#cdd6f4",
+ system: "var(--text-primary)",
  error: "#f38ba8",
 };
 const DIR_ICONS: Record<MsgDirection, string> = {

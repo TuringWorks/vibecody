@@ -80,7 +80,7 @@ export function AgentTeamPanel() {
     <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
       {/* Header */}
       <div style={{
-        padding: "8px 12px", borderBottom: "1px solid var(--border, #2a2a3e)",
+        padding: "8px 12px", borderBottom: "1px solid var(--border, var(--bg-secondary))",
         display: "flex", alignItems: "center", gap: 8,
       }}>
         <span style={{ fontSize: 14, fontWeight: 700 }}>Agent Teams</span>
@@ -137,16 +137,16 @@ export function AgentTeamPanel() {
         /* Team view */
         <>
           {/* Sub-tabs */}
-          <div style={{ display: "flex", gap: 4, padding: "6px 12px", borderBottom: "1px solid var(--border, #2a2a3e)" }}>
+          <div style={{ display: "flex", gap: 4, padding: "6px 12px", borderBottom: "1px solid var(--border, var(--bg-secondary))" }}>
             {(["overview", "tasks", "messages"] as const).map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
                 style={{
                   padding: "3px 10px", fontSize: 10, fontWeight: 600, borderRadius: 4, cursor: "pointer",
-                  border: tab === t ? "1px solid #6366f1" : "1px solid var(--border, #2a2a3e)",
+                  border: tab === t ? "1px solid #6366f1" : "1px solid var(--border, var(--bg-secondary))",
                   background: tab === t ? "rgba(99,102,241,0.15)" : "transparent",
-                  color: "var(--text-primary, #cdd6f4)",
+                  color: "var(--text-primary)",
                 }}
               >
                 {t === "overview" ? "Overview" : t === "tasks" ? `Tasks (${team.tasks.length})` : `Messages (${team.message_count})`}
@@ -168,7 +168,7 @@ export function AgentTeamPanel() {
                     <div key={id} style={{
                       padding: "4px 8px", fontSize: 10, borderRadius: 4,
                       background: id === team.lead_agent_id ? "rgba(99,102,241,0.15)" : "var(--bg-primary, #11111b)",
-                      border: id === team.lead_agent_id ? "1px solid #6366f1" : "1px solid var(--border, #2a2a3e)",
+                      border: id === team.lead_agent_id ? "1px solid #6366f1" : "1px solid var(--border, var(--bg-secondary))",
                     }}>
                       {id === team.lead_agent_id ? "Lead: " : ""}{id.split("-").pop()}
                     </div>
@@ -196,13 +196,13 @@ export function AgentTeamPanel() {
                 {team.tasks.map((t) => (
                   <div key={t.id} style={{
                     padding: "6px 8px", borderRadius: 4,
-                    border: "1px solid var(--border, #2a2a3e)",
+                    border: "1px solid var(--border, var(--bg-secondary))",
                     background: "var(--bg-primary, #11111b)",
                   }}>
                     <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4 }}>
                       <span style={{
                         fontSize: 9, padding: "1px 6px", borderRadius: 3, fontWeight: 700,
-                        background: statusColor[t.status] || "#6c7086", color: "#1e1e2e",
+                        background: statusColor[t.status] || "#6c7086", color: "var(--bg-tertiary)",
                       }}>
                         {t.status}
                       </span>
@@ -265,15 +265,15 @@ export function AgentTeamPanel() {
 
 const btnStyle: React.CSSProperties = {
   padding: "6px 12px", fontSize: 12, fontWeight: 600,
-  border: "1px solid var(--border, #2a2a3e)", borderRadius: 4,
-  background: "var(--bg-secondary, #1e1e2e)", color: "var(--text-primary, #cdd6f4)",
+  border: "1px solid var(--border, var(--bg-secondary))", borderRadius: 4,
+  background: "var(--bg-secondary)", color: "var(--text-primary)",
   cursor: "pointer",
 };
 
 const inputStyle: React.CSSProperties = {
   padding: "5px 8px", fontSize: 11, borderRadius: 4,
-  border: "1px solid var(--border, #2a2a3e)",
-  background: "var(--bg-primary, #11111b)", color: "var(--text-primary, #cdd6f4)",
+  border: "1px solid var(--border, var(--bg-secondary))",
+  background: "var(--bg-primary, #11111b)", color: "var(--text-primary)",
   outline: "none",
 };
 
