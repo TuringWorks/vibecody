@@ -433,4 +433,65 @@ mod tests {
         assert_eq!(resp.choices.len(), 1);
         assert_eq!(resp.usage.unwrap().completion_tokens, 1);
     }
+
+    // ── translate_api_error tests ────────────────────────────────────────────
+
+    #[test]
+    fn translate_401_auth() {
+        let body = r#"{"error":{"message":"Incorrect API key provided"}}"#;
+        let msg = OpenAIProvider::translate_api_error(401, body);
+        assert!(msg.contains("Authentication failed"), "got: {msg}");
+        assert!(msg.contains("OPENAI_API_KEY"));
+    }
+
+    #[test]
+    fn translate_429_rate_limited() {
+        let body = r#"{"error":{"message":"Rate limit exceeded"}}"#;
+        let msg = OpenAIProvider::translate_api_error(429, body);
+        assert!(msg.contains("Rate limited"), "got: {msg}");
+    }
+
+    #[test]
+    fn translate_404_model() {
+        let body = r#"{"error":{"message":"The model gpt-5 does not exist"}}"#;
+        let msg = OpenAIProvider::translate_api_error(404, body);
+        assert!(msg.contains("Model not found"), "got: {msg}");
+    }
+
+    #[test]
+    fn translate_503_overloaded() {
+        let body = r#"{"error":{"message":"Service unavailable"}}"#;
+        let msg = OpenAIProvider::translate_api_error(503, body);
+        assert!(msg.contains("temporarily overloaded"), "got: {msg}");
+    }
+
+    #[test]
+    fn translate_500_generic() {
+        let body = r#"{"error":{"message":"Internal error"}}"#;
+        let msg = OpenAIProvider::translate_api_error(500, body);
+        assert!(msg.contains("HTTP 500"), "got: {msg}");
+    }
+
+    #[test]
+    fn translate_non_json() {
+        let msg = OpenAIProvider::translate_api_error(502, "Bad Gateway");
+        assert!(msg.contains("HTTP 502"), "got: {msg}");
+        assert!(msg.contains("Bad Gateway"));
+    }
+
+    #[test]
+    fn api_url_default() {
+        let mut cfg = test_config();
+        cfg.api_url = None;
+        let p = OpenAIProvider::new(cfg);
+        assert_eq!(p.api_url(), OpenAIProvider::DEFAULT_API_URL);
+    }
+
+    #[test]
+    fn api_url_custom() {
+        let mut cfg = test_config();
+        cfg.api_url = Some("https://my-proxy.com/v1/chat/completions".into());
+        let p = OpenAIProvider::new(cfg);
+        assert_eq!(p.api_url(), "https://my-proxy.com/v1/chat/completions");
+    }
 }

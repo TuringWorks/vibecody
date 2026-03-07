@@ -505,4 +505,81 @@ mod tests {
         assert_eq!(resp.content[0].text, "hello world");
         assert_eq!(resp.usage.unwrap().output_tokens, 5);
     }
+
+    // ── translate_api_error tests ────────────────────────────────────────────
+
+    #[test]
+    fn translate_401_auth_error() {
+        let body = r#"{"error":{"type":"authentication_error","message":"invalid x-api-key"}}"#;
+        let msg = ClaudeProvider::translate_api_error(401, body);
+        assert!(msg.contains("Authentication failed"), "got: {msg}");
+        assert!(msg.contains("ANTHROPIC_API_KEY"));
+    }
+
+    #[test]
+    fn translate_429_rate_limit() {
+        let body = r#"{"error":{"type":"rate_limit_error","message":"Too many requests"}}"#;
+        let msg = ClaudeProvider::translate_api_error(429, body);
+        assert!(msg.contains("Rate limited"), "got: {msg}");
+        assert!(msg.contains("plan limits"));
+    }
+
+    #[test]
+    fn translate_404_model_not_found() {
+        let body = r#"{"error":{"type":"not_found_error","message":"model: foo-bar not found"}}"#;
+        let msg = ClaudeProvider::translate_api_error(404, body);
+        assert!(msg.contains("Model not found"), "got: {msg}");
+    }
+
+    #[test]
+    fn translate_529_overloaded() {
+        let body = r#"{"error":{"type":"overloaded_error","message":"Claude is overloaded right now"}}"#;
+        let msg = ClaudeProvider::translate_api_error(529, body);
+        assert!(msg.contains("temporarily overloaded"), "got: {msg}");
+    }
+
+    #[test]
+    fn translate_503_service_unavailable() {
+        let body = r#"{"error":{"type":"api_error","message":"Internal server error"}}"#;
+        let msg = ClaudeProvider::translate_api_error(503, body);
+        assert!(msg.contains("temporarily overloaded"), "got: {msg}");
+    }
+
+    #[test]
+    fn translate_403_access_denied() {
+        let body = r#"{"error":{"type":"permission_error","message":"Not allowed"}}"#;
+        let msg = ClaudeProvider::translate_api_error(403, body);
+        assert!(msg.contains("Access denied"), "got: {msg}");
+    }
+
+    #[test]
+    fn translate_unknown_status() {
+        let body = r#"{"error":{"type":"unknown","message":"Something happened"}}"#;
+        let msg = ClaudeProvider::translate_api_error(500, body);
+        assert!(msg.contains("HTTP 500"), "got: {msg}");
+        assert!(msg.contains("Something happened"));
+    }
+
+    #[test]
+    fn translate_non_json_body() {
+        let msg = ClaudeProvider::translate_api_error(502, "Bad Gateway");
+        assert!(msg.contains("HTTP 502"), "got: {msg}");
+        assert!(msg.contains("Bad Gateway"));
+    }
+
+    #[test]
+    fn api_url_uses_default_when_none() {
+        let mut cfg = test_config();
+        cfg.api_url = None;
+        let p = ClaudeProvider::new(cfg);
+        assert_eq!(p.api_url(), ClaudeProvider::DEFAULT_API_URL);
+    }
+
+    #[test]
+    fn api_url_uses_custom_when_set() {
+        let mut cfg = test_config();
+        cfg.api_url = Some("https://custom.api.com/v1/messages".into());
+        let p = ClaudeProvider::new(cfg);
+        assert_eq!(p.api_url(), "https://custom.api.com/v1/messages");
+    }
 }

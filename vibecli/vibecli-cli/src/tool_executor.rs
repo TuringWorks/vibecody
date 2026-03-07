@@ -1327,4 +1327,61 @@ mod tests {
     fn decode_html_entities_empty_string() {
         assert_eq!(decode_html_entities(""), "");
     }
+
+    // ── URL scheme validation tests ──────────────────────────────────────────
+
+    fn is_valid_fetch_url(url: &str) -> bool {
+        let lower = url.to_lowercase();
+        lower.starts_with("http://") || lower.starts_with("https://")
+    }
+
+    #[test]
+    fn valid_http_url() {
+        assert!(is_valid_fetch_url("http://example.com"));
+    }
+
+    #[test]
+    fn valid_https_url() {
+        assert!(is_valid_fetch_url("https://api.example.com/data"));
+    }
+
+    #[test]
+    fn valid_https_uppercase() {
+        assert!(is_valid_fetch_url("HTTPS://EXAMPLE.COM"));
+    }
+
+    #[test]
+    fn rejects_file_url() {
+        assert!(!is_valid_fetch_url("file:///etc/passwd"));
+    }
+
+    #[test]
+    fn rejects_javascript_url() {
+        assert!(!is_valid_fetch_url("javascript:alert(1)"));
+    }
+
+    #[test]
+    fn rejects_data_url() {
+        assert!(!is_valid_fetch_url("data:text/html,<h1>hello</h1>"));
+    }
+
+    #[test]
+    fn rejects_ftp_url() {
+        assert!(!is_valid_fetch_url("ftp://server/file.txt"));
+    }
+
+    #[test]
+    fn rejects_empty_url() {
+        assert!(!is_valid_fetch_url(""));
+    }
+
+    #[test]
+    fn rejects_relative_path() {
+        assert!(!is_valid_fetch_url("/etc/passwd"));
+    }
+
+    #[test]
+    fn rejects_bare_domain() {
+        assert!(!is_valid_fetch_url("example.com"));
+    }
 }
