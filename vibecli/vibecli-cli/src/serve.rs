@@ -191,10 +191,15 @@ impl AgentEventPayload {
     }
 }
 
+/// JSON error response helper — returns `{"error":"msg"}` with correct Content-Type.
+fn json_error(status: StatusCode, msg: impl Into<String>) -> (StatusCode, Json<serde_json::Value>) {
+    (status, Json(serde_json::json!({ "error": msg.into() })))
+}
+
 // ── Route handlers ────────────────────────────────────────────────────────────
 
 async fn health() -> impl IntoResponse {
-    Json(serde_json::json!({ "status": "ok" }))
+    Json(serde_json::json!({ "status": "ok", "version": env!("CARGO_PKG_VERSION") }))
 }
 
 /// Skill webhook endpoint — triggers a skill by name via POST.
@@ -241,7 +246,7 @@ async fn pairing_handler() -> impl IntoResponse {
 async fn chat(
     State(state): State<ServeState>,
     Json(req): Json<ChatRequest>,
-) -> Result<Json<ChatResponse>, (StatusCode, String)> {
+) -> Result<Json<ChatResponse>, (StatusCode, Json<serde_json::Value>)> {
     use futures::StreamExt;
 
     let messages: Vec<Message> = req
@@ -263,7 +268,7 @@ async fn chat(
         .await
         .map_err(|e| {
             tracing::error!("chat provider error: {e}");
-            (StatusCode::INTERNAL_SERVER_ERROR, format!(r#"{{"error":"LLM provider error: {}"}}"#, e.to_string().replace('"', "'")))
+            json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("LLM provider error: {e}"))
         })?;
 
     let mut accumulated = String::new();
@@ -272,7 +277,7 @@ async fn chat(
             Ok(text) => accumulated.push_str(&text),
             Err(e) => {
                 tracing::error!("chat stream error: {e}");
-                return Err((StatusCode::INTERNAL_SERVER_ERROR, format!(r#"{{"error":"Stream error: {}"}}"#, e.to_string().replace('"', "'"))));
+                return Err(json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("Stream error: {e}")));
             }
         }
     }
@@ -336,7 +341,7 @@ async fn chat_stream(
 async fn start_agent(
     State(state): State<ServeState>,
     Json(req): Json<AgentRequest>,
-) -> Result<Json<AgentStartResponse>, (StatusCode, String)> {
+) -> Result<Json<AgentStartResponse>, (StatusCode, Json<serde_json::Value>)> {
     // Use a cryptographically random 128-bit hex ID to prevent session enumeration.
     let session_id = format!("{:032x}", rand::thread_rng().gen::<u128>());
 
@@ -451,16 +456,16 @@ async fn list_jobs(
 async fn get_job(
     Path(id): Path<String>,
     State(state): State<ServeState>,
-) -> Result<Json<JobRecord>, (StatusCode, String)> {
+) -> Result<Json<JobRecord>, (StatusCode, Json<serde_json::Value>)> {
     load_job(&state.jobs_dir, &id)
         .map(Json)
-        .ok_or_else(|| (StatusCode::NOT_FOUND, format!(r#"{{"error":"Job '{}' not found"}}"#, id)))
+        .ok_or_else(|| json_error(StatusCode::NOT_FOUND, format!("Job '{id}' not found")))
 }
 
 async fn cancel_job(
     Path(id): Path<String>,
     State(state): State<ServeState>,
-) -> Result<Json<JobRecord>, (StatusCode, String)> {
+) -> Result<Json<JobRecord>, (StatusCode, Json<serde_json::Value>)> {
     // Remove stream (ends SSE)
     {
         let mut streams = state.streams.lock().await;
@@ -469,7 +474,7 @@ async fn cancel_job(
 
     // Update persisted record
     let mut record = load_job(&state.jobs_dir, &id)
-        .ok_or_else(|| (StatusCode::NOT_FOUND, format!(r#"{{"error":"Job '{}' not found"}}"#, id)))?;
+        .ok_or_else(|| json_error(StatusCode::NOT_FOUND, format!("Job '{id}' not found")))?;
     if record.status == "running" {
         record.status = "cancelled".to_string();
         record.finished_at = Some(now_ms());
@@ -481,7 +486,7 @@ async fn cancel_job(
 async fn stream_agent(
     Path(session_id): Path<String>,
     State(state): State<ServeState>,
-) -> Result<Sse<impl futures::Stream<Item = Result<Event, Infallible>>>, (StatusCode, String)> {
+) -> Result<Sse<impl futures::Stream<Item = Result<Event, Infallible>>>, (StatusCode, Json<serde_json::Value>)> {
     use tokio_stream::wrappers::BroadcastStream;
     use futures::StreamExt;
 
@@ -489,7 +494,7 @@ async fn stream_agent(
         let streams = state.streams.lock().await;
         let tx = streams
             .get(&session_id)
-            .ok_or_else(|| (StatusCode::NOT_FOUND, format!(r#"{{"error":"Session '{}' not found"}}"#, session_id)))?;
+            .ok_or_else(|| json_error(StatusCode::NOT_FOUND, format!("Session '{session_id}' not found")))?;
         tx.subscribe()
     };
 
@@ -918,11 +923,11 @@ async fn list_collab_rooms(
 async fn list_collab_peers(
     Path(room_id): Path<String>,
     State(state): State<ServeState>,
-) -> Result<Json<Vec<PeerInfo>>, (StatusCode, String)> {
+) -> Result<Json<Vec<PeerInfo>>, (StatusCode, Json<serde_json::Value>)> {
     let room = state
         .collab_server
         .get_room(&room_id)
-        .ok_or_else(|| (StatusCode::NOT_FOUND, format!("Room '{}' not found", room_id)))?;
+        .ok_or_else(|| json_error(StatusCode::NOT_FOUND, format!("Room '{room_id}' not found")))?;
     Ok(Json(room.list_peers().await))
 }
 
