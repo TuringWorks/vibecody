@@ -1,0 +1,37 @@
+---
+triggers: ["HR", "human resources", "payroll", "HRIS", "workforce management", "talent acquisition", "ATS", "applicant tracking", "performance management", "benefits administration", "time tracking", "onboarding"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: hr
+---
+
+# HR & Workforce Management Engineering
+
+When working with human resources and workforce management systems:
+
+1. Architect HRIS (Human Resource Information System) around a canonical employee record that serves as the system of record for all HR data. Model the employee lifecycle as a state machine: Candidate -> Hired -> Active -> OnLeave -> Terminated/Retired. Store every status change as an effective-dated record so you can reconstruct the employee's state at any point in time. Separate PII (SSN, bank details) into an encrypted, access-controlled data store with field-level encryption and audit logging on every read.
+
+2. Build payroll calculation engines with a layered computation pipeline: gross pay (salary/hourly x hours, plus differentials, overtime, bonuses) -> pre-tax deductions (401k, HSA, FSA, transit) -> tax withholding (federal via IRS Publication 15-T, state, local, FICA/Medicare) -> post-tax deductions (Roth 401k, garnishments, union dues) -> net pay. Handle garnishment priority rules (federal tax levy > child support > student loan > creditor), disposable income calculations, and multi-state taxation for remote workers based on work-location nexus rules.
+
+3. Implement ATS (Applicant Tracking System) pipeline management with configurable hiring stages: Applied -> Screened -> PhoneInterview -> TechnicalAssessment -> OnsiteInterview -> OfferExtended -> OfferAccepted -> Hired (or Rejected/Withdrawn at any stage). Track time-in-stage metrics, enable structured interview scorecards with calibration, support requisition approval workflows, and integrate with job boards (Indeed, LinkedIn, Greenhouse) via their posting APIs. Ensure EEOC data collection is optional and stored separately from hiring decisions.
+
+4. Automate onboarding workflows with a checklist engine that triggers tasks based on the new hire's role, department, and location: IT provisioning (account creation, laptop ordering, badge request), HR paperwork (I-9 verification within 3 days, W-4, state tax forms, direct deposit, policy acknowledgments), manager tasks (schedule intro meetings, assign buddy, set 30/60/90 day goals), and training assignments (compliance courses, role-specific certifications). Track completion percentage and send reminders for overdue items.
+
+5. Design benefits enrollment and administration with plan year lifecycle management: define open enrollment windows, support qualifying life events (QLE) that trigger special enrollment periods, and model plan structures (medical/dental/vision tiers, HSA/FSA contribution limits, life/disability coverage multiples). Calculate employer and employee premium shares per pay period, generate carrier eligibility feeds (EDI 834 format or API), and reconcile carrier invoices against enrollment records monthly.
+
+6. Implement time and attendance tracking with multiple input methods: web clock, mobile GPS-verified punch, badge swipe, biometric scan, or timesheet entry. Apply pay rules automatically: regular hours, daily/weekly overtime (FLSA and state-specific), double time, shift differentials, meal/rest break compliance, and PTO accrual. Flag exceptions (missed punches, early/late arrivals, unscheduled absences) for supervisor review, and feed approved timecards into the payroll engine.
+
+7. Build performance review cycles as configurable workflows: Goal Setting -> Self-Assessment -> Manager Review -> Calibration -> Delivery -> Acknowledgment. Support multiple review cadences (annual, semi-annual, quarterly), rating scales (configurable per organization), competency frameworks, and 360-degree feedback collection. Store historical reviews for trend analysis, and link performance ratings to compensation planning recommendations while maintaining separation of concerns.
+
+8. Design compensation planning with a total rewards model: base salary, variable pay (bonuses, commissions), equity (stock options, RSUs with vesting schedules), and benefits value. Support merit increase cycles with budget allocation by department, compa-ratio analysis (employee salary / range midpoint), market data benchmarking integration (Radford, Mercer, Levels.fyi), and manager recommendation workflows with HR/finance approval gates. Model the cost impact of proposed changes before committing.
+
+9. Implement org chart management with a hierarchical reporting structure that supports multiple relationship types: direct reporting line, dotted-line/matrix reporting, and cost center assignment. Store position history (not just current state) to support historical org analysis. Enable drag-and-drop reorganization planning in a sandbox mode, compute span-of-control metrics, and detect anomalies (excessive depth, single-report managers, vacant critical positions).
+
+10. Build compliance reporting engines for EEO-1 (Component 1 workforce demographics by job category, race, ethnicity, sex), VETS-4212 (veteran hiring), OSHA 300/300A/301 (injury and illness logs), ACA reporting (1095-C generation with coverage offer codes and safe harbor indicators), and state-specific requirements (California pay data, New York wage theft prevention). Automate data aggregation from source systems, validate against filing rules, and generate submission-ready files in the required formats.
+
+11. Design employee self-service portals with role-appropriate access: employees can view pay stubs, update personal information (address, emergency contacts, W-4), enroll in benefits, request PTO, and access company documents. Managers get additional views for team time-off calendars, headcount reports, and approval queues. Implement change request workflows where sensitive updates (bank account, legal name) require identity verification and HR approval before taking effect.
+
+12. Build workforce analytics dashboards that surface actionable metrics: headcount and FTE trends, turnover rate (voluntary/involuntary, regrettable/non-regrettable), time-to-fill and cost-per-hire for recruiting, offer acceptance rate, diversity representation by level and department, compensation equity analysis (controlled for role, level, location, tenure), engagement survey trends, and flight risk scoring. Use cohort analysis for retention curves and predictive models for attrition.
+
+13. Handle multi-country workforce requirements by abstracting country-specific rules behind a localization layer: statutory leave entitlements (vacation, sick, parental) per jurisdiction, local tax calculation modules, currency and pay frequency variations, labor law compliance (notice periods, severance calculations, works council requirements), and statutory reporting. Store employee records with jurisdiction metadata so the correct rule set is applied automatically.
+
+14. Implement data privacy and retention policies that comply with applicable regulations (GDPR for EU employees, CCPA for California, HIPAA for benefits health data): support data subject access requests (right to know what data is stored), right to erasure (with exceptions for legal retention requirements), consent management for optional data processing, data minimization principles, and automated purging of records that exceed their retention period. Log all privacy-related actions for regulatory audit readiness.
