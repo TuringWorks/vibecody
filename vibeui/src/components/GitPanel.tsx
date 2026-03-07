@@ -47,6 +47,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  const [conflictFile, setConflictFile] = useState('');
  const [resolvingConflict, setResolvingConflict] = useState(false);
  const [conflictResolution, setConflictResolution] = useState('');
+ const [gitError, setGitError] = useState<string | null>(null);
 
  useEffect(() => {
  if (workspacePath) {
@@ -66,8 +67,10 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  try {
  const status = await invoke<GitStatus>('get_git_status');
  setGitStatus(status);
+ setGitError(null);
  } catch (e) {
- toast.error(`Failed to load git status: ${e}`);
+ const msg = String(e);
+ setGitError(msg);
  }
  };
 
@@ -293,6 +296,27 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  }
 
  if (!gitStatus) {
+ if (gitError) {
+ const isNotRepo = gitError.toLowerCase().includes('not a git repository') || gitError.toLowerCase().includes('not found');
+ return (
+  <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+  <div style={{ fontSize: 28, marginBottom: 8 }}>{isNotRepo ? '📂' : '⚠️'}</div>
+  <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 6 }}>
+   {isNotRepo ? 'No Git Repository' : 'Git Error'}
+  </div>
+  <div style={{ fontSize: 12, lineHeight: 1.6, marginBottom: 12 }}>
+   {isNotRepo
+    ? 'This folder is not a git repository.'
+    : gitError}
+  </div>
+  {isNotRepo && (
+   <div style={{ fontSize: 11, color: 'var(--text-secondary)', opacity: 0.7 }}>
+    Run <code style={{ fontSize: 10 }}>git init</code> in the terminal to initialize one.
+   </div>
+  )}
+  </div>
+ );
+ }
  return (
  <div className="empty-state">
  <p>Loading git status...</p>
