@@ -27,7 +27,7 @@ const statusBadge = (s: string) => {
  if (s === "implemented") return { label: "Implemented", color: "#4ade80" };
  if (s === "partial") return { label: "Partial", color: "#facc15" };
  if (s === "not_implemented") return { label: "Gap", color: "#f87171" };
- return { label: "N/A", color: "#888" };
+ return { label: "N/A", color: "var(--text-secondary)" };
 };
 
 export function CompliancePanel() {
@@ -63,14 +63,14 @@ export function CompliancePanel() {
  };
 
  return (
- <div style={{ padding: 16, color: "#e0e0e0", fontSize: 13 }}>
+ <div style={{ padding: 16, color: "var(--text-primary)", fontSize: 13 }}>
  <h3 style={{ margin: "0 0 12px 0", fontSize: 15 }}>Compliance Report</h3>
 
  <div style={{ display: "flex", gap: 8, marginBottom: 16, alignItems: "center" }}>
  <select
  value={framework}
  onChange={(e) => setFramework(e.target.value)}
- style={{ padding: "5px 10px", background: "#1e1e2e", color: "#e0e0e0", border: "1px solid #444", borderRadius: 4, fontSize: 12 }}
+ style={{ padding: "5px 10px", background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4, fontSize: 12 }}
  >
  {FRAMEWORKS.map((f) => (
  <option key={f} value={f}>{f}</option>
@@ -86,7 +86,7 @@ export function CompliancePanel() {
  {report && (
  <button
  onClick={exportMarkdown}
- style={{ padding: "5px 14px", background: "#333", color: "#e0e0e0", border: "1px solid #555", borderRadius: 4, fontSize: 12, cursor: "pointer" }}
+ style={{ padding: "5px 14px", background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4, fontSize: 12, cursor: "pointer" }}
  >
  Copy Markdown
  </button>
@@ -120,7 +120,7 @@ export function CompliancePanel() {
  <span>Compliance Score</span>
  <span style={{ fontWeight: 600 }}>{report.summary.percentage.toFixed(1)}%</span>
  </div>
- <div style={{ height: 8, background: "#333", borderRadius: 4, overflow: "hidden" }}>
+ <div style={{ height: 8, background: "var(--bg-secondary)", borderRadius: 4, overflow: "hidden" }}>
  <div
  style={{
  height: "100%",
@@ -131,7 +131,7 @@ export function CompliancePanel() {
  }}
  />
  </div>
- <div style={{ display: "flex", gap: 16, marginTop: 8, fontSize: 11, color: "#aaa" }}>
+ <div style={{ display: "flex", gap: 16, marginTop: 8, fontSize: 11, color: "var(--text-secondary)" }}>
  <span> {report.summary.implemented} implemented</span>
  <span style={{ color: "#facc15" }}>{report.summary.partial} partial</span>
  <span> {report.summary.gaps} gaps</span>
@@ -142,9 +142,9 @@ export function CompliancePanel() {
  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
  <thead>
  <tr>
- <th style={{ textAlign: "left", padding: "6px 8px", borderBottom: "2px solid #444", background: "#2a2a3e", color: "#bbb", fontSize: 11 }}>ID</th>
- <th style={{ textAlign: "left", padding: "6px 8px", borderBottom: "2px solid #444", background: "#2a2a3e", color: "#bbb", fontSize: 11 }}>Control</th>
- <th style={{ textAlign: "left", padding: "6px 8px", borderBottom: "2px solid #444", background: "#2a2a3e", color: "#bbb", fontSize: 11 }}>Status</th>
+ <th style={{ textAlign: "left", padding: "6px 8px", borderBottom: "2px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-secondary)", fontSize: 11 }}>ID</th>
+ <th style={{ textAlign: "left", padding: "6px 8px", borderBottom: "2px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-secondary)", fontSize: 11 }}>Control</th>
+ <th style={{ textAlign: "left", padding: "6px 8px", borderBottom: "2px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-secondary)", fontSize: 11 }}>Status</th>
  </tr>
  </thead>
  <tbody>
@@ -156,17 +156,17 @@ export function CompliancePanel() {
  style={{ cursor: "pointer", background: expanded === ctrl.id ? "rgba(124,58,237,0.1)" : undefined }}
  onClick={() => setExpanded(expanded === ctrl.id ? null : ctrl.id)}
  >
- <td style={{ padding: "5px 8px", borderBottom: "1px solid #333", fontFamily: "monospace" }}>{ctrl.id}</td>
- <td style={{ padding: "5px 8px", borderBottom: "1px solid #333" }}>
+ <td style={{ padding: "5px 8px", borderBottom: "1px solid var(--border-color)", fontFamily: "monospace" }}>{ctrl.id}</td>
+ <td style={{ padding: "5px 8px", borderBottom: "1px solid var(--border-color)" }}>
  {ctrl.name}
  {expanded === ctrl.id && (
- <div style={{ marginTop: 6, fontSize: 11, color: "#aaa" }}>
+ <div style={{ marginTop: 6, fontSize: 11, color: "var(--text-secondary)" }}>
  <div><strong>Evidence:</strong> {ctrl.evidence.join(", ") || "None"}</div>
  <div style={{ marginTop: 2 }}><strong>Notes:</strong> {ctrl.notes}</div>
  </div>
  )}
  </td>
- <td style={{ padding: "5px 8px", borderBottom: "1px solid #333", color: badge.color }}>{badge.label}</td>
+ <td style={{ padding: "5px 8px", borderBottom: "1px solid var(--border-color)", color: badge.color }}>{badge.label}</td>
  </tr>
  );
  })}
