@@ -1298,7 +1298,7 @@ impl Config {
         Ok(())
     }
 
-    fn config_path() -> Result<PathBuf> {
+    pub fn config_path() -> Result<PathBuf> {
         let home = dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Could not find home directory"))?;
         Ok(home.join(".vibecli").join("config.toml"))
     }

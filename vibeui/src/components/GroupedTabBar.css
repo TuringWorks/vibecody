@@ -1,0 +1,119 @@
+.grouped-tab-bar {
+  display: flex;
+  flex-direction: column;
+  width: 180px;
+  min-width: 180px;
+  border-right: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  overflow: hidden;
+}
+
+.tab-search {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-secondary);
+}
+
+.tab-search input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-family: inherit;
+  min-width: 0;
+}
+
+.tab-search input::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.7;
+}
+
+.tab-search-clear {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 2px;
+}
+
+.tab-groups-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.tab-group-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  padding: 6px 8px;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.tab-group-header:hover {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+}
+
+.tab-group-count {
+  margin-left: auto;
+  font-size: 10px;
+  opacity: 0.6;
+  font-weight: 400;
+}
+
+.tab-group-items {
+  display: flex;
+  flex-direction: column;
+}
+
+.tab-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px 5px 20px;
+  background: none;
+  border: none;
+  border-left: 2px solid transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  text-align: left;
+  width: 100%;
+}
+
+.tab-item:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.tab-item--active {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border-left-color: var(--accent-blue);
+  font-weight: 500;
+}
+
+.tab-no-results {
+  padding: 16px 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  text-align: center;
+}

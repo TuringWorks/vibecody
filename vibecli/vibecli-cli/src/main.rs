@@ -342,6 +342,20 @@ struct Cli {
 async fn main() -> Result<()> {
     let cli = Cli::parse();
 
+    // Validate config file on startup — warn (don't fail) if it exists but is malformed.
+    if let Ok(config_path) = Config::config_path() {
+        if config_path.exists() {
+            if let Err(e) = Config::load() {
+                eprintln!(
+                    "Warning: config file at {} could not be parsed: {}\n  \
+                     Falling back to default settings. Fix the file or delete it to silence this warning.",
+                    config_path.display(),
+                    e
+                );
+            }
+        }
+    }
+
     // Initialize tracing (with optional OTLP export if [otel] enabled = true).
     let otel_config = Config::load()
         .map(|c| c.otel.clone())

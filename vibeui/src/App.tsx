@@ -4,17 +4,6 @@ import { Toaster } from "./components/Toaster";
 import Editor, { DiffEditor, OnMount } from "@monaco-editor/react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import { ChatTabManager } from "./components/ChatTabManager";
-import { AgentPanel } from "./components/AgentPanel";
-import { MemoryPanel } from "./components/MemoryPanel";
-import { HistoryPanel } from "./components/HistoryPanel";
-import { CheckpointPanel } from "./components/CheckpointPanel";
-import { ArtifactsPanel } from "./components/ArtifactsPanel";
-import { ManagerView } from "./components/ManagerView";
-import { HooksPanel } from "./components/HooksPanel";
-import { BackgroundJobsPanel } from "./components/BackgroundJobsPanel";
-import { McpPanel } from "./components/McpPanel";
-import { SettingsPanel } from "./components/SettingsPanel";
 import { InlineChat } from "./components/InlineChat";
 import type { InlineChatSelection } from "./components/InlineChat";
 import { Terminal } from "./components/Terminal";
@@ -27,91 +16,19 @@ import Modal from "./components/Modal";
 import { GitPanel } from "./components/GitPanel";
 import { MarkdownPreview } from "./components/MarkdownPreview";
 import { FilePlus, FolderPlus, FolderOpen, Files, Search, GitGraph, Settings, Menu, MessageSquare, Save, Terminal as TerminalIcon, PanelLeft, Puzzle, Hand, Sparkles, Bot, Rocket, Plug, Eye, FileText, GraduationCap } from "lucide-react";
-import { TAB_META, DEFAULT_TAB_META } from "./constants/tabMeta";
 import "./ActivityBar.css";
 import { ExtensionManager } from "./extensions/ExtensionManager";
 // Import worker using Vite's syntax
 import ExtensionHostWorker from "./extensions/ExtensionHost?worker";
-import { CascadePanel } from "./components/CascadePanel";
-import { SpecPanel } from "./components/SpecPanel";
-import { WorkflowPanel } from "./components/WorkflowPanel";
-import { DesignMode } from "./components/DesignMode";
-import { DeployPanel } from "./components/DeployPanel";
-import { DatabasePanel } from "./components/DatabasePanel";
-import { SupabasePanel } from "./components/SupabasePanel";
-import { AuthPanel } from "./components/AuthPanel";
-import { GitHubSyncPanel } from "./components/GitHubSyncPanel";
-import SteeringPanel from "./components/SteeringPanel";
-import { BugBotPanel } from "./components/BugBotPanel";
-import { RedTeamPanel } from "./components/RedTeamPanel";
-import { TestPanel } from "./components/TestPanel";
 import { DiffReviewPanel } from "./components/DiffReviewPanel";
-import { ErrorBoundary } from "./components/ErrorBoundary";
-import { CollabPanel } from "./components/CollabPanel";
-import { CoveragePanel } from "./components/CoveragePanel";
-import { MultiModelPanel } from "./components/MultiModelPanel";
-import { HttpPlayground } from "./components/HttpPlayground";
-import { CostPanel } from "./components/CostPanel";
-import { AutofixPanel } from "./components/AutofixPanel";
-import { ArenaPanel } from "./components/ArenaPanel";
-import DashboardPanel from "./components/DashboardPanel";
-import ProcessPanel from "./components/ProcessPanel";
-import CicdPanel from "./components/CicdPanel";
-import { EnvPanel } from "./components/EnvPanel";
-import { ProfilerPanel } from "./components/ProfilerPanel";
-import K8sPanel from "./components/K8sPanel";
-import { DockerPanel } from "./components/DockerPanel";
-import { DepsPanel } from "./components/DepsPanel";
-import { ApiDocsPanel } from "./components/ApiDocsPanel";
-import { MigrationsPanel } from "./components/MigrationsPanel";
-import { LogPanel } from "./components/LogPanel";
-import { ScriptPanel } from "./components/ScriptPanel";
-import { NotebookPanel } from "./components/NotebookPanel";
-import { SshPanel } from "./components/SshPanel";
-import { UtilitiesPanel } from "./components/UtilitiesPanel";
-import { BookmarkPanel } from "./components/BookmarkPanel";
-import { BisectPanel } from "./components/BisectPanel";
-import { SnippetPanel } from "./components/SnippetPanel";
-import { MockServerPanel } from "./components/MockServerPanel";
-import { GraphQLPanel } from "./components/GraphQLPanel";
-import { CodeMetricsPanel } from "./components/CodeMetricsPanel";
-import { LoadTestPanel } from "./components/LoadTestPanel";
-import { NetworkPanel } from "./components/NetworkPanel";
-import { AgentTeamPanel } from "./components/AgentTeamPanel";
-import { CIReviewPanel } from "./components/CIReviewPanel";
-import { TraceDashboard } from "./components/TraceDashboard";
-import { MarketplacePanel } from "./components/MarketplacePanel";
-import { TransformPanel } from "./components/TransformPanel";
-import { AgentRecordingPanel } from "./components/AgentRecordingPanel";
-import { ScreenshotToApp } from "./components/ScreenshotToApp";
-import { VisualTestPanel } from "./components/VisualTestPanel";
-import { CloudAgentPanel } from "./components/CloudAgentPanel";
-import { CompliancePanel } from "./components/CompliancePanel";
-import { ScaffoldPanel } from "./components/ScaffoldPanel";
-import { HealthMonitorPanel } from "./components/HealthMonitorPanel";
-import { WebSocketPanel } from "./components/WebSocketPanel";
-import { ColorPalettePanel } from "./components/ColorPalettePanel";
-import { MarkdownPanel } from "./components/MarkdownPanel";
-import { DiffToolPanel } from "./components/DiffToolPanel";
-import CanvasPanel from "./components/CanvasPanel";
-import { CronPanel } from "./components/CronPanel";
-import { RegexPanel } from "./components/RegexPanel";
-import { JwtPanel } from "./components/JwtPanel";
-import { JsonToolsPanel } from "./components/JsonToolsPanel";
-import { EncodingPanel } from "./components/EncodingPanel";
-import { NumberBasePanel } from "./components/NumberBasePanel";
-import { DataGenPanel } from "./components/DataGenPanel";
-import { TimestampPanel } from "./components/TimestampPanel";
-import { ColorConverterPanel } from "./components/ColorConverterPanel";
-import { CidrPanel } from "./components/CidrPanel";
-import { CsvPanel } from "./components/CsvPanel";
-import { UnitConverterPanel } from "./components/UnitConverterPanel";
-import { UnicodePanel } from "./components/UnicodePanel";
-import { SandboxPanel } from "./components/SandboxPanel";
 import { useCollab } from "./hooks/useCollab";
 import { flowContext } from "./utils/FlowContext";
 import { supercompleteEngine } from "./utils/SupercompleteEngine";
 import { OnboardingTour } from "./components/OnboardingTour";
+import { GroupedTabBar } from "./components/GroupedTabBar";
+import "./components/GroupedTabBar.css";
+import { PanelHost } from "./components/LazyPanels";
+import { ALL_TABS } from "./constants/tabGroups";
 
 interface FileEntry {
   path: string;
@@ -149,7 +66,7 @@ function App() {
   const [showSidebar, setShowSidebar] = useState(true);
   const [activeSidebarTab, setActiveSidebarTab] = useState<"explorer" | "search" | "git">("explorer");
   const [showAIChat, setShowAIChat] = useState(false);
-  const [aiPanelTab, setAiPanelTab] = useState<"chat" | "agent" | "memory" | "history" | "checkpoints" | "artifacts" | "manager" | "hooks" | "jobs" | "mcp" | "settings" | "cascade" | "specs" | "workflow" | "design" | "deploy" | "database" | "supabase" | "auth" | "github" | "steering" | "bugbot" | "redteam" | "tests" | "collab" | "coverage" | "compare" | "http" | "arena" | "cost" | "autofix" | "processes" | "cicd" | "k8s" | "env" | "profiler" | "docker" | "deps" | "apidocs" | "migrations" | "logs" | "scripts" | "notebook" | "ssh" | "utils" | "markers" | "bisect" | "snippets" | "mock" | "graphql" | "metrics" | "loadtest" | "network" | "teams" | "cibot" | "traces" | "marketplace" | "transform" | "img2app" | "recording" | "visualtest" | "cloud" | "compliance" | "scaffold" | "health" | "websocket" | "colors" | "markdown" | "difftool" | "canvas" | "cron" | "regex" | "jwt" | "jsontools" | "encoding" | "numbers" | "datagen" | "timestamp" | "colorconv" | "cidr" | "csv" | "units" | "unicode" | "sandbox" | "dashboard">("chat");
+  const [aiPanelTab, setAiPanelTab] = useState("chat");
   const [showTerminal, setShowTerminal] = useState(false);
   const [bottomTab, setBottomTab] = useState<"terminal" | "browser">("terminal");
   const [showCommandPalette, setShowCommandPalette] = useState(false);
@@ -253,7 +170,7 @@ function App() {
 
   // Global keyboard shortcuts
   useEffect(() => {
-    const AI_TABS = ["chat", "agent", "memory", "history", "checkpoints", "artifacts", "manager", "hooks", "jobs"] as const;
+    const AI_TABS = ALL_TABS.slice(0, 9);
     const handleKeyDown = (e: KeyboardEvent) => {
       const mod = e.metaKey || e.ctrlKey;
       // Cmd+K — command palette
@@ -1502,360 +1419,26 @@ function App() {
           )}
         </main>
 
-        {/* AI Panel (Chat / Agent / Memory tabs) */}
+        {/* AI Panel — grouped sidebar + lazy-loaded panels */}
         {showAIChat && (
-          <aside className="ai-chat-panel" style={{ display: "flex", flexDirection: "column" }}>
-            {/* Tab bar */}
-            <div role="tablist" aria-label="AI Panel tabs" style={{ display: "flex", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
-              {(["chat", "agent", "memory", "history", "checkpoints", "artifacts", "manager", "hooks", "jobs", "mcp", "settings", "cascade", "specs", "workflow", "design", "deploy", "database", "supabase", "auth", "github", "steering", "bugbot", "redteam", "tests", "collab", "coverage", "compare", "http", "arena", "cost", "autofix", "processes", "cicd", "k8s", "env", "profiler", "docker", "deps", "apidocs", "migrations", "logs", "scripts", "notebook", "ssh", "utils", "markers", "bisect", "snippets", "mock", "graphql", "metrics", "loadtest", "network", "teams", "cibot", "traces", "marketplace", "transform", "img2app", "recording", "visualtest", "cloud", "compliance", "scaffold", "health", "websocket", "colors", "markdown", "difftool", "canvas", "cron", "regex", "jwt", "jsontools", "encoding", "numbers", "datagen", "timestamp", "colorconv", "cidr", "csv", "units", "unicode", "sandbox", "dashboard"] as const).map((tab) => (
-                <button
-                  key={tab}
-                  role="tab"
-                  aria-selected={aiPanelTab === tab}
-                  tabIndex={aiPanelTab === tab ? 0 : -1}
-                  id={`ai-tab-${tab}`}
-                  onClick={() => setAiPanelTab(tab)}
-                  style={{
-                    flex: 1,
-                    padding: "8px 4px",
-                    fontSize: "11px",
-                    background: "none",
-                    border: "none",
-                    borderBottom: aiPanelTab === tab ? "2px solid var(--accent-blue, #007acc)" : "2px solid transparent",
-                    color: aiPanelTab === tab ? "var(--text-primary)" : "var(--text-secondary)",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "3px",
-                    fontWeight: aiPanelTab === tab ? 600 : 400,
-                  }}
-                >
-                  {(() => {
-                    const meta = TAB_META[tab] || DEFAULT_TAB_META;
-                    const Icon = meta.icon;
-                    return <><Icon size={14} strokeWidth={1.5} />{meta.label}</>;
-                  })()}
-                </button>
-              ))}
-            </div>
-
-            {/* Tab content */}
+          <aside className="ai-chat-panel" style={{ display: "flex", flexDirection: "row" }}>
+            <GroupedTabBar activeTab={aiPanelTab} onTabChange={setAiPanelTab} />
             <div role="tabpanel" aria-labelledby={`ai-tab-${aiPanelTab}`} style={{ flex: 1, overflow: "hidden" }}>
-              <ErrorBoundary>
-              {aiPanelTab === "chat" && (
-                <ChatTabManager
-                  defaultProvider={selectedProvider}
-                  availableProviders={aiProviders}
-                  context={editorContent}
-                  fileTree={files.map(f => f.path)}
-                  currentFile={currentFile}
-                  onPendingWrite={handlePendingWrite}
-                />
-              )}
-              {aiPanelTab === "agent" && (
-                <AgentPanel
-                  provider={selectedProvider}
-                  workspacePath={workspaceFolders[0] || null}
-                />
-              )}
-              {aiPanelTab === "memory" && (
-                <MemoryPanel
-                  workspacePath={workspaceFolders[0] || null}
-                />
-              )}
-              {aiPanelTab === "history" && (
-                <HistoryPanel />
-              )}
-              {aiPanelTab === "checkpoints" && (
-                <CheckpointPanel
-                  workspacePath={workspaceFolders[0] || null}
-                />
-              )}
-              {aiPanelTab === "artifacts" && (
-                <ArtifactsPanel artifacts={[]} />
-              )}
-              {aiPanelTab === "manager" && (
-                <ManagerView provider={selectedProvider} />
-              )}
-              {aiPanelTab === "hooks" && (
-                <HooksPanel workspacePath={workspaceFolders[0] || null} />
-              )}
-              {aiPanelTab === "jobs" && (
-                <BackgroundJobsPanel />
-              )}
-              {aiPanelTab === "mcp" && (
-                <McpPanel />
-              )}
-              {aiPanelTab === "settings" && (
-                <SettingsPanel />
-              )}
-              {aiPanelTab === "cascade" && (
-                <CascadePanel
-                  onInjectContext={(text) => {
-                    // Switch to chat tab and append the injected text
-                    setAiPanelTab("chat");
-                    // Emit a custom event that ChatTabManager can listen to
-                    window.dispatchEvent(new CustomEvent("vibeui:inject-context", { detail: text }));
-                  }}
-                />
-              )}
-              {aiPanelTab === "specs" && (
-                <SpecPanel
-                  workspacePath={workspaceFolders[0] || null}
-                  provider={selectedProvider}
-                />
-              )}
-              {aiPanelTab === "workflow" && (
-                <WorkflowPanel
-                  workspacePath={workspaceFolders[0] || null}
-                  provider={selectedProvider}
-                />
-              )}
-              {aiPanelTab === "design" && (
-                <DesignMode
-                  workspacePath={workspaceFolders[0] || null}
-                  provider={selectedProvider}
-                />
-              )}
-              {aiPanelTab === "deploy" && (
-                <DeployPanel
-                  workspacePath={workspaceFolders[0] || null}
-                />
-              )}
-              {aiPanelTab === "database" && (
-                <DatabasePanel
-                  workspacePath={workspaceFolders[0] || null}
-                  provider={selectedProvider}
-                />
-              )}
-              {aiPanelTab === "supabase" && (
-                <SupabasePanel
-                  workspacePath={workspaceFolders[0] || null}
-                  provider={selectedProvider}
-                />
-              )}
-              {aiPanelTab === "auth" && (
-                <AuthPanel
-                  workspacePath={workspaceFolders[0] || null}
-                  provider={selectedProvider}
-                />
-              )}
-              {aiPanelTab === "github" && (
-                <GitHubSyncPanel
-                  workspacePath={workspaceFolders[0] || null}
-                />
-              )}
-              {aiPanelTab === "steering" && (
-                <SteeringPanel
-                  workspaceRoot={workspaceFolders[0] || undefined}
-                />
-              )}
-              {aiPanelTab === "bugbot" && (
-                <BugBotPanel
-                  workspacePath={workspaceFolders[0] || undefined}
-                />
-              )}
-              {aiPanelTab === "redteam" && (
-                <RedTeamPanel
-                  workspacePath={workspaceFolders[0] || null}
-                  provider={selectedProvider}
-                />
-              )}
-              {aiPanelTab === "tests" && (
-                <TestPanel workspacePath={workspaceFolders[0] || null} />
-              )}
-              {aiPanelTab === "collab" && (
-                <CollabPanel
-                  connected={collab.connected}
-                  roomId={collab.roomId}
-                  peerId={collab.peerId}
-                  peers={collab.peers}
-                  onConnect={collab.connect}
-                  onDisconnect={collab.disconnect}
-                />
-              )}
-              {aiPanelTab === "coverage" && (
-                <CoveragePanel workspacePath={workspaceFolders[0] || null} />
-              )}
-              {aiPanelTab === "compare" && (
-                <MultiModelPanel />
-              )}
-              {aiPanelTab === "http" && (
-                <HttpPlayground workspacePath={workspaceFolders[0] || null} />
-              )}
-              {aiPanelTab === "arena" && (
-                <ArenaPanel />
-              )}
-              {aiPanelTab === "cost" && (
-                <CostPanel />
-              )}
-              {aiPanelTab === "autofix" && (
-                <AutofixPanel workspacePath={workspaceFolders[0] || null} />
-              )}
-              {aiPanelTab === "processes" && (
-                <ProcessPanel />
-              )}
-              {aiPanelTab === "cicd" && (
-                <CicdPanel workspacePath={workspaceFolders[0] || null} />
-              )}
-              {aiPanelTab === "k8s" && (
-                <K8sPanel workspacePath={workspaceFolders[0] || null} />
-              )}
-              {aiPanelTab === "env" && (
-                <EnvPanel workspacePath={workspaceFolders[0] || null} />
-              )}
-              {aiPanelTab === "profiler" && (
-                <ProfilerPanel workspacePath={workspaceFolders[0] || null} />
-              )}
-              {aiPanelTab === "docker" && (
-                <DockerPanel workspacePath={workspaceFolders[0] || null} />
-              )}
-              {aiPanelTab === "deps" && (
-                <DepsPanel workspacePath={workspaceFolders[0] || null} />
-              )}
-              {aiPanelTab === "apidocs" && (
-                <ApiDocsPanel workspacePath={workspaceFolders[0] || null} />
-              )}
-              {aiPanelTab === "migrations" && (
-                <MigrationsPanel workspacePath={workspaceFolders[0] || null} />
-              )}
-              {aiPanelTab === "logs" && (
-                <LogPanel workspacePath={workspaceFolders[0] || null} />
-              )}
-              {aiPanelTab === "scripts" && (
-                <ScriptPanel workspacePath={workspaceFolders[0] || null} />
-              )}
-              {aiPanelTab === "notebook" && (
-                <NotebookPanel workspacePath={workspaceFolders[0] || null} />
-              )}
-              {aiPanelTab === "ssh" && (
-                <SshPanel workspacePath={workspaceFolders[0] || null} />
-              )}
-              {aiPanelTab === "utils" && (
-                <UtilitiesPanel />
-              )}
-              {aiPanelTab === "markers" && (
-                <BookmarkPanel workspacePath={workspaceFolders[0] || null} />
-              )}
-              {aiPanelTab === "bisect" && (
-                <BisectPanel workspacePath={workspaceFolders[0] || null} />
-              )}
-              {aiPanelTab === "snippets" && (
-                <SnippetPanel workspacePath={workspaceFolders[0] || null} />
-              )}
-              {aiPanelTab === "mock" && (
-                <MockServerPanel />
-              )}
-              {aiPanelTab === "graphql" && (
-                <GraphQLPanel />
-              )}
-              {aiPanelTab === "metrics" && (
-                <CodeMetricsPanel workspacePath={workspaceFolders[0] || null} />
-              )}
-              {aiPanelTab === "loadtest" && (
-                <LoadTestPanel />
-              )}
-              {aiPanelTab === "network" && (
-                <NetworkPanel />
-              )}
-              {aiPanelTab === "teams" && (
-                <AgentTeamPanel />
-              )}
-              {aiPanelTab === "cibot" && (
-                <CIReviewPanel />
-              )}
-              {aiPanelTab === "traces" && (
-                <TraceDashboard />
-              )}
-              {aiPanelTab === "marketplace" && (
-                <MarketplacePanel />
-              )}
-              {aiPanelTab === "transform" && (
-                <TransformPanel />
-              )}
-              {aiPanelTab === "img2app" && (
-                <ScreenshotToApp workspacePath={workspaceFolders[0] || null} />
-              )}
-              {aiPanelTab === "recording" && (
-                <AgentRecordingPanel />
-              )}
-              {aiPanelTab === "visualtest" && (
-                <VisualTestPanel />
-              )}
-              {aiPanelTab === "cloud" && (
-                <CloudAgentPanel />
-              )}
-              {aiPanelTab === "compliance" && (
-                <CompliancePanel />
-              )}
-              {aiPanelTab === "scaffold" && (
-                <ScaffoldPanel workspacePath={workspaceFolders[0] || null} />
-              )}
-              {aiPanelTab === "health" && (
-                <HealthMonitorPanel />
-              )}
-              {aiPanelTab === "websocket" && (
-                <WebSocketPanel />
-              )}
-              {aiPanelTab === "colors" && (
-                <ColorPalettePanel workspacePath={workspaceFolders[0] || null} />
-              )}
-              {aiPanelTab === "markdown" && (
-                <MarkdownPanel workspacePath={workspaceFolders[0] || null} />
-              )}
-              {aiPanelTab === "difftool" && (
-                <DiffToolPanel />
-              )}
-              {aiPanelTab === "canvas" && (
-                <CanvasPanel />
-              )}
-              {aiPanelTab === "cron" && (
-                <CronPanel />
-              )}
-              {aiPanelTab === "regex" && (
-                <RegexPanel />
-              )}
-              {aiPanelTab === "jwt" && (
-                <JwtPanel />
-              )}
-              {aiPanelTab === "jsontools" && (
-                <JsonToolsPanel />
-              )}
-              {aiPanelTab === "encoding" && (
-                <EncodingPanel />
-              )}
-              {aiPanelTab === "numbers" && (
-                <NumberBasePanel />
-              )}
-              {aiPanelTab === "datagen" && (
-                <DataGenPanel />
-              )}
-              {aiPanelTab === "timestamp" && (
-                <TimestampPanel />
-              )}
-              {aiPanelTab === "colorconv" && (
-                <ColorConverterPanel />
-              )}
-              {aiPanelTab === "cidr" && (
-                <CidrPanel />
-              )}
-              {aiPanelTab === "csv" && (
-                <CsvPanel />
-              )}
-              {aiPanelTab === "units" && (
-                <UnitConverterPanel />
-              )}
-              {aiPanelTab === "unicode" && (
-                <UnicodePanel />
-              )}
-              {aiPanelTab === "sandbox" && (
-                <SandboxPanel />
-              )}
-              {aiPanelTab === "dashboard" && (
-                <DashboardPanel />
-              )}
-              </ErrorBoundary>
+              <PanelHost
+                tab={aiPanelTab}
+                selectedProvider={selectedProvider}
+                availableProviders={aiProviders}
+                editorContent={editorContent}
+                fileTree={files.map(f => f.path)}
+                currentFile={currentFile}
+                workspacePath={workspaceFolders[0] || null}
+                onPendingWrite={handlePendingWrite}
+                onInjectContext={(text: string) => {
+                  setAiPanelTab("chat");
+                  window.dispatchEvent(new CustomEvent("vibeui:inject-context", { detail: text }));
+                }}
+                collab={collab}
+              />
             </div>
           </aside>
         )}

@@ -520,8 +520,9 @@ async fn require_auth(
         .get(header::AUTHORIZATION)
         .and_then(|v| v.to_str().ok());
 
+    let expected = format!("Bearer {}", state.api_token);
     match auth_header {
-        Some(val) if val == format!("Bearer {}", state.api_token) => {
+        Some(val) if val == expected => {
             next.run(req).await.into_response()
         }
         _ => (
@@ -774,22 +775,23 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route("/collab/rooms/:room_id/peers", get(list_collab_peers))
         .route("/acp/v1/tasks", post(acp_create_task))
         .route("/acp/v1/tasks/:id", get(acp_get_task))
-        .route_layer(middleware::from_fn_with_state(limiter, rate_limit))
-        .route_layer(middleware::from_fn_with_state(state.clone(), require_auth));
-
-    // Public routes (health check + read-only session viewer + WebSocket collab + webhook)
-    Router::new()
-        .route("/health", get(health))
-        .route("/webhook/github", post(github_webhook))
-        .route("/webhook/skill/:skill_name", post(skill_webhook_handler))
-        .route("/pair", get(pairing_handler))
-        .route("/acp/v1/capabilities", get(acp_capabilities))
-        .route("/ws/collab/:room_id", get(ws_collab_handler))
-        .merge(authed_routes)
+        // Session viewer & skill webhook now require auth
         .route("/sessions", get(sessions_index_html))
         .route("/sessions.json", get(sessions_json))
         .route("/view/:id", get(view_session))
         .route("/share/:id", get(share_session))
+        .route("/webhook/skill/:skill_name", post(skill_webhook_handler))
+        .route_layer(middleware::from_fn_with_state(limiter, rate_limit))
+        .route_layer(middleware::from_fn_with_state(state.clone(), require_auth));
+
+    // Public routes (health check, GitHub webhook with HMAC, pairing, collab WS, ACP discovery)
+    Router::new()
+        .route("/health", get(health))
+        .route("/webhook/github", post(github_webhook))
+        .route("/pair", get(pairing_handler))
+        .route("/acp/v1/capabilities", get(acp_capabilities))
+        .route("/ws/collab/:room_id", get(ws_collab_handler))
+        .merge(authed_routes)
         .layer(DefaultBodyLimit::max(1024 * 1024)) // 1 MB max request body
         // Security response headers
         .layer(SetResponseHeaderLayer::overriding(
@@ -1963,6 +1965,7 @@ mod tests {
             let (app, _tmp) = test_app("tok");
             let req = Request::builder()
                 .uri("/sessions")
+                .header("Authorization", "Bearer tok")
                 .body(Body::empty())
                 .unwrap();
             let resp = app.oneshot(req).await.unwrap();
@@ -1993,6 +1996,7 @@ mod tests {
             let (app, _tmp) = test_app("tok");
             let req = Request::builder()
                 .uri("/sessions.json")
+                .header("Authorization", "Bearer tok")
                 .body(Body::empty())
                 .unwrap();
             let resp = app.oneshot(req).await.unwrap();
