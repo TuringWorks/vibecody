@@ -168,7 +168,7 @@ export function MigrationsPanel({ workspacePath }: MigrationsPanelProps) {
  disabled={!!actionLoading || status.applied.length === 0}
  style={{
  padding: "6px 12px", fontSize: 12,
- background: "#3a1a1a", color: "#f38ba8",
+ background: "#3a1a1a", color: "var(--text-danger, #f38ba8)",
  border: "1px solid #f38ba8", borderRadius: 4,
  cursor: status.applied.length > 0 ? "pointer" : "default",
  opacity: actionLoading === "rollback" ? 0.7 : 1,
@@ -212,7 +212,7 @@ export function MigrationsPanel({ workspacePath }: MigrationsPanelProps) {
  {/* Output */}
  {output && (
  <pre style={{
- margin: 0, padding: 10, background: "#0d1117", color: "#e6edf3",
+ margin: 0, padding: 10, background: "var(--bg-primary, #0d1117)", color: "var(--text-primary, #e6edf3)",
  border: "1px solid var(--border-color)", borderRadius: 6,
  fontSize: 11, lineHeight: 1.4, overflow: "auto", maxHeight: 180,
  whiteSpace: "pre-wrap", wordBreak: "break-all",

@@ -98,7 +98,7 @@ export function TransformPanel() {
 
         {selected && !plan && (
           <button onClick={handlePlan} disabled={loading} style={{
-            ...btnStyle, background: "#6366f1", color: "#fff", fontWeight: 700,
+            ...btnStyle, background: "var(--accent-primary, #6366f1)", color: "#fff", fontWeight: 700,
             opacity: loading ? 0.5 : 1, width: "100%",
           }}>
             {loading ? "Analyzing..." : "Generate Plan"}
@@ -106,7 +106,7 @@ export function TransformPanel() {
         )}
 
         {error && (
-          <div style={{ fontSize: 11, color: "#f38ba8", padding: "4px 8px", background: "rgba(243,139,168,0.05)", borderRadius: 4, marginTop: 8 }}>
+          <div style={{ fontSize: 11, color: "var(--text-danger, #f38ba8)", padding: "4px 8px", background: "rgba(243,139,168,0.05)", borderRadius: 4, marginTop: 8 }}>
             {error}
           </div>
         )}
@@ -139,7 +139,7 @@ export function TransformPanel() {
         )}
 
         {result && (
-          <div style={{ fontSize: 11, color: "#a6e3a1", padding: "6px 8px", background: "rgba(166,227,161,0.05)", borderRadius: 4, marginTop: 8 }}>
+          <div style={{ fontSize: 11, color: "var(--text-success, #a6e3a1)", padding: "6px 8px", background: "rgba(166,227,161,0.05)", borderRadius: 4, marginTop: 8 }}>
             {result}
           </div>
         )}

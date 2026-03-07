@@ -9,6 +9,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Circle } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
+import { EmptyState } from "./EmptyState";
+import { StatusMessage } from "./StatusMessage";
 
 type SubTab = "containers" | "images" | "compose";
 
@@ -191,7 +193,7 @@ export function DockerPanel({ workspacePath }: DockerPanelProps) {
  });
 
  const terminal: React.CSSProperties = {
- background: "#0d1117", color: "#e6edf3",
+ background: "var(--bg-primary, #0d1117)", color: "var(--text-primary, #e6edf3)",
  border: "1px solid var(--border-color)", borderRadius: 6,
  padding: 10, fontSize: 11, lineHeight: 1.5,
  minHeight: 60, maxHeight: 260,
@@ -224,9 +226,7 @@ export function DockerPanel({ workspacePath }: DockerPanelProps) {
 
  <div style={{ flex: 1, overflow: "auto", padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
  {error && (
- <div style={{ padding: "7px 10px", background: "var(--error-bg, #2a1a1a)", color: "var(--text-danger, #f38ba8)", borderRadius: 4, fontSize: 12 }}>
- {error}
- </div>
+ <StatusMessage variant="error" message={error} inline />
  )}
 
  {/* ── Containers ── */}
@@ -242,10 +242,11 @@ export function DockerPanel({ workspacePath }: DockerPanelProps) {
  </div>
 
  {containers.length === 0 && !containersLoading ? (
- <div style={{ textAlign: "center", padding: "20px 0", color: "var(--text-muted)", fontSize: 12 }}>
- <div style={{ fontSize: 28, marginBottom: 8 }}></div>
- No containers found. Start Docker Desktop or run <code>docker run ...</code>
- </div>
+ <EmptyState
+   icon="📦"
+   title="No containers found"
+   description="Start Docker Desktop or run docker run ..."
+ />
  ) : (
  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
  {containers.map((c) => (
@@ -330,9 +331,7 @@ export function DockerPanel({ workspacePath }: DockerPanelProps) {
  )}
 
  {images.length === 0 && !imagesLoading ? (
- <div style={{ textAlign: "center", padding: "20px 0", color: "var(--text-muted)", fontSize: 12 }}>
- No local images. Pull one above.
- </div>
+ <EmptyState title="No local images" description="Pull one above." />
  ) : (
  <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
  {images.map((img) => (
@@ -394,9 +393,7 @@ export function DockerPanel({ workspacePath }: DockerPanelProps) {
  </div>
 
  {!workspacePath && (
- <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
- Open a workspace folder to use Docker Compose.
- </div>
+ <StatusMessage variant="empty" message="Open a workspace folder to use Docker Compose." inline />
  )}
 
  {(composeOutput || composeLoading) && (

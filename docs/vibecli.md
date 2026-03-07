@@ -349,10 +349,10 @@ Endpoints:
 | GET | `/jobs` | Yes | List all persisted background job records |
 | GET | `/jobs/:id` | Yes | Get a single job record by ID |
 | POST | `/jobs/:id/cancel` | Yes | Cancel a running background job |
-| GET | `/sessions` | No | HTML index page of all agent sessions |
-| GET | `/sessions.json` | No | JSON array of all session metadata |
-| GET | `/view/:id` | No | Dark-mode HTML viewer for a session trace |
-| GET | `/share/:id` | No | Shareable readonly session view (noindex) |
+| GET | `/sessions` | Yes | HTML index page of all agent sessions |
+| GET | `/sessions.json` | Yes | JSON array of all session metadata |
+| GET | `/view/:id` | Yes | Dark-mode HTML viewer for a session trace |
+| GET | `/share/:id` | Yes | Shareable readonly session view (noindex) |
 | GET | `/ws/collab/:room_id` | Token | WebSocket for CRDT collab (`?token=` query param) |
 | POST | `/collab/rooms` | Yes | Create or get a collaboration room |
 | GET | `/collab/rooms` | Yes | List all active collaboration rooms |

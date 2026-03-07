@@ -139,7 +139,7 @@ export function CodeMetricsPanel({ workspacePath }: CodeMetricsPanelProps) {
  </div>
 
  {error && (
- <div style={{ margin: "8px 12px", padding: "6px 10px", background: "var(--error-bg, #2a1a1a)", color: "#f38ba8", borderRadius: 4, fontSize: 11 }}>
+ <div style={{ margin: "8px 12px", padding: "6px 10px", background: "var(--error-bg, #2a1a1a)", color: "var(--text-danger, #f38ba8)", borderRadius: 4, fontSize: 11 }}>
  {error}
  </div>
  )}

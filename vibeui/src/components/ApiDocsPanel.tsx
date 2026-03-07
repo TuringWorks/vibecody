@@ -47,11 +47,11 @@ interface ApiDocsPanelProps {
 // ── HTTP method colours ────────────────────────────────────────────────────
 const METHOD_COLORS: Record<string, { bg: string; color: string }> = {
  GET: { bg: "#0a3a5a", color: "#61dafb" },
- POST: { bg: "#0a3a1a", color: "#a6e3a1" },
- PUT: { bg: "#3a2a00", color: "#f9e2af" },
- PATCH: { bg: "#2a2000", color: "#fab387" },
- DELETE: { bg: "#3a0a0a", color: "#f38ba8" },
- HEAD: { bg: "#1a1a3a", color: "#cba6f7" },
+ POST: { bg: "#0a3a1a", color: "var(--text-success, #a6e3a1)" },
+ PUT: { bg: "#3a2a00", color: "var(--text-warning, #f9e2af)" },
+ PATCH: { bg: "#2a2000", color: "var(--text-warning-alt, #fab387)" },
+ DELETE: { bg: "#3a0a0a", color: "var(--text-danger, #f38ba8)" },
+ HEAD: { bg: "#1a1a3a", color: "var(--text-accent, #cba6f7)" },
  OPTIONS: { bg: "#1a2a2a", color: "#94e2d5" },
 };
 
@@ -70,7 +70,7 @@ function SchemaView({ schema, depth = 0 }: { schema: Record<string, unknown>; de
  <div style={{ marginLeft: indent }}>
  {Object.entries(props).map(([key, val]) => (
  <div key={key} style={{ fontSize: 11, lineHeight: 1.6 }}>
- <span style={{ color: "#cba6f7" }}>{key}</span>
+ <span style={{ color: "var(--text-accent, #cba6f7)" }}>{key}</span>
  <span style={{ color: "var(--text-muted)", marginLeft: 4 }}>{String(val.type ?? "any")}</span>
  {Boolean(val.description) && <span style={{ color: "var(--text-muted)", marginLeft: 6, fontStyle: "italic" }}>— {String(val.description)}</span>}
  {val.type === "object" && Boolean(val.properties) && (
@@ -84,7 +84,7 @@ function SchemaView({ schema, depth = 0 }: { schema: Record<string, unknown>; de
  if (schema.type === "array" && schema.items) {
  return (
  <div style={{ marginLeft: indent, fontSize: 11 }}>
- <span style={{ color: "#f9e2af" }}>array of</span>
+ <span style={{ color: "var(--text-warning, #f9e2af)" }}>array of</span>
  <SchemaView schema={schema.items as Record<string, unknown>} depth={depth + 1} />
  </div>
  );
@@ -163,7 +163,7 @@ function TryIt({ endpoint, serverUrl }: { endpoint: Endpoint; serverUrl: string 
  </div>
  {response && (
  <pre style={{
- margin: 0, padding: 8, background: "#0d1117", color: "#e6edf3",
+ margin: 0, padding: 8, background: "var(--bg-primary, #0d1117)", color: "var(--text-primary, #e6edf3)",
  border: "1px solid var(--border-color)", borderRadius: 4,
  fontSize: 11, lineHeight: 1.4, overflow: "auto", maxHeight: 200,
  whiteSpace: "pre-wrap", wordBreak: "break-all",
@@ -210,9 +210,9 @@ function EndpointRow({ endpoint, serverUrl }: { endpoint: Endpoint; serverUrl: s
  <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", marginBottom: 4 }}>PARAMETERS</div>
  {op.parameters.map((p) => (
  <div key={p.name} style={{ display: "flex", gap: 8, fontSize: 11, lineHeight: 1.7 }}>
- <span style={{ fontFamily: "monospace", color: "#cba6f7", minWidth: 120 }}>{p.name}</span>
+ <span style={{ fontFamily: "monospace", color: "var(--text-accent, #cba6f7)", minWidth: 120 }}>{p.name}</span>
  <span style={{ color: "var(--text-muted)", minWidth: 60 }}>{p.in}</span>
- {p.required && <span style={{ color: "#f38ba8", fontSize: 10 }}>required</span>}
+ {p.required && <span style={{ color: "var(--text-danger, #f38ba8)", fontSize: 10 }}>required</span>}
  {p.description && <span style={{ color: "var(--text-secondary)" }}>{p.description}</span>}
  </div>
  ))}

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { GitBranch, Circle, Container } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
+import { StatusMessage } from "./StatusMessage";
 
 type Platform = "github" | "gitlab" | "circleci" | "jenkins" | "bitbucket";
 type BuildType = "rust" | "node" | "go" | "python" | "java" | "dotnet" | "unknown";
@@ -166,8 +167,8 @@ export default function CicdPanel({ workspacePath }: CicdPanelProps) {
 
  <div style={{ flex: 1, overflow: "auto", padding: "12px" }}>
  {error && (
- <div style={{ padding: "8px 12px", background: "var(--error-bg, #2a1a1a)", color: "var(--text-danger, #ff6b6b)", borderRadius: 4, marginBottom: 10, fontSize: 12 }}>
- {error}
+ <div style={{ marginBottom: 10 }}>
+ <StatusMessage variant="error" message={error} inline />
  </div>
  )}
 

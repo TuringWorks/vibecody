@@ -151,19 +151,19 @@ export function CIReviewPanel() {
             </label>
 
             <button onClick={handleSave} disabled={saving} style={{
-              ...btnStyle, background: "#6366f1", color: "#fff", fontWeight: 700,
+              ...btnStyle, background: "var(--accent-primary, #6366f1)", color: "#fff", fontWeight: 700,
               opacity: saving ? 0.5 : 1,
             }}>
               {saving ? "Saving..." : "Save Configuration"}
             </button>
 
             {error && (
-              <div style={{ fontSize: 11, color: "#f38ba8", padding: "4px 8px", background: "rgba(243,139,168,0.05)", borderRadius: 4 }}>
+              <div style={{ fontSize: 11, color: "var(--text-danger, #f38ba8)", padding: "4px 8px", background: "rgba(243,139,168,0.05)", borderRadius: 4 }}>
                 {error}
               </div>
             )}
             {success && (
-              <div style={{ fontSize: 11, color: "#a6e3a1", padding: "4px 8px", background: "rgba(166,227,161,0.05)", borderRadius: 4 }}>
+              <div style={{ fontSize: 11, color: "var(--text-success, #a6e3a1)", padding: "4px 8px", background: "rgba(166,227,161,0.05)", borderRadius: 4 }}>
                 {success}
               </div>
             )}
@@ -235,22 +235,22 @@ export function CIReviewPanel() {
                   <div style={{ fontSize: 10, opacity: 0.8 }}>{r.summary}</div>
                   <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
                     {r.severity_counts.critical > 0 && (
-                      <span style={{ fontSize: 9, color: "#f38ba8" }}>
+                      <span style={{ fontSize: 9, color: "var(--text-danger, #f38ba8)" }}>
                         {r.severity_counts.critical} critical
                       </span>
                     )}
                     {r.severity_counts.high > 0 && (
-                      <span style={{ fontSize: 9, color: "#fab387" }}>
+                      <span style={{ fontSize: 9, color: "var(--text-warning-alt, #fab387)" }}>
                         {r.severity_counts.high} high
                       </span>
                     )}
                     {r.severity_counts.medium > 0 && (
-                      <span style={{ fontSize: 9, color: "#f9e2af" }}>
+                      <span style={{ fontSize: 9, color: "var(--text-warning, #f9e2af)" }}>
                         {r.severity_counts.medium} medium
                       </span>
                     )}
                     {r.severity_counts.low > 0 && (
-                      <span style={{ fontSize: 9, color: "#6c7086" }}>
+                      <span style={{ fontSize: 9, color: "var(--text-muted, #6c7086)" }}>
                         {r.severity_counts.low} low
                       </span>
                     )}

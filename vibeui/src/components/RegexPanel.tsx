@@ -168,7 +168,7 @@ export function RegexPanel() {
  <div style={{ marginLeft: "auto", display: "flex", gap: 6, alignItems: "center" }}>
  <span style={{ fontSize: 10, color: "var(--text-muted)" }}>matches:</span>
  <span style={{ fontSize: 11, fontWeight: 700, color: matches.length > 0 ? "#a6e3a1" : "var(--text-muted)" }}>{matches.length}</span>
- {error && <span style={{ fontSize: 10, color: "#f38ba8", maxWidth: 280, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{error}</span>}
+ {error && <span style={{ fontSize: 10, color: "var(--text-danger, #f38ba8)", maxWidth: 280, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{error}</span>}
  </div>
  </div>
 
@@ -236,11 +236,11 @@ export function RegexPanel() {
  {/* Replace preview */}
  {showReplace && replacePreview && (
  <div style={{ borderBottom: "1px solid var(--border-color)" }}>
- <div style={{ padding: "4px 12px", fontSize: 10, fontWeight: 700, color: "#fab387", background: "var(--bg-secondary)", display: "flex", justifyContent: "space-between" }}>
+ <div style={{ padding: "4px 12px", fontSize: 10, fontWeight: 700, color: "var(--text-warning-alt, #fab387)", background: "var(--bg-secondary)", display: "flex", justifyContent: "space-between" }}>
  <span>REPLACE PREVIEW</span>
  <button onClick={() => { navigator.clipboard.writeText(replacePreview); }} style={{ fontSize: 9, background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer" }}>Copy</button>
  </div>
- <pre style={{ margin: 0, padding: "8px 12px", fontFamily: "monospace", fontSize: 12, lineHeight: 1.6, whiteSpace: "pre-wrap", wordBreak: "break-all", background: "var(--bg-primary)", color: "#fab387" }}>{replacePreview}</pre>
+ <pre style={{ margin: 0, padding: "8px 12px", fontFamily: "monospace", fontSize: 12, lineHeight: 1.6, whiteSpace: "pre-wrap", wordBreak: "break-all", background: "var(--bg-primary)", color: "var(--text-warning-alt, #fab387)" }}>{replacePreview}</pre>
  </div>
  )}
 
@@ -264,7 +264,7 @@ export function RegexPanel() {
  <div style={{ marginTop: 4, display: "flex", flexWrap: "wrap", gap: 4 }}>
  {m.groups.map((g, gi) => (
  <span key={gi} style={{ fontSize: 10, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, padding: "1px 6px", color: "var(--text-muted)" }}>
- <span style={{ color: "#89b4fa" }}>${gi + 1}</span> = <span style={{ fontFamily: "monospace", color: "var(--text-primary)" }}>{g ?? <em>undefined</em>}</span>
+ <span style={{ color: "var(--text-info, #89b4fa)" }}>${gi + 1}</span> = <span style={{ fontFamily: "monospace", color: "var(--text-primary)" }}>{g ?? <em>undefined</em>}</span>
  </span>
  ))}
  </div>
@@ -273,8 +273,8 @@ export function RegexPanel() {
  {m.namedGroups && Object.keys(m.namedGroups).length > 0 && (
  <div style={{ marginTop: 4, display: "flex", flexWrap: "wrap", gap: 4 }}>
  {Object.entries(m.namedGroups).map(([k, v]) => (
- <span key={k} style={{ fontSize: 10, background: "rgba(99,102,241,0.08)", border: "1px solid #6366f1", borderRadius: 4, padding: "1px 6px" }}>
- <span style={{ color: "#89b4fa" }}>{k}</span> = <span style={{ fontFamily: "monospace", color: "var(--text-primary)" }}>{v ?? <em>undefined</em>}</span>
+ <span key={k} style={{ fontSize: 10, background: "rgba(99,102,241,0.08)", border: "1px solid var(--accent-primary, #6366f1)", borderRadius: 4, padding: "1px 6px" }}>
+ <span style={{ color: "var(--text-info, #89b4fa)" }}>{k}</span> = <span style={{ fontFamily: "monospace", color: "var(--text-primary)" }}>{v ?? <em>undefined</em>}</span>
  </span>
  ))}
  </div>

@@ -19,10 +19,3 @@ anyhow = { workspace = true }
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
-
-[profile.release]
-panic = "abort"
-codegen-units = 1
-lto = true
-opt-level = "s"
-strip = true

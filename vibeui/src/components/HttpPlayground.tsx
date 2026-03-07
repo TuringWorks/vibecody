@@ -14,10 +14,10 @@ interface HttpResponseData {
 const METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"];
 
 const statusColor = (code: number) => {
- if (code < 300) return "#4caf50";
- if (code < 400) return "#2196f3";
- if (code < 500) return "#ff9800";
- return "#f44336";
+ if (code < 300) return "var(--success-color, #4caf50)";
+ if (code < 400) return "var(--info-color, #2196f3)";
+ if (code < 500) return "var(--warning-color, #ff9800)";
+ return "var(--error-color, #f44336)";
 };
 
 const isJsonLike = (body: string) => body.trimStart().startsWith("{") || body.trimStart().startsWith("[");
@@ -102,7 +102,7 @@ export function HttpPlayground({ workspacePath }: { workspacePath: string | null
  <select
  value={method}
  onChange={e => setMethod(e.target.value)}
- style={{ background: "var(--bg-secondary, #2d2d2d)", color: "var(--text, #fff)", border: "1px solid var(--border, #444)", borderRadius: "4px", padding: "4px 6px", fontFamily: "inherit", fontSize: "13px", width: "90px" }}
+ style={{ background: "var(--bg-secondary, #2d2d2d)", color: "var(--text-primary, #fff)", border: "1px solid var(--border-color, #444)", borderRadius: "4px", padding: "4px 6px", fontFamily: "inherit", fontSize: "13px", width: "90px" }}
  >
  {METHODS.map(m => <option key={m} value={m}>{m}</option>)}
  </select>
@@ -111,12 +111,12 @@ export function HttpPlayground({ workspacePath }: { workspacePath: string | null
  onChange={e => setUrl(e.target.value)}
  onKeyDown={handleKey}
  placeholder="https://api.example.com/endpoint"
- style={{ flex: 1, background: "var(--bg-secondary, #2d2d2d)", color: "var(--text, #fff)", border: "1px solid var(--border, #444)", borderRadius: "4px", padding: "4px 8px", fontFamily: "inherit", fontSize: "13px" }}
+ style={{ flex: 1, background: "var(--bg-secondary, #2d2d2d)", color: "var(--text-primary, #fff)", border: "1px solid var(--border-color, #444)", borderRadius: "4px", padding: "4px 8px", fontFamily: "inherit", fontSize: "13px" }}
  />
  <button
  onClick={handleSend}
  disabled={loading || !url.trim()}
- style={{ background: loading ? "var(--bg-secondary, #2d2d2d)" : "var(--accent, #007acc)", color: "#fff", border: "none", borderRadius: "4px", padding: "4px 16px", cursor: loading ? "default" : "pointer" }}
+ style={{ background: loading ? "var(--bg-secondary, #2d2d2d)" : "var(--accent-color, #007acc)", color: "var(--text-primary, #fff)", border: "none", borderRadius: "4px", padding: "4px 16px", cursor: loading ? "default" : "pointer" }}
  >
  {loading ? "" : "Send"}
  </button>
@@ -128,7 +128,7 @@ export function HttpPlayground({ workspacePath }: { workspacePath: string | null
  <button
  key={h}
  onClick={() => setUrl(`http://${h}/`)}
- style={{ background: "var(--bg-secondary, #2d2d2d)", color: "var(--text-muted, #888)", border: "1px solid var(--border, #444)", borderRadius: "4px", padding: "2px 8px", cursor: "pointer", fontSize: "11px" }}
+ style={{ background: "var(--bg-secondary, #2d2d2d)", color: "var(--text-muted, #888)", border: "1px solid var(--border-color, #444)", borderRadius: "4px", padding: "2px 8px", cursor: "pointer", fontSize: "11px" }}
  >
  {h}
  </button>
@@ -137,7 +137,7 @@ export function HttpPlayground({ workspacePath }: { workspacePath: string | null
  <button
  onClick={handleDiscover}
  disabled={endpointsLoading}
- style={{ marginLeft: "auto", background: "var(--bg-secondary, #2d2d2d)", color: "var(--text-muted, #888)", border: "1px solid var(--border, #444)", borderRadius: "4px", padding: "2px 8px", cursor: "pointer", fontSize: "11px" }}
+ style={{ marginLeft: "auto", background: "var(--bg-secondary, #2d2d2d)", color: "var(--text-muted, #888)", border: "1px solid var(--border-color, #444)", borderRadius: "4px", padding: "2px 8px", cursor: "pointer", fontSize: "11px" }}
  >
  {endpointsLoading ? "…" : "Discover routes"}
  </button>
@@ -165,7 +165,7 @@ export function HttpPlayground({ workspacePath }: { workspacePath: string | null
  <div>
  <div style={{ display: "flex", alignItems: "center", marginBottom: "4px" }}>
  <span style={{ color: "var(--text-muted, #888)", fontSize: "11px" }}>Headers</span>
- <button onClick={addHeader} style={{ marginLeft: "8px", background: "none", color: "var(--accent, #007acc)", border: "none", cursor: "pointer", fontSize: "12px", padding: "0 4px" }}>+</button>
+ <button onClick={addHeader} style={{ marginLeft: "8px", background: "none", color: "var(--accent-color, #007acc)", border: "none", cursor: "pointer", fontSize: "12px", padding: "0 4px" }}>+</button>
  </div>
  <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
  {headers.map((h, i) => (
@@ -174,15 +174,15 @@ export function HttpPlayground({ workspacePath }: { workspacePath: string | null
  value={h.key}
  onChange={e => updateHeader(i, "key", e.target.value)}
  placeholder="Key"
- style={{ flex: 1, background: "var(--bg-secondary, #2d2d2d)", color: "var(--text, #fff)", border: "1px solid var(--border, #444)", borderRadius: "4px", padding: "3px 6px", fontFamily: "inherit", fontSize: "12px" }}
+ style={{ flex: 1, background: "var(--bg-secondary, #2d2d2d)", color: "var(--text-primary, #fff)", border: "1px solid var(--border-color, #444)", borderRadius: "4px", padding: "3px 6px", fontFamily: "inherit", fontSize: "12px" }}
  />
  <input
  value={h.value}
  onChange={e => updateHeader(i, "value", e.target.value)}
  placeholder="Value"
- style={{ flex: 2, background: "var(--bg-secondary, #2d2d2d)", color: "var(--text, #fff)", border: "1px solid var(--border, #444)", borderRadius: "4px", padding: "3px 6px", fontFamily: "inherit", fontSize: "12px" }}
+ style={{ flex: 2, background: "var(--bg-secondary, #2d2d2d)", color: "var(--text-primary, #fff)", border: "1px solid var(--border-color, #444)", borderRadius: "4px", padding: "3px 6px", fontFamily: "inherit", fontSize: "12px" }}
  />
- <button onClick={() => removeHeader(i)} style={{ background: "none", color: "#f44336", border: "none", cursor: "pointer", padding: "0 6px", fontSize: "14px" }}>×</button>
+ <button onClick={() => removeHeader(i)} style={{ background: "none", color: "var(--error-color, #f44336)", border: "none", cursor: "pointer", padding: "0 6px", fontSize: "14px" }}>×</button>
  </div>
  ))}
  </div>
@@ -195,17 +195,17 @@ export function HttpPlayground({ workspacePath }: { workspacePath: string | null
  onChange={e => setBody(e.target.value)}
  placeholder='{"key": "value"}'
  rows={4}
- style={{ resize: "vertical", background: "var(--bg-secondary, #2d2d2d)", color: "var(--text, #fff)", border: "1px solid var(--border, #444)", borderRadius: "4px", padding: "6px 8px", fontFamily: "inherit", fontSize: "12px" }}
+ style={{ resize: "vertical", background: "var(--bg-secondary, #2d2d2d)", color: "var(--text-primary, #fff)", border: "1px solid var(--border-color, #444)", borderRadius: "4px", padding: "6px 8px", fontFamily: "inherit", fontSize: "12px" }}
  />
  )}
 
  {error && (
- <div style={{ color: "#f44336", fontSize: "12px" }}>{error}</div>
+ <div style={{ color: "var(--error-color, #f44336)", fontSize: "12px" }}>{error}</div>
  )}
 
  {/* Response panel */}
  {response && (
- <div style={{ flex: 1, display: "flex", flexDirection: "column", border: "1px solid var(--border, #444)", borderRadius: "6px", overflow: "hidden", minHeight: "150px" }}>
+ <div style={{ flex: 1, display: "flex", flexDirection: "column", border: "1px solid var(--border-color, #444)", borderRadius: "6px", overflow: "hidden", minHeight: "150px" }}>
  {/* Status bar */}
  <div style={{ padding: "6px 12px", background: "var(--bg-secondary, #2d2d2d)", display: "flex", alignItems: "center", gap: "10px" }}>
  <span style={{ fontWeight: "bold", color: statusColor(response.status), fontSize: "15px" }}>
@@ -222,8 +222,8 @@ export function HttpPlayground({ workspacePath }: { workspacePath: string | null
  key={t}
  onClick={() => setResTab(t)}
  style={{
- background: resTab === t ? "var(--accent, #007acc)" : "transparent",
- color: resTab === t ? "#fff" : "var(--text-muted, #888)",
+ background: resTab === t ? "var(--accent-color, #007acc)" : "transparent",
+ color: resTab === t ? "var(--text-primary, #fff)" : "var(--text-muted, #888)",
  border: "none", borderRadius: "4px", padding: "2px 8px", cursor: "pointer", fontSize: "11px",
  }}
  >

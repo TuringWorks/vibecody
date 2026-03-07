@@ -112,7 +112,7 @@ export function LoadTestPanel() {
 
  <div style={{ flex: 1, overflow: "auto", padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
  {error && (
- <div style={{ padding: "6px 10px", background: "var(--error-bg, #2a1a1a)", color: "#f38ba8", borderRadius: 4, fontSize: 11 }}> {error}</div>
+ <div style={{ padding: "6px 10px", background: "var(--error-bg, #2a1a1a)", color: "var(--text-danger, #f38ba8)", borderRadius: 4, fontSize: 11 }}> {error}</div>
  )}
 
  {/* URL + method */}
@@ -208,7 +208,7 @@ export function LoadTestPanel() {
  <span>{progressPct}%</span>
  </div>
  <div style={{ height: 8, background: "var(--bg-secondary)", borderRadius: 4, overflow: "hidden", border: "1px solid var(--border-color)" }}>
- <div style={{ height: "100%", width: `${progressPct}%`, background: "#6366f1", borderRadius: 4, transition: "width 0.2s" }} />
+ <div style={{ height: "100%", width: `${progressPct}%`, background: "var(--accent-primary, #6366f1)", borderRadius: 4, transition: "width 0.2s" }} />
  </div>
  </div>
  )}
@@ -229,13 +229,13 @@ export function LoadTestPanel() {
  {/* Success / failure */}
  <div style={{ display: "flex", gap: 6 }}>
  <div style={{ flex: 1, padding: "8px 10px", background: "rgba(166,227,161,0.1)", border: "1px solid #a6e3a1", borderRadius: 6, textAlign: "center" }}>
- <div style={{ fontSize: 18, fontWeight: 700, color: "#a6e3a1" }}>{result.success}</div>
- <div style={{ fontSize: 9, color: "#a6e3a1", fontWeight: 600 }}>SUCCESS ({successRate}%)</div>
+ <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text-success, #a6e3a1)" }}>{result.success}</div>
+ <div style={{ fontSize: 9, color: "var(--text-success, #a6e3a1)", fontWeight: 600 }}>SUCCESS ({successRate}%)</div>
  </div>
  {result.failed > 0 && (
  <div style={{ flex: 1, padding: "8px 10px", background: "rgba(243,139,168,0.1)", border: "1px solid #f38ba8", borderRadius: 6, textAlign: "center" }}>
- <div style={{ fontSize: 18, fontWeight: 700, color: "#f38ba8" }}>{result.failed}</div>
- <div style={{ fontSize: 9, color: "#f38ba8", fontWeight: 600 }}>FAILED ({100 - (successRate ?? 0)}%)</div>
+ <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text-danger, #f38ba8)" }}>{result.failed}</div>
+ <div style={{ fontSize: 9, color: "var(--text-danger, #f38ba8)", fontWeight: 600 }}>FAILED ({100 - (successRate ?? 0)}%)</div>
  </div>
  )}
  <div style={{ flex: 1, padding: "8px 10px", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 6, textAlign: "center" }}>

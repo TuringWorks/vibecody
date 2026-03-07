@@ -128,7 +128,7 @@ export function BookmarkPanel({ workspacePath }: BookmarkPanelProps) {
       </div>
 
       {error && (
-        <div style={{ padding: "6px 12px", fontSize: 11, color: "#f38ba8", background: "rgba(243,139,168,0.05)" }}>
+        <div style={{ padding: "6px 12px", fontSize: 11, color: "var(--text-danger, #f38ba8)", background: "rgba(243,139,168,0.05)" }}>
           {error}
         </div>
       )}
@@ -184,13 +184,13 @@ export function BookmarkPanel({ workspacePath }: BookmarkPanelProps) {
                 }}>
                   {m.marker_type}
                 </span>
-                <span style={{ color: "#89b4fa", whiteSpace: "nowrap" }}>{m.file}:{m.line}</span>
+                <span style={{ color: "var(--text-info, #89b4fa)", whiteSpace: "nowrap" }}>{m.file}:{m.line}</span>
                 <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", opacity: 0.7 }}>
                   {m.text}
                 </span>
                 <button
                   onClick={(e) => { e.stopPropagation(); handleAddBookmark(m.file, m.line, m.text); }}
-                  style={{ ...cellBtn, color: "#f9e2af" }}
+                  style={{ ...cellBtn, color: "var(--text-warning, #f9e2af)" }}
                   title="Bookmark this"
                 >
                   +
@@ -230,13 +230,13 @@ export function BookmarkPanel({ workspacePath }: BookmarkPanelProps) {
                   fontSize: 11,
                 }}
               >
-                <span style={{ color: "#89b4fa", whiteSpace: "nowrap" }}>{b.file}:{b.line}</span>
+                <span style={{ color: "var(--text-info, #89b4fa)", whiteSpace: "nowrap" }}>{b.file}:{b.line}</span>
                 <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {b.label}
                 </span>
                 <button
                   onClick={(e) => { e.stopPropagation(); handleRemoveBookmark(b.id); }}
-                  style={{ ...cellBtn, color: "#f38ba8" }}
+                  style={{ ...cellBtn, color: "var(--text-danger, #f38ba8)" }}
                   title="Remove bookmark"
                 >
                   ✕

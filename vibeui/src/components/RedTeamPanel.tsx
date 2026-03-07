@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
-// ── Types ────────────────────────────────────────────────────────────────────
+// -- Types --------------------------------------------------------------------
 
 interface VulnFinding {
   id: string;
@@ -33,17 +33,17 @@ interface Props {
   provider: string;
 }
 
-// ── Constants ────────────────────────────────────────────────────────────────
+// -- Constants ----------------------------------------------------------------
 
 const STAGES = ["Recon", "Analysis", "Exploitation", "Validation", "Report"];
 
 function severityColor(sev: string): string {
   switch (sev.toLowerCase()) {
-    case "critical": return "#ff4444";
-    case "high": return "#ff8800";
-    case "medium": return "#ffcc00";
-    case "low": return "#4488ff";
-    default: return "#888";
+    case "critical": return "var(--error-color, #ff4444)";
+    case "high": return "var(--warning-color, #ff8800)";
+    case "medium": return "var(--warning-color, #ffcc00)";
+    case "low": return "var(--info-color, #4488ff)";
+    default: return "var(--text-muted, #888)";
   }
 }
 
@@ -57,7 +57,7 @@ function severityIcon(sev: string): string {
   }
 }
 
-// ── Component ────────────────────────────────────────────────────────────────
+// -- Component ----------------------------------------------------------------
 
 export function RedTeamPanel({ workspacePath, provider: _provider }: Props) {
   const [targetUrl, setTargetUrl] = useState("http://localhost:3000");
@@ -78,7 +78,7 @@ export function RedTeamPanel({ workspacePath, provider: _provider }: Props) {
       const list = await invoke<RedTeamSession[]>("get_redteam_sessions");
       if (mountedRef.current) setSessions(list);
     } catch (e) {
-      // Command may not exist yet — tolerate.
+      // Command may not exist yet -- tolerate.
       if (mountedRef.current) setSessions([]);
     }
   }, []);
@@ -97,7 +97,7 @@ export function RedTeamPanel({ workspacePath, provider: _provider }: Props) {
         config: { source_path: workspacePath },
       });
 
-      // Poll for completion (simplified — in production would use SSE).
+      // Poll for completion (simplified -- in production would use SSE).
       let done = false;
       let attempts = 0;
       const maxAttempts = 150; // 5 minute timeout at 2s intervals
@@ -118,7 +118,7 @@ export function RedTeamPanel({ workspacePath, provider: _provider }: Props) {
           if (mountedRef.current) setActiveSession(sess);
           done = true;
         } catch {
-          // Still running — advance stage every 3 polls (~6s) rather than every poll
+          // Still running -- advance stage every 3 polls (~6s) rather than every poll
           if (mountedRef.current && attempts % 3 === 0) {
             setCurrentStage((prev) => {
               const idx = STAGES.indexOf(prev || "Recon");
@@ -194,8 +194,8 @@ export function RedTeamPanel({ workspacePath, provider: _provider }: Props) {
           disabled={scanning || !targetUrl.trim()}
           style={{
             padding: "6px 16px", fontSize: 13, borderRadius: 4, border: "none",
-            background: scanning ? "var(--border-color)" : "#cc4444",
-            color: "#fff", cursor: scanning ? "not-allowed" : "pointer",
+            background: scanning ? "var(--border-color)" : "var(--error-color, #cc4444)",
+            color: "var(--text-primary, #fff)", cursor: scanning ? "not-allowed" : "pointer",
             fontWeight: 600,
           }}
         >
@@ -214,16 +214,16 @@ export function RedTeamPanel({ workspacePath, provider: _provider }: Props) {
           return (
             <React.Fragment key={stage}>
               {i > 0 && (
-                <div style={{ width: 20, height: 2, background: isDone ? "#44aa44" : "var(--border-color)" }} />
+                <div style={{ width: 20, height: 2, background: isDone ? "var(--success-color, #44aa44)" : "var(--border-color)" }} />
               )}
               <div
                 style={{
                   width: 28, height: 28, borderRadius: "50%",
                   display: "flex", alignItems: "center", justifyContent: "center",
                   fontSize: 11, fontWeight: 600,
-                  background: isActive ? "#cc4444" : isDone ? "#44aa44" : "var(--bg-secondary)",
-                  color: isActive || isDone ? "#fff" : "var(--text-secondary)",
-                  border: `2px solid ${isActive ? "#cc4444" : isDone ? "#44aa44" : "var(--border-color)"}`,
+                  background: isActive ? "var(--error-color, #cc4444)" : isDone ? "var(--success-color, #44aa44)" : "var(--bg-secondary)",
+                  color: isActive || isDone ? "var(--text-primary, #fff)" : "var(--text-secondary)",
+                  border: `2px solid ${isActive ? "var(--error-color, #cc4444)" : isDone ? "var(--success-color, #44aa44)" : "var(--border-color)"}`,
                   animation: isActive ? "pulse 1.5s infinite" : "none",
                 }}
                 title={stage}
@@ -239,7 +239,7 @@ export function RedTeamPanel({ workspacePath, provider: _provider }: Props) {
       </div>
 
       {error && (
-        <div style={{ padding: 8, marginBottom: 12, background: "#441111", color: "#ff8888", borderRadius: 4, fontSize: 12 }}>
+        <div style={{ padding: 8, marginBottom: 12, background: "rgba(244,67,54,0.1)", color: "var(--error-color, #ff8888)", borderRadius: 4, fontSize: 12 }}>
           {error}
         </div>
       )}
@@ -250,10 +250,10 @@ export function RedTeamPanel({ workspacePath, provider: _provider }: Props) {
           display: "flex", gap: 12, marginBottom: 16, padding: "8px 12px",
           background: "var(--bg-secondary)", borderRadius: 4, fontSize: 12, alignItems: "center",
         }}>
-          <span style={{ color: "#ff4444", fontWeight: 600 }}>{critical} Critical</span>
-          <span style={{ color: "#ff8800", fontWeight: 600 }}>{high} High</span>
-          <span style={{ color: "#ffcc00", fontWeight: 600 }}>{medium} Medium</span>
-          <span style={{ color: "#4488ff", fontWeight: 600 }}>{low} Low</span>
+          <span style={{ color: "var(--error-color, #ff4444)", fontWeight: 600 }}>{critical} Critical</span>
+          <span style={{ color: "var(--warning-color, #ff8800)", fontWeight: 600 }}>{high} High</span>
+          <span style={{ color: "var(--warning-color, #ffcc00)", fontWeight: 600 }}>{medium} Medium</span>
+          <span style={{ color: "var(--info-color, #4488ff)", fontWeight: 600 }}>{low} Low</span>
           <span style={{ flex: 1 }} />
           <button
             onClick={() => downloadReport(activeSession.id)}
@@ -289,12 +289,12 @@ export function RedTeamPanel({ workspacePath, provider: _provider }: Props) {
                   <span style={{ fontSize: 12, fontWeight: 600, flex: 1 }}>{f.title}</span>
                   <span style={{
                     fontSize: 10, padding: "2px 6px", borderRadius: 3,
-                    background: severityColor(f.severity), color: "#fff", fontWeight: 600,
+                    background: severityColor(f.severity), color: "var(--text-primary, #fff)", fontWeight: 600,
                   }}>
                     CVSS {f.cvss_score.toFixed(1)}
                   </span>
                   {f.confirmed && (
-                    <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 3, background: "#cc4444", color: "#fff" }}>
+                    <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 3, background: "var(--error-color, #cc4444)", color: "var(--text-primary, #fff)" }}>
                       CONFIRMED
                     </span>
                   )}
@@ -312,7 +312,7 @@ export function RedTeamPanel({ workspacePath, provider: _provider }: Props) {
                     <div style={{ marginTop: 4 }}>
                       <strong>PoC:</strong>
                       <pre style={{
-                        margin: "4px 0", padding: 8, background: "#111", borderRadius: 3,
+                        margin: "4px 0", padding: 8, background: "var(--bg-primary, #111)", borderRadius: 3,
                         fontSize: 11, overflow: "auto", whiteSpace: "pre-wrap",
                       }}>
                         {f.poc}

@@ -100,7 +100,7 @@ function Swatch({ token, onEdit, onRemove }: {
  <div style={{ borderRadius: 8, overflow: "hidden", border: "1px solid var(--border-color)", cursor: "pointer" }} onClick={copy}>
  <div style={{ background: token.value, height: 56, display: "flex", alignItems: "flex-end", justifyContent: "flex-end", padding: "4px 6px", gap: 4 }}>
  <button onClick={e => { e.stopPropagation(); onEdit(token); }} style={{ background: "rgba(0,0,0,0.4)", border: "none", borderRadius: 3, color: "#fff", fontSize: 9, padding: "1px 5px", cursor: "pointer" }}></button>
- <button onClick={e => { e.stopPropagation(); onRemove(); }} style={{ background: "rgba(0,0,0,0.4)", border: "none", borderRadius: 3, color: "#f38ba8", fontSize: 9, padding: "1px 5px", cursor: "pointer" }}>✕</button>
+ <button onClick={e => { e.stopPropagation(); onRemove(); }} style={{ background: "rgba(0,0,0,0.4)", border: "none", borderRadius: 3, color: "var(--text-danger, #f38ba8)", fontSize: 9, padding: "1px 5px", cursor: "pointer" }}>✕</button>
  </div>
  <div style={{ padding: "5px 7px", background: "var(--bg-secondary)" }}>
  <div style={{ fontSize: 9, fontWeight: 700, fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{copied ? "Copied!" : token.value}</div>
@@ -215,7 +215,7 @@ export function ColorPalettePanel({ workspacePath }: { workspacePath: string | n
  <div style={{ width: 180, borderRight: "1px solid var(--border-color)", display: "flex", flexDirection: "column", flexShrink: 0 }}>
  <div style={{ padding: "8px 10px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
  <span style={{ fontSize: 11, fontWeight: 600 }}>Palettes</span>
- <button onClick={addPalette} style={{ fontSize: 12, background: "none", border: "none", color: "#6366f1", cursor: "pointer", fontWeight: 700 }}>+</button>
+ <button onClick={addPalette} style={{ fontSize: 12, background: "none", border: "none", color: "var(--accent-primary, #6366f1)", cursor: "pointer", fontWeight: 700 }}>+</button>
  </div>
  <div style={{ flex: 1, overflowY: "auto" }}>
  {palettes.map(p => (
@@ -231,7 +231,7 @@ export function ColorPalettePanel({ workspacePath }: { workspacePath: string | n
  ))}
  </div>
  <div style={{ fontSize: 10, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{p.name}</div>
- <button onClick={e => { e.stopPropagation(); removePalette(p.id); }} style={{ fontSize: 9, background: "none", border: "none", color: "#f38ba8", cursor: "pointer", flexShrink: 0 }}>✕</button>
+ <button onClick={e => { e.stopPropagation(); removePalette(p.id); }} style={{ fontSize: 9, background: "none", border: "none", color: "var(--text-danger, #f38ba8)", cursor: "pointer", flexShrink: 0 }}>✕</button>
  </div>
  ))}
  </div>
@@ -267,7 +267,7 @@ export function ColorPalettePanel({ workspacePath }: { workspacePath: string | n
  <span style={{ fontSize: 13, fontWeight: 600, cursor: "pointer", flex: 1 }} onClick={() => setNewName(active.name)} title="Click to rename">{active.name}</span>
  )}
  <span style={{ fontSize: 10, color: "var(--text-muted)" }}>{active.tokens.length} tokens</span>
- <button onClick={addToken} style={{ padding: "3px 12px", fontSize: 11, fontWeight: 700, background: "#6366f1", border: "none", borderRadius: 4, color: "#fff", cursor: "pointer" }}>+ Color</button>
+ <button onClick={addToken} style={{ padding: "3px 12px", fontSize: 11, fontWeight: 700, background: "var(--accent-primary, #6366f1)", border: "none", borderRadius: 4, color: "#fff", cursor: "pointer" }}>+ Color</button>
  <select value={exportFmt} onChange={e => setExportFmt(e.target.value as ExportFormat)} style={{ fontSize: 10, padding: "3px 6px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)" }}>
  {EXPORT_FORMATS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
  </select>
@@ -287,7 +287,7 @@ export function ColorPalettePanel({ workspacePath }: { workspacePath: string | n
  <input value={editToken.value} onChange={e => setEditToken({ ...editToken, value: e.target.value })} style={{ padding: "3px 8px", fontSize: 11, fontFamily: "monospace", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none", width: 100 }} />
  </div>
  <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{hexToRgb(editToken.value)}</div>
- <button onClick={commitEdit} style={{ padding: "4px 14px", fontSize: 11, fontWeight: 700, background: "#6366f1", border: "none", borderRadius: 4, color: "#fff", cursor: "pointer", marginLeft: "auto" }}>✓ Done</button>
+ <button onClick={commitEdit} style={{ padding: "4px 14px", fontSize: 11, fontWeight: 700, background: "var(--accent-primary, #6366f1)", border: "none", borderRadius: 4, color: "#fff", cursor: "pointer", marginLeft: "auto" }}>✓ Done</button>
  </div>
  )}
 

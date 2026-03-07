@@ -7,6 +7,8 @@
 import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { EmptyState } from "./EmptyState";
+import { StatusMessage } from "./StatusMessage";
 
 interface SshProfile {
  id: string;
@@ -172,9 +174,9 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
 
  <div style={{ flex: 1, overflow: "auto" }}>
  {error && (
- <div style={{ margin: "8px 12px", padding: "6px 10px", background: "var(--error-bg, #2a1a1a)", color: "#f38ba8", borderRadius: 4, fontSize: 12 }}>
- {error}
- <button onClick={() => setError(null)} style={{ float: "right", background: "none", border: "none", color: "#f38ba8", cursor: "pointer" }}>✕</button>
+ <div style={{ margin: "8px 12px" }}>
+ <StatusMessage variant="error" message={error} inline />
+ <button onClick={() => setError(null)} style={{ position: "relative", top: -26, float: "right", background: "none", border: "none", color: "var(--text-danger, #f38ba8)", cursor: "pointer" }}>✕</button>
  </div>
  )}
 
@@ -186,7 +188,7 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  <button
  onClick={() => { setEditingProfile({ ...BLANK_PROFILE }); setIsNew(true); }}
  style={{
- padding: "5px 12px", fontSize: 11, background: "#6366f1", color: "#fff",
+ padding: "5px 12px", fontSize: 11, background: "var(--accent-primary, #6366f1)", color: "#fff",
  border: "none", borderRadius: 4, cursor: "pointer",
  }}
  >
@@ -202,7 +204,7 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  </button>
  <button
  onClick={() => deleteProfile(selected.id)}
- style={{ padding: "5px 12px", fontSize: 11, background: "#3a1a1a", border: "1px solid #f38ba8", borderRadius: 4, color: "#f38ba8", cursor: "pointer" }}
+ style={{ padding: "5px 12px", fontSize: 11, background: "#3a1a1a", border: "1px solid #f38ba8", borderRadius: 4, color: "var(--text-danger, #f38ba8)", cursor: "pointer" }}
  >
  Delete
  </button>
@@ -212,9 +214,11 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
 
  {/* Profile list */}
  {profiles.length === 0 && !editingProfile ? (
- <div style={{ textAlign: "center", padding: "30px 0", color: "var(--text-muted)", fontSize: 12 }}>
- No SSH profiles yet. Click "+ New Profile" to add one.
- </div>
+ <EmptyState
+   icon="🖥"
+   title="No SSH profiles yet"
+   description='Click "+ New Profile" to add one.'
+ />
  ) : (
  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
  {profiles.map((p) => (
@@ -233,12 +237,12 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  <div style={{ fontSize: 12, fontWeight: 600 }}>{p.name}</div>
  <div style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "monospace" }}>
  {p.user}@{p.host}:{p.port}
- {p.key_path && <span style={{ marginLeft: 6, color: "#a6e3a1" }}></span>}
+ {p.key_path && <span style={{ marginLeft: 6, color: "var(--text-success, #a6e3a1)" }}></span>}
  </div>
  </div>
  <button
  onClick={(e) => { e.stopPropagation(); setSelectedId(p.id); setTab("run"); }}
- style={{ padding: "3px 10px", fontSize: 10, background: "#6366f1", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer" }}
+ style={{ padding: "3px 10px", fontSize: 10, background: "var(--accent-primary, #6366f1)", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer" }}
  >
  Connect →
  </button>
@@ -285,7 +289,7 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
  <button
  onClick={saveProfile}
- style={{ padding: "6px 16px", fontSize: 12, background: "#6366f1", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
+ style={{ padding: "6px 16px", fontSize: 12, background: "var(--accent-primary, #6366f1)", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
  >
  Save
  </button>
@@ -396,7 +400,7 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  <div
  ref={logRef}
  style={{
- background: "#0d1117", borderRadius: 6, padding: "8px 10px",
+ background: "var(--bg-primary, #0d1117)", borderRadius: 6, padding: "8px 10px",
  fontFamily: "monospace", fontSize: 11, lineHeight: 1.5,
  overflow: "auto", maxHeight: 320,
  border: "1px solid var(--border-color)",
@@ -420,9 +424,10 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  )}
 
  {profiles.length === 0 && (
- <div style={{ textAlign: "center", padding: "30px 0", color: "var(--text-muted)", fontSize: 12 }}>
- Add an SSH profile in the Profiles tab first.
- </div>
+ <EmptyState
+   title="No profiles available"
+   description="Add an SSH profile in the Profiles tab first."
+ />
  )}
  </div>
  )}

@@ -129,7 +129,7 @@ export function ProfilerPanel({ workspacePath }: ProfilerPanelProps) {
 
       {/* Error */}
       {error && (
-        <div style={{ background: "rgba(243,139,168,0.15)", border: "1px solid #f38ba8", borderRadius: 6, padding: 8, fontSize: 11, color: "#f38ba8" }}>
+        <div style={{ background: "rgba(243,139,168,0.15)", border: "1px solid #f38ba8", borderRadius: 6, padding: 8, fontSize: 11, color: "var(--text-danger, #f38ba8)" }}>
           {error}
         </div>
       )}
@@ -216,7 +216,7 @@ export function ProfilerPanel({ workspacePath }: ProfilerPanelProps) {
               onClick={() => setShowRaw(!showRaw)}
               style={{
                 background: "none", border: "none", cursor: "pointer", fontSize: 11,
-                color: "#89b4fa", padding: 0, textDecoration: "underline",
+                color: "var(--text-info, #89b4fa)", padding: 0, textDecoration: "underline",
               }}
             >
               {showRaw ? "Hide raw output" : "Show raw output"}

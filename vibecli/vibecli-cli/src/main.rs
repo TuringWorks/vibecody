@@ -6519,3 +6519,505 @@ async fn fetch_and_strip_url(url: &str, max_chars: usize) -> String {
         Err(e) => format!("(Request failed: {})", e),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── is_safe_name tests ───────────────────────────────────────────────────
+
+    #[test]
+    fn is_safe_name_valid_simple() {
+        assert!(is_safe_name("my-snippet"));
+        assert!(is_safe_name("test_123"));
+        assert!(is_safe_name("file.txt"));
+        assert!(is_safe_name("a"));
+    }
+
+    #[test]
+    fn is_safe_name_rejects_empty() {
+        assert!(!is_safe_name(""));
+    }
+
+    #[test]
+    fn is_safe_name_rejects_path_separators() {
+        assert!(!is_safe_name("foo/bar"));
+        assert!(!is_safe_name("foo\\bar"));
+    }
+
+    #[test]
+    fn is_safe_name_rejects_parent_directory() {
+        assert!(!is_safe_name(".."));
+        assert!(!is_safe_name("foo..bar"));
+    }
+
+    #[test]
+    fn is_safe_name_rejects_special_chars() {
+        assert!(!is_safe_name("name with spaces"));
+        assert!(!is_safe_name("file@home"));
+        assert!(!is_safe_name("rm -rf /"));
+        assert!(!is_safe_name("$(whoami)"));
+    }
+
+    // ── edit_distance tests ──────────────────────────────────────────────────
+
+    #[test]
+    fn edit_distance_identical_strings() {
+        assert_eq!(edit_distance("hello", "hello"), 0);
+    }
+
+    #[test]
+    fn edit_distance_empty_strings() {
+        assert_eq!(edit_distance("", ""), 0);
+        assert_eq!(edit_distance("abc", ""), 3);
+        assert_eq!(edit_distance("", "xyz"), 3);
+    }
+
+    #[test]
+    fn edit_distance_single_edit() {
+        assert_eq!(edit_distance("cat", "bat"), 1);  // substitution
+        assert_eq!(edit_distance("cat", "cats"), 1); // insertion
+        assert_eq!(edit_distance("cats", "cat"), 1); // deletion
+    }
+
+    #[test]
+    fn edit_distance_known_values() {
+        assert_eq!(edit_distance("kitten", "sitting"), 3);
+        assert_eq!(edit_distance("saturday", "sunday"), 3);
+    }
+
+    #[test]
+    fn edit_distance_symmetric() {
+        let d1 = edit_distance("abc", "xyz");
+        let d2 = edit_distance("xyz", "abc");
+        assert_eq!(d1, d2);
+    }
+
+    // ── find_closest_command tests ───────────────────────────────────────────
+
+    #[test]
+    fn find_closest_command_exact_match() {
+        // An exact match has distance 0, should always be found
+        let result = find_closest_command("/help");
+        assert_eq!(result, Some("/help"));
+    }
+
+    #[test]
+    fn find_closest_command_typo() {
+        // One character off from "/agent"
+        let result = find_closest_command("/agnet");
+        assert_eq!(result, Some("/agent"));
+    }
+
+    #[test]
+    fn find_closest_command_no_match_for_garbage() {
+        // Something too far from any command
+        let result = find_closest_command("zzzzzzzzzzz");
+        assert!(result.is_none());
+    }
+
+    // ── regex pattern tests ─────────────────────────────────────────────────
+
+    #[test]
+    fn re_at_file_matches_simple_path() {
+        let re = re_at_file();
+        let caps = re.captures("@file:src/main.rs").unwrap();
+        assert_eq!(&caps[1], "src/main.rs");
+    }
+
+    #[test]
+    fn re_at_file_matches_with_line_range() {
+        let re = re_at_file();
+        let caps = re.captures("please look at @file:lib.rs:10-20 thanks").unwrap();
+        assert_eq!(&caps[1], "lib.rs:10-20");
+    }
+
+    #[test]
+    fn re_at_web_matches_url() {
+        let re = re_at_web();
+        let caps = re.captures("see @web:https://example.com/docs for info").unwrap();
+        assert_eq!(&caps[1], "https://example.com/docs");
+    }
+
+    #[test]
+    fn re_at_docs_matches_package() {
+        let re = re_at_docs();
+        let caps = re.captures("use @docs:tokio for async").unwrap();
+        assert_eq!(&caps[1], "tokio");
+    }
+
+    #[test]
+    fn re_at_github_matches_issue() {
+        let re = re_at_github();
+        let caps = re.captures("fix @github:owner/repo#42 please").unwrap();
+        assert_eq!(&caps[1], "owner");
+        assert_eq!(&caps[2], "repo");
+        assert_eq!(&caps[3], "42");
+    }
+
+    #[test]
+    fn re_at_github_rejects_bad_format() {
+        let re = re_at_github();
+        assert!(re.captures("@github:noslash").is_none());
+        assert!(re.captures("@github:no/hash").is_none());
+    }
+
+    #[test]
+    fn re_at_jira_matches_ticket() {
+        let re = re_at_jira();
+        let caps = re.captures("related to @jira:PROJ-123").unwrap();
+        assert_eq!(&caps[1], "PROJ-123");
+    }
+
+    #[test]
+    fn re_at_jira_rejects_lowercase() {
+        let re = re_at_jira();
+        // Jira regex requires uppercase project key
+        assert!(re.captures("@jira:proj-123").is_none());
+    }
+
+    #[test]
+    fn re_image_attachment_matches_png() {
+        let re = re_image_attachment();
+        let caps = re.captures("here is [screenshot.png] please review").unwrap();
+        assert_eq!(&caps[1], "screenshot.png");
+    }
+
+    #[test]
+    fn re_image_attachment_matches_various_formats() {
+        let re = re_image_attachment();
+        for ext in &["png", "jpg", "jpeg", "gif", "webp"] {
+            let input = format!("[photo.{}]", ext);
+            assert!(re.is_match(&input), "should match .{}", ext);
+        }
+    }
+
+    #[test]
+    fn re_html_tags_strips_tags() {
+        let re = re_html_tags();
+        let result = re.replace_all("<p>Hello <b>world</b></p>", " ");
+        assert_eq!(result, " Hello  world  ");
+    }
+
+    #[test]
+    fn re_collapse_whitespace_collapses() {
+        let re = re_collapse_whitespace();
+        let result = re.replace_all("hello   world    foo", " ");
+        assert_eq!(result, "hello world foo");
+    }
+
+    // ── Additional is_safe_name tests ───────────────────────────────────────
+
+    #[test]
+    fn is_safe_name_accepts_dots_and_hyphens() {
+        assert!(is_safe_name("my-snippet.v2"));
+        assert!(is_safe_name("config.toml"));
+        assert!(is_safe_name("test-case-01.rs"));
+    }
+
+    #[test]
+    fn is_safe_name_rejects_hidden_dotdot_in_middle() {
+        assert!(!is_safe_name("a..b"));
+        assert!(!is_safe_name("..hidden"));
+        assert!(!is_safe_name("trailing.."));
+    }
+
+    #[test]
+    fn is_safe_name_single_char_valid() {
+        assert!(is_safe_name("x"));
+        assert!(is_safe_name("Z"));
+        assert!(is_safe_name("9"));
+    }
+
+    #[test]
+    fn is_safe_name_rejects_null_and_control_chars() {
+        assert!(!is_safe_name("foo\0bar"));
+        assert!(!is_safe_name("foo\nbar"));
+        assert!(!is_safe_name("foo\tbar"));
+    }
+
+    #[test]
+    fn is_safe_name_rejects_shell_metacharacters() {
+        assert!(!is_safe_name("name;rm"));
+        assert!(!is_safe_name("name|cat"));
+        assert!(!is_safe_name("name`id`"));
+        assert!(!is_safe_name("a&b"));
+        assert!(!is_safe_name("a>b"));
+        assert!(!is_safe_name("a<b"));
+    }
+
+    // ── Additional edit_distance tests ──────────────────────────────────────
+
+    #[test]
+    fn edit_distance_single_char_strings() {
+        assert_eq!(edit_distance("a", "b"), 1);
+        assert_eq!(edit_distance("a", "a"), 0);
+        assert_eq!(edit_distance("a", ""), 1);
+    }
+
+    #[test]
+    fn edit_distance_transposition_counts_two() {
+        // Simple Levenshtein counts transposition as 2 ops (delete + insert)
+        assert_eq!(edit_distance("ab", "ba"), 2);
+    }
+
+    #[test]
+    fn edit_distance_completely_different() {
+        assert_eq!(edit_distance("abc", "xyz"), 3);
+        assert_eq!(edit_distance("abcd", "wxyz"), 4);
+    }
+
+    #[test]
+    fn edit_distance_prefix_suffix() {
+        assert_eq!(edit_distance("help", "helping"), 3);
+        assert_eq!(edit_distance("test", "tes"), 1);
+    }
+
+    #[test]
+    fn edit_distance_case_sensitive() {
+        assert_eq!(edit_distance("Hello", "hello"), 1);
+        assert_eq!(edit_distance("ABC", "abc"), 3);
+    }
+
+    #[test]
+    fn edit_distance_repeated_chars() {
+        assert_eq!(edit_distance("aaa", "aaaa"), 1);
+        assert_eq!(edit_distance("aaa", "bbb"), 3);
+    }
+
+    // ── Additional find_closest_command tests ───────────────────────────────
+
+    #[test]
+    fn find_closest_command_close_typo_help() {
+        let result = find_closest_command("/hepl");
+        // "/hepl" is distance 2 from "/help"; result must be a valid command within distance 3
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn find_closest_command_close_typo_config() {
+        let result = find_closest_command("/confg");
+        assert_eq!(result, Some("/config"));
+    }
+
+    #[test]
+    fn find_closest_command_empty_input() {
+        let result = find_closest_command("");
+        // Empty string may match short commands (e.g. "/mcp" len=4, distance=4 > 3 threshold)
+        // but some 3-char commands could match — just verify it doesn't panic
+        let _ = result;
+    }
+
+    #[test]
+    fn find_closest_command_exact_exit() {
+        let result = find_closest_command("/exit");
+        assert_eq!(result, Some("/exit"));
+    }
+
+    #[test]
+    fn find_closest_command_exact_trace() {
+        let result = find_closest_command("/trace");
+        assert_eq!(result, Some("/trace"));
+    }
+
+    // ── Additional regex pattern tests ──────────────────────────────────────
+
+    #[test]
+    fn re_at_file_no_match_without_prefix() {
+        let re = re_at_file();
+        assert!(re.captures("just a file.rs reference").is_none());
+    }
+
+    #[test]
+    fn re_at_file_matches_nested_path() {
+        let re = re_at_file();
+        let caps = re.captures("@file:src/components/App.tsx").unwrap();
+        assert_eq!(&caps[1], "src/components/App.tsx");
+    }
+
+    #[test]
+    fn re_at_file_matches_absolute_path() {
+        let re = re_at_file();
+        let caps = re.captures("@file:/usr/local/bin/test.sh").unwrap();
+        assert_eq!(&caps[1], "/usr/local/bin/test.sh");
+    }
+
+    #[test]
+    fn re_at_web_no_match_plain_url() {
+        let re = re_at_web();
+        assert!(re.captures("visit https://example.com").is_none());
+    }
+
+    #[test]
+    fn re_at_web_captures_full_url_with_path() {
+        let re = re_at_web();
+        let caps = re.captures("@web:https://docs.rs/tokio/latest/tokio/").unwrap();
+        assert_eq!(&caps[1], "https://docs.rs/tokio/latest/tokio/");
+    }
+
+    #[test]
+    fn re_at_docs_matches_npm_prefix() {
+        let re = re_at_docs();
+        let caps = re.captures("@docs:npm:express").unwrap();
+        assert_eq!(&caps[1], "npm:express");
+    }
+
+    #[test]
+    fn re_at_symbol_matches() {
+        let re = re_at_symbol();
+        let caps = re.captures("find @symbol:create_provider in the code").unwrap();
+        assert_eq!(&caps[1], "create_provider");
+    }
+
+    #[test]
+    fn re_at_symbol_no_match_without_prefix() {
+        let re = re_at_symbol();
+        assert!(re.captures("just a symbol name").is_none());
+    }
+
+    #[test]
+    fn re_at_codebase_matches_query() {
+        let re = re_at_codebase();
+        let caps = re.captures("@codebase:todo_fixme").unwrap();
+        assert_eq!(&caps[1], "todo_fixme");
+    }
+
+    #[test]
+    fn re_at_codebase_no_match_without_prefix() {
+        let re = re_at_codebase();
+        assert!(re.captures("search for codebase stuff").is_none());
+    }
+
+    #[test]
+    fn re_at_github_multiple_digit_issue() {
+        let re = re_at_github();
+        let caps = re.captures("@github:rust-lang/rust#12345").unwrap();
+        assert_eq!(&caps[1], "rust-lang");
+        assert_eq!(&caps[2], "rust");
+        assert_eq!(&caps[3], "12345");
+    }
+
+    #[test]
+    fn re_at_github_rejects_missing_number() {
+        let re = re_at_github();
+        assert!(re.captures("@github:owner/repo#").is_none());
+    }
+
+    #[test]
+    fn re_at_jira_uppercase_multiword_project() {
+        let re = re_at_jira();
+        let caps = re.captures("@jira:MYTEAM-9999").unwrap();
+        assert_eq!(&caps[1], "MYTEAM-9999");
+    }
+
+    #[test]
+    fn re_at_jira_rejects_no_number() {
+        let re = re_at_jira();
+        assert!(re.captures("@jira:PROJ-").is_none());
+    }
+
+    #[test]
+    fn re_at_jira_single_char_project() {
+        let re = re_at_jira();
+        // Regex requires [A-Z][A-Z0-9_]+ (2+ uppercase chars), so single-char project key doesn't match
+        assert!(re.captures("@jira:X-1").is_none());
+        // But two-char project key works
+        let caps = re.captures("@jira:XY-1").unwrap();
+        assert_eq!(&caps[1], "XY-1");
+    }
+
+    #[test]
+    fn re_image_attachment_no_match_wrong_ext() {
+        let re = re_image_attachment();
+        assert!(!re.is_match("[document.pdf]"));
+        assert!(!re.is_match("[archive.zip]"));
+        assert!(!re.is_match("[script.rs]"));
+    }
+
+    #[test]
+    fn re_image_attachment_no_match_missing_brackets() {
+        let re = re_image_attachment();
+        assert!(!re.is_match("screenshot.png"));
+    }
+
+    #[test]
+    fn re_html_tags_handles_self_closing() {
+        let re = re_html_tags();
+        let result = re.replace_all("text<br/>more<hr />end", " ");
+        assert_eq!(result, "text more end");
+    }
+
+    #[test]
+    fn re_html_tags_handles_attributes() {
+        let re = re_html_tags();
+        let result = re.replace_all("<a href=\"http://example.com\">link</a>", " ");
+        assert_eq!(result, " link ");
+    }
+
+    #[test]
+    fn re_html_tags_no_match_plain_text() {
+        let re = re_html_tags();
+        let result = re.replace_all("no tags here", " ");
+        assert_eq!(result, "no tags here");
+    }
+
+    #[test]
+    fn re_collapse_whitespace_preserves_single_spaces() {
+        let re = re_collapse_whitespace();
+        let result = re.replace_all("hello world", " ");
+        assert_eq!(result, "hello world");
+    }
+
+    #[test]
+    fn re_collapse_whitespace_handles_tabs_and_newlines() {
+        let re = re_collapse_whitespace();
+        let result = re.replace_all("hello\t\t\nworld", " ");
+        assert_eq!(result, "hello world");
+    }
+
+    #[test]
+    fn re_collapse_whitespace_empty_string() {
+        let re = re_collapse_whitespace();
+        let result = re.replace_all("", " ");
+        assert_eq!(result, "");
+    }
+
+    // ── extract_images_from_input tests ─────────────────────────────────────
+
+    #[test]
+    fn extract_images_no_images_in_text() {
+        let (clean, images) = extract_images_from_input("just a normal message");
+        assert_eq!(clean, "just a normal message");
+        assert!(images.is_empty());
+    }
+
+    #[test]
+    fn extract_images_strips_image_markers() {
+        // The image file won't exist so images vec will be empty,
+        // but the marker text should still be stripped from the clean output.
+        let (clean, _images) = extract_images_from_input("look at [missing.png] please");
+        assert!(!clean.contains("[missing.png]"));
+    }
+
+    #[test]
+    fn extract_images_multiple_markers_stripped() {
+        let (clean, _) = extract_images_from_input("[a.png] and [b.jpg] end");
+        assert!(!clean.contains("[a.png]"));
+        assert!(!clean.contains("[b.jpg]"));
+    }
+
+    #[test]
+    fn extract_images_empty_input() {
+        let (clean, images) = extract_images_from_input("");
+        assert_eq!(clean, "");
+        assert!(images.is_empty());
+    }
+
+    #[test]
+    fn extract_images_non_image_brackets_preserved() {
+        // Brackets with non-image extension should not be stripped
+        let (clean, images) = extract_images_from_input("see [readme.md] for info");
+        assert!(clean.contains("[readme.md]"));
+        assert!(images.is_empty());
+    }
+}

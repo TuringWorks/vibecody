@@ -183,7 +183,7 @@ export function WebSocketPanel() {
  </div>
  <button
  onClick={e => { e.stopPropagation(); removeConfig(c.id); }}
- style={{ fontSize: 10, background: "none", border: "none", color: "#f38ba8", cursor: "pointer", padding: "0 2px" }}
+ style={{ fontSize: 10, background: "none", border: "none", color: "var(--text-danger, #f38ba8)", cursor: "pointer", padding: "0 2px" }}
  >✕</button>
  </div>
  ))}
@@ -199,7 +199,7 @@ export function WebSocketPanel() {
  <button
  onClick={saveConfig}
  disabled={!label || !url}
- style={{ padding: "3px 0", fontSize: 10, fontWeight: 600, background: "#6366f1", border: "none", borderRadius: 4, color: "#fff", cursor: "pointer" }}
+ style={{ padding: "3px 0", fontSize: 10, fontWeight: 600, background: "var(--accent-primary, #6366f1)", border: "none", borderRadius: 4, color: "#fff", cursor: "pointer" }}
  >
  Save current
  </button>
@@ -227,7 +227,7 @@ export function WebSocketPanel() {
  {status !== "open" ? (
  <button
  onClick={connect}
- style={{ padding: "5px 16px", fontSize: 11, fontWeight: 700, background: "#6366f1", border: "none", borderRadius: 4, color: "#fff", cursor: "pointer" }}
+ style={{ padding: "5px 16px", fontSize: 11, fontWeight: 700, background: "var(--accent-primary, #6366f1)", border: "none", borderRadius: 4, color: "#fff", cursor: "pointer" }}
  >
  {status === "connecting" ? "Connecting…" : "Connect"}
  </button>
@@ -275,7 +275,7 @@ export function WebSocketPanel() {
  {tryPretty(m.data)}
  </pre>
  {m.latency !== undefined && (
- <span style={{ fontSize: 9, color: "#f9e2af", flexShrink: 0, paddingTop: 2 }}>{m.latency}ms</span>
+ <span style={{ fontSize: 9, color: "var(--text-warning, #f9e2af)", flexShrink: 0, paddingTop: 2 }}>{m.latency}ms</span>
  )}
  </div>
  ))}

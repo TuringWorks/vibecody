@@ -167,7 +167,7 @@ export default function SteeringPanel({ workspaceRoot }: SteeringPanelProps) {
  {/* Templates dropdown */}
  {showTemplates && (
  <div style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: 6, padding: 8, display: "flex", gap: 6, flexWrap: "wrap" }}>
- <span style={{ color: "#6c7086", fontSize: 11, width: "100%" }}>Choose a template to get started:</span>
+ <span style={{ color: "var(--text-muted, #6c7086)", fontSize: 11, width: "100%" }}>Choose a template to get started:</span>
  {TEMPLATES.map((tpl) => (
  <button key={tpl.label} onClick={() => useTemplate(tpl)} style={{ ...btnStyle, padding: "4px 10px" }}>
  {tpl.label}
@@ -180,7 +180,7 @@ export default function SteeringPanel({ workspaceRoot }: SteeringPanelProps) {
  {/* File list */}
  <div style={{ width: 160, flexShrink: 0, overflowY: "auto", background: "var(--bg-tertiary)", borderRadius: 6, padding: 4 }}>
  {files.length === 0 && (
- <div style={{ color: "#6c7086", fontSize: 12, padding: 8, textAlign: "center" }}>
+ <div style={{ color: "var(--text-muted, #6c7086)", fontSize: 12, padding: 8, textAlign: "center" }}>
  No steering files.<br />Click "+ New" to create one.
  </div>
  )}
@@ -207,14 +207,14 @@ export default function SteeringPanel({ workspaceRoot }: SteeringPanelProps) {
  <button
  onClick={() => deleteFile(f.filename)}
  title="Confirm delete"
- style={{ background: "none", border: "none", color: "#f38ba8", cursor: "pointer", fontSize: 10, padding: "0 2px", lineHeight: 1, fontWeight: 600 }}
+ style={{ background: "none", border: "none", color: "var(--text-danger, #f38ba8)", cursor: "pointer", fontSize: 10, padding: "0 2px", lineHeight: 1, fontWeight: 600 }}
  >
  Del
  </button>
  <button
  onClick={() => setPendingDelete(null)}
  title="Cancel"
- style={{ background: "none", border: "none", color: "#6c7086", cursor: "pointer", fontSize: 10, padding: "0 2px", lineHeight: 1 }}
+ style={{ background: "none", border: "none", color: "var(--text-muted, #6c7086)", cursor: "pointer", fontSize: 10, padding: "0 2px", lineHeight: 1 }}
  >
  ✕
  </button>
@@ -223,7 +223,7 @@ export default function SteeringPanel({ workspaceRoot }: SteeringPanelProps) {
  <button
  onClick={(e) => { e.stopPropagation(); deleteFile(f.filename); }}
  title="Delete"
- style={{ background: "none", border: "none", color: "#6c7086", cursor: "pointer", fontSize: 12, padding: "0 2px", lineHeight: 1 }}
+ style={{ background: "none", border: "none", color: "var(--text-muted, #6c7086)", cursor: "pointer", fontSize: 12, padding: "0 2px", lineHeight: 1 }}
  >
  ✕
  </button>
@@ -235,7 +235,7 @@ export default function SteeringPanel({ workspaceRoot }: SteeringPanelProps) {
  {/* Editor */}
  <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6, minHeight: 0 }}>
  {!editing ? (
- <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "#6c7086", fontSize: 13 }}>
+ <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted, #6c7086)", fontSize: 13 }}>
  Select a steering file or click "+ New"
  </div>
  ) : (
@@ -249,7 +249,7 @@ export default function SteeringPanel({ workspaceRoot }: SteeringPanelProps) {
  disabled={!isNew}
  style={{ flex: 1, padding: "4px 8px", borderRadius: 4, background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: 12 }}
  />
- <button onClick={save} disabled={saving} style={{ ...btnStyle, background: saving ? "var(--bg-secondary)" : "#89b4fa22", color: "#89b4fa" }}>
+ <button onClick={save} disabled={saving} style={{ ...btnStyle, background: saving ? "var(--bg-secondary)" : "#89b4fa22", color: "var(--text-info, #89b4fa)" }}>
  {saving ? "Saving…" : "Save"}
  </button>
  </div>
@@ -273,7 +273,7 @@ export default function SteeringPanel({ workspaceRoot }: SteeringPanelProps) {
  }}
  />
 
- <div style={{ color: "#6c7086", fontSize: 11 }}>
+ <div style={{ color: "var(--text-muted, #6c7086)", fontSize: 11 }}>
  Steering files inject into every agent prompt. Use YAML front-matter:{" "}
  <code style={{ background: "var(--bg-tertiary)", padding: "1px 4px", borderRadius: 3 }}>--- name: my-doc scope: project ---</code>
  </div>

@@ -19,7 +19,7 @@ const panelStyle: React.CSSProperties = {
   height: "100%",
   overflow: "auto",
   background: "var(--bg-tertiary)",
-  color: "#e0e0e0",
+  color: "var(--text-primary, #e0e0e0)",
   fontFamily: "var(--font-family, 'Segoe UI', system-ui, sans-serif)",
   fontSize: 13,
 };
@@ -130,7 +130,7 @@ export function AgentRecordingPanel() {
       )}
 
       {!loading && recordings.length === 0 && (
-        <div style={{ color: "#888", textAlign: "center", marginTop: 24 }}>
+        <div style={{ color: "var(--text-muted, #888)", textAlign: "center", marginTop: 24 }}>
           No recordings found. Use <code>--record</code> with the agent to capture sessions.
         </div>
       )}
@@ -156,7 +156,7 @@ export function AgentRecordingPanel() {
           {expanded.has(rec.session_id) && (
             <div style={{ marginTop: 8 }}>
               {rec.frames.length === 0 && (
-                <div style={{ color: "#888", fontSize: 12 }}>No frames captured.</div>
+                <div style={{ color: "var(--text-muted, #888)", fontSize: 12 }}>No frames captured.</div>
               )}
               {rec.frames.map((frame, i) => (
                 <div key={i} style={frameRowStyle}>

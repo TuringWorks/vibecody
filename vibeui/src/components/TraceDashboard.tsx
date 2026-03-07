@@ -129,7 +129,7 @@ export function TraceDashboard() {
  color: "var(--text-primary)",
  }}>
  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
- <span style={{ fontSize: 10, fontFamily: "monospace", color: "#89b4fa" }}>
+ <span style={{ fontSize: 10, fontFamily: "monospace", color: "var(--text-info, #89b4fa)" }}>
  {s.session_id.slice(0, 12)}
  </span>
  <div style={{ flex: 1 }} />
@@ -157,10 +157,10 @@ export function TraceDashboard() {
  }}>
  <span><strong>{steps.length}</strong> steps</span>
  <span><strong>{formatDuration(totalDuration)}</strong> total</span>
- <span style={{ color: "#a6e3a1" }}>
+ <span style={{ color: "var(--text-success, #a6e3a1)" }}>
  {steps.filter((s) => s.success).length} success
  </span>
- <span style={{ color: "#f38ba8" }}>
+ <span style={{ color: "var(--text-danger, #f38ba8)" }}>
  {steps.filter((s) => !s.success).length} errors
  </span>
  </div>
@@ -229,7 +229,7 @@ export function TraceDashboard() {
  {s.tool || "LLM"}
  </span>
  {!s.success && (
- <span style={{ fontSize: 9, color: "#f38ba8", fontWeight: 700 }}>FAIL</span>
+ <span style={{ fontSize: 9, color: "var(--text-danger, #f38ba8)", fontWeight: 700 }}>FAIL</span>
  )}
  <span style={{ fontSize: 9, opacity: 0.5, fontFamily: "monospace" }}>
  {formatDuration(s.duration_ms)}

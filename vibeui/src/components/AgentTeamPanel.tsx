@@ -122,13 +122,13 @@ export function AgentTeamPanel() {
             />
           </div>
           <button onClick={handleCreate} disabled={loading || !goal.trim()} style={{
-            ...btnStyle, background: "#6366f1", color: "#fff", fontWeight: 700,
+            ...btnStyle, background: "var(--accent-primary, #6366f1)", color: "#fff", fontWeight: 700,
             opacity: loading || !goal.trim() ? 0.5 : 1,
           }}>
             {loading ? "Creating Team..." : "Create Team"}
           </button>
           {error && (
-            <div style={{ fontSize: 11, color: "#f38ba8", padding: "4px 8px", background: "rgba(243,139,168,0.05)", borderRadius: 4 }}>
+            <div style={{ fontSize: 11, color: "var(--text-danger, #f38ba8)", padding: "4px 8px", background: "rgba(243,139,168,0.05)", borderRadius: 4 }}>
               {error}
             </div>
           )}

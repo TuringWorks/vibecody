@@ -262,7 +262,7 @@ export function BugBotPanel({ workspacePath }: BugBotPanelProps) {
  </div>
  <div>
  <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 3 }}>SUGGESTION</div>
- <div style={{ fontSize: 12, lineHeight: 1.6, color: "#a6e3a1" }}>{report.suggestion}</div>
+ <div style={{ fontSize: 12, lineHeight: 1.6, color: "var(--text-success, #a6e3a1)" }}>{report.suggestion}</div>
  </div>
  {report.fix_snippet && (
  <div>

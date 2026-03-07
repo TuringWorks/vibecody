@@ -151,7 +151,7 @@ export default function CanvasPanel() {
  };
 
  return (
- <div style={{ display: "flex", height: "100%", background: "#1e1e1e", color: "#ccc" }}>
+ <div style={{ display: "flex", height: "100%", background: "var(--bg-primary, #1e1e1e)", color: "var(--text-secondary, #ccc)" }}>
  {/* Palette sidebar */}
  {showPalette && (
  <div style={{ width: 180, borderRight: "1px solid #333", padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
@@ -187,7 +187,7 @@ export default function CanvasPanel() {
  style={{
  background: "#2a2a2a",
  border: "1px solid #444",
- color: "#ccc",
+ color: "var(--text-secondary, #ccc)",
  padding: "4px 8px",
  borderRadius: 4,
  cursor: "pointer",
@@ -205,14 +205,14 @@ export default function CanvasPanel() {
  <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
  {/* Toolbar */}
  <div style={{ display: "flex", gap: 8, padding: "8px 12px", borderBottom: "1px solid #333", alignItems: "center" }}>
- <button onClick={() => setShowPalette(!showPalette)} style={{ background: "#333", border: "none", color: "#ccc", padding: "4px 8px", borderRadius: 4, cursor: "pointer" }}>
+ <button onClick={() => setShowPalette(!showPalette)} style={{ background: "var(--bg-secondary, #333)", border: "none", color: "var(--text-secondary, #ccc)", padding: "4px 8px", borderRadius: 4, cursor: "pointer" }}>
  {showPalette ? "◀" : ""} Palette
  </button>
  <input
  value={newName || currentWorkflow.name}
  onChange={e => setNewName(e.target.value)}
  placeholder="Workflow name"
- style={{ background: "#2a2a2a", border: "1px solid #444", color: "#ccc", padding: "4px 8px", borderRadius: 4, flex: 1, maxWidth: 200 }}
+ style={{ background: "#2a2a2a", border: "1px solid #444", color: "var(--text-secondary, #ccc)", padding: "4px 8px", borderRadius: 4, flex: 1, maxWidth: 200 }}
  />
  <button onClick={handleSave} style={{ background: "#10b981", border: "none", color: "#fff", padding: "4px 12px", borderRadius: 4, cursor: "pointer" }}>
  Save

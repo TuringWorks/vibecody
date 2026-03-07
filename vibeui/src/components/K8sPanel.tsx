@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { EmptyState } from "./EmptyState";
+import { StatusMessage } from "./StatusMessage";
 
 type SubTab = "manifests" | "deploy" | "argocd" | "contexts";
 
@@ -228,9 +230,7 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
 
  <div style={{ flex: 1, overflow: "auto", padding: "12px" }}>
  {error && (
- <div style={{ padding: "8px 12px", background: "var(--error-bg, #2a1a1a)", color: "var(--text-danger, #ff6b6b)", borderRadius: 4, marginBottom: 10, fontSize: 12 }}>
- {error}
- </div>
+ <StatusMessage variant="error" message={error} inline />
  )}
 
  {/* ── Manifests ── */}
@@ -399,7 +399,7 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
  ref={outputRef}
  style={{
  margin: 0, padding: 12,
- background: "#0d1117", color: "#e6edf3",
+ background: "var(--bg-primary, #0d1117)", color: "var(--text-primary, #e6edf3)",
  border: "1px solid var(--border-color)", borderRadius: 6,
  fontSize: 11, lineHeight: 1.5,
  minHeight: 80, maxHeight: 340,
@@ -411,9 +411,7 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
  )}
 
  {contexts.length === 0 && (
- <div style={{ fontSize: 12, color: "var(--text-muted)", padding: "10px 0" }}>
- No kubectl contexts found. Install kubectl and configure your kubeconfig, or type a context name manually above.
- </div>
+ <StatusMessage variant="empty" message="No kubectl contexts found." detail="Install kubectl and configure your kubeconfig, or type a context name manually above." inline />
  )}
  </div>
  )}
@@ -505,16 +503,11 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
  {subTab === "contexts" && (
  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
  {contexts.length === 0 ? (
- <div style={{ padding: "20px 0", textAlign: "center", color: "var(--text-muted)", fontSize: 13 }}>
- <div style={{ fontSize: 28, marginBottom: 8 }}></div>
- <div>No kubectl contexts found.</div>
- <div style={{ marginTop: 6, fontSize: 12 }}>
- Install <code>kubectl</code> and configure your kubeconfig, or connect to a cluster with:<br />
- <code style={{ fontSize: 11 }}>aws eks update-kubeconfig --name &lt;cluster&gt;</code><br />
- <code style={{ fontSize: 11 }}>gcloud container clusters get-credentials &lt;cluster&gt;</code><br />
- <code style={{ fontSize: 11 }}>az aks get-credentials --name &lt;cluster&gt;</code>
- </div>
- </div>
+ <EmptyState
+   icon="☸"
+   title="No kubectl contexts found"
+   description="Install kubectl and configure your kubeconfig, or connect to a cluster."
+ />
  ) : (
  <>
  <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>

@@ -123,19 +123,19 @@ export function SandboxPanel() {
   };
 
   const statusColor = (status: string) => {
-    if (status.toLowerCase().includes("up") || status === "running") return "#4ec9b0";
-    if (status.toLowerCase().includes("paused")) return "#dcdcaa";
-    if (status.toLowerCase().includes("exited")) return "#f44747";
-    return "#888";
+    if (status.toLowerCase().includes("up") || status === "running") return "var(--success-color, #4ec9b0)";
+    if (status.toLowerCase().includes("paused")) return "var(--warning-color, #dcdcaa)";
+    if (status.toLowerCase().includes("exited")) return "var(--error-color, #f44747)";
+    return "var(--text-muted, #888)";
   };
 
   return (
-    <div style={{ padding: "12px", height: "100%", overflow: "auto", color: "#ccc", fontSize: 13 }}>
-      <h3 style={{ margin: "0 0 12px", color: "#e0e0e0" }}>Container Sandbox</h3>
+    <div style={{ padding: "12px", height: "100%", overflow: "auto", color: "var(--text-secondary, #ccc)", fontSize: 13 }}>
+      <h3 style={{ margin: "0 0 12px", color: "var(--text-primary, #e0e0e0)" }}>Container Sandbox</h3>
 
       {/* Runtime Detection */}
-      <div style={{ marginBottom: 16, padding: "8px 12px", background: "#1e1e1e", borderRadius: 6, border: "1px solid #333" }}>
-        <div style={{ fontWeight: 600, marginBottom: 6, color: "#ddd" }}>Available Runtimes</div>
+      <div style={{ marginBottom: 16, padding: "8px 12px", background: "var(--bg-primary, #1e1e1e)", borderRadius: 6, border: "1px solid var(--border-color, #333)" }}>
+        <div style={{ fontWeight: 600, marginBottom: 6, color: "var(--text-primary, #ddd)" }}>Available Runtimes</div>
         {runtimes ? (
           <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
             <RuntimeBadge name="Docker" version={runtimes.docker} active={runtimes.active === "docker"} />
@@ -143,14 +143,14 @@ export function SandboxPanel() {
             <RuntimeBadge name="OpenSandbox" version={runtimes.opensandbox} active={runtimes.active === "opensandbox"} />
           </div>
         ) : (
-          <span style={{ color: "#888" }}>Detecting...</span>
+          <span style={{ color: "var(--text-muted, #888)" }}>Detecting...</span>
         )}
         <button onClick={detectRuntimes} style={btnStyle} title="Refresh">Refresh</button>
       </div>
 
       {/* Create Sandbox Form */}
-      <div style={{ marginBottom: 16, padding: "8px 12px", background: "#1e1e1e", borderRadius: 6, border: "1px solid #333" }}>
-        <div style={{ fontWeight: 600, marginBottom: 8, color: "#ddd" }}>Create Sandbox</div>
+      <div style={{ marginBottom: 16, padding: "8px 12px", background: "var(--bg-primary, #1e1e1e)", borderRadius: 6, border: "1px solid var(--border-color, #333)" }}>
+        <div style={{ fontWeight: 600, marginBottom: 8, color: "var(--text-primary, #ddd)" }}>Create Sandbox</div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
           <label style={labelStyle}>
             Image
@@ -172,7 +172,7 @@ export function SandboxPanel() {
               <option value="none">None</option>
             </select>
           </label>
-          <button onClick={handleCreate} disabled={loading} style={{ ...btnStyle, background: "#0e639c" }}>
+          <button onClick={handleCreate} disabled={loading} style={{ ...btnStyle, background: "var(--accent-color, #0e639c)" }}>
             {loading ? "Starting..." : "Start"}
           </button>
         </div>
@@ -181,15 +181,15 @@ export function SandboxPanel() {
       {/* Instances Table */}
       <div style={{ marginBottom: 16 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-          <span style={{ fontWeight: 600, color: "#ddd" }}>Running Instances ({instances.length})</span>
+          <span style={{ fontWeight: 600, color: "var(--text-primary, #ddd)" }}>Running Instances ({instances.length})</span>
           <button onClick={refreshInstances} style={btnStyle}>Refresh</button>
         </div>
         {instances.length === 0 ? (
-          <div style={{ color: "#888", fontStyle: "italic" }}>No sandbox containers running.</div>
+          <div style={{ color: "var(--text-muted, #888)", fontStyle: "italic" }}>No sandbox containers running.</div>
         ) : (
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
             <thead>
-              <tr style={{ borderBottom: "1px solid #444", textAlign: "left" }}>
+              <tr style={{ borderBottom: "1px solid var(--border-color, #444)", textAlign: "left" }}>
                 <th style={thStyle}>ID</th>
                 <th style={thStyle}>Image</th>
                 <th style={thStyle}>Status</th>
@@ -199,7 +199,7 @@ export function SandboxPanel() {
             </thead>
             <tbody>
               {instances.map((c) => (
-                <tr key={c.id} style={{ borderBottom: "1px solid #333" }}>
+                <tr key={c.id} style={{ borderBottom: "1px solid var(--border-color, #333)" }}>
                   <td style={tdStyle}><code>{c.id.substring(0, 12)}</code></td>
                   <td style={tdStyle}>{c.image}</td>
                   <td style={tdStyle}>
@@ -209,7 +209,7 @@ export function SandboxPanel() {
                   <td style={tdStyle}>
                     <button onClick={() => handlePause(c.id)} style={smallBtn} title="Pause">Pause</button>
                     <button onClick={() => handleResume(c.id)} style={smallBtn} title="Resume">Resume</button>
-                    <button onClick={() => handleStop(c.id)} style={{ ...smallBtn, color: "#f44747" }} title="Stop & Remove">Stop</button>
+                    <button onClick={() => handleStop(c.id)} style={{ ...smallBtn, color: "var(--error-color, #f44747)" }} title="Stop & Remove">Stop</button>
                   </td>
                 </tr>
               ))}
@@ -219,8 +219,8 @@ export function SandboxPanel() {
       </div>
 
       {/* Exec Console */}
-      <div style={{ padding: "8px 12px", background: "#1e1e1e", borderRadius: 6, border: "1px solid #333" }}>
-        <div style={{ fontWeight: 600, marginBottom: 8, color: "#ddd" }}>Execute Command</div>
+      <div style={{ padding: "8px 12px", background: "var(--bg-primary, #1e1e1e)", borderRadius: 6, border: "1px solid var(--border-color, #333)" }}>
+        <div style={{ fontWeight: 600, marginBottom: 8, color: "var(--text-primary, #ddd)" }}>Execute Command</div>
         {instances.length > 0 ? (
           <>
             <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
@@ -244,13 +244,13 @@ export function SandboxPanel() {
             </div>
             {execOutput && (
               <pre style={{
-                background: "#0d1117",
+                background: "var(--bg-primary, #0d1117)",
                 padding: 8,
                 borderRadius: 4,
                 maxHeight: 200,
                 overflow: "auto",
                 fontSize: 11,
-                color: "#c9d1d9",
+                color: "var(--text-secondary, #c9d1d9)",
                 margin: 0,
                 whiteSpace: "pre-wrap",
                 wordBreak: "break-all",
@@ -260,7 +260,7 @@ export function SandboxPanel() {
             )}
           </>
         ) : (
-          <div style={{ color: "#888", fontStyle: "italic" }}>Start a sandbox to use the exec console.</div>
+          <div style={{ color: "var(--text-muted, #888)", fontStyle: "italic" }}>Start a sandbox to use the exec console.</div>
         )}
       </div>
     </div>
@@ -276,22 +276,22 @@ function RuntimeBadge({ name, version, active }: { name: string; version: string
       padding: "2px 8px",
       borderRadius: 12,
       fontSize: 12,
-      background: version ? (active ? "#0e639c33" : "#1e1e1e") : "#333",
-      border: `1px solid ${version ? (active ? "#0e639c" : "#555") : "#444"}`,
-      color: version ? (active ? "#4ec9b0" : "#ccc") : "#666",
+      background: version ? (active ? "rgba(14,99,156,0.2)" : "var(--bg-primary, #1e1e1e)") : "var(--bg-secondary, #333)",
+      border: `1px solid ${version ? (active ? "var(--accent-color, #0e639c)" : "var(--border-color, #555)") : "var(--border-color, #444)"}`,
+      color: version ? (active ? "var(--success-color, #4ec9b0)" : "var(--text-secondary, #ccc)") : "var(--text-muted, #666)",
     }}>
-      <span style={{ width: 6, height: 6, borderRadius: "50%", background: version ? "#4ec9b0" : "#666" }} />
+      <span style={{ width: 6, height: 6, borderRadius: "50%", background: version ? "var(--success-color, #4ec9b0)" : "var(--text-muted, #666)" }} />
       {name}
-      {version && <span style={{ color: "#888", marginLeft: 4 }}>v{version}</span>}
-      {active && <span style={{ color: "#4ec9b0", fontWeight: 600 }}>(active)</span>}
+      {version && <span style={{ color: "var(--text-muted, #888)", marginLeft: 4 }}>v{version}</span>}
+      {active && <span style={{ color: "var(--success-color, #4ec9b0)", fontWeight: 600 }}>(active)</span>}
     </span>
   );
 }
 
 const btnStyle: React.CSSProperties = {
-  background: "#333",
-  color: "#ccc",
-  border: "1px solid #555",
+  background: "var(--bg-secondary, #333)",
+  color: "var(--text-secondary, #ccc)",
+  border: "1px solid var(--border-color, #555)",
   borderRadius: 4,
   padding: "4px 10px",
   cursor: "pointer",
@@ -300,8 +300,8 @@ const btnStyle: React.CSSProperties = {
 
 const smallBtn: React.CSSProperties = {
   background: "transparent",
-  color: "#ccc",
-  border: "1px solid #444",
+  color: "var(--text-secondary, #ccc)",
+  border: "1px solid var(--border-color, #444)",
   borderRadius: 3,
   padding: "2px 6px",
   cursor: "pointer",
@@ -310,9 +310,9 @@ const smallBtn: React.CSSProperties = {
 };
 
 const inputStyle: React.CSSProperties = {
-  background: "#2d2d2d",
-  color: "#ccc",
-  border: "1px solid #555",
+  background: "var(--bg-secondary, #2d2d2d)",
+  color: "var(--text-secondary, #ccc)",
+  border: "1px solid var(--border-color, #555)",
   borderRadius: 4,
   padding: "4px 8px",
   fontSize: 12,
@@ -323,12 +323,12 @@ const labelStyle: React.CSSProperties = {
   flexDirection: "column",
   gap: 2,
   fontSize: 11,
-  color: "#888",
+  color: "var(--text-muted, #888)",
 };
 
 const thStyle: React.CSSProperties = {
   padding: "4px 8px",
-  color: "#888",
+  color: "var(--text-muted, #888)",
   fontWeight: 500,
   fontSize: 11,
 };

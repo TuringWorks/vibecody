@@ -212,7 +212,7 @@ export function CronPanel() {
  }}
  >
  <div style={{ fontSize: 11, fontWeight: expr === p.expr ? 600 : 400 }}>{p.label}</div>
- <div style={{ fontSize: 10, fontFamily: "monospace", color: "#6366f1" }}>{p.expr}</div>
+ <div style={{ fontSize: 10, fontFamily: "monospace", color: "var(--accent-primary, #6366f1)" }}>{p.expr}</div>
  </button>
  ))}
  </div>
@@ -240,8 +240,8 @@ export function CronPanel() {
  </button>
  </div>
  {error
- ? <div style={{ fontSize: 11, color: "#f38ba8", marginTop: 5 }}> {error}</div>
- : <div style={{ fontSize: 11, color: "#a6e3a1", marginTop: 5 }}>✓ {desc}</div>
+ ? <div style={{ fontSize: 11, color: "var(--text-danger, #f38ba8)", marginTop: 5 }}> {error}</div>
+ : <div style={{ fontSize: 11, color: "var(--text-success, #a6e3a1)", marginTop: 5 }}>✓ {desc}</div>
  }
  </div>
 
@@ -304,7 +304,7 @@ export function CronPanel() {
  ["n", "exact value n"],
  ].map(([syn, def]) => (
  <div key={syn} style={{ display: "flex", gap: 8 }}>
- <span style={{ color: "#6366f1", minWidth: 60 }}>{syn}</span>
+ <span style={{ color: "var(--accent-primary, #6366f1)", minWidth: 60 }}>{syn}</span>
  <span style={{ color: "var(--text-muted)" }}>{def}</span>
  </div>
  ))}
@@ -323,7 +323,7 @@ export function CronPanel() {
  {d.toLocaleString([], { weekday: "short", year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
  </span>
  {i === 0 && (
- <span style={{ color: "#a6e3a1", fontSize: 10, marginLeft: "auto" }}>
+ <span style={{ color: "var(--text-success, #a6e3a1)", fontSize: 10, marginLeft: "auto" }}>
  in {Math.round((d.getTime() - Date.now()) / 60000)} min
  </span>
  )}

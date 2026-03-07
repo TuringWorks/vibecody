@@ -65,53 +65,15 @@ fn draw_file_tree(f: &mut Frame, app: &App, area: Rect) {
 }
 
 fn draw_diff_view(f: &mut Frame, app: &App, area: Rect) {
-    let t = &app.theme;
+    let mode_label = app.diff_view.view_mode.label();
+    let title = format!(" Diff View [{}] (Press ESC or /chat to return) ", mode_label);
     let block = Block::default()
         .borders(Borders::ALL)
-        .title(" Diff View (Press ESC or /chat to return) ");
+        .title(title);
     let inner_area = block.inner(area);
     f.render_widget(block, area);
 
-    let mut lines = Vec::new();
-
-    if !app.diff_view.raw_lines.is_empty() {
-        for line in &app.diff_view.raw_lines {
-            let style = if line.starts_with('+') {
-                Style::default().fg(t.success)
-            } else if line.starts_with('-') {
-                Style::default().fg(t.error)
-            } else if line.starts_with("@@") {
-                Style::default().fg(t.info)
-            } else if line.starts_with("diff") || line.starts_with("index") {
-                Style::default().fg(t.secondary).add_modifier(Modifier::BOLD)
-            } else {
-                Style::default().fg(t.dim)
-            };
-            lines.push(Line::from(Span::styled(line, style)));
-        }
-    } else {
-        for hunk in &app.diff_view.hunks {
-            lines.push(Line::from(Span::styled(
-                format!(
-                    "@@ -{},{} +{},{} @@",
-                    hunk.old_start, hunk.old_count, hunk.new_start, hunk.new_count
-                ),
-                Style::default().fg(t.info),
-            )));
-            for line in &hunk.lines {
-                let (prefix, style) = match line.tag {
-                    vibe_core::diff::DiffTag::Equal  => (" ", Style::default().fg(t.dim)),
-                    vibe_core::diff::DiffTag::Insert => ("+", Style::default().fg(t.success)),
-                    vibe_core::diff::DiffTag::Delete => ("-", Style::default().fg(t.error)),
-                };
-                lines.push(Line::from(Span::styled(
-                    format!("{}{}", prefix, line.content),
-                    style,
-                )));
-            }
-        }
-    }
-
+    let lines = app.diff_view.render_lines();
     let paragraph = Paragraph::new(lines).scroll((app.diff_view.scroll, 0));
     f.render_widget(paragraph, inner_area);
 }

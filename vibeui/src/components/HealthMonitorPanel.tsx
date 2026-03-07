@@ -176,8 +176,8 @@ export function HealthMonitorPanel() {
 
  {checkedCount > 0 && (
  <div style={{ display: "flex", gap: 6 }}>
- {upCount > 0 && <span style={{ padding: "2px 8px", borderRadius: 10, background: "rgba(166,227,161,0.15)", border: "1px solid #a6e3a1", color: "#a6e3a1", fontSize: 10, fontWeight: 700 }}>↑ {upCount} UP</span>}
- {downCount > 0 && <span style={{ padding: "2px 8px", borderRadius: 10, background: "rgba(243,139,168,0.15)", border: "1px solid #f38ba8", color: "#f38ba8", fontSize: 10, fontWeight: 700 }}>↓ {downCount} DOWN</span>}
+ {upCount > 0 && <span style={{ padding: "2px 8px", borderRadius: 10, background: "rgba(166,227,161,0.15)", border: "1px solid #a6e3a1", color: "var(--text-success, #a6e3a1)", fontSize: 10, fontWeight: 700 }}>↑ {upCount} UP</span>}
+ {downCount > 0 && <span style={{ padding: "2px 8px", borderRadius: 10, background: "rgba(243,139,168,0.15)", border: "1px solid #f38ba8", color: "var(--text-danger, #f38ba8)", fontSize: 10, fontWeight: 700 }}>↓ {downCount} DOWN</span>}
  </div>
  )}
 
@@ -228,13 +228,13 @@ export function HealthMonitorPanel() {
  {[2000, 5000, 10000, 30000].map(t => <option key={t} value={t}>{t / 1000}s</option>)}
  </select>
  </div>
- <button onClick={addMonitor} disabled={!newLabel || !newUrl} style={{ padding: "5px 14px", fontSize: 11, fontWeight: 700, background: "#6366f1", border: "none", borderRadius: 4, color: "#fff", cursor: "pointer", height: 28 }}>Add</button>
+ <button onClick={addMonitor} disabled={!newLabel || !newUrl} style={{ padding: "5px 14px", fontSize: 11, fontWeight: 700, background: "var(--accent-primary, #6366f1)", border: "none", borderRadius: 4, color: "#fff", cursor: "pointer", height: 28 }}>Add</button>
  <button onClick={() => setShowAdd(false)} style={{ padding: "5px 10px", fontSize: 11, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-muted)", cursor: "pointer", height: 28 }}>Cancel</button>
  </div>
  )}
 
  {error && (
- <div style={{ padding: "6px 12px", background: "rgba(243,139,168,0.1)", color: "#f38ba8", fontSize: 11, borderBottom: "1px solid var(--border-color)", flexShrink: 0 }}> {error}</div>
+ <div style={{ padding: "6px 12px", background: "rgba(243,139,168,0.1)", color: "var(--text-danger, #f38ba8)", fontSize: 11, borderBottom: "1px solid var(--border-color)", flexShrink: 0 }}> {error}</div>
  )}
 
  {/* Monitor list */}
@@ -282,7 +282,7 @@ export function HealthMonitorPanel() {
 
  {/* Error */}
  {r?.error && (
- <div style={{ fontSize: 9, color: "#f38ba8", maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={r.error}>{r.error}</div>
+ <div style={{ fontSize: 9, color: "var(--text-danger, #f38ba8)", maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={r.error}>{r.error}</div>
  )}
 
  {/* Actions */}
@@ -293,7 +293,7 @@ export function HealthMonitorPanel() {
  >↺</button>
  <button
  onClick={() => removeMonitor(m.id)}
- style={{ padding: "3px 8px", fontSize: 10, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "#f38ba8", cursor: "pointer" }}
+ style={{ padding: "3px 8px", fontSize: 10, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-danger, #f38ba8)", cursor: "pointer" }}
  >✕</button>
  </div>
  </div>

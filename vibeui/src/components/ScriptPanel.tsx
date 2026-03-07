@@ -209,7 +209,7 @@ export function ScriptPanel({ workspacePath }: ScriptPanelProps) {
  )}
 
  {error && (
- <div style={{ margin: "8px 12px", padding: "6px 10px", background: "var(--error-bg, #2a1a1a)", color: "#f38ba8", borderRadius: 4, fontSize: 12 }}>
+ <div style={{ margin: "8px 12px", padding: "6px 10px", background: "var(--error-bg, #2a1a1a)", color: "var(--text-danger, #f38ba8)", borderRadius: 4, fontSize: 12 }}>
  {error}
  </div>
  )}
@@ -345,7 +345,7 @@ export function ScriptPanel({ workspacePath }: ScriptPanelProps) {
  ref={logRef}
  style={{
  maxHeight: 220, overflow: "auto", padding: "8px 12px",
- background: "#0d1117", fontFamily: "monospace", fontSize: 11,
+ background: "var(--bg-primary, #0d1117)", fontFamily: "monospace", fontSize: 11,
  lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-all",
  }}
  >

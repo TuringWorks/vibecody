@@ -164,7 +164,7 @@ export function NetworkPanel() {
  );
 
  const ERR = (msg: string | null) => msg && (
- <div style={{ padding: "6px 10px", background: "var(--error-bg,#2a1a1a)", color: "#f38ba8", borderRadius: 4, fontSize: 11 }}>
+ <div style={{ padding: "6px 10px", background: "var(--error-bg,#2a1a1a)", color: "var(--text-danger, #f38ba8)", borderRadius: 4, fontSize: 11 }}>
  {msg}
  </div>
  );
@@ -213,7 +213,7 @@ export function NetworkPanel() {
  </div>
  {filteredPorts.map((p, i) => (
  <div key={i} style={{ display: "grid", gridTemplateColumns: "70px 60px 140px 1fr 90px", gap: 8, padding: "5px 8px", fontSize: 11, borderBottom: "1px solid var(--border-color)", alignItems: "center" }}>
- <span style={{ fontFamily: "monospace", fontWeight: 700, color: "#89b4fa" }}>{p.port}</span>
+ <span style={{ fontFamily: "monospace", fontWeight: 700, color: "var(--text-info, #89b4fa)" }}>{p.port}</span>
  <span style={{ fontSize: 10, fontWeight: 600, color: p.protocol === "tcp" ? "#cba6f7" : "#f9e2af" }}>{p.protocol.toUpperCase()}</span>
  <span style={{ fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={`${p.process ?? ""} (${p.pid ?? "?"})`}>
  {p.process ?? "—"}{p.pid ? ` (${p.pid})` : ""}
@@ -268,7 +268,7 @@ export function NetworkPanel() {
  </div>
  {dnsRecords.map((r, i) => (
  <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 10px", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4 }}>
- <span style={{ fontSize: 10, fontWeight: 700, color: "#89b4fa", width: 40 }}>{r.record_type}</span>
+ <span style={{ fontSize: 10, fontWeight: 700, color: "var(--text-info, #89b4fa)", width: 40 }}>{r.record_type}</span>
  <span style={{ fontFamily: "monospace", fontSize: 12, flex: 1 }}>{r.value}</span>
  <button onClick={() => navigator.clipboard.writeText(r.value).catch(() => {})} style={{ padding: "2px 6px", fontSize: 10, background: "none", border: "1px solid var(--border-color)", borderRadius: 3, color: "var(--text-muted)", cursor: "pointer" }}>Copy</button>
  </div>

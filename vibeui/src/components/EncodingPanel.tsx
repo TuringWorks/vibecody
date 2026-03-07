@@ -241,7 +241,7 @@ export function EncodingPanel() {
  ))
  }
  <div style={{ padding: "10px 12px", fontSize: 10, color: "var(--text-muted)", lineHeight: 1.7, background: "var(--bg-secondary)", borderTop: "1px solid var(--border-color)" }}>
- <strong style={{ color: "#fab387" }}>Note:</strong>MD5 is not available in Web Crypto (deprecated for security). Use SHA-256 or higher for any security-sensitive purpose.
+ <strong style={{ color: "var(--text-warning-alt, #fab387)" }}>Note:</strong>MD5 is not available in Web Crypto (deprecated for security). Use SHA-256 or higher for any security-sensitive purpose.
  </div>
  </div>
  )}

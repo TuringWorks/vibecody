@@ -57,12 +57,12 @@ const S = {
  }),
  label: { fontSize: 10, fontWeight: 600 as const, color: "var(--text-muted)", marginBottom: 3, display: "block" as const },
  result: {
- padding: "8px 10px", background: "#0d1117", borderRadius: 4, fontFamily: "monospace",
+ padding: "8px 10px", background: "var(--bg-primary, #0d1117)", borderRadius: 4, fontFamily: "monospace",
  fontSize: 11, lineHeight: 1.6, whiteSpace: "pre-wrap" as const,
  border: "1px solid var(--border-color)", wordBreak: "break-all" as const,
- color: "#e6edf3", overflowY: "auto" as const, maxHeight: 280,
+ color: "var(--text-primary, #e6edf3)", overflowY: "auto" as const, maxHeight: 280,
  },
- error: { color: "#f38ba8", fontSize: 11, marginTop: 4 },
+ error: { color: "var(--text-danger, #f38ba8)", fontSize: 11, marginTop: 4 },
  field: { display: "flex", flexDirection: "column" as const, gap: 3 },
 };
 
@@ -245,7 +245,7 @@ function RegexTool() {
  {matches.length} match{matches.length !== 1 ? "es" : ""}
  </div>
  <div
- style={{ ...S.result, background: "#0d1117" }}
+ style={{ ...S.result, background: "var(--bg-primary, #0d1117)" }}
  dangerouslySetInnerHTML={{ __html: highlighted.replace(/\n/g, "<br>") }}
  />
  {matches.length > 0 && matches[0].groups && (
@@ -465,7 +465,7 @@ function UrlTool() {
  <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
  {params.map(([k, v]) => (
  <div key={k} style={{ display: "flex", gap: 8, padding: "4px 8px", background: "var(--bg-secondary)", borderRadius: 4, border: "1px solid var(--border-color)", fontSize: 11, fontFamily: "monospace" }}>
- <span style={{ color: "#89b4fa", fontWeight: 600 }}>{k}</span>
+ <span style={{ color: "var(--text-info, #89b4fa)", fontWeight: 600 }}>{k}</span>
  <span style={{ color: "var(--text-muted)" }}>=</span>
  <span style={{ flex: 1 }}>{v}</span>
  <button onClick={() => copyText(v)} style={{ ...S.btn(), fontSize: 10, padding: "2px 6px" }}>Copy</button>

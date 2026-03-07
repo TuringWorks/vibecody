@@ -255,7 +255,7 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
 
       {/* Error */}
       {error && (
-        <div style={{ background: "rgba(243,139,168,0.15)", border: "1px solid #f38ba8", borderRadius: 6, padding: 8, fontSize: 11, color: "#f38ba8" }}>
+        <div style={{ background: "rgba(243,139,168,0.15)", border: "1px solid #f38ba8", borderRadius: 6, padding: 8, fontSize: 11, color: "var(--text-danger, #f38ba8)" }}>
           {error}
         </div>
       )}
@@ -300,7 +300,7 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
           fontFamily: "inherit", lineHeight: 1.5,
         }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-            <strong style={{ color: "#a6e3a1" }}>AI Analysis</strong>
+            <strong style={{ color: "var(--text-success, #a6e3a1)" }}>AI Analysis</strong>
             <button
               onClick={() => setAnalysis(null)}
               style={{ background: "none", border: "none", cursor: "pointer", color: "#9399b2", fontSize: 11 }}

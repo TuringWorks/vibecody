@@ -136,7 +136,7 @@ export function MarketplacePanel() {
                   {p.tags.slice(0, 4).map((tag) => (
                     <span key={tag} style={{
                       fontSize: 8, padding: "1px 5px", borderRadius: 3,
-                      background: "rgba(99,102,241,0.1)", color: "#89b4fa",
+                      background: "rgba(99,102,241,0.1)", color: "var(--text-info, #89b4fa)",
                     }}>
                       {tag}
                     </span>

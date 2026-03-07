@@ -24,9 +24,9 @@ interface CoveragePanelProps {
 type Filter = "all" | "partial" | "uncovered";
 
 const pctColor = (pct: number) => {
- if (pct >= 80) return "var(--text-success, #4caf50)";
- if (pct >= 50) return "var(--text-warning, #ff9800)";
- return "var(--text-danger, #f44336)";
+ if (pct >= 80) return "var(--success-color, #4caf50)";
+ if (pct >= 50) return "var(--warning-color, #ff9800)";
+ return "var(--error-color, #f44336)";
 };
 
 const toolLabel: Record<string, string> = {
@@ -110,8 +110,8 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  disabled={running || !tool || !workspacePath}
  style={{
  marginLeft: "auto",
- background: running ? "var(--bg-secondary, #2d2d2d)" : "var(--accent, #007acc)",
- color: "#fff", border: "none", borderRadius: "4px",
+ background: running ? "var(--bg-secondary, #2d2d2d)" : "var(--accent-color, #007acc)",
+ color: "var(--text-primary, #fff)", border: "none", borderRadius: "4px",
  padding: "4px 12px", cursor: running ? "default" : "pointer",
  }}
  >
@@ -120,7 +120,7 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  </div>
 
  {error && (
- <div style={{ background: "rgba(244,67,54,0.1)", color: "#f44336", padding: "8px", borderRadius: "4px", marginBottom: "12px", whiteSpace: "pre-wrap" }}>
+ <div style={{ background: "rgba(244,67,54,0.1)", color: "var(--error-color, #f44336)", padding: "8px", borderRadius: "4px", marginBottom: "12px", whiteSpace: "pre-wrap" }}>
  {error}
  </div>
  )}
@@ -149,8 +149,8 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  key={f}
  onClick={() => setFilter(f)}
  style={{
- background: filter === f ? "var(--accent, #007acc)" : "var(--bg-secondary, #2d2d2d)",
- color: filter === f ? "#fff" : "var(--text-muted, #888)",
+ background: filter === f ? "var(--accent-color, #007acc)" : "var(--bg-secondary, #2d2d2d)",
+ color: filter === f ? "var(--text-primary, #fff)" : "var(--text-muted, #888)",
  border: "none", borderRadius: "4px", padding: "2px 10px",
  cursor: "pointer", fontSize: "11px",
  }}
@@ -162,8 +162,8 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  onClick={() => setShowRaw(r => !r)}
  style={{
  marginLeft: "auto",
- background: showRaw ? "var(--accent, #007acc)" : "var(--bg-secondary, #2d2d2d)",
- color: showRaw ? "#fff" : "var(--text-muted, #888)",
+ background: showRaw ? "var(--accent-color, #007acc)" : "var(--bg-secondary, #2d2d2d)",
+ color: showRaw ? "var(--text-primary, #fff)" : "var(--text-muted, #888)",
  border: "none", borderRadius: "4px", padding: "2px 10px",
  cursor: "pointer", fontSize: "11px",
  }}
@@ -208,14 +208,14 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  </div>
  {isExpanded && file.uncovered_lines.length > 0 && (
  <div style={{ padding: "6px 10px 8px 28px", borderTop: "1px solid var(--bg-primary, #1e1e1e)" }}>
- <span style={{ color: "#f44336", fontSize: "11px" }}>
+ <span style={{ color: "var(--error-color, #f44336)", fontSize: "11px" }}>
  Uncovered lines: {file.uncovered_lines.slice(0, 30).join(", ")}
  {file.uncovered_lines.length > 30 && ` … +${file.uncovered_lines.length - 30} more`}
  </span>
  </div>
  )}
  {isExpanded && file.uncovered_lines.length === 0 && (
- <div style={{ padding: "6px 10px 8px 28px", borderTop: "1px solid var(--bg-primary, #1e1e1e)", color: "#4caf50", fontSize: "11px" }}>
+ <div style={{ padding: "6px 10px 8px 28px", borderTop: "1px solid var(--bg-primary, #1e1e1e)", color: "var(--success-color, #4caf50)", fontSize: "11px" }}>
  <CircleCheck size={14} strokeWidth={1.5} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />All lines covered
  </div>
  )}

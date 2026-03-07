@@ -86,3 +86,18 @@ rusqlite = { version = "0.31", features = ["bundled"] }
 sha2 = "0.10"
 hmac = "0.12"
 hex = "0.4"
+
+[profile.dev]
+opt-level = 0
+debug = true
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true
+
+# VibeCLI benefits from runtime speed over binary size
+[profile.release.package.vibecli]
+opt-level = 2

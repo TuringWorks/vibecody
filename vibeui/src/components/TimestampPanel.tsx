@@ -238,7 +238,7 @@ export function TimestampPanel() {
  <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
  <input value={tsInput} onChange={e => setTsInput(e.target.value)} placeholder="Unix timestamp or ISO date string…"
  style={{ flex: 1, minWidth: 200, padding: "5px 10px", fontSize: 12, fontFamily: "monospace", background: !parsedDate && tsInput ? "rgba(243,139,168,0.08)" : "var(--bg-primary)", border: `1px solid ${!parsedDate && tsInput ? "#f38ba8" : "var(--border-color)"}`, borderRadius: 4, color: "var(--text-primary)", outline: "none" }} />
- <button onClick={setNow} style={{ padding: "4px 12px", fontSize: 11, background: "rgba(137,180,250,0.1)", border: "1px solid #89b4fa", borderRadius: 4, color: "#89b4fa", cursor: "pointer" }}>Now</button>
+ <button onClick={setNow} style={{ padding: "4px 12px", fontSize: 11, background: "rgba(137,180,250,0.1)", border: "1px solid #89b4fa", borderRadius: 4, color: "var(--text-info, #89b4fa)", cursor: "pointer" }}>Now</button>
  <select value={tz} onChange={e => setTz(e.target.value)}
  style={{ padding: "4px 8px", fontSize: 11, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none" }}>
  {TIMEZONES.map(z => <option key={z} value={z}>{z}</option>)}
@@ -246,7 +246,7 @@ export function TimestampPanel() {
  </div>
 
  {!parsedDate && tsInput.trim() && (
- <div style={{ padding: "8px 12px", fontSize: 11, color: "#f38ba8" }}>Could not parse input. Try a Unix timestamp (e.g. 1700000000) or ISO date (e.g. 2024-01-15T12:00:00Z).</div>
+ <div style={{ padding: "8px 12px", fontSize: 11, color: "var(--text-danger, #f38ba8)" }}>Could not parse input. Try a Unix timestamp (e.g. 1700000000) or ISO date (e.g. 2024-01-15T12:00:00Z).</div>
  )}
 
  {/* Format table */}
@@ -266,7 +266,7 @@ export function TimestampPanel() {
  {tzRows.map(({ tz: z, label, value }) => (
  <div key={z} style={{ padding: "5px 12px", borderBottom: "1px solid rgba(255,255,255,0.04)", display: "flex", gap: 8, alignItems: "center" }}>
  <span style={{ flex: 1, fontSize: 10, color: "var(--text-muted)" }}>{label}</span>
- <span style={{ fontFamily: "monospace", fontSize: 11, color: "#89b4fa" }}>{value}</span>
+ <span style={{ fontFamily: "monospace", fontSize: 11, color: "var(--text-info, #89b4fa)" }}>{value}</span>
  </div>
  ))}
  </div>
@@ -338,14 +338,14 @@ export function TimestampPanel() {
  <label style={{ fontSize: 11, color: "var(--text-muted)", flexShrink: 0 }}>Base date:</label>
  <input type="datetime-local" value={relBase} onChange={e => setRelBase(e.target.value)}
  style={{ flex: 1, padding: "4px 8px", fontSize: 12, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none" }} />
- <button onClick={() => setRelBase(toLocalInputValue(new Date()))} style={{ padding: "3px 10px", fontSize: 10, background: "rgba(137,180,250,0.1)", border: "1px solid #89b4fa", borderRadius: 4, color: "#89b4fa", cursor: "pointer" }}>Now</button>
+ <button onClick={() => setRelBase(toLocalInputValue(new Date()))} style={{ padding: "3px 10px", fontSize: 10, background: "rgba(137,180,250,0.1)", border: "1px solid #89b4fa", borderRadius: 4, color: "var(--text-info, #89b4fa)", cursor: "pointer" }}>Now</button>
  </div>
 
  {relDate && (
  <>
  <div style={{ padding: "8px 12px", background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)", fontSize: 13, textAlign: "center" }}>
  <span style={{ color: "var(--text-muted)" }}>That date is </span>
- <span style={{ color: "#89b4fa", fontWeight: 700 }}>{relativeTime(relDate)}</span>
+ <span style={{ color: "var(--text-info, #89b4fa)", fontWeight: 700 }}>{relativeTime(relDate)}</span>
  </div>
 
  <div>
@@ -387,12 +387,12 @@ export function TimestampPanel() {
  rows: [["yyyy-MM-dd","2025-01-15"],["yyyy-MM-ddTHH:mm:ss","2025-01-15T14:30:00"],["ddd, dd MMM yyyy HH':'mm':'ss 'GMT'","Wed, 15 Jan 2025 14:30:00 GMT"]] },
  ].map(({ title, rows }) => (
  <div key={title} style={{ marginBottom: 16 }}>
- <div style={{ fontSize: 11, fontWeight: 700, color: "#89b4fa", marginBottom: 6 }}>{title}</div>
+ <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-info, #89b4fa)", marginBottom: 6 }}>{title}</div>
  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
  <tbody>
  {rows.map(([fmt, ex]) => (
  <tr key={fmt} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
- <td style={{ padding: "4px 8px", fontFamily: "monospace", color: "#fab387", width: "45%" }}>{fmt}</td>
+ <td style={{ padding: "4px 8px", fontFamily: "monospace", color: "var(--text-warning-alt, #fab387)", width: "45%" }}>{fmt}</td>
  <td style={{ padding: "4px 8px", fontFamily: "monospace", color: "var(--text-muted)" }}>{ex}</td>
  </tr>
  ))}

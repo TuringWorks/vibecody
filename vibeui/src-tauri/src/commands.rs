@@ -9038,6 +9038,978 @@ pub async fn generate_argocd_app(
     Ok(yaml)
 }
 
+// ─── Phase 7.22b: Extended Kubernetes & DevOps Commands ────────────────
+
+/// List all namespaces in the cluster.
+#[tauri::command]
+pub async fn list_k8s_namespaces(context: Option<String>) -> Result<Vec<String>, String> {
+    let mut args: Vec<String> = Vec::new();
+    if let Some(ctx) = &context {
+        if !ctx.is_empty() {
+            args.push(format!("--context={}", ctx));
+        }
+    }
+    args.extend(["get", "namespaces", "-o", "jsonpath={.items[*].metadata.name}"].iter().map(|s| s.to_string()));
+
+    let out = tokio::time::timeout(
+        std::time::Duration::from_secs(15),
+        tokio::process::Command::new("kubectl").args(&args).output(),
+    )
+    .await
+    .map_err(|_| "kubectl command timed out after 15 seconds".to_string())?
+    .map_err(|e| format!("Failed to run kubectl: {}", e))?;
+
+    if !out.status.success() {
+        let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+        return Err(format!("kubectl get namespaces failed: {}", stderr));
+    }
+
+    let stdout = String::from_utf8_lossy(&out.stdout).to_string();
+    let namespaces: Vec<String> = stdout
+        .split_whitespace()
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string())
+        .collect();
+    Ok(namespaces)
+}
+
+/// Get cluster overview info (version, nodes, component status).
+#[tauri::command]
+pub async fn get_cluster_info(context: Option<String>) -> Result<String, String> {
+    let mut ctx_args: Vec<String> = Vec::new();
+    if let Some(ctx) = &context {
+        if !ctx.is_empty() {
+            ctx_args.push(format!("--context={}", ctx));
+        }
+    }
+
+    let cluster_info = tokio::time::timeout(
+        std::time::Duration::from_secs(30),
+        tokio::process::Command::new("kubectl")
+            .args(&ctx_args)
+            .arg("cluster-info")
+            .output(),
+    )
+    .await
+    .map_err(|_| "kubectl cluster-info timed out after 30 seconds".to_string())?
+    .map_err(|e| format!("Failed to run kubectl cluster-info: {}", e))?;
+
+    let nodes = tokio::time::timeout(
+        std::time::Duration::from_secs(15),
+        tokio::process::Command::new("kubectl")
+            .args(&ctx_args)
+            .args(["get", "nodes", "-o", "wide"])
+            .output(),
+    )
+    .await
+    .map_err(|_| "kubectl get nodes timed out after 15 seconds".to_string())?
+    .map_err(|e| format!("Failed to run kubectl get nodes: {}", e))?;
+
+    let cs = tokio::time::timeout(
+        std::time::Duration::from_secs(15),
+        tokio::process::Command::new("kubectl")
+            .args(&ctx_args)
+            .args(["get", "componentstatuses"])
+            .output(),
+    )
+    .await
+    .map_err(|_| "kubectl get componentstatuses timed out after 15 seconds".to_string())?
+    .map_err(|e| format!("Failed to run kubectl get componentstatuses: {}", e))?;
+
+    let mut result = String::new();
+    result.push_str("=== Cluster Info ===\n");
+    result.push_str(&String::from_utf8_lossy(&cluster_info.stdout));
+    if !cluster_info.stderr.is_empty() {
+        result.push_str(&String::from_utf8_lossy(&cluster_info.stderr));
+    }
+    result.push_str("\n=== Nodes ===\n");
+    result.push_str(&String::from_utf8_lossy(&nodes.stdout));
+    result.push_str("\n=== Component Statuses ===\n");
+    result.push_str(&String::from_utf8_lossy(&cs.stdout));
+    Ok(result)
+}
+
+/// Run a Helm command (list, install, upgrade, rollback, uninstall).
+/// Destructive operations are blocked for safety.
+#[tauri::command]
+pub async fn run_helm_command(
+    context: Option<String>,
+    namespace: String,
+    command: String,
+) -> Result<String, String> {
+    const BLOCKED: &[&str] = &[
+        "helm plugin install",
+        "helm repo remove",
+        "helm plugin remove",
+        "helm plugin uninstall",
+    ];
+    let cmd_lower = command.to_lowercase();
+    for blocked in BLOCKED {
+        if cmd_lower.contains(blocked) {
+            return Err(format!("Helm command blocked for safety: contains '{}'", blocked));
+        }
+    }
+
+    let parts: Vec<&str> = command.split_whitespace().collect();
+    if parts.is_empty() {
+        return Err("Empty helm command".to_string());
+    }
+
+    // Skip "helm" if the user included it as the first word
+    let cmd_parts: &[&str] = if parts.first().map(|s| s.to_lowercase()) == Some("helm".to_string()) {
+        &parts[1..]
+    } else {
+        &parts
+    };
+
+    let mut args: Vec<String> = Vec::new();
+    if let Some(ctx) = &context {
+        if !ctx.is_empty() {
+            args.push(format!("--kube-context={}", ctx));
+        }
+    }
+    if !namespace.is_empty() {
+        args.push("-n".to_string());
+        args.push(namespace);
+    }
+    args.extend(cmd_parts.iter().map(|s| s.to_string()));
+
+    let out = tokio::time::timeout(
+        std::time::Duration::from_secs(60),
+        tokio::process::Command::new("helm").args(&args).output(),
+    )
+    .await
+    .map_err(|_| "helm command timed out after 60 seconds".to_string())?
+    .map_err(|e| format!("Failed to run helm: {}", e))?;
+
+    let stdout = String::from_utf8_lossy(&out.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+    if stdout.is_empty() && !stderr.is_empty() {
+        Ok(stderr)
+    } else if !stderr.is_empty() {
+        Ok(format!("{}\n{}", stdout.trim_end(), stderr.trim_end()))
+    } else {
+        Ok(stdout)
+    }
+}
+
+/// Run an ArgoCD CLI command.
+/// Destructive operations are blocked for safety.
+#[tauri::command]
+pub async fn run_argocd_command(command: String) -> Result<String, String> {
+    const BLOCKED: &[&str] = &[
+        "argocd account delete",
+        "argocd proj delete",
+        "argocd cluster rm",
+        "argocd repo rm",
+    ];
+    let cmd_lower = command.to_lowercase();
+    for blocked in BLOCKED {
+        if cmd_lower.contains(blocked) {
+            return Err(format!("ArgoCD command blocked for safety: contains '{}'", blocked));
+        }
+    }
+
+    let parts: Vec<&str> = command.split_whitespace().collect();
+    if parts.is_empty() {
+        return Err("Empty argocd command".to_string());
+    }
+
+    // Skip "argocd" if the user included it as the first word
+    let cmd_parts: &[&str] = if parts.first().map(|s| s.to_lowercase()) == Some("argocd".to_string()) {
+        &parts[1..]
+    } else {
+        &parts
+    };
+
+    let out = tokio::time::timeout(
+        std::time::Duration::from_secs(30),
+        tokio::process::Command::new("argocd").args(cmd_parts).output(),
+    )
+    .await
+    .map_err(|_| "argocd command timed out after 30 seconds".to_string())?
+    .map_err(|e| format!("Failed to run argocd: {}", e))?;
+
+    let stdout = String::from_utf8_lossy(&out.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+    if stdout.is_empty() && !stderr.is_empty() {
+        Ok(stderr)
+    } else if !stderr.is_empty() {
+        Ok(format!("{}\n{}", stdout.trim_end(), stderr.trim_end()))
+    } else {
+        Ok(stdout)
+    }
+}
+
+/// Generate Argo Workflow YAML.
+#[tauri::command]
+pub async fn generate_argo_workflow(
+    name: String,
+    workflow_type: String,
+    steps: Vec<String>,
+    image: String,
+    namespace: String,
+) -> Result<String, String> {
+    if name.is_empty() {
+        return Err("Workflow name is required".to_string());
+    }
+    if steps.is_empty() {
+        return Err("At least one step is required".to_string());
+    }
+
+    let templates: String = steps
+        .iter()
+        .map(|step| {
+            format!(
+                "    - name: {step}\n      container:\n        image: {image}\n        command: [\"sh\", \"-c\"]\n        args: [\"echo Running {step}\"]\n        resources:\n          requests:\n            memory: 128Mi\n            cpu: 100m\n          limits:\n            memory: 256Mi\n            cpu: 200m\n",
+                step = step, image = image
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("");
+
+    let body = match workflow_type.as_str() {
+        "dag" => {
+            let dag_tasks: String = steps
+                .iter()
+                .enumerate()
+                .map(|(i, step)| {
+                    if i == 0 {
+                        format!("          - name: {step}\n            template: {step}\n", step = step)
+                    } else {
+                        format!(
+                            "          - name: {step}\n            template: {step}\n            dependencies: [{prev}]\n",
+                            step = step, prev = steps[i - 1]
+                        )
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join("");
+            format!(
+                "    - name: main\n      dag:\n        tasks:\n{dag_tasks}",
+                dag_tasks = dag_tasks
+            )
+        }
+        _ => {
+            // Default to sequential steps
+            let step_refs: String = steps
+                .iter()
+                .map(|step| {
+                    format!(
+                        "        - - name: {step}\n            template: {step}\n",
+                        step = step
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join("");
+            format!(
+                "    - name: main\n      steps:\n{step_refs}",
+                step_refs = step_refs
+            )
+        }
+    };
+
+    let yaml = format!(
+        "apiVersion: argoproj.io/v1alpha1\nkind: Workflow\nmetadata:\n  name: {name}\n  namespace: {ns}\nspec:\n  entrypoint: main\n  serviceAccountName: argo-workflow\n  ttlStrategy:\n    secondsAfterCompletion: 3600\n  podGC:\n    strategy: OnPodCompletion\n  templates:\n{body}{templates}",
+        name = name, ns = namespace, body = body, templates = templates
+    );
+    Ok(yaml)
+}
+
+/// Generate Argo Rollout manifest.
+#[tauri::command]
+pub async fn generate_argo_rollout(
+    name: String,
+    image: String,
+    port: u16,
+    namespace: String,
+    strategy: String,
+    canary_steps: Option<Vec<String>>,
+) -> Result<String, String> {
+    if name.is_empty() {
+        return Err("Rollout name is required".to_string());
+    }
+
+    let strategy_yaml = match strategy.as_str() {
+        "bluegreen" => {
+            format!(
+                "  strategy:\n    blueGreen:\n      activeService: {name}-active\n      previewService: {name}-preview\n      autoPromotionEnabled: false\n      scaleDownDelaySeconds: 30\n",
+                name = name
+            )
+        }
+        _ => {
+            // Default to canary
+            let steps_yaml = if let Some(ref steps) = canary_steps {
+                let mut result = String::new();
+                for step in steps {
+                    if step.to_lowercase() == "pause" {
+                        result.push_str("      - pause: {}\n");
+                    } else if let Ok(weight) = step.parse::<u32>() {
+                        result.push_str(&format!("      - setWeight: {}\n", weight));
+                    }
+                }
+                result
+            } else {
+                "      - setWeight: 20\n      - pause: {duration: 30s}\n      - setWeight: 50\n      - pause: {duration: 30s}\n      - setWeight: 80\n      - pause: {duration: 30s}\n".to_string()
+            };
+            format!(
+                "  strategy:\n    canary:\n      canaryService: {name}-canary\n      stableService: {name}-stable\n      analysis:\n        templates:\n          - templateName: {name}-analysis\n      steps:\n{steps}",
+                name = name, steps = steps_yaml
+            )
+        }
+    };
+
+    let yaml = format!(
+        "apiVersion: argoproj.io/v1alpha1\nkind: Rollout\nmetadata:\n  name: {name}\n  namespace: {ns}\nspec:\n  replicas: 3\n  revisionHistoryLimit: 5\n  selector:\n    matchLabels:\n      app: {name}\n  template:\n    metadata:\n      labels:\n        app: {name}\n    spec:\n      containers:\n        - name: {name}\n          image: {image}\n          ports:\n            - containerPort: {port}\n          resources:\n            requests:\n              memory: 128Mi\n              cpu: 100m\n            limits:\n              memory: 256Mi\n              cpu: 200m\n{strategy}",
+        name = name, ns = namespace, image = image, port = port, strategy = strategy_yaml
+    );
+    Ok(yaml)
+}
+
+/// Generate Argo EventSource manifest.
+#[tauri::command]
+pub async fn generate_argo_event_source(
+    name: String,
+    source_type: String,
+    namespace: String,
+    config: String,
+) -> Result<String, String> {
+    if name.is_empty() {
+        return Err("EventSource name is required".to_string());
+    }
+
+    let source_spec = match source_type.as_str() {
+        "webhook" => {
+            format!(
+                "  webhook:\n    {name}:\n      port: \"12000\"\n      endpoint: /{name}\n      method: POST\n",
+                name = name
+            )
+        }
+        "github" => {
+            format!(
+                "  github:\n    {name}:\n      repositories:\n        - owner: \"\"\n          names:\n            - \"\"\n      webhook:\n        endpoint: /github/{name}\n        port: \"12000\"\n        method: POST\n      events:\n        - \"push\"\n        - \"pull_request\"\n      apiToken:\n        name: github-access\n        key: token\n",
+                name = name
+            )
+        }
+        "calendar" => {
+            format!(
+                "  calendar:\n    {name}:\n      schedule: \"0 * * * *\"\n      timezone: UTC\n",
+                name = name
+            )
+        }
+        "s3" => {
+            format!(
+                "  s3:\n    {name}:\n      bucket:\n        name: \"\"\n      events:\n        - s3:ObjectCreated:*\n      filter:\n        prefix: \"\"\n        suffix: \"\"\n",
+                name = name
+            )
+        }
+        "kafka" => {
+            format!(
+                "  kafka:\n    {name}:\n      url: localhost:9092\n      topic: {name}\n      partition: \"0\"\n      connectionBackoff:\n        duration: 10s\n        steps: 5\n",
+                name = name
+            )
+        }
+        _ => {
+            return Err(format!("Unsupported source type '{}'. Use: webhook, github, calendar, s3, kafka", source_type));
+        }
+    };
+
+    // Merge user config if provided (treat as extra annotations/labels)
+    let annotations = if !config.is_empty() {
+        format!("  annotations:\n    vibecody/config: '{}'\n", config.replace('\'', "''"))
+    } else {
+        String::new()
+    };
+
+    let yaml = format!(
+        "apiVersion: argoproj.io/v1alpha1\nkind: EventSource\nmetadata:\n  name: {name}\n  namespace: {ns}\n{annotations}spec:\n{source_spec}",
+        name = name, ns = namespace, annotations = annotations, source_spec = source_spec
+    );
+    Ok(yaml)
+}
+
+/// Generate Argo Sensor manifest.
+#[tauri::command]
+pub async fn generate_argo_sensor(
+    name: String,
+    event_source: String,
+    trigger_type: String,
+    namespace: String,
+) -> Result<String, String> {
+    if name.is_empty() {
+        return Err("Sensor name is required".to_string());
+    }
+
+    let trigger_spec = match trigger_type.as_str() {
+        "workflow" => {
+            format!(
+                "    triggers:\n      - template:\n          name: {name}-trigger\n          k8s:\n            operation: create\n            source:\n              resource:\n                apiVersion: argoproj.io/v1alpha1\n                kind: Workflow\n                metadata:\n                  generateName: {name}-\n                  namespace: {ns}\n                spec:\n                  entrypoint: main\n                  templates:\n                    - name: main\n                      container:\n                        image: alpine:latest\n                        command: [\"sh\", \"-c\"]\n                        args: [\"echo triggered\"]\n",
+                name = name, ns = namespace
+            )
+        }
+        "http" => {
+            format!(
+                "    triggers:\n      - template:\n          name: {name}-trigger\n          http:\n            url: http://example.com/webhook\n            method: POST\n            payload:\n              - src:\n                  dependencyName: {dep}\n                  dataKey: body\n                dest: body\n",
+                name = name, dep = event_source
+            )
+        }
+        "k8s" => {
+            format!(
+                "    triggers:\n      - template:\n          name: {name}-trigger\n          k8s:\n            operation: create\n            source:\n              resource:\n                apiVersion: batch/v1\n                kind: Job\n                metadata:\n                  generateName: {name}-job-\n                  namespace: {ns}\n                spec:\n                  template:\n                    spec:\n                      containers:\n                        - name: main\n                          image: alpine:latest\n                          command: [\"sh\", \"-c\", \"echo triggered\"]\n                      restartPolicy: Never\n",
+                name = name, ns = namespace
+            )
+        }
+        _ => {
+            return Err(format!("Unsupported trigger type '{}'. Use: workflow, http, k8s", trigger_type));
+        }
+    };
+
+    let yaml = format!(
+        "apiVersion: argoproj.io/v1alpha1\nkind: Sensor\nmetadata:\n  name: {name}\n  namespace: {ns}\nspec:\n  dependencies:\n    - name: {dep}\n      eventSourceName: {dep}\n      eventName: {dep}\n{trigger}",
+        name = name, ns = namespace, dep = event_source, trigger = trigger_spec
+    );
+    Ok(yaml)
+}
+
+/// Generate GitOps ApplicationSet manifest.
+#[tauri::command]
+pub async fn generate_applicationset(
+    name: String,
+    generator: String,
+    repo_url: String,
+    namespace: String,
+    template_path: String,
+) -> Result<String, String> {
+    if name.is_empty() {
+        return Err("ApplicationSet name is required".to_string());
+    }
+
+    let generator_spec = match generator.as_str() {
+        "git" => {
+            format!(
+                "  generators:\n    - git:\n        repoURL: {repo}\n        revision: HEAD\n        directories:\n          - path: {path}/*\n",
+                repo = repo_url, path = template_path
+            )
+        }
+        "cluster" => {
+            "  generators:\n    - clusters:\n        selector:\n          matchLabels:\n            argocd.argoproj.io/secret-type: cluster\n".to_string()
+        }
+        "matrix" => {
+            format!(
+                "  generators:\n    - matrix:\n        generators:\n          - git:\n              repoURL: {repo}\n              revision: HEAD\n              directories:\n                - path: {path}/*\n          - clusters:\n              selector:\n                matchLabels:\n                  argocd.argoproj.io/secret-type: cluster\n",
+                repo = repo_url, path = template_path
+            )
+        }
+        "list" => {
+            "  generators:\n    - list:\n        elements:\n          - cluster: in-cluster\n            url: https://kubernetes.default.svc\n".to_string()
+        }
+        _ => {
+            return Err(format!("Unsupported generator '{}'. Use: git, cluster, matrix, list", generator));
+        }
+    };
+
+    let yaml = format!(
+        "apiVersion: argoproj.io/v1alpha1\nkind: ApplicationSet\nmetadata:\n  name: {name}\n  namespace: {ns}\nspec:\n{generator}  template:\n    metadata:\n      name: '{{{{path.basename}}}}'\n    spec:\n      project: default\n      source:\n        repoURL: {repo}\n        targetRevision: HEAD\n        path: '{{{{path}}}}'\n      destination:\n        server: https://kubernetes.default.svc\n        namespace: '{{{{path.basename}}}}'\n      syncPolicy:\n        automated:\n          prune: true\n          selfHeal: true\n        syncOptions:\n          - CreateNamespace=true\n",
+        name = name, ns = namespace, generator = generator_spec, repo = repo_url
+    );
+    Ok(yaml)
+}
+
+/// Generate multi-stage pipeline YAML (GitHub Actions or Argo Workflows).
+#[tauri::command]
+pub async fn generate_pipeline(
+    name: String,
+    stages: Vec<String>,
+    target_platform: String,
+    _build_type: String,
+    environments: Vec<String>,
+) -> Result<String, String> {
+    if name.is_empty() {
+        return Err("Pipeline name is required".to_string());
+    }
+    if stages.is_empty() {
+        return Err("At least one stage is required".to_string());
+    }
+
+    match target_platform.as_str() {
+        "github" => {
+            let mut jobs = String::new();
+            let mut prev_job: Option<String> = None;
+
+            // Build stage jobs from stage names
+            for stage in &stages {
+                let job_id = stage.to_lowercase().replace(' ', "-");
+                let needs = if let Some(ref prev) = prev_job {
+                    format!("\n    needs: [{}]", prev)
+                } else {
+                    String::new()
+                };
+                jobs.push_str(&format!(
+                    "\n  {job_id}:\n    runs-on: ubuntu-latest{needs}\n    steps:\n      - uses: actions/checkout@v4\n      - name: {stage}\n        run: echo \"Running {stage}\"\n",
+                    job_id = job_id, stage = stage, needs = needs
+                ));
+                prev_job = Some(job_id);
+            }
+
+            // Security scan stage
+            let scan_needs = prev_job.clone().unwrap_or_default();
+            jobs.push_str(&format!(
+                "\n  security-scan:\n    runs-on: ubuntu-latest\n    needs: [{}]\n    steps:\n      - uses: actions/checkout@v4\n      - name: Security scan\n        run: echo \"Running security scan\"\n",
+                scan_needs
+            ));
+            prev_job = Some("security-scan".to_string());
+
+            // Deploy stages for each environment
+            for env in &environments {
+                let deploy_id = format!("deploy-{}", env.to_lowercase());
+                let needs_ref = prev_job.clone().unwrap_or_default();
+                jobs.push_str(&format!(
+                    "\n  {deploy_id}:\n    runs-on: ubuntu-latest\n    needs: [{needs}]\n    environment: {env}\n    steps:\n      - uses: actions/checkout@v4\n      - name: Deploy to {env}\n        run: echo \"Deploying to {env}\"\n",
+                    deploy_id = deploy_id, needs = needs_ref, env = env
+                ));
+                prev_job = Some(deploy_id);
+            }
+
+            let yaml = format!(
+                "name: {name}\n\non:\n  push:\n    branches: [main]\n  pull_request:\n    branches: [main]\n\njobs:{jobs}",
+                name = name, jobs = jobs
+            );
+            Ok(yaml)
+        }
+        "argo" => {
+            let mut templates = String::new();
+            let mut dag_tasks = String::new();
+            let mut prev_step: Option<String> = None;
+
+            for stage in &stages {
+                let step_id = stage.to_lowercase().replace(' ', "-");
+                let deps = if let Some(ref prev) = prev_step {
+                    format!("\n            dependencies: [{}]", prev)
+                } else {
+                    String::new()
+                };
+                dag_tasks.push_str(&format!(
+                    "          - name: {step_id}\n            template: {step_id}{deps}\n",
+                    step_id = step_id, deps = deps
+                ));
+                templates.push_str(&format!(
+                    "    - name: {step_id}\n      container:\n        image: alpine:latest\n        command: [\"sh\", \"-c\"]\n        args: [\"echo Running {stage}\"]\n",
+                    step_id = step_id, stage = stage
+                ));
+                prev_step = Some(step_id);
+            }
+
+            // Security scan
+            let scan_dep = prev_step.clone().unwrap_or_default();
+            dag_tasks.push_str(&format!(
+                "          - name: security-scan\n            template: security-scan\n            dependencies: [{}]\n",
+                scan_dep
+            ));
+            templates.push_str(
+                "    - name: security-scan\n      container:\n        image: alpine:latest\n        command: [\"sh\", \"-c\"]\n        args: [\"echo Running security scan\"]\n",
+            );
+            prev_step = Some("security-scan".to_string());
+
+            // Deploy stages
+            for env in &environments {
+                let deploy_id = format!("deploy-{}", env.to_lowercase());
+                let dep_ref = prev_step.clone().unwrap_or_default();
+                dag_tasks.push_str(&format!(
+                    "          - name: {deploy_id}\n            template: {deploy_id}\n            dependencies: [{dep}]\n",
+                    deploy_id = deploy_id, dep = dep_ref
+                ));
+                templates.push_str(&format!(
+                    "    - name: {deploy_id}\n      container:\n        image: alpine:latest\n        command: [\"sh\", \"-c\"]\n        args: [\"echo Deploying to {env}\"]\n",
+                    deploy_id = deploy_id, env = env
+                ));
+                prev_step = Some(deploy_id);
+            }
+
+            let yaml = format!(
+                "apiVersion: argoproj.io/v1alpha1\nkind: Workflow\nmetadata:\n  name: {name}\nspec:\n  entrypoint: pipeline\n  serviceAccountName: argo-workflow\n  ttlStrategy:\n    secondsAfterCompletion: 3600\n  podGC:\n    strategy: OnPodCompletion\n  templates:\n    - name: pipeline\n      dag:\n        tasks:\n{dag_tasks}{templates}",
+                name = name, dag_tasks = dag_tasks, templates = templates
+            );
+            Ok(yaml)
+        }
+        _ => Err(format!("Unsupported target platform '{}'. Use: github, argo", target_platform)),
+    }
+}
+
+/// Scale a Kubernetes deployment to a given number of replicas.
+#[tauri::command]
+pub async fn scale_k8s_deployment(
+    deployment: String,
+    replicas: u32,
+    namespace: String,
+    context: Option<String>,
+) -> Result<String, String> {
+    if deployment.is_empty() {
+        return Err("Deployment name is required".to_string());
+    }
+    let mut args: Vec<String> = Vec::new();
+    if let Some(ctx) = &context {
+        if !ctx.is_empty() {
+            args.push(format!("--context={}", ctx));
+        }
+    }
+    args.extend([
+        "scale".to_string(),
+        format!("deployment/{}", deployment),
+        format!("--replicas={}", replicas),
+        format!("--namespace={}", namespace),
+    ]);
+
+    let out = tokio::time::timeout(
+        std::time::Duration::from_secs(30),
+        tokio::process::Command::new("kubectl").args(&args).output(),
+    )
+    .await
+    .map_err(|_| "kubectl scale timed out after 30 seconds".to_string())?
+    .map_err(|e| format!("Failed to run kubectl scale: {}", e))?;
+
+    if !out.status.success() {
+        let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+        return Err(format!("kubectl scale failed: {}", stderr));
+    }
+    Ok(String::from_utf8_lossy(&out.stdout).to_string())
+}
+
+/// Get recent Kubernetes events in a namespace.
+#[tauri::command]
+pub async fn get_k8s_events(
+    namespace: String,
+    context: Option<String>,
+) -> Result<String, String> {
+    let mut args: Vec<String> = Vec::new();
+    if let Some(ctx) = &context {
+        if !ctx.is_empty() {
+            args.push(format!("--context={}", ctx));
+        }
+    }
+    args.extend([
+        "get".to_string(),
+        "events".to_string(),
+        format!("--namespace={}", namespace),
+        "--sort-by=.lastTimestamp".to_string(),
+    ]);
+
+    let out = tokio::time::timeout(
+        std::time::Duration::from_secs(15),
+        tokio::process::Command::new("kubectl").args(&args).output(),
+    )
+    .await
+    .map_err(|_| "kubectl get events timed out after 15 seconds".to_string())?
+    .map_err(|e| format!("Failed to run kubectl get events: {}", e))?;
+
+    if !out.status.success() {
+        let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+        return Err(format!("kubectl get events failed: {}", stderr));
+    }
+    Ok(String::from_utf8_lossy(&out.stdout).to_string())
+}
+
+/// Get YAML manifest for any Kubernetes resource.
+#[tauri::command]
+pub async fn get_k8s_resource_yaml(
+    kind: String,
+    name: String,
+    namespace: String,
+    context: Option<String>,
+) -> Result<String, String> {
+    if kind.is_empty() || name.is_empty() {
+        return Err("Resource kind and name are required".to_string());
+    }
+    let mut args: Vec<String> = Vec::new();
+    if let Some(ctx) = &context {
+        if !ctx.is_empty() {
+            args.push(format!("--context={}", ctx));
+        }
+    }
+    args.extend([
+        "get".to_string(),
+        kind,
+        name,
+        format!("--namespace={}", namespace),
+        "-o".to_string(),
+        "yaml".to_string(),
+    ]);
+
+    let out = tokio::time::timeout(
+        std::time::Duration::from_secs(15),
+        tokio::process::Command::new("kubectl").args(&args).output(),
+    )
+    .await
+    .map_err(|_| "kubectl get resource YAML timed out after 15 seconds".to_string())?
+    .map_err(|e| format!("Failed to run kubectl: {}", e))?;
+
+    if !out.status.success() {
+        let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+        return Err(format!("kubectl get YAML failed: {}", stderr));
+    }
+    Ok(String::from_utf8_lossy(&out.stdout).to_string())
+}
+
+/// Rollout restart a Kubernetes deployment.
+#[tauri::command]
+pub async fn restart_k8s_deployment(
+    deployment: String,
+    namespace: String,
+    context: Option<String>,
+) -> Result<String, String> {
+    if deployment.is_empty() {
+        return Err("Deployment name is required".to_string());
+    }
+    let mut args: Vec<String> = Vec::new();
+    if let Some(ctx) = &context {
+        if !ctx.is_empty() {
+            args.push(format!("--context={}", ctx));
+        }
+    }
+    args.extend([
+        "rollout".to_string(),
+        "restart".to_string(),
+        format!("deployment/{}", deployment),
+        format!("--namespace={}", namespace),
+    ]);
+
+    let out = tokio::time::timeout(
+        std::time::Duration::from_secs(30),
+        tokio::process::Command::new("kubectl").args(&args).output(),
+    )
+    .await
+    .map_err(|_| "kubectl rollout restart timed out after 30 seconds".to_string())?
+    .map_err(|e| format!("Failed to run kubectl rollout restart: {}", e))?;
+
+    if !out.status.success() {
+        let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+        return Err(format!("kubectl rollout restart failed: {}", stderr));
+    }
+    Ok(String::from_utf8_lossy(&out.stdout).to_string())
+}
+
+/// Get logs from a specific Kubernetes pod.
+#[tauri::command]
+pub async fn get_k8s_pod_logs(
+    pod: String,
+    namespace: String,
+    container: Option<String>,
+    tail_lines: Option<u32>,
+    context: Option<String>,
+) -> Result<String, String> {
+    if pod.is_empty() {
+        return Err("Pod name is required".to_string());
+    }
+    let mut args: Vec<String> = Vec::new();
+    if let Some(ctx) = &context {
+        if !ctx.is_empty() {
+            args.push(format!("--context={}", ctx));
+        }
+    }
+    args.extend([
+        "logs".to_string(),
+        pod,
+        format!("--namespace={}", namespace),
+    ]);
+    if let Some(c) = &container {
+        if !c.is_empty() {
+            args.push(format!("--container={}", c));
+        }
+    }
+    args.push(format!("--tail={}", tail_lines.unwrap_or(200)));
+
+    let out = tokio::time::timeout(
+        std::time::Duration::from_secs(30),
+        tokio::process::Command::new("kubectl").args(&args).output(),
+    )
+    .await
+    .map_err(|_| "kubectl logs timed out after 30 seconds".to_string())?
+    .map_err(|e| format!("Failed to run kubectl logs: {}", e))?;
+
+    if !out.status.success() {
+        let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+        return Err(format!("kubectl logs failed: {}", stderr));
+    }
+    Ok(String::from_utf8_lossy(&out.stdout).to_string())
+}
+
+/// List Kubernetes services in a namespace.
+#[tauri::command]
+pub async fn get_k8s_services(
+    namespace: String,
+    context: Option<String>,
+) -> Result<String, String> {
+    let mut args: Vec<String> = Vec::new();
+    if let Some(ctx) = &context {
+        if !ctx.is_empty() {
+            args.push(format!("--context={}", ctx));
+        }
+    }
+    args.extend([
+        "get".to_string(),
+        "services".to_string(),
+        format!("--namespace={}", namespace),
+        "-o".to_string(),
+        "wide".to_string(),
+    ]);
+
+    let out = tokio::time::timeout(
+        std::time::Duration::from_secs(15),
+        tokio::process::Command::new("kubectl").args(&args).output(),
+    )
+    .await
+    .map_err(|_| "kubectl get services timed out after 15 seconds".to_string())?
+    .map_err(|e| format!("Failed to run kubectl get services: {}", e))?;
+
+    if !out.status.success() {
+        let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+        return Err(format!("kubectl get services failed: {}", stderr));
+    }
+    Ok(String::from_utf8_lossy(&out.stdout).to_string())
+}
+
+/// List Kubernetes ingresses in a namespace.
+#[tauri::command]
+pub async fn get_k8s_ingresses(
+    namespace: String,
+    context: Option<String>,
+) -> Result<String, String> {
+    let mut args: Vec<String> = Vec::new();
+    if let Some(ctx) = &context {
+        if !ctx.is_empty() {
+            args.push(format!("--context={}", ctx));
+        }
+    }
+    args.extend([
+        "get".to_string(),
+        "ingresses".to_string(),
+        format!("--namespace={}", namespace),
+        "-o".to_string(),
+        "wide".to_string(),
+    ]);
+
+    let out = tokio::time::timeout(
+        std::time::Duration::from_secs(15),
+        tokio::process::Command::new("kubectl").args(&args).output(),
+    )
+    .await
+    .map_err(|_| "kubectl get ingresses timed out after 15 seconds".to_string())?
+    .map_err(|e| format!("Failed to run kubectl get ingresses: {}", e))?;
+
+    if !out.status.success() {
+        let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+        return Err(format!("kubectl get ingresses failed: {}", stderr));
+    }
+    Ok(String::from_utf8_lossy(&out.stdout).to_string())
+}
+
+/// Describe any Kubernetes resource (kubectl describe).
+#[tauri::command]
+pub async fn describe_k8s_resource(
+    kind: String,
+    name: String,
+    namespace: String,
+    context: Option<String>,
+) -> Result<String, String> {
+    if kind.is_empty() || name.is_empty() {
+        return Err("Resource kind and name are required".to_string());
+    }
+    let mut args: Vec<String> = Vec::new();
+    if let Some(ctx) = &context {
+        if !ctx.is_empty() {
+            args.push(format!("--context={}", ctx));
+        }
+    }
+    args.extend([
+        "describe".to_string(),
+        kind,
+        name,
+        format!("--namespace={}", namespace),
+    ]);
+
+    let out = tokio::time::timeout(
+        std::time::Duration::from_secs(30),
+        tokio::process::Command::new("kubectl").args(&args).output(),
+    )
+    .await
+    .map_err(|_| "kubectl describe timed out after 30 seconds".to_string())?
+    .map_err(|e| format!("Failed to run kubectl describe: {}", e))?;
+
+    if !out.status.success() {
+        let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+        return Err(format!("kubectl describe failed: {}", stderr));
+    }
+    Ok(String::from_utf8_lossy(&out.stdout).to_string())
+}
+
+/// List Kubernetes configmaps in a namespace.
+#[tauri::command]
+pub async fn get_k8s_configmaps(
+    namespace: String,
+    context: Option<String>,
+) -> Result<String, String> {
+    let mut args: Vec<String> = Vec::new();
+    if let Some(ctx) = &context {
+        if !ctx.is_empty() {
+            args.push(format!("--context={}", ctx));
+        }
+    }
+    args.extend([
+        "get".to_string(),
+        "configmaps".to_string(),
+        format!("--namespace={}", namespace),
+    ]);
+
+    let out = tokio::time::timeout(
+        std::time::Duration::from_secs(15),
+        tokio::process::Command::new("kubectl").args(&args).output(),
+    )
+    .await
+    .map_err(|_| "kubectl get configmaps timed out after 15 seconds".to_string())?
+    .map_err(|e| format!("Failed to run kubectl get configmaps: {}", e))?;
+
+    if !out.status.success() {
+        let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+        return Err(format!("kubectl get configmaps failed: {}", stderr));
+    }
+    Ok(String::from_utf8_lossy(&out.stdout).to_string())
+}
+
+/// List Kubernetes secret names in a namespace (does NOT expose secret data).
+#[tauri::command]
+pub async fn get_k8s_secrets(
+    namespace: String,
+    context: Option<String>,
+) -> Result<String, String> {
+    let mut args: Vec<String> = Vec::new();
+    if let Some(ctx) = &context {
+        if !ctx.is_empty() {
+            args.push(format!("--context={}", ctx));
+        }
+    }
+    // Only list names and types — never output secret data
+    args.extend([
+        "get".to_string(),
+        "secrets".to_string(),
+        format!("--namespace={}", namespace),
+        "-o".to_string(),
+        "custom-columns=NAME:.metadata.name,TYPE:.type,AGE:.metadata.creationTimestamp".to_string(),
+    ]);
+
+    let out = tokio::time::timeout(
+        std::time::Duration::from_secs(15),
+        tokio::process::Command::new("kubectl").args(&args).output(),
+    )
+    .await
+    .map_err(|_| "kubectl get secrets timed out after 15 seconds".to_string())?
+    .map_err(|e| format!("Failed to run kubectl get secrets: {}", e))?;
+
+    if !out.status.success() {
+        let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+        return Err(format!("kubectl get secrets failed: {}", stderr));
+    }
+    Ok(String::from_utf8_lossy(&out.stdout).to_string())
+}
+
 // ── Environment & Secrets Manager ────────────────────────────────────────────
 
 #[derive(serde::Serialize, serde::Deserialize, Clone)]

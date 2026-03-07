@@ -252,9 +252,9 @@ export function NumberBasePanel() {
  {/* Integer range info */}
  <div style={{ marginTop: 8, padding: "8px 12px", background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)", fontSize: 11, lineHeight: 1.8 }}>
  <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
- <span style={{ color: "var(--text-muted)" }}>Min: <span style={{ fontFamily: "monospace", color: "#f38ba8" }}>{signed ? (-(1n << BigInt(bits - 1))).toString() : "0"}</span></span>
- <span style={{ color: "var(--text-muted)" }}>Max: <span style={{ fontFamily: "monospace", color: "#a6e3a1" }}>{signed ? ((1n << BigInt(bits - 1)) - 1n).toString() : ((1n << BigInt(bits)) - 1n).toString()}</span></span>
- {canonical !== null && <span style={{ color: "var(--text-muted)" }}>Value: <span style={{ fontFamily: "monospace", color: "#89b4fa" }}>{canonical.toString()}</span></span>}
+ <span style={{ color: "var(--text-muted)" }}>Min: <span style={{ fontFamily: "monospace", color: "var(--text-danger, #f38ba8)" }}>{signed ? (-(1n << BigInt(bits - 1))).toString() : "0"}</span></span>
+ <span style={{ color: "var(--text-muted)" }}>Max: <span style={{ fontFamily: "monospace", color: "var(--text-success, #a6e3a1)" }}>{signed ? ((1n << BigInt(bits - 1)) - 1n).toString() : ((1n << BigInt(bits)) - 1n).toString()}</span></span>
+ {canonical !== null && <span style={{ color: "var(--text-muted)" }}>Value: <span style={{ fontFamily: "monospace", color: "var(--text-info, #89b4fa)" }}>{canonical.toString()}</span></span>}
  </div>
  </div>
  </div>

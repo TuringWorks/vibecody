@@ -141,7 +141,7 @@ export function VisualEditor({ onEdit, workspacePath, iframeOffset = { top: 0, l
             onClick={handleEdit}
             disabled={isGenerating || !instruction.trim()}
             style={{
-              background: "#6366f1",
+              background: "var(--accent-primary, #6366f1)",
               color: "#fff",
               border: "none",
               borderRadius: 4,

@@ -7,6 +7,8 @@
  */
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { EmptyState } from "./EmptyState";
+import { StatusMessage } from "./StatusMessage";
 
 interface DepInfo {
   name: string;
@@ -56,9 +58,11 @@ export function DepsPanel({ workspacePath }: DepsPanelProps) {
 
   if (!workspacePath) {
     return (
-      <div style={{ padding: 16, opacity: 0.6, textAlign: "center" }}>
-        <p>Open a workspace folder to manage dependencies.</p>
-      </div>
+      <EmptyState
+        icon="📦"
+        title="No workspace open"
+        description="Open a workspace folder to manage dependencies."
+      />
     );
   }
 
@@ -133,9 +137,7 @@ export function DepsPanel({ workspacePath }: DepsPanelProps) {
 
       {/* Error */}
       {error && (
-        <div style={{ background: "rgba(243,139,168,0.15)", border: "1px solid #f38ba8", borderRadius: 6, padding: 8, fontSize: 11, color: "#f38ba8" }}>
-          {error}
-        </div>
+        <StatusMessage variant="error" message={error} inline />
       )}
 
       {/* Results */}
@@ -214,11 +216,11 @@ export function DepsPanel({ workspacePath }: DepsPanelProps) {
                   </span>
                   <span style={{ textAlign: "center", fontSize: 10 }}>
                     {dep.is_vulnerable && (
-                      <span title={dep.vulnerability || "Vulnerable"} style={{ color: "#f38ba8", marginRight: 4 }}>
+                      <span title={dep.vulnerability || "Vulnerable"} style={{ color: "var(--text-danger, #f38ba8)", marginRight: 4 }}>
                         &#9888;
                       </span>
                     )}
-                    {dep.is_outdated && <span style={{ color: "#fab387" }}>&#11014; outdated</span>}
+                    {dep.is_outdated && <span style={{ color: "var(--text-warning-alt, #fab387)" }}>&#11014; outdated</span>}
                   </span>
                   <span style={{ textAlign: "center" }}>
                     {dep.is_outdated && (
@@ -229,7 +231,7 @@ export function DepsPanel({ workspacePath }: DepsPanelProps) {
                         style={{
                           background: "none", border: "1px solid var(--border-color)",
                           borderRadius: 4, padding: "1px 6px", fontSize: 10,
-                          color: "#89b4fa", cursor: "pointer",
+                          color: "var(--text-info, #89b4fa)", cursor: "pointer",
                         }}
                       >
                         {upgrading.has(dep.name) ? "..." : "Up"}
@@ -240,16 +242,17 @@ export function DepsPanel({ workspacePath }: DepsPanelProps) {
               ))}
             </div>
           ) : (
-            <div style={{ padding: 16, opacity: 0.5, fontSize: 12, textAlign: "center" }}>
-              {filter === "all" ? "No dependencies found." : `No ${filter} dependencies.`}
-            </div>
+            <StatusMessage
+              variant="empty"
+              message={filter === "all" ? "No dependencies found." : `No ${filter} dependencies.`}
+            />
           )}
 
           {/* Raw output toggle */}
           <div>
             <button
               onClick={() => setShowRaw(!showRaw)}
-              style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: "#89b4fa", padding: 0, textDecoration: "underline" }}
+              style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: "var(--text-info, #89b4fa)", padding: 0, textDecoration: "underline" }}
             >
               {showRaw ? "Hide raw output" : "Show raw output"}
             </button>
@@ -269,9 +272,10 @@ export function DepsPanel({ workspacePath }: DepsPanelProps) {
 
       {/* Empty state */}
       {!result && !scanning && !error && (
-        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", opacity: 0.4, fontSize: 12 }}>
-          {manager ? "Click Scan Dependencies to check for outdated and vulnerable packages." : "No package manager detected for this workspace."}
-        </div>
+        <EmptyState
+          title={manager ? "Ready to scan" : "No package manager detected"}
+          description={manager ? "Click Scan Dependencies to check for outdated and vulnerable packages." : "No package manager detected for this workspace."}
+        />
       )}
     </div>
   );

@@ -27,6 +27,10 @@ nav:
     url: /configuration/
   - title: Architecture
     url: /architecture/
+  - title: Roadmap
+    url: /roadmap-v2/
+  - title: Fit-Gap Analysis
+    url: /fit-gap-analysis-v2/
   - title: Contributing
     url: /contributing/
 

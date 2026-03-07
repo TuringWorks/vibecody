@@ -20,8 +20,8 @@ interface BackgroundJobsPanelProps {
 
 const STATUS_ICONS: Record<string, React.ReactNode> = {
  running: <Clock size={14} strokeWidth={1.5} style={{ color: "#facc15" }} />,
- complete: <CircleCheck size={14} strokeWidth={1.5} style={{ color: "#a6e3a1" }} />,
- failed: <CircleX size={14} strokeWidth={1.5} style={{ color: "#f38ba8" }} />,
+ complete: <CircleCheck size={14} strokeWidth={1.5} style={{ color: "var(--text-success, #a6e3a1)" }} />,
+ failed: <CircleX size={14} strokeWidth={1.5} style={{ color: "var(--text-danger, #f38ba8)" }} />,
  cancelled: <Square size={14} strokeWidth={1.5} />,
 };
 

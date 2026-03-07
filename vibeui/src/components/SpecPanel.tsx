@@ -22,10 +22,10 @@ interface SpecPanelProps {
 }
 
 const STATUS_COLORS: Record<string, string> = {
- draft: "#888",
- approved: "#4caf50",
- "in-progress": "#ff9800",
- done: "#2196f3",
+ draft: "var(--text-muted, #888)",
+ approved: "var(--success-color, #4caf50)",
+ "in-progress": "var(--warning-color, #ff9800)",
+ done: "var(--info-color, #2196f3)",
 };
 
 const STATUS_ICONS: Record<string, string> = {
@@ -146,7 +146,7 @@ export function SpecPanel({ workspacePath, provider = "ollama" }: SpecPanelProps
  <div style={{ flex: 1 }} />
  <button
  onClick={() => setShowNewForm(f => !f)}
- style={{ padding: "4px 10px", fontSize: "11px", background: "var(--accent-blue, #007acc)", color: "#fff", border: "none", borderRadius: "4px", cursor: "pointer" }}
+ style={{ padding: "4px 10px", fontSize: "11px", background: "var(--accent-color, #007acc)", color: "var(--text-primary, #fff)", border: "none", borderRadius: "4px", cursor: "pointer" }}
  >
  + New Spec
  </button>
@@ -178,7 +178,7 @@ export function SpecPanel({ workspacePath, provider = "ollama" }: SpecPanelProps
  <button
  onClick={generateSpec}
  disabled={generating || !newSpecName.trim() || !newSpecRequirements.trim()}
- style={{ flex: 1, padding: "6px", background: "var(--accent-blue, #007acc)", color: "#fff", border: "none", borderRadius: "4px", cursor: "pointer", opacity: generating ? 0.6 : 1 }}
+ style={{ flex: 1, padding: "6px", background: "var(--accent-color, #007acc)", color: "var(--text-primary, #fff)", border: "none", borderRadius: "4px", cursor: "pointer", opacity: generating ? 0.6 : 1 }}
  >
  {generating ? "Generating..." : "Generate Spec"}
  </button>
@@ -194,9 +194,9 @@ export function SpecPanel({ workspacePath, provider = "ollama" }: SpecPanelProps
 
  {/* Error */}
  {error && (
- <div style={{ padding: "8px 12px", background: "#ff4d4f22", color: "#ff4d4f", fontSize: "12px", display: "flex", alignItems: "center", gap: "6px" }}>
+ <div style={{ padding: "8px 12px", background: "rgba(244,67,54,0.1)", color: "var(--error-color, #ff4d4f)", fontSize: "12px", display: "flex", alignItems: "center", gap: "6px" }}>
  <span> {error}</span>
- <button onClick={() => setError(null)} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "#ff4d4f" }}>✕</button>
+ <button onClick={() => setError(null)} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "var(--error-color, #ff4d4f)" }}>✕</button>
  </div>
  )}
 
@@ -208,7 +208,7 @@ export function SpecPanel({ workspacePath, provider = "ollama" }: SpecPanelProps
  onClick={() => setActiveTab(tab)}
  style={{
  flex: 1, padding: "6px", fontSize: "11px", background: "none", border: "none",
- borderBottom: activeTab === tab ? "2px solid var(--accent-blue, #007acc)" : "2px solid transparent",
+ borderBottom: activeTab === tab ? "2px solid var(--accent-color, #007acc)" : "2px solid transparent",
  color: activeTab === tab ? "var(--text-primary)" : "var(--text-secondary)",
  cursor: "pointer", fontWeight: activeTab === tab ? 600 : 400,
  }}
@@ -264,7 +264,7 @@ export function SpecPanel({ workspacePath, provider = "ollama" }: SpecPanelProps
  <span>{Math.round(progress)}%</span>
  </div>
  <div style={{ height: "3px", background: "var(--border-color)", borderRadius: "2px" }}>
- <div style={{ width: `${progress}%`, height: "100%", background: progress === 100 ? "#4caf50" : "var(--accent-blue, #007acc)", borderRadius: "2px", transition: "width 0.3s" }} />
+ <div style={{ width: `${progress}%`, height: "100%", background: progress === 100 ? "var(--success-color, #4caf50)" : "var(--accent-color, #007acc)", borderRadius: "2px", transition: "width 0.3s" }} />
  </div>
  </div>
  )}
@@ -288,8 +288,8 @@ export function SpecPanel({ workspacePath, provider = "ollama" }: SpecPanelProps
  onClick={runSpec}
  disabled={loading || pendingCount === 0}
  style={{
- padding: "5px 12px", fontSize: "11px", background: pendingCount > 0 ? "var(--accent-blue, #007acc)" : "var(--bg-secondary)",
- color: pendingCount > 0 ? "#fff" : "var(--text-secondary)", border: "none", borderRadius: "4px",
+ padding: "5px 12px", fontSize: "11px", background: pendingCount > 0 ? "var(--accent-color, #007acc)" : "var(--bg-secondary)",
+ color: pendingCount > 0 ? "var(--text-primary, #fff)" : "var(--text-secondary)", border: "none", borderRadius: "4px",
  cursor: pendingCount > 0 ? "pointer" : "not-allowed", opacity: loading ? 0.6 : 1,
  }}
  title={pendingCount === 0 ? "All tasks complete" : `Run agent on ${pendingCount} pending tasks`}
@@ -300,7 +300,7 @@ export function SpecPanel({ workspacePath, provider = "ollama" }: SpecPanelProps
 
  {/* Requirements */}
  {selectedSpec.requirements && (
- <div style={{ background: "var(--bg-secondary)", borderRadius: "6px", padding: "10px 12px", borderLeft: "3px solid var(--accent-blue, #007acc)" }}>
+ <div style={{ background: "var(--bg-secondary)", borderRadius: "6px", padding: "10px 12px", borderLeft: "3px solid var(--accent-color, #007acc)" }}>
  <div style={{ fontSize: "10px", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Requirements</div>
  <div style={{ fontSize: "12px" }}>{selectedSpec.requirements}</div>
  </div>
@@ -332,10 +332,10 @@ export function SpecPanel({ workspacePath, provider = "ollama" }: SpecPanelProps
  <div style={{
  width: "16px", height: "16px", borderRadius: "3px", flexShrink: 0, marginTop: "1px",
  border: task.done ? "none" : "2px solid var(--border-color)",
- background: task.done ? "#4caf50" : "transparent",
+ background: task.done ? "var(--success-color, #4caf50)" : "transparent",
  display: "flex", alignItems: "center", justifyContent: "center",
  }}>
- {task.done && <span style={{ color: "#fff", fontSize: "10px" }}>✓</span>}
+ {task.done && <span style={{ color: "var(--text-primary, #fff)", fontSize: "10px" }}>✓</span>}
  </div>
  <div style={{ flex: 1 }}>
  <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginBottom: "2px" }}>Task {task.id}</div>

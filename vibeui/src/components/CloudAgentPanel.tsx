@@ -266,7 +266,7 @@ export function CloudAgentPanel() {
           <pre
             style={{
               padding: "8px 10px",
-              background: "#1e1e1e",
+              background: "var(--bg-primary, #1e1e1e)",
               color: "#d4d4d4",
               border: "1px solid var(--border-color)",
               borderRadius: 4,

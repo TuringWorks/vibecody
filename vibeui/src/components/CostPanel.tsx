@@ -42,9 +42,9 @@ const fmtTime = (ms: number) => {
 
 const budgetColor = (remaining: number, limit: number) => {
  const pct = remaining / limit;
- if (pct > 0.5) return "#4caf50";
- if (pct > 0.2) return "#ff9800";
- return "#f44336";
+ if (pct > 0.5) return "var(--success-color, #4caf50)";
+ if (pct > 0.2) return "var(--warning-color, #ff9800)";
+ return "var(--error-color, #f44336)";
 };
 
 export function CostPanel() {
@@ -117,7 +117,7 @@ export function CostPanel() {
  { label: "AI Calls", value: String(metrics.entries.length) },
  ].map(({ label, value }) => (
  <div key={label} style={{ background: "var(--bg-secondary, #2d2d2d)", padding: "8px 14px", borderRadius: "6px", textAlign: "center", minWidth: "100px" }}>
- <div style={{ fontSize: "18px", fontWeight: "bold", color: "var(--accent, #007acc)" }}>{value}</div>
+ <div style={{ fontSize: "18px", fontWeight: "bold", color: "var(--accent-color, #007acc)" }}>{value}</div>
  <div style={{ fontSize: "11px", color: "var(--text-muted, #888)", marginTop: "2px" }}>{label}</div>
  </div>
  ))}
@@ -135,12 +135,12 @@ export function CostPanel() {
  value={budgetInput}
  onChange={e => setBudgetInput(e.target.value)}
  placeholder="e.g. 10.00 (blank = no limit)"
- style={{ flex: 1, background: "var(--bg-primary, #1e1e1e)", color: "var(--text, #fff)", border: "1px solid var(--border, #444)", borderRadius: "4px", padding: "4px 8px", fontFamily: "inherit", fontSize: "12px" }}
+ style={{ flex: 1, background: "var(--bg-primary, #1e1e1e)", color: "var(--text-primary, #fff)", border: "1px solid var(--border-color, #444)", borderRadius: "4px", padding: "4px 8px", fontFamily: "inherit", fontSize: "12px" }}
  />
  <button
  onClick={handleSetBudget}
  disabled={savingBudget}
- style={{ background: "var(--accent, #007acc)", color: "#fff", border: "none", borderRadius: "4px", padding: "4px 12px", cursor: "pointer", fontSize: "12px" }}
+ style={{ background: "var(--accent-color, #007acc)", color: "var(--text-primary, #fff)", border: "none", borderRadius: "4px", padding: "4px 12px", cursor: "pointer", fontSize: "12px" }}
  >
  {savingBudget ? "…" : "Save"}
  </button>
@@ -175,7 +175,7 @@ export function CostPanel() {
  <span style={{ minWidth: "70px", color: "var(--text-secondary, #ccc)", fontSize: "12px" }}>{p.provider}</span>
  <div style={{ flex: 1, background: "var(--bg-secondary, #2d2d2d)", borderRadius: "2px", height: "8px", overflow: "hidden" }}>
  <div style={{
- background: "var(--accent, #007acc)",
+ background: "var(--accent-color, #007acc)",
  width: maxProviderCost > 0 ? `${(p.total_cost_usd / maxProviderCost) * 100}%` : "0%",
  height: "100%",
  }} />
@@ -197,7 +197,7 @@ export function CostPanel() {
  <button
  onClick={handleClear}
  disabled={clearing}
- style={{ marginLeft: "auto", background: "none", color: "#f44336", border: "none", cursor: "pointer", fontSize: "11px", padding: "0" }}
+ style={{ marginLeft: "auto", background: "none", color: "var(--error-color, #f44336)", border: "none", cursor: "pointer", fontSize: "11px", padding: "0" }}
  >
  {clearing ? "…" : "Clear history"}
  </button>
@@ -210,14 +210,14 @@ export function CostPanel() {
  <span style={{ color: "var(--text-muted, #888)", fontSize: "10px" }}>{e.model}</span>
  {e.task_hint && <span style={{ color: "var(--text-muted, #888)", fontSize: "10px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "160px" }}>{e.task_hint}</span>}
  <span style={{ marginLeft: "auto", color: "var(--text-secondary, #ccc)", fontSize: "11px" }}>{fmtTokens(e.prompt_tokens + e.completion_tokens)} tok</span>
- <span style={{ color: e.cost_usd > 0 ? "var(--accent, #007acc)" : "var(--text-muted, #888)", fontSize: "11px", minWidth: "60px", textAlign: "right" }}>{fmt(e.cost_usd)}</span>
+ <span style={{ color: e.cost_usd > 0 ? "var(--accent-color, #007acc)" : "var(--text-muted, #888)", fontSize: "11px", minWidth: "60px", textAlign: "right" }}>{fmt(e.cost_usd)}</span>
  </div>
  ))}
  </div>
  {metrics.entries.length > 20 && (
  <button
  onClick={() => setShowAll(s => !s)}
- style={{ marginTop: "8px", background: "none", color: "var(--accent, #007acc)", border: "none", cursor: "pointer", fontSize: "12px", padding: "0" }}
+ style={{ marginTop: "8px", background: "none", color: "var(--accent-color, #007acc)", border: "none", cursor: "pointer", fontSize: "12px", padding: "0" }}
  >
  {showAll ? "Show less" : `Show all ${metrics.entries.length} calls`}
  </button>

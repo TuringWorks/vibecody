@@ -135,7 +135,7 @@ export function TestPanel({ workspacePath }: TestPanelProps) {
  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
  <span style={{ fontWeight: 700, fontSize: 14 }}>Test Runner</span>
  {framework && (
- <span style={{ fontSize: 10, padding: "2px 6px", background: "rgba(137,180,250,0.2)", color: "#89b4fa", borderRadius: 3 }}>
+ <span style={{ fontSize: 10, padding: "2px 6px", background: "rgba(137,180,250,0.2)", color: "var(--text-info, #89b4fa)", borderRadius: 3 }}>
  {framework}
  </span>
  )}
@@ -176,8 +176,8 @@ export function TestPanel({ workspacePath }: TestPanelProps) {
  <div style={{ height: "100%", width: `${passRate}%`, background: result.failed > 0 ? "#f38ba8" : "#a6e3a1", transition: "width 0.4s" }} />
  </div>
  <div style={{ marginTop: 4, display: "flex", gap: 12, fontSize: 11 }}>
- <span style={{ color: "#a6e3a1" }}>✓ {result.passed}</span>
- {result.failed > 0 && <span style={{ color: "#f38ba8" }}>✗ {result.failed}</span>}
+ <span style={{ color: "var(--text-success, #a6e3a1)" }}>✓ {result.passed}</span>
+ {result.failed > 0 && <span style={{ color: "var(--text-danger, #f38ba8)" }}>✗ {result.failed}</span>}
  {result.ignored > 0 && <span style={{ color: "#a6adc8" }}>⊘ {result.ignored}</span>}
  <span style={{ color: "var(--text-secondary)", marginLeft: "auto" }}>
  {result.duration_ms < 1000
@@ -244,7 +244,7 @@ export function TestPanel({ workspacePath }: TestPanelProps) {
  )}
  </div>
  {expanded.has(t.name) && t.output && (
- <pre style={{ margin: "4px 0 0 14px", fontSize: 10, color: "#f38ba8", whiteSpace: "pre-wrap", wordBreak: "break-all", maxHeight: 200, overflowY: "auto" }}>
+ <pre style={{ margin: "4px 0 0 14px", fontSize: 10, color: "var(--text-danger, #f38ba8)", whiteSpace: "pre-wrap", wordBreak: "break-all", maxHeight: 200, overflowY: "auto" }}>
  {t.output}
  </pre>
  )}

@@ -289,7 +289,7 @@ export function ColorConverterPanel() {
  {/* ── TINTS & SHADES ── */}
  {subTab === "tints" && (
  <div style={{ padding: "12px" }}>
- <div style={{ fontSize: 10, fontWeight: 700, color: "#89b4fa", marginBottom: 8, letterSpacing: "0.05em" }}>TINTS (mixed with white)</div>
+ <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-info, #89b4fa)", marginBottom: 8, letterSpacing: "0.05em" }}>TINTS (mixed with white)</div>
  <div style={{ display: "flex", gap: 4, marginBottom: 16, flexWrap: "wrap" }}>
  {tints.map((c, i) => {
  const h = rgbToHex(c);
@@ -301,7 +301,7 @@ export function ColorConverterPanel() {
  );
  })}
  </div>
- <div style={{ fontSize: 10, fontWeight: 700, color: "#f38ba8", marginBottom: 8, letterSpacing: "0.05em" }}>SHADES (mixed with black)</div>
+ <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-danger, #f38ba8)", marginBottom: 8, letterSpacing: "0.05em" }}>SHADES (mixed with black)</div>
  <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
  {shades.map((c, i) => {
  const h = rgbToHex(c);
@@ -336,7 +336,7 @@ export function ColorConverterPanel() {
  <ContrastBadge ratio={contrastCustom} bg={bgRgb} />
 
  <div style={{ padding: "10px 12px", background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)", fontSize: 11, lineHeight: 1.8, color: "var(--text-muted)" }}>
- <strong style={{ color: "#89b4fa" }}>WCAG 2.1 thresholds:</strong><br/>
+ <strong style={{ color: "var(--text-info, #89b4fa)" }}>WCAG 2.1 thresholds:</strong><br/>
  AA normal text: ≥ 4.5:1 · AAA normal text: ≥ 7:1<br/>
  AA large text (18pt / 14pt bold): ≥ 3:1 · AAA large: ≥ 4.5:1
  </div>

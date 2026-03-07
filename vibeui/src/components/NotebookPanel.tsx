@@ -171,7 +171,7 @@ export function NotebookPanel({ workspacePath }: NotebookPanelProps) {
  <button onClick={() => addCell("code")} style={toolBtnStyle}>+ Code</button>
  <button onClick={() => addCell("markdown")} style={toolBtnStyle}>+ Markdown</button>
  <div style={{ flex: 1 }} />
- <button onClick={runAll} disabled={runningAll} style={{ ...toolBtnStyle, background: "#6366f1", color: "#fff" }}>
+ <button onClick={runAll} disabled={runningAll} style={{ ...toolBtnStyle, background: "var(--accent-primary, #6366f1)", color: "#fff" }}>
  {runningAll ? "Running..." : "Run All"}
  </button>
  <button onClick={clearAll} style={toolBtnStyle}>Clear All</button>
@@ -226,7 +226,7 @@ export function NotebookPanel({ workspacePath }: NotebookPanelProps) {
  onClick={() => runCell(cell.id)}
  disabled={cell.running}
  title="Run cell"
- style={{ ...cellBtnStyle, color: "#a6e3a1" }}
+ style={{ ...cellBtnStyle, color: "var(--text-success, #a6e3a1)" }}
  >
  {cell.running ? "..." : ""}
  </button>
@@ -234,7 +234,7 @@ export function NotebookPanel({ workspacePath }: NotebookPanelProps) {
  onClick={() => handleAiAssist(cell.id)}
  disabled={cell.running}
  title="AI Assist"
- style={{ ...cellBtnStyle, color: "#89b4fa" }}
+ style={{ ...cellBtnStyle, color: "var(--text-info, #89b4fa)" }}
  >
  AI
  </button>
@@ -246,7 +246,7 @@ export function NotebookPanel({ workspacePath }: NotebookPanelProps) {
  <button
  onClick={() => deleteCell(cell.id)}
  disabled={cells.length <= 1}
- style={{ ...cellBtnStyle, color: "#f38ba8" }}
+ style={{ ...cellBtnStyle, color: "var(--text-danger, #f38ba8)" }}
  title="Delete cell"
  >
  ✕
@@ -323,7 +323,7 @@ export function NotebookPanel({ workspacePath }: NotebookPanelProps) {
  </pre>
  )}
  {cell.output.stderr && (
- <pre style={{ margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-all", color: "#f38ba8" }}>
+ <pre style={{ margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-all", color: "var(--text-danger, #f38ba8)" }}>
  {cell.output.stderr}
  </pre>
  )}
