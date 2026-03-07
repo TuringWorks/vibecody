@@ -392,3 +392,221 @@ fn urlencoding_decode(s: &str) -> String {
     String::from_utf8_lossy(&out).into_owned()
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── urlencoding_encode ───────────────────────────────────────────────────
+
+    #[test]
+    fn encode_plain_alphanumeric() {
+        assert_eq!(urlencoding_encode("hello123"), "hello123");
+    }
+
+    #[test]
+    fn encode_preserves_dash_underscore_dot() {
+        assert_eq!(urlencoding_encode("my-project_v2.0"), "my-project_v2.0");
+    }
+
+    #[test]
+    fn encode_encodes_slashes() {
+        let encoded = urlencoding_encode("/home/user/project");
+        assert_eq!(encoded, "%2Fhome%2Fuser%2Fproject");
+    }
+
+    #[test]
+    fn encode_encodes_spaces() {
+        let encoded = urlencoding_encode("my project");
+        assert_eq!(encoded, "my%20project");
+    }
+
+    #[test]
+    fn encode_empty_string() {
+        assert_eq!(urlencoding_encode(""), "");
+    }
+
+    // ── urlencoding_decode ───────────────────────────────────────────────────
+
+    #[test]
+    fn decode_plain_string() {
+        assert_eq!(urlencoding_decode("hello123"), "hello123");
+    }
+
+    #[test]
+    fn decode_encoded_slashes() {
+        assert_eq!(urlencoding_decode("%2Fhome%2Fuser"), "/home/user");
+    }
+
+    #[test]
+    fn decode_empty_string() {
+        assert_eq!(urlencoding_decode(""), "");
+    }
+
+    #[test]
+    fn decode_trailing_percent_without_hex_digits() {
+        // Incomplete percent sequence should be passed through literally
+        assert_eq!(urlencoding_decode("abc%"), "abc%");
+    }
+
+    #[test]
+    fn decode_single_percent_digit() {
+        // %2 without a second hex digit should be passed through
+        assert_eq!(urlencoding_decode("a%2"), "a%2");
+    }
+
+    // ── encode/decode roundtrip ──────────────────────────────────────────────
+
+    #[test]
+    fn encode_decode_roundtrip_simple_path() {
+        let original = "/home/user/my project/src";
+        let encoded = urlencoding_encode(original);
+        let decoded = urlencoding_decode(&encoded);
+        assert_eq!(decoded, original);
+    }
+
+    #[test]
+    fn encode_decode_roundtrip_special_chars() {
+        let original = "/tmp/a b&c=d";
+        let encoded = urlencoding_encode(original);
+        let decoded = urlencoding_decode(&encoded);
+        assert_eq!(decoded, original);
+    }
+
+    // ── arg_value ────────────────────────────────────────────────────────────
+
+    #[test]
+    fn arg_value_finds_flag() {
+        let args: Vec<String> = vec!["bin", "--port", "8080", "--model", "nomic"]
+            .into_iter().map(String::from).collect();
+        assert_eq!(arg_value(&args, "--port"), Some("8080".to_string()));
+        assert_eq!(arg_value(&args, "--model"), Some("nomic".to_string()));
+    }
+
+    #[test]
+    fn arg_value_returns_none_for_missing_flag() {
+        let args: Vec<String> = vec!["bin", "--port", "8080"]
+            .into_iter().map(String::from).collect();
+        assert_eq!(arg_value(&args, "--model"), None);
+    }
+
+    #[test]
+    fn arg_value_returns_none_for_empty_args() {
+        let args: Vec<String> = vec![];
+        assert_eq!(arg_value(&args, "--port"), None);
+    }
+
+    #[test]
+    fn arg_value_returns_none_for_flag_at_end() {
+        // Flag is the last element so there's no value after it
+        let args: Vec<String> = vec!["bin", "--port"]
+            .into_iter().map(String::from).collect();
+        assert_eq!(arg_value(&args, "--port"), None);
+    }
+
+    // ── unix_ms ──────────────────────────────────────────────────────────────
+
+    #[test]
+    fn unix_ms_returns_nonzero() {
+        let ms = unix_ms();
+        // Should be well past epoch — at least year 2020 in milliseconds
+        assert!(ms > 1_577_836_800_000);
+    }
+
+    // ── default_limit ────────────────────────────────────────────────────────
+
+    #[test]
+    fn default_limit_is_10() {
+        assert_eq!(default_limit(), 10);
+    }
+
+    // ── JobStatus serialization ──────────────────────────────────────────────
+
+    #[test]
+    fn job_status_serializes_lowercase() {
+        assert_eq!(serde_json::to_string(&JobStatus::Running).unwrap(), "\"running\"");
+        assert_eq!(serde_json::to_string(&JobStatus::Complete).unwrap(), "\"complete\"");
+        assert_eq!(serde_json::to_string(&JobStatus::Failed).unwrap(), "\"failed\"");
+    }
+
+    #[test]
+    fn job_status_equality() {
+        assert_eq!(JobStatus::Running, JobStatus::Running);
+        assert_ne!(JobStatus::Running, JobStatus::Failed);
+    }
+
+    // ── IndexJob serialization ───────────────────────────────────────────────
+
+    #[test]
+    fn index_job_serializes_to_json() {
+        let job = IndexJob {
+            id: "abc-123".to_string(),
+            workspace: "/tmp/ws".to_string(),
+            status: JobStatus::Complete,
+            started_at: 1000,
+            finished_at: Some(2000),
+            files_indexed: 42,
+            error: None,
+        };
+        let json = serde_json::to_string(&job).unwrap();
+        assert!(json.contains("\"id\":\"abc-123\""));
+        assert!(json.contains("\"status\":\"complete\""));
+        assert!(json.contains("\"files_indexed\":42"));
+        assert!(json.contains("\"error\":null"));
+    }
+
+    #[test]
+    fn index_job_with_error_serializes() {
+        let job = IndexJob {
+            id: "err-1".to_string(),
+            workspace: "/ws".to_string(),
+            status: JobStatus::Failed,
+            started_at: 100,
+            finished_at: Some(200),
+            files_indexed: 0,
+            error: Some("disk full".to_string()),
+        };
+        let json = serde_json::to_string(&job).unwrap();
+        assert!(json.contains("\"error\":\"disk full\""));
+    }
+
+    // ── IndexResponse serialization ──────────────────────────────────────────
+
+    #[test]
+    fn index_response_serializes() {
+        let resp = IndexResponse {
+            job_id: "j1".to_string(),
+            message: "started".to_string(),
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        assert!(json.contains("\"job_id\":\"j1\""));
+        assert!(json.contains("\"message\":\"started\""));
+    }
+
+    // ── SearchRequest deserialization ─────────────────────────────────────────
+
+    #[test]
+    fn search_request_deserializes_with_defaults() {
+        let json = r#"{"query":"find bugs","workspace":"/tmp/ws"}"#;
+        let req: SearchRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.query, "find bugs");
+        assert_eq!(req.workspace, "/tmp/ws");
+        assert_eq!(req.limit, 10); // default_limit
+    }
+
+    #[test]
+    fn search_request_deserializes_with_custom_limit() {
+        let json = r#"{"query":"q","workspace":"w","limit":25}"#;
+        let req: SearchRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.limit, 25);
+    }
+
+    // ── IndexRequest deserialization ──────────────────────────────────────────
+
+    #[test]
+    fn index_request_deserializes() {
+        let json = r#"{"workspace":"/home/user/project"}"#;
+        let req: IndexRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.workspace, "/home/user/project");
+    }
+}
+

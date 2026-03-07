@@ -1311,4 +1311,132 @@ mod tests {
         assert!(summary.contains("http://test.local"));
         assert!(summary.contains("🔴1"));
     }
+
+    // ── AttackVector serde roundtrip ──
+
+    #[test]
+    fn attack_vector_serde_roundtrip() {
+        let vectors = vec![
+            AttackVector::SqlInjection, AttackVector::Xss, AttackVector::Ssrf,
+            AttackVector::Idor, AttackVector::CommandInjection, AttackVector::PathTraversal,
+            AttackVector::AuthBypass, AttackVector::MassAssignment, AttackVector::OpenRedirect,
+            AttackVector::Xxe, AttackVector::InsecureDeserialization, AttackVector::NoSqlInjection,
+            AttackVector::TemplateInjection, AttackVector::Csrf, AttackVector::CleartextTransmission,
+        ];
+        for v in vectors {
+            let json = serde_json::to_string(&v).unwrap();
+            let back: AttackVector = serde_json::from_str(&json).unwrap();
+            assert_eq!(back, v);
+        }
+    }
+
+    // ── CvssSeverity ordering ──
+
+    #[test]
+    fn cvss_severity_ordering() {
+        assert!(CvssSeverity::Critical > CvssSeverity::High);
+        assert!(CvssSeverity::High > CvssSeverity::Medium);
+        assert!(CvssSeverity::Medium > CvssSeverity::Low);
+        assert!(CvssSeverity::Low > CvssSeverity::Info);
+    }
+
+    // ── CvssSeverity boundary values ──
+
+    #[test]
+    fn cvss_severity_boundary_values() {
+        assert_eq!(CvssSeverity::from_score(9.0), CvssSeverity::Critical);
+        assert_eq!(CvssSeverity::from_score(8.99), CvssSeverity::High);
+        assert_eq!(CvssSeverity::from_score(7.0), CvssSeverity::High);
+        assert_eq!(CvssSeverity::from_score(6.99), CvssSeverity::Medium);
+        assert_eq!(CvssSeverity::from_score(4.0), CvssSeverity::Medium);
+        assert_eq!(CvssSeverity::from_score(3.99), CvssSeverity::Low);
+        assert_eq!(CvssSeverity::from_score(0.1), CvssSeverity::Low);
+        assert_eq!(CvssSeverity::from_score(0.09), CvssSeverity::Info);
+    }
+
+    // ── CvssSeverity Display ──
+
+    #[test]
+    fn cvss_severity_display() {
+        assert_eq!(format!("{}", CvssSeverity::Critical), "CRITICAL");
+        assert_eq!(format!("{}", CvssSeverity::Info), "INFO");
+    }
+
+    // ── RedTeamConfig defaults ──
+
+    #[test]
+    fn redteam_config_defaults() {
+        let config = RedTeamConfig::default();
+        assert_eq!(config.max_depth, 3);
+        assert_eq!(config.timeout_secs, 300);
+        assert_eq!(config.parallel_agents, 3);
+        assert!(config.auto_report);
+        assert_eq!(config.scope_patterns, vec!["*".to_string()]);
+        assert!(config.exclude_patterns.is_empty());
+        assert!(config.source_path.is_none());
+    }
+
+    // ── AuthFlow defaults ──
+
+    #[test]
+    fn auth_flow_defaults() {
+        let auth = AuthFlow::default();
+        assert!(auth.login_url.is_none());
+        assert!(auth.username.is_none());
+        assert!(auth.password.is_none());
+        assert!(auth.totp_secret.is_none());
+        assert!(auth.auth_header.is_none());
+    }
+
+    // ── RedTeamStage ALL has 5 stages ──
+
+    #[test]
+    fn redteam_stage_all_count() {
+        assert_eq!(RedTeamStage::ALL.len(), 5);
+    }
+
+    // ── RedTeamStage index consistency ──
+
+    #[test]
+    fn redteam_stage_index_consistency() {
+        for (i, stage) in RedTeamStage::ALL.iter().enumerate() {
+            assert_eq!(stage.index(), i);
+        }
+    }
+
+    // ── estimate_cvss covers all vectors ──
+
+    #[test]
+    fn estimate_cvss_all_vectors_non_zero() {
+        let vectors = [
+            AttackVector::SqlInjection, AttackVector::Xss, AttackVector::Ssrf,
+            AttackVector::Idor, AttackVector::CommandInjection, AttackVector::PathTraversal,
+            AttackVector::AuthBypass, AttackVector::MassAssignment, AttackVector::OpenRedirect,
+            AttackVector::Xxe, AttackVector::InsecureDeserialization, AttackVector::NoSqlInjection,
+            AttackVector::TemplateInjection, AttackVector::Csrf, AttackVector::CleartextTransmission,
+        ];
+        for v in &vectors {
+            let score = estimate_cvss(v);
+            assert!(score > 0.0, "CVSS for {:?} should be > 0", v);
+            assert!(score <= 10.0, "CVSS for {:?} should be <= 10.0", v);
+        }
+    }
+
+    // ── remediation_for covers all vectors ──
+
+    #[test]
+    fn remediation_covers_all_vectors() {
+        let vectors = [
+            AttackVector::SqlInjection, AttackVector::Xss, AttackVector::Ssrf,
+            AttackVector::Idor, AttackVector::CommandInjection, AttackVector::PathTraversal,
+            AttackVector::AuthBypass, AttackVector::MassAssignment, AttackVector::OpenRedirect,
+            AttackVector::Xxe, AttackVector::InsecureDeserialization, AttackVector::NoSqlInjection,
+            AttackVector::TemplateInjection, AttackVector::Csrf, AttackVector::CleartextTransmission,
+        ];
+        for v in &vectors {
+            let rem = remediation_for(v);
+            assert!(!rem.is_empty(), "Remediation for {:?} should not be empty", v);
+            assert!(rem.len() > 20, "Remediation for {:?} should be descriptive", v);
+        }
+    }
 }

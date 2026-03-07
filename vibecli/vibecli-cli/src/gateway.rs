@@ -2345,4 +2345,74 @@ mod tests {
         let truncated = truncate_text(&text, 4096);
         assert!(truncated.len() <= 4096);
     }
+
+    // ── truncate_text edge cases ──
+
+    #[test]
+    fn truncate_text_empty_string() {
+        assert_eq!(truncate_text("", 100), "");
+    }
+
+    #[test]
+    fn truncate_text_exact_boundary() {
+        let text = "a".repeat(100);
+        let truncated = truncate_text(&text, 100);
+        assert_eq!(truncated, text);
+        assert!(!truncated.contains('\u{2026}'));
+    }
+
+    #[test]
+    fn truncate_text_one_over_boundary() {
+        let text = "a".repeat(101);
+        let truncated = truncate_text(&text, 100);
+        assert!(truncated.len() <= 100);
+        assert!(truncated.ends_with('\u{2026}'));
+    }
+
+    #[test]
+    fn truncate_text_multibyte_utf8() {
+        // Each emoji is 4 bytes. Make sure we don't split in the middle.
+        let text = "\u{1F600}\u{1F600}\u{1F600}\u{1F600}\u{1F600}"; // 5 grinning faces, 20 bytes
+        let truncated = truncate_text(text, 10);
+        // Should not panic, and should be valid UTF-8
+        assert!(truncated.len() <= 10);
+        // The result should be valid UTF-8 (implicit: it's a String)
+    }
+
+    #[test]
+    fn truncate_text_single_char() {
+        assert_eq!(truncate_text("a", 1), "a");
+    }
+
+    #[test]
+    fn truncate_text_max_len_zero() {
+        // Edge case: max_len is 0
+        let truncated = truncate_text("hello", 0);
+        // Should not panic; result may be just the ellipsis or empty
+        assert!(truncated.len() <= 3); // ellipsis is 3 bytes
+    }
+
+    // ── IncomingMessage / GatewayResponse edge cases ──
+
+    #[test]
+    fn incoming_message_without_message_id() {
+        let msg = IncomingMessage {
+            platform: "slack".to_string(),
+            chat_id: "C123".to_string(),
+            user: "bob".to_string(),
+            text: "test".to_string(),
+            message_id: None,
+        };
+        assert!(msg.message_id.is_none());
+    }
+
+    #[test]
+    fn gateway_response_with_reply() {
+        let resp = GatewayResponse {
+            chat_id: "12345".to_string(),
+            text: "reply text".to_string(),
+            reply_to: Some("msg-42".to_string()),
+        };
+        assert_eq!(resp.reply_to.as_deref(), Some("msg-42"));
+    }
 }

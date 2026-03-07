@@ -315,4 +315,118 @@ mod tests {
         store.set_pinned(id, true).unwrap();
         assert!(store.load()[0].pinned);
     }
+
+    // ── MemoryFact construction ──
+
+    #[test]
+    fn memory_fact_new_defaults() {
+        let fact = MemoryFact::new("Use cargo check", 0.85, vec!["rust".to_string()]);
+        assert_eq!(fact.fact, "Use cargo check");
+        assert!((fact.confidence - 0.85).abs() < 0.001);
+        assert_eq!(fact.tags, vec!["rust"]);
+        assert!(!fact.pinned);
+        assert!(fact.session_id.is_none());
+        assert!(!fact.id.is_empty());
+    }
+
+    // ── MemoryFact serde roundtrip ──
+
+    #[test]
+    fn memory_fact_serde_roundtrip() {
+        let mut fact = MemoryFact::new("Test fact", 0.9, vec!["test".to_string()]);
+        fact.pinned = true;
+        fact.session_id = Some("session-123".to_string());
+        let json = serde_json::to_string(&fact).unwrap();
+        let back: MemoryFact = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.fact, "Test fact");
+        assert!(back.pinned);
+        assert_eq!(back.session_id.as_deref(), Some("session-123"));
+        assert_eq!(back.tags, vec!["test"]);
+    }
+
+    // ── deduplication with no existing facts ──
+
+    #[test]
+    fn deduplication_with_no_existing_keeps_all() {
+        let new_facts = vec![
+            MemoryFact::new("Fact one", 0.9, vec![]),
+            MemoryFact::new("Fact two", 0.8, vec![]),
+        ];
+        let result = MemoryAutoExtractor::deduplicate(&[], &new_facts);
+        assert_eq!(result.len(), 2);
+    }
+
+    // ── deduplication with completely different facts ──
+
+    #[test]
+    fn deduplication_keeps_non_duplicates() {
+        let existing = vec![
+            MemoryFact::new("The project uses React with TypeScript", 0.9, vec![]),
+        ];
+        let new_facts = vec![
+            MemoryFact::new("Database migrations are in migrations/ directory", 0.8, vec![]),
+        ];
+        let result = MemoryAutoExtractor::deduplicate(&existing, &new_facts);
+        assert_eq!(result.len(), 1);
+    }
+
+    // ── delete nonexistent fact returns false ──
+
+    #[test]
+    fn delete_nonexistent_fact_returns_false() {
+        let tmp = TempDir::new().unwrap();
+        let store = AutoMemoryStore::for_project(tmp.path());
+        let fact = MemoryFact::new("Some fact", 0.9, vec![]);
+        store.append(&[fact]).unwrap();
+        let deleted = store.delete("nonexistent-id").unwrap();
+        assert!(!deleted);
+        assert_eq!(store.load().len(), 1);
+    }
+
+    // ── set_pinned nonexistent returns false ──
+
+    #[test]
+    fn set_pinned_nonexistent_returns_false() {
+        let tmp = TempDir::new().unwrap();
+        let store = AutoMemoryStore::for_project(tmp.path());
+        let result = store.set_pinned("no-such-id", true).unwrap();
+        assert!(!result);
+    }
+
+    // ── empty store loads empty ──
+
+    #[test]
+    fn empty_store_loads_empty() {
+        let tmp = TempDir::new().unwrap();
+        let store = AutoMemoryStore::for_project(tmp.path());
+        assert!(store.load().is_empty());
+    }
+
+    // ── append_to_markdown ──
+
+    #[test]
+    fn append_to_markdown_creates_file() {
+        let tmp = TempDir::new().unwrap();
+        let store = AutoMemoryStore::for_project(tmp.path());
+        let md_path = tmp.path().join("memory.md");
+        let facts = vec![
+            MemoryFact::new("Uses bun for JS", 0.9, vec!["js".to_string()]),
+        ];
+        store.append_to_markdown(&facts, &md_path).unwrap();
+        let content = std::fs::read_to_string(&md_path).unwrap();
+        assert!(content.contains("Uses bun for JS"));
+        assert!(content.contains("90%"));
+    }
+
+    // ── append_to_markdown with empty facts does nothing ──
+
+    #[test]
+    fn append_to_markdown_empty_facts_noop() {
+        let tmp = TempDir::new().unwrap();
+        let store = AutoMemoryStore::for_project(tmp.path());
+        let md_path = tmp.path().join("memory.md");
+        store.append_to_markdown(&[], &md_path).unwrap();
+        // File should not exist since we wrote nothing
+        assert!(!md_path.exists());
+    }
 }

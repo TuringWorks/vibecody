@@ -8,7 +8,7 @@ use std::borrow::Cow;
 
 // ── All known top-level slash commands ────────────────────────────────────────
 
-static COMMANDS: &[&str] = &[
+pub static COMMANDS: &[&str] = &[
     "/agent",
     "/agents",
     "/arena",
@@ -519,5 +519,99 @@ mod tests {
                 "{cmd} must be in COMMANDS and completable exactly"
             );
         }
+    }
+
+    // ── Sub-command completion for additional commands ──
+
+    #[test]
+    fn test_sandbox_subcommand_completion() {
+        let (_, pairs) = complete_slash("/sandbox ").unwrap();
+        assert_eq!(pairs.len(), SANDBOX_SUBS.len());
+        assert!(pairs.iter().any(|p| p.display == "status"));
+        assert!(pairs.iter().any(|p| p.display == "exec"));
+    }
+
+    #[test]
+    fn test_workflow_subcommand_completion() {
+        let (_, pairs) = complete_slash("/workflow ").unwrap();
+        assert_eq!(pairs.len(), WORKFLOW_SUBS.len());
+        assert!(pairs.iter().any(|p| p.display == "new"));
+        assert!(pairs.iter().any(|p| p.display == "advance"));
+    }
+
+    #[test]
+    fn test_redteam_subcommand_completion() {
+        let (_, pairs) = complete_slash("/redteam ").unwrap();
+        assert_eq!(pairs.len(), REDTEAM_SUBS.len());
+        assert!(pairs.iter().any(|p| p.display == "scan"));
+    }
+
+    #[test]
+    fn test_verify_subcommand_completion() {
+        let (_, pairs) = complete_slash("/verify ").unwrap();
+        assert_eq!(pairs.len(), VERIFY_SUBS.len());
+        assert!(pairs.iter().any(|p| p.display == "full"));
+        assert!(pairs.iter().any(|p| p.display == "security"));
+    }
+
+    #[test]
+    fn test_handoff_subcommand_completion() {
+        let (_, pairs) = complete_slash("/handoff ").unwrap();
+        assert_eq!(pairs.len(), HANDOFF_SUBS.len());
+        assert!(pairs.iter().any(|p| p.display == "create"));
+    }
+
+    #[test]
+    fn test_compliance_subcommand_completion() {
+        let (_, pairs) = complete_slash("/compliance ").unwrap();
+        assert_eq!(pairs.len(), COMPLIANCE_SUBS.len());
+        assert!(pairs.iter().any(|p| p.display == "soc2"));
+        assert!(pairs.iter().any(|p| p.display == "fedramp"));
+    }
+
+    #[test]
+    fn test_bisect_subcommand_completion() {
+        let (_, pairs) = complete_slash("/bisect ").unwrap();
+        assert_eq!(pairs.len(), BISECT_SUBS.len());
+        assert!(pairs.iter().any(|p| p.display == "start"));
+        assert!(pairs.iter().any(|p| p.display == "analyze"));
+    }
+
+    // ── Sub-command prefix filtering ──
+
+    #[test]
+    fn test_subcommand_prefix_filtering() {
+        // "/deploy v" should only match "vercel"
+        let result = complete_slash("/deploy v");
+        let (_, pairs) = result.unwrap();
+        assert_eq!(pairs.len(), 1);
+        assert_eq!(pairs[0].display, "vercel");
+    }
+
+    #[test]
+    fn test_subcommand_no_deeper_nesting() {
+        // After the sub-command word is complete, no more completions
+        let result = complete_slash("/profile list something");
+        assert!(result.is_none());
+    }
+
+    // ── command_hint for additional commands ──
+
+    #[test]
+    fn test_command_hint_deploy() {
+        let hint = command_hint("/deploy").unwrap();
+        assert!(hint.contains("deploy") || hint.contains("target") || hint.contains("list"));
+    }
+
+    #[test]
+    fn test_command_hint_sandbox() {
+        let hint = command_hint("/sandbox").unwrap();
+        assert!(hint.contains("sandbox") || hint.contains("status"));
+    }
+
+    #[test]
+    fn test_command_hint_workflow() {
+        let hint = command_hint("/workflow").unwrap();
+        assert!(hint.contains("workflow") || hint.contains("new"));
     }
 }

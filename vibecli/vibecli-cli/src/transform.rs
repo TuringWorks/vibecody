@@ -290,4 +290,108 @@ mod tests {
         let parsed: TransformPlan = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed.total_files, 1);
     }
+
+    // ── TransformType serde roundtrip ──
+
+    #[test]
+    fn transform_type_serde_roundtrip() {
+        let types = vec![
+            TransformType::CommonjsToEsm,
+            TransformType::ReactClassToHooks,
+            TransformType::Python2To3,
+            TransformType::Vue2To3,
+            TransformType::JavaUpgrade,
+            TransformType::Custom("custom-migration".to_string()),
+        ];
+        for t in types {
+            let json = serde_json::to_string(&t).unwrap();
+            let back: TransformType = serde_json::from_str(&json).unwrap();
+            assert_eq!(format!("{}", back), format!("{}", t));
+        }
+    }
+
+    // ── TransformType Display for Custom ──
+
+    #[test]
+    fn transform_type_display_custom() {
+        let t = TransformType::Custom("Angular v15 to v16".to_string());
+        assert_eq!(t.to_string(), "Custom: Angular v15 to v16");
+    }
+
+    // ── strip_code_fences edge cases ──
+
+    #[test]
+    fn strip_code_fences_empty_string() {
+        assert_eq!(strip_code_fences(""), "");
+    }
+
+    #[test]
+    fn strip_code_fences_only_fences() {
+        let input = "```\n```";
+        let result = strip_code_fences(input);
+        assert_eq!(result, "");
+    }
+
+    #[test]
+    fn strip_code_fences_with_language_and_trailing_whitespace() {
+        let input = "```python  \nprint('hello')\n```";
+        assert_eq!(strip_code_fences(input), "print('hello')");
+    }
+
+    // ── parse_plan_json edge cases ──
+
+    #[test]
+    fn parse_plan_json_no_array_returns_error() {
+        let input = "No JSON here, just text.";
+        assert!(parse_plan_json(input).is_err());
+    }
+
+    #[test]
+    fn parse_plan_json_empty_array() {
+        let input = "Here is the plan: []";
+        let items = parse_plan_json(input).unwrap();
+        assert!(items.is_empty());
+    }
+
+    #[test]
+    fn parse_plan_json_multiple_items() {
+        let input = r#"[
+            {"file":"a.js","description":"convert","estimated_changes":3},
+            {"file":"b.ts","description":"migrate","estimated_changes":10}
+        ]"#;
+        let items = parse_plan_json(input).unwrap();
+        assert_eq!(items.len(), 2);
+        assert_eq!(items[0].file, "a.js");
+        assert_eq!(items[1].estimated_changes, 10);
+    }
+
+    // ── TransformResult construction ──
+
+    #[test]
+    fn transform_result_construction() {
+        let result = TransformResult {
+            files_modified: 5,
+            files_failed: 1,
+            summary: "5 of 6 files transformed successfully".to_string(),
+            diff_stats: "+42 -18".to_string(),
+        };
+        assert_eq!(result.files_modified, 5);
+        assert_eq!(result.files_failed, 1);
+        assert!(result.summary.contains("successfully"));
+    }
+
+    // ── TransformPlanItem serde ──
+
+    #[test]
+    fn transform_plan_item_serde_roundtrip() {
+        let item = TransformPlanItem {
+            file: "src/utils.js".into(),
+            description: "Convert require() to import".into(),
+            estimated_changes: 7,
+        };
+        let json = serde_json::to_string(&item).unwrap();
+        let back: TransformPlanItem = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.file, "src/utils.js");
+        assert_eq!(back.estimated_changes, 7);
+    }
 }

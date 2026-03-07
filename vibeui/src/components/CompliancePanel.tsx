@@ -95,6 +95,23 @@ export function CompliancePanel() {
 
  {error && <div style={{ color: "#f87171", marginBottom: 12 }}>{error}</div>}
 
+ {!report && !loading && !error && (
+  <div style={{ textAlign: "center", padding: "40px 16px", color: "#6b7280", lineHeight: 1.7 }}>
+   <div style={{ fontSize: 28, marginBottom: 8 }}>🛡️</div>
+   <div style={{ fontSize: 13 }}>No compliance report yet</div>
+   <div style={{ fontSize: 11, marginTop: 4 }}>
+    Select a framework above and click <strong>Generate Report</strong> to audit your codebase.
+   </div>
+  </div>
+ )}
+
+ {loading && (
+  <div style={{ textAlign: "center", padding: "40px 16px", color: "#9ca3af", fontSize: 13 }}>
+   Generating {framework} compliance report…<br />
+   <span style={{ fontSize: 11, color: "#6b7280" }}>This may take 15–30 seconds</span>
+  </div>
+ )}
+
  {report && (
  <>
  {/* Summary bar */}

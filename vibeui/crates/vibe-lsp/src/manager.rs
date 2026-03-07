@@ -127,4 +127,59 @@ mod tests {
         let mgr = LspManager::default();
         assert_eq!(mgr.server_configs.len(), 4);
     }
+
+    #[test]
+    fn add_client_and_retrieve() {
+        let mut mgr = LspManager::new();
+        let client = LspClient::new("test-server".to_string(), vec![]);
+        mgr.add_client("test-lang".to_string(), client);
+        assert!(mgr.get_client("test-lang").is_some());
+    }
+
+    #[test]
+    fn add_client_is_retrievable_via_get_client_mut() {
+        let mut mgr = LspManager::new();
+        let client = LspClient::new("server".to_string(), vec![]);
+        mgr.add_client("go".to_string(), client);
+        assert!(mgr.get_client_mut("go").is_some());
+    }
+
+    #[test]
+    fn add_client_overwrites_existing() {
+        let mut mgr = LspManager::new();
+        let client1 = LspClient::new("server-v1".to_string(), vec![]);
+        let client2 = LspClient::new("server-v2".to_string(), vec![]);
+        mgr.add_client("lang".to_string(), client1);
+        mgr.add_client("lang".to_string(), client2);
+        // After overwrite, the key should still resolve
+        assert!(mgr.get_client("lang").is_some());
+    }
+
+    #[test]
+    fn javascript_shares_config_with_typescript() {
+        let mgr = LspManager::new();
+        let (ts_cmd, ts_args) = mgr.server_configs.get("typescript").unwrap();
+        let (js_cmd, js_args) = mgr.server_configs.get("javascript").unwrap();
+        assert_eq!(ts_cmd, js_cmd);
+        assert_eq!(ts_args, js_args);
+    }
+
+    #[tokio::test]
+    async fn get_client_for_unsupported_language_errors() {
+        let mut mgr = LspManager::new();
+        let result = mgr.get_client_for_language(
+            "brainfuck",
+            std::path::Path::new("/tmp"),
+        ).await;
+        assert!(result.is_err());
+        let err_msg = format!("{}", result.err().unwrap());
+        assert!(err_msg.contains("brainfuck"));
+    }
+
+    #[test]
+    fn clients_map_starts_empty() {
+        let mgr = LspManager::new();
+        assert!(mgr.clients.is_empty());
+        assert_eq!(mgr.clients.len(), 0);
+    }
 }

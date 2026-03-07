@@ -4590,7 +4590,12 @@ async fn main() -> Result<()> {
                         }
 
                         _ => {
-                            println!("Type /help for available commands\n");
+                            // Suggest closest command via edit distance
+                            if let Some(suggestion) = find_closest_command(command) {
+                                println!("Unknown command: {command}. Did you mean {suggestion}?\n  Type /help for all commands.\n");
+                            } else {
+                                println!("Unknown command: {command}. Type /help for available commands.\n");
+                            }
                         }
                     }
                 } else {
@@ -5651,6 +5656,38 @@ fn is_safe_name(name: &str) -> bool {
         && !name.contains('\\')
         && !name.contains("..")
         && name.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_' || c == '.')
+}
+
+/// Simple Levenshtein distance for fuzzy command matching.
+fn edit_distance(a: &str, b: &str) -> usize {
+    let a: Vec<char> = a.chars().collect();
+    let b: Vec<char> = b.chars().collect();
+    let (m, n) = (a.len(), b.len());
+    let mut dp = vec![vec![0usize; n + 1]; m + 1];
+    for i in 0..=m { dp[i][0] = i; }
+    for j in 0..=n { dp[0][j] = j; }
+    for i in 1..=m {
+        for j in 1..=n {
+            let cost = if a[i - 1] == b[j - 1] { 0 } else { 1 };
+            dp[i][j] = (dp[i - 1][j] + 1)
+                .min(dp[i][j - 1] + 1)
+                .min(dp[i - 1][j - 1] + cost);
+        }
+    }
+    dp[m][n]
+}
+
+/// Find the closest REPL command to a mistyped input, or None if nothing is close enough.
+fn find_closest_command(input: &str) -> Option<&'static str> {
+    use crate::repl::COMMANDS;
+    let mut best: Option<(&str, usize)> = None;
+    for &cmd in COMMANDS {
+        let d = edit_distance(input, cmd);
+        if d <= 3 && best.map_or(true, |(_, bd)| d < bd) {
+            best = Some((cmd, d));
+        }
+    }
+    best.map(|(cmd, _)| cmd)
 }
 
 fn show_help() {

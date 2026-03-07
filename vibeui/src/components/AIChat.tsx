@@ -78,6 +78,7 @@ function useVoiceInput(onTranscript: (text: string) => void) {
 interface Message {
  role: "user" | "assistant";
  content: string;
+ timestamp?: number;
 }
 
 interface PendingWrite {
@@ -114,6 +115,12 @@ function getAtQuery(text: string, cursorPos: number): { query: string; start: nu
  const query = match[2]; // everything after @
  const start = beforeCursor.lastIndexOf(fullMatch);
  return { query, start };
+}
+
+function formatTime(ts?: number): string {
+ if (!ts) return "";
+ const d = new Date(ts);
+ return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
 export function AIChat({ provider, context, fileTree, currentFile, onFileAction, onPendingWrite, pendingInput, onPendingInputConsumed }: AIChatProps) {
@@ -163,7 +170,7 @@ export function AIChat({ provider, context, fileTree, currentFile, onFileAction,
  const displayContent = cleanMessage(response.message);
  setMessages((prev) => {
  // Replace the in-progress streaming entry with final message
- const updated = [...prev, { role: "assistant" as const, content: displayContent }];
+ const updated = [...prev, { role: "assistant" as const, content: displayContent, timestamp: Date.now() }];
  return updated;
  });
  setStreamingText("");
@@ -181,6 +188,7 @@ export function AIChat({ provider, context, fileTree, currentFile, onFileAction,
  setMessages((prev) => [...prev, {
  role: "assistant",
  content: ` ${e.payload}`,
+ timestamp: Date.now(),
  }]);
  setStreamingText("");
  setTokensPerSec(null);
@@ -223,7 +231,7 @@ export function AIChat({ provider, context, fileTree, currentFile, onFileAction,
  return;
  }
 
- const userMessage: Message = { role: "user", content: input };
+ const userMessage: Message = { role: "user", content: input, timestamp: Date.now() };
  setMessages((prev) => [...prev, userMessage]);
  setInput("");
  setPickerQuery(null);
@@ -364,6 +372,11 @@ export function AIChat({ provider, context, fileTree, currentFile, onFileAction,
  <div className="message-icon">
  {msg.role === "user" ? <User size={14} strokeWidth={1.5} /> : ""}
  </div>
+ {msg.timestamp && (
+ <time className="message-time" dateTime={new Date(msg.timestamp).toISOString()}>
+ {formatTime(msg.timestamp)}
+ </time>
+ )}
  <div className="message-content" style={{ position: "relative" }}>
  <pre>{msg.content}</pre>
  {msg.role === "assistant" && (

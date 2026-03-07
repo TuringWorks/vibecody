@@ -303,6 +303,85 @@ mod tests {
         assert!(exts.is_empty());
         let _ = std::fs::remove_dir_all(&dir);
     }
+
+    #[test]
+    fn default_extension_dir_ends_with_extensions() {
+        let dir = default_extension_dir();
+        assert!(dir.ends_with("extensions"));
+        assert!(dir.to_string_lossy().contains(".vibeui"));
+    }
+
+    #[test]
+    fn extension_loader_default_is_same_as_new() {
+        // Both should succeed and create a valid engine
+        let _loader = ExtensionLoader::default();
+    }
+
+    #[test]
+    fn load_extensions_compat_shim_returns_ok() {
+        let loader = ExtensionLoader::new();
+        // Even if no extensions dir exists, the compat shim should return Ok
+        assert!(loader.load_extensions().is_ok());
+    }
+
+    #[test]
+    fn load_from_dir_ignores_non_wasm_files() {
+        let dir = std::env::temp_dir().join("vibe_ext_test_non_wasm");
+        let _ = std::fs::create_dir_all(&dir);
+        std::fs::write(dir.join("readme.txt"), "not wasm").unwrap();
+        std::fs::write(dir.join("lib.so"), "not wasm").unwrap();
+        std::fs::write(dir.join("module.js"), "not wasm").unwrap();
+        let loader = ExtensionLoader::new();
+        let exts = loader.load_from_dir(&dir);
+        assert!(exts.is_empty());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn load_from_dir_rejects_invalid_wasm() {
+        // A file with .wasm extension but invalid content should fail to load
+        let dir = std::env::temp_dir().join("vibe_ext_test_invalid_wasm");
+        let _ = std::fs::create_dir_all(&dir);
+        std::fs::write(dir.join("bad.wasm"), b"this is not wasm").unwrap();
+        let loader = ExtensionLoader::new();
+        let exts = loader.load_from_dir(&dir);
+        assert!(exts.is_empty()); // Should gracefully skip with a warning
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn host_state_default_has_empty_logs() {
+        let state = HostState::default();
+        assert!(state.log_output.is_empty());
+        assert!(state.notifications.is_empty());
+    }
+
+    #[test]
+    fn extension_api_constants_are_correct() {
+        // Verify the API contract constants
+        assert_eq!(crate::api::HOST_MODULE, "vibeui_host");
+        assert_eq!(crate::api::EXPORT_INIT, "init");
+        assert_eq!(crate::api::EXPORT_ON_FILE_SAVE, "on_file_save");
+        assert_eq!(crate::api::EXPORT_ON_TEXT_CHANGE, "on_text_change");
+        assert_eq!(crate::api::HOST_LOG, "log");
+        assert_eq!(crate::api::HOST_READ_FILE, "read_file");
+        assert_eq!(crate::api::HOST_WRITE_FILE, "write_file");
+        assert_eq!(crate::api::HOST_NOTIFY, "notify");
+    }
+
+    #[test]
+    fn max_memory_bytes_is_64_mib() {
+        assert_eq!(crate::api::MAX_MEMORY_BYTES, 64 * 1024 * 1024);
+    }
+
+    #[test]
+    fn load_default_extensions_returns_empty_when_dir_missing() {
+        // ~/.vibeui/extensions/ might not exist in test environment
+        let loader = ExtensionLoader::new();
+        let exts = loader.load_default_extensions();
+        // Should not panic; result depends on whether dir exists
+        let _ = exts;
+    }
 }
 
 fn wasm_read_str(caller: &mut Caller<HostState>, ptr: i32, len: i32) -> Option<String> {

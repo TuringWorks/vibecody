@@ -286,3 +286,71 @@ impl LspClient {
         Ok(serde_json::from_value(res).ok())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn new_client_is_not_initialized() {
+        let client = LspClient::new("rust-analyzer".to_string(), vec![]);
+        assert!(!client.initialized);
+    }
+
+    #[test]
+    fn new_client_has_no_process() {
+        let client = LspClient::new("rust-analyzer".to_string(), vec![]);
+        assert!(client.process.is_none());
+    }
+
+    #[test]
+    fn new_client_has_no_channels() {
+        let client = LspClient::new("test-server".to_string(), vec!["--stdio".to_string()]);
+        assert!(client.request_tx.is_none());
+        assert!(client.response_rx.is_none());
+    }
+
+    #[test]
+    fn new_client_starts_with_request_id_zero() {
+        let client = LspClient::new("test".to_string(), vec![]);
+        assert_eq!(client.request_id, 0);
+    }
+
+    #[test]
+    fn new_client_stores_server_cmd() {
+        let client = LspClient::new("pylsp".to_string(), vec!["--arg1".to_string()]);
+        assert_eq!(client.server_cmd, "pylsp");
+        assert_eq!(client.server_args, vec!["--arg1"]);
+    }
+
+    #[test]
+    fn new_client_preserves_multiple_args() {
+        let args = vec!["--stdio".to_string(), "--log-level".to_string(), "debug".to_string()];
+        let client = LspClient::new("ts-server".to_string(), args.clone());
+        assert_eq!(client.server_args, args);
+    }
+
+    #[test]
+    fn new_client_with_empty_args() {
+        let client = LspClient::new("rust-analyzer".to_string(), vec![]);
+        assert!(client.server_args.is_empty());
+    }
+
+    #[tokio::test]
+    async fn shutdown_without_start_is_ok() {
+        let mut client = LspClient::new("nonexistent-server".to_string(), vec![]);
+        // Shutdown on an un-started, un-initialized client should be a no-op
+        let result = client.shutdown().await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn start_nonexistent_server_fails() {
+        let mut client = LspClient::new(
+            "this-server-does-not-exist-12345".to_string(),
+            vec![],
+        );
+        let result = client.start().await;
+        assert!(result.is_err());
+    }
+}
