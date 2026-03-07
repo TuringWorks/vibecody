@@ -802,6 +802,9 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route("/acp/v1/capabilities", get(acp_capabilities))
         .route("/ws/collab/:room_id", get(ws_collab_handler))
         .merge(authed_routes)
+        .fallback(|| async {
+            (StatusCode::NOT_FOUND, Json(serde_json::json!({"error":"Not found"})))
+        })
         .layer(DefaultBodyLimit::max(1024 * 1024)) // 1 MB max request body
         // Security response headers
         .layer(SetResponseHeaderLayer::overriding(

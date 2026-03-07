@@ -162,7 +162,7 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
  <button
  onClick={handleVisualEditToggle}
  style={{
- background: visualEditEnabled ? "#6366f1" : "var(--bg-tertiary)",
+ background: visualEditEnabled ? "var(--accent-primary, #6366f1)" : "var(--bg-tertiary)",
  border: "1px solid var(--border-subtle, #44445a)",
  borderRadius: 4,
  padding: "3px 10px",
@@ -214,12 +214,12 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
  <button
  onClick={handleGenerateComponent}
  disabled={isGenerating || !aiInstruction.trim()}
- style={{ width: "100%", background: "#6366f1", color: "#fff", border: "none", borderRadius: 4, padding: "7px 0", cursor: "pointer", fontWeight: 600, fontSize: 13, marginTop: 6 }}
+ style={{ width: "100%", background: "var(--accent-primary, #6366f1)", color: "#fff", border: "none", borderRadius: 4, padding: "7px 0", cursor: "pointer", fontWeight: 600, fontSize: 13, marginTop: 6 }}
  >
  {isGenerating ? "Generating…" : "Generate"}
  </button>
  {generationResult && (
- <pre style={{ marginTop: 8, fontSize: 11, color: "#a6e3a1", overflowX: "auto", whiteSpace: "pre-wrap", background: "var(--bg-secondary)", borderRadius: 4, padding: 8 }}>
+ <pre style={{ marginTop: 8, fontSize: 11, color: "var(--text-success, #a6e3a1)", overflowX: "auto", whiteSpace: "pre-wrap", background: "var(--bg-secondary)", borderRadius: 4, padding: 8 }}>
  {generationResult}
  </pre>
  )}
@@ -263,7 +263,7 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
  />
  {figmaResult.length > 0 && (
  <div style={{ marginBottom: 16 }}>
- <div style={{ fontSize: 12, color: "#a6e3a1", marginBottom: 6 }}>Generated {figmaResult.length} file(s):</div>
+ <div style={{ fontSize: 12, color: "var(--text-success, #a6e3a1)", marginBottom: 6 }}>Generated {figmaResult.length} file(s):</div>
  {figmaResult.map((f) => (
  <div key={f.path} style={{ fontSize: 11, fontFamily: "monospace", opacity: 0.7 }}> {f.path}</div>
  ))}
@@ -273,7 +273,7 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
  <button
  onClick={handleFigmaImport}
  disabled={isGenerating || !figmaUrl.trim() || !figmaToken.trim()}
- style={{ flex: 1, background: "#6366f1", color: "#fff", border: "none", borderRadius: 4, padding: "8px 0", cursor: "pointer", fontWeight: 600, fontSize: 13 }}
+ style={{ flex: 1, background: "var(--accent-primary, #6366f1)", color: "#fff", border: "none", borderRadius: 4, padding: "8px 0", cursor: "pointer", fontWeight: 600, fontSize: 13 }}
  >
  {isGenerating ? "Importing…" : "Import"}
  </button>

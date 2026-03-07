@@ -37,9 +37,9 @@ interface ManagerViewProps {
 function statusColor(status: AgentStatus): string {
  switch (status) {
  case "pending": return "var(--text-secondary)";
- case "running": return "#5af";
- case "done": return "#4c4";
- case "failed": return "#f44";
+ case "running": return "var(--text-info, #55aaff)";
+ case "done": return "var(--text-success, #44cc44)";
+ case "failed": return "var(--text-danger, #ff4444)";
  }
 }
 
@@ -173,7 +173,7 @@ function AgentCard({
  <span style={{ fontSize: "10px", color: "var(--text-secondary)", minWidth: "20px", textAlign: "right" }}>
  {s.step_num + 1}.
  </span>
- <span style={{ fontSize: "10px", color: s.success ? "#4c4" : "#f44" }}>
+ <span style={{ fontSize: "10px", color: s.success ? "var(--text-success, #44cc44)" : "var(--text-danger, #ff4444)" }}>
  {s.success ? "✔" : "✘"}
  </span>
  <span style={{ fontSize: "11px", fontFamily: "monospace", color: "var(--accent-blue, #007acc)" }}>
@@ -322,9 +322,9 @@ export function ManagerView({ provider }: ManagerViewProps) {
  </div>
  {agentList.length > 0 && (
  <div style={{ fontSize: "10px", color: "var(--text-secondary)" }}>
- {running > 0 && <span style={{ color: "#5af", marginRight: "8px" }}> {running} running</span>}
- {done > 0 && <span style={{ color: "#4c4", marginRight: "8px" }}> {done} done</span>}
- {failed > 0 && <span style={{ color: "#f44" }}> {failed} failed</span>}
+ {running > 0 && <span style={{ color: "var(--text-info, #55aaff)", marginRight: "8px" }}> {running} running</span>}
+ {done > 0 && <span style={{ color: "var(--text-success, #44cc44)", marginRight: "8px" }}> {done} done</span>}
+ {failed > 0 && <span style={{ color: "var(--text-danger, #ff4444)" }}> {failed} failed</span>}
  </div>
  )}
  </div>
@@ -421,7 +421,7 @@ export function ManagerView({ provider }: ManagerViewProps) {
  </div>
 
  {error && (
- <div style={{ marginTop: "8px", fontSize: "11px", color: "#f44" }}>
+ <div style={{ marginTop: "8px", fontSize: "11px", color: "var(--text-danger, #ff4444)" }}>
  {error}
  </div>
  )}
@@ -432,11 +432,11 @@ export function ManagerView({ provider }: ManagerViewProps) {
  <div style={{
  padding: "8px 10px",
  marginBottom: "10px",
- background: mergeResult.startsWith("Error") ? "#f441" : "#4c41",
- border: `1px solid ${mergeResult.startsWith("Error") ? "#f44" : "#4c4"}`,
+ background: mergeResult.startsWith("Error") ? "rgba(255,68,68,0.07)" : "rgba(68,204,68,0.07)",
+ border: `1px solid ${mergeResult.startsWith("Error") ? "var(--text-danger, #ff4444)" : "var(--text-success, #44cc44)"}`,
  borderRadius: "4px",
  fontSize: "11px",
- color: mergeResult.startsWith("Error") ? "#f44" : "#4c4",
+ color: mergeResult.startsWith("Error") ? "var(--text-danger, #ff4444)" : "var(--text-success, #44cc44)",
  }}>
  {mergeResult}
  <button

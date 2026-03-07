@@ -392,7 +392,7 @@ export function AIChat({ provider, context, fileTree, currentFile, onFileAction,
  position: "absolute", top: "4px", right: "4px",
  background: "var(--bg-tertiary)", border: "1px solid var(--border-color)",
  borderRadius: "4px", cursor: "pointer", fontSize: "11px",
- padding: "2px 6px", color: copiedIdx === idx ? "#3fb950" : "var(--text-secondary)",
+ padding: "2px 6px", color: copiedIdx === idx ? "var(--text-success, #3fb950)" : "var(--text-secondary)",
  opacity: 0.8,
  }}
  >
