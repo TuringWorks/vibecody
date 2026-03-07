@@ -375,4 +375,69 @@ mod tests {
         assert_eq!(opts.num_predict, Some(256));
         assert_eq!(opts.stop.len(), 3);
     }
+
+    #[test]
+    fn default_options_stop_tokens() {
+        let opts = LocalEditProvider::default_options();
+        assert!(opts.stop.contains(&"<EOT>".to_string()));
+        assert!(opts.stop.contains(&"</s>".to_string()));
+        assert!(opts.stop.contains(&"<|endoftext|>".to_string()));
+    }
+
+    #[test]
+    fn generate_options_serializes_correctly() {
+        let opts = GenerateOptions {
+            temperature: 0.3,
+            num_predict: Some(128),
+            stop: vec!["<EOT>".into()],
+        };
+        let json = serde_json::to_value(&opts).unwrap();
+        // f32 → JSON f64 loses precision, so use approximate comparison
+        let temp = json["temperature"].as_f64().unwrap();
+        assert!((temp - 0.3).abs() < 1e-6, "temperature {temp} not close to 0.3");
+        assert_eq!(json["num_predict"], 128);
+    }
+
+    #[test]
+    fn generate_options_skips_none_num_predict() {
+        let opts = GenerateOptions {
+            temperature: 0.5,
+            num_predict: None,
+            stop: vec![],
+        };
+        let json = serde_json::to_value(&opts).unwrap();
+        assert!(json.get("num_predict").is_none());
+    }
+
+    #[test]
+    fn build_fim_prompt_with_additional_context() {
+        let ctx = CodeContext {
+            language: "typescript".to_string(),
+            file_path: Some("src/app.ts".to_string()),
+            prefix: "const x = ".to_string(),
+            suffix: ";".to_string(),
+            additional_context: vec!["import React from 'react';".to_string()],
+        };
+        let prompt = LocalEditProvider::build_fim_prompt(&ctx);
+        // additional_context is not used in FIM prompt, but prefix/suffix should be
+        assert!(prompt.contains("<PRE>const x = "));
+        assert!(prompt.contains("<SUF>;"));
+        assert!(prompt.contains("// Language: typescript"));
+    }
+
+    #[test]
+    fn ollama_generate_request_serializes() {
+        let req = OllamaGenerateRequest {
+            model: "codellama:7b".into(),
+            prompt: "test".into(),
+            system: "sys".into(),
+            stream: false,
+            options: None,
+        };
+        let json = serde_json::to_value(&req).unwrap();
+        assert_eq!(json["model"], "codellama:7b");
+        assert_eq!(json["stream"], false);
+        // options: None should be serialized as null or skipped
+        assert!(json.get("options").is_none() || json["options"].is_null());
+    }
 }

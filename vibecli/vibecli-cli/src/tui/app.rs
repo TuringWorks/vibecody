@@ -104,3 +104,171 @@ impl App {
         None
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── App::new defaults ───────────────────────────────────────────────────
+
+    #[test]
+    fn app_new_starts_on_chat_screen() {
+        let app = App::new();
+        assert!(matches!(app.current_screen, CurrentScreen::Chat));
+    }
+
+    #[test]
+    fn app_new_should_quit_is_false() {
+        let app = App::new();
+        assert!(!app.should_quit);
+    }
+
+    #[test]
+    fn app_new_exit_pending_is_false() {
+        let app = App::new();
+        assert!(!app.exit_pending);
+    }
+
+    #[test]
+    fn app_new_scroll_offset_is_zero() {
+        let app = App::new();
+        assert_eq!(app.scroll_offset, 0);
+    }
+
+    #[test]
+    fn app_new_no_pending_approval() {
+        let app = App::new();
+        assert!(app.pending_approval.is_none());
+    }
+
+    #[test]
+    fn app_new_has_a_theme() {
+        let app = App::new();
+        // Should have a valid theme name
+        assert!(!app.theme.name.is_empty());
+    }
+
+    // ── on_key / on_backspace ───────────────────────────────────────────────
+
+    #[test]
+    fn on_key_appends_characters() {
+        let mut app = App::new();
+        app.on_key('a');
+        app.on_key('b');
+        app.on_key('c');
+        assert_eq!(app.input, "abc");
+    }
+
+    #[test]
+    fn on_backspace_removes_last_char() {
+        let mut app = App::new();
+        app.on_key('x');
+        app.on_key('y');
+        app.on_backspace();
+        assert_eq!(app.input, "x");
+    }
+
+    #[test]
+    fn on_backspace_on_empty_is_noop() {
+        let mut app = App::new();
+        app.on_backspace();
+        assert_eq!(app.input, "");
+    }
+
+    // ── on_enter ────────────────────────────────────────────────────────────
+
+    #[test]
+    fn on_enter_with_content_returns_some() {
+        let mut app = App::new();
+        app.on_key('H');
+        app.on_key('i');
+        let result = app.on_enter();
+        assert_eq!(result, Some("Hi".to_string()));
+    }
+
+    #[test]
+    fn on_enter_clears_input() {
+        let mut app = App::new();
+        app.on_key('x');
+        app.on_enter();
+        assert!(app.input.is_empty());
+    }
+
+    #[test]
+    fn on_enter_pushes_user_message() {
+        let mut app = App::new();
+        app.on_key('t');
+        app.on_key('e');
+        app.on_key('s');
+        app.on_key('t');
+        app.on_enter();
+        assert_eq!(app.messages.len(), 1);
+        match &app.messages[0] {
+            TuiMessage::User(content) => assert_eq!(content, "test"),
+            _ => panic!("Expected TuiMessage::User"),
+        }
+    }
+
+    #[test]
+    fn on_enter_with_empty_input_returns_none() {
+        let mut app = App::new();
+        let result = app.on_enter();
+        assert!(result.is_none());
+        assert!(app.messages.is_empty());
+    }
+
+    #[test]
+    fn on_enter_twice_pushes_two_messages() {
+        let mut app = App::new();
+        app.on_key('a');
+        app.on_enter();
+        app.on_key('b');
+        app.on_enter();
+        assert_eq!(app.messages.len(), 2);
+    }
+
+    // ── TuiMessage variants ─────────────────────────────────────────────────
+
+    #[test]
+    fn tui_message_user_stores_content() {
+        let msg = TuiMessage::User("hello".into());
+        match msg {
+            TuiMessage::User(s) => assert_eq!(s, "hello"),
+            _ => panic!("wrong variant"),
+        }
+    }
+
+    #[test]
+    fn tui_message_command_output_stores_both_fields() {
+        let msg = TuiMessage::CommandOutput {
+            command: "ls".into(),
+            output: "file.txt".into(),
+        };
+        match msg {
+            TuiMessage::CommandOutput { command, output } => {
+                assert_eq!(command, "ls");
+                assert_eq!(output, "file.txt");
+            }
+            _ => panic!("wrong variant"),
+        }
+    }
+
+    #[test]
+    fn tui_message_error_stores_message() {
+        let msg = TuiMessage::Error("oops".into());
+        match msg {
+            TuiMessage::Error(s) => assert_eq!(s, "oops"),
+            _ => panic!("wrong variant"),
+        }
+    }
+
+    #[test]
+    fn tui_message_clone() {
+        let msg = TuiMessage::Assistant("reply".into());
+        let cloned = msg.clone();
+        match cloned {
+            TuiMessage::Assistant(s) => assert_eq!(s, "reply"),
+            _ => panic!("wrong variant"),
+        }
+    }
+}

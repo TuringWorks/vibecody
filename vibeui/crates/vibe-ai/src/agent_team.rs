@@ -391,4 +391,159 @@ mod tests {
         team.add_member("worker");
         assert_eq!(team.member_ids.len(), 2);
     }
+
+    // ── TeamMessage serde roundtrip ──────────────────────────────────────
+
+    #[test]
+    fn team_message_serde_roundtrip() {
+        let msg = TeamMessage::new("agent-1", TeamMessageType::Finding, "Found an issue");
+        let json = serde_json::to_string(&msg).unwrap();
+        let back: TeamMessage = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.from_agent_id, "agent-1");
+        assert_eq!(back.content, "Found an issue");
+        assert_eq!(back.msg_type, TeamMessageType::Finding);
+        assert!(back.to_agent_id.is_none());
+    }
+
+    #[test]
+    fn team_message_directed_serde_roundtrip() {
+        let msg = TeamMessage::directed("a1", "a2", TeamMessageType::Request, "help");
+        let json = serde_json::to_string(&msg).unwrap();
+        let back: TeamMessage = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.to_agent_id.as_deref(), Some("a2"));
+        assert_eq!(back.msg_type, TeamMessageType::Request);
+    }
+
+    // ── TeamMessageType serde all variants ───────────────────────────────
+
+    #[test]
+    fn team_message_type_serde_all_variants() {
+        let variants = vec![
+            TeamMessageType::Finding,
+            TeamMessageType::Challenge,
+            TeamMessageType::Request,
+            TeamMessageType::Status,
+            TeamMessageType::TaskAssignment,
+            TeamMessageType::Ack,
+        ];
+        for variant in variants {
+            let json = serde_json::to_string(&variant).unwrap();
+            let back: TeamMessageType = serde_json::from_str(&json).unwrap();
+            assert_eq!(back, variant);
+        }
+    }
+
+    // ── TeamSubTask serde ────────────────────────────────────────────────
+
+    #[test]
+    fn team_sub_task_serde_roundtrip() {
+        let task = TeamSubTask {
+            id: "t1".into(),
+            agent_id: "worker-1".into(),
+            description: "Fix auth bug".into(),
+            status: TeamTaskStatus::InProgress,
+            result: Some("Working on it".into()),
+        };
+        let json = serde_json::to_string(&task).unwrap();
+        let back: TeamSubTask = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.id, "t1");
+        assert_eq!(back.agent_id, "worker-1");
+        assert_eq!(back.status, TeamTaskStatus::InProgress);
+        assert_eq!(back.result.as_deref(), Some("Working on it"));
+    }
+
+    // ── TeamTaskStatus serde ─────────────────────────────────────────────
+
+    #[test]
+    fn team_task_status_serde_all_variants() {
+        let variants = vec![
+            TeamTaskStatus::Pending,
+            TeamTaskStatus::InProgress,
+            TeamTaskStatus::Completed,
+            TeamTaskStatus::Failed,
+        ];
+        for status in variants {
+            let json = serde_json::to_string(&status).unwrap();
+            let back: TeamTaskStatus = serde_json::from_str(&json).unwrap();
+            assert_eq!(back, status);
+        }
+    }
+
+    // ── TeamInfo serde ───────────────────────────────────────────────────
+
+    #[test]
+    fn team_info_serde_roundtrip() {
+        let info = TeamInfo {
+            id: "team-1".into(),
+            lead_agent_id: "lead".into(),
+            member_ids: vec!["lead".into(), "worker-1".into()],
+            goal: "Fix all bugs".into(),
+            status: "working".into(),
+            tasks: vec![TeamSubTask {
+                id: "t1".into(),
+                agent_id: "worker-1".into(),
+                description: "Fix auth".into(),
+                status: TeamTaskStatus::Completed,
+                result: Some("Fixed".into()),
+            }],
+            message_count: 5,
+        };
+        let json = serde_json::to_string(&info).unwrap();
+        let back: TeamInfo = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.id, "team-1");
+        assert_eq!(back.member_ids.len(), 2);
+        assert_eq!(back.tasks.len(), 1);
+        assert_eq!(back.message_count, 5);
+    }
+
+    // ── AgentTeam status ─────────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn team_default_status_is_forming() {
+        let team = AgentTeam::new("t", "lead", "goal");
+        assert_eq!(team.get_status().await, "forming");
+    }
+
+    #[tokio::test]
+    async fn team_set_and_get_status() {
+        let team = AgentTeam::new("t", "lead", "goal");
+        team.set_status("complete").await;
+        assert_eq!(team.get_status().await, "complete");
+    }
+
+    // ── all_complete with empty tasks ────────────────────────────────────
+
+    #[tokio::test]
+    async fn all_complete_empty_tasks_returns_false() {
+        let team = AgentTeam::new("t", "lead", "goal");
+        // Empty tasks should not be considered "all complete"
+        assert!(!team.all_complete().await);
+    }
+
+    // ── update_task_status with nonexistent task ─────────────────────────
+
+    #[tokio::test]
+    async fn update_task_status_nonexistent_is_no_op() {
+        let team = AgentTeam::new("t", "lead", "goal");
+        team.set_tasks(vec![TeamSubTask {
+            id: "t1".into(),
+            agent_id: "a".into(),
+            description: "d".into(),
+            status: TeamTaskStatus::Pending,
+            result: None,
+        }]).await;
+        // Should not panic
+        team.update_task_status("nonexistent", TeamTaskStatus::Completed, None).await;
+        let tasks = team.tasks.lock().await;
+        assert_eq!(tasks[0].status, TeamTaskStatus::Pending);
+    }
+
+    // ── progress_summary edge case: empty tasks ──────────────────────────
+
+    #[tokio::test]
+    async fn progress_summary_empty() {
+        let team = AgentTeam::new("t", "lead", "goal");
+        let summary = team.progress_summary().await;
+        assert!(summary.contains("0/0 complete"));
+    }
 }

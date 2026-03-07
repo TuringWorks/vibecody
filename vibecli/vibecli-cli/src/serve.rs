@@ -263,7 +263,7 @@ async fn chat(
         .await
         .map_err(|e| {
             tracing::error!("chat provider error: {e}");
-            (StatusCode::INTERNAL_SERVER_ERROR, "LLM provider error".to_string())
+            (StatusCode::INTERNAL_SERVER_ERROR, format!(r#"{{"error":"LLM provider error: {}"}}"#, e.to_string().replace('"', "'")))
         })?;
 
     let mut accumulated = String::new();
@@ -272,7 +272,7 @@ async fn chat(
             Ok(text) => accumulated.push_str(&text),
             Err(e) => {
                 tracing::error!("chat stream error: {e}");
-                return Err((StatusCode::INTERNAL_SERVER_ERROR, "Stream error".to_string()));
+                return Err((StatusCode::INTERNAL_SERVER_ERROR, format!(r#"{{"error":"Stream error: {}"}}"#, e.to_string().replace('"', "'"))));
             }
         }
     }
@@ -454,7 +454,7 @@ async fn get_job(
 ) -> Result<Json<JobRecord>, (StatusCode, String)> {
     load_job(&state.jobs_dir, &id)
         .map(Json)
-        .ok_or_else(|| (StatusCode::NOT_FOUND, format!("Job '{}' not found", id)))
+        .ok_or_else(|| (StatusCode::NOT_FOUND, format!(r#"{{"error":"Job '{}' not found"}}"#, id)))
 }
 
 async fn cancel_job(
@@ -469,7 +469,7 @@ async fn cancel_job(
 
     // Update persisted record
     let mut record = load_job(&state.jobs_dir, &id)
-        .ok_or_else(|| (StatusCode::NOT_FOUND, format!("Job '{}' not found", id)))?;
+        .ok_or_else(|| (StatusCode::NOT_FOUND, format!(r#"{{"error":"Job '{}' not found"}}"#, id)))?;
     if record.status == "running" {
         record.status = "cancelled".to_string();
         record.finished_at = Some(now_ms());
@@ -489,7 +489,7 @@ async fn stream_agent(
         let streams = state.streams.lock().await;
         let tx = streams
             .get(&session_id)
-            .ok_or_else(|| (StatusCode::NOT_FOUND, format!("Session '{}' not found", session_id)))?;
+            .ok_or_else(|| (StatusCode::NOT_FOUND, format!(r#"{{"error":"Session '{}' not found"}}"#, session_id)))?;
         tx.subscribe()
     };
 
@@ -749,6 +749,11 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         "http://127.0.0.1".to_string(),
         format!("http://localhost:{port}"),
         format!("http://127.0.0.1:{port}"),
+        // Tauri 2 dev server origins
+        "tauri://localhost".to_string(),
+        "https://tauri.localhost".to_string(),
+        // Vite dev server (default port)
+        "http://localhost:1420".to_string(),
     ]
     .into_iter()
     .filter_map(|s| s.parse::<HeaderValue>().ok())

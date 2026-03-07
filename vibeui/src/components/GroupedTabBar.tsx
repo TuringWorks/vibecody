@@ -75,6 +75,13 @@ export function GroupedTabBar({ activeTab, onTabChange }: Props) {
           placeholder="Filter panels..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              setSearch("");
+              searchRef.current?.blur();
+              activeRef.current?.focus();
+            }
+          }}
           aria-label="Filter AI panels"
         />
         {search && (

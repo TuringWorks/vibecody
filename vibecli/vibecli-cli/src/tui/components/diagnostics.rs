@@ -136,3 +136,226 @@ pub fn parse_cargo_check(output: &str) -> Vec<TuiDiagnostic> {
 
     diags
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── DiagnosticsComponent::new ───────────────────────────────────────────
+
+    #[test]
+    fn new_component_has_empty_items() {
+        let dc = DiagnosticsComponent::new();
+        assert!(dc.items.is_empty());
+    }
+
+    #[test]
+    fn new_component_has_zero_scroll() {
+        let dc = DiagnosticsComponent::new();
+        assert_eq!(dc.scroll, 0);
+    }
+
+    #[test]
+    fn new_component_has_default_status() {
+        let dc = DiagnosticsComponent::new();
+        assert!(dc.status.contains("No diagnostics"));
+    }
+
+    // ── DiagnosticsComponent::set ───────────────────────────────────────────
+
+    #[test]
+    fn set_with_empty_vec_shows_no_issues() {
+        let mut dc = DiagnosticsComponent::new();
+        dc.scroll = 5; // should be reset
+        dc.set(vec![]);
+        assert!(dc.status.contains("No issues found"));
+        assert_eq!(dc.scroll, 0);
+        assert!(dc.items.is_empty());
+    }
+
+    #[test]
+    fn set_counts_errors_and_warnings() {
+        let mut dc = DiagnosticsComponent::new();
+        let items = vec![
+            TuiDiagnostic { severity: DiagSeverity::Error, file: "a.rs".into(), line: 1, message: "err".into() },
+            TuiDiagnostic { severity: DiagSeverity::Error, file: "b.rs".into(), line: 2, message: "err2".into() },
+            TuiDiagnostic { severity: DiagSeverity::Warning, file: "c.rs".into(), line: 3, message: "warn".into() },
+            TuiDiagnostic { severity: DiagSeverity::Info, file: "d.rs".into(), line: 4, message: "info".into() },
+        ];
+        dc.set(items);
+        assert!(dc.status.contains("2 error(s)"));
+        assert!(dc.status.contains("1 warning(s)"));
+        assert_eq!(dc.items.len(), 4);
+    }
+
+    #[test]
+    fn set_resets_scroll_to_zero() {
+        let mut dc = DiagnosticsComponent::new();
+        dc.scroll = 10;
+        dc.set(vec![
+            TuiDiagnostic { severity: DiagSeverity::Warning, file: "x.rs".into(), line: 1, message: "w".into() },
+        ]);
+        assert_eq!(dc.scroll, 0);
+    }
+
+    // ── DiagnosticsComponent::clear ─────────────────────────────────────────
+
+    #[test]
+    fn clear_removes_all_items() {
+        let mut dc = DiagnosticsComponent::new();
+        dc.set(vec![
+            TuiDiagnostic { severity: DiagSeverity::Error, file: "a.rs".into(), line: 1, message: "e".into() },
+        ]);
+        dc.clear();
+        assert!(dc.items.is_empty());
+        assert_eq!(dc.scroll, 0);
+        assert_eq!(dc.status, "No diagnostics");
+    }
+
+    // ── Scroll ──────────────────────────────────────────────────────────────
+
+    #[test]
+    fn scroll_down_increments() {
+        let mut dc = DiagnosticsComponent::new();
+        dc.items = vec![
+            TuiDiagnostic { severity: DiagSeverity::Error, file: "".into(), line: 0, message: "a".into() },
+            TuiDiagnostic { severity: DiagSeverity::Error, file: "".into(), line: 0, message: "b".into() },
+            TuiDiagnostic { severity: DiagSeverity::Error, file: "".into(), line: 0, message: "c".into() },
+        ];
+        dc.scroll_down();
+        assert_eq!(dc.scroll, 1);
+        dc.scroll_down();
+        assert_eq!(dc.scroll, 2); // max = 3-1 = 2
+        dc.scroll_down();
+        assert_eq!(dc.scroll, 2); // clamped
+    }
+
+    #[test]
+    fn scroll_up_decrements() {
+        let mut dc = DiagnosticsComponent::new();
+        dc.scroll = 2;
+        dc.scroll_up();
+        assert_eq!(dc.scroll, 1);
+        dc.scroll_up();
+        assert_eq!(dc.scroll, 0);
+        dc.scroll_up();
+        assert_eq!(dc.scroll, 0); // saturating
+    }
+
+    #[test]
+    fn scroll_down_on_empty_stays_zero() {
+        let mut dc = DiagnosticsComponent::new();
+        dc.scroll_down();
+        assert_eq!(dc.scroll, 0);
+    }
+
+    // ── DiagSeverity ────────────────────────────────────────────────────────
+
+    #[test]
+    fn diag_severity_eq() {
+        assert_eq!(DiagSeverity::Error, DiagSeverity::Error);
+        assert_eq!(DiagSeverity::Warning, DiagSeverity::Warning);
+        assert_eq!(DiagSeverity::Info, DiagSeverity::Info);
+        assert_ne!(DiagSeverity::Error, DiagSeverity::Warning);
+    }
+
+    // ── parse_cargo_check - JSON format ─────────────────────────────────────
+
+    #[test]
+    fn parse_cargo_check_json_error() {
+        let json_line = r#"{"reason":"compiler-message","message":{"level":"error","message":"cannot find value `x`","spans":[{"file_name":"src/main.rs","line_start":10,"is_primary":true}]}}"#;
+        let diags = parse_cargo_check(json_line);
+        assert_eq!(diags.len(), 1);
+        assert_eq!(diags[0].severity, DiagSeverity::Error);
+        assert_eq!(diags[0].file, "src/main.rs");
+        assert_eq!(diags[0].line, 10);
+        assert!(diags[0].message.contains("cannot find value"));
+    }
+
+    #[test]
+    fn parse_cargo_check_json_warning() {
+        let json_line = r#"{"reason":"compiler-message","message":{"level":"warning","message":"unused variable","spans":[{"file_name":"lib.rs","line_start":5,"is_primary":true}]}}"#;
+        let diags = parse_cargo_check(json_line);
+        assert_eq!(diags.len(), 1);
+        assert_eq!(diags[0].severity, DiagSeverity::Warning);
+        assert_eq!(diags[0].file, "lib.rs");
+        assert_eq!(diags[0].line, 5);
+    }
+
+    #[test]
+    fn parse_cargo_check_json_no_primary_span_uses_message() {
+        let json_line = r#"{"reason":"compiler-message","message":{"level":"error","message":"aborting due to error","spans":[]}}"#;
+        let diags = parse_cargo_check(json_line);
+        assert_eq!(diags.len(), 1);
+        assert_eq!(diags[0].file, "");
+        assert_eq!(diags[0].line, 0);
+        assert!(diags[0].message.contains("aborting"));
+    }
+
+    #[test]
+    fn parse_cargo_check_json_info_level() {
+        let json_line = r#"{"reason":"compiler-message","message":{"level":"note","message":"some note","spans":[{"file_name":"a.rs","line_start":1,"is_primary":true}]}}"#;
+        let diags = parse_cargo_check(json_line);
+        assert_eq!(diags.len(), 1);
+        assert_eq!(diags[0].severity, DiagSeverity::Info);
+    }
+
+    #[test]
+    fn parse_cargo_check_ignores_non_compiler_message() {
+        let json_line = r#"{"reason":"build-script-executed","package_id":"foo"}"#;
+        let diags = parse_cargo_check(json_line);
+        assert!(diags.is_empty());
+    }
+
+    // ── parse_cargo_check - text fallback ───────────────────────────────────
+
+    #[test]
+    fn parse_cargo_check_text_error_simple() {
+        let output = "error: could not compile `foo`";
+        let diags = parse_cargo_check(output);
+        assert_eq!(diags.len(), 1);
+        assert_eq!(diags[0].severity, DiagSeverity::Error);
+        assert!(diags[0].message.contains("could not compile"));
+    }
+
+    #[test]
+    fn parse_cargo_check_text_error_with_code() {
+        let output = "error[E0609]: no field `x` on type `Foo`";
+        let diags = parse_cargo_check(output);
+        assert_eq!(diags.len(), 1);
+        assert_eq!(diags[0].severity, DiagSeverity::Error);
+        assert!(diags[0].message.contains("no field"));
+    }
+
+    #[test]
+    fn parse_cargo_check_text_warning() {
+        let output = "warning: unused variable `x`";
+        let diags = parse_cargo_check(output);
+        assert_eq!(diags.len(), 1);
+        assert_eq!(diags[0].severity, DiagSeverity::Warning);
+        assert!(diags[0].message.contains("unused variable"));
+    }
+
+    #[test]
+    fn parse_cargo_check_ignores_unrelated_lines() {
+        let output = "   Compiling foo v0.1.0\n    Finished dev [unoptimized + debuginfo] target(s)";
+        let diags = parse_cargo_check(output);
+        assert!(diags.is_empty());
+    }
+
+    #[test]
+    fn parse_cargo_check_empty_input() {
+        let diags = parse_cargo_check("");
+        assert!(diags.is_empty());
+    }
+
+    #[test]
+    fn parse_cargo_check_mixed_json_and_text() {
+        let output = r#"{"reason":"compiler-message","message":{"level":"error","message":"type mismatch","spans":[{"file_name":"main.rs","line_start":3,"is_primary":true}]}}
+warning: unused import"#;
+        let diags = parse_cargo_check(output);
+        assert_eq!(diags.len(), 2);
+        assert_eq!(diags[0].severity, DiagSeverity::Error);
+        assert_eq!(diags[1].severity, DiagSeverity::Warning);
+    }
+}

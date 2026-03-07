@@ -471,4 +471,103 @@ mod tests {
         let resp: CompletionResponse = serde_json::from_str(json).unwrap();
         assert!(resp.usage.is_none());
     }
+
+    // ── MessageRole::as_str ──────────────────────────────────────────────
+
+    #[test]
+    fn message_role_as_str_all_variants() {
+        assert_eq!(MessageRole::System.as_str(), "system");
+        assert_eq!(MessageRole::User.as_str(), "user");
+        assert_eq!(MessageRole::Assistant.as_str(), "assistant");
+    }
+
+    // ── CodeContext serde roundtrip ───────────────────────────────────────
+
+    #[test]
+    fn code_context_serde_roundtrip() {
+        let ctx = CodeContext {
+            language: "rust".to_string(),
+            file_path: Some("src/main.rs".to_string()),
+            prefix: "fn main() {".to_string(),
+            suffix: "}".to_string(),
+            additional_context: vec!["use std::io;".to_string()],
+        };
+        let json = serde_json::to_string(&ctx).unwrap();
+        let back: CodeContext = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.language, "rust");
+        assert_eq!(back.file_path.as_deref(), Some("src/main.rs"));
+        assert_eq!(back.prefix, "fn main() {");
+        assert_eq!(back.suffix, "}");
+        assert_eq!(back.additional_context.len(), 1);
+    }
+
+    #[test]
+    fn code_context_no_file_path() {
+        let ctx = CodeContext {
+            language: "python".into(),
+            file_path: None,
+            prefix: "def f():".into(),
+            suffix: "".into(),
+            additional_context: vec![],
+        };
+        let json = serde_json::to_string(&ctx).unwrap();
+        let back: CodeContext = serde_json::from_str(&json).unwrap();
+        assert!(back.file_path.is_none());
+    }
+
+    // ── ImageAttachment serde roundtrip ──────────────────────────────────
+
+    #[test]
+    fn image_attachment_serde_roundtrip() {
+        let img = ImageAttachment {
+            base64: "dGVzdA==".to_string(),
+            media_type: "image/png".to_string(),
+        };
+        let json = serde_json::to_string(&img).unwrap();
+        let back: ImageAttachment = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.base64, "dGVzdA==");
+        assert_eq!(back.media_type, "image/png");
+    }
+
+    // ── TokenUsage serde roundtrip ───────────────────────────────────────
+
+    #[test]
+    fn token_usage_serde_roundtrip() {
+        let usage = TokenUsage { prompt_tokens: 100, completion_tokens: 50 };
+        let json = serde_json::to_string(&usage).unwrap();
+        let back: TokenUsage = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.prompt_tokens, 100);
+        assert_eq!(back.completion_tokens, 50);
+    }
+
+    // ── ProviderConfig default ───────────────────────────────────────────
+
+    #[test]
+    fn provider_config_default() {
+        let cfg = ProviderConfig::default();
+        assert_eq!(cfg.provider_type, "");
+        assert_eq!(cfg.model, "");
+        assert!(cfg.api_key.is_none());
+        assert!(cfg.api_url.is_none());
+        assert!(cfg.max_tokens.is_none());
+        assert!(cfg.temperature.is_none());
+        assert!(cfg.api_key_helper.is_none());
+        assert!(cfg.thinking_budget_tokens.is_none());
+    }
+
+    // ── base64_encode larger input ───────────────────────────────────────
+
+    #[test]
+    fn base64_encode_longer_input() {
+        // "Hello, World!" = SGVsbG8sIFdvcmxkIQ==
+        assert_eq!(base64_encode(b"Hello, World!"), "SGVsbG8sIFdvcmxkIQ==");
+    }
+
+    #[test]
+    fn base64_encode_binary_data() {
+        let data: Vec<u8> = (0..=255).collect();
+        let encoded = base64_encode(&data);
+        // Just verify it doesn't panic and has expected length
+        assert_eq!(encoded.len(), (256_usize).div_ceil(3) * 4);
+    }
 }

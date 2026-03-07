@@ -363,4 +363,176 @@ mod tests {
         let id2 = generate_id();
         assert_ne!(id1, id2);
     }
+
+    // ── Artifact::icon coverage ──────────────────────────────────────────
+
+    #[test]
+    fn artifact_icon_all_variants() {
+        let cases: Vec<(Artifact, &str)> = vec![
+            (Artifact::TaskList { items: vec![] }, "Task List"),
+            (Artifact::ImplementationPlan { steps: vec![], files: vec![] }, "Implementation Plan"),
+            (Artifact::FileChange { path: "p".into(), diff: "".into(), content: None }, "File Change"),
+            (Artifact::CommandOutput { command: "c".into(), stdout: "".into(), stderr: "".into(), exit_code: 0 }, "Command Output"),
+            (Artifact::TestResults { passed: 1, failed: 0, skipped: 0, output: "".into() }, "Test Results"),
+            (Artifact::ReviewReport { issues: vec![], summary: "".into(), score: 0.9 }, "Code Review"),
+            (Artifact::Text { title: "t".into(), content: "c".into() }, "Text"),
+        ];
+        for (artifact, expected_label) in &cases {
+            assert_eq!(artifact.kind_label(), *expected_label);
+            // icon() should return a non-empty string for every variant
+            assert!(!artifact.icon().is_empty(), "icon for {} should not be empty", expected_label);
+        }
+    }
+
+    // ── Artifact serde roundtrip (tagged enum) ───────────────────────────
+
+    #[test]
+    fn artifact_task_list_serde() {
+        let artifact = Artifact::TaskList {
+            items: vec![
+                TaskItem { id: 1, description: "Do thing".into(), done: false, file: Some("main.rs".into()) },
+                TaskItem { id: 2, description: "Done thing".into(), done: true, file: None },
+            ],
+        };
+        let json = serde_json::to_string(&artifact).unwrap();
+        assert!(json.contains("\"type\":\"task_list\""));
+        let back: Artifact = serde_json::from_str(&json).unwrap();
+        if let Artifact::TaskList { items } = back {
+            assert_eq!(items.len(), 2);
+            assert_eq!(items[0].description, "Do thing");
+            assert!(items[1].done);
+        } else {
+            panic!("Expected TaskList variant");
+        }
+    }
+
+    #[test]
+    fn artifact_test_results_serde() {
+        let artifact = Artifact::TestResults {
+            passed: 10,
+            failed: 2,
+            skipped: 1,
+            output: "test output".into(),
+        };
+        let json = serde_json::to_string(&artifact).unwrap();
+        assert!(json.contains("\"type\":\"test_results\""));
+        let back: Artifact = serde_json::from_str(&json).unwrap();
+        if let Artifact::TestResults { passed, failed, skipped, .. } = back {
+            assert_eq!(passed, 10);
+            assert_eq!(failed, 2);
+            assert_eq!(skipped, 1);
+        } else {
+            panic!("Expected TestResults variant");
+        }
+    }
+
+    #[test]
+    fn artifact_review_report_serde() {
+        let artifact = Artifact::ReviewReport {
+            issues: vec![ReviewIssueRef {
+                file: "src/lib.rs".into(),
+                line: 42,
+                severity: "warning".into(),
+                description: "Unused variable".into(),
+            }],
+            summary: "One issue found".into(),
+            score: 0.85,
+        };
+        let json = serde_json::to_string(&artifact).unwrap();
+        let back: Artifact = serde_json::from_str(&json).unwrap();
+        if let Artifact::ReviewReport { issues, summary, score } = back {
+            assert_eq!(issues.len(), 1);
+            assert_eq!(issues[0].line, 42);
+            assert_eq!(summary, "One issue found");
+            assert!((score - 0.85).abs() < f32::EPSILON);
+        } else {
+            panic!("Expected ReviewReport variant");
+        }
+    }
+
+    #[test]
+    fn artifact_command_output_serde() {
+        let artifact = Artifact::CommandOutput {
+            command: "cargo test".into(),
+            stdout: "all passed".into(),
+            stderr: "".into(),
+            exit_code: 0,
+        };
+        let json = serde_json::to_string(&artifact).unwrap();
+        let back: Artifact = serde_json::from_str(&json).unwrap();
+        if let Artifact::CommandOutput { command, exit_code, .. } = back {
+            assert_eq!(command, "cargo test");
+            assert_eq!(exit_code, 0);
+        } else {
+            panic!("Expected CommandOutput variant");
+        }
+    }
+
+    // ── ArtifactStore edge cases ─────────────────────────────────────────
+
+    #[test]
+    fn artifact_store_mark_applied_nonexistent() {
+        let mut store = ArtifactStore::new();
+        assert!(!store.mark_applied("nonexistent"));
+    }
+
+    #[test]
+    fn artifact_store_mark_applied_clears_pending() {
+        let mut store = ArtifactStore::new();
+        let mut a = AgentArtifact::new(1, Artifact::Text { title: "t".into(), content: "c".into() });
+        a.annotate("feedback 1");
+        a.annotate("feedback 2");
+        let id = a.id.clone();
+        store.push(a);
+
+        // Before mark_applied, there should be pending feedback
+        assert!(!store.collect_pending_feedback().is_empty());
+
+        // After mark_applied, no pending feedback
+        assert!(store.mark_applied(&id));
+        assert!(store.collect_pending_feedback().is_empty());
+    }
+
+    #[test]
+    fn artifact_store_default_is_empty() {
+        let store = ArtifactStore::default();
+        assert!(store.artifacts.is_empty());
+        assert!(store.collect_pending_feedback().is_empty());
+    }
+
+    // ── Annotation ───────────────────────────────────────────────────────
+
+    #[test]
+    fn annotation_new_defaults_not_applied() {
+        let ann = Annotation::new("test feedback");
+        assert_eq!(ann.text, "test feedback");
+        assert!(!ann.applied);
+        assert!(ann.timestamp > 0);
+    }
+
+    #[test]
+    fn annotation_serde_roundtrip() {
+        let ann = Annotation::new("roundtrip test");
+        let json = serde_json::to_string(&ann).unwrap();
+        let back: Annotation = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.text, "roundtrip test");
+        assert!(!back.applied);
+    }
+
+    // ── TaskItem ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn task_item_serde_roundtrip() {
+        let item = TaskItem {
+            id: 5,
+            description: "Write tests".into(),
+            done: true,
+            file: Some("tests/mod.rs".into()),
+        };
+        let json = serde_json::to_string(&item).unwrap();
+        let back: TaskItem = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.id, 5);
+        assert!(back.done);
+        assert_eq!(back.file.as_deref(), Some("tests/mod.rs"));
+    }
 }

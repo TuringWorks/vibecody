@@ -92,4 +92,67 @@ mod tests {
         // Should not panic and should be exactly 10 chars
         assert_eq!(t.chars().count(), 10);
     }
+
+    // ── truncate_task edge cases ─────────────────────────────────────────
+
+    #[test]
+    fn truncate_task_empty() {
+        assert_eq!(truncate_task("", 200), "");
+    }
+
+    #[test]
+    fn truncate_task_exact_length() {
+        let s = "a".repeat(200);
+        let t = truncate_task(&s, 200);
+        assert_eq!(t.len(), 200);
+    }
+
+    #[test]
+    fn truncate_task_zero_max() {
+        let t = truncate_task("hello", 0);
+        assert_eq!(t, "");
+    }
+
+    #[test]
+    fn truncate_task_one_char() {
+        let t = truncate_task("hello world", 1);
+        assert_eq!(t, "h");
+    }
+
+    // ── Span and attribute constants ─────────────────────────────────────
+
+    #[test]
+    fn span_names_are_namespaced() {
+        assert!(SPAN_SESSION.starts_with("agent."));
+        assert!(SPAN_LLM_CALL.starts_with("agent."));
+        assert!(SPAN_STEP.starts_with("agent."));
+        assert!(SPAN_HOOK.starts_with("agent."));
+    }
+
+    #[test]
+    fn attribute_keys_are_namespaced() {
+        assert!(ATTR_SESSION_ID.starts_with("agent."));
+        assert!(ATTR_TASK.starts_with("agent."));
+        assert!(ATTR_STEP_NUM.starts_with("agent."));
+        assert!(ATTR_TOOL_NAME.starts_with("tool."));
+        assert!(ATTR_TOOL_SUCCESS.starts_with("tool."));
+        assert!(ATTR_TOOL_APPROVED.starts_with("tool."));
+        assert!(ATTR_LLM_MODEL.starts_with("llm."));
+        assert!(ATTR_LLM_MESSAGE_COUNT.starts_with("llm."));
+        assert!(ATTR_HOOK_EVENT.starts_with("hook."));
+        assert!(ATTR_HOOK_DECISION.starts_with("hook."));
+        assert!(ATTR_HOOK_BLOCK_REASON.starts_with("hook."));
+    }
+
+    #[test]
+    fn all_attribute_keys_unique() {
+        let keys = vec![
+            ATTR_SESSION_ID, ATTR_TASK, ATTR_STEP_NUM, ATTR_TOOL_NAME,
+            ATTR_TOOL_SUCCESS, ATTR_TOOL_APPROVED, ATTR_LLM_MODEL,
+            ATTR_LLM_MESSAGE_COUNT, ATTR_HOOK_EVENT, ATTR_HOOK_DECISION,
+            ATTR_HOOK_BLOCK_REASON,
+        ];
+        let unique: std::collections::HashSet<&str> = keys.iter().cloned().collect();
+        assert_eq!(unique.len(), keys.len(), "All attribute keys should be unique");
+    }
 }

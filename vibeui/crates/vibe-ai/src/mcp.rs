@@ -328,4 +328,83 @@ mod tests {
         let prompt = McpClient::tools_prompt(&tools);
         assert!(prompt.contains("## MCP Tools"));
     }
+
+    // ── next_id monotonically increasing ─────────────────────────────────
+
+    #[test]
+    fn next_id_monotonically_increasing() {
+        let id1 = next_id();
+        let id2 = next_id();
+        let id3 = next_id();
+        assert!(id2 > id1);
+        assert!(id3 > id2);
+    }
+
+    // ── McpServerConfig serde with defaults ──────────────────────────────
+
+    #[test]
+    fn server_config_missing_optional_fields_uses_defaults() {
+        let json = r#"{"name": "test", "command": "echo hello"}"#;
+        let cfg: McpServerConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(cfg.name, "test");
+        assert_eq!(cfg.command, "echo hello");
+        assert!(cfg.args.is_empty());
+        assert!(cfg.env.is_empty());
+    }
+
+    #[test]
+    fn server_config_toml_roundtrip() {
+        let cfg = McpServerConfig {
+            name: "github".to_string(),
+            command: "npx @mcp/server-github".to_string(),
+            args: vec!["--verbose".to_string()],
+            env: [("TOKEN".to_string(), "abc".to_string())].into_iter().collect(),
+        };
+        let toml_str = toml::to_string(&cfg).unwrap();
+        let back: McpServerConfig = toml::from_str(&toml_str).unwrap();
+        assert_eq!(back.name, "github");
+        assert_eq!(back.args, vec!["--verbose"]);
+        assert_eq!(back.env.get("TOKEN").map(|s| s.as_str()), Some("abc"));
+    }
+
+    // ── McpTool roundtrip ────────────────────────────────────────────────
+
+    #[test]
+    fn mcp_tool_serde_roundtrip() {
+        let tool = McpTool {
+            name: "create_pr".to_string(),
+            description: "Creates a pull request".to_string(),
+            server: "github".to_string(),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "title": { "type": "string" },
+                    "body": { "type": "string" }
+                }
+            }),
+        };
+        let json = serde_json::to_string(&tool).unwrap();
+        let back: McpTool = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.name, "create_pr");
+        assert_eq!(back.description, "Creates a pull request");
+        assert_eq!(back.server, "github");
+        assert!(back.input_schema.is_object());
+    }
+
+    // ── tools_prompt formatting ──────────────────────────────────────────
+
+    #[test]
+    fn tools_prompt_includes_server_slash_tool() {
+        let tools = vec![make_tool("github", "list_issues", "List issues")];
+        let prompt = McpClient::tools_prompt(&tools);
+        assert!(prompt.contains("mcp/github/list_issues"));
+    }
+
+    #[test]
+    fn tools_prompt_includes_tool_call_xml_format() {
+        let tools = vec![make_tool("db", "query", "Run query")];
+        let prompt = McpClient::tools_prompt(&tools);
+        assert!(prompt.contains("<tool_call name=\"mcp__db__query\">"));
+        assert!(prompt.contains("<arguments>"));
+    }
 }

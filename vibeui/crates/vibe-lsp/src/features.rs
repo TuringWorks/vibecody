@@ -91,3 +91,146 @@ pub async fn rename_symbol(
 ) -> Result<Option<WorkspaceEdit>> {
     client.rename(params).await
 }
+
+#[cfg(test)]
+mod tests {
+    //! These tests verify the LSP feature module's type compatibility and
+    //! constructor helpers.  The actual async functions delegate to `LspClient`
+    //! and require a running language server, so they are not called here.
+
+    use lsp_types::*;
+
+    // ── Type construction tests ─────────────────────────────────────────────
+    // Ensures the LSP types used in the feature API can be constructed and
+    // serialised without panicking, catching any breaking upstream changes.
+
+    fn make_text_document_identifier() -> TextDocumentIdentifier {
+        let uri: Uri = "file:///tmp/test.rs".parse().unwrap();
+        TextDocumentIdentifier::new(uri)
+    }
+
+    fn make_position() -> Position {
+        Position::new(10, 5)
+    }
+
+    #[test]
+    fn completion_params_can_be_constructed() {
+        let params = CompletionParams {
+            text_document_position: TextDocumentPositionParams::new(
+                make_text_document_identifier(),
+                make_position(),
+            ),
+            work_done_progress_params: WorkDoneProgressParams::default(),
+            partial_result_params: PartialResultParams::default(),
+            context: None,
+        };
+        let json = serde_json::to_value(&params);
+        assert!(json.is_ok());
+    }
+
+    #[test]
+    fn hover_params_can_be_constructed() {
+        let params = HoverParams {
+            text_document_position_params: TextDocumentPositionParams::new(
+                make_text_document_identifier(),
+                make_position(),
+            ),
+            work_done_progress_params: WorkDoneProgressParams::default(),
+        };
+        let json = serde_json::to_value(&params);
+        assert!(json.is_ok());
+    }
+
+    #[test]
+    fn goto_definition_params_can_be_constructed() {
+        let params = GotoDefinitionParams {
+            text_document_position_params: TextDocumentPositionParams::new(
+                make_text_document_identifier(),
+                make_position(),
+            ),
+            work_done_progress_params: WorkDoneProgressParams::default(),
+            partial_result_params: PartialResultParams::default(),
+        };
+        let json = serde_json::to_value(&params);
+        assert!(json.is_ok());
+    }
+
+    #[test]
+    fn document_symbol_params_can_be_constructed() {
+        let params = DocumentSymbolParams {
+            text_document: make_text_document_identifier(),
+            work_done_progress_params: WorkDoneProgressParams::default(),
+            partial_result_params: PartialResultParams::default(),
+        };
+        let json = serde_json::to_value(&params);
+        assert!(json.is_ok());
+    }
+
+    #[test]
+    fn formatting_params_can_be_constructed() {
+        let params = DocumentFormattingParams {
+            text_document: make_text_document_identifier(),
+            options: FormattingOptions {
+                tab_size: 4,
+                insert_spaces: true,
+                ..Default::default()
+            },
+            work_done_progress_params: WorkDoneProgressParams::default(),
+        };
+        let json = serde_json::to_value(&params);
+        assert!(json.is_ok());
+    }
+
+    #[test]
+    fn reference_params_can_be_constructed() {
+        let params = ReferenceParams {
+            text_document_position: TextDocumentPositionParams::new(
+                make_text_document_identifier(),
+                make_position(),
+            ),
+            work_done_progress_params: WorkDoneProgressParams::default(),
+            partial_result_params: PartialResultParams::default(),
+            context: ReferenceContext {
+                include_declaration: true,
+            },
+        };
+        let json = serde_json::to_value(&params);
+        assert!(json.is_ok());
+    }
+
+    #[test]
+    fn rename_params_can_be_constructed() {
+        let params = RenameParams {
+            text_document_position: TextDocumentPositionParams::new(
+                make_text_document_identifier(),
+                make_position(),
+            ),
+            new_name: "new_name".to_string(),
+            work_done_progress_params: WorkDoneProgressParams::default(),
+        };
+        let json = serde_json::to_value(&params);
+        assert!(json.is_ok());
+    }
+
+    #[test]
+    fn position_fields_are_correct() {
+        let pos = make_position();
+        assert_eq!(pos.line, 10);
+        assert_eq!(pos.character, 5);
+    }
+
+    #[test]
+    fn text_document_identifier_uri() {
+        let tdi = make_text_document_identifier();
+        assert_eq!(tdi.uri.as_str(), "file:///tmp/test.rs");
+    }
+
+    #[test]
+    fn text_edit_can_be_constructed() {
+        let edit = TextEdit::new(
+            Range::new(Position::new(0, 0), Position::new(0, 5)),
+            "replacement".to_string(),
+        );
+        assert_eq!(edit.new_text, "replacement");
+    }
+}

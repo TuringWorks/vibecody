@@ -352,4 +352,162 @@ mod tests {
         assert_eq!(policy.check_tool("bash"), PolicyDecision::Allow);
         assert_eq!(policy.check_path("/etc/passwd"), PolicyDecision::Allow);
     }
+
+    // ── parse_tool_pattern ───────────────────────────────────────────────
+
+    #[test]
+    fn parse_tool_pattern_valid() {
+        let result = parse_tool_pattern("bash(rm*)");
+        assert!(result.is_some());
+        let (tool, arg) = result.unwrap();
+        assert_eq!(tool, "bash");
+        assert_eq!(arg, "rm*");
+    }
+
+    #[test]
+    fn parse_tool_pattern_no_parens() {
+        assert!(parse_tool_pattern("bash").is_none());
+    }
+
+    #[test]
+    fn parse_tool_pattern_empty_arg() {
+        let result = parse_tool_pattern("bash()");
+        // The closing paren is at index 5, the opening paren is at index 4.
+        // end (5) > paren (4) is true but the arg is empty.
+        assert!(result.is_some());
+        let (tool, arg) = result.unwrap();
+        assert_eq!(tool, "bash");
+        assert_eq!(arg, "");
+    }
+
+    #[test]
+    fn parse_tool_pattern_with_spaces() {
+        let result = parse_tool_pattern("  bash  ( sudo* )");
+        assert!(result.is_some());
+        let (tool, arg) = result.unwrap();
+        assert_eq!(tool, "bash");
+        assert_eq!(arg, "sudo*");
+    }
+
+    // ── check_tool_with_args ─────────────────────────────────────────────
+
+    #[test]
+    fn check_tool_with_args_blocked_by_pattern() {
+        let policy = AdminPolicy {
+            denied_tool_patterns: vec!["bash(rm*)".into(), "bash(sudo*)".into()],
+            ..Default::default()
+        };
+        assert!(matches!(
+            policy.check_tool_with_args("bash", "rm -rf /"),
+            PolicyDecision::Block(_)
+        ));
+        assert!(matches!(
+            policy.check_tool_with_args("bash", "sudo reboot"),
+            PolicyDecision::Block(_)
+        ));
+        assert_eq!(
+            policy.check_tool_with_args("bash", "ls -la"),
+            PolicyDecision::Allow
+        );
+    }
+
+    #[test]
+    fn check_tool_with_args_plain_pattern_blocks_tool() {
+        let policy = AdminPolicy {
+            denied_tool_patterns: vec!["bash".into()],
+            ..Default::default()
+        };
+        assert!(matches!(
+            policy.check_tool_with_args("bash", "any command"),
+            PolicyDecision::Block(_)
+        ));
+    }
+
+    #[test]
+    fn check_tool_with_args_falls_through_to_denied_tools() {
+        let policy = AdminPolicy {
+            denied_tools: vec!["bash".into()],
+            ..Default::default()
+        };
+        assert!(matches!(
+            policy.check_tool_with_args("bash", "ls"),
+            PolicyDecision::Block(_)
+        ));
+    }
+
+    // ── tool check case insensitivity ────────────────────────────────────
+
+    #[test]
+    fn tool_denied_case_insensitive() {
+        let policy = AdminPolicy {
+            denied_tools: vec!["Bash".into()],
+            ..Default::default()
+        };
+        assert!(matches!(
+            policy.check_tool("bash"),
+            PolicyDecision::Block(_)
+        ));
+        assert!(matches!(
+            policy.check_tool("BASH"),
+            PolicyDecision::Block(_)
+        ));
+    }
+
+    // ── requires_approval ────────────────────────────────────────────────
+
+    #[test]
+    fn requires_approval_returns_true_for_required() {
+        let policy = AdminPolicy {
+            require_approval_tools: vec!["write_file".into()],
+            ..Default::default()
+        };
+        assert!(policy.requires_approval("write_file"));
+        assert!(!policy.requires_approval("read_file"));
+    }
+
+    // ── wildcard denied tools ────────────────────────────────────────────
+
+    #[test]
+    fn wildcard_denies_all_tools() {
+        let policy = AdminPolicy {
+            denied_tools: vec!["*".into()],
+            ..Default::default()
+        };
+        assert!(matches!(policy.check_tool("anything"), PolicyDecision::Block(_)));
+        assert!(matches!(policy.check_tool("read_file"), PolicyDecision::Block(_)));
+    }
+
+    // ── AdminPolicy serde roundtrip ──────────────────────────────────────
+
+    #[test]
+    fn admin_policy_serde_roundtrip() {
+        let policy = AdminPolicy {
+            max_steps: Some(20),
+            denied_tools: vec!["bash".into()],
+            require_approval_tools: vec!["write_file".into()],
+            allow_paths: vec!["src/**".into()],
+            deny_paths: vec!["**/.env".into()],
+            audit_log: true,
+            denied_tool_patterns: vec!["bash(rm*)".into()],
+        };
+        let json = serde_json::to_string(&policy).unwrap();
+        let back: AdminPolicy = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.max_steps, Some(20));
+        assert_eq!(back.denied_tools, vec!["bash"]);
+        assert!(back.audit_log);
+        assert_eq!(back.denied_tool_patterns, vec!["bash(rm*)"]);
+    }
+
+    // ── PolicyDecision ───────────────────────────────────────────────────
+
+    #[test]
+    fn policy_decision_equality() {
+        assert_eq!(PolicyDecision::Allow, PolicyDecision::Allow);
+        assert_eq!(PolicyDecision::RequireApproval, PolicyDecision::RequireApproval);
+        assert_ne!(PolicyDecision::Allow, PolicyDecision::RequireApproval);
+        assert_ne!(
+            PolicyDecision::Block("a".into()),
+            PolicyDecision::Block("b".into())
+        );
+    }
 }
