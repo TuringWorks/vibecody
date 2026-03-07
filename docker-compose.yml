@@ -1,0 +1,70 @@
+# VibeCLI + Ollama Docker Compose
+#
+# Start the full stack (air-gapped mode):
+#   docker compose up
+#
+# With GPU support (NVIDIA):
+#   docker compose --profile gpu up
+#
+# Access:
+#   VibeCLI API: http://localhost:7878
+#   Ollama API:  http://localhost:11434
+
+services:
+  vibecli:
+    build: .
+    ports:
+      - "7878:7878"
+    environment:
+      - VIBECLI_PROVIDER=ollama
+      - OLLAMA_HOST=http://ollama:11434
+      - RUST_LOG=info
+    volumes:
+      - vibecli-data:/home/vibecli/.vibecli
+      - ./workspace:/workspace
+    depends_on:
+      ollama:
+        condition: service_healthy
+    restart: unless-stopped
+    command: ["serve", "--port", "7878", "--provider", "ollama"]
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  # GPU-accelerated Ollama (activate with: docker compose --profile gpu up)
+  ollama-gpu:
+    image: ollama/ollama:latest
+    profiles: ["gpu"]
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+volumes:
+  vibecli-data:
+  ollama-models:

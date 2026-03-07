@@ -7805,6 +7805,546 @@ mod tests {
         assert_eq!(back.framework, "eslint");
         assert_eq!(back.files_changed, 3);
     }
+
+    // ── strip_ansi ──────────────────────────────────────────────────────────
+
+    #[test]
+    fn strip_ansi_removes_color_codes() {
+        let input = "\x1b[31mred\x1b[0m normal";
+        assert_eq!(strip_ansi(input), "red normal");
+    }
+
+    #[test]
+    fn strip_ansi_plain_text_unchanged() {
+        assert_eq!(strip_ansi("hello world"), "hello world");
+    }
+
+    #[test]
+    fn strip_ansi_empty_string() {
+        assert_eq!(strip_ansi(""), "");
+    }
+
+    #[test]
+    fn strip_ansi_multiple_sequences() {
+        let input = "\x1b[1m\x1b[32mgreen bold\x1b[0m\x1b[0m";
+        assert_eq!(strip_ansi(input), "green bold");
+    }
+
+    // ── strip_html ──────────────────────────────────────────────────────────
+
+    #[test]
+    fn strip_html_removes_tags() {
+        let html = "<p>Hello <b>world</b></p>";
+        let result = strip_html(html, 1000);
+        assert!(!result.contains('<'));
+        assert!(result.contains("Hello"));
+        assert!(result.contains("world"));
+    }
+
+    #[test]
+    fn strip_html_decodes_entities() {
+        let html = "a &amp; b &lt; c &gt; d &quot;e&quot; f&#39;g";
+        let result = strip_html(html, 1000);
+        assert!(result.contains("a & b < c > d \"e\" f'g"));
+    }
+
+    #[test]
+    fn strip_html_truncates_to_max_chars() {
+        let html = "<p>Hello wonderful world of testing</p>";
+        let result = strip_html(html, 5);
+        assert_eq!(result.len(), 5);
+    }
+
+    #[test]
+    fn strip_html_empty_input() {
+        assert_eq!(strip_html("", 1000), "");
+    }
+
+    // ── extract_json ────────────────────────────────────────────────────────
+
+    #[test]
+    fn extract_json_strips_json_fence() {
+        let input = "```json\n{\"key\": \"value\"}\n```";
+        assert_eq!(extract_json(input), "{\"key\": \"value\"}");
+    }
+
+    #[test]
+    fn extract_json_strips_plain_fence() {
+        let input = "```\n{\"a\": 1}\n```";
+        assert_eq!(extract_json(input), "{\"a\": 1}");
+    }
+
+    #[test]
+    fn extract_json_passthrough_plain_json() {
+        let input = "{\"key\": \"value\"}";
+        assert_eq!(extract_json(input), "{\"key\": \"value\"}");
+    }
+
+    // ── is_secret_key ───────────────────────────────────────────────────────
+
+    #[test]
+    fn is_secret_key_detects_common_secret_patterns() {
+        assert!(is_secret_key("DATABASE_PASSWORD"));
+        assert!(is_secret_key("API_KEY"));
+        assert!(is_secret_key("AUTH_TOKEN"));
+        assert!(is_secret_key("AWS_SECRET_ACCESS_KEY"));
+        assert!(is_secret_key("PRIVATE_KEY"));
+        assert!(is_secret_key("CREDENTIAL_FILE"));
+    }
+
+    #[test]
+    fn is_secret_key_rejects_non_secret_keys() {
+        assert!(!is_secret_key("DATABASE_HOST"));
+        assert!(!is_secret_key("PORT"));
+        assert!(!is_secret_key("LOG_LEVEL"));
+        assert!(!is_secret_key("NODE_ENV"));
+    }
+
+    #[test]
+    fn is_secret_key_case_insensitive() {
+        assert!(is_secret_key("my_api_key"));
+        assert!(is_secret_key("My_Secret"));
+    }
+
+    // ── env_filename_to_environment ─────────────────────────────────────────
+
+    #[test]
+    fn env_filename_default() {
+        assert_eq!(env_filename_to_environment(".env"), "default");
+        assert_eq!(env_filename_to_environment(".env.local"), "default");
+    }
+
+    #[test]
+    fn env_filename_with_suffix() {
+        assert_eq!(env_filename_to_environment(".env.production"), "production");
+        assert_eq!(env_filename_to_environment(".env.staging"), "staging");
+        assert_eq!(env_filename_to_environment(".env.development"), "development");
+    }
+
+    #[test]
+    fn env_filename_with_local_suffix_stripped() {
+        assert_eq!(env_filename_to_environment(".env.production.local"), "production");
+    }
+
+    #[test]
+    fn env_filename_unknown_defaults() {
+        assert_eq!(env_filename_to_environment("config.env"), "default");
+    }
+
+    // ── parse_env_content ───────────────────────────────────────────────────
+
+    #[test]
+    fn parse_env_content_basic() {
+        let content = "PORT=3000\nHOST=localhost\n";
+        let entries = parse_env_content(content, true);
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].key, "PORT");
+        assert_eq!(entries[0].value, "3000");
+        assert!(!entries[0].is_secret);
+    }
+
+    #[test]
+    fn parse_env_content_hides_secrets() {
+        let content = "API_KEY=my-secret-key\nPORT=8080\n";
+        let entries = parse_env_content(content, false);
+        assert_eq!(entries.len(), 2);
+        // API_KEY should be masked
+        let api_entry = entries.iter().find(|e| e.key == "API_KEY").unwrap();
+        assert!(api_entry.is_secret);
+        assert!(!api_entry.value.contains("my-secret-key"));
+        // PORT should be visible
+        let port_entry = entries.iter().find(|e| e.key == "PORT").unwrap();
+        assert_eq!(port_entry.value, "8080");
+    }
+
+    #[test]
+    fn parse_env_content_skips_comments_and_blanks() {
+        let content = "# comment\n\nKEY=val\n";
+        let entries = parse_env_content(content, true);
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].key, "KEY");
+    }
+
+    #[test]
+    fn parse_env_content_strips_quotes() {
+        let content = "A=\"quoted\"\nB='single'\n";
+        let entries = parse_env_content(content, true);
+        assert_eq!(entries[0].value, "quoted");
+        assert_eq!(entries[1].value, "single");
+    }
+
+    // ── classify_log_level ──────────────────────────────────────────────────
+
+    #[test]
+    fn classify_log_level_error() {
+        assert_eq!(classify_log_level("2024 ERROR: something broke"), "error");
+        assert_eq!(classify_log_level("FATAL: crash"), "error");
+        assert_eq!(classify_log_level("kernel PANIC"), "error");
+    }
+
+    #[test]
+    fn classify_log_level_warn() {
+        assert_eq!(classify_log_level("WARN: disk almost full"), "warn");
+    }
+
+    #[test]
+    fn classify_log_level_info_debug_trace() {
+        assert_eq!(classify_log_level("INFO: started"), "info");
+        assert_eq!(classify_log_level("DEBUG: x=5"), "debug");
+        assert_eq!(classify_log_level("TRACE: entering fn"), "trace");
+    }
+
+    #[test]
+    fn classify_log_level_unknown() {
+        assert_eq!(classify_log_level("just a regular line"), "unknown");
+    }
+
+    // ── level_priority ──────────────────────────────────────────────────────
+
+    #[test]
+    fn level_priority_ordering() {
+        assert!(level_priority("error") < level_priority("warn"));
+        assert!(level_priority("warn") < level_priority("info"));
+        assert!(level_priority("info") < level_priority("debug"));
+        assert!(level_priority("debug") < level_priority("trace"));
+        assert!(level_priority("trace") < level_priority("something_else"));
+    }
+
+    // ── extract_timestamp ───────────────────────────────────────────────────
+
+    #[test]
+    fn extract_timestamp_iso8601() {
+        let ts = extract_timestamp("2024-01-15T10:30:00 some message");
+        assert_eq!(ts, Some("2024-01-15T10:30:00".to_string()));
+    }
+
+    #[test]
+    fn extract_timestamp_space_separated() {
+        let ts = extract_timestamp("[2024-01-15 10:30:00] INFO: started");
+        assert_eq!(ts, Some("2024-01-15 10:30:00".to_string()));
+    }
+
+    #[test]
+    fn extract_timestamp_none_for_no_timestamp() {
+        let ts = extract_timestamp("just a regular line with no date");
+        assert!(ts.is_none());
+    }
+
+    // ── validate_git_ref ────────────────────────────────────────────────────
+
+    #[test]
+    fn validate_git_ref_valid() {
+        assert!(validate_git_ref("main").is_ok());
+        assert!(validate_git_ref("feature/my-branch").is_ok());
+        assert!(validate_git_ref("abc123").is_ok());
+    }
+
+    #[test]
+    fn validate_git_ref_rejects_empty() {
+        assert!(validate_git_ref("").is_err());
+    }
+
+    #[test]
+    fn validate_git_ref_rejects_shell_injection() {
+        assert!(validate_git_ref("main; rm -rf /").is_err());
+        assert!(validate_git_ref("branch | cat /etc/passwd").is_err());
+        assert!(validate_git_ref("branch & bg").is_err());
+        assert!(validate_git_ref("branch`whoami`").is_err());
+        assert!(validate_git_ref("branch$HOME").is_err());
+        assert!(validate_git_ref("branch\ninjection").is_err());
+    }
+
+    // ── is_safe_snippet_name ────────────────────────────────────────────────
+
+    #[test]
+    fn is_safe_snippet_name_valid() {
+        assert!(is_safe_snippet_name("my-snippet"));
+        assert!(is_safe_snippet_name("snippet_v2"));
+        assert!(is_safe_snippet_name("a"));
+        assert!(is_safe_snippet_name("test123"));
+    }
+
+    #[test]
+    fn is_safe_snippet_name_rejects_empty() {
+        assert!(!is_safe_snippet_name(""));
+    }
+
+    #[test]
+    fn is_safe_snippet_name_rejects_too_long() {
+        let long = "a".repeat(65);
+        assert!(!is_safe_snippet_name(&long));
+    }
+
+    #[test]
+    fn is_safe_snippet_name_rejects_special_chars() {
+        assert!(!is_safe_snippet_name("../traversal"));
+        assert!(!is_safe_snippet_name("name with spaces"));
+        assert!(!is_safe_snippet_name("file.ext"));
+    }
+
+    // ── ext_to_language ─────────────────────────────────────────────────────
+
+    #[test]
+    fn ext_to_language_known_extensions() {
+        assert_eq!(ext_to_language("rs"), Some("Rust"));
+        assert_eq!(ext_to_language("ts"), Some("TypeScript"));
+        assert_eq!(ext_to_language("tsx"), Some("TypeScript"));
+        assert_eq!(ext_to_language("py"), Some("Python"));
+        assert_eq!(ext_to_language("go"), Some("Go"));
+        assert_eq!(ext_to_language("java"), Some("Java"));
+        assert_eq!(ext_to_language("json"), Some("JSON"));
+    }
+
+    #[test]
+    fn ext_to_language_unknown_extension() {
+        assert_eq!(ext_to_language("xyz"), None);
+        assert_eq!(ext_to_language(""), None);
+    }
+
+    // ── line_is_comment ─────────────────────────────────────────────────────
+
+    #[test]
+    fn line_is_comment_rust() {
+        assert!(line_is_comment("  // comment", "rs"));
+        assert!(line_is_comment("/* block */", "rs"));
+        assert!(!line_is_comment("  let x = 5;", "rs"));
+    }
+
+    #[test]
+    fn line_is_comment_python() {
+        assert!(line_is_comment("# comment", "py"));
+        assert!(!line_is_comment("x = 5", "py"));
+    }
+
+    #[test]
+    fn line_is_comment_html() {
+        assert!(line_is_comment("<!-- comment -->", "html"));
+        assert!(!line_is_comment("<div>text</div>", "html"));
+    }
+
+    // ── count_branch_complexity ──────────────────────────────────────────────
+
+    #[test]
+    fn count_branch_complexity_rust() {
+        assert_eq!(count_branch_complexity("if x > 0 && y < 10 {", "rs"), 2);
+        assert_eq!(count_branch_complexity("let x = 5;", "rs"), 0);
+        assert_eq!(count_branch_complexity("match value {", "rs"), 1);
+    }
+
+    #[test]
+    fn count_branch_complexity_python() {
+        assert_eq!(count_branch_complexity("if x and y:", "py"), 2);
+        // "elif x or y:" matches "if " (substring within "elif"), "elif ", and "or " = 3
+        assert_eq!(count_branch_complexity("elif x or y:", "py"), 3);
+        assert_eq!(count_branch_complexity("x = 5", "py"), 0);
+    }
+
+    // ── detect_language_from_path_or_fence ───────────────────────────────────
+
+    #[test]
+    fn detect_language_from_path_extension() {
+        assert_eq!(detect_language_from_path_or_fence("src/App.tsx", ""), "tsx");
+        assert_eq!(detect_language_from_path_or_fence("main.js", ""), "javascript");
+        assert_eq!(detect_language_from_path_or_fence("index.html", ""), "html");
+        assert_eq!(detect_language_from_path_or_fence("style.css", ""), "css");
+    }
+
+    #[test]
+    fn detect_language_falls_back_to_fence() {
+        assert_eq!(detect_language_from_path_or_fence("file.unknown", "python"), "python");
+    }
+
+    #[test]
+    fn detect_language_defaults_to_text() {
+        assert_eq!(detect_language_from_path_or_fence("file.unknown", ""), "text");
+    }
+
+    // ── infer_file_info ─────────────────────────────────────────────────────
+
+    #[test]
+    fn infer_file_info_tsx() {
+        let (path, lang) = infer_file_info("tsx", 1);
+        assert_eq!(path, "src/Component1.tsx");
+        assert_eq!(lang, "tsx");
+    }
+
+    #[test]
+    fn infer_file_info_html_first_block() {
+        let (path, lang) = infer_file_info("html", 1);
+        assert_eq!(path, "index.html");
+        assert_eq!(lang, "html");
+    }
+
+    #[test]
+    fn infer_file_info_html_second_block() {
+        let (path, _lang) = infer_file_info("html", 2);
+        assert_eq!(path, "index2.html");
+    }
+
+    #[test]
+    fn infer_file_info_unknown_gives_txt() {
+        let (path, lang) = infer_file_info("brainfuck", 1);
+        assert_eq!(path, "src/file1.txt");
+        assert_eq!(lang, "text");
+    }
+
+    // ── parse_flake8_text ───────────────────────────────────────────────────
+
+    #[test]
+    fn parse_flake8_text_basic() {
+        let output = "main.py:10:5:E302:expected 2 blank lines\nmain.py:15:1:W291:trailing whitespace\n";
+        let (errors, warnings) = parse_flake8_text(output);
+        assert_eq!(errors.len(), 1);
+        assert_eq!(warnings.len(), 1);
+        assert_eq!(errors[0].line, 10);
+        assert_eq!(errors[0].rule, Some("E302".to_string()));
+        assert_eq!(warnings[0].line, 15);
+    }
+
+    #[test]
+    fn parse_flake8_text_empty() {
+        let (errors, warnings) = parse_flake8_text("");
+        assert!(errors.is_empty());
+        assert!(warnings.is_empty());
+    }
+
+    // ── parse_generic_text ──────────────────────────────────────────────────
+
+    #[test]
+    fn parse_generic_text_captures_lines_as_errors() {
+        let output = "error on line 1\nerror on line 2\n";
+        let (errors, warnings) = parse_generic_text(output);
+        assert_eq!(errors.len(), 2);
+        assert!(warnings.is_empty());
+        assert_eq!(errors[0].message, "error on line 1");
+    }
+
+    #[test]
+    fn parse_generic_text_limits_to_20_lines() {
+        let output = (0..30).map(|i| format!("line {}", i)).collect::<Vec<_>>().join("\n");
+        let (errors, _) = parse_generic_text(&output);
+        assert_eq!(errors.len(), 20);
+    }
+
+    // ── parse_steering_meta ─────────────────────────────────────────────────
+
+    #[test]
+    fn parse_steering_meta_no_frontmatter() {
+        let meta = parse_steering_meta("Just body content.", "project-ctx.md");
+        assert_eq!(meta.filename, "project-ctx.md");
+        assert_eq!(meta.name, "project-ctx");
+        assert!(meta.scope_label.is_none());
+    }
+
+    // ── parse_eslint_json ───────────────────────────────────────────────────
+
+    #[test]
+    fn parse_eslint_json_valid() {
+        let json = r#"[{"filePath":"a.js","messages":[{"line":5,"column":10,"severity":2,"message":"Unexpected var","ruleId":"no-var"}]}]"#;
+        let (errors, warnings) = parse_eslint_json(json);
+        assert_eq!(errors.len(), 1);
+        assert!(warnings.is_empty());
+        assert_eq!(errors[0].line, 5);
+        assert_eq!(errors[0].col, 10);
+        assert_eq!(errors[0].rule.as_deref(), Some("no-var"));
+    }
+
+    #[test]
+    fn parse_eslint_json_warning_severity() {
+        let json = r#"[{"filePath":"a.js","messages":[{"line":1,"column":1,"severity":1,"message":"warn msg","ruleId":"semi"}]}]"#;
+        let (errors, warnings) = parse_eslint_json(json);
+        assert!(errors.is_empty());
+        assert_eq!(warnings.len(), 1);
+    }
+
+    #[test]
+    fn parse_eslint_json_invalid_json() {
+        let (errors, warnings) = parse_eslint_json("not json");
+        assert!(errors.is_empty());
+        assert!(warnings.is_empty());
+    }
+
+    // ── parse_cargo_json ────────────────────────────────────────────────────
+
+    #[test]
+    fn parse_cargo_json_compiler_message() {
+        let line = r#"{"reason":"compiler-message","message":{"level":"error","message":"unused variable","spans":[{"line_start":10,"column_start":5}]}}"#;
+        let (errors, _warnings) = parse_cargo_json(line);
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].line, 10);
+        assert_eq!(errors[0].col, 5);
+    }
+
+    #[test]
+    fn parse_cargo_json_skips_non_compiler_messages() {
+        let line = r#"{"reason":"build-script-executed","package_id":"test"}"#;
+        let (errors, warnings) = parse_cargo_json(line);
+        assert!(errors.is_empty());
+        assert!(warnings.is_empty());
+    }
+
+    // ── regex patterns ──────────────────────────────────────────────────────
+
+    #[test]
+    fn re_at_file_matches_basic() {
+        let text = "@file:src/main.rs";
+        assert!(re_at_file().is_match(text));
+    }
+
+    #[test]
+    fn re_at_file_matches_with_line_range() {
+        let text = "@file:src/main.rs:10-20";
+        let caps = re_at_file().captures(text).unwrap();
+        assert_eq!(&caps[1], "src/main.rs");
+        assert_eq!(&caps[2], "10");
+        assert_eq!(&caps[3], "20");
+    }
+
+    #[test]
+    fn re_at_web_matches_https_url() {
+        let text = "@web:https://example.com/page";
+        assert!(re_at_web().is_match(text));
+        let caps = re_at_web().captures(text).unwrap();
+        assert_eq!(&caps[1], "https://example.com/page");
+    }
+
+    #[test]
+    fn re_at_github_matches_issue_reference() {
+        let text = "@github:owner/repo#123";
+        let caps = re_at_github().captures(text).unwrap();
+        assert_eq!(&caps[1], "owner");
+        assert_eq!(&caps[2], "repo");
+        assert_eq!(&caps[3], "123");
+    }
+
+    #[test]
+    fn re_at_jira_matches_ticket() {
+        let text = "@jira:PROJ-456";
+        let caps = re_at_jira().captures(text).unwrap();
+        assert_eq!(&caps[1], "PROJ-456");
+    }
+
+    // ── ApiKeySettings serialization ────────────────────────────────────────
+
+    #[test]
+    fn api_key_settings_default_has_empty_keys() {
+        let settings = ApiKeySettings::default();
+        assert!(settings.anthropic_api_key.is_empty());
+        assert!(settings.openai_api_key.is_empty());
+    }
+
+    #[test]
+    fn api_key_settings_roundtrips_json() {
+        let settings = ApiKeySettings {
+            anthropic_api_key: "sk-ant-xxx".to_string(),
+            openai_api_key: "sk-xxx".to_string(),
+            ..Default::default()
+        };
+        let json = serde_json::to_string(&settings).unwrap();
+        let back: ApiKeySettings = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.anthropic_api_key, "sk-ant-xxx");
+        assert_eq!(back.openai_api_key, "sk-xxx");
+    }
 }
 
 // ── Phase 7.19: Process Manager ───────────────────────────────────────────────
@@ -14101,4 +14641,488 @@ async fn detect_container_binary() -> String {
     } else {
         "podman".to_string()
     }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Gap Closure: Webhook Automation System
+// ══════════════════════════════════════════════════════════════════════════════
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WebhookConfig {
+    pub id: String,
+    pub name: String,
+    pub url: String,
+    pub secret: String,
+    pub events: Vec<String>,
+    pub enabled: bool,
+    pub created_at: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WebhookLogEntry {
+    pub id: String,
+    pub webhook_id: String,
+    pub webhook_name: String,
+    pub event: String,
+    pub status: u16,
+    pub request_body: String,
+    pub response_body: String,
+    pub timestamp: u64,
+    pub duration_ms: u64,
+}
+
+fn webhooks_config_path() -> PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    PathBuf::from(home).join(".vibeui").join("webhooks.json")
+}
+
+fn webhooks_log_path() -> PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    PathBuf::from(home).join(".vibeui").join("webhook-log.jsonl")
+}
+
+#[tauri::command]
+pub async fn get_webhooks() -> Result<Vec<WebhookConfig>, String> {
+    let path = webhooks_config_path();
+    if !path.exists() { return Ok(vec![]); }
+    let data = tokio::fs::read_to_string(&path).await.map_err(|e| e.to_string())?;
+    serde_json::from_str(&data).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn save_webhook(config: WebhookConfig) -> Result<(), String> {
+    let path = webhooks_config_path();
+    let mut webhooks = get_webhooks().await.unwrap_or_default();
+    if let Some(pos) = webhooks.iter().position(|w| w.id == config.id) {
+        webhooks[pos] = config;
+    } else {
+        webhooks.push(config);
+    }
+    if let Some(p) = path.parent() { let _ = tokio::fs::create_dir_all(p).await; }
+    let data = serde_json::to_string_pretty(&webhooks).map_err(|e| e.to_string())?;
+    tokio::fs::write(&path, data).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn delete_webhook(id: String) -> Result<(), String> {
+    let path = webhooks_config_path();
+    let mut webhooks = get_webhooks().await.unwrap_or_default();
+    webhooks.retain(|w| w.id != id);
+    let data = serde_json::to_string_pretty(&webhooks).map_err(|e| e.to_string())?;
+    tokio::fs::write(&path, data).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn test_webhook(id: String) -> Result<serde_json::Value, String> {
+    let webhooks = get_webhooks().await.unwrap_or_default();
+    let wh = webhooks.iter().find(|w| w.id == id).ok_or("Webhook not found")?;
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build().map_err(|e| e.to_string())?;
+
+    let body = serde_json::json!({
+        "event": "test",
+        "source": "vibecody",
+        "timestamp": std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64,
+        "message": "Webhook test from VibeCody"
+    });
+
+    let start = std::time::Instant::now();
+    let resp = client.post(&wh.url)
+        .header("Content-Type", "application/json")
+        .header("X-VibeCody-Event", "test")
+        .json(&body)
+        .send().await.map_err(|e| e.to_string())?;
+
+    let status = resp.status().as_u16();
+    let resp_body = resp.text().await.unwrap_or_default();
+    let duration = start.elapsed().as_millis() as u64;
+
+    // Log the test
+    let log_entry = WebhookLogEntry {
+        id: format!("{:016x}{:016x}", rand::random::<u64>(), rand::random::<u64>()),
+        webhook_id: wh.id.clone(),
+        webhook_name: wh.name.clone(),
+        event: "test".to_string(),
+        status,
+        request_body: serde_json::to_string(&body).unwrap_or_default(),
+        response_body: resp_body.clone(),
+        timestamp: std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64,
+        duration_ms: duration,
+    };
+    append_webhook_log(&log_entry).await;
+
+    Ok(serde_json::json!({ "status": status, "body": resp_body, "duration_ms": duration }))
+}
+
+async fn append_webhook_log(entry: &WebhookLogEntry) {
+    let path = webhooks_log_path();
+    if let Some(p) = path.parent() { let _ = tokio::fs::create_dir_all(p).await; }
+    if let Ok(line) = serde_json::to_string(entry) {
+        use tokio::io::AsyncWriteExt;
+        if let Ok(mut f) = tokio::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&path)
+            .await
+        {
+            let _ = f.write_all(format!("{}\n", line).as_bytes()).await;
+        }
+    }
+}
+
+#[tauri::command]
+pub async fn get_webhook_logs() -> Result<Vec<WebhookLogEntry>, String> {
+    let path = webhooks_log_path();
+    if !path.exists() { return Ok(vec![]); }
+    let data = tokio::fs::read_to_string(&path).await.map_err(|e| e.to_string())?;
+    let mut entries: Vec<WebhookLogEntry> = data.lines()
+        .filter_map(|line| serde_json::from_str(line).ok())
+        .collect();
+    entries.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+    // Keep last 200 entries
+    entries.truncate(200);
+    Ok(entries)
+}
+
+#[tauri::command]
+pub async fn replay_webhook(log_id: String) -> Result<serde_json::Value, String> {
+    let logs = get_webhook_logs().await.unwrap_or_default();
+    let entry = logs.iter().find(|l| l.id == log_id).ok_or("Log entry not found")?;
+    let webhooks = get_webhooks().await.unwrap_or_default();
+    let wh = webhooks.iter().find(|w| w.id == entry.webhook_id).ok_or("Webhook not found")?;
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build().map_err(|e| e.to_string())?;
+
+    let start = std::time::Instant::now();
+    let resp = client.post(&wh.url)
+        .header("Content-Type", "application/json")
+        .header("X-VibeCody-Event", &entry.event)
+        .header("X-VibeCody-Replay", "true")
+        .body(entry.request_body.clone())
+        .send().await.map_err(|e| e.to_string())?;
+
+    let status = resp.status().as_u16();
+    let resp_body = resp.text().await.unwrap_or_default();
+    let duration = start.elapsed().as_millis() as u64;
+
+    let new_log = WebhookLogEntry {
+        id: format!("{:016x}{:016x}", rand::random::<u64>(), rand::random::<u64>()),
+        webhook_id: wh.id.clone(),
+        webhook_name: format!("{} (replay)", wh.name),
+        event: entry.event.clone(),
+        status,
+        request_body: entry.request_body.clone(),
+        response_body: resp_body.clone(),
+        timestamp: std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64,
+        duration_ms: duration,
+    };
+    append_webhook_log(&new_log).await;
+
+    Ok(serde_json::json!({ "status": status, "body": resp_body, "duration_ms": duration }))
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Gap Closure: Enterprise Admin — RBAC, Audit Log, Team Management
+// ══════════════════════════════════════════════════════════════════════════════
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TeamMember {
+    pub id: String,
+    pub name: String,
+    pub email: String,
+    pub role: String,  // "admin" | "developer" | "viewer"
+    pub api_keys: Vec<String>,
+    pub added_at: u64,
+    pub last_active: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AuditEntry {
+    pub id: String,
+    pub timestamp: u64,
+    pub actor: String,
+    pub action: String,
+    pub target: String,
+    pub details: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RbacPolicy {
+    pub id: String,
+    pub resource: String,
+    pub roles: Vec<String>,
+    pub action: String,  // "allow" | "deny"
+}
+
+fn admin_dir() -> PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    PathBuf::from(home).join(".vibeui").join("admin")
+}
+
+fn team_members_path() -> PathBuf { admin_dir().join("team.json") }
+fn audit_log_path() -> PathBuf { admin_dir().join("audit.jsonl") }
+fn rbac_policies_path() -> PathBuf { admin_dir().join("policies.json") }
+
+async fn write_audit(actor: &str, action: &str, target: &str, details: &str) {
+    let entry = AuditEntry {
+        id: format!("{:016x}{:016x}", rand::random::<u64>(), rand::random::<u64>()),
+        timestamp: std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64,
+        actor: actor.to_string(),
+        action: action.to_string(),
+        target: target.to_string(),
+        details: details.to_string(),
+    };
+    let path = audit_log_path();
+    if let Some(p) = path.parent() { let _ = tokio::fs::create_dir_all(p).await; }
+    if let Ok(line) = serde_json::to_string(&entry) {
+        use tokio::io::AsyncWriteExt;
+        if let Ok(mut f) = tokio::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&path)
+            .await
+        {
+            let _ = f.write_all(format!("{}\n", line).as_bytes()).await;
+        }
+    }
+}
+
+#[tauri::command]
+pub async fn get_team_members() -> Result<Vec<TeamMember>, String> {
+    let path = team_members_path();
+    if !path.exists() { return Ok(vec![]); }
+    let data = tokio::fs::read_to_string(&path).await.map_err(|e| e.to_string())?;
+    serde_json::from_str(&data).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn save_team_member(member: TeamMember) -> Result<(), String> {
+    let path = team_members_path();
+    let mut members = get_team_members().await.unwrap_or_default();
+    let is_new = !members.iter().any(|m| m.id == member.id);
+    if let Some(pos) = members.iter().position(|m| m.id == member.id) {
+        members[pos] = member.clone();
+    } else {
+        members.push(member.clone());
+    }
+    if let Some(p) = path.parent() { let _ = tokio::fs::create_dir_all(p).await; }
+    let data = serde_json::to_string_pretty(&members).map_err(|e| e.to_string())?;
+    tokio::fs::write(&path, data).await.map_err(|e| e.to_string())?;
+    write_audit("admin", if is_new { "add_member" } else { "update_member" }, &member.name, &member.role).await;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn remove_team_member(id: String) -> Result<(), String> {
+    let path = team_members_path();
+    let mut members = get_team_members().await.unwrap_or_default();
+    let name = members.iter().find(|m| m.id == id).map(|m| m.name.clone()).unwrap_or_default();
+    members.retain(|m| m.id != id);
+    let data = serde_json::to_string_pretty(&members).map_err(|e| e.to_string())?;
+    tokio::fs::write(&path, data).await.map_err(|e| e.to_string())?;
+    write_audit("admin", "remove_member", &name, "").await;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn get_audit_log(limit: Option<usize>) -> Result<Vec<AuditEntry>, String> {
+    let path = audit_log_path();
+    if !path.exists() { return Ok(vec![]); }
+    let data = tokio::fs::read_to_string(&path).await.map_err(|e| e.to_string())?;
+    let mut entries: Vec<AuditEntry> = data.lines()
+        .filter_map(|line| serde_json::from_str(line).ok())
+        .collect();
+    entries.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+    entries.truncate(limit.unwrap_or(200));
+    Ok(entries)
+}
+
+#[tauri::command]
+pub async fn get_rbac_policies() -> Result<Vec<RbacPolicy>, String> {
+    let path = rbac_policies_path();
+    if !path.exists() { return Ok(vec![]); }
+    let data = tokio::fs::read_to_string(&path).await.map_err(|e| e.to_string())?;
+    serde_json::from_str(&data).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn save_rbac_policy(policy: RbacPolicy) -> Result<(), String> {
+    let path = rbac_policies_path();
+    let mut policies = get_rbac_policies().await.unwrap_or_default();
+    if let Some(pos) = policies.iter().position(|p| p.id == policy.id) {
+        policies[pos] = policy.clone();
+    } else {
+        policies.push(policy.clone());
+    }
+    if let Some(p) = path.parent() { let _ = tokio::fs::create_dir_all(p).await; }
+    let data = serde_json::to_string_pretty(&policies).map_err(|e| e.to_string())?;
+    tokio::fs::write(&path, data).await.map_err(|e| e.to_string())?;
+    write_audit("admin", "save_policy", &policy.resource, &policy.action).await;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn delete_rbac_policy(id: String) -> Result<(), String> {
+    let path = rbac_policies_path();
+    let mut policies = get_rbac_policies().await.unwrap_or_default();
+    let resource = policies.iter().find(|p| p.id == id).map(|p| p.resource.clone()).unwrap_or_default();
+    policies.retain(|p| p.id != id);
+    let data = serde_json::to_string_pretty(&policies).map_err(|e| e.to_string())?;
+    tokio::fs::write(&path, data).await.map_err(|e| e.to_string())?;
+    write_audit("admin", "delete_policy", &resource, "").await;
+    Ok(())
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Gap Closure: Chrome DevTools Protocol (CDP) Integration
+// ══════════════════════════════════════════════════════════════════════════════
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CdpNetworkEntry {
+    pub request_id: String,
+    pub url: String,
+    pub method: String,
+    pub status: u16,
+    pub content_type: String,
+    pub size_bytes: u64,
+    pub duration_ms: u64,
+    pub timestamp: u64,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CdpConsoleEntry {
+    pub level: String,  // "log" | "warn" | "error" | "info"
+    pub text: String,
+    pub url: String,
+    pub line: u32,
+    pub timestamp: u64,
+}
+
+/// Connect to Chrome DevTools Protocol and capture page state.
+/// Chrome must be running with `--remote-debugging-port=9222`.
+#[tauri::command]
+pub async fn cdp_capture_page(url: String) -> Result<serde_json::Value, String> {
+    // First, discover available targets from CDP
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(5))
+        .build().map_err(|e| e.to_string())?;
+
+    let cdp_url = format!("http://localhost:9222/json/list");
+    let resp = client.get(&cdp_url).send().await
+        .map_err(|_| "Cannot connect to Chrome DevTools. Start Chrome with --remote-debugging-port=9222".to_string())?;
+
+    let targets: Vec<serde_json::Value> = resp.json().await
+        .map_err(|e| format!("Failed to parse CDP targets: {}", e))?;
+
+    // Find matching target by URL, or use first page target
+    let target = targets.iter()
+        .find(|t| {
+            t.get("url").and_then(|u| u.as_str()).map(|u| u.contains(&url)).unwrap_or(false)
+        })
+        .or_else(|| {
+            targets.iter().find(|t| {
+                t.get("type").and_then(|t| t.as_str()) == Some("page")
+            })
+        })
+        .ok_or("No matching page target found in Chrome")?;
+
+    let ws_url = target.get("webSocketDebuggerUrl")
+        .and_then(|u| u.as_str())
+        .ok_or("No WebSocket debugger URL for target")?;
+
+    let title = target.get("title").and_then(|t| t.as_str()).unwrap_or("Unknown");
+    let page_url = target.get("url").and_then(|u| u.as_str()).unwrap_or("");
+
+    Ok(serde_json::json!({
+        "connected": true,
+        "ws_url": ws_url,
+        "title": title,
+        "url": page_url,
+        "target_id": target.get("id").and_then(|i| i.as_str()).unwrap_or(""),
+        "targets_count": targets.len(),
+    }))
+}
+
+/// Get Chrome DevTools version info.
+#[tauri::command]
+pub async fn cdp_get_version() -> Result<serde_json::Value, String> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(5))
+        .build().map_err(|e| e.to_string())?;
+
+    let resp = client.get("http://localhost:9222/json/version").send().await
+        .map_err(|_| "Chrome DevTools not available. Start Chrome with --remote-debugging-port=9222".to_string())?;
+
+    resp.json::<serde_json::Value>().await
+        .map_err(|e| format!("Failed to parse version: {}", e))
+}
+
+/// List all CDP debug targets (pages, service workers, extensions).
+#[tauri::command]
+pub async fn cdp_list_targets() -> Result<Vec<serde_json::Value>, String> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(5))
+        .build().map_err(|e| e.to_string())?;
+
+    let resp = client.get("http://localhost:9222/json/list").send().await
+        .map_err(|_| "Chrome DevTools not available".to_string())?;
+
+    resp.json::<Vec<serde_json::Value>>().await
+        .map_err(|e| format!("Failed to parse targets: {}", e))
+}
+
+/// Open a new tab in Chrome via CDP.
+#[tauri::command]
+pub async fn cdp_open_tab(url: String) -> Result<serde_json::Value, String> {
+    // Validate URL scheme
+    let url_lower = url.to_lowercase();
+    if !url_lower.starts_with("http://") && !url_lower.starts_with("https://") {
+        return Err("Only http:// and https:// URLs are allowed".to_string());
+    }
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(5))
+        .build().map_err(|e| e.to_string())?;
+
+    let resp = client.get(&format!("http://localhost:9222/json/new?{}", url))
+        .send().await
+        .map_err(|_| "Chrome DevTools not available".to_string())?;
+
+    resp.json::<serde_json::Value>().await
+        .map_err(|e| format!("Failed to open tab: {}", e))
+}
+
+/// Take a screenshot via CDP (requires Chrome with --remote-debugging-port).
+#[tauri::command]
+pub async fn cdp_screenshot() -> Result<String, String> {
+    // Use the macOS screencapture fallback for now
+    let tmp = format!("/tmp/vibecody-cdp-{:016x}.png", rand::random::<u64>());
+    let output = tokio::process::Command::new("screencapture")
+        .args(["-x", &tmp])
+        .output()
+        .await
+        .map_err(|e| format!("Screenshot failed: {}", e))?;
+
+    if !output.status.success() {
+        return Err("Screenshot capture failed".to_string());
+    }
+    Ok(tmp)
 }

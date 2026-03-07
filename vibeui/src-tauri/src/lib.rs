@@ -441,6 +441,27 @@ pub fn run() {
             // Voice & Media
             commands::transcribe_audio,
             commands::text_to_speech,
+            // Gap Closure: Webhook Automations
+            commands::get_webhooks,
+            commands::save_webhook,
+            commands::delete_webhook,
+            commands::test_webhook,
+            commands::get_webhook_logs,
+            commands::replay_webhook,
+            // Gap Closure: Enterprise Admin (RBAC, Audit, Team)
+            commands::get_team_members,
+            commands::save_team_member,
+            commands::remove_team_member,
+            commands::get_audit_log,
+            commands::get_rbac_policies,
+            commands::save_rbac_policy,
+            commands::delete_rbac_policy,
+            // Gap Closure: Chrome DevTools Protocol
+            commands::cdp_capture_page,
+            commands::cdp_get_version,
+            commands::cdp_list_targets,
+            commands::cdp_open_tab,
+            commands::cdp_screenshot,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

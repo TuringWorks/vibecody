@@ -11,6 +11,13 @@ const QUICK_LAUNCH = [
  { label: 'localhost:4000', url: 'http://localhost:4000' },
 ];
 
+interface CdpTarget {
+ id: string;
+ title: string;
+ url: string;
+ type: string;
+}
+
 export function BrowserPanel() {
  const { toasts, toast, dismiss } = useToast();
  const [urlInput, setUrlInput] = useState('http://localhost:3000');
@@ -20,6 +27,9 @@ export function BrowserPanel() {
  const iframeRef = useRef<HTMLIFrameElement>(null);
  const [inspectMode, setInspectMode] = useState(false);
  const [editMode, setEditMode] = useState(false);
+ const [cdpConnected, setCdpConnected] = useState(false);
+ const [cdpTargets, setCdpTargets] = useState<CdpTarget[]>([]);
+ const [showCdp, setShowCdp] = useState(false);
  const [selectedElement, setSelectedElement] = useState<{
  selector: string;
  outerHTML: string;
@@ -140,6 +150,29 @@ export function BrowserPanel() {
  }
  };
 
+ const connectCdp = async () => {
+ try {
+ const targets = await invoke<CdpTarget[]>('cdp_list_targets');
+ setCdpTargets(targets);
+ setCdpConnected(true);
+ setShowCdp(true);
+ toast.success(`CDP connected: ${targets.length} target(s)`);
+ } catch (e) {
+ toast.error(`${e}`);
+ setCdpConnected(false);
+ }
+ };
+
+ const cdpOpenTab = async (url: string) => {
+ try {
+ await invoke('cdp_open_tab', { url });
+ toast.success('Tab opened in Chrome');
+ connectCdp(); // refresh targets
+ } catch (e) {
+ toast.error(`Failed: ${e}`);
+ }
+ };
+
  return (
  <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bg-primary)' }}>
  {/* Toolbar */}
@@ -198,6 +231,23 @@ export function BrowserPanel() {
  color: inspectMode ? '#6366f1' : 'var(--text-primary)',
  }}
  ></button>
+ <button
+ onClick={connectCdp}
+ title="Connect Chrome DevTools Protocol"
+ style={{
+ ...navBtnStyle,
+ background: cdpConnected ? 'rgba(34,197,94,0.2)' : 'none',
+ borderColor: cdpConnected ? '#22c55e' : 'var(--border-color)',
+ color: cdpConnected ? '#22c55e' : 'var(--text-primary)',
+ fontSize: '11px', padding: '3px 8px',
+ }}
+ >CDP</button>
+ <button
+ onClick={() => setShowCdp(!showCdp)}
+ disabled={!cdpConnected}
+ title="Toggle CDP targets panel"
+ style={{ ...navBtnStyle, fontSize: '11px', padding: '3px 6px' }}
+ >{showCdp ? 'Hide' : 'Show'} Targets</button>
  </div>
 
  {/* Quick-launch chips */}
@@ -220,6 +270,36 @@ export function BrowserPanel() {
  >{label}</button>
  ))}
  </div>
+
+ {/* CDP targets panel */}
+ {showCdp && cdpConnected && cdpTargets.length > 0 && (
+ <div style={{
+ padding: '6px 8px', borderBottom: '1px solid var(--border-color)',
+ background: 'var(--bg-secondary)', flexShrink: 0, maxHeight: 120, overflowY: 'auto',
+ }}>
+ <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>
+ Chrome DevTools Targets ({cdpTargets.length})
+ </div>
+ {cdpTargets.filter((t: CdpTarget) => t.type === 'page').map((t: CdpTarget) => (
+ <div key={t.id} style={{
+ display: 'flex', gap: 6, alignItems: 'center', padding: '2px 4px',
+ fontSize: 11, borderRadius: 3, cursor: 'pointer',
+ }} onClick={() => { setUrlInput(t.url); navigate(t.url); }}>
+ <span style={{
+ padding: '0 4px', borderRadius: 2, fontSize: 9,
+ background: 'rgba(34,197,94,0.15)', color: '#22c55e',
+ }}>PAGE</span>
+ <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{t.title.slice(0, 40)}</span>
+ <span style={{ color: 'var(--text-secondary)', fontFamily: 'monospace', fontSize: 10 }}>
+ {t.url.slice(0, 60)}
+ </span>
+ <button onClick={(e) => { e.stopPropagation(); cdpOpenTab(t.url); }}
+ style={{ padding: '1px 4px', fontSize: 9, background: 'none', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', borderRadius: 2, cursor: 'pointer' }}
+ >Open</button>
+ </div>
+ ))}
+ </div>
+ )}
 
  {/* Webview / iframe */}
  <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>

@@ -1,0 +1,15 @@
+target/
+node_modules/
+.git/
+*.md
+docs/
+.github/
+vibeui/dist/
+vibeui/node_modules/
+vibeapp/dist/
+vibeapp/node_modules/
+vscode-extension/
+jetbrains-plugin/
+neovim-plugin/
+packages/
+workspace/

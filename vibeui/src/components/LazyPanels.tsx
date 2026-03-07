@@ -103,6 +103,8 @@ const UnitConverterPanel = lazy(() => import("./UnitConverterPanel").then(m => (
 const UnicodePanel = lazy(() => import("./UnicodePanel").then(m => ({ default: m.UnicodePanel })));
 const SandboxPanel = lazy(() => import("./SandboxPanel").then(m => ({ default: m.SandboxPanel })));
 const DashboardPanel = lazy(() => import("./DashboardPanel"));
+const WebhookPanel = lazy(() => import("./WebhookPanel").then(m => ({ default: m.WebhookPanel })));
+const AdminPanel = lazy(() => import("./AdminPanel").then(m => ({ default: m.AdminPanel })));
 
 // --- Props interfaces ---
 
@@ -302,6 +304,10 @@ export function PanelHost(props: PanelHostProps) {
       return <LazyPanel Component={SandboxPanel} props={{}} />;
     case "dashboard":
       return <LazyPanel Component={DashboardPanel} props={{}} />;
+    case "webhooks":
+      return <LazyPanel Component={WebhookPanel} props={{}} />;
+    case "admin":
+      return <LazyPanel Component={AdminPanel} props={{}} />;
     default:
       return <div style={{ padding: 16, color: "var(--text-secondary)" }}>Unknown panel: {tab}</div>;
   }
