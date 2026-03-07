@@ -134,3 +134,109 @@ pub fn get_theme(name: &str) -> Theme {
         _           => DARK,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ratatui::style::Color;
+
+    // ── available_themes ────────────────────────────────────────────────────
+
+    #[test]
+    fn available_themes_returns_five_entries() {
+        let themes = available_themes();
+        assert_eq!(themes.len(), 5);
+    }
+
+    #[test]
+    fn available_themes_contains_expected_names() {
+        let themes = available_themes();
+        assert!(themes.contains(&"dark"));
+        assert!(themes.contains(&"light"));
+        assert!(themes.contains(&"monokai"));
+        assert!(themes.contains(&"solarized"));
+        assert!(themes.contains(&"nord"));
+    }
+
+    // ── get_theme - named themes ────────────────────────────────────────────
+
+    #[test]
+    fn get_theme_dark_returns_dark() {
+        let theme = get_theme("dark");
+        assert_eq!(theme.name, "dark");
+        assert!(matches!(theme.primary, Color::Cyan));
+        assert!(matches!(theme.text, Color::White));
+    }
+
+    #[test]
+    fn get_theme_light_returns_light() {
+        let theme = get_theme("light");
+        assert_eq!(theme.name, "light");
+        assert!(matches!(theme.primary, Color::Blue));
+        assert!(matches!(theme.text, Color::Black));
+    }
+
+    #[test]
+    fn get_theme_monokai_returns_monokai() {
+        let theme = get_theme("monokai");
+        assert_eq!(theme.name, "monokai");
+        assert!(matches!(theme.primary, Color::Rgb(102, 217, 239)));
+    }
+
+    #[test]
+    fn get_theme_solarized_returns_solarized() {
+        let theme = get_theme("solarized");
+        assert_eq!(theme.name, "solarized");
+        assert!(matches!(theme.primary, Color::Rgb(38, 139, 210)));
+    }
+
+    #[test]
+    fn get_theme_nord_returns_nord() {
+        let theme = get_theme("nord");
+        assert_eq!(theme.name, "nord");
+        assert!(matches!(theme.primary, Color::Rgb(136, 192, 208)));
+    }
+
+    // ── get_theme - fallback ────────────────────────────────────────────────
+
+    #[test]
+    fn get_theme_unknown_falls_back_to_dark() {
+        let theme = get_theme("nonexistent");
+        assert_eq!(theme.name, "dark");
+    }
+
+    #[test]
+    fn get_theme_empty_string_falls_back_to_dark() {
+        let theme = get_theme("");
+        assert_eq!(theme.name, "dark");
+    }
+
+    // ── Theme color field coverage ──────────────────────────────────────────
+
+    #[test]
+    fn dark_theme_has_expected_colors() {
+        let t = get_theme("dark");
+        assert!(matches!(t.secondary, Color::Yellow));
+        assert!(matches!(t.success, Color::Green));
+        assert!(matches!(t.error, Color::Red));
+        assert!(matches!(t.warning, Color::Yellow));
+        assert!(matches!(t.info, Color::Cyan));
+        assert!(matches!(t.dim, Color::DarkGray));
+        assert!(matches!(t.accent, Color::Blue));
+        assert!(matches!(t.selection_fg, Color::Black));
+        assert!(matches!(t.selection_bg, Color::Blue));
+    }
+
+    #[test]
+    fn dark_theme_logo_is_rgb() {
+        let t = get_theme("dark");
+        assert!(matches!(t.logo, Color::Rgb(255, 100, 100)));
+    }
+
+    #[test]
+    fn theme_is_copy() {
+        let t1 = get_theme("nord");
+        let t2 = t1; // Copy
+        assert_eq!(t1.name, t2.name);
+    }
+}

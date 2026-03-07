@@ -133,7 +133,7 @@ export function SnippetPanel({ workspacePath: _workspacePath }: SnippetPanelProp
     <div style={{ display: "flex", height: "100%", overflow: "hidden" }}>
       {/* Left: snippet list */}
       <div style={{
-        width: "40%", borderRight: "1px solid var(--border, var(--bg-secondary))",
+        width: "40%", borderRight: "1px solid var(--border-color)",
         display: "flex", flexDirection: "column", overflow: "hidden",
       }}>
         <div style={{ display: "flex", gap: 4, padding: "8px 8px 4px", flexWrap: "wrap" }}>
@@ -161,7 +161,7 @@ export function SnippetPanel({ workspacePath: _workspacePath }: SnippetPanelProp
               onClick={() => selectSnippet(s.name)}
               style={{
                 padding: "6px 8px", cursor: "pointer", fontSize: 11,
-                borderBottom: "1px solid var(--border, var(--bg-secondary))",
+                borderBottom: "1px solid var(--border-color)",
                 background: selected === s.name ? "rgba(99,102,241,0.1)" : "transparent",
               }}
             >
@@ -211,7 +211,7 @@ export function SnippetPanel({ workspacePath: _workspacePath }: SnippetPanelProp
         {/* Detail view */}
         {selected && !creating && (
           <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-            <div style={{ display: "flex", gap: 6, padding: "8px 8px", alignItems: "center", borderBottom: "1px solid var(--border, var(--bg-secondary))" }}>
+            <div style={{ display: "flex", gap: 6, padding: "8px 8px", alignItems: "center", borderBottom: "1px solid var(--border-color)" }}>
               <span style={{ fontWeight: 600, fontSize: 12 }}>{selected}</span>
               <div style={{ flex: 1 }} />
               <button onClick={handleCopy} style={btnStyle}>Copy</button>
@@ -221,7 +221,7 @@ export function SnippetPanel({ workspacePath: _workspacePath }: SnippetPanelProp
             <pre style={{
               flex: 1, margin: 0, padding: "8px 10px", overflowY: "auto",
               fontFamily: "monospace", fontSize: 12, lineHeight: 1.5,
-              background: "var(--bg-primary, #11111b)", color: "var(--text-primary)",
+              background: "var(--bg-primary)", color: "var(--text-primary)",
               whiteSpace: "pre-wrap", wordBreak: "break-all",
             }}>
               {displayContent(content)}
@@ -256,8 +256,8 @@ export function SnippetPanel({ workspacePath: _workspacePath }: SnippetPanelProp
               style={{
                 flex: 1, minHeight: 120, padding: "8px 10px",
                 fontFamily: "monospace", fontSize: 12, lineHeight: 1.5,
-                background: "var(--bg-primary, #11111b)", color: "var(--text-primary)",
-                border: "1px solid var(--border, var(--bg-secondary))", borderRadius: 4,
+                background: "var(--bg-primary)", color: "var(--text-primary)",
+                border: "1px solid var(--border-color)", borderRadius: 4,
                 outline: "none", resize: "vertical",
               }}
             />
@@ -284,20 +284,20 @@ export function SnippetPanel({ workspacePath: _workspacePath }: SnippetPanelProp
 
 const btnStyle: React.CSSProperties = {
   padding: "4px 10px", fontSize: 11, fontWeight: 600,
-  border: "1px solid var(--border, var(--bg-secondary))", borderRadius: 4,
+  border: "1px solid var(--border-color)", borderRadius: 4,
   background: "var(--bg-secondary)", color: "var(--text-primary)",
   cursor: "pointer",
 };
 
 const inputStyle: React.CSSProperties = {
   padding: "4px 8px", fontSize: 11, borderRadius: 4,
-  border: "1px solid var(--border, var(--bg-secondary))",
-  background: "var(--bg-primary, #11111b)", color: "var(--text-primary)",
+  border: "1px solid var(--border-color)",
+  background: "var(--bg-primary)", color: "var(--text-primary)",
   outline: "none",
 };
 
 const selectStyle: React.CSSProperties = {
   padding: "4px 6px", fontSize: 11, borderRadius: 4,
-  border: "1px solid var(--border, var(--bg-secondary))",
-  background: "var(--bg-primary, #11111b)", color: "var(--text-primary)",
+  border: "1px solid var(--border-color)",
+  background: "var(--bg-primary)", color: "var(--text-primary)",
 };

@@ -166,7 +166,7 @@ export function NotebookPanel({ workspacePath }: NotebookPanelProps) {
  {/* Toolbar */}
  <div style={{
  display: "flex", gap: 6, padding: "8px 12px", alignItems: "center",
- borderBottom: "1px solid var(--border, var(--bg-secondary))", flexWrap: "wrap",
+ borderBottom: "1px solid var(--border-color)", flexWrap: "wrap",
  }}>
  <button onClick={() => addCell("code")} style={toolBtnStyle}>+ Code</button>
  <button onClick={() => addCell("markdown")} style={toolBtnStyle}>+ Markdown</button>
@@ -184,7 +184,7 @@ export function NotebookPanel({ workspacePath }: NotebookPanelProps) {
  <div
  key={cell.id}
  style={{
- border: "1px solid var(--border, var(--bg-secondary))",
+ border: "1px solid var(--border-color)",
  borderRadius: 6,
  background: "var(--bg-secondary)",
  overflow: "hidden",
@@ -193,7 +193,7 @@ export function NotebookPanel({ workspacePath }: NotebookPanelProps) {
  {/* Cell header */}
  <div style={{
  display: "flex", alignItems: "center", gap: 6, padding: "4px 8px",
- borderBottom: "1px solid var(--border, var(--bg-secondary))",
+ borderBottom: "1px solid var(--border-color)",
  fontSize: 11,
  }}>
  <span style={{
@@ -210,8 +210,8 @@ export function NotebookPanel({ workspacePath }: NotebookPanelProps) {
  onChange={(e) => updateCell(cell.id, { language: e.target.value })}
  style={{
  padding: "1px 4px", fontSize: 10, borderRadius: 3,
- background: "var(--bg-primary, #11111b)", color: "var(--text-primary)",
- border: "1px solid var(--border, var(--bg-secondary))",
+ background: "var(--bg-primary)", color: "var(--text-primary)",
+ border: "1px solid var(--border-color)",
  }}
  >
  {LANGUAGES.map((l) => <option key={l} value={l}>{l}</option>)}
@@ -269,7 +269,7 @@ export function NotebookPanel({ workspacePath }: NotebookPanelProps) {
  style={{
  width: "100%", minHeight: 60, padding: "8px 10px",
  fontFamily: "monospace", fontSize: 12, lineHeight: 1.5,
- background: "var(--bg-primary, #11111b)", color: "var(--text-primary)",
+ background: "var(--bg-primary)", color: "var(--text-primary)",
  border: "none", outline: "none", resize: "vertical",
  boxSizing: "border-box",
  }}
@@ -283,7 +283,7 @@ export function NotebookPanel({ workspacePath }: NotebookPanelProps) {
  style={{
  width: "100%", minHeight: 40, padding: "8px 10px",
  fontFamily: "inherit", fontSize: 12, lineHeight: 1.5,
- background: "var(--bg-primary, #11111b)", color: "var(--text-primary)",
+ background: "var(--bg-primary)", color: "var(--text-primary)",
  border: "none", outline: "none", resize: "vertical",
  boxSizing: "border-box",
  }}
@@ -305,7 +305,7 @@ export function NotebookPanel({ workspacePath }: NotebookPanelProps) {
  {/* Output */}
  {cell.output && (
  <div style={{
- borderTop: "1px solid var(--border, var(--bg-secondary))",
+ borderTop: "1px solid var(--border-color)",
  padding: "6px 10px", fontSize: 11, fontFamily: "monospace",
  maxHeight: 200, overflowY: "auto",
  background: cell.output.exit_code !== 0 ? "rgba(243,139,168,0.05)" : "rgba(166,227,161,0.05)",
@@ -338,7 +338,7 @@ export function NotebookPanel({ workspacePath }: NotebookPanelProps) {
 
 const toolBtnStyle: React.CSSProperties = {
  padding: "4px 10px", fontSize: 11, fontWeight: 600,
- border: "1px solid var(--border, var(--bg-secondary))", borderRadius: 4,
+ border: "1px solid var(--border-color)", borderRadius: 4,
  background: "var(--bg-secondary)", color: "var(--text-primary)",
  cursor: "pointer",
 };

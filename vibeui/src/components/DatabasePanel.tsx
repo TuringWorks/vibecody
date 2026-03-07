@@ -136,9 +136,9 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
  return (
  <div style={{ display: "flex", height: "100%", background: "var(--bg-primary, #1a1b26)", color: "var(--text-primary)" }}>
  {/* Left: Tables list */}
- <div style={{ width: 200, borderRight: "1px solid var(--border, var(--bg-secondary))", display: "flex", flexDirection: "column" }}>
+ <div style={{ width: 200, borderRight: "1px solid var(--border-color)", display: "flex", flexDirection: "column" }}>
  {/* Connection area */}
- <div style={{ padding: 12, borderBottom: "1px solid var(--border, var(--bg-secondary))" }}>
+ <div style={{ padding: 12, borderBottom: "1px solid var(--border-color)" }}>
  <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
  {(["sqlite", "postgres", "supabase"] as DbType[]).map((t) => (
  <button
@@ -208,7 +208,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
  {/* Right: Query + Results */}
  <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
  {/* Query toolbar */}
- <div style={{ padding: 12, borderBottom: "1px solid var(--border, var(--bg-secondary))", display: "flex", flexDirection: "column", gap: 8 }}>
+ <div style={{ padding: 12, borderBottom: "1px solid var(--border-color)", display: "flex", flexDirection: "column", gap: 8 }}>
  {/* NL query */}
  <div style={{ display: "flex", gap: 8 }}>
  <input
@@ -252,7 +252,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
  <thead>
  <tr style={{ background: "var(--bg-secondary)" }}>
  {queryResult.columns.map((col) => (
- <th key={col} style={{ padding: "4px 8px", textAlign: "left", borderBottom: "1px solid var(--border, var(--bg-secondary))", fontWeight: 600, whiteSpace: "nowrap" }}>{col}</th>
+ <th key={col} style={{ padding: "4px 8px", textAlign: "left", borderBottom: "1px solid var(--border-color)", fontWeight: 600, whiteSpace: "nowrap" }}>{col}</th>
  ))}
  </tr>
  </thead>
@@ -260,7 +260,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
  {queryResult.rows.slice(0, PAGE_SIZE).map((row, i) => (
  <tr key={i} style={{ background: i % 2 === 0 ? "transparent" : "var(--bg-secondary)" }}>
  {queryResult.columns.map((col) => (
- <td key={col} style={{ padding: "3px 8px", borderBottom: "1px solid var(--border, var(--bg-secondary))", opacity: row[col] === null ? 0.3 : 1, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+ <td key={col} style={{ padding: "3px 8px", borderBottom: "1px solid var(--border-color)", opacity: row[col] === null ? 0.3 : 1, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
  {row[col] === null ? "NULL" : String(row[col])}
  </td>
  ))}

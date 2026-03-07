@@ -156,7 +156,7 @@ export function MockServerPanel() {
       {/* Server controls */}
       <div style={{
         display: "flex", gap: 6, padding: "8px 12px", alignItems: "center",
-        borderBottom: "1px solid var(--border, var(--bg-secondary))",
+        borderBottom: "1px solid var(--border-color)",
       }}>
         <span style={{ fontSize: 11, fontWeight: 600 }}>Port:</span>
         <input
@@ -186,14 +186,14 @@ export function MockServerPanel() {
       </div>
 
       {/* Sub-tabs */}
-      <div style={{ display: "flex", gap: 4, padding: "6px 12px", borderBottom: "1px solid var(--border, var(--bg-secondary))" }}>
+      <div style={{ display: "flex", gap: 4, padding: "6px 12px", borderBottom: "1px solid var(--border-color)" }}>
         {(["routes", "log", "import"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
             style={{
               padding: "3px 10px", fontSize: 10, fontWeight: 600, borderRadius: 4, cursor: "pointer",
-              border: tab === t ? "1px solid var(--accent, #6366f1)" : "1px solid var(--border, var(--bg-secondary))",
+              border: tab === t ? "1px solid var(--accent, #6366f1)" : "1px solid var(--border-color)",
               background: tab === t ? "rgba(99,102,241,0.15)" : "transparent",
               color: "var(--text-primary)",
             }}
@@ -216,7 +216,7 @@ export function MockServerPanel() {
             {/* Add route form */}
             <div style={{
               display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap",
-              padding: "6px 8px", borderRadius: 4, background: "var(--bg-primary, #11111b)",
+              padding: "6px 8px", borderRadius: 4, background: "var(--bg-primary)",
             }}>
               <select value={addMethod} onChange={(e) => setAddMethod(e.target.value)} style={selectStyle}>
                 {METHOD_OPTIONS.map((m) => <option key={m} value={m}>{m}</option>)}
@@ -236,7 +236,7 @@ export function MockServerPanel() {
             {routes.map((r) => (
               <div key={r.id} style={{
                 display: "flex", gap: 8, alignItems: "center", padding: "4px 6px",
-                borderBottom: "1px solid var(--border, var(--bg-secondary))", fontSize: 11,
+                borderBottom: "1px solid var(--border-color)", fontSize: 11,
               }}>
                 <span style={{
                   padding: "1px 6px", borderRadius: 3, fontWeight: 700, fontSize: 10,
@@ -277,7 +277,7 @@ export function MockServerPanel() {
             {requestLog.map((r, i) => (
               <div key={i} style={{
                 display: "flex", gap: 8, alignItems: "center", padding: "4px 6px",
-                borderBottom: "1px solid var(--border, var(--bg-secondary))", fontSize: 11,
+                borderBottom: "1px solid var(--border-color)", fontSize: 11,
               }}>
                 <span style={{ fontSize: 9, opacity: 0.4, fontFamily: "monospace" }}>
                   {new Date(r.timestamp).toLocaleTimeString()}
@@ -342,22 +342,22 @@ export function MockServerPanel() {
 
 const btnStyle: React.CSSProperties = {
   padding: "4px 10px", fontSize: 11, fontWeight: 600,
-  border: "1px solid var(--border, var(--bg-secondary))", borderRadius: 4,
+  border: "1px solid var(--border-color)", borderRadius: 4,
   background: "var(--bg-secondary)", color: "var(--text-primary)",
   cursor: "pointer",
 };
 
 const inputStyle: React.CSSProperties = {
   padding: "4px 8px", fontSize: 11, borderRadius: 4,
-  border: "1px solid var(--border, var(--bg-secondary))",
-  background: "var(--bg-primary, #11111b)", color: "var(--text-primary)",
+  border: "1px solid var(--border-color)",
+  background: "var(--bg-primary)", color: "var(--text-primary)",
   outline: "none",
 };
 
 const selectStyle: React.CSSProperties = {
   padding: "4px 6px", fontSize: 11, borderRadius: 4,
-  border: "1px solid var(--border, var(--bg-secondary))",
-  background: "var(--bg-primary, #11111b)", color: "var(--text-primary)",
+  border: "1px solid var(--border-color)",
+  background: "var(--bg-primary)", color: "var(--text-primary)",
 };
 
 const cellBtn: React.CSSProperties = {

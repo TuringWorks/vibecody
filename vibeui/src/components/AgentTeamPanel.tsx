@@ -80,7 +80,7 @@ export function AgentTeamPanel() {
     <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
       {/* Header */}
       <div style={{
-        padding: "8px 12px", borderBottom: "1px solid var(--border, var(--bg-secondary))",
+        padding: "8px 12px", borderBottom: "1px solid var(--border-color)",
         display: "flex", alignItems: "center", gap: 8,
       }}>
         <span style={{ fontSize: 14, fontWeight: 700 }}>Agent Teams</span>
@@ -137,14 +137,14 @@ export function AgentTeamPanel() {
         /* Team view */
         <>
           {/* Sub-tabs */}
-          <div style={{ display: "flex", gap: 4, padding: "6px 12px", borderBottom: "1px solid var(--border, var(--bg-secondary))" }}>
+          <div style={{ display: "flex", gap: 4, padding: "6px 12px", borderBottom: "1px solid var(--border-color)" }}>
             {(["overview", "tasks", "messages"] as const).map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
                 style={{
                   padding: "3px 10px", fontSize: 10, fontWeight: 600, borderRadius: 4, cursor: "pointer",
-                  border: tab === t ? "1px solid #6366f1" : "1px solid var(--border, var(--bg-secondary))",
+                  border: tab === t ? "1px solid #6366f1" : "1px solid var(--border-color)",
                   background: tab === t ? "rgba(99,102,241,0.15)" : "transparent",
                   color: "var(--text-primary)",
                 }}
@@ -159,7 +159,7 @@ export function AgentTeamPanel() {
             {tab === "overview" && (
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 <div style={{ fontSize: 12, fontWeight: 600 }}>Goal</div>
-                <div style={{ fontSize: 11, padding: "6px 8px", background: "var(--bg-primary, #11111b)", borderRadius: 4 }}>
+                <div style={{ fontSize: 11, padding: "6px 8px", background: "var(--bg-primary)", borderRadius: 4 }}>
                   {team.goal}
                 </div>
                 <div style={{ fontSize: 12, fontWeight: 600 }}>Members ({team.member_ids.length})</div>
@@ -167,8 +167,8 @@ export function AgentTeamPanel() {
                   {team.member_ids.map((id) => (
                     <div key={id} style={{
                       padding: "4px 8px", fontSize: 10, borderRadius: 4,
-                      background: id === team.lead_agent_id ? "rgba(99,102,241,0.15)" : "var(--bg-primary, #11111b)",
-                      border: id === team.lead_agent_id ? "1px solid #6366f1" : "1px solid var(--border, var(--bg-secondary))",
+                      background: id === team.lead_agent_id ? "rgba(99,102,241,0.15)" : "var(--bg-primary)",
+                      border: id === team.lead_agent_id ? "1px solid #6366f1" : "1px solid var(--border-color)",
                     }}>
                       {id === team.lead_agent_id ? "Lead: " : ""}{id.split("-").pop()}
                     </div>
@@ -196,8 +196,8 @@ export function AgentTeamPanel() {
                 {team.tasks.map((t) => (
                   <div key={t.id} style={{
                     padding: "6px 8px", borderRadius: 4,
-                    border: "1px solid var(--border, var(--bg-secondary))",
-                    background: "var(--bg-primary, #11111b)",
+                    border: "1px solid var(--border-color)",
+                    background: "var(--bg-primary)",
                   }}>
                     <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4 }}>
                       <span style={{
@@ -231,7 +231,7 @@ export function AgentTeamPanel() {
                   <div key={i} style={{
                     padding: "4px 8px", borderRadius: 4,
                     borderLeft: `3px solid ${msgTypeColor[m.msg_type] || "#6c7086"}`,
-                    background: "var(--bg-primary, #11111b)",
+                    background: "var(--bg-primary)",
                   }}>
                     <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 2 }}>
                       <span style={{ fontSize: 9, fontWeight: 700, color: msgTypeColor[m.msg_type] || "#6c7086" }}>
@@ -265,15 +265,15 @@ export function AgentTeamPanel() {
 
 const btnStyle: React.CSSProperties = {
   padding: "6px 12px", fontSize: 12, fontWeight: 600,
-  border: "1px solid var(--border, var(--bg-secondary))", borderRadius: 4,
+  border: "1px solid var(--border-color)", borderRadius: 4,
   background: "var(--bg-secondary)", color: "var(--text-primary)",
   cursor: "pointer",
 };
 
 const inputStyle: React.CSSProperties = {
   padding: "5px 8px", fontSize: 11, borderRadius: 4,
-  border: "1px solid var(--border, var(--bg-secondary))",
-  background: "var(--bg-primary, #11111b)", color: "var(--text-primary)",
+  border: "1px solid var(--border-color)",
+  background: "var(--bg-primary)", color: "var(--text-primary)",
   outline: "none",
 };
 

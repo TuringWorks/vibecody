@@ -124,7 +124,7 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
  return (
  <div style={{ display: "flex", height: "100%", background: "var(--bg-primary, #1a1b26)", color: "var(--text-primary)" }}>
  {/* Left: Component tree */}
- <div style={{ width: 200, borderRight: "1px solid var(--border, var(--bg-secondary))", padding: 12, overflowY: "auto", flexShrink: 0 }}>
+ <div style={{ width: 200, borderRight: "1px solid var(--border-color)", padding: 12, overflowY: "auto", flexShrink: 0 }}>
  <div style={{ fontWeight: 600, marginBottom: 12, fontSize: 13 }}>Components</div>
  <div style={{ fontSize: 12, opacity: 0.6 }}>
  Component tree from your project files will appear here once a live dev server is running.
@@ -135,7 +135,7 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
  style={{
  width: "100%",
  background: "var(--bg-secondary)",
- border: "1px solid var(--border, var(--bg-secondary))",
+ border: "1px solid var(--border-color)",
  borderRadius: 6,
  padding: "6px 10px",
  color: "var(--text-primary)",
@@ -151,7 +151,7 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
  {/* Center: Live preview */}
  <div style={{ flex: 1, display: "flex", flexDirection: "column", position: "relative" }}>
  {/* Toolbar */}
- <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 12px", borderBottom: "1px solid var(--border, var(--bg-secondary))", background: "var(--bg-secondary)" }}>
+ <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
  <input
  value={previewUrl}
  onChange={(e) => setPreviewUrl(e.target.value)}
@@ -200,7 +200,7 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
  </div>
 
  {/* Right: AI Chat + Property Inspector */}
- <div style={{ width: 280, borderLeft: "1px solid var(--border, var(--bg-secondary))", padding: 12, overflowY: "auto", flexShrink: 0, display: "flex", flexDirection: "column", gap: 12 }}>
+ <div style={{ width: 280, borderLeft: "1px solid var(--border-color)", padding: 12, overflowY: "auto", flexShrink: 0, display: "flex", flexDirection: "column", gap: 12 }}>
  {/* Generate component */}
  <div>
  <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Generate Component</div>
@@ -244,7 +244,7 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
  {/* Figma import dialog */}
  {showFigmaDialog && (
  <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
- <div style={{ background: "var(--bg-secondary)", borderRadius: 8, padding: 24, width: 400, border: "1px solid var(--border, var(--bg-secondary))" }}>
+ <div style={{ background: "var(--bg-secondary)", borderRadius: 8, padding: 24, width: 400, border: "1px solid var(--border-color)" }}>
  <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 16 }}>Import from Figma</div>
  <label style={{ fontSize: 12, display: "block", marginBottom: 4 }}>Figma File URL</label>
  <input

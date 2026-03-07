@@ -110,14 +110,14 @@ export function BookmarkPanel({ workspacePath }: BookmarkPanelProps) {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
       {/* Sub-tabs */}
-      <div style={{ display: "flex", gap: 4, padding: "8px 12px", borderBottom: "1px solid var(--border, var(--bg-secondary))" }}>
+      <div style={{ display: "flex", gap: 4, padding: "8px 12px", borderBottom: "1px solid var(--border-color)" }}>
         {(["markers", "bookmarks"] as const).map((t) => (
           <button
             key={t}
             onClick={() => { setTab(t); if (t === "bookmarks") loadBookmarks(); }}
             style={{
               padding: "4px 12px", fontSize: 11, fontWeight: 600, borderRadius: 4, cursor: "pointer",
-              border: "1px solid var(--border, var(--bg-secondary))",
+              border: "1px solid var(--border-color)",
               background: tab === t ? "var(--accent, #6366f1)" : "var(--bg-secondary)",
               color: tab === t ? "#fff" : "var(--text-primary)",
             }}
@@ -156,7 +156,7 @@ export function BookmarkPanel({ workspacePath }: BookmarkPanelProps) {
                 onClick={() => setTypeFilter(t)}
                 style={{
                   padding: "2px 8px", fontSize: 10, fontWeight: 600, borderRadius: 3, cursor: "pointer",
-                  border: typeFilter === t ? "1px solid var(--accent, #6366f1)" : "1px solid var(--border, var(--bg-secondary))",
+                  border: typeFilter === t ? "1px solid var(--accent, #6366f1)" : "1px solid var(--border-color)",
                   background: typeFilter === t ? "rgba(99,102,241,0.2)" : "transparent",
                   color: t === "ALL" ? "var(--text-primary)" : (markerColor[t] || "var(--text-primary)"),
                 }}
@@ -173,7 +173,7 @@ export function BookmarkPanel({ workspacePath }: BookmarkPanelProps) {
                 onClick={() => openFile(m.file, m.line)}
                 style={{
                   display: "flex", gap: 8, alignItems: "center", padding: "4px 6px",
-                  borderBottom: "1px solid var(--border, var(--bg-secondary))", cursor: "pointer",
+                  borderBottom: "1px solid var(--border-color)", cursor: "pointer",
                   fontSize: 11,
                 }}
               >
@@ -226,7 +226,7 @@ export function BookmarkPanel({ workspacePath }: BookmarkPanelProps) {
                 onClick={() => openFile(b.file, b.line)}
                 style={{
                   display: "flex", gap: 8, alignItems: "center", padding: "4px 6px",
-                  borderBottom: "1px solid var(--border, var(--bg-secondary))", cursor: "pointer",
+                  borderBottom: "1px solid var(--border-color)", cursor: "pointer",
                   fontSize: 11,
                 }}
               >
@@ -252,15 +252,15 @@ export function BookmarkPanel({ workspacePath }: BookmarkPanelProps) {
 
 const btnStyle: React.CSSProperties = {
   padding: "4px 10px", fontSize: 11, fontWeight: 600,
-  border: "1px solid var(--border, var(--bg-secondary))", borderRadius: 4,
+  border: "1px solid var(--border-color)", borderRadius: 4,
   background: "var(--bg-secondary)", color: "var(--text-primary)",
   cursor: "pointer",
 };
 
 const inputStyle: React.CSSProperties = {
   padding: "4px 8px", fontSize: 11, borderRadius: 4,
-  border: "1px solid var(--border, var(--bg-secondary))",
-  background: "var(--bg-primary, #11111b)", color: "var(--text-primary)",
+  border: "1px solid var(--border-color)",
+  background: "var(--bg-primary)", color: "var(--text-primary)",
   outline: "none",
 };
 

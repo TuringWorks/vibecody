@@ -94,7 +94,7 @@ export function TraceDashboard() {
  <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
  {/* Header */}
  <div style={{
- padding: "8px 12px", borderBottom: "1px solid var(--border, var(--bg-secondary))",
+ padding: "8px 12px", borderBottom: "1px solid var(--border-color)",
  display: "flex", alignItems: "center", gap: 8,
  }}>
  <span style={{ fontSize: 14, fontWeight: 700 }}>Trace Dashboard</span>
@@ -124,8 +124,8 @@ export function TraceDashboard() {
  {sessions.map((s) => (
  <button key={s.session_id} onClick={() => loadSession(s.session_id)} style={{
  padding: "6px 8px", borderRadius: 4, textAlign: "left", cursor: "pointer",
- border: "1px solid var(--border, var(--bg-secondary))",
- background: "var(--bg-primary, #11111b)",
+ border: "1px solid var(--border-color)",
+ background: "var(--bg-primary)",
  color: "var(--text-primary)",
  }}>
  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
@@ -153,7 +153,7 @@ export function TraceDashboard() {
  {/* Summary bar */}
  <div style={{
  display: "flex", gap: 12, padding: "6px 8px", borderRadius: 4,
- background: "var(--bg-primary, #11111b)", fontSize: 10,
+ background: "var(--bg-primary)", fontSize: 10,
  }}>
  <span><strong>{steps.length}</strong> steps</span>
  <span><strong>{formatDuration(totalDuration)}</strong> total</span>
@@ -186,7 +186,7 @@ export function TraceDashboard() {
  {(["all", "prompt", "tool_call", "file_edit", "test", "error"] as const).map((k) => (
  <button key={k} onClick={() => setFilter(k)} style={{
  ...chipStyle, cursor: "pointer",
- border: filter === k ? "1px solid #6366f1" : "1px solid var(--border, var(--bg-secondary))",
+ border: filter === k ? "1px solid #6366f1" : "1px solid var(--border-color)",
  background: filter === k ? "rgba(99,102,241,0.15)" : "transparent",
  }}>
  {k !== "all" && (
@@ -208,8 +208,8 @@ export function TraceDashboard() {
  return (
  <div key={i} style={{
  borderRadius: 4, overflow: "hidden",
- border: "1px solid var(--border, var(--bg-secondary))",
- background: "var(--bg-primary, #11111b)",
+ border: "1px solid var(--border-color)",
+ background: "var(--bg-primary)",
  }}>
  <button onClick={() => setExpandedStep(isExpanded ? null : s.step)} style={{
  display: "flex", gap: 6, alignItems: "center", padding: "5px 8px",
@@ -241,7 +241,7 @@ export function TraceDashboard() {
  </button>
 
  {isExpanded && (
- <div style={{ padding: "6px 8px 8px", borderTop: "1px solid var(--border, var(--bg-secondary))" }}>
+ <div style={{ padding: "6px 8px 8px", borderTop: "1px solid var(--border-color)" }}>
  {s.input_summary && (
  <div style={{ marginBottom: 6 }}>
  <div style={{ fontSize: 9, fontWeight: 700, opacity: 0.5, marginBottom: 2 }}>INPUT</div>
@@ -291,6 +291,6 @@ export function TraceDashboard() {
 
 const chipStyle: React.CSSProperties = {
  padding: "2px 8px", fontSize: 9, fontWeight: 600, borderRadius: 4,
- border: "1px solid var(--border, var(--bg-secondary))",
+ border: "1px solid var(--border-color)",
  background: "transparent", color: "var(--text-primary)",
 };

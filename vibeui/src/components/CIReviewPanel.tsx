@@ -71,7 +71,7 @@ export function CIReviewPanel() {
     <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
       {/* Header */}
       <div style={{
-        padding: "8px 12px", borderBottom: "1px solid var(--border, var(--bg-secondary))",
+        padding: "8px 12px", borderBottom: "1px solid var(--border-color)",
         display: "flex", alignItems: "center", gap: 8,
       }}>
         <span style={{ fontSize: 14, fontWeight: 700 }}>CI/CD Review Bot</span>
@@ -175,7 +175,7 @@ export function CIReviewPanel() {
           <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>Setup Instructions</div>
           <div style={{
             fontSize: 10, padding: "8px 10px", borderRadius: 4,
-            background: "var(--bg-primary, #11111b)", lineHeight: 1.6,
+            background: "var(--bg-primary)", lineHeight: 1.6,
           }}>
             1. Create a GitHub App at github.com/settings/apps/new<br />
             2. Set Webhook URL to: <code>https://your-server/webhook/github</code><br />
@@ -192,7 +192,7 @@ export function CIReviewPanel() {
           <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>CLI CI Mode</div>
           <div style={{
             fontSize: 10, padding: "8px 10px", borderRadius: 4,
-            background: "var(--bg-primary, #11111b)", fontFamily: "monospace",
+            background: "var(--bg-primary)", fontFamily: "monospace",
           }}>
             vibecli --review --ci-mode --base $BASE_SHA<br />
             vibecli --review --ci-mode --severity-threshold medium
@@ -213,8 +213,8 @@ export function CIReviewPanel() {
               {reviews.map((r, i) => (
                 <div key={i} style={{
                   padding: "6px 8px", borderRadius: 4,
-                  border: "1px solid var(--border, var(--bg-secondary))",
-                  background: "var(--bg-primary, #11111b)",
+                  border: "1px solid var(--border-color)",
+                  background: "var(--bg-primary)",
                 }}>
                   <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4 }}>
                     <span style={{
@@ -270,15 +270,15 @@ export function CIReviewPanel() {
 
 const btnStyle: React.CSSProperties = {
   padding: "6px 12px", fontSize: 12, fontWeight: 600,
-  border: "1px solid var(--border, var(--bg-secondary))", borderRadius: 4,
+  border: "1px solid var(--border-color)", borderRadius: 4,
   background: "var(--bg-secondary)", color: "var(--text-primary)",
   cursor: "pointer",
 };
 
 const inputStyle: React.CSSProperties = {
   padding: "5px 8px", fontSize: 11, borderRadius: 4, width: "100%", boxSizing: "border-box" as const,
-  border: "1px solid var(--border, var(--bg-secondary))",
-  background: "var(--bg-primary, #11111b)", color: "var(--text-primary)",
+  border: "1px solid var(--border-color)",
+  background: "var(--bg-primary)", color: "var(--text-primary)",
   outline: "none",
 };
 

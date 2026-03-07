@@ -113,7 +113,7 @@ export function DepsPanel({ workspacePath }: DepsPanelProps) {
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <div style={{
           background: "var(--bg-secondary)", borderRadius: 6, padding: "6px 12px",
-          border: "1px solid var(--border, var(--bg-secondary))", fontSize: 12, fontWeight: 600,
+          border: "1px solid var(--border-color)", fontSize: 12, fontWeight: 600,
         }}>
           {manager ? managerLabel[manager] || manager : "No package manager detected"}
         </div>
@@ -145,7 +145,7 @@ export function DepsPanel({ workspacePath }: DepsPanelProps) {
           <div style={{
             display: "flex", gap: 12, fontSize: 12,
             background: "var(--bg-secondary)", borderRadius: 6, padding: 10,
-            border: "1px solid var(--border, var(--bg-secondary))",
+            border: "1px solid var(--border-color)",
           }}>
             <span>Total: <strong>{result.total}</strong></span>
             <span style={{ color: result.outdated > 0 ? "#fab387" : "inherit" }}>
@@ -165,7 +165,7 @@ export function DepsPanel({ workspacePath }: DepsPanelProps) {
                 style={{
                   padding: "4px 12px", fontSize: 11, borderRadius: 12,
                   background: filter === f ? "var(--accent-blue, #6366f1)" : "var(--bg-secondary)",
-                  border: `1px solid ${filter === f ? "var(--accent-blue, #6366f1)" : "var(--border, var(--bg-secondary))"}`,
+                  border: `1px solid ${filter === f ? "var(--accent-blue, #6366f1)" : "var(--border-color)"}`,
                   color: "var(--text-primary)", cursor: "pointer",
                   fontWeight: filter === f ? 600 : 400,
                 }}
@@ -184,7 +184,7 @@ export function DepsPanel({ workspacePath }: DepsPanelProps) {
               <div style={{
                 display: "grid", gridTemplateColumns: "1fr 80px 80px 80px 90px 60px",
                 gap: 4, padding: "6px 8px", fontSize: 11, fontWeight: 600,
-                borderBottom: "1px solid var(--border, var(--bg-secondary))", opacity: 0.7,
+                borderBottom: "1px solid var(--border-color)", opacity: 0.7,
               }}>
                 <span>Package</span>
                 <span style={{ textAlign: "right" }}>Current</span>
@@ -200,7 +200,7 @@ export function DepsPanel({ workspacePath }: DepsPanelProps) {
                   style={{
                     display: "grid", gridTemplateColumns: "1fr 80px 80px 80px 90px 60px",
                     gap: 4, padding: "5px 8px", fontSize: 11,
-                    borderBottom: "1px solid var(--border, var(--bg-secondary))",
+                    borderBottom: "1px solid var(--border-color)",
                     background: dep.is_vulnerable ? "rgba(243,139,168,0.05)" : "transparent",
                   }}
                 >
@@ -227,7 +227,7 @@ export function DepsPanel({ workspacePath }: DepsPanelProps) {
                         disabled={upgrading.has(dep.name)}
                         title={`Upgrade to ${dep.latest}`}
                         style={{
-                          background: "none", border: "1px solid var(--border, var(--bg-secondary))",
+                          background: "none", border: "1px solid var(--border-color)",
                           borderRadius: 4, padding: "1px 6px", fontSize: 10,
                           color: "#89b4fa", cursor: "pointer",
                         }}
@@ -258,7 +258,7 @@ export function DepsPanel({ workspacePath }: DepsPanelProps) {
                 marginTop: 8, background: "var(--bg-secondary)", borderRadius: 6,
                 padding: 10, fontSize: 10, fontFamily: "monospace", maxHeight: 200,
                 overflowY: "auto", whiteSpace: "pre-wrap", color: "var(--text-primary)",
-                border: "1px solid var(--border, var(--bg-secondary))",
+                border: "1px solid var(--border-color)",
               }}>
                 {result.raw_output || "(no output)"}
               </pre>

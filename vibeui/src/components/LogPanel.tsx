@@ -160,7 +160,7 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
           style={{
             flex: 1, minWidth: 180, padding: "5px 8px", fontSize: 12,
             background: "var(--bg-secondary)", color: "var(--text-primary)",
-            border: "1px solid var(--border, var(--bg-secondary))", borderRadius: 6,
+            border: "1px solid var(--border-color)", borderRadius: 6,
           }}
         >
           {sources.length === 0 && <option value="">No log files found</option>}
@@ -178,7 +178,7 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
           style={{
             flex: 1, minWidth: 150, padding: "5px 8px", fontSize: 12,
             background: "var(--bg-secondary)", color: "var(--text-primary)",
-            border: "1px solid var(--border, var(--bg-secondary))", borderRadius: 6,
+            border: "1px solid var(--border-color)", borderRadius: 6,
           }}
         />
         <button
@@ -203,7 +203,7 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
           style={{
             padding: "4px 6px", fontSize: 11,
             background: "var(--bg-secondary)", color: "var(--text-primary)",
-            border: "1px solid var(--border, var(--bg-secondary))", borderRadius: 4,
+            border: "1px solid var(--border-color)", borderRadius: 4,
           }}
         >
           <option value={100}>100 lines</option>
@@ -220,7 +220,7 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
             style={{
               padding: "3px 10px", fontSize: 11, borderRadius: 12,
               background: levelFilter === lv ? (lv === "all" ? "#6366f1" : levelColor[lv]) : "var(--bg-secondary)",
-              border: `1px solid ${levelFilter === lv ? "transparent" : "var(--border, var(--bg-secondary))"}`,
+              border: `1px solid ${levelFilter === lv ? "transparent" : "var(--border-color)"}`,
               color: levelFilter === lv ? "#fff" : "var(--text-primary)",
               cursor: "pointer", fontWeight: levelFilter === lv ? 600 : 400,
             }}
@@ -248,7 +248,7 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
           style={{
             flex: 1, minWidth: 120, padding: "4px 8px", fontSize: 11,
             background: "var(--bg-secondary)", color: "var(--text-primary)",
-            border: "1px solid var(--border, var(--bg-secondary))", borderRadius: 4,
+            border: "1px solid var(--border-color)", borderRadius: 4,
           }}
         />
       </div>
@@ -265,7 +265,7 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
         <div style={{
           display: "flex", gap: 12, fontSize: 12,
           background: "var(--bg-secondary)", borderRadius: 6, padding: "6px 10px",
-          border: "1px solid var(--border, var(--bg-secondary))",
+          border: "1px solid var(--border-color)",
         }}>
           <span>Lines: <strong>{result.total_lines}</strong></span>
           <span style={{ color: result.error_count > 0 ? "#f38ba8" : "inherit" }}>
@@ -295,7 +295,7 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
       {analysis && (
         <div style={{
           background: "var(--bg-secondary)", borderRadius: 6, padding: 10,
-          border: "1px solid var(--border, var(--bg-secondary))", fontSize: 12,
+          border: "1px solid var(--border-color)", fontSize: 12,
           maxHeight: 200, overflowY: "auto", whiteSpace: "pre-wrap",
           fontFamily: "inherit", lineHeight: 1.5,
         }}>
@@ -317,7 +317,7 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
         <div style={{
           flex: 1, overflowY: "auto", fontFamily: "monospace", fontSize: 11,
           background: "var(--bg-secondary)", borderRadius: 6,
-          border: "1px solid var(--border, var(--bg-secondary))", padding: 4,
+          border: "1px solid var(--border-color)", padding: 4,
         }}>
           {filtered.map((entry) => (
             <div

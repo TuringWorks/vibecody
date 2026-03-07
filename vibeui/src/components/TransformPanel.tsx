@@ -70,7 +70,7 @@ export function TransformPanel() {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
       <div style={{
-        padding: "8px 12px", borderBottom: "1px solid var(--border, var(--bg-secondary))",
+        padding: "8px 12px", borderBottom: "1px solid var(--border-color)",
         display: "flex", alignItems: "center", gap: 8,
       }}>
         <span style={{ fontSize: 14, fontWeight: 700 }}>Code Transform</span>
@@ -86,8 +86,8 @@ export function TransformPanel() {
           {TRANSFORMS.map((t) => (
             <button key={t.id} onClick={() => { setSelected(t.id); setPlan(null); setResult(null); }} style={{
               padding: "6px 10px", borderRadius: 4, textAlign: "left", cursor: "pointer",
-              border: selected === t.id ? "1px solid #6366f1" : "1px solid var(--border, var(--bg-secondary))",
-              background: selected === t.id ? "rgba(99,102,241,0.15)" : "var(--bg-primary, #11111b)",
+              border: selected === t.id ? "1px solid #6366f1" : "1px solid var(--border-color)",
+              background: selected === t.id ? "rgba(99,102,241,0.15)" : "var(--bg-primary)",
               color: "var(--text-primary)",
             }}>
               <div style={{ fontSize: 11, fontWeight: 600 }}>{t.label}</div>
@@ -121,8 +121,8 @@ export function TransformPanel() {
               {plan.map((p, i) => (
                 <div key={i} style={{
                   padding: "4px 8px", fontSize: 10, borderRadius: 3,
-                  background: "var(--bg-primary, #11111b)",
-                  border: "1px solid var(--border, var(--bg-secondary))",
+                  background: "var(--bg-primary)",
+                  border: "1px solid var(--border-color)",
                 }}>
                   <div style={{ fontWeight: 600, fontFamily: "monospace" }}>{p.file}</div>
                   <div style={{ opacity: 0.6 }}>{p.description} (~{p.estimated_changes} changes)</div>
@@ -150,7 +150,7 @@ export function TransformPanel() {
 
 const btnStyle: React.CSSProperties = {
   padding: "6px 12px", fontSize: 12, fontWeight: 600,
-  border: "1px solid var(--border, var(--bg-secondary))", borderRadius: 4,
+  border: "1px solid var(--border-color)", borderRadius: 4,
   background: "var(--bg-secondary)", color: "var(--text-primary)",
   cursor: "pointer",
 };

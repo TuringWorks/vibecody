@@ -237,7 +237,7 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
                 onClick={() => handleSwitchEnv(env)}
                 style={{
                   background: activeEnv === env ? "var(--accent-blue, #6366f1)" : "var(--bg-secondary)",
-                  border: `1px solid ${activeEnv === env ? "var(--accent-blue, #6366f1)" : "var(--border, var(--bg-secondary))"}`,
+                  border: `1px solid ${activeEnv === env ? "var(--accent-blue, #6366f1)" : "var(--border-color)"}`,
                   borderRadius: 12,
                   padding: "4px 12px",
                   cursor: "pointer",
@@ -260,7 +260,7 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
               onKeyDown={(e) => e.key === "Enter" && handleCreateEnv()}
               style={{
                 width: 80, padding: "3px 8px", fontSize: 11, background: "var(--bg-secondary)",
-                border: "1px solid var(--border, var(--bg-secondary))", borderRadius: 4,
+                border: "1px solid var(--border-color)", borderRadius: 4,
                 color: "var(--text-primary)", outline: "none",
               }}
             />
@@ -269,7 +269,7 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
               disabled={!newEnvName.trim()}
               style={{
                 padding: "3px 8px", fontSize: 11, background: "var(--bg-secondary)",
-                border: "1px solid var(--border, var(--bg-secondary))", borderRadius: 4,
+                border: "1px solid var(--border-color)", borderRadius: 4,
                 color: "var(--text-primary)", cursor: "pointer",
               }}
             >
@@ -294,7 +294,7 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
           placeholder="Filter by key..."
           style={{
             flex: 1, padding: "6px 10px", fontSize: 12, background: "var(--bg-secondary)",
-            border: "1px solid var(--border, var(--bg-secondary))", borderRadius: 4,
+            border: "1px solid var(--border-color)", borderRadius: 4,
             color: "var(--text-primary)", outline: "none",
           }}
         />
@@ -336,7 +336,7 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
               key={entry.key}
               style={{
                 display: "flex", alignItems: "center", gap: 8, padding: "6px 0",
-                borderBottom: "1px solid var(--border, var(--bg-secondary))", fontSize: 12,
+                borderBottom: "1px solid var(--border-color)", fontSize: 12,
               }}
             >
               {/* Key */}
@@ -351,7 +351,7 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
                 style={{
                   flex: 1, padding: "3px 8px", fontSize: 11, fontFamily: "monospace",
                   background: "var(--bg-secondary)",
-                  border: "1px solid var(--border, var(--bg-secondary))", borderRadius: 4,
+                  border: "1px solid var(--border-color)", borderRadius: 4,
                   color: "var(--text-primary)", outline: "none",
                 }}
               />
@@ -385,7 +385,7 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
       </div>
 
       {/* Add new variable */}
-      <div style={{ borderTop: "1px solid var(--border, var(--bg-secondary))", paddingTop: 10 }}>
+      <div style={{ borderTop: "1px solid var(--border-color)", paddingTop: 10 }}>
         <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>Add Variable</div>
         <div style={{ display: "flex", gap: 6 }}>
           <input
@@ -396,7 +396,7 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
             style={{
               width: 140, padding: "6px 8px", fontSize: 11, fontFamily: "monospace",
               background: "var(--bg-secondary)", textTransform: "uppercase",
-              border: "1px solid var(--border, var(--bg-secondary))", borderRadius: 4,
+              border: "1px solid var(--border-color)", borderRadius: 4,
               color: "var(--text-primary)", outline: "none",
             }}
           />
@@ -409,7 +409,7 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
             style={{
               flex: 1, padding: "6px 8px", fontSize: 11, fontFamily: "monospace",
               background: "var(--bg-secondary)",
-              border: "1px solid var(--border, var(--bg-secondary))", borderRadius: 4,
+              border: "1px solid var(--border-color)", borderRadius: 4,
               color: "var(--text-primary)", outline: "none",
             }}
           />
