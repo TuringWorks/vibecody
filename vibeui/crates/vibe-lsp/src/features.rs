@@ -233,4 +233,149 @@ mod tests {
         );
         assert_eq!(edit.new_text, "replacement");
     }
+
+    // ── Diagnostic tests ────────────────────────────────────────────────────
+
+    #[test]
+    fn diagnostic_error_can_be_constructed() {
+        let diag = Diagnostic {
+            range: Range::new(Position::new(5, 0), Position::new(5, 10)),
+            severity: Some(DiagnosticSeverity::ERROR),
+            code: Some(NumberOrString::String("E0308".to_string())),
+            source: Some("rustc".to_string()),
+            message: "mismatched types".to_string(),
+            ..Default::default()
+        };
+        assert_eq!(diag.severity, Some(DiagnosticSeverity::ERROR));
+        assert_eq!(diag.message, "mismatched types");
+        assert_eq!(diag.source.as_deref(), Some("rustc"));
+    }
+
+    #[test]
+    fn diagnostic_warning_serializes() {
+        let diag = Diagnostic {
+            range: Range::new(Position::new(0, 0), Position::new(0, 5)),
+            severity: Some(DiagnosticSeverity::WARNING),
+            message: "unused variable".to_string(),
+            ..Default::default()
+        };
+        let json = serde_json::to_value(&diag).unwrap();
+        assert_eq!(json["message"], "unused variable");
+        assert_eq!(json["severity"], 2); // WARNING = 2
+    }
+
+    #[test]
+    fn diagnostic_without_severity_defaults_to_none() {
+        let diag = Diagnostic {
+            range: Range::new(Position::new(0, 0), Position::new(0, 1)),
+            message: "info".to_string(),
+            ..Default::default()
+        };
+        assert!(diag.severity.is_none());
+    }
+
+    // ── Completion item tests ───────────────────────────────────────────────
+
+    #[test]
+    fn completion_item_function_kind() {
+        let item = CompletionItem {
+            label: "my_function".to_string(),
+            kind: Some(CompletionItemKind::FUNCTION),
+            detail: Some("fn my_function() -> bool".to_string()),
+            ..Default::default()
+        };
+        assert_eq!(item.label, "my_function");
+        assert_eq!(item.kind, Some(CompletionItemKind::FUNCTION));
+        let json = serde_json::to_value(&item).unwrap();
+        assert_eq!(json["label"], "my_function");
+        assert_eq!(json["kind"], 3); // FUNCTION = 3
+    }
+
+    #[test]
+    fn completion_item_with_insert_text() {
+        let item = CompletionItem {
+            label: "println!".to_string(),
+            kind: Some(CompletionItemKind::SNIPPET),
+            insert_text: Some("println!(\"$1\")$0".to_string()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            ..Default::default()
+        };
+        assert_eq!(item.insert_text.as_deref(), Some("println!(\"$1\")$0"));
+        assert_eq!(item.insert_text_format, Some(InsertTextFormat::SNIPPET));
+    }
+
+    // ── Symbol information tests ────────────────────────────────────────────
+
+    #[test]
+    fn symbol_information_can_be_constructed() {
+        let uri: Uri = "file:///tmp/test.rs".parse().unwrap();
+        #[allow(deprecated)]
+        let sym = SymbolInformation {
+            name: "MyStruct".to_string(),
+            kind: SymbolKind::STRUCT,
+            tags: None,
+            deprecated: None,
+            location: Location::new(
+                uri,
+                Range::new(Position::new(10, 0), Position::new(20, 1)),
+            ),
+            container_name: Some("my_module".to_string()),
+        };
+        assert_eq!(sym.name, "MyStruct");
+        assert_eq!(sym.kind, SymbolKind::STRUCT);
+        assert_eq!(sym.container_name.as_deref(), Some("my_module"));
+    }
+
+    // ── Range / Position utility tests ──────────────────────────────────────
+
+    #[test]
+    fn range_single_line() {
+        let range = Range::new(Position::new(3, 5), Position::new(3, 15));
+        assert_eq!(range.start.line, range.end.line);
+        assert_eq!(range.end.character - range.start.character, 10);
+    }
+
+    #[test]
+    fn range_multiline_serialization() {
+        let range = Range::new(Position::new(0, 0), Position::new(100, 0));
+        let json = serde_json::to_value(&range).unwrap();
+        assert_eq!(json["start"]["line"], 0);
+        assert_eq!(json["end"]["line"], 100);
+    }
+
+    // ── WorkspaceEdit tests ─────────────────────────────────────────────────
+
+    #[test]
+    fn workspace_edit_with_changes() {
+        let uri: Uri = "file:///tmp/test.rs".parse().unwrap();
+        let edit = TextEdit::new(
+            Range::new(Position::new(0, 0), Position::new(0, 3)),
+            "new_name".to_string(),
+        );
+        let mut changes = std::collections::HashMap::new();
+        changes.insert(uri, vec![edit]);
+        let ws_edit = WorkspaceEdit {
+            changes: Some(changes),
+            ..Default::default()
+        };
+        assert!(ws_edit.changes.is_some());
+        let c = ws_edit.changes.unwrap();
+        assert_eq!(c.len(), 1);
+    }
+
+    // ── Location tests ──────────────────────────────────────────────────────
+
+    #[test]
+    fn location_roundtrip_serialization() {
+        let uri: Uri = "file:///src/main.rs".parse().unwrap();
+        let loc = Location::new(
+            uri,
+            Range::new(Position::new(42, 4), Position::new(42, 20)),
+        );
+        let json = serde_json::to_value(&loc).unwrap();
+        let deserialized: Location = serde_json::from_value(json).unwrap();
+        assert_eq!(deserialized.uri.as_str(), "file:///src/main.rs");
+        assert_eq!(deserialized.range.start.line, 42);
+        assert_eq!(deserialized.range.start.character, 4);
+    }
 }

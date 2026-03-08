@@ -353,4 +353,131 @@ mod tests {
         let result = client.start().await;
         assert!(result.is_err());
     }
+
+    // ── LSP message format tests ────────────────────────────────────────────
+
+    #[test]
+    fn content_length_header_format() {
+        // Verify the header format used in the writer task
+        let body = r#"{"jsonrpc":"2.0","id":0,"method":"initialize","params":{}}"#;
+        let header = format!("Content-Length: {}\r\n\r\n", body.len());
+        assert!(header.starts_with("Content-Length: "));
+        assert!(header.ends_with("\r\n\r\n"));
+        let len_str = header
+            .trim_start_matches("Content-Length: ")
+            .trim();
+        let parsed_len: usize = len_str.parse().unwrap();
+        assert_eq!(parsed_len, body.len());
+    }
+
+    #[test]
+    fn jsonrpc_request_structure() {
+        // Mirrors the request JSON built in send_request
+        let id: i64 = 42;
+        let method = "textDocument/completion";
+        let params = serde_json::json!({"key": "value"});
+        let req = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": id,
+            "method": method,
+            "params": params
+        });
+        assert_eq!(req["jsonrpc"], "2.0");
+        assert_eq!(req["id"], 42);
+        assert_eq!(req["method"], "textDocument/completion");
+        assert_eq!(req["params"]["key"], "value");
+    }
+
+    #[test]
+    fn jsonrpc_notification_has_no_id() {
+        // Mirrors the notification JSON built in send_notification
+        let method = "textDocument/didOpen";
+        let params = serde_json::json!({});
+        let notif = serde_json::json!({
+            "jsonrpc": "2.0",
+            "method": method,
+            "params": params
+        });
+        assert_eq!(notif["jsonrpc"], "2.0");
+        assert_eq!(notif["method"], "textDocument/didOpen");
+        assert!(notif.get("id").is_none());
+    }
+
+    #[test]
+    fn request_id_starts_at_zero_and_increments() {
+        let mut client = LspClient::new("test".to_string(), vec![]);
+        assert_eq!(client.request_id, 0);
+        // Simulate what send_request does: use id then increment
+        let id = client.request_id;
+        client.request_id += 1;
+        assert_eq!(id, 0);
+        assert_eq!(client.request_id, 1);
+        let id2 = client.request_id;
+        client.request_id += 1;
+        assert_eq!(id2, 1);
+        assert_eq!(client.request_id, 2);
+    }
+
+    #[test]
+    fn lsp_response_with_result_can_be_parsed() {
+        let response = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 0,
+            "result": {"capabilities": {}}
+        });
+        let msg_id = response.get("id").and_then(|i| i.as_i64());
+        assert_eq!(msg_id, Some(0));
+        assert!(response.get("result").is_some());
+        assert!(response.get("error").is_none());
+    }
+
+    #[test]
+    fn lsp_response_with_error_can_be_parsed() {
+        let response = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "error": {"code": -32600, "message": "Invalid request"}
+        });
+        let msg_id = response.get("id").and_then(|i| i.as_i64());
+        assert_eq!(msg_id, Some(1));
+        assert!(response.get("result").is_none());
+        let error = response.get("error").unwrap();
+        assert_eq!(error["code"], -32600);
+    }
+
+    #[test]
+    fn content_length_parsing_matches_reader_logic() {
+        // Simulates the header-parsing logic from the reader task
+        let line = "Content-Length: 128\r\n";
+        assert!(line.starts_with("Content-Length: "));
+        let len: usize = line
+            .trim_start_matches("Content-Length: ")
+            .trim()
+            .parse()
+            .unwrap();
+        assert_eq!(len, 128);
+    }
+
+    #[test]
+    fn content_length_parsing_various_sizes() {
+        for expected in [0usize, 1, 255, 65535, 1_000_000] {
+            let header = format!("Content-Length: {}\r\n", expected);
+            let parsed: usize = header
+                .trim_start_matches("Content-Length: ")
+                .trim()
+                .parse()
+                .unwrap();
+            assert_eq!(parsed, expected);
+        }
+    }
+
+    #[test]
+    fn initialize_params_uri_format() {
+        // Mirrors the URI construction in LspClient::initialize
+        let root_path = std::path::PathBuf::from("/home/user/project");
+        let uri_string = format!("file://{}", root_path.display());
+        assert_eq!(uri_string, "file:///home/user/project");
+        let uri: lsp_types::Uri = uri_string.parse().unwrap();
+        assert_eq!(uri.as_str(), "file:///home/user/project");
+    }
 }

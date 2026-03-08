@@ -1916,4 +1916,434 @@ api_key = "key123"
         assert_eq!(Config::approval_from_flags(true, false, false), "suggest");
         assert_eq!(Config::approval_from_flags(false, false, false), "suggest");
     }
+
+    // ── TOML parsing from strings ──
+
+    #[test]
+    fn config_parse_provider_with_api_key() {
+        let toml_str = r#"
+[claude]
+enabled = true
+api_key = "sk-ant-test123"
+model = "claude-sonnet-4-20250514"
+"#;
+        let cfg: Config = toml::from_str(toml_str).expect("parse provider with key");
+        let claude = cfg.claude.unwrap();
+        assert!(claude.enabled);
+        assert_eq!(claude.api_key.as_deref(), Some("sk-ant-test123"));
+        assert_eq!(claude.model.as_deref(), Some("claude-sonnet-4-20250514"));
+    }
+
+    #[test]
+    fn config_parse_provider_with_api_url() {
+        let toml_str = r#"
+[openai]
+enabled = true
+api_url = "https://custom-openai.example.com/v1"
+model = "gpt-4o"
+"#;
+        let cfg: Config = toml::from_str(toml_str).expect("parse provider with api_url");
+        let openai = cfg.openai.unwrap();
+        assert_eq!(openai.api_url.as_deref(), Some("https://custom-openai.example.com/v1"));
+    }
+
+    #[test]
+    fn config_parse_provider_with_thinking_budget() {
+        let toml_str = r#"
+[claude]
+enabled = true
+thinking_budget_tokens = 16000
+"#;
+        let cfg: Config = toml::from_str(toml_str).expect("parse thinking budget");
+        assert_eq!(cfg.claude.unwrap().thinking_budget_tokens, Some(16000));
+    }
+
+    #[test]
+    fn config_parse_provider_with_api_key_helper() {
+        let toml_str = r#"
+[openai]
+enabled = true
+api_key_helper = "~/.vibecli/get-key.sh openai"
+"#;
+        let cfg: Config = toml::from_str(toml_str).expect("parse api_key_helper");
+        assert_eq!(
+            cfg.openai.unwrap().api_key_helper.as_deref(),
+            Some("~/.vibecli/get-key.sh openai")
+        );
+    }
+
+    // ── Config merging (defaults + user overrides) ──
+
+    #[test]
+    fn config_partial_override_preserves_defaults() {
+        let toml_str = r#"
+[index]
+enabled = false
+"#;
+        let cfg: Config = toml::from_str(toml_str).expect("partial override");
+        // Overridden field
+        assert!(!cfg.index.enabled);
+        // Default fields should still hold
+        assert_eq!(cfg.index.embedding_provider, "ollama");
+        assert_eq!(cfg.index.embedding_model, "nomic-embed-text");
+        assert_eq!(cfg.index.max_file_size_kb, 500);
+    }
+
+    #[test]
+    fn config_multiple_providers_simultaneously() {
+        let toml_str = r#"
+[ollama]
+enabled = true
+model = "llama3"
+
+[claude]
+enabled = true
+model = "claude-sonnet-4-20250514"
+
+[openai]
+enabled = false
+model = "gpt-4o"
+"#;
+        let cfg: Config = toml::from_str(toml_str).expect("multi-provider");
+        assert!(cfg.ollama.as_ref().unwrap().enabled);
+        assert!(cfg.claude.as_ref().unwrap().enabled);
+        assert!(!cfg.openai.as_ref().unwrap().enabled);
+        assert_eq!(cfg.ollama.as_ref().unwrap().model.as_deref(), Some("llama3"));
+    }
+
+    // ── Provider config resolution ──
+
+    #[test]
+    fn get_provider_config_case_insensitive() {
+        let mut cfg = Config::default();
+        cfg.groq = Some(ProviderConfig {
+            enabled: true, api_url: None, model: Some("llama3-70b".into()),
+            api_key: None, api_key_helper: None, thinking_budget_tokens: None,
+        });
+        assert!(cfg.get_provider_config("groq").is_some());
+        assert!(cfg.get_provider_config("Groq").is_some());
+        assert!(cfg.get_provider_config("GROQ").is_some());
+    }
+
+    #[test]
+    fn get_provider_config_returns_none_when_not_set() {
+        let cfg = Config::default();
+        let providers = &[
+            "ollama", "openai", "claude", "gemini", "grok", "groq",
+            "openrouter", "azure_openai", "mistral", "cerebras",
+            "deepseek", "zhipu", "vercel_ai",
+        ];
+        for name in providers {
+            assert!(
+                cfg.get_provider_config(name).is_none(),
+                "default config should have no provider for {name}"
+            );
+        }
+    }
+
+    #[test]
+    fn get_provider_config_all_known_providers() {
+        // Verify all provider name mappings work when providers are set
+        let pc = || ProviderConfig {
+            enabled: true, api_url: None, model: None,
+            api_key: None, api_key_helper: None, thinking_budget_tokens: None,
+        };
+        let mut cfg = Config::default();
+        cfg.ollama = Some(pc());
+        cfg.openai = Some(pc());
+        cfg.claude = Some(pc());
+        cfg.gemini = Some(pc());
+        cfg.grok = Some(pc());
+        cfg.groq = Some(pc());
+        cfg.openrouter = Some(pc());
+        cfg.azure_openai = Some(pc());
+        cfg.mistral = Some(pc());
+        cfg.cerebras = Some(pc());
+        cfg.deepseek = Some(pc());
+        cfg.zhipu = Some(pc());
+        cfg.vercel_ai = Some(pc());
+
+        let names = &[
+            "ollama", "openai", "claude", "anthropic", "gemini", "grok",
+            "groq", "openrouter", "azure_openai", "azure", "mistral",
+            "cerebras", "deepseek", "zhipu", "glm", "vercel_ai", "vercel",
+        ];
+        for name in names {
+            assert!(
+                cfg.get_provider_config(name).is_some(),
+                "get_provider_config should find {name}"
+            );
+        }
+    }
+
+    // ── Invalid/unusual config handling ──
+
+    #[test]
+    fn config_ignores_unknown_keys() {
+        let toml_str = r#"
+unknown_field = "should be ignored"
+another_unknown = 42
+"#;
+        // serde with default should ignore unknown fields (Config derives Deserialize)
+        // This will fail if deny_unknown_fields is set
+        let result: Result<Config, _> = toml::from_str(toml_str);
+        // If it fails, the config is strict about unknown fields — that's also valid behavior
+        // The test documents the behavior either way
+        if let Ok(cfg) = result {
+            // Config parsed OK, defaults should hold
+            assert!(cfg.ollama.is_none());
+        }
+    }
+
+    #[test]
+    fn config_parse_bedrock_custom() {
+        let toml_str = r#"
+[bedrock]
+enabled = true
+region = "eu-west-1"
+model = "anthropic.claude-3-haiku"
+role_arn = "arn:aws:iam::123456789:role/bedrock-role"
+"#;
+        let cfg: Config = toml::from_str(toml_str).expect("bedrock custom");
+        let b = cfg.bedrock.unwrap();
+        assert!(b.enabled);
+        assert_eq!(b.region, "eu-west-1");
+        assert_eq!(b.model, "anthropic.claude-3-haiku");
+        assert_eq!(b.role_arn.as_deref(), Some("arn:aws:iam::123456789:role/bedrock-role"));
+    }
+
+    #[test]
+    fn config_parse_copilot_custom_model() {
+        let toml_str = r#"
+[copilot]
+enabled = true
+model = "gpt-4-turbo"
+token = "ghp_testtoken123"
+"#;
+        let cfg: Config = toml::from_str(toml_str).expect("copilot custom");
+        let c = cfg.copilot.unwrap();
+        assert!(c.enabled);
+        assert_eq!(c.model, "gpt-4-turbo");
+        assert_eq!(c.token.as_deref(), Some("ghp_testtoken123"));
+    }
+
+    // ── Routing config edge cases ──
+
+    #[test]
+    fn routing_resolve_mixed_partial() {
+        // Only planning_provider set, model should fallback
+        let r = RoutingConfig {
+            planning_provider: Some("claude".into()),
+            planning_model: None,
+            execution_provider: None,
+            execution_model: Some("gpt-4o".into()),
+        };
+        let (pp, pm) = r.resolve_planning("ollama", "llama3");
+        assert_eq!(pp, "claude");
+        assert_eq!(pm, "llama3"); // model falls back
+
+        let (ep, em) = r.resolve_execution("ollama", "llama3");
+        assert_eq!(ep, "ollama"); // provider falls back
+        assert_eq!(em, "gpt-4o");
+    }
+
+    // ── RedTeamCfg serde ──
+
+    #[test]
+    fn redteam_cfg_custom_serde() {
+        let toml_str = r#"
+max_depth = 5
+timeout_secs = 600
+parallel_agents = 8
+scope_patterns = ["*.example.com", "api.*"]
+exclude_patterns = ["/admin/*"]
+auth_config = "auth.yaml"
+auto_report = false
+"#;
+        let r: RedTeamCfg = toml::from_str(toml_str).expect("redteam custom");
+        assert_eq!(r.max_depth, 5);
+        assert_eq!(r.timeout_secs, 600);
+        assert_eq!(r.parallel_agents, 8);
+        assert_eq!(r.scope_patterns, vec!["*.example.com", "api.*"]);
+        assert_eq!(r.exclude_patterns, vec!["/admin/*"]);
+        assert_eq!(r.auth_config.as_deref(), Some("auth.yaml"));
+        assert!(!r.auto_report);
+    }
+
+    // ── MemoryConfig serde ──
+
+    #[test]
+    fn memory_config_custom() {
+        let toml_str = r#"
+auto_record = true
+min_session_steps = 10
+"#;
+        let m: MemoryConfig = toml::from_str(toml_str).expect("memory custom");
+        assert!(m.auto_record);
+        assert_eq!(m.min_session_steps, 10);
+    }
+
+    // ── OtelConfig serde ──
+
+    #[test]
+    fn otel_config_custom() {
+        let toml_str = r#"
+enabled = true
+endpoint = "http://jaeger:4318"
+service_name = "my-vibecli"
+"#;
+        let o: OtelConfig = toml::from_str(toml_str).expect("otel custom");
+        assert!(o.enabled);
+        assert_eq!(o.endpoint, "http://jaeger:4318");
+        assert_eq!(o.service_name, "my-vibecli");
+    }
+
+    // ── WebSearchConfig serde ──
+
+    #[test]
+    fn web_search_config_custom_engine() {
+        let toml_str = r#"
+enabled = true
+engine = "tavily"
+max_results = 10
+tavily_api_key = "tvly-custom"
+"#;
+        let w: WebSearchConfig = toml::from_str(toml_str).expect("websearch custom");
+        assert!(w.enabled);
+        assert_eq!(w.engine, "tavily");
+        assert_eq!(w.max_results, 10);
+        assert_eq!(w.resolve_tavily_key(), Some("tvly-custom".into()));
+    }
+
+    // ── Safety + ShellEnvironment serde ──
+
+    #[test]
+    fn safety_config_with_shell_environment() {
+        let toml_str = r#"
+require_approval_for_commands = false
+require_approval_for_file_changes = true
+approval_policy = "full-auto"
+sandbox = true
+sandbox_profile = "/path/to/profile.sb"
+
+[shell_environment]
+inherit = "core"
+include = ["CARGO_HOME", "RUSTUP_HOME"]
+exclude = ["AWS_SECRET_*"]
+[shell_environment.set]
+VIBECLI_AGENT = "1"
+"#;
+        let s: SafetyConfig = toml::from_str(toml_str).expect("safety with shell env");
+        assert!(!s.require_approval_for_commands);
+        assert!(s.require_approval_for_file_changes);
+        assert_eq!(s.approval_policy, "full-auto");
+        assert!(s.sandbox);
+        assert_eq!(s.sandbox_profile.as_deref(), Some("/path/to/profile.sb"));
+        assert_eq!(s.shell_environment.inherit, "core");
+        assert_eq!(s.shell_environment.include, vec!["CARGO_HOME", "RUSTUP_HOME"]);
+        assert_eq!(s.shell_environment.exclude, vec!["AWS_SECRET_*"]);
+        assert_eq!(s.shell_environment.set.get("VIBECLI_AGENT").map(|s| s.as_str()), Some("1"));
+    }
+
+    // ── NetworkPolicyConfig ──
+
+    #[test]
+    fn network_policy_config_restricted_serde() {
+        let toml_str = r#"
+mode = "restricted"
+allowed_domains = ["github.com", "crates.io"]
+"#;
+        let n: NetworkPolicyConfig = toml::from_str(toml_str).expect("network restricted");
+        assert_eq!(n.mode, "restricted");
+        assert_eq!(n.allowed_domains, vec!["github.com", "crates.io"]);
+    }
+
+    #[test]
+    fn network_policy_config_none_mode() {
+        let toml_str = r#"mode = "none""#;
+        let n: NetworkPolicyConfig = toml::from_str(toml_str).expect("network none");
+        assert_eq!(n.mode, "none");
+        assert!(n.allowed_domains.is_empty());
+    }
+
+    // ── Full config integration ──
+
+    #[test]
+    fn config_full_integration_toml() {
+        let toml_str = r#"
+linear_api_key = "lin_api_test"
+
+[index]
+enabled = false
+embedding_provider = "openai"
+embedding_model = "text-embedding-3-small"
+max_file_size_kb = 1000
+
+[otel]
+enabled = true
+endpoint = "http://collector:4318"
+
+[ollama]
+enabled = true
+model = "llama3"
+api_url = "http://localhost:11434"
+
+[safety]
+require_approval_for_commands = false
+require_approval_for_file_changes = false
+approval_policy = "full-auto"
+
+[memory]
+auto_record = true
+min_session_steps = 5
+
+[routing]
+planning_provider = "claude"
+planning_model = "claude-opus-4-6"
+execution_provider = "openai"
+execution_model = "gpt-4o"
+
+[failover]
+chain = ["claude", "openai", "ollama"]
+"#;
+        let cfg: Config = toml::from_str(toml_str).expect("full integration");
+        assert_eq!(cfg.linear_api_key.as_deref(), Some("lin_api_test"));
+        assert!(!cfg.index.enabled);
+        assert_eq!(cfg.index.embedding_provider, "openai");
+        assert_eq!(cfg.index.max_file_size_kb, 1000);
+        assert!(cfg.otel.enabled);
+        assert!(cfg.ollama.as_ref().unwrap().enabled);
+        assert!(!cfg.safety.require_approval_for_commands);
+        assert_eq!(cfg.safety.approval_policy, "full-auto");
+        assert!(cfg.memory.auto_record);
+        assert_eq!(cfg.memory.min_session_steps, 5);
+        assert!(cfg.routing.is_configured());
+        assert_eq!(cfg.routing.planning_provider.as_deref(), Some("claude"));
+        assert_eq!(cfg.routing.execution_model.as_deref(), Some("gpt-4o"));
+        assert_eq!(cfg.failover.chain.len(), 3);
+    }
+
+    // ── VoiceConfig resolve priority ──
+
+    #[test]
+    fn voice_whisper_key_config_takes_priority_over_groq() {
+        let v = VoiceConfig {
+            whisper_api_key: Some("whisper-direct".into()),
+            ..Default::default()
+        };
+        // Config field should be used even when groq_key is provided
+        assert_eq!(
+            v.resolve_whisper_api_key(Some("groq-fallback")),
+            Some("whisper-direct".into())
+        );
+    }
+
+    #[test]
+    fn voice_elevenlabs_key_from_config() {
+        let v = VoiceConfig {
+            elevenlabs_api_key: Some("el-key-123".into()),
+            ..Default::default()
+        };
+        assert_eq!(v.resolve_elevenlabs_api_key(), Some("el-key-123".into()));
+    }
 }

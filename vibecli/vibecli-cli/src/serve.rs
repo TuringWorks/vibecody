@@ -2275,5 +2275,309 @@ mod tests {
             let resp = app.oneshot(req).await.unwrap();
             assert_eq!(resp.status(), StatusCode::NOT_FOUND);
         }
+
+        // ── json_error helper ────────────────────────────────────────
+
+        #[tokio::test]
+        async fn json_error_returns_correct_status_and_body() {
+            let (status, Json(body)) = json_error(StatusCode::BAD_REQUEST, "bad input");
+            assert_eq!(status, StatusCode::BAD_REQUEST);
+            assert_eq!(body["error"], "bad input");
+            // Should have exactly one field
+            assert_eq!(body.as_object().unwrap().len(), 1);
+        }
+
+        #[tokio::test]
+        async fn json_error_internal_server_error() {
+            let (status, Json(body)) = json_error(StatusCode::INTERNAL_SERVER_ERROR, "boom");
+            assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+            assert_eq!(body["error"], "boom");
+        }
+
+        #[tokio::test]
+        async fn json_error_not_found_with_dynamic_message() {
+            let msg = format!("Job '{}' not found", "abc-123");
+            let (status, Json(body)) = json_error(StatusCode::NOT_FOUND, msg);
+            assert_eq!(status, StatusCode::NOT_FOUND);
+            assert!(body["error"].as_str().unwrap().contains("abc-123"));
+        }
+
+        // ── Health endpoint version field ────────────────────────────
+
+        #[tokio::test]
+        async fn health_response_includes_version() {
+            let (app, _tmp) = test_app("t");
+            let req = Request::builder()
+                .uri("/health")
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            let body = body_string(resp.into_body()).await;
+            let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+            assert!(
+                json.get("version").is_some(),
+                "Health response should include a 'version' field; got: {body}"
+            );
+            let version = json["version"].as_str().unwrap();
+            assert!(!version.is_empty(), "version should not be empty");
+        }
+
+        // ── 404 fallback returns JSON ────────────────────────────────
+
+        #[tokio::test]
+        async fn fallback_404_returns_json_error_body() {
+            let (app, _tmp) = test_app("t");
+            let req = Request::builder()
+                .uri("/does/not/exist")
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+            let body = body_string(resp.into_body()).await;
+            let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+            assert_eq!(json["error"], "Not found");
+        }
+
+        // ── Auth edge cases ──────────────────────────────────────────
+
+        #[tokio::test]
+        async fn auth_with_no_bearer_prefix_returns_401() {
+            let (app, _tmp) = test_app("my-token");
+            let req = Request::builder()
+                .uri("/jobs")
+                .header("authorization", "my-token") // missing "Bearer " prefix
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+        }
+
+        #[tokio::test]
+        async fn auth_with_empty_token_returns_401() {
+            let (app, _tmp) = test_app("real-token");
+            let req = Request::builder()
+                .uri("/jobs")
+                .header("authorization", "Bearer ")
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+        }
+
+        // ── CORS for Tauri origin ────────────────────────────────────
+
+        #[tokio::test]
+        async fn cors_allows_tauri_localhost_origin() {
+            let (app, _tmp) = test_app("t");
+            let req = Request::builder()
+                .method("OPTIONS")
+                .uri("/health")
+                .header("origin", "https://tauri.localhost")
+                .header("access-control-request-method", "GET")
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            let acao = resp
+                .headers()
+                .get("access-control-allow-origin")
+                .and_then(|v| v.to_str().ok())
+                .unwrap_or("");
+            assert_eq!(
+                acao, "https://tauri.localhost",
+                "CORS should allow tauri.localhost origin"
+            );
+        }
+
+        #[tokio::test]
+        async fn cors_allows_vite_dev_server_origin() {
+            let (app, _tmp) = test_app("t");
+            let req = Request::builder()
+                .method("OPTIONS")
+                .uri("/health")
+                .header("origin", "http://localhost:1420")
+                .header("access-control-request-method", "POST")
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            let acao = resp
+                .headers()
+                .get("access-control-allow-origin")
+                .and_then(|v| v.to_str().ok())
+                .unwrap_or("");
+            assert_eq!(
+                acao, "http://localhost:1420",
+                "CORS should allow Vite dev server origin"
+            );
+        }
+
+        // ── GET /jobs/:id 404 body contains error message ───────────
+
+        #[tokio::test]
+        async fn get_nonexistent_job_body_has_error_message() {
+            let (app, _tmp) = test_app("tok");
+            let req = Request::builder()
+                .uri("/jobs/missing-id-xyz")
+                .header("authorization", "Bearer tok")
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+            let body = body_string(resp.into_body()).await;
+            let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+            assert!(
+                json["error"].as_str().unwrap().contains("missing-id-xyz"),
+                "404 body should mention the job ID; got: {body}"
+            );
+        }
+
+        // ── Chat endpoint rejects malformed JSON ─────────────────────
+
+        #[tokio::test]
+        async fn chat_with_invalid_json_returns_4xx() {
+            let (app, _tmp) = test_app("tok");
+            let req = Request::builder()
+                .method("POST")
+                .uri("/chat")
+                .header("content-type", "application/json")
+                .header("authorization", "Bearer tok")
+                .body(Body::from("not valid json"))
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            let status = resp.status().as_u16();
+            assert!(
+                (400..500).contains(&status),
+                "Malformed JSON should return 4xx; got {status}"
+            );
+        }
+
+        // ── Chat with empty messages ─────────────────────────────────
+
+        #[tokio::test]
+        async fn chat_with_empty_messages_returns_200() {
+            let (app, _tmp) = test_app("tok");
+            let req = Request::builder()
+                .method("POST")
+                .uri("/chat")
+                .header("content-type", "application/json")
+                .header("authorization", "Bearer tok")
+                .body(Body::from(r#"{"messages":[]}"#))
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            // The mock provider should still return a response
+            assert_eq!(resp.status(), StatusCode::OK);
+        }
+    }
+
+    // ── json_error unit tests (non-async) ────────────────────────────────
+
+    #[test]
+    fn json_error_empty_message() {
+        let (status, Json(body)) = json_error(StatusCode::FORBIDDEN, "");
+        assert_eq!(status, StatusCode::FORBIDDEN);
+        assert_eq!(body["error"], "");
+    }
+
+    #[test]
+    fn json_error_accepts_string_type() {
+        let msg = String::from("owned string error");
+        let (status, Json(body)) = json_error(StatusCode::CONFLICT, msg);
+        assert_eq!(status, StatusCode::CONFLICT);
+        assert_eq!(body["error"], "owned string error");
+    }
+
+    // ── AgentEventPayload serde roundtrip ────────────────────────────────
+
+    #[test]
+    fn agent_event_payload_chunk_deserializes_back() {
+        let p = AgentEventPayload::chunk("round trip".to_string());
+        let json = serde_json::to_string(&p).unwrap();
+        // Verify the JSON can be parsed as a generic Value and fields match
+        let val: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(val["type"], "chunk");
+        assert_eq!(val["content"], "round trip");
+    }
+
+    #[test]
+    fn agent_event_payload_step_large_step_num() {
+        let p = AgentEventPayload::step(usize::MAX, "tool", true);
+        assert_eq!(p.step_num, Some(usize::MAX));
+        let json = serde_json::to_value(&p).unwrap();
+        assert_eq!(json["type"], "step");
+    }
+
+    // ── JobRecord with special characters ────────────────────────────────
+
+    #[test]
+    fn job_record_with_unicode_task() {
+        let job = JobRecord {
+            session_id: "unicode-test".to_string(),
+            task: "Fix bug in \u{1F600} emoji handler \u{00E9}\u{00F1}".to_string(),
+            status: "complete".to_string(),
+            provider: "claude".to_string(),
+            started_at: 100,
+            finished_at: Some(200),
+            summary: Some("Resolved \u{2714}".to_string()),
+        };
+        let json = serde_json::to_string(&job).unwrap();
+        let parsed: JobRecord = serde_json::from_str(&json).unwrap();
+        assert!(parsed.task.contains('\u{1F600}'));
+        assert!(parsed.summary.as_deref().unwrap().contains('\u{2714}'));
+    }
+
+    #[test]
+    fn persist_and_load_job_with_unicode() {
+        let dir = tempfile::tempdir().unwrap();
+        let job = JobRecord {
+            session_id: "uni".to_string(),
+            task: "Handle caf\u{00E9} menu".to_string(),
+            status: "running".to_string(),
+            provider: "test".to_string(),
+            started_at: 1,
+            finished_at: None,
+            summary: None,
+        };
+        persist_job(dir.path(), &job);
+        let loaded = load_job(dir.path(), "uni").unwrap();
+        assert_eq!(loaded.task, "Handle caf\u{00E9} menu");
+    }
+
+    // ── RateLimiter thread safety ────────────────────────────────────────
+
+    #[test]
+    fn rate_limiter_concurrent_access() {
+        use std::sync::Arc;
+        let rl = Arc::new(RateLimiter::new(100, Duration::from_secs(60)));
+        let mut handles = vec![];
+        for _ in 0..10 {
+            let rl_clone = Arc::clone(&rl);
+            handles.push(std::thread::spawn(move || {
+                let mut count = 0u32;
+                for _ in 0..20 {
+                    if rl_clone.check() {
+                        count += 1;
+                    }
+                }
+                count
+            }));
+        }
+        let total: u32 = handles.into_iter().map(|h| h.join().unwrap()).sum();
+        // With limit 100, exactly 100 should succeed out of 200 attempts
+        assert_eq!(total, 100, "Exactly 100 requests should pass; got {total}");
+    }
+
+    // ── ChatRequest deserialization edge cases ───────────────────────────
+
+    #[test]
+    fn chat_request_rejects_missing_messages_field() {
+        let json = r#"{"model":"gpt-4"}"#;
+        let result = serde_json::from_str::<ChatRequest>(json);
+        assert!(result.is_err(), "ChatRequest without 'messages' should fail to parse");
+    }
+
+    #[test]
+    fn agent_request_rejects_missing_task() {
+        let json = r#"{"approval":"full-auto"}"#;
+        let result = serde_json::from_str::<AgentRequest>(json);
+        assert!(result.is_err(), "AgentRequest without 'task' should fail to parse");
     }
 }

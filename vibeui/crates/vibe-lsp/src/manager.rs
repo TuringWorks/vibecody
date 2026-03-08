@@ -182,4 +182,39 @@ mod tests {
         assert!(mgr.clients.is_empty());
         assert_eq!(mgr.clients.len(), 0);
     }
+
+    #[test]
+    fn add_multiple_clients_tracks_count() {
+        let mut mgr = LspManager::new();
+        mgr.add_client("go".to_string(), LspClient::new("gopls".to_string(), vec![]));
+        mgr.add_client("c".to_string(), LspClient::new("clangd".to_string(), vec![]));
+        mgr.add_client("lua".to_string(), LspClient::new("lua-language-server".to_string(), vec![]));
+        assert_eq!(mgr.clients.len(), 3);
+    }
+
+    #[test]
+    fn get_client_returns_none_after_adding_different_language() {
+        let mut mgr = LspManager::new();
+        mgr.add_client("go".to_string(), LspClient::new("gopls".to_string(), vec![]));
+        assert!(mgr.get_client("go").is_some());
+        assert!(mgr.get_client("ruby").is_none());
+    }
+
+    #[test]
+    fn server_configs_do_not_include_go_by_default() {
+        let mgr = LspManager::new();
+        assert!(!mgr.server_configs.contains_key("go"));
+        assert!(!mgr.server_configs.contains_key("c"));
+        assert!(!mgr.server_configs.contains_key("java"));
+    }
+
+    #[tokio::test]
+    async fn get_client_for_language_error_message_contains_language_name() {
+        let mut mgr = LspManager::new();
+        let result = mgr.get_client_for_language("zig", std::path::Path::new("/tmp")).await;
+        match result {
+            Err(e) => assert!(e.to_string().contains("zig"), "Error should mention the language name"),
+            Ok(_) => panic!("Expected error for unsupported language"),
+        }
+    }
 }

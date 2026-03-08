@@ -614,4 +614,259 @@ mod tests {
         let hint = command_hint("/workflow").unwrap();
         assert!(hint.contains("workflow") || hint.contains("new"));
     }
+
+    // ── COMMANDS list completeness ──
+
+    #[test]
+    fn test_commands_list_contains_core_commands() {
+        let core = &[
+            "/agent", "/chat", "/exit", "/quit", "/help", "/model",
+            "/plan", "/exec", "/diff", "/apply", "/status", "/config",
+        ];
+        for cmd in core {
+            assert!(
+                COMMANDS.contains(cmd),
+                "COMMANDS list missing core command: {cmd}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_commands_list_contains_workflow_commands() {
+        let workflow = &[
+            "/workflow", "/spec", "/deploy", "/test", "/bisect",
+            "/sandbox", "/arena", "/redteam", "/verify", "/handoff",
+        ];
+        for cmd in workflow {
+            assert!(
+                COMMANDS.contains(cmd),
+                "COMMANDS list missing workflow command: {cmd}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_commands_list_contains_utility_commands() {
+        let util = &[
+            "/snippet", "/memory", "/trace", "/mcp", "/theme",
+            "/remind", "/schedule", "/jobs", "/sessions", "/share",
+        ];
+        for cmd in util {
+            assert!(
+                COMMANDS.contains(cmd),
+                "COMMANDS list missing utility command: {cmd}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_commands_all_start_with_slash() {
+        for cmd in COMMANDS {
+            assert!(
+                cmd.starts_with('/'),
+                "command {cmd} must start with '/'"
+            );
+        }
+    }
+
+    #[test]
+    fn test_commands_no_duplicates() {
+        let mut seen = std::collections::HashSet::new();
+        for cmd in COMMANDS {
+            assert!(
+                seen.insert(cmd),
+                "duplicate command in COMMANDS list: {cmd}"
+            );
+        }
+    }
+
+    // ── Command parsing edge cases ──
+
+    #[test]
+    fn test_slash_alone() {
+        // "/" should match all commands
+        let result = complete_slash("/");
+        let (start, pairs) = result.unwrap();
+        assert_eq!(start, 0);
+        assert_eq!(pairs.len(), COMMANDS.len());
+    }
+
+    #[test]
+    fn test_empty_string_returns_none() {
+        assert!(complete_slash("").is_none());
+    }
+
+    #[test]
+    fn test_whitespace_only_returns_none() {
+        assert!(complete_slash("   ").is_none());
+    }
+
+    #[test]
+    fn test_subcommand_empty_prefix_returns_all_subs() {
+        // "/team " with empty sub should list all team subs
+        let (_, pairs) = complete_slash("/team ").unwrap();
+        assert_eq!(pairs.len(), TEAM_SUBS.len());
+        for sub in TEAM_SUBS {
+            assert!(
+                pairs.iter().any(|p| p.display == *sub),
+                "missing team sub: {sub}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_subcommand_partial_match() {
+        // "/team cr" should match only "create"
+        let (_, pairs) = complete_slash("/team cr").unwrap();
+        assert_eq!(pairs.len(), 1);
+        assert_eq!(pairs[0].display, "create");
+    }
+
+    #[test]
+    fn test_subcommand_no_match_returns_none() {
+        // "/team zzz" has no matching sub-command
+        let result = complete_slash("/team zzz");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_command_without_subs_space_returns_none() {
+        // "/exit " has no sub-commands, should return None
+        let result = complete_slash("/exit ");
+        assert!(result.is_none());
+    }
+
+    // ── Sub-command table coverage ──
+
+    #[test]
+    fn test_all_sub_tables_accessible_via_completion() {
+        let cmds_with_subs: &[(&str, &[&str])] = &[
+            ("/arena", ARENA_SUBS),
+            ("/bisect", BISECT_SUBS),
+            ("/deps", DEPS_SUBS),
+            ("/deploy", DEPLOY_SUBS),
+            ("/env", ENV_SUBS),
+            ("/logs", LOGS_SUBS),
+            ("/markers", MARKERS_SUBS),
+            ("/mock", MOCK_SUBS),
+            ("/profiler", PROFILER_SUBS),
+            ("/profile", PROFILE_SUBS),
+            ("/plugin", PLUGIN_SUBS),
+            ("/memory", MEMORY_SUBS),
+            ("/migration", MIGRATION_SUBS),
+            ("/spec", SPEC_SUBS),
+            ("/agents", AGENTS_SUBS),
+            ("/team", TEAM_SUBS),
+            ("/trace", TRACE_SUBS),
+            ("/mcp", MCP_SUBS),
+            ("/theme", THEME_NAMES),
+            ("/snippet", SNIPPET_SUBS),
+            ("/linear", LINEAR_SUBS),
+            ("/remind", REMIND_SUBS),
+            ("/sandbox", SANDBOX_SUBS),
+            ("/schedule", SCHEDULE_SUBS),
+            ("/workflow", WORKFLOW_SUBS),
+            ("/redteam", REDTEAM_SUBS),
+            ("/compliance", COMPLIANCE_SUBS),
+            ("/verify", VERIFY_SUBS),
+            ("/handoff", HANDOFF_SUBS),
+        ];
+        for (cmd, subs) in cmds_with_subs {
+            let input = format!("{} ", cmd);
+            let result = complete_slash(&input);
+            assert!(result.is_some(), "completion failed for '{input}'");
+            let (_, pairs) = result.unwrap();
+            assert_eq!(
+                pairs.len(), subs.len(),
+                "sub-command count mismatch for {cmd}: expected {}, got {}",
+                subs.len(), pairs.len()
+            );
+        }
+    }
+
+    // ── command_hint coverage ──
+
+    #[test]
+    fn test_every_hinted_command_exists_in_commands_list() {
+        // Every command that has a hint should exist in the COMMANDS list
+        let hinted = &[
+            "/agent", "/arena", "/autofix", "/bisect", "/plan", "/chat",
+            "/deps", "/deploy", "/env", "/profiler", "/generate", "/diff",
+            "/apply", "/exec", "/qa", "/index", "/resume", "/profile",
+            "/plugin", "/memory", "/trace", "/mcp", "/logs", "/markers",
+            "/mock", "/migration", "/model", "/notebook", "/compliance",
+            "/cost", "/context", "/status", "/fork", "/rewind", "/spec",
+            "/agents", "/team", "/test", "/theme", "/snippet", "/linear",
+            "/remind", "/schedule", "/jobs", "/sessions", "/share",
+            "/workflow", "/redteam", "/voice", "/discover", "/pair",
+            "/sandbox", "/verify", "/handoff", "/orient", "/research",
+        ];
+        for cmd in hinted {
+            assert!(command_hint(cmd).is_some(), "{cmd} should have a hint");
+            assert!(
+                COMMANDS.contains(cmd),
+                "hinted command {cmd} missing from COMMANDS"
+            );
+        }
+    }
+
+    #[test]
+    fn test_command_hint_returns_none_for_unknown() {
+        assert!(command_hint("/nonexistent").is_none());
+        assert!(command_hint("agent").is_none()); // no leading slash
+        assert!(command_hint("").is_none());
+    }
+
+    #[test]
+    fn test_command_hint_exit_and_quit_have_no_hint() {
+        // /exit and /quit take no arguments, so no hint
+        assert!(command_hint("/exit").is_none());
+        assert!(command_hint("/quit").is_none());
+    }
+
+    // ── Completion position (start offset) ──
+
+    #[test]
+    fn test_root_completion_starts_at_zero() {
+        let (start, _) = complete_slash("/a").unwrap();
+        assert_eq!(start, 0);
+    }
+
+    #[test]
+    fn test_sub_completion_start_offset_correct() {
+        // For "/deploy v", start should be len("/deploy ") = 8
+        let (start, _) = complete_slash("/deploy v").unwrap();
+        assert_eq!(start, "/deploy ".len());
+    }
+
+    // ── Highlighter logic (unit-testable parts) ──
+
+    #[test]
+    fn test_highlight_known_command_produces_cyan() {
+        let helper = VibeHelper::new();
+        let line = "/agent do something";
+        let result = helper.highlight(line, 0);
+        // Should contain the ANSI cyan code \x1b[36m
+        assert!(result.contains("\x1b[36m"), "known command should be coloured cyan");
+        assert!(result.contains("/agent"), "should contain the command text");
+        assert!(result.contains("do something"), "should contain rest of text");
+    }
+
+    #[test]
+    fn test_highlight_unknown_slash_no_cyan() {
+        let helper = VibeHelper::new();
+        let line = "/zzz whatever";
+        let result = helper.highlight(line, 0);
+        // Unknown commands should NOT get cyan colouring by our logic
+        assert!(!result.contains("\x1b[36m"), "unknown command should not be cyan");
+    }
+
+    #[test]
+    fn test_highlight_hint_renders_dim() {
+        let helper = VibeHelper::new();
+        let result = helper.highlight_hint("some hint text");
+        assert!(result.contains("\x1b[2m"), "hint should start with dim ANSI");
+        assert!(result.contains("\x1b[m"), "hint should end with ANSI reset");
+        assert!(result.contains("some hint text"), "hint text should be present");
+    }
 }
