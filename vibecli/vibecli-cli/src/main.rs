@@ -2379,7 +2379,7 @@ async fn main() -> Result<()> {
                                             }
                                             match todo_store.add_todo(desc) {
                                                 Ok(state) => {
-                                                    let last = state.todos.last().unwrap();
+                                                    let last = state.todos.last().expect("todos non-empty after add");
                                                     println!("Added task #{}: {}", last.id, last.description);
                                                     println!("  Progress: {}/{}\n", state.completed(), state.todos.len());
                                                 }
@@ -4262,7 +4262,7 @@ async fn main() -> Result<()> {
                                     println!("🔖 Scanning for code markers...\n");
                                     fn markers_re() -> &'static regex::Regex {
                                         static RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
-                                        RE.get_or_init(|| regex::Regex::new(r"(?i)\b(TODO|FIXME|HACK|BUG|NOTE|XXX)\b[:\s]*(.*)").unwrap())
+                                        RE.get_or_init(|| regex::Regex::new(r"(?i)\b(TODO|FIXME|HACK|BUG|NOTE|XXX)\b[:\s]*(.*)").expect("valid regex: markers"))
                                     }
                                     let re = markers_re();
                                     let extensions = &["rs","ts","tsx","js","jsx","py","go","java","rb","c","cpp","h"];
@@ -6304,43 +6304,43 @@ async fn run_watch_mode(
 
 fn re_at_file() -> &'static regex::Regex {
     static R: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
-    R.get_or_init(|| regex::Regex::new(r"@file:(\S+)").unwrap())
+    R.get_or_init(|| regex::Regex::new(r"@file:(\S+)").expect("valid regex: @file"))
 }
 fn re_at_web() -> &'static regex::Regex {
     static R: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
-    R.get_or_init(|| regex::Regex::new(r"@web:(\S+)").unwrap())
+    R.get_or_init(|| regex::Regex::new(r"@web:(\S+)").expect("valid regex: @web"))
 }
 fn re_at_docs() -> &'static regex::Regex {
     static R: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
-    R.get_or_init(|| regex::Regex::new(r"@docs:(\S+)").unwrap())
+    R.get_or_init(|| regex::Regex::new(r"@docs:(\S+)").expect("valid regex: @docs"))
 }
 fn re_at_symbol() -> &'static regex::Regex {
     static R: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
-    R.get_or_init(|| regex::Regex::new(r"@symbol:(\S+)").unwrap())
+    R.get_or_init(|| regex::Regex::new(r"@symbol:(\S+)").expect("valid regex: @symbol"))
 }
 fn re_at_codebase() -> &'static regex::Regex {
     static R: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
-    R.get_or_init(|| regex::Regex::new(r"@codebase:(\S+)").unwrap())
+    R.get_or_init(|| regex::Regex::new(r"@codebase:(\S+)").expect("valid regex: @codebase"))
 }
 fn re_at_github() -> &'static regex::Regex {
     static R: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
-    R.get_or_init(|| regex::Regex::new(r"@github:([a-zA-Z0-9_\-]+)/([a-zA-Z0-9_\-]+)#(\d+)").unwrap())
+    R.get_or_init(|| regex::Regex::new(r"@github:([a-zA-Z0-9_\-]+)/([a-zA-Z0-9_\-]+)#(\d+)").expect("valid regex: @github"))
 }
 fn re_at_jira() -> &'static regex::Regex {
     static R: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
-    R.get_or_init(|| regex::Regex::new(r"@jira:([A-Z][A-Z0-9_]+-\d+)").unwrap())
+    R.get_or_init(|| regex::Regex::new(r"@jira:([A-Z][A-Z0-9_]+-\d+)").expect("valid regex: @jira"))
 }
 fn re_image_attachment() -> &'static regex::Regex {
     static R: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
-    R.get_or_init(|| regex::Regex::new(r"\[([^\]]+\.(png|jpg|jpeg|gif|webp))\]").unwrap())
+    R.get_or_init(|| regex::Regex::new(r"\[([^\]]+\.(png|jpg|jpeg|gif|webp))\]").expect("valid regex: image_attachment"))
 }
 fn re_html_tags() -> &'static regex::Regex {
     static R: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
-    R.get_or_init(|| regex::Regex::new(r"<[^>]+>").unwrap())
+    R.get_or_init(|| regex::Regex::new(r"<[^>]+>").expect("valid regex: html_tags"))
 }
 fn re_collapse_whitespace() -> &'static regex::Regex {
     static R: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
-    R.get_or_init(|| regex::Regex::new(r"\s{2,}").unwrap())
+    R.get_or_init(|| regex::Regex::new(r"\s{2,}").expect("valid regex: collapse_whitespace"))
 }
 
 // ── REPL @ context expansion ──────────────────────────────────────────────────

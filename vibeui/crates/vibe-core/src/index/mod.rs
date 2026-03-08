@@ -21,11 +21,12 @@ use walkdir::WalkDir;
 // ── File Entry ────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 struct FileEntry {
     modified: SystemTime,
     symbols: Vec<SymbolInfo>,
+    #[allow(dead_code)]
     language: Language,
+    #[allow(dead_code)]
     line_count: usize,
 }
 

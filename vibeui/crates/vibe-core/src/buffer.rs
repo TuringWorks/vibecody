@@ -150,16 +150,6 @@ impl TextBuffer {
         line_start + pos.column.min(line_len)
     }
 
-    /// Convert char index to position
-    #[allow(dead_code)]
-    fn char_to_position(&self, char_idx: usize) -> Position {
-        let char_idx = char_idx.min(self.rope.len_chars());
-        let line = self.rope.char_to_line(char_idx);
-        let line_start = self.rope.line_to_char(line);
-        let column = char_idx - line_start;
-        Position::new(line, column)
-    }
-
     /// Insert text at a position
     pub fn insert(&mut self, position: Position, text: &str) -> Result<()> {
         let char_idx = self.position_to_char(position);
