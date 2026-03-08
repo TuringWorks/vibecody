@@ -196,12 +196,12 @@ docs/architecture-diagram
 
 ### Larger Features
 
-- **LSP integration** (`vibe-lsp`) — connect LSP client to Monaco Editor in VibeUI
-- **Extension system** (`vibe-extensions`) — define the extension host API
-- **VibeCLI file tree** — `/files` command implementation
-- **VibeUI settings UI** — in-app provider configuration
-- **Context-aware completions** — feed file/project context to `CompletionEngine`
-- **Multi-tab editor** — tab management in VibeUI
+- **Additional AI providers** — implement new `AIProvider` backends (17 providers exist today)
+- **WASM extensions** — develop plugins using the `vibe-extensions` WASM runtime
+- **CRDT collaboration** — enhance the `vibe-collab` real-time multiplayer editing
+- **Agent skills** — write new skill files in `vibecli/vibecli-cli/skills/` (392 skills exist today)
+- **Gateway adapters** — add new messaging platform adapters (18 platforms supported)
+- **TUI enhancements** — improve the Ratatui-based terminal interface
 
 ---
 

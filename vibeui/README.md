@@ -20,12 +20,11 @@ A modern, high-performance desktop code editor built with Rust + Tauri 2, featur
 - ✅ **Theme System**: Dark/Light toggle with CSS custom properties
 - ✅ **Resizable Panes**: Drag-to-resize sidebar, terminal panel, AI panel
 
-### AI Integration
-- ✅ **Ollama**: Local AI models — auto-detected, no API key required
-- ✅ **Claude (Anthropic)**: Full streaming chat + agent + extended thinking mode
-- ✅ **OpenAI (ChatGPT)**: GPT-4o and compatible models
-- ✅ **Gemini**: Google Gemini 2.0 Flash and Pro
-- ✅ **Grok (xAI)**: Grok-2 and Grok-3 models
+### AI Integration (17 Providers)
+- ✅ **Local**: Ollama (auto-detected), LocalEdit
+- ✅ **Cloud**: Claude, OpenAI, Gemini, Grok, Groq, Mistral, DeepSeek, Cerebras, Zhipu
+- ✅ **Platform**: OpenRouter, Azure OpenAI, AWS Bedrock, GitHub Copilot, Vercel AI
+- ✅ **Meta**: Failover (auto-failover wrapper, chains multiple providers)
 - ✅ **BYOK Settings**: In-editor API key management (⚙️ Keys tab), keys persisted at `~/.vibeui/api_keys.json`
 - ✅ **`apiKeyHelper`**: Run a custom script to supply rotating credentials per provider
 - ✅ **Multiple Chat Tabs**: Independent chat sessions with per-tab provider selection
@@ -105,7 +104,7 @@ vibeui/
 │       └── lib.rs              # Plugin registration
 └── crates/
     ├── vibe-core/              # Text buffer (ropey), FS, Workspace, Git, Terminal, Search
-    ├── vibe-ai/                # AIProvider trait + 5 providers + AgentLoop + MCP + Hooks
+    ├── vibe-ai/                # AIProvider trait + 17 providers + AgentLoop + MCP + Hooks
     ├── vibe-lsp/               # LSP client (jsonrpc + tokio-util)
     └── vibe-extensions/        # WASM extension system (wasmtime)
 ```
@@ -135,7 +134,7 @@ npm run tauri build
 ### Testing
 
 ```bash
-# Run all tests (123+ unit tests)
+# Run all tests (2,810+ unit tests across workspace)
 cargo test --workspace
 
 # Type-check the frontend
@@ -163,6 +162,14 @@ Open the **⚙️ Keys** tab in the AI panel and enter your keys:
 | OpenAI | `OPENAI_API_KEY` | `gpt-4o` |
 | Google Gemini | `GEMINI_API_KEY` | `gemini-2.0-flash` |
 | xAI Grok | `GROK_API_KEY` | `grok-2-latest` |
+| Groq | `GROQ_API_KEY` | `llama-3.3-70b-versatile` |
+| Mistral | `MISTRAL_API_KEY` | `mistral-large-latest` |
+| DeepSeek | `DEEPSEEK_API_KEY` | `deepseek-chat` |
+| Cerebras | `CEREBRAS_API_KEY` | `llama3.1-70b` |
+| Zhipu | `ZHIPU_API_KEY` | `glm-4` |
+| OpenRouter | `OPENROUTER_API_KEY` | `anthropic/claude-3.5-sonnet` |
+| Azure OpenAI | `AZURE_OPENAI_API_KEY` | `gpt-4o` |
+| AWS Bedrock | `AWS_ACCESS_KEY_ID` | `anthropic.claude-3-5-sonnet` |
 
 Keys can also be set via environment variables or `~/.vibecli/config.toml`.
 
