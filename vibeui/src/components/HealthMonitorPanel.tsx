@@ -51,11 +51,11 @@ function Sparkline({ history }: { history: HealthCheckResult[] }) {
  });
  return (
  <svg width={w} height={h} style={{ display: "block" }}>
- <polyline points={pts.join(" ")} fill="none" stroke="#6366f1" strokeWidth="1.5" strokeLinejoin="round" />
+ <polyline points={pts.join(" ")} fill="none" stroke="var(--accent-color)" strokeWidth="1.5" strokeLinejoin="round" />
  {history.slice(-12).map((r, i, arr) => {
  const x = (i / (arr.length - 1)) * w;
  const y = h - (r.latency_ms / maxLatency) * (h - 2) - 1;
- return <circle key={i} cx={x} cy={y} r={2} fill={r.ok ? "#a6e3a1" : "#f38ba8"} />;
+ return <circle key={i} cx={x} cy={y} r={2} fill={r.ok ? "var(--success-color)" : "var(--error-color)"} />;
  })}
  </svg>
  );

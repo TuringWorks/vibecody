@@ -29,11 +29,11 @@ interface TraceStep {
 type StepKind = "prompt" | "tool_call" | "file_edit" | "test" | "error" | "other";
 
 const KIND_COLORS: Record<StepKind, string> = {
- prompt: "#89b4fa",
- tool_call: "#a6e3a1",
- file_edit: "#fab387",
+ prompt: "var(--accent-color, #89b4fa)",
+ tool_call: "var(--success-color, #a6e3a1)",
+ file_edit: "var(--warning-color, #fab387)",
  test: "#cba6f7",
- error: "#f38ba8",
+ error: "var(--error-color, #f38ba8)",
  other: "#6c7086",
 };
 

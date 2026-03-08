@@ -71,8 +71,8 @@ function BitGrid({ val, bits, onToggle }: { val: bigint; bits: BitWidth; onToggl
  display: "flex", alignItems: "center", justifyContent: "center",
  fontSize: bits > 32 ? 8 : 10, fontWeight: 700, fontFamily: "monospace",
  background: isSet ? (isMsb ? "rgba(243,139,168,0.3)" : "rgba(137,180,250,0.25)") : "var(--bg-secondary)",
- border: `1px solid ${isSet ? (isMsb ? "#f38ba8" : "#89b4fa") : "var(--border-color)"}`,
- borderRadius: 2, color: isSet ? (isMsb ? "#f38ba8" : "#89b4fa") : "var(--text-muted)",
+ border: `1px solid ${isSet ? (isMsb ? "var(--error-color, #f38ba8)" : "var(--accent-color, #89b4fa)") : "var(--border-color)"}`,
+ borderRadius: 2, color: isSet ? (isMsb ? "var(--error-color, #f38ba8)" : "var(--accent-color, #89b4fa)") : "var(--text-muted)",
  cursor: "pointer", padding: 0,
  }}>
  {isSet ? "1" : "0"}
@@ -271,14 +271,14 @@ export function NumberBasePanel() {
  {bitwiseOps !== null ? (
  <div style={{ marginTop: 4 }}>
  {([
- ["A AND B", bitwiseOps.AND, "#a6e3a1"],
- ["A OR B", bitwiseOps.OR, "#89b4fa"],
- ["A XOR B", bitwiseOps.XOR, "#cba6f7"],
- ["NOT A", bitwiseOps.NOT_A,"#f38ba8"],
- ["A << 1", bitwiseOps.SHL1, "#fab387"],
- ["A >> 1", bitwiseOps.SHR1, "#f9e2af"],
- ["A << 4", bitwiseOps.SHL4, "#fab387"],
- ["A >> 4", bitwiseOps.SHR4, "#f9e2af"],
+ ["A AND B", bitwiseOps.AND, "var(--success-color, #a6e3a1)"],
+ ["A OR B", bitwiseOps.OR, "var(--accent-color, #89b4fa)"],
+ ["A XOR B", bitwiseOps.XOR, "var(--text-accent, #cba6f7)"],
+ ["NOT A", bitwiseOps.NOT_A,"var(--error-color, #f38ba8)"],
+ ["A << 1", bitwiseOps.SHL1, "var(--warning-color, #fab387)"],
+ ["A >> 1", bitwiseOps.SHR1, "var(--warning-color, #f9e2af)"],
+ ["A << 4", bitwiseOps.SHL4, "var(--warning-color, #fab387)"],
+ ["A >> 4", bitwiseOps.SHR4, "var(--warning-color, #f9e2af)"],
  ] as [string, bigint, string][]).map(([label, result, colour]) => (
  <div key={label} style={{ borderBottom: "1px solid var(--border-color, rgba(255,255,255,0.04))", padding: "5px 0", display: "flex", gap: 10, alignItems: "center" }}>
  <span style={{ width: 80, fontSize: 11, fontWeight: 700, color: "var(--text-muted)", flexShrink: 0, fontFamily: "monospace" }}>{label}</span>
@@ -307,7 +307,7 @@ export function NumberBasePanel() {
  <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 4 }}>
  {/* Float value */}
  <div style={{ padding: "10px 12px", background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)", textAlign: "center" }}>
- <div style={{ fontSize: 24, fontWeight: 700, fontFamily: "monospace", color: f32.isNaN ? "#f38ba8" : f32.isInf ? "#fab387" : "#89b4fa" }}>
+ <div style={{ fontSize: 24, fontWeight: 700, fontFamily: "monospace", color: f32.isNaN ? "var(--error-color, #f38ba8)" : f32.isInf ? "var(--warning-color, #fab387)" : "var(--accent-color, #89b4fa)" }}>
  {f32.isNaN ? "NaN" : f32.isInf ? (f32.sign ? "-∞" : "+∞") : f32.float.toPrecision(8)}
  </div>
  <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 4 }}>float32 value</div>
@@ -315,9 +315,9 @@ export function NumberBasePanel() {
  {/* Breakdown */}
  <div style={{ display: "flex", gap: 8 }}>
  {[
- { label: "Sign", bits2: 1, value: f32.sign, colour: "#f38ba8", note: f32.sign ? "negative" : "positive" },
- { label: "Exponent", bits2: 8, value: f32.rawExp, colour: "#fab387", note: `2^${f32.exp} (biased ${f32.rawExp})` },
- { label: "Mantissa", bits2: 23, value: f32.mant, colour: "#a6e3a1", note: `0x${f32.mant.toString(16).toUpperCase().padStart(6, "0")}` },
+ { label: "Sign", bits2: 1, value: f32.sign, colour: "var(--error-color, #f38ba8)", note: f32.sign ? "negative" : "positive" },
+ { label: "Exponent", bits2: 8, value: f32.rawExp, colour: "var(--warning-color, #fab387)", note: `2^${f32.exp} (biased ${f32.rawExp})` },
+ { label: "Mantissa", bits2: 23, value: f32.mant, colour: "var(--success-color, #a6e3a1)", note: `0x${f32.mant.toString(16).toUpperCase().padStart(6, "0")}` },
  ].map(({ label, bits2, value, colour, note }) => (
  <div key={label} style={{ flex: bits2, padding: "8px", background: "var(--bg-secondary)", border: `1px solid ${colour}`, borderRadius: 6, minWidth: 0 }}>
  <div style={{ fontSize: 9, fontWeight: 700, color: colour, marginBottom: 2 }}>{label} ({bits2}b)</div>

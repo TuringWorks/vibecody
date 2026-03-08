@@ -257,7 +257,7 @@ export function JsonToolsPanel() {
  <span style={{ fontSize: 13, fontWeight: 600 }}>JSON Tools</span>
  <div style={{ display: "flex", gap: 4 }}>
  {(["format", "typescript", "yaml", "query"] as SubTab[]).map(t => (
- <button key={t} onClick={() => setSubTab(t)} style={{ padding: "2px 10px", fontSize: 10, borderRadius: 10, background: subTab === t ? "rgba(99,102,241,0.2)" : "var(--bg-primary)", border: `1px solid ${subTab === t ? "#6366f1" : "var(--border-color)"}`, color: subTab === t ? "#89b4fa" : "var(--text-muted)", cursor: "pointer", fontWeight: subTab === t ? 700 : 400 }}>
+ <button key={t} onClick={() => setSubTab(t)} style={{ padding: "2px 10px", fontSize: 10, borderRadius: 10, background: subTab === t ? "rgba(99,102,241,0.2)" : "var(--bg-primary)", border: `1px solid ${subTab === t ? "var(--accent-color)" : "var(--border-color)"}`, color: subTab === t ? "var(--accent-color)" : "var(--text-muted)", cursor: "pointer", fontWeight: subTab === t ? 700 : 400 }}>
  {t === "format" ? "Format" : t === "typescript" ? "TypeScript" : t === "yaml" ? "YAML" : "Query"}
  </button>
  ))}
@@ -281,7 +281,7 @@ export function JsonToolsPanel() {
  <div style={{ marginLeft: "auto", display: "flex", gap: 4, alignItems: "center" }}>
  <span style={{ fontSize: 9, color: "var(--text-muted)" }}>indent:</span>
  {INDENT_OPTIONS.map(n => (
- <button key={n} onClick={() => setIndent(n)} style={{ fontSize: 9, padding: "1px 6px", borderRadius: 4, background: indent === n ? "rgba(99,102,241,0.2)" : "var(--bg-primary)", border: `1px solid ${indent === n ? "#6366f1" : "var(--border-color)"}`, color: indent === n ? "#89b4fa" : "var(--text-muted)", cursor: "pointer" }}>{n}</button>
+ <button key={n} onClick={() => setIndent(n)} style={{ fontSize: 9, padding: "1px 6px", borderRadius: 4, background: indent === n ? "rgba(99,102,241,0.2)" : "var(--bg-primary)", border: `1px solid ${indent === n ? "var(--accent-color)" : "var(--border-color)"}`, color: indent === n ? "var(--accent-color)" : "var(--text-muted)", cursor: "pointer" }}>{n}</button>
  ))}
  </div>
  </div>
@@ -294,9 +294,9 @@ export function JsonToolsPanel() {
  {subTab === "format" && (
  <div style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" }}>
  <div style={{ padding: "6px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 6 }}>
- <button onClick={prettify} disabled={!parsed} style={{ padding: "3px 12px", fontSize: 11, background: "rgba(166,227,161,0.1)", border: "1px solid #a6e3a1", borderRadius: 4, color: "var(--text-success, #a6e3a1)", cursor: "pointer" }}>✦ Prettify</button>
- <button onClick={minify} disabled={!parsed} style={{ padding: "3px 12px", fontSize: 11, background: "rgba(250,179,135,0.1)", border: "1px solid #fab387", borderRadius: 4, color: "var(--text-warning-alt, #fab387)", cursor: "pointer" }}>⇲ Minify</button>
- <button onClick={sortAndFmt} disabled={!parsed} style={{ padding: "3px 12px", fontSize: 11, background: "rgba(137,180,250,0.1)", border: "1px solid #89b4fa", borderRadius: 4, color: "var(--text-info, #89b4fa)", cursor: "pointer" }}>⇅ Sort Keys</button>
+ <button onClick={prettify} disabled={!parsed} style={{ padding: "3px 12px", fontSize: 11, background: "rgba(166,227,161,0.1)", border: "1px solid var(--success-color)", borderRadius: 4, color: "var(--text-success, #a6e3a1)", cursor: "pointer" }}>✦ Prettify</button>
+ <button onClick={minify} disabled={!parsed} style={{ padding: "3px 12px", fontSize: 11, background: "rgba(250,179,135,0.1)", border: "1px solid var(--warning-color)", borderRadius: 4, color: "var(--text-warning-alt, #fab387)", cursor: "pointer" }}>⇲ Minify</button>
+ <button onClick={sortAndFmt} disabled={!parsed} style={{ padding: "3px 12px", fontSize: 11, background: "rgba(137,180,250,0.1)", border: "1px solid var(--accent-color)", borderRadius: 4, color: "var(--text-info, #89b4fa)", cursor: "pointer" }}>⇅ Sort Keys</button>
  <div style={{ marginLeft: "auto" }}>
  <button onClick={() => copy(input, "fmt")} style={{ padding: "3px 10px", fontSize: 10, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-muted)", cursor: "pointer" }}>
  {copied === "fmt" ? "✓ Copied" : "Copy"}
@@ -371,12 +371,12 @@ export function JsonToolsPanel() {
  {/* Suggestions */}
  <div style={{ padding: "4px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 4, flexWrap: "wrap" }}>
  {suggestions.slice(0, 12).map(s => (
- <button key={s} onClick={() => setQueryPath(s)} style={{ fontSize: 9, fontFamily: "monospace", padding: "1px 6px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: queryPath_ === s ? "#89b4fa" : "var(--text-muted)", cursor: "pointer" }}>{s}</button>
+ <button key={s} onClick={() => setQueryPath(s)} style={{ fontSize: 9, fontFamily: "monospace", padding: "1px 6px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: queryPath_ === s ? "var(--accent-color)" : "var(--text-muted)", cursor: "pointer" }}>{s}</button>
  ))}
  </div>
  {/* Result */}
  <div style={{ flex: 1, overflow: "auto" }}>
- <div style={{ padding: "4px 12px", fontSize: 10, fontWeight: 700, color: queryResult.error ? "#f38ba8" : "#fab387", background: "var(--bg-secondary)", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-color)" }}>
+ <div style={{ padding: "4px 12px", fontSize: 10, fontWeight: 700, color: queryResult.error ? "var(--error-color)" : "var(--warning-color)", background: "var(--bg-secondary)", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-color)" }}>
  <span>RESULT</span>
  {queryResult.result !== undefined && !queryResult.error && (
  <button onClick={() => copy(JSON.stringify(queryResult.result, null, indent), "qr")} style={{ fontSize: 9, padding: "2px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-muted)", cursor: "pointer" }}>{copied === "qr" ? "✓" : ""}</button>

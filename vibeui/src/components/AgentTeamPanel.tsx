@@ -37,19 +37,19 @@ interface TeamInfo {
 type SubTab = "overview" | "messages" | "tasks";
 
 const statusColor: Record<string, string> = {
-  Pending: "#6c7086",
-  InProgress: "#89b4fa",
-  Completed: "#a6e3a1",
-  Failed: "#f38ba8",
+  Pending: "var(--text-muted, #6c7086)",
+  InProgress: "var(--accent-color, #89b4fa)",
+  Completed: "var(--success-color, #a6e3a1)",
+  Failed: "var(--error-color, #f38ba8)",
 };
 
 const msgTypeColor: Record<string, string> = {
-  Finding: "#a6e3a1",
-  Challenge: "#f9e2af",
-  Request: "#89b4fa",
-  Status: "#6c7086",
-  TaskAssignment: "#cba6f7",
-  Ack: "#585b70",
+  Finding: "var(--success-color, #a6e3a1)",
+  Challenge: "var(--warning-color, #f9e2af)",
+  Request: "var(--accent-color, #89b4fa)",
+  Status: "var(--text-muted, #6c7086)",
+  TaskAssignment: "var(--text-accent, #cba6f7)",
+  Ack: "var(--text-muted, #585b70)",
 };
 
 export function AgentTeamPanel() {
@@ -179,7 +179,7 @@ export function AgentTeamPanel() {
                   <div style={{ display: "flex", gap: 2, height: 8, borderRadius: 4, overflow: "hidden" }}>
                     {team.tasks.map((t) => (
                       <div key={t.id} style={{
-                        flex: 1, background: statusColor[t.status] || "#6c7086",
+                        flex: 1, background: statusColor[t.status] || "var(--text-muted, #6c7086)",
                         opacity: t.status === "Pending" ? 0.3 : 1,
                       }} title={`${t.description} (${t.status})`} />
                     ))}
@@ -202,7 +202,7 @@ export function AgentTeamPanel() {
                     <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4 }}>
                       <span style={{
                         fontSize: 9, padding: "1px 6px", borderRadius: 3, fontWeight: 700,
-                        background: statusColor[t.status] || "#6c7086", color: "var(--bg-tertiary)",
+                        background: statusColor[t.status] || "var(--text-muted, #6c7086)", color: "var(--bg-tertiary)",
                       }}>
                         {t.status}
                       </span>
@@ -230,11 +230,11 @@ export function AgentTeamPanel() {
                 {team.messages.map((m, i) => (
                   <div key={i} style={{
                     padding: "4px 8px", borderRadius: 4,
-                    borderLeft: `3px solid ${msgTypeColor[m.msg_type] || "#6c7086"}`,
+                    borderLeft: `3px solid ${msgTypeColor[m.msg_type] || "var(--text-muted, #6c7086)"}`,
                     background: "var(--bg-primary)",
                   }}>
                     <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 2 }}>
-                      <span style={{ fontSize: 9, fontWeight: 700, color: msgTypeColor[m.msg_type] || "#6c7086" }}>
+                      <span style={{ fontSize: 9, fontWeight: 700, color: msgTypeColor[m.msg_type] || "var(--text-muted, #6c7086)" }}>
                         {m.msg_type}
                       </span>
                       <span style={{ fontSize: 9, opacity: 0.5 }}>

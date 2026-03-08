@@ -301,7 +301,7 @@ export function JwtPanel() {
  <div style={{ padding: "10px 12px", fontFamily: "monospace", fontSize: 11, color: "var(--text-accent, #cba6f7)", wordBreak: "break-all", lineHeight: 1.8, background: "var(--bg-primary)" }}>
  {generated.split(".").map((part, i) => (
  <span key={i}>
- <span style={{ color: ["#89b4fa","#a6e3a1","#f38ba8"][i] }}>{part}</span>
+ <span style={{ color: ["var(--accent-color, #89b4fa)","var(--success-color, #a6e3a1)","var(--error-color, #f38ba8)"][i] }}>{part}</span>
  {i < 2 && <span style={{ color: "var(--text-muted)" }}>.</span>}
  </span>
  ))}

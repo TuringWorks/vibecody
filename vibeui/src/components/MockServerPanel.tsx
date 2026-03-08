@@ -31,13 +31,13 @@ type SubTab = "routes" | "log" | "import";
 const METHOD_OPTIONS = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"];
 
 const methodColor: Record<string, string> = {
-  GET: "#a6e3a1",
-  POST: "#89b4fa",
-  PUT: "#f9e2af",
-  DELETE: "#f38ba8",
-  PATCH: "#cba6f7",
-  HEAD: "#6c7086",
-  OPTIONS: "#6c7086",
+  GET: "var(--success-color, #a6e3a1)",
+  POST: "var(--accent-color, #89b4fa)",
+  PUT: "var(--warning-color, #f9e2af)",
+  DELETE: "var(--error-color, #f38ba8)",
+  PATCH: "var(--text-accent, #cba6f7)",
+  HEAD: "var(--text-muted, #6c7086)",
+  OPTIONS: "var(--text-muted, #6c7086)",
 };
 
 export function MockServerPanel() {
@@ -240,7 +240,7 @@ export function MockServerPanel() {
               }}>
                 <span style={{
                   padding: "1px 6px", borderRadius: 3, fontWeight: 700, fontSize: 10,
-                  color: "var(--bg-tertiary)", background: methodColor[r.method] || "#6c7086",
+                  color: "var(--bg-tertiary)", background: methodColor[r.method] || "var(--text-muted, #6c7086)",
                 }}>
                   {r.method}
                 </span>
@@ -284,7 +284,7 @@ export function MockServerPanel() {
                 </span>
                 <span style={{
                   padding: "1px 5px", borderRadius: 3, fontWeight: 700, fontSize: 9,
-                  color: "var(--bg-tertiary)", background: methodColor[r.method] || "#6c7086",
+                  color: "var(--bg-tertiary)", background: methodColor[r.method] || "var(--text-muted, #6c7086)",
                 }}>
                   {r.method}
                 </span>
@@ -326,7 +326,7 @@ export function MockServerPanel() {
                 </div>
                 {importResult.map((r) => (
                   <div key={r.id} style={{ fontSize: 10, padding: "2px 0", fontFamily: "monospace" }}>
-                    <span style={{ color: methodColor[r.method] || "#6c7086" }}>{r.method}</span>{" "}
+                    <span style={{ color: methodColor[r.method] || "var(--text-muted, #6c7086)" }}>{r.method}</span>{" "}
                     <span style={{ color: "var(--text-info, #89b4fa)" }}>{r.path}</span>{" "}
                     <span style={{ opacity: 0.5 }}>{r.status}</span>
                   </div>
