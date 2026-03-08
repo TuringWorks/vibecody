@@ -1,0 +1,22 @@
+---
+triggers: ["data visualization", "Tableau", "Power BI", "D3.js", "Grafana", "dashboard design", "chart", "data storytelling"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: data-analytics
+---
+
+# Data Visualization Best Practices
+
+When working with data visualization:
+
+1. Choose the right chart type for the data relationship — use bar charts for categorical comparisons, line charts for trends over time, scatter plots for correlation analysis, heatmaps for density and matrix data, treemaps for hierarchical proportions, and avoid pie charts for more than five categories; always ask what question the visualization answers before selecting a chart type.
+2. Design for accessibility with colorblind-safe palettes — use the Viridis, ColorBrewer, or IBM Design Language palettes, ensure sufficient contrast ratios (WCAG 2.1 AA minimum), pair color with pattern or shape encoding, add descriptive alt text to all charts, and test visualizations with color blindness simulators before publishing.
+3. Build custom interactive visualizations with D3.js when off-the-shelf tools lack flexibility — use the enter-update-exit pattern (or `.join()`) for data binding, leverage scales (`scaleLinear`, `scaleTime`, `scaleBand`) for mapping data to visual properties, add transitions for context during data changes, and implement tooltips and brushing for exploration.
+4. Write Tableau calculated fields and Level of Detail (LOD) expressions for advanced analytics — use FIXED LOD for benchmarks independent of view filters, INCLUDE/EXCLUDE for granularity adjustments, table calculations for running totals and moving averages, and parameter actions for user-driven interactivity without dashboard proliferation.
+5. Create Power BI DAX measures for dynamic calculations — use `CALCULATE` with filter context modifiers, time intelligence functions (`TOTALYTD`, `SAMEPERIODLASTYEAR`) for period comparisons, `SUMMARIZECOLUMNS` for efficient aggregations, and variables (`VAR`/`RETURN`) for readable and performant measure expressions; separate measures into a dedicated measures table.
+6. Build Grafana dashboards for operational metrics — use Prometheus as the primary data source with PromQL for aggregations and rate calculations, set up template variables for environment/service filtering, configure alert rules with notification channels, and use dashboard provisioning (JSON/YAML) for version-controlled dashboard-as-code.
+7. Follow dashboard design principles of progressive disclosure — limit to 5-7 key metrics per view, place the most critical KPIs at the top left, use consistent color semantics (red for bad, green for good) across all dashboards, group related metrics visually, and eliminate chartjunk (unnecessary gridlines, decorative elements, 3D effects).
+8. Distinguish between real-time and batch dashboards in architecture — use streaming data sources (Kafka, WebSocket) with sub-second refresh for operational monitoring, and scheduled batch refreshes (hourly/daily) for analytical dashboards; clearly indicate data freshness with "last updated" timestamps on every dashboard.
+9. Implement drill-down and cross-filtering for exploratory analysis — in Tableau use dashboard actions (filter, highlight, URL) linking multiple sheets; in Power BI use cross-filtering between visuals and drillthrough pages for detail views; in D3.js implement click-to-zoom and breadcrumb navigation for hierarchical data.
+10. Design responsive layouts that work across screen sizes — use Tableau's device-specific layouts, Power BI's responsive grid, or CSS-based container queries for web visualizations; prioritize mobile views for executive dashboards, stack charts vertically on narrow screens, and reduce label density on smaller viewports.
+11. Optimize data refresh strategies for performance and cost — use incremental refresh (Power BI, Tableau extracts) for large datasets, cache aggregated views for frequently accessed dashboards, schedule refreshes during off-peak hours, and use materialized views or summary tables at the database level rather than processing raw data on every dashboard load.
+12. Tell a story with data narrative — structure dashboards with a clear beginning (context/KPIs), middle (analysis/trends), and end (insights/actions); add annotations to highlight significant events, use sequential layouts that guide the viewer's eye, include brief text explanations alongside charts, and design for the audience's decision-making needs rather than showcasing every available metric.
