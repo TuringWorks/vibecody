@@ -1,0 +1,22 @@
+---
+triggers: ["customer service", "customer support", "help desk", "service desk", "customer experience", "ITIL service", "SLA management"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: operations
+---
+
+# Customer Service
+
+When working with customer service and support operations:
+
+1. Implement service desk best practices following ITIL (Information Technology Infrastructure Library) framework by establishing incident management, request fulfillment, problem management, and change management processes with clearly defined roles, workflows, and escalation paths that ensure consistent service delivery.
+2. Manage ticket workflows by implementing structured triage processes, defining priority matrices based on impact and urgency, setting appropriate categorization taxonomies, automating routing rules to specialized teams, tracking ticket lifecycle states, and ensuring proper documentation at each stage for knowledge retention and audit purposes.
+3. Define and monitor Service Level Agreements (SLAs) by establishing measurable response time and resolution time targets per priority level, implementing automated SLA tracking and breach alerts, reviewing SLA performance in regular operational meetings, negotiating realistic targets with stakeholders, and using SLA data to drive staffing and process improvements.
+4. Build and maintain knowledge bases by creating standardized article templates, writing clear step-by-step resolution guides, implementing review and update cycles, organizing content with intuitive categorization and search optimization, measuring article usage and effectiveness, and encouraging support agents to contribute and flag outdated content.
+5. Optimize first contact resolution (FCR) by empowering frontline agents with decision-making authority and tools, providing comprehensive training on common issues, building diagnostic scripts and troubleshooting trees, ensuring knowledge base accessibility during interactions, analyzing repeat contact drivers, and removing unnecessary escalation requirements.
+6. Measure customer satisfaction using complementary metrics including CSAT (Customer Satisfaction Score) for transactional feedback, NPS (Net Promoter Score) for relationship loyalty, and CES (Customer Effort Score) for ease of resolution, implementing survey strategies that maximize response rates, and closing the loop on detractor feedback.
+7. Design escalation procedures by defining clear escalation criteria (technical, managerial, executive), establishing response time expectations per escalation tier, documenting escalation paths with contact information and availability, training agents on when and how to escalate, implementing warm handoff protocols, and tracking escalation rates as a quality indicator.
+8. Deliver consistent multichannel support across phone, email, live chat, social media, and self-service portals by ensuring unified customer context across channels, maintaining consistent response quality and tone, optimizing channel-specific workflows, implementing omnichannel routing, and meeting channel-appropriate response time expectations.
+9. Develop support team training programs covering product knowledge, communication skills, empathy and active listening, tool proficiency, policy and procedures, and continuous learning through regular refresher sessions, new product launches, quality coaching based on ticket reviews, and peer mentoring programs.
+10. Handle difficult customers by training agents in de-escalation techniques, active listening, empathy statements, maintaining professional composure, offering concrete solutions, knowing when to involve supervisors, documenting abusive interactions, and following up to ensure resolution satisfaction while protecting agent well-being and mental health.
+11. Create service level reporting by tracking key operational metrics (ticket volume, average handle time, backlog aging, FCR rate, SLA compliance, agent utilization), building dashboards for real-time visibility, conducting weekly and monthly trend analysis, presenting executive summaries to leadership, and benchmarking against industry standards.
+12. Drive continuous improvement from customer feedback by systematically analyzing complaint patterns, conducting root cause analysis on recurring issues, collaborating with product and engineering teams on bug fixes and feature requests, implementing process changes based on agent suggestions, measuring improvement impact, and communicating changes back to customers and staff.

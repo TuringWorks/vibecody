@@ -1,0 +1,22 @@
+---
+triggers: ["translation", "localization", "i18n", "l10n", "internationalization", "multilingual", "CAT tools", "translation management"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: writing
+---
+
+# Translation and Localization
+
+When working with translation and localization:
+
+1. Distinguish between translation (converting text from one language to another), localization (adapting content for a specific locale including cultural norms, legal requirements, and user expectations), and transcreation (creatively reimagining marketing or brand content to resonate emotionally in the target culture while preserving intent).
+2. Leverage CAT (Computer-Assisted Translation) tools such as SDL Trados Studio, MemoQ, Smartling, Phrase (Memsource), and Crowdin to improve consistency and efficiency through translation memory (TM) leverage, real-time quality checks, and collaborative workflows between translators, reviewers, and project managers.
+3. Manage translation memory and terminology by maintaining clean, segmented TMs per language pair and domain, creating and enforcing termbases (glossaries) for product-specific vocabulary, regularly auditing TM quality, handling TM penalties for fuzzy matches, and establishing terminology governance processes with subject matter experts.
+4. Implement software internationalization (i18n) best practices by externalizing all user-facing strings into resource files, using Unicode (UTF-8) throughout the stack, avoiding string concatenation for translatable content, supporting plural forms (CLDR plural rules), designing flexible UI layouts that accommodate text expansion (30-40% for some languages), and using ICU MessageFormat for complex messages.
+5. Handle locale-specific formatting for dates (MM/DD/YYYY vs DD/MM/YYYY vs YYYY-MM-DD), time (12h vs 24h), numbers (decimal separators, digit grouping), currency (symbol placement, code vs symbol), units of measurement, phone numbers, addresses, and sorting (collation) by using established libraries (ICU, Intl API) rather than custom implementations.
+6. Support right-to-left (RTL) languages (Arabic, Hebrew, Persian, Urdu) by implementing bidirectional text handling, mirroring UI layouts (CSS logical properties, dir attribute), ensuring proper text alignment and icon directionality, testing mixed LTR/RTL content, and avoiding assumptions about text direction in code.
+7. Manage cultural adaptation and sensitivity by researching target market customs, avoiding culturally inappropriate imagery or color associations, adapting examples and references to local context, respecting naming conventions and honorifics, considering religious and political sensitivities, and engaging native reviewers for cultural validation.
+8. Implement localization quality assurance (LQA) by defining quality metrics (MQM or DQF frameworks), conducting linguistic review with bilingual reviewers, performing functional testing for string truncation and encoding issues, checking context accuracy with screenshots or reference materials, and tracking quality scores over time per vendor and language.
+9. Apply machine translation post-editing (MTPE) by selecting appropriate MT engines (Google Translate, DeepL, AWS Translate) based on language pair quality, defining light vs full post-editing guidelines, training translators on MTPE workflows, measuring productivity gains (words per hour), and establishing quality thresholds for MT-only versus MTPE versus human translation use cases.
+10. Conduct comprehensive localization testing by verifying translated strings in context, checking for truncation and layout issues, validating locale-specific input handling and validation, testing date/time/currency formatting with locale-appropriate data, ensuring proper character encoding display, and performing linguistic sign-off with in-market reviewers.
+11. Build continuous localization workflows integrated with CI/CD pipelines by connecting source code repositories to TMS (Translation Management Systems), automating string extraction and file handoff, implementing webhook-triggered translation requests, managing branching strategies for localized content, and monitoring translation coverage and staleness metrics.
+12. Create and maintain per-locale style guides that define tone of voice, formality level, terminology preferences, punctuation rules, capitalization conventions, number and date formatting, and brand name handling for each target market, ensuring consistency across all translators and content types within a locale.
