@@ -546,4 +546,137 @@ mod tests {
         let summary = team.progress_summary().await;
         assert!(summary.contains("0/0 complete"));
     }
+
+    // ── TeamMessage construction ────────────────────────────────────────
+
+    #[test]
+    fn team_message_timestamp_is_positive() {
+        let msg = TeamMessage::new("a", TeamMessageType::Status, "up");
+        assert!(msg.timestamp > 0);
+    }
+
+    #[test]
+    fn team_message_directed_has_to_field() {
+        let msg = TeamMessage::directed("a1", "a2", TeamMessageType::Ack, "ok");
+        assert_eq!(msg.from_agent_id, "a1");
+        assert_eq!(msg.to_agent_id.as_deref(), Some("a2"));
+        assert_eq!(msg.msg_type, TeamMessageType::Ack);
+    }
+
+    #[test]
+    fn team_message_broadcast_has_no_to_field() {
+        let msg = TeamMessage::new("a1", TeamMessageType::Finding, "found it");
+        assert!(msg.to_agent_id.is_none());
+    }
+
+    // ── TeamMessageBus edge cases ───────────────────────────────────────
+
+    #[tokio::test]
+    async fn message_bus_empty_history() {
+        let bus = TeamMessageBus::new(16);
+        assert_eq!(bus.message_count().await, 0);
+        assert!(bus.history().await.is_empty());
+    }
+
+    #[tokio::test]
+    async fn message_bus_messages_for_broadcast_visible_to_others() {
+        let bus = TeamMessageBus::new(16);
+        bus.send(TeamMessage::new("a1", TeamMessageType::Finding, "broadcast msg")).await.unwrap();
+        // Broadcast should be visible to a2 but not a1 (self excluded)
+        let for_a2 = bus.messages_for("a2").await;
+        assert_eq!(for_a2.len(), 1);
+        let for_a1 = bus.messages_for("a1").await;
+        assert_eq!(for_a1.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn message_bus_directed_not_visible_to_third_party() {
+        let bus = TeamMessageBus::new(16);
+        bus.send(TeamMessage::directed("a1", "a2", TeamMessageType::Request, "private")).await.unwrap();
+        let for_a3 = bus.messages_for("a3").await;
+        assert_eq!(for_a3.len(), 0, "directed message should not be visible to third party");
+    }
+
+    #[tokio::test]
+    async fn message_bus_count_matches_sends() {
+        let bus = TeamMessageBus::new(16);
+        for i in 0..5 {
+            bus.send(TeamMessage::new(&format!("a{}", i), TeamMessageType::Status, "msg")).await.unwrap();
+        }
+        assert_eq!(bus.message_count().await, 5);
+    }
+
+    // ── AgentTeam construction ──────────────────────────────────────────
+
+    #[test]
+    fn team_new_lead_is_first_member() {
+        let team = AgentTeam::new("t1", "lead-agent", "build feature");
+        assert_eq!(team.id, "t1");
+        assert_eq!(team.lead_agent_id, "lead-agent");
+        assert_eq!(team.member_ids, vec!["lead-agent"]);
+        assert_eq!(team.goal, "build feature");
+    }
+
+    #[test]
+    fn team_add_multiple_unique_members() {
+        let mut team = AgentTeam::new("t", "lead", "g");
+        team.add_member("w1");
+        team.add_member("w2");
+        team.add_member("w3");
+        assert_eq!(team.member_ids.len(), 4); // lead + 3 workers
+    }
+
+    // ── TeamSubTask ─────────────────────────────────────────────────────
+
+    #[test]
+    fn team_sub_task_with_no_result() {
+        let task = TeamSubTask {
+            id: "t1".into(),
+            agent_id: "a1".into(),
+            description: "do work".into(),
+            status: TeamTaskStatus::Pending,
+            result: None,
+        };
+        assert!(task.result.is_none());
+        assert_eq!(task.status, TeamTaskStatus::Pending);
+    }
+
+    #[test]
+    fn team_sub_task_clone() {
+        let task = TeamSubTask {
+            id: "t1".into(),
+            agent_id: "a1".into(),
+            description: "work".into(),
+            status: TeamTaskStatus::InProgress,
+            result: Some("partial".into()),
+        };
+        let cloned = task.clone();
+        assert_eq!(cloned.id, "t1");
+        assert_eq!(cloned.result.as_deref(), Some("partial"));
+    }
+
+    // ── TeamTaskStatus equality ─────────────────────────────────────────
+
+    #[test]
+    fn team_task_status_ne() {
+        assert_ne!(TeamTaskStatus::Pending, TeamTaskStatus::Completed);
+        assert_ne!(TeamTaskStatus::InProgress, TeamTaskStatus::Failed);
+    }
+
+    // ── TeamInfo construction ───────────────────────────────────────────
+
+    #[test]
+    fn team_info_empty_tasks() {
+        let info = TeamInfo {
+            id: "t1".into(),
+            lead_agent_id: "lead".into(),
+            member_ids: vec!["lead".into()],
+            goal: "test".into(),
+            status: "forming".into(),
+            tasks: vec![],
+            message_count: 0,
+        };
+        assert!(info.tasks.is_empty());
+        assert_eq!(info.message_count, 0);
+    }
 }

@@ -175,7 +175,7 @@ export function InlineChat({ selection, position, provider, onAccept, onReject }
  background: "var(--accent-blue, #0078d4)",
  border: "none",
  borderRadius: 4,
- color: "#fff",
+ color: "var(--text-on-accent, #fff)",
  cursor: loading ? "wait" : "pointer",
  opacity: !prompt.trim() ? 0.5 : 1,
  }}
@@ -192,7 +192,7 @@ export function InlineChat({ selection, position, provider, onAccept, onReject }
  background: "var(--accent-green, #14a83c)",
  border: "none",
  borderRadius: 4,
- color: "#fff",
+ color: "var(--text-on-accent, #fff)",
  cursor: "pointer",
  }}
  >

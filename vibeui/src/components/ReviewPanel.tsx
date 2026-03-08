@@ -64,7 +64,7 @@ const FOCUS_EMOJI: Record<ReviewFocus, string> = {
 
 function ScoreBar({ label, value }: { label: string; value: number }) {
  const pct = Math.round((value / 10) * 100);
- const color = value >= 8 ? '#22c55e' : value >= 5 ? '#f59e0b' : '#ef4444';
+ const color = value >= 8 ? 'var(--text-success, #22c55e)' : value >= 5 ? 'var(--text-warning, #f59e0b)' : 'var(--text-danger, #ef4444)';
  return (
  <div style={{ marginBottom: 6 }}>
  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 2 }}>
@@ -132,7 +132,7 @@ export function ReviewPanel({ workspacePath, onOpenFile }: ReviewPanelProps) {
  disabled={isLoading || !workspacePath}
  style={{
  padding: '5px 14px', borderRadius: 4, border: 'none', cursor: 'pointer',
- background: isLoading ? 'var(--border-color)' : '#6366f1', color: '#fff', fontSize: 13,
+ background: isLoading ? 'var(--border-color)' : 'var(--accent-primary, #6366f1)', color: 'var(--text-on-accent, #fff)', fontSize: 13,
  opacity: !workspacePath ? 0.5 : 1,
  }}
  >
@@ -216,7 +216,7 @@ export function ReviewPanel({ workspacePath, onOpenFile }: ReviewPanelProps) {
  No {filterSeverity} issues found.
  </div>
  ) : filteredIssues.length === 0 ? (
- <div style={{ color: '#22c55e', fontSize: 13, textAlign: 'center', paddingTop: 12 }}>
+ <div style={{ color: 'var(--text-success, #22c55e)', fontSize: 13, textAlign: 'center', paddingTop: 12 }}>
  No issues found — looks good!
  </div>
  ) : (
@@ -229,8 +229,8 @@ export function ReviewPanel({ workspacePath, onOpenFile }: ReviewPanelProps) {
  key={idx}
  style={{
  background: 'var(--bg-tertiary)', borderRadius: 6, borderLeft: `3px solid`,
- borderLeftColor: sty.border.replace('border-l-', '').includes('red') ? '#ef4444'
- : sty.border.includes('yellow') ? '#f59e0b' : '#60a5fa',
+ borderLeftColor: sty.border.replace('border-l-', '').includes('red') ? 'var(--text-danger, #ef4444)'
+ : sty.border.includes('yellow') ? 'var(--text-warning, #f59e0b)' : 'var(--text-info, #60a5fa)',
  overflow: 'hidden',
  }}
  >
@@ -243,8 +243,8 @@ export function ReviewPanel({ workspacePath, onOpenFile }: ReviewPanelProps) {
  <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
  <span style={{
  fontSize: 10, padding: '1px 6px', borderRadius: 10,
- background: sty.badge.includes('red') ? '#ef4444'
- : sty.badge.includes('yellow') ? '#f59e0b' : '#60a5fa',
+ background: sty.badge.includes('red') ? 'var(--text-danger, #ef4444)'
+ : sty.badge.includes('yellow') ? 'var(--text-warning, #f59e0b)' : 'var(--text-info, #60a5fa)',
  color: sty.badge.includes('yellow') ? '#000' : '#fff',
  }}>
  {issue.severity}
@@ -278,7 +278,7 @@ export function ReviewPanel({ workspacePath, onOpenFile }: ReviewPanelProps) {
  Suggested fix:
  </div>
  <pre style={{
- margin: 0, fontSize: 11, color: '#86efac', background: 'var(--bg-primary)',
+ margin: 0, fontSize: 11, color: 'var(--text-success, #86efac)', background: 'var(--bg-primary)',
  borderRadius: 4, padding: 8, overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
  }}>
  {issue.suggested_fix}

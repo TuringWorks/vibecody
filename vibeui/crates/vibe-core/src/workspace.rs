@@ -293,4 +293,85 @@ mod tests {
         assert_eq!(deser.folders.len(), 1);
         assert_eq!(deser.settings.get("theme"), Some(&serde_json::json!("dark")));
     }
+
+    #[test]
+    fn workspace_remove_folder_not_present_is_noop() {
+        let mut ws = Workspace::new("Test".to_string());
+        ws.add_folder(PathBuf::from("/a")).ok();
+        ws.remove_folder(&PathBuf::from("/nonexistent"));
+        assert_eq!(ws.folders().len(), 1, "removing absent folder should not change list");
+    }
+
+    #[test]
+    fn workspace_multiple_folders_maintain_order() {
+        let mut ws = Workspace::new("Test".to_string());
+        ws.add_folder(PathBuf::from("/z")).ok();
+        ws.add_folder(PathBuf::from("/a")).ok();
+        ws.add_folder(PathBuf::from("/m")).ok();
+        assert_eq!(ws.folders(), &[PathBuf::from("/z"), PathBuf::from("/a"), PathBuf::from("/m")]);
+    }
+
+    #[test]
+    fn workspace_remove_middle_folder() {
+        let mut ws = Workspace::new("Test".to_string());
+        ws.add_folder(PathBuf::from("/a")).ok();
+        ws.add_folder(PathBuf::from("/b")).ok();
+        ws.add_folder(PathBuf::from("/c")).ok();
+        ws.remove_folder(&PathBuf::from("/b"));
+        assert_eq!(ws.folders(), &[PathBuf::from("/a"), PathBuf::from("/c")]);
+    }
+
+    #[test]
+    fn workspace_settings_multiple_keys() {
+        let mut ws = Workspace::new("Test".to_string());
+        ws.set_setting("a".to_string(), serde_json::json!(1));
+        ws.set_setting("b".to_string(), serde_json::json!(2));
+        ws.set_setting("c".to_string(), serde_json::json!(3));
+        assert_eq!(ws.get_setting("a"), Some(&serde_json::json!(1)));
+        assert_eq!(ws.get_setting("b"), Some(&serde_json::json!(2)));
+        assert_eq!(ws.get_setting("c"), Some(&serde_json::json!(3)));
+    }
+
+    #[test]
+    fn workspace_config_empty_settings_serialization() {
+        let config = WorkspaceConfig {
+            name: "Empty".to_string(),
+            folders: vec![],
+            settings: HashMap::new(),
+        };
+        let json = serde_json::to_string(&config).unwrap();
+        let back: WorkspaceConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.name, "Empty");
+        assert!(back.folders.is_empty());
+        assert!(back.settings.is_empty());
+    }
+
+    #[test]
+    fn workspace_config_clone() {
+        let config = WorkspaceConfig {
+            name: "Clone".to_string(),
+            folders: vec![PathBuf::from("/x")],
+            settings: HashMap::new(),
+        };
+        let cloned = config.clone();
+        assert_eq!(cloned.name, "Clone");
+        assert_eq!(cloned.folders.len(), 1);
+    }
+
+    #[test]
+    fn workspace_config_debug_format() {
+        let config = WorkspaceConfig {
+            name: "Debug".to_string(),
+            folders: vec![],
+            settings: HashMap::new(),
+        };
+        let debug = format!("{:?}", config);
+        assert!(debug.contains("Debug"), "Debug output should contain the name");
+    }
+
+    #[test]
+    fn workspace_get_buffer_mut_missing() {
+        let mut ws = Workspace::new("Test".to_string());
+        assert!(ws.get_buffer_mut(&PathBuf::from("/missing")).is_none());
+    }
 }

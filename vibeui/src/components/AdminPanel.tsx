@@ -135,7 +135,7 @@ export function AdminPanel() {
             <button key={t.key} onClick={() => setTab(t.key)} style={{
               padding: '4px 10px', fontSize: 11, borderRadius: 4, cursor: 'pointer',
               background: tab === t.key ? 'var(--accent-blue)' : 'var(--bg-tertiary)',
-              color: tab === t.key ? '#fff' : 'var(--text-secondary)',
+              color: tab === t.key ? 'var(--text-on-accent, #fff)' : 'var(--text-secondary)',
               border: '1px solid var(--border-color)',
             }}>{t.label}</button>
           ))}
@@ -147,7 +147,7 @@ export function AdminPanel() {
         <>
           <button onClick={() => setEditingMember(newMember())} style={{
             padding: '6px 14px', marginBottom: 12, fontSize: 12, borderRadius: 4,
-            background: 'var(--accent-blue)', color: '#fff', border: 'none', cursor: 'pointer',
+            background: 'var(--accent-blue)', color: 'var(--text-on-accent, #fff)', border: 'none', cursor: 'pointer',
           }}>+ Add Member</button>
 
           <div style={{ display: 'grid', gap: 8 }}>
@@ -167,7 +167,7 @@ export function AdminPanel() {
                   </div>
                   <div style={{ display: 'flex', gap: 4 }}>
                     <button onClick={() => setEditingMember(m)} style={smallBtn}>Edit</button>
-                    <button onClick={() => handleRemoveMember(m.id)} style={{ ...smallBtn, color: '#ef4444' }}>Remove</button>
+                    <button onClick={() => handleRemoveMember(m.id)} style={{ ...smallBtn, color: 'var(--text-danger, #ef4444)' }}>Remove</button>
                   </div>
                 </div>
                 <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 4 }}>
@@ -246,11 +246,11 @@ export function AdminPanel() {
                   background: entry.action.includes('delete') || entry.action.includes('remove')
                     ? 'rgba(239,68,68,0.15)' : 'rgba(59,130,246,0.15)',
                   color: entry.action.includes('delete') || entry.action.includes('remove')
-                    ? '#ef4444' : '#3b82f6',
+                    ? 'var(--text-danger, #ef4444)' : 'var(--text-info, #3b82f6)',
                 }}>{entry.action}</span>
                 <span style={{ color: 'var(--text-secondary)' }}>{entry.target}</span>
                 {entry.details && (
-                  <span style={{ color: 'var(--text-muted, #666)', fontSize: 11 }}>{entry.details}</span>
+                  <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>{entry.details}</span>
                 )}
               </div>
             ))}
@@ -270,7 +270,7 @@ export function AdminPanel() {
             id: crypto.randomUUID(), resource: '*', roles: ['admin'], action: 'allow',
           })} style={{
             padding: '6px 14px', marginBottom: 12, fontSize: 12, borderRadius: 4,
-            background: 'var(--accent-blue)', color: '#fff', border: 'none', cursor: 'pointer',
+            background: 'var(--accent-blue)', color: 'var(--text-on-accent, #fff)', border: 'none', cursor: 'pointer',
           }}>+ Add Policy</button>
 
           <div style={{ display: 'grid', gap: 6 }}>
@@ -284,7 +284,7 @@ export function AdminPanel() {
                   <span style={{
                     padding: '2px 8px', borderRadius: 3, fontSize: 10, fontWeight: 600,
                     background: p.action === 'allow' ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
-                    color: p.action === 'allow' ? '#22c55e' : '#ef4444',
+                    color: p.action === 'allow' ? 'var(--text-success, #22c55e)' : 'var(--text-danger, #ef4444)',
                   }}>{p.action.toUpperCase()}</span>
                   <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{p.resource}</span>
                   <div style={{ display: 'flex', gap: 3 }}>
@@ -296,7 +296,7 @@ export function AdminPanel() {
                     ))}
                   </div>
                 </div>
-                <button onClick={() => handleDeletePolicy(p.id)} style={{ ...smallBtn, color: '#ef4444' }}>Delete</button>
+                <button onClick={() => handleDeletePolicy(p.id)} style={{ ...smallBtn, color: 'var(--text-danger, #ef4444)' }}>Delete</button>
               </div>
             ))}
             {policies.length === 0 && (
@@ -352,7 +352,7 @@ const inputStyle: React.CSSProperties = {
   color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box',
 };
 const saveBtn: React.CSSProperties = {
-  padding: '6px 16px', background: 'var(--accent-blue)', color: '#fff',
+  padding: '6px 16px', background: 'var(--accent-blue)', color: 'var(--text-on-accent, #fff)',
   border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12,
 };
 const cancelBtn: React.CSSProperties = {

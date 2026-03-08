@@ -231,8 +231,8 @@ export function CronPanel() {
  spellCheck={false}
  style={{
  flex: 1, padding: "8px 12px", fontSize: 16, fontFamily: "monospace", fontWeight: 700,
- background: "var(--bg-secondary)", border: `1px solid ${error ? "#f38ba8" : "var(--border-color)"}`,
- borderRadius: 6, color: error ? "#f38ba8" : "#89b4fa", outline: "none",
+ background: "var(--bg-secondary)", border: `1px solid ${error ? "var(--text-danger, #f38ba8)" : "var(--border-color)"}`,
+ borderRadius: 6, color: error ? "var(--text-danger, #f38ba8)" : "var(--text-info, #89b4fa)", outline: "none",
  }}
  />
  <button onClick={copy} style={{ padding: "8px 14px", fontSize: 11, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 6, color: "var(--text-muted)", cursor: "pointer" }}>
@@ -259,7 +259,7 @@ export function CronPanel() {
  spellCheck={false}
  style={{
  padding: "5px 8px", fontSize: 13, fontFamily: "monospace", fontWeight: 600, textAlign: "center",
- background: "var(--bg-secondary)", border: `1px solid ${parts[i] && !validatePart(parts[i], f) ? "#f38ba8" : "var(--border-color)"}`,
+ background: "var(--bg-secondary)", border: `1px solid ${parts[i] && !validatePart(parts[i], f) ? "var(--text-danger, #f38ba8)" : "var(--border-color)"}`,
  borderRadius: 4, color: "var(--text-primary)", outline: "none",
  }}
  />
@@ -272,7 +272,7 @@ export function CronPanel() {
  <button
  key={chip}
  onClick={() => setPart(i, chip)}
- style={{ padding: "1px 5px", fontSize: 9, borderRadius: 4, background: parts[i] === chip ? "rgba(99,102,241,0.25)" : "var(--bg-primary)", border: `1px solid ${parts[i] === chip ? "#6366f1" : "var(--border-color)"}`, color: parts[i] === chip ? "#89b4fa" : "var(--text-muted)", cursor: "pointer" }}
+ style={{ padding: "1px 5px", fontSize: 9, borderRadius: 4, background: parts[i] === chip ? "rgba(99,102,241,0.25)" : "var(--bg-primary)", border: `1px solid ${parts[i] === chip ? "var(--accent-primary, #6366f1)" : "var(--border-color)"}`, color: parts[i] === chip ? "var(--text-info, #89b4fa)" : "var(--text-muted)", cursor: "pointer" }}
  >
  {chip}
  </button>
@@ -281,7 +281,7 @@ export function CronPanel() {
  <button
  key={name}
  onClick={() => setPart(i, String(f.min + ni))}
- style={{ padding: "1px 5px", fontSize: 9, borderRadius: 4, background: parts[i] === String(f.min + ni) ? "rgba(99,102,241,0.25)" : "var(--bg-primary)", border: `1px solid ${parts[i] === String(f.min + ni) ? "#6366f1" : "var(--border-color)"}`, color: parts[i] === String(f.min + ni) ? "#89b4fa" : "var(--text-muted)", cursor: "pointer" }}
+ style={{ padding: "1px 5px", fontSize: 9, borderRadius: 4, background: parts[i] === String(f.min + ni) ? "rgba(99,102,241,0.25)" : "var(--bg-primary)", border: `1px solid ${parts[i] === String(f.min + ni) ? "var(--accent-primary, #6366f1)" : "var(--border-color)"}`, color: parts[i] === String(f.min + ni) ? "var(--text-info, #89b4fa)" : "var(--text-muted)", cursor: "pointer" }}
  >
  {name}
  </button>
@@ -317,9 +317,9 @@ export function CronPanel() {
  <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 8 }}>Next {runs.length} Scheduled Runs</div>
  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
  {runs.map((d, i) => (
- <div key={i} style={{ display: "flex", gap: 12, padding: "5px 10px", background: i === 0 ? "rgba(99,102,241,0.1)" : "var(--bg-secondary)", borderRadius: 4, border: `1px solid ${i === 0 ? "#6366f1" : "var(--border-color)"}`, fontSize: 12, fontFamily: "monospace" }}>
+ <div key={i} style={{ display: "flex", gap: 12, padding: "5px 10px", background: i === 0 ? "rgba(99,102,241,0.1)" : "var(--bg-secondary)", borderRadius: 4, border: `1px solid ${i === 0 ? "var(--accent-primary, #6366f1)" : "var(--border-color)"}`, fontSize: 12, fontFamily: "monospace" }}>
  <span style={{ color: "var(--text-muted)", minWidth: 20 }}>#{i + 1}</span>
- <span style={{ color: i === 0 ? "#89b4fa" : "var(--text-primary)", fontWeight: i === 0 ? 600 : 400 }}>
+ <span style={{ color: i === 0 ? "var(--text-info, #89b4fa)" : "var(--text-primary)", fontWeight: i === 0 ? 600 : 400 }}>
  {d.toLocaleString([], { weekday: "short", year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
  </span>
  {i === 0 && (

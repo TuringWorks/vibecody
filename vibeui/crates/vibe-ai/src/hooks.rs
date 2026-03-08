@@ -1065,4 +1065,235 @@ mod tests {
         assert_eq!(payload.event, "SubagentStart");
         assert_eq!(payload.session_id, "unknown");
     }
+
+    // ── build_payload all variants ──────────────────────────────────────
+
+    #[test]
+    fn build_payload_session_start() {
+        let event = HookEvent::SessionStart { session_id: "sess-1".into() };
+        let payload = build_payload(&event);
+        assert_eq!(payload.event, "SessionStart");
+        assert_eq!(payload.session_id, "sess-1");
+        assert!(payload.tool.is_none());
+        assert!(payload.input.is_none());
+        assert!(payload.output.is_none());
+    }
+
+    #[test]
+    fn build_payload_user_prompt_submit() {
+        let event = HookEvent::UserPromptSubmit { prompt: "fix the bug".into(), session_id: "s1".into() };
+        let payload = build_payload(&event);
+        assert_eq!(payload.event, "UserPromptSubmit");
+        assert_eq!(payload.session_id, "s1");
+        let input = payload.input.unwrap();
+        assert_eq!(input["prompt"], "fix the bug");
+    }
+
+    #[test]
+    fn build_payload_stop() {
+        let event = HookEvent::Stop { reason: "max_steps".into(), session_id: "s1".into() };
+        let payload = build_payload(&event);
+        assert_eq!(payload.event, "Stop");
+        assert_eq!(payload.output, Some("max_steps".into()));
+    }
+
+    #[test]
+    fn build_payload_task_completed() {
+        let event = HookEvent::TaskCompleted { summary: "All done".into(), session_id: "s1".into() };
+        let payload = build_payload(&event);
+        assert_eq!(payload.event, "TaskCompleted");
+        assert_eq!(payload.output, Some("All done".into()));
+    }
+
+    #[test]
+    fn build_payload_file_created() {
+        let event = HookEvent::FileCreated { path: "/src/new.rs".into() };
+        let payload = build_payload(&event);
+        assert_eq!(payload.event, "FileCreated");
+        assert_eq!(payload.session_id, "file");
+        let input = payload.input.unwrap();
+        assert_eq!(input["path"], "/src/new.rs");
+    }
+
+    #[test]
+    fn build_payload_file_deleted() {
+        let event = HookEvent::FileDeleted { path: "/tmp/old.rs".into() };
+        let payload = build_payload(&event);
+        assert_eq!(payload.event, "FileDeleted");
+        let input = payload.input.unwrap();
+        assert_eq!(input["path"], "/tmp/old.rs");
+    }
+
+    #[test]
+    fn build_payload_post_tool_use() {
+        let event = HookEvent::PostToolUse {
+            call: ToolCall::Bash { command: "ls".to_string() },
+            result: crate::tools::ToolResult { tool_name: "bash".into(), output: "file1.rs".into(), success: true, truncated: false },
+            session_id: "s1".into(),
+        };
+        let payload = build_payload(&event);
+        assert_eq!(payload.event, "PostToolUse");
+        assert_eq!(payload.tool, Some("bash".into()));
+        assert_eq!(payload.output, Some("file1.rs".into()));
+    }
+
+    // ── HookPayload serialization ───────────────────────────────────────
+
+    #[test]
+    fn hook_payload_serializes_to_json() {
+        let event = pre_tool_call();
+        let payload = build_payload(&event);
+        let json = serde_json::to_string(&payload).unwrap();
+        assert!(json.contains("\"event\":\"PreToolUse\""));
+        assert!(json.contains("\"tool\":\"bash\""));
+        assert!(json.contains("\"session_id\":\"test-session\""));
+    }
+
+    #[test]
+    fn hook_payload_skips_none_fields() {
+        let event = HookEvent::SessionStart { session_id: "s".into() };
+        let payload = build_payload(&event);
+        let json = serde_json::to_string(&payload).unwrap();
+        // tool, input, output should not appear in JSON (skip_serializing_if)
+        assert!(!json.contains("\"tool\""));
+        assert!(!json.contains("\"input\""));
+        assert!(!json.contains("\"output\""));
+    }
+
+    // ── HookResponse deserialization ────────────────────────────────────
+
+    #[test]
+    fn hook_response_allow_true() {
+        let resp: HookResponse = serde_json::from_str(r#"{"allow": true}"#).unwrap();
+        assert_eq!(resp.allow, Some(true));
+        assert!(resp.reason.is_none());
+        assert!(resp.context.is_none());
+    }
+
+    #[test]
+    fn hook_response_block_with_reason() {
+        let resp: HookResponse = serde_json::from_str(
+            r#"{"allow": false, "reason": "unsafe operation"}"#
+        ).unwrap();
+        assert_eq!(resp.allow, Some(false));
+        assert_eq!(resp.reason.as_deref(), Some("unsafe operation"));
+    }
+
+    #[test]
+    fn hook_response_context_injection() {
+        let resp: HookResponse = serde_json::from_str(
+            r#"{"context": "lint results: all clean"}"#
+        ).unwrap();
+        assert!(resp.allow.is_none());
+        assert_eq!(resp.context.as_deref(), Some("lint results: all clean"));
+    }
+
+    #[test]
+    fn hook_response_empty_object() {
+        let resp: HookResponse = serde_json::from_str(r#"{}"#).unwrap();
+        assert!(resp.allow.is_none());
+        assert!(resp.reason.is_none());
+        assert!(resp.context.is_none());
+    }
+
+    // ── glob_match_path edge cases ──────────────────────────────────────
+
+    #[test]
+    fn glob_match_empty_pattern_empty_path() {
+        assert!(glob_match_path("", ""));
+    }
+
+    #[test]
+    fn glob_match_double_star_at_start_and_end() {
+        assert!(glob_match_path("**/*.rs", "main.rs"));
+        assert!(glob_match_path("**/*.rs", "deeply/nested/path/main.rs"));
+    }
+
+    #[test]
+    fn glob_match_double_star_in_middle() {
+        assert!(glob_match_path("src/**/*.rs", "src/main.rs"));
+        assert!(glob_match_path("src/**/*.rs", "src/sub/dir/main.rs"));
+        assert!(!glob_match_path("src/**/*.rs", "other/main.rs"));
+    }
+
+    #[test]
+    fn glob_match_multiple_wildcards() {
+        assert!(glob_match_path("src/*/test_*", "src/mod/test_foo"));
+        assert!(!glob_match_path("src/*/test_*", "src/mod/prod_foo"));
+    }
+
+    // ── segment_match edge cases ────────────────────────────────────────
+
+    #[test]
+    fn segment_match_middle_wildcard() {
+        assert!(segment_match("test_*_spec", "test_unit_spec"));
+        assert!(!segment_match("test_*_spec", "test_unit_impl"));
+    }
+
+    #[test]
+    fn segment_match_multiple_wildcards_in_segment() {
+        assert!(segment_match("*test*", "my_test_file"));
+        assert!(segment_match("*test*", "test"));
+        assert!(!segment_match("*test*", "no_match"));
+    }
+
+    // ── HookConfig::matches with combined filters ───────────────────────
+
+    #[test]
+    fn hook_config_matches_tool_substring() {
+        let cfg = HookConfig {
+            event: "PreToolUse".to_string(),
+            tools: Some(vec!["bas".to_string()]),  // substring of "bash"
+            paths: None,
+            handler: HookHandler::Command { shell: "true".to_string() },
+            async_exec: false,
+        };
+        assert!(cfg.matches(&pre_tool_call()));
+    }
+
+    #[test]
+    fn hook_config_multiple_tool_filters() {
+        let cfg = HookConfig {
+            event: "PreToolUse".to_string(),
+            tools: Some(vec!["write_file".to_string(), "bash".to_string()]),
+            paths: None,
+            handler: HookHandler::Command { shell: "true".to_string() },
+            async_exec: false,
+        };
+        assert!(cfg.matches(&pre_tool_call()));
+    }
+
+    #[test]
+    fn hook_config_tool_filter_on_non_tool_event() {
+        let cfg = HookConfig {
+            event: "SessionStart".to_string(),
+            tools: Some(vec!["bash".to_string()]),
+            paths: None,
+            handler: HookHandler::Command { shell: "true".to_string() },
+            async_exec: false,
+        };
+        let event = HookEvent::SessionStart { session_id: "s".into() };
+        // tools filter set, but event has no tool_name → should not match
+        assert!(!cfg.matches(&event));
+    }
+
+    // ── session_id accessor ─────────────────────────────────────────────
+
+    #[test]
+    fn session_id_for_tool_events() {
+        let e = pre_tool_call();
+        assert_eq!(e.session_id(), "test-session");
+    }
+
+    #[test]
+    fn session_id_for_subagent_is_unknown() {
+        let e = HookEvent::SubagentStart { name: "w".into() };
+        assert_eq!(e.session_id(), "unknown");
+    }
+
+    #[test]
+    fn session_id_for_file_events_is_file() {
+        let e = HookEvent::FileSaved { path: "/a".into(), content: "c".into(), language: "rs".into() };
+        assert_eq!(e.session_id(), "file");
+    }
 }

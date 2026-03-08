@@ -151,7 +151,7 @@ export function RegexPanel() {
  <div style={{ padding: "8px 10px", fontSize: 10, fontWeight: 700, color: "var(--text-muted)", borderBottom: "1px solid var(--border-color)", letterSpacing: "0.05em" }}>COMMON PATTERNS</div>
  <div style={{ flex: 1, overflow: "auto" }}>
  {COMMON_PATTERNS.map((p, i) => (
- <button key={i} onClick={() => loadLibEntry(i)} style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 10px", fontSize: 11, background: activeLib === i ? "rgba(99,102,241,0.15)" : "transparent", color: activeLib === i ? "#89b4fa" : "var(--text-primary)", border: "none", borderBottom: "1px solid rgba(255,255,255,0.04)", cursor: "pointer", lineHeight: 1.4 }}>
+ <button key={i} onClick={() => loadLibEntry(i)} style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 10px", fontSize: 11, background: activeLib === i ? "rgba(99,102,241,0.15)" : "transparent", color: activeLib === i ? "var(--text-info, #89b4fa)" : "var(--text-primary)", border: "none", borderBottom: "1px solid rgba(255,255,255,0.04)", cursor: "pointer", lineHeight: 1.4 }}>
  <div style={{ fontWeight: 600 }}>{p.name}</div>
  <div style={{ fontSize: 9, color: "var(--text-muted)", marginTop: 1 }}>{p.description}</div>
  </button>
@@ -167,7 +167,7 @@ export function RegexPanel() {
  <span style={{ fontSize: 13, fontWeight: 600 }}>Regex Tester</span>
  <div style={{ marginLeft: "auto", display: "flex", gap: 6, alignItems: "center" }}>
  <span style={{ fontSize: 10, color: "var(--text-muted)" }}>matches:</span>
- <span style={{ fontSize: 11, fontWeight: 700, color: matches.length > 0 ? "#a6e3a1" : "var(--text-muted)" }}>{matches.length}</span>
+ <span style={{ fontSize: 11, fontWeight: 700, color: matches.length > 0 ? "var(--text-success, #a6e3a1)" : "var(--text-muted)" }}>{matches.length}</span>
  {error && <span style={{ fontSize: 10, color: "var(--text-danger, #f38ba8)", maxWidth: 280, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{error}</span>}
  </div>
  </div>
@@ -181,15 +181,15 @@ export function RegexPanel() {
  onChange={e => { setPattern(e.target.value); setActiveLib(null); }}
  placeholder="pattern"
  spellCheck={false}
- style={{ flex: 1, minWidth: 0, padding: "4px 8px", fontSize: 13, fontFamily: "monospace", background: error ? "rgba(243,139,168,0.08)" : "var(--bg-primary)", border: `1px solid ${error ? "#f38ba8" : "var(--border-color)"}`, borderRadius: 4, color: "var(--text-primary)", outline: "none" }}
+ style={{ flex: 1, minWidth: 0, padding: "4px 8px", fontSize: 13, fontFamily: "monospace", background: error ? "rgba(243,139,168,0.08)" : "var(--bg-primary)", border: `1px solid ${error ? "var(--text-danger, #f38ba8)" : "var(--border-color)"}`, borderRadius: 4, color: "var(--text-primary)", outline: "none" }}
  />
  <span style={{ fontSize: 16, color: "var(--text-muted)", fontFamily: "monospace" }}>/</span>
  {/* Flags */}
  {["g","i","m","s","u"].map(f => (
- <button key={f} onClick={() => toggleFlag(f)} style={{ padding: "2px 8px", fontSize: 11, fontFamily: "monospace", fontWeight: 700, borderRadius: 4, border: `1px solid ${flags.includes(f) ? "#6366f1" : "var(--border-color)"}`, background: flags.includes(f) ? "rgba(99,102,241,0.2)" : "var(--bg-primary)", color: flags.includes(f) ? "#89b4fa" : "var(--text-muted)", cursor: "pointer" }}>{f}</button>
+ <button key={f} onClick={() => toggleFlag(f)} style={{ padding: "2px 8px", fontSize: 11, fontFamily: "monospace", fontWeight: 700, borderRadius: 4, border: `1px solid ${flags.includes(f) ? "var(--accent-primary, #6366f1)" : "var(--border-color)"}`, background: flags.includes(f) ? "rgba(99,102,241,0.2)" : "var(--bg-primary)", color: flags.includes(f) ? "var(--text-info, #89b4fa)" : "var(--text-muted)", cursor: "pointer" }}>{f}</button>
  ))}
  {/* Replace toggle */}
- <button onClick={() => setShowReplace(v => !v)} style={{ padding: "3px 10px", fontSize: 10, borderRadius: 4, border: `1px solid ${showReplace ? "#fab387" : "var(--border-color)"}`, background: showReplace ? "rgba(250,179,135,0.1)" : "var(--bg-primary)", color: showReplace ? "#fab387" : "var(--text-muted)", cursor: "pointer" }}>⇄ Replace</button>
+ <button onClick={() => setShowReplace(v => !v)} style={{ padding: "3px 10px", fontSize: 10, borderRadius: 4, border: `1px solid ${showReplace ? "var(--text-warning-alt, #fab387)" : "var(--border-color)"}`, background: showReplace ? "rgba(250,179,135,0.1)" : "var(--bg-primary)", color: showReplace ? "var(--text-warning-alt, #fab387)" : "var(--text-muted)", cursor: "pointer" }}>⇄ Replace</button>
  </div>
 
  {/* Replace row */}

@@ -1198,4 +1198,176 @@ mod circuit_breaker_tests {
             ToolResult::ok("test", "ok")
         }
     }
+
+    // ── ApprovalPolicy::from_str ─────────────────────────────────────────
+
+    #[test]
+    fn approval_policy_from_str_full_auto() {
+        assert_eq!(ApprovalPolicy::from_str("full-auto"), ApprovalPolicy::FullAuto);
+        assert_eq!(ApprovalPolicy::from_str("fullauto"), ApprovalPolicy::FullAuto);
+        assert_eq!(ApprovalPolicy::from_str("FULL-AUTO"), ApprovalPolicy::FullAuto);
+    }
+
+    #[test]
+    fn approval_policy_from_str_auto_edit() {
+        assert_eq!(ApprovalPolicy::from_str("auto-edit"), ApprovalPolicy::AutoEdit);
+        assert_eq!(ApprovalPolicy::from_str("autoedit"), ApprovalPolicy::AutoEdit);
+        assert_eq!(ApprovalPolicy::from_str("AUTO-EDIT"), ApprovalPolicy::AutoEdit);
+    }
+
+    #[test]
+    fn approval_policy_from_str_suggest_default() {
+        assert_eq!(ApprovalPolicy::from_str("suggest"), ApprovalPolicy::Suggest);
+        assert_eq!(ApprovalPolicy::from_str(""), ApprovalPolicy::Suggest);
+        assert_eq!(ApprovalPolicy::from_str("unknown"), ApprovalPolicy::Suggest);
+        assert_eq!(ApprovalPolicy::from_str("garbage"), ApprovalPolicy::Suggest);
+    }
+
+    // ── AgentContext defaults ────────────────────────────────────────────
+
+    #[test]
+    fn agent_context_default() {
+        let ctx = AgentContext::default();
+        assert!(ctx.workspace_root.as_os_str().is_empty());
+        assert!(ctx.open_files.is_empty());
+        assert!(ctx.git_branch.is_none());
+        assert!(ctx.git_diff_summary.is_none());
+        assert!(ctx.flow_context.is_none());
+        assert!(ctx.approved_plan.is_none());
+        assert!(ctx.extra_skill_dirs.is_empty());
+        assert!(ctx.parent_session_id.is_none());
+        assert_eq!(ctx.depth, 0);
+        assert!(ctx.active_agent_counter.is_none());
+        assert!(ctx.team_bus.is_none());
+        assert!(ctx.team_agent_id.is_none());
+    }
+
+    #[test]
+    fn agent_context_serde_roundtrip() {
+        let ctx = AgentContext {
+            workspace_root: std::path::PathBuf::from("/tmp/project"),
+            open_files: vec!["main.rs".into(), "lib.rs".into()],
+            git_branch: Some("feature-branch".into()),
+            git_diff_summary: Some("3 files changed".into()),
+            flow_context: Some("editing auth module".into()),
+            approved_plan: Some("step 1: read, step 2: write".into()),
+            extra_skill_dirs: vec![std::path::PathBuf::from("/skills")],
+            parent_session_id: Some("parent-123".into()),
+            depth: 2,
+            ..Default::default()
+        };
+        let json = serde_json::to_string(&ctx).unwrap();
+        let back: AgentContext = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.workspace_root.to_str(), Some("/tmp/project"));
+        assert_eq!(back.open_files.len(), 2);
+        assert_eq!(back.git_branch.as_deref(), Some("feature-branch"));
+        assert_eq!(back.depth, 2);
+        assert_eq!(back.parent_session_id.as_deref(), Some("parent-123"));
+    }
+
+    // ── CircuitBreaker edge cases ───────────────────────────────────────
+
+    #[test]
+    fn circuit_breaker_error_hash_cap_at_10() {
+        let mut cb = CircuitBreaker { spin_threshold: 100, stall_threshold: 100, ..Default::default() };
+        let bash = ToolCall::Bash { command: "test".into() };
+        for i in 0..20 {
+            cb.record_step(&bash, &err_result("bash", &format!("error {}", i)), 100);
+        }
+        assert!(cb.recent_error_hashes.len() <= 10);
+    }
+
+    #[test]
+    fn circuit_breaker_no_degradation_with_stable_output() {
+        let mut cb = CircuitBreaker { stall_threshold: 100, degradation_pct: 50.0, ..Default::default() };
+        let bash = ToolCall::Bash { command: "ls".into() };
+        for _ in 0..10 {
+            cb.record_step(&bash, &ok_result("bash"), 500);
+        }
+        assert_eq!(cb.state, AgentHealthState::Progress);
+    }
+
+    #[test]
+    fn rotation_hint_stalled_contains_rotation_count() {
+        let mut cb = CircuitBreaker { stall_threshold: 1, max_rotations: 3, ..Default::default() };
+        let bash = ToolCall::Bash { command: "ls".into() };
+        cb.record_step(&bash, &ok_result("bash"), 100);
+        assert_eq!(cb.state, AgentHealthState::Stalled);
+        let hint = cb.rotation_hint();
+        assert!(hint.contains("STALLED"));
+        assert!(hint.contains("Rotation"));
+    }
+
+    #[test]
+    fn rotation_hint_spinning_mentions_error() {
+        let mut cb = CircuitBreaker { spin_threshold: 2, stall_threshold: 100, ..Default::default() };
+        let bash = ToolCall::Bash { command: "build".into() };
+        let err = err_result("bash", "same error");
+        cb.record_step(&bash, &err, 100);
+        cb.record_step(&bash, &err, 100);
+        assert_eq!(cb.state, AgentHealthState::Spinning);
+        let hint = cb.rotation_hint();
+        assert!(hint.contains("SPINNING"));
+    }
+
+    #[test]
+    fn rotation_hint_blocked_mentions_stopping() {
+        let mut cb = CircuitBreaker::default();
+        cb.state = AgentHealthState::Blocked;
+        let hint = cb.rotation_hint();
+        assert!(hint.contains("BLOCKED"));
+    }
+
+    #[test]
+    fn apply_patch_resets_stall_counter() {
+        let mut cb = CircuitBreaker::default();
+        let patch = ToolCall::ApplyPatch { path: "f".into(), patch: "--- a/f\n+++ b/f".into() };
+        cb.steps_since_file_change = 3;
+        cb.record_step(&patch, &ok_result("apply_patch"), 100);
+        assert_eq!(cb.steps_since_file_change, 0);
+    }
+
+    #[test]
+    fn failed_write_does_not_reset_stall() {
+        let mut cb = CircuitBreaker::default();
+        let write = ToolCall::WriteFile { path: "x.rs".into(), content: "code".into() };
+        cb.steps_since_file_change = 3;
+        cb.record_step(&write, &err_result("write_file", "permission denied"), 100);
+        assert_eq!(cb.steps_since_file_change, 4);
+    }
+
+    // ── AgentLoop builder chain ─────────────────────────────────────────
+
+    #[test]
+    fn agent_loop_with_context_limit() {
+        let provider: Arc<dyn crate::provider::AIProvider> = Arc::new(
+            crate::providers::ollama::OllamaProvider::new(crate::provider::ProviderConfig::default())
+        );
+        let exec: Arc<dyn ToolExecutorTrait> = Arc::new(DummyExecutor);
+        let agent = AgentLoop::new(provider, ApprovalPolicy::Suggest, exec)
+            .with_context_limit(50_000)
+            .with_circuit_breaker(false);
+        assert_eq!(agent.max_context_tokens, Some(50_000));
+        assert!(!agent.circuit_breaker_enabled);
+    }
+
+    #[test]
+    fn agent_loop_max_steps_default() {
+        let provider: Arc<dyn crate::provider::AIProvider> = Arc::new(
+            crate::providers::ollama::OllamaProvider::new(crate::provider::ProviderConfig::default())
+        );
+        let exec: Arc<dyn ToolExecutorTrait> = Arc::new(DummyExecutor);
+        let agent = AgentLoop::new(provider, ApprovalPolicy::Suggest, exec);
+        assert_eq!(agent.max_steps, 30);
+    }
+
+    // ── AgentHealthState Display & Eq ───────────────────────────────────
+
+    #[test]
+    fn health_state_clone_eq() {
+        let s = AgentHealthState::Spinning;
+        let s2 = s.clone();
+        assert_eq!(s, s2);
+        assert_ne!(s, AgentHealthState::Progress);
+    }
 }

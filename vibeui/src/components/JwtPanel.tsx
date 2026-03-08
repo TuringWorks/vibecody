@@ -184,7 +184,7 @@ export function JwtPanel() {
  <span style={{ fontSize: 13, fontWeight: 600 }}>JWT Debugger</span>
  <div style={{ display: "flex", gap: 4, marginLeft: "auto" }}>
  {(["decode", "sign", "claims"] as Tab[]).map(t => (
- <button key={t} onClick={() => setTab(t)} style={{ padding: "2px 10px", fontSize: 10, borderRadius: 10, background: tab === t ? "rgba(99,102,241,0.2)" : "var(--bg-primary)", border: `1px solid ${tab === t ? "#6366f1" : "var(--border-color)"}`, color: tab === t ? "#89b4fa" : "var(--text-muted)", cursor: "pointer", fontWeight: tab === t ? 700 : 400 }}>
+ <button key={t} onClick={() => setTab(t)} style={{ padding: "2px 10px", fontSize: 10, borderRadius: 10, background: tab === t ? "rgba(99,102,241,0.2)" : "var(--bg-primary)", border: `1px solid ${tab === t ? "var(--accent-primary, #6366f1)" : "var(--border-color)"}`, color: tab === t ? "var(--text-info, #89b4fa)" : "var(--text-muted)", cursor: "pointer", fontWeight: tab === t ? 700 : 400 }}>
  {t === "decode" ? "Decode" : t === "sign" ? "Sign" : "Claims Ref"}
  </button>
  ))}
@@ -206,7 +206,7 @@ export function JwtPanel() {
  </div>
  </div>
  <textarea value={rawJwt} onChange={e => setRawJwt(e.target.value)} rows={4} spellCheck={false} placeholder="Paste JWT here…"
- style={{ width: "100%", resize: "vertical", padding: "8px 12px", fontSize: 11, fontFamily: "monospace", lineHeight: 1.6, background: "var(--bg-primary)", color: decodeError ? "#f38ba8" : "#cba6f7", border: "none", outline: "none", boxSizing: "border-box" }} />
+ style={{ width: "100%", resize: "vertical", padding: "8px 12px", fontSize: 11, fontFamily: "monospace", lineHeight: 1.6, background: "var(--bg-primary)", color: decodeError ? "var(--text-danger, #f38ba8)" : "var(--text-accent, #cba6f7)", border: "none", outline: "none", boxSizing: "border-box" }} />
  {decodeError && <div style={{ padding: "4px 12px", fontSize: 11, color: "var(--text-danger, #f38ba8)", background: "rgba(243,139,168,0.06)" }}>{decodeError}</div>}
  </div>
 
@@ -228,7 +228,7 @@ export function JwtPanel() {
  <span>PAYLOAD</span>
  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
  {expiry && expiry.status !== "none" && (
- <span style={{ fontSize: 9, padding: "1px 6px", borderRadius: 10, fontWeight: 700, background: expiry.status === "expired" ? "rgba(243,139,168,0.15)" : "rgba(166,227,161,0.15)", border: `1px solid ${expiry.status === "expired" ? "#f38ba8" : "#a6e3a1"}`, color: expiry.status === "expired" ? "#f38ba8" : "#a6e3a1" }}>
+ <span style={{ fontSize: 9, padding: "1px 6px", borderRadius: 10, fontWeight: 700, background: expiry.status === "expired" ? "rgba(243,139,168,0.15)" : "rgba(166,227,161,0.15)", border: `1px solid ${expiry.status === "expired" ? "var(--text-danger, #f38ba8)" : "var(--text-success, #a6e3a1)"}`, color: expiry.status === "expired" ? "var(--text-danger, #f38ba8)" : "var(--text-success, #a6e3a1)" }}>
  {expiry.status === "expired" ? "✕ EXPIRED" : "✓ VALID"} · {expiry.remaining}
  </span>
  )}

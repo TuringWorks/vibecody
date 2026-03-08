@@ -93,3 +93,90 @@ impl Default for TerminalManager {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn new_terminal_manager_has_empty_ptys() {
+        let tm = TerminalManager::new();
+        let ptys = tm.ptys.lock().unwrap();
+        assert!(ptys.is_empty());
+    }
+
+    #[test]
+    fn new_terminal_manager_starts_at_id_zero() {
+        let tm = TerminalManager::new();
+        let next_id = tm.next_id.lock().unwrap();
+        assert_eq!(*next_id, 0);
+    }
+
+    #[test]
+    fn default_is_same_as_new() {
+        let tm = TerminalManager::default();
+        let ptys = tm.ptys.lock().unwrap();
+        let next_id = tm.next_id.lock().unwrap();
+        assert!(ptys.is_empty());
+        assert_eq!(*next_id, 0);
+    }
+
+    #[test]
+    fn write_to_nonexistent_pty_is_ok() {
+        // Writing to an ID that does not exist should not panic; it silently does nothing.
+        let tm = TerminalManager::new();
+        let result = tm.write(999, "hello");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn resize_nonexistent_pty_is_ok() {
+        // Resizing a PTY that does not exist should not panic.
+        let tm = TerminalManager::new();
+        let result = tm.resize(42, 40, 120);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn ptys_map_is_shared_across_clones() {
+        // The Arc<Mutex<HashMap>> should be the same object across field access.
+        let tm = TerminalManager::new();
+        let ptys1 = Arc::clone(&tm.ptys);
+        let ptys2 = Arc::clone(&tm.ptys);
+        assert!(Arc::ptr_eq(&ptys1, &ptys2));
+    }
+
+    #[test]
+    fn next_id_is_shared_across_clones() {
+        let tm = TerminalManager::new();
+        let id1 = Arc::clone(&tm.next_id);
+        let id2 = Arc::clone(&tm.next_id);
+        assert!(Arc::ptr_eq(&id1, &id2));
+    }
+
+    #[test]
+    fn multiple_writes_to_missing_pty_all_succeed() {
+        let tm = TerminalManager::new();
+        for i in 0..10 {
+            assert!(tm.write(i, &format!("data {}", i)).is_ok());
+        }
+    }
+
+    #[test]
+    fn multiple_resizes_to_missing_pty_all_succeed() {
+        let tm = TerminalManager::new();
+        for id in 0..5 {
+            assert!(tm.resize(id, 24, 80).is_ok());
+            assert!(tm.resize(id, 50, 200).is_ok());
+        }
+    }
+
+    #[test]
+    fn spawn_with_invalid_shell_returns_error() {
+        let tm = TerminalManager::new();
+        let (tx, _rx) = tokio::sync::mpsc::channel(1);
+        // A shell path that does not exist should fail
+        let result = tm.spawn("/nonexistent/shell/path", tx);
+        assert!(result.is_err());
+    }
+}

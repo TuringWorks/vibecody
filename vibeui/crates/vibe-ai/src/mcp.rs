@@ -407,4 +407,140 @@ mod tests {
         assert!(prompt.contains("<tool_call name=\"mcp__db__query\">"));
         assert!(prompt.contains("<arguments>"));
     }
+
+    // ── McpTool field validation ─────────────────────────────────────────
+
+    #[test]
+    fn mcp_tool_with_complex_input_schema() {
+        let tool = McpTool {
+            name: "create_issue".to_string(),
+            description: "Create a GitHub issue".to_string(),
+            server: "github".to_string(),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "required": ["title"],
+                "properties": {
+                    "title": { "type": "string" },
+                    "body": { "type": "string" },
+                    "labels": { "type": "array", "items": { "type": "string" } }
+                }
+            }),
+        };
+        assert!(tool.input_schema["required"].is_array());
+        assert_eq!(tool.input_schema["properties"]["title"]["type"], "string");
+    }
+
+    #[test]
+    fn mcp_tool_empty_fields() {
+        let tool = make_tool("", "", "");
+        let json = serde_json::to_string(&tool).unwrap();
+        let back: McpTool = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.name, "");
+        assert_eq!(back.server, "");
+        assert_eq!(back.description, "");
+    }
+
+    #[test]
+    fn mcp_tool_clone() {
+        let tool = make_tool("github", "list_repos", "desc");
+        let cloned = tool.clone();
+        assert_eq!(cloned.name, tool.name);
+        assert_eq!(cloned.server, tool.server);
+    }
+
+    // ── McpServerConfig edge cases ──────────────────────────────────────
+
+    #[test]
+    fn server_config_with_multiple_env_vars() {
+        let cfg = McpServerConfig {
+            name: "db".to_string(),
+            command: "db-server".to_string(),
+            args: vec![],
+            env: [
+                ("DB_HOST".to_string(), "localhost".to_string()),
+                ("DB_PORT".to_string(), "5432".to_string()),
+                ("DB_USER".to_string(), "admin".to_string()),
+            ].into_iter().collect(),
+        };
+        assert_eq!(cfg.env.len(), 3);
+        assert_eq!(cfg.env["DB_PORT"], "5432");
+    }
+
+    #[test]
+    fn server_config_with_inline_args_in_command() {
+        // The connect() method splits command on whitespace.
+        // Test the config itself stores the full command string.
+        let cfg = McpServerConfig {
+            name: "test".to_string(),
+            command: "npx @mcp/server --port 3000".to_string(),
+            args: vec!["--verbose".to_string()],
+            ..Default::default()
+        };
+        assert!(cfg.command.contains("npx"));
+        assert!(cfg.command.contains("--port"));
+        assert_eq!(cfg.args.len(), 1);
+    }
+
+    #[test]
+    fn server_config_debug_format() {
+        let cfg = McpServerConfig::default();
+        let debug = format!("{:?}", cfg);
+        assert!(debug.contains("McpServerConfig"));
+    }
+
+    // ── tools_prompt edge cases ─────────────────────────────────────────
+
+    #[test]
+    fn tools_prompt_special_chars_in_names() {
+        let tools = vec![make_tool("my-server", "list_all-items", "List items with dashes")];
+        let prompt = McpClient::tools_prompt(&tools);
+        assert!(prompt.contains("mcp__my-server__list_all-items"));
+    }
+
+    #[test]
+    fn tools_prompt_many_tools() {
+        let tools: Vec<McpTool> = (0..20)
+            .map(|i| make_tool("server", &format!("tool_{}", i), &format!("Tool number {}", i)))
+            .collect();
+        let prompt = McpClient::tools_prompt(&tools);
+        assert!(prompt.contains("mcp__server__tool_0"));
+        assert!(prompt.contains("mcp__server__tool_19"));
+    }
+
+    // ── next_id concurrency safety ──────────────────────────────────────
+
+    #[test]
+    fn next_id_many_calls_unique() {
+        let ids: Vec<u64> = (0..100).map(|_| next_id()).collect();
+        let unique: std::collections::HashSet<u64> = ids.iter().copied().collect();
+        assert_eq!(unique.len(), 100, "All IDs should be unique");
+    }
+
+    // ── JSON-RPC response deserialization ────────────────────────────────
+
+    #[test]
+    fn json_rpc_response_with_result() {
+        let json = r#"{"id": 1, "result": {"tools": []}, "error": null}"#;
+        let resp: JsonRpcResponse = serde_json::from_str(json).unwrap();
+        assert!(resp.result.is_some());
+        assert!(resp.error.is_none());
+    }
+
+    #[test]
+    fn json_rpc_response_with_error() {
+        let json = r#"{"id": 1, "result": null, "error": {"code": -32600, "message": "Invalid Request"}}"#;
+        let resp: JsonRpcResponse = serde_json::from_str(json).unwrap();
+        assert!(resp.error.is_some());
+        let err = resp.error.unwrap();
+        assert_eq!(err.code, -32600);
+        assert_eq!(err.message, "Invalid Request");
+    }
+
+    #[test]
+    fn json_rpc_response_missing_optional_fields() {
+        let json = r#"{"id": null}"#;
+        let resp: JsonRpcResponse = serde_json::from_str(json).unwrap();
+        assert!(resp.result.is_none());
+        assert!(resp.error.is_none());
+    }
 }

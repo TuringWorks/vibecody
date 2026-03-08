@@ -115,7 +115,7 @@ export function WebhookPanel() {
             <button key={t} onClick={() => setTab(t)} style={{
               padding: '4px 12px', fontSize: 12, borderRadius: 4, cursor: 'pointer',
               background: tab === t ? 'var(--accent-blue)' : 'var(--bg-tertiary)',
-              color: tab === t ? '#fff' : 'var(--text-secondary)',
+              color: tab === t ? 'var(--text-on-accent, #fff)' : 'var(--text-secondary)',
               border: '1px solid var(--border-color)',
             }}>{t === 'config' ? 'Webhooks' : 'Activity Log'}</button>
           ))}
@@ -126,7 +126,7 @@ export function WebhookPanel() {
         <>
           <button onClick={() => setEditing(newWebhook())} style={{
             padding: '6px 14px', marginBottom: 12, fontSize: 12, borderRadius: 4,
-            background: 'var(--accent-blue)', color: '#fff', border: 'none', cursor: 'pointer',
+            background: 'var(--accent-blue)', color: 'var(--text-on-accent, #fff)', border: 'none', cursor: 'pointer',
           }}>+ Add Webhook</button>
 
           {webhooks.length === 0 && (
@@ -146,13 +146,13 @@ export function WebhookPanel() {
                   <span style={{
                     marginLeft: 8, padding: '1px 6px', borderRadius: 3, fontSize: 10,
                     background: wh.enabled ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
-                    color: wh.enabled ? '#22c55e' : '#ef4444',
+                    color: wh.enabled ? 'var(--text-success, #22c55e)' : 'var(--text-danger, #ef4444)',
                   }}>{wh.enabled ? 'Active' : 'Disabled'}</span>
                 </div>
                 <div style={{ display: 'flex', gap: 4 }}>
                   <button onClick={() => handleTest(wh.id)} style={smallBtn}>Test</button>
                   <button onClick={() => setEditing(wh)} style={smallBtn}>Edit</button>
-                  <button onClick={() => handleDelete(wh.id)} style={{ ...smallBtn, color: '#ef4444' }}>Delete</button>
+                  <button onClick={() => handleDelete(wh.id)} style={{ ...smallBtn, color: 'var(--text-danger, #ef4444)' }}>Delete</button>
                 </div>
               </div>
               <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4, fontFamily: 'monospace' }}>
@@ -162,7 +162,7 @@ export function WebhookPanel() {
                 {wh.events.map(ev => (
                   <span key={ev} style={{
                     padding: '1px 6px', borderRadius: 3, fontSize: 10,
-                    background: 'rgba(99,102,241,0.15)', color: '#818cf8',
+                    background: 'rgba(99,102,241,0.15)', color: 'var(--accent-primary, #818cf8)',
                   }}>{ev}</span>
                 ))}
               </div>
@@ -196,8 +196,8 @@ export function WebhookPanel() {
                 <button key={ev} onClick={() => toggleEvent(ev)} style={{
                   padding: '3px 8px', fontSize: 11, borderRadius: 4, cursor: 'pointer',
                   background: editing.events.includes(ev) ? 'rgba(99,102,241,0.25)' : 'var(--bg-tertiary)',
-                  color: editing.events.includes(ev) ? '#818cf8' : 'var(--text-secondary)',
-                  border: `1px solid ${editing.events.includes(ev) ? '#6366f1' : 'var(--border-color)'}`,
+                  color: editing.events.includes(ev) ? 'var(--accent-primary, #818cf8)' : 'var(--text-secondary)',
+                  border: `1px solid ${editing.events.includes(ev) ? 'var(--accent-primary, #6366f1)' : 'var(--border-color)'}`,
                 }}>{ev}</button>
               ))}
             </div>
@@ -211,7 +211,7 @@ export function WebhookPanel() {
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={handleSave} style={{
-              padding: '6px 16px', background: 'var(--accent-blue)', color: '#fff',
+              padding: '6px 16px', background: 'var(--accent-blue)', color: 'var(--text-on-accent, #fff)',
               border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12,
             }}>Save</button>
             <button onClick={() => setEditing(null)} style={{
@@ -241,7 +241,7 @@ export function WebhookPanel() {
                   <span style={{
                     padding: '1px 6px', borderRadius: 3, fontSize: 10, fontWeight: 600,
                     background: log.status < 300 ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
-                    color: log.status < 300 ? '#22c55e' : '#ef4444',
+                    color: log.status < 300 ? 'var(--text-success, #22c55e)' : 'var(--text-danger, #ef4444)',
                   }}>{log.status}</span>
                   <span style={{ fontWeight: 500 }}>{log.webhook_name}</span>
                   <span style={{ color: 'var(--text-secondary)', fontSize: 11 }}>{log.event}</span>

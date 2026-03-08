@@ -165,7 +165,7 @@ export function SettingsPanel() {
                 style={{
                     width: "100%", padding: "8px 12px",
                     background: "var(--accent-blue, #007acc)",
-                    border: "none", color: "#fff", borderRadius: "4px",
+                    border: "none", color: "var(--text-on-accent, #fff)", borderRadius: "4px",
                     fontSize: "13px", fontWeight: 500,
                     cursor: saving ? "not-allowed" : "pointer",
                     opacity: saving ? 0.7 : 1,

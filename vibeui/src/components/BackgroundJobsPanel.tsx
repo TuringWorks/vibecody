@@ -19,7 +19,7 @@ interface BackgroundJobsPanelProps {
 }
 
 const STATUS_ICONS: Record<string, React.ReactNode> = {
- running: <Clock size={14} strokeWidth={1.5} style={{ color: "#facc15" }} />,
+ running: <Clock size={14} strokeWidth={1.5} style={{ color: "var(--text-warning, #facc15)" }} />,
  complete: <CircleCheck size={14} strokeWidth={1.5} style={{ color: "var(--text-success, #a6e3a1)" }} />,
  failed: <CircleX size={14} strokeWidth={1.5} style={{ color: "var(--text-danger, #f38ba8)" }} />,
  cancelled: <Square size={14} strokeWidth={1.5} />,
@@ -133,7 +133,7 @@ export function BackgroundJobsPanel({ daemonUrl = 'http://localhost:7878' }: Bac
  <span style={{
  fontSize: '10px', padding: '2px 8px', borderRadius: '10px',
  background: daemonOnline ? 'var(--accent-green, #52c41a)' : 'var(--text-secondary)',
- color: '#fff',
+ color: 'var(--text-on-accent, #fff)',
  }}>
  {daemonOnline ? '● online' : '○ offline'}
  </span>
@@ -179,7 +179,7 @@ export function BackgroundJobsPanel({ daemonUrl = 'http://localhost:7878' }: Bac
  disabled={submitting || !task.trim() || !daemonOnline}
  style={{
  padding: '4px 12px', fontSize: '12px', borderRadius: '4px',
- background: 'var(--accent-blue)', color: '#fff', border: 'none',
+ background: 'var(--accent-blue)', color: 'var(--text-on-accent, #fff)', border: 'none',
  cursor: submitting ? 'wait' : 'pointer', marginLeft: 'auto',
  }}
  >
@@ -217,7 +217,7 @@ export function BackgroundJobsPanel({ daemonUrl = 'http://localhost:7878' }: Bac
  {job.status === 'running' && (
  <button
  onClick={(e) => { e.stopPropagation(); cancelJob(job.session_id); }}
- style={{ fontSize: '10px', padding: '2px 6px', border: 'none', borderRadius: '3px', background: 'var(--text-danger, #ff4d4f)', color: '#fff', cursor: 'pointer', flexShrink: 0 }}
+ style={{ fontSize: '10px', padding: '2px 6px', border: 'none', borderRadius: '3px', background: 'var(--text-danger, #ff4d4f)', color: 'var(--text-on-accent, #fff)', cursor: 'pointer', flexShrink: 0 }}
  >
  Cancel
  </button>

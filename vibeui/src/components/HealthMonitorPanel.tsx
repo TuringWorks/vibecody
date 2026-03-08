@@ -35,9 +35,9 @@ const DEFAULT_MONITORS: HealthMonitor[] = [
 ];
 
 function latencyColor(ms: number): string {
- if (ms < 300) return "#a6e3a1";
- if (ms < 1000) return "#f9e2af";
- return "#f38ba8";
+ if (ms < 300) return "var(--text-success, #a6e3a1)";
+ if (ms < 1000) return "var(--text-warning, #f9e2af)";
+ return "var(--text-danger, #f38ba8)";
 }
 
 function Sparkline({ history }: { history: HealthCheckResult[] }) {
@@ -63,7 +63,7 @@ function Sparkline({ history }: { history: HealthCheckResult[] }) {
 
 function StatusBadge({ result }: { result: HealthCheckResult | undefined }) {
  if (!result) return <span style={{ fontSize: 10, color: "var(--text-muted)" }}>—</span>;
- const color = result.ok ? "#a6e3a1" : "#f38ba8";
+ const color = result.ok ? "var(--text-success, #a6e3a1)" : "var(--text-danger, #f38ba8)";
  return (
  <span style={{ padding: "2px 8px", borderRadius: 10, background: color + "22", border: `1px solid ${color}`, color, fontSize: 10, fontWeight: 700 }}>
  {result.ok ? "UP" : "DOWN"}
@@ -176,8 +176,8 @@ export function HealthMonitorPanel() {
 
  {checkedCount > 0 && (
  <div style={{ display: "flex", gap: 6 }}>
- {upCount > 0 && <span style={{ padding: "2px 8px", borderRadius: 10, background: "rgba(166,227,161,0.15)", border: "1px solid #a6e3a1", color: "var(--text-success, #a6e3a1)", fontSize: 10, fontWeight: 700 }}>↑ {upCount} UP</span>}
- {downCount > 0 && <span style={{ padding: "2px 8px", borderRadius: 10, background: "rgba(243,139,168,0.15)", border: "1px solid #f38ba8", color: "var(--text-danger, #f38ba8)", fontSize: 10, fontWeight: 700 }}>↓ {downCount} DOWN</span>}
+ {upCount > 0 && <span style={{ padding: "2px 8px", borderRadius: 10, background: "rgba(166,227,161,0.15)", border: "1px solid var(--text-success, #a6e3a1)", color: "var(--text-success, #a6e3a1)", fontSize: 10, fontWeight: 700 }}>↑ {upCount} UP</span>}
+ {downCount > 0 && <span style={{ padding: "2px 8px", borderRadius: 10, background: "rgba(243,139,168,0.15)", border: "1px solid var(--text-danger, #f38ba8)", color: "var(--text-danger, #f38ba8)", fontSize: 10, fontWeight: 700 }}>↓ {downCount} DOWN</span>}
  </div>
  )}
 
@@ -198,7 +198,7 @@ export function HealthMonitorPanel() {
  <button
  onClick={checkAll}
  disabled={checking || monitors.length === 0}
- style={{ padding: "4px 14px", fontSize: 11, fontWeight: 700, background: checking ? "var(--bg-secondary)" : "#6366f1", color: checking ? "var(--text-muted)" : "#fff", border: "none", borderRadius: 4, cursor: checking ? "not-allowed" : "pointer" }}
+ style={{ padding: "4px 14px", fontSize: 11, fontWeight: 700, background: checking ? "var(--bg-secondary)" : "var(--accent-primary, #6366f1)", color: checking ? "var(--text-muted)" : "var(--text-on-accent, #fff)", border: "none", borderRadius: 4, cursor: checking ? "not-allowed" : "pointer" }}
  >
  {checking ? "Checking…" : "Check All"}
  </button>
@@ -228,7 +228,7 @@ export function HealthMonitorPanel() {
  {[2000, 5000, 10000, 30000].map(t => <option key={t} value={t}>{t / 1000}s</option>)}
  </select>
  </div>
- <button onClick={addMonitor} disabled={!newLabel || !newUrl} style={{ padding: "5px 14px", fontSize: 11, fontWeight: 700, background: "var(--accent-primary, #6366f1)", border: "none", borderRadius: 4, color: "#fff", cursor: "pointer", height: 28 }}>Add</button>
+ <button onClick={addMonitor} disabled={!newLabel || !newUrl} style={{ padding: "5px 14px", fontSize: 11, fontWeight: 700, background: "var(--accent-primary, #6366f1)", border: "none", borderRadius: 4, color: "var(--text-on-accent, #fff)", cursor: "pointer", height: 28 }}>Add</button>
  <button onClick={() => setShowAdd(false)} style={{ padding: "5px 10px", fontSize: 11, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-muted)", cursor: "pointer", height: 28 }}>Cancel</button>
  </div>
  )}
@@ -252,8 +252,8 @@ export function HealthMonitorPanel() {
  {/* Status dot */}
  <div style={{
  width: 10, height: 10, borderRadius: "50%", flexShrink: 0,
- background: r === undefined ? "var(--text-muted)" : r.ok ? "#a6e3a1" : "#f38ba8",
- boxShadow: r?.ok ? "0 0 6px #a6e3a1" : r && !r.ok ? "0 0 6px #f38ba8" : "none",
+ background: r === undefined ? "var(--text-muted)" : r.ok ? "var(--text-success, #a6e3a1)" : "var(--text-danger, #f38ba8)",
+ boxShadow: r?.ok ? "0 0 6px var(--text-success, #a6e3a1)" : r && !r.ok ? "0 0 6px var(--text-danger, #f38ba8)" : "none",
  }} />
 
  {/* Label + URL */}

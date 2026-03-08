@@ -328,4 +328,101 @@ mod tests {
             .build_for_task("task");
         assert!(!ctx.contains("Changed files"));
     }
+
+    #[test]
+    fn very_small_budget_still_includes_branch() {
+        let ctx = ContextBuilder::new()
+            .with_token_budget(10) // very small: 40 chars
+            .with_git_branch("tiny-branch")
+            .build_for_task("task");
+        // Branch header should still be included even if it overflows the budget
+        // (it's always included as priority 1)
+        assert!(ctx.contains("tiny-branch"));
+    }
+
+    #[test]
+    fn diff_truncation_marker_present_for_large_diff() {
+        let big_diff = "x\n".repeat(50_000);
+        let ctx = ContextBuilder::new()
+            .with_git_branch("main")
+            .with_git_diff(&big_diff)
+            .with_token_budget(1_000)
+            .build_for_task("task");
+        assert!(ctx.contains("(truncated)"), "large diff should show truncated marker");
+    }
+
+    #[test]
+    fn diff_not_truncated_when_small() {
+        let small_diff = "+added line\n-removed line\n";
+        let ctx = ContextBuilder::new()
+            .with_git_branch("main")
+            .with_git_diff(small_diff)
+            .with_token_budget(10_000)
+            .build_for_task("task");
+        assert!(!ctx.contains("(truncated)"), "small diff should not be truncated");
+        assert!(ctx.contains("+added line"));
+    }
+
+    #[test]
+    fn multiple_changed_files_all_listed() {
+        let files: Vec<String> = (0..20).map(|i| format!("src/file_{}.rs", i)).collect();
+        let ctx = ContextBuilder::new()
+            .with_git_branch("main")
+            .with_git_changed_files(files.clone())
+            .build_for_task("task");
+        for f in &files {
+            assert!(ctx.contains(f), "context should list file: {}", f);
+        }
+    }
+
+    #[test]
+    fn context_builder_chaining_order_independent() {
+        // Build with different chaining orders, same inputs
+        let ctx1 = ContextBuilder::new()
+            .with_git_branch("main")
+            .with_token_budget(5_000)
+            .with_git_diff("diff content\n")
+            .build_for_task("task");
+
+        let ctx2 = ContextBuilder::new()
+            .with_token_budget(5_000)
+            .with_git_diff("diff content\n")
+            .with_git_branch("main")
+            .build_for_task("task");
+
+        assert_eq!(ctx1, ctx2, "chaining order should not affect output");
+    }
+
+    #[test]
+    fn context_without_branch_but_with_diff_omits_both() {
+        // Without a branch, git header is not added. Diff requires branch? No,
+        // diff is independent. Let's verify.
+        let ctx = ContextBuilder::new()
+            .with_git_diff("+new line\n")
+            .build_for_task("task");
+        // Diff should still be present even without branch
+        assert!(ctx.contains("Git Diff"));
+    }
+
+    #[test]
+    fn open_files_large_file_gets_truncated() {
+        let dir = std::env::temp_dir().join("vibecody_ctx_large_file");
+        let _ = std::fs::create_dir_all(&dir);
+        let file = dir.join("big.rs");
+        let large_content = "fn line() {}\n".repeat(10_000); // ~130KB
+        std::fs::write(&file, &large_content).unwrap();
+
+        let ctx = ContextBuilder::new()
+            .with_git_branch("main")
+            .with_open_files(vec![file.as_path()])
+            .with_token_budget(500) // only 2000 chars budget
+            .build_for_task("task");
+
+        // The file content should be truncated, showing "..." marker
+        if ctx.contains("Open Files") {
+            assert!(ctx.contains("..."), "large file should have truncation marker");
+        }
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }

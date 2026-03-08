@@ -214,7 +214,7 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
  <button
  onClick={handleGenerateComponent}
  disabled={isGenerating || !aiInstruction.trim()}
- style={{ width: "100%", background: "var(--accent-primary, #6366f1)", color: "#fff", border: "none", borderRadius: 4, padding: "7px 0", cursor: "pointer", fontWeight: 600, fontSize: 13, marginTop: 6 }}
+ style={{ width: "100%", background: "var(--accent-primary, #6366f1)", color: "var(--text-on-accent, #fff)", border: "none", borderRadius: 4, padding: "7px 0", cursor: "pointer", fontWeight: 600, fontSize: 13, marginTop: 6 }}
  >
  {isGenerating ? "Generating…" : "Generate"}
  </button>
@@ -273,7 +273,7 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
  <button
  onClick={handleFigmaImport}
  disabled={isGenerating || !figmaUrl.trim() || !figmaToken.trim()}
- style={{ flex: 1, background: "var(--accent-primary, #6366f1)", color: "#fff", border: "none", borderRadius: 4, padding: "8px 0", cursor: "pointer", fontWeight: 600, fontSize: 13 }}
+ style={{ flex: 1, background: "var(--accent-primary, #6366f1)", color: "var(--text-on-accent, #fff)", border: "none", borderRadius: 4, padding: "8px 0", cursor: "pointer", fontWeight: 600, fontSize: 13 }}
  >
  {isGenerating ? "Importing…" : "Import"}
  </button>

@@ -75,7 +75,7 @@ export function AuthPanel({ workspacePath, provider }: { workspacePath: string |
  label: { display: "block", marginBottom: "4px", fontSize: "11px", color: "var(--text-secondary)" } as React.CSSProperties,
  select: { width: "100%", background: "var(--bg-tertiary, #2d2d2d)", border: "1px solid var(--border-color)", color: "var(--text-primary)", padding: "6px 8px", borderRadius: "4px", fontSize: "12px" } as React.CSSProperties,
  input: { width: "100%", background: "var(--bg-tertiary, #2d2d2d)", border: "1px solid var(--border-color)", color: "var(--text-primary)", padding: "6px 8px", borderRadius: "4px", fontSize: "12px", boxSizing: "border-box" as const } as React.CSSProperties,
- btn: { padding: "8px 16px", background: "var(--accent-blue, #007acc)", color: "#fff", border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "13px", fontWeight: 600 } as React.CSSProperties,
+ btn: { padding: "8px 16px", background: "var(--accent-blue, #007acc)", color: "var(--text-on-accent, #fff)", border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "13px", fontWeight: 600 } as React.CSSProperties,
  code: { background: "var(--bg-secondary)", padding: "10px", borderRadius: "4px", fontSize: "11px", fontFamily: "monospace", whiteSpace: "pre" as const, overflow: "auto", maxHeight: "300px", border: "1px solid var(--border-color)" } as React.CSSProperties,
  row: { display: "flex", gap: "8px", alignItems: "center" } as React.CSSProperties,
  chip: (active: boolean): React.CSSProperties => ({ padding: "4px 12px", border: `1px solid ${active ? "var(--accent-blue, #007acc)" : "var(--border-color)"}`, borderRadius: "12px", cursor: "pointer", fontSize: "12px", background: active ? "rgba(0,122,204,0.15)" : "transparent", color: active ? "var(--accent-blue, #007acc)" : "var(--text-secondary)" }),
@@ -141,7 +141,7 @@ export function AuthPanel({ workspacePath, provider }: { workspacePath: string |
  {loading ? "Generating..." : "Generate Auth Code"}
  </button>
 
- {error && <div style={{ color: "#f44336", fontSize: "12px", background: "rgba(244,67,54,0.1)", padding: "8px", borderRadius: "4px" }}>{error}</div>}
+ {error && <div style={{ color: "var(--error-color, #f44336)", fontSize: "12px", background: "rgba(244,67,54,0.1)", padding: "8px", borderRadius: "4px" }}>{error}</div>}
 
  {generatedCode && (
  <>
@@ -158,7 +158,7 @@ export function AuthPanel({ workspacePath, provider }: { workspacePath: string |
  {saved ? "Saved" : "Save Files"}
  </button>
  </div>
- {saved && <div style={{ color: "#4caf50", fontSize: "12px", marginTop: "4px" }}>Files written to {workspacePath}/{targetPath}</div>}
+ {saved && <div style={{ color: "var(--success-color, #4caf50)", fontSize: "12px", marginTop: "4px" }}>Files written to {workspacePath}/{targetPath}</div>}
  </div>
  </>
  )}

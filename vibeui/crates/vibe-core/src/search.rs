@@ -156,4 +156,96 @@ mod tests {
         // Line content should be trimmed
         assert!(!results[0].line_content.starts_with(' '));
     }
+
+    #[test]
+    fn search_empty_query_matches_all_nonempty_lines() {
+        let dir = setup_test_dir();
+        // An empty regex matches every line that is non-empty (regex "" matches everything)
+        let results = search_files(&dir.path().to_path_buf(), "", true).unwrap();
+        // All lines from the 3 files should match (excluding truly empty lines)
+        assert!(!results.is_empty(), "empty pattern should match lines");
+    }
+
+    #[test]
+    fn search_line_numbers_are_one_based() {
+        let dir = setup_test_dir();
+        let results = search_files(&dir.path().to_path_buf(), "fn main", true).unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].line_number, 1, "first line should be 1, not 0");
+    }
+
+    #[test]
+    fn search_multiline_file_returns_correct_line_numbers() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(dir.path().join("multi.txt"), "aaa\nbbb\nccc\nbbb\n").unwrap();
+        let results = search_files(&dir.path().to_path_buf(), "bbb", true).unwrap();
+        assert_eq!(results.len(), 2);
+        assert_eq!(results[0].line_number, 2);
+        assert_eq!(results[1].line_number, 4);
+    }
+
+    #[test]
+    fn search_regex_special_chars() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(dir.path().join("special.txt"), "price is $100\nanother line\n").unwrap();
+        // Escape the dollar sign in the regex
+        let results = search_files(&dir.path().to_path_buf(), r"\$100", true).unwrap();
+        assert_eq!(results.len(), 1);
+        assert!(results[0].line_content.contains("$100"));
+    }
+
+    #[test]
+    fn search_respects_max_total_results() {
+        let dir = tempfile::tempdir().unwrap();
+        // Create a file with many matching lines (> MAX_TOTAL_RESULTS = 500)
+        let content: String = (0..600).map(|i| format!("match_{}\n", i)).collect();
+        fs::write(dir.path().join("big.txt"), &content).unwrap();
+        let results = search_files(&dir.path().to_path_buf(), "match_", true).unwrap();
+        assert!(results.len() <= 500, "should cap at MAX_TOTAL_RESULTS (500), got {}", results.len());
+    }
+
+    #[test]
+    fn search_skips_dot_prefixed_directories() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::create_dir_all(dir.path().join(".git")).unwrap();
+        fs::write(dir.path().join(".git/config"), "fn search_me()\n").unwrap();
+        fs::write(dir.path().join("visible.rs"), "fn visible()\n").unwrap();
+        let results = search_files(&dir.path().to_path_buf(), "fn", true).unwrap();
+        // Only visible.rs should match, not .git/config
+        assert_eq!(results.len(), 1);
+        assert!(results[0].path.contains("visible.rs"));
+    }
+
+    #[test]
+    fn search_path_field_is_absolute() {
+        let dir = setup_test_dir();
+        let results = search_files(&dir.path().to_path_buf(), "fn main", true).unwrap();
+        assert_eq!(results.len(), 1);
+        assert!(
+            results[0].path.starts_with('/') || results[0].path.contains(":\\"),
+            "path should be absolute, got: {}",
+            results[0].path
+        );
+    }
+
+    #[test]
+    fn search_result_serde_roundtrip() {
+        let sr = SearchResult {
+            path: "/tmp/test.rs".to_string(),
+            line_number: 42,
+            line_content: "fn foo()".to_string(),
+        };
+        let json = serde_json::to_string(&sr).unwrap();
+        let back: SearchResult = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.path, "/tmp/test.rs");
+        assert_eq!(back.line_number, 42);
+        assert_eq!(back.line_content, "fn foo()");
+    }
+
+    #[test]
+    fn search_empty_directory() {
+        let dir = tempfile::tempdir().unwrap();
+        let results = search_files(&dir.path().to_path_buf(), "anything", true).unwrap();
+        assert!(results.is_empty());
+    }
 }

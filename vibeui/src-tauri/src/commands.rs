@@ -8345,6 +8345,415 @@ mod tests {
         assert_eq!(back.anthropic_api_key, "sk-ant-xxx");
         assert_eq!(back.openai_api_key, "sk-xxx");
     }
+
+    // ── cicd_output_path ──────────────────────────────────────────────────────
+
+    #[test]
+    fn cicd_output_path_github() {
+        let (dir, file) = cicd_output_path("github");
+        assert_eq!(dir, ".github/workflows");
+        assert_eq!(file, "ci.yml");
+    }
+
+    #[test]
+    fn cicd_output_path_gitlab() {
+        let (dir, file) = cicd_output_path("gitlab");
+        assert_eq!(dir, ".");
+        assert_eq!(file, ".gitlab-ci.yml");
+    }
+
+    #[test]
+    fn cicd_output_path_circleci() {
+        let (dir, file) = cicd_output_path("circleci");
+        assert_eq!(dir, ".circleci");
+        assert_eq!(file, "config.yml");
+    }
+
+    #[test]
+    fn cicd_output_path_jenkins() {
+        let (_dir, file) = cicd_output_path("jenkins");
+        assert_eq!(file, "Jenkinsfile");
+    }
+
+    #[test]
+    fn cicd_output_path_unknown_defaults() {
+        let (dir, file) = cicd_output_path("unknown-platform");
+        assert_eq!(dir, ".");
+        assert_eq!(file, "ci.yml");
+    }
+
+    // ── build_cicd_template ───────────────────────────────────────────────────
+
+    #[test]
+    fn build_cicd_template_github_rust_contains_cargo() {
+        let tmpl = build_cicd_template("github", "rust");
+        assert!(tmpl.contains("cargo test"));
+        assert!(tmpl.contains("cargo build --release"));
+        assert!(tmpl.contains("actions/checkout@v4"));
+    }
+
+    #[test]
+    fn build_cicd_template_github_node_contains_npm() {
+        let tmpl = build_cicd_template("github", "node");
+        assert!(tmpl.contains("npm ci"));
+        assert!(tmpl.contains("npm test"));
+    }
+
+    #[test]
+    fn build_cicd_template_gitlab_rust_has_stages() {
+        let tmpl = build_cicd_template("gitlab", "rust");
+        assert!(tmpl.contains("stages:"));
+        assert!(tmpl.contains("cargo test"));
+    }
+
+    #[test]
+    fn build_cicd_template_unknown_build_type_has_placeholder() {
+        let tmpl = build_cicd_template("github", "haskell");
+        assert!(tmpl.contains("haskell"));
+    }
+
+    // ── parse_npm_outdated ────────────────────────────────────────────────────
+
+    #[test]
+    fn parse_npm_outdated_valid_json() {
+        let json = r#"{"express":{"current":"4.17.1","wanted":"4.18.0","latest":"4.18.2","type":"dependencies"}}"#;
+        let deps = parse_npm_outdated(json);
+        assert_eq!(deps.len(), 1);
+        assert_eq!(deps[0].name, "express");
+        assert_eq!(deps[0].current, "4.17.1");
+        assert_eq!(deps[0].latest, "4.18.2");
+        assert!(deps[0].is_outdated);
+    }
+
+    #[test]
+    fn parse_npm_outdated_not_outdated_when_current_equals_latest() {
+        let json = r#"{"lodash":{"current":"4.17.21","wanted":"4.17.21","latest":"4.17.21","type":"dependencies"}}"#;
+        let deps = parse_npm_outdated(json);
+        assert_eq!(deps.len(), 1);
+        assert!(!deps[0].is_outdated);
+    }
+
+    #[test]
+    fn parse_npm_outdated_invalid_json_returns_empty() {
+        let deps = parse_npm_outdated("not json at all");
+        assert!(deps.is_empty());
+    }
+
+    // ── parse_npm_audit ───────────────────────────────────────────────────────
+
+    #[test]
+    fn parse_npm_audit_marks_vulnerable_deps() {
+        let mut deps = vec![
+            DepInfo {
+                name: "express".to_string(),
+                current: "4.17.1".to_string(),
+                latest: "4.18.2".to_string(),
+                wanted: "4.18.0".to_string(),
+                dep_type: "dependencies".to_string(),
+                is_outdated: true,
+                is_vulnerable: false,
+                vulnerability: None,
+            },
+        ];
+        let audit_json = r#"{"vulnerabilities":{"express":{"severity":"high","via":[{"title":"Path traversal"}]}}}"#;
+        parse_npm_audit(audit_json, &mut deps);
+        assert!(deps[0].is_vulnerable);
+        assert!(deps[0].vulnerability.as_ref().unwrap().contains("Path traversal"));
+        assert!(deps[0].vulnerability.as_ref().unwrap().contains("high"));
+    }
+
+    #[test]
+    fn parse_npm_audit_adds_new_vuln_dep() {
+        let mut deps: Vec<DepInfo> = Vec::new();
+        let audit_json = r#"{"vulnerabilities":{"qs":{"severity":"critical","via":["Prototype Pollution"]}}}"#;
+        parse_npm_audit(audit_json, &mut deps);
+        assert_eq!(deps.len(), 1);
+        assert_eq!(deps[0].name, "qs");
+        assert!(deps[0].is_vulnerable);
+    }
+
+    #[test]
+    fn parse_npm_audit_invalid_json_is_noop() {
+        let mut deps: Vec<DepInfo> = Vec::new();
+        parse_npm_audit("invalid", &mut deps);
+        assert!(deps.is_empty());
+    }
+
+    // ── parse_pip_outdated ────────────────────────────────────────────────────
+
+    #[test]
+    fn parse_pip_outdated_valid() {
+        let json = r#"[{"name":"requests","version":"2.28.0","latest_version":"2.31.0"}]"#;
+        let deps = parse_pip_outdated(json);
+        assert_eq!(deps.len(), 1);
+        assert_eq!(deps[0].name, "requests");
+        assert!(deps[0].is_outdated);
+        assert_eq!(deps[0].latest, "2.31.0");
+    }
+
+    #[test]
+    fn parse_pip_outdated_invalid_returns_empty() {
+        assert!(parse_pip_outdated("not json").is_empty());
+    }
+
+    // ── parse_go_outdated ─────────────────────────────────────────────────────
+
+    #[test]
+    fn parse_go_outdated_single_module() {
+        let json = r#"{"Path":"github.com/pkg/errors","Version":"v0.9.0","Update":{"Version":"v0.9.1"}}"#;
+        let deps = parse_go_outdated(json);
+        assert_eq!(deps.len(), 1);
+        assert_eq!(deps[0].name, "github.com/pkg/errors");
+        assert_eq!(deps[0].current, "v0.9.0");
+        assert_eq!(deps[0].latest, "v0.9.1");
+        assert!(deps[0].is_outdated);
+    }
+
+    #[test]
+    fn parse_go_outdated_no_update_means_up_to_date() {
+        let json = r#"{"Path":"golang.org/x/sys","Version":"v0.15.0"}"#;
+        let deps = parse_go_outdated(json);
+        assert_eq!(deps.len(), 1);
+        assert!(!deps[0].is_outdated);
+        assert_eq!(deps[0].latest, "v0.15.0");
+    }
+
+    #[test]
+    fn parse_go_outdated_concatenated_objects() {
+        let json = r#"{"Path":"a","Version":"v1"}{"Path":"b","Version":"v2","Update":{"Version":"v3"}}"#;
+        let deps = parse_go_outdated(json);
+        assert_eq!(deps.len(), 2);
+        assert!(!deps[0].is_outdated);
+        assert!(deps[1].is_outdated);
+    }
+
+    // ── parse_cargo_dry_run ───────────────────────────────────────────────────
+
+    #[test]
+    fn parse_cargo_dry_run_captures_updates() {
+        let output = "    Updating serde v1.0.190 -> v1.0.195\n    Updating tokio v1.34.0 -> v1.35.1\n";
+        let deps = parse_cargo_dry_run(output);
+        assert_eq!(deps.len(), 2);
+        assert_eq!(deps[0].name, "serde");
+        assert_eq!(deps[0].current, "1.0.190");
+        assert_eq!(deps[0].latest, "1.0.195");
+        assert!(deps[0].is_outdated);
+    }
+
+    #[test]
+    fn parse_cargo_dry_run_empty_output() {
+        assert!(parse_cargo_dry_run("").is_empty());
+    }
+
+    #[test]
+    fn parse_cargo_dry_run_no_updates() {
+        assert!(parse_cargo_dry_run("    Compiling foo v1.0.0\n    Finished in 2.3s\n").is_empty());
+    }
+
+    // ── parse_prisma_status ───────────────────────────────────────────────────
+
+    #[test]
+    fn parse_prisma_status_applied_and_pending() {
+        let output = "Prisma schema loaded\n\u{2714} 20240101_init\n\u{2714} 20240201_add_users\n\u{2717} 20240301_add_orders\n";
+        let (applied, pending) = parse_prisma_status(output);
+        assert_eq!(applied.len(), 2);
+        assert_eq!(pending.len(), 1);
+        assert_eq!(pending[0].state, "pending");
+    }
+
+    #[test]
+    fn parse_prisma_status_plus_minus_markers() {
+        let output = "+ init_migration\n- pending_migration\n";
+        let (applied, pending) = parse_prisma_status(output);
+        assert_eq!(applied.len(), 1);
+        assert_eq!(pending.len(), 1);
+    }
+
+    #[test]
+    fn parse_prisma_status_empty() {
+        let (applied, pending) = parse_prisma_status("");
+        assert!(applied.is_empty());
+        assert!(pending.is_empty());
+    }
+
+    // ── parse_diesel_status ───────────────────────────────────────────────────
+
+    #[test]
+    fn parse_diesel_status_applied_and_pending() {
+        let output = "[X] 2024-01-01-000000_create_users\n[ ] 2024-02-01-000000_add_roles\n";
+        let (applied, pending) = parse_diesel_status(output);
+        assert_eq!(applied.len(), 1);
+        assert_eq!(pending.len(), 1);
+        assert!(applied[0].name.contains("create_users"));
+        assert!(pending[0].name.contains("add_roles"));
+    }
+
+    #[test]
+    fn parse_diesel_status_empty() {
+        let (applied, pending) = parse_diesel_status("");
+        assert!(applied.is_empty());
+        assert!(pending.is_empty());
+    }
+
+    // ── parse_generated_files ─────────────────────────────────────────────────
+
+    #[test]
+    fn parse_generated_files_with_file_markers() {
+        let input = "// FILE: src/App.tsx\n\n```tsx\nfunction App() { return <div/>; }\n```\n// FILE: styles.css\n\n```css\nbody { margin: 0; }\n```\n";
+        let files = parse_generated_files(input).unwrap();
+        assert_eq!(files.len(), 2);
+        assert_eq!(files[0].path, "src/App.tsx");
+        assert_eq!(files[0].language, "tsx");
+        assert!(files[0].content.contains("function App"));
+        assert_eq!(files[1].path, "styles.css");
+        assert_eq!(files[1].language, "css");
+    }
+
+    #[test]
+    fn parse_generated_files_html_file_marker() {
+        let input = "<!-- FILE: index.html -->\n```html\n<h1>Hi</h1>\n```\n";
+        let files = parse_generated_files(input).unwrap();
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].path, "index.html");
+        assert_eq!(files[0].language, "html");
+    }
+
+    #[test]
+    fn parse_generated_files_fallback_fenced_blocks() {
+        let input = "Here is the code:\n```typescript\nconst x = 1;\n```\n";
+        let files = parse_generated_files(input).unwrap();
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].language, "typescript");
+        assert!(files[0].content.contains("const x = 1"));
+    }
+
+    #[test]
+    fn parse_generated_files_empty_input_returns_error() {
+        let result = parse_generated_files("");
+        assert!(result.is_err());
+    }
+
+    // ── parse_pprof_top ───────────────────────────────────────────────────────
+
+    #[test]
+    fn parse_pprof_top_captures_hotspots() {
+        let output = "   10.5%  10.5%   25.0%  25.0%  runtime.mallocgc\n    5.2%  15.7%    8.0%  33.0%  main.processData\n";
+        let hotspots = parse_pprof_top(output);
+        assert_eq!(hotspots.len(), 2);
+        assert_eq!(hotspots[0].function_name, "runtime.mallocgc");
+        assert!((hotspots[0].self_pct - 10.5).abs() < 0.1);
+        assert_eq!(hotspots[1].function_name, "main.processData");
+    }
+
+    #[test]
+    fn parse_pprof_top_empty() {
+        assert!(parse_pprof_top("").is_empty());
+    }
+
+    // ── parse_speedscope_json ─────────────────────────────────────────────────
+
+    #[test]
+    fn parse_speedscope_json_invalid_returns_empty() {
+        assert!(parse_speedscope_json("not json").is_empty());
+    }
+
+    #[test]
+    fn parse_speedscope_json_empty_profiles() {
+        let json = r#"{"shared":{"frames":[{"name":"main"}]},"profiles":[]}"#;
+        let hotspots = parse_speedscope_json(json);
+        assert!(hotspots.is_empty());
+    }
+
+    // ── generate_argocd_app ───────────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn generate_argocd_app_produces_valid_yaml() {
+        let yaml = generate_argocd_app(
+            "my-app".to_string(),
+            "https://github.com/org/repo".to_string(),
+            "k8s/".to_string(),
+            "production".to_string(),
+            "https://kubernetes.default.svc".to_string(),
+        ).await.unwrap();
+        assert!(yaml.contains("apiVersion: argoproj.io/v1alpha1"));
+        assert!(yaml.contains("kind: Application"));
+        assert!(yaml.contains("name: my-app"));
+        assert!(yaml.contains("repoURL: https://github.com/org/repo"));
+        assert!(yaml.contains("namespace: production"));
+        assert!(yaml.contains("selfHeal: true"));
+    }
+
+    // ── validate_sqlite_path ──────────────────────────────────────────────────
+
+    #[test]
+    fn validate_sqlite_path_rejects_traversal() {
+        let result = validate_sqlite_path("../../etc/passwd");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("traversal"));
+    }
+
+    #[test]
+    fn validate_sqlite_path_rejects_nonexistent() {
+        let result = validate_sqlite_path("/tmp/nonexistent_db_file_12345.db");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("does not exist"));
+    }
+
+    // ── default helpers ───────────────────────────────────────────────────────
+
+    #[test]
+    fn default_http_method_str_is_post() {
+        assert_eq!(default_http_method_str(), "POST");
+    }
+
+    #[test]
+    fn default_http_timeout_is_ten_seconds() {
+        assert_eq!(default_http_timeout(), 10_000);
+    }
+
+    #[test]
+    fn default_fact_confidence_is_point_seven() {
+        assert!((default_fact_confidence() - 0.7).abs() < 0.01);
+    }
+
+    // ── steering_dir ──────────────────────────────────────────────────────────
+
+    #[test]
+    fn steering_dir_global_uses_home() {
+        let dir = steering_dir("global", None);
+        let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+        assert_eq!(dir, std::path::PathBuf::from(&home).join(".vibecli").join("steering"));
+    }
+
+    #[test]
+    fn steering_dir_workspace_with_root() {
+        let root = std::path::Path::new("/my/project");
+        let dir = steering_dir("workspace", Some(root));
+        assert_eq!(dir, std::path::PathBuf::from("/my/project/.vibecli/steering"));
+    }
+
+    #[test]
+    fn steering_dir_workspace_without_root_fallback() {
+        let dir = steering_dir("workspace", None);
+        assert_eq!(dir, std::path::PathBuf::from(".vibecli/steering"));
+    }
+
+    // ── parse_steering_meta (additional cases) ────────────────────────────────
+
+    #[test]
+    fn parse_steering_meta_with_scope() {
+        let content = "---\nname: my-context\nscope: project\n---\n\nBody.\n";
+        let meta = parse_steering_meta(content, "ctx.md");
+        assert_eq!(meta.name, "my-context");
+        assert_eq!(meta.scope_label.as_deref(), Some("project"));
+    }
+
+    #[test]
+    fn parse_steering_meta_empty_content() {
+        let meta = parse_steering_meta("", "empty.md");
+        assert_eq!(meta.name, "empty");
+        assert!(meta.scope_label.is_none());
+    }
 }
 
 // ── Phase 7.19: Process Manager ───────────────────────────────────────────────

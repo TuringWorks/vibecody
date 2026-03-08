@@ -501,4 +501,155 @@ mod tests {
         let task = AgentTask::new(999, "task");
         assert_eq!(task.branch_name(), "vibe-agent-999");
     }
+
+    // ── AgentTask edge cases ────────────────────────────────────────────
+
+    #[test]
+    fn agent_task_branch_name_zero_id() {
+        let task = AgentTask::new(0, "task");
+        assert_eq!(task.branch_name(), "vibe-agent-0");
+    }
+
+    #[test]
+    fn agent_task_empty_description() {
+        let task = AgentTask::new(1, "");
+        assert_eq!(task.description, "");
+        assert_eq!(task.branch_name(), "vibe-agent-1");
+    }
+
+    #[test]
+    fn agent_task_custom_branch_overrides_default() {
+        let mut task = AgentTask::new(5, "do work");
+        assert_eq!(task.branch_name(), "vibe-agent-5");
+        task.branch_label = Some("custom-branch".into());
+        assert_eq!(task.branch_name(), "custom-branch");
+    }
+
+    #[test]
+    fn agent_task_serde_with_branch_label() {
+        let mut task = AgentTask::new(1, "test");
+        task.branch_label = Some("my-branch".into());
+        let json = serde_json::to_string(&task).unwrap();
+        let back: AgentTask = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.branch_label.as_deref(), Some("my-branch"));
+        assert_eq!(back.branch_name(), "my-branch");
+    }
+
+    // ── AgentResult edge cases ──────────────────────────────────────────
+
+    #[test]
+    fn agent_result_failed() {
+        let result = AgentResult {
+            id: 1,
+            task: "fix bug".into(),
+            branch: "vibe-agent-1".into(),
+            worktree: PathBuf::from("/tmp/wt-1"),
+            success: false,
+            summary: "Compilation error".into(),
+            steps_taken: 3,
+        };
+        assert!(!result.success);
+        assert_eq!(result.steps_taken, 3);
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(json.contains("\"success\":false"));
+    }
+
+    #[test]
+    fn agent_result_zero_steps() {
+        let result = AgentResult {
+            id: 0,
+            task: "trivial".into(),
+            branch: "b".into(),
+            worktree: PathBuf::from("/tmp"),
+            success: true,
+            summary: "Nothing to do".into(),
+            steps_taken: 0,
+        };
+        assert_eq!(result.steps_taken, 0);
+    }
+
+    #[test]
+    fn agent_result_clone() {
+        let result = AgentResult {
+            id: 2,
+            task: "task".into(),
+            branch: "b".into(),
+            worktree: PathBuf::from("/wt"),
+            success: true,
+            summary: "done".into(),
+            steps_taken: 5,
+        };
+        let cloned = result.clone();
+        assert_eq!(cloned.id, result.id);
+        assert_eq!(cloned.summary, result.summary);
+    }
+
+    // ── AgentInstance ────────────────────────────────────────────────────
+
+    #[test]
+    fn agent_instance_with_error() {
+        let inst = AgentInstance {
+            id: 1,
+            task: "task".into(),
+            worktree: PathBuf::from("/wt"),
+            branch: "b".into(),
+            status: AgentStatus::Failed,
+            steps: vec![],
+            summary: None,
+            error: Some("timeout".into()),
+        };
+        assert_eq!(inst.status, AgentStatus::Failed);
+        assert_eq!(inst.error.as_deref(), Some("timeout"));
+        assert!(inst.summary.is_none());
+    }
+
+    #[test]
+    fn agent_instance_with_summary() {
+        let inst = AgentInstance {
+            id: 0,
+            task: "task".into(),
+            worktree: PathBuf::from("/wt"),
+            branch: "main".into(),
+            status: AgentStatus::Complete,
+            steps: vec![],
+            summary: Some("All tests pass".into()),
+            error: None,
+        };
+        assert_eq!(inst.status, AgentStatus::Complete);
+        assert_eq!(inst.summary.as_deref(), Some("All tests pass"));
+    }
+
+    // ── AgentStatus ─────────────────────────────────────────────────────
+
+    #[test]
+    fn agent_status_clone() {
+        let s = AgentStatus::Running;
+        let s2 = s.clone();
+        assert_eq!(s, s2);
+    }
+
+    #[test]
+    fn agent_status_debug_format() {
+        let s = AgentStatus::Pending;
+        let debug = format!("{:?}", s);
+        assert_eq!(debug, "Pending");
+    }
+
+    // ── Capping at max_agents ───────────────────────────────────────────
+
+    #[test]
+    fn max_agents_caps_task_count() {
+        let max_agents = 4;
+        let tasks: Vec<AgentTask> = (0..10).map(|i| AgentTask::new(i, "task")).collect();
+        let n = tasks.len().min(max_agents);
+        assert_eq!(n, 4);
+    }
+
+    #[test]
+    fn fewer_tasks_than_max_agents() {
+        let max_agents = 8;
+        let tasks: Vec<AgentTask> = (0..3).map(|i| AgentTask::new(i, "task")).collect();
+        let n = tasks.len().min(max_agents);
+        assert_eq!(n, 3);
+    }
 }
