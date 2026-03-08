@@ -30,7 +30,7 @@ The AI-assisted development landscape in March 2026 spans 15+ significant produc
 
 **Key findings:**
 
-- VibeCody has the **broadest raw feature count** (~110 capabilities, 60+ UI panel tabs) of any single product
+- VibeCody has the **broadest raw feature count** (~110 capabilities, 90+ UI panel tabs) of any single product
 - VibeCody is the **only fully open-source (MIT) product** offering both a CLI agent AND a desktop IDE with multi-provider support
 - VibeCody's primary weaknesses are in **cloud execution infrastructure**, **user base/ecosystem maturity**, **production polish**, and **funding/marketing**
 - The market is consolidating around **cloud-isolated agents**, **ACP/MCP protocols**, and **multi-agent parallelism** — areas where VibeCody has implementations but competitors have production-hardened infrastructure
@@ -386,7 +386,7 @@ The AI-assisted development landscape in March 2026 spans 15+ significant produc
 
 ### 6.7 Developer Tool Panels (VibeUI Exclusive)
 
-VibeCody ships 60+ specialized tool panels in the desktop IDE. No competitor offers anything comparable:
+VibeCody ships 90+ specialized tool panels in the desktop IDE. No competitor offers anything comparable:
 
 | Category | Panels | Competitor Equivalent |
 |----------|--------|-----------------------|
@@ -445,7 +445,7 @@ VibeCody ships 60+ specialized tool panels in the desktop IDE. No competitor off
 
 | Capability | VibeCody | Claude Code | Cursor | Codex | Amazon Q |
 |-----------|----------|-------------|--------|-------|----------|
-| Test count | 1,681+ | Unknown | Unknown | Unknown | Unknown |
+| Test count | 2,810+ | Unknown | Unknown | Unknown | Unknown |
 | Unit test coverage | Broad (15+ files) | Unknown | Unknown | Unknown | Unknown |
 | CI pipeline | GitHub Actions | GitHub Actions | Unknown | GitHub Actions | AWS CodePipeline |
 | cargo audit | Yes | N/A | N/A | N/A | N/A |
@@ -586,7 +586,7 @@ Features VibeCody has that **no other single product** offers:
 | 2 | **17 AI providers with auto-failover** | Aider (many via litellm, no failover) | FailoverProvider wraps any N providers |
 | 3 | **18-platform messaging gateway** | None | Telegram/Discord/Slack/IRC/etc. bot mode |
 | 4 | **Autonomous red team / pentest module** | Codex Security (detection only) | Full 5-stage exploit pipeline |
-| 5 | **60+ specialized tool panels** | None | Replaces Postman, DevToys, Lens, k6, etc. |
+| 5 | **90+ specialized tool panels** | None | Replaces Postman, DevToys, Lens, k6, etc. |
 | 6 | **Agent Teams with inter-agent messaging** | Claude Code (preview) | TeamMessageBus + ManagerView UI |
 | 7 | **HTTP daemon + REST API + Agent SDK** | None in OSS | `vibecli serve` enables headless integration |
 | 8 | **OpenTelemetry tracing (OTLP)** | None | Enterprise observability built-in |

@@ -62,7 +62,7 @@ vibecody/
 │       │   ├── serve.rs        # HTTP daemon for VS Code ext/SDK
 │       │   ├── repl.rs         # Rustyline REPL helper
 │       │   └── tui/            # Ratatui TUI (app, ui, components)
-│       └── skills/             # 392 skill files (25 categories)
+│       └── skills/             # 479 skill files (25 categories)
 ├── vibeui/
 │   ├── src/                    # React + TypeScript frontend
 │   │   ├── App.tsx             # Root component

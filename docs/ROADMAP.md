@@ -34,7 +34,7 @@ permalink: /roadmap/
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Multi-provider (Ollama, Claude, OpenAI, Gemini, Grok) | ✅ Done | All 5 providers implemented |
+| Multi-provider (17 providers) | ✅ Done | All 17 providers implemented |
 | TUI (Ratatui) | ✅ Done | Chat, FileTree, DiffView, Agent screens |
 | REPL mode (rustyline) | ✅ Done | History, tab completion, 14 slash commands |
 | Git context injection | ✅ Done | Branch, status, diff in system prompt |
@@ -69,7 +69,7 @@ permalink: /roadmap/
 | Multi-workspace | ✅ Done | Multiple root folders |
 | Git panel (status, diff, commit, push, pull) | ✅ Done | git2; stash, branch list/switch, history |
 | Terminal panel (PTY) | ✅ Done | portable-pty + xterm.js |
-| AI chat panel | ✅ Done | All 5 providers; streaming |
+| AI chat panel | ✅ Done | All 17 providers; streaming |
 | Command palette | ✅ Done | fuse.js fuzzy search |
 | Dark/light theme | ✅ Done | localStorage persistence |
 | LSP client (completions, hover, go-to-def) | ✅ Done | Wired to Monaco; lazy-start per language |

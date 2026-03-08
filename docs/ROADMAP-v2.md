@@ -199,7 +199,7 @@ These are our *current* advantages that we must protect and amplify:
 | **Privacy by design** | No telemetry, no cloud indexing, fully local; growing market demand |
 | **Open source** | Inspect everything, self-host, community extensions |
 | **CLI + GUI unified** | VibeCLI and VibeUI share crates; agent work done once applies both |
-| **5 providers** | More than Cursor (3) or Windsurf (own + limited); unique for non-OpenAI shops |
+| **17 providers** | More than Cursor (3) or Windsurf (own + limited); unique for non-OpenAI shops |
 | **Hooks system** (planned) | With ours, we can match Claude Code's most differentiated feature |
 
 ---

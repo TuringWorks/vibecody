@@ -60,7 +60,7 @@
 |---------|---------|-----------|
 | Agent loop | ✅ | ✅ |
 | Plan mode | ✅ | ✅ |
-| Multi-provider support | ✅ (5 providers) | ✅ (OpenAI only) |
+| Multi-provider support | ✅ (17 providers) | ✅ (OpenAI only) |
 | Web search | ✅ | ✅ |
 | HTTP daemon | ✅ | ❌ |
 | VS Code extension | ✅ | ❌ |
@@ -146,7 +146,7 @@ These features VibeCody has that **none** of the competitors offer cleanly:
 | Feature | Notes |
 |---------|-------|
 | **Voice input in AI chat** | Web Speech API integration, 🎤 button, interim transcripts |
-| **Multi-provider (5 providers)** | Ollama, Claude, OpenAI, Gemini, Grok — Codex is OpenAI-only |
+| **Multi-provider (17 providers)** | Ollama, Claude, OpenAI, Gemini, Grok, Groq, Mistral, DeepSeek + 9 more — Codex is OpenAI-only |
 | **HTTP daemon + Agent SDK** | `vibecli serve` + Node.js SDK — unique among CLI tools |
 | **OpenTelemetry tracing** | OTLP/HTTP export for observability-first teams |
 | **Admin policy with glob rules** | Enterprise tool restriction |
