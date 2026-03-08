@@ -33,7 +33,7 @@ function ResponseCard({ resp, side }: { resp: ModelResponse; side: "A" | "B" }) 
  flex: 1,
  display: "flex",
  flexDirection: "column",
- border: `1px solid ${isError ? "rgba(244,67,54,0.4)" : "var(--border-color, #333)"}`,
+ border: `1px solid ${isError ? "rgba(244,67,54,0.4)" : "var(--border-color)"}`,
  borderRadius: "6px",
  overflow: "hidden",
  minWidth: 0,
@@ -46,13 +46,13 @@ function ResponseCard({ resp, side }: { resp: ModelResponse; side: "A" | "B" }) 
  gap: "8px",
  flexWrap: "wrap",
  }}>
- <span style={{ fontWeight: "bold", color: side === "A" ? "var(--info-color, #2196f3)" : "var(--accent-color, #007acc)" }}>
+ <span style={{ fontWeight: "bold", color: side === "A" ? "var(--accent-color)" : "var(--accent-color)" }}>
  {side}
  </span>
- <span style={{ color: "var(--text-secondary, #aaa)" }}>{resp.provider}</span>
- <span style={{ color: "var(--text-secondary, #aaa)", fontSize: "11px" }}>{resp.model}</span>
+ <span style={{ color: "var(--text-secondary)" }}>{resp.provider}</span>
+ <span style={{ color: "var(--text-secondary)", fontSize: "11px" }}>{resp.model}</span>
  {resp.duration_ms > 0 && (
- <span style={{ marginLeft: "auto", color: "var(--text-secondary, #aaa)", fontSize: "11px" }}>
+ <span style={{ marginLeft: "auto", color: "var(--text-secondary)", fontSize: "11px" }}>
  {resp.duration_ms}ms
  {resp.tokens != null && ` · ${resp.tokens} tok`}
  </span>
@@ -60,10 +60,10 @@ function ResponseCard({ resp, side }: { resp: ModelResponse; side: "A" | "B" }) 
  </div>
  <div style={{ flex: 1, overflowY: "auto", padding: "10px 12px" }}>
  {isError ? (
- <span style={{ color: "var(--error-color, #f44336)" }}>{resp.error}</span>
+ <span style={{ color: "var(--error-color)" }}>{resp.error}</span>
  ) : (
  <pre style={{ margin: 0, whiteSpace: "pre-wrap", fontFamily: "inherit", fontSize: "13px" }}>
- {resp.content || <span style={{ color: "var(--text-secondary, #aaa)" }}>(empty response)</span>}
+ {resp.content || <span style={{ color: "var(--text-secondary)" }}>(empty response)</span>}
  </pre>
  )}
  </div>
@@ -79,11 +79,11 @@ function ProviderSelector({
 }) {
  return (
  <div style={{ display: "flex", alignItems: "center", gap: "8px", flex: 1 }}>
- <span style={{ color: "var(--text-secondary, #aaa)", fontSize: "12px", minWidth: "14px" }}>{label}</span>
+ <span style={{ color: "var(--text-secondary)", fontSize: "12px", minWidth: "14px" }}>{label}</span>
  <select
  value={provider}
  onChange={e => { onProvider(e.target.value); onModel(DEFAULT_MODELS[e.target.value] ?? ""); }}
- style={{ background: "var(--bg-secondary)", color: "var(--text-primary, #e0e0e0)", border: "1px solid var(--border-color, #333)", borderRadius: "4px", padding: "3px 6px", fontSize: "12px" }}
+ style={{ background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "4px", padding: "3px 6px", fontSize: "12px" }}
  >
  {PROVIDERS.map(p => <option key={p} value={p}>{p}</option>)}
  </select>
@@ -91,7 +91,7 @@ function ProviderSelector({
  value={model}
  onChange={e => onModel(e.target.value)}
  placeholder="model"
- style={{ flex: 1, background: "var(--bg-secondary)", color: "var(--text-primary, #e0e0e0)", border: "1px solid var(--border-color, #333)", borderRadius: "4px", padding: "3px 6px", fontSize: "12px", minWidth: 0 }}
+ style={{ flex: 1, background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "4px", padding: "3px 6px", fontSize: "12px", minWidth: 0 }}
  />
  </div>
  );
@@ -150,8 +150,8 @@ export function MultiModelPanel() {
  style={{
  resize: "vertical",
  background: "var(--bg-secondary)",
- color: "var(--text-primary, #e0e0e0)",
- border: "1px solid var(--border-color, #333)",
+ color: "var(--text-primary)",
+ border: "1px solid var(--border-color)",
  borderRadius: "4px",
  padding: "8px",
  fontFamily: "inherit",
@@ -164,8 +164,8 @@ export function MultiModelPanel() {
  disabled={loading || !prompt.trim()}
  style={{
  alignSelf: "flex-start",
- background: loading ? "var(--bg-secondary)" : "var(--accent-color, #007acc)",
- color: "var(--text-primary, #e0e0e0)", border: "none", borderRadius: "4px",
+ background: loading ? "var(--bg-secondary)" : "var(--accent-color)",
+ color: "var(--text-primary)", border: "none", borderRadius: "4px",
  padding: "6px 18px", cursor: loading ? "default" : "pointer",
  }}
  >
@@ -173,7 +173,7 @@ export function MultiModelPanel() {
  </button>
 
  {error && (
- <div style={{ color: "var(--error-color, #f44336)", fontSize: "12px" }}>{error}</div>
+ <div style={{ color: "var(--error-color)", fontSize: "12px" }}>{error}</div>
  )}
 
  {/* Side-by-side responses */}
@@ -185,7 +185,7 @@ export function MultiModelPanel() {
  )}
 
  {!result && !loading && (
- <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-secondary, #aaa)", textAlign: "center" }}>
+ <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-secondary)", textAlign: "center" }}>
  Enter a prompt above and click Compare<br />
  to see both models' responses side-by-side.
  </div>

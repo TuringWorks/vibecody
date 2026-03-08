@@ -164,7 +164,7 @@ export function SettingsPanel() {
                 disabled={saving}
                 style={{
                     width: "100%", padding: "8px 12px",
-                    background: "var(--accent-blue, #007acc)",
+                    background: "var(--accent-color)",
                     border: "none", color: "var(--text-on-accent, #fff)", borderRadius: "4px",
                     fontSize: "13px", fontWeight: 500,
                     cursor: saving ? "not-allowed" : "pointer",
@@ -183,10 +183,10 @@ export function SettingsPanel() {
                         : "rgba(255,77,79,0.12)",
                     color: message.type === "success"
                         ? "var(--text-primary)"
-                        : "var(--text-danger, #ff4d4f)",
+                        : "var(--error-color)",
                     border: `1px solid ${message.type === "success"
                         ? "rgba(56,161,105,0.4)"
-                        : "var(--text-danger, #ff4d4f)"}`,
+                        : "var(--error-color)"}`,
                 }}>
                     {message.type === "success" ? "✓ " : "✗ "}{message.text}
                 </div>

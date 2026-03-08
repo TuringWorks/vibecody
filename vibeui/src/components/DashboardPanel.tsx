@@ -38,7 +38,7 @@ const DashboardPanel: React.FC = () => {
   }, []);
 
   return (
-    <div style={{ padding: 16, fontFamily: "var(--font-mono, monospace)", color: "var(--text-primary, #e0e0e0)" }}>
+    <div style={{ padding: 16, fontFamily: "var(--font-mono, monospace)", color: "var(--text-primary)" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <h3 style={{ margin: 0 }}>Project Dashboard</h3>
         <button
@@ -46,8 +46,8 @@ const DashboardPanel: React.FC = () => {
           disabled={loading}
           style={{
             padding: "4px 12px",
-            background: "var(--accent-color, #4fc3f7)",
-            color: "var(--bg-primary, #000)",
+            background: "var(--accent-color)",
+            color: "var(--bg-primary)",
             border: "none",
             borderRadius: 4,
             cursor: loading ? "wait" : "pointer",
@@ -59,7 +59,7 @@ const DashboardPanel: React.FC = () => {
       </div>
 
       {error && (
-        <div style={{ padding: 8, background: "rgba(244,67,54,0.1)", borderRadius: 4, marginBottom: 12, fontSize: 12, color: "var(--error-color, #f44336)" }}>
+        <div style={{ padding: 8, background: "rgba(244,67,54,0.1)", borderRadius: 4, marginBottom: 12, fontSize: 12, color: "var(--error-color)" }}>
           {error}
         </div>
       )}
@@ -72,22 +72,22 @@ const DashboardPanel: React.FC = () => {
             <Card label="Branch" value={data.git_branch || "N/A"} />
             <Card label="Files" value={String(data.total_files)} />
             <Card label="Lines" value={formatNum(data.total_lines)} />
-            <Card label="Uncommitted" value={String(data.git_uncommitted)} color={data.git_uncommitted > 0 ? "var(--warning-color, #ffb74d)" : "var(--success-color, #81c784)"} />
+            <Card label="Uncommitted" value={String(data.git_uncommitted)} color={data.git_uncommitted > 0 ? "var(--warning-color)" : "var(--success-color)"} />
             <Card label="Recent Commits" value={String(data.recent_commits)} />
-            <Card label="TODOs" value={String(data.open_todos)} color={data.open_todos > 5 ? "var(--error-color, #ef5350)" : "var(--success-color, #81c784)"} />
+            <Card label="TODOs" value={String(data.open_todos)} color={data.open_todos > 5 ? "var(--error-color)" : "var(--success-color)"} />
             <Card label="Agent Sessions" value={String(data.agent_sessions)} />
           </div>
 
           {/* Languages */}
           <div style={{ marginBottom: 12 }}>
-            <div style={{ fontSize: 11, color: "var(--text-muted, #888)", marginBottom: 4 }}>Languages</div>
+            <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 }}>Languages</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
               {data.languages.map((lang) => (
                 <span
                   key={lang}
                   style={{
                     padding: "2px 8px",
-                    background: "var(--bg-secondary, #333)",
+                    background: "var(--bg-secondary)",
                     borderRadius: 12,
                     fontSize: 11,
                   }}
@@ -107,7 +107,7 @@ const DashboardPanel: React.FC = () => {
       )}
 
       {!data && !loading && !error && (
-        <div style={{ color: "var(--text-muted, #888)", textAlign: "center", padding: 32 }}>
+        <div style={{ color: "var(--text-secondary)", textAlign: "center", padding: 32 }}>
           Click Refresh to scan the project.
         </div>
       )}
@@ -120,10 +120,10 @@ const Card: React.FC<{ label: string; value: string; color?: string }> = ({ labe
     padding: "8px 12px",
     background: "var(--bg-tertiary)",
     borderRadius: 6,
-    border: "1px solid var(--border-color, #333)",
+    border: "1px solid var(--border-color)",
   }}>
-    <div style={{ fontSize: 10, color: "var(--text-muted, #888)", marginBottom: 2 }}>{label}</div>
-    <div style={{ fontSize: 16, fontWeight: 600, color: color || "var(--text-primary, #e0e0e0)" }}>{value}</div>
+    <div style={{ fontSize: 10, color: "var(--text-secondary)", marginBottom: 2 }}>{label}</div>
+    <div style={{ fontSize: 16, fontWeight: 600, color: color || "var(--text-primary)" }}>{value}</div>
   </div>
 );
 
@@ -133,7 +133,7 @@ const Badge: React.FC<{ label: string; value: string; ok: boolean }> = ({ label,
     borderRadius: 12,
     fontSize: 11,
     background: ok ? "rgba(76,175,80,0.15)" : "rgba(244,67,54,0.15)",
-    color: ok ? "var(--success-color, #81c784)" : "var(--error-color, #ef5350)",
+    color: ok ? "var(--success-color)" : "var(--error-color)",
   }}>
     {ok ? "\u2713" : "\u2717"} {label}: {value}
   </span>

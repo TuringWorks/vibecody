@@ -37,9 +37,9 @@ interface ManagerViewProps {
 function statusColor(status: AgentStatus): string {
  switch (status) {
  case "pending": return "var(--text-secondary)";
- case "running": return "var(--text-info, #55aaff)";
- case "done": return "var(--text-success, #44cc44)";
- case "failed": return "var(--text-danger, #ff4444)";
+ case "running": return "var(--accent-color)";
+ case "done": return "var(--success-color)";
+ case "failed": return "var(--error-color)";
  }
 }
 
@@ -145,10 +145,10 @@ function AgentCard({
  style={{
  fontSize: "10px",
  padding: "3px 8px",
- background: "var(--accent-blue, #007acc)",
+ background: "var(--accent-color)",
  border: "none",
  borderRadius: "3px",
- color: "#fff",
+ color: "var(--text-primary)",
  cursor: "pointer",
  }}
  >
@@ -173,10 +173,10 @@ function AgentCard({
  <span style={{ fontSize: "10px", color: "var(--text-secondary)", minWidth: "20px", textAlign: "right" }}>
  {s.step_num + 1}.
  </span>
- <span style={{ fontSize: "10px", color: s.success ? "var(--text-success, #44cc44)" : "var(--text-danger, #ff4444)" }}>
+ <span style={{ fontSize: "10px", color: s.success ? "var(--success-color)" : "var(--error-color)" }}>
  {s.success ? "✔" : "✘"}
  </span>
- <span style={{ fontSize: "11px", fontFamily: "monospace", color: "var(--accent-blue, #007acc)" }}>
+ <span style={{ fontSize: "11px", fontFamily: "monospace", color: "var(--accent-color)" }}>
  {s.tool}
  </span>
  </div>
@@ -322,9 +322,9 @@ export function ManagerView({ provider }: ManagerViewProps) {
  </div>
  {agentList.length > 0 && (
  <div style={{ fontSize: "10px", color: "var(--text-secondary)" }}>
- {running > 0 && <span style={{ color: "var(--text-info, #55aaff)", marginRight: "8px" }}> {running} running</span>}
- {done > 0 && <span style={{ color: "var(--text-success, #44cc44)", marginRight: "8px" }}> {done} done</span>}
- {failed > 0 && <span style={{ color: "var(--text-danger, #ff4444)" }}> {failed} failed</span>}
+ {running > 0 && <span style={{ color: "var(--accent-color)", marginRight: "8px" }}> {running} running</span>}
+ {done > 0 && <span style={{ color: "var(--success-color)", marginRight: "8px" }}> {done} done</span>}
+ {failed > 0 && <span style={{ color: "var(--error-color)" }}> {failed} failed</span>}
  </div>
  )}
  </div>
@@ -408,10 +408,10 @@ export function ManagerView({ provider }: ManagerViewProps) {
  style={{
  fontSize: "11px",
  padding: "4px 14px",
- background: launching ? "var(--bg-secondary)" : "var(--accent-blue, #007acc)",
+ background: launching ? "var(--bg-secondary)" : "var(--accent-color)",
  border: "none",
  borderRadius: "3px",
- color: launching ? "var(--text-secondary)" : "#fff",
+ color: launching ? "var(--text-secondary)" : "var(--text-primary)",
  cursor: launching ? "not-allowed" : "pointer",
  fontWeight: 600,
  }}
@@ -421,7 +421,7 @@ export function ManagerView({ provider }: ManagerViewProps) {
  </div>
 
  {error && (
- <div style={{ marginTop: "8px", fontSize: "11px", color: "var(--text-danger, #ff4444)" }}>
+ <div style={{ marginTop: "8px", fontSize: "11px", color: "var(--error-color)" }}>
  {error}
  </div>
  )}
@@ -433,10 +433,10 @@ export function ManagerView({ provider }: ManagerViewProps) {
  padding: "8px 10px",
  marginBottom: "10px",
  background: mergeResult.startsWith("Error") ? "rgba(255,68,68,0.07)" : "rgba(68,204,68,0.07)",
- border: `1px solid ${mergeResult.startsWith("Error") ? "var(--text-danger, #ff4444)" : "var(--text-success, #44cc44)"}`,
+ border: `1px solid ${mergeResult.startsWith("Error") ? "var(--error-color)" : "var(--success-color)"}`,
  borderRadius: "4px",
  fontSize: "11px",
- color: mergeResult.startsWith("Error") ? "var(--text-danger, #ff4444)" : "var(--text-success, #44cc44)",
+ color: mergeResult.startsWith("Error") ? "var(--error-color)" : "var(--success-color)",
  }}>
  {mergeResult}
  <button

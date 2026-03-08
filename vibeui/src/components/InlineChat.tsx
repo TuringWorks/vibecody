@@ -73,8 +73,8 @@ export function InlineChat({ selection, position, provider, onAccept, onReject }
  top: Math.max(8, safeTop),
  left: Math.max(8, safeLeft),
  width: 400,
- background: "var(--bg-secondary, #1e1e1e)",
- border: "1px solid var(--accent-blue, #0078d4)",
+ background: "var(--bg-secondary)",
+ border: "1px solid var(--accent-color)",
  borderRadius: 6,
  boxShadow: "0 4px 20px rgba(0,0,0,0.5)",
  zIndex: 9999,
@@ -84,7 +84,7 @@ export function InlineChat({ selection, position, provider, onAccept, onReject }
  gap: 8,
  }}
  >
- <div style={{ fontSize: 11, color: "var(--text-secondary, #888)", marginBottom: 2 }}>
+ <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 2 }}>
  Inline Edit &nbsp;
  <span style={{ opacity: 0.6 }}>
  Lines {selection.startLine + 1}–{selection.endLine + 1} · {selection.language}
@@ -96,12 +96,12 @@ export function InlineChat({ selection, position, provider, onAccept, onReject }
  style={{
  margin: 0,
  padding: "6px 8px",
- background: "var(--bg-tertiary, #2d2d2d)",
+ background: "var(--bg-tertiary)",
  borderRadius: 4,
  fontSize: 11,
  maxHeight: 80,
  overflow: "auto",
- color: "var(--text-primary, #ccc)",
+ color: "var(--text-primary)",
  whiteSpace: "pre-wrap",
  wordBreak: "break-all",
  }}
@@ -119,10 +119,10 @@ export function InlineChat({ selection, position, provider, onAccept, onReject }
  style={{
  resize: "none",
  height: 60,
- background: "var(--bg-primary, #141414)",
- border: "1px solid var(--border-color, #333)",
+ background: "var(--bg-primary)",
+ border: "1px solid var(--border-color)",
  borderRadius: 4,
- color: "var(--text-primary, #eee)",
+ color: "var(--text-primary)",
  fontSize: 13,
  padding: "6px 8px",
  outline: "none",
@@ -135,12 +135,12 @@ export function InlineChat({ selection, position, provider, onAccept, onReject }
  style={{
  margin: 0,
  padding: "6px 8px",
- background: "var(--bg-tertiary, #2d2d2d)",
+ background: "var(--bg-tertiary)",
  borderRadius: 4,
  fontSize: 12,
  maxHeight: 120,
  overflow: "auto",
- color: loading ? "var(--text-secondary, #888)" : "var(--text-primary, #ccc)",
+ color: loading ? "var(--text-secondary)" : "var(--text-primary)",
  whiteSpace: "pre-wrap",
  wordBreak: "break-all",
  }}
@@ -157,9 +157,9 @@ export function InlineChat({ selection, position, provider, onAccept, onReject }
  padding: "4px 12px",
  fontSize: 12,
  background: "transparent",
- border: "1px solid var(--border-color, #444)",
+ border: "1px solid var(--border-color)",
  borderRadius: 4,
- color: "var(--text-secondary, #888)",
+ color: "var(--text-secondary)",
  cursor: "pointer",
  }}
  >
@@ -172,7 +172,7 @@ export function InlineChat({ selection, position, provider, onAccept, onReject }
  style={{
  padding: "4px 12px",
  fontSize: 12,
- background: "var(--accent-blue, #0078d4)",
+ background: "var(--accent-color)",
  border: "none",
  borderRadius: 4,
  color: "var(--text-on-accent, #fff)",
@@ -189,7 +189,7 @@ export function InlineChat({ selection, position, provider, onAccept, onReject }
  style={{
  padding: "4px 12px",
  fontSize: 12,
- background: "var(--accent-green, #14a83c)",
+ background: "var(--success-color)",
  border: "none",
  borderRadius: 4,
  color: "var(--text-on-accent, #fff)",

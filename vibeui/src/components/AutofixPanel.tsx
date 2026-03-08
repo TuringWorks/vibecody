@@ -105,7 +105,7 @@ export function AutofixPanel({ workspacePath }: { workspacePath: string | null }
  <select
  value={selectedFw}
  onChange={e => setSelectedFw(e.target.value)}
- style={{ background: "var(--bg-secondary, #2d2d2d)", color: "var(--text-primary, #fff)", border: "1px solid var(--border-color, #444)", borderRadius: "4px", padding: "4px 8px", fontFamily: "inherit", fontSize: "12px", flex: 1 }}
+ style={{ background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "4px", padding: "4px 8px", fontFamily: "inherit", fontSize: "12px", flex: 1 }}
  >
  <option value="">Auto-detect</option>
  {FRAMEWORKS.map(fw => (
@@ -113,7 +113,7 @@ export function AutofixPanel({ workspacePath }: { workspacePath: string | null }
  ))}
  </select>
  {detectedFw && (
- <span style={{ color: "var(--text-muted, #888)", fontSize: "11px", alignSelf: "center" }}>
+ <span style={{ color: "var(--text-secondary)", fontSize: "11px", alignSelf: "center" }}>
  detected: {detectedFw}
  </span>
  )}
@@ -121,8 +121,8 @@ export function AutofixPanel({ workspacePath }: { workspacePath: string | null }
  onClick={handleRun}
  disabled={running || !workspacePath}
  style={{
- background: running ? "var(--bg-secondary, #2d2d2d)" : "var(--accent-color, #007acc)",
- color: "var(--text-primary, #fff)", border: "none", borderRadius: "4px",
+ background: running ? "var(--bg-secondary)" : "var(--accent-color)",
+ color: "var(--text-primary)", border: "none", borderRadius: "4px",
  padding: "4px 16px", cursor: running ? "default" : "pointer",
  }}
  >
@@ -132,8 +132,8 @@ export function AutofixPanel({ workspacePath }: { workspacePath: string | null }
 
  {/* Info box */}
  {!result && !running && !error && (
- <div style={{ background: "var(--bg-secondary, #2d2d2d)", padding: "10px", borderRadius: "4px", color: "var(--text-muted, #888)", fontSize: "12px", marginBottom: "12px" }}>
- <div style={{ marginBottom: "4px", fontWeight: "bold", color: "var(--text-secondary, #ccc)" }}>What this does:</div>
+ <div style={{ background: "var(--bg-secondary)", padding: "10px", borderRadius: "4px", color: "var(--text-secondary)", fontSize: "12px", marginBottom: "12px" }}>
+ <div style={{ marginBottom: "4px", fontWeight: "bold", color: "var(--text-secondary)" }}>What this does:</div>
  <ul style={{ margin: 0, paddingLeft: "16px", lineHeight: "1.6" }}>
  <li><b>clippy</b>: runs <code>cargo clippy --fix</code></li>
  <li><b>eslint</b>: runs <code>npx eslint --fix .</code></li>
@@ -146,13 +146,13 @@ export function AutofixPanel({ workspacePath }: { workspacePath: string | null }
  )}
 
  {error && (
- <div style={{ background: "rgba(244,67,54,0.1)", color: "var(--error-color, #f44336)", padding: "8px", borderRadius: "4px", marginBottom: "12px", whiteSpace: "pre-wrap", fontSize: "12px" }}>
+ <div style={{ background: "rgba(244,67,54,0.1)", color: "var(--error-color)", padding: "8px", borderRadius: "4px", marginBottom: "12px", whiteSpace: "pre-wrap", fontSize: "12px" }}>
  {error}
  </div>
  )}
 
  {message && (
- <div style={{ background: "rgba(76,175,80,0.1)", color: "var(--success-color, #4caf50)", padding: "8px", borderRadius: "4px", marginBottom: "12px", fontSize: "12px" }}>
+ <div style={{ background: "rgba(76,175,80,0.1)", color: "var(--success-color)", padding: "8px", borderRadius: "4px", marginBottom: "12px", fontSize: "12px" }}>
  {message}
  </div>
  )}
@@ -161,11 +161,11 @@ export function AutofixPanel({ workspacePath }: { workspacePath: string | null }
  <div>
  {/* Summary */}
  <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "10px" }}>
- <div style={{ background: "var(--bg-secondary, #2d2d2d)", padding: "6px 12px", borderRadius: "4px" }}>
- <span style={{ color: result.files_changed > 0 ? "var(--success-color, #4caf50)" : "var(--text-muted, #888)", fontWeight: "bold" }}>
+ <div style={{ background: "var(--bg-secondary)", padding: "6px 12px", borderRadius: "4px" }}>
+ <span style={{ color: result.files_changed > 0 ? "var(--success-color)" : "var(--text-secondary)", fontWeight: "bold" }}>
  {result.files_changed} file{result.files_changed !== 1 ? "s" : ""} changed
  </span>
- <span style={{ color: "var(--text-muted, #888)", fontSize: "11px", marginLeft: "8px" }}>
+ <span style={{ color: "var(--text-secondary)", fontSize: "11px", marginLeft: "8px" }}>
  via {result.framework}
  </span>
  </div>
@@ -174,14 +174,14 @@ export function AutofixPanel({ workspacePath }: { workspacePath: string | null }
  <button
  onClick={handleApply}
  disabled={applying}
- style={{ background: "var(--success-color, #4caf50)", color: "var(--text-primary, #fff)", border: "none", borderRadius: "4px", padding: "5px 14px", cursor: "pointer", fontSize: "12px" }}
+ style={{ background: "var(--success-color)", color: "var(--text-primary)", border: "none", borderRadius: "4px", padding: "5px 14px", cursor: "pointer", fontSize: "12px" }}
  >
  {applying ? "…" : "✓ Apply & Stage"}
  </button>
  <button
  onClick={handleRevert}
  disabled={reverting}
- style={{ background: "var(--error-color, #f44336)", color: "var(--text-primary, #fff)", border: "none", borderRadius: "4px", padding: "5px 14px", cursor: "pointer", fontSize: "12px" }}
+ style={{ background: "var(--error-color)", color: "var(--text-primary)", border: "none", borderRadius: "4px", padding: "5px 14px", cursor: "pointer", fontSize: "12px" }}
  >
  {reverting ? "…" : "✕ Revert"}
  </button>
@@ -189,29 +189,29 @@ export function AutofixPanel({ workspacePath }: { workspacePath: string | null }
  )}
  <button
  onClick={() => setShowDiff(d => !d)}
- style={{ marginLeft: "auto", background: "var(--bg-secondary, #2d2d2d)", color: "var(--text-muted, #888)", border: "1px solid var(--border-color, #444)", borderRadius: "4px", padding: "3px 8px", cursor: "pointer", fontSize: "11px" }}
+ style={{ marginLeft: "auto", background: "var(--bg-secondary)", color: "var(--text-secondary)", border: "1px solid var(--border-color)", borderRadius: "4px", padding: "3px 8px", cursor: "pointer", fontSize: "11px" }}
  >
  {showDiff ? "Hide diff" : "Show diff"}
  </button>
  </div>
 
  {result.files_changed === 0 && (
- <div style={{ color: "var(--success-color, #4caf50)", fontSize: "12px", marginBottom: "10px" }}>
+ <div style={{ color: "var(--success-color)", fontSize: "12px", marginBottom: "10px" }}>
  ✓ No issues found — code is already clean!
  </div>
  )}
 
  {showDiff && result.diff && (
- <div style={{ background: "var(--bg-secondary, #2d2d2d)", borderRadius: "4px", overflow: "auto", maxHeight: "400px", fontSize: "11px" }}>
+ <div style={{ background: "var(--bg-secondary)", borderRadius: "4px", overflow: "auto", maxHeight: "400px", fontSize: "11px" }}>
  {diffLines.map((line, i) => {
  const color = line.startsWith("+") && !line.startsWith("+++") ? "rgba(76,175,80,0.15)" :
  line.startsWith("-") && !line.startsWith("---") ? "rgba(244,67,54,0.15)" :
  line.startsWith("@@") ? "rgba(33,150,243,0.15)" : "transparent";
- const textColor = line.startsWith("+") && !line.startsWith("+++") ? "var(--success-color, #4caf50)" :
- line.startsWith("-") && !line.startsWith("---") ? "var(--error-color, #f44336)" :
- line.startsWith("@@") ? "var(--info-color, #2196f3)" :
- line.startsWith("diff ") || line.startsWith("---") || line.startsWith("+++") ? "var(--text-muted, #888)" :
- "var(--text-secondary, #ccc)";
+ const textColor = line.startsWith("+") && !line.startsWith("+++") ? "var(--success-color)" :
+ line.startsWith("-") && !line.startsWith("---") ? "var(--error-color)" :
+ line.startsWith("@@") ? "var(--accent-color)" :
+ line.startsWith("diff ") || line.startsWith("---") || line.startsWith("+++") ? "var(--text-secondary)" :
+ "var(--text-secondary)";
  return (
  <div key={i} style={{ background: color, color: textColor, padding: "1px 8px", whiteSpace: "pre", fontFamily: "monospace" }}>
  {line || " "}
@@ -222,7 +222,7 @@ export function AutofixPanel({ workspacePath }: { workspacePath: string | null }
  )}
 
  {showDiff && result.stdout && !result.diff && (
- <pre style={{ background: "var(--bg-secondary, #2d2d2d)", padding: "8px", borderRadius: "4px", fontSize: "11px", overflow: "auto", maxHeight: "300px", whiteSpace: "pre-wrap" }}>
+ <pre style={{ background: "var(--bg-secondary)", padding: "8px", borderRadius: "4px", fontSize: "11px", overflow: "auto", maxHeight: "300px", whiteSpace: "pre-wrap" }}>
  {result.stdout}
  </pre>
  )}

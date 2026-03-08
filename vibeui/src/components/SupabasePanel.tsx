@@ -116,13 +116,13 @@ export function SupabasePanel({ workspacePath, provider }: { workspacePath: stri
  panel: { display: "flex", flexDirection: "column", height: "100%", background: "var(--bg-primary)", color: "var(--text-primary)", fontSize: "13px" } as React.CSSProperties,
  header: { padding: "10px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" } as React.CSSProperties,
  tabs: { display: "flex", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" } as React.CSSProperties,
- tab: (active: boolean): React.CSSProperties => ({ padding: "6px 14px", border: "none", cursor: "pointer", fontSize: "12px", background: "none", borderBottom: active ? "2px solid var(--accent-blue, #007acc)" : "2px solid transparent", color: active ? "var(--text-primary)" : "var(--text-secondary)" }),
- input: { width: "100%", background: "var(--bg-tertiary, #2d2d2d)", border: "1px solid var(--border-color)", color: "var(--text-primary)", padding: "6px 8px", borderRadius: "4px", fontSize: "12px", boxSizing: "border-box" as const } as React.CSSProperties,
- btn: { padding: "6px 12px", background: "var(--accent-color, #007acc)", color: "var(--text-primary, #e0e0e0)", border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "12px" } as React.CSSProperties,
+ tab: (active: boolean): React.CSSProperties => ({ padding: "6px 14px", border: "none", cursor: "pointer", fontSize: "12px", background: "none", borderBottom: active ? "2px solid var(--accent-color)" : "2px solid transparent", color: active ? "var(--text-primary)" : "var(--text-secondary)" }),
+ input: { width: "100%", background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", color: "var(--text-primary)", padding: "6px 8px", borderRadius: "4px", fontSize: "12px", boxSizing: "border-box" as const } as React.CSSProperties,
+ btn: { padding: "6px 12px", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "12px" } as React.CSSProperties,
  content: { flex: 1, overflow: "auto", padding: "12px" } as React.CSSProperties,
  table: { borderCollapse: "collapse" as const, width: "100%", fontSize: "12px" } as React.CSSProperties,
  th: { background: "var(--bg-secondary)", padding: "4px 8px", textAlign: "left" as const, borderBottom: "1px solid var(--border-color)" } as React.CSSProperties,
- td: { padding: "4px 8px", borderBottom: "1px solid var(--border-color, rgba(255,255,255,0.1))" } as React.CSSProperties,
+ td: { padding: "4px 8px", borderBottom: "1px solid var(--border-color)" } as React.CSSProperties,
  };
 
  return (
@@ -130,7 +130,7 @@ export function SupabasePanel({ workspacePath, provider }: { workspacePath: stri
  <div style={s.header}>
  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
  <span style={{ fontSize: "14px", fontWeight: 600 }}>Supabase</span>
- <span style={{ fontSize: "11px", padding: "2px 6px", borderRadius: "10px", background: connected ? "rgba(76,175,80,0.15)" : "rgba(244,67,54,0.15)", color: connected ? "var(--success-color, #4caf50)" : "var(--error-color, #f44336)" }}>
+ <span style={{ fontSize: "11px", padding: "2px 6px", borderRadius: "10px", background: connected ? "rgba(76,175,80,0.15)" : "rgba(244,67,54,0.15)", color: connected ? "var(--success-color)" : "var(--error-color)" }}>
  {connected ? "Connected" : "Disconnected"}
  </span>
  </div>
@@ -143,7 +143,7 @@ export function SupabasePanel({ workspacePath, provider }: { workspacePath: stri
  )}
  </div>
 
- {error && <div style={{ padding: "8px 12px", background: "rgba(244,67,54,0.1)", color: "var(--error-color, #f44336)", fontSize: "12px" }}>{error}</div>}
+ {error && <div style={{ padding: "8px 12px", background: "rgba(244,67,54,0.1)", color: "var(--error-color)", fontSize: "12px" }}>{error}</div>}
 
  {connected && (
  <>
@@ -214,7 +214,7 @@ export function SupabasePanel({ workspacePath, provider }: { workspacePath: stri
  </div>
 
  <div style={{ padding: "8px 12px", borderTop: "1px solid var(--border-color)", display: "flex", gap: "8px" }}>
- <button style={{ ...s.btn, background: "var(--error-color, #f44336)" }} onClick={() => { setConnected(false); setTables([]); invoke("save_supabase_config", { workspacePath, url: "", anonKey: "" }).catch(() => {}); }}>Disconnect</button>
+ <button style={{ ...s.btn, background: "var(--error-color)" }} onClick={() => { setConnected(false); setTables([]); invoke("save_supabase_config", { workspacePath, url: "", anonKey: "" }).catch(() => {}); }}>Disconnect</button>
  </div>
  </>
  )}

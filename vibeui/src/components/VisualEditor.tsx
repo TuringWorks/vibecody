@@ -97,7 +97,7 @@ export function VisualEditor({ onEdit, workspacePath, iframeOffset = { top: 0, l
           left,
           zIndex: 9999,
           background: "var(--bg-secondary)",
-          border: "1px solid var(--border, #6366f1)",
+          border: "1px solid var(--border-color)",
           borderRadius: 8,
           padding: "10px 12px",
           boxShadow: "0 4px 24px rgba(0,0,0,0.4)",
@@ -129,7 +129,7 @@ export function VisualEditor({ onEdit, workspacePath, iframeOffset = { top: 0, l
             style={{
               flex: 1,
               background: "var(--bg-tertiary)",
-              border: "1px solid var(--border-subtle, #44445a)",
+              border: "1px solid var(--border-color)",
               borderRadius: 4,
               color: "var(--text-primary)",
               padding: "5px 8px",
@@ -141,8 +141,8 @@ export function VisualEditor({ onEdit, workspacePath, iframeOffset = { top: 0, l
             onClick={handleEdit}
             disabled={isGenerating || !instruction.trim()}
             style={{
-              background: "var(--accent-primary, #6366f1)",
-              color: "#fff",
+              background: "var(--accent-color)",
+              color: "var(--text-primary)",
               border: "none",
               borderRadius: 4,
               padding: "5px 12px",
@@ -163,12 +163,12 @@ export function VisualEditor({ onEdit, workspacePath, iframeOffset = { top: 0, l
               onClick={() => setInstruction(action)}
               style={{
                 background: "var(--bg-tertiary)",
-                border: "1px solid var(--border-subtle, #44445a)",
+                border: "1px solid var(--border-color)",
                 borderRadius: 12,
                 padding: "2px 8px",
                 fontSize: 11,
                 cursor: "pointer",
-                color: "var(--text-secondary, #a6adc8)",
+                color: "var(--text-secondary)",
               }}
             >
               {action}
@@ -190,7 +190,7 @@ export function VisualEditor({ onEdit, workspacePath, iframeOffset = { top: 0, l
         </details>
 
         {lastResult && (
-          <div style={{ marginTop: 8, fontSize: 12, color: "var(--text-success, #a6e3a1)", fontFamily: "monospace" }}>
+          <div style={{ marginTop: 8, fontSize: 12, color: "var(--success-color)", fontFamily: "monospace" }}>
             {lastResult}
           </div>
         )}
