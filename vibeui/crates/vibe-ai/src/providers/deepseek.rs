@@ -438,4 +438,78 @@ mod tests {
         assert_eq!(msg.role, msg2.role);
         assert_eq!(msg.content, msg2.content);
     }
+
+    // ── response parsing edge cases ───────────────────────────────────
+
+    #[test]
+    fn deepseek_response_deser_multiple_choices() {
+        let json = r#"{"choices":[{"message":{"role":"assistant","content":"x"}},{"message":{"role":"assistant","content":"y"}}]}"#;
+        let resp: DeepSeekResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.choices.len(), 2);
+        assert_eq!(resp.choices[1].message.content, "y");
+    }
+
+    #[test]
+    fn deepseek_response_deser_large_token_counts() {
+        let json = r#"{"choices":[{"message":{"role":"assistant","content":"ok"}}],"usage":{"prompt_tokens":100000,"completion_tokens":50000}}"#;
+        let resp: DeepSeekResponse = serde_json::from_str(json).unwrap();
+        let usage = resp.usage.unwrap();
+        assert_eq!(usage.prompt_tokens, 100000);
+        assert_eq!(usage.completion_tokens, 50000);
+    }
+
+    #[test]
+    fn deepseek_stream_response_deser_empty_string_content() {
+        let json = r#"{"choices":[{"delta":{"content":""}}]}"#;
+        let resp: DeepSeekStreamResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.choices[0].delta.content.as_ref().unwrap(), "");
+    }
+
+    // ── build_messages with empty context string ──────────────────────
+
+    #[test]
+    fn build_messages_empty_context_string_still_injects() {
+        use crate::provider::MessageRole;
+        let p = DeepSeekProvider::new(test_config());
+        let msgs = vec![
+            Message { role: MessageRole::User, content: "query".into() },
+        ];
+        let result = p.build_messages(&msgs, Some("".into()));
+        assert!(result[0].content.starts_with("Context:\n"));
+        assert!(result[0].content.contains("User: query"));
+    }
+
+    // ── request with different model names ────────────────────────────
+
+    #[test]
+    fn deepseek_request_reasoner_model() {
+        let req = DeepSeekRequest {
+            model: "deepseek-reasoner".into(),
+            messages: vec![
+                DeepSeekMessage { role: "system".into(), content: "think step by step".into() },
+                DeepSeekMessage { role: "user".into(), content: "solve this".into() },
+            ],
+            temperature: Some(0.0),
+            max_tokens: Some(8192),
+            stream: false,
+        };
+        let val = serde_json::to_value(&req).unwrap();
+        assert_eq!(val["model"], "deepseek-reasoner");
+        assert_eq!(val["messages"].as_array().unwrap().len(), 2);
+        assert_eq!(val["max_tokens"], 8192);
+    }
+
+    #[test]
+    fn deepseek_request_chat_model() {
+        let req = DeepSeekRequest {
+            model: "deepseek-chat".into(),
+            messages: vec![DeepSeekMessage { role: "user".into(), content: "hi".into() }],
+            temperature: None,
+            max_tokens: None,
+            stream: true,
+        };
+        let val = serde_json::to_value(&req).unwrap();
+        assert_eq!(val["model"], "deepseek-chat");
+        assert_eq!(val["stream"], true);
+    }
 }

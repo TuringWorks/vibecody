@@ -350,4 +350,117 @@ mod tests {
         assert_eq!(usage.prompt_tokens, 10);
         assert_eq!(usage.completion_tokens, 5);
     }
+
+    // ── response parsing variants ─────────────────────────────────────
+
+    #[test]
+    fn az_response_deser_no_usage() {
+        let json = r#"{"choices":[{"message":{"role":"assistant","content":"ok"}}]}"#;
+        let resp: AzResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.choices[0].message.content, "ok");
+        assert!(resp.usage.is_none());
+    }
+
+    #[test]
+    fn az_response_deser_multiple_choices() {
+        let json = r#"{"choices":[{"message":{"role":"assistant","content":"first"}},{"message":{"role":"assistant","content":"second"}}]}"#;
+        let resp: AzResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.choices.len(), 2);
+        assert_eq!(resp.choices[1].message.content, "second");
+    }
+
+    #[test]
+    fn az_stream_response_deser_with_content() {
+        let json = r#"{"choices":[{"delta":{"content":"token"}}]}"#;
+        let resp: AzStreamResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.choices[0].delta.content.as_ref().unwrap(), "token");
+    }
+
+    #[test]
+    fn az_stream_response_deser_null_content() {
+        let json = r#"{"choices":[{"delta":{"content":null}}]}"#;
+        let resp: AzStreamResponse = serde_json::from_str(json).unwrap();
+        assert!(resp.choices[0].delta.content.is_none());
+    }
+
+    // ── request serialization ─────────────────────────────────────────
+
+    #[test]
+    fn az_request_includes_present_optional_fields() {
+        let req = AzRequest {
+            messages: vec![AzMessage { role: "user".into(), content: serde_json::Value::String("hi".into()) }],
+            temperature: Some(0.7),
+            max_tokens: Some(4096),
+            stream: true,
+        };
+        let json = serde_json::to_value(&req).unwrap();
+        assert!(json["temperature"].as_f64().unwrap() - 0.7 < 0.001);
+        assert_eq!(json["max_tokens"], 4096);
+        assert_eq!(json["stream"], true);
+    }
+
+    // ── build_messages edge cases ─────────────────────────────────────
+
+    #[test]
+    fn build_messages_empty_list() {
+        let p = AzureOpenAIProvider::new(test_config());
+        let result = p.build_messages(&[], None);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn build_messages_context_ignored_when_last_is_assistant() {
+        use crate::provider::MessageRole;
+        let p = AzureOpenAIProvider::new(test_config());
+        let messages = vec![
+            Message { role: MessageRole::User, content: "Q".into() },
+            Message { role: MessageRole::Assistant, content: "A".into() },
+        ];
+        let result = p.build_messages(&messages, Some("ignored ctx".into()));
+        assert_eq!(result[1].content, serde_json::Value::String("A".into()));
+    }
+
+    #[test]
+    fn build_messages_empty_context_with_messages() {
+        use crate::provider::MessageRole;
+        let p = AzureOpenAIProvider::new(test_config());
+        let messages = vec![
+            Message { role: MessageRole::User, content: "hello".into() },
+        ];
+        let result = p.build_messages(&messages, Some("".into()));
+        let content = result[0].content.as_str().unwrap();
+        assert!(content.contains("Context:"));
+        assert!(content.contains("hello"));
+    }
+
+    // ── endpoint URL edge cases ───────────────────────────────────────
+
+    #[test]
+    fn endpoint_url_with_empty_api_url() {
+        let mut cfg = test_config();
+        cfg.api_url = Some("".into());
+        let p = AzureOpenAIProvider::new(cfg);
+        let url = p.endpoint_url();
+        assert!(url.contains("/openai/deployments/gpt-4o/chat/completions"));
+    }
+
+    #[test]
+    fn endpoint_url_uses_model_as_deployment() {
+        let mut cfg = test_config();
+        cfg.model = "gpt-35-turbo".into();
+        let p = AzureOpenAIProvider::new(cfg);
+        let url = p.endpoint_url();
+        assert!(url.contains("/deployments/gpt-35-turbo/"));
+    }
+
+    // ── az_message roundtrip ──────────────────────────────────────────
+
+    #[test]
+    fn az_message_roundtrip_serde() {
+        let msg = AzMessage { role: "user".into(), content: serde_json::Value::String("test data".into()) };
+        let json = serde_json::to_string(&msg).unwrap();
+        let msg2: AzMessage = serde_json::from_str(&json).unwrap();
+        assert_eq!(msg.role, msg2.role);
+        assert_eq!(msg.content, msg2.content);
+    }
 }

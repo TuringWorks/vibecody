@@ -1439,4 +1439,331 @@ mod tests {
             assert!(rem.len() > 20, "Remediation for {:?} should be descriptive", v);
         }
     }
+
+    // ── CvssSeverity icon and label coverage ──
+
+    #[test]
+    fn cvss_severity_icon_all_variants() {
+        assert_eq!(CvssSeverity::Critical.icon(), "🔴");
+        assert_eq!(CvssSeverity::High.icon(), "🟠");
+        assert_eq!(CvssSeverity::Medium.icon(), "🟡");
+        assert_eq!(CvssSeverity::Low.icon(), "🔵");
+        assert_eq!(CvssSeverity::Info.icon(), "⚪");
+    }
+
+    #[test]
+    fn cvss_severity_label_all_variants() {
+        assert_eq!(CvssSeverity::Critical.label(), "CRITICAL");
+        assert_eq!(CvssSeverity::High.label(), "HIGH");
+        assert_eq!(CvssSeverity::Medium.label(), "MEDIUM");
+        assert_eq!(CvssSeverity::Low.label(), "LOW");
+        assert_eq!(CvssSeverity::Info.label(), "INFO");
+    }
+
+    // ── RedTeamStage serde roundtrip ──
+
+    #[test]
+    fn redteam_stage_serde_roundtrip() {
+        for stage in RedTeamStage::ALL {
+            let json = serde_json::to_string(&stage).unwrap();
+            let back: RedTeamStage = serde_json::from_str(&json).unwrap();
+            assert_eq!(back, stage);
+        }
+    }
+
+    #[test]
+    fn redteam_stage_display_matches_label() {
+        for stage in RedTeamStage::ALL {
+            assert_eq!(format!("{}", stage), stage.label());
+        }
+    }
+
+    // ── StageStatus defaults ──
+
+    #[test]
+    fn stage_status_default_values() {
+        let status = StageStatus::default();
+        assert!(!status.started);
+        assert!(!status.completed);
+        assert!(status.error.is_none());
+        assert!(status.duration_secs.is_none());
+    }
+
+    // ── mark_stage helpers ──
+
+    #[test]
+    fn mark_stage_started_sets_flag() {
+        let config = RedTeamConfig { target_url: "http://test.local".into(), ..Default::default() };
+        let mut session = RedTeamSession::new(config);
+        mark_stage_started(&mut session, "Recon");
+        let status = session.stage_status.get("Recon").unwrap();
+        assert!(status.started);
+        assert!(!status.completed);
+    }
+
+    #[test]
+    fn mark_stage_completed_sets_duration() {
+        let config = RedTeamConfig { target_url: "http://test.local".into(), ..Default::default() };
+        let mut session = RedTeamSession::new(config);
+        mark_stage_started(&mut session, "Recon");
+        mark_stage_completed(&mut session, "Recon", 5.5);
+        let status = session.stage_status.get("Recon").unwrap();
+        assert!(status.completed);
+        assert!((status.duration_secs.unwrap() - 5.5).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn mark_stage_error_records_message() {
+        let config = RedTeamConfig { target_url: "http://test.local".into(), ..Default::default() };
+        let mut session = RedTeamSession::new(config);
+        mark_stage_error(&mut session, "Analysis", "connection refused");
+        let status = session.stage_status.get("Analysis").unwrap();
+        assert_eq!(status.error.as_deref(), Some("connection refused"));
+    }
+
+    #[test]
+    fn mark_stage_nonexistent_key_does_not_panic() {
+        let config = RedTeamConfig { target_url: "http://test.local".into(), ..Default::default() };
+        let mut session = RedTeamSession::new(config);
+        // Should silently do nothing for unknown stage name
+        mark_stage_started(&mut session, "NonExistentStage");
+        mark_stage_completed(&mut session, "NonExistentStage", 1.0);
+        mark_stage_error(&mut session, "NonExistentStage", "err");
+    }
+
+    // ── generate_report tests ──
+
+    #[test]
+    fn generate_report_no_findings_shows_no_vulnerabilities() {
+        let config = RedTeamConfig { target_url: "http://test.local".into(), ..Default::default() };
+        let session = RedTeamSession::new(config);
+        let report = generate_report(&session);
+        assert!(report.contains("# Security Assessment Report"));
+        assert!(report.contains("http://test.local"));
+        assert!(report.contains("No vulnerabilities were identified"));
+        assert!(report.contains("0 vulnerabilities"));
+    }
+
+    #[test]
+    fn generate_report_with_recon_data() {
+        let config = RedTeamConfig { target_url: "http://test.local".into(), ..Default::default() };
+        let mut session = RedTeamSession::new(config);
+        session.recon = Some(ReconResult {
+            endpoints: vec![Endpoint {
+                url: "http://test.local/api".into(),
+                method: "GET".into(),
+                status: 200,
+                content_type: Some("application/json".into()),
+                params: vec![],
+            }],
+            technologies: vec!["Express".into(), "Node.js".into()],
+            interesting_headers: HashMap::new(),
+            input_points: vec![],
+        });
+        let report = generate_report(&session);
+        assert!(report.contains("Reconnaissance Summary"));
+        assert!(report.contains("Endpoints discovered:** 1"));
+        assert!(report.contains("Express, Node.js"));
+    }
+
+    #[test]
+    fn generate_report_findings_sorted_by_cvss() {
+        let config = RedTeamConfig { target_url: "http://test.local".into(), ..Default::default() };
+        let mut session = RedTeamSession::new(config);
+        session.findings.push(VulnFinding {
+            id: "VF-0001".into(), attack_vector: AttackVector::OpenRedirect,
+            cvss_score: 5.4, severity: CvssSeverity::Medium,
+            url: "http://test.local".into(), location: "redirect".into(),
+            title: "Open Redirect".into(), description: "test".into(),
+            poc: "test".into(), remediation: "test".into(),
+            source_file: None, source_line: None, confirmed: false,
+        });
+        session.findings.push(VulnFinding {
+            id: "VF-0002".into(), attack_vector: AttackVector::SqlInjection,
+            cvss_score: 9.8, severity: CvssSeverity::Critical,
+            url: "http://test.local".into(), location: "id".into(),
+            title: "SQL Injection".into(), description: "test".into(),
+            poc: "curl test".into(), remediation: "test".into(),
+            source_file: Some("routes.rs".into()), source_line: Some(42), confirmed: true,
+        });
+        let report = generate_report(&session);
+        let sqli_pos = report.find("SQL Injection").unwrap();
+        let redir_pos = report.find("Open Redirect").unwrap();
+        assert!(sqli_pos < redir_pos, "Higher CVSS findings should appear first");
+        assert!(report.contains("routes.rs"));
+        assert!(report.contains(":42"));
+    }
+
+    // ── format_findings additional tests ──
+
+    #[test]
+    fn format_findings_sorts_by_cvss_descending() {
+        let findings = vec![
+            VulnFinding {
+                id: "VF-0001".into(), attack_vector: AttackVector::Csrf,
+                cvss_score: 5.0, severity: CvssSeverity::Medium,
+                url: "http://test.local".into(), location: "form".into(),
+                title: "CSRF".into(), description: "missing token".into(),
+                poc: "test".into(), remediation: "Add CSRF token".into(),
+                source_file: None, source_line: None, confirmed: false,
+            },
+            VulnFinding {
+                id: "VF-0002".into(), attack_vector: AttackVector::SqlInjection,
+                cvss_score: 9.8, severity: CvssSeverity::Critical,
+                url: "http://test.local".into(), location: "id".into(),
+                title: "SQLi".into(), description: "injectable".into(),
+                poc: "curl test".into(), remediation: "Use prepared statements".into(),
+                source_file: None, source_line: None, confirmed: true,
+            },
+        ];
+        let output = format_findings(&findings);
+        let sqli_pos = output.find("SQLi").unwrap();
+        let csrf_pos = output.find("CSRF").unwrap();
+        assert!(sqli_pos < csrf_pos, "Higher CVSS should appear first in formatted output");
+        assert!(output.contains("[CONFIRMED]"));
+        assert!(output.contains("PoC:"));
+    }
+
+    #[test]
+    fn format_findings_unconfirmed_no_poc() {
+        let findings = vec![VulnFinding {
+            id: "VF-0001".into(), attack_vector: AttackVector::Xss,
+            cvss_score: 7.2, severity: CvssSeverity::High,
+            url: "http://test.local/search".into(), location: "q".into(),
+            title: "Reflected XSS".into(), description: "User input reflected".into(),
+            poc: "curl test".into(), remediation: "Sanitize".into(),
+            source_file: None, source_line: None, confirmed: false,
+        }];
+        let output = format_findings(&findings);
+        assert!(output.contains("Reflected XSS"));
+        assert!(!output.contains("[CONFIRMED]"));
+        // Unconfirmed findings should not show PoC
+        assert!(!output.contains("PoC:"));
+    }
+
+    // ── VulnFinding serde roundtrip ──
+
+    #[test]
+    fn vuln_finding_serde_roundtrip() {
+        let finding = VulnFinding {
+            id: "VF-0042".into(),
+            attack_vector: AttackVector::Xss,
+            cvss_score: 7.2,
+            severity: CvssSeverity::High,
+            url: "http://test.local/search".into(),
+            location: "q".into(),
+            title: "Reflected XSS".into(),
+            description: "Input reflected without encoding".into(),
+            poc: "curl 'http://test.local/search?q=<script>'".into(),
+            remediation: "Sanitize output".into(),
+            source_file: Some("src/search.rs".into()),
+            source_line: Some(55),
+            confirmed: true,
+        };
+        let json = serde_json::to_string(&finding).unwrap();
+        let back: VulnFinding = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.id, "VF-0042");
+        assert_eq!(back.attack_vector, AttackVector::Xss);
+        assert!((back.cvss_score - 7.2).abs() < f32::EPSILON);
+        assert_eq!(back.severity, CvssSeverity::High);
+        assert_eq!(back.source_file.as_deref(), Some("src/search.rs"));
+        assert_eq!(back.source_line, Some(55));
+        assert!(back.confirmed);
+    }
+
+    // ── summary_line with multiple severity findings ──
+
+    #[test]
+    fn summary_line_multiple_severities() {
+        let config = RedTeamConfig { target_url: "http://multi.local".into(), ..Default::default() };
+        let mut session = RedTeamSession::new(config);
+        // Add one of each severity
+        for (vector, score) in &[
+            (AttackVector::SqlInjection, 9.8f32),
+            (AttackVector::Xss, 7.2),
+            (AttackVector::Csrf, 5.0),
+            (AttackVector::CleartextTransmission, 2.0),
+        ] {
+            session.findings.push(VulnFinding {
+                id: "test".into(), attack_vector: vector.clone(),
+                cvss_score: *score, severity: CvssSeverity::from_score(*score),
+                url: "http://multi.local".into(), location: "p".into(),
+                title: "test".into(), description: "test".into(),
+                poc: "test".into(), remediation: "test".into(),
+                source_file: None, source_line: None, confirmed: true,
+            });
+        }
+        let line = session.summary_line();
+        assert!(line.contains("http://multi.local"));
+        assert!(line.contains("🔴1"));
+        assert!(line.contains("🟠1"));
+        assert!(line.contains("🟡1"));
+        assert!(line.contains("🔵1"));
+    }
+
+    // ── estimate_cvss specific values ──
+
+    #[test]
+    fn estimate_cvss_sql_injection_is_highest() {
+        let sqli = estimate_cvss(&AttackVector::SqlInjection);
+        let cmdi = estimate_cvss(&AttackVector::CommandInjection);
+        assert_eq!(sqli, cmdi); // Both 9.8
+        assert!(sqli >= estimate_cvss(&AttackVector::Xss));
+        assert!(sqli >= estimate_cvss(&AttackVector::CleartextTransmission));
+    }
+
+    #[test]
+    fn estimate_cvss_cleartext_is_lowest() {
+        let cleartext = estimate_cvss(&AttackVector::CleartextTransmission);
+        for v in &[
+            AttackVector::SqlInjection, AttackVector::Xss, AttackVector::Ssrf,
+            AttackVector::Idor, AttackVector::CommandInjection,
+        ] {
+            assert!(cleartext < estimate_cvss(v), "Cleartext should be lower than {:?}", v);
+        }
+    }
+
+    // ── AttackVector Display for all variants ──
+
+    #[test]
+    fn attack_vector_display_all_contain_cwe_or_name() {
+        let vectors_with_cwe = [
+            (AttackVector::SqlInjection, "CWE-89"),
+            (AttackVector::Xss, "CWE-79"),
+            (AttackVector::Ssrf, "CWE-918"),
+            (AttackVector::CommandInjection, "CWE-78"),
+            (AttackVector::PathTraversal, "CWE-22"),
+            (AttackVector::OpenRedirect, "CWE-601"),
+            (AttackVector::Xxe, "CWE-611"),
+            (AttackVector::InsecureDeserialization, "CWE-502"),
+            (AttackVector::NoSqlInjection, "CWE-943"),
+            (AttackVector::TemplateInjection, "CWE-1336"),
+            (AttackVector::Csrf, "CWE-352"),
+            (AttackVector::CleartextTransmission, "CWE-319"),
+        ];
+        for (v, cwe) in &vectors_with_cwe {
+            let display = format!("{}", v);
+            assert!(display.contains(cwe), "{:?} should contain {}", v, cwe);
+        }
+        // These have descriptive names with CWE references
+        assert!(format!("{}", AttackVector::Idor).contains("Direct Object Reference"));
+        assert!(format!("{}", AttackVector::AuthBypass).contains("Authentication"));
+        assert!(format!("{}", AttackVector::MassAssignment).contains("Mass Assignment"));
+    }
+
+    // ── RedTeamSession initial stage_status ──
+
+    #[test]
+    fn session_new_has_all_stage_statuses() {
+        let config = RedTeamConfig { target_url: "http://test.local".into(), ..Default::default() };
+        let session = RedTeamSession::new(config);
+        assert_eq!(session.stage_status.len(), 5);
+        for stage in RedTeamStage::ALL {
+            let key = format!("{:?}", stage);
+            assert!(session.stage_status.contains_key(&key), "Missing status for {:?}", stage);
+            let status = &session.stage_status[&key];
+            assert!(!status.started);
+            assert!(!status.completed);
+        }
+    }
 }

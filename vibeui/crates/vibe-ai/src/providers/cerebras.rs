@@ -444,4 +444,61 @@ mod tests {
         assert_eq!(msg.role, msg2.role);
         assert_eq!(msg.content, msg2.content);
     }
+
+    // ── response parsing edge cases ───────────────────────────────────
+
+    #[test]
+    fn cerebras_response_deser_multiple_choices() {
+        let json = r#"{"choices":[{"message":{"role":"assistant","content":"a"}},{"message":{"role":"assistant","content":"b"}}]}"#;
+        let resp: CerebrasResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.choices.len(), 2);
+        assert_eq!(resp.choices[1].message.content, "b");
+    }
+
+    #[test]
+    fn cerebras_response_deser_zero_token_usage() {
+        let json = r#"{"choices":[{"message":{"role":"assistant","content":""}}],"usage":{"prompt_tokens":0,"completion_tokens":0}}"#;
+        let resp: CerebrasResponse = serde_json::from_str(json).unwrap();
+        let usage = resp.usage.unwrap();
+        assert_eq!(usage.prompt_tokens, 0);
+        assert_eq!(usage.completion_tokens, 0);
+    }
+
+    #[test]
+    fn cerebras_stream_response_deser_empty_content() {
+        let json = r#"{"choices":[{"delta":{"content":""}}]}"#;
+        let resp: CerebrasStreamResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.choices[0].delta.content.as_ref().unwrap(), "");
+    }
+
+    // ── build_messages with empty context string ──────────────────────
+
+    #[test]
+    fn build_messages_empty_context_still_injects() {
+        use crate::provider::MessageRole;
+        let p = CerebrasProvider::new(test_config());
+        let msgs = vec![
+            Message { role: MessageRole::User, content: "q".into() },
+        ];
+        let result = p.build_messages(&msgs, Some("".into()));
+        assert!(result[0].content.starts_with("Context:\n"));
+        assert!(result[0].content.contains("User: q"));
+    }
+
+    // ── request with different model names ────────────────────────────
+
+    #[test]
+    fn cerebras_request_different_model() {
+        let req = CerebrasRequest {
+            model: "llama3.1-8b".into(),
+            messages: vec![CerebrasMessage { role: "user".into(), content: "test".into() }],
+            temperature: Some(0.0),
+            max_tokens: Some(1),
+            stream: false,
+        };
+        let val = serde_json::to_value(&req).unwrap();
+        assert_eq!(val["model"], "llama3.1-8b");
+        assert_eq!(val["temperature"], 0.0);
+        assert_eq!(val["max_tokens"], 1);
+    }
 }

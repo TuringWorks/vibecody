@@ -1707,4 +1707,243 @@ mod tests {
         store.insert_session("dup", "Second", "p", "m").unwrap(); // INSERT OR IGNORE
         assert_eq!(store.count().unwrap(), 1, "Duplicate insert should not increase count");
     }
+
+    // ── escape_html additional edge cases ─────────────────────────────────
+
+    #[test]
+    fn test_escape_html_consecutive_special_chars() {
+        assert_eq!(escape_html("<<>>&&\"\""), "&lt;&lt;&gt;&gt;&amp;&amp;&quot;&quot;");
+    }
+
+    #[test]
+    fn test_escape_html_mixed_normal_and_special() {
+        assert_eq!(
+            escape_html("Hello <world> & \"friends\""),
+            "Hello &lt;world&gt; &amp; &quot;friends&quot;"
+        );
+    }
+
+    // ── chrono_simple / days_to_ymd additional cases ──────────────────────
+
+    #[test]
+    fn test_chrono_simple_y2k() {
+        // 2000-01-01 00:00 UTC = 946684800
+        assert_eq!(chrono_simple(946_684_800), "2000-01-01 00:00");
+    }
+
+    #[test]
+    fn test_chrono_simple_midday_1970() {
+        // 1970-01-01 12:30 UTC = 45000
+        assert_eq!(chrono_simple(45_000), "1970-01-01 12:30");
+    }
+
+    #[test]
+    fn test_chrono_simple_end_of_year_2023() {
+        // 2023-12-31 23:59 UTC = 1704067140
+        assert_eq!(chrono_simple(1_704_067_140), "2023-12-31 23:59");
+    }
+
+    #[test]
+    fn test_days_to_ymd_2023_feb28_non_leap() {
+        let (y, m, d) = days_to_ymd(19_416);
+        assert_eq!((y, m, d), (2023, 2, 28));
+    }
+
+    #[test]
+    fn test_days_to_ymd_2000_feb29_leap() {
+        let (y, m, d) = days_to_ymd(11_016);
+        assert_eq!((y, m, d), (2000, 2, 29));
+    }
+
+    #[test]
+    fn test_days_to_ymd_1900_century_non_leap() {
+        // 1900-03-01
+        let (y, m, d) = days_to_ymd(-25_508);
+        assert_eq!((y, m, d), (1900, 3, 1));
+    }
+
+    // ── format_ts edge cases ──────────────────────────────────────────────
+
+    #[test]
+    fn test_format_ts_sub_second_ms_rounds() {
+        assert_eq!(format_ts(1500), "1970-01-01 00:00");
+    }
+
+    #[test]
+    fn test_format_ts_exact_one_hour_ms() {
+        // 3600000 ms = 3600s = 1 hour
+        assert_eq!(format_ts(3_600_000), "1970-01-01 01:00");
+    }
+
+    // ── SessionStore: search case insensitive ─────────────────────────────
+
+    #[test]
+    fn test_search_case_insensitive_matching() {
+        let store = open_temp();
+        store.insert_session("ci1", "Build the PARSER module", "claude", "c3").unwrap();
+        let results = store.search("parser").unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].id, "ci1");
+    }
+
+    #[test]
+    fn test_search_matches_in_message_content() {
+        let store = open_temp();
+        store.insert_session("sm1", "Generic task", "p", "m").unwrap();
+        store.insert_message("sm1", "assistant", "The authentication module needs work").unwrap();
+        let results = store.search("authentication").unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].id, "sm1");
+    }
+
+    #[test]
+    fn test_search_three_keyword_and_semantics() {
+        let store = open_temp();
+        store.insert_session("tk1", "rust auth parser test", "p", "m").unwrap();
+        store.insert_session("tk2", "rust auth helper", "p", "m").unwrap();
+        store.insert_session("tk3", "rust parser deploy", "p", "m").unwrap();
+        let results = store.search("rust auth parser").unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].id, "tk1");
+    }
+
+    // ── SessionStore: finish edge cases ───────────────────────────────────
+
+    #[test]
+    fn test_finish_updates_step_count_correctly() {
+        let store = open_temp();
+        store.insert_session("fsc1", "step counting", "p", "m").unwrap();
+        store.insert_step("fsc1", 1, "read_file", "a.rs", "ok", true).unwrap();
+        store.insert_step("fsc1", 2, "write_file", "b.rs", "ok", true).unwrap();
+        store.insert_step("fsc1", 3, "bash", "ls", "ok", true).unwrap();
+        store.finish_session("fsc1", "complete", None).unwrap();
+        let s = store.get_session("fsc1").unwrap().unwrap();
+        assert_eq!(s.step_count, 3);
+    }
+
+    // ── render_session_html: step with failure ────────────────────────────
+
+    #[test]
+    fn test_render_session_html_failed_step_output() {
+        let detail = SessionDetail {
+            session: SessionRow {
+                id: "sf1".into(), task: "Step failure test".into(),
+                provider: "p".into(), model: "m".into(),
+                started_at: 1_700_000_000_000, finished_at: Some(1_700_000_010_000),
+                status: "complete".into(), summary: None,
+                step_count: 1, parent_session_id: None, depth: 0,
+            },
+            messages: vec![],
+            steps: vec![StepRow {
+                id: 1, session_id: "sf1".into(), step_num: 1,
+                tool_name: "bash".into(), input_summary: "rm -rf /".into(),
+                output: "Permission denied".into(), success: false,
+                created_at: 1_700_000_005_000,
+            }],
+        };
+        let html = render_session_html(&detail);
+        assert!(html.contains("Tool Calls"), "Should have tool calls section");
+        assert!(html.contains("bash"), "Should show tool name");
+        assert!(html.contains("Permission denied"), "Should show output");
+    }
+
+    #[test]
+    fn test_render_session_html_system_message_role_class() {
+        let detail = SessionDetail {
+            session: SessionRow {
+                id: "sysm1".into(), task: "System msg test".into(),
+                provider: "p".into(), model: "m".into(),
+                started_at: 1_700_000_000_000, finished_at: Some(1_700_000_010_000),
+                status: "complete".into(), summary: None,
+                step_count: 0, parent_session_id: None, depth: 0,
+            },
+            messages: vec![MessageRow {
+                id: 1, session_id: "sysm1".into(), role: "system".into(),
+                content: "You are a helpful assistant".into(), created_at: 1_700_000_000_000,
+            }],
+            steps: vec![],
+        };
+        let html = render_session_html(&detail);
+        assert!(html.contains("msg system"), "System message should have system class");
+        assert!(html.contains("You are a helpful assistant"));
+    }
+
+    // ── render_sessions_index_html: status badges ─────────────────────────
+
+    #[test]
+    fn test_render_sessions_index_all_status_badges() {
+        let sessions = vec![
+            SessionRow {
+                id: "c1".into(), task: "Complete".into(), provider: "p".into(),
+                model: "m".into(), started_at: 1_700_000_003_000, finished_at: Some(1_700_000_010_000),
+                status: "complete".into(), summary: None, step_count: 0,
+                parent_session_id: None, depth: 0,
+            },
+            SessionRow {
+                id: "f1".into(), task: "Failed".into(), provider: "p".into(),
+                model: "m".into(), started_at: 1_700_000_002_000, finished_at: Some(1_700_000_010_000),
+                status: "failed".into(), summary: None, step_count: 0,
+                parent_session_id: None, depth: 0,
+            },
+            SessionRow {
+                id: "r1".into(), task: "Running".into(), provider: "p".into(),
+                model: "m".into(), started_at: 1_700_000_001_000, finished_at: None,
+                status: "running".into(), summary: None, step_count: 0,
+                parent_session_id: None, depth: 0,
+            },
+        ];
+        let html = render_sessions_index_html(&sessions);
+        assert!(html.contains("badge ok"), "Should have complete badge");
+        assert!(html.contains("badge err"), "Should have failed badge");
+        assert!(html.contains("badge run"), "Should have running badge");
+    }
+
+    // ── Deep tree traversal ───────────────────────────────────────────────
+
+    #[test]
+    fn test_get_tree_deep_four_levels() {
+        let store = open_temp();
+        store.insert_session("d0", "Root", "p", "m").unwrap();
+        store.insert_session_with_parent("d1", "Depth 1", "p", "m", Some("d0"), 1).unwrap();
+        store.insert_session_with_parent("d2", "Depth 2", "p", "m", Some("d1"), 2).unwrap();
+        store.insert_session_with_parent("d3", "Depth 3", "p", "m", Some("d2"), 3).unwrap();
+        let tree = store.get_tree("d0").unwrap().unwrap();
+        assert_eq!(tree.session.id, "d0");
+        assert_eq!(tree.children[0].session.id, "d1");
+        assert_eq!(tree.children[0].children[0].session.id, "d2");
+        assert_eq!(tree.children[0].children[0].children[0].session.id, "d3");
+        assert!(tree.children[0].children[0].children[0].children.is_empty());
+    }
+
+    // ── Steps returned in order ───────────────────────────────────────────
+
+    #[test]
+    fn test_steps_ordered_by_step_num() {
+        let store = open_temp();
+        store.insert_session("ord", "Step order test", "p", "m").unwrap();
+        store.insert_step("ord", 3, "tool_c", "", "", true).unwrap();
+        store.insert_step("ord", 1, "tool_a", "", "", true).unwrap();
+        store.insert_step("ord", 2, "tool_b", "", "", true).unwrap();
+        let steps = store.get_steps("ord").unwrap();
+        assert_eq!(steps.len(), 3);
+        assert_eq!(steps[0].step_num, 1);
+        assert_eq!(steps[1].step_num, 2);
+        assert_eq!(steps[2].step_num, 3);
+    }
+
+    // ── Messages for nonexistent session ──────────────────────────────────
+
+    #[test]
+    fn test_get_messages_empty_for_no_session() {
+        let store = open_temp();
+        let msgs = store.get_messages("no_such_session").unwrap();
+        assert!(msgs.is_empty());
+    }
+
+    #[test]
+    fn test_get_steps_empty_for_no_session() {
+        let store = open_temp();
+        let steps = store.get_steps("no_such_session").unwrap();
+        assert!(steps.is_empty());
+    }
 }

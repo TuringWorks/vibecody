@@ -325,4 +325,135 @@ mod tests {
         let p = FailoverProvider::new(chain);
         assert!(!p.is_available().await);
     }
+
+    // ── fallback behavior with SuccessProvider ──────────────────────────
+
+    /// A provider that always succeeds.
+    struct SuccessProvider {
+        label: String,
+    }
+
+    impl SuccessProvider {
+        fn new(label: &str) -> Self {
+            Self { label: label.to_string() }
+        }
+    }
+
+    #[async_trait]
+    impl AIProvider for SuccessProvider {
+        fn name(&self) -> &str { &self.label }
+        async fn is_available(&self) -> bool { true }
+        async fn complete(&self, _ctx: &CodeContext) -> Result<CompletionResponse> {
+            Ok(CompletionResponse {
+                text: format!("{}-complete", self.label),
+                model: self.label.clone(),
+                usage: None,
+            })
+        }
+        async fn stream_complete(&self, _ctx: &CodeContext) -> Result<CompletionStream> {
+            anyhow::bail!("not implemented")
+        }
+        async fn chat(&self, _msgs: &[Message], _ctx: Option<String>) -> Result<String> {
+            Ok(format!("{}-chat", self.label))
+        }
+        async fn stream_chat(&self, _msgs: &[Message]) -> Result<CompletionStream> {
+            anyhow::bail!("not implemented")
+        }
+        async fn chat_response(&self, _msgs: &[Message], _ctx: Option<String>) -> Result<CompletionResponse> {
+            Ok(CompletionResponse {
+                text: format!("{}-chat-response", self.label),
+                model: self.label.clone(),
+                usage: None,
+            })
+        }
+    }
+
+    #[tokio::test]
+    async fn chat_falls_through_to_second_provider() {
+        let chain: Vec<Arc<dyn AIProvider>> = vec![
+            Arc::new(MockProvider::new("Failing")),
+            Arc::new(SuccessProvider::new("Backup")),
+        ];
+        let p = FailoverProvider::new(chain);
+        let msgs = vec![Message { role: crate::provider::MessageRole::User, content: "hi".into() }];
+        let result = p.chat(&msgs, None).await.unwrap();
+        assert_eq!(result, "Backup-chat");
+    }
+
+    #[tokio::test]
+    async fn complete_falls_through_to_second_provider() {
+        let chain: Vec<Arc<dyn AIProvider>> = vec![
+            Arc::new(MockProvider::new("Failing")),
+            Arc::new(SuccessProvider::new("Backup")),
+        ];
+        let p = FailoverProvider::new(chain);
+        let ctx = CodeContext {
+            language: "rust".into(),
+            file_path: None,
+            prefix: "fn ".into(),
+            suffix: "".into(),
+            additional_context: vec![],
+        };
+        let result = p.complete(&ctx).await.unwrap();
+        assert_eq!(result.text, "Backup-complete");
+        assert_eq!(result.model, "Backup");
+    }
+
+    #[tokio::test]
+    async fn chat_response_falls_through() {
+        let chain: Vec<Arc<dyn AIProvider>> = vec![
+            Arc::new(MockProvider::new("Bad")),
+            Arc::new(SuccessProvider::new("Good")),
+        ];
+        let p = FailoverProvider::new(chain);
+        let msgs = vec![Message { role: crate::provider::MessageRole::User, content: "test".into() }];
+        let result = p.chat_response(&msgs, None).await.unwrap();
+        assert_eq!(result.text, "Good-chat-response");
+    }
+
+    #[tokio::test]
+    async fn first_provider_succeeds_no_fallthrough() {
+        let chain: Vec<Arc<dyn AIProvider>> = vec![
+            Arc::new(SuccessProvider::new("Primary")),
+            Arc::new(SuccessProvider::new("Secondary")),
+        ];
+        let p = FailoverProvider::new(chain);
+        let msgs = vec![Message { role: crate::provider::MessageRole::User, content: "hi".into() }];
+        let result = p.chat(&msgs, None).await.unwrap();
+        assert_eq!(result, "Primary-chat");
+    }
+
+    #[tokio::test]
+    async fn all_providers_fail_returns_last_error() {
+        let chain: Vec<Arc<dyn AIProvider>> = vec![
+            Arc::new(MockProvider::new("A")),
+            Arc::new(MockProvider::new("B")),
+        ];
+        let p = FailoverProvider::new(chain);
+        let msgs = vec![Message { role: crate::provider::MessageRole::User, content: "hi".into() }];
+        let err = p.chat(&msgs, None).await.unwrap_err();
+        assert_eq!(err.to_string(), "mock");
+    }
+
+    #[test]
+    fn name_with_many_providers() {
+        let chain: Vec<Arc<dyn AIProvider>> = vec![
+            Arc::new(MockProvider::new("A")),
+            Arc::new(MockProvider::new("B")),
+            Arc::new(MockProvider::new("C")),
+            Arc::new(MockProvider::new("D")),
+        ];
+        let p = FailoverProvider::new(chain);
+        assert_eq!(p.name(), "Failover(A -> B -> C -> D)");
+    }
+
+    #[tokio::test]
+    async fn is_available_true_when_first_available() {
+        let chain: Vec<Arc<dyn AIProvider>> = vec![
+            Arc::new(AvailableProvider),
+            Arc::new(MockProvider::new("Offline")),
+        ];
+        let p = FailoverProvider::new(chain);
+        assert!(p.is_available().await);
+    }
 }

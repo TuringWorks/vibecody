@@ -1384,4 +1384,176 @@ mod tests {
     fn rejects_bare_domain() {
         assert!(!is_valid_fetch_url("example.com"));
     }
+
+    // ── apply_unified_patch tests ─────────────────────────────────────────────
+
+    #[test]
+    fn apply_patch_adds_line() {
+        let original = "line1\nline2\nline3";
+        let patch = "@@ -1,3 +1,4 @@\n line1\n+inserted\n line2\n line3";
+        let result = apply_unified_patch(original, patch).unwrap();
+        assert!(result.contains("inserted"));
+        assert!(result.contains("line1"));
+        assert!(result.contains("line2"));
+    }
+
+    #[test]
+    fn apply_patch_removes_line() {
+        let original = "line1\nline2\nline3";
+        let patch = "@@ -1,3 +1,2 @@\n line1\n-line2\n line3";
+        let result = apply_unified_patch(original, patch).unwrap();
+        assert!(result.contains("line1"));
+        assert!(!result.contains("line2"));
+        assert!(result.contains("line3"));
+    }
+
+    #[test]
+    fn apply_patch_replaces_line() {
+        let original = "aaa\nbbb\nccc";
+        let patch = "@@ -1,3 +1,3 @@\n aaa\n-bbb\n+BBB\n ccc";
+        let result = apply_unified_patch(original, patch).unwrap();
+        assert!(result.contains("BBB"));
+        assert!(!result.contains("bbb"));
+    }
+
+    #[test]
+    fn apply_patch_empty_patch_returns_original() {
+        let original = "hello\nworld";
+        let patch = "";
+        let result = apply_unified_patch(original, patch).unwrap();
+        assert_eq!(result, original);
+    }
+
+    #[test]
+    fn apply_patch_at_end_of_file() {
+        let original = "first\nsecond";
+        let patch = "@@ -2,1 +2,2 @@\n second\n+third";
+        let result = apply_unified_patch(original, patch).unwrap();
+        assert!(result.contains("third"));
+    }
+
+    // ── html_to_text additional tests ─────────────────────────────────────────
+
+    #[test]
+    fn html_to_text_strips_script_content() {
+        let html = "<p>before</p><script>alert('xss')</script><p>after</p>";
+        let text = html_to_text(html);
+        assert!(text.contains("before"));
+        assert!(text.contains("after"));
+        assert!(!text.contains("alert"));
+        assert!(!text.contains("xss"));
+    }
+
+    #[test]
+    fn html_to_text_strips_style_content() {
+        let html = "<p>visible</p><style>body { color: red; }</style><p>also visible</p>";
+        let text = html_to_text(html);
+        assert!(text.contains("visible"));
+        assert!(text.contains("also visible"));
+        assert!(!text.contains("color: red"));
+    }
+
+    #[test]
+    fn html_to_text_br_inserts_newline() {
+        let html = "line1<br>line2<br/>line3";
+        let text = html_to_text(html);
+        assert!(text.contains("line1"));
+        assert!(text.contains("line2"));
+        assert!(text.contains("line3"));
+    }
+
+    #[test]
+    fn html_to_text_empty_html() {
+        let text = html_to_text("");
+        assert!(text.is_empty());
+    }
+
+    #[test]
+    fn html_to_text_plain_text_passthrough() {
+        let text = html_to_text("no tags at all");
+        assert!(text.contains("no tags at all"));
+    }
+
+    #[test]
+    fn html_to_text_nested_tags() {
+        let html = "<div><span><b>deep</b></span></div>";
+        let text = html_to_text(html);
+        assert!(text.contains("deep"));
+        assert!(!text.contains('<'));
+    }
+
+    // ── ToolExecutor::new defaults ────────────────────────────────────────────
+
+    #[test]
+    fn tool_executor_defaults() {
+        let executor = ToolExecutor::new(PathBuf::from("/tmp/test"), false);
+        assert_eq!(executor.search_engine, "duckduckgo");
+        assert!(!executor.sandbox);
+        assert!(!executor.network_disabled);
+        assert!(executor.env_policy.is_none());
+        assert!(executor.tavily_api_key.is_none());
+        assert!(executor.brave_api_key.is_none());
+        assert!(executor.provider.is_none());
+        assert!(executor.parent_context.is_none());
+    }
+
+    #[test]
+    fn tool_executor_with_search_config() {
+        let executor = ToolExecutor::new(PathBuf::from("/tmp/test"), true)
+            .with_search_config("tavily".to_string(), Some("key123".to_string()), None);
+        assert_eq!(executor.search_engine, "tavily");
+        assert_eq!(executor.tavily_api_key.as_deref(), Some("key123"));
+        assert!(executor.brave_api_key.is_none());
+        assert!(executor.sandbox);
+    }
+
+    #[test]
+    fn tool_executor_with_no_network() {
+        let executor = ToolExecutor::new(PathBuf::from("/tmp"), false).with_no_network();
+        assert!(executor.network_disabled);
+    }
+
+    // ── ShellEnvPolicy additional tests ───────────────────────────────────────
+
+    #[test]
+    fn shell_env_policy_set_overrides_inherited() {
+        let mut set = HashMap::new();
+        set.insert("PATH".to_string(), "/custom/bin".to_string());
+        let policy = ShellEnvPolicy {
+            inherit: "all".to_string(),
+            include: vec![],
+            exclude: vec![],
+            set,
+        };
+        let env = policy.build_env();
+        assert_eq!(env.get("PATH").map(|s| s.as_str()), Some("/custom/bin"));
+    }
+
+    #[test]
+    fn shell_env_policy_include_with_prefix_glob() {
+        std::env::set_var("__VIBE_INCLUDE_TEST", "included");
+        let policy = ShellEnvPolicy {
+            inherit: "none".to_string(),
+            include: vec!["__VIBE_INCLUDE_*".to_string()],
+            exclude: vec![],
+            set: HashMap::new(),
+        };
+        let env = policy.build_env();
+        assert_eq!(env.get("__VIBE_INCLUDE_TEST").map(|s| s.as_str()), Some("included"));
+        std::env::remove_var("__VIBE_INCLUDE_TEST");
+    }
+
+    #[test]
+    fn shell_env_policy_exclude_with_suffix_glob() {
+        std::env::set_var("__TEST_SECRET_EXCLUDE", "s3cr3t");
+        let policy = ShellEnvPolicy {
+            inherit: "all".to_string(),
+            include: vec![],
+            exclude: vec!["*_EXCLUDE".to_string()],
+            set: HashMap::new(),
+        };
+        let env = policy.build_env();
+        assert!(!env.contains_key("__TEST_SECRET_EXCLUDE"));
+        std::env::remove_var("__TEST_SECRET_EXCLUDE");
+    }
 }

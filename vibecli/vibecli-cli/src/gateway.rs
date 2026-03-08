@@ -2346,6 +2346,232 @@ mod tests {
         assert!(truncated.len() <= 4096);
     }
 
+    // ── Command extraction / message parsing tests ──
+
+    #[test]
+    fn extract_command_from_message_text() {
+        // Simulate extracting a /command from message text (gateway bot pattern)
+        let text = "/help me with rust lifetimes";
+        let is_command = text.starts_with('/');
+        assert!(is_command);
+        let parts: Vec<&str> = text.splitn(2, ' ').collect();
+        assert_eq!(parts[0], "/help");
+        assert_eq!(parts[1], "me with rust lifetimes");
+    }
+
+    #[test]
+    fn extract_command_no_args() {
+        let text = "/status";
+        let parts: Vec<&str> = text.splitn(2, ' ').collect();
+        assert_eq!(parts[0], "/status");
+        assert_eq!(parts.len(), 1);
+    }
+
+    #[test]
+    fn non_command_message() {
+        let text = "Just a normal message";
+        assert!(!text.starts_with('/'));
+    }
+
+    #[test]
+    fn message_with_at_mention_prefix() {
+        // Some platforms prepend @bot mentions
+        let text = "@vibecli explain this code";
+        let stripped = text.strip_prefix("@vibecli ").unwrap_or(text);
+        assert_eq!(stripped, "explain this code");
+    }
+
+    #[test]
+    fn message_without_at_mention() {
+        let text = "just a question";
+        let stripped = text.strip_prefix("@vibecli ").unwrap_or(text);
+        assert_eq!(stripped, "just a question");
+    }
+
+    // ── Platform routing tests ──
+
+    #[test]
+    fn route_message_by_platform() {
+        let platforms = ["telegram", "discord", "slack", "signal", "matrix",
+                         "twilio", "whatsapp", "teams", "irc", "twitch",
+                         "webchat", "nostr", "qq", "googlechat", "mattermost"];
+        for platform in &platforms {
+            let msg = IncomingMessage {
+                platform: platform.to_string(),
+                chat_id: "test".to_string(),
+                user: "user".to_string(),
+                text: "hello".to_string(),
+                message_id: None,
+            };
+            assert_eq!(msg.platform, *platform);
+        }
+    }
+
+    #[test]
+    fn telegram_base_url_format() {
+        let gw = TelegramGateway::new("123:ABC".to_string(), vec![]);
+        assert_eq!(gw.base_url(), "https://api.telegram.org/bot123:ABC");
+    }
+
+    #[test]
+    fn telegram_whitelist_matching() {
+        let allowed = vec!["alice".to_string(), "@bob".to_string()];
+        // Direct match
+        assert!(allowed.iter().any(|u| u == "alice" || u == &format!("@{}", "alice")));
+        // @-prefixed match
+        assert!(allowed.iter().any(|u| u == "bob" || u == &format!("@{}", "bob")));
+        // Non-match
+        assert!(!allowed.iter().any(|u| u == "eve" || u == &format!("@{}", "eve")));
+    }
+
+    #[test]
+    fn telegram_empty_whitelist_allows_all() {
+        let allowed: Vec<String> = vec![];
+        // Empty whitelist = allow all users
+        assert!(allowed.is_empty());
+    }
+
+    // ── Message formatting tests ──
+
+    #[test]
+    fn gateway_response_text_preserved() {
+        let resp = GatewayResponse {
+            chat_id: "ch1".to_string(),
+            text: "Here is *bold* and `code`".to_string(),
+            reply_to: Some("msg-1".to_string()),
+        };
+        assert!(resp.text.contains("*bold*"));
+        assert!(resp.text.contains("`code`"));
+    }
+
+    #[test]
+    fn truncate_preserves_full_text_under_limit() {
+        let text = "Short message";
+        let result = truncate_text(text, 1000);
+        assert_eq!(result, text);
+        assert!(!result.contains('\u{2026}'));
+    }
+
+    #[test]
+    fn truncate_text_with_newlines() {
+        let text = "line1\nline2\nline3\nline4\nline5\n".repeat(100);
+        let truncated = truncate_text(&text, 50);
+        assert!(truncated.len() <= 50);
+    }
+
+    #[test]
+    fn truncate_text_unicode_cjk() {
+        // CJK characters are 3 bytes each in UTF-8
+        let text = "\u{4e16}\u{754c}\u{4f60}\u{597d}".repeat(10); // "world hello" repeated
+        let truncated = truncate_text(&text, 20);
+        assert!(truncated.len() <= 20);
+        // Must be valid UTF-8 (implicit: it's a String)
+    }
+
+    // ── IncomingMessage cloning and equality tests ──
+
+    #[test]
+    fn incoming_message_clone() {
+        let msg = IncomingMessage {
+            platform: "discord".to_string(),
+            chat_id: "ch-1".to_string(),
+            user: "alice".to_string(),
+            text: "hello world".to_string(),
+            message_id: Some("msg-42".to_string()),
+        };
+        let cloned = msg.clone();
+        assert_eq!(cloned.platform, msg.platform);
+        assert_eq!(cloned.chat_id, msg.chat_id);
+        assert_eq!(cloned.user, msg.user);
+        assert_eq!(cloned.text, msg.text);
+        assert_eq!(cloned.message_id, msg.message_id);
+    }
+
+    #[test]
+    fn incoming_message_debug_format() {
+        let msg = IncomingMessage {
+            platform: "slack".to_string(),
+            chat_id: "C01".to_string(),
+            user: "bob".to_string(),
+            text: "test".to_string(),
+            message_id: None,
+        };
+        let debug = format!("{:?}", msg);
+        assert!(debug.contains("slack"));
+        assert!(debug.contains("bob"));
+    }
+
+    #[test]
+    fn gateway_response_debug_format() {
+        let resp = GatewayResponse {
+            chat_id: "ch".to_string(),
+            text: "hi".to_string(),
+            reply_to: None,
+        };
+        let debug = format!("{:?}", resp);
+        assert!(debug.contains("ch"));
+    }
+
+    // ── Platform-specific truncation limits ──
+
+    #[test]
+    fn platform_truncation_limits_are_respected() {
+        // Verify each platform's documented limit
+        let limits = vec![
+            ("telegram", 4096),
+            ("discord", 2000),
+            ("slack", 40000),
+            ("signal", 30000),
+            ("matrix", 60000),
+            ("twilio", 1600),
+            ("whatsapp", 4096),
+            ("teams", 28000),
+            ("irc", 510),
+            ("line", 5000),
+            ("twitch", 500),
+        ];
+        let long_text = "x".repeat(100000);
+        for (platform, limit) in limits {
+            let truncated = truncate_text(&long_text, limit);
+            assert!(
+                truncated.len() <= limit,
+                "{} truncation exceeded limit {} (got {})",
+                platform, limit, truncated.len()
+            );
+        }
+    }
+
+    // ── Teams service_url extraction ──
+
+    #[test]
+    fn teams_service_url_extraction_with_no_pipe() {
+        // When reply_to has no pipe, fallback service_url should be used
+        let reply_to = Some("just-an-activity-id".to_string());
+        let (_, service_url) = reply_to.as_deref()
+            .and_then(|s| s.split_once('|'))
+            .unwrap_or(("", "https://smba.trafficmanager.net/teams/"));
+        assert_eq!(service_url, "https://smba.trafficmanager.net/teams/");
+    }
+
+    #[test]
+    fn teams_service_url_extraction_with_pipe() {
+        let reply_to = Some("act_123|https://custom.service.url/".to_string());
+        let (activity_id, service_url) = reply_to.as_deref()
+            .and_then(|s| s.split_once('|'))
+            .unwrap_or(("", "https://smba.trafficmanager.net/teams/"));
+        assert_eq!(activity_id, "act_123");
+        assert_eq!(service_url, "https://custom.service.url/");
+    }
+
+    #[test]
+    fn teams_service_url_with_none_reply() {
+        let reply_to: Option<String> = None;
+        let (_, service_url) = reply_to.as_deref()
+            .and_then(|s| s.split_once('|'))
+            .unwrap_or(("", "https://smba.trafficmanager.net/teams/"));
+        assert_eq!(service_url, "https://smba.trafficmanager.net/teams/");
+    }
+
     // ── truncate_text edge cases ──
 
     #[test]

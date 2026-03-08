@@ -436,4 +436,64 @@ mod tests {
         let resp: MistralStreamResponse = serde_json::from_str(json).unwrap();
         assert!(resp.choices[0].delta.content.is_none());
     }
+
+    // ── response parsing edge cases ───────────────────────────────────
+
+    #[test]
+    fn mistral_response_deser_multiple_choices() {
+        let json = r#"{"choices":[{"message":{"role":"assistant","content":"a"}},{"message":{"role":"assistant","content":"b"}}],"usage":{"prompt_tokens":3,"completion_tokens":2}}"#;
+        let resp: MistralResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.choices.len(), 2);
+        assert_eq!(resp.choices[1].message.content, "b");
+    }
+
+    #[test]
+    fn mistral_message_serde_roundtrip() {
+        let msg = MistralMessage { role: "system".into(), content: "Be precise.".into() };
+        let json = serde_json::to_string(&msg).unwrap();
+        let msg2: MistralMessage = serde_json::from_str(&json).unwrap();
+        assert_eq!(msg.role, msg2.role);
+        assert_eq!(msg.content, msg2.content);
+    }
+
+    #[test]
+    fn mistral_response_deser_zero_tokens() {
+        let json = r#"{"choices":[{"message":{"role":"assistant","content":""}}],"usage":{"prompt_tokens":0,"completion_tokens":0}}"#;
+        let resp: MistralResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.choices[0].message.content, "");
+        let usage = resp.usage.unwrap();
+        assert_eq!(usage.prompt_tokens, 0);
+        assert_eq!(usage.completion_tokens, 0);
+    }
+
+    // ── build_messages with empty context string ──────────────────────
+
+    #[test]
+    fn build_messages_empty_context_string_still_injects() {
+        use crate::provider::MessageRole;
+        let p = MistralProvider::new(test_config());
+        let msgs = vec![
+            Message { role: MessageRole::User, content: "query".into() },
+        ];
+        let result = p.build_messages(&msgs, Some("".into()));
+        assert!(result[0].content.starts_with("Context:\n"));
+        assert!(result[0].content.contains("User: query"));
+    }
+
+    // ── config edge cases ─────────────────────────────────────────────
+
+    #[test]
+    fn mistral_request_with_different_model() {
+        let req = MistralRequest {
+            model: "open-mistral-nemo".into(),
+            messages: vec![MistralMessage { role: "user".into(), content: "hi".into() }],
+            temperature: Some(1.0),
+            max_tokens: Some(100),
+            stream: false,
+        };
+        let val = serde_json::to_value(&req).unwrap();
+        assert_eq!(val["model"], "open-mistral-nemo");
+        assert_eq!(val["temperature"], 1.0);
+        assert_eq!(val["max_tokens"], 100);
+    }
 }

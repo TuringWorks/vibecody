@@ -984,4 +984,261 @@ mod tests {
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("Invalid stage index"));
     }
+
+    // ── WorkflowStage tests ──
+
+    #[test]
+    fn stage_index_values() {
+        assert_eq!(WorkflowStage::Requirements.index(), 0);
+        assert_eq!(WorkflowStage::Architecture.index(), 1);
+        assert_eq!(WorkflowStage::Design.index(), 2);
+        assert_eq!(WorkflowStage::ConstructionPlanning.index(), 3);
+        assert_eq!(WorkflowStage::Coding.index(), 4);
+        assert_eq!(WorkflowStage::QualityAssurance.index(), 5);
+        assert_eq!(WorkflowStage::Integration.index(), 6);
+        assert_eq!(WorkflowStage::CodeComplete.index(), 7);
+    }
+
+    #[test]
+    fn stage_next_chain() {
+        let mut stage = WorkflowStage::Requirements;
+        let expected = [
+            WorkflowStage::Architecture,
+            WorkflowStage::Design,
+            WorkflowStage::ConstructionPlanning,
+            WorkflowStage::Coding,
+            WorkflowStage::QualityAssurance,
+            WorkflowStage::Integration,
+            WorkflowStage::CodeComplete,
+        ];
+        for expected_next in &expected {
+            stage = stage.next().unwrap();
+            assert_eq!(stage, *expected_next);
+        }
+        assert!(stage.next().is_none());
+    }
+
+    #[test]
+    fn stage_from_label_unknown_returns_none() {
+        assert!(WorkflowStage::from_label("Unknown Stage").is_none());
+        assert!(WorkflowStage::from_label("").is_none());
+        assert!(WorkflowStage::from_label("requirements").is_none()); // case-sensitive
+    }
+
+    #[test]
+    fn stage_display_matches_label() {
+        for stage in &WorkflowStage::ALL {
+            assert_eq!(format!("{}", stage), stage.label());
+        }
+    }
+
+    // ── StageStatus tests ──
+
+    #[test]
+    fn stage_status_from_str_all_variants() {
+        assert_eq!(StageStatus::from_str("in-progress"), StageStatus::InProgress);
+        assert_eq!(StageStatus::from_str("complete"), StageStatus::Complete);
+        assert_eq!(StageStatus::from_str("skipped"), StageStatus::Skipped);
+        assert_eq!(StageStatus::from_str("not-started"), StageStatus::NotStarted);
+        assert_eq!(StageStatus::from_str("garbage"), StageStatus::NotStarted);
+        assert_eq!(StageStatus::from_str(""), StageStatus::NotStarted);
+    }
+
+    #[test]
+    fn stage_status_display() {
+        assert_eq!(format!("{}", StageStatus::NotStarted), "not-started");
+        assert_eq!(format!("{}", StageStatus::InProgress), "in-progress");
+        assert_eq!(format!("{}", StageStatus::Complete), "complete");
+        assert_eq!(format!("{}", StageStatus::Skipped), "skipped");
+    }
+
+    // ── StageData tests ──
+
+    #[test]
+    fn stage_data_progress_pct_empty() {
+        let stage = StageData::new(WorkflowStage::Requirements);
+        assert_eq!(stage.progress_pct(), 0.0);
+    }
+
+    #[test]
+    fn stage_data_progress_pct_partial() {
+        let mut stage = StageData::new(WorkflowStage::Coding);
+        stage.checklist.push(ChecklistItem { id: 1, description: "A".into(), done: true });
+        stage.checklist.push(ChecklistItem { id: 2, description: "B".into(), done: false });
+        stage.checklist.push(ChecklistItem { id: 3, description: "C".into(), done: true });
+        assert!((stage.progress_pct() - 66.666).abs() < 1.0);
+        assert_eq!(stage.completed_count(), 2);
+        assert_eq!(stage.total_count(), 3);
+    }
+
+    #[test]
+    fn stage_data_progress_pct_all_done() {
+        let mut stage = StageData::new(WorkflowStage::Design);
+        stage.checklist.push(ChecklistItem { id: 1, description: "X".into(), done: true });
+        assert_eq!(stage.progress_pct(), 100.0);
+    }
+
+    // ── Workflow tests ──
+
+    #[test]
+    fn workflow_new_has_8_stages() {
+        let wf = Workflow::new("test", "desc", PathBuf::from("/tmp/test.md"));
+        assert_eq!(wf.stages.len(), 8);
+        assert_eq!(wf.current_stage, WorkflowStage::Requirements);
+        assert_eq!(wf.name, "test");
+        assert_eq!(wf.description, "desc");
+    }
+
+    #[test]
+    fn workflow_overall_progress_no_items() {
+        let wf = Workflow::new("test", "desc", PathBuf::from("/tmp/test.md"));
+        assert_eq!(wf.overall_progress(), 0.0);
+    }
+
+    #[test]
+    fn workflow_current_stage_data() {
+        let wf = Workflow::new("test", "desc", PathBuf::from("/tmp/test.md"));
+        let data = wf.current_stage_data();
+        assert_eq!(data.stage, WorkflowStage::Requirements);
+    }
+
+    #[test]
+    fn workflow_to_file_content_has_frontmatter() {
+        let wf = Workflow::new("myproj", "A project", PathBuf::from("/tmp/myproj.md"));
+        let content = wf.to_file_content();
+        assert!(content.starts_with("---\n"));
+        assert!(content.contains("name: myproj"));
+        assert!(content.contains("description: A project"));
+        assert!(content.contains("current_stage: 0"));
+    }
+
+    #[test]
+    fn workflow_to_file_content_includes_all_stages() {
+        let wf = Workflow::new("app", "App", PathBuf::from("/tmp/app.md"));
+        let content = wf.to_file_content();
+        for stage in &WorkflowStage::ALL {
+            assert!(content.contains(&format!("## Stage: {}", stage.label())),
+                    "Missing stage: {}", stage.label());
+        }
+    }
+
+    // ── parse_checklist_response edge cases ──
+
+    #[test]
+    fn parse_checklist_response_empty() {
+        let items = parse_checklist_response("");
+        assert!(items.is_empty());
+    }
+
+    #[test]
+    fn parse_checklist_response_only_whitespace() {
+        let items = parse_checklist_response("   \n  \n\n");
+        assert!(items.is_empty());
+    }
+
+    #[test]
+    fn parse_checklist_response_with_parenthesized_numbers() {
+        let response = "1) First\n2) Second\n3) Third\n";
+        let items = parse_checklist_response(response);
+        assert_eq!(items.len(), 3);
+        assert_eq!(items[0].description, "First");
+    }
+
+    #[test]
+    fn parse_checklist_response_bullets_only() {
+        let response = "- Item A\n- Item B\n";
+        let items = parse_checklist_response(response);
+        assert_eq!(items.len(), 2);
+        assert_eq!(items[0].description, "Item A");
+        assert_eq!(items[1].description, "Item B");
+    }
+
+    #[test]
+    fn parse_checklist_response_asterisk_bullets() {
+        let response = "* Star A\n* Star B\n";
+        let items = parse_checklist_response(response);
+        assert_eq!(items.len(), 2);
+        assert_eq!(items[0].description, "Star A");
+    }
+
+    #[test]
+    fn parse_checklist_response_ignores_non_list_lines() {
+        let response = "Some intro text\n1. Real item\nMore filler\n2. Another item\n";
+        let items = parse_checklist_response(response);
+        assert_eq!(items.len(), 2);
+    }
+
+    #[test]
+    fn parse_checklist_response_ids_are_sequential() {
+        let response = "1. A\n2. B\n3. C\n";
+        let items = parse_checklist_response(response);
+        assert_eq!(items[0].id, 1);
+        assert_eq!(items[1].id, 2);
+        assert_eq!(items[2].id, 3);
+    }
+
+    // ── stage_checklist_prompt tests ──
+
+    #[test]
+    fn stage_checklist_prompt_includes_stage_and_project() {
+        let prompt = stage_checklist_prompt(&WorkflowStage::Requirements, "A todo app");
+        assert!(prompt.contains("Requirements"));
+        assert!(prompt.contains("A todo app"));
+        assert!(prompt.contains("checklist"));
+    }
+
+    #[test]
+    fn stage_checklist_prompt_all_stages_produce_output() {
+        for stage in &WorkflowStage::ALL {
+            let prompt = stage_checklist_prompt(stage, "test project");
+            assert!(!prompt.is_empty());
+            assert!(prompt.contains(stage.label()));
+        }
+    }
+
+    // ── set_stage_checklist tests ──
+
+    #[test]
+    fn set_stage_checklist_marks_not_started_as_in_progress() {
+        let tmp = TempDir::new().unwrap();
+        let mgr = WorkflowManager::new(tmp.path().to_path_buf());
+        mgr.create("app", "Test").unwrap();
+
+        // Stage 1 (Architecture) is not started
+        let wf = mgr.load("app").unwrap();
+        assert_eq!(wf.stages[1].status, StageStatus::NotStarted);
+
+        let wf = mgr.set_stage_checklist("app", 1, vec![
+            ChecklistItem::new(1, "Item"),
+        ]).unwrap();
+        assert_eq!(wf.stages[1].status, StageStatus::InProgress);
+    }
+
+    #[test]
+    fn set_stage_checklist_invalid_index_errors() {
+        let tmp = TempDir::new().unwrap();
+        let mgr = WorkflowManager::new(tmp.path().to_path_buf());
+        mgr.create("app", "Test").unwrap();
+
+        let result = mgr.set_stage_checklist("app", 99, vec![]);
+        assert!(result.is_err());
+    }
+
+    // ── ChecklistItem ──
+
+    #[test]
+    fn checklist_item_new_defaults_to_not_done() {
+        let item = ChecklistItem::new(1, "Test item");
+        assert_eq!(item.id, 1);
+        assert_eq!(item.description, "Test item");
+        assert!(!item.done);
+    }
+
+    // ── WorkflowManager list on empty directory ──
+
+    #[test]
+    fn list_on_nonexistent_dir_returns_empty() {
+        let mgr = WorkflowManager::new(PathBuf::from("/tmp/nonexistent_vibecli_dir_12345"));
+        assert!(mgr.list().is_empty());
+    }
 }

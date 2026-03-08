@@ -35,6 +35,7 @@ export const TAB_META: Record<string, TabMeta> = {
   cascade:     { icon: Waves,              label: "Flow" },
   specs:       { icon: Ruler,              label: "Specs" },
   workflow:    { icon: HardHat,            label: "Workflow" },
+  orchestration: { icon: ListChecks,       label: "Orchestrate" },
   design:      { icon: Palette,            label: "Design" },
   deploy:      { icon: Rocket,             label: "Deploy" },
   database:    { icon: Database,           label: "DB" },

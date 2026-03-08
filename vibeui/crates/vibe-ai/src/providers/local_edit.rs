@@ -440,4 +440,118 @@ mod tests {
         // options: None should be serialized as null or skipped
         assert!(json.get("options").is_none() || json["options"].is_null());
     }
+
+    // ── generate request with options ─────────────────────────────────
+
+    #[test]
+    fn ollama_generate_request_with_options() {
+        let req = OllamaGenerateRequest {
+            model: "deepseek-coder:6.7b".into(),
+            prompt: "complete this".into(),
+            system: CODE_EDIT_SYSTEM_PROMPT.to_string(),
+            stream: true,
+            options: Some(LocalEditProvider::default_options()),
+        };
+        let json = serde_json::to_value(&req).unwrap();
+        assert_eq!(json["model"], "deepseek-coder:6.7b");
+        assert_eq!(json["stream"], true);
+        let opts = &json["options"];
+        assert!(opts["temperature"].as_f64().unwrap() > 0.0);
+        assert_eq!(opts["num_predict"], 256);
+        assert_eq!(opts["stop"].as_array().unwrap().len(), 3);
+    }
+
+    // ── chat request serialization ────────────────────────────────────
+
+    #[test]
+    fn ollama_chat_request_serializes() {
+        let req = OllamaChatRequest {
+            model: "starcoder2:3b".into(),
+            messages: vec![
+                OllamaChatMessage { role: "system".into(), content: "sys".into() },
+                OllamaChatMessage { role: "user".into(), content: "q".into() },
+            ],
+            stream: false,
+            options: None,
+        };
+        let json = serde_json::to_value(&req).unwrap();
+        assert_eq!(json["model"], "starcoder2:3b");
+        assert_eq!(json["messages"].as_array().unwrap().len(), 2);
+        assert_eq!(json["stream"], false);
+    }
+
+    // ── response deserialization ──────────────────────────────────────
+
+    #[test]
+    fn ollama_generate_response_deser() {
+        let json = r#"{"response":"fn hello()","done":true}"#;
+        let resp: OllamaGenerateResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.response, "fn hello()");
+        assert!(resp.done);
+    }
+
+    #[test]
+    fn ollama_generate_response_deser_not_done() {
+        let json = r#"{"response":"partial","done":false}"#;
+        let resp: OllamaGenerateResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.response, "partial");
+        assert!(!resp.done);
+    }
+
+    #[test]
+    fn ollama_chat_response_deser() {
+        let json = r#"{"message":{"role":"assistant","content":"completed code"},"done":true}"#;
+        let resp: OllamaChatResponseMsg = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.message.content, "completed code");
+        assert_eq!(resp.message.role, "assistant");
+    }
+
+    // ── FIM prompt edge cases ─────────────────────────────────────────
+
+    #[test]
+    fn build_fim_prompt_empty_prefix_and_suffix() {
+        let ctx = CodeContext {
+            language: "go".to_string(),
+            file_path: None,
+            prefix: "".to_string(),
+            suffix: "".to_string(),
+            additional_context: vec![],
+        };
+        let prompt = LocalEditProvider::build_fim_prompt(&ctx);
+        assert!(prompt.contains("// Language: go"));
+        assert!(prompt.contains("<PRE>"));
+        assert!(prompt.contains("<SUF>"));
+        assert!(prompt.contains("<MID>"));
+    }
+
+    #[test]
+    fn build_fim_prompt_multiline_code() {
+        let ctx = CodeContext {
+            language: "python".to_string(),
+            file_path: Some("app.py".to_string()),
+            prefix: "def greet(name):\n    ".to_string(),
+            suffix: "\n\ndef main():\n    pass".to_string(),
+            additional_context: vec![],
+        };
+        let prompt = LocalEditProvider::build_fim_prompt(&ctx);
+        assert!(prompt.contains("// File: app.py"));
+        assert!(prompt.contains("<PRE>def greet(name):\n    "));
+        assert!(prompt.contains("<SUF>\n\ndef main():\n    pass"));
+    }
+
+    // ── system prompt ─────────────────────────────────────────────────
+
+    #[test]
+    fn code_edit_system_prompt_is_nonempty() {
+        assert!(!CODE_EDIT_SYSTEM_PROMPT.is_empty());
+        assert!(CODE_EDIT_SYSTEM_PROMPT.contains("code"));
+    }
+
+    // ── provider name and URL ─────────────────────────────────────────
+
+    #[test]
+    fn provider_stores_model_name() {
+        let p = LocalEditProvider::new("qwen2:7b".into(), None);
+        assert_eq!(p.model, "qwen2:7b");
+    }
 }

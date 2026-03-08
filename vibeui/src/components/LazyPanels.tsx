@@ -32,6 +32,7 @@ const SettingsPanel = lazy(() => import("./SettingsPanel").then(m => ({ default:
 const CascadePanel = lazy(() => import("./CascadePanel").then(m => ({ default: m.CascadePanel })));
 const SpecPanel = lazy(() => import("./SpecPanel").then(m => ({ default: m.SpecPanel })));
 const WorkflowPanel = lazy(() => import("./WorkflowPanel").then(m => ({ default: m.WorkflowPanel })));
+const OrchestrationPanel = lazy(() => import("./OrchestrationPanel").then(m => ({ default: m.OrchestrationPanel })));
 const DesignMode = lazy(() => import("./DesignMode").then(m => ({ default: m.DesignMode })));
 const DeployPanel = lazy(() => import("./DeployPanel").then(m => ({ default: m.DeployPanel })));
 const DatabasePanel = lazy(() => import("./DatabasePanel").then(m => ({ default: m.DatabasePanel })));
@@ -162,6 +163,8 @@ export function PanelHost(props: PanelHostProps) {
       return <LazyPanel Component={SpecPanel} props={{ workspacePath: wp, provider: selectedProvider }} />;
     case "workflow":
       return <LazyPanel Component={WorkflowPanel} props={{ workspacePath: wp, provider: selectedProvider }} />;
+    case "orchestration":
+      return <LazyPanel Component={OrchestrationPanel} props={{ workspacePath: wp }} />;
     case "design":
       return <LazyPanel Component={DesignMode} props={{ workspacePath: wp, provider: selectedProvider }} />;
     case "deploy":

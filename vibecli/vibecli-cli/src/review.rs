@@ -1495,4 +1495,230 @@ diff --git a/README.md b/README.md\n+added readme\n";
         assert!(md.contains("Decouple modules"));
         assert!(md.contains("unused variable"));
     }
+
+    // ── parse_perspective_response edge cases ─────────────────────────────
+
+    #[test]
+    fn parse_perspective_response_with_markdown_fences() {
+        let input = "```json\n{\"summary\": \"All good\", \"issues\": [], \"suggestions\": []}\n```";
+        let (issues, suggestions, summary) = parse_perspective_response(input);
+        assert_eq!(summary, "All good");
+        assert!(issues.is_empty());
+        assert!(suggestions.is_empty());
+    }
+
+    #[test]
+    fn parse_perspective_response_multiple_issues() {
+        let json = r#"{"summary": "Multiple problems", "issues": [
+            {"file": "a.rs", "line": 1, "severity": "critical", "category": "security", "description": "SQL injection"},
+            {"file": "b.rs", "line": 20, "severity": "warning", "category": "performance", "description": "N+1 query"},
+            {"file": "c.rs", "line": 50, "severity": "info", "category": "style", "description": "Long function"}
+        ], "suggestions": [{"description": "Refactor"}]}"#;
+        let (issues, suggestions, summary) = parse_perspective_response(json);
+        assert_eq!(summary, "Multiple problems");
+        assert_eq!(issues.len(), 3);
+        assert_eq!(issues[0].severity, Severity::Critical);
+        assert_eq!(issues[0].category, ReviewFocus::Security);
+        assert_eq!(issues[1].severity, Severity::Warning);
+        assert_eq!(issues[1].category, ReviewFocus::Performance);
+        assert_eq!(issues[2].severity, Severity::Info);
+        assert_eq!(issues[2].category, ReviewFocus::Style);
+        assert_eq!(suggestions.len(), 1);
+    }
+
+    #[test]
+    fn parse_perspective_response_unknown_severity_defaults_info() {
+        let json = r#"{"summary": "ok", "issues": [
+            {"file": "x.rs", "line": 1, "severity": "banana", "category": "testing", "description": "test"}
+        ], "suggestions": []}"#;
+        let (issues, _, _) = parse_perspective_response(json);
+        assert_eq!(issues[0].severity, Severity::Info);
+        assert_eq!(issues[0].category, ReviewFocus::Testing);
+    }
+
+    #[test]
+    fn parse_perspective_response_unknown_category_defaults_correctness() {
+        let json = r#"{"summary": "ok", "issues": [
+            {"file": "x.rs", "line": 1, "severity": "warning", "category": "unknown_cat", "description": "test"}
+        ], "suggestions": []}"#;
+        let (issues, _, _) = parse_perspective_response(json);
+        assert_eq!(issues[0].category, ReviewFocus::Correctness);
+    }
+
+    #[test]
+    fn parse_perspective_response_empty_json_object() {
+        let json = "{}";
+        let (issues, suggestions, summary) = parse_perspective_response(json);
+        assert!(issues.is_empty());
+        assert!(suggestions.is_empty());
+        assert!(summary.is_empty());
+    }
+
+    // ── ReviewPerspective additional tests ─────────────────────────────────
+
+    #[test]
+    fn perspective_display_extended_variants() {
+        assert_eq!(format!("{}", ReviewPerspective::ApiDesigner), "API Designer");
+        assert_eq!(format!("{}", ReviewPerspective::DataModeler), "Data Modeler");
+        assert_eq!(format!("{}", ReviewPerspective::AccessibilityAuditor), "Accessibility Auditor");
+    }
+
+    #[test]
+    fn perspective_system_prompt_content_matches_role() {
+        assert!(ReviewPerspective::SecurityExpert.system_prompt().contains("security"));
+        assert!(ReviewPerspective::PerformanceEngineer.system_prompt().contains("performance"));
+        assert!(ReviewPerspective::Architect.system_prompt().contains("architect"));
+        assert!(ReviewPerspective::TestingSpecialist.system_prompt().contains("testing"));
+        assert!(ReviewPerspective::DevOpsEngineer.system_prompt().contains("DevOps"));
+    }
+
+    #[test]
+    fn perspective_all_does_not_include_extended() {
+        // ALL has 5 perspectives but there are 10 total variants
+        assert!(!ReviewPerspective::ALL.contains(&ReviewPerspective::UxReviewer));
+        assert!(!ReviewPerspective::ALL.contains(&ReviewPerspective::ApiDesigner));
+        assert!(!ReviewPerspective::ALL.contains(&ReviewPerspective::DataModeler));
+        assert!(!ReviewPerspective::ALL.contains(&ReviewPerspective::AccessibilityAuditor));
+        assert!(!ReviewPerspective::ALL.contains(&ReviewPerspective::DevOpsEngineer));
+    }
+
+    // ── to_markdown edge cases ────────────────────────────────────────────
+
+    #[test]
+    fn to_markdown_with_suggested_fix_shows_fix() {
+        let report = ReviewReport {
+            base_ref: "main".into(), target_ref: "HEAD".into(),
+            summary: "One issue.".into(),
+            issues: vec![ReviewIssue {
+                file: "lib.rs".into(), line: 10,
+                severity: Severity::Warning, category: ReviewFocus::Style,
+                description: "Use snake_case".into(),
+                suggested_fix: Some("Rename myVar to my_var".into()),
+            }],
+            suggestions: vec![],
+            score: ReviewScore { overall: 9.5, correctness: 10.0, security: 10.0, performance: 10.0, style: 9.5 },
+            files_reviewed: vec!["lib.rs".into()],
+        };
+        let md = report.to_markdown();
+        assert!(md.contains("**Suggested fix:** Rename myVar to my_var"));
+    }
+
+    #[test]
+    fn to_markdown_with_no_suggested_fix_omits_fix_line() {
+        let report = ReviewReport {
+            base_ref: "main".into(), target_ref: "HEAD".into(),
+            summary: "One issue.".into(),
+            issues: vec![ReviewIssue {
+                file: "lib.rs".into(), line: 10,
+                severity: Severity::Info, category: ReviewFocus::Correctness,
+                description: "Consider edge case".into(),
+                suggested_fix: None,
+            }],
+            suggestions: vec![],
+            score: ReviewScore { overall: 9.9, correctness: 9.9, security: 10.0, performance: 10.0, style: 10.0 },
+            files_reviewed: vec!["lib.rs".into()],
+        };
+        let md = report.to_markdown();
+        assert!(!md.contains("**Suggested fix:**"));
+    }
+
+    #[test]
+    fn to_markdown_suggestions_with_file_and_without() {
+        let report = ReviewReport {
+            base_ref: String::new(), target_ref: String::new(),
+            summary: "Suggestions only.".into(),
+            issues: vec![],
+            suggestions: vec![
+                ReviewSuggestion { description: "Add logging".into(), file: Some("main.rs".into()) },
+                ReviewSuggestion { description: "Consider CI".into(), file: None },
+            ],
+            score: ReviewScore { overall: 10.0, correctness: 10.0, security: 10.0, performance: 10.0, style: 10.0 },
+            files_reviewed: vec![],
+        };
+        let md = report.to_markdown();
+        assert!(md.contains("- Add logging (`main.rs`)"));
+        assert!(md.contains("- Consider CI\n"));
+    }
+
+    // ── MultiPerspectiveReport edge cases ─────────────────────────────────
+
+    #[test]
+    fn multi_perspective_report_empty_findings() {
+        let report = MultiPerspectiveReport {
+            perspectives_used: vec!["Architect".into()],
+            findings: vec![],
+            merged_issues: vec![],
+            summary: "No issues found.".into(),
+        };
+        let md = report.to_markdown();
+        assert!(md.contains("Merged Issues (0)"));
+        assert!(md.contains("No issues found."));
+        assert!(md.contains("*Generated by VibeCLI Multi-Perspective Review*"));
+    }
+
+    #[test]
+    fn multi_perspective_report_sorted_by_severity() {
+        let report = MultiPerspectiveReport {
+            perspectives_used: vec!["Security Expert".into()],
+            findings: vec![],
+            merged_issues: vec![
+                ReviewIssue {
+                    file: "a.rs".into(), line: 1,
+                    severity: Severity::Info, category: ReviewFocus::Style,
+                    description: "info issue".into(), suggested_fix: None,
+                },
+                ReviewIssue {
+                    file: "b.rs".into(), line: 2,
+                    severity: Severity::Critical, category: ReviewFocus::Security,
+                    description: "critical issue".into(), suggested_fix: None,
+                },
+            ],
+            summary: "Found 2 issues.".into(),
+        };
+        let md = report.to_markdown();
+        let crit_pos = md.find("critical issue").unwrap();
+        let info_pos = md.find("info issue").unwrap();
+        assert!(crit_pos < info_pos, "Critical should appear before Info in merged issues");
+    }
+
+    // ── compute_score with many info issues ───────────────────────────────
+
+    #[test]
+    fn compute_score_many_info_issues_gradual_decrease() {
+        // 20 info issues in style = 20 * 0.1 = 2.0 deduction
+        let issues: Vec<ReviewIssue> = (0..20)
+            .map(|i| ReviewIssue {
+                file: "nit.rs".into(),
+                line: i,
+                severity: Severity::Info,
+                category: ReviewFocus::Style,
+                description: format!("nit {}", i),
+                suggested_fix: None,
+            })
+            .collect();
+        let score = compute_score(&issues);
+        assert!((score.style - 8.0).abs() < 0.01); // 10.0 - 2.0
+        assert_eq!(score.correctness, 10.0);
+    }
+
+    // ── Severity serde roundtrip ──────────────────────────────────────────
+
+    #[test]
+    fn severity_serde_roundtrip() {
+        for sev in &[Severity::Info, Severity::Warning, Severity::Critical] {
+            let json = serde_json::to_string(sev).unwrap();
+            let back: Severity = serde_json::from_str(&json).unwrap();
+            assert_eq!(&back, sev);
+        }
+    }
+
+    #[test]
+    fn review_focus_serde_roundtrip() {
+        for focus in &[ReviewFocus::Security, ReviewFocus::Performance,
+                       ReviewFocus::Correctness, ReviewFocus::Style, ReviewFocus::Testing] {
+            let json = serde_json::to_string(focus).unwrap();
+            let back: ReviewFocus = serde_json::from_str(&json).unwrap();
+            assert_eq!(&back, focus);
+        }
+    }
 }

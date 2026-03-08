@@ -315,4 +315,122 @@ mod tests {
         assert_eq!(json["max_tokens"], 2048);
         assert_eq!(json["stream"], false);
     }
+
+    // ── request serialization edge cases ──────────────────────────────
+
+    #[test]
+    fn or_request_skips_none_optional_fields() {
+        let req = ORRequest {
+            model: "meta-llama/llama-3.3-70b-instruct".into(),
+            messages: vec![ORMessage { role: "user".into(), content: "hi".into() }],
+            temperature: None,
+            max_tokens: None,
+            stream: false,
+        };
+        let json = serde_json::to_value(&req).unwrap();
+        assert!(json.get("temperature").is_none());
+        assert!(json.get("max_tokens").is_none());
+    }
+
+    #[test]
+    fn or_request_stream_true() {
+        let req = ORRequest {
+            model: "openai/gpt-4o".into(),
+            messages: vec![],
+            temperature: None,
+            max_tokens: None,
+            stream: true,
+        };
+        let json = serde_json::to_value(&req).unwrap();
+        assert_eq!(json["stream"], true);
+    }
+
+    // ── response parsing variants ─────────────────────────────────────
+
+    #[test]
+    fn or_response_deser_no_usage() {
+        let json = r#"{"choices":[{"message":{"role":"assistant","content":"done"}}]}"#;
+        let resp: ORResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.choices[0].message.content, "done");
+        assert!(resp.usage.is_none());
+    }
+
+    #[test]
+    fn or_response_deser_multiple_choices() {
+        let json = r#"{"choices":[{"message":{"role":"assistant","content":"a"}},{"message":{"role":"assistant","content":"b"}}],"usage":{"prompt_tokens":5,"completion_tokens":2}}"#;
+        let resp: ORResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.choices.len(), 2);
+        assert_eq!(resp.choices[1].message.content, "b");
+    }
+
+    #[test]
+    fn or_stream_response_deser() {
+        let json = r#"{"choices":[{"delta":{"content":"tok"}}]}"#;
+        let resp: ORStreamResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.choices[0].delta.content.as_ref().unwrap(), "tok");
+    }
+
+    #[test]
+    fn or_stream_response_deser_null_content() {
+        let json = r#"{"choices":[{"delta":{"content":null}}]}"#;
+        let resp: ORStreamResponse = serde_json::from_str(json).unwrap();
+        assert!(resp.choices[0].delta.content.is_none());
+    }
+
+    // ── build_messages edge cases ─────────────────────────────────────
+
+    #[test]
+    fn build_messages_empty_list() {
+        let p = OpenRouterProvider::new(test_config());
+        let result = p.build_messages(&[], None);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn build_messages_context_ignored_when_last_is_assistant() {
+        use crate::provider::MessageRole;
+        let p = OpenRouterProvider::new(test_config());
+        let messages = vec![
+            Message { role: MessageRole::User, content: "Q".into() },
+            Message { role: MessageRole::Assistant, content: "A".into() },
+        ];
+        let result = p.build_messages(&messages, Some("ctx".into()));
+        assert_eq!(result[1].content, "A");
+        assert_eq!(result[0].content, "Q");
+    }
+
+    #[test]
+    fn build_messages_multi_turn_context_only_last_user() {
+        use crate::provider::MessageRole;
+        let p = OpenRouterProvider::new(test_config());
+        let messages = vec![
+            Message { role: MessageRole::User, content: "First".into() },
+            Message { role: MessageRole::Assistant, content: "Reply".into() },
+            Message { role: MessageRole::User, content: "Second".into() },
+        ];
+        let result = p.build_messages(&messages, Some("ctx".into()));
+        assert_eq!(result[0].content, "First");
+        assert!(result[2].content.contains("Context:\nctx"));
+        assert!(result[2].content.contains("Second"));
+    }
+
+    // ── or_message roundtrip ──────────────────────────────────────────
+
+    #[test]
+    fn or_message_serde_roundtrip() {
+        let msg = ORMessage { role: "assistant".into(), content: "hello world".into() };
+        let json = serde_json::to_string(&msg).unwrap();
+        let msg2: ORMessage = serde_json::from_str(&json).unwrap();
+        assert_eq!(msg.role, msg2.role);
+        assert_eq!(msg.content, msg2.content);
+    }
+
+    // ── provider defaults ─────────────────────────────────────────────
+
+    #[test]
+    fn default_site_url_and_app_name() {
+        let p = OpenRouterProvider::new(test_config());
+        assert!(p.site_url.contains("vibecody"));
+        assert_eq!(p.app_name, "VibeCody");
+    }
 }

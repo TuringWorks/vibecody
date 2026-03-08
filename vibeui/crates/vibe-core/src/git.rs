@@ -844,6 +844,273 @@ mod tests {
         // Stash should be gone
         assert!(list_stashes(dir.path()).unwrap().is_empty());
     }
+
+    // ── FileStatus enum coverage ──────────────────────────────────────────────
+
+    #[test]
+    fn file_status_all_variants_are_distinct() {
+        let variants = vec![
+            FileStatus::Modified,
+            FileStatus::New,
+            FileStatus::Deleted,
+            FileStatus::Renamed,
+            FileStatus::Ignored,
+            FileStatus::Conflicted,
+            FileStatus::Unknown,
+        ];
+        // Every variant should be equal to itself
+        for v in &variants {
+            assert_eq!(v, v);
+        }
+        // Adjacent variants should differ
+        for pair in variants.windows(2) {
+            assert_ne!(&pair[0], &pair[1]);
+        }
+    }
+
+    #[test]
+    fn file_status_serde_all_variants() {
+        let variants = vec![
+            FileStatus::Modified,
+            FileStatus::New,
+            FileStatus::Deleted,
+            FileStatus::Renamed,
+            FileStatus::Ignored,
+            FileStatus::Conflicted,
+            FileStatus::Unknown,
+        ];
+        for v in variants {
+            let json = serde_json::to_string(&v).unwrap();
+            let back: FileStatus = serde_json::from_str(&json).unwrap();
+            assert_eq!(back, v, "roundtrip failed for {:?}", v);
+        }
+    }
+
+    #[test]
+    fn file_status_debug_format() {
+        let s = format!("{:?}", FileStatus::Conflicted);
+        assert_eq!(s, "Conflicted");
+    }
+
+    // ── GitStatus construction ────────────────────────────────────────────────
+
+    #[test]
+    fn git_status_empty_file_statuses() {
+        let status = GitStatus {
+            branch: "main".to_string(),
+            file_statuses: HashMap::new(),
+        };
+        assert_eq!(status.branch, "main");
+        assert!(status.file_statuses.is_empty());
+    }
+
+    #[test]
+    fn git_status_multiple_files() {
+        let mut files = HashMap::new();
+        files.insert("src/lib.rs".to_string(), FileStatus::Modified);
+        files.insert("new_file.txt".to_string(), FileStatus::New);
+        files.insert("old.rs".to_string(), FileStatus::Deleted);
+        let status = GitStatus {
+            branch: "feature/test".to_string(),
+            file_statuses: files,
+        };
+        assert_eq!(status.file_statuses.len(), 3);
+        assert_eq!(status.file_statuses.get("src/lib.rs"), Some(&FileStatus::Modified));
+        assert_eq!(status.file_statuses.get("new_file.txt"), Some(&FileStatus::New));
+        assert_eq!(status.file_statuses.get("old.rs"), Some(&FileStatus::Deleted));
+    }
+
+    #[test]
+    fn git_status_serde_roundtrip() {
+        let mut files = HashMap::new();
+        files.insert("a.rs".to_string(), FileStatus::Modified);
+        let status = GitStatus {
+            branch: "dev".to_string(),
+            file_statuses: files,
+        };
+        let json = serde_json::to_string(&status).unwrap();
+        let back: GitStatus = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.branch, "dev");
+        assert_eq!(back.file_statuses.get("a.rs"), Some(&FileStatus::Modified));
+    }
+
+    // ── CommitInfo construction and edge cases ────────────────────────────────
+
+    #[test]
+    fn commit_info_empty_message() {
+        let ci = CommitInfo {
+            hash: "0000000".to_string(),
+            author: "Bot".to_string(),
+            message: "".to_string(),
+            timestamp: 0,
+        };
+        assert!(ci.message.is_empty());
+        assert_eq!(ci.timestamp, 0);
+    }
+
+    #[test]
+    fn commit_info_long_hash() {
+        let ci = CommitInfo {
+            hash: "a".repeat(40),
+            author: "Test User".to_string(),
+            message: "initial commit".to_string(),
+            timestamp: 1709827200,
+        };
+        assert_eq!(ci.hash.len(), 40);
+    }
+
+    #[test]
+    fn commit_info_multiline_message() {
+        let ci = CommitInfo {
+            hash: "abc".to_string(),
+            author: "Dev".to_string(),
+            message: "feat: add feature\n\nDetailed description here.".to_string(),
+            timestamp: 1000,
+        };
+        assert!(ci.message.contains('\n'));
+        let first_line = ci.message.lines().next().unwrap();
+        assert_eq!(first_line, "feat: add feature");
+    }
+
+    #[test]
+    fn commit_info_negative_timestamp() {
+        // Pre-epoch timestamps are valid in git
+        let ci = CommitInfo {
+            hash: "def".to_string(),
+            author: "Ancient".to_string(),
+            message: "before epoch".to_string(),
+            timestamp: -100,
+        };
+        assert!(ci.timestamp < 0);
+    }
+
+    // ── MergeResult construction ──────────────────────────────────────────────
+
+    #[test]
+    fn merge_result_with_conflicts() {
+        let mr = MergeResult {
+            success: false,
+            message: "Automatic merge failed".to_string(),
+            conflicts: vec![
+                "CONFLICT (content): Merge conflict in src/main.rs".to_string(),
+                "CONFLICT (content): Merge conflict in README.md".to_string(),
+            ],
+        };
+        assert!(!mr.success);
+        assert_eq!(mr.conflicts.len(), 2);
+        assert!(mr.conflicts[0].contains("main.rs"));
+    }
+
+    #[test]
+    fn merge_result_successful_no_conflicts() {
+        let mr = MergeResult {
+            success: true,
+            message: "Already up to date.".to_string(),
+            conflicts: vec![],
+        };
+        assert!(mr.success);
+        assert!(mr.conflicts.is_empty());
+    }
+
+    #[test]
+    fn merge_result_serde_with_conflicts() {
+        let mr = MergeResult {
+            success: false,
+            message: "conflict".to_string(),
+            conflicts: vec!["file.rs".to_string()],
+        };
+        let json = serde_json::to_string(&mr).unwrap();
+        let back: MergeResult = serde_json::from_str(&json).unwrap();
+        assert!(!back.success);
+        assert_eq!(back.conflicts.len(), 1);
+    }
+
+    // ── WorktreeInfo construction ─────────────────────────────────────────────
+
+    #[test]
+    fn worktree_info_non_main() {
+        let wt = WorktreeInfo {
+            branch: "feature/branch".to_string(),
+            path: std::path::PathBuf::from("/home/user/project-wt"),
+            is_main: false,
+        };
+        assert!(!wt.is_main);
+        assert!(wt.branch.contains('/'));
+    }
+
+    #[test]
+    fn worktree_info_clone() {
+        let wt = WorktreeInfo {
+            branch: "main".to_string(),
+            path: std::path::PathBuf::from("/tmp/wt"),
+            is_main: true,
+        };
+        let cloned = wt.clone();
+        assert_eq!(cloned.branch, wt.branch);
+        assert_eq!(cloned.path, wt.path);
+        assert_eq!(cloned.is_main, wt.is_main);
+    }
+
+    // ── CheckpointInfo construction ───────────────────────────────────────────
+
+    #[test]
+    fn checkpoint_info_various_indices() {
+        for i in [0, 1, 5, 100] {
+            let cp = CheckpointInfo {
+                index: i,
+                message: format!("checkpoint-{}", i),
+                oid: format!("{:040x}", i),
+            };
+            assert_eq!(cp.index, i);
+        }
+    }
+
+    #[test]
+    fn checkpoint_info_debug_format() {
+        let cp = CheckpointInfo {
+            index: 0,
+            message: "test".to_string(),
+            oid: "abc".to_string(),
+        };
+        let debug = format!("{:?}", cp);
+        assert!(debug.contains("CheckpointInfo"));
+        assert!(debug.contains("test"));
+    }
+
+    // ── Non-existent repo error handling ──────────────────────────────────────
+
+    #[test]
+    fn get_status_fails_for_nonexistent_path() {
+        let result = get_status(Path::new("/nonexistent/repo/path/xyz"));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn get_current_branch_fails_for_non_repo() {
+        let dir = TempDir::new().unwrap();
+        let result = get_current_branch(dir.path());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn list_branches_fails_for_non_repo() {
+        let dir = TempDir::new().unwrap();
+        let result = list_branches(dir.path());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn get_history_fails_for_non_repo() {
+        let result = get_history(Path::new("/nonexistent/xyz"), 10);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn get_diff_fails_for_non_repo() {
+        let dir = TempDir::new().unwrap();
+        let result = get_diff(dir.path(), "file.txt");
+        assert!(result.is_err());
+    }
 }
 
 pub fn get_repo_diff(repo_path: &Path) -> Result<String> {

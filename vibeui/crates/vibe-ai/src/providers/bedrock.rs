@@ -789,4 +789,111 @@ mod tests {
         assert_eq!(resp.output.message.content.len(), 2);
         assert_eq!(resp.output.message.content[1].text.as_ref().unwrap(), "part2");
     }
+
+    // ── converse response edge cases ──────────────────────────────────
+
+    #[test]
+    fn converse_response_deser_null_text_in_content_block() {
+        let json = r#"{
+            "output": {
+                "message": {
+                    "content": [{"text": null}]
+                }
+            }
+        }"#;
+        let resp: ConverseResponse = serde_json::from_str(json).unwrap();
+        assert!(resp.output.message.content[0].text.is_none());
+    }
+
+    #[test]
+    fn converse_response_deser_partial_usage() {
+        let json = r#"{
+            "output": {
+                "message": {
+                    "content": [{"text": "ok"}]
+                }
+            },
+            "usage": {
+                "inputTokens": 42
+            }
+        }"#;
+        let resp: ConverseResponse = serde_json::from_str(json).unwrap();
+        let usage = resp.usage.unwrap();
+        assert_eq!(usage.input_tokens, Some(42));
+        assert!(usage.output_tokens.is_none());
+    }
+
+    // ── converse request serialization ────────────────────────────────
+
+    #[test]
+    fn converse_request_skips_none_system() {
+        let req = ConverseRequest {
+            messages: vec![ConverseMessage {
+                role: "user".into(),
+                content: vec![ContentBlock { text: "hi".into() }],
+            }],
+            system: None,
+            inference_config: None,
+        };
+        let val = serde_json::to_value(&req).unwrap();
+        assert!(val.get("system").is_none());
+        assert!(val.get("inferenceConfig").is_none());
+    }
+
+    #[test]
+    fn inference_config_serialization() {
+        let ic = InferenceConfig {
+            max_tokens: Some(2048),
+            temperature: Some(0.5),
+        };
+        let val = serde_json::to_value(&ic).unwrap();
+        assert_eq!(val["maxTokens"], 2048);
+        assert_eq!(val["temperature"], 0.5);
+    }
+
+    #[test]
+    fn inference_config_skips_none_fields() {
+        let ic = InferenceConfig {
+            max_tokens: None,
+            temperature: None,
+        };
+        let val = serde_json::to_value(&ic).unwrap();
+        assert!(val.get("maxTokens").is_none());
+        assert!(val.get("temperature").is_none());
+    }
+
+    // ── build_converse_request empty messages ─────────────────────────
+
+    #[test]
+    fn build_converse_request_empty_messages() {
+        let provider = BedrockProvider::new(test_bedrock_config());
+        let req = provider.build_converse_request(&[], None);
+        assert!(req.messages.is_empty());
+        assert!(req.system.is_none());
+    }
+
+    // ── sigv4 differences ─────────────────────────────────────────────
+
+    #[test]
+    fn sigv4_auth_header_differs_by_region() {
+        let a = sigv4_auth_header("AK", "SK", "us-east-1", "h", "/p", b"{}", "20240101T120000Z");
+        let b = sigv4_auth_header("AK", "SK", "eu-west-1", "h", "/p", b"{}", "20240101T120000Z");
+        assert_ne!(a, b);
+    }
+
+    #[test]
+    fn sigv4_auth_header_differs_by_datetime() {
+        let a = sigv4_auth_header("AK", "SK", "us-east-1", "h", "/p", b"{}", "20240101T120000Z");
+        let b = sigv4_auth_header("AK", "SK", "us-east-1", "h", "/p", b"{}", "20240102T120000Z");
+        assert_ne!(a, b);
+    }
+
+    #[test]
+    fn sigv4_auth_header_differs_by_access_key() {
+        let a = sigv4_auth_header("AK1", "SK", "us-east-1", "h", "/p", b"{}", "20240101T120000Z");
+        let b = sigv4_auth_header("AK2", "SK", "us-east-1", "h", "/p", b"{}", "20240101T120000Z");
+        assert_ne!(a, b);
+        assert!(a.contains("AK1"));
+        assert!(b.contains("AK2"));
+    }
 }

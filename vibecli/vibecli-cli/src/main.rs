@@ -69,6 +69,7 @@ mod podman_runtime;
 mod opensandbox_client;
 mod container_tool_executor;
 mod verification;
+mod workflow_orchestration;
 mod handoff;
 mod tui;
 
@@ -1029,6 +1030,28 @@ async fn main() -> Result<()> {
             role: MessageRole::System,
             content: mem_content,
         });
+    }
+
+    // Load orchestration lessons and inject into system context
+    {
+        use crate::workflow_orchestration::{LessonsStore, TodoStore, orchestration_system_prompt};
+        let lessons_store = LessonsStore::for_workspace(&cwd);
+        let todo_store = TodoStore::for_workspace(&cwd);
+        let lessons = lessons_store.load();
+        let current_task = todo_store.load();
+        let orch_ctx = orchestration_system_prompt(&lessons, current_task.as_ref());
+        if !orch_ctx.is_empty() {
+            messages.push(Message {
+                role: MessageRole::System,
+                content: orch_ctx,
+            });
+        }
+        if !lessons.is_empty() {
+            println!("📋 Loaded {} orchestration lessons", lessons.len());
+        }
+        if let Some(ref task) = current_task {
+            println!("🎯 Active task: {} ({}/{} done)", task.goal, task.completed(), task.todos.len());
+        }
     }
     let mut conversation_active = false;
 
@@ -2282,6 +2305,129 @@ async fn main() -> Result<()> {
                                     }
                                 }
                                 _ => println!("Usage: /workflow [new|list|show|advance|check|generate]\n"),
+                            }
+                        }
+
+                        // ── /orchestrate — workflow orchestration ─────────────────────
+                        "/orchestrate" => {
+                            use crate::workflow_orchestration::{LessonsStore, TodoStore, estimate_complexity};
+                            let cwd = std::env::current_dir()?;
+                            let lessons_store = LessonsStore::for_workspace(&cwd);
+                            let todo_store = TodoStore::for_workspace(&cwd);
+                            let parts: Vec<&str> = if args.is_empty() {
+                                vec!["status"]
+                            } else {
+                                args.splitn(3, ' ').collect()
+                            };
+                            match parts[0] {
+                                "status" | "" => {
+                                    match todo_store.load() {
+                                        Some(state) => println!("{}\n", state.status_summary()),
+                                        None => println!("No active task. Start one with: /orchestrate todo add <description>\n"),
+                                    }
+                                }
+                                "lessons" => {
+                                    let lessons = lessons_store.load();
+                                    if lessons.is_empty() {
+                                        println!("No lessons recorded yet.\nRecord one with: /orchestrate lesson <pattern> -> <rule>\n");
+                                    } else {
+                                        println!("Lessons Learned ({}):", lessons.len());
+                                        for l in &lessons {
+                                            println!("  {}", l);
+                                        }
+                                        println!();
+                                    }
+                                }
+                                "lesson" => {
+                                    let text = parts.get(1..).map(|p| p.join(" ")).unwrap_or_default();
+                                    if text.is_empty() {
+                                        println!("Usage: /orchestrate lesson <pattern> -> <rule>\n");
+                                        continue;
+                                    }
+                                    // Parse "pattern -> rule" or "pattern → rule"
+                                    let (pattern, rule) = if let Some((p, r)) = text.split_once("->") {
+                                        (p.trim().to_string(), r.trim().to_string())
+                                    } else if let Some((p, r)) = text.split_once('→') {
+                                        (p.trim().to_string(), r.trim().to_string())
+                                    } else {
+                                        (text.clone(), String::new())
+                                    };
+                                    match lessons_store.add(&pattern, &rule) {
+                                        Ok(lesson) => println!("Recorded lesson #{}: {} -> {}\n", lesson.id, lesson.pattern, lesson.rule),
+                                        Err(e) => eprintln!("Error: {}\n", e),
+                                    }
+                                }
+                                "todo" => {
+                                    let sub = parts.get(1).unwrap_or(&"").trim();
+                                    match sub {
+                                        "" | "show" => {
+                                            match todo_store.load() {
+                                                Some(state) => {
+                                                    println!("{}\n", state.status_summary());
+                                                    if state.ready_to_close() {
+                                                        println!("All tasks complete and verified. Ready to close.\n");
+                                                    }
+                                                }
+                                                None => println!("No active task plan.\nCreate one: /orchestrate todo add <description>\n"),
+                                            }
+                                        }
+                                        "add" => {
+                                            let desc = parts.get(2).unwrap_or(&"").trim();
+                                            if desc.is_empty() {
+                                                println!("Usage: /orchestrate todo add <description>\n");
+                                                continue;
+                                            }
+                                            match todo_store.add_todo(desc) {
+                                                Ok(state) => {
+                                                    let last = state.todos.last().unwrap();
+                                                    println!("Added task #{}: {}", last.id, last.description);
+                                                    println!("  Progress: {}/{}\n", state.completed(), state.todos.len());
+                                                }
+                                                Err(e) => eprintln!("Error: {}\n", e),
+                                            }
+                                        }
+                                        "done" => {
+                                            let id_str = parts.get(2).unwrap_or(&"").trim();
+                                            match id_str.parse::<u32>() {
+                                                Ok(id) => match todo_store.complete_todo(id) {
+                                                    Ok(state) => {
+                                                        println!("Completed task #{}", id);
+                                                        println!("  Progress: {}/{}\n", state.completed(), state.todos.len());
+                                                        if state.all_done() && !state.verified {
+                                                            let complexity = estimate_complexity(&state.goal);
+                                                            if matches!(complexity, crate::workflow_orchestration::TaskComplexity::Complex) {
+                                                                println!("  All tasks done! Run /orchestrate verify before closing.\n");
+                                                            }
+                                                        }
+                                                    }
+                                                    Err(e) => eprintln!("Error: {}\n", e),
+                                                },
+                                                Err(_) => println!("Usage: /orchestrate todo done <id>\n"),
+                                            }
+                                        }
+                                        _ => println!("Usage: /orchestrate todo [show|add|done]\n"),
+                                    }
+                                }
+                                "verify" => {
+                                    match todo_store.mark_verified() {
+                                        Ok(state) => {
+                                            println!("Verification gate passed.");
+                                            if state.ready_to_close() {
+                                                println!("Task is ready to close.\n");
+                                            } else {
+                                                println!("Pending tasks remain: {}\n", state.pending());
+                                            }
+                                        }
+                                        Err(e) => eprintln!("Error: {}\n", e),
+                                    }
+                                }
+                                "reset" => {
+                                    match todo_store.reset() {
+                                        Ok(()) => println!("Task state cleared.\n"),
+                                        Err(e) => eprintln!("Error: {}\n", e),
+                                    }
+                                }
+                                _ => println!("Usage: /orchestrate [status|lessons|lesson|todo|verify|reset]\n"),
                             }
                         }
 
@@ -4857,7 +5003,7 @@ async fn run_agent_repl_with_context(
     };
 
     // Session resume: load previous messages if --resume
-    let resumed_messages: Vec<Message> = if let Some(sid_prefix) = resume_session_id {
+    let mut resumed_messages: Vec<Message> = if let Some(sid_prefix) = resume_session_id {
         // 1. Try JSONL traces first (fastest, preserves full message objects)
         let sessions = list_traces(&trace_dir);
         if let Some(session) = sessions.iter().find(|s| s.session_id.starts_with(sid_prefix)) {
@@ -4946,6 +5092,22 @@ async fn run_agent_repl_with_context(
     } else {
         vec![]
     };
+
+    // Inject orchestration lessons and current task into agent initial messages
+    {
+        use crate::workflow_orchestration::{LessonsStore, TodoStore, orchestration_system_prompt};
+        let lessons_store = LessonsStore::for_workspace(&workspace);
+        let todo_store = TodoStore::for_workspace(&workspace);
+        let lessons = lessons_store.load();
+        let current_task = todo_store.load();
+        let orch_ctx = orchestration_system_prompt(&lessons, current_task.as_ref());
+        if !orch_ctx.is_empty() {
+            resumed_messages.insert(0, Message {
+                role: MessageRole::System,
+                content: orch_ctx,
+            });
+        }
+    }
 
     // Collect skill directories from installed plugins.
     let plugin_skill_dirs = PluginLoader::new().all_skill_paths()

@@ -67,6 +67,7 @@ pub static COMMANDS: &[&str] = &[
     "/discover",
     "/pair",
     "/workflow",
+    "/orchestrate",
     "/verify",
     "/handoff",
     "/orient",
@@ -116,6 +117,9 @@ static SCHEDULE_SUBS: &[&str] = &["every", "list", "cancel"];
 
 /// Sub-commands for `/workflow <sub>`
 static WORKFLOW_SUBS: &[&str] = &["new", "list", "show", "advance", "check", "generate"];
+
+/// Sub-commands for `/orchestrate <sub>`
+static ORCHESTRATE_SUBS: &[&str] = &["status", "lessons", "lesson", "todo", "verify", "reset"];
 
 /// Sub-commands for `/sandbox <sub>`
 static SANDBOX_SUBS: &[&str] = &["status", "start", "stop", "list", "exec", "logs", "runtime"];
@@ -311,6 +315,7 @@ fn complete_slash(line: &str) -> Option<(usize, Vec<Pair>)> {
                 "/sandbox"  => Some(SANDBOX_SUBS),
                 "/schedule" => Some(SCHEDULE_SUBS),
                 "/workflow" => Some(WORKFLOW_SUBS),
+                "/orchestrate" => Some(ORCHESTRATE_SUBS),
                 "/redteam"  => Some(REDTEAM_SUBS),
                 "/compliance" => Some(COMPLIANCE_SUBS),
                 "/verify"   => Some(VERIFY_SUBS),
@@ -634,7 +639,7 @@ mod tests {
     #[test]
     fn test_commands_list_contains_workflow_commands() {
         let workflow = &[
-            "/workflow", "/spec", "/deploy", "/test", "/bisect",
+            "/workflow", "/orchestrate", "/spec", "/deploy", "/test", "/bisect",
             "/sandbox", "/arena", "/redteam", "/verify", "/handoff",
         ];
         for cmd in workflow {
@@ -766,6 +771,7 @@ mod tests {
             ("/sandbox", SANDBOX_SUBS),
             ("/schedule", SCHEDULE_SUBS),
             ("/workflow", WORKFLOW_SUBS),
+            ("/orchestrate", ORCHESTRATE_SUBS),
             ("/redteam", REDTEAM_SUBS),
             ("/compliance", COMPLIANCE_SUBS),
             ("/verify", VERIFY_SUBS),
