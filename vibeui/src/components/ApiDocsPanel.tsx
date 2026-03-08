@@ -240,7 +240,7 @@ function EndpointRow({ endpoint, serverUrl }: { endpoint: Endpoint; serverUrl: s
  <div key={code} style={{ display: "flex", gap: 8, fontSize: 11, lineHeight: 1.7 }}>
  <span style={{
  fontFamily: "monospace", fontWeight: 700, minWidth: 40,
- color: code.startsWith("2") ? "#a6e3a1" : code.startsWith("4") ? "#fab387" : code.startsWith("5") ? "#f38ba8" : "var(--text-primary)",
+ color: code.startsWith("2") ? "var(--success-color)" : code.startsWith("4") ? "var(--warning-color)" : code.startsWith("5") ? "var(--error-color)" : "var(--text-primary)",
  }}>{code}</span>
  <span style={{ color: "var(--text-secondary)" }}>{resp.description}</span>
  </div>

@@ -210,24 +210,24 @@ export function EncodingPanel() {
  URL-safe (no +/=//)
  </label>
  </div>
- <OutputRow label="ENCODED" value={b64Encode(input, urlSafe)} colour="#89b4fa" />
- <OutputRow label="DECODED (treat input as Base64)" value={b64Decode(input)} colour="#a6e3a1" />
+ <OutputRow label="ENCODED" value={b64Encode(input, urlSafe)} colour="var(--accent-color)" />
+ <OutputRow label="DECODED (treat input as Base64)" value={b64Decode(input)} colour="var(--success-color)" />
  </div>
  )}
 
  {/* ── URL ── */}
  {subTab === "url" && (
  <div>
- <OutputRow label="URL ENCODED (encodeURIComponent)" value={urlEncode(input)} colour="#fab387" />
- <OutputRow label="URL DECODED (decodeURIComponent)" value={urlDecode(input)} colour="#a6e3a1" />
+ <OutputRow label="URL ENCODED (encodeURIComponent)" value={urlEncode(input)} colour="var(--warning-color)" />
+ <OutputRow label="URL DECODED (decodeURIComponent)" value={urlDecode(input)} colour="var(--success-color)" />
  </div>
  )}
 
  {/* ── HTML ── */}
  {subTab === "html" && (
  <div>
- <OutputRow label="HTML ENCODED" value={htmlEncode(input)} colour="#f9e2af" />
- <OutputRow label="HTML DECODED (treat input as HTML-encoded)" value={htmlDecode(input)} colour="#a6e3a1" />
+ <OutputRow label="HTML ENCODED" value={htmlEncode(input)} colour="var(--warning-color)" />
+ <OutputRow label="HTML DECODED (treat input as HTML-encoded)" value={htmlDecode(input)} colour="var(--success-color)" />
  </div>
  )}
 
@@ -237,7 +237,7 @@ export function EncodingPanel() {
  {!input
  ? <div style={{ padding: 16, color: "var(--text-muted)", fontSize: 12 }}>Type or paste text above to compute hashes.</div>
  : ["SHA-1", "SHA-256", "SHA-512"].map(algo => (
- <OutputRow key={algo} label={algo} value={hashes[algo] ?? "computing…"} colour={algo === "SHA-256" ? "#a6e3a1" : algo === "SHA-512" ? "#89b4fa" : "#f38ba8"} />
+ <OutputRow key={algo} label={algo} value={hashes[algo] ?? "computing…"} colour={algo === "SHA-256" ? "var(--success-color)" : algo === "SHA-512" ? "var(--accent-color)" : "var(--error-color)"} />
  ))
  }
  <div style={{ padding: "10px 12px", fontSize: 10, color: "var(--text-muted)", lineHeight: 1.7, background: "var(--bg-secondary)", borderTop: "1px solid var(--border-color)" }}>
@@ -273,12 +273,12 @@ export function EncodingPanel() {
  {/* Stat cards */}
  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))", gap: 8, marginBottom: 16 }}>
  {[
- { label: "Characters", value: stats.chars, colour: "#89b4fa" },
- { label: "Bytes (UTF-8)", value: stats.bytes, colour: "#cba6f7" },
- { label: "Words", value: stats.words, colour: "#a6e3a1" },
- { label: "Lines", value: stats.lines, colour: "#fab387" },
- { label: "Sentences", value: stats.sentences, colour: "#f9e2af" },
- { label: "Paragraphs", value: stats.paragraphs, colour: "#f38ba8" },
+ { label: "Characters", value: stats.chars, colour: "var(--accent-color)" },
+ { label: "Bytes (UTF-8)", value: stats.bytes, colour: "var(--text-secondary)" },
+ { label: "Words", value: stats.words, colour: "var(--success-color)" },
+ { label: "Lines", value: stats.lines, colour: "var(--warning-color)" },
+ { label: "Sentences", value: stats.sentences, colour: "var(--warning-color)" },
+ { label: "Paragraphs", value: stats.paragraphs, colour: "var(--error-color)" },
  ].map(({ label, value, colour }) => (
  <div key={label} style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 6, padding: "8px 10px", textAlign: "center" }}>
  <div style={{ fontSize: 20, fontWeight: 700, color: colour, fontFamily: "monospace" }}>{value.toLocaleString()}</div>

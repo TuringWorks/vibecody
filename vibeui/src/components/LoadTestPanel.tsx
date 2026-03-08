@@ -218,7 +218,7 @@ export function LoadTestPanel() {
  <>
  {/* Summary row */}
  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
- <StatCard label="Req/sec" value={result.requests_per_sec} color="#89b4fa" />
+ <StatCard label="Req/sec" value={result.requests_per_sec} color="var(--accent-color)" />
  <StatCard label="Avg" value={result.avg_ms} unit="ms" />
  <StatCard label="p50" value={result.p50_ms} unit="ms" />
  <StatCard label="p90" value={result.p90_ms} unit="ms" />

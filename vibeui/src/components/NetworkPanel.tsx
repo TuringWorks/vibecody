@@ -41,9 +41,9 @@ type Tool = "ports" | "dns" | "tls";
 const DNS_TYPES = ["A", "AAAA", "CNAME", "MX", "TXT", "NS", "SOA", "PTR", "SRV", "ANY"];
 
 const STATE_COLORS: Record<string, string> = {
- LISTEN: "#a6e3a1",
- ESTABLISHED: "#89b4fa",
- OPEN: "#89dceb",
+ LISTEN: "var(--success-color)",
+ ESTABLISHED: "var(--accent-color)",
+ OPEN: "var(--accent-color)",
 };
 
 export function NetworkPanel() {
@@ -214,7 +214,7 @@ export function NetworkPanel() {
  {filteredPorts.map((p, i) => (
  <div key={i} style={{ display: "grid", gridTemplateColumns: "70px 60px 140px 1fr 90px", gap: 8, padding: "5px 8px", fontSize: 11, borderBottom: "1px solid var(--border-color)", alignItems: "center" }}>
  <span style={{ fontFamily: "monospace", fontWeight: 700, color: "var(--text-info, #89b4fa)" }}>{p.port}</span>
- <span style={{ fontSize: 10, fontWeight: 600, color: p.protocol === "tcp" ? "#cba6f7" : "#f9e2af" }}>{p.protocol.toUpperCase()}</span>
+ <span style={{ fontSize: 10, fontWeight: 600, color: p.protocol === "tcp" ? "var(--accent-color)" : "var(--warning-color)" }}>{p.protocol.toUpperCase()}</span>
  <span style={{ fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={`${p.process ?? ""} (${p.pid ?? "?"})`}>
  {p.process ?? "—"}{p.pid ? ` (${p.pid})` : ""}
  </span>

@@ -192,18 +192,18 @@ export function MarkdownPanel({ workspacePath }: { workspacePath: string | null 
  <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
  {/* Toolbar */}
  <div style={{ padding: "6px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
- <span style={{ fontSize: 12, fontWeight: 600, flex: 1, color: dirty ? "#f9e2af" : "var(--text-primary)" }}>
+ <span style={{ fontSize: 12, fontWeight: 600, flex: 1, color: dirty ? "var(--warning-color)" : "var(--text-primary)" }}>
  {fileName}{dirty ? " •" : ""}
  </span>
 
  {/* View toggle */}
  {(["split", "editor", "preview"] as View[]).map(v => (
- <button key={v} onClick={() => setView(v)} style={{ padding: "2px 10px", fontSize: 10, borderRadius: 10, background: view === v ? "rgba(99,102,241,0.25)" : "var(--bg-primary)", border: `1px solid ${view === v ? "#6366f1" : "var(--border-color)"}`, color: view === v ? "#89b4fa" : "var(--text-muted)", cursor: "pointer", fontWeight: view === v ? 700 : 400 }}>
+ <button key={v} onClick={() => setView(v)} style={{ padding: "2px 10px", fontSize: 10, borderRadius: 10, background: view === v ? "rgba(99,102,241,0.25)" : "var(--bg-primary)", border: `1px solid ${view === v ? "var(--accent-color)" : "var(--border-color)"}`, color: view === v ? "var(--accent-color)" : "var(--text-muted)", cursor: "pointer", fontWeight: view === v ? 700 : 400 }}>
  {v === "split" ? "Split" : v === "editor" ? "Edit" : "Preview"}
  </button>
  ))}
 
- <button onClick={save} disabled={saving} style={{ padding: "3px 12px", fontSize: 11, fontWeight: 700, background: "var(--accent-primary, #6366f1)", border: "none", borderRadius: 4, color: "#fff", cursor: saving ? "not-allowed" : "pointer" }}>
+ <button onClick={save} disabled={saving} style={{ padding: "3px 12px", fontSize: 11, fontWeight: 700, background: "var(--accent-color)", border: "none", borderRadius: 4, color: "var(--text-primary)", cursor: saving ? "not-allowed" : "pointer" }}>
  {saving ? "" : "Save"}
  </button>
  <button onClick={exportHtml} style={{ padding: "3px 10px", fontSize: 11, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-muted)", cursor: "pointer" }}>

@@ -26,10 +26,10 @@ interface WsMessage {
 }
 
 const DIR_COLORS: Record<MsgDirection, string> = {
- sent: "#89b4fa",
- received: "#a6e3a1",
+ sent: "var(--accent-color)",
+ received: "var(--success-color)",
  system: "var(--text-primary)",
- error: "#f38ba8",
+ error: "var(--error-color)",
 };
 const DIR_ICONS: Record<MsgDirection, string> = {
  sent: "↑",
@@ -159,7 +159,7 @@ export function WebSocketPanel() {
  try { return JSON.stringify(JSON.parse(raw), null, 2); } catch { return raw; }
  };
 
- const statusColor = status === "open" ? "#a6e3a1" : status === "connecting" ? "#f9e2af" : status === "error" ? "#f38ba8" : "var(--text-muted)";
+ const statusColor = status === "open" ? "var(--success-color)" : status === "connecting" ? "var(--warning-color)" : status === "error" ? "var(--error-color)" : "var(--text-muted)";
 
  const filtered = filterDir === "all" ? messages : messages.filter(m => m.direction === filterDir);
 
@@ -199,7 +199,7 @@ export function WebSocketPanel() {
  <button
  onClick={saveConfig}
  disabled={!label || !url}
- style={{ padding: "3px 0", fontSize: 10, fontWeight: 600, background: "var(--accent-primary, #6366f1)", border: "none", borderRadius: 4, color: "#fff", cursor: "pointer" }}
+ style={{ padding: "3px 0", fontSize: 10, fontWeight: 600, background: "var(--accent-color)", border: "none", borderRadius: 4, color: "var(--text-primary)", cursor: "pointer" }}
  >
  Save current
  </button>
@@ -227,14 +227,14 @@ export function WebSocketPanel() {
  {status !== "open" ? (
  <button
  onClick={connect}
- style={{ padding: "5px 16px", fontSize: 11, fontWeight: 700, background: "var(--accent-primary, #6366f1)", border: "none", borderRadius: 4, color: "#fff", cursor: "pointer" }}
+ style={{ padding: "5px 16px", fontSize: 11, fontWeight: 700, background: "var(--accent-color)", border: "none", borderRadius: 4, color: "var(--text-primary)", cursor: "pointer" }}
  >
  {status === "connecting" ? "Connecting…" : "Connect"}
  </button>
  ) : (
  <button
  onClick={disconnect}
- style={{ padding: "5px 16px", fontSize: 11, fontWeight: 700, background: "#f38ba8", border: "none", borderRadius: 4, color: "#fff", cursor: "pointer" }}
+ style={{ padding: "5px 16px", fontSize: 11, fontWeight: 700, background: "var(--error-color)", border: "none", borderRadius: 4, color: "var(--text-primary)", cursor: "pointer" }}
  >
  ■ Disconnect
  </button>
@@ -244,7 +244,7 @@ export function WebSocketPanel() {
  {/* Filter bar */}
  <div style={{ padding: "5px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 6, alignItems: "center" }}>
  {(["all", "sent", "received", "system", "error"] as const).map(d => (
- <button key={d} onClick={() => setFilterDir(d)} style={{ padding: "2px 10px", fontSize: 10, borderRadius: 10, background: filterDir === d ? "rgba(99,102,241,0.25)" : "var(--bg-primary)", border: `1px solid ${filterDir === d ? "#6366f1" : "var(--border-color)"}`, color: d === "all" ? "var(--text-primary)" : DIR_COLORS[d as MsgDirection], cursor: "pointer", fontWeight: filterDir === d ? 700 : 400 }}>
+ <button key={d} onClick={() => setFilterDir(d)} style={{ padding: "2px 10px", fontSize: 10, borderRadius: 10, background: filterDir === d ? "rgba(99,102,241,0.25)" : "var(--bg-primary)", border: `1px solid ${filterDir === d ? "var(--accent-color)" : "var(--border-color)"}`, color: d === "all" ? "var(--text-primary)" : DIR_COLORS[d as MsgDirection], cursor: "pointer", fontWeight: filterDir === d ? 700 : 400 }}>
  {d === "all" ? "All" : `${DIR_ICONS[d as MsgDirection]} ${d}`}
  </button>
  ))}
@@ -295,7 +295,7 @@ export function WebSocketPanel() {
  <button
  onClick={send}
  disabled={status !== "open" || !input.trim()}
- style={{ padding: "5px 16px", fontSize: 11, fontWeight: 700, background: status === "open" ? "#6366f1" : "var(--bg-secondary)", border: "none", borderRadius: 4, color: status === "open" ? "#fff" : "var(--text-muted)", cursor: status === "open" ? "pointer" : "not-allowed" }}
+ style={{ padding: "5px 16px", fontSize: 11, fontWeight: 700, background: status === "open" ? "var(--accent-color)" : "var(--bg-secondary)", border: "none", borderRadius: 4, color: status === "open" ? "var(--text-primary)" : "var(--text-muted)", cursor: status === "open" ? "pointer" : "not-allowed" }}
  >↑ Send</button>
  <button
  onClick={sendPing}

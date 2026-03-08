@@ -79,7 +79,7 @@ export function CIReviewPanel() {
         <span style={{
           fontSize: 10, padding: "2px 8px", borderRadius: 10, fontWeight: 600,
           background: config.app_id > 0 ? "rgba(166,227,161,0.15)" : "rgba(108,112,134,0.15)",
-          color: config.app_id > 0 ? "#a6e3a1" : "#6c7086",
+          color: config.app_id > 0 ? "var(--success-color)" : "var(--text-muted)",
         }}>
           {config.app_id > 0 ? "Configured" : "Not configured"}
         </span>
@@ -219,7 +219,7 @@ export function CIReviewPanel() {
                   <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4 }}>
                     <span style={{
                       fontSize: 9, padding: "1px 6px", borderRadius: 3, fontWeight: 700,
-                      background: r.status === "success" ? "#a6e3a1" : "#f38ba8",
+                      background: r.status === "success" ? "var(--success-color)" : "var(--error-color)",
                       color: "var(--bg-tertiary)",
                     }}>
                       {r.status}

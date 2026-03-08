@@ -253,7 +253,7 @@ export function TimestampPanel() {
  {parsedDate && (
  <div>
  {fmtRows.map(({ label, value }) => (
- <div key={label} style={{ display: "flex", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.04)", padding: "5px 12px", gap: 10 }}>
+ <div key={label} style={{ display: "flex", alignItems: "center", borderBottom: "1px solid var(--border-color)", padding: "5px 12px", gap: 10 }}>
  <span style={{ width: 140, flexShrink: 0, fontSize: 10, fontWeight: 700, color: "var(--text-muted)" }}>{label}</span>
  <span style={{ flex: 1, fontFamily: "monospace", fontSize: 12, color: "var(--text-primary)", wordBreak: "break-all" }}>{value}</span>
  <CopyBtn text={value} />
@@ -264,7 +264,7 @@ export function TimestampPanel() {
  <div style={{ padding: "6px 12px 0", fontSize: 10, fontWeight: 700, color: "var(--text-muted)", background: "var(--bg-secondary)", borderTop: "1px solid var(--border-color)", marginTop: 8, letterSpacing: "0.05em" }}>WORLD CLOCKS</div>
  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 0 }}>
  {tzRows.map(({ tz: z, label, value }) => (
- <div key={z} style={{ padding: "5px 12px", borderBottom: "1px solid rgba(255,255,255,0.04)", display: "flex", gap: 8, alignItems: "center" }}>
+ <div key={z} style={{ padding: "5px 12px", borderBottom: "1px solid var(--border-color)", display: "flex", gap: 8, alignItems: "center" }}>
  <span style={{ flex: 1, fontSize: 10, color: "var(--text-muted)" }}>{label}</span>
  <span style={{ fontFamily: "monospace", fontSize: 11, color: "var(--text-info, #89b4fa)" }}>{value}</span>
  </div>
@@ -320,7 +320,7 @@ export function TimestampPanel() {
  ["Total seconds", duration.totalSecs.toLocaleString()],
  ["Total ms", duration.totalMs.toLocaleString()],
  ].map(([label, value]) => (
- <div key={label} style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", fontSize: 12, borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+ <div key={label} style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", fontSize: 12, borderBottom: "1px solid var(--border-color)" }}>
  <span style={{ color: "var(--text-muted)", fontSize: 11 }}>{label}</span>
  <span style={{ fontFamily: "monospace", color: "var(--text-primary)" }}>{value}</span>
  </div>
@@ -391,7 +391,7 @@ export function TimestampPanel() {
  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
  <tbody>
  {rows.map(([fmt, ex]) => (
- <tr key={fmt} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+ <tr key={fmt} style={{ borderBottom: "1px solid var(--border-color)" }}>
  <td style={{ padding: "4px 8px", fontFamily: "monospace", color: "var(--text-warning-alt, #fab387)", width: "45%" }}>{fmt}</td>
  <td style={{ padding: "4px 8px", fontFamily: "monospace", color: "var(--text-muted)" }}>{ex}</td>
  </tr>

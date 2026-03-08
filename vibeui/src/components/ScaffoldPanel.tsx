@@ -186,7 +186,7 @@ export function ScaffoldPanel({ workspacePath }: { workspacePath: string | null 
  <button
  onClick={handleWrite}
  disabled={generating || !projectName || !outputDir.trim()}
- style={{ padding: "5px 14px", fontSize: 11, fontWeight: 700, background: generating ? "var(--bg-secondary)" : "#6366f1", border: "none", borderRadius: 4, color: generating ? "var(--text-muted)" : "#fff", cursor: generating || !outputDir.trim() ? "not-allowed" : "pointer", height: 28 }}
+ style={{ padding: "5px 14px", fontSize: 11, fontWeight: 700, background: generating ? "var(--bg-secondary)" : "var(--accent-color)", border: "none", borderRadius: 4, color: generating ? "var(--text-muted)" : "var(--text-primary)", cursor: generating || !outputDir.trim() ? "not-allowed" : "pointer", height: 28 }}
  >
  {generating ? "Writing…" : written ? "Written" : "Write Files"}
  </button>

@@ -31,10 +31,10 @@ interface BookmarkPanelProps {
 const MARKER_TYPES = ["ALL", "TODO", "FIXME", "HACK", "BUG", "NOTE", "XXX"];
 
 const markerColor: Record<string, string> = {
-  TODO: "#89b4fa",
-  FIXME: "#f38ba8",
-  HACK: "#fab387",
-  BUG: "#f38ba8",
+  TODO: "var(--accent-color)",
+  FIXME: "var(--error-color)",
+  HACK: "var(--warning-color)",
+  BUG: "var(--error-color)",
   NOTE: "#6c7086",
   XXX: "#cba6f7",
 };
@@ -119,7 +119,7 @@ export function BookmarkPanel({ workspacePath }: BookmarkPanelProps) {
               padding: "4px 12px", fontSize: 11, fontWeight: 600, borderRadius: 4, cursor: "pointer",
               border: "1px solid var(--border-color)",
               background: tab === t ? "var(--accent, #6366f1)" : "var(--bg-secondary)",
-              color: tab === t ? "#fff" : "var(--text-primary)",
+              color: tab === t ? "var(--text-primary)" : "var(--text-primary)",
             }}
           >
             {t === "markers" ? "Markers" : "Bookmarks"}

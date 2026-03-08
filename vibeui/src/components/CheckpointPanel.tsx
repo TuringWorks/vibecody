@@ -131,8 +131,8 @@ export function CheckpointPanel({ workspacePath }: CheckpointPanelProps) {
             style={{
               padding: "5px 10px",
               fontSize: "12px",
-              background: "var(--accent-blue, #007acc)",
-              color: "#fff",
+              background: "var(--accent-color)",
+              color: "var(--text-primary)",
               border: "none",
               borderRadius: "4px",
               cursor: label.trim() && !loading ? "pointer" : "not-allowed",
@@ -145,7 +145,7 @@ export function CheckpointPanel({ workspacePath }: CheckpointPanelProps) {
         </div>
 
         {error && (
-          <div style={{ marginTop: "8px", padding: "6px 8px", background: "rgba(220,50,50,0.15)", borderRadius: "4px", fontSize: "12px", color: "#f44" }}>
+          <div style={{ marginTop: "8px", padding: "6px 8px", background: "rgba(220,50,50,0.15)", borderRadius: "4px", fontSize: "12px", color: "var(--error-color)" }}>
             {error}
           </div>
         )}
@@ -182,7 +182,7 @@ export function CheckpointPanel({ workspacePath }: CheckpointPanelProps) {
               width: "8px",
               height: "8px",
               borderRadius: "50%",
-              background: "var(--accent-blue, #007acc)",
+              background: "var(--accent-color)",
               flexShrink: 0,
             }} />
 
@@ -286,8 +286,8 @@ export function CheckpointPanel({ workspacePath }: CheckpointPanelProps) {
                 onClick={() => deleteCheckpoint(confirmDelete.index)}
                 style={{
                   padding: "6px 14px", fontSize: "12px",
-                  background: "#c0392b", border: "none",
-                  borderRadius: "4px", color: "#fff", cursor: "pointer",
+                  background: "var(--error-color)", border: "none",
+                  borderRadius: "4px", color: "var(--text-primary)", cursor: "pointer",
                 }}
               >
                 Delete
@@ -339,8 +339,8 @@ export function CheckpointPanel({ workspacePath }: CheckpointPanelProps) {
                 onClick={() => restoreCheckpoint(confirmRestore.index)}
                 style={{
                   padding: "6px 14px", fontSize: "12px",
-                  background: "var(--accent-blue, #007acc)", border: "none",
-                  borderRadius: "4px", color: "#fff", cursor: "pointer",
+                  background: "var(--accent-color)", border: "none",
+                  borderRadius: "4px", color: "var(--text-primary)", cursor: "pointer",
                 }}
               >
                 Restore

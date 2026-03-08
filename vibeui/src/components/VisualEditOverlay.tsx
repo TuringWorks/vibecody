@@ -95,7 +95,7 @@ export function VisualEditOverlay({ element, onClose, onApply }: VisualEditOverl
   return (
     <div style={{
       position: "absolute", bottom: 0, left: 0, right: 0,
-      background: "var(--bg-secondary)", borderTop: "2px solid #6366f1",
+      background: "var(--bg-secondary)", borderTop: "2px solid var(--accent-color)",
       padding: "10px 12px", fontSize: "12px",
       maxHeight: "260px", overflowY: "auto", zIndex: 10,
     }}>
@@ -104,7 +104,7 @@ export function VisualEditOverlay({ element, onClose, onApply }: VisualEditOverl
         <span style={{ fontWeight: 700, color: "var(--accent-primary, #6366f1)" }}>
           Edit &lt;{element.tagName}&gt;
           {element.reactComponent && (
-            <span style={{ color: "#ce93d8", marginLeft: "6px", fontSize: "11px" }}>
+            <span style={{ color: "var(--text-secondary)", marginLeft: "6px", fontSize: "11px" }}>
               &lt;{element.reactComponent}&gt;
             </span>
           )}
@@ -116,7 +116,7 @@ export function VisualEditOverlay({ element, onClose, onApply }: VisualEditOverl
               onClick={() => setEditMode(m)}
               style={{
                 padding: "2px 8px", fontSize: "10px", fontWeight: 600, borderRadius: "3px",
-                border: editMode === m ? "1px solid #6366f1" : "1px solid var(--border-color)",
+                border: editMode === m ? "1px solid var(--accent-color)" : "1px solid var(--border-color)",
                 background: editMode === m ? "rgba(99,102,241,0.15)" : "transparent",
                 color: "var(--text-primary)", cursor: "pointer",
               }}
@@ -207,7 +207,7 @@ export function VisualEditOverlay({ element, onClose, onApply }: VisualEditOverl
         <div style={{
           marginTop: "6px", padding: "4px 8px", fontSize: "11px", borderRadius: "3px",
           background: result.startsWith("Error") ? "rgba(243,139,168,0.1)" : "rgba(166,227,161,0.1)",
-          color: result.startsWith("Error") ? "#f38ba8" : "#a6e3a1",
+          color: result.startsWith("Error") ? "var(--error-color)" : "var(--success-color)",
         }}>
           {result}
         </div>
@@ -223,6 +223,6 @@ function extractText(html: string): string {
 
 const applyBtnStyle: React.CSSProperties = {
   padding: "5px 12px", fontSize: "11px", fontWeight: 600,
-  background: "var(--accent-primary, #6366f1)", color: "#fff", border: "none",
+  background: "var(--accent-primary, #6366f1)", color: "var(--text-primary)", border: "none",
   borderRadius: "4px", cursor: "pointer", alignSelf: "flex-start",
 };

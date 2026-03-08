@@ -103,12 +103,12 @@ function HookRow({
  : hook.handler_type === "http"
  ? hook.http_url || "(no URL)"
  : hook.prompt.slice(0, 50) || "(no prompt)"}
- {hook.async_exec && <span style={{ marginLeft: "6px", color: "#5af" }}>async</span>}
+ {hook.async_exec && <span style={{ marginLeft: "6px", color: "var(--accent-color)" }}>async</span>}
  </div>
  </div>
  <button
  onClick={(e) => { e.stopPropagation(); onDelete(index); }}
- style={{ padding: "2px 6px", fontSize: "11px", background: "none", border: "1px solid var(--border-color)", borderRadius: "3px", color: "#f44", cursor: "pointer" }}
+ style={{ padding: "2px 6px", fontSize: "11px", background: "none", border: "1px solid var(--border-color)", borderRadius: "3px", color: "var(--error-color)", cursor: "pointer" }}
  >
  ✕
  </button>
@@ -349,8 +349,8 @@ export function HooksPanel({ workspacePath }: HooksPanelProps) {
  style={{
  fontSize: "11px",
  padding: "4px 10px",
- background: dirty ? "var(--accent-blue, #007acc)" : "var(--bg-secondary)",
- color: dirty ? "#fff" : "var(--text-secondary)",
+ background: dirty ? "var(--accent-color)" : "var(--bg-secondary)",
+ color: dirty ? "var(--text-primary)" : "var(--text-secondary)",
  border: "none",
  borderRadius: "3px",
  cursor: dirty ? "pointer" : "not-allowed",
@@ -368,9 +368,9 @@ export function HooksPanel({ workspacePath }: HooksPanelProps) {
  padding: "6px 10px",
  marginBottom: "8px",
  fontSize: "11px",
- color: saveMsg.startsWith("Error") ? "#f44" : "#4c4",
- background: saveMsg.startsWith("Error") ? "#f441" : "#4c41",
- border: `1px solid ${saveMsg.startsWith("Error") ? "#f44" : "#4c4"}`,
+ color: saveMsg.startsWith("Error") ? "var(--error-color)" : "var(--success-color)",
+ background: saveMsg.startsWith("Error") ? "rgba(243,139,168,0.1)" : "rgba(166,227,161,0.1)",
+ border: `1px solid ${saveMsg.startsWith("Error") ? "var(--error-color)" : "var(--success-color)"}`,
  borderRadius: "4px",
  }}>
  {saveMsg}
@@ -390,8 +390,8 @@ export function HooksPanel({ workspacePath }: HooksPanelProps) {
  marginTop: "12px",
  fontSize: "12px",
  padding: "6px 16px",
- background: "var(--accent-blue, #007acc)",
- color: "#fff",
+ background: "var(--accent-color)",
+ color: "var(--text-primary)",
  border: "none",
  borderRadius: "4px",
  cursor: "pointer",

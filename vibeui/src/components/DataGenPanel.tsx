@@ -149,10 +149,10 @@ function passwordStrength(pw: string): { score: number; label: string; colour: s
  if (/[a-z]/.test(pw)) score++;
  if (/\d/.test(pw)) score++;
  if (/[^A-Za-z0-9]/.test(pw)) score++;
- if (score <= 2) return { score, label: "Weak", colour: "#f38ba8" };
- if (score <= 4) return { score, label: "Fair", colour: "#fab387" };
- if (score <= 5) return { score, label: "Good", colour: "#f9e2af" };
- return { score, label: "Strong", colour: "#a6e3a1" };
+ if (score <= 2) return { score, label: "Weak", colour: "var(--error-color)" };
+ if (score <= 4) return { score, label: "Fair", colour: "var(--warning-color)" };
+ if (score <= 5) return { score, label: "Good", colour: "var(--warning-color)" };
+ return { score, label: "Strong", colour: "var(--success-color)" };
 }
 
 // ── Component ──────────────────────────────────────────────────────────────────
@@ -374,13 +374,13 @@ export function DataGenPanel() {
  <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", flexDirection: "column", gap: 8 }}>
  <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
  <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Length:</span>
- <input type="range" min={6} max={128} value={pwLen} onChange={e => setPwLen(+e.target.value)} style={{ flex: 1, minWidth: 80, accentColor: "#6366f1" }} />
+ <input type="range" min={6} max={128} value={pwLen} onChange={e => setPwLen(+e.target.value)} style={{ flex: 1, minWidth: 80, accentColor: "var(--accent-color)" }} />
  <span style={{ fontSize: 12, fontFamily: "monospace", color: "var(--text-primary)", width: 30 }}>{pwLen}</span>
  </div>
  <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
  {([["upper","A–Z"],["lower","a–z"],["digits","0–9"],["symbols","!@#"]] as [keyof typeof pwOpts, string][]).map(([k, label]) => (
  <label key={k} style={{ fontSize: 11, color: "var(--text-muted)", display: "flex", gap: 4, alignItems: "center", cursor: "pointer" }}>
- <input type="checkbox" checked={pwOpts[k]} onChange={e => setPwOpts(o => ({...o, [k]: e.target.checked}))} style={{ accentColor: "#6366f1" }} />
+ <input type="checkbox" checked={pwOpts[k]} onChange={e => setPwOpts(o => ({...o, [k]: e.target.checked}))} style={{ accentColor: "var(--accent-color)" }} />
  {label}
  </label>
  ))}

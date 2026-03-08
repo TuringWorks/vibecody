@@ -37,12 +37,12 @@ interface LogPanelProps {
 type LevelFilter = "all" | "error" | "warn" | "info" | "debug";
 
 const levelColor: Record<string, string> = {
-  error: "#f38ba8",
-  warn: "#fab387",
-  info: "#89b4fa",
-  debug: "#6c7086",
-  trace: "#585b70",
-  unknown: "#9399b2",
+  error: "var(--error-color)",
+  warn: "var(--warning-color)",
+  info: "var(--accent-color)",
+  debug: "var(--text-secondary)",
+  trace: "var(--text-secondary)",
+  unknown: "var(--text-muted)",
 };
 
 const levelBadge: Record<string, string> = {

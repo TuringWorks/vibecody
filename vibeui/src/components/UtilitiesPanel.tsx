@@ -48,11 +48,11 @@ const S = {
  },
  btn: (variant?: "primary" | "danger") => ({
  padding: "5px 14px", fontSize: 11, fontWeight: 600,
- background: variant === "primary" ? "#6366f1"
- : variant === "danger" ? "#3a1a1a" : "var(--bg-secondary)",
- color: variant === "primary" ? "#fff"
- : variant === "danger" ? "#f38ba8" : "var(--text-secondary)",
- border: variant === "danger" ? "1px solid #f38ba8" : "1px solid var(--border-color)",
+ background: variant === "primary" ? "var(--accent-color)"
+ : variant === "danger" ? "var(--bg-tertiary)" : "var(--bg-secondary)",
+ color: variant === "primary" ? "var(--text-primary)"
+ : variant === "danger" ? "var(--error-color)" : "var(--text-secondary)",
+ border: variant === "danger" ? "1px solid var(--error-color)" : "1px solid var(--border-color)",
  borderRadius: 4, cursor: "pointer",
  }),
  label: { fontSize: 10, fontWeight: 600 as const, color: "var(--text-muted)", marginBottom: 3, display: "block" as const },
@@ -108,8 +108,8 @@ function JwtTool() {
  <div style={{
  padding: "5px 10px", borderRadius: 4, fontSize: 11, fontWeight: 600,
  background: isExpired ? "rgba(243,139,168,0.1)" : "rgba(166,227,161,0.1)",
- color: isExpired ? "#f38ba8" : "#a6e3a1",
- border: `1px solid ${isExpired ? "#f38ba8" : "#a6e3a1"}`,
+ color: isExpired ? "var(--error-color)" : "var(--success-color)",
+ border: `1px solid ${isExpired ? "var(--error-color)" : "var(--success-color)"}`,
  }}>
  {isExpired ? "Expired" : "Valid"} · {expiry.toLocaleString()}
  {parsed.payload.iat && ` · issued ${new Date(parsed.payload.iat * 1000).toLocaleDateString()}`}
@@ -215,7 +215,7 @@ function RegexTool() {
  let cursor = 0;
  for (const m of matches) {
  if (m.index > cursor) parts.push(text.slice(cursor, m.index).replace(/</g, "&lt;"));
- parts.push(`<mark style="background:#f9e2af;color:var(--bg-tertiary);border-radius:2px">${m[0].replace(/</g, "&lt;")}</mark>`);
+ parts.push(`<mark style="background:var(--warning-color);color:var(--bg-tertiary);border-radius:2px">${m[0].replace(/</g, "&lt;")}</mark>`);
  cursor = m.index + m[0].length;
  }
  parts.push(text.slice(cursor).replace(/</g, "&lt;"));
@@ -373,7 +373,7 @@ function Base64Tool() {
  <span style={S.label}>Decoded</span>
  <button onClick={() => copyText(decoded ?? "")} style={{ ...S.btn(), fontSize: 10, padding: "2px 6px" }}>Copy</button>
  </div>
- <div style={{ ...S.result, minHeight: 48, color: decoded ? "#e6edf3" : "#6b7280" }}>
+ <div style={{ ...S.result, minHeight: 48, color: decoded ? "var(--text-primary)" : "var(--text-muted)" }}>
  {decoded ?? "Invalid base64"}
  </div>
  </div>
@@ -499,8 +499,8 @@ export function UtilitiesPanel() {
  padding: "10px 4px", fontSize: 10, fontWeight: 600,
  background: activeTool === id ? "rgba(99,102,241,0.15)" : "transparent",
  border: "none",
- borderLeft: activeTool === id ? "3px solid #6366f1" : "3px solid transparent",
- color: activeTool === id ? "#6366f1" : "var(--text-muted)",
+ borderLeft: activeTool === id ? "3px solid var(--accent-color)" : "3px solid transparent",
+ color: activeTool === id ? "var(--accent-color)" : "var(--text-muted)",
  cursor: "pointer", display: "flex", flexDirection: "column",
  alignItems: "center", gap: 3, width: "100%",
  }}

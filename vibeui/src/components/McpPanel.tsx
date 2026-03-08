@@ -185,7 +185,7 @@ export function McpPanel() {
  <span style={{ fontWeight: 600, fontSize: "14px" }}>MCP Servers</span>
  <button
  onClick={startAdd}
- style={{ marginLeft: "auto", padding: "4px 10px", fontSize: "12px", background: "var(--accent-blue, #007acc)", color: "#fff", border: "none", borderRadius: "4px", cursor: "pointer" }}
+ style={{ marginLeft: "auto", padding: "4px 10px", fontSize: "12px", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "4px", cursor: "pointer" }}
  >
  + Add Server
  </button>
@@ -197,7 +197,7 @@ export function McpPanel() {
  </p>
 
  {error && (
- <div style={{ fontSize: "12px", color: "#f44", padding: "6px 8px", background: "rgba(220,50,50,0.15)", borderRadius: "4px" }}>
+ <div style={{ fontSize: "12px", color: "var(--error-color)", padding: "6px 8px", background: "rgba(220,50,50,0.15)", borderRadius: "4px" }}>
  {error}
  </div>
  )}
@@ -247,7 +247,7 @@ export function McpPanel() {
  </button>
  <button
  onClick={() => startOAuth(srv.name)}
- style={{ padding: "2px 8px", fontSize: "11px", background: tokenStatus[srv.name] ? "rgba(166,227,161,0.15)" : "var(--bg-tertiary)", border: `1px solid ${tokenStatus[srv.name] ? "#a6e3a1" : "var(--border-color)"}`, borderRadius: "3px", color: tokenStatus[srv.name] ? "#a6e3a1" : "var(--text-primary)", cursor: "pointer" }}
+ style={{ padding: "2px 8px", fontSize: "11px", background: tokenStatus[srv.name] ? "rgba(166,227,161,0.15)" : "var(--bg-tertiary)", border: `1px solid ${tokenStatus[srv.name] ? "var(--success-color)" : "var(--border-color)"}`, borderRadius: "3px", color: tokenStatus[srv.name] ? "var(--success-color)" : "var(--text-primary)", cursor: "pointer" }}
  title="Connect via OAuth"
  >
  OAuth
@@ -260,7 +260,7 @@ export function McpPanel() {
  </button>
  <button
  onClick={() => setConfirmDelete(idx)}
- style={{ padding: "2px 8px", fontSize: "11px", background: "transparent", border: "1px solid #c0392b", borderRadius: "3px", color: "#c0392b", cursor: "pointer" }}
+ style={{ padding: "2px 8px", fontSize: "11px", background: "transparent", border: "1px solid var(--error-color)", borderRadius: "3px", color: "var(--error-color)", cursor: "pointer" }}
  >
  ✕
  </button>
@@ -273,7 +273,7 @@ export function McpPanel() {
 
  {/* Tool test results */}
  {isErr && (
- <div style={{ fontSize: "11px", color: "#f44", padding: "4px 6px", background: "rgba(220,50,50,0.1)", borderRadius: "3px" }}>
+ <div style={{ fontSize: "11px", color: "var(--error-color)", padding: "4px 6px", background: "rgba(220,50,50,0.1)", borderRadius: "3px" }}>
  {res}
  </div>
  )}
@@ -287,7 +287,7 @@ export function McpPanel() {
  </div>
  {res.map((t) => (
  <div key={t.name} style={{ fontSize: "11px", display: "flex", gap: "6px" }}>
- <code style={{ color: "var(--accent-blue, #007acc)", flexShrink: 0 }}>{t.name}</code>
+ <code style={{ color: "var(--accent-color)", flexShrink: 0 }}>{t.name}</code>
  <span style={{ color: "var(--text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.description}</span>
  </div>
  ))}
@@ -367,7 +367,7 @@ export function McpPanel() {
  <button
  onClick={commitEdit}
  disabled={!editing.name.trim() || !editing.command.trim() || saving}
- style={{ padding: "6px 14px", fontSize: "12px", background: "var(--accent-blue, #007acc)", border: "none", borderRadius: "4px", color: "#fff", cursor: "pointer" }}
+ style={{ padding: "6px 14px", fontSize: "12px", background: "var(--accent-color)", border: "none", borderRadius: "4px", color: "var(--text-primary)", cursor: "pointer" }}
  >
  {saving ? "Saving…" : editIdx === null ? "Add" : "Save"}
  </button>
@@ -409,7 +409,7 @@ export function McpPanel() {
  </label>
  )}
  {oauthForm.msg && (
- <div style={{ fontSize: "11px", padding: "6px 8px", borderRadius: "4px", background: oauthForm.msg.startsWith("Error") ? "rgba(220,50,50,0.15)" : "rgba(166,227,161,0.15)", color: oauthForm.msg.startsWith("Error") ? "#f44" : "#a6e3a1" }}>
+ <div style={{ fontSize: "11px", padding: "6px 8px", borderRadius: "4px", background: oauthForm.msg.startsWith("Error") ? "rgba(220,50,50,0.15)" : "rgba(166,227,161,0.15)", color: oauthForm.msg.startsWith("Error") ? "var(--error-color)" : "var(--success-color)" }}>
  {oauthForm.msg}
  </div>
  )}
@@ -418,11 +418,11 @@ export function McpPanel() {
  Cancel
  </button>
  {oauthForm.step === "config" ? (
- <button onClick={initiateOAuth} disabled={oauthForm.busy || !oauthForm.clientId || !oauthForm.authUrl} style={{ padding: "6px 14px", fontSize: "12px", background: "var(--accent-blue, #007acc)", border: "none", borderRadius: "4px", color: "#fff", cursor: "pointer" }}>
+ <button onClick={initiateOAuth} disabled={oauthForm.busy || !oauthForm.clientId || !oauthForm.authUrl} style={{ padding: "6px 14px", fontSize: "12px", background: "var(--accent-color)", border: "none", borderRadius: "4px", color: "var(--text-primary)", cursor: "pointer" }}>
  {oauthForm.busy ? "Opening…" : "Open Browser"}
  </button>
  ) : (
- <button onClick={completeOAuth} disabled={oauthForm.busy || !oauthForm.authCode} style={{ padding: "6px 14px", fontSize: "12px", background: "#a6e3a1", border: "none", borderRadius: "4px", color: "var(--bg-tertiary)", cursor: "pointer", fontWeight: 600 }}>
+ <button onClick={completeOAuth} disabled={oauthForm.busy || !oauthForm.authCode} style={{ padding: "6px 14px", fontSize: "12px", background: "var(--success-color)", border: "none", borderRadius: "4px", color: "var(--bg-tertiary)", cursor: "pointer", fontWeight: 600 }}>
  {oauthForm.busy ? "Exchanging…" : "Connect"}
  </button>
  )}
@@ -445,7 +445,7 @@ export function McpPanel() {
  Cancel
  </button>
  <button onClick={() => deleteServer(confirmDelete)}
- style={{ padding: "6px 14px", fontSize: "12px", background: "#c0392b", border: "none", borderRadius: "4px", color: "#fff", cursor: "pointer" }}>
+ style={{ padding: "6px 14px", fontSize: "12px", background: "var(--error-color)", border: "none", borderRadius: "4px", color: "var(--text-primary)", cursor: "pointer" }}>
  Remove
  </button>
  </div>

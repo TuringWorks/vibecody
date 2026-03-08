@@ -90,7 +90,7 @@ export function MarketplacePanel() {
       {message && (
         <div style={{
           margin: "0 12px", padding: "4px 8px", fontSize: 11, borderRadius: 4,
-          color: message.type === "ok" ? "#a6e3a1" : "#f38ba8",
+          color: message.type === "ok" ? "var(--success-color)" : "var(--error-color)",
           background: message.type === "ok" ? "rgba(166,227,161,0.05)" : "rgba(243,139,168,0.05)",
         }}>
           {message.text}
