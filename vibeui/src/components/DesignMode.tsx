@@ -122,7 +122,7 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
  const iframeRect = iframeContainerRef.current?.getBoundingClientRect();
 
  return (
- <div style={{ display: "flex", height: "100%", background: "var(--bg-primary, #1a1b26)", color: "var(--text-primary)" }}>
+ <div style={{ display: "flex", height: "100%", background: "var(--bg-primary)", color: "var(--text-primary)" }}>
  {/* Left: Component tree */}
  <div style={{ width: 200, borderRight: "1px solid var(--border-color)", padding: 12, overflowY: "auto", flexShrink: 0 }}>
  <div style={{ fontWeight: 600, marginBottom: 12, fontSize: 13 }}>Components</div>
@@ -156,14 +156,14 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
  value={previewUrl}
  onChange={(e) => setPreviewUrl(e.target.value)}
  onKeyDown={(e) => e.key === "Enter" && iframeRef.current?.setAttribute("src", previewUrl)}
- style={{ flex: 1, background: "var(--bg-tertiary)", border: "1px solid var(--border-subtle, #44445a)", borderRadius: 4, color: "inherit", padding: "3px 8px", fontSize: 12 }}
+ style={{ flex: 1, background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "inherit", padding: "3px 8px", fontSize: 12 }}
  />
  <button onClick={() => iframeRef.current?.setAttribute("src", previewUrl)} style={{ background: "none", border: "none", cursor: "pointer", color: "inherit", fontSize: 14 }}>↺</button>
  <button
  onClick={handleVisualEditToggle}
  style={{
- background: visualEditEnabled ? "var(--accent-primary, #6366f1)" : "var(--bg-tertiary)",
- border: "1px solid var(--border-subtle, #44445a)",
+ background: visualEditEnabled ? "var(--accent-color)" : "var(--bg-tertiary)",
+ border: "1px solid var(--border-color)",
  borderRadius: 4,
  padding: "3px 10px",
  cursor: "pointer",
@@ -209,12 +209,12 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
  onChange={(e) => setAiInstruction(e.target.value)}
  placeholder="Describe a component to generate..."
  rows={3}
- style={{ width: "100%", resize: "vertical", background: "var(--bg-secondary)", border: "1px solid var(--border-subtle, #44445a)", borderRadius: 4, color: "inherit", padding: 8, fontSize: 12, boxSizing: "border-box" }}
+ style={{ width: "100%", resize: "vertical", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "inherit", padding: 8, fontSize: 12, boxSizing: "border-box" }}
  />
  <button
  onClick={handleGenerateComponent}
  disabled={isGenerating || !aiInstruction.trim()}
- style={{ width: "100%", background: "var(--accent-primary, #6366f1)", color: "var(--text-on-accent, #fff)", border: "none", borderRadius: 4, padding: "7px 0", cursor: "pointer", fontWeight: 600, fontSize: 13, marginTop: 6 }}
+ style={{ width: "100%", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: 4, padding: "7px 0", cursor: "pointer", fontWeight: 600, fontSize: 13, marginTop: 6 }}
  >
  {isGenerating ? "Generating…" : "Generate"}
  </button>
@@ -251,7 +251,7 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
  value={figmaUrl}
  onChange={(e) => setFigmaUrl(e.target.value)}
  placeholder="https://www.figma.com/file/..."
- style={{ width: "100%", background: "var(--bg-tertiary)", border: "1px solid var(--border-subtle, #44445a)", borderRadius: 4, color: "inherit", padding: "6px 8px", fontSize: 12, marginBottom: 12, boxSizing: "border-box" }}
+ style={{ width: "100%", background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "inherit", padding: "6px 8px", fontSize: 12, marginBottom: 12, boxSizing: "border-box" }}
  />
  <label style={{ fontSize: 12, display: "block", marginBottom: 4 }}>Figma API Token</label>
  <input
@@ -259,7 +259,7 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
  value={figmaToken}
  onChange={(e) => setFigmaToken(e.target.value)}
  placeholder="figd_..."
- style={{ width: "100%", background: "var(--bg-tertiary)", border: "1px solid var(--border-subtle, #44445a)", borderRadius: 4, color: "inherit", padding: "6px 8px", fontSize: 12, marginBottom: 16, boxSizing: "border-box" }}
+ style={{ width: "100%", background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "inherit", padding: "6px 8px", fontSize: 12, marginBottom: 16, boxSizing: "border-box" }}
  />
  {figmaResult.length > 0 && (
  <div style={{ marginBottom: 16 }}>
@@ -273,13 +273,13 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
  <button
  onClick={handleFigmaImport}
  disabled={isGenerating || !figmaUrl.trim() || !figmaToken.trim()}
- style={{ flex: 1, background: "var(--accent-primary, #6366f1)", color: "var(--text-on-accent, #fff)", border: "none", borderRadius: 4, padding: "8px 0", cursor: "pointer", fontWeight: 600, fontSize: 13 }}
+ style={{ flex: 1, background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: 4, padding: "8px 0", cursor: "pointer", fontWeight: 600, fontSize: 13 }}
  >
  {isGenerating ? "Importing…" : "Import"}
  </button>
  <button
  onClick={() => { setShowFigmaDialog(false); setFigmaResult([]); }}
- style={{ flex: 1, background: "var(--bg-tertiary)", border: "1px solid var(--border-subtle, #44445a)", borderRadius: 4, padding: "8px 0", cursor: "pointer", fontSize: 13, color: "inherit" }}
+ style={{ flex: 1, background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: 4, padding: "8px 0", cursor: "pointer", fontSize: 13, color: "inherit" }}
  >
  Cancel
  </button>

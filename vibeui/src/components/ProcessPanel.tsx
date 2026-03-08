@@ -22,10 +22,10 @@ function fmtMem(kb: number): string {
 
 function statusBadge(status: string): React.ReactNode {
  const s = status.toUpperCase();
- if (s.startsWith("S")) return <Circle size={12} strokeWidth={0} fill="#f9e2af" />; // sleeping
- if (s.startsWith("R")) return <Circle size={12} strokeWidth={0} fill="#a6e3a1" />; // running
- if (s.startsWith("Z")) return <Circle size={12} strokeWidth={0} fill="#f38ba8" />; // zombie
- if (s.startsWith("T")) return <Circle size={12} strokeWidth={0} fill="#89b4fa" />; // stopped
+ if (s.startsWith("S")) return <Circle size={12} strokeWidth={0} fill="var(--warning-color)" />; // sleeping
+ if (s.startsWith("R")) return <Circle size={12} strokeWidth={0} fill="var(--success-color)" />; // running
+ if (s.startsWith("Z")) return <Circle size={12} strokeWidth={0} fill="var(--error-color)" />; // zombie
+ if (s.startsWith("T")) return <Circle size={12} strokeWidth={0} fill="var(--accent-color)" />; // stopped
  return <Circle size={12} strokeWidth={0} fill="var(--text-primary)" />;
 }
 

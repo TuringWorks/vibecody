@@ -166,8 +166,8 @@ export function DepsPanel({ workspacePath }: DepsPanelProps) {
                 onClick={() => setFilter(f)}
                 style={{
                   padding: "4px 12px", fontSize: 11, borderRadius: 12,
-                  background: filter === f ? "var(--accent-blue, #6366f1)" : "var(--bg-secondary)",
-                  border: `1px solid ${filter === f ? "var(--accent-blue, #6366f1)" : "var(--border-color)"}`,
+                  background: filter === f ? "var(--accent-color)" : "var(--bg-secondary)",
+                  border: `1px solid ${filter === f ? "var(--accent-color)" : "var(--border-color)"}`,
                   color: "var(--text-primary)", cursor: "pointer",
                   fontWeight: filter === f ? 600 : 400,
                 }}

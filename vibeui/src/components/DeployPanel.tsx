@@ -164,8 +164,8 @@ export function DeployPanel({ workspacePath }: DeployPanelProps) {
  key={t.id}
  onClick={() => setSelectedTarget(t.id)}
  style={{
- background: selectedTarget === t.id ? "var(--accent-blue, #6366f1)" : "var(--bg-secondary)",
- border: `1px solid ${selectedTarget === t.id ? "var(--accent-blue, #6366f1)" : "var(--border-color)"}`,
+ background: selectedTarget === t.id ? "var(--accent-color)" : "var(--bg-secondary)",
+ border: `1px solid ${selectedTarget === t.id ? "var(--accent-color)" : "var(--border-color)"}`,
  borderRadius: 6,
  padding: "7px 6px",
  cursor: "pointer",

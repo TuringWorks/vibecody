@@ -508,7 +508,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  position: 'absolute', top: '4px', right: '4px',
  padding: '2px 7px', fontSize: '10px', fontWeight: 600,
  background: generatingMsg ? 'var(--bg-secondary)' : 'rgba(99,102,241,0.2)',
- color: generatingMsg ? 'var(--text-secondary)' : '#a5b4fc',
+ color: generatingMsg ? 'var(--text-secondary)' : 'var(--accent-color)',
  border: '1px solid rgba(99,102,241,0.4)', borderRadius: '3px',
  cursor: generatingMsg ? 'not-allowed' : 'pointer',
  }}

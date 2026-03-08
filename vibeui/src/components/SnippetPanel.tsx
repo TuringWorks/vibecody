@@ -149,7 +149,7 @@ export function SnippetPanel({ workspacePath: _workspacePath }: SnippetPanelProp
           </select>
         </div>
         <div style={{ padding: "4px 8px" }}>
-          <button onClick={() => { setCreating(true); setSelected(null); }} style={{ ...btnStyle, width: "100%", background: "var(--accent-primary, #6366f1)", color: "#fff" }}>
+          <button onClick={() => { setCreating(true); setSelected(null); }} style={{ ...btnStyle, width: "100%", background: "var(--accent-color)", color: "var(--text-primary)" }}>
             + New Snippet
           </button>
         </div>
@@ -170,7 +170,7 @@ export function SnippetPanel({ workspacePath: _workspacePath }: SnippetPanelProp
                 {s.language && (
                   <span style={{
                     padding: "1px 4px", borderRadius: 3, fontSize: 9, fontWeight: 600,
-                    background: "#89b4fa", color: "var(--bg-tertiary)",
+                    background: "var(--accent-color)", color: "var(--bg-tertiary)",
                   }}>
                     {s.language}
                   </span>
@@ -263,7 +263,7 @@ export function SnippetPanel({ workspacePath: _workspacePath }: SnippetPanelProp
             />
 
             <div style={{ display: "flex", gap: 6 }}>
-              <button onClick={handleSave} disabled={loading} style={{ ...btnStyle, background: "var(--accent-primary, #6366f1)", color: "#fff", flex: 1 }}>
+              <button onClick={handleSave} disabled={loading} style={{ ...btnStyle, background: "var(--accent-color)", color: "var(--text-primary)", flex: 1 }}>
                 {loading ? "Saving..." : "Save Snippet"}
               </button>
               <button onClick={() => setCreating(false)} style={btnStyle}>Cancel</button>

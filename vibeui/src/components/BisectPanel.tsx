@@ -166,7 +166,7 @@ export function BisectPanel({ workspacePath }: BisectPanelProps) {
                 style={inputStyle}
               />
             </div>
-            <button onClick={handleStart} disabled={loading} style={{ ...btnStyle, background: "var(--accent-primary, #6366f1)", color: "#fff" }}>
+            <button onClick={handleStart} disabled={loading} style={{ ...btnStyle, background: "var(--accent-color)", color: "var(--text-primary)" }}>
               {loading ? "Starting..." : "Start Bisect"}
             </button>
           </div>

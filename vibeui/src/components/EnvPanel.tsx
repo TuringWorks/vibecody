@@ -236,8 +236,8 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
                 key={env}
                 onClick={() => handleSwitchEnv(env)}
                 style={{
-                  background: activeEnv === env ? "var(--accent-blue, #6366f1)" : "var(--bg-secondary)",
-                  border: `1px solid ${activeEnv === env ? "var(--accent-blue, #6366f1)" : "var(--border-color)"}`,
+                  background: activeEnv === env ? "var(--accent-color)" : "var(--bg-secondary)",
+                  border: `1px solid ${activeEnv === env ? "var(--accent-color)" : "var(--border-color)"}`,
                   borderRadius: 12,
                   padding: "4px 12px",
                   cursor: "pointer",
@@ -303,8 +303,8 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
           disabled={!dirty || saving}
           style={{
             padding: "6px 14px", fontSize: 12, fontWeight: 600,
-            background: dirty ? "#6366f1" : "var(--bg-secondary)",
-            color: dirty ? "#fff" : "var(--text-primary)",
+            background: dirty ? "var(--accent-color)" : "var(--bg-secondary)",
+            color: dirty ? "var(--text-primary)" : "var(--text-primary)",
             border: "none", borderRadius: 4, cursor: dirty ? "pointer" : "default",
             opacity: dirty ? 1 : 0.5,
           }}
@@ -315,7 +315,7 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
 
       {/* Error */}
       {error && (
-        <div style={{ background: "rgba(243,139,168,0.15)", border: "1px solid #f38ba8", borderRadius: 6, padding: 8, fontSize: 11, color: "var(--text-danger, #f38ba8)" }}>
+        <div style={{ background: "rgba(243,139,168,0.15)", border: "1px solid var(--error-color)", borderRadius: 6, padding: 8, fontSize: 11, color: "var(--text-danger, #f38ba8)" }}>
           {error}
         </div>
       )}
@@ -418,7 +418,7 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
             disabled={!newKey.trim() || !newValue.trim()}
             style={{
               padding: "6px 14px", fontSize: 12, fontWeight: 600,
-              background: "var(--accent-primary, #6366f1)", color: "#fff", border: "none", borderRadius: 4,
+              background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: 4,
               cursor: "pointer", whiteSpace: "nowrap",
             }}
           >

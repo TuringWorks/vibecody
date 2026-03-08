@@ -431,7 +431,7 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  next.has(i) ? next.delete(i) : next.add(i);
  return next;
  })}
- style={{ marginLeft: "16px", fontSize: "10px", background: "none", border: "none", cursor: "pointer", color: "var(--accent-blue, #007acc)", padding: "2px 0" }}
+ style={{ marginLeft: "16px", fontSize: "10px", background: "none", border: "none", cursor: "pointer", color: "var(--accent-color)", padding: "2px 0" }}
  >
  {isExpanded ? "Collapse" : "▼ Show all"}
  </button>
@@ -509,7 +509,7 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  <div
  style={{
  background: "var(--bg-secondary)",
- border: "1px solid var(--accent-blue, #007acc)",
+ border: "1px solid var(--accent-color)",
  borderRadius: "6px",
  padding: "10px",
  }}
