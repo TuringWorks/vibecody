@@ -111,10 +111,12 @@ impl Plugin {
 // ── PluginLoader ──────────────────────────────────────────────────────────────
 
 /// Manages the plugin directory and provides access to installed plugins.
+#[allow(dead_code)]
 pub struct PluginLoader {
     pub plugins_dir: PathBuf,
 }
 
+#[allow(dead_code)]
 impl PluginLoader {
     /// Create a loader rooted at `~/.vibecli/plugins/`.
     pub fn new() -> Self {
@@ -254,6 +256,7 @@ impl PluginLoader {
 
 // ── Filesystem helper ─────────────────────────────────────────────────────────
 
+#[allow(dead_code)]
 fn copy_dir_all(src: &Path, dst: &Path) -> Result<()> {
     std::fs::create_dir_all(dst)?;
     for entry in std::fs::read_dir(src)? {
