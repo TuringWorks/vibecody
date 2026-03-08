@@ -1,0 +1,22 @@
+---
+triggers: ["agent development", "ReAct agent", "agent tool calling", "agent memory", "agent guardrails", "agent testing", "agent observability", "agent loop", "agentic AI"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: ai
+---
+
+# AI Agent Development Patterns
+
+When developing AI agents with tool calling and autonomous capabilities:
+
+1. **ReAct Loop Implementation** — Structure your agent around the Reason-Act-Observe loop: the model reasons about the current state, selects an action (tool call or final answer), the system executes the action and returns the observation, then the model reasons again. Cap iterations (typically 10-25) and implement a fallback response when the limit is reached.
+2. **Tool Schema Design** — Define tools with precise JSON Schema descriptions including parameter types, constraints, enums, and examples. Write tool descriptions from the model's perspective explaining when and why to use each tool. Group related tools logically and limit the active tool set to 10-15 per turn to reduce selection confusion.
+3. **Structured Output Enforcement** — Use constrained decoding, function calling APIs, or response format parameters to guarantee valid JSON/XML outputs. Always validate tool call arguments against the schema before execution. Implement a retry-with-feedback loop for malformed outputs rather than crashing.
+4. **Memory Management Strategy** — Implement tiered memory: working memory (current conversation in context window), short-term memory (session state in Redis/SQLite with summarization), and long-term memory (vector store for semantic retrieval of past interactions). Prune aggressively; a focused 4K context outperforms a cluttered 128K context.
+5. **Context Window Optimization** — Budget your context window explicitly: system prompt (10-15%), tools (15-20%), conversation history (30-40%), retrieval results (15-20%), and reserve (10-15% for model output). Compress tool outputs, summarize long conversations, and use XML/JSON tags to help the model parse structured sections.
+6. **Error Recovery and Self-Correction** — When a tool call fails, feed back a structured error with the error type, message, and suggested fix. Give the model 2-3 retry attempts with the error context before escalating. Implement fallback tool alternatives (e.g., if API search fails, try web search) and log all failures for pattern analysis.
+7. **Human-in-the-Loop Gates** — Define explicit approval checkpoints for high-risk actions (file deletion, deployments, external API calls with side effects). Present the proposed action with full parameters to the user, support approve/reject/modify responses, and implement timeout-based defaults for non-interactive contexts.
+8. **Multi-Agent Coordination** — Use an orchestrator pattern where a planning agent breaks tasks into subtasks and delegates to specialized worker agents. Define clear input/output contracts between agents, implement a shared scratchpad for intermediate results, and use message passing (not shared mutable state) for coordination.
+9. **Agent Testing Strategies** — Test at three levels: unit tests for individual tools with mocked LLM responses, integration tests with recorded LLM interactions (cassette pattern), and evaluation tests with scored rubrics on diverse prompts. Track pass rates over time and flag regressions when prompt or model changes are made.
+10. **Guardrails and Safety** — Implement input validation (block prompt injection patterns, enforce topic boundaries), output validation (check for PII leakage, harmful content, hallucinated URLs), and action validation (allowlist permitted tools per context, enforce resource limits). Use a separate classifier model for content safety when needed.
+11. **Observability and Tracing** — Instrument every agent turn with: input tokens, output tokens, model latency, tool call name and duration, total loop iterations, and final outcome (success/failure/timeout). Use distributed tracing with span-per-tool-call, emit structured logs, and build dashboards tracking cost-per-task and success rates.
+12. **Graceful Degradation** — Design agents to degrade gracefully when components fail: if the primary LLM is down, fall back to a secondary provider; if a tool is unavailable, inform the user and suggest alternatives; if context is too large, summarize and retry. Always prefer a partial useful response over a complete failure.
