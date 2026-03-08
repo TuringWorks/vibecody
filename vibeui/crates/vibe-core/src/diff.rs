@@ -324,4 +324,100 @@ mod tests {
         let result = DiffEngine::apply_diff("anything\n", &[]).unwrap();
         assert_eq!(result, "", "apply_diff with no hunks should produce empty string");
     }
+
+    #[test]
+    fn diff_tag_equality() {
+        assert_eq!(DiffTag::Equal, DiffTag::Equal);
+        assert_eq!(DiffTag::Insert, DiffTag::Insert);
+        assert_eq!(DiffTag::Delete, DiffTag::Delete);
+        assert_ne!(DiffTag::Insert, DiffTag::Delete);
+        assert_ne!(DiffTag::Equal, DiffTag::Insert);
+    }
+
+    #[test]
+    fn generate_diff_multiline_insert() {
+        let original = "line1\n";
+        let modified = "line1\nline2\nline3\nline4\n";
+        let hunks = DiffEngine::generate_diff(original, modified);
+        let inserts: Vec<_> = hunks.iter()
+            .flat_map(|h| h.lines.iter())
+            .filter(|l| l.tag == DiffTag::Insert)
+            .collect();
+        assert_eq!(inserts.len(), 3, "should have 3 inserted lines");
+    }
+
+    #[test]
+    fn generate_diff_multiline_delete() {
+        let original = "a\nb\nc\nd\ne\n";
+        let modified = "a\ne\n";
+        let hunks = DiffEngine::generate_diff(original, modified);
+        let deletes: Vec<_> = hunks.iter()
+            .flat_map(|h| h.lines.iter())
+            .filter(|l| l.tag == DiffTag::Delete)
+            .collect();
+        assert_eq!(deletes.len(), 3, "should have 3 deleted lines (b, c, d)");
+    }
+
+    #[test]
+    fn apply_diff_roundtrip_multi_change() {
+        let original = "alpha\nbeta\ngamma\ndelta\n";
+        let modified = "alpha\nBETA\ngamma\nDELTA\nepsilon\n";
+        let hunks = DiffEngine::generate_diff(original, modified);
+        let result = DiffEngine::apply_diff(original, &hunks).unwrap();
+        assert_eq!(result, modified);
+    }
+
+    #[test]
+    fn format_unified_diff_hunk_header_counts() {
+        let original = "a\nb\nc\n";
+        let modified = "a\nB\nc\n";
+        let hunks = DiffEngine::generate_diff(original, modified);
+        let output = DiffEngine::format_unified_diff(&hunks, Path::new("a.rs"), Path::new("b.rs"));
+        // The @@ line should contain the correct counts
+        assert!(output.contains("@@ -1,3 +1,3 @@"), "hunk header should show 3,3 for single-line replacement: {}", output);
+    }
+
+    #[test]
+    fn diff_hunk_clone() {
+        let hunks = DiffEngine::generate_diff("old\n", "new\n");
+        let cloned = hunks[0].clone();
+        assert_eq!(cloned.lines.len(), hunks[0].lines.len());
+        assert_eq!(cloned.old_start, hunks[0].old_start);
+    }
+
+    #[test]
+    fn diff_line_content_preserved() {
+        let original = "  indented\n\ttabbed\n";
+        let modified = "  indented\n\ttabbed\nextra\n";
+        let hunks = DiffEngine::generate_diff(original, modified);
+        let all_content: String = hunks.iter()
+            .flat_map(|h| h.lines.iter())
+            .filter(|l| l.tag == DiffTag::Equal)
+            .map(|l| l.content.clone())
+            .collect();
+        assert!(all_content.contains("  indented"), "whitespace should be preserved");
+        assert!(all_content.contains("\ttabbed"), "tab should be preserved");
+    }
+
+    #[test]
+    fn format_unified_diff_delete_and_insert_prefixes() {
+        let original = "first\nsecond\nthird\n";
+        let modified = "first\nSECOND\nthird\n";
+        let hunks = DiffEngine::generate_diff(original, modified);
+        let output = DiffEngine::format_unified_diff(&hunks, Path::new("a"), Path::new("b"));
+        assert!(output.contains("-second"), "deleted line should have - prefix");
+        assert!(output.contains("+SECOND"), "inserted line should have + prefix");
+        assert!(output.contains(" first"), "equal line should have space prefix");
+    }
+
+    #[test]
+    fn generate_diff_completely_different_content() {
+        let original = "aaa\nbbb\nccc\n";
+        let modified = "xxx\nyyy\nzzz\n";
+        let hunks = DiffEngine::generate_diff(original, modified);
+        let deletes = hunks.iter().flat_map(|h| h.lines.iter()).filter(|l| l.tag == DiffTag::Delete).count();
+        let inserts = hunks.iter().flat_map(|h| h.lines.iter()).filter(|l| l.tag == DiffTag::Insert).count();
+        assert_eq!(deletes, 3);
+        assert_eq!(inserts, 3);
+    }
 }

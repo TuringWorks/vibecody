@@ -433,4 +433,113 @@ mod tests {
         mgr.init().unwrap();
         assert!(tmp.path().join(".vibecli").join("agents").is_dir());
     }
+
+    // ── AgentDef TOML defaults ──────────────────────────────────────────────
+
+    #[test]
+    fn agent_def_toml_defaults_applied() {
+        let toml_str = r#"
+            name = "minimal"
+            task = "Do something"
+        "#;
+        let def: AgentDef = toml::from_str(toml_str).unwrap();
+        assert_eq!(def.name, "minimal");
+        assert!(def.background); // default_true
+        assert_eq!(def.trigger, "on_demand"); // default_on_demand
+        assert!(def.trigger_paths.is_empty()); // serde default
+        assert_eq!(def.approval_policy, "full-auto"); // default_full_auto
+        assert_eq!(def.max_steps, 20); // default_max_steps
+        assert!(def.provider.is_none());
+        assert!(def.model.is_none());
+    }
+
+    #[test]
+    fn agent_def_toml_overrides_defaults() {
+        let toml_str = r#"
+            name = "watcher"
+            background = false
+            trigger = "file_saved"
+            trigger_paths = ["**/*.py", "**/*.rs"]
+            task = "Lint on save"
+            approval_policy = "suggest"
+            max_steps = 5
+            provider = "openai"
+            model = "gpt-4"
+        "#;
+        let def: AgentDef = toml::from_str(toml_str).unwrap();
+        assert!(!def.background);
+        assert_eq!(def.trigger, "file_saved");
+        assert_eq!(def.trigger_paths, vec!["**/*.py", "**/*.rs"]);
+        assert_eq!(def.approval_policy, "suggest");
+        assert_eq!(def.max_steps, 5);
+        assert_eq!(def.provider.as_deref(), Some("openai"));
+        assert_eq!(def.model.as_deref(), Some("gpt-4"));
+    }
+
+    // ── AgentRun JSON serialization ─────────────────────────────────────────
+
+    #[test]
+    fn agent_run_json_roundtrip() {
+        let mut run = AgentRun::new("run-1", "agent-a", "do work");
+        run.finish(AgentRunStatus::Complete, Some("done".to_string()));
+        let json = serde_json::to_string(&run).unwrap();
+        let back: AgentRun = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.id, "run-1");
+        assert_eq!(back.name, "agent-a");
+        assert_eq!(back.status, AgentRunStatus::Complete);
+        assert!(back.finished_at.is_some());
+        assert_eq!(back.summary.as_deref(), Some("done"));
+    }
+
+    // ── AgentRunStatus serde rename_all lowercase ───────────────────────────
+
+    #[test]
+    fn agent_run_status_json_lowercase_names() {
+        assert_eq!(serde_json::to_string(&AgentRunStatus::Running).unwrap(), r#""running""#);
+        assert_eq!(serde_json::to_string(&AgentRunStatus::Complete).unwrap(), r#""complete""#);
+        assert_eq!(serde_json::to_string(&AgentRunStatus::Failed).unwrap(), r#""failed""#);
+        assert_eq!(serde_json::to_string(&AgentRunStatus::Cancelled).unwrap(), r#""cancelled""#);
+    }
+
+    // ── Multiple runs tracked independently ─────────────────────────────────
+
+    #[test]
+    fn multiple_runs_tracked_independently() {
+        let tmp = TempDir::new().unwrap();
+        let mgr = BackgroundAgentManager::new(tmp.path().to_path_buf());
+        let def_a = mgr.create_template("a", "task a").unwrap();
+        let def_b = mgr.create_template("b", "task b").unwrap();
+
+        let run_a = mgr.start_run(&def_a);
+        let run_b = mgr.start_run(&def_b);
+
+        mgr.finish_run(&run_a.id, AgentRunStatus::Complete, Some("ok".into()));
+        mgr.finish_run(&run_b.id, AgentRunStatus::Failed, Some("err".into()));
+
+        let a = mgr.get_run(&run_a.id).unwrap();
+        let b = mgr.get_run(&run_b.id).unwrap();
+        assert_eq!(a.status, AgentRunStatus::Complete);
+        assert_eq!(b.status, AgentRunStatus::Failed);
+    }
+
+    // ── finish_run on nonexistent ID is a no-op ─────────────────────────────
+
+    #[test]
+    fn finish_run_nonexistent_is_noop() {
+        let tmp = TempDir::new().unwrap();
+        let mgr = BackgroundAgentManager::new(tmp.path().to_path_buf());
+        // Should not panic
+        mgr.finish_run("does-not-exist", AgentRunStatus::Failed, None);
+        assert!(mgr.get_run("does-not-exist").is_none());
+    }
+
+    // ── AgentRun finished_at is after started_at ────────────────────────────
+
+    #[test]
+    fn agent_run_finished_at_after_started_at() {
+        let mut run = AgentRun::new("r1", "test", "task");
+        let started = run.started_at;
+        run.finish(AgentRunStatus::Complete, None);
+        assert!(run.finished_at.unwrap() >= started);
+    }
 }

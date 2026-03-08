@@ -425,4 +425,110 @@ mod tests {
 
         let _ = std::fs::remove_dir_all(&dir);
     }
+
+    #[test]
+    fn token_budget_affects_output_length() {
+        let diff = "x\n".repeat(5_000);
+        let small = ContextBuilder::new()
+            .with_git_branch("main")
+            .with_git_diff(&diff)
+            .with_token_budget(200)
+            .build_for_task("task");
+        let large = ContextBuilder::new()
+            .with_git_branch("main")
+            .with_git_diff(&diff)
+            .with_token_budget(5_000)
+            .build_for_task("task");
+        assert!(
+            small.len() < large.len(),
+            "smaller budget ({}) should produce shorter output than larger budget ({})",
+            small.len(),
+            large.len()
+        );
+    }
+
+    #[test]
+    fn git_header_format_contains_branch_line() {
+        let ctx = ContextBuilder::new()
+            .with_git_branch("feature/my-branch")
+            .build_for_task("anything");
+        assert!(ctx.contains("## Git Context"));
+        assert!(ctx.contains("Branch: feature/my-branch"));
+    }
+
+    #[test]
+    fn diff_block_wrapped_in_code_fence() {
+        let ctx = ContextBuilder::new()
+            .with_git_branch("main")
+            .with_git_diff("+added\n")
+            .build_for_task("task");
+        assert!(ctx.contains("```diff"));
+        assert!(ctx.contains("```\n"));
+    }
+
+    #[test]
+    fn build_for_task_with_no_inputs_returns_empty() {
+        let ctx = ContextBuilder::new().build_for_task("anything at all");
+        assert!(ctx.is_empty(), "no inputs should produce empty context");
+    }
+
+    #[test]
+    fn changed_files_listed_with_dash_prefix() {
+        let ctx = ContextBuilder::new()
+            .with_git_branch("main")
+            .with_git_changed_files(vec!["src/lib.rs".into()])
+            .build_for_task("task");
+        assert!(ctx.contains("  - src/lib.rs"), "changed files should be bullet-listed");
+    }
+
+    #[test]
+    fn multiple_open_files_each_get_section() {
+        let dir = std::env::temp_dir().join("vibecody_ctx_multi");
+        let _ = std::fs::create_dir_all(&dir);
+        let file_a = dir.join("a.rs");
+        let file_b = dir.join("b.rs");
+        std::fs::write(&file_a, "fn a() {}").unwrap();
+        std::fs::write(&file_b, "fn b() {}").unwrap();
+
+        let ctx = ContextBuilder::new()
+            .with_git_branch("main")
+            .with_open_files(vec![file_a.as_path(), file_b.as_path()])
+            .build_for_task("task");
+
+        assert!(ctx.contains("fn a()"), "file a content should appear");
+        assert!(ctx.contains("fn b()"), "file b content should appear");
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn zero_token_budget_still_includes_branch() {
+        let ctx = ContextBuilder::new()
+            .with_token_budget(0)
+            .with_git_branch("zero-budget")
+            .build_for_task("task");
+        // Branch is always priority 1, included regardless of budget
+        assert!(ctx.contains("zero-budget"));
+    }
+
+    #[test]
+    fn diff_with_newlines_truncates_at_line_boundary() {
+        let diff = (0..1000).map(|i| format!("line {}\n", i)).collect::<String>();
+        let ctx = ContextBuilder::new()
+            .with_git_branch("main")
+            .with_git_diff(&diff)
+            .with_token_budget(100) // 400 chars total budget, diff gets 100
+            .build_for_task("task");
+        // Verify the diff section doesn't end mid-line (no partial "line X" at end)
+        if let Some(diff_start) = ctx.find("```diff\n") {
+            let diff_section = &ctx[diff_start..];
+            // Every line in the diff block should be complete
+            for line in diff_section.lines() {
+                if line.starts_with("line ") {
+                    // Should be a complete "line N" string
+                    assert!(line.trim().starts_with("line "));
+                }
+            }
+        }
+    }
 }

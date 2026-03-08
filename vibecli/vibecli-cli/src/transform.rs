@@ -394,4 +394,105 @@ mod tests {
         assert_eq!(back.file, "src/utils.js");
         assert_eq!(back.estimated_changes, 7);
     }
+
+    // ── TransformType display all variants ──
+
+    #[test]
+    fn transform_type_display_all_variants() {
+        assert_eq!(TransformType::Python2To3.to_string(), "Python 2 \u{2192} 3");
+        assert_eq!(TransformType::Vue2To3.to_string(), "Vue 2 \u{2192} 3");
+        assert_eq!(TransformType::JavaUpgrade.to_string(), "Java Version Upgrade");
+    }
+
+    // ── TransformResult serde roundtrip ──
+
+    #[test]
+    fn transform_result_serde_roundtrip() {
+        let result = TransformResult {
+            files_modified: 10,
+            files_failed: 2,
+            summary: "done".to_string(),
+            diff_stats: "+100 -50".to_string(),
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        let back: TransformResult = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.files_modified, 10);
+        assert_eq!(back.files_failed, 2);
+        assert_eq!(back.diff_stats, "+100 -50");
+    }
+
+    // ── parse_plan_json with surrounding text ──
+
+    #[test]
+    fn parse_plan_json_with_surrounding_prose() {
+        let input = r#"Sure, here is the plan:
+[{"file":"src/index.js","description":"Convert require to import","estimated_changes":4}]
+Let me know if you want changes."#;
+        let items = parse_plan_json(input).unwrap();
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0].file, "src/index.js");
+        assert_eq!(items[0].estimated_changes, 4);
+    }
+
+    // ── parse_plan_json with invalid JSON content ──
+
+    #[test]
+    fn parse_plan_json_invalid_json_in_brackets() {
+        let input = "[not valid json}";
+        assert!(parse_plan_json(input).is_err());
+    }
+
+    // ── strip_code_fences with multiple fence blocks (takes first) ──
+
+    #[test]
+    fn strip_code_fences_nested_backticks() {
+        let input = "```rust\nfn main() {\n    println!(\"hello\");\n}\n```";
+        let result = strip_code_fences(input);
+        assert!(result.contains("fn main()"));
+        assert!(!result.contains("```"));
+    }
+
+    // ── TransformPlan summary format ──
+
+    #[test]
+    fn transform_plan_summary_format() {
+        let plan = TransformPlan {
+            transform_type: TransformType::Python2To3,
+            files: vec![
+                TransformPlanItem { file: "a.py".into(), description: "fix print".into(), estimated_changes: 2 },
+                TransformPlanItem { file: "b.py".into(), description: "fix dict".into(), estimated_changes: 3 },
+            ],
+            total_files: 2,
+            summary: "2 files to transform with Python 2 \u{2192} 3".into(),
+        };
+        assert_eq!(plan.total_files, plan.files.len());
+        assert!(plan.summary.contains("2 files"));
+    }
+
+    // ── TransformType JSON values use snake_case ──
+
+    #[test]
+    fn transform_type_json_snake_case() {
+        let json = serde_json::to_string(&TransformType::CommonjsToEsm).unwrap();
+        assert_eq!(json, r#""commonjs_to_esm""#);
+        let json = serde_json::to_string(&TransformType::ReactClassToHooks).unwrap();
+        assert_eq!(json, r#""react_class_to_hooks""#);
+        let json = serde_json::to_string(&TransformType::Python2To3).unwrap();
+        assert_eq!(json, r#""python2_to3""#);
+        let json = serde_json::to_string(&TransformType::JavaUpgrade).unwrap();
+        assert_eq!(json, r#""java_upgrade""#);
+    }
+
+    // ── Custom TransformType serde ──
+
+    #[test]
+    fn transform_type_custom_serde_roundtrip() {
+        let t = TransformType::Custom("webpack-to-vite".to_string());
+        let json = serde_json::to_string(&t).unwrap();
+        let back: TransformType = serde_json::from_str(&json).unwrap();
+        match back {
+            TransformType::Custom(s) => assert_eq!(s, "webpack-to-vite"),
+            _ => panic!("Expected Custom variant"),
+        }
+    }
 }

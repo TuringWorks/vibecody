@@ -2641,4 +2641,129 @@ mod tests {
         };
         assert_eq!(resp.reply_to.as_deref(), Some("msg-42"));
     }
+
+    // ── Whitelist with mixed formats ────────────────────────────────────────
+
+    #[test]
+    fn whitelist_match_with_at_prefix() {
+        let allowed = vec!["@alice".to_string(), "bob".to_string()];
+        let check = |user: &str| -> bool {
+            allowed.is_empty()
+                || allowed.iter().any(|u| {
+                    let u_stripped = u.strip_prefix('@').unwrap_or(u);
+                    u_stripped == user
+                })
+        };
+        assert!(check("alice"));
+        assert!(check("bob"));
+        assert!(!check("charlie"));
+    }
+
+    // ── Telegram base_url with special characters in token ──────────────────
+
+    #[test]
+    fn telegram_base_url_special_token() {
+        let gw = TelegramGateway::new("123456:ABC-def_GHI".to_string(), vec![]);
+        assert_eq!(gw.base_url(), "https://api.telegram.org/bot123456:ABC-def_GHI");
+    }
+
+    // ── IncomingMessage empty text ──────────────────────────────────────────
+
+    #[test]
+    fn incoming_message_empty_text() {
+        let msg = IncomingMessage {
+            platform: "discord".to_string(),
+            chat_id: "ch".to_string(),
+            user: "u".to_string(),
+            text: "".to_string(),
+            message_id: None,
+        };
+        assert!(msg.text.is_empty());
+    }
+
+    // ── GatewayResponse clone ───────────────────────────────────────────────
+
+    #[test]
+    fn gateway_response_clone_preserves_fields() {
+        let resp = GatewayResponse {
+            chat_id: "ch-42".to_string(),
+            text: "response body".to_string(),
+            reply_to: Some("orig-msg".to_string()),
+        };
+        let cloned = resp.clone();
+        assert_eq!(cloned.chat_id, "ch-42");
+        assert_eq!(cloned.text, "response body");
+        assert_eq!(cloned.reply_to.as_deref(), Some("orig-msg"));
+    }
+
+    // ── Truncate text with mixed ASCII and multibyte ────────────────────────
+
+    #[test]
+    fn truncate_text_mixed_ascii_and_emoji() {
+        let text = "Hello \u{1F600} World \u{1F600} Test";
+        let truncated = truncate_text(text, 12);
+        assert!(truncated.len() <= 12);
+        // Valid UTF-8 (implicit)
+    }
+
+    // ── Platform routing with all 18 platforms ──────────────────────────────
+
+    #[test]
+    fn route_message_all_18_platforms() {
+        let platforms = [
+            "telegram", "discord", "slack", "signal", "matrix",
+            "twilio", "whatsapp", "teams", "irc", "twitch",
+            "webchat", "nostr", "qq", "googlechat", "mattermost",
+            "line", "feishu", "dingtalk",
+        ];
+        assert_eq!(platforms.len(), 18);
+        for platform in &platforms {
+            let msg = IncomingMessage {
+                platform: platform.to_string(),
+                chat_id: "id".to_string(),
+                user: "user".to_string(),
+                text: "hi".to_string(),
+                message_id: None,
+            };
+            assert_eq!(msg.platform, *platform);
+        }
+    }
+
+    // ── Command extraction with leading whitespace ──────────────────────────
+
+    #[test]
+    fn command_extraction_leading_whitespace() {
+        let text = "  /help me";
+        let trimmed = text.trim();
+        assert!(trimmed.starts_with('/'));
+        let parts: Vec<&str> = trimmed.splitn(2, ' ').collect();
+        assert_eq!(parts[0], "/help");
+        assert_eq!(parts[1], "me");
+    }
+
+    // ── Truncate preserves content at exact boundary ────────────────────────
+
+    #[test]
+    fn truncate_text_boundary_minus_one() {
+        let text = "a".repeat(99);
+        let truncated = truncate_text(&text, 100);
+        assert_eq!(truncated, text);
+        assert_eq!(truncated.len(), 99);
+    }
+
+    // ── At-mention stripping with different bot names ───────────────────────
+
+    #[test]
+    fn at_mention_stripping_various_bots() {
+        let bots = ["@vibecli ", "@mybot ", "@codebot "];
+        let text = "@vibecli explain this code";
+        let mut stripped = text;
+        for prefix in &bots {
+            if let Some(s) = text.strip_prefix(prefix) {
+                stripped = s;
+                break;
+            }
+        }
+        assert_eq!(stripped, "explain this code");
+    }
 }

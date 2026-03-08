@@ -704,4 +704,109 @@ mod tests {
         assert_eq!(p.config.model, "glm-4-flash");
         assert_eq!(p.config.temperature, Some(0.3));
     }
+
+    // ── additional edge case tests ──────────────────────────────────────
+
+    #[test]
+    fn zhipu_message_unicode_cjk_roundtrip() {
+        let msg = ZhipuMessage { role: "user".into(), content: "你好世界 Hello 日本語".into() };
+        let json = serde_json::to_string(&msg).unwrap();
+        let msg2: ZhipuMessage = serde_json::from_str(&json).unwrap();
+        assert_eq!(msg2.content, "你好世界 Hello 日本語");
+    }
+
+    #[test]
+    fn zhipu_usage_deser() {
+        let json = r#"{"prompt_tokens":200,"completion_tokens":80}"#;
+        let usage: ZhipuUsage = serde_json::from_str(json).unwrap();
+        assert_eq!(usage.prompt_tokens, 200);
+        assert_eq!(usage.completion_tokens, 80);
+    }
+
+    #[test]
+    fn jwt_generation_same_key_produces_3_part_token() {
+        let p = ZhipuProvider::new(test_config());
+        let t1 = p.generate_token("testid.testsecret").unwrap();
+        let parts: Vec<&str> = t1.split('.').collect();
+        assert_eq!(parts.len(), 3);
+        // Each part should be non-empty
+        assert!(!parts[0].is_empty());
+        assert!(!parts[1].is_empty());
+        assert!(!parts[2].is_empty());
+    }
+
+    #[test]
+    fn jwt_generation_empty_secret_still_works() {
+        let p = ZhipuProvider::new(test_config());
+        let result = p.generate_token("myid.");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().split('.').count(), 3);
+    }
+
+    #[test]
+    fn jwt_key_with_multiple_dots_uses_first_split() {
+        let p = ZhipuProvider::new(test_config());
+        // "id.secret.extra" splits into id="id", secret="secret.extra"
+        let result = p.generate_token("id.secret.extra");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().split('.').count(), 3);
+    }
+
+    #[test]
+    fn base64_url_encode_single_byte() {
+        let result = base64_url_encode(&[0xFF]);
+        assert!(!result.is_empty());
+        // Should only use URL-safe chars
+        for c in result.chars() {
+            assert!(c.is_ascii_alphanumeric() || c == '-' || c == '_');
+        }
+    }
+
+    #[test]
+    fn base64_url_encode_three_byte_aligned() {
+        // 3 bytes should produce exactly 4 chars (no padding needed)
+        let result = base64_url_encode(b"abc");
+        assert_eq!(result.len(), 4);
+    }
+
+    #[test]
+    fn hmac_sha256_empty_data() {
+        let mut h = HmacSha256::new(b"key");
+        h.update(b"");
+        let result = h.finalize();
+        assert_eq!(result.len(), 32);
+        // Should be deterministic
+        let mut h2 = HmacSha256::new(b"key");
+        h2.update(b"");
+        assert_eq!(result, h2.finalize());
+    }
+
+    #[test]
+    fn hmac_sha256_long_key() {
+        // Key longer than 64 bytes triggers SHA-256 hash of the key
+        let long_key = vec![0xABu8; 100];
+        let mut h = HmacSha256::new(&long_key);
+        h.update(b"test data");
+        let result = h.finalize();
+        assert_eq!(result.len(), 32);
+    }
+
+    #[test]
+    fn zhipu_stream_response_deser_with_content() {
+        let json = r#"{"choices":[{"delta":{"content":"你好"}}]}"#;
+        let resp: ZhipuStreamResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.choices[0].delta.content.as_deref(), Some("你好"));
+    }
+
+    #[test]
+    fn build_messages_single_system_context_not_injected() {
+        use crate::provider::MessageRole;
+        let p = ZhipuProvider::new(test_config());
+        let messages = vec![
+            Message { role: MessageRole::System, content: "sys".into() },
+        ];
+        let result = p.build_messages(&messages, Some("ctx".into()));
+        // Last message is "system", not "user", so context should NOT be injected
+        assert_eq!(result[0].content, "sys");
+    }
 }

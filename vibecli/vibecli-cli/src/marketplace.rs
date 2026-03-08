@@ -208,4 +208,112 @@ mod tests {
         // Should find the docker plugin in builtins
         assert!(results.iter().any(|p| p.name.contains("docker")));
     }
+
+    // ── MarketplacePlugin serde roundtrip ────────────────────────────────────
+
+    #[test]
+    fn marketplace_plugin_serde_roundtrip() {
+        let plugin = MarketplacePlugin {
+            name: "test-plugin".to_string(),
+            description: "A test plugin".to_string(),
+            version: "2.1.0".to_string(),
+            author: "TestAuthor".to_string(),
+            repo_url: "https://github.com/example/test-plugin".to_string(),
+            tags: vec!["testing".into(), "ci".into()],
+            downloads: 42,
+            updated_at: "2026-03-07".to_string(),
+        };
+        let json = serde_json::to_string(&plugin).unwrap();
+        let back: MarketplacePlugin = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.name, "test-plugin");
+        assert_eq!(back.version, "2.1.0");
+        assert_eq!(back.tags, vec!["testing", "ci"]);
+        assert_eq!(back.downloads, 42);
+    }
+
+    // ── MarketplacePlugin defaults for optional fields ───────────────────────
+
+    #[test]
+    fn marketplace_plugin_json_defaults() {
+        let json = r#"{
+            "name": "minimal",
+            "description": "desc",
+            "version": "0.1.0",
+            "author": "anon",
+            "repo_url": "https://example.com"
+        }"#;
+        let plugin: MarketplacePlugin = serde_json::from_str(json).unwrap();
+        assert!(plugin.tags.is_empty());
+        assert_eq!(plugin.downloads, 0);
+        assert_eq!(plugin.updated_at, "");
+    }
+
+    // ── builtin_plugins have valid data ──────────────────────────────────────
+
+    #[test]
+    fn builtin_plugins_have_valid_urls() {
+        for plugin in builtin_plugins() {
+            assert!(plugin.repo_url.starts_with("https://"), "repo_url for {} should be https", plugin.name);
+            assert!(!plugin.name.is_empty());
+            assert!(!plugin.description.is_empty());
+            assert!(!plugin.version.is_empty());
+            assert!(!plugin.author.is_empty());
+        }
+    }
+
+    #[test]
+    fn builtin_plugins_have_unique_names() {
+        let plugins = builtin_plugins();
+        let mut names: Vec<&str> = plugins.iter().map(|p| p.name.as_str()).collect();
+        names.sort();
+        names.dedup();
+        assert_eq!(names.len(), plugins.len(), "builtin plugin names must be unique");
+    }
+
+    // ── search matches on tags ───────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn search_by_tag() {
+        let m = Marketplace::new();
+        let results = m.search("devops").await.unwrap();
+        assert!(results.len() >= 1, "should match plugins tagged with devops");
+    }
+
+    // ── search matches on author ─────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn search_by_author() {
+        let m = Marketplace::new();
+        let results = m.search("vibecody").await.unwrap();
+        assert_eq!(results.len(), builtin_plugins().len(), "all builtins are by VibeCody");
+    }
+
+    // ── search case insensitive ──────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn search_case_insensitive() {
+        let m = Marketplace::new();
+        let results_lower = m.search("docker").await.unwrap();
+        let results_upper = m.search("DOCKER").await.unwrap();
+        assert_eq!(results_lower.len(), results_upper.len());
+    }
+
+    // ── search no match returns empty ────────────────────────────────────────
+
+    #[tokio::test]
+    async fn search_no_match_returns_empty() {
+        let m = Marketplace::new();
+        let results = m.search("zzz_nonexistent_plugin_xyz").await.unwrap();
+        assert!(results.is_empty());
+    }
+
+    // ── MarketplaceIndex empty plugins ───────────────────────────────────────
+
+    #[test]
+    fn marketplace_index_empty_defaults() {
+        let json = r#"{}"#;
+        let index: MarketplaceIndex = serde_json::from_str(json).unwrap();
+        assert!(index.plugins.is_empty());
+        assert_eq!(index.updated_at, "");
+    }
 }

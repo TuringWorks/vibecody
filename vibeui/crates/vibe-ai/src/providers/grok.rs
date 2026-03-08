@@ -394,4 +394,100 @@ mod tests {
         assert_eq!(result[1].role, "user");
         assert_eq!(result[2].role, "assistant");
     }
+
+    // ── request serialization roundtrip ─────────────────────────────────
+
+    #[test]
+    fn grok_request_model_field_preserved() {
+        let req = GrokRequest {
+            model: "grok-3-mini".into(),
+            messages: vec![GrokMessage { role: "user".into(), content: "test".into() }],
+            temperature: None,
+            max_tokens: None,
+            stream: false,
+        };
+        let json = serde_json::to_value(&req).unwrap();
+        assert_eq!(json["model"], "grok-3-mini");
+        assert_eq!(json["stream"], false);
+    }
+
+    #[test]
+    fn grok_request_stream_true_serialized() {
+        let req = GrokRequest {
+            model: "grok-2".into(),
+            messages: vec![],
+            temperature: None,
+            max_tokens: None,
+            stream: true,
+        };
+        let json = serde_json::to_value(&req).unwrap();
+        assert_eq!(json["stream"], true);
+    }
+
+    #[test]
+    fn grok_message_roundtrip() {
+        let msg = GrokMessage { role: "user".into(), content: "hello world".into() };
+        let json = serde_json::to_string(&msg).unwrap();
+        let msg2: GrokMessage = serde_json::from_str(&json).unwrap();
+        assert_eq!(msg.role, msg2.role);
+        assert_eq!(msg.content, msg2.content);
+    }
+
+    #[test]
+    fn grok_response_deser_multiple_choices() {
+        let json = r#"{"choices":[{"message":{"role":"assistant","content":"a1"}},{"message":{"role":"assistant","content":"a2"}}]}"#;
+        let resp: GrokResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.choices.len(), 2);
+        assert_eq!(resp.choices[0].message.content, "a1");
+        assert_eq!(resp.choices[1].message.content, "a2");
+    }
+
+    #[test]
+    fn grok_response_deser_empty_choices() {
+        let json = r#"{"choices":[]}"#;
+        let resp: GrokResponse = serde_json::from_str(json).unwrap();
+        assert!(resp.choices.is_empty());
+    }
+
+    #[test]
+    fn grok_stream_response_deser_multiple_choices() {
+        let json = r#"{"choices":[{"delta":{"content":"a"}},{"delta":{"content":"b"}}]}"#;
+        let resp: GrokStreamResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.choices.len(), 2);
+        assert_eq!(resp.choices[1].delta.content.as_deref(), Some("b"));
+    }
+
+    #[test]
+    fn grok_message_unicode_content() {
+        let msg = GrokMessage { role: "user".into(), content: "こんにちは 🌍".into() };
+        let json = serde_json::to_string(&msg).unwrap();
+        let msg2: GrokMessage = serde_json::from_str(&json).unwrap();
+        assert_eq!(msg2.content, "こんにちは 🌍");
+    }
+
+    #[test]
+    fn grok_request_temperature_boundary_values() {
+        let req = GrokRequest {
+            model: "grok-2".into(),
+            messages: vec![],
+            temperature: Some(0.0),
+            max_tokens: Some(1),
+            stream: false,
+        };
+        let json = serde_json::to_value(&req).unwrap();
+        assert_eq!(json["temperature"], 0.0);
+        assert_eq!(json["max_tokens"], 1);
+    }
+
+    #[test]
+    fn provider_preserves_model_config() {
+        let mut cfg = test_config();
+        cfg.model = "grok-3".into();
+        cfg.temperature = Some(0.7);
+        cfg.max_tokens = Some(4096);
+        let p = GrokProvider::new(cfg);
+        assert_eq!(p.config.model, "grok-3");
+        assert_eq!(p.config.temperature, Some(0.7));
+        assert_eq!(p.config.max_tokens, Some(4096));
+    }
 }

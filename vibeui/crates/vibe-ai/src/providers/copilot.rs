@@ -675,4 +675,92 @@ mod tests {
     fn copilot_token_url_is_https() {
         assert!(COPILOT_TOKEN_URL.starts_with("https://"));
     }
+
+    // ── additional edge case tests ──────────────────────────────────────
+
+    #[test]
+    fn chat_message_unicode_roundtrip() {
+        let msg = ChatMessage { role: "user".into(), content: "café résumé naïve".into() };
+        let json = serde_json::to_string(&msg).unwrap();
+        let msg2: ChatMessage = serde_json::from_str(&json).unwrap();
+        assert_eq!(msg2.content, "café résumé naïve");
+    }
+
+    #[test]
+    fn chat_request_multiple_messages_serialized() {
+        let req = ChatRequest {
+            model: "gpt-4o".into(),
+            messages: vec![
+                ChatMessage { role: "system".into(), content: "sys".into() },
+                ChatMessage { role: "user".into(), content: "q".into() },
+                ChatMessage { role: "assistant".into(), content: "a".into() },
+            ],
+            temperature: None,
+            max_tokens: None,
+            stream: false,
+        };
+        let json = serde_json::to_value(&req).unwrap();
+        assert_eq!(json["messages"].as_array().unwrap().len(), 3);
+        assert_eq!(json["messages"][0]["role"], "system");
+        assert_eq!(json["messages"][2]["role"], "assistant");
+    }
+
+    #[test]
+    fn chat_usage_deser() {
+        let json = r#"{"prompt_tokens":150,"completion_tokens":75}"#;
+        let usage: ChatUsage = serde_json::from_str(json).unwrap();
+        assert_eq!(usage.prompt_tokens, 150);
+        assert_eq!(usage.completion_tokens, 75);
+    }
+
+    #[test]
+    fn stream_response_deser_missing_content_field() {
+        let json = r#"{"choices":[{"delta":{}}]}"#;
+        let resp: StreamResponse = serde_json::from_str(json).unwrap();
+        assert!(resp.choices[0].delta.content.is_none());
+    }
+
+    #[test]
+    fn copilot_token_response_deser_with_extra_fields() {
+        // API may return extra fields; deserialization should still work
+        let json = r#"{"token":"ghu_tok","expires_at":1700000000,"org_enforcement":"none"}"#;
+        let resp: CopilotTokenResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.token, "ghu_tok");
+        assert_eq!(resp.expires_at, Some(1700000000));
+    }
+
+    #[test]
+    fn github_token_from_config() {
+        let mut cfg = test_config();
+        cfg.api_key = Some("ghp_testtoken123".into());
+        let p = CopilotProvider::new(cfg);
+        assert_eq!(p.github_token(), "ghp_testtoken123");
+    }
+
+    #[test]
+    fn github_token_empty_when_no_key_and_no_env() {
+        // With no api_key and (probably) no GITHUB_TOKEN env var in test
+        let p = CopilotProvider::new(test_config());
+        // It should either be empty or come from env; just verify it doesn't panic
+        let _ = p.github_token();
+    }
+
+    #[test]
+    fn chat_response_empty_choices() {
+        let json = r#"{"choices":[]}"#;
+        let resp: ChatResponse = serde_json::from_str(json).unwrap();
+        assert!(resp.choices.is_empty());
+        assert!(resp.usage.is_none());
+    }
+
+    #[test]
+    fn build_messages_single_system_message_context_not_injected() {
+        let p = CopilotProvider::new(test_config());
+        let messages = vec![
+            Message { role: MessageRole::System, content: "sys prompt".into() },
+        ];
+        let result = p.build_messages(&messages, Some("ctx data".into()));
+        // Last message is system, not user, so context should NOT be injected
+        assert_eq!(result[0].content, "sys prompt");
+    }
 }

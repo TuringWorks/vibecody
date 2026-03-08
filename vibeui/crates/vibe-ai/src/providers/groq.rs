@@ -411,4 +411,94 @@ mod tests {
         let resp: GroqStreamResponse = serde_json::from_str(json).unwrap();
         assert!(resp.choices[0].delta.content.is_none());
     }
+
+    // ── additional serde & edge case tests ──────────────────────────────
+
+    #[test]
+    fn groq_message_roundtrip() {
+        let msg = GroqMessage { role: "assistant".into(), content: "fast response".into() };
+        let json = serde_json::to_string(&msg).unwrap();
+        let msg2: GroqMessage = serde_json::from_str(&json).unwrap();
+        assert_eq!(msg.role, msg2.role);
+        assert_eq!(msg.content, msg2.content);
+    }
+
+    #[test]
+    fn groq_response_deser_multiple_choices() {
+        let json = r#"{"choices":[{"message":{"role":"assistant","content":"c1"}},{"message":{"role":"assistant","content":"c2"}}],"usage":{"prompt_tokens":5,"completion_tokens":2}}"#;
+        let resp: GroqResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.choices.len(), 2);
+        assert_eq!(resp.choices[1].message.content, "c2");
+    }
+
+    #[test]
+    fn groq_response_deser_empty_choices() {
+        let json = r#"{"choices":[]}"#;
+        let resp: GroqResponse = serde_json::from_str(json).unwrap();
+        assert!(resp.choices.is_empty());
+        assert!(resp.usage.is_none());
+    }
+
+    #[test]
+    fn groq_stream_response_deser_multiple_choices() {
+        let json = r#"{"choices":[{"delta":{"content":"x"}},{"delta":{"content":"y"}}]}"#;
+        let resp: GroqStreamResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.choices.len(), 2);
+        assert_eq!(resp.choices[1].delta.content.as_deref(), Some("y"));
+    }
+
+    #[test]
+    fn groq_request_model_field_preserved() {
+        let req = GroqRequest {
+            model: "mixtral-8x7b-32768".into(),
+            messages: vec![GroqMessage { role: "user".into(), content: "test".into() }],
+            temperature: None,
+            max_tokens: None,
+            stream: false,
+        };
+        let json = serde_json::to_value(&req).unwrap();
+        assert_eq!(json["model"], "mixtral-8x7b-32768");
+    }
+
+    #[test]
+    fn groq_request_temperature_boundary() {
+        let req = GroqRequest {
+            model: "llama-3.1-8b-instant".into(),
+            messages: vec![],
+            temperature: Some(0.0),
+            max_tokens: Some(1),
+            stream: false,
+        };
+        let json = serde_json::to_value(&req).unwrap();
+        assert_eq!(json["temperature"], 0.0);
+        assert_eq!(json["max_tokens"], 1);
+    }
+
+    #[test]
+    fn groq_message_unicode_content() {
+        let msg = GroqMessage { role: "user".into(), content: "日本語テスト 🚀".into() };
+        let json = serde_json::to_string(&msg).unwrap();
+        let msg2: GroqMessage = serde_json::from_str(&json).unwrap();
+        assert_eq!(msg2.content, "日本語テスト 🚀");
+    }
+
+    #[test]
+    fn groq_usage_deser() {
+        let json = r#"{"prompt_tokens":100,"completion_tokens":50}"#;
+        let usage: GroqUsage = serde_json::from_str(json).unwrap();
+        assert_eq!(usage.prompt_tokens, 100);
+        assert_eq!(usage.completion_tokens, 50);
+    }
+
+    #[test]
+    fn provider_preserves_model_config() {
+        let mut cfg = test_config();
+        cfg.model = "gemma2-9b-it".into();
+        cfg.temperature = Some(0.9);
+        cfg.max_tokens = Some(8192);
+        let p = GroqProvider::new(cfg);
+        assert_eq!(p.config.model, "gemma2-9b-it");
+        assert_eq!(p.config.temperature, Some(0.9));
+        assert_eq!(p.config.max_tokens, Some(8192));
+    }
 }

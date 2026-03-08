@@ -378,4 +378,131 @@ mod tests {
         assert_eq!(deserialized.range.start.line, 42);
         assert_eq!(deserialized.range.start.character, 4);
     }
+
+    // ── Diagnostic severity level tests ──────────────────────────────────
+
+    #[test]
+    fn diagnostic_severity_information() {
+        let diag = Diagnostic {
+            range: Range::new(Position::new(0, 0), Position::new(0, 1)),
+            severity: Some(DiagnosticSeverity::INFORMATION),
+            message: "info message".to_string(),
+            ..Default::default()
+        };
+        let json = serde_json::to_value(&diag).unwrap();
+        assert_eq!(json["severity"], 3); // INFORMATION = 3
+    }
+
+    #[test]
+    fn diagnostic_severity_hint() {
+        let diag = Diagnostic {
+            range: Range::new(Position::new(0, 0), Position::new(0, 1)),
+            severity: Some(DiagnosticSeverity::HINT),
+            message: "hint".to_string(),
+            ..Default::default()
+        };
+        let json = serde_json::to_value(&diag).unwrap();
+        assert_eq!(json["severity"], 4); // HINT = 4
+    }
+
+    #[test]
+    fn diagnostic_with_related_information() {
+        let uri: Uri = "file:///tmp/test.rs".parse().unwrap();
+        let related = DiagnosticRelatedInformation {
+            location: Location::new(
+                uri,
+                Range::new(Position::new(1, 0), Position::new(1, 10)),
+            ),
+            message: "defined here".to_string(),
+        };
+        let diag = Diagnostic {
+            range: Range::new(Position::new(5, 0), Position::new(5, 10)),
+            severity: Some(DiagnosticSeverity::ERROR),
+            message: "type mismatch".to_string(),
+            related_information: Some(vec![related]),
+            ..Default::default()
+        };
+        assert_eq!(diag.related_information.as_ref().unwrap().len(), 1);
+        assert_eq!(diag.related_information.unwrap()[0].message, "defined here");
+    }
+
+    // ── Completion item kind tests ───────────────────────────────────────
+
+    #[test]
+    fn completion_item_variable_kind() {
+        let item = CompletionItem {
+            label: "my_var".to_string(),
+            kind: Some(CompletionItemKind::VARIABLE),
+            ..Default::default()
+        };
+        let json = serde_json::to_value(&item).unwrap();
+        assert_eq!(json["kind"], 6); // VARIABLE = 6
+    }
+
+    #[test]
+    fn completion_item_class_kind() {
+        let item = CompletionItem {
+            label: "MyClass".to_string(),
+            kind: Some(CompletionItemKind::CLASS),
+            detail: Some("class MyClass".to_string()),
+            ..Default::default()
+        };
+        assert_eq!(item.kind, Some(CompletionItemKind::CLASS));
+        assert_eq!(item.detail.as_deref(), Some("class MyClass"));
+    }
+
+    // ── TextEdit range tests ─────────────────────────────────────────────
+
+    #[test]
+    fn text_edit_multiline_range() {
+        let edit = TextEdit::new(
+            Range::new(Position::new(5, 0), Position::new(10, 0)),
+            "replaced block".to_string(),
+        );
+        assert_eq!(edit.range.start.line, 5);
+        assert_eq!(edit.range.end.line, 10);
+        assert_eq!(edit.new_text, "replaced block");
+    }
+
+    #[test]
+    fn text_edit_empty_replacement() {
+        let edit = TextEdit::new(
+            Range::new(Position::new(0, 0), Position::new(0, 5)),
+            String::new(),
+        );
+        assert!(edit.new_text.is_empty(), "empty replacement means deletion");
+    }
+
+    // ── Completion response variants ─────────────────────────────────────
+
+    #[test]
+    fn completion_response_list_variant() {
+        let list = CompletionList {
+            is_incomplete: true,
+            items: vec![
+                CompletionItem { label: "item1".to_string(), ..Default::default() },
+                CompletionItem { label: "item2".to_string(), ..Default::default() },
+            ],
+        };
+        let resp = CompletionResponse::List(list);
+        match resp {
+            CompletionResponse::List(l) => {
+                assert!(l.is_incomplete);
+                assert_eq!(l.items.len(), 2);
+            }
+            _ => panic!("expected List variant"),
+        }
+    }
+
+    #[test]
+    fn completion_response_array_variant() {
+        let items = vec![
+            CompletionItem { label: "a".to_string(), ..Default::default() },
+        ];
+        let resp = CompletionResponse::Array(items);
+        match resp {
+            CompletionResponse::Array(arr) => assert_eq!(arr.len(), 1),
+            _ => panic!("expected Array variant"),
+        }
+    }
 }

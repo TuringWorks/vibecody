@@ -382,4 +382,114 @@ mod tests {
         let resp: GeminiResponse = serde_json::from_str(json).unwrap();
         assert!(resp.candidates.is_none());
     }
+
+    // ── additional serde & edge case tests ──────────────────────────────
+
+    #[test]
+    fn gemini_response_missing_candidates_field() {
+        let json = r#"{}"#;
+        let resp: GeminiResponse = serde_json::from_str(json).unwrap();
+        assert!(resp.candidates.is_none());
+    }
+
+    #[test]
+    fn gemini_response_multiple_candidates() {
+        let json = r#"{"candidates":[{"content":{"parts":[{"text":"a"}]}},{"content":{"parts":[{"text":"b"}]}}]}"#;
+        let resp: GeminiResponse = serde_json::from_str(json).unwrap();
+        let candidates = resp.candidates.unwrap();
+        assert_eq!(candidates.len(), 2);
+        assert_eq!(candidates[1].content.parts[0].text, "b");
+    }
+
+    #[test]
+    fn gemini_response_multiple_parts() {
+        let json = r#"{"candidates":[{"content":{"parts":[{"text":"part1"},{"text":"part2"}]}}]}"#;
+        let resp: GeminiResponse = serde_json::from_str(json).unwrap();
+        let parts = &resp.candidates.unwrap()[0].content.parts;
+        assert_eq!(parts.len(), 2);
+        assert_eq!(parts[0].text, "part1");
+        assert_eq!(parts[1].text, "part2");
+    }
+
+    #[test]
+    fn gemini_request_omits_none_generation_config() {
+        let req = GeminiRequest {
+            contents: vec![],
+            generation_config: None,
+        };
+        let json = serde_json::to_value(&req).unwrap();
+        assert!(json.get("generation_config").is_none());
+    }
+
+    #[test]
+    fn gemini_content_part_roundtrip() {
+        let part = GeminiPart { text: "hello world".into() };
+        let json = serde_json::to_string(&part).unwrap();
+        assert!(json.contains("hello world"));
+    }
+
+    #[test]
+    fn build_contents_empty_messages() {
+        let p = GeminiProvider::new(test_config());
+        let result = p.build_contents(&[], None);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn build_contents_empty_messages_with_context() {
+        let p = GeminiProvider::new(test_config());
+        let result = p.build_contents(&[], Some("ctx".into()));
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn build_contents_context_skipped_when_last_is_model() {
+        use crate::provider::MessageRole;
+        let p = GeminiProvider::new(test_config());
+        let messages = vec![
+            Message { role: MessageRole::User, content: "q".into() },
+            Message { role: MessageRole::Assistant, content: "a".into() },
+        ];
+        let result = p.build_contents(&messages, Some("ignored ctx".into()));
+        // Last role is "model" (mapped from Assistant), so context is NOT injected
+        assert_eq!(result[1].parts[0].text, "a");
+        assert_eq!(result[0].parts[0].text, "q");
+    }
+
+    #[test]
+    fn build_contents_multi_turn_context_on_last_user() {
+        use crate::provider::MessageRole;
+        let p = GeminiProvider::new(test_config());
+        let messages = vec![
+            Message { role: MessageRole::User, content: "q1".into() },
+            Message { role: MessageRole::Assistant, content: "a1".into() },
+            Message { role: MessageRole::User, content: "q2".into() },
+        ];
+        let result = p.build_contents(&messages, Some("extra info".into()));
+        // First user message unchanged
+        assert_eq!(result[0].parts[0].text, "q1");
+        // Last user message has context
+        assert!(result[2].parts[0].text.contains("extra info"));
+        assert!(result[2].parts[0].text.contains("q2"));
+    }
+
+    #[test]
+    fn gemini_config_includes_set_fields() {
+        let cfg = GeminiConfig { temperature: Some(0.5), max_output_tokens: Some(4096) };
+        let json = serde_json::to_value(&cfg).unwrap();
+        assert_eq!(json["temperature"], 0.5);
+        assert_eq!(json["max_output_tokens"], 4096);
+    }
+
+    #[test]
+    fn provider_preserves_model_config() {
+        let mut cfg = test_config();
+        cfg.model = "gemini-1.5-pro".into();
+        cfg.temperature = Some(0.2);
+        cfg.max_tokens = Some(1024);
+        let p = GeminiProvider::new(cfg);
+        assert_eq!(p.config.model, "gemini-1.5-pro");
+        assert_eq!(p.config.temperature, Some(0.2));
+        assert_eq!(p.config.max_tokens, Some(1024));
+    }
 }

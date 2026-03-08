@@ -217,4 +217,78 @@ mod tests {
             Ok(_) => panic!("Expected error for unsupported language"),
         }
     }
+
+    #[test]
+    fn rust_analyzer_has_no_args() {
+        let mgr = LspManager::new();
+        let (_, args) = mgr.server_configs.get("rust").unwrap();
+        assert!(args.is_empty(), "rust-analyzer should have no default args");
+    }
+
+    #[test]
+    fn python_pylsp_has_no_args() {
+        let mgr = LspManager::new();
+        let (_, args) = mgr.server_configs.get("python").unwrap();
+        assert!(args.is_empty(), "pylsp should have no default args");
+    }
+
+    #[test]
+    fn add_client_then_get_returns_some() {
+        let mut mgr = LspManager::new();
+        mgr.add_client("swift".to_string(), LspClient::new("sourcekit-lsp".to_string(), vec![]));
+        assert!(mgr.get_client("swift").is_some());
+        assert!(mgr.get_client_mut("swift").is_some());
+    }
+
+    #[test]
+    fn add_client_does_not_affect_server_configs() {
+        let mut mgr = LspManager::new();
+        let config_count_before = mgr.server_configs.len();
+        mgr.add_client("swift".to_string(), LspClient::new("sourcekit-lsp".to_string(), vec![]));
+        assert_eq!(mgr.server_configs.len(), config_count_before, "adding a client should not modify server_configs");
+    }
+
+    #[test]
+    fn default_and_new_produce_same_config_count() {
+        let from_new = LspManager::new();
+        let from_default = LspManager::default();
+        assert_eq!(from_new.server_configs.len(), from_default.server_configs.len());
+    }
+
+    #[tokio::test]
+    async fn get_client_for_language_unknown_returns_descriptive_error() {
+        let mut mgr = LspManager::new();
+        let result = mgr.get_client_for_language("fortran", std::path::Path::new("/tmp")).await;
+        match result {
+            Err(e) => {
+                let msg = e.to_string();
+                assert!(msg.contains("No LSP server configured"), "error should mention missing config");
+                assert!(msg.contains("fortran"), "error should name the language");
+            }
+            Ok(_) => panic!("Expected error for unsupported language"),
+        }
+    }
+
+    #[test]
+    fn get_client_after_adding_multiple_languages() {
+        let mut mgr = LspManager::new();
+        mgr.add_client("go".to_string(), LspClient::new("gopls".to_string(), vec![]));
+        mgr.add_client("ruby".to_string(), LspClient::new("solargraph".to_string(), vec![]));
+        mgr.add_client("elixir".to_string(), LspClient::new("elixir-ls".to_string(), vec![]));
+
+        assert!(mgr.get_client("go").is_some());
+        assert!(mgr.get_client("ruby").is_some());
+        assert!(mgr.get_client("elixir").is_some());
+        assert!(mgr.get_client("scala").is_none());
+    }
+
+    #[test]
+    fn overwrite_client_replaces_previous() {
+        let mut mgr = LspManager::new();
+        mgr.add_client("go".to_string(), LspClient::new("gopls-v1".to_string(), vec![]));
+        mgr.add_client("go".to_string(), LspClient::new("gopls-v2".to_string(), vec![]));
+        // Should still have exactly one entry for "go"
+        assert_eq!(mgr.clients.len(), 1);
+        assert!(mgr.get_client("go").is_some());
+    }
 }

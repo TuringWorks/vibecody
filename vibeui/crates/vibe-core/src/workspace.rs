@@ -374,4 +374,93 @@ mod tests {
         let mut ws = Workspace::new("Test".to_string());
         assert!(ws.get_buffer_mut(&PathBuf::from("/missing")).is_none());
     }
+
+    #[test]
+    fn workspace_config_nested_json_setting() {
+        let mut ws = Workspace::new("Test".to_string());
+        let nested = serde_json::json!({
+            "editor": { "fontSize": 14, "tabSize": 2 },
+            "terminal": { "shell": "/bin/zsh" }
+        });
+        ws.set_setting("preferences".to_string(), nested.clone());
+        assert_eq!(ws.get_setting("preferences"), Some(&nested));
+    }
+
+    #[test]
+    fn workspace_remove_all_folders() {
+        let mut ws = Workspace::new("Test".to_string());
+        let paths: Vec<PathBuf> = (0..5).map(|i| PathBuf::from(format!("/dir{}", i))).collect();
+        for p in &paths {
+            ws.add_folder(p.clone()).ok();
+        }
+        assert_eq!(ws.folders().len(), 5);
+        for p in &paths {
+            ws.remove_folder(p);
+        }
+        assert!(ws.folders().is_empty());
+    }
+
+    #[test]
+    fn workspace_config_deserialize_from_json_string() {
+        let json = r#"{"name":"FromJSON","folders":["/src","/tests"],"settings":{"indent":4}}"#;
+        let config: WorkspaceConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(config.name, "FromJSON");
+        assert_eq!(config.folders.len(), 2);
+        assert_eq!(config.folders[0], PathBuf::from("/src"));
+        assert_eq!(config.settings.get("indent"), Some(&serde_json::json!(4)));
+    }
+
+    #[test]
+    fn workspace_name_with_unicode() {
+        let ws = Workspace::new("Espace de travail \u{1F680}".to_string());
+        assert!(ws.name().contains("Espace"));
+        assert!(ws.name().contains("\u{1F680}"));
+    }
+
+    #[test]
+    fn workspace_setting_null_value() {
+        let mut ws = Workspace::new("Test".to_string());
+        ws.set_setting("nullable".to_string(), serde_json::Value::Null);
+        assert_eq!(ws.get_setting("nullable"), Some(&serde_json::Value::Null));
+    }
+
+    #[test]
+    fn workspace_from_config_preserves_settings() {
+        let mut settings = HashMap::new();
+        settings.insert("key1".to_string(), serde_json::json!("val1"));
+        settings.insert("key2".to_string(), serde_json::json!(42));
+        let config = WorkspaceConfig {
+            name: "WithSettings".to_string(),
+            folders: vec![],
+            settings,
+        };
+        let ws = Workspace::from_config(config);
+        assert_eq!(ws.get_setting("key1"), Some(&serde_json::json!("val1")));
+        assert_eq!(ws.get_setting("key2"), Some(&serde_json::json!(42)));
+    }
+
+    #[test]
+    fn workspace_open_files_returns_empty_after_close() {
+        let ws = Workspace::new("Test".to_string());
+        // No files opened, so open_files should be empty
+        let files = ws.open_files();
+        assert!(files.is_empty());
+    }
+
+    #[test]
+    fn workspace_config_roundtrip_with_special_chars() {
+        let config = WorkspaceConfig {
+            name: "path/with spaces & \"quotes\"".to_string(),
+            folders: vec![PathBuf::from("/path with spaces/dir")],
+            settings: {
+                let mut m = HashMap::new();
+                m.insert("key\"special".to_string(), serde_json::json!("val\nnewline"));
+                m
+            },
+        };
+        let json = serde_json::to_string(&config).unwrap();
+        let back: WorkspaceConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.name, config.name);
+        assert_eq!(back.folders, config.folders);
+    }
 }
