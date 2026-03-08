@@ -52,6 +52,12 @@ mod cloud_agent;
 mod mermaid_ascii;
 mod github_app;
 mod marketplace;
+#[allow(dead_code)]
+mod plugin_sdk;
+#[allow(dead_code)]
+mod plugin_registry;
+#[allow(dead_code)]
+mod plugin_lifecycle;
 mod transform;
 mod acp;
 mod compliance;
@@ -184,6 +190,13 @@ struct Cli {
     /// Requires the corresponding token/config. Example: vibecli --gateway signal
     #[arg(long, value_name = "PLATFORM")]
     gateway: Option<String>,
+
+    // ── Plugin management ────────────────────────────────────────────────────
+
+    /// Plugin subcommand: create, install, uninstall, enable, disable, update, list, info, search, dev, publish.
+    /// Example: vibecli plugin install vibecody-jira
+    #[arg(long, value_name = "SUBCOMMAND")]
+    plugin: Option<String>,
 
     // ── Profile ───────────────────────────────────────────────────────────────
 
@@ -464,6 +477,222 @@ async fn main() -> Result<()> {
         let approval = ApprovalPolicy::from_str(&approval_policy);
         let config = Config::load().unwrap_or_default();
         return mcp_server::run_server(cwd, llm, approval, config.safety.sandbox).await;
+    }
+
+    // Plugin management: vibecli --plugin <subcommand> (remaining args from env::args)
+    if let Some(ref subcmd) = cli.plugin {
+        let raw_args: Vec<String> = std::env::args().collect();
+        // Find args after --plugin <subcmd>
+        let plugin_pos = raw_args.iter().position(|a| a == "--plugin").unwrap_or(0);
+        let extra_args: Vec<&str> = raw_args.iter().skip(plugin_pos + 2).map(|s| s.as_str()).collect();
+
+        match subcmd.as_str() {
+            "create" => {
+                let name = extra_args.first().expect("Usage: vibecli --plugin create <name> [--kind connector|adapter|optimizer|theme|skillpack|workflow]");
+                let kind_str = extra_args.iter()
+                    .position(|a| *a == "--kind")
+                    .and_then(|i| extra_args.get(i + 1))
+                    .copied()
+                    .unwrap_or("connector");
+                let kind = match kind_str {
+                    "adapter" => plugin_sdk::PluginKind::Adapter,
+                    "optimizer" => plugin_sdk::PluginKind::Optimizer,
+                    "theme" => plugin_sdk::PluginKind::Theme,
+                    "skillpack" => plugin_sdk::PluginKind::SkillPack,
+                    "workflow" => plugin_sdk::PluginKind::Workflow,
+                    "extension" => plugin_sdk::PluginKind::Extension,
+                    _ => plugin_sdk::PluginKind::Connector,
+                };
+                let dir = std::env::current_dir().expect("cannot read cwd");
+                match plugin_sdk::PluginScaffold::create(name, kind, &dir) {
+                    Ok(path) => println!("Plugin scaffolded at {}", path.display()),
+                    Err(e) => eprintln!("Error: {}", e),
+                }
+                return Ok(());
+            }
+            "install" => {
+                let target = extra_args.first().expect("Usage: vibecli --plugin install <name|repo-url>");
+                let mut lifecycle = plugin_lifecycle::PluginLifecycle::new()?;
+                if target.starts_with("http") || target.starts_with("git@") {
+                    let plugin_name = target.split('/').last().unwrap_or(target).trim_end_matches(".git");
+                    match lifecycle.install_from_repo(plugin_name, target) {
+                        Ok(p) => println!("Installed {} v{}", p.name, p.version),
+                        Err(e) => eprintln!("Error: {}", e),
+                    }
+                } else {
+                    let mut registry = plugin_registry::PluginRegistry::new();
+                    registry.load_cached()?;
+                    if let Some(entry) = registry.find(target) {
+                        if let Some(ref repo) = entry.repository {
+                            match lifecycle.install_from_repo(target, repo) {
+                                Ok(p) => println!("Installed {} v{}", p.name, p.version),
+                                Err(e) => eprintln!("Error: {}", e),
+                            }
+                        } else {
+                            eprintln!("Plugin '{}' has no repository URL", target);
+                        }
+                    } else {
+                        eprintln!("Plugin '{}' not found in registry", target);
+                    }
+                }
+                return Ok(());
+            }
+            "uninstall" | "remove" => {
+                let name = extra_args.first().expect("Usage: vibecli --plugin uninstall <name>");
+                let mut lifecycle = plugin_lifecycle::PluginLifecycle::new()?;
+                match lifecycle.uninstall(name) {
+                    Ok(()) => println!("Uninstalled {}", name),
+                    Err(e) => eprintln!("Error: {}", e),
+                }
+                return Ok(());
+            }
+            "enable" => {
+                let name = extra_args.first().expect("Usage: vibecli --plugin enable <name>");
+                let mut lifecycle = plugin_lifecycle::PluginLifecycle::new()?;
+                match lifecycle.enable(name) {
+                    Ok(()) => println!("Enabled {}", name),
+                    Err(e) => eprintln!("Error: {}", e),
+                }
+                return Ok(());
+            }
+            "disable" => {
+                let name = extra_args.first().expect("Usage: vibecli --plugin disable <name>");
+                let mut lifecycle = plugin_lifecycle::PluginLifecycle::new()?;
+                match lifecycle.disable(name) {
+                    Ok(()) => println!("Disabled {}", name),
+                    Err(e) => eprintln!("Error: {}", e),
+                }
+                return Ok(());
+            }
+            "update" => {
+                let mut lifecycle = plugin_lifecycle::PluginLifecycle::new()?;
+                if let Some(name) = extra_args.first() {
+                    match lifecycle.update(name) {
+                        Ok(change) => println!("Updated {}: {}", name, change),
+                        Err(e) => eprintln!("Error: {}", e),
+                    }
+                } else {
+                    match lifecycle.update_all() {
+                        Ok(results) => {
+                            for (name, change) in results {
+                                println!("  {} — {}", name, change);
+                            }
+                        }
+                        Err(e) => eprintln!("Error: {}", e),
+                    }
+                }
+                return Ok(());
+            }
+            "list" | "ls" => {
+                let lifecycle = plugin_lifecycle::PluginLifecycle::new()?;
+                let plugins = lifecycle.list();
+                if plugins.is_empty() {
+                    println!("No plugins installed. Use 'vibecli --plugin install <name>' to install.");
+                } else {
+                    println!("{:<30} {:<12} {:<12}", "NAME", "VERSION", "STATE");
+                    println!("{}", "-".repeat(54));
+                    for p in plugins {
+                        let state_str = match &p.state {
+                            plugin_lifecycle::PluginState::Enabled => "enabled",
+                            plugin_lifecycle::PluginState::Disabled => "disabled",
+                            plugin_lifecycle::PluginState::DevMode => "dev",
+                            plugin_lifecycle::PluginState::Outdated => "outdated",
+                            plugin_lifecycle::PluginState::Installed => "installed",
+                            plugin_lifecycle::PluginState::Errored(_) => "error",
+                        };
+                        println!("{:<30} {:<12} {:<12}", p.name, p.version, state_str);
+                    }
+                }
+                return Ok(());
+            }
+            "info" => {
+                let name = extra_args.first().expect("Usage: vibecli --plugin info <name>");
+                let lifecycle = plugin_lifecycle::PluginLifecycle::new()?;
+                match lifecycle.info(name) {
+                    Ok(info) => {
+                        println!("Plugin: {}", info.plugin.name);
+                        println!("Version: {}", info.plugin.version);
+                        println!("State: {:?}", info.plugin.state);
+                        println!("Installed: {}", info.plugin.installed_at);
+                        println!("Skills: {}", info.skills_count);
+                        println!("Hooks: {}", info.hooks_count);
+                        println!("Commands: {}", info.commands_count);
+                        if !info.plugin.config.is_empty() {
+                            println!("Config:");
+                            for (k, v) in &info.plugin.config {
+                                println!("  {} = {}", k, v);
+                            }
+                        }
+                    }
+                    Err(e) => eprintln!("Error: {}", e),
+                }
+                return Ok(());
+            }
+            "search" => {
+                let query = extra_args.first().copied().unwrap_or("");
+                let mut registry = plugin_registry::PluginRegistry::new();
+                registry.load_cached()?;
+                let results = registry.search(query, None);
+                if results.is_empty() {
+                    println!("No plugins found for '{}'", query);
+                } else {
+                    println!("{:<30} {:<12} {:<10} {}", "NAME", "VERSION", "DOWNLOADS", "DESCRIPTION");
+                    println!("{}", "-".repeat(80));
+                    for e in results.iter().take(20) {
+                        let desc = if e.description.len() > 40 {
+                            format!("{}...", &e.description[..37])
+                        } else {
+                            e.description.clone()
+                        };
+                        println!("{:<30} {:<12} {:<10} {}", e.name, e.version, e.downloads, desc);
+                    }
+                }
+                return Ok(());
+            }
+            "dev" => {
+                let dir_str = extra_args.first().copied().unwrap_or(".");
+                let source_dir = std::path::PathBuf::from(dir_str).canonicalize()?;
+                let name = source_dir.file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("dev-plugin");
+                let mut lifecycle = plugin_lifecycle::PluginLifecycle::new()?;
+                match lifecycle.install_dev(name, &source_dir) {
+                    Ok(p) => println!("Dev-linked {} -> {}", p.name, source_dir.display()),
+                    Err(e) => eprintln!("Error: {}", e),
+                }
+                return Ok(());
+            }
+            "publish" => {
+                let dir_str = extra_args.first().copied().unwrap_or(".");
+                let plugin_dir = std::path::PathBuf::from(dir_str).canonicalize()?;
+                match plugin_registry::PluginRegistry::prepare_publish(&plugin_dir) {
+                    Ok(pkg) => {
+                        println!("Plugin '{}' v{} validated and ready to publish", pkg.manifest.name, pkg.manifest.version);
+                        println!("  Push to a git repository and submit to the VibeCody plugin registry.");
+                    }
+                    Err(e) => eprintln!("Error: {}", e),
+                }
+                return Ok(());
+            }
+            _ => {
+                println!("VibeCody Plugin Manager\n");
+                println!("Usage: vibecli --plugin <command>\n");
+                println!("Commands:");
+                println!("  create <name> [--kind <type>]   Scaffold a new plugin project");
+                println!("  install <name|url>              Install a plugin");
+                println!("  uninstall <name>                Remove a plugin");
+                println!("  enable <name>                   Enable a disabled plugin");
+                println!("  disable <name>                  Disable a plugin");
+                println!("  update [name]                   Update plugin(s)");
+                println!("  list                            List installed plugins");
+                println!("  info <name>                     Show plugin details");
+                println!("  search <query>                  Search the plugin registry");
+                println!("  dev [dir]                       Link a local dir for development");
+                println!("  publish [dir]                   Validate and prepare for publishing");
+                println!("\nPlugin types: connector, adapter, optimizer, theme, skillpack, workflow, extension");
+                return Ok(());
+            }
+        }
     }
 
     // Gateway mode: vibecli --gateway telegram|discord|slack|signal|matrix|twilio|whatsapp|imessage|teams
@@ -4408,6 +4637,173 @@ async fn main() -> Result<()> {
                             }
                         }
 
+                        "/plugin" => {
+                            let sub_parts: Vec<&str> = args.splitn(2, ' ').collect();
+                            let subcmd = sub_parts.first().copied().unwrap_or("").trim();
+                            let sub_args = if sub_parts.len() > 1 { sub_parts[1].trim() } else { "" };
+
+                            match subcmd {
+                                "" | "help" => {
+                                    println!("Plugin Manager:");
+                                    println!("  /plugin list               List installed plugins");
+                                    println!("  /plugin search <query>     Search the registry");
+                                    println!("  /plugin install <name>     Install a plugin");
+                                    println!("  /plugin uninstall <name>   Remove a plugin");
+                                    println!("  /plugin enable <name>      Enable a plugin");
+                                    println!("  /plugin disable <name>     Disable a plugin");
+                                    println!("  /plugin info <name>        Show plugin details");
+                                    println!("  /plugin update [name]      Update plugin(s)");
+                                    println!();
+                                }
+                                "list" | "ls" => {
+                                    match plugin_lifecycle::PluginLifecycle::new() {
+                                        Ok(lc) => {
+                                            let plugins = lc.list();
+                                            if plugins.is_empty() {
+                                                println!("No plugins installed. Use /plugin install <name>\n");
+                                            } else {
+                                                println!("{:<30} {:<12} {:<12}", "NAME", "VERSION", "STATE");
+                                                println!("{}", "-".repeat(54));
+                                                for p in plugins {
+                                                    let state = match &p.state {
+                                                        plugin_lifecycle::PluginState::Enabled => "enabled",
+                                                        plugin_lifecycle::PluginState::Disabled => "disabled",
+                                                        plugin_lifecycle::PluginState::DevMode => "dev",
+                                                        plugin_lifecycle::PluginState::Outdated => "outdated",
+                                                        plugin_lifecycle::PluginState::Installed => "installed",
+                                                        plugin_lifecycle::PluginState::Errored(_) => "error",
+                                                    };
+                                                    println!("{:<30} {:<12} {:<12}", p.name, p.version, state);
+                                                }
+                                                println!();
+                                            }
+                                        }
+                                        Err(e) => println!("Error: {e}\n"),
+                                    }
+                                }
+                                "search" => {
+                                    let mut reg = plugin_registry::PluginRegistry::new();
+                                    match reg.load_cached() {
+                                        Ok(_) => {
+                                            let results = reg.search(sub_args, None);
+                                            if results.is_empty() {
+                                                println!("No plugins found for '{sub_args}'.\n");
+                                            } else {
+                                                println!("{:<30} {:<10} {:<8} {}", "NAME", "VERSION", "DL", "DESCRIPTION");
+                                                println!("{}", "-".repeat(76));
+                                                for e in results.iter().take(15) {
+                                                    let desc = if e.description.len() > 30 {
+                                                        format!("{}...", &e.description[..27])
+                                                    } else {
+                                                        e.description.clone()
+                                                    };
+                                                    println!("{:<30} {:<10} {:<8} {}", e.name, e.version, e.downloads, desc);
+                                                }
+                                                println!();
+                                            }
+                                        }
+                                        Err(e) => println!("Error: {e}\n"),
+                                    }
+                                }
+                                "install" if !sub_args.is_empty() => {
+                                    match plugin_lifecycle::PluginLifecycle::new() {
+                                        Ok(mut lc) => {
+                                            if sub_args.starts_with("http") || sub_args.starts_with("git@") {
+                                                let name = sub_args.split('/').last().unwrap_or(sub_args).trim_end_matches(".git");
+                                                match lc.install_from_repo(name, sub_args) {
+                                                    Ok(p) => println!("Installed {} v{}\n", p.name, p.version),
+                                                    Err(e) => println!("Error: {e}\n"),
+                                                }
+                                            } else {
+                                                let mut reg = plugin_registry::PluginRegistry::new();
+                                                if reg.load_cached().is_ok() {
+                                                    if let Some(entry) = reg.find(sub_args) {
+                                                        if let Some(ref repo) = entry.repository {
+                                                            match lc.install_from_repo(sub_args, repo) {
+                                                                Ok(p) => println!("Installed {} v{}\n", p.name, p.version),
+                                                                Err(e) => println!("Error: {e}\n"),
+                                                            }
+                                                        } else {
+                                                            println!("Plugin has no repository URL.\n");
+                                                        }
+                                                    } else {
+                                                        println!("Plugin '{}' not found in registry.\n", sub_args);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        Err(e) => println!("Error: {e}\n"),
+                                    }
+                                }
+                                "uninstall" | "remove" if !sub_args.is_empty() => {
+                                    match plugin_lifecycle::PluginLifecycle::new() {
+                                        Ok(mut lc) => match lc.uninstall(sub_args) {
+                                            Ok(()) => println!("Uninstalled {}\n", sub_args),
+                                            Err(e) => println!("Error: {e}\n"),
+                                        },
+                                        Err(e) => println!("Error: {e}\n"),
+                                    }
+                                }
+                                "enable" if !sub_args.is_empty() => {
+                                    match plugin_lifecycle::PluginLifecycle::new() {
+                                        Ok(mut lc) => match lc.enable(sub_args) {
+                                            Ok(()) => println!("Enabled {}\n", sub_args),
+                                            Err(e) => println!("Error: {e}\n"),
+                                        },
+                                        Err(e) => println!("Error: {e}\n"),
+                                    }
+                                }
+                                "disable" if !sub_args.is_empty() => {
+                                    match plugin_lifecycle::PluginLifecycle::new() {
+                                        Ok(mut lc) => match lc.disable(sub_args) {
+                                            Ok(()) => println!("Disabled {}\n", sub_args),
+                                            Err(e) => println!("Error: {e}\n"),
+                                        },
+                                        Err(e) => println!("Error: {e}\n"),
+                                    }
+                                }
+                                "info" if !sub_args.is_empty() => {
+                                    match plugin_lifecycle::PluginLifecycle::new() {
+                                        Ok(lc) => match lc.info(sub_args) {
+                                            Ok(info) => {
+                                                println!("Plugin: {}", info.plugin.name);
+                                                println!("Version: {}", info.plugin.version);
+                                                println!("State: {:?}", info.plugin.state);
+                                                println!("Skills: {} | Hooks: {} | Commands: {}", info.skills_count, info.hooks_count, info.commands_count);
+                                                println!();
+                                            }
+                                            Err(e) => println!("Error: {e}\n"),
+                                        },
+                                        Err(e) => println!("Error: {e}\n"),
+                                    }
+                                }
+                                "update" => {
+                                    match plugin_lifecycle::PluginLifecycle::new() {
+                                        Ok(mut lc) => {
+                                            if !sub_args.is_empty() {
+                                                match lc.update(sub_args) {
+                                                    Ok(change) => println!("Updated {}: {}\n", sub_args, change),
+                                                    Err(e) => println!("Error: {e}\n"),
+                                                }
+                                            } else {
+                                                match lc.update_all() {
+                                                    Ok(results) => {
+                                                        for (name, change) in results {
+                                                            println!("  {} — {}", name, change);
+                                                        }
+                                                        println!();
+                                                    }
+                                                    Err(e) => println!("Error: {e}\n"),
+                                                }
+                                            }
+                                        }
+                                        Err(e) => println!("Error: {e}\n"),
+                                    }
+                                }
+                                _ => println!("Usage: /plugin <list|search|install|uninstall|enable|disable|info|update>\n"),
+                            }
+                        }
+
                         "/voice" => {
                             let sub_parts: Vec<&str> = args.splitn(2, ' ').collect();
                             let subcmd = sub_parts.first().copied().unwrap_or("").trim();
@@ -5874,9 +6270,13 @@ fn show_help() {
     println!("  /index [model]           - Build semantic codebase index (default model: nomic-embed-text)");
     println!("  /qa <question>           - Ask a question about the codebase using semantic search");
     println!("  /plugin list             - List installed plugins");
-    println!("  /plugin install <path>   - Install a plugin from a local path or git URL");
-    println!("  /plugin remove <name>    - Remove an installed plugin");
+    println!("  /plugin search <query>   - Search the plugin registry");
+    println!("  /plugin install <name>   - Install from registry or git URL");
+    println!("  /plugin uninstall <name> - Remove an installed plugin");
+    println!("  /plugin enable <name>    - Enable a disabled plugin");
+    println!("  /plugin disable <name>   - Disable without uninstalling");
     println!("  /plugin info <name>      - Show plugin details");
+    println!("  /plugin update [name]    - Update plugin(s) to latest");
     println!("  /profile list            - List named profiles (~/.vibecli/profiles/)");
     println!("  /profile show <name>     - Show a profile's settings");
     println!("  /profile create <name>   - Create a new profile interactively");
