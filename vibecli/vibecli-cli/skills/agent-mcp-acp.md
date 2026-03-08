@@ -1,0 +1,22 @@
+---
+triggers: ["MCP server", "MCP client", "model context protocol", "agent client protocol", "ACP", "MCP tool", "MCP resource", "agent protocol"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: ai
+---
+
+# Agent Protocols: MCP and ACP
+
+When implementing Model Context Protocol (MCP) servers/clients and Agent Client Protocol (ACP) integrations:
+
+1. **MCP Server Architecture** — Build MCP servers as standalone processes that communicate over stdio or HTTP+SSE. Implement the three core primitives: tools (actions the model can invoke), resources (data the model can read), and prompts (reusable prompt templates). Keep servers focused on a single domain (filesystem, database, API) for composability.
+2. **Tool Registration and Schema** — Register tools with precise `inputSchema` (JSON Schema) including required fields, types, descriptions, and examples. Return structured results with `content` arrays supporting text, image, and embedded resource types. Validate all inputs server-side before execution and return clear error messages with `isError: true` on failure.
+3. **Resource Exposure** — Expose resources via URI templates (e.g., `file:///{path}`, `db:///{table}/{id}`) that the model can discover and read. Implement `resources/list` for discovery and `resources/read` for retrieval. Use MIME types to signal content format, support pagination for large resources, and implement subscriptions for resources that change.
+4. **MCP Client Integration** — Build MCP clients that manage server lifecycle (spawn, initialize, shutdown), maintain capability negotiation state, and multiplex across multiple servers. Cache tool and resource lists after initialization, handle server crashes with automatic restart, and implement timeout guards on all requests.
+5. **Transport Layer Selection** — Use stdio transport for local tool servers (low latency, simple security model) and HTTP+SSE for remote servers (supports authentication, load balancing). Implement reconnection logic for SSE streams, use JSON-RPC 2.0 message framing, and batch notifications to reduce round trips.
+6. **ACP Agent Discovery** — Implement the Agent Client Protocol for multi-agent systems where agents advertise capabilities via agent cards (JSON metadata). Register agents with a discovery service, publish supported intents and input/output schemas, and enable dynamic routing where an orchestrator selects agents based on capability matching.
+7. **Capability Negotiation** — During MCP initialization, exchange `capabilities` objects declaring supported features (tools, resources, prompts, logging, sampling). Only use features both sides support. Version your protocol implementation and handle graceful degradation when connecting to servers with older protocol versions.
+8. **Security and Authorization** — Authenticate MCP connections using API keys (HTTP) or process-level isolation (stdio). Implement per-tool authorization checks, sanitize all inputs to prevent injection attacks, restrict filesystem access to allowed directories, and log all tool invocations with caller identity for audit trails.
+9. **Protocol Versioning and Evolution** — Pin your MCP protocol version in the initialize handshake and handle version mismatches gracefully. When adding new tools or resources, maintain backward compatibility by keeping existing schemas stable. Use feature flags for experimental capabilities and document breaking changes in a changelog.
+10. **Error Handling Patterns** — Map domain errors to appropriate JSON-RPC error codes: -32600 for invalid requests, -32601 for unknown tools, -32602 for invalid parameters, and custom codes (-32000 to -32099) for domain-specific errors. Include human-readable messages and machine-parseable error data for the model to self-correct.
+11. **Testing MCP Servers** — Write integration tests using a mock MCP client that sends requests and validates responses. Test tool execution with edge cases (missing params, invalid types, large inputs), verify resource listing and reading, test error handling paths, and validate that the server handles concurrent requests without race conditions.
+12. **Composing MCP and ACP** — Use MCP for tool-level integration (giving a single agent access to external capabilities) and ACP for agent-level orchestration (coordinating multiple agents). An orchestrator agent discovers worker agents via ACP, each worker agent connects to domain-specific MCP servers, and the combined system handles complex multi-domain tasks through layered protocol composition.

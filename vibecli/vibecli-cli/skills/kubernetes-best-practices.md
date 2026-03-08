@@ -1,0 +1,23 @@
+---
+triggers: ["k8s best practices", "kubernetes production", "k8s security hardening", "k8s cost optimization", "kubernetes gitops", "argocd", "flux cd", "k8s multi-tenancy", "pod security standards"]
+tools_allowed: ["read_file", "write_file", "bash"]
+requires_bins: ["kubectl"]
+category: devops
+---
+
+# Kubernetes Production Best Practices
+
+When running Kubernetes in production environments:
+
+1. **Resource Requests and Limits** — Set CPU and memory requests on every container based on observed usage (use VPA recommendations or metrics). Set memory limits equal to requests to avoid OOM kills from overcommit. Avoid CPU limits in most cases as they cause throttling; use requests for scheduling and rely on cluster-level overcommit ratios instead.
+2. **Pod Security Standards** — Enforce the `restricted` Pod Security Standard at the namespace level using built-in admission control. Require `runAsNonRoot: true`, drop all capabilities, set `readOnlyRootFilesystem: true`, and disallow privilege escalation. Use `baseline` only for system workloads that genuinely need elevated permissions.
+3. **Network Policies** — Default-deny all ingress and egress traffic per namespace, then explicitly allow required flows. Use labels to define policy targets, allow DNS egress (port 53) to kube-dns, and test policies with tools like `kubectl-np-viewer` or Cilium's policy editor. Audit policies regularly as services evolve.
+4. **Observability Stack** — Deploy Prometheus (metrics), Grafana (dashboards), Loki (logs), and Tempo (traces) as a unified stack. Use ServiceMonitor CRDs for automatic scrape target discovery, set up alerts for pod restarts, high error rates, and resource saturation. Retain metrics for 15-30 days and archive to object storage for long-term analysis.
+5. **GitOps Deployment** — Use ArgoCD or Flux to reconcile cluster state from Git repositories. Store all manifests in version-controlled repos, use Kustomize overlays or Helm values files per environment, enable automated sync with manual approval for production, and configure pruning to remove resources deleted from Git.
+6. **Cost Optimization** — Right-size nodes using Karpenter or Cluster Autoscaler with appropriate instance types. Use spot/preemptible instances for fault-tolerant workloads (batch, CI). Implement namespace ResourceQuotas to prevent runaway resource claims, schedule non-critical workloads to off-peak hours, and review unused PVCs and LoadBalancers monthly.
+7. **Multi-Tenancy Isolation** — Isolate tenants using dedicated namespaces with ResourceQuotas, LimitRanges, and NetworkPolicies. Use separate service accounts per tenant, enforce RBAC with least-privilege roles, and consider vCluster or Capsule for stronger isolation. Never share Secrets across tenant namespaces.
+8. **Disaster Recovery** — Back up cluster state and persistent volumes using Velero on a schedule. Store backups in a separate cloud account or region. Test restore procedures quarterly, document the recovery runbook, maintain etcd snapshots for control plane recovery, and keep infrastructure-as-code (Terraform/Pulumi) current so clusters can be rebuilt from scratch.
+9. **Node Affinity and Taints** — Use node affinity to schedule GPU workloads on GPU nodes, memory-intensive workloads on high-memory instances, and latency-sensitive pods close to specific availability zones. Apply taints to specialized nodes and matching tolerations on pods. Use pod topology spread constraints to distribute replicas across failure domains.
+10. **Health Checks and Graceful Lifecycle** — Configure liveness probes (restart unhealthy containers), readiness probes (remove from service until ready), and startup probes (allow slow-starting apps). Set `terminationGracePeriodSeconds` appropriately, handle SIGTERM in application code, use preStop hooks for connection draining, and configure PodDisruptionBudgets for voluntary evictions.
+11. **Secret Management** — Never store secrets in plain YAML manifests or Git. Use External Secrets Operator to sync from Vault, AWS Secrets Manager, or GCP Secret Manager. Rotate secrets automatically, mount as volumes rather than environment variables when possible, and enable encryption-at-rest for etcd. Audit secret access via Kubernetes audit logs.
+12. **Upgrade Strategy** — Follow a controlled upgrade cadence: stay within two minor versions of the latest release, test upgrades in staging first, review deprecation notices and API removals, upgrade node pools with rolling updates, and use PodDisruptionBudgets to maintain availability during node drains. Pin critical addon versions and upgrade them separately.

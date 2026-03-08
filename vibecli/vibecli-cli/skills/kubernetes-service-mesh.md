@@ -1,0 +1,23 @@
+---
+triggers: ["service mesh", "istio", "linkerd", "consul connect", "mTLS", "traffic management mesh", "envoy sidecar", "istio virtual service"]
+tools_allowed: ["read_file", "write_file", "bash"]
+requires_bins: ["kubectl"]
+category: devops
+---
+
+# Service Mesh Patterns
+
+When implementing service mesh infrastructure with Istio, Linkerd, or Consul Connect:
+
+1. **Automatic mTLS Everywhere** — Enable strict mTLS across the mesh so all service-to-service traffic is encrypted and mutually authenticated without application changes. Use PeerAuthentication policies in Istio or Linkerd's auto-injection to ensure zero-trust networking by default. Verify with `istioctl proxy-status` or `linkerd check` that all proxies have valid certificates.
+2. **Traffic Management with VirtualServices** — Use VirtualService and DestinationRule resources to control routing: weight-based traffic splitting (90/10 canary), header-based routing (route beta users to v2), URI prefix matching, and fault injection for testing. Always define a default route to prevent traffic black holes.
+3. **Circuit Breaking** — Configure connection pool limits and outlier detection in DestinationRules to prevent cascading failures. Set `maxConnections`, `maxRequestsPerConnection`, and `consecutiveErrors` thresholds. When a service instance exceeds error thresholds, the mesh ejects it from the load balancing pool and periodically checks if it has recovered.
+4. **Retry and Timeout Policies** — Define retries with specific retryable conditions (5xx, connect-failure, retriable-4xx) and limit retry count (2-3 max) to avoid amplification. Set request timeouts at the route level that are shorter than the caller's timeout. Use per-try timeouts to cap individual attempt duration while allowing retries within the overall budget.
+5. **Observability Without Code Changes** — Leverage the mesh sidecar's automatic generation of RED metrics (Rate, Errors, Duration) for every service. Export to Prometheus, visualize service dependency graphs in Kiali or Grafana, and enable distributed tracing by propagating trace headers (the mesh handles span creation). Set up alerts on p99 latency and error rate per service.
+6. **Canary Deployments** — Deploy new versions alongside the current version and use mesh traffic splitting to gradually shift traffic (1%, 5%, 25%, 50%, 100%). Monitor error rates and latency at each step. Automate rollback when metrics breach thresholds using Flagger or Argo Rollouts integrated with the mesh's traffic management APIs.
+7. **Fault Injection Testing** — Use mesh-level fault injection to test resilience without modifying application code. Inject HTTP delays (simulate slow dependencies), HTTP aborts (simulate downstream failures), and connection resets. Run fault injection in staging environments to validate that circuit breakers, retries, and fallbacks work correctly under failure conditions.
+8. **Authorization Policies** — Define fine-grained access control using AuthorizationPolicy resources. Specify which services can call which endpoints based on service identity (SPIFFE), namespace, HTTP method, and path. Default to deny-all and explicitly allow required communication paths. Use audit mode first to validate policies before enforcing.
+9. **Sidecar Resource Management** — Configure sidecar proxy resource requests and limits to prevent them from starving application containers. Typical values are 100m CPU / 128Mi memory for lightweight services. Use Sidecar CRDs (Istio) to limit the mesh configuration each proxy receives, reducing memory usage in large meshes from 100MB+ to under 20MB per proxy.
+10. **Ingress and Egress Gateways** — Route all external traffic through dedicated ingress gateways (not application pods) with TLS termination, rate limiting, and WAF integration. Control outbound traffic via egress gateways to enforce policies on external API calls, log all egress traffic for compliance, and block unauthorized external communication.
+11. **Mesh Expansion and Multi-Cluster** — Extend the mesh across multiple Kubernetes clusters or to VM-based workloads using mesh federation. Use shared root CA for cross-cluster mTLS, configure remote service discovery, and implement locality-aware routing to prefer local endpoints. Test cross-cluster failover regularly.
+12. **Progressive Mesh Adoption** — Adopt service mesh incrementally: start with observability (inject sidecars in permissive mode), then enable mTLS (strict mode namespace by namespace), then add traffic policies, and finally authorization. Use namespace labels to control injection scope, maintain an allowlist of exempt workloads, and benchmark proxy overhead (typically 1-3ms p99 latency added).
