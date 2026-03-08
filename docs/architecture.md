@@ -6,7 +6,7 @@ permalink: /architecture/
 
 # Architecture
 
-VibeCody is a Rust workspace (monorepo) containing two end-user applications and four shared library crates.
+VibeCody is a Rust workspace (monorepo) containing two end-user applications and five shared library crates, plus editor plugins, an agent SDK, and a skills library.
 
 ---
 
@@ -16,15 +16,21 @@ VibeCody is a Rust workspace (monorepo) containing two end-user applications and
 vibecody/                          ← Cargo workspace root
 ├── vibecli/
 │   └── vibecli-cli/               ← Binary: terminal assistant
+│       └── skills/                ← 392 skill files (25+ categories)
 ├── vibeui/
-│   ├── src/                       ← React + TypeScript frontend
+│   ├── src/                       ← React + TypeScript frontend (~60+ panel tabs)
 │   ├── src-tauri/                 ← Binary: Tauri desktop app
 │   └── crates/
 │       ├── vibe-core/             ← Library: editor primitives
 │       ├── vibe-ai/               ← Library: AI provider + agent
 │       ├── vibe-lsp/              ← Library: LSP client
-│       └── vibe-extensions/       ← Library: WASM extensions
+│       ├── vibe-extensions/       ← Library: WASM extensions
+│       └── vibe-collab/           ← Library: CRDT collaboration
+├── vibeapp/                       ← Alternate Tauri shell
+├── vibe-indexer/                  ← Standalone indexing service
 ├── vscode-extension/              ← VS Code extension
+├── jetbrains-plugin/              ← JetBrains IDE plugin (Gradle)
+├── neovim-plugin/                 ← Neovim plugin
 └── packages/
     └── agent-sdk/                 ← TypeScript Agent SDK
 ```
@@ -207,7 +213,7 @@ let config = ProviderConfig::new("claude".into(), "claude-3-5-sonnet-20241022".i
 
 ### Provider Implementations
 
-All five providers follow the same pattern:
+All 17 providers follow the same pattern:
 
 1. Send HTTP request to provider API using `reqwest`
 2. For `chat()`: wait for full response
@@ -221,6 +227,18 @@ All five providers follow the same pattern:
 | OpenAI | REST + SSE streaming | `https://api.openai.com` |
 | Gemini | REST + SSE streaming | `https://generativelanguage.googleapis.com` |
 | Grok | OpenAI-compatible | `https://api.x.ai` |
+| Groq | OpenAI-compatible | `https://api.groq.com` |
+| OpenRouter | OpenAI-compatible | `https://openrouter.ai/api` |
+| Azure OpenAI | REST + SSE streaming | User-configured endpoint |
+| Bedrock | AWS SigV4 signed | AWS regional endpoints |
+| Copilot | OpenAI-compatible | `https://api.githubcopilot.com` |
+| LocalEdit | Ollama FIM | `http://localhost:11434` |
+| Mistral | REST + SSE streaming | `https://api.mistral.ai` |
+| Cerebras | OpenAI-compatible | `https://api.cerebras.ai` |
+| DeepSeek | OpenAI-compatible | `https://api.deepseek.com` |
+| Zhipu | REST + SSE streaming | `https://open.bigmodel.cn` |
+| Vercel AI | REST + SSE streaming | User-configured endpoint |
+| Failover | Meta-provider | Wraps multiple providers with auto-fallback |
 
 ### `ChatEngine`
 
@@ -507,13 +525,18 @@ async fn ai_chat(
 
 ## Testing Strategy
 
-| Layer | Approach |
-|-------|----------|
-| `vibe-core` | Unit tests with `tempfile` for FS tests |
-| `vibe-ai` | Mock HTTP server for provider tests |
-| VibeCLI TUI | `tests.rs` in the `tui` module |
-| VibeUI Tauri | E2E tests in `vibeui/e2e/` |
-| TypeScript | `tsc --noEmit` type checking |
+**2,810 unit tests** across the workspace (0 failures).
+
+| Crate | Tests | Key coverage areas |
+|-------|-------|--------------------|
+| `vibecli` | 1,264 | session store, serve, config, review, workflow, REPL, redteam, gateway, transform, marketplace, background agents, TUI |
+| `vibe-ai` | 843 | 17 providers, tools, trace, hooks, policy, skills, agent, multi-agent, MCP, agent teams |
+| `vibe-core` | 293 | buffer, git, diff, context, file system, workspace, search, terminal, index/embeddings |
+| `vibe-ui` | 227 | Tauri commands, coverage, cost, flow, agent executor, shadow workspace |
+| `vibe-lsp` | 74 | LSP client, features, manager |
+| `vibe-collab` | 53 | CRDT rooms, server registry, protocol, awareness |
+| `vibe-extensions` | 46 | loader, manifest, permissions |
+| TypeScript | — | `tsc --noEmit` type checking |
 
 ---
 

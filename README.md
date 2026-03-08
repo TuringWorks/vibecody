@@ -10,6 +10,7 @@
 |---------|-------------|--------|
 | [VibeCLI](./vibecli/) | AI coding assistant for the terminal (TUI + REPL) | Active |
 | [VibeUI](./vibeui/) | AI-powered desktop code editor (Tauri + Monaco) | Active |
+| [VibeApp](./vibeapp/) | Secondary Tauri app | Active |
 
 ---
 
@@ -47,43 +48,41 @@ npm run tauri build
 
 ## Workspace Structure
 
-```t
+```
 vibecody/
-├── Cargo.toml                  # Workspace root
+├── Cargo.toml                  # Workspace root (6 members)
+├── Dockerfile                  # Multi-stage musl build (Alpine runtime)
+├── docker-compose.yml          # VibeCLI + Ollama sidecar (air-gapped)
+├── install.sh                  # One-liner installer (SHA-256 verified)
 ├── vibecli/
-│   ├── README.md
 │   └── vibecli-cli/            # CLI binary (TUI + REPL)
-│       └── src/
-│           ├── main.rs         # Entry point, command routing
-│           ├── config.rs       # TOML config (~/.vibecli/config.toml)
-│           ├── review.rs       # Code review agent
-│           ├── serve.rs        # HTTP daemon for VS Code ext/SDK
-│           ├── otel_init.rs    # OpenTelemetry pipeline
-│           ├── diff_viewer.rs  # Diff rendering
-│           ├── syntax.rs       # Syntax highlighting
-│           ├── repl.rs         # Rustyline REPL helper
-│           └── tui/            # Ratatui TUI implementation
-│               ├── mod.rs      # TUI run loop
-│               ├── app.rs      # Application state
-│               ├── ui.rs       # Layout & rendering
-│               └── components/ # Chat, DiffView, etc.
+│       ├── src/
+│       │   ├── main.rs         # Entry point, command routing
+│       │   ├── config.rs       # TOML config (~/.vibecli/config.toml)
+│       │   ├── serve.rs        # HTTP daemon for VS Code ext/SDK
+│       │   ├── repl.rs         # Rustyline REPL helper
+│       │   └── tui/            # Ratatui TUI (app, ui, components)
+│       └── skills/             # 392 skill files (25 categories)
 ├── vibeui/
-│   ├── README.md
 │   ├── src/                    # React + TypeScript frontend
 │   │   ├── App.tsx             # Root component
-│   │   └── components/         # AIChat, GitPanel, Terminal,
-│   │                           # CheckpointPanel, ManagerView,
-│   │                           # ArtifactsPanel, etc.
+│   │   └── components/         # 60+ panel components
 │   ├── src-tauri/              # Tauri Rust backend
 │   └── crates/                 # Shared Rust library crates
 │       ├── vibe-core/          # Text buffer, FS, workspace, Git, index
-│       ├── vibe-ai/            # AI providers, agents, hooks, skills,
-│       │                       # artifacts, policy, planner, OTel
+│       ├── vibe-ai/            # 17 AI providers, agents, hooks, planner
 │       ├── vibe-lsp/           # Language Server Protocol client
-│       └── vibe-extensions/    # WASM-based extension system
+│       ├── vibe-extensions/    # WASM-based extension system
+│       └── vibe-collab/        # CRDT multiplayer collaboration
+├── vibeapp/                    # Secondary Tauri app
+├── vibe-indexer/               # Remote indexing service
 ├── vscode-extension/           # VS Code extension (chat + completions)
-└── packages/
-    └── agent-sdk/              # TypeScript Agent SDK
+├── jetbrains-plugin/           # JetBrains IDE plugin
+├── neovim-plugin/              # Neovim plugin
+├── packages/
+│   └── agent-sdk/              # TypeScript Agent SDK
+├── docs/                       # Jekyll GitHub Pages site
+└── .github/workflows/          # CI/CD (pages, release)
 ```
 
 ---
@@ -98,13 +97,25 @@ Core editor primitives — text buffer (rope-based), file system operations, wor
 
 ### `vibe-ai`
 
-Unified AI provider abstraction with agent loop, hooks, planner, multi-agent orchestration, skills, artifacts, admin policy, trace/session resume, and OpenTelemetry. Supports:
+Unified AI provider abstraction with agent loop, hooks, planner, multi-agent orchestration, skills, artifacts, admin policy, trace/session resume, and OpenTelemetry. Supports 17 providers:
 
 - **Ollama** — Local/private models (default)
 - **Anthropic Claude** — Claude 3.5 Sonnet/Opus
 - **OpenAI** — GPT-4 and variants
 - **Google Gemini** — Gemini Pro 1.5
 - **xAI Grok** — Grok Beta
+- **Groq** — Fast inference
+- **OpenRouter** — Multi-provider gateway
+- **Azure OpenAI** — Enterprise Azure-hosted models
+- **AWS Bedrock** — AWS-hosted models
+- **GitHub Copilot** — Copilot integration
+- **LocalEdit** — Local code editing model
+- **Mistral** — Mistral AI models
+- **Cerebras** — Wafer-scale inference
+- **DeepSeek** — DeepSeek models
+- **Zhipu** — GLM models
+- **Vercel AI** — Vercel AI SDK
+- **Failover** — Auto-failover wrapper (chains multiple providers)
 
 ### `vibe-lsp`
 
@@ -113,6 +124,10 @@ Language Server Protocol client for intelligent code features (go-to-definition,
 ### `vibe-extensions`
 
 WASM-based extension runtime (Wasmtime), enabling a plugin API.
+
+### `vibe-collab`
+
+CRDT-based multiplayer collaboration for real-time shared editing sessions.
 
 ---
 
@@ -129,6 +144,7 @@ pub trait AIProvider: Send + Sync {
     async fn stream_complete(&self, context: &CodeContext) -> Result<CompletionStream>;
     async fn chat(&self, messages: &[Message], context: Option<String>) -> Result<String>;
     async fn stream_chat(&self, messages: &[Message]) -> Result<CompletionStream>;
+    // + chat_response, chat_with_images, and more
 }
 ```
 
@@ -153,12 +169,24 @@ model = "gpt-4o"
 [gemini]
 enabled = false
 api_key = "AIza..."
-model = "gemini-1.5-pro"
+model = "gemini-2.0-flash"
 
 [grok]
 enabled = false
 api_key = "..."
-model = "grok-beta"
+model = "grok-3-mini"
+
+[groq]
+enabled = false
+api_key = "gsk_..."
+model = "llama-3.3-70b-versatile"
+
+[mistral]
+enabled = false
+api_key = "..."
+model = "mistral-large-latest"
+
+# See docs/configuration.md for all 17 providers
 
 [safety]
 require_approval_for_commands = true
@@ -175,19 +203,25 @@ require_approval_for_file_changes = true
 | Node.js | ≥ 18 | For VibeUI frontend |
 | npm / pnpm | any | For VibeUI frontend |
 | Ollama | any | Optional — for local AI |
+| Docker | any | Optional — for container sandbox |
 
 ---
 
 ## Running Tests
 
+**2,810 unit tests** across the workspace.
+
 ```bash
-# All workspace tests
+# All workspace tests (excluding collab for faster iteration)
+cargo test --workspace --exclude vibe-collab
+
+# All tests including collab
 cargo test --workspace
 
 # Specific crates
-cargo test -p vibe-core
-cargo test -p vibe-ai
-cargo test -p vibecli
+cargo test -p vibe-core    # 293 tests
+cargo test -p vibe-ai      # 843 tests
+cargo test -p vibecli      # 1,264 tests
 
 # Type-check frontend
 cd vibeui && npx tsc --noEmit

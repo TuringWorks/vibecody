@@ -78,6 +78,12 @@ mod verification;
 mod workflow_orchestration;
 mod handoff;
 mod tui;
+#[allow(dead_code)]
+mod knowledge_graph;
+#[allow(dead_code)]
+mod gpu_terminal;
+#[allow(dead_code)]
+mod fine_tuning;
 
 #[derive(Parser)]
 #[command(name = "vibecli")]

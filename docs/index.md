@@ -24,46 +24,58 @@ Both tools are backed by a shared set of Rust library crates for AI provider int
 | [VibeUI Reference](./vibeui/) | Desktop editor features and setup |
 | [Configuration Guide](./configuration/) | All configuration options for providers and UI |
 | [Architecture](./architecture/) | Crate structure, data flow, and design decisions |
+| [Roadmap v2](./ROADMAP-v2/) | Current roadmap and planned features |
+| [Competitive Analysis](./SHANNON-COMPARISON/) | Feature comparison with other AI coding tools |
+| [Changelog](./CHANGELOG/) | Release history and breaking changes |
 | [Contributing](./contributing/) | How to build, test, and contribute |
 
 ---
 
 ## Key Features
 
-### Multi-Provider AI
+### Multi-Provider AI (17 Providers)
 
-Both VibeCLI and VibeUI share the `vibe-ai` provider abstraction, supporting:
+Both VibeCLI and VibeUI share the `vibe-ai` provider abstraction:
 
-| Provider | Type | Streaming | Notes |
-|----------|------|-----------|-------|
-| Ollama | Local | Yes | Default, no API key needed |
-| Anthropic Claude | Cloud | Yes | Claude 3.5 Sonnet/Opus |
-| OpenAI | Cloud | Yes | GPT-4o, GPT-4-turbo |
-| Google Gemini | Cloud | Yes | Gemini 1.5 Pro |
-| xAI Grok | Cloud | Yes | Grok Beta |
+| Category | Providers |
+|----------|-----------|
+| **Local** | Ollama, LocalEdit |
+| **Cloud** | Claude, OpenAI, Gemini, Grok, Groq, Mistral, Cerebras, DeepSeek, Zhipu |
+| **Platform** | OpenRouter, Azure OpenAI, Bedrock, Copilot, Vercel AI |
+| **Meta** | Failover (automatic provider fallback) |
+
+All providers support streaming. Local providers require no API key.
 
 ### VibeCLI Highlights
 
-- Rich TUI powered by [Ratatui](https://ratatui.rs/)
-- REPL mode with readline history and tab completion
-- Git-aware context injection (branch, status, diff)
-- Multi-file diff view with syntax highlighting
-- AI-assisted code apply with interactive confirmation
-- Direct shell command execution with approval gate
-- Code Complete workflow: 8-stage development pipeline with AI-generated checklists
-- Built-in test runner with auto-detection of Cargo, npm, pytest, and Go
+- Rich TUI powered by [Ratatui](https://ratatui.rs/) with REPL mode (readline history, tab completion)
+- 392 skill files across 25 categories and 14 languages (664 triggers)
+- Voice input via Groq Whisper (`--voice` flag)
+- Tailscale pairing with QR code sharing and mDNS discovery
+- 18 gateway platforms (Telegram, Discord, Slack, Signal, Matrix, Teams, IRC, Twitch, and more)
+- Red team security pipeline and compliance reporting
+- Workflow orchestration with 8-stage Code Complete pipeline
+- MCP (Model Context Protocol) integration
+- Session persistence with `/sessions` and `/resume` commands
+- Container sandbox (Docker, Podman, OpenSandbox) with unified runtime trait
+- Git-aware context injection, multi-file diff view with syntax highlighting
+- AI-assisted code apply with interactive confirmation and approval gate
+- HTTP daemon mode (`vibecli serve --port 7878`)
 
 ### VibeUI Highlights
 
 - Monaco Editor integration (same engine as VS Code)
-- Rope-based text buffer for large-file performance
-- Async file I/O with file-watching
-- Full Git panel (status, diff, commit, branch)
-- Integrated terminal (PTY)
-- LSP client foundation
-- WASM extension system (Wasmtime)
-- Dark / light theme toggle
-- Test runner panel with live log streaming and pass/fail visualization
+- 60+ AI panel tabs (Chat, Agent, Tests, Docker, K8s, Profiler, and many more)
+- 90+ CSS-themed panels with dark/light theme toggle
+- Multiplayer CRDT collaboration (real-time co-editing)
+- Agent teams with inter-agent messaging bus
+- CI review bot (GitHub App integration)
+- Marketplace for sharing extensions and skills
+- Visual testing via Chrome DevTools Protocol
+- Container sandbox management (Docker, Podman, OpenSandbox)
+- Deploy to 6 targets from the editor
+- Rope-based text buffer, async file I/O with file-watching
+- Full Git panel, integrated terminal (PTY), LSP client, WASM extension system
 
 ---
 

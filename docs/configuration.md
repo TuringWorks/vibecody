@@ -99,6 +99,65 @@ scope_patterns = ["*"]             # URL patterns in scope
 exclude_patterns = []              # URLs to skip
 auth_config = ""                   # Path to auth YAML file
 auto_report = true                 # Auto-generate report on completion
+
+# ── Additional Providers ──────────────────────────────────────────
+
+[groq]
+enabled = false
+api_key = "gsk_..."                # Groq API key (or GROQ_API_KEY)
+model = "llama-3.3-70b-versatile"
+
+[openrouter]
+enabled = false
+api_key = "sk-or-..."             # OpenRouter key (or OPENROUTER_API_KEY)
+model = "anthropic/claude-3.5-sonnet"
+
+[azure_openai]
+enabled = false
+api_key = "..."                    # Azure key (or AZURE_OPENAI_API_KEY)
+api_url = "https://<resource>.openai.azure.com"
+model = "gpt-4o"                   # Deployment name
+
+[bedrock]
+enabled = false
+# Uses AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION env vars
+model = "anthropic.claude-3-5-sonnet-20241022-v2:0"
+
+[mistral]
+enabled = false
+api_key = "..."                    # Mistral key (or MISTRAL_API_KEY)
+model = "mistral-large-latest"
+
+[cerebras]
+enabled = false
+api_key = "..."                    # Cerebras key (or CEREBRAS_API_KEY)
+model = "llama3.1-70b"
+
+[deepseek]
+enabled = false
+api_key = "..."                    # DeepSeek key (or DEEPSEEK_API_KEY)
+model = "deepseek-chat"
+
+[zhipu]
+enabled = false
+api_key = "..."                    # Zhipu key (or ZHIPU_API_KEY)
+model = "glm-4"
+
+# ── Container Sandbox ─────────────────────────────────────────────
+
+[sandbox]
+runtime = "docker"                 # "docker", "podman", or "opensandbox"
+image = "ubuntu:22.04"
+network = false                    # Disable network inside sandbox
+memory_limit = "512m"
+cpu_limit = "1.0"
+
+# ── Gateway Messaging ─────────────────────────────────────────────
+
+# [[gateway]]
+# platform = "telegram"
+# bot_token = "..."
+# whitelist = ["@username"]
 ```
 
 ---
@@ -113,8 +172,20 @@ API keys can be set as environment variables instead of (or in addition to) the 
 | `ANTHROPIC_API_KEY` | Anthropic Claude |
 | `GEMINI_API_KEY` | Google Gemini |
 | `GROK_API_KEY` | xAI Grok |
+| `GROQ_API_KEY` | Groq |
+| `OPENROUTER_API_KEY` | OpenRouter |
+| `AZURE_OPENAI_API_KEY` | Azure OpenAI |
+| `AZURE_OPENAI_ENDPOINT` | Azure OpenAI endpoint URL |
+| `AWS_ACCESS_KEY_ID` | AWS Bedrock |
+| `AWS_SECRET_ACCESS_KEY` | AWS Bedrock |
+| `AWS_REGION` | AWS Bedrock region |
+| `MISTRAL_API_KEY` | Mistral |
+| `CEREBRAS_API_KEY` | Cerebras |
+| `DEEPSEEK_API_KEY` | DeepSeek |
+| `ZHIPU_API_KEY` | Zhipu |
 | `OLLAMA_HOST` | Ollama base URL (overrides `api_url`) |
 | `GITHUB_TOKEN` | GitHub personal access token (for `@github:` context) |
+| `GITHUB_COPILOT_TOKEN` | GitHub Copilot |
 | `JIRA_BASE_URL` | Jira instance URL, e.g. `https://myorg.atlassian.net` |
 | `JIRA_EMAIL` | Jira account email (for basic auth) |
 | `JIRA_API_TOKEN` | Jira API token (for basic auth) |

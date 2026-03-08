@@ -98,13 +98,12 @@ The installer is placed in `src-tauri/target/release/bundle/`.
 
 ### AI Integration
 
-The AI chat panel supports all five providers via the shared `vibe-ai` crate:
+The AI chat panel supports all 17 providers via the shared `vibe-ai` crate:
 
-- **Ollama** (default, local) — no API key required
-- **Anthropic Claude**
-- **OpenAI**
-- **Google Gemini**
-- **xAI Grok**
+- **Local**: Ollama (default, no API key), LocalEdit
+- **Cloud**: Claude, OpenAI, Gemini, Grok, Groq, Mistral, Cerebras, DeepSeek, Zhipu
+- **Platform**: OpenRouter, Azure OpenAI, Bedrock, Copilot, Vercel AI
+- **Meta**: Failover (automatic provider fallback chain)
 
 Select the provider from the dropdown in the header, or switch per chat tab in `ChatTabManager`. Provider configuration is handled through the **⚙️ Keys** settings tab (BYOK), environment variables, or `~/.vibecli/config.toml`.
 
@@ -285,7 +284,7 @@ Press `Cmd+P` (macOS) / `Ctrl+P` (Windows/Linux) to open the Command Palette:
 
 ## AI Panel Tabs
 
-The AI panel (toggle with **💬 AI Chat** in the header) has the following tabs:
+The AI panel (toggle with **💬 AI Chat** in the header) has **90+ tabs** across categories:
 
 | Tab | Component | Description |
 |-----|-----------|-------------|
@@ -317,6 +316,67 @@ The AI panel (toggle with **💬 AI Chat** in the header) has the following tabs
 | **🌐 HTTP** | `HttpPlayground` | HTTP request builder: method/URL/headers/body, quick-launch localhost, route discovery, response viewer with JSON pretty-print |
 | **💰 Cost** | `CostPanel` | AI cost observatory: per-provider breakdown, total spend, budget limit, cost history table, clear history |
 | **🔧 Autofix** | `AutofixPanel` | Codemod auto-fix: detect linter (clippy/eslint/ruff/gofmt/prettier), run fix, diff preview, apply/revert |
+| **🐳 Docker** | `DockerPanel` | Docker container/image management with build, run, logs |
+| **📦 Deps** | `DepsPanel` | Dependency viewer with outdated detection, update, add/remove |
+| **🔍 Profiler** | `ProfilerPanel` | Performance profiling with flame graph visualization |
+| **🌍 Env** | `EnvPanel` | Environment variable manager with .env file support |
+| **⚙️ CI/CD** | `CicdPanel` | CI/CD pipeline configuration and status monitoring |
+| **☸️ K8s** | `K8sPanel` | Kubernetes cluster management: pods, services, deployments, scale, logs |
+| **🔑 SSH** | `SshPanel` | SSH connection manager with terminal sessions |
+| **📜 Scripts** | `ScriptPanel` | Script runner with task detection (npm, make, cargo) |
+| **📓 Notebook** | `NotebookPanel` | Jupyter-style notebook with code cells and outputs |
+| **🔖 Bookmarks** | `BookmarkPanel` | Code bookmark manager with annotations |
+| **🔀 Bisect** | `BisectPanel` | Git bisect automation to find regression commits |
+| **✂️ Snippets** | `SnippetPanel` | Code snippet library with search and insertion |
+| **🎭 Mock** | `MockServerPanel` | Mock HTTP server for API development and testing |
+| **📡 GraphQL** | `GraphQLPanel` | GraphQL playground with schema introspection |
+| **📈 Metrics** | `CodeMetricsPanel` | Code metrics: complexity, LOC, duplication analysis |
+| **🏋️ Load Test** | `LoadTestPanel` | Load testing with configurable concurrency and latency charts |
+| **📚 API Docs** | `ApiDocsPanel` | OpenAPI/Swagger documentation viewer |
+| **🛠️ Utilities** | `UtilitiesPanel` | Developer utilities: hash, UUID, lorem ipsum, timestamp |
+| **⚡ Process** | `ProcessPanel` | System process monitor with kill capability |
+| **📦 Sandbox** | `SandboxPanel` | Container sandbox for safe code execution (Docker/Podman) |
+| **👥 Teams** | `AgentTeamPanel` | Multi-agent team orchestration with inter-agent messaging |
+| **🤖 CI Bot** | `CIReviewPanel` | CI review bot for automated PR analysis |
+| **📊 Traces** | `TraceDashboard` | OpenTelemetry trace viewer with span timeline |
+| **🏪 Marketplace** | `MarketplacePanel` | Extension marketplace with install/update/ratings |
+| **🔄 Transform** | `TransformPanel` | Code transformation and refactoring tools |
+| **📸 Img2App** | `ScreenshotToApp` | Screenshot-to-code: upload image, generate UI code |
+| **🎥 Recording** | `AgentRecordingPanel` | Record and replay agent sessions |
+| **☁️ Cloud** | `CloudAgentPanel` | Cloud-hosted agent execution with Docker backends |
+| **🎨 Canvas** | `CanvasPanel` | Freeform drawing canvas for diagrams and wireframes |
+| **📝 Diff** | `DiffToolPanel` | Visual diff comparison tool |
+| **📄 Markdown** | `MarkdownPanel` | Markdown editor with live preview |
+| **⏰ Cron** | `CronPanel` | Cron expression builder with human-readable descriptions |
+| **🔤 Regex** | `RegexPanel` | Regex tester with match highlighting and group extraction |
+| **🔑 JWT** | `JwtPanel` | JWT decoder/encoder with claims inspection |
+| **🔢 Encoding** | `EncodingPanel` | Base64/URL/HTML encoding and decoding |
+| **#️⃣ NumBase** | `NumberBasePanel` | Number base converter (binary, octal, decimal, hex) |
+| **📊 DataGen** | `DataGenPanel` | Test data generator with customizable schemas |
+| **🕐 Timestamp** | `TimestampPanel` | Unix timestamp converter with timezone support |
+| **💚 Health** | `HealthMonitorPanel` | Service health monitor with uptime tracking |
+| **🔌 WebSocket** | `WebSocketPanel` | WebSocket client for testing real-time connections |
+| **🎨 Colors** | `ColorPalettePanel` | Color palette generator with design token export |
+| **🏗️ Scaffold** | `ScaffoldPanel` | Project scaffolding with framework templates |
+| **📋 Compliance** | `CompliancePanel` | Compliance reporting and policy enforcement |
+| **🪝 Webhooks** | `WebhookPanel` | Webhook endpoint manager with request logging |
+| **🔒 Admin** | `AdminPanel` | Admin panel with RBAC, audit log, user management |
+| **📊 Dashboard** | `DashboardPanel` | Project overview dashboard with stats and activity |
+| **📐 Orchestrate** | `OrchestrationPanel` | Workflow orchestration with lessons and task tracking |
+| **📝 Log** | `LogPanel` | Structured log viewer with filtering and search |
+| **🌐 Network** | `NetworkPanel` | Network tools: port scan, DNS lookup, TLS inspection |
+| **🗄️ Migrations** | `MigrationsPanel` | Database migration manager with up/down tracking |
+| **🔗 JSON** | `JsonToolsPanel` | JSON formatter, validator, and path query tool |
+| **🎨 ColorConv** | `ColorConverterPanel` | Color format converter (HEX/RGB/HSL/CMYK) |
+| **🌐 CIDR** | `CidrPanel` | CIDR/subnet calculator for network planning |
+| **📊 Cascade** | `CascadePanel` | Cascade AI pipeline with multi-step reasoning |
+| **🖥️ GPU** | `GpuTerminalPanel` | GPU-accelerated terminal with performance monitoring |
+| **🔤 Unicode** | `UnicodePanel` | Unicode character lookup and conversion |
+| **📐 Units** | `UnitConverterPanel` | Unit converter (length, weight, temperature, etc.) |
+| **📊 CSV** | `CsvPanel` | CSV viewer and editor with filtering |
+| **🧠 Knowledge** | `KnowledgeGraphPanel` | Knowledge graph visualization |
+| **🎯 FineTune** | `FineTuningPanel` | Model fine-tuning configuration and monitoring |
+| **🖼️ Visual** | `VisualTestPanel` | Visual regression testing with screenshot comparison |
 
 ---
 
@@ -853,25 +913,22 @@ VibeUI implements WCAG 2.1 Level AA accessibility:
 
 ## Testing
 
-**1,898 tests** pass across the workspace (as of 2026-03-07).
+**2,810 tests** pass across the workspace (as of 2026-03-08, 0 failures).
 
 | Crate | Tests | Key coverage areas |
 |-------|-------|--------------------|
-| vibecli-cli | 354 | session store (38), serve (25), config (26), review (19), workflow, REPL, redteam, gateway, bugbot, vim editor, tool executor, scheduler, notebook, schema, syntax highlighting, diff viewer, MCP server, background agents, team, linear |
-| vibe-ai | 280 | tools parsing/formatting, trace redaction, hooks, policy, skills, artifacts, planner, provider pricing, SigV4 signing, chat engine, completion confidence, multi-agent orchestration, rules, config, providers (claude/openai/gemini/grok/groq/openrouter/azure/copilot — 48 tests) |
-| vibe-core | 186 | buffer, git, context, file system, workspace, index (build/search/refresh/score/tokenize), embeddings (cosine similarity, chunking), diff engine, search, executor safety, symbol extraction |
-| vibe-ui (Tauri) | 92 | parse_lcov, parse_go_coverage, detect_coverage_tool, discover_api_endpoints, cost paths, serialization, flow tracker, memory rules, agent executor |
-| vibe-collab | 28 | room lifecycle, server registry, protocol sync, awareness, error Display/StatusCode |
+| vibecli | 1,264 | session store, serve, config, review, workflow, REPL, redteam, gateway, transform, marketplace, background agents, TUI, tool executor, bugbot, vim editor |
+| vibe-ai | 843 | 17 providers (48+ provider tests), tools, trace, hooks, policy, skills, artifacts, planner, MCP, agent teams, multi-agent, SigV4 |
+| vibe-core | 293 | buffer, git, diff, context, file system, workspace, search, terminal, index/embeddings |
+| vibe-ui (Tauri) | 227 | Tauri commands, coverage, cost, flow, agent executor, shadow workspace |
+| vibe-lsp | 74 | LSP client, features, manager, language configs |
+| vibe-collab | 53 | CRDT rooms, server registry, protocol sync, awareness |
+| vibe-extensions | 46 | loader, manifest, permissions, registry |
 
 **Benchmarks:** 8 Criterion benchmarks covering cosine similarity (384d/1536d/batch), symbol extraction (50/500 fns), index build (100 files), symbol search, and relevance scoring.
-| vibe-lsp | 9 | LSP manager default configs, client lookup |
-| vibe-indexer | 10 | file persistence, index lifecycle |
-| vibeapp | 9 | desktop app basics |
-| smoke tests | 7 | end-to-end CLI integration |
-| vibe-extensions | 2 | loader basics |
 
 ```bash
-# Rust unit tests (all 829)
+# Rust unit tests (all 2,810)
 cargo test --workspace
 
 # Specific crates

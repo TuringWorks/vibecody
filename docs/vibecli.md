@@ -55,7 +55,7 @@ vibecli --provider gemini
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--provider <name>` | `ollama` | AI provider: `ollama`, `openai`, `claude`, `gemini`, `grok` |
+| `--provider <name>` | `ollama` | AI provider: `ollama`, `claude`, `openai`, `gemini`, `grok`, `groq`, `openrouter`, `azure`, `bedrock`, `copilot`, `mistral`, `cerebras`, `deepseek`, `zhipu`, `vercel`, `local_edit` |
 | `--model <name>` | provider default | Override the model for the selected provider |
 | `--tui` | false | Launch the Terminal UI instead of REPL |
 | `--exec <task>` | — | Run an agent task non-interactively (CI mode) |
@@ -70,6 +70,9 @@ vibecli --provider gemini
 | `--redteam <url>` | — | Run autonomous red team scan against target URL |
 | `--redteam-config <file>` | — | YAML config file for auth flows, scope, depth |
 | `--redteam-report <id>` | — | Generate pentest report from a previous session |
+| `--voice` | false | Enable voice input via Groq Whisper |
+| `--tailscale` | false | Enable Tailscale funnel for remote access |
+| `--serve` | false | Run as HTTP daemon (REST + SSE API) |
 
 ---
 
@@ -125,6 +128,23 @@ In REPL mode, the following slash commands are available:
 | `/arena compare <p1> <p2> [prompt]` | Blind A/B model comparison — hidden identities, vote, reveal |
 | `/arena stats` | Show arena leaderboard (wins/losses/ties per provider) |
 | `/arena history` | Show arena vote history |
+| `/sessions` | List all stored agent sessions |
+| `/sessions show <id>` | View a session's messages and steps |
+| `/sessions search <query>` | Search across all sessions |
+| `/voice` | Toggle voice input (Groq Whisper) |
+| `/discover` | Discover nearby VibeCLI instances via mDNS |
+| `/pair` | Generate QR code for device pairing |
+| `/orchestrate status` | Show orchestration state (lessons, tasks, progress) |
+| `/orchestrate lesson <text>` | Record a lesson learned |
+| `/orchestrate todo <text>` | Add a todo item |
+| `/collab create [room]` | Create a CRDT collaboration room |
+| `/collab join <room>` | Join an existing collaboration room |
+| `/coverage` | Run code coverage with auto-detected tool |
+| `/transform <type>` | Run code transforms (Python 2→3, Vue 2→3, etc.) |
+| `/deps` | Show dependency tree and outdated packages |
+| `/docker` | Docker container management |
+| `/sandbox` | Container sandbox management |
+| `/gateway` | Gateway messaging (Telegram, Discord, Slack, etc.) |
 | `/config` | Display current configuration |
 | `/help` | Show command reference |
 | `/exit` or `/quit` | Exit VibeCLI |
@@ -536,14 +556,33 @@ In VibeUI, the **🧪 Tests** panel provides a richer experience with live strea
 
 ## Skills System
 
-Skills are context snippets that activate based on trigger keywords. Place `.md` files in `.vibecli/skills/` or `~/.vibecli/skills/`:
+VibeCody ships with **392 skill files** across 25+ categories covering finance, healthcare, security, cloud (AWS/Azure/GCP), data engineering, robotics, compliance, SRE, and more. Skills activate based on trigger keywords. Place custom `.md` files in `.vibecli/skills/` or `~/.vibecli/skills/`:
 
 ```markdown
 ---
 name: rust-testing
 triggers: [test, testing, cargo test]
+category: rust
+tools_allowed: [read_file, write_file, bash]
 ---
 Use `#[tokio::test]` for async tests...
+```
+
+---
+
+## Gateway Messaging
+
+VibeCLI can act as a bot on 18 messaging platforms via the gateway system:
+
+Telegram, Discord, Slack, Signal, Matrix, Twilio SMS, iMessage, WhatsApp, Teams, IRC, Twitch, WebChat, Nostr, QQ, Tlon (+ 3 original).
+
+Configure gateways in `~/.vibecli/config.toml`:
+
+```toml
+[[gateway]]
+platform = "telegram"
+bot_token = "..."
+whitelist = ["@username"]
 ```
 
 ---
@@ -596,6 +635,7 @@ Spans include session ID, task, tool name, and step metadata.
 ```
 vibecli/
 └── vibecli-cli/
+    ├── skills/             # 392 skill files (25+ categories)
     └── src/
         ├── main.rs         # CLI argument parsing, command dispatch
         ├── config.rs       # Config loading/saving (TOML)
@@ -609,8 +649,18 @@ vibecli/
         ├── redteam.rs      # Red team 5-stage pentest pipeline
         ├── bugbot.rs       # OWASP/CWE static scanner (15 patterns)
         ├── workflow.rs     # Code Complete 8-stage workflow
+        ├── workflow_orchestration.rs  # Lessons + todo orchestration
+        ├── gateway.rs      # 18-platform messaging gateway
+        ├── transform.rs    # Code transforms (Python 2→3, Vue 2→3, etc.)
+        ├── marketplace.rs  # Plugin marketplace
+        ├── background_agents.rs  # Background agent definitions
+        ├── session_store.rs     # SQLite session persistence
+        ├── sandbox.rs      # Container sandbox (Docker/Podman)
+        ├── voice.rs        # Voice input (Groq Whisper)
+        ├── pairing.rs      # QR code device pairing
+        ├── tailscale.rs    # Tailscale funnel
+        ├── discovery.rs    # mDNS service discovery
         ├── scheduler.rs    # /remind and /schedule commands
-        ├── gateway.rs      # Telegram/Discord/Slack/Linear messaging
         └── tui/
             ├── mod.rs      # TUI run loop and event handling
             ├── app.rs      # TUI application state machine
