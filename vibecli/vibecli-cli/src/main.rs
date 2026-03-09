@@ -116,6 +116,14 @@ mod git_platform;
 mod automations;
 #[allow(dead_code)]
 mod self_review;
+#[allow(dead_code)]
+mod mcp_apps;
+#[allow(dead_code)]
+mod agent_teams_v2;
+#[allow(dead_code)]
+mod semantic_mcp;
+#[allow(dead_code)]
+mod docgen;
 
 #[derive(Parser)]
 #[command(name = "vibecli")]

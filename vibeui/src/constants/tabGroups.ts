@@ -24,11 +24,11 @@ export const TAB_GROUPS: TabGroup[] = [
   },
   {
     label: "Infrastructure",
-    tabs: ["deploy", "docker", "k8s", "cicd", "env", "sandbox", "health", "scaffold", "appbuilder"],
+    tabs: ["deploy", "docker", "k8s", "cicd", "env", "sandbox", "health", "scaffold", "appbuilder", "training", "inference"],
   },
   {
     label: "Data & API",
-    tabs: ["database", "supabase", "migrations", "http", "graphql", "mock", "websocket", "apidocs"],
+    tabs: ["database", "supabase", "migrations", "http", "graphql", "mock", "websocket", "apidocs", "streaming", "vectordb", "ingest", "crawler"],
   },
   {
     label: "DevTools",
@@ -44,7 +44,7 @@ export const TAB_GROUPS: TabGroup[] = [
   },
   {
     label: "Settings",
-    tabs: ["settings", "hooks", "jobs", "mcp", "artifacts", "manager", "auth", "cost", "markers", "img2app", "visualtest", "webhooks", "admin"],
+    tabs: ["settings", "hooks", "jobs", "mcp", "artifacts", "manager", "auth", "cost", "markers", "img2app", "visualtest", "webhooks", "admin", "qa-validation"],
   },
 ];
 

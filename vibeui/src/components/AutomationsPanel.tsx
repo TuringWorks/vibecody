@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 // Types
 // ---------------------------------------------------------------------------
 
-type TriggerSource = 'github' | 'slack' | 'linear' | 'pagerduty' | 'cron' | 'filewatch' | 'webhook';
+type TriggerSource = 'github' | 'slack' | 'linear' | 'pagerduty' | 'telegram' | 'signal' | 'whatsapp' | 'discord' | 'teams' | 'matrix' | 'twilio_sms' | 'imessage' | 'irc' | 'twitch' | 'cron' | 'filewatch' | 'webhook';
 
 interface AutomationRule {
   id: string;
@@ -70,6 +70,42 @@ const DEMO_RULES: AutomationRule[] = [
     filter: 'team_id == "ENG"', promptTemplate: 'Plan implementation for: {{title}}',
     provider: 'claude', maxTurns: 8, sandbox: true, fireCount: 0, lastFired: null,
   },
+  {
+    id: 'auto-5', name: 'Telegram Support Bot', description: 'Answer support questions in Telegram group',
+    enabled: true, trigger: 'telegram', events: ['message'],
+    filter: 'chat_id == "dev-group"', promptTemplate: 'Answer Telegram question: {{text}}',
+    provider: 'ollama', maxTurns: 5, sandbox: false, fireCount: 87, lastFired: '3 min ago',
+  },
+  {
+    id: 'auto-6', name: 'Signal Alert Handler', description: 'Handle urgent Signal messages from ops group',
+    enabled: true, trigger: 'signal', events: ['message'],
+    filter: 'group_id == "ops-alerts"', promptTemplate: 'Triage Signal alert: {{text}}',
+    provider: 'claude', maxTurns: 8, sandbox: false, fireCount: 12, lastFired: '20 min ago',
+  },
+  {
+    id: 'auto-7', name: 'WhatsApp Customer Agent', description: 'Auto-respond to WhatsApp business messages',
+    enabled: true, trigger: 'whatsapp', events: ['message'],
+    filter: '', promptTemplate: 'Respond to customer: {{text}} (from {{from}})',
+    provider: 'openai', maxTurns: 6, sandbox: false, fireCount: 234, lastFired: '1 min ago',
+  },
+  {
+    id: 'auto-8', name: 'Discord Community Bot', description: 'Answer questions in #help channel',
+    enabled: true, trigger: 'discord', events: ['MESSAGE_CREATE'],
+    filter: 'channel_id == "help"', promptTemplate: 'Help Discord user: {{text}}',
+    provider: 'ollama', maxTurns: 5, sandbox: false, fireCount: 56, lastFired: '8 min ago',
+  },
+  {
+    id: 'auto-9', name: 'Matrix Room Assistant', description: 'AI assistant for Matrix dev room',
+    enabled: false, trigger: 'matrix', events: ['m.room.message'],
+    filter: 'room_id == "!dev:matrix.org"', promptTemplate: 'Assist: {{text}}',
+    provider: 'claude', maxTurns: 5, sandbox: false, fireCount: 0, lastFired: null,
+  },
+  {
+    id: 'auto-10', name: 'Twitch Chat Responder', description: 'Respond to chat commands during streams',
+    enabled: true, trigger: 'twitch', events: ['chat.message'],
+    filter: 'channel == "vibecody"', promptTemplate: 'Respond to Twitch chat: {{text}}',
+    provider: 'ollama', maxTurns: 3, sandbox: false, fireCount: 321, lastFired: '30 sec ago',
+  },
 ];
 
 const DEMO_TASKS: AutomationTask[] = [
@@ -80,7 +116,7 @@ const DEMO_TASKS: AutomationTask[] = [
 ];
 
 const DEMO_STATS: AutomationStats = {
-  totalRules: 4, enabledRules: 3, totalTasks: 170, runningTasks: 1, completedTasks: 165, failedTasks: 4,
+  totalRules: 10, enabledRules: 8, totalTasks: 880, runningTasks: 2, completedTasks: 865, failedTasks: 13,
 };
 
 // ---------------------------------------------------------------------------
@@ -89,7 +125,9 @@ const DEMO_STATS: AutomationStats = {
 
 const triggerIcons: Record<TriggerSource, string> = {
   github: 'GH', slack: 'SL', linear: 'LN', pagerduty: 'PD',
-  cron: 'CR', filewatch: 'FW', webhook: 'WH',
+  telegram: 'TG', signal: 'SG', whatsapp: 'WA', discord: 'DC',
+  teams: 'MS', matrix: 'MX', twilio_sms: 'TW', imessage: 'iM',
+  irc: 'IR', twitch: 'TV', cron: 'CR', filewatch: 'FW', webhook: 'WH',
 };
 
 const statusColors: Record<string, string> = {
@@ -165,6 +203,16 @@ const AutomationsPanel: React.FC = () => {
                 <option value="slack">Slack</option>
                 <option value="linear">Linear</option>
                 <option value="pagerduty">PagerDuty</option>
+                <option value="telegram">Telegram</option>
+                <option value="signal">Signal</option>
+                <option value="whatsapp">WhatsApp</option>
+                <option value="discord">Discord</option>
+                <option value="teams">Microsoft Teams</option>
+                <option value="matrix">Matrix</option>
+                <option value="twilio_sms">Twilio SMS</option>
+                <option value="imessage">iMessage</option>
+                <option value="irc">IRC</option>
+                <option value="twitch">Twitch</option>
                 <option value="cron">Cron</option>
                 <option value="filewatch">File Watch</option>
                 <option value="webhook">Webhook</option>

@@ -233,10 +233,10 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 
 | # | Gap | Competitors | Description | Effort |
 |---|-----|-------------|-------------|--------|
-| 3 | **Interactive UI in chat (MCP Apps)** | Cursor 2.6, VS Code | Render charts, diagrams, forms, interactive widgets from MCP tool responses inside agent chat | High |
-| 4 | **Agent Teams peer-to-peer** | Claude Code Agent Teams | Teammates message each other directly; shared task list with real-time status; lead synthesizes with conflict resolution | Medium |
-| 5 | **Semantic codebase MCP server** | Augment Context Engine | Expose EmbeddingIndex as MCP server; other tools can consume VibeCody's index | Medium |
-| 6 | **Auto-documentation wiki** | Devin Wiki | Generate and maintain project documentation from codebase analysis automatically | Medium |
+| 3 | ~~**Interactive UI in chat (MCP Apps)**~~ | Cursor 2.6, VS Code | **CLOSED** — `mcp_apps.rs` (30 tests): WidgetRegistry with 10 widget kinds (Table/Chart/Form/Image/Mermaid/Markdown/Progress/Code/Tree/Metric), MCP App response parser, TableData+ChartData+FormData+ProgressData+MetricData+TreeNode with ASCII TUI renderers, WidgetDef with nested children and props | High |
+| 4 | ~~**Agent Teams peer-to-peer**~~ | Claude Code Agent Teams | **CLOSED** — `agent_teams_v2.rs` (29 tests): TeamCoordinator with peer messaging (send_to_peer/broadcast/inbox/conversation), SharedTask board (Pending/InProgress/Blocked/InReview/Complete/Failed), file conflict detection + resolution (KeepA/KeepB/Merge/LeadResolved), SynthesisReport, AgentRole (Lead/Teammate/Reviewer/Specialist) | Medium |
+| 5 | ~~**Semantic codebase MCP server**~~ | Augment Context Engine | **CLOSED** — `semantic_mcp.rs` (22 tests): SemanticIndexServer exposing 6 MCP tools (search_codebase/find_related_files/explain_symbol/dependency_graph/index_status/reindex), keyword+exact matching search, shared-symbol file relation, symbol lookup with docs+signature, incremental reindex support | Medium |
+| 6 | ~~**Auto-documentation wiki**~~ | Devin Wiki | **CLOSED** — `docgen.rs` (28 tests): WikiGenerator with auto-detection of API endpoints, public interfaces (Rust/TypeScript), and config options; generates index + API + models + config pages; staleness tracking (Fresh/SlightlyStale/Stale/Outdated); markdown export with source file links; DocGenConfig for output customization | Medium |
 
 ### P2 — Nice-to-Have
 
@@ -375,30 +375,38 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 - `self-review-gate.md` skill file (10 triggers)
 - **44 tests**, all passing
 
-### Phase 55: MCP Apps / Interactive Chat Widgets (P1)
-- Support MCP tool responses containing UI component definitions
-- React component registry: `table`, `chart`, `form`, `image`, `mermaid`, `markdown`, `progress`
-- Render inline in VibeUI AIChat panel
-- MCP server authors return `{ type: "mcp-app", component: "chart", props: {...} }` in tool result
+### Phase 55: MCP Apps / Interactive Chat Widgets (P1) — ✅ IMPLEMENTED
+- `mcp_apps.rs`: WidgetRegistry with 10 widget types (Table/Chart/Form/Image/Mermaid/Markdown/Progress/Code/Tree/Metric)
+- MCP App response parser: `{ "type": "mcp-app", "component": "chart", "props": {...} }`
+- Data structures: TableData (ASCII table), ChartData (ASCII bars), FormData, ProgressData, MetricData (KPI+trend), TreeNode (ASCII tree)
+- WidgetDef with props, nested children, and TUI text renderer
+- **30 tests**, all passing
 
-### Phase 56: Agent Teams v2 — Peer Messaging (P1)
-- Extend agent_team.rs: `send_to_peer(agent_id, message)` method
-- Shared task list with statuses: pending, in-progress, blocked, complete
-- Lead synthesizes teammate results with conflict detection
-- VibeUI TeamsPanel: visual communication graph
+### Phase 56: Agent Teams v2 — Peer Messaging (P1) — ✅ IMPLEMENTED
+- `agent_teams_v2.rs`: TeamCoordinator with peer-to-peer messaging
+- PeerMessage types: Text, Request, Response, StatusUpdate, FileChange, ConflictAlert, TaskAssignment
+- SharedTask board: Pending → InProgress → InReview → Complete/Failed/Blocked lifecycle
+- FileConflict detection across concurrent tasks + resolution strategies (KeepA/KeepB/Merge/LeadResolved)
+- SynthesisReport: lead combines outputs, tracks files modified, conflict count
+- AgentRole: Lead, Teammate, Reviewer, Specialist
+- **29 tests**, all passing
 
-### Phase 57: Semantic Index MCP Server (P1)
-- `vibecli mcp-serve --embedding` exposes EmbeddingIndex as MCP server
-- Tools: `search_codebase`, `find_related_files`, `explain_symbol`, `dependency_graph`
-- Incremental indexing on file change via notify watcher
-- External MCP clients (Cursor, Claude Code, Zed) can consume VibeCody's index
+### Phase 57: Semantic Index MCP Server (P1) — ✅ IMPLEMENTED
+- `semantic_mcp.rs`: SemanticIndexServer exposing 6 MCP tools
+- Tools: search_codebase (keyword+exact), find_related_files (shared symbols), explain_symbol (docs+signature), dependency_graph, index_status, reindex
+- IndexEntry with symbols (10 SymbolKind variants), language detection, embedding hash
+- Incremental reindex support (start_reindex/finish_reindex)
+- Results sorted by score/similarity, configurable limits
+- **22 tests**, all passing
 
-### Phase 58: Auto-Documentation Wiki (P1)
-- `docgen.rs` module: analyze codebase structure → generate markdown documentation
-- Auto-detect: API endpoints, public interfaces, data models, configuration
-- Output to `docs/wiki/` directory with index page
-- REPL: `/docs generate|update|serve`
-- VibeUI: WikiPanel with tree navigation
+### Phase 58: Auto-Documentation Wiki (P1) — ✅ IMPLEMENTED
+- `docgen.rs`: WikiGenerator with source code analysis
+- Auto-detect: API endpoints (.get/.post patterns), public interfaces (pub struct/trait/enum, export class/interface), configuration options
+- Generates 4 page types: Index, API Endpoints, Data Models, Configuration
+- DocPage with markdown export, slugification, source file links, word count
+- Freshness tracking: Fresh → SlightlyStale → Stale → Outdated based on source file modifications
+- WikiStats, output file paths, configurable output directory
+- **28 tests**, all passing
 
 ---
 
@@ -413,8 +421,8 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 | REPL commands | 60+ |
 | Gateway platforms | 18 |
 | Supported languages (skills) | 50+ (TIOBE top 50 complete) |
-| Open gaps (P0) | 2 |
-| Open gaps (P1) | 4 |
+| Open gaps (P0) | 0 (both closed) |
+| Open gaps (P1) | 0 (all 4 closed) |
 | Open gaps (P2) | 8 |
 | Open gaps (P3) | 4 |
 | Competitors analyzed | 11 (Claude Code, Cursor, Copilot, Devin, Augment, Windsurf, Amp, Continue, Bolt.new, Blitzy, Aider) |

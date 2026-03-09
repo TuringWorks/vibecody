@@ -109,6 +109,13 @@ const AdminPanel = lazy(() => import("./AdminPanel").then(m => ({ default: m.Adm
 const AppBuilderPanel = lazy(() => import("./AppBuilderPanel").then(m => ({ default: m.AppBuilderPanel })));
 const InfiniteContextPanel = lazy(() => import("./InfiniteContextPanel").then(m => ({ default: m.InfiniteContextPanel })));
 const BatchBuilderPanel = lazy(() => import("./BatchBuilderPanel"));
+const StreamingPanel = lazy(() => import("./StreamingPanel").then(m => ({ default: m.StreamingPanel })));
+const InferencePanel = lazy(() => import("./InferencePanel").then(m => ({ default: m.InferencePanel })));
+const TrainingPanel = lazy(() => import("./TrainingPanel").then(m => ({ default: m.TrainingPanel })));
+const DocumentIngestPanel = lazy(() => import("./DocumentIngestPanel").then(m => ({ default: m.DocumentIngestPanel })));
+const WebCrawlerPanel = lazy(() => import("./WebCrawlerPanel").then(m => ({ default: m.WebCrawlerPanel })));
+const VectorDbPanel = lazy(() => import("./VectorDbPanel").then(m => ({ default: m.VectorDbPanel })));
+const QaValidationPanel = lazy(() => import("./QaValidationPanel").then(m => ({ default: m.QaValidationPanel })));
 
 // --- Props interfaces ---
 
@@ -320,6 +327,20 @@ export function PanelHost(props: PanelHostProps) {
       return <LazyPanel Component={InfiniteContextPanel} props={{ workspacePath: wp || "" }} />;
     case "batchbuilder":
       return <LazyPanel Component={BatchBuilderPanel} props={{}} />;
+    case "streaming":
+      return <LazyPanel Component={StreamingPanel} props={{}} />;
+    case "inference":
+      return <LazyPanel Component={InferencePanel} props={{}} />;
+    case "training":
+      return <LazyPanel Component={TrainingPanel} props={{}} />;
+    case "ingest":
+      return <LazyPanel Component={DocumentIngestPanel} props={{}} />;
+    case "crawler":
+      return <LazyPanel Component={WebCrawlerPanel} props={{}} />;
+    case "vectordb":
+      return <LazyPanel Component={VectorDbPanel} props={{}} />;
+    case "qa-validation":
+      return <LazyPanel Component={QaValidationPanel} props={{}} />;
     default:
       return <div style={{ padding: 16, color: "var(--text-secondary)" }}>Unknown panel: {tab}</div>;
   }
