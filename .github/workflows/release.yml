@@ -85,6 +85,7 @@ jobs:
           if [[ "${{ matrix.target }}" == "aarch64-unknown-linux-musl" ]]; then
             sudo apt-get install -y gcc-aarch64-linux-gnu
             echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+            echo "CC_aarch64_unknown_linux_musl=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
           fi
 
       - name: Cache Rust dependencies
@@ -183,7 +184,7 @@ jobs:
 
       - name: Install frontend dependencies
         working-directory: vibeui
-        run: npm ci
+        run: npm install --no-audit --no-fund
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2
@@ -281,7 +282,7 @@ jobs:
 
       - name: Install frontend dependencies
         working-directory: vibeapp
-        run: npm ci
+        run: npm install --no-audit --no-fund
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2
