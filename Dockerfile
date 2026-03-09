@@ -19,7 +19,7 @@ RUN apt-get update -qq && \
 WORKDIR /build
 
 # Cache dependency builds: copy only manifests first
-COPY Cargo.toml Cargo.lock ./
+COPY Cargo.toml ./
 COPY vibecli/vibecli-cli/Cargo.toml vibecli/vibecli-cli/Cargo.toml
 COPY vibeui/crates/vibe-core/Cargo.toml vibeui/crates/vibe-core/Cargo.toml
 COPY vibeui/crates/vibe-ai/Cargo.toml vibeui/crates/vibe-ai/Cargo.toml
