@@ -12,7 +12,7 @@ FROM rust:1.82-bookworm AS builder
 
 # Install musl cross-compilation tools
 RUN apt-get update -qq && \
-    apt-get install -y --no-install-recommends musl-tools pkg-config && \
+    apt-get install -y --no-install-recommends musl-tools pkg-config cmake perl && \
     rustup target add x86_64-unknown-linux-musl && \
     rm -rf /var/lib/apt/lists/*
 
@@ -48,6 +48,8 @@ RUN cargo build --release --package vibecli --target x86_64-unknown-linux-musl 2
 COPY vibecli/ vibecli/
 COPY vibeui/crates/ vibeui/crates/
 COPY vibeui/src-tauri/src/ vibeui/src-tauri/src/
+COPY vibeapp/src-tauri/src/ vibeapp/src-tauri/src/
+COPY vibe-indexer/src/ vibe-indexer/src/
 
 # Build the real binary
 RUN cargo build --release --package vibecli --target x86_64-unknown-linux-musl && \

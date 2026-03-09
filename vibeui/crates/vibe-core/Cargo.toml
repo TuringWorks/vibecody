@@ -15,7 +15,7 @@ tokio.workspace = true
 tracing.workspace = true
 
 # Git integration
-git2 = "0.19"
+git2.workspace = true
 
 # File watching
 notify = "7.0"
