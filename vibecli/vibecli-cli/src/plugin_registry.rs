@@ -599,4 +599,135 @@ mod tests {
         assert!(team.is_some());
         assert!(team.unwrap().verified);
     }
+
+    // ── Additional tests ──────────────────────────────────────────────────
+
+    #[test]
+    fn test_search_no_results() {
+        let mut reg = PluginRegistry::new();
+        reg.load_cached().unwrap();
+        let results = reg.search("zzz_nonexistent_plugin_xyz", None);
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn test_search_by_author() {
+        let mut reg = PluginRegistry::new();
+        reg.load_cached().unwrap();
+        let results = reg.search("community", None);
+        assert!(!results.is_empty());
+        // All community-authored plugins should appear
+        assert!(results.iter().any(|e| e.author == "community"));
+    }
+
+    #[test]
+    fn test_search_without_index_returns_empty() {
+        let reg = PluginRegistry::new();
+        // Index not loaded
+        let results = reg.search("jira", None);
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn test_find_without_index_returns_none() {
+        let reg = PluginRegistry::new();
+        assert!(reg.find("vibecody-jira").is_none());
+    }
+
+    #[test]
+    fn test_list_by_kind_without_index() {
+        let reg = PluginRegistry::new();
+        let results = reg.list_by_kind(&PluginKind::Theme);
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn test_trending_without_index() {
+        let reg = PluginRegistry::new();
+        let results = reg.trending(5);
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn test_trending_limit_greater_than_entries() {
+        let mut reg = PluginRegistry::new();
+        reg.load_cached().unwrap();
+        let all = reg.trending(1000);
+        let idx = reg.index.as_ref().unwrap();
+        assert_eq!(all.len(), idx.entries.len());
+    }
+
+    #[test]
+    fn test_trending_limit_one() {
+        let mut reg = PluginRegistry::new();
+        reg.load_cached().unwrap();
+        let top = reg.trending(1);
+        assert_eq!(top.len(), 1);
+        // The top plugin should be prettier (32100 downloads)
+        assert_eq!(top[0].name, "vibecody-prettier");
+    }
+
+    #[test]
+    fn test_with_url_builder() {
+        let reg = PluginRegistry::new().with_url("https://custom.registry.dev/api");
+        assert_eq!(reg.registry_url, "https://custom.registry.dev/api");
+    }
+
+    #[test]
+    fn test_registry_entry_serde_roundtrip() {
+        let mut reg = PluginRegistry::new();
+        reg.load_cached().unwrap();
+        let entry = reg.find("vibecody-jira").unwrap();
+        let json = serde_json::to_string(entry).unwrap();
+        let back: RegistryEntry = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.name, "vibecody-jira");
+        assert_eq!(back.version, "1.2.0");
+        assert!(back.verified);
+        assert_eq!(back.downloads, 15420);
+    }
+
+    #[test]
+    fn test_version_entry_serde() {
+        let ve = VersionEntry {
+            version: "1.0.0".to_string(),
+            checksum: "abc".to_string(),
+            archive_url: "https://example.com/v1.tar.gz".to_string(),
+            published_at: "2026-01-01".to_string(),
+            changelog: Some("Initial release".to_string()),
+            yanked: false,
+        };
+        let json = serde_json::to_string(&ve).unwrap();
+        let back: VersionEntry = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.version, "1.0.0");
+        assert!(!back.yanked);
+        assert_eq!(back.changelog, Some("Initial release".to_string()));
+    }
+
+    #[test]
+    fn test_publisher_serde() {
+        let pub_ = Publisher {
+            username: "testuser".to_string(),
+            display_name: "Test User".to_string(),
+            email: Some("test@example.com".to_string()),
+            verified: false,
+            plugins: vec!["my-plugin".to_string()],
+            public_key: None,
+        };
+        let json = serde_json::to_string(&pub_).unwrap();
+        let back: Publisher = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.username, "testuser");
+        assert!(!back.verified);
+        assert_eq!(back.plugins.len(), 1);
+    }
+
+    #[test]
+    fn test_list_by_kind_optimizer() {
+        let mut reg = PluginRegistry::new();
+        reg.load_cached().unwrap();
+        let optimizers = reg.list_by_kind(&PluginKind::Optimizer);
+        assert!(optimizers.len() >= 2); // prettier and eslint
+        for entry in &optimizers {
+            assert_eq!(entry.kind, PluginKind::Optimizer);
+        }
+    }
 }

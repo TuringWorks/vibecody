@@ -115,4 +115,169 @@ mod tests {
         assert!(info.connected);
         assert_eq!(info.tailscale_ip.as_deref(), Some("100.64.0.1"));
     }
+
+    #[test]
+    fn tailscale_info_hostname_field() {
+        let info = TailscaleInfo {
+            connected: true,
+            tailscale_ip: Some("100.1.2.3".to_string()),
+            hostname: Some("dev-box".to_string()),
+            tailnet: None,
+        };
+        assert_eq!(info.hostname.as_deref(), Some("dev-box"));
+    }
+
+    #[test]
+    fn tailscale_info_tailnet_field() {
+        let info = TailscaleInfo {
+            connected: true,
+            tailscale_ip: None,
+            hostname: None,
+            tailnet: Some("acme.corp".to_string()),
+        };
+        assert_eq!(info.tailnet.as_deref(), Some("acme.corp"));
+    }
+
+    #[test]
+    fn tailscale_info_clone() {
+        let info = TailscaleInfo {
+            connected: true,
+            tailscale_ip: Some("100.0.0.1".to_string()),
+            hostname: Some("host".to_string()),
+            tailnet: Some("net".to_string()),
+        };
+        let cloned = info.clone();
+        assert_eq!(cloned.connected, info.connected);
+        assert_eq!(cloned.tailscale_ip, info.tailscale_ip);
+        assert_eq!(cloned.hostname, info.hostname);
+        assert_eq!(cloned.tailnet, info.tailnet);
+    }
+
+    #[test]
+    fn tailscale_info_serialize_json() {
+        let info = TailscaleInfo {
+            connected: true,
+            tailscale_ip: Some("100.10.0.1".to_string()),
+            hostname: Some("node1".to_string()),
+            tailnet: Some("example.com".to_string()),
+        };
+        let json = serde_json::to_string(&info).unwrap();
+        assert!(json.contains("\"connected\":true"));
+        assert!(json.contains("100.10.0.1"));
+        assert!(json.contains("node1"));
+    }
+
+    #[test]
+    fn tailscale_info_deserialize_json() {
+        let json = r#"{"connected":false,"tailscale_ip":null,"hostname":null,"tailnet":null}"#;
+        let info: TailscaleInfo = serde_json::from_str(json).unwrap();
+        assert!(!info.connected);
+        assert!(info.tailscale_ip.is_none());
+    }
+
+    #[test]
+    fn tailscale_info_roundtrip_serde() {
+        let original = TailscaleInfo {
+            connected: true,
+            tailscale_ip: Some("100.64.1.2".to_string()),
+            hostname: Some("test-host".to_string()),
+            tailnet: Some("ts-net".to_string()),
+        };
+        let json = serde_json::to_string(&original).unwrap();
+        let parsed: TailscaleInfo = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.connected, original.connected);
+        assert_eq!(parsed.tailscale_ip, original.tailscale_ip);
+        assert_eq!(parsed.hostname, original.hostname);
+        assert_eq!(parsed.tailnet, original.tailnet);
+    }
+
+    #[test]
+    fn tailscale_info_all_none_fields() {
+        let info = TailscaleInfo {
+            connected: false,
+            tailscale_ip: None,
+            hostname: None,
+            tailnet: None,
+        };
+        assert!(info.tailscale_ip.is_none());
+        assert!(info.hostname.is_none());
+        assert!(info.tailnet.is_none());
+    }
+
+    #[test]
+    fn tailscale_info_all_some_fields() {
+        let info = TailscaleInfo {
+            connected: true,
+            tailscale_ip: Some("100.0.0.1".to_string()),
+            hostname: Some("h".to_string()),
+            tailnet: Some("t".to_string()),
+        };
+        assert!(info.tailscale_ip.is_some());
+        assert!(info.hostname.is_some());
+        assert!(info.tailnet.is_some());
+    }
+
+    #[test]
+    fn tailscale_info_debug_format() {
+        let info = TailscaleInfo {
+            connected: true,
+            tailscale_ip: Some("100.1.1.1".to_string()),
+            hostname: None,
+            tailnet: None,
+        };
+        let debug = format!("{:?}", info);
+        assert!(debug.contains("TailscaleInfo"));
+        assert!(debug.contains("100.1.1.1"));
+    }
+
+    #[test]
+    fn tailscale_info_partial_fields() {
+        let info = TailscaleInfo {
+            connected: true,
+            tailscale_ip: Some("100.2.3.4".to_string()),
+            hostname: None,
+            tailnet: Some("my-tailnet".to_string()),
+        };
+        assert!(info.connected);
+        assert!(info.hostname.is_none());
+        assert_eq!(info.tailnet.as_deref(), Some("my-tailnet"));
+    }
+
+    #[test]
+    fn tailscale_info_deserialize_with_all_fields() {
+        let json = r#"{
+            "connected": true,
+            "tailscale_ip": "100.50.60.70",
+            "hostname": "workstation",
+            "tailnet": "corp.example.com"
+        }"#;
+        let info: TailscaleInfo = serde_json::from_str(json).unwrap();
+        assert!(info.connected);
+        assert_eq!(info.tailscale_ip.as_deref(), Some("100.50.60.70"));
+        assert_eq!(info.hostname.as_deref(), Some("workstation"));
+        assert_eq!(info.tailnet.as_deref(), Some("corp.example.com"));
+    }
+
+    #[test]
+    fn tailscale_info_ipv6_tailscale_ip() {
+        let info = TailscaleInfo {
+            connected: true,
+            tailscale_ip: Some("fd7a:115c:a1e0::1".to_string()),
+            hostname: None,
+            tailnet: None,
+        };
+        assert!(info.tailscale_ip.as_deref().unwrap().contains("fd7a"));
+    }
+
+    #[test]
+    fn tailscale_info_empty_string_fields() {
+        let info = TailscaleInfo {
+            connected: false,
+            tailscale_ip: Some("".to_string()),
+            hostname: Some("".to_string()),
+            tailnet: Some("".to_string()),
+        };
+        assert_eq!(info.tailscale_ip.as_deref(), Some(""));
+        assert_eq!(info.hostname.as_deref(), Some(""));
+    }
 }

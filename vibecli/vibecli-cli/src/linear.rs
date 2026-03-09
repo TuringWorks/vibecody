@@ -445,4 +445,92 @@ mod tests {
                 || !output.is_empty(),
         );
     }
+
+    // ── Additional tests ──────────────────────────────────────────────────
+
+    #[test]
+    fn linear_issue_clone_preserves_fields() {
+        let issue = LinearIssue {
+            id: "id-1".into(),
+            identifier: "ENG-99".into(),
+            title: "Clone test".into(),
+            state: "Done".into(),
+            priority: 1,
+            url: "https://example.com".into(),
+            assignee: Some("Bob".into()),
+        };
+        let cloned = issue.clone();
+        assert_eq!(cloned.id, issue.id);
+        assert_eq!(cloned.identifier, issue.identifier);
+        assert_eq!(cloned.title, issue.title);
+        assert_eq!(cloned.state, issue.state);
+        assert_eq!(cloned.priority, issue.priority);
+        assert_eq!(cloned.url, issue.url);
+        assert_eq!(cloned.assignee, issue.assignee);
+    }
+
+    #[test]
+    fn linear_issue_debug_format() {
+        let issue = LinearIssue {
+            id: "x".into(), identifier: "T-1".into(), title: "t".into(),
+            state: "Todo".into(), priority: 3, url: "u".into(), assignee: None,
+        };
+        let dbg = format!("{:?}", issue);
+        assert!(dbg.contains("T-1"));
+        assert!(dbg.contains("Todo"));
+    }
+
+    #[test]
+    fn linear_issue_deserialize_from_json_with_all_fields() {
+        let json = r#"{
+            "id": "abc",
+            "identifier": "TEAM-5",
+            "title": "Full fields",
+            "state": "In Review",
+            "priority": 4,
+            "url": "https://linear.app/issue/TEAM-5",
+            "assignee": "Charlie"
+        }"#;
+        let issue: LinearIssue = serde_json::from_str(json).unwrap();
+        assert_eq!(issue.identifier, "TEAM-5");
+        assert_eq!(issue.state, "In Review");
+        assert_eq!(issue.priority, 4);
+        assert_eq!(issue.priority_label(), "🟢 Low");
+        assert_eq!(issue.assignee, Some("Charlie".into()));
+    }
+
+    #[test]
+    fn linear_issue_deserialize_null_assignee() {
+        let json = r#"{
+            "id": "x",
+            "identifier": "T-1",
+            "title": "t",
+            "state": "Todo",
+            "priority": 0,
+            "url": "u",
+            "assignee": null
+        }"#;
+        let issue: LinearIssue = serde_json::from_str(json).unwrap();
+        assert!(issue.assignee.is_none());
+    }
+
+    #[test]
+    fn linear_client_new_stores_key() {
+        let client = LinearClient::new("my-api-key".to_string());
+        assert_eq!(client.api_key, "my-api-key");
+    }
+
+    #[test]
+    fn priority_label_boundary_255() {
+        let issue = LinearIssue {
+            id: "x".into(), identifier: "T-1".into(), title: "t".into(),
+            state: "s".into(), priority: 255, url: "u".into(), assignee: None,
+        };
+        assert_eq!(issue.priority_label(), "⬜ None");
+    }
+
+    #[test]
+    fn graphql_url_constant() {
+        assert_eq!(GRAPHQL_URL, "https://api.linear.app/graphql");
+    }
 }

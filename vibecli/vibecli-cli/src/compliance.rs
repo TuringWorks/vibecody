@@ -373,4 +373,132 @@ mod tests {
         let err = generate_report_for("unknown");
         assert!(err.is_err());
     }
+
+    #[test]
+    fn test_generate_report_for_case_variants() {
+        assert!(generate_report_for("SOC2").is_ok());
+        assert!(generate_report_for("Soc2").is_ok());
+        assert!(generate_report_for("soc 2").is_ok());
+        assert!(generate_report_for("FedRAMP").is_ok());
+        assert!(generate_report_for("FEDRAMP").is_ok());
+        assert!(generate_report_for("fed_ramp").is_ok());
+    }
+
+    #[test]
+    fn test_generate_report_for_unsupported() {
+        let err = generate_report_for("hipaa");
+        assert!(err.is_err());
+        let msg = err.unwrap_err().to_string();
+        assert!(msg.contains("Unsupported framework"));
+    }
+
+    #[test]
+    fn test_soc2_control_ids() {
+        let report = generate_soc2_report();
+        let ids: Vec<&str> = report.controls.iter().map(|c| c.id.as_str()).collect();
+        assert!(ids.contains(&"CC1.1"));
+        assert!(ids.contains(&"CC6.1"));
+        assert!(ids.contains(&"CC6.6"));
+        assert!(ids.contains(&"CC9.1"));
+    }
+
+    #[test]
+    fn test_fedramp_control_ids() {
+        let report = generate_fedramp_report();
+        let ids: Vec<&str> = report.controls.iter().map(|c| c.id.as_str()).collect();
+        assert!(ids.contains(&"AC-2"));
+        assert!(ids.contains(&"AU-2"));
+        assert!(ids.contains(&"SC-13"));
+        assert!(ids.contains(&"SI-10"));
+        assert!(ids.contains(&"RA-5"));
+    }
+
+    #[test]
+    fn test_fedramp_summary_counts() {
+        let report = generate_fedramp_report();
+        let s = &report.summary;
+        assert_eq!(
+            s.total_controls,
+            s.implemented + s.partial + s.not_implemented + s.not_applicable
+        );
+    }
+
+    #[test]
+    fn test_fedramp_compliance_percentage() {
+        let report = generate_fedramp_report();
+        assert!(report.summary.compliance_percentage > 0.0);
+        assert!(report.summary.compliance_percentage <= 100.0);
+    }
+
+    #[test]
+    fn test_report_to_markdown_fedramp() {
+        let report = generate_fedramp_report();
+        let md = report_to_markdown(&report);
+        assert!(md.contains("FedRAMP Compliance Report"));
+        assert!(md.contains("AC-2"));
+        assert!(md.contains("Account Management"));
+    }
+
+    #[test]
+    fn test_control_status_serde_all_variants() {
+        for status in [
+            ControlStatus::Implemented,
+            ControlStatus::PartiallyImplemented,
+            ControlStatus::NotImplemented,
+            ControlStatus::NotApplicable,
+        ] {
+            let json = serde_json::to_string(&status).unwrap();
+            let parsed: ControlStatus = serde_json::from_str(&json).unwrap();
+            assert_eq!(parsed, status);
+        }
+    }
+
+    #[test]
+    fn test_framework_serde_all_variants() {
+        for fw in [
+            ComplianceFramework::SOC2,
+            ComplianceFramework::FedRAMP,
+            ComplianceFramework::HIPAA,
+            ComplianceFramework::GDPR,
+            ComplianceFramework::ISO27001,
+        ] {
+            let json = serde_json::to_string(&fw).unwrap();
+            let parsed: ComplianceFramework = serde_json::from_str(&json).unwrap();
+            assert_eq!(parsed, fw);
+        }
+    }
+
+    #[test]
+    fn test_report_serde_roundtrip() {
+        let report = generate_soc2_report();
+        let json = serde_json::to_string(&report).unwrap();
+        let parsed: ComplianceReport = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.framework, ComplianceFramework::SOC2);
+        assert_eq!(parsed.controls.len(), report.controls.len());
+        assert!((parsed.summary.compliance_percentage - report.summary.compliance_percentage).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_markdown_contains_table_headers() {
+        let report = generate_soc2_report();
+        let md = report_to_markdown(&report);
+        assert!(md.contains("| ID | Control | Status | Evidence |"));
+        assert!(md.contains("|---|---|---|---|"));
+    }
+
+    #[test]
+    fn test_control_with_empty_evidence() {
+        let control = ComplianceControl {
+            id: "T-1".to_string(),
+            name: "Test".to_string(),
+            description: "Desc".to_string(),
+            status: ControlStatus::NotApplicable,
+            evidence: vec![],
+            notes: String::new(),
+        };
+        let json = serde_json::to_string(&control).unwrap();
+        let parsed: ComplianceControl = serde_json::from_str(&json).unwrap();
+        assert!(parsed.evidence.is_empty());
+        assert_eq!(parsed.status, ControlStatus::NotApplicable);
+    }
 }

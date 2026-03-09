@@ -395,4 +395,167 @@ mod tests {
         assert_eq!(spec.completed(), 1);
         assert_eq!(spec.pending(), 2);
     }
+
+    #[test]
+    fn spec_status_default_is_draft() {
+        let status = SpecStatus::default();
+        assert_eq!(status, SpecStatus::Draft);
+    }
+
+    #[test]
+    fn spec_status_display() {
+        assert_eq!(format!("{}", SpecStatus::Draft), "draft");
+        assert_eq!(format!("{}", SpecStatus::Approved), "approved");
+        assert_eq!(format!("{}", SpecStatus::InProgress), "in-progress");
+        assert_eq!(format!("{}", SpecStatus::Done), "done");
+    }
+
+    #[test]
+    fn spec_task_new() {
+        let task = SpecTask::new(42, "Implement feature");
+        assert_eq!(task.id, 42);
+        assert_eq!(task.description, "Implement feature");
+        assert!(!task.done);
+    }
+
+    #[test]
+    fn spec_all_completed() {
+        let spec = Spec {
+            name: "done".to_string(),
+            status: SpecStatus::Done,
+            requirements: "all done".to_string(),
+            tasks: vec![
+                SpecTask { id: 1, description: "a".to_string(), done: true },
+                SpecTask { id: 2, description: "b".to_string(), done: true },
+            ],
+            body: String::new(),
+            source: PathBuf::from("done.md"),
+        };
+        assert_eq!(spec.completed(), 2);
+        assert_eq!(spec.pending(), 0);
+    }
+
+    #[test]
+    fn spec_no_tasks() {
+        let spec = Spec {
+            name: "empty".to_string(),
+            status: SpecStatus::Draft,
+            requirements: String::new(),
+            tasks: vec![],
+            body: String::new(),
+            source: PathBuf::from("empty.md"),
+        };
+        assert_eq!(spec.completed(), 0);
+        assert_eq!(spec.pending(), 0);
+    }
+
+    #[test]
+    fn context_string_all_done() {
+        let spec = Spec {
+            name: "f".to_string(),
+            status: SpecStatus::Done,
+            requirements: "req".to_string(),
+            tasks: vec![
+                SpecTask { id: 1, description: "a".to_string(), done: true },
+            ],
+            body: String::new(),
+            source: PathBuf::from("f.md"),
+        };
+        let ctx = spec.context_string();
+        assert!(ctx.contains("All done!"));
+    }
+
+    #[test]
+    fn to_file_content_has_frontmatter() {
+        let spec = Spec {
+            name: "test_spec".to_string(),
+            status: SpecStatus::Approved,
+            requirements: "Build X".to_string(),
+            tasks: vec![SpecTask::new(1, "Step 1")],
+            body: "## Design\nSome design.".to_string(),
+            source: PathBuf::from("test_spec.md"),
+        };
+        let content = spec.to_file_content();
+        assert!(content.starts_with("---\n"));
+        assert!(content.contains("name: test_spec"));
+        assert!(content.contains("status: approved"));
+        assert!(content.contains("requirements: Build X"));
+        assert!(content.contains("## Tasks"));
+        assert!(content.contains("- [ ] **1**: Step 1"));
+    }
+
+    #[test]
+    fn to_file_content_done_task_checked() {
+        let spec = Spec {
+            name: "s".to_string(),
+            status: SpecStatus::Done,
+            requirements: String::new(),
+            tasks: vec![SpecTask { id: 1, description: "done task".to_string(), done: true }],
+            body: String::new(),
+            source: PathBuf::from("s.md"),
+        };
+        let content = spec.to_file_content();
+        assert!(content.contains("- [x] **1**: done task"));
+    }
+
+    #[test]
+    fn complete_task_nonexistent_fails() {
+        let tmp = TempDir::new().unwrap();
+        let mgr = SpecManager::new(tmp.path().to_path_buf());
+        let mut spec = mgr.create_empty("feat", "reqs").unwrap();
+        spec.tasks.push(SpecTask::new(1, "only task"));
+        mgr.save(&spec).unwrap();
+        assert!(mgr.complete_task("feat", 99).is_err());
+    }
+
+    #[test]
+    fn spec_manager_init_creates_dir() {
+        let tmp = TempDir::new().unwrap();
+        let dir = tmp.path().join("specs");
+        let mgr = SpecManager::new(dir.clone());
+        assert!(!dir.exists());
+        mgr.init().unwrap();
+        assert!(dir.exists());
+    }
+
+    #[test]
+    fn spec_list_empty_when_no_dir() {
+        let mgr = SpecManager::new(PathBuf::from("/nonexistent/specs"));
+        assert!(mgr.list().is_empty());
+    }
+
+    #[test]
+    fn spec_generation_prompt_contains_requirements() {
+        let prompt = spec_generation_prompt("Add dark mode support");
+        assert!(prompt.contains("Add dark mode support"));
+        assert!(prompt.contains("front-matter"));
+        assert!(prompt.contains("## Tasks"));
+    }
+
+    #[test]
+    fn complete_all_tasks_sets_done_status() {
+        let tmp = TempDir::new().unwrap();
+        let mgr = SpecManager::new(tmp.path().to_path_buf());
+        let mut spec = mgr.create_empty("feature", "test").unwrap();
+        spec.status = SpecStatus::Approved;
+        spec.tasks.push(SpecTask::new(1, "task A"));
+        spec.tasks.push(SpecTask::new(2, "task B"));
+        mgr.save(&spec).unwrap();
+
+        mgr.complete_task("feature", 1).unwrap();
+        let loaded = mgr.load("feature").unwrap();
+        assert_eq!(loaded.status, SpecStatus::InProgress);
+
+        mgr.complete_task("feature", 2).unwrap();
+        let loaded = mgr.load("feature").unwrap();
+        assert_eq!(loaded.status, SpecStatus::Done);
+    }
+
+    #[test]
+    fn spec_status_serde_kebab_case() {
+        let json = serde_json::to_string(&SpecStatus::InProgress).unwrap();
+        assert_eq!(json, "\"in-progress\"");
+        let parsed: SpecStatus = serde_json::from_str("\"in-progress\"").unwrap();
+        assert_eq!(parsed, SpecStatus::InProgress);
+    }
 }

@@ -12,7 +12,7 @@
 
 set -e
 
-REPO="vibecody/vibecody"
+REPO="TuringWorks/vibecody"
 BINARY="vibecli"
 INSTALL_DIR="${INSTALL_DIR:-$HOME/.local/bin}"
 

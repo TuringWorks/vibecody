@@ -467,4 +467,171 @@ mod tests {
         assert_eq!(payload.pull_request.unwrap().number, 42);
         assert_eq!(payload.repository.unwrap().full_name, "owner/repo");
     }
+
+    #[test]
+    fn verify_signature_without_prefix() {
+        let secret = "my-secret";
+        let payload = b"test payload";
+        let mut mac = HmacSha256::new_from_slice(secret.as_bytes()).unwrap();
+        mac.update(payload);
+        let sig = hex::encode(mac.finalize().into_bytes());
+        // Without the sha256= prefix — should still work
+        assert!(verify_signature(secret, payload, &sig));
+    }
+
+    #[test]
+    fn verify_signature_invalid_hex() {
+        // Non-hex characters after sha256= prefix
+        assert!(!verify_signature("secret", b"payload", "sha256=zzzz"));
+    }
+
+    #[test]
+    fn verify_signature_empty_secret() {
+        let secret = "";
+        let payload = b"data";
+        let mut mac = HmacSha256::new_from_slice(secret.as_bytes()).unwrap();
+        mac.update(payload);
+        let sig = hex::encode(mac.finalize().into_bytes());
+        assert!(verify_signature(secret, payload, &format!("sha256={}", sig)));
+    }
+
+    #[test]
+    fn verify_signature_empty_payload() {
+        let secret = "test";
+        let payload = b"";
+        let mut mac = HmacSha256::new_from_slice(secret.as_bytes()).unwrap();
+        mac.update(payload);
+        let sig = hex::encode(mac.finalize().into_bytes());
+        assert!(verify_signature(secret, payload, &format!("sha256={}", sig)));
+    }
+
+    #[test]
+    fn config_with_all_fields_set() {
+        let cfg = GithubAppConfig {
+            app_id: 99999,
+            private_key_path: Some("/etc/keys/gh.pem".into()),
+            webhook_secret: Some("webhook-s3cret".into()),
+            auto_fix: true,
+            severity_threshold: "critical".into(),
+        };
+        assert_eq!(cfg.app_id, 99999);
+        assert_eq!(cfg.private_key_path.as_deref(), Some("/etc/keys/gh.pem"));
+        assert!(cfg.auto_fix);
+        assert_eq!(cfg.severity_threshold, "critical");
+    }
+
+    #[test]
+    fn config_resolve_webhook_secret_from_field() {
+        let cfg = GithubAppConfig {
+            webhook_secret: Some("inline-secret".into()),
+            ..Default::default()
+        };
+        assert_eq!(cfg.resolve_webhook_secret(), Some("inline-secret".to_string()));
+    }
+
+    #[test]
+    fn severity_counts_individual_fields() {
+        let mut counts = SeverityCounts::default();
+        counts.critical = 1;
+        counts.high = 2;
+        counts.medium = 3;
+        counts.low = 4;
+        counts.info = 5;
+        assert_eq!(counts.critical, 1);
+        assert_eq!(counts.high, 2);
+        assert_eq!(counts.medium, 3);
+        assert_eq!(counts.low, 4);
+        assert_eq!(counts.info, 5);
+    }
+
+    #[test]
+    fn severity_counts_serde_roundtrip() {
+        let counts = SeverityCounts {
+            critical: 3,
+            high: 7,
+            medium: 12,
+            low: 20,
+            info: 5,
+        };
+        let json = serde_json::to_string(&counts).unwrap();
+        let parsed: SeverityCounts = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.critical, 3);
+        assert_eq!(parsed.high, 7);
+        assert_eq!(parsed.medium, 12);
+        assert_eq!(parsed.low, 20);
+        assert_eq!(parsed.info, 5);
+    }
+
+    #[test]
+    fn ci_review_result_serde_roundtrip() {
+        let result = CIReviewResult {
+            pr_number: 42,
+            repo: "owner/repo".to_string(),
+            commit_sha: "abc123def456".to_string(),
+            findings_count: 5,
+            severity_counts: SeverityCounts {
+                critical: 0,
+                high: 2,
+                medium: 3,
+                low: 0,
+                info: 0,
+            },
+            status: "failure".to_string(),
+            summary: "Found 5 issues".to_string(),
+            timestamp: 1700000000,
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        let parsed: CIReviewResult = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.pr_number, 42);
+        assert_eq!(parsed.repo, "owner/repo");
+        assert_eq!(parsed.commit_sha, "abc123def456");
+        assert_eq!(parsed.findings_count, 5);
+        assert_eq!(parsed.status, "failure");
+        assert_eq!(parsed.severity_counts.high, 2);
+        assert_eq!(parsed.timestamp, 1700000000);
+    }
+
+    #[test]
+    fn parse_webhook_payload_without_optional_fields() {
+        let json = r#"{
+            "action": "closed",
+            "pull_request": null,
+            "repository": null,
+            "installation": null
+        }"#;
+        let payload: WebhookPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.action, "closed");
+        assert!(payload.pull_request.is_none());
+        assert!(payload.repository.is_none());
+        assert!(payload.installation.is_none());
+    }
+
+    #[test]
+    fn parse_pr_payload_fields() {
+        let json = r#"{
+            "number": 100,
+            "title": "Fix critical bug",
+            "head": { "sha": "deadbeef", "ref": "fix/bug-123" },
+            "base": { "sha": "cafebabe", "ref": "develop" },
+            "diff_url": "https://github.com/org/repo/pull/100.diff"
+        }"#;
+        let pr: PullRequestPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(pr.number, 100);
+        assert_eq!(pr.title, "Fix critical bug");
+        assert_eq!(pr.head.sha, "deadbeef");
+        assert_eq!(pr.head.ref_name, "fix/bug-123");
+        assert_eq!(pr.base.ref_name, "develop");
+        assert_eq!(pr.diff_url, "https://github.com/org/repo/pull/100.diff");
+    }
+
+    #[test]
+    fn config_deserialization_with_defaults() {
+        let json = r#"{"app_id": 555}"#;
+        let cfg: GithubAppConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(cfg.app_id, 555);
+        assert!(!cfg.auto_fix);
+        assert_eq!(cfg.severity_threshold, "high");
+        assert!(cfg.webhook_secret.is_none());
+        assert!(cfg.private_key_path.is_none());
+    }
 }

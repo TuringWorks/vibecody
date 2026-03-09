@@ -169,4 +169,154 @@ mod tests {
         let result = ScreenRecorder::list_recordings();
         assert!(result.is_ok());
     }
+
+    #[test]
+    fn recording_frame_fields() {
+        let frame = RecordingFrame {
+            path: "/tmp/frame-0000.png".to_string(),
+            timestamp: 999,
+            caption: "initial".to_string(),
+        };
+        assert_eq!(frame.path, "/tmp/frame-0000.png");
+        assert_eq!(frame.timestamp, 999);
+        assert_eq!(frame.caption, "initial");
+    }
+
+    #[test]
+    fn recording_frame_clone() {
+        let frame = RecordingFrame {
+            path: "/a/b.png".to_string(),
+            timestamp: 42,
+            caption: "cloned".to_string(),
+        };
+        let cloned = frame.clone();
+        assert_eq!(cloned.path, frame.path);
+        assert_eq!(cloned.timestamp, frame.timestamp);
+        assert_eq!(cloned.caption, frame.caption);
+    }
+
+    #[test]
+    fn recording_no_finished_at() {
+        let rec = Recording {
+            session_id: "sess-1".to_string(),
+            frames: vec![],
+            started_at: 100,
+            finished_at: None,
+        };
+        assert!(rec.finished_at.is_none());
+        assert!(rec.frames.is_empty());
+    }
+
+    #[test]
+    fn recording_with_finished_at() {
+        let rec = Recording {
+            session_id: "sess-2".to_string(),
+            frames: vec![],
+            started_at: 100,
+            finished_at: Some(200),
+        };
+        assert_eq!(rec.finished_at, Some(200));
+    }
+
+    #[test]
+    fn recording_multiple_frames() {
+        let rec = Recording {
+            session_id: "multi".to_string(),
+            frames: vec![
+                RecordingFrame { path: "a.png".into(), timestamp: 1, caption: "first".into() },
+                RecordingFrame { path: "b.png".into(), timestamp: 2, caption: "second".into() },
+                RecordingFrame { path: "c.png".into(), timestamp: 3, caption: "third".into() },
+            ],
+            started_at: 0,
+            finished_at: Some(10),
+        };
+        assert_eq!(rec.frames.len(), 3);
+        assert_eq!(rec.frames[0].caption, "first");
+        assert_eq!(rec.frames[2].caption, "third");
+    }
+
+    #[test]
+    fn recording_serde_roundtrip_no_frames() {
+        let rec = Recording {
+            session_id: "empty-rec".to_string(),
+            frames: vec![],
+            started_at: 50,
+            finished_at: None,
+        };
+        let json = serde_json::to_string(&rec).unwrap();
+        let parsed: Recording = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.session_id, "empty-rec");
+        assert!(parsed.frames.is_empty());
+        assert!(parsed.finished_at.is_none());
+    }
+
+    #[test]
+    fn recording_frame_serde_roundtrip() {
+        let frame = RecordingFrame {
+            path: "/x/y/z.png".to_string(),
+            timestamp: u64::MAX,
+            caption: "max ts".to_string(),
+        };
+        let json = serde_json::to_string(&frame).unwrap();
+        let parsed: RecordingFrame = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.timestamp, u64::MAX);
+    }
+
+    #[test]
+    fn recording_clone() {
+        let rec = Recording {
+            session_id: "clone-test".to_string(),
+            frames: vec![RecordingFrame {
+                path: "f.png".into(),
+                timestamp: 5,
+                caption: "cap".into(),
+            }],
+            started_at: 1,
+            finished_at: Some(10),
+        };
+        let cloned = rec.clone();
+        assert_eq!(cloned.session_id, rec.session_id);
+        assert_eq!(cloned.frames.len(), rec.frames.len());
+        assert_eq!(cloned.started_at, rec.started_at);
+        assert_eq!(cloned.finished_at, rec.finished_at);
+    }
+
+    #[test]
+    fn recording_debug_format() {
+        let rec = Recording {
+            session_id: "dbg".to_string(),
+            frames: vec![],
+            started_at: 0,
+            finished_at: None,
+        };
+        let debug = format!("{:?}", rec);
+        assert!(debug.contains("dbg"));
+        assert!(debug.contains("Recording"));
+    }
+
+    #[test]
+    fn recording_frame_debug_format() {
+        let frame = RecordingFrame {
+            path: "test.png".to_string(),
+            timestamp: 123,
+            caption: "debug".to_string(),
+        };
+        let debug = format!("{:?}", frame);
+        assert!(debug.contains("RecordingFrame"));
+        assert!(debug.contains("debug"));
+    }
+
+    #[test]
+    fn recording_serde_pretty_json() {
+        let rec = Recording {
+            session_id: "pretty".to_string(),
+            frames: vec![],
+            started_at: 1000,
+            finished_at: Some(2000),
+        };
+        let json = serde_json::to_string_pretty(&rec).unwrap();
+        assert!(json.contains('\n'));
+        let parsed: Recording = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.session_id, "pretty");
+    }
 }

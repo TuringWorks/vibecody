@@ -280,4 +280,112 @@ mod tests {
         assert_eq!(hex.len(), 8);
         assert!(hex.chars().all(|c| c.is_ascii_hexdigit()));
     }
+
+    #[test]
+    fn rand_hex_unique() {
+        let h1 = rand_hex();
+        let h2 = rand_hex();
+        assert_ne!(h1, h2);
+    }
+
+    #[test]
+    fn config_custom_timeout() {
+        let mut config = CloudAgentConfig::default();
+        config.timeout_secs = 120;
+        let args = build_docker_command(&config, "test");
+        assert!(args.contains(&"120".to_string()));
+    }
+
+    #[test]
+    fn config_serde_roundtrip() {
+        let config = CloudAgentConfig {
+            image: "node:20".to_string(),
+            repo_url: Some("https://github.com/test/repo".to_string()),
+            branch: Some("develop".to_string()),
+            workspace_mount: Some("/tmp/work".to_string()),
+            env_vars: vec![("KEY".to_string(), "VAL".to_string())],
+            timeout_secs: 600,
+        };
+        let json = serde_json::to_string(&config).unwrap();
+        let parsed: CloudAgentConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.image, "node:20");
+        assert_eq!(parsed.repo_url, Some("https://github.com/test/repo".to_string()));
+        assert_eq!(parsed.branch, Some("develop".to_string()));
+        assert_eq!(parsed.env_vars.len(), 1);
+        assert_eq!(parsed.timeout_secs, 600);
+    }
+
+    #[test]
+    fn build_command_has_container_name() {
+        let config = CloudAgentConfig::default();
+        let args = build_docker_command(&config, "task");
+        assert!(args.contains(&"--name".to_string()));
+        let name_idx = args.iter().position(|a| a == "--name").unwrap();
+        assert!(args[name_idx + 1].starts_with("vibecody-agent-"));
+    }
+
+    #[test]
+    fn build_command_has_bash_entrypoint() {
+        let config = CloudAgentConfig::default();
+        let args = build_docker_command(&config, "task");
+        assert!(args.contains(&"bash".to_string()));
+        assert!(args.contains(&"-c".to_string()));
+    }
+
+    #[test]
+    fn build_command_task_in_entrypoint() {
+        let config = CloudAgentConfig::default();
+        let args = build_docker_command(&config, "deploy to prod");
+        let last = args.last().unwrap();
+        assert!(last.contains("deploy to prod"));
+    }
+
+    #[test]
+    fn build_command_no_mount_when_none() {
+        let config = CloudAgentConfig::default();
+        let args = build_docker_command(&config, "test");
+        assert!(!args.contains(&"-v".to_string()));
+        assert!(!args.contains(&"-w".to_string()));
+    }
+
+    #[test]
+    fn status_complete_fields() {
+        let status = CloudAgentStatus {
+            container_id: "test-123".to_string(),
+            status: "complete".to_string(),
+            logs: vec!["line1".to_string(), "line2".to_string(), "line3".to_string()],
+            branch_created: Some("feature/x".to_string()),
+            pr_url: Some("https://github.com/org/repo/pull/1".to_string()),
+            started_at: 1000,
+            finished_at: Some(2000),
+        };
+        let json = serde_json::to_string(&status).unwrap();
+        let parsed: CloudAgentStatus = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.logs.len(), 3);
+        assert_eq!(parsed.pr_url, Some("https://github.com/org/repo/pull/1".to_string()));
+        assert_eq!(parsed.finished_at, Some(2000));
+    }
+
+    #[test]
+    fn build_command_stop_timeout_present() {
+        let config = CloudAgentConfig::default();
+        let args = build_docker_command(&config, "task");
+        assert!(args.contains(&"--stop-timeout".to_string()));
+        let idx = args.iter().position(|a| a == "--stop-timeout").unwrap();
+        assert_eq!(args[idx + 1], "3600");
+    }
+
+    #[test]
+    fn build_command_multiple_env_vars_order() {
+        let mut config = CloudAgentConfig::default();
+        config.env_vars = vec![
+            ("A".to_string(), "1".to_string()),
+            ("B".to_string(), "2".to_string()),
+            ("C".to_string(), "3".to_string()),
+        ];
+        let args = build_docker_command(&config, "test");
+        assert!(args.iter().any(|a| a == "A=1"));
+        assert!(args.iter().any(|a| a == "B=2"));
+        assert!(args.iter().any(|a| a == "C=3"));
+    }
 }

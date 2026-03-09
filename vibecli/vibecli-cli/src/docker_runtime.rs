@@ -611,4 +611,113 @@ mod tests {
         let rt = DockerRuntime::new();
         assert_eq!(rt.kind(), RuntimeKind::Docker);
     }
+
+    // ── Additional tests ──────────────────────────────────────────────────
+
+    #[test]
+    fn parse_docker_mem_bytes() {
+        assert_eq!(parse_docker_mem_value("1024B"), 1024);
+    }
+
+    #[test]
+    fn parse_docker_mem_plain_number() {
+        assert_eq!(parse_docker_mem_value("4096"), 4096);
+    }
+
+    #[test]
+    fn parse_docker_mem_empty() {
+        assert_eq!(parse_docker_mem_value(""), 0);
+    }
+
+    #[test]
+    fn parse_docker_mem_whitespace() {
+        assert_eq!(parse_docker_mem_value("  512MiB  "), 512 * 1024 * 1024);
+    }
+
+    #[test]
+    fn parse_docker_mem_invalid() {
+        assert_eq!(parse_docker_mem_value("notanumber"), 0);
+    }
+
+    #[test]
+    fn parse_docker_mem_fractional_gib() {
+        let result = parse_docker_mem_value("1.5GiB");
+        let expected = (1.5 * 1024.0 * 1024.0 * 1024.0) as u64;
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn build_create_args_network_full_no_flag() {
+        let rt = DockerRuntime::new();
+        let config = ContainerConfig {
+            image: "alpine:3".to_string(),
+            name: Some("full-net".to_string()),
+            network_policy: NetworkPolicy::Full,
+            ..Default::default()
+        };
+        let args = rt.build_create_args(&config);
+        // Full network should NOT add --network flag
+        assert!(!args.contains(&"--network".to_string()));
+    }
+
+    #[test]
+    fn parse_ps_json_empty_input() {
+        let rt = DockerRuntime::new();
+        let infos = rt.parse_ps_json("");
+        assert!(infos.is_empty());
+    }
+
+    #[test]
+    fn parse_ps_json_invalid_json_lines_skipped() {
+        let rt = DockerRuntime::new();
+        let json = "not json\n{\"ID\":\"abc\",\"Names\":\"test\",\"Image\":\"img\",\"Status\":\"Up\",\"CreatedAt\":\"now\"}\ninvalid";
+        let infos = rt.parse_ps_json(json);
+        assert_eq!(infos.len(), 1);
+        assert_eq!(infos[0].id, "abc");
+    }
+
+    #[test]
+    fn parse_ps_json_all_containers_have_docker_runtime() {
+        let rt = DockerRuntime::new();
+        let json = r#"{"ID":"a","Names":"n1","Image":"i1","Status":"Up","CreatedAt":"t1"}
+{"ID":"b","Names":"n2","Image":"i2","Status":"Down","CreatedAt":"t2"}"#;
+        let infos = rt.parse_ps_json(json);
+        for info in &infos {
+            assert_eq!(info.runtime, RuntimeKind::Docker);
+        }
+    }
+
+    #[test]
+    fn build_create_args_no_resource_limits() {
+        let rt = DockerRuntime::new();
+        let config = ContainerConfig {
+            image: "alpine:3".to_string(),
+            name: Some("no-limits".to_string()),
+            resource_limits: ResourceLimits {
+                cpus: None,
+                memory_bytes: None,
+                pids_limit: None,
+            },
+            ..Default::default()
+        };
+        let args = rt.build_create_args(&config);
+        assert!(!args.contains(&"--cpus".to_string()));
+        assert!(!args.contains(&"--memory".to_string()));
+        assert!(!args.contains(&"--pids-limit".to_string()));
+    }
+
+    #[test]
+    fn build_create_args_ends_with_idle_command() {
+        let rt = DockerRuntime::new();
+        let config = ContainerConfig {
+            image: "ubuntu:22.04".to_string(),
+            name: Some("idle-test".to_string()),
+            ..Default::default()
+        };
+        let args = rt.build_create_args(&config);
+        let len = args.len();
+        assert_eq!(args[len - 3], "tail");
+        assert_eq!(args[len - 2], "-f");
+        assert_eq!(args[len - 1], "/dev/null");
+    }
 }

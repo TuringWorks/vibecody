@@ -602,4 +602,151 @@ mod tests {
 
         fs::remove_dir_all(&dir).ok();
     }
+
+    // ── Additional tests ──────────────────────────────────────────────────
+
+    #[test]
+    fn test_plugin_state_store_find_mut() {
+        let mut store = PluginStateStore::new();
+        store.plugins.push(InstalledPlugin {
+            name: "mutable".to_string(),
+            version: "1.0.0".to_string(),
+            state: PluginState::Enabled,
+            install_dir: PathBuf::from("/tmp/mutable"),
+            installed_at: "0".to_string(),
+            updated_at: None,
+            config: HashMap::new(),
+            checksum: None,
+        });
+
+        let p = store.find_mut("mutable").unwrap();
+        p.version = "2.0.0".to_string();
+        assert_eq!(store.find("mutable").unwrap().version, "2.0.0");
+    }
+
+    #[test]
+    fn test_plugin_state_store_load_nonexistent() {
+        let path = PathBuf::from("/tmp/nonexistent_vibecli_plugin_state.json");
+        let store = PluginStateStore::load(&path).unwrap();
+        assert!(store.plugins.is_empty());
+        assert_eq!(store.version, "1.0.0");
+    }
+
+    #[test]
+    fn test_extract_version_with_single_quotes() {
+        assert_eq!(
+            PluginLifecycle::extract_version("version = '2.5.1'\n"),
+            "2.5.1"
+        );
+    }
+
+    #[test]
+    fn test_extract_version_with_spaces() {
+        assert_eq!(
+            PluginLifecycle::extract_version("version  =  \"3.0.0\"  \n"),
+            "3.0.0"
+        );
+    }
+
+    #[test]
+    fn test_enable_nonexistent_plugin() {
+        let dir = temp_dir();
+        let mut lc = PluginLifecycle::with_dir(dir.clone()).unwrap();
+        let result = lc.enable("nonexistent");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("not found"));
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn test_disable_nonexistent_plugin() {
+        let dir = temp_dir();
+        let mut lc = PluginLifecycle::with_dir(dir.clone()).unwrap();
+        let result = lc.disable("nonexistent");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("not found"));
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn test_set_config_nonexistent_plugin() {
+        let dir = temp_dir();
+        let mut lc = PluginLifecycle::with_dir(dir.clone()).unwrap();
+        let result = lc.set_config("nonexistent", "key", "value");
+        assert!(result.is_err());
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn test_get_config_nonexistent_plugin() {
+        let dir = temp_dir();
+        let lc = PluginLifecycle::with_dir(dir.clone()).unwrap();
+        let result = lc.get_config("nonexistent");
+        assert!(result.is_err());
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn test_plugin_state_all_variants_serde() {
+        let variants = vec![
+            PluginState::Installed,
+            PluginState::Enabled,
+            PluginState::Disabled,
+            PluginState::Outdated,
+            PluginState::DevMode,
+            PluginState::Errored("boom".into()),
+        ];
+        for state in variants {
+            let json = serde_json::to_string(&state).unwrap();
+            let back: PluginState = serde_json::from_str(&json).unwrap();
+            assert_eq!(back, state);
+        }
+    }
+
+    #[test]
+    fn test_installed_plugin_serde_roundtrip() {
+        let plugin = InstalledPlugin {
+            name: "serde-test".to_string(),
+            version: "1.2.3".to_string(),
+            state: PluginState::DevMode,
+            install_dir: PathBuf::from("/tmp/serde-test"),
+            installed_at: "12345".to_string(),
+            updated_at: Some("67890".to_string()),
+            config: HashMap::from([("key".to_string(), "val".to_string())]),
+            checksum: Some("abc123".to_string()),
+        };
+        let json = serde_json::to_string(&plugin).unwrap();
+        let back: InstalledPlugin = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.name, "serde-test");
+        assert_eq!(back.state, PluginState::DevMode);
+        assert_eq!(back.updated_at, Some("67890".to_string()));
+        assert_eq!(back.config.get("key").unwrap(), "val");
+        assert_eq!(back.checksum, Some("abc123".to_string()));
+    }
+
+    #[test]
+    fn test_enabled_plugins_empty_store() {
+        let store = PluginStateStore::new();
+        assert!(store.enabled_plugins().is_empty());
+    }
+
+    #[test]
+    fn test_install_from_repo_already_installed() {
+        let dir = temp_dir();
+        let mut lc = PluginLifecycle::with_dir(dir.clone()).unwrap();
+        lc.store.plugins.push(InstalledPlugin {
+            name: "existing".to_string(),
+            version: "1.0.0".to_string(),
+            state: PluginState::Enabled,
+            install_dir: dir.join("plugins/existing"),
+            installed_at: "0".to_string(),
+            updated_at: None,
+            config: HashMap::new(),
+            checksum: None,
+        });
+        let result = lc.install_from_repo("existing", "https://example.com/repo.git");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("already installed"));
+        fs::remove_dir_all(&dir).ok();
+    }
 }

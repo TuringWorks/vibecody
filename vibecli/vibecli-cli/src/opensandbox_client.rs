@@ -749,4 +749,155 @@ mod tests {
         let rt = OpenSandboxRuntime::new("http://localhost:8080".to_string(), None);
         assert_eq!(rt.kind(), RuntimeKind::OpenSandbox);
     }
+
+    // ── Additional tests ──────────────────────────────────────────────────
+
+    #[test]
+    fn urlencoding_hash() {
+        assert_eq!(urlencoding_encode("/path#fragment"), "/path%23fragment");
+    }
+
+    #[test]
+    fn urlencoding_plus() {
+        assert_eq!(urlencoding_encode("a+b"), "a%2Bb");
+    }
+
+    #[test]
+    fn urlencoding_percent_encoded_first() {
+        // Percent must be encoded before other chars to avoid double-encoding
+        assert_eq!(urlencoding_encode("100%done"), "100%25done");
+    }
+
+    #[test]
+    fn urlencoding_empty_string() {
+        assert_eq!(urlencoding_encode(""), "");
+    }
+
+    #[test]
+    fn urlencoding_no_special_chars() {
+        assert_eq!(urlencoding_encode("/usr/local/bin"), "/usr/local/bin");
+    }
+
+    #[test]
+    fn parse_sse_no_data_prefix_lines_ignored() {
+        let body = "event: message\nid: 1\ndata: {\"type\":\"stdout\",\"text\":\"ok\"}\nretry: 3000\n";
+        let (stdout, _, _) = parse_sse_events(body);
+        assert_eq!(stdout, "ok");
+    }
+
+    #[test]
+    fn parse_sse_execution_complete_event() {
+        let body = "data: {\"type\":\"execution_complete\",\"exit_code\":42}\n";
+        let (_, _, exit_code) = parse_sse_events(body);
+        assert_eq!(exit_code, 42);
+    }
+
+    #[test]
+    fn create_sandbox_request_with_env_and_labels() {
+        let mut env = std::collections::HashMap::new();
+        env.insert("KEY".to_string(), "VAL".to_string());
+        let mut labels = std::collections::HashMap::new();
+        labels.insert("app".to_string(), "test".to_string());
+        let req = CreateSandboxRequest {
+            image: Some("alpine:3".to_string()),
+            keep_alive_time_seconds: None,
+            env: Some(env),
+            labels: Some(labels),
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        assert!(json.contains("\"KEY\":\"VAL\""));
+        assert!(json.contains("\"app\":\"test\""));
+    }
+
+    #[test]
+    fn sandbox_response_deserialization() {
+        let json = r#"{"id":"sb-123","status":"running","execdUrl":"http://localhost:44772","accessToken":"tok-abc","image":"ubuntu:22.04","createdAt":"2026-03-08"}"#;
+        let resp: SandboxResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.id, "sb-123");
+        assert_eq!(resp.status, "running");
+        assert_eq!(resp.execd_url, Some("http://localhost:44772".to_string()));
+        assert_eq!(resp.access_token, Some("tok-abc".to_string()));
+        assert_eq!(resp.image, Some("ubuntu:22.04".to_string()));
+    }
+
+    #[test]
+    fn sandbox_response_minimal_deserialization() {
+        let json = r#"{"id":"sb-minimal"}"#;
+        let resp: SandboxResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.id, "sb-minimal");
+        assert_eq!(resp.status, "");
+        assert!(resp.execd_url.is_none());
+        assert!(resp.access_token.is_none());
+    }
+
+    #[test]
+    fn opensandbox_client_trims_trailing_slash() {
+        let client = OpenSandboxClient::new("http://example.com/".to_string(), None);
+        assert_eq!(client.base_url, "http://example.com");
+    }
+
+    #[test]
+    fn execd_client_trims_trailing_slash() {
+        let client = ExecdClient::new("http://example.com/execd/".to_string(), None);
+        assert_eq!(client.base_url, "http://example.com/execd");
+    }
+
+    #[test]
+    fn opensandbox_client_auth_header_with_key() {
+        let client = OpenSandboxClient::new("http://localhost".to_string(), Some("my-key".to_string()));
+        let header = client.auth_header();
+        assert!(header.is_some());
+        let (name, value) = header.unwrap();
+        assert_eq!(name, "OPEN-SANDBOX-API-KEY");
+        assert_eq!(value, "my-key");
+    }
+
+    #[test]
+    fn opensandbox_client_auth_header_without_key() {
+        let client = OpenSandboxClient::new("http://localhost".to_string(), None);
+        assert!(client.auth_header().is_none());
+    }
+
+    #[test]
+    fn execd_client_auth_header_with_token() {
+        let client = ExecdClient::new("http://localhost".to_string(), Some("tok-123".to_string()));
+        let header = client.auth_header();
+        assert!(header.is_some());
+        let (name, value) = header.unwrap();
+        assert_eq!(name, "X-EXECD-ACCESS-TOKEN");
+        assert_eq!(value, "tok-123");
+    }
+
+    #[test]
+    fn execd_client_auth_header_without_token() {
+        let client = ExecdClient::new("http://localhost".to_string(), None);
+        assert!(client.auth_header().is_none());
+    }
+
+    #[test]
+    fn run_command_request_serialization_with_all_fields() {
+        let req = RunCommandRequest {
+            command: "ls -la".to_string(),
+            cwd: Some("/workspace".to_string()),
+            timeout: Some(60),
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        assert!(json.contains("\"command\":\"ls -la\""));
+        assert!(json.contains("\"cwd\":\"/workspace\""));
+        assert!(json.contains("\"timeout\":60"));
+    }
+
+    #[test]
+    fn run_command_request_serialization_optional_none() {
+        let req = RunCommandRequest {
+            command: "echo hi".to_string(),
+            cwd: None,
+            timeout: None,
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        assert!(json.contains("\"command\":\"echo hi\""));
+        // cwd and timeout should be skipped
+        assert!(!json.contains("cwd"));
+        assert!(!json.contains("timeout"));
+    }
 }

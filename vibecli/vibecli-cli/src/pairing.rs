@@ -100,4 +100,91 @@ mod tests {
         assert!(result.len() <= 10);
         assert!(result.ends_with(".."));
     }
+
+    #[test]
+    fn pairing_url_with_localhost() {
+        let (url, _) = generate_pairing_url("localhost", 8080);
+        assert!(url.starts_with("http://localhost:8080/pair?token="));
+    }
+
+    #[test]
+    fn pairing_url_with_ipv6() {
+        let (url, token) = generate_pairing_url("::1", 3000);
+        assert!(url.contains("::1"));
+        assert!(url.contains("3000"));
+        assert!(url.contains(&token));
+    }
+
+    #[test]
+    fn token_length_is_32() {
+        let (_, token) = generate_pairing_url("host", 1234);
+        assert_eq!(token.len(), 32);
+    }
+
+    #[test]
+    fn token_is_hex() {
+        let (_, token) = generate_pairing_url("host", 1234);
+        assert!(token.chars().all(|c| c.is_ascii_hexdigit()));
+    }
+
+    #[test]
+    fn render_display_contains_box_borders() {
+        let display = render_pairing_display("http://x", "tok");
+        assert!(display.contains('┌'));
+        assert!(display.contains('└'));
+        assert!(display.contains('├'));
+    }
+
+    #[test]
+    fn render_display_contains_instructions() {
+        let display = render_pairing_display("http://x", "tok");
+        assert!(display.contains("Open this URL"));
+        assert!(display.contains("connect to this VibeCLI instance"));
+    }
+
+    #[test]
+    fn render_display_shows_url_label() {
+        let display = render_pairing_display("http://example.com:7878/pair?token=abc", "abc");
+        assert!(display.contains("URL:"));
+    }
+
+    #[test]
+    fn render_display_shows_token_label() {
+        let display = render_pairing_display("http://x", "my_token_value");
+        assert!(display.contains("Token:"));
+    }
+
+    #[test]
+    fn truncate_exact_length() {
+        let result = truncate_for_box("abcdefghij", 10);
+        assert_eq!(result.len(), 10);
+        assert_eq!(result, "abcdefghij");
+    }
+
+    #[test]
+    fn truncate_shorter_than_max_pads() {
+        let result = truncate_for_box("hi", 10);
+        assert_eq!(result.len(), 10);
+        assert!(result.starts_with("hi"));
+    }
+
+    #[test]
+    fn multiple_tokens_all_unique() {
+        let tokens: Vec<String> = (0..10)
+            .map(|_| generate_pairing_url("h", 1).1)
+            .collect();
+        for i in 0..tokens.len() {
+            for j in (i + 1)..tokens.len() {
+                assert_ne!(tokens[i], tokens[j], "Tokens at {} and {} should differ", i, j);
+            }
+        }
+    }
+
+    #[test]
+    fn pairing_url_different_ports() {
+        let (url1, _) = generate_pairing_url("host", 80);
+        let (url2, _) = generate_pairing_url("host", 443);
+        assert!(url1.contains(":80/"));
+        assert!(url2.contains(":443/"));
+    }
 }

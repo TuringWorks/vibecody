@@ -257,4 +257,156 @@ mod tests {
             assert!(mem.summary().contains("level"));
         }
     }
+
+    #[test]
+    fn test_default_project_memory_is_empty() {
+        let mem = ProjectMemory::default();
+        assert!(mem.is_empty());
+        assert!(mem.levels.is_empty());
+        assert!(mem.scratch.is_none());
+    }
+
+    #[test]
+    fn test_default_combined_returns_none() {
+        let mem = ProjectMemory::default();
+        assert!(mem.combined().is_none());
+    }
+
+    #[test]
+    fn test_default_summary_when_empty() {
+        let mem = ProjectMemory::default();
+        assert_eq!(mem.summary(), "No memory files found.");
+    }
+
+    #[test]
+    fn test_default_repo_path() {
+        let cwd = Path::new("/tmp/myproject");
+        let path = ProjectMemory::default_repo_path(cwd);
+        assert_eq!(path, PathBuf::from("/tmp/myproject/VIBECLI.md"));
+    }
+
+    #[test]
+    fn test_global_path_returns_some() {
+        // global_path returns Some on most systems (home dir exists)
+        let path = ProjectMemory::global_path();
+        if let Some(p) = path {
+            assert!(p.to_string_lossy().contains("memory.md"));
+        }
+    }
+
+    #[test]
+    fn test_memory_level_struct() {
+        let level = MemoryLevel {
+            label: "project",
+            path: PathBuf::from("/test/VIBECLI.md"),
+            content: "some rules".to_string(),
+        };
+        assert_eq!(level.label, "project");
+        assert_eq!(level.content, "some rules");
+    }
+
+    #[test]
+    fn test_memory_level_clone() {
+        let level = MemoryLevel {
+            label: "user",
+            path: PathBuf::from("/home/user/.vibecli/VIBECLI.md"),
+            content: "user rules".to_string(),
+        };
+        let cloned = level.clone();
+        assert_eq!(cloned.label, level.label);
+        assert_eq!(cloned.path, level.path);
+        assert_eq!(cloned.content, level.content);
+    }
+
+    #[test]
+    fn test_repo_content_returns_none_when_empty() {
+        let mem = ProjectMemory::default();
+        assert!(mem.repo_content().is_none());
+    }
+
+    #[test]
+    fn test_repo_path_returns_none_when_empty() {
+        let mem = ProjectMemory::default();
+        assert!(mem.repo_path().is_none());
+    }
+
+    #[test]
+    fn test_combined_with_scratch_only() {
+        let mem = ProjectMemory {
+            levels: vec![],
+            scratch: Some("My notes".to_string()),
+        };
+        assert!(!mem.is_empty());
+        let combined = mem.combined().unwrap();
+        assert!(combined.contains("Personal Memory"));
+        assert!(combined.contains("My notes"));
+    }
+
+    #[test]
+    fn test_combined_with_multiple_levels() {
+        let mem = ProjectMemory {
+            levels: vec![
+                MemoryLevel {
+                    label: "system",
+                    path: PathBuf::from("/etc/vibecli/VIBECLI.md"),
+                    content: "system rule".to_string(),
+                },
+                MemoryLevel {
+                    label: "project",
+                    path: PathBuf::from("/proj/VIBECLI.md"),
+                    content: "project rule".to_string(),
+                },
+            ],
+            scratch: None,
+        };
+        let combined = mem.combined().unwrap();
+        assert!(combined.contains("System Instructions"));
+        assert!(combined.contains("Project Instructions"));
+        assert!(combined.contains("system rule"));
+        assert!(combined.contains("project rule"));
+        assert!(combined.contains("---"));
+    }
+
+    #[test]
+    fn test_summary_with_scratch() {
+        let mem = ProjectMemory {
+            levels: vec![MemoryLevel {
+                label: "user",
+                path: PathBuf::from("/home/.vibecli/VIBECLI.md"),
+                content: "stuff".to_string(),
+            }],
+            scratch: Some("notes".to_string()),
+        };
+        let summary = mem.summary();
+        assert!(summary.contains("1 level(s)"));
+        assert!(summary.contains("scratch pad"));
+    }
+
+    #[test]
+    fn test_load_with_agents_md() {
+        let dir = tempfile::tempdir().unwrap();
+        let git_dir = dir.path().join(".git");
+        fs::create_dir(&git_dir).unwrap();
+        let md = dir.path().join("AGENTS.md");
+        fs::write(&md, "agents rules\n").unwrap();
+
+        let mem = ProjectMemory::load(dir.path());
+        assert!(!mem.is_empty());
+        let combined = mem.combined().unwrap();
+        assert!(combined.contains("agents rules"));
+    }
+
+    #[test]
+    fn test_load_with_claude_md() {
+        let dir = tempfile::tempdir().unwrap();
+        let git_dir = dir.path().join(".git");
+        fs::create_dir(&git_dir).unwrap();
+        let md = dir.path().join("CLAUDE.md");
+        fs::write(&md, "claude instructions\n").unwrap();
+
+        let mem = ProjectMemory::load(dir.path());
+        assert!(!mem.is_empty());
+        let combined = mem.combined().unwrap();
+        assert!(combined.contains("claude instructions"));
+    }
 }

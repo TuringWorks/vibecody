@@ -183,4 +183,77 @@ mod tests {
         let bullets = extract_bullets(response);
         assert!(bullets.is_empty());
     }
+
+    #[test]
+    fn unix_secs_2000_01_01() {
+        // 2000-01-01 00:00:00 UTC = 946684800
+        assert_eq!(unix_secs_to_date_string(946_684_800), "2000-01-01");
+    }
+
+    #[test]
+    fn unix_secs_dec_31() {
+        // 2023-12-31 00:00:00 UTC = 1703980800
+        assert_eq!(unix_secs_to_date_string(1_703_980_800), "2023-12-31");
+    }
+
+    #[test]
+    fn unix_secs_non_leap_feb_28() {
+        // 2023-02-28 00:00:00 UTC = 1677542400
+        assert_eq!(unix_secs_to_date_string(1_677_542_400), "2023-02-28");
+    }
+
+    #[test]
+    fn unix_secs_mid_day() {
+        // 2024-06-15 12:00:00 UTC = 1718452800
+        assert_eq!(unix_secs_to_date_string(1_718_452_800), "2024-06-15");
+    }
+
+    #[test]
+    fn extract_bullets_only_bullets() {
+        let response = "- first\n- second\n- third";
+        let bullets = extract_bullets(response);
+        assert_eq!(bullets.len(), 3);
+    }
+
+    #[test]
+    fn extract_bullets_mixed_with_whitespace() {
+        let response = "Header\n\n  - indented one\n\n- normal one\n\nFooter";
+        let bullets = extract_bullets(response);
+        assert_eq!(bullets.len(), 2);
+        assert_eq!(bullets[0].trim(), "- indented one");
+        assert_eq!(bullets[1], "- normal one");
+    }
+
+    #[test]
+    fn extract_bullets_dash_in_middle_of_line_not_counted() {
+        let response = "This has a - dash in the middle";
+        let bullets = extract_bullets(response);
+        assert!(bullets.is_empty());
+    }
+
+    #[test]
+    fn memory_file_path_is_absolute() {
+        let path = memory_file_path();
+        // The path should contain .vibecli/memory.md
+        let path_str = path.to_string_lossy();
+        assert!(path_str.contains(".vibecli"));
+        assert!(path_str.ends_with("memory.md"));
+    }
+
+    #[test]
+    fn chrono_now_utc_format() {
+        let date = chrono_now_utc();
+        // Should match YYYY-MM-DD format
+        assert_eq!(date.len(), 10);
+        assert_eq!(&date[4..5], "-");
+        assert_eq!(&date[7..8], "-");
+        // Year should parse as a number
+        assert!(date[0..4].parse::<u32>().is_ok());
+        // Month should be 01-12
+        let month: u32 = date[5..7].parse().unwrap();
+        assert!((1..=12).contains(&month));
+        // Day should be 01-31
+        let day: u32 = date[8..10].parse().unwrap();
+        assert!((1..=31).contains(&day));
+    }
 }

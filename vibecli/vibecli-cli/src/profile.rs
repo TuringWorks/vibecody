@@ -262,4 +262,134 @@ mod tests {
         let mgr = ProfileManager { profiles_dir: tmp.path().to_path_buf() };
         assert!(mgr.load("nope").is_err());
     }
+
+    #[test]
+    fn test_profile_default() {
+        let profile = Profile::default();
+        assert_eq!(profile.description, "");
+        assert!(profile.provider.is_none());
+        assert!(profile.safety.is_none());
+    }
+
+    #[test]
+    fn test_profile_serde_roundtrip() {
+        let profile = Profile {
+            description: "Test profile".to_string(),
+            provider: Some(ProfileProvider {
+                provider_type: Some("claude".to_string()),
+                model: Some("claude-opus-4-6".to_string()),
+                api_url: None,
+            }),
+            safety: Some(ProfileSafety {
+                approval_policy: Some("auto-edit".to_string()),
+                sandbox: Some(true),
+            }),
+        };
+        let toml_str = toml::to_string(&profile).unwrap();
+        let parsed: Profile = toml::from_str(&toml_str).unwrap();
+        assert_eq!(parsed.description, "Test profile");
+        assert_eq!(parsed.provider.unwrap().model.unwrap(), "claude-opus-4-6");
+        assert_eq!(parsed.safety.unwrap().sandbox, Some(true));
+    }
+
+    #[test]
+    fn test_profile_minimal_toml() {
+        let toml_str = r#"description = "minimal""#;
+        let profile: Profile = toml::from_str(toml_str).unwrap();
+        assert_eq!(profile.description, "minimal");
+        assert!(profile.provider.is_none());
+        assert!(profile.safety.is_none());
+    }
+
+    #[test]
+    fn test_list_empty_dir() {
+        let tmp = tempfile::tempdir().unwrap();
+        let mgr = ProfileManager { profiles_dir: tmp.path().to_path_buf() };
+        assert!(mgr.list().is_empty());
+    }
+
+    #[test]
+    fn test_list_nonexistent_dir() {
+        let mgr = ProfileManager { profiles_dir: PathBuf::from("/nonexistent/profiles") };
+        assert!(mgr.list().is_empty());
+    }
+
+    #[test]
+    fn test_delete_nonexistent_fails() {
+        let tmp = tempfile::tempdir().unwrap();
+        let mgr = ProfileManager { profiles_dir: tmp.path().to_path_buf() };
+        assert!(mgr.delete("nope").is_err());
+    }
+
+    #[test]
+    fn test_create_with_different_providers() {
+        let tmp = tempfile::tempdir().unwrap();
+        let mgr = ProfileManager { profiles_dir: tmp.path().to_path_buf() };
+
+        mgr.create("ollama_profile", "ollama", "suggest").unwrap();
+        mgr.create("openai_profile", "openai", "full-auto").unwrap();
+
+        let p1 = mgr.load("ollama_profile").unwrap();
+        let p2 = mgr.load("openai_profile").unwrap();
+        assert_eq!(p1.provider.unwrap().provider_type.unwrap(), "ollama");
+        assert_eq!(p2.provider.unwrap().provider_type.unwrap(), "openai");
+    }
+
+    #[test]
+    fn test_profile_overrides_default() {
+        let overrides = ProfileOverrides::default();
+        assert!(overrides.provider.is_none());
+        assert!(overrides.model.is_none());
+        assert!(overrides.approval_policy.is_none());
+        assert!(overrides.sandbox.is_none());
+    }
+
+    #[test]
+    fn test_create_populates_description() {
+        let tmp = tempfile::tempdir().unwrap();
+        let mgr = ProfileManager { profiles_dir: tmp.path().to_path_buf() };
+        mgr.create("test", "claude", "auto-edit").unwrap();
+        let profile = mgr.load("test").unwrap();
+        assert!(!profile.description.is_empty());
+        assert!(profile.description.contains("test"));
+    }
+
+    #[test]
+    fn test_active_profile_path_exists() {
+        // Just verify it returns Some on systems with a home dir
+        let path = ProfileManager::active_profile_path();
+        // On CI or sandboxed envs this might be None, but usually Some
+        if let Some(p) = path {
+            assert!(p.to_string_lossy().contains("active_profile"));
+        }
+    }
+
+    #[test]
+    fn test_create_then_delete_then_list() {
+        let tmp = tempfile::tempdir().unwrap();
+        let mgr = ProfileManager { profiles_dir: tmp.path().to_path_buf() };
+        mgr.create("a", "ollama", "suggest").unwrap();
+        mgr.create("b", "claude", "auto-edit").unwrap();
+        assert_eq!(mgr.list().len(), 2);
+        mgr.delete("a").unwrap();
+        let list = mgr.list();
+        assert_eq!(list.len(), 1);
+        assert_eq!(list[0].0, "b");
+    }
+
+    #[test]
+    fn test_profile_provider_with_api_url() {
+        let profile = Profile {
+            description: "custom".to_string(),
+            provider: Some(ProfileProvider {
+                provider_type: Some("ollama".to_string()),
+                model: Some("llama3".to_string()),
+                api_url: Some("http://localhost:11434".to_string()),
+            }),
+            safety: None,
+        };
+        let toml_str = toml::to_string(&profile).unwrap();
+        let parsed: Profile = toml::from_str(&toml_str).unwrap();
+        assert_eq!(parsed.provider.unwrap().api_url.unwrap(), "http://localhost:11434");
+    }
 }

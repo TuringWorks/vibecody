@@ -339,4 +339,107 @@ mod tests {
             "{\"a\": 1}"
         );
     }
+
+    #[test]
+    fn test_extract_json_block_plain_code_fence() {
+        let text = "result:\n```\n{\"key\": \"value\"}\n```\ndone";
+        assert_eq!(extract_json_block(text), "{\"key\": \"value\"}");
+    }
+
+    #[test]
+    fn test_extract_json_block_no_json() {
+        let text = "just plain text with no json";
+        assert_eq!(extract_json_block(text), "just plain text with no json");
+    }
+
+    #[test]
+    fn test_parse_visual_assertion_missing_fields() {
+        // JSON with missing confidence and details
+        let response = r#"{"passed": true}"#;
+        let va = parse_visual_assertion(response, "/tmp/s.png", "check");
+        assert!(va.passed);
+        assert!((va.confidence - 0.5).abs() < f64::EPSILON); // default
+        assert_eq!(va.details, "No details");
+    }
+
+    #[test]
+    fn test_parse_visual_assertion_fallback_with_pass_keyword() {
+        let response = "The test did pass successfully.";
+        let va = parse_visual_assertion(response, "/tmp/x.png", "test");
+        assert!(va.passed);
+    }
+
+    #[test]
+    fn test_parse_visual_assertion_fallback_with_matches_keyword() {
+        let response = "The layout matches the expected design.";
+        let va = parse_visual_assertion(response, "/tmp/x.png", "layout check");
+        assert!(va.passed);
+    }
+
+    #[test]
+    fn test_visual_test_step_serde() {
+        let step = VisualTestStep {
+            action: "click".to_string(),
+            screenshot: None,
+            assertion: Some(VisualAssertion {
+                screenshot_path: "/tmp/after.png".to_string(),
+                assertion: "Button changed color".to_string(),
+                passed: true,
+                confidence: 0.88,
+                details: "Color changed to green".to_string(),
+            }),
+        };
+        let json = serde_json::to_string(&step).unwrap();
+        let decoded: VisualTestStep = serde_json::from_str(&json).unwrap();
+        assert_eq!(decoded.action, "click");
+        assert!(decoded.screenshot.is_none());
+        let a = decoded.assertion.unwrap();
+        assert!(a.passed);
+        assert!((a.confidence - 0.88).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_new_visual_test_session_generates_unique_ids() {
+        let s1 = new_visual_test_session("http://a.com");
+        let s2 = new_visual_test_session("http://b.com");
+        // Both should start with vt- and have same timestamp (same second)
+        assert!(s1.id.starts_with("vt-"));
+        assert!(s2.id.starts_with("vt-"));
+    }
+
+    #[test]
+    fn test_visual_assertion_serde_roundtrip() {
+        let va = VisualAssertion {
+            screenshot_path: "/shots/test.png".to_string(),
+            assertion: "Header is visible".to_string(),
+            passed: false,
+            confidence: 0.2,
+            details: "Header not found in viewport".to_string(),
+        };
+        let json = serde_json::to_string(&va).unwrap();
+        let decoded: VisualAssertion = serde_json::from_str(&json).unwrap();
+        assert_eq!(decoded.screenshot_path, "/shots/test.png");
+        assert!(!decoded.passed);
+        assert!((decoded.confidence - 0.2).abs() < f64::EPSILON);
+        assert_eq!(decoded.details, "Header not found in viewport");
+    }
+
+    #[test]
+    fn test_read_png_dimensions_invalid_data() {
+        // Create a temp file with non-PNG data
+        let temp = std::env::temp_dir().join("vibecli-test-not-png.txt");
+        std::fs::write(&temp, b"not a png file content").unwrap();
+        let result = read_png_dimensions(&temp);
+        assert!(result.is_none());
+        let _ = std::fs::remove_file(&temp);
+    }
+
+    #[test]
+    fn test_read_png_dimensions_too_short() {
+        let temp = std::env::temp_dir().join("vibecli-test-short.bin");
+        std::fs::write(&temp, b"short").unwrap();
+        let result = read_png_dimensions(&temp);
+        assert!(result.is_none());
+        let _ = std::fs::remove_file(&temp);
+    }
 }

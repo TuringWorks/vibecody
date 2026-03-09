@@ -261,4 +261,143 @@ mod tests {
         let errs = validate(&json!([1]), &schema).unwrap_err();
         assert!(errs[0].contains("minItems"));
     }
+
+    // ── Additional tests ──────────────────────────────────────────────────
+
+    #[test]
+    fn type_null_valid() {
+        let schema = json!({"type": "null"});
+        assert!(validate(&json!(null), &schema).is_ok());
+    }
+
+    #[test]
+    fn type_null_wrong_type() {
+        let schema = json!({"type": "null"});
+        let errs = validate(&json!("not null"), &schema).unwrap_err();
+        assert!(errs[0].contains("expected type"));
+    }
+
+    #[test]
+    fn type_boolean_valid() {
+        let schema = json!({"type": "boolean"});
+        assert!(validate(&json!(true), &schema).is_ok());
+        assert!(validate(&json!(false), &schema).is_ok());
+    }
+
+    #[test]
+    fn type_boolean_wrong_type() {
+        let schema = json!({"type": "boolean"});
+        let errs = validate(&json!(1), &schema).unwrap_err();
+        assert!(errs[0].contains("expected type"));
+    }
+
+    #[test]
+    fn type_integer_valid() {
+        let schema = json!({"type": "integer"});
+        assert!(validate(&json!(42), &schema).is_ok());
+    }
+
+    #[test]
+    fn type_object_valid() {
+        let schema = json!({"type": "object"});
+        assert!(validate(&json!({"key": "value"}), &schema).is_ok());
+    }
+
+    #[test]
+    fn type_array_union_types() {
+        let schema = json!({"type": ["string", "null"]});
+        assert!(validate(&json!("hello"), &schema).is_ok());
+        assert!(validate(&json!(null), &schema).is_ok());
+        let errs = validate(&json!(42), &schema).unwrap_err();
+        assert!(errs[0].contains("expected type"));
+    }
+
+    #[test]
+    fn max_length_pass_and_fail() {
+        let schema = json!({"type": "string", "maxLength": 5});
+        assert!(validate(&json!("hello"), &schema).is_ok());
+        let errs = validate(&json!("toolong"), &schema).unwrap_err();
+        assert!(errs[0].contains("maxLength"));
+    }
+
+    #[test]
+    fn numeric_maximum_exceeded() {
+        let schema = json!({"type": "number", "maximum": 10.0});
+        assert!(validate(&json!(10), &schema).is_ok());
+        let errs = validate(&json!(11), &schema).unwrap_err();
+        assert!(errs[0].contains("maximum"));
+    }
+
+    #[test]
+    fn array_max_items_exceeded() {
+        let schema = json!({"type": "array", "maxItems": 2});
+        assert!(validate(&json!([1, 2]), &schema).is_ok());
+        let errs = validate(&json!([1, 2, 3]), &schema).unwrap_err();
+        assert!(errs[0].contains("maxItems"));
+    }
+
+    #[test]
+    fn empty_schema_accepts_anything() {
+        let schema = json!({});
+        assert!(validate(&json!("string"), &schema).is_ok());
+        assert!(validate(&json!(42), &schema).is_ok());
+        assert!(validate(&json!(null), &schema).is_ok());
+        assert!(validate(&json!([1, 2]), &schema).is_ok());
+    }
+
+    #[test]
+    fn non_object_schema_accepts_anything() {
+        let schema = json!("not a schema");
+        assert!(validate(&json!(42), &schema).is_ok());
+    }
+
+    #[test]
+    fn nested_object_properties_pass() {
+        let schema = json!({
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "object",
+                    "properties": {
+                        "city": {"type": "string"}
+                    },
+                    "required": ["city"]
+                }
+            }
+        });
+        assert!(validate(&json!({"address": {"city": "NYC"}}), &schema).is_ok());
+    }
+
+    #[test]
+    fn nested_object_properties_fail() {
+        let schema = json!({
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "object",
+                    "required": ["city"]
+                }
+            }
+        });
+        let errs = validate(&json!({"address": {}}), &schema).unwrap_err();
+        assert!(errs.iter().any(|e| e.contains("city")));
+    }
+
+    #[test]
+    fn multiple_required_fields_missing() {
+        let schema = json!({
+            "type": "object",
+            "required": ["a", "b", "c"]
+        });
+        let errs = validate(&json!({"a": 1}), &schema).unwrap_err();
+        assert_eq!(errs.len(), 2);
+    }
+
+    #[test]
+    fn enum_with_numbers() {
+        let schema = json!({"enum": [1, 2, 3]});
+        assert!(validate(&json!(2), &schema).is_ok());
+        let errs = validate(&json!(4), &schema).unwrap_err();
+        assert!(errs[0].contains("enum"));
+    }
 }

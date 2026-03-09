@@ -218,4 +218,107 @@ mod tests {
             "task_complete"
         );
     }
+
+    #[test]
+    fn apply_patch_tool_name() {
+        assert_eq!(
+            ToolCall::ApplyPatch { path: "f.rs".into(), patch: "diff".into() }.name(),
+            "apply_patch"
+        );
+    }
+
+    #[test]
+    fn web_search_tool_name() {
+        assert_eq!(
+            ToolCall::WebSearch { query: "rust".into(), num_results: 5 }.name(),
+            "web_search"
+        );
+    }
+
+    #[test]
+    fn fetch_url_tool_name() {
+        assert_eq!(
+            ToolCall::FetchUrl { url: "https://example.com".into() }.name(),
+            "fetch_url"
+        );
+    }
+
+    #[test]
+    fn spawn_agent_tool_name() {
+        assert_eq!(
+            ToolCall::SpawnAgent { task: "t".into(), max_steps: None, max_depth: None }.name(),
+            "spawn_agent"
+        );
+    }
+
+    #[test]
+    fn runtime_kind_display_docker() {
+        assert_eq!(RuntimeKind::Docker.to_string(), "docker");
+    }
+
+    #[test]
+    fn runtime_kind_display_podman() {
+        assert_eq!(RuntimeKind::Podman.to_string(), "podman");
+    }
+
+    #[test]
+    fn runtime_kind_display_opensandbox() {
+        assert_eq!(RuntimeKind::OpenSandbox.to_string(), "opensandbox");
+    }
+
+    #[test]
+    fn runtime_kind_parse_docker() {
+        let kind: RuntimeKind = "docker".parse().unwrap();
+        assert_eq!(kind, RuntimeKind::Docker);
+    }
+
+    #[test]
+    fn runtime_kind_parse_podman_case_insensitive() {
+        let kind: RuntimeKind = "Podman".parse().unwrap();
+        assert_eq!(kind, RuntimeKind::Podman);
+    }
+
+    #[test]
+    fn runtime_kind_parse_unknown_fails() {
+        let result: Result<RuntimeKind, _> = "kubernetes".parse();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn tool_call_is_destructive() {
+        assert!(ToolCall::WriteFile { path: "a".into(), content: "b".into() }.is_destructive());
+        assert!(ToolCall::ApplyPatch { path: "a".into(), patch: "p".into() }.is_destructive());
+        assert!(ToolCall::Bash { command: "rm -rf /".into() }.is_destructive());
+        assert!(!ToolCall::ReadFile { path: "a".into() }.is_destructive());
+    }
+
+    #[test]
+    fn tool_call_is_terminal() {
+        assert!(ToolCall::TaskComplete { summary: "done".into() }.is_terminal());
+        assert!(!ToolCall::ReadFile { path: "a".into() }.is_terminal());
+        assert!(!ToolCall::Bash { command: "ls".into() }.is_terminal());
+    }
+
+    #[test]
+    fn tool_call_summary_read_file() {
+        let s = ToolCall::ReadFile { path: "/tmp/foo.rs".into() }.summary();
+        assert!(s.contains("foo.rs"), "summary should contain filename, got: {}", s);
+    }
+
+    #[test]
+    fn tool_call_summary_bash() {
+        let s = ToolCall::Bash { command: "cargo test".into() }.summary();
+        assert!(s.contains("cargo test"), "summary should contain command, got: {}", s);
+    }
+
+    #[test]
+    fn container_config_default_values() {
+        let config = ContainerConfig::default();
+        assert_eq!(config.image, "ubuntu:22.04");
+        assert!(config.name.is_none());
+        assert!(config.env.is_empty());
+        assert!(config.volumes.is_empty());
+        assert_eq!(config.timeout_secs, 3600);
+        assert_eq!(config.working_dir, Some("/workspace".to_string()));
+    }
 }

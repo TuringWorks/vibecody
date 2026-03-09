@@ -376,4 +376,231 @@ mod tests {
         assert!(json.contains("some-plugin"));
         assert!(json.contains(">=1.0.0"));
     }
+
+    #[test]
+    fn test_all_plugin_kinds_serde() {
+        let kinds = vec![
+            PluginKind::Connector,
+            PluginKind::Adapter,
+            PluginKind::Optimizer,
+            PluginKind::Theme,
+            PluginKind::SkillPack,
+            PluginKind::Workflow,
+            PluginKind::Extension,
+        ];
+        for kind in kinds {
+            let json = serde_json::to_string(&kind).unwrap();
+            let back: PluginKind = serde_json::from_str(&json).unwrap();
+            assert_eq!(back, kind);
+        }
+    }
+
+    #[test]
+    fn test_capability_database_is_dangerous() {
+        assert!(PluginCapability::DatabaseAccess.is_dangerous());
+    }
+
+    #[test]
+    fn test_capability_non_dangerous_variants() {
+        assert!(!PluginCapability::EnvRead.is_dangerous());
+        assert!(!PluginCapability::Clipboard.is_dangerous());
+        assert!(!PluginCapability::GitAccess.is_dangerous());
+        assert!(!PluginCapability::HttpServer.is_dangerous());
+        assert!(!PluginCapability::WebSocket.is_dangerous());
+    }
+
+    #[test]
+    fn test_validate_manifest_invalid_name_chars() {
+        let m = PluginManifestV2 {
+            name: "bad name!".to_string(),
+            version: "1.0.0".to_string(),
+            display_name: "Bad".to_string(),
+            description: "A plugin with invalid name".to_string(),
+            author: "Author".to_string(),
+            license: "MIT".to_string(),
+            repository: None,
+            homepage: None,
+            kind: PluginKind::Theme,
+            capabilities: vec![],
+            min_vibecli_version: None,
+            max_vibecli_version: None,
+            dependencies: vec![],
+            hooks: vec![],
+            commands: vec![],
+            settings: vec![],
+            keywords: vec![],
+            icon: None,
+            screenshots: vec![],
+            platforms: vec![],
+        };
+        let errors = validate_manifest(&m);
+        assert!(errors.iter().any(|e| e.contains("alphanumeric")));
+    }
+
+    #[test]
+    fn test_validate_manifest_empty_description() {
+        let m = PluginManifestV2 {
+            name: "ok-name".to_string(),
+            version: "1.0.0".to_string(),
+            display_name: "OK".to_string(),
+            description: "".to_string(),
+            author: "Author".to_string(),
+            license: "MIT".to_string(),
+            repository: None,
+            homepage: None,
+            kind: PluginKind::Theme,
+            capabilities: vec![],
+            min_vibecli_version: None,
+            max_vibecli_version: None,
+            dependencies: vec![],
+            hooks: vec![],
+            commands: vec![],
+            settings: vec![],
+            keywords: vec![],
+            icon: None,
+            screenshots: vec![],
+            platforms: vec![],
+        };
+        let errors = validate_manifest(&m);
+        assert!(errors.iter().any(|e| e.contains("Description is required")));
+    }
+
+    #[test]
+    fn test_validate_manifest_empty_author() {
+        let m = PluginManifestV2 {
+            name: "ok-name".to_string(),
+            version: "1.0.0".to_string(),
+            display_name: "OK".to_string(),
+            description: "A valid description here".to_string(),
+            author: "".to_string(),
+            license: "MIT".to_string(),
+            repository: None,
+            homepage: None,
+            kind: PluginKind::Theme,
+            capabilities: vec![],
+            min_vibecli_version: None,
+            max_vibecli_version: None,
+            dependencies: vec![],
+            hooks: vec![],
+            commands: vec![],
+            settings: vec![],
+            keywords: vec![],
+            icon: None,
+            screenshots: vec![],
+            platforms: vec![],
+        };
+        let errors = validate_manifest(&m);
+        assert!(errors.iter().any(|e| e.contains("Author is required")));
+    }
+
+    #[test]
+    fn test_validate_manifest_dangerous_caps_short_description() {
+        let m = PluginManifestV2 {
+            name: "my-plugin".to_string(),
+            version: "1.0.0".to_string(),
+            display_name: "My Plugin".to_string(),
+            description: "Short".to_string(), // < 20 chars
+            author: "Author".to_string(),
+            license: "MIT".to_string(),
+            repository: None,
+            homepage: None,
+            kind: PluginKind::Connector,
+            capabilities: vec![PluginCapability::FileWrite, PluginCapability::NetworkAccess],
+            min_vibecli_version: None,
+            max_vibecli_version: None,
+            dependencies: vec![],
+            hooks: vec![],
+            commands: vec![],
+            settings: vec![],
+            keywords: vec![],
+            icon: None,
+            screenshots: vec![],
+            platforms: vec![],
+        };
+        let errors = validate_manifest(&m);
+        assert!(errors.iter().any(|e| e.contains("dangerous capabilities")));
+    }
+
+    #[test]
+    fn test_all_plugin_events_serde() {
+        let events = vec![
+            PluginEvent::PreToolUse,
+            PluginEvent::PostToolUse,
+            PluginEvent::PreCompletion,
+            PluginEvent::PostCompletion,
+            PluginEvent::OnFileOpen,
+            PluginEvent::OnFileSave,
+            PluginEvent::OnSessionStart,
+            PluginEvent::OnSessionEnd,
+            PluginEvent::OnAgentStart,
+            PluginEvent::OnAgentEnd,
+            PluginEvent::OnError,
+        ];
+        for event in events {
+            let json = serde_json::to_string(&event).unwrap();
+            let back: PluginEvent = serde_json::from_str(&json).unwrap();
+            assert_eq!(back, event);
+        }
+    }
+
+    #[test]
+    fn test_setting_type_variants_serde() {
+        let types = vec![
+            SettingType::String,
+            SettingType::Number,
+            SettingType::Boolean,
+            SettingType::Secret,
+            SettingType::FilePath,
+        ];
+        for t in types {
+            let json = serde_json::to_string(&t).unwrap();
+            assert!(!json.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_plugin_scaffold_creates_directory() {
+        let temp = std::env::temp_dir().join("vibecli-test-scaffold");
+        let _ = std::fs::remove_dir_all(&temp);
+        std::fs::create_dir_all(&temp).unwrap();
+
+        let result = PluginScaffold::create("test-plugin", PluginKind::Connector, &temp);
+        assert!(result.is_ok());
+        let plugin_dir = result.unwrap();
+        assert!(plugin_dir.exists());
+        assert!(plugin_dir.join("plugin.toml").exists());
+        assert!(plugin_dir.join("README.md").exists());
+        assert!(plugin_dir.join("hooks/example.sh").exists());
+        assert!(plugin_dir.join(".gitignore").exists());
+        assert!(plugin_dir.join("skills/connector.md").exists());
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    #[test]
+    fn test_plugin_scaffold_skillpack_creates_example_skill() {
+        let temp = std::env::temp_dir().join("vibecli-test-scaffold-sp");
+        let _ = std::fs::remove_dir_all(&temp);
+        std::fs::create_dir_all(&temp).unwrap();
+
+        let result = PluginScaffold::create("skills-pack", PluginKind::SkillPack, &temp);
+        assert!(result.is_ok());
+        let plugin_dir = result.unwrap();
+        assert!(plugin_dir.join("skills/example.md").exists());
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    #[test]
+    fn test_plugin_dependency_optional() {
+        let dep = PluginDependency {
+            name: "opt-dep".to_string(),
+            version: "^2.0.0".to_string(),
+            optional: true,
+        };
+        let json = serde_json::to_string(&dep).unwrap();
+        let back: PluginDependency = serde_json::from_str(&json).unwrap();
+        assert!(back.optional);
+        assert_eq!(back.name, "opt-dep");
+    }
 }

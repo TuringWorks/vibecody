@@ -608,4 +608,164 @@ mod tests {
         let rt = PodmanRuntime::new();
         assert_eq!(rt.kind(), RuntimeKind::Podman);
     }
+
+    #[test]
+    fn build_create_args_network_restricted() {
+        let rt = PodmanRuntime::new();
+        let config = ContainerConfig {
+            image: "node:20".to_string(),
+            name: Some("pm-restricted".to_string()),
+            network_policy: NetworkPolicy::Restricted {
+                allowed_domains: vec!["example.com".to_string()],
+            },
+            ..Default::default()
+        };
+        let args = rt.build_create_args(&config);
+        let net_idx = args.iter().position(|a| a == "--network").unwrap();
+        assert_eq!(args[net_idx + 1], "bridge");
+    }
+
+    #[test]
+    fn build_create_args_network_full_no_flag() {
+        let rt = PodmanRuntime::new();
+        let config = ContainerConfig {
+            image: "alpine:3".to_string(),
+            name: Some("pm-full".to_string()),
+            network_policy: NetworkPolicy::Full,
+            ..Default::default()
+        };
+        let args = rt.build_create_args(&config);
+        // Full network should not have a --network flag
+        assert!(!args.contains(&"--network".to_string()));
+    }
+
+    #[test]
+    fn build_create_args_volumes() {
+        let rt = PodmanRuntime::new();
+        let config = ContainerConfig {
+            image: "ubuntu:22.04".to_string(),
+            name: Some("pm-vol".to_string()),
+            volumes: vec![
+                VolumeMount {
+                    host_path: "/host/src".to_string(),
+                    container_path: "/workspace".to_string(),
+                    read_only: true,
+                },
+                VolumeMount {
+                    host_path: "/host/data".to_string(),
+                    container_path: "/data".to_string(),
+                    read_only: false,
+                },
+            ],
+            ..Default::default()
+        };
+        let args = rt.build_create_args(&config);
+        assert!(args.contains(&"/host/src:/workspace:ro".to_string()));
+        assert!(args.contains(&"/host/data:/data:rw".to_string()));
+    }
+
+    #[test]
+    fn build_create_args_working_dir() {
+        let rt = PodmanRuntime::new();
+        let config = ContainerConfig {
+            image: "python:3.12".to_string(),
+            name: Some("pm-wd".to_string()),
+            working_dir: Some("/app".to_string()),
+            ..Default::default()
+        };
+        let args = rt.build_create_args(&config);
+        let w_idx = args.iter().position(|a| a == "-w").unwrap();
+        assert_eq!(args[w_idx + 1], "/app");
+    }
+
+    #[test]
+    fn build_create_args_env_vars() {
+        let rt = PodmanRuntime::new();
+        let config = ContainerConfig {
+            image: "alpine:3".to_string(),
+            name: Some("pm-env".to_string()),
+            env: vec![
+                ("FOO".to_string(), "bar".to_string()),
+                ("BAZ".to_string(), "qux".to_string()),
+            ],
+            ..Default::default()
+        };
+        let args = rt.build_create_args(&config);
+        assert!(args.contains(&"FOO=bar".to_string()));
+        assert!(args.contains(&"BAZ=qux".to_string()));
+    }
+
+    #[test]
+    fn build_create_args_ends_with_idle_command() {
+        let rt = PodmanRuntime::new();
+        let config = ContainerConfig {
+            image: "ubuntu:22.04".to_string(),
+            name: Some("pm-idle".to_string()),
+            ..Default::default()
+        };
+        let args = rt.build_create_args(&config);
+        let len = args.len();
+        assert_eq!(args[len - 3], "tail");
+        assert_eq!(args[len - 2], "-f");
+        assert_eq!(args[len - 1], "/dev/null");
+    }
+
+    #[test]
+    fn parse_ps_json_empty_array() {
+        let rt = PodmanRuntime::new();
+        let infos = rt.parse_ps_json("[]");
+        assert!(infos.is_empty());
+    }
+
+    #[test]
+    fn parse_ps_json_invalid_json() {
+        let rt = PodmanRuntime::new();
+        let infos = rt.parse_ps_json("not valid json");
+        assert!(infos.is_empty());
+    }
+
+    #[test]
+    fn parse_ps_json_with_id_uppercase() {
+        let rt = PodmanRuntime::new();
+        let json = r#"[{"ID":"xyz789","Names":"single-name","Image":"rust:1.75","Status":"running","Created":"2024-06-01"}]"#;
+        let infos = rt.parse_ps_json(json);
+        assert_eq!(infos.len(), 1);
+        assert_eq!(infos[0].id, "xyz789");
+        assert_eq!(infos[0].name, "single-name");
+    }
+
+    #[test]
+    fn parse_podman_mem_mib() {
+        assert_eq!(parse_podman_mem_value("256MiB"), 256 * 1024 * 1024);
+    }
+
+    #[test]
+    fn parse_podman_mem_kib() {
+        assert_eq!(parse_podman_mem_value("1024KiB"), 1024 * 1024);
+    }
+
+    #[test]
+    fn parse_podman_mem_kb() {
+        assert_eq!(parse_podman_mem_value("500KB"), 500_000);
+    }
+
+    #[test]
+    fn parse_podman_mem_bytes_suffix() {
+        assert_eq!(parse_podman_mem_value("4096B"), 4096);
+    }
+
+    #[test]
+    fn parse_podman_mem_plain_number() {
+        assert_eq!(parse_podman_mem_value("1048576"), 1048576);
+    }
+
+    #[test]
+    fn parse_podman_mem_invalid() {
+        assert_eq!(parse_podman_mem_value("invalid"), 0);
+    }
+
+    #[test]
+    fn parse_podman_mem_whitespace() {
+        assert_eq!(parse_podman_mem_value("  512MB  "), 512_000_000);
+    }
 }

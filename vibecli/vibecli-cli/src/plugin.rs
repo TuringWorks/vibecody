@@ -345,4 +345,166 @@ mod tests {
         let skills = loader.all_skill_paths();
         assert_eq!(skills.len(), 2);
     }
+
+    #[test]
+    fn test_plugin_skills_dir() {
+        let tmp = tempfile::tempdir().unwrap();
+        let plugin_dir = make_plugin(tmp.path(), "myplugin");
+        let loader = PluginLoader { plugins_dir: tmp.path().to_path_buf() };
+        let plugin = loader.load_plugin(&plugin_dir).unwrap();
+        assert_eq!(plugin.skills_dir(), plugin_dir.join("skills"));
+    }
+
+    #[test]
+    fn test_plugin_commands_dir() {
+        let tmp = tempfile::tempdir().unwrap();
+        let plugin_dir = make_plugin(tmp.path(), "myplugin");
+        let loader = PluginLoader { plugins_dir: tmp.path().to_path_buf() };
+        let plugin = loader.load_plugin(&plugin_dir).unwrap();
+        assert_eq!(plugin.commands_dir(), plugin_dir.join("commands"));
+    }
+
+    #[test]
+    fn test_plugin_resolved_hooks_empty() {
+        let tmp = tempfile::tempdir().unwrap();
+        let plugin_dir = make_plugin(tmp.path(), "nohooks");
+        let loader = PluginLoader { plugins_dir: tmp.path().to_path_buf() };
+        let plugin = loader.load_plugin(&plugin_dir).unwrap();
+        assert!(plugin.resolved_hooks().is_empty());
+    }
+
+    #[test]
+    fn test_plugin_resolved_hooks_with_entries() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().join("hookplugin");
+        fs::create_dir_all(dir.join("hooks")).unwrap();
+        fs::write(dir.join("hooks").join("pre-tool.sh"), "#!/bin/sh\nexit 0").unwrap();
+        let manifest = r#"
+name = "hookplugin"
+version = "1.0.0"
+description = "Plugin with hooks"
+
+[[hooks]]
+event = "PreToolUse"
+tools = ["write_file"]
+command = "hooks/pre-tool.sh"
+async = false
+"#;
+        fs::write(dir.join("plugin.toml"), manifest).unwrap();
+        let loader = PluginLoader { plugins_dir: tmp.path().to_path_buf() };
+        let plugin = loader.load_plugin(&dir).unwrap();
+        let hooks = plugin.resolved_hooks();
+        assert_eq!(hooks.len(), 1);
+        assert_eq!(hooks[0].0, "PreToolUse");
+        assert_eq!(hooks[0].1, vec!["write_file"]);
+        assert!(hooks[0].2.ends_with("hooks/pre-tool.sh"));
+        assert!(!hooks[0].3);
+    }
+
+    #[test]
+    fn test_load_all_empty_dir() {
+        let tmp = tempfile::tempdir().unwrap();
+        let loader = PluginLoader { plugins_dir: tmp.path().to_path_buf() };
+        assert!(loader.load_all().is_empty());
+    }
+
+    #[test]
+    fn test_load_all_multiple_plugins() {
+        let tmp = tempfile::tempdir().unwrap();
+        make_plugin(tmp.path(), "alpha");
+        make_plugin(tmp.path(), "beta");
+        make_plugin(tmp.path(), "gamma");
+        let loader = PluginLoader { plugins_dir: tmp.path().to_path_buf() };
+        let plugins = loader.load_all();
+        assert_eq!(plugins.len(), 3);
+    }
+
+    #[test]
+    fn test_load_plugin_missing_manifest() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().join("nomanifest");
+        fs::create_dir_all(&dir).unwrap();
+        let loader = PluginLoader { plugins_dir: tmp.path().to_path_buf() };
+        assert!(loader.load_plugin(&dir).is_err());
+    }
+
+    #[test]
+    fn test_load_plugin_invalid_toml() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().join("badplugin");
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("plugin.toml"), "not valid {{{ toml").unwrap();
+        let loader = PluginLoader { plugins_dir: tmp.path().to_path_buf() };
+        assert!(loader.load_plugin(&dir).is_err());
+    }
+
+    #[test]
+    fn test_remove_nonexistent_plugin() {
+        let tmp = tempfile::tempdir().unwrap();
+        let loader = PluginLoader { plugins_dir: tmp.path().to_path_buf() };
+        assert!(loader.remove("nonexistent").is_err());
+    }
+
+    #[test]
+    fn test_manifest_default_version() {
+        let toml_str = r#"name = "minimal""#;
+        let manifest: PluginManifest = toml::from_str(toml_str).unwrap();
+        assert_eq!(manifest.name, "minimal");
+        assert_eq!(manifest.version, "0.1.0");
+        assert!(manifest.description.is_empty());
+        assert!(manifest.author.is_empty());
+        assert!(manifest.vibecli_min_version.is_none());
+        assert!(manifest.hooks.is_empty());
+    }
+
+    #[test]
+    fn test_manifest_serde_roundtrip() {
+        let manifest = PluginManifest {
+            name: "roundtrip".to_string(),
+            version: "2.0.0".to_string(),
+            description: "A test plugin".to_string(),
+            author: "tester".to_string(),
+            vibecli_min_version: Some("0.5.0".to_string()),
+            hooks: vec![],
+        };
+        let json = serde_json::to_string(&manifest).unwrap();
+        let parsed: PluginManifest = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.name, "roundtrip");
+        assert_eq!(parsed.version, "2.0.0");
+        assert_eq!(parsed.author, "tester");
+    }
+
+    #[test]
+    fn test_list_returns_name_version_description() {
+        let tmp = tempfile::tempdir().unwrap();
+        make_plugin(tmp.path(), "info-plugin");
+        let loader = PluginLoader { plugins_dir: tmp.path().to_path_buf() };
+        let list = loader.list();
+        assert_eq!(list.len(), 1);
+        assert_eq!(list[0].0, "info-plugin");
+        assert_eq!(list[0].1, "1.0.0");
+        assert_eq!(list[0].2, "Test plugin");
+    }
+
+    #[test]
+    fn test_install_without_manifest_fails() {
+        let src_tmp = tempfile::tempdir().unwrap();
+        let dst_tmp = tempfile::tempdir().unwrap();
+        let src_dir = src_tmp.path().join("no-manifest-plugin");
+        fs::create_dir_all(&src_dir).unwrap();
+        let loader = PluginLoader { plugins_dir: dst_tmp.path().to_path_buf() };
+        assert!(loader.install_from_path(&src_dir).is_err());
+    }
+
+    #[test]
+    fn test_plugin_hook_config_async_field() {
+        let hook = PluginHookConfig {
+            event: "PostToolUse".to_string(),
+            tools: vec!["bash".to_string()],
+            command: "hooks/check.sh".to_string(),
+            r#async: true,
+        };
+        assert!(hook.r#async);
+        assert_eq!(hook.event, "PostToolUse");
+    }
 }

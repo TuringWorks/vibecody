@@ -361,6 +361,159 @@ mod tests {
     #[test]
     fn default_network_policy_is_full() {
         let policy = NetworkPolicy::default();
-        matches!(policy, NetworkPolicy::Full);
+        assert!(matches!(policy, NetworkPolicy::Full));
+    }
+
+    #[test]
+    fn container_name_uniqueness() {
+        let name1 = generate_container_name();
+        let name2 = generate_container_name();
+        assert_ne!(name1, name2);
+    }
+
+    #[test]
+    fn parse_memory_with_whitespace() {
+        assert_eq!(parse_memory_string("  2g  ").unwrap(), 2 * 1024 * 1024 * 1024);
+        assert_eq!(parse_memory_string(" 512m ").unwrap(), 512 * 1024 * 1024);
+    }
+
+    #[test]
+    fn parse_memory_case_insensitive() {
+        assert_eq!(parse_memory_string("4G").unwrap(), parse_memory_string("4g").unwrap());
+        assert_eq!(parse_memory_string("512M").unwrap(), parse_memory_string("512m").unwrap());
+        assert_eq!(parse_memory_string("1024K").unwrap(), parse_memory_string("1024k").unwrap());
+    }
+
+    #[test]
+    fn runtime_kind_serde_roundtrip() {
+        for kind in [RuntimeKind::Docker, RuntimeKind::Podman, RuntimeKind::OpenSandbox] {
+            let json = serde_json::to_string(&kind).unwrap();
+            let back: RuntimeKind = serde_json::from_str(&json).unwrap();
+            assert_eq!(back, kind);
+        }
+    }
+
+    #[test]
+    fn resource_limits_default() {
+        let rl = ResourceLimits::default();
+        assert!(rl.cpus.is_none());
+        assert!(rl.memory_bytes.is_none());
+        assert!(rl.pids_limit.is_none());
+    }
+
+    #[test]
+    fn resource_limits_serde() {
+        let rl = ResourceLimits {
+            cpus: Some(2.5),
+            memory_bytes: Some(1073741824),
+            pids_limit: Some(100),
+        };
+        let json = serde_json::to_string(&rl).unwrap();
+        let back: ResourceLimits = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.cpus, Some(2.5));
+        assert_eq!(back.memory_bytes, Some(1073741824));
+        assert_eq!(back.pids_limit, Some(100));
+    }
+
+    #[test]
+    fn container_config_serde_roundtrip() {
+        let cfg = ContainerConfig {
+            image: "rust:1.75".to_string(),
+            name: Some("test-ctr".to_string()),
+            env: vec![("KEY".to_string(), "VALUE".to_string())],
+            volumes: vec![VolumeMount {
+                host_path: "/src".to_string(),
+                container_path: "/code".to_string(),
+                read_only: true,
+            }],
+            resource_limits: ResourceLimits {
+                cpus: Some(1.0),
+                memory_bytes: None,
+                pids_limit: None,
+            },
+            network_policy: NetworkPolicy::None,
+            timeout_secs: 600,
+            working_dir: Some("/code".to_string()),
+        };
+        let json = serde_json::to_string(&cfg).unwrap();
+        let back: ContainerConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.image, "rust:1.75");
+        assert_eq!(back.name, Some("test-ctr".to_string()));
+        assert_eq!(back.env.len(), 1);
+        assert_eq!(back.volumes.len(), 1);
+        assert!(back.volumes[0].read_only);
+        assert_eq!(back.timeout_secs, 600);
+    }
+
+    #[test]
+    fn exec_result_serde() {
+        let er = ExecResult {
+            exit_code: 0,
+            stdout: "hello\n".to_string(),
+            stderr: "".to_string(),
+        };
+        let json = serde_json::to_string(&er).unwrap();
+        let back: ExecResult = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.exit_code, 0);
+        assert_eq!(back.stdout, "hello\n");
+        assert!(back.stderr.is_empty());
+    }
+
+    #[test]
+    fn exec_stream_event_variants_serde() {
+        let events = vec![
+            ExecStreamEvent::Stdout("out".to_string()),
+            ExecStreamEvent::Stderr("err".to_string()),
+            ExecStreamEvent::ExitCode(42),
+            ExecStreamEvent::Error("fail".to_string()),
+        ];
+        for event in events {
+            let json = serde_json::to_string(&event).unwrap();
+            let back: ExecStreamEvent = serde_json::from_str(&json).unwrap();
+            assert_eq!(format!("{:?}", back), format!("{:?}", event));
+        }
+    }
+
+    #[test]
+    fn container_metrics_serde() {
+        let m = ContainerMetrics {
+            cpu_usage_percent: 45.5,
+            memory_used_bytes: 1024 * 1024 * 512,
+            memory_limit_bytes: 1024 * 1024 * 1024,
+            pids: 42,
+        };
+        let json = serde_json::to_string(&m).unwrap();
+        let back: ContainerMetrics = serde_json::from_str(&json).unwrap();
+        assert!((back.cpu_usage_percent - 45.5).abs() < f64::EPSILON);
+        assert_eq!(back.pids, 42);
+    }
+
+    #[test]
+    fn container_info_serde() {
+        let info = ContainerInfo {
+            id: "abc123".to_string(),
+            name: "my-container".to_string(),
+            image: "ubuntu:22.04".to_string(),
+            status: "running".to_string(),
+            created_at: "2024-01-01".to_string(),
+            runtime: RuntimeKind::Docker,
+        };
+        let json = serde_json::to_string(&info).unwrap();
+        let back: ContainerInfo = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.id, "abc123");
+        assert_eq!(back.runtime, RuntimeKind::Docker);
+    }
+
+    #[test]
+    fn volume_mount_serde() {
+        let vm = VolumeMount {
+            host_path: "/home/user/project".to_string(),
+            container_path: "/workspace".to_string(),
+            read_only: false,
+        };
+        let json = serde_json::to_string(&vm).unwrap();
+        let back: VolumeMount = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.host_path, "/home/user/project");
+        assert!(!back.read_only);
     }
 }

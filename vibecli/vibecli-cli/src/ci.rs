@@ -170,6 +170,111 @@ mod tests {
         assert_eq!(CiOutputFormat::from_str("verbose"), CiOutputFormat::Verbose);
         assert_eq!(CiOutputFormat::from_str("unknown"), CiOutputFormat::Json);
     }
+
+    #[test]
+    fn exit_code_success() {
+        let report = make_report(CiOutcome::Success, 3, 0);
+        assert_eq!(report.exit_code(), 0);
+    }
+
+    #[test]
+    fn exit_code_partial() {
+        let report = make_report(CiOutcome::Partial, 2, 1);
+        assert_eq!(report.exit_code(), 1);
+    }
+
+    #[test]
+    fn exit_code_failed() {
+        let report = make_report(CiOutcome::Failed, 0, 3);
+        assert_eq!(report.exit_code(), 2);
+    }
+
+    #[test]
+    fn exit_code_approval_required() {
+        let report = make_report(CiOutcome::ApprovalRequired, 0, 0);
+        assert_eq!(report.exit_code(), 3);
+    }
+
+    #[test]
+    fn markdown_contains_duration() {
+        let report = make_report(CiOutcome::Success, 1, 0);
+        let md = report.to_markdown();
+        assert!(md.contains("1000ms"));
+    }
+
+    #[test]
+    fn markdown_contains_summary_section() {
+        let report = make_report(CiOutcome::Success, 1, 0);
+        let md = report.to_markdown();
+        assert!(md.contains("## Summary"));
+        assert!(md.contains("done"));
+    }
+
+    #[test]
+    fn markdown_failed_outcome_label() {
+        let report = make_report(CiOutcome::Failed, 0, 1);
+        let md = report.to_markdown();
+        assert!(md.contains("Failed"));
+    }
+
+    #[test]
+    fn markdown_approval_required_label() {
+        let report = make_report(CiOutcome::ApprovalRequired, 0, 0);
+        let md = report.to_markdown();
+        assert!(md.contains("Approval Required"));
+    }
+
+    #[test]
+    fn report_empty_steps() {
+        let report = make_report(CiOutcome::Success, 0, 0);
+        assert!(report.steps.is_empty());
+        let md = report.to_markdown();
+        assert!(md.contains("## Steps"));
+    }
+
+    #[test]
+    fn report_step_fields() {
+        let report = make_report(CiOutcome::Partial, 1, 1);
+        let ok_step = &report.steps[0];
+        assert_eq!(ok_step.tool, "read_file");
+        assert!(ok_step.success);
+        assert_eq!(ok_step.approved_by, "auto");
+
+        let fail_step = &report.steps[1];
+        assert_eq!(fail_step.tool, "bash");
+        assert!(!fail_step.success);
+        assert_eq!(fail_step.approved_by, "ci-auto");
+    }
+
+    #[test]
+    fn json_preserves_outcome() {
+        let report = make_report(CiOutcome::Failed, 0, 2);
+        let json = serde_json::to_string(&report).unwrap();
+        let back: CiReport = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.exit_code(), 2);
+    }
+
+    #[test]
+    fn output_format_case_insensitive() {
+        assert_eq!(CiOutputFormat::from_str("MARKDOWN"), CiOutputFormat::Markdown);
+        assert_eq!(CiOutputFormat::from_str("JSON"), CiOutputFormat::Json);
+        assert_eq!(CiOutputFormat::from_str("Verbose"), CiOutputFormat::Verbose);
+        assert_eq!(CiOutputFormat::from_str("MD"), CiOutputFormat::Markdown);
+    }
+
+    #[test]
+    fn output_format_v_shorthand() {
+        assert_eq!(CiOutputFormat::from_str("v"), CiOutputFormat::Verbose);
+    }
+
+    #[test]
+    fn markdown_step_numbering_starts_at_one() {
+        let report = make_report(CiOutcome::Success, 3, 0);
+        let md = report.to_markdown();
+        assert!(md.contains("Step 1:"));
+        assert!(md.contains("Step 2:"));
+        assert!(md.contains("Step 3:"));
+    }
 }
 
 // ── Output format ─────────────────────────────────────────────────────────────
