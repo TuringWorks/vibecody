@@ -124,6 +124,32 @@ mod agent_teams_v2;
 mod semantic_mcp;
 #[allow(dead_code)]
 mod docgen;
+#[allow(dead_code)]
+mod remote_control;
+#[allow(dead_code)]
+mod ast_edit;
+#[allow(dead_code)]
+mod ci_status_check;
+#[allow(dead_code)]
+mod vscode_sessions;
+#[allow(dead_code)]
+mod cloud_sandbox;
+#[allow(dead_code)]
+mod plan_document;
+#[allow(dead_code)]
+mod security_scanning;
+#[allow(dead_code)]
+mod sub_agent_roles;
+#[allow(dead_code)]
+mod cloud_ide;
+#[allow(dead_code)]
+mod security_scan;
+#[allow(dead_code)]
+mod sub_agents;
+#[allow(dead_code)]
+mod next_edit;
+#[allow(dead_code)]
+mod edit_prediction;
 
 #[derive(Parser)]
 #[command(name = "vibecli")]
