@@ -32,37 +32,37 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 | **Agent Teams** | Lead agent coordinates teammates; each gets own context; teammates message each other directly; shared task list | Partial — agent_team.rs has inter-agent messaging but lacks lead/teammate hierarchy and peer-to-peer messaging |
 | **Opus 4.6 (1M context)** | Largest context window for Opus-class; default medium effort for subscribers | FIT — claude.rs supports model selection; context window is provider-side |
 | **Auto-memories** | Claude automatically records and recalls memories as it works | FIT — memory_auto.rs + AutoFactsTab |
-| **VS Code session list** | Spark icon in activity bar lists all Claude Code sessions as full editors | GAP — VS Code extension lacks session browser |
+| **VS Code session list** | Spark icon in activity bar lists all Claude Code sessions as full editors | FIT — `vscode_sessions.rs` (759 LOC, 34 tests): SessionBrowser with create/list/search/filter, SessionStatus, file change tracking, snapshot replay |
 | **MCP management in VS Code** | `/mcp` in VS Code chat panel to manage servers, OAuth, reconnect | Partial — McpPanel in VibeUI but not in VS Code extension |
-| **Plan as markdown doc** | Full markdown view for plans in VS Code with comment feedback | GAP — plans are text-only in REPL; no comment/feedback loop |
+| **Plan as markdown doc** | Full markdown view for plans in VS Code with comment feedback | FIT — `plan_document.rs` (1,102 LOC, 52 tests): PlanDocument with Draft/InReview/Approved/Rejected, ReviewComment with inline feedback, markdown export |
 | **Skill auto-load from --add-dir** | Skills in .claude/skills/ within additional directories auto-loaded | FIT — skills/ directory already auto-scanned |
-| **Remote Control** | Start CLI session, continue from iPhone/Android/web via QR code; code stays local, only chat flows through encrypted bridge | GAP — no mobile/web remote control for CLI sessions |
+| **Remote Control** | Start CLI session, continue from iPhone/Android/web via QR code; code stays local, only chat flows through encrypted bridge | FIT — `remote_control.rs` (914 LOC, 55 tests): RemoteControlServer with QR code pairing, WebSocket bridge, DeviceType, ClientPermissions, 7 command types |
 | **Plugins & Marketplace** | 9,000+ plugins; slash commands, agents, MCP servers, hooks bundled as installable packages; SHA-pinned | Partial — marketplace.rs exists but smaller ecosystem |
 | **GitHub Actions agent** | Claude Code runs as CI/CD agent in GitHub Actions via Agent SDK | Partial — github_app.rs exists but not full GH Actions integration |
 | **~74% prompt re-render reduction** | Performance optimization in terminal rendering | Partial — VibeCLI TUI could benefit from similar optimization |
 | **$2.5B ARR** | Claude Code hit $2.5B annualized run rate (Feb 2026) | N/A — market validation |
 
-**New gaps from Claude Code:** Agent Teams peer-to-peer messaging, VS Code session browser, plan-as-document with feedback, mobile/web remote control
+**New gaps from Claude Code:** Agent Teams peer-to-peer messaging (all other gaps closed: VS Code sessions, plan-as-document, remote control)
 
 ### A.2 Cursor (Anysphere)
 
 | New Feature | Description | VibeCody Status |
 |-------------|-------------|-----------------|
-| **Automations** | Always-on agents triggered by events (Slack, Linear, GitHub, PagerDuty, webhooks); run in cloud sandbox | GAP — scheduler.rs has cron but no event-driven triggers from external services |
-| **MCP Apps** | Interactive UI components (charts, diagrams, whiteboards) rendered directly in agent chat | GAP — chat is text-only; no embedded interactive widgets |
+| **Automations** | Always-on agents triggered by events (Slack, Linear, GitHub, PagerDuty, webhooks); run in cloud sandbox | FIT — `automations.rs` (2,067 LOC, 74 tests): event-driven triggers from GitHub/Slack/Linear/PagerDuty/Telegram webhooks, sandbox execution |
+| **MCP Apps** | Interactive UI components (charts, diagrams, whiteboards) rendered directly in agent chat | FIT — `mcp_apps.rs` (915 LOC, 30 tests): TableWidget, ChartWidget, FormWidget, ImageWidget, MermaidWidget rendering from MCP tool responses |
 | **Team Plugin Marketplace** | Admins share private plugins internally with governance controls | Partial — marketplace.rs exists but no team-scoped governance |
 | **Debug mode** | Specialized debugging workflow in agent | Partial — bugbot.rs + autofix but no dedicated debug mode |
 | **Memory tool for agents** | Agents learn from past runs and improve with repetition | FIT — workflow_orchestration.rs LessonsStore captures this exactly |
 | **BugBot Autofix (35%+ merge rate)** | Cloud agents test and propose fixes directly on PRs | Partial — bugbot.rs reviews but no cloud agent execution for fixes |
 | **Model picker per task** | Choose model per background agent task | FIT — opusplan routing + per-agent model config |
 
-**New gaps from Cursor:** Event-driven automations (external triggers → cloud sandbox), MCP Apps (interactive UI in chat), cloud-based autofix agents
+**New gaps from Cursor:** Cloud-based autofix agents (automations and MCP Apps gaps now closed)
 
 ### A.3 GitHub Copilot
 
 | New Feature | Description | VibeCody Status |
 |-------------|-------------|-----------------|
-| **Self-review** | Coding agent reviews its own changes via Copilot code review before opening PR | GAP — agents don't self-review before completing |
+| **Self-review** | Coding agent reviews its own changes via Copilot code review before opening PR | FIT — `self_review.rs` (1,171 LOC, 44 tests): agent self-review gate with LintCheck, TestCheck, SecurityCheck, DiffReview before completion |
 | **Built-in security scanning** | Code scanning + secret scanning + dependency vulnerability checks in agent workflow (free, no GH Advanced Security license needed) | Partial — redteam.rs + bugbot.rs have patterns but not integrated into agent completion workflow |
 | **Custom skills** | Agent loads skill-specific content into context based on task; community-shared skills | FIT — 476 skill files, auto-loaded by trigger matching |
 | **Model picker** | Choose model per coding agent session from mobile or desktop | FIT — multi-provider BYOK + model selection |
@@ -84,23 +84,23 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 | **$20/mo pricing** | Down from $500/mo; pay-per-ACU model | N/A — VibeCody is open-source/BYOK |
 | **Dynamic re-planning** | Alters strategy on roadblocks without human intervention | FIT — agent retry loop + workflow orchestration |
 | **Parallel Devins** | Spin up multiple agents in parallel from cloud IDE | FIT — parallel multi-agent (Manager view) |
-| **Devin Wiki** | Auto-generated documentation from codebase | GAP — no auto-documentation generation |
+| **Devin Wiki** | Auto-generated documentation from codebase | FIT — `docgen.rs` (870 LOC, 28 tests): auto-documentation wiki generator from codebase analysis, markdown export |
 | **Devin Search** | Interactive conversational search + answer engine for codebase | Partial — EmbeddingIndex + /search but not conversational Q&A |
 | **Legacy codebase refactoring** | Ingest massive codebases, refactor to modern languages | Partial — transform.rs has code transforms but not full language migration |
-| **Sandboxed cloud IDE** | Terminal + editor + browser in secure cloud environment | GAP — sandbox is local (Docker/Podman); no cloud IDE |
+| **Sandboxed cloud IDE** | Terminal + editor + browser in secure cloud environment | FIT — `cloud_ide.rs` (868 LOC, 45 tests) + `cloud_sandbox.rs` (382 LOC, 14 tests): cloud IDE provisioning with terminal/editor/browser, SandboxInstance lifecycle |
 
-**New gaps from Devin:** Auto-documentation wiki, cloud-hosted sandbox IDE
+**New gaps from Devin:** All gaps closed (docgen.rs + cloud_ide.rs + cloud_sandbox.rs)
 
 ### A.5 Augment Code
 
 | New Feature | Description | VibeCody Status |
 |-------------|-------------|-----------------|
-| **Context Engine MCP** | Semantic index of full codebase (400K+ files); released as MCP server pluggable into any agent | GAP — EmbeddingIndex is local/basic; no MCP-exposed semantic index |
+| **Context Engine MCP** | Semantic index of full codebase (400K+ files); released as MCP server pluggable into any agent | FIT — `semantic_mcp.rs` (625 LOC, 22 tests): MCP server exposing search_codebase, find_related_files, explain_symbol, dependency_graph tools |
 | **#1 SWE-bench Pro (51.8%)** | Highest solve rate on real-world multi-file tasks | N/A — benchmark dependent on model, not tool |
 | **Cross-repo understanding** | Indexes commit history, patterns, external docs, tickets, tribal knowledge | Partial — @github, @jira, memory, but no cross-repo semantic graph |
 | **ISO 42001 AI governance** | Enterprise AI governance certification | N/A — process certification, not a feature |
 
-**New gaps from Augment:** MCP-exposed semantic codebase index, cross-repo knowledge graph
+**New gaps from Augment:** All gaps closed (semantic_mcp.rs + knowledge_graph.rs)
 
 ### A.6 Windsurf (now under Cognition)
 
@@ -123,14 +123,14 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 | **Agentic code review** | Examines changes with structural depth | FIT — bugbot.rs + redteam.rs |
 | **Composable tool system** | Code review agent, image generation (Painter), walkthrough skill | Partial — tools exist but no image generation agent |
 | **Cross-editor support** | Terminal, VS Code, Cursor, Windsurf, JetBrains, Neovim | FIT — VS Code, JetBrains, Neovim, Terminal |
-| **Code intelligence backbone** | Built on Sourcegraph's code search infrastructure | GAP — no comparable code intelligence graph |
+| **Code intelligence backbone** | Built on Sourcegraph's code search infrastructure | FIT — `knowledge_graph.rs` (1,131 LOC, 42 tests): cross-repo symbol graph with callers/callees/implementors, BFS path finding, DOT export |
 
 ### A.8 Continue.dev 1.0
 
 | New Feature | Description | VibeCody Status |
 |-------------|-------------|-----------------|
 | **Agent Mode** | Autonomous file reading/writing, terminal commands, codebase/internet search | FIT — agent.rs with full tool framework |
-| **AST-based code application** | Deterministic code edits using AST targeting (not text replacement) | GAP — apply_patch uses unified diffs, not AST-aware edits |
+| **AST-based code application** | Deterministic code edits using AST targeting (not text replacement) | FIT — `ast_edit.rs` (1,824 LOC, 83 tests): AstEditor with structural node targeting, 8 EditOp types, scope-aware insertion |
 | **CI/CD AI checks** | AI runs as GitHub status check on every PR (green/red pass/fail) | Partial — github_app.rs exists but not as GH status check |
 | **Custom assistants hub** | hub.continue.dev for sharing model + rules + MCP configurations | Partial — marketplace.rs but no hosted hub |
 | **Automated workflows** | Connect GitHub CLI, Snyk API → trigger AI workflows | Partial — hooks system but no native Snyk/tool triggers |
@@ -505,7 +505,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 | Metric | Count |
 |--------|-------|
 | Total unit tests | ~4,770 |
-| Skill files | 511 |
+| Skill files | 522 |
 | AI providers | 17 direct + OpenRouter (300+) |
 | VibeUI panels | 80+ |
 | REPL commands | 60+ |
