@@ -394,7 +394,10 @@ mod tests {
     use std::fs;
 
     fn temp_dir() -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("vibecli-plugin-test-{}", std::process::id()));
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static COUNTER: AtomicU64 = AtomicU64::new(0);
+        let id = COUNTER.fetch_add(1, Ordering::SeqCst);
+        let dir = std::env::temp_dir().join(format!("vibecli-plugin-test-{}-{}", std::process::id(), id));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
         dir
