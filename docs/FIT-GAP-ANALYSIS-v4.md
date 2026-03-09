@@ -504,7 +504,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 
 | Metric | Count |
 |--------|-------|
-| Total unit tests | ~2,686 |
+| Total unit tests | ~4,770 |
 | Skill files | 511 |
 | AI providers | 17 direct + OpenRouter (300+) |
 | VibeUI panels | 80+ |
