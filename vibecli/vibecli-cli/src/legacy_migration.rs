@@ -279,10 +279,13 @@ pub struct MigrationEngine {
 // === Helper functions ===
 
 fn generate_id() -> String {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
     let now = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
         .unwrap_or(Duration::from_secs(0));
-    format!("{:x}{:x}", now.as_secs(), now.subsec_nanos())
+    let seq = COUNTER.fetch_add(1, Ordering::Relaxed);
+    format!("{:x}{:x}-{:x}", now.as_secs(), now.subsec_nanos(), seq)
 }
 
 fn source_language_name(lang: &SourceLanguage) -> String {

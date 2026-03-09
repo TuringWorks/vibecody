@@ -112,6 +112,10 @@ mod qa_validation;
 mod legacy_migration;
 #[allow(dead_code)]
 mod git_platform;
+#[allow(dead_code)]
+mod automations;
+#[allow(dead_code)]
+mod self_review;
 
 #[derive(Parser)]
 #[command(name = "vibecli")]
