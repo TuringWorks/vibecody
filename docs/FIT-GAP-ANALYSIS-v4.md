@@ -64,7 +64,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 |-------------|-------------|-----------------|
 | **Self-review** | Coding agent reviews its own changes via Copilot code review before opening PR | FIT — `self_review.rs` (1,171 LOC, 44 tests): agent self-review gate with LintCheck, TestCheck, SecurityCheck, DiffReview before completion |
 | **Built-in security scanning** | Code scanning + secret scanning + dependency vulnerability checks in agent workflow (free, no GH Advanced Security license needed) | Partial — redteam.rs + bugbot.rs have patterns but not integrated into agent completion workflow |
-| **Custom skills** | Agent loads skill-specific content into context based on task; community-shared skills | FIT — 476 skill files, auto-loaded by trigger matching |
+| **Custom skills** | Agent loads skill-specific content into context based on task; community-shared skills | FIT — 522 skill files, auto-loaded by trigger matching |
 | **Model picker** | Choose model per coding agent session from mobile or desktop | FIT — multi-provider BYOK + model selection |
 | **CLI handoff** | Hand off agent task to CLI for local execution | FIT — VibeCLI is CLI-native |
 | **Copilot CLI 1.0 GA** | Full agentic CLI with plan mode, autopilot mode, `&` cloud delegation, /resume session management, skill files | FIT — VibeCLI has all equivalent features |
@@ -110,7 +110,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 | **Plan mode with megaplan** | Creates detailed implementation plans; asks clarifying questions before coding | Partial — workflow_orchestration plan-first but no clarifying question loop |
 | **Fast Context / SWE-grep** | Finds relevant code context 20x faster than standard search | Partial — EmbeddingIndex exists but not as fast |
 | **Git worktrees for parallel Cascade** | Parallel sessions without conflicts | FIT — worktree isolation already implemented |
-| **Agent Skills for Cascade** | Reusable workflows saved as markdown commands | FIT — 476 skill files |
+| **Agent Skills for Cascade** | Reusable workflows saved as markdown commands | FIT — 522 skill files |
 | **Enterprise self-hosted** | Cloud/hybrid/self-hosted deployment options | FIT — Docker + Ollama air-gapped mode |
 | **#1 LogRocket AI Dev Tool ranking** | Ranked ahead of Cursor and GitHub Copilot | N/A — market positioning |
 
@@ -165,7 +165,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 - Full IDE experience (Monaco editor, LSP, Git, terminal)
 - 17 AI providers vs Bolt's 2 (Claude, GPT)
 - CLI agent (VibeCLI) — Bolt has no terminal mode
-- 476 domain skills vs none
+- 522 domain skills vs none
 - Self-hosted / air-gapped mode
 - WASM extensions, MCP, hooks, plugins
 - Multi-agent orchestration
@@ -278,7 +278,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 | 17 direct AI providers + BYOK | ✅ | 1 | ~5 | ~3 | 1 | ~3 | ~3 | ✅ | 2 | Proprietary |
 | 18-platform messaging gateway | ✅ | ❌ | Slack | ❌ | Slack | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Workflow orchestration (plan/verify/lessons) | ✅ | ❌ | Memory | ❌ | Partial | ❌ | ❌ | ❌ | ❌ | ✅ |
-| 511 domain-specific skills | ✅ | ~20 | ❌ | Community | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| 522 domain-specific skills | ✅ | ~20 | ❌ | Community | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | OpenTelemetry tracing | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Spec-driven development | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
 | Arena mode (blind A/B voting) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
@@ -307,7 +307,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 
 1. **Open-source + BYOK** — No vendor lock-in; 17+ providers or OpenRouter's 300+ models; free forever
 2. **Dual-surface** — CLI (VibeCLI) + Desktop IDE (VibeUI) from one codebase; competitors pick one
-3. **Extensibility** — WASM plugins, 476 skills, hooks, MCP, Agent SDK — deepest customization stack in the market
+3. **Extensibility** — WASM plugins, 522 skills, hooks, MCP, Agent SDK — deepest customization stack in the market
 4. **Domain coverage** — Only tool with skills for aerospace (DO-178C), medical (HIPAA), finance (SOX), safety-critical (MISRA/SPARK), and 25+ industry verticals
 5. **Self-hosting** — Docker + Ollama air-gapped mode; critical for defense, healthcare, and regulated industries
 6. **Observability** — OpenTelemetry OTLP tracing to Jaeger/Zipkin/Grafana; no competitor offers this
