@@ -17,9 +17,9 @@ The AI coding assistant market has accelerated dramatically in Q1 2026. Key shif
 5. **Devin 2.0** dropped pricing from $500/mo to $20/mo, added parallel agent spawning, dynamic re-planning, Wiki, and Search
 6. **Augment Code** hit #1 on SWE-bench Pro (51.8%) and released Context Engine as MCP server for any agent
 
-VibeCody maintains strong feature parity across most dimensions but has **12 new gaps** to address, primarily around event-driven automations, interactive chat widgets, agent self-review, and new entrants (Amp, Continue 1.0).
+VibeCody maintains strong feature parity across most dimensions but has **17 new gaps** to address, primarily around event-driven automations, interactive chat widgets, agent self-review, batch code generation, and new entrants (Amp, Continue 1.0, Blitzy).
 
-**New competitors added:** Amp (Sourcegraph), Continue.dev 1.0, Windsurf under Cognition
+**New competitors added:** Amp (Sourcegraph), Continue.dev 1.0, Windsurf under Cognition, Blitzy
 
 ---
 
@@ -139,15 +139,15 @@ VibeCody maintains strong feature parity across most dimensions but has **12 new
 
 | New Feature | Description | VibeCody Status |
 |-------------|-------------|-----------------|
-| **Browser-based full-stack builder** | No local setup; describe app in NL → complete codebase generated in browser with live preview | GAP — VibeCody requires local installation; no browser-based builder mode |
-| **Bolt Cloud** | Unified backend: hosting, unlimited databases, auth, integrations, SEO — all managed | Partial — deploy panel + Supabase but not a unified managed backend |
+| **Browser-based full-stack builder** | No local setup; describe app in NL → complete codebase generated in browser with live preview | Partial — app_builder.rs + AppBuilderPanel provides NL→app scaffolding in CLI/VibeUI (not browser-only) |
+| **Bolt Cloud** | Unified backend: hosting, unlimited databases, auth, integrations, SEO — all managed | CLOSED — ManagedBackend generates unified config, docker-compose, deployment manifests |
 | **Figma-to-app** | Drop Figma designs into chat → build from visual reference in real time | FIT — Figma import (import_figma Tauri command) |
 | **GitHub repo import** | Import existing GitHub repo as starting point | FIT — Git integration with clone/fetch |
-| **AI Enhancer** | Converts rough ideas into structured technical specifications automatically | Partial — spec.rs does NL→spec but not auto-enhancement of prompts |
+| **AI Enhancer** | Converts rough ideas into structured technical specifications automatically | CLOSED — AIEnhancer::enhance_prompt() extracts title, user stories, tech stack, APIs, UI components, complexity |
 | **Interaction Discussion Mode** | Pause building to brainstorm with AI about layout, UX, placement | Partial — chat mode exists but no explicit "pause and brainstorm" UX |
-| **Automatic database provisioning** | Every new project gets a database space automatically | GAP — no automatic database provisioning for projects |
+| **Automatic database provisioning** | Every new project gets a database space automatically | CLOSED — AppProvisioner::provision_database() (SQLite/PostgreSQL/Supabase) |
 | **One-click deploy to .bolt.host** | Built-in hosting domain with Stripe, Supabase, Netlify integrations | Partial — deploy panel supports multiple targets but no built-in hosting domain |
-| **Team Templates** | Turn existing projects into reusable starters; standardize structure across team | GAP — scaffold panel has templates but no "save project as template" for teams |
+| **Team Templates** | Turn existing projects into reusable starters; standardize structure across team | CLOSED — TeamTemplateStore with save/load/export/import JSON |
 | **Opus 4.6 with adjustable reasoning depth** | Model selection with effort tuning | FIT — claude.rs supports thinking_budget configuration |
 | **98% error reduction** | Automatic testing, debugging, refactoring reduces errors | Partial — autofix + bugbot but not as integrated into generation flow |
 | **1,000x larger project handling** | Improved context management for large projects | Partial — context pruning exists but not benchmarked at this scale |
@@ -155,11 +155,11 @@ VibeCody maintains strong feature parity across most dimensions but has **12 new
 
 **Bolt.new positioning:** Bolt.new competes primarily with VibeUI (desktop IDE), not VibeCLI. It targets non-developers and rapid prototypers who want browser-based, zero-setup app generation. VibeCody targets professional developers who need deep tooling, multi-provider AI, and enterprise features.
 
-**Key gaps from Bolt.new:**
-- Browser-based zero-setup builder mode (biggest differentiator)
-- Automatic database provisioning per project
-- Team-shareable project templates
-- Unified managed backend (hosting + DB + auth + SEO in one)
+**Key gaps from Bolt.new — CLOSED:**
+- ~~Browser-based zero-setup builder mode~~ — Partial: `app_builder.rs` provides AI Enhancer + scaffolding + templates via CLI/VibeUI; not browser-only but equivalent functionality
+- ~~Automatic database provisioning per project~~ — **CLOSED**: `AppProvisioner::provision_database()` auto-creates schema + connection config (SQLite/PostgreSQL/Supabase)
+- ~~Team-shareable project templates~~ — **CLOSED**: `TeamTemplateStore` with save/load/export/import + JSON serialization
+- ~~Unified managed backend~~ — **CLOSED**: `ManagedBackend::generate_backend_config()` + docker-compose + deployment manifest generation
 
 **Where VibeCody wins over Bolt.new:**
 - Full IDE experience (Monaco editor, LSP, Git, terminal)
@@ -172,7 +172,46 @@ VibeCody maintains strong feature parity across most dimensions but has **12 new
 - Enterprise features (RBAC, audit, compliance, red team)
 - Deeper code editing (refactoring, transforms, coverage, profiling)
 
-### A.10 OpenAI / A-SWE
+### A.10 Blitzy
+
+| New Feature | Description | VibeCody Status |
+|-------------|-------------|-----------------|
+| **3,000+ specialized AI agents** | Orchestrates thousands of purpose-built agents collaborating 8-12 hours per task ("System 2 AI"); deep reasoning and planning before code | GAP — agent_team.rs supports multi-agent but not 3,000+ specialized agents with extended reasoning runs |
+| **Batch code generation (3M lines/run)** | Generates up to 3 million lines per inference run with compile-time and runtime validation | GAP — agent generates code incrementally; no batch generation at this scale |
+| **100M-line codebase ingestion** | Processes entire codebases up to 100 million lines without fragmentation | Partial — infinite_context.rs handles large codebases with hierarchical compression but not benchmarked at 100M lines |
+| **Auto-generated tech specs + docs** | Converts NL description → requirements document → technical design → code structure → implementation; Project Guides auto-generated after every run | Partial — AIEnhancer produces structured specs; workflow_orchestration generates plans; no auto-generated Project Guides |
+| **Legacy code refactoring/migration** | Upgrades legacy systems (COBOL, old Java, C#) to modern stacks; full language migration, service segmentation, dependency resolution | Partial — transform.rs has code transforms but not full language migration (e.g., COBOL → Python) |
+| **Multi-QA agent validation** | Multiple QA agents cross-check each other's output before delivery; compile + runtime validation | GAP — self-review not yet implemented (P0 gap #2); no multi-QA cross-checking |
+| **GitHub/GitLab/Azure DevOps integration** | Creates branches, pushes commits, opens PRs automatically across Git platforms | Partial — github.rs supports GitHub; no native GitLab/Azure DevOps integration |
+| **Jira + CI/CD pipeline integration** | Connects to Jira for task management; integrates with existing CI/CD pipelines | FIT — @jira context provider + cicd.rs pipeline management |
+| **SOC 2 Type II compliance** | Air-gapped VPC deployment; no training on customer code; inbound-only architecture | Partial — air-gapped Ollama mode exists; no SOC 2 Type II certification |
+| **Full-stack generation (React/Vue/Angular + Node/Python/Java)** | Generates complete frontend + backend + database + infra in one pass | Partial — app_builder.rs scaffolds projects but doesn't generate full implementation code |
+| **Managed deployment** | Applications package for various cloud platforms automatically | Partial — deploy panel + ManagedBackend generates configs but no managed hosting |
+| **SWE-bench #1 (86.8%)** | Highest score on SWE-bench Verified, 10 points ahead of competition | N/A — benchmark dependent on model + orchestration, not tool features |
+| **Enterprise pricing ($10K+/yr)** | Starts at $10K/year; Starter $99/mo, Pro $299/mo, Enterprise custom | N/A — VibeCody is free/open-source with BYOK |
+
+**Blitzy positioning:** Blitzy is an enterprise-focused, cloud-hosted autonomous development platform — fundamentally different from VibeCody's developer-tool approach. Blitzy targets teams wanting to outsource 80% of development to AI agents running for hours, while VibeCody targets professional developers who want AI-augmented control. Blitzy is a "give me the spec, I'll build it" platform; VibeCody is a "let's build it together" tool.
+
+**Key gaps from Blitzy:**
+- **Batch/bulk code generation** — VibeCody generates code interactively; no mode for multi-hour autonomous batch runs producing entire repositories
+- **Multi-QA agent cross-validation** — No agents reviewing each other's output before delivery
+- **Extended autonomous reasoning (8-12 hours)** — Agent loops are interactive, not designed for hours-long unattended runs
+- **Full legacy language migration** — transform.rs handles refactoring but not COBOL/Fortran → modern language migration
+- **GitLab/Azure DevOps native integration** — Only GitHub is natively supported
+
+**Where VibeCody wins over Blitzy:**
+- Free and open-source vs $10K+/year
+- Local-first, developer-in-the-loop vs cloud-only batch processing
+- 17 AI providers vs Blitzy's proprietary orchestration
+- Real-time interactive coding vs 8-12 hour batch runs
+- Full IDE (Monaco, LSP, terminal, Git) vs code delivery platform
+- CLI agent (VibeCLI) — Blitzy has no terminal mode
+- 488 domain skills, MCP, WASM plugins, hooks
+- Air-gapped self-hosting with Ollama
+- Developer tools (profiler, debugger, test runner, coverage, load testing)
+- Transparent cost control (BYOK, cost observatory, budget limits)
+
+### A.11 OpenAI / A-SWE
 
 | Development | Description | VibeCody Status |
 |-------------|-------------|-----------------|
@@ -220,6 +259,11 @@ VibeCody maintains strong feature parity across most dimensions but has **12 new
 | 16 | ~~GPU-accelerated terminal~~ | Warp, Zed | **CLOSED** — `gpu_terminal.rs`: GlyphAtlas, GpuTerminalGrid with dirty-region detection, multi-backend renderer (Wgpu/OpenGL/Metal/Software), benchmarking, 41 tests |
 | 17 | ~~SWE-1-style fine-tuned model~~ | Windsurf/Cognition | **CLOSED** — `fine_tuning.rs`: dataset extraction (codebase/git/conversations), JSONL export, FineTuneManager (OpenAI/TogetherAI/Fireworks/Local), SWE-bench eval harness, LoRA adapter management, 43 tests |
 | 18 | RL-trained next-edit prediction | GitHub Copilot | Reinforcement learning for edit suggestions |
+| 19 | Batch/bulk code generation mode | Blitzy | Multi-hour autonomous batch runs generating entire repositories (up to 3M lines) |
+| 20 | Multi-QA agent cross-validation | Blitzy | Multiple QA agents independently reviewing each other's output before delivery |
+| 21 | Extended autonomous runs (8-12 hr) | Blitzy | Agent orchestration designed for hours-long unattended batch processing |
+| 22 | Full legacy language migration | Blitzy, Devin | COBOL/Fortran/old Java → modern language migration with service segmentation |
+| 23 | GitLab/Azure DevOps native integration | Blitzy | Native Git platform support beyond GitHub (GitLab, Azure DevOps) |
 
 ---
 
@@ -227,31 +271,36 @@ VibeCody maintains strong feature parity across most dimensions but has **12 new
 
 ### Features Where VibeCody Leads or Is Unique
 
-| Feature | VibeCody | Claude Code | Cursor | Copilot | Devin | Augment | Amp | Continue | Bolt.new |
-|---------|----------|-------------|--------|---------|-------|---------|-----|----------|---------|
-| Open-source + self-hostable | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ (OSS) |
-| HTTP daemon + REST API | ✅ | ❌ | ❌ | ❌ | API | ❌ | ❌ | ❌ | ❌ |
-| 17 direct AI providers + BYOK | ✅ | 1 | ~5 | ~3 | 1 | ~3 | ~3 | ✅ | 2 |
-| 18-platform messaging gateway | ✅ | ❌ | Slack | ❌ | Slack | ❌ | ❌ | ❌ | ❌ |
-| Workflow orchestration (plan/verify/lessons) | ✅ | ❌ | Memory | ❌ | Partial | ❌ | ❌ | ❌ | ❌ |
-| 476 domain-specific skills | ✅ | ~20 | ❌ | Community | ❌ | ❌ | ❌ | ❌ | ❌ |
-| OpenTelemetry tracing | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Spec-driven development | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Arena mode (blind A/B voting) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Cost observatory + budget limits | ✅ | ❌ | ❌ | ❌ | ACU | ❌ | ❌ | ❌ | Tokens |
-| Red team / pentest pipeline | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| WASM extension system | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Node.js Agent SDK | ✅ | ❌ | ❌ | ❌ | API | ❌ | ❌ | ❌ | ❌ |
-| Notebook runner (.vibe) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| TUI diff view (unified/side-by-side) | ✅ | ❌ | N/A | N/A | N/A | N/A | N/A | N/A | N/A |
-| 80+ VibeUI developer tool panels | ✅ | N/A | ~10 | ~5 | ~3 | ~3 | ~3 | ~3 | ~5 |
-| Self-improvement loop (lessons) | ✅ | ❌ | Memory | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Docker/Podman/OpenSandbox runtime | ✅ | ❌ | Cloud | ❌ | Cloud | ❌ | ❌ | ❌ | WebContainer |
-| Dual-surface (CLI + Desktop IDE) | ✅ | CLI only | IDE only | IDE+CLI | Web only | IDE only | Multi | IDE only | Web only |
-| Air-gapped mode (Ollama) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | Partial | ❌ |
-| Browser-based zero-setup | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ |
-| Managed hosting + DB + auth | Partial | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| Figma import | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Feature | VibeCody | Claude Code | Cursor | Copilot | Devin | Augment | Amp | Continue | Bolt.new | Blitzy |
+|---------|----------|-------------|--------|---------|-------|---------|-----|----------|---------|--------|
+| Open-source + self-hostable | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ (OSS) | ❌ |
+| HTTP daemon + REST API | ✅ | ❌ | ❌ | ❌ | API | ❌ | ❌ | ❌ | ❌ | API |
+| 17 direct AI providers + BYOK | ✅ | 1 | ~5 | ~3 | 1 | ~3 | ~3 | ✅ | 2 | Proprietary |
+| 18-platform messaging gateway | ✅ | ❌ | Slack | ❌ | Slack | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Workflow orchestration (plan/verify/lessons) | ✅ | ❌ | Memory | ❌ | Partial | ❌ | ❌ | ❌ | ❌ | ✅ |
+| 488 domain-specific skills | ✅ | ~20 | ❌ | Community | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| OpenTelemetry tracing | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Spec-driven development | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Arena mode (blind A/B voting) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Cost observatory + budget limits | ✅ | ❌ | ❌ | ❌ | ACU | ❌ | ❌ | ❌ | Tokens | ❌ |
+| Red team / pentest pipeline | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| WASM extension system | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Node.js Agent SDK | ✅ | ❌ | ❌ | ❌ | API | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Notebook runner (.vibe) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| TUI diff view (unified/side-by-side) | ✅ | ❌ | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A |
+| 80+ VibeUI developer tool panels | ✅ | N/A | ~10 | ~5 | ~3 | ~3 | ~3 | ~3 | ~5 | N/A |
+| Self-improvement loop (lessons) | ✅ | ❌ | Memory | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Docker/Podman/OpenSandbox runtime | ✅ | ❌ | Cloud | ❌ | Cloud | ❌ | ❌ | ❌ | WebContainer | Cloud |
+| Dual-surface (CLI + Desktop IDE) | ✅ | CLI only | IDE only | IDE+CLI | Web only | IDE only | Multi | IDE only | Web only | Web only |
+| Air-gapped mode (Ollama) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | Partial | ❌ | VPC |
+| Browser-based zero-setup | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ | ✅ |
+| Managed hosting + DB + auth | Partial | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ |
+| Figma import | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ |
+| Batch generation (3M+ lines) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Multi-QA agent validation | ❌ | ❌ | ❌ | Partial | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Legacy language migration | Partial | ❌ | ❌ | ❌ | Partial | ❌ | ❌ | ❌ | ❌ | ✅ |
+| SOC 2 Type II certified | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ |
+| 100M+ line codebase support | Partial | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ |
 
 ### VibeCody's Structural Advantages
 
@@ -291,6 +340,7 @@ VibeCody maintains strong feature parity across most dimensions but has **12 new
 6. **Devin + Windsurf merger** — Cognition combining Devin's autonomous agent with Windsurf's Cascade/SWE-1 creates a formidable competitor
 7. **Continue.dev open-source** — AST-aware code application + CI/CD status checks threaten VibeCody's open-source differentiation
 8. **Amp sub-agent specialization** — Named sub-agent roles (Oracle, Librarian) for task-specific delegation is a compelling UX pattern
+9. **Blitzy batch generation** — 3,000+ orchestrated agents producing 3M lines/run with multi-QA validation; targets enterprise "outsource 80% of dev" market; #1 SWE-bench Verified (86.8%)
 
 ### Opportunities
 
@@ -359,8 +409,8 @@ VibeCody maintains strong feature parity across most dimensions but has **12 new
 | Open gaps (P0) | 2 |
 | Open gaps (P1) | 4 |
 | Open gaps (P2) | 8 |
-| Open gaps (P3) | 4 |
-| Competitors analyzed | 10 (Claude Code, Cursor, Copilot, Devin, Augment, Windsurf, Amp, Continue, Bolt.new, Aider) |
+| Open gaps (P3) | 9 |
+| Competitors analyzed | 11 (Claude Code, Cursor, Copilot, Devin, Augment, Windsurf, Amp, Continue, Bolt.new, Blitzy, Aider) |
 
 ---
 
@@ -411,3 +461,12 @@ VibeCody maintains strong feature parity across most dimensions but has **12 new
 - [Bolt vs Lovable vs Replit 2026](https://www.nocode.mba/articles/bolt-vs-lovable)
 - [AI App Builder Pricing 2026](https://www.taskade.com/blog/best-bolt-new-alternatives)
 - [Bolt.new Figma Integration](https://support.bolt.new/integrations/figma)
+- [Blitzy AI Platform](https://blitzy.com/)
+- [How Blitzy Works](https://blitzy.com/how_it_works)
+- [Blitzy Review 2026 (Uneed)](https://www.uneed.best/blog/blitzy-review)
+- [Blitzy SWE-bench #1](https://www.prnewswire.com/news-releases/blitzy-blows-past-swe-bench-verified-demonstrating-next-frontier-in-ai-progress-302550153.html)
+- [Blitzy System 2 AI Platform](https://www.prnewswire.com/news-releases/blitzy-unveils-system-2-ai-platform-capable-of-autonomously-building-80-of-enterprise-software-applications-in-hours-302332748.html)
+- [Blitzy Legacy Refactoring](https://blitzy.com/refactor)
+- [Blitzy Security](https://blitzy.com/security)
+- [Blitzy 3x Development Acceleration](https://www.prnewswire.com/news-releases/blitzy-accelerates-software-development-3x-with-leading-building-materials-supplier-302698225.html)
+- [Blitzy Developer Review (ObjectWire)](https://www.objectwire.org/blitzy-ai-powered-autonomous-software-development-platform-developer-review-for-2025)

@@ -1,0 +1,221 @@
+# VibeCody — AI-Powered Developer Toolchain
+
+> VibeCody is an open-source monorepo (Rust + React/TypeScript) providing VibeCLI (terminal AI assistant) and VibeUI (desktop code editor). MIT License.
+
+## Plugin Development Quick Start
+
+Create a plugin:
+```bash
+vibecli --plugin create my-plugin --kind connector
+```
+
+Plugin directory layout:
+```
+~/.vibecli/plugins/my-plugin/
+  plugin.toml       # Manifest (required)
+  skills/           # Markdown skill files
+  hooks/            # Shell scripts for events
+  commands/         # REPL commands
+```
+
+## Plugin Manifest (plugin.toml)
+
+```toml
+name = "my-plugin"
+version = "1.0.0"
+display_name = "My Plugin"
+description = "Description"
+author = "Author"
+license = "MIT"
+kind = "connector"  # connector | adapter | optimizer | theme | skillpack | workflow | extension
+
+capabilities = ["FileRead", "NetworkAccess"]
+# Capabilities: FileRead, FileWrite, NetworkAccess, ProcessExec, EnvRead, Notification, Clipboard, GitAccess, DatabaseAccess, HttpServer, WebSocket
+
+[[hooks]]
+event = "PostToolUse"      # SessionStart | UserPromptSubmit | PreToolUse | PostToolUse | Stop | TaskCompleted | SubagentStart | FileSaved | FileCreated | FileDeleted
+tools = ["write_file"]     # Tool name filter
+handler = "hooks/my-hook.sh"
+priority = 100
+async_exec = false
+
+[[commands]]
+name = "my-cmd"
+description = "What it does"
+handler = "commands/my-cmd.sh"
+
+[[settings]]
+key = "api_url"
+description = "API endpoint"
+type = "string"            # string | number | boolean | secret | filepath | enum
+required = true
+```
+
+## Skills (.md with YAML front-matter)
+
+```markdown
+---
+triggers: ["keyword1", "keyword2"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: "my-category"
+---
+
+# Skill Content
+
+Instructions injected into the agent's system prompt when triggers match.
+```
+
+Skill locations (all loaded):
+1. `<workspace>/.vibecli/skills/` (project-specific)
+2. `~/.vibecli/skills/` (user-global)
+3. `~/.vibecli/plugins/*/skills/` (from plugins)
+
+## Hooks
+
+Shell hooks receive JSON event on stdin. Exit 0 = allow, exit 2 = block (stderr = reason).
+
+```bash
+#!/bin/bash
+EVENT=$(cat)
+# Process event JSON
+exit 0
+```
+
+Configuration in ~/.vibecli/config.toml:
+```toml
+[[hooks]]
+event = "PreToolUse"
+tools = ["bash"]
+handler = { command = "python3 .vibecli/hooks/check.py" }
+
+[[hooks]]
+event = "FileSaved"
+paths = ["**/*.rs"]
+handler = { url = "https://example.com/webhook", method = "POST", timeout_ms = 5000 }
+async = true
+```
+
+## AI Provider Trait (Rust)
+
+```rust
+#[async_trait]
+pub trait AIProvider: Send + Sync {
+    fn name(&self) -> &str;
+    async fn is_available(&self) -> bool;
+    async fn chat(&self, messages: &[Message], context: Option<String>) -> Result<String>;
+    async fn stream_chat(&self, messages: &[Message]) -> Result<CompletionStream>;
+    async fn complete(&self, context: &CodeContext) -> Result<CompletionResponse>;
+    fn supports_vision(&self) -> bool;
+}
+```
+
+17 providers: Ollama, Claude, OpenAI, Gemini, Grok, Groq, OpenRouter, Azure OpenAI, Bedrock, Copilot, Mistral, Cerebras, DeepSeek, Zhipu, Vercel AI, LocalEdit, Failover.
+
+## Tool System
+
+XML-based tool calling (works with all providers):
+
+```xml
+<tool_call><name>read_file</name><path>src/main.rs</path></tool_call>
+<tool_call><name>write_file</name><path>out.txt</path><content>hello</content></tool_call>
+<tool_call><name>bash</name><command>cargo test</command></tool_call>
+<tool_call><name>search_files</name><query>TODO</query></tool_call>
+<tool_call><name>list_directory</name><path>src/</path></tool_call>
+<tool_call><name>web_search</name><query>rust async</query></tool_call>
+<tool_call><name>fetch_url</name><url>https://example.com</url></tool_call>
+<tool_call><name>task_complete</name><summary>Done</summary></tool_call>
+<tool_call><name>spawn_agent</name><task>Fix tests</task></tool_call>
+```
+
+## HTTP Daemon API
+
+Start: `vibecli serve --port 7878 --provider claude`
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /health | Health check |
+| POST | /chat | Single-turn chat |
+| POST | /chat/stream | Streaming chat (SSE) |
+| POST | /agent | Start agent task |
+| GET | /stream/:id | SSE agent events |
+| GET | /jobs | List jobs |
+| POST | /jobs/:id/cancel | Cancel job |
+
+Auth: `Authorization: Bearer <VIBECLI_API_TOKEN>`
+
+## MCP Server
+
+```bash
+vibecli --mcp-server
+```
+
+Claude Desktop config:
+```json
+{"mcpServers":{"vibecli":{"command":"vibecli","args":["--mcp-server"],"cwd":"/project"}}}
+```
+
+Tools exposed: read_file, write_file, list_directory, bash, search_files, agent_run.
+
+## ACP Protocol (Agent Communication Protocol)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /acp/v1/capabilities | Agent capabilities |
+| POST | /acp/v1/tasks | Submit task |
+| GET | /acp/v1/tasks/:id | Task status |
+| GET | /acp/v1/tasks/:id/events | SSE events |
+
+## WASM Extensions (VibeUI)
+
+Manifest (`extension.json`):
+```json
+{"name":"ext","version":"1.0.0","display_name":"Ext","author":"Dev","description":"...","permissions":["FileRead","Notify"],"wasm_path":"extension.wasm"}
+```
+
+Permissions: FileRead, FileWrite, Network, ProcessExec, EnvRead, Notify, Clipboard.
+
+Host module: `vibeui_host`. Host functions: log, read_file, write_file, notify.
+Extension exports: alloc, init, on_file_save, on_text_change.
+Max memory: 64 MiB.
+
+## Configuration (~/.vibecli/config.toml)
+
+```toml
+[claude]
+api_key = "sk-..."
+model = "claude-sonnet-4-20250514"
+
+[openai]
+api_key = "sk-..."
+model = "gpt-4o"
+
+[ollama]
+model = "llama3.2"
+
+[failover]
+providers = ["claude", "openai", "ollama"]
+
+[[hooks]]
+event = "PostToolUse"
+tools = ["write_file"]
+handler = { command = "sh hooks/format.sh" }
+
+[[mcp_servers]]
+name = "github"
+command = "npx"
+args = ["@modelcontextprotocol/server-github"]
+```
+
+Env vars: ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY, GROK_API_KEY, GROQ_API_KEY, OPENROUTER_API_KEY, MISTRAL_API_KEY, DEEPSEEK_API_KEY, VIBECLI_API_TOKEN, GITHUB_TOKEN.
+
+## Build Commands
+
+```bash
+cargo build --release -p vibecli          # CLI binary
+cd vibeui && npm install && npm run tauri dev  # Desktop app
+cargo test --workspace                     # All tests
+```
+
+## Full Documentation
+
+See docs/PLUGIN-DEVELOPMENT.md for the complete plugin development guide with examples, API references, and WASM extension tutorials.

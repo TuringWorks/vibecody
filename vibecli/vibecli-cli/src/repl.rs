@@ -72,6 +72,8 @@ pub static COMMANDS: &[&str] = &[
     "/handoff",
     "/orient",
     "/research",
+    "/appbuilder",
+    "/icontext",
 ];
 
 // ── Sub-command tables ────────────────────────────────────────────────────────
@@ -123,6 +125,12 @@ static ORCHESTRATE_SUBS: &[&str] = &["status", "lessons", "lesson", "todo", "ver
 
 /// Sub-commands for `/sandbox <sub>`
 static SANDBOX_SUBS: &[&str] = &["status", "start", "stop", "list", "exec", "logs", "runtime"];
+
+/// Sub-commands for `/appbuilder <sub>`
+static APPBUILDER_SUBS: &[&str] = &["enhance", "template", "provision", "scaffold", "templates"];
+
+/// Sub-commands for `/icontext <sub>`
+static ICONTEXT_SUBS: &[&str] = &["status", "expand", "compress", "refresh", "summary", "clear"];
 
 /// Sub-commands for `/arena <sub>`
 static ARENA_SUBS: &[&str] = &["compare", "stats", "history"];
@@ -320,6 +328,8 @@ fn complete_slash(line: &str) -> Option<(usize, Vec<Pair>)> {
                 "/compliance" => Some(COMPLIANCE_SUBS),
                 "/verify"   => Some(VERIFY_SUBS),
                 "/handoff"  => Some(HANDOFF_SUBS),
+                "/appbuilder" => Some(APPBUILDER_SUBS),
+                "/icontext" => Some(ICONTEXT_SUBS),
                 _ => None,
             };
 
@@ -776,6 +786,8 @@ mod tests {
             ("/compliance", COMPLIANCE_SUBS),
             ("/verify", VERIFY_SUBS),
             ("/handoff", HANDOFF_SUBS),
+            ("/appbuilder", APPBUILDER_SUBS),
+            ("/icontext", ICONTEXT_SUBS),
         ];
         for (cmd, subs) in cmds_with_subs {
             let input = format!("{} ", cmd);

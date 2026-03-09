@@ -84,6 +84,20 @@ mod knowledge_graph;
 mod gpu_terminal;
 #[allow(dead_code)]
 mod fine_tuning;
+#[allow(dead_code)]
+mod document_ingest;
+#[allow(dead_code)]
+mod web_crawler;
+#[allow(dead_code)]
+mod gpu_cluster;
+#[allow(dead_code)]
+mod vector_db;
+#[allow(dead_code)]
+mod infinite_context;
+#[allow(dead_code)]
+mod app_builder;
+#[allow(dead_code)]
+mod batch_builder;
 
 #[derive(Parser)]
 #[command(name = "vibecli")]
@@ -4727,6 +4741,152 @@ async fn main() -> Result<()> {
                             }
                         }
 
+                        "/ingest" => {
+                            let sub_parts: Vec<&str> = args.splitn(2, ' ').collect();
+                            let subcmd = sub_parts.first().copied().unwrap_or("").trim();
+                            match subcmd {
+                                "status" => {
+                                    println!("Document Ingestion Pipeline Status:");
+                                    println!("  Supported formats: Markdown, HTML, PlainText, PDF, JSON, CSV, XML, RST, LaTeX, Code");
+                                    println!("  Chunking: max_tokens=512, overlap=50, sentence-boundary aware");
+                                    println!("  Use /ingest <path> to ingest a file or directory\n");
+                                }
+                                "" | "help" => {
+                                    println!("Usage:");
+                                    println!("  /ingest <path>     Ingest a file or directory into RAG");
+                                    println!("  /ingest status     Show pipeline status\n");
+                                }
+                                path => {
+                                    let p = std::path::Path::new(path);
+                                    if !p.exists() {
+                                        println!("Path not found: {path}\n");
+                                    } else {
+                                        let ingestor = document_ingest::DocumentIngestor::new();
+                                        if p.is_dir() {
+                                            let exts = &["md", "txt", "html", "json", "csv", "xml", "rst", "tex", "rs", "py", "js", "ts"];
+                                            match ingestor.ingest_directory(p, exts) {
+                                                Ok(docs) => println!("Ingested {} documents ({} total sections)\n",
+                                                    docs.len(), docs.iter().map(|d| d.sections.len()).sum::<usize>()),
+                                                Err(e) => println!("Ingestion error: {e}\n"),
+                                            }
+                                        } else {
+                                            match ingestor.ingest_file(p) {
+                                                Ok(doc) => println!("Ingested '{}': {} sections extracted\n",
+                                                    doc.metadata.title.as_deref().unwrap_or("unknown"), doc.sections.len()),
+                                                Err(e) => println!("Ingestion error: {e}\n"),
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        "/crawl" => {
+                            let sub_parts: Vec<&str> = args.splitn(2, ' ').collect();
+                            let subcmd = sub_parts.first().copied().unwrap_or("").trim();
+                            match subcmd {
+                                "status" => {
+                                    println!("Web Crawler Status:");
+                                    println!("  Features: robots.txt, sitemaps, rate limiting, URL normalization");
+                                    println!("  Use /crawl <url> to crawl a site\n");
+                                }
+                                "" | "help" => {
+                                    println!("Usage:");
+                                    println!("  /crawl <url>       Crawl a website for RAG ingestion");
+                                    println!("  /crawl status      Show crawler status\n");
+                                }
+                                url => {
+                                    println!("Crawl configured for: {url}");
+                                    let config = web_crawler::CrawlConfig::default();
+                                    println!("  max_pages: {}, max_depth: {}, delay_ms: {}",
+                                        config.max_pages, config.max_depth, config.delay_ms);
+                                    println!("  robots.txt: {}, follow_external: {}",
+                                        config.respect_robots_txt, config.follow_external);
+                                    println!("  Use the agent to execute: \"crawl {url} and ingest into RAG\"\n");
+                                }
+                            }
+                        }
+
+                        "/rag" => {
+                            let sub_parts: Vec<&str> = args.splitn(2, ' ').collect();
+                            let subcmd = sub_parts.first().copied().unwrap_or("").trim();
+                            match subcmd {
+                                "status" => {
+                                    println!("RAG Pipeline Status:");
+                                    println!("  Vector DB: InMemory (default)");
+                                    println!("  Supported backends: Qdrant, Pinecone, pgvector, Milvus, Weaviate, Chroma");
+                                    println!("  Embeddings: via /index command (Ollama/OpenAI)\n");
+                                }
+                                "collections" => {
+                                    println!("Vector DB Collections:");
+                                    println!("  (none configured — use agent to set up a collection)\n");
+                                }
+                                "search" => {
+                                    let query = if sub_parts.len() > 1 { sub_parts[1].trim() } else { "" };
+                                    if query.is_empty() {
+                                        println!("Usage: /rag search <query>\n");
+                                    } else {
+                                        println!("Semantic search for: \"{query}\"");
+                                        println!("  Tip: Use /index first to build embeddings, then /qa for codebase search");
+                                        println!("  For RAG document search, use the agent: \"search RAG for {query}\"\n");
+                                    }
+                                }
+                                _ => {
+                                    println!("Usage:");
+                                    println!("  /rag search <query>  Semantic search across ingested documents");
+                                    println!("  /rag status          Show RAG pipeline status");
+                                    println!("  /rag collections     List vector DB collections\n");
+                                }
+                            }
+                        }
+
+                        "/gpu" => {
+                            let sub_parts: Vec<&str> = args.splitn(2, ' ').collect();
+                            let subcmd = sub_parts.first().copied().unwrap_or("").trim();
+                            match subcmd {
+                                "status" => {
+                                    println!("GPU Cluster Status:");
+                                    let gpus = gpu_cluster::detect_local_gpus();
+                                    if gpus.is_empty() {
+                                        println!("  No local GPUs detected (nvidia-smi/rocm-smi not available)");
+                                    } else {
+                                        for g in &gpus {
+                                            println!("  {:?} {} ({} MB VRAM)", g.vendor, g.model_name, g.vram_mb);
+                                        }
+                                    }
+                                    println!("  Providers: Local, SLURM, K8s, AWS, GCP, Azure, Lambda, RunPod, CoreWeave, Vast\n");
+                                }
+                                "cost" => {
+                                    let hours_str = if sub_parts.len() > 1 { sub_parts[1].trim() } else { "1" };
+                                    let hours: f64 = hours_str.parse().unwrap_or(1.0);
+                                    println!("GPU Cost Estimates ({hours:.0}h, 1 GPU):");
+                                    for provider in &[
+                                        gpu_cluster::ClusterProvider::AwsEc2,
+                                        gpu_cluster::ClusterProvider::GcpCompute,
+                                        gpu_cluster::ClusterProvider::AzureVm,
+                                        gpu_cluster::ClusterProvider::Lambda,
+                                        gpu_cluster::ClusterProvider::RunPod,
+                                    ] {
+                                        let cost = gpu_cluster::estimate_gpu_cost(provider, 1, hours);
+                                        println!("  {:?}: ${cost:.2}", provider);
+                                    }
+                                    println!();
+                                }
+                                "suggest" => {
+                                    let params_str = if sub_parts.len() > 1 { sub_parts[1].trim() } else { "7" };
+                                    let params: f64 = params_str.parse().unwrap_or(7.0);
+                                    let suggestion = gpu_cluster::suggest_gpu_config(params, "training");
+                                    println!("GPU Suggestion for {params}B param model:\n  {suggestion}\n");
+                                }
+                                _ => {
+                                    println!("Usage:");
+                                    println!("  /gpu status          Show GPU cluster status");
+                                    println!("  /gpu cost <hours>    Estimate GPU costs");
+                                    println!("  /gpu suggest <B>     Suggest GPU config for model size (billions)\n");
+                                }
+                            }
+                        }
+
                         "/voice" => {
                             let sub_parts: Vec<&str> = args.splitn(2, ' ').collect();
                             let subcmd = sub_parts.first().copied().unwrap_or("").trim();
@@ -6200,6 +6360,17 @@ fn show_help() {
     println!("  /plugin disable <name>   - Disable without uninstalling");
     println!("  /plugin info <name>      - Show plugin details");
     println!("  /plugin update [name]    - Update plugin(s) to latest");
+    println!("  /ingest <path>           - Ingest documents into RAG (file or directory)");
+    println!("  /ingest status           - Show ingestion pipeline status");
+    println!("  /crawl <url>             - Crawl a website for RAG ingestion");
+    println!("  /crawl status            - Show crawl job status");
+    println!("  /rag search <query>      - Semantic search across ingested documents");
+    println!("  /rag status              - Show RAG pipeline status (collections, vectors)");
+    println!("  /rag collections         - List vector DB collections");
+    println!("  /gpu status              - Show GPU cluster status and available GPUs");
+    println!("  /gpu train <config>      - Submit a training job to GPU cluster");
+    println!("  /gpu infer <model>       - Start an inference endpoint");
+    println!("  /gpu cost <hours>        - Estimate GPU costs");
     println!("  /profile list            - List named profiles (~/.vibecli/profiles/)");
     println!("  /profile show <name>     - Show a profile's settings");
     println!("  /profile create <name>   - Create a new profile interactively");

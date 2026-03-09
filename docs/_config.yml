@@ -31,6 +31,8 @@ nav:
     url: /roadmap-v2/
   - title: Fit-Gap Analysis
     url: /fit-gap-analysis-v2/
+  - title: Plugin Development
+    url: /plugin-development/
   - title: Contributing
     url: /contributing/
 
@@ -44,6 +46,7 @@ header_pages:
   - ROADMAP-v2.md
   - FIT-GAP-ANALYSIS-v2.md
   - SHANNON-COMPARISON.md
+  - PLUGIN-DEVELOPMENT.md
   - CHANGELOG.md
   - contributing.md
 

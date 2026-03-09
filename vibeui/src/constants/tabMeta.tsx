@@ -12,7 +12,7 @@ import {
   ArrowLeftRight, Camera, Clapperboard, Eye, Cloud, ShieldCheck,
   Construction, HeartPulse, Cable, Paintbrush, FileText, Diff,
   PenTool, AlarmClock, Regex, KeyRound, Braces, Binary, Hash,
-  Dices, Timer, Box, Workflow,
+  Dices, Timer, Box, Workflow, Layers, Infinity,
 } from "lucide-react";
 
 export interface TabMeta {
@@ -107,6 +107,8 @@ export const TAB_META: Record<string, TabMeta> = {
   units:       { icon: Ruler,              label: "Units" },
   unicode:     { icon: Hash,               label: "Unicode" },
   dashboard:   { icon: BarChart3,           label: "Dashboard" },
+  appbuilder:  { icon: Layers,             label: "Builder" },
+  icontext:    { icon: Infinity,           label: "Context" },
 };
 
 export const DEFAULT_TAB_META: TabMeta = { icon: Workflow, label: "Flow" };

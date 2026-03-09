@@ -25,6 +25,7 @@ Both tools are backed by a shared set of Rust library crates for AI provider int
 | [Configuration Guide](./configuration/) | All configuration options for providers and UI |
 | [Architecture](./architecture/) | Crate structure, data flow, and design decisions |
 | [Roadmap v2](./ROADMAP-v2/) | Current roadmap and planned features |
+| [Plugin Development](./PLUGIN-DEVELOPMENT/) | Build plugins, skills, hooks, WASM extensions, and MCP integrations |
 | [Competitive Analysis](./SHANNON-COMPARISON/) | Feature comparison with other AI coding tools |
 | [Changelog](./CHANGELOG/) | Release history and breaking changes |
 | [Contributing](./contributing/) | How to build, test, and contribute |
