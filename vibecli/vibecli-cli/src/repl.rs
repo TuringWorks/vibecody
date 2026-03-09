@@ -74,6 +74,10 @@ pub static COMMANDS: &[&str] = &[
     "/research",
     "/appbuilder",
     "/icontext",
+    "/batch",
+    "/qavalidate",
+    "/legacymigrate",
+    "/gitplatform",
 ];
 
 // ── Sub-command tables ────────────────────────────────────────────────────────
@@ -131,6 +135,18 @@ static APPBUILDER_SUBS: &[&str] = &["enhance", "template", "provision", "scaffol
 
 /// Sub-commands for `/icontext <sub>`
 static ICONTEXT_SUBS: &[&str] = &["status", "expand", "compress", "refresh", "summary", "clear"];
+
+/// Sub-commands for `/batch <sub>`
+static BATCH_SUBS: &[&str] = &["new", "start", "pause", "resume", "cancel", "status", "list", "estimate", "history"];
+
+/// Sub-commands for `/qavalidate <sub>`
+static QAVALIDATE_SUBS: &[&str] = &["run", "status", "report", "findings", "resolve", "config", "history"];
+
+/// Sub-commands for `/legacymigrate <sub>`
+static LEGACYMIGRATE_SUBS: &[&str] = &["analyze", "plan", "translate", "validate", "report", "rules", "pairs"];
+
+/// Sub-commands for `/gitplatform <sub>`
+static GITPLATFORM_SUBS: &[&str] = &["add", "list", "remove", "default", "pr", "issue", "pipeline", "webhook"];
 
 /// Sub-commands for `/arena <sub>`
 static ARENA_SUBS: &[&str] = &["compare", "stats", "history"];
@@ -330,6 +346,10 @@ fn complete_slash(line: &str) -> Option<(usize, Vec<Pair>)> {
                 "/handoff"  => Some(HANDOFF_SUBS),
                 "/appbuilder" => Some(APPBUILDER_SUBS),
                 "/icontext" => Some(ICONTEXT_SUBS),
+                "/batch" => Some(BATCH_SUBS),
+                "/qavalidate" => Some(QAVALIDATE_SUBS),
+                "/legacymigrate" => Some(LEGACYMIGRATE_SUBS),
+                "/gitplatform" => Some(GITPLATFORM_SUBS),
                 _ => None,
             };
 
@@ -788,6 +808,10 @@ mod tests {
             ("/handoff", HANDOFF_SUBS),
             ("/appbuilder", APPBUILDER_SUBS),
             ("/icontext", ICONTEXT_SUBS),
+            ("/batch", BATCH_SUBS),
+            ("/qavalidate", QAVALIDATE_SUBS),
+            ("/legacymigrate", LEGACYMIGRATE_SUBS),
+            ("/gitplatform", GITPLATFORM_SUBS),
         ];
         for (cmd, subs) in cmds_with_subs {
             let input = format!("{} ", cmd);

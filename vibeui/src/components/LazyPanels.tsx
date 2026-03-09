@@ -108,6 +108,7 @@ const WebhookPanel = lazy(() => import("./WebhookPanel").then(m => ({ default: m
 const AdminPanel = lazy(() => import("./AdminPanel").then(m => ({ default: m.AdminPanel })));
 const AppBuilderPanel = lazy(() => import("./AppBuilderPanel").then(m => ({ default: m.AppBuilderPanel })));
 const InfiniteContextPanel = lazy(() => import("./InfiniteContextPanel").then(m => ({ default: m.InfiniteContextPanel })));
+const BatchBuilderPanel = lazy(() => import("./BatchBuilderPanel"));
 
 // --- Props interfaces ---
 
@@ -317,6 +318,8 @@ export function PanelHost(props: PanelHostProps) {
       return <LazyPanel Component={AppBuilderPanel} props={{ workspacePath: wp || "" }} />;
     case "icontext":
       return <LazyPanel Component={InfiniteContextPanel} props={{ workspacePath: wp || "" }} />;
+    case "batchbuilder":
+      return <LazyPanel Component={BatchBuilderPanel} props={{}} />;
     default:
       return <div style={{ padding: 16, color: "var(--text-secondary)" }}>Unknown panel: {tab}</div>;
   }

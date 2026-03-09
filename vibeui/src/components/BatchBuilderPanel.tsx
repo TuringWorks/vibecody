@@ -278,8 +278,7 @@ const MIGRATION_PHASES: MigrationPhase[] = [
 let nextId = 1000;
 const genId = () => ++nextId;
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const badge = (_text: string, color: string): React.CSSProperties => ({
+const badge = (_: string, color: string): React.CSSProperties => ({
   display: "inline-block",
   padding: "2px 8px",
   borderRadius: 4,

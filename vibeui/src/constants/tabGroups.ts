@@ -8,7 +8,7 @@ export interface TabGroup {
 export const TAB_GROUPS: TabGroup[] = [
   {
     label: "AI",
-    tabs: ["chat", "agent", "cascade", "compare", "arena", "teams", "cloud", "cibot", "marketplace", "icontext"],
+    tabs: ["chat", "agent", "cascade", "compare", "arena", "teams", "cloud", "cibot", "marketplace", "icontext", "batchbuilder"],
   },
   {
     label: "Project",
