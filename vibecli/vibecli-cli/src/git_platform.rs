@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::path::PathBuf;
 use std::time::SystemTime;
 
 // === Enums ===
@@ -273,7 +272,7 @@ impl ApiUrlBuilder {
                     _ => (self.project_path.as_str(), self.project_path.as_str(), self.project_path.as_str()),
                 };
                 format!(
-                    "{}}/{}/{}/_apis/git/repositories/{}/pullrequests",
+                    "{}/{}/{}/_apis/git/repositories/{}/pullrequests",
                     self.base_url, org, project, repo
                 )
             }
@@ -309,7 +308,7 @@ impl ApiUrlBuilder {
                     (self.project_path.as_str(), self.project_path.as_str())
                 };
                 format!(
-                    "{}}/{}/{}/_apis/wit/workitems",
+                    "{}/{}/{}/_apis/wit/workitems",
                     self.base_url, org, project
                 )
             }
@@ -350,7 +349,7 @@ impl ApiUrlBuilder {
                 } else {
                     (self.project_path.as_str(), self.project_path.as_str())
                 };
-                format!("{}}/{}/{}/_apis/pipelines", self.base_url, org, project)
+                format!("{}/{}/{}/_apis/pipelines", self.base_url, org, project)
             }
             GitPlatform::Bitbucket => {
                 format!(
@@ -390,7 +389,7 @@ impl ApiUrlBuilder {
                     _ => (self.project_path.as_str(), self.project_path.as_str(), self.project_path.as_str()),
                 };
                 format!(
-                    "{}}/{}/{}/_apis/git/repositories/{}/refs",
+                    "{}/{}/{}/_apis/git/repositories/{}/refs",
                     self.base_url, org, project, repo
                 )
             }
@@ -555,7 +554,7 @@ impl ApiUrlBuilder {
             }
             GitPlatform::AzureDevOps => {
                 let parts: Vec<&str> = self.project_path.splitn(3, '/').collect();
-                let org = if !parts.is_empty() { parts[0] } else { &self.project_path };
+                let _org = if !parts.is_empty() { parts[0] } else { &self.project_path };
                 format!("{}/_apis/hooks/subscriptions", self.base_url)
             }
             GitPlatform::Bitbucket => {
@@ -1161,7 +1160,7 @@ impl PlatformManager {
     /// call each platform's API; here we validate the targets exist.
     pub fn sync_pr_across_platforms(
         &self,
-        pr: &PullRequest,
+        _pr: &PullRequest,
         target_platforms: &[&str],
     ) -> Vec<String> {
         let mut synced = Vec::new();

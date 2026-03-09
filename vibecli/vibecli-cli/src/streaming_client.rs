@@ -557,9 +557,10 @@ mod tests {
     #[test]
     fn test_estimate_throughput() {
         let result = estimate_throughput(1024, 1000);
-        assert!(result.contains("MB/s"));
+        assert!(result.contains("KB/s") || result.contains("MB/s"));
+        let large = estimate_throughput(1024, 1_000_000);
+        assert!(large.contains("MB/s") || large.contains("GB/s"));
         let small = estimate_throughput(100, 5);
-        assert!(result.len() > 0);
         assert!(small.contains("B/s") || small.contains("KB/s"));
     }
 

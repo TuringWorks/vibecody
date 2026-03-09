@@ -249,7 +249,7 @@ pub fn build_llamacpp_command(config: &ServingConfig) -> Vec<String> {
     cmd
 }
 
-pub fn build_ollama_command(config: &ServingConfig) -> Vec<String> {
+pub fn build_ollama_command(_config: &ServingConfig) -> Vec<String> {
     vec![
         "ollama".to_string(),
         "serve".to_string(),

@@ -6491,6 +6491,15 @@ fn show_help() {
     println!("  /gpu train <config>      - Submit a training job to GPU cluster");
     println!("  /gpu infer <model>       - Start an inference endpoint");
     println!("  /gpu cost <hours>        - Estimate GPU costs");
+    println!("  /db connect <conn>       - Configure database connection");
+    println!("  /db engines              - List supported database engines");
+    println!("  /db migrate <cmd>        - Database migration management");
+    println!("  /train suggest <B>       - Suggest parallelism for model size (billions)");
+    println!("  /train memory <B>        - Estimate VRAM per GPU for training");
+    println!("  /train frameworks        - List distributed training frameworks");
+    println!("  /inference suggest <m>   - Recommend inference backend for model");
+    println!("  /inference memory <B>    - Estimate VRAM for inference");
+    println!("  /inference backends      - List supported inference backends");
     println!("  /profile list            - List named profiles (~/.vibecli/profiles/)");
     println!("  /profile show <name>     - Show a profile's settings");
     println!("  /profile create <name>   - Create a new profile interactively");
