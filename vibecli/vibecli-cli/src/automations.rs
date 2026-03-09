@@ -12,6 +12,16 @@
 //!    ├─ Slack  (message, reaction)        ├─ PromptTemplate (with {{payload}} vars)
 //!    ├─ Linear (issue update)             └─ SandboxConfig (optional container)
 //!    ├─ PagerDuty (incident)
+//!    ├─ Telegram (message, command, callback)
+//!    ├─ Signal (message, reaction)
+//!    ├─ WhatsApp (message, status)
+//!    ├─ Discord (message, reaction, slash command)
+//!    ├─ Teams (message, mention, adaptive card)
+//!    ├─ Matrix (message, reaction, room invite)
+//!    ├─ Twilio SMS (incoming message)
+//!    ├─ iMessage (incoming message)
+//!    ├─ IRC (PRIVMSG, JOIN, mention)
+//!    ├─ Twitch (chat message, subscription, raid)
 //!    ├─ Cron (time-based)
 //!    └─ FileWatch (glob pattern)
 //! ```
@@ -47,6 +57,57 @@ pub enum TriggerSource {
         severity: Vec<String>,
         services: Vec<String>,
     },
+    /// Telegram Bot API events (message, edited_message, callback_query, etc.)
+    Telegram {
+        events: Vec<String>,
+        chat_ids: Vec<String>,
+    },
+    /// Signal messenger events (via signal-cli or Signal Bot API)
+    Signal {
+        events: Vec<String>,
+        group_ids: Vec<String>,
+    },
+    /// WhatsApp Business API events (messages, statuses)
+    WhatsApp {
+        events: Vec<String>,
+        phone_numbers: Vec<String>,
+    },
+    /// Discord bot events (MESSAGE_CREATE, MESSAGE_REACTION_ADD, INTERACTION_CREATE, etc.)
+    Discord {
+        events: Vec<String>,
+        channel_ids: Vec<String>,
+        guild_ids: Vec<String>,
+    },
+    /// Microsoft Teams events (message, mention, adaptiveCard/action)
+    Teams {
+        events: Vec<String>,
+        channel_ids: Vec<String>,
+    },
+    /// Matrix protocol events (m.room.message, m.reaction, m.room.member)
+    Matrix {
+        events: Vec<String>,
+        room_ids: Vec<String>,
+    },
+    /// Twilio SMS/MMS incoming messages
+    TwilioSms {
+        events: Vec<String>,
+        from_numbers: Vec<String>,
+    },
+    /// iMessage events (via AppleScript bridge on macOS)
+    IMessage {
+        events: Vec<String>,
+        contacts: Vec<String>,
+    },
+    /// IRC events (PRIVMSG, JOIN, PART, etc.)
+    Irc {
+        events: Vec<String>,
+        channels: Vec<String>,
+    },
+    /// Twitch chat/event events (chat, subscription, raid, follow)
+    Twitch {
+        events: Vec<String>,
+        channels: Vec<String>,
+    },
     /// Cron expression (time-based)
     Cron {
         expression: String,
@@ -70,6 +131,16 @@ impl TriggerSource {
             TriggerSource::Slack { .. } => "slack",
             TriggerSource::Linear { .. } => "linear",
             TriggerSource::PagerDuty { .. } => "pagerduty",
+            TriggerSource::Telegram { .. } => "telegram",
+            TriggerSource::Signal { .. } => "signal",
+            TriggerSource::WhatsApp { .. } => "whatsapp",
+            TriggerSource::Discord { .. } => "discord",
+            TriggerSource::Teams { .. } => "teams",
+            TriggerSource::Matrix { .. } => "matrix",
+            TriggerSource::TwilioSms { .. } => "twilio_sms",
+            TriggerSource::IMessage { .. } => "imessage",
+            TriggerSource::Irc { .. } => "irc",
+            TriggerSource::Twitch { .. } => "twitch",
             TriggerSource::Cron { .. } => "cron",
             TriggerSource::FileWatch { .. } => "filewatch",
             TriggerSource::Webhook { .. } => "webhook",
@@ -324,6 +395,111 @@ impl AutomationRule {
                             .fields
                             .get("service")
                             .map_or(false, |s| services.contains(s)))
+            }
+            TriggerSource::Telegram { events, chat_ids } => {
+                payload.source == "telegram"
+                    && (events.is_empty() || events.contains(&payload.event_type))
+                    && (chat_ids.is_empty()
+                        || payload
+                            .fields
+                            .get("chat_id")
+                            .map_or(false, |c| chat_ids.contains(c)))
+            }
+            TriggerSource::Signal { events, group_ids } => {
+                payload.source == "signal"
+                    && (events.is_empty() || events.contains(&payload.event_type))
+                    && (group_ids.is_empty()
+                        || payload
+                            .fields
+                            .get("group_id")
+                            .map_or(false, |g| group_ids.contains(g)))
+            }
+            TriggerSource::WhatsApp {
+                events,
+                phone_numbers,
+            } => {
+                payload.source == "whatsapp"
+                    && (events.is_empty() || events.contains(&payload.event_type))
+                    && (phone_numbers.is_empty()
+                        || payload
+                            .fields
+                            .get("from")
+                            .map_or(false, |f| phone_numbers.contains(f)))
+            }
+            TriggerSource::Discord {
+                events,
+                channel_ids,
+                guild_ids,
+            } => {
+                payload.source == "discord"
+                    && (events.is_empty() || events.contains(&payload.event_type))
+                    && (channel_ids.is_empty()
+                        || payload
+                            .fields
+                            .get("channel_id")
+                            .map_or(false, |c| channel_ids.contains(c)))
+                    && (guild_ids.is_empty()
+                        || payload
+                            .fields
+                            .get("guild_id")
+                            .map_or(false, |g| guild_ids.contains(g)))
+            }
+            TriggerSource::Teams { events, channel_ids } => {
+                payload.source == "teams"
+                    && (events.is_empty() || events.contains(&payload.event_type))
+                    && (channel_ids.is_empty()
+                        || payload
+                            .fields
+                            .get("channel_id")
+                            .map_or(false, |c| channel_ids.contains(c)))
+            }
+            TriggerSource::Matrix { events, room_ids } => {
+                payload.source == "matrix"
+                    && (events.is_empty() || events.contains(&payload.event_type))
+                    && (room_ids.is_empty()
+                        || payload
+                            .fields
+                            .get("room_id")
+                            .map_or(false, |r| room_ids.contains(r)))
+            }
+            TriggerSource::TwilioSms {
+                events,
+                from_numbers,
+            } => {
+                payload.source == "twilio_sms"
+                    && (events.is_empty() || events.contains(&payload.event_type))
+                    && (from_numbers.is_empty()
+                        || payload
+                            .fields
+                            .get("from")
+                            .map_or(false, |f| from_numbers.contains(f)))
+            }
+            TriggerSource::IMessage { events, contacts } => {
+                payload.source == "imessage"
+                    && (events.is_empty() || events.contains(&payload.event_type))
+                    && (contacts.is_empty()
+                        || payload
+                            .fields
+                            .get("sender")
+                            .map_or(false, |s| contacts.contains(s)))
+            }
+            TriggerSource::Irc { events, channels } => {
+                payload.source == "irc"
+                    && (events.is_empty() || events.contains(&payload.event_type))
+                    && (channels.is_empty()
+                        || payload
+                            .fields
+                            .get("channel")
+                            .map_or(false, |c| channels.contains(c)))
+            }
+            TriggerSource::Twitch { events, channels } => {
+                payload.source == "twitch"
+                    && (events.is_empty() || events.contains(&payload.event_type))
+                    && (channels.is_empty()
+                        || payload
+                            .fields
+                            .get("channel")
+                            .map_or(false, |c| channels.contains(c)))
             }
             TriggerSource::Cron { .. } => payload.source == "cron",
             TriggerSource::FileWatch { patterns, .. } => {
@@ -655,6 +831,199 @@ pub fn parse_pagerduty_event(body: &str) -> EventPayload {
     }
     if let Some(title) = extract_json_field(body, "title") {
         payload = payload.with_field("title", &title);
+    }
+    payload
+}
+
+/// Parse a Telegram Bot API webhook payload.
+pub fn parse_telegram_event(body: &str) -> EventPayload {
+    let event_type = if body.contains("callback_query") {
+        "callback_query"
+    } else if body.contains("edited_message") {
+        "edited_message"
+    } else {
+        "message"
+    };
+    let mut payload = EventPayload::new("telegram", event_type, body);
+    if let Some(chat_id) = extract_json_field(body, "chat_id") {
+        payload = payload.with_field("chat_id", &chat_id);
+    }
+    // Try nested chat.id
+    if payload.fields.get("chat_id").is_none() {
+        if let Some(id) = extract_json_field(body, "id") {
+            payload = payload.with_field("chat_id", &id);
+        }
+    }
+    if let Some(text) = extract_json_field(body, "text") {
+        payload = payload.with_field("text", &text);
+    }
+    if let Some(from) = extract_json_field(body, "username") {
+        payload = payload.with_field("username", &from);
+    }
+    payload
+}
+
+/// Parse a Signal message event.
+pub fn parse_signal_event(body: &str) -> EventPayload {
+    let event_type = if body.contains("reaction") {
+        "reaction"
+    } else {
+        "message"
+    };
+    let mut payload = EventPayload::new("signal", event_type, body);
+    if let Some(group_id) = extract_json_field(body, "groupId") {
+        payload = payload.with_field("group_id", &group_id);
+    }
+    if let Some(sender) = extract_json_field(body, "sender") {
+        payload = payload.with_field("sender", &sender);
+    }
+    if let Some(text) = extract_json_field(body, "message") {
+        payload = payload.with_field("text", &text);
+    }
+    payload
+}
+
+/// Parse a WhatsApp Business API webhook payload.
+pub fn parse_whatsapp_event(body: &str) -> EventPayload {
+    let event_type = if body.contains("statuses") {
+        "status"
+    } else {
+        "message"
+    };
+    let mut payload = EventPayload::new("whatsapp", event_type, body);
+    if let Some(from) = extract_json_field(body, "from") {
+        payload = payload.with_field("from", &from);
+    }
+    if let Some(text) = extract_json_field(body, "body") {
+        payload = payload.with_field("text", &text);
+    }
+    if let Some(phone) = extract_json_field(body, "display_phone_number") {
+        payload = payload.with_field("to", &phone);
+    }
+    payload
+}
+
+/// Parse a Discord webhook/bot event payload.
+pub fn parse_discord_event(body: &str) -> EventPayload {
+    let event_type = extract_json_field(body, "t")
+        .unwrap_or_else(|| "MESSAGE_CREATE".to_string());
+    let mut payload = EventPayload::new("discord", &event_type, body);
+    if let Some(channel_id) = extract_json_field(body, "channel_id") {
+        payload = payload.with_field("channel_id", &channel_id);
+    }
+    if let Some(guild_id) = extract_json_field(body, "guild_id") {
+        payload = payload.with_field("guild_id", &guild_id);
+    }
+    if let Some(content) = extract_json_field(body, "content") {
+        payload = payload.with_field("text", &content);
+    }
+    if let Some(author) = extract_json_field(body, "username") {
+        payload = payload.with_field("author", &author);
+    }
+    payload
+}
+
+/// Parse a Microsoft Teams activity payload.
+pub fn parse_teams_event(body: &str) -> EventPayload {
+    let event_type = extract_json_field(body, "type")
+        .unwrap_or_else(|| "message".to_string());
+    let mut payload = EventPayload::new("teams", &event_type, body);
+    if let Some(channel_id) = extract_json_field(body, "channelId") {
+        payload = payload.with_field("channel_id", &channel_id);
+    }
+    if let Some(text) = extract_json_field(body, "text") {
+        payload = payload.with_field("text", &text);
+    }
+    if let Some(from) = extract_json_field(body, "name") {
+        payload = payload.with_field("from", &from);
+    }
+    payload
+}
+
+/// Parse a Matrix event payload.
+pub fn parse_matrix_event(body: &str) -> EventPayload {
+    let event_type = extract_json_field(body, "type")
+        .unwrap_or_else(|| "m.room.message".to_string());
+    let mut payload = EventPayload::new("matrix", &event_type, body);
+    if let Some(room_id) = extract_json_field(body, "room_id") {
+        payload = payload.with_field("room_id", &room_id);
+    }
+    if let Some(sender) = extract_json_field(body, "sender") {
+        payload = payload.with_field("sender", &sender);
+    }
+    if let Some(body_text) = extract_json_field(body, "body") {
+        payload = payload.with_field("text", &body_text);
+    }
+    payload
+}
+
+/// Parse a Twilio SMS/MMS webhook payload (form-encoded fields as JSON).
+pub fn parse_twilio_sms_event(body: &str) -> EventPayload {
+    let mut payload = EventPayload::new("twilio_sms", "incoming", body);
+    if let Some(from) = extract_json_field(body, "From") {
+        payload = payload.with_field("from", &from);
+    }
+    if let Some(to) = extract_json_field(body, "To") {
+        payload = payload.with_field("to", &to);
+    }
+    if let Some(text) = extract_json_field(body, "Body") {
+        payload = payload.with_field("text", &text);
+    }
+    payload
+}
+
+/// Parse an iMessage event (from AppleScript bridge).
+pub fn parse_imessage_event(body: &str) -> EventPayload {
+    let mut payload = EventPayload::new("imessage", "message", body);
+    if let Some(sender) = extract_json_field(body, "sender") {
+        payload = payload.with_field("sender", &sender);
+    }
+    if let Some(text) = extract_json_field(body, "text") {
+        payload = payload.with_field("text", &text);
+    }
+    if let Some(chat) = extract_json_field(body, "chat") {
+        payload = payload.with_field("chat", &chat);
+    }
+    payload
+}
+
+/// Parse an IRC event payload.
+pub fn parse_irc_event(body: &str) -> EventPayload {
+    let event_type = extract_json_field(body, "command")
+        .unwrap_or_else(|| "PRIVMSG".to_string());
+    let mut payload = EventPayload::new("irc", &event_type, body);
+    if let Some(channel) = extract_json_field(body, "channel") {
+        payload = payload.with_field("channel", &channel);
+    }
+    if let Some(nick) = extract_json_field(body, "nick") {
+        payload = payload.with_field("nick", &nick);
+    }
+    if let Some(text) = extract_json_field(body, "message") {
+        payload = payload.with_field("text", &text);
+    }
+    payload
+}
+
+/// Parse a Twitch EventSub / chat webhook payload.
+pub fn parse_twitch_event(body: &str) -> EventPayload {
+    let event_type = extract_json_field(body, "subscription_type")
+        .or_else(|| extract_json_field(body, "event_type"))
+        .unwrap_or_else(|| "chat.message".to_string());
+    let mut payload = EventPayload::new("twitch", &event_type, body);
+    if let Some(channel) = extract_json_field(body, "broadcaster_user_login") {
+        payload = payload.with_field("channel", &channel);
+    }
+    if let Some(user) = extract_json_field(body, "chatter_user_login") {
+        payload = payload.with_field("user", &user);
+    }
+    // Fallback user field
+    if payload.fields.get("user").is_none() {
+        if let Some(user) = extract_json_field(body, "user_login") {
+            payload = payload.with_field("user", &user);
+        }
+    }
+    if let Some(text) = extract_json_field(body, "message_text") {
+        payload = payload.with_field("text", &text);
     }
     payload
 }
@@ -1347,5 +1716,352 @@ mod tests {
     fn test_update_nonexistent_task() {
         let mut engine = test_engine();
         assert!(!engine.update_task_status("fake-id", TaskStatus::Running));
+    }
+
+    // -----------------------------------------------------------------------
+    // Messaging platform trigger sources
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_trigger_source_name_messaging() {
+        assert_eq!(TriggerSource::Telegram { events: vec![], chat_ids: vec![] }.source_name(), "telegram");
+        assert_eq!(TriggerSource::Signal { events: vec![], group_ids: vec![] }.source_name(), "signal");
+        assert_eq!(TriggerSource::WhatsApp { events: vec![], phone_numbers: vec![] }.source_name(), "whatsapp");
+        assert_eq!(TriggerSource::Discord { events: vec![], channel_ids: vec![], guild_ids: vec![] }.source_name(), "discord");
+        assert_eq!(TriggerSource::Teams { events: vec![], channel_ids: vec![] }.source_name(), "teams");
+        assert_eq!(TriggerSource::Matrix { events: vec![], room_ids: vec![] }.source_name(), "matrix");
+        assert_eq!(TriggerSource::TwilioSms { events: vec![], from_numbers: vec![] }.source_name(), "twilio_sms");
+        assert_eq!(TriggerSource::IMessage { events: vec![], contacts: vec![] }.source_name(), "imessage");
+        assert_eq!(TriggerSource::Irc { events: vec![], channels: vec![] }.source_name(), "irc");
+        assert_eq!(TriggerSource::Twitch { events: vec![], channels: vec![] }.source_name(), "twitch");
+    }
+
+    #[test]
+    fn test_rule_matches_telegram() {
+        let rule = AutomationRule::new(
+            "r1", "TG",
+            TriggerSource::Telegram { events: vec!["message".into()], chat_ids: vec!["123".into()] },
+            "Handle",
+        );
+        let p = EventPayload::new("telegram", "message", "").with_field("chat_id", "123");
+        assert!(rule.matches(&p));
+        let p2 = EventPayload::new("telegram", "message", "").with_field("chat_id", "999");
+        assert!(!rule.matches(&p2));
+    }
+
+    #[test]
+    fn test_rule_matches_telegram_empty_filter() {
+        let rule = AutomationRule::new(
+            "r1", "TG all",
+            TriggerSource::Telegram { events: vec![], chat_ids: vec![] },
+            "Handle",
+        );
+        let p = EventPayload::new("telegram", "message", "").with_field("chat_id", "any");
+        assert!(rule.matches(&p));
+    }
+
+    #[test]
+    fn test_rule_matches_signal() {
+        let rule = AutomationRule::new(
+            "r1", "Signal",
+            TriggerSource::Signal { events: vec!["message".into()], group_ids: vec!["grp-1".into()] },
+            "Handle",
+        );
+        let p = EventPayload::new("signal", "message", "").with_field("group_id", "grp-1");
+        assert!(rule.matches(&p));
+        let p2 = EventPayload::new("signal", "message", "").with_field("group_id", "grp-2");
+        assert!(!rule.matches(&p2));
+    }
+
+    #[test]
+    fn test_rule_matches_whatsapp() {
+        let rule = AutomationRule::new(
+            "r1", "WA",
+            TriggerSource::WhatsApp { events: vec!["message".into()], phone_numbers: vec!["+1234".into()] },
+            "Handle",
+        );
+        let p = EventPayload::new("whatsapp", "message", "").with_field("from", "+1234");
+        assert!(rule.matches(&p));
+        let p2 = EventPayload::new("whatsapp", "message", "").with_field("from", "+9999");
+        assert!(!rule.matches(&p2));
+    }
+
+    #[test]
+    fn test_rule_matches_discord() {
+        let rule = AutomationRule::new(
+            "r1", "Discord",
+            TriggerSource::Discord {
+                events: vec!["MESSAGE_CREATE".into()],
+                channel_ids: vec!["ch-1".into()],
+                guild_ids: vec!["g-1".into()],
+            },
+            "Handle",
+        );
+        let p = EventPayload::new("discord", "MESSAGE_CREATE", "")
+            .with_field("channel_id", "ch-1")
+            .with_field("guild_id", "g-1");
+        assert!(rule.matches(&p));
+        // Wrong guild
+        let p2 = EventPayload::new("discord", "MESSAGE_CREATE", "")
+            .with_field("channel_id", "ch-1")
+            .with_field("guild_id", "g-2");
+        assert!(!rule.matches(&p2));
+    }
+
+    #[test]
+    fn test_rule_matches_discord_empty_guild() {
+        let rule = AutomationRule::new(
+            "r1", "Discord",
+            TriggerSource::Discord { events: vec![], channel_ids: vec![], guild_ids: vec![] },
+            "Handle",
+        );
+        let p = EventPayload::new("discord", "MESSAGE_CREATE", "");
+        assert!(rule.matches(&p));
+    }
+
+    #[test]
+    fn test_rule_matches_teams() {
+        let rule = AutomationRule::new(
+            "r1", "Teams",
+            TriggerSource::Teams { events: vec!["message".into()], channel_ids: vec!["ch-1".into()] },
+            "Handle",
+        );
+        let p = EventPayload::new("teams", "message", "").with_field("channel_id", "ch-1");
+        assert!(rule.matches(&p));
+    }
+
+    #[test]
+    fn test_rule_matches_matrix() {
+        let rule = AutomationRule::new(
+            "r1", "Matrix",
+            TriggerSource::Matrix { events: vec!["m.room.message".into()], room_ids: vec!["!abc:matrix.org".into()] },
+            "Handle",
+        );
+        let p = EventPayload::new("matrix", "m.room.message", "").with_field("room_id", "!abc:matrix.org");
+        assert!(rule.matches(&p));
+    }
+
+    #[test]
+    fn test_rule_matches_twilio_sms() {
+        let rule = AutomationRule::new(
+            "r1", "SMS",
+            TriggerSource::TwilioSms { events: vec!["incoming".into()], from_numbers: vec!["+15551234".into()] },
+            "Handle",
+        );
+        let p = EventPayload::new("twilio_sms", "incoming", "").with_field("from", "+15551234");
+        assert!(rule.matches(&p));
+    }
+
+    #[test]
+    fn test_rule_matches_imessage() {
+        let rule = AutomationRule::new(
+            "r1", "iMsg",
+            TriggerSource::IMessage { events: vec!["message".into()], contacts: vec!["alice@icloud.com".into()] },
+            "Handle",
+        );
+        let p = EventPayload::new("imessage", "message", "").with_field("sender", "alice@icloud.com");
+        assert!(rule.matches(&p));
+    }
+
+    #[test]
+    fn test_rule_matches_irc() {
+        let rule = AutomationRule::new(
+            "r1", "IRC",
+            TriggerSource::Irc { events: vec!["PRIVMSG".into()], channels: vec!["#rust".into()] },
+            "Handle",
+        );
+        let p = EventPayload::new("irc", "PRIVMSG", "").with_field("channel", "#rust");
+        assert!(rule.matches(&p));
+    }
+
+    #[test]
+    fn test_rule_matches_twitch() {
+        let rule = AutomationRule::new(
+            "r1", "Twitch",
+            TriggerSource::Twitch { events: vec!["chat.message".into()], channels: vec!["streamer1".into()] },
+            "Handle",
+        );
+        let p = EventPayload::new("twitch", "chat.message", "").with_field("channel", "streamer1");
+        assert!(rule.matches(&p));
+    }
+
+    // -----------------------------------------------------------------------
+    // Messaging platform event parsers
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_parse_telegram_event() {
+        let body = r#"{"message": {"chat": {"chat_id": "123"}, "text": "hello", "from": {"username": "alice"}}}"#;
+        let p = parse_telegram_event(body);
+        assert_eq!(p.source, "telegram");
+        assert_eq!(p.event_type, "message");
+        assert_eq!(p.fields.get("chat_id").unwrap(), "123");
+        assert_eq!(p.fields.get("text").unwrap(), "hello");
+        assert_eq!(p.fields.get("username").unwrap(), "alice");
+    }
+
+    #[test]
+    fn test_parse_telegram_callback() {
+        let body = r#"{"callback_query": {"data": "btn1"}}"#;
+        let p = parse_telegram_event(body);
+        assert_eq!(p.event_type, "callback_query");
+    }
+
+    #[test]
+    fn test_parse_signal_event() {
+        let body = r#"{"sender": "+1234", "message": "help me", "groupId": "grp-abc"}"#;
+        let p = parse_signal_event(body);
+        assert_eq!(p.source, "signal");
+        assert_eq!(p.event_type, "message");
+        assert_eq!(p.fields.get("sender").unwrap(), "+1234");
+        assert_eq!(p.fields.get("text").unwrap(), "help me");
+        assert_eq!(p.fields.get("group_id").unwrap(), "grp-abc");
+    }
+
+    #[test]
+    fn test_parse_signal_reaction() {
+        let body = r#"{"reaction": "👍", "sender": "+5678"}"#;
+        let p = parse_signal_event(body);
+        assert_eq!(p.event_type, "reaction");
+    }
+
+    #[test]
+    fn test_parse_whatsapp_event() {
+        let body = r#"{"from": "+1234567890", "body": "Hi there", "display_phone_number": "+0987654321"}"#;
+        let p = parse_whatsapp_event(body);
+        assert_eq!(p.source, "whatsapp");
+        assert_eq!(p.event_type, "message");
+        assert_eq!(p.fields.get("from").unwrap(), "+1234567890");
+        assert_eq!(p.fields.get("text").unwrap(), "Hi there");
+        assert_eq!(p.fields.get("to").unwrap(), "+0987654321");
+    }
+
+    #[test]
+    fn test_parse_whatsapp_status() {
+        let body = r#"{"statuses": [{"id": "msg1"}]}"#;
+        let p = parse_whatsapp_event(body);
+        assert_eq!(p.event_type, "status");
+    }
+
+    #[test]
+    fn test_parse_discord_event() {
+        let body = r#"{"t": "MESSAGE_CREATE", "channel_id": "ch-1", "guild_id": "g-1", "content": "hello", "author": {"username": "bob"}}"#;
+        let p = parse_discord_event(body);
+        assert_eq!(p.source, "discord");
+        assert_eq!(p.event_type, "MESSAGE_CREATE");
+        assert_eq!(p.fields.get("channel_id").unwrap(), "ch-1");
+        assert_eq!(p.fields.get("guild_id").unwrap(), "g-1");
+        assert_eq!(p.fields.get("text").unwrap(), "hello");
+        assert_eq!(p.fields.get("author").unwrap(), "bob");
+    }
+
+    #[test]
+    fn test_parse_teams_event() {
+        let body = r#"{"type": "message", "channelId": "19:abc", "text": "deploy now", "from": {"name": "Alice"}}"#;
+        let p = parse_teams_event(body);
+        assert_eq!(p.source, "teams");
+        assert_eq!(p.event_type, "message");
+        assert_eq!(p.fields.get("channel_id").unwrap(), "19:abc");
+        assert_eq!(p.fields.get("text").unwrap(), "deploy now");
+        assert_eq!(p.fields.get("from").unwrap(), "Alice");
+    }
+
+    #[test]
+    fn test_parse_matrix_event() {
+        let body = r#"{"type": "m.room.message", "room_id": "!abc:matrix.org", "sender": "@alice:matrix.org", "content": {"body": "hello"}}"#;
+        let p = parse_matrix_event(body);
+        assert_eq!(p.source, "matrix");
+        assert_eq!(p.event_type, "m.room.message");
+        assert_eq!(p.fields.get("room_id").unwrap(), "!abc:matrix.org");
+        assert_eq!(p.fields.get("sender").unwrap(), "@alice:matrix.org");
+        assert_eq!(p.fields.get("text").unwrap(), "hello");
+    }
+
+    #[test]
+    fn test_parse_twilio_sms_event() {
+        let body = r#"{"From": "+15551234", "To": "+15559876", "Body": "help"}"#;
+        let p = parse_twilio_sms_event(body);
+        assert_eq!(p.source, "twilio_sms");
+        assert_eq!(p.event_type, "incoming");
+        assert_eq!(p.fields.get("from").unwrap(), "+15551234");
+        assert_eq!(p.fields.get("to").unwrap(), "+15559876");
+        assert_eq!(p.fields.get("text").unwrap(), "help");
+    }
+
+    #[test]
+    fn test_parse_imessage_event() {
+        let body = r#"{"sender": "alice@icloud.com", "text": "hey", "chat": "iMessage;-;alice@icloud.com"}"#;
+        let p = parse_imessage_event(body);
+        assert_eq!(p.source, "imessage");
+        assert_eq!(p.event_type, "message");
+        assert_eq!(p.fields.get("sender").unwrap(), "alice@icloud.com");
+        assert_eq!(p.fields.get("text").unwrap(), "hey");
+    }
+
+    #[test]
+    fn test_parse_irc_event() {
+        let body = r##"{"command": "PRIVMSG", "channel": "#rust", "nick": "bob", "message": "hello"}"##;
+        let p = parse_irc_event(body);
+        assert_eq!(p.source, "irc");
+        assert_eq!(p.event_type, "PRIVMSG");
+        assert_eq!(p.fields.get("channel").unwrap(), "#rust");
+        assert_eq!(p.fields.get("nick").unwrap(), "bob");
+        assert_eq!(p.fields.get("text").unwrap(), "hello");
+    }
+
+    #[test]
+    fn test_parse_twitch_event() {
+        let body = r#"{"subscription_type": "channel.chat.message", "broadcaster_user_login": "streamer1", "chatter_user_login": "viewer1", "message_text": "GG"}"#;
+        let p = parse_twitch_event(body);
+        assert_eq!(p.source, "twitch");
+        assert_eq!(p.event_type, "channel.chat.message");
+        assert_eq!(p.fields.get("channel").unwrap(), "streamer1");
+        assert_eq!(p.fields.get("user").unwrap(), "viewer1");
+        assert_eq!(p.fields.get("text").unwrap(), "GG");
+    }
+
+    #[test]
+    fn test_parse_twitch_fallback_user() {
+        let body = r#"{"event_type": "subscription", "user_login": "sub_user"}"#;
+        let p = parse_twitch_event(body);
+        assert_eq!(p.event_type, "subscription");
+        assert_eq!(p.fields.get("user").unwrap(), "sub_user");
+    }
+
+    // -----------------------------------------------------------------------
+    // Cross-source mismatch tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_telegram_rule_ignores_slack_event() {
+        let rule = AutomationRule::new(
+            "r1", "TG",
+            TriggerSource::Telegram { events: vec![], chat_ids: vec![] },
+            "Handle",
+        );
+        let p = EventPayload::new("slack", "message", "");
+        assert!(!rule.matches(&p));
+    }
+
+    #[test]
+    fn test_discord_rule_ignores_teams_event() {
+        let rule = AutomationRule::new(
+            "r1", "Discord",
+            TriggerSource::Discord { events: vec![], channel_ids: vec![], guild_ids: vec![] },
+            "Handle",
+        );
+        let p = EventPayload::new("teams", "message", "");
+        assert!(!rule.matches(&p));
+    }
+
+    #[test]
+    fn test_whatsapp_rule_ignores_signal_event() {
+        let rule = AutomationRule::new(
+            "r1", "WA",
+            TriggerSource::WhatsApp { events: vec![], phone_numbers: vec![] },
+            "Handle",
+        );
+        let p = EventPayload::new("signal", "message", "");
+        assert!(!rule.matches(&p));
     }
 }
