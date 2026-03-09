@@ -8,7 +8,7 @@
 # With Ollama sidecar:
 #   docker compose up
 
-FROM rust:1.82-bookworm AS builder
+FROM rust:1.85-bookworm AS builder
 
 # Install musl cross-compilation tools
 RUN apt-get update -qq && \
