@@ -226,8 +226,8 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 
 | # | Gap | Competitors | Description | Effort |
 |---|-----|-------------|-------------|--------|
-| 1 | **Event-driven automations** | Cursor Automations | External triggers (GitHub webhooks, Slack events, PagerDuty alerts, Linear updates) → spawn agent in sandbox automatically | High |
-| 2 | **Agent self-review gate** | GitHub Copilot, Cursor BugBot | Agent reviews own changes (lint, test, security scan) before marking task complete; iterates if issues found | Medium |
+| 1 | ~~**Event-driven automations**~~ | Cursor Automations | **CLOSED** — `automations.rs` (44 tests): AutomationEngine with 7 trigger sources (GitHub/Slack/Linear/PagerDuty/Cron/FileWatch/Webhook), EventFilter, PromptTemplate with `{{var}}` substitution, webhook signature verification, event parsers for 4 platforms; `AutomationsPanel.tsx`; `event-automations.md` skill | High |
+| 2 | ~~**Agent self-review gate**~~ | GitHub Copilot, Cursor BugBot | **CLOSED** — `self_review.rs` (44 tests): SelfReviewGate with 8 check kinds (Build/Lint/Test/Security/Format/TypeCheck/DiffReview/Custom), SecretScanner (6 patterns), LintConfig+TestConfig auto-detection (Rust/TS/Python/Go), configurable max retries + min blocking severity, ReviewReport with markdown export; `SelfReviewPanel.tsx`; `self-review-gate.md` skill | Medium |
 
 ### P1 — Important (Medium-High Impact)
 
@@ -354,20 +354,26 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 
 ## Part E — Recommended Roadmap for P0/P1 Gaps
 
-### Phase 53: Event-Driven Automations (P0)
-- `automations.rs` module: `AutomationRule` struct with trigger (webhook, Slack event, GitHub event, cron, file change) → agent task template
-- Webhook receiver endpoint in serve.rs: `POST /webhooks/:automation_id`
-- Integration adapters: GitHub (push, PR, issue), Slack (message, reaction), Linear (issue update), PagerDuty (incident)
-- Agent spawns in sandbox with rule-defined context
-- VibeUI `AutomationsPanel.tsx` for rule CRUD
-- REPL: `/automation add|list|remove|test`
+### Phase 53: Event-Driven Automations (P0) — ✅ IMPLEMENTED
+- `automations.rs`: AutomationEngine with 7 TriggerSource variants (GitHub/Slack/Linear/PagerDuty/Cron/FileWatch/Webhook)
+- EventFilter (conditions, required_fields, body_pattern), PromptTemplate with `{{var}}` substitution
+- Event parsers: parse_github_event, parse_slack_event, parse_linear_event, parse_pagerduty_event
+- Webhook HMAC-SHA256 signature verification, simple glob matching for FileWatch patterns
+- AutomationTask lifecycle (Queued→Running→Completed/Failed/Cancelled) with stats tracking
+- `AutomationsPanel.tsx`: rules CRUD, task monitor, event log, stats dashboard
+- `event-automations.md` skill file (10 triggers)
+- **44 tests**, all passing
 
-### Phase 54: Agent Self-Review Gate (P0)
-- `self_review.rs` module: lint check → test run → security scan → diff review
-- Integrated into agent completion flow: agent loops if self-review finds issues (max N iterations)
-- Configurable: `[agent] self_review = true` and `[agent] self_review_max_retries = 3` in config.toml
-- Extends workflow_orchestration.rs "Verification Before Done" principle with automated enforcement
-- Report self-review results in agent output and VibeUI
+### Phase 54: Agent Self-Review Gate (P0) — ✅ IMPLEMENTED
+- `self_review.rs`: SelfReviewGate with 8 CheckKind variants (Build/Lint/Test/Security/Format/TypeCheck/DiffReview/Custom)
+- SecretScanner with 6 patterns (AWS keys, GitHub tokens, private keys, Slack webhooks, API keys, passwords)
+- LintConfig + TestConfig auto-detection for Rust, TypeScript, Python, Go projects
+- ReviewDecision: Approved / NeedsRevision (with feedback) / ForcedApproval (max retries exhausted)
+- Configurable: enabled, max_retries, checks, fail_on_warning, min_blocking_severity
+- ReviewReport with markdown export for audit trails
+- `SelfReviewPanel.tsx`: iteration viewer, config editor, report tab
+- `self-review-gate.md` skill file (10 triggers)
+- **44 tests**, all passing
 
 ### Phase 55: MCP Apps / Interactive Chat Widgets (P1)
 - Support MCP tool responses containing UI component definitions

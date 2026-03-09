@@ -455,9 +455,9 @@ impl AutomationEngine {
                     .duration_since(UNIX_EPOCH)
                     .unwrap_or_default()
                     .as_secs();
+                let rid = self.rules[idx].id.clone();
                 self.rules[idx].last_fired = Some(ts);
                 self.rules[idx].fire_count += 1;
-                let rid = self.rules[idx].id.clone();
 
                 self.task_counter += 1;
                 let task_id = format!("auto-{}", self.task_counter);
