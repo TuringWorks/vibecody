@@ -93,11 +93,25 @@ mod gpu_cluster;
 #[allow(dead_code)]
 mod vector_db;
 #[allow(dead_code)]
+mod database_client;
+#[allow(dead_code)]
+mod streaming_client;
+#[allow(dead_code)]
+mod inference_server;
+#[allow(dead_code)]
+mod distributed_training;
+#[allow(dead_code)]
 mod infinite_context;
 #[allow(dead_code)]
 mod app_builder;
 #[allow(dead_code)]
 mod batch_builder;
+#[allow(dead_code)]
+mod qa_validation;
+#[allow(dead_code)]
+mod legacy_migration;
+#[allow(dead_code)]
+mod git_platform;
 
 #[derive(Parser)]
 #[command(name = "vibecli")]
@@ -4883,6 +4897,112 @@ async fn main() -> Result<()> {
                                     println!("  /gpu status          Show GPU cluster status");
                                     println!("  /gpu cost <hours>    Estimate GPU costs");
                                     println!("  /gpu suggest <B>     Suggest GPU config for model size (billions)\n");
+                                }
+                            }
+                        }
+
+                        "/db" => {
+                            let sub_parts: Vec<&str> = args.splitn(2, ' ').collect();
+                            let subcmd = sub_parts.first().copied().unwrap_or("").trim();
+                            match subcmd {
+                                "connect" => {
+                                    let db_str = if sub_parts.len() > 1 { sub_parts[1].trim() } else { "" };
+                                    if db_str.is_empty() {
+                                        println!("Usage: /db connect <connection_string_or_engine>\n");
+                                    } else {
+                                        let config = database_client::DatabaseConfig::default();
+                                        let conn = database_client::DatabaseClient::new(config);
+                                        println!("Connection string: {}", conn.build_connection_string());
+                                        println!("Use the agent to run queries: \"query the database for ...\"\n");
+                                    }
+                                }
+                                "engines" => {
+                                    println!("Supported database engines:");
+                                    println!("  PostgreSQL, MySQL, SQLite, MongoDB, Redis, DuckDB");
+                                    println!("  Use /db connect <engine> to configure\n");
+                                }
+                                "migrate" => {
+                                    println!("Migration commands:");
+                                    println!("  /db migrate generate <name>  Create a new migration file");
+                                    println!("  /db migrate status           Show migration status");
+                                    println!("  /db migrate validate         Check for gaps/duplicates\n");
+                                }
+                                _ => {
+                                    println!("Usage:");
+                                    println!("  /db connect <conn>    Configure database connection");
+                                    println!("  /db engines           List supported engines");
+                                    println!("  /db migrate <cmd>     Database migrations\n");
+                                }
+                            }
+                        }
+
+                        "/train" => {
+                            let sub_parts: Vec<&str> = args.splitn(2, ' ').collect();
+                            let subcmd = sub_parts.first().copied().unwrap_or("").trim();
+                            match subcmd {
+                                "suggest" => {
+                                    let params_str = if sub_parts.len() > 1 { sub_parts[1].trim() } else { "7" };
+                                    let params: f64 = params_str.parse().unwrap_or(7.0);
+                                    let suggestion = distributed_training::suggest_parallelism(params, 4, 80_000);
+                                    println!("Parallelism suggestion for {params}B params:\n  {suggestion}\n");
+                                }
+                                "memory" => {
+                                    let params_str = if sub_parts.len() > 1 { sub_parts[1].trim() } else { "7" };
+                                    let params: f64 = params_str.parse().unwrap_or(7.0);
+                                    let config = distributed_training::TrainingConfig::default();
+                                    let estimate = distributed_training::estimate_memory_per_gpu(params, &config);
+                                    println!("{estimate}\n");
+                                }
+                                "frameworks" => {
+                                    println!("Supported distributed training frameworks:");
+                                    println!("  DeepSpeed (ZeRO Stage 0-3, Infinity)");
+                                    println!("  FSDP (PyTorch Fully Sharded Data Parallel)");
+                                    println!("  Megatron-LM (tensor + pipeline parallelism)");
+                                    println!("  Horovod (ring-allreduce)");
+                                    println!("  Ray Train (distributed training on Ray)");
+                                    println!("  Colossal-AI (unified parallelism)\n");
+                                }
+                                _ => {
+                                    println!("Usage:");
+                                    println!("  /train suggest <B>     Suggest parallelism for model size (billions)");
+                                    println!("  /train memory <B>      Estimate VRAM per GPU");
+                                    println!("  /train frameworks      List supported training frameworks\n");
+                                }
+                            }
+                        }
+
+                        "/inference" => {
+                            let sub_parts: Vec<&str> = args.splitn(2, ' ').collect();
+                            let subcmd = sub_parts.first().copied().unwrap_or("").trim();
+                            match subcmd {
+                                "suggest" => {
+                                    let model = if sub_parts.len() > 1 { sub_parts[1].trim() } else { "llama-3-8b" };
+                                    let suggestion = inference_server::suggest_serving_config(model, 24_000);
+                                    println!("{suggestion}\n");
+                                }
+                                "memory" => {
+                                    let params_str = if sub_parts.len() > 1 { sub_parts[1].trim() } else { "7" };
+                                    let params: f64 = params_str.parse().unwrap_or(7.0);
+                                    let fp16 = inference_server::estimate_gpu_memory(params, &inference_server::QuantizationMethod::Fp16);
+                                    let int4 = inference_server::estimate_gpu_memory(params, &inference_server::QuantizationMethod::Int4);
+                                    println!("GPU memory for {params}B model:");
+                                    println!("  FP16: ~{fp16} MB");
+                                    println!("  INT4: ~{int4} MB\n");
+                                }
+                                "backends" => {
+                                    println!("Supported inference backends:");
+                                    println!("  vLLM (PagedAttention, continuous batching)");
+                                    println!("  TGI (HuggingFace Text Generation Inference)");
+                                    println!("  Triton (NVIDIA Triton Inference Server)");
+                                    println!("  llama.cpp (CPU/GPU, GGUF quantized)");
+                                    println!("  Ollama (local model serving)");
+                                    println!("  TorchServe, ONNX Runtime, TensorRT-LLM\n");
+                                }
+                                _ => {
+                                    println!("Usage:");
+                                    println!("  /inference suggest <model>  Recommend backend for model");
+                                    println!("  /inference memory <B>       Estimate VRAM for model size");
+                                    println!("  /inference backends         List supported backends\n");
                                 }
                             }
                         }
