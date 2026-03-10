@@ -284,7 +284,7 @@ Press `Cmd+P` (macOS) / `Ctrl+P` (Windows/Linux) to open the Command Palette:
 
 ## AI Panel Tabs
 
-The AI panel (toggle with **💬 AI Chat** in the header) has **98 tabs** across categories:
+The AI panel (toggle with **💬 AI Chat** in the header) has **107 tabs** across categories:
 
 | Tab | Component | Description |
 |-----|-----------|-------------|

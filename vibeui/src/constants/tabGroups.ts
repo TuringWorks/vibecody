@@ -8,15 +8,15 @@ export interface TabGroup {
 export const TAB_GROUPS: TabGroup[] = [
   {
     label: "AI",
-    tabs: ["chat", "agent", "cascade", "compare", "arena", "teams", "cloud", "cibot", "marketplace", "icontext", "batchbuilder"],
+    tabs: ["chat", "agent", "cascade", "compare", "arena", "teams", "cloud", "cibot", "marketplace", "icontext", "batchbuilder", "subagents"],
   },
   {
     label: "Project",
-    tabs: ["memory", "specs", "workflow", "orchestration", "design", "steering", "traces", "dashboard", "recording"],
+    tabs: ["memory", "specs", "workflow", "orchestration", "design", "steering", "traces", "dashboard", "recording", "plandoc", "remotecontrol"],
   },
   {
     label: "Code",
-    tabs: ["autofix", "bugbot", "redteam", "tests", "coverage", "transform", "metrics", "bisect", "snippets"],
+    tabs: ["autofix", "bugbot", "redteam", "tests", "coverage", "transform", "metrics", "bisect", "snippets", "astedit", "securityscan", "editpredict"],
   },
   {
     label: "Git & Collab",
@@ -24,7 +24,7 @@ export const TAB_GROUPS: TabGroup[] = [
   },
   {
     label: "Infrastructure",
-    tabs: ["deploy", "docker", "k8s", "cicd", "env", "sandbox", "health", "scaffold", "appbuilder", "training", "inference"],
+    tabs: ["deploy", "docker", "k8s", "cicd", "env", "sandbox", "cloudsandbox", "health", "scaffold", "appbuilder", "training", "inference", "cistatus"],
   },
   {
     label: "Data & API",
@@ -44,7 +44,7 @@ export const TAB_GROUPS: TabGroup[] = [
   },
   {
     label: "Settings",
-    tabs: ["settings", "hooks", "jobs", "mcp", "artifacts", "manager", "auth", "cost", "markers", "img2app", "visualtest", "webhooks", "admin", "qa-validation"],
+    tabs: ["settings", "hooks", "jobs", "mcp", "artifacts", "manager", "auth", "cost", "markers", "img2app", "visualtest", "webhooks", "admin", "qa-validation", "sessions"],
   },
 ];
 

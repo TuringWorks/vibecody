@@ -18,7 +18,7 @@ vibecody/                          ← Cargo workspace root
 │   └── vibecli-cli/               ← Binary: terminal assistant
 │       └── skills/                ← 522 skill files (25+ categories)
 ├── vibeui/
-│   ├── src/                       ← React + TypeScript frontend (~98 panel tabs)
+│   ├── src/                       ← React + TypeScript frontend (~107 panel tabs)
 │   ├── src-tauri/                 ← Binary: Tauri desktop app
 │   └── crates/
 │       ├── vibe-core/             ← Library: editor primitives

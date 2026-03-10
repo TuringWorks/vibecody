@@ -116,6 +116,15 @@ const DocumentIngestPanel = lazy(() => import("./DocumentIngestPanel").then(m =>
 const WebCrawlerPanel = lazy(() => import("./WebCrawlerPanel").then(m => ({ default: m.WebCrawlerPanel })));
 const VectorDbPanel = lazy(() => import("./VectorDbPanel").then(m => ({ default: m.VectorDbPanel })));
 const QaValidationPanel = lazy(() => import("./QaValidationPanel").then(m => ({ default: m.QaValidationPanel })));
+const AstEditPanel = lazy(() => import("./AstEditPanel"));
+const CiStatusPanel = lazy(() => import("./CiStatusPanel"));
+const CloudSandboxPanel = lazy(() => import("./CloudSandboxPanel"));
+const EditPredictionPanel = lazy(() => import("./EditPredictionPanel"));
+const PlanDocumentPanel = lazy(() => import("./PlanDocumentPanel"));
+const RemoteControlPanel = lazy(() => import("./RemoteControlPanel"));
+const SecurityScanPanel = lazy(() => import("./SecurityScanPanel"));
+const SessionBrowserPanel = lazy(() => import("./SessionBrowserPanel"));
+const SubAgentPanel = lazy(() => import("./SubAgentPanel"));
 
 // --- Props interfaces ---
 
@@ -341,6 +350,24 @@ export function PanelHost(props: PanelHostProps) {
       return <LazyPanel Component={VectorDbPanel} props={{}} />;
     case "qa-validation":
       return <LazyPanel Component={QaValidationPanel} props={{}} />;
+    case "astedit":
+      return <LazyPanel Component={AstEditPanel} props={{}} />;
+    case "cistatus":
+      return <LazyPanel Component={CiStatusPanel} props={{}} />;
+    case "cloudsandbox":
+      return <LazyPanel Component={CloudSandboxPanel} props={{}} />;
+    case "editpredict":
+      return <LazyPanel Component={EditPredictionPanel} props={{}} />;
+    case "plandoc":
+      return <LazyPanel Component={PlanDocumentPanel} props={{}} />;
+    case "remotecontrol":
+      return <LazyPanel Component={RemoteControlPanel} props={{}} />;
+    case "securityscan":
+      return <LazyPanel Component={SecurityScanPanel} props={{}} />;
+    case "sessions":
+      return <LazyPanel Component={SessionBrowserPanel} props={{}} />;
+    case "subagents":
+      return <LazyPanel Component={SubAgentPanel} props={{}} />;
     default:
       return <div style={{ padding: 16, color: "var(--text-secondary)" }}>Unknown panel: {tab}</div>;
   }
