@@ -8,7 +8,7 @@ export interface TabGroup {
 export const TAB_GROUPS: TabGroup[] = [
   {
     label: "AI",
-    tabs: ["chat", "agent", "cascade", "compare", "arena", "teams", "cloud", "cibot", "marketplace", "icontext", "batchbuilder", "subagents", "imagegen"],
+    tabs: ["chat", "agent", "cascade", "compare", "arena", "teams", "agentteams", "cloud", "cibot", "marketplace", "icontext", "batchbuilder", "subagents", "imagegen", "discuss"],
   },
   {
     label: "Project",
@@ -24,7 +24,7 @@ export const TAB_GROUPS: TabGroup[] = [
   },
   {
     label: "Infrastructure",
-    tabs: ["deploy", "docker", "k8s", "cicd", "env", "sandbox", "cloudsandbox", "health", "scaffold", "appbuilder", "training", "inference", "cistatus"],
+    tabs: ["deploy", "docker", "k8s", "cicd", "ghactions", "env", "sandbox", "cloudsandbox", "health", "scaffold", "appbuilder", "training", "inference", "cistatus", "fullstack"],
   },
   {
     label: "Data & API",
@@ -32,7 +32,7 @@ export const TAB_GROUPS: TabGroup[] = [
   },
   {
     label: "DevTools",
-    tabs: ["processes", "profiler", "scripts", "ssh", "notebook", "logs", "deps", "network", "loadtest"],
+    tabs: ["processes", "profiler", "scripts", "ssh", "notebook", "logs", "deps", "network", "loadtest", "renderopt"],
   },
   {
     label: "Utilities",

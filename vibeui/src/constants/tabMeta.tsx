@@ -14,6 +14,7 @@ import {
   PenTool, AlarmClock, Regex, KeyRound, Braces, Binary, Hash,
   Dices, Timer, Box, Workflow, Layers, Infinity, Factory,
   CloudLightning, SearchCode, Image, ShieldAlert,
+  MessagesSquare, Code2, GitPullRequest, Gauge,
 } from "lucide-react";
 
 export interface TabMeta {
@@ -116,6 +117,11 @@ export const TAB_META: Record<string, TabMeta> = {
   fastcontext: { icon: SearchCode,         label: "Fast Ctx" },
   imagegen:    { icon: Image,              label: "ImageGen" },
   governance:  { icon: ShieldAlert,         label: "Govern" },
+  agentteams:  { icon: UsersRound,          label: "A-Teams" },
+  discuss:     { icon: MessagesSquare,      label: "Discuss" },
+  fullstack:   { icon: Code2,               label: "FullStack" },
+  ghactions:   { icon: GitPullRequest,      label: "GH Actions" },
+  renderopt:   { icon: Gauge,               label: "Render" },
 };
 
 export const DEFAULT_TAB_META: TabMeta = { icon: Workflow, label: "Flow" };
