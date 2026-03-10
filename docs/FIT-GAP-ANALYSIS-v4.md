@@ -51,7 +51,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 | **Automations** | Always-on agents triggered by events (Slack, Linear, GitHub, PagerDuty, webhooks); run in cloud sandbox | FIT — `automations.rs` (2,067 LOC, 74 tests): event-driven triggers from GitHub/Slack/Linear/PagerDuty/Telegram webhooks, sandbox execution |
 | **MCP Apps** | Interactive UI components (charts, diagrams, whiteboards) rendered directly in agent chat | FIT — `mcp_apps.rs` (915 LOC, 30 tests): TableWidget, ChartWidget, FormWidget, ImageWidget, MermaidWidget rendering from MCP tool responses |
 | **Team Plugin Marketplace** | Admins share private plugins internally with governance controls | Partial — marketplace.rs exists but no team-scoped governance |
-| **Debug mode** | Specialized debugging workflow in agent | Partial — bugbot.rs + autofix but no dedicated debug mode |
+| **Debug mode** | Specialized debugging workflow in agent | FIT — `debug_mode.rs` (43 KB, 26 tests): DebugSession with breakpoints (Line/Conditional/Exception/Logpoint), watches, stack frames, 12 debug actions, AI hypothesis generation, root cause analysis, auto-fix suggestions, concurrent sessions |
 | **Memory tool for agents** | Agents learn from past runs and improve with repetition | FIT — workflow_orchestration.rs LessonsStore captures this exactly |
 | **BugBot Autofix (35%+ merge rate)** | Cloud agents test and propose fixes directly on PRs | Partial — bugbot.rs reviews but no cloud agent execution for fixes |
 | **Model picker per task** | Choose model per background agent task | FIT — opusplan routing + per-agent model config |
@@ -64,7 +64,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 |-------------|-------------|-----------------|
 | **Self-review** | Coding agent reviews its own changes via Copilot code review before opening PR | FIT — `self_review.rs` (1,171 LOC, 44 tests): agent self-review gate with LintCheck, TestCheck, SecurityCheck, DiffReview before completion |
 | **Built-in security scanning** | Code scanning + secret scanning + dependency vulnerability checks in agent workflow (free, no GH Advanced Security license needed) | FIT — `security_scanning.rs` (17 tests): 13 VulnerabilityClass variants, diff-aware scanning, nosec suppression + `self_review.rs` integrates into agent completion |
-| **Custom skills** | Agent loads skill-specific content into context based on task; community-shared skills | FIT — 522 skill files, auto-loaded by trigger matching |
+| **Custom skills** | Agent loads skill-specific content into context based on task; community-shared skills | FIT — 526 skill files, auto-loaded by trigger matching |
 | **Model picker** | Choose model per coding agent session from mobile or desktop | FIT — multi-provider BYOK + model selection |
 | **CLI handoff** | Hand off agent task to CLI for local execution | FIT — VibeCLI is CLI-native |
 | **Copilot CLI 1.0 GA** | Full agentic CLI with plan mode, autopilot mode, `&` cloud delegation, /resume session management, skill files | FIT — VibeCLI has all equivalent features |
@@ -85,7 +85,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 | **Dynamic re-planning** | Alters strategy on roadblocks without human intervention | FIT — agent retry loop + workflow orchestration |
 | **Parallel Devins** | Spin up multiple agents in parallel from cloud IDE | FIT — parallel multi-agent (Manager view) |
 | **Devin Wiki** | Auto-generated documentation from codebase | FIT — `docgen.rs` (870 LOC, 28 tests): auto-documentation wiki generator from codebase analysis, markdown export |
-| **Devin Search** | Interactive conversational search + answer engine for codebase | Partial — EmbeddingIndex + /search but not conversational Q&A |
+| **Devin Search** | Interactive conversational search + answer engine for codebase | FIT — `conversational_search.rs` (24 KB, 26 tests): SearchConversation with follow-up context, QueryType (Natural/Regex/Semantic/FollowUp/Refinement), AnswerSynthesizer with confidence scoring, auto-suggested follow-up questions |
 | **Legacy codebase refactoring** | Ingest massive codebases, refactor to modern languages | FIT — `legacy_migration.rs` (101 tests): 18 source languages (COBOL/Fortran/VB6+), 10 targets, 6 strategies incl Strangler Fig, service boundary detection |
 | **Sandboxed cloud IDE** | Terminal + editor + browser in secure cloud environment | FIT — `cloud_ide.rs` (868 LOC, 45 tests) + `cloud_sandbox.rs` (382 LOC, 14 tests): cloud IDE provisioning with terminal/editor/browser, SandboxInstance lifecycle |
 
@@ -107,10 +107,10 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 | New Feature | Description | VibeCody Status |
 |-------------|-------------|-----------------|
 | **SWE-1.5 model** | Near-frontier coding model free for all users; 2,800+ tokens/sec throughput | GAP — no proprietary coding model (relies on third-party LLMs) |
-| **Plan mode with megaplan** | Creates detailed implementation plans; asks clarifying questions before coding | Partial — workflow_orchestration plan-first but no clarifying question loop |
+| **Plan mode with megaplan** | Creates detailed implementation plans; asks clarifying questions before coding | FIT — `clarifying_questions.rs` (31 KB, 27 tests): ClarifyingEngine with auto-generated questions by category (Scope/Architecture/Dependencies/Testing/Security/Deployment), MegaPlan generation with steps + file changes + effort estimates, RiskLevel assessment, session lifecycle (Questioning→Answered→PlanReady→Executing) |
 | **Fast Context / SWE-grep** | Finds relevant code context 20x faster than standard search | Partial — EmbeddingIndex exists but not as fast |
 | **Git worktrees for parallel Cascade** | Parallel sessions without conflicts | FIT — worktree isolation already implemented |
-| **Agent Skills for Cascade** | Reusable workflows saved as markdown commands | FIT — 522 skill files |
+| **Agent Skills for Cascade** | Reusable workflows saved as markdown commands | FIT — 526 skill files |
 | **Enterprise self-hosted** | Cloud/hybrid/self-hosted deployment options | FIT — Docker + Ollama air-gapped mode |
 | **#1 LogRocket AI Dev Tool ranking** | Ranked ahead of Cursor and GitHub Copilot | N/A — market positioning |
 
@@ -118,7 +118,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 
 | New Feature | Description | VibeCody Status |
 |-------------|-------------|-----------------|
-| **Three agent modes** | Smart (Claude Opus 4.6), Rush (Haiku 4.5 for speed), Deep (GPT-5.3 Codex for complex) | Partial — opusplan routing (2 models) but not 3-mode selection |
+| **Three agent modes** | Smart (Claude Opus 4.6), Rush (Haiku 4.5 for speed), Deep (GPT-5.3 Codex for complex) | FIT — `agent_modes.rs` (22 KB, 24 tests): AgentMode (Smart/Rush/Deep) with ModeSelector auto-routing based on TaskComplexity, keyword analysis, ModeRouter with manual override, per-mode usage stats, custom ModeProfiles |
 | **Sub-agent architecture** | Oracle (code analysis) and Librarian (external library analysis) sub-agents | FIT — `sub_agent_roles.rs` (16 tests): 11 AgentRole variants (CodeReviewer/Debugger/Architect/etc.) with role-specific prompts and tool configs |
 | **Agentic code review** | Examines changes with structural depth | FIT — bugbot.rs + redteam.rs |
 | **Composable tool system** | Code review agent, image generation (Painter), walkthrough skill | Partial — tools exist but no image generation agent |
@@ -165,7 +165,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 - Full IDE experience (Monaco editor, LSP, Git, terminal)
 - 17 AI providers vs Bolt's 2 (Claude, GPT)
 - CLI agent (VibeCLI) — Bolt has no terminal mode
-- 522 domain skills vs none
+- 526 domain skills vs none
 - Self-hosted / air-gapped mode
 - WASM extensions, MCP, hooks, plugins
 - Multi-agent orchestration
@@ -278,7 +278,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 | 17 direct AI providers + BYOK | ✅ | 1 | ~5 | ~3 | 1 | ~3 | ~3 | ✅ | 2 | Proprietary |
 | 18-platform messaging gateway | ✅ | ❌ | Slack | ❌ | Slack | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Workflow orchestration (plan/verify/lessons) | ✅ | ❌ | Memory | ❌ | Partial | ❌ | ❌ | ❌ | ❌ | ✅ |
-| 522 domain-specific skills | ✅ | ~20 | ❌ | Community | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| 526 domain-specific skills | ✅ | ~20 | ❌ | Community | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | OpenTelemetry tracing | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Spec-driven development | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
 | Arena mode (blind A/B voting) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
@@ -307,7 +307,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 
 1. **Open-source + BYOK** — No vendor lock-in; 17+ providers or OpenRouter's 300+ models; free forever
 2. **Dual-surface** — CLI (VibeCLI) + Desktop IDE (VibeUI) from one codebase; competitors pick one
-3. **Extensibility** — WASM plugins, 522 skills, hooks, MCP, Agent SDK — deepest customization stack in the market
+3. **Extensibility** — WASM plugins, 526 skills, hooks, MCP, Agent SDK — deepest customization stack in the market
 4. **Domain coverage** — Only tool with skills for aerospace (DO-178C), medical (HIPAA), finance (SOX), safety-critical (MISRA/SPARK), and 25+ industry verticals
 5. **Self-hosting** — Docker + Ollama air-gapped mode; critical for defense, healthcare, and regulated industries
 6. **Observability** — OpenTelemetry OTLP tracing to Jaeger/Zipkin/Grafana; no competitor offers this
@@ -504,8 +504,8 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 
 | Metric | Count |
 |--------|-------|
-| Total unit tests | ~4,770 |
-| Skill files | 522 |
+| Total unit tests | ~4,893 |
+| Skill files | 526 |
 | AI providers | 17 direct + OpenRouter (300+) |
 | VibeUI panels | 107 |
 | REPL commands | 60+ |

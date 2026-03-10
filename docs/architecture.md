@@ -16,7 +16,7 @@ VibeCody is a Rust workspace (monorepo) containing two end-user applications and
 vibecody/                          ← Cargo workspace root
 ├── vibecli/
 │   └── vibecli-cli/               ← Binary: terminal assistant
-│       └── skills/                ← 522 skill files (25+ categories)
+│       └── skills/                ← 526 skill files (25+ categories)
 ├── vibeui/
 │   ├── src/                       ← React + TypeScript frontend (~107 panel tabs)
 │   ├── src-tauri/                 ← Binary: Tauri desktop app

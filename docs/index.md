@@ -50,7 +50,7 @@ All providers support streaming. Local providers require no API key.
 ### VibeCLI Highlights
 
 - Rich TUI powered by [Ratatui](https://ratatui.rs/) with REPL mode (readline history, tab completion)
-- 522 skill files across 25 categories and 14 languages (664 triggers)
+- 526 skill files across 25 categories and 14 languages (664 triggers)
 - Voice input via Groq Whisper (`--voice` flag)
 - Tailscale pairing with QR code sharing and mDNS discovery
 - 18 gateway platforms (Telegram, Discord, Slack, Signal, Matrix, Teams, IRC, Twitch, and more)
