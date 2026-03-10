@@ -108,7 +108,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 |-------------|-------------|-----------------|
 | **SWE-1.5 model** | Near-frontier coding model free for all users; 2,800+ tokens/sec throughput | GAP — no proprietary coding model (relies on third-party LLMs) |
 | **Plan mode with megaplan** | Creates detailed implementation plans; asks clarifying questions before coding | FIT — `clarifying_questions.rs` (31 KB, 27 tests): ClarifyingEngine with auto-generated questions by category (Scope/Architecture/Dependencies/Testing/Security/Deployment), MegaPlan generation with steps + file changes + effort estimates, RiskLevel assessment, session lifecycle (Questioning→Answered→PlanReady→Executing) |
-| **Fast Context / SWE-grep** | Finds relevant code context 20x faster than standard search | Partial — EmbeddingIndex exists but not as fast |
+| **Fast Context / SWE-grep** | Finds relevant code context 20x faster than standard search | FIT — `fast_context.rs` (29 KB, 30 tests): FastContextEngine with trigram indexing, symbol-aware search, ContextFinder with find_relevant/find_symbol/find_references/find_implementations, LRU SearchCache, incremental index updates, relevance-ranked results |
 | **Git worktrees for parallel Cascade** | Parallel sessions without conflicts | FIT — worktree isolation already implemented |
 | **Agent Skills for Cascade** | Reusable workflows saved as markdown commands | FIT — 526 skill files |
 | **Enterprise self-hosted** | Cloud/hybrid/self-hosted deployment options | FIT — Docker + Ollama air-gapped mode |
@@ -121,7 +121,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 | **Three agent modes** | Smart (Claude Opus 4.6), Rush (Haiku 4.5 for speed), Deep (GPT-5.3 Codex for complex) | FIT — `agent_modes.rs` (22 KB, 24 tests): AgentMode (Smart/Rush/Deep) with ModeSelector auto-routing based on TaskComplexity, keyword analysis, ModeRouter with manual override, per-mode usage stats, custom ModeProfiles |
 | **Sub-agent architecture** | Oracle (code analysis) and Librarian (external library analysis) sub-agents | FIT — `sub_agent_roles.rs` (16 tests): 11 AgentRole variants (CodeReviewer/Debugger/Architect/etc.) with role-specific prompts and tool configs |
 | **Agentic code review** | Examines changes with structural depth | FIT — bugbot.rs + redteam.rs |
-| **Composable tool system** | Code review agent, image generation (Painter), walkthrough skill | Partial — tools exist but no image generation agent |
+| **Composable tool system** | Code review agent, image generation (Painter), walkthrough skill | FIT — `image_gen_agent.rs` (24 KB, 17 tests): ImageGenAgent with 10 styles, 5 GenerationModels (DALL-E 3/SD/Midjourney/Flux/Local), PromptBuilder, BatchGenerator, cost estimation, variations + upscaling |
 | **Cross-editor support** | Terminal, VS Code, Cursor, Windsurf, JetBrains, Neovim | FIT — VS Code, JetBrains, Neovim, Terminal |
 | **Code intelligence backbone** | Built on Sourcegraph's code search infrastructure | FIT — `knowledge_graph.rs` (1,131 LOC, 42 tests): cross-repo symbol graph with callers/callees/implementors, BFS path finding, DOT export |
 
@@ -144,7 +144,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 | **Figma-to-app** | Drop Figma designs into chat → build from visual reference in real time | FIT — Figma import (import_figma Tauri command) |
 | **GitHub repo import** | Import existing GitHub repo as starting point | FIT — Git integration with clone/fetch |
 | **AI Enhancer** | Converts rough ideas into structured technical specifications automatically | CLOSED — AIEnhancer::enhance_prompt() extracts title, user stories, tech stack, APIs, UI components, complexity |
-| **Interaction Discussion Mode** | Pause building to brainstorm with AI about layout, UX, placement | Partial — chat mode exists but no explicit "pause and brainstorm" UX |
+| **Interaction Discussion Mode** | Pause building to brainstorm with AI about layout, UX, placement | FIT — `discussion_mode.rs` (16 KB, 20 tests): DiscussionManager with 5 modes (Brainstorm/Review/DesignCritique/TechDecision/ArchitectureReview), BuildState toggling (Building↔Discussing↔Paused), decision/action extraction, unresolved tracking |
 | **Automatic database provisioning** | Every new project gets a database space automatically | CLOSED — AppProvisioner::provision_database() (SQLite/PostgreSQL/Supabase) |
 | **One-click deploy to .bolt.host** | Built-in hosting domain with Stripe, Supabase, Netlify integrations | Partial — deploy panel supports multiple targets but no built-in hosting domain |
 | **Team Templates** | Turn existing projects into reusable starters; standardize structure across team | CLOSED — TeamTemplateStore with save/load/export/import JSON |
@@ -185,7 +185,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 | **GitHub/GitLab/Azure DevOps integration** | Creates branches, pushes commits, opens PRs automatically across Git platforms | CLOSED — git_platform.rs: PlatformManager with 5 platforms (GitHub/GitLab/Azure DevOps/Bitbucket/Gitea), unified API, cross-platform PR sync |
 | **Jira + CI/CD pipeline integration** | Connects to Jira for task management; integrates with existing CI/CD pipelines | FIT — @jira context provider + cicd.rs pipeline management |
 | **SOC 2 Type II compliance** | Air-gapped VPC deployment; no training on customer code; inbound-only architecture | Partial — air-gapped Ollama mode exists; no SOC 2 Type II certification |
-| **Full-stack generation (React/Vue/Angular + Node/Python/Java)** | Generates complete frontend + backend + database + infra in one pass | Partial — app_builder.rs scaffolds projects but doesn't generate full implementation code |
+| **Full-stack generation (React/Vue/Angular + Node/Python/Java)** | Generates complete frontend + backend + database + infra in one pass | FIT — `fullstack_gen.rs` (49 KB, 26 tests): FullStackGenerator with 7 frontend frameworks (React/Vue/Angular/Svelte/Next/Nuxt/SvelteKit), 7 backend frameworks (Express/FastAPI/Django/SpringBoot/Actix/Gin/Rails), 6 databases, 5 auth strategies, template-based code generation across 6 layers |
 | **Managed deployment** | Applications package for various cloud platforms automatically | Partial — deploy panel + ManagedBackend generates configs but no managed hosting |
 | **SWE-bench #1 (86.8%)** | Highest score on SWE-bench Verified, 10 points ahead of competition | N/A — benchmark dependent on model + orchestration, not tool features |
 | **Enterprise pricing ($10K+/yr)** | Starts at $10K/year; Starter $99/mo, Pro $299/mo, Enterprise custom | N/A — VibeCody is free/open-source with BYOK |
@@ -504,10 +504,10 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 
 | Metric | Count |
 |--------|-------|
-| Total unit tests | ~4,893 |
-| Skill files | 526 |
+| Total unit tests | ~5,002 |
+| Skill files | 534 |
 | AI providers | 17 direct + OpenRouter (300+) |
-| VibeUI panels | 107 |
+| VibeUI panels | 119 |
 | REPL commands | 60+ |
 | Gateway platforms | 18 |
 | Supported languages (skills) | 50+ (TIOBE top 50 complete) |
