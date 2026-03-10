@@ -507,7 +507,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 | Total unit tests | ~4,770 |
 | Skill files | 522 |
 | AI providers | 17 direct + OpenRouter (300+) |
-| VibeUI panels | 80+ |
+| VibeUI panels | 98 |
 | REPL commands | 60+ |
 | Gateway platforms | 18 |
 | Supported languages (skills) | 50+ (TIOBE top 50 complete) |
