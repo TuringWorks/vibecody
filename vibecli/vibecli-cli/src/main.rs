@@ -158,6 +158,14 @@ mod agent_modes;
 mod debug_mode;
 #[allow(dead_code)]
 mod clarifying_questions;
+#[allow(dead_code)]
+mod discussion_mode;
+#[allow(dead_code)]
+mod image_gen_agent;
+#[allow(dead_code)]
+mod fast_context;
+#[allow(dead_code)]
+mod fullstack_gen;
 
 #[derive(Parser)]
 #[command(name = "vibecli")]
