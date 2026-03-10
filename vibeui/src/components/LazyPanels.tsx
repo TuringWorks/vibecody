@@ -125,6 +125,8 @@ const RemoteControlPanel = lazy(() => import("./RemoteControlPanel"));
 const SecurityScanPanel = lazy(() => import("./SecurityScanPanel"));
 const SessionBrowserPanel = lazy(() => import("./SessionBrowserPanel"));
 const SubAgentPanel = lazy(() => import("./SubAgentPanel"));
+const ClarifyingQuestionsPanel = lazy(() => import("./ClarifyingQuestionsPanel"));
+const ConversationalSearchPanel = lazy(() => import("./ConversationalSearchPanel"));
 
 // --- Props interfaces ---
 
@@ -368,6 +370,10 @@ export function PanelHost(props: PanelHostProps) {
       return <LazyPanel Component={SessionBrowserPanel} props={{}} />;
     case "subagents":
       return <LazyPanel Component={SubAgentPanel} props={{}} />;
+    case "clarify":
+      return <LazyPanel Component={ClarifyingQuestionsPanel} props={{}} />;
+    case "codesearch":
+      return <LazyPanel Component={ConversationalSearchPanel} props={{}} />;
     default:
       return <div style={{ padding: 16, color: "var(--text-secondary)" }}>Unknown panel: {tab}</div>;
   }
