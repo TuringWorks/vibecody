@@ -913,11 +913,11 @@ VibeUI implements WCAG 2.1 Level AA accessibility:
 
 ## Testing
 
-**2,810 tests** pass across the workspace (as of 2026-03-08, 0 failures).
+**4,770 tests** pass across the workspace (as of 2026-03-09, 0 failures).
 
 | Crate | Tests | Key coverage areas |
 |-------|-------|--------------------|
-| vibecli | 1,264 | session store, serve, config, review, workflow, REPL, redteam, gateway, transform, marketplace, background agents, TUI, tool executor, bugbot, vim editor |
+| vibecli | 3,224 | session store, serve, config, review, workflow, REPL, redteam, gateway, transform, marketplace, background agents, TUI, tool executor, bugbot, vim editor, security scan, automations, legacy migration, batch builder, QA validation, RAG, GPU cluster, inference, training |
 | vibe-ai | 843 | 17 providers (48+ provider tests), tools, trace, hooks, policy, skills, artifacts, planner, MCP, agent teams, multi-agent, SigV4 |
 | vibe-core | 293 | buffer, git, diff, context, file system, workspace, search, terminal, index/embeddings |
 | vibe-ui (Tauri) | 227 | Tauri commands, coverage, cost, flow, agent executor, shadow workspace |

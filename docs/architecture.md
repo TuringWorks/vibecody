@@ -525,11 +525,11 @@ async fn ai_chat(
 
 ## Testing Strategy
 
-**2,810 unit tests** across the workspace (0 failures).
+**4,770 unit tests** across the workspace (0 failures).
 
 | Crate | Tests | Key coverage areas |
 |-------|-------|--------------------|
-| `vibecli` | 1,264 | session store, serve, config, review, workflow, REPL, redteam, gateway, transform, marketplace, background agents, TUI |
+| `vibecli` | 3,224 | session store, serve, config, review, workflow, REPL, redteam, gateway, transform, marketplace, background agents, TUI, security scan, automations, legacy migration, batch builder, QA validation, RAG, GPU cluster, inference, training |
 | `vibe-ai` | 843 | 17 providers, tools, trace, hooks, policy, skills, agent, multi-agent, MCP, agent teams |
 | `vibe-core` | 293 | buffer, git, diff, context, file system, workspace, search, terminal, index/embeddings |
 | `vibe-ui` | 227 | Tauri commands, coverage, cost, flow, agent executor, shadow workspace |
