@@ -20,6 +20,7 @@ pub static COMMANDS: &[&str] = &[
     "/config",
     "/cost",
     "/context",
+    "/demo",
     "/deploy",
     "/deps",
     "/diff",

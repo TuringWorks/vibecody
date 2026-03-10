@@ -484,6 +484,12 @@ pub fn run() {
             commands::cdp_list_targets,
             commands::cdp_open_tab,
             commands::cdp_screenshot,
+            // Feature Demo System
+            commands::demo_list,
+            commands::demo_get,
+            commands::demo_run,
+            commands::demo_generate_steps,
+            commands::demo_export,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

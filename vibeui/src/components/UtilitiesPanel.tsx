@@ -10,7 +10,7 @@
  * 6. Hash – SHA-256 / SHA-1 / MD5-stub via WebCrypto
  * 7. URL Encode/Decode – encodeURIComponent / query-string parse
  */
-import { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 
 // ── helpers ─────────────────────────────────────────────────────────────────
 
@@ -193,14 +193,22 @@ function RegexTool() {
 
  const { matches, error } = useMemo(() => {
  if (!pattern || !text) return { matches: [], error: null };
+ if (pattern.length > 500) return { matches: [], error: "Pattern too long (max 500 characters)" };
  try {
  const re = new RegExp(pattern, flags);
  const matches: RegExpExecArray[] = [];
  let m: RegExpExecArray | null;
  let guard = 0;
+ const startTime = performance.now();
  while ((m = re.exec(text)) !== null && ++guard < 500) {
+ if (performance.now() - startTime > 100) {
+  return { matches: [], error: "Regex execution timed out (>100ms) — pattern may be too complex" };
+ }
  matches.push(m);
  if (!flags.includes("g")) break;
+ }
+ if (performance.now() - startTime > 100) {
+ return { matches: [], error: "Regex execution timed out (>100ms) — pattern may be too complex" };
  }
  return { matches, error: null };
  } catch (e) {
@@ -208,18 +216,28 @@ function RegexTool() {
  }
  }, [pattern, flags, text]);
 
- // Build highlighted HTML
- const highlighted = useMemo(() => {
- if (!matches.length) return text;
- const parts: string[] = [];
+ // Build highlighted React elements (safe — no dangerouslySetInnerHTML)
+ const highlightedElements = useMemo(() => {
+ if (!matches.length) return [text];
+ const parts: React.ReactNode[] = [];
  let cursor = 0;
+ let key = 0;
  for (const m of matches) {
- if (m.index > cursor) parts.push(text.slice(cursor, m.index).replace(/</g, "&lt;"));
- parts.push(`<mark style="background:var(--warning-color);color:var(--bg-tertiary);border-radius:2px">${m[0].replace(/</g, "&lt;")}</mark>`);
+ if (m.index > cursor) {
+  parts.push(text.slice(cursor, m.index));
+ }
+ parts.push(
+  React.createElement("mark", {
+  key: key++,
+  style: { background: "var(--warning-color)", color: "var(--bg-tertiary)", borderRadius: 2 },
+  }, m[0])
+ );
  cursor = m.index + m[0].length;
  }
- parts.push(text.slice(cursor).replace(/</g, "&lt;"));
- return parts.join("");
+ if (cursor < text.length) {
+ parts.push(text.slice(cursor));
+ }
+ return parts;
  }, [matches, text]);
 
  return (
@@ -246,8 +264,7 @@ function RegexTool() {
  </div>
  <div
  style={{ ...S.result, background: "var(--bg-primary, #0d1117)" }}
- dangerouslySetInnerHTML={{ __html: highlighted.replace(/\n/g, "<br>") }}
- />
+ >{highlightedElements}</div>
  {matches.length > 0 && matches[0].groups && (
  <div style={{ marginTop: 6 }}>
  <div style={S.label}>Named Groups (first match)</div>

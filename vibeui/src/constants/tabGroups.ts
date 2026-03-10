@@ -12,7 +12,7 @@ export const TAB_GROUPS: TabGroup[] = [
   },
   {
     label: "Project",
-    tabs: ["memory", "specs", "workflow", "orchestration", "design", "steering", "traces", "dashboard", "recording", "plandoc", "remotecontrol", "clarify", "codesearch"],
+    tabs: ["memory", "specs", "workflow", "orchestration", "design", "steering", "traces", "dashboard", "recording", "demo", "plandoc", "remotecontrol", "clarify", "codesearch"],
   },
   {
     label: "Code",

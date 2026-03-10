@@ -28,7 +28,7 @@
 use anyhow::Result;
 use axum::{
     extract::{DefaultBodyLimit, Path, Request, State},
-    http::{header, HeaderValue, StatusCode},
+    http::{header, HeaderValue, Method, StatusCode},
     middleware::{self, Next},
     response::{
         sse::{Event, KeepAlive, Sse},
@@ -196,6 +196,15 @@ fn json_error(status: StatusCode, msg: impl Into<String>) -> (StatusCode, Json<s
     (status, Json(serde_json::json!({ "error": msg.into() })))
 }
 
+/// Sanitize user-supplied input before echoing it in error messages.
+/// Strips HTML/control characters and truncates to 200 chars.
+fn sanitize_user_input(s: &str) -> String {
+    s.chars()
+        .filter(|c| c.is_alphanumeric() || *c == '-' || *c == '_' || *c == '.')
+        .take(200)
+        .collect()
+}
+
 // ── Route handlers ────────────────────────────────────────────────────────────
 
 async fn health() -> impl IntoResponse {
@@ -227,7 +236,7 @@ async fn skill_webhook_handler(
         None => {
             (StatusCode::NOT_FOUND, Json(serde_json::json!({
                 "triggered": false,
-                "error": format!("No skill with webhook_trigger '{}'", skill_name),
+                "error": format!("No skill with webhook_trigger '{}'", sanitize_user_input(&skill_name)),
             })))
         }
     }
@@ -459,7 +468,7 @@ async fn get_job(
 ) -> Result<Json<JobRecord>, (StatusCode, Json<serde_json::Value>)> {
     load_job(&state.jobs_dir, &id)
         .map(Json)
-        .ok_or_else(|| json_error(StatusCode::NOT_FOUND, format!("Job '{id}' not found")))
+        .ok_or_else(|| json_error(StatusCode::NOT_FOUND, format!("Job '{}' not found", sanitize_user_input(&id))))
 }
 
 async fn cancel_job(
@@ -474,7 +483,7 @@ async fn cancel_job(
 
     // Update persisted record
     let mut record = load_job(&state.jobs_dir, &id)
-        .ok_or_else(|| json_error(StatusCode::NOT_FOUND, format!("Job '{id}' not found")))?;
+        .ok_or_else(|| json_error(StatusCode::NOT_FOUND, format!("Job '{}' not found", sanitize_user_input(&id))))?;
     if record.status == "running" {
         record.status = "cancelled".to_string();
         record.finished_at = Some(now_ms());
@@ -494,7 +503,7 @@ async fn stream_agent(
         let streams = state.streams.lock().await;
         let tx = streams
             .get(&session_id)
-            .ok_or_else(|| json_error(StatusCode::NOT_FOUND, format!("Session '{session_id}' not found")))?;
+            .ok_or_else(|| json_error(StatusCode::NOT_FOUND, format!("Session '{}' not found", sanitize_user_input(&session_id))))?;
         tx.subscribe()
     };
 
@@ -765,8 +774,8 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
     .collect();
     let cors = CorsLayer::new()
         .allow_origin(origins)
-        .allow_methods(tower_http::cors::Any)
-        .allow_headers(tower_http::cors::Any);
+        .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
+        .allow_headers([header::CONTENT_TYPE, header::AUTHORIZATION, header::ACCEPT]);
 
     // Rate limiter: 60 requests per 60 seconds (global across all authed endpoints)
     let limiter = Arc::new(RateLimiter::new(60, Duration::from_secs(60)));
@@ -794,13 +803,19 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route_layer(middleware::from_fn_with_state(limiter, rate_limit))
         .route_layer(middleware::from_fn_with_state(state.clone(), require_auth));
 
-    // Public routes (health check, GitHub webhook with HMAC, pairing, collab WS, ACP discovery)
-    Router::new()
+    // More restrictive rate limiter for public routes: 10 requests per 60 seconds
+    let public_limiter = Arc::new(RateLimiter::new(10, Duration::from_secs(60)));
+
+    let public_routes = Router::new()
         .route("/health", get(health))
         .route("/webhook/github", post(github_webhook))
         .route("/pair", get(pairing_handler))
         .route("/acp/v1/capabilities", get(acp_capabilities))
         .route("/ws/collab/:room_id", get(ws_collab_handler))
+        .route_layer(middleware::from_fn_with_state(public_limiter, rate_limit));
+
+    // Public routes (health check, GitHub webhook with HMAC, pairing, collab WS, ACP discovery)
+    public_routes
         .merge(authed_routes)
         .fallback(|| async {
             (StatusCode::NOT_FOUND, Json(serde_json::json!({"error":"Not found"})))
@@ -822,6 +837,14 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .layer(SetResponseHeaderLayer::overriding(
             axum::http::HeaderName::from_static("content-security-policy"),
             HeaderValue::from_static("default-src 'self'; script-src 'none'; style-src 'unsafe-inline'"),
+        ))
+        .layer(SetResponseHeaderLayer::overriding(
+            axum::http::HeaderName::from_static("permissions-policy"),
+            HeaderValue::from_static("camera=(), microphone=(), geolocation=()"),
+        ))
+        .layer(SetResponseHeaderLayer::overriding(
+            axum::http::HeaderName::from_static("strict-transport-security"),
+            HeaderValue::from_static("max-age=31536000; includeSubDomains"),
         ))
         .layer(cors)
         .with_state(state)
@@ -881,7 +904,19 @@ pub async fn serve(
     let addr = format!("127.0.0.1:{port}");
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     eprintln!("[vibecli serve] Listening on http://{addr}");
-    eprintln!("[vibecli serve] API token: {api_token}");
+    // Write the full token to a file (mode 0600) instead of logging it
+    let token_path = dirs::home_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join(".vibecli")
+        .join("daemon.token");
+    std::fs::write(&token_path, &api_token).ok();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = std::fs::set_permissions(&token_path, std::fs::Permissions::from_mode(0o600));
+    }
+    let masked = format!("{}...{}", &api_token[..4], &api_token[api_token.len()-4..]);
+    eprintln!("[vibecli serve] API token: {masked} (full token in ~/.vibecli/daemon.token)");
     eprintln!("[vibecli serve] Jobs persisted at ~/.vibecli/jobs/");
     eprintln!("[vibecli serve] Session viewer at http://{addr}/sessions");
 
@@ -930,7 +965,7 @@ async fn list_collab_peers(
     let room = state
         .collab_server
         .get_room(&room_id)
-        .ok_or_else(|| json_error(StatusCode::NOT_FOUND, format!("Room '{room_id}' not found")))?;
+        .ok_or_else(|| json_error(StatusCode::NOT_FOUND, format!("Room '{}' not found", sanitize_user_input(&room_id))))?;
     Ok(Json(room.list_peers().await))
 }
 

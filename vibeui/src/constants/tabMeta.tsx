@@ -82,6 +82,7 @@ export const TAB_META: Record<string, TabMeta> = {
   transform:   { icon: ArrowLeftRight,     label: "Transform" },
   img2app:     { icon: Camera,             label: "Img2App" },
   recording:   { icon: Clapperboard,       label: "Recording" },
+  demo:        { icon: Play,               label: "Demo" },
   visualtest:  { icon: Eye,                label: "Visual" },
   cloud:       { icon: Cloud,              label: "Cloud" },
   compliance:  { icon: ShieldCheck,        label: "Comply" },

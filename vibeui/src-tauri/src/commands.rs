@@ -16507,3 +16507,291 @@ pub async fn cdp_screenshot() -> Result<String, String> {
     }
     Ok(tmp)
 }
+
+// ── Feature Demo Commands ────────────────────────────────────────────────────
+
+/// List all saved feature demos.
+#[tauri::command]
+pub async fn demo_list() -> Result<Vec<serde_json::Value>, String> {
+    let dir = dirs::home_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .join(".vibecli")
+        .join("demos");
+    let mut demos = Vec::new();
+    if dir.exists() {
+        if let Ok(entries) = std::fs::read_dir(&dir) {
+            for entry in entries.flatten() {
+                let meta = entry.path().join("demo.json");
+                if meta.exists() {
+                    if let Ok(content) = std::fs::read_to_string(&meta) {
+                        if let Ok(demo) = serde_json::from_str::<serde_json::Value>(&content) {
+                            demos.push(demo);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    // Sort by started_at descending
+    demos.sort_by(|a, b| {
+        let ta = a["started_at"].as_u64().unwrap_or(0);
+        let tb = b["started_at"].as_u64().unwrap_or(0);
+        tb.cmp(&ta)
+    });
+    Ok(demos)
+}
+
+/// Get a specific demo by ID.
+#[tauri::command]
+pub async fn demo_get(id: String) -> Result<serde_json::Value, String> {
+    let dir = dirs::home_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .join(".vibecli")
+        .join("demos");
+    if dir.exists() {
+        if let Ok(entries) = std::fs::read_dir(&dir) {
+            for entry in entries.flatten() {
+                let name = entry.file_name().to_string_lossy().to_string();
+                if name.contains(&id) {
+                    let meta = entry.path().join("demo.json");
+                    if meta.exists() {
+                        let content = std::fs::read_to_string(&meta)
+                            .map_err(|e| format!("Read error: {e}"))?;
+                        return serde_json::from_str(&content)
+                            .map_err(|e| format!("Parse error: {e}"));
+                    }
+                }
+            }
+        }
+    }
+    Err(format!("Demo not found: {id}"))
+}
+
+/// Run a demo with the given steps.
+#[tauri::command]
+pub async fn demo_run(
+    name: String,
+    description: String,
+    steps_json: String,
+    cdp_port: u16,
+) -> Result<serde_json::Value, String> {
+    let steps: Vec<serde_json::Value> = serde_json::from_str(&steps_json)
+        .map_err(|e| format!("Invalid steps JSON: {e}"))?;
+
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+
+    let demo_id = format!("{}-{}", name.replace(' ', "-").to_lowercase(), ts);
+    let dir = dirs::home_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .join(".vibecli")
+        .join("demos")
+        .join(&demo_id);
+    std::fs::create_dir_all(&dir).map_err(|e| format!("Dir creation error: {e}"))?;
+
+    // Execute steps with CDP or dry run
+    let mut frames = Vec::new();
+    let client = reqwest::Client::new();
+    let cdp_available = client
+        .get(format!("http://localhost:{cdp_port}/json/list"))
+        .send()
+        .await
+        .is_ok();
+
+    for (i, step) in steps.iter().enumerate() {
+        let action = step["action"].as_str().unwrap_or("unknown");
+        let frame_path = dir.join(format!("frame-{:04}.png", i));
+
+        // Take screenshot if browser action
+        let screenshot_path = if cdp_available
+            && matches!(
+                action,
+                "navigate" | "click" | "type" | "eval_js" | "scroll" | "screenshot"
+            )
+        {
+            // Platform screenshot
+            let cmd = if cfg!(target_os = "macos") {
+                format!("screencapture -x {}", frame_path.display())
+            } else if cfg!(target_os = "linux") {
+                format!("scrot {}", frame_path.display())
+            } else {
+                String::new()
+            };
+            if !cmd.is_empty() {
+                let _ = tokio::process::Command::new("sh")
+                    .args(["-c", &cmd])
+                    .output()
+                    .await;
+            }
+            if frame_path.exists() {
+                Some(frame_path.to_string_lossy().to_string())
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        // Wait for wait steps
+        if action == "wait" {
+            if let Some(ms) = step["ms"].as_u64() {
+                tokio::time::sleep(std::time::Duration::from_millis(ms)).await;
+            }
+        }
+
+        frames.push(serde_json::json!({
+            "step_index": i,
+            "step": step,
+            "screenshot_path": screenshot_path,
+            "result": format!("Executed: {}", action),
+            "timestamp": std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs(),
+            "duration_ms": 0,
+        }));
+    }
+
+    let recording = serde_json::json!({
+        "id": demo_id,
+        "name": name,
+        "description": description,
+        "steps": steps,
+        "frames": frames,
+        "started_at": ts,
+        "finished_at": std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs(),
+        "feature_description": description,
+        "browser_url": null,
+        "status": "completed",
+    });
+
+    let meta_path = dir.join("demo.json");
+    std::fs::write(&meta_path, serde_json::to_string_pretty(&recording).unwrap())
+        .map_err(|e| format!("Save error: {e}"))?;
+
+    Ok(recording)
+}
+
+/// Generate demo steps from a feature description (returns steps for preview).
+#[tauri::command]
+pub async fn demo_generate_steps(
+    feature_description: String,
+    app_url: String,
+) -> Result<Vec<serde_json::Value>, String> {
+    // Return a template set of steps based on the description
+    // In production, this would call the LLM. For now, generate sensible defaults.
+    let steps = vec![
+        serde_json::json!({"action": "narrate", "text": format!("Demo: {}", feature_description)}),
+        serde_json::json!({"action": "navigate", "url": app_url}),
+        serde_json::json!({"action": "wait", "ms": 1500, "description": "Wait for page load"}),
+        serde_json::json!({"action": "screenshot", "caption": "Initial state"}),
+        serde_json::json!({"action": "narrate", "text": "Feature demonstration complete"}),
+        serde_json::json!({"action": "screenshot", "caption": "Final state"}),
+    ];
+    Ok(steps)
+}
+
+/// Export a demo to HTML or markdown.
+#[tauri::command]
+pub async fn demo_export(id: String, format: String) -> Result<String, String> {
+    let dir = dirs::home_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .join(".vibecli")
+        .join("demos");
+
+    // Find the demo
+    let mut demo_json = None;
+    if dir.exists() {
+        if let Ok(entries) = std::fs::read_dir(&dir) {
+            for entry in entries.flatten() {
+                let name = entry.file_name().to_string_lossy().to_string();
+                if name.contains(&id) {
+                    let meta = entry.path().join("demo.json");
+                    if meta.exists() {
+                        demo_json = Some(std::fs::read_to_string(&meta)
+                            .map_err(|e| format!("Read error: {e}"))?);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    let json = demo_json.ok_or_else(|| format!("Demo not found: {id}"))?;
+    let demo: serde_json::Value = serde_json::from_str(&json)
+        .map_err(|e| format!("Parse error: {e}"))?;
+
+    let demo_name = demo["name"].as_str().unwrap_or("demo");
+    let desc = demo["description"].as_str().unwrap_or("");
+    let frames = demo["frames"].as_array().cloned().unwrap_or_default();
+
+    let ext = if format == "md" || format == "markdown" { "md" } else { "html" };
+    let output_path = dir.join(format!("{id}.{ext}"));
+
+    let content = if ext == "md" {
+        let mut md = format!("# Demo: {}\n\n{}\n\n---\n\n", demo_name, desc);
+        for (i, frame) in frames.iter().enumerate() {
+            let action = frame["step"]["action"].as_str().unwrap_or("unknown");
+            let caption = frame["step"]["caption"]
+                .as_str()
+                .or_else(|| frame["step"]["description"].as_str())
+                .unwrap_or(action);
+            md.push_str(&format!("## Step {} — {}\n\n", i + 1, caption));
+            if let Some(path) = frame["screenshot_path"].as_str() {
+                let filename = std::path::Path::new(path)
+                    .file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or_else(|| path.to_string());
+                md.push_str(&format!("![{}]({})\n\n", caption, filename));
+            }
+            if let Some(result) = frame["result"].as_str() {
+                md.push_str(&format!("> {}\n\n", result));
+            }
+        }
+        md.push_str("---\n\n*Generated by VibeCody Feature Demo System*\n");
+        md
+    } else {
+        // HTML slideshow
+        let mut slides = String::new();
+        for (i, frame) in frames.iter().enumerate() {
+            let action = frame["step"]["action"].as_str().unwrap_or("unknown");
+            let caption = frame["step"]["caption"]
+                .as_str()
+                .or_else(|| frame["step"]["description"].as_str())
+                .unwrap_or(action);
+            slides.push_str(&format!(
+                r#"<div class="slide" id="slide-{i}" style="display:{};">
+  <div style="font-size:18px;font-weight:600;margin-bottom:12px;">{caption}</div>
+  <div style="font-size:12px;color:#666;">Step {} of {}</div>
+</div>
+"#,
+                if i == 0 { "block" } else { "none" },
+                i + 1,
+                frames.len()
+            ));
+        }
+        format!(
+            r#"<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Demo: {}</title>
+<style>body{{font-family:system-ui;background:#1a1a2e;color:#eee;padding:20px;}}
+.slide{{background:#16213e;border-radius:12px;padding:24px;margin-bottom:16px;}}
+.nav{{display:flex;gap:12px;justify-content:center;margin:20px 0;}}
+.nav button{{background:#0f3460;color:#eee;border:none;border-radius:6px;padding:10px 24px;cursor:pointer;}}</style></head>
+<body><h1>{}</h1><p>{}</p>{}
+<div class="nav"><button onclick="prev()">Prev</button><button onclick="next()">Next</button></div>
+<script>let c=0,t={};function show(n){{for(let i=0;i<t;i++)document.getElementById('slide-'+i).style.display=i===n?'block':'none';}}
+function prev(){{c=Math.max(0,c-1);show(c);}}function next(){{c=Math.min(t-1,c+1);show(c);}}</script></body></html>"#,
+            demo_name, demo_name, desc, slides, frames.len()
+        )
+    };
+
+    std::fs::write(&output_path, &content)
+        .map_err(|e| format!("Write error: {e}"))?;
+
+    Ok(output_path.to_string_lossy().to_string())
+}

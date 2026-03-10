@@ -65,6 +65,7 @@ mod screen_recorder;
 use rustyline::error::ReadlineError;
 
 mod computer_use;
+mod feature_demo;
 mod voice;
 mod discovery;
 mod tailscale;
@@ -121,6 +122,8 @@ mod mcp_apps;
 #[allow(dead_code)]
 mod agent_teams_v2;
 #[allow(dead_code)]
+mod agent_teams_v2_enhanced;
+#[allow(dead_code)]
 mod semantic_mcp;
 #[allow(dead_code)]
 mod docgen;
@@ -166,6 +169,16 @@ mod image_gen_agent;
 mod fast_context;
 #[allow(dead_code)]
 mod fullstack_gen;
+#[allow(dead_code)]
+mod team_governance;
+#[allow(dead_code)]
+mod cloud_autofix;
+#[allow(dead_code)]
+mod render_optimize;
+#[allow(dead_code)]
+mod gh_actions_agent;
+#[allow(dead_code)]
+mod security_hardening;
 
 #[derive(Parser)]
 #[command(name = "vibecli")]
@@ -2662,6 +2675,125 @@ async fn main() -> Result<()> {
                                     }
                                 }
                                 _ => println!("Usage: /orchestrate [status|lessons|lesson|todo|verify|reset]\n"),
+                            }
+                        }
+
+                        // ── /demo ──────────────────────────────────────────────────────
+                        "/demo" => {
+                            let parts: Vec<&str> = if args.is_empty() {
+                                vec!["list"]
+                            } else {
+                                args.splitn(3, ' ').collect()
+                            };
+                            match parts[0] {
+                                "list" | "" => {
+                                    match feature_demo::list_demos() {
+                                        Ok(demos) => {
+                                            if demos.is_empty() {
+                                                println!("No demos found.\n  Create one with: /demo generate <feature description>");
+                                                println!("  Or manually: /demo record <name>\n");
+                                            } else {
+                                                println!("Feature Demos ({}):\n", demos.len());
+                                                for d in &demos {
+                                                    let status = format!("{:?}", d.status).to_lowercase();
+                                                    let frames = d.frames.len();
+                                                    println!("  {} — {} ({} frames, {})", d.id, d.name, frames, status);
+                                                    if !d.description.is_empty() {
+                                                        println!("    {}", d.description);
+                                                    }
+                                                }
+                                                println!();
+                                            }
+                                        }
+                                        Err(e) => eprintln!("Error: {e}\n"),
+                                    }
+                                }
+                                "generate" => {
+                                    let desc = parts.get(1..).map(|p| p.join(" ")).unwrap_or_default();
+                                    if desc.is_empty() {
+                                        println!("Usage: /demo generate <feature description>\n");
+                                        continue;
+                                    }
+                                    let prompt = feature_demo::DemoGenerator::build_prompt(&desc, "http://localhost:3000");
+                                    println!("Generated demo prompt for: {}", desc);
+                                    println!("Send this to your LLM to get demo steps:\n");
+                                    println!("{}\n", &prompt[..prompt.len().min(500)]);
+                                    println!("Then run: /demo run <name> <steps-json>\n");
+                                }
+                                "run" => {
+                                    let name = parts.get(1).unwrap_or(&"demo").to_string();
+                                    let steps_json = parts.get(2).unwrap_or(&"[]");
+                                    match feature_demo::DemoGenerator::parse_steps(steps_json) {
+                                        Ok(steps) => {
+                                            println!("Running demo '{}' with {} steps...", name, steps.len());
+                                            let cdp_port = 9222u16;
+                                            match feature_demo::DemoRunner::new(&name, cdp_port) {
+                                                Ok(mut runner) => {
+                                                    match runner.run(&steps, &name).await {
+                                                        Ok(rec) => {
+                                                            println!("Demo completed: {} ({} frames)", rec.id, rec.frames.len());
+                                                            println!("Saved to ~/.vibecli/demos/{}/\n", rec.id);
+                                                        }
+                                                        Err(e) => eprintln!("Demo run error: {e}\n"),
+                                                    }
+                                                }
+                                                Err(e) => eprintln!("Error creating demo runner: {e}\n"),
+                                            }
+                                        }
+                                        Err(e) => eprintln!("Error parsing steps: {e}\nExpected JSON array of demo steps.\n"),
+                                    }
+                                }
+                                "replay" => {
+                                    let id = parts.get(1).unwrap_or(&"");
+                                    if id.is_empty() {
+                                        println!("Usage: /demo replay <demo-id>\n");
+                                        continue;
+                                    }
+                                    match feature_demo::load_demo(id) {
+                                        Ok(demo) => {
+                                            println!("Demo: {} — {}\n", demo.name, demo.description);
+                                            for (i, frame) in demo.frames.iter().enumerate() {
+                                                println!("  Step {}: {}", i + 1, frame.step.summary());
+                                                if let Some(ref r) = frame.result {
+                                                    println!("    Result: {}", r);
+                                                }
+                                                if let Some(ref p) = frame.screenshot_path {
+                                                    println!("    Screenshot: {}", p);
+                                                }
+                                                println!("    Duration: {}ms", frame.duration_ms);
+                                            }
+                                            println!();
+                                        }
+                                        Err(e) => eprintln!("Error: {e}\n"),
+                                    }
+                                }
+                                "export" => {
+                                    let id = parts.get(1).unwrap_or(&"");
+                                    let fmt = parts.get(2).unwrap_or(&"html");
+                                    if id.is_empty() {
+                                        println!("Usage: /demo export <demo-id> [html|md]\n");
+                                        continue;
+                                    }
+                                    match feature_demo::load_demo(id) {
+                                        Ok(demo) => {
+                                            let format = if *fmt == "md" || *fmt == "markdown" {
+                                                feature_demo::ExportFormat::Markdown
+                                            } else {
+                                                feature_demo::ExportFormat::Html
+                                            };
+                                            let ext = if format == feature_demo::ExportFormat::Markdown { "md" } else { "html" };
+                                            let output_path = std::env::current_dir()
+                                                .unwrap_or_default()
+                                                .join(format!("demo-{}.{}", id, ext));
+                                            match feature_demo::DemoExporter::export_to_file(&demo, &format, &output_path) {
+                                                Ok(()) => println!("Exported to: {}\n", output_path.display()),
+                                                Err(e) => eprintln!("Export error: {e}\n"),
+                                            }
+                                        }
+                                        Err(e) => eprintln!("Error: {e}\n"),
+                                    }
+                                }
+                                _ => println!("Usage: /demo [list|generate|run|replay|export]\n"),
                             }
                         }
 
@@ -6561,6 +6693,10 @@ fn show_help() {
     println!("  /spec                    - Spec-driven development (list|show|new|run|done)");
     println!("  /workflow                - Code Complete workflow (new|list|show|advance|check|generate)");
     println!("  /agents                  - Background agents (list|status|new)");
+    println!("  /demo list               - List recorded feature demos");
+    println!("  /demo run <name> <json>  - Record a demo from JSON steps");
+    println!("  /demo generate <desc>    - AI-generate demo steps for a feature");
+    println!("  /demo export <id> [fmt]  - Export demo as HTML slideshow or markdown");
     println!("  /team                    - Team knowledge store (show|knowledge|sync)");
     println!("  /remind in <dur> \"task\"  - Set a one-time reminder (30s, 10m, 2h, 1d)");
     println!("  /remind list             - List active reminders");
