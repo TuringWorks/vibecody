@@ -63,14 +63,14 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 | New Feature | Description | VibeCody Status |
 |-------------|-------------|-----------------|
 | **Self-review** | Coding agent reviews its own changes via Copilot code review before opening PR | FIT — `self_review.rs` (1,171 LOC, 44 tests): agent self-review gate with LintCheck, TestCheck, SecurityCheck, DiffReview before completion |
-| **Built-in security scanning** | Code scanning + secret scanning + dependency vulnerability checks in agent workflow (free, no GH Advanced Security license needed) | Partial — redteam.rs + bugbot.rs have patterns but not integrated into agent completion workflow |
+| **Built-in security scanning** | Code scanning + secret scanning + dependency vulnerability checks in agent workflow (free, no GH Advanced Security license needed) | FIT — `security_scanning.rs` (17 tests): 13 VulnerabilityClass variants, diff-aware scanning, nosec suppression + `self_review.rs` integrates into agent completion |
 | **Custom skills** | Agent loads skill-specific content into context based on task; community-shared skills | FIT — 522 skill files, auto-loaded by trigger matching |
 | **Model picker** | Choose model per coding agent session from mobile or desktop | FIT — multi-provider BYOK + model selection |
 | **CLI handoff** | Hand off agent task to CLI for local execution | FIT — VibeCLI is CLI-native |
 | **Copilot CLI 1.0 GA** | Full agentic CLI with plan mode, autopilot mode, `&` cloud delegation, /resume session management, skill files | FIT — VibeCLI has all equivalent features |
 | **Planning before coding** | Agent plans approach before writing code (upcoming) | FIT — workflow_orchestration.rs plan-first principle |
 | **Jira integration** | Assign Jira issues directly to coding agent (public preview Mar 5, 2026) | FIT — @jira context provider already implemented |
-| **Next Edit Suggestions** | Proactively identifies next edit based on previous changes; custom-trained RL models | Partial — SupercompleteEngine.ts exists but not RL-trained |
+| **Next Edit Suggestions** | Proactively identifies next edit based on previous changes; custom-trained RL models | FIT — `edit_prediction.rs` (37 tests): Q-learning RlModel with exploration decay, EditPattern detection, confidence scoring + `next_edit.rs` |
 | **Vision capabilities** | Feed mockup/screenshot → generates UI code and alt text | FIT — vision support via Claude/OpenAI/Gemini providers |
 | **GPT-5.4-Codex model** | Latest OpenAI agentic coding model (GA Mar 5, 2026) | FIT — OpenAI provider supports any model string |
 | **5-tier pricing** | Free → Pro ($10) → Pro+ ($39) → Business ($19/user) → Enterprise ($39/user) | N/A — VibeCody is free/open-source |
@@ -86,7 +86,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 | **Parallel Devins** | Spin up multiple agents in parallel from cloud IDE | FIT — parallel multi-agent (Manager view) |
 | **Devin Wiki** | Auto-generated documentation from codebase | FIT — `docgen.rs` (870 LOC, 28 tests): auto-documentation wiki generator from codebase analysis, markdown export |
 | **Devin Search** | Interactive conversational search + answer engine for codebase | Partial — EmbeddingIndex + /search but not conversational Q&A |
-| **Legacy codebase refactoring** | Ingest massive codebases, refactor to modern languages | Partial — transform.rs has code transforms but not full language migration |
+| **Legacy codebase refactoring** | Ingest massive codebases, refactor to modern languages | FIT — `legacy_migration.rs` (101 tests): 18 source languages (COBOL/Fortran/VB6+), 10 targets, 6 strategies incl Strangler Fig, service boundary detection |
 | **Sandboxed cloud IDE** | Terminal + editor + browser in secure cloud environment | FIT — `cloud_ide.rs` (868 LOC, 45 tests) + `cloud_sandbox.rs` (382 LOC, 14 tests): cloud IDE provisioning with terminal/editor/browser, SandboxInstance lifecycle |
 
 **New gaps from Devin:** All gaps closed (docgen.rs + cloud_ide.rs + cloud_sandbox.rs)
@@ -97,7 +97,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 |-------------|-------------|-----------------|
 | **Context Engine MCP** | Semantic index of full codebase (400K+ files); released as MCP server pluggable into any agent | FIT — `semantic_mcp.rs` (625 LOC, 22 tests): MCP server exposing search_codebase, find_related_files, explain_symbol, dependency_graph tools |
 | **#1 SWE-bench Pro (51.8%)** | Highest solve rate on real-world multi-file tasks | N/A — benchmark dependent on model, not tool |
-| **Cross-repo understanding** | Indexes commit history, patterns, external docs, tickets, tribal knowledge | Partial — @github, @jira, memory, but no cross-repo semantic graph |
+| **Cross-repo understanding** | Indexes commit history, patterns, external docs, tickets, tribal knowledge | FIT — `knowledge_graph.rs` (42 tests): cross-repo symbol graph with callers/callees/implementors, BFS path finding + @github/@jira context providers |
 | **ISO 42001 AI governance** | Enterprise AI governance certification | N/A — process certification, not a feature |
 
 **New gaps from Augment:** All gaps closed (semantic_mcp.rs + knowledge_graph.rs)
@@ -119,7 +119,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 | New Feature | Description | VibeCody Status |
 |-------------|-------------|-----------------|
 | **Three agent modes** | Smart (Claude Opus 4.6), Rush (Haiku 4.5 for speed), Deep (GPT-5.3 Codex for complex) | Partial — opusplan routing (2 models) but not 3-mode selection |
-| **Sub-agent architecture** | Oracle (code analysis) and Librarian (external library analysis) sub-agents | Partial — spawn_agent exists but no specialized Oracle/Librarian roles |
+| **Sub-agent architecture** | Oracle (code analysis) and Librarian (external library analysis) sub-agents | FIT — `sub_agent_roles.rs` (16 tests): 11 AgentRole variants (CodeReviewer/Debugger/Architect/etc.) with role-specific prompts and tool configs |
 | **Agentic code review** | Examines changes with structural depth | FIT — bugbot.rs + redteam.rs |
 | **Composable tool system** | Code review agent, image generation (Painter), walkthrough skill | Partial — tools exist but no image generation agent |
 | **Cross-editor support** | Terminal, VS Code, Cursor, Windsurf, JetBrains, Neovim | FIT — VS Code, JetBrains, Neovim, Terminal |
@@ -131,9 +131,9 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 |-------------|-------------|-----------------|
 | **Agent Mode** | Autonomous file reading/writing, terminal commands, codebase/internet search | FIT — agent.rs with full tool framework |
 | **AST-based code application** | Deterministic code edits using AST targeting (not text replacement) | FIT — `ast_edit.rs` (1,824 LOC, 83 tests): AstEditor with structural node targeting, 8 EditOp types, scope-aware insertion |
-| **CI/CD AI checks** | AI runs as GitHub status check on every PR (green/red pass/fail) | Partial — github_app.rs exists but not as GH status check |
+| **CI/CD AI checks** | AI runs as GitHub status check on every PR (green/red pass/fail) | FIT — `ci_status_check.rs` (16 tests): CiCheckManager with AiCheckRun lifecycle, 7 CheckConclusion variants, PR-level status aggregation |
 | **Custom assistants hub** | hub.continue.dev for sharing model + rules + MCP configurations | Partial — marketplace.rs but no hosted hub |
-| **Automated workflows** | Connect GitHub CLI, Snyk API → trigger AI workflows | Partial — hooks system but no native Snyk/tool triggers |
+| **Automated workflows** | Connect GitHub CLI, Snyk API → trigger AI workflows | FIT — `automations.rs` (74 tests): event-driven triggers from GitHub/Slack/Linear/PagerDuty webhooks, configurable rules, sandbox execution |
 
 ### A.9 Bolt.new (StackBlitz)
 
