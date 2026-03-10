@@ -150,6 +150,14 @@ mod sub_agents;
 mod next_edit;
 #[allow(dead_code)]
 mod edit_prediction;
+#[allow(dead_code)]
+mod conversational_search;
+#[allow(dead_code)]
+mod agent_modes;
+#[allow(dead_code)]
+mod debug_mode;
+#[allow(dead_code)]
+mod clarifying_questions;
 
 #[derive(Parser)]
 #[command(name = "vibecli")]
