@@ -145,6 +145,10 @@ In REPL mode, the following slash commands are available:
 | `/docker` | Docker container management |
 | `/sandbox` | Container sandbox management |
 | `/gateway` | Gateway messaging (Telegram, Discord, Slack, etc.) |
+| `/demo list` | List all recorded feature demos |
+| `/demo run <name> <json>` | Record a demo by executing JSON steps (CDP browser automation) |
+| `/demo generate <desc>` | AI-generate demo steps from a feature description |
+| `/demo export <id> [html\|md]` | Export a demo as HTML slideshow or markdown |
 | `/config` | Display current configuration |
 | `/help` | Show command reference |
 | `/exit` or `/quit` | Exit VibeCLI |

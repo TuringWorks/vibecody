@@ -504,10 +504,10 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 
 | Metric | Count |
 |--------|-------|
-| Total unit tests | ~5,236 |
-| Skill files | 539 |
+| Total unit tests | ~5,335 |
+| Skill files | 536 |
 | AI providers | 17 direct + OpenRouter (300+) |
-| VibeUI panels | 128 |
+| VibeUI panels | 119 |
 | REPL commands | 60+ |
 | Gateway platforms | 18 |
 | Supported languages (skills) | 50+ (TIOBE top 50 complete) |

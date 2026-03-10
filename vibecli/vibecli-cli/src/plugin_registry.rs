@@ -94,7 +94,7 @@ impl PluginRegistry {
         } else {
             self.index = Some(Self::built_in_index());
         }
-        Ok(self.index.as_ref().unwrap())
+        Ok(self.index.as_ref().expect("index was just initialized"))
     }
 
     /// Search plugins by query
