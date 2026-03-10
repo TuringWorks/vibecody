@@ -13,6 +13,7 @@ import {
   Construction, HeartPulse, Cable, Paintbrush, FileText, Diff,
   PenTool, AlarmClock, Regex, KeyRound, Braces, Binary, Hash,
   Dices, Timer, Box, Workflow, Layers, Infinity, Factory,
+  CloudLightning, SearchCode, Image, ShieldAlert,
 } from "lucide-react";
 
 export interface TabMeta {
@@ -111,6 +112,10 @@ export const TAB_META: Record<string, TabMeta> = {
   appbuilder:  { icon: Layers,             label: "Builder" },
   icontext:    { icon: Infinity,           label: "Context" },
   batchbuilder:{ icon: Factory,            label: "Batch" },
+  cloudautofix:{ icon: CloudLightning,     label: "Cloud Fix" },
+  fastcontext: { icon: SearchCode,         label: "Fast Ctx" },
+  imagegen:    { icon: Image,              label: "ImageGen" },
+  governance:  { icon: ShieldAlert,         label: "Govern" },
 };
 
 export const DEFAULT_TAB_META: TabMeta = { icon: Workflow, label: "Flow" };

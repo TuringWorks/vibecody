@@ -8,15 +8,15 @@ export interface TabGroup {
 export const TAB_GROUPS: TabGroup[] = [
   {
     label: "AI",
-    tabs: ["chat", "agent", "cascade", "compare", "arena", "teams", "cloud", "cibot", "marketplace", "icontext", "batchbuilder", "subagents"],
+    tabs: ["chat", "agent", "cascade", "compare", "arena", "teams", "cloud", "cibot", "marketplace", "icontext", "batchbuilder", "subagents", "imagegen"],
   },
   {
     label: "Project",
-    tabs: ["memory", "specs", "workflow", "orchestration", "design", "steering", "traces", "dashboard", "recording", "demo", "plandoc", "remotecontrol", "clarify", "codesearch"],
+    tabs: ["memory", "specs", "workflow", "orchestration", "design", "steering", "traces", "dashboard", "recording", "demo", "fastcontext", "plandoc", "remotecontrol", "clarify", "codesearch"],
   },
   {
     label: "Code",
-    tabs: ["autofix", "bugbot", "redteam", "tests", "coverage", "transform", "metrics", "bisect", "snippets", "astedit", "securityscan", "editpredict"],
+    tabs: ["autofix", "cloudautofix", "bugbot", "redteam", "tests", "coverage", "transform", "metrics", "bisect", "snippets", "astedit", "securityscan", "editpredict"],
   },
   {
     label: "Git & Collab",
@@ -44,7 +44,7 @@ export const TAB_GROUPS: TabGroup[] = [
   },
   {
     label: "Settings",
-    tabs: ["settings", "hooks", "jobs", "mcp", "artifacts", "manager", "auth", "cost", "markers", "img2app", "visualtest", "webhooks", "admin", "qa-validation", "sessions"],
+    tabs: ["settings", "hooks", "jobs", "mcp", "artifacts", "manager", "auth", "cost", "markers", "img2app", "visualtest", "webhooks", "admin", "qa-validation", "sessions", "governance"],
   },
 ];
 

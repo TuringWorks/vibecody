@@ -128,6 +128,10 @@ const SubAgentPanel = lazy(() => import("./SubAgentPanel"));
 const ClarifyingQuestionsPanel = lazy(() => import("./ClarifyingQuestionsPanel"));
 const ConversationalSearchPanel = lazy(() => import("./ConversationalSearchPanel"));
 const DemoPanel = lazy(() => import("./DemoPanel").then(m => ({ default: m.DemoPanel })));
+const CloudAutofixPanel = lazy(() => import("./CloudAutofixPanel"));
+const FastContextPanel = lazy(() => import("./FastContextPanel"));
+const ImageGenPanel = lazy(() => import("./ImageGenPanel"));
+const TeamGovernancePanel = lazy(() => import("./TeamGovernancePanel"));
 
 // --- Props interfaces ---
 
@@ -377,6 +381,14 @@ export function PanelHost(props: PanelHostProps) {
       return <LazyPanel Component={ConversationalSearchPanel} props={{}} />;
     case "demo":
       return <LazyPanel Component={DemoPanel} props={{}} />;
+    case "cloudautofix":
+      return <LazyPanel Component={CloudAutofixPanel} props={{}} />;
+    case "fastcontext":
+      return <LazyPanel Component={FastContextPanel} props={{}} />;
+    case "imagegen":
+      return <LazyPanel Component={ImageGenPanel} props={{}} />;
+    case "governance":
+      return <LazyPanel Component={TeamGovernancePanel} props={{}} />;
     default:
       return <div style={{ padding: 16, color: "var(--text-secondary)" }}>Unknown panel: {tab}</div>;
   }
