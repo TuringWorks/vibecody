@@ -159,7 +159,7 @@ const ImageGenPanel: React.FC = () => {
         <span>{batch.length} requests</span>
         <strong>Total: ${totalBatchCost.toFixed(2)}</strong>
       </div>
-      {batch.map((b, i) => (
+      {batch.map((b) => (
         <div key={b.id} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
             <div style={{ fontWeight: 600, fontSize: "13px" }}>{b.prompt}</div>

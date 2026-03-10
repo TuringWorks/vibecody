@@ -13,7 +13,7 @@ interface DiscussionMessage {
 
 const DiscussionModePanel: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("discussion");
-  const [topic, setTopic] = useState("API redesign for v3 migration");
+  const [topic] = useState("API redesign for v3 migration");
   const [newText, setNewText] = useState("");
   const [newType, setNewType] = useState<MessageType>("Question");
   const [buildState, setBuildState] = useState<"Building" | "Discussing" | "Paused">("Discussing");

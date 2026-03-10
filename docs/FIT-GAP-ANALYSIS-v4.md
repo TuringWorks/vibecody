@@ -288,7 +288,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 | Node.js Agent SDK | ✅ | ❌ | ❌ | ❌ | API | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Notebook runner (.vibe) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | TUI diff view (unified/side-by-side) | ✅ | ❌ | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A |
-| 119+ VibeUI developer tool panels | ✅ | N/A | ~10 | ~5 | ~3 | ~3 | ~3 | ~3 | ~5 | N/A |
+| 128+ VibeUI developer tool panels | ✅ | N/A | ~10 | ~5 | ~3 | ~3 | ~3 | ~3 | ~5 | N/A |
 | Self-improvement loop (lessons) | ✅ | ❌ | Memory | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Docker/Podman/OpenSandbox runtime | ✅ | ❌ | Cloud | ❌ | Cloud | ❌ | ❌ | ❌ | WebContainer | Cloud |
 | Dual-surface (CLI + Desktop IDE) | ✅ | CLI only | IDE only | IDE+CLI | Web only | IDE only | Multi | IDE only | Web only | Web only |
@@ -507,7 +507,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 | Total unit tests | ~5,236 |
 | Skill files | 539 |
 | AI providers | 17 direct + OpenRouter (300+) |
-| VibeUI panels | 119 |
+| VibeUI panels | 128 |
 | REPL commands | 60+ |
 | Gateway platforms | 18 |
 | Supported languages (skills) | 50+ (TIOBE top 50 complete) |

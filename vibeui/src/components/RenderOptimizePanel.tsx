@@ -10,8 +10,8 @@ interface DirtyRegion {
 const RenderOptimizePanel: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("stats");
   const [stats, setStats] = useState({ cacheHits: 847, cacheMisses: 153, totalFrames: 1000, avgReduction: 64 });
-  const [frameWidth, setFrameWidth] = useState(1920);
-  const [frameHeight, setFrameHeight] = useState(1080);
+  const [frameWidth] = useState(1920);
+  const [frameHeight] = useState(1080);
   const [dirtyRegions, setDirtyRegions] = useState<DirtyRegion[]>([
     { id: "r1", startLine: 12, endLine: 18, reason: "Text edit" },
     { id: "r2", startLine: 45, endLine: 45, reason: "Cursor blink" },
