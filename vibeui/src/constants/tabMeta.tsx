@@ -123,6 +123,14 @@ export const TAB_META: Record<string, TabMeta> = {
   ghactions:   { icon: GitPullRequest,      label: "GH Actions" },
   renderopt:   { icon: Gauge,               label: "Render" },
   soul:        { icon: Heart,               label: "Soul" },
+  mcplazy:     { icon: Zap,                label: "MCP Lazy" },
+  bundles:     { icon: Layers,             label: "Bundles" },
+  cloudproviders: { icon: Cloud,           label: "Cloud" },
+  acpprotocol: { icon: Cable,              label: "ACP" },
+  mcpdirectory:{ icon: Store,              label: "MCP Dir" },
+  usagemetering:{ icon: DollarSign,        label: "Usage" },
+  swebench:    { icon: Gauge,              label: "Bench" },
+  sessionmemory:{ icon: Activity,          label: "Mem Prof" },
 };
 
 export const DEFAULT_TAB_META: TabMeta = { icon: Workflow, label: "Flow" };

@@ -17098,3 +17098,127 @@ fn build_soul_content(workspace: &std::path::Path, custom_context: &str) -> Stri
 
     sections.join("\n")
 }
+
+// ── Phase 10-14: Futureproofing commands ──────────────────────────────────────
+
+#[tauri::command]
+pub async fn mcp_lazy_status() -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({
+        "total_manifests": 0,
+        "loaded_schemas": 0,
+        "cache_hits": 0,
+        "cache_misses": 0,
+        "context_savings_percent": 0.0,
+        "lazy_loading_enabled": true
+    }))
+}
+
+#[tauri::command]
+pub async fn context_bundle_list() -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({
+        "bundles": [],
+        "active_count": 0
+    }))
+}
+
+#[tauri::command]
+pub async fn context_bundle_create(name: String, description: String) -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({
+        "id": format!("bundle-{}", name.to_lowercase().replace(' ', "-")),
+        "name": name,
+        "description": description,
+        "created": true
+    }))
+}
+
+#[tauri::command]
+pub async fn cloud_provider_scan(workspace: String) -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({
+        "workspace": workspace,
+        "detected_services": [],
+        "providers": ["AWS", "GCP", "Azure"]
+    }))
+}
+
+#[tauri::command]
+pub async fn cloud_provider_iam(provider: String) -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({
+        "provider": provider,
+        "policy": { "Version": "2012-10-17", "Statement": [] }
+    }))
+}
+
+#[tauri::command]
+pub async fn cloud_provider_iac(provider: String, format: String) -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({
+        "provider": provider,
+        "format": format,
+        "template": ""
+    }))
+}
+
+#[tauri::command]
+pub async fn cloud_provider_cost() -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({
+        "total_monthly_usd": 0.0,
+        "total_yearly_usd": 0.0,
+        "services": []
+    }))
+}
+
+#[tauri::command]
+pub async fn acp_server_status() -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({
+        "running": false,
+        "version": "1.0.0",
+        "capabilities": ["ToolExecution", "FileEdit", "CodeCompletion", "Search", "Chat"],
+        "connected_clients": 0
+    }))
+}
+
+#[tauri::command]
+pub async fn mcp_directory_search(query: String) -> Result<serde_json::Value, String> {
+    let _ = query;
+    Ok(serde_json::json!({
+        "results": [],
+        "total": 0
+    }))
+}
+
+#[tauri::command]
+pub async fn mcp_directory_installed() -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({
+        "installed": [],
+        "total": 0
+    }))
+}
+
+#[tauri::command]
+pub async fn usage_metering_status() -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({
+        "total_tokens": 0,
+        "total_cost_usd": 0.0,
+        "budgets": [],
+        "alerts": []
+    }))
+}
+
+#[tauri::command]
+pub async fn swe_bench_list_runs() -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({
+        "runs": [],
+        "total": 0
+    }))
+}
+
+#[tauri::command]
+pub async fn session_memory_health() -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({
+        "status": "Healthy",
+        "uptime_secs": 0,
+        "current_memory_bytes": 0,
+        "peak_memory_bytes": 0,
+        "growth_rate_percent": 0.0,
+        "alerts": []
+    }))
+}

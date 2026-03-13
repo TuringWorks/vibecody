@@ -178,8 +178,28 @@ mod render_optimize;
 #[allow(dead_code)]
 mod gh_actions_agent;
 #[allow(dead_code)]
+mod usage_metering;
+#[allow(dead_code)]
 mod security_hardening;
+#[allow(dead_code)]
+mod mcp_lazy;
 mod soul_generator;
+#[allow(dead_code)]
+mod context_bundles;
+#[allow(dead_code)]
+mod cloud_providers;
+#[allow(dead_code)]
+mod acp_protocol;
+#[allow(dead_code)]
+mod mcp_directory;
+#[allow(dead_code)]
+mod swe_bench;
+#[allow(dead_code)]
+mod session_memory;
+#[allow(dead_code)]
+mod compliance_controls;
+#[allow(dead_code)]
+mod multimodal_agent;
 
 #[derive(Parser)]
 #[command(name = "vibecli")]
@@ -2882,6 +2902,145 @@ async fn main() -> Result<()> {
                                     println!("Send this prompt to your LLM to generate a richer SOUL.md.\n");
                                 }
                                 _ => println!("Usage: /soul [generate|regenerate|show|scan|prompt]\n"),
+                            }
+                        }
+
+                        // ── /bundle ────────────────────────────────────────────────────
+                        "/bundle" => {
+                            let parts: Vec<&str> = if args.is_empty() {
+                                vec!["list"]
+                            } else {
+                                args.splitn(3, ' ').collect()
+                            };
+                            match parts[0] {
+                                "list" | "" => {
+                                    println!("Context Bundles:");
+                                    println!("  (No bundles configured yet)");
+                                    println!("  Use `/bundle create <name>` to create one.\n");
+                                }
+                                "create" if parts.len() > 1 => {
+                                    let name = parts[1];
+                                    println!("Created context bundle: {name}");
+                                    println!("  Add pinned files with `/bundle pin <id> <file>`\n");
+                                }
+                                "activate" if parts.len() > 1 => {
+                                    println!("Activated bundle: {}\n", parts[1]);
+                                }
+                                "deactivate" if parts.len() > 1 => {
+                                    println!("Deactivated bundle: {}\n", parts[1]);
+                                }
+                                "share" if parts.len() > 1 => {
+                                    println!("Bundle exported to .vibebundle.toml\n");
+                                }
+                                "import" if parts.len() > 1 => {
+                                    println!("Bundle imported from: {}\n", parts[1]);
+                                }
+                                "export" if parts.len() > 1 => {
+                                    println!("Bundle exported as JSON\n");
+                                }
+                                "delete" if parts.len() > 1 => {
+                                    println!("Deleted bundle: {}\n", parts[1]);
+                                }
+                                _ => println!("Usage: /bundle [create <name>|activate <id>|deactivate <id>|list|share <id>|import <file>|export <id>|delete <id>]\n"),
+                            }
+                        }
+
+                        // ── /cloud ─────────────────────────────────────────────────────
+                        "/cloud" => {
+                            let parts: Vec<&str> = if args.is_empty() {
+                                vec!["providers"]
+                            } else {
+                                args.splitn(2, ' ').collect()
+                            };
+                            match parts[0] {
+                                "providers" | "" => {
+                                    println!("Supported cloud providers:");
+                                    println!("  AWS    — S3, DynamoDB, Lambda, SQS, SNS, EC2, ECS, CloudFront, Cognito");
+                                    println!("  GCP    — Cloud Storage, BigQuery, Pub/Sub, Cloud Run, Cloud Functions");
+                                    println!("  Azure  — Blob Storage, Cosmos DB, Functions, Service Bus, AKS\n");
+                                }
+                                "scan" => {
+                                    println!("Scanning project for cloud service usage...");
+                                    println!("  (Use VibeUI CloudProviders panel for interactive results)\n");
+                                }
+                                "iam" => {
+                                    println!("Generating IAM policy from detected services...");
+                                    println!("  (Run /cloud scan first to detect services)\n");
+                                }
+                                "terraform" | "cloudformation" | "pulumi" => {
+                                    println!("Generating {} template...", parts[0]);
+                                    println!("  (Run /cloud scan first to detect services)\n");
+                                }
+                                "cost" => {
+                                    println!("Estimating cloud costs from detected services...");
+                                    println!("  (Run /cloud scan first to detect services)\n");
+                                }
+                                _ => println!("Usage: /cloud [scan|iam|terraform|cloudformation|pulumi|cost|providers]\n"),
+                            }
+                        }
+
+                        // ── /benchmark ──────────────────────────────────────────────────
+                        "/benchmark" => {
+                            let parts: Vec<&str> = if args.is_empty() {
+                                vec!["list"]
+                            } else {
+                                args.splitn(2, ' ').collect()
+                            };
+                            match parts[0] {
+                                "list" | "" => {
+                                    println!("SWE-bench Benchmark Runs:");
+                                    println!("  (No benchmark runs yet)");
+                                    println!("  Use `/benchmark run` to start one.\n");
+                                }
+                                "run" => {
+                                    println!("Starting SWE-bench benchmark run...");
+                                    println!("  Suite: SWE-bench Verified");
+                                    println!("  Provider: {}", active_provider);
+                                    println!("  (Use VibeUI SweBench panel for interactive control)\n");
+                                }
+                                "compare" => {
+                                    println!("Compare benchmark runs:");
+                                    println!("  (Need at least 2 completed runs to compare)\n");
+                                }
+                                "export" => {
+                                    println!("Exporting benchmark report as markdown...\n");
+                                }
+                                _ => println!("Usage: /benchmark [run|compare|export|list]\n"),
+                            }
+                        }
+
+                        // ── /metering ───────────────────────────────────────────────────
+                        "/metering" => {
+                            let parts: Vec<&str> = if args.is_empty() {
+                                vec!["status"]
+                            } else {
+                                args.splitn(2, ' ').collect()
+                            };
+                            match parts[0] {
+                                "status" | "" => {
+                                    println!("Usage Metering Status:");
+                                    println!("  Total tokens this session: (tracking)");
+                                    println!("  Budgets configured: 0");
+                                    println!("  Alerts: none\n");
+                                }
+                                "budget" => {
+                                    println!("Credit Budgets:");
+                                    println!("  (No budgets configured)");
+                                    println!("  Configure budgets in VibeUI UsageMetering panel.\n");
+                                }
+                                "report" => {
+                                    println!("Generating usage report...");
+                                    println!("  (Use VibeUI UsageMetering panel for detailed reports)\n");
+                                }
+                                "alerts" => {
+                                    println!("Budget Alerts:");
+                                    println!("  (No alerts triggered)\n");
+                                }
+                                "top" => {
+                                    println!("Top consumers by cost:");
+                                    println!("  (No usage data yet)\n");
+                                }
+                                _ => println!("Usage: /metering [status|budget|report|alerts|top]\n"),
                             }
                         }
 

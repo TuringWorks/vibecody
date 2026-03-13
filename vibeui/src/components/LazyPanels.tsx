@@ -138,6 +138,14 @@ const FullStackGenPanel = lazy(() => import("./FullStackGenPanel"));
 const GhActionsPanel = lazy(() => import("./GhActionsPanel"));
 const RenderOptimizePanel = lazy(() => import("./RenderOptimizePanel"));
 const SoulPanel = lazy(() => import("./SoulPanel").then(m => ({ default: m.SoulPanel })));
+const McpLazyPanel = lazy(() => import("./McpLazyPanel").then(m => ({ default: m.McpLazyPanel })));
+const ContextBundlePanel = lazy(() => import("./ContextBundlePanel").then(m => ({ default: m.ContextBundlePanel })));
+const CloudProviderPanel = lazy(() => import("./CloudProviderPanel").then(m => ({ default: m.CloudProviderPanel })));
+const AcpPanel = lazy(() => import("./AcpPanel").then(m => ({ default: m.AcpPanel })));
+const McpDirectoryPanel = lazy(() => import("./McpDirectoryPanel").then(m => ({ default: m.McpDirectoryPanel })));
+const UsageMeteringPanel = lazy(() => import("./UsageMeteringPanel").then(m => ({ default: m.UsageMeteringPanel })));
+const SweBenchPanel = lazy(() => import("./SweBenchPanel").then(m => ({ default: m.SweBenchPanel })));
+const SessionMemoryPanel = lazy(() => import("./SessionMemoryPanel").then(m => ({ default: m.SessionMemoryPanel })));
 
 // --- Props interfaces ---
 
@@ -407,6 +415,22 @@ export function PanelHost(props: PanelHostProps) {
       return <LazyPanel Component={RenderOptimizePanel} props={{}} />;
     case "soul":
       return <LazyPanel Component={SoulPanel} props={{ workspacePath: wp }} />;
+    case "mcplazy":
+      return <LazyPanel Component={McpLazyPanel} props={{}} />;
+    case "bundles":
+      return <LazyPanel Component={ContextBundlePanel} props={{ workspacePath: wp }} />;
+    case "cloudproviders":
+      return <LazyPanel Component={CloudProviderPanel} props={{ workspacePath: wp }} />;
+    case "acpprotocol":
+      return <LazyPanel Component={AcpPanel} props={{}} />;
+    case "mcpdirectory":
+      return <LazyPanel Component={McpDirectoryPanel} props={{}} />;
+    case "usagemetering":
+      return <LazyPanel Component={UsageMeteringPanel} props={{}} />;
+    case "swebench":
+      return <LazyPanel Component={SweBenchPanel} props={{}} />;
+    case "sessionmemory":
+      return <LazyPanel Component={SessionMemoryPanel} props={{}} />;
     default:
       return <div style={{ padding: 16, color: "var(--text-secondary)" }}>Unknown panel: {tab}</div>;
   }

@@ -494,6 +494,20 @@ pub fn run() {
             commands::soul_generate,
             commands::soul_regenerate,
             commands::soul_read,
+            // Phase 10-14: Futureproofing
+            commands::mcp_lazy_status,
+            commands::context_bundle_list,
+            commands::context_bundle_create,
+            commands::cloud_provider_scan,
+            commands::cloud_provider_iam,
+            commands::cloud_provider_iac,
+            commands::cloud_provider_cost,
+            commands::acp_server_status,
+            commands::mcp_directory_search,
+            commands::mcp_directory_installed,
+            commands::usage_metering_status,
+            commands::swe_bench_list_runs,
+            commands::session_memory_health,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

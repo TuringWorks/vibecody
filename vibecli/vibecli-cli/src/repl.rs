@@ -80,6 +80,10 @@ pub static COMMANDS: &[&str] = &[
     "/qavalidate",
     "/legacymigrate",
     "/gitplatform",
+    "/bundle",
+    "/cloud",
+    "/benchmark",
+    "/metering",
 ];
 
 // ── Sub-command tables ────────────────────────────────────────────────────────
@@ -149,6 +153,18 @@ static LEGACYMIGRATE_SUBS: &[&str] = &["analyze", "plan", "translate", "validate
 
 /// Sub-commands for `/gitplatform <sub>`
 static GITPLATFORM_SUBS: &[&str] = &["add", "list", "remove", "default", "pr", "issue", "pipeline", "webhook"];
+
+/// Sub-commands for `/bundle <sub>`
+static BUNDLE_SUBS: &[&str] = &["create", "activate", "deactivate", "list", "share", "import", "export", "delete"];
+
+/// Sub-commands for `/cloud <sub>`
+static CLOUD_SUBS: &[&str] = &["scan", "iam", "terraform", "cloudformation", "pulumi", "cost", "providers"];
+
+/// Sub-commands for `/benchmark <sub>`
+static BENCHMARK_SUBS: &[&str] = &["run", "compare", "export", "list"];
+
+/// Sub-commands for `/metering <sub>`
+static METERING_SUBS: &[&str] = &["status", "budget", "report", "alerts", "top"];
 
 /// Sub-commands for `/arena <sub>`
 static ARENA_SUBS: &[&str] = &["compare", "stats", "history"];
@@ -258,6 +274,10 @@ fn command_hint(cmd: &str) -> Option<&'static str> {
         "/handoff"  => Some("[list|show <id>|create]  — session handoff documents"),
         "/orient"   => Some("— analyze current project structure and stack"),
         "/research" => Some("<topic>  — research a topic in context of the codebase"),
+        "/bundle"   => Some("[create|activate|deactivate|list|share|import|export|delete]  — context bundles"),
+        "/cloud"    => Some("[scan|iam|terraform|cloudformation|pulumi|cost|providers]  — cloud provider tools"),
+        "/benchmark"=> Some("[run|compare|export|list]  — SWE-bench benchmarking"),
+        "/metering" => Some("[status|budget|report|alerts|top]  — usage metering & credits"),
         _ => None,
     }
 }
@@ -352,6 +372,10 @@ fn complete_slash(line: &str) -> Option<(usize, Vec<Pair>)> {
                 "/qavalidate" => Some(QAVALIDATE_SUBS),
                 "/legacymigrate" => Some(LEGACYMIGRATE_SUBS),
                 "/gitplatform" => Some(GITPLATFORM_SUBS),
+                "/bundle" => Some(BUNDLE_SUBS),
+                "/cloud" => Some(CLOUD_SUBS),
+                "/benchmark" => Some(BENCHMARK_SUBS),
+                "/metering" => Some(METERING_SUBS),
                 _ => None,
             };
 

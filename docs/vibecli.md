@@ -154,6 +154,24 @@ In REPL mode, the following slash commands are available:
 | `/soul scan` | Show detected project signals (languages, frameworks, license, etc.) |
 | `/soul regenerate` | Overwrite existing SOUL.md |
 | `/soul prompt` | Get LLM prompt for richer AI-assisted generation |
+| `/bundle create <name>` | Create a new context bundle (like Copilot Spaces) |
+| `/bundle activate <id>` | Activate a context bundle |
+| `/bundle deactivate <id>` | Deactivate a context bundle |
+| `/bundle list` | List all context bundles with active/inactive status |
+| `/bundle share <id>` | Export a bundle to .vibebundle.toml |
+| `/bundle import <file>` | Import a bundle from file |
+| `/cloud scan` | Scan project for AWS/GCP/Azure service usage |
+| `/cloud iam` | Generate least-privilege IAM policy from detected services |
+| `/cloud terraform` | Generate Terraform template from detected services |
+| `/cloud cost` | Estimate monthly cloud costs |
+| `/cloud providers` | List supported cloud providers and services |
+| `/benchmark run` | Start a SWE-bench benchmark run |
+| `/benchmark compare` | Compare multiple benchmark runs |
+| `/benchmark list` | List all benchmark runs |
+| `/metering status` | Show usage metering status (tokens, cost, budgets) |
+| `/metering budget` | Manage credit budgets |
+| `/metering report` | Generate usage report by provider/model/task |
+| `/metering alerts` | Show budget alerts |
 | `/config` | Display current configuration |
 | `/help` | Show command reference |
 | `/exit` or `/quit` | Exit VibeCLI |

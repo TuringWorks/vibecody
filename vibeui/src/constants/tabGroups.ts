@@ -12,7 +12,7 @@ export const TAB_GROUPS: TabGroup[] = [
   },
   {
     label: "Project",
-    tabs: ["memory", "specs", "soul", "workflow", "orchestration", "design", "steering", "traces", "dashboard", "recording", "demo", "fastcontext", "plandoc", "remotecontrol", "clarify", "codesearch"],
+    tabs: ["memory", "specs", "soul", "bundles", "workflow", "orchestration", "design", "steering", "traces", "dashboard", "recording", "demo", "fastcontext", "plandoc", "remotecontrol", "clarify", "codesearch"],
   },
   {
     label: "Code",
@@ -24,7 +24,7 @@ export const TAB_GROUPS: TabGroup[] = [
   },
   {
     label: "Infrastructure",
-    tabs: ["deploy", "docker", "k8s", "cicd", "ghactions", "env", "sandbox", "cloudsandbox", "health", "scaffold", "appbuilder", "training", "inference", "cistatus", "fullstack"],
+    tabs: ["deploy", "docker", "k8s", "cicd", "ghactions", "env", "sandbox", "cloudsandbox", "health", "scaffold", "appbuilder", "training", "inference", "cistatus", "fullstack", "cloudproviders"],
   },
   {
     label: "Data & API",
@@ -32,7 +32,7 @@ export const TAB_GROUPS: TabGroup[] = [
   },
   {
     label: "DevTools",
-    tabs: ["processes", "profiler", "scripts", "ssh", "notebook", "logs", "deps", "network", "loadtest", "renderopt"],
+    tabs: ["processes", "profiler", "scripts", "ssh", "notebook", "logs", "deps", "network", "loadtest", "renderopt", "swebench", "sessionmemory"],
   },
   {
     label: "Utilities",
@@ -44,7 +44,7 @@ export const TAB_GROUPS: TabGroup[] = [
   },
   {
     label: "Settings",
-    tabs: ["settings", "hooks", "jobs", "mcp", "artifacts", "manager", "auth", "cost", "markers", "img2app", "visualtest", "webhooks", "admin", "qa-validation", "sessions", "governance"],
+    tabs: ["settings", "hooks", "jobs", "mcp", "mcplazy", "mcpdirectory", "acpprotocol", "artifacts", "manager", "auth", "cost", "usagemetering", "markers", "img2app", "visualtest", "webhooks", "admin", "qa-validation", "sessions", "governance"],
   },
 ];
 
