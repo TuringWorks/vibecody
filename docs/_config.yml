@@ -31,6 +31,8 @@ nav:
     url: /roadmap-v3/
   - title: Fit-Gap Analysis
     url: /fit-gap-analysis-v5/
+  - title: Demos
+    url: /demos/
   - title: Plugin Development
     url: /plugin-development/
   - title: Contributing
@@ -48,6 +50,7 @@ header_pages:
   - FIT-GAP-ANALYSIS-v2.md
   - FIT-GAP-ANALYSIS-v5.md
   - SHANNON-COMPARISON.md
+  - demos/index.md
   - PLUGIN-DEVELOPMENT.md
   - CHANGELOG.md
   - contributing.md
