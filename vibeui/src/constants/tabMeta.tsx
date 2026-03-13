@@ -14,7 +14,7 @@ import {
   PenTool, AlarmClock, Regex, KeyRound, Braces, Binary, Hash,
   Dices, Timer, Box, Workflow, Layers, Infinity, Factory,
   CloudLightning, SearchCode, Image, ShieldAlert,
-  MessagesSquare, Code2, GitPullRequest, Gauge,
+  MessagesSquare, Code2, GitPullRequest, Gauge, Heart,
 } from "lucide-react";
 
 export interface TabMeta {
@@ -122,6 +122,7 @@ export const TAB_META: Record<string, TabMeta> = {
   fullstack:   { icon: Code2,               label: "FullStack" },
   ghactions:   { icon: GitPullRequest,      label: "GH Actions" },
   renderopt:   { icon: Gauge,               label: "Render" },
+  soul:        { icon: Heart,               label: "Soul" },
 };
 
 export const DEFAULT_TAB_META: TabMeta = { icon: Workflow, label: "Flow" };

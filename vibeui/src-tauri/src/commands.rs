@@ -16795,3 +16795,306 @@ function prev(){{c=Math.max(0,c-1);show(c);}}function next(){{c=Math.min(t-1,c+1
 
     Ok(output_path.to_string_lossy().to_string())
 }
+
+// ── Soul.md generation ───────────────────────────────────────────────────────
+
+/// Project signals discovered by scanning the workspace.
+#[derive(serde::Serialize)]
+pub struct SoulSignals {
+    pub name: String,
+    pub description: String,
+    pub license: String,
+    pub languages: Vec<String>,
+    pub frameworks: Vec<String>,
+    pub has_tests: bool,
+    pub has_ci: bool,
+    pub has_docker: bool,
+    pub has_readme: bool,
+    pub is_monorepo: bool,
+    pub is_open_source: bool,
+    pub package_manager: Option<String>,
+}
+
+/// Scan project and return signals.
+#[tauri::command]
+pub async fn soul_scan(workspace_path: String) -> Result<SoulSignals, String> {
+    let workspace = if workspace_path.is_empty() {
+        std::env::current_dir().map_err(|e| e.to_string())?
+    } else {
+        std::path::PathBuf::from(&workspace_path)
+    };
+
+    if !workspace.exists() {
+        return Err(format!("Directory not found: {}", workspace.display()));
+    }
+
+    // Scan for project signals (inline implementation matching soul_generator.rs)
+    let mut signals = SoulSignals {
+        name: workspace.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| "project".to_string()),
+        description: String::new(),
+        license: String::new(),
+        languages: Vec::new(),
+        frameworks: Vec::new(),
+        has_tests: false,
+        has_ci: false,
+        has_docker: false,
+        has_readme: false,
+        is_monorepo: false,
+        is_open_source: false,
+        package_manager: None,
+    };
+
+    // License
+    for name in &["LICENSE", "LICENSE.md", "LICENSE.txt", "LICENCE"] {
+        let path = workspace.join(name);
+        if path.exists() {
+            if let Ok(content) = std::fs::read_to_string(&path) {
+                let lower = content.to_lowercase();
+                signals.license = if lower.contains("mit license") { "MIT".to_string() }
+                    else if lower.contains("apache license") { "Apache-2.0".to_string() }
+                    else if lower.contains("gnu general public license") { "GPL".to_string() }
+                    else if lower.contains("bsd") { "BSD".to_string() }
+                    else { "Custom".to_string() };
+                signals.is_open_source = true;
+            }
+            break;
+        }
+    }
+
+    // README
+    signals.has_readme = workspace.join("README.md").exists() || workspace.join("readme.md").exists();
+    if signals.has_readme {
+        let readme_path = if workspace.join("README.md").exists() { workspace.join("README.md") } else { workspace.join("readme.md") };
+        if let Ok(content) = std::fs::read_to_string(&readme_path) {
+            for line in content.lines().take(10) {
+                let trimmed = line.trim();
+                if !trimmed.is_empty() && !trimmed.starts_with('#') && !trimmed.starts_with("![") {
+                    signals.description = trimmed.to_string();
+                    break;
+                }
+            }
+        }
+    }
+
+    // CI
+    signals.has_ci = workspace.join(".github/workflows").exists()
+        || workspace.join(".gitlab-ci.yml").exists()
+        || workspace.join("Jenkinsfile").exists();
+
+    // Docker
+    signals.has_docker = workspace.join("Dockerfile").exists()
+        || workspace.join("docker-compose.yml").exists();
+
+    // Tests
+    signals.has_tests = workspace.join("tests").exists()
+        || workspace.join("test").exists()
+        || workspace.join("__tests__").exists()
+        || workspace.join("jest.config.ts").exists()
+        || workspace.join("vitest.config.ts").exists();
+
+    // Rust
+    let cargo_toml = workspace.join("Cargo.toml");
+    if cargo_toml.exists() {
+        signals.languages.push("Rust".to_string());
+        signals.package_manager = Some("cargo".to_string());
+        if let Ok(c) = std::fs::read_to_string(&cargo_toml) {
+            if c.contains("[workspace]") { signals.is_monorepo = true; }
+            if c.contains("axum") { signals.frameworks.push("Axum".to_string()); }
+            if c.contains("actix") { signals.frameworks.push("Actix".to_string()); }
+            if c.contains("tauri") { signals.frameworks.push("Tauri".to_string()); }
+            if c.contains("tokio") { signals.frameworks.push("Tokio".to_string()); }
+            if c.contains("ratatui") { signals.frameworks.push("Ratatui".to_string()); }
+        }
+    }
+
+    // JS/TS
+    let pkg_json = workspace.join("package.json");
+    if pkg_json.exists() {
+        if workspace.join("tsconfig.json").exists() {
+            signals.languages.push("TypeScript".to_string());
+        } else {
+            signals.languages.push("JavaScript".to_string());
+        }
+        if let Ok(c) = std::fs::read_to_string(&pkg_json) {
+            if c.contains("\"react\"") { signals.frameworks.push("React".to_string()); }
+            if c.contains("\"next\"") { signals.frameworks.push("Next.js".to_string()); }
+            if c.contains("\"vue\"") { signals.frameworks.push("Vue".to_string()); }
+            if c.contains("\"svelte\"") { signals.frameworks.push("Svelte".to_string()); }
+            if c.contains("\"express\"") { signals.frameworks.push("Express".to_string()); }
+            if c.contains("\"vite\"") { signals.frameworks.push("Vite".to_string()); }
+            if c.contains("\"workspaces\"") { signals.is_monorepo = true; }
+        }
+        if workspace.join("pnpm-lock.yaml").exists() { signals.package_manager = Some("pnpm".to_string()); }
+        else if workspace.join("yarn.lock").exists() { signals.package_manager = Some("yarn".to_string()); }
+        else if workspace.join("bun.lockb").exists() { signals.package_manager = Some("bun".to_string()); }
+        else if signals.package_manager.is_none() { signals.package_manager = Some("npm".to_string()); }
+    }
+
+    // Python
+    if workspace.join("pyproject.toml").exists() || workspace.join("requirements.txt").exists() {
+        signals.languages.push("Python".to_string());
+        if let Ok(c) = std::fs::read_to_string(workspace.join("pyproject.toml")).or_else(|_| std::fs::read_to_string(workspace.join("requirements.txt"))) {
+            if c.contains("django") { signals.frameworks.push("Django".to_string()); }
+            if c.contains("fastapi") { signals.frameworks.push("FastAPI".to_string()); }
+            if c.contains("flask") { signals.frameworks.push("Flask".to_string()); }
+        }
+    }
+
+    // Go
+    if workspace.join("go.mod").exists() {
+        signals.languages.push("Go".to_string());
+        if let Ok(c) = std::fs::read_to_string(workspace.join("go.mod")) {
+            if c.contains("gin-gonic") { signals.frameworks.push("Gin".to_string()); }
+        }
+    }
+
+    // Project name from package.json or Cargo.toml
+    if let Ok(c) = std::fs::read_to_string(&pkg_json) {
+        if let Some(pos) = c.find("\"name\"") {
+            let rest = &c[pos + 6..];
+            if let Some(start) = rest.find('"') {
+                let inner = &rest[start + 1..];
+                if let Some(end) = inner.find('"') {
+                    signals.name = inner[..end].to_string();
+                }
+            }
+        }
+    }
+
+    Ok(signals)
+}
+
+/// Generate SOUL.md content for a project.
+#[tauri::command]
+pub async fn soul_generate(workspace_path: String, custom_context: String) -> Result<String, String> {
+    let workspace = if workspace_path.is_empty() {
+        std::env::current_dir().map_err(|e| e.to_string())?
+    } else {
+        std::path::PathBuf::from(&workspace_path)
+    };
+
+    // Check if already exists
+    let soul_path = workspace.join("SOUL.md");
+    if soul_path.exists() {
+        return Err("SOUL.md already exists. Use soul_regenerate to overwrite.".to_string());
+    }
+
+    let content = build_soul_content(&workspace, &custom_context);
+    std::fs::write(&soul_path, &content).map_err(|e| format!("Write error: {e}"))?;
+    Ok(content)
+}
+
+/// Regenerate SOUL.md (overwrites existing).
+#[tauri::command]
+pub async fn soul_regenerate(workspace_path: String, custom_context: String) -> Result<String, String> {
+    let workspace = if workspace_path.is_empty() {
+        std::env::current_dir().map_err(|e| e.to_string())?
+    } else {
+        std::path::PathBuf::from(&workspace_path)
+    };
+
+    let content = build_soul_content(&workspace, &custom_context);
+    let soul_path = workspace.join("SOUL.md");
+    std::fs::write(&soul_path, &content).map_err(|e| format!("Write error: {e}"))?;
+    Ok(content)
+}
+
+/// Read existing SOUL.md.
+#[tauri::command]
+pub async fn soul_read(workspace_path: String) -> Result<Option<String>, String> {
+    let workspace = if workspace_path.is_empty() {
+        std::env::current_dir().map_err(|e| e.to_string())?
+    } else {
+        std::path::PathBuf::from(&workspace_path)
+    };
+
+    let soul_path = workspace.join("SOUL.md");
+    if soul_path.exists() {
+        let content = std::fs::read_to_string(&soul_path).map_err(|e| e.to_string())?;
+        return Ok(Some(content));
+    }
+    let soul_path = workspace.join("soul.md");
+    if soul_path.exists() {
+        let content = std::fs::read_to_string(&soul_path).map_err(|e| e.to_string())?;
+        return Ok(Some(content));
+    }
+    Ok(None)
+}
+
+/// Build SOUL.md content from workspace signals (shared helper).
+fn build_soul_content(workspace: &std::path::Path, custom_context: &str) -> String {
+    let name = workspace.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| "Project".to_string());
+
+    // Detect key signals
+    let has_license = workspace.join("LICENSE").exists() || workspace.join("LICENSE.md").exists();
+    let has_tests = workspace.join("tests").exists() || workspace.join("test").exists() || workspace.join("__tests__").exists();
+    let has_ci = workspace.join(".github/workflows").exists();
+    let has_docker = workspace.join("Dockerfile").exists();
+    let is_monorepo = {
+        let cargo = workspace.join("Cargo.toml");
+        let pkg = workspace.join("package.json");
+        (cargo.exists() && std::fs::read_to_string(&cargo).map(|c| c.contains("[workspace]")).unwrap_or(false))
+        || (pkg.exists() && std::fs::read_to_string(&pkg).map(|c| c.contains("\"workspaces\"")).unwrap_or(false))
+        || workspace.join("pnpm-workspace.yaml").exists()
+    };
+
+    let mut sections = Vec::new();
+
+    // Title
+    sections.push(format!("# The Soul of {name}\n"));
+
+    // Why
+    let why_text = if !custom_context.is_empty() {
+        format!("{custom_context}\n\nThis project exists because the problem it addresses deserves a focused, well-crafted solution.")
+    } else {
+        "Every project starts with a frustration. This one is no different.\n\n\
+         We believe developers deserve tools that respect their time, their choices, and their intelligence.".to_string()
+    };
+    sections.push(format!("## Why This Project Exists\n\n{why_text}\n"));
+
+    // Core Beliefs
+    let mut beliefs = Vec::new();
+    if has_license {
+        beliefs.push("### Open by default\n\nThe code is open source not as a marketing strategy, but as a commitment. If you use this project, you can read every line, fork it, and make it yours.");
+    }
+    if has_tests {
+        beliefs.push("### Tests are not optional\n\nIf a feature doesn't have tests, it doesn't exist. The test suite is the project's immune system — it catches regressions before users do.");
+    }
+    if is_monorepo {
+        beliefs.push("### Shared foundations, separate surfaces\n\nCommon logic lives in shared libraries. Each application surface is just a frontend to the same capabilities. A fix in the core improves everything.");
+    }
+    beliefs.push("### Simplicity over cleverness\n\nReadable code beats clever code. Standard formats beat custom ones. If you can't understand how something works by reading the source, we've failed.");
+    beliefs.push("### Ship the tool, not the promise\n\nEvery feature in the documentation exists in code and can be built from source today. If it's documented, it works. If it doesn't work, that's a bug.");
+    if has_ci || has_docker {
+        beliefs.push("### Reproducible everywhere\n\nIt builds on your machine, on CI, and in a container. Environment-specific surprises are bugs, not user errors.");
+    }
+    sections.push(format!("## Core Beliefs\n\n{}\n", beliefs.join("\n\n")));
+
+    // Design Principles
+    sections.push("## Design Principles\n\n\
+        **Dependencies are liabilities.** Every dependency is a trust decision. We prefer small, well-maintained libraries over sprawling frameworks.\n\n\
+        **Test at the boundaries.** Unit tests for logic, integration tests for I/O. Don't mock what you own — test the real thing.\n\n\
+        **Earn your complexity.** A feature that helps one workflow but complicates ten others is a net negative. The bar for adding complexity is high.\n".to_string());
+
+    // What It Is Not
+    let mut nots = vec![
+        "- Not a framework — it's a tool that does one job well.",
+        "- Not a platform — there's no account to create, no server to depend on.",
+        "- Not finished — but what's shipped today works today.",
+    ];
+    if has_license {
+        nots.insert(2, "- Not a business masquerading as open source — the full tool is the free tool.");
+    }
+    sections.push(format!("## What This Project Is Not\n\n{}\n", nots.join("\n")));
+
+    // Decision Framework
+    sections.push("## How to Know If a Change Belongs\n\n\
+        Before adding a feature, ask:\n\n\
+        1. Does it solve a real problem that users actually have?\n\
+        2. Can you explain it in one sentence without jargon?\n\
+        3. Is it tested? If you can't write tests for it, is it well-defined enough to ship?\n\
+        4. Does it earn its complexity? A feature that helps one workflow but complicates ten others is a net negative.\n\
+        5. Would you be comfortable maintaining this in two years?\n".to_string());
+
+    sections.join("\n")
+}

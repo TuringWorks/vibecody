@@ -149,6 +149,11 @@ In REPL mode, the following slash commands are available:
 | `/demo run <name> <json>` | Record a demo by executing JSON steps (CDP browser automation) |
 | `/demo generate <desc>` | AI-generate demo steps from a feature description |
 | `/demo export <id> [html\|md]` | Export a demo as HTML slideshow or markdown |
+| `/soul` | Generate SOUL.md for the current project (scans structure, license, languages) |
+| `/soul show` | View existing SOUL.md |
+| `/soul scan` | Show detected project signals (languages, frameworks, license, etc.) |
+| `/soul regenerate` | Overwrite existing SOUL.md |
+| `/soul prompt` | Get LLM prompt for richer AI-assisted generation |
 | `/config` | Display current configuration |
 | `/help` | Show command reference |
 | `/exit` or `/quit` | Exit VibeCLI |

@@ -490,6 +490,10 @@ pub fn run() {
             commands::demo_run,
             commands::demo_generate_steps,
             commands::demo_export,
+            commands::soul_scan,
+            commands::soul_generate,
+            commands::soul_regenerate,
+            commands::soul_read,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

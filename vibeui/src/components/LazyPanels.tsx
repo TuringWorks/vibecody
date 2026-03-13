@@ -137,6 +137,7 @@ const DiscussionModePanel = lazy(() => import("./DiscussionModePanel"));
 const FullStackGenPanel = lazy(() => import("./FullStackGenPanel"));
 const GhActionsPanel = lazy(() => import("./GhActionsPanel"));
 const RenderOptimizePanel = lazy(() => import("./RenderOptimizePanel"));
+const SoulPanel = lazy(() => import("./SoulPanel").then(m => ({ default: m.SoulPanel })));
 
 // --- Props interfaces ---
 
@@ -404,6 +405,8 @@ export function PanelHost(props: PanelHostProps) {
       return <LazyPanel Component={GhActionsPanel} props={{}} />;
     case "renderopt":
       return <LazyPanel Component={RenderOptimizePanel} props={{}} />;
+    case "soul":
+      return <LazyPanel Component={SoulPanel} props={{ workspacePath: wp }} />;
     default:
       return <div style={{ padding: 16, color: "var(--text-secondary)" }}>Unknown panel: {tab}</div>;
   }

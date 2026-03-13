@@ -179,6 +179,7 @@ mod render_optimize;
 mod gh_actions_agent;
 #[allow(dead_code)]
 mod security_hardening;
+mod soul_generator;
 
 #[derive(Parser)]
 #[command(name = "vibecli")]
@@ -2794,6 +2795,93 @@ async fn main() -> Result<()> {
                                     }
                                 }
                                 _ => println!("Usage: /demo [list|generate|run|replay|export]\n"),
+                            }
+                        }
+
+                        // ── /soul ──────────────────────────────────────────────────────
+                        "/soul" => {
+                            let workspace = std::env::current_dir().unwrap_or_default();
+                            let parts: Vec<&str> = if args.is_empty() {
+                                vec!["generate"]
+                            } else {
+                                args.splitn(2, ' ').collect()
+                            };
+                            match parts[0] {
+                                "generate" | "gen" => {
+                                    if soul_generator::soul_exists(&workspace) {
+                                        println!("SOUL.md already exists in this project.");
+                                        println!("  Use `/soul show` to view it.");
+                                        println!("  Use `/soul regenerate` to overwrite.\n");
+                                        continue;
+                                    }
+                                    println!("Scanning project...");
+                                    let signals = soul_generator::scan_project(&workspace);
+                                    println!("  Name: {}", signals.name);
+                                    if !signals.languages.is_empty() {
+                                        println!("  Languages: {}", signals.languages.join(", "));
+                                    }
+                                    if !signals.frameworks.is_empty() {
+                                        println!("  Frameworks: {}", signals.frameworks.join(", "));
+                                    }
+                                    if !signals.license.is_empty() {
+                                        println!("  License: {}", signals.license);
+                                    }
+                                    println!();
+
+                                    let doc = soul_generator::generate_template_soul(&signals);
+                                    let md = doc.to_markdown();
+                                    match soul_generator::write_soul(&workspace, &md) {
+                                        Ok(path) => println!("Created: {}\n", path.display()),
+                                        Err(e) => eprintln!("Error writing SOUL.md: {e}\n"),
+                                    }
+                                }
+                                "regenerate" | "regen" => {
+                                    println!("Scanning project...");
+                                    let signals = soul_generator::scan_project(&workspace);
+                                    let doc = soul_generator::generate_template_soul(&signals);
+                                    let md = doc.to_markdown();
+                                    match soul_generator::write_soul(&workspace, &md) {
+                                        Ok(path) => println!("Regenerated: {}\n", path.display()),
+                                        Err(e) => eprintln!("Error writing SOUL.md: {e}\n"),
+                                    }
+                                }
+                                "show" | "view" => {
+                                    match soul_generator::read_soul(&workspace) {
+                                        Some(content) => {
+                                            println!("{}\n", highlight_code_blocks(&content));
+                                        }
+                                        None => {
+                                            println!("No SOUL.md found. Run `/soul generate` to create one.\n");
+                                        }
+                                    }
+                                }
+                                "scan" => {
+                                    let signals = soul_generator::scan_project(&workspace);
+                                    println!("Project Signals:\n");
+                                    println!("  Name:          {}", signals.name);
+                                    if !signals.description.is_empty() {
+                                        println!("  Description:   {}", signals.description);
+                                    }
+                                    println!("  License:       {}", if signals.license.is_empty() { "none detected" } else { &signals.license });
+                                    println!("  Languages:     {}", if signals.languages.is_empty() { "none detected".to_string() } else { signals.languages.join(", ") });
+                                    println!("  Frameworks:    {}", if signals.frameworks.is_empty() { "none detected".to_string() } else { signals.frameworks.join(", ") });
+                                    println!("  Package mgr:   {}", signals.package_manager.as_deref().unwrap_or("none"));
+                                    println!("  Monorepo:      {}", signals.is_monorepo);
+                                    println!("  Open source:   {}", signals.is_open_source);
+                                    println!("  Has tests:     {}", signals.has_tests);
+                                    println!("  Has CI:        {}", signals.has_ci);
+                                    println!("  Has Docker:    {}", signals.has_docker);
+                                    println!("  Has README:    {}", signals.has_readme);
+                                    println!("  Contributing:  {}", signals.has_contributing);
+                                    println!();
+                                }
+                                "prompt" => {
+                                    let signals = soul_generator::scan_project(&workspace);
+                                    let prompt = soul_generator::build_generation_prompt(&signals);
+                                    println!("{}\n", prompt);
+                                    println!("Send this prompt to your LLM to generate a richer SOUL.md.\n");
+                                }
+                                _ => println!("Usage: /soul [generate|regenerate|show|scan|prompt]\n"),
                             }
                         }
 
@@ -6697,6 +6785,11 @@ fn show_help() {
     println!("  /demo run <name> <json>  - Record a demo from JSON steps");
     println!("  /demo generate <desc>    - AI-generate demo steps for a feature");
     println!("  /demo export <id> [fmt]  - Export demo as HTML slideshow or markdown");
+    println!("  /soul                    - Generate SOUL.md for current project");
+    println!("  /soul show               - View existing SOUL.md");
+    println!("  /soul scan               - Show detected project signals");
+    println!("  /soul regenerate         - Overwrite existing SOUL.md");
+    println!("  /soul prompt             - Get LLM prompt for richer generation");
     println!("  /team                    - Team knowledge store (show|knowledge|sync)");
     println!("  /remind in <dur> \"task\"  - Set a one-time reminder (30s, 10m, 2h, 1d)");
     println!("  /remind list             - List active reminders");

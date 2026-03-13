@@ -56,6 +56,7 @@ pub static COMMANDS: &[&str] = &[
     "/sessions",
     "/share",
     "/snippet",
+    "/soul",
     "/spec",
     "/status",
     "/team",
