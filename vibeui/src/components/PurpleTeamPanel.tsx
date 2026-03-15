@@ -192,8 +192,8 @@ export function PurpleTeamPanel() {
   const [activeTab, setActiveTab] = useState<PurpleTeamTab>("Exercises");
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [matrix, setMatrix] = useState<MatrixCell[]>([]);
-  const [simulations, setSimulations] = useState<Simulation[]>([]);
-  const [gaps, setGaps] = useState<CoverageGap[]>([]);
+  const [simulations, _setSimulations] = useState<Simulation[]>([]);
+  const [gaps, _setGaps] = useState<CoverageGap[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 

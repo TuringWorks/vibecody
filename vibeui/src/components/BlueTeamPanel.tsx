@@ -219,10 +219,10 @@ export function BlueTeamPanel() {
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [iocs, setIOCs] = useState<IOC[]>([]);
   const [rules, setRules] = useState<DetectionRule[]>([]);
-  const [cases, setCases] = useState<ForensicsCase[]>([]);
-  const [siemConns, setSiemConns] = useState<SIEMConnection[]>([]);
-  const [playbooks, setPlaybooks] = useState<Playbook[]>([]);
-  const [hunts, setHunts] = useState<ThreatHunt[]>([]);
+  const [cases, _setCases] = useState<ForensicsCase[]>([]);
+  const [siemConns, _setSiemConns] = useState<SIEMConnection[]>([]);
+  const [playbooks, _setPlaybooks] = useState<Playbook[]>([]);
+  const [hunts, _setHunts] = useState<ThreatHunt[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 

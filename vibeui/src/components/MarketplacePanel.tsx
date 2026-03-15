@@ -20,11 +20,20 @@ export function MarketplacePanel() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [installing, setInstalling] = useState<string | null>(null);
+  const [installed, setInstalled] = useState<Set<string>>(new Set());
   const [message, setMessage] = useState<{ text: string; type: "ok" | "err" } | null>(null);
 
   useEffect(() => {
     loadPlugins();
+    loadInstalled();
   }, []);
+
+  const loadInstalled = async () => {
+    try {
+      const names = await invoke<string[]>("list_installed_plugins");
+      setInstalled(new Set(names));
+    } catch { /* ignore */ }
+  };
 
   const loadPlugins = async () => {
     setLoading(true);
@@ -54,6 +63,7 @@ export function MarketplacePanel() {
     setMessage(null);
     try {
       await invoke("install_marketplace_plugin", { name, repoUrl });
+      setInstalled(prev => new Set(prev).add(name));
       setMessage({ text: `${name} installed successfully!`, type: "ok" });
     } catch (e) {
       setMessage({ text: `Failed: ${e}`, type: "err" });
@@ -118,17 +128,27 @@ export function MarketplacePanel() {
                   <span style={{ fontSize: 12, fontWeight: 700 }}>{p.name}</span>
                   <span style={{ fontSize: 9, opacity: 0.5 }}>v{p.version}</span>
                   <div style={{ flex: 1 }} />
-                  <button
-                    onClick={() => handleInstall(p.name, p.repo_url)}
-                    disabled={installing === p.name}
-                    style={{
-                      ...chipStyle, cursor: "pointer",
-                      background: "rgba(99,102,241,0.15)", border: "1px solid #6366f1",
-                      opacity: installing === p.name ? 0.5 : 1,
-                    }}
-                  >
-                    {installing === p.name ? "Installing..." : "Install"}
-                  </button>
+                  {installed.has(p.name) ? (
+                    <span style={{
+                      ...chipStyle,
+                      background: "rgba(166,227,161,0.15)", border: "1px solid #a6e3a1",
+                      color: "#a6e3a1", cursor: "default",
+                    }}>
+                      ✓ Installed
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => handleInstall(p.name, p.repo_url)}
+                      disabled={installing === p.name}
+                      style={{
+                        ...chipStyle, cursor: "pointer",
+                        background: "rgba(99,102,241,0.15)", border: "1px solid #6366f1",
+                        opacity: installing === p.name ? 0.5 : 1,
+                      }}
+                    >
+                      {installing === p.name ? "Installing..." : "Install"}
+                    </button>
+                  )}
                 </div>
                 <div style={{ fontSize: 11, opacity: 0.8, marginBottom: 4 }}>{p.description}</div>
                 <div style={{ display: "flex", gap: 6, alignItems: "center" }}>

@@ -29,6 +29,7 @@ import { GroupedTabBar } from "./components/GroupedTabBar";
 import "./components/GroupedTabBar.css";
 import { PanelHost } from "./components/LazyPanels";
 import { ALL_TABS } from "./constants/tabGroups";
+import { TAB_META, DEFAULT_TAB_META } from "./constants/tabMeta";
 
 interface FileEntry {
   path: string;
@@ -67,6 +68,7 @@ function App() {
   const [activeSidebarTab, setActiveSidebarTab] = useState<"explorer" | "search" | "git">("explorer");
   const [showAIChat, setShowAIChat] = useState(false);
   const [aiPanelTab, setAiPanelTab] = useState("chat");
+  const [showFilterBar, setShowFilterBar] = useState(true);
   const [showTerminal, setShowTerminal] = useState(false);
   const [bottomTab, setBottomTab] = useState<"terminal" | "browser">("terminal");
   const [showCommandPalette, setShowCommandPalette] = useState(false);
@@ -105,7 +107,8 @@ function App() {
   // Resizable Panes State
   const [sidebarWidth, setSidebarWidth] = useState(250);
   const [terminalHeight, setTerminalHeight] = useState(200);
-  const [isResizing, setIsResizing] = useState<'sidebar' | 'terminal' | null>(null);
+  const [aiPanelWidth, setAiPanelWidth] = useState(480);
+  const [isResizing, setIsResizing] = useState<'sidebar' | 'terminal' | 'aipanel' | null>(null);
 
   // Markdown Preview State
   const [showMarkdownPreview, setShowMarkdownPreview] = useState(false);
@@ -1004,7 +1007,7 @@ function App() {
   };
 
   // Resize Handlers
-  const startResizing = (type: 'sidebar' | 'terminal') => {
+  const startResizing = (type: 'sidebar' | 'terminal' | 'aipanel') => {
     setIsResizing(type);
   };
 
@@ -1022,6 +1025,11 @@ function App() {
       const newHeight = window.innerHeight - e.clientY;
       if (newHeight > 100 && newHeight < 600) {
         setTerminalHeight(newHeight);
+      }
+    } else if (isResizing === 'aipanel') {
+      const newWidth = window.innerWidth - e.clientX;
+      if (newWidth > 350 && newWidth < 900) {
+        setAiPanelWidth(newWidth);
       }
     }
   }, [isResizing]);
@@ -1421,26 +1429,49 @@ function App() {
 
         {/* AI Panel — grouped sidebar + lazy-loaded panels */}
         {showAIChat && (
-          <aside className="ai-chat-panel" style={{ display: "flex", flexDirection: "row" }}>
-            <GroupedTabBar activeTab={aiPanelTab} onTabChange={setAiPanelTab} />
-            <div role="tabpanel" aria-labelledby={`ai-tab-${aiPanelTab}`} style={{ flex: 1, overflow: "hidden" }}>
-              <PanelHost
-                tab={aiPanelTab}
-                selectedProvider={selectedProvider}
-                availableProviders={aiProviders}
-                editorContent={editorContent}
-                fileTree={files.map(f => f.path)}
-                currentFile={currentFile}
-                workspacePath={workspaceFolders[0] || null}
-                onPendingWrite={handlePendingWrite}
-                onInjectContext={(text: string) => {
-                  setAiPanelTab("chat");
-                  window.dispatchEvent(new CustomEvent("vibeui:inject-context", { detail: text }));
-                }}
-                collab={collab}
-              />
-            </div>
-          </aside>
+          <>
+            <div
+              className="resizer-vertical"
+              onMouseDown={(e) => { e.preventDefault(); startResizing('aipanel'); }}
+            />
+            <aside className="ai-chat-panel" style={{ display: "flex", flexDirection: "row", width: `${aiPanelWidth}px` }}>
+              {showFilterBar && (
+                <GroupedTabBar activeTab={aiPanelTab} onTabChange={setAiPanelTab} onCollapse={() => setShowFilterBar(false)} />
+              )}
+              <div role="tabpanel" aria-labelledby={`ai-tab-${aiPanelTab}`} style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+                {!showFilterBar && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 8px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", fontSize: 12 }}>
+                    <button
+                      onClick={() => setShowFilterBar(true)}
+                      style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", fontSize: 12, padding: "2px 6px" }}
+                      title="Show filter panel"
+                    >
+                      ☰ Panels
+                    </button>
+                    <span style={{ color: "var(--text-secondary)", opacity: 0.5 }}>|</span>
+                    <span style={{ color: "var(--text-primary)", fontWeight: 500 }}>{(TAB_META[aiPanelTab] || DEFAULT_TAB_META).label}</span>
+                  </div>
+                )}
+                <div style={{ flex: 1, overflow: "hidden" }}>
+                  <PanelHost
+                    tab={aiPanelTab}
+                    selectedProvider={selectedProvider}
+                    availableProviders={aiProviders}
+                    editorContent={editorContent}
+                    fileTree={files.map(f => f.path)}
+                    currentFile={currentFile}
+                    workspacePath={workspaceFolders[0] || null}
+                    onPendingWrite={handlePendingWrite}
+                    onInjectContext={(text: string) => {
+                      setAiPanelTab("chat");
+                      window.dispatchEvent(new CustomEvent("vibeui:inject-context", { detail: text }));
+                    }}
+                    collab={collab}
+                  />
+                </div>
+              </div>
+            </aside>
+          </>
         )}
       </div>
 

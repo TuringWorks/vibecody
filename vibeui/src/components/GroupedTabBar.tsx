@@ -1,14 +1,15 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { TAB_GROUPS } from "../constants/tabGroups";
 import { TAB_META, DEFAULT_TAB_META } from "../constants/tabMeta";
-import { Search, ChevronDown, ChevronRight } from "lucide-react";
+import { Search, ChevronDown, ChevronRight, PanelLeftClose } from "lucide-react";
 
 interface Props {
   activeTab: string;
   onTabChange: (tab: string) => void;
+  onCollapse?: () => void;
 }
 
-export function GroupedTabBar({ activeTab, onTabChange }: Props) {
+export function GroupedTabBar({ activeTab, onTabChange, onCollapse }: Props) {
   const [search, setSearch] = useState("");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const searchRef = useRef<HTMLInputElement>(null);
@@ -66,7 +67,7 @@ export function GroupedTabBar({ activeTab, onTabChange }: Props) {
 
   return (
     <div className="grouped-tab-bar">
-      {/* Search */}
+      {/* Search + Collapse */}
       <div className="tab-search">
         <Search size={12} strokeWidth={1.5} />
         <input
@@ -91,6 +92,16 @@ export function GroupedTabBar({ activeTab, onTabChange }: Props) {
             aria-label="Clear search"
           >
             &times;
+          </button>
+        )}
+        {onCollapse && (
+          <button
+            className="tab-search-clear"
+            onClick={onCollapse}
+            title="Collapse filter panel"
+            aria-label="Collapse filter panel"
+          >
+            <PanelLeftClose size={12} />
           </button>
         )}
       </div>

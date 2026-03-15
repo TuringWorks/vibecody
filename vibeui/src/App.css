@@ -370,9 +370,11 @@ body {
 
 /* AI Chat Panel */
 .ai-chat-panel {
-  width: 350px;
+  min-width: 350px;
+  max-width: 900px;
   height: 100%;
   border-left: 1px solid var(--border-color);
+  flex-shrink: 0;
 }
 
 /* Tab Bar */

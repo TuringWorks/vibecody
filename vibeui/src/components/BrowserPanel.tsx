@@ -100,7 +100,7 @@ export function BrowserPanel() {
  };
 
  const navigate = (url: string) => {
- const target = url.startsWith('http') ? url : `http://${url}`;
+ const target = url.startsWith('http://') || url.startsWith('https://') ? url : `https://${url}`;
  setUrlInput(target);
  setIframeSrc(target);
  setHistory((prev) => {

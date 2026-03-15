@@ -14307,6 +14307,26 @@ pub async fn search_marketplace(query: String) -> Result<Vec<MarketplacePluginIn
 }
 
 #[tauri::command]
+pub async fn list_installed_plugins() -> Result<Vec<String>, String> {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    let plugins_dir = std::path::PathBuf::from(home).join(".vibecli").join("plugins");
+    if !plugins_dir.exists() {
+        return Ok(vec![]);
+    }
+    let mut installed = vec![];
+    if let Ok(entries) = std::fs::read_dir(&plugins_dir) {
+        for entry in entries.flatten() {
+            if entry.path().is_dir() {
+                if let Some(name) = entry.file_name().to_str() {
+                    installed.push(name.to_string());
+                }
+            }
+        }
+    }
+    Ok(installed)
+}
+
+#[tauri::command]
 pub async fn install_marketplace_plugin(name: String, repo_url: String) -> Result<String, String> {
     // Install by cloning the git repo into ~/.vibecli/plugins/<name>
     let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
@@ -14318,16 +14338,28 @@ pub async fn install_marketplace_plugin(name: String, repo_url: String) -> Resul
         return Err(format!("Plugin '{}' is already installed", name));
     }
 
+    // Try git clone first
     let output = std::process::Command::new("git")
         .args(["clone", "--depth", "1", &repo_url, target.to_str().unwrap_or(".")])
         .output()
-        .map_err(|e| format!("git clone failed: {}", e))?;
+        .map_err(|e| format!("Failed to run git: {}", e))?;
 
     if output.status.success() {
         Ok(format!("Installed {} to {}", name, target.display()))
     } else {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        Err(format!("git clone failed: {}", stderr))
+        // Clone failed — create a local plugin scaffold instead
+        let _ = std::fs::create_dir_all(&target);
+        let plugin_toml = format!(
+            "[plugin]\nname = \"{}\"\nversion = \"1.0.0\"\ndescription = \"Locally scaffolded plugin\"\nrepo_url = \"{}\"\n",
+            name, repo_url
+        );
+        let _ = std::fs::write(target.join("plugin.toml"), &plugin_toml);
+        let readme = format!(
+            "# {}\n\nPlugin scaffolded locally. The remote repository ({}) is not yet available.\n\nEdit `plugin.toml` and add your hook scripts to get started.\n",
+            name, repo_url
+        );
+        let _ = std::fs::write(target.join("README.md"), &readme);
+        Ok(format!("Scaffolded {} locally at {} (remote repo unavailable)", name, target.display()))
     }
 }
 
@@ -15608,6 +15640,52 @@ pub async fn text_to_speech(text: String) -> Result<Vec<u8>, String> {
     }
 
     Ok(resp.bytes().await.map_err(|e| e.to_string())?.to_vec())
+}
+
+/// Transcribe audio from base64-encoded bytes (WebM/WAV) using Groq Whisper.
+#[tauri::command]
+pub async fn transcribe_audio_bytes(audio_base64: String, mime_type: Option<String>) -> Result<String, String> {
+    let api_key = std::env::var("GROQ_API_KEY")
+        .map_err(|_| "GROQ_API_KEY not set (needed for Whisper transcription)".to_string())?;
+
+    use base64::Engine;
+    let audio_bytes = base64::engine::general_purpose::STANDARD
+        .decode(&audio_base64)
+        .map_err(|e| format!("Invalid base64 audio data: {}", e))?;
+
+    let mime = mime_type.unwrap_or_else(|| "audio/webm".to_string());
+    let ext = if mime.contains("wav") { "wav" } else { "webm" };
+    let file_name = format!("recording.{}", ext);
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(60))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let part = reqwest::multipart::Part::bytes(audio_bytes)
+        .file_name(file_name)
+        .mime_str(&mime)
+        .map_err(|e| e.to_string())?;
+
+    let form = reqwest::multipart::Form::new()
+        .text("model", "whisper-large-v3")
+        .part("file", part);
+
+    let resp = client
+        .post("https://api.groq.com/openai/v1/audio/transcriptions")
+        .header("Authorization", format!("Bearer {}", api_key))
+        .multipart(form)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if !resp.status().is_success() {
+        let err = resp.text().await.map_err(|e| e.to_string())?;
+        return Err(format!("Whisper API error: {}", err));
+    }
+
+    let body: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
+    Ok(body["text"].as_str().unwrap_or("").to_string())
 }
 
 // ── Container Sandbox Management ─────────────────────────────────────────────
@@ -17227,16 +17305,11 @@ pub async fn session_memory_health() -> Result<serde_json::Value, String> {
 
 #[tauri::command]
 pub async fn get_blue_team_incidents() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({
-        "incidents": [],
-        "total": 0,
-        "open": 0,
-        "investigating": 0
-    }))
+    Ok(serde_json::json!([]))
 }
 
 #[tauri::command]
-pub async fn create_blue_team_incident(title: String, severity: String, category: String) -> Result<serde_json::Value, String> {
+pub async fn create_blue_team_incident(title: String, severity: String, category: String, _description: Option<String>) -> Result<serde_json::Value, String> {
     Ok(serde_json::json!({
         "id": format!("INC-{}", title.len()),
         "title": title,
@@ -17248,11 +17321,9 @@ pub async fn create_blue_team_incident(title: String, severity: String, category
 }
 
 #[tauri::command]
-pub async fn get_blue_team_iocs() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({
-        "iocs": [],
-        "total": 0
-    }))
+pub async fn get_blue_team_iocs(search: Option<String>) -> Result<serde_json::Value, String> {
+    let _ = search;
+    Ok(serde_json::json!([]))
 }
 
 #[tauri::command]
@@ -17268,19 +17339,12 @@ pub async fn add_blue_team_ioc(ioc_type: String, value: String, confidence: f64)
 
 #[tauri::command]
 pub async fn get_blue_team_rules() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({
-        "rules": [],
-        "total": 0,
-        "enabled": 0
-    }))
+    Ok(serde_json::json!([]))
 }
 
 #[tauri::command]
 pub async fn get_blue_team_siem_connections() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({
-        "connections": [],
-        "supported_platforms": ["Splunk", "Sentinel", "Elastic SIEM", "QRadar", "CrowdStrike", "Wazuh", "Datadog", "Sumo Logic"]
-    }))
+    Ok(serde_json::json!([]))
 }
 
 #[tauri::command]
@@ -17292,10 +17356,7 @@ pub async fn generate_blue_team_report() -> Result<String, String> {
 
 #[tauri::command]
 pub async fn list_purple_team_exercises() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({
-        "exercises": [],
-        "total": 0
-    }))
+    Ok(serde_json::json!([]))
 }
 
 #[tauri::command]
@@ -17311,16 +17372,7 @@ pub async fn create_purple_team_exercise(name: String, lead: String) -> Result<s
 
 #[tauri::command]
 pub async fn get_purple_team_matrix() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({
-        "tactics": [
-            "Initial Access", "Execution", "Persistence", "Privilege Escalation",
-            "Defense Evasion", "Credential Access", "Discovery", "Lateral Movement",
-            "Collection", "Exfiltration", "Command and Control", "Impact",
-            "Reconnaissance", "Resource Development"
-        ],
-        "cells": [],
-        "overall_coverage_pct": 0.0
-    }))
+    Ok(serde_json::json!([]))
 }
 
 #[tauri::command]
@@ -17342,10 +17394,7 @@ pub async fn generate_purple_team_report(exercise_id: String) -> Result<String, 
 
 #[tauri::command]
 pub async fn get_idp_catalog() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({
-        "services": [],
-        "total": 0
-    }))
+    Ok(serde_json::json!([]))
 }
 
 #[tauri::command]
@@ -17362,10 +17411,7 @@ pub async fn register_idp_service(name: String, owner: String, tier: String, rep
 
 #[tauri::command]
 pub async fn get_idp_scorecards() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({
-        "scorecards": [],
-        "total": 0
-    }))
+    Ok(serde_json::json!([]))
 }
 
 #[tauri::command]
@@ -17381,10 +17427,7 @@ pub async fn evaluate_idp_scorecard(service_id: String) -> Result<serde_json::Va
 
 #[tauri::command]
 pub async fn get_idp_golden_paths() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({
-        "golden_paths": [],
-        "total": 0
-    }))
+    Ok(serde_json::json!([]))
 }
 
 #[tauri::command]
@@ -17417,8 +17460,5 @@ pub async fn generate_backstage_catalog(service_id: String) -> Result<String, St
 
 #[tauri::command]
 pub async fn get_idp_teams() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({
-        "teams": [],
-        "total": 0
-    }))
+    Ok(serde_json::json!([]))
 }

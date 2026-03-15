@@ -410,6 +410,7 @@ pub fn run() {
             commands::get_marketplace_plugins,
             commands::search_marketplace,
             commands::install_marketplace_plugin,
+            commands::list_installed_plugins,
             // Phase 8.5: Code Transform
             commands::detect_transform,
             commands::plan_transform,
@@ -462,6 +463,7 @@ pub fn run() {
             commands::run_canvas_workflow,
             // Voice & Media
             commands::transcribe_audio,
+            commands::transcribe_audio_bytes,
             commands::text_to_speech,
             // Gap Closure: Webhook Automations
             commands::get_webhooks,

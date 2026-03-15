@@ -236,8 +236,8 @@ export function IdpPanel() {
   const [services, setServices] = useState<Service[]>([]);
   const [goldenPaths, setGoldenPaths] = useState<GoldenPath[]>([]);
   const [scorecard, setScorecard] = useState<Scorecard | null>(null);
-  const [infraRequests, setInfraRequests] = useState<InfraRequest[]>([]);
-  const [teams, setTeams] = useState<Team[]>([]);
+  const [infraRequests, _setInfraRequests] = useState<InfraRequest[]>([]);
+  const [teams, _setTeams] = useState<Team[]>([]);
   const [platforms, setPlatforms] = useState<IdpPlatform[]>(IDP_PLATFORMS);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
