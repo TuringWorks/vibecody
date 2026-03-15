@@ -146,6 +146,9 @@ const McpDirectoryPanel = lazy(() => import("./McpDirectoryPanel").then(m => ({ 
 const UsageMeteringPanel = lazy(() => import("./UsageMeteringPanel").then(m => ({ default: m.UsageMeteringPanel })));
 const SweBenchPanel = lazy(() => import("./SweBenchPanel").then(m => ({ default: m.SweBenchPanel })));
 const SessionMemoryPanel = lazy(() => import("./SessionMemoryPanel").then(m => ({ default: m.SessionMemoryPanel })));
+const BlueTeamPanel = lazy(() => import("./BlueTeamPanel").then(m => ({ default: m.BlueTeamPanel })));
+const PurpleTeamPanel = lazy(() => import("./PurpleTeamPanel").then(m => ({ default: m.PurpleTeamPanel })));
+const IdpPanel = lazy(() => import("./IdpPanel").then(m => ({ default: m.IdpPanel })));
 
 // --- Props interfaces ---
 
@@ -431,6 +434,12 @@ export function PanelHost(props: PanelHostProps) {
       return <LazyPanel Component={SweBenchPanel} props={{}} />;
     case "sessionmemory":
       return <LazyPanel Component={SessionMemoryPanel} props={{}} />;
+    case "blueteam":
+      return <LazyPanel Component={BlueTeamPanel} props={{}} />;
+    case "purpleteam":
+      return <LazyPanel Component={PurpleTeamPanel} props={{}} />;
+    case "idp":
+      return <LazyPanel Component={IdpPanel} props={{}} />;
     default:
       return <div style={{ padding: 16, color: "var(--text-secondary)" }}>Unknown panel: {tab}</div>;
   }

@@ -508,6 +508,29 @@ pub fn run() {
             commands::usage_metering_status,
             commands::swe_bench_list_runs,
             commands::session_memory_health,
+            // Blue Team — Defensive Security
+            commands::get_blue_team_incidents,
+            commands::create_blue_team_incident,
+            commands::get_blue_team_iocs,
+            commands::add_blue_team_ioc,
+            commands::get_blue_team_rules,
+            commands::get_blue_team_siem_connections,
+            commands::generate_blue_team_report,
+            // Purple Team — ATT&CK Exercises
+            commands::list_purple_team_exercises,
+            commands::create_purple_team_exercise,
+            commands::get_purple_team_matrix,
+            commands::record_purple_team_simulation,
+            commands::generate_purple_team_report,
+            // IDP — Internal Developer Platform
+            commands::get_idp_catalog,
+            commands::register_idp_service,
+            commands::get_idp_scorecards,
+            commands::evaluate_idp_scorecard,
+            commands::get_idp_golden_paths,
+            commands::get_idp_platforms,
+            commands::generate_backstage_catalog,
+            commands::get_idp_teams,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

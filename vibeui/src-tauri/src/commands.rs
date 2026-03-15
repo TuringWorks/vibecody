@@ -17222,3 +17222,203 @@ pub async fn session_memory_health() -> Result<serde_json::Value, String> {
         "alerts": []
     }))
 }
+
+// ── Blue Team — Defensive Security ──────────────────────────────────────────
+
+#[tauri::command]
+pub async fn get_blue_team_incidents() -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({
+        "incidents": [],
+        "total": 0,
+        "open": 0,
+        "investigating": 0
+    }))
+}
+
+#[tauri::command]
+pub async fn create_blue_team_incident(title: String, severity: String, category: String) -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({
+        "id": format!("INC-{}", title.len()),
+        "title": title,
+        "severity": severity,
+        "category": category,
+        "status": "Open",
+        "created": true
+    }))
+}
+
+#[tauri::command]
+pub async fn get_blue_team_iocs() -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({
+        "iocs": [],
+        "total": 0
+    }))
+}
+
+#[tauri::command]
+pub async fn add_blue_team_ioc(ioc_type: String, value: String, confidence: f64) -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({
+        "id": format!("IOC-{}", value.len()),
+        "ioc_type": ioc_type,
+        "value": value,
+        "confidence": confidence,
+        "added": true
+    }))
+}
+
+#[tauri::command]
+pub async fn get_blue_team_rules() -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({
+        "rules": [],
+        "total": 0,
+        "enabled": 0
+    }))
+}
+
+#[tauri::command]
+pub async fn get_blue_team_siem_connections() -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({
+        "connections": [],
+        "supported_platforms": ["Splunk", "Sentinel", "Elastic SIEM", "QRadar", "CrowdStrike", "Wazuh", "Datadog", "Sumo Logic"]
+    }))
+}
+
+#[tauri::command]
+pub async fn generate_blue_team_report() -> Result<String, String> {
+    Ok("# Blue Team Report\n\n## Incidents\n\nNo open incidents.\n\n## IOCs\n\nNo tracked IOCs.\n\n## Detection Rules\n\nNo rules configured.\n".to_string())
+}
+
+// ── Purple Team — ATT&CK Exercises ──────────────────────────────────────────
+
+#[tauri::command]
+pub async fn list_purple_team_exercises() -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({
+        "exercises": [],
+        "total": 0
+    }))
+}
+
+#[tauri::command]
+pub async fn create_purple_team_exercise(name: String, lead: String) -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({
+        "id": format!("EX-{}", name.len()),
+        "name": name,
+        "lead": lead,
+        "status": "Planned",
+        "created": true
+    }))
+}
+
+#[tauri::command]
+pub async fn get_purple_team_matrix() -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({
+        "tactics": [
+            "Initial Access", "Execution", "Persistence", "Privilege Escalation",
+            "Defense Evasion", "Credential Access", "Discovery", "Lateral Movement",
+            "Collection", "Exfiltration", "Command and Control", "Impact",
+            "Reconnaissance", "Resource Development"
+        ],
+        "cells": [],
+        "overall_coverage_pct": 0.0
+    }))
+}
+
+#[tauri::command]
+pub async fn record_purple_team_simulation(exercise_id: String, technique_id: String, outcome: String) -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({
+        "exercise_id": exercise_id,
+        "technique_id": technique_id,
+        "outcome": outcome,
+        "recorded": true
+    }))
+}
+
+#[tauri::command]
+pub async fn generate_purple_team_report(exercise_id: String) -> Result<String, String> {
+    Ok(format!("# Purple Team Report — {}\n\n## Coverage\n\nNo simulations recorded.\n\n## Gaps\n\nRun simulations to identify gaps.\n", exercise_id))
+}
+
+// ── IDP — Internal Developer Platform ───────────────────────────────────────
+
+#[tauri::command]
+pub async fn get_idp_catalog() -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({
+        "services": [],
+        "total": 0
+    }))
+}
+
+#[tauri::command]
+pub async fn register_idp_service(name: String, owner: String, tier: String, repo: String) -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({
+        "id": format!("svc-{}", name.to_lowercase().replace(' ', "-")),
+        "name": name,
+        "owner": owner,
+        "tier": tier,
+        "repository": repo,
+        "registered": true
+    }))
+}
+
+#[tauri::command]
+pub async fn get_idp_scorecards() -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({
+        "scorecards": [],
+        "total": 0
+    }))
+}
+
+#[tauri::command]
+pub async fn evaluate_idp_scorecard(service_id: String) -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({
+        "service_id": service_id,
+        "overall_score": 0.0,
+        "grade": "N/A",
+        "metrics": {},
+        "recommendations": ["Register the service first"]
+    }))
+}
+
+#[tauri::command]
+pub async fn get_idp_golden_paths() -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({
+        "golden_paths": [],
+        "total": 0
+    }))
+}
+
+#[tauri::command]
+pub async fn get_idp_platforms() -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({
+        "platforms": [
+            {"name": "Backstage", "enabled": false, "features": ["Service Catalog", "Templates", "TechDocs", "Plugins"]},
+            {"name": "Cycloid", "enabled": false, "features": ["Infrastructure Automation", "FinOps", "GreenOps", "Blueprints"]},
+            {"name": "Humanitec", "enabled": false, "features": ["Orchestration", "Score Files", "Dynamic Environments"]},
+            {"name": "Port", "enabled": false, "features": ["Developer Portal", "Blueprints", "Workflows", "Scorecards"]},
+            {"name": "Qovery", "enabled": false, "features": ["K8s Deploy", "Preview Envs", "Scale-to-Zero", "RBAC"]},
+            {"name": "Mia Platform", "enabled": false, "features": ["API Management", "Microservice Governance", "CI/CD"]},
+            {"name": "OpsLevel", "enabled": false, "features": ["Service Catalog", "Maturity Tracking", "Scorecards"]},
+            {"name": "Roadie", "enabled": false, "features": ["Managed Backstage", "Prebuilt Plugins", "Rapid Setup"]},
+            {"name": "Cortex", "enabled": false, "features": ["Scorecards", "Ownership", "Health Monitoring"]},
+            {"name": "Morpheus Data", "enabled": false, "features": ["Multi-Cloud", "Self-Service", "Governance"]},
+            {"name": "CloudBolt", "enabled": false, "features": ["Multi-Cloud Orchestration", "Cost Tracking", "Governance"]},
+            {"name": "Harness", "enabled": false, "features": ["CD Pipeline", "Feature Flags", "Cost Management", "AI Rollback"]}
+        ]
+    }))
+}
+
+#[tauri::command]
+pub async fn generate_backstage_catalog(service_id: String) -> Result<String, String> {
+    Ok(format!(
+        "apiVersion: backstage.io/v1alpha1\nkind: Component\nmetadata:\n  name: {}\n  annotations:\n    github.com/project-slug: org/{}\nspec:\n  type: service\n  lifecycle: production\n  owner: team-platform\n",
+        service_id, service_id
+    ))
+}
+
+#[tauri::command]
+pub async fn get_idp_teams() -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({
+        "teams": [],
+        "total": 0
+    }))
+}

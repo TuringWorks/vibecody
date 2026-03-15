@@ -84,6 +84,9 @@ pub static COMMANDS: &[&str] = &[
     "/cloud",
     "/benchmark",
     "/metering",
+    "/blueteam",
+    "/purpleteam",
+    "/idp",
 ];
 
 // ── Sub-command tables ────────────────────────────────────────────────────────
@@ -165,6 +168,15 @@ static BENCHMARK_SUBS: &[&str] = &["run", "compare", "export", "list"];
 
 /// Sub-commands for `/metering <sub>`
 static METERING_SUBS: &[&str] = &["status", "budget", "report", "alerts", "top"];
+
+/// Sub-commands for `/blueteam <sub>`
+static BLUETEAM_SUBS: &[&str] = &["status", "scan", "incidents", "iocs", "rules", "forensics", "playbooks", "siem", "hunt", "report"];
+
+/// Sub-commands for `/purpleteam <sub>`
+static PURPLETEAM_SUBS: &[&str] = &["status", "exercise", "simulate", "validate", "matrix", "gaps", "heatmap", "report"];
+
+/// Sub-commands for `/idp <sub>`
+static IDP_SUBS: &[&str] = &["status", "catalog", "register", "golden", "scorecard", "infra", "team", "onboard", "backstage", "platforms", "report"];
 
 /// Sub-commands for `/arena <sub>`
 static ARENA_SUBS: &[&str] = &["compare", "stats", "history"];
@@ -278,6 +290,9 @@ fn command_hint(cmd: &str) -> Option<&'static str> {
         "/cloud"    => Some("[scan|iam|terraform|cloudformation|pulumi|cost|providers]  — cloud provider tools"),
         "/benchmark"=> Some("[run|compare|export|list]  — SWE-bench benchmarking"),
         "/metering" => Some("[status|budget|report|alerts|top]  — usage metering & credits"),
+        "/blueteam" => Some("[status|scan|incidents|iocs|rules|forensics|playbooks|siem|hunt|report]  — defensive security"),
+        "/purpleteam" => Some("[status|exercise|simulate|validate|matrix|gaps|heatmap|report]  — ATT&CK exercises"),
+        "/idp" => Some("[status|catalog|register|golden|scorecard|infra|team|onboard|backstage|platforms|report]  — internal developer platform"),
         _ => None,
     }
 }
@@ -376,6 +391,9 @@ fn complete_slash(line: &str) -> Option<(usize, Vec<Pair>)> {
                 "/cloud" => Some(CLOUD_SUBS),
                 "/benchmark" => Some(BENCHMARK_SUBS),
                 "/metering" => Some(METERING_SUBS),
+                "/blueteam" => Some(BLUETEAM_SUBS),
+                "/purpleteam" => Some(PURPLETEAM_SUBS),
+                "/idp" => Some(IDP_SUBS),
                 _ => None,
             };
 

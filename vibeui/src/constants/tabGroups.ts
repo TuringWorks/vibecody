@@ -16,7 +16,7 @@ export const TAB_GROUPS: TabGroup[] = [
   },
   {
     label: "Code",
-    tabs: ["autofix", "cloudautofix", "bugbot", "redteam", "tests", "coverage", "transform", "metrics", "bisect", "snippets", "astedit", "securityscan", "editpredict"],
+    tabs: ["autofix", "cloudautofix", "bugbot", "redteam", "blueteam", "purpleteam", "tests", "coverage", "transform", "metrics", "bisect", "snippets", "astedit", "securityscan", "editpredict"],
   },
   {
     label: "Git & Collab",
@@ -24,7 +24,7 @@ export const TAB_GROUPS: TabGroup[] = [
   },
   {
     label: "Infrastructure",
-    tabs: ["deploy", "docker", "k8s", "cicd", "ghactions", "env", "sandbox", "cloudsandbox", "health", "scaffold", "appbuilder", "training", "inference", "cistatus", "fullstack", "cloudproviders"],
+    tabs: ["deploy", "docker", "k8s", "cicd", "ghactions", "env", "sandbox", "cloudsandbox", "health", "scaffold", "appbuilder", "training", "inference", "cistatus", "fullstack", "cloudproviders", "idp"],
   },
   {
     label: "Data & API",

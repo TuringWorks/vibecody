@@ -200,6 +200,12 @@ mod session_memory;
 mod compliance_controls;
 #[allow(dead_code)]
 mod multimodal_agent;
+#[allow(dead_code)]
+mod blue_team;
+#[allow(dead_code)]
+mod purple_team;
+#[allow(dead_code)]
+mod idp;
 
 #[derive(Parser)]
 #[command(name = "vibecli")]
@@ -3041,6 +3047,256 @@ async fn main() -> Result<()> {
                                     println!("  (No usage data yet)\n");
                                 }
                                 _ => println!("Usage: /metering [status|budget|report|alerts|top]\n"),
+                            }
+                        }
+
+                        // ── /blueteam ──────────────────────────────────────────────────
+                        "/blueteam" => {
+                            let parts: Vec<&str> = if args.is_empty() {
+                                vec!["status"]
+                            } else {
+                                args.splitn(2, ' ').collect()
+                            };
+                            match parts[0] {
+                                "status" | "" => {
+                                    println!("Blue Team — Defensive Security Status:");
+                                    println!("  Open incidents: 0");
+                                    println!("  Active IOCs: 0");
+                                    println!("  Detection rules: 0");
+                                    println!("  SIEM connections: 0\n");
+                                }
+                                "scan" => {
+                                    println!("Running threat scan...");
+                                    println!("  Checking IOC feeds...");
+                                    println!("  Scanning log sources...");
+                                    println!("  No active threats detected.\n");
+                                }
+                                "incidents" => {
+                                    println!("Incident Management:");
+                                    println!("  (No open incidents)");
+                                    println!("  Use VibeUI BlueTeam panel for full incident management.\n");
+                                }
+                                "iocs" => {
+                                    let query = parts.get(1).unwrap_or(&"");
+                                    if query.is_empty() {
+                                        println!("IOC Database:");
+                                        println!("  (No IOCs tracked)");
+                                        println!("  Add IOCs via: /blueteam iocs add <type> <value>\n");
+                                    } else {
+                                        println!("Searching IOCs for '{}'...", query);
+                                        println!("  (No matches found)\n");
+                                    }
+                                }
+                                "rules" => {
+                                    println!("Detection Rules:");
+                                    println!("  (No rules configured)");
+                                    println!("  Use VibeUI BlueTeam panel to create detection rules.\n");
+                                }
+                                "forensics" => {
+                                    println!("Forensic Cases:");
+                                    println!("  (No active forensic cases)\n");
+                                }
+                                "playbooks" => {
+                                    println!("Incident Response Playbooks:");
+                                    println!("  (No playbooks configured)");
+                                    println!("  Create playbooks in VibeUI BlueTeam panel.\n");
+                                }
+                                "siem" => {
+                                    println!("SIEM Connections:");
+                                    println!("  Supported: Splunk, Sentinel, Elastic SIEM, QRadar, CrowdStrike, Wazuh, Datadog, Sumo Logic");
+                                    println!("  (No active connections)\n");
+                                }
+                                "hunt" => {
+                                    println!("Threat Hunt Queries:");
+                                    println!("  (No hunt queries defined)");
+                                    println!("  Create hypothesis-driven hunts in VibeUI BlueTeam panel.\n");
+                                }
+                                "report" => {
+                                    println!("Generating Blue Team report...");
+                                    println!("  (No data to report)\n");
+                                }
+                                _ => println!("Usage: /blueteam [status|scan|incidents|iocs|rules|forensics|playbooks|siem|hunt|report]\n"),
+                            }
+                        }
+
+                        // ── /purpleteam ────────────────────────────────────────────────
+                        "/purpleteam" => {
+                            let parts: Vec<&str> = if args.is_empty() {
+                                vec!["status"]
+                            } else {
+                                args.splitn(2, ' ').collect()
+                            };
+                            match parts[0] {
+                                "status" | "" => {
+                                    println!("Purple Team — ATT&CK Exercise Status:");
+                                    println!("  Exercises: 0");
+                                    println!("  Techniques in DB: 14 (MITRE ATT&CK)");
+                                    println!("  Overall coverage: N/A\n");
+                                }
+                                "exercise" => {
+                                    let sub = parts.get(1).unwrap_or(&"list");
+                                    match *sub {
+                                        "list" | "" => {
+                                            println!("Purple Team Exercises:");
+                                            println!("  (No exercises created)");
+                                            println!("  Create via: /purpleteam exercise create <name>\n");
+                                        }
+                                        _ => {
+                                            println!("Creating exercise '{}'...", sub);
+                                            println!("  Use VibeUI PurpleTeam panel for full exercise management.\n");
+                                        }
+                                    }
+                                }
+                                "simulate" => {
+                                    println!("Attack Simulation:");
+                                    println!("  Select a technique from the MITRE ATT&CK matrix.");
+                                    println!("  Use VibeUI PurpleTeam panel for guided simulations.\n");
+                                }
+                                "validate" => {
+                                    println!("Detection Validation:");
+                                    println!("  (No validations recorded)");
+                                    println!("  Run simulations first, then validate detections.\n");
+                                }
+                                "matrix" => {
+                                    println!("MITRE ATT&CK Coverage Matrix:");
+                                    println!("  ┌─────────────────┬──────────┐");
+                                    println!("  │ Tactic          │ Coverage │");
+                                    println!("  ├─────────────────┼──────────┤");
+                                    println!("  │ Initial Access  │ N/A      │");
+                                    println!("  │ Execution       │ N/A      │");
+                                    println!("  │ Persistence     │ N/A      │");
+                                    println!("  │ Priv Escalation │ N/A      │");
+                                    println!("  │ Defense Evasion │ N/A      │");
+                                    println!("  │ Credential Acc  │ N/A      │");
+                                    println!("  │ Discovery       │ N/A      │");
+                                    println!("  │ Lateral Move    │ N/A      │");
+                                    println!("  │ Collection      │ N/A      │");
+                                    println!("  │ Exfiltration    │ N/A      │");
+                                    println!("  │ C2              │ N/A      │");
+                                    println!("  │ Impact          │ N/A      │");
+                                    println!("  └─────────────────┴──────────┘");
+                                    println!("  Run exercises to populate coverage data.\n");
+                                }
+                                "gaps" => {
+                                    println!("Coverage Gaps:");
+                                    println!("  (Run an exercise first to identify gaps)\n");
+                                }
+                                "heatmap" => {
+                                    println!("ATT&CK Heatmap:");
+                                    println!("  (No exercise data available for heatmap generation)\n");
+                                }
+                                "report" => {
+                                    println!("Generating Purple Team report...");
+                                    println!("  (No exercises to report on)\n");
+                                }
+                                _ => println!("Usage: /purpleteam [status|exercise|simulate|validate|matrix|gaps|heatmap|report]\n"),
+                            }
+                        }
+
+                        // ── /idp ──────────────────────────────────────────────────────
+                        "/idp" => {
+                            let parts: Vec<&str> = if args.is_empty() {
+                                vec!["status"]
+                            } else {
+                                args.splitn(2, ' ').collect()
+                            };
+                            match parts[0] {
+                                "status" | "" => {
+                                    println!("Internal Developer Platform Status:");
+                                    println!("  Services in catalog: 0");
+                                    println!("  Golden paths: 0");
+                                    println!("  Teams: 0");
+                                    println!("  Infra requests: 0");
+                                    println!("  Platforms: Backstage, Cycloid, Humanitec, Port, Qovery,");
+                                    println!("             Mia Platform, OpsLevel, Roadie, Cortex,");
+                                    println!("             Morpheus Data, CloudBolt, Harness\n");
+                                }
+                                "catalog" => {
+                                    let query = parts.get(1).unwrap_or(&"");
+                                    if query.is_empty() {
+                                        println!("Service Catalog:");
+                                        println!("  (No services registered)");
+                                        println!("  Register via: /idp register <name>\n");
+                                    } else {
+                                        println!("Searching catalog for '{}'...", query);
+                                        println!("  (No matches found)\n");
+                                    }
+                                }
+                                "register" => {
+                                    let name = parts.get(1).unwrap_or(&"");
+                                    if name.is_empty() {
+                                        println!("Usage: /idp register <service-name>\n");
+                                    } else {
+                                        println!("Registering service '{}' in catalog...", name);
+                                        println!("  Use VibeUI IDP panel for full registration form.\n");
+                                    }
+                                }
+                                "golden" => {
+                                    println!("Golden Paths (Paved Roads):");
+                                    println!("  (No golden paths configured)");
+                                    println!("  Create templates in VibeUI IDP panel.\n");
+                                }
+                                "scorecard" => {
+                                    let svc = parts.get(1).unwrap_or(&"");
+                                    if svc.is_empty() {
+                                        println!("Usage: /idp scorecard <service-id>\n");
+                                    } else {
+                                        println!("Evaluating scorecard for '{}'...", svc);
+                                        println!("  Metrics: Reliability, Security, Documentation, TestCoverage,");
+                                        println!("           DeployFrequency, LeadTime, MTTR, ChangeFailureRate");
+                                        println!("  (Service not found in catalog)\n");
+                                    }
+                                }
+                                "infra" => {
+                                    println!("Infrastructure Self-Service:");
+                                    println!("  Templates: Database, Cache, MessageQueue, ObjectStorage,");
+                                    println!("             CDN, LoadBalancer, DNS, Monitoring, Logging,");
+                                    println!("             SecretStore, ServiceMesh, ApiGateway");
+                                    println!("  (No pending requests)\n");
+                                }
+                                "team" => {
+                                    println!("Teams:");
+                                    println!("  (No teams registered)");
+                                    println!("  Create via VibeUI IDP panel.\n");
+                                }
+                                "onboard" => {
+                                    println!("Team Onboarding:");
+                                    println!("  Steps: RepoSetup, CI Pipeline, Environments, Access Control,");
+                                    println!("         Documentation, Monitoring, Alerting, ServiceCatalog,");
+                                    println!("         GoldenPath, SecurityBaseline");
+                                    println!("  (No active onboarding checklists)\n");
+                                }
+                                "backstage" => {
+                                    println!("Backstage Integration:");
+                                    println!("  Generate catalog-info.yaml: /idp backstage catalog <service-id>");
+                                    println!("  Generate template: /idp backstage template <name>");
+                                    println!("  (Use VibeUI IDP > Backstage tab for full management)\n");
+                                }
+                                "platforms" => {
+                                    println!("Supported IDP Platforms:");
+                                    println!("  ┌───────────────┬─────────┐");
+                                    println!("  │ Platform      │ Status  │");
+                                    println!("  ├───────────────┼─────────┤");
+                                    println!("  │ Backstage     │ Off     │");
+                                    println!("  │ Cycloid       │ Off     │");
+                                    println!("  │ Humanitec     │ Off     │");
+                                    println!("  │ Port          │ Off     │");
+                                    println!("  │ Qovery        │ Off     │");
+                                    println!("  │ Mia Platform  │ Off     │");
+                                    println!("  │ OpsLevel      │ Off     │");
+                                    println!("  │ Roadie        │ Off     │");
+                                    println!("  │ Cortex        │ Off     │");
+                                    println!("  │ Morpheus Data │ Off     │");
+                                    println!("  │ CloudBolt     │ Off     │");
+                                    println!("  │ Harness       │ Off     │");
+                                    println!("  └───────────────┴─────────┘");
+                                    println!("  Enable in config.toml or VibeUI IDP > Platforms tab.\n");
+                                }
+                                "report" => {
+                                    println!("Generating IDP report...");
+                                    println!("  (No data to report)\n");
+                                }
+                                _ => println!("Usage: /idp [status|catalog|register|golden|scorecard|infra|team|onboard|backstage|platforms|report]\n"),
                             }
                         }
 

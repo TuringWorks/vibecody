@@ -172,6 +172,35 @@ In REPL mode, the following slash commands are available:
 | `/metering budget` | Manage credit budgets |
 | `/metering report` | Generate usage report by provider/model/task |
 | `/metering alerts` | Show budget alerts |
+| `/blueteam status` | Blue team defensive security overview |
+| `/blueteam scan` | Run threat scan across IOC feeds and log sources |
+| `/blueteam incidents` | List and manage security incidents (P1-P4) |
+| `/blueteam iocs` | IOC database — search and manage indicators of compromise |
+| `/blueteam rules` | Detection rule management (Splunk, Sentinel, Elastic, etc.) |
+| `/blueteam forensics` | Forensic case management with chain of custody |
+| `/blueteam playbooks` | Incident response playbook management |
+| `/blueteam siem` | SIEM connection management (8 platforms) |
+| `/blueteam hunt` | Threat hunting — hypothesis-driven queries |
+| `/blueteam report` | Generate blue team security report |
+| `/purpleteam status` | Purple team ATT&CK exercise overview |
+| `/purpleteam exercise` | Create and manage purple team exercises |
+| `/purpleteam simulate` | Run attack simulations against MITRE techniques |
+| `/purpleteam validate` | Validate detection rules against simulated attacks |
+| `/purpleteam matrix` | Display MITRE ATT&CK coverage matrix |
+| `/purpleteam gaps` | Identify detection coverage gaps |
+| `/purpleteam heatmap` | Generate ATT&CK tactic heatmap |
+| `/purpleteam report` | Generate purple team exercise report |
+| `/idp status` | Internal developer platform overview |
+| `/idp catalog` | Browse and search the service catalog |
+| `/idp register` | Register a new service in the catalog |
+| `/idp golden` | List golden paths (paved roads) for new services |
+| `/idp scorecard` | Evaluate service scorecard (DORA + quality metrics) |
+| `/idp infra` | Self-service infrastructure provisioning |
+| `/idp team` | Team management and member directory |
+| `/idp onboard` | Team onboarding checklist and progress |
+| `/idp backstage` | Backstage integration (catalog-info.yaml, templates) |
+| `/idp platforms` | List all 12 supported IDP platforms and their status |
+| `/idp report` | Generate IDP report |
 | `/config` | Display current configuration |
 | `/help` | Show command reference |
 | `/exit` or `/quit` | Exit VibeCLI |

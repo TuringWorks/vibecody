@@ -15,6 +15,7 @@ import {
   Dices, Timer, Box, Workflow, Layers, Infinity, Factory,
   CloudLightning, SearchCode, Image, ShieldAlert,
   MessagesSquare, Code2, GitPullRequest, Gauge, Heart,
+  ShieldPlus, Target, Building2,
 } from "lucide-react";
 
 export interface TabMeta {
@@ -131,6 +132,9 @@ export const TAB_META: Record<string, TabMeta> = {
   usagemetering:{ icon: DollarSign,        label: "Usage" },
   swebench:    { icon: Gauge,              label: "Bench" },
   sessionmemory:{ icon: Activity,          label: "Mem Prof" },
+  blueteam:    { icon: ShieldPlus,         label: "Blue" },
+  purpleteam:  { icon: Target,             label: "Purple" },
+  idp:         { icon: Building2,          label: "IDP" },
 };
 
 export const DEFAULT_TAB_META: TabMeta = { icon: Workflow, label: "Flow" };
