@@ -127,7 +127,7 @@ const containerStyle: React.CSSProperties = {
   height: "100%",
   background: "var(--bg-primary)",
   color: "var(--text-primary)",
-  fontFamily: "var(--font-mono)",
+  fontFamily: "inherit",
   overflow: "hidden",
 };
 
@@ -135,7 +135,7 @@ const tabBarStyle: React.CSSProperties = {
   display: "flex",
   gap: 2,
   padding: "8px 12px 0",
-  borderBottom: "1px solid var(--border-primary)",
+  borderBottom: "1px solid var(--border-color)",
   background: "var(--bg-secondary)",
   overflowX: "auto",
   flexShrink: 0,
@@ -145,11 +145,11 @@ const tabStyle = (active: boolean): React.CSSProperties => ({
   padding: "8px 14px",
   cursor: "pointer",
   background: active ? "var(--bg-primary)" : "transparent",
-  color: active ? "var(--accent-primary)" : "var(--text-secondary)",
+  color: active ? "var(--accent-blue)" : "var(--text-secondary)",
   border: "none",
-  borderBottom: active ? "2px solid var(--accent-primary)" : "2px solid transparent",
+  borderBottom: active ? "2px solid var(--accent-blue)" : "2px solid transparent",
   fontSize: 13,
-  fontFamily: "var(--font-mono)",
+  fontFamily: "inherit",
   whiteSpace: "nowrap",
 });
 
@@ -161,13 +161,13 @@ const contentStyle: React.CSSProperties = {
 
 const btnStyle: React.CSSProperties = {
   padding: "6px 14px",
-  background: "var(--accent-primary)",
+  background: "var(--accent-blue)",
   color: "var(--bg-primary)",
   border: "none",
   borderRadius: 4,
   cursor: "pointer",
   fontSize: 12,
-  fontFamily: "var(--font-mono)",
+  fontFamily: "inherit",
 };
 
 const btnSecondary: React.CSSProperties = {
@@ -189,10 +189,10 @@ const inputStyle: React.CSSProperties = {
   padding: "6px 10px",
   background: "var(--bg-tertiary)",
   color: "var(--text-primary)",
-  border: "1px solid var(--border-primary)",
+  border: "1px solid var(--border-color)",
   borderRadius: 4,
   fontSize: 13,
-  fontFamily: "var(--font-mono)",
+  fontFamily: "inherit",
   width: "100%",
   boxSizing: "border-box",
 };
@@ -206,7 +206,7 @@ const tableStyle: React.CSSProperties = {
 const thStyle: React.CSSProperties = {
   textAlign: "left",
   padding: "8px 10px",
-  borderBottom: "1px solid var(--border-primary)",
+  borderBottom: "1px solid var(--border-color)",
   color: "var(--text-secondary)",
   fontWeight: 600,
   fontSize: 12,
@@ -214,7 +214,7 @@ const thStyle: React.CSSProperties = {
 
 const tdStyle: React.CSSProperties = {
   padding: "8px 10px",
-  borderBottom: "1px solid var(--border-primary)",
+  borderBottom: "1px solid var(--border-color)",
 };
 
 const badgeStyle = (color: string): React.CSSProperties => ({
@@ -229,7 +229,7 @@ const badgeStyle = (color: string): React.CSSProperties => ({
 
 const cardStyle: React.CSSProperties = {
   background: "var(--bg-secondary)",
-  border: "1px solid var(--border-primary)",
+  border: "1px solid var(--border-color)",
   borderRadius: 6,
   padding: 14,
   marginBottom: 10,
@@ -665,7 +665,7 @@ spec:
                   <span key={f} style={{ ...badgeStyle("#89b4fa"), fontSize: 10 }}>{f}</span>
                 ))}
               </div>
-              <div style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>
+              <div style={{ fontSize: 11, fontFamily: "inherit", color: "var(--text-secondary)" }}>
                 Template: {gp.template_repo}
               </div>
             </div>
@@ -728,7 +728,7 @@ spec:
                         background: metric.score / metric.max_score >= 0.8 ? "#a6e3a1" : metric.score / metric.max_score >= 0.5 ? "#f9e2af" : "#f38ba8",
                       }} />
                     </div>
-                    <span style={{ fontSize: 11, minWidth: 50, textAlign: "right", fontFamily: "var(--font-mono)" }}>
+                    <span style={{ fontSize: 11, minWidth: 50, textAlign: "right", fontFamily: "inherit" }}>
                       {metric.score}/{metric.max_score}
                     </span>
                   </div>
@@ -828,7 +828,7 @@ spec:
             )}
             {infraRequests.map((req) => (
               <tr key={req.id}>
-                <td style={{ ...tdStyle, fontFamily: "var(--font-mono)", fontSize: 11 }}>{req.id}</td>
+                <td style={{ ...tdStyle, fontFamily: "inherit", fontSize: 11 }}>{req.id}</td>
                 <td style={tdStyle}>{req.template}</td>
                 <td style={tdStyle}><span style={badgeStyle(STATUS_COLORS[req.status] || "#6c7086")}>{req.status}</span></td>
                 <td style={tdStyle}>{req.config?.environment || "—"}</td>
@@ -892,12 +892,12 @@ spec:
                   <span style={{ fontWeight: 600, color: team.onboarding_progress === 100 ? "#a6e3a1" : "var(--text-primary)" }}>{team.onboarding_progress}%</span>
                 </div>
                 <div style={{ height: 6, background: "var(--bg-tertiary)", borderRadius: 3, overflow: "hidden" }}>
-                  <div style={{ width: `${team.onboarding_progress}%`, height: "100%", background: team.onboarding_progress === 100 ? "#a6e3a1" : "var(--accent-primary)", borderRadius: 3, transition: "width 0.3s" }} />
+                  <div style={{ width: `${team.onboarding_progress}%`, height: "100%", background: team.onboarding_progress === 100 ? "#a6e3a1" : "var(--accent-blue)", borderRadius: 3, transition: "width 0.3s" }} />
                 </div>
               </div>
 
               {expandedTeam === team.id && team.onboarding_checklist.length > 0 && (
-                <div style={{ marginTop: 10, borderTop: "1px solid var(--border-primary)", paddingTop: 8 }}>
+                <div style={{ marginTop: 10, borderTop: "1px solid var(--border-color)", paddingTop: 8 }}>
                   <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>Onboarding Checklist</span>
                   {team.onboarding_checklist.map((item, i) => (
                     <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", fontSize: 12, cursor: "pointer" }} onClick={() => toggleChecklist(team.id, i)}>
@@ -923,7 +923,7 @@ spec:
         </p>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
           {platforms.map((platform) => (
-            <div key={platform.name} style={{ ...cardStyle, opacity: platform.enabled ? 1 : 0.7, borderColor: platform.enabled ? "var(--accent-primary)" : "var(--border-primary)" }}>
+            <div key={platform.name} style={{ ...cardStyle, opacity: platform.enabled ? 1 : 0.7, borderColor: platform.enabled ? "var(--accent-blue)" : "var(--border-color)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                 <strong style={{ fontSize: 14 }}>{platform.name}</strong>
                 <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 12 }}>
@@ -981,11 +981,11 @@ spec:
             </div>
             <pre style={{
               background: "var(--bg-tertiary)",
-              border: "1px solid var(--border-primary)",
+              border: "1px solid var(--border-color)",
               borderRadius: 6,
               padding: 16,
               fontSize: 12,
-              fontFamily: "var(--font-mono)",
+              fontFamily: "inherit",
               overflow: "auto",
               whiteSpace: "pre-wrap",
               maxHeight: 400,

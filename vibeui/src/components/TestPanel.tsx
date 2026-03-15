@@ -45,6 +45,8 @@ export function TestPanel({ workspacePath }: TestPanelProps) {
  const [framework, setFramework] = useState<string | null>(null);
  const unlistenRef = useRef<UnlistenFn | null>(null);
  const logEndRef = useRef<HTMLDivElement>(null);
+ const cancelRef = useRef(false);
+ const taskIdRef = useRef(0);
 
  useEffect(() => {
  return () => {
@@ -64,8 +66,22 @@ export function TestPanel({ workspacePath }: TestPanelProps) {
  .catch(() => setFramework(null));
  }, [workspacePath]);
 
+ function handleSuspend() {
+ cancelRef.current = true;
+ setRunning(false);
+ setResult({
+ framework: framework || "unknown",
+ passed: 0, failed: 0, ignored: 0, total: 0,
+ duration_ms: 0,
+ tests: [{ name: "Test run", status: "failed", duration_ms: null, output: "Test run suspended by user." }],
+ });
+ }
+
  async function runTests() {
  if (!workspacePath) return;
+ cancelRef.current = false;
+ taskIdRef.current += 1;
+ const thisId = taskIdRef.current;
  setRunning(true);
  setResult(null);
  setLiveLog([]);
@@ -84,8 +100,10 @@ export function TestPanel({ workspacePath }: TestPanelProps) {
  workspace: workspacePath,
  command: customCmd.trim() || null,
  });
+ if (cancelRef.current || taskIdRef.current !== thisId) return;
  setResult(res);
  } catch (e) {
+ if (cancelRef.current || taskIdRef.current !== thisId) return;
  setResult({
  framework: "unknown",
  passed: 0, failed: 1, ignored: 0, total: 1,
@@ -93,7 +111,9 @@ export function TestPanel({ workspacePath }: TestPanelProps) {
  tests: [{ name: "Test run", status: "failed", duration_ms: null, output: String(e) }],
  });
  } finally {
+ if (!cancelRef.current && taskIdRef.current === thisId) {
  setRunning(false);
+ }
  // Only clean up if we still own the listener (a second runTests
  // call may have already replaced it with its own listener).
  if (unlistenRef.current === unlisten) {
@@ -139,19 +159,31 @@ export function TestPanel({ workspacePath }: TestPanelProps) {
  {framework}
  </span>
  )}
+ {running ? (
  <button
- onClick={runTests}
- disabled={running}
+ onClick={handleSuspend}
  style={{
  marginLeft: "auto", padding: "4px 12px", fontSize: 12,
- background: running ? "var(--bg-tertiary)" : "var(--accent-color, #6366f1)",
- color: running ? "var(--text-secondary)" : "var(--text-primary, #fff)",
- border: "none", borderRadius: 4, cursor: running ? "not-allowed" : "pointer",
+ background: "#c62828", color: "#fff",
+ border: "none", borderRadius: 4, cursor: "pointer",
  fontWeight: 600,
  }}
  >
- {running ? "Running…" : "Run Tests"}
+ Suspend
  </button>
+ ) : (
+ <button
+ onClick={runTests}
+ style={{
+ marginLeft: "auto", padding: "4px 12px", fontSize: 12,
+ background: "var(--accent-blue)", color: "#fff",
+ border: "none", borderRadius: 4, cursor: "pointer",
+ fontWeight: 600,
+ }}
+ >
+ Run Tests
+ </button>
+ )}
  </div>
 
  {/* Custom command override */}
@@ -198,7 +230,7 @@ export function TestPanel({ workspacePath }: TestPanelProps) {
  onClick={() => setFilter(f)}
  style={{
  padding: "2px 10px", fontSize: 11, borderRadius: 3, cursor: "pointer",
- background: filter === f ? "var(--accent-color, #6366f1)" : "var(--bg-secondary)",
+ background: filter === f ? "var(--accent-blue)" : "var(--bg-secondary)",
  color: filter === f ? "var(--text-primary, #fff)" : "var(--text-secondary)",
  border: "1px solid var(--border-color)",
  }}

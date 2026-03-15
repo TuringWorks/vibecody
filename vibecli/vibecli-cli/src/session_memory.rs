@@ -257,7 +257,7 @@ impl MemoryProfiler {
             if first == 0 {
                 return 0.0;
             }
-            return ((last as f64 - first as f64) / first as f64) * 100.0;
+            return (last as f64 - first as f64) / first as f64 * 100.0;
         }
 
         let first_avg: f64 = self.samples[..first_segment_end]

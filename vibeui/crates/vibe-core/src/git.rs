@@ -176,20 +176,42 @@ pub fn list_branches(repo_path: &Path) -> Result<Vec<String>> {
 
 pub fn switch_branch(repo_path: &Path, branch: &str) -> Result<()> {
     let repo = Repository::open(repo_path)?;
-    
-    // Get the branch reference
-    let branch_ref = repo.find_branch(branch, git2::BranchType::Local)?;
-    let reference = branch_ref.get();
-    
-    // Set HEAD to the branch
-    let ref_name = reference.name()
-        .ok_or_else(|| anyhow::anyhow!("Branch reference has non-UTF-8 name"))?;
-    repo.set_head(ref_name)?;
-    
-    // Checkout the branch
-    repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force()))?;
-    
-    Ok(())
+
+    // Try local branch first
+    if let Ok(branch_ref) = repo.find_branch(branch, git2::BranchType::Local) {
+        let ref_name = branch_ref.get().name()
+            .ok_or_else(|| anyhow::anyhow!("Branch reference has non-UTF-8 name"))?
+            .to_string();
+        repo.set_head(&ref_name)?;
+        repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force()))?;
+        return Ok(());
+    }
+
+    // Check if it's a remote branch (e.g. "origin/feature")
+    if let Ok(remote_branch) = repo.find_branch(branch, git2::BranchType::Remote) {
+        // Derive local name by stripping the remote prefix (e.g. "origin/feature" -> "feature")
+        let local_name = branch.split_once('/')
+            .map(|(_, name)| name)
+            .unwrap_or(branch);
+
+        // Create a local branch tracking the remote
+        let commit = remote_branch.get().peel_to_commit()?;
+        let mut new_branch = repo.branch(local_name, &commit, false)?;
+
+        // Set upstream tracking
+        let remote_ref = remote_branch.get().name()
+            .ok_or_else(|| anyhow::anyhow!("Remote branch reference has non-UTF-8 name"))?;
+        new_branch.set_upstream(Some(remote_ref))?;
+
+        let ref_name = new_branch.get().name()
+            .ok_or_else(|| anyhow::anyhow!("New branch reference has non-UTF-8 name"))?
+            .to_string();
+        repo.set_head(&ref_name)?;
+        repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force()))?;
+        return Ok(());
+    }
+
+    anyhow::bail!("Branch '{}' not found (checked local and remote)", branch)
 }
 
 pub fn get_history(repo_path: &Path, limit: usize) -> Result<Vec<CommitInfo>> {

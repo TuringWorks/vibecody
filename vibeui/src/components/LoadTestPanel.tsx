@@ -57,6 +57,8 @@ export function LoadTestPanel() {
  const [progress, setProgress] = useState(0);
  const [error, setError] = useState<string | null>(null);
  const unlistenRef = useRef<(() => void) | null>(null);
+ const cancelRef = useRef(false);
+ const taskIdRef = useRef(0);
 
  useEffect(() => () => { unlistenRef.current?.(); }, []);
 
@@ -67,8 +69,17 @@ export function LoadTestPanel() {
  } catch { return undefined; }
  };
 
+ const handleSuspend = () => {
+ cancelRef.current = true;
+ setRunning(false);
+ setError("Load test suspended by user.");
+ };
+
  const run = async () => {
  if (!url || running) return;
+ cancelRef.current = false;
+ taskIdRef.current += 1;
+ const thisId = taskIdRef.current;
  setRunning(true);
  setProgress(0);
  setResult(null);
@@ -88,12 +99,16 @@ export function LoadTestPanel() {
  concurrency,
  total,
  });
+ if (cancelRef.current || taskIdRef.current !== thisId) return;
  setResult(res);
  setProgress(total);
  } catch (e) {
+ if (cancelRef.current || taskIdRef.current !== thisId) return;
  setError(String(e));
  } finally {
+ if (!cancelRef.current && taskIdRef.current === thisId) {
  setRunning(false);
+ }
  unlistenRef.current?.();
  unlistenRef.current = null;
  }
@@ -161,19 +176,34 @@ export function LoadTestPanel() {
  </div>
  ))}
 
+ {running ? (
  <button
- onClick={run}
- disabled={running || !url}
+ onClick={handleSuspend}
  style={{
  padding: "6px 20px", fontSize: 12, fontWeight: 700, alignSelf: "flex-end",
- background: running ? "var(--bg-secondary)" : "var(--accent-color, #6366f1)",
- color: running ? "var(--text-muted)" : "var(--text-primary, #fff)",
- border: "none", borderRadius: 4, cursor: running ? "not-allowed" : "pointer",
+ background: "#c62828",
+ color: "#fff",
+ border: "none", borderRadius: 4, cursor: "pointer",
  height: 32,
  }}
  >
- {running ? ` ${progress}/${total}` : "Run"}
+ Suspend ({progress}/{total})
  </button>
+ ) : (
+ <button
+ onClick={run}
+ disabled={!url}
+ style={{
+ padding: "6px 20px", fontSize: 12, fontWeight: 700, alignSelf: "flex-end",
+ background: "var(--accent-blue)",
+ color: "#fff",
+ border: "none", borderRadius: 4, cursor: !url ? "not-allowed" : "pointer",
+ height: 32,
+ }}
+ >
+ Run
+ </button>
+ )}
  </div>
 
  {/* Optional body + headers */}
@@ -208,7 +238,7 @@ export function LoadTestPanel() {
  <span>{progressPct}%</span>
  </div>
  <div style={{ height: 8, background: "var(--bg-secondary)", borderRadius: 4, overflow: "hidden", border: "1px solid var(--border-color)" }}>
- <div style={{ height: "100%", width: `${progressPct}%`, background: "var(--accent-primary, #6366f1)", borderRadius: 4, transition: "width 0.2s" }} />
+ <div style={{ height: "100%", width: `${progressPct}%`, background: "var(--accent-blue)", borderRadius: 4, transition: "width 0.2s" }} />
  </div>
  </div>
  )}
@@ -218,7 +248,7 @@ export function LoadTestPanel() {
  <>
  {/* Summary row */}
  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
- <StatCard label="Req/sec" value={result.requests_per_sec} color="var(--accent-color)" />
+ <StatCard label="Req/sec" value={result.requests_per_sec} color="var(--accent-blue)" />
  <StatCard label="Avg" value={result.avg_ms} unit="ms" />
  <StatCard label="p50" value={result.p50_ms} unit="ms" />
  <StatCard label="p90" value={result.p90_ms} unit="ms" />

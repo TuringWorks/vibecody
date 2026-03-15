@@ -5,7 +5,7 @@
  * outdated and vulnerable dependencies, displays structured table with
  * per-package upgrade actions.
  */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { EmptyState } from "./EmptyState";
 import { StatusMessage } from "./StatusMessage";
@@ -48,6 +48,8 @@ export function DepsPanel({ workspacePath }: DepsPanelProps) {
   const [filter, setFilter] = useState<Filter>("all");
   const [upgrading, setUpgrading] = useState<Set<string>>(new Set());
   const [showRaw, setShowRaw] = useState(false);
+  const cancelRef = useRef(false);
+  const taskIdRef = useRef(0);
 
   useEffect(() => {
     if (!workspacePath) return;
@@ -66,8 +68,17 @@ export function DepsPanel({ workspacePath }: DepsPanelProps) {
     );
   }
 
+  const handleSuspend = () => {
+    cancelRef.current = true;
+    setScanning(false);
+    setError("Scan suspended by user.");
+  };
+
   const handleScan = async () => {
     if (!manager) return;
+    cancelRef.current = false;
+    taskIdRef.current += 1;
+    const thisId = taskIdRef.current;
     setScanning(true);
     setError(null);
     setResult(null);
@@ -75,11 +86,15 @@ export function DepsPanel({ workspacePath }: DepsPanelProps) {
       const r = await invoke<DepsResult>("scan_dependencies", {
         workspace: workspacePath, manager,
       });
+      if (cancelRef.current || taskIdRef.current !== thisId) return;
       setResult(r);
     } catch (e: unknown) {
+      if (cancelRef.current || taskIdRef.current !== thisId) return;
       setError(String(e));
     } finally {
-      setScanning(false);
+      if (!cancelRef.current && taskIdRef.current === thisId) {
+        setScanning(false);
+      }
     }
   };
 
@@ -121,18 +136,31 @@ export function DepsPanel({ workspacePath }: DepsPanelProps) {
         }}>
           {manager ? managerLabel[manager] || manager : "No package manager detected"}
         </div>
-        <button
-          onClick={handleScan}
-          disabled={scanning || !manager}
-          style={{
-            padding: "6px 16px", fontSize: 12, fontWeight: 600,
-            background: scanning ? "var(--bg-tertiary)" : "var(--accent-color, #007acc)",
-            color: "var(--text-primary, #e0e0e0)", border: "none", borderRadius: 6,
-            cursor: scanning || !manager ? "not-allowed" : "pointer",
-          }}
-        >
-          {scanning ? "Scanning..." : "Scan Dependencies"}
-        </button>
+        {scanning ? (
+          <button
+            onClick={handleSuspend}
+            style={{
+              padding: "6px 16px", fontSize: 12, fontWeight: 600,
+              background: "#c62828", color: "#fff",
+              border: "none", borderRadius: 6, cursor: "pointer",
+            }}
+          >
+            Suspend
+          </button>
+        ) : (
+          <button
+            onClick={handleScan}
+            disabled={!manager}
+            style={{
+              padding: "6px 16px", fontSize: 12, fontWeight: 600,
+              background: !manager ? "var(--bg-tertiary)" : "var(--accent-blue)",
+              color: "#fff", border: "none", borderRadius: 6,
+              cursor: !manager ? "not-allowed" : "pointer",
+            }}
+          >
+            Scan Dependencies
+          </button>
+        )}
       </div>
 
       {/* Error */}
@@ -166,8 +194,8 @@ export function DepsPanel({ workspacePath }: DepsPanelProps) {
                 onClick={() => setFilter(f)}
                 style={{
                   padding: "4px 12px", fontSize: 11, borderRadius: 12,
-                  background: filter === f ? "var(--accent-color)" : "var(--bg-secondary)",
-                  border: `1px solid ${filter === f ? "var(--accent-color)" : "var(--border-color)"}`,
+                  background: filter === f ? "var(--accent-blue)" : "var(--bg-secondary)",
+                  border: `1px solid ${filter === f ? "var(--accent-blue)" : "var(--border-color)"}`,
                   color: "var(--text-primary)", cursor: "pointer",
                   fontWeight: filter === f ? 600 : 400,
                 }}

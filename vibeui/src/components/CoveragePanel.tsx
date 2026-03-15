@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { CircleCheck, FlaskConical, Loader2, Play } from "lucide-react";
 
@@ -45,6 +45,8 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  const [filter, setFilter] = useState<Filter>("all");
  const [expanded, setExpanded] = useState<Set<string>>(new Set());
  const [showRaw, setShowRaw] = useState(false);
+ const cancelRef = useRef(false);
+ const taskIdRef = useRef(0);
 
  useEffect(() => {
  if (!workspacePath) return;
@@ -53,8 +55,17 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  .catch(() => setTool(null));
  }, [workspacePath]);
 
+ const handleSuspend = () => {
+ cancelRef.current = true;
+ setRunning(false);
+ setError("Suspended by user.");
+ };
+
  const handleRun = async () => {
  if (!workspacePath || !tool) return;
+ cancelRef.current = false;
+ taskIdRef.current += 1;
+ const thisId = taskIdRef.current;
  setRunning(true);
  setError(null);
  setResult(null);
@@ -63,13 +74,17 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  workspace: workspacePath,
  tool,
  });
+ if (cancelRef.current || taskIdRef.current !== thisId) return;
  // Sort files by pct ascending (worst coverage first)
  r.files.sort((a, b) => a.pct - b.pct);
  setResult(r);
  } catch (e: unknown) {
+ if (cancelRef.current || taskIdRef.current !== thisId) return;
  setError(String(e));
  } finally {
+ if (taskIdRef.current === thisId) {
  setRunning(false);
+ }
  }
  };
 
@@ -95,28 +110,42 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px", flexWrap: "wrap" }}>
  <span style={{ fontWeight: "bold", display: "flex", alignItems: "center", gap: 6 }}><FlaskConical size={16} strokeWidth={1.5} />Coverage</span>
  {tool && (
- <span style={{ background: "var(--bg-secondary, #2d2d2d)", padding: "2px 8px", borderRadius: "4px", fontSize: "11px" }}>
+ <span style={{ background: "var(--bg-secondary)", padding: "2px 8px", borderRadius: "4px", fontSize: "11px" }}>
  {toolLabel[tool] ?? tool}
  </span>
  )}
  {!tool && !workspacePath && (
- <span style={{ color: "var(--text-muted, #888)" }}>No workspace open</span>
+ <span style={{ color: "var(--text-secondary)" }}>No workspace open</span>
  )}
  {!tool && workspacePath && (
- <span style={{ color: "var(--text-muted, #888)" }}>No coverage tool detected</span>
+ <span style={{ color: "var(--text-secondary)" }}>No coverage tool detected</span>
  )}
+ {running ? (
  <button
- onClick={handleRun}
- disabled={running || !tool || !workspacePath}
+ onClick={handleSuspend}
  style={{
  marginLeft: "auto",
- background: running ? "var(--bg-secondary, #2d2d2d)" : "var(--accent-color, #007acc)",
- color: "var(--text-primary, #fff)", border: "none", borderRadius: "4px",
- padding: "4px 12px", cursor: running ? "default" : "pointer",
+ background: "#c62828",
+ color: "#fff", border: "none", borderRadius: "4px",
+ padding: "4px 12px", cursor: "pointer",
  }}
  >
- {running ? <><Loader2 size={14} strokeWidth={1.5} style={{ display: "inline" }} />Running…</> : <><Play size={14} strokeWidth={1.5} style={{ display: "inline" }} />Run Coverage</>}
+ <Loader2 size={14} strokeWidth={1.5} style={{ display: "inline" }} />Suspend
  </button>
+ ) : (
+ <button
+ onClick={handleRun}
+ disabled={!tool || !workspacePath}
+ style={{
+ marginLeft: "auto",
+ background: "var(--accent-blue)", color: "#fff",
+ border: "none", borderRadius: "4px",
+ padding: "4px 12px", cursor: !tool || !workspacePath ? "default" : "pointer",
+ }}
+ >
+ <Play size={14} strokeWidth={1.5} style={{ display: "inline" }} />Run Coverage
+ </button>
+ )}
  </div>
 
  {error && (
@@ -133,11 +162,11 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  <span style={{ color: pctColor(result.total_pct), fontWeight: "bold", fontSize: "16px" }}>
  {result.total_pct.toFixed(1)}%
  </span>
- <span style={{ color: "var(--text-muted, #888)", fontSize: "11px" }}>
+ <span style={{ color: "var(--text-secondary)", fontSize: "11px" }}>
  {result.files.length} files
  </span>
  </div>
- <div style={{ background: "var(--bg-secondary, #2d2d2d)", borderRadius: "3px", height: "6px", overflow: "hidden" }}>
+ <div style={{ background: "var(--bg-secondary)", borderRadius: "3px", height: "6px", overflow: "hidden" }}>
  <div style={{ background: pctColor(result.total_pct), width: barWidth(result.total_pct), height: "100%", transition: "width 0.4s" }} />
  </div>
  </div>
@@ -149,8 +178,8 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  key={f}
  onClick={() => setFilter(f)}
  style={{
- background: filter === f ? "var(--accent-color, #007acc)" : "var(--bg-secondary, #2d2d2d)",
- color: filter === f ? "var(--text-primary, #fff)" : "var(--text-muted, #888)",
+ background: filter === f ? "var(--accent-blue)" : "var(--bg-secondary)",
+ color: filter === f ? "var(--text-primary)" : "var(--text-secondary)",
  border: "none", borderRadius: "4px", padding: "2px 10px",
  cursor: "pointer", fontSize: "11px",
  }}
@@ -162,8 +191,8 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  onClick={() => setShowRaw(r => !r)}
  style={{
  marginLeft: "auto",
- background: showRaw ? "var(--accent-color, #007acc)" : "var(--bg-secondary, #2d2d2d)",
- color: showRaw ? "var(--text-primary, #fff)" : "var(--text-muted, #888)",
+ background: showRaw ? "var(--accent-blue)" : "var(--bg-secondary)",
+ color: showRaw ? "var(--text-primary)" : "var(--text-secondary)",
  border: "none", borderRadius: "4px", padding: "2px 10px",
  cursor: "pointer", fontSize: "11px",
  }}
@@ -173,13 +202,13 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  </div>
 
  {showRaw ? (
- <pre style={{ background: "var(--bg-secondary, #2d2d2d)", padding: "10px", borderRadius: "4px", fontSize: "11px", overflow: "auto", maxHeight: "400px", whiteSpace: "pre-wrap" }}>
+ <pre style={{ background: "var(--bg-secondary)", padding: "10px", borderRadius: "4px", fontSize: "11px", overflow: "auto", maxHeight: "400px", whiteSpace: "pre-wrap" }}>
  {result.raw_output || "(no output)"}
  </pre>
  ) : (
  <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
  {filteredFiles.length === 0 && (
- <div style={{ color: "var(--text-muted, #888)", textAlign: "center", padding: "20px" }}>
+ <div style={{ color: "var(--text-secondary)", textAlign: "center", padding: "20px" }}>
  No files match the filter.
  </div>
  )}
@@ -187,27 +216,27 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  const isExpanded = expanded.has(file.path);
  const shortPath = file.path.split("/").slice(-3).join("/");
  return (
- <div key={file.path} style={{ background: "var(--bg-secondary, #2d2d2d)", borderRadius: "4px", overflow: "hidden" }}>
+ <div key={file.path} style={{ background: "var(--bg-secondary)", borderRadius: "4px", overflow: "hidden" }}>
  <div
  onClick={() => toggleExpand(file.path)}
  style={{ padding: "6px 10px", cursor: "pointer", display: "flex", alignItems: "center", gap: "8px" }}
  >
- <span style={{ color: "var(--text-muted, #888)", fontSize: "10px" }}>{isExpanded ? "▼" : ""}</span>
- <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--text-secondary, #ccc)" }} title={file.path}>
+ <span style={{ color: "var(--text-secondary)", fontSize: "10px" }}>{isExpanded ? "▼" : ""}</span>
+ <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--text-secondary)" }} title={file.path}>
  {shortPath}
  </span>
  <span style={{ color: pctColor(file.pct), fontWeight: "bold", minWidth: "48px", textAlign: "right" }}>
  {file.pct.toFixed(0)}%
  </span>
- <span style={{ color: "var(--text-muted, #888)", fontSize: "11px", minWidth: "80px", textAlign: "right" }}>
+ <span style={{ color: "var(--text-secondary)", fontSize: "11px", minWidth: "80px", textAlign: "right" }}>
  {file.covered}/{file.total} lines
  </span>
- <div style={{ width: "80px", background: "var(--bg-primary, #1e1e1e)", borderRadius: "2px", height: "4px", overflow: "hidden" }}>
+ <div style={{ width: "80px", background: "var(--bg-primary)", borderRadius: "2px", height: "4px", overflow: "hidden" }}>
  <div style={{ background: pctColor(file.pct), width: barWidth(file.pct), height: "100%" }} />
  </div>
  </div>
  {isExpanded && file.uncovered_lines.length > 0 && (
- <div style={{ padding: "6px 10px 8px 28px", borderTop: "1px solid var(--bg-primary, #1e1e1e)" }}>
+ <div style={{ padding: "6px 10px 8px 28px", borderTop: "1px solid var(--bg-primary)" }}>
  <span style={{ color: "var(--error-color, #f44336)", fontSize: "11px" }}>
  Uncovered lines: {file.uncovered_lines.slice(0, 30).join(", ")}
  {file.uncovered_lines.length > 30 && ` … +${file.uncovered_lines.length - 30} more`}
@@ -215,7 +244,7 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  </div>
  )}
  {isExpanded && file.uncovered_lines.length === 0 && (
- <div style={{ padding: "6px 10px 8px 28px", borderTop: "1px solid var(--bg-primary, #1e1e1e)", color: "var(--success-color, #4caf50)", fontSize: "11px" }}>
+ <div style={{ padding: "6px 10px 8px 28px", borderTop: "1px solid var(--bg-primary)", color: "var(--success-color, #4caf50)", fontSize: "11px" }}>
  <CircleCheck size={14} strokeWidth={1.5} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />All lines covered
  </div>
  )}

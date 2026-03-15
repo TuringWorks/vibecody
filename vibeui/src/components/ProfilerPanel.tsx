@@ -4,7 +4,7 @@
  * Auto-detects profiling tool (cargo-flamegraph, clinic, py-spy, go pprof),
  * runs profiler, parses output into hotspot table sorted by self%.
  */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
 interface ProfileHotspot {
@@ -48,6 +48,8 @@ export function ProfilerPanel({ workspacePath }: ProfilerPanelProps) {
   const [error, setError] = useState<string | null>(null);
   const [target, setTarget] = useState("");
   const [showRaw, setShowRaw] = useState(false);
+  const cancelRef = useRef(false);
+  const taskIdRef = useRef(0);
 
   useEffect(() => {
     if (!workspacePath) return;
@@ -64,8 +66,17 @@ export function ProfilerPanel({ workspacePath }: ProfilerPanelProps) {
     );
   }
 
+  const handleSuspend = () => {
+    cancelRef.current = true;
+    setRunning(false);
+    setError("Profiling suspended by user.");
+  };
+
   const handleRun = async () => {
     if (!tool) return;
+    cancelRef.current = false;
+    taskIdRef.current += 1;
+    const thisId = taskIdRef.current;
     setRunning(true);
     setError(null);
     setResult(null);
@@ -75,11 +86,15 @@ export function ProfilerPanel({ workspacePath }: ProfilerPanelProps) {
         tool,
         target: target.trim() || null,
       });
+      if (cancelRef.current || taskIdRef.current !== thisId) return;
       setResult(r);
     } catch (e: unknown) {
+      if (cancelRef.current || taskIdRef.current !== thisId) return;
       setError(String(e));
     } finally {
-      setRunning(false);
+      if (!cancelRef.current && taskIdRef.current === thisId) {
+        setRunning(false);
+      }
     }
   };
 
@@ -112,19 +127,34 @@ export function ProfilerPanel({ workspacePath }: ProfilerPanelProps) {
             color: "var(--text-primary)", outline: "none",
           }}
         />
-        <button
-          onClick={handleRun}
-          disabled={running || !tool}
-          style={{
-            padding: "8px 18px", fontSize: 13, fontWeight: 700,
-            background: running ? "var(--bg-tertiary)" : "var(--accent-color, #007acc)",
-            color: "var(--bg-tertiary)", border: "none", borderRadius: 6,
-            cursor: running || !tool ? "not-allowed" : "pointer",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {running ? "Profiling..." : "Profile"}
-        </button>
+        {running ? (
+          <button
+            onClick={handleSuspend}
+            style={{
+              padding: "8px 18px", fontSize: 13, fontWeight: 700,
+              background: "#c62828",
+              color: "#fff", border: "none", borderRadius: 6,
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            Suspend
+          </button>
+        ) : (
+          <button
+            onClick={handleRun}
+            disabled={!tool}
+            style={{
+              padding: "8px 18px", fontSize: 13, fontWeight: 700,
+              background: "var(--accent-blue)",
+              color: "#fff", border: "none", borderRadius: 6,
+              cursor: !tool ? "not-allowed" : "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            Profile
+          </button>
+        )}
       </div>
 
       {/* Error */}
@@ -216,7 +246,7 @@ export function ProfilerPanel({ workspacePath }: ProfilerPanelProps) {
               onClick={() => setShowRaw(!showRaw)}
               style={{
                 background: "none", border: "none", cursor: "pointer", fontSize: 11,
-                color: "var(--text-info, #89b4fa)", padding: 0, textDecoration: "underline",
+                color: "var(--accent-blue)", padding: 0, textDecoration: "underline",
               }}
             >
               {showRaw ? "Hide raw output" : "Show raw output"}

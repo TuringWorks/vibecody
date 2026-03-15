@@ -1,9 +1,18 @@
 import React, { useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 interface GeneratedFile {
   path: string;
-  layer: "Frontend" | "Backend" | "Database" | "Infra" | "Testing" | "Docs";
+  absolute_path: string;
+  layer: string;
   lines: number;
+  content: string;
+}
+
+interface FullStackResult {
+  files: GeneratedFile[];
+  total_lines: number;
+  output_dir: string;
 }
 
 const FullStackGenPanel: React.FC = () => {
@@ -14,10 +23,17 @@ const FullStackGenPanel: React.FC = () => {
   const [database, setDatabase] = useState("PostgreSQL");
   const [auth, setAuth] = useState("JWT");
   const [features, setFeatures] = useState("");
+  const [outputDir, setOutputDir] = useState("~/projects");
   const [generating, setGenerating] = useState(false);
-  const [progress, setProgress] = useState(0);
+  const [error, setError] = useState("");
   const [files, setFiles] = useState<GeneratedFile[]>([]);
+  const [totalLines, setTotalLines] = useState(0);
+  const [generatedDir, setGeneratedDir] = useState("");
   const [expandedLayers, setExpandedLayers] = useState<Set<string>>(new Set(["Frontend", "Backend"]));
+  const [selectedFile, setSelectedFile] = useState<GeneratedFile | null>(null);
+  const [editContent, setEditContent] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState("");
 
   const frontendOptions = ["React + TypeScript", "Next.js", "Vue 3 + TypeScript", "Svelte", "Angular", "Remix", "Astro"];
   const backendOptions = ["Rust + Actix", "Node.js + Express", "Python + FastAPI", "Go + Gin", "Java + Spring Boot", "Ruby on Rails", "Elixir + Phoenix"];
@@ -25,34 +41,35 @@ const FullStackGenPanel: React.FC = () => {
   const authOptions = ["JWT", "OAuth 2.0", "Session-based", "API Keys", "None"];
 
   const containerStyle: React.CSSProperties = {
-    padding: "16px", color: "var(--vscode-foreground)",
-    backgroundColor: "var(--vscode-editor-background)",
-    fontFamily: "var(--vscode-font-family)", fontSize: "var(--vscode-font-size)",
+    padding: "16px", color: "var(--text-primary)",
+    backgroundColor: "var(--bg-primary)",
+    fontFamily: "inherit", fontSize: 13,
     height: "100%", overflow: "auto",
   };
   const tabBarStyle: React.CSSProperties = {
     display: "flex", gap: "4px", marginBottom: "16px",
-    borderBottom: "1px solid var(--vscode-panel-border)", paddingBottom: "8px",
+    borderBottom: "1px solid var(--border-color)", paddingBottom: "8px",
   };
   const tabStyle = (active: boolean): React.CSSProperties => ({
     padding: "6px 14px", cursor: "pointer", border: "none",
-    backgroundColor: active ? "var(--vscode-button-background)" : "transparent",
-    color: active ? "var(--vscode-button-foreground)" : "var(--vscode-foreground)",
-    borderRadius: "4px", fontSize: "var(--vscode-font-size)",
+    backgroundColor: active ? "var(--accent-blue)" : "transparent",
+    color: active ? "#fff" : "var(--text-primary)",
+    borderRadius: "4px", fontSize: 12,
   });
   const inputStyle: React.CSSProperties = {
     width: "100%", padding: "6px 10px", boxSizing: "border-box",
-    backgroundColor: "var(--vscode-input-background)", color: "var(--vscode-input-foreground)",
-    border: "1px solid var(--vscode-input-border)", borderRadius: "4px",
+    backgroundColor: "var(--bg-tertiary)", color: "var(--text-primary)",
+    border: "1px solid var(--border-color)", borderRadius: "4px",
+    fontFamily: "inherit", fontSize: 12,
   };
   const btnStyle: React.CSSProperties = {
     padding: "6px 14px", cursor: "pointer", border: "none", borderRadius: "4px",
-    backgroundColor: "var(--vscode-button-background)", color: "var(--vscode-button-foreground)",
+    backgroundColor: "var(--accent-blue)", color: "#fff", fontSize: 12,
   };
   const cardStyle: React.CSSProperties = {
     padding: "10px", marginBottom: "8px", borderRadius: "4px",
-    backgroundColor: "var(--vscode-editor-inactiveSelectionBackground)",
-    border: "1px solid var(--vscode-panel-border)",
+    backgroundColor: "var(--bg-secondary)",
+    border: "1px solid var(--border-color)",
   };
   const labelStyle: React.CSSProperties = { display: "block", marginBottom: "4px", fontWeight: 600, fontSize: "12px" };
   const fieldGroup: React.CSSProperties = { marginBottom: "12px" };
@@ -66,44 +83,66 @@ const FullStackGenPanel: React.FC = () => {
     fontSize: "11px", fontWeight: 600, backgroundColor: color, color: "#fff",
   });
 
-  const defaultFiles: GeneratedFile[] = [
-    { path: "src/App.tsx", layer: "Frontend", lines: 120 },
-    { path: "src/components/Layout.tsx", layer: "Frontend", lines: 85 },
-    { path: "src/pages/Home.tsx", layer: "Frontend", lines: 64 },
-    { path: "src/hooks/useAuth.ts", layer: "Frontend", lines: 42 },
-    { path: "src/api/client.ts", layer: "Frontend", lines: 38 },
-    { path: "server/main.rs", layer: "Backend", lines: 95 },
-    { path: "server/routes/mod.rs", layer: "Backend", lines: 78 },
-    { path: "server/handlers/auth.rs", layer: "Backend", lines: 110 },
-    { path: "server/models/user.rs", layer: "Backend", lines: 52 },
-    { path: "server/middleware/auth.rs", layer: "Backend", lines: 45 },
-    { path: "migrations/001_init.sql", layer: "Database", lines: 35 },
-    { path: "migrations/002_seed.sql", layer: "Database", lines: 20 },
-    { path: "Dockerfile", layer: "Infra", lines: 28 },
-    { path: "docker-compose.yml", layer: "Infra", lines: 42 },
-    { path: ".github/workflows/ci.yml", layer: "Infra", lines: 55 },
-    { path: "tests/integration/auth_test.rs", layer: "Testing", lines: 88 },
-    { path: "tests/unit/models_test.rs", layer: "Testing", lines: 65 },
-    { path: "src/__tests__/App.test.tsx", layer: "Testing", lines: 40 },
-    { path: "README.md", layer: "Docs", lines: 95 },
-    { path: "docs/API.md", layer: "Docs", lines: 120 },
-  ];
-
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
+    if (!projectName.trim()) {
+      setError("Project name is required");
+      return;
+    }
     setGenerating(true);
-    setProgress(0);
-    const interval = setInterval(() => {
-      setProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setGenerating(false);
-          setFiles(defaultFiles);
-          setActiveTab("files");
-          return 100;
-        }
-        return prev + 5;
+    setError("");
+    try {
+      const result = await invoke<FullStackResult>("fullstack_generate", {
+        spec: {
+          project_name: projectName.trim(),
+          frontend,
+          backend,
+          database,
+          auth,
+          features,
+          output_dir: outputDir || "~/projects",
+        },
       });
-    }, 120);
+      setFiles(result.files);
+      setTotalLines(result.total_lines);
+      setGeneratedDir(result.output_dir);
+      setActiveTab("files");
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const openFile = async (file: GeneratedFile) => {
+    try {
+      const content = await invoke<string>("fullstack_read_file", { path: file.absolute_path });
+      setSelectedFile(file);
+      setEditContent(content);
+      setSaveMsg("");
+      setActiveTab("editor");
+    } catch (e) {
+      setError(`Failed to read file: ${e}`);
+    }
+  };
+
+  const saveFile = async () => {
+    if (!selectedFile) return;
+    setSaving(true);
+    setSaveMsg("");
+    try {
+      await invoke("fullstack_write_file", { path: selectedFile.absolute_path, content: editContent });
+      setSaveMsg("Saved");
+      // Update lines count in local state
+      const newLines = editContent.split("\n").length;
+      setFiles(prev => prev.map(f =>
+        f.absolute_path === selectedFile.absolute_path ? { ...f, lines: newLines, content: editContent } : f
+      ));
+      setTimeout(() => setSaveMsg(""), 2000);
+    } catch (e) {
+      setSaveMsg(`Error: ${e}`);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const toggleLayer = (layer: string) => {
@@ -114,7 +153,10 @@ const FullStackGenPanel: React.FC = () => {
     });
   };
 
-  const totalLines = files.reduce((sum, f) => sum + f.lines, 0);
+  const layers = ["Frontend", "Backend", "Database", "Infra", "Testing", "Docs"];
+  const groupedFiles = layers.map(layer => ({
+    layer, files: files.filter(f => f.layer === layer),
+  })).filter(g => g.files.length > 0);
 
   const renderConfigure = () => (
     <div>
@@ -122,6 +164,11 @@ const FullStackGenPanel: React.FC = () => {
         <label style={labelStyle}>Project Name</label>
         <input style={inputStyle} value={projectName} onChange={e => setProjectName(e.target.value)}
           placeholder="my-fullstack-app" />
+      </div>
+      <div style={fieldGroup}>
+        <label style={labelStyle}>Output Directory</label>
+        <input style={inputStyle} value={outputDir} onChange={e => setOutputDir(e.target.value)}
+          placeholder="~/projects" />
       </div>
       <div style={{ display: "flex", gap: "12px", marginBottom: "12px" }}>
         <div style={{ flex: 1 }}>
@@ -157,6 +204,7 @@ const FullStackGenPanel: React.FC = () => {
           onChange={e => setFeatures(e.target.value)}
           placeholder="Describe additional features (e.g., real-time chat, file uploads, admin dashboard)..." />
       </div>
+      {error && <div style={{ color: "#f44336", fontSize: 12, marginTop: 8 }}>{error}</div>}
     </div>
   );
 
@@ -172,44 +220,30 @@ const FullStackGenPanel: React.FC = () => {
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
           <span>Database</span><strong>{database}</strong>
         </div>
-        <div style={{ display: "flex", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
           <span>Auth</span><strong>{auth}</strong>
         </div>
-      </div>
-      <div style={{ ...cardStyle, textAlign: "center", margin: "16px 0" }}>
-        <div style={{ fontSize: "12px", opacity: 0.7, marginBottom: "4px" }}>Estimated Output</div>
-        <div style={{ display: "flex", justifyContent: "center", gap: "24px" }}>
-          <div><div style={{ fontSize: "20px", fontWeight: 700 }}>~20</div><div style={{ fontSize: "11px", opacity: 0.7 }}>Files</div></div>
-          <div><div style={{ fontSize: "20px", fontWeight: 700 }}>~1,200</div><div style={{ fontSize: "11px", opacity: 0.7 }}>Lines</div></div>
+        <div style={{ display: "flex", justifyContent: "space-between" }}>
+          <span>Output</span><strong style={{ fontSize: 11, wordBreak: "break-all" }}>{outputDir}/{projectName || "project"}</strong>
         </div>
       </div>
-      {generating && (
-        <div style={{ marginBottom: "12px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", marginBottom: "4px" }}>
-            <span>Generating...</span><span>{progress}%</span>
-          </div>
-          <div style={{ height: "6px", borderRadius: "3px", backgroundColor: "var(--vscode-editor-inactiveSelectionBackground)" }}>
-            <div style={{ height: "100%", width: `${progress}%`, borderRadius: "3px",
-              backgroundColor: "var(--vscode-button-background)", transition: "width 0.1s" }} />
-          </div>
-        </div>
-      )}
+      {error && <div style={{ color: "#f44336", fontSize: 12, marginBottom: 8, padding: "8px", background: "var(--bg-tertiary)", borderRadius: 4 }}>{error}</div>}
       <button style={{ ...btnStyle, width: "100%", padding: "10px", opacity: generating ? 0.6 : 1 }}
         onClick={handleGenerate} disabled={generating}>
-        {generating ? "Generating..." : "Generate Full Stack"}
+        {generating ? "Generating project files..." : "Generate Full Stack"}
       </button>
     </div>
   );
 
-  const layers = ["Frontend", "Backend", "Database", "Infra", "Testing", "Docs"];
-  const groupedFiles = layers.map(layer => ({
-    layer, files: files.filter(f => f.layer === layer),
-  })).filter(g => g.files.length > 0);
-
   const renderFiles = () => (
     <div>
+      {generatedDir && (
+        <div style={{ ...cardStyle, fontSize: 11, wordBreak: "break-all" }}>
+          Output: <strong>{generatedDir}</strong>
+        </div>
+      )}
       <div style={{ ...cardStyle, display: "flex", justifyContent: "space-between", marginBottom: "12px" }}>
-        <span>{files.length} files</span>
+        <span>{files.length} files generated</span>
         <strong>{totalLines.toLocaleString()} lines</strong>
       </div>
       {groupedFiles.map(({ layer, files: layerFiles }) => (
@@ -217,13 +251,15 @@ const FullStackGenPanel: React.FC = () => {
           <div style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: "8px",
             padding: "6px 0", fontWeight: 600 }} onClick={() => toggleLayer(layer)}>
             <span>{expandedLayers.has(layer) ? "\u25BC" : "\u25B6"}</span>
-            <span style={badgeStyle(layerColors[layer])}>{layer}</span>
+            <span style={badgeStyle(layerColors[layer] || "#555")}>{layer}</span>
             <span style={{ opacity: 0.6, fontSize: "12px" }}>({layerFiles.length} files)</span>
           </div>
           {expandedLayers.has(layer) && layerFiles.map(f => (
-            <div key={f.path} style={{ display: "flex", justifyContent: "space-between",
-              padding: "4px 0 4px 24px", fontSize: "12px", borderBottom: "1px solid var(--vscode-panel-border)" }}>
-              <code>{f.path}</code>
+            <div key={f.path} style={{ display: "flex", justifyContent: "space-between", alignItems: "center",
+              padding: "4px 0 4px 24px", fontSize: "12px", borderBottom: "1px solid var(--border-color)",
+              cursor: "pointer" }}
+              onClick={() => openFile(f)}>
+              <code style={{ color: "var(--accent-blue)" }}>{f.path}</code>
               <span style={{ opacity: 0.6 }}>{f.lines} lines</span>
             </div>
           ))}
@@ -235,17 +271,55 @@ const FullStackGenPanel: React.FC = () => {
     </div>
   );
 
+  const renderEditor = () => (
+    <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 140px)" }}>
+      {selectedFile && (
+        <>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+            <div>
+              <code style={{ fontSize: 12 }}>{selectedFile.path}</code>
+              <span style={{ ...badgeStyle(layerColors[selectedFile.layer] || "#555"), marginLeft: 8 }}>{selectedFile.layer}</span>
+            </div>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              {saveMsg && <span style={{ fontSize: 11, color: saveMsg === "Saved" ? "#4caf50" : "#f44336" }}>{saveMsg}</span>}
+              <button style={{ ...btnStyle, opacity: saving ? 0.6 : 1 }} onClick={saveFile} disabled={saving}>
+                {saving ? "Saving..." : "Save"}
+              </button>
+              <button style={{ ...btnStyle, backgroundColor: "var(--bg-tertiary)", color: "var(--text-primary)" }}
+                onClick={() => { setSelectedFile(null); setActiveTab("files"); }}>
+                Back
+              </button>
+            </div>
+          </div>
+          <textarea
+            style={{
+              flex: 1, width: "100%", boxSizing: "border-box",
+              backgroundColor: "var(--bg-tertiary)", color: "var(--text-primary)",
+              border: "1px solid var(--border-color)", borderRadius: "4px",
+              fontFamily: "monospace", fontSize: 12, padding: "10px",
+              resize: "none", lineHeight: 1.5,
+            }}
+            value={editContent}
+            onChange={e => setEditContent(e.target.value)}
+            spellCheck={false}
+          />
+        </>
+      )}
+    </div>
+  );
+
   return (
     <div style={containerStyle}>
       <h2 style={{ margin: "0 0 12px" }}>Full Stack Generator</h2>
       <div style={tabBarStyle}>
-        {[["configure", "Configure"], ["generate", "Generate"], ["files", "Files"]].map(([id, label]) => (
+        {[["configure", "Configure"], ["generate", "Generate"], ["files", "Files"], ...(selectedFile ? [["editor", "Editor"]] : [])].map(([id, label]) => (
           <button key={id} style={tabStyle(activeTab === id)} onClick={() => setActiveTab(id)}>{label}</button>
         ))}
       </div>
       {activeTab === "configure" && renderConfigure()}
       {activeTab === "generate" && renderGenerate()}
       {activeTab === "files" && renderFiles()}
+      {activeTab === "editor" && renderEditor()}
     </div>
   );
 };

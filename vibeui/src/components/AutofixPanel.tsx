@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
 interface AutofixResult {
@@ -26,6 +26,8 @@ export function AutofixPanel({ workspacePath }: { workspacePath: string | null }
  const [error, setError] = useState<string | null>(null);
  const [message, setMessage] = useState<string | null>(null);
  const [showDiff, setShowDiff] = useState(true);
+ const cancelRef = useRef(false);
+ const taskIdRef = useRef(0);
 
  useEffect(() => {
  if (!workspacePath) return;
@@ -47,8 +49,17 @@ export function AutofixPanel({ workspacePath }: { workspacePath: string | null }
  .catch(() => setDetectedFw(null));
  }, [workspacePath]);
 
+ const handleSuspend = () => {
+ cancelRef.current = true;
+ setRunning(false);
+ setError("Autofix suspended by user.");
+ };
+
  const handleRun = async () => {
  if (!workspacePath) return;
+ cancelRef.current = false;
+ taskIdRef.current += 1;
+ const thisId = taskIdRef.current;
  setRunning(true);
  setError(null);
  setResult(null);
@@ -58,11 +69,15 @@ export function AutofixPanel({ workspacePath }: { workspacePath: string | null }
  workspace: workspacePath,
  framework: selectedFw || null,
  });
+ if (cancelRef.current || taskIdRef.current !== thisId) return;
  setResult(r);
  } catch (e: unknown) {
+ if (cancelRef.current || taskIdRef.current !== thisId) return;
  setError(String(e));
  } finally {
+ if (!cancelRef.current && taskIdRef.current === thisId) {
  setRunning(false);
+ }
  }
  };
 
@@ -117,17 +132,30 @@ export function AutofixPanel({ workspacePath }: { workspacePath: string | null }
  detected: {detectedFw}
  </span>
  )}
+ {running ? (
  <button
- onClick={handleRun}
- disabled={running || !workspacePath}
+ onClick={handleSuspend}
  style={{
- background: running ? "var(--bg-secondary)" : "var(--accent-color)",
- color: "var(--text-primary)", border: "none", borderRadius: "4px",
- padding: "4px 16px", cursor: running ? "default" : "pointer",
+ background: "#c62828",
+ color: "#fff", border: "none", borderRadius: "4px",
+ padding: "4px 16px", cursor: "pointer",
  }}
  >
- {running ? "Running…" : "Run Autofix"}
+ Suspend
  </button>
+ ) : (
+ <button
+ onClick={handleRun}
+ disabled={!workspacePath}
+ style={{
+ background: "var(--accent-blue)",
+ color: "#fff", border: "none", borderRadius: "4px",
+ padding: "4px 16px", cursor: !workspacePath ? "default" : "pointer",
+ }}
+ >
+ Run Autofix
+ </button>
+ )}
  </div>
 
  {/* Info box */}
@@ -209,7 +237,7 @@ export function AutofixPanel({ workspacePath }: { workspacePath: string | null }
  line.startsWith("@@") ? "rgba(33,150,243,0.15)" : "transparent";
  const textColor = line.startsWith("+") && !line.startsWith("+++") ? "var(--success-color)" :
  line.startsWith("-") && !line.startsWith("---") ? "var(--error-color)" :
- line.startsWith("@@") ? "var(--accent-color)" :
+ line.startsWith("@@") ? "var(--accent-blue)" :
  line.startsWith("diff ") || line.startsWith("---") || line.startsWith("+++") ? "var(--text-secondary)" :
  "var(--text-secondary)";
  return (

@@ -39,9 +39,9 @@ interface CoverageGap {
   technique_name: string;
   tactic: string;
   current_coverage: "Missed" | "Partial" | "NotTested";
-  recommended_detection: string;
+  recommendation: string;
   effort: "Low" | "Medium" | "High";
-  priority: number;
+  priority: string;
 }
 
 const TABS: PurpleTeamTab[] = ["Exercises", "ATT&CK Matrix", "Simulations", "Coverage Gaps", "Reports"];
@@ -78,7 +78,7 @@ const containerStyle: React.CSSProperties = {
   height: "100%",
   background: "var(--bg-primary)",
   color: "var(--text-primary)",
-  fontFamily: "var(--font-mono)",
+  fontFamily: "inherit",
   overflow: "hidden",
 };
 
@@ -86,7 +86,7 @@ const tabBarStyle: React.CSSProperties = {
   display: "flex",
   gap: 2,
   padding: "8px 12px 0",
-  borderBottom: "1px solid var(--border-primary)",
+  borderBottom: "1px solid var(--border-color)",
   background: "var(--bg-secondary)",
   overflowX: "auto",
   flexShrink: 0,
@@ -96,11 +96,11 @@ const tabStyle = (active: boolean): React.CSSProperties => ({
   padding: "8px 14px",
   cursor: "pointer",
   background: active ? "var(--bg-primary)" : "transparent",
-  color: active ? "var(--accent-primary)" : "var(--text-secondary)",
+  color: active ? "var(--accent-blue)" : "var(--text-secondary)",
   border: "none",
-  borderBottom: active ? "2px solid var(--accent-primary)" : "2px solid transparent",
+  borderBottom: active ? "2px solid var(--accent-blue)" : "2px solid transparent",
   fontSize: 13,
-  fontFamily: "var(--font-mono)",
+  fontFamily: "inherit",
   whiteSpace: "nowrap",
 });
 
@@ -112,13 +112,13 @@ const contentStyle: React.CSSProperties = {
 
 const btnStyle: React.CSSProperties = {
   padding: "6px 14px",
-  background: "var(--accent-primary)",
+  background: "var(--accent-blue)",
   color: "var(--bg-primary)",
   border: "none",
   borderRadius: 4,
   cursor: "pointer",
   fontSize: 12,
-  fontFamily: "var(--font-mono)",
+  fontFamily: "inherit",
 };
 
 const btnSecondary: React.CSSProperties = {
@@ -131,10 +131,10 @@ const inputStyle: React.CSSProperties = {
   padding: "6px 10px",
   background: "var(--bg-tertiary)",
   color: "var(--text-primary)",
-  border: "1px solid var(--border-primary)",
+  border: "1px solid var(--border-color)",
   borderRadius: 4,
   fontSize: 13,
-  fontFamily: "var(--font-mono)",
+  fontFamily: "inherit",
   width: "100%",
   boxSizing: "border-box",
 };
@@ -148,7 +148,7 @@ const tableStyle: React.CSSProperties = {
 const thStyle: React.CSSProperties = {
   textAlign: "left",
   padding: "8px 10px",
-  borderBottom: "1px solid var(--border-primary)",
+  borderBottom: "1px solid var(--border-color)",
   color: "var(--text-secondary)",
   fontWeight: 600,
   fontSize: 12,
@@ -156,7 +156,7 @@ const thStyle: React.CSSProperties = {
 
 const tdStyle: React.CSSProperties = {
   padding: "8px 10px",
-  borderBottom: "1px solid var(--border-primary)",
+  borderBottom: "1px solid var(--border-color)",
 };
 
 const badgeStyle = (color: string): React.CSSProperties => ({
@@ -171,7 +171,7 @@ const badgeStyle = (color: string): React.CSSProperties => ({
 
 const cardStyle: React.CSSProperties = {
   background: "var(--bg-secondary)",
-  border: "1px solid var(--border-primary)",
+  border: "1px solid var(--border-color)",
   borderRadius: 6,
   padding: 14,
   marginBottom: 10,
@@ -192,8 +192,8 @@ export function PurpleTeamPanel() {
   const [activeTab, setActiveTab] = useState<PurpleTeamTab>("Exercises");
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [matrix, setMatrix] = useState<MatrixCell[]>([]);
-  const [simulations, _setSimulations] = useState<Simulation[]>([]);
-  const [gaps, _setGaps] = useState<CoverageGap[]>([]);
+  const [simulations, setSimulations] = useState<Simulation[]>([]);
+  const [gaps, setGaps] = useState<CoverageGap[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -222,9 +222,18 @@ export function PurpleTeamPanel() {
   // Selected exercise for simulations filter
   const [selectedExercise, setSelectedExercise] = useState("");
 
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const showSuccess = (msg: string) => { setSuccessMsg(msg); setTimeout(() => setSuccessMsg(null), 3000); };
+
   useEffect(() => {
     loadExercises();
   }, []);
+
+  useEffect(() => {
+    if (activeTab === "ATT&CK Matrix" && matrix.length === 0) loadMatrix();
+    if (activeTab === "Simulations" && simulations.length === 0) loadSimulations();
+    if (activeTab === "Coverage Gaps" && gaps.length === 0) loadGaps();
+  }, [activeTab]);
 
   async function loadExercises() {
     try {
@@ -241,10 +250,48 @@ export function PurpleTeamPanel() {
   async function loadMatrix() {
     try {
       setLoading(true);
-      const result = await invoke<MatrixCell[]>("get_purple_team_matrix");
-      setMatrix(result);
+      const raw = await invoke<any[]>("get_purple_team_matrix");
+      // Backend returns nested: [{ tactic, techniques: [{ id, name, coverage, ... }] }]
+      // Flatten into MatrixCell[]
+      const cells: MatrixCell[] = [];
+      for (const entry of raw) {
+        const tactic = entry.tactic || "";
+        for (const tech of (entry.techniques || [])) {
+          cells.push({
+            technique_id: tech.id || tech.technique_id || "",
+            technique_name: tech.name || tech.technique_name || "",
+            tactic,
+            coverage: tech.coverage || "NotTested",
+          });
+        }
+      }
+      setMatrix(cells);
     } catch (e: any) {
       setError(e?.toString() ?? "Failed to load ATT&CK matrix");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadSimulations() {
+    try {
+      setLoading(true);
+      const result = await invoke<Simulation[]>("get_purple_team_simulations");
+      setSimulations(result);
+    } catch (e: any) {
+      setError(e?.toString() ?? "Failed to load simulations");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadGaps() {
+    try {
+      setLoading(true);
+      const result = await invoke<CoverageGap[]>("get_purple_team_gaps");
+      setGaps(result);
+    } catch (e: any) {
+      setError(e?.toString() ?? "Failed to load coverage gaps");
     } finally {
       setLoading(false);
     }
@@ -261,6 +308,7 @@ export function PurpleTeamPanel() {
       setExName("");
       setExLead("");
       setExDescription("");
+      showSuccess("Exercise created");
       loadExercises();
     } catch (e: any) {
       setError(e?.toString() ?? "Failed to create exercise");
@@ -284,6 +332,8 @@ export function PurpleTeamPanel() {
       setSimTechniqueName("");
       setSimSteps("");
       setSimNotes("");
+      showSuccess("Simulation recorded");
+      loadSimulations();
     } catch (e: any) {
       setError(e?.toString() ?? "Failed to record simulation");
     }
@@ -536,7 +586,7 @@ export function PurpleTeamPanel() {
           <div key={sim.id} style={cardStyle}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
               <div>
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--accent-primary)" }}>{sim.technique_id}</span>
+                <span style={{ fontFamily: "inherit", fontSize: 12, color: "var(--accent-blue)" }}>{sim.technique_id}</span>
                 <strong style={{ marginLeft: 8, fontSize: 14 }}>{sim.technique_name}</strong>
                 <span style={{ marginLeft: 8, fontSize: 11, color: "var(--text-secondary)" }}>{sim.tactic}</span>
               </div>
@@ -559,7 +609,8 @@ export function PurpleTeamPanel() {
   }
 
   function renderCoverageGaps() {
-    const sortedGaps = [...gaps].sort((a, b) => a.priority - b.priority);
+    const priorityOrder: Record<string, number> = { High: 1, Medium: 2, Low: 3 };
+    const sortedGaps = [...gaps].sort((a, b) => (priorityOrder[a.priority] || 9) - (priorityOrder[b.priority] || 9));
 
     return (
       <div>
@@ -581,7 +632,7 @@ export function PurpleTeamPanel() {
               <tr key={gap.technique_id}>
                 <td style={tdStyle}>{i + 1}</td>
                 <td style={tdStyle}>
-                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>{gap.technique_id}</span>
+                  <span style={{ fontFamily: "inherit", fontSize: 11 }}>{gap.technique_id}</span>
                   <br />
                   <span style={{ fontSize: 12 }}>{gap.technique_name}</span>
                 </td>
@@ -589,7 +640,7 @@ export function PurpleTeamPanel() {
                 <td style={tdStyle}>
                   <span style={badgeStyle(COVERAGE_COLORS[gap.current_coverage] || "#6c7086")}>{gap.current_coverage}</span>
                 </td>
-                <td style={{ ...tdStyle, fontSize: 12 }}>{gap.recommended_detection}</td>
+                <td style={{ ...tdStyle, fontSize: 12 }}>{gap.recommendation}</td>
                 <td style={tdStyle}>
                   <span style={badgeStyle(EFFORT_COLORS[gap.effort] || "#6c7086")}>{gap.effort}</span>
                 </td>
@@ -637,11 +688,11 @@ export function PurpleTeamPanel() {
             </div>
             <pre style={{
               background: "var(--bg-tertiary)",
-              border: "1px solid var(--border-primary)",
+              border: "1px solid var(--border-color)",
               borderRadius: 6,
               padding: 16,
               fontSize: 12,
-              fontFamily: "var(--font-mono)",
+              fontFamily: "inherit",
               overflow: "auto",
               whiteSpace: "pre-wrap",
               maxHeight: 500,
@@ -674,6 +725,11 @@ export function PurpleTeamPanel() {
         ))}
       </div>
       <div style={contentStyle}>
+        {successMsg && (
+          <div style={{ padding: "8px 12px", marginBottom: 12, background: "#a6e3a122", border: "1px solid #a6e3a1", borderRadius: 4, fontSize: 12, color: "#a6e3a1" }}>
+            {successMsg}
+          </div>
+        )}
         {error && (
           <div style={{ padding: "8px 12px", marginBottom: 12, background: "#f38ba822", border: "1px solid #f38ba8", borderRadius: 4, fontSize: 12, color: "#f38ba8", display: "flex", justifyContent: "space-between" }}>
             <span>{error}</span>

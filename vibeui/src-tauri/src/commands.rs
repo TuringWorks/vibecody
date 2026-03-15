@@ -17303,91 +17303,881 @@ pub async fn session_memory_health() -> Result<serde_json::Value, String> {
 
 // ── Blue Team — Defensive Security ──────────────────────────────────────────
 
-#[tauri::command]
-pub async fn get_blue_team_incidents() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!([]))
+/// Helper: path to Blue Team data directory (~/.vibecli/blueteam/)
+fn blueteam_data_dir() -> Result<std::path::PathBuf, String> {
+    let home = std::env::var("HOME").map_err(|_| "HOME not set".to_string())?;
+    let dir = std::path::PathBuf::from(home).join(".vibecli").join("blueteam");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(dir)
+}
+
+fn blueteam_read_json(filename: &str) -> serde_json::Value {
+    let Ok(dir) = blueteam_data_dir() else { return serde_json::json!([]) };
+    let path = dir.join(filename);
+    match std::fs::read_to_string(&path) {
+        Ok(s) => serde_json::from_str(&s).unwrap_or(serde_json::json!([])),
+        Err(_) => serde_json::json!([]),
+    }
+}
+
+fn blueteam_write_json(filename: &str, data: &serde_json::Value) -> Result<(), String> {
+    let dir = blueteam_data_dir()?;
+    let path = dir.join(filename);
+    let s = serde_json::to_string_pretty(data).map_err(|e| e.to_string())?;
+    std::fs::write(path, s).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub async fn create_blue_team_incident(title: String, severity: String, category: String, _description: Option<String>) -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({
-        "id": format!("INC-{}", title.len()),
+pub async fn get_blue_team_incidents() -> Result<serde_json::Value, String> {
+    Ok(blueteam_read_json("incidents.json"))
+}
+
+#[tauri::command]
+pub async fn create_blue_team_incident(
+    title: String,
+    severity: String,
+    category: String,
+    _description: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let mut incidents = blueteam_read_json("incidents.json");
+    let arr = incidents.as_array_mut().ok_or("Corrupt incidents.json")?;
+
+    let now = chrono::Local::now();
+    let id = format!("INC-{:x}", now.timestamp());
+    let assignee = std::env::var("USER").unwrap_or_else(|_| "analyst".into());
+
+    let incident = serde_json::json!({
+        "id": id,
         "title": title,
         "severity": severity,
         "category": category,
+        "description": _description.unwrap_or_default(),
         "status": "Open",
-        "created": true
-    }))
+        "assignee": assignee,
+        "created": now.format("%Y-%m-%d %H:%M:%S").to_string(),
+        "updated": now.format("%Y-%m-%d %H:%M:%S").to_string(),
+        "timeline": [],
+    });
+
+    arr.push(incident.clone());
+    blueteam_write_json("incidents.json", &incidents)?;
+    Ok(incident)
 }
 
 #[tauri::command]
 pub async fn get_blue_team_iocs(search: Option<String>) -> Result<serde_json::Value, String> {
-    let _ = search;
-    Ok(serde_json::json!([]))
+    let iocs = blueteam_read_json("iocs.json");
+    let empty = vec![];
+    let arr = iocs.as_array().unwrap_or(&empty);
+
+    if let Some(ref q) = search {
+        let q_lower = q.to_lowercase();
+        let filtered: Vec<&serde_json::Value> = arr
+            .iter()
+            .filter(|ioc| {
+                let val = ioc["value"].as_str().unwrap_or("");
+                let typ = ioc["ioc_type"].as_str().unwrap_or("");
+                let src = ioc["source"].as_str().unwrap_or("");
+                val.to_lowercase().contains(&q_lower)
+                    || typ.to_lowercase().contains(&q_lower)
+                    || src.to_lowercase().contains(&q_lower)
+            })
+            .collect();
+        Ok(serde_json::json!(filtered))
+    } else {
+        Ok(serde_json::json!(arr))
+    }
 }
 
 #[tauri::command]
-pub async fn add_blue_team_ioc(ioc_type: String, value: String, confidence: f64) -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({
-        "id": format!("IOC-{}", value.len()),
+pub async fn add_blue_team_ioc(
+    ioc_type: String,
+    value: String,
+    confidence: f64,
+) -> Result<serde_json::Value, String> {
+    let mut iocs = blueteam_read_json("iocs.json");
+    let arr = iocs.as_array_mut().ok_or("Corrupt iocs.json")?;
+
+    let now = chrono::Local::now();
+    let id = format!("IOC-{:x}", now.timestamp());
+
+    let ioc = serde_json::json!({
+        "id": id,
         "ioc_type": ioc_type,
         "value": value,
         "confidence": confidence,
-        "added": true
-    }))
+        "source": "Manual",
+        "first_seen": now.format("%Y-%m-%d %H:%M:%S").to_string(),
+        "tags": [],
+    });
+
+    arr.push(ioc.clone());
+    blueteam_write_json("iocs.json", &iocs)?;
+    Ok(ioc)
 }
 
 #[tauri::command]
 pub async fn get_blue_team_rules() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!([]))
+    let rules = blueteam_read_json("rules.json");
+    let empty = vec![];
+    let arr = rules.as_array().unwrap_or(&empty);
+
+    if arr.is_empty() {
+        let now_str = chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
+        let defaults = serde_json::json!([
+            {
+                "id": "RULE-001",
+                "name": "Suspicious PowerShell Execution",
+                "platform": "Sigma",
+                "enabled": true,
+                "mitre_ids": ["T1059.001"],
+                "query": "detection:\n  selection:\n    EventID: 4104\n    ScriptBlockText|contains:\n      - 'IEX'\n      - 'Invoke-Expression'\n      - 'DownloadString'\n      - 'Net.WebClient'\n  condition: selection",
+                "description": "Detects suspicious PowerShell commands commonly used in initial access and execution phases.",
+                "created": now_str,
+            },
+            {
+                "id": "RULE-002",
+                "name": "Credential Dumping via LSASS Access",
+                "platform": "Sigma",
+                "enabled": true,
+                "mitre_ids": ["T1003.001"],
+                "query": "detection:\n  selection:\n    EventID: 10\n    TargetImage|endswith: '\\lsass.exe'\n    GrantedAccess|contains:\n      - '0x1010'\n      - '0x1038'\n  filter:\n    SourceImage|endswith:\n      - '\\csrss.exe'\n      - '\\wmiprvse.exe'\n  condition: selection and not filter",
+                "description": "Detects processes accessing LSASS memory with suspicious access rights indicative of credential dumping (Mimikatz, ProcDump).",
+                "created": now_str,
+            },
+            {
+                "id": "RULE-003",
+                "name": "Lateral Movement via PsExec",
+                "platform": "Sigma",
+                "enabled": true,
+                "mitre_ids": ["T1021.002", "T1569.002"],
+                "query": "detection:\n  selection_service:\n    EventID: 7045\n    ServiceName: 'PSEXESVC'\n  selection_pipe:\n    EventID: 17\n    PipeName: '\\PSEXESVC'\n  condition: selection_service or selection_pipe",
+                "description": "Detects PsExec service installation and named pipe creation used for lateral movement across Windows hosts.",
+                "created": now_str,
+            },
+            {
+                "id": "RULE-004",
+                "name": "Ransomware File Encryption Behavior",
+                "platform": "YARA",
+                "enabled": true,
+                "mitre_ids": ["T1486"],
+                "query": "rule ransomware_behavior {\n  meta:\n    description = \"Detects ransomware encryption patterns\"\n  strings:\n    $ext1 = \".encrypted\" ascii wide\n    $ext2 = \".locked\" ascii wide\n    $note1 = \"YOUR FILES HAVE BEEN ENCRYPTED\" ascii wide nocase\n    $note2 = \"Bitcoin\" ascii wide nocase\n    $api1 = \"CryptEncrypt\"\n    $api2 = \"CryptGenKey\"\n  condition:\n    uint16(0) == 0x5A4D and (any of ($ext*) and any of ($note*)) or (all of ($api*))\n}",
+                "description": "YARA rule matching ransomware encryption patterns including ransom note strings and crypto API calls.",
+                "created": now_str,
+            },
+            {
+                "id": "RULE-005",
+                "name": "C2 Beaconing Detection",
+                "platform": "Sigma",
+                "enabled": true,
+                "mitre_ids": ["T1071.001", "T1573"],
+                "query": "detection:\n  selection:\n    EventID: 3\n    Initiated: 'true'\n  filter_trusted:\n    DestinationIp|startswith:\n      - '10.'\n      - '172.16.'\n      - '192.168.'\n  timeframe: 5m\n  condition: selection and not filter_trusted | count(DestinationIp) by SourceImage > 50",
+                "description": "Detects potential C2 beaconing by identifying processes making high-frequency outbound connections to external IPs.",
+                "created": now_str,
+            },
+            {
+                "id": "RULE-006",
+                "name": "Data Exfiltration via DNS Tunneling",
+                "platform": "Sigma",
+                "enabled": true,
+                "mitre_ids": ["T1048.003", "T1071.004"],
+                "query": "detection:\n  selection:\n    EventID: 22\n    QueryName|re: '^[a-zA-Z0-9]{30,}\\.'\n  timeframe: 1m\n  condition: selection | count(QueryName) by Image > 100",
+                "description": "Detects DNS tunneling exfiltration by identifying unusually long subdomain queries at high frequency from a single process.",
+                "created": now_str,
+            },
+        ]);
+        blueteam_write_json("rules.json", &defaults).ok();
+        return Ok(defaults);
+    }
+
+    Ok(rules)
+}
+
+#[tauri::command]
+pub async fn create_blue_team_rule(
+    name: String,
+    platform: String,
+    mitre_ids: Vec<String>,
+    query: String,
+    description: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let mut rules = blueteam_read_json("rules.json");
+    let arr = rules.as_array_mut().ok_or("Corrupt rules.json")?;
+
+    let now = chrono::Local::now();
+    let id = format!("RULE-{:x}", now.timestamp());
+
+    let rule = serde_json::json!({
+        "id": id,
+        "name": name,
+        "platform": platform,
+        "enabled": true,
+        "mitre_ids": mitre_ids,
+        "query": query,
+        "description": description.unwrap_or_default(),
+        "created": now.format("%Y-%m-%d %H:%M:%S").to_string(),
+    });
+
+    arr.push(rule.clone());
+    blueteam_write_json("rules.json", &rules)?;
+    Ok(rule)
+}
+
+#[tauri::command]
+pub async fn toggle_blue_team_rule(
+    rule_id: String,
+    enabled: bool,
+) -> Result<serde_json::Value, String> {
+    let mut rules = blueteam_read_json("rules.json");
+    let arr = rules.as_array_mut().ok_or("Corrupt rules.json")?;
+
+    if let Some(rule) = arr.iter_mut().find(|r| r["id"].as_str() == Some(&rule_id)) {
+        rule["enabled"] = serde_json::json!(enabled);
+    } else {
+        return Err(format!("Rule {} not found", rule_id));
+    }
+    let result = rules.clone();
+    blueteam_write_json("rules.json", &result)?;
+    Ok(result)
 }
 
 #[tauri::command]
 pub async fn get_blue_team_siem_connections() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!([]))
+    Ok(blueteam_read_json("siem.json"))
+}
+
+#[tauri::command]
+pub async fn add_blue_team_siem(
+    platform: String,
+    endpoint: String,
+) -> Result<serde_json::Value, String> {
+    let mut siems = blueteam_read_json("siem.json");
+    let arr = siems.as_array_mut().ok_or("Corrupt siem.json")?;
+
+    let now = chrono::Local::now();
+    let id = format!("SIEM-{:x}", now.timestamp());
+
+    let siem = serde_json::json!({
+        "id": id,
+        "platform": platform,
+        "endpoint": endpoint,
+        "status": "connected",
+        "event_count": 0,
+        "last_sync": now.format("%Y-%m-%d %H:%M:%S").to_string(),
+    });
+
+    arr.push(siem.clone());
+    blueteam_write_json("siem.json", &siems)?;
+    Ok(siem)
+}
+
+#[tauri::command]
+pub async fn get_blue_team_playbooks() -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!([
+        {
+            "id": "PB-001",
+            "name": "Ransomware Response",
+            "severity": "Critical",
+            "mitre_ids": ["T1486", "T1490"],
+            "steps": [
+                {"order": 1, "action": "Isolate", "description": "Immediately disconnect affected hosts from the network. Disable Wi-Fi and unplug Ethernet cables. Do NOT power off machines to preserve memory artifacts."},
+                {"order": 2, "action": "Identify", "description": "Determine ransomware variant from ransom note, encrypted file extensions, and IOCs. Check ID Ransomware (id-ransomware.malwarehunterteam.com) for known decryptors."},
+                {"order": 3, "action": "Scope", "description": "Query SIEM for lateral movement indicators. Check SMB, RDP, and PsExec logs. Map all affected systems and shares."},
+                {"order": 4, "action": "Preserve", "description": "Capture memory dumps (WinPmem/LiME) and disk images of patient-zero. Collect event logs, prefetch, and MFT for forensic timeline."},
+                {"order": 5, "action": "Eradicate", "description": "Remove persistence mechanisms (scheduled tasks, registry run keys, WMI subscriptions). Scan with updated EDR signatures."},
+                {"order": 6, "action": "Recover", "description": "Restore from verified clean backups. Validate backup integrity before restoration. Re-image compromised endpoints."},
+                {"order": 7, "action": "Harden", "description": "Reset all domain credentials. Enforce MFA. Review and restrict SMB/RDP access. Deploy application whitelisting."},
+            ],
+        },
+        {
+            "id": "PB-002",
+            "name": "Phishing Response",
+            "severity": "High",
+            "mitre_ids": ["T1566.001", "T1566.002"],
+            "steps": [
+                {"order": 1, "action": "Triage", "description": "Analyze reported email headers (X-Originating-IP, SPF/DKIM/DMARC results). Extract and defang URLs and attachments."},
+                {"order": 2, "action": "Detonate", "description": "Submit attachments to sandbox (ANY.RUN, Joe Sandbox). Check URLs against VirusTotal, URLhaus, and PhishTank."},
+                {"order": 3, "action": "Search", "description": "Query mail gateway for all recipients of the same message (Message-ID, subject, sender). Identify who clicked links or opened attachments."},
+                {"order": 4, "action": "Contain", "description": "Block sender domain/IP at mail gateway. Add malicious URLs to proxy blocklist. Quarantine unread copies from all mailboxes."},
+                {"order": 5, "action": "Remediate", "description": "Force password reset for users who entered credentials. Revoke active sessions and OAuth tokens. Scan endpoints of affected users with EDR."},
+                {"order": 6, "action": "Report", "description": "File abuse reports with hosting providers. Update threat intel feeds with new IOCs. Brief security awareness team for targeted training."},
+            ],
+        },
+        {
+            "id": "PB-003",
+            "name": "Data Breach Response",
+            "severity": "Critical",
+            "mitre_ids": ["T1048", "T1567"],
+            "steps": [
+                {"order": 1, "action": "Detect", "description": "Review DLP alerts, unusual data transfer volumes, and after-hours access patterns. Check cloud storage sharing logs and API access logs."},
+                {"order": 2, "action": "Classify", "description": "Determine data types affected (PII, PHI, PCI, trade secrets). Estimate number of records. Identify regulatory obligations (GDPR 72hr, HIPAA 60 days, state breach notification)."},
+                {"order": 3, "action": "Contain", "description": "Revoke compromised credentials and API keys. Disable affected service accounts. Block exfiltration channels (DNS tunneling, cloud storage, HTTP uploads)."},
+                {"order": 4, "action": "Investigate", "description": "Build forensic timeline from logs: who accessed what data, when, and from where. Correlate VPN, proxy, endpoint, and application logs."},
+                {"order": 5, "action": "Notify", "description": "Engage legal counsel and privacy officer. Prepare regulatory notifications. Draft customer/employee notification letters per jurisdiction requirements."},
+                {"order": 6, "action": "Remediate", "description": "Implement data loss prevention controls. Review and tighten access permissions (least privilege). Enable enhanced monitoring on sensitive data stores."},
+            ],
+        },
+        {
+            "id": "PB-004",
+            "name": "DDoS Mitigation",
+            "severity": "High",
+            "mitre_ids": ["T1498", "T1499"],
+            "steps": [
+                {"order": 1, "action": "Detect", "description": "Monitor traffic baselines. Alert on >3x normal request rate, unusual geographic distribution, or protocol anomalies (SYN flood, UDP amplification, HTTP slowloris)."},
+                {"order": 2, "action": "Classify", "description": "Determine attack type: volumetric (bandwidth saturation), protocol (SYN/ACK/RST floods), or application-layer (HTTP GET/POST floods, API abuse)."},
+                {"order": 3, "action": "Mitigate", "description": "Enable upstream DDoS protection (Cloudflare, AWS Shield, Akamai). Apply rate limiting and geo-blocking. Enable SYN cookies and connection limits at load balancer."},
+                {"order": 4, "action": "Filter", "description": "Deploy WAF rules targeting attack signatures. Block known-bad IP ranges and ASNs. Implement CAPTCHA challenges for suspicious traffic."},
+                {"order": 5, "action": "Recover", "description": "Gradually relax mitigation rules while monitoring. Scale infrastructure back to normal. Document attack vectors and update runbooks with new signatures."},
+            ],
+        },
+        {
+            "id": "PB-005",
+            "name": "Insider Threat Investigation",
+            "severity": "High",
+            "mitre_ids": ["T1078", "T1530"],
+            "steps": [
+                {"order": 1, "action": "Alert", "description": "Review UEBA alerts for anomalous behavior: off-hours access, bulk downloads, access to resources outside normal role, USB device connections."},
+                {"order": 2, "action": "Verify", "description": "Correlate with HR (resignation notice, PIP, complaints). Check if activity aligns with legitimate business needs. Consult legal before surveillance."},
+                {"order": 3, "action": "Monitor", "description": "Enable enhanced logging on suspect accounts. Deploy endpoint monitoring (screen capture if legally authorized). Track file access, email forwards, and cloud sharing."},
+                {"order": 4, "action": "Preserve", "description": "Collect and preserve evidence with chain of custody. Image devices if warranted. Export email and chat logs. Document all investigative steps."},
+                {"order": 5, "action": "Contain", "description": "Coordinate with HR and legal for account suspension. Disable VPN and remote access. Collect company devices. Revoke all access tokens and certificates."},
+                {"order": 6, "action": "Remediate", "description": "Review access controls for the role. Implement separation of duties. Update DLP policies. Conduct lessons-learned session."},
+            ],
+        },
+    ]))
+}
+
+#[tauri::command]
+pub async fn get_blue_team_hunts() -> Result<serde_json::Value, String> {
+    Ok(blueteam_read_json("hunts.json"))
+}
+
+#[tauri::command]
+pub async fn create_blue_team_hunt(
+    hypothesis: String,
+    data_sources: Vec<String>,
+    query: String,
+) -> Result<serde_json::Value, String> {
+    let mut hunts = blueteam_read_json("hunts.json");
+    let arr = hunts.as_array_mut().ok_or("Corrupt hunts.json")?;
+
+    let now = chrono::Local::now();
+    let id = format!("HUNT-{:x}", now.timestamp());
+    let analyst = std::env::var("USER").unwrap_or_else(|_| "analyst".into());
+
+    let hunt = serde_json::json!({
+        "id": id,
+        "hypothesis": hypothesis,
+        "data_sources": data_sources,
+        "query": query,
+        "status": "Draft",
+        "analyst": analyst,
+        "created": now.format("%Y-%m-%d %H:%M:%S").to_string(),
+        "findings": [],
+    });
+
+    arr.push(hunt.clone());
+    blueteam_write_json("hunts.json", &hunts)?;
+    Ok(hunt)
 }
 
 #[tauri::command]
 pub async fn generate_blue_team_report() -> Result<String, String> {
-    Ok("# Blue Team Report\n\n## Incidents\n\nNo open incidents.\n\n## IOCs\n\nNo tracked IOCs.\n\n## Detection Rules\n\nNo rules configured.\n".to_string())
+    let incidents = blueteam_read_json("incidents.json");
+    let iocs = blueteam_read_json("iocs.json");
+    let rules = blueteam_read_json("rules.json");
+    let siems = blueteam_read_json("siem.json");
+    let hunts = blueteam_read_json("hunts.json");
+
+    let empty = vec![];
+
+    let inc_arr = incidents.as_array().unwrap_or(&empty);
+    let ioc_arr = iocs.as_array().unwrap_or(&empty);
+    let rule_arr = rules.as_array().unwrap_or(&empty);
+    let siem_arr = siems.as_array().unwrap_or(&empty);
+    let hunt_arr = hunts.as_array().unwrap_or(&empty);
+
+    let open_incidents: Vec<&serde_json::Value> = inc_arr
+        .iter()
+        .filter(|i| i["status"].as_str() == Some("Open"))
+        .collect();
+
+    let enabled_rules = rule_arr
+        .iter()
+        .filter(|r| r["enabled"].as_bool() == Some(true))
+        .count();
+
+    let now = chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
+
+    let mut report = format!(
+        "# Blue Team Security Report\n\nGenerated: {}\n\n## Summary\n\n- Total Incidents: {} ({} open)\n- Tracked IOCs: {}\n- Detection Rules: {} ({} enabled)\n- SIEM Connections: {}\n- Threat Hunts: {}\n\n",
+        now,
+        inc_arr.len(),
+        open_incidents.len(),
+        ioc_arr.len(),
+        rule_arr.len(),
+        enabled_rules,
+        siem_arr.len(),
+        hunt_arr.len(),
+    );
+
+    // Incidents detail
+    report.push_str("## Open Incidents\n\n");
+    if open_incidents.is_empty() {
+        report.push_str("No open incidents.\n\n");
+    } else {
+        for inc in &open_incidents {
+            report.push_str(&format!(
+                "- **{}** [{}] — {} (Severity: {}, Assignee: {})\n",
+                inc["id"].as_str().unwrap_or("?"),
+                inc["created"].as_str().unwrap_or("?"),
+                inc["title"].as_str().unwrap_or("Untitled"),
+                inc["severity"].as_str().unwrap_or("?"),
+                inc["assignee"].as_str().unwrap_or("unassigned"),
+            ));
+        }
+        report.push('\n');
+    }
+
+    // IOCs detail
+    report.push_str("## Indicators of Compromise\n\n");
+    if ioc_arr.is_empty() {
+        report.push_str("No tracked IOCs.\n\n");
+    } else {
+        for ioc in ioc_arr {
+            report.push_str(&format!(
+                "- [{}] {} — {} (confidence: {:.0}%, source: {})\n",
+                ioc["ioc_type"].as_str().unwrap_or("?"),
+                ioc["value"].as_str().unwrap_or("?"),
+                ioc["id"].as_str().unwrap_or("?"),
+                ioc["confidence"].as_f64().unwrap_or(0.0) * 100.0,
+                ioc["source"].as_str().unwrap_or("?"),
+            ));
+        }
+        report.push('\n');
+    }
+
+    // Rules detail
+    report.push_str("## Detection Rules\n\n");
+    if rule_arr.is_empty() {
+        report.push_str("No rules configured.\n\n");
+    } else {
+        for rule in rule_arr {
+            let status = if rule["enabled"].as_bool() == Some(true) { "ENABLED" } else { "DISABLED" };
+            report.push_str(&format!(
+                "- {} [{}] — {} ({})\n",
+                rule["name"].as_str().unwrap_or("?"),
+                status,
+                rule["platform"].as_str().unwrap_or("?"),
+                rule["id"].as_str().unwrap_or("?"),
+            ));
+        }
+        report.push('\n');
+    }
+
+    // SIEM connections
+    report.push_str("## SIEM Connections\n\n");
+    if siem_arr.is_empty() {
+        report.push_str("No SIEM connections configured.\n\n");
+    } else {
+        for siem in siem_arr {
+            report.push_str(&format!(
+                "- {} — {} (status: {}, events: {}, last sync: {})\n",
+                siem["platform"].as_str().unwrap_or("?"),
+                siem["endpoint"].as_str().unwrap_or("?"),
+                siem["status"].as_str().unwrap_or("?"),
+                siem["event_count"].as_u64().unwrap_or(0),
+                siem["last_sync"].as_str().unwrap_or("never"),
+            ));
+        }
+        report.push('\n');
+    }
+
+    // Threat hunts
+    report.push_str("## Threat Hunts\n\n");
+    if hunt_arr.is_empty() {
+        report.push_str("No active threat hunts.\n");
+    } else {
+        for hunt in hunt_arr {
+            let findings_count = hunt["findings"].as_array().map(|a| a.len()).unwrap_or(0);
+            report.push_str(&format!(
+                "- {} [{}] — \"{}\" ({} findings, analyst: {})\n",
+                hunt["id"].as_str().unwrap_or("?"),
+                hunt["status"].as_str().unwrap_or("?"),
+                hunt["hypothesis"].as_str().unwrap_or("?"),
+                findings_count,
+                hunt["analyst"].as_str().unwrap_or("?"),
+            ));
+        }
+        report.push('\n');
+    }
+
+    Ok(report)
 }
 
 // ── Purple Team — ATT&CK Exercises ──────────────────────────────────────────
 
-#[tauri::command]
-pub async fn list_purple_team_exercises() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!([]))
+/// Helper: path to Purple Team data directory (~/.vibecli/purpleteam/)
+fn purpleteam_data_dir() -> Result<std::path::PathBuf, String> {
+    let home = std::env::var("HOME").map_err(|_| "HOME not set".to_string())?;
+    let dir = std::path::PathBuf::from(home).join(".vibecli").join("purpleteam");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(dir)
+}
+
+fn purpleteam_read_json(filename: &str) -> serde_json::Value {
+    let Ok(dir) = purpleteam_data_dir() else { return serde_json::json!([]) };
+    let path = dir.join(filename);
+    match std::fs::read_to_string(&path) {
+        Ok(s) => serde_json::from_str(&s).unwrap_or(serde_json::json!([])),
+        Err(_) => serde_json::json!([]),
+    }
+}
+
+fn purpleteam_write_json(filename: &str, data: &serde_json::Value) -> Result<(), String> {
+    let dir = purpleteam_data_dir()?;
+    let path = dir.join(filename);
+    let s = serde_json::to_string_pretty(data).map_err(|e| e.to_string())?;
+    std::fs::write(path, s).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub async fn create_purple_team_exercise(name: String, lead: String) -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({
-        "id": format!("EX-{}", name.len()),
+pub async fn list_purple_team_exercises() -> Result<serde_json::Value, String> {
+    Ok(purpleteam_read_json("exercises.json"))
+}
+
+#[tauri::command]
+pub async fn create_purple_team_exercise(name: String, lead: String, description: Option<String>) -> Result<serde_json::Value, String> {
+    let mut exercises = purpleteam_read_json("exercises.json");
+    let arr = exercises.as_array_mut().ok_or("Corrupt exercises.json")?;
+
+    let id = format!("EX-{:04}", arr.len() + 1);
+    let today = chrono::Local::now().format("%Y-%m-%d").to_string();
+
+    let exercise = serde_json::json!({
+        "id": id,
         "name": name,
         "lead": lead,
-        "status": "Planned",
-        "created": true
-    }))
+        "description": description.unwrap_or_default(),
+        "status": "Active",
+        "date": today,
+        "coverage_score": 0,
+        "technique_count": 0,
+    });
+
+    arr.push(exercise.clone());
+    purpleteam_write_json("exercises.json", &exercises)?;
+    Ok(exercise)
 }
 
 #[tauri::command]
 pub async fn get_purple_team_matrix() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!([]))
+    Ok(serde_json::json!([
+        {
+            "tactic": "Initial Access",
+            "techniques": [
+                { "id": "T1566", "name": "Phishing", "coverage": "Detected", "detection_source": "Email Gateway + EDR", "last_tested": "2026-02-15" },
+                { "id": "T1190", "name": "Exploit Public-Facing Application", "coverage": "Partial", "detection_source": "WAF", "last_tested": "2026-01-20" },
+                { "id": "T1078", "name": "Valid Accounts", "coverage": "Partial", "detection_source": "SIEM Anomaly Rules", "last_tested": "2026-02-01" },
+            ]
+        },
+        {
+            "tactic": "Execution",
+            "techniques": [
+                { "id": "T1059", "name": "Command and Scripting Interpreter", "coverage": "Detected", "detection_source": "EDR + AMSI", "last_tested": "2026-03-01" },
+                { "id": "T1053", "name": "Scheduled Task/Job", "coverage": "Missed", "detection_source": null, "last_tested": null },
+                { "id": "T1569", "name": "System Services", "coverage": "NotTested", "detection_source": null, "last_tested": null },
+            ]
+        },
+        {
+            "tactic": "Persistence",
+            "techniques": [
+                { "id": "T1547", "name": "Boot or Logon Autostart Execution", "coverage": "Detected", "detection_source": "EDR + Registry Monitoring", "last_tested": "2026-02-20" },
+            ]
+        },
+        {
+            "tactic": "Privilege Escalation",
+            "techniques": [
+                { "id": "T1055", "name": "Process Injection", "coverage": "Partial", "detection_source": "EDR Behavioral Analysis", "last_tested": "2026-01-10" },
+            ]
+        },
+        {
+            "tactic": "Defense Evasion",
+            "techniques": [
+                { "id": "T1027", "name": "Obfuscated Files or Information", "coverage": "Missed", "detection_source": null, "last_tested": null },
+                { "id": "T1036", "name": "Masquerading", "coverage": "Partial", "detection_source": "EDR Signature", "last_tested": "2026-02-10" },
+                { "id": "T1070", "name": "Indicator Removal", "coverage": "NotTested", "detection_source": null, "last_tested": null },
+            ]
+        },
+        {
+            "tactic": "Credential Access",
+            "techniques": [
+                { "id": "T1110", "name": "Brute Force", "coverage": "Detected", "detection_source": "SIEM + Account Lockout Policy", "last_tested": "2026-03-05" },
+                { "id": "T1003", "name": "OS Credential Dumping", "coverage": "Detected", "detection_source": "EDR + LSASS Protection", "last_tested": "2026-02-28" },
+            ]
+        },
+        {
+            "tactic": "Discovery",
+            "techniques": [
+                { "id": "T1082", "name": "System Information Discovery", "coverage": "Missed", "detection_source": null, "last_tested": null },
+                { "id": "T1083", "name": "File and Directory Discovery", "coverage": "NotTested", "detection_source": null, "last_tested": null },
+            ]
+        },
+        {
+            "tactic": "Lateral Movement",
+            "techniques": [
+                { "id": "T1021", "name": "Remote Services", "coverage": "Partial", "detection_source": "Network Segmentation + SIEM", "last_tested": "2026-01-25" },
+            ]
+        },
+        {
+            "tactic": "Command and Control",
+            "techniques": [
+                { "id": "T1071", "name": "Application Layer Protocol", "coverage": "Detected", "detection_source": "NDR + DNS Monitoring", "last_tested": "2026-03-10" },
+                { "id": "T1105", "name": "Ingress Tool Transfer", "coverage": "Partial", "detection_source": "Proxy + DLP", "last_tested": "2026-02-05" },
+            ]
+        },
+        {
+            "tactic": "Exfiltration",
+            "techniques": [
+                { "id": "T1048", "name": "Exfiltration Over Alternative Protocol", "coverage": "Missed", "detection_source": null, "last_tested": null },
+            ]
+        },
+        {
+            "tactic": "Impact",
+            "techniques": [
+                { "id": "T1486", "name": "Data Encrypted for Impact", "coverage": "Detected", "detection_source": "EDR + Canary Files", "last_tested": "2026-03-12" },
+            ]
+        },
+    ]))
 }
 
 #[tauri::command]
-pub async fn record_purple_team_simulation(exercise_id: String, technique_id: String, outcome: String) -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({
+pub async fn record_purple_team_simulation(
+    exercise_id: String,
+    technique_id: String,
+    technique_name: Option<String>,
+    outcome: String,
+    detection_time_seconds: Option<u64>,
+    detection_source: Option<String>,
+    steps: Option<Vec<String>>,
+    notes: Option<String>,
+    tactic: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let mut simulations = purpleteam_read_json("simulations.json");
+    let arr = simulations.as_array_mut().ok_or("Corrupt simulations.json")?;
+
+    let id = format!("SIM-{:06}", arr.len() + 1);
+    let timestamp = chrono::Local::now().format("%Y-%m-%dT%H:%M:%S").to_string();
+
+    let sim = serde_json::json!({
+        "id": id,
         "exercise_id": exercise_id,
         "technique_id": technique_id,
+        "technique_name": technique_name.unwrap_or_default(),
+        "tactic": tactic.unwrap_or_default(),
         "outcome": outcome,
-        "recorded": true
-    }))
+        "detection_time_seconds": detection_time_seconds,
+        "detection_source": detection_source.unwrap_or_default(),
+        "steps": steps.unwrap_or_default(),
+        "notes": notes.unwrap_or_default(),
+        "timestamp": timestamp,
+    });
+
+    arr.push(sim.clone());
+    purpleteam_write_json("simulations.json", &simulations)?;
+
+    // Update exercise technique_count and coverage_score
+    let mut exercises = purpleteam_read_json("exercises.json");
+    if let Some(ex_arr) = exercises.as_array_mut() {
+        // Count simulations for this exercise
+        let empty = vec![];
+        let all_sims = simulations.as_array().unwrap_or(&empty);
+        let ex_sims: Vec<&serde_json::Value> = all_sims.iter()
+            .filter(|s| s["exercise_id"].as_str() == Some(&exercise_id))
+            .collect();
+        let technique_count = ex_sims.len();
+        let detected_count = ex_sims.iter().filter(|s| s["outcome"].as_str() == Some("Detected")).count();
+        let coverage_score = if technique_count > 0 { (detected_count * 100) / technique_count } else { 0 };
+
+        if let Some(ex) = ex_arr.iter_mut().find(|e| e["id"].as_str() == Some(&exercise_id)) {
+            ex["technique_count"] = serde_json::json!(technique_count);
+            ex["coverage_score"] = serde_json::json!(coverage_score);
+        }
+        purpleteam_write_json("exercises.json", &exercises)?;
+    }
+
+    Ok(sim)
 }
 
 #[tauri::command]
-pub async fn generate_purple_team_report(exercise_id: String) -> Result<String, String> {
-    Ok(format!("# Purple Team Report — {}\n\n## Coverage\n\nNo simulations recorded.\n\n## Gaps\n\nRun simulations to identify gaps.\n", exercise_id))
+pub async fn get_purple_team_simulations() -> Result<serde_json::Value, String> {
+    Ok(purpleteam_read_json("simulations.json"))
+}
+
+#[tauri::command]
+pub async fn get_purple_team_gaps() -> Result<serde_json::Value, String> {
+    // Get the matrix and find techniques with Missed or NotTested coverage
+    let matrix = get_purple_team_matrix().await?;
+    let empty = vec![];
+    let tactics = matrix.as_array().unwrap_or(&empty);
+
+    let mut gaps = Vec::new();
+    for tactic_entry in tactics {
+        let tactic_name = tactic_entry["tactic"].as_str().unwrap_or("Unknown");
+        let empty_techs = vec![];
+        let techniques = tactic_entry["techniques"].as_array().unwrap_or(&empty_techs);
+        for tech in techniques {
+            let coverage = tech["coverage"].as_str().unwrap_or("NotTested");
+            if coverage == "Missed" || coverage == "NotTested" {
+                let tech_id = tech["id"].as_str().unwrap_or("");
+                let tech_name = tech["name"].as_str().unwrap_or("");
+                let (recommendation, effort) = match tech_id {
+                    "T1053" => ("Deploy Sysmon with Task Scheduler event monitoring (Event IDs 4698, 4702). Add SIEM correlation rules for scheduled task creation by non-admin users.", "Medium"),
+                    "T1569" => ("Enable audit logging for service creation (Event ID 7045). Deploy EDR rules to detect sc.exe and services.exe abuse.", "Low"),
+                    "T1027" => ("Deploy content inspection at mail gateway and endpoint. Enable AMSI logging and script block logging for PowerShell. Consider sandbox detonation for suspicious files.", "High"),
+                    "T1070" => ("Enable Windows Security Event Log tampering detection (Event ID 1102). Deploy log forwarding to immutable SIEM. Monitor for timestomp patterns via EDR.", "Medium"),
+                    "T1082" => ("Monitor for reconnaissance commands (systeminfo, hostname, whoami) executed in rapid succession. Create SIEM behavioral rule for enumeration patterns.", "Low"),
+                    "T1083" => ("Deploy EDR behavioral rules for directory traversal patterns (dir /s, tree, find). Monitor for automated file enumeration from non-standard processes.", "Low"),
+                    "T1048" => ("Deploy DLP with protocol inspection on DNS, ICMP, and non-standard ports. Monitor for DNS tunneling (high-entropy subdomain queries) and large ICMP payloads.", "High"),
+                    _ => ("Conduct initial assessment and deploy detection rules for this technique.", "Medium"),
+                };
+                gaps.push(serde_json::json!({
+                    "technique_id": tech_id,
+                    "technique_name": tech_name,
+                    "tactic": tactic_name,
+                    "current_coverage": coverage,
+                    "recommendation": recommendation,
+                    "effort": effort,
+                    "priority": if coverage == "Missed" { "High" } else { "Medium" },
+                }));
+            }
+        }
+    }
+
+    Ok(serde_json::json!(gaps))
+}
+
+#[tauri::command]
+pub async fn generate_purple_team_report(exercise_id: String, compare_id: Option<String>) -> Result<String, String> {
+    let exercises = purpleteam_read_json("exercises.json");
+    let empty_ex = vec![];
+    let ex_arr = exercises.as_array().unwrap_or(&empty_ex);
+    let exercise = ex_arr.iter().find(|e| e["id"].as_str() == Some(&exercise_id));
+
+    let simulations = purpleteam_read_json("simulations.json");
+    let empty_sims = vec![];
+    let all_sims = simulations.as_array().unwrap_or(&empty_sims);
+
+    let ex_sims: Vec<&serde_json::Value> = all_sims.iter()
+        .filter(|s| s["exercise_id"].as_str() == Some(&exercise_id))
+        .collect();
+
+    let now = chrono::Local::now().format("%Y-%m-%d %H:%M").to_string();
+
+    let mut report = String::new();
+    report.push_str(&format!("# Purple Team Report — {}\n\n", exercise_id));
+    report.push_str(&format!("Generated: {}\n\n", now));
+
+    // Exercise details
+    if let Some(ex) = exercise {
+        report.push_str("## Exercise Details\n\n");
+        report.push_str(&format!("- **Name**: {}\n", ex["name"].as_str().unwrap_or("Unknown")));
+        report.push_str(&format!("- **Lead**: {}\n", ex["lead"].as_str().unwrap_or("Unknown")));
+        report.push_str(&format!("- **Status**: {}\n", ex["status"].as_str().unwrap_or("Unknown")));
+        report.push_str(&format!("- **Date**: {}\n", ex["date"].as_str().unwrap_or("Unknown")));
+        report.push_str(&format!("- **Coverage Score**: {}%\n", ex["coverage_score"].as_u64().unwrap_or(0)));
+        report.push_str(&format!("- **Techniques Tested**: {}\n\n", ex["technique_count"].as_u64().unwrap_or(0)));
+    } else {
+        report.push_str("## Exercise Details\n\nExercise not found.\n\n");
+    }
+
+    // Simulation results
+    report.push_str("## Simulation Results\n\n");
+    if ex_sims.is_empty() {
+        report.push_str("No simulations recorded for this exercise.\n\n");
+    } else {
+        report.push_str("| Technique | Tactic | Outcome | Detection Time | Source |\n");
+        report.push_str("|-----------|--------|---------|----------------|--------|\n");
+        let mut detected = 0u64;
+        let mut partial = 0u64;
+        let mut missed = 0u64;
+        for sim in &ex_sims {
+            let outcome = sim["outcome"].as_str().unwrap_or("Unknown");
+            match outcome {
+                "Detected" => detected += 1,
+                "Partial" => partial += 1,
+                "Missed" => missed += 1,
+                _ => {}
+            }
+            let det_time = match sim["detection_time_seconds"].as_u64() {
+                Some(t) => format!("{}s", t),
+                None => "N/A".to_string(),
+            };
+            report.push_str(&format!("| {} ({}) | {} | {} | {} | {} |\n",
+                sim["technique_name"].as_str().unwrap_or(""),
+                sim["technique_id"].as_str().unwrap_or(""),
+                sim["tactic"].as_str().unwrap_or(""),
+                outcome,
+                det_time,
+                sim["detection_source"].as_str().unwrap_or("N/A"),
+            ));
+        }
+        report.push_str("\n");
+
+        // Summary statistics
+        let total = ex_sims.len() as u64;
+        report.push_str("## Coverage Summary\n\n");
+        report.push_str(&format!("- **Total Simulations**: {}\n", total));
+        report.push_str(&format!("- **Detected**: {} ({:.0}%)\n", detected, if total > 0 { (detected as f64 / total as f64) * 100.0 } else { 0.0 }));
+        report.push_str(&format!("- **Partial**: {} ({:.0}%)\n", partial, if total > 0 { (partial as f64 / total as f64) * 100.0 } else { 0.0 }));
+        report.push_str(&format!("- **Missed**: {} ({:.0}%)\n\n", missed, if total > 0 { (missed as f64 / total as f64) * 100.0 } else { 0.0 }));
+    }
+
+    // Comparison section
+    if let Some(ref cmp_id) = compare_id {
+        let cmp_exercise = ex_arr.iter().find(|e| e["id"].as_str() == Some(cmp_id.as_str()));
+        let cmp_sims: Vec<&serde_json::Value> = all_sims.iter()
+            .filter(|s| s["exercise_id"].as_str() == Some(cmp_id.as_str()))
+            .collect();
+
+        report.push_str(&format!("## Comparison with {}\n\n", cmp_id));
+
+        let current_score = exercise.map(|e| e["coverage_score"].as_u64().unwrap_or(0)).unwrap_or(0);
+        let compare_score = cmp_exercise.map(|e| e["coverage_score"].as_u64().unwrap_or(0)).unwrap_or(0);
+
+        report.push_str(&format!("| Metric | {} | {} |\n", exercise_id, cmp_id));
+        report.push_str("|--------|------|------|\n");
+        report.push_str(&format!("| Coverage Score | {}% | {}% |\n", current_score, compare_score));
+        report.push_str(&format!("| Simulations | {} | {} |\n", ex_sims.len(), cmp_sims.len()));
+
+        if current_score > compare_score {
+            report.push_str(&format!("\nCoverage improved by {}% compared to {}.\n\n", current_score - compare_score, cmp_id));
+        } else if compare_score > current_score {
+            report.push_str(&format!("\nCoverage decreased by {}% compared to {}.\n\n", compare_score - current_score, cmp_id));
+        } else {
+            report.push_str(&format!("\nCoverage unchanged compared to {}.\n\n", cmp_id));
+        }
+    }
+
+    // Gaps
+    let gaps = get_purple_team_gaps().await?;
+    let empty_gaps = vec![];
+    let gap_arr = gaps.as_array().unwrap_or(&empty_gaps);
+    if !gap_arr.is_empty() {
+        report.push_str("## Coverage Gaps\n\n");
+        for gap in gap_arr {
+            report.push_str(&format!("### {} ({})\n", gap["technique_name"].as_str().unwrap_or(""), gap["technique_id"].as_str().unwrap_or("")));
+            report.push_str(&format!("- **Tactic**: {}\n", gap["tactic"].as_str().unwrap_or("")));
+            report.push_str(&format!("- **Current Coverage**: {}\n", gap["current_coverage"].as_str().unwrap_or("")));
+            report.push_str(&format!("- **Priority**: {}\n", gap["priority"].as_str().unwrap_or("")));
+            report.push_str(&format!("- **Effort**: {}\n", gap["effort"].as_str().unwrap_or("")));
+            report.push_str(&format!("- **Recommendation**: {}\n\n", gap["recommendation"].as_str().unwrap_or("")));
+        }
+    }
+
+    report.push_str("---\n*Report generated by VibeCody Purple Team Module*\n");
+
+    Ok(report)
 }
 
 // ── IDP — Internal Developer Platform ───────────────────────────────────────
@@ -17843,4 +18633,255 @@ pub async fn request_idp_infra(
 #[tauri::command]
 pub async fn get_idp_infra_requests() -> Result<serde_json::Value, String> {
     Ok(idp_read_json("infra_requests.json"))
+}
+
+// ── Full-Stack Generator ────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct FullStackSpec {
+    pub project_name: String,
+    pub frontend: String,
+    pub backend: String,
+    pub database: String,
+    pub auth: String,
+    pub features: String,
+    pub output_dir: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct FullStackFileResult {
+    pub path: String,
+    pub absolute_path: String,
+    pub layer: String,
+    pub lines: usize,
+    pub content: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct FullStackResult {
+    pub files: Vec<FullStackFileResult>,
+    pub total_lines: usize,
+    pub output_dir: String,
+}
+
+fn fs_frontend_templates(framework: &str) -> Vec<(&'static str, &'static str)> {
+    match framework {
+        "React + TypeScript" | "React" => vec![
+            ("frontend/src/App.tsx", "import React from 'react';\nimport { BrowserRouter, Routes, Route } from 'react-router-dom';\nimport Home from './pages/Home';\nimport Layout from './components/Layout';\n\nexport default function App() {\n  return (\n    <BrowserRouter>\n      <Layout>\n        <Routes>\n          <Route path=\"/\" element={<Home />} />\n        </Routes>\n      </Layout>\n    </BrowserRouter>\n  );\n}\n"),
+            ("frontend/src/pages/Home.tsx", "import React from 'react';\n\nexport default function Home() {\n  return (\n    <div className=\"container\">\n      <h1>Welcome</h1>\n      <p>Your full-stack app is ready.</p>\n    </div>\n  );\n}\n"),
+            ("frontend/src/components/Layout.tsx", "import React from 'react';\n\ninterface LayoutProps {\n  children: React.ReactNode;\n}\n\nexport default function Layout({ children }: LayoutProps) {\n  return (\n    <div className=\"layout\">\n      <nav className=\"navbar\">\n        <h2>App</h2>\n      </nav>\n      <main>{children}</main>\n      <footer>&copy; 2026</footer>\n    </div>\n  );\n}\n"),
+            ("frontend/src/hooks/useAuth.ts", "import { useState, useEffect } from 'react';\n\ninterface User {\n  id: string;\n  email: string;\n  name: string;\n}\n\nexport function useAuth() {\n  const [user, setUser] = useState<User | null>(null);\n  const [loading, setLoading] = useState(true);\n\n  useEffect(() => {\n    // Check stored token\n    const token = localStorage.getItem('token');\n    if (token) {\n      // Validate token and set user\n      setLoading(false);\n    } else {\n      setLoading(false);\n    }\n  }, []);\n\n  const login = async (email: string, password: string) => {\n    const res = await fetch('/api/auth/login', {\n      method: 'POST',\n      headers: { 'Content-Type': 'application/json' },\n      body: JSON.stringify({ email, password }),\n    });\n    const data = await res.json();\n    localStorage.setItem('token', data.token);\n    setUser(data.user);\n  };\n\n  const logout = () => {\n    localStorage.removeItem('token');\n    setUser(null);\n  };\n\n  return { user, loading, login, logout };\n}\n"),
+            ("frontend/src/api/client.ts", "const BASE_URL = import.meta.env.VITE_API_URL || '/api';\n\nexport async function apiGet<T>(path: string): Promise<T> {\n  const token = localStorage.getItem('token');\n  const res = await fetch(`${BASE_URL}${path}`, {\n    headers: {\n      'Content-Type': 'application/json',\n      ...(token ? { Authorization: `Bearer ${token}` } : {}),\n    },\n  });\n  if (!res.ok) throw new Error(`API error: ${res.status}`);\n  return res.json();\n}\n\nexport async function apiPost<T>(path: string, body: unknown): Promise<T> {\n  const token = localStorage.getItem('token');\n  const res = await fetch(`${BASE_URL}${path}`, {\n    method: 'POST',\n    headers: {\n      'Content-Type': 'application/json',\n      ...(token ? { Authorization: `Bearer ${token}` } : {}),\n    },\n    body: JSON.stringify(body),\n  });\n  if (!res.ok) throw new Error(`API error: ${res.status}`);\n  return res.json();\n}\n"),
+            ("frontend/package.json", "{\n  \"name\": \"frontend\",\n  \"version\": \"0.1.0\",\n  \"private\": true,\n  \"scripts\": {\n    \"dev\": \"vite\",\n    \"build\": \"tsc && vite build\",\n    \"preview\": \"vite preview\"\n  },\n  \"dependencies\": {\n    \"react\": \"^18.2.0\",\n    \"react-dom\": \"^18.2.0\",\n    \"react-router-dom\": \"^6.0.0\"\n  },\n  \"devDependencies\": {\n    \"@types/react\": \"^18.2.0\",\n    \"typescript\": \"^5.3.0\",\n    \"vite\": \"^5.0.0\",\n    \"@vitejs/plugin-react\": \"^4.2.0\"\n  }\n}\n"),
+            ("frontend/tsconfig.json", "{\n  \"compilerOptions\": {\n    \"target\": \"ES2020\",\n    \"module\": \"ESNext\",\n    \"moduleResolution\": \"bundler\",\n    \"jsx\": \"react-jsx\",\n    \"strict\": true,\n    \"esModuleInterop\": true,\n    \"skipLibCheck\": true\n  },\n  \"include\": [\"src\"]\n}\n"),
+        ],
+        "Next.js" => vec![
+            ("frontend/src/app/page.tsx", "export default function Home() {\n  return (\n    <main className=\"container\">\n      <h1>Welcome</h1>\n      <p>Your Next.js app is ready.</p>\n    </main>\n  );\n}\n"),
+            ("frontend/src/app/layout.tsx", "import type { Metadata } from 'next';\n\nexport const metadata: Metadata = {\n  title: 'App',\n  description: 'Generated by VibeCody',\n};\n\nexport default function RootLayout({ children }: { children: React.ReactNode }) {\n  return (\n    <html lang=\"en\">\n      <body>{children}</body>\n    </html>\n  );\n}\n"),
+            ("frontend/next.config.js", "/** @type {import('next').NextConfig} */\nconst nextConfig = {\n  reactStrictMode: true,\n};\n\nmodule.exports = nextConfig;\n"),
+            ("frontend/package.json", "{\n  \"name\": \"frontend\",\n  \"version\": \"0.1.0\",\n  \"private\": true,\n  \"scripts\": { \"dev\": \"next dev\", \"build\": \"next build\" },\n  \"dependencies\": {\n    \"next\": \"^14.0.0\",\n    \"react\": \"^18.2.0\",\n    \"react-dom\": \"^18.2.0\"\n  }\n}\n"),
+        ],
+        "Vue 3 + TypeScript" | "Vue" => vec![
+            ("frontend/src/App.vue", "<template>\n  <div id=\"app\">\n    <router-view />\n  </div>\n</template>\n\n<script setup lang=\"ts\">\n</script>\n"),
+            ("frontend/src/views/Home.vue", "<template>\n  <div class=\"container\">\n    <h1>Welcome</h1>\n    <p>Your Vue app is ready.</p>\n  </div>\n</template>\n\n<script setup lang=\"ts\">\n</script>\n"),
+            ("frontend/src/router/index.ts", "import { createRouter, createWebHistory } from 'vue-router';\nimport Home from '../views/Home.vue';\n\nconst routes = [\n  { path: '/', component: Home },\n];\n\nexport default createRouter({\n  history: createWebHistory(),\n  routes,\n});\n"),
+            ("frontend/package.json", "{\n  \"name\": \"frontend\",\n  \"version\": \"0.1.0\",\n  \"dependencies\": {\n    \"vue\": \"^3.3.0\",\n    \"vue-router\": \"^4.2.0\"\n  }\n}\n"),
+        ],
+        _ => vec![
+            ("frontend/index.html", "<!DOCTYPE html>\n<html lang=\"en\">\n<head><meta charset=\"UTF-8\"><title>App</title></head>\n<body>\n  <div id=\"app\"></div>\n  <script type=\"module\" src=\"/src/main.ts\"></script>\n</body>\n</html>\n"),
+        ],
+    }
+}
+
+fn fs_backend_templates(framework: &str) -> Vec<(&'static str, &'static str)> {
+    match framework {
+        "Rust + Actix" | "Actix" => vec![
+            ("backend/src/main.rs", "use actix_web::{web, App, HttpServer, HttpResponse, middleware};\nuse serde::Serialize;\n\nmod models;\nmod routes;\n\n#[derive(Serialize)]\nstruct Health { status: String }\n\nasync fn health() -> HttpResponse {\n    HttpResponse::Ok().json(Health { status: \"ok\".into() })\n}\n\n#[actix_web::main]\nasync fn main() -> std::io::Result<()> {\n    println!(\"Starting server on 0.0.0.0:8080\");\n    HttpServer::new(|| {\n        App::new()\n            .wrap(middleware::Logger::default())\n            .route(\"/health\", web::get().to(health))\n            .configure(routes::configure)\n    })\n    .bind(\"0.0.0.0:8080\")?\n    .run()\n    .await\n}\n"),
+            ("backend/src/models.rs", "use serde::{Deserialize, Serialize};\n\n#[derive(Debug, Clone, Serialize, Deserialize)]\npub struct User {\n    pub id: String,\n    pub email: String,\n    pub name: String,\n    pub created_at: String,\n}\n\n#[derive(Debug, Deserialize)]\npub struct CreateUser {\n    pub email: String,\n    pub name: String,\n    pub password: String,\n}\n"),
+            ("backend/src/routes.rs", "use actix_web::{web, HttpResponse};\nuse crate::models::CreateUser;\n\npub fn configure(cfg: &mut web::ServiceConfig) {\n    cfg.service(\n        web::scope(\"/api\")\n            .route(\"/users\", web::get().to(list_users))\n            .route(\"/users\", web::post().to(create_user))\n    );\n}\n\nasync fn list_users() -> HttpResponse {\n    HttpResponse::Ok().json(Vec::<crate::models::User>::new())\n}\n\nasync fn create_user(body: web::Json<CreateUser>) -> HttpResponse {\n    HttpResponse::Created().json(serde_json::json!({\n        \"id\": uuid::Uuid::new_v4().to_string(),\n        \"email\": body.email,\n        \"name\": body.name\n    }))\n}\n"),
+            ("backend/Cargo.toml", "[package]\nname = \"backend\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[dependencies]\nactix-web = \"4\"\nserde = { version = \"1\", features = [\"derive\"] }\nserde_json = \"1\"\ntokio = { version = \"1\", features = [\"full\"] }\nuuid = { version = \"1\", features = [\"v4\"] }\n"),
+        ],
+        "Node.js + Express" | "Express" => vec![
+            ("backend/src/index.ts", "import express from 'express';\nimport cors from 'cors';\nimport { router } from './routes';\n\nconst app = express();\nconst PORT = process.env.PORT || 3000;\n\napp.use(cors());\napp.use(express.json());\napp.use('/api', router);\n\napp.get('/health', (_req, res) => res.json({ status: 'ok' }));\n\napp.listen(PORT, () => {\n  console.log(`Server running on port ${PORT}`);\n});\n"),
+            ("backend/src/routes/index.ts", "import { Router } from 'express';\n\nexport const router = Router();\n\nrouter.get('/users', (_req, res) => {\n  res.json([]);\n});\n\nrouter.post('/users', (req, res) => {\n  const { email, name } = req.body;\n  res.status(201).json({ id: Date.now().toString(), email, name });\n});\n"),
+            ("backend/src/models/user.ts", "export interface User {\n  id: string;\n  email: string;\n  name: string;\n  createdAt: Date;\n}\n\nexport interface CreateUserDto {\n  email: string;\n  name: string;\n  password: string;\n}\n"),
+            ("backend/package.json", "{\n  \"name\": \"backend\",\n  \"version\": \"0.1.0\",\n  \"scripts\": { \"dev\": \"ts-node-dev src/index.ts\", \"build\": \"tsc\" },\n  \"dependencies\": {\n    \"express\": \"^4.18.0\",\n    \"cors\": \"^2.8.5\"\n  },\n  \"devDependencies\": {\n    \"@types/express\": \"^4.17.0\",\n    \"@types/cors\": \"^2.8.0\",\n    \"typescript\": \"^5.3.0\",\n    \"ts-node-dev\": \"^2.0.0\"\n  }\n}\n"),
+            ("backend/tsconfig.json", "{\n  \"compilerOptions\": {\n    \"target\": \"ES2020\",\n    \"module\": \"commonjs\",\n    \"outDir\": \"dist\",\n    \"strict\": true,\n    \"esModuleInterop\": true\n  },\n  \"include\": [\"src\"]\n}\n"),
+        ],
+        "Python + FastAPI" | "FastAPI" => vec![
+            ("backend/app/main.py", "from fastapi import FastAPI\nfrom fastapi.middleware.cors import CORSMiddleware\nfrom app.routes import router\n\napp = FastAPI(title=\"API\", version=\"0.1.0\")\n\napp.add_middleware(\n    CORSMiddleware,\n    allow_origins=[\"*\"],\n    allow_methods=[\"*\"],\n    allow_headers=[\"*\"],\n)\n\napp.include_router(router, prefix=\"/api\")\n\n@app.get(\"/health\")\ndef health():\n    return {\"status\": \"ok\"}\n"),
+            ("backend/app/routes.py", "from fastapi import APIRouter\nfrom app.models import User, CreateUser\nimport uuid\nfrom datetime import datetime\n\nrouter = APIRouter()\n\n@router.get(\"/users\", response_model=list[User])\ndef list_users():\n    return []\n\n@router.post(\"/users\", response_model=User, status_code=201)\ndef create_user(body: CreateUser):\n    return User(id=str(uuid.uuid4()), email=body.email, name=body.name, created_at=datetime.utcnow())\n"),
+            ("backend/app/models.py", "from pydantic import BaseModel\nfrom datetime import datetime\n\nclass User(BaseModel):\n    id: str\n    email: str\n    name: str\n    created_at: datetime\n\nclass CreateUser(BaseModel):\n    email: str\n    name: str\n    password: str\n"),
+            ("backend/requirements.txt", "fastapi>=0.104.0\nuvicorn>=0.24.0\npydantic>=2.5.0\n"),
+        ],
+        _ => vec![
+            ("backend/main.py", "print('Hello from backend')\n"),
+        ],
+    }
+}
+
+fn fs_db_templates(db: &str) -> Vec<(&'static str, &'static str)> {
+    match db {
+        "PostgreSQL" => vec![
+            ("database/migrations/001_create_users.sql", "CREATE TABLE users (\n  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),\n  email VARCHAR(255) NOT NULL UNIQUE,\n  name VARCHAR(255) NOT NULL,\n  password_hash VARCHAR(255) NOT NULL,\n  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),\n  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()\n);\n\nCREATE INDEX idx_users_email ON users(email);\n"),
+            ("database/migrations/002_create_sessions.sql", "CREATE TABLE sessions (\n  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),\n  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,\n  token VARCHAR(512) NOT NULL UNIQUE,\n  expires_at TIMESTAMPTZ NOT NULL,\n  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()\n);\n\nCREATE INDEX idx_sessions_token ON sessions(token);\n"),
+            ("database/seed.sql", "INSERT INTO users (email, name, password_hash)\nVALUES ('admin@example.com', 'Admin User', '$2b$12$placeholder_hash');\n"),
+        ],
+        "MySQL" => vec![
+            ("database/migrations/001_create_users.sql", "CREATE TABLE users (\n  id CHAR(36) PRIMARY KEY,\n  email VARCHAR(255) NOT NULL UNIQUE,\n  name VARCHAR(255) NOT NULL,\n  password_hash VARCHAR(255) NOT NULL,\n  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,\n  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;\n"),
+        ],
+        "SQLite" => vec![
+            ("database/migrations/001_create_users.sql", "CREATE TABLE IF NOT EXISTS users (\n  id TEXT PRIMARY KEY,\n  email TEXT NOT NULL UNIQUE,\n  name TEXT NOT NULL,\n  password_hash TEXT NOT NULL,\n  created_at TEXT NOT NULL DEFAULT (datetime('now'))\n);\n"),
+        ],
+        "MongoDB" => vec![
+            ("database/schemas/user.json", "{\n  \"$jsonSchema\": {\n    \"bsonType\": \"object\",\n    \"required\": [\"email\", \"name\"],\n    \"properties\": {\n      \"email\": { \"bsonType\": \"string\" },\n      \"name\": { \"bsonType\": \"string\" },\n      \"createdAt\": { \"bsonType\": \"date\" }\n    }\n  }\n}\n"),
+        ],
+        _ => vec![],
+    }
+}
+
+fn fs_infra_templates(project_name: &str, backend: &str, db: &str) -> Vec<(String, String)> {
+    let backend_image = match backend {
+        "Rust + Actix" | "Actix" => "rust:1.75-slim",
+        "Node.js + Express" | "Express" | "Next.js" => "node:20-slim",
+        "Python + FastAPI" | "FastAPI" => "python:3.12-slim",
+        _ => "ubuntu:22.04",
+    };
+    let db_image = match db {
+        "PostgreSQL" => "postgres:16",
+        "MySQL" => "mysql:8",
+        "MongoDB" => "mongo:7",
+        _ => "",
+    };
+
+    let mut files = vec![
+        (format!("Dockerfile"), format!(
+            "FROM {} AS builder\nWORKDIR /app\nCOPY backend/ .\n{}\n\nFROM {} AS runtime\nWORKDIR /app\nCOPY --from=builder /app .\nEXPOSE 8080\n{}\n",
+            backend_image,
+            if backend.contains("Rust") { "RUN cargo build --release" } else if backend.contains("Node") { "RUN npm ci && npm run build" } else { "RUN pip install -r requirements.txt" },
+            if backend.contains("Rust") { "debian:bookworm-slim" } else { backend_image },
+            if backend.contains("Rust") { "CMD [\"./target/release/backend\"]" } else if backend.contains("Node") { "CMD [\"node\", \"dist/index.js\"]" } else { "CMD [\"uvicorn\", \"app.main:app\", \"--host\", \"0.0.0.0\", \"--port\", \"8080\"]" },
+        )),
+        (format!(".github/workflows/ci.yml"), format!(
+            "name: CI\n\non:\n  push:\n    branches: [main]\n  pull_request:\n    branches: [main]\n\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - name: Build\n        run: echo \"Add build steps for {}\"\n      - name: Test\n        run: echo \"Add test steps\"\n",
+            project_name,
+        )),
+        (format!(".env.example"), format!(
+            "# {} Environment Variables\nDATABASE_URL=\nJWT_SECRET=change-me-in-production\nPORT=8080\n",
+            project_name,
+        )),
+        (format!("README.md"), format!(
+            "# {}\n\nGenerated by VibeCody Full Stack Generator.\n\n## Stack\n- Backend: {}\n- Database: {}\n\n## Getting Started\n\n```bash\n# Start database\ndocker-compose up -d db\n\n# Run backend\ncd backend && cargo run  # or npm run dev / uvicorn\n\n# Run frontend\ncd frontend && npm run dev\n```\n\n## Project Structure\n\n```\n{}/\n  frontend/     # Frontend application\n  backend/      # Backend API\n  database/     # Migrations and schemas\n```\n",
+            project_name, backend, db, project_name,
+        )),
+    ];
+
+    if !db_image.is_empty() {
+        files.push((format!("docker-compose.yml"), format!(
+            "version: '3.8'\n\nservices:\n  app:\n    build: .\n    ports:\n      - \"8080:8080\"\n    environment:\n      - DATABASE_URL=${{DATABASE_URL}}\n    depends_on:\n      - db\n\n  db:\n    image: {}\n    ports:\n      - \"5432:5432\"\n    environment:\n{}\n    volumes:\n      - db_data:/var/lib/{}\n\nvolumes:\n  db_data:\n",
+            db_image,
+            match db {
+                "PostgreSQL" => "      - POSTGRES_DB=app\n      - POSTGRES_USER=app\n      - POSTGRES_PASSWORD=password",
+                "MySQL" => "      - MYSQL_DATABASE=app\n      - MYSQL_ROOT_PASSWORD=password",
+                "MongoDB" => "      - MONGO_INITDB_DATABASE=app",
+                _ => "",
+            },
+            match db { "PostgreSQL" => "postgresql/data", "MySQL" => "mysql", "MongoDB" => "data/db", _ => "data" },
+        )));
+    }
+
+    files
+}
+
+#[tauri::command]
+pub async fn fullstack_generate(spec: FullStackSpec) -> Result<FullStackResult, String> {
+    let base_dir = std::path::PathBuf::from(&spec.output_dir).join(&spec.project_name);
+    std::fs::create_dir_all(&base_dir).map_err(|e| format!("Failed to create project directory: {}", e))?;
+
+    let mut results: Vec<FullStackFileResult> = Vec::new();
+
+    // Frontend files
+    for (rel_path, content) in fs_frontend_templates(&spec.frontend) {
+        let file_path = base_dir.join(rel_path);
+        if let Some(parent) = file_path.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
+        std::fs::write(&file_path, content).map_err(|e| format!("Failed to write {}: {}", rel_path, e))?;
+        results.push(FullStackFileResult {
+            path: rel_path.to_string(),
+            absolute_path: file_path.to_string_lossy().to_string(),
+            layer: "Frontend".to_string(),
+            lines: content.lines().count(),
+            content: content.to_string(),
+        });
+    }
+
+    // Backend files
+    for (rel_path, content) in fs_backend_templates(&spec.backend) {
+        let file_path = base_dir.join(rel_path);
+        if let Some(parent) = file_path.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
+        std::fs::write(&file_path, content).map_err(|e| format!("Failed to write {}: {}", rel_path, e))?;
+        results.push(FullStackFileResult {
+            path: rel_path.to_string(),
+            absolute_path: file_path.to_string_lossy().to_string(),
+            layer: "Backend".to_string(),
+            lines: content.lines().count(),
+            content: content.to_string(),
+        });
+    }
+
+    // Database files
+    for (rel_path, content) in fs_db_templates(&spec.database) {
+        let file_path = base_dir.join(rel_path);
+        if let Some(parent) = file_path.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
+        std::fs::write(&file_path, content).map_err(|e| format!("Failed to write {}: {}", rel_path, e))?;
+        results.push(FullStackFileResult {
+            path: rel_path.to_string(),
+            absolute_path: file_path.to_string_lossy().to_string(),
+            layer: "Database".to_string(),
+            lines: content.lines().count(),
+            content: content.to_string(),
+        });
+    }
+
+    // Infra files
+    for (rel_path, content) in fs_infra_templates(&spec.project_name, &spec.backend, &spec.database) {
+        let file_path = base_dir.join(&rel_path);
+        if let Some(parent) = file_path.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
+        std::fs::write(&file_path, &content).map_err(|e| format!("Failed to write {}: {}", rel_path, e))?;
+        results.push(FullStackFileResult {
+            path: rel_path,
+            absolute_path: file_path.to_string_lossy().to_string(),
+            layer: "Infra".to_string(),
+            lines: content.lines().count(),
+            content,
+        });
+    }
+
+    let total_lines = results.iter().map(|f| f.lines).sum();
+
+    Ok(FullStackResult {
+        files: results,
+        total_lines,
+        output_dir: base_dir.to_string_lossy().to_string(),
+    })
+}
+
+#[tauri::command]
+pub async fn fullstack_read_file(path: String) -> Result<String, String> {
+    std::fs::read_to_string(&path).map_err(|e| format!("Failed to read {}: {}", path, e))
+}
+
+#[tauri::command]
+pub async fn fullstack_write_file(path: String, content: String) -> Result<(), String> {
+    if let Some(parent) = std::path::Path::new(&path).parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    std::fs::write(&path, &content).map_err(|e| format!("Failed to write {}: {}", path, e))
 }

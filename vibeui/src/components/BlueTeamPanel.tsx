@@ -62,9 +62,10 @@ interface Playbook {
 
 interface PlaybookStep {
   order: number;
-  name: string;
+  name?: string;
+  action?: string;
   description: string;
-  automated: boolean;
+  automated?: boolean;
 }
 
 interface ThreatHunt {
@@ -104,7 +105,7 @@ const containerStyle: React.CSSProperties = {
   height: "100%",
   background: "var(--bg-primary)",
   color: "var(--text-primary)",
-  fontFamily: "var(--font-mono)",
+  fontFamily: "inherit",
   overflow: "hidden",
 };
 
@@ -112,7 +113,7 @@ const tabBarStyle: React.CSSProperties = {
   display: "flex",
   gap: 2,
   padding: "8px 12px 0",
-  borderBottom: "1px solid var(--border-primary)",
+  borderBottom: "1px solid var(--border-color)",
   background: "var(--bg-secondary)",
   overflowX: "auto",
   flexShrink: 0,
@@ -122,11 +123,11 @@ const tabStyle = (active: boolean): React.CSSProperties => ({
   padding: "8px 14px",
   cursor: "pointer",
   background: active ? "var(--bg-primary)" : "transparent",
-  color: active ? "var(--accent-primary)" : "var(--text-secondary)",
+  color: active ? "var(--accent-blue)" : "var(--text-secondary)",
   border: "none",
-  borderBottom: active ? "2px solid var(--accent-primary)" : "2px solid transparent",
+  borderBottom: active ? "2px solid var(--accent-blue)" : "2px solid transparent",
   fontSize: 13,
-  fontFamily: "var(--font-mono)",
+  fontFamily: "inherit",
   whiteSpace: "nowrap",
 });
 
@@ -138,13 +139,13 @@ const contentStyle: React.CSSProperties = {
 
 const btnStyle: React.CSSProperties = {
   padding: "6px 14px",
-  background: "var(--accent-primary)",
+  background: "var(--accent-blue)",
   color: "var(--bg-primary)",
   border: "none",
   borderRadius: 4,
   cursor: "pointer",
   fontSize: 12,
-  fontFamily: "var(--font-mono)",
+  fontFamily: "inherit",
 };
 
 const btnSecondary: React.CSSProperties = {
@@ -157,10 +158,10 @@ const inputStyle: React.CSSProperties = {
   padding: "6px 10px",
   background: "var(--bg-tertiary)",
   color: "var(--text-primary)",
-  border: "1px solid var(--border-primary)",
+  border: "1px solid var(--border-color)",
   borderRadius: 4,
   fontSize: 13,
-  fontFamily: "var(--font-mono)",
+  fontFamily: "inherit",
   width: "100%",
   boxSizing: "border-box",
 };
@@ -174,7 +175,7 @@ const tableStyle: React.CSSProperties = {
 const thStyle: React.CSSProperties = {
   textAlign: "left",
   padding: "8px 10px",
-  borderBottom: "1px solid var(--border-primary)",
+  borderBottom: "1px solid var(--border-color)",
   color: "var(--text-secondary)",
   fontWeight: 600,
   fontSize: 12,
@@ -182,7 +183,7 @@ const thStyle: React.CSSProperties = {
 
 const tdStyle: React.CSSProperties = {
   padding: "8px 10px",
-  borderBottom: "1px solid var(--border-primary)",
+  borderBottom: "1px solid var(--border-color)",
 };
 
 const badgeStyle = (color: string): React.CSSProperties => ({
@@ -197,7 +198,7 @@ const badgeStyle = (color: string): React.CSSProperties => ({
 
 const cardStyle: React.CSSProperties = {
   background: "var(--bg-secondary)",
-  border: "1px solid var(--border-primary)",
+  border: "1px solid var(--border-color)",
   borderRadius: 6,
   padding: 14,
   marginBottom: 10,
@@ -219,10 +220,11 @@ export function BlueTeamPanel() {
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [iocs, setIOCs] = useState<IOC[]>([]);
   const [rules, setRules] = useState<DetectionRule[]>([]);
-  const [cases, _setCases] = useState<ForensicsCase[]>([]);
-  const [siemConns, _setSiemConns] = useState<SIEMConnection[]>([]);
-  const [playbooks, _setPlaybooks] = useState<Playbook[]>([]);
-  const [hunts, _setHunts] = useState<ThreatHunt[]>([]);
+  const [cases] = useState<ForensicsCase[]>([]);
+  const [siemConns, setSiemConns] = useState<SIEMConnection[]>([]);
+  const [playbooks, setPlaybooks] = useState<Playbook[]>([]);
+  const [hunts, setHunts] = useState<ThreatHunt[]>([]);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -261,9 +263,19 @@ export function BlueTeamPanel() {
   const [huntSources, setHuntSources] = useState("");
   const [huntQuery, setHuntQuery] = useState("");
 
+  const showSuccess = (msg: string) => { setSuccessMsg(msg); setTimeout(() => setSuccessMsg(null), 3000); };
+
   useEffect(() => {
     loadIncidents();
   }, []);
+
+  useEffect(() => {
+    if (activeTab === "IOCs" && iocs.length === 0) loadIOCs();
+    if (activeTab === "Detection Rules" && rules.length === 0) loadRules();
+    if (activeTab === "SIEM" && siemConns.length === 0) loadSIEM();
+    if (activeTab === "Playbooks" && playbooks.length === 0) loadPlaybooks();
+    if (activeTab === "Threat Hunt") loadHunts();
+  }, [activeTab]);
 
   async function loadIncidents() {
     try {
@@ -321,11 +333,128 @@ export function BlueTeamPanel() {
     }
   }
 
+  async function loadRules() {
+    try {
+      setLoading(true);
+      const result = await invoke<DetectionRule[]>("get_blue_team_rules");
+      setRules(result);
+    } catch (e: any) {
+      setError(e?.toString() ?? "Failed to load rules");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadSIEM() {
+    try {
+      setLoading(true);
+      const result = await invoke<SIEMConnection[]>("get_blue_team_siem_connections");
+      setSiemConns(result);
+    } catch (e: any) {
+      setError(e?.toString() ?? "Failed to load SIEM connections");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadPlaybooks() {
+    try {
+      setLoading(true);
+      const result = await invoke<Playbook[]>("get_blue_team_playbooks");
+      setPlaybooks(result);
+    } catch (e: any) {
+      setError(e?.toString() ?? "Failed to load playbooks");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadHunts() {
+    try {
+      setLoading(true);
+      const result = await invoke<ThreatHunt[]>("get_blue_team_hunts");
+      setHunts(result);
+    } catch (e: any) {
+      setError(e?.toString() ?? "Failed to load hunts");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function createRule() {
+    try {
+      await invoke("create_blue_team_rule", {
+        name: ruleName,
+        platform: rulePlatform,
+        mitreIds: ruleMitre.split(",").map((s) => s.trim()).filter(Boolean),
+        query: ruleQuery,
+        description: null,
+      });
+      setShowRuleForm(false);
+      setRuleName("");
+      setRuleMitre("");
+      setRuleQuery("");
+      showSuccess("Detection rule created");
+      loadRules();
+    } catch (e: any) {
+      setError(e?.toString() ?? "Failed to create rule");
+    }
+  }
+
+  async function toggleRule(ruleId: string, enabled: boolean) {
+    try {
+      await invoke("toggle_blue_team_rule", { ruleId, enabled });
+      loadRules();
+    } catch (e: any) {
+      setError(e?.toString() ?? "Failed to toggle rule");
+    }
+  }
+
+  async function addSIEM() {
+    try {
+      await invoke("add_blue_team_siem", {
+        platform: siemPlatform,
+        endpoint: siemEndpoint,
+      });
+      setShowSIEMForm(false);
+      setSiemEndpoint("");
+      showSuccess("SIEM connection added");
+      loadSIEM();
+    } catch (e: any) {
+      setError(e?.toString() ?? "Failed to add SIEM connection");
+    }
+  }
+
+  async function createHunt() {
+    try {
+      await invoke("create_blue_team_hunt", {
+        hypothesis: huntHypothesis,
+        dataSources: huntSources.split(",").map((s) => s.trim()).filter(Boolean),
+        query: huntQuery,
+      });
+      setShowHuntForm(false);
+      setHuntHypothesis("");
+      setHuntSources("");
+      setHuntQuery("");
+      showSuccess("Threat hunt created");
+      loadHunts();
+    } catch (e: any) {
+      setError(e?.toString() ?? "Failed to create hunt");
+    }
+  }
+
   async function generateReport() {
     try {
       setLoading(true);
-      await invoke("generate_blue_team_report");
-      setError(null);
+      const report = await invoke<string>("generate_blue_team_report");
+      const blob = new Blob([report], { type: "text/markdown" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `blue-team-report-${new Date().toISOString().slice(0, 10)}.md`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showSuccess("Report downloaded");
     } catch (e: any) {
       setError(e?.toString() ?? "Failed to generate report");
     } finally {
@@ -465,8 +594,8 @@ export function BlueTeamPanel() {
             )}
             {iocs.map((ioc) => (
               <tr key={ioc.id}>
-                <td style={tdStyle}><span style={badgeStyle("var(--accent-primary)")}>{ioc.ioc_type}</span></td>
-                <td style={{ ...tdStyle, fontFamily: "var(--font-mono)", fontSize: 12 }}>{ioc.value}</td>
+                <td style={tdStyle}><span style={badgeStyle("var(--accent-blue)")}>{ioc.ioc_type}</span></td>
+                <td style={{ ...tdStyle, fontFamily: "inherit", fontSize: 12 }}>{ioc.value}</td>
                 <td style={tdStyle}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <div style={{ flex: 1, height: 6, background: "var(--bg-tertiary)", borderRadius: 3, overflow: "hidden" }}>
@@ -519,7 +648,7 @@ export function BlueTeamPanel() {
               <label style={labelStyle}>Detection Query</label>
               <textarea style={{ ...inputStyle, height: 80, resize: "vertical" }} value={ruleQuery} onChange={(e) => setRuleQuery(e.target.value)} placeholder="Enter detection query..." />
             </div>
-            <button style={btnStyle} onClick={() => { setShowRuleForm(false); setRuleName(""); setRuleQuery(""); }} disabled={!ruleName}>Create Rule</button>
+            <button style={btnStyle} onClick={createRule} disabled={!ruleName}>Create Rule</button>
           </div>
         )}
 
@@ -536,7 +665,7 @@ export function BlueTeamPanel() {
               </div>
               <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 12 }}>
                 <input type="checkbox" checked={rule.enabled} onChange={() => {
-                  setRules((prev) => prev.map((r) => r.id === rule.id ? { ...r, enabled: !r.enabled } : r));
+                  toggleRule(rule.id, !rule.enabled);
                 }} />
                 {rule.enabled ? "Enabled" : "Disabled"}
               </label>
@@ -567,7 +696,7 @@ export function BlueTeamPanel() {
           <tbody>
             {cases.map((c) => (
               <tr key={c.id}>
-                <td style={{ ...tdStyle, fontFamily: "var(--font-mono)", fontSize: 11 }}>{c.id.slice(0, 8)}</td>
+                <td style={{ ...tdStyle, fontFamily: "inherit", fontSize: 11 }}>{c.id.slice(0, 8)}</td>
                 <td style={tdStyle}>{c.incident_title}</td>
                 <td style={tdStyle}><span style={badgeStyle(STATUS_COLORS[c.status] || "#6c7086")}>{c.status}</span></td>
                 <td style={tdStyle}>{c.artifact_count}</td>
@@ -607,7 +736,7 @@ export function BlueTeamPanel() {
                 <input style={inputStyle} value={siemEndpoint} onChange={(e) => setSiemEndpoint(e.target.value)} placeholder="https://siem.example.com:8089" />
               </div>
             </div>
-            <button style={btnStyle} onClick={() => { setShowSIEMForm(false); setSiemEndpoint(""); }} disabled={!siemEndpoint}>Connect</button>
+            <button style={btnStyle} onClick={addSIEM} disabled={!siemEndpoint}>Connect</button>
           </div>
         )}
 
@@ -625,7 +754,7 @@ export function BlueTeamPanel() {
                 </div>
               </div>
               <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 4 }}>
-                <span style={{ fontFamily: "var(--font-mono)" }}>{conn.endpoint}</span>
+                <span style={{ fontFamily: "inherit" }}>{conn.endpoint}</span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--text-secondary)" }}>
                 <span>Last sync: {conn.last_sync}</span>
@@ -656,12 +785,12 @@ export function BlueTeamPanel() {
             {expandedPlaybook === pb.id && (
               <div style={{ marginTop: 12 }}>
                 {pb.steps.map((step) => (
-                  <div key={step.order} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "8px 0", borderTop: "1px solid var(--border-primary)" }}>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: "var(--accent-primary)", minWidth: 24 }}>#{step.order}</span>
+                  <div key={step.order} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "8px 0", borderTop: "1px solid var(--border-color)" }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "var(--accent-blue)", minWidth: 24 }}>#{step.order}</span>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <span style={{ fontSize: 13, fontWeight: 500 }}>{step.name}</span>
-                        {step.automated && <span style={badgeStyle("#a6e3a1")}>Automated</span>}
+                        <span style={{ fontSize: 13, fontWeight: 500 }}>{step.name || step.action}</span>
+                        {step.automated && <span style={badgeStyle("#a6e3a1")}>Auto</span>}
                       </div>
                       <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--text-secondary)" }}>{step.description}</p>
                     </div>
@@ -697,9 +826,9 @@ export function BlueTeamPanel() {
             </div>
             <div style={formGroup}>
               <label style={labelStyle}>Hunting Query</label>
-              <textarea style={{ ...inputStyle, height: 80, resize: "vertical", fontFamily: "var(--font-mono)" }} value={huntQuery} onChange={(e) => setHuntQuery(e.target.value)} placeholder="Enter hunting query..." />
+              <textarea style={{ ...inputStyle, height: 80, resize: "vertical", fontFamily: "inherit" }} value={huntQuery} onChange={(e) => setHuntQuery(e.target.value)} placeholder="Enter hunting query..." />
             </div>
-            <button style={btnStyle} onClick={() => { setShowHuntForm(false); setHuntHypothesis(""); setHuntSources(""); setHuntQuery(""); }} disabled={!huntHypothesis}>Create Hunt</button>
+            <button style={btnStyle} onClick={createHunt} disabled={!huntHypothesis}>Create Hunt</button>
           </div>
         )}
 
@@ -716,7 +845,7 @@ export function BlueTeamPanel() {
               ))}
             </div>
             {hunt.query && (
-              <pre style={{ margin: "8px 0", padding: 10, background: "var(--bg-tertiary)", borderRadius: 4, fontSize: 11, fontFamily: "var(--font-mono)", overflow: "auto", whiteSpace: "pre-wrap" }}>
+              <pre style={{ margin: "8px 0", padding: 10, background: "var(--bg-tertiary)", borderRadius: 4, fontSize: 11, fontFamily: "inherit", overflow: "auto", whiteSpace: "pre-wrap" }}>
                 {hunt.query}
               </pre>
             )}
@@ -756,6 +885,11 @@ export function BlueTeamPanel() {
         ))}
       </div>
       <div style={contentStyle}>
+        {successMsg && (
+          <div style={{ padding: "8px 12px", marginBottom: 12, background: "#a6e3a122", border: "1px solid #a6e3a1", borderRadius: 4, fontSize: 12, color: "#a6e3a1" }}>
+            {successMsg}
+          </div>
+        )}
         {error && (
           <div style={{ padding: "8px 12px", marginBottom: 12, background: "#f38ba822", border: "1px solid #f38ba8", borderRadius: 4, fontSize: 12, color: "#f38ba8", display: "flex", justifyContent: "space-between" }}>
             <span>{error}</span>

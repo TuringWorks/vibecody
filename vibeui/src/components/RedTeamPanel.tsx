@@ -70,6 +70,8 @@ export function RedTeamPanel({ workspacePath, provider: _provider }: Props) {
 
   // Track mount status so polling loop stops on unmount
   const mountedRef = useRef(true);
+  const cancelRef = useRef(false);
+  const taskIdRef = useRef(0);
   useEffect(() => { return () => { mountedRef.current = false; }; }, []);
 
   // Load sessions list.
@@ -83,9 +85,20 @@ export function RedTeamPanel({ workspacePath, provider: _provider }: Props) {
     }
   }, []);
 
+  // Suspend a running scan.
+  const handleSuspend = useCallback(() => {
+    cancelRef.current = true;
+    setScanning(false);
+    setCurrentStage(null);
+    setError("Scan suspended by user.");
+  }, []);
+
   // Start scan.
   const startScan = useCallback(async () => {
     if (!targetUrl.trim()) return;
+    cancelRef.current = false;
+    taskIdRef.current += 1;
+    const thisId = taskIdRef.current;
     setError(null);
     setScanning(true);
     setCurrentStage("Recon");
@@ -97,16 +110,19 @@ export function RedTeamPanel({ workspacePath, provider: _provider }: Props) {
         config: { source_path: workspacePath },
       });
 
+      if (cancelRef.current || taskIdRef.current !== thisId) return;
+
       // Poll for completion (simplified -- in production would use SSE).
       let done = false;
       let attempts = 0;
       const maxAttempts = 150; // 5 minute timeout at 2s intervals
       while (!done && attempts < maxAttempts && mountedRef.current) {
         await new Promise((r) => setTimeout(r, 2000));
-        if (!mountedRef.current) break;
+        if (!mountedRef.current || cancelRef.current || taskIdRef.current !== thisId) break;
         attempts++;
         try {
           const findings = await invoke<VulnFinding[]>("get_redteam_findings", { sessionId });
+          if (cancelRef.current || taskIdRef.current !== thisId) return;
           const sess: RedTeamSession = {
             id: sessionId,
             target_url: targetUrl,
@@ -118,6 +134,7 @@ export function RedTeamPanel({ workspacePath, provider: _provider }: Props) {
           if (mountedRef.current) setActiveSession(sess);
           done = true;
         } catch {
+          if (cancelRef.current || taskIdRef.current !== thisId) return;
           // Still running -- advance stage every 3 polls (~6s) rather than every poll
           if (mountedRef.current && attempts % 3 === 0) {
             setCurrentStage((prev) => {
@@ -127,13 +144,14 @@ export function RedTeamPanel({ workspacePath, provider: _provider }: Props) {
           }
         }
       }
-      if (!done && mountedRef.current) {
+      if (!done && mountedRef.current && !cancelRef.current && taskIdRef.current === thisId) {
         setError("Scan timed out after 5 minutes");
       }
     } catch (e: any) {
+      if (cancelRef.current || taskIdRef.current !== thisId) return;
       if (mountedRef.current) setError(e?.toString() || "Scan failed");
     } finally {
-      if (mountedRef.current) {
+      if (mountedRef.current && !cancelRef.current && taskIdRef.current === thisId) {
         setScanning(false);
         setCurrentStage(null);
         loadSessions();
@@ -185,22 +203,35 @@ export function RedTeamPanel({ workspacePath, provider: _provider }: Props) {
           disabled={scanning}
           style={{
             flex: 1, padding: "6px 10px", fontSize: 13,
-            background: "var(--input-bg, #1e1e1e)", color: "var(--text-primary)",
+            background: "var(--bg-tertiary)", color: "var(--text-primary)",
             border: "1px solid var(--border-color)", borderRadius: 4,
           }}
         />
-        <button
-          onClick={startScan}
-          disabled={scanning || !targetUrl.trim()}
-          style={{
-            padding: "6px 16px", fontSize: 13, borderRadius: 4, border: "none",
-            background: scanning ? "var(--border-color)" : "var(--error-color, #cc4444)",
-            color: "var(--text-primary, #fff)", cursor: scanning ? "not-allowed" : "pointer",
-            fontWeight: 600,
-          }}
-        >
-          {scanning ? "Scanning..." : "Start Scan"}
-        </button>
+        {scanning ? (
+          <button
+            onClick={handleSuspend}
+            style={{
+              padding: "6px 16px", fontSize: 13, borderRadius: 4, border: "none",
+              background: "#c62828", color: "#fff", cursor: "pointer",
+              fontWeight: 600,
+            }}
+          >
+            Suspend
+          </button>
+        ) : (
+          <button
+            onClick={startScan}
+            disabled={!targetUrl.trim()}
+            style={{
+              padding: "6px 16px", fontSize: 13, borderRadius: 4, border: "none",
+              background: "var(--accent-blue)", color: "#fff",
+              cursor: !targetUrl.trim() ? "not-allowed" : "pointer",
+              fontWeight: 600,
+            }}
+          >
+            Start Scan
+          </button>
+        )}
       </div>
 
       {/* Pipeline stages */}

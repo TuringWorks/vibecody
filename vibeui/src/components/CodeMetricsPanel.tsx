@@ -5,7 +5,7 @@
  * code/comment/blank lines), top-10 largest files, and top-10 most complex
  * files (branch-count proxy for cyclomatic complexity).
  */
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
 interface LanguageStat {
@@ -71,18 +71,33 @@ export function CodeMetricsPanel({ workspacePath }: CodeMetricsPanelProps) {
  const [scanning, setScanning] = useState(false);
  const [error, setError] = useState<string | null>(null);
  const [view, setView] = useState<"languages" | "files" | "complexity">("languages");
+ const cancelRef = useRef(false);
+ const taskIdRef = useRef(0);
+
+ const handleSuspend = () => {
+ cancelRef.current = true;
+ setScanning(false);
+ setError("Scan suspended by user.");
+ };
 
  const scan = async () => {
  if (!workspacePath || scanning) return;
+ cancelRef.current = false;
+ taskIdRef.current += 1;
+ const thisId = taskIdRef.current;
  setScanning(true);
  setError(null);
  try {
  const result = await invoke<CodeMetrics>("analyze_code_metrics", { workspace: workspacePath });
+ if (cancelRef.current || taskIdRef.current !== thisId) return;
  setMetrics(result);
  } catch (e) {
+ if (cancelRef.current || taskIdRef.current !== thisId) return;
  setError(String(e));
  } finally {
+ if (!cancelRef.current && taskIdRef.current === thisId) {
  setScanning(false);
+ }
  }
  };
 
@@ -102,8 +117,8 @@ export function CodeMetricsPanel({ workspacePath }: CodeMetricsPanelProps) {
  style={{
  padding: "5px 14px", fontSize: 11, fontWeight: view === id ? 600 : 400,
  background: view === id ? "rgba(99,102,241,0.15)" : "transparent",
- color: view === id ? "var(--accent-color, #6366f1)" : "var(--text-muted)",
- border: "none", borderBottom: view === id ? "2px solid var(--accent-color, #6366f1)" : "2px solid transparent",
+ color: view === id ? "var(--accent-blue)" : "var(--text-muted)",
+ border: "none", borderBottom: view === id ? "2px solid var(--accent-blue)" : "2px solid transparent",
  cursor: "pointer",
  }}
  >
@@ -124,18 +139,29 @@ export function CodeMetricsPanel({ workspacePath }: CodeMetricsPanelProps) {
  </div>
  )}
  </div>
+ {scanning ? (
  <button
- onClick={scan}
- disabled={scanning}
+ onClick={handleSuspend}
  style={{
  padding: "6px 16px", fontSize: 12, fontWeight: 600,
- background: scanning ? "var(--bg-secondary)" : "var(--accent-color, #6366f1)",
- color: scanning ? "var(--text-muted)" : "var(--text-primary, #fff)",
- border: "none", borderRadius: 4, cursor: scanning ? "not-allowed" : "pointer",
+ background: "#c62828", color: "#fff",
+ border: "none", borderRadius: 4, cursor: "pointer",
  }}
  >
- {scanning ? "Scanning…" : metrics ? "↻ Re-scan" : "Scan"}
+ Suspend
  </button>
+ ) : (
+ <button
+ onClick={scan}
+ style={{
+ padding: "6px 16px", fontSize: 12, fontWeight: 600,
+ background: "var(--accent-blue)", color: "#fff",
+ border: "none", borderRadius: 4, cursor: "pointer",
+ }}
+ >
+ {metrics ? "↻ Re-scan" : "Scan"}
+ </button>
+ )}
  </div>
 
  {error && (
