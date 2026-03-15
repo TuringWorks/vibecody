@@ -15,7 +15,10 @@ import {
   Dices, Timer, Box, Workflow, Layers, Infinity, Factory,
   CloudLightning, SearchCode, Image, ShieldAlert,
   MessagesSquare, Code2, GitPullRequest, Gauge, Heart,
-  ShieldPlus, Target, Building2,
+  ShieldPlus, Target, Building2, FileSearch, Smartphone,
+  HelpCircle, Search, TreeDeciduous, ScanLine, Sparkles, CloudCog,
+  GraduationCap, Cpu, Radio, FileUp, Webhook, UserCog,
+  FolderOpen, CheckSquare,
 } from "lucide-react";
 
 export interface TabMeta {
@@ -35,7 +38,7 @@ export const TAB_META: Record<string, TabMeta> = {
   jobs:        { icon: ListChecks,         label: "Jobs" },
   mcp:         { icon: Plug,               label: "MCP" },
   settings:    { icon: Settings,           label: "Keys" },
-  cascade:     { icon: Waves,              label: "Flow" },
+  cascade:     { icon: Waves,              label: "Cascade" },
   specs:       { icon: Ruler,              label: "Specs" },
   workflow:    { icon: HardHat,            label: "Workflow" },
   orchestration: { icon: ListChecks,       label: "Orchestrate" },
@@ -126,7 +129,7 @@ export const TAB_META: Record<string, TabMeta> = {
   soul:        { icon: Heart,               label: "Soul" },
   mcplazy:     { icon: Zap,                label: "MCP Lazy" },
   bundles:     { icon: Layers,             label: "Bundles" },
-  cloudproviders: { icon: Cloud,           label: "Cloud" },
+  cloudproviders: { icon: CloudCog,        label: "Providers" },
   acpprotocol: { icon: Cable,              label: "ACP" },
   mcpdirectory:{ icon: Store,              label: "MCP Dir" },
   usagemetering:{ icon: DollarSign,        label: "Usage" },
@@ -135,6 +138,27 @@ export const TAB_META: Record<string, TabMeta> = {
   blueteam:    { icon: ShieldPlus,         label: "Blue" },
   purpleteam:  { icon: Target,             label: "Purple" },
   idp:         { icon: Building2,          label: "IDP" },
+  // Previously missing — were showing as "Flow"
+  subagents:   { icon: TreeDeciduous,      label: "SubAgents" },
+  plandoc:     { icon: FileSearch,         label: "Plan Doc" },
+  remotecontrol:{ icon: Smartphone,        label: "Remote" },
+  clarify:     { icon: HelpCircle,         label: "Clarify" },
+  codesearch:  { icon: Search,             label: "CodeSearch" },
+  astedit:     { icon: TreeDeciduous,      label: "AST Edit" },
+  securityscan:{ icon: ScanLine,           label: "SecScan" },
+  editpredict: { icon: Sparkles,           label: "Predict" },
+  cloudsandbox:{ icon: CloudCog,           label: "CloudBox" },
+  training:    { icon: GraduationCap,      label: "Training" },
+  inference:   { icon: Cpu,                label: "Inference" },
+  cistatus:    { icon: Radio,              label: "CI Status" },
+  streaming:   { icon: Radio,              label: "Streaming" },
+  vectordb:    { icon: Database,           label: "VectorDB" },
+  ingest:      { icon: FileUp,             label: "Ingest" },
+  crawler:     { icon: Globe,              label: "Crawler" },
+  webhooks:    { icon: Webhook,            label: "Webhooks" },
+  admin:       { icon: UserCog,            label: "Admin" },
+  "qa-validation": { icon: CheckSquare,    label: "QA" },
+  sessions:    { icon: FolderOpen,         label: "Sessions" },
 };
 
-export const DEFAULT_TAB_META: TabMeta = { icon: Workflow, label: "Flow" };
+export const DEFAULT_TAB_META: TabMeta = { icon: Workflow, label: "Panel" };
