@@ -112,7 +112,7 @@ export default function FineTuningPanel() {
                <button key={s} onClick={() => setDataSource(s)} style={{
                  padding: "6px 14px", border: "1px solid var(--vp-c-border)", borderRadius: 4, cursor: "pointer",
                  background: dataSource === s ? "var(--vp-c-brand)" : "transparent",
-                 color: dataSource === s ? "#fff" : "var(--vp-c-text)",
+                 color: dataSource === s ? "var(--text-primary)" : "var(--vp-c-text)",
                }}>{s === "git" ? "Git History" : s.charAt(0).toUpperCase() + s.slice(1)}</button>
              ))}
            </div>
@@ -155,7 +155,7 @@ export default function FineTuningPanel() {
          </div>
 
          <div style={{ display: "flex", gap: 6, marginTop: 12 }}>
-           <button style={{ padding: "6px 14px", background: "var(--vp-c-brand)", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer" }}>
+           <button style={{ padding: "6px 14px", background: "var(--vp-c-brand)", color: "var(--text-primary)", border: "none", borderRadius: 4, cursor: "pointer" }}>
              Build Dataset
            </button>
            <button style={{ padding: "6px 14px", background: "transparent", color: "var(--vp-c-text)", border: "1px solid var(--vp-c-border)", borderRadius: 4, cursor: "pointer" }}>
@@ -217,7 +217,7 @@ export default function FineTuningPanel() {
            </div>
          </div>
 
-         <button style={{ marginTop: 12, padding: "8px 20px", background: "var(--vp-c-brand)", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}>
+         <button style={{ marginTop: 12, padding: "8px 20px", background: "var(--vp-c-brand)", color: "var(--text-primary)", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}>
            Launch Training Job
          </button>
        </div>
@@ -288,7 +288,7 @@ export default function FineTuningPanel() {
              ))}
            </tbody>
          </table>
-         <button style={{ marginTop: 12, padding: "6px 14px", background: "var(--vp-c-brand)", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer" }}>
+         <button style={{ marginTop: 12, padding: "6px 14px", background: "var(--vp-c-brand)", color: "var(--text-primary)", border: "none", borderRadius: 4, cursor: "pointer" }}>
            Run Evaluation
          </button>
        </>

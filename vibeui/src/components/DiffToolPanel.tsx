@@ -125,9 +125,9 @@ export function DiffToolPanel() {
  {/* Stats */}
  <div style={{ display: "flex", gap: 6 }}>
  {identical
- ? <span style={{ fontSize: 10, color: "var(--text-success, #a6e3a1)", padding: "2px 8px", background: "rgba(166,227,161,0.1)", border: "1px solid #a6e3a1", borderRadius: 10 }}>✓ Identical</span>
+ ? <span style={{ fontSize: 10, color: "var(--text-success)", padding: "2px 8px", background: "rgba(166,227,161,0.1)", border: "1px solid var(--success-color)", borderRadius: 10 }}>✓ Identical</span>
  : <>
- {stats.added > 0 && <span style={{ fontSize: 10, color: "var(--text-success, #a6e3a1)", padding: "2px 8px", background: "rgba(166,227,161,0.1)", border: "1px solid #a6e3a1", borderRadius: 10 }}>+{stats.added}</span>}
+ {stats.added > 0 && <span style={{ fontSize: 10, color: "var(--text-success)", padding: "2px 8px", background: "rgba(166,227,161,0.1)", border: "1px solid var(--success-color)", borderRadius: 10 }}>+{stats.added}</span>}
  {stats.removed > 0 && <span style={{ fontSize: 10, color: "var(--text-danger, #f38ba8)", padding: "2px 8px", background: "rgba(243,139,168,0.1)", border: "1px solid #f38ba8", borderRadius: 10 }}>−{stats.removed}</span>}
  <span style={{ fontSize: 10, color: "var(--text-muted)", padding: "2px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 10 }}>{stats.unchanged} unchanged</span>
  </>
