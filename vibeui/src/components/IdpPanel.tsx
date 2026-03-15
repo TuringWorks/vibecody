@@ -1,4 +1,11 @@
-import React, { useState, useEffect } from "react";
+/**
+ * IdpPanel — Internal Developer Platform management.
+ *
+ * Tabs: Service Catalog, Golden Paths, Scorecards, Infrastructure, Teams, Platforms, Backstage
+ *
+ * All data is persisted to ~/.vibecli/idp/ via Tauri commands.
+ */
+import React, { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
 type IdpTab = "Service Catalog" | "Golden Paths" | "Scorecards" | "Infrastructure" | "Teams" | "Platforms" | "Backstage";
@@ -99,21 +106,20 @@ const GRADE_COLORS: Record<string, string> = {
   F: "#f38ba8",
 };
 
-const IDP_PLATFORMS: IdpPlatform[] = [
-  { name: "Backstage", enabled: false, features: ["Service Catalog", "TechDocs", "Templates", "Plugins"], config_url: "/settings/backstage", description: "Spotify's open-source developer portal" },
-  { name: "Cycloid", enabled: false, features: ["FinOps", "GitOps", "Stacks", "Compliance"], config_url: "/settings/cycloid", description: "Hybrid cloud management platform" },
-  { name: "Humanitec", enabled: false, features: ["Score", "Resource Graphs", "Deployments", "Environments"], config_url: "/settings/humanitec", description: "Platform Orchestrator" },
-  { name: "Port", enabled: false, features: ["Self-Service", "Scorecards", "Automations", "Catalog"], config_url: "/settings/port", description: "Internal developer portal" },
-  { name: "Qovery", enabled: false, features: ["Environments", "Deployments", "Preview Envs", "Cost Mgmt"], config_url: "/settings/qovery", description: "Cloud deployment platform" },
-  { name: "Mia Platform", enabled: false, features: ["Microservices", "Console", "Marketplace", "Fast Data"], config_url: "/settings/mia", description: "Cloud-native platform builder" },
-  { name: "OpsLevel", enabled: false, features: ["Service Maturity", "Ownership", "Checks", "Actions"], config_url: "/settings/opslevel", description: "Service ownership & maturity" },
-  { name: "Roadie", enabled: false, features: ["Managed Backstage", "Plugins", "Scaffolder", "TechDocs"], config_url: "/settings/roadie", description: "Managed Backstage SaaS" },
-  { name: "Cortex", enabled: false, features: ["Scorecards", "CQL", "Plugins", "Initiatives"], config_url: "/settings/cortex", description: "Internal developer portal" },
-  { name: "Morpheus Data", enabled: false, features: ["Hybrid Cloud", "Automation", "Analytics", "Governance"], config_url: "/settings/morpheus", description: "Multi-cloud management" },
-  { name: "CloudBolt", enabled: false, features: ["Self-Service IT", "Cost Mgmt", "Multi-Cloud", "Terraform"], config_url: "/settings/cloudbolt", description: "Cloud management platform" },
-  { name: "Harness", enabled: false, features: ["CI/CD", "Feature Flags", "Cloud Cost", "SRM"], config_url: "/settings/harness", description: "Software delivery platform" },
-  { name: "Custom", enabled: false, features: ["API Gateway", "Custom Catalog", "Webhooks", "RBAC"], config_url: "/settings/custom-idp", description: "Build your own IDP" },
+const INFRA_TEMPLATES = [
+  "PostgreSQL Database",
+  "Redis Cache",
+  "S3 Bucket",
+  "Kubernetes Namespace",
+  "API Gateway",
+  "CDN Distribution",
+  "Message Queue",
+  "Monitoring Stack",
+  "CI/CD Pipeline",
+  "Load Balancer",
 ];
+
+// ── Styles ──────────────────────────────────────────────────────────────────
 
 const containerStyle: React.CSSProperties = {
   display: "flex",
@@ -168,6 +174,15 @@ const btnSecondary: React.CSSProperties = {
   ...btnStyle,
   background: "var(--bg-tertiary)",
   color: "var(--text-primary)",
+};
+
+const btnDanger: React.CSSProperties = {
+  ...btnStyle,
+  background: "transparent",
+  color: "#f38ba8",
+  border: "1px solid #f38ba8",
+  padding: "2px 8px",
+  fontSize: 11,
 };
 
 const inputStyle: React.CSSProperties = {
@@ -231,18 +246,21 @@ const labelStyle: React.CSSProperties = {
   marginBottom: 4,
 };
 
+// ── Component ───────────────────────────────────────────────────────────────
+
 export function IdpPanel() {
   const [activeTab, setActiveTab] = useState<IdpTab>("Service Catalog");
   const [services, setServices] = useState<Service[]>([]);
   const [goldenPaths, setGoldenPaths] = useState<GoldenPath[]>([]);
   const [scorecard, setScorecard] = useState<Scorecard | null>(null);
-  const [infraRequests, _setInfraRequests] = useState<InfraRequest[]>([]);
-  const [teams, _setTeams] = useState<Team[]>([]);
-  const [platforms, setPlatforms] = useState<IdpPlatform[]>(IDP_PLATFORMS);
+  const [infraRequests, setInfraRequests] = useState<InfraRequest[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [platforms, setPlatforms] = useState<IdpPlatform[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  // Service catalog
+  // Service catalog form
   const [serviceSearch, setServiceSearch] = useState("");
   const [showServiceForm, setShowServiceForm] = useState(false);
   const [svcName, setSvcName] = useState("");
@@ -262,7 +280,9 @@ export function IdpPanel() {
   // Infrastructure
   const [showInfraForm, setShowInfraForm] = useState(false);
   const [infraTemplate, setInfraTemplate] = useState("PostgreSQL Database");
-  const [infraConfig, setInfraConfig] = useState<Record<string, string>>({});
+  const [infraEnv, setInfraEnv] = useState("staging");
+  const [infraRegion, setInfraRegion] = useState("us-east-1");
+  const [infraSize, setInfraSize] = useState("small");
 
   // Teams
   const [showTeamForm, setShowTeamForm] = useState(false);
@@ -273,53 +293,112 @@ export function IdpPanel() {
   const [backstageServiceId, setBackstageServiceId] = useState("");
   const [catalogYaml, setCatalogYaml] = useState("");
 
-  useEffect(() => {
-    loadCatalog();
+  const showSuccess = useCallback((msg: string) => {
+    setSuccessMsg(msg);
+    setTimeout(() => setSuccessMsg(null), 3000);
   }, []);
 
-  async function loadCatalog() {
+  const showError = useCallback((msg: string) => {
+    setError(msg);
+    setTimeout(() => setError(null), 8000);
+  }, []);
+
+  // ── Data loaders ──────────────────────────────────────────────────────────
+
+  const loadCatalog = useCallback(async () => {
     try {
       setLoading(true);
       const result = await invoke<Service[]>("get_idp_catalog");
       setServices(result);
-    } catch (e: any) {
-      setError(e?.toString() ?? "Failed to load catalog");
+    } catch (e: unknown) {
+      showError(String(e));
     } finally {
       setLoading(false);
     }
-  }
+  }, [showError]);
 
-  async function registerService() {
-    try {
-      await invoke("register_idp_service", {
-        name: svcName,
-        owner: svcOwner,
-        tier: svcTier,
-        language: svcLanguage,
-        framework: svcFramework,
-        repoUrl: svcRepo,
-        description: svcDescription,
-      });
-      setShowServiceForm(false);
-      setSvcName("");
-      setSvcOwner("");
-      setSvcRepo("");
-      setSvcDescription("");
-      loadCatalog();
-    } catch (e: any) {
-      setError(e?.toString() ?? "Failed to register service");
-    }
-  }
-
-  async function loadGoldenPaths() {
+  const loadGoldenPaths = useCallback(async () => {
     try {
       setLoading(true);
       const result = await invoke<GoldenPath[]>("get_idp_golden_paths");
       setGoldenPaths(result);
-    } catch (e: any) {
-      setError(e?.toString() ?? "Failed to load golden paths");
+    } catch (e: unknown) {
+      showError(String(e));
     } finally {
       setLoading(false);
+    }
+  }, [showError]);
+
+  const loadTeams = useCallback(async () => {
+    try {
+      const result = await invoke<Team[]>("get_idp_teams");
+      setTeams(result);
+    } catch (e: unknown) {
+      showError(String(e));
+    }
+  }, [showError]);
+
+  const loadInfraRequests = useCallback(async () => {
+    try {
+      const result = await invoke<InfraRequest[]>("get_idp_infra_requests");
+      setInfraRequests(result);
+    } catch (e: unknown) {
+      showError(String(e));
+    }
+  }, [showError]);
+
+  const loadPlatforms = useCallback(async () => {
+    try {
+      const result = await invoke<IdpPlatform[]>("get_idp_platforms");
+      setPlatforms(result);
+    } catch (e: unknown) {
+      showError(String(e));
+    }
+  }, [showError]);
+
+  useEffect(() => {
+    loadCatalog();
+  }, [loadCatalog]);
+
+  // Load tab-specific data when switching tabs
+  useEffect(() => {
+    if (activeTab === "Golden Paths" && goldenPaths.length === 0) loadGoldenPaths();
+    if (activeTab === "Teams") loadTeams();
+    if (activeTab === "Infrastructure") loadInfraRequests();
+    if (activeTab === "Platforms" && platforms.length === 0) loadPlatforms();
+  }, [activeTab, goldenPaths.length, platforms.length, loadGoldenPaths, loadTeams, loadInfraRequests, loadPlatforms]);
+
+  // ── Actions ───────────────────────────────────────────────────────────────
+
+  async function registerService() {
+    if (!svcName.trim() || !svcOwner.trim()) return;
+    try {
+      await invoke("register_idp_service", {
+        name: svcName.trim(),
+        owner: svcOwner.trim(),
+        tier: svcTier,
+        language: svcLanguage,
+        framework: svcFramework,
+        repoUrl: svcRepo.trim() || null,
+        description: svcDescription.trim() || null,
+      });
+      setShowServiceForm(false);
+      setSvcName(""); setSvcOwner(""); setSvcRepo(""); setSvcDescription("");
+      setSvcFramework("React"); setSvcLanguage("TypeScript"); setSvcTier("Tier2");
+      showSuccess("Service registered successfully.");
+      loadCatalog();
+    } catch (e: unknown) {
+      showError(String(e));
+    }
+  }
+
+  async function deleteService(id: string) {
+    try {
+      await invoke("delete_idp_service", { serviceId: id });
+      showSuccess("Service removed.");
+      loadCatalog();
+    } catch (e: unknown) {
+      showError(String(e));
     }
   }
 
@@ -328,8 +407,8 @@ export function IdpPanel() {
       setLoading(true);
       const result = await invoke<Scorecard>("get_idp_scorecards", { serviceId });
       setScorecard(result);
-    } catch (e: any) {
-      setError(e?.toString() ?? "Failed to load scorecard");
+    } catch (e: unknown) {
+      showError(String(e));
     } finally {
       setLoading(false);
     }
@@ -340,33 +419,92 @@ export function IdpPanel() {
       setLoading(true);
       const result = await invoke<Scorecard>("evaluate_idp_scorecard", { serviceId });
       setScorecard(result);
-    } catch (e: any) {
-      setError(e?.toString() ?? "Failed to evaluate scorecard");
+      showSuccess(`Scorecard evaluated: Grade ${result.overall_grade} (${result.overall_score}/100)`);
+    } catch (e: unknown) {
+      showError(String(e));
     } finally {
       setLoading(false);
     }
   }
 
-  function generateCatalogInfo(service: Service) {
+  async function submitInfraRequest() {
+    try {
+      await invoke("request_idp_infra", {
+        template: infraTemplate,
+        environment: infraEnv,
+        region: infraRegion,
+        size: infraSize,
+      });
+      setShowInfraForm(false);
+      showSuccess("Infrastructure request submitted.");
+      loadInfraRequests();
+    } catch (e: unknown) {
+      showError(String(e));
+    }
+  }
+
+  async function createTeam() {
+    if (!teamName.trim()) return;
+    try {
+      await invoke("create_idp_team", { name: teamName.trim() });
+      setShowTeamForm(false);
+      setTeamName("");
+      showSuccess("Team created with onboarding checklist.");
+      loadTeams();
+    } catch (e: unknown) {
+      showError(String(e));
+    }
+  }
+
+  async function toggleChecklist(teamId: string, itemIndex: number) {
+    try {
+      const updated = await invoke<Team>("toggle_idp_checklist", { teamId, itemIndex });
+      setTeams((prev) => prev.map((t) => (t.id === teamId ? updated : t)));
+    } catch (e: unknown) {
+      showError(String(e));
+    }
+  }
+
+  async function togglePlatform(platformName: string, enabled: boolean) {
+    try {
+      const result = await invoke<IdpPlatform[]>("toggle_idp_platform", { platformName, enabled });
+      setPlatforms(result);
+    } catch (e: unknown) {
+      showError(String(e));
+    }
+  }
+
+  async function generateCatalogYaml(serviceId: string) {
+    try {
+      const yaml = await invoke<string>("generate_backstage_catalog", { serviceId });
+      setCatalogYaml(yaml);
+      setBackstageServiceId(serviceId);
+    } catch (e: unknown) {
+      showError(String(e));
+    }
+  }
+
+  // Also support local generation for services (used in Backstage tab inline)
+  function generateCatalogInfoLocal(service: Service) {
+    const name = service.name.toLowerCase().replace(/\s+/g, "-");
     const yaml = `apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
-  name: ${service.name.toLowerCase().replace(/\s+/g, "-")}
+  name: ${name}
   description: ${service.description || service.name}
   annotations:
-    github.com/project-slug: ${service.repo_url.replace("https://github.com/", "")}
+    github.com/project-slug: ${service.repo_url ? service.repo_url.replace("https://github.com/", "") : `org/${name}`}
     backstage.io/techdocs-ref: dir:.
   tags:
-    - ${service.language.toLowerCase()}
-    - ${service.framework.toLowerCase()}
+    - ${service.language.toLowerCase()}${service.framework ? `\n    - ${service.framework.toLowerCase()}` : ""}
     - ${service.tier.toLowerCase()}
 spec:
   type: service
   lifecycle: ${service.status === "Active" ? "production" : service.status === "Incubating" ? "experimental" : "deprecated"}
   owner: ${service.owner.toLowerCase().replace(/\s+/g, "-")}
-  system: ${service.name.toLowerCase().replace(/\s+/g, "-")}-system
+  system: ${name}-system
   providesApis:
-    - ${service.name.toLowerCase().replace(/\s+/g, "-")}-api`;
+    - ${name}-api`;
     setCatalogYaml(yaml);
   }
 
@@ -382,27 +520,19 @@ spec:
     (gp) => !gpLanguageFilter || gp.language.toLowerCase().includes(gpLanguageFilter.toLowerCase())
   );
 
-  const INFRA_TEMPLATES = [
-    "PostgreSQL Database",
-    "Redis Cache",
-    "S3 Bucket",
-    "Kubernetes Namespace",
-    "API Gateway",
-    "CDN Distribution",
-    "Message Queue",
-    "Monitoring Stack",
-    "CI/CD Pipeline",
-    "Load Balancer",
-  ];
+  // ── Tab Renderers ─────────────────────────────────────────────────────────
 
   function renderServiceCatalog() {
     return (
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-          <h3 style={{ margin: 0, fontSize: 15 }}>Service Catalog</h3>
-          <button style={btnStyle} onClick={() => setShowServiceForm(!showServiceForm)}>
-            {showServiceForm ? "Cancel" : "+ Register Service"}
-          </button>
+          <h3 style={{ margin: 0, fontSize: 15 }}>Service Catalog ({services.length} services)</h3>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button style={btnSecondary} onClick={loadCatalog}>Refresh</button>
+            <button style={btnStyle} onClick={() => setShowServiceForm(!showServiceForm)}>
+              {showServiceForm ? "Cancel" : "+ Register Service"}
+            </button>
+          </div>
         </div>
 
         <div style={{ marginBottom: 12 }}>
@@ -413,18 +543,18 @@ spec:
           <div style={{ ...cardStyle, marginBottom: 16 }}>
             <div style={{ display: "flex", gap: 10 }}>
               <div style={{ ...formGroup, flex: 2 }}>
-                <label style={labelStyle}>Service Name</label>
+                <label style={labelStyle}>Service Name *</label>
                 <input style={inputStyle} value={svcName} onChange={(e) => setSvcName(e.target.value)} placeholder="e.g. user-service" />
               </div>
               <div style={{ ...formGroup, flex: 1 }}>
-                <label style={labelStyle}>Owner</label>
+                <label style={labelStyle}>Owner *</label>
                 <input style={inputStyle} value={svcOwner} onChange={(e) => setSvcOwner(e.target.value)} placeholder="Team or person" />
               </div>
             </div>
             <div style={{ display: "flex", gap: 10 }}>
               <div style={{ ...formGroup, flex: 1 }}>
                 <label style={labelStyle}>Tier</label>
-                <select style={inputStyle} value={svcTier} onChange={(e) => setSvcTier(e.target.value as any)}>
+                <select style={inputStyle} value={svcTier} onChange={(e) => setSvcTier(e.target.value as Service["tier"])}>
                   <option value="Tier0">Tier 0 - Critical</option>
                   <option value="Tier1">Tier 1 - High</option>
                   <option value="Tier2">Tier 2 - Medium</option>
@@ -452,7 +582,7 @@ spec:
               <label style={labelStyle}>Description</label>
               <textarea style={{ ...inputStyle, height: 50, resize: "vertical" }} value={svcDescription} onChange={(e) => setSvcDescription(e.target.value)} placeholder="Brief description of the service..." />
             </div>
-            <button style={btnStyle} onClick={registerService} disabled={!svcName || !svcOwner}>Register Service</button>
+            <button style={{ ...btnStyle, opacity: (!svcName || !svcOwner) ? 0.5 : 1 }} onClick={registerService} disabled={!svcName || !svcOwner}>Register Service</button>
           </div>
         )}
 
@@ -465,12 +595,14 @@ spec:
               <th style={thStyle}>Status</th>
               <th style={thStyle}>Language</th>
               <th style={thStyle}>Framework</th>
-              <th style={thStyle}>Repo</th>
+              <th style={thStyle}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {filteredServices.length === 0 && (
-              <tr><td colSpan={7} style={{ ...tdStyle, textAlign: "center", color: "var(--text-secondary)" }}>No services found. Register one to get started.</td></tr>
+              <tr><td colSpan={7} style={{ ...tdStyle, textAlign: "center", color: "var(--text-secondary)" }}>
+                {services.length === 0 ? "No services registered. Click \"+ Register Service\" to add your first service." : "No matching services."}
+              </td></tr>
             )}
             {filteredServices.map((svc) => (
               <tr key={svc.id}>
@@ -479,11 +611,14 @@ spec:
                 <td style={tdStyle}><span style={badgeStyle(TIER_COLORS[svc.tier] || "#6c7086")}>{svc.tier}</span></td>
                 <td style={tdStyle}><span style={badgeStyle(STATUS_COLORS[svc.status] || "#6c7086")}>{svc.status}</span></td>
                 <td style={tdStyle}>{svc.language}</td>
-                <td style={tdStyle}>{svc.framework}</td>
+                <td style={tdStyle}>{svc.framework || "—"}</td>
                 <td style={tdStyle}>
-                  {svc.repo_url ? (
-                    <a href={svc.repo_url} target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent-primary)", fontSize: 12, textDecoration: "none" }}>Link</a>
-                  ) : "—"}
+                  <div style={{ display: "flex", gap: 4 }}>
+                    {svc.repo_url && (
+                      <a href={svc.repo_url} target="_blank" rel="noopener noreferrer" style={{ ...btnSecondary, padding: "2px 8px", fontSize: 11, textDecoration: "none" }}>Repo</a>
+                    )}
+                    <button style={btnDanger} onClick={() => deleteService(svc.id)}>Remove</button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -497,9 +632,13 @@ spec:
     return (
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-          <h3 style={{ margin: 0, fontSize: 15 }}>Golden Paths</h3>
+          <h3 style={{ margin: 0, fontSize: 15 }}>Golden Paths ({goldenPaths.length} templates)</h3>
           <button style={btnSecondary} onClick={loadGoldenPaths}>Refresh</button>
         </div>
+
+        <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 12px" }}>
+          Opinionated, production-ready project templates that encode best practices for each language and framework.
+        </p>
 
         <div style={{ marginBottom: 12 }}>
           <input style={{ ...inputStyle, width: 250 }} value={gpLanguageFilter} onChange={(e) => setGpLanguageFilter(e.target.value)} placeholder="Filter by language..." />
@@ -507,13 +646,13 @@ spec:
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 12 }}>
           {filteredPaths.length === 0 && (
-            <p style={{ color: "var(--text-secondary)", gridColumn: "1/-1", textAlign: "center" }}>No golden paths available. Load them from the platform.</p>
+            <p style={{ color: "var(--text-secondary)", gridColumn: "1/-1", textAlign: "center" }}>No matching golden paths.</p>
           )}
           {filteredPaths.map((gp) => (
             <div key={gp.id} style={cardStyle}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                 <span style={{ fontSize: 20 }}>
-                  {gp.language === "TypeScript" ? "TS" : gp.language === "Rust" ? "Rs" : gp.language === "Go" ? "Go" : gp.language === "Python" ? "Py" : gp.language.slice(0, 2)}
+                  {gp.language === "TypeScript" ? "TS" : gp.language === "Rust" ? "Rs" : gp.language === "Go" ? "Go" : gp.language === "Python" ? "Py" : gp.language === "Java" ? "Jv" : gp.language === "Kotlin" ? "Kt" : gp.language.slice(0, 2)}
                 </span>
                 <div>
                   <strong style={{ fontSize: 14 }}>{gp.framework}</strong>
@@ -523,7 +662,7 @@ spec:
               <p style={{ margin: "0 0 8px", fontSize: 12, color: "var(--text-secondary)" }}>{gp.description}</p>
               <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 8 }}>
                 {gp.features.map((f) => (
-                  <span key={f} style={{ ...badgeStyle("var(--accent-primary)"), fontSize: 10 }}>{f}</span>
+                  <span key={f} style={{ ...badgeStyle("#89b4fa"), fontSize: 10 }}>{f}</span>
                 ))}
               </div>
               <div style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>
@@ -539,7 +678,11 @@ spec:
   function renderScorecards() {
     return (
       <div>
-        <h3 style={{ margin: "0 0 14px", fontSize: 15 }}>Service Scorecards</h3>
+        <h3 style={{ margin: "0 0 8px", fontSize: 15 }}>Service Scorecards</h3>
+        <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 14px" }}>
+          Evaluate services against quality, governance, standards, and DORA metrics. Scores are computed from service metadata and can be improved by completing recommendations.
+        </p>
+
         <div style={{ ...cardStyle, marginBottom: 16 }}>
           <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
             <div style={{ ...formGroup, flex: 1, marginBottom: 0 }}>
@@ -554,6 +697,9 @@ spec:
             <button style={btnSecondary} onClick={() => scorecardServiceId && loadScorecard(scorecardServiceId)} disabled={!scorecardServiceId}>Load</button>
             <button style={btnStyle} onClick={() => scorecardServiceId && evaluateScorecard(scorecardServiceId)} disabled={!scorecardServiceId}>Evaluate</button>
           </div>
+          {services.length === 0 && (
+            <p style={{ margin: "10px 0 0", fontSize: 11, color: "var(--text-secondary)" }}>Register services in the Service Catalog tab first.</p>
+          )}
         </div>
 
         {scorecard && (
@@ -567,10 +713,13 @@ spec:
                 <div style={{ fontSize: 14, fontWeight: 600, marginTop: 4 }}>{scorecard.overall_score}/100</div>
               </div>
               <div style={{ flex: 1 }}>
-                <h4 style={{ margin: "0 0 10px", fontSize: 14 }}>{scorecard.service_name} - Metrics</h4>
+                <h4 style={{ margin: "0 0 10px", fontSize: 14 }}>{scorecard.service_name} — Metrics</h4>
                 {scorecard.metrics.map((metric) => (
                   <div key={metric.name} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-                    <span style={{ fontSize: 12, minWidth: 160, color: "var(--text-secondary)" }}>{metric.name}</span>
+                    <span style={{ fontSize: 12, minWidth: 180, color: "var(--text-secondary)" }}>
+                      <span style={{ ...badgeStyle("#6c7086"), fontSize: 9, marginRight: 4 }}>{metric.category}</span>
+                      {metric.name}
+                    </span>
                     <div style={{ flex: 1, height: 8, background: "var(--bg-tertiary)", borderRadius: 4, overflow: "hidden" }}>
                       <div style={{
                         width: `${(metric.score / metric.max_score) * 100}%`,
@@ -607,11 +756,18 @@ spec:
     return (
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-          <h3 style={{ margin: 0, fontSize: 15 }}>Self-Service Infrastructure</h3>
-          <button style={btnStyle} onClick={() => setShowInfraForm(!showInfraForm)}>
-            {showInfraForm ? "Cancel" : "+ New Request"}
-          </button>
+          <h3 style={{ margin: 0, fontSize: 15 }}>Self-Service Infrastructure ({infraRequests.length} requests)</h3>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button style={btnSecondary} onClick={loadInfraRequests}>Refresh</button>
+            <button style={btnStyle} onClick={() => setShowInfraForm(!showInfraForm)}>
+              {showInfraForm ? "Cancel" : "+ New Request"}
+            </button>
+          </div>
         </div>
+
+        <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 12px" }}>
+          Request pre-approved infrastructure resources. Requests are tracked and provisioned automatically.
+        </p>
 
         {showInfraForm && (
           <div style={{ ...cardStyle, marginBottom: 16 }}>
@@ -626,7 +782,7 @@ spec:
             <div style={{ display: "flex", gap: 10 }}>
               <div style={{ ...formGroup, flex: 1 }}>
                 <label style={labelStyle}>Environment</label>
-                <select style={inputStyle} value={infraConfig["environment"] || "staging"} onChange={(e) => setInfraConfig({ ...infraConfig, environment: e.target.value })}>
+                <select style={inputStyle} value={infraEnv} onChange={(e) => setInfraEnv(e.target.value)}>
                   <option value="development">Development</option>
                   <option value="staging">Staging</option>
                   <option value="production">Production</option>
@@ -634,7 +790,7 @@ spec:
               </div>
               <div style={{ ...formGroup, flex: 1 }}>
                 <label style={labelStyle}>Region</label>
-                <select style={inputStyle} value={infraConfig["region"] || "us-east-1"} onChange={(e) => setInfraConfig({ ...infraConfig, region: e.target.value })}>
+                <select style={inputStyle} value={infraRegion} onChange={(e) => setInfraRegion(e.target.value)}>
                   {["us-east-1", "us-west-2", "eu-west-1", "eu-central-1", "ap-southeast-1"].map((r) => (
                     <option key={r} value={r}>{r}</option>
                   ))}
@@ -642,7 +798,7 @@ spec:
               </div>
               <div style={{ ...formGroup, flex: 1 }}>
                 <label style={labelStyle}>Size</label>
-                <select style={inputStyle} value={infraConfig["size"] || "small"} onChange={(e) => setInfraConfig({ ...infraConfig, size: e.target.value })}>
+                <select style={inputStyle} value={infraSize} onChange={(e) => setInfraSize(e.target.value)}>
                   <option value="small">Small</option>
                   <option value="medium">Medium</option>
                   <option value="large">Large</option>
@@ -650,7 +806,7 @@ spec:
                 </select>
               </div>
             </div>
-            <button style={btnStyle} onClick={() => { setShowInfraForm(false); setInfraConfig({}); }}>Submit Request</button>
+            <button style={btnStyle} onClick={submitInfraRequest}>Submit Request</button>
           </div>
         )}
 
@@ -660,19 +816,23 @@ spec:
               <th style={thStyle}>Request ID</th>
               <th style={thStyle}>Template</th>
               <th style={thStyle}>Status</th>
+              <th style={thStyle}>Environment</th>
+              <th style={thStyle}>Region</th>
               <th style={thStyle}>Requested By</th>
               <th style={thStyle}>Created</th>
             </tr>
           </thead>
           <tbody>
             {infraRequests.length === 0 && (
-              <tr><td colSpan={5} style={{ ...tdStyle, textAlign: "center", color: "var(--text-secondary)" }}>No infrastructure requests.</td></tr>
+              <tr><td colSpan={7} style={{ ...tdStyle, textAlign: "center", color: "var(--text-secondary)" }}>No infrastructure requests yet. Click "+ New Request" to provision resources.</td></tr>
             )}
             {infraRequests.map((req) => (
               <tr key={req.id}>
-                <td style={{ ...tdStyle, fontFamily: "var(--font-mono)", fontSize: 11 }}>{req.id.slice(0, 8)}</td>
+                <td style={{ ...tdStyle, fontFamily: "var(--font-mono)", fontSize: 11 }}>{req.id}</td>
                 <td style={tdStyle}>{req.template}</td>
                 <td style={tdStyle}><span style={badgeStyle(STATUS_COLORS[req.status] || "#6c7086")}>{req.status}</span></td>
+                <td style={tdStyle}>{req.config?.environment || "—"}</td>
+                <td style={tdStyle}>{req.config?.region || "—"}</td>
                 <td style={tdStyle}>{req.requested_by}</td>
                 <td style={tdStyle}>{req.created}</td>
               </tr>
@@ -687,32 +847,39 @@ spec:
     return (
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-          <h3 style={{ margin: 0, fontSize: 15 }}>Teams</h3>
-          <button style={btnStyle} onClick={() => setShowTeamForm(!showTeamForm)}>
-            {showTeamForm ? "Cancel" : "+ Create Team"}
-          </button>
+          <h3 style={{ margin: 0, fontSize: 15 }}>Teams ({teams.length})</h3>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button style={btnSecondary} onClick={loadTeams}>Refresh</button>
+            <button style={btnStyle} onClick={() => setShowTeamForm(!showTeamForm)}>
+              {showTeamForm ? "Cancel" : "+ Create Team"}
+            </button>
+          </div>
         </div>
+
+        <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 12px" }}>
+          Create teams and track their onboarding progress through an 8-step checklist. Each item can be toggled as completed.
+        </p>
 
         {showTeamForm && (
           <div style={{ ...cardStyle, marginBottom: 16 }}>
             <div style={formGroup}>
               <label style={labelStyle}>Team Name</label>
-              <input style={inputStyle} value={teamName} onChange={(e) => setTeamName(e.target.value)} placeholder="e.g. Platform Engineering" />
+              <input style={inputStyle} value={teamName} onChange={(e) => setTeamName(e.target.value)} placeholder="e.g. Platform Engineering" onKeyDown={(e) => e.key === "Enter" && createTeam()} />
             </div>
-            <button style={btnStyle} onClick={() => { setShowTeamForm(false); setTeamName(""); }} disabled={!teamName}>Create Team</button>
+            <button style={{ ...btnStyle, opacity: !teamName ? 0.5 : 1 }} onClick={createTeam} disabled={!teamName.trim()}>Create Team</button>
           </div>
         )}
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 12 }}>
           {teams.length === 0 && (
-            <p style={{ color: "var(--text-secondary)", gridColumn: "1/-1", textAlign: "center" }}>No teams configured.</p>
+            <p style={{ color: "var(--text-secondary)", gridColumn: "1/-1", textAlign: "center" }}>No teams configured. Click "+ Create Team" to get started.</p>
           )}
           {teams.map((team) => (
             <div key={team.id} style={cardStyle}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                 <strong style={{ fontSize: 14 }}>{team.name}</strong>
                 <button style={{ ...btnSecondary, padding: "2px 8px", fontSize: 11 }} onClick={() => setExpandedTeam(expandedTeam === team.id ? null : team.id)}>
-                  {expandedTeam === team.id ? "Hide" : "Onboarding"}
+                  {expandedTeam === team.id ? "Hide Checklist" : "Onboarding"}
                 </button>
               </div>
               <div style={{ display: "flex", gap: 16, fontSize: 12, color: "var(--text-secondary)", marginBottom: 10 }}>
@@ -722,7 +889,7 @@ spec:
               <div style={{ marginBottom: 4 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 2 }}>
                   <span style={{ color: "var(--text-secondary)" }}>Onboarding Progress</span>
-                  <span>{team.onboarding_progress}%</span>
+                  <span style={{ fontWeight: 600, color: team.onboarding_progress === 100 ? "#a6e3a1" : "var(--text-primary)" }}>{team.onboarding_progress}%</span>
                 </div>
                 <div style={{ height: 6, background: "var(--bg-tertiary)", borderRadius: 3, overflow: "hidden" }}>
                   <div style={{ width: `${team.onboarding_progress}%`, height: "100%", background: team.onboarding_progress === 100 ? "#a6e3a1" : "var(--accent-primary)", borderRadius: 3, transition: "width 0.3s" }} />
@@ -733,8 +900,8 @@ spec:
                 <div style={{ marginTop: 10, borderTop: "1px solid var(--border-primary)", paddingTop: 8 }}>
                   <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>Onboarding Checklist</span>
                   {team.onboarding_checklist.map((item, i) => (
-                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", fontSize: 12 }}>
-                      <input type="checkbox" checked={item.completed} readOnly />
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", fontSize: 12, cursor: "pointer" }} onClick={() => toggleChecklist(team.id, i)}>
+                      <input type="checkbox" checked={item.completed} readOnly style={{ cursor: "pointer" }} />
                       <span style={{ textDecoration: item.completed ? "line-through" : "none", color: item.completed ? "var(--text-secondary)" : "var(--text-primary)" }}>{item.label}</span>
                     </div>
                   ))}
@@ -750,28 +917,26 @@ spec:
   function renderPlatforms() {
     return (
       <div>
-        <h3 style={{ margin: "0 0 14px", fontSize: 15 }}>IDP Platforms</h3>
+        <h3 style={{ margin: "0 0 8px", fontSize: 15 }}>IDP Platforms ({platforms.filter(p => p.enabled).length} enabled)</h3>
+        <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 14px" }}>
+          Enable and configure supported Internal Developer Platforms. Toggle platforms on/off and view their feature sets.
+        </p>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
           {platforms.map((platform) => (
-            <div key={platform.name} style={{ ...cardStyle, opacity: platform.enabled ? 1 : 0.7 }}>
+            <div key={platform.name} style={{ ...cardStyle, opacity: platform.enabled ? 1 : 0.7, borderColor: platform.enabled ? "var(--accent-primary)" : "var(--border-primary)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                 <strong style={{ fontSize: 14 }}>{platform.name}</strong>
                 <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 12 }}>
-                  <input type="checkbox" checked={platform.enabled} onChange={() => {
-                    setPlatforms((prev) => prev.map((p) => p.name === platform.name ? { ...p, enabled: !p.enabled } : p));
-                  }} />
+                  <input type="checkbox" checked={platform.enabled} onChange={() => togglePlatform(platform.name, !platform.enabled)} />
                   {platform.enabled ? "Enabled" : "Disabled"}
                 </label>
               </div>
               <p style={{ margin: "0 0 8px", fontSize: 12, color: "var(--text-secondary)" }}>{platform.description}</p>
-              <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 8 }}>
+              <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                 {platform.features.map((f) => (
-                  <span key={f} style={{ ...badgeStyle("var(--accent-primary)"), fontSize: 10 }}>{f}</span>
+                  <span key={f} style={{ ...badgeStyle(platform.enabled ? "#a6e3a1" : "#6c7086"), fontSize: 10 }}>{f}</span>
                 ))}
               </div>
-              {platform.enabled && (
-                <a href={platform.config_url} style={{ fontSize: 11, color: "var(--accent-primary)", textDecoration: "none" }}>Configure</a>
-              )}
             </div>
           ))}
         </div>
@@ -782,7 +947,10 @@ spec:
   function renderBackstage() {
     return (
       <div>
-        <h3 style={{ margin: "0 0 14px", fontSize: 15 }}>Backstage Integration</h3>
+        <h3 style={{ margin: "0 0 8px", fontSize: 15 }}>Backstage Integration</h3>
+        <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 14px" }}>
+          Generate Backstage-compatible <code>catalog-info.yaml</code> files for your registered services. These can be committed to your repos for automatic Backstage discovery.
+        </p>
 
         <div style={cardStyle}>
           <h4 style={{ margin: "0 0 10px", fontSize: 14 }}>Generate catalog-info.yaml</h4>
@@ -797,17 +965,19 @@ spec:
               </select>
             </div>
             <button style={btnStyle} onClick={() => {
-              const svc = services.find((s) => s.id === backstageServiceId);
-              if (svc) generateCatalogInfo(svc);
+              if (backstageServiceId) generateCatalogYaml(backstageServiceId);
             }} disabled={!backstageServiceId}>Generate</button>
           </div>
+          {services.length === 0 && (
+            <p style={{ margin: "10px 0 0", fontSize: 11, color: "var(--text-secondary)" }}>Register services in the Service Catalog tab first.</p>
+          )}
         </div>
 
         {catalogYaml && (
           <div style={{ marginTop: 16 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
               <h4 style={{ margin: 0, fontSize: 14 }}>catalog-info.yaml</h4>
-              <button style={btnSecondary} onClick={() => navigator.clipboard.writeText(catalogYaml)}>Copy</button>
+              <button style={btnSecondary} onClick={() => { navigator.clipboard.writeText(catalogYaml); showSuccess("YAML copied to clipboard."); }}>Copy</button>
             </div>
             <pre style={{
               background: "var(--bg-tertiary)",
@@ -818,6 +988,7 @@ spec:
               fontFamily: "var(--font-mono)",
               overflow: "auto",
               whiteSpace: "pre-wrap",
+              maxHeight: 400,
             }}>
               {catalogYaml}
             </pre>
@@ -853,7 +1024,7 @@ spec:
                     <td style={tdStyle}>
                       <button style={{ ...btnSecondary, padding: "2px 8px", fontSize: 11 }} onClick={() => {
                         setBackstageServiceId(svc.id);
-                        generateCatalogInfo(svc);
+                        generateCatalogInfoLocal(svc);
                       }}>Generate YAML</button>
                     </td>
                   </tr>
@@ -888,6 +1059,12 @@ spec:
         ))}
       </div>
       <div style={contentStyle}>
+        {successMsg && (
+          <div style={{ padding: "8px 12px", marginBottom: 12, background: "#a6e3a122", border: "1px solid #a6e3a1", borderRadius: 4, fontSize: 12, color: "#a6e3a1", display: "flex", justifyContent: "space-between" }}>
+            <span>{successMsg}</span>
+            <button style={{ background: "none", border: "none", color: "#a6e3a1", cursor: "pointer", fontSize: 14 }} onClick={() => setSuccessMsg(null)}>x</button>
+          </div>
+        )}
         {error && (
           <div style={{ padding: "8px 12px", marginBottom: 12, background: "#f38ba822", border: "1px solid #f38ba8", borderRadius: 4, fontSize: 12, color: "#f38ba8", display: "flex", justifyContent: "space-between" }}>
             <span>{error}</span>

@@ -527,12 +527,18 @@ pub fn run() {
             // IDP — Internal Developer Platform
             commands::get_idp_catalog,
             commands::register_idp_service,
+            commands::delete_idp_service,
             commands::get_idp_scorecards,
             commands::evaluate_idp_scorecard,
             commands::get_idp_golden_paths,
             commands::get_idp_platforms,
+            commands::toggle_idp_platform,
             commands::generate_backstage_catalog,
             commands::get_idp_teams,
+            commands::create_idp_team,
+            commands::toggle_idp_checklist,
+            commands::request_idp_infra,
+            commands::get_idp_infra_requests,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

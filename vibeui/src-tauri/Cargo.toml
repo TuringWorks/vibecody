@@ -44,4 +44,5 @@ vibe-ai = { path = "../crates/vibe-ai" }
 vibe-extensions = { path = "../crates/vibe-extensions" }
 vibe-collab = { path = "../crates/vibe-collab" }
 base64 = "0.22.1"
+chrono = "0.4.44"
 

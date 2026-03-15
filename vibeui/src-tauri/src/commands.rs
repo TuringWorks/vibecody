@@ -17392,73 +17392,455 @@ pub async fn generate_purple_team_report(exercise_id: String) -> Result<String, 
 
 // ── IDP — Internal Developer Platform ───────────────────────────────────────
 
-#[tauri::command]
-pub async fn get_idp_catalog() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!([]))
+/// Helper: path to IDP data directory (~/.vibecli/idp/)
+fn idp_data_dir() -> Result<std::path::PathBuf, String> {
+    let home = std::env::var("HOME").map_err(|_| "HOME not set".to_string())?;
+    let dir = std::path::PathBuf::from(home).join(".vibecli").join("idp");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(dir)
+}
+
+fn idp_read_json(filename: &str) -> serde_json::Value {
+    let Ok(dir) = idp_data_dir() else { return serde_json::json!([]) };
+    let path = dir.join(filename);
+    match std::fs::read_to_string(&path) {
+        Ok(s) => serde_json::from_str(&s).unwrap_or(serde_json::json!([])),
+        Err(_) => serde_json::json!([]),
+    }
+}
+
+fn idp_write_json(filename: &str, data: &serde_json::Value) -> Result<(), String> {
+    let dir = idp_data_dir()?;
+    let path = dir.join(filename);
+    let s = serde_json::to_string_pretty(data).map_err(|e| e.to_string())?;
+    std::fs::write(path, s).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub async fn register_idp_service(name: String, owner: String, tier: String, repo: String) -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({
-        "id": format!("svc-{}", name.to_lowercase().replace(' ', "-")),
+pub async fn get_idp_catalog() -> Result<serde_json::Value, String> {
+    Ok(idp_read_json("services.json"))
+}
+
+#[tauri::command]
+pub async fn register_idp_service(
+    name: String,
+    owner: String,
+    tier: String,
+    language: Option<String>,
+    framework: Option<String>,
+    repo_url: Option<String>,
+    description: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let mut services = idp_read_json("services.json");
+    let arr = services.as_array_mut().ok_or("Corrupt services.json")?;
+
+    let id = format!("svc-{}", name.to_lowercase().replace(' ', "-").replace(|c: char| !c.is_alphanumeric() && c != '-', ""));
+    let svc = serde_json::json!({
+        "id": id,
         "name": name,
         "owner": owner,
         "tier": tier,
-        "repository": repo,
-        "registered": true
+        "status": "Active",
+        "language": language.unwrap_or_else(|| "TypeScript".into()),
+        "framework": framework.unwrap_or_else(|| "".into()),
+        "repo_url": repo_url.unwrap_or_default(),
+        "description": description.unwrap_or_default(),
+    });
+
+    // Upsert by id
+    if let Some(existing) = arr.iter_mut().find(|s| s["id"] == id) {
+        *existing = svc.clone();
+    } else {
+        arr.push(svc.clone());
+    }
+
+    idp_write_json("services.json", &services)?;
+    Ok(svc)
+}
+
+#[tauri::command]
+pub async fn delete_idp_service(service_id: String) -> Result<serde_json::Value, String> {
+    let mut services = idp_read_json("services.json");
+    let arr = services.as_array_mut().ok_or("Corrupt services.json")?;
+    arr.retain(|s| s["id"].as_str() != Some(&service_id));
+    idp_write_json("services.json", &services)?;
+    Ok(serde_json::json!({"deleted": service_id}))
+}
+
+#[tauri::command]
+pub async fn get_idp_scorecards(service_id: Option<String>) -> Result<serde_json::Value, String> {
+    let services = idp_read_json("services.json");
+    let empty = vec![];
+    let arr = services.as_array().unwrap_or(&empty);
+
+    let target_services: Vec<&serde_json::Value> = match &service_id {
+        Some(id) => arr.iter().filter(|s| s["id"].as_str() == Some(id)).collect(),
+        None => arr.iter().collect(),
+    };
+
+    if target_services.is_empty() {
+        return Ok(serde_json::json!(null));
+    }
+
+    let svc = target_services[0];
+    // Return a scorecard with zero scores (use evaluate to compute)
+    Ok(serde_json::json!({
+        "service_id": svc["id"],
+        "service_name": svc["name"],
+        "overall_grade": "N/A",
+        "overall_score": 0,
+        "metrics": [],
+        "recommendations": ["Run Evaluate to compute scorecard metrics."],
     }))
 }
 
 #[tauri::command]
-pub async fn get_idp_scorecards() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!([]))
-}
-
-#[tauri::command]
 pub async fn evaluate_idp_scorecard(service_id: String) -> Result<serde_json::Value, String> {
+    let services = idp_read_json("services.json");
+    let empty = vec![];
+    let arr = services.as_array().unwrap_or(&empty);
+    let svc = arr.iter().find(|s| s["id"].as_str() == Some(&service_id))
+        .ok_or_else(|| format!("Service {} not found. Register it first.", service_id))?;
+
+    let name = svc["name"].as_str().unwrap_or(&service_id);
+    let has_repo = svc["repo_url"].as_str().map(|r| !r.is_empty()).unwrap_or(false);
+    let has_desc = svc["description"].as_str().map(|d| !d.is_empty()).unwrap_or(false);
+    let has_framework = svc["framework"].as_str().map(|f| !f.is_empty()).unwrap_or(false);
+    let tier = svc["tier"].as_str().unwrap_or("Tier3");
+
+    // Compute metrics based on service metadata completeness
+    let mut metrics = vec![];
+    let mut total = 0;
+    let max_total = 100;
+
+    let doc_score = if has_desc { 15 } else { 0 };
+    metrics.push(serde_json::json!({"name": "Documentation", "score": doc_score, "max_score": 15, "category": "Quality"}));
+    total += doc_score;
+
+    let repo_score = if has_repo { 15 } else { 0 };
+    metrics.push(serde_json::json!({"name": "Source Control", "score": repo_score, "max_score": 15, "category": "Quality"}));
+    total += repo_score;
+
+    let ownership_score = 15; // always has owner if registered
+    metrics.push(serde_json::json!({"name": "Ownership", "score": ownership_score, "max_score": 15, "category": "Governance"}));
+    total += ownership_score;
+
+    let tier_score = match tier { "Tier0" => 10, "Tier1" => 10, "Tier2" => 7, _ => 5 };
+    metrics.push(serde_json::json!({"name": "Tier Classification", "score": tier_score, "max_score": 10, "category": "Governance"}));
+    total += tier_score;
+
+    let framework_score = if has_framework { 10 } else { 0 };
+    metrics.push(serde_json::json!({"name": "Tech Stack Defined", "score": framework_score, "max_score": 10, "category": "Standards"}));
+    total += framework_score;
+
+    // Simulated DORA-style metrics (would connect to real CI/CD in production)
+    let deploy_freq_score = 8;
+    metrics.push(serde_json::json!({"name": "Deploy Frequency", "score": deploy_freq_score, "max_score": 10, "category": "DORA"}));
+    total += deploy_freq_score;
+
+    let lead_time_score = 7;
+    metrics.push(serde_json::json!({"name": "Lead Time for Changes", "score": lead_time_score, "max_score": 10, "category": "DORA"}));
+    total += lead_time_score;
+
+    let mttr_score = 6;
+    metrics.push(serde_json::json!({"name": "Mean Time to Recovery", "score": mttr_score, "max_score": 10, "category": "DORA"}));
+    total += mttr_score;
+
+    let cfr_score = 5;
+    metrics.push(serde_json::json!({"name": "Change Failure Rate", "score": cfr_score, "max_score": 5, "category": "DORA"}));
+    total += cfr_score;
+
+    let pct = (total as f64 / max_total as f64 * 100.0) as i64;
+    let grade = if pct >= 90 { "A" } else if pct >= 80 { "B" } else if pct >= 70 { "C" } else if pct >= 60 { "D" } else { "F" };
+
+    let mut recommendations = vec![];
+    if !has_desc { recommendations.push("Add a service description for better discoverability.".to_string()); }
+    if !has_repo { recommendations.push("Link a source code repository.".to_string()); }
+    if !has_framework { recommendations.push("Specify the framework/tech stack.".to_string()); }
+    if tier == "Tier3" || tier == "Tier2" { recommendations.push("Consider elevating tier classification if this is a critical service.".to_string()); }
+    if pct < 80 { recommendations.push("Improve DORA metrics by automating deployments and reducing batch sizes.".to_string()); }
+
     Ok(serde_json::json!({
         "service_id": service_id,
-        "overall_score": 0.0,
-        "grade": "N/A",
-        "metrics": {},
-        "recommendations": ["Register the service first"]
+        "service_name": name,
+        "overall_grade": grade,
+        "overall_score": pct,
+        "metrics": metrics,
+        "recommendations": recommendations,
     }))
 }
 
 #[tauri::command]
 pub async fn get_idp_golden_paths() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!([]))
+    // Built-in golden path templates
+    Ok(serde_json::json!([
+        {
+            "id": "gp-ts-react",
+            "language": "TypeScript",
+            "framework": "React + Vite",
+            "template_repo": "github.com/org/golden-react-vite",
+            "description": "Production-ready React SPA with Vite, TypeScript, Vitest, ESLint, Tailwind CSS, CI/CD pipeline",
+            "features": ["TypeScript strict", "Vitest + Testing Library", "ESLint + Prettier", "Tailwind CSS", "GitHub Actions CI", "Docker build"]
+        },
+        {
+            "id": "gp-ts-nextjs",
+            "language": "TypeScript",
+            "framework": "Next.js 15",
+            "template_repo": "github.com/org/golden-nextjs",
+            "description": "Full-stack Next.js with App Router, server components, Prisma ORM, auth, and deployment configs",
+            "features": ["App Router", "Server Components", "Prisma ORM", "NextAuth.js", "Vercel deploy", "E2E tests"]
+        },
+        {
+            "id": "gp-rust-actix",
+            "language": "Rust",
+            "framework": "Actix Web",
+            "template_repo": "github.com/org/golden-actix-api",
+            "description": "High-performance REST API with Actix Web, SQLx, structured logging, health checks, OpenAPI docs",
+            "features": ["Actix Web 4", "SQLx + migrations", "tracing + OpenTelemetry", "OpenAPI / Swagger", "Docker multi-stage", "cargo-deny audit"]
+        },
+        {
+            "id": "gp-go-api",
+            "language": "Go",
+            "framework": "Chi + sqlc",
+            "template_repo": "github.com/org/golden-go-api",
+            "description": "Go REST API with Chi router, sqlc for type-safe queries, structured logging, Kubernetes manifests",
+            "features": ["Chi router", "sqlc type-safe SQL", "slog structured logging", "K8s manifests", "Makefile", "golangci-lint"]
+        },
+        {
+            "id": "gp-python-fastapi",
+            "language": "Python",
+            "framework": "FastAPI",
+            "template_repo": "github.com/org/golden-fastapi",
+            "description": "Python microservice with FastAPI, SQLAlchemy, Alembic migrations, pytest, Docker",
+            "features": ["FastAPI + Uvicorn", "SQLAlchemy 2.0", "Alembic migrations", "pytest + coverage", "Docker compose", "Ruff linter"]
+        },
+        {
+            "id": "gp-java-springboot",
+            "language": "Java",
+            "framework": "Spring Boot 3",
+            "template_repo": "github.com/org/golden-spring-boot",
+            "description": "Enterprise Java service with Spring Boot 3, Spring Data JPA, Spring Security, Gradle, Testcontainers",
+            "features": ["Spring Boot 3", "Spring Data JPA", "Spring Security", "Testcontainers", "Gradle build", "Actuator health"]
+        },
+        {
+            "id": "gp-ts-node-api",
+            "language": "TypeScript",
+            "framework": "Express + Prisma",
+            "template_repo": "github.com/org/golden-express-api",
+            "description": "Node.js REST API with Express, Prisma ORM, Zod validation, Jest tests, OpenAPI",
+            "features": ["Express 5", "Prisma ORM", "Zod validation", "Jest + Supertest", "tsup build", "Swagger docs"]
+        },
+        {
+            "id": "gp-kotlin-ktor",
+            "language": "Kotlin",
+            "framework": "Ktor",
+            "template_repo": "github.com/org/golden-ktor-api",
+            "description": "Kotlin microservice with Ktor, Exposed ORM, Koin DI, structured logging",
+            "features": ["Ktor server", "Exposed ORM", "Koin DI", "Kotlin coroutines", "Gradle KTS", "kotest"]
+        }
+    ]))
 }
 
 #[tauri::command]
 pub async fn get_idp_platforms() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({
-        "platforms": [
-            {"name": "Backstage", "enabled": false, "features": ["Service Catalog", "Templates", "TechDocs", "Plugins"]},
-            {"name": "Cycloid", "enabled": false, "features": ["Infrastructure Automation", "FinOps", "GreenOps", "Blueprints"]},
-            {"name": "Humanitec", "enabled": false, "features": ["Orchestration", "Score Files", "Dynamic Environments"]},
-            {"name": "Port", "enabled": false, "features": ["Developer Portal", "Blueprints", "Workflows", "Scorecards"]},
-            {"name": "Qovery", "enabled": false, "features": ["K8s Deploy", "Preview Envs", "Scale-to-Zero", "RBAC"]},
-            {"name": "Mia Platform", "enabled": false, "features": ["API Management", "Microservice Governance", "CI/CD"]},
-            {"name": "OpsLevel", "enabled": false, "features": ["Service Catalog", "Maturity Tracking", "Scorecards"]},
-            {"name": "Roadie", "enabled": false, "features": ["Managed Backstage", "Prebuilt Plugins", "Rapid Setup"]},
-            {"name": "Cortex", "enabled": false, "features": ["Scorecards", "Ownership", "Health Monitoring"]},
-            {"name": "Morpheus Data", "enabled": false, "features": ["Multi-Cloud", "Self-Service", "Governance"]},
-            {"name": "CloudBolt", "enabled": false, "features": ["Multi-Cloud Orchestration", "Cost Tracking", "Governance"]},
-            {"name": "Harness", "enabled": false, "features": ["CD Pipeline", "Feature Flags", "Cost Management", "AI Rollback"]}
-        ]
-    }))
+    // Return as plain array (not wrapped in object)
+    let saved = idp_read_json("platforms.json");
+    if saved.as_array().map(|a| a.is_empty()).unwrap_or(true) {
+        // Return defaults
+        return Ok(serde_json::json!([
+            {"name": "Backstage", "enabled": false, "features": ["Service Catalog", "Templates", "TechDocs", "Plugins"], "config_url": "/settings/backstage", "description": "Spotify's open-source developer portal for service catalog, docs, and templates"},
+            {"name": "Cycloid", "enabled": false, "features": ["FinOps", "GitOps", "Stacks", "Compliance"], "config_url": "/settings/cycloid", "description": "Hybrid cloud management with cost optimization and green IT"},
+            {"name": "Humanitec", "enabled": false, "features": ["Score", "Resource Graphs", "Deployments", "Environments"], "config_url": "/settings/humanitec", "description": "Platform Orchestrator with dynamic resource management"},
+            {"name": "Port", "enabled": false, "features": ["Self-Service", "Scorecards", "Automations", "Catalog"], "config_url": "/settings/port", "description": "Internal developer portal with self-service actions and software catalog"},
+            {"name": "Qovery", "enabled": false, "features": ["Environments", "Deployments", "Preview Envs", "Cost Mgmt"], "config_url": "/settings/qovery", "description": "Cloud deployment platform with preview environments and scale-to-zero"},
+            {"name": "Mia Platform", "enabled": false, "features": ["Microservices", "Console", "Marketplace", "Fast Data"], "config_url": "/settings/mia", "description": "Cloud-native platform builder for microservice governance"},
+            {"name": "OpsLevel", "enabled": false, "features": ["Service Maturity", "Ownership", "Checks", "Actions"], "config_url": "/settings/opslevel", "description": "Service ownership, maturity tracking, and engineering standards"},
+            {"name": "Roadie", "enabled": false, "features": ["Managed Backstage", "Plugins", "Scaffolder", "TechDocs"], "config_url": "/settings/roadie", "description": "Managed Backstage SaaS — faster setup, no infra to maintain"},
+            {"name": "Cortex", "enabled": false, "features": ["Scorecards", "CQL", "Plugins", "Initiatives"], "config_url": "/settings/cortex", "description": "Internal developer portal with custom query language and initiatives"},
+            {"name": "Morpheus Data", "enabled": false, "features": ["Hybrid Cloud", "Automation", "Analytics", "Governance"], "config_url": "/settings/morpheus", "description": "Multi-cloud management with analytics and governance"},
+            {"name": "CloudBolt", "enabled": false, "features": ["Self-Service IT", "Cost Mgmt", "Multi-Cloud", "Terraform"], "config_url": "/settings/cloudbolt", "description": "Cloud management platform with cost optimization and Terraform integration"},
+            {"name": "Harness", "enabled": false, "features": ["CI/CD", "Feature Flags", "Cloud Cost", "SRM"], "config_url": "/settings/harness", "description": "Software delivery platform with AI-powered rollbacks"},
+            {"name": "Custom", "enabled": false, "features": ["API Gateway", "Custom Catalog", "Webhooks", "RBAC"], "config_url": "/settings/custom-idp", "description": "Build your own IDP with custom integrations and workflows"}
+        ]));
+    }
+    Ok(saved)
+}
+
+#[tauri::command]
+pub async fn toggle_idp_platform(platform_name: String, enabled: bool) -> Result<serde_json::Value, String> {
+    // Load current platforms (or defaults)
+    let platforms_val = get_idp_platforms().await?;
+    let mut platforms = platforms_val;
+    if let Some(arr) = platforms.as_array_mut() {
+        for p in arr.iter_mut() {
+            if p["name"].as_str() == Some(&platform_name) {
+                p["enabled"] = serde_json::json!(enabled);
+            }
+        }
+    }
+    idp_write_json("platforms.json", &platforms)?;
+    Ok(platforms)
 }
 
 #[tauri::command]
 pub async fn generate_backstage_catalog(service_id: String) -> Result<String, String> {
-    Ok(format!(
-        "apiVersion: backstage.io/v1alpha1\nkind: Component\nmetadata:\n  name: {}\n  annotations:\n    github.com/project-slug: org/{}\nspec:\n  type: service\n  lifecycle: production\n  owner: team-platform\n",
-        service_id, service_id
-    ))
+    let services = idp_read_json("services.json");
+    let empty = vec![];
+    let arr = services.as_array().unwrap_or(&empty);
+    let svc = arr.iter().find(|s| s["id"].as_str() == Some(&service_id));
+
+    if let Some(svc) = svc {
+        let name = svc["name"].as_str().unwrap_or(&service_id).to_lowercase().replace(' ', "-");
+        let desc = svc["description"].as_str().unwrap_or(&name);
+        let owner = svc["owner"].as_str().unwrap_or("team-platform").to_lowercase().replace(' ', "-");
+        let lang = svc["language"].as_str().unwrap_or("unknown").to_lowercase();
+        let framework = svc["framework"].as_str().unwrap_or("").to_lowercase();
+        let repo = svc["repo_url"].as_str().unwrap_or("");
+        let status = svc["status"].as_str().unwrap_or("Active");
+        let lifecycle = match status {
+            "Active" => "production",
+            "Incubating" => "experimental",
+            _ => "deprecated",
+        };
+        let repo_slug = repo.replace("https://github.com/", "");
+
+        Ok(format!(
+"apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: {}
+  description: {}
+  annotations:
+    github.com/project-slug: {}
+    backstage.io/techdocs-ref: dir:.
+  tags:
+    - {}{}
+spec:
+  type: service
+  lifecycle: {}
+  owner: {}
+  system: {}-system
+  providesApis:
+    - {}-api
+",
+            name, desc,
+            if repo_slug.is_empty() { format!("org/{}", name) } else { repo_slug },
+            lang,
+            if framework.is_empty() { String::new() } else { format!("\n    - {}", framework) },
+            lifecycle, owner, name, name,
+        ))
+    } else {
+        Ok(format!(
+"apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: {}
+  annotations:
+    github.com/project-slug: org/{}
+spec:
+  type: service
+  lifecycle: production
+  owner: team-platform
+",
+            service_id, service_id
+        ))
+    }
 }
 
 #[tauri::command]
 pub async fn get_idp_teams() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!([]))
+    Ok(idp_read_json("teams.json"))
+}
+
+#[tauri::command]
+pub async fn create_idp_team(name: String) -> Result<serde_json::Value, String> {
+    let mut teams = idp_read_json("teams.json");
+    let arr = teams.as_array_mut().ok_or("Corrupt teams.json")?;
+
+    let id = format!("team-{}", name.to_lowercase().replace(' ', "-").replace(|c: char| !c.is_alphanumeric() && c != '-', ""));
+    let team = serde_json::json!({
+        "id": id,
+        "name": name,
+        "member_count": 0,
+        "service_count": 0,
+        "onboarding_progress": 0,
+        "onboarding_checklist": [
+            {"label": "Set up source control access", "completed": false},
+            {"label": "Configure CI/CD pipeline", "completed": false},
+            {"label": "Register services in catalog", "completed": false},
+            {"label": "Set up monitoring & alerting", "completed": false},
+            {"label": "Configure development environment", "completed": false},
+            {"label": "Review golden path templates", "completed": false},
+            {"label": "Set up staging environment", "completed": false},
+            {"label": "Complete security onboarding", "completed": false},
+        ]
+    });
+
+    if arr.iter().any(|t| t["id"] == id) {
+        return Err(format!("Team '{}' already exists", name));
+    }
+    arr.push(team.clone());
+    idp_write_json("teams.json", &teams)?;
+    Ok(team)
+}
+
+#[tauri::command]
+pub async fn toggle_idp_checklist(team_id: String, item_index: usize) -> Result<serde_json::Value, String> {
+    let mut teams = idp_read_json("teams.json");
+    let arr = teams.as_array_mut().ok_or("Corrupt teams.json")?;
+
+    let team = arr.iter_mut().find(|t| t["id"].as_str() == Some(&team_id))
+        .ok_or_else(|| format!("Team {} not found", team_id))?;
+
+    // Toggle the checklist item and recalculate progress
+    if let Some(checklist) = team["onboarding_checklist"].as_array_mut() {
+        if let Some(item) = checklist.get_mut(item_index) {
+            let was = item["completed"].as_bool().unwrap_or(false);
+            item["completed"] = serde_json::json!(!was);
+        }
+        let total = checklist.len() as f64;
+        let done = checklist.iter().filter(|i| i["completed"].as_bool().unwrap_or(false)).count() as f64;
+        let progress = (done / total * 100.0).round() as i64;
+        team["onboarding_progress"] = serde_json::json!(progress);
+    }
+    let result = team.clone();
+
+    idp_write_json("teams.json", &teams)?;
+    Ok(result)
+}
+
+#[tauri::command]
+pub async fn request_idp_infra(
+    template: String,
+    environment: Option<String>,
+    region: Option<String>,
+    size: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let mut requests = idp_read_json("infra_requests.json");
+    let arr = requests.as_array_mut().ok_or("Corrupt infra_requests.json")?;
+
+    let id = format!("infra-{:08x}", std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis() as u32);
+
+    let req = serde_json::json!({
+        "id": id,
+        "template": template,
+        "status": "Pending",
+        "requested_by": std::env::var("USER").unwrap_or_else(|_| "developer".into()),
+        "created": chrono::Local::now().format("%Y-%m-%d %H:%M").to_string(),
+        "config": {
+            "environment": environment.unwrap_or_else(|| "staging".into()),
+            "region": region.unwrap_or_else(|| "us-east-1".into()),
+            "size": size.unwrap_or_else(|| "small".into()),
+        }
+    });
+
+    arr.push(req.clone());
+    idp_write_json("infra_requests.json", &requests)?;
+    Ok(req)
+}
+
+#[tauri::command]
+pub async fn get_idp_infra_requests() -> Result<serde_json::Value, String> {
+    Ok(idp_read_json("infra_requests.json"))
 }
