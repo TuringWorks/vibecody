@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { Circle } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 
@@ -51,12 +51,22 @@ export function BugBotPanel({ workspacePath }: BugBotPanelProps) {
  const [expanded, setExpanded] = useState<string | null>(null);
  const [filterSeverity, setFilterSeverity] = useState<string>("all");
  const [filterCategory, setFilterCategory] = useState<string>("all");
+ const cancelRef = useRef(false);
+ const scanIdRef = useRef(0);
+
+ function handleSuspend() {
+ cancelRef.current = true;
+ setScanning(false);
+ setError("Scan suspended by user.");
+ }
 
  async function runScan() {
  if (!workspacePath) {
  setError("Open a workspace folder first.");
  return;
  }
+ cancelRef.current = false;
+ const thisId = ++scanIdRef.current;
  setScanning(true);
  setError(null);
  setReports([]);
@@ -68,11 +78,13 @@ export function BugBotPanel({ workspacePath }: BugBotPanelProps) {
  workspacePath,
  scanScope: scope,
  });
+ if (cancelRef.current || scanIdRef.current !== thisId) return;
  setReports(result);
  } catch (e) {
+ if (cancelRef.current || scanIdRef.current !== thisId) return;
  setError(String(e));
  } finally {
- setScanning(false);
+ if (scanIdRef.current === thisId) setScanning(false);
  }
  }
 
@@ -105,23 +117,41 @@ export function BugBotPanel({ workspacePath }: BugBotPanelProps) {
  <option value="workspace">Entire Workspace</option>
  <option value="file">Specific File</option>
  </select>
+ {scanning ? (
  <button
- onClick={runScan}
- disabled={scanning}
+ onClick={handleSuspend}
  style={{
  padding: "5px 14px",
  borderRadius: 5,
  border: "none",
- background: scanning ? "var(--bg-secondary)" : "var(--accent-color)",
- color: "var(--text-primary)",
- cursor: scanning ? "default" : "pointer",
+ background: "#c62828",
+ color: "#fff",
+ cursor: "pointer",
  fontWeight: 600,
  fontSize: 12,
  flexShrink: 0,
  }}
  >
- {scanning ? "Scanning…" : "Run Scan"}
+ Suspend
  </button>
+ ) : (
+ <button
+ onClick={runScan}
+ style={{
+ padding: "5px 14px",
+ borderRadius: 5,
+ border: "none",
+ background: "var(--accent-blue)",
+ color: "#fff",
+ cursor: "pointer",
+ fontWeight: 600,
+ fontSize: 12,
+ flexShrink: 0,
+ }}
+ >
+ Run Scan
+ </button>
+ )}
  </div>
 
  {scanScope === "file" && (
@@ -223,7 +253,6 @@ export function BugBotPanel({ workspacePath }: BugBotPanelProps) {
  borderLeft: `3px solid ${SEVERITY_COLOR[report.severity]}`,
  borderRadius: 6,
  background: "var(--bg-tertiary)",
- overflow: "hidden",
  }}
  >
  {/* Issue header */}
