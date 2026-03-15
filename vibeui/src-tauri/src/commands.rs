@@ -660,6 +660,121 @@ pub async fn git_switch_branch(path: String, branch: String) -> Result<(), Strin
 }
 
 #[tauri::command]
+pub async fn get_git_config(path: String) -> Result<serde_json::Value, String> {
+    let repo_path = PathBuf::from(&path);
+
+    // Read user.name and user.email
+    let user_name = std::process::Command::new("git")
+        .args(["config", "user.name"])
+        .current_dir(&repo_path)
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .unwrap_or_default();
+
+    let user_email = std::process::Command::new("git")
+        .args(["config", "user.email"])
+        .current_dir(&repo_path)
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .unwrap_or_default();
+
+    // Read remote origin URL
+    let remote_url = std::process::Command::new("git")
+        .args(["remote", "get-url", "origin"])
+        .current_dir(&repo_path)
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .unwrap_or_default();
+
+    // Check if SSH keys exist
+    let home = std::env::var("HOME").unwrap_or_default();
+    let ssh_dir = PathBuf::from(&home).join(".ssh");
+    let ssh_available = ssh_dir.join("id_rsa").exists()
+        || ssh_dir.join("id_ed25519").exists()
+        || ssh_dir.join("id_ecdsa").exists();
+
+    Ok(serde_json::json!({
+        "user_name": user_name,
+        "user_email": user_email,
+        "remote_url": remote_url,
+        "ssh_available": ssh_available,
+    }))
+}
+
+#[tauri::command]
+pub async fn set_git_config(path: String, user_name: String, user_email: String) -> Result<(), String> {
+    let repo_path = PathBuf::from(&path);
+
+    if !user_name.is_empty() {
+        std::process::Command::new("git")
+            .args(["config", "user.name", &user_name])
+            .current_dir(&repo_path)
+            .output()
+            .map_err(|e| e.to_string())?;
+    }
+    if !user_email.is_empty() {
+        std::process::Command::new("git")
+            .args(["config", "user.email", &user_email])
+            .current_dir(&repo_path)
+            .output()
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn store_git_credentials(url: String, username: String, token: String) -> Result<(), String> {
+    // Use git credential-store to persist credentials
+    // Format: https://user:token@host/path
+    let parsed = url.trim_end_matches('/');
+    let cred_url = if parsed.starts_with("https://") {
+        let host_path = &parsed["https://".len()..];
+        format!("https://{}:{}@{}", username, token, host_path)
+    } else if parsed.starts_with("http://") {
+        let host_path = &parsed["http://".len()..];
+        format!("http://{}:{}@{}", username, token, host_path)
+    } else {
+        return Err("URL must start with https:// or http://".to_string());
+    };
+
+    // Enable credential-store helper
+    std::process::Command::new("git")
+        .args(["config", "--global", "credential.helper", "store"])
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    // Write to ~/.git-credentials
+    let home = std::env::var("HOME").map_err(|_| "HOME not set")?;
+    let cred_file = PathBuf::from(home).join(".git-credentials");
+    let mut contents = std::fs::read_to_string(&cred_file).unwrap_or_default();
+
+    // Remove any existing entry for the same host
+    let host = url.split("//").nth(1).unwrap_or("").split('/').next().unwrap_or("");
+    contents = contents.lines()
+        .filter(|line| !line.contains(host))
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    if !contents.is_empty() && !contents.ends_with('\n') {
+        contents.push('\n');
+    }
+    contents.push_str(&cred_url);
+    contents.push('\n');
+
+    std::fs::write(&cred_file, contents).map_err(|e| e.to_string())?;
+
+    // Set file permissions to 600
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&cred_file, std::fs::Permissions::from_mode(0o600))
+            .map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
 pub async fn git_get_history(path: String, limit: usize) -> Result<Vec<vibe_core::git::CommitInfo>, String> {
     vibe_core::git::get_history(&PathBuf::from(path), limit)
         .map_err(|e| e.to_string())
@@ -18884,4 +18999,250 @@ pub async fn fullstack_write_file(path: String, content: String) -> Result<(), S
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
     std::fs::write(&path, &content).map_err(|e| format!("Failed to write {}: {}", path, e))
+}
+
+// ── Security Scanner ────────────────────────────────────────────────────────
+
+fn secscan_data_dir() -> Result<std::path::PathBuf, String> {
+    let home = std::env::var("HOME").map_err(|_| "HOME not set".to_string())?;
+    let dir = std::path::PathBuf::from(home).join(".vibecli").join("secscan");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(dir)
+}
+
+fn secscan_read_json(filename: &str) -> serde_json::Value {
+    let Ok(dir) = secscan_data_dir() else { return serde_json::json!([]) };
+    let path = dir.join(filename);
+    match std::fs::read_to_string(&path) {
+        Ok(s) => serde_json::from_str(&s).unwrap_or(serde_json::json!([])),
+        Err(_) => serde_json::json!([]),
+    }
+}
+
+fn secscan_write_json(filename: &str, data: &serde_json::Value) -> Result<(), String> {
+    let dir = secscan_data_dir()?;
+    let path = dir.join(filename);
+    let s = serde_json::to_string_pretty(data).map_err(|e| e.to_string())?;
+    std::fs::write(path, s).map_err(|e| e.to_string())
+}
+
+/// Security patterns with regex and metadata
+struct SecPattern {
+    id: &'static str,
+    title: &'static str,
+    severity: &'static str,
+    cwe: &'static str,
+    description: &'static str,
+    remediation: &'static str,
+    extensions: &'static [&'static str],
+    patterns: &'static [&'static str],
+}
+
+const SEC_PATTERNS: &[SecPattern] = &[
+    SecPattern {
+        id: "sql-inject", title: "SQL Injection via string concatenation", severity: "Critical", cwe: "CWE-89",
+        description: "User input is directly concatenated into an SQL query without parameterized queries.",
+        remediation: "Use parameterized queries or prepared statements. Never concatenate user input into SQL strings.",
+        extensions: &["rs", "py", "js", "ts", "go", "java", "rb", "php"],
+        patterns: &["format!(\"SELECT", "format!(\"INSERT", "format!(\"UPDATE", "format!(\"DELETE",
+                    "f\"SELECT", "f\"INSERT", "f\"UPDATE", "f\"DELETE",
+                    "\"SELECT \" +", "\"INSERT \" +", "\"UPDATE \" +", "\"DELETE \" +",
+                    "query(\"SELECT \" +", ".execute(\"SELECT \" +"],
+    },
+    SecPattern {
+        id: "hardcoded-secret", title: "Hardcoded secret or API key", severity: "High", cwe: "CWE-798",
+        description: "An API key, password, or secret token appears to be hardcoded in source code.",
+        remediation: "Store secrets in environment variables or a secrets manager. Never commit secrets to version control.",
+        extensions: &["rs", "py", "js", "ts", "go", "java", "rb", "php", "yaml", "yml", "toml", "json"],
+        patterns: &["api_key = \"", "api_key=\"", "apiKey = \"", "apiKey=\"",
+                    "API_KEY = \"", "API_KEY=\"", "secret_key = \"", "secret_key=\"",
+                    "password = \"", "password=\"", "PRIVATE_KEY = \"",
+                    "aws_secret_access_key", "Authorization: Bearer sk-"],
+    },
+    SecPattern {
+        id: "path-traversal", title: "Path traversal vulnerability", severity: "High", cwe: "CWE-22",
+        description: "User-controlled input is used to construct file paths without validation, allowing directory traversal.",
+        remediation: "Validate and sanitize file paths. Use canonicalize() to resolve paths and verify they stay within the expected directory.",
+        extensions: &["rs", "py", "js", "ts", "go", "java", "php"],
+        patterns: &["../ ", "../\"", "\"../", "Path::new(&user", "open(user_input", "readFile(req.",
+                    "os.path.join(base, user", "path.join(base, req."],
+    },
+    SecPattern {
+        id: "cmd-inject", title: "Command injection risk", severity: "Critical", cwe: "CWE-78",
+        description: "User input is passed to a system command without sanitization.",
+        remediation: "Avoid shell execution with user input. Use subprocess with argument lists instead of shell=True. Validate and sanitize all inputs.",
+        extensions: &["rs", "py", "js", "ts", "go", "java", "rb", "php"],
+        patterns: &["Command::new(&user", "shell=True", "os.system(", "exec(user",
+                    "child_process.exec(", "subprocess.call(", "Runtime.getRuntime().exec("],
+    },
+    SecPattern {
+        id: "xss", title: "Cross-Site Scripting (XSS) risk", severity: "High", cwe: "CWE-79",
+        description: "User input is rendered in HTML output without proper escaping.",
+        remediation: "Always escape HTML output. Use framework auto-escaping. Set Content-Security-Policy headers.",
+        extensions: &["js", "ts", "jsx", "tsx", "html", "php", "rb", "py"],
+        patterns: &["dangerouslySetInnerHTML", "innerHTML =", ".innerHTML=", "document.write(",
+                    "v-html=", "{!! $", "| safe", "|safe", "mark_safe("],
+    },
+    SecPattern {
+        id: "weak-crypto", title: "Weak cryptographic algorithm", severity: "Medium", cwe: "CWE-327",
+        description: "Use of weak or deprecated cryptographic algorithms (MD5, SHA1 for security, DES, RC4).",
+        remediation: "Use strong algorithms: SHA-256+ for hashing, AES-256-GCM for encryption, bcrypt/argon2 for passwords.",
+        extensions: &["rs", "py", "js", "ts", "go", "java", "rb", "php"],
+        patterns: &["MD5", "md5(", "Md5::new", "hashlib.md5", "SHA1", "sha1(",
+                    "Sha1::new", "hashlib.sha1", "DES", "RC4", "createCipher(\"des"],
+    },
+    SecPattern {
+        id: "insecure-http", title: "Insecure HTTP connection", severity: "Medium", cwe: "CWE-319",
+        description: "HTTP (non-TLS) connection used for sensitive data transfer.",
+        remediation: "Use HTTPS for all external connections. Enable HSTS headers.",
+        extensions: &["rs", "py", "js", "ts", "go", "java", "yaml", "yml", "toml"],
+        patterns: &["http://api.", "http://auth.", "http://login.", "http://payment.",
+                    "verify=False", "rejectUnauthorized: false", "InsecureSkipVerify: true",
+                    "CURLOPT_SSL_VERIFYPEER, false"],
+    },
+    SecPattern {
+        id: "hardcoded-password-hash", title: "Weak password hashing", severity: "Medium", cwe: "CWE-916",
+        description: "Using a fast hash (SHA-256, MD5) for password storage instead of a purpose-built password hash.",
+        remediation: "Use bcrypt, argon2, or scrypt for password hashing. These are designed to be slow and resistant to brute-force.",
+        extensions: &["rs", "py", "js", "ts", "go", "java"],
+        patterns: &["sha256(password", "sha256(&password", "hashlib.sha256(password",
+                    "MessageDigest.getInstance(\"SHA-256\").update(password",
+                    "crypto.createHash(\"sha256\").update(password"],
+    },
+];
+
+#[tauri::command]
+pub async fn run_security_scan(
+    workspace_path: String,
+    pattern_ids: Vec<String>,
+) -> Result<serde_json::Value, String> {
+    let workspace = PathBuf::from(&workspace_path);
+    if !workspace.is_dir() {
+        return Err("Workspace path is not a directory".to_string());
+    }
+
+    let mut findings = Vec::new();
+    let mut finding_id = 0u32;
+
+    // Walk workspace files (skip hidden dirs, node_modules, target, .git)
+    fn walk_files(dir: &std::path::Path, files: &mut Vec<PathBuf>) {
+        let Ok(entries) = std::fs::read_dir(dir) else { return };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let name = entry.file_name().to_string_lossy().to_string();
+            if name.starts_with('.') || name == "node_modules" || name == "target"
+                || name == "vendor" || name == "dist" || name == "build" || name == "__pycache__"
+            {
+                continue;
+            }
+            if path.is_dir() {
+                walk_files(&path, files);
+            } else {
+                files.push(path);
+            }
+        }
+    }
+
+    let mut files = Vec::new();
+    walk_files(&workspace, &mut files);
+
+    // Cap file scanning to prevent OOM on huge repos
+    if files.len() > 5000 {
+        files.truncate(5000);
+    }
+
+    let _ = &pattern_ids; // All patterns are checked; pattern_ids can filter in future
+
+    for file_path in &files {
+        let ext = file_path.extension().and_then(|e| e.to_str()).unwrap_or("");
+        let rel_path = file_path.strip_prefix(&workspace)
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_else(|_| file_path.to_string_lossy().to_string());
+
+        // Skip binary / large files
+        let metadata = std::fs::metadata(file_path).ok();
+        if let Some(ref m) = metadata {
+            if m.len() > 512_000 { continue; } // Skip >500KB files
+        }
+
+        let content = match std::fs::read_to_string(file_path) {
+            Ok(c) => c,
+            Err(_) => continue, // Skip binary files
+        };
+
+        for pattern in SEC_PATTERNS {
+            // Check if file extension matches pattern
+            if !pattern.extensions.contains(&ext) && !pattern.extensions.contains(&"*") {
+                continue;
+            }
+
+            for (line_num, line) in content.lines().enumerate() {
+                let line_lower = line.to_lowercase();
+                for pat in pattern.patterns {
+                    let pat_lower = pat.to_lowercase();
+                    if line_lower.contains(&pat_lower) {
+                        // Skip if it's in a comment
+                        let trimmed = line.trim();
+                        if trimmed.starts_with("//") || trimmed.starts_with('#')
+                            || trimmed.starts_with("*") || trimmed.starts_with("<!--")
+                        {
+                            continue;
+                        }
+                        // Skip test files for some patterns
+                        if (rel_path.contains("test") || rel_path.contains("spec"))
+                            && (pattern.id == "hardcoded-secret" || pattern.id == "insecure-http")
+                        {
+                            continue;
+                        }
+
+                        finding_id += 1;
+                        findings.push(serde_json::json!({
+                            "id": format!("SEC-{:04}", finding_id),
+                            "title": pattern.title,
+                            "severity": pattern.severity,
+                            "file": rel_path,
+                            "line": line_num + 1,
+                            "description": pattern.description,
+                            "cwe": pattern.cwe,
+                            "remediation": pattern.remediation,
+                            "suppressed": false,
+                        }));
+                        break; // One finding per pattern per line
+                    }
+                }
+            }
+        }
+    }
+
+    // Persist results
+    secscan_write_json("last_results.json", &serde_json::json!(findings))?;
+
+    // Append to history
+    let mut history = secscan_read_json("history.json");
+    let mut fallback = vec![];
+    let arr = history.as_array_mut().unwrap_or(&mut fallback);
+    let now = chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
+    arr.insert(0, serde_json::json!({
+        "id": format!("scan-{}", chrono::Local::now().timestamp()),
+        "timestamp": now,
+        "findingCount": findings.len(),
+        "duration": "0s",
+    }));
+    if arr.len() > 20 { arr.truncate(20); }
+    let history_val = serde_json::json!(arr);
+    secscan_write_json("history.json", &history_val)?;
+
+    Ok(serde_json::json!(findings))
+}
+
+#[tauri::command]
+pub async fn get_security_scan_results(workspace_path: String) -> Result<serde_json::Value, String> {
+    let _ = workspace_path;
+    Ok(secscan_read_json("last_results.json"))
+}
+
+#[tauri::command]
+pub async fn get_security_scan_history(workspace_path: String) -> Result<serde_json::Value, String> {
+    let _ = workspace_path;
+    Ok(secscan_read_json("history.json"))
 }

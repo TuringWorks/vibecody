@@ -111,6 +111,9 @@ pub fn run() {
             commands::git_diff,
             commands::git_list_branches,
             commands::git_switch_branch,
+            commands::get_git_config,
+            commands::set_git_config,
+            commands::store_git_credentials,
             commands::git_get_history,
             commands::git_get_commit_files,
             commands::git_discard_changes,
@@ -550,6 +553,10 @@ pub fn run() {
             commands::fullstack_generate,
             commands::fullstack_read_file,
             commands::fullstack_write_file,
+            // Security Scan
+            commands::run_security_scan,
+            commands::get_security_scan_results,
+            commands::get_security_scan_history,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,8 +1,9 @@
+/* Grouped Tab Bar — Premium */
 .grouped-tab-bar {
   display: flex;
   flex-direction: column;
-  width: 180px;
-  min-width: 180px;
+  width: 190px;
+  min-width: 190px;
   border-right: 1px solid var(--border-color);
   background: var(--bg-secondary);
   overflow: hidden;
@@ -11,8 +12,8 @@
 .tab-search {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 6px 8px;
+  gap: 6px;
+  padding: 8px 10px;
   border-bottom: 1px solid var(--border-color);
   color: var(--text-secondary);
 }
@@ -30,7 +31,7 @@
 
 .tab-search input::placeholder {
   color: var(--text-secondary);
-  opacity: 0.7;
+  opacity: 0.5;
 }
 
 .tab-search-clear {
@@ -41,12 +42,18 @@
   font-size: 14px;
   line-height: 1;
   padding: 0 2px;
+  transition: color var(--transition-fast);
+}
+
+.tab-search-clear:hover {
+  color: var(--text-primary);
 }
 
 .tab-groups-scroll {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
+  padding: 4px 0;
 }
 
 .tab-group-header {
@@ -54,16 +61,17 @@
   align-items: center;
   gap: 4px;
   width: 100%;
-  padding: 6px 8px;
+  padding: 7px 10px;
   background: none;
   border: none;
   color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 10px;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.1em;
   cursor: pointer;
   user-select: none;
+  transition: all var(--transition-fast);
 }
 
 .tab-group-header:hover {
@@ -74,8 +82,8 @@
 .tab-group-count {
   margin-left: auto;
   font-size: 10px;
-  opacity: 0.6;
-  font-weight: 400;
+  opacity: 0.4;
+  font-weight: 500;
 }
 
 .tab-group-items {
@@ -87,16 +95,18 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 8px 5px 20px;
+  padding: 5px 10px 5px 22px;
   background: none;
   border: none;
   border-left: 2px solid transparent;
   color: var(--text-secondary);
   font-size: 12px;
+  font-weight: 400;
   cursor: pointer;
   white-space: nowrap;
   text-align: left;
   width: 100%;
+  transition: all var(--transition-fast);
 }
 
 .tab-item:hover {
@@ -108,11 +118,11 @@
   background: var(--bg-primary);
   color: var(--text-primary);
   border-left-color: var(--accent-blue);
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .tab-no-results {
-  padding: 16px 8px;
+  padding: 20px 10px;
   color: var(--text-secondary);
   font-size: 12px;
   text-align: center;

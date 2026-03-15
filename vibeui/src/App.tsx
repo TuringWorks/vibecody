@@ -15,7 +15,7 @@ import { CommandPalette, Command } from "./components/CommandPalette";
 import Modal from "./components/Modal";
 import { GitPanel } from "./components/GitPanel";
 import { MarkdownPreview } from "./components/MarkdownPreview";
-import { FilePlus, FolderPlus, FolderOpen, Files, Search, GitGraph, Settings, Menu, MessageSquare, Save, Terminal as TerminalIcon, PanelLeft, Puzzle, Hand, Sparkles, Bot, Rocket, Plug, Eye, FileText, GraduationCap } from "lucide-react";
+import { FilePlus, FolderPlus, FolderOpen, Files, Search, GitGraph, Settings, Menu, MessageSquare, Save, Terminal as TerminalIcon, PanelLeft, Puzzle, Hand, Sparkles, Bot, Rocket, Plug, Eye, FileText, GraduationCap, LayoutGrid } from "lucide-react";
 import "./ActivityBar.css";
 import { ExtensionManager } from "./extensions/ExtensionManager";
 // Import worker using Vite's syntax
@@ -1091,9 +1091,9 @@ function App() {
           <button
             className="btn-secondary"
             onClick={() => setShowAIChat(!showAIChat)}
-            title="Toggle AI Chat"
+            title="Toggle AI Toolkit"
           >
-            <MessageSquare size={14} strokeWidth={1.5} /> AI Chat
+            <LayoutGrid size={14} strokeWidth={1.5} /> AI Toolkit
           </button>
           <button className="btn-primary" onClick={saveFile} disabled={!currentFile}>
             <Save size={14} strokeWidth={1.5} /> Save {currentFile && "(⌘S)"}
@@ -1173,17 +1173,16 @@ function App() {
 
             {activeSidebarTab === 'explorer' && (
               <>
-                <div className="sidebar-header">
-                  <h2>Explorer</h2>
+                <div className="sidebar-header sidebar-header--compact">
                   <div className="sidebar-actions">
                     <button className="btn-icon" onClick={handleNewFile} title="New File" disabled={!currentDirectory}>
-                      <FilePlus size={18} />
+                      <FilePlus size={16} />
                     </button>
                     <button className="btn-icon" onClick={handleNewFolder} title="New Folder" disabled={!currentDirectory}>
-                      <FolderPlus size={18} />
+                      <FolderPlus size={16} />
                     </button>
                     <button className="btn-icon" onClick={openFolder} title="Open Folder">
-                      <FolderOpen size={18} />
+                      <FolderOpen size={16} />
                     </button>
                   </div>
                 </div>

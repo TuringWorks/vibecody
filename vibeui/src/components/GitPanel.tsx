@@ -48,11 +48,20 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  const [resolvingConflict, setResolvingConflict] = useState(false);
  const [conflictResolution, setConflictResolution] = useState('');
  const [gitError, setGitError] = useState<string | null>(null);
+ const [showGitSettings, setShowGitSettings] = useState(false);
+ const [gitUserName, setGitUserName] = useState('');
+ const [gitUserEmail, setGitUserEmail] = useState('');
+ const [gitCredUrl, setGitCredUrl] = useState('');
+ const [gitCredUser, setGitCredUser] = useState('');
+ const [gitCredToken, setGitCredToken] = useState('');
+ const [sshAvailable, setSshAvailable] = useState(false);
+ const [remoteUrl, setRemoteUrl] = useState('');
 
  useEffect(() => {
  if (workspacePath) {
  loadGitStatus();
  loadBranches();
+ loadGitConfig();
  }
  }, [workspacePath]);
 
@@ -279,12 +288,54 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  }
  };
 
+ const loadGitConfig = async () => {
+ if (!workspacePath) return;
+ try {
+ const config = await invoke<{ user_name: string; user_email: string; remote_url: string; ssh_available: boolean }>('get_git_config', { path: workspacePath });
+ setGitUserName(config.user_name);
+ setGitUserEmail(config.user_email);
+ setRemoteUrl(config.remote_url);
+ setSshAvailable(config.ssh_available);
+ } catch {
+ // Git config may not be available
+ }
+ };
+
+ const saveGitConfig = async () => {
+ if (!workspacePath) return;
+ try {
+ await invoke('set_git_config', { path: workspacePath, userName: gitUserName, userEmail: gitUserEmail });
+ toast.success('Git config saved');
+ } catch (e) {
+ toast.error(`Failed to save git config: ${e}`);
+ }
+ };
+
+ const saveGitCredentials = async () => {
+ if (!gitCredUrl || !gitCredUser || !gitCredToken) return;
+ try {
+ await invoke('store_git_credentials', { url: gitCredUrl, username: gitCredUser, token: gitCredToken });
+ toast.success('Credentials stored');
+ setGitCredToken('');
+ } catch (e) {
+ toast.error(`Failed to store credentials: ${e}`);
+ }
+ };
+
  const toggleFileSelection = (file: string) => {
  setSelectedFiles(prev =>
  prev.includes(file)
  ? prev.filter(f => f !== file)
  : [...prev, file]
  );
+ };
+
+ const toggleSelectAll = (allFiles: string[]) => {
+ if (selectedFiles.length === allFiles.length) {
+ setSelectedFiles([]);
+ } else {
+ setSelectedFiles([...allFiles]);
+ }
  };
 
  if (!workspacePath) {
@@ -409,7 +460,23 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  </div>
  ) : (
  <div>
- <h3 style={{ fontSize: '13px', marginBottom: '8px' }}>Changes</h3>
+ <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+ {changedFiles.length > 0 && (
+ <input
+ type="checkbox"
+ checked={selectedFiles.length === changedFiles.length && changedFiles.length > 0}
+ ref={(el) => { if (el) el.indeterminate = selectedFiles.length > 0 && selectedFiles.length < changedFiles.length; }}
+ onChange={() => toggleSelectAll(changedFiles.map(([f]) => f))}
+ title={selectedFiles.length === changedFiles.length ? 'Deselect all' : 'Select all'}
+ />
+ )}
+ <h3 style={{ fontSize: '13px', margin: 0 }}>Changes</h3>
+ {changedFiles.length > 0 && (
+ <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>
+ {selectedFiles.length}/{changedFiles.length}
+ </span>
+ )}
+ </div>
  {changedFiles.length === 0 ? (
  <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>No changes</p>
  ) : (
@@ -684,6 +751,102 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  </div>
  )}
  </div>
+ </div>
+
+ {/* ── Git Settings section ── */}
+ <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: 8 }}>
+ <button
+ onClick={() => setShowGitSettings(!showGitSettings)}
+ style={{
+ width: '100%', textAlign: 'left', padding: '6px 8px',
+ background: showGitSettings ? 'var(--bg-tertiary)' : 'transparent',
+ border: 'none', borderRadius: 4, cursor: 'pointer',
+ color: 'var(--text-primary)', fontSize: 12,
+ display: 'flex', alignItems: 'center', gap: 6,
+ }}
+ >
+ <span>{showGitSettings ? '▼' : '▶'}</span>
+ <span>Git Settings</span>
+ {sshAvailable && <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: '#a6e3a122', color: '#a6e3a1' }}>SSH</span>}
+ </button>
+ {showGitSettings && (
+ <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 10 }}>
+ {/* User identity */}
+ <div>
+ <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>User Identity</div>
+ <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+ <input
+ value={gitUserName}
+ onChange={e => setGitUserName(e.target.value)}
+ placeholder="User name"
+ style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4, padding: '3px 6px', fontSize: 11, fontFamily: 'inherit' }}
+ />
+ <input
+ value={gitUserEmail}
+ onChange={e => setGitUserEmail(e.target.value)}
+ placeholder="Email"
+ style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4, padding: '3px 6px', fontSize: 11, fontFamily: 'inherit' }}
+ />
+ <button
+ onClick={saveGitConfig}
+ disabled={!gitUserName && !gitUserEmail}
+ style={{ alignSelf: 'flex-start', background: 'rgba(99,102,241,0.2)', color: 'var(--accent-color, #007acc)', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontSize: 11 }}
+ >
+ Save Identity
+ </button>
+ </div>
+ </div>
+
+ {/* Remote & SSH info */}
+ <div>
+ <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>Remote</div>
+ <div style={{ fontSize: 11, padding: '4px 6px', background: 'var(--bg-tertiary)', borderRadius: 4, wordBreak: 'break-all' }}>
+ {remoteUrl || 'No remote configured'}
+ </div>
+ <div style={{ marginTop: 4, fontSize: 10, color: sshAvailable ? '#a6e3a1' : 'var(--text-secondary)' }}>
+ {remoteUrl.startsWith('git@') ? '● Using SSH' : sshAvailable ? '● SSH keys detected — switch remote to SSH for passwordless auth' : '○ No SSH keys found — use HTTPS with credentials below'}
+ </div>
+ </div>
+
+ {/* Credentials for HTTPS */}
+ {!remoteUrl.startsWith('git@') && (
+ <div>
+ <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>HTTPS Credentials</div>
+ <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+ <input
+ value={gitCredUrl}
+ onChange={e => setGitCredUrl(e.target.value)}
+ placeholder="Repository URL (e.g. https://github.com/user/repo)"
+ style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4, padding: '3px 6px', fontSize: 11, fontFamily: 'inherit' }}
+ />
+ <input
+ value={gitCredUser}
+ onChange={e => setGitCredUser(e.target.value)}
+ placeholder="Username"
+ style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4, padding: '3px 6px', fontSize: 11, fontFamily: 'inherit' }}
+ />
+ <input
+ type="password"
+ value={gitCredToken}
+ onChange={e => setGitCredToken(e.target.value)}
+ placeholder="Personal access token / password"
+ style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4, padding: '3px 6px', fontSize: 11, fontFamily: 'inherit' }}
+ />
+ <button
+ onClick={saveGitCredentials}
+ disabled={!gitCredUrl || !gitCredUser || !gitCredToken}
+ style={{ alignSelf: 'flex-start', background: 'rgba(99,102,241,0.2)', color: 'var(--accent-color, #007acc)', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontSize: 11 }}
+ >
+ Store Credentials
+ </button>
+ <div style={{ fontSize: 10, color: 'var(--text-secondary)' }}>
+ Stored via git credential-store. Use a personal access token instead of password.
+ </div>
+ </div>
+ </div>
+ )}
+ </div>
+ )}
  </div>
 
  <Toaster toasts={toasts} onDismiss={dismiss} />

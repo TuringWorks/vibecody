@@ -388,7 +388,7 @@ export function PanelHost(props: PanelHostProps) {
     case "remotecontrol":
       return <LazyPanel Component={RemoteControlPanel} props={{}} />;
     case "securityscan":
-      return <LazyPanel Component={SecurityScanPanel} props={{}} />;
+      return <LazyPanel Component={SecurityScanPanel} props={{ workspacePath: wp || undefined, onOpenFile }} />;
     case "sessions":
       return <LazyPanel Component={SessionBrowserPanel} props={{}} />;
     case "subagents":
