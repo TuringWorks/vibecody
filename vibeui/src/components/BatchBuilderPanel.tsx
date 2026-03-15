@@ -290,9 +290,9 @@ const badge = (_: string, color: string): React.CSSProperties => ({
 });
 
 const inputStyle: React.CSSProperties = {
-  background: "var(--vscode-input-background)",
-  color: "var(--vscode-input-foreground)",
-  border: "1px solid var(--vscode-input-border)",
+  background: "var(--bg-secondary)",
+  color: "var(--text-primary)",
+  border: "1px solid var(--border-color)",
   borderRadius: 4,
   padding: "6px 10px",
   fontSize: 13,
@@ -301,8 +301,8 @@ const inputStyle: React.CSSProperties = {
 };
 
 const btnStyle: React.CSSProperties = {
-  background: "var(--vscode-button-background)",
-  color: "var(--vscode-button-foreground)",
+  background: "var(--accent-color)",
+  color: "white",
   border: "none",
   borderRadius: 4,
   padding: "6px 14px",
@@ -321,12 +321,12 @@ const sectionTitle: React.CSSProperties = {
   fontWeight: 600,
   marginBottom: 8,
   marginTop: 16,
-  color: "var(--vscode-editor-foreground)",
+  color: "var(--text-primary)",
 };
 
 const cardStyle: React.CSSProperties = {
-  background: "var(--vscode-input-background)",
-  border: "1px solid var(--vscode-input-border)",
+  background: "var(--bg-secondary)",
+  border: "1px solid var(--border-color)",
   borderRadius: 6,
   padding: 12,
   marginBottom: 8,
@@ -341,15 +341,15 @@ const tableStyle: React.CSSProperties = {
 const thStyle: React.CSSProperties = {
   textAlign: "left",
   padding: "6px 8px",
-  borderBottom: "1px solid var(--vscode-input-border)",
+  borderBottom: "1px solid var(--border-color)",
   fontWeight: 600,
-  color: "var(--vscode-editor-foreground)",
+  color: "var(--text-primary)",
 };
 
 const tdStyle: React.CSSProperties = {
   padding: "6px 8px",
-  borderBottom: "1px solid var(--vscode-input-border)",
-  color: "var(--vscode-editor-foreground)",
+  borderBottom: "1px solid var(--border-color)",
+  color: "var(--text-primary)",
 };
 
 /* ── Mock Data Generators ────────────────────────────────────────────── */
@@ -687,7 +687,7 @@ const BatchBuilderPanel: React.FC = () => {
       {/* Tech Stack & Priority */}
       <div style={{ display: "flex", gap: 12, marginTop: 12 }}>
         <div style={{ flex: 1 }}>
-          <label style={{ fontSize: 12, color: "var(--vscode-editor-foreground)", display: "block", marginBottom: 4 }}>Tech Stack</label>
+          <label style={{ fontSize: 12, color: "var(--text-primary)", display: "block", marginBottom: 4 }}>Tech Stack</label>
           <select
             style={{ ...inputStyle }}
             value={techStack}
@@ -699,7 +699,7 @@ const BatchBuilderPanel: React.FC = () => {
           </select>
         </div>
         <div style={{ flex: 1 }}>
-          <label style={{ fontSize: 12, color: "var(--vscode-editor-foreground)", display: "block", marginBottom: 4 }}>Priority</label>
+          <label style={{ fontSize: 12, color: "var(--text-primary)", display: "block", marginBottom: 4 }}>Priority</label>
           <div style={{ display: "flex", gap: 4 }}>
             {(["low", "normal", "high", "critical"] as Priority[]).map((p) => (
               <button
@@ -708,9 +708,9 @@ const BatchBuilderPanel: React.FC = () => {
                 style={{
                   ...btnStyle,
                   flex: 1,
-                  background: priority === p ? PRIORITY_COLORS[p] : "var(--vscode-input-background)",
-                  color: priority === p ? "white" : "var(--vscode-editor-foreground)",
-                  border: `1px solid ${priority === p ? PRIORITY_COLORS[p] : "var(--vscode-input-border)"}`,
+                  background: priority === p ? PRIORITY_COLORS[p] : "var(--bg-secondary)",
+                  color: priority === p ? "white" : "var(--text-primary)",
+                  border: `1px solid ${priority === p ? PRIORITY_COLORS[p] : "var(--border-color)"}`,
                   textTransform: "capitalize",
                   fontSize: 11,
                   padding: "4px 6px",
@@ -767,7 +767,7 @@ const BatchBuilderPanel: React.FC = () => {
         </select>
         <input style={{ ...inputStyle, flex: 1, minWidth: 140 }} placeholder="/api/resource" value={epForm.path} onChange={(e) => setEpForm({ ...epForm, path: e.target.value })} />
         <input style={{ ...inputStyle, flex: 1, minWidth: 140 }} placeholder="Description" value={epForm.desc} onChange={(e) => setEpForm({ ...epForm, desc: e.target.value })} />
-        <label style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 4, cursor: "pointer", color: "var(--vscode-editor-foreground)" }}>
+        <label style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 4, cursor: "pointer", color: "var(--text-primary)" }}>
           <input type="checkbox" checked={epForm.auth} onChange={(e) => setEpForm({ ...epForm, auth: e.target.checked })} /> Auth
         </label>
         <button style={btnStyle} onClick={addEndpoint}>Add</button>
@@ -800,7 +800,7 @@ const BatchBuilderPanel: React.FC = () => {
           <select style={{ ...inputStyle, width: 100 }} value={fieldForm.type} onChange={(e) => setFieldForm({ ...fieldForm, type: e.target.value as FieldType })}>
             {(["string", "number", "boolean", "date", "uuid", "json", "array", "enum"] as FieldType[]).map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
-          <label style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 4, cursor: "pointer", color: "var(--vscode-editor-foreground)" }}>
+          <label style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 4, cursor: "pointer", color: "var(--text-primary)" }}>
             <input type="checkbox" checked={fieldForm.required} onChange={(e) => setFieldForm({ ...fieldForm, required: e.target.checked })} /> Req
           </label>
           <button style={btnStyle} onClick={addField}>+ Field</button>
@@ -850,7 +850,7 @@ const BatchBuilderPanel: React.FC = () => {
           <div style={{ gridColumn: "span 2" }}>
             <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>Recommended Agents</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-              {estimate.agents.map((a) => <span key={a} style={badge(a, "var(--vscode-badge-background)")}>{a}</span>)}
+              {estimate.agents.map((a) => <span key={a} style={badge(a, "var(--bg-tertiary)")}>{a}</span>)}
             </div>
           </div>
         </div>
@@ -868,7 +868,7 @@ const BatchBuilderPanel: React.FC = () => {
           <span style={{ fontSize: 12, fontFamily: "monospace", color: "var(--text-muted)" }}>{runId}</span>
           <span style={badge(runStatus, STATUS_COLORS[runStatus])}>{runStatus}</span>
         </div>
-        <span style={{ fontSize: 12, color: "var(--vscode-editor-foreground)" }}>Elapsed: {elapsed}</span>
+        <span style={{ fontSize: 12, color: "var(--text-primary)" }}>Elapsed: {elapsed}</span>
       </div>
 
       {/* Progress bar */}
@@ -877,15 +877,15 @@ const BatchBuilderPanel: React.FC = () => {
           <span>{phaseLabel}</span>
           <span>{progress}%</span>
         </div>
-        <div style={{ height: 8, borderRadius: 4, background: "var(--vscode-input-background)" }}>
-          <div style={{ height: 8, borderRadius: 4, background: "var(--vscode-button-background)", width: `${progress}%`, transition: "width 0.3s" }} />
+        <div style={{ height: 8, borderRadius: 4, background: "var(--bg-secondary)" }}>
+          <div style={{ height: 8, borderRadius: 4, background: "var(--accent-color)", width: `${progress}%`, transition: "width 0.3s" }} />
         </div>
       </div>
 
       {/* Token budget */}
-      <div style={{ marginTop: 12, fontSize: 12, color: "var(--vscode-editor-foreground)" }}>
+      <div style={{ marginTop: 12, fontSize: 12, color: "var(--text-primary)" }}>
         Tokens: {tokenUsed.toLocaleString()} / {tokenTotal.toLocaleString()} ({Math.round((tokenUsed / tokenTotal) * 100)}%)
-        <div style={{ height: 4, borderRadius: 2, background: "var(--vscode-input-background)", marginTop: 4 }}>
+        <div style={{ height: 4, borderRadius: 2, background: "var(--bg-secondary)", marginTop: 4 }}>
           <div style={{ height: 4, borderRadius: 2, background: tokenUsed / tokenTotal > 0.9 ? "var(--error-color)" : "var(--success-color)", width: `${(tokenUsed / tokenTotal) * 100}%` }} />
         </div>
       </div>
@@ -901,7 +901,7 @@ const BatchBuilderPanel: React.FC = () => {
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
               <span style={{
                 width: 24, height: 24, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 11, fontWeight: 700, background: "var(--vscode-badge-background)", color: "var(--vscode-badge-foreground)",
+                fontSize: 11, fontWeight: 700, background: "var(--bg-tertiary)", color: "white",
               }}>{a.icon}</span>
               <span style={{ fontSize: 12, fontWeight: 600 }}>{a.role}</span>
             </div>
@@ -922,7 +922,7 @@ const BatchBuilderPanel: React.FC = () => {
               {p.status === "completed" ? "\u2713" : p.status === "active" ? "\u25CF" : "\u25CB"}
             </span>
             <span style={{
-              color: p.status === "completed" ? "var(--success-color)" : p.status === "active" ? "var(--vscode-button-background)" : "var(--text-muted)",
+              color: p.status === "completed" ? "var(--success-color)" : p.status === "active" ? "var(--accent-color)" : "var(--text-muted)",
               fontWeight: p.status === "active" ? 600 : 400,
             }}>{p.name}</span>
           </div>
@@ -957,8 +957,8 @@ const BatchBuilderPanel: React.FC = () => {
       {/* Log viewer */}
       <div style={sectionTitle}>Logs</div>
       <div style={{
-        background: "var(--vscode-input-background)",
-        border: "1px solid var(--vscode-input-border)",
+        background: "var(--bg-secondary)",
+        border: "1px solid var(--border-color)",
         borderRadius: 6,
         maxHeight: 240,
         overflowY: "auto",
@@ -988,7 +988,7 @@ const BatchBuilderPanel: React.FC = () => {
         {/* Round selector & Overall score */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <label style={{ fontSize: 12, color: "var(--vscode-editor-foreground)" }}>QA Round:</label>
+            <label style={{ fontSize: 12, color: "var(--text-primary)" }}>QA Round:</label>
             <select style={{ ...inputStyle, width: 100 }} value={qaRound} onChange={(e) => setQaRound(Number(e.target.value))}>
               {Array.from({ length: qaRound }, (_, i) => (
                 <option key={i + 1} value={i + 1}>Round {i + 1}</option>
@@ -1020,7 +1020,7 @@ const BatchBuilderPanel: React.FC = () => {
                 {qa.low > 0 && <span style={badge(`L:${qa.low}`, SEVERITY_COLORS.Low)}>{`L:${qa.low}`}</span>}
               </div>
               <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>Pass rate: {qa.passRate}%</div>
-              <div style={{ height: 4, borderRadius: 2, background: "var(--vscode-input-background)" }}>
+              <div style={{ height: 4, borderRadius: 2, background: "var(--bg-secondary)" }}>
                 <div style={{ height: 4, borderRadius: 2, background: scoreColor(qa.passRate), width: `${qa.passRate}%` }} />
               </div>
             </div>
@@ -1039,8 +1039,8 @@ const BatchBuilderPanel: React.FC = () => {
                   ...btnStyle,
                   fontSize: 11,
                   padding: "2px 8px",
-                  background: findingSortKey === key ? "var(--vscode-button-background)" : "var(--vscode-input-background)",
-                  color: findingSortKey === key ? "var(--vscode-button-foreground)" : "var(--vscode-editor-foreground)",
+                  background: findingSortKey === key ? "var(--accent-color)" : "var(--bg-secondary)",
+                  color: findingSortKey === key ? "white" : "var(--text-primary)",
                 }}
               >
                 {key}
@@ -1128,19 +1128,19 @@ const BatchBuilderPanel: React.FC = () => {
         {/* Source / Target / Strategy */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 16 }}>
           <div>
-            <label style={{ fontSize: 12, color: "var(--vscode-editor-foreground)", display: "block", marginBottom: 4 }}>Source Language</label>
+            <label style={{ fontSize: 12, color: "var(--text-primary)", display: "block", marginBottom: 4 }}>Source Language</label>
             <select style={inputStyle} value={sourceLang} onChange={(e) => setSourceLang(e.target.value)}>
               {SOURCE_LANGS.map((l) => <option key={l} value={l}>{l}</option>)}
             </select>
           </div>
           <div>
-            <label style={{ fontSize: 12, color: "var(--vscode-editor-foreground)", display: "block", marginBottom: 4 }}>Target Language</label>
+            <label style={{ fontSize: 12, color: "var(--text-primary)", display: "block", marginBottom: 4 }}>Target Language</label>
             <select style={inputStyle} value={targetLang} onChange={(e) => setTargetLang(e.target.value)}>
               {TARGET_LANGS.map((l) => <option key={l} value={l}>{l}</option>)}
             </select>
           </div>
           <div>
-            <label style={{ fontSize: 12, color: "var(--vscode-editor-foreground)", display: "block", marginBottom: 4 }}>Strategy</label>
+            <label style={{ fontSize: 12, color: "var(--text-primary)", display: "block", marginBottom: 4 }}>Strategy</label>
             <select style={inputStyle} value={strategy} onChange={(e) => setStrategy(e.target.value as MigrationStrategy)}>
               {(Object.keys(STRATEGY_DESCRIPTIONS) as MigrationStrategy[]).map((s) => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
             </select>
@@ -1183,7 +1183,7 @@ const BatchBuilderPanel: React.FC = () => {
         <div style={sectionTitle}>Service Boundaries</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 8 }}>
           {["Core Services", "Data Access", "API Gateway"].map((group) => (
-            <div key={group} style={{ ...cardStyle, borderTop: "3px solid var(--vscode-button-background)" }}>
+            <div key={group} style={{ ...cardStyle, borderTop: "3px solid var(--accent-color)" }}>
               <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>{group}</div>
               <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
                 {migComponents
@@ -1254,8 +1254,8 @@ const BatchBuilderPanel: React.FC = () => {
                 borderRadius: 4,
                 fontSize: 11,
                 fontWeight: i <= migPhaseIndex ? 600 : 400,
-                background: i < migPhaseIndex ? "var(--success-color)" : i === migPhaseIndex ? "var(--vscode-button-background)" : "var(--vscode-input-background)",
-                color: i <= migPhaseIndex ? "white" : "var(--vscode-editor-foreground)",
+                background: i < migPhaseIndex ? "var(--success-color)" : i === migPhaseIndex ? "var(--accent-color)" : "var(--bg-secondary)",
+                color: i <= migPhaseIndex ? "white" : "var(--text-primary)",
               }}>
                 {phase}
               </div>
@@ -1322,8 +1322,8 @@ const BatchBuilderPanel: React.FC = () => {
               ...btnStyle,
               fontSize: 11,
               padding: "4px 10px",
-              background: historyFilter === f ? "var(--vscode-button-background)" : "var(--vscode-input-background)",
-              color: historyFilter === f ? "var(--vscode-button-foreground)" : "var(--vscode-editor-foreground)",
+              background: historyFilter === f ? "var(--accent-color)" : "var(--bg-secondary)",
+              color: historyFilter === f ? "white" : "var(--text-primary)",
               textTransform: "capitalize",
             }}
           >
@@ -1352,7 +1352,7 @@ const BatchBuilderPanel: React.FC = () => {
               <tr
                 onClick={() => setExpandedRun(expandedRun === run.id ? null : run.id)}
                 style={{ cursor: "pointer" }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--vscode-list-hoverBackground)"; }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-secondary)"; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
               >
                 <td style={{ ...tdStyle, fontFamily: "monospace", fontSize: 11 }}>{run.id}</td>
@@ -1370,7 +1370,7 @@ const BatchBuilderPanel: React.FC = () => {
               </tr>
               {expandedRun === run.id && (
                 <tr>
-                  <td colSpan={8} style={{ ...tdStyle, padding: 16, background: "var(--vscode-input-background)" }}>
+                  <td colSpan={8} style={{ ...tdStyle, padding: 16, background: "var(--bg-secondary)" }}>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
                       <div>
                         <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 13 }}>Detailed Metrics</div>
@@ -1406,16 +1406,16 @@ const BatchBuilderPanel: React.FC = () => {
       height: "100%",
       display: "flex",
       flexDirection: "column",
-      background: "var(--vscode-editor-background)",
-      color: "var(--vscode-editor-foreground)",
-      fontFamily: "var(--vscode-font-family, sans-serif)",
+      background: "var(--bg-primary)",
+      color: "var(--text-primary)",
+      fontFamily: "inherit",
       fontSize: 13,
     }}>
       {/* Tab bar */}
       <div style={{
         display: "flex",
-        borderBottom: "1px solid var(--vscode-input-border)",
-        background: "var(--vscode-input-background)",
+        borderBottom: "1px solid var(--border-color)",
+        background: "var(--bg-secondary)",
       }}>
         {TABS.map((tab) => (
           <button
@@ -1425,9 +1425,9 @@ const BatchBuilderPanel: React.FC = () => {
               flex: 1,
               padding: "10px 0",
               border: "none",
-              borderBottom: activeTab === tab.key ? "2px solid var(--vscode-button-background)" : "2px solid transparent",
+              borderBottom: activeTab === tab.key ? "2px solid var(--accent-color)" : "2px solid transparent",
               background: "transparent",
-              color: activeTab === tab.key ? "var(--vscode-button-background)" : "var(--vscode-editor-foreground)",
+              color: activeTab === tab.key ? "var(--accent-color)" : "var(--text-primary)",
               fontWeight: activeTab === tab.key ? 600 : 400,
               cursor: "pointer",
               fontSize: 13,

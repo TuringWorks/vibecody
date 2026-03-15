@@ -193,11 +193,11 @@ export function ScaffoldPanel({ workspacePath }: { workspacePath: string | null 
  </div>
 
  {error && (
- <div style={{ padding: "6px 12px", background: "rgba(243,139,168,0.1)", color: "var(--text-danger, #f38ba8)", fontSize: 11, borderBottom: "1px solid var(--border-color)" }}> {error}</div>
+ <div style={{ padding: "6px 12px", background: "rgba(243,139,168,0.1)", color: "var(--text-danger)", fontSize: 11, borderBottom: "1px solid var(--border-color)" }}> {error}</div>
  )}
 
  {written && (
- <div style={{ padding: "6px 12px", background: "rgba(166,227,161,0.1)", color: "var(--text-success, #a6e3a1)", fontSize: 11, borderBottom: "1px solid var(--border-color)" }}>
+ <div style={{ padding: "6px 12px", background: "rgba(166,227,161,0.1)", color: "var(--text-success)", fontSize: 11, borderBottom: "1px solid var(--border-color)" }}>
  Scaffold written to <code style={{ fontFamily: "monospace" }}>{outputDir}</code>
  {preview?.install_command && <> — run <code style={{ fontFamily: "monospace" }}>{preview.install_command}</code></>}
  </div>

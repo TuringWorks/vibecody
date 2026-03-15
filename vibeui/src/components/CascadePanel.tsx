@@ -104,7 +104,7 @@ export function CascadePanel({ onInjectContext }: CascadePanelProps) {
  </button>
  <button
  onClick={() => flowContext.clear()}
- style={{ ...btnStyle, color: "var(--text-danger, #ff4d4f)" }}
+ style={{ ...btnStyle, color: "var(--text-danger)" }}
  title="Clear flow history"
  >
  Clear
@@ -133,8 +133,8 @@ export function CascadePanel({ onInjectContext }: CascadePanelProps) {
  fontSize: 11,
  borderRadius: 10,
  border: "1px solid var(--border-color)",
- background: filter === f ? "var(--accent-blue, #007acc)" : "transparent",
- color: filter === f ? "#fff" : "var(--text-secondary)",
+ background: filter === f ? "var(--accent-color)" : "transparent",
+ color: filter === f ? "var(--text-primary)" : "var(--text-secondary)",
  cursor: "pointer",
  }}
  >
@@ -221,7 +221,7 @@ function FlowEventRow({
  <span style={{
  fontSize: 10,
  fontWeight: 600,
- color: "var(--accent-blue, #007acc)",
+ color: "var(--accent-color)",
  textTransform: "uppercase",
  letterSpacing: 0.5,
  }}>

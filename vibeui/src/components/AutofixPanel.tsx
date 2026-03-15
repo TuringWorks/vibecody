@@ -136,8 +136,8 @@ export function AutofixPanel({ workspacePath }: { workspacePath: string | null }
  <button
  onClick={handleSuspend}
  style={{
- background: "#c62828",
- color: "#fff", border: "none", borderRadius: "4px",
+ background: "var(--error-color)",
+ color: "white", border: "none", borderRadius: "4px",
  padding: "4px 16px", cursor: "pointer",
  }}
  >
@@ -148,8 +148,8 @@ export function AutofixPanel({ workspacePath }: { workspacePath: string | null }
  onClick={handleRun}
  disabled={!workspacePath}
  style={{
- background: "var(--accent-blue)",
- color: "#fff", border: "none", borderRadius: "4px",
+ background: "var(--accent-color)",
+ color: "white", border: "none", borderRadius: "4px",
  padding: "4px 16px", cursor: !workspacePath ? "default" : "pointer",
  }}
  >
@@ -237,7 +237,7 @@ export function AutofixPanel({ workspacePath }: { workspacePath: string | null }
  line.startsWith("@@") ? "rgba(33,150,243,0.15)" : "transparent";
  const textColor = line.startsWith("+") && !line.startsWith("+++") ? "var(--success-color)" :
  line.startsWith("-") && !line.startsWith("---") ? "var(--error-color)" :
- line.startsWith("@@") ? "var(--accent-blue)" :
+ line.startsWith("@@") ? "var(--accent-color)" :
  line.startsWith("diff ") || line.startsWith("---") || line.startsWith("+++") ? "var(--text-secondary)" :
  "var(--text-secondary)";
  return (

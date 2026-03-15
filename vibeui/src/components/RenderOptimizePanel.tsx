@@ -20,25 +20,25 @@ const RenderOptimizePanel: React.FC = () => {
   ]);
 
   const containerStyle: React.CSSProperties = {
-    padding: "16px", color: "var(--vscode-foreground)",
-    backgroundColor: "var(--vscode-editor-background)",
-    fontFamily: "var(--vscode-font-family)", fontSize: "var(--vscode-font-size)",
+    padding: "16px", color: "var(--text-primary)",
+    backgroundColor: "var(--bg-primary)",
+    fontFamily: "inherit", fontSize: "13px",
     height: "100%", overflow: "auto",
   };
-  const tabBar: React.CSSProperties = { display: "flex", gap: "4px", marginBottom: "16px", borderBottom: "1px solid var(--vscode-panel-border)" };
+  const tabBar: React.CSSProperties = { display: "flex", gap: "4px", marginBottom: "16px", borderBottom: "1px solid var(--border-color)" };
   const tab = (active: boolean): React.CSSProperties => ({
     padding: "8px 16px", cursor: "pointer", border: "none",
-    backgroundColor: active ? "var(--vscode-tab-activeBackground)" : "transparent",
-    color: active ? "var(--vscode-tab-activeForeground)" : "var(--vscode-tab-inactiveForeground)",
-    borderBottom: active ? "2px solid var(--vscode-focusBorder)" : "2px solid transparent",
+    backgroundColor: active ? "var(--bg-secondary)" : "transparent",
+    color: active ? "var(--text-primary)" : "var(--text-secondary)",
+    borderBottom: active ? "2px solid var(--accent-color)" : "2px solid transparent",
   });
   const btn: React.CSSProperties = {
     padding: "6px 14px", border: "none", borderRadius: "4px", cursor: "pointer",
-    backgroundColor: "var(--vscode-button-background)", color: "var(--vscode-button-foreground)",
+    backgroundColor: "var(--accent-color)", color: "white",
   };
   const card: React.CSSProperties = {
     padding: "12px", marginBottom: "8px", borderRadius: "6px",
-    backgroundColor: "var(--vscode-editorWidget-background)", border: "1px solid var(--vscode-panel-border)",
+    backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border-color)",
   };
 
   const hitRate = stats.totalFrames > 0 ? Math.round((stats.cacheHits / stats.totalFrames) * 100) : 0;
@@ -69,8 +69,8 @@ const RenderOptimizePanel: React.FC = () => {
           <div style={card}>
             <h4 style={{ margin: "0 0 8px" }}>Cache Hit Rate</h4>
             <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "4px" }}>
-              <div style={{ flex: 1, height: "24px", borderRadius: "12px", backgroundColor: "var(--vscode-panel-border)", overflow: "hidden" }}>
-                <div style={{ height: "100%", borderRadius: "12px", width: `${hitRate}%`, backgroundColor: hitRate > 70 ? "#2ea043" : hitRate > 40 ? "#d29922" : "#f85149", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: 700, color: "#fff", transition: "width 0.3s" }}>
+              <div style={{ flex: 1, height: "24px", borderRadius: "12px", backgroundColor: "var(--border-color)", overflow: "hidden" }}>
+                <div style={{ height: "100%", borderRadius: "12px", width: `${hitRate}%`, backgroundColor: hitRate > 70 ? "var(--success-color)" : hitRate > 40 ? "var(--warning-color)" : "var(--error-color)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: 700, color: "white", transition: "width 0.3s" }}>
                   {hitRate}%
                 </div>
               </div>
@@ -78,10 +78,10 @@ const RenderOptimizePanel: React.FC = () => {
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "8px" }}>
             {[
-              { label: "Total Frames", value: stats.totalFrames, color: "var(--vscode-foreground)" },
-              { label: "Avg Reduction", value: `${stats.avgReduction}%`, color: "#1f6feb" },
-              { label: "Cache Hits", value: stats.cacheHits, color: "#2ea043" },
-              { label: "Cache Misses", value: stats.cacheMisses, color: "#f85149" },
+              { label: "Total Frames", value: stats.totalFrames, color: "var(--text-primary)" },
+              { label: "Avg Reduction", value: `${stats.avgReduction}%`, color: "var(--info-color)" },
+              { label: "Cache Hits", value: stats.cacheHits, color: "var(--success-color)" },
+              { label: "Cache Misses", value: stats.cacheMisses, color: "var(--error-color)" },
             ].map(s => (
               <div key={s.label} style={{ ...card, textAlign: "center" }}>
                 <div style={{ fontSize: "22px", fontWeight: 700, color: s.color }}>{s.value}</div>
@@ -107,7 +107,7 @@ const RenderOptimizePanel: React.FC = () => {
               </div>
               <div>
                 <div style={{ opacity: 0.6, fontSize: "12px" }}>Dirty Lines</div>
-                <div style={{ fontWeight: 600, color: dirtyRegions.length > 0 ? "#d29922" : "#2ea043" }}>{dirtyRegions.reduce((sum, r) => sum + (r.endLine - r.startLine + 1), 0)}</div>
+                <div style={{ fontWeight: 600, color: dirtyRegions.length > 0 ? "var(--warning-color)" : "var(--success-color)" }}>{dirtyRegions.reduce((sum, r) => sum + (r.endLine - r.startLine + 1), 0)}</div>
               </div>
             </div>
           </div>
@@ -119,7 +119,7 @@ const RenderOptimizePanel: React.FC = () => {
                 <span style={{ fontWeight: 600 }}>Lines {r.startLine}-{r.endLine}</span>
                 <span style={{ opacity: 0.6, marginLeft: "8px" }}>({r.endLine - r.startLine + 1} line{r.endLine - r.startLine > 0 ? "s" : ""})</span>
               </div>
-              <span style={{ opacity: 0.7, fontSize: "12px", padding: "2px 8px", borderRadius: "10px", backgroundColor: "var(--vscode-badge-background)", color: "var(--vscode-badge-foreground)" }}>
+              <span style={{ opacity: 0.7, fontSize: "12px", padding: "2px 8px", borderRadius: "10px", backgroundColor: "var(--bg-tertiary)", color: "white" }}>
                 {r.reason}
               </span>
             </div>
@@ -133,7 +133,7 @@ const RenderOptimizePanel: React.FC = () => {
             <h4 style={{ margin: "0 0 12px" }}>Render Actions</h4>
             <div style={{ display: "flex", gap: "8px" }}>
               <button style={btn} onClick={handleForceRerender}>Force Full Rerender</button>
-              <button style={{ ...btn, backgroundColor: "#f85149" }} onClick={handleClearCache}>Clear Cache</button>
+              <button style={{ ...btn, backgroundColor: "var(--error-color)" }} onClick={handleClearCache}>Clear Cache</button>
             </div>
           </div>
         </div>

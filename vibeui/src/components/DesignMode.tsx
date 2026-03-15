@@ -219,7 +219,7 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
  {isGenerating ? "Generating…" : "Generate"}
  </button>
  {generationResult && (
- <pre style={{ marginTop: 8, fontSize: 11, color: "var(--text-success, #a6e3a1)", overflowX: "auto", whiteSpace: "pre-wrap", background: "var(--bg-secondary)", borderRadius: 4, padding: 8 }}>
+ <pre style={{ marginTop: 8, fontSize: 11, color: "var(--text-success)", overflowX: "auto", whiteSpace: "pre-wrap", background: "var(--bg-secondary)", borderRadius: 4, padding: 8 }}>
  {generationResult}
  </pre>
  )}
@@ -263,7 +263,7 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
  />
  {figmaResult.length > 0 && (
  <div style={{ marginBottom: 16 }}>
- <div style={{ fontSize: 12, color: "var(--text-success, #a6e3a1)", marginBottom: 6 }}>Generated {figmaResult.length} file(s):</div>
+ <div style={{ fontSize: 12, color: "var(--text-success)", marginBottom: 6 }}>Generated {figmaResult.length} file(s):</div>
  {figmaResult.map((f) => (
  <div key={f.path} style={{ fontSize: 11, fontFamily: "monospace", opacity: 0.7 }}> {f.path}</div>
  ))}

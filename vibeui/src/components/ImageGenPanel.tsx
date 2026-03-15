@@ -42,40 +42,40 @@ const ImageGenPanel: React.FC = () => {
   const models = ["DALL-E 3", "Stable Diffusion XL", "Midjourney v6", "Imagen 3", "Flux Pro"];
 
   const containerStyle: React.CSSProperties = {
-    padding: "16px", color: "var(--vscode-foreground)",
-    backgroundColor: "var(--vscode-editor-background)",
-    fontFamily: "var(--vscode-font-family)", fontSize: "var(--vscode-font-size)",
+    padding: "16px", color: "var(--text-primary)",
+    backgroundColor: "var(--bg-primary)",
+    fontFamily: "var(--font-mono, monospace)", fontSize: "13px",
     height: "100%", overflow: "auto",
   };
   const tabBarStyle: React.CSSProperties = {
     display: "flex", gap: "4px", marginBottom: "16px",
-    borderBottom: "1px solid var(--vscode-panel-border)", paddingBottom: "8px",
+    borderBottom: "1px solid var(--border-color)", paddingBottom: "8px",
   };
   const tabStyle = (active: boolean): React.CSSProperties => ({
     padding: "6px 14px", cursor: "pointer", border: "none",
-    backgroundColor: active ? "var(--vscode-button-background)" : "transparent",
-    color: active ? "var(--vscode-button-foreground)" : "var(--vscode-foreground)",
-    borderRadius: "4px", fontSize: "var(--vscode-font-size)",
+    backgroundColor: active ? "var(--accent-color)" : "transparent",
+    color: active ? "var(--text-primary)" : "var(--text-primary)",
+    borderRadius: "4px", fontSize: "13px",
   });
   const inputStyle: React.CSSProperties = {
     width: "100%", padding: "6px 10px", boxSizing: "border-box",
-    backgroundColor: "var(--vscode-input-background)", color: "var(--vscode-input-foreground)",
-    border: "1px solid var(--vscode-input-border)", borderRadius: "4px",
+    backgroundColor: "var(--bg-secondary)", color: "var(--text-primary)",
+    border: "1px solid var(--border-color)", borderRadius: "4px",
   };
   const btnStyle: React.CSSProperties = {
     padding: "6px 14px", cursor: "pointer", border: "none", borderRadius: "4px",
-    backgroundColor: "var(--vscode-button-background)", color: "var(--vscode-button-foreground)",
+    backgroundColor: "var(--accent-color)", color: "var(--text-primary)",
   };
   const cardStyle: React.CSSProperties = {
     padding: "10px", marginBottom: "8px", borderRadius: "4px",
-    backgroundColor: "var(--vscode-editor-inactiveSelectionBackground)",
-    border: "1px solid var(--vscode-panel-border)",
+    backgroundColor: "var(--bg-secondary)",
+    border: "1px solid var(--border-color)",
   };
   const labelStyle: React.CSSProperties = { display: "block", marginBottom: "4px", fontWeight: 600, fontSize: "12px" };
   const fieldGroup: React.CSSProperties = { marginBottom: "12px" };
   const badgeStyle = (color: string): React.CSSProperties => ({
     display: "inline-block", padding: "2px 8px", borderRadius: "10px",
-    fontSize: "11px", fontWeight: 600, backgroundColor: color, color: "#fff",
+    fontSize: "11px", fontWeight: 600, backgroundColor: color, color: "white",
   });
 
   const costEstimate = model === "DALL-E 3" ? 0.04 : model === "Midjourney v6" ? 0.05 : 0.02;
@@ -90,7 +90,7 @@ const ImageGenPanel: React.FC = () => {
   };
 
   const statusColor = (s: string) =>
-    s === "Done" ? "#2e7d32" : s === "Running" ? "#1565c0" : s === "Failed" ? "#c62828" : "#757575";
+    s === "Done" ? "var(--success-color)" : s === "Running" ? "var(--info-color)" : s === "Failed" ? "var(--error-color)" : "var(--text-muted)";
 
   const renderGenerate = () => (
     <div>
@@ -139,7 +139,7 @@ const ImageGenPanel: React.FC = () => {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
         {gallery.map(img => (
           <div key={img.id} style={cardStyle}>
-            <div style={{ width: "100%", height: "80px", backgroundColor: "var(--vscode-editor-selectionBackground)",
+            <div style={{ width: "100%", height: "80px", backgroundColor: "var(--bg-tertiary)",
               borderRadius: "4px", marginBottom: "8px", display: "flex", alignItems: "center", justifyContent: "center",
               fontSize: "11px", opacity: 0.5 }}>{img.width}x{img.height}</div>
             <div style={{ fontSize: "12px", fontWeight: 600, marginBottom: "4px", overflow: "hidden",

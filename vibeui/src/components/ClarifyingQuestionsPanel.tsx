@@ -45,10 +45,10 @@ const ClarifyingQuestionsPanel: React.FC = () => {
 
   const containerStyle: React.CSSProperties = {
     padding: "16px",
-    color: "var(--vscode-foreground)",
-    backgroundColor: "var(--vscode-editor-background)",
-    fontFamily: "var(--vscode-font-family)",
-    fontSize: "var(--vscode-font-size)",
+    color: "var(--text-primary)",
+    backgroundColor: "var(--bg-primary)",
+    fontFamily: "inherit",
+    fontSize: "13px",
     height: "100%",
     overflow: "auto",
   };
@@ -56,7 +56,7 @@ const ClarifyingQuestionsPanel: React.FC = () => {
   const tabBarStyle: React.CSSProperties = {
     display: "flex",
     gap: "4px",
-    borderBottom: "1px solid var(--vscode-panel-border)",
+    borderBottom: "1px solid var(--border-color)",
     marginBottom: "12px",
   };
 
@@ -64,9 +64,9 @@ const ClarifyingQuestionsPanel: React.FC = () => {
     padding: "8px 16px",
     cursor: "pointer",
     border: "none",
-    background: active ? "var(--vscode-tab-activeBackground)" : "transparent",
-    color: active ? "var(--vscode-tab-activeForeground)" : "var(--vscode-tab-inactiveForeground)",
-    borderBottom: active ? "2px solid var(--vscode-focusBorder)" : "2px solid transparent",
+    background: active ? "var(--bg-secondary)" : "transparent",
+    color: active ? "var(--text-primary)" : "var(--text-secondary)",
+    borderBottom: active ? "2px solid var(--accent-color)" : "2px solid transparent",
     fontFamily: "inherit",
     fontSize: "inherit",
   });
@@ -75,15 +75,15 @@ const ClarifyingQuestionsPanel: React.FC = () => {
     padding: "10px",
     marginBottom: "8px",
     borderRadius: "4px",
-    backgroundColor: "var(--vscode-editorWidget-background)",
-    border: "1px solid var(--vscode-editorWidget-border)",
+    backgroundColor: "var(--bg-secondary)",
+    border: "1px solid var(--border-color)",
   };
 
   const inputStyle: React.CSSProperties = {
     padding: "6px 10px",
-    background: "var(--vscode-input-background)",
-    color: "var(--vscode-input-foreground)",
-    border: "1px solid var(--vscode-input-border)",
+    background: "var(--bg-secondary)",
+    color: "var(--text-primary)",
+    border: "1px solid var(--border-color)",
     borderRadius: "3px",
     fontFamily: "inherit",
     fontSize: "inherit",
@@ -93,9 +93,9 @@ const ClarifyingQuestionsPanel: React.FC = () => {
 
   const btnStyle: React.CSSProperties = {
     padding: "4px 10px",
-    border: "1px solid var(--vscode-button-border, var(--vscode-focusBorder))",
-    background: "var(--vscode-button-background)",
-    color: "var(--vscode-button-foreground)",
+    border: "1px solid var(--accent-color)",
+    background: "var(--accent-color)",
+    color: "white",
     borderRadius: "3px",
     cursor: "pointer",
     fontFamily: "inherit",
@@ -103,10 +103,10 @@ const ClarifyingQuestionsPanel: React.FC = () => {
   };
 
   const priorityColor = (p: string) =>
-    p === "high" ? "var(--vscode-editorError-foreground)" : p === "medium" ? "var(--vscode-editorWarning-foreground)" : "var(--vscode-descriptionForeground)";
+    p === "high" ? "var(--error-color)" : p === "medium" ? "var(--warning-color)" : "var(--text-muted)";
 
   const statusColor = (s: string) =>
-    s === "done" ? "var(--vscode-testing-iconPassed)" : s === "in-progress" ? "var(--vscode-editorWarning-foreground)" : "var(--vscode-descriptionForeground)";
+    s === "done" ? "var(--success-color)" : s === "in-progress" ? "var(--warning-color)" : "var(--text-muted)";
 
   const updateAnswer = (id: string, answer: string) => {
     setQuestions((prev) => prev.map((q) => (q.id === id ? { ...q, answer, skipped: false } : q)));
@@ -152,7 +152,7 @@ const ClarifyingQuestionsPanel: React.FC = () => {
               {!q.skipped ? (
                 <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
                   <input style={{ ...inputStyle, flex: 1 }} placeholder="Your answer..." value={q.answer} onChange={(e) => updateAnswer(q.id, e.target.value)} />
-                  <button style={{ ...btnStyle, background: "transparent", color: "var(--vscode-descriptionForeground)" }} onClick={() => skipQuestion(q.id)}>Skip</button>
+                  <button style={{ ...btnStyle, background: "transparent", color: "var(--text-muted)" }} onClick={() => skipQuestion(q.id)}>Skip</button>
                 </div>
               ) : (
                 <div style={{ fontSize: "12px", opacity: 0.6, fontStyle: "italic" }}>Skipped</div>
@@ -171,14 +171,14 @@ const ClarifyingQuestionsPanel: React.FC = () => {
             <div key={step.id} style={cardStyle}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
                 <strong>Step {i + 1}: {step.description}</strong>
-                <span style={{ fontSize: "11px", padding: "2px 8px", borderRadius: "10px", backgroundColor: statusColor(step.status), color: "var(--vscode-editor-background)" }}>
+                <span style={{ fontSize: "11px", padding: "2px 8px", borderRadius: "10px", backgroundColor: statusColor(step.status), color: "var(--bg-primary)" }}>
                   {step.status}
                 </span>
               </div>
               <div style={{ fontSize: "12px", opacity: 0.7, marginBottom: "4px" }}>Effort: {step.effort}</div>
               <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
                 {step.files.map((f) => (
-                  <span key={f} style={{ padding: "2px 6px", borderRadius: "3px", fontSize: "11px", backgroundColor: "var(--vscode-badge-background)", color: "var(--vscode-badge-foreground)" }}>
+                  <span key={f} style={{ padding: "2px 6px", borderRadius: "3px", fontSize: "11px", backgroundColor: "var(--bg-tertiary)", color: "white" }}>
                     {f}
                   </span>
                 ))}
@@ -194,15 +194,15 @@ const ClarifyingQuestionsPanel: React.FC = () => {
             <div style={{ fontWeight: 600, marginBottom: "8px" }}>Session Status</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px", textAlign: "center" }}>
               <div>
-                <div style={{ fontSize: "24px", fontWeight: 700, color: "var(--vscode-testing-iconPassed)" }}>{answeredCount}</div>
+                <div style={{ fontSize: "24px", fontWeight: 700, color: "var(--success-color)" }}>{answeredCount}</div>
                 <div style={{ fontSize: "11px", opacity: 0.6 }}>Answered</div>
               </div>
               <div>
-                <div style={{ fontSize: "24px", fontWeight: 700, color: "var(--vscode-editorWarning-foreground)" }}>{unansweredCount}</div>
+                <div style={{ fontSize: "24px", fontWeight: 700, color: "var(--warning-color)" }}>{unansweredCount}</div>
                 <div style={{ fontSize: "11px", opacity: 0.6 }}>Unanswered</div>
               </div>
               <div>
-                <div style={{ fontSize: "24px", fontWeight: 700, color: "var(--vscode-descriptionForeground)" }}>{skippedCount}</div>
+                <div style={{ fontSize: "24px", fontWeight: 700, color: "var(--text-muted)" }}>{skippedCount}</div>
                 <div style={{ fontSize: "11px", opacity: 0.6 }}>Skipped</div>
               </div>
             </div>
@@ -212,7 +212,7 @@ const ClarifyingQuestionsPanel: React.FC = () => {
             <div key={i} style={cardStyle}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
                 <strong>{r.label}</strong>
-                <span style={{ fontSize: "11px", padding: "2px 8px", borderRadius: "10px", color: "var(--vscode-editor-background)", backgroundColor: priorityColor(r.level) }}>
+                <span style={{ fontSize: "11px", padding: "2px 8px", borderRadius: "10px", color: "var(--bg-primary)", backgroundColor: priorityColor(r.level) }}>
                   {r.level}
                 </span>
               </div>

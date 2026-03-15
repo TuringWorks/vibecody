@@ -83,7 +83,7 @@ const headingStyle: React.CSSProperties = { margin: "0 0 12px", fontSize: 15, fo
 const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-primary)" };
 const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
 const btnStyle: React.CSSProperties = { padding: "6px 14px", borderRadius: 4, border: "1px solid var(--border-primary)", background: "var(--bg-tertiary)", color: "var(--text-primary)", cursor: "pointer", fontSize: 12 };
-const tabBtnStyle = (active: boolean): React.CSSProperties => ({ ...btnStyle, background: active ? "var(--accent-primary)" : "var(--bg-tertiary)", color: active ? "#fff" : "var(--text-primary)", marginRight: 4 });
+const tabBtnStyle = (active: boolean): React.CSSProperties => ({ ...btnStyle, background: active ? "var(--accent-primary)" : "var(--bg-tertiary)", color: active ? "white" : "var(--text-primary)", marginRight: 4 });
 
 const inputStyle: React.CSSProperties = { width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid var(--border-primary)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: 12, fontFamily: "var(--font-mono, monospace)", boxSizing: "border-box" };
 const selectStyle: React.CSSProperties = { ...inputStyle, width: "auto", cursor: "pointer" };
@@ -94,10 +94,10 @@ const barFill = (pct: number, color: string): React.CSSProperties => ({ height: 
 const thStyle: React.CSSProperties = { textAlign: "left", padding: "6px 10px", borderBottom: "1px solid var(--border-primary)", fontSize: 11, color: "var(--text-secondary)" };
 const tdStyle: React.CSSProperties = { padding: "6px 10px", borderBottom: "1px solid var(--border-primary)", fontSize: 12 };
 
-const severityColor: Record<string, string> = { info: "#3b82f6", warning: "#f59e0b", critical: "#ef4444" };
-const badgeStyle = (severity: string): React.CSSProperties => ({ display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 600, color: "#fff", background: severityColor[severity] || "#6b7280" });
+const severityColor: Record<string, string> = { info: "var(--info-color)", warning: "var(--warning-color)", critical: "var(--error-color)" };
+const badgeStyle = (severity: string): React.CSSProperties => ({ display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 600, color: "white", background: severityColor[severity] || "var(--text-muted)" });
 
-const budgetBarColor = (pct: number) => pct >= 90 ? "#ef4444" : pct >= 70 ? "#f59e0b" : "#22c55e";
+const budgetBarColor = (pct: number) => pct >= 90 ? "var(--error-color)" : pct >= 70 ? "var(--warning-color)" : "var(--success-color)";
 const formatTokens = (n: number) => n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1_000 ? `${(n / 1_000).toFixed(0)}k` : String(n);
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -179,7 +179,7 @@ export function UsageMeteringPanel() {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
             <div style={cardStyle}>
               <div style={labelStyle}>Total Spend</div>
-              <div style={{ fontSize: 22, fontWeight: 700, color: "var(--accent-primary, #3b82f6)" }}>${MOCK_KPI.totalSpend.toFixed(2)}</div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: "var(--accent-primary)" }}>${MOCK_KPI.totalSpend.toFixed(2)}</div>
             </div>
             <div style={cardStyle}>
               <div style={labelStyle}>Tokens Used</div>
@@ -199,7 +199,7 @@ export function UsageMeteringPanel() {
                 <div key={p.label} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                   <div style={{ width: 140, fontSize: 11 }}>{p.label}</div>
                   <div style={{ ...barBg, flex: 1 }}>
-                    <div style={barFill(pct, "var(--accent-primary, #3b82f6)")} />
+                    <div style={barFill(pct, "var(--accent-primary)")} />
                   </div>
                   <div style={{ width: 60, fontSize: 11, textAlign: "right" }}>${p.cost.toFixed(2)}</div>
                 </div>
@@ -253,7 +253,7 @@ export function UsageMeteringPanel() {
                 </select>
               </div>
             </div>
-            <button style={{ ...btnStyle, background: "var(--accent-primary)", color: "#fff", marginTop: 8 }} onClick={createBudget}>Create</button>
+            <button style={{ ...btnStyle, background: "var(--accent-primary)", color: "white", marginTop: 8 }} onClick={createBudget}>Create</button>
           </div>
         </div>
       )}

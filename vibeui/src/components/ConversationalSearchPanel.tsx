@@ -44,10 +44,10 @@ const ConversationalSearchPanel: React.FC = () => {
 
   const containerStyle: React.CSSProperties = {
     padding: "16px",
-    color: "var(--vscode-foreground)",
-    backgroundColor: "var(--vscode-editor-background)",
-    fontFamily: "var(--vscode-font-family)",
-    fontSize: "var(--vscode-font-size)",
+    color: "var(--text-primary)",
+    backgroundColor: "var(--bg-primary)",
+    fontFamily: "inherit",
+    fontSize: "13px",
     height: "100%",
     overflow: "auto",
   };
@@ -55,7 +55,7 @@ const ConversationalSearchPanel: React.FC = () => {
   const tabBarStyle: React.CSSProperties = {
     display: "flex",
     gap: "4px",
-    borderBottom: "1px solid var(--vscode-panel-border)",
+    borderBottom: "1px solid var(--border-color)",
     marginBottom: "12px",
   };
 
@@ -63,9 +63,9 @@ const ConversationalSearchPanel: React.FC = () => {
     padding: "8px 16px",
     cursor: "pointer",
     border: "none",
-    background: active ? "var(--vscode-tab-activeBackground)" : "transparent",
-    color: active ? "var(--vscode-tab-activeForeground)" : "var(--vscode-tab-inactiveForeground)",
-    borderBottom: active ? "2px solid var(--vscode-focusBorder)" : "2px solid transparent",
+    background: active ? "var(--bg-secondary)" : "transparent",
+    color: active ? "var(--text-primary)" : "var(--text-secondary)",
+    borderBottom: active ? "2px solid var(--accent-color)" : "2px solid transparent",
     fontFamily: "inherit",
     fontSize: "inherit",
   });
@@ -74,15 +74,15 @@ const ConversationalSearchPanel: React.FC = () => {
     padding: "10px",
     marginBottom: "8px",
     borderRadius: "4px",
-    backgroundColor: "var(--vscode-editorWidget-background)",
-    border: "1px solid var(--vscode-editorWidget-border)",
+    backgroundColor: "var(--bg-secondary)",
+    border: "1px solid var(--border-color)",
   };
 
   const inputStyle: React.CSSProperties = {
     padding: "6px 10px",
-    background: "var(--vscode-input-background)",
-    color: "var(--vscode-input-foreground)",
-    border: "1px solid var(--vscode-input-border)",
+    background: "var(--bg-secondary)",
+    color: "var(--text-primary)",
+    border: "1px solid var(--border-color)",
     borderRadius: "3px",
     fontFamily: "inherit",
     fontSize: "inherit",
@@ -92,9 +92,9 @@ const ConversationalSearchPanel: React.FC = () => {
 
   const btnStyle: React.CSSProperties = {
     padding: "6px 14px",
-    border: "1px solid var(--vscode-button-border, var(--vscode-focusBorder))",
-    background: "var(--vscode-button-background)",
-    color: "var(--vscode-button-foreground)",
+    border: "1px solid var(--accent-color)",
+    background: "var(--accent-color)",
+    color: "white",
     borderRadius: "3px",
     cursor: "pointer",
     fontFamily: "inherit",
@@ -121,7 +121,7 @@ const ConversationalSearchPanel: React.FC = () => {
     width: `${score * 100}%`,
     height: "4px",
     borderRadius: "2px",
-    backgroundColor: score > 0.8 ? "var(--vscode-testing-iconPassed)" : score > 0.6 ? "var(--vscode-editorWarning-foreground)" : "var(--vscode-descriptionForeground)",
+    backgroundColor: score > 0.8 ? "var(--success-color)" : score > 0.6 ? "var(--warning-color)" : "var(--text-muted)",
   });
 
   const tabs = ["search", "history", "settings"];
@@ -150,7 +150,7 @@ const ConversationalSearchPanel: React.FC = () => {
                 <span style={{ fontSize: "11px", opacity: 0.7 }}>{(r.relevance * 100).toFixed(0)}%</span>
               </div>
               <code style={{ fontSize: "12px", opacity: 0.85, display: "block", whiteSpace: "pre-wrap", marginBottom: "6px" }}>{r.snippet}</code>
-              <div style={{ background: "var(--vscode-editorWidget-border)", borderRadius: "2px", height: "4px" }}>
+              <div style={{ background: "var(--border-color)", borderRadius: "2px", height: "4px" }}>
                 <div style={relevanceBar(r.relevance)} />
               </div>
             </div>
@@ -159,7 +159,7 @@ const ConversationalSearchPanel: React.FC = () => {
             <div style={{ marginTop: "12px" }}>
               <div style={{ fontSize: "12px", opacity: 0.6, marginBottom: "6px" }}>Follow-up suggestions:</div>
               {followUps.map((f, i) => (
-                <button key={i} style={{ ...btnStyle, display: "block", marginBottom: "4px", textAlign: "left", background: "transparent", color: "var(--vscode-textLink-foreground)", border: "1px solid var(--vscode-panel-border)" }} onClick={() => setQuery(f)}>
+                <button key={i} style={{ ...btnStyle, display: "block", marginBottom: "4px", textAlign: "left", background: "transparent", color: "var(--accent-color)", border: "1px solid var(--border-color)" }} onClick={() => setQuery(f)}>
                   {f}
                 </button>
               ))}

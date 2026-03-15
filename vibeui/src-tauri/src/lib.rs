@@ -574,6 +574,8 @@ pub fn run() {
             commands::agile_get_metrics,
             commands::agile_ai_analyze,
             commands::agile_update_wip_limits,
+            commands::agile_get_safe,
+            commands::agile_save_safe,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

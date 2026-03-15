@@ -100,7 +100,7 @@ export function WebCrawlerPanel() {
 
   const btnPrimary: React.CSSProperties = {
     background: "var(--accent)",
-    color: "#fff",
+    color: "white",
     border: "none",
     borderRadius: 4,
     padding: "8px 16px",
@@ -212,7 +212,7 @@ export function WebCrawlerPanel() {
                   }}
                 >
                   <div style={{
-                    width: 16, height: 16, borderRadius: "50%", background: "#fff",
+                    width: 16, height: 16, borderRadius: "50%", background: "white",
                     position: "absolute", top: 3,
                     left: crawlConfig.respectRobots ? 21 : 3,
                     transition: "left 0.15s ease",
@@ -234,7 +234,7 @@ export function WebCrawlerPanel() {
                   }}
                 >
                   <div style={{
-                    width: 16, height: 16, borderRadius: "50%", background: "#fff",
+                    width: 16, height: 16, borderRadius: "50%", background: "white",
                     position: "absolute", top: 3,
                     left: crawlConfig.followExternal ? 21 : 3,
                     transition: "left 0.15s ease",
@@ -270,7 +270,7 @@ export function WebCrawlerPanel() {
                       {crawlResults.map((r, i) => (
                         <tr key={i} style={{ background: i % 2 === 0 ? "transparent" : "var(--bg-secondary)" }}>
                           <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", maxWidth: 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.url}</td>
-                          <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", textAlign: "center", color: r.status === 200 ? "#4caf50" : r.status === 301 ? "#ff9800" : "#f44336" }}>{r.status}</td>
+                          <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", textAlign: "center", color: r.status === 200 ? "var(--success-color)" : r.status === 301 ? "var(--warning-color)" : "var(--error-color)" }}>{r.status}</td>
                           <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)" }}>{r.contentType}</td>
                         </tr>
                       ))}

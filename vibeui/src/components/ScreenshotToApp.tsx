@@ -178,7 +178,7 @@ export function ScreenshotToApp({ workspacePath }: { workspacePath: string | nul
           <>
             <div style={{ fontSize: "28px", marginBottom: "8px" }}>+</div>
             <div>Drag & drop an image here, or click to browse</div>
-            <div style={{ fontSize: "11px", marginTop: "4px", color: "var(--text-muted, #666)" }}>
+            <div style={{ fontSize: "11px", marginTop: "4px", color: "var(--text-muted)" }}>
               PNG, JPG, WEBP
             </div>
           </>
@@ -201,8 +201,8 @@ export function ScreenshotToApp({ workspacePath }: { workspacePath: string | nul
               display: "flex", alignItems: "center", gap: "4px",
               padding: "4px 10px", borderRadius: "4px", cursor: "pointer",
               background: framework === fw.value ? "var(--accent-color)" : "var(--bg-secondary)",
-              color: framework === fw.value ? "var(--text-primary, #fff)" : "var(--text-secondary, #ccc)",
-              border: `1px solid ${framework === fw.value ? "var(--accent-color)" : "var(--border-color, #444)"}`,
+              color: framework === fw.value ? "var(--text-primary)" : "var(--text-secondary)",
+              border: `1px solid ${framework === fw.value ? "var(--accent-color)" : "var(--border-color)"}`,
               fontSize: "12px",
               transition: "background 0.15s",
             }}

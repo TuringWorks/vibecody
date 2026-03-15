@@ -81,7 +81,7 @@ const headingStyle: React.CSSProperties = { margin: "0 0 12px", fontSize: 15, fo
 const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-primary)" };
 const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
 const btnStyle: React.CSSProperties = { padding: "6px 14px", borderRadius: 4, border: "1px solid var(--border-primary)", background: "var(--bg-tertiary)", color: "var(--text-primary)", cursor: "pointer", fontSize: 12 };
-const tabBtnStyle = (active: boolean): React.CSSProperties => ({ ...btnStyle, background: active ? "var(--accent-primary)" : "var(--bg-tertiary)", color: active ? "#fff" : "var(--text-primary)", marginRight: 4 });
+const tabBtnStyle = (active: boolean): React.CSSProperties => ({ ...btnStyle, background: active ? "var(--accent-primary)" : "var(--bg-tertiary)", color: active ? "white" : "var(--text-primary)", marginRight: 4 });
 
 const barBg: React.CSSProperties = { height: 12, borderRadius: 6, background: "var(--bg-tertiary)", overflow: "hidden" };
 const barFill = (pct: number, color: string): React.CSSProperties => ({ height: "100%", width: `${Math.min(pct, 100)}%`, borderRadius: 6, background: color });
@@ -89,10 +89,10 @@ const barFill = (pct: number, color: string): React.CSSProperties => ({ height: 
 const thStyle: React.CSSProperties = { textAlign: "left", padding: "6px 10px", borderBottom: "1px solid var(--border-primary)", fontSize: 11, color: "var(--text-secondary)" };
 const tdStyle: React.CSSProperties = { padding: "6px 10px", borderBottom: "1px solid var(--border-primary)", fontSize: 12 };
 
-const statusColors: Record<string, string> = { healthy: "#22c55e", warning: "#f59e0b", critical: "#ef4444" };
-const severityColors: Record<string, string> = { info: "#3b82f6", warning: "#f59e0b", critical: "#ef4444" };
+const statusColors: Record<string, string> = { healthy: "var(--success-color)", warning: "var(--warning-color)", critical: "var(--error-color)" };
+const severityColors: Record<string, string> = { info: "var(--info-color)", warning: "var(--warning-color)", critical: "var(--error-color)" };
 const typeLabels: Record<string, string> = { high_usage: "High Usage", rapid_growth: "Rapid Growth", gc_pressure: "GC Pressure", token_overflow: "Token Overflow", leak_suspected: "Leak Suspected" };
-const badgeStyle = (color: string): React.CSSProperties => ({ display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 600, color: "#fff", background: color });
+const badgeStyle = (color: string): React.CSSProperties => ({ display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 600, color: "white", background: color });
 
 const formatUptime = (sec: number): string => {
   const h = Math.floor(sec / 3600);
@@ -112,7 +112,7 @@ export function SessionMemoryPanel() {
 
   const activeAlerts = useMemo(() => alerts.filter((a) => !a.resolved), [alerts]);
   const memPct = (MOCK_HEALTH.memoryUsedMb / MOCK_HEALTH.memoryLimitMb) * 100;
-  const memBarColor = memPct >= 80 ? "#ef4444" : memPct >= 60 ? "#f59e0b" : "#22c55e";
+  const memBarColor = memPct >= 80 ? "var(--error-color)" : memPct >= 60 ? "var(--warning-color)" : "var(--success-color)";
   const maxHeap = Math.max(...MOCK_SAMPLES.map((s) => s.heapTotalMb));
 
   const resolveAlert = (id: string) => {
@@ -158,7 +158,7 @@ export function SessionMemoryPanel() {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
             <div style={cardStyle}>
               <div style={labelStyle}>Growth Rate</div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: MOCK_HEALTH.growthRateMbPerMin > 1 ? "#f59e0b" : "#22c55e" }}>
+              <div style={{ fontSize: 20, fontWeight: 700, color: MOCK_HEALTH.growthRateMbPerMin > 1 ? "var(--warning-color)" : "var(--success-color)" }}>
                 {MOCK_HEALTH.growthRateMbPerMin} MB/min
               </div>
             </div>
@@ -168,7 +168,7 @@ export function SessionMemoryPanel() {
             </div>
             <div style={cardStyle}>
               <div style={labelStyle}>Active Alerts</div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: activeAlerts.length > 0 ? "#f59e0b" : "#22c55e" }}>
+              <div style={{ fontSize: 20, fontWeight: 700, color: activeAlerts.length > 0 ? "var(--warning-color)" : "var(--success-color)" }}>
                 {activeAlerts.length}
               </div>
             </div>
@@ -187,7 +187,7 @@ export function SessionMemoryPanel() {
                   <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                     <div style={{ width: 50, fontSize: 10, color: "var(--text-secondary)" }}>{new Date(s.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
                     <div style={{ ...barBg, flex: 1, height: 6 }}>
-                      <div style={barFill(pct, pct > 75 ? "#ef4444" : pct > 50 ? "#f59e0b" : "#3b82f6")} />
+                      <div style={barFill(pct, pct > 75 ? "var(--error-color)" : pct > 50 ? "var(--warning-color)" : "var(--info-color)")} />
                     </div>
                     <div style={{ width: 50, fontSize: 10, textAlign: "right" }}>{s.heapUsedMb} MB</div>
                   </div>

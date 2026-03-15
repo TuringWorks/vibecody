@@ -19,9 +19,9 @@ interface BackgroundJobsPanelProps {
 }
 
 const STATUS_ICONS: Record<string, React.ReactNode> = {
- running: <Clock size={14} strokeWidth={1.5} style={{ color: "var(--text-warning, #facc15)" }} />,
- complete: <CircleCheck size={14} strokeWidth={1.5} style={{ color: "var(--text-success, #a6e3a1)" }} />,
- failed: <CircleX size={14} strokeWidth={1.5} style={{ color: "var(--text-danger, #f38ba8)" }} />,
+ running: <Clock size={14} strokeWidth={1.5} style={{ color: "var(--text-warning)" }} />,
+ complete: <CircleCheck size={14} strokeWidth={1.5} style={{ color: "var(--text-success)" }} />,
+ failed: <CircleX size={14} strokeWidth={1.5} style={{ color: "var(--text-danger)" }} />,
  cancelled: <Square size={14} strokeWidth={1.5} />,
 };
 
@@ -132,8 +132,8 @@ export function BackgroundJobsPanel({ daemonUrl = 'http://localhost:7878' }: Bac
  <strong style={{ fontSize: '13px' }}>Background Jobs</strong>
  <span style={{
  fontSize: '10px', padding: '2px 8px', borderRadius: '10px',
- background: daemonOnline ? 'var(--accent-green, #52c41a)' : 'var(--text-secondary)',
- color: 'var(--text-on-accent, #fff)',
+ background: daemonOnline ? 'var(--accent-green)' : 'var(--text-secondary)',
+ color: 'white',
  }}>
  {daemonOnline ? '● online' : '○ offline'}
  </span>
@@ -179,7 +179,7 @@ export function BackgroundJobsPanel({ daemonUrl = 'http://localhost:7878' }: Bac
  disabled={submitting || !task.trim() || !daemonOnline}
  style={{
  padding: '4px 12px', fontSize: '12px', borderRadius: '4px',
- background: 'var(--accent-blue)', color: 'var(--text-on-accent, #fff)', border: 'none',
+ background: 'var(--accent-blue)', color: 'white', border: 'none',
  cursor: submitting ? 'wait' : 'pointer', marginLeft: 'auto',
  }}
  >
@@ -217,7 +217,7 @@ export function BackgroundJobsPanel({ daemonUrl = 'http://localhost:7878' }: Bac
  {job.status === 'running' && (
  <button
  onClick={(e) => { e.stopPropagation(); cancelJob(job.session_id); }}
- style={{ fontSize: '10px', padding: '2px 6px', border: 'none', borderRadius: '3px', background: 'var(--text-danger, #ff4d4f)', color: 'var(--text-on-accent, #fff)', cursor: 'pointer', flexShrink: 0 }}
+ style={{ fontSize: '10px', padding: '2px 6px', border: 'none', borderRadius: '3px', background: 'var(--text-danger)', color: 'white', cursor: 'pointer', flexShrink: 0 }}
  >
  Cancel
  </button>

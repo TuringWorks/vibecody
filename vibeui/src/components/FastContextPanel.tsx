@@ -21,45 +21,45 @@ const FastContextPanel: React.FC = () => {
   const [cacheStats, setCacheStats] = useState({ hits: 3842, misses: 291, size: "14.2 MB", maxSize: "64 MB" });
 
   const containerStyle: React.CSSProperties = {
-    padding: "16px", color: "var(--vscode-foreground)",
-    backgroundColor: "var(--vscode-editor-background)",
-    fontFamily: "var(--vscode-font-family)", fontSize: "var(--vscode-font-size)",
+    padding: "16px", color: "var(--text-primary)",
+    backgroundColor: "var(--bg-primary)",
+    fontFamily: "var(--font-mono, monospace)", fontSize: "13px",
     height: "100%", overflow: "auto",
   };
   const tabBarStyle: React.CSSProperties = {
     display: "flex", gap: "4px", marginBottom: "16px",
-    borderBottom: "1px solid var(--vscode-panel-border)",
+    borderBottom: "1px solid var(--border-color)",
     paddingBottom: "8px",
   };
   const tabStyle = (active: boolean): React.CSSProperties => ({
     padding: "6px 14px", cursor: "pointer", border: "none",
-    backgroundColor: active ? "var(--vscode-button-background)" : "transparent",
-    color: active ? "var(--vscode-button-foreground)" : "var(--vscode-foreground)",
-    borderRadius: "4px", fontSize: "var(--vscode-font-size)",
+    backgroundColor: active ? "var(--accent-color)" : "transparent",
+    color: active ? "var(--text-primary)" : "var(--text-primary)",
+    borderRadius: "4px", fontSize: "13px",
   });
   const inputStyle: React.CSSProperties = {
     width: "100%", padding: "6px 10px", boxSizing: "border-box",
-    backgroundColor: "var(--vscode-input-background)",
-    color: "var(--vscode-input-foreground)",
-    border: "1px solid var(--vscode-input-border)", borderRadius: "4px",
+    backgroundColor: "var(--bg-secondary)",
+    color: "var(--text-primary)",
+    border: "1px solid var(--border-color)", borderRadius: "4px",
   };
   const btnStyle: React.CSSProperties = {
     padding: "6px 14px", cursor: "pointer", border: "none", borderRadius: "4px",
-    backgroundColor: "var(--vscode-button-background)",
-    color: "var(--vscode-button-foreground)",
+    backgroundColor: "var(--accent-color)",
+    color: "var(--text-primary)",
   };
   const cardStyle: React.CSSProperties = {
     padding: "10px", marginBottom: "8px", borderRadius: "4px",
-    backgroundColor: "var(--vscode-editor-inactiveSelectionBackground)",
-    border: "1px solid var(--vscode-panel-border)",
+    backgroundColor: "var(--bg-secondary)",
+    border: "1px solid var(--border-color)",
   };
   const badgeStyle = (color: string): React.CSSProperties => ({
     display: "inline-block", padding: "2px 8px", borderRadius: "10px",
-    fontSize: "11px", fontWeight: 600, backgroundColor: color, color: "#fff",
+    fontSize: "11px", fontWeight: 600, backgroundColor: color, color: "white",
   });
   const statRow: React.CSSProperties = {
     display: "flex", justifyContent: "space-between", padding: "8px 0",
-    borderBottom: "1px solid var(--vscode-panel-border)",
+    borderBottom: "1px solid var(--border-color)",
   };
 
   const matchTypes = ["Exact", "Fuzzy", "Semantic", "Structural", "Symbol"];
@@ -92,13 +92,13 @@ const FastContextPanel: React.FC = () => {
         <div key={i} style={cardStyle}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
             <span style={{ fontWeight: 600 }}>{r.file}:{r.line}</span>
-            <span style={badgeStyle(r.relevance > 0.9 ? "#2e7d32" : r.relevance > 0.7 ? "#f57f17" : "#c62828")}>
+            <span style={badgeStyle(r.relevance > 0.9 ? "var(--success-color)" : r.relevance > 0.7 ? "var(--warning-color)" : "var(--error-color)")}>
               {(r.relevance * 100).toFixed(0)}%
             </span>
           </div>
           <code style={{ fontSize: "12px", opacity: 0.8 }}>{r.snippet}</code>
           <div style={{ marginTop: "4px" }}>
-            <span style={badgeStyle("#5c6bc0")}>{r.matchType}</span>
+            <span style={badgeStyle("var(--accent-color)")}>{r.matchType}</span>
           </div>
         </div>
       ))}

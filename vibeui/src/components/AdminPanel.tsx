@@ -136,7 +136,7 @@ export function AdminPanel() {
             <button key={t.key} onClick={() => setTab(t.key)} style={{
               padding: '4px 10px', fontSize: 11, borderRadius: 4, cursor: 'pointer',
               background: tab === t.key ? 'var(--accent-color)' : 'var(--bg-tertiary)',
-              color: tab === t.key ? 'var(--text-on-accent, #fff)' : 'var(--text-secondary)',
+              color: tab === t.key ? 'white' : 'var(--text-secondary)',
               border: '1px solid var(--border-color)',
             }}>{t.label}</button>
           ))}
@@ -150,7 +150,7 @@ export function AdminPanel() {
         <>
           <button onClick={() => setEditingMember(newMember())} style={{
             padding: '6px 14px', marginBottom: 12, fontSize: 12, borderRadius: 4,
-            background: 'var(--accent-color)', color: 'var(--text-on-accent, #fff)', border: 'none', cursor: 'pointer',
+            background: 'var(--accent-color)', color: 'white', border: 'none', cursor: 'pointer',
           }}>+ Add Member</button>
 
           <div style={{ display: 'grid', gap: 8 }}>
@@ -273,7 +273,7 @@ export function AdminPanel() {
             id: crypto.randomUUID(), resource: '*', roles: ['admin'], action: 'allow',
           })} style={{
             padding: '6px 14px', marginBottom: 12, fontSize: 12, borderRadius: 4,
-            background: 'var(--accent-color)', color: 'var(--text-on-accent, #fff)', border: 'none', cursor: 'pointer',
+            background: 'var(--accent-color)', color: 'white', border: 'none', cursor: 'pointer',
           }}>+ Add Policy</button>
 
           <div style={{ display: 'grid', gap: 6 }}>
@@ -355,7 +355,7 @@ const inputStyle: React.CSSProperties = {
   color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box',
 };
 const saveBtn: React.CSSProperties = {
-  padding: '6px 16px', background: 'var(--accent-color)', color: 'var(--text-on-accent, #fff)',
+  padding: '6px 16px', background: 'var(--accent-color)', color: 'white',
   border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12,
 };
 const cancelBtn: React.CSSProperties = {

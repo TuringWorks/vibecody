@@ -282,7 +282,7 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
       {/* File info */}
       <div style={{ fontSize: 11, opacity: 0.6, fontFamily: "monospace" }}>
         {envToFilename(activeEnv)} &middot; {entries.length} variable{entries.length !== 1 ? "s" : ""}
-        {dirty && <span style={{ color: "var(--text-warning, #f9e2af)", marginLeft: 8 }}>Unsaved changes</span>}
+        {dirty && <span style={{ color: "var(--text-warning)", marginLeft: 8 }}>Unsaved changes</span>}
       </div>
 
       {/* Search + Save */}
@@ -315,7 +315,7 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
 
       {/* Error */}
       {error && (
-        <div style={{ background: "rgba(243,139,168,0.15)", border: "1px solid var(--error-color)", borderRadius: 6, padding: 8, fontSize: 11, color: "var(--text-danger, #f38ba8)" }}>
+        <div style={{ background: "rgba(243,139,168,0.15)", border: "1px solid var(--error-color)", borderRadius: 6, padding: 8, fontSize: 11, color: "var(--text-danger)" }}>
           {error}
         </div>
       )}
@@ -374,7 +374,7 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
                 title="Delete variable"
                 style={{
                   background: "none", border: "none", cursor: "pointer", fontSize: 13,
-                  color: "var(--text-danger, #f38ba8)", padding: "2px 4px", flexShrink: 0,
+                  color: "var(--text-danger)", padding: "2px 4px", flexShrink: 0,
                 }}
               >
                 ✕

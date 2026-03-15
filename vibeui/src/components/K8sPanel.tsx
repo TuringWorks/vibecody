@@ -269,7 +269,7 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
  disabled={manifestLoading}
  style={{
  padding: "7px 14px", fontSize: 12,
- background: "var(--accent-color)", color: "#fff",
+ background: "var(--accent-color)", color: "white",
  border: "none", borderRadius: 6,
  cursor: manifestLoading ? "wait" : "pointer",
  opacity: manifestLoading ? 0.7 : 1,
@@ -382,7 +382,7 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
  disabled={cmdLoading}
  style={{
  padding: "6px 14px", fontSize: 12,
- background: "var(--accent-color)", color: "#fff",
+ background: "var(--accent-color)", color: "white",
  border: "none", borderRadius: 6,
  cursor: cmdLoading ? "wait" : "pointer",
  opacity: cmdLoading ? 0.7 : 1,
@@ -399,7 +399,7 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
  ref={outputRef}
  style={{
  margin: 0, padding: 12,
- background: "var(--bg-primary, #0d1117)", color: "var(--text-primary, #e6edf3)",
+ background: "var(--bg-primary)", color: "var(--text-primary)",
  border: "1px solid var(--border-color)", borderRadius: 6,
  fontSize: 11, lineHeight: 1.5,
  minHeight: 80, maxHeight: 340,
@@ -452,7 +452,7 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
  disabled={argoLoading}
  style={{
  padding: "7px 14px", fontSize: 12,
- background: "var(--accent-color)", color: "#fff",
+ background: "var(--accent-color)", color: "white",
  border: "none", borderRadius: 6,
  cursor: argoLoading ? "wait" : "pointer",
  opacity: argoLoading ? 0.7 : 1,
@@ -471,7 +471,7 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
  <button
  onClick={handleApplyArgo}
  disabled={argoLoading}
- style={{ padding: "7px 14px", fontSize: 12, background: "#1a3a2a", color: "#52c41a", border: "1px solid #52c41a", borderRadius: 6, cursor: "pointer" }}
+ style={{ padding: "7px 14px", fontSize: 12, background: "#1a3a2a", color: "var(--success-color)", border: "1px solid var(--success-color)", borderRadius: 6, cursor: "pointer" }}
  >
  Apply to Cluster
  </button>
@@ -480,7 +480,7 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
  </div>
 
  {argoApplied && (
- <div style={{ padding: "8px 12px", background: "var(--bg-secondary)", borderRadius: 6, fontSize: 12, color: "var(--text-success, #52c41a)" }}>
+ <div style={{ padding: "8px 12px", background: "var(--bg-secondary)", borderRadius: 6, fontSize: 12, color: "var(--text-success)" }}>
  {argoApplied}
  </div>
  )}
@@ -521,7 +521,7 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
  style={{
  display: "flex", alignItems: "center", justifyContent: "space-between",
  padding: "8px 12px",
- background: selectedContext === ctx ? "var(--bg-selected, #1a2a3a)" : "var(--bg-secondary)",
+ background: selectedContext === ctx ? "var(--bg-selected)" : "var(--bg-secondary)",
  border: "1px solid",
  borderColor: selectedContext === ctx ? "var(--accent-color)" : "var(--border-color)",
  borderRadius: 6,

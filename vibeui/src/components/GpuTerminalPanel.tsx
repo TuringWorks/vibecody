@@ -87,7 +87,7 @@ export default function GpuTerminalPanel() {
          <button key={b} onClick={() => setConfig({ ...config, preferred_backend: b })} style={{
            padding: "4px 12px", border: "1px solid var(--vp-c-border)", borderRadius: 4, cursor: "pointer",
            background: config.preferred_backend === b ? "var(--vp-c-brand)" : "transparent",
-           color: config.preferred_backend === b ? "#fff" : "var(--vp-c-text)",
+           color: config.preferred_backend === b ? "white" : "var(--vp-c-text)",
          }}>{b.charAt(0).toUpperCase() + b.slice(1)}</button>
        ))}
      </div>
@@ -97,7 +97,7 @@ export default function GpuTerminalPanel() {
        {(["monitor", "atlas", "config", "benchmark"] as const).map(t => (
          <button key={t} onClick={() => setTab(t)} style={{
            padding: "4px 12px", border: "1px solid var(--vp-c-border)", borderRadius: 4, cursor: "pointer",
-           background: tab === t ? "var(--vp-c-brand)" : "transparent", color: tab === t ? "#fff" : "var(--vp-c-text)",
+           background: tab === t ? "var(--vp-c-brand)" : "transparent", color: tab === t ? "white" : "var(--vp-c-text)",
          }}>{t.charAt(0).toUpperCase() + t.slice(1)}</button>
        ))}
      </div>
@@ -192,7 +192,7 @@ export default function GpuTerminalPanel() {
                width: 22, height: 24, display: "flex", alignItems: "center", justifyContent: "center",
                fontFamily: "monospace", fontSize: 13, cursor: "pointer", borderRadius: 2,
                background: selectedGlyph === ch ? "var(--vp-c-brand)" : "#313244",
-               color: selectedGlyph === ch ? "#fff" : "var(--vp-c-text)",
+               color: selectedGlyph === ch ? "white" : "var(--vp-c-text)",
              }}>{ch}</div>
            ))}
          </div>
@@ -249,7 +249,7 @@ export default function GpuTerminalPanel() {
      {tab === "benchmark" && (
        <>
          <button onClick={() => setBenchmarkResult(SAMPLE_BENCHMARK)} style={{
-           padding: "8px 16px", background: "var(--vp-c-brand)", color: "#fff", border: "none",
+           padding: "8px 16px", background: "var(--vp-c-brand)", color: "white", border: "none",
            borderRadius: 4, cursor: "pointer", marginBottom: 12,
          }}>Run Benchmark (100 frames)</button>
 

@@ -166,8 +166,8 @@ export function HistoryPanel() {
  <div
  style={{
  color: e.success
- ? "var(--accent-green, #4ec9b0)"
- : "var(--text-danger, #f44)",
+ ? "var(--success-color)"
+ : "var(--text-danger)",
  fontWeight: 500,
  }}
  >

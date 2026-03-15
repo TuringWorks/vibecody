@@ -71,10 +71,10 @@ const headingStyle: React.CSSProperties = { margin: "0 0 12px", fontSize: 15, fo
 const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-primary)" };
 const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
 const btnStyle: React.CSSProperties = { padding: "6px 14px", borderRadius: 4, border: "1px solid var(--border-primary)", background: "var(--bg-tertiary)", color: "var(--text-primary)", cursor: "pointer", fontSize: 12 };
-const tabBtnStyle = (active: boolean): React.CSSProperties => ({ ...btnStyle, background: active ? "var(--accent-primary)" : "var(--bg-tertiary)", color: active ? "#fff" : "var(--text-primary)", marginRight: 4 });
+const tabBtnStyle = (active: boolean): React.CSSProperties => ({ ...btnStyle, background: active ? "var(--accent-primary)" : "var(--bg-tertiary)", color: active ? "white" : "var(--text-primary)", marginRight: 4 });
 
 const inputStyle: React.CSSProperties = { width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid var(--border-primary)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: 12, fontFamily: "var(--font-mono, monospace)", boxSizing: "border-box" };
-const badgeStyle = (variant: string): React.CSSProperties => ({ display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 600, color: "#fff", background: variant === "loaded" ? "#22c55e" : variant === "loading" ? "#f59e0b" : "#6b7280" });
+const badgeStyle = (variant: string): React.CSSProperties => ({ display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 600, color: "white", background: variant === "loaded" ? "var(--success-color)" : variant === "loading" ? "var(--warning-color)" : "var(--text-muted)" });
 const barBg: React.CSSProperties = { height: 8, borderRadius: 4, background: "var(--bg-tertiary)", overflow: "hidden" };
 const barFill = (pct: number, color: string): React.CSSProperties => ({ height: "100%", width: `${Math.min(pct, 100)}%`, borderRadius: 4, background: color });
 
@@ -129,7 +129,7 @@ export function McpLazyPanel() {
           <div style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span>{loadedCount} / {totalCount} tools loaded</span>
             <div style={barBg}>
-              <div style={{ ...barFill((loadedCount / totalCount) * 100, "#3b82f6"), minWidth: 120 }} />
+              <div style={{ ...barFill((loadedCount / totalCount) * 100, "var(--info-color)"), minWidth: 120 }} />
             </div>
           </div>
           {manifests.map((m) => (
@@ -164,7 +164,7 @@ export function McpLazyPanel() {
               </div>
               <div style={{ textAlign: "right" }}>
                 <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Relevance</div>
-                <div style={{ fontWeight: 600, color: "var(--accent-primary, #3b82f6)" }}>{(r.relevance * 100).toFixed(0)}%</div>
+                <div style={{ fontWeight: 600, color: "var(--accent-primary)" }}>{(r.relevance * 100).toFixed(0)}%</div>
               </div>
             </div>
           ))}
@@ -179,7 +179,7 @@ export function McpLazyPanel() {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
             <div style={cardStyle}>
               <div style={labelStyle}>Context Savings</div>
-              <div style={{ fontSize: 22, fontWeight: 700, color: "#22c55e" }}>{MOCK_METRICS.contextSavingsPct}%</div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: "var(--success-color)" }}>{MOCK_METRICS.contextSavingsPct}%</div>
             </div>
             <div style={cardStyle}>
               <div style={labelStyle}>Cache Hits</div>
@@ -187,14 +187,14 @@ export function McpLazyPanel() {
             </div>
             <div style={cardStyle}>
               <div style={labelStyle}>Cache Misses</div>
-              <div style={{ fontSize: 22, fontWeight: 700, color: "#ef4444" }}>{MOCK_METRICS.cacheMisses}</div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: "var(--error-color)" }}>{MOCK_METRICS.cacheMisses}</div>
             </div>
           </div>
 
           <div style={cardStyle}>
             <div style={labelStyle}>Cache Hit Rate</div>
             <div style={barBg}>
-              <div style={barFill((MOCK_METRICS.cacheHits / (MOCK_METRICS.cacheHits + MOCK_METRICS.cacheMisses)) * 100, "#22c55e")} />
+              <div style={barFill((MOCK_METRICS.cacheHits / (MOCK_METRICS.cacheHits + MOCK_METRICS.cacheMisses)) * 100, "var(--success-color)")} />
             </div>
             <div style={{ fontSize: 10, color: "var(--text-secondary)", marginTop: 4 }}>
               {((MOCK_METRICS.cacheHits / (MOCK_METRICS.cacheHits + MOCK_METRICS.cacheMisses)) * 100).toFixed(1)}%
@@ -208,7 +208,7 @@ export function McpLazyPanel() {
                 <div key={lt.label} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                   <div style={{ width: 90, fontSize: 11 }}>{lt.label}</div>
                   <div style={{ ...barBg, flex: 1 }}>
-                    <div style={barFill((lt.ms / 60) * 100, "#3b82f6")} />
+                    <div style={barFill((lt.ms / 60) * 100, "var(--info-color)")} />
                   </div>
                   <div style={{ width: 40, fontSize: 10, textAlign: "right" }}>{lt.ms}ms</div>
                 </div>

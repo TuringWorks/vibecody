@@ -72,7 +72,7 @@ function calcStats(diff: DiffLine[]): Stats {
 // ── Colours ────────────────────────────────────────────────────────────────────
 
 const OP_BG: Record<Op, string> = { eq: "transparent", ins: "rgba(166,227,161,0.12)", del: "rgba(243,139,168,0.12)" };
-const OP_FG: Record<Op, string> = { eq: "var(--text-primary)", ins: "#a6e3a1", del: "#f38ba8" };
+const OP_FG: Record<Op, string> = { eq: "var(--text-primary)", ins: "var(--success-color)", del: "var(--error-color)" };
 const OP_PFX: Record<Op, string> = { eq: " ", ins: "+", del: "-" };
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -128,7 +128,7 @@ export function DiffToolPanel() {
  ? <span style={{ fontSize: 10, color: "var(--text-success)", padding: "2px 8px", background: "rgba(166,227,161,0.1)", border: "1px solid var(--success-color)", borderRadius: 10 }}>✓ Identical</span>
  : <>
  {stats.added > 0 && <span style={{ fontSize: 10, color: "var(--text-success)", padding: "2px 8px", background: "rgba(166,227,161,0.1)", border: "1px solid var(--success-color)", borderRadius: 10 }}>+{stats.added}</span>}
- {stats.removed > 0 && <span style={{ fontSize: 10, color: "var(--text-danger, #f38ba8)", padding: "2px 8px", background: "rgba(243,139,168,0.1)", border: "1px solid #f38ba8", borderRadius: 10 }}>−{stats.removed}</span>}
+ {stats.removed > 0 && <span style={{ fontSize: 10, color: "var(--text-danger)", padding: "2px 8px", background: "rgba(243,139,168,0.1)", border: "1px solid var(--error-color)", borderRadius: 10 }}>−{stats.removed}</span>}
  <span style={{ fontSize: 10, color: "var(--text-muted)", padding: "2px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 10 }}>{stats.unchanged} unchanged</span>
  </>
  }
@@ -138,7 +138,7 @@ export function DiffToolPanel() {
 
  {/* View mode */}
  {(["split", "inline", "unified"] as ViewMode[]).map(v => (
- <button key={v} onClick={() => setMode(v)} style={{ padding: "2px 10px", fontSize: 10, borderRadius: 10, background: mode === v ? "rgba(99,102,241,0.2)" : "var(--bg-primary)", border: `1px solid ${mode === v ? "#6366f1" : "var(--border-color)"}`, color: mode === v ? "#89b4fa" : "var(--text-muted)", cursor: "pointer", fontWeight: mode === v ? 700 : 400 }}>
+ <button key={v} onClick={() => setMode(v)} style={{ padding: "2px 10px", fontSize: 10, borderRadius: 10, background: mode === v ? "rgba(99,102,241,0.2)" : "var(--bg-primary)", border: `1px solid ${mode === v ? "var(--accent-color)" : "var(--border-color)"}`, color: mode === v ? "var(--info-color)" : "var(--text-muted)", cursor: "pointer", fontWeight: mode === v ? 700 : 400 }}>
  {v}
  </button>
  ))}

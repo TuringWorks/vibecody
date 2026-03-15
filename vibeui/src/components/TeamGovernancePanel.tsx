@@ -41,17 +41,17 @@ const TeamGovernancePanel: React.FC = () => {
   ]);
 
   const containerStyle: React.CSSProperties = {
-    padding: "16px", color: "var(--vscode-foreground)",
-    backgroundColor: "var(--vscode-editor-background)",
-    fontFamily: "var(--vscode-font-family)", fontSize: "var(--vscode-font-size)",
+    padding: "16px", color: "var(--text-primary)",
+    backgroundColor: "var(--bg-primary)",
+    fontFamily: "inherit", fontSize: "13px",
     height: "100%", overflow: "auto",
   };
-  const tabBar: React.CSSProperties = { display: "flex", gap: "4px", marginBottom: "16px", borderBottom: "1px solid var(--vscode-panel-border)" };
+  const tabBar: React.CSSProperties = { display: "flex", gap: "4px", marginBottom: "16px", borderBottom: "1px solid var(--border-color)" };
   const tab = (active: boolean): React.CSSProperties => ({
     padding: "8px 16px", cursor: "pointer", border: "none",
-    backgroundColor: active ? "var(--vscode-tab-activeBackground)" : "transparent",
-    color: active ? "var(--vscode-tab-activeForeground)" : "var(--vscode-tab-inactiveForeground)",
-    borderBottom: active ? "2px solid var(--vscode-focusBorder)" : "2px solid transparent",
+    backgroundColor: active ? "var(--bg-secondary)" : "transparent",
+    color: active ? "var(--text-primary)" : "var(--text-secondary)",
+    borderBottom: active ? "2px solid var(--accent-color)" : "2px solid transparent",
   });
   const badge = (color: string): React.CSSProperties => ({
     padding: "2px 8px", borderRadius: "10px", fontSize: "11px", fontWeight: 600,
@@ -59,15 +59,15 @@ const TeamGovernancePanel: React.FC = () => {
   });
   const btn: React.CSSProperties = {
     padding: "6px 14px", border: "none", borderRadius: "4px", cursor: "pointer",
-    backgroundColor: "var(--vscode-button-background)", color: "var(--vscode-button-foreground)",
+    backgroundColor: "var(--accent-color)", color: "white",
   };
   const input: React.CSSProperties = {
-    padding: "6px 10px", borderRadius: "4px", border: "1px solid var(--vscode-input-border)",
-    backgroundColor: "var(--vscode-input-background)", color: "var(--vscode-input-foreground)", width: "100%",
+    padding: "6px 10px", borderRadius: "4px", border: "1px solid var(--border-color)",
+    backgroundColor: "var(--bg-secondary)", color: "var(--text-primary)", width: "100%",
   };
   const card: React.CSSProperties = {
     padding: "12px", marginBottom: "8px", borderRadius: "6px",
-    backgroundColor: "var(--vscode-editorWidget-background)", border: "1px solid var(--vscode-panel-border)",
+    backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border-color)",
   };
 
   const visibilityColor = (v: string) => v === "Public" ? "var(--success-color)" : v === "Org" ? "var(--info-color)" : v === "TeamOnly" ? "var(--accent-color)" : "var(--text-muted)";
@@ -154,7 +154,7 @@ const TeamGovernancePanel: React.FC = () => {
           <h4 style={{ margin: "16px 0 8px" }}>Audit Log</h4>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
-              <tr style={{ borderBottom: "1px solid var(--vscode-panel-border)", textAlign: "left" }}>
+              <tr style={{ borderBottom: "1px solid var(--border-color)", textAlign: "left" }}>
                 <th style={{ padding: "6px 8px" }}>Timestamp</th>
                 <th style={{ padding: "6px 8px" }}>Action</th>
                 <th style={{ padding: "6px 8px" }}>User</th>
@@ -163,7 +163,7 @@ const TeamGovernancePanel: React.FC = () => {
             </thead>
             <tbody>
               {auditLog.map((entry, i) => (
-                <tr key={i} style={{ borderBottom: "1px solid var(--vscode-panel-border)" }}>
+                <tr key={i} style={{ borderBottom: "1px solid var(--border-color)" }}>
                   <td style={{ padding: "6px 8px", opacity: 0.7 }}>{entry.timestamp}</td>
                   <td style={{ padding: "6px 8px" }}>{entry.action}</td>
                   <td style={{ padding: "6px 8px" }}>{entry.user}</td>

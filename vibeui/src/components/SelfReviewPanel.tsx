@@ -78,9 +78,9 @@ const DEMO_ITERATIONS: ReviewIteration[] = [
 
 const severityColors: Record<string, string> = {
   info: 'var(--vp-c-text-2)',
-  warning: '#f59e0b',
-  error: 'var(--vp-c-red-1, #ef4444)',
-  critical: '#dc2626',
+  warning: 'var(--warning-color)',
+  error: 'var(--error-color)',
+  critical: 'var(--error-color)',
 };
 
 const checkIcons: Record<string, string> = {
@@ -107,7 +107,7 @@ const SelfReviewPanel: React.FC = () => {
       <div style={{
         padding: '10px 16px', borderRadius: 8, marginBottom: 16,
         background: latestIteration?.passed ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-        border: `1px solid ${latestIteration?.passed ? 'var(--vp-c-green-1, #10b981)' : 'var(--vp-c-red-1, #ef4444)'}`,
+        border: `1px solid ${latestIteration?.passed ? 'var(--vp-c-green-1)' : 'var(--vp-c-red-1)'}`,
         display: 'flex', alignItems: 'center', gap: 12,
       }}>
         <span style={{ fontSize: 24 }}>{latestIteration?.passed ? '\u2713' : '\u2717'}</span>
@@ -142,7 +142,7 @@ const SelfReviewPanel: React.FC = () => {
           <button key={t} onClick={() => setTab(t)} style={{
             padding: '6px 16px', border: 'none', cursor: 'pointer', fontSize: 13,
             background: tab === t ? 'var(--vp-c-brand)' : 'transparent',
-            color: tab === t ? '#fff' : 'var(--vp-c-text-2)', borderRadius: '6px 6px 0 0',
+            color: tab === t ? 'white' : 'var(--vp-c-text-2)', borderRadius: '6px 6px 0 0',
           }}>
             {t.charAt(0).toUpperCase() + t.slice(1)}
           </button>
@@ -155,14 +155,14 @@ const SelfReviewPanel: React.FC = () => {
           {iterations.map((iter) => (
             <div key={iter.iteration} style={{
               background: 'var(--vp-c-bg-soft)', padding: 12, borderRadius: 8,
-              border: `1px solid ${iter.passed ? 'var(--vp-c-green-1, #10b981)' : 'var(--vp-c-red-1, #ef4444)'}`,
+              border: `1px solid ${iter.passed ? 'var(--vp-c-green-1)' : 'var(--vp-c-red-1)'}`,
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                 <strong>Iteration {iter.iteration}</strong>
                 <span style={{
                   fontSize: 11, padding: '1px 8px', borderRadius: 3,
-                  background: iter.passed ? 'var(--vp-c-green-1, #10b981)' : 'var(--vp-c-red-1, #ef4444)',
-                  color: '#fff', fontWeight: 600,
+                  background: iter.passed ? 'var(--vp-c-green-1)' : 'var(--vp-c-red-1)',
+                  color: 'white', fontWeight: 600,
                 }}>
                   {iter.passed ? 'PASS' : 'FAIL'}
                 </span>
@@ -180,7 +180,7 @@ const SelfReviewPanel: React.FC = () => {
                       <span style={{
                         display: 'inline-block', width: 22, height: 22, lineHeight: '22px', textAlign: 'center',
                         borderRadius: 4, fontSize: 10, fontWeight: 700,
-                        background: check.passed ? 'var(--vp-c-green-1, #10b981)' : 'var(--vp-c-red-1, #ef4444)', color: '#fff',
+                        background: check.passed ? 'var(--vp-c-green-1)' : 'var(--vp-c-red-1)', color: 'white',
                       }}>{checkIcons[check.kind] || check.kind[0].toUpperCase()}</span>
                       <span style={{ fontWeight: 600, fontSize: 13 }}>{check.kind}</span>
                       <span style={{ fontSize: 11, color: 'var(--vp-c-text-3)', marginLeft: 'auto' }}>{check.durationMs}ms</span>

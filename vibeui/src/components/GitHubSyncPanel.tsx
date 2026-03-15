@@ -121,9 +121,9 @@ export function GitHubSyncPanel({ workspacePath }: { workspacePath: string | nul
  tabs: { display: "flex", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" } as React.CSSProperties,
  tab: (active: boolean): React.CSSProperties => ({ padding: "6px 14px", border: "none", cursor: "pointer", fontSize: "12px", background: "none", borderBottom: active ? "2px solid var(--accent-blue)" : "2px solid transparent", color: active ? "var(--text-primary)" : "var(--text-secondary)" }),
  content: { flex: 1, overflow: "auto", padding: "12px", display: "flex", flexDirection: "column", gap: "10px" } as React.CSSProperties,
- input: { width: "100%", background: "var(--bg-tertiary, #2d2d2d)", border: "1px solid var(--border-color)", color: "var(--text-primary)", padding: "6px 8px", borderRadius: "4px", fontSize: "12px", boxSizing: "border-box" as const } as React.CSSProperties,
- btn: (variant?: "danger" | "secondary"): React.CSSProperties => ({ padding: "6px 14px", background: variant === "danger" ? "var(--error-color, #f44336)" : variant === "secondary" ? "var(--bg-secondary)" : "var(--accent-color, #007acc)", color: variant === "secondary" ? "var(--text-primary)" : "var(--text-primary, #e0e0e0)", border: variant === "secondary" ? "1px solid var(--border-color)" : "none", borderRadius: "4px", cursor: "pointer", fontSize: "12px" }),
- statusBadge: (n: number, type: "ahead" | "behind"): React.CSSProperties => ({ padding: "2px 8px", borderRadius: "10px", fontSize: "11px", background: n > 0 ? (type === "ahead" ? "rgba(0,200,83,0.15)" : "rgba(244,67,54,0.15)") : "var(--bg-secondary)", color: n > 0 ? (type === "ahead" ? "var(--success-color, #4caf50)" : "var(--error-color, #f44336)") : "var(--text-secondary)" }),
+ input: { width: "100%", background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", color: "var(--text-primary)", padding: "6px 8px", borderRadius: "4px", fontSize: "12px", boxSizing: "border-box" as const } as React.CSSProperties,
+ btn: (variant?: "danger" | "secondary"): React.CSSProperties => ({ padding: "6px 14px", background: variant === "danger" ? "var(--error-color)" : variant === "secondary" ? "var(--bg-secondary)" : "var(--accent-color)", color: variant === "secondary" ? "var(--text-primary)" : "white", border: variant === "secondary" ? "1px solid var(--border-color)" : "none", borderRadius: "4px", cursor: "pointer", fontSize: "12px" }),
+ statusBadge: (n: number, type: "ahead" | "behind"): React.CSSProperties => ({ padding: "2px 8px", borderRadius: "10px", fontSize: "11px", background: n > 0 ? (type === "ahead" ? "var(--success-bg)" : "var(--error-bg)") : "var(--bg-secondary)", color: n > 0 ? (type === "ahead" ? "var(--success-color)" : "var(--error-color)") : "var(--text-secondary)" }),
  };
 
  return (
@@ -145,8 +145,8 @@ export function GitHubSyncPanel({ workspacePath }: { workspacePath: string | nul
  </div>
 
  {!tokenSaved && (
- <div style={{ padding: "10px 12px", background: "rgba(255,152,0,0.1)", borderBottom: "1px solid var(--border-color)" }}>
- <div style={{ fontSize: "12px", marginBottom: "6px", color: "var(--warning-color, #ff9800)" }}>GITHUB_TOKEN required for sync</div>
+ <div style={{ padding: "10px 12px", background: "var(--warning-bg)", borderBottom: "1px solid var(--border-color)" }}>
+ <div style={{ fontSize: "12px", marginBottom: "6px", color: "var(--warning-color)" }}>GITHUB_TOKEN required for sync</div>
  <div style={{ display: "flex", gap: "6px" }}>
  <input style={{ ...s.input, flex: 1 }} type="password" placeholder="ghp_..." value={token} onChange={e => setToken(e.target.value)} />
  <button style={s.btn()} onClick={saveToken}>Save</button>
@@ -163,7 +163,7 @@ export function GitHubSyncPanel({ workspacePath }: { workspacePath: string | nul
  </div>
 
  {(error || success) && (
- <div style={{ padding: "8px 12px", background: error ? "rgba(244,67,54,0.1)" : "rgba(0,200,83,0.1)", color: error ? "var(--error-color, #f44336)" : "var(--success-color, #4caf50)", fontSize: "12px" }}>
+ <div style={{ padding: "8px 12px", background: error ? "var(--error-bg)" : "var(--success-bg)", color: error ? "var(--error-color)" : "var(--success-color)", fontSize: "12px" }}>
  {error || success}
  <button style={{ float: "right", background: "none", border: "none", cursor: "pointer", color: "inherit" }} onClick={() => { setError(null); setSuccess(null); }}>×</button>
  </div>
@@ -207,7 +207,7 @@ export function GitHubSyncPanel({ workspacePath }: { workspacePath: string | nul
  <div key={r.full_name} style={{ padding: "8px 10px", borderRadius: "4px", marginBottom: "4px", background: "var(--bg-secondary)" }}>
  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
  <span style={{ fontWeight: 600 }}> {r.name}</span>
- <span style={{ fontSize: "10px", padding: "2px 6px", borderRadius: "10px", background: r.private ? "rgba(255,152,0,0.2)" : "rgba(0,200,83,0.15)", color: r.private ? "var(--warning-color, #ff9800)" : "var(--success-color, #4caf50)" }}>{r.private ? "Private" : "Public"}</span>
+ <span style={{ fontSize: "10px", padding: "2px 6px", borderRadius: "10px", background: r.private ? "var(--warning-bg)" : "var(--success-bg)", color: r.private ? "var(--warning-color)" : "var(--success-color)" }}>{r.private ? "Private" : "Public"}</span>
  </div>
  <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginTop: "2px" }}>branch: {r.default_branch} · {r.url}</div>
  </div>

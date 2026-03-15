@@ -151,7 +151,7 @@ export function MarkdownPanel({ workspacePath }: { workspacePath: string | null 
  <div style={{ width: 190, borderRight: "1px solid var(--border-color)", display: "flex", flexDirection: "column", flexShrink: 0 }}>
  <div style={{ padding: "8px 10px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", alignItems: "center", gap: 6 }}>
  <span style={{ fontSize: 11, fontWeight: 600, flex: 1 }}>Files</span>
- <button onClick={newFile} title="New file" style={{ fontSize: 13, background: "none", border: "none", color: "var(--accent-primary, #6366f1)", cursor: "pointer", fontWeight: 700, lineHeight: 1 }}>+</button>
+ <button onClick={newFile} title="New file" style={{ fontSize: 13, background: "none", border: "none", color: "var(--accent-primary)", cursor: "pointer", fontWeight: 700, lineHeight: 1 }}>+</button>
  <button onClick={loadFiles} title="Refresh" style={{ fontSize: 11, background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer" }}>↺</button>
  </div>
  <div style={{ padding: "6px 8px", borderBottom: "1px solid var(--border-color)" }}>
@@ -213,7 +213,7 @@ export function MarkdownPanel({ workspacePath }: { workspacePath: string | null 
 
  {/* Status bar */}
  {status && (
- <div style={{ padding: "3px 12px", fontSize: 10, background: status.startsWith("Error") ? "rgba(243,139,168,0.1)" : "rgba(166,227,161,0.1)", color: status.startsWith("Error") ? "#f38ba8" : "#a6e3a1", borderBottom: "1px solid var(--border-color)" }}>
+ <div style={{ padding: "3px 12px", fontSize: 10, background: status.startsWith("Error") ? "rgba(243,139,168,0.1)" : "rgba(166,227,161,0.1)", color: status.startsWith("Error") ? "var(--error-color)" : "var(--success-color)", borderBottom: "1px solid var(--border-color)" }}>
  {status}
  </div>
  )}
@@ -278,11 +278,11 @@ export function MarkdownPanel({ workspacePath }: { workspacePath: string | null 
  : <code style={{ background: "var(--bg-secondary)", padding: "1px 5px", borderRadius: 3, fontSize: "0.9em", fontFamily: "monospace" }}>{children}</code>;
  },
  pre: ({ children }) => <>{children}</>,
- blockquote: ({ children }) => <blockquote style={{ borderLeft: "3px solid #6366f1", margin: "16px 0", paddingLeft: 16, color: "var(--text-muted)", fontStyle: "italic" }}>{children}</blockquote>,
+ blockquote: ({ children }) => <blockquote style={{ borderLeft: "3px solid var(--accent-color)", margin: "16px 0", paddingLeft: 16, color: "var(--text-muted)", fontStyle: "italic" }}>{children}</blockquote>,
  ul: ({ children }) => <ul style={{ paddingLeft: 24, margin: "10px 0" }}>{children}</ul>,
  ol: ({ children }) => <ol style={{ paddingLeft: 24, margin: "10px 0" }}>{children}</ol>,
  li: ({ children }) => <li style={{ marginBottom: 4 }}>{children}</li>,
- a: ({ href, children }) => <a href={href} target="_blank" rel="noreferrer" style={{ color: "var(--text-info, #89b4fa)" }}>{children}</a>,
+ a: ({ href, children }) => <a href={href} target="_blank" rel="noreferrer" style={{ color: "var(--text-info)" }}>{children}</a>,
  hr: () => <hr style={{ border: "none", borderTop: "1px solid var(--border-color)", margin: "24px 0" }} />,
  table: ({ children }) => <table style={{ borderCollapse: "collapse", width: "100%", margin: "16px 0" }}>{children}</table>,
  th: ({ children }) => <th style={{ border: "1px solid var(--border-color)", padding: "6px 12px", background: "var(--bg-secondary)", fontWeight: 600 }}>{children}</th>,

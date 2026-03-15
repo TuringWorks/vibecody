@@ -34,9 +34,9 @@ const TOOL_ICONS: Record<string, string> = {
 };
 
 const STATE_COLORS: Record<string, string> = {
- applied: "var(--success-color, #4caf50)",
- pending: "var(--warning-color, #ff9800)",
- failed: "var(--error-color, #f44336)",
+ applied: "var(--success-color)",
+ pending: "var(--warning-color)",
+ failed: "var(--error-color)",
 };
 
 const STATE_ICONS: Record<string, string> = {
@@ -141,7 +141,7 @@ export function MigrationsPanel({ workspacePath }: MigrationsPanelProps) {
 
  <div style={{ flex: 1, overflow: "auto", padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
  {error && (
- <div style={{ padding: "7px 10px", background: "var(--error-bg, #2a1a1a)", color: "var(--text-danger, #f38ba8)", borderRadius: 4, fontSize: 12 }}>
+ <div style={{ padding: "7px 10px", background: "var(--error-bg)", color: "var(--text-danger)", borderRadius: 4, fontSize: 12 }}>
  {error}
  </div>
  )}
@@ -156,7 +156,7 @@ export function MigrationsPanel({ workspacePath }: MigrationsPanelProps) {
  style={{
  padding: "6px 12px", fontSize: 12, fontWeight: 600,
  background: status.pending.length > 0 ? "var(--accent-color)" : "var(--bg-secondary)",
- color: status.pending.length > 0 ? "var(--text-primary, #e0e0e0)" : "var(--text-muted)",
+ color: status.pending.length > 0 ? "var(--text-primary)" : "var(--text-muted)",
  border: "none", borderRadius: 4, cursor: status.pending.length > 0 ? "pointer" : "default",
  opacity: actionLoading === "migrate" ? 0.7 : 1,
  }}
@@ -168,8 +168,8 @@ export function MigrationsPanel({ workspacePath }: MigrationsPanelProps) {
  disabled={!!actionLoading || status.applied.length === 0}
  style={{
  padding: "6px 12px", fontSize: 12,
- background: "rgba(244,67,54,0.15)", color: "var(--error-color, #f44336)",
- border: "1px solid var(--error-color, #f44336)", borderRadius: 4,
+ background: "rgba(244,67,54,0.15)", color: "var(--error-color)",
+ border: "1px solid var(--error-color)", borderRadius: 4,
  cursor: status.applied.length > 0 ? "pointer" : "default",
  opacity: actionLoading === "rollback" ? 0.7 : 1,
  }}
@@ -212,7 +212,7 @@ export function MigrationsPanel({ workspacePath }: MigrationsPanelProps) {
  {/* Output */}
  {output && (
  <pre style={{
- margin: 0, padding: 10, background: "var(--bg-primary, #0d1117)", color: "var(--text-primary, #e6edf3)",
+ margin: 0, padding: 10, background: "var(--bg-primary)", color: "var(--text-primary)",
  border: "1px solid var(--border-color)", borderRadius: 6,
  fontSize: 11, lineHeight: 1.4, overflow: "auto", maxHeight: 180,
  whiteSpace: "pre-wrap", wordBreak: "break-all",

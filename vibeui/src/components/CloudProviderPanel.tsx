@@ -150,11 +150,11 @@ const headingStyle: React.CSSProperties = { margin: "0 0 12px", fontSize: 15, fo
 const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-primary)" };
 const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
 const btnStyle: React.CSSProperties = { padding: "6px 14px", borderRadius: 4, border: "1px solid var(--border-primary)", background: "var(--bg-tertiary)", color: "var(--text-primary)", cursor: "pointer", fontSize: 12 };
-const tabBtnStyle = (active: boolean): React.CSSProperties => ({ ...btnStyle, background: active ? "var(--accent-primary)" : "var(--bg-tertiary)", color: active ? "#fff" : "var(--text-primary)", marginRight: 4 });
+const tabBtnStyle = (active: boolean): React.CSSProperties => ({ ...btnStyle, background: active ? "var(--accent-primary)" : "var(--bg-tertiary)", color: active ? "var(--text-primary)" : "var(--text-primary)", marginRight: 4 });
 
 const preStyle: React.CSSProperties = { background: "var(--bg-tertiary)", padding: 10, borderRadius: 4, fontSize: 11, overflow: "auto", whiteSpace: "pre-wrap", border: "1px solid var(--border-primary)", maxHeight: 400 };
 const providerColor: Record<string, string> = { AWS: "#ff9900", GCP: "#4285f4", Azure: "#0078d4" };
-const confidenceColor = (c: number) => c >= 0.9 ? "#22c55e" : c >= 0.7 ? "#f59e0b" : "#ef4444";
+const confidenceColor = (c: number) => c >= 0.9 ? "var(--success-color)" : c >= 0.7 ? "var(--warning-color)" : "var(--error-color)";
 
 const thStyle: React.CSSProperties = { textAlign: "left", padding: "6px 10px", borderBottom: "1px solid var(--border-primary)", fontSize: 11, color: "var(--text-secondary)" };
 const tdStyle: React.CSSProperties = { padding: "6px 10px", borderBottom: "1px solid var(--border-primary)", fontSize: 12 };
@@ -236,11 +236,11 @@ export function CloudProviderPanel() {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
             <div style={cardStyle}>
               <div style={labelStyle}>Estimated Monthly</div>
-              <div style={{ fontSize: 22, fontWeight: 700, color: "var(--accent-primary, #3b82f6)" }}>${totalMonthly.toFixed(2)}</div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: "var(--accent-primary)" }}>${totalMonthly.toFixed(2)}</div>
             </div>
             <div style={cardStyle}>
               <div style={labelStyle}>Estimated Yearly</div>
-              <div style={{ fontSize: 22, fontWeight: 700, color: "var(--accent-primary, #3b82f6)" }}>${totalYearly.toFixed(2)}</div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: "var(--accent-primary)" }}>${totalYearly.toFixed(2)}</div>
             </div>
           </div>
           <div style={cardStyle}>

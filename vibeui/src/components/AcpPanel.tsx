@@ -57,12 +57,12 @@ const headingStyle: React.CSSProperties = { margin: "0 0 12px", fontSize: 15, fo
 const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-primary)" };
 const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
 const btnStyle: React.CSSProperties = { padding: "6px 14px", borderRadius: 4, border: "1px solid var(--border-primary)", background: "var(--bg-tertiary)", color: "var(--text-primary)", cursor: "pointer", fontSize: 12 };
-const tabBtnStyle = (active: boolean): React.CSSProperties => ({ ...btnStyle, background: active ? "var(--accent-primary)" : "var(--bg-tertiary)", color: active ? "#fff" : "var(--text-primary)", marginRight: 4 });
+const tabBtnStyle = (active: boolean): React.CSSProperties => ({ ...btnStyle, background: active ? "var(--accent-primary)" : "var(--bg-tertiary)", color: active ? "white" : "var(--text-primary)", marginRight: 4 });
 
-const inputStyle: React.CSSProperties = { width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid var(--border-primary)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: 12, fontFamily: "var(--font-mono, monospace)", boxSizing: "border-box" };
+const inputStyle: React.CSSProperties = { width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid var(--border-primary)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: 12, fontFamily: "var(--font-mono)", boxSizing: "border-box" };
 const badgeStyle = (variant: string): React.CSSProperties => {
-  const colors: Record<string, string> = { tool: "#3b82f6", resource: "#8b5cf6", prompt: "#f59e0b", ok: "#22c55e", error: "#ef4444", pending: "#6b7280", sent: "#3b82f6", received: "#8b5cf6" };
-  return { display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 600, color: "#fff", background: colors[variant] || "#6b7280" };
+  const colors: Record<string, string> = { tool: "var(--accent-color)", resource: "var(--accent-purple)", prompt: "var(--warning-color)", ok: "var(--success-color)", error: "var(--error-color)", pending: "var(--text-muted)", sent: "var(--accent-color)", received: "var(--accent-purple)" };
+  return { display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 600, color: "white", background: colors[variant] || "var(--text-muted)" };
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -109,12 +109,12 @@ export function AcpPanel() {
           <div style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
               <div style={{ fontWeight: 600 }}>ACP Server</div>
-              <div style={{ fontSize: 11, color: serverRunning ? "#22c55e" : "var(--text-secondary)" }}>
+              <div style={{ fontSize: 11, color: serverRunning ? "var(--success-color)" : "var(--text-secondary)" }}>
                 {serverRunning ? "Running on localhost:7878/acp" : "Stopped"}
               </div>
             </div>
             <button
-              style={{ ...btnStyle, background: serverRunning ? "#ef4444" : "#22c55e", color: "#fff" }}
+              style={{ ...btnStyle, background: serverRunning ? "var(--error-color)" : "var(--success-color)", color: "white" }}
               onClick={() => setServerRunning(!serverRunning)}
             >
               {serverRunning ? "Stop Server" : "Start Server"}
@@ -157,9 +157,9 @@ export function AcpPanel() {
             <div style={{ display: "flex", gap: 8 }}>
               <input style={{ ...inputStyle, flex: 1 }} value={clientUrl} onChange={(e) => setClientUrl(e.target.value)} placeholder="http://localhost:3001/acp" />
               {!clientConnected ? (
-                <button style={{ ...btnStyle, background: "var(--accent-primary)", color: "#fff" }} onClick={connectClient}>Connect</button>
+                <button style={{ ...btnStyle, background: "var(--accent-primary)", color: "white" }} onClick={connectClient}>Connect</button>
               ) : (
-                <button style={{ ...btnStyle, background: "#ef4444", color: "#fff" }} onClick={disconnectClient}>Disconnect</button>
+                <button style={{ ...btnStyle, background: "var(--error-color)", color: "white" }} onClick={disconnectClient}>Disconnect</button>
               )}
             </div>
           </div>

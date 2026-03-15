@@ -189,7 +189,7 @@ collection = client.create_collection(
 
   const btnPrimary: React.CSSProperties = {
     background: "var(--accent)",
-    color: "#fff",
+    color: "white",
     border: "none",
     borderRadius: 4,
     padding: "8px 16px",
@@ -295,7 +295,7 @@ collection = client.create_collection(
                         <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", textAlign: "center" }}>{c.vectorCount.toLocaleString()}</td>
                         <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", textAlign: "center", fontSize: 10 }}>M={c.hnsw.m} ef={c.hnsw.efConstruction}</td>
                         <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", textAlign: "center" }}>
-                          <button onClick={() => handleDeleteCollection(c.name)} style={{ background: "none", border: "none", color: "#f44336", cursor: "pointer", fontSize: 11 }}>Delete</button>
+                          <button onClick={() => handleDeleteCollection(c.name)} style={{ background: "none", border: "none", color: "var(--error-color)", cursor: "pointer", fontSize: 11 }}>Delete</button>
                         </td>
                       </tr>
                     ))}
@@ -353,7 +353,7 @@ collection = client.create_collection(
                     {searchResults.map((r, i) => (
                       <tr key={r.id} style={{ background: i % 2 === 0 ? "transparent" : "var(--bg-secondary)" }}>
                         <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", fontFamily: "monospace" }}>{r.id}</td>
-                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", textAlign: "center", color: r.score > 0.8 ? "#4caf50" : r.score > 0.5 ? "#ff9800" : "var(--text-secondary)" }}>{r.score}</td>
+                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", textAlign: "center", color: r.score > 0.8 ? "var(--success-color)" : r.score > 0.5 ? "var(--warning-color)" : "var(--text-secondary)" }}>{r.score}</td>
                         <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", fontSize: 11 }}>
                           {Object.entries(r.payload).map(([k, v]) => (
                             <span key={k} style={{ marginRight: 12 }}><strong>{k}:</strong> {v}</span>

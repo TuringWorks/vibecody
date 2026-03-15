@@ -24,9 +24,9 @@ interface CoveragePanelProps {
 type Filter = "all" | "partial" | "uncovered";
 
 const pctColor = (pct: number) => {
- if (pct >= 80) return "var(--success-color, #4caf50)";
- if (pct >= 50) return "var(--warning-color, #ff9800)";
- return "var(--error-color, #f44336)";
+ if (pct >= 80) return "var(--success-color)";
+ if (pct >= 50) return "var(--warning-color)";
+ return "var(--error-color)";
 };
 
 const toolLabel: Record<string, string> = {
@@ -125,8 +125,8 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  onClick={handleSuspend}
  style={{
  marginLeft: "auto",
- background: "#c62828",
- color: "#fff", border: "none", borderRadius: "4px",
+ background: "var(--error-color)",
+ color: "white", border: "none", borderRadius: "4px",
  padding: "4px 12px", cursor: "pointer",
  }}
  >
@@ -138,7 +138,7 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  disabled={!tool || !workspacePath}
  style={{
  marginLeft: "auto",
- background: "var(--accent-blue)", color: "#fff",
+ background: "var(--accent-blue)", color: "white",
  border: "none", borderRadius: "4px",
  padding: "4px 12px", cursor: !tool || !workspacePath ? "default" : "pointer",
  }}
@@ -149,7 +149,7 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  </div>
 
  {error && (
- <div style={{ background: "rgba(244,67,54,0.1)", color: "var(--error-color, #f44336)", padding: "8px", borderRadius: "4px", marginBottom: "12px", whiteSpace: "pre-wrap" }}>
+ <div style={{ background: "rgba(244,67,54,0.1)", color: "var(--error-color)", padding: "8px", borderRadius: "4px", marginBottom: "12px", whiteSpace: "pre-wrap" }}>
  {error}
  </div>
  )}
@@ -237,14 +237,14 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  </div>
  {isExpanded && file.uncovered_lines.length > 0 && (
  <div style={{ padding: "6px 10px 8px 28px", borderTop: "1px solid var(--bg-primary)" }}>
- <span style={{ color: "var(--error-color, #f44336)", fontSize: "11px" }}>
+ <span style={{ color: "var(--error-color)", fontSize: "11px" }}>
  Uncovered lines: {file.uncovered_lines.slice(0, 30).join(", ")}
  {file.uncovered_lines.length > 30 && ` … +${file.uncovered_lines.length - 30} more`}
  </span>
  </div>
  )}
  {isExpanded && file.uncovered_lines.length === 0 && (
- <div style={{ padding: "6px 10px 8px 28px", borderTop: "1px solid var(--bg-primary)", color: "var(--success-color, #4caf50)", fontSize: "11px" }}>
+ <div style={{ padding: "6px 10px 8px 28px", borderTop: "1px solid var(--bg-primary)", color: "var(--success-color)", fontSize: "11px" }}>
  <CircleCheck size={14} strokeWidth={1.5} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />All lines covered
  </div>
  )}

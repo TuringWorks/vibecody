@@ -11,7 +11,7 @@ import { invoke } from "@tauri-apps/api/core";
 
 /* ── Types ───────────────────────────────────────────────────────────── */
 
-type TabKey = "board" | "sprint" | "backlog" | "ceremonies" | "metrics" | "methodology" | "coach";
+type TabKey = "board" | "sprint" | "backlog" | "ceremonies" | "metrics" | "methodology" | "safe" | "coach";
 type Priority = "P0" | "P1" | "P2" | "P3";
 type Column = "Backlog" | "To Do" | "In Progress" | "In Review" | "Done";
 type SprintStatus = "Planning" | "Active" | "Completed" | "Cancelled";
@@ -20,6 +20,15 @@ type RiskLevel = "red" | "amber" | "green";
 
 const COLUMNS: Column[] = ["Backlog", "To Do", "In Progress", "In Review", "Done"];
 const PRIORITIES: Priority[] = ["P0", "P1", "P2", "P3"];
+
+type SwimlaneMode = "none" | "assignee" | "priority" | "epic";
+type BoardMode = "kanban" | "sprint";
+
+interface Subtask {
+  id: string;
+  title: string;
+  done: boolean;
+}
 
 interface Card {
   id: string;
@@ -32,6 +41,9 @@ interface Card {
   column: Column;
   acceptanceCriteria: string[];
   createdAt: string;
+  epic?: string;
+  subtasks?: Subtask[];
+  sprintId?: string;
 }
 
 interface WipLimits {
@@ -111,6 +123,67 @@ interface AiAnalysis {
   retroInsights: string[];
 }
 
+type PIStatus = "Planning" | "Executing" | "IP" | "Completed";
+type EpicStatus = "Funnel" | "Analyzing" | "Backlog" | "Implementing" | "Done";
+
+interface Feature {
+  id: string;
+  title: string;
+  description: string;
+  teamId: string;
+  iteration: number;
+  businessValue: number;
+  timeCriticality: number;
+  riskReduction: number;
+  jobSize: number;
+  status: Column;
+}
+
+interface AgileReleaseTrainTeam {
+  id: string;
+  name: string;
+  capacity: number;
+  members: number;
+  features: string[];
+}
+
+interface ProgramIncrement {
+  id: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  status: PIStatus;
+  iterations: number;
+  ipIteration: boolean;
+  objectives: PIObjective[];
+  features: Feature[];
+}
+
+interface PIObjective {
+  id: string;
+  teamId: string;
+  description: string;
+  businessValue: number;
+  committed: boolean;
+  achieved: boolean;
+}
+
+interface Epic {
+  id: string;
+  title: string;
+  description: string;
+  status: EpicStatus;
+  leanBusinessCase: string;
+  wsjfScore: number;
+  features: string[];
+}
+
+interface SAFeData {
+  programIncrements: ProgramIncrement[];
+  teams: AgileReleaseTrainTeam[];
+  epics: Epic[];
+}
+
 /* ── Priority colors ────────────────────────────────────────────────── */
 
 const PRIORITY_COLORS: Record<Priority, string> = {
@@ -161,7 +234,7 @@ const cardBaseStyle: React.CSSProperties = {
   boxShadow: "var(--card-shadow)",
 };
 
-const badgeStyle = (bg: string, fg = "#fff"): React.CSSProperties => ({
+const badgeStyle = (bg: string, fg = "white"): React.CSSProperties => ({
   display: "inline-block",
   padding: "2px 8px",
   borderRadius: "var(--radius-sm)",
@@ -187,7 +260,7 @@ const btnStyle: React.CSSProperties = {
 const btnPrimaryStyle: React.CSSProperties = {
   ...btnStyle,
   background: "var(--accent-blue)",
-  color: "#fff",
+  color: "white",
   borderColor: "var(--accent-blue)",
 };
 
@@ -200,6 +273,13 @@ const inputStyle: React.CSSProperties = {
   fontSize: 13,
   width: "100%",
   boxSizing: "border-box",
+};
+
+const cardStyle: React.CSSProperties = {
+  padding: 12,
+  borderRadius: "var(--radius-md, 8px)",
+  border: "1px solid var(--border-color)",
+  background: "var(--bg-secondary)",
 };
 
 const sectionTitle: React.CSSProperties = {
@@ -224,11 +304,59 @@ const defaultCard = (column: Column): Card => ({
   column,
   acceptanceCriteria: [],
   createdAt: new Date().toISOString(),
+  epic: undefined,
+  subtasks: [],
+  sprintId: undefined,
 });
 
 /* ═══════════════════════════════════════════════════════════════════════
-   Board Tab (Kanban)
+   Board Tab — Jira-style Kanban / Sprint Board
    ═══════════════════════════════════════════════════════════════════════ */
+
+/* Assignee avatar (colored initials circle) */
+const AVATAR_COLORS = ["#6366f1", "#ec4899", "#14b8a6", "#f59e0b", "#8b5cf6", "#ef4444", "#06b6d4", "#84cc16"];
+function AvatarBadge({ name, size = 24 }: { name: string; size?: number }) {
+  if (!name) return null;
+  const initials = name.split(/\s+/).map(w => w[0]?.toUpperCase() || "").join("").slice(0, 2);
+  const colorIdx = name.split("").reduce((a, c) => a + c.charCodeAt(0), 0) % AVATAR_COLORS.length;
+  return (
+    <div title={name} style={{
+      width: size, height: size, borderRadius: "50%", background: AVATAR_COLORS[colorIdx],
+      color: "#fff", fontSize: size * 0.42, fontWeight: 700, display: "flex", alignItems: "center",
+      justifyContent: "center", flexShrink: 0, border: "2px solid var(--bg-primary)",
+    }}>
+      {initials}
+    </div>
+  );
+}
+
+/* Card age in days */
+function cardAgeDays(card: Card): number {
+  const created = new Date(card.createdAt).getTime();
+  return Math.floor((Date.now() - created) / 86400000);
+}
+function agingColor(days: number): string | undefined {
+  if (days > 14) return "var(--error-color)";
+  if (days > 7) return "var(--warning-color)";
+  return undefined;
+}
+
+/* Subtask progress bar */
+function SubtaskProgress({ subtasks }: { subtasks?: Subtask[] }) {
+  if (!subtasks || subtasks.length === 0) return null;
+  const done = subtasks.filter(s => s.done).length;
+  const pct = Math.round((done / subtasks.length) * 100);
+  return (
+    <div style={{ marginTop: 4 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "var(--text-secondary)", marginBottom: 2 }}>
+        <span>Subtasks</span><span>{done}/{subtasks.length}</span>
+      </div>
+      <div style={{ height: 4, borderRadius: 2, background: "var(--bg-tertiary)", overflow: "hidden" }}>
+        <div style={{ height: "100%", width: `${pct}%`, borderRadius: 2, background: pct === 100 ? "var(--success-color)" : "var(--accent-blue)", transition: "width 0.3s" }} />
+      </div>
+    </div>
+  );
+}
 
 function BoardTab() {
   const [cards, setCards] = useState<Card[]>([]);
@@ -239,6 +367,18 @@ function BoardTab() {
   const [error, setError] = useState("");
   const [hoveredCard, setHoveredCard] = useState<string | null>(null);
 
+  /* Jira-style features */
+  const [boardMode, setBoardMode] = useState<BoardMode>("kanban");
+  const [swimlane, setSwimlane] = useState<SwimlaneMode>("none");
+  const [filterText, setFilterText] = useState("");
+  const [filterAssignee, setFilterAssignee] = useState("");
+  const [filterPriority, setFilterPriority] = useState<Priority | "">("");
+  const [filterLabel, setFilterLabel] = useState("");
+  const [dragCardId, setDragCardId] = useState<string | null>(null);
+  const [dragOverCol, setDragOverCol] = useState<Column | null>(null);
+  const [sprints, setSprints] = useState<Sprint[]>([]);
+  const [activeSprint, setActiveSprint] = useState("");
+
   useEffect(() => {
     (async () => {
       try {
@@ -248,9 +388,64 @@ function BoardTab() {
       } catch (e: any) {
         setError(typeof e === "string" ? e : e?.message || "Failed to load board");
       }
+      try {
+        const sData = await invoke<{ sprints: Sprint[] }>("agile_get_sprints");
+        setSprints(sData.sprints || []);
+        const active = (sData.sprints || []).find(s => s.status === "Active");
+        if (active) setActiveSprint(active.id);
+      } catch { /* no sprints yet */ }
     })();
   }, []);
 
+  /* ── Filtering ── */
+  const filteredCards = cards.filter(c => {
+    if (boardMode === "sprint" && activeSprint && c.sprintId !== activeSprint) return false;
+    if (filterText && !c.title.toLowerCase().includes(filterText.toLowerCase()) && !c.description.toLowerCase().includes(filterText.toLowerCase())) return false;
+    if (filterAssignee && c.assignee !== filterAssignee) return false;
+    if (filterPriority && c.priority !== filterPriority) return false;
+    if (filterLabel && !c.labels.includes(filterLabel)) return false;
+    return true;
+  });
+
+  const allAssignees = [...new Set(cards.map(c => c.assignee).filter(Boolean))].sort();
+  const allLabels = [...new Set(cards.flatMap(c => c.labels))].sort();
+  const allEpics = [...new Set(cards.map(c => c.epic).filter(Boolean) as string[])].sort();
+
+  /* ── Swimlane grouping ── */
+  const getSwimlanes = (): { key: string; label: string; cards: Card[] }[] => {
+    if (swimlane === "none") return [{ key: "all", label: "", cards: filteredCards }];
+    if (swimlane === "assignee") {
+      const groups = new Map<string, Card[]>();
+      filteredCards.forEach(c => { const k = c.assignee || "Unassigned"; groups.set(k, [...(groups.get(k) || []), c]); });
+      return [...groups.entries()].map(([k, v]) => ({ key: k, label: k, cards: v }));
+    }
+    if (swimlane === "priority") {
+      return PRIORITIES.map(p => ({ key: p, label: p, cards: filteredCards.filter(c => c.priority === p) })).filter(g => g.cards.length > 0);
+    }
+    // epic
+    const groups = new Map<string, Card[]>();
+    filteredCards.forEach(c => { const k = c.epic || "No Epic"; groups.set(k, [...(groups.get(k) || []), c]); });
+    return [...groups.entries()].map(([k, v]) => ({ key: k, label: k, cards: v }));
+  };
+
+  /* ── Drag & Drop ── */
+  const onDragStart = (e: React.DragEvent, cardId: string) => {
+    setDragCardId(cardId);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", cardId);
+  };
+  const onDragOver = (e: React.DragEvent, col: Column) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDragOverCol(col); };
+  const onDragLeave = () => setDragOverCol(null);
+  const onDrop = async (e: React.DragEvent, col: Column) => {
+    e.preventDefault(); setDragOverCol(null);
+    const cardId = dragCardId || e.dataTransfer.getData("text/plain");
+    if (!cardId) return;
+    setDragCardId(null);
+    await moveCard(cardId, col);
+  };
+  const onDragEnd = () => { setDragCardId(null); setDragOverCol(null); };
+
+  /* ── CRUD ── */
   const moveCard = useCallback(async (cardId: string, targetCol: Column) => {
     try {
       await invoke("agile_move_card", { cardId, column: targetCol });
@@ -265,11 +460,7 @@ function BoardTab() {
       await invoke("agile_update_card", { card });
       setCards(prev => {
         const idx = prev.findIndex(c => c.id === card.id);
-        if (idx >= 0) {
-          const next = [...prev];
-          next[idx] = card;
-          return next;
-        }
+        if (idx >= 0) { const next = [...prev]; next[idx] = card; return next; }
         return [...prev, card];
       });
       setEditingCard(null);
@@ -278,98 +469,203 @@ function BoardTab() {
     }
   }, []);
 
+  const deleteCard = useCallback(async (cardId: string) => {
+    try {
+      await invoke("agile_delete_card", { cardId });
+      setCards(prev => prev.filter(c => c.id !== cardId));
+      setEditingCard(null);
+    } catch (e: any) {
+      setError(typeof e === "string" ? e : e?.message || "Failed to delete card");
+    }
+  }, []);
+
   const addCard = useCallback(async (col: Column) => {
     if (!newTitle.trim()) return;
-    const card = { ...defaultCard(col), title: newTitle.trim() };
+    const card: Card = { ...defaultCard(col), title: newTitle.trim(), sprintId: boardMode === "sprint" ? activeSprint : undefined };
     await saveCard(card);
     setNewTitle("");
     setAddingTo(null);
-  }, [newTitle, saveCard]);
+  }, [newTitle, saveCard, boardMode, activeSprint]);
+
+  /* ── Subtask helpers ── */
+  const addSubtask = () => {
+    if (!editingCard) return;
+    const title = prompt("Subtask title:");
+    if (!title) return;
+    setEditingCard({ ...editingCard, subtasks: [...(editingCard.subtasks || []), { id: genId(), title, done: false }] });
+  };
+  const toggleSubtask = (subId: string) => {
+    if (!editingCard) return;
+    setEditingCard({ ...editingCard, subtasks: (editingCard.subtasks || []).map(s => s.id === subId ? { ...s, done: !s.done } : s) });
+  };
+  const removeSubtask = (subId: string) => {
+    if (!editingCard) return;
+    setEditingCard({ ...editingCard, subtasks: (editingCard.subtasks || []).filter(s => s.id !== subId) });
+  };
 
   const colIdx = (col: Column) => COLUMNS.indexOf(col);
+  const lanes = getSwimlanes();
+  const hasFilters = !!(filterText || filterAssignee || filterPriority || filterLabel);
 
   return (
     <div>
       {error && <div style={{ color: "var(--error-color)", marginBottom: 8, fontSize: 12 }}>{error}</div>}
-      <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 8 }}>
-        {COLUMNS.map(col => {
-          const colCards = cards.filter(c => c.column === col);
-          const overWip = colCards.length > (wipLimits[col] || 50);
-          return (
-            <div key={col} style={{ minWidth: 220, flex: 1, background: "var(--bg-secondary)", borderRadius: "var(--radius-md)", padding: 10, border: overWip ? "2px solid var(--warning-color)" : "1px solid var(--border-color)" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                <span style={{ fontWeight: 600, fontSize: 13, color: "var(--text-primary)" }}>{col}</span>
-                <span style={{ fontSize: 11, color: overWip ? "var(--warning-color)" : "var(--text-secondary)" }}>
-                  {colCards.length}/{wipLimits[col] || "~"}
-                </span>
-              </div>
-              {overWip && <div style={{ fontSize: 11, color: "var(--warning-color)", marginBottom: 6 }}>WIP limit exceeded!</div>}
 
-              {colCards.map(card => (
-                <div
-                  key={card.id}
-                  style={{
-                    ...cardBaseStyle,
-                    transform: hoveredCard === card.id ? "translateY(-1px)" : "none",
-                    boxShadow: hoveredCard === card.id ? "var(--elevation-2)" : "var(--card-shadow)",
-                  }}
-                  onMouseEnter={() => setHoveredCard(card.id)}
-                  onMouseLeave={() => setHoveredCard(null)}
-                  onClick={() => setEditingCard({ ...card })}
-                >
-                  <div style={{ fontWeight: 500, fontSize: 13, color: "var(--text-primary)", marginBottom: 6 }}>{card.title}</div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 6 }}>
-                    <span style={badgeStyle(PRIORITY_COLORS[card.priority])}>{card.priority}</span>
-                    {card.storyPoints > 0 && <span style={badgeStyle("var(--accent-purple)")}>{card.storyPoints} pts</span>}
-                    {card.labels.map(l => <span key={l} style={badgeStyle("var(--bg-tertiary)", "var(--text-secondary)")}>{l}</span>)}
-                  </div>
-                  {card.assignee && <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>{card.assignee}</div>}
-                  {/* Move buttons */}
-                  <div style={{ display: "flex", gap: 4, marginTop: 6 }} onClick={e => e.stopPropagation()}>
-                    {colIdx(col) > 0 && (
-                      <button style={{ ...btnStyle, padding: "2px 8px", fontSize: 11 }} onClick={() => moveCard(card.id, COLUMNS[colIdx(col) - 1])}>
-                        &larr;
-                      </button>
-                    )}
-                    {colIdx(col) < COLUMNS.length - 1 && (
-                      <button style={{ ...btnStyle, padding: "2px 8px", fontSize: 11 }} onClick={() => moveCard(card.id, COLUMNS[colIdx(col) + 1])}>
-                        &rarr;
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
+      {/* ── Toolbar: Board Mode + Swimlane + Quick Filters ── */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginBottom: 10, padding: "8px 0", borderBottom: "1px solid var(--border-color)" }}>
+        {/* Board mode toggle */}
+        <div style={{ display: "flex", borderRadius: "var(--radius-sm)", overflow: "hidden", border: "1px solid var(--border-color)" }}>
+          <button style={{ ...btnStyle, border: "none", borderRadius: 0, background: boardMode === "kanban" ? "var(--accent-blue)" : "var(--bg-elevated)", color: boardMode === "kanban" ? "#fff" : "var(--text-primary)", fontSize: 11, padding: "4px 10px" }} onClick={() => setBoardMode("kanban")}>Kanban</button>
+          <button style={{ ...btnStyle, border: "none", borderRadius: 0, background: boardMode === "sprint" ? "var(--accent-blue)" : "var(--bg-elevated)", color: boardMode === "sprint" ? "#fff" : "var(--text-primary)", fontSize: 11, padding: "4px 10px" }} onClick={() => setBoardMode("sprint")}>Sprint Board</button>
+        </div>
 
-              {addingTo === col ? (
-                <div style={{ marginTop: 6 }}>
-                  <input
-                    style={inputStyle}
-                    placeholder="Card title..."
-                    value={newTitle}
-                    onChange={e => setNewTitle(e.target.value)}
-                    onKeyDown={e => e.key === "Enter" && addCard(col)}
-                    autoFocus
-                  />
-                  <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
-                    <button style={btnPrimaryStyle} onClick={() => addCard(col)}>Add</button>
-                    <button style={btnStyle} onClick={() => { setAddingTo(null); setNewTitle(""); }}>Cancel</button>
-                  </div>
-                </div>
-              ) : (
-                <button style={{ ...btnStyle, width: "100%", marginTop: 6, fontSize: 12 }} onClick={() => setAddingTo(col)}>
-                  + Add Card
-                </button>
-              )}
-            </div>
-          );
-        })}
+        {boardMode === "sprint" && (
+          <select style={{ ...inputStyle, width: "auto", fontSize: 11, padding: "4px 8px" }} value={activeSprint} onChange={e => setActiveSprint(e.target.value)}>
+            <option value="">All Sprints</option>
+            {sprints.map(s => <option key={s.id} value={s.id}>{s.name} ({s.status})</option>)}
+          </select>
+        )}
+
+        <div style={{ width: 1, height: 20, background: "var(--border-color)" }} />
+
+        {/* Swimlane selector */}
+        <label style={{ fontSize: 11, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4 }}>
+          Swimlanes:
+          <select style={{ ...inputStyle, width: "auto", fontSize: 11, padding: "4px 8px" }} value={swimlane} onChange={e => setSwimlane(e.target.value as SwimlaneMode)}>
+            <option value="none">None</option>
+            <option value="assignee">Assignee</option>
+            <option value="priority">Priority</option>
+            <option value="epic">Epic</option>
+          </select>
+        </label>
+
+        <div style={{ width: 1, height: 20, background: "var(--border-color)" }} />
+
+        {/* Quick filters */}
+        <input style={{ ...inputStyle, width: 140, fontSize: 11, padding: "4px 8px" }} placeholder="Search cards..." value={filterText} onChange={e => setFilterText(e.target.value)} />
+        <select style={{ ...inputStyle, width: "auto", fontSize: 11, padding: "4px 8px" }} value={filterAssignee} onChange={e => setFilterAssignee(e.target.value)}>
+          <option value="">All Assignees</option>
+          {allAssignees.map(a => <option key={a} value={a}>{a}</option>)}
+        </select>
+        <select style={{ ...inputStyle, width: "auto", fontSize: 11, padding: "4px 8px" }} value={filterPriority} onChange={e => setFilterPriority(e.target.value as Priority | "")}>
+          <option value="">All Priorities</option>
+          {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
+        </select>
+        {allLabels.length > 0 && (
+          <select style={{ ...inputStyle, width: "auto", fontSize: 11, padding: "4px 8px" }} value={filterLabel} onChange={e => setFilterLabel(e.target.value)}>
+            <option value="">All Labels</option>
+            {allLabels.map(l => <option key={l} value={l}>{l}</option>)}
+          </select>
+        )}
+        {hasFilters && (
+          <button style={{ ...btnStyle, padding: "3px 8px", fontSize: 11, color: "var(--error-color)" }} onClick={() => { setFilterText(""); setFilterAssignee(""); setFilterPriority(""); setFilterLabel(""); }}>Clear Filters</button>
+        )}
+        <span style={{ fontSize: 11, color: "var(--text-secondary)", marginLeft: "auto" }}>{filteredCards.length} card{filteredCards.length !== 1 ? "s" : ""}</span>
       </div>
 
-      {/* Card edit modal */}
+      {/* ── Swimlaned Board ── */}
+      {lanes.map(lane => (
+        <div key={lane.key}>
+          {lane.label && (
+            <div style={{ padding: "6px 8px", margin: "8px 0 4px", background: "var(--bg-tertiary)", borderRadius: "var(--radius-sm)", fontWeight: 600, fontSize: 12, color: "var(--text-primary)", display: "flex", alignItems: "center", gap: 8 }}>
+              {swimlane === "assignee" && <AvatarBadge name={lane.label} size={20} />}
+              {swimlane === "priority" && <span style={badgeStyle(PRIORITY_COLORS[lane.label as Priority] || "var(--bg-tertiary)")}>{lane.label}</span>}
+              {(swimlane === "epic" || swimlane === "assignee") && <span>{lane.label}</span>}
+              <span style={{ fontSize: 11, color: "var(--text-secondary)", fontWeight: 400 }}>({lane.cards.length})</span>
+            </div>
+          )}
+          <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 8, marginBottom: swimlane !== "none" ? 12 : 0 }}>
+            {COLUMNS.map(col => {
+              const colCards = lane.cards.filter(c => c.column === col);
+              const overWip = colCards.length > (wipLimits[col] || 50);
+              const isDragTarget = dragOverCol === col;
+              return (
+                <div
+                  key={col}
+                  onDragOver={e => onDragOver(e, col)} onDragLeave={onDragLeave} onDrop={e => onDrop(e, col)}
+                  style={{
+                    minWidth: 220, flex: 1, borderRadius: "var(--radius-md)", padding: 10, transition: "background 0.15s, border 0.15s",
+                    background: isDragTarget ? "rgba(99,102,241,0.08)" : "var(--bg-secondary)",
+                    border: isDragTarget ? "2px dashed var(--accent-blue)" : overWip ? "2px solid var(--warning-color)" : "1px solid var(--border-color)",
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                    <span style={{ fontWeight: 600, fontSize: 13, color: "var(--text-primary)" }}>{col}</span>
+                    <span style={{ fontSize: 11, color: overWip ? "var(--warning-color)" : "var(--text-secondary)" }}>{colCards.length}/{wipLimits[col] || "~"}</span>
+                  </div>
+                  {overWip && <div style={{ fontSize: 11, color: "var(--warning-color)", marginBottom: 6 }}>WIP limit exceeded!</div>}
+
+                  {colCards.map(card => {
+                    const age = cardAgeDays(card);
+                    const aging = agingColor(age);
+                    const isDragging = dragCardId === card.id;
+                    return (
+                      <div
+                        key={card.id} draggable
+                        onDragStart={e => onDragStart(e, card.id)} onDragEnd={onDragEnd}
+                        style={{
+                          ...cardBaseStyle, cursor: "grab", opacity: isDragging ? 0.4 : 1,
+                          transform: hoveredCard === card.id && !isDragging ? "translateY(-2px)" : "none",
+                          boxShadow: hoveredCard === card.id ? "var(--elevation-2)" : "var(--card-shadow)",
+                          borderLeft: aging ? `3px solid ${aging}` : undefined,
+                        }}
+                        onMouseEnter={() => setHoveredCard(card.id)} onMouseLeave={() => setHoveredCard(null)}
+                        onClick={() => setEditingCard({ ...card })}
+                      >
+                        {card.epic && <div style={{ fontSize: 10, color: "var(--accent-purple)", fontWeight: 600, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>{card.epic}</div>}
+                        <div style={{ fontWeight: 500, fontSize: 13, color: "var(--text-primary)", marginBottom: 6 }}>{card.title}</div>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 4, alignItems: "center" }}>
+                          <span style={badgeStyle(PRIORITY_COLORS[card.priority])}>{card.priority}</span>
+                          {card.storyPoints > 0 && <span style={badgeStyle("var(--accent-purple)")}>{card.storyPoints} pts</span>}
+                          {card.labels.map(l => <span key={l} style={badgeStyle("var(--bg-tertiary)", "var(--text-secondary)")}>{l}</span>)}
+                        </div>
+                        <SubtaskProgress subtasks={card.subtasks} />
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 6 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <AvatarBadge name={card.assignee} size={22} />
+                            {card.assignee && <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>{card.assignee}</span>}
+                          </div>
+                          {age > 3 && <span style={{ fontSize: 10, color: aging || "var(--text-secondary)" }} title="Card age">{age}d</span>}
+                        </div>
+                        <div style={{ display: "flex", gap: 4, marginTop: 6 }} onClick={e => e.stopPropagation()}>
+                          {colIdx(col) > 0 && <button style={{ ...btnStyle, padding: "2px 8px", fontSize: 11 }} onClick={() => moveCard(card.id, COLUMNS[colIdx(col) - 1])}>&larr;</button>}
+                          {colIdx(col) < COLUMNS.length - 1 && <button style={{ ...btnStyle, padding: "2px 8px", fontSize: 11 }} onClick={() => moveCard(card.id, COLUMNS[colIdx(col) + 1])}>&rarr;</button>}
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {lane.key === lanes[0].key && (
+                    addingTo === col ? (
+                      <div style={{ marginTop: 6 }}>
+                        <input style={inputStyle} placeholder="Card title..." value={newTitle} onChange={e => setNewTitle(e.target.value)} onKeyDown={e => e.key === "Enter" && addCard(col)} autoFocus />
+                        <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
+                          <button style={btnPrimaryStyle} onClick={() => addCard(col)}>Add</button>
+                          <button style={btnStyle} onClick={() => { setAddingTo(null); setNewTitle(""); }}>Cancel</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button style={{ ...btnStyle, width: "100%", marginTop: 6, fontSize: 12 }} onClick={() => setAddingTo(col)}>+ Add Card</button>
+                    )
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+
+      {/* ── Card Edit Modal (Jira-style detail) ── */}
       {editingCard && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }} onClick={() => setEditingCard(null)}>
-          <div style={{ background: "var(--bg-primary)", borderRadius: "var(--radius-md)", padding: 20, width: 460, maxHeight: "80vh", overflowY: "auto", border: "1px solid var(--border-color)", boxShadow: "var(--elevation-2)" }} onClick={e => e.stopPropagation()}>
-            <h3 style={{ margin: "0 0 12px", color: "var(--text-primary)", fontSize: 16 }}>Edit Card</h3>
+          <div style={{ background: "var(--bg-primary)", borderRadius: "var(--radius-md)", padding: 24, width: 540, maxHeight: "85vh", overflowY: "auto", border: "1px solid var(--border-color)", boxShadow: "var(--elevation-2)" }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <h3 style={{ margin: 0, color: "var(--text-primary)", fontSize: 16 }}>Edit Card</h3>
+              <div style={{ display: "flex", gap: 6 }}>
+                <button style={{ ...btnStyle, padding: "4px 10px", fontSize: 11, color: "var(--error-color)" }} onClick={() => { if (confirm("Delete this card?")) deleteCard(editingCard.id); }}>Delete</button>
+                <button style={{ ...btnStyle, padding: "4px 10px", fontSize: 11 }} onClick={() => setEditingCard(null)}>Close</button>
+              </div>
+            </div>
             <label style={{ fontSize: 12, color: "var(--text-secondary)" }}>Title</label>
             <input style={{ ...inputStyle, marginBottom: 8 }} value={editingCard.title} onChange={e => setEditingCard({ ...editingCard, title: e.target.value })} />
             <label style={{ fontSize: 12, color: "var(--text-secondary)" }}>Description</label>
@@ -390,12 +686,42 @@ function BoardTab() {
                 <input style={inputStyle} type="number" min={0} value={editingCard.storyPoints} onChange={e => setEditingCard({ ...editingCard, storyPoints: Number(e.target.value) })} />
               </div>
             </div>
+            <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: 12, color: "var(--text-secondary)" }}>Epic</label>
+                <input style={inputStyle} placeholder="Epic name" value={editingCard.epic || ""} onChange={e => setEditingCard({ ...editingCard, epic: e.target.value || undefined })} list="epic-suggestions" />
+                <datalist id="epic-suggestions">{allEpics.map(ep => <option key={ep} value={ep} />)}</datalist>
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: 12, color: "var(--text-secondary)" }}>Column</label>
+                <select style={inputStyle} value={editingCard.column} onChange={e => setEditingCard({ ...editingCard, column: e.target.value as Column })}>
+                  {COLUMNS.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+            </div>
             <label style={{ fontSize: 12, color: "var(--text-secondary)" }}>Labels (comma-separated)</label>
-            <input style={{ ...inputStyle, marginBottom: 8 }} value={editingCard.labels.join(", ")} onChange={e => setEditingCard({ ...editingCard, labels: e.target.value.split(",").map(s => s.trim()).filter(Boolean) })} />
-            <label style={{ fontSize: 12, color: "var(--text-secondary)" }}>Column</label>
-            <select style={{ ...inputStyle, marginBottom: 12 }} value={editingCard.column} onChange={e => setEditingCard({ ...editingCard, column: e.target.value as Column })}>
-              {COLUMNS.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
+            <input style={{ ...inputStyle, marginBottom: 12 }} value={editingCard.labels.join(", ")} onChange={e => setEditingCard({ ...editingCard, labels: e.target.value.split(",").map(s => s.trim()).filter(Boolean) })} />
+
+            {/* Subtasks section */}
+            <div style={{ marginBottom: 12, borderTop: "1px solid var(--border-color)", paddingTop: 12 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>Subtasks ({(editingCard.subtasks || []).length})</label>
+                <button style={{ ...btnStyle, padding: "3px 10px", fontSize: 11 }} onClick={addSubtask}>+ Add</button>
+              </div>
+              {(editingCard.subtasks || []).map(sub => (
+                <div key={sub.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", borderBottom: "1px solid var(--border-color)" }}>
+                  <input type="checkbox" checked={sub.done} onChange={() => toggleSubtask(sub.id)} />
+                  <span style={{ flex: 1, fontSize: 12, textDecoration: sub.done ? "line-through" : "none", color: sub.done ? "var(--text-secondary)" : "var(--text-primary)" }}>{sub.title}</span>
+                  <button style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", fontSize: 12 }} onClick={() => removeSubtask(sub.id)}>x</button>
+                </div>
+              ))}
+              {(editingCard.subtasks || []).length > 0 && <SubtaskProgress subtasks={editingCard.subtasks} />}
+            </div>
+
+            <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 12 }}>
+              Created: {new Date(editingCard.createdAt).toLocaleDateString()} · Age: {cardAgeDays(editingCard)} days
+              {editingCard.sprintId && <span> · Sprint: {sprints.find(s => s.id === editingCard.sprintId)?.name || editingCard.sprintId}</span>}
+            </div>
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
               <button style={btnStyle} onClick={() => setEditingCard(null)}>Cancel</button>
               <button style={btnPrimaryStyle} onClick={() => saveCard(editingCard)}>Save</button>
@@ -499,8 +825,8 @@ function SprintTab() {
           {sprints.map(s => <option key={s.id} value={s.id}>{s.name} ({s.status})</option>)}
         </select>
         <button style={btnPrimaryStyle} onClick={() => setCreating(true)}>+ New Sprint</button>
-        {current && current.status === "Planning" && <button style={{ ...btnStyle, background: "var(--accent-green)", color: "#fff" }} onClick={() => updateSprintStatus("Active")}>Start Sprint</button>}
-        {current && current.status === "Active" && <button style={{ ...btnStyle, background: "var(--accent-rose)", color: "#fff" }} onClick={() => updateSprintStatus("Completed")}>End Sprint</button>}
+        {current && current.status === "Planning" && <button style={{ ...btnStyle, background: "var(--accent-green)", color: "white" }} onClick={() => updateSprintStatus("Active")}>Start Sprint</button>}
+        {current && current.status === "Active" && <button style={{ ...btnStyle, background: "var(--accent-rose)", color: "white" }} onClick={() => updateSprintStatus("Completed")}>End Sprint</button>}
       </div>
 
       {/* Create sprint form */}
@@ -832,7 +1158,7 @@ function CeremoniesTab() {
   };
 
   const subTabBtn = (key: typeof subTab, label: string) => (
-    <button style={{ ...btnStyle, background: subTab === key ? "var(--accent-blue)" : "var(--bg-elevated)", color: subTab === key ? "#fff" : "var(--text-primary)" }} onClick={() => setSubTab(key)}>{label}</button>
+    <button style={{ ...btnStyle, background: subTab === key ? "var(--accent-blue)" : "var(--bg-elevated)", color: subTab === key ? "white" : "var(--text-primary)" }} onClick={() => setSubTab(key)}>{label}</button>
   );
 
   return (
@@ -1156,7 +1482,7 @@ function MethodologyTab() {
       {/* Methodology selector */}
       <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
         {METHODOLOGIES.map(m => (
-          <button key={m.name} style={{ ...btnStyle, background: selected === m.name ? "var(--accent-blue)" : "var(--bg-elevated)", color: selected === m.name ? "#fff" : "var(--text-primary)" }} onClick={() => setSelected(m.name)}>
+          <button key={m.name} style={{ ...btnStyle, background: selected === m.name ? "var(--accent-blue)" : "var(--bg-elevated)", color: selected === m.name ? "white" : "var(--text-primary)" }} onClick={() => setSelected(m.name)}>
             {m.name}
           </button>
         ))}
@@ -1294,7 +1620,7 @@ function AiCoachTab() {
           {loading ? "Analyzing..." : "Analyze Sprint"}
         </button>
         {loading && (
-          <button style={{ ...btnStyle, background: "var(--accent-rose)", color: "#fff", borderColor: "var(--accent-rose)" }} onClick={handleSuspend}>
+          <button style={{ ...btnStyle, background: "var(--accent-rose)", color: "white", borderColor: "var(--accent-rose)" }} onClick={handleSuspend}>
             Suspend
           </button>
         )}
@@ -1393,6 +1719,299 @@ function AiCoachTab() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
+   SAFe Tab — Full operational SAFe support
+   ═══════════════════════════════════════════════════════════════════════ */
+
+function SAFeTab() {
+  const [safeData, setSafeData] = useState<SAFeData>({ programIncrements: [], teams: [], epics: [] });
+  const [subView, setSubView] = useState<"pi" | "art" | "portfolio" | "board">("pi");
+  const [loading, setLoading] = useState(true);
+  const cancelRef = useRef(false);
+  const taskIdRef = useRef(0);
+
+  const load = useCallback(async () => {
+    const id = ++taskIdRef.current;
+    setLoading(true);
+    try {
+      const data = await invoke<SAFeData>("agile_get_safe");
+      if (cancelRef.current || id !== taskIdRef.current) return;
+      setSafeData(data);
+    } catch { /* first run — empty */ }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); return () => { cancelRef.current = true; }; }, [load]);
+
+  const save = async (d: SAFeData) => {
+    setSafeData(d);
+    await invoke("agile_save_safe", { data: d });
+  };
+
+  const wsjf = (f: Feature) => f.jobSize > 0 ? ((f.businessValue + f.timeCriticality + f.riskReduction) / f.jobSize) : 0;
+
+  /* ── PI Planning sub-view ── */
+  const PIPlanning = () => {
+    const [name, setName] = useState("");
+    const [iterations, setIterations] = useState(5);
+
+    const createPI = () => {
+      if (!name.trim()) return;
+      const pi: ProgramIncrement = {
+        id: `pi-${Date.now()}`, name: name.trim(), startDate: new Date().toISOString().slice(0, 10),
+        endDate: new Date(Date.now() + iterations * 14 * 86400000).toISOString().slice(0, 10),
+        status: "Planning", iterations, ipIteration: true, objectives: [], features: [],
+      };
+      save({ ...safeData, programIncrements: [...safeData.programIncrements, pi] });
+      setName("");
+    };
+
+    const updatePIStatus = (piId: string, status: PIStatus) => {
+      save({ ...safeData, programIncrements: safeData.programIncrements.map(p => p.id === piId ? { ...p, status } : p) });
+    };
+
+    const addFeature = (piId: string) => {
+      const title = prompt("Feature title:");
+      if (!title) return;
+      const teamId = safeData.teams.length > 0 ? safeData.teams[0].id : "unassigned";
+      const f: Feature = { id: `feat-${Date.now()}`, title, description: "", teamId, iteration: 1, businessValue: 5, timeCriticality: 5, riskReduction: 5, jobSize: 5, status: "To Do" };
+      save({ ...safeData, programIncrements: safeData.programIncrements.map(p => p.id === piId ? { ...p, features: [...p.features, f] } : p) });
+    };
+
+    const addObjective = (piId: string) => {
+      const desc = prompt("PI Objective description:");
+      if (!desc) return;
+      const teamId = safeData.teams.length > 0 ? safeData.teams[0].id : "unassigned";
+      const obj: PIObjective = { id: `obj-${Date.now()}`, teamId, description: desc, businessValue: 5, committed: true, achieved: false };
+      save({ ...safeData, programIncrements: safeData.programIncrements.map(p => p.id === piId ? { ...p, objectives: [...p.objectives, obj] } : p) });
+    };
+
+    const PI_STATUSES: PIStatus[] = ["Planning", "Executing", "IP", "Completed"];
+
+    return (
+      <div>
+        <div style={{ ...cardStyle, marginBottom: 12 }}>
+          <div style={{ fontWeight: 600, marginBottom: 8 }}>Create Program Increment</div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <input style={inputStyle} placeholder="PI name (e.g. PI 24.1)" value={name} onChange={e => setName(e.target.value)} />
+            <label style={{ fontSize: 12 }}>Iterations: <input type="number" min={2} max={12} value={iterations} onChange={e => setIterations(+e.target.value)} style={{ ...inputStyle, width: 60 }} /></label>
+            <button style={btnStyle} onClick={createPI}>Create PI</button>
+          </div>
+        </div>
+        {safeData.programIncrements.map(pi => (
+          <div key={pi.id} style={{ ...cardStyle, marginBottom: 12 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+              <div style={{ fontWeight: 600, fontSize: 14 }}>{pi.name}</div>
+              <div style={{ display: "flex", gap: 4 }}>
+                {PI_STATUSES.map(s => (
+                  <button key={s} style={{ ...btnStyle, padding: "2px 8px", fontSize: 11, background: pi.status === s ? "var(--accent-blue)" : "var(--bg-tertiary)", color: pi.status === s ? "#fff" : "var(--text-secondary)" }} onClick={() => updatePIStatus(pi.id, s)}>{s}</button>
+                ))}
+              </div>
+            </div>
+            <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8 }}>{pi.startDate} → {pi.endDate} · {pi.iterations} iterations {pi.ipIteration ? "(+IP)" : ""}</div>
+            <div style={{ marginBottom: 8 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                <span style={{ fontWeight: 600, fontSize: 12 }}>Features ({pi.features.length})</span>
+                <button style={{ ...btnStyle, padding: "2px 8px", fontSize: 11 }} onClick={() => addFeature(pi.id)}>+ Feature</button>
+              </div>
+              {pi.features.sort((a, b) => wsjf(b) - wsjf(a)).map(f => (
+                <div key={f.id} style={{ padding: "4px 8px", borderRadius: 4, background: "var(--bg-tertiary)", marginBottom: 4, fontSize: 12, display: "flex", justifyContent: "space-between" }}>
+                  <span>{f.title}</span>
+                  <span style={{ color: "var(--text-secondary)" }}>WSJF: {wsjf(f).toFixed(1)} · Team: {safeData.teams.find(t => t.id === f.teamId)?.name || f.teamId}</span>
+                </div>
+              ))}
+            </div>
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                <span style={{ fontWeight: 600, fontSize: 12 }}>PI Objectives ({pi.objectives.length})</span>
+                <button style={{ ...btnStyle, padding: "2px 8px", fontSize: 11 }} onClick={() => addObjective(pi.id)}>+ Objective</button>
+              </div>
+              {pi.objectives.map(obj => (
+                <div key={obj.id} style={{ padding: "4px 8px", borderRadius: 4, background: "var(--bg-tertiary)", marginBottom: 4, fontSize: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span>{obj.description}</span>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <span style={{ color: "var(--text-secondary)" }}>BV: {obj.businessValue}</span>
+                    <label style={{ fontSize: 11 }}><input type="checkbox" checked={obj.achieved} onChange={() => {
+                      const newObjs = pi.objectives.map(o => o.id === obj.id ? { ...o, achieved: !o.achieved } : o);
+                      save({ ...safeData, programIncrements: safeData.programIncrements.map(p => p.id === pi.id ? { ...p, objectives: newObjs } : p) });
+                    }} /> Achieved</label>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  /* ── ART sub-view ── */
+  const ARTView = () => {
+    const [teamName, setTeamName] = useState("");
+    const [teamCapacity, setTeamCapacity] = useState(40);
+    const [teamMembers, setTeamMembers] = useState(8);
+
+    const addTeam = () => {
+      if (!teamName.trim()) return;
+      const team: AgileReleaseTrainTeam = { id: `team-${Date.now()}`, name: teamName.trim(), capacity: teamCapacity, members: teamMembers, features: [] };
+      save({ ...safeData, teams: [...safeData.teams, team] });
+      setTeamName("");
+    };
+
+    const removeTeam = (id: string) => save({ ...safeData, teams: safeData.teams.filter(t => t.id !== id) });
+
+    return (
+      <div>
+        <div style={{ ...cardStyle, marginBottom: 12 }}>
+          <div style={{ fontWeight: 600, marginBottom: 8 }}>Add Team to ART</div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <input style={inputStyle} placeholder="Team name" value={teamName} onChange={e => setTeamName(e.target.value)} />
+            <label style={{ fontSize: 12 }}>Capacity: <input type="number" min={10} max={200} value={teamCapacity} onChange={e => setTeamCapacity(+e.target.value)} style={{ ...inputStyle, width: 60 }} /></label>
+            <label style={{ fontSize: 12 }}>Members: <input type="number" min={3} max={15} value={teamMembers} onChange={e => setTeamMembers(+e.target.value)} style={{ ...inputStyle, width: 60 }} /></label>
+            <button style={btnStyle} onClick={addTeam}>Add Team</button>
+          </div>
+        </div>
+        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 8 }}>Agile Release Train ({safeData.teams.length} teams)</div>
+        {safeData.teams.map(team => {
+          const totalLoad = safeData.programIncrements.flatMap(p => p.features).filter(f => f.teamId === team.id).length;
+          const loadPct = team.capacity > 0 ? Math.min(100, (totalLoad / team.capacity) * 100 * 10) : 0;
+          return (
+            <div key={team.id} style={{ ...cardStyle, marginBottom: 8 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                <span style={{ fontWeight: 600 }}>{team.name}</span>
+                <button onClick={() => removeTeam(team.id)} style={{ ...btnStyle, background: "var(--error-color)", padding: "2px 8px", fontSize: 11 }}>Remove</button>
+              </div>
+              <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 4 }}>{team.members} members · Capacity: {team.capacity} pts · Features: {totalLoad}</div>
+              <div style={{ height: 6, borderRadius: 3, background: "var(--bg-tertiary)", overflow: "hidden" }}>
+                <div style={{ height: "100%", width: `${loadPct}%`, borderRadius: 3, background: loadPct > 85 ? "var(--error-color)" : loadPct > 60 ? "var(--warning-color)" : "var(--success-color)", transition: "width 0.3s" }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  /* ── Portfolio Kanban sub-view ── */
+  const PortfolioKanban = () => {
+    const EPIC_COLUMNS: EpicStatus[] = ["Funnel", "Analyzing", "Backlog", "Implementing", "Done"];
+
+    const addEpic = () => {
+      const title = prompt("Epic title:");
+      if (!title) return;
+      const epic: Epic = { id: `epic-${Date.now()}`, title, description: "", status: "Funnel", leanBusinessCase: "", wsjfScore: 0, features: [] };
+      save({ ...safeData, epics: [...safeData.epics, epic] });
+    };
+
+    const moveEpic = (id: string, status: EpicStatus) => {
+      save({ ...safeData, epics: safeData.epics.map(e => e.id === id ? { ...e, status } : e) });
+    };
+
+    const removeEpic = (id: string) => save({ ...safeData, epics: safeData.epics.filter(e => e.id !== id) });
+
+    return (
+      <div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <div style={{ fontWeight: 600, fontSize: 14 }}>Portfolio Kanban</div>
+          <button style={btnStyle} onClick={addEpic}>+ Epic</button>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: `repeat(${EPIC_COLUMNS.length}, 1fr)`, gap: 8 }}>
+          {EPIC_COLUMNS.map(col => (
+            <div key={col} style={{ background: "var(--bg-secondary)", borderRadius: 8, padding: 8, minHeight: 120 }}>
+              <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 8, textAlign: "center", color: "var(--text-secondary)" }}>{col} ({safeData.epics.filter(e => e.status === col).length})</div>
+              {safeData.epics.filter(e => e.status === col).map(epic => (
+                <div key={epic.id} style={{ padding: 8, borderRadius: 6, background: "var(--bg-primary)", marginBottom: 6, border: "1px solid var(--border-color)" }}>
+                  <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 4 }}>{epic.title}</div>
+                  {epic.wsjfScore > 0 && <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 }}>WSJF: {epic.wsjfScore}</div>}
+                  <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                    {EPIC_COLUMNS.filter(c => c !== col).map(c => (
+                      <button key={c} style={{ ...btnStyle, padding: "1px 6px", fontSize: 10 }} onClick={() => moveEpic(epic.id, c)}>→ {c}</button>
+                    ))}
+                    <button style={{ ...btnStyle, padding: "1px 6px", fontSize: 10, background: "var(--error-color)" }} onClick={() => removeEpic(epic.id)}>×</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  /* ── Program Board sub-view ── */
+  const ProgramBoard = () => {
+    const activePIs = safeData.programIncrements.filter(p => p.status !== "Completed");
+    const pi = activePIs.length > 0 ? activePIs[0] : null;
+    if (!pi) return <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>No active Program Increment. Create one in PI Planning.</div>;
+
+    const iterationNums = Array.from({ length: pi.iterations + (pi.ipIteration ? 1 : 0) }, (_, i) => i + 1);
+
+    return (
+      <div>
+        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 8 }}>Program Board — {pi.name}</div>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+            <thead>
+              <tr>
+                <th style={{ padding: 6, borderBottom: "2px solid var(--border-color)", textAlign: "left" }}>Team</th>
+                {iterationNums.map(i => (
+                  <th key={i} style={{ padding: 6, borderBottom: "2px solid var(--border-color)", textAlign: "center" }}>
+                    {i <= pi.iterations ? `Iter ${i}` : "IP"}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {safeData.teams.map(team => (
+                <tr key={team.id}>
+                  <td style={{ padding: 6, borderBottom: "1px solid var(--border-color)", fontWeight: 600 }}>{team.name}</td>
+                  {iterationNums.map(iter => {
+                    const features = pi.features.filter(f => f.teamId === team.id && f.iteration === iter);
+                    return (
+                      <td key={iter} style={{ padding: 4, borderBottom: "1px solid var(--border-color)", verticalAlign: "top" }}>
+                        {features.map(f => (
+                          <div key={f.id} style={{ padding: "2px 6px", borderRadius: 4, background: "var(--accent-blue)", color: "#fff", fontSize: 10, marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={`${f.title} (WSJF: ${wsjf(f).toFixed(1)})`}>
+                            {f.title}
+                          </div>
+                        ))}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
+  const SUB_VIEWS: { key: typeof subView; label: string }[] = [
+    { key: "pi", label: "PI Planning" },
+    { key: "art", label: "ART" },
+    { key: "portfolio", label: "Portfolio Kanban" },
+    { key: "board", label: "Program Board" },
+  ];
+
+  if (loading) return <div style={{ padding: 16, color: "var(--text-secondary)" }}>Loading SAFe data…</div>;
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 4, marginBottom: 12 }}>
+        {SUB_VIEWS.map(sv => (
+          <button key={sv.key} style={{ ...btnStyle, background: subView === sv.key ? "var(--accent-blue)" : "var(--bg-tertiary)", color: subView === sv.key ? "#fff" : "var(--text-secondary)", fontSize: 12 }} onClick={() => setSubView(sv.key)}>
+            {sv.label}
+          </button>
+        ))}
+      </div>
+      {subView === "pi" && <PIPlanning />}
+      {subView === "art" && <ARTView />}
+      {subView === "portfolio" && <PortfolioKanban />}
+      {subView === "board" && <ProgramBoard />}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
    Main AgilePanel Component
    ═══════════════════════════════════════════════════════════════════════ */
 
@@ -1403,6 +2022,7 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "ceremonies", label: "Ceremonies" },
   { key: "metrics", label: "Metrics" },
   { key: "methodology", label: "Methodology" },
+  { key: "safe", label: "SAFe" },
   { key: "coach", label: "AI Coach" },
 ];
 
@@ -1431,6 +2051,7 @@ function AgilePanel() {
       {activeTab === "ceremonies" && <CeremoniesTab />}
       {activeTab === "metrics" && <MetricsTab />}
       {activeTab === "methodology" && <MethodologyTab />}
+      {activeTab === "safe" && <SAFeTab />}
       {activeTab === "coach" && <AiCoachTab />}
     </div>
   );

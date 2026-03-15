@@ -26,34 +26,34 @@ const DiscussionModePanel: React.FC = () => {
   ]);
 
   const containerStyle: React.CSSProperties = {
-    padding: "16px", color: "var(--vscode-foreground)",
-    backgroundColor: "var(--vscode-editor-background)",
-    fontFamily: "var(--vscode-font-family)", fontSize: "var(--vscode-font-size)",
+    padding: "16px", color: "var(--text-primary)",
+    backgroundColor: "var(--bg-primary)",
+    fontFamily: "inherit", fontSize: "13px",
     height: "100%", overflow: "auto",
   };
   const tabBarStyle: React.CSSProperties = {
     display: "flex", gap: "4px", marginBottom: "16px",
-    borderBottom: "1px solid var(--vscode-panel-border)", paddingBottom: "8px",
+    borderBottom: "1px solid var(--border-color)", paddingBottom: "8px",
   };
   const tabStyle = (active: boolean): React.CSSProperties => ({
     padding: "6px 14px", cursor: "pointer", border: "none",
-    backgroundColor: active ? "var(--vscode-button-background)" : "transparent",
-    color: active ? "var(--vscode-button-foreground)" : "var(--vscode-foreground)",
-    borderRadius: "4px", fontSize: "var(--vscode-font-size)",
+    backgroundColor: active ? "var(--accent-color)" : "transparent",
+    color: active ? "white" : "var(--text-primary)",
+    borderRadius: "4px", fontSize: "13px",
   });
   const inputStyle: React.CSSProperties = {
     width: "100%", padding: "6px 10px", boxSizing: "border-box",
-    backgroundColor: "var(--vscode-input-background)", color: "var(--vscode-input-foreground)",
-    border: "1px solid var(--vscode-input-border)", borderRadius: "4px",
+    backgroundColor: "var(--bg-secondary)", color: "var(--text-primary)",
+    border: "1px solid var(--border-color)", borderRadius: "4px",
   };
   const btnStyle: React.CSSProperties = {
     padding: "6px 14px", cursor: "pointer", border: "none", borderRadius: "4px",
-    backgroundColor: "var(--vscode-button-background)", color: "var(--vscode-button-foreground)",
+    backgroundColor: "var(--accent-color)", color: "white",
   };
   const cardStyle: React.CSSProperties = {
     padding: "10px", marginBottom: "8px", borderRadius: "4px",
-    backgroundColor: "var(--vscode-editor-inactiveSelectionBackground)",
-    border: "1px solid var(--vscode-panel-border)",
+    backgroundColor: "var(--bg-secondary)",
+    border: "1px solid var(--border-color)",
   };
 
   const typeColors: Record<MessageType, string> = {
@@ -65,9 +65,9 @@ const DiscussionModePanel: React.FC = () => {
     fontSize: "11px", fontWeight: 600, backgroundColor: color, color: "var(--text-primary)",
   });
   const reactionBtnStyle: React.CSSProperties = {
-    padding: "2px 6px", border: "1px solid var(--vscode-panel-border)",
+    padding: "2px 6px", border: "1px solid var(--border-color)",
     borderRadius: "12px", backgroundColor: "transparent", cursor: "pointer",
-    fontSize: "12px", color: "var(--vscode-foreground)",
+    fontSize: "12px", color: "var(--text-primary)",
   };
 
   const messageTypes: MessageType[] = ["Question", "Suggestion", "Concern", "Decision", "Action"];
@@ -163,7 +163,7 @@ const DiscussionModePanel: React.FC = () => {
           {(["Building", "Discussing", "Paused"] as const).map(s => (
             <button key={s} onClick={() => setBuildState(s)}
               style={{ ...btnStyle, backgroundColor: buildState === s ? stateColors[s] : "transparent",
-                color: buildState === s ? "var(--text-primary)" : "var(--vscode-foreground)",
+                color: buildState === s ? "var(--text-primary)" : "var(--text-primary)",
                 border: `1px solid ${stateColors[s]}`, fontSize: "12px", padding: "4px 10px" }}>
               {s}
             </button>

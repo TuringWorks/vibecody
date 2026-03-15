@@ -51,10 +51,10 @@ const AgentModesPanel: React.FC = () => {
 
   const containerStyle: React.CSSProperties = {
     padding: "16px",
-    color: "var(--vscode-foreground)",
-    backgroundColor: "var(--vscode-editor-background)",
-    fontFamily: "var(--vscode-font-family)",
-    fontSize: "var(--vscode-font-size)",
+    color: "var(--text-primary)",
+    backgroundColor: "var(--bg-primary)",
+    fontFamily: "inherit",
+    fontSize: "13px",
     height: "100%",
     overflow: "auto",
   };
@@ -62,7 +62,7 @@ const AgentModesPanel: React.FC = () => {
   const tabBarStyle: React.CSSProperties = {
     display: "flex",
     gap: "4px",
-    borderBottom: "1px solid var(--vscode-panel-border)",
+    borderBottom: "1px solid var(--border-color)",
     marginBottom: "12px",
   };
 
@@ -70,9 +70,9 @@ const AgentModesPanel: React.FC = () => {
     padding: "8px 16px",
     cursor: "pointer",
     border: "none",
-    background: active ? "var(--vscode-tab-activeBackground)" : "transparent",
-    color: active ? "var(--vscode-tab-activeForeground)" : "var(--vscode-tab-inactiveForeground)",
-    borderBottom: active ? "2px solid var(--vscode-focusBorder)" : "2px solid transparent",
+    background: active ? "var(--bg-secondary)" : "transparent",
+    color: active ? "var(--text-primary)" : "var(--text-secondary)",
+    borderBottom: active ? "2px solid var(--accent-color)" : "2px solid transparent",
     fontFamily: "inherit",
     fontSize: "inherit",
   });
@@ -81,15 +81,15 @@ const AgentModesPanel: React.FC = () => {
     padding: "12px",
     marginBottom: "8px",
     borderRadius: "4px",
-    backgroundColor: "var(--vscode-editorWidget-background)",
-    border: "1px solid var(--vscode-editorWidget-border)",
+    backgroundColor: "var(--bg-secondary)",
+    border: "1px solid var(--border-color)",
   };
 
   const btnStyle: React.CSSProperties = {
     padding: "4px 10px",
-    border: "1px solid var(--vscode-button-border, var(--vscode-focusBorder))",
-    background: "var(--vscode-button-background)",
-    color: "var(--vscode-button-foreground)",
+    border: "1px solid var(--accent-color)",
+    background: "var(--accent-color)",
+    color: "white",
     borderRadius: "3px",
     cursor: "pointer",
     fontFamily: "inherit",
@@ -98,9 +98,9 @@ const AgentModesPanel: React.FC = () => {
 
   const inputStyle: React.CSSProperties = {
     padding: "4px 8px",
-    background: "var(--vscode-input-background)",
-    color: "var(--vscode-input-foreground)",
-    border: "1px solid var(--vscode-input-border)",
+    background: "var(--bg-secondary)",
+    color: "var(--text-primary)",
+    border: "1px solid var(--border-color)",
     borderRadius: "3px",
     fontFamily: "inherit",
     fontSize: "inherit",
@@ -135,24 +135,24 @@ const AgentModesPanel: React.FC = () => {
               key={m.id}
               style={{
                 ...cardStyle,
-                border: activeMode === m.id ? "2px solid var(--vscode-focusBorder)" : cardStyle.border,
+                border: activeMode === m.id ? "2px solid var(--accent-color)" : cardStyle.border,
                 cursor: "pointer",
               }}
               onClick={() => setActiveMode(m.id)}
             >
               <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "6px" }}>
-                <div style={{ width: "32px", height: "32px", borderRadius: "50%", backgroundColor: "var(--vscode-button-background)", color: "var(--vscode-button-foreground)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>
+                <div style={{ width: "32px", height: "32px", borderRadius: "50%", backgroundColor: "var(--accent-color)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>
                   {m.icon}
                 </div>
                 <div>
                   <strong>{m.name}</strong>
-                  {activeMode === m.id && <span style={{ marginLeft: "8px", fontSize: "11px", color: "var(--vscode-testing-iconPassed)" }}>Active</span>}
+                  {activeMode === m.id && <span style={{ marginLeft: "8px", fontSize: "11px", color: "var(--success-color)" }}>Active</span>}
                 </div>
               </div>
               <p style={{ margin: "4px 0 8px", fontSize: "12px", opacity: 0.8 }}>{m.description}</p>
               <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
                 {m.traits.map((t) => (
-                  <span key={t} style={{ padding: "2px 8px", borderRadius: "10px", fontSize: "11px", backgroundColor: "var(--vscode-badge-background)", color: "var(--vscode-badge-foreground)" }}>{t}</span>
+                  <span key={t} style={{ padding: "2px 8px", borderRadius: "10px", fontSize: "11px", backgroundColor: "var(--bg-tertiary)", color: "white" }}>{t}</span>
                 ))}
               </div>
             </div>
@@ -164,7 +164,7 @@ const AgentModesPanel: React.FC = () => {
         <div>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
-              <tr style={{ borderBottom: "1px solid var(--vscode-panel-border)" }}>
+              <tr style={{ borderBottom: "1px solid var(--border-color)" }}>
                 {["Mode", "Invocations", "Avg Tokens", "Last Used"].map((h) => (
                   <th key={h} style={{ padding: "6px 8px", textAlign: "left", fontSize: "12px", opacity: 0.7 }}>{h}</th>
                 ))}
@@ -172,7 +172,7 @@ const AgentModesPanel: React.FC = () => {
             </thead>
             <tbody>
               {stats.map((s) => (
-                <tr key={s.modeId} style={{ borderBottom: "1px solid var(--vscode-panel-border)" }}>
+                <tr key={s.modeId} style={{ borderBottom: "1px solid var(--border-color)" }}>
                   <td style={{ padding: "8px" }}><strong>{modes.find((m) => m.id === s.modeId)?.name}</strong></td>
                   <td style={{ padding: "8px" }}>{s.invocations}</td>
                   <td style={{ padding: "8px" }}>{s.avgTokens.toLocaleString()}</td>

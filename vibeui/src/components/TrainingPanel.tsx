@@ -30,14 +30,14 @@ interface ParallelismSuggestion {
 // ---------------------------------------------------------------------------
 // Shared styles
 // ---------------------------------------------------------------------------
-const labelStyle: React.CSSProperties = { fontSize: 11, fontWeight: 600, marginBottom: 2, color: "var(--text-secondary, #aaa)" };
+const labelStyle: React.CSSProperties = { fontSize: 11, fontWeight: 600, marginBottom: 2, color: "var(--text-secondary)" };
 const inputStyle: React.CSSProperties = {
   width: "100%", background: "var(--bg-secondary)", border: "1px solid var(--border-color)",
   borderRadius: 4, color: "var(--text-primary)", padding: "5px 8px", fontSize: 12, boxSizing: "border-box",
 };
 const selectStyle: React.CSSProperties = { ...inputStyle, appearance: "auto" as never };
 const btnPrimary: React.CSSProperties = {
-  background: "var(--accent-color, #007acc)", color: "var(--text-primary, #e0e0e0)", border: "none",
+  background: "var(--accent-color)", color: "var(--text-primary)", border: "none",
   borderRadius: 4, padding: "6px 14px", cursor: "pointer", fontSize: 12, fontWeight: 600,
 };
 const btnSecondary: React.CSSProperties = {
@@ -600,8 +600,8 @@ export function TrainingPanel() {
             style={{
               flex: 1, padding: "8px 0", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600,
               background: tab === id ? "var(--bg-primary)" : "transparent",
-              color: tab === id ? "var(--accent-color, #007acc)" : "var(--text-secondary, #aaa)",
-              borderBottom: tab === id ? "2px solid var(--accent-color, #007acc)" : "2px solid transparent",
+              color: tab === id ? "var(--accent-color)" : "var(--text-secondary)",
+              borderBottom: tab === id ? "2px solid var(--accent-color)" : "2px solid transparent",
             }}
           >
             {label}

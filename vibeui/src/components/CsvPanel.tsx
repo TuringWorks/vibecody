@@ -186,7 +186,7 @@ export function CsvPanel() {
  <div style={{ display: "flex", gap: 8, padding: "8px 12px", alignItems: "center", borderBottom: "1px solid var(--border-color)", flexWrap: "wrap" }}>
  <input ref={fileInputRef} type="file" accept=".csv,.tsv,.txt" style={{ display: "none" }} onChange={handleFile} />
  <button onClick={() => fileInputRef.current?.click()}
- style={{ padding: "4px 10px", background: "var(--accent-color)", color: "var(--text-on-accent, #fff)", border: "none", borderRadius: 4, cursor: "pointer", fontSize: 12 }}>
+ style={{ padding: "4px 10px", background: "var(--accent-color)", color: "var(--text-on-accent)", border: "none", borderRadius: 4, cursor: "pointer", fontSize: 12 }}>
  Open File
  </button>
  <label style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
@@ -371,7 +371,7 @@ export function CsvPanel() {
  <td style={{ padding: "4px 8px", fontWeight: 600 }}>{s.header}</td>
  <td style={{ padding: "4px 8px" }}>{s.nonEmpty}</td>
  <td style={{ padding: "4px 8px" }}>{s.unique}</td>
- <td style={{ padding: "4px 8px" }}><span style={{ padding: "1px 5px", borderRadius: 3, fontSize: 10, background: s.isNumeric ? "rgba(100,200,100,0.2)" : "rgba(100,150,255,0.2)", color: s.isNumeric ? "var(--text-success, #6dc46d)" : "var(--text-info, #80a0ff)" }}>{s.isNumeric ? "numeric" : "text"}</span></td>
+ <td style={{ padding: "4px 8px" }}><span style={{ padding: "1px 5px", borderRadius: 3, fontSize: 10, background: s.isNumeric ? "rgba(100,200,100,0.2)" : "rgba(100,150,255,0.2)", color: s.isNumeric ? "var(--text-success)" : "var(--text-info)" }}>{s.isNumeric ? "numeric" : "text"}</span></td>
  <td style={{ padding: "4px 8px", color: "var(--text-secondary)" }}>{s.min ?? "—"}</td>
  <td style={{ padding: "4px 8px", color: "var(--text-secondary)" }}>{s.max ?? "—"}</td>
  <td style={{ padding: "4px 8px", color: "var(--text-secondary)" }}>{s.avg != null ? s.avg.toFixed(2) : "—"}</td>

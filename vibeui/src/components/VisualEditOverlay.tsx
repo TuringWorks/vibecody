@@ -101,7 +101,7 @@ export function VisualEditOverlay({ element, onClose, onApply }: VisualEditOverl
     }}>
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-        <span style={{ fontWeight: 700, color: "var(--accent-primary, #6366f1)" }}>
+        <span style={{ fontWeight: 700, color: "var(--accent-primary)" }}>
           Edit &lt;{element.tagName}&gt;
           {element.reactComponent && (
             <span style={{ color: "var(--text-secondary)", marginLeft: "6px", fontSize: "11px" }}>
@@ -223,6 +223,6 @@ function extractText(html: string): string {
 
 const applyBtnStyle: React.CSSProperties = {
   padding: "5px 12px", fontSize: "11px", fontWeight: 600,
-  background: "var(--accent-primary, #6366f1)", color: "var(--text-primary)", border: "none",
+  background: "var(--accent-primary)", color: "var(--text-primary)", border: "none",
   borderRadius: "4px", cursor: "pointer", alignSelf: "flex-start",
 };

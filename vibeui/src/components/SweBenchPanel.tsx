@@ -71,7 +71,7 @@ const headingStyle: React.CSSProperties = { margin: "0 0 12px", fontSize: 15, fo
 const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-primary)" };
 const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
 const btnStyle: React.CSSProperties = { padding: "6px 14px", borderRadius: 4, border: "1px solid var(--border-primary)", background: "var(--bg-tertiary)", color: "var(--text-primary)", cursor: "pointer", fontSize: 12 };
-const tabBtnStyle = (active: boolean): React.CSSProperties => ({ ...btnStyle, background: active ? "var(--accent-primary)" : "var(--bg-tertiary)", color: active ? "#fff" : "var(--text-primary)", marginRight: 4 });
+const tabBtnStyle = (active: boolean): React.CSSProperties => ({ ...btnStyle, background: active ? "var(--accent-primary)" : "var(--bg-tertiary)", color: active ? "white" : "var(--text-primary)", marginRight: 4 });
 
 const selectStyle: React.CSSProperties = { width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid var(--border-primary)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: 12, fontFamily: "var(--font-mono, monospace)", boxSizing: "border-box", cursor: "pointer" };
 
@@ -81,8 +81,8 @@ const barFill = (pct: number, color: string): React.CSSProperties => ({ height: 
 const thStyle: React.CSSProperties = { textAlign: "left", padding: "6px 10px", borderBottom: "1px solid var(--border-primary)", fontSize: 11, color: "var(--text-secondary)" };
 const tdStyle: React.CSSProperties = { padding: "6px 10px", borderBottom: "1px solid var(--border-primary)", fontSize: 12 };
 
-const statusColor: Record<string, string> = { pass: "#22c55e", fail: "#ef4444", error: "#f59e0b", completed: "#22c55e", running: "#3b82f6", pending: "#6b7280", failed: "#ef4444" };
-const badgeStyle = (status: string): React.CSSProperties => ({ display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 600, color: "#fff", background: statusColor[status] || "#6b7280" });
+const statusColor: Record<string, string> = { pass: "var(--success-color)", fail: "var(--error-color)", error: "var(--warning-color)", completed: "var(--success-color)", running: "var(--info-color)", pending: "var(--text-muted)", failed: "var(--error-color)" };
+const badgeStyle = (status: string): React.CSSProperties => ({ display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 600, color: "var(--text-primary)", background: statusColor[status] || "var(--text-muted)" });
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -156,7 +156,7 @@ export function SweBenchPanel() {
               </div>
             </div>
             <button
-              style={{ ...btnStyle, background: "var(--accent-primary)", color: "#fff", marginTop: 12 }}
+              style={{ ...btnStyle, background: "var(--accent-primary)", color: "white", marginTop: 12 }}
               onClick={startBenchmark}
               disabled={isStarting}
             >
@@ -200,7 +200,7 @@ export function SweBenchPanel() {
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
                 <div style={cardStyle}>
                   <div style={labelStyle}>Pass@1</div>
-                  <div style={{ fontSize: 22, fontWeight: 700, color: "#22c55e" }}>{selectedRun.passRate}%</div>
+                  <div style={{ fontSize: 22, fontWeight: 700, color: "var(--success-color)" }}>{selectedRun.passRate}%</div>
                 </div>
                 <div style={cardStyle}>
                   <div style={labelStyle}>Passed</div>
@@ -208,7 +208,7 @@ export function SweBenchPanel() {
                 </div>
                 <div style={cardStyle}>
                   <div style={labelStyle}>Failed</div>
-                  <div style={{ fontSize: 22, fontWeight: 700, color: "#ef4444" }}>{selectedRun.failed}</div>
+                  <div style={{ fontSize: 22, fontWeight: 700, color: "var(--error-color)" }}>{selectedRun.failed}</div>
                 </div>
                 <div style={cardStyle}>
                   <div style={labelStyle}>Avg Duration</div>
@@ -280,7 +280,7 @@ export function SweBenchPanel() {
                   <tr>
                     <td style={{ ...tdStyle, fontWeight: 600 }}>Pass@1</td>
                     {compareRuns.map((r) => (
-                      <td key={r.id} style={{ ...tdStyle, fontWeight: 600, color: "#22c55e" }}>{r.passRate}%</td>
+                      <td key={r.id} style={{ ...tdStyle, fontWeight: 600, color: "var(--success-color)" }}>{r.passRate}%</td>
                     ))}
                   </tr>
                   <tr>
@@ -289,11 +289,11 @@ export function SweBenchPanel() {
                   </tr>
                   <tr>
                     <td style={tdStyle}>Failed</td>
-                    {compareRuns.map((r) => <td key={r.id} style={{ ...tdStyle, color: "#ef4444" }}>{r.failed}</td>)}
+                    {compareRuns.map((r) => <td key={r.id} style={{ ...tdStyle, color: "var(--error-color)" }}>{r.failed}</td>)}
                   </tr>
                   <tr>
                     <td style={tdStyle}>Errors</td>
-                    {compareRuns.map((r) => <td key={r.id} style={{ ...tdStyle, color: "#f59e0b" }}>{r.errored}</td>)}
+                    {compareRuns.map((r) => <td key={r.id} style={{ ...tdStyle, color: "var(--warning-color)" }}>{r.errored}</td>)}
                   </tr>
                   <tr>
                     <td style={tdStyle}>Avg Duration</td>

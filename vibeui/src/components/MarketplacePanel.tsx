@@ -131,8 +131,8 @@ export function MarketplacePanel() {
                   {installed.has(p.name) ? (
                     <span style={{
                       ...chipStyle,
-                      background: "rgba(166,227,161,0.15)", border: "1px solid #a6e3a1",
-                      color: "#a6e3a1", cursor: "default",
+                      background: "rgba(166,227,161,0.15)", border: "1px solid var(--success-color)",
+                      color: "var(--success-color)", cursor: "default",
                     }}>
                       ✓ Installed
                     </span>
@@ -142,7 +142,7 @@ export function MarketplacePanel() {
                       disabled={installing === p.name}
                       style={{
                         ...chipStyle, cursor: "pointer",
-                        background: "rgba(99,102,241,0.15)", border: "1px solid #6366f1",
+                        background: "rgba(99,102,241,0.15)", border: "1px solid var(--accent-color)",
                         opacity: installing === p.name ? 0.5 : 1,
                       }}
                     >
@@ -156,7 +156,7 @@ export function MarketplacePanel() {
                   {p.tags.slice(0, 4).map((tag) => (
                     <span key={tag} style={{
                       fontSize: 8, padding: "1px 5px", borderRadius: 3,
-                      background: "rgba(99,102,241,0.1)", color: "var(--text-info, #89b4fa)",
+                      background: "rgba(99,102,241,0.1)", color: "var(--text-info)",
                     }}>
                       {tag}
                     </span>

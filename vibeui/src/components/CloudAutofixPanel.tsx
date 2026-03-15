@@ -28,33 +28,33 @@ const CloudAutofixPanel: React.FC = () => {
   const [stats] = useState({ mergeRate: 78, totalAttempts: 142, merged: 111, rejected: 19, pending: 12 });
 
   const containerStyle: React.CSSProperties = {
-    padding: "16px", color: "var(--vscode-foreground)",
-    backgroundColor: "var(--vscode-editor-background)",
-    fontFamily: "var(--vscode-font-family)", fontSize: "var(--vscode-font-size)",
+    padding: "16px", color: "var(--text-primary)",
+    backgroundColor: "var(--bg-primary)",
+    fontFamily: "inherit", fontSize: "13px",
     height: "100%", overflow: "auto",
   };
-  const tabBar: React.CSSProperties = { display: "flex", gap: "4px", marginBottom: "16px", borderBottom: "1px solid var(--vscode-panel-border)" };
+  const tabBar: React.CSSProperties = { display: "flex", gap: "4px", marginBottom: "16px", borderBottom: "1px solid var(--border-color)" };
   const tab = (active: boolean): React.CSSProperties => ({
     padding: "8px 16px", cursor: "pointer", border: "none",
-    backgroundColor: active ? "var(--vscode-tab-activeBackground)" : "transparent",
-    color: active ? "var(--vscode-tab-activeForeground)" : "var(--vscode-tab-inactiveForeground)",
-    borderBottom: active ? "2px solid var(--vscode-focusBorder)" : "2px solid transparent",
+    backgroundColor: active ? "var(--bg-secondary)" : "transparent",
+    color: active ? "var(--text-primary)" : "var(--text-secondary)",
+    borderBottom: active ? "2px solid var(--accent-color)" : "2px solid transparent",
   });
   const btn: React.CSSProperties = {
     padding: "6px 14px", border: "none", borderRadius: "4px", cursor: "pointer",
-    backgroundColor: "var(--vscode-button-background)", color: "var(--vscode-button-foreground)",
+    backgroundColor: "var(--accent-color)", color: "white",
   };
   const input: React.CSSProperties = {
-    padding: "6px 10px", borderRadius: "4px", border: "1px solid var(--vscode-input-border)",
-    backgroundColor: "var(--vscode-input-background)", color: "var(--vscode-input-foreground)",
+    padding: "6px 10px", borderRadius: "4px", border: "1px solid var(--border-color)",
+    backgroundColor: "var(--bg-secondary)", color: "var(--text-primary)",
   };
   const card: React.CSSProperties = {
     padding: "12px", marginBottom: "8px", borderRadius: "6px",
-    backgroundColor: "var(--vscode-editorWidget-background)", border: "1px solid var(--vscode-panel-border)",
+    backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border-color)",
   };
   const badge = (color: string): React.CSSProperties => ({
     padding: "2px 8px", borderRadius: "10px", fontSize: "11px", fontWeight: 600,
-    backgroundColor: color, color: "#fff",
+    backgroundColor: color, color: "white",
   });
 
   const typeColor = (t: string) => t === "typecheck" ? "#1f6feb" : t === "lint" ? "#8957e5" : t === "test" ? "#d29922" : t === "security" ? "#f85149" : "#6e7681";
@@ -120,8 +120,8 @@ const CloudAutofixPanel: React.FC = () => {
                   <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
                     <span>Confidence</span><span>{f.confidence}%</span>
                   </div>
-                  <div style={{ height: "6px", borderRadius: "3px", backgroundColor: "var(--vscode-panel-border)" }}>
-                    <div style={{ height: "100%", borderRadius: "3px", width: `${f.confidence}%`, backgroundColor: f.confidence > 80 ? "#2ea043" : f.confidence > 60 ? "#d29922" : "#f85149" }} />
+                  <div style={{ height: "6px", borderRadius: "3px", backgroundColor: "var(--border-color)" }}>
+                    <div style={{ height: "100%", borderRadius: "3px", width: `${f.confidence}%`, backgroundColor: f.confidence > 80 ? "var(--success-color)" : f.confidence > 60 ? "var(--warning-color)" : "var(--error-color)" }} />
                   </div>
                 </div>
                 <span style={badge(testStatusColor(f.testStatus))}>{f.testStatus}</span>
@@ -129,7 +129,7 @@ const CloudAutofixPanel: React.FC = () => {
               </div>
               <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end" }}>
                 <button style={btn}>Propose</button>
-                <button style={{ ...btn, backgroundColor: "#2ea043" }}>Merge</button>
+                <button style={{ ...btn, backgroundColor: "var(--success-color)" }}>Merge</button>
               </div>
             </div>
           ))}
@@ -141,8 +141,8 @@ const CloudAutofixPanel: React.FC = () => {
           <div style={card}>
             <h4 style={{ margin: "0 0 12px" }}>Merge Rate</h4>
             <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "8px" }}>
-              <div style={{ flex: 1, height: "20px", borderRadius: "10px", backgroundColor: "var(--vscode-panel-border)" }}>
-                <div style={{ height: "100%", borderRadius: "10px", width: `${stats.mergeRate}%`, backgroundColor: "#2ea043", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: 700, color: "#fff" }}>
+              <div style={{ flex: 1, height: "20px", borderRadius: "10px", backgroundColor: "var(--border-color)" }}>
+                <div style={{ height: "100%", borderRadius: "10px", width: `${stats.mergeRate}%`, backgroundColor: "var(--success-color)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: 700, color: "white" }}>
                   {stats.mergeRate}%
                 </div>
               </div>
@@ -150,10 +150,10 @@ const CloudAutofixPanel: React.FC = () => {
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px", marginBottom: "16px" }}>
             {[
-              { label: "Total Attempts", value: stats.totalAttempts, color: "var(--vscode-foreground)" },
-              { label: "Merged", value: stats.merged, color: "#2ea043" },
-              { label: "Rejected", value: stats.rejected, color: "#f85149" },
-              { label: "Pending", value: stats.pending, color: "#d29922" },
+              { label: "Total Attempts", value: stats.totalAttempts, color: "var(--text-primary)" },
+              { label: "Merged", value: stats.merged, color: "var(--success-color)" },
+              { label: "Rejected", value: stats.rejected, color: "var(--error-color)" },
+              { label: "Pending", value: stats.pending, color: "var(--warning-color)" },
             ].map(s => (
               <div key={s.label} style={{ ...card, textAlign: "center" }}>
                 <div style={{ fontSize: "24px", fontWeight: 700, color: s.color }}>{s.value}</div>
@@ -165,7 +165,7 @@ const CloudAutofixPanel: React.FC = () => {
             <h4 style={{ margin: "0 0 8px" }}>Fix Strategy</h4>
             <div style={{ display: "flex", gap: "8px" }}>
               {["Direct", "Minimal", "Comprehensive"].map(s => (
-                <button key={s} style={{ ...btn, backgroundColor: strategy === s ? "var(--vscode-button-background)" : "var(--vscode-button-secondaryBackground)", color: strategy === s ? "var(--vscode-button-foreground)" : "var(--vscode-button-secondaryForeground)" }} onClick={() => setStrategy(s)}>
+                <button key={s} style={{ ...btn, backgroundColor: strategy === s ? "var(--accent-color)" : "var(--bg-secondary)", color: strategy === s ? "white" : "var(--text-primary)" }} onClick={() => setStrategy(s)}>
                   {s}
                 </button>
               ))}

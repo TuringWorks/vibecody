@@ -19548,3 +19548,22 @@ pub async fn agile_update_wip_limits(limits: serde_json::Value) -> Result<(), St
     agile_write_json("board.json", &board)?;
     Ok(())
 }
+
+#[tauri::command]
+pub async fn agile_get_safe() -> Result<serde_json::Value, String> {
+    let data = agile_read_json("safe.json");
+    if data.is_null() {
+        return Ok(serde_json::json!({
+            "programIncrements": [],
+            "teams": [],
+            "epics": []
+        }));
+    }
+    Ok(data)
+}
+
+#[tauri::command]
+pub async fn agile_save_safe(data: serde_json::Value) -> Result<(), String> {
+    agile_write_json("safe.json", &data)?;
+    Ok(())
+}

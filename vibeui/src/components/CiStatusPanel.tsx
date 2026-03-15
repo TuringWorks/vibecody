@@ -70,17 +70,17 @@ const MOCK_CONFIG: CheckConfig[] = [
 ];
 
 const stateColors: Record<string, string> = {
-  success: "var(--text-success, #a6e3a1)", pass: "var(--text-success, #a6e3a1)",
-  failure: "var(--text-danger, #f38ba8)", fail: "var(--text-danger, #f38ba8)",
+  success: "var(--text-success)", pass: "var(--text-success)",
+  failure: "var(--text-danger)", fail: "var(--text-danger)",
   pending: "var(--text-muted)", skip: "var(--text-muted)",
-  running: "var(--text-warning, #f9e2af)", warn: "var(--text-warning, #f9e2af)",
+  running: "var(--text-warning)", warn: "var(--text-warning)",
 };
 
 const tabBtn = (active: boolean): React.CSSProperties => ({
   padding: "6px 14px", fontSize: 11, fontWeight: active ? 600 : 400,
-  background: active ? "var(--accent-bg, rgba(99,102,241,0.15))" : "transparent",
-  border: "1px solid " + (active ? "var(--accent-primary, #6366f1)" : "var(--border-color)"),
-  borderRadius: 4, color: active ? "var(--text-info, #89b4fa)" : "var(--text-muted)", cursor: "pointer",
+  background: active ? "var(--accent-bg)" : "transparent",
+  border: "1px solid " + (active ? "var(--accent-primary)" : "var(--border-color)"),
+  borderRadius: 4, color: active ? "var(--text-info)" : "var(--text-muted)", cursor: "pointer",
 });
 
 export default function CiStatusPanel() {
@@ -115,7 +115,7 @@ export default function CiStatusPanel() {
               <span style={{ fontSize: 10, color: "var(--text-muted)", marginLeft: "auto" }}>{s.duration}</span>
             </div>
             <div style={{ display: "flex", gap: 12, fontSize: 10, color: "var(--text-muted)" }}>
-              <span>Branch: <span style={{ fontFamily: "monospace", color: "var(--text-info, #89b4fa)" }}>{s.branch}</span></span>
+              <span>Branch: <span style={{ fontFamily: "monospace", color: "var(--text-info)" }}>{s.branch}</span></span>
               <span>Commit: <span style={{ fontFamily: "monospace" }}>{s.commit}</span></span>
               <span style={{ marginLeft: "auto" }}>{s.passCount}/{s.checksCount} passed</span>
             </div>
@@ -141,7 +141,7 @@ export default function CiStatusPanel() {
                   <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>{c.message}</div>
                 </div>
                 {c.annotations > 0 && (
-                  <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 10, background: "rgba(243,139,168,0.15)", color: "var(--text-danger, #f38ba8)" }}>
+                  <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 10, background: "rgba(243,139,168,0.15)", color: "var(--text-danger)" }}>
                     {c.annotations} annotations
                   </span>
                 )}

@@ -47,10 +47,10 @@ const DebugModePanel: React.FC = () => {
 
   const containerStyle: React.CSSProperties = {
     padding: "16px",
-    color: "var(--vscode-foreground)",
-    backgroundColor: "var(--vscode-editor-background)",
-    fontFamily: "var(--vscode-font-family)",
-    fontSize: "var(--vscode-font-size)",
+    color: "var(--text-primary)",
+    backgroundColor: "var(--bg-primary)",
+    fontFamily: "inherit",
+    fontSize: "13px",
     height: "100%",
     overflow: "auto",
   };
@@ -58,7 +58,7 @@ const DebugModePanel: React.FC = () => {
   const tabBarStyle: React.CSSProperties = {
     display: "flex",
     gap: "4px",
-    borderBottom: "1px solid var(--vscode-panel-border)",
+    borderBottom: "1px solid var(--border-color)",
     marginBottom: "12px",
   };
 
@@ -66,9 +66,9 @@ const DebugModePanel: React.FC = () => {
     padding: "8px 16px",
     cursor: "pointer",
     border: "none",
-    background: active ? "var(--vscode-tab-activeBackground)" : "transparent",
-    color: active ? "var(--vscode-tab-activeForeground)" : "var(--vscode-tab-inactiveForeground)",
-    borderBottom: active ? "2px solid var(--vscode-focusBorder)" : "2px solid transparent",
+    background: active ? "var(--bg-secondary)" : "transparent",
+    color: active ? "var(--text-primary)" : "var(--text-secondary)",
+    borderBottom: active ? "2px solid var(--accent-color)" : "2px solid transparent",
     fontFamily: "inherit",
     fontSize: "inherit",
   });
@@ -78,15 +78,15 @@ const DebugModePanel: React.FC = () => {
     borderRadius: "10px",
     fontSize: "11px",
     fontWeight: 600,
-    backgroundColor: status === "running" ? "var(--vscode-testing-iconPassed)" : status === "paused" ? "var(--vscode-editorWarning-foreground)" : "var(--vscode-descriptionForeground)",
-    color: "var(--vscode-editor-background)",
+    backgroundColor: status === "running" ? "var(--success-color)" : status === "paused" ? "var(--warning-color)" : "var(--text-muted)",
+    color: "var(--bg-primary)",
   });
 
   const btnStyle: React.CSSProperties = {
     padding: "4px 10px",
-    border: "1px solid var(--vscode-button-border, var(--vscode-focusBorder))",
-    background: "var(--vscode-button-background)",
-    color: "var(--vscode-button-foreground)",
+    border: "1px solid var(--accent-color)",
+    background: "var(--accent-color)",
+    color: "white",
     borderRadius: "3px",
     cursor: "pointer",
     fontFamily: "inherit",
@@ -95,9 +95,9 @@ const DebugModePanel: React.FC = () => {
 
   const inputStyle: React.CSSProperties = {
     padding: "4px 8px",
-    background: "var(--vscode-input-background)",
-    color: "var(--vscode-input-foreground)",
-    border: "1px solid var(--vscode-input-border)",
+    background: "var(--bg-secondary)",
+    color: "var(--text-primary)",
+    border: "1px solid var(--border-color)",
     borderRadius: "3px",
     fontFamily: "inherit",
     fontSize: "inherit",
@@ -107,8 +107,8 @@ const DebugModePanel: React.FC = () => {
     padding: "10px",
     marginBottom: "8px",
     borderRadius: "4px",
-    backgroundColor: "var(--vscode-editorWidget-background)",
-    border: "1px solid var(--vscode-editorWidget-border)",
+    backgroundColor: "var(--bg-secondary)",
+    border: "1px solid var(--border-color)",
   };
 
   const toggleSession = (id: string) => {
@@ -181,7 +181,7 @@ const DebugModePanel: React.FC = () => {
                 {bp.condition && <div style={{ fontSize: "12px", opacity: 0.6 }}>Condition: {bp.condition}</div>}
               </div>
               <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                <span style={{ fontSize: "12px", color: bp.enabled ? "var(--vscode-testing-iconPassed)" : "var(--vscode-descriptionForeground)" }}>
+                <span style={{ fontSize: "12px", color: bp.enabled ? "var(--success-color)" : "var(--text-muted)" }}>
                   {bp.enabled ? "Enabled" : "Disabled"}
                 </span>
                 <button style={btnStyle} onClick={() => removeBreakpoint(bp.id)}>Remove</button>
@@ -211,11 +211,11 @@ const DebugModePanel: React.FC = () => {
                 <span style={{ fontSize: "12px", opacity: 0.7 }}>Confidence: {(a.confidence * 100).toFixed(0)}%</span>
               </div>
               <p style={{ margin: "4px 0" }}>{a.hypothesis}</p>
-              <div style={{ marginTop: "8px", padding: "6px 8px", borderRadius: "3px", backgroundColor: "var(--vscode-editorInlayHint-background)" }}>
+              <div style={{ marginTop: "8px", padding: "6px 8px", borderRadius: "3px", backgroundColor: "var(--bg-secondary)" }}>
                 <div style={{ fontSize: "12px", fontWeight: 600, marginBottom: "2px" }}>Root Cause</div>
                 <div style={{ fontSize: "12px" }}>{a.rootCause}</div>
               </div>
-              <div style={{ marginTop: "6px", padding: "6px 8px", borderRadius: "3px", backgroundColor: "var(--vscode-editorInlayHint-background)" }}>
+              <div style={{ marginTop: "6px", padding: "6px 8px", borderRadius: "3px", backgroundColor: "var(--bg-secondary)" }}>
                 <div style={{ fontSize: "12px", fontWeight: 600, marginBottom: "2px" }}>Auto-Fix Suggestion</div>
                 <div style={{ fontSize: "12px" }}>{a.autoFix}</div>
               </div>

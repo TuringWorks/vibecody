@@ -37,29 +37,29 @@ const GhActionsPanel: React.FC = () => {
   const [newSecretDesc, setNewSecretDesc] = useState("");
 
   const containerStyle: React.CSSProperties = {
-    padding: "16px", color: "var(--vscode-foreground)",
-    backgroundColor: "var(--vscode-editor-background)",
-    fontFamily: "var(--vscode-font-family)", fontSize: "var(--vscode-font-size)",
+    padding: "16px", color: "var(--text-primary)",
+    backgroundColor: "var(--bg-primary)",
+    fontFamily: "inherit", fontSize: "13px",
     height: "100%", overflow: "auto",
   };
-  const tabBar: React.CSSProperties = { display: "flex", gap: "4px", marginBottom: "16px", borderBottom: "1px solid var(--vscode-panel-border)" };
+  const tabBar: React.CSSProperties = { display: "flex", gap: "4px", marginBottom: "16px", borderBottom: "1px solid var(--border-color)" };
   const tab = (active: boolean): React.CSSProperties => ({
     padding: "8px 16px", cursor: "pointer", border: "none",
-    backgroundColor: active ? "var(--vscode-tab-activeBackground)" : "transparent",
-    color: active ? "var(--vscode-tab-activeForeground)" : "var(--vscode-tab-inactiveForeground)",
-    borderBottom: active ? "2px solid var(--vscode-focusBorder)" : "2px solid transparent",
+    backgroundColor: active ? "var(--bg-secondary)" : "transparent",
+    color: active ? "var(--text-primary)" : "var(--text-secondary)",
+    borderBottom: active ? "2px solid var(--accent-color)" : "2px solid transparent",
   });
   const btn: React.CSSProperties = {
     padding: "6px 14px", border: "none", borderRadius: "4px", cursor: "pointer",
-    backgroundColor: "var(--vscode-button-background)", color: "var(--vscode-button-foreground)",
+    backgroundColor: "var(--accent-color)", color: "white",
   };
   const input: React.CSSProperties = {
-    padding: "6px 10px", borderRadius: "4px", border: "1px solid var(--vscode-input-border)",
-    backgroundColor: "var(--vscode-input-background)", color: "var(--vscode-input-foreground)",
+    padding: "6px 10px", borderRadius: "4px", border: "1px solid var(--border-color)",
+    backgroundColor: "var(--bg-secondary)", color: "var(--text-primary)",
   };
   const card: React.CSSProperties = {
     padding: "12px", marginBottom: "8px", borderRadius: "6px",
-    backgroundColor: "var(--vscode-editorWidget-background)", border: "1px solid var(--vscode-panel-border)",
+    backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border-color)",
   };
 
   const generateYaml = () => {
@@ -120,7 +120,7 @@ const GhActionsPanel: React.FC = () => {
           {yamlPreview && (
             <div style={card}>
               <h4 style={{ margin: "0 0 8px" }}>YAML Output</h4>
-              <pre style={{ margin: 0, padding: "12px", borderRadius: "4px", backgroundColor: "var(--vscode-textCodeBlock-background)", overflow: "auto", fontSize: "12px", lineHeight: 1.5 }}>
+              <pre style={{ margin: 0, padding: "12px", borderRadius: "4px", backgroundColor: "var(--bg-secondary)", overflow: "auto", fontSize: "12px", lineHeight: 1.5 }}>
                 {yamlPreview}
               </pre>
             </div>
