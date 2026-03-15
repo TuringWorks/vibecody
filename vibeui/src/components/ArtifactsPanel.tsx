@@ -76,9 +76,9 @@ function artifactLabel(a: ArtifactPayload): string {
 
 function severityColor(severity: string): string {
  switch (severity) {
- case "critical": return "var(--error-color, #f44)";
- case "warning": return "var(--warning-color, #fa0)";
- default: return "var(--info-color, #5af)";
+ case "critical": return "var(--error-color)";
+ case "warning": return "var(--warning-color)";
+ default: return "var(--info-color)";
  }
 }
 
@@ -89,7 +89,7 @@ function TaskListBody({ items }: { items: TaskItem[] }) {
  <div>
  {items.map((item) => (
  <div key={item.id} style={{ display: "flex", alignItems: "flex-start", gap: "8px", marginBottom: "4px" }}>
- <span style={{ color: item.done ? "var(--success-color, #4c4)" : "var(--text-secondary)", marginTop: "2px" }}>
+ <span style={{ color: item.done ? "var(--success-color)" : "var(--text-secondary)", marginTop: "2px" }}>
  {item.done ? "☑" : "☐"}
  </span>
  <span style={{ fontSize: "12px", color: item.done ? "var(--text-secondary)" : "var(--text-primary)", textDecoration: item.done ? "line-through" : "none" }}>
@@ -118,7 +118,7 @@ function ImplementationPlanBody({ steps, files }: { steps: PlanStep[]; files: st
  <div>
  <div style={{ fontSize: "12px", color: "var(--text-primary)" }}>{step.description}</div>
  {step.estimated_path && (
- <div style={{ fontSize: "10px", color: "var(--accent-blue, #007acc)", marginTop: "1px" }}>
+ <div style={{ fontSize: "10px", color: "var(--accent-blue)", marginTop: "1px" }}>
  {step.estimated_path}
  </div>
  )}
@@ -137,7 +137,7 @@ function FileChangeBody({ path, diff }: { path: string; diff: string }) {
  {diff ? (
  <pre style={{ fontSize: "11px", overflowX: "auto", maxHeight: "200px", overflowY: "auto", margin: 0, background: "var(--bg-primary)", padding: "8px", borderRadius: "4px", lineHeight: 1.4 }}>
  {lines.map((line, i) => (
- <div key={i} style={{ color: line.startsWith("+") ? "#4c4" : line.startsWith("-") ? "#f44" : "var(--text-secondary)" }}>
+ <div key={i} style={{ color: line.startsWith("+") ? "var(--success-color)" : line.startsWith("-") ? "var(--error-color)" : "var(--text-secondary)" }}>
  {line}
  </div>
  ))}
@@ -153,18 +153,18 @@ function FileChangeBody({ path, diff }: { path: string; diff: string }) {
 function CommandOutputBody({ command, stdout, stderr, exit_code }: { command: string; stdout: string; stderr: string; exit_code: number }) {
  return (
  <div>
- <div style={{ fontSize: "11px", fontFamily: "monospace", color: "var(--accent-blue, #007acc)", marginBottom: "6px" }}>$ {command}</div>
+ <div style={{ fontSize: "11px", fontFamily: "monospace", color: "var(--accent-blue)", marginBottom: "6px" }}>$ {command}</div>
  {stdout && (
  <pre style={{ fontSize: "11px", margin: "0 0 4px 0", maxHeight: "120px", overflowY: "auto", color: "var(--text-primary)" }}>
  {stdout.trim()}
  </pre>
  )}
  {stderr && (
- <pre style={{ fontSize: "11px", margin: "0 0 4px 0", color: "var(--error-color, #f44)", maxHeight: "80px", overflowY: "auto" }}>
+ <pre style={{ fontSize: "11px", margin: "0 0 4px 0", color: "var(--error-color)", maxHeight: "80px", overflowY: "auto" }}>
  {stderr.trim()}
  </pre>
  )}
- <div style={{ fontSize: "10px", color: exit_code === 0 ? "var(--success-color, #4c4)" : "var(--error-color, #f44)" }}>
+ <div style={{ fontSize: "10px", color: exit_code === 0 ? "var(--success-color)" : "var(--error-color)" }}>
  Exit code: {exit_code}
  </div>
  </div>
@@ -175,8 +175,8 @@ function TestResultsBody({ passed, failed, skipped, output }: { passed: number; 
  return (
  <div>
  <div style={{ display: "flex", gap: "12px", marginBottom: "8px" }}>
- <span style={{ fontSize: "12px", color: "var(--success-color, #4c4)" }}> {passed} passed</span>
- {failed > 0 && <span style={{ fontSize: "12px", color: "var(--error-color, #f44)" }}> {failed} failed</span>}
+ <span style={{ fontSize: "12px", color: "var(--success-color)" }}> {passed} passed</span>
+ {failed > 0 && <span style={{ fontSize: "12px", color: "var(--error-color)" }}> {failed} failed</span>}
  {skipped > 0 && <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>{skipped} skipped</span>}
  </div>
  {output && (
@@ -192,7 +192,7 @@ function ReviewReportBody({ issues, summary, score }: { issues: ReviewIssueRef[]
  return (
  <div>
  <div style={{ fontSize: "12px", color: "var(--text-primary)", marginBottom: "8px" }}>{summary}</div>
- <div style={{ fontSize: "11px", color: score >= 8 ? "var(--success-color, #4c4)" : score >= 5 ? "var(--warning-color, #fa0)" : "var(--error-color, #f44)", marginBottom: "8px" }}>
+ <div style={{ fontSize: "11px", color: score >= 8 ? "var(--success-color)" : score >= 5 ? "var(--warning-color)" : "var(--error-color)", marginBottom: "8px" }}>
  Score: {score.toFixed(1)}/10
  </div>
  {issues.map((issue, i) => (
@@ -281,7 +281,7 @@ function ArtifactCard({
  <div style={{ fontSize: "10px", color: "var(--text-secondary)" }}>
  Step {artifact.step}
  {pendingAnnotations.length > 0 && (
- <span style={{ marginLeft: "8px", color: "var(--warning-color, #fa0)" }}>
+ <span style={{ marginLeft: "8px", color: "var(--warning-color)" }}>
  {pendingAnnotations.length} pending note{pendingAnnotations.length > 1 ? "s" : ""}
  </span>
  )}
@@ -300,7 +300,7 @@ function ArtifactCard({
  <div style={{ marginTop: "10px", paddingTop: "8px", borderTop: "1px solid var(--border-color)" }}>
  {artifact.annotations.map((ann, i) => (
  <div key={i} style={{ marginBottom: "4px", display: "flex", gap: "6px", alignItems: "flex-start" }}>
- <span style={{ fontSize: "10px", color: ann.applied ? "var(--success-color, #4c4)" : "var(--warning-color, #fa0)" }}>
+ <span style={{ fontSize: "10px", color: ann.applied ? "var(--success-color)" : "var(--warning-color)" }}>
  {ann.applied ? "✔" : ""}
  </span>
  <span style={{ fontSize: "11px", color: ann.applied ? "var(--text-secondary)" : "var(--text-primary)", fontStyle: "italic" }}>
@@ -334,7 +334,7 @@ function ArtifactCard({
  outline: "none",
  }}
  />
- <button onClick={submitAnnotation} style={{ padding: "4px 8px", fontSize: "11px", background: "var(--accent-color, #007acc)", color: "var(--text-primary, #fff)", border: "none", borderRadius: "3px", cursor: "pointer" }}>
+ <button onClick={submitAnnotation} style={{ padding: "4px 8px", fontSize: "11px", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "3px", cursor: "pointer" }}>
  Add
  </button>
  <button onClick={() => setShowAnnotationForm(false)} style={{ padding: "4px 6px", fontSize: "11px", background: "none", border: "1px solid var(--border-color)", borderRadius: "3px", color: "var(--text-secondary)", cursor: "pointer" }}>

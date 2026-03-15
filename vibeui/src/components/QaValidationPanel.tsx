@@ -80,7 +80,7 @@ export function QaValidationPanel() {
 
   const btnPrimary: React.CSSProperties = {
     background: "var(--accent)",
-    color: "#fff",
+    color: "white",
     border: "none",
     borderRadius: 4,
     padding: "8px 16px",
@@ -139,8 +139,8 @@ export function QaValidationPanel() {
             {currentResults.length > 0 && (
               <div style={{ marginTop: 8 }}>
                 <div style={{ display: "flex", gap: 16, fontSize: 12, marginBottom: 12 }}>
-                  <span style={{ color: "#4caf50", fontWeight: 600 }}>{currentResults.filter((c) => c.passed).length} passed</span>
-                  <span style={{ color: "#f44336", fontWeight: 600 }}>{currentResults.filter((c) => !c.passed).length} failed</span>
+                  <span style={{ color: "var(--success-color)", fontWeight: 600 }}>{currentResults.filter((c) => c.passed).length} passed</span>
+                  <span style={{ color: "var(--error-color)", fontWeight: 600 }}>{currentResults.filter((c) => !c.passed).length} failed</span>
                   <span style={{ color: "var(--text-secondary)" }}>{currentResults.length} total</span>
                 </div>
                 {currentResults.map((c) => (
@@ -155,13 +155,13 @@ export function QaValidationPanel() {
                       background: "var(--bg-secondary)",
                       border: "1px solid var(--border)",
                       borderRadius: 4,
-                      borderLeft: `3px solid ${c.passed ? "#4caf50" : "#f44336"}`,
+                      borderLeft: `3px solid ${c.passed ? "var(--success-color)" : "var(--error-color)"}`,
                     }}
                   >
                     <span style={{ fontSize: 14, lineHeight: "20px", flexShrink: 0 }}>{c.passed ? "[PASS]" : "[FAIL]"}</span>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 12, fontFamily: "monospace" }}>{c.assertion}</div>
-                      <div style={{ fontSize: 11, color: c.passed ? "#4caf50" : "#f44336", marginTop: 2 }}>{c.message}</div>
+                      <div style={{ fontSize: 11, color: c.passed ? "var(--success-color)" : "var(--error-color)", marginTop: 2 }}>{c.message}</div>
                     </div>
                   </div>
                 ))}
@@ -205,13 +205,13 @@ export function QaValidationPanel() {
                             fontSize: 10,
                             fontWeight: 600,
                             background: run.failed === 0 ? "rgba(76,175,80,0.15)" : "rgba(244,67,54,0.15)",
-                            color: run.failed === 0 ? "#4caf50" : "#f44336",
+                            color: run.failed === 0 ? "var(--success-color)" : "var(--error-color)",
                           }}>
                             {run.failed === 0 ? "PASS" : "FAIL"}
                           </span>
                         </td>
-                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", textAlign: "center", color: "#4caf50" }}>{run.passed}</td>
-                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", textAlign: "center", color: run.failed > 0 ? "#f44336" : "var(--text-secondary)" }}>{run.failed}</td>
+                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", textAlign: "center", color: "var(--success-color)" }}>{run.passed}</td>
+                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", textAlign: "center", color: run.failed > 0 ? "var(--error-color)" : "var(--text-secondary)" }}>{run.failed}</td>
                         <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", textAlign: "center" }}>{run.total}</td>
                         <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", textAlign: "center" }}>
                           <button onClick={() => setSelectedRun(run.id)} style={{ background: "none", border: "none", color: "var(--accent)", cursor: "pointer", fontSize: 11, textDecoration: "underline" }}>Details</button>
@@ -247,13 +247,13 @@ export function QaValidationPanel() {
                       background: "var(--bg-secondary)",
                       border: "1px solid var(--border)",
                       borderRadius: 4,
-                      borderLeft: `3px solid ${c.passed ? "#4caf50" : "#f44336"}`,
+                      borderLeft: `3px solid ${c.passed ? "var(--success-color)" : "var(--error-color)"}`,
                     }}
                   >
                     <span style={{ fontSize: 14, lineHeight: "20px", flexShrink: 0 }}>{c.passed ? "[PASS]" : "[FAIL]"}</span>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 12, fontFamily: "monospace" }}>{c.assertion}</div>
-                      <div style={{ fontSize: 11, color: c.passed ? "#4caf50" : "#f44336", marginTop: 2 }}>{c.message}</div>
+                      <div style={{ fontSize: 11, color: c.passed ? "var(--success-color)" : "var(--error-color)", marginTop: 2 }}>{c.message}</div>
                     </div>
                   </div>
                 ))}

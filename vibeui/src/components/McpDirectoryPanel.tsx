@@ -48,7 +48,7 @@ const headingStyle: React.CSSProperties = { margin: "0 0 12px", fontSize: 15, fo
 const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-primary)" };
 const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
 const btnStyle: React.CSSProperties = { padding: "6px 14px", borderRadius: 4, border: "1px solid var(--border-primary)", background: "var(--bg-tertiary)", color: "var(--text-primary)", cursor: "pointer", fontSize: 12 };
-const tabBtnStyle = (active: boolean): React.CSSProperties => ({ ...btnStyle, background: active ? "var(--accent-primary)" : "var(--bg-tertiary)", color: active ? "#fff" : "var(--text-primary)", marginRight: 4 });
+const tabBtnStyle = (active: boolean): React.CSSProperties => ({ ...btnStyle, background: active ? "var(--accent-primary)" : "var(--bg-tertiary)", color: active ? "var(--text-primary)" : "var(--text-primary)", marginRight: 4 });
 
 const inputStyle: React.CSSProperties = { width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid var(--border-primary)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: 12, fontFamily: "var(--font-mono, monospace)", boxSizing: "border-box" };
 const selectStyle: React.CSSProperties = { ...inputStyle, width: "auto", cursor: "pointer" };
@@ -111,19 +111,19 @@ export function McpDirectoryPanel() {
           <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }}>by {plugin.author} | {plugin.category}</div>
           <div style={{ fontSize: 12, marginTop: 4 }}>{plugin.description}</div>
           <div style={{ display: "flex", gap: 12, marginTop: 6, fontSize: 11 }}>
-            <span style={{ color: "#f59e0b" }}>{renderStars(plugin.rating)} {plugin.rating.toFixed(1)}</span>
+            <span style={{ color: "var(--warning-color)" }}>{renderStars(plugin.rating)} {plugin.rating.toFixed(1)}</span>
             <span style={{ color: "var(--text-secondary)" }}>{formatDownloads(plugin.downloads)} downloads</span>
           </div>
         </div>
         <div style={{ display: "flex", gap: 6 }}>
           {showInstallBtn && !plugin.installed && (
-            <button style={{ ...btnStyle, background: "var(--accent-primary)", color: "#fff" }} onClick={() => toggleInstall(plugin.id)}>Install</button>
+            <button style={{ ...btnStyle, background: "var(--accent-primary)", color: "var(--text-primary)" }} onClick={() => toggleInstall(plugin.id)}>Install</button>
           )}
           {plugin.installed && plugin.updatable && (
-            <button style={{ ...btnStyle, background: "#f59e0b", color: "#fff" }} onClick={() => updatePlugin(plugin.id)}>Update</button>
+            <button style={{ ...btnStyle, background: "var(--warning-color)", color: "var(--text-primary)" }} onClick={() => updatePlugin(plugin.id)}>Update</button>
           )}
           {plugin.installed && (
-            <button style={{ ...btnStyle, background: "#ef4444", color: "#fff" }} onClick={() => toggleInstall(plugin.id)}>Uninstall</button>
+            <button style={{ ...btnStyle, background: "var(--error-color)", color: "var(--text-primary)" }} onClick={() => toggleInstall(plugin.id)}>Uninstall</button>
           )}
         </div>
       </div>

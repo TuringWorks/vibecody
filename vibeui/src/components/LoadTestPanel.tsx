@@ -127,7 +127,7 @@ export function LoadTestPanel() {
 
  <div style={{ flex: 1, overflow: "auto", padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
  {error && (
- <div style={{ padding: "6px 10px", background: "var(--error-bg, #2a1a1a)", color: "var(--text-danger, #f38ba8)", borderRadius: 4, fontSize: 11 }}> {error}</div>
+ <div style={{ padding: "6px 10px", background: "var(--error-bg, #2a1a1a)", color: "var(--error-color)", borderRadius: 4, fontSize: 11 }}> {error}</div>
  )}
 
  {/* URL + method */}
@@ -181,8 +181,8 @@ export function LoadTestPanel() {
  onClick={handleSuspend}
  style={{
  padding: "6px 20px", fontSize: 12, fontWeight: 700, alignSelf: "flex-end",
- background: "#c62828",
- color: "#fff",
+ background: "var(--error-color)",
+ color: "white",
  border: "none", borderRadius: 4, cursor: "pointer",
  height: 32,
  }}
@@ -195,8 +195,8 @@ export function LoadTestPanel() {
  disabled={!url}
  style={{
  padding: "6px 20px", fontSize: 12, fontWeight: 700, alignSelf: "flex-end",
- background: "var(--accent-blue)",
- color: "#fff",
+ background: "var(--accent-color)",
+ color: "white",
  border: "none", borderRadius: 4, cursor: !url ? "not-allowed" : "pointer",
  height: 32,
  }}
@@ -238,7 +238,7 @@ export function LoadTestPanel() {
  <span>{progressPct}%</span>
  </div>
  <div style={{ height: 8, background: "var(--bg-secondary)", borderRadius: 4, overflow: "hidden", border: "1px solid var(--border-color)" }}>
- <div style={{ height: "100%", width: `${progressPct}%`, background: "var(--accent-blue)", borderRadius: 4, transition: "width 0.2s" }} />
+ <div style={{ height: "100%", width: `${progressPct}%`, background: "var(--accent-color)", borderRadius: 4, transition: "width 0.2s" }} />
  </div>
  </div>
  )}
@@ -248,7 +248,7 @@ export function LoadTestPanel() {
  <>
  {/* Summary row */}
  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
- <StatCard label="Req/sec" value={result.requests_per_sec} color="var(--accent-blue)" />
+ <StatCard label="Req/sec" value={result.requests_per_sec} color="var(--accent-color)" />
  <StatCard label="Avg" value={result.avg_ms} unit="ms" />
  <StatCard label="p50" value={result.p50_ms} unit="ms" />
  <StatCard label="p90" value={result.p90_ms} unit="ms" />
@@ -258,14 +258,14 @@ export function LoadTestPanel() {
 
  {/* Success / failure */}
  <div style={{ display: "flex", gap: 6 }}>
- <div style={{ flex: 1, padding: "8px 10px", background: "rgba(166,227,161,0.1)", border: "1px solid var(--success-color, #a6e3a1)", borderRadius: 6, textAlign: "center" }}>
- <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text-success, #a6e3a1)" }}>{result.success}</div>
- <div style={{ fontSize: 9, color: "var(--text-success, #a6e3a1)", fontWeight: 600 }}>SUCCESS ({successRate}%)</div>
+ <div style={{ flex: 1, padding: "8px 10px", background: "rgba(166,227,161,0.1)", border: "1px solid var(--success-color)", borderRadius: 6, textAlign: "center" }}>
+ <div style={{ fontSize: 18, fontWeight: 700, color: "var(--success-color)" }}>{result.success}</div>
+ <div style={{ fontSize: 9, color: "var(--success-color)", fontWeight: 600 }}>SUCCESS ({successRate}%)</div>
  </div>
  {result.failed > 0 && (
- <div style={{ flex: 1, padding: "8px 10px", background: "rgba(243,139,168,0.1)", border: "1px solid var(--error-color, #f38ba8)", borderRadius: 6, textAlign: "center" }}>
- <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text-danger, #f38ba8)" }}>{result.failed}</div>
- <div style={{ fontSize: 9, color: "var(--text-danger, #f38ba8)", fontWeight: 600 }}>FAILED ({100 - (successRate ?? 0)}%)</div>
+ <div style={{ flex: 1, padding: "8px 10px", background: "rgba(243,139,168,0.1)", border: "1px solid var(--error-color)", borderRadius: 6, textAlign: "center" }}>
+ <div style={{ fontSize: 18, fontWeight: 700, color: "var(--error-color)" }}>{result.failed}</div>
+ <div style={{ fontSize: 9, color: "var(--error-color)", fontWeight: 600 }}>FAILED ({100 - (successRate ?? 0)}%)</div>
  </div>
  )}
  <div style={{ flex: 1, padding: "8px 10px", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 6, textAlign: "center" }}>
@@ -286,8 +286,8 @@ export function LoadTestPanel() {
  { label: "max", val: result.max_ms },
  ].map(({ label, val }) => {
  const h = result.max_ms === 0 ? 4 : Math.max(4, Math.round((val / result.max_ms) * 46));
- const color = label === "p99" || label === "max" ? "#f38ba8"
- : label === "p90" ? "#f9e2af" : "#89b4fa";
+ const color = label === "p99" || label === "max" ? "var(--error-color)"
+ : label === "p90" ? "var(--warning-color)" : "var(--accent-color)";
  return (
  <div key={label} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
  <span style={{ fontSize: 9, color: "var(--text-muted)" }}>{val}ms</span>
@@ -307,7 +307,7 @@ export function LoadTestPanel() {
  .sort(([a], [b]) =>Number(a) - Number(b))
  .map(([code, count]) => {
  const c = Number(code);
- const color = c === 0 ? "#f38ba8" : c < 300 ? "#a6e3a1" : c < 400 ? "#f9e2af" : "#f38ba8";
+ const color = c === 0 ? "var(--error-color)" : c < 300 ? "var(--success-color)" : c < 400 ? "var(--warning-color)" : "var(--error-color)";
  return (
  <div key={code} style={{ padding: "5px 12px", borderRadius: 20, border: `1px solid ${color}`, background: `${color}22`, fontSize: 11 }}>
  <span style={{ color, fontWeight: 700 }}>{code === "0" ? "ERR" : code}</span>

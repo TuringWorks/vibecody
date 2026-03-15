@@ -144,7 +144,7 @@ export function CodeMetricsPanel({ workspacePath }: CodeMetricsPanelProps) {
  onClick={handleSuspend}
  style={{
  padding: "6px 16px", fontSize: 12, fontWeight: 600,
- background: "#c62828", color: "#fff",
+ background: "var(--error-color)", color: "white",
  border: "none", borderRadius: 4, cursor: "pointer",
  }}
  >
@@ -155,7 +155,7 @@ export function CodeMetricsPanel({ workspacePath }: CodeMetricsPanelProps) {
  onClick={scan}
  style={{
  padding: "6px 16px", fontSize: 12, fontWeight: 600,
- background: "var(--accent-blue)", color: "#fff",
+ background: "var(--accent-blue)", color: "white",
  border: "none", borderRadius: 4, cursor: "pointer",
  }}
  >
@@ -165,7 +165,7 @@ export function CodeMetricsPanel({ workspacePath }: CodeMetricsPanelProps) {
  </div>
 
  {error && (
- <div style={{ margin: "8px 12px", padding: "6px 10px", background: "var(--error-bg, #2a1a1a)", color: "var(--text-danger, #f38ba8)", borderRadius: 4, fontSize: 11 }}>
+ <div style={{ margin: "8px 12px", padding: "6px 10px", background: "var(--error-bg)", color: "var(--text-danger)", borderRadius: 4, fontSize: 11 }}>
  {error}
  </div>
  )}
@@ -261,7 +261,7 @@ export function CodeMetricsPanel({ workspacePath }: CodeMetricsPanelProps) {
  {metrics.most_complex.map((f, i) => {
  const maxC = metrics.most_complex[0]?.complexity ?? 1;
  const bar = Math.max(4, Math.round((f.complexity / maxC) * 100));
- const color = f.complexity > maxC * 0.7 ? "#f38ba8" : f.complexity > maxC * 0.4 ? "#f9e2af" : "#a6e3a1";
+ const color = f.complexity > maxC * 0.7 ? "var(--error-color)" : f.complexity > maxC * 0.4 ? "var(--warning-color)" : "var(--success-color)";
  return (
  <div key={f.path} style={{ padding: "5px 8px", borderBottom: "1px solid var(--border-color)" }}>
  <div style={{ display: "grid", gridTemplateColumns: "1fr 80px 80px", gap: 8, fontSize: 11, alignItems: "center", marginBottom: 3 }}>

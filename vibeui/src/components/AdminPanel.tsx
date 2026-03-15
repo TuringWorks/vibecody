@@ -48,6 +48,7 @@ export function AdminPanel() {
   const [policies, setPolicies] = useState<PolicyRule[]>([]);
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
   const [filterAction, setFilterAction] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -73,7 +74,7 @@ export function AdminPanel() {
       setEditingMember(null);
       load();
     } catch (e) {
-      alert(`Failed: ${e}`);
+      setError(`Failed: ${e}`);
     }
   };
 
@@ -83,7 +84,7 @@ export function AdminPanel() {
       await invoke('remove_team_member', { id });
       load();
     } catch (e) {
-      alert(`Failed: ${e}`);
+      setError(`Failed: ${e}`);
     }
   };
 
@@ -92,7 +93,7 @@ export function AdminPanel() {
       await invoke('save_rbac_policy', { policy });
       load();
     } catch (e) {
-      alert(`Failed: ${e}`);
+      setError(`Failed: ${e}`);
     }
   };
 
@@ -101,7 +102,7 @@ export function AdminPanel() {
       await invoke('delete_rbac_policy', { id });
       load();
     } catch (e) {
-      alert(`Failed: ${e}`);
+      setError(`Failed: ${e}`);
     }
   };
 
@@ -141,6 +142,8 @@ export function AdminPanel() {
           ))}
         </div>
       </div>
+
+      {error && <div className="panel-error"><span>{error}</span><button onClick={() => setError(null)}>✕</button></div>}
 
       {/* ── Team Members ── */}
       {tab === 'team' && !editingMember && (

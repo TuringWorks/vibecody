@@ -886,14 +886,14 @@ export function BlueTeamPanel() {
       </div>
       <div style={contentStyle}>
         {successMsg && (
-          <div style={{ padding: "8px 12px", marginBottom: 12, background: "#a6e3a122", border: "1px solid #a6e3a1", borderRadius: 4, fontSize: 12, color: "#a6e3a1" }}>
+          <div style={{ padding: "8px 12px", marginBottom: 12, background: "rgba(76,175,80,0.13)", border: "1px solid var(--success-color)", borderRadius: 4, fontSize: 12, color: "var(--success-color)" }}>
             {successMsg}
           </div>
         )}
         {error && (
-          <div style={{ padding: "8px 12px", marginBottom: 12, background: "#f38ba822", border: "1px solid #f38ba8", borderRadius: 4, fontSize: 12, color: "#f38ba8", display: "flex", justifyContent: "space-between" }}>
+          <div style={{ padding: "8px 12px", marginBottom: 12, background: "rgba(244,67,54,0.13)", border: "1px solid var(--error-color)", borderRadius: 4, fontSize: 12, color: "var(--error-color)", display: "flex", justifyContent: "space-between" }}>
             <span>{error}</span>
-            <button style={{ background: "none", border: "none", color: "#f38ba8", cursor: "pointer", fontSize: 14 }} onClick={() => setError(null)}>×</button>
+            <button style={{ background: "none", border: "none", color: "var(--error-color)", cursor: "pointer", fontSize: 14 }} onClick={() => setError(null)}>×</button>
           </div>
         )}
         {loading && <div style={{ textAlign: "center", padding: 20, color: "var(--text-secondary)", fontSize: 13 }}>Loading...</div>}

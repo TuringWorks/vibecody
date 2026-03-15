@@ -96,7 +96,7 @@ const AgentTeamsPanel: React.FC = () => {
   };
   const badgeStyle = (color: string): React.CSSProperties => ({
     display: "inline-block", padding: "2px 8px", borderRadius: "10px",
-    fontSize: "11px", fontWeight: 600, backgroundColor: color, color: "#fff",
+    fontSize: "11px", fontWeight: 600, backgroundColor: color, color: "var(--text-primary)",
   });
 
   const roleColors: Record<AgentRole, string> = { Lead: "#6a1b9a", Teammate: "#1565c0", Observer: "#757575" };

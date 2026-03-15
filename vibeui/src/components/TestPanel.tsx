@@ -155,7 +155,7 @@ export function TestPanel({ workspacePath }: TestPanelProps) {
  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
  <span style={{ fontWeight: 700, fontSize: 14 }}>Test Runner</span>
  {framework && (
- <span style={{ fontSize: 10, padding: "2px 6px", background: "rgba(137,180,250,0.2)", color: "var(--text-info, #89b4fa)", borderRadius: 3 }}>
+ <span style={{ fontSize: 10, padding: "2px 6px", background: "rgba(137,180,250,0.2)", color: "var(--text-info)", borderRadius: 3 }}>
  {framework}
  </span>
  )}
@@ -164,7 +164,7 @@ export function TestPanel({ workspacePath }: TestPanelProps) {
  onClick={handleSuspend}
  style={{
  marginLeft: "auto", padding: "4px 12px", fontSize: 12,
- background: "#c62828", color: "#fff",
+ background: "var(--error-color)", color: "white",
  border: "none", borderRadius: 4, cursor: "pointer",
  fontWeight: 600,
  }}
@@ -176,7 +176,7 @@ export function TestPanel({ workspacePath }: TestPanelProps) {
  onClick={runTests}
  style={{
  marginLeft: "auto", padding: "4px 12px", fontSize: 12,
- background: "var(--accent-blue)", color: "#fff",
+ background: "var(--accent-blue)", color: "white",
  border: "none", borderRadius: 4, cursor: "pointer",
  fontWeight: 600,
  }}
@@ -205,12 +205,12 @@ export function TestPanel({ workspacePath }: TestPanelProps) {
  {/* Pass-rate ring (simple colored bar) */}
  <div style={{ flex: 1 }}>
  <div style={{ height: 4, borderRadius: 2, background: "var(--bg-tertiary)", overflow: "hidden" }}>
- <div style={{ height: "100%", width: `${passRate}%`, background: result.failed > 0 ? "var(--error-color, #f38ba8)" : "var(--success-color, #a6e3a1)", transition: "width 0.4s" }} />
+ <div style={{ height: "100%", width: `${passRate}%`, background: result.failed > 0 ? "var(--error-color)" : "var(--success-color)", transition: "width 0.4s" }} />
  </div>
  <div style={{ marginTop: 4, display: "flex", gap: 12, fontSize: 11 }}>
- <span style={{ color: "var(--text-success, #a6e3a1)" }}>✓ {result.passed}</span>
- {result.failed > 0 && <span style={{ color: "var(--text-danger, #f38ba8)" }}>✗ {result.failed}</span>}
- {result.ignored > 0 && <span style={{ color: "var(--text-secondary, #a6adc8)" }}>⊘ {result.ignored}</span>}
+ <span style={{ color: "var(--text-success)" }}>✓ {result.passed}</span>
+ {result.failed > 0 && <span style={{ color: "var(--text-danger)" }}>✗ {result.failed}</span>}
+ {result.ignored > 0 && <span style={{ color: "var(--text-secondary)" }}>⊘ {result.ignored}</span>}
  <span style={{ color: "var(--text-secondary)", marginLeft: "auto" }}>
  {result.duration_ms < 1000
  ? `${result.duration_ms}ms`
@@ -231,7 +231,7 @@ export function TestPanel({ workspacePath }: TestPanelProps) {
  style={{
  padding: "2px 10px", fontSize: 11, borderRadius: 3, cursor: "pointer",
  background: filter === f ? "var(--accent-blue)" : "var(--bg-secondary)",
- color: filter === f ? "var(--text-primary, #fff)" : "var(--text-secondary)",
+ color: filter === f ? "var(--text-primary)" : "var(--text-secondary)",
  border: "1px solid var(--border-color)",
  }}
  >
@@ -257,7 +257,7 @@ export function TestPanel({ workspacePath }: TestPanelProps) {
  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
  <span style={{
  fontSize: 10, flexShrink: 0,
- color: t.status === "passed" ? "var(--success-color, #a6e3a1)" : t.status === "failed" ? "var(--error-color, #f38ba8)" : t.status === "ignored" ? "var(--text-secondary, #a6adc8)" : "var(--warning-color, #f9e2af)",
+ color: t.status === "passed" ? "var(--success-color)" : t.status === "failed" ? "var(--error-color)" : t.status === "ignored" ? "var(--text-secondary)" : "var(--warning-color)",
  }}>
  {t.status === "passed" ? "✓" : t.status === "failed" ? "✗" : t.status === "ignored" ? "⊘" : "…"}
  </span>
@@ -276,7 +276,7 @@ export function TestPanel({ workspacePath }: TestPanelProps) {
  )}
  </div>
  {expanded.has(t.name) && t.output && (
- <pre style={{ margin: "4px 0 0 14px", fontSize: 10, color: "var(--text-danger, #f38ba8)", whiteSpace: "pre-wrap", wordBreak: "break-all", maxHeight: 200, overflowY: "auto" }}>
+ <pre style={{ margin: "4px 0 0 14px", fontSize: 10, color: "var(--text-danger)", whiteSpace: "pre-wrap", wordBreak: "break-all", maxHeight: 200, overflowY: "auto" }}>
  {t.output}
  </pre>
  )}

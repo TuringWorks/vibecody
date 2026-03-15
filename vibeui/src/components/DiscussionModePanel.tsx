@@ -62,7 +62,7 @@ const DiscussionModePanel: React.FC = () => {
   };
   const badgeStyle = (color: string): React.CSSProperties => ({
     display: "inline-block", padding: "2px 8px", borderRadius: "10px",
-    fontSize: "11px", fontWeight: 600, backgroundColor: color, color: "#fff",
+    fontSize: "11px", fontWeight: 600, backgroundColor: color, color: "var(--text-primary)",
   });
   const reactionBtnStyle: React.CSSProperties = {
     padding: "2px 6px", border: "1px solid var(--vscode-panel-border)",
@@ -163,7 +163,7 @@ const DiscussionModePanel: React.FC = () => {
           {(["Building", "Discussing", "Paused"] as const).map(s => (
             <button key={s} onClick={() => setBuildState(s)}
               style={{ ...btnStyle, backgroundColor: buildState === s ? stateColors[s] : "transparent",
-                color: buildState === s ? "#fff" : "var(--vscode-foreground)",
+                color: buildState === s ? "var(--text-primary)" : "var(--vscode-foreground)",
                 border: `1px solid ${stateColors[s]}`, fontSize: "12px", padding: "4px 10px" }}>
               {s}
             </button>

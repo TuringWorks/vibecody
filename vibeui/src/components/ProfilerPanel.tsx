@@ -35,10 +35,10 @@ const toolLabel: Record<string, string> = {
 };
 
 const pctColor = (pct: number) => {
-  if (pct >= 20) return "#f38ba8";
-  if (pct >= 10) return "#fab387";
-  if (pct >= 5) return "#f9e2af";
-  return "#a6e3a1";
+  if (pct >= 20) return "var(--error-color)";
+  if (pct >= 10) return "var(--warning-color)";
+  if (pct >= 5) return "var(--warning-color)";
+  return "var(--success-color)";
 };
 
 export function ProfilerPanel({ workspacePath }: ProfilerPanelProps) {
@@ -132,8 +132,8 @@ export function ProfilerPanel({ workspacePath }: ProfilerPanelProps) {
             onClick={handleSuspend}
             style={{
               padding: "8px 18px", fontSize: 13, fontWeight: 700,
-              background: "#c62828",
-              color: "#fff", border: "none", borderRadius: 6,
+              background: "var(--error-color)",
+              color: "white", border: "none", borderRadius: 6,
               cursor: "pointer",
               whiteSpace: "nowrap",
             }}
@@ -146,8 +146,8 @@ export function ProfilerPanel({ workspacePath }: ProfilerPanelProps) {
             disabled={!tool}
             style={{
               padding: "8px 18px", fontSize: 13, fontWeight: 700,
-              background: "var(--accent-blue)",
-              color: "#fff", border: "none", borderRadius: 6,
+              background: "var(--accent-color)",
+              color: "white", border: "none", borderRadius: 6,
               cursor: !tool ? "not-allowed" : "pointer",
               whiteSpace: "nowrap",
             }}
@@ -159,7 +159,7 @@ export function ProfilerPanel({ workspacePath }: ProfilerPanelProps) {
 
       {/* Error */}
       {error && (
-        <div style={{ background: "rgba(243,139,168,0.15)", border: "1px solid var(--error-color, #f44336)", borderRadius: 6, padding: 8, fontSize: 11, color: "var(--error-color, #f44336)" }}>
+        <div style={{ background: "rgba(243,139,168,0.15)", border: "1px solid var(--error-color)", borderRadius: 6, padding: 8, fontSize: 11, color: "var(--error-color)" }}>
           {error}
         </div>
       )}
@@ -246,7 +246,7 @@ export function ProfilerPanel({ workspacePath }: ProfilerPanelProps) {
               onClick={() => setShowRaw(!showRaw)}
               style={{
                 background: "none", border: "none", cursor: "pointer", fontSize: 11,
-                color: "var(--accent-blue)", padding: 0, textDecoration: "underline",
+                color: "var(--accent-color)", padding: 0, textDecoration: "underline",
               }}
             >
               {showRaw ? "Hide raw output" : "Show raw output"}

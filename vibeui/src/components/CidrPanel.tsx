@@ -226,7 +226,7 @@ export function CidrPanel() {
  {subTab === "calc" && (
  <div>
  {!info && cidrInput.trim() && (
- <div style={{ padding: "8px 12px", fontSize: 11, color: "var(--text-danger, #f38ba8)" }}>Invalid CIDR. Format: x.x.x.x/prefix (e.g. 192.168.1.0/24)</div>
+ <div style={{ padding: "8px 12px", fontSize: 11, color: "var(--text-danger)" }}>Invalid CIDR. Format: x.x.x.x/prefix (e.g. 192.168.1.0/24)</div>
  )}
  {info && (
  <div>
@@ -245,8 +245,8 @@ export function CidrPanel() {
  <div style={{ padding: "10px 12px", borderTop: "1px solid var(--border-color)" }}>
  <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", marginBottom: 8, letterSpacing: "0.05em" }}>
  BINARY REPRESENTATION &nbsp;
- <span style={{ color: "var(--text-info, #89b4fa)", fontWeight: 400 }}>■ network bits</span>
- <span style={{ color: "var(--text-success, #a6e3a1)", fontWeight: 400, marginLeft: 8 }}>■ host bits</span>
+ <span style={{ color: "var(--text-info)", fontWeight: 400 }}>■ network bits</span>
+ <span style={{ color: "var(--text-success)", fontWeight: 400, marginLeft: 8 }}>■ host bits</span>
  </div>
  {[
  { label: "IP Address", val: ipToInt(parsed!.ip)! },
@@ -270,8 +270,8 @@ export function CidrPanel() {
  if (!base) return false;
  return (info.networkInt & base.maskInt) === base.networkInt && info.prefix >= p.prefix;
  })
- ? <span style={{ color: "var(--text-warning-alt, #fab387)" }}>This range falls within a private (RFC 1918 / reserved) address space.</span>
- : <span style={{ color: "var(--text-success, #a6e3a1)" }}>✓ Public address space.</span>
+ ? <span style={{ color: "var(--text-warning-alt)" }}>This range falls within a private (RFC 1918 / reserved) address space.</span>
+ : <span style={{ color: "var(--text-success)" }}>✓ Public address space.</span>
  }
  </div>
  </div>
@@ -285,7 +285,7 @@ export function CidrPanel() {
  {info && (
  <>
  <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
- <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Split into /<span style={{ color: "var(--text-info, #89b4fa)", fontFamily: "monospace" }}>{splitPrefix}</span> blocks</span>
+ <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Split into /<span style={{ color: "var(--text-info)", fontFamily: "monospace" }}>{splitPrefix}</span> blocks</span>
  <input type="range" min={info.prefix + 1} max={32} value={splitPrefix} onChange={e => setSplitPrefix(+e.target.value)}
  style={{ flex: 1, minWidth: 80, accentColor: "var(--accent-color)" }} />
  <span style={{ fontSize: 11, fontFamily: "monospace", color: "var(--text-muted)" }}>
@@ -298,9 +298,9 @@ export function CidrPanel() {
  : splitResults.map((s, i) => (
  <div key={i} style={{ display: "flex", gap: 8, padding: "5px 12px", borderBottom: "1px solid rgba(255,255,255,0.04)", alignItems: "center", fontSize: 11 }}>
  <span style={{ width: 24, color: "var(--text-muted)", fontFamily: "monospace", flexShrink: 0 }}>{i + 1}</span>
- <span style={{ fontFamily: "monospace", color: "var(--text-info, #89b4fa)", width: 160, flexShrink: 0 }}>{s.cidr}</span>
- <span style={{ color: "var(--text-success, #a6e3a1)", width: 110, flexShrink: 0 }}>first: {s.firstHost}</span>
- <span style={{ color: "var(--text-danger, #f38ba8)", flex: 1 }}>last: {s.lastHost}</span>
+ <span style={{ fontFamily: "monospace", color: "var(--text-info)", width: 160, flexShrink: 0 }}>{s.cidr}</span>
+ <span style={{ color: "var(--text-success)", width: 110, flexShrink: 0 }}>first: {s.firstHost}</span>
+ <span style={{ color: "var(--text-danger)", flex: 1 }}>last: {s.lastHost}</span>
  <CopyBtn text={s.cidr} />
  </div>
  ))
@@ -311,7 +311,7 @@ export function CidrPanel() {
  </div>
  </>
  )}
- {!info && cidrInput.trim() && <div style={{ padding: 12, color: "var(--text-danger, #f38ba8)", fontSize: 12 }}>Fix the CIDR input above first.</div>}
+ {!info && cidrInput.trim() && <div style={{ padding: 12, color: "var(--text-danger)", fontSize: 12 }}>Fix the CIDR input above first.</div>}
  </div>
  )}
 
@@ -321,7 +321,7 @@ export function CidrPanel() {
 
  {/* Private ranges */}
  <div>
- <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-info, #89b4fa)", marginBottom: 8 }}>PRIVATE & RESERVED RANGES (IPv4)</div>
+ <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-info)", marginBottom: 8 }}>PRIVATE & RESERVED RANGES (IPv4)</div>
  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
  <thead>
  <tr style={{ background: "var(--bg-secondary)" }}>
@@ -333,7 +333,7 @@ export function CidrPanel() {
  <tbody>
  {PRIVATE_RANGES.map(r => (
  <tr key={r.range} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)", cursor: "pointer" }} onClick={() => { setCidrInput(r.range); setSubTab("calc"); }}>
- <td style={{ padding: "5px 8px", fontFamily: "monospace", color: "var(--text-warning-alt, #fab387)" }}>{r.range}</td>
+ <td style={{ padding: "5px 8px", fontFamily: "monospace", color: "var(--text-warning-alt)" }}>{r.range}</td>
  <td style={{ padding: "5px 8px", color: "var(--text-primary)" }}>{r.name}</td>
  <td style={{ padding: "5px 8px", fontFamily: "monospace", color: "var(--text-muted)" }}>{r.hosts}</td>
  <td style={{ padding: "5px 8px", color: "var(--text-muted)", fontSize: 10 }}>{r.use}</td>
@@ -346,7 +346,7 @@ export function CidrPanel() {
 
  {/* Cloud defaults */}
  <div>
- <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-success, #a6e3a1)", marginBottom: 8 }}>CLOUD & CONTAINER DEFAULTS</div>
+ <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-success)", marginBottom: 8 }}>CLOUD & CONTAINER DEFAULTS</div>
  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
  <thead>
  <tr style={{ background: "var(--bg-secondary)" }}>
@@ -358,8 +358,8 @@ export function CidrPanel() {
  <tbody>
  {CLOUD_DEFAULTS.map((r, i) => (
  <tr key={i} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)", cursor: "pointer" }} onClick={() => { setCidrInput(r.cidr); setSubTab("calc"); }}>
- <td style={{ padding: "5px 8px", color: "var(--text-accent, #cba6f7)", fontWeight: 700 }}>{r.provider}</td>
- <td style={{ padding: "5px 8px", fontFamily: "monospace", color: "var(--text-info, #89b4fa)" }}>{r.cidr}</td>
+ <td style={{ padding: "5px 8px", color: "var(--text-accent)", fontWeight: 700 }}>{r.provider}</td>
+ <td style={{ padding: "5px 8px", fontFamily: "monospace", color: "var(--text-info)" }}>{r.cidr}</td>
  <td style={{ padding: "5px 8px", color: "var(--text-muted)" }}>{r.note}</td>
  </tr>
  ))}
@@ -369,7 +369,7 @@ export function CidrPanel() {
 
  {/* Prefix cheat-sheet */}
  <div>
- <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-warning-alt, #fab387)", marginBottom: 8 }}>PREFIX LENGTH CHEAT SHEET</div>
+ <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-warning-alt)", marginBottom: 8 }}>PREFIX LENGTH CHEAT SHEET</div>
  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
  <thead>
  <tr style={{ background: "var(--bg-secondary)" }}>
@@ -381,8 +381,8 @@ export function CidrPanel() {
  <tbody>
  {PREFIX_TABLE.map(([prefix, hosts, mask, notes]) => (
  <tr key={prefix} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
- <td style={{ padding: "5px 8px", fontFamily: "monospace", fontWeight: 700, color: "var(--text-warning-alt, #fab387)" }}>{prefix}</td>
- <td style={{ padding: "5px 8px", fontFamily: "monospace", color: "var(--text-success, #a6e3a1)" }}>{hosts}</td>
+ <td style={{ padding: "5px 8px", fontFamily: "monospace", fontWeight: 700, color: "var(--text-warning-alt)" }}>{prefix}</td>
+ <td style={{ padding: "5px 8px", fontFamily: "monospace", color: "var(--text-success)" }}>{hosts}</td>
  <td style={{ padding: "5px 8px", fontFamily: "monospace", color: "var(--text-muted)" }}>{mask}</td>
  <td style={{ padding: "5px 8px", color: "var(--text-muted)", fontSize: 10 }}>{notes}</td>
  </tr>

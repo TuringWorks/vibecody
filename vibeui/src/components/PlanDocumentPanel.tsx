@@ -52,16 +52,16 @@ const MOCK_COMMENTS: Comment[] = [
 
 const statusColors: Record<PlanStatus, string> = {
   draft: "var(--text-muted)",
-  review: "var(--text-warning, #f9e2af)",
-  approved: "var(--text-success, #a6e3a1)",
+  review: "var(--text-warning)",
+  approved: "var(--text-success)",
   archived: "var(--text-muted)",
 };
 
 const tabBtn = (active: boolean): React.CSSProperties => ({
   padding: "6px 14px", fontSize: 11, fontWeight: active ? 600 : 400,
-  background: active ? "var(--accent-bg, rgba(99,102,241,0.15))" : "transparent",
-  border: "1px solid " + (active ? "var(--accent-primary, #6366f1)" : "var(--border-color)"),
-  borderRadius: 4, color: active ? "var(--text-info, #89b4fa)" : "var(--text-muted)", cursor: "pointer",
+  background: active ? "var(--accent-bg)" : "transparent",
+  border: "1px solid " + (active ? "var(--accent-primary)" : "var(--border-color)"),
+  borderRadius: 4, color: active ? "var(--text-info)" : "var(--text-muted)", cursor: "pointer",
 });
 
 export default function PlanDocumentPanel() {
@@ -84,7 +84,7 @@ export default function PlanDocumentPanel() {
           <button key={t} onClick={() => setTab(t)} style={tabBtn(tab === t)}>
             {t[0].toUpperCase() + t.slice(1)}
             {t === "comments" && allUnresolved.length > 0 && (
-              <span style={{ marginLeft: 4, fontSize: 9, padding: "0 4px", borderRadius: 6, background: "var(--text-danger, #f38ba8)", color: "#1e1e2e" }}>{allUnresolved.length}</span>
+              <span style={{ marginLeft: 4, fontSize: 9, padding: "0 4px", borderRadius: 6, background: "var(--text-danger)", color: "#1e1e2e" }}>{allUnresolved.length}</span>
             )}
           </button>
         ))}
@@ -93,7 +93,7 @@ export default function PlanDocumentPanel() {
       <div style={{ flex: 1, overflowY: "auto", padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
         {tab === "plans" && MOCK_PLANS.map(p => (
           <div key={p.id} onClick={() => { setSelectedPlan(p.id); setTab("editor"); }}
-            style={{ padding: 10, background: selectedPlan === p.id ? "var(--accent-bg, rgba(99,102,241,0.15))" : "var(--bg-secondary)", borderRadius: 6, border: `1px solid ${selectedPlan === p.id ? "var(--accent-primary, #6366f1)" : "var(--border-color)"}`, cursor: "pointer" }}>
+            style={{ padding: 10, background: selectedPlan === p.id ? "var(--accent-bg)" : "var(--bg-secondary)", borderRadius: 6, border: `1px solid ${selectedPlan === p.id ? "var(--accent-primary)" : "var(--border-color)"}`, cursor: "pointer" }}>
             <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4 }}>
               <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>{p.title}</span>
               <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 10, background: `${statusColors[p.status]}22`, color: statusColors[p.status], fontWeight: 600 }}>{p.status}</span>
@@ -103,7 +103,7 @@ export default function PlanDocumentPanel() {
               <span>{p.author}</span>
               <span>{p.updatedAt}</span>
               {comments.filter(c => c.planId === p.id && !c.resolved).length > 0 && (
-                <span style={{ color: "var(--text-warning, #f9e2af)" }}>
+                <span style={{ color: "var(--text-warning)" }}>
                   {comments.filter(c => c.planId === p.id && !c.resolved).length} comments
                 </span>
               )}
@@ -123,7 +123,7 @@ export default function PlanDocumentPanel() {
             </pre>
             {planComments.length > 0 && (
               <button onClick={() => setTab("comments")}
-                style={{ alignSelf: "flex-start", padding: "5px 12px", fontSize: 11, background: "var(--bg-secondary)", border: "1px solid var(--text-warning, #f9e2af)", borderRadius: 4, color: "var(--text-warning, #f9e2af)", cursor: "pointer" }}>
+                style={{ alignSelf: "flex-start", padding: "5px 12px", fontSize: 11, background: "var(--bg-secondary)", border: "1px solid var(--text-warning)", borderRadius: 4, color: "var(--text-warning)", cursor: "pointer" }}>
                 View {planComments.length} comments
               </button>
             )}
@@ -143,11 +143,11 @@ export default function PlanDocumentPanel() {
                     <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-primary)" }}>{c.author}</span>
                     <span style={{ fontSize: 10, color: "var(--text-muted)" }}>{c.timestamp}</span>
                     {c.line && <span style={{ fontSize: 10, color: "var(--text-muted)" }}>L{c.line}</span>}
-                    <span style={{ fontSize: 10, color: "var(--accent-primary, #6366f1)", marginLeft: "auto" }}>{p?.title}</span>
+                    <span style={{ fontSize: 10, color: "var(--accent-primary)", marginLeft: "auto" }}>{p?.title}</span>
                   </div>
                   <div style={{ fontSize: 11, color: "var(--text-primary)", marginBottom: 8 }}>{c.text}</div>
                   <button onClick={() => resolveComment(c.id)}
-                    style={{ padding: "4px 12px", fontSize: 10, borderRadius: 4, border: "none", background: "var(--text-success, #a6e3a1)", color: "#1e1e2e", cursor: "pointer", fontWeight: 600 }}>
+                    style={{ padding: "4px 12px", fontSize: 10, borderRadius: 4, border: "none", background: "var(--text-success)", color: "#1e1e2e", cursor: "pointer", fontWeight: 600 }}>
                     Resolve
                   </button>
                 </div>

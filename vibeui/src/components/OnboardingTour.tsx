@@ -173,7 +173,7 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
         </div>
 
         {/* Keyboard hint */}
-        <div style={{ fontSize: '11px', color: 'var(--text-muted, #888)', marginTop: '6px', textAlign: 'center' }}>
+        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px', textAlign: 'center' }}>
           ← → to navigate · Esc to skip
         </div>
       </div>

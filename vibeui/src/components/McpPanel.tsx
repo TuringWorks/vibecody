@@ -233,7 +233,7 @@ export function McpPanel() {
  <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", flex: 1 }}>
  {srv.name}
  {tokenStatus[srv.name] && (
- <span style={{ marginLeft: 6, fontSize: "10px", color: "var(--text-success, #a6e3a1)", background: "rgba(166,227,161,0.15)", padding: "1px 5px", borderRadius: 3 }}>
+ <span style={{ marginLeft: 6, fontSize: "10px", color: "var(--text-success)", background: "var(--success-bg)", padding: "1px 5px", borderRadius: 3 }}>
  OAuth
  </span>
  )}

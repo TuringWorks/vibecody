@@ -92,12 +92,12 @@ const labelStyle: React.CSSProperties = {
   fontSize: 11,
   fontWeight: 600,
   marginBottom: 4,
-  color: "var(--text-secondary, #999)",
+  color: "var(--text-secondary)",
 };
 
 const btnPrimary: React.CSSProperties = {
-  background: "var(--accent-color, #007acc)",
-  color: "var(--text-primary, #e0e0e0)",
+  background: "var(--accent-color)",
+  color: "var(--text-primary)",
   border: "none",
   borderRadius: 4,
   padding: "6px 14px",
@@ -389,12 +389,12 @@ export function InferencePanel() {
             style={{
               background: "none",
               border: "none",
-              borderBottom: tab === t.key ? "2px solid var(--accent-color, #007acc)" : "2px solid transparent",
+              borderBottom: tab === t.key ? "2px solid var(--accent-color)" : "2px solid transparent",
               padding: "8px 16px",
               cursor: "pointer",
               fontSize: 12,
               fontWeight: tab === t.key ? 600 : 400,
-              color: tab === t.key ? "var(--text-primary)" : "var(--text-secondary, #999)",
+              color: tab === t.key ? "var(--text-primary)" : "var(--text-secondary)",
             }}
           >
             {t.label}
@@ -502,7 +502,7 @@ export function InferencePanel() {
                 max={100}
                 value={deploy.gpuMemUtil}
                 onChange={(e) => updateDeploy("gpuMemUtil", Number(e.target.value))}
-                style={{ width: "100%", accentColor: "var(--accent-color, #007acc)" }}
+                style={{ width: "100%", accentColor: "var(--accent-color)" }}
               />
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, opacity: 0.5 }}>
                 <span>10%</span><span>100%</span>
@@ -529,7 +529,7 @@ export function InferencePanel() {
             {generatedCli && (
               <div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary, #999)" }}>CLI Command</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)" }}>CLI Command</span>
                   <button
                     style={{ ...btnSecondary, padding: "2px 8px", fontSize: 10 }}
                     onClick={() => navigator.clipboard.writeText(generatedCli)}
@@ -543,7 +543,7 @@ export function InferencePanel() {
             {generatedCompose && (
               <div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary, #999)" }}>docker-compose.yml</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)" }}>docker-compose.yml</span>
                   <button
                     style={{ ...btnSecondary, padding: "2px 8px", fontSize: 10 }}
                     onClick={() => navigator.clipboard.writeText(generatedCompose)}
@@ -562,7 +562,7 @@ export function InferencePanel() {
           <div>
             {/* Entry form */}
             <div style={{ background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 16, border: "1px solid var(--border-color)" }}>
-              <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 8, color: "var(--text-secondary, #999)" }}>Add Benchmark Entry</div>
+              <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 8, color: "var(--text-secondary)" }}>Add Benchmark Entry</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr repeat(3, 1fr) auto", gap: 8, alignItems: "end" }}>
                 <div>
                   <label style={labelStyle}>Backend</label>
@@ -647,7 +647,7 @@ export function InferencePanel() {
                             type="checkbox"
                             checked={compareIds.has(b.id)}
                             onChange={() => toggleCompare(b.id)}
-                            style={{ accentColor: "var(--accent-color, #007acc)" }}
+                            style={{ accentColor: "var(--accent-color)" }}
                           />
                         </td>
                         <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border-color)" }}>
@@ -660,7 +660,7 @@ export function InferencePanel() {
                         <td style={{ padding: "4px 8px", textAlign: "center", borderBottom: "1px solid var(--border-color)" }}>
                           <button
                             onClick={() => removeBenchmark(b.id)}
-                            style={{ background: "none", border: "none", color: "var(--error-color, #f44336)", cursor: "pointer", fontSize: 14 }}
+                            style={{ background: "none", border: "none", color: "var(--error-color)", cursor: "pointer", fontSize: 14 }}
                             title="Remove"
                           >
                             x
@@ -676,7 +676,7 @@ export function InferencePanel() {
             {/* Comparison view */}
             {comparedEntries.length >= 2 && (
               <div style={{ marginTop: 20 }}>
-                <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 8, color: "var(--text-secondary, #999)" }}>
+                <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 8, color: "var(--text-secondary)" }}>
                   Comparison ({comparedEntries.length} selected)
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: `repeat(${comparedEntries.length}, 1fr)`, gap: 12 }}>
@@ -699,19 +699,19 @@ export function InferencePanel() {
                         </div>
                         <div style={{ fontSize: 11, marginBottom: 4 }}>
                           <span style={{ opacity: 0.6 }}>TTFT: </span>
-                          <span style={{ color: b.ttft === bestTtft ? "var(--success-color, #4caf50)" : "var(--text-primary)", fontWeight: b.ttft === bestTtft ? 700 : 400 }}>
+                          <span style={{ color: b.ttft === bestTtft ? "var(--success-color)" : "var(--text-primary)", fontWeight: b.ttft === bestTtft ? 700 : 400 }}>
                             {b.ttft} ms
                           </span>
                         </div>
                         <div style={{ fontSize: 11, marginBottom: 4 }}>
                           <span style={{ opacity: 0.6 }}>Tokens/s: </span>
-                          <span style={{ color: b.tokensPerSec === bestTps ? "var(--success-color, #4caf50)" : "var(--text-primary)", fontWeight: b.tokensPerSec === bestTps ? 700 : 400 }}>
+                          <span style={{ color: b.tokensPerSec === bestTps ? "var(--success-color)" : "var(--text-primary)", fontWeight: b.tokensPerSec === bestTps ? 700 : 400 }}>
                             {b.tokensPerSec}
                           </span>
                         </div>
                         <div style={{ fontSize: 11 }}>
                           <span style={{ opacity: 0.6 }}>VRAM: </span>
-                          <span style={{ color: b.vram === bestVram ? "var(--success-color, #4caf50)" : "var(--text-primary)", fontWeight: b.vram === bestVram ? 700 : 400 }}>
+                          <span style={{ color: b.vram === bestVram ? "var(--success-color)" : "var(--text-primary)", fontWeight: b.vram === bestVram ? 700 : 400 }}>
                             {b.vram} GB
                           </span>
                         </div>

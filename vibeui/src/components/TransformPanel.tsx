@@ -52,14 +52,16 @@ export function TransformPanel() {
   const handleExecute = async () => {
     if (!selected || !plan) return;
     setExecuting(true);
-    setProgress(0);
+    setProgress(10);
     setResult(null);
     setError(null);
     try {
+      setProgress(30);
       const res = await invoke<{ files_modified: number; summary: string }>("execute_transform", {
         transformType: selected,
         files: plan.map((p) => p.file),
       });
+      setProgress(100);
       setResult(`${res.files_modified} files transformed. ${res.summary}`);
     } catch (e) {
       setError(String(e));
@@ -78,7 +80,7 @@ export function TransformPanel() {
 
       <div style={{ flex: 1, overflowY: "auto", padding: "8px 12px" }}>
         {/* Transform type selector */}
-        <div style={{ fontSize: 11, color: "var(--text-secondary, #a6adc8)", marginBottom: 8 }}>
+        <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 8 }}>
           Select a code transformation to apply across your workspace.
         </div>
 
@@ -86,8 +88,8 @@ export function TransformPanel() {
           {TRANSFORMS.map((t) => (
             <button key={t.id} onClick={() => { setSelected(t.id); setPlan(null); setResult(null); }} style={{
               padding: "6px 10px", borderRadius: 4, textAlign: "left", cursor: "pointer",
-              border: selected === t.id ? "1px solid #6366f1" : "1px solid var(--border-color)",
-              background: selected === t.id ? "rgba(99,102,241,0.15)" : "var(--bg-primary)",
+              border: selected === t.id ? "1px solid var(--accent-color)" : "1px solid var(--border-color)",
+              background: selected === t.id ? "var(--accent-bg)" : "var(--bg-primary)",
               color: "var(--text-primary)",
             }}>
               <div style={{ fontSize: 11, fontWeight: 600 }}>{t.label}</div>
@@ -98,7 +100,7 @@ export function TransformPanel() {
 
         {selected && !plan && (
           <button onClick={handlePlan} disabled={loading} style={{
-            ...btnStyle, background: "var(--accent-primary, #6366f1)", color: "#fff", fontWeight: 700,
+            ...btnStyle, background: "var(--accent-primary)", color: "white", fontWeight: 700,
             opacity: loading ? 0.5 : 1, width: "100%",
           }}>
             {loading ? "Analyzing..." : "Generate Plan"}
@@ -106,7 +108,7 @@ export function TransformPanel() {
         )}
 
         {error && (
-          <div style={{ fontSize: 11, color: "var(--text-danger, #f38ba8)", padding: "4px 8px", background: "rgba(243,139,168,0.05)", borderRadius: 4, marginTop: 8 }}>
+          <div style={{ fontSize: 11, color: "var(--text-danger)", padding: "4px 8px", background: "var(--error-bg)", borderRadius: 4, marginTop: 8 }}>
             {error}
           </div>
         )}
@@ -130,7 +132,7 @@ export function TransformPanel() {
               ))}
             </div>
             <button onClick={handleExecute} disabled={executing} style={{
-              ...btnStyle, background: "#a6e3a1", color: "var(--bg-tertiary)", fontWeight: 700,
+              ...btnStyle, background: "var(--success-color)", color: "var(--bg-primary)", fontWeight: 700,
               opacity: executing ? 0.5 : 1, width: "100%",
             }}>
               {executing ? `Transforming... ${progress}%` : "Execute Transform"}
@@ -139,7 +141,7 @@ export function TransformPanel() {
         )}
 
         {result && (
-          <div style={{ fontSize: 11, color: "var(--text-success, #a6e3a1)", padding: "6px 8px", background: "rgba(166,227,161,0.05)", borderRadius: 4, marginTop: 8 }}>
+          <div style={{ fontSize: 11, color: "var(--text-success)", padding: "6px 8px", background: "var(--success-bg)", borderRadius: 4, marginTop: 8 }}>
             {result}
           </div>
         )}

@@ -143,8 +143,8 @@ function DirRulesTab({ workspacePath }: { workspacePath?: string | null }) {
  padding: "3px 8px",
  fontSize: "11px",
  borderRadius: "4px",
- background: scope === s ? "var(--accent-color, #007acc)" : "var(--bg-tertiary)",
- color: scope === s ? "var(--text-primary, #fff)" : "var(--text-primary)",
+ background: scope === s ? "var(--accent-color)" : "var(--bg-tertiary)",
+ color: scope === s ? "white" : "var(--text-primary)",
  border: "1px solid var(--border-color)",
  cursor: "pointer",
  }}
@@ -170,13 +170,13 @@ function DirRulesTab({ workspacePath }: { workspacePath?: string | null }) {
  </div>
 
  {scope === "workspace" && !workspacePath && (
- <div style={{ fontSize: "12px", color: "var(--warning-color, #f4a)", padding: "6px", background: "rgba(255,68,170,0.1)", borderRadius: "4px" }}>
+ <div style={{ fontSize: "12px", color: "var(--warning-color)", padding: "6px", background: "rgba(255,68,170,0.1)", borderRadius: "4px" }}>
  Open a folder to manage project rules.
  </div>
  )}
 
  {error && (
- <div style={{ fontSize: "12px", color: "var(--error-color, #f44)", padding: "6px 8px", background: "rgba(220,50,50,0.15)", borderRadius: "4px" }}>
+ <div style={{ fontSize: "12px", color: "var(--error-color)", padding: "6px 8px", background: "rgba(220,50,50,0.15)", borderRadius: "4px" }}>
  {error}
  </div>
  )}
@@ -203,7 +203,7 @@ function DirRulesTab({ workspacePath }: { workspacePath?: string | null }) {
  />
  <div style={{ display: "flex", gap: "6px" }}>
  <button onClick={createFile} disabled={!newName.trim() || saving}
- style={{ padding: "4px 10px", fontSize: "12px", background: "var(--accent-color, #007acc)", color: "var(--text-primary, #fff)", border: "none", borderRadius: "4px", cursor: "pointer" }}>
+ style={{ padding: "4px 10px", fontSize: "12px", background: "var(--accent-color)", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}>
  Create
  </button>
  <button onClick={() => setCreating(false)}
@@ -233,8 +233,8 @@ function DirRulesTab({ workspacePath }: { workspacePath?: string | null }) {
  style={{
  padding: "6px 8px",
  cursor: "pointer",
- background: selected === f.filename ? "var(--accent-color, #007acc)" : "transparent",
- color: selected === f.filename ? "var(--text-primary, #fff)" : "var(--text-primary)",
+ background: selected === f.filename ? "var(--accent-color)" : "transparent",
+ color: selected === f.filename ? "white" : "var(--text-primary)",
  borderBottom: "1px solid var(--border-color)",
  display: "flex",
  flexDirection: "column",
@@ -283,13 +283,13 @@ function DirRulesTab({ workspacePath }: { workspacePath?: string | null }) {
  <button
  onClick={saveFile}
  disabled={saving}
- style={{ padding: "5px 12px", fontSize: "12px", background: "var(--accent-color, #007acc)", color: "var(--text-primary, #fff)", border: "none", borderRadius: "4px", cursor: "pointer" }}
+ style={{ padding: "5px 12px", fontSize: "12px", background: "var(--accent-color)", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}
  >
  {saving ? "Saving…" : saved ? "✓ Saved" : "Save"}
  </button>
  <button
  onClick={() => setConfirmDelete(selected)}
- style={{ padding: "5px 12px", fontSize: "12px", background: "transparent", border: "1px solid var(--error-color, #c0392b)", borderRadius: "4px", color: "var(--error-color, #c0392b)", cursor: "pointer", marginLeft: "auto" }}
+ style={{ padding: "5px 12px", fontSize: "12px", background: "transparent", border: "1px solid var(--error-color)", borderRadius: "4px", color: "var(--error-color)", cursor: "pointer", marginLeft: "auto" }}
  >
  Delete
  </button>
@@ -321,7 +321,7 @@ function DirRulesTab({ workspacePath }: { workspacePath?: string | null }) {
  Cancel
  </button>
  <button onClick={() => deleteFile(confirmDelete)}
- style={{ padding: "6px 14px", fontSize: "12px", background: "var(--error-color, #c0392b)", border: "none", borderRadius: "4px", color: "var(--text-primary, #fff)", cursor: "pointer" }}>
+ style={{ padding: "6px 14px", fontSize: "12px", background: "var(--error-color)", border: "none", borderRadius: "4px", color: "white", cursor: "pointer" }}>
  Delete
  </button>
  </div>
@@ -399,9 +399,9 @@ function AutoFactsTab() {
  }
 
  function confidenceColor(c: number) {
- if (c >= 0.85) return "var(--success-color, #a6e3a1)";
- if (c >= 0.65) return "var(--warning-color, #fab387)";
- return "var(--error-color, #f38ba8)";
+ if (c >= 0.85) return "var(--success-color)";
+ if (c >= 0.65) return "var(--warning-color)";
+ return "var(--error-color)";
  }
 
  return (
@@ -445,7 +445,7 @@ function AutoFactsTab() {
  <button
  onClick={addFact}
  disabled={adding || !newFact.trim()}
- style={{ padding: "4px 12px", fontSize: 12, borderRadius: 4, background: "var(--accent-color, #007acc)", color: "var(--text-primary, #fff)", border: "none", cursor: "pointer" }}
+ style={{ padding: "4px 12px", fontSize: 12, borderRadius: 4, background: "var(--accent-color)", color: "white", border: "none", cursor: "pointer" }}
  >
  {adding ? "Saving…" : "Save"}
  </button>
@@ -460,7 +460,7 @@ function AutoFactsTab() {
  )}
 
  {error && (
- <div style={{ fontSize: 12, color: "var(--error-color, #f44)", padding: "4px 8px", background: "rgba(220,50,50,0.15)", borderRadius: 4 }}>
+ <div style={{ fontSize: 12, color: "var(--error-color)", padding: "4px 8px", background: "rgba(220,50,50,0.15)", borderRadius: 4 }}>
  {error}
  </div>
  )}
@@ -490,7 +490,7 @@ function AutoFactsTab() {
  <button
  onClick={() => togglePin(f.id, f.pinned)}
  title={f.pinned ? "Unpin" : "Pin"}
- style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, opacity: f.pinned ? 1 : 0.4, flexShrink: 0, padding: 0, lineHeight: 1, color: "var(--info-color, #89b4fa)" }}
+ style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, opacity: f.pinned ? 1 : 0.4, flexShrink: 0, padding: 0, lineHeight: 1, color: "var(--info-color)" }}
  >
  <Pin size={14} strokeWidth={1.5} />
  </button>
@@ -515,7 +515,7 @@ function AutoFactsTab() {
  <button
  onClick={() => deleteFact(f.id)}
  title="Delete"
- style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: "var(--text-muted, #6c7086)", flexShrink: 0, padding: "0 2px", lineHeight: 1 }}
+ style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: "var(--text-muted)", flexShrink: 0, padding: "0 2px", lineHeight: 1 }}
  >
  ✕
  </button>
@@ -600,8 +600,8 @@ export function MemoryPanel({ workspacePath }: MemoryPanelProps) {
  padding: "4px 10px",
  fontSize: "12px",
  borderRadius: "4px",
- background: activeTab === t.id ? "var(--accent-color, #007acc)" : "var(--bg-tertiary)",
- color: activeTab === t.id ? "var(--text-primary, #fff)" : "var(--text-primary)",
+ background: activeTab === t.id ? "var(--accent-color)" : "var(--bg-tertiary)",
+ color: activeTab === t.id ? "white" : "var(--text-primary)",
  border: "1px solid var(--border-color)",
  cursor: "pointer",
  }}
@@ -629,7 +629,7 @@ export function MemoryPanel({ workspacePath }: MemoryPanelProps) {
  {activeTab !== "directory" && activeTab !== "auto" && (
  <>
  {activeTab === "workspace" && !workspacePath && (
- <div style={{ fontSize: "12px", color: "var(--warning-color, #f4a)", padding: "6px", background: "rgba(255,68,170,0.1)", borderRadius: "4px" }}>
+ <div style={{ fontSize: "12px", color: "var(--warning-color)", padding: "6px", background: "rgba(255,68,170,0.1)", borderRadius: "4px" }}>
  Open a folder to manage project rules.
  </div>
  )}

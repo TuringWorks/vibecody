@@ -113,8 +113,8 @@ const ProcessPanel: React.FC = () => {
  aria-live="polite"
  style={{
  padding: "6px 12px",
- background: killFeedback.ok ? "var(--success-bg, #1a3320)" : "var(--error-bg, #3d1a1a)",
- color: killFeedback.ok ? "var(--success-fg, #4caf50)" : "var(--error-fg, #f44336)",
+ background: killFeedback.ok ? "var(--success-bg)" : "var(--error-bg)",
+ color: killFeedback.ok ? "var(--success-fg)" : "var(--error-fg)",
  fontSize: 12,
  }}
  >
@@ -130,7 +130,7 @@ const ProcessPanel: React.FC = () => {
  )}
 
  {error && (
- <div style={{ padding: "8px 12px", color: "var(--error-fg, #f44336)", fontSize: 12 }}>
+ <div style={{ padding: "8px 12px", color: "var(--error-fg)", fontSize: 12 }}>
  {error}
  </div>
  )}
@@ -181,9 +181,9 @@ const ProcessPanel: React.FC = () => {
  style={{
  padding: "2px 8px",
  borderRadius: 4,
- border: "1px solid var(--error-fg, #f44336)",
+ border: "1px solid var(--error-fg)",
  background: "transparent",
- color: "var(--error-fg, #f44336)",
+ color: "var(--error-fg)",
  cursor: "pointer",
  fontSize: 11,
  }}

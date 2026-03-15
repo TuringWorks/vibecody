@@ -171,7 +171,7 @@ export function NotebookPanel({ workspacePath }: NotebookPanelProps) {
  <button onClick={() => addCell("code")} style={toolBtnStyle}>+ Code</button>
  <button onClick={() => addCell("markdown")} style={toolBtnStyle}>+ Markdown</button>
  <div style={{ flex: 1 }} />
- <button onClick={runAll} disabled={runningAll} style={{ ...toolBtnStyle, background: "var(--accent-color, #007acc)", color: "var(--text-primary, #e0e0e0)" }}>
+ <button onClick={runAll} disabled={runningAll} style={{ ...toolBtnStyle, background: "var(--accent-color)", color: "var(--text-primary)" }}>
  {runningAll ? "Running..." : "Run All"}
  </button>
  <button onClick={clearAll} style={toolBtnStyle}>Clear All</button>
@@ -198,7 +198,7 @@ export function NotebookPanel({ workspacePath }: NotebookPanelProps) {
  }}>
  <span style={{
  padding: "1px 6px", borderRadius: 4, fontWeight: 600, fontSize: 10,
- background: cell.type === "code" ? (langColor[cell.language] || "#6c7086") : "#cba6f7",
+ background: cell.type === "code" ? (langColor[cell.language] || "var(--text-muted)") : "#cba6f7",
  color: "var(--bg-tertiary)",
  }}>
  {cell.type === "code" ? cell.language.toUpperCase() : "MD"}
@@ -226,7 +226,7 @@ export function NotebookPanel({ workspacePath }: NotebookPanelProps) {
  onClick={() => runCell(cell.id)}
  disabled={cell.running}
  title="Run cell"
- style={{ ...cellBtnStyle, color: "var(--text-success, #a6e3a1)" }}
+ style={{ ...cellBtnStyle, color: "var(--text-success)" }}
  >
  {cell.running ? "..." : ""}
  </button>
@@ -234,7 +234,7 @@ export function NotebookPanel({ workspacePath }: NotebookPanelProps) {
  onClick={() => handleAiAssist(cell.id)}
  disabled={cell.running}
  title="AI Assist"
- style={{ ...cellBtnStyle, color: "var(--text-info, #89b4fa)" }}
+ style={{ ...cellBtnStyle, color: "var(--text-info)" }}
  >
  AI
  </button>
@@ -246,7 +246,7 @@ export function NotebookPanel({ workspacePath }: NotebookPanelProps) {
  <button
  onClick={() => deleteCell(cell.id)}
  disabled={cells.length <= 1}
- style={{ ...cellBtnStyle, color: "var(--text-danger, #f38ba8)" }}
+ style={{ ...cellBtnStyle, color: "var(--text-danger)" }}
  title="Delete cell"
  >
  ✕
@@ -312,7 +312,7 @@ export function NotebookPanel({ workspacePath }: NotebookPanelProps) {
  }}>
  {/* Status bar */}
  <div style={{ display: "flex", gap: 8, marginBottom: 4, fontSize: 10, opacity: 0.6 }}>
- <span style={{ color: cell.output.exit_code === 0 ? "var(--success-color, #4caf50)" : "var(--error-color, #f44336)" }}>
+ <span style={{ color: cell.output.exit_code === 0 ? "var(--success-color)" : "var(--error-color)" }}>
  exit: {cell.output.exit_code}
  </span>
  {cell.output.duration_ms > 0 && <span>{cell.output.duration_ms}ms</span>}
@@ -323,7 +323,7 @@ export function NotebookPanel({ workspacePath }: NotebookPanelProps) {
  </pre>
  )}
  {cell.output.stderr && (
- <pre style={{ margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-all", color: "var(--text-danger, #f38ba8)" }}>
+ <pre style={{ margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-all", color: "var(--text-danger)" }}>
  {cell.output.stderr}
  </pre>
  )}

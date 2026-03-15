@@ -19246,3 +19246,305 @@ pub async fn get_security_scan_history(workspace_path: String) -> Result<serde_j
     let _ = workspace_path;
     Ok(secscan_read_json("history.json"))
 }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Agile Project Management — Scrum, Kanban, XP, Lean, FDD, Crystal, SAFe
+// ══════════════════════════════════════════════════════════════════════════════
+
+fn agile_data_dir() -> Result<std::path::PathBuf, String> {
+    let home = std::env::var("HOME").map_err(|_| "HOME not set".to_string())?;
+    let dir = std::path::PathBuf::from(home).join(".vibecli").join("agile");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(dir)
+}
+
+fn agile_read_json(filename: &str) -> serde_json::Value {
+    let Ok(dir) = agile_data_dir() else { return serde_json::json!([]) };
+    let path = dir.join(filename);
+    match std::fs::read_to_string(&path) {
+        Ok(s) => serde_json::from_str(&s).unwrap_or(serde_json::json!([])),
+        Err(_) => serde_json::json!([]),
+    }
+}
+
+fn agile_write_json(filename: &str, data: &serde_json::Value) -> Result<(), String> {
+    let dir = agile_data_dir()?;
+    let path = dir.join(filename);
+    let s = serde_json::to_string_pretty(data).map_err(|e| e.to_string())?;
+    std::fs::write(path, s).map_err(|e| e.to_string())
+}
+
+// ── Kanban Board ──────────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn agile_get_board() -> Result<serde_json::Value, String> {
+    let board = agile_read_json("board.json");
+    if board.as_array().map_or(true, |a| a.is_empty()) {
+        // Return default empty board structure
+        Ok(serde_json::json!({
+            "columns": ["Backlog", "To Do", "In Progress", "In Review", "Done"],
+            "wip_limits": { "In Progress": 5, "In Review": 3 },
+            "cards": []
+        }))
+    } else {
+        Ok(board)
+    }
+}
+
+#[tauri::command]
+pub async fn agile_update_card(card: serde_json::Value) -> Result<serde_json::Value, String> {
+    let mut board = agile_read_json("board.json");
+    if !board.is_object() {
+        board = serde_json::json!({
+            "columns": ["Backlog", "To Do", "In Progress", "In Review", "Done"],
+            "wip_limits": { "In Progress": 5, "In Review": 3 },
+            "cards": []
+        });
+    }
+    let cards = board.get_mut("cards").and_then(|c| c.as_array_mut());
+    if let Some(arr) = cards {
+        let card_id = card.get("id").and_then(|v| v.as_str()).unwrap_or("");
+        if let Some(pos) = arr.iter().position(|c| c.get("id").and_then(|v| v.as_str()) == Some(card_id)) {
+            arr[pos] = card.clone();
+        } else {
+            arr.push(card.clone());
+        }
+    } else {
+        board["cards"] = serde_json::json!([card]);
+    }
+    agile_write_json("board.json", &board)?;
+    Ok(card)
+}
+
+#[tauri::command]
+pub async fn agile_move_card(card_id: String, column: String) -> Result<serde_json::Value, String> {
+    let mut board = agile_read_json("board.json");
+    if let Some(cards) = board.get_mut("cards").and_then(|c| c.as_array_mut()) {
+        if let Some(card) = cards.iter_mut().find(|c| c.get("id").and_then(|v| v.as_str()) == Some(&card_id)) {
+            card["column"] = serde_json::json!(column);
+        }
+    }
+    agile_write_json("board.json", &board)?;
+    Ok(board)
+}
+
+#[tauri::command]
+pub async fn agile_delete_card(card_id: String) -> Result<(), String> {
+    let mut board = agile_read_json("board.json");
+    if let Some(cards) = board.get_mut("cards").and_then(|c| c.as_array_mut()) {
+        cards.retain(|c| c.get("id").and_then(|v| v.as_str()) != Some(&card_id));
+    }
+    agile_write_json("board.json", &board)?;
+    Ok(())
+}
+
+// ── Sprints ───────────────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn agile_get_sprints() -> Result<serde_json::Value, String> {
+    Ok(agile_read_json("sprints.json"))
+}
+
+#[tauri::command]
+pub async fn agile_create_sprint(sprint: serde_json::Value) -> Result<serde_json::Value, String> {
+    let sprints = agile_read_json("sprints.json");
+    let mut arr = sprints.as_array().cloned().unwrap_or_default();
+    arr.push(sprint.clone());
+    let val = serde_json::json!(arr);
+    agile_write_json("sprints.json", &val)?;
+    Ok(sprint)
+}
+
+#[tauri::command]
+pub async fn agile_update_sprint(sprint: serde_json::Value) -> Result<serde_json::Value, String> {
+    let mut sprints = agile_read_json("sprints.json");
+    if let Some(arr) = sprints.as_array_mut() {
+        let sprint_id = sprint.get("id").and_then(|v| v.as_str()).unwrap_or("");
+        if let Some(pos) = arr.iter().position(|s| s.get("id").and_then(|v| v.as_str()) == Some(sprint_id)) {
+            arr[pos] = sprint.clone();
+        }
+    }
+    agile_write_json("sprints.json", &sprints)?;
+    Ok(sprint)
+}
+
+// ── Backlog ───────────────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn agile_get_backlog() -> Result<serde_json::Value, String> {
+    Ok(agile_read_json("backlog.json"))
+}
+
+#[tauri::command]
+pub async fn agile_create_story(story: serde_json::Value) -> Result<serde_json::Value, String> {
+    let mut arr = agile_read_json("backlog.json").as_array().cloned().unwrap_or_default();
+    arr.push(story.clone());
+    let val = serde_json::json!(arr);
+    agile_write_json("backlog.json", &val)?;
+    Ok(story)
+}
+
+#[tauri::command]
+pub async fn agile_update_story(story: serde_json::Value) -> Result<serde_json::Value, String> {
+    let mut backlog = agile_read_json("backlog.json");
+    if let Some(arr) = backlog.as_array_mut() {
+        let story_id = story.get("id").and_then(|v| v.as_str()).unwrap_or("");
+        if let Some(pos) = arr.iter().position(|s| s.get("id").and_then(|v| v.as_str()) == Some(story_id)) {
+            arr[pos] = story.clone();
+        }
+    }
+    agile_write_json("backlog.json", &backlog)?;
+    Ok(story)
+}
+
+#[tauri::command]
+pub async fn agile_delete_story(story_id: String) -> Result<(), String> {
+    let mut backlog = agile_read_json("backlog.json");
+    if let Some(arr) = backlog.as_array_mut() {
+        arr.retain(|s| s.get("id").and_then(|v| v.as_str()) != Some(&story_id));
+    }
+    agile_write_json("backlog.json", &backlog)?;
+    Ok(())
+}
+
+// ── Ceremonies ────────────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn agile_get_ceremonies() -> Result<serde_json::Value, String> {
+    Ok(agile_read_json("ceremonies.json"))
+}
+
+#[tauri::command]
+pub async fn agile_save_ceremony(ceremony: serde_json::Value) -> Result<serde_json::Value, String> {
+    let mut ceremonies = agile_read_json("ceremonies.json");
+    if !ceremonies.is_object() {
+        ceremonies = serde_json::json!({});
+    }
+    let ceremony_type = ceremony.get("type").and_then(|v| v.as_str()).unwrap_or("unknown");
+    ceremonies[ceremony_type] = ceremony.clone();
+    agile_write_json("ceremonies.json", &ceremonies)?;
+    Ok(ceremony)
+}
+
+// ── Metrics ───────────────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn agile_get_metrics() -> Result<serde_json::Value, String> {
+    let sprints = agile_read_json("sprints.json");
+    let backlog = agile_read_json("backlog.json");
+    let board = agile_read_json("board.json");
+
+    let sprint_count = sprints.as_array().map_or(0, |a| a.len());
+    let backlog_count = backlog.as_array().map_or(0, |a| a.len());
+    let card_count = board.get("cards").and_then(|c| c.as_array()).map_or(0, |a| a.len());
+
+    // Calculate velocity from completed sprints
+    let velocities: Vec<u64> = sprints.as_array().unwrap_or(&vec![]).iter()
+        .filter(|s| s.get("status").and_then(|v| v.as_str()) == Some("completed"))
+        .filter_map(|s| s.get("completed_points").and_then(|v| v.as_u64()))
+        .collect();
+
+    let avg_velocity = if velocities.is_empty() { 0 } else {
+        velocities.iter().sum::<u64>() / velocities.len() as u64
+    };
+
+    // Count cards per column
+    let cards = board.get("cards").and_then(|c| c.as_array()).cloned().unwrap_or_default();
+    let mut column_counts = std::collections::HashMap::new();
+    for card in &cards {
+        let col = card.get("column").and_then(|v| v.as_str()).unwrap_or("Backlog");
+        *column_counts.entry(col.to_string()).or_insert(0u64) += 1;
+    }
+
+    Ok(serde_json::json!({
+        "sprint_count": sprint_count,
+        "backlog_size": backlog_count,
+        "board_cards": card_count,
+        "avg_velocity": avg_velocity,
+        "velocities": velocities,
+        "column_distribution": column_counts,
+        "total_points_completed": velocities.iter().sum::<u64>(),
+    }))
+}
+
+// ── AI Coach ──────────────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn agile_ai_analyze(
+    sprint_id: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let sprints = agile_read_json("sprints.json");
+    let board = agile_read_json("board.json");
+    let backlog = agile_read_json("backlog.json");
+
+    let sprint_info = sprints.as_array()
+        .and_then(|arr| arr.iter().find(|s| s.get("id").and_then(|v| v.as_str()) == Some(&sprint_id)))
+        .cloned()
+        .unwrap_or(serde_json::json!({"id": sprint_id, "note": "Sprint not found"}));
+
+    let prompt = format!(
+        r#"You are an expert Agile coach. Analyze the following project data and provide actionable recommendations.
+
+Sprint: {}
+Board: {}
+Backlog size: {} items
+
+Respond with ONLY valid JSON (no markdown):
+{{
+  "health": "green|amber|red",
+  "summary": "1-2 sentence overall assessment",
+  "bottlenecks": ["list of identified bottlenecks"],
+  "recommendations": [
+    {{ "category": "process|velocity|quality|collaboration", "title": "short title", "description": "actionable recommendation", "priority": "high|medium|low" }}
+  ],
+  "risks": [
+    {{ "risk": "description", "severity": "high|medium|low", "mitigation": "suggested action" }}
+  ],
+  "sizing_suggestions": ["any story sizing insights"],
+  "retro_prompts": ["2-3 good retrospective discussion starters"]
+}}"#,
+        serde_json::to_string_pretty(&sprint_info).unwrap_or_default(),
+        serde_json::to_string_pretty(&board).unwrap_or_default(),
+        backlog.as_array().map_or(0, |a| a.len()),
+    );
+
+    let messages = vec![Message { role: vibe_ai::MessageRole::User, content: prompt }];
+    let engine = state.chat_engine.lock().await;
+    let raw = engine.chat(&messages, None).await.map_err(|e| e.to_string())?;
+    drop(engine);
+
+    let json_start = raw.find('{').unwrap_or(0);
+    let json_end = raw.rfind('}').map(|i| i + 1).unwrap_or(raw.len());
+    let json_str = if json_start < json_end { &raw[json_start..json_end] } else { "{}" };
+
+    let result: serde_json::Value = serde_json::from_str(json_str)
+        .unwrap_or(serde_json::json!({
+            "health": "amber",
+            "summary": raw.chars().take(200).collect::<String>(),
+            "bottlenecks": [],
+            "recommendations": [],
+            "risks": [],
+            "sizing_suggestions": [],
+            "retro_prompts": []
+        }));
+
+    Ok(result)
+}
+
+// ── Board WIP Limits ──────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn agile_update_wip_limits(limits: serde_json::Value) -> Result<(), String> {
+    let mut board = agile_read_json("board.json");
+    if !board.is_object() {
+        board = serde_json::json!({
+            "columns": ["Backlog", "To Do", "In Progress", "In Review", "Done"],
+            "wip_limits": {},
+            "cards": []
+        });
+    }
+    board["wip_limits"] = limits;
+    agile_write_json("board.json", &board)?;
+    Ok(())
+}

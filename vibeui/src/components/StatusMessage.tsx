@@ -20,11 +20,11 @@ interface StatusMessageProps {
 }
 
 const STYLES: Record<Variant, { bg: string; fg: string; defaultIcon: string }> = {
-  error:   { bg: "rgba(220,50,50,0.12)", fg: "var(--text-danger, #f38ba8)", defaultIcon: "⚠" },
-  warning: { bg: "rgba(250,204,21,0.1)",  fg: "var(--text-warning, #f9e2af)", defaultIcon: "⚠" },
+  error:   { bg: "var(--error-bg)", fg: "var(--text-danger)", defaultIcon: "⚠" },
+  warning: { bg: "var(--warning-bg)",  fg: "var(--text-warning)", defaultIcon: "⚠" },
   loading: { bg: "transparent",            fg: "var(--text-secondary)",        defaultIcon: "⏳" },
   empty:   { bg: "transparent",            fg: "var(--text-secondary)",        defaultIcon: "📭" },
-  success: { bg: "rgba(76,175,80,0.1)",    fg: "var(--text-success, #a6e3a1)", defaultIcon: "✓" },
+  success: { bg: "var(--success-bg)",    fg: "var(--text-success)", defaultIcon: "✓" },
 };
 
 export function StatusMessage({ variant, message, detail, icon, inline }: StatusMessageProps) {

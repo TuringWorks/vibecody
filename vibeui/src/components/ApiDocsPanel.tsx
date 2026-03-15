@@ -47,11 +47,11 @@ interface ApiDocsPanelProps {
 // ── HTTP method colours ────────────────────────────────────────────────────
 const METHOD_COLORS: Record<string, { bg: string; color: string }> = {
  GET: { bg: "#0a3a5a", color: "#61dafb" },
- POST: { bg: "#0a3a1a", color: "var(--text-success, #a6e3a1)" },
- PUT: { bg: "#3a2a00", color: "var(--text-warning, #f9e2af)" },
- PATCH: { bg: "#2a2000", color: "var(--text-warning-alt, #fab387)" },
- DELETE: { bg: "#3a0a0a", color: "var(--text-danger, #f38ba8)" },
- HEAD: { bg: "#1a1a3a", color: "var(--text-accent, #cba6f7)" },
+ POST: { bg: "#0a3a1a", color: "var(--text-success)" },
+ PUT: { bg: "#3a2a00", color: "var(--text-warning)" },
+ PATCH: { bg: "#2a2000", color: "var(--text-warning-alt)" },
+ DELETE: { bg: "#3a0a0a", color: "var(--text-danger)" },
+ HEAD: { bg: "#1a1a3a", color: "var(--text-accent)" },
  OPTIONS: { bg: "#1a2a2a", color: "#94e2d5" },
 };
 
@@ -70,7 +70,7 @@ function SchemaView({ schema, depth = 0 }: { schema: Record<string, unknown>; de
  <div style={{ marginLeft: indent }}>
  {Object.entries(props).map(([key, val]) => (
  <div key={key} style={{ fontSize: 11, lineHeight: 1.6 }}>
- <span style={{ color: "var(--text-accent, #cba6f7)" }}>{key}</span>
+ <span style={{ color: "var(--text-accent)" }}>{key}</span>
  <span style={{ color: "var(--text-muted)", marginLeft: 4 }}>{String(val.type ?? "any")}</span>
  {Boolean(val.description) && <span style={{ color: "var(--text-muted)", marginLeft: 6, fontStyle: "italic" }}>— {String(val.description)}</span>}
  {val.type === "object" && Boolean(val.properties) && (
@@ -84,7 +84,7 @@ function SchemaView({ schema, depth = 0 }: { schema: Record<string, unknown>; de
  if (schema.type === "array" && schema.items) {
  return (
  <div style={{ marginLeft: indent, fontSize: 11 }}>
- <span style={{ color: "var(--text-warning, #f9e2af)" }}>array of</span>
+ <span style={{ color: "var(--text-warning)" }}>array of</span>
  <SchemaView schema={schema.items as Record<string, unknown>} depth={depth + 1} />
  </div>
  );
@@ -153,7 +153,7 @@ function TryIt({ endpoint, serverUrl }: { endpoint: Endpoint; serverUrl: string 
  disabled={loading}
  style={{
  marginLeft: "auto", padding: "4px 12px", fontSize: 11,
- background: "var(--accent-color)", color: "var(--text-primary, #fff)",
+ background: "var(--accent-color)", color: "white",
  border: "none", borderRadius: 4, cursor: loading ? "wait" : "pointer",
  flexShrink: 0,
  }}
@@ -163,7 +163,7 @@ function TryIt({ endpoint, serverUrl }: { endpoint: Endpoint; serverUrl: string 
  </div>
  {response && (
  <pre style={{
- margin: 0, padding: 8, background: "var(--bg-primary, #0d1117)", color: "var(--text-primary, #e6edf3)",
+ margin: 0, padding: 8, background: "var(--bg-primary)", color: "var(--text-primary)",
  border: "1px solid var(--border-color)", borderRadius: 4,
  fontSize: 11, lineHeight: 1.4, overflow: "auto", maxHeight: 200,
  whiteSpace: "pre-wrap", wordBreak: "break-all",
@@ -191,7 +191,7 @@ function EndpointRow({ endpoint, serverUrl }: { endpoint: Endpoint; serverUrl: s
  style={{
  display: "flex", alignItems: "center", gap: 10,
  padding: "8px 12px", cursor: "pointer",
- background: open ? "var(--bg-selected, #1a2a3a)" : "var(--bg-secondary)",
+ background: open ? "var(--bg-selected)" : "var(--bg-secondary)",
  }}
  >
  <span style={methodStyle(endpoint.method)}>{endpoint.method.toUpperCase()}</span>
@@ -210,9 +210,9 @@ function EndpointRow({ endpoint, serverUrl }: { endpoint: Endpoint; serverUrl: s
  <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", marginBottom: 4 }}>PARAMETERS</div>
  {op.parameters.map((p) => (
  <div key={p.name} style={{ display: "flex", gap: 8, fontSize: 11, lineHeight: 1.7 }}>
- <span style={{ fontFamily: "monospace", color: "var(--text-accent, #cba6f7)", minWidth: 120 }}>{p.name}</span>
+ <span style={{ fontFamily: "monospace", color: "var(--text-accent)", minWidth: 120 }}>{p.name}</span>
  <span style={{ color: "var(--text-muted)", minWidth: 60 }}>{p.in}</span>
- {p.required && <span style={{ color: "var(--text-danger, #f38ba8)", fontSize: 10 }}>required</span>}
+ {p.required && <span style={{ color: "var(--text-danger)", fontSize: 10 }}>required</span>}
  {p.description && <span style={{ color: "var(--text-secondary)" }}>{p.description}</span>}
  </div>
  ))}
@@ -254,7 +254,7 @@ function EndpointRow({ endpoint, serverUrl }: { endpoint: Endpoint; serverUrl: s
  onClick={() => setTryIt((p) => !p)}
  style={{
  padding: "4px 10px", fontSize: 11, background: tryIt ? "var(--accent-color)" : "var(--bg-secondary)",
- color: tryIt ? "var(--text-primary, #fff)" : "var(--text-primary)", border: "1px solid var(--border-color)",
+ color: tryIt ? "white" : "var(--text-primary)", border: "1px solid var(--border-color)",
  borderRadius: 4, cursor: "pointer",
  }}
  >
@@ -410,7 +410,7 @@ export function ApiDocsPanel({ workspacePath }: ApiDocsPanelProps) {
  style={{
  padding: "3px 10px", fontSize: 11, borderRadius: 12,
  background: source === s ? "var(--accent-color)" : "transparent",
- color: source === s ? "var(--text-primary, #fff)" : "var(--text-muted)",
+ color: source === s ? "white" : "var(--text-muted)",
  border: `1px solid ${source === s ? "var(--accent-color)" : "var(--border-color)"}`,
  cursor: "pointer",
  }}
@@ -437,7 +437,7 @@ export function ApiDocsPanel({ workspacePath }: ApiDocsPanelProps) {
  <button
  onClick={handleLoadFile}
  disabled={loading || !filePath || !workspacePath}
- style={{ padding: "5px 12px", fontSize: 12, background: "var(--accent-color)", color: "var(--text-primary, #fff)", border: "none", borderRadius: 4, cursor: "pointer" }}
+ style={{ padding: "5px 12px", fontSize: 12, background: "var(--accent-color)", color: "white", border: "none", borderRadius: 4, cursor: "pointer" }}
  >
  {loading ? "" : "Load"}
  </button>
@@ -454,14 +454,14 @@ export function ApiDocsPanel({ workspacePath }: ApiDocsPanelProps) {
  <button
  onClick={handleLoadUrl}
  disabled={loading || !urlInput}
- style={{ padding: "5px 12px", fontSize: 12, background: "var(--accent-color)", color: "var(--text-primary, #fff)", border: "none", borderRadius: 4, cursor: "pointer" }}
+ style={{ padding: "5px 12px", fontSize: 12, background: "var(--accent-color)", color: "white", border: "none", borderRadius: 4, cursor: "pointer" }}
  >
  {loading ? "" : "Fetch"}
  </button>
  </div>
  )}
 
- {error && <div style={{ marginTop: 6, fontSize: 11, color: "var(--text-danger, #f38ba8)" }}> {error}</div>}
+ {error && <div style={{ marginTop: 6, fontSize: 11, color: "var(--text-danger)" }}> {error}</div>}
  </div>
 
  {spec && (
@@ -501,7 +501,7 @@ export function ApiDocsPanel({ workspacePath }: ApiDocsPanelProps) {
  border: "none", cursor: "pointer",
  fontWeight: 700,
  ...(m === "ALL"
- ? { background: methodFilter === "ALL" ? "var(--accent-color)" : "var(--bg-secondary)", color: methodFilter === "ALL" ? "var(--text-primary, #fff)" : "var(--text-muted)" }
+ ? { background: methodFilter === "ALL" ? "var(--accent-color)" : "var(--bg-secondary)", color: methodFilter === "ALL" ? "white" : "var(--text-muted)" }
  : { ...(methodFilter === m ? METHOD_COLORS[m] : { background: "var(--bg-secondary)", color: "var(--text-muted)" }) }),
  }}
  >

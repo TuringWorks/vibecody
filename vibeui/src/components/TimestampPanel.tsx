@@ -135,7 +135,7 @@ function CopyBtn({ text }: { text: string }) {
  const [ok, setOk] = useState(false);
  return (
  <button onClick={() => { navigator.clipboard.writeText(text); setOk(true); setTimeout(() => setOk(false), 1400); }}
- style={{ fontSize: 9, padding: "1px 6px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: ok ? "var(--text-success, #a6e3a1)" : "var(--text-muted)", cursor: "pointer", flexShrink: 0 }}>
+ style={{ fontSize: 9, padding: "1px 6px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: ok ? "var(--text-success)" : "var(--text-muted)", cursor: "pointer", flexShrink: 0 }}>
  {ok ? "✓" : ""}
  </button>
  );
@@ -220,7 +220,7 @@ export function TimestampPanel() {
  <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
  <span style={{ fontSize: 13, fontWeight: 600 }}>Timestamp</span>
  {(["convert","duration","relative","formats"] as SubTab[]).map(t => (
- <button key={t} onClick={() => setSubTab(t)} style={{ padding: "2px 10px", fontSize: 10, borderRadius: 10, background: subTab === t ? "rgba(99,102,241,0.2)" : "var(--bg-primary)", border: `1px solid ${subTab === t ? "var(--accent-primary, #6366f1)" : "var(--border-color)"}`, color: subTab === t ? "var(--text-info, #89b4fa)" : "var(--text-muted)", cursor: "pointer", fontWeight: subTab === t ? 700 : 400 }}>
+ <button key={t} onClick={() => setSubTab(t)} style={{ padding: "2px 10px", fontSize: 10, borderRadius: 10, background: subTab === t ? "rgba(99,102,241,0.2)" : "var(--bg-primary)", border: `1px solid ${subTab === t ? "var(--accent-primary)" : "var(--border-color)"}`, color: subTab === t ? "var(--text-info)" : "var(--text-muted)", cursor: "pointer", fontWeight: subTab === t ? 700 : 400 }}>
  {t.charAt(0).toUpperCase() + t.slice(1)}
  </button>
  ))}
@@ -237,8 +237,8 @@ export function TimestampPanel() {
  {/* Input */}
  <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
  <input value={tsInput} onChange={e => setTsInput(e.target.value)} placeholder="Unix timestamp or ISO date string…"
- style={{ flex: 1, minWidth: 200, padding: "5px 10px", fontSize: 12, fontFamily: "monospace", background: !parsedDate && tsInput ? "rgba(243,139,168,0.08)" : "var(--bg-primary)", border: `1px solid ${!parsedDate && tsInput ? "var(--text-danger, #f38ba8)" : "var(--border-color)"}`, borderRadius: 4, color: "var(--text-primary)", outline: "none" }} />
- <button onClick={setNow} style={{ padding: "4px 12px", fontSize: 11, background: "rgba(137,180,250,0.1)", border: "1px solid var(--text-info, #89b4fa)", borderRadius: 4, color: "var(--text-info, #89b4fa)", cursor: "pointer" }}>Now</button>
+ style={{ flex: 1, minWidth: 200, padding: "5px 10px", fontSize: 12, fontFamily: "monospace", background: !parsedDate && tsInput ? "rgba(243,139,168,0.08)" : "var(--bg-primary)", border: `1px solid ${!parsedDate && tsInput ? "var(--text-danger)" : "var(--border-color)"}`, borderRadius: 4, color: "var(--text-primary)", outline: "none" }} />
+ <button onClick={setNow} style={{ padding: "4px 12px", fontSize: 11, background: "rgba(137,180,250,0.1)", border: "1px solid var(--text-info)", borderRadius: 4, color: "var(--text-info)", cursor: "pointer" }}>Now</button>
  <select value={tz} onChange={e => setTz(e.target.value)}
  style={{ padding: "4px 8px", fontSize: 11, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none" }}>
  {TIMEZONES.map(z => <option key={z} value={z}>{z}</option>)}
@@ -246,7 +246,7 @@ export function TimestampPanel() {
  </div>
 
  {!parsedDate && tsInput.trim() && (
- <div style={{ padding: "8px 12px", fontSize: 11, color: "var(--text-danger, #f38ba8)" }}>Could not parse input. Try a Unix timestamp (e.g. 1700000000) or ISO date (e.g. 2024-01-15T12:00:00Z).</div>
+ <div style={{ padding: "8px 12px", fontSize: 11, color: "var(--text-danger)" }}>Could not parse input. Try a Unix timestamp (e.g. 1700000000) or ISO date (e.g. 2024-01-15T12:00:00Z).</div>
  )}
 
  {/* Format table */}
@@ -266,7 +266,7 @@ export function TimestampPanel() {
  {tzRows.map(({ tz: z, label, value }) => (
  <div key={z} style={{ padding: "5px 12px", borderBottom: "1px solid var(--border-color)", display: "flex", gap: 8, alignItems: "center" }}>
  <span style={{ flex: 1, fontSize: 10, color: "var(--text-muted)" }}>{label}</span>
- <span style={{ fontFamily: "monospace", fontSize: 11, color: "var(--text-info, #89b4fa)" }}>{value}</span>
+ <span style={{ fontFamily: "monospace", fontSize: 11, color: "var(--text-info)" }}>{value}</span>
  </div>
  ))}
  </div>
@@ -298,12 +298,12 @@ export function TimestampPanel() {
  {/* Human breakdown */}
  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))", gap: 8 }}>
  {[
- { label: "Years", value: duration.years, colour: "#89b4fa" },
- { label: "Months", value: duration.months, colour: "#cba6f7" },
- { label: "Days", value: duration.days, colour: "#a6e3a1" },
- { label: "Hours", value: duration.hours, colour: "#fab387" },
- { label: "Minutes", value: duration.minutes, colour: "#f9e2af" },
- { label: "Seconds", value: duration.seconds, colour: "#f38ba8" },
+ { label: "Years", value: duration.years, colour: "var(--text-info)" },
+ { label: "Months", value: duration.months, colour: "var(--text-accent)" },
+ { label: "Days", value: duration.days, colour: "var(--text-success)" },
+ { label: "Hours", value: duration.hours, colour: "var(--text-warning-alt)" },
+ { label: "Minutes", value: duration.minutes, colour: "var(--text-warning)" },
+ { label: "Seconds", value: duration.seconds, colour: "var(--text-danger)" },
  ].map(({ label, value, colour }) => (
  <div key={label} style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 6, padding: "8px", textAlign: "center" }}>
  <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "monospace", color: colour }}>{value}</div>
@@ -338,14 +338,14 @@ export function TimestampPanel() {
  <label style={{ fontSize: 11, color: "var(--text-muted)", flexShrink: 0 }}>Base date:</label>
  <input type="datetime-local" value={relBase} onChange={e => setRelBase(e.target.value)}
  style={{ flex: 1, padding: "4px 8px", fontSize: 12, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none" }} />
- <button onClick={() => setRelBase(toLocalInputValue(new Date()))} style={{ padding: "3px 10px", fontSize: 10, background: "rgba(137,180,250,0.1)", border: "1px solid var(--text-info, #89b4fa)", borderRadius: 4, color: "var(--text-info, #89b4fa)", cursor: "pointer" }}>Now</button>
+ <button onClick={() => setRelBase(toLocalInputValue(new Date()))} style={{ padding: "3px 10px", fontSize: 10, background: "rgba(137,180,250,0.1)", border: "1px solid var(--text-info)", borderRadius: 4, color: "var(--text-info)", cursor: "pointer" }}>Now</button>
  </div>
 
  {relDate && (
  <>
  <div style={{ padding: "8px 12px", background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)", fontSize: 13, textAlign: "center" }}>
  <span style={{ color: "var(--text-muted)" }}>That date is </span>
- <span style={{ color: "var(--text-info, #89b4fa)", fontWeight: 700 }}>{relativeTime(relDate)}</span>
+ <span style={{ color: "var(--text-info)", fontWeight: 700 }}>{relativeTime(relDate)}</span>
  </div>
 
  <div>
@@ -355,8 +355,8 @@ export function TimestampPanel() {
  const d = new Date(relDate.getTime() + days * 86400000);
  const label = days === 0 ? "Base date" : days > 0 ? `+${days} day${Math.abs(days) !== 1 ? "s" : ""}` : `${days} day${Math.abs(days) !== 1 ? "s" : ""}`;
  return (
- <div key={days} style={{ display: "flex", justifyContent: "space-between", padding: "5px 10px", background: days === 0 ? "rgba(137,180,250,0.08)" : "var(--bg-secondary)", border: `1px solid ${days === 0 ? "var(--text-info, #89b4fa)" : "var(--border-color)"}`, borderRadius: 4, fontSize: 11 }}>
- <span style={{ color: days < 0 ? "var(--text-danger, #f38ba8)" : days > 0 ? "var(--text-success, #a6e3a1)" : "var(--text-info, #89b4fa)", fontWeight: 600 }}>{label}</span>
+ <div key={days} style={{ display: "flex", justifyContent: "space-between", padding: "5px 10px", background: days === 0 ? "rgba(137,180,250,0.08)" : "var(--bg-secondary)", border: `1px solid ${days === 0 ? "var(--text-info)" : "var(--border-color)"}`, borderRadius: 4, fontSize: 11 }}>
+ <span style={{ color: days < 0 ? "var(--text-danger)" : days > 0 ? "var(--text-success)" : "var(--text-info)", fontWeight: 600 }}>{label}</span>
  <span style={{ fontFamily: "monospace", color: "var(--text-primary)", fontSize: 10 }}>{d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
  </div>
  );
@@ -387,12 +387,12 @@ export function TimestampPanel() {
  rows: [["yyyy-MM-dd","2025-01-15"],["yyyy-MM-ddTHH:mm:ss","2025-01-15T14:30:00"],["ddd, dd MMM yyyy HH':'mm':'ss 'GMT'","Wed, 15 Jan 2025 14:30:00 GMT"]] },
  ].map(({ title, rows }) => (
  <div key={title} style={{ marginBottom: 16 }}>
- <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-info, #89b4fa)", marginBottom: 6 }}>{title}</div>
+ <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-info)", marginBottom: 6 }}>{title}</div>
  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
  <tbody>
  {rows.map(([fmt, ex]) => (
  <tr key={fmt} style={{ borderBottom: "1px solid var(--border-color)" }}>
- <td style={{ padding: "4px 8px", fontFamily: "monospace", color: "var(--text-warning-alt, #fab387)", width: "45%" }}>{fmt}</td>
+ <td style={{ padding: "4px 8px", fontFamily: "monospace", color: "var(--text-warning-alt)", width: "45%" }}>{fmt}</td>
  <td style={{ padding: "4px 8px", fontFamily: "monospace", color: "var(--text-muted)" }}>{ex}</td>
  </tr>
  ))}

@@ -37,19 +37,19 @@ interface TeamInfo {
 type SubTab = "overview" | "messages" | "tasks";
 
 const statusColor: Record<string, string> = {
-  Pending: "var(--text-muted, #6c7086)",
-  InProgress: "var(--accent-color, #89b4fa)",
-  Completed: "var(--success-color, #a6e3a1)",
-  Failed: "var(--error-color, #f38ba8)",
+  Pending: "var(--text-muted)",
+  InProgress: "var(--accent-color)",
+  Completed: "var(--success-color)",
+  Failed: "var(--error-color)",
 };
 
 const msgTypeColor: Record<string, string> = {
-  Finding: "var(--success-color, #a6e3a1)",
-  Challenge: "var(--warning-color, #f9e2af)",
-  Request: "var(--accent-color, #89b4fa)",
-  Status: "var(--text-muted, #6c7086)",
-  TaskAssignment: "var(--text-accent, #cba6f7)",
-  Ack: "var(--text-muted, #585b70)",
+  Finding: "var(--success-color)",
+  Challenge: "var(--warning-color)",
+  Request: "var(--accent-color)",
+  Status: "var(--text-muted)",
+  TaskAssignment: "var(--text-accent)",
+  Ack: "var(--text-muted)",
 };
 
 export function AgentTeamPanel() {
@@ -89,7 +89,7 @@ export function AgentTeamPanel() {
           <span style={{
             fontSize: 10, padding: "2px 8px", borderRadius: 10, fontWeight: 600,
             background: team.status === "working" ? "rgba(137,180,250,0.15)" : "rgba(108,112,134,0.15)",
-            color: team.status === "working" ? "var(--info-color, #89b4fa)" : "var(--text-secondary, #6c7086)",
+            color: team.status === "working" ? "var(--info-color)" : "var(--text-secondary)",
           }}>
             {team.status}
           </span>
@@ -99,7 +99,7 @@ export function AgentTeamPanel() {
       {!team ? (
         /* Team creation form */
         <div style={{ padding: "16px 12px", display: "flex", flexDirection: "column", gap: 10 }}>
-          <div style={{ fontSize: 11, color: "var(--text-secondary, #a6adc8)" }}>
+          <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
             Create a team of AI agents that collaborate on a shared goal.
             The lead agent decomposes the task and coordinates members.
           </div>
@@ -122,13 +122,13 @@ export function AgentTeamPanel() {
             />
           </div>
           <button onClick={handleCreate} disabled={loading || !goal.trim()} style={{
-            ...btnStyle, background: "var(--accent-primary, #6366f1)", color: "var(--text-primary, #fff)", fontWeight: 700,
+            ...btnStyle, background: "var(--accent-primary)", color: "var(--text-primary)", fontWeight: 700,
             opacity: loading || !goal.trim() ? 0.5 : 1,
           }}>
             {loading ? "Creating Team..." : "Create Team"}
           </button>
           {error && (
-            <div style={{ fontSize: 11, color: "var(--text-danger, #f38ba8)", padding: "4px 8px", background: "rgba(243,139,168,0.05)", borderRadius: 4 }}>
+            <div style={{ fontSize: 11, color: "var(--text-danger)", padding: "4px 8px", background: "rgba(243,139,168,0.05)", borderRadius: 4 }}>
               {error}
             </div>
           )}
@@ -144,7 +144,7 @@ export function AgentTeamPanel() {
                 onClick={() => setTab(t)}
                 style={{
                   padding: "3px 10px", fontSize: 10, fontWeight: 600, borderRadius: 4, cursor: "pointer",
-                  border: tab === t ? "1px solid var(--accent-color, #6366f1)" : "1px solid var(--border-color)",
+                  border: tab === t ? "1px solid var(--accent-color)" : "1px solid var(--border-color)",
                   background: tab === t ? "rgba(99,102,241,0.15)" : "transparent",
                   color: "var(--text-primary)",
                 }}
@@ -168,7 +168,7 @@ export function AgentTeamPanel() {
                     <div key={id} style={{
                       padding: "4px 8px", fontSize: 10, borderRadius: 4,
                       background: id === team.lead_agent_id ? "rgba(99,102,241,0.15)" : "var(--bg-primary)",
-                      border: id === team.lead_agent_id ? "1px solid var(--accent-color, #6366f1)" : "1px solid var(--border-color)",
+                      border: id === team.lead_agent_id ? "1px solid var(--accent-color)" : "1px solid var(--border-color)",
                     }}>
                       {id === team.lead_agent_id ? "Lead: " : ""}{id.split("-").pop()}
                     </div>
@@ -179,7 +179,7 @@ export function AgentTeamPanel() {
                   <div style={{ display: "flex", gap: 2, height: 8, borderRadius: 4, overflow: "hidden" }}>
                     {team.tasks.map((t) => (
                       <div key={t.id} style={{
-                        flex: 1, background: statusColor[t.status] || "var(--text-muted, #6c7086)",
+                        flex: 1, background: statusColor[t.status] || "var(--text-muted)",
                         opacity: t.status === "Pending" ? 0.3 : 1,
                       }} title={`${t.description} (${t.status})`} />
                     ))}
@@ -202,7 +202,7 @@ export function AgentTeamPanel() {
                     <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4 }}>
                       <span style={{
                         fontSize: 9, padding: "1px 6px", borderRadius: 3, fontWeight: 700,
-                        background: statusColor[t.status] || "var(--text-muted, #6c7086)", color: "var(--bg-tertiary)",
+                        background: statusColor[t.status] || "var(--text-muted)", color: "var(--bg-tertiary)",
                       }}>
                         {t.status}
                       </span>
@@ -230,11 +230,11 @@ export function AgentTeamPanel() {
                 {team.messages.map((m, i) => (
                   <div key={i} style={{
                     padding: "4px 8px", borderRadius: 4,
-                    borderLeft: `3px solid ${msgTypeColor[m.msg_type] || "var(--text-muted, #6c7086)"}`,
+                    borderLeft: `3px solid ${msgTypeColor[m.msg_type] || "var(--text-muted)"}`,
                     background: "var(--bg-primary)",
                   }}>
                     <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 2 }}>
-                      <span style={{ fontSize: 9, fontWeight: 700, color: msgTypeColor[m.msg_type] || "var(--text-muted, #6c7086)" }}>
+                      <span style={{ fontSize: 9, fontWeight: 700, color: msgTypeColor[m.msg_type] || "var(--text-muted)" }}>
                         {m.msg_type}
                       </span>
                       <span style={{ fontSize: 9, opacity: 0.5 }}>
@@ -279,6 +279,6 @@ const inputStyle: React.CSSProperties = {
 
 const labelStyle: React.CSSProperties = {
   fontSize: 10, fontWeight: 600, marginBottom: 3,
-  color: "var(--text-secondary, #a6adc8)",
+  color: "var(--text-secondary)",
   textTransform: "uppercase" as const, letterSpacing: "0.06em",
 };

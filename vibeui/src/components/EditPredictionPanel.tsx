@@ -74,11 +74,11 @@ const MOCK_MODEL: ModelStats = {
 const tabBtn = (active: boolean): React.CSSProperties => ({
   padding: "6px 14px", fontSize: 11, fontWeight: active ? 600 : 400,
   background: active ? "var(--accent-bg, rgba(99,102,241,0.15))" : "transparent",
-  border: "1px solid " + (active ? "var(--accent-primary, #6366f1)" : "var(--border-color)"),
-  borderRadius: 4, color: active ? "var(--text-info, #89b4fa)" : "var(--text-muted)", cursor: "pointer",
+  border: "1px solid " + (active ? "var(--accent-primary)" : "var(--border-color)"),
+  borderRadius: 4, color: active ? "var(--text-info)" : "var(--text-muted)", cursor: "pointer",
 });
 
-const confColor = (c: number) => c > 0.85 ? "var(--text-success, #a6e3a1)" : c > 0.7 ? "var(--text-warning, #f9e2af)" : "var(--text-danger, #f38ba8)";
+const confColor = (c: number) => c > 0.85 ? "var(--text-success)" : c > 0.7 ? "var(--text-warning)" : "var(--text-danger)";
 
 export default function EditPredictionPanel() {
   const [tab, setTab] = useState<Tab>("predictions");
@@ -114,7 +114,7 @@ export default function EditPredictionPanel() {
         {tab === "predictions" && predictions.map(p => (
           <div key={p.id} style={{ padding: 10, background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)", opacity: p.state !== "pending" ? 0.6 : 1 }}>
             <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
-              <span style={{ fontSize: 11, fontFamily: "monospace", color: "var(--text-info, #89b4fa)" }}>{p.file}:{p.line}</span>
+              <span style={{ fontSize: 11, fontFamily: "monospace", color: "var(--text-info)" }}>{p.file}:{p.line}</span>
               <span style={{ fontSize: 9, padding: "1px 5px", borderRadius: 3, background: "rgba(99,102,241,0.12)", color: "var(--text-muted)" }}>{p.pattern}</span>
               <span style={{ fontSize: 10, color: "var(--text-muted)", marginLeft: "auto" }}>{p.timestamp}</span>
             </div>
@@ -127,12 +127,12 @@ export default function EditPredictionPanel() {
               {p.state === "pending" ? (
                 <>
                   <button onClick={() => handlePrediction(p.id, "rejected")}
-                    style={{ padding: "3px 10px", fontSize: 10, borderRadius: 3, border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-danger, #f38ba8)", cursor: "pointer" }}>Reject</button>
+                    style={{ padding: "3px 10px", fontSize: 10, borderRadius: 3, border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-danger)", cursor: "pointer" }}>Reject</button>
                   <button onClick={() => handlePrediction(p.id, "accepted")}
-                    style={{ padding: "3px 10px", fontSize: 10, borderRadius: 3, border: "none", background: "var(--text-success, #a6e3a1)", color: "#1e1e2e", cursor: "pointer", fontWeight: 600 }}>Accept</button>
+                    style={{ padding: "3px 10px", fontSize: 10, borderRadius: 3, border: "none", background: "var(--text-success)", color: "#1e1e2e", cursor: "pointer", fontWeight: 600 }}>Accept</button>
                 </>
               ) : (
-                <span style={{ fontSize: 10, color: p.state === "accepted" ? "var(--text-success, #a6e3a1)" : "var(--text-danger, #f38ba8)" }}>{p.state}</span>
+                <span style={{ fontSize: 10, color: p.state === "accepted" ? "var(--text-success)" : "var(--text-danger)" }}>{p.state}</span>
               )}
             </div>
           </div>
@@ -141,7 +141,7 @@ export default function EditPredictionPanel() {
         {tab === "patterns" && MOCK_PATTERNS.map(p => (
           <div key={p.id} style={{ padding: 10, background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)" }}>
             <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4 }}>
-              <span style={{ fontSize: 11, fontWeight: 600, fontFamily: "monospace", color: "var(--accent-primary, #6366f1)" }}>{p.name}</span>
+              <span style={{ fontSize: 11, fontWeight: 600, fontFamily: "monospace", color: "var(--accent-primary)" }}>{p.name}</span>
               <span style={{ fontSize: 10, color: "var(--text-muted)", marginLeft: "auto" }}>seen {p.frequency}x</span>
             </div>
             <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 8 }}>{p.description}</div>
@@ -167,7 +167,7 @@ export default function EditPredictionPanel() {
                   ["Actions", model.totalActions.toString()],
                 ].map(([l, v]) => (
                   <div key={l} style={{ textAlign: "center", padding: 10, background: "var(--bg-primary)", borderRadius: 4 }}>
-                    <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text-info, #89b4fa)", fontFamily: "monospace" }}>{v}</div>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text-info)", fontFamily: "monospace" }}>{v}</div>
                     <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 4 }}>{l}</div>
                   </div>
                 ))}
@@ -179,8 +179,8 @@ export default function EditPredictionPanel() {
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
                 {[
                   ["Total", model.totalPredictions.toLocaleString(), "var(--text-primary)"],
-                  ["Accepted", model.accepted.toLocaleString(), "var(--text-success, #a6e3a1)"],
-                  ["Rejected", model.rejected.toLocaleString(), "var(--text-danger, #f38ba8)"],
+                  ["Accepted", model.accepted.toLocaleString(), "var(--text-success)"],
+                  ["Rejected", model.rejected.toLocaleString(), "var(--text-danger)"],
                 ].map(([l, v, c]) => (
                   <div key={l} style={{ textAlign: "center", padding: 10, background: "var(--bg-primary)", borderRadius: 4 }}>
                     <div style={{ fontSize: 18, fontWeight: 700, color: c, fontFamily: "monospace" }}>{v}</div>
@@ -189,7 +189,7 @@ export default function EditPredictionPanel() {
                 ))}
               </div>
               <div style={{ marginTop: 10, height: 6, background: "var(--bg-primary)", borderRadius: 3, overflow: "hidden" }}>
-                <div style={{ width: `${model.acceptanceRate * 100}%`, height: "100%", background: "var(--text-success, #a6e3a1)", borderRadius: 3 }} />
+                <div style={{ width: `${model.acceptanceRate * 100}%`, height: "100%", background: "var(--text-success)", borderRadius: 3 }} />
               </div>
               <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 4, textAlign: "center" }}>
                 Acceptance Rate: {(model.acceptanceRate * 100).toFixed(1)}%
@@ -202,13 +202,13 @@ export default function EditPredictionPanel() {
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <span style={{ fontSize: 11, color: "var(--text-muted)", minWidth: 120 }}>Exploration Rate</span>
                   <button onClick={() => adjustExploration(-0.01)} style={{ padding: "2px 8px", fontSize: 10, border: "1px solid var(--border-color)", borderRadius: 3, background: "var(--bg-primary)", color: "var(--text-muted)", cursor: "pointer" }}>-</button>
-                  <span style={{ fontSize: 12, fontFamily: "monospace", fontWeight: 600, color: "var(--text-info, #89b4fa)", minWidth: 40, textAlign: "center" }}>{model.explorationRate.toFixed(2)}</span>
+                  <span style={{ fontSize: 12, fontFamily: "monospace", fontWeight: 600, color: "var(--text-info)", minWidth: 40, textAlign: "center" }}>{model.explorationRate.toFixed(2)}</span>
                   <button onClick={() => adjustExploration(0.01)} style={{ padding: "2px 8px", fontSize: 10, border: "1px solid var(--border-color)", borderRadius: 3, background: "var(--bg-primary)", color: "var(--text-muted)", cursor: "pointer" }}>+</button>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <span style={{ fontSize: 11, color: "var(--text-muted)", minWidth: 120 }}>Decay Rate</span>
                   <button onClick={() => adjustDecay(-0.001)} style={{ padding: "2px 8px", fontSize: 10, border: "1px solid var(--border-color)", borderRadius: 3, background: "var(--bg-primary)", color: "var(--text-muted)", cursor: "pointer" }}>-</button>
-                  <span style={{ fontSize: 12, fontFamily: "monospace", fontWeight: 600, color: "var(--text-info, #89b4fa)", minWidth: 40, textAlign: "center" }}>{model.decayRate.toFixed(3)}</span>
+                  <span style={{ fontSize: 12, fontFamily: "monospace", fontWeight: 600, color: "var(--text-info)", minWidth: 40, textAlign: "center" }}>{model.decayRate.toFixed(3)}</span>
                   <button onClick={() => adjustDecay(0.001)} style={{ padding: "2px 8px", fontSize: 10, border: "1px solid var(--border-color)", borderRadius: 3, background: "var(--bg-primary)", color: "var(--text-muted)", cursor: "pointer" }}>+</button>
                 </div>
                 <div style={{ display: "flex", gap: 16, fontSize: 10, color: "var(--text-muted)", marginTop: 4 }}>

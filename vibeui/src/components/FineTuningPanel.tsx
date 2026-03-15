@@ -97,7 +97,7 @@ export default function FineTuningPanel() {
        {(["dataset", "train", "jobs", "eval", "lora"] as const).map(t => (
          <button key={t} onClick={() => setTab(t)} style={{
            padding: "4px 12px", border: "1px solid var(--vp-c-border)", borderRadius: 4, cursor: "pointer",
-           background: tab === t ? "var(--vp-c-brand)" : "transparent", color: tab === t ? "#fff" : "var(--vp-c-text)",
+           background: tab === t ? "var(--vp-c-brand)" : "transparent", color: tab === t ? "var(--text-primary)" : "var(--vp-c-text)",
          }}>{t === "eval" ? "SWE-Bench" : t === "lora" ? "LoRA" : t.charAt(0).toUpperCase() + t.slice(1)}</button>
        ))}
      </div>

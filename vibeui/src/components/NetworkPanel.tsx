@@ -139,8 +139,8 @@ export function NetworkPanel() {
  style={{
  padding: "6px 16px", fontSize: 11, fontWeight: tool === id ? 600 : 400,
  background: tool === id ? "rgba(99,102,241,0.15)" : "transparent",
- color: tool === id ? "var(--accent-color, #6366f1)" : "var(--text-muted)",
- border: "none", borderBottom: tool === id ? "2px solid var(--accent-color, #6366f1)" : "2px solid transparent",
+ color: tool === id ? "var(--accent-color)" : "var(--text-muted)",
+ border: "none", borderBottom: tool === id ? "2px solid var(--accent-color)" : "2px solid transparent",
  cursor: "pointer",
  }}
  >
@@ -154,8 +154,8 @@ export function NetworkPanel() {
  disabled={loading || disabled}
  style={{
  padding: "6px 16px", fontSize: 11, fontWeight: 600,
- background: loading || disabled ? "var(--bg-secondary)" : "var(--accent-color, #6366f1)",
- color: loading || disabled ? "var(--text-muted)" : "var(--text-primary, #fff)",
+ background: loading || disabled ? "var(--bg-secondary)" : "var(--accent-color)",
+ color: loading || disabled ? "var(--text-muted)" : "var(--text-primary)",
  border: "none", borderRadius: 4, cursor: loading || disabled ? "not-allowed" : "pointer",
  }}
  >
@@ -164,7 +164,7 @@ export function NetworkPanel() {
  );
 
  const ERR = (msg: string | null) => msg && (
- <div style={{ padding: "6px 10px", background: "var(--error-bg,#2a1a1a)", color: "var(--text-danger, #f38ba8)", borderRadius: 4, fontSize: 11 }}>
+ <div style={{ padding: "6px 10px", background: "var(--error-bg)", color: "var(--text-danger)", borderRadius: 4, fontSize: 11 }}>
  {msg}
  </div>
  );
@@ -213,13 +213,13 @@ export function NetworkPanel() {
  </div>
  {filteredPorts.map((p, i) => (
  <div key={i} style={{ display: "grid", gridTemplateColumns: "70px 60px 140px 1fr 90px", gap: 8, padding: "5px 8px", fontSize: 11, borderBottom: "1px solid var(--border-color)", alignItems: "center" }}>
- <span style={{ fontFamily: "monospace", fontWeight: 700, color: "var(--text-info, #89b4fa)" }}>{p.port}</span>
+ <span style={{ fontFamily: "monospace", fontWeight: 700, color: "var(--text-info)" }}>{p.port}</span>
  <span style={{ fontSize: 10, fontWeight: 600, color: p.protocol === "tcp" ? "var(--accent-color)" : "var(--warning-color)" }}>{p.protocol.toUpperCase()}</span>
  <span style={{ fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={`${p.process ?? ""} (${p.pid ?? "?"})`}>
  {p.process ?? "—"}{p.pid ? ` (${p.pid})` : ""}
  </span>
  <span style={{ fontFamily: "monospace", fontSize: 10, color: "var(--text-muted)" }}>{p.address}</span>
- <span style={{ fontSize: 10, fontWeight: 600, color: STATE_COLORS[p.state] ?? "var(--text-muted)", padding: "1px 6px", background: `${STATE_COLORS[p.state] ?? "#888"}22`, borderRadius: 10 }}>{p.state}</span>
+ <span style={{ fontSize: 10, fontWeight: 600, color: STATE_COLORS[p.state] ?? "var(--text-muted)", padding: "1px 6px", background: STATE_COLORS[p.state] ? `${STATE_COLORS[p.state]}22` : "var(--bg-secondary)", borderRadius: 10 }}>{p.state}</span>
  </div>
  ))}
  <div style={{ fontSize: 10, color: "var(--text-muted)", padding: "6px 8px" }}>
@@ -268,7 +268,7 @@ export function NetworkPanel() {
  </div>
  {dnsRecords.map((r, i) => (
  <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 10px", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4 }}>
- <span style={{ fontSize: 10, fontWeight: 700, color: "var(--text-info, #89b4fa)", width: 40 }}>{r.record_type}</span>
+ <span style={{ fontSize: 10, fontWeight: 700, color: "var(--text-info)", width: 40 }}>{r.record_type}</span>
  <span style={{ fontFamily: "monospace", fontSize: 12, flex: 1 }}>{r.value}</span>
  <button onClick={() => navigator.clipboard.writeText(r.value).catch(() => {})} style={{ padding: "2px 6px", fontSize: 10, background: "none", border: "1px solid var(--border-color)", borderRadius: 3, color: "var(--text-muted)", cursor: "pointer" }}>Copy</button>
  </div>
@@ -318,16 +318,16 @@ export function NetworkPanel() {
  <div style={{
  padding: "10px 14px", borderRadius: 6, display: "flex", justifyContent: "space-between", alignItems: "center",
  background: tlsCert.valid ? "rgba(166,227,161,0.1)" : "rgba(243,139,168,0.1)",
- border: `1px solid ${tlsCert.valid ? "var(--success-color, #a6e3a1)" : "var(--error-color, #f38ba8)"}`,
+ border: `1px solid ${tlsCert.valid ? "var(--success-color)" : "var(--error-color)"}`,
  }}>
  <div>
- <span style={{ fontSize: 14, fontWeight: 700, color: tlsCert.valid ? "var(--success-color, #a6e3a1)" : "var(--error-color, #f38ba8)" }}>
+ <span style={{ fontSize: 14, fontWeight: 700, color: tlsCert.valid ? "var(--success-color)" : "var(--error-color)" }}>
  {tlsCert.valid ? "Valid" : "Invalid / Expired"}
  </span>
  <span style={{ marginLeft: 10, fontSize: 11, color: "var(--text-muted)" }}>{tlsHost}:{tlsPort}</span>
  </div>
  <div style={{ textAlign: "right" }}>
- <div style={{ fontSize: 20, fontWeight: 700, color: tlsCert.days_remaining > 30 ? "var(--success-color, #a6e3a1)" : tlsCert.days_remaining > 7 ? "var(--warning-color, #f9e2af)" : "var(--error-color, #f38ba8)" }}>
+ <div style={{ fontSize: 20, fontWeight: 700, color: tlsCert.days_remaining > 30 ? "var(--success-color)" : tlsCert.days_remaining > 7 ? "var(--warning-color)" : "var(--error-color)" }}>
  {tlsCert.days_remaining}d
  </div>
  <div style={{ fontSize: 9, color: "var(--text-muted)" }}>remaining</div>

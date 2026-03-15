@@ -39,11 +39,11 @@ const STAGES = ["Recon", "Analysis", "Exploitation", "Validation", "Report"];
 
 function severityColor(sev: string): string {
   switch (sev.toLowerCase()) {
-    case "critical": return "var(--error-color, #ff4444)";
-    case "high": return "var(--warning-color, #ff8800)";
-    case "medium": return "var(--warning-color, #ffcc00)";
-    case "low": return "var(--info-color, #4488ff)";
-    default: return "var(--text-muted, #888)";
+    case "critical": return "var(--error-color)";
+    case "high": return "var(--warning-color)";
+    case "medium": return "var(--warning-color)";
+    case "low": return "var(--info-color)";
+    default: return "var(--text-muted)";
   }
 }
 
@@ -212,7 +212,7 @@ export function RedTeamPanel({ workspacePath, provider: _provider }: Props) {
             onClick={handleSuspend}
             style={{
               padding: "6px 16px", fontSize: 13, borderRadius: 4, border: "none",
-              background: "#c62828", color: "#fff", cursor: "pointer",
+              background: "var(--error-color)", color: "white", cursor: "pointer",
               fontWeight: 600,
             }}
           >
@@ -224,7 +224,7 @@ export function RedTeamPanel({ workspacePath, provider: _provider }: Props) {
             disabled={!targetUrl.trim()}
             style={{
               padding: "6px 16px", fontSize: 13, borderRadius: 4, border: "none",
-              background: "var(--accent-blue)", color: "#fff",
+              background: "var(--accent-color)", color: "white",
               cursor: !targetUrl.trim() ? "not-allowed" : "pointer",
               fontWeight: 600,
             }}
@@ -245,16 +245,16 @@ export function RedTeamPanel({ workspacePath, provider: _provider }: Props) {
           return (
             <React.Fragment key={stage}>
               {i > 0 && (
-                <div style={{ width: 20, height: 2, background: isDone ? "var(--success-color, #44aa44)" : "var(--border-color)" }} />
+                <div style={{ width: 20, height: 2, background: isDone ? "var(--success-color)" : "var(--border-color)" }} />
               )}
               <div
                 style={{
                   width: 28, height: 28, borderRadius: "50%",
                   display: "flex", alignItems: "center", justifyContent: "center",
                   fontSize: 11, fontWeight: 600,
-                  background: isActive ? "var(--error-color, #cc4444)" : isDone ? "var(--success-color, #44aa44)" : "var(--bg-secondary)",
-                  color: isActive || isDone ? "var(--text-primary, #fff)" : "var(--text-secondary)",
-                  border: `2px solid ${isActive ? "var(--error-color, #cc4444)" : isDone ? "var(--success-color, #44aa44)" : "var(--border-color)"}`,
+                  background: isActive ? "var(--error-color)" : isDone ? "var(--success-color)" : "var(--bg-secondary)",
+                  color: isActive || isDone ? "white" : "var(--text-secondary)",
+                  border: `2px solid ${isActive ? "var(--error-color)" : isDone ? "var(--success-color)" : "var(--border-color)"}`,
                   animation: isActive ? "pulse 1.5s infinite" : "none",
                 }}
                 title={stage}
@@ -270,7 +270,7 @@ export function RedTeamPanel({ workspacePath, provider: _provider }: Props) {
       </div>
 
       {error && (
-        <div style={{ padding: 8, marginBottom: 12, background: "rgba(244,67,54,0.1)", color: "var(--error-color, #ff8888)", borderRadius: 4, fontSize: 12 }}>
+        <div style={{ padding: 8, marginBottom: 12, background: "rgba(244,67,54,0.1)", color: "var(--error-color)", borderRadius: 4, fontSize: 12 }}>
           {error}
         </div>
       )}
@@ -281,10 +281,10 @@ export function RedTeamPanel({ workspacePath, provider: _provider }: Props) {
           display: "flex", gap: 12, marginBottom: 16, padding: "8px 12px",
           background: "var(--bg-secondary)", borderRadius: 4, fontSize: 12, alignItems: "center",
         }}>
-          <span style={{ color: "var(--error-color, #ff4444)", fontWeight: 600 }}>{critical} Critical</span>
-          <span style={{ color: "var(--warning-color, #ff8800)", fontWeight: 600 }}>{high} High</span>
-          <span style={{ color: "var(--warning-color, #ffcc00)", fontWeight: 600 }}>{medium} Medium</span>
-          <span style={{ color: "var(--info-color, #4488ff)", fontWeight: 600 }}>{low} Low</span>
+          <span style={{ color: "var(--error-color)", fontWeight: 600 }}>{critical} Critical</span>
+          <span style={{ color: "var(--warning-color)", fontWeight: 600 }}>{high} High</span>
+          <span style={{ color: "var(--warning-color)", fontWeight: 600 }}>{medium} Medium</span>
+          <span style={{ color: "var(--info-color)", fontWeight: 600 }}>{low} Low</span>
           <span style={{ flex: 1 }} />
           <button
             onClick={() => downloadReport(activeSession.id)}
@@ -320,12 +320,12 @@ export function RedTeamPanel({ workspacePath, provider: _provider }: Props) {
                   <span style={{ fontSize: 12, fontWeight: 600, flex: 1 }}>{f.title}</span>
                   <span style={{
                     fontSize: 10, padding: "2px 6px", borderRadius: 3,
-                    background: severityColor(f.severity), color: "var(--text-primary, #fff)", fontWeight: 600,
+                    background: severityColor(f.severity), color: "white", fontWeight: 600,
                   }}>
                     CVSS {f.cvss_score.toFixed(1)}
                   </span>
                   {f.confirmed && (
-                    <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 3, background: "var(--error-color, #cc4444)", color: "var(--text-primary, #fff)" }}>
+                    <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 3, background: "var(--error-color)", color: "white" }}>
                       CONFIRMED
                     </span>
                   )}
@@ -343,7 +343,7 @@ export function RedTeamPanel({ workspacePath, provider: _provider }: Props) {
                     <div style={{ marginTop: 4 }}>
                       <strong>PoC:</strong>
                       <pre style={{
-                        margin: "4px 0", padding: 8, background: "var(--bg-primary, #111)", borderRadius: 3,
+                        margin: "4px 0", padding: 8, background: "var(--bg-primary)", borderRadius: 3,
                         fontSize: 11, overflow: "auto", whiteSpace: "pre-wrap",
                       }}>
                         {f.poc}

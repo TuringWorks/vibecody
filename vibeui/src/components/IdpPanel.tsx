@@ -145,9 +145,9 @@ const tabStyle = (active: boolean): React.CSSProperties => ({
   padding: "8px 14px",
   cursor: "pointer",
   background: active ? "var(--bg-primary)" : "transparent",
-  color: active ? "var(--accent-blue)" : "var(--text-secondary)",
+  color: active ? "var(--accent-color)" : "var(--text-secondary)",
   border: "none",
-  borderBottom: active ? "2px solid var(--accent-blue)" : "2px solid transparent",
+  borderBottom: active ? "2px solid var(--accent-color)" : "2px solid transparent",
   fontSize: 13,
   fontFamily: "inherit",
   whiteSpace: "nowrap",
@@ -161,7 +161,7 @@ const contentStyle: React.CSSProperties = {
 
 const btnStyle: React.CSSProperties = {
   padding: "6px 14px",
-  background: "var(--accent-blue)",
+  background: "var(--accent-color)",
   color: "var(--bg-primary)",
   border: "none",
   borderRadius: 4,
@@ -179,8 +179,8 @@ const btnSecondary: React.CSSProperties = {
 const btnDanger: React.CSSProperties = {
   ...btnStyle,
   background: "transparent",
-  color: "#f38ba8",
-  border: "1px solid #f38ba8",
+  color: "var(--error-color)",
+  border: "1px solid var(--error-color)",
   padding: "2px 8px",
   fontSize: 11,
 };
@@ -608,8 +608,8 @@ spec:
               <tr key={svc.id}>
                 <td style={{ ...tdStyle, fontWeight: 500 }}>{svc.name}</td>
                 <td style={tdStyle}>{svc.owner}</td>
-                <td style={tdStyle}><span style={badgeStyle(TIER_COLORS[svc.tier] || "#6c7086")}>{svc.tier}</span></td>
-                <td style={tdStyle}><span style={badgeStyle(STATUS_COLORS[svc.status] || "#6c7086")}>{svc.status}</span></td>
+                <td style={tdStyle}><span style={badgeStyle(TIER_COLORS[svc.tier] || "var(--text-muted)")}>{svc.tier}</span></td>
+                <td style={tdStyle}><span style={badgeStyle(STATUS_COLORS[svc.status] || "var(--text-muted)")}>{svc.status}</span></td>
                 <td style={tdStyle}>{svc.language}</td>
                 <td style={tdStyle}>{svc.framework || "—"}</td>
                 <td style={tdStyle}>
@@ -662,7 +662,7 @@ spec:
               <p style={{ margin: "0 0 8px", fontSize: 12, color: "var(--text-secondary)" }}>{gp.description}</p>
               <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 8 }}>
                 {gp.features.map((f) => (
-                  <span key={f} style={{ ...badgeStyle("#89b4fa"), fontSize: 10 }}>{f}</span>
+                  <span key={f} style={{ ...badgeStyle("var(--info-color)"), fontSize: 10 }}>{f}</span>
                 ))}
               </div>
               <div style={{ fontSize: 11, fontFamily: "inherit", color: "var(--text-secondary)" }}>
@@ -717,7 +717,7 @@ spec:
                 {scorecard.metrics.map((metric) => (
                   <div key={metric.name} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
                     <span style={{ fontSize: 12, minWidth: 180, color: "var(--text-secondary)" }}>
-                      <span style={{ ...badgeStyle("#6c7086"), fontSize: 9, marginRight: 4 }}>{metric.category}</span>
+                      <span style={{ ...badgeStyle("var(--text-muted)"), fontSize: 9, marginRight: 4 }}>{metric.category}</span>
                       {metric.name}
                     </span>
                     <div style={{ flex: 1, height: 8, background: "var(--bg-tertiary)", borderRadius: 4, overflow: "hidden" }}>
@@ -725,7 +725,7 @@ spec:
                         width: `${(metric.score / metric.max_score) * 100}%`,
                         height: "100%",
                         borderRadius: 4,
-                        background: metric.score / metric.max_score >= 0.8 ? "#a6e3a1" : metric.score / metric.max_score >= 0.5 ? "#f9e2af" : "#f38ba8",
+                        background: metric.score / metric.max_score >= 0.8 ? "var(--success-color)" : metric.score / metric.max_score >= 0.5 ? "var(--warning-color)" : "var(--error-color)",
                       }} />
                     </div>
                     <span style={{ fontSize: 11, minWidth: 50, textAlign: "right", fontFamily: "inherit" }}>
@@ -830,7 +830,7 @@ spec:
               <tr key={req.id}>
                 <td style={{ ...tdStyle, fontFamily: "inherit", fontSize: 11 }}>{req.id}</td>
                 <td style={tdStyle}>{req.template}</td>
-                <td style={tdStyle}><span style={badgeStyle(STATUS_COLORS[req.status] || "#6c7086")}>{req.status}</span></td>
+                <td style={tdStyle}><span style={badgeStyle(STATUS_COLORS[req.status] || "var(--text-muted)")}>{req.status}</span></td>
                 <td style={tdStyle}>{req.config?.environment || "—"}</td>
                 <td style={tdStyle}>{req.config?.region || "—"}</td>
                 <td style={tdStyle}>{req.requested_by}</td>
@@ -889,10 +889,10 @@ spec:
               <div style={{ marginBottom: 4 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 2 }}>
                   <span style={{ color: "var(--text-secondary)" }}>Onboarding Progress</span>
-                  <span style={{ fontWeight: 600, color: team.onboarding_progress === 100 ? "#a6e3a1" : "var(--text-primary)" }}>{team.onboarding_progress}%</span>
+                  <span style={{ fontWeight: 600, color: team.onboarding_progress === 100 ? "var(--success-color)" : "var(--text-primary)" }}>{team.onboarding_progress}%</span>
                 </div>
                 <div style={{ height: 6, background: "var(--bg-tertiary)", borderRadius: 3, overflow: "hidden" }}>
-                  <div style={{ width: `${team.onboarding_progress}%`, height: "100%", background: team.onboarding_progress === 100 ? "#a6e3a1" : "var(--accent-blue)", borderRadius: 3, transition: "width 0.3s" }} />
+                  <div style={{ width: `${team.onboarding_progress}%`, height: "100%", background: team.onboarding_progress === 100 ? "var(--success-color)" : "var(--accent-color)", borderRadius: 3, transition: "width 0.3s" }} />
                 </div>
               </div>
 
@@ -923,7 +923,7 @@ spec:
         </p>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
           {platforms.map((platform) => (
-            <div key={platform.name} style={{ ...cardStyle, opacity: platform.enabled ? 1 : 0.7, borderColor: platform.enabled ? "var(--accent-blue)" : "var(--border-color)" }}>
+            <div key={platform.name} style={{ ...cardStyle, opacity: platform.enabled ? 1 : 0.7, borderColor: platform.enabled ? "var(--accent-color)" : "var(--border-color)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                 <strong style={{ fontSize: 14 }}>{platform.name}</strong>
                 <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 12 }}>
@@ -934,7 +934,7 @@ spec:
               <p style={{ margin: "0 0 8px", fontSize: 12, color: "var(--text-secondary)" }}>{platform.description}</p>
               <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                 {platform.features.map((f) => (
-                  <span key={f} style={{ ...badgeStyle(platform.enabled ? "#a6e3a1" : "#6c7086"), fontSize: 10 }}>{f}</span>
+                  <span key={f} style={{ ...badgeStyle(platform.enabled ? "var(--success-color)" : "var(--text-muted)"), fontSize: 10 }}>{f}</span>
                 ))}
               </div>
             </div>
@@ -1014,10 +1014,10 @@ spec:
                 {services.map((svc) => (
                   <tr key={svc.id}>
                     <td style={{ ...tdStyle, fontWeight: 500 }}>{svc.name}</td>
-                    <td style={tdStyle}><span style={badgeStyle("#89b4fa")}>Component</span></td>
+                    <td style={tdStyle}><span style={badgeStyle("var(--info-color)")}>Component</span></td>
                     <td style={tdStyle}>{svc.owner}</td>
                     <td style={tdStyle}>
-                      <span style={badgeStyle(svc.status === "Active" ? "#a6e3a1" : svc.status === "Incubating" ? "#f9e2af" : "#6c7086")}>
+                      <span style={badgeStyle(svc.status === "Active" ? "var(--success-color)" : svc.status === "Incubating" ? "var(--warning-color)" : "var(--text-muted)")}>
                         {svc.status === "Active" ? "production" : svc.status === "Incubating" ? "experimental" : "deprecated"}
                       </span>
                     </td>
@@ -1060,15 +1060,15 @@ spec:
       </div>
       <div style={contentStyle}>
         {successMsg && (
-          <div style={{ padding: "8px 12px", marginBottom: 12, background: "#a6e3a122", border: "1px solid #a6e3a1", borderRadius: 4, fontSize: 12, color: "#a6e3a1", display: "flex", justifyContent: "space-between" }}>
+          <div style={{ padding: "8px 12px", marginBottom: 12, background: "rgba(166,227,161,0.13)", border: "1px solid var(--success-color)", borderRadius: 4, fontSize: 12, color: "var(--success-color)", display: "flex", justifyContent: "space-between" }}>
             <span>{successMsg}</span>
-            <button style={{ background: "none", border: "none", color: "#a6e3a1", cursor: "pointer", fontSize: 14 }} onClick={() => setSuccessMsg(null)}>x</button>
+            <button style={{ background: "none", border: "none", color: "var(--success-color)", cursor: "pointer", fontSize: 14 }} onClick={() => setSuccessMsg(null)}>x</button>
           </div>
         )}
         {error && (
-          <div style={{ padding: "8px 12px", marginBottom: 12, background: "#f38ba822", border: "1px solid #f38ba8", borderRadius: 4, fontSize: 12, color: "#f38ba8", display: "flex", justifyContent: "space-between" }}>
+          <div style={{ padding: "8px 12px", marginBottom: 12, background: "rgba(243,139,168,0.13)", border: "1px solid var(--error-color)", borderRadius: 4, fontSize: 12, color: "var(--error-color)", display: "flex", justifyContent: "space-between" }}>
             <span>{error}</span>
-            <button style={{ background: "none", border: "none", color: "#f38ba8", cursor: "pointer", fontSize: 14 }} onClick={() => setError(null)}>x</button>
+            <button style={{ background: "none", border: "none", color: "var(--error-color)", cursor: "pointer", fontSize: 14 }} onClick={() => setError(null)}>x</button>
           </div>
         )}
         {loading && <div style={{ textAlign: "center", padding: 20, color: "var(--text-secondary)", fontSize: 13 }}>Loading...</div>}

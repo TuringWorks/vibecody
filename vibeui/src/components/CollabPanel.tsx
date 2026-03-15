@@ -117,7 +117,7 @@ export function CollabPanel({
               width: "8px",
               height: "8px",
               borderRadius: "50%",
-              background: "var(--success-color, #3fb950)",
+              background: "var(--success-color)",
               display: "inline-block",
             }}
           />
@@ -126,8 +126,8 @@ export function CollabPanel({
 
         <div
           style={{
-            background: "var(--bg-tertiary, #1e1e1e)",
-            border: "1px solid var(--border-color, #333)",
+            background: "var(--bg-tertiary)",
+            border: "1px solid var(--border-color)",
             borderRadius: "4px",
             padding: "8px",
             marginBottom: "12px",
@@ -142,8 +142,8 @@ export function CollabPanel({
               style={{
                 padding: "2px 8px",
                 fontSize: "11px",
-                background: "var(--accent-color, #007acc)",
-                color: "var(--text-primary, #fff)",
+                background: "var(--accent-color)",
+                color: "white",
                 border: "none",
                 borderRadius: "3px",
                 cursor: "pointer",
@@ -166,9 +166,9 @@ export function CollabPanel({
                 alignItems: "center",
                 gap: "8px",
                 padding: "4px 8px",
-                background: "var(--bg-tertiary, #1e1e1e)",
+                background: "var(--bg-tertiary)",
                 borderRadius: "3px",
-                border: "1px solid var(--border-color, #333)",
+                border: "1px solid var(--border-color)",
               }}
             >
               <span
@@ -198,8 +198,8 @@ export function CollabPanel({
           onClick={handleLeave}
           style={{
             padding: "6px 16px",
-            background: "var(--error-color, #e06c75)",
-            color: "var(--text-primary, #fff)",
+            background: "var(--error-color)",
+            color: "white",
             border: "none",
             borderRadius: "4px",
             cursor: "pointer",
@@ -225,12 +225,12 @@ export function CollabPanel({
         <div
           style={{
             background: "rgba(224,108,117,0.1)",
-            border: "1px solid var(--error-color, #e06c75)",
+            border: "1px solid var(--error-color)",
             borderRadius: "4px",
             padding: "8px",
             marginBottom: "12px",
             fontSize: "12px",
-            color: "var(--error-color, #e06c75)",
+            color: "var(--error-color)",
           }}
         >
           {error}
@@ -249,9 +249,9 @@ export function CollabPanel({
             width: "100%",
             padding: "6px 8px",
             fontSize: "12px",
-            background: "var(--bg-tertiary, #1e1e1e)",
+            background: "var(--bg-tertiary)",
             color: "var(--text-primary)",
-            border: "1px solid var(--border-color, #333)",
+            border: "1px solid var(--border-color)",
             borderRadius: "4px",
             boxSizing: "border-box",
           }}
@@ -265,8 +265,8 @@ export function CollabPanel({
           style={{
             flex: 1,
             padding: "8px",
-            background: "var(--accent-color, #007acc)",
-            color: "var(--text-primary, #fff)",
+            background: "var(--accent-color)",
+            color: "white",
             border: "none",
             borderRadius: "4px",
             cursor: loading ? "wait" : "pointer",
@@ -281,7 +281,7 @@ export function CollabPanel({
 
       <div
         style={{
-          borderTop: "1px solid var(--border-color, #333)",
+          borderTop: "1px solid var(--border-color)",
           paddingTop: "16px",
         }}
       >
@@ -297,9 +297,9 @@ export function CollabPanel({
               flex: 1,
               padding: "6px 8px",
               fontSize: "12px",
-              background: "var(--bg-tertiary, #1e1e1e)",
+              background: "var(--bg-tertiary)",
               color: "var(--text-primary)",
-              border: "1px solid var(--border-color, #333)",
+              border: "1px solid var(--border-color)",
               borderRadius: "4px",
             }}
           />
@@ -308,8 +308,8 @@ export function CollabPanel({
             disabled={loading || !joinRoomId.trim() || !userName.trim()}
             style={{
               padding: "6px 16px",
-              background: "var(--success-color, #3fb950)",
-              color: "var(--text-primary, #fff)",
+              background: "var(--success-color)",
+              color: "white",
               border: "none",
               borderRadius: "4px",
               cursor: loading ? "wait" : "pointer",
@@ -327,7 +327,7 @@ export function CollabPanel({
         style={{
           marginTop: "20px",
           padding: "8px",
-          background: "var(--bg-tertiary, #1e1e1e)",
+          background: "var(--bg-tertiary)",
           borderRadius: "4px",
           fontSize: "11px",
           color: "var(--text-secondary)",

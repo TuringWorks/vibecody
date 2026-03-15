@@ -159,6 +159,7 @@ export const TAB_META: Record<string, TabMeta> = {
   admin:       { icon: UserCog,            label: "Admin" },
   "qa-validation": { icon: CheckSquare,    label: "QA" },
   sessions:    { icon: FolderOpen,         label: "Sessions" },
+  agile:       { icon: ClipboardList,     label: "Agile" },
 };
 
 export const DEFAULT_TAB_META: TabMeta = { icon: Workflow, label: "Panel" };

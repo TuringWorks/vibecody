@@ -61,19 +61,19 @@ const MOCK_PROVIDER_STATS: ProviderStat[] = [
 
 const statusColor = (s: SessionStatus): string => {
   switch (s) {
-    case "Active": return "var(--vscode-charts-green, #4caf50)";
-    case "Completed": return "var(--vscode-charts-blue, #007acc)";
-    case "Failed": return "var(--vscode-errorForeground, #f44336)";
-    case "Paused": return "var(--vscode-charts-yellow, #ff9800)";
+    case "Active": return "var(--success-color)";
+    case "Completed": return "var(--accent-color)";
+    case "Failed": return "var(--error-color)";
+    case "Paused": return "var(--warning-color)";
   }
 };
 
 const roleColor = (r: string): string => {
   switch (r) {
-    case "user": return "var(--vscode-charts-blue, #007acc)";
-    case "assistant": return "var(--vscode-charts-green, #4caf50)";
-    case "tool": return "var(--vscode-charts-yellow, #ff9800)";
-    default: return "var(--vscode-foreground, #ccc)";
+    case "user": return "var(--accent-color)";
+    case "assistant": return "var(--success-color)";
+    case "tool": return "var(--warning-color)";
+    default: return "var(--text-secondary)";
   }
 };
 
@@ -84,6 +84,7 @@ const SessionBrowserPanel: React.FC = () => {
   const [search, setSearch] = useState("");
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [replayIndex, setReplayIndex] = useState(0);
+  const [status, setStatus] = useState<string | null>(null);
 
   const filteredSessions = MOCK_SESSIONS.filter(
     (s) => s.name.toLowerCase().includes(search.toLowerCase()) || s.provider.toLowerCase().includes(search.toLowerCase())
@@ -92,29 +93,31 @@ const SessionBrowserPanel: React.FC = () => {
   const tabs: TabName[] = ["Sessions", "Replay", "Stats"];
 
   return (
-    <div style={{ padding: 12, fontFamily: "var(--vscode-font-family, sans-serif)", fontSize: 13, height: "100%", overflowY: "auto", color: "var(--vscode-foreground, #ccc)", background: "var(--vscode-editor-background, #1e1e1e)" }}>
+    <div style={{ padding: 12, fontFamily: "var(--font-family, sans-serif)", fontSize: 13, height: "100%", overflowY: "auto", color: "var(--text-primary)", background: "var(--bg-primary)" }}>
       <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12 }}>Session Browser</div>
 
       {/* Tab bar */}
-      <div style={{ display: "flex", gap: 0, marginBottom: 12, borderBottom: "1px solid var(--vscode-panel-border, #444)" }}>
+      <div style={{ display: "flex", gap: 0, marginBottom: 12, borderBottom: "1px solid var(--border-color)" }}>
         {tabs.map((t) => (
-          <button key={t} onClick={() => setTab(t)} style={{ padding: "6px 16px", fontSize: 12, background: "none", border: "none", borderBottom: tab === t ? "2px solid var(--vscode-focusBorder, #007acc)" : "2px solid transparent", color: tab === t ? "var(--vscode-foreground, #fff)" : "var(--vscode-disabledForeground, #888)", cursor: "pointer", fontWeight: tab === t ? 600 : 400 }}>
+          <button key={t} onClick={() => setTab(t)} style={{ padding: "6px 16px", fontSize: 12, background: "none", border: "none", borderBottom: tab === t ? "2px solid var(--accent-color)" : "2px solid transparent", color: tab === t ? "var(--text-primary)" : "var(--text-muted)", cursor: "pointer", fontWeight: tab === t ? 600 : 400 }}>
             {t}
           </button>
         ))}
       </div>
 
+      {status && <div className="panel-error"><span>{status}</span><button onClick={() => setStatus(null)}>✕</button></div>}
+
       {/* Sessions Tab */}
       {tab === "Sessions" && (
         <div>
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search sessions..." style={{ width: "100%", padding: "6px 10px", fontSize: 12, background: "var(--vscode-input-background, #333)", color: "var(--vscode-input-foreground, #fff)", border: "1px solid var(--vscode-input-border, #555)", borderRadius: 4, marginBottom: 10, boxSizing: "border-box" }} />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search sessions..." style={{ width: "100%", padding: "6px 10px", fontSize: 12, background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4, marginBottom: 10, boxSizing: "border-box" }} />
           {filteredSessions.map((s) => (
-            <div key={s.id} onClick={() => { setSelectedSession(s); setTab("Replay"); setReplayIndex(0); }} style={{ padding: "8px 10px", marginBottom: 6, borderRadius: 4, background: "var(--vscode-editor-inactiveSelectionBackground, #2d2d2d)", cursor: "pointer", borderLeft: `3px solid ${statusColor(s.status)}` }}>
+            <div key={s.id} onClick={() => { setSelectedSession(s); setTab("Replay"); setReplayIndex(0); }} style={{ padding: "8px 10px", marginBottom: 6, borderRadius: 4, background: "var(--bg-secondary)", cursor: "pointer", borderLeft: `3px solid ${statusColor(s.status)}` }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span style={{ fontWeight: 600, fontSize: 12 }}>{s.name}</span>
-                <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 10, background: statusColor(s.status), color: "#fff", fontWeight: 600 }}>{s.status}</span>
+                <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 10, background: statusColor(s.status), color: "white", fontWeight: 600 }}>{s.status}</span>
               </div>
-              <div style={{ display: "flex", gap: 12, marginTop: 4, fontSize: 11, color: "var(--vscode-disabledForeground, #888)" }}>
+              <div style={{ display: "flex", gap: 12, marginTop: 4, fontSize: 11, color: "var(--text-muted)" }}>
                 <span>{s.provider} / {s.model}</span>
                 <span>{s.messageCount} msgs</span>
                 <span>{s.duration}</span>
@@ -123,7 +126,7 @@ const SessionBrowserPanel: React.FC = () => {
             </div>
           ))}
           {filteredSessions.length === 0 && (
-            <div style={{ textAlign: "center", padding: 30, color: "var(--vscode-disabledForeground, #888)" }}>No sessions match your search.</div>
+            <div style={{ textAlign: "center", padding: 30, color: "var(--text-muted)" }}>No sessions match your search.</div>
           )}
         </div>
       )}
@@ -133,27 +136,27 @@ const SessionBrowserPanel: React.FC = () => {
         <div>
           {selectedSession ? (
             <>
-              <div style={{ marginBottom: 10, fontSize: 12, color: "var(--vscode-disabledForeground, #888)" }}>
-                Replaying: <strong style={{ color: "var(--vscode-foreground, #fff)" }}>{selectedSession.name}</strong> ({selectedSession.id})
+              <div style={{ marginBottom: 10, fontSize: 12, color: "var(--text-muted)" }}>
+                Replaying: <strong style={{ color: "var(--text-primary)" }}>{selectedSession.name}</strong> ({selectedSession.id})
               </div>
               <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-                <button onClick={() => setReplayIndex(Math.max(0, replayIndex - 1))} disabled={replayIndex === 0} style={{ padding: "4px 12px", fontSize: 11, borderRadius: 4, border: "1px solid var(--vscode-panel-border, #555)", background: "none", color: "var(--vscode-foreground, #ccc)", cursor: replayIndex === 0 ? "not-allowed" : "pointer" }}>Prev</button>
-                <button onClick={() => setReplayIndex(Math.min(MOCK_REPLAY_STEPS.length - 1, replayIndex + 1))} disabled={replayIndex >= MOCK_REPLAY_STEPS.length - 1} style={{ padding: "4px 12px", fontSize: 11, borderRadius: 4, border: "1px solid var(--vscode-panel-border, #555)", background: "none", color: "var(--vscode-foreground, #ccc)", cursor: replayIndex >= MOCK_REPLAY_STEPS.length - 1 ? "not-allowed" : "pointer" }}>Next</button>
-                <span style={{ fontSize: 11, color: "var(--vscode-disabledForeground, #888)", lineHeight: "28px" }}>Step {replayIndex + 1} / {MOCK_REPLAY_STEPS.length}</span>
-                <button onClick={() => alert("Snapshot saved")} style={{ marginLeft: "auto", padding: "4px 12px", fontSize: 11, borderRadius: 4, border: "none", background: "var(--vscode-button-background, #007acc)", color: "var(--vscode-button-foreground, #fff)", cursor: "pointer" }}>Snapshot</button>
+                <button onClick={() => setReplayIndex(Math.max(0, replayIndex - 1))} disabled={replayIndex === 0} style={{ padding: "4px 12px", fontSize: 11, borderRadius: 4, border: "1px solid var(--border-color)", background: "none", color: "var(--text-primary)", cursor: replayIndex === 0 ? "not-allowed" : "pointer" }}>Prev</button>
+                <button onClick={() => setReplayIndex(Math.min(MOCK_REPLAY_STEPS.length - 1, replayIndex + 1))} disabled={replayIndex >= MOCK_REPLAY_STEPS.length - 1} style={{ padding: "4px 12px", fontSize: 11, borderRadius: 4, border: "1px solid var(--border-color)", background: "none", color: "var(--text-primary)", cursor: replayIndex >= MOCK_REPLAY_STEPS.length - 1 ? "not-allowed" : "pointer" }}>Next</button>
+                <span style={{ fontSize: 11, color: "var(--text-muted)", lineHeight: "28px" }}>Step {replayIndex + 1} / {MOCK_REPLAY_STEPS.length}</span>
+                <button onClick={() => setStatus("Snapshot saved")} style={{ marginLeft: "auto", padding: "4px 12px", fontSize: 11, borderRadius: 4, border: "none", background: "var(--accent-color)", color: "white", cursor: "pointer" }}>Snapshot</button>
               </div>
               {MOCK_REPLAY_STEPS.slice(0, replayIndex + 1).map((step) => (
-                <div key={step.index} style={{ padding: "8px 10px", marginBottom: 6, borderRadius: 4, background: step.index === replayIndex ? "var(--vscode-editor-selectionBackground, #264f78)" : "var(--vscode-editor-inactiveSelectionBackground, #2d2d2d)", borderLeft: `3px solid ${roleColor(step.role)}` }}>
+                <div key={step.index} style={{ padding: "8px 10px", marginBottom: 6, borderRadius: 4, background: step.index === replayIndex ? "var(--bg-tertiary)" : "var(--bg-secondary)", borderLeft: `3px solid ${roleColor(step.role)}` }}>
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 4 }}>
                     <span style={{ fontWeight: 600, color: roleColor(step.role), textTransform: "capitalize" }}>{step.role}</span>
-                    <span style={{ color: "var(--vscode-disabledForeground, #888)" }}>{step.timestamp} - {step.tokenCount} tokens</span>
+                    <span style={{ color: "var(--text-muted)" }}>{step.timestamp} - {step.tokenCount} tokens</span>
                   </div>
                   <div style={{ fontSize: 12, whiteSpace: "pre-wrap", lineHeight: 1.5 }}>{step.content}</div>
                 </div>
               ))}
             </>
           ) : (
-            <div style={{ textAlign: "center", padding: 30, color: "var(--vscode-disabledForeground, #888)" }}>Select a session from the Sessions tab to replay it.</div>
+            <div style={{ textAlign: "center", padding: 30, color: "var(--text-muted)" }}>Select a session from the Sessions tab to replay it.</div>
           )}
         </div>
       )}
@@ -167,9 +170,9 @@ const SessionBrowserPanel: React.FC = () => {
               { label: "Completed", value: String(MOCK_SESSIONS.filter((s) => s.status === "Completed").length) },
               { label: "Acceptance Rate", value: "87%" },
             ].map(({ label, value }) => (
-              <div key={label} style={{ background: "var(--vscode-editor-inactiveSelectionBackground, #2d2d2d)", padding: "10px 16px", borderRadius: 6, textAlign: "center", minWidth: 90 }}>
-                <div style={{ fontSize: 20, fontWeight: 700, color: "var(--vscode-focusBorder, #007acc)" }}>{value}</div>
-                <div style={{ fontSize: 11, color: "var(--vscode-disabledForeground, #888)", marginTop: 2 }}>{label}</div>
+              <div key={label} style={{ background: "var(--bg-secondary)", padding: "10px 16px", borderRadius: 6, textAlign: "center", minWidth: 90 }}>
+                <div style={{ fontSize: 20, fontWeight: 700, color: "var(--accent-color)" }}>{value}</div>
+                <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{label}</div>
               </div>
             ))}
           </div>
@@ -177,11 +180,11 @@ const SessionBrowserPanel: React.FC = () => {
           {MOCK_PROVIDER_STATS.map((p) => (
             <div key={p.provider} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
               <span style={{ minWidth: 60, fontSize: 12 }}>{p.provider}</span>
-              <div style={{ flex: 1, background: "var(--vscode-editor-inactiveSelectionBackground, #2d2d2d)", borderRadius: 3, height: 10, overflow: "hidden" }}>
-                <div style={{ width: `${p.pct}%`, height: "100%", background: "var(--vscode-focusBorder, #007acc)", borderRadius: 3 }} />
+              <div style={{ flex: 1, background: "var(--bg-secondary)", borderRadius: 3, height: 10, overflow: "hidden" }}>
+                <div style={{ width: `${p.pct}%`, height: "100%", background: "var(--accent-color)", borderRadius: 3 }} />
               </div>
-              <span style={{ minWidth: 30, textAlign: "right", fontSize: 11, color: "var(--vscode-disabledForeground, #888)" }}>{p.count}</span>
-              <span style={{ minWidth: 35, textAlign: "right", fontSize: 11, color: "var(--vscode-disabledForeground, #888)" }}>{p.pct}%</span>
+              <span style={{ minWidth: 30, textAlign: "right", fontSize: 11, color: "var(--text-muted)" }}>{p.count}</span>
+              <span style={{ minWidth: 35, textAlign: "right", fontSize: 11, color: "var(--text-muted)" }}>{p.pct}%</span>
             </div>
           ))}
         </div>

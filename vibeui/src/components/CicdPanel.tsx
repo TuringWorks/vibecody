@@ -190,7 +190,7 @@ export default function CicdPanel({ workspacePath }: CicdPanelProps) {
  border: "1px solid",
  borderColor: buildType === bt.id ? "var(--accent-color)" : "var(--border-color)",
  background: buildType === bt.id ? "var(--accent-color)" : "transparent",
- color: buildType === bt.id ? "var(--text-primary, #e0e0e0)" : "var(--text-secondary)",
+ color: buildType === bt.id ? "var(--text-primary)" : "var(--text-secondary)",
  cursor: "pointer",
  }}
  >
@@ -216,7 +216,7 @@ export default function CicdPanel({ workspacePath }: CicdPanelProps) {
  border: "1px solid",
  borderColor: platform === p.id ? "var(--accent-color)" : "var(--border-color)",
  background: platform === p.id ? "var(--accent-color)" : "var(--bg-secondary)",
- color: platform === p.id ? "var(--text-primary, #e0e0e0)" : "var(--text-secondary)",
+ color: platform === p.id ? "var(--text-primary)" : "var(--text-secondary)",
  cursor: "pointer",
  }}
  >
@@ -235,7 +235,7 @@ export default function CicdPanel({ workspacePath }: CicdPanelProps) {
  padding: "7px 16px",
  fontSize: 13,
  background: "var(--accent-color)",
- color: "var(--text-primary, #e0e0e0)",
+ color: "var(--text-primary)",
  border: "none",
  borderRadius: 6,
  cursor: loading ? "wait" : "pointer",
@@ -247,7 +247,7 @@ export default function CicdPanel({ workspacePath }: CicdPanelProps) {
 
  {/* Written notice */}
  {writtenPath && (
- <div style={{ fontSize: 12, color: "var(--text-success, #52c41a)" }}>
+ <div style={{ fontSize: 12, color: "var(--text-success)" }}>
  Written to <code style={{ fontSize: 11 }}>{writtenPath}</code>
  </div>
  )}
@@ -259,7 +259,7 @@ export default function CicdPanel({ workspacePath }: CicdPanelProps) {
  onClick={() => handleCopy(preview)}
  style={{
  position: "absolute", top: 6, right: 6,
- padding: "2px 8px", fontSize: 11, background: "var(--bg-tertiary, #333)",
+ padding: "2px 8px", fontSize: 11, background: "var(--bg-tertiary)",
  color: "var(--text-secondary)", border: "1px solid var(--border-color)",
  borderRadius: 4, cursor: "pointer", zIndex: 1,
  }}
@@ -306,7 +306,7 @@ export default function CicdPanel({ workspacePath }: CicdPanelProps) {
  padding: "4px 10px", fontSize: 12, borderRadius: 12, border: "1px solid",
  borderColor: buildType === bt.id ? "var(--accent-color)" : "var(--border-color)",
  background: buildType === bt.id ? "var(--accent-color)" : "transparent",
- color: buildType === bt.id ? "var(--text-primary, #e0e0e0)" : "var(--text-secondary)",
+ color: buildType === bt.id ? "var(--text-primary)" : "var(--text-secondary)",
  cursor: "pointer",
  }}
  >{bt.label}</button>
@@ -336,7 +336,7 @@ export default function CicdPanel({ workspacePath }: CicdPanelProps) {
  disabled={loading || !workspacePath || releaseTargets.size === 0}
  style={{
  alignSelf: "flex-start", padding: "7px 16px", fontSize: 13,
- background: "var(--accent-color)", color: "var(--text-primary, #e0e0e0)", border: "none",
+ background: "var(--accent-color)", color: "var(--text-primary)", border: "none",
  borderRadius: 6, cursor: loading ? "wait" : "pointer", opacity: loading ? 0.7 : 1,
  }}
  >
@@ -344,7 +344,7 @@ export default function CicdPanel({ workspacePath }: CicdPanelProps) {
  </button>
 
  {releaseWrittenPath && (
- <div style={{ fontSize: 12, color: "var(--text-success, #52c41a)" }}>
+ <div style={{ fontSize: 12, color: "var(--text-success)" }}>
  Written to <code style={{ fontSize: 11 }}>{releaseWrittenPath}</code>
  </div>
  )}
@@ -378,7 +378,7 @@ export default function CicdPanel({ workspacePath }: CicdPanelProps) {
  padding: "4px 10px", fontSize: 12, borderRadius: 12, border: "1px solid",
  borderColor: platform === p.id ? "var(--accent-color)" : "var(--border-color)",
  background: platform === p.id ? "var(--accent-color)" : "transparent",
- color: platform === p.id ? "var(--text-primary, #e0e0e0)" : "var(--text-secondary)",
+ color: platform === p.id ? "var(--text-primary)" : "var(--text-secondary)",
  cursor: "pointer",
  }}>{p.icon} {p.label}</button>
  ))}
@@ -398,8 +398,8 @@ export default function CicdPanel({ workspacePath }: CicdPanelProps) {
  onClick={() => handleCopySecret(secret)}
  style={{
  padding: "2px 8px", fontSize: 11,
- background: secretsCopied === secret ? "var(--text-success, #52c41a)" : "var(--bg-tertiary, #333)",
- color: secretsCopied === secret ? "#fff" : "var(--text-secondary)",
+ background: secretsCopied === secret ? "var(--text-success)" : "var(--bg-tertiary)",
+ color: secretsCopied === secret ? "white" : "var(--text-secondary)",
  border: "1px solid var(--border-color)", borderRadius: 4, cursor: "pointer",
  }}
  >

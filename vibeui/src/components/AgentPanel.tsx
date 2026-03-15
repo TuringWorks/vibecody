@@ -319,9 +319,9 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  style={{
  padding: "4px 8px",
  fontSize: "13px",
- background: turboMode ? "var(--warning-color, #ff9800)" : "var(--bg-tertiary)",
- color: turboMode ? "var(--bg-primary, #1e1e1e)" : "var(--text-secondary)",
- border: `1px solid ${turboMode ? "var(--warning-color, #ff9800)" : "var(--border-color)"}`,
+ background: turboMode ? "var(--warning-color)" : "var(--bg-tertiary)",
+ color: turboMode ? "var(--bg-primary)" : "var(--text-secondary)",
+ border: `1px solid ${turboMode ? "var(--warning-color)" : "var(--border-color)"}`,
  borderRadius: "4px",
  cursor: isRunning ? "not-allowed" : "pointer",
  fontWeight: turboMode ? 700 : 400,
@@ -344,7 +344,7 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  {isRunning && (
  <button
  onClick={stopAgent}
- style={{ whiteSpace: "nowrap", padding: "4px 10px", fontSize: "12px", background: "var(--error-color, #f44336)", color: "var(--text-primary, #e0e0e0)", border: "none", borderRadius: "4px", cursor: "pointer" }}
+ style={{ whiteSpace: "nowrap", padding: "4px 10px", fontSize: "12px", background: "var(--error-color)", color: "var(--text-primary)", border: "none", borderRadius: "4px", cursor: "pointer" }}
  title="Stop the agent"
  >
  <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Square size={14} strokeWidth={1.5} />Stop</span>
@@ -359,7 +359,7 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  </div>
 
  {!provider && (
- <div style={{ fontSize: "12px", color: "var(--warning-color, #ff9800)", padding: "6px", background: "rgba(255,68,170,0.1)", borderRadius: "4px" }}>
+ <div style={{ fontSize: "12px", color: "var(--warning-color)", padding: "6px", background: "rgba(255,68,170,0.1)", borderRadius: "4px" }}>
  Select an AI provider in the header first.
  </div>
  )}
@@ -401,7 +401,7 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  style={{ borderBottom: "1px solid var(--border-color)", paddingBottom: "6px" }}
  >
  <div style={{ display: "flex", alignItems: "flex-start", gap: "6px" }}>
- <div style={{ flex: 1, color: step.success ? "var(--accent-green, #4ec9b0)" : "var(--text-danger, #f44)", fontWeight: 500 }}>
+ <div style={{ flex: 1, color: step.success ? "var(--accent-green)" : "var(--text-danger)", fontWeight: 500 }}>
  {step.success ? "" : ""} {step.tool_summary}
  </div>
  {step.output && (
@@ -413,7 +413,7 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  }).catch(() => {});
  }}
  title="Copy step output"
- style={{ flexShrink: 0, background: "none", border: "none", cursor: "pointer", fontSize: "10px", color: copiedStep === i ? "var(--success-color, #4caf50)" : "var(--text-secondary)", padding: "0 2px" }}
+ style={{ flexShrink: 0, background: "none", border: "none", cursor: "pointer", fontSize: "10px", color: copiedStep === i ? "var(--success-color)" : "var(--text-secondary)", padding: "0 2px" }}
  >
  {copiedStep === i ? "✓" : "⎘"}
  </button>
@@ -534,14 +534,14 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  <button
  className="btn-primary"
  onClick={approve}
- style={{ background: "var(--success-color, #4caf50)" }}
+ style={{ background: "var(--success-color)" }}
  >
  ✓ Approve
  </button>
  <button
  className="btn-secondary"
  onClick={reject}
- style={{ background: "var(--error-color, #f44336)", color: "var(--text-primary, #e0e0e0)" }}
+ style={{ background: "var(--error-color)", color: "var(--text-primary)" }}
  >
  ✗ Reject
  </button>

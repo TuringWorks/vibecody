@@ -29,10 +29,10 @@ type TabId = "context" | "projectMap" | "settings";
 /* ── Constants ───────────────────────────────────────────────────────── */
 
 const DEPTH_COLORS: Record<DepthLevel, string> = {
-  Full: "var(--success, #4caf50)",
-  Summary: "var(--accent, #007acc)",
-  Skeleton: "var(--warning, #ff9800)",
-  Signatures: "var(--text-secondary, #888)",
+  Full: "var(--success-color)",
+  Summary: "var(--accent-color)",
+  Skeleton: "var(--warning-color)",
+  Signatures: "var(--text-secondary)",
 };
 
 const STATUS_ICONS: Record<string, string> = {
@@ -42,9 +42,9 @@ const STATUS_ICONS: Record<string, string> = {
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  loaded: "var(--success, #4caf50)",
-  summarized: "var(--warning, #ff9800)",
-  "not-loaded": "var(--text-secondary, #888)",
+  loaded: "var(--success-color)",
+  summarized: "var(--warning-color)",
+  "not-loaded": "var(--text-secondary)",
 };
 
 const DEPTH_PROMOTE: Record<DepthLevel, DepthLevel> = {
@@ -267,8 +267,8 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
     background: "none",
     border: "none",
     borderBottom: "2px solid",
-    borderBottomColor: active ? "var(--accent, #007acc)" : "transparent",
-    color: active ? "var(--text-primary, #fff)" : "var(--text-secondary, #888)",
+    borderBottomColor: active ? "var(--accent-color)" : "transparent",
+    color: active ? "var(--text-primary)" : "var(--text-secondary)",
     fontSize: "13px",
     fontWeight: active ? 600 : 400,
   });
@@ -276,10 +276,10 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
   const btnStyle: React.CSSProperties = {
     padding: "4px 10px",
     fontSize: "11px",
-    border: "1px solid var(--border, #444)",
+    border: "1px solid var(--border-color)",
     borderRadius: "4px",
-    background: "var(--bg-secondary, #2d2d2d)",
-    color: "var(--text-primary, #fff)",
+    background: "var(--bg-secondary)",
+    color: "var(--text-primary)",
     cursor: "pointer",
   };
 
@@ -291,8 +291,8 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
 
   const btnDanger: React.CSSProperties = {
     ...btnStyle,
-    borderColor: "var(--error, #f44336)",
-    color: "var(--error, #f44336)",
+    borderColor: "var(--error-color)",
+    color: "var(--error-color)",
   };
 
   const badgeStyle = (color: string): React.CSSProperties => ({
@@ -307,8 +307,8 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
   });
 
   const cardStyle: React.CSSProperties = {
-    background: "var(--bg-secondary, #2d2d2d)",
-    border: "1px solid var(--border, #444)",
+    background: "var(--bg-secondary)",
+    border: "1px solid var(--border-color)",
     borderRadius: "6px",
     padding: "10px",
     marginBottom: "8px",
@@ -335,7 +335,7 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
             padding: "4px 0",
             paddingLeft: `${depth * 16}px`,
             fontSize: "12px",
-            borderBottom: "1px solid var(--border, #333)",
+            borderBottom: "1px solid var(--border-color)",
           }}
         >
           {f.isDirectory ? (
@@ -351,16 +351,16 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
           <span style={{ color: STATUS_COLORS[f.contextStatus], fontSize: "10px" }}>
             {STATUS_ICONS[f.contextStatus]}
           </span>
-          <span style={{ flex: 1, color: "var(--text-primary, #fff)" }}>
+          <span style={{ flex: 1, color: "var(--text-primary)" }}>
             {f.isDirectory ? f.path + "/" : f.path.split("/").pop()}
           </span>
-          <span style={{ color: "var(--text-secondary, #888)", fontSize: "11px", minWidth: "50px", textAlign: "right" }}>
+          <span style={{ color: "var(--text-secondary)", fontSize: "11px", minWidth: "50px", textAlign: "right" }}>
             {fmtTokens(f.tokenEstimate)}
           </span>
-          <span style={{ color: "var(--text-secondary, #888)", fontSize: "11px", minWidth: "120px", textAlign: "right" }}>
+          <span style={{ color: "var(--text-secondary)", fontSize: "11px", minWidth: "120px", textAlign: "right" }}>
             {f.lastModified}
           </span>
-          <span style={{ color: "var(--accent, #007acc)", fontSize: "11px", minWidth: "36px", textAlign: "right" }}>
+          <span style={{ color: "var(--accent-color)", fontSize: "11px", minWidth: "36px", textAlign: "right" }}>
             {fmtPct(f.relevance)}
           </span>
           {!f.isDirectory && f.contextStatus === "not-loaded" && (
@@ -385,8 +385,8 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
   ): React.ReactNode => (
     <div style={{ marginBottom: "12px" }}>
       <div style={sliderLabelStyle}>
-        <span style={{ color: "var(--text-primary, #fff)" }}>{label}</span>
-        <span style={{ color: "var(--accent, #007acc)", fontWeight: 600 }}>{value.toFixed(2)}</span>
+        <span style={{ color: "var(--text-primary)" }}>{label}</span>
+        <span style={{ color: "var(--accent-color)", fontWeight: 600 }}>{value.toFixed(2)}</span>
       </div>
       <input
         type="range"
@@ -395,7 +395,7 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
         step={0.05}
         value={value}
         onChange={e => setValue(parseFloat(e.target.value))}
-        style={{ width: "100%", accentColor: "var(--accent, #007acc)" }}
+        style={{ width: "100%", accentColor: "var(--accent-color)" }}
       />
     </div>
   );
@@ -406,8 +406,8 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
     <div
       style={{
         padding: "12px",
-        fontFamily: "var(--font-family, monospace)",
-        color: "var(--text-primary, #fff)",
+        fontFamily: "var(--font-family)",
+        color: "var(--text-primary)",
         height: "100%",
         overflow: "auto",
         fontSize: "13px",
@@ -422,7 +422,7 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
         style={{
           display: "flex",
           gap: "4px",
-          borderBottom: "1px solid var(--border, #333)",
+          borderBottom: "1px solid var(--border-color)",
           marginBottom: "12px",
         }}
       >
@@ -443,7 +443,7 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
           {/* Token usage bar */}
           <div style={cardStyle}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
-              <span style={{ fontSize: "12px", color: "var(--text-secondary, #888)" }}>Token Usage</span>
+              <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>Token Usage</span>
               <span style={{ fontSize: "12px", fontWeight: 600 }}>
                 {fmtTokens(usedTokens)} / {fmtTokens(maxTokens)} tokens
               </span>
@@ -452,7 +452,7 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
               style={{
                 height: "8px",
                 borderRadius: "4px",
-                background: "var(--bg-primary, #1e1e1e)",
+                background: "var(--bg-primary)",
                 overflow: "hidden",
               }}
             >
@@ -463,10 +463,10 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
                   borderRadius: "4px",
                   background:
                     usagePct > 90
-                      ? "var(--error, #f44336)"
+                      ? "var(--error-color)"
                       : usagePct > 70
-                        ? "var(--warning, #ff9800)"
-                        : "var(--success, #4caf50)",
+                        ? "var(--warning-color)"
+                        : "var(--success-color)",
                   transition: "width 0.3s ease",
                 }}
               />
@@ -477,7 +477,7 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
                 justifyContent: "space-between",
                 marginTop: "6px",
                 fontSize: "11px",
-                color: "var(--text-secondary, #888)",
+                color: "var(--text-secondary)",
               }}
             >
               <span>{usagePct.toFixed(1)}% used</span>
@@ -487,14 +487,14 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
 
           {/* Sort controls */}
           <div style={{ display: "flex", gap: "6px", alignItems: "center", marginBottom: "10px" }}>
-            <span style={{ fontSize: "11px", color: "var(--text-secondary, #888)" }}>Sort by:</span>
+            <span style={{ fontSize: "11px", color: "var(--text-secondary)" }}>Sort by:</span>
             {(["relevance", "filePath", "tokenCount"] as SortKey[]).map(key => (
               <button
                 key={key}
                 style={{
                   ...btnSmall,
-                  borderColor: sortKey === key ? "var(--accent, #007acc)" : "var(--border, #444)",
-                  color: sortKey === key ? "var(--accent, #007acc)" : "var(--text-secondary, #888)",
+                  borderColor: sortKey === key ? "var(--accent-color)" : "var(--border-color)",
+                  color: sortKey === key ? "var(--accent-color)" : "var(--text-secondary)",
                 }}
                 onClick={() => setSortKey(key)}
               >
@@ -516,14 +516,14 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
                     display: "inline-block",
                   }}
                 />
-                <span style={{ color: "var(--text-secondary, #888)" }}>{d}</span>
+                <span style={{ color: "var(--text-secondary)" }}>{d}</span>
               </span>
             ))}
           </div>
 
           {/* Chunk list */}
           {sortedChunks.length === 0 && (
-            <div style={{ color: "var(--text-secondary, #888)", textAlign: "center", padding: "20px" }}>
+            <div style={{ color: "var(--text-secondary)", textAlign: "center", padding: "20px" }}>
               No context chunks loaded. Use the Project Map to load files.
             </div>
           )}
@@ -531,11 +531,11 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
             <div key={chunk.id} style={{ ...cardStyle, display: "flex", alignItems: "center", gap: "8px" }}>
               <div style={{ flex: 1 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
-                  <span style={{ fontWeight: 600, color: "var(--text-primary, #fff)" }}>{chunk.filePath}</span>
+                  <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{chunk.filePath}</span>
                   <span style={badgeStyle(DEPTH_COLORS[chunk.depth])}>{chunk.depth}</span>
                 </div>
-                <div style={{ display: "flex", gap: "12px", fontSize: "11px", color: "var(--text-secondary, #888)" }}>
-                  <span>Relevance: <span style={{ color: "var(--accent, #007acc)" }}>{fmtPct(chunk.relevance)}</span></span>
+                <div style={{ display: "flex", gap: "12px", fontSize: "11px", color: "var(--text-secondary)" }}>
+                  <span>Relevance: <span style={{ color: "var(--accent-color)" }}>{fmtPct(chunk.relevance)}</span></span>
                   <span>Tokens: {fmtTokens(chunk.tokenCount)}</span>
                 </div>
               </div>
@@ -589,17 +589,17 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
               <div
                 key={label}
                 style={{
-                  background: "var(--bg-secondary, #2d2d2d)",
+                  background: "var(--bg-secondary)",
                   padding: "8px 14px",
                   borderRadius: "6px",
                   textAlign: "center",
                   minWidth: "80px",
                 }}
               >
-                <div style={{ fontSize: "18px", fontWeight: "bold", color: "var(--accent, #007acc)" }}>
+                <div style={{ fontSize: "18px", fontWeight: "bold", color: "var(--accent-color)" }}>
                   {value}
                 </div>
-                <div style={{ fontSize: "11px", color: "var(--text-secondary, #888)", marginTop: "2px" }}>
+                <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginTop: "2px" }}>
                   {label}
                 </div>
               </div>
@@ -616,10 +616,10 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
                 width: "100%",
                 padding: "6px 10px",
                 fontSize: "12px",
-                background: "var(--bg-primary, #1e1e1e)",
-                border: "1px solid var(--border, #444)",
+                background: "var(--bg-primary)",
+                border: "1px solid var(--border-color)",
                 borderRadius: "4px",
-                color: "var(--text-primary, #fff)",
+                color: "var(--text-primary)",
                 boxSizing: "border-box",
               }}
             />
@@ -630,7 +630,7 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
             {(["loaded", "summarized", "not-loaded"] as const).map(s => (
               <span key={s} style={{ display: "flex", alignItems: "center", gap: "4px" }}>
                 <span style={{ color: STATUS_COLORS[s] }}>{STATUS_ICONS[s]}</span>
-                <span style={{ color: "var(--text-secondary, #888)" }}>{s}</span>
+                <span style={{ color: "var(--text-secondary)" }}>{s}</span>
               </span>
             ))}
           </div>
@@ -639,7 +639,7 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
           <div style={{ ...cardStyle, padding: "6px 10px" }}>
             {renderFileTree(filterFiles(projectFiles))}
             {filterFiles(projectFiles).length === 0 && (
-              <div style={{ color: "var(--text-secondary, #888)", textAlign: "center", padding: "12px" }}>
+              <div style={{ color: "var(--text-secondary)", textAlign: "center", padding: "12px" }}>
                 No files match filter.
               </div>
             )}
@@ -653,8 +653,8 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
           {/* Max tokens slider */}
           <div style={cardStyle}>
             <div style={sliderLabelStyle}>
-              <span style={{ color: "var(--text-primary, #fff)", fontWeight: 600 }}>Max Tokens</span>
-              <span style={{ color: "var(--accent, #007acc)", fontWeight: 600 }}>
+              <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>Max Tokens</span>
+              <span style={{ color: "var(--accent-color)", fontWeight: 600 }}>
                 {fmtTokens(settingsMaxTokens)}
               </span>
             </div>
@@ -665,14 +665,14 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
               step={10_000}
               value={settingsMaxTokens}
               onChange={e => setSettingsMaxTokens(parseInt(e.target.value, 10))}
-              style={{ width: "100%", accentColor: "var(--accent, #007acc)" }}
+              style={{ width: "100%", accentColor: "var(--accent-color)" }}
             />
             <div
               style={{
                 display: "flex",
                 justifyContent: "space-between",
                 fontSize: "10px",
-                color: "var(--text-secondary, #888)",
+                color: "var(--text-secondary)",
                 marginTop: "2px",
               }}
             >
@@ -703,18 +703,18 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
           <div style={cardStyle}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
-                <div style={{ fontWeight: 600, fontSize: "13px", color: "var(--text-primary, #fff)" }}>
+                <div style={{ fontWeight: 600, fontSize: "13px", color: "var(--text-primary)" }}>
                   Auto-Compress
                 </div>
-                <div style={{ fontSize: "11px", color: "var(--text-secondary, #888)", marginTop: "2px" }}>
+                <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginTop: "2px" }}>
                   Automatically compress chunks when context window is 90% full
                 </div>
               </div>
               <button
                 style={{
                   ...btnStyle,
-                  background: autoCompress ? "var(--success, #4caf50)" : "var(--bg-secondary, #2d2d2d)",
-                  color: autoCompress ? "#000" : "var(--text-primary, #fff)",
+                  background: autoCompress ? "var(--success-color)" : "var(--bg-secondary)",
+                  color: autoCompress ? "#000" : "var(--text-primary)",
                   fontWeight: 600,
                   minWidth: "50px",
                 }}
@@ -729,7 +729,7 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
           <div style={cardStyle}>
             <div style={{ fontWeight: 600, marginBottom: "8px", fontSize: "13px" }}>Cache</div>
             <div style={{ display: "flex", gap: "8px", alignItems: "center", marginBottom: "8px" }}>
-              <label style={{ fontSize: "12px", color: "var(--text-secondary, #888)", minWidth: "100px" }}>
+              <label style={{ fontSize: "12px", color: "var(--text-secondary)", minWidth: "100px" }}>
                 Cache Size
               </label>
               <input
@@ -742,13 +742,13 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
                   width: "80px",
                   padding: "4px 8px",
                   fontSize: "12px",
-                  background: "var(--bg-primary, #1e1e1e)",
-                  border: "1px solid var(--border, #444)",
+                  background: "var(--bg-primary)",
+                  border: "1px solid var(--border-color)",
                   borderRadius: "4px",
-                  color: "var(--text-primary, #fff)",
+                  color: "var(--text-primary)",
                 }}
               />
-              <span style={{ fontSize: "11px", color: "var(--text-secondary, #888)" }}>summaries</span>
+              <span style={{ fontSize: "11px", color: "var(--text-secondary)" }}>summaries</span>
             </div>
             <div style={{ display: "flex", gap: "8px" }}>
               <button style={btnDanger} onClick={() => setCacheSize(256)}>

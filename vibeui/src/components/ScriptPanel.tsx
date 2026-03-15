@@ -188,7 +188,7 @@ export function ScriptPanel({ workspacePath }: ScriptPanelProps) {
  padding: "3px 10px", fontSize: 11, borderRadius: 12,
  background: filter === cat ? (CATEGORY_COLORS[cat] ?? "var(--accent-color)") : "var(--bg-secondary)",
  border: `1px solid ${filter === cat ? (CATEGORY_COLORS[cat] ?? "var(--accent-color)") : "var(--border-color)"}`,
- color: filter === cat ? "var(--bg-primary, #111)" : "var(--text-secondary)",
+ color: filter === cat ? "var(--bg-primary)" : "var(--text-secondary)",
  cursor: "pointer", fontWeight: filter === cat ? 600 : 400,
  }}
  >
@@ -209,7 +209,7 @@ export function ScriptPanel({ workspacePath }: ScriptPanelProps) {
  )}
 
  {error && (
- <div style={{ margin: "8px 12px", padding: "6px 10px", background: "var(--error-bg, #2a1a1a)", color: "var(--text-danger, #f38ba8)", borderRadius: 4, fontSize: 12 }}>
+ <div style={{ margin: "8px 12px", padding: "6px 10px", background: "var(--error-bg, #2a1a1a)", color: "var(--error-color)", borderRadius: 4, fontSize: 12 }}>
  {error}
  </div>
  )}
@@ -231,7 +231,7 @@ export function ScriptPanel({ workspacePath }: ScriptPanelProps) {
  display: "flex", alignItems: "center", gap: 10,
  padding: "8px 10px", borderRadius: 6,
  background: isRunning ? "rgba(99,102,241,0.12)" : "var(--bg-secondary)",
- border: `1px solid ${isRunning ? "var(--accent-color, #6366f1)" : "var(--border-color)"}`,
+ border: `1px solid ${isRunning ? "var(--accent-color)" : "var(--border-color)"}`,
  transition: "border-color 0.15s",
  }}
  >
@@ -266,8 +266,8 @@ export function ScriptPanel({ workspacePath }: ScriptPanelProps) {
  disabled={!!running}
  style={{
  padding: "5px 14px", fontSize: 11, fontWeight: 600,
- background: isRunning ? "rgba(99,102,241,0.3)" : "var(--accent-color, #6366f1)",
- color: "var(--text-primary, #fff)", border: "none", borderRadius: 4,
+ background: isRunning ? "rgba(99,102,241,0.3)" : "var(--accent-color)",
+ color: "var(--text-primary)", border: "none", borderRadius: 4,
  cursor: running ? "not-allowed" : "pointer",
  opacity: running && !isRunning ? 0.4 : 1,
  flexShrink: 0,
@@ -328,7 +328,7 @@ export function ScriptPanel({ workspacePath }: ScriptPanelProps) {
  <div style={{
  padding: "6px 12px", fontSize: 11, fontWeight: 600,
  background: result.success ? "rgba(166,227,161,0.1)" : "rgba(243,139,168,0.1)",
- color: result.success ? "var(--success-color, #a6e3a1)" : "var(--error-color, #f38ba8)",
+ color: result.success ? "var(--success-color)" : "var(--error-color)",
  borderBottom: "1px solid var(--border-color)",
  display: "flex", justifyContent: "space-between",
  }}>
@@ -345,7 +345,7 @@ export function ScriptPanel({ workspacePath }: ScriptPanelProps) {
  ref={logRef}
  style={{
  maxHeight: 220, overflow: "auto", padding: "8px 12px",
- background: "var(--bg-primary, #0d1117)", fontFamily: "monospace", fontSize: 11,
+ background: "var(--bg-primary)", fontFamily: "monospace", fontSize: 11,
  lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-all",
  }}
  >
@@ -353,18 +353,18 @@ export function ScriptPanel({ workspacePath }: ScriptPanelProps) {
  <div
  key={i}
  style={{
- color: line.startsWith("$") ? "var(--info-color, #89b4fa)"
- : line.includes("error") || line.includes("Error") || line.includes("FAILED") ? "var(--error-color, #f38ba8)"
- : line.includes("warn") || line.includes("Warn") || line.includes("WARNING") ? "var(--warning-color, #f9e2af)"
- : line.startsWith("[Exited") ? (line.includes("code 0") ? "var(--success-color, #a6e3a1)" : "var(--error-color, #f38ba8)")
- : "var(--text-primary, #e6edf3)",
+ color: line.startsWith("$") ? "var(--accent-color)"
+ : line.includes("error") || line.includes("Error") || line.includes("FAILED") ? "var(--error-color)"
+ : line.includes("warn") || line.includes("Warn") || line.includes("WARNING") ? "var(--warning-color)"
+ : line.startsWith("[Exited") ? (line.includes("code 0") ? "var(--success-color)" : "var(--error-color)")
+ : "var(--text-primary)",
  }}
  >
  {line}
  </div>
  ))}
  {running && (
- <div style={{ color: "var(--info-color, #89dceb)", marginTop: 4 }}>
+ <div style={{ color: "var(--accent-color)", marginTop: 4 }}>
  <span className="blink">▌</span>
  </div>
  )}

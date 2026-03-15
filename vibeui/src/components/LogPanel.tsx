@@ -186,8 +186,8 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
           disabled={loading}
           style={{
             padding: "5px 14px", fontSize: 12, fontWeight: 600,
-            background: loading ? "var(--bg-tertiary)" : "var(--accent-color, #6366f1)",
-            color: "var(--text-primary, #fff)", border: "none", borderRadius: 6,
+            background: loading ? "var(--bg-tertiary)" : "var(--accent-color)",
+            color: "var(--text-primary)", border: "none", borderRadius: 6,
             cursor: loading ? "not-allowed" : "pointer",
           }}
         >
@@ -219,9 +219,9 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
             onClick={() => setLevelFilter(lv)}
             style={{
               padding: "3px 10px", fontSize: 11, borderRadius: 12,
-              background: levelFilter === lv ? (lv === "all" ? "var(--accent-color, #6366f1)" : levelColor[lv]) : "var(--bg-secondary)",
+              background: levelFilter === lv ? (lv === "all" ? "var(--accent-color)" : levelColor[lv]) : "var(--bg-secondary)",
               border: `1px solid ${levelFilter === lv ? "transparent" : "var(--border-color)"}`,
-              color: levelFilter === lv ? "var(--text-primary, #fff)" : "var(--text-primary)",
+              color: levelFilter === lv ? "var(--text-primary)" : "var(--text-primary)",
               cursor: "pointer", fontWeight: levelFilter === lv ? 600 : 400,
             }}
           >
@@ -255,7 +255,7 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
 
       {/* Error */}
       {error && (
-        <div style={{ background: "rgba(243,139,168,0.15)", border: "1px solid var(--error-color, #f38ba8)", borderRadius: 6, padding: 8, fontSize: 11, color: "var(--text-danger, #f38ba8)" }}>
+        <div style={{ background: "rgba(243,139,168,0.15)", border: "1px solid var(--error-color)", borderRadius: 6, padding: 8, fontSize: 11, color: "var(--error-color)" }}>
           {error}
         </div>
       )}
@@ -268,10 +268,10 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
           border: "1px solid var(--border-color)",
         }}>
           <span>Lines: <strong>{result.total_lines}</strong></span>
-          <span style={{ color: result.error_count > 0 ? "var(--error-color, #f38ba8)" : "inherit" }}>
+          <span style={{ color: result.error_count > 0 ? "var(--error-color)" : "inherit" }}>
             Errors: <strong>{result.error_count}</strong>
           </span>
-          <span style={{ color: result.warn_count > 0 ? "var(--warning-color, #fab387)" : "inherit" }}>
+          <span style={{ color: result.warn_count > 0 ? "var(--warning-color)" : "inherit" }}>
             Warnings: <strong>{result.warn_count}</strong>
           </span>
           <span>Showing: <strong>{filtered.length}</strong></span>
@@ -281,7 +281,7 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
             disabled={analyzing || filtered.length === 0}
             style={{
               padding: "2px 10px", fontSize: 11, fontWeight: 600,
-              background: analyzing ? "var(--bg-tertiary)" : "var(--success-color, #a6e3a1)",
+              background: analyzing ? "var(--bg-tertiary)" : "var(--success-color)",
               color: "var(--bg-tertiary)", border: "none", borderRadius: 4,
               cursor: analyzing ? "not-allowed" : "pointer",
             }}
@@ -300,10 +300,10 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
           fontFamily: "inherit", lineHeight: 1.5,
         }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-            <strong style={{ color: "var(--text-success, #a6e3a1)" }}>AI Analysis</strong>
+            <strong style={{ color: "var(--success-color)" }}>AI Analysis</strong>
             <button
               onClick={() => setAnalysis(null)}
-              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary, #9399b2)", fontSize: 11 }}
+              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", fontSize: 11 }}
             >
               Dismiss
             </button>
@@ -327,20 +327,20 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
                 background: entry.level === "error" ? "rgba(243,139,168,0.06)"
                   : entry.level === "warn" ? "rgba(250,179,135,0.04)"
                   : "transparent",
-                borderBottom: "1px solid var(--border-color, rgba(255,255,255,0.03))",
+                borderBottom: "1px solid var(--border-color)",
               }}
             >
-              <span style={{ color: "var(--text-secondary, #585b70)", minWidth: 36, textAlign: "right", userSelect: "none" }}>
+              <span style={{ color: "var(--text-secondary)", minWidth: 36, textAlign: "right", userSelect: "none" }}>
                 {entry.line_number}
               </span>
               <span style={{
                 minWidth: 28, fontWeight: 600, fontSize: 10,
-                color: levelColor[entry.level] || "#9399b2",
+                color: levelColor[entry.level] || "var(--text-secondary)",
               }}>
                 {levelBadge[entry.level] || "---"}
               </span>
               {entry.timestamp && (
-                <span style={{ color: "var(--text-secondary, #585b70)", minWidth: 140, fontSize: 10 }}>
+                <span style={{ color: "var(--text-secondary)", minWidth: 140, fontSize: 10 }}>
                   {entry.timestamp}
                 </span>
               )}

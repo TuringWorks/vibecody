@@ -206,7 +206,7 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
           style={{
             padding: "5px 14px", borderRadius: 5, border: "none",
             background: scanning ? "var(--bg-tertiary)" : "var(--accent-blue)",
-            color: "#fff", cursor: scanning ? "wait" : "pointer",
+            color: "white", cursor: scanning ? "wait" : "pointer",
             fontWeight: 600, fontSize: 12, flexShrink: 0,
           }}
         >
@@ -215,9 +215,9 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
       </div>
 
       {error && (
-        <div style={{ padding: "6px 10px", background: "rgba(244,67,54,0.13)", color: "#ff4d4f", borderRadius: 5, fontSize: 12, display: "flex", justifyContent: "space-between" }}>
+        <div style={{ padding: "6px 10px", background: "rgba(244,67,54,0.13)", color: "var(--error-color)", borderRadius: 5, fontSize: 12, display: "flex", justifyContent: "space-between" }}>
           <span>{error}</span>
-          <button onClick={() => setError(null)} style={{ background: "none", border: "none", color: "#ff4d4f", cursor: "pointer" }}>×</button>
+          <button onClick={() => setError(null)} style={{ background: "none", border: "none", color: "var(--error-color)", cursor: "pointer" }}>×</button>
         </div>
       )}
 
@@ -359,7 +359,7 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
                     {f.remediation && (
                       <div>
                         <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 3 }}>REMEDIATION</div>
-                        <div style={{ fontSize: 12, lineHeight: 1.6, color: "#a6e3a1" }}>{f.remediation}</div>
+                        <div style={{ fontSize: 12, lineHeight: 1.6, color: "var(--success-color)" }}>{f.remediation}</div>
                       </div>
                     )}
                   </div>
@@ -394,7 +394,7 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
               {[
                 { label: "Total", value: findings.length, color: "var(--text-primary)" },
-                { label: "Active", value: activeFindings.length, color: "#a6e3a1" },
+                { label: "Active", value: activeFindings.length, color: "var(--success-color)" },
                 { label: "Suppressed", value: suppressedFindings.length, color: "var(--text-secondary)" },
               ].map(({ label, value, color }) => (
                 <div key={label} style={{ background: "var(--bg-tertiary)", padding: "10px 16px", borderRadius: 6, textAlign: "center", minWidth: 80, border: "1px solid var(--border-color)" }}>

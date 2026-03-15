@@ -95,13 +95,13 @@ const badgeStyle = (status: string): React.CSSProperties => ({
   fontWeight: 600,
   background:
     status === "completed"
-      ? "var(--success-color, #22c55e)"
+      ? "var(--success-color)"
       : status === "running"
-        ? "var(--warning-color, #f59e0b)"
+        ? "var(--warning-color)"
         : status === "failed"
-          ? "var(--error-color, #ef4444)"
+          ? "var(--error-color)"
           : "var(--accent-color)",
-  color: "#fff",
+  color: "white",
 });
 
 const frameRowStyle: React.CSSProperties = {
@@ -311,7 +311,7 @@ export function DemoPanel() {
     try {
       const path = await invoke<string>("demo_export", { id, format });
       setError(null);
-      alert(`Exported to: ${path}`);
+      setError(`Exported to: ${path}`);
     } catch (e: unknown) {
       setError(String(e));
     }

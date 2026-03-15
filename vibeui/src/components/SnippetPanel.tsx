@@ -184,7 +184,7 @@ export function SnippetPanel({ workspacePath: _workspacePath }: SnippetPanelProp
               {s.tags.length > 0 && (
                 <div style={{ display: "flex", gap: 3, marginTop: 2 }}>
                   {s.tags.map((t) => (
-                    <span key={t} style={{ fontSize: 9, padding: "0 4px", borderRadius: 2, background: "rgba(203,166,247,0.15)", color: "var(--text-accent, #cba6f7)" }}>
+                    <span key={t} style={{ fontSize: 9, padding: "0 4px", borderRadius: 2, background: "rgba(203,166,247,0.15)", color: "var(--text-accent)" }}>
                       {t}
                     </span>
                   ))}
@@ -203,7 +203,7 @@ export function SnippetPanel({ workspacePath: _workspacePath }: SnippetPanelProp
       {/* Right: detail or create */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
         {error && (
-          <div style={{ padding: "6px 8px", fontSize: 11, color: "var(--text-danger, #f38ba8)", background: "rgba(243,139,168,0.05)" }}>
+          <div style={{ padding: "6px 8px", fontSize: 11, color: "var(--text-danger)", background: "rgba(243,139,168,0.05)" }}>
             {error}
           </div>
         )}
@@ -215,8 +215,8 @@ export function SnippetPanel({ workspacePath: _workspacePath }: SnippetPanelProp
               <span style={{ fontWeight: 600, fontSize: 12 }}>{selected}</span>
               <div style={{ flex: 1 }} />
               <button onClick={handleCopy} style={btnStyle}>Copy</button>
-              <button onClick={handleInsert} style={{ ...btnStyle, color: "var(--text-info, #89b4fa)" }}>Insert</button>
-              <button onClick={() => handleDelete(selected)} style={{ ...btnStyle, color: "var(--text-danger, #f38ba8)" }}>Delete</button>
+              <button onClick={handleInsert} style={{ ...btnStyle, color: "var(--text-info)" }}>Insert</button>
+              <button onClick={() => handleDelete(selected)} style={{ ...btnStyle, color: "var(--text-danger)" }}>Delete</button>
             </div>
             <pre style={{
               flex: 1, margin: 0, padding: "8px 10px", overflowY: "auto",
@@ -244,7 +244,7 @@ export function SnippetPanel({ workspacePath: _workspacePath }: SnippetPanelProp
             {/* AI Generate */}
             <div style={{ display: "flex", gap: 6 }}>
               <input placeholder="Describe what to generate..." value={genDesc} onChange={(e) => setGenDesc(e.target.value)} style={{ ...inputStyle, flex: 1 }} />
-              <button onClick={handleGenerate} disabled={generating} style={{ ...btnStyle, color: "var(--text-info, #89b4fa)" }}>
+              <button onClick={handleGenerate} disabled={generating} style={{ ...btnStyle, color: "var(--text-info)" }}>
                 {generating ? "..." : "AI Generate"}
               </button>
             </div>

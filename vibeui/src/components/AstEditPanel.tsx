@@ -75,9 +75,9 @@ const MOCK_EDITS: PendingEdit[] = [
 ];
 
 const kindColor: Record<NodeKind, string> = {
-  function: "var(--text-info, #89b4fa)",
-  struct: "var(--text-success, #a6e3a1)",
-  enum: "var(--text-warning, #f9e2af)",
+  function: "var(--text-info)",
+  struct: "var(--text-success)",
+  enum: "var(--text-warning)",
   impl: "var(--text-muted)",
   trait: "#cba6f7",
   module: "#fab387",
@@ -88,8 +88,8 @@ const kindColor: Record<NodeKind, string> = {
 const tabBtn = (active: boolean): React.CSSProperties => ({
   padding: "6px 14px", fontSize: 11, fontWeight: active ? 600 : 400,
   background: active ? "var(--accent-bg, rgba(99,102,241,0.15))" : "transparent",
-  border: "1px solid " + (active ? "var(--accent-primary, #6366f1)" : "var(--border-color)"),
-  borderRadius: 4, color: active ? "var(--text-info, #89b4fa)" : "var(--text-muted)", cursor: "pointer",
+  border: "1px solid " + (active ? "var(--accent-primary)" : "var(--border-color)"),
+  borderRadius: 4, color: active ? "var(--text-info)" : "var(--text-muted)", cursor: "pointer",
 });
 
 function NodeTree({ nodes, depth = 0 }: { nodes: AstNode[]; depth?: number }) {
@@ -146,22 +146,22 @@ export default function AstEditPanel() {
 
         {tab === "edits" && edits.map(e => (
           <div key={e.id} onClick={() => { setSelectedEdit(e.id); setTab("preview"); }}
-            style={{ padding: 10, background: selectedEdit === e.id ? "var(--accent-bg, rgba(99,102,241,0.15))" : "var(--bg-secondary)", borderRadius: 6, border: `1px solid ${selectedEdit === e.id ? "var(--accent-primary, #6366f1)" : "var(--border-color)"}`, cursor: "pointer" }}>
+            style={{ padding: 10, background: selectedEdit === e.id ? "var(--accent-bg, rgba(99,102,241,0.15))" : "var(--bg-secondary)", borderRadius: 6, border: `1px solid ${selectedEdit === e.id ? "var(--accent-primary)" : "var(--border-color)"}`, cursor: "pointer" }}>
             <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
-              <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 3, background: "rgba(99,102,241,0.15)", color: "var(--text-info, #89b4fa)", fontWeight: 600 }}>{e.operation}</span>
+              <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 3, background: "rgba(99,102,241,0.15)", color: "var(--text-info)", fontWeight: 600 }}>{e.operation}</span>
               <span style={{ fontSize: 11, fontFamily: "monospace", color: "var(--text-primary)" }}>{e.target}</span>
               <span style={{ fontSize: 10, color: "var(--text-muted)", marginLeft: "auto" }}>{e.file}</span>
             </div>
             <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 6 }}>{e.description}</div>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <div style={{ flex: 1, height: 4, background: "var(--bg-primary)", borderRadius: 2, overflow: "hidden" }}>
-                <div style={{ width: `${e.confidence * 100}%`, height: "100%", background: e.confidence > 0.85 ? "var(--text-success, #a6e3a1)" : e.confidence > 0.7 ? "var(--text-warning, #f9e2af)" : "var(--text-danger, #f38ba8)", borderRadius: 2 }} />
+                <div style={{ width: `${e.confidence * 100}%`, height: "100%", background: e.confidence > 0.85 ? "var(--text-success)" : e.confidence > 0.7 ? "var(--text-warning)" : "var(--text-danger)", borderRadius: 2 }} />
               </div>
               <span style={{ fontSize: 10, color: "var(--text-muted)", minWidth: 30 }}>{(e.confidence * 100).toFixed(0)}%</span>
               <button onClick={(ev) => { ev.stopPropagation(); removeEdit(e.id); }}
-                style={{ padding: "3px 8px", fontSize: 10, borderRadius: 3, border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-danger, #f38ba8)", cursor: "pointer" }}>Reject</button>
+                style={{ padding: "3px 8px", fontSize: 10, borderRadius: 3, border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-danger)", cursor: "pointer" }}>Reject</button>
               <button onClick={(ev) => { ev.stopPropagation(); removeEdit(e.id); }}
-                style={{ padding: "3px 8px", fontSize: 10, borderRadius: 3, border: "none", background: "var(--text-success, #a6e3a1)", color: "#1e1e2e", cursor: "pointer", fontWeight: 600 }}>Apply</button>
+                style={{ padding: "3px 8px", fontSize: 10, borderRadius: 3, border: "none", background: "var(--text-success)", color: "var(--bg-primary)", cursor: "pointer", fontWeight: 600 }}>Apply</button>
             </div>
           </div>
         ))}
@@ -172,11 +172,11 @@ export default function AstEditPanel() {
             <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{selected.description}</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <div>
-                <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-danger, #f38ba8)", marginBottom: 4 }}>Before</div>
+                <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-danger)", marginBottom: 4 }}>Before</div>
                 <pre style={{ padding: 10, background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)", fontSize: 11, fontFamily: "monospace", color: "var(--text-primary)", whiteSpace: "pre-wrap", margin: 0 }}>{selected.diffBefore}</pre>
               </div>
               <div>
-                <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-success, #a6e3a1)", marginBottom: 4 }}>After</div>
+                <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-success)", marginBottom: 4 }}>After</div>
                 <pre style={{ padding: 10, background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)", fontSize: 11, fontFamily: "monospace", color: "var(--text-primary)", whiteSpace: "pre-wrap", margin: 0 }}>{selected.diffAfter}</pre>
               </div>
             </div>

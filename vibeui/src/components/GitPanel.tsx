@@ -516,10 +516,10 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  </button>
  {confirmDiscard === file ? (
  <>
- <span style={{ fontSize: '10px', color: 'var(--text-danger, #ff4d4f)' }}>Discard?</span>
+ <span style={{ fontSize: '10px', color: 'var(--text-danger)' }}>Discard?</span>
  <button
  onClick={() => handleDiscardChanges(file)}
- style={{ background: 'none', border: 'none', color: 'var(--text-danger, #ff4d4f)', cursor: 'pointer', fontSize: '10px', padding: '2px 4px', fontWeight: 600 }}
+ style={{ background: 'none', border: 'none', color: 'var(--text-danger)', cursor: 'pointer', fontSize: '10px', padding: '2px 4px', fontWeight: 600 }}
  >
  Yes
  </button>
@@ -533,7 +533,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  ) : (
  <button
  onClick={() => setConfirmDiscard(file)}
- style={{ background: 'none', border: 'none', color: 'var(--text-danger, #ff4d4f)', cursor: 'pointer', fontSize: '10px', padding: '2px 4px' }}
+ style={{ background: 'none', border: 'none', color: 'var(--text-danger)', cursor: 'pointer', fontSize: '10px', padding: '2px 4px' }}
  title="Discard changes"
  >
  ✕
@@ -625,7 +625,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: 8 }}>
  {/* Branch Name Suggester */}
  <div style={{ marginBottom: 10 }}>
- <div style={{ fontSize: 11, color: 'var(--text-muted, #888)', marginBottom: 4 }}>AI Branch Name</div>
+ <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>AI Branch Name</div>
  <div style={{ display: 'flex', gap: 6 }}>
  <input
  value={branchTask}
@@ -637,17 +637,17 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  <button
  onClick={handleSuggestBranch}
  disabled={suggestingBranch || !branchTask.trim()}
- style={{ background: 'rgba(99,102,241,0.2)', color: 'var(--accent-color, #007acc)', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontSize: 11 }}
+ style={{ background: 'rgba(99,102,241,0.2)', color: 'var(--accent-color)', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontSize: 11 }}
  >
  {suggestingBranch ? '…' : ''}
  </button>
  </div>
  {suggestedBranch && (
  <div style={{ marginTop: 5, display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg-secondary)', padding: '4px 8px', borderRadius: 4 }}>
- <code style={{ flex: 1, fontSize: 11, color: 'var(--info-color, #2196f3)' }}>{suggestedBranch}</code>
+ <code style={{ flex: 1, fontSize: 11, color: 'var(--info-color)' }}>{suggestedBranch}</code>
  <button
  onClick={() => { navigator.clipboard.writeText(suggestedBranch).then(() => toast.success('Copied!')).catch(() => {}); }}
- style={{ background: 'none', border: 'none', color: 'var(--text-muted, #888)', cursor: 'pointer', fontSize: 10 }}
+ style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 10 }}
  >
  
  </button>
@@ -676,7 +676,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  <button
  onClick={handleGenerateChangelog}
  disabled={generatingChangelog}
- style={{ background: 'rgba(99,102,241,0.2)', color: 'var(--accent-color, #007acc)', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontSize: 11 }}
+ style={{ background: 'rgba(99,102,241,0.2)', color: 'var(--accent-color)', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontSize: 11 }}
  >
  {generatingChangelog ? '…' : ' Generate'}
  </button>
@@ -691,7 +691,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  />
  <button
  onClick={() => { navigator.clipboard.writeText(changelog).then(() => toast.success('Copied!')).catch(() => {}); }}
- style={{ position: 'absolute', top: 4, right: 4, background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 3, padding: '2px 6px', cursor: 'pointer', fontSize: 10, color: 'var(--text-muted, #888)' }}
+ style={{ position: 'absolute', top: 4, right: 4, background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 3, padding: '2px 6px', cursor: 'pointer', fontSize: 10, color: 'var(--text-muted)' }}
  >
  
  </button>
@@ -728,7 +728,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  <button
  onClick={handleResolveConflict}
  disabled={resolvingConflict || !conflictText.trim()}
- style={{ width: '100%', background: 'rgba(99,102,241,0.2)', color: 'var(--accent-color, #007acc)', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 4, padding: '4px 0', cursor: 'pointer', fontSize: 11, marginBottom: 5 }}
+ style={{ width: '100%', background: 'rgba(99,102,241,0.2)', color: 'var(--accent-color)', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 4, padding: '4px 0', cursor: 'pointer', fontSize: 11, marginBottom: 5 }}
  >
  {resolvingConflict ? ' Resolving…' : ' AI Resolve'}
  </button>
@@ -742,7 +742,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  />
  <button
  onClick={() => { navigator.clipboard.writeText(conflictResolution).then(() => toast.success('Copied!')).catch(() => {}); }}
- style={{ position: 'absolute', top: 4, right: 4, background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 3, padding: '2px 6px', cursor: 'pointer', fontSize: 10, color: 'var(--text-muted, #888)' }}
+ style={{ position: 'absolute', top: 4, right: 4, background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 3, padding: '2px 6px', cursor: 'pointer', fontSize: 10, color: 'var(--text-muted)' }}
  >
  Copy resolution
  </button>
@@ -767,7 +767,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  >
  <span>{showGitSettings ? '▼' : '▶'}</span>
  <span>Git Settings</span>
- {sshAvailable && <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: '#a6e3a122', color: '#a6e3a1' }}>SSH</span>}
+ {sshAvailable && <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: 'rgba(76, 175, 80, 0.13)', color: 'var(--success-color)' }}>SSH</span>}
  </button>
  {showGitSettings && (
  <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -790,7 +790,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  <button
  onClick={saveGitConfig}
  disabled={!gitUserName && !gitUserEmail}
- style={{ alignSelf: 'flex-start', background: 'rgba(99,102,241,0.2)', color: 'var(--accent-color, #007acc)', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontSize: 11 }}
+ style={{ alignSelf: 'flex-start', background: 'rgba(99,102,241,0.2)', color: 'var(--accent-color)', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontSize: 11 }}
  >
  Save Identity
  </button>
@@ -803,7 +803,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  <div style={{ fontSize: 11, padding: '4px 6px', background: 'var(--bg-tertiary)', borderRadius: 4, wordBreak: 'break-all' }}>
  {remoteUrl || 'No remote configured'}
  </div>
- <div style={{ marginTop: 4, fontSize: 10, color: sshAvailable ? '#a6e3a1' : 'var(--text-secondary)' }}>
+ <div style={{ marginTop: 4, fontSize: 10, color: sshAvailable ? 'var(--success-color)' : 'var(--text-secondary)' }}>
  {remoteUrl.startsWith('git@') ? '● Using SSH' : sshAvailable ? '● SSH keys detected — switch remote to SSH for passwordless auth' : '○ No SSH keys found — use HTTPS with credentials below'}
  </div>
  </div>
@@ -835,7 +835,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  <button
  onClick={saveGitCredentials}
  disabled={!gitCredUrl || !gitCredUser || !gitCredToken}
- style={{ alignSelf: 'flex-start', background: 'rgba(99,102,241,0.2)', color: 'var(--accent-color, #007acc)', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontSize: 11 }}
+ style={{ alignSelf: 'flex-start', background: 'rgba(99,102,241,0.2)', color: 'var(--accent-color)', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontSize: 11 }}
  >
  Store Credentials
  </button>

@@ -29,12 +29,12 @@ interface TraceStep {
 type StepKind = "prompt" | "tool_call" | "file_edit" | "test" | "error" | "other";
 
 const KIND_COLORS: Record<StepKind, string> = {
- prompt: "var(--accent-color, #89b4fa)",
- tool_call: "var(--success-color, #a6e3a1)",
- file_edit: "var(--warning-color, #fab387)",
+ prompt: "var(--accent-color)",
+ tool_call: "var(--success-color)",
+ file_edit: "var(--warning-color)",
  test: "#cba6f7",
- error: "var(--error-color, #f38ba8)",
- other: "#6c7086",
+ error: "var(--error-color)",
+ other: "var(--text-muted)",
 };
 
 function classifyStep(tool: string, success: boolean): StepKind {
@@ -102,7 +102,7 @@ export function TraceDashboard() {
  {selectedSession && (
  <button onClick={() => { setSelectedSession(null); setSteps([]); }} style={{
  ...chipStyle, cursor: "pointer", background: "rgba(99,102,241,0.15)",
- border: "1px solid var(--accent-color, #6366f1)",
+ border: "1px solid var(--accent-color)",
  }}>
  Back to list
  </button>
@@ -113,7 +113,7 @@ export function TraceDashboard() {
  {!selectedSession ? (
  /* Session list */
  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
- <div style={{ fontSize: 11, color: "var(--text-secondary, #a6adc8)", marginBottom: 4 }}>
+ <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 }}>
  Select a session to view its execution timeline.
  </div>
  {sessions.length === 0 && (
@@ -129,7 +129,7 @@ export function TraceDashboard() {
  color: "var(--text-primary)",
  }}>
  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
- <span style={{ fontSize: 10, fontFamily: "monospace", color: "var(--text-info, #89b4fa)" }}>
+ <span style={{ fontSize: 10, fontFamily: "monospace", color: "var(--text-info)" }}>
  {s.session_id.slice(0, 12)}
  </span>
  <div style={{ flex: 1 }} />
@@ -157,10 +157,10 @@ export function TraceDashboard() {
  }}>
  <span><strong>{steps.length}</strong> steps</span>
  <span><strong>{formatDuration(totalDuration)}</strong> total</span>
- <span style={{ color: "var(--text-success, #a6e3a1)" }}>
+ <span style={{ color: "var(--text-success)" }}>
  {steps.filter((s) => s.success).length} success
  </span>
- <span style={{ color: "var(--text-danger, #f38ba8)" }}>
+ <span style={{ color: "var(--text-danger)" }}>
  {steps.filter((s) => !s.success).length} errors
  </span>
  </div>
@@ -186,7 +186,7 @@ export function TraceDashboard() {
  {(["all", "prompt", "tool_call", "file_edit", "test", "error"] as const).map((k) => (
  <button key={k} onClick={() => setFilter(k)} style={{
  ...chipStyle, cursor: "pointer",
- border: filter === k ? "1px solid var(--accent-color, #6366f1)" : "1px solid var(--border-color)",
+ border: filter === k ? "1px solid var(--accent-color)" : "1px solid var(--border-color)",
  background: filter === k ? "rgba(99,102,241,0.15)" : "transparent",
  }}>
  {k !== "all" && (
@@ -229,7 +229,7 @@ export function TraceDashboard() {
  {s.tool || "LLM"}
  </span>
  {!s.success && (
- <span style={{ fontSize: 9, color: "var(--text-danger, #f38ba8)", fontWeight: 700 }}>FAIL</span>
+ <span style={{ fontSize: 9, color: "var(--text-danger)", fontWeight: 700 }}>FAIL</span>
  )}
  <span style={{ fontSize: 9, opacity: 0.5, fontFamily: "monospace" }}>
  {formatDuration(s.duration_ms)}

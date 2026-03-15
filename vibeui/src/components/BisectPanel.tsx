@@ -130,12 +130,12 @@ export function BisectPanel({ workspacePath }: BisectPanelProps) {
         <span style={{ fontSize: 12, fontWeight: 600 }}>Git Bisect</span>
         <div style={{ flex: 1 }} />
         {view !== "setup" && (
-          <button onClick={handleReset} style={{ ...btnStyle, color: "var(--text-danger, #f38ba8)" }}>Reset</button>
+          <button onClick={handleReset} style={{ ...btnStyle, color: "var(--text-danger)" }}>Reset</button>
         )}
       </div>
 
       {error && (
-        <div style={{ padding: "6px 12px", fontSize: 11, color: "var(--text-danger, #f38ba8)", background: "rgba(243,139,168,0.05)" }}>
+        <div style={{ padding: "6px 12px", fontSize: 11, color: "var(--text-danger)", background: "rgba(243,139,168,0.05)" }}>
           {error}
         </div>
       )}
@@ -182,7 +182,7 @@ export function BisectPanel({ workspacePath }: BisectPanelProps) {
             }}>
               <div style={{ fontSize: 10, fontWeight: 600, opacity: 0.6, marginBottom: 4 }}>Current Commit</div>
               {current.current_commit && (
-                <div style={{ fontFamily: "monospace", fontSize: 12, color: "var(--text-warning, #f9e2af)" }}>
+                <div style={{ fontFamily: "monospace", fontSize: 12, color: "var(--text-warning)" }}>
                   {current.current_commit.substring(0, 12)}
                 </div>
               )}
@@ -201,14 +201,14 @@ export function BisectPanel({ workspacePath }: BisectPanelProps) {
               <button
                 onClick={() => handleStep("good")}
                 disabled={loading}
-                style={{ ...btnStyle, flex: 1, background: "rgba(166,227,161,0.15)", color: "var(--text-success, #a6e3a1)", fontWeight: 700 }}
+                style={{ ...btnStyle, flex: 1, background: "rgba(166,227,161,0.15)", color: "var(--text-success)", fontWeight: 700 }}
               >
                 Good
               </button>
               <button
                 onClick={() => handleStep("bad")}
                 disabled={loading}
-                style={{ ...btnStyle, flex: 1, background: "rgba(243,139,168,0.15)", color: "var(--text-danger, #f38ba8)", fontWeight: 700 }}
+                style={{ ...btnStyle, flex: 1, background: "rgba(243,139,168,0.15)", color: "var(--text-danger)", fontWeight: 700 }}
               >
                 Bad
               </button>
@@ -224,7 +224,7 @@ export function BisectPanel({ workspacePath }: BisectPanelProps) {
             {/* Log + AI */}
             <div style={{ display: "flex", gap: 6 }}>
               <button onClick={handleLog} style={btnStyle}>Show Log</button>
-              <button onClick={handleAnalyze} disabled={loading} style={{ ...btnStyle, color: "var(--text-info, #89b4fa)" }}>
+              <button onClick={handleAnalyze} disabled={loading} style={{ ...btnStyle, color: "var(--text-info)" }}>
                 {loading ? "Analyzing..." : "AI Analyze"}
               </button>
             </div>
@@ -258,8 +258,8 @@ export function BisectPanel({ workspacePath }: BisectPanelProps) {
               padding: "12px 14px", borderRadius: 6, textAlign: "center",
               background: "rgba(243,139,168,0.1)", border: "1px solid rgba(243,139,168,0.3)",
             }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-danger, #f38ba8)" }}>Culprit Found!</div>
-              <div style={{ fontFamily: "monospace", fontSize: 14, color: "var(--text-warning, #f9e2af)", marginTop: 6 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-danger)" }}>Culprit Found!</div>
+              <div style={{ fontFamily: "monospace", fontSize: 14, color: "var(--text-warning)", marginTop: 6 }}>
                 {current.culprit_commit || current.current_commit}
               </div>
               <div style={{ fontSize: 11, marginTop: 4, opacity: 0.7 }}>
@@ -267,7 +267,7 @@ export function BisectPanel({ workspacePath }: BisectPanelProps) {
               </div>
             </div>
 
-            <button onClick={handleAnalyze} disabled={loading} style={{ ...btnStyle, color: "var(--text-info, #89b4fa)" }}>
+            <button onClick={handleAnalyze} disabled={loading} style={{ ...btnStyle, color: "var(--text-info)" }}>
               {loading ? "Analyzing..." : "AI Root Cause Analysis"}
             </button>
 
@@ -281,7 +281,7 @@ export function BisectPanel({ workspacePath }: BisectPanelProps) {
               </div>
             )}
 
-            <button onClick={handleReset} style={{ ...btnStyle, color: "var(--text-danger, #f38ba8)" }}>Reset Bisect</button>
+            <button onClick={handleReset} style={{ ...btnStyle, color: "var(--text-danger)" }}>Reset Bisect</button>
           </div>
         )}
       </div>

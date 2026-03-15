@@ -36,8 +36,8 @@ const methodColor: Record<string, string> = {
   PUT: "var(--warning-color, #f9e2af)",
   DELETE: "var(--error-color, #f38ba8)",
   PATCH: "var(--text-accent, #cba6f7)",
-  HEAD: "var(--text-muted, #6c7086)",
-  OPTIONS: "var(--text-muted, #6c7086)",
+  HEAD: "var(--text-muted)",
+  OPTIONS: "var(--text-muted)",
 };
 
 export function MockServerPanel() {
@@ -166,18 +166,18 @@ export function MockServerPanel() {
           style={{ ...inputStyle, width: 60, textAlign: "center" }}
         />
         {!running ? (
-          <button onClick={handleStart} disabled={loading} style={{ ...btnStyle, background: "var(--success-color, #4caf50)", color: "var(--bg-tertiary)" }}>
+          <button onClick={handleStart} disabled={loading} style={{ ...btnStyle, background: "var(--success-color)", color: "var(--bg-tertiary)" }}>
             {loading ? "..." : "Start"}
           </button>
         ) : (
-          <button onClick={handleStop} style={{ ...btnStyle, background: "var(--error-color, #f44336)", color: "var(--bg-tertiary)" }}>
+          <button onClick={handleStop} style={{ ...btnStyle, background: "var(--error-color)", color: "var(--bg-tertiary)" }}>
             Stop
           </button>
         )}
         <span style={{
           fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 10,
           background: running ? "rgba(166,227,161,0.15)" : "rgba(108,112,134,0.15)",
-          color: running ? "var(--success-color, #4caf50)" : "var(--text-secondary, #aaa)",
+          color: running ? "var(--success-color)" : "var(--text-secondary)",
         }}>
           {running ? `Running :${port}` : "Stopped"}
         </span>
@@ -193,7 +193,7 @@ export function MockServerPanel() {
             onClick={() => setTab(t)}
             style={{
               padding: "3px 10px", fontSize: 10, fontWeight: 600, borderRadius: 4, cursor: "pointer",
-              border: tab === t ? "1px solid var(--accent, #6366f1)" : "1px solid var(--border-color)",
+              border: tab === t ? "1px solid var(--accent-color)" : "1px solid var(--border-color)",
               background: tab === t ? "rgba(99,102,241,0.15)" : "transparent",
               color: "var(--text-primary)",
             }}
@@ -204,7 +204,7 @@ export function MockServerPanel() {
       </div>
 
       {error && (
-        <div style={{ padding: "6px 12px", fontSize: 11, color: "var(--text-danger, #f38ba8)", background: "rgba(243,139,168,0.05)" }}>
+        <div style={{ padding: "6px 12px", fontSize: 11, color: "var(--text-danger)", background: "rgba(243,139,168,0.05)" }}>
           {error}
         </div>
       )}
@@ -223,7 +223,7 @@ export function MockServerPanel() {
               </select>
               <input placeholder="/api/path" value={addPath} onChange={(e) => setAddPath(e.target.value)} style={{ ...inputStyle, flex: 1, minWidth: 120 }} />
               <input placeholder="200" value={addStatus} onChange={(e) => setAddStatus(e.target.value)} style={{ ...inputStyle, width: 50, textAlign: "center" }} />
-              <button onClick={handleAddRoute} style={{ ...btnStyle, background: "var(--accent-color, #007acc)", color: "var(--text-primary, #e0e0e0)" }}>Add</button>
+              <button onClick={handleAddRoute} style={{ ...btnStyle, background: "var(--accent-color)", color: "var(--text-primary)" }}>Add</button>
             </div>
             <input
               placeholder='Response body JSON...'
@@ -240,17 +240,17 @@ export function MockServerPanel() {
               }}>
                 <span style={{
                   padding: "1px 6px", borderRadius: 3, fontWeight: 700, fontSize: 10,
-                  color: "var(--bg-tertiary)", background: methodColor[r.method] || "var(--text-muted, #6c7086)",
+                  color: "var(--bg-tertiary)", background: methodColor[r.method] || "var(--text-muted)",
                 }}>
                   {r.method}
                 </span>
-                <span style={{ fontFamily: "monospace", color: "var(--text-info, #89b4fa)" }}>{r.path}</span>
+                <span style={{ fontFamily: "monospace", color: "var(--text-info)" }}>{r.path}</span>
                 <span style={{ fontSize: 10, opacity: 0.5 }}>{r.status}</span>
                 <div style={{ flex: 1 }} />
                 <span style={{ fontSize: 10, opacity: 0.5, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {r.body.substring(0, 60)}
                 </span>
-                <button onClick={() => handleRemoveRoute(r.id)} style={{ ...cellBtn, color: "var(--text-danger, #f38ba8)" }}>✕</button>
+                <button onClick={() => handleRemoveRoute(r.id)} style={{ ...cellBtn, color: "var(--text-danger)" }}>✕</button>
               </div>
             ))}
             {routes.length === 0 && (
@@ -284,16 +284,16 @@ export function MockServerPanel() {
                 </span>
                 <span style={{
                   padding: "1px 5px", borderRadius: 3, fontWeight: 700, fontSize: 9,
-                  color: "var(--bg-tertiary)", background: methodColor[r.method] || "var(--text-muted, #6c7086)",
+                  color: "var(--bg-tertiary)", background: methodColor[r.method] || "var(--text-muted)",
                 }}>
                   {r.method}
                 </span>
-                <span style={{ fontFamily: "monospace", color: "var(--text-info, #89b4fa)" }}>{r.path}</span>
+                <span style={{ fontFamily: "monospace", color: "var(--text-info)" }}>{r.path}</span>
                 <div style={{ flex: 1 }} />
                 <span style={{
                   fontSize: 9, padding: "1px 6px", borderRadius: 3,
                   background: r.matched_route_id ? "rgba(166,227,161,0.15)" : "rgba(243,139,168,0.15)",
-                  color: r.matched_route_id ? "var(--success-color, #4caf50)" : "var(--error-color, #f44336)",
+                  color: r.matched_route_id ? "var(--success-color)" : "var(--error-color)",
                 }}>
                   {r.matched_route_id ? "matched" : "no match"}
                 </span>
@@ -315,7 +315,7 @@ export function MockServerPanel() {
                 onChange={(e) => setSpecPath(e.target.value)}
                 style={{ ...inputStyle, flex: 1, fontFamily: "monospace" }}
               />
-              <button onClick={handleImport} disabled={importing} style={{ ...btnStyle, color: "var(--text-info, #89b4fa)" }}>
+              <button onClick={handleImport} disabled={importing} style={{ ...btnStyle, color: "var(--text-info)" }}>
                 {importing ? "Importing..." : "Generate Mocks"}
               </button>
             </div>
@@ -326,8 +326,8 @@ export function MockServerPanel() {
                 </div>
                 {importResult.map((r) => (
                   <div key={r.id} style={{ fontSize: 10, padding: "2px 0", fontFamily: "monospace" }}>
-                    <span style={{ color: methodColor[r.method] || "var(--text-muted, #6c7086)" }}>{r.method}</span>{" "}
-                    <span style={{ color: "var(--text-info, #89b4fa)" }}>{r.path}</span>{" "}
+                    <span style={{ color: methodColor[r.method] || "var(--text-muted)" }}>{r.method}</span>{" "}
+                    <span style={{ color: "var(--text-info)" }}>{r.path}</span>{" "}
                     <span style={{ opacity: 0.5 }}>{r.status}</span>
                   </div>
                 ))}

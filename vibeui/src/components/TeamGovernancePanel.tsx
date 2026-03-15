@@ -55,7 +55,7 @@ const TeamGovernancePanel: React.FC = () => {
   });
   const badge = (color: string): React.CSSProperties => ({
     padding: "2px 8px", borderRadius: "10px", fontSize: "11px", fontWeight: 600,
-    backgroundColor: color, color: "#fff", marginLeft: "6px",
+    backgroundColor: color, color: "var(--text-primary)", marginLeft: "6px",
   });
   const btn: React.CSSProperties = {
     padding: "6px 14px", border: "none", borderRadius: "4px", cursor: "pointer",
@@ -70,8 +70,8 @@ const TeamGovernancePanel: React.FC = () => {
     backgroundColor: "var(--vscode-editorWidget-background)", border: "1px solid var(--vscode-panel-border)",
   };
 
-  const visibilityColor = (v: string) => v === "Public" ? "#2ea043" : v === "Org" ? "#1f6feb" : v === "TeamOnly" ? "#8957e5" : "#6e7681";
-  const statusColor = (s: string) => s === "Approved" ? "#2ea043" : s === "Pending" ? "#d29922" : s === "Rejected" ? "#f85149" : "#6e7681";
+  const visibilityColor = (v: string) => v === "Public" ? "var(--success-color)" : v === "Org" ? "var(--info-color)" : v === "TeamOnly" ? "var(--accent-color)" : "var(--text-muted)";
+  const statusColor = (s: string) => s === "Approved" ? "var(--success-color)" : s === "Pending" ? "var(--warning-color)" : s === "Rejected" ? "var(--error-color)" : "var(--text-muted)";
 
   const handleApprove = (id: string) => setApprovals(prev => prev.filter(a => a.id !== id));
   const handleReject = (id: string) => setApprovals(prev => prev.filter(a => a.id !== id));
@@ -121,8 +121,8 @@ const TeamGovernancePanel: React.FC = () => {
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                 <span style={{ opacity: 0.7 }}>Reviewer: {a.reviewer || "Unassigned"}</span>
                 <div style={{ marginLeft: "auto", display: "flex", gap: "6px" }}>
-                  <button style={{ ...btn, backgroundColor: "#2ea043" }} onClick={() => handleApprove(a.id)}>Approve</button>
-                  <button style={{ ...btn, backgroundColor: "#f85149" }} onClick={() => handleReject(a.id)}>Reject</button>
+                  <button style={{ ...btn, backgroundColor: "var(--success-color)" }} onClick={() => handleApprove(a.id)}>Approve</button>
+                  <button style={{ ...btn, backgroundColor: "var(--error-color)" }} onClick={() => handleReject(a.id)}>Reject</button>
                 </div>
               </div>
             </div>

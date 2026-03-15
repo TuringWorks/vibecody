@@ -64,7 +64,7 @@ const FOCUS_EMOJI: Record<ReviewFocus, string> = {
 
 function ScoreBar({ label, value }: { label: string; value: number }) {
  const pct = Math.round((value / 10) * 100);
- const color = value >= 8 ? 'var(--text-success, #22c55e)' : value >= 5 ? 'var(--text-warning, #f59e0b)' : 'var(--text-danger, #ef4444)';
+ const color = value >= 8 ? 'var(--text-success)' : value >= 5 ? 'var(--text-warning)' : 'var(--text-danger)';
  return (
  <div style={{ marginBottom: 6 }}>
  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 2 }}>
@@ -132,7 +132,7 @@ export function ReviewPanel({ workspacePath, onOpenFile }: ReviewPanelProps) {
  disabled={isLoading || !workspacePath}
  style={{
  padding: '5px 14px', borderRadius: 4, border: 'none', cursor: 'pointer',
- background: isLoading ? 'var(--border-color)' : 'var(--accent-primary, #6366f1)', color: 'var(--text-on-accent, #fff)', fontSize: 13,
+ background: isLoading ? 'var(--border-color)' : 'var(--accent-primary)', color: 'var(--text-on-accent)', fontSize: 13,
  opacity: !workspacePath ? 0.5 : 1,
  }}
  >
@@ -142,7 +142,7 @@ export function ReviewPanel({ workspacePath, onOpenFile }: ReviewPanelProps) {
 
  {/* ── Error ── */}
  {error && (
- <div style={{ padding: 8, borderRadius: 4, background: 'var(--error-bg, #7f1d1d)', color: 'var(--text-danger, #fca5a5)', fontSize: 12 }}>
+ <div style={{ padding: 8, borderRadius: 4, background: 'var(--error-bg)', color: 'var(--text-danger)', fontSize: 12 }}>
  {error}
  </div>
  )}
@@ -151,7 +151,7 @@ export function ReviewPanel({ workspacePath, onOpenFile }: ReviewPanelProps) {
  {isLoading && (
  <div style={{ textAlign: 'center', color: 'var(--text-secondary)', paddingTop: 32, fontSize: 13 }}>
  Analyzing diff…<br />
- <span style={{ fontSize: 11, color: 'var(--text-muted, #6b7280)' }}>This may take 15–30 seconds depending on diff size</span>
+ <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>This may take 15–30 seconds depending on diff size</span>
  </div>
  )}
 
@@ -170,7 +170,7 @@ export function ReviewPanel({ workspacePath, onOpenFile }: ReviewPanelProps) {
  </div>
  <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>{report.summary}</p>
  {report.files_reviewed.length > 0 && (
- <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text-muted, #6b7280)' }}>
+ <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text-muted)' }}>
  {report.files_reviewed.length} file{report.files_reviewed.length !== 1 ? 's' : ''} reviewed
  </div>
  )}
@@ -216,7 +216,7 @@ export function ReviewPanel({ workspacePath, onOpenFile }: ReviewPanelProps) {
  No {filterSeverity} issues found.
  </div>
  ) : filteredIssues.length === 0 ? (
- <div style={{ color: 'var(--text-success, #22c55e)', fontSize: 13, textAlign: 'center', paddingTop: 12 }}>
+ <div style={{ color: 'var(--text-success)', fontSize: 13, textAlign: 'center', paddingTop: 12 }}>
  No issues found — looks good!
  </div>
  ) : (
@@ -229,8 +229,8 @@ export function ReviewPanel({ workspacePath, onOpenFile }: ReviewPanelProps) {
  key={idx}
  style={{
  background: 'var(--bg-tertiary)', borderRadius: 6, borderLeft: `3px solid`,
- borderLeftColor: sty.border.replace('border-l-', '').includes('red') ? 'var(--text-danger, #ef4444)'
- : sty.border.includes('yellow') ? 'var(--text-warning, #f59e0b)' : 'var(--text-info, #60a5fa)',
+ borderLeftColor: sty.border.replace('border-l-', '').includes('red') ? 'var(--text-danger)'
+ : sty.border.includes('yellow') ? 'var(--text-warning)' : 'var(--text-info)',
  overflow: 'hidden',
  }}
  >
@@ -243,8 +243,8 @@ export function ReviewPanel({ workspacePath, onOpenFile }: ReviewPanelProps) {
  <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
  <span style={{
  fontSize: 10, padding: '1px 6px', borderRadius: 10,
- background: sty.badge.includes('red') ? 'var(--text-danger, #ef4444)'
- : sty.badge.includes('yellow') ? 'var(--text-warning, #f59e0b)' : 'var(--text-info, #60a5fa)',
+ background: sty.badge.includes('red') ? 'var(--text-danger)'
+ : sty.badge.includes('yellow') ? 'var(--text-warning)' : 'var(--text-info)',
  color: sty.badge.includes('yellow') ? '#000' : '#fff',
  }}>
  {issue.severity}
@@ -261,7 +261,7 @@ export function ReviewPanel({ workspacePath, onOpenFile }: ReviewPanelProps) {
  onOpenFile?.(issue.file, issue.line);
  }}
  style={{
- marginTop: 4, fontSize: 10, color: 'var(--accent-blue, #818cf8)', background: 'none',
+ marginTop: 4, fontSize: 10, color: 'var(--accent-color)', background: 'none',
  border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline',
  }}
  >
@@ -269,7 +269,7 @@ export function ReviewPanel({ workspacePath, onOpenFile }: ReviewPanelProps) {
  </button>
  )}
  </div>
- <span style={{ color: 'var(--text-muted, #6b7280)', fontSize: 11, flexShrink: 0 }}>{isOpen ? '' : '▼'}</span>
+ <span style={{ color: 'var(--text-muted)', fontSize: 11, flexShrink: 0 }}>{isOpen ? '' : '▼'}</span>
  </div>
 
  {isOpen && issue.suggested_fix && (
@@ -278,7 +278,7 @@ export function ReviewPanel({ workspacePath, onOpenFile }: ReviewPanelProps) {
  Suggested fix:
  </div>
  <pre style={{
- margin: 0, fontSize: 11, color: 'var(--text-success, #86efac)', background: 'var(--bg-primary)',
+ margin: 0, fontSize: 11, color: 'var(--text-success)', background: 'var(--bg-primary)',
  borderRadius: 4, padding: 8, overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
  }}>
  {issue.suggested_fix}
@@ -301,7 +301,7 @@ export function ReviewPanel({ workspacePath, onOpenFile }: ReviewPanelProps) {
  <div key={i} style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 4, paddingLeft: 8, borderLeft: '2px solid var(--border-color)' }}>
  {s.description}
  {s.file && (
- <span style={{ marginLeft: 6, color: 'var(--accent-blue, #818cf8)', fontSize: 11 }}>— {s.file}</span>
+ <span style={{ marginLeft: 6, color: 'var(--accent-color)', fontSize: 11 }}>— {s.file}</span>
  )}
  </div>
  ))}
@@ -312,7 +312,7 @@ export function ReviewPanel({ workspacePath, onOpenFile }: ReviewPanelProps) {
 
  {/* ── Empty state ── */}
  {!report && !isLoading && !error && (
- <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8, color: 'var(--text-muted, #6b7280)' }}>
+ <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8, color: 'var(--text-muted)' }}>
  <div style={{ fontSize: 32 }}></div>
  <div style={{ fontSize: 13 }}>Run a code review to see issues</div>
  <div style={{ fontSize: 11 }}>Analyzes your uncommitted changes or compares branches</div>

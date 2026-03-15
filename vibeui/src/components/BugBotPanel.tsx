@@ -125,8 +125,8 @@ export function BugBotPanel({ workspacePath, onOpenFile }: BugBotPanelProps) {
  padding: "5px 14px",
  borderRadius: 5,
  border: "none",
- background: "#c62828",
- color: "#fff",
+ background: "var(--error-color)",
+ color: "white",
  cursor: "pointer",
  fontWeight: 600,
  fontSize: 12,
@@ -143,7 +143,7 @@ export function BugBotPanel({ workspacePath, onOpenFile }: BugBotPanelProps) {
  borderRadius: 5,
  border: "none",
  background: "var(--accent-blue)",
- color: "#fff",
+ color: "white",
  cursor: "pointer",
  fontWeight: 600,
  fontSize: 12,
@@ -167,7 +167,7 @@ export function BugBotPanel({ workspacePath, onOpenFile }: BugBotPanelProps) {
  </div>
 
  {error && (
- <div style={{ background: "rgba(244,67,54,0.13)", color: "var(--error-color, #ff4d4f)", borderRadius: 5, padding: "6px 10px", fontSize: 12 }}>
+ <div style={{ background: "rgba(244,67,54,0.13)", color: "var(--error-color)", borderRadius: 5, padding: "6px 10px", fontSize: 12 }}>
  {error}
  </div>
  )}
@@ -282,7 +282,7 @@ export function BugBotPanel({ workspacePath, onOpenFile }: BugBotPanelProps) {
  onOpenFile(fullPath, report.line_hint ?? undefined);
  }
  }}
- style={{ fontSize: 10, color: "var(--accent-blue, #89b4fa)", fontFamily: "monospace", cursor: onOpenFile ? "pointer" : "default", textDecoration: onOpenFile ? "underline" : "none" }}
+ style={{ fontSize: 10, color: "var(--accent-blue)", fontFamily: "monospace", cursor: onOpenFile ? "pointer" : "default", textDecoration: onOpenFile ? "underline" : "none" }}
  title="Open in editor"
  >
  {report.file_path}{report.line_hint ? `:${report.line_hint}` : ""}
@@ -304,7 +304,7 @@ export function BugBotPanel({ workspacePath, onOpenFile }: BugBotPanelProps) {
  </div>
  <div>
  <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 3 }}>SUGGESTION</div>
- <div style={{ fontSize: 12, lineHeight: 1.6, color: "var(--text-success, #a6e3a1)" }}>{report.suggestion}</div>
+ <div style={{ fontSize: 12, lineHeight: 1.6, color: "var(--text-success)" }}>{report.suggestion}</div>
  </div>
  {report.fix_snippet && (
  <div>

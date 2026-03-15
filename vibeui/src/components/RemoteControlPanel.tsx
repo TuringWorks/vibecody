@@ -109,9 +109,9 @@ const tabBtn = (active: boolean): React.CSSProperties => ({
   fontSize: 11,
   fontWeight: active ? 600 : 400,
   background: active ? "var(--accent-bg, rgba(99,102,241,0.15))" : "transparent",
-  border: "1px solid " + (active ? "var(--accent-primary, #6366f1)" : "var(--border-color)"),
+  border: "1px solid " + (active ? "var(--accent-color)" : "var(--border-color)"),
   borderRadius: 4,
-  color: active ? "var(--text-info, #89b4fa)" : "var(--text-muted)",
+  color: active ? "var(--text-info)" : "var(--text-muted)",
   cursor: "pointer",
 });
 
@@ -147,7 +147,7 @@ export default function RemoteControlPanel() {
             {t[0].toUpperCase() + t.slice(1)}
           </button>
         ))}
-        <span style={{ marginLeft: "auto", fontSize: 10, color: serverRunning ? "var(--text-success, #a6e3a1)" : "var(--text-muted)", alignSelf: "center" }}>
+        <span style={{ marginLeft: "auto", fontSize: 10, color: serverRunning ? "var(--text-success)" : "var(--text-muted)", alignSelf: "center" }}>
           {serverRunning ? "Listening" : "Stopped"}
         </span>
       </div>
@@ -164,8 +164,8 @@ export default function RemoteControlPanel() {
                   style={{ width: 80, padding: "4px 8px", fontSize: 12, fontFamily: "monospace", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)" }} />
                 <button onClick={() => setServerRunning(!serverRunning)}
                   style={{ padding: "6px 16px", fontSize: 11, fontWeight: 600, borderRadius: 4, border: "none", cursor: "pointer",
-                    background: serverRunning ? "var(--text-danger, #f38ba8)" : "var(--text-success, #a6e3a1)",
-                    color: "#1e1e2e" }}>
+                    background: serverRunning ? "var(--text-danger)" : "var(--text-success)",
+                    color: "var(--bg-primary)" }}>
                   {serverRunning ? "Stop Server" : "Start Server"}
                 </button>
               </div>
@@ -192,7 +192,7 @@ export default function RemoteControlPanel() {
             <div style={{ padding: 14, background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)" }}>
               <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 8 }}>Pairing Token</div>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <code style={{ flex: 1, padding: "6px 10px", background: "var(--bg-primary)", borderRadius: 4, fontSize: 13, fontFamily: "monospace", color: "var(--accent-primary, #6366f1)", letterSpacing: 1 }}>{token}</code>
+                <code style={{ flex: 1, padding: "6px 10px", background: "var(--bg-primary)", borderRadius: 4, fontSize: 13, fontFamily: "monospace", color: "var(--accent-color)", letterSpacing: 1 }}>{token}</code>
                 <button onClick={() => navigator.clipboard.writeText(token)}
                   style={{ padding: "5px 12px", fontSize: 10, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-muted)", cursor: "pointer" }}>Copy</button>
               </div>
@@ -202,7 +202,7 @@ export default function RemoteControlPanel() {
 
         {/* Clients tab */}
         {tab === "clients" && clients.map(c => (
-          <div key={c.id} style={{ padding: 10, background: "var(--bg-secondary)", borderRadius: 6, border: `1px solid ${c.connected ? "var(--accent-primary, #6366f1)" : "var(--border-color)"}`, display: "flex", gap: 10, alignItems: "center" }}>
+          <div key={c.id} style={{ padding: 10, background: "var(--bg-secondary)", borderRadius: 6, border: `1px solid ${c.connected ? "var(--accent-color)" : "var(--border-color)"}`, display: "flex", gap: 10, alignItems: "center" }}>
             <span style={{ fontSize: 14 }}>[{typeIcon[c.type]}]</span>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>{c.name}</div>
@@ -210,7 +210,7 @@ export default function RemoteControlPanel() {
                 {c.permissions.join(", ")} | {c.lastSeen}
               </div>
             </div>
-            <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 10, background: c.connected ? "rgba(166,227,161,0.15)" : "rgba(243,139,168,0.15)", color: c.connected ? "var(--text-success, #a6e3a1)" : "var(--text-danger, #f38ba8)" }}>
+            <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 10, background: c.connected ? "rgba(166,227,161,0.15)" : "rgba(243,139,168,0.15)", color: c.connected ? "var(--text-success)" : "var(--text-danger)" }}>
               {c.connected ? "Online" : "Offline"}
             </span>
             <button onClick={() => toggleClient(c.id)}
@@ -226,7 +226,7 @@ export default function RemoteControlPanel() {
             {events.map(e => (
               <div key={e.id} style={{ display: "flex", gap: 10, padding: "6px 10px", background: "var(--bg-secondary)", borderRadius: 4, border: "1px solid var(--border-color)", fontSize: 11, fontFamily: "monospace" }}>
                 <span style={{ color: "var(--text-muted)", minWidth: 60 }}>{e.timestamp}</span>
-                <span style={{ color: "var(--accent-primary, #6366f1)", minWidth: 80 }}>{e.action}</span>
+                <span style={{ color: "var(--accent-color)", minWidth: 80 }}>{e.action}</span>
                 <span style={{ color: "var(--text-primary)", flex: 1 }}>{e.detail}</span>
                 <span style={{ color: "var(--text-muted)", fontSize: 10 }}>{e.clientId}</span>
               </div>

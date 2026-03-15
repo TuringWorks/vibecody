@@ -35,6 +35,7 @@ export function WebhookPanel() {
   const [tab, setTab] = useState<'config' | 'logs'>('config');
   const [editing, setEditing] = useState<WebhookConfig | null>(null);
   const [expandedLog, setExpandedLog] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -54,7 +55,7 @@ export function WebhookPanel() {
       setEditing(null);
       load();
     } catch (e) {
-      alert(`Failed to save: ${e}`);
+      setError(`Failed to save: ${e}`);
     }
   };
 
@@ -64,27 +65,27 @@ export function WebhookPanel() {
       await invoke('delete_webhook', { id });
       load();
     } catch (e) {
-      alert(`Failed to delete: ${e}`);
+      setError(`Failed to delete: ${e}`);
     }
   };
 
   const handleTest = async (id: string) => {
     try {
       const result = await invoke<{ status: number; body: string }>('test_webhook', { id });
-      alert(`Test result: HTTP ${result.status}\n${result.body.slice(0, 200)}`);
+      setError(`Test result: HTTP ${result.status}\n${result.body.slice(0, 200)}`);
       load();
     } catch (e) {
-      alert(`Test failed: ${e}`);
+      setError(`Test failed: ${e}`);
     }
   };
 
   const handleReplay = async (logId: string) => {
     try {
       await invoke('replay_webhook', { logId });
-      alert('Replayed successfully');
+      setError('Replayed successfully');
       load();
     } catch (e) {
-      alert(`Replay failed: ${e}`);
+      setError(`Replay failed: ${e}`);
     }
   };
 
@@ -121,6 +122,8 @@ export function WebhookPanel() {
           ))}
         </div>
       </div>
+
+      {error && <div className="panel-error"><span>{error}</span><button onClick={() => setError(null)}>✕</button></div>}
 
       {tab === 'config' && !editing && (
         <>

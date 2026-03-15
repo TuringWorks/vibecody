@@ -64,10 +64,10 @@ const MOCK_CONFIGS: RoleConfig[] = [
 
 const statusColor = (s: AgentStatus): string => {
   switch (s) {
-    case "Running": return "var(--vscode-charts-green, #4caf50)";
-    case "Completed": return "var(--vscode-charts-blue, #007acc)";
-    case "Failed": return "var(--vscode-errorForeground, #f44336)";
-    case "Queued": return "var(--vscode-charts-yellow, #ff9800)";
+    case "Running": return "var(--success-color)";
+    case "Completed": return "var(--accent-color)";
+    case "Failed": return "var(--error-color)";
+    case "Queued": return "var(--warning-color)";
   }
 };
 
@@ -85,13 +85,13 @@ const SubAgentPanel: React.FC = () => {
   };
 
   return (
-    <div style={{ padding: 12, fontFamily: "var(--vscode-font-family, sans-serif)", fontSize: 13, height: "100%", overflowY: "auto", color: "var(--vscode-foreground, #ccc)", background: "var(--vscode-editor-background, #1e1e1e)" }}>
+    <div style={{ padding: 12, fontFamily: "inherit", fontSize: 13, height: "100%", overflowY: "auto", color: "var(--text-secondary)", background: "var(--bg-primary)" }}>
       <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12 }}>Sub-Agents</div>
 
       {/* Tab bar */}
-      <div style={{ display: "flex", gap: 0, marginBottom: 12, borderBottom: "1px solid var(--vscode-panel-border, #444)" }}>
+      <div style={{ display: "flex", gap: 0, marginBottom: 12, borderBottom: "1px solid var(--border-color)" }}>
         {tabs.map((t) => (
-          <button key={t} onClick={() => setTab(t)} style={{ padding: "6px 16px", fontSize: 12, background: "none", border: "none", borderBottom: tab === t ? "2px solid var(--vscode-focusBorder, #007acc)" : "2px solid transparent", color: tab === t ? "var(--vscode-foreground, #fff)" : "var(--vscode-disabledForeground, #888)", cursor: "pointer", fontWeight: tab === t ? 600 : 400 }}>
+          <button key={t} onClick={() => setTab(t)} style={{ padding: "6px 16px", fontSize: 12, background: "none", border: "none", borderBottom: tab === t ? "2px solid var(--accent-color)" : "2px solid transparent", color: tab === t ? "var(--text-primary)" : "var(--text-muted)", cursor: "pointer", fontWeight: tab === t ? 600 : 400 }}>
             {t}
           </button>
         ))}
@@ -101,22 +101,22 @@ const SubAgentPanel: React.FC = () => {
       {tab === "Agents" && (
         <div>
           {MOCK_AGENTS.map((agent) => (
-            <div key={agent.id} onClick={() => setExpandedAgent(expandedAgent === agent.id ? null : agent.id)} style={{ padding: "8px 10px", marginBottom: 6, borderRadius: 4, background: "var(--vscode-editor-inactiveSelectionBackground, #2d2d2d)", borderLeft: `3px solid ${statusColor(agent.status)}`, cursor: "pointer" }}>
+            <div key={agent.id} onClick={() => setExpandedAgent(expandedAgent === agent.id ? null : agent.id)} style={{ padding: "8px 10px", marginBottom: 6, borderRadius: 4, background: "var(--bg-secondary)", borderLeft: `3px solid ${statusColor(agent.status)}`, cursor: "pointer" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span style={{ fontWeight: 600, fontSize: 12 }}>{agent.role}</span>
-                <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 10, background: statusColor(agent.status), color: "#fff", fontWeight: 600 }}>{agent.status}</span>
-                <span style={{ marginLeft: "auto", fontSize: 10, color: "var(--vscode-disabledForeground, #888)" }}>{agent.provider}</span>
+                <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 10, background: statusColor(agent.status), color: "white", fontWeight: 600 }}>{agent.status}</span>
+                <span style={{ marginLeft: "auto", fontSize: 10, color: "var(--text-muted)" }}>{agent.provider}</span>
               </div>
-              <div style={{ display: "flex", gap: 12, marginTop: 4, fontSize: 11, color: "var(--vscode-disabledForeground, #888)" }}>
+              <div style={{ display: "flex", gap: 12, marginTop: 4, fontSize: 11, color: "var(--text-muted)" }}>
                 <span>Turn {agent.turnCount}/{agent.maxTurns}</span>
                 <span>Started {agent.startedAt}</span>
                 {agent.duration && <span>Duration: {agent.duration}</span>}
               </div>
               {expandedAgent === agent.id && (
                 <div style={{ marginTop: 8 }}>
-                  <div style={{ fontSize: 11, color: "var(--vscode-disabledForeground, #888)", marginBottom: 4 }}>Context Files:</div>
+                  <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>Context Files:</div>
                   {agent.contextFiles.map((f) => (
-                    <div key={f} style={{ fontSize: 11, fontFamily: "monospace", padding: "2px 6px", marginBottom: 2, background: "var(--vscode-editor-background, #1e1e1e)", borderRadius: 3 }}>{f}</div>
+                    <div key={f} style={{ fontSize: 11, fontFamily: "monospace", padding: "2px 6px", marginBottom: 2, background: "var(--bg-primary)", borderRadius: 3 }}>{f}</div>
                   ))}
                   {/* Progress bar */}
                   <div style={{ marginTop: 8 }}>
@@ -124,7 +124,7 @@ const SubAgentPanel: React.FC = () => {
                       <span>Progress</span>
                       <span>{Math.round((agent.turnCount / agent.maxTurns) * 100)}%</span>
                     </div>
-                    <div style={{ background: "var(--vscode-editor-background, #1e1e1e)", borderRadius: 3, height: 6, overflow: "hidden" }}>
+                    <div style={{ background: "var(--bg-primary)", borderRadius: 3, height: 6, overflow: "hidden" }}>
                       <div style={{ width: `${(agent.turnCount / agent.maxTurns) * 100}%`, height: "100%", background: statusColor(agent.status), borderRadius: 3 }} />
                     </div>
                   </div>
@@ -139,14 +139,14 @@ const SubAgentPanel: React.FC = () => {
       {tab === "Results" && (
         <div>
           {MOCK_RESULTS.map((result) => (
-            <div key={result.agentId} style={{ padding: "10px 12px", marginBottom: 8, borderRadius: 4, background: "var(--vscode-editor-inactiveSelectionBackground, #2d2d2d)", borderLeft: `3px solid ${result.success ? "var(--vscode-charts-blue, #007acc)" : "var(--vscode-errorForeground, #f44336)"}` }}>
+            <div key={result.agentId} style={{ padding: "10px 12px", marginBottom: 8, borderRadius: 4, background: "var(--bg-secondary)", borderLeft: `3px solid ${result.success ? "var(--accent-color)" : "var(--error-color)"}` }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                 <span style={{ fontWeight: 600, fontSize: 12 }}>{result.role}</span>
-                <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 10, background: result.success ? "var(--vscode-charts-green, #4caf50)" : "var(--vscode-errorForeground, #f44336)", color: "#fff", fontWeight: 600 }}>{result.success ? "Success" : "Failed"}</span>
-                <span style={{ marginLeft: "auto", fontSize: 10, color: "var(--vscode-disabledForeground, #888)" }}>{result.completedAt}</span>
+                <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 10, background: result.success ? "var(--success-color)" : "var(--error-color)", color: "white", fontWeight: 600 }}>{result.success ? "Success" : "Failed"}</span>
+                <span style={{ marginLeft: "auto", fontSize: 10, color: "var(--text-muted)" }}>{result.completedAt}</span>
               </div>
               <div style={{ fontSize: 12, marginBottom: 6, lineHeight: 1.5 }}>{result.summary}</div>
-              <div style={{ fontSize: 11, color: "var(--vscode-disabledForeground, #888)", marginBottom: 4 }}>Findings:</div>
+              <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>Findings:</div>
               <ul style={{ margin: 0, paddingLeft: 16, fontSize: 11, lineHeight: 1.6 }}>
                 {result.findings.map((f, i) => (
                   <li key={i}>{f}</li>
@@ -154,9 +154,9 @@ const SubAgentPanel: React.FC = () => {
               </ul>
               {result.filesModified.length > 0 && (
                 <div style={{ marginTop: 6 }}>
-                  <span style={{ fontSize: 11, color: "var(--vscode-disabledForeground, #888)" }}>Modified: </span>
+                  <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Modified: </span>
                   {result.filesModified.map((f) => (
-                    <span key={f} style={{ fontSize: 10, fontFamily: "monospace", padding: "1px 5px", borderRadius: 3, background: "var(--vscode-editor-background, #1e1e1e)", marginLeft: 4 }}>{f}</span>
+                    <span key={f} style={{ fontSize: 10, fontFamily: "monospace", padding: "1px 5px", borderRadius: 3, background: "var(--bg-primary)", marginLeft: 4 }}>{f}</span>
                   ))}
                 </div>
               )}
@@ -169,27 +169,27 @@ const SubAgentPanel: React.FC = () => {
       {tab === "Config" && (
         <div>
           {configs.map((cfg) => (
-            <div key={cfg.role} style={{ padding: "10px 12px", marginBottom: 8, borderRadius: 4, background: "var(--vscode-editor-inactiveSelectionBackground, #2d2d2d)", opacity: cfg.enabled ? 1 : 0.5 }}>
+            <div key={cfg.role} style={{ padding: "10px 12px", marginBottom: 8, borderRadius: 4, background: "var(--bg-secondary)", opacity: cfg.enabled ? 1 : 0.5 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                 <input type="checkbox" checked={cfg.enabled} onChange={() => toggleConfig(cfg.role)} style={{ cursor: "pointer" }} />
                 <span style={{ fontWeight: 600, fontSize: 12 }}>{cfg.role}</span>
-                <span style={{ fontSize: 10, color: "var(--vscode-disabledForeground, #888)" }}>max {cfg.maxTurns} turns</span>
+                <span style={{ fontSize: 10, color: "var(--text-muted)" }}>max {cfg.maxTurns} turns</span>
               </div>
-              <div style={{ fontSize: 11, color: "var(--vscode-disabledForeground, #888)", marginBottom: 6 }}>{cfg.description}</div>
+              <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 6 }}>{cfg.description}</div>
               <div style={{ marginBottom: 6 }}>
-                <span style={{ fontSize: 10, color: "var(--vscode-disabledForeground, #888)" }}>Tools: </span>
+                <span style={{ fontSize: 10, color: "var(--text-muted)" }}>Tools: </span>
                 <span style={{ display: "inline-flex", gap: 4, flexWrap: "wrap" }}>
                   {cfg.tools.map((tool) => (
-                    <span key={tool} style={{ fontSize: 10, padding: "1px 5px", borderRadius: 3, background: "var(--vscode-badge-background, #444)", color: "var(--vscode-badge-foreground, #fff)" }}>{tool}</span>
+                    <span key={tool} style={{ fontSize: 10, padding: "1px 5px", borderRadius: 3, background: "var(--border-color)", color: "var(--text-primary)" }}>{tool}</span>
                   ))}
                 </span>
               </div>
               {cfg.autoSpawnTriggers.length > 0 && (
                 <div>
-                  <span style={{ fontSize: 10, color: "var(--vscode-disabledForeground, #888)" }}>Auto-spawn: </span>
+                  <span style={{ fontSize: 10, color: "var(--text-muted)" }}>Auto-spawn: </span>
                   <span style={{ display: "inline-flex", gap: 4, flexWrap: "wrap" }}>
                     {cfg.autoSpawnTriggers.map((trigger) => (
-                      <span key={trigger} style={{ fontSize: 10, padding: "1px 5px", borderRadius: 3, background: "var(--vscode-charts-green, #4caf50)", color: "#fff" }}>{trigger}</span>
+                      <span key={trigger} style={{ fontSize: 10, padding: "1px 5px", borderRadius: 3, background: "var(--success-color)", color: "white" }}>{trigger}</span>
                     ))}
                   </span>
                 </div>

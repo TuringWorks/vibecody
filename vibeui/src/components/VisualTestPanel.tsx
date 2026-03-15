@@ -21,10 +21,10 @@ type SessionStatus = "idle" | "running" | "passed" | "failed";
 
 const statusBadge = (status: SessionStatus) => {
   const map: Record<SessionStatus, { bg: string; label: string }> = {
-    idle: { bg: "var(--text-muted, #555)", label: "Idle" },
-    running: { bg: "var(--info-color, #1976d2)", label: "Running..." },
-    passed: { bg: "var(--success-color, #4caf50)", label: "Passed" },
-    failed: { bg: "var(--error-color, #f44336)", label: "Failed" },
+    idle: { bg: "var(--text-muted)", label: "Idle" },
+    running: { bg: "var(--info-color)", label: "Running..." },
+    passed: { bg: "var(--success-color)", label: "Passed" },
+    failed: { bg: "var(--error-color)", label: "Failed" },
   };
   const s = map[status];
   return (
@@ -35,7 +35,7 @@ const statusBadge = (status: SessionStatus) => {
         borderRadius: 4,
         fontSize: 11,
         fontWeight: 600,
-        color: "var(--text-primary, #fff)",
+        color: "var(--text-primary)",
         background: s.bg,
       }}
     >
@@ -141,8 +141,8 @@ export function VisualTestPanel() {
     flex: 1,
     padding: "6px 10px",
     borderRadius: 4,
-    border: "1px solid var(--border-color, #444)",
-    background: "var(--bg-primary, #1e1e1e)",
+    border: "1px solid var(--border-color)",
+    background: "var(--bg-primary)",
     color: "var(--text-primary)",
     fontSize: 13,
   };
@@ -151,8 +151,8 @@ export function VisualTestPanel() {
     padding: "6px 14px",
     borderRadius: 4,
     border: "none",
-    background: "var(--accent-color, #007acc)",
-    color: "var(--text-primary, #fff)",
+    background: "var(--accent-color)",
+    color: "var(--text-primary)",
     cursor: "pointer",
     fontWeight: 600,
     fontSize: 12,
@@ -216,7 +216,7 @@ export function VisualTestPanel() {
             padding: 8,
             borderRadius: 4,
             background: "rgba(244,67,54,0.15)",
-            color: "var(--error-color, #f44336)",
+            color: "var(--error-color)",
             fontSize: 12,
           }}
         >
@@ -245,8 +245,8 @@ export function VisualTestPanel() {
                 gap: 10,
                 padding: 10,
                 borderRadius: 6,
-                background: "var(--bg-secondary, #252526)",
-                border: "1px solid var(--border-color, #333)",
+                background: "var(--bg-secondary)",
+                border: "1px solid var(--border-color)",
                 alignItems: "flex-start",
               }}
             >
@@ -256,8 +256,8 @@ export function VisualTestPanel() {
                   width: 28,
                   height: 28,
                   borderRadius: "50%",
-                  background: "var(--accent-color, #007acc)",
-                  color: "var(--text-primary, #fff)",
+                  background: "var(--accent-color)",
+                  color: "var(--text-primary)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",

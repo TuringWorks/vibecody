@@ -37,16 +37,16 @@ interface DockerPanelProps {
 
 const statusColor = (status: string) => {
  const s = status.toLowerCase();
- if (s.startsWith("up")) return "var(--success-color, #4caf50)";
- if (s.startsWith("exited")) return "var(--error-color, #f44336)";
- if (s.startsWith("paused")) return "var(--warning-color, #ff9800)";
+ if (s.startsWith("up")) return "var(--success-color)";
+ if (s.startsWith("exited")) return "var(--error-color)";
+ if (s.startsWith("paused")) return "var(--warning-color)";
  return "var(--text-primary)";
 };
 
 const statusIcon = (status: string): React.ReactNode => {
  const s = status.toLowerCase();
- if (s.startsWith("up")) return <Circle size={10} strokeWidth={0} fill="var(--success-color, #4caf50)" />;
- if (s.startsWith("exited")) return <Circle size={10} strokeWidth={0} fill="var(--error-color, #f44336)" />;
+ if (s.startsWith("up")) return <Circle size={10} strokeWidth={0} fill="var(--success-color)" />;
+ if (s.startsWith("exited")) return <Circle size={10} strokeWidth={0} fill="var(--error-color)" />;
  if (s.startsWith("paused")) return <Circle size={10} strokeWidth={0} fill="var(--text-primary)" />;
  return <Circle size={10} strokeWidth={0} fill="var(--text-primary)" />;
 };
@@ -184,16 +184,16 @@ export function DockerPanel({ workspacePath }: DockerPanelProps) {
  background: variant === "primary" ? "var(--accent-color)"
  : variant === "danger" ? "rgba(244, 67, 54, 0.1)"
  : "var(--bg-secondary)",
- color: variant === "primary" ? "var(--text-primary, #e0e0e0)"
- : variant === "danger" ? "var(--error-color, #f44336)"
+ color: variant === "primary" ? "var(--text-primary)"
+ : variant === "danger" ? "var(--error-color)"
  : "var(--text-secondary)",
  borderWidth: variant === "danger" ? 1 : 0,
  borderStyle: "solid",
- borderColor: variant === "danger" ? "var(--error-color, #f44336)" : "transparent",
+ borderColor: variant === "danger" ? "var(--error-color)" : "transparent",
  });
 
  const terminal: React.CSSProperties = {
- background: "var(--bg-primary, #0d1117)", color: "var(--text-primary, #e6edf3)",
+ background: "var(--bg-primary)", color: "var(--text-primary)",
  border: "1px solid var(--border-color)", borderRadius: 6,
  padding: 10, fontSize: 11, lineHeight: 1.5,
  minHeight: 60, maxHeight: 260,
@@ -255,7 +255,7 @@ export function DockerPanel({ workspacePath }: DockerPanelProps) {
  onClick={() => setSelectedContainer(selectedContainer === c.id ? null : c.id)}
  style={{
  padding: "8px 10px",
- background: selectedContainer === c.id ? "var(--bg-selected, #1a2a3a)" : "var(--bg-secondary)",
+ background: selectedContainer === c.id ? "var(--bg-selected)" : "var(--bg-secondary)",
  border: `1px solid ${selectedContainer === c.id ? "var(--accent-color)" : "var(--border-color)"}`,
  borderRadius: 6, cursor: "pointer",
  }}

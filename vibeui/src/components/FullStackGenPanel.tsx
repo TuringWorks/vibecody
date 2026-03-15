@@ -53,7 +53,7 @@ const FullStackGenPanel: React.FC = () => {
   const tabStyle = (active: boolean): React.CSSProperties => ({
     padding: "6px 14px", cursor: "pointer", border: "none",
     backgroundColor: active ? "var(--accent-blue)" : "transparent",
-    color: active ? "#fff" : "var(--text-primary)",
+    color: active ? "white" : "var(--text-primary)",
     borderRadius: "4px", fontSize: 12,
   });
   const inputStyle: React.CSSProperties = {
@@ -64,7 +64,7 @@ const FullStackGenPanel: React.FC = () => {
   };
   const btnStyle: React.CSSProperties = {
     padding: "6px 14px", cursor: "pointer", border: "none", borderRadius: "4px",
-    backgroundColor: "var(--accent-blue)", color: "#fff", fontSize: 12,
+    backgroundColor: "var(--accent-blue)", color: "white", fontSize: 12,
   };
   const cardStyle: React.CSSProperties = {
     padding: "10px", marginBottom: "8px", borderRadius: "4px",
@@ -80,7 +80,7 @@ const FullStackGenPanel: React.FC = () => {
   };
   const badgeStyle = (color: string): React.CSSProperties => ({
     display: "inline-block", padding: "2px 8px", borderRadius: "10px",
-    fontSize: "11px", fontWeight: 600, backgroundColor: color, color: "#fff",
+    fontSize: "11px", fontWeight: 600, backgroundColor: color, color: "white",
   });
 
   const handleGenerate = async () => {
@@ -204,7 +204,7 @@ const FullStackGenPanel: React.FC = () => {
           onChange={e => setFeatures(e.target.value)}
           placeholder="Describe additional features (e.g., real-time chat, file uploads, admin dashboard)..." />
       </div>
-      {error && <div style={{ color: "#f44336", fontSize: 12, marginTop: 8 }}>{error}</div>}
+      {error && <div style={{ color: "var(--error-color)", fontSize: 12, marginTop: 8 }}>{error}</div>}
     </div>
   );
 
@@ -227,7 +227,7 @@ const FullStackGenPanel: React.FC = () => {
           <span>Output</span><strong style={{ fontSize: 11, wordBreak: "break-all" }}>{outputDir}/{projectName || "project"}</strong>
         </div>
       </div>
-      {error && <div style={{ color: "#f44336", fontSize: 12, marginBottom: 8, padding: "8px", background: "var(--bg-tertiary)", borderRadius: 4 }}>{error}</div>}
+      {error && <div style={{ color: "var(--error-color)", fontSize: 12, marginBottom: 8, padding: "8px", background: "var(--bg-tertiary)", borderRadius: 4 }}>{error}</div>}
       <button style={{ ...btnStyle, width: "100%", padding: "10px", opacity: generating ? 0.6 : 1 }}
         onClick={handleGenerate} disabled={generating}>
         {generating ? "Generating project files..." : "Generate Full Stack"}
@@ -281,7 +281,7 @@ const FullStackGenPanel: React.FC = () => {
               <span style={{ ...badgeStyle(layerColors[selectedFile.layer] || "#555"), marginLeft: 8 }}>{selectedFile.layer}</span>
             </div>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              {saveMsg && <span style={{ fontSize: 11, color: saveMsg === "Saved" ? "#4caf50" : "#f44336" }}>{saveMsg}</span>}
+              {saveMsg && <span style={{ fontSize: 11, color: saveMsg === "Saved" ? "var(--success-color)" : "var(--error-color)" }}>{saveMsg}</span>}
               <button style={{ ...btnStyle, opacity: saving ? 0.6 : 1 }} onClick={saveFile} disabled={saving}>
                 {saving ? "Saving..." : "Save"}
               </button>

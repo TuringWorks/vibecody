@@ -149,6 +149,7 @@ const SessionMemoryPanel = lazy(() => import("./SessionMemoryPanel").then(m => (
 const BlueTeamPanel = lazy(() => import("./BlueTeamPanel").then(m => ({ default: m.BlueTeamPanel })));
 const PurpleTeamPanel = lazy(() => import("./PurpleTeamPanel").then(m => ({ default: m.PurpleTeamPanel })));
 const IdpPanel = lazy(() => import("./IdpPanel").then(m => ({ default: m.IdpPanel })));
+const AgilePanel = lazy(() => import("./AgilePanel"));
 
 // --- Props interfaces ---
 
@@ -441,6 +442,8 @@ export function PanelHost(props: PanelHostProps) {
       return <LazyPanel Component={PurpleTeamPanel} props={{}} />;
     case "idp":
       return <LazyPanel Component={IdpPanel} props={{}} />;
+    case "agile":
+      return <LazyPanel Component={AgilePanel} props={{}} />;
     default:
       return <div style={{ padding: 16, color: "var(--text-secondary)" }}>Unknown panel: {tab}</div>;
   }

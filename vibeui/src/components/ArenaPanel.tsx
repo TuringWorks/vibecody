@@ -59,11 +59,11 @@ function ProviderSelector({
 }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "8px", flex: 1 }}>
-      <span style={{ color: "var(--text-muted, #888)", fontSize: "12px", minWidth: "14px" }}>{label}</span>
+      <span style={{ color: "var(--text-muted)", fontSize: "12px", minWidth: "14px" }}>{label}</span>
       <select
         value={provider}
         onChange={e => { onProvider(e.target.value); onModel(DEFAULT_MODELS[e.target.value] ?? ""); }}
-        style={{ background: "var(--bg-secondary, #2d2d2d)", color: "var(--text-primary, #fff)", border: "1px solid var(--border-color, #444)", borderRadius: "4px", padding: "3px 6px", fontSize: "12px" }}
+        style={{ background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "4px", padding: "3px 6px", fontSize: "12px" }}
       >
         {PROVIDERS.map(p => <option key={p} value={p}>{p}</option>)}
       </select>
@@ -71,7 +71,7 @@ function ProviderSelector({
         value={model}
         onChange={e => onModel(e.target.value)}
         placeholder="model"
-        style={{ flex: 1, background: "var(--bg-secondary, #2d2d2d)", color: "var(--text-primary, #fff)", border: "1px solid var(--border-color, #444)", borderRadius: "4px", padding: "3px 6px", fontSize: "12px", minWidth: 0 }}
+        style={{ flex: 1, background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "4px", padding: "3px 6px", fontSize: "12px", minWidth: 0 }}
       />
     </div>
   );
@@ -84,31 +84,31 @@ function BlindResponseCard({ content, side, error }: { content: string; side: "A
       flex: 1,
       display: "flex",
       flexDirection: "column",
-      border: `1px solid ${isError ? "rgba(244,67,54,0.4)" : "var(--border-color, #444)"}`,
+      border: `1px solid ${isError ? "var(--error-color)" : "var(--border-color)"}`,
       borderRadius: "6px",
       overflow: "hidden",
       minWidth: 0,
     }}>
       <div style={{
         padding: "6px 12px",
-        background: "var(--bg-secondary, #2d2d2d)",
+        background: "var(--bg-secondary)",
         display: "flex",
         alignItems: "center",
         gap: "8px",
       }}>
-        <span style={{ fontWeight: "bold", color: side === "A" ? "var(--info-color, #4fc3f7)" : "var(--accent-color, #ce93d8)" }}>
+        <span style={{ fontWeight: "bold", color: side === "A" ? "var(--info-color)" : "var(--accent-color)" }}>
           Model {side}
         </span>
-        <span style={{ color: "var(--text-muted, #888)", fontSize: "11px", fontStyle: "italic" }}>
+        <span style={{ color: "var(--text-muted)", fontSize: "11px", fontStyle: "italic" }}>
           (identity hidden)
         </span>
       </div>
       <div style={{ flex: 1, overflowY: "auto", padding: "10px 12px" }}>
         {isError ? (
-          <span style={{ color: "var(--error-color, #f44336)" }}>{error}</span>
+          <span style={{ color: "var(--error-color)" }}>{error}</span>
         ) : (
           <pre style={{ margin: 0, whiteSpace: "pre-wrap", fontFamily: "inherit", fontSize: "13px" }}>
-            {content || <span style={{ color: "var(--text-muted, #888)" }}>(empty response)</span>}
+            {content || <span style={{ color: "var(--text-muted)" }}>(empty response)</span>}
           </pre>
         )}
       </div>
@@ -234,7 +234,7 @@ export function ArenaPanel() {
       {/* Header */}
       <div style={{ fontWeight: "bold", marginBottom: "2px", display: "flex", alignItems: "center", gap: "8px" }}>
         <span>Arena Mode</span>
-        <span style={{ color: "var(--text-muted, #888)", fontSize: "11px", fontWeight: "normal" }}>
+        <span style={{ color: "var(--text-muted)", fontSize: "11px", fontWeight: "normal" }}>
           Blind A/B comparison with voting
         </span>
       </div>
@@ -254,9 +254,9 @@ export function ArenaPanel() {
         rows={3}
         style={{
           resize: "vertical",
-          background: "var(--bg-secondary, #2d2d2d)",
-          color: "var(--text-primary, #fff)",
-          border: "1px solid var(--border-color, #444)",
+          background: "var(--bg-secondary)",
+          color: "var(--text-primary)",
+          border: "1px solid var(--border-color)",
           borderRadius: "4px",
           padding: "8px",
           fontFamily: "inherit",
@@ -269,8 +269,8 @@ export function ArenaPanel() {
         disabled={loading || !prompt.trim()}
         style={{
           alignSelf: "flex-start",
-          background: loading ? "var(--bg-secondary, #2d2d2d)" : "var(--accent-color, #e65100)",
-          color: "var(--text-primary, #fff)", border: "none", borderRadius: "4px",
+          background: loading ? "var(--bg-secondary)" : "var(--accent-color)",
+          color: loading ? "var(--text-primary)" : "white", border: "none", borderRadius: "4px",
           padding: "6px 18px", cursor: loading ? "default" : "pointer",
           fontWeight: "bold",
         }}
@@ -279,7 +279,7 @@ export function ArenaPanel() {
       </button>
 
       {error && (
-        <div style={{ color: "var(--error-color, #f44336)", fontSize: "12px" }}>{error}</div>
+        <div style={{ color: "var(--error-color)", fontSize: "12px" }}>{error}</div>
       )}
 
       {/* Side-by-side blind responses */}
@@ -301,21 +301,21 @@ export function ArenaPanel() {
       {/* Vote buttons -- shown after responses arrive, before reveal */}
       {result && !voted && (
         <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-          <span style={{ color: "var(--text-muted, #888)", fontSize: "12px", alignSelf: "center" }}>Vote:</span>
-          <button onClick={() => handleVote("a")} style={voteBtnStyle("var(--info-color, #4fc3f7)")}>A is better</button>
-          <button onClick={() => handleVote("b")} style={voteBtnStyle("var(--accent-color, #ce93d8)")}>B is better</button>
-          <button onClick={() => handleVote("tie")} style={voteBtnStyle("var(--warning-color, #ffb74d)")}>Tie</button>
-          <button onClick={() => handleVote("both_bad")} style={voteBtnStyle("var(--error-color, #ef5350)")}>Both bad</button>
+          <span style={{ color: "var(--text-muted)", fontSize: "12px", alignSelf: "center" }}>Vote:</span>
+          <button onClick={() => handleVote("a")} style={voteBtnStyle("var(--info-color)")}>A is better</button>
+          <button onClick={() => handleVote("b")} style={voteBtnStyle("var(--accent-color)")}>B is better</button>
+          <button onClick={() => handleVote("tie")} style={voteBtnStyle("var(--warning-color)")}>Tie</button>
+          <button onClick={() => handleVote("both_bad")} style={voteBtnStyle("var(--error-color)")}>Both bad</button>
         </div>
       )}
 
       {/* Reveal panel -- shown after voting */}
       {revealed && result && (
         <div style={{
-          border: "1px solid var(--border-color, #444)",
+          border: "1px solid var(--border-color)",
           borderRadius: "6px",
           padding: "10px 14px",
-          background: "var(--bg-secondary, #2d2d2d)",
+          background: "var(--bg-secondary)",
         }}>
           <div style={{ fontWeight: "bold", marginBottom: "6px" }}>
             Reveal
@@ -326,19 +326,19 @@ export function ArenaPanel() {
           </div>
           <div style={{ display: "flex", gap: "20px", fontSize: "12px", flexWrap: "wrap" }}>
             <div>
-              <span style={{ color: "var(--info-color, #4fc3f7)", fontWeight: "bold" }}>Model A: </span>
+              <span style={{ color: "var(--info-color)", fontWeight: "bold" }}>Model A: </span>
               <span>{result.a.provider}/{result.a.model}</span>
               {result.a.duration_ms > 0 && (
-                <span style={{ color: "var(--text-muted, #888)", marginLeft: "6px" }}>
+                <span style={{ color: "var(--text-muted)", marginLeft: "6px" }}>
                   {result.a.duration_ms}ms{result.a.tokens != null && ` / ${result.a.tokens} tok`}
                 </span>
               )}
             </div>
             <div>
-              <span style={{ color: "var(--accent-color, #ce93d8)", fontWeight: "bold" }}>Model B: </span>
+              <span style={{ color: "var(--accent-color)", fontWeight: "bold" }}>Model B: </span>
               <span>{result.b.provider}/{result.b.model}</span>
               {result.b.duration_ms > 0 && (
-                <span style={{ color: "var(--text-muted, #888)", marginLeft: "6px" }}>
+                <span style={{ color: "var(--text-muted)", marginLeft: "6px" }}>
                   {result.b.duration_ms}ms{result.b.tokens != null && ` / ${result.b.tokens} tok`}
                 </span>
               )}
@@ -348,8 +348,8 @@ export function ArenaPanel() {
             onClick={handleSendWinner}
             style={{
               marginTop: "8px",
-              background: "var(--accent-color, #007acc)",
-              color: "var(--text-primary, #fff)", border: "none", borderRadius: "4px",
+              background: "var(--accent-color)",
+              color: "white", border: "none", borderRadius: "4px",
               padding: "4px 12px", cursor: "pointer", fontSize: "12px",
             }}
           >
@@ -360,7 +360,7 @@ export function ArenaPanel() {
 
       {/* Placeholder when idle */}
       {!result && !loading && (
-        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted, #888)", textAlign: "center" }}>
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", textAlign: "center" }}>
           Enter a prompt and click Battle to start a blind comparison.<br />
           Identities are hidden until you vote.
         </div>
@@ -368,11 +368,11 @@ export function ArenaPanel() {
 
       {/* Leaderboard */}
       {sortedStats.length > 0 && (
-        <div style={{ borderTop: "1px solid var(--border-color, #444)", paddingTop: "8px" }}>
+        <div style={{ borderTop: "1px solid var(--border-color)", paddingTop: "8px" }}>
           <div style={{ fontWeight: "bold", marginBottom: "4px", fontSize: "12px" }}>Leaderboard</div>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
             <thead>
-              <tr style={{ borderBottom: "1px solid var(--border-color, #444)", color: "var(--text-muted, #888)" }}>
+              <tr style={{ borderBottom: "1px solid var(--border-color)", color: "var(--text-muted)" }}>
                 <th style={{ textAlign: "left", padding: "3px 6px" }}>Provider</th>
                 <th style={{ textAlign: "right", padding: "3px 6px" }}>Wins</th>
                 <th style={{ textAlign: "right", padding: "3px 6px" }}>Losses</th>
@@ -383,20 +383,20 @@ export function ArenaPanel() {
             </thead>
             <tbody>
               {sortedStats.map(s => (
-                <tr key={s.provider} style={{ borderBottom: "1px solid var(--border-color, #333)" }}>
+                <tr key={s.provider} style={{ borderBottom: "1px solid var(--border-color)" }}>
                   <td style={{ padding: "3px 6px", fontWeight: "bold" }}>{s.provider}</td>
-                  <td style={{ textAlign: "right", padding: "3px 6px", color: "var(--success-color, #66bb6a)" }}>{s.wins}</td>
-                  <td style={{ textAlign: "right", padding: "3px 6px", color: "var(--error-color, #ef5350)" }}>{s.losses}</td>
-                  <td style={{ textAlign: "right", padding: "3px 6px", color: "var(--warning-color, #ffb74d)" }}>{s.ties}</td>
+                  <td style={{ textAlign: "right", padding: "3px 6px", color: "var(--success-color)" }}>{s.wins}</td>
+                  <td style={{ textAlign: "right", padding: "3px 6px", color: "var(--error-color)" }}>{s.losses}</td>
+                  <td style={{ textAlign: "right", padding: "3px 6px", color: "var(--warning-color)" }}>{s.ties}</td>
                   <td style={{ textAlign: "right", padding: "3px 6px" }}>{s.total}</td>
-                  <td style={{ textAlign: "right", padding: "3px 6px", color: "var(--info-color, #4fc3f7)" }}>
+                  <td style={{ textAlign: "right", padding: "3px 6px", color: "var(--info-color)" }}>
                     {(s.win_rate * 100).toFixed(1)}%
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <div style={{ color: "var(--text-muted, #888)", fontSize: "11px", marginTop: "4px" }}>
+          <div style={{ color: "var(--text-muted)", fontSize: "11px", marginTop: "4px" }}>
             {history.length} total vote{history.length !== 1 ? "s" : ""}
           </div>
         </div>

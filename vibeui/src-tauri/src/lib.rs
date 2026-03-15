@@ -557,6 +557,23 @@ pub fn run() {
             commands::run_security_scan,
             commands::get_security_scan_results,
             commands::get_security_scan_history,
+            // Agile Project Management
+            commands::agile_get_board,
+            commands::agile_update_card,
+            commands::agile_move_card,
+            commands::agile_delete_card,
+            commands::agile_get_sprints,
+            commands::agile_create_sprint,
+            commands::agile_update_sprint,
+            commands::agile_get_backlog,
+            commands::agile_create_story,
+            commands::agile_update_story,
+            commands::agile_delete_story,
+            commands::agile_get_ceremonies,
+            commands::agile_save_ceremony,
+            commands::agile_get_metrics,
+            commands::agile_ai_analyze,
+            commands::agile_update_wip_limits,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

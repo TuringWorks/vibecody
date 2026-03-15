@@ -141,7 +141,7 @@ export function DepsPanel({ workspacePath }: DepsPanelProps) {
             onClick={handleSuspend}
             style={{
               padding: "6px 16px", fontSize: 12, fontWeight: 600,
-              background: "#c62828", color: "#fff",
+              background: "var(--error-color)", color: "white",
               border: "none", borderRadius: 6, cursor: "pointer",
             }}
           >
@@ -154,7 +154,7 @@ export function DepsPanel({ workspacePath }: DepsPanelProps) {
             style={{
               padding: "6px 16px", fontSize: 12, fontWeight: 600,
               background: !manager ? "var(--bg-tertiary)" : "var(--accent-blue)",
-              color: "#fff", border: "none", borderRadius: 6,
+              color: "white", border: "none", borderRadius: 6,
               cursor: !manager ? "not-allowed" : "pointer",
             }}
           >
@@ -178,10 +178,10 @@ export function DepsPanel({ workspacePath }: DepsPanelProps) {
             border: "1px solid var(--border-color)",
           }}>
             <span>Total: <strong>{result.total}</strong></span>
-            <span style={{ color: result.outdated > 0 ? "var(--warning-color, #ff9800)" : "inherit" }}>
+            <span style={{ color: result.outdated > 0 ? "var(--warning-color)" : "inherit" }}>
               Outdated: <strong>{result.outdated}</strong>
             </span>
-            <span style={{ color: result.vulnerable > 0 ? "var(--error-color, #f44336)" : "inherit" }}>
+            <span style={{ color: result.vulnerable > 0 ? "var(--error-color)" : "inherit" }}>
               Vulnerable: <strong>{result.vulnerable}</strong>
             </span>
           </div>
@@ -239,16 +239,16 @@ export function DepsPanel({ workspacePath }: DepsPanelProps) {
                   </span>
                   <span style={{ textAlign: "right", fontFamily: "monospace", opacity: 0.7 }}>{dep.current}</span>
                   <span style={{ textAlign: "right", fontFamily: "monospace", opacity: 0.7 }}>{dep.wanted}</span>
-                  <span style={{ textAlign: "right", fontFamily: "monospace", color: dep.is_outdated ? "var(--warning-color, #ff9800)" : "inherit" }}>
+                  <span style={{ textAlign: "right", fontFamily: "monospace", color: dep.is_outdated ? "var(--warning-color)" : "inherit" }}>
                     {dep.latest}
                   </span>
                   <span style={{ textAlign: "center", fontSize: 10 }}>
                     {dep.is_vulnerable && (
-                      <span title={dep.vulnerability || "Vulnerable"} style={{ color: "var(--text-danger, #f38ba8)", marginRight: 4 }}>
+                      <span title={dep.vulnerability || "Vulnerable"} style={{ color: "var(--text-danger)", marginRight: 4 }}>
                         &#9888;
                       </span>
                     )}
-                    {dep.is_outdated && <span style={{ color: "var(--text-warning-alt, #fab387)" }}>&#11014; outdated</span>}
+                    {dep.is_outdated && <span style={{ color: "var(--text-warning-alt)" }}>&#11014; outdated</span>}
                   </span>
                   <span style={{ textAlign: "center" }}>
                     {dep.is_outdated && (
@@ -259,7 +259,7 @@ export function DepsPanel({ workspacePath }: DepsPanelProps) {
                         style={{
                           background: "none", border: "1px solid var(--border-color)",
                           borderRadius: 4, padding: "1px 6px", fontSize: 10,
-                          color: "var(--text-info, #89b4fa)", cursor: "pointer",
+                          color: "var(--text-info)", cursor: "pointer",
                         }}
                       >
                         {upgrading.has(dep.name) ? "..." : "Up"}
@@ -280,7 +280,7 @@ export function DepsPanel({ workspacePath }: DepsPanelProps) {
           <div>
             <button
               onClick={() => setShowRaw(!showRaw)}
-              style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: "var(--text-info, #89b4fa)", padding: 0, textDecoration: "underline" }}
+              style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: "var(--text-info)", padding: 0, textDecoration: "underline" }}
             >
               {showRaw ? "Hide raw output" : "Show raw output"}
             </button>

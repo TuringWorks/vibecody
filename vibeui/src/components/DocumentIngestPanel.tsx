@@ -140,7 +140,7 @@ export function DocumentIngestPanel() {
               <button
                 onClick={handleIngestFile}
                 disabled={isLoading || !filePath.trim()}
-                style={{ flex: 1, background: "var(--accent)", color: "#fff", border: "none", borderRadius: 4, padding: "8px 0", cursor: "pointer", fontSize: 12, fontWeight: 600, opacity: isLoading || !filePath.trim() ? 0.5 : 1 }}
+                style={{ flex: 1, background: "var(--accent)", color: "white", border: "none", borderRadius: 4, padding: "8px 0", cursor: "pointer", fontSize: 12, fontWeight: 600, opacity: isLoading || !filePath.trim() ? 0.5 : 1 }}
               >
                 {isLoading ? "Ingesting..." : "Ingest File"}
               </button>

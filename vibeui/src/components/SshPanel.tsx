@@ -144,7 +144,7 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  const TAB_STYLE = (active: boolean) => ({
  padding: "6px 14px", fontSize: 12, cursor: "pointer",
  background: active ? "var(--accent-color)" : "transparent",
- color: active ? "var(--text-primary, #e0e0e0)" : "var(--text-secondary)",
+ color: active ? "var(--text-primary)" : "var(--text-secondary)",
  border: "none", borderBottom: active ? "2px solid var(--accent-color)" : "2px solid transparent",
  fontWeight: active ? 600 : 400,
  });
@@ -176,7 +176,7 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  {error && (
  <div style={{ margin: "8px 12px" }}>
  <StatusMessage variant="error" message={error} inline />
- <button onClick={() => setError(null)} style={{ position: "relative", top: -26, float: "right", background: "none", border: "none", color: "var(--text-danger, #f38ba8)", cursor: "pointer" }}>✕</button>
+ <button onClick={() => setError(null)} style={{ position: "relative", top: -26, float: "right", background: "none", border: "none", color: "var(--error-color)", cursor: "pointer" }}>✕</button>
  </div>
  )}
 
@@ -188,7 +188,7 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  <button
  onClick={() => { setEditingProfile({ ...BLANK_PROFILE }); setIsNew(true); }}
  style={{
- padding: "5px 12px", fontSize: 11, background: "var(--accent-color, #007acc)", color: "var(--text-primary, #e0e0e0)",
+ padding: "5px 12px", fontSize: 11, background: "var(--accent-color)", color: "var(--text-primary)",
  border: "none", borderRadius: 4, cursor: "pointer",
  }}
  >
@@ -204,7 +204,7 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  </button>
  <button
  onClick={() => deleteProfile(selected.id)}
- style={{ padding: "5px 12px", fontSize: 11, background: "rgba(244, 67, 54, 0.1)", border: "1px solid var(--error-color, #f44336)", borderRadius: 4, color: "var(--error-color, #f44336)", cursor: "pointer" }}
+ style={{ padding: "5px 12px", fontSize: 11, background: "rgba(244, 67, 54, 0.1)", border: "1px solid var(--error-color)", borderRadius: 4, color: "var(--error-color)", cursor: "pointer" }}
  >
  Delete
  </button>
@@ -228,7 +228,7 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  style={{
  padding: "9px 12px", borderRadius: 6, cursor: "pointer",
  background: selectedId === p.id ? "rgba(99,102,241,0.12)" : "var(--bg-secondary)",
- border: `1px solid ${selectedId === p.id ? "var(--accent-color, #007acc)" : "var(--border-color)"}`,
+ border: `1px solid ${selectedId === p.id ? "var(--accent-color)" : "var(--border-color)"}`,
  display: "flex", alignItems: "center", gap: 10,
  }}
  >
@@ -237,12 +237,12 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  <div style={{ fontSize: 12, fontWeight: 600 }}>{p.name}</div>
  <div style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "monospace" }}>
  {p.user}@{p.host}:{p.port}
- {p.key_path && <span style={{ marginLeft: 6, color: "var(--text-success, #a6e3a1)" }}></span>}
+ {p.key_path && <span style={{ marginLeft: 6, color: "var(--success-color)" }}></span>}
  </div>
  </div>
  <button
  onClick={(e) => { e.stopPropagation(); setSelectedId(p.id); setTab("run"); }}
- style={{ padding: "3px 10px", fontSize: 10, background: "var(--accent-color, #007acc)", color: "var(--text-primary, #e0e0e0)", border: "none", borderRadius: 4, cursor: "pointer" }}
+ style={{ padding: "3px 10px", fontSize: 10, background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: 4, cursor: "pointer" }}
  >
  Connect →
  </button>
@@ -289,7 +289,7 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
  <button
  onClick={saveProfile}
- style={{ padding: "6px 16px", fontSize: 12, background: "var(--accent-color, #007acc)", color: "var(--text-primary, #e0e0e0)", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
+ style={{ padding: "6px 16px", fontSize: 12, background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
  >
  Save
  </button>
@@ -371,8 +371,8 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  disabled={running || !selectedId || !command.trim()}
  style={{
  padding: "6px 16px", fontSize: 12, fontWeight: 600,
- background: running ? "var(--bg-secondary)" : "var(--accent-color, #007acc)",
- color: running ? "var(--text-muted)" : "var(--text-primary, #e0e0e0)",
+ background: running ? "var(--bg-secondary)" : "var(--accent-color)",
+ color: running ? "var(--text-muted)" : "var(--text-primary)",
  border: "none", borderRadius: 4,
  cursor: running || !selectedId ? "not-allowed" : "pointer",
  }}
@@ -386,8 +386,8 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  <div style={{
  padding: "5px 10px", borderRadius: 4, fontSize: 11, fontWeight: 600,
  background: result.success ? "rgba(166,227,161,0.1)" : "rgba(243,139,168,0.1)",
- color: result.success ? "var(--success-color, #4caf50)" : "var(--error-color, #f44336)",
- border: `1px solid ${result.success ? "var(--success-color, #4caf50)" : "var(--error-color, #f44336)"}`,
+ color: result.success ? "var(--success-color)" : "var(--error-color)",
+ border: `1px solid ${result.success ? "var(--success-color)" : "var(--error-color)"}`,
  display: "flex", justifyContent: "space-between",
  }}>
  <span>{result.success ? "Success" : ` Exit ${result.exit_code}`}</span>
@@ -400,7 +400,7 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  <div
  ref={logRef}
  style={{
- background: "var(--bg-primary, #0d1117)", borderRadius: 6, padding: "8px 10px",
+ background: "var(--bg-primary)", borderRadius: 6, padding: "8px 10px",
  fontFamily: "monospace", fontSize: 11, lineHeight: 1.5,
  overflow: "auto", maxHeight: 320,
  border: "1px solid var(--border-color)",
@@ -411,15 +411,15 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  <div
  key={i}
  style={{
- color: line.startsWith("$ ssh") ? "var(--info-color, #2196f3)"
- : line.startsWith("[Exit") ? (line.includes("Exit 0") ? "var(--success-color, #4caf50)" : "var(--error-color, #f44336)")
- : "var(--text-primary, #e0e0e0)",
+ color: line.startsWith("$ ssh") ? "var(--accent-color)"
+ : line.startsWith("[Exit") ? (line.includes("Exit 0") ? "var(--success-color)" : "var(--error-color)")
+ : "var(--text-primary)",
  }}
  >
  {line}
  </div>
  ))}
- {running && <div style={{ color: "var(--info-color, #2196f3)" }}>▌</div>}
+ {running && <div style={{ color: "var(--accent-color)" }}>▌</div>}
  </div>
  )}
 

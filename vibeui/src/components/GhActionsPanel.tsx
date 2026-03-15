@@ -153,7 +153,7 @@ const GhActionsPanel: React.FC = () => {
             <div key={i} style={{ ...card, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div>
                 <strong>{s.name}</strong>
-                {s.required && <span style={{ marginLeft: "6px", fontSize: "11px", color: "#f85149" }}>required</span>}
+                {s.required && <span style={{ marginLeft: "6px", fontSize: "11px", color: "var(--error-color)" }}>required</span>}
                 <div style={{ opacity: 0.7, fontSize: "12px", marginTop: "2px" }}>{s.description}</div>
               </div>
             </div>

@@ -132,7 +132,7 @@ const triggerIcons: Record<TriggerSource, string> = {
 
 const statusColors: Record<string, string> = {
   queued: 'var(--vp-c-text-2)', running: 'var(--vp-c-brand)',
-  completed: 'var(--vp-c-green-1, #10b981)', failed: 'var(--vp-c-red-1, #ef4444)',
+  completed: 'var(--vp-c-green-1)', failed: 'var(--vp-c-red-1)',
   cancelled: 'var(--vp-c-text-3)',
 };
 
@@ -174,14 +174,14 @@ const AutomationsPanel: React.FC = () => {
           <button key={t} onClick={() => setTab(t)} style={{
             padding: '6px 16px', border: 'none', cursor: 'pointer', fontSize: 13,
             background: tab === t ? 'var(--vp-c-brand)' : 'transparent',
-            color: tab === t ? '#fff' : 'var(--vp-c-text-2)', borderRadius: '6px 6px 0 0',
+            color: tab === t ? 'var(--text-primary)' : 'var(--vp-c-text-2)', borderRadius: '6px 6px 0 0',
           }}>
             {t.charAt(0).toUpperCase() + t.slice(1)}
           </button>
         ))}
         <button onClick={() => setShowCreateModal(!showCreateModal)} style={{
           marginLeft: 'auto', padding: '6px 14px', border: 'none', cursor: 'pointer',
-          background: 'var(--vp-c-green-1, #10b981)', color: '#fff', borderRadius: 6, fontSize: 13,
+          background: 'var(--vp-c-green-1)', color: 'var(--text-primary)', borderRadius: 6, fontSize: 13,
         }}>
           + New Rule
         </button>
@@ -228,7 +228,7 @@ const AutomationsPanel: React.FC = () => {
             </label>
           </div>
           <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-            <button style={{ padding: '6px 14px', background: 'var(--vp-c-brand)', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' }}>Create</button>
+            <button style={{ padding: '6px 14px', background: 'var(--vp-c-brand)', color: 'var(--text-primary)', border: 'none', borderRadius: 4, cursor: 'pointer' }}>Create</button>
             <button onClick={() => setShowCreateModal(false)} style={{ padding: '6px 14px', background: 'var(--vp-c-bg)', color: 'var(--vp-c-text-2)', border: '1px solid var(--vp-c-divider)', borderRadius: 4, cursor: 'pointer' }}>Cancel</button>
           </div>
         </div>
@@ -246,7 +246,7 @@ const AutomationsPanel: React.FC = () => {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                 <span style={{
                   display: 'inline-block', padding: '2px 6px', borderRadius: 4, fontSize: 11,
-                  fontWeight: 700, background: 'var(--vp-c-brand)', color: '#fff',
+                  fontWeight: 700, background: 'var(--vp-c-brand)', color: 'var(--text-primary)',
                 }}>{triggerIcons[rule.trigger]}</span>
                 <strong>{rule.name}</strong>
                 <span style={{ fontSize: 11, color: 'var(--vp-c-text-3)', marginLeft: 'auto' }}>
@@ -277,7 +277,7 @@ const AutomationsPanel: React.FC = () => {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                 <span style={{
                   fontSize: 11, padding: '1px 6px', borderRadius: 3,
-                  background: statusColors[task.status], color: '#fff', fontWeight: 600,
+                  background: statusColors[task.status], color: 'var(--text-primary)', fontWeight: 600,
                 }}>{task.status}</span>
                 <span style={{ fontSize: 12, fontFamily: 'monospace', color: 'var(--vp-c-text-3)' }}>{task.taskId}</span>
                 <span style={{ fontSize: 11, color: 'var(--vp-c-text-3)', marginLeft: 'auto' }}>{task.createdAt}</span>
