@@ -788,6 +788,18 @@ function App() {
     }
   };
 
+  const handlePanelOpenFile = async (path: string, line?: number) => {
+    await openFile(path);
+    // Small delay to let Monaco mount/switch to the new file
+    setTimeout(() => {
+      if (line && editorRef.current) {
+        editorRef.current.revealLineInCenter(line);
+        editorRef.current.setPosition({ lineNumber: line, column: 1 });
+        editorRef.current.focus();
+      }
+    }, 100);
+  };
+
   // Define commands for command palette
   const commands: Command[] = [
     // File operations
@@ -1462,6 +1474,7 @@ function App() {
                     currentFile={currentFile}
                     workspacePath={workspaceFolders[0] || null}
                     onPendingWrite={handlePendingWrite}
+                    onOpenFile={handlePanelOpenFile}
                     onInjectContext={(text: string) => {
                       setAiPanelTab("chat");
                       window.dispatchEvent(new CustomEvent("vibeui:inject-context", { detail: text }));

@@ -162,6 +162,7 @@ interface PanelHostProps {
   workspacePath: string | null;
   onPendingWrite: (path: string, content: string) => void;
   onInjectContext: (text: string) => void;
+  onOpenFile?: (path: string, line?: number) => void;
   collab: {
     connected: boolean;
     roomId: string | null;
@@ -174,7 +175,7 @@ interface PanelHostProps {
 
 /** Renders the active panel with lazy loading + per-panel ErrorBoundary. */
 export function PanelHost(props: PanelHostProps) {
-  const { tab, selectedProvider, availableProviders, editorContent, fileTree, currentFile, workspacePath, onPendingWrite, onInjectContext, collab } = props;
+  const { tab, selectedProvider, availableProviders, editorContent, fileTree, currentFile, workspacePath, onPendingWrite, onInjectContext, onOpenFile, collab } = props;
   const wp = workspacePath;
 
   switch (tab) {
@@ -223,7 +224,7 @@ export function PanelHost(props: PanelHostProps) {
     case "steering":
       return <LazyPanel Component={SteeringPanel} props={{ workspaceRoot: wp || undefined }} />;
     case "bugbot":
-      return <LazyPanel Component={BugBotPanel} props={{ workspacePath: wp || undefined }} />;
+      return <LazyPanel Component={BugBotPanel} props={{ workspacePath: wp || undefined, onOpenFile }} />;
     case "redteam":
       return <LazyPanel Component={RedTeamPanel} props={{ workspacePath: wp, provider: selectedProvider }} />;
     case "tests":

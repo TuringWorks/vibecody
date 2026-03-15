@@ -16,6 +16,7 @@ interface BugReport {
 
 interface BugBotPanelProps {
  workspacePath?: string;
+ onOpenFile?: (path: string, line?: number) => void;
 }
 
 const SEVERITY_COLOR: Record<string, string> = {
@@ -42,7 +43,7 @@ const CATEGORY_LABEL: Record<string, string> = {
  smell: "Code Smell",
 };
 
-export function BugBotPanel({ workspacePath }: BugBotPanelProps) {
+export function BugBotPanel({ workspacePath, onOpenFile }: BugBotPanelProps) {
  const [reports, setReports] = useState<BugReport[]>([]);
  const [scanning, setScanning] = useState(false);
  const [scanScope, setScanScope] = useState("workspace");
@@ -271,7 +272,19 @@ export function BugBotPanel({ workspacePath }: BugBotPanelProps) {
  {CATEGORY_LABEL[report.category] || report.category}
  </span>
  {report.file_path && (
- <span style={{ fontSize: 10, color: "var(--text-secondary)", fontFamily: "monospace" }}>
+ <span
+ onClick={(e) => {
+ e.stopPropagation();
+ if (onOpenFile) {
+ const fullPath = workspacePath && !report.file_path!.startsWith("/")
+ ? `${workspacePath}/${report.file_path}`
+ : report.file_path!;
+ onOpenFile(fullPath, report.line_hint ?? undefined);
+ }
+ }}
+ style={{ fontSize: 10, color: "var(--accent-blue, #89b4fa)", fontFamily: "monospace", cursor: onOpenFile ? "pointer" : "default", textDecoration: onOpenFile ? "underline" : "none" }}
+ title="Open in editor"
+ >
  {report.file_path}{report.line_hint ? `:${report.line_hint}` : ""}
  </span>
  )}
