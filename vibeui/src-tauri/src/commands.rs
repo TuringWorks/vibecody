@@ -123,6 +123,8 @@ pub struct AppState {
     pub mock_request_log: Arc<Mutex<Vec<MockRequest>>>,
     /// Sub-agent registry (Phase: SubAgent management).
     pub sub_agents: Arc<Mutex<Vec<SubAgentDto>>>,
+    /// Active agent team (Phase: Agent Teams).
+    pub active_team: Arc<Mutex<Option<vibe_ai::agent_team::AgentTeam>>>,
 }
 
 const MAX_TERMINAL_LINES: usize = 500;
@@ -14654,6 +14656,123 @@ pub async fn start_agent_team(
 
     let info = team_to_info(&team).await;
 
+    // Store the team in AppState so get_team_status works
+    {
+        let mut active = state.active_team.lock().await;
+        *active = Some(team);
+    }
+
+    // Spawn background workers to execute each task via AI
+    let chat_engine = state.chat_engine.clone();
+    let active_team = state.active_team.clone();
+    let app = app_handle.clone();
+    let goal_clone = goal.clone();
+
+    tokio::spawn(async move {
+        use vibe_ai::agent_team::*;
+
+        let team_guard = active_team.lock().await;
+        let team = match team_guard.as_ref() {
+            Some(t) => t,
+            None => return,
+        };
+
+        let task_list: Vec<(String, String, String)> = {
+            let tasks = team.tasks.lock().await;
+            tasks.iter().map(|t| (t.id.clone(), t.agent_id.clone(), t.description.clone())).collect()
+        };
+        let bus = team.bus.clone();
+        drop(team_guard);
+
+        for (task_id, agent_id, description) in task_list {
+            // Mark task InProgress
+            {
+                let team_guard = active_team.lock().await;
+                if let Some(team) = team_guard.as_ref() {
+                    let mut tasks = team.tasks.lock().await;
+                    if let Some(t) = tasks.iter_mut().find(|t| t.id == task_id) {
+                        t.status = TeamTaskStatus::InProgress;
+                    }
+                }
+            }
+
+            let _ = bus.send(TeamMessage::new(
+                &agent_id,
+                TeamMessageType::Status,
+                &format!("Starting: {}", description),
+            )).await;
+
+            let _ = app.emit("team:updated", &task_id);
+
+            // Execute via AI
+            let result = {
+                let engine = chat_engine.lock().await;
+                let prompt = format!(
+                    "You are agent '{}' on a team working toward: {}\n\n\
+                     Your assigned sub-task: {}\n\n\
+                     Complete this sub-task. Provide a brief result summary (1-3 sentences).",
+                    agent_id, goal_clone, description
+                );
+                let messages = vec![vibe_ai::Message {
+                    role: vibe_ai::MessageRole::User,
+                    content: prompt,
+                }];
+                engine.chat(&messages, None).await
+            };
+
+            // Update task status
+            {
+                let team_guard = active_team.lock().await;
+                if let Some(team) = team_guard.as_ref() {
+                    let mut tasks = team.tasks.lock().await;
+                    if let Some(t) = tasks.iter_mut().find(|t| t.id == task_id) {
+                        match &result {
+                            Ok(response) => {
+                                let summary = response.lines().next().unwrap_or("Done").to_string();
+                                t.status = TeamTaskStatus::Completed;
+                                t.result = Some(if summary.len() > 300 {
+                                    format!("{}...", &summary[..300])
+                                } else {
+                                    summary.clone()
+                                });
+                                let _ = bus.send(TeamMessage::new(
+                                    &agent_id,
+                                    TeamMessageType::Finding,
+                                    &format!("Completed: {}", t.result.as_deref().unwrap_or("")),
+                                )).await;
+                            }
+                            Err(e) => {
+                                t.status = TeamTaskStatus::Failed;
+                                t.result = Some(format!("Error: {}", e));
+                                let _ = bus.send(TeamMessage::new(
+                                    &agent_id,
+                                    TeamMessageType::Challenge,
+                                    &format!("Failed: {}", e),
+                                )).await;
+                            }
+                        }
+                    }
+                }
+            }
+
+            let _ = app.emit("team:updated", &task_id);
+        }
+
+        // Mark team complete
+        {
+            let team_guard = active_team.lock().await;
+            if let Some(team) = team_guard.as_ref() {
+                team.set_status("complete").await;
+                let _ = bus.send(TeamMessage::new(
+                    "system",
+                    TeamMessageType::Status,
+                    "All tasks completed. Team work finished.",
+                )).await;
+            }
+        }
+        let _ = app.emit("team:updated", "done");
+    });
+
     Ok(info)
 }
 
@@ -14661,11 +14780,13 @@ pub async fn start_agent_team(
 #[tauri::command]
 pub async fn get_team_status(
     team_id: String,
+    state: tauri::State<'_, AppState>,
 ) -> Result<AgentTeamInfo, String> {
-    // For now, return a stub — real implementation would look up the team
-    // from a registry. The team creation stores the team in-memory and
-    // the frontend tracks it via events.
-    Err(format!("Team {} not found in active registry", team_id))
+    let active = state.active_team.lock().await;
+    match active.as_ref() {
+        Some(team) if team.id == team_id => Ok(team_to_info(team).await),
+        _ => Err(format!("Team {} not found in active registry", team_id)),
+    }
 }
 
 /// Send a message on the team bus (from the user/UI to agents).
@@ -14673,10 +14794,26 @@ pub async fn get_team_status(
 pub async fn send_team_message(
     team_id: String,
     content: String,
+    state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
-    let _ = (team_id, content);
-    // In a full implementation, this would look up the team bus and send.
-    // For now, the team bus is managed in-memory by start_agent_team.
+    use vibe_ai::agent_team::*;
+    let active = state.active_team.lock().await;
+    match active.as_ref() {
+        Some(team) if team.id == team_id => {
+            team.bus.send(TeamMessage::new("user", TeamMessageType::Request, &content))
+                .await.map_err(|e| e.to_string())
+        }
+        _ => Err(format!("Team {} not found", team_id)),
+    }
+}
+
+/// Dismiss the active team so a new one can be created.
+#[tauri::command]
+pub async fn dismiss_team(
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    let mut active = state.active_team.lock().await;
+    *active = None;
     Ok(())
 }
 

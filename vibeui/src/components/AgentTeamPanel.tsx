@@ -4,8 +4,9 @@
  * Launch a team of agents that collaborate on a shared goal.
  * Shows task decomposition, agent cards, and inter-agent message feed.
  */
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 
 interface TeamTask {
   id: string;
@@ -59,6 +60,23 @@ export function AgentTeamPanel() {
   const [team, setTeam] = useState<TeamInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const teamIdRef = useRef<string | null>(null);
+
+  const refreshTeam = useCallback(async () => {
+    if (!teamIdRef.current) return;
+    try {
+      const info = await invoke<TeamInfo>("get_team_status", { teamId: teamIdRef.current });
+      setTeam(info);
+    } catch {
+      // Team may have been dismissed
+    }
+  }, []);
+
+  // Listen for team:updated events from the backend
+  useEffect(() => {
+    const unlisten = listen("team:updated", () => { refreshTeam(); });
+    return () => { unlisten.then((f) => f()); };
+  }, [refreshTeam]);
 
   const handleCreate = async () => {
     if (!goal.trim()) { setError("Goal is required"); return; }
@@ -69,11 +87,20 @@ export function AgentTeamPanel() {
         goal: goal.trim(),
         memberCount,
       });
+      teamIdRef.current = info.id;
       setTeam(info);
     } catch (e) {
       setError(String(e));
     }
     setLoading(false);
+  };
+
+  const handleDismiss = async () => {
+    await invoke("dismiss_team").catch(() => {});
+    teamIdRef.current = null;
+    setTeam(null);
+    setGoal("");
+    setTab("overview");
   };
 
   return (
@@ -86,13 +113,18 @@ export function AgentTeamPanel() {
         <span style={{ fontSize: 14, fontWeight: 700 }}>Agent Teams</span>
         <div style={{ flex: 1 }} />
         {team && (
-          <span style={{
-            fontSize: 10, padding: "2px 8px", borderRadius: 10, fontWeight: 600,
-            background: team.status === "working" ? "rgba(137,180,250,0.15)" : "rgba(108,112,134,0.15)",
-            color: team.status === "working" ? "var(--info-color)" : "var(--text-secondary)",
-          }}>
-            {team.status}
-          </span>
+          <>
+            <span style={{
+              fontSize: 10, padding: "2px 8px", borderRadius: 10, fontWeight: 600,
+              background: team.status === "working" ? "rgba(137,180,250,0.15)" : team.status === "complete" ? "rgba(52,211,153,0.15)" : "rgba(108,112,134,0.15)",
+              color: team.status === "working" ? "var(--info-color)" : team.status === "complete" ? "var(--success-color)" : "var(--text-secondary)",
+            }}>
+              {team.status}
+            </span>
+            <button onClick={handleDismiss} style={{ ...btnStyle, fontSize: 10, padding: "2px 8px" }}>
+              New Team
+            </button>
+          </>
         )}
       </div>
 

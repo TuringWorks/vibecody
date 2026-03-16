@@ -110,6 +110,7 @@ pub fn run() {
             mock_routes: Arc::new(Mutex::new(Vec::new())),
             mock_request_log: Arc::new(Mutex::new(Vec::new())),
             sub_agents: Arc::new(Mutex::new(Vec::new())),
+            active_team: Arc::new(Mutex::new(None)),
         })
         .invoke_handler(tauri::generate_handler![
             commands::read_file,
@@ -429,6 +430,7 @@ pub fn run() {
             commands::start_agent_team,
             commands::get_team_status,
             commands::send_team_message,
+            commands::dismiss_team,
             // Phase 8.2: CI/CD Review Bot
             commands::get_ci_review_config,
             commands::save_ci_review_config,
