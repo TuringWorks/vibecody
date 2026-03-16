@@ -839,6 +839,221 @@ export const THEMES: ThemeDef[] = [
       "--border-color": "rgba(42, 128, 112, 0.10)", "--error-color": "#b04040",
     },
   },
+
+  // ═══════════════════════════════════════════════════════════════════
+  //  Apple MacBook & iPhone — Product Color Inspired Themes
+  // ═══════════════════════════════════════════════════════════════════
+
+  // ── Pair: Space Black (MacBook Pro M3 Pro/Max) / Silver (MacBook Pro classic) ──
+  {
+    id: "dark-mac-spaceblack", name: "Space Black", category: "standard", mode: "dark", pairId: "mac-spaceblack",
+    preview: { bg: "#0c0c0e", fg: "#d8d8dc", accent: "#6eaadc", secondary: "#18181c" },
+    vars: {
+      "--bg-primary": "#0c0c0e", "--bg-secondary": "#18181c", "--bg-tertiary": "#222228", "--bg-elevated": "#2c2c34",
+      "--text-primary": "#d8d8dc", "--text-secondary": "#7a7a86", "--accent-blue": "#6eaadc", "--accent-green": "#5ec27a",
+      "--accent-purple": "#b48cda", "--accent-gold": "#e2b84a", "--accent-rose": "#e86070",
+      "--border-color": "rgba(110, 170, 220, 0.08)", "--error-color": "#e86070",
+    },
+  },
+  {
+    id: "light-mac-spaceblack", name: "MacBook Silver", category: "standard", mode: "light", pairId: "mac-spaceblack",
+    preview: { bg: "#f4f4f6", fg: "#1c1c22", accent: "#3478f6", secondary: "#e8e8ec" },
+    vars: {
+      "--bg-primary": "#f4f4f6", "--bg-secondary": "#e8e8ec", "--bg-tertiary": "#d8d8de", "--bg-elevated": "#ffffff",
+      "--text-primary": "#1c1c22", "--text-secondary": "#636370", "--accent-blue": "#3478f6", "--accent-green": "#30a856",
+      "--accent-purple": "#8944da", "--accent-gold": "#c08a10", "--accent-rose": "#d63852",
+      "--border-color": "rgba(52, 120, 246, 0.08)", "--error-color": "#d63852",
+    },
+  },
+  // ── Pair: Midnight (MacBook Air M2/M3 — dark navy) / Starlight (MacBook Air warm champagne) ──
+  {
+    id: "dark-mac-midnight", name: "Mac Midnight", category: "standard", mode: "dark", pairId: "mac-midnight",
+    preview: { bg: "#0a0c14", fg: "#d0d4e0", accent: "#4a78c0", secondary: "#141828" },
+    vars: {
+      "--bg-primary": "#0a0c14", "--bg-secondary": "#141828", "--bg-tertiary": "#1c2238", "--bg-elevated": "#262e48",
+      "--text-primary": "#d0d4e0", "--text-secondary": "#6a72a8", "--accent-blue": "#4a78c0", "--accent-green": "#48a870",
+      "--accent-purple": "#9a7cc8", "--accent-gold": "#d4aa3a", "--accent-rose": "#d85868",
+      "--border-color": "rgba(74, 120, 192, 0.10)", "--error-color": "#d85868",
+    },
+  },
+  {
+    id: "light-mac-midnight", name: "Starlight", category: "standard", mode: "light", pairId: "mac-midnight",
+    preview: { bg: "#f8f4ee", fg: "#2a2620", accent: "#a0782a", secondary: "#eee8de" },
+    vars: {
+      "--bg-primary": "#f8f4ee", "--bg-secondary": "#eee8de", "--bg-tertiary": "#e0d8ca", "--bg-elevated": "#fefaf4",
+      "--text-primary": "#2a2620", "--text-secondary": "#706452", "--accent-blue": "#a0782a", "--accent-green": "#5a8a40",
+      "--accent-purple": "#8a6a98", "--accent-gold": "#b08a18", "--accent-rose": "#b84838",
+      "--border-color": "rgba(160, 120, 42, 0.10)", "--error-color": "#b84838",
+    },
+  },
+  // ── Pair: Space Gray (classic MacBook) ──
+  {
+    id: "dark-mac-spacegray", name: "Space Gray", category: "standard", mode: "dark", pairId: "mac-spacegray",
+    preview: { bg: "#111113", fg: "#d4d4d8", accent: "#8c8ca0", secondary: "#1c1c20" },
+    vars: {
+      "--bg-primary": "#111113", "--bg-secondary": "#1c1c20", "--bg-tertiary": "#26262c", "--bg-elevated": "#303038",
+      "--text-primary": "#d4d4d8", "--text-secondary": "#78788a", "--accent-blue": "#8c8ca0", "--accent-green": "#5ab872",
+      "--accent-purple": "#a888c0", "--accent-gold": "#d0a840", "--accent-rose": "#d86068",
+      "--border-color": "rgba(140, 140, 160, 0.10)", "--error-color": "#d86068",
+    },
+  },
+  {
+    id: "light-mac-spacegray", name: "iMac White", category: "standard", mode: "light", pairId: "mac-spacegray",
+    preview: { bg: "#f6f6f8", fg: "#1e1e24", accent: "#5a5a72", secondary: "#eaeaee" },
+    vars: {
+      "--bg-primary": "#f6f6f8", "--bg-secondary": "#eaeaee", "--bg-tertiary": "#dcdce2", "--bg-elevated": "#ffffff",
+      "--text-primary": "#1e1e24", "--text-secondary": "#5e5e70", "--accent-blue": "#5a5a72", "--accent-green": "#3a8a4e",
+      "--accent-purple": "#6e5a88", "--accent-gold": "#9a8018", "--accent-rose": "#b84048",
+      "--border-color": "rgba(90, 90, 114, 0.08)", "--error-color": "#b84048",
+    },
+  },
+  // ── Pair: Black Titanium (iPhone 15/16 Pro) / White Titanium ──
+  {
+    id: "dark-iphone-blackti", name: "Black Titanium", category: "standard", mode: "dark", pairId: "iphone-blackti",
+    preview: { bg: "#0e0e10", fg: "#d6d4d0", accent: "#8a8680", secondary: "#1a1a1e" },
+    vars: {
+      "--bg-primary": "#0e0e10", "--bg-secondary": "#1a1a1e", "--bg-tertiary": "#24242a", "--bg-elevated": "#2e2e36",
+      "--text-primary": "#d6d4d0", "--text-secondary": "#807c76", "--accent-blue": "#8a8680", "--accent-green": "#68b070",
+      "--accent-purple": "#a090b8", "--accent-gold": "#d0a848", "--accent-rose": "#d46058",
+      "--border-color": "rgba(138, 134, 128, 0.10)", "--error-color": "#d46058",
+    },
+  },
+  {
+    id: "light-iphone-blackti", name: "White Titanium", category: "standard", mode: "light", pairId: "iphone-blackti",
+    preview: { bg: "#f6f4f2", fg: "#22201e", accent: "#706c68", secondary: "#eae8e4" },
+    vars: {
+      "--bg-primary": "#f6f4f2", "--bg-secondary": "#eae8e4", "--bg-tertiary": "#d8d4d0", "--bg-elevated": "#fcfaf8",
+      "--text-primary": "#22201e", "--text-secondary": "#5e5a56", "--accent-blue": "#706c68", "--accent-green": "#488a42",
+      "--accent-purple": "#685c78", "--accent-gold": "#8a7a1e", "--accent-rose": "#a84038",
+      "--border-color": "rgba(112, 108, 104, 0.08)", "--error-color": "#a84038",
+    },
+  },
+  // ── Pair: Blue Titanium (iPhone 15 Pro) / Natural Titanium ──
+  {
+    id: "dark-iphone-blueti", name: "Blue Titanium", category: "standard", mode: "dark", pairId: "iphone-blueti",
+    preview: { bg: "#0c1018", fg: "#d0d4dc", accent: "#5a7898", secondary: "#141c28" },
+    vars: {
+      "--bg-primary": "#0c1018", "--bg-secondary": "#141c28", "--bg-tertiary": "#1c2838", "--bg-elevated": "#263448",
+      "--text-primary": "#d0d4dc", "--text-secondary": "#6a7a94", "--accent-blue": "#5a7898", "--accent-green": "#50a872",
+      "--accent-purple": "#8a80b0", "--accent-gold": "#c8a040", "--accent-rose": "#cc5860",
+      "--border-color": "rgba(90, 120, 152, 0.10)", "--error-color": "#cc5860",
+    },
+  },
+  {
+    id: "light-iphone-blueti", name: "Natural Titanium", category: "standard", mode: "light", pairId: "iphone-blueti",
+    preview: { bg: "#f2f0ee", fg: "#222020", accent: "#5a6878", secondary: "#e4e2de" },
+    vars: {
+      "--bg-primary": "#f2f0ee", "--bg-secondary": "#e4e2de", "--bg-tertiary": "#d2cec8", "--bg-elevated": "#faf8f6",
+      "--text-primary": "#222020", "--text-secondary": "#5c5854", "--accent-blue": "#5a6878", "--accent-green": "#3e8a48",
+      "--accent-purple": "#645a78", "--accent-gold": "#8a7820", "--accent-rose": "#a84040",
+      "--border-color": "rgba(90, 104, 120, 0.08)", "--error-color": "#a84040",
+    },
+  },
+  // ── Pair: Desert Titanium (iPhone 16 Pro) ──
+  {
+    id: "dark-iphone-desertti", name: "Desert Titanium", category: "standard", mode: "dark", pairId: "iphone-desertti",
+    preview: { bg: "#12100e", fg: "#d8d0c8", accent: "#a89070", secondary: "#1e1a16" },
+    vars: {
+      "--bg-primary": "#12100e", "--bg-secondary": "#1e1a16", "--bg-tertiary": "#2a2620", "--bg-elevated": "#36302a",
+      "--text-primary": "#d8d0c8", "--text-secondary": "#8a8274", "--accent-blue": "#a89070", "--accent-green": "#6aa860",
+      "--accent-purple": "#a890a8", "--accent-gold": "#d0a44a", "--accent-rose": "#cc6050",
+      "--border-color": "rgba(168, 144, 112, 0.12)", "--error-color": "#cc6050",
+    },
+  },
+  {
+    id: "light-iphone-desertti", name: "Desert Sand", category: "standard", mode: "light", pairId: "iphone-desertti",
+    preview: { bg: "#f6f0ea", fg: "#282218", accent: "#886838", secondary: "#ece2d6" },
+    vars: {
+      "--bg-primary": "#f6f0ea", "--bg-secondary": "#ece2d6", "--bg-tertiary": "#dcd0c0", "--bg-elevated": "#fef8f0",
+      "--text-primary": "#282218", "--text-secondary": "#6e6050", "--accent-blue": "#886838", "--accent-green": "#508838",
+      "--accent-purple": "#7a6680", "--accent-gold": "#9a7a18", "--accent-rose": "#aa4438",
+      "--border-color": "rgba(136, 104, 56, 0.10)", "--error-color": "#aa4438",
+    },
+  },
+  // ── Pair: Ultramarine (iPhone 16) ──
+  {
+    id: "dark-iphone-ultramarine", name: "Ultramarine", category: "standard", mode: "dark", pairId: "iphone-ultramarine",
+    preview: { bg: "#0a0c1a", fg: "#d0d4e8", accent: "#4860d0", secondary: "#141840" },
+    vars: {
+      "--bg-primary": "#0a0c1a", "--bg-secondary": "#141840", "--bg-tertiary": "#1c2258", "--bg-elevated": "#262e68",
+      "--text-primary": "#d0d4e8", "--text-secondary": "#6a70b0", "--accent-blue": "#4860d0", "--accent-green": "#48b878",
+      "--accent-purple": "#8a6ae0", "--accent-gold": "#dab040", "--accent-rose": "#e05868",
+      "--border-color": "rgba(72, 96, 208, 0.12)", "--error-color": "#e05868",
+    },
+  },
+  {
+    id: "light-iphone-ultramarine", name: "Ultramarine Light", category: "standard", mode: "light", pairId: "iphone-ultramarine",
+    preview: { bg: "#f2f2fa", fg: "#181830", accent: "#3040b0", secondary: "#e2e2f0" },
+    vars: {
+      "--bg-primary": "#f2f2fa", "--bg-secondary": "#e2e2f0", "--bg-tertiary": "#d0d0e2", "--bg-elevated": "#fafaff",
+      "--text-primary": "#181830", "--text-secondary": "#4a4a78", "--accent-blue": "#3040b0", "--accent-green": "#2a8a50",
+      "--accent-purple": "#5a3aaa", "--accent-gold": "#9a8018", "--accent-rose": "#b83848",
+      "--border-color": "rgba(48, 64, 176, 0.10)", "--error-color": "#b83848",
+    },
+  },
+  // ── Pair: Teal (iPhone 16) ──
+  {
+    id: "dark-iphone-teal", name: "iPhone Teal", category: "standard", mode: "dark", pairId: "iphone-teal",
+    preview: { bg: "#0a1214", fg: "#d0dce0", accent: "#3a9aa0", secondary: "#121e22" },
+    vars: {
+      "--bg-primary": "#0a1214", "--bg-secondary": "#121e22", "--bg-tertiary": "#1a2c32", "--bg-elevated": "#223a42",
+      "--text-primary": "#d0dce0", "--text-secondary": "#6a8a90", "--accent-blue": "#3a9aa0", "--accent-green": "#48c088",
+      "--accent-purple": "#8088c0", "--accent-gold": "#c8aa40", "--accent-rose": "#d06060",
+      "--border-color": "rgba(58, 154, 160, 0.12)", "--error-color": "#d06060",
+    },
+  },
+  {
+    id: "light-iphone-teal", name: "Teal Mist", category: "standard", mode: "light", pairId: "iphone-teal",
+    preview: { bg: "#f0f8f8", fg: "#182828", accent: "#288088", secondary: "#dceef0" },
+    vars: {
+      "--bg-primary": "#f0f8f8", "--bg-secondary": "#dceef0", "--bg-tertiary": "#c8e0e2", "--bg-elevated": "#fafefe",
+      "--text-primary": "#182828", "--text-secondary": "#466a6e", "--accent-blue": "#288088", "--accent-green": "#2a8a5e",
+      "--accent-purple": "#5a6088", "--accent-gold": "#8a8018", "--accent-rose": "#b04848",
+      "--border-color": "rgba(40, 128, 136, 0.10)", "--error-color": "#b04848",
+    },
+  },
+  // ── Pair: iPhone Pink (iPhone 15/16) ──
+  {
+    id: "dark-iphone-pink", name: "iPhone Pink", category: "standard", mode: "dark", pairId: "iphone-pink",
+    preview: { bg: "#140c10", fg: "#e0d4d8", accent: "#c06888", secondary: "#221420" },
+    vars: {
+      "--bg-primary": "#140c10", "--bg-secondary": "#221420", "--bg-tertiary": "#301e2c", "--bg-elevated": "#3e283a",
+      "--text-primary": "#e0d4d8", "--text-secondary": "#9a7888", "--accent-blue": "#c06888", "--accent-green": "#5ab870",
+      "--accent-purple": "#b080c8", "--accent-gold": "#d0a448", "--accent-rose": "#e05070",
+      "--border-color": "rgba(192, 104, 136, 0.12)", "--error-color": "#e05070",
+    },
+  },
+  {
+    id: "light-iphone-pink", name: "Rose Gold", category: "standard", mode: "light", pairId: "iphone-pink",
+    preview: { bg: "#f8f0f2", fg: "#2a1e22", accent: "#a04868", secondary: "#f0e0e4" },
+    vars: {
+      "--bg-primary": "#f8f0f2", "--bg-secondary": "#f0e0e4", "--bg-tertiary": "#e0ccd2", "--bg-elevated": "#fef8fa",
+      "--text-primary": "#2a1e22", "--text-secondary": "#785060", "--accent-blue": "#a04868", "--accent-green": "#3e8a48",
+      "--accent-purple": "#884880", "--accent-gold": "#9a7a20", "--accent-rose": "#c03050",
+      "--border-color": "rgba(160, 72, 104, 0.10)", "--error-color": "#c03050",
+    },
+  },
+  // ── Pair: iPhone Green (iPhone 15) / iPhone Yellow (iPhone 15) ──
+  {
+    id: "dark-iphone-green", name: "iPhone Green", category: "standard", mode: "dark", pairId: "iphone-green",
+    preview: { bg: "#0c120e", fg: "#d0dcd4", accent: "#58a868", secondary: "#142018" },
+    vars: {
+      "--bg-primary": "#0c120e", "--bg-secondary": "#142018", "--bg-tertiary": "#1e2e22", "--bg-elevated": "#283c2e",
+      "--text-primary": "#d0dcd4", "--text-secondary": "#6e9878", "--accent-blue": "#58a868", "--accent-green": "#68cc78",
+      "--accent-purple": "#9888b8", "--accent-gold": "#c8aa38", "--accent-rose": "#d06058",
+      "--border-color": "rgba(88, 168, 104, 0.12)", "--error-color": "#d06058",
+    },
+  },
+  {
+    id: "light-iphone-green", name: "iPhone Yellow", category: "standard", mode: "light", pairId: "iphone-green",
+    preview: { bg: "#f8f6ee", fg: "#22201a", accent: "#a09020", secondary: "#eeeadc" },
+    vars: {
+      "--bg-primary": "#f8f6ee", "--bg-secondary": "#eeeadc", "--bg-tertiary": "#dcd6c4", "--bg-elevated": "#fefcf4",
+      "--text-primary": "#22201a", "--text-secondary": "#6a6450", "--accent-blue": "#a09020", "--accent-green": "#4a8a38",
+      "--accent-purple": "#6e5e88", "--accent-gold": "#a08a18", "--accent-rose": "#b04038",
+      "--border-color": "rgba(160, 144, 32, 0.10)", "--error-color": "#b04038",
+    },
+  },
 ];
 
 /**
