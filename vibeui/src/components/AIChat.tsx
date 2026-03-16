@@ -553,13 +553,12 @@ export function AIChat({ provider, context, fileTree, currentFile, onFileAction,
  value={input}
  onChange={handleInputChange}
  onKeyDown={handleKeyDown}
- placeholder={isListening ? "Listening… speak now" : "Ask a question… (Enter to send, Shift+Enter for newline, @ for context)"}
- rows={3}
+ placeholder={isListening ? "Listening…" : "Ask a question… (@ for context)"}
+ rows={1}
  />
- <div style={{ display: "flex", gap: "6px", alignSelf: "flex-end" }}>
  <button
  onClick={toggleVoice}
- title={isTranscribing ? "Transcribing..." : isListening ? "Click to stop" : "Voice input (click to speak)"}
+ title={isTranscribing ? "Transcribing..." : isListening ? "Click to stop" : "Voice input"}
  className={`mic-btn${isListening ? " listening" : ""}${isTranscribing ? " transcribing" : ""}`}
  disabled={isTranscribing}
  aria-label={isListening ? "Stop voice recording" : "Start voice input"}
@@ -570,7 +569,6 @@ export function AIChat({ provider, context, fileTree, currentFile, onFileAction,
  <button onClick={sendMessage} disabled={!input.trim() || isLoading}>
  Send
  </button>
- </div>
  </div>
  </div>
  );

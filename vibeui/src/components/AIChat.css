@@ -140,10 +140,11 @@
 }
 
 .chat-input {
-    padding: 16px;
+    padding: 8px 10px;
     border-top: 1px solid var(--border-color);
     display: flex;
-    gap: 8px;
+    align-items: flex-end;
+    gap: 6px;
 }
 
 .chat-input textarea {
@@ -151,11 +152,15 @@
     background-color: var(--bg-tertiary);
     color: var(--text-primary);
     border: 1px solid var(--border-color);
-    border-radius: 4px;
-    padding: 8px 12px;
+    border-radius: 18px;
+    padding: 7px 14px;
     font-size: 13px;
     font-family: inherit;
     resize: none;
+    min-height: 34px;
+    max-height: 120px;
+    line-height: 1.4;
+    overflow-y: auto;
 }
 
 .chat-input textarea:focus {
@@ -167,13 +172,15 @@
     background-color: var(--accent-blue);
     color: white;
     border: none;
-    padding: 8px 20px;
-    border-radius: 4px;
+    padding: 6px 14px;
+    border-radius: 18px;
     cursor: pointer;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 500;
     transition: opacity 0.2s;
-    align-self: flex-end;
+    white-space: nowrap;
+    flex-shrink: 0;
+    height: 34px;
 }
 
 .chat-input button:hover:not(:disabled) {
@@ -189,12 +196,18 @@
 .mic-btn {
     background: none;
     border: 1px solid var(--border-color);
-    border-radius: 4px;
-    padding: 6px 10px;
+    border-radius: 50%;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
     font-size: 14px;
     color: var(--text-secondary);
     transition: color 0.2s;
+    flex-shrink: 0;
 }
 
 .mic-btn:hover {
