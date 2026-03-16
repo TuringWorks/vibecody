@@ -114,40 +114,32 @@ pub fn commit(
 }
 
 pub fn push(repo_path: &Path, remote: &str, branch: &str) -> Result<()> {
-    let repo = Repository::open(repo_path)?;
-    let mut remote = repo.find_remote(remote)?;
-    
-    remote.push(
-        &[&format!("refs/heads/{}", branch)],
-        None,
-    )?;
-    
+    // Use git CLI to leverage the user's configured SSH keys and credential helpers
+    let output = std::process::Command::new("git")
+        .args(["push", remote, branch])
+        .current_dir(repo_path)
+        .output()
+        .map_err(|e| anyhow::anyhow!("Failed to run git push: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(anyhow::anyhow!("git push failed: {}", stderr.trim()));
+    }
     Ok(())
 }
 
 pub fn pull(repo_path: &Path, remote: &str, branch: &str) -> Result<()> {
-    let repo = Repository::open(repo_path)?;
-    let mut remote = repo.find_remote(remote)?;
-    
-    // Fetch
-    remote.fetch(&[branch], None, None)?;
-    
-    // Merge
-    let fetch_head = repo.find_reference("FETCH_HEAD")?;
-    let fetch_commit = repo.reference_to_annotated_commit(&fetch_head)?;
-    
-    let analysis = repo.merge_analysis(&[&fetch_commit])?;
-    
-    if analysis.0.is_up_to_date() {
-        return Ok(());
-    } else if analysis.0.is_fast_forward() {
-        let refname = format!("refs/heads/{}", branch);
-        let mut reference = repo.find_reference(&refname)?;
-        reference.set_target(fetch_commit.id(), "Fast-Forward")?;
-        repo.set_head(&refname)?;
-        repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force()))?;
+    // Use git CLI to leverage the user's configured SSH keys and credential helpers
+    let output = std::process::Command::new("git")
+        .args(["pull", remote, branch])
+        .current_dir(repo_path)
+        .output()
+        .map_err(|e| anyhow::anyhow!("Failed to run git pull: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(anyhow::anyhow!("git pull failed: {}", stderr.trim()));
     }
-    
     Ok(())
 }
 
