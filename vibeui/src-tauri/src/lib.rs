@@ -19,6 +19,33 @@ use vibe_lsp::manager::LspManager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // ── Fix PATH for macOS .app bundles ──────────────────────────────────
+    // When launched from Finder/Launchpad, macOS gives apps a minimal PATH
+    // (/usr/bin:/bin:/usr/sbin:/sbin) that excludes Homebrew, ~/.cargo/bin,
+    // nvm, etc. We source the user's login shell to get the real PATH.
+    #[cfg(target_os = "macos")]
+    {
+        if let Ok(shell) = std::env::var("SHELL").or_else(|_| Ok::<String, std::env::VarError>("/bin/zsh".to_string())) {
+            if let Ok(output) = std::process::Command::new(&shell)
+                .args(["-l", "-c", "echo __PATH_START__${PATH}__PATH_END__"])
+                .output()
+            {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                if let (Some(start), Some(end)) = (stdout.find("__PATH_START__"), stdout.find("__PATH_END__")) {
+                    let shell_path = &stdout[start + 14..end];
+                    // Merge: prepend shell-derived paths to current PATH
+                    let current = std::env::var("PATH").unwrap_or_default();
+                    let merged = if current.is_empty() {
+                        shell_path.to_string()
+                    } else {
+                        format!("{shell_path}:{current}")
+                    };
+                    std::env::set_var("PATH", &merged);
+                }
+            }
+        }
+    }
+
     // Initialize workspace
     let workspace = Arc::new(Mutex::new(Workspace::new("VibeUI Workspace".to_string())));
 
