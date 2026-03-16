@@ -1,10 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { AIChat } from "./AIChat";
 
 interface ChatTab {
     id: string;
     title: string;
     provider: string;
+    /** True if the user manually changed the provider via the per-tab dropdown */
+    manualOverride: boolean;
 }
 
 interface ChatTabManagerProps {
@@ -27,14 +29,29 @@ export function ChatTabManager({
     onPendingWrite,
 }: ChatTabManagerProps) {
     const [tabs, setTabs] = useState<ChatTab[]>([
-        { id: "tab-1", title: "Chat 1", provider: defaultProvider },
+        { id: "tab-1", title: "Chat 1", provider: defaultProvider, manualOverride: false },
     ]);
     const [activeTabId, setActiveTabId] = useState("tab-1");
 
-    // Update first tab's provider once it loads (initial render has provider="")
+    // When the top-bar provider changes, update all tabs that haven't been
+    // manually overridden by the user.
+    const prevProvider = useRef(defaultProvider);
     useEffect(() => {
+        if (defaultProvider && defaultProvider !== prevProvider.current) {
+            prevProvider.current = defaultProvider;
+            setTabs((prev) =>
+                prev.map((t) =>
+                    t.manualOverride ? t : { ...t, provider: defaultProvider }
+                )
+            );
+        }
+        // Also fix initial empty provider on first load
         if (defaultProvider) {
-            setTabs((prev) => prev.map((t) => t.provider === "" ? { ...t, provider: defaultProvider } : t));
+            setTabs((prev) =>
+                prev.map((t) =>
+                    t.provider === "" ? { ...t, provider: defaultProvider } : t
+                )
+            );
         }
     }, [defaultProvider]);
 
@@ -44,6 +61,7 @@ export function ChatTabManager({
             id: `tab-${nextTabId}`,
             title: `Chat ${nextTabId}`,
             provider: defaultProvider,
+            manualOverride: false,
         };
         setTabs((prev) => [...prev, newTab]);
         setActiveTabId(newTab.id);
@@ -63,7 +81,20 @@ export function ChatTabManager({
 
     const setTabProvider = (id: string, provider: string) => {
         setTabs((prev) =>
-            prev.map((t) => (t.id === id ? { ...t, provider } : t))
+            prev.map((t) =>
+                t.id === id ? { ...t, provider, manualOverride: true } : t
+            )
+        );
+    };
+
+    /** Reset a tab back to following the top-bar provider */
+    const resetTabProvider = (id: string) => {
+        setTabs((prev) =>
+            prev.map((t) =>
+                t.id === id
+                    ? { ...t, provider: defaultProvider, manualOverride: false }
+                    : t
+            )
         );
     };
 
@@ -138,22 +169,41 @@ export function ChatTabManager({
 
                 {/* Per-tab model selector */}
                 {activeTab && availableProviders.length > 1 && (
-                    <select
-                        value={activeTab.provider}
-                        onChange={(e) => setTabProvider(activeTab.id, e.target.value)}
-                        style={{
-                            marginLeft: "auto", marginRight: "6px",
-                            padding: "2px 4px", fontSize: "11px",
-                            background: "var(--bg-tertiary)", border: "1px solid var(--border-color)",
-                            color: "var(--text-secondary)", borderRadius: "3px",
-                            maxWidth: "140px",
-                        }}
-                        title="Model for this chat tab"
-                    >
-                        {availableProviders.map((p) => (
-                            <option key={p} value={p}>{p}</option>
-                        ))}
-                    </select>
+                    <div style={{ marginLeft: "auto", marginRight: "6px", display: "flex", alignItems: "center", gap: "4px" }}>
+                        <select
+                            value={activeTab.provider}
+                            onChange={(e) => setTabProvider(activeTab.id, e.target.value)}
+                            style={{
+                                padding: "2px 4px", fontSize: "11px",
+                                background: "var(--bg-tertiary)", border: "1px solid var(--border-color)",
+                                color: activeTab.manualOverride ? "var(--accent-gold, #f5c542)" : "var(--text-secondary)",
+                                borderRadius: "3px",
+                                maxWidth: "160px",
+                            }}
+                            title={activeTab.manualOverride
+                                ? "Manually overridden — click reset to follow top bar"
+                                : "Following top bar selection"
+                            }
+                        >
+                            {availableProviders.map((p) => (
+                                <option key={p} value={p}>{p}</option>
+                            ))}
+                        </select>
+                        {activeTab.manualOverride && (
+                            <button
+                                onClick={() => resetTabProvider(activeTab.id)}
+                                style={{
+                                    background: "none", border: "none",
+                                    color: "var(--text-secondary)", cursor: "pointer",
+                                    fontSize: "10px", padding: "2px 4px",
+                                    borderRadius: "3px",
+                                }}
+                                title="Reset to follow top bar selection"
+                            >
+                                reset
+                            </button>
+                        )}
+                    </div>
                 )}
             </div>
 

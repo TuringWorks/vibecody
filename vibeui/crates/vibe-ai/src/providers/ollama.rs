@@ -106,7 +106,11 @@ impl OllamaProvider {
         }
     }
 
-    /// List available Ollama models
+    /// List available Ollama models that support chat.
+    ///
+    /// Fetches all models from `/api/tags`, then probes each with a minimal
+    /// `/api/chat` request to filter out completion-only models (e.g. codellama)
+    /// and embedding models (e.g. nomic-embed-text).
     pub async fn list_models(base_url: Option<String>) -> Result<Vec<String>> {
         let base_url = base_url.unwrap_or_else(|| "http://localhost:11434".to_string());
         let client = reqwest::Client::builder()
@@ -114,7 +118,7 @@ impl OllamaProvider {
             .connect_timeout(std::time::Duration::from_secs(5))
             .build()
             .unwrap_or_else(|_| reqwest::Client::new());
-        
+
         let response = client
             .get(format!("{}/api/tags", base_url))
             .send()
@@ -129,6 +133,14 @@ impl OllamaProvider {
         #[derive(Deserialize)]
         struct ModelInfo {
             name: String,
+            #[serde(default)]
+            details: ModelDetails,
+        }
+
+        #[derive(Deserialize, Default)]
+        struct ModelDetails {
+            #[serde(default)]
+            family: String,
         }
 
         let list: ModelListResponse = response
@@ -136,7 +148,51 @@ impl OllamaProvider {
             .await
             .context("Failed to parse model list")?;
 
-        Ok(list.models.into_iter().map(|m| m.name).collect())
+        // Quick filter: skip known embedding-only model families
+        let embedding_families = ["nomic-bert", "bert", "all-minilm"];
+        let candidates: Vec<String> = list.models
+            .into_iter()
+            .filter(|m| !embedding_families.contains(&m.details.family.as_str()))
+            .map(|m| m.name)
+            .collect();
+
+        // Probe each candidate with /api/chat to confirm chat support.
+        // Use a short timeout per probe — cloud models respond quickly,
+        // local models may take a moment but the error is instant.
+        let probe_client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(5))
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
+
+        let mut chat_models = Vec::new();
+        for model in candidates {
+            let body = serde_json::json!({
+                "model": model,
+                "messages": [{"role": "user", "content": "hi"}],
+                "stream": false,
+                "options": {"num_predict": 1}
+            });
+            match probe_client
+                .post(format!("{}/api/chat", base_url))
+                .json(&body)
+                .send()
+                .await
+            {
+                Ok(resp) => {
+                    let text = resp.text().await.unwrap_or_default();
+                    // Models that don't support chat return {"error":"...does not support chat"}
+                    if !text.contains("does not support chat") {
+                        chat_models.push(model);
+                    }
+                }
+                Err(_) => {
+                    // Network error — include model anyway; error will surface at chat time
+                    chat_models.push(model);
+                }
+            }
+        }
+
+        Ok(chat_models)
     }
 }
 
