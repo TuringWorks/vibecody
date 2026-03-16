@@ -1,133 +1,334 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 
 // -- Types --------------------------------------------------------------------
 
-type AgentStatus = "Running" | "Completed" | "Failed" | "Queued";
-type TabName = "Agents" | "Results" | "Config";
+type TabName = "Agents" | "Results" | "Spawn";
 
-interface SubAgent {
+interface SubAgentDto {
   id: string;
   role: string;
-  status: AgentStatus;
-  contextFiles: string[];
-  startedAt: string;
-  duration: string | null;
+  status: string;
+  context_files: string[];
   provider: string;
-  turnCount: number;
-  maxTurns: number;
-}
-
-interface AgentResult {
-  agentId: string;
-  role: string;
-  summary: string;
+  task_description: string | null;
+  result_summary: string | null;
   findings: string[];
-  filesModified: string[];
-  completedAt: string;
-  success: boolean;
+  files_modified: string[];
+  created_at: string;
+  completed_at: string | null;
+  error: string | null;
 }
 
-interface RoleConfig {
-  role: string;
-  description: string;
-  tools: string[];
-  maxTurns: number;
-  autoSpawnTriggers: string[];
-  enabled: boolean;
+interface SubAgentPanelProps {
+  provider: string;
 }
 
-// -- Mock Data ----------------------------------------------------------------
-
-const MOCK_AGENTS: SubAgent[] = [
-  { id: "sa-001", role: "CodeReviewer", status: "Running", contextFiles: ["src/auth/mod.rs", "src/auth/jwt.rs"], startedAt: "15:30:12", duration: null, provider: "Claude", turnCount: 3, maxTurns: 10 },
-  { id: "sa-002", role: "TestWriter", status: "Completed", contextFiles: ["src/handlers/users.rs"], startedAt: "15:28:00", duration: "2m 15s", provider: "Claude", turnCount: 8, maxTurns: 10 },
-  { id: "sa-003", role: "SecurityAuditor", status: "Completed", contextFiles: ["src/db/queries.rs", "src/middleware/auth.rs", "src/handlers/files.rs"], startedAt: "15:25:00", duration: "4m 30s", provider: "OpenAI", turnCount: 10, maxTurns: 10 },
-  { id: "sa-004", role: "DocWriter", status: "Queued", contextFiles: ["src/lib.rs", "src/api/mod.rs"], startedAt: "15:31:00", duration: null, provider: "Gemini", turnCount: 0, maxTurns: 5 },
-  { id: "sa-005", role: "Refactorer", status: "Failed", contextFiles: ["src/legacy/compat.rs"], startedAt: "15:20:00", duration: "1m 45s", provider: "Claude", turnCount: 4, maxTurns: 10 },
-];
-
-const MOCK_RESULTS: AgentResult[] = [
-  { agentId: "sa-002", role: "TestWriter", summary: "Generated 12 unit tests for users handler with 95% coverage", findings: ["Added tests for create_user, get_user, update_user, delete_user", "Covered error cases: 404, 409, 422", "Added integration test for auth flow"], filesModified: ["tests/handlers/users_test.rs"], completedAt: "15:30:15", success: true },
-  { agentId: "sa-003", role: "SecurityAuditor", summary: "Found 3 security issues: 1 Critical, 1 High, 1 Medium", findings: ["SQL injection in queries.rs line 42 (Critical)", "Missing CSRF validation in auth middleware (High)", "Verbose error messages expose internals (Medium)"], filesModified: [], completedAt: "15:29:30", success: true },
-  { agentId: "sa-005", role: "Refactorer", summary: "Failed to refactor legacy module due to circular dependencies", findings: ["Detected circular dependency between compat.rs and legacy/types.rs", "Suggested manual resolution before automated refactoring"], filesModified: [], completedAt: "15:21:45", success: false },
-];
-
-const MOCK_CONFIGS: RoleConfig[] = [
-  { role: "CodeReviewer", description: "Reviews code changes for quality, patterns, and best practices", tools: ["read_file", "grep", "glob", "list_files"], maxTurns: 10, autoSpawnTriggers: ["on_pr_created", "on_commit"], enabled: true },
-  { role: "TestWriter", description: "Generates unit and integration tests for modified code", tools: ["read_file", "write_file", "run_tests", "grep"], maxTurns: 10, autoSpawnTriggers: ["on_file_modified"], enabled: true },
-  { role: "SecurityAuditor", description: "Scans code for security vulnerabilities and misconfigurations", tools: ["read_file", "grep", "glob", "list_files"], maxTurns: 10, autoSpawnTriggers: ["on_pr_created"], enabled: true },
-  { role: "DocWriter", description: "Generates and updates documentation for public APIs", tools: ["read_file", "write_file", "grep"], maxTurns: 5, autoSpawnTriggers: [], enabled: true },
-  { role: "Refactorer", description: "Suggests and applies code refactoring improvements", tools: ["read_file", "write_file", "grep", "glob", "run_tests"], maxTurns: 10, autoSpawnTriggers: [], enabled: false },
-];
+const ROLES = [
+  { name: "Oracle", description: "General-purpose reasoning agent that answers complex questions about the codebase." },
+  { name: "Librarian", description: "Indexes and retrieves relevant code, docs, and context files for other agents." },
+  { name: "Implementer", description: "Writes new code or modifies existing files to fulfill a task." },
+  { name: "Reviewer", description: "Reviews code changes for quality, patterns, and best practices." },
+  { name: "Tester", description: "Generates unit and integration tests for specified code." },
+  { name: "Documenter", description: "Generates and updates documentation for public APIs and modules." },
+  { name: "Architect", description: "Analyzes system design and proposes architectural improvements." },
+  { name: "Debugger", description: "Investigates bugs, traces root causes, and suggests fixes." },
+  { name: "Optimizer", description: "Profiles and optimizes code for performance and resource usage." },
+  { name: "SecurityExpert", description: "Scans code for security vulnerabilities and misconfigurations." },
+] as const;
 
 // -- Helpers ------------------------------------------------------------------
 
-const statusColor = (s: AgentStatus): string => {
+const statusColor = (s: string): string => {
   switch (s) {
-    case "Running": return "var(--success-color)";
-    case "Completed": return "var(--accent-color)";
-    case "Failed": return "var(--error-color)";
-    case "Queued": return "var(--warning-color)";
+    case "working": return "var(--warning-color)";
+    case "completed": return "var(--success-color)";
+    case "failed": return "var(--error-color)";
+    default: return "var(--text-muted)";
   }
+};
+
+const statusLabel = (s: string): string => {
+  switch (s) {
+    case "working": return "Working";
+    case "completed": return "Completed";
+    case "failed": return "Failed";
+    default: return s;
+  }
+};
+
+const formatTimestamp = (ts: string): string => {
+  try {
+    const d = new Date(ts);
+    return d.toLocaleString();
+  } catch {
+    return ts;
+  }
+};
+
+// -- Styles -------------------------------------------------------------------
+
+const containerStyle: React.CSSProperties = {
+  padding: 12,
+  fontFamily: "inherit",
+  fontSize: 13,
+  height: "100%",
+  overflowY: "auto",
+  color: "var(--text-secondary)",
+  background: "var(--bg-primary)",
+};
+
+const tabBarStyle: React.CSSProperties = {
+  display: "flex",
+  gap: 0,
+  marginBottom: 12,
+  borderBottom: "1px solid var(--border-color)",
+};
+
+const cardStyle: React.CSSProperties = {
+  padding: "10px 12px",
+  marginBottom: 8,
+  borderRadius: 4,
+  background: "var(--bg-secondary)",
+};
+
+const badgeStyle = (color: string): React.CSSProperties => ({
+  fontSize: 10,
+  padding: "2px 8px",
+  borderRadius: 10,
+  background: color,
+  color: "white",
+  fontWeight: 600,
+});
+
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  padding: "6px 8px",
+  fontSize: 12,
+  borderRadius: 4,
+  border: "1px solid var(--border-color)",
+  background: "var(--bg-secondary)",
+  color: "var(--text-primary)",
+  fontFamily: "inherit",
+  boxSizing: "border-box",
+};
+
+const buttonStyle: React.CSSProperties = {
+  padding: "6px 16px",
+  fontSize: 12,
+  borderRadius: 4,
+  border: "none",
+  cursor: "pointer",
+  fontWeight: 600,
 };
 
 // -- Component ----------------------------------------------------------------
 
-const SubAgentPanel: React.FC = () => {
+const SubAgentPanel: React.FC<SubAgentPanelProps> = ({ provider }) => {
   const [tab, setTab] = useState<TabName>("Agents");
-  const [configs, setConfigs] = useState<RoleConfig[]>(MOCK_CONFIGS);
+  const [agents, setAgents] = useState<SubAgentDto[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [expandedAgent, setExpandedAgent] = useState<string | null>(null);
 
-  const tabs: TabName[] = ["Agents", "Results", "Config"];
+  // Spawn form state
+  const [spawnRole, setSpawnRole] = useState<string>(ROLES[0].name);
+  const [spawnTask, setSpawnTask] = useState("");
+  const [spawnContextFiles, setSpawnContextFiles] = useState("");
+  const [spawnProvider, setSpawnProvider] = useState(provider);
+  const [spawning, setSpawning] = useState(false);
+  const [spawnError, setSpawnError] = useState<string | null>(null);
+  const [spawnSuccess, setSpawnSuccess] = useState<string | null>(null);
 
-  const toggleConfig = (role: string) => {
-    setConfigs((prev) => prev.map((c) => c.role === role ? { ...c, enabled: !c.enabled } : c));
+  const tabs: TabName[] = ["Agents", "Results", "Spawn"];
+
+  const fetchAgents = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const result = await invoke<SubAgentDto[]>("list_sub_agents");
+      setAgents(result);
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchAgents();
+  }, [fetchAgents]);
+
+  useEffect(() => {
+    const unlisten = listen("subagent:updated", () => {
+      fetchAgents();
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [fetchAgents]);
+
+  const handleDismiss = async (agentId: string) => {
+    try {
+      await invoke("dismiss_sub_agent", { agentId });
+      setAgents((prev) => prev.filter((a) => a.id !== agentId));
+    } catch (err) {
+      setError(String(err));
+    }
   };
 
+  const handleClearCompleted = async () => {
+    try {
+      await invoke("clear_completed_sub_agents");
+      setAgents((prev) => prev.filter((a) => a.status === "working"));
+    } catch (err) {
+      setError(String(err));
+    }
+  };
+
+  const handleSpawn = async () => {
+    if (!spawnTask.trim()) {
+      setSpawnError("Task description is required.");
+      return;
+    }
+    setSpawning(true);
+    setSpawnError(null);
+    setSpawnSuccess(null);
+    try {
+      const contextFiles = spawnContextFiles
+        .split(/[,\n]/)
+        .map((f) => f.trim())
+        .filter((f) => f.length > 0);
+      const newAgent = await invoke<SubAgentDto>("spawn_sub_agent", {
+        role: spawnRole,
+        task: spawnTask.trim(),
+        contextFiles,
+        provider: spawnProvider.trim() || provider,
+      });
+      setAgents((prev) => [newAgent, ...prev]);
+      setSpawnSuccess(`Agent "${newAgent.role}" spawned (${newAgent.id})`);
+      setSpawnTask("");
+      setSpawnContextFiles("");
+    } catch (err) {
+      setSpawnError(String(err));
+    } finally {
+      setSpawning(false);
+    }
+  };
+
+  const completedOrFailed = agents.filter((a) => a.status === "completed" || a.status === "failed");
+  const hasCompleted = completedOrFailed.length > 0;
+  const selectedRoleDesc = ROLES.find((r) => r.name === spawnRole)?.description ?? "";
+
   return (
-    <div style={{ padding: 12, fontFamily: "inherit", fontSize: 13, height: "100%", overflowY: "auto", color: "var(--text-secondary)", background: "var(--bg-primary)" }}>
-      <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12 }}>Sub-Agents</div>
+    <div style={containerStyle}>
+      <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12, color: "var(--text-primary)" }}>Sub-Agents</div>
 
       {/* Tab bar */}
-      <div style={{ display: "flex", gap: 0, marginBottom: 12, borderBottom: "1px solid var(--border-color)" }}>
+      <div style={tabBarStyle}>
         {tabs.map((t) => (
-          <button key={t} onClick={() => setTab(t)} style={{ padding: "6px 16px", fontSize: 12, background: "none", border: "none", borderBottom: tab === t ? "2px solid var(--accent-color)" : "2px solid transparent", color: tab === t ? "var(--text-primary)" : "var(--text-muted)", cursor: "pointer", fontWeight: tab === t ? 600 : 400 }}>
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            style={{
+              padding: "6px 16px",
+              fontSize: 12,
+              background: "none",
+              border: "none",
+              borderBottom: tab === t ? "2px solid var(--accent-color)" : "2px solid transparent",
+              color: tab === t ? "var(--text-primary)" : "var(--text-muted)",
+              cursor: "pointer",
+              fontWeight: tab === t ? 600 : 400,
+            }}
+          >
             {t}
           </button>
         ))}
       </div>
 
+      {/* Global error */}
+      {error && (
+        <div style={{ padding: "8px 10px", marginBottom: 8, borderRadius: 4, background: "var(--error-color)", color: "white", fontSize: 12 }}>
+          {error}
+        </div>
+      )}
+
       {/* Agents Tab */}
       {tab === "Agents" && (
         <div>
-          {MOCK_AGENTS.map((agent) => (
-            <div key={agent.id} onClick={() => setExpandedAgent(expandedAgent === agent.id ? null : agent.id)} style={{ padding: "8px 10px", marginBottom: 6, borderRadius: 4, background: "var(--bg-secondary)", borderLeft: `3px solid ${statusColor(agent.status)}`, cursor: "pointer" }}>
+          {/* Clear completed button */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+              {agents.length} agent{agents.length !== 1 ? "s" : ""}
+              {loading ? " (refreshing...)" : ""}
+            </span>
+            {hasCompleted && (
+              <button
+                onClick={handleClearCompleted}
+                style={{ ...buttonStyle, background: "var(--border-color)", color: "var(--text-primary)", fontSize: 11, padding: "4px 10px" }}
+              >
+                Clear completed
+              </button>
+            )}
+          </div>
+
+          {agents.length === 0 && !loading && (
+            <div style={{ padding: 20, textAlign: "center", color: "var(--text-muted)", fontSize: 12 }}>
+              No sub-agents running. Go to the Spawn tab to create one.
+            </div>
+          )}
+
+          {agents.map((agent) => (
+            <div
+              key={agent.id}
+              onClick={() => setExpandedAgent(expandedAgent === agent.id ? null : agent.id)}
+              style={{ ...cardStyle, borderLeft: `3px solid ${statusColor(agent.status)}`, cursor: "pointer" }}
+            >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontWeight: 600, fontSize: 12 }}>{agent.role}</span>
-                <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 10, background: statusColor(agent.status), color: "white", fontWeight: 600 }}>{agent.status}</span>
+                <span style={{ fontWeight: 600, fontSize: 12, color: "var(--text-primary)" }}>{agent.role}</span>
+                <span style={badgeStyle(statusColor(agent.status))}>{statusLabel(agent.status)}</span>
                 <span style={{ marginLeft: "auto", fontSize: 10, color: "var(--text-muted)" }}>{agent.provider}</span>
               </div>
-              <div style={{ display: "flex", gap: 12, marginTop: 4, fontSize: 11, color: "var(--text-muted)" }}>
-                <span>Turn {agent.turnCount}/{agent.maxTurns}</span>
-                <span>Started {agent.startedAt}</span>
-                {agent.duration && <span>Duration: {agent.duration}</span>}
+
+              {agent.task_description && (
+                <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 4, lineHeight: 1.4 }}>
+                  {agent.task_description}
+                </div>
+              )}
+
+              <div style={{ display: "flex", gap: 12, marginTop: 4, fontSize: 10, color: "var(--text-muted)" }}>
+                <span>Created: {formatTimestamp(agent.created_at)}</span>
+                {agent.completed_at && <span>Completed: {formatTimestamp(agent.completed_at)}</span>}
               </div>
+
               {expandedAgent === agent.id && (
                 <div style={{ marginTop: 8 }}>
-                  <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>Context Files:</div>
-                  {agent.contextFiles.map((f) => (
-                    <div key={f} style={{ fontSize: 11, fontFamily: "monospace", padding: "2px 6px", marginBottom: 2, background: "var(--bg-primary)", borderRadius: 3 }}>{f}</div>
-                  ))}
-                  {/* Progress bar */}
-                  <div style={{ marginTop: 8 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, marginBottom: 3 }}>
-                      <span>Progress</span>
-                      <span>{Math.round((agent.turnCount / agent.maxTurns) * 100)}%</span>
+                  <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 2 }}>ID: {agent.id}</div>
+
+                  {agent.context_files.length > 0 && (
+                    <>
+                      <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 6, marginBottom: 4 }}>Context Files:</div>
+                      {agent.context_files.map((f) => (
+                        <div key={f} style={{ fontSize: 11, fontFamily: "monospace", padding: "2px 6px", marginBottom: 2, background: "var(--bg-primary)", borderRadius: 3 }}>{f}</div>
+                      ))}
+                    </>
+                  )}
+
+                  {agent.error && (
+                    <div style={{ fontSize: 11, color: "var(--error-color)", marginTop: 6 }}>
+                      Error: {agent.error}
                     </div>
-                    <div style={{ background: "var(--bg-primary)", borderRadius: 3, height: 6, overflow: "hidden" }}>
-                      <div style={{ width: `${(agent.turnCount / agent.maxTurns) * 100}%`, height: "100%", background: statusColor(agent.status), borderRadius: 3 }} />
-                    </div>
-                  </div>
+                  )}
+
+                  {(agent.status === "completed" || agent.status === "failed") && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleDismiss(agent.id); }}
+                      style={{ ...buttonStyle, marginTop: 8, background: "var(--border-color)", color: "var(--text-primary)", fontSize: 11, padding: "4px 10px" }}
+                    >
+                      Dismiss
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -138,64 +339,146 @@ const SubAgentPanel: React.FC = () => {
       {/* Results Tab */}
       {tab === "Results" && (
         <div>
-          {MOCK_RESULTS.map((result) => (
-            <div key={result.agentId} style={{ padding: "10px 12px", marginBottom: 8, borderRadius: 4, background: "var(--bg-secondary)", borderLeft: `3px solid ${result.success ? "var(--accent-color)" : "var(--error-color)"}` }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                <span style={{ fontWeight: 600, fontSize: 12 }}>{result.role}</span>
-                <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 10, background: result.success ? "var(--success-color)" : "var(--error-color)", color: "white", fontWeight: 600 }}>{result.success ? "Success" : "Failed"}</span>
-                <span style={{ marginLeft: "auto", fontSize: 10, color: "var(--text-muted)" }}>{result.completedAt}</span>
-              </div>
-              <div style={{ fontSize: 12, marginBottom: 6, lineHeight: 1.5 }}>{result.summary}</div>
-              <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>Findings:</div>
-              <ul style={{ margin: 0, paddingLeft: 16, fontSize: 11, lineHeight: 1.6 }}>
-                {result.findings.map((f, i) => (
-                  <li key={i}>{f}</li>
-                ))}
-              </ul>
-              {result.filesModified.length > 0 && (
-                <div style={{ marginTop: 6 }}>
-                  <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Modified: </span>
-                  {result.filesModified.map((f) => (
-                    <span key={f} style={{ fontSize: 10, fontFamily: "monospace", padding: "1px 5px", borderRadius: 3, background: "var(--bg-primary)", marginLeft: 4 }}>{f}</span>
-                  ))}
-                </div>
-              )}
+          {completedOrFailed.length === 0 && (
+            <div style={{ padding: 20, textAlign: "center", color: "var(--text-muted)", fontSize: 12 }}>
+              No completed or failed agents yet.
             </div>
-          ))}
+          )}
+
+          {completedOrFailed.map((agent) => {
+            const isSuccess = agent.status === "completed";
+            const borderColor = isSuccess ? "var(--success-color)" : "var(--error-color)";
+
+            return (
+              <div key={agent.id} style={{ ...cardStyle, borderLeft: `3px solid ${borderColor}` }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                  <span style={{ fontWeight: 600, fontSize: 12, color: "var(--text-primary)" }}>{agent.role}</span>
+                  <span style={badgeStyle(borderColor)}>{isSuccess ? "Completed" : "Failed"}</span>
+                  <span style={{ marginLeft: "auto", fontSize: 10, color: "var(--text-muted)" }}>
+                    {agent.completed_at ? formatTimestamp(agent.completed_at) : ""}
+                  </span>
+                </div>
+
+                {agent.result_summary && (
+                  <div style={{ fontSize: 12, marginBottom: 6, lineHeight: 1.5, color: "var(--text-secondary)" }}>
+                    {agent.result_summary}
+                  </div>
+                )}
+
+                {agent.error && (
+                  <div style={{ fontSize: 12, marginBottom: 6, lineHeight: 1.5, color: "var(--error-color)" }}>
+                    {agent.error}
+                  </div>
+                )}
+
+                {agent.findings.length > 0 && (
+                  <>
+                    <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>Findings:</div>
+                    <ul style={{ margin: 0, paddingLeft: 16, fontSize: 11, lineHeight: 1.6, color: "var(--text-secondary)" }}>
+                      {agent.findings.map((f, i) => (
+                        <li key={i}>{f}</li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+
+                {agent.files_modified.length > 0 && (
+                  <div style={{ marginTop: 6 }}>
+                    <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Modified: </span>
+                    {agent.files_modified.map((f) => (
+                      <span key={f} style={{ fontSize: 10, fontFamily: "monospace", padding: "1px 5px", borderRadius: 3, background: "var(--bg-primary)", marginLeft: 4 }}>{f}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
-      {/* Config Tab */}
-      {tab === "Config" && (
+      {/* Spawn Tab */}
+      {tab === "Spawn" && (
         <div>
-          {configs.map((cfg) => (
-            <div key={cfg.role} style={{ padding: "10px 12px", marginBottom: 8, borderRadius: 4, background: "var(--bg-secondary)", opacity: cfg.enabled ? 1 : 0.5 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                <input type="checkbox" checked={cfg.enabled} onChange={() => toggleConfig(cfg.role)} style={{ cursor: "pointer" }} />
-                <span style={{ fontWeight: 600, fontSize: 12 }}>{cfg.role}</span>
-                <span style={{ fontSize: 10, color: "var(--text-muted)" }}>max {cfg.maxTurns} turns</span>
-              </div>
-              <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 6 }}>{cfg.description}</div>
-              <div style={{ marginBottom: 6 }}>
-                <span style={{ fontSize: 10, color: "var(--text-muted)" }}>Tools: </span>
-                <span style={{ display: "inline-flex", gap: 4, flexWrap: "wrap" }}>
-                  {cfg.tools.map((tool) => (
-                    <span key={tool} style={{ fontSize: 10, padding: "1px 5px", borderRadius: 3, background: "var(--border-color)", color: "var(--text-primary)" }}>{tool}</span>
-                  ))}
-                </span>
-              </div>
-              {cfg.autoSpawnTriggers.length > 0 && (
-                <div>
-                  <span style={{ fontSize: 10, color: "var(--text-muted)" }}>Auto-spawn: </span>
-                  <span style={{ display: "inline-flex", gap: 4, flexWrap: "wrap" }}>
-                    {cfg.autoSpawnTriggers.map((trigger) => (
-                      <span key={trigger} style={{ fontSize: 10, padding: "1px 5px", borderRadius: 3, background: "var(--success-color)", color: "white" }}>{trigger}</span>
-                    ))}
-                  </span>
-                </div>
-              )}
+          {spawnError && (
+            <div style={{ padding: "8px 10px", marginBottom: 8, borderRadius: 4, background: "var(--error-color)", color: "white", fontSize: 12 }}>
+              {spawnError}
             </div>
-          ))}
+          )}
+          {spawnSuccess && (
+            <div style={{ padding: "8px 10px", marginBottom: 8, borderRadius: 4, background: "var(--success-color)", color: "white", fontSize: 12 }}>
+              {spawnSuccess}
+            </div>
+          )}
+
+          {/* Role */}
+          <div style={{ marginBottom: 10 }}>
+            <label style={{ fontSize: 11, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>Role</label>
+            <select
+              value={spawnRole}
+              onChange={(e) => setSpawnRole(e.target.value)}
+              style={{ ...inputStyle, cursor: "pointer" }}
+            >
+              {ROLES.map((r) => (
+                <option key={r.name} value={r.name}>{r.name}</option>
+              ))}
+            </select>
+            {selectedRoleDesc && (
+              <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4, fontStyle: "italic" }}>
+                {selectedRoleDesc}
+              </div>
+            )}
+          </div>
+
+          {/* Task */}
+          <div style={{ marginBottom: 10 }}>
+            <label style={{ fontSize: 11, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>Task Description</label>
+            <textarea
+              value={spawnTask}
+              onChange={(e) => setSpawnTask(e.target.value)}
+              placeholder="Describe the task for the sub-agent..."
+              rows={4}
+              style={{ ...inputStyle, resize: "vertical" }}
+            />
+          </div>
+
+          {/* Context files */}
+          <div style={{ marginBottom: 10 }}>
+            <label style={{ fontSize: 11, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>Context Files (comma-separated or one per line)</label>
+            <textarea
+              value={spawnContextFiles}
+              onChange={(e) => setSpawnContextFiles(e.target.value)}
+              placeholder="src/main.rs, src/lib.rs"
+              rows={3}
+              style={{ ...inputStyle, resize: "vertical", fontFamily: "monospace" }}
+            />
+          </div>
+
+          {/* Provider */}
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ fontSize: 11, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>Provider</label>
+            <input
+              type="text"
+              value={spawnProvider}
+              onChange={(e) => setSpawnProvider(e.target.value)}
+              style={inputStyle}
+            />
+          </div>
+
+          {/* Spawn button */}
+          <button
+            onClick={handleSpawn}
+            disabled={spawning || !spawnTask.trim()}
+            style={{
+              ...buttonStyle,
+              background: spawning || !spawnTask.trim() ? "var(--border-color)" : "var(--accent-color)",
+              color: "white",
+              width: "100%",
+              padding: "8px 16px",
+              opacity: spawning || !spawnTask.trim() ? 0.6 : 1,
+            }}
+          >
+            {spawning ? "Spawning..." : "Spawn Agent"}
+          </button>
         </div>
       )}
     </div>

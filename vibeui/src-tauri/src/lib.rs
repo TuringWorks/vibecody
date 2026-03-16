@@ -109,6 +109,7 @@ pub fn run() {
             mock_server_handle: Arc::new(Mutex::new(None)),
             mock_routes: Arc::new(Mutex::new(Vec::new())),
             mock_request_log: Arc::new(Mutex::new(Vec::new())),
+            sub_agents: Arc::new(Mutex::new(Vec::new())),
         })
         .invoke_handler(tauri::generate_handler![
             commands::read_file,
@@ -641,6 +642,11 @@ pub fn run() {
             commands::panel_settings_get_default_profile,
             commands::panel_settings_export,
             commands::panel_settings_import,
+            // Sub-Agent Management
+            commands::list_sub_agents,
+            commands::spawn_sub_agent,
+            commands::dismiss_sub_agent,
+            commands::clear_completed_sub_agents,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

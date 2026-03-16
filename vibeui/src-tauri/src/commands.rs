@@ -121,6 +121,8 @@ pub struct AppState {
     pub mock_routes: Arc<Mutex<Vec<MockRoute>>>,
     /// Mock server captured request log.
     pub mock_request_log: Arc<Mutex<Vec<MockRequest>>>,
+    /// Sub-agent registry (Phase: SubAgent management).
+    pub sub_agents: Arc<Mutex<Vec<SubAgentDto>>>,
 }
 
 const MAX_TERMINAL_LINES: usize = 500;
@@ -20742,4 +20744,210 @@ pub async fn panel_settings_import(
 ) -> Result<u32, String> {
     let store = PanelStore::new()?;
     store.import_profile(&profile_id, &data)
+}
+
+// ── Sub-Agent Management ────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SubAgentDto {
+    pub id: String,
+    pub role: String,
+    pub status: String,       // "idle" | "working" | "completed" | "failed"
+    pub context_files: Vec<String>,
+    pub provider: String,
+    pub task_description: Option<String>,
+    pub result_summary: Option<String>,
+    pub findings: Vec<String>,
+    pub files_modified: Vec<String>,
+    pub created_at: String,    // ISO timestamp
+    pub completed_at: Option<String>,
+    pub error: Option<String>,
+}
+
+#[tauri::command]
+pub async fn list_sub_agents(
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<SubAgentDto>, String> {
+    let agents = state.sub_agents.lock().await;
+    Ok(agents.clone())
+}
+
+#[tauri::command]
+pub async fn spawn_sub_agent(
+    role: String,
+    task: String,
+    context_files: Vec<String>,
+    provider: String,
+    state: tauri::State<'_, AppState>,
+    app_handle: tauri::AppHandle,
+) -> Result<SubAgentDto, String> {
+    let id = format!("sa-{}", chrono::Utc::now().timestamp_millis());
+    let agent = SubAgentDto {
+        id: id.clone(),
+        role: role.clone(),
+        status: "working".into(),
+        context_files: context_files.clone(),
+        provider: provider.clone(),
+        task_description: Some(task.clone()),
+        result_summary: None,
+        findings: vec![],
+        files_modified: vec![],
+        created_at: chrono::Utc::now().to_rfc3339(),
+        completed_at: None,
+        error: None,
+    };
+
+    {
+        let mut agents = state.sub_agents.lock().await;
+        agents.push(agent.clone());
+    }
+
+    // Clone Arc fields for the background task
+    let sub_agents = state.sub_agents.clone();
+    let chat_engine = state.chat_engine.clone();
+    let workspace = state.workspace.clone();
+    let agent_id = id.clone();
+    let app = app_handle.clone();
+
+    tokio::spawn(async move {
+        let result = run_sub_agent_task(
+            &workspace, &chat_engine, &agent_id, &role, &task, &context_files, &provider,
+        ).await;
+
+        let mut agents = sub_agents.lock().await;
+        if let Some(agent) = agents.iter_mut().find(|a| a.id == agent_id) {
+            match result {
+                Ok((summary, findings, files)) => {
+                    agent.status = "completed".into();
+                    agent.result_summary = Some(summary);
+                    agent.findings = findings;
+                    agent.files_modified = files;
+                    agent.completed_at = Some(chrono::Utc::now().to_rfc3339());
+                }
+                Err(e) => {
+                    agent.status = "failed".into();
+                    agent.error = Some(e);
+                    agent.completed_at = Some(chrono::Utc::now().to_rfc3339());
+                }
+            }
+        }
+        // Emit event so frontend can refresh
+        let _ = app.emit("subagent:updated", &agent_id);
+    });
+
+    Ok(agent) // Return immediately with "working" status
+}
+
+async fn run_sub_agent_task(
+    workspace: &Arc<Mutex<Workspace>>,
+    chat_engine: &Arc<Mutex<ChatEngine>>,
+    _agent_id: &str,
+    role: &str,
+    task: &str,
+    context_files: &[String],
+    provider_name: &str,
+) -> Result<(String, Vec<String>, Vec<String>), String> {
+    let mut prompt = format!("You are a {} sub-agent. Your task:\n{}\n\n", role, task);
+
+    // Read context files
+    {
+        let ws = workspace.lock().await;
+        let root = ws.folders().first().cloned().unwrap_or_else(|| PathBuf::from("."));
+        drop(ws);
+
+        for file in context_files {
+            let full_path = if file.starts_with('/') {
+                file.clone()
+            } else {
+                format!("{}/{}", root.display(), file)
+            };
+            match std::fs::read_to_string(&full_path) {
+                Ok(content) => {
+                    let trimmed = if content.len() > 8000 {
+                        format!("{}... (truncated)", &content[..8000])
+                    } else {
+                        content
+                    };
+                    prompt.push_str(&format!("=== {} ===\n{}\n\n", file, trimmed));
+                }
+                Err(_) => {
+                    prompt.push_str(&format!("=== {} === (file not found)\n\n", file));
+                }
+            }
+        }
+    }
+
+    prompt.push_str(
+        "\nProvide your analysis in this exact format:\n\
+         SUMMARY: A one-line summary of your findings\n\
+         FINDINGS:\n- Finding 1\n- Finding 2\n...\n\
+         FILES_MODIFIED: file1.rs, file2.rs (or NONE if no files were modified)\n"
+    );
+
+    let messages = vec![
+        vibe_ai::Message {
+            role: vibe_ai::MessageRole::User,
+            content: prompt,
+        },
+    ];
+
+    // Single lock: set provider then chat
+    let response = {
+        let mut engine = chat_engine.lock().await;
+        let _ = engine.set_provider_by_name(provider_name);
+        engine.chat(&messages, None).await.map_err(|e| e.to_string())?
+    };
+
+    // Parse response
+    let mut summary = String::new();
+    let mut findings = Vec::new();
+    let mut files = Vec::new();
+    let mut in_findings = false;
+
+    for line in response.lines() {
+        let line = line.trim();
+        if line.starts_with("SUMMARY:") {
+            summary = line.trim_start_matches("SUMMARY:").trim().to_string();
+            in_findings = false;
+        } else if line.starts_with("FINDINGS:") {
+            in_findings = true;
+        } else if line.starts_with("FILES_MODIFIED:") {
+            in_findings = false;
+            let files_str = line.trim_start_matches("FILES_MODIFIED:").trim();
+            if files_str != "NONE" && !files_str.is_empty() {
+                files = files_str.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect();
+            }
+        } else if in_findings && line.starts_with("- ") {
+            findings.push(line.trim_start_matches("- ").to_string());
+        }
+    }
+
+    if summary.is_empty() {
+        summary = response.lines().next().unwrap_or("Task completed").to_string();
+        if summary.len() > 200 {
+            summary.truncate(200);
+            summary.push_str("...");
+        }
+    }
+
+    Ok((summary, findings, files))
+}
+
+#[tauri::command]
+pub async fn dismiss_sub_agent(
+    agent_id: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    let mut agents = state.sub_agents.lock().await;
+    agents.retain(|a| a.id != agent_id);
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn clear_completed_sub_agents(
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    let mut agents = state.sub_agents.lock().await;
+    agents.retain(|a| a.status == "working");
+    Ok(())
 }
