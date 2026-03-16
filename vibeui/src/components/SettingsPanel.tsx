@@ -843,6 +843,221 @@ export const THEMES: ThemeDef[] = [
   },
 
   // ═══════════════════════════════════════════════════════════════════
+  //  Tesla — Vehicle Color Inspired Themes
+  // ═══════════════════════════════════════════════════════════════════
+
+  // ── Pair: Midnight Cherry (Model S/X refresh) / Pearl White (most popular) ──
+  {
+    id: "dark-tesla-cherry", name: "Midnight Cherry", category: "standard", mode: "dark", pairId: "tesla-cherry",
+    preview: { bg: "#140a0e", fg: "#e4d0d6", accent: "#c0485a", secondary: "#221218" },
+    vars: {
+      "--bg-primary": "#140a0e", "--bg-secondary": "#221218", "--bg-tertiary": "#301c22", "--bg-elevated": "#3e262e",
+      "--text-primary": "#e4d0d6", "--text-secondary": "#a07a84", "--accent-blue": "#c0485a", "--accent-green": "#5aaa6a",
+      "--accent-purple": "#9a6aaa", "--accent-gold": "#cc9a30", "--accent-rose": "#e04458",
+      "--border-color": "rgba(192, 72, 90, 0.12)", "--error-color": "#e04458",
+    },
+  },
+  {
+    id: "light-tesla-cherry", name: "Pearl White", category: "standard", mode: "light", pairId: "tesla-cherry",
+    preview: { bg: "#f8f6f6", fg: "#2a1a1e", accent: "#9a2840", secondary: "#ece4e6" },
+    vars: {
+      "--bg-primary": "#f8f6f6", "--bg-secondary": "#ece4e6", "--bg-tertiary": "#dcd0d4", "--bg-elevated": "#ffffff",
+      "--text-primary": "#2a1a1e", "--text-secondary": "#6a4a52", "--accent-blue": "#9a2840", "--accent-green": "#388a48",
+      "--accent-purple": "#7a4a8a", "--accent-gold": "#9a7a18", "--accent-rose": "#c02040",
+      "--border-color": "rgba(154, 40, 64, 0.10)", "--error-color": "#c02040",
+    },
+  },
+  // ── Pair: Ultra Red (Model 3/Y) / Quicksilver (Model S/X/3/Y) ──
+  {
+    id: "dark-tesla-red", name: "Ultra Red", category: "standard", mode: "dark", pairId: "tesla-red",
+    preview: { bg: "#180808", fg: "#e8d0d0", accent: "#e03030", secondary: "#2a1010" },
+    vars: {
+      "--bg-primary": "#180808", "--bg-secondary": "#2a1010", "--bg-tertiary": "#3a1a1a", "--bg-elevated": "#4a2424",
+      "--text-primary": "#e8d0d0", "--text-secondary": "#a88080", "--accent-blue": "#e03030", "--accent-green": "#4aaa5a",
+      "--accent-purple": "#aa68aa", "--accent-gold": "#d0a030", "--accent-rose": "#e03030",
+      "--border-color": "rgba(224, 48, 48, 0.14)", "--error-color": "#e84040",
+    },
+  },
+  {
+    id: "light-tesla-red", name: "Quicksilver", category: "standard", mode: "light", pairId: "tesla-red",
+    preview: { bg: "#f2f2f0", fg: "#222220", accent: "#6a6a68", secondary: "#e4e4e0" },
+    vars: {
+      "--bg-primary": "#f2f2f0", "--bg-secondary": "#e4e4e0", "--bg-tertiary": "#d2d2ce", "--bg-elevated": "#fafaf8",
+      "--text-primary": "#222220", "--text-secondary": "#5a5a56", "--accent-blue": "#6a6a68", "--accent-green": "#488a3a",
+      "--accent-purple": "#6a5a7a", "--accent-gold": "#8a7a20", "--accent-rose": "#a03030",
+      "--border-color": "rgba(106, 106, 104, 0.10)", "--error-color": "#a03030",
+    },
+  },
+  // ── Pair: Deep Blue Metallic (Model S/X) / Solid Black (base color) ──
+  {
+    id: "dark-tesla-blue", name: "Deep Blue Metallic", category: "standard", mode: "dark", pairId: "tesla-blue",
+    preview: { bg: "#080e18", fg: "#d0d8e6", accent: "#4070b0", secondary: "#101828" },
+    vars: {
+      "--bg-primary": "#080e18", "--bg-secondary": "#101828", "--bg-tertiary": "#1a2438", "--bg-elevated": "#243048",
+      "--text-primary": "#d0d8e6", "--text-secondary": "#7088a8", "--accent-blue": "#4070b0", "--accent-green": "#48aa68",
+      "--accent-purple": "#8870b0", "--accent-gold": "#c8a840", "--accent-rose": "#d04858",
+      "--border-color": "rgba(64, 112, 176, 0.12)", "--error-color": "#d04858",
+    },
+  },
+  {
+    id: "light-tesla-blue", name: "Solid Black", category: "standard", mode: "light", pairId: "tesla-blue",
+    preview: { bg: "#f0f2f4", fg: "#141618", accent: "#2a4a78", secondary: "#e0e4e8" },
+    vars: {
+      "--bg-primary": "#f0f2f4", "--bg-secondary": "#e0e4e8", "--bg-tertiary": "#ccd2d8", "--bg-elevated": "#fafbfc",
+      "--text-primary": "#141618", "--text-secondary": "#4a5a6a", "--accent-blue": "#2a4a78", "--accent-green": "#2a7a40",
+      "--accent-purple": "#5a4a7a", "--accent-gold": "#7a6a18", "--accent-rose": "#a82838",
+      "--border-color": "rgba(42, 74, 120, 0.10)", "--error-color": "#a82838",
+    },
+  },
+  // ── Pair: Midnight Silver (classic Model 3/Y) / Ultra White Interior ──
+  {
+    id: "dark-tesla-silver", name: "Midnight Silver", category: "standard", mode: "dark", pairId: "tesla-silver",
+    preview: { bg: "#101214", fg: "#d2d4d8", accent: "#7a8898", secondary: "#1a1e22" },
+    vars: {
+      "--bg-primary": "#101214", "--bg-secondary": "#1a1e22", "--bg-tertiary": "#262a30", "--bg-elevated": "#32383e",
+      "--text-primary": "#d2d4d8", "--text-secondary": "#808890", "--accent-blue": "#7a8898", "--accent-green": "#58a068",
+      "--accent-purple": "#9080a8", "--accent-gold": "#baa840", "--accent-rose": "#c85060",
+      "--border-color": "rgba(122, 136, 152, 0.10)", "--error-color": "#c85060",
+    },
+  },
+  {
+    id: "light-tesla-silver", name: "Ultra White", category: "standard", mode: "light", pairId: "tesla-silver",
+    preview: { bg: "#fafafa", fg: "#1e2024", accent: "#4a5468", secondary: "#eeeeee" },
+    vars: {
+      "--bg-primary": "#fafafa", "--bg-secondary": "#eeeeee", "--bg-tertiary": "#dcdcdc", "--bg-elevated": "#ffffff",
+      "--text-primary": "#1e2024", "--text-secondary": "#555a64", "--accent-blue": "#4a5468", "--accent-green": "#388a48",
+      "--accent-purple": "#5a4a72", "--accent-gold": "#807020", "--accent-rose": "#a03040",
+      "--border-color": "rgba(74, 84, 104, 0.10)", "--error-color": "#a03040",
+    },
+  },
+  // ── Pair: Stealth Grey (Cybertruck) / Stainless Steel (Cybertruck raw) ──
+  {
+    id: "dark-tesla-stealth", name: "Stealth Grey", category: "standard", mode: "dark", pairId: "tesla-stealth",
+    preview: { bg: "#0e0e10", fg: "#c8c8cc", accent: "#5a5a62", secondary: "#1a1a1e" },
+    vars: {
+      "--bg-primary": "#0e0e10", "--bg-secondary": "#1a1a1e", "--bg-tertiary": "#26262c", "--bg-elevated": "#32323a",
+      "--text-primary": "#c8c8cc", "--text-secondary": "#7e7e86", "--accent-blue": "#5a5a62", "--accent-green": "#50a060",
+      "--accent-purple": "#8878a0", "--accent-gold": "#b8a838", "--accent-rose": "#c04858",
+      "--border-color": "rgba(90, 90, 98, 0.12)", "--error-color": "#c04858",
+    },
+  },
+  {
+    id: "light-tesla-stealth", name: "Stainless Steel", category: "standard", mode: "light", pairId: "tesla-stealth",
+    preview: { bg: "#f0f0ee", fg: "#202024", accent: "#707078", secondary: "#e2e2de" },
+    vars: {
+      "--bg-primary": "#f0f0ee", "--bg-secondary": "#e2e2de", "--bg-tertiary": "#d0d0cc", "--bg-elevated": "#fafaf8",
+      "--text-primary": "#202024", "--text-secondary": "#555558", "--accent-blue": "#707078", "--accent-green": "#408a40",
+      "--accent-purple": "#5a5078", "--accent-gold": "#7a7018", "--accent-rose": "#a03040",
+      "--border-color": "rgba(112, 112, 120, 0.10)", "--error-color": "#a03040",
+    },
+  },
+  // ── Pair: Glacier Blue (Model Y Juniper) / Cream Interior (Juniper tan) ──
+  {
+    id: "dark-tesla-glacier", name: "Glacier Blue", category: "standard", mode: "dark", pairId: "tesla-glacier",
+    preview: { bg: "#0a1218", fg: "#d0dce4", accent: "#5a9abc", secondary: "#142028" },
+    vars: {
+      "--bg-primary": "#0a1218", "--bg-secondary": "#142028", "--bg-tertiary": "#1e2e38", "--bg-elevated": "#283a48",
+      "--text-primary": "#d0dce4", "--text-secondary": "#7898ac", "--accent-blue": "#5a9abc", "--accent-green": "#50aa6a",
+      "--accent-purple": "#8a7ab0", "--accent-gold": "#c8a840", "--accent-rose": "#d05060",
+      "--border-color": "rgba(90, 154, 188, 0.12)", "--error-color": "#d05060",
+    },
+  },
+  {
+    id: "light-tesla-glacier", name: "Cream Interior", category: "standard", mode: "light", pairId: "tesla-glacier",
+    preview: { bg: "#f8f4ee", fg: "#2a2418", accent: "#3a7a9a", secondary: "#ece4d8" },
+    vars: {
+      "--bg-primary": "#f8f4ee", "--bg-secondary": "#ece4d8", "--bg-tertiary": "#dcd2c4", "--bg-elevated": "#fffcf6",
+      "--text-primary": "#2a2418", "--text-secondary": "#60584a", "--accent-blue": "#3a7a9a", "--accent-green": "#3a8a4a",
+      "--accent-purple": "#6a5a80", "--accent-gold": "#8a7820", "--accent-rose": "#a83040",
+      "--border-color": "rgba(58, 122, 154, 0.10)", "--error-color": "#a83040",
+    },
+  },
+  // ── Pair: Lunar Silver (Model S Plaid) / Titanium Copper (Model Y Highland) ──
+  {
+    id: "dark-tesla-lunar", name: "Lunar Silver", category: "standard", mode: "dark", pairId: "tesla-lunar",
+    preview: { bg: "#0e1012", fg: "#d4d6d8", accent: "#8a9098", secondary: "#1a1e20" },
+    vars: {
+      "--bg-primary": "#0e1012", "--bg-secondary": "#1a1e20", "--bg-tertiary": "#282c30", "--bg-elevated": "#343a3e",
+      "--text-primary": "#d4d6d8", "--text-secondary": "#848a90", "--accent-blue": "#8a9098", "--accent-green": "#58a868",
+      "--accent-purple": "#9888a8", "--accent-gold": "#c0a840", "--accent-rose": "#c85060",
+      "--border-color": "rgba(138, 144, 152, 0.10)", "--error-color": "#c85060",
+    },
+  },
+  {
+    id: "light-tesla-lunar", name: "Titanium Copper", category: "standard", mode: "light", pairId: "tesla-lunar",
+    preview: { bg: "#f6f0ea", fg: "#28201a", accent: "#8a6840", secondary: "#e8dcd0" },
+    vars: {
+      "--bg-primary": "#f6f0ea", "--bg-secondary": "#e8dcd0", "--bg-tertiary": "#d8cab8", "--bg-elevated": "#fefaf4",
+      "--text-primary": "#28201a", "--text-secondary": "#605040", "--accent-blue": "#8a6840", "--accent-green": "#4a8a3a",
+      "--accent-purple": "#6a5470", "--accent-gold": "#8a7420", "--accent-rose": "#a83030",
+      "--border-color": "rgba(138, 104, 64, 0.10)", "--error-color": "#a83030",
+    },
+  },
+  // ── Pair: Ludicrous Red (Performance) / Plaid Neon (Easter egg green) ──
+  {
+    id: "dark-tesla-ludicrous", name: "Ludicrous Red", category: "standard", mode: "dark", pairId: "tesla-ludicrous",
+    preview: { bg: "#1a0808", fg: "#e8cccc", accent: "#ff2020", secondary: "#2e1010" },
+    vars: {
+      "--bg-primary": "#1a0808", "--bg-secondary": "#2e1010", "--bg-tertiary": "#401818", "--bg-elevated": "#502222",
+      "--text-primary": "#e8cccc", "--text-secondary": "#a88080", "--accent-blue": "#ff2020", "--accent-green": "#40cc60",
+      "--accent-purple": "#cc60cc", "--accent-gold": "#e0a020", "--accent-rose": "#ff2020",
+      "--border-color": "rgba(255, 32, 32, 0.14)", "--error-color": "#ff3838",
+    },
+  },
+  {
+    id: "light-tesla-ludicrous", name: "Plaid Neon", category: "standard", mode: "light", pairId: "tesla-ludicrous",
+    preview: { bg: "#f0faf2", fg: "#0e2818", accent: "#18aa40", secondary: "#d8f0de" },
+    vars: {
+      "--bg-primary": "#f0faf2", "--bg-secondary": "#d8f0de", "--bg-tertiary": "#c4e2cc", "--bg-elevated": "#fafef8",
+      "--text-primary": "#0e2818", "--text-secondary": "#3a6a48", "--accent-blue": "#18aa40", "--accent-green": "#18aa40",
+      "--accent-purple": "#5a6a90", "--accent-gold": "#7a8020", "--accent-rose": "#c02020",
+      "--border-color": "rgba(24, 170, 64, 0.10)", "--error-color": "#c02020",
+    },
+  },
+  // ── Pair: Cyberbeast Matte Black / Foundation Series Satin ──
+  {
+    id: "dark-tesla-cyberbeast", name: "Cyberbeast", category: "standard", mode: "dark", pairId: "tesla-cyberbeast",
+    preview: { bg: "#080808", fg: "#c0c0c0", accent: "#e0e0e0", secondary: "#141414" },
+    vars: {
+      "--bg-primary": "#080808", "--bg-secondary": "#141414", "--bg-tertiary": "#1e1e1e", "--bg-elevated": "#2a2a2a",
+      "--text-primary": "#c0c0c0", "--text-secondary": "#7a7a7a", "--accent-blue": "#e0e0e0", "--accent-green": "#48c860",
+      "--accent-purple": "#a090c0", "--accent-gold": "#d0b040", "--accent-rose": "#e04050",
+      "--border-color": "rgba(224, 224, 224, 0.08)", "--error-color": "#e04050",
+    },
+  },
+  {
+    id: "light-tesla-cyberbeast", name: "Foundation Satin", category: "standard", mode: "light", pairId: "tesla-cyberbeast",
+    preview: { bg: "#f4f4f2", fg: "#1a1a1a", accent: "#404040", secondary: "#e6e6e2" },
+    vars: {
+      "--bg-primary": "#f4f4f2", "--bg-secondary": "#e6e6e2", "--bg-tertiary": "#d4d4d0", "--bg-elevated": "#fcfcfa",
+      "--text-primary": "#1a1a1a", "--text-secondary": "#505050", "--accent-blue": "#404040", "--accent-green": "#2a8a3a",
+      "--accent-purple": "#5a4a70", "--accent-gold": "#7a6a18", "--accent-rose": "#a02030",
+      "--border-color": "rgba(64, 64, 64, 0.10)", "--error-color": "#a02030",
+    },
+  },
+  // ── Pair: Autopilot Blue (UI accent) / Supercharger White ──
+  {
+    id: "dark-tesla-autopilot", name: "Autopilot Blue", category: "standard", mode: "dark", pairId: "tesla-autopilot",
+    preview: { bg: "#0a0e1a", fg: "#d0d8ea", accent: "#3880e0", secondary: "#121828" },
+    vars: {
+      "--bg-primary": "#0a0e1a", "--bg-secondary": "#121828", "--bg-tertiary": "#1c2638", "--bg-elevated": "#263248",
+      "--text-primary": "#d0d8ea", "--text-secondary": "#7088b0", "--accent-blue": "#3880e0", "--accent-green": "#40b060",
+      "--accent-purple": "#8068c0", "--accent-gold": "#d0a830", "--accent-rose": "#e04858",
+      "--border-color": "rgba(56, 128, 224, 0.12)", "--error-color": "#e04858",
+    },
+  },
+  {
+    id: "light-tesla-autopilot", name: "Supercharger White", category: "standard", mode: "light", pairId: "tesla-autopilot",
+    preview: { bg: "#fafcfe", fg: "#141820", accent: "#2060c0", secondary: "#eaf0f8" },
+    vars: {
+      "--bg-primary": "#fafcfe", "--bg-secondary": "#eaf0f8", "--bg-tertiary": "#d4dfe8", "--bg-elevated": "#ffffff",
+      "--text-primary": "#141820", "--text-secondary": "#445068", "--accent-blue": "#2060c0", "--accent-green": "#288a40",
+      "--accent-purple": "#5848a0", "--accent-gold": "#807018", "--accent-rose": "#b02838",
+      "--border-color": "rgba(32, 96, 192, 0.10)", "--error-color": "#b02838",
+    },
+  },
+
+  // ═══════════════════════════════════════════════════════════════════
   //  Apple MacBook & iPhone — Product Color Inspired Themes
   // ═══════════════════════════════════════════════════════════════════
 

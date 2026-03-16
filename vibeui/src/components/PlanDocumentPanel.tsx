@@ -3,9 +3,10 @@
  *
  * Tabs: Plans (list with status/version/author), Editor (markdown preview),
  * Comments (unresolved comments with resolve button).
- * Pure TypeScript — no Tauri commands.
+ * Wired to Tauri backend commands, persisted to ~/.vibeui/plan-documents.json.
  */
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 type Tab = "plans" | "editor" | "comments";
 type PlanStatus = "draft" | "review" | "approved" | "archived";
@@ -30,26 +31,6 @@ interface Comment {
   line?: number;
 }
 
-const MOCK_PLANS: Plan[] = [
-  { id: "p1", title: "Auth Service Migration", status: "review", version: 3, author: "Alice", updatedAt: "2h ago",
-    markdown: "# Auth Service Migration\n\n## Goals\n- Migrate from session-based to JWT auth\n- Support OAuth2 providers (Google, GitHub)\n- Zero-downtime migration\n\n## Phases\n1. **Phase 1**: Add JWT middleware alongside sessions\n2. **Phase 2**: Migrate all endpoints to JWT\n3. **Phase 3**: Remove session support\n\n## Risks\n- Token rotation during peak hours\n- Third-party provider rate limits\n\n## Timeline\n- Week 1-2: Phase 1\n- Week 3: Phase 2\n- Week 4: Phase 3 + cleanup" },
-  { id: "p2", title: "Database Sharding Strategy", status: "draft", version: 1, author: "Bob", updatedAt: "1d ago",
-    markdown: "# Database Sharding Strategy\n\n## Overview\nHorizontal sharding by tenant ID for the events table.\n\n## Approach\n- Consistent hashing with virtual nodes\n- 16 initial shards, expandable to 256\n- Cross-shard queries via scatter-gather\n\n## Open Questions\n- Rebalancing strategy during growth\n- Backup and restore per-shard" },
-  { id: "p3", title: "CI Pipeline Optimization", status: "approved", version: 5, author: "Carol", updatedAt: "3d ago",
-    markdown: "# CI Pipeline Optimization\n\n## Summary\nReduce CI time from 18min to under 6min.\n\n## Changes\n- Parallel test execution (4 shards)\n- Cached Docker layers\n- Incremental compilation\n- Skip unchanged modules\n\n## Results\n- Average: 5m 12s (71% reduction)\n- P95: 7m 30s" },
-  { id: "p4", title: "API v2 Design", status: "archived", version: 8, author: "Dave", updatedAt: "2w ago",
-    markdown: "# API v2 Design\n\n(Archived — superseded by v3 plan)" },
-];
-
-const MOCK_COMMENTS: Comment[] = [
-  { id: "cm1", planId: "p1", author: "Bob", timestamp: "1h ago", text: "Should we consider refresh token rotation as well?", resolved: false, line: 12 },
-  { id: "cm2", planId: "p1", author: "Carol", timestamp: "2h ago", text: "Phase 2 timeline seems tight for 15 endpoints.", resolved: false },
-  { id: "cm3", planId: "p1", author: "Dave", timestamp: "3h ago", text: "Add a rollback plan for each phase.", resolved: false },
-  { id: "cm4", planId: "p2", author: "Alice", timestamp: "1d ago", text: "16 shards may be too few for projected growth.", resolved: false },
-  { id: "cm5", planId: "p2", author: "Carol", timestamp: "1d ago", text: "Consider CockroachDB as an alternative to manual sharding.", resolved: false },
-  { id: "cm6", planId: "p3", author: "Bob", timestamp: "4d ago", text: "Great results! Can we add flaky test detection?", resolved: true },
-];
-
 const statusColors: Record<PlanStatus, string> = {
   draft: "var(--text-muted)",
   review: "var(--text-warning)",
@@ -66,19 +47,120 @@ const tabBtn = (active: boolean): React.CSSProperties => ({
 
 export default function PlanDocumentPanel() {
   const [tab, setTab] = useState<Tab>("plans");
-  const [selectedPlan, setSelectedPlan] = useState<string>("p1");
-  const [comments, setComments] = useState(MOCK_COMMENTS);
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [selectedPlan, setSelectedPlan] = useState<string>("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const plan = MOCK_PLANS.find(p => p.id === selectedPlan);
+  // New plan form state
+  const [showNewPlan, setShowNewPlan] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
+  const [newAuthor, setNewAuthor] = useState("");
+  const [newMarkdown, setNewMarkdown] = useState("");
+
+  // New comment form state
+  const [newCommentText, setNewCommentText] = useState("");
+  const [newCommentAuthor, setNewCommentAuthor] = useState("");
+
+  const loadPlans = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const result = await invoke<Plan[]>("list_plan_documents");
+      setPlans(result);
+      // Load comments for all plans
+      const allComments: Comment[] = [];
+      for (const p of result) {
+        try {
+          const detail = await invoke<{ plan: Plan; comments: Comment[] }>("get_plan_document", { id: p.id });
+          allComments.push(...detail.comments);
+        } catch {
+          // skip individual failures
+        }
+      }
+      setComments(allComments);
+      if (result.length > 0 && !selectedPlan) {
+        setSelectedPlan(result[0].id);
+      }
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedPlan]);
+
+  useEffect(() => { loadPlans(); }, [loadPlans]);
+
+  const plan = plans.find(p => p.id === selectedPlan);
   const planComments = comments.filter(c => c.planId === selectedPlan && !c.resolved);
   const allUnresolved = comments.filter(c => !c.resolved);
 
-  const resolveComment = (id: string) => {
-    setComments(cs => cs.map(c => c.id === id ? { ...c, resolved: true } : c));
+  const resolveComment = async (id: string) => {
+    try {
+      await invoke("resolve_plan_comment", { id });
+      setComments(cs => cs.map(c => c.id === id ? { ...c, resolved: true } : c));
+    } catch (e) {
+      setError(String(e));
+    }
   };
+
+  const createPlan = async () => {
+    if (!newTitle.trim() || !newAuthor.trim()) return;
+    try {
+      const created = await invoke<Plan>("create_plan_document", {
+        title: newTitle.trim(),
+        author: newAuthor.trim(),
+        markdown: newMarkdown.trim() || `# ${newTitle.trim()}\n\n(New plan)`,
+      });
+      setPlans(prev => [...prev, created]);
+      setSelectedPlan(created.id);
+      setShowNewPlan(false);
+      setNewTitle("");
+      setNewAuthor("");
+      setNewMarkdown("");
+      setTab("editor");
+    } catch (e) {
+      setError(String(e));
+    }
+  };
+
+  const updateStatus = async (id: string, status: PlanStatus) => {
+    try {
+      const updated = await invoke<Plan>("update_plan_status", { id, status });
+      setPlans(prev => prev.map(p => p.id === id ? updated : p));
+    } catch (e) {
+      setError(String(e));
+    }
+  };
+
+  const addComment = async () => {
+    if (!newCommentText.trim() || !newCommentAuthor.trim() || !selectedPlan) return;
+    try {
+      const comment = await invoke<Comment>("add_plan_comment", {
+        planId: selectedPlan,
+        author: newCommentAuthor.trim(),
+        text: newCommentText.trim(),
+        line: null,
+      });
+      setComments(prev => [...prev, comment]);
+      setNewCommentText("");
+    } catch (e) {
+      setError(String(e));
+    }
+  };
+
+  if (loading) {
+    return <div style={{ padding: 20, color: "var(--text-muted)", fontSize: 12 }}>Loading plans...</div>;
+  }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+      {error && (
+        <div style={{ padding: "6px 10px", fontSize: 11, background: "var(--text-danger)", color: "#1e1e2e", cursor: "pointer" }} onClick={() => setError(null)}>
+          {error} (click to dismiss)
+        </div>
+      )}
       <div style={{ display: "flex", gap: 6, padding: "8px 10px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
         {(["plans", "editor", "comments"] as Tab[]).map(t => (
           <button key={t} onClick={() => setTab(t)} style={tabBtn(tab === t)}>
@@ -91,25 +173,50 @@ export default function PlanDocumentPanel() {
       </div>
 
       <div style={{ flex: 1, overflowY: "auto", padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
-        {tab === "plans" && MOCK_PLANS.map(p => (
-          <div key={p.id} onClick={() => { setSelectedPlan(p.id); setTab("editor"); }}
-            style={{ padding: 10, background: selectedPlan === p.id ? "var(--accent-bg)" : "var(--bg-secondary)", borderRadius: 6, border: `1px solid ${selectedPlan === p.id ? "var(--accent-primary)" : "var(--border-color)"}`, cursor: "pointer" }}>
-            <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4 }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>{p.title}</span>
-              <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 10, background: `${statusColors[p.status]}22`, color: statusColors[p.status], fontWeight: 600 }}>{p.status}</span>
-            </div>
-            <div style={{ display: "flex", gap: 12, fontSize: 10, color: "var(--text-muted)" }}>
-              <span>v{p.version}</span>
-              <span>{p.author}</span>
-              <span>{p.updatedAt}</span>
-              {comments.filter(c => c.planId === p.id && !c.resolved).length > 0 && (
-                <span style={{ color: "var(--text-warning)" }}>
-                  {comments.filter(c => c.planId === p.id && !c.resolved).length} comments
-                </span>
-              )}
-            </div>
-          </div>
-        ))}
+        {tab === "plans" && (
+          <>
+            <button onClick={() => setShowNewPlan(!showNewPlan)}
+              style={{ alignSelf: "flex-start", padding: "5px 12px", fontSize: 11, background: "var(--accent-bg)", border: "1px solid var(--accent-primary)", borderRadius: 4, color: "var(--text-info)", cursor: "pointer", fontWeight: 600 }}>
+              {showNewPlan ? "Cancel" : "+ New Plan"}
+            </button>
+            {showNewPlan && (
+              <div style={{ padding: 10, background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)", display: "flex", flexDirection: "column", gap: 6 }}>
+                <input value={newTitle} onChange={e => setNewTitle(e.target.value)} placeholder="Plan title"
+                  style={{ padding: "5px 8px", fontSize: 11, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)" }} />
+                <input value={newAuthor} onChange={e => setNewAuthor(e.target.value)} placeholder="Author"
+                  style={{ padding: "5px 8px", fontSize: 11, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)" }} />
+                <textarea value={newMarkdown} onChange={e => setNewMarkdown(e.target.value)} placeholder="Markdown content (optional)" rows={4}
+                  style={{ padding: "5px 8px", fontSize: 11, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", fontFamily: "monospace", resize: "vertical" }} />
+                <button onClick={createPlan}
+                  style={{ alignSelf: "flex-start", padding: "5px 12px", fontSize: 11, background: "var(--text-success)", border: "none", borderRadius: 4, color: "#1e1e2e", cursor: "pointer", fontWeight: 600 }}>
+                  Create Plan
+                </button>
+              </div>
+            )}
+            {plans.length === 0 && !showNewPlan && (
+              <div style={{ textAlign: "center", color: "var(--text-muted)", fontSize: 12, padding: 40 }}>No plans yet. Create one to get started.</div>
+            )}
+            {plans.map(p => (
+              <div key={p.id} onClick={() => { setSelectedPlan(p.id); setTab("editor"); }}
+                style={{ padding: 10, background: selectedPlan === p.id ? "var(--accent-bg)" : "var(--bg-secondary)", borderRadius: 6, border: `1px solid ${selectedPlan === p.id ? "var(--accent-primary)" : "var(--border-color)"}`, cursor: "pointer" }}>
+                <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4 }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>{p.title}</span>
+                  <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 10, background: `${statusColors[p.status]}22`, color: statusColors[p.status], fontWeight: 600 }}>{p.status}</span>
+                </div>
+                <div style={{ display: "flex", gap: 12, fontSize: 10, color: "var(--text-muted)" }}>
+                  <span>v{p.version}</span>
+                  <span>{p.author}</span>
+                  <span>{p.updatedAt}</span>
+                  {comments.filter(c => c.planId === p.id && !c.resolved).length > 0 && (
+                    <span style={{ color: "var(--text-warning)" }}>
+                      {comments.filter(c => c.planId === p.id && !c.resolved).length} comments
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </>
+        )}
 
         {tab === "editor" && plan && (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -117,6 +224,17 @@ export default function PlanDocumentPanel() {
               <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{plan.title}</span>
               <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 10, background: `${statusColors[plan.status]}22`, color: statusColors[plan.status] }}>{plan.status}</span>
               <span style={{ fontSize: 10, color: "var(--text-muted)", marginLeft: "auto" }}>v{plan.version} by {plan.author}</span>
+            </div>
+            <div style={{ display: "flex", gap: 4 }}>
+              {(["draft", "review", "approved", "archived"] as PlanStatus[]).map(s => (
+                <button key={s} onClick={(e) => { e.stopPropagation(); updateStatus(plan.id, s); }}
+                  disabled={plan.status === s}
+                  style={{ padding: "3px 8px", fontSize: 10, borderRadius: 4, border: "1px solid var(--border-color)",
+                    background: plan.status === s ? statusColors[s] : "transparent",
+                    color: plan.status === s ? "#1e1e2e" : "var(--text-muted)", cursor: plan.status === s ? "default" : "pointer", opacity: plan.status === s ? 1 : 0.7 }}>
+                  {s}
+                </button>
+              ))}
             </div>
             <pre style={{ padding: 14, background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)", fontSize: 12, fontFamily: "monospace", color: "var(--text-primary)", whiteSpace: "pre-wrap", margin: 0, lineHeight: 1.6 }}>
               {plan.markdown}
@@ -127,7 +245,23 @@ export default function PlanDocumentPanel() {
                 View {planComments.length} comments
               </button>
             )}
+            {/* Add comment inline */}
+            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              <input value={newCommentAuthor} onChange={e => setNewCommentAuthor(e.target.value)} placeholder="Your name"
+                style={{ padding: "4px 8px", fontSize: 10, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", width: 100 }} />
+              <input value={newCommentText} onChange={e => setNewCommentText(e.target.value)} placeholder="Add a comment..."
+                onKeyDown={e => { if (e.key === "Enter") addComment(); }}
+                style={{ flex: 1, padding: "4px 8px", fontSize: 10, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)" }} />
+              <button onClick={addComment}
+                style={{ padding: "4px 10px", fontSize: 10, borderRadius: 4, border: "none", background: "var(--accent-primary)", color: "#1e1e2e", cursor: "pointer", fontWeight: 600 }}>
+                Post
+              </button>
+            </div>
           </div>
+        )}
+
+        {tab === "editor" && !plan && (
+          <div style={{ textAlign: "center", color: "var(--text-muted)", fontSize: 12, padding: 40 }}>Select a plan from the Plans tab</div>
         )}
 
         {tab === "comments" && (
@@ -136,7 +270,7 @@ export default function PlanDocumentPanel() {
               <div style={{ textAlign: "center", color: "var(--text-muted)", fontSize: 12, padding: 40 }}>All comments resolved</div>
             )}
             {allUnresolved.map(c => {
-              const p = MOCK_PLANS.find(pl => pl.id === c.planId);
+              const p = plans.find(pl => pl.id === c.planId);
               return (
                 <div key={c.id} style={{ padding: 10, background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)" }}>
                   <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>

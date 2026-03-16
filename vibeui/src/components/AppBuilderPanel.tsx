@@ -7,7 +7,8 @@
  * - Provision: Configure database, auth, hosting, SEO, payments
  * - Backend: Unified backend config view, docker-compose, deployment, env vars
  */
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import {
   Sparkles,
   Play,
@@ -75,16 +76,22 @@ interface ServiceStatus {
   details: string;
 }
 
-const CATEGORIES: TemplateCategory[] = ["All", "Web", "Mobile", "API", "FullStack", "Landing", "Dashboard"];
+interface CreateResult {
+  projectDir: string;
+  filesCreated: string[];
+  message: string;
+}
 
-const SAMPLE_TEMPLATES: Template[] = [
-  { id: "t1", name: "React SPA", description: "Single-page React app with Vite and TailwindCSS", category: "Web", techStack: ["React", "Vite", "TailwindCSS"] },
-  { id: "t2", name: "REST API", description: "Express.js REST API with TypeScript and Prisma ORM", category: "API", techStack: ["Node.js", "Express", "Prisma", "TypeScript"] },
-  { id: "t3", name: "Full-Stack Next.js", description: "Next.js app with API routes, auth, and database", category: "FullStack", techStack: ["Next.js", "Prisma", "NextAuth"] },
-  { id: "t4", name: "Landing Page", description: "Marketing landing page with animations and contact form", category: "Landing", techStack: ["HTML", "TailwindCSS", "Alpine.js"] },
-  { id: "t5", name: "Admin Dashboard", description: "Data-driven dashboard with charts, tables, and RBAC", category: "Dashboard", techStack: ["React", "Recharts", "TanStack Table"] },
-  { id: "t6", name: "React Native App", description: "Cross-platform mobile app with Expo and navigation", category: "Mobile", techStack: ["React Native", "Expo", "React Navigation"] },
-];
+interface HistoryEntry {
+  id: string;
+  name: string;
+  templateId: string;
+  targetDir: string;
+  createdAt: string;
+  files: string[];
+}
+
+const CATEGORIES: TemplateCategory[] = ["All", "Web", "Mobile", "API", "FullStack", "Landing", "Dashboard"];
 
 const btnStyle = (variant: "primary" | "default" | "danger" = "default"): React.CSSProperties => ({
   padding: "6px 14px",
@@ -165,20 +172,20 @@ const categoryBadgeStyle = (cat: TemplateCategory): React.CSSProperties => {
 };
 
 export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
-  const _workspacePath = workspacePath;
-  void _workspacePath;
-
   const [subTab, setSubTab] = useState<SubTab>("quickstart");
+  const [errorMsg, setErrorMsg] = useState("");
 
   // ── Quick Start ──
   const [ideaText, setIdeaText] = useState("");
   const [enhancedSpec, setEnhancedSpec] = useState<EnhancedSpec | null>(null);
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [isBuilding, setIsBuilding] = useState(false);
-  const [buildProgress, setBuildProgress] = useState(0);
+  const [buildResult, setBuildResult] = useState<CreateResult | null>(null);
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
 
   // ── Templates ──
-  const [templates, setTemplates] = useState<Template[]>(SAMPLE_TEMPLATES);
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<TemplateCategory>("All");
   const [showSaveForm, setShowSaveForm] = useState(false);
   const [showImportForm, setShowImportForm] = useState(false);
@@ -187,6 +194,9 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
   const [newTemplateCategory, setNewTemplateCategory] = useState<TemplateCategory>("Web");
   const [importJson, setImportJson] = useState("");
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  // ── History ──
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
 
   // ── Provision ──
   const [provisionConfig, setProvisionConfig] = useState<ProvisionConfig>({
@@ -214,43 +224,81 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
   const [isGeneratingDeploy, setIsGeneratingDeploy] = useState(false);
   const [backendOutput, setBackendOutput] = useState("");
 
+  // ── Load templates from backend on mount ──
+  useEffect(() => {
+    loadTemplates();
+    loadHistory();
+  }, []);
+
+  const loadTemplates = async () => {
+    setIsLoadingTemplates(true);
+    try {
+      const result = await invoke<Template[]>("get_app_templates");
+      setTemplates(result);
+    } catch (err) {
+      setErrorMsg(`Failed to load templates: ${err}`);
+    } finally {
+      setIsLoadingTemplates(false);
+    }
+  };
+
+  const loadHistory = async () => {
+    try {
+      const result = await invoke<HistoryEntry[]>("get_app_builder_history");
+      setHistory(result);
+    } catch {
+      // History file may not exist yet
+    }
+  };
+
   // ── Quick Start Handlers ──
   const handleEnhance = async () => {
     if (!ideaText.trim()) return;
     setIsEnhancing(true);
     setEnhancedSpec(null);
-    // Simulate AI enhancement
-    await new Promise((r) => setTimeout(r, 1200));
-    setEnhancedSpec({
-      title: ideaText.split(/[.\n]/)[0].trim().slice(0, 60) || "My App",
-      userStories: [
-        "As a user, I can sign up and log in securely",
-        "As a user, I can view and manage my dashboard",
-        "As an admin, I can manage users and settings",
-      ],
-      techStack: ["React", "TypeScript", "Node.js", "PostgreSQL", "TailwindCSS"],
-      apiEndpoints: ["POST /api/auth/login", "GET /api/users", "POST /api/data", "DELETE /api/data/:id"],
-      uiComponents: ["LoginForm", "Dashboard", "DataTable", "SettingsPanel", "Sidebar"],
-      complexityEstimate: "Medium (~2-3 weeks for MVP)",
-    });
-    setIsEnhancing(false);
+    setErrorMsg("");
+    try {
+      const spec = await invoke<EnhancedSpec>("enhance_app_template", { idea: ideaText });
+      setEnhancedSpec(spec);
+    } catch (err) {
+      setErrorMsg(`Enhancement failed: ${err}`);
+    } finally {
+      setIsEnhancing(false);
+    }
   };
 
   const handleBuild = async () => {
+    if (!enhancedSpec) return;
     setIsBuilding(true);
-    setBuildProgress(0);
-    for (let i = 1; i <= 10; i++) {
-      await new Promise((r) => setTimeout(r, 300));
-      setBuildProgress(i * 10);
+    setBuildResult(null);
+    setErrorMsg("");
+    const projectName = enhancedSpec.title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "")
+      || "my-app";
+    try {
+      const result = await invoke<CreateResult>("create_app_project", {
+        templateId: selectedTemplateId || "react-spa",
+        projectName,
+        targetDir: workspacePath || ".",
+      });
+      setBuildResult(result);
+      loadHistory();
+    } catch (err) {
+      setErrorMsg(`Build failed: ${err}`);
+    } finally {
+      setIsBuilding(false);
     }
-    setIsBuilding(false);
   };
 
   // ── Template Handlers ──
   const handleUseTemplate = (t: Template) => {
     setSubTab("quickstart");
     setIdeaText(`Create a ${t.name}: ${t.description}`);
+    setSelectedTemplateId(t.id);
     setEnhancedSpec(null);
+    setBuildResult(null);
   };
 
   const handleSaveTemplate = () => {
@@ -298,6 +346,7 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
   // ── Provision Handlers ──
   const handleProvisionAll = async () => {
     setIsProvisioning(true);
+    setErrorMsg("");
     const files: GeneratedFile[] = [];
     if (provisionConfig.database.enabled) {
       files.push({ path: `prisma/schema.prisma`, status: "pending" });
@@ -318,30 +367,63 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
     }
     setGeneratedFiles([...files]);
 
-    for (let i = 0; i < files.length; i++) {
-      await new Promise((r) => setTimeout(r, 400));
-      setGeneratedFiles((prev) =>
-        prev.map((f, idx) => (idx === i ? { ...f, status: "generated" } : f))
-      );
+    // Use backend to scaffold with a provision-focused template
+    try {
+      const projectName = `provision-${Date.now()}`;
+      const result = await invoke<CreateResult>("create_app_project", {
+        templateId: "react-spa",
+        projectName,
+        targetDir: workspacePath || ".",
+      });
+      // Mark all files as generated
+      setGeneratedFiles((prev) => prev.map((f) => ({ ...f, status: "generated" as const })));
+      setBackendOutput(`Provisioned ${result.filesCreated.length} files into ${result.projectDir}`);
+      loadHistory();
+    } catch (err) {
+      setGeneratedFiles((prev) => prev.map((f) => ({ ...f, status: "error" as const })));
+      setErrorMsg(`Provisioning failed: ${err}`);
+    } finally {
+      setIsProvisioning(false);
     }
-    setIsProvisioning(false);
   };
 
   // ── Backend Handlers ──
   const handleGenerateDocker = async () => {
     setIsGeneratingDocker(true);
     setBackendOutput("");
-    await new Promise((r) => setTimeout(r, 800));
-    setBackendOutput("Generated docker-compose.yml with services: app, db, redis");
-    setIsGeneratingDocker(false);
+    setErrorMsg("");
+    try {
+      const result = await invoke<CreateResult>("create_app_project", {
+        templateId: "rest-api",
+        projectName: `docker-${Date.now()}`,
+        targetDir: workspacePath || ".",
+      });
+      setBackendOutput(`Generated docker-compose.yml — ${result.filesCreated.length} files in ${result.projectDir}`);
+      loadHistory();
+    } catch (err) {
+      setErrorMsg(`Docker generation failed: ${err}`);
+    } finally {
+      setIsGeneratingDocker(false);
+    }
   };
 
   const handleGenerateDeploy = async () => {
     setIsGeneratingDeploy(true);
     setBackendOutput("");
-    await new Promise((r) => setTimeout(r, 800));
-    setBackendOutput(`Generated deployment manifest for ${provisionConfig.hosting.target}`);
-    setIsGeneratingDeploy(false);
+    setErrorMsg("");
+    try {
+      const result = await invoke<CreateResult>("create_app_project", {
+        templateId: "nextjs-fullstack",
+        projectName: `deploy-${Date.now()}`,
+        targetDir: workspacePath || ".",
+      });
+      setBackendOutput(`Generated deployment manifest for ${provisionConfig.hosting.target} — ${result.filesCreated.length} files in ${result.projectDir}`);
+      loadHistory();
+    } catch (err) {
+      setErrorMsg(`Deployment manifest generation failed: ${err}`);
+    } finally {
+      setIsGeneratingDeploy(false);
+    }
   };
 
   const handleAddEnvVar = () => {
@@ -386,6 +468,13 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
           </button>
         ))}
       </div>
+
+      {errorMsg && (
+        <div style={{ padding: "6px 12px", fontSize: 12, color: "var(--error)", background: "var(--bg-secondary)", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}>
+          <AlertCircle size={13} /> {errorMsg}
+          <button onClick={() => setErrorMsg("")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--error)", marginLeft: "auto" }}><X size={12} /></button>
+        </div>
+      )}
 
       <div style={{ flex: 1, overflow: "auto", padding: 12, display: "flex", flexDirection: "column", gap: 12 }}>
         {/* ── Quick Start ── */}
@@ -486,27 +575,53 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
                 {isBuilding && (
                   <div style={{ marginTop: 10 }}>
                     <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 }}>
-                      Scaffolding... {buildProgress}%
+                      Scaffolding project...
                     </div>
                     <div style={{ height: 6, borderRadius: 3, background: "var(--bg-primary)", overflow: "hidden" }}>
                       <div
                         style={{
                           height: "100%",
-                          width: `${buildProgress}%`,
+                          width: "100%",
                           background: "var(--accent)",
                           borderRadius: 3,
-                          transition: "width 0.3s ease",
+                          animation: "pulse 1.5s ease-in-out infinite",
+                          opacity: 0.7,
                         }}
                       />
                     </div>
                   </div>
                 )}
 
-                {!isBuilding && buildProgress === 100 && (
-                  <div style={{ marginTop: 8, fontSize: 12, color: "var(--success)", display: "flex", alignItems: "center", gap: 5 }}>
-                    <Check size={14} /> Scaffold complete. Project files generated.
+                {buildResult && (
+                  <div style={{ marginTop: 8, fontSize: 12, color: "var(--success)", display: "flex", flexDirection: "column", gap: 4 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                      <Check size={14} /> {buildResult.message}
+                    </div>
+                    <div style={{ fontSize: 11, color: "var(--text-secondary)", fontFamily: "monospace" }}>
+                      {buildResult.projectDir}
+                    </div>
+                    <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+                      Files: {buildResult.filesCreated.join(", ")}
+                    </div>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Recent history */}
+            {history.length > 0 && (
+              <div style={cardStyle}>
+                <div style={{ ...labelStyle, marginBottom: 8 }}>Recent Projects</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {history.slice(-5).reverse().map((h) => (
+                    <div key={h.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
+                      <FileText size={12} color="var(--text-secondary)" />
+                      <span style={{ color: "var(--text-primary)", fontWeight: 500 }}>{h.name}</span>
+                      <span style={{ color: "var(--text-secondary)", fontFamily: "monospace", fontSize: 10 }}>{h.templateId}</span>
+                      <span style={{ color: "var(--text-secondary)", fontSize: 10, marginLeft: "auto" }}>{h.files.length} files</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </>
@@ -587,12 +702,19 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
               </div>
             )}
 
+            {isLoadingTemplates && (
+              <div style={{ textAlign: "center", padding: 20, color: "var(--text-secondary)", fontSize: 12 }}>
+                <Loader2 size={20} className="spin" style={{ marginBottom: 8 }} />
+                <div>Loading templates...</div>
+              </div>
+            )}
+
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 10 }}>
               {filteredTemplates.map((t) => (
                 <div key={t.id} style={cardStyle}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
                     <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>{t.name}</div>
-                    <span style={categoryBadgeStyle(t.category)}>{t.category}</span>
+                    <span style={categoryBadgeStyle(t.category as TemplateCategory)}>{t.category}</span>
                   </div>
                   <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8, lineHeight: 1.4 }}>
                     {t.description}
@@ -626,7 +748,7 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
               ))}
             </div>
 
-            {filteredTemplates.length === 0 && (
+            {!isLoadingTemplates && filteredTemplates.length === 0 && (
               <div style={{ textAlign: "center", padding: 30, color: "var(--text-secondary)", fontSize: 13 }}>
                 <Search size={24} style={{ marginBottom: 8, opacity: 0.5 }} />
                 <div>No templates found in this category.</div>

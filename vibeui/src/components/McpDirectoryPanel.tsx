@@ -2,10 +2,11 @@
  * McpDirectoryPanel — MCP Plugin Directory panel.
  *
  * Browse, search, and manage MCP plugins with ratings, downloads,
- * and category filtering.
- * Pure TypeScript — no Tauri commands needed.
+ * and category filtering. Backed by Tauri commands for real plugin
+ * directory management with persistent install state.
  */
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -22,24 +23,9 @@ interface McpPlugin {
   updatable: boolean;
 }
 
-// ── Mock Data ─────────────────────────────────────────────────────────────────
+// ── Constants ────────────────────────────────────────────────────────────────
 
 const CATEGORIES = ["All", "File Systems", "Git", "Databases", "Cloud", "AI/ML", "Testing", "DevOps", "Communication"];
-
-const INITIAL_PLUGINS: McpPlugin[] = [
-  { id: "p1", name: "filesystem-extended", author: "mcp-org", description: "Extended file system operations: watch, glob, symlinks, permissions", category: "File Systems", rating: 4.8, downloads: 125400, version: "2.1.0", installed: true, updatable: false },
-  { id: "p2", name: "git-advanced", author: "devtools-co", description: "Advanced git operations: interactive rebase, cherry-pick, bisect", category: "Git", rating: 4.6, downloads: 89200, version: "1.5.2", installed: true, updatable: true },
-  { id: "p3", name: "postgres-manager", author: "db-tools", description: "PostgreSQL management: queries, migrations, schema inspection", category: "Databases", rating: 4.7, downloads: 67800, version: "3.0.1", installed: false, updatable: false },
-  { id: "p4", name: "aws-toolkit", author: "cloud-devs", description: "AWS service integration: S3, Lambda, DynamoDB, CloudFormation", category: "Cloud", rating: 4.5, downloads: 54300, version: "2.3.0", installed: false, updatable: false },
-  { id: "p5", name: "docker-compose", author: "container-tools", description: "Docker Compose management: up, down, logs, build, exec", category: "DevOps", rating: 4.4, downloads: 43200, version: "1.2.1", installed: true, updatable: false },
-  { id: "p6", name: "slack-integration", author: "comm-tools", description: "Slack messaging: send, read channels, search messages, upload files", category: "Communication", rating: 4.3, downloads: 38100, version: "1.0.3", installed: false, updatable: false },
-  { id: "p7", name: "jest-runner", author: "test-tools", description: "Jest test runner: run, watch, coverage, snapshot management", category: "Testing", rating: 4.5, downloads: 31200, version: "1.1.0", installed: false, updatable: false },
-  { id: "p8", name: "huggingface-models", author: "ml-community", description: "HuggingFace model browser: search, download, inference, fine-tune", category: "AI/ML", rating: 4.2, downloads: 28700, version: "0.8.0", installed: false, updatable: false },
-  { id: "p9", name: "redis-client", author: "db-tools", description: "Redis client: get, set, pub/sub, streams, cluster management", category: "Databases", rating: 4.4, downloads: 25400, version: "1.3.0", installed: false, updatable: false },
-  { id: "p10", name: "kubernetes-ops", author: "cloud-devs", description: "Kubernetes operations: pods, deployments, services, logs, exec", category: "DevOps", rating: 4.6, downloads: 47800, version: "2.0.0", installed: false, updatable: false },
-  { id: "p11", name: "github-actions", author: "mcp-org", description: "GitHub Actions: trigger workflows, view runs, download artifacts", category: "DevOps", rating: 4.7, downloads: 62300, version: "1.4.0", installed: true, updatable: true },
-  { id: "p12", name: "mongodb-tools", author: "db-tools", description: "MongoDB operations: CRUD, aggregation, indexes, atlas management", category: "Databases", rating: 4.3, downloads: 19800, version: "1.0.1", installed: false, updatable: false },
-];
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
@@ -71,14 +57,35 @@ type Tab = "browse" | "installed" | "search";
 
 export function McpDirectoryPanel() {
   const [tab, setTab] = useState<Tab>("browse");
-  const [plugins, setPlugins] = useState<McpPlugin[]>(INITIAL_PLUGINS);
+  const [plugins, setPlugins] = useState<McpPlugin[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [actionInProgress, setActionInProgress] = useState<string | null>(null);
+
+  // Load all plugins from backend
+  const loadPlugins = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const result = await invoke<{ plugins: McpPlugin[]; total: number }>("list_mcp_plugins");
+      setPlugins(result.plugins ?? []);
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadPlugins();
+  }, [loadPlugins]);
 
   const installedPlugins = useMemo(() => plugins.filter((p) => p.installed), [plugins]);
 
   const browsePlugins = useMemo(() => {
-    return plugins.sort((a, b) => b.downloads - a.downloads);
+    return [...plugins].sort((a, b) => b.downloads - a.downloads);
   }, [plugins]);
 
   const searchResults = useMemo(() => {
@@ -95,44 +102,95 @@ export function McpDirectoryPanel() {
     return filtered;
   }, [plugins, searchQuery, categoryFilter]);
 
-  const toggleInstall = (id: string) => {
-    setPlugins((prev) => prev.map((p) => (p.id === id ? { ...p, installed: !p.installed, updatable: false } : p)));
+  const handleInstall = async (id: string) => {
+    try {
+      setActionInProgress(id);
+      const result = await invoke<{ success: boolean; message: string }>("install_mcp_plugin", { id });
+      if (result.success) {
+        await loadPlugins();
+      } else {
+        setError(result.message);
+      }
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setActionInProgress(null);
+    }
+  };
+
+  const handleUninstall = async (id: string) => {
+    try {
+      setActionInProgress(id);
+      const result = await invoke<{ success: boolean; message: string }>("uninstall_mcp_plugin", { id });
+      if (result.success) {
+        await loadPlugins();
+      } else {
+        setError(result.message);
+      }
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setActionInProgress(null);
+    }
   };
 
   const updatePlugin = (id: string) => {
+    // Update is effectively a reinstall — mark as no longer updatable locally
     setPlugins((prev) => prev.map((p) => (p.id === id ? { ...p, updatable: false } : p)));
   };
 
-  const renderPluginCard = (plugin: McpPlugin, showInstallBtn: boolean) => (
-    <div key={plugin.id} style={cardStyle}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 600 }}>{plugin.name} <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>v{plugin.version}</span></div>
-          <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }}>by {plugin.author} | {plugin.category}</div>
-          <div style={{ fontSize: 12, marginTop: 4 }}>{plugin.description}</div>
-          <div style={{ display: "flex", gap: 12, marginTop: 6, fontSize: 11 }}>
-            <span style={{ color: "var(--warning-color)" }}>{renderStars(plugin.rating)} {plugin.rating.toFixed(1)}</span>
-            <span style={{ color: "var(--text-secondary)" }}>{formatDownloads(plugin.downloads)} downloads</span>
+  const renderPluginCard = (plugin: McpPlugin, showInstallBtn: boolean) => {
+    const isActioning = actionInProgress === plugin.id;
+    return (
+      <div key={plugin.id} style={cardStyle}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 600 }}>{plugin.name} <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>v{plugin.version}</span></div>
+            <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }}>by {plugin.author} | {plugin.category}</div>
+            <div style={{ fontSize: 12, marginTop: 4 }}>{plugin.description}</div>
+            <div style={{ display: "flex", gap: 12, marginTop: 6, fontSize: 11 }}>
+              <span style={{ color: "var(--warning-color)" }}>{renderStars(plugin.rating)} {plugin.rating.toFixed(1)}</span>
+              <span style={{ color: "var(--text-secondary)" }}>{formatDownloads(plugin.downloads)} downloads</span>
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            {showInstallBtn && !plugin.installed && (
+              <button
+                style={{ ...btnStyle, background: "var(--accent-primary)", color: "var(--text-primary)" }}
+                onClick={() => handleInstall(plugin.id)}
+                disabled={isActioning}
+              >
+                {isActioning ? "..." : "Install"}
+              </button>
+            )}
+            {plugin.installed && plugin.updatable && (
+              <button style={{ ...btnStyle, background: "var(--warning-color)", color: "var(--text-primary)" }} onClick={() => updatePlugin(plugin.id)}>Update</button>
+            )}
+            {plugin.installed && (
+              <button
+                style={{ ...btnStyle, background: "var(--error-color)", color: "var(--text-primary)" }}
+                onClick={() => handleUninstall(plugin.id)}
+                disabled={isActioning}
+              >
+                {isActioning ? "..." : "Uninstall"}
+              </button>
+            )}
           </div>
         </div>
-        <div style={{ display: "flex", gap: 6 }}>
-          {showInstallBtn && !plugin.installed && (
-            <button style={{ ...btnStyle, background: "var(--accent-primary)", color: "var(--text-primary)" }} onClick={() => toggleInstall(plugin.id)}>Install</button>
-          )}
-          {plugin.installed && plugin.updatable && (
-            <button style={{ ...btnStyle, background: "var(--warning-color)", color: "var(--text-primary)" }} onClick={() => updatePlugin(plugin.id)}>Update</button>
-          )}
-          {plugin.installed && (
-            <button style={{ ...btnStyle, background: "var(--error-color)", color: "var(--text-primary)" }} onClick={() => toggleInstall(plugin.id)}>Uninstall</button>
-          )}
-        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div style={panelStyle}>
       <h2 style={headingStyle}>MCP Plugin Directory</h2>
+
+      {error && (
+        <div style={{ ...cardStyle, borderColor: "var(--error-color)", color: "var(--error-color)", fontSize: 12, marginBottom: 12 }}>
+          {error}
+          <button style={{ ...btnStyle, marginLeft: 8, fontSize: 11 }} onClick={() => setError(null)}>Dismiss</button>
+        </div>
+      )}
 
       <div style={{ marginBottom: 12 }}>
         <button style={tabBtnStyle(tab === "browse")} onClick={() => setTab("browse")}>Browse</button>
@@ -140,7 +198,9 @@ export function McpDirectoryPanel() {
         <button style={tabBtnStyle(tab === "search")} onClick={() => setTab("search")}>Search</button>
       </div>
 
-      {tab === "browse" && (
+      {loading && <div style={cardStyle}>Loading plugins...</div>}
+
+      {!loading && tab === "browse" && (
         <div>
           <div style={{ ...cardStyle, fontSize: 12 }}>
             {plugins.length} plugins available | {installedPlugins.length} installed
@@ -149,14 +209,14 @@ export function McpDirectoryPanel() {
         </div>
       )}
 
-      {tab === "installed" && (
+      {!loading && tab === "installed" && (
         <div>
           {installedPlugins.length === 0 && <div style={cardStyle}>No plugins installed.</div>}
           {installedPlugins.map((p) => renderPluginCard(p, false))}
         </div>
       )}
 
-      {tab === "search" && (
+      {!loading && tab === "search" && (
         <div>
           <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
             <input style={{ ...inputStyle, flex: 1 }} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search plugins..." />

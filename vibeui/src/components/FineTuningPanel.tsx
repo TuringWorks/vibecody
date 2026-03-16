@@ -4,7 +4,8 @@
  * Dataset builder, training config editor, job launcher with cost estimation,
  * active jobs list, SWE-bench evaluation runner, and LoRA adapter manager.
  */
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 interface DatasetStats {
  example_count: number;
@@ -44,38 +45,21 @@ interface LoraAdapter {
 
 const PROVIDERS = ["OpenAI", "TogetherAI", "Fireworks", "Local (LoRA)"];
 
-const SAMPLE_STATS: DatasetStats = {
- example_count: 2847,
- total_tokens: 1_245_600,
- avg_tokens_per_example: 437,
- max_tokens: 4200,
- languages: { rust: 1200, typescript: 890, python: 540, go: 217 },
- invalid_count: 3,
-};
-
-const SAMPLE_JOBS: FineTuneJob[] = [
- { id: "ft-0001", status: "completed", base_model: "gpt-4o-mini", dataset: "codebase-vibecody", epochs: 3, loss: 0.42, progress: 100, created: "2026-03-06", cost_usd: 12.50 },
- { id: "ft-0002", status: "running", base_model: "codellama-13b", dataset: "git-history-main", epochs: 2, loss: 0.68, progress: 65, created: "2026-03-07", cost_usd: 4.20 },
- { id: "ft-0003", status: "pending", base_model: "mistral-7b", dataset: "conversations-agent", epochs: 1, loss: 0, progress: 0, created: "2026-03-08", cost_usd: 0 },
-];
-
-const SAMPLE_EVALS: EvalResult[] = [
- { model: "ft-0001 (gpt-4o-mini)", tasks: 300, resolved: 78, rate: 26.0, avg_time: 45.2 },
- { model: "gpt-4o-mini (base)", tasks: 300, resolved: 61, rate: 20.3, avg_time: 42.1 },
- { model: "codellama-13b (base)", tasks: 300, resolved: 42, rate: 14.0, avg_time: 38.5 },
-];
-
-const SAMPLE_ADAPTERS: LoraAdapter[] = [
- { name: "vibecody-rust-r16", base_model: "codellama-13b", rank: 16, size_mb: 42 },
- { name: "vibecody-ts-r8", base_model: "mistral-7b", rank: 8, size_mb: 24 },
-];
-
 const STATUS_COLORS: Record<string, string> = {
  completed: "var(--vp-c-success)",
  running: "var(--vp-c-brand)",
  pending: "var(--vp-c-warning)",
  failed: "var(--vp-c-danger)",
  cancelled: "var(--vp-c-border)",
+};
+
+const EMPTY_STATS: DatasetStats = {
+ example_count: 0,
+ total_tokens: 0,
+ avg_tokens_per_example: 0,
+ max_tokens: 0,
+ languages: {},
+ invalid_count: 0,
 };
 
 export default function FineTuningPanel() {
@@ -88,9 +72,108 @@ export default function FineTuningPanel() {
  const [loraRank, setLoraRank] = useState(8);
  const [dataSource, setDataSource] = useState<"codebase" | "git" | "conversations">("codebase");
 
+ const [stats, setStats] = useState<DatasetStats>(EMPTY_STATS);
+ const [jobs, setJobs] = useState<FineTuneJob[]>([]);
+ const [evals, setEvals] = useState<EvalResult[]>([]);
+ const [adapters, setAdapters] = useState<LoraAdapter[]>([]);
+ const [loading, setLoading] = useState(false);
+ const [error, setError] = useState<string | null>(null);
+
+ const loadStats = useCallback(async () => {
+   try {
+     setLoading(true);
+     const result = await invoke<DatasetStats>("get_fine_tuning_stats", { workspace: "." });
+     setStats(result);
+   } catch (e) {
+     setError(String(e));
+   } finally {
+     setLoading(false);
+   }
+ }, []);
+
+ const loadJobs = useCallback(async () => {
+   try {
+     const result = await invoke<FineTuneJob[]>("list_fine_tuning_jobs");
+     setJobs(result);
+   } catch (e) {
+     setError(String(e));
+   }
+ }, []);
+
+ const loadEvals = useCallback(async () => {
+   try {
+     const result = await invoke<EvalResult[]>("list_fine_tuning_evals");
+     setEvals(result);
+   } catch (e) {
+     setError(String(e));
+   }
+ }, []);
+
+ const loadAdapters = useCallback(async () => {
+   try {
+     const result = await invoke<LoraAdapter[]>("list_fine_tuning_adapters");
+     setAdapters(result);
+   } catch (e) {
+     setError(String(e));
+   }
+ }, []);
+
+ useEffect(() => {
+   if (tab === "dataset") loadStats();
+   else if (tab === "jobs") loadJobs();
+   else if (tab === "eval") loadEvals();
+   else if (tab === "lora") loadAdapters();
+   else if (tab === "train") loadStats(); // need stats for cost estimate
+ }, [tab, loadStats, loadJobs, loadEvals, loadAdapters]);
+
+ const handleCreateJob = async () => {
+   try {
+     setLoading(true);
+     setError(null);
+     await invoke<FineTuneJob>("create_fine_tuning_job", {
+       baseModel,
+       dataset: dataSource === "codebase" ? "codebase-workspace" : dataSource === "git" ? "git-history-main" : "conversations-agent",
+       epochs,
+       provider,
+       learningRate: lr,
+       batchSize,
+       loraRank: provider === "Local (LoRA)" ? loraRank : null,
+     });
+     setTab("jobs");
+     await loadJobs();
+   } catch (e) {
+     setError(String(e));
+   } finally {
+     setLoading(false);
+   }
+ };
+
+ const handleCreateAdapter = async () => {
+   try {
+     setError(null);
+     const name = `adapter-r${loraRank}-${Date.now()}`;
+     await invoke<LoraAdapter>("create_fine_tuning_adapter", {
+       name,
+       baseModel,
+       rank: loraRank,
+       sizeMb: Math.round(loraRank * 3.2),
+     });
+     await loadAdapters();
+   } catch (e) {
+     setError(String(e));
+   }
+ };
+
  return (
    <div style={{ padding: 16, color: "var(--vp-c-text)", background: "var(--vp-c-bg)", minHeight: "100%" }}>
      <h2 style={{ margin: "0 0 12px", fontSize: 18 }}>Fine-Tuning</h2>
+
+     {error && (
+       <div style={{ padding: 8, marginBottom: 8, background: "var(--vp-c-danger)", color: "#fff", borderRadius: 4, fontSize: 12 }}>
+         {error}
+         <button onClick={() => setError(null)} style={{ marginLeft: 8, background: "transparent", color: "#fff", border: "none", cursor: "pointer" }}>dismiss</button>
+       </div>
+     )}
 
      {/* Tabs */}
      <div style={{ display: "flex", gap: 4, marginBottom: 12 }}>
@@ -119,43 +202,49 @@ export default function FineTuningPanel() {
          </div>
 
          {/* Stats */}
-         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 12 }}>
-           <div style={{ padding: 10, border: "1px solid var(--vp-c-border)", borderRadius: 6, textAlign: "center" }}>
-             <div style={{ fontSize: 22, fontWeight: 700, color: "var(--vp-c-brand)" }}>{SAMPLE_STATS.example_count.toLocaleString()}</div>
-             <div style={{ fontSize: 11 }}>Examples</div>
-           </div>
-           <div style={{ padding: 10, border: "1px solid var(--vp-c-border)", borderRadius: 6, textAlign: "center" }}>
-             <div style={{ fontSize: 22, fontWeight: 700, color: "var(--vp-c-success)" }}>{(SAMPLE_STATS.total_tokens / 1000).toFixed(0)}K</div>
-             <div style={{ fontSize: 11 }}>Tokens</div>
-           </div>
-           <div style={{ padding: 10, border: "1px solid var(--vp-c-border)", borderRadius: 6, textAlign: "center" }}>
-             <div style={{ fontSize: 22, fontWeight: 700 }}>{SAMPLE_STATS.avg_tokens_per_example.toFixed(0)}</div>
-             <div style={{ fontSize: 11 }}>Avg Tokens/Ex</div>
-           </div>
-           <div style={{ padding: 10, border: "1px solid var(--vp-c-border)", borderRadius: 6, textAlign: "center" }}>
-             <div style={{ fontSize: 22, fontWeight: 700, color: SAMPLE_STATS.invalid_count > 0 ? "var(--vp-c-danger)" : "var(--vp-c-success)" }}>
-               {SAMPLE_STATS.invalid_count}
-             </div>
-             <div style={{ fontSize: 11 }}>Invalid</div>
-           </div>
-         </div>
-
-         {/* Language distribution */}
-         <strong style={{ fontSize: 12 }}>Language Distribution</strong>
-         <div style={{ marginTop: 4 }}>
-           {Object.entries(SAMPLE_STATS.languages).map(([lang, count]) => (
-             <div key={lang} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-               <span style={{ width: 80 }}>{lang}</span>
-               <div style={{ flex: 1, height: 16, background: "var(--vp-c-border)", borderRadius: 4, overflow: "hidden" }}>
-                 <div style={{ height: "100%", width: `${(count / SAMPLE_STATS.example_count) * 100}%`, background: "var(--vp-c-brand)", borderRadius: 4 }} />
+         {loading ? (
+           <div style={{ padding: 20, textAlign: "center", color: "var(--vp-c-text-2)" }}>Scanning workspace...</div>
+         ) : (
+           <>
+             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 12 }}>
+               <div style={{ padding: 10, border: "1px solid var(--vp-c-border)", borderRadius: 6, textAlign: "center" }}>
+                 <div style={{ fontSize: 22, fontWeight: 700, color: "var(--vp-c-brand)" }}>{stats.example_count.toLocaleString()}</div>
+                 <div style={{ fontSize: 11 }}>Examples</div>
                </div>
-               <span style={{ width: 50, textAlign: "right", fontSize: 12 }}>{count}</span>
+               <div style={{ padding: 10, border: "1px solid var(--vp-c-border)", borderRadius: 6, textAlign: "center" }}>
+                 <div style={{ fontSize: 22, fontWeight: 700, color: "var(--vp-c-success)" }}>{(stats.total_tokens / 1000).toFixed(0)}K</div>
+                 <div style={{ fontSize: 11 }}>Tokens</div>
+               </div>
+               <div style={{ padding: 10, border: "1px solid var(--vp-c-border)", borderRadius: 6, textAlign: "center" }}>
+                 <div style={{ fontSize: 22, fontWeight: 700 }}>{stats.avg_tokens_per_example.toFixed(0)}</div>
+                 <div style={{ fontSize: 11 }}>Avg Tokens/Ex</div>
+               </div>
+               <div style={{ padding: 10, border: "1px solid var(--vp-c-border)", borderRadius: 6, textAlign: "center" }}>
+                 <div style={{ fontSize: 22, fontWeight: 700, color: stats.invalid_count > 0 ? "var(--vp-c-danger)" : "var(--vp-c-success)" }}>
+                   {stats.invalid_count}
+                 </div>
+                 <div style={{ fontSize: 11 }}>Invalid</div>
+               </div>
              </div>
-           ))}
-         </div>
+
+             {/* Language distribution */}
+             <strong style={{ fontSize: 12 }}>Language Distribution</strong>
+             <div style={{ marginTop: 4 }}>
+               {Object.entries(stats.languages).map(([lang, count]) => (
+                 <div key={lang} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                   <span style={{ width: 80 }}>{lang}</span>
+                   <div style={{ flex: 1, height: 16, background: "var(--vp-c-border)", borderRadius: 4, overflow: "hidden" }}>
+                     <div style={{ height: "100%", width: `${stats.example_count > 0 ? (count / stats.example_count) * 100 : 0}%`, background: "var(--vp-c-brand)", borderRadius: 4 }} />
+                   </div>
+                   <span style={{ width: 50, textAlign: "right", fontSize: 12 }}>{count}</span>
+                 </div>
+               ))}
+             </div>
+           </>
+         )}
 
          <div style={{ display: "flex", gap: 6, marginTop: 12 }}>
-           <button style={{ padding: "6px 14px", background: "var(--vp-c-brand)", color: "var(--text-primary)", border: "none", borderRadius: 4, cursor: "pointer" }}>
+           <button onClick={loadStats} style={{ padding: "6px 14px", background: "var(--vp-c-brand)", color: "var(--text-primary)", border: "none", borderRadius: 4, cursor: "pointer" }}>
              Build Dataset
            </button>
            <button style={{ padding: "6px 14px", background: "transparent", color: "var(--vp-c-text)", border: "1px solid var(--vp-c-border)", borderRadius: 4, cursor: "pointer" }}>
@@ -211,83 +300,97 @@ export default function FineTuningPanel() {
          <div style={{ marginTop: 12, padding: 10, border: "1px solid var(--vp-c-border)", borderRadius: 6, fontSize: 12 }}>
            <strong>Cost Estimate</strong>
            <div style={{ marginTop: 4 }}>
-             Tokens: {(SAMPLE_STATS.total_tokens * epochs / 1000).toFixed(0)}K |
-             Est. Cost: <span style={{ color: "var(--vp-c-warning)" }}>${(SAMPLE_STATS.total_tokens * epochs * 0.000008).toFixed(2)}</span> |
-             Est. Time: ~{Math.ceil(SAMPLE_STATS.total_tokens * epochs / 50000)} min
+             Tokens: {(stats.total_tokens * epochs / 1000).toFixed(0)}K |
+             Est. Cost: <span style={{ color: "var(--vp-c-warning)" }}>${(stats.total_tokens * epochs * 0.000008).toFixed(2)}</span> |
+             Est. Time: ~{Math.ceil(stats.total_tokens * epochs / 50000)} min
            </div>
          </div>
 
-         <button style={{ marginTop: 12, padding: "8px 20px", background: "var(--vp-c-brand)", color: "var(--text-primary)", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}>
-           Launch Training Job
+         <button onClick={handleCreateJob} disabled={loading} style={{ marginTop: 12, padding: "8px 20px", background: "var(--vp-c-brand)", color: "var(--text-primary)", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 600, opacity: loading ? 0.6 : 1 }}>
+           {loading ? "Creating..." : "Launch Training Job"}
          </button>
        </div>
      )}
 
      {tab === "jobs" && (
-       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-         <thead>
-           <tr style={{ borderBottom: "1px solid var(--vp-c-border)" }}>
-             <th style={{ textAlign: "left", padding: 6 }}>ID</th>
-             <th style={{ textAlign: "left", padding: 6 }}>Status</th>
-             <th style={{ textAlign: "left", padding: 6 }}>Model</th>
-             <th style={{ textAlign: "left", padding: 6 }}>Dataset</th>
-             <th style={{ textAlign: "right", padding: 6 }}>Loss</th>
-             <th style={{ textAlign: "right", padding: 6 }}>Progress</th>
-             <th style={{ textAlign: "right", padding: 6 }}>Cost</th>
-           </tr>
-         </thead>
-         <tbody>
-           {SAMPLE_JOBS.map(job => (
-             <tr key={job.id} style={{ borderBottom: "1px solid var(--vp-c-border)" }}>
-               <td style={{ padding: 6, fontFamily: "monospace" }}>{job.id}</td>
-               <td style={{ padding: 6 }}>
-                 <span style={{ color: STATUS_COLORS[job.status] || "var(--vp-c-text)" }}>
-                   {job.status}
-                 </span>
-               </td>
-               <td style={{ padding: 6 }}>{job.base_model}</td>
-               <td style={{ padding: 6 }}>{job.dataset}</td>
-               <td style={{ padding: 6, textAlign: "right" }}>{job.loss > 0 ? job.loss.toFixed(3) : "-"}</td>
-               <td style={{ padding: 6, textAlign: "right" }}>
-                 <div style={{ display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end" }}>
-                   <div style={{ width: 60, height: 8, background: "var(--vp-c-border)", borderRadius: 4, overflow: "hidden" }}>
-                     <div style={{ height: "100%", width: `${job.progress}%`, background: STATUS_COLORS[job.status], borderRadius: 4 }} />
-                   </div>
-                   {job.progress}%
-                 </div>
-               </td>
-               <td style={{ padding: 6, textAlign: "right" }}>${job.cost_usd.toFixed(2)}</td>
-             </tr>
-           ))}
-         </tbody>
-       </table>
+       <>
+         {jobs.length === 0 ? (
+           <div style={{ padding: 20, textAlign: "center", color: "var(--vp-c-text-2)" }}>
+             No fine-tuning jobs yet. Go to the Train tab to create one.
+           </div>
+         ) : (
+           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+             <thead>
+               <tr style={{ borderBottom: "1px solid var(--vp-c-border)" }}>
+                 <th style={{ textAlign: "left", padding: 6 }}>ID</th>
+                 <th style={{ textAlign: "left", padding: 6 }}>Status</th>
+                 <th style={{ textAlign: "left", padding: 6 }}>Model</th>
+                 <th style={{ textAlign: "left", padding: 6 }}>Dataset</th>
+                 <th style={{ textAlign: "right", padding: 6 }}>Loss</th>
+                 <th style={{ textAlign: "right", padding: 6 }}>Progress</th>
+                 <th style={{ textAlign: "right", padding: 6 }}>Cost</th>
+               </tr>
+             </thead>
+             <tbody>
+               {jobs.map(job => (
+                 <tr key={job.id} style={{ borderBottom: "1px solid var(--vp-c-border)" }}>
+                   <td style={{ padding: 6, fontFamily: "monospace" }}>{job.id}</td>
+                   <td style={{ padding: 6 }}>
+                     <span style={{ color: STATUS_COLORS[job.status] || "var(--vp-c-text)" }}>
+                       {job.status}
+                     </span>
+                   </td>
+                   <td style={{ padding: 6 }}>{job.base_model}</td>
+                   <td style={{ padding: 6 }}>{job.dataset}</td>
+                   <td style={{ padding: 6, textAlign: "right" }}>{job.loss > 0 ? job.loss.toFixed(3) : "-"}</td>
+                   <td style={{ padding: 6, textAlign: "right" }}>
+                     <div style={{ display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end" }}>
+                       <div style={{ width: 60, height: 8, background: "var(--vp-c-border)", borderRadius: 4, overflow: "hidden" }}>
+                         <div style={{ height: "100%", width: `${job.progress}%`, background: STATUS_COLORS[job.status], borderRadius: 4 }} />
+                       </div>
+                       {job.progress}%
+                     </div>
+                   </td>
+                   <td style={{ padding: 6, textAlign: "right" }}>${job.cost_usd.toFixed(2)}</td>
+                 </tr>
+               ))}
+             </tbody>
+           </table>
+         )}
+       </>
      )}
 
      {tab === "eval" && (
        <>
          <strong>SWE-Bench Evaluation Results</strong>
-         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, marginTop: 8 }}>
-           <thead>
-             <tr style={{ borderBottom: "1px solid var(--vp-c-border)" }}>
-               <th style={{ textAlign: "left", padding: 6 }}>Model</th>
-               <th style={{ textAlign: "right", padding: 6 }}>Tasks</th>
-               <th style={{ textAlign: "right", padding: 6 }}>Resolved</th>
-               <th style={{ textAlign: "right", padding: 6 }}>Rate</th>
-               <th style={{ textAlign: "right", padding: 6 }}>Avg Time</th>
-             </tr>
-           </thead>
-           <tbody>
-             {SAMPLE_EVALS.map(ev => (
-               <tr key={ev.model} style={{ borderBottom: "1px solid var(--vp-c-border)" }}>
-                 <td style={{ padding: 6, color: ev.rate > 20 ? "var(--vp-c-success)" : "var(--vp-c-text)" }}>{ev.model}</td>
-                 <td style={{ padding: 6, textAlign: "right" }}>{ev.tasks}</td>
-                 <td style={{ padding: 6, textAlign: "right" }}>{ev.resolved}</td>
-                 <td style={{ padding: 6, textAlign: "right", fontWeight: 700 }}>{ev.rate.toFixed(1)}%</td>
-                 <td style={{ padding: 6, textAlign: "right" }}>{ev.avg_time.toFixed(1)}s</td>
+         {evals.length === 0 ? (
+           <div style={{ padding: 20, textAlign: "center", color: "var(--vp-c-text-2)" }}>
+             No evaluation results yet. Run an evaluation to see results.
+           </div>
+         ) : (
+           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, marginTop: 8 }}>
+             <thead>
+               <tr style={{ borderBottom: "1px solid var(--vp-c-border)" }}>
+                 <th style={{ textAlign: "left", padding: 6 }}>Model</th>
+                 <th style={{ textAlign: "right", padding: 6 }}>Tasks</th>
+                 <th style={{ textAlign: "right", padding: 6 }}>Resolved</th>
+                 <th style={{ textAlign: "right", padding: 6 }}>Rate</th>
+                 <th style={{ textAlign: "right", padding: 6 }}>Avg Time</th>
                </tr>
-             ))}
-           </tbody>
-         </table>
+             </thead>
+             <tbody>
+               {evals.map(ev => (
+                 <tr key={ev.model} style={{ borderBottom: "1px solid var(--vp-c-border)" }}>
+                   <td style={{ padding: 6, color: ev.rate > 20 ? "var(--vp-c-success)" : "var(--vp-c-text)" }}>{ev.model}</td>
+                   <td style={{ padding: 6, textAlign: "right" }}>{ev.tasks}</td>
+                   <td style={{ padding: 6, textAlign: "right" }}>{ev.resolved}</td>
+                   <td style={{ padding: 6, textAlign: "right", fontWeight: 700 }}>{ev.rate.toFixed(1)}%</td>
+                   <td style={{ padding: 6, textAlign: "right" }}>{ev.avg_time.toFixed(1)}s</td>
+                 </tr>
+               ))}
+             </tbody>
+           </table>
+         )}
          <button style={{ marginTop: 12, padding: "6px 14px", background: "var(--vp-c-brand)", color: "var(--text-primary)", border: "none", borderRadius: 4, cursor: "pointer" }}>
            Run Evaluation
          </button>
@@ -297,31 +400,40 @@ export default function FineTuningPanel() {
      {tab === "lora" && (
        <>
          <strong>LoRA Adapters</strong>
-         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, marginTop: 8 }}>
-           <thead>
-             <tr style={{ borderBottom: "1px solid var(--vp-c-border)" }}>
-               <th style={{ textAlign: "left", padding: 6 }}>Name</th>
-               <th style={{ textAlign: "left", padding: 6 }}>Base Model</th>
-               <th style={{ textAlign: "right", padding: 6 }}>Rank</th>
-               <th style={{ textAlign: "right", padding: 6 }}>Size</th>
-               <th style={{ textAlign: "right", padding: 6 }}>Actions</th>
-             </tr>
-           </thead>
-           <tbody>
-             {SAMPLE_ADAPTERS.map(a => (
-               <tr key={a.name} style={{ borderBottom: "1px solid var(--vp-c-border)" }}>
-                 <td style={{ padding: 6, fontFamily: "monospace", color: "var(--vp-c-brand)" }}>{a.name}</td>
-                 <td style={{ padding: 6 }}>{a.base_model}</td>
-                 <td style={{ padding: 6, textAlign: "right" }}>{a.rank}</td>
-                 <td style={{ padding: 6, textAlign: "right" }}>{a.size_mb} MB</td>
-                 <td style={{ padding: 6, textAlign: "right" }}>
-                   <button style={{ padding: "2px 8px", background: "transparent", color: "var(--vp-c-brand)", border: "1px solid var(--vp-c-brand)", borderRadius: 4, cursor: "pointer", marginRight: 4, fontSize: 11 }}>Merge</button>
-                   <button style={{ padding: "2px 8px", background: "transparent", color: "var(--vp-c-danger)", border: "1px solid var(--vp-c-danger)", borderRadius: 4, cursor: "pointer", fontSize: 11 }}>Delete</button>
-                 </td>
+         {adapters.length === 0 ? (
+           <div style={{ padding: 20, textAlign: "center", color: "var(--vp-c-text-2)" }}>
+             No LoRA adapters configured yet.
+           </div>
+         ) : (
+           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, marginTop: 8 }}>
+             <thead>
+               <tr style={{ borderBottom: "1px solid var(--vp-c-border)" }}>
+                 <th style={{ textAlign: "left", padding: 6 }}>Name</th>
+                 <th style={{ textAlign: "left", padding: 6 }}>Base Model</th>
+                 <th style={{ textAlign: "right", padding: 6 }}>Rank</th>
+                 <th style={{ textAlign: "right", padding: 6 }}>Size</th>
+                 <th style={{ textAlign: "right", padding: 6 }}>Actions</th>
                </tr>
-             ))}
-           </tbody>
-         </table>
+             </thead>
+             <tbody>
+               {adapters.map(a => (
+                 <tr key={a.name} style={{ borderBottom: "1px solid var(--vp-c-border)" }}>
+                   <td style={{ padding: 6, fontFamily: "monospace", color: "var(--vp-c-brand)" }}>{a.name}</td>
+                   <td style={{ padding: 6 }}>{a.base_model}</td>
+                   <td style={{ padding: 6, textAlign: "right" }}>{a.rank}</td>
+                   <td style={{ padding: 6, textAlign: "right" }}>{a.size_mb} MB</td>
+                   <td style={{ padding: 6, textAlign: "right" }}>
+                     <button style={{ padding: "2px 8px", background: "transparent", color: "var(--vp-c-brand)", border: "1px solid var(--vp-c-brand)", borderRadius: 4, cursor: "pointer", marginRight: 4, fontSize: 11 }}>Merge</button>
+                     <button style={{ padding: "2px 8px", background: "transparent", color: "var(--vp-c-danger)", border: "1px solid var(--vp-c-danger)", borderRadius: 4, cursor: "pointer", fontSize: 11 }}>Delete</button>
+                   </td>
+                 </tr>
+               ))}
+             </tbody>
+           </table>
+         )}
+         <button onClick={handleCreateAdapter} style={{ marginTop: 12, padding: "6px 14px", background: "var(--vp-c-brand)", color: "var(--text-primary)", border: "none", borderRadius: 4, cursor: "pointer" }}>
+           Create Adapter
+         </button>
        </>
      )}
    </div>

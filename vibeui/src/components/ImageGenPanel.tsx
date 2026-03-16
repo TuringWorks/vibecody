@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 interface GeneratedImage {
   id: string;
@@ -7,15 +8,20 @@ interface GeneratedImage {
   width: number;
   height: number;
   style: string;
-  generatedAt: string;
+  status: string;
+  created_at: string;
+  file_path: string;
   cost: number;
 }
 
-interface BatchRequest {
-  id: string;
-  prompt: string;
-  status: "Queued" | "Running" | "Done" | "Failed";
-  cost: number;
+interface ImageGenStats {
+  total_images: number;
+  total_cost: number;
+  models_used: string[];
+  styles_used: string[];
+  completed: number;
+  pending: number;
+  failed: number;
 }
 
 const ImageGenPanel: React.FC = () => {
@@ -25,21 +31,37 @@ const ImageGenPanel: React.FC = () => {
   const [width, setWidth] = useState(1024);
   const [height, setHeight] = useState(1024);
   const [model, setModel] = useState("DALL-E 3");
-  const [gallery, setGallery] = useState<GeneratedImage[]>([
-    { id: "img-1", prompt: "A futuristic city at sunset", model: "DALL-E 3", width: 1024, height: 1024, style: "Photorealistic", generatedAt: "2 min ago", cost: 0.04 },
-    { id: "img-2", prompt: "Abstract neural network visualization", model: "Stable Diffusion XL", width: 1024, height: 768, style: "Digital Art", generatedAt: "15 min ago", cost: 0.02 },
-    { id: "img-3", prompt: "Minimalist logo for AI startup", model: "Midjourney v6", width: 512, height: 512, style: "Minimalist", generatedAt: "1 hr ago", cost: 0.05 },
-  ]);
-  const [batch, setBatch] = useState<BatchRequest[]>([
-    { id: "b-1", prompt: "Product hero image - dark theme", status: "Done", cost: 0.04 },
-    { id: "b-2", prompt: "Landing page illustration", status: "Running", cost: 0.03 },
-    { id: "b-3", prompt: "Icon set - 16 app icons", status: "Queued", cost: 0.08 },
-    { id: "b-4", prompt: "Team avatar placeholders", status: "Queued", cost: 0.02 },
-  ]);
+  const [gallery, setGallery] = useState<GeneratedImage[]>([]);
+  const [stats, setStats] = useState<ImageGenStats | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const styles = ["Photorealistic", "Digital Art", "Watercolor", "Oil Painting", "Pixel Art",
     "Anime", "Minimalist", "3D Render", "Sketch", "Comic Book"];
   const models = ["DALL-E 3", "Stable Diffusion XL", "Midjourney v6", "Imagen 3", "Flux Pro"];
+
+  const loadGallery = useCallback(async () => {
+    try {
+      const images = await invoke<GeneratedImage[]>("list_generated_images");
+      setGallery(images);
+    } catch (e) {
+      setError(String(e));
+    }
+  }, []);
+
+  const loadStats = useCallback(async () => {
+    try {
+      const s = await invoke<ImageGenStats>("get_image_gen_stats");
+      setStats(s);
+    } catch (e) {
+      setError(String(e));
+    }
+  }, []);
+
+  useEffect(() => {
+    loadGallery();
+    loadStats();
+  }, [loadGallery, loadStats]);
 
   const containerStyle: React.CSSProperties = {
     padding: "16px", color: "var(--text-primary)",
@@ -80,20 +102,54 @@ const ImageGenPanel: React.FC = () => {
 
   const costEstimate = model === "DALL-E 3" ? 0.04 : model === "Midjourney v6" ? 0.05 : 0.02;
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     if (!prompt.trim()) return;
-    const img: GeneratedImage = {
-      id: `img-${Date.now()}`, prompt, model, width, height, style, generatedAt: "just now", cost: costEstimate,
-    };
-    setGallery(prev => [img, ...prev]);
-    setPrompt("");
+    setLoading(true);
+    setError(null);
+    try {
+      await invoke<GeneratedImage>("generate_image", {
+        prompt, model, style, width, height,
+      });
+      setPrompt("");
+      await loadGallery();
+      await loadStats();
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await invoke("delete_generated_image", { id });
+      await loadGallery();
+      await loadStats();
+    } catch (e) {
+      setError(String(e));
+    }
   };
 
   const statusColor = (s: string) =>
-    s === "Done" ? "var(--success-color)" : s === "Running" ? "var(--info-color)" : s === "Failed" ? "var(--error-color)" : "var(--text-muted)";
+    s === "completed" ? "var(--success-color)" : s === "pending" ? "var(--info-color)" : s === "failed" ? "var(--error-color)" : "var(--text-muted)";
+
+  const formatTime = (epochStr: string) => {
+    const epoch = parseInt(epochStr, 10);
+    if (isNaN(epoch)) return epochStr;
+    const diff = Math.floor(Date.now() / 1000) - epoch;
+    if (diff < 60) return "just now";
+    if (diff < 3600) return `${Math.floor(diff / 60)} min ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)} hr ago`;
+    return `${Math.floor(diff / 86400)} days ago`;
+  };
 
   const renderGenerate = () => (
     <div>
+      {error && (
+        <div style={{ ...cardStyle, borderColor: "var(--error-color)", marginBottom: "12px", color: "var(--error-color)" }}>
+          {error}
+        </div>
+      )}
       <div style={fieldGroup}>
         <label style={labelStyle}>Prompt</label>
         <textarea style={{ ...inputStyle, minHeight: "80px", resize: "vertical" }} value={prompt}
@@ -127,8 +183,9 @@ const ImageGenPanel: React.FC = () => {
         <span>Estimated Cost</span>
         <strong>${costEstimate.toFixed(2)}</strong>
       </div>
-      <button style={{ ...btnStyle, width: "100%", marginTop: "8px", padding: "10px" }} onClick={handleGenerate}>
-        Generate Image
+      <button style={{ ...btnStyle, width: "100%", marginTop: "8px", padding: "10px", opacity: loading ? 0.6 : 1 }}
+        onClick={handleGenerate} disabled={loading}>
+        {loading ? "Generating..." : "Generate Image"}
       </button>
     </div>
   );
@@ -136,6 +193,9 @@ const ImageGenPanel: React.FC = () => {
   const renderGallery = () => (
     <div>
       <div style={{ fontSize: "12px", opacity: 0.7, marginBottom: "8px" }}>{gallery.length} images</div>
+      {gallery.length === 0 && (
+        <div style={{ ...cardStyle, textAlign: "center", opacity: 0.6 }}>No images yet. Generate one to get started.</div>
+      )}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
         {gallery.map(img => (
           <div key={img.id} style={cardStyle}>
@@ -144,34 +204,64 @@ const ImageGenPanel: React.FC = () => {
               fontSize: "11px", opacity: 0.5 }}>{img.width}x{img.height}</div>
             <div style={{ fontSize: "12px", fontWeight: 600, marginBottom: "4px", overflow: "hidden",
               textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{img.prompt}</div>
-            <div style={{ fontSize: "11px", opacity: 0.7 }}>{img.model} &middot; {img.generatedAt}</div>
+            <div style={{ fontSize: "11px", opacity: 0.7, marginBottom: "4px" }}>
+              {img.model} &middot; {formatTime(img.created_at)}
+              <span style={{ ...badgeStyle(statusColor(img.status)), marginLeft: "6px" }}>{img.status}</span>
+            </div>
+            <button style={{ ...btnStyle, fontSize: "11px", padding: "2px 8px", backgroundColor: "var(--error-color)" }}
+              onClick={() => handleDelete(img.id)}>Delete</button>
           </div>
         ))}
       </div>
     </div>
   );
 
-  const totalBatchCost = batch.reduce((sum, b) => sum + b.cost, 0);
-
-  const renderBatch = () => (
+  const renderStats = () => (
     <div>
-      <div style={{ ...cardStyle, display: "flex", justifyContent: "space-between", marginBottom: "12px" }}>
-        <span>{batch.length} requests</span>
-        <strong>Total: ${totalBatchCost.toFixed(2)}</strong>
-      </div>
-      {batch.map((b) => (
-        <div key={b.id} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div>
-            <div style={{ fontWeight: 600, fontSize: "13px" }}>{b.prompt}</div>
-            <div style={{ fontSize: "11px", opacity: 0.7 }}>${b.cost.toFixed(2)}</div>
+      {stats ? (
+        <>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "12px" }}>
+            <div style={cardStyle}>
+              <div style={{ fontSize: "11px", opacity: 0.7 }}>Total Images</div>
+              <div style={{ fontSize: "20px", fontWeight: 700 }}>{stats.total_images}</div>
+            </div>
+            <div style={cardStyle}>
+              <div style={{ fontSize: "11px", opacity: 0.7 }}>Total Cost</div>
+              <div style={{ fontSize: "20px", fontWeight: 700 }}>${stats.total_cost.toFixed(2)}</div>
+            </div>
+            <div style={cardStyle}>
+              <div style={{ fontSize: "11px", opacity: 0.7 }}>Completed</div>
+              <div style={{ fontSize: "20px", fontWeight: 700, color: "var(--success-color)" }}>{stats.completed}</div>
+            </div>
+            <div style={cardStyle}>
+              <div style={{ fontSize: "11px", opacity: 0.7 }}>Pending / Failed</div>
+              <div style={{ fontSize: "20px", fontWeight: 700 }}>{stats.pending} / {stats.failed}</div>
+            </div>
           </div>
-          <span style={badgeStyle(statusColor(b.status))}>{b.status}</span>
-        </div>
-      ))}
-      <button style={{ ...btnStyle, width: "100%", marginTop: "8px", padding: "10px" }}
-        onClick={() => setBatch(prev => prev.map(b => ({ ...b, status: "Done" as const })))}>
-        Run All
-      </button>
+          {stats.models_used.length > 0 && (
+            <div style={cardStyle}>
+              <div style={{ fontSize: "11px", opacity: 0.7, marginBottom: "4px" }}>Models Used</div>
+              <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
+                {stats.models_used.map(m => (
+                  <span key={m} style={badgeStyle("var(--accent-color)")}>{m}</span>
+                ))}
+              </div>
+            </div>
+          )}
+          {stats.styles_used.length > 0 && (
+            <div style={{ ...cardStyle, marginTop: "8px" }}>
+              <div style={{ fontSize: "11px", opacity: 0.7, marginBottom: "4px" }}>Styles Used</div>
+              <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
+                {stats.styles_used.map(s => (
+                  <span key={s} style={badgeStyle("var(--info-color)")}>{s}</span>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      ) : (
+        <div style={{ ...cardStyle, textAlign: "center", opacity: 0.6 }}>Loading stats...</div>
+      )}
     </div>
   );
 
@@ -179,13 +269,13 @@ const ImageGenPanel: React.FC = () => {
     <div style={containerStyle}>
       <h2 style={{ margin: "0 0 12px" }}>Image Generation</h2>
       <div style={tabBarStyle}>
-        {[["generate", "Generate"], ["gallery", "Gallery"], ["batch", "Batch"]].map(([id, label]) => (
+        {[["generate", "Generate"], ["gallery", "Gallery"], ["stats", "Stats"]].map(([id, label]) => (
           <button key={id} style={tabStyle(activeTab === id)} onClick={() => setActiveTab(id)}>{label}</button>
         ))}
       </div>
       {activeTab === "generate" && renderGenerate()}
       {activeTab === "gallery" && renderGallery()}
-      {activeTab === "batch" && renderBatch()}
+      {activeTab === "stats" && renderStats()}
     </div>
   );
 };

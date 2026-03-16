@@ -4,9 +4,10 @@
  * Tabs: Predictions (recent predictions with confidence, accept/reject),
  * Patterns (detected edit patterns with frequency),
  * Model (Q-table stats, exploration rate, acceptance rate, decay).
- * Pure TypeScript — no Tauri commands.
+ * Wired to Tauri backend commands.
  */
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 type Tab = "predictions" | "patterns" | "model";
 type PredictionState = "pending" | "accepted" | "rejected";
@@ -46,28 +47,10 @@ interface ModelStats {
   decayRate: number;
 }
 
-const MOCK_PREDICTIONS: Prediction[] = [
-  { id: "pr1", file: "src/main.rs", line: 42, suggestion: "Add error handling with ? operator", confidence: 0.94, state: "pending", timestamp: "10s ago", pattern: "error-propagation" },
-  { id: "pr2", file: "src/lib.rs", line: 78, suggestion: "Extract repeated block into helper function", confidence: 0.87, state: "pending", timestamp: "30s ago", pattern: "extract-function" },
-  { id: "pr3", file: "src/config.rs", line: 15, suggestion: "Use Default derive instead of manual impl", confidence: 0.76, state: "pending", timestamp: "1m ago", pattern: "derive-default" },
-  { id: "pr4", file: "src/utils.rs", line: 33, suggestion: "Replace .unwrap() with .expect(\"msg\")", confidence: 0.92, state: "accepted", timestamp: "2m ago", pattern: "unwrap-to-expect" },
-  { id: "pr5", file: "src/handler.rs", line: 55, suggestion: "Add #[must_use] attribute", confidence: 0.68, state: "rejected", timestamp: "3m ago", pattern: "must-use-attr" },
-  { id: "pr6", file: "src/main.rs", line: 120, suggestion: "Use if let instead of match with single arm", confidence: 0.81, state: "accepted", timestamp: "5m ago", pattern: "if-let-simplify" },
-];
-
-const MOCK_PATTERNS: EditPattern[] = [
-  { id: "pt1", name: "error-propagation", description: "Add ? operator for Result/Option error handling", frequency: 142, lastSeen: "10s ago", avgConfidence: 0.91, acceptRate: 0.88 },
-  { id: "pt2", name: "extract-function", description: "Extract repeated code blocks into reusable functions", frequency: 87, lastSeen: "30s ago", avgConfidence: 0.84, acceptRate: 0.72 },
-  { id: "pt3", name: "unwrap-to-expect", description: "Replace .unwrap() with .expect() for better panic messages", frequency: 64, lastSeen: "2m ago", avgConfidence: 0.93, acceptRate: 0.95 },
-  { id: "pt4", name: "derive-default", description: "Use #[derive(Default)] instead of manual Default impl", frequency: 38, lastSeen: "1m ago", avgConfidence: 0.78, acceptRate: 0.65 },
-  { id: "pt5", name: "if-let-simplify", description: "Simplify single-arm match to if let", frequency: 51, lastSeen: "5m ago", avgConfidence: 0.82, acceptRate: 0.79 },
-  { id: "pt6", name: "must-use-attr", description: "Add #[must_use] to functions returning important values", frequency: 22, lastSeen: "3m ago", avgConfidence: 0.65, acceptRate: 0.45 },
-];
-
-const MOCK_MODEL: ModelStats = {
-  qTableSize: 1247, totalStates: 89, totalActions: 14,
+const DEFAULT_MODEL: ModelStats = {
+  qTableSize: 0, totalStates: 0, totalActions: 0,
   explorationRate: 0.15, learningRate: 0.01, discountFactor: 0.95,
-  acceptanceRate: 0.78, totalPredictions: 3421, accepted: 2668, rejected: 753,
+  acceptanceRate: 0, totalPredictions: 0, accepted: 0, rejected: 0,
   decayRate: 0.999,
 };
 
@@ -82,11 +65,50 @@ const confColor = (c: number) => c > 0.85 ? "var(--text-success)" : c > 0.7 ? "v
 
 export default function EditPredictionPanel() {
   const [tab, setTab] = useState<Tab>("predictions");
-  const [predictions, setPredictions] = useState(MOCK_PREDICTIONS);
-  const [model, setModel] = useState(MOCK_MODEL);
+  const [predictions, setPredictions] = useState<Prediction[]>([]);
+  const [patterns, setPatterns] = useState<EditPattern[]>([]);
+  const [model, setModel] = useState<ModelStats>(DEFAULT_MODEL);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const handlePrediction = (id: string, action: "accepted" | "rejected") => {
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const [preds, pats, stats] = await Promise.all([
+        invoke<Prediction[]>("get_edit_predictions"),
+        invoke<EditPattern[]>("get_edit_patterns"),
+        invoke<ModelStats>("get_edit_model_stats"),
+      ]);
+      setPredictions(preds);
+      setPatterns(pats);
+      setModel(stats);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  const handlePrediction = async (id: string, action: "accepted" | "rejected") => {
+    // Optimistic update
     setPredictions(ps => ps.map(p => p.id === id ? { ...p, state: action } : p));
+    try {
+      if (action === "accepted") {
+        await invoke("accept_prediction", { id });
+      } else {
+        await invoke("dismiss_prediction", { id });
+      }
+      // Refresh model stats after feedback
+      const stats = await invoke<ModelStats>("get_edit_model_stats");
+      setModel(stats);
+    } catch (e) {
+      // Revert on failure
+      setPredictions(ps => ps.map(p => p.id === id ? { ...p, state: "pending" as PredictionState } : p));
+      setError(String(e));
+    }
   };
 
   const adjustExploration = (delta: number) => {
@@ -111,6 +133,22 @@ export default function EditPredictionPanel() {
       </div>
 
       <div style={{ flex: 1, overflowY: "auto", padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+        {loading && (
+          <div style={{ textAlign: "center", padding: 20, color: "var(--text-muted)", fontSize: 12 }}>Loading...</div>
+        )}
+
+        {error && (
+          <div style={{ padding: 10, background: "rgba(239,68,68,0.1)", border: "1px solid var(--text-danger)", borderRadius: 6, fontSize: 11, color: "var(--text-danger)" }}>
+            {error}
+          </div>
+        )}
+
+        {tab === "predictions" && !loading && predictions.length === 0 && !error && (
+          <div style={{ textAlign: "center", padding: 30, color: "var(--text-muted)", fontSize: 12 }}>
+            No predictions yet. Edit some files to generate predictions.
+          </div>
+        )}
+
         {tab === "predictions" && predictions.map(p => (
           <div key={p.id} style={{ padding: 10, background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)", opacity: p.state !== "pending" ? 0.6 : 1 }}>
             <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
@@ -138,7 +176,13 @@ export default function EditPredictionPanel() {
           </div>
         ))}
 
-        {tab === "patterns" && MOCK_PATTERNS.map(p => (
+        {tab === "patterns" && !loading && patterns.length === 0 && !error && (
+          <div style={{ textAlign: "center", padding: 30, color: "var(--text-muted)", fontSize: 12 }}>
+            No patterns detected yet. Patterns emerge as you edit files.
+          </div>
+        )}
+
+        {tab === "patterns" && patterns.map(p => (
           <div key={p.id} style={{ padding: 10, background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)" }}>
             <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4 }}>
               <span style={{ fontSize: 11, fontWeight: 600, fontFamily: "monospace", color: "var(--accent-primary)" }}>{p.name}</span>

@@ -1,4 +1,5 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 /* ── Types ───────────────────────────────────────────────────────────── */
 
@@ -10,6 +11,7 @@ interface ContextChunk {
   depth: DepthLevel;
   relevance: number;
   tokenCount: number;
+  pinned?: boolean;
 }
 
 interface ProjectFile {
@@ -21,6 +23,14 @@ interface ProjectFile {
   relevance: number;
   children?: ProjectFile[];
   expanded?: boolean;
+}
+
+interface ContextWindowStats {
+  usedTokens: number;
+  maxTokens: number;
+  usagePct: number;
+  chunkCount: number;
+  compressionRatio: number;
 }
 
 type SortKey = "relevance" | "filePath" | "tokenCount";
@@ -61,7 +71,7 @@ const DEPTH_DEMOTE: Record<DepthLevel, DepthLevel> = {
   Signatures: "Signatures",
 };
 
-/* ── Helpers ─────────────────────────────────────────────────────────── */
+/* ── Helpers ─uta────────────────────────────────────────────────────────── */
 
 const fmtTokens = (n: number): string =>
   n >= 1_000_000
@@ -72,67 +82,22 @@ const fmtTokens = (n: number): string =>
 
 const fmtPct = (v: number): string => `${Math.round(v * 100)}%`;
 
-let nextChunkId = 100;
-
-/* ── Sample data ─────────────────────────────────────────────────────── */
-
-const SAMPLE_CHUNKS: ContextChunk[] = [
-  { id: 1, filePath: "src/main.rs", depth: "Full", relevance: 0.95, tokenCount: 3200 },
-  { id: 2, filePath: "src/config.rs", depth: "Full", relevance: 0.88, tokenCount: 1800 },
-  { id: 3, filePath: "src/agent.rs", depth: "Summary", relevance: 0.72, tokenCount: 850 },
-  { id: 4, filePath: "src/provider.rs", depth: "Skeleton", relevance: 0.55, tokenCount: 320 },
-  { id: 5, filePath: "src/tools/mod.rs", depth: "Signatures", relevance: 0.41, tokenCount: 120 },
-  { id: 6, filePath: "src/hooks.rs", depth: "Summary", relevance: 0.68, tokenCount: 640 },
-];
-
-const SAMPLE_PROJECT: ProjectFile[] = [
-  {
-    path: "src",
-    isDirectory: true,
-    contextStatus: "loaded",
-    tokenEstimate: 12400,
-    lastModified: "2026-03-08 10:30",
-    relevance: 0.85,
-    expanded: true,
-    children: [
-      { path: "src/main.rs", isDirectory: false, contextStatus: "loaded", tokenEstimate: 3200, lastModified: "2026-03-08 10:30", relevance: 0.95 },
-      { path: "src/config.rs", isDirectory: false, contextStatus: "loaded", tokenEstimate: 1800, lastModified: "2026-03-07 14:22", relevance: 0.88 },
-      { path: "src/agent.rs", isDirectory: false, contextStatus: "summarized", tokenEstimate: 4200, lastModified: "2026-03-08 09:15", relevance: 0.72 },
-      { path: "src/provider.rs", isDirectory: false, contextStatus: "summarized", tokenEstimate: 2100, lastModified: "2026-03-06 16:45", relevance: 0.55 },
-      { path: "src/hooks.rs", isDirectory: false, contextStatus: "not-loaded", tokenEstimate: 1100, lastModified: "2026-03-05 11:00", relevance: 0.41 },
-    ],
-  },
-  {
-    path: "tests",
-    isDirectory: true,
-    contextStatus: "not-loaded",
-    tokenEstimate: 8600,
-    lastModified: "2026-03-08 08:00",
-    relevance: 0.35,
-    expanded: false,
-    children: [
-      { path: "tests/integration.rs", isDirectory: false, contextStatus: "not-loaded", tokenEstimate: 5200, lastModified: "2026-03-08 08:00", relevance: 0.35 },
-      { path: "tests/unit.rs", isDirectory: false, contextStatus: "not-loaded", tokenEstimate: 3400, lastModified: "2026-03-07 17:30", relevance: 0.28 },
-    ],
-  },
-  { path: "Cargo.toml", isDirectory: false, contextStatus: "not-loaded", tokenEstimate: 420, lastModified: "2026-03-06 12:00", relevance: 0.62 },
-];
+let nextChunkId = 100_000;
 
 /* ── Component ───────────────────────────────────────────────────────── */
 
 export function InfiniteContextPanel({ workspacePath }: { workspacePath: string }) {
-  const _workspacePath = workspacePath;
-  void _workspacePath;
-
   const [activeTab, setActiveTab] = useState<TabId>("context");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Context Window state
-  const [chunks, setChunks] = useState<ContextChunk[]>(SAMPLE_CHUNKS);
+  const [chunks, setChunks] = useState<ContextChunk[]>([]);
   const [sortKey, setSortKey] = useState<SortKey>("relevance");
   const [maxTokens, setMaxTokens] = useState(100_000);
 
   // Project Map state
-  const [projectFiles, setProjectFiles] = useState<ProjectFile[]>(SAMPLE_PROJECT);
+  const [projectFiles, setProjectFiles] = useState<ProjectFile[]>([]);
   const [fileFilter, setFileFilter] = useState("");
 
   // Settings state
@@ -144,6 +109,50 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
   const [accessFreqWeight, setAccessFreqWeight] = useState(0.4);
   const [autoCompress, setAutoCompress] = useState(true);
   const [cacheSize, setCacheSize] = useState(256);
+
+  /* ── Load data from backend ─────────────────────────────────────── */
+
+  const loadChunks = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const result = await invoke<ContextChunk[]>("get_context_chunks", { workspace: workspacePath });
+      setChunks(result);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
+  }, [workspacePath]);
+
+  const loadProjectTree = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const result = await invoke<ProjectFile[]>("get_project_file_tree", { workspace: workspacePath });
+      setProjectFiles(result);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
+  }, [workspacePath]);
+
+  const loadStats = useCallback(async () => {
+    try {
+      const stats = await invoke<ContextWindowStats>("get_context_window_stats", { workspace: workspacePath });
+      setMaxTokens(stats.maxTokens);
+    } catch (_e) {
+      // stats are supplementary, don't block on error
+    }
+  }, [workspacePath]);
+
+  // Load chunks and project tree on mount
+  useEffect(() => {
+    loadChunks();
+    loadProjectTree();
+    loadStats();
+  }, [loadChunks, loadProjectTree, loadStats]);
 
   /* ── Context Window actions ──────────────────────────────────────── */
 
@@ -169,9 +178,24 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
     );
   }, []);
 
-  const evictChunk = useCallback((id: number) => {
+  const evictChunk = useCallback(async (id: number) => {
+    // Optimistically remove from local state
     setChunks(prev => prev.filter(c => c.id !== id));
-  }, []);
+    try {
+      await invoke<ContextChunk[]>("evict_context_chunk", { workspace: workspacePath, chunkId: id });
+    } catch (_e) {
+      // Already removed locally; backend call is best-effort
+    }
+  }, [workspacePath]);
+
+  const pinChunk = useCallback(async (id: number, pinned: boolean) => {
+    setChunks(prev => prev.map(c => (c.id === id ? { ...c, pinned } : c)));
+    try {
+      await invoke<ContextChunk[]>("pin_context_chunk", { workspace: workspacePath, chunkId: id, pinned });
+    } catch (_e) {
+      // best-effort
+    }
+  }, [workspacePath]);
 
   /* ── Project Map actions ─────────────────────────────────────────── */
 
@@ -413,9 +437,24 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
         fontSize: "13px",
       }}
     >
-      <div style={{ fontWeight: "bold", marginBottom: "8px", fontSize: "14px" }}>
-        Infinite Context Manager
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+        <div style={{ fontWeight: "bold", fontSize: "14px" }}>
+          Infinite Context Manager
+        </div>
+        <button
+          style={btnStyle}
+          onClick={() => { loadChunks(); loadProjectTree(); }}
+          disabled={loading}
+        >
+          {loading ? "Loading..." : "Refresh"}
+        </button>
       </div>
+
+      {error && (
+        <div style={{ color: "var(--error-color)", fontSize: "12px", marginBottom: "8px", padding: "6px 10px", background: "var(--bg-secondary)", borderRadius: "4px" }}>
+          {error}
+        </div>
+      )}
 
       {/* Tabs */}
       <div
@@ -522,7 +561,12 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
           </div>
 
           {/* Chunk list */}
-          {sortedChunks.length === 0 && (
+          {loading && chunks.length === 0 && (
+            <div style={{ color: "var(--text-secondary)", textAlign: "center", padding: "20px" }}>
+              Loading context chunks...
+            </div>
+          )}
+          {!loading && sortedChunks.length === 0 && (
             <div style={{ color: "var(--text-secondary)", textAlign: "center", padding: "20px" }}>
               No context chunks loaded. Use the Project Map to load files.
             </div>
@@ -533,6 +577,9 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
                 <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
                   <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{chunk.filePath}</span>
                   <span style={badgeStyle(DEPTH_COLORS[chunk.depth])}>{chunk.depth}</span>
+                  {chunk.pinned && (
+                    <span style={{ fontSize: "10px", color: "var(--warning-color)", fontWeight: 600 }}>PINNED</span>
+                  )}
                 </div>
                 <div style={{ display: "flex", gap: "12px", fontSize: "11px", color: "var(--text-secondary)" }}>
                   <span>Relevance: <span style={{ color: "var(--accent-color)" }}>{fmtPct(chunk.relevance)}</span></span>
@@ -540,6 +587,12 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
                 </div>
               </div>
               <div style={{ display: "flex", gap: "4px" }}>
+                <button
+                  style={btnSmall}
+                  onClick={() => pinChunk(chunk.id, !chunk.pinned)}
+                >
+                  {chunk.pinned ? "Unpin" : "Pin"}
+                </button>
                 <button
                   style={{
                     ...btnSmall,
@@ -637,8 +690,13 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
 
           {/* File tree */}
           <div style={{ ...cardStyle, padding: "6px 10px" }}>
+            {loading && projectFiles.length === 0 && (
+              <div style={{ color: "var(--text-secondary)", textAlign: "center", padding: "12px" }}>
+                Loading project tree...
+              </div>
+            )}
             {renderFileTree(filterFiles(projectFiles))}
-            {filterFiles(projectFiles).length === 0 && (
+            {!loading && filterFiles(projectFiles).length === 0 && (
               <div style={{ color: "var(--text-secondary)", textAlign: "center", padding: "12px" }}>
                 No files match filter.
               </div>
@@ -754,7 +812,7 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
               <button style={btnDanger} onClick={() => setCacheSize(256)}>
                 Clear Cache
               </button>
-              <button style={btnStyle} onClick={() => void 0}>
+              <button style={btnStyle} onClick={() => { loadChunks(); loadProjectTree(); }}>
                 Rebuild Index
               </button>
             </div>

@@ -1,79 +1,48 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 // -- Types --------------------------------------------------------------------
 
-type SessionStatus = "Active" | "Completed" | "Failed" | "Paused";
 type TabName = "Sessions" | "Replay" | "Stats";
 
-interface Session {
+interface SessionEntry {
   id: string;
-  name: string;
-  provider: string;
-  model: string;
-  status: SessionStatus;
-  messageCount: number;
-  startedAt: string;
-  duration: string;
+  timestamp: number;
+  message_count: number;
+  file_size: number;
+  has_messages: boolean;
+  has_context: boolean;
 }
 
-interface ReplayStep {
-  index: number;
-  role: "user" | "assistant" | "tool";
+interface SessionMessage {
+  role: string;
   content: string;
-  timestamp: string;
-  tokenCount: number;
 }
-
-interface ProviderStat {
-  provider: string;
-  count: number;
-  pct: number;
-}
-
-// -- Mock Data ----------------------------------------------------------------
-
-const MOCK_SESSIONS: Session[] = [
-  { id: "sess-a1b2c3", name: "Refactor auth module", provider: "Claude", model: "opus-4", status: "Completed", messageCount: 24, startedAt: "2026-03-09 10:15", duration: "12m" },
-  { id: "sess-d4e5f6", name: "Fix CI pipeline", provider: "OpenAI", model: "gpt-4o", status: "Active", messageCount: 8, startedAt: "2026-03-09 14:30", duration: "3m" },
-  { id: "sess-g7h8i9", name: "Add unit tests", provider: "Gemini", model: "gemini-2.0", status: "Failed", messageCount: 15, startedAt: "2026-03-08 09:00", duration: "7m" },
-  { id: "sess-j0k1l2", name: "Database migration", provider: "Claude", model: "sonnet-4", status: "Paused", messageCount: 31, startedAt: "2026-03-07 16:45", duration: "22m" },
-  { id: "sess-m3n4o5", name: "API endpoint design", provider: "Ollama", model: "llama3", status: "Completed", messageCount: 12, startedAt: "2026-03-07 11:20", duration: "5m" },
-];
-
-const MOCK_REPLAY_STEPS: ReplayStep[] = [
-  { index: 0, role: "user", content: "Refactor the auth module to use JWT tokens", timestamp: "10:15:00", tokenCount: 18 },
-  { index: 1, role: "assistant", content: "I'll analyze the current auth module and plan the refactoring...", timestamp: "10:15:02", tokenCount: 342 },
-  { index: 2, role: "tool", content: "Read file: src/auth/mod.rs (245 lines)", timestamp: "10:15:03", tokenCount: 1200 },
-  { index: 3, role: "assistant", content: "Here's my plan for the JWT refactoring:\n1. Add jsonwebtoken dependency\n2. Create JwtConfig struct\n3. Update login handler", timestamp: "10:15:08", tokenCount: 580 },
-  { index: 4, role: "user", content: "Looks good, proceed with the implementation", timestamp: "10:16:30", tokenCount: 9 },
-  { index: 5, role: "assistant", content: "I'll start by updating Cargo.toml and creating the JWT module...", timestamp: "10:16:32", tokenCount: 890 },
-];
-
-const MOCK_PROVIDER_STATS: ProviderStat[] = [
-  { provider: "Claude", count: 42, pct: 45 },
-  { provider: "OpenAI", count: 28, pct: 30 },
-  { provider: "Gemini", count: 12, pct: 13 },
-  { provider: "Ollama", count: 8, pct: 9 },
-  { provider: "Groq", count: 3, pct: 3 },
-];
 
 // -- Helpers ------------------------------------------------------------------
 
-const statusColor = (s: SessionStatus): string => {
-  switch (s) {
-    case "Active": return "var(--success-color)";
-    case "Completed": return "var(--accent-color)";
-    case "Failed": return "var(--error-color)";
-    case "Paused": return "var(--warning-color)";
-  }
+const formatTimestamp = (ts: number): string => {
+  if (ts === 0) return "Unknown";
+  const d = new Date(ts * 1000);
+  return d.toLocaleString();
+};
+
+const formatFileSize = (bytes: number): string => {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
 const roleColor = (r: string): string => {
   switch (r) {
-    case "user": return "var(--accent-color)";
-    case "assistant": return "var(--success-color)";
-    case "tool": return "var(--warning-color)";
-    default: return "var(--text-secondary)";
+    case "user":
+      return "var(--accent-color)";
+    case "assistant":
+      return "var(--success-color)";
+    case "system":
+      return "var(--warning-color)";
+    default:
+      return "var(--text-secondary)";
   }
 };
 
@@ -82,52 +51,354 @@ const roleColor = (r: string): string => {
 const SessionBrowserPanel: React.FC = () => {
   const [tab, setTab] = useState<TabName>("Sessions");
   const [search, setSearch] = useState("");
-  const [selectedSession, setSelectedSession] = useState<Session | null>(null);
+  const [workspace, setWorkspace] = useState(() => {
+    // Default to current working directory or home
+    return ".";
+  });
+
+  // Sessions list state
+  const [sessions, setSessions] = useState<SessionEntry[]>([]);
+  const [sessionsLoading, setSessionsLoading] = useState(false);
+  const [sessionsError, setSessionsError] = useState<string | null>(null);
+
+  // Session detail / replay state
+  const [selectedSession, setSelectedSession] = useState<SessionEntry | null>(null);
+  const [messages, setMessages] = useState<SessionMessage[]>([]);
+  const [messagesLoading, setMessagesLoading] = useState(false);
+  const [messagesError, setMessagesError] = useState<string | null>(null);
   const [replayIndex, setReplayIndex] = useState(0);
+
+  // Status banner
   const [status, setStatus] = useState<string | null>(null);
 
-  const filteredSessions = MOCK_SESSIONS.filter(
-    (s) => s.name.toLowerCase().includes(search.toLowerCase()) || s.provider.toLowerCase().includes(search.toLowerCase())
+  // -- Data fetching ----------------------------------------------------------
+
+  const loadSessions = useCallback(async () => {
+    setSessionsLoading(true);
+    setSessionsError(null);
+    try {
+      const result = await invoke<SessionEntry[]>("list_sessions", { workspace });
+      setSessions(result);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setSessionsError(msg);
+    } finally {
+      setSessionsLoading(false);
+    }
+  }, [workspace]);
+
+  const loadSessionDetail = useCallback(
+    async (sessionId: string) => {
+      setMessagesLoading(true);
+      setMessagesError(null);
+      try {
+        const result = await invoke<SessionMessage[]>("get_session_detail", {
+          workspace,
+          sessionId,
+        });
+        setMessages(result);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        setMessagesError(msg);
+      } finally {
+        setMessagesLoading(false);
+      }
+    },
+    [workspace],
   );
+
+  const deleteSession = useCallback(
+    async (sessionId: string) => {
+      try {
+        await invoke("delete_session", { workspace, sessionId });
+        setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+        if (selectedSession?.id === sessionId) {
+          setSelectedSession(null);
+          setMessages([]);
+          setTab("Sessions");
+        }
+        setStatus("Session deleted");
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        setStatus(`Delete failed: ${msg}`);
+      }
+    },
+    [workspace, selectedSession],
+  );
+
+  // Load sessions on mount and when workspace changes
+  useEffect(() => {
+    loadSessions();
+  }, [loadSessions]);
+
+  // -- Derived data -----------------------------------------------------------
+
+  const filteredSessions = sessions.filter(
+    (s) =>
+      s.id.toLowerCase().includes(search.toLowerCase()),
+  );
+
+  const totalMessages = sessions.reduce((sum, s) => sum + s.message_count, 0);
+  const totalSize = sessions.reduce((sum, s) => sum + s.file_size, 0);
 
   const tabs: TabName[] = ["Sessions", "Replay", "Stats"];
 
   return (
-    <div style={{ padding: 12, fontFamily: "var(--font-family, sans-serif)", fontSize: 13, height: "100%", overflowY: "auto", color: "var(--text-primary)", background: "var(--bg-primary)" }}>
-      <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12 }}>Session Browser</div>
+    <div
+      style={{
+        padding: 12,
+        fontFamily: "var(--font-family, sans-serif)",
+        fontSize: 13,
+        height: "100%",
+        overflowY: "auto",
+        color: "var(--text-primary)",
+        background: "var(--bg-primary)",
+      }}
+    >
+      <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12 }}>
+        Session Browser
+      </div>
+
+      {/* Workspace input */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+        <input
+          value={workspace}
+          onChange={(e) => setWorkspace(e.target.value)}
+          placeholder="Workspace path..."
+          style={{
+            flex: 1,
+            padding: "6px 10px",
+            fontSize: 12,
+            background: "var(--bg-secondary)",
+            color: "var(--text-primary)",
+            border: "1px solid var(--border-color)",
+            borderRadius: 4,
+            boxSizing: "border-box",
+          }}
+        />
+        <button
+          onClick={loadSessions}
+          style={{
+            padding: "6px 12px",
+            fontSize: 12,
+            borderRadius: 4,
+            border: "none",
+            background: "var(--accent-color)",
+            color: "white",
+            cursor: "pointer",
+          }}
+        >
+          Refresh
+        </button>
+      </div>
 
       {/* Tab bar */}
-      <div style={{ display: "flex", gap: 0, marginBottom: 12, borderBottom: "1px solid var(--border-color)" }}>
+      <div
+        style={{
+          display: "flex",
+          gap: 0,
+          marginBottom: 12,
+          borderBottom: "1px solid var(--border-color)",
+        }}
+      >
         {tabs.map((t) => (
-          <button key={t} onClick={() => setTab(t)} style={{ padding: "6px 16px", fontSize: 12, background: "none", border: "none", borderBottom: tab === t ? "2px solid var(--accent-color)" : "2px solid transparent", color: tab === t ? "var(--text-primary)" : "var(--text-muted)", cursor: "pointer", fontWeight: tab === t ? 600 : 400 }}>
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            style={{
+              padding: "6px 16px",
+              fontSize: 12,
+              background: "none",
+              border: "none",
+              borderBottom:
+                tab === t
+                  ? "2px solid var(--accent-color)"
+                  : "2px solid transparent",
+              color: tab === t ? "var(--text-primary)" : "var(--text-muted)",
+              cursor: "pointer",
+              fontWeight: tab === t ? 600 : 400,
+            }}
+          >
             {t}
           </button>
         ))}
       </div>
 
-      {status && <div className="panel-error"><span>{status}</span><button onClick={() => setStatus(null)}>✕</button></div>}
+      {status && (
+        <div
+          style={{
+            padding: "6px 10px",
+            marginBottom: 10,
+            borderRadius: 4,
+            background: "var(--bg-tertiary)",
+            color: "var(--text-primary)",
+            fontSize: 12,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <span>{status}</span>
+          <button
+            onClick={() => setStatus(null)}
+            style={{
+              background: "none",
+              border: "none",
+              color: "var(--text-muted)",
+              cursor: "pointer",
+              fontSize: 14,
+            }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Sessions Tab */}
       {tab === "Sessions" && (
         <div>
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search sessions..." style={{ width: "100%", padding: "6px 10px", fontSize: 12, background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4, marginBottom: 10, boxSizing: "border-box" }} />
-          {filteredSessions.map((s) => (
-            <div key={s.id} onClick={() => { setSelectedSession(s); setTab("Replay"); setReplayIndex(0); }} style={{ padding: "8px 10px", marginBottom: 6, borderRadius: 4, background: "var(--bg-secondary)", cursor: "pointer", borderLeft: `3px solid ${statusColor(s.status)}` }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontWeight: 600, fontSize: 12 }}>{s.name}</span>
-                <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 10, background: statusColor(s.status), color: "white", fontWeight: 600 }}>{s.status}</span>
-              </div>
-              <div style={{ display: "flex", gap: 12, marginTop: 4, fontSize: 11, color: "var(--text-muted)" }}>
-                <span>{s.provider} / {s.model}</span>
-                <span>{s.messageCount} msgs</span>
-                <span>{s.duration}</span>
-                <span style={{ marginLeft: "auto" }}>{s.startedAt}</span>
-              </div>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search sessions by ID..."
+            style={{
+              width: "100%",
+              padding: "6px 10px",
+              fontSize: 12,
+              background: "var(--bg-secondary)",
+              color: "var(--text-primary)",
+              border: "1px solid var(--border-color)",
+              borderRadius: 4,
+              marginBottom: 10,
+              boxSizing: "border-box",
+            }}
+          />
+
+          {sessionsLoading && (
+            <div
+              style={{
+                textAlign: "center",
+                padding: 30,
+                color: "var(--text-muted)",
+              }}
+            >
+              Loading sessions...
             </div>
-          ))}
-          {filteredSessions.length === 0 && (
-            <div style={{ textAlign: "center", padding: 30, color: "var(--text-muted)" }}>No sessions match your search.</div>
           )}
+
+          {sessionsError && (
+            <div
+              style={{
+                padding: "8px 10px",
+                marginBottom: 10,
+                borderRadius: 4,
+                background: "var(--bg-secondary)",
+                borderLeft: "3px solid var(--error-color)",
+                color: "var(--error-color)",
+                fontSize: 12,
+              }}
+            >
+              Error: {sessionsError}
+            </div>
+          )}
+
+          {!sessionsLoading &&
+            !sessionsError &&
+            filteredSessions.map((s) => (
+              <div
+                key={s.id}
+                style={{
+                  padding: "8px 10px",
+                  marginBottom: 6,
+                  borderRadius: 4,
+                  background: "var(--bg-secondary)",
+                  cursor: "pointer",
+                  borderLeft: "3px solid var(--accent-color)",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <span
+                    style={{ fontWeight: 600, fontSize: 12, cursor: "pointer" }}
+                    onClick={() => {
+                      setSelectedSession(s);
+                      setReplayIndex(0);
+                      setMessages([]);
+                      loadSessionDetail(s.id);
+                      setTab("Replay");
+                    }}
+                  >
+                    {s.id}
+                  </span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteSession(s.id);
+                    }}
+                    title="Delete session"
+                    style={{
+                      background: "none",
+                      border: "none",
+                      color: "var(--error-color)",
+                      cursor: "pointer",
+                      fontSize: 12,
+                      padding: "2px 6px",
+                    }}
+                  >
+                    Delete
+                  </button>
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 12,
+                    marginTop: 4,
+                    fontSize: 11,
+                    color: "var(--text-muted)",
+                  }}
+                  onClick={() => {
+                    setSelectedSession(s);
+                    setReplayIndex(0);
+                    setMessages([]);
+                    loadSessionDetail(s.id);
+                    setTab("Replay");
+                  }}
+                >
+                  <span>{s.message_count} msgs</span>
+                  <span>{formatFileSize(s.file_size)}</span>
+                  {s.has_messages && (
+                    <span style={{ color: "var(--success-color)" }}>messages</span>
+                  )}
+                  {s.has_context && (
+                    <span style={{ color: "var(--warning-color)" }}>context</span>
+                  )}
+                  <span style={{ marginLeft: "auto" }}>
+                    {formatTimestamp(s.timestamp)}
+                  </span>
+                </div>
+              </div>
+            ))}
+
+          {!sessionsLoading &&
+            !sessionsError &&
+            filteredSessions.length === 0 && (
+              <div
+                style={{
+                  textAlign: "center",
+                  padding: 30,
+                  color: "var(--text-muted)",
+                }}
+              >
+                {sessions.length === 0
+                  ? "No sessions found in .vibecli/traces/"
+                  : "No sessions match your search."}
+              </div>
+            )}
         </div>
       )}
 
@@ -136,27 +407,173 @@ const SessionBrowserPanel: React.FC = () => {
         <div>
           {selectedSession ? (
             <>
-              <div style={{ marginBottom: 10, fontSize: 12, color: "var(--text-muted)" }}>
-                Replaying: <strong style={{ color: "var(--text-primary)" }}>{selectedSession.name}</strong> ({selectedSession.id})
+              <div
+                style={{
+                  marginBottom: 10,
+                  fontSize: 12,
+                  color: "var(--text-muted)",
+                }}
+              >
+                Replaying:{" "}
+                <strong style={{ color: "var(--text-primary)" }}>
+                  {selectedSession.id}
+                </strong>{" "}
+                ({selectedSession.message_count} messages,{" "}
+                {formatFileSize(selectedSession.file_size)})
               </div>
-              <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-                <button onClick={() => setReplayIndex(Math.max(0, replayIndex - 1))} disabled={replayIndex === 0} style={{ padding: "4px 12px", fontSize: 11, borderRadius: 4, border: "1px solid var(--border-color)", background: "none", color: "var(--text-primary)", cursor: replayIndex === 0 ? "not-allowed" : "pointer" }}>Prev</button>
-                <button onClick={() => setReplayIndex(Math.min(MOCK_REPLAY_STEPS.length - 1, replayIndex + 1))} disabled={replayIndex >= MOCK_REPLAY_STEPS.length - 1} style={{ padding: "4px 12px", fontSize: 11, borderRadius: 4, border: "1px solid var(--border-color)", background: "none", color: "var(--text-primary)", cursor: replayIndex >= MOCK_REPLAY_STEPS.length - 1 ? "not-allowed" : "pointer" }}>Next</button>
-                <span style={{ fontSize: 11, color: "var(--text-muted)", lineHeight: "28px" }}>Step {replayIndex + 1} / {MOCK_REPLAY_STEPS.length}</span>
-                <button onClick={() => setStatus("Snapshot saved")} style={{ marginLeft: "auto", padding: "4px 12px", fontSize: 11, borderRadius: 4, border: "none", background: "var(--accent-color)", color: "white", cursor: "pointer" }}>Snapshot</button>
-              </div>
-              {MOCK_REPLAY_STEPS.slice(0, replayIndex + 1).map((step) => (
-                <div key={step.index} style={{ padding: "8px 10px", marginBottom: 6, borderRadius: 4, background: step.index === replayIndex ? "var(--bg-tertiary)" : "var(--bg-secondary)", borderLeft: `3px solid ${roleColor(step.role)}` }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 4 }}>
-                    <span style={{ fontWeight: 600, color: roleColor(step.role), textTransform: "capitalize" }}>{step.role}</span>
-                    <span style={{ color: "var(--text-muted)" }}>{step.timestamp} - {step.tokenCount} tokens</span>
-                  </div>
-                  <div style={{ fontSize: 12, whiteSpace: "pre-wrap", lineHeight: 1.5 }}>{step.content}</div>
+
+              {messagesLoading && (
+                <div
+                  style={{
+                    textAlign: "center",
+                    padding: 30,
+                    color: "var(--text-muted)",
+                  }}
+                >
+                  Loading messages...
                 </div>
-              ))}
+              )}
+
+              {messagesError && (
+                <div
+                  style={{
+                    padding: "8px 10px",
+                    marginBottom: 10,
+                    borderRadius: 4,
+                    background: "var(--bg-secondary)",
+                    borderLeft: "3px solid var(--error-color)",
+                    color: "var(--error-color)",
+                    fontSize: 12,
+                  }}
+                >
+                  Error: {messagesError}
+                </div>
+              )}
+
+              {!messagesLoading && !messagesError && messages.length > 0 && (
+                <>
+                  <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+                    <button
+                      onClick={() =>
+                        setReplayIndex(Math.max(0, replayIndex - 1))
+                      }
+                      disabled={replayIndex === 0}
+                      style={{
+                        padding: "4px 12px",
+                        fontSize: 11,
+                        borderRadius: 4,
+                        border: "1px solid var(--border-color)",
+                        background: "none",
+                        color: "var(--text-primary)",
+                        cursor: replayIndex === 0 ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      Prev
+                    </button>
+                    <button
+                      onClick={() =>
+                        setReplayIndex(
+                          Math.min(messages.length - 1, replayIndex + 1),
+                        )
+                      }
+                      disabled={replayIndex >= messages.length - 1}
+                      style={{
+                        padding: "4px 12px",
+                        fontSize: 11,
+                        borderRadius: 4,
+                        border: "1px solid var(--border-color)",
+                        background: "none",
+                        color: "var(--text-primary)",
+                        cursor:
+                          replayIndex >= messages.length - 1
+                            ? "not-allowed"
+                            : "pointer",
+                      }}
+                    >
+                      Next
+                    </button>
+                    <span
+                      style={{
+                        fontSize: 11,
+                        color: "var(--text-muted)",
+                        lineHeight: "28px",
+                      }}
+                    >
+                      Step {replayIndex + 1} / {messages.length}
+                    </span>
+                  </div>
+                  {messages.slice(0, replayIndex + 1).map((msg, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        padding: "8px 10px",
+                        marginBottom: 6,
+                        borderRadius: 4,
+                        background:
+                          i === replayIndex
+                            ? "var(--bg-tertiary)"
+                            : "var(--bg-secondary)",
+                        borderLeft: `3px solid ${roleColor(msg.role)}`,
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          fontSize: 11,
+                          marginBottom: 4,
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontWeight: 600,
+                            color: roleColor(msg.role),
+                            textTransform: "capitalize",
+                          }}
+                        >
+                          {msg.role}
+                        </span>
+                      </div>
+                      <div
+                        style={{
+                          fontSize: 12,
+                          whiteSpace: "pre-wrap",
+                          lineHeight: 1.5,
+                          maxHeight: 200,
+                          overflowY: "auto",
+                        }}
+                      >
+                        {msg.content}
+                      </div>
+                    </div>
+                  ))}
+                </>
+              )}
+
+              {!messagesLoading &&
+                !messagesError &&
+                messages.length === 0 && (
+                  <div
+                    style={{
+                      textAlign: "center",
+                      padding: 30,
+                      color: "var(--text-muted)",
+                    }}
+                  >
+                    No messages found for this session.
+                  </div>
+                )}
             </>
           ) : (
-            <div style={{ textAlign: "center", padding: 30, color: "var(--text-muted)" }}>Select a session from the Sessions tab to replay it.</div>
+            <div
+              style={{
+                textAlign: "center",
+                padding: 30,
+                color: "var(--text-muted)",
+              }}
+            >
+              Select a session from the Sessions tab to replay it.
+            </div>
           )}
         </div>
       )}
@@ -164,29 +581,134 @@ const SessionBrowserPanel: React.FC = () => {
       {/* Stats Tab */}
       {tab === "Stats" && (
         <div>
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
+          <div
+            style={{
+              display: "flex",
+              gap: 12,
+              flexWrap: "wrap",
+              marginBottom: 16,
+            }}
+          >
             {[
-              { label: "Total Sessions", value: String(MOCK_SESSIONS.length) },
-              { label: "Completed", value: String(MOCK_SESSIONS.filter((s) => s.status === "Completed").length) },
-              { label: "Acceptance Rate", value: "87%" },
+              { label: "Total Sessions", value: String(sessions.length) },
+              { label: "Total Messages", value: String(totalMessages) },
+              { label: "Total Size", value: formatFileSize(totalSize) },
             ].map(({ label, value }) => (
-              <div key={label} style={{ background: "var(--bg-secondary)", padding: "10px 16px", borderRadius: 6, textAlign: "center", minWidth: 90 }}>
-                <div style={{ fontSize: 20, fontWeight: 700, color: "var(--accent-color)" }}>{value}</div>
-                <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{label}</div>
+              <div
+                key={label}
+                style={{
+                  background: "var(--bg-secondary)",
+                  padding: "10px 16px",
+                  borderRadius: 6,
+                  textAlign: "center",
+                  minWidth: 90,
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 20,
+                    fontWeight: 700,
+                    color: "var(--accent-color)",
+                  }}
+                >
+                  {value}
+                </div>
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: "var(--text-muted)",
+                    marginTop: 2,
+                  }}
+                >
+                  {label}
+                </div>
               </div>
             ))}
           </div>
-          <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Sessions by Provider</div>
-          {MOCK_PROVIDER_STATS.map((p) => (
-            <div key={p.provider} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-              <span style={{ minWidth: 60, fontSize: 12 }}>{p.provider}</span>
-              <div style={{ flex: 1, background: "var(--bg-secondary)", borderRadius: 3, height: 10, overflow: "hidden" }}>
-                <div style={{ width: `${p.pct}%`, height: "100%", background: "var(--accent-color)", borderRadius: 3 }} />
-              </div>
-              <span style={{ minWidth: 30, textAlign: "right", fontSize: 11, color: "var(--text-muted)" }}>{p.count}</span>
-              <span style={{ minWidth: 35, textAlign: "right", fontSize: 11, color: "var(--text-muted)" }}>{p.pct}%</span>
+
+          <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>
+            Sessions by Size
+          </div>
+          {sessions.length === 0 && (
+            <div
+              style={{
+                textAlign: "center",
+                padding: 20,
+                color: "var(--text-muted)",
+              }}
+            >
+              No sessions to display.
             </div>
-          ))}
+          )}
+          {[...sessions]
+            .sort((a, b) => b.file_size - a.file_size)
+            .slice(0, 10)
+            .map((s) => {
+              const maxSize = Math.max(...sessions.map((x) => x.file_size), 1);
+              const pct = Math.round((s.file_size / maxSize) * 100);
+              return (
+                <div
+                  key={s.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    marginBottom: 6,
+                  }}
+                >
+                  <span
+                    style={{
+                      minWidth: 100,
+                      fontSize: 11,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                    title={s.id}
+                  >
+                    {s.id}
+                  </span>
+                  <div
+                    style={{
+                      flex: 1,
+                      background: "var(--bg-secondary)",
+                      borderRadius: 3,
+                      height: 10,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: `${pct}%`,
+                        height: "100%",
+                        background: "var(--accent-color)",
+                        borderRadius: 3,
+                      }}
+                    />
+                  </div>
+                  <span
+                    style={{
+                      minWidth: 50,
+                      textAlign: "right",
+                      fontSize: 11,
+                      color: "var(--text-muted)",
+                    }}
+                  >
+                    {formatFileSize(s.file_size)}
+                  </span>
+                  <span
+                    style={{
+                      minWidth: 40,
+                      textAlign: "right",
+                      fontSize: 11,
+                      color: "var(--text-muted)",
+                    }}
+                  >
+                    {s.message_count} msgs
+                  </span>
+                </div>
+              );
+            })}
         </div>
       )}
     </div>

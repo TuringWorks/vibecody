@@ -3,9 +3,10 @@
  *
  * Manage reusable context bundles that pin files, instructions, and
  * model preferences for quick project switching.
- * Pure TypeScript — no Tauri commands needed.
+ * Wired to Tauri backend commands for persistent storage.
  */
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -19,15 +20,6 @@ interface ContextBundle {
   active: boolean;
   createdAt: string;
 }
-
-// ── Mock Data ─────────────────────────────────────────────────────────────────
-
-const INITIAL_BUNDLES: ContextBundle[] = [
-  { id: "b1", name: "Backend API", description: "Rust backend service context", pinnedFiles: ["src/main.rs", "src/lib.rs", "Cargo.toml"], instructions: "Focus on performance and error handling. Use async/await patterns.", modelPreference: "claude-opus-4-20250514", active: true, createdAt: "2026-03-10T10:00:00Z" },
-  { id: "b2", name: "Frontend UI", description: "React TypeScript frontend context", pinnedFiles: ["src/App.tsx", "src/index.tsx", "package.json"], instructions: "Use functional components with hooks. Follow existing CSS variable theming.", modelPreference: "claude-sonnet-4-20250514", active: false, createdAt: "2026-03-11T14:00:00Z" },
-  { id: "b3", name: "Infrastructure", description: "DevOps and deployment configs", pinnedFiles: ["Dockerfile", "docker-compose.yml", ".github/workflows/ci.yml", "terraform/main.tf"], instructions: "Prefer declarative configuration. Keep images minimal.", modelPreference: "gpt-4o", active: false, createdAt: "2026-03-12T09:00:00Z" },
-  { id: "b4", name: "Testing Suite", description: "Test files and coverage config", pinnedFiles: ["tests/", "jest.config.ts", "vitest.config.ts"], instructions: "Write comprehensive unit tests. Aim for >90% coverage.", modelPreference: "claude-opus-4-20250514", active: false, createdAt: "2026-03-12T16:00:00Z" },
-];
 
 const MODEL_OPTIONS = ["claude-opus-4-20250514", "claude-sonnet-4-20250514", "gpt-4o", "gpt-4o-mini", "gemini-2.0-pro", "ollama/llama3"];
 
@@ -52,7 +44,9 @@ type Tab = "bundles" | "create" | "importexport";
 
 export function ContextBundlePanel() {
   const [tab, setTab] = useState<Tab>("bundles");
-  const [bundles, setBundles] = useState<ContextBundle[]>(INITIAL_BUNDLES);
+  const [bundles, setBundles] = useState<ContextBundle[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   // Create form
   const [formName, setFormName] = useState("");
@@ -65,44 +59,81 @@ export function ContextBundlePanel() {
   const [jsonText, setJsonText] = useState("");
   const [importMsg, setImportMsg] = useState("");
 
-  const toggleActive = (id: string) => {
-    setBundles((prev) => prev.map((b) => (b.id === id ? { ...b, active: !b.active } : b)));
+  const loadBundles = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError("");
+      const result = await invoke("context_bundle_list") as { bundles: ContextBundle[]; active_count: number };
+      setBundles(result.bundles ?? []);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadBundles();
+  }, [loadBundles]);
+
+  const toggleActive = async (id: string) => {
+    const bundle = bundles.find((b) => b.id === id);
+    if (!bundle) return;
+    try {
+      const updated = await invoke("context_bundle_activate", { id, active: !bundle.active }) as ContextBundle;
+      setBundles((prev) => prev.map((b) => (b.id === id ? updated : b)));
+    } catch (e) {
+      setError(String(e));
+    }
   };
 
-  const deleteBundle = (id: string) => {
-    setBundles((prev) => prev.filter((b) => b.id !== id));
+  const deleteBundle = async (id: string) => {
+    try {
+      await invoke("context_bundle_delete", { id });
+      setBundles((prev) => prev.filter((b) => b.id !== id));
+    } catch (e) {
+      setError(String(e));
+    }
   };
 
-  const createBundle = () => {
+  const createBundle = async () => {
     if (!formName.trim()) return;
-    const newBundle: ContextBundle = {
-      id: `b${Date.now()}`,
-      name: formName.trim(),
-      description: formDesc.trim(),
-      pinnedFiles: formFiles.split("\n").map((f) => f.trim()).filter(Boolean),
-      instructions: formInstructions.trim(),
-      modelPreference: formModel,
-      active: false,
-      createdAt: new Date().toISOString(),
-    };
-    setBundles((prev) => [...prev, newBundle]);
-    setFormName("");
-    setFormDesc("");
-    setFormFiles("");
-    setFormInstructions("");
-    setTab("bundles");
+    try {
+      const pinnedFiles = formFiles.split("\n").map((f) => f.trim()).filter(Boolean);
+      const created = await invoke("context_bundle_create", {
+        name: formName.trim(),
+        description: formDesc.trim(),
+        pinnedFiles,
+        instructions: formInstructions.trim(),
+        modelPreference: formModel,
+      }) as ContextBundle;
+      setBundles((prev) => [...prev, created]);
+      setFormName("");
+      setFormDesc("");
+      setFormFiles("");
+      setFormInstructions("");
+      setTab("bundles");
+    } catch (e) {
+      setError(String(e));
+    }
   };
 
-  const exportBundles = () => {
-    setJsonText(JSON.stringify(bundles, null, 2));
+  const exportBundles = async () => {
+    try {
+      const result = await invoke("context_bundle_export") as ContextBundle[];
+      setJsonText(JSON.stringify(result, null, 2));
+    } catch (e) {
+      setError(String(e));
+    }
   };
 
-  const importBundles = () => {
+  const importBundles = async () => {
     try {
       const parsed = JSON.parse(jsonText);
       if (!Array.isArray(parsed)) { setImportMsg("Error: JSON must be an array of bundles."); return; }
-      setBundles(parsed);
-      setImportMsg(`Imported ${parsed.length} bundle(s) successfully.`);
+      const result = await invoke("context_bundle_import", { bundlesJson: parsed }) as { imported: number };
+      setImportMsg(`Imported ${result.imported} bundle(s) successfully.`);
+      await loadBundles();
     } catch {
       setImportMsg("Error: Invalid JSON.");
     }
@@ -112,6 +143,8 @@ export function ContextBundlePanel() {
     <div style={panelStyle}>
       <h2 style={headingStyle}>Context Bundles</h2>
 
+      {error && <div style={{ ...cardStyle, borderColor: "var(--error-color)", color: "var(--error-color)", marginBottom: 12 }}>{error}</div>}
+
       <div style={{ marginBottom: 12 }}>
         <button style={tabBtnStyle(tab === "bundles")} onClick={() => setTab("bundles")}>My Bundles</button>
         <button style={tabBtnStyle(tab === "create")} onClick={() => setTab("create")}>Create</button>
@@ -120,7 +153,8 @@ export function ContextBundlePanel() {
 
       {tab === "bundles" && (
         <div>
-          {bundles.length === 0 && <div style={cardStyle}>No bundles yet. Create one to get started.</div>}
+          {loading && <div style={cardStyle}>Loading bundles...</div>}
+          {!loading && bundles.length === 0 && <div style={cardStyle}>No bundles yet. Create one to get started.</div>}
           {bundles.map((b) => (
             <div key={b.id} style={cardStyle}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
@@ -141,7 +175,7 @@ export function ContextBundlePanel() {
               </div>
               {b.instructions && (
                 <div style={{ fontSize: 11, color: "var(--text-secondary)", fontStyle: "italic", marginBottom: 6 }}>
-                  "{b.instructions.slice(0, 100)}{b.instructions.length > 100 ? "..." : ""}"
+                  &quot;{b.instructions.slice(0, 100)}{b.instructions.length > 100 ? "..." : ""}&quot;
                 </div>
               )}
               <div style={{ display: "flex", gap: 6 }}>

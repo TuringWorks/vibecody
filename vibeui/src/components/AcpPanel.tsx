@@ -3,9 +3,10 @@
  *
  * Manage ACP server/client connections, view registered capabilities
  * and tools, and inspect protocol messages.
- * Pure TypeScript — no Tauri commands needed.
+ * Wired to Tauri backend commands persisted at ~/.vibeui/acp-state.json.
  */
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -26,29 +27,14 @@ interface AcpMessage {
   payload: string;
 }
 
-// ── Mock Data ─────────────────────────────────────────────────────────────────
-
-const MOCK_CAPABILITIES: AcpCapability[] = [
-  { id: "c1", name: "file_read", type: "tool", description: "Read file contents from the workspace", version: "1.0.0" },
-  { id: "c2", name: "file_write", type: "tool", description: "Write content to files", version: "1.0.0" },
-  { id: "c3", name: "code_search", type: "tool", description: "Search code with regex patterns", version: "1.1.0" },
-  { id: "c4", name: "project_context", type: "resource", description: "Current project structure and metadata", version: "1.0.0" },
-  { id: "c5", name: "git_history", type: "resource", description: "Recent git commit history", version: "1.0.0" },
-  { id: "c6", name: "code_review", type: "prompt", description: "Review code changes with AI", version: "0.9.0" },
-  { id: "c7", name: "refactor", type: "prompt", description: "Suggest refactoring improvements", version: "0.9.0" },
-  { id: "c8", name: "bash_exec", type: "tool", description: "Execute shell commands safely", version: "2.0.0" },
-];
-
-const MOCK_MESSAGES: AcpMessage[] = [
-  { id: "m1", timestamp: "2026-03-13T08:30:01Z", direction: "received", method: "initialize", status: "ok", payload: '{"protocolVersion":"1.0","capabilities":{"tools":true}}' },
-  { id: "m2", timestamp: "2026-03-13T08:30:01Z", direction: "sent", method: "initialize/result", status: "ok", payload: '{"protocolVersion":"1.0","serverInfo":{"name":"vibecody","version":"0.5.0"}}' },
-  { id: "m3", timestamp: "2026-03-13T08:30:02Z", direction: "received", method: "tools/list", status: "ok", payload: '{}' },
-  { id: "m4", timestamp: "2026-03-13T08:30:02Z", direction: "sent", method: "tools/list/result", status: "ok", payload: '{"tools":[{"name":"file_read"},{"name":"file_write"},{"name":"code_search"},{"name":"bash_exec"}]}' },
-  { id: "m5", timestamp: "2026-03-13T08:30:05Z", direction: "received", method: "tools/call", status: "ok", payload: '{"name":"file_read","arguments":{"path":"src/main.rs"}}' },
-  { id: "m6", timestamp: "2026-03-13T08:30:05Z", direction: "sent", method: "tools/call/result", status: "ok", payload: '{"content":[{"type":"text","text":"fn main() { ... }"}]}' },
-  { id: "m7", timestamp: "2026-03-13T08:31:00Z", direction: "received", method: "tools/call", status: "error", payload: '{"name":"file_read","arguments":{"path":"/etc/shadow"}}' },
-  { id: "m8", timestamp: "2026-03-13T08:31:00Z", direction: "sent", method: "tools/call/result", status: "error", payload: '{"error":{"code":-1,"message":"Access denied: path outside workspace"}}' },
-];
+interface AcpStatus {
+  running: boolean;
+  version: string;
+  mode: string;
+  connected_clients: number;
+  capability_count: number;
+  message_count: number;
+}
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
@@ -71,22 +57,105 @@ type Tab = "server" | "client" | "protocol";
 
 export function AcpPanel() {
   const [tab, setTab] = useState<Tab>("server");
-  const [serverRunning, setServerRunning] = useState(true);
+  const [status, setStatus] = useState<AcpStatus | null>(null);
+  const [capabilities, setCapabilities] = useState<AcpCapability[]>([]);
+  const [messages, setMessages] = useState<AcpMessage[]>([]);
   const [clientUrl, setClientUrl] = useState("http://localhost:3001/acp");
   const [clientConnected, setClientConnected] = useState(false);
   const [negotiationStatus, setNegotiationStatus] = useState<"idle" | "connecting" | "connected" | "failed">("idle");
-  const [messages] = useState<AcpMessage[]>(MOCK_MESSAGES);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const toolCount = MOCK_CAPABILITIES.filter((c) => c.type === "tool").length;
-  const resourceCount = MOCK_CAPABILITIES.filter((c) => c.type === "resource").length;
-  const promptCount = MOCK_CAPABILITIES.filter((c) => c.type === "prompt").length;
+  // ── Register capability form state ──────────────────────────────────────
+  const [newCapName, setNewCapName] = useState("");
+  const [newCapType, setNewCapType] = useState<"tool" | "resource" | "prompt">("tool");
+  const [newCapDesc, setNewCapDesc] = useState("");
+  const [newCapVersion, setNewCapVersion] = useState("1.0.0");
 
-  const connectClient = () => {
+  const fetchStatus = useCallback(async () => {
+    try {
+      const res = await invoke<AcpStatus>("get_acp_status");
+      setStatus(res);
+    } catch (e) {
+      setError(String(e));
+    }
+  }, []);
+
+  const fetchCapabilities = useCallback(async () => {
+    try {
+      const res = await invoke<{ capabilities: AcpCapability[] }>("get_acp_capabilities");
+      setCapabilities(res.capabilities);
+    } catch (e) {
+      setError(String(e));
+    }
+  }, []);
+
+  const fetchMessages = useCallback(async () => {
+    try {
+      const res = await invoke<{ messages: AcpMessage[] }>("get_acp_messages");
+      setMessages(res.messages);
+    } catch (e) {
+      setError(String(e));
+    }
+  }, []);
+
+  const loadAll = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    await Promise.all([fetchStatus(), fetchCapabilities(), fetchMessages()]);
+    setLoading(false);
+  }, [fetchStatus, fetchCapabilities, fetchMessages]);
+
+  useEffect(() => {
+    loadAll();
+  }, [loadAll]);
+
+  const handleToggleServer = async () => {
+    try {
+      const res = await invoke<{ running: boolean; action: string }>("toggle_acp_server");
+      setStatus((prev) => prev ? { ...prev, running: res.running, connected_clients: res.running ? prev.connected_clients : 0 } : prev);
+      await fetchMessages();
+    } catch (e) {
+      setError(String(e));
+    }
+  };
+
+  const handleRegisterCapability = async () => {
+    if (!newCapName.trim()) return;
+    try {
+      await invoke("register_acp_capability", {
+        name: newCapName.trim(),
+        capType: newCapType,
+        description: newCapDesc.trim() || newCapName.trim(),
+        version: newCapVersion.trim() || "1.0.0",
+      });
+      setNewCapName("");
+      setNewCapDesc("");
+      setNewCapVersion("1.0.0");
+      await Promise.all([fetchCapabilities(), fetchMessages(), fetchStatus()]);
+    } catch (e) {
+      setError(String(e));
+    }
+  };
+
+  const handleSendMessage = async (method: string, payload: string) => {
+    try {
+      await invoke("send_acp_message", { method, payload });
+      await Promise.all([fetchMessages(), fetchStatus()]);
+    } catch (e) {
+      setError(String(e));
+    }
+  };
+
+  const connectClient = async () => {
     setNegotiationStatus("connecting");
-    setTimeout(() => {
+    try {
+      await handleSendMessage("initialize", JSON.stringify({ protocolVersion: "1.0", capabilities: { tools: true }, clientUrl }));
       setNegotiationStatus("connected");
       setClientConnected(true);
-    }, 800);
+    } catch {
+      setNegotiationStatus("failed");
+    }
   };
 
   const disconnectClient = () => {
@@ -94,9 +163,25 @@ export function AcpPanel() {
     setNegotiationStatus("idle");
   };
 
+  const serverRunning = status?.running ?? false;
+  const toolCount = capabilities.filter((c) => c.type === "tool").length;
+  const resourceCount = capabilities.filter((c) => c.type === "resource").length;
+  const promptCount = capabilities.filter((c) => c.type === "prompt").length;
+
+  if (loading) {
+    return <div style={panelStyle}><h2 style={headingStyle}>Agent Client Protocol (ACP)</h2><div>Loading...</div></div>;
+  }
+
   return (
     <div style={panelStyle}>
       <h2 style={headingStyle}>Agent Client Protocol (ACP)</h2>
+
+      {error && (
+        <div style={{ ...cardStyle, borderColor: "var(--error-color)", color: "var(--error-color)", marginBottom: 12 }}>
+          {error}
+          <button style={{ ...btnStyle, marginLeft: 8, fontSize: 10 }} onClick={() => setError(null)}>Dismiss</button>
+        </div>
+      )}
 
       <div style={{ marginBottom: 12 }}>
         <button style={tabBtnStyle(tab === "server")} onClick={() => setTab("server")}>Server</button>
@@ -112,10 +197,11 @@ export function AcpPanel() {
               <div style={{ fontSize: 11, color: serverRunning ? "var(--success-color)" : "var(--text-secondary)" }}>
                 {serverRunning ? "Running on localhost:7878/acp" : "Stopped"}
               </div>
+              {status && <div style={{ fontSize: 10, color: "var(--text-secondary)" }}>v{status.version} | {status.connected_clients} client(s)</div>}
             </div>
             <button
               style={{ ...btnStyle, background: serverRunning ? "var(--error-color)" : "var(--success-color)", color: "white" }}
-              onClick={() => setServerRunning(!serverRunning)}
+              onClick={handleToggleServer}
             >
               {serverRunning ? "Stop Server" : "Start Server"}
             </button>
@@ -137,7 +223,7 @@ export function AcpPanel() {
           </div>
 
           <div style={labelStyle}>Registered Capabilities</div>
-          {MOCK_CAPABILITIES.map((cap) => (
+          {capabilities.map((cap) => (
             <div key={cap.id} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <span style={{ fontWeight: 600 }}>{cap.name}</span>{" "}
@@ -147,6 +233,28 @@ export function AcpPanel() {
               <span style={badgeStyle(cap.type)}>{cap.type}</span>
             </div>
           ))}
+
+          {/* Register new capability form */}
+          <div style={{ ...cardStyle, marginTop: 12 }}>
+            <div style={{ ...labelStyle, fontWeight: 600, marginBottom: 8 }}>Register New Capability</div>
+            <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+              <input style={{ ...inputStyle, flex: 2 }} placeholder="Name" value={newCapName} onChange={(e) => setNewCapName(e.target.value)} />
+              <select
+                style={{ ...inputStyle, flex: 1 }}
+                value={newCapType}
+                onChange={(e) => setNewCapType(e.target.value as "tool" | "resource" | "prompt")}
+              >
+                <option value="tool">tool</option>
+                <option value="resource">resource</option>
+                <option value="prompt">prompt</option>
+              </select>
+              <input style={{ ...inputStyle, flex: 1 }} placeholder="Version" value={newCapVersion} onChange={(e) => setNewCapVersion(e.target.value)} />
+            </div>
+            <div style={{ display: "flex", gap: 6 }}>
+              <input style={{ ...inputStyle, flex: 1 }} placeholder="Description" value={newCapDesc} onChange={(e) => setNewCapDesc(e.target.value)} />
+              <button style={{ ...btnStyle, background: "var(--accent-primary)", color: "white" }} onClick={handleRegisterCapability}>Register</button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -178,9 +286,9 @@ export function AcpPanel() {
             <div style={cardStyle}>
               <div style={labelStyle}>Remote Server Capabilities</div>
               <div style={{ fontSize: 12, marginTop: 4 }}>
-                <div>Tools: file_read, file_write, bash_exec</div>
-                <div>Resources: project_context</div>
-                <div>Prompts: code_review</div>
+                <div>Tools: {capabilities.filter((c) => c.type === "tool").map((c) => c.name).join(", ")}</div>
+                <div>Resources: {capabilities.filter((c) => c.type === "resource").map((c) => c.name).join(", ")}</div>
+                <div>Prompts: {capabilities.filter((c) => c.type === "prompt").map((c) => c.name).join(", ")}</div>
               </div>
             </div>
           )}
@@ -196,8 +304,17 @@ export function AcpPanel() {
             </div>
             <div style={{ textAlign: "right" }}>
               <div style={labelStyle}>Version</div>
-              <div style={{ fontWeight: 600 }}>1.0.0</div>
+              <div style={{ fontWeight: 600 }}>{status?.version ?? "1.0.0"}</div>
             </div>
+          </div>
+
+          {/* Quick-send message controls */}
+          <div style={{ ...cardStyle, display: "flex", gap: 6, alignItems: "center" }}>
+            <span style={labelStyle}>Quick Send:</span>
+            <button style={btnStyle} onClick={() => handleSendMessage("initialize", "{}")}>initialize</button>
+            <button style={btnStyle} onClick={() => handleSendMessage("tools/list", "{}")}>tools/list</button>
+            <button style={btnStyle} onClick={() => handleSendMessage("resources/list", "{}")}>resources/list</button>
+            <button style={{ ...btnStyle, marginLeft: "auto" }} onClick={fetchMessages}>Refresh</button>
           </div>
 
           <div style={labelStyle}>Message Log ({messages.length} messages)</div>
@@ -216,6 +333,7 @@ export function AcpPanel() {
               </div>
             </div>
           ))}
+          {messages.length === 0 && <div style={{ ...cardStyle, textAlign: "center", color: "var(--text-secondary)" }}>No messages yet. Use Quick Send or toggle the server to generate protocol messages.</div>}
         </div>
       )}
     </div>

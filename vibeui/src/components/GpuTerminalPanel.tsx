@@ -4,7 +4,8 @@
  * Backend selector, FPS meter, glyph atlas visualization, grid inspector,
  * benchmark runner, config editor, and GPU memory usage indicator.
  */
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 interface RenderStats {
  frame_time_us: number;
@@ -22,6 +23,16 @@ interface BenchmarkResult {
  frames_rendered: number;
 }
 
+interface GlyphAtlas {
+ glyphs: string;
+ atlas_width: number;
+ atlas_height: number;
+ glyph_width: number;
+ glyph_height: number;
+ cached_count: number;
+ utilization_pct: number;
+}
+
 interface GpuConfig {
  preferred_backend: string;
  font_size: number;
@@ -34,26 +45,6 @@ interface GpuConfig {
 
 const BACKENDS = ["wgpu", "opengl", "metal", "software"];
 
-const SAMPLE_STATS: RenderStats = {
- frame_time_us: 850,
- gpu_memory_bytes: 4_325_376,
- cells_rendered: 9600,
- dirty_cells: 42,
-};
-
-const SAMPLE_BENCHMARK: BenchmarkResult = {
- avg_fps: 1176.5,
- min_frame_us: 720,
- max_frame_us: 1350,
- p99_frame_us: 1280,
- backend_name: "software",
- frames_rendered: 100,
-};
-
-const SAMPLE_FPS_HISTORY = [1150, 1200, 1180, 1170, 1190, 1160, 1175, 1185, 1195, 1165, 1180, 1200, 1210, 1190, 1170, 1185, 1195, 1175, 1180, 1200];
-
-const SAMPLE_GLYPHS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789{}[]()<>+-*/=!@#$%^&_|\\;:'\",.<>?";
-
 export default function GpuTerminalPanel() {
  const [config, setConfig] = useState<GpuConfig>({
    preferred_backend: "software",
@@ -65,9 +56,14 @@ export default function GpuTerminalPanel() {
    cell_padding: 1.0,
  });
  const [tab, setTab] = useState<"monitor" | "atlas" | "config" | "benchmark">("monitor");
+ const [stats, setStats] = useState<RenderStats | null>(null);
+ const [fpsHistory, setFpsHistory] = useState<number[]>([]);
+ const [glyphAtlas, setGlyphAtlas] = useState<GlyphAtlas | null>(null);
  const [benchmarkResult, setBenchmarkResult] = useState<BenchmarkResult | null>(null);
+ const [benchmarkRunning, setBenchmarkRunning] = useState(false);
  const [selectedGlyph, setSelectedGlyph] = useState<string | null>(null);
  const [hoveredCell, setHoveredCell] = useState<{ row: number; col: number } | null>(null);
+ const [error, setError] = useState<string | null>(null);
 
  const formatBytes = (b: number) => {
    if (b < 1024) return `${b} B`;
@@ -75,11 +71,79 @@ export default function GpuTerminalPanel() {
    return `${(b / (1024 * 1024)).toFixed(1)} MB`;
  };
 
- const maxFps = Math.max(...SAMPLE_FPS_HISTORY);
+ const loadStats = useCallback(async () => {
+   try {
+     const s = await invoke<RenderStats>("get_gpu_terminal_stats");
+     setStats(s);
+     setError(null);
+   } catch (e) {
+     setError(String(e));
+   }
+ }, []);
+
+ const loadFpsHistory = useCallback(async () => {
+   try {
+     const h = await invoke<number[]>("get_gpu_fps_history");
+     setFpsHistory(h);
+   } catch (_) {
+     // ignore — file may not exist yet
+   }
+ }, []);
+
+ const loadGlyphAtlas = useCallback(async () => {
+   try {
+     const a = await invoke<GlyphAtlas>("get_gpu_glyph_atlas");
+     setGlyphAtlas(a);
+   } catch (e) {
+     setError(String(e));
+   }
+ }, []);
+
+ // Load data on mount and when tab changes
+ useEffect(() => {
+   if (tab === "monitor") {
+     loadStats();
+     loadFpsHistory();
+   } else if (tab === "atlas") {
+     loadGlyphAtlas();
+   }
+ }, [tab, loadStats, loadFpsHistory, loadGlyphAtlas]);
+
+ // Auto-refresh stats every 2 seconds on monitor tab
+ useEffect(() => {
+   if (tab !== "monitor") return;
+   const interval = setInterval(() => { loadStats(); }, 2000);
+   return () => clearInterval(interval);
+ }, [tab, loadStats]);
+
+ const runBenchmark = async () => {
+   setBenchmarkRunning(true);
+   setBenchmarkResult(null);
+   try {
+     const result = await invoke<BenchmarkResult>("run_gpu_terminal_benchmark", { frames: 100 });
+     setBenchmarkResult(result);
+     // Refresh FPS history after benchmark
+     loadFpsHistory();
+     setError(null);
+   } catch (e) {
+     setError(String(e));
+   } finally {
+     setBenchmarkRunning(false);
+   }
+ };
+
+ const maxFps = fpsHistory.length > 0 ? Math.max(...fpsHistory) : 1;
+ const glyphs = glyphAtlas?.glyphs ?? "";
 
  return (
    <div style={{ padding: 16, color: "var(--vp-c-text)", background: "var(--vp-c-bg)", minHeight: "100%" }}>
      <h2 style={{ margin: "0 0 12px", fontSize: 18 }}>GPU Terminal</h2>
+
+     {error && (
+       <div style={{ padding: 8, marginBottom: 12, background: "var(--vp-c-danger)", color: "white", borderRadius: 4, fontSize: 12 }}>
+         {error}
+       </div>
+     )}
 
      {/* Backend selector */}
      <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
@@ -108,25 +172,25 @@ export default function GpuTerminalPanel() {
          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 12 }}>
            <div style={{ padding: 10, border: "1px solid var(--vp-c-border)", borderRadius: 6, textAlign: "center" }}>
              <div style={{ fontSize: 22, fontWeight: 700, color: "var(--vp-c-success)" }}>
-               {(1_000_000 / SAMPLE_STATS.frame_time_us).toFixed(0)}
+               {stats ? (1_000_000 / stats.frame_time_us).toFixed(0) : "--"}
              </div>
              <div style={{ fontSize: 11 }}>FPS</div>
            </div>
            <div style={{ padding: 10, border: "1px solid var(--vp-c-border)", borderRadius: 6, textAlign: "center" }}>
              <div style={{ fontSize: 22, fontWeight: 700, color: "var(--vp-c-brand)" }}>
-               {SAMPLE_STATS.frame_time_us}
+               {stats ? stats.frame_time_us : "--"}
              </div>
              <div style={{ fontSize: 11 }}>Frame Time (us)</div>
            </div>
            <div style={{ padding: 10, border: "1px solid var(--vp-c-border)", borderRadius: 6, textAlign: "center" }}>
              <div style={{ fontSize: 22, fontWeight: 700, color: "var(--vp-c-warning)" }}>
-               {formatBytes(SAMPLE_STATS.gpu_memory_bytes)}
+               {stats ? formatBytes(stats.gpu_memory_bytes) : "--"}
              </div>
              <div style={{ fontSize: 11 }}>Memory</div>
            </div>
            <div style={{ padding: 10, border: "1px solid var(--vp-c-border)", borderRadius: 6, textAlign: "center" }}>
              <div style={{ fontSize: 22, fontWeight: 700, color: "var(--vp-c-danger)" }}>
-               {SAMPLE_STATS.dirty_cells}
+               {stats ? stats.dirty_cells : "--"}
              </div>
              <div style={{ fontSize: 11 }}>Dirty Cells</div>
            </div>
@@ -134,20 +198,22 @@ export default function GpuTerminalPanel() {
 
          {/* FPS graph */}
          <div style={{ marginBottom: 12 }}>
-           <strong style={{ fontSize: 12 }}>FPS History</strong>
-           <svg width="100%" height={80} style={{ border: "1px solid var(--vp-c-border)", borderRadius: 6, background: "#11111b", marginTop: 4 }}>
-             {SAMPLE_FPS_HISTORY.map((fps, i) => {
-               const x = (i / (SAMPLE_FPS_HISTORY.length - 1)) * 100;
-               const y = 75 - (fps / maxFps) * 70;
-               return i > 0 ? (
-                 <line key={i}
-                   x1={`${((i - 1) / (SAMPLE_FPS_HISTORY.length - 1)) * 100}%`}
-                   y1={75 - (SAMPLE_FPS_HISTORY[i - 1] / maxFps) * 70}
-                   x2={`${x}%`} y2={y}
-                   stroke="var(--vp-c-success)" strokeWidth={2} />
-               ) : null;
-             })}
-           </svg>
+           <strong style={{ fontSize: 12 }}>FPS History{fpsHistory.length === 0 ? " (no data yet — run a benchmark)" : ""}</strong>
+           {fpsHistory.length > 0 && (
+             <svg width="100%" height={80} style={{ border: "1px solid var(--vp-c-border)", borderRadius: 6, background: "#11111b", marginTop: 4 }}>
+               {fpsHistory.map((fps, i) => {
+                 const x = (i / (fpsHistory.length - 1)) * 100;
+                 const y = 75 - (fps / maxFps) * 70;
+                 return i > 0 ? (
+                   <line key={i}
+                     x1={`${((i - 1) / (fpsHistory.length - 1)) * 100}%`}
+                     y1={75 - (fpsHistory[i - 1] / maxFps) * 70}
+                     x2={`${x}%`} y2={y}
+                     stroke="var(--vp-c-success)" strokeWidth={2} />
+                 ) : null;
+               })}
+             </svg>
+           )}
          </div>
 
          {/* Grid inspector */}
@@ -182,12 +248,14 @@ export default function GpuTerminalPanel() {
 
      {tab === "atlas" && (
        <>
-         <strong style={{ fontSize: 12 }}>Glyph Atlas (1024x1024, {SAMPLE_GLYPHS.length} glyphs cached)</strong>
+         <strong style={{ fontSize: 12 }}>
+           Glyph Atlas ({glyphAtlas ? `${glyphAtlas.atlas_width}x${glyphAtlas.atlas_height}` : "..."}, {glyphAtlas ? `${glyphAtlas.cached_count} glyphs cached` : "loading..."})
+         </strong>
          <div style={{
            marginTop: 8, padding: 8, background: "#11111b", border: "1px solid var(--vp-c-border)",
            borderRadius: 6, display: "flex", flexWrap: "wrap", gap: 2,
          }}>
-           {SAMPLE_GLYPHS.split("").map((ch, i) => (
+           {glyphs.split("").map((ch, i) => (
              <div key={i} onClick={() => setSelectedGlyph(ch)} style={{
                width: 22, height: 24, display: "flex", alignItems: "center", justifyContent: "center",
                fontFamily: "monospace", fontSize: 13, cursor: "pointer", borderRadius: 2,
@@ -196,18 +264,20 @@ export default function GpuTerminalPanel() {
              }}>{ch}</div>
            ))}
          </div>
-         {selectedGlyph && (
+         {selectedGlyph && glyphAtlas && (
            <div style={{ marginTop: 8, padding: 8, border: "1px solid var(--vp-c-border)", borderRadius: 6, fontSize: 12 }}>
              <strong style={{ fontSize: 24, fontFamily: "monospace" }}>{selectedGlyph}</strong>
              <div style={{ marginTop: 4 }}>
                Codepoint: U+{selectedGlyph.charCodeAt(0).toString(16).toUpperCase().padStart(4, "0")} |
-               Width: 8px | Height: 21px | Advance: 8.4
+               Width: {glyphAtlas.glyph_width}px | Height: {glyphAtlas.glyph_height}px | Advance: {(glyphAtlas.glyph_width * 1.05).toFixed(1)}
              </div>
            </div>
          )}
-         <div style={{ marginTop: 8, fontSize: 12 }}>
-           Atlas utilization: <strong>{((SAMPLE_GLYPHS.length * 8 * 21) / (1024 * 1024) * 100).toFixed(2)}%</strong>
-         </div>
+         {glyphAtlas && (
+           <div style={{ marginTop: 8, fontSize: 12 }}>
+             Atlas utilization: <strong>{glyphAtlas.utilization_pct.toFixed(2)}%</strong>
+           </div>
+         )}
        </>
      )}
 
@@ -248,10 +318,10 @@ export default function GpuTerminalPanel() {
 
      {tab === "benchmark" && (
        <>
-         <button onClick={() => setBenchmarkResult(SAMPLE_BENCHMARK)} style={{
-           padding: "8px 16px", background: "var(--vp-c-brand)", color: "white", border: "none",
-           borderRadius: 4, cursor: "pointer", marginBottom: 12,
-         }}>Run Benchmark (100 frames)</button>
+         <button onClick={runBenchmark} disabled={benchmarkRunning} style={{
+           padding: "8px 16px", background: benchmarkRunning ? "var(--vp-c-border)" : "var(--vp-c-brand)", color: "white", border: "none",
+           borderRadius: 4, cursor: benchmarkRunning ? "not-allowed" : "pointer", marginBottom: 12,
+         }}>{benchmarkRunning ? "Running..." : "Run Benchmark (100 frames)"}</button>
 
          {benchmarkResult && (
            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>

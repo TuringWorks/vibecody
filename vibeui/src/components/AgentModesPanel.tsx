@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 interface ModeInfo {
   id: string;
@@ -23,31 +24,91 @@ interface Profile {
   temperature: number;
 }
 
+interface ModesResponse {
+  modes: ModeInfo[];
+  activeMode: string;
+}
+
 const AgentModesPanel: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("modes");
   const [activeMode, setActiveMode] = useState<string>("smart");
-
-  const modes: ModeInfo[] = [
-    { id: "smart", name: "Smart", description: "Balanced mode with context-aware tool selection and moderate token usage.", icon: "S", traits: ["Context-aware", "Balanced cost", "Auto tool selection"] },
-    { id: "rush", name: "Rush", description: "Fast execution with minimal deliberation. Best for simple, well-defined tasks.", icon: "R", traits: ["Low latency", "Minimal reasoning", "Direct answers"] },
-    { id: "deep", name: "Deep", description: "Thorough analysis with extended reasoning chains and comprehensive exploration.", icon: "D", traits: ["Extended thinking", "Multi-file analysis", "High accuracy"] },
-  ];
-
-  const [stats] = useState<ModeStats[]>([
-    { modeId: "smart", invocations: 247, avgTokens: 1840, lastUsed: "2 min ago" },
-    { modeId: "rush", invocations: 89, avgTokens: 620, lastUsed: "1 hr ago" },
-    { modeId: "deep", invocations: 34, avgTokens: 4200, lastUsed: "3 hrs ago" },
-  ]);
-
-  const [profiles, setProfiles] = useState<Profile[]>([
-    { id: "1", name: "Code Review", baseMode: "deep", maxTokens: 8000, temperature: 0.3 },
-    { id: "2", name: "Quick Fix", baseMode: "rush", maxTokens: 2000, temperature: 0.1 },
-  ]);
+  const [modes, setModes] = useState<ModeInfo[]>([]);
+  const [stats, setStats] = useState<ModeStats[]>([]);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const [newName, setNewName] = useState("");
   const [newBase, setNewBase] = useState("smart");
   const [newMaxTokens, setNewMaxTokens] = useState("4096");
   const [newTemp, setNewTemp] = useState("0.5");
+
+  const loadModes = useCallback(async () => {
+    try {
+      const resp = await invoke<ModesResponse>("get_agent_modes");
+      setModes(resp.modes);
+      setActiveMode(resp.activeMode);
+    } catch (err) {
+      setError(String(err));
+    }
+  }, []);
+
+  const loadStats = useCallback(async () => {
+    try {
+      const resp = await invoke<ModeStats[]>("get_agent_mode_stats");
+      setStats(resp);
+    } catch (err) {
+      setError(String(err));
+    }
+  }, []);
+
+  const loadProfiles = useCallback(async () => {
+    try {
+      const resp = await invoke<Profile[]>("get_agent_mode_profiles");
+      setProfiles(resp);
+    } catch (err) {
+      setError(String(err));
+    }
+  }, []);
+
+  useEffect(() => {
+    const init = async () => {
+      setLoading(true);
+      await Promise.all([loadModes(), loadStats(), loadProfiles()]);
+      setLoading(false);
+    };
+    init();
+  }, [loadModes, loadStats, loadProfiles]);
+
+  const handleSetMode = async (modeId: string) => {
+    try {
+      setError(null);
+      const newActive = await invoke<string>("set_active_agent_mode", { modeId });
+      setActiveMode(newActive);
+      await loadStats();
+    } catch (err) {
+      setError(String(err));
+    }
+  };
+
+  const addProfile = async () => {
+    if (!newName) return;
+    try {
+      setError(null);
+      const profile = await invoke<Profile>("create_agent_mode_profile", {
+        name: newName,
+        baseMode: newBase,
+        maxTokens: parseInt(newMaxTokens, 10),
+        temperature: parseFloat(newTemp),
+      });
+      setProfiles((prev) => [...prev, profile]);
+      setNewName("");
+      setNewMaxTokens("4096");
+      setNewTemp("0.5");
+    } catch (err) {
+      setError(String(err));
+    }
+  };
 
   const containerStyle: React.CSSProperties = {
     padding: "16px",
@@ -106,20 +167,16 @@ const AgentModesPanel: React.FC = () => {
     fontSize: "inherit",
   };
 
-  const addProfile = () => {
-    if (!newName) return;
-    const p: Profile = { id: String(Date.now()), name: newName, baseMode: newBase, maxTokens: parseInt(newMaxTokens, 10), temperature: parseFloat(newTemp) };
-    setProfiles((prev) => [...prev, p]);
-    setNewName("");
-    setNewMaxTokens("4096");
-    setNewTemp("0.5");
-  };
-
   const tabs = ["modes", "stats", "profiles"];
 
   return (
     <div style={containerStyle}>
       <h3 style={{ margin: "0 0 12px" }}>Agent Modes</h3>
+      {error && (
+        <div style={{ padding: "8px", marginBottom: "8px", borderRadius: "4px", backgroundColor: "var(--error-bg, #3c1f1f)", color: "var(--error-color, #f87171)", fontSize: "12px" }}>
+          {error}
+        </div>
+      )}
       <div style={tabBarStyle}>
         {tabs.map((t) => (
           <button key={t} style={tabStyle(activeTab === t)} onClick={() => setActiveTab(t)}>
@@ -128,7 +185,9 @@ const AgentModesPanel: React.FC = () => {
         ))}
       </div>
 
-      {activeTab === "modes" && (
+      {loading && <div style={{ padding: "12px", opacity: 0.6 }}>Loading...</div>}
+
+      {!loading && activeTab === "modes" && (
         <div>
           {modes.map((m) => (
             <div
@@ -138,7 +197,7 @@ const AgentModesPanel: React.FC = () => {
                 border: activeMode === m.id ? "2px solid var(--accent-color)" : cardStyle.border,
                 cursor: "pointer",
               }}
-              onClick={() => setActiveMode(m.id)}
+              onClick={() => handleSetMode(m.id)}
             >
               <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "6px" }}>
                 <div style={{ width: "32px", height: "32px", borderRadius: "50%", backgroundColor: "var(--accent-color)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>
@@ -160,7 +219,7 @@ const AgentModesPanel: React.FC = () => {
         </div>
       )}
 
-      {activeTab === "stats" && (
+      {!loading && activeTab === "stats" && (
         <div>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
@@ -184,10 +243,11 @@ const AgentModesPanel: React.FC = () => {
           <div style={{ marginTop: "12px", fontSize: "12px", opacity: 0.6 }}>
             Total invocations: {stats.reduce((a, s) => a + s.invocations, 0)}
           </div>
+          <button style={{ ...btnStyle, marginTop: "8px" }} onClick={loadStats}>Refresh</button>
         </div>
       )}
 
-      {activeTab === "profiles" && (
+      {!loading && activeTab === "profiles" && (
         <div>
           {profiles.map((p) => (
             <div key={p.id} style={cardStyle}>

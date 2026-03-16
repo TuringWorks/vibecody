@@ -3,9 +3,10 @@
  *
  * Configure and run SWE-bench evaluations, view pass@1 rates and task
  * breakdowns, and compare multiple benchmark runs side by side.
- * Pure TypeScript — no Tauri commands needed.
+ * Wired to Tauri backend commands for real data persistence.
  */
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -35,34 +36,21 @@ interface TaskResult {
   tokensUsed: number;
 }
 
-// ── Mock Data ─────────────────────────────────────────────────────────────────
+interface SuitesResponse {
+  suites: { name: string; taskCount: number }[];
+  providers: string[];
+  models: Record<string, string[]>;
+}
 
-const SUITES = ["SWE-bench Lite", "SWE-bench Full", "SWE-bench Verified", "HumanEval", "MBPP"];
-const PROVIDERS = ["Anthropic", "OpenAI", "Google", "Ollama"];
-const MODELS: Record<string, string[]> = {
-  Anthropic: ["claude-opus-4-20250514", "claude-sonnet-4-20250514"],
-  OpenAI: ["gpt-4o", "gpt-4o-mini", "o1-preview"],
-  Google: ["gemini-2.0-pro", "gemini-2.0-flash"],
-  Ollama: ["llama3:70b", "codellama:34b", "deepseek-coder:33b"],
-};
+interface RunsResponse {
+  runs: BenchmarkRun[];
+  total: number;
+}
 
-const MOCK_RUNS: BenchmarkRun[] = [
-  { id: "r1", suite: "SWE-bench Lite", provider: "Anthropic", model: "claude-opus-4-20250514", status: "completed", progress: 100, startedAt: "2026-03-12T10:00:00Z", completedAt: "2026-03-12T12:45:00Z", passRate: 49.2, totalTasks: 300, passed: 148, failed: 140, errored: 12, avgDurationSec: 32.8 },
-  { id: "r2", suite: "SWE-bench Lite", provider: "OpenAI", model: "gpt-4o", status: "completed", progress: 100, startedAt: "2026-03-12T13:00:00Z", completedAt: "2026-03-12T15:30:00Z", passRate: 43.7, totalTasks: 300, passed: 131, failed: 155, errored: 14, avgDurationSec: 29.4 },
-  { id: "r3", suite: "SWE-bench Lite", provider: "Anthropic", model: "claude-sonnet-4-20250514", status: "completed", progress: 100, startedAt: "2026-03-13T06:00:00Z", completedAt: "2026-03-13T07:15:00Z", passRate: 38.3, totalTasks: 300, passed: 115, failed: 172, errored: 13, avgDurationSec: 15.2 },
-  { id: "r4", suite: "SWE-bench Verified", provider: "Anthropic", model: "claude-opus-4-20250514", status: "running", progress: 67, startedAt: "2026-03-13T08:00:00Z", completedAt: null, passRate: 52.1, totalTasks: 500, passed: 174, failed: 148, errored: 12, avgDurationSec: 35.1 },
-];
-
-const MOCK_TASK_RESULTS: TaskResult[] = [
-  { id: "t1", task: "django__django-16379", repo: "django/django", status: "pass", durationSec: 28, tokensUsed: 12400 },
-  { id: "t2", task: "sympy__sympy-24152", repo: "sympy/sympy", status: "fail", durationSec: 45, tokensUsed: 18200 },
-  { id: "t3", task: "scikit-learn__scikit-learn-25570", repo: "scikit-learn/scikit-learn", status: "pass", durationSec: 22, tokensUsed: 9800 },
-  { id: "t4", task: "matplotlib__matplotlib-25311", repo: "matplotlib/matplotlib", status: "error", durationSec: 60, tokensUsed: 24500 },
-  { id: "t5", task: "flask__flask-4992", repo: "pallets/flask", status: "pass", durationSec: 15, tokensUsed: 6200 },
-  { id: "t6", task: "requests__requests-6028", repo: "psf/requests", status: "pass", durationSec: 18, tokensUsed: 7800 },
-  { id: "t7", task: "pytest__pytest-11143", repo: "pytest-dev/pytest", status: "fail", durationSec: 38, tokensUsed: 15600 },
-  { id: "t8", task: "astropy__astropy-14182", repo: "astropy/astropy", status: "pass", durationSec: 32, tokensUsed: 13100 },
-];
+interface ResultsResponse {
+  run: BenchmarkRun | null;
+  taskResults: TaskResult[];
+}
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
@@ -90,19 +78,79 @@ type Tab = "run" | "results" | "compare";
 
 export function SweBenchPanel() {
   const [tab, setTab] = useState<Tab>("run");
-  const [runs] = useState<BenchmarkRun[]>(MOCK_RUNS);
+  const [runs, setRuns] = useState<BenchmarkRun[]>([]);
+  const [suites, setSuites] = useState<string[]>([]);
+  const [providers, setProviders] = useState<string[]>([]);
+  const [models, setModels] = useState<Record<string, string[]>>({});
+  const [loading, setLoading] = useState(true);
 
   // Run config
-  const [selectedSuite, setSelectedSuite] = useState(SUITES[0]);
-  const [selectedProvider, setSelectedProvider] = useState(PROVIDERS[0]);
-  const [selectedModel, setSelectedModel] = useState(MODELS[PROVIDERS[0]][0]);
+  const [selectedSuite, setSelectedSuite] = useState("");
+  const [selectedProvider, setSelectedProvider] = useState("");
+  const [selectedModel, setSelectedModel] = useState("");
   const [isStarting, setIsStarting] = useState(false);
 
   // Results
-  const [selectedRunId, setSelectedRunId] = useState(MOCK_RUNS[0].id);
+  const [selectedRunId, setSelectedRunId] = useState("");
+  const [taskResults, setTaskResults] = useState<TaskResult[]>([]);
 
   // Compare
-  const [compareIds, setCompareIds] = useState<string[]>(["r1", "r2"]);
+  const [compareIds, setCompareIds] = useState<string[]>([]);
+
+  const loadSuites = useCallback(async () => {
+    try {
+      const res = await invoke<SuitesResponse>("swe_bench_get_suites");
+      const suiteNames = res.suites.map((s) => s.name);
+      setSuites(suiteNames);
+      setProviders(res.providers);
+      setModels(res.models);
+      if (suiteNames.length > 0 && !selectedSuite) setSelectedSuite(suiteNames[0]);
+      if (res.providers.length > 0 && !selectedProvider) {
+        setSelectedProvider(res.providers[0]);
+        const firstModels = res.models[res.providers[0]];
+        if (firstModels && firstModels.length > 0 && !selectedModel) setSelectedModel(firstModels[0]);
+      }
+    } catch {
+      // Backend unavailable — leave empty
+    }
+  }, [selectedSuite, selectedProvider, selectedModel]);
+
+  const loadRuns = useCallback(async () => {
+    try {
+      const res = await invoke<RunsResponse>("swe_bench_list_runs");
+      setRuns(res.runs);
+      if (res.runs.length > 0 && !selectedRunId) {
+        setSelectedRunId(res.runs[0].id);
+      }
+    } catch {
+      // Backend unavailable — leave empty
+    }
+  }, [selectedRunId]);
+
+  const loadResults = useCallback(async (runId: string) => {
+    if (!runId) return;
+    try {
+      const res = await invoke<ResultsResponse>("swe_bench_get_results", { runId });
+      setTaskResults(res.taskResults);
+    } catch {
+      setTaskResults([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    const init = async () => {
+      setLoading(true);
+      await Promise.all([loadSuites(), loadRuns()]);
+      setLoading(false);
+    };
+    init();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (selectedRunId && tab === "results") {
+      loadResults(selectedRunId);
+    }
+  }, [selectedRunId, tab, loadResults]);
 
   const completedRuns = useMemo(() => runs.filter((r) => r.status === "completed"), [runs]);
   const selectedRun = runs.find((r) => r.id === selectedRunId);
@@ -110,17 +158,42 @@ export function SweBenchPanel() {
 
   const handleProviderChange = (p: string) => {
     setSelectedProvider(p);
-    setSelectedModel(MODELS[p][0]);
+    const providerModels = models[p];
+    if (providerModels && providerModels.length > 0) {
+      setSelectedModel(providerModels[0]);
+    }
   };
 
-  const startBenchmark = () => {
+  const startBenchmark = async () => {
     setIsStarting(true);
-    setTimeout(() => setIsStarting(false), 1500);
+    try {
+      await invoke<BenchmarkRun>("swe_bench_start_run", {
+        suite: selectedSuite,
+        provider: selectedProvider,
+        model: selectedModel,
+      });
+      await loadRuns();
+    } catch {
+      // Failed to start
+    } finally {
+      setIsStarting(false);
+    }
   };
 
   const toggleCompare = (id: string) => {
     setCompareIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
   };
+
+  if (loading) {
+    return (
+      <div style={panelStyle}>
+        <h2 style={headingStyle}>SWE-bench Benchmarking</h2>
+        <div style={cardStyle}>Loading...</div>
+      </div>
+    );
+  }
+
+  const availableModels = models[selectedProvider] || [];
 
   return (
     <div style={panelStyle}>
@@ -139,19 +212,19 @@ export function SweBenchPanel() {
               <div>
                 <div style={labelStyle}>Suite</div>
                 <select style={selectStyle} value={selectedSuite} onChange={(e) => setSelectedSuite(e.target.value)}>
-                  {SUITES.map((s) => <option key={s} value={s}>{s}</option>)}
+                  {suites.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
               <div>
                 <div style={labelStyle}>Provider</div>
                 <select style={selectStyle} value={selectedProvider} onChange={(e) => handleProviderChange(e.target.value)}>
-                  {PROVIDERS.map((p) => <option key={p} value={p}>{p}</option>)}
+                  {providers.map((p) => <option key={p} value={p}>{p}</option>)}
                 </select>
               </div>
               <div>
                 <div style={labelStyle}>Model</div>
                 <select style={selectStyle} value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)}>
-                  {MODELS[selectedProvider].map((m) => <option key={m} value={m}>{m}</option>)}
+                  {availableModels.map((m) => <option key={m} value={m}>{m}</option>)}
                 </select>
               </div>
             </div>
@@ -165,6 +238,7 @@ export function SweBenchPanel() {
           </div>
 
           <div style={labelStyle}>Recent Runs</div>
+          {runs.length === 0 && <div style={cardStyle}>No benchmark runs yet. Start one above.</div>}
           {runs.map((r) => (
             <div key={r.id} style={cardStyle}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
@@ -191,6 +265,7 @@ export function SweBenchPanel() {
           <div style={{ marginBottom: 10 }}>
             <div style={labelStyle}>Select Run</div>
             <select style={selectStyle} value={selectedRunId} onChange={(e) => setSelectedRunId(e.target.value)}>
+              {runs.length === 0 && <option value="">No runs available</option>}
               {runs.map((r) => <option key={r.id} value={r.id}>{r.model} — {r.suite} ({r.status})</option>)}
             </select>
           </div>
@@ -218,28 +293,31 @@ export function SweBenchPanel() {
 
               <div style={cardStyle}>
                 <div style={labelStyle}>Task Breakdown</div>
-                <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                  <thead>
-                    <tr>
-                      <th style={thStyle}>Task</th>
-                      <th style={thStyle}>Repository</th>
-                      <th style={thStyle}>Status</th>
-                      <th style={{ ...thStyle, textAlign: "right" }}>Duration</th>
-                      <th style={{ ...thStyle, textAlign: "right" }}>Tokens</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {MOCK_TASK_RESULTS.map((t) => (
-                      <tr key={t.id}>
-                        <td style={{ ...tdStyle, fontSize: 11 }}>{t.task}</td>
-                        <td style={{ ...tdStyle, fontSize: 11 }}>{t.repo}</td>
-                        <td style={tdStyle}><span style={badgeStyle(t.status)}>{t.status}</span></td>
-                        <td style={{ ...tdStyle, textAlign: "right" }}>{t.durationSec}s</td>
-                        <td style={{ ...tdStyle, textAlign: "right" }}>{t.tokensUsed.toLocaleString()}</td>
+                {taskResults.length === 0 && <div style={{ fontSize: 12, color: "var(--text-secondary)", padding: "8px 0" }}>No task results available for this run.</div>}
+                {taskResults.length > 0 && (
+                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <thead>
+                      <tr>
+                        <th style={thStyle}>Task</th>
+                        <th style={thStyle}>Repository</th>
+                        <th style={thStyle}>Status</th>
+                        <th style={{ ...thStyle, textAlign: "right" }}>Duration</th>
+                        <th style={{ ...thStyle, textAlign: "right" }}>Tokens</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {taskResults.map((t) => (
+                        <tr key={t.id}>
+                          <td style={{ ...tdStyle, fontSize: 11 }}>{t.task}</td>
+                          <td style={{ ...tdStyle, fontSize: 11 }}>{t.repo}</td>
+                          <td style={tdStyle}><span style={badgeStyle(t.status)}>{t.status}</span></td>
+                          <td style={{ ...tdStyle, textAlign: "right" }}>{t.durationSec}s</td>
+                          <td style={{ ...tdStyle, textAlign: "right" }}>{t.tokensUsed.toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
               </div>
             </>
           )}
@@ -251,6 +329,7 @@ export function SweBenchPanel() {
           <div style={cardStyle}>
             <div style={labelStyle}>Select runs to compare</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
+              {completedRuns.length === 0 && <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>No completed runs to compare.</div>}
               {completedRuns.map((r) => (
                 <button
                   key={r.id}
@@ -304,7 +383,7 @@ export function SweBenchPanel() {
             </div>
           )}
 
-          {compareRuns.length < 2 && (
+          {compareRuns.length < 2 && completedRuns.length >= 2 && (
             <div style={cardStyle}>Select at least 2 completed runs to compare.</div>
           )}
         </div>

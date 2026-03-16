@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 interface SearchResult {
   id: string;
@@ -13,7 +14,7 @@ interface HistoryEntry {
   query: string;
   answer: string;
   timestamp: string;
-  resultCount: number;
+  result_count: number;
 }
 
 interface FilterConfig {
@@ -26,21 +27,12 @@ interface FilterConfig {
 const ConversationalSearchPanel: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("search");
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<SearchResult[]>([
-    { id: "1", file: "src/agent.rs", snippet: "pub async fn execute_tool(&self, name: &str, args: &Value) -> Result<String>", relevance: 0.95, line: 142 },
-    { id: "2", file: "src/provider.rs", snippet: "trait AIProvider: Send + Sync { async fn complete(&self, prompt: &str) -> Result<String>; }", relevance: 0.88, line: 23 },
-    { id: "3", file: "src/tool_executor.rs", snippet: "fn validate_url_scheme(url: &str) -> bool { matches!(scheme, \"http\" | \"https\") }", relevance: 0.72, line: 67 },
-  ]);
-  const [followUps] = useState<string[]>([
-    "Show all implementations of AIProvider",
-    "Find error handling in execute_tool",
-    "List callers of validate_url_scheme",
-  ]);
-  const [history, setHistory] = useState<HistoryEntry[]>([
-    { id: "1", query: "How does tool execution work?", answer: "Tool execution routes through execute_tool() in agent.rs, which dispatches based on tool name to the appropriate handler in tool_executor.rs.", timestamp: "12:01", resultCount: 5 },
-    { id: "2", query: "Where is URL validation?", answer: "URL validation occurs in tool_executor.rs via validate_url_scheme(), which restricts to http/https to prevent SSRF.", timestamp: "11:48", resultCount: 3 },
-  ]);
+  const [results, setResults] = useState<SearchResult[]>([]);
+  const [followUps, setFollowUps] = useState<string[]>([]);
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [filters, setFilters] = useState<FilterConfig>({ fileTypes: "*.rs, *.ts, *.tsx", paths: "src/", dateFrom: "", dateTo: "" });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const containerStyle: React.CSSProperties = {
     padding: "16px",
@@ -101,20 +93,62 @@ const ConversationalSearchPanel: React.FC = () => {
     fontSize: "12px",
   };
 
-  const handleSearch = () => {
+  const loadHistory = useCallback(async () => {
+    try {
+      const hist = await invoke<HistoryEntry[]>("get_search_history");
+      setHistory(hist);
+    } catch (_e) {
+      // History loading is non-critical; silently ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    loadHistory();
+  }, [loadHistory]);
+
+  const handleSearch = async () => {
     if (!query.trim()) return;
-    const newResult: SearchResult = {
-      id: String(Date.now()),
-      file: "src/search_result.rs",
-      snippet: `Matched: "${query}" in context...`,
-      relevance: 0.65,
-      line: 1,
-    };
-    setResults([newResult, ...results]);
-    setHistory((prev) => [
-      { id: String(Date.now()), query, answer: `Found results for "${query}"`, timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }), resultCount: results.length + 1 },
-      ...prev,
-    ]);
+    setLoading(true);
+    setError(null);
+
+    try {
+      const searchResults = await invoke<SearchResult[]>("conversational_search", {
+        query,
+        fileTypes: filters.fileTypes || null,
+        paths: filters.paths || null,
+      });
+      setResults(searchResults);
+
+      // Fetch follow-up suggestions based on results
+      try {
+        const suggestions = await invoke<string[]>("get_search_suggestions", {
+          query,
+          results: searchResults,
+        });
+        setFollowUps(suggestions);
+      } catch (_e) {
+        setFollowUps([]);
+      }
+
+      // Refresh history after search
+      loadHistory();
+    } catch (e) {
+      const msg = typeof e === "string" ? e : (e as Error)?.message || "Search failed";
+      setError(msg);
+      setResults([]);
+      setFollowUps([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleClearHistory = async () => {
+    try {
+      await invoke("clear_search_history");
+      setHistory([]);
+    } catch (_e) {
+      // ignore
+    }
   };
 
   const relevanceBar = (score: number): React.CSSProperties => ({
@@ -141,8 +175,15 @@ const ConversationalSearchPanel: React.FC = () => {
         <div>
           <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
             <input style={inputStyle} placeholder="Ask about your codebase..." value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSearch()} />
-            <button style={btnStyle} onClick={handleSearch}>Search</button>
+            <button style={btnStyle} onClick={handleSearch} disabled={loading}>
+              {loading ? "Searching..." : "Search"}
+            </button>
           </div>
+          {error && (
+            <div style={{ ...cardStyle, borderColor: "var(--error-color)", color: "var(--error-color)", marginBottom: "12px" }}>
+              {error}
+            </div>
+          )}
           {results.map((r) => (
             <div key={r.id} style={cardStyle}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
@@ -155,6 +196,9 @@ const ConversationalSearchPanel: React.FC = () => {
               </div>
             </div>
           ))}
+          {!loading && results.length === 0 && query.trim() && !error && (
+            <div style={{ opacity: 0.5, textAlign: "center", padding: "20px" }}>No results found</div>
+          )}
           {followUps.length > 0 && (
             <div style={{ marginTop: "12px" }}>
               <div style={{ fontSize: "12px", opacity: 0.6, marginBottom: "6px" }}>Follow-up suggestions:</div>
@@ -170,6 +214,16 @@ const ConversationalSearchPanel: React.FC = () => {
 
       {activeTab === "history" && (
         <div>
+          {history.length > 0 && (
+            <div style={{ marginBottom: "8px", textAlign: "right" }}>
+              <button style={{ ...btnStyle, background: "transparent", color: "var(--text-secondary)", border: "1px solid var(--border-color)", fontSize: "11px" }} onClick={handleClearHistory}>
+                Clear History
+              </button>
+            </div>
+          )}
+          {history.length === 0 && (
+            <div style={{ opacity: 0.5, textAlign: "center", padding: "20px" }}>No search history yet</div>
+          )}
           {history.map((h) => (
             <div key={h.id} style={cardStyle}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
@@ -177,7 +231,7 @@ const ConversationalSearchPanel: React.FC = () => {
                 <span style={{ fontSize: "11px", opacity: 0.6 }}>{h.timestamp}</span>
               </div>
               <p style={{ margin: "4px 0", fontSize: "12px", opacity: 0.8 }}>{h.answer}</p>
-              <div style={{ fontSize: "11px", opacity: 0.5 }}>{h.resultCount} results</div>
+              <div style={{ fontSize: "11px", opacity: 0.5 }}>{h.result_count} results</div>
             </div>
           ))}
         </div>

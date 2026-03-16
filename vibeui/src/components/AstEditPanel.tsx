@@ -3,9 +3,10 @@
  *
  * Tabs: Files (loaded files with node tree), Edits (pending operations),
  * Preview (diff preview of selected edit).
- * Pure TypeScript — no Tauri commands.
+ * Wired to Tauri backend commands for real AST extraction and edit management.
  */
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 type Tab = "files" | "edits" | "preview";
 type NodeKind = "function" | "struct" | "enum" | "impl" | "trait" | "module" | "const" | "type";
@@ -34,45 +35,6 @@ interface PendingEdit {
   diffBefore: string;
   diffAfter: string;
 }
-
-const MOCK_FILES: AstFile[] = [
-  { path: "src/main.rs", language: "Rust", nodes: [
-    { name: "main", kind: "function", line: 12 },
-    { name: "AppConfig", kind: "struct", line: 28, children: [
-      { name: "impl AppConfig", kind: "impl", line: 35 },
-    ]},
-    { name: "Command", kind: "enum", line: 58 },
-    { name: "run_server", kind: "function", line: 82 },
-  ]},
-  { path: "src/lib.rs", language: "Rust", nodes: [
-    { name: "Provider", kind: "trait", line: 5 },
-    { name: "ProviderKind", kind: "enum", line: 22 },
-    { name: "Config", kind: "struct", line: 40, children: [
-      { name: "impl Config", kind: "impl", line: 50 },
-    ]},
-    { name: "MAX_RETRIES", kind: "const", line: 3 },
-  ]},
-  { path: "src/utils.rs", language: "Rust", nodes: [
-    { name: "helpers", kind: "module", line: 1 },
-    { name: "format_output", kind: "function", line: 15 },
-    { name: "OutputKind", kind: "type", line: 8 },
-  ]},
-];
-
-const MOCK_EDITS: PendingEdit[] = [
-  { id: "e1", file: "src/main.rs", target: "run_server", operation: "extract", confidence: 0.92,
-    description: "Extract request handling into separate function",
-    diffBefore: "fn run_server() {\n    let req = get_request();\n    let resp = handle(req);\n    send(resp);\n}",
-    diffAfter: "fn run_server() {\n    let resp = handle_request();\n    send(resp);\n}\n\nfn handle_request() -> Response {\n    let req = get_request();\n    handle(req)\n}" },
-  { id: "e2", file: "src/lib.rs", target: "Config", operation: "rename", confidence: 0.87,
-    description: "Rename Config to AppSettings for clarity",
-    diffBefore: "struct Config {\n    port: u16,\n    host: String,\n}",
-    diffAfter: "struct AppSettings {\n    port: u16,\n    host: String,\n}" },
-  { id: "e3", file: "src/utils.rs", target: "format_output", operation: "inline", confidence: 0.74,
-    description: "Inline single-use helper into caller",
-    diffBefore: "fn format_output(s: &str) -> String {\n    s.trim().to_uppercase()\n}",
-    diffAfter: "// inlined: s.trim().to_uppercase() at call site" },
-];
 
 const kindColor: Record<NodeKind, string> = {
   function: "var(--text-info)",
@@ -111,14 +73,64 @@ function NodeTree({ nodes, depth = 0 }: { nodes: AstNode[]; depth?: number }) {
 
 export default function AstEditPanel() {
   const [tab, setTab] = useState<Tab>("files");
-  const [selectedEdit, setSelectedEdit] = useState<string>("e1");
-  const [edits, setEdits] = useState(MOCK_EDITS);
+  const [selectedEdit, setSelectedEdit] = useState<string>("");
+  const [files, setFiles] = useState<AstFile[]>([]);
+  const [edits, setEdits] = useState<PendingEdit[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadFiles = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const workspace = await invoke<string[]>("get_workspace_folders")
+        .then(folders => folders[0] || ".")
+        .catch(() => ".");
+      const result = await invoke<AstFile[]>("get_ast_files", { workspace });
+      setFiles(result);
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const loadEdits = useCallback(async () => {
+    try {
+      const result = await invoke<PendingEdit[]>("get_ast_edits");
+      setEdits(result);
+      if (result.length > 0 && !selectedEdit) {
+        setSelectedEdit(result[0].id);
+      }
+    } catch (err) {
+      console.error("Failed to load AST edits:", err);
+    }
+  }, [selectedEdit]);
+
+  useEffect(() => {
+    loadFiles();
+    loadEdits();
+  }, [loadFiles, loadEdits]);
+
+  const applyEdit = async (id: string) => {
+    try {
+      await invoke("apply_ast_edit", { id });
+      setEdits(es => es.filter(e => e.id !== id));
+    } catch (err) {
+      console.error("Failed to apply AST edit:", err);
+    }
+  };
+
+  const dismissEdit = async (id: string) => {
+    try {
+      await invoke("dismiss_ast_edit", { id });
+      setEdits(es => es.filter(e => e.id !== id));
+    } catch (err) {
+      console.error("Failed to dismiss AST edit:", err);
+    }
+  };
 
   const selected = edits.find(e => e.id === selectedEdit);
-
-  const removeEdit = (id: string) => {
-    setEdits(es => es.filter(e => e.id !== id));
-  };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
@@ -134,7 +146,14 @@ export default function AstEditPanel() {
       </div>
 
       <div style={{ flex: 1, overflowY: "auto", padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
-        {tab === "files" && MOCK_FILES.map(f => (
+        {loading && (
+          <div style={{ textAlign: "center", color: "var(--text-muted)", fontSize: 12, padding: 40 }}>Loading...</div>
+        )}
+        {error && (
+          <div style={{ textAlign: "center", color: "var(--text-danger)", fontSize: 12, padding: 20 }}>{error}</div>
+        )}
+
+        {tab === "files" && !loading && files.map(f => (
           <div key={f.path} style={{ background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)", overflow: "hidden" }}>
             <div style={{ padding: "6px 10px", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <span style={{ fontSize: 12, fontWeight: 600, fontFamily: "monospace", color: "var(--text-primary)" }}>{f.path}</span>
@@ -143,6 +162,9 @@ export default function AstEditPanel() {
             <NodeTree nodes={f.nodes} />
           </div>
         ))}
+        {tab === "files" && !loading && files.length === 0 && !error && (
+          <div style={{ textAlign: "center", color: "var(--text-muted)", fontSize: 12, padding: 40 }}>No source files found in workspace</div>
+        )}
 
         {tab === "edits" && edits.map(e => (
           <div key={e.id} onClick={() => { setSelectedEdit(e.id); setTab("preview"); }}
@@ -158,13 +180,16 @@ export default function AstEditPanel() {
                 <div style={{ width: `${e.confidence * 100}%`, height: "100%", background: e.confidence > 0.85 ? "var(--text-success)" : e.confidence > 0.7 ? "var(--text-warning)" : "var(--text-danger)", borderRadius: 2 }} />
               </div>
               <span style={{ fontSize: 10, color: "var(--text-muted)", minWidth: 30 }}>{(e.confidence * 100).toFixed(0)}%</span>
-              <button onClick={(ev) => { ev.stopPropagation(); removeEdit(e.id); }}
+              <button onClick={(ev) => { ev.stopPropagation(); dismissEdit(e.id); }}
                 style={{ padding: "3px 8px", fontSize: 10, borderRadius: 3, border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-danger)", cursor: "pointer" }}>Reject</button>
-              <button onClick={(ev) => { ev.stopPropagation(); removeEdit(e.id); }}
+              <button onClick={(ev) => { ev.stopPropagation(); applyEdit(e.id); }}
                 style={{ padding: "3px 8px", fontSize: 10, borderRadius: 3, border: "none", background: "var(--text-success)", color: "var(--bg-primary)", cursor: "pointer", fontWeight: 600 }}>Apply</button>
             </div>
           </div>
         ))}
+        {tab === "edits" && edits.length === 0 && (
+          <div style={{ textAlign: "center", color: "var(--text-muted)", fontSize: 12, padding: 40 }}>No pending AST edits</div>
+        )}
 
         {tab === "preview" && selected && (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>

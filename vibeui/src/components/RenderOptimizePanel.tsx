@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 interface DirtyRegion {
   id: string;
@@ -7,17 +8,47 @@ interface DirtyRegion {
   reason: string;
 }
 
+interface RenderStatsData {
+  cacheHits: number;
+  cacheMisses: number;
+  totalFrames: number;
+  avgReduction: number;
+}
+
+interface OptimizationResult {
+  regions_cleared: number;
+  cache_hits_before: number;
+  cache_hits_after: number;
+  reduction_pct: number;
+}
+
 const RenderOptimizePanel: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("stats");
-  const [stats, setStats] = useState({ cacheHits: 847, cacheMisses: 153, totalFrames: 1000, avgReduction: 64 });
+  const [stats, setStats] = useState<RenderStatsData>({ cacheHits: 0, cacheMisses: 0, totalFrames: 0, avgReduction: 0 });
   const [frameWidth] = useState(1920);
   const [frameHeight] = useState(1080);
-  const [dirtyRegions, setDirtyRegions] = useState<DirtyRegion[]>([
-    { id: "r1", startLine: 12, endLine: 18, reason: "Text edit" },
-    { id: "r2", startLine: 45, endLine: 45, reason: "Cursor blink" },
-    { id: "r3", startLine: 102, endLine: 110, reason: "Scroll reveal" },
-    { id: "r4", startLine: 200, endLine: 205, reason: "Diagnostic update" },
-  ]);
+  const [dirtyRegions, setDirtyRegions] = useState<DirtyRegion[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [optimizeResult, setOptimizeResult] = useState<OptimizationResult | null>(null);
+
+  const loadData = useCallback(async () => {
+    try {
+      const [statsResult, regionsResult] = await Promise.all([
+        invoke<RenderStatsData>("get_render_stats"),
+        invoke<DirtyRegion[]>("get_dirty_regions"),
+      ]);
+      setStats(statsResult);
+      setDirtyRegions(regionsResult);
+      setError(null);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadData(); }, [loadData]);
 
   const containerStyle: React.CSSProperties = {
     padding: "16px", color: "var(--text-primary)",
@@ -43,19 +74,35 @@ const RenderOptimizePanel: React.FC = () => {
 
   const hitRate = stats.totalFrames > 0 ? Math.round((stats.cacheHits / stats.totalFrames) * 100) : 0;
 
-  const handleForceRerender = () => {
-    setDirtyRegions([]);
-    setStats(prev => ({ ...prev, cacheMisses: prev.cacheMisses + 1, totalFrames: prev.totalFrames + 1 }));
+  const handleRunOptimization = async () => {
+    try {
+      const result = await invoke<OptimizationResult>("run_render_optimization");
+      setOptimizeResult(result);
+      // Reload data to get updated stats
+      await loadData();
+    } catch (e) {
+      setError(String(e));
+    }
   };
 
-  const handleClearCache = () => {
-    setStats({ cacheHits: 0, cacheMisses: 0, totalFrames: 0, avgReduction: 0 });
-    setDirtyRegions([]);
+  const handleResetStats = async () => {
+    try {
+      await invoke("reset_render_stats");
+      setOptimizeResult(null);
+      await loadData();
+    } catch (e) {
+      setError(String(e));
+    }
   };
+
+  if (loading) {
+    return <div style={containerStyle}><p>Loading render stats...</p></div>;
+  }
 
   return (
     <div style={containerStyle}>
       <h3 style={{ margin: "0 0 12px" }}>Render Optimization</h3>
+      {error && <div style={{ color: "var(--error-color)", marginBottom: "8px" }}>{error}</div>}
       <div style={tabBar}>
         {["stats", "frames", "config"].map(t => (
           <button key={t} style={tab(activeTab === t)} onClick={() => setActiveTab(t)}>
@@ -88,6 +135,9 @@ const RenderOptimizePanel: React.FC = () => {
                 <div style={{ opacity: 0.7, fontSize: "12px" }}>{s.label}</div>
               </div>
             ))}
+          </div>
+          <div style={{ marginTop: "8px" }}>
+            <button style={btn} onClick={loadData}>Refresh Stats</button>
           </div>
         </div>
       )}
@@ -132,10 +182,21 @@ const RenderOptimizePanel: React.FC = () => {
           <div style={card}>
             <h4 style={{ margin: "0 0 12px" }}>Render Actions</h4>
             <div style={{ display: "flex", gap: "8px" }}>
-              <button style={btn} onClick={handleForceRerender}>Force Full Rerender</button>
-              <button style={{ ...btn, backgroundColor: "var(--error-color)" }} onClick={handleClearCache}>Clear Cache</button>
+              <button style={btn} onClick={handleRunOptimization}>Run Optimization</button>
+              <button style={{ ...btn, backgroundColor: "var(--error-color)" }} onClick={handleResetStats}>Reset Stats</button>
             </div>
           </div>
+          {optimizeResult && (
+            <div style={card}>
+              <h4 style={{ margin: "0 0 8px" }}>Last Optimization Result</h4>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "8px" }}>
+                <div><span style={{ opacity: 0.6 }}>Regions Cleared:</span> {optimizeResult.regions_cleared}</div>
+                <div><span style={{ opacity: 0.6 }}>Reduction:</span> {optimizeResult.reduction_pct}%</div>
+                <div><span style={{ opacity: 0.6 }}>Hits Before:</span> {optimizeResult.cache_hits_before}</div>
+                <div><span style={{ opacity: 0.6 }}>Hits After:</span> {optimizeResult.cache_hits_after}</div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

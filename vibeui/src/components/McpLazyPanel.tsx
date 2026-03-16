@@ -3,9 +3,10 @@
  *
  * Visualises MCP tool manifests with lazy-loading status, search across
  * tools with relevance scoring, and context-savings / cache metrics.
- * Pure TypeScript — no Tauri commands needed.
+ * Wired to real Tauri backend commands.
  */
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -14,55 +15,30 @@ interface ToolManifest {
   name: string;
   description: string;
   version: string;
+  server_name: string;
   status: "loaded" | "unloaded" | "loading";
-  sizeKb: number;
-  lastUsed: string | null;
+  size_kb: number;
+  last_used: string | null;
+  load_time_ms: number | null;
 }
 
 interface SearchResult {
-  toolId: string;
+  tool_id: string;
   name: string;
   description: string;
+  server_name: string;
   relevance: number;
 }
 
 interface LazyMetrics {
-  contextSavingsPct: number;
-  cacheHits: number;
-  cacheMisses: number;
-  avgLoadTimeMs: number;
-  loadTimes: { label: string; ms: number }[];
+  context_savings_pct: number;
+  cache_hits: number;
+  cache_misses: number;
+  cache_hit_rate: number;
+  avg_load_time_ms: number;
+  load_times: { label: string; ms: number }[];
+  total_load_time_ms: number;
 }
-
-// ── Mock Data ─────────────────────────────────────────────────────────────────
-
-const MOCK_MANIFESTS: ToolManifest[] = [
-  { id: "t1", name: "file_read", description: "Read file contents from disk", version: "1.2.0", status: "loaded", sizeKb: 12, lastUsed: "2026-03-13T08:30:00Z" },
-  { id: "t2", name: "file_write", description: "Write content to a file", version: "1.2.0", status: "loaded", sizeKb: 14, lastUsed: "2026-03-13T08:25:00Z" },
-  { id: "t3", name: "grep_search", description: "Search file contents with regex", version: "1.1.0", status: "loaded", sizeKb: 18, lastUsed: "2026-03-13T07:50:00Z" },
-  { id: "t4", name: "git_status", description: "Show working tree status", version: "1.0.0", status: "unloaded", sizeKb: 22, lastUsed: null },
-  { id: "t5", name: "git_diff", description: "Show file differences", version: "1.0.0", status: "unloaded", sizeKb: 26, lastUsed: null },
-  { id: "t6", name: "bash_exec", description: "Execute shell commands", version: "2.0.1", status: "loaded", sizeKb: 8, lastUsed: "2026-03-13T08:31:00Z" },
-  { id: "t7", name: "web_fetch", description: "Fetch URL contents", version: "1.3.0", status: "unloaded", sizeKb: 30, lastUsed: null },
-  { id: "t8", name: "notebook_edit", description: "Edit Jupyter notebook cells", version: "0.9.0", status: "unloaded", sizeKb: 45, lastUsed: null },
-  { id: "t9", name: "image_read", description: "Read and describe image files", version: "1.0.0", status: "loading", sizeKb: 52, lastUsed: null },
-  { id: "t10", name: "sql_query", description: "Execute SQL queries against databases", version: "1.1.0", status: "unloaded", sizeKb: 35, lastUsed: null },
-];
-
-const MOCK_METRICS: LazyMetrics = {
-  contextSavingsPct: 68,
-  cacheHits: 1247,
-  cacheMisses: 83,
-  avgLoadTimeMs: 42,
-  loadTimes: [
-    { label: "file_read", ms: 12 },
-    { label: "file_write", ms: 14 },
-    { label: "grep_search", ms: 18 },
-    { label: "bash_exec", ms: 8 },
-    { label: "image_read", ms: 52 },
-    { label: "web_fetch", ms: 38 },
-  ],
-};
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
@@ -77,6 +53,8 @@ const inputStyle: React.CSSProperties = { width: "100%", padding: "6px 10px", bo
 const badgeStyle = (variant: string): React.CSSProperties => ({ display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 600, color: "white", background: variant === "loaded" ? "var(--success-color)" : variant === "loading" ? "var(--warning-color)" : "var(--text-muted)" });
 const barBg: React.CSSProperties = { height: 8, borderRadius: 4, background: "var(--bg-tertiary)", overflow: "hidden" };
 const barFill = (pct: number, color: string): React.CSSProperties => ({ height: "100%", width: `${Math.min(pct, 100)}%`, borderRadius: 4, background: color });
+const errorStyle: React.CSSProperties = { padding: 12, background: "var(--bg-secondary)", border: "1px solid var(--error-color)", borderRadius: 6, color: "var(--error-color)", marginBottom: 10 };
+const spinnerStyle: React.CSSProperties = { textAlign: "center", padding: 24, color: "var(--text-secondary)" };
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -84,52 +62,136 @@ type Tab = "registry" | "search" | "metrics";
 
 export function McpLazyPanel() {
   const [tab, setTab] = useState<Tab>("registry");
-  const [manifests, setManifests] = useState<ToolManifest[]>(MOCK_MANIFESTS);
+  const [manifests, setManifests] = useState<ToolManifest[]>([]);
+  const [metrics, setMetrics] = useState<LazyMetrics | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [searchLoading, setSearchLoading] = useState(false);
 
-  const searchResults = useMemo<SearchResult[]>(() => {
-    if (!searchQuery.trim()) return [];
-    const q = searchQuery.toLowerCase();
-    return manifests
-      .map((m) => {
-        const nameMatch = m.name.toLowerCase().includes(q) ? 0.6 : 0;
-        const descMatch = m.description.toLowerCase().includes(q) ? 0.4 : 0;
-        const relevance = nameMatch + descMatch;
-        return { toolId: m.id, name: m.name, description: m.description, relevance };
-      })
-      .filter((r) => r.relevance > 0)
-      .sort((a, b) => b.relevance - a.relevance);
-  }, [searchQuery, manifests]);
+  // ── Fetch tool list ───────────────────────────────────────────────────────
 
-  const toggleLoad = (id: string) => {
-    setManifests((prev) =>
-      prev.map((m) =>
-        m.id === id
-          ? { ...m, status: m.status === "loaded" ? "unloaded" : m.status === "unloaded" ? "loading" : "loaded" }
-          : m
-      )
-    );
+  const fetchTools = useCallback(async () => {
+    try {
+      setError(null);
+      const result = await invoke<{ tools: ToolManifest[] }>("mcp_lazy_list_tools");
+      setManifests(result.tools ?? []);
+    } catch (err) {
+      setError(`Failed to load tools: ${err}`);
+    }
+  }, []);
+
+  // ── Fetch metrics ─────────────────────────────────────────────────────────
+
+  const fetchMetrics = useCallback(async () => {
+    try {
+      const result = await invoke<LazyMetrics>("mcp_lazy_metrics");
+      setMetrics(result);
+    } catch (err) {
+      setError(`Failed to load metrics: ${err}`);
+    }
+  }, []);
+
+  // ── Initial load ──────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      await fetchTools();
+      await fetchMetrics();
+      if (!cancelled) setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [fetchTools, fetchMetrics]);
+
+  // ── Search ────────────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setSearchLoading(true);
+      try {
+        const result = await invoke<{ results: SearchResult[] }>("mcp_lazy_search", { query: searchQuery });
+        if (!cancelled) setSearchResults(result.results ?? []);
+      } catch (err) {
+        if (!cancelled) setError(`Search failed: ${err}`);
+      } finally {
+        if (!cancelled) setSearchLoading(false);
+      }
+    }, 200);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [searchQuery]);
+
+  // ── Load / Unload ─────────────────────────────────────────────────────────
+
+  const toggleLoad = async (id: string, currentStatus: string) => {
+    setActionLoading(id);
+    try {
+      if (currentStatus === "loaded") {
+        await invoke("mcp_lazy_unload_tool", { toolId: id });
+      } else {
+        // Show "loading" state immediately
+        setManifests((prev) =>
+          prev.map((m) => (m.id === id ? { ...m, status: "loading" as const } : m))
+        );
+        await invoke("mcp_lazy_load_tool", { toolId: id });
+      }
+      await fetchTools();
+      await fetchMetrics();
+    } catch (err) {
+      setError(`Action failed: ${err}`);
+      await fetchTools();
+    } finally {
+      setActionLoading(null);
+    }
   };
 
-  const loadedCount = manifests.filter((m) => m.status === "loaded").length;
+  // ── Derived values ────────────────────────────────────────────────────────
+
+  const loadedCount = useMemo(() => manifests.filter((m) => m.status === "loaded").length, [manifests]);
   const totalCount = manifests.length;
+
+  // ── Render ────────────────────────────────────────────────────────────────
+
+  if (loading) {
+    return (
+      <div style={panelStyle}>
+        <h2 style={headingStyle}>MCP Lazy Loading</h2>
+        <div style={spinnerStyle}>Loading registry...</div>
+      </div>
+    );
+  }
 
   return (
     <div style={panelStyle}>
       <h2 style={headingStyle}>MCP Lazy Loading</h2>
 
+      {error && (
+        <div style={errorStyle}>
+          <span>{error}</span>
+          <button style={{ ...btnStyle, marginLeft: 8 }} onClick={() => setError(null)}>Dismiss</button>
+        </div>
+      )}
+
       <div style={{ marginBottom: 12 }}>
         <button style={tabBtnStyle(tab === "registry")} onClick={() => setTab("registry")}>Tool Registry</button>
         <button style={tabBtnStyle(tab === "search")} onClick={() => setTab("search")}>Search</button>
-        <button style={tabBtnStyle(tab === "metrics")} onClick={() => setTab("metrics")}>Metrics</button>
+        <button style={tabBtnStyle(tab === "metrics")} onClick={() => { setTab("metrics"); fetchMetrics(); }}>Metrics</button>
       </div>
 
       {tab === "registry" && (
         <div>
           <div style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span>{loadedCount} / {totalCount} tools loaded</span>
-            <div style={barBg}>
-              <div style={{ ...barFill((loadedCount / totalCount) * 100, "var(--info-color)"), minWidth: 120 }} />
+            <div style={{ ...barBg, minWidth: 120 }}>
+              <div style={barFill(totalCount > 0 ? (loadedCount / totalCount) * 100 : 0, "var(--info-color)")} />
             </div>
           </div>
           {manifests.map((m) => (
@@ -137,16 +199,26 @@ export function McpLazyPanel() {
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 600 }}>{m.name} <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>v{m.version}</span></div>
                 <div style={labelStyle}>{m.description}</div>
-                <div style={{ fontSize: 10, color: "var(--text-secondary)" }}>{m.sizeKb} KB {m.lastUsed ? `| Last used: ${new Date(m.lastUsed).toLocaleTimeString()}` : ""}</div>
+                <div style={{ fontSize: 10, color: "var(--text-secondary)" }}>
+                  {m.size_kb} KB
+                  {m.server_name ? ` | Server: ${m.server_name}` : ""}
+                  {m.last_used ? ` | Last used: ${new Date(m.last_used).toLocaleTimeString()}` : ""}
+                  {m.load_time_ms != null ? ` | Load: ${m.load_time_ms}ms` : ""}
+                </div>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span style={badgeStyle(m.status)}>{m.status}</span>
-                <button style={btnStyle} onClick={() => toggleLoad(m.id)}>
-                  {m.status === "loaded" ? "Unload" : m.status === "unloaded" ? "Load" : "..."}
+                <button
+                  style={{ ...btnStyle, opacity: actionLoading === m.id ? 0.6 : 1 }}
+                  disabled={actionLoading === m.id}
+                  onClick={() => toggleLoad(m.id, m.status)}
+                >
+                  {actionLoading === m.id ? "..." : m.status === "loaded" ? "Unload" : m.status === "unloaded" ? "Load" : "..."}
                 </button>
               </div>
             </div>
           ))}
+          {manifests.length === 0 && <div style={cardStyle}>No tools registered.</div>}
         </div>
       )}
 
@@ -155,12 +227,14 @@ export function McpLazyPanel() {
           <div style={{ marginBottom: 12 }}>
             <input style={inputStyle} placeholder="Search tools by name or description..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
           </div>
-          {searchQuery.trim() === "" && <div style={cardStyle}>Type a query to search across tool manifests.</div>}
+          {searchLoading && <div style={spinnerStyle}>Searching...</div>}
+          {searchQuery.trim() === "" && !searchLoading && <div style={cardStyle}>Type a query to search across tool manifests.</div>}
           {searchResults.map((r) => (
-            <div key={r.toolId} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div key={r.tool_id} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <div style={{ fontWeight: 600 }}>{r.name}</div>
                 <div style={labelStyle}>{r.description}</div>
+                {r.server_name && <div style={{ fontSize: 10, color: "var(--text-secondary)" }}>Server: {r.server_name}</div>}
               </div>
               <div style={{ textAlign: "right" }}>
                 <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Relevance</div>
@@ -168,43 +242,43 @@ export function McpLazyPanel() {
               </div>
             </div>
           ))}
-          {searchQuery.trim() !== "" && searchResults.length === 0 && (
+          {searchQuery.trim() !== "" && !searchLoading && searchResults.length === 0 && (
             <div style={cardStyle}>No tools matching "{searchQuery}".</div>
           )}
         </div>
       )}
 
-      {tab === "metrics" && (
+      {tab === "metrics" && metrics && (
         <div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
             <div style={cardStyle}>
               <div style={labelStyle}>Context Savings</div>
-              <div style={{ fontSize: 22, fontWeight: 700, color: "var(--success-color)" }}>{MOCK_METRICS.contextSavingsPct}%</div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: "var(--success-color)" }}>{metrics.context_savings_pct}%</div>
             </div>
             <div style={cardStyle}>
               <div style={labelStyle}>Cache Hits</div>
-              <div style={{ fontSize: 22, fontWeight: 700 }}>{MOCK_METRICS.cacheHits.toLocaleString()}</div>
+              <div style={{ fontSize: 22, fontWeight: 700 }}>{metrics.cache_hits.toLocaleString()}</div>
             </div>
             <div style={cardStyle}>
               <div style={labelStyle}>Cache Misses</div>
-              <div style={{ fontSize: 22, fontWeight: 700, color: "var(--error-color)" }}>{MOCK_METRICS.cacheMisses}</div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: "var(--error-color)" }}>{metrics.cache_misses}</div>
             </div>
           </div>
 
           <div style={cardStyle}>
             <div style={labelStyle}>Cache Hit Rate</div>
             <div style={barBg}>
-              <div style={barFill((MOCK_METRICS.cacheHits / (MOCK_METRICS.cacheHits + MOCK_METRICS.cacheMisses)) * 100, "var(--success-color)")} />
+              <div style={barFill(metrics.cache_hit_rate, "var(--success-color)")} />
             </div>
             <div style={{ fontSize: 10, color: "var(--text-secondary)", marginTop: 4 }}>
-              {((MOCK_METRICS.cacheHits / (MOCK_METRICS.cacheHits + MOCK_METRICS.cacheMisses)) * 100).toFixed(1)}%
+              {metrics.cache_hit_rate.toFixed(1)}%
             </div>
           </div>
 
           <div style={cardStyle}>
-            <div style={labelStyle}>Avg Load Time: {MOCK_METRICS.avgLoadTimeMs}ms</div>
+            <div style={labelStyle}>Avg Load Time: {metrics.avg_load_time_ms}ms</div>
             <div style={{ marginTop: 8 }}>
-              {MOCK_METRICS.loadTimes.map((lt) => (
+              {metrics.load_times.map((lt) => (
                 <div key={lt.label} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                   <div style={{ width: 90, fontSize: 11 }}>{lt.label}</div>
                   <div style={{ ...barBg, flex: 1 }}>
@@ -213,9 +287,16 @@ export function McpLazyPanel() {
                   <div style={{ width: 40, fontSize: 10, textAlign: "right" }}>{lt.ms}ms</div>
                 </div>
               ))}
+              {metrics.load_times.length === 0 && (
+                <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>No load times recorded yet.</div>
+              )}
             </div>
           </div>
         </div>
+      )}
+
+      {tab === "metrics" && !metrics && (
+        <div style={spinnerStyle}>Loading metrics...</div>
       )}
     </div>
   );

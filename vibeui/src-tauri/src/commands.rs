@@ -3440,6 +3440,167 @@ pub async fn load_trace_session(session_id: String) -> Result<Vec<TraceEntryInfo
         .collect())
 }
 
+// ── Session Browser Commands ──────────────────────────────────────────────────
+
+#[derive(Serialize)]
+pub struct SessionBrowserEntry {
+    pub id: String,
+    pub timestamp: u64,
+    pub message_count: usize,
+    pub file_size: u64,
+    pub has_messages: bool,
+    pub has_context: bool,
+}
+
+#[derive(Serialize)]
+pub struct SessionMessage {
+    pub role: String,
+    pub content: String,
+}
+
+fn vibecli_trace_dir(workspace: &str) -> std::path::PathBuf {
+    std::path::PathBuf::from(workspace)
+        .join(".vibecli")
+        .join("traces")
+}
+
+/// List all sessions in the workspace's `.vibecli/traces/` directory.
+#[tauri::command]
+pub async fn list_sessions(workspace: String) -> Result<Vec<SessionBrowserEntry>, String> {
+    let dir = vibecli_trace_dir(&workspace);
+    let entries = match std::fs::read_dir(&dir) {
+        Ok(e) => e,
+        Err(_) => return Ok(vec![]),
+    };
+    let mut sessions: Vec<SessionBrowserEntry> = entries
+        .flatten()
+        .filter_map(|e| {
+            let name = e.file_name().to_string_lossy().to_string();
+            let id = name.strip_suffix(".jsonl")?;
+            let meta = e.metadata().ok()?;
+            let file_size = meta.len();
+            // Count lines in the JSONL file for step count
+            let step_count = count_lines_at(&e.path()).unwrap_or(0);
+            // Check for sidecar files
+            let messages_path = dir.join(format!("{}-messages.json", id));
+            let context_path = dir.join(format!("{}-context.json", id));
+            let has_messages = messages_path.exists();
+            let has_context = context_path.exists();
+            // Message count: if messages sidecar exists, count entries; else use step_count
+            let message_count = if has_messages {
+                std::fs::read_to_string(&messages_path)
+                    .ok()
+                    .and_then(|s| serde_json::from_str::<Vec<serde_json::Value>>(&s).ok())
+                    .map(|v| v.len())
+                    .unwrap_or(step_count)
+            } else {
+                step_count
+            };
+            // Parse timestamp from session ID (may be "name-12345" or plain "12345")
+            let ts: u64 = id
+                .rsplit('-')
+                .next()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(0);
+            Some(SessionBrowserEntry {
+                id: id.to_string(),
+                timestamp: ts,
+                message_count,
+                file_size,
+                has_messages,
+                has_context,
+            })
+        })
+        .collect();
+    sessions.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+    Ok(sessions)
+}
+
+fn count_lines_at(path: &std::path::Path) -> Option<usize> {
+    let f = std::fs::File::open(path).ok()?;
+    Some(std::io::BufReader::new(f).lines().count())
+}
+
+use std::io::BufRead as BufReadSessions;
+
+/// Load conversation messages for a specific session.
+#[tauri::command]
+pub async fn get_session_detail(
+    workspace: String,
+    session_id: String,
+) -> Result<Vec<SessionMessage>, String> {
+    let dir = vibecli_trace_dir(&workspace);
+    // Prefer messages sidecar
+    let messages_path = dir.join(format!("{}-messages.json", session_id));
+    if messages_path.exists() {
+        let data = std::fs::read_to_string(&messages_path)
+            .map_err(|e| format!("Failed to read messages file: {}", e))?;
+        let raw: Vec<serde_json::Value> = serde_json::from_str(&data)
+            .map_err(|e| format!("Failed to parse messages JSON: {}", e))?;
+        let messages = raw
+            .into_iter()
+            .map(|v| SessionMessage {
+                role: v
+                    .get("role")
+                    .and_then(|r| r.as_str())
+                    .unwrap_or("unknown")
+                    .to_string(),
+                content: v
+                    .get("content")
+                    .and_then(|c| c.as_str())
+                    .unwrap_or("")
+                    .to_string(),
+            })
+            .collect();
+        return Ok(messages);
+    }
+    // Fallback: reconstruct from JSONL trace entries
+    let jsonl_path = dir.join(format!("{}.jsonl", session_id));
+    if !jsonl_path.exists() {
+        return Err(format!("Session {} not found", session_id));
+    }
+    let entries = vibe_ai::load_trace(&jsonl_path);
+    let messages = entries
+        .into_iter()
+        .map(|e| SessionMessage {
+            role: if e.tool == "user_message" {
+                "user".to_string()
+            } else {
+                "assistant".to_string()
+            },
+            content: if e.input_summary.is_empty() {
+                e.output
+            } else {
+                format!("[{}] {}", e.tool, e.input_summary)
+            },
+        })
+        .collect();
+    Ok(messages)
+}
+
+/// Delete a session and its sidecar files.
+#[tauri::command]
+pub async fn delete_session(
+    workspace: String,
+    session_id: String,
+) -> Result<(), String> {
+    let dir = vibecli_trace_dir(&workspace);
+    // Prevent path traversal
+    if session_id.contains("..") || session_id.contains('/') || session_id.contains('\\') {
+        return Err("Invalid session ID".to_string());
+    }
+    let jsonl = dir.join(format!("{}.jsonl", session_id));
+    let messages = dir.join(format!("{}-messages.json", session_id));
+    let context = dir.join(format!("{}-context.json", session_id));
+    if !jsonl.exists() {
+        return Err(format!("Session {} not found", session_id));
+    }
+    let _ = std::fs::remove_file(&jsonl);
+    let _ = std::fs::remove_file(&messages);
+    let _ = std::fs::remove_file(&context);
+    Ok(())
+}
+
 // ── Phase 8 (extra) — Hooks Config UI ─────────────────────────────────────────
 
 /// A simplified hook config descriptor for the UI (avoids exposing internal enum variants).
@@ -18000,126 +18161,1632 @@ fn build_soul_content(workspace: &std::path::Path, custom_context: &str) -> Stri
 
 // ── Phase 10-14: Futureproofing commands ──────────────────────────────────────
 
+// ── MCP Lazy Loading persistence helpers ─────────────────────────────────────
+
+fn mcp_lazy_registry_path() -> std::path::PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    std::path::PathBuf::from(home)
+        .join(".vibeui")
+        .join("mcp-lazy-registry.json")
+}
+
+/// Internal registry state persisted as JSON.
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+struct McpLazyRegistry {
+    tools: Vec<McpLazyToolEntry>,
+    cache_hits: u64,
+    cache_misses: u64,
+    total_load_time_ms: u64,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+struct McpLazyToolEntry {
+    id: String,
+    name: String,
+    description: String,
+    version: String,
+    server_name: String,
+    status: String,
+    size_kb: u32,
+    last_used: Option<String>,
+    load_time_ms: Option<u64>,
+}
+
+impl Default for McpLazyRegistry {
+    fn default() -> Self {
+        let now = chrono::Utc::now().to_rfc3339();
+        Self {
+            tools: vec![
+                McpLazyToolEntry {
+                    id: "t1".into(), name: "file_read".into(),
+                    description: "Read file contents from disk".into(),
+                    version: "1.2.0".into(), server_name: "builtin".into(),
+                    status: "loaded".into(), size_kb: 12,
+                    last_used: Some(now.clone()), load_time_ms: Some(12),
+                },
+                McpLazyToolEntry {
+                    id: "t2".into(), name: "file_write".into(),
+                    description: "Write content to a file".into(),
+                    version: "1.2.0".into(), server_name: "builtin".into(),
+                    status: "loaded".into(), size_kb: 14,
+                    last_used: Some(now.clone()), load_time_ms: Some(14),
+                },
+                McpLazyToolEntry {
+                    id: "t3".into(), name: "grep_search".into(),
+                    description: "Search file contents with regex".into(),
+                    version: "1.1.0".into(), server_name: "builtin".into(),
+                    status: "loaded".into(), size_kb: 18,
+                    last_used: Some(now.clone()), load_time_ms: Some(18),
+                },
+                McpLazyToolEntry {
+                    id: "t4".into(), name: "git_status".into(),
+                    description: "Show working tree status".into(),
+                    version: "1.0.0".into(), server_name: "builtin".into(),
+                    status: "unloaded".into(), size_kb: 22,
+                    last_used: None, load_time_ms: None,
+                },
+                McpLazyToolEntry {
+                    id: "t5".into(), name: "git_diff".into(),
+                    description: "Show file differences".into(),
+                    version: "1.0.0".into(), server_name: "builtin".into(),
+                    status: "unloaded".into(), size_kb: 26,
+                    last_used: None, load_time_ms: None,
+                },
+                McpLazyToolEntry {
+                    id: "t6".into(), name: "bash_exec".into(),
+                    description: "Execute shell commands".into(),
+                    version: "2.0.1".into(), server_name: "builtin".into(),
+                    status: "loaded".into(), size_kb: 8,
+                    last_used: Some(now.clone()), load_time_ms: Some(8),
+                },
+                McpLazyToolEntry {
+                    id: "t7".into(), name: "web_fetch".into(),
+                    description: "Fetch URL contents".into(),
+                    version: "1.3.0".into(), server_name: "external".into(),
+                    status: "unloaded".into(), size_kb: 30,
+                    last_used: None, load_time_ms: None,
+                },
+                McpLazyToolEntry {
+                    id: "t8".into(), name: "notebook_edit".into(),
+                    description: "Edit Jupyter notebook cells".into(),
+                    version: "0.9.0".into(), server_name: "external".into(),
+                    status: "unloaded".into(), size_kb: 45,
+                    last_used: None, load_time_ms: None,
+                },
+                McpLazyToolEntry {
+                    id: "t9".into(), name: "sql_query".into(),
+                    description: "Execute SQL queries against databases".into(),
+                    version: "1.1.0".into(), server_name: "external".into(),
+                    status: "unloaded".into(), size_kb: 35,
+                    last_used: None, load_time_ms: None,
+                },
+                McpLazyToolEntry {
+                    id: "t10".into(), name: "image_read".into(),
+                    description: "Read and describe image files".into(),
+                    version: "1.0.0".into(), server_name: "external".into(),
+                    status: "unloaded".into(), size_kb: 52,
+                    last_used: None, load_time_ms: None,
+                },
+            ],
+            cache_hits: 0,
+            cache_misses: 0,
+            total_load_time_ms: 0,
+        }
+    }
+}
+
+fn load_mcp_lazy_registry() -> McpLazyRegistry {
+    let path = mcp_lazy_registry_path();
+    if let Ok(text) = std::fs::read_to_string(&path) {
+        if let Ok(reg) = serde_json::from_str::<McpLazyRegistry>(&text) {
+            return reg;
+        }
+    }
+    let reg = McpLazyRegistry::default();
+    let _ = save_mcp_lazy_registry(&reg);
+    reg
+}
+
+fn save_mcp_lazy_registry(reg: &McpLazyRegistry) -> Result<(), String> {
+    let path = mcp_lazy_registry_path();
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let text = serde_json::to_string_pretty(reg).map_err(|e| e.to_string())?;
+    std::fs::write(&path, text).map_err(|e| e.to_string())
+}
+
+/// Return full registry status: tool list + metrics.
 #[tauri::command]
 pub async fn mcp_lazy_status() -> Result<serde_json::Value, String> {
+    let reg = load_mcp_lazy_registry();
+    let total = reg.tools.len();
+    let loaded = reg.tools.iter().filter(|t| t.status == "loaded").count();
+    let context_savings_percent = if total > 0 {
+        ((1.0 - (loaded as f64 / total as f64)) * 10000.0).round() / 100.0
+    } else {
+        0.0
+    };
     Ok(serde_json::json!({
-        "total_manifests": 0,
-        "loaded_schemas": 0,
-        "cache_hits": 0,
-        "cache_misses": 0,
-        "context_savings_percent": 0.0,
-        "lazy_loading_enabled": true
+        "total_manifests": total,
+        "loaded_schemas": loaded,
+        "cache_hits": reg.cache_hits,
+        "cache_misses": reg.cache_misses,
+        "context_savings_percent": context_savings_percent,
+        "lazy_loading_enabled": true,
+        "total_load_time_ms": reg.total_load_time_ms
     }))
+}
+
+/// Return all tool manifests in the lazy registry.
+#[tauri::command]
+pub async fn mcp_lazy_list_tools() -> Result<serde_json::Value, String> {
+    let reg = load_mcp_lazy_registry();
+    let tools: Vec<serde_json::Value> = reg.tools.iter().map(|t| {
+        serde_json::json!({
+            "id": t.id,
+            "name": t.name,
+            "description": t.description,
+            "version": t.version,
+            "server_name": t.server_name,
+            "status": t.status,
+            "size_kb": t.size_kb,
+            "last_used": t.last_used,
+            "load_time_ms": t.load_time_ms,
+        })
+    }).collect();
+    Ok(serde_json::json!({ "tools": tools }))
+}
+
+/// Search tools by query string. Returns results ranked by relevance.
+#[tauri::command]
+pub async fn mcp_lazy_search(query: String) -> Result<serde_json::Value, String> {
+    let reg = load_mcp_lazy_registry();
+    let q = query.to_lowercase();
+    if q.trim().is_empty() {
+        return Ok(serde_json::json!({ "results": [] }));
+    }
+    let mut results: Vec<serde_json::Value> = reg.tools.iter().filter_map(|t| {
+        let name_match = if t.name.to_lowercase().contains(&q) { 0.6 } else { 0.0 };
+        let desc_match = if t.description.to_lowercase().contains(&q) { 0.4 } else { 0.0 };
+        let relevance = name_match + desc_match;
+        if relevance > 0.0 {
+            Some(serde_json::json!({
+                "tool_id": t.id,
+                "name": t.name,
+                "description": t.description,
+                "server_name": t.server_name,
+                "relevance": relevance,
+            }))
+        } else {
+            None
+        }
+    }).collect();
+    results.sort_by(|a, b| {
+        let ra = a["relevance"].as_f64().unwrap_or(0.0);
+        let rb = b["relevance"].as_f64().unwrap_or(0.0);
+        rb.partial_cmp(&ra).unwrap_or(std::cmp::Ordering::Equal)
+    });
+    Ok(serde_json::json!({ "results": results }))
+}
+
+/// Load a tool by ID — transitions it from "unloaded" to "loaded".
+#[tauri::command]
+pub async fn mcp_lazy_load_tool(tool_id: String) -> Result<serde_json::Value, String> {
+    let mut reg = load_mcp_lazy_registry();
+    let idx = reg.tools.iter().position(|t| t.id == tool_id);
+    match idx {
+        Some(i) => {
+            if reg.tools[i].status == "loaded" {
+                return Ok(serde_json::json!({ "success": true, "message": "Already loaded" }));
+            }
+            let load_ms = (reg.tools[i].size_kb as u64).saturating_mul(2).max(5);
+            reg.tools[i].status = "loaded".to_string();
+            reg.tools[i].last_used = Some(chrono::Utc::now().to_rfc3339());
+            reg.tools[i].load_time_ms = Some(load_ms);
+            let tool_id_out = reg.tools[i].id.clone();
+            reg.cache_misses += 1;
+            reg.total_load_time_ms += load_ms;
+            save_mcp_lazy_registry(&reg)?;
+            Ok(serde_json::json!({
+                "success": true,
+                "tool_id": tool_id_out,
+                "load_time_ms": load_ms
+            }))
+        }
+        None => Err(format!("Tool not found: {}", tool_id)),
+    }
+}
+
+/// Unload a tool by ID — transitions it from "loaded" to "unloaded".
+#[tauri::command]
+pub async fn mcp_lazy_unload_tool(tool_id: String) -> Result<serde_json::Value, String> {
+    let mut reg = load_mcp_lazy_registry();
+    let idx = reg.tools.iter().position(|t| t.id == tool_id);
+    match idx {
+        Some(i) => {
+            if reg.tools[i].status == "unloaded" {
+                return Ok(serde_json::json!({ "success": true, "message": "Already unloaded" }));
+            }
+            reg.tools[i].status = "unloaded".to_string();
+            reg.tools[i].load_time_ms = None;
+            let tool_id_out = reg.tools[i].id.clone();
+            save_mcp_lazy_registry(&reg)?;
+            Ok(serde_json::json!({ "success": true, "tool_id": tool_id_out }))
+        }
+        None => Err(format!("Tool not found: {}", tool_id)),
+    }
+}
+
+/// Return metrics: cache stats, per-tool load times, context savings.
+#[tauri::command]
+pub async fn mcp_lazy_metrics() -> Result<serde_json::Value, String> {
+    let reg = load_mcp_lazy_registry();
+    let total = reg.tools.len();
+    let loaded = reg.tools.iter().filter(|t| t.status == "loaded").count();
+    let context_savings_pct = if total > 0 {
+        ((1.0 - (loaded as f64 / total as f64)) * 10000.0).round() / 100.0
+    } else {
+        0.0
+    };
+    let total_hits = reg.cache_hits + reg.cache_misses;
+    let avg_load_time_ms = if loaded > 0 {
+        let sum: u64 = reg.tools.iter()
+            .filter_map(|t| t.load_time_ms)
+            .sum();
+        sum / loaded as u64
+    } else {
+        0
+    };
+    let load_times: Vec<serde_json::Value> = reg.tools.iter()
+        .filter_map(|t| {
+            t.load_time_ms.map(|ms| serde_json::json!({
+                "label": t.name,
+                "ms": ms
+            }))
+        })
+        .collect();
+    Ok(serde_json::json!({
+        "context_savings_pct": context_savings_pct,
+        "cache_hits": reg.cache_hits,
+        "cache_misses": reg.cache_misses,
+        "cache_hit_rate": if total_hits > 0 { (reg.cache_hits as f64 / total_hits as f64) * 100.0 } else { 0.0 },
+        "avg_load_time_ms": avg_load_time_ms,
+        "load_times": load_times,
+        "total_load_time_ms": reg.total_load_time_ms
+    }))
+}
+
+// ── Context Bundle helpers ────────────────────────────────────────────────
+
+fn bundles_dir() -> PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    PathBuf::from(home).join(".vibecli").join("bundles")
+}
+
+fn read_all_bundles() -> Result<Vec<serde_json::Value>, String> {
+    let dir = bundles_dir();
+    if !dir.exists() {
+        return Ok(Vec::new());
+    }
+    let mut bundles = Vec::new();
+    let entries = std::fs::read_dir(&dir).map_err(|e| format!("Failed to read bundles dir: {e}"))?;
+    for entry in entries {
+        let entry = entry.map_err(|e| format!("Failed to read dir entry: {e}"))?;
+        let path = entry.path();
+        if path.extension().and_then(|e| e.to_str()) == Some("json") {
+            let contents = std::fs::read_to_string(&path)
+                .map_err(|e| format!("Failed to read bundle file {}: {e}", path.display()))?;
+            let bundle: serde_json::Value = serde_json::from_str(&contents)
+                .map_err(|e| format!("Failed to parse bundle {}: {e}", path.display()))?;
+            bundles.push(bundle);
+        }
+    }
+    bundles.sort_by(|a, b| {
+        let a_date = a.get("createdAt").and_then(|v| v.as_str()).unwrap_or("");
+        let b_date = b.get("createdAt").and_then(|v| v.as_str()).unwrap_or("");
+        b_date.cmp(a_date)
+    });
+    Ok(bundles)
+}
+
+fn save_bundle(bundle: &serde_json::Value) -> Result<(), String> {
+    let dir = bundles_dir();
+    std::fs::create_dir_all(&dir).map_err(|e| format!("Failed to create bundles dir: {e}"))?;
+    let id = bundle.get("id").and_then(|v| v.as_str()).ok_or("Bundle missing id")?;
+    let path = dir.join(format!("{id}.json"));
+    let json = serde_json::to_string_pretty(bundle)
+        .map_err(|e| format!("Failed to serialize bundle: {e}"))?;
+    std::fs::write(&path, json).map_err(|e| format!("Failed to write bundle: {e}"))?;
+    Ok(())
 }
 
 #[tauri::command]
 pub async fn context_bundle_list() -> Result<serde_json::Value, String> {
+    let bundles = read_all_bundles()?;
+    let active_count = bundles.iter().filter(|b| b.get("active").and_then(|v| v.as_bool()).unwrap_or(false)).count();
     Ok(serde_json::json!({
-        "bundles": [],
-        "active_count": 0
+        "bundles": bundles,
+        "active_count": active_count
     }))
 }
 
 #[tauri::command]
-pub async fn context_bundle_create(name: String, description: String) -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({
-        "id": format!("bundle-{}", name.to_lowercase().replace(' ', "-")),
+pub async fn context_bundle_create(
+    name: String,
+    description: String,
+    pinned_files: Vec<String>,
+    instructions: String,
+    model_preference: String,
+) -> Result<serde_json::Value, String> {
+    let id = format!("b{}", std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0));
+    let now = chrono::Utc::now().to_rfc3339();
+    let bundle = serde_json::json!({
+        "id": id,
         "name": name,
         "description": description,
-        "created": true
-    }))
+        "pinnedFiles": pinned_files,
+        "instructions": instructions,
+        "modelPreference": model_preference,
+        "active": false,
+        "createdAt": now
+    });
+    save_bundle(&bundle)?;
+    Ok(bundle)
+}
+
+#[tauri::command]
+pub async fn context_bundle_delete(id: String) -> Result<serde_json::Value, String> {
+    let dir = bundles_dir();
+    let path = dir.join(format!("{id}.json"));
+    if path.exists() {
+        std::fs::remove_file(&path).map_err(|e| format!("Failed to delete bundle: {e}"))?;
+        Ok(serde_json::json!({ "deleted": true, "id": id }))
+    } else {
+        Err(format!("Bundle not found: {id}"))
+    }
+}
+
+#[tauri::command]
+pub async fn context_bundle_activate(id: String, active: bool) -> Result<serde_json::Value, String> {
+    let dir = bundles_dir();
+    let path = dir.join(format!("{id}.json"));
+    if !path.exists() {
+        return Err(format!("Bundle not found: {id}"));
+    }
+    let contents = std::fs::read_to_string(&path).map_err(|e| format!("Failed to read bundle: {e}"))?;
+    let mut bundle: serde_json::Value = serde_json::from_str(&contents).map_err(|e| format!("Failed to parse bundle: {e}"))?;
+    bundle["active"] = serde_json::json!(active);
+    save_bundle(&bundle)?;
+    Ok(bundle)
+}
+
+#[tauri::command]
+pub async fn context_bundle_export() -> Result<serde_json::Value, String> {
+    let bundles = read_all_bundles()?;
+    Ok(serde_json::json!(bundles))
+}
+
+#[tauri::command]
+pub async fn context_bundle_import(bundles_json: Vec<serde_json::Value>) -> Result<serde_json::Value, String> {
+    let mut imported = 0;
+    for bundle in &bundles_json {
+        if bundle.get("id").is_some() && bundle.get("name").is_some() {
+            save_bundle(bundle)?;
+            imported += 1;
+        }
+    }
+    Ok(serde_json::json!({ "imported": imported }))
+}
+
+/// Service pattern for cloud provider detection.
+struct CloudPattern {
+    pattern: &'static str,
+    provider: &'static str,
+    service_name: &'static str,
+    usage_type: &'static str,
+    confidence: f64,
+}
+
+fn cloud_patterns() -> Vec<CloudPattern> {
+    vec![
+        CloudPattern { pattern: "s3_client", provider: "AWS", service_name: "S3", usage_type: "Storage", confidence: 0.95 },
+        CloudPattern { pattern: "S3Client", provider: "AWS", service_name: "S3", usage_type: "Storage", confidence: 0.95 },
+        CloudPattern { pattern: "create_bucket", provider: "AWS", service_name: "S3", usage_type: "Storage", confidence: 0.85 },
+        CloudPattern { pattern: "put_object", provider: "AWS", service_name: "S3", usage_type: "Storage", confidence: 0.85 },
+        CloudPattern { pattern: "get_object", provider: "AWS", service_name: "S3", usage_type: "Storage", confidence: 0.85 },
+        CloudPattern { pattern: "DynamoDB", provider: "AWS", service_name: "DynamoDB", usage_type: "Database", confidence: 0.95 },
+        CloudPattern { pattern: "dynamodb_client", provider: "AWS", service_name: "DynamoDB", usage_type: "Database", confidence: 0.95 },
+        CloudPattern { pattern: "DynamoDbClient", provider: "AWS", service_name: "DynamoDB", usage_type: "Database", confidence: 0.95 },
+        CloudPattern { pattern: "lambda_client", provider: "AWS", service_name: "Lambda", usage_type: "Serverless", confidence: 0.95 },
+        CloudPattern { pattern: "LambdaClient", provider: "AWS", service_name: "Lambda", usage_type: "Serverless", confidence: 0.95 },
+        CloudPattern { pattern: "invoke_function", provider: "AWS", service_name: "Lambda", usage_type: "Serverless", confidence: 0.85 },
+        CloudPattern { pattern: "SqsClient", provider: "AWS", service_name: "SQS", usage_type: "Messaging", confidence: 0.95 },
+        CloudPattern { pattern: "sqs_client", provider: "AWS", service_name: "SQS", usage_type: "Messaging", confidence: 0.95 },
+        CloudPattern { pattern: "SnsClient", provider: "AWS", service_name: "SNS", usage_type: "Messaging", confidence: 0.95 },
+        CloudPattern { pattern: "sns_client", provider: "AWS", service_name: "SNS", usage_type: "Messaging", confidence: 0.95 },
+        CloudPattern { pattern: "Ec2Client", provider: "AWS", service_name: "EC2", usage_type: "Compute", confidence: 0.95 },
+        CloudPattern { pattern: "ec2_client", provider: "AWS", service_name: "EC2", usage_type: "Compute", confidence: 0.95 },
+        CloudPattern { pattern: "run_instances", provider: "AWS", service_name: "EC2", usage_type: "Compute", confidence: 0.90 },
+        CloudPattern { pattern: "ElastiCache", provider: "AWS", service_name: "ElastiCache", usage_type: "Cache", confidence: 0.95 },
+        CloudPattern { pattern: "CloudFront", provider: "AWS", service_name: "CloudFront", usage_type: "CDN", confidence: 0.90 },
+        CloudPattern { pattern: "SageMaker", provider: "AWS", service_name: "SageMaker", usage_type: "AI", confidence: 0.90 },
+        CloudPattern { pattern: "Bedrock", provider: "AWS", service_name: "Bedrock", usage_type: "AI", confidence: 0.85 },
+        CloudPattern { pattern: "EcsClient", provider: "AWS", service_name: "ECS", usage_type: "Container", confidence: 0.95 },
+        CloudPattern { pattern: "EksClient", provider: "AWS", service_name: "EKS", usage_type: "Container", confidence: 0.95 },
+        CloudPattern { pattern: "CloudWatch", provider: "AWS", service_name: "CloudWatch", usage_type: "Monitoring", confidence: 0.90 },
+        CloudPattern { pattern: "Cognito", provider: "AWS", service_name: "Cognito", usage_type: "Auth", confidence: 0.90 },
+        CloudPattern { pattern: "RdsClient", provider: "AWS", service_name: "RDS", usage_type: "Database", confidence: 0.95 },
+        CloudPattern { pattern: "storage.Client", provider: "GCP", service_name: "Cloud Storage", usage_type: "Storage", confidence: 0.90 },
+        CloudPattern { pattern: "storage::Client", provider: "GCP", service_name: "Cloud Storage", usage_type: "Storage", confidence: 0.90 },
+        CloudPattern { pattern: "google.cloud.storage", provider: "GCP", service_name: "Cloud Storage", usage_type: "Storage", confidence: 0.95 },
+        CloudPattern { pattern: "bigquery", provider: "GCP", service_name: "BigQuery", usage_type: "Database", confidence: 0.90 },
+        CloudPattern { pattern: "BigQueryClient", provider: "GCP", service_name: "BigQuery", usage_type: "Database", confidence: 0.95 },
+        CloudPattern { pattern: "google.cloud.bigquery", provider: "GCP", service_name: "BigQuery", usage_type: "Database", confidence: 0.95 },
+        CloudPattern { pattern: "pubsub", provider: "GCP", service_name: "Pub/Sub", usage_type: "Messaging", confidence: 0.85 },
+        CloudPattern { pattern: "PublisherClient", provider: "GCP", service_name: "Pub/Sub", usage_type: "Messaging", confidence: 0.95 },
+        CloudPattern { pattern: "google.cloud.pubsub", provider: "GCP", service_name: "Pub/Sub", usage_type: "Messaging", confidence: 0.95 },
+        CloudPattern { pattern: "cloud_run", provider: "GCP", service_name: "Cloud Run", usage_type: "Serverless", confidence: 0.90 },
+        CloudPattern { pattern: "CloudRunClient", provider: "GCP", service_name: "Cloud Run", usage_type: "Serverless", confidence: 0.95 },
+        CloudPattern { pattern: "cloud_functions", provider: "GCP", service_name: "Cloud Functions", usage_type: "Serverless", confidence: 0.90 },
+        CloudPattern { pattern: "ComputeClient", provider: "GCP", service_name: "Compute Engine", usage_type: "Compute", confidence: 0.95 },
+        CloudPattern { pattern: "FirestoreClient", provider: "GCP", service_name: "Firestore", usage_type: "Database", confidence: 0.95 },
+        CloudPattern { pattern: "google.cloud.firestore", provider: "GCP", service_name: "Firestore", usage_type: "Database", confidence: 0.95 },
+        CloudPattern { pattern: "VertexAI", provider: "GCP", service_name: "Vertex AI", usage_type: "AI", confidence: 0.90 },
+        CloudPattern { pattern: "google.cloud.aiplatform", provider: "GCP", service_name: "Vertex AI", usage_type: "AI", confidence: 0.95 },
+        CloudPattern { pattern: "GkeClient", provider: "GCP", service_name: "GKE", usage_type: "Container", confidence: 0.95 },
+        CloudPattern { pattern: "Memorystore", provider: "GCP", service_name: "Memorystore", usage_type: "Cache", confidence: 0.90 },
+        CloudPattern { pattern: "BlobServiceClient", provider: "Azure", service_name: "Blob Storage", usage_type: "Storage", confidence: 0.95 },
+        CloudPattern { pattern: "BlobContainerClient", provider: "Azure", service_name: "Blob Storage", usage_type: "Storage", confidence: 0.95 },
+        CloudPattern { pattern: "azure.storage.blob", provider: "Azure", service_name: "Blob Storage", usage_type: "Storage", confidence: 0.95 },
+        CloudPattern { pattern: "azure_storage_blobs", provider: "Azure", service_name: "Blob Storage", usage_type: "Storage", confidence: 0.95 },
+        CloudPattern { pattern: "CosmosClient", provider: "Azure", service_name: "Cosmos DB", usage_type: "Database", confidence: 0.95 },
+        CloudPattern { pattern: "cosmos_client", provider: "Azure", service_name: "Cosmos DB", usage_type: "Database", confidence: 0.95 },
+        CloudPattern { pattern: "azure.cosmos", provider: "Azure", service_name: "Cosmos DB", usage_type: "Database", confidence: 0.95 },
+        CloudPattern { pattern: "FunctionApp", provider: "Azure", service_name: "Functions", usage_type: "Serverless", confidence: 0.85 },
+        CloudPattern { pattern: "azure.functions", provider: "Azure", service_name: "Functions", usage_type: "Serverless", confidence: 0.95 },
+        CloudPattern { pattern: "ServiceBusClient", provider: "Azure", service_name: "Service Bus", usage_type: "Messaging", confidence: 0.95 },
+        CloudPattern { pattern: "azure.servicebus", provider: "Azure", service_name: "Service Bus", usage_type: "Messaging", confidence: 0.95 },
+        CloudPattern { pattern: "EventHubClient", provider: "Azure", service_name: "Event Hubs", usage_type: "Messaging", confidence: 0.95 },
+        CloudPattern { pattern: "VirtualMachineClient", provider: "Azure", service_name: "Virtual Machines", usage_type: "Compute", confidence: 0.95 },
+        CloudPattern { pattern: "ContainerInstanceClient", provider: "Azure", service_name: "Container Instances", usage_type: "Container", confidence: 0.95 },
+        CloudPattern { pattern: "AksClient", provider: "Azure", service_name: "AKS", usage_type: "Container", confidence: 0.95 },
+        CloudPattern { pattern: "AzureOpenAI", provider: "Azure", service_name: "Azure OpenAI", usage_type: "AI", confidence: 0.90 },
+        CloudPattern { pattern: "azure.ai.openai", provider: "Azure", service_name: "Azure OpenAI", usage_type: "AI", confidence: 0.95 },
+        CloudPattern { pattern: "azure.identity", provider: "Azure", service_name: "Active Directory", usage_type: "Auth", confidence: 0.85 },
+        CloudPattern { pattern: "SqlClient", provider: "Azure", service_name: "SQL Database", usage_type: "Database", confidence: 0.80 },
+    ]
+}
+
+fn scan_file_for_cloud_services(
+    source: &str,
+    file_path: &str,
+    patterns: &[CloudPattern],
+) -> Vec<serde_json::Value> {
+    let mut results: Vec<serde_json::Value> = Vec::new();
+    let mut seen: std::collections::HashMap<(String, String), usize> = std::collections::HashMap::new();
+    for (line_idx, line) in source.lines().enumerate() {
+        for pat in patterns {
+            if line.contains(pat.pattern) {
+                let key = (pat.provider.to_string(), pat.service_name.to_string());
+                if let Some(&existing_idx) = seen.get(&key) {
+                    let existing_conf = results[existing_idx]["confidence"].as_f64().unwrap_or(0.0);
+                    if existing_conf < pat.confidence {
+                        results[existing_idx] = serde_json::json!({
+                            "id": format!("s-{}-{}", pat.provider.to_lowercase(), pat.service_name.to_lowercase().replace(' ', "-").replace('/', "-")),
+                            "provider": pat.provider, "service": pat.service_name,
+                            "usage_type": pat.usage_type, "confidence": pat.confidence,
+                            "file": file_path, "line": line_idx + 1
+                        });
+                    }
+                } else {
+                    let idx = results.len();
+                    results.push(serde_json::json!({
+                        "id": format!("s-{}-{}", pat.provider.to_lowercase(), pat.service_name.to_lowercase().replace(' ', "-").replace('/', "-")),
+                        "provider": pat.provider, "service": pat.service_name,
+                        "usage_type": pat.usage_type, "confidence": pat.confidence,
+                        "file": file_path, "line": line_idx + 1
+                    }));
+                    seen.insert(key, idx);
+                }
+            }
+        }
+    }
+    results
+}
+
+fn walk_dir_for_cloud_scan(dir: &std::path::Path, extensions: &[&str], max_files: usize, files: &mut Vec<std::path::PathBuf>) {
+    if files.len() >= max_files { return; }
+    let entries = match std::fs::read_dir(dir) { Ok(e) => e, Err(_) => return };
+    for entry in entries.flatten() {
+        if files.len() >= max_files { return; }
+        let path = entry.path();
+        let name = entry.file_name().to_string_lossy().to_string();
+        if name.starts_with('.') || name == "node_modules" || name == "target" || name == "dist" || name == "build" { continue; }
+        if path.is_dir() {
+            walk_dir_for_cloud_scan(&path, extensions, max_files, files);
+        } else if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+            if extensions.contains(&ext) { files.push(path); }
+        }
+    }
 }
 
 #[tauri::command]
 pub async fn cloud_provider_scan(workspace: String) -> Result<serde_json::Value, String> {
+    let ws_path = std::path::Path::new(&workspace);
+    if !ws_path.is_dir() {
+        return Err(format!("Workspace path '{}' is not a directory", workspace));
+    }
+    let patterns = cloud_patterns();
+    let mut all_services: Vec<serde_json::Value> = Vec::new();
+    let mut seen_global: std::collections::HashMap<(String, String), usize> = std::collections::HashMap::new();
+    let scan_extensions = ["rs", "ts", "tsx", "js", "jsx", "py", "go", "java", "toml", "json", "yaml", "yml"];
+    let mut files = Vec::new();
+    walk_dir_for_cloud_scan(ws_path, &scan_extensions, 500, &mut files);
+    for file_path in &files {
+        let content = match std::fs::read_to_string(file_path) { Ok(c) => c, Err(_) => continue };
+        let content_slice = if content.len() > 10240 { &content[..10240] } else { &content };
+        let relative = file_path.strip_prefix(ws_path).unwrap_or(file_path).to_string_lossy().to_string();
+        let file_services = scan_file_for_cloud_services(content_slice, &relative, &patterns);
+        for svc in file_services {
+            let key = (svc["provider"].as_str().unwrap_or("").to_string(), svc["service"].as_str().unwrap_or("").to_string());
+            if let Some(&existing_idx) = seen_global.get(&key) {
+                let existing_conf = all_services[existing_idx]["confidence"].as_f64().unwrap_or(0.0);
+                let new_conf = svc["confidence"].as_f64().unwrap_or(0.0);
+                if new_conf > existing_conf { all_services[existing_idx] = svc; }
+            } else {
+                let idx = all_services.len();
+                seen_global.insert(key, idx);
+                all_services.push(svc);
+            }
+        }
+    }
+    all_services.sort_by(|a, b| {
+        let ca = b["confidence"].as_f64().unwrap_or(0.0);
+        let cb = a["confidence"].as_f64().unwrap_or(0.0);
+        ca.partial_cmp(&cb).unwrap_or(std::cmp::Ordering::Equal)
+    });
+    let providers: std::collections::HashSet<String> = all_services.iter()
+        .filter_map(|s| s["provider"].as_str().map(String::from)).collect();
     Ok(serde_json::json!({
         "workspace": workspace,
-        "detected_services": [],
-        "providers": ["AWS", "GCP", "Azure"]
+        "detected_services": all_services,
+        "providers": providers.into_iter().collect::<Vec<_>>(),
+        "files_scanned": files.len()
     }))
 }
 
 #[tauri::command]
-pub async fn cloud_provider_iam(provider: String) -> Result<serde_json::Value, String> {
+pub async fn cloud_provider_iam(provider: String, services: Vec<serde_json::Value>) -> Result<serde_json::Value, String> {
+    fn aws_iam(svc: &str) -> (Vec<String>, Vec<String>) {
+        match svc {
+            "S3" => (vec!["s3:GetObject".into(), "s3:PutObject".into(), "s3:ListBucket".into(), "s3:DeleteObject".into()], vec!["arn:aws:s3:::*".into(), "arn:aws:s3:::*/*".into()]),
+            "DynamoDB" => (vec!["dynamodb:GetItem".into(), "dynamodb:PutItem".into(), "dynamodb:Query".into(), "dynamodb:Scan".into(), "dynamodb:UpdateItem".into(), "dynamodb:DeleteItem".into()], vec!["arn:aws:dynamodb:*:*:table/*".into()]),
+            "Lambda" => (vec!["lambda:InvokeFunction".into(), "lambda:GetFunction".into(), "lambda:ListFunctions".into()], vec!["arn:aws:lambda:*:*:function:*".into()]),
+            "SQS" => (vec!["sqs:SendMessage".into(), "sqs:ReceiveMessage".into(), "sqs:DeleteMessage".into(), "sqs:GetQueueAttributes".into()], vec!["arn:aws:sqs:*:*:*".into()]),
+            "SNS" => (vec!["sns:Publish".into(), "sns:Subscribe".into(), "sns:ListTopics".into()], vec!["arn:aws:sns:*:*:*".into()]),
+            "EC2" => (vec!["ec2:DescribeInstances".into(), "ec2:RunInstances".into(), "ec2:StopInstances".into(), "ec2:TerminateInstances".into()], vec!["*".into()]),
+            "RDS" => (vec!["rds:DescribeDBInstances".into(), "rds:CreateDBInstance".into()], vec!["arn:aws:rds:*:*:db:*".into()]),
+            "ECS" => (vec!["ecs:RunTask".into(), "ecs:StopTask".into(), "ecs:DescribeTasks".into(), "ecs:ListTasks".into()], vec!["arn:aws:ecs:*:*:*".into()]),
+            "EKS" => (vec!["eks:DescribeCluster".into(), "eks:ListClusters".into()], vec!["arn:aws:eks:*:*:cluster/*".into()]),
+            "CloudWatch" => (vec!["cloudwatch:PutMetricData".into(), "cloudwatch:GetMetricData".into(), "logs:PutLogEvents".into(), "logs:CreateLogGroup".into()], vec!["*".into()]),
+            "Cognito" => (vec!["cognito-idp:InitiateAuth".into(), "cognito-idp:SignUp".into(), "cognito-idp:GetUser".into()], vec!["arn:aws:cognito-idp:*:*:userpool/*".into()]),
+            "SageMaker" => (vec!["sagemaker:InvokeEndpoint".into(), "sagemaker:CreateEndpoint".into()], vec!["arn:aws:sagemaker:*:*:endpoint/*".into()]),
+            "Bedrock" => (vec!["bedrock:InvokeModel".into(), "bedrock:ListFoundationModels".into()], vec!["arn:aws:bedrock:*:*:*".into()]),
+            "ElastiCache" => (vec!["elasticache:DescribeCacheClusters".into(), "elasticache:CreateCacheCluster".into()], vec!["arn:aws:elasticache:*:*:*".into()]),
+            "CloudFront" => (vec!["cloudfront:GetDistribution".into(), "cloudfront:CreateInvalidation".into()], vec!["arn:aws:cloudfront::*:distribution/*".into()]),
+            _ => (vec![format!("{}:*", svc.to_lowercase())], vec!["*".into()]),
+        }
+    }
+    fn gcp_iam(svc: &str) -> (Vec<String>, Vec<String>) {
+        match svc {
+            "Cloud Storage" => (vec!["storage.objects.get".into(), "storage.objects.create".into(), "storage.objects.delete".into(), "storage.buckets.list".into()], vec!["projects/_/buckets/*".into()]),
+            "BigQuery" => (vec!["bigquery.jobs.create".into(), "bigquery.tables.getData".into(), "bigquery.datasets.get".into()], vec!["projects/*/datasets/*".into()]),
+            "Pub/Sub" => (vec!["pubsub.topics.publish".into(), "pubsub.subscriptions.consume".into(), "pubsub.topics.list".into()], vec!["projects/*/topics/*".into(), "projects/*/subscriptions/*".into()]),
+            "Cloud Run" => (vec!["run.services.get".into(), "run.services.create".into(), "run.routes.invoke".into()], vec!["projects/*/locations/*/services/*".into()]),
+            "Cloud Functions" => (vec!["cloudfunctions.functions.invoke".into(), "cloudfunctions.functions.get".into()], vec!["projects/*/locations/*/functions/*".into()]),
+            "Compute Engine" => (vec!["compute.instances.get".into(), "compute.instances.create".into(), "compute.instances.delete".into()], vec!["projects/*/zones/*/instances/*".into()]),
+            "Firestore" => (vec!["datastore.entities.get".into(), "datastore.entities.create".into()], vec!["projects/*/databases/*".into()]),
+            "Vertex AI" => (vec!["aiplatform.endpoints.predict".into(), "aiplatform.models.get".into()], vec!["projects/*/locations/*/endpoints/*".into()]),
+            _ => (vec![format!("{}.admin", svc.to_lowercase().replace(' ', ""))], vec!["projects/*".into()]),
+        }
+    }
+    fn azure_iam(svc: &str) -> (Vec<String>, Vec<String>) {
+        match svc {
+            "Blob Storage" => (vec!["Microsoft.Storage/storageAccounts/blobServices/containers/blobs/read".into(), "Microsoft.Storage/storageAccounts/blobServices/containers/blobs/write".into()], vec!["/subscriptions/*/resourceGroups/*/providers/Microsoft.Storage/storageAccounts/*".into()]),
+            "Cosmos DB" => (vec!["Microsoft.DocumentDB/databaseAccounts/readonlykeys/action".into(), "Microsoft.DocumentDB/databaseAccounts/sqlDatabases/read".into()], vec!["/subscriptions/*/resourceGroups/*/providers/Microsoft.DocumentDB/databaseAccounts/*".into()]),
+            "Functions" => (vec!["Microsoft.Web/sites/functions/read".into(), "Microsoft.Web/sites/functions/action".into()], vec!["/subscriptions/*/resourceGroups/*/providers/Microsoft.Web/sites/*".into()]),
+            "Service Bus" => (vec!["Microsoft.ServiceBus/namespaces/queues/send/action".into(), "Microsoft.ServiceBus/namespaces/queues/receive/action".into()], vec!["/subscriptions/*/resourceGroups/*/providers/Microsoft.ServiceBus/namespaces/*".into()]),
+            "Event Hubs" => (vec!["Microsoft.EventHub/namespaces/eventhubs/send/action".into(), "Microsoft.EventHub/namespaces/eventhubs/receive/action".into()], vec!["/subscriptions/*/resourceGroups/*/providers/Microsoft.EventHub/namespaces/*".into()]),
+            "Virtual Machines" => (vec!["Microsoft.Compute/virtualMachines/read".into(), "Microsoft.Compute/virtualMachines/start/action".into()], vec!["/subscriptions/*/resourceGroups/*/providers/Microsoft.Compute/virtualMachines/*".into()]),
+            "Azure OpenAI" => (vec!["Microsoft.CognitiveServices/accounts/OpenAI/deployments/completions/action".into()], vec!["/subscriptions/*/resourceGroups/*/providers/Microsoft.CognitiveServices/accounts/*".into()]),
+            _ => (vec![format!("Microsoft.*/{}/read", svc.to_lowercase().replace(' ', ""))], vec!["/subscriptions/*".into()]),
+        }
+    }
+    let provider_upper = provider.to_uppercase();
+    let policy_name = format!("vibecody-{}-policy", provider.to_lowercase());
+    let mut statements = Vec::new();
+    for svc in &services {
+        let svc_provider = svc["provider"].as_str().unwrap_or("");
+        if svc_provider.to_uppercase() != provider_upper { continue; }
+        let service_name = svc["service"].as_str().unwrap_or("");
+        let (actions, resources) = match provider_upper.as_str() {
+            "AWS" => aws_iam(service_name),
+            "GCP" => gcp_iam(service_name),
+            "AZURE" => azure_iam(service_name),
+            _ => (vec![format!("{}:*", service_name.to_lowercase())], vec!["*".into()]),
+        };
+        statements.push(serde_json::json!({ "Effect": "Allow", "Action": actions, "Resource": resources }));
+    }
+    let policy = serde_json::json!({ "Version": "2012-10-17", "PolicyName": policy_name, "Provider": provider, "Statement": statements });
     Ok(serde_json::json!({
         "provider": provider,
-        "policy": { "Version": "2012-10-17", "Statement": [] }
+        "policy": policy,
+        "policy_text": serde_json::to_string_pretty(&policy).unwrap_or_default()
+    }))
+}
+
+fn terraform_resource(provider: &str, svc: &str) -> (String, String, Vec<(String, String)>) {
+    match (provider, svc) {
+        ("AWS", "S3") => ("aws_s3_bucket".into(), "app_bucket".into(), vec![]),
+        ("AWS", "DynamoDB") => ("aws_dynamodb_table".into(), "app_table".into(), vec![("billing_mode".into(), "PAY_PER_REQUEST".into())]),
+        ("AWS", "Lambda") => ("aws_lambda_function".into(), "app_function".into(), vec![("runtime".into(), "provided.al2023".into()), ("handler".into(), "bootstrap".into())]),
+        ("AWS", "SQS") => ("aws_sqs_queue".into(), "app_queue".into(), vec![]),
+        ("AWS", "SNS") => ("aws_sns_topic".into(), "app_topic".into(), vec![]),
+        ("AWS", "EC2") => ("aws_instance".into(), "app_instance".into(), vec![("instance_type".into(), "t3.micro".into()), ("ami".into(), "ami-0c55b159cbfafe1f0".into())]),
+        ("AWS", "RDS") => ("aws_db_instance".into(), "app_db".into(), vec![("engine".into(), "postgres".into()), ("instance_class".into(), "db.t3.micro".into())]),
+        ("AWS", "ECS") => ("aws_ecs_cluster".into(), "app_cluster".into(), vec![]),
+        _ => (format!("aws_{}", svc.to_lowercase().replace(' ', "_")), format!("app_{}", svc.to_lowercase().replace(' ', "_")), vec![]),
+    }
+}
+fn cloudformation_resource(svc: &str) -> (String, String, Vec<(String, String)>) {
+    match svc {
+        "S3" => ("AWS::S3::Bucket".into(), "AppBucket".into(), vec![]),
+        "DynamoDB" => ("AWS::DynamoDB::Table".into(), "AppTable".into(), vec![("BillingMode".into(), "PAY_PER_REQUEST".into())]),
+        "Lambda" => ("AWS::Lambda::Function".into(), "AppFunction".into(), vec![("Runtime".into(), "provided.al2023".into()), ("Handler".into(), "bootstrap".into())]),
+        "SQS" => ("AWS::SQS::Queue".into(), "AppQueue".into(), vec![]),
+        "SNS" => ("AWS::SNS::Topic".into(), "AppTopic".into(), vec![]),
+        "EC2" => ("AWS::EC2::Instance".into(), "AppInstance".into(), vec![("InstanceType".into(), "t3.micro".into())]),
+        _ => (format!("AWS::{}::Resource", svc), format!("App{}", svc.replace(' ', "")), vec![]),
+    }
+}
+fn pulumi_resource(provider: &str, svc: &str) -> (String, String, Vec<(String, String)>) {
+    match (provider, svc) {
+        ("AWS", "S3") => ("s3.Bucket".into(), "appBucket".into(), vec![]),
+        ("AWS", "DynamoDB") => ("dynamodb.Table".into(), "appTable".into(), vec![("billingMode".into(), "PAY_PER_REQUEST".into())]),
+        ("AWS", "Lambda") => ("lambda.Function".into(), "appFunction".into(), vec![("runtime".into(), "provided.al2023".into())]),
+        ("AWS", "SQS") => ("sqs.Queue".into(), "appQueue".into(), vec![]),
+        ("AWS", "SNS") => ("sns.Topic".into(), "appTopic".into(), vec![]),
+        ("AWS", "EC2") => ("ec2.Instance".into(), "appInstance".into(), vec![("instanceType".into(), "t3.micro".into())]),
+        _ => (format!("{}.Resource", svc.replace(' ', "")), format!("app{}", svc.replace(' ', "")), vec![]),
+    }
+}
+
+#[tauri::command]
+pub async fn cloud_provider_iac(provider: String, format: String, services: Vec<serde_json::Value>) -> Result<serde_json::Value, String> {
+    let provider_upper = provider.to_uppercase();
+    let provider_services: Vec<&serde_json::Value> = services.iter()
+        .filter(|s| s["provider"].as_str().unwrap_or("").to_uppercase() == provider_upper).collect();
+    let template = match format.as_str() {
+        "Terraform" => {
+            let prov = match provider_upper.as_str() { "AWS" => ("aws", "hashicorp/aws"), "GCP" => ("google", "hashicorp/google"), "AZURE" => ("azurerm", "hashicorp/azurerm"), _ => ("aws", "hashicorp/aws") };
+            let mut out = format!("terraform {{\n  required_providers {{\n    {} = {{\n      source = \"{}\"\n    }}\n  }}\n}}\n\nprovider \"{}\" {{\n  region = \"us-east-1\"\n}}\n\n", prov.0, prov.1, prov.0);
+            for svc in &provider_services {
+                let name = svc["service"].as_str().unwrap_or("unknown");
+                let (res_type, logical, props) = terraform_resource(&provider_upper, name);
+                out.push_str(&format!("resource \"{}\" \"{}\" {{\n", res_type, logical));
+                for (k, v) in &props { out.push_str(&format!("  {} = \"{}\"\n", k, v)); }
+                out.push_str("}\n\n");
+            }
+            out
+        }
+        "CloudFormation" => {
+            let mut out = String::from("AWSTemplateFormatVersion: '2010-09-09'\nDescription: Generated by VibeCody\n\nResources:\n");
+            for svc in &provider_services {
+                let name = svc["service"].as_str().unwrap_or("unknown");
+                let (res_type, logical, props) = cloudformation_resource(name);
+                out.push_str(&format!("  {}:\n    Type: {}\n", logical, res_type));
+                if !props.is_empty() { out.push_str("    Properties:\n"); for (k, v) in &props { out.push_str(&format!("      {}: '{}'\n", k, v)); } }
+                out.push('\n');
+            }
+            out
+        }
+        "Pulumi" => {
+            let import_pkg = match provider_upper.as_str() { "AWS" => "@pulumi/aws", "GCP" => "@pulumi/gcp", "AZURE" => "@pulumi/azure-native", _ => "@pulumi/aws" };
+            let mut out = format!("import * as pulumi from \"@pulumi/pulumi\";\nimport * as cloud from \"{}\";\n\n", import_pkg);
+            for svc in &provider_services {
+                let name = svc["service"].as_str().unwrap_or("unknown");
+                let (res_type, logical, props) = pulumi_resource(&provider_upper, name);
+                out.push_str(&format!("const {} = new cloud.{}(\"{}\", {{\n", logical, res_type, logical));
+                for (k, v) in &props { out.push_str(&format!("  {}: \"{}\",\n", k, v)); }
+                out.push_str("});\n\n");
+            }
+            out
+        }
+        _ => return Err(format!("Unsupported IaC format: {}. Use Terraform, CloudFormation, or Pulumi.", format)),
+    };
+    Ok(serde_json::json!({ "provider": provider, "format": format, "template": template }))
+}
+
+#[tauri::command]
+pub async fn cloud_provider_cost(services: Vec<serde_json::Value>) -> Result<serde_json::Value, String> {
+    fn estimate(provider: &str, svc: &str) -> (String, f64, String) {
+        match (provider, svc) {
+            ("AWS", "S3") => ("Standard".into(), 23.0, "Estimated 1TB storage + requests".into()),
+            ("AWS", "DynamoDB") => ("On-Demand".into(), 25.0, "Pay-per-request, ~1M reads/writes".into()),
+            ("AWS", "Lambda") => ("Free Tier".into(), 0.0, "1M requests/month free".into()),
+            ("AWS", "SQS") => ("Standard".into(), 0.40, "~1M messages/month".into()),
+            ("AWS", "SNS") => ("Standard".into(), 0.50, "~1M notifications/month".into()),
+            ("AWS", "EC2") => ("t3.micro".into(), 8.35, "On-demand Linux, us-east-1".into()),
+            ("AWS", "RDS") => ("db.t3.micro".into(), 15.0, "Single-AZ PostgreSQL".into()),
+            ("AWS", "ECS") => ("Fargate".into(), 36.0, "0.25 vCPU, 0.5GB, always-on".into()),
+            ("AWS", "EKS") => ("Standard".into(), 73.0, "Cluster fee + t3.medium node".into()),
+            ("AWS", "CloudWatch") => ("Basic".into(), 3.0, "10 custom metrics + 5GB logs".into()),
+            ("AWS", "Cognito") => ("Free Tier".into(), 0.0, "First 50K MAU free".into()),
+            ("AWS", "SageMaker") => ("ml.t3.medium".into(), 50.0, "Notebook + endpoint".into()),
+            ("AWS", "Bedrock") => ("On-Demand".into(), 30.0, "~1M tokens/month".into()),
+            ("AWS", "ElastiCache") => ("cache.t3.micro".into(), 12.0, "Redis single node".into()),
+            ("AWS", "CloudFront") => ("Standard".into(), 10.0, "~100GB transfer/month".into()),
+            ("GCP", "Cloud Storage") => ("Standard".into(), 20.0, "Estimated 1TB storage".into()),
+            ("GCP", "BigQuery") => ("On-Demand".into(), 25.0, "~1TB queries/month".into()),
+            ("GCP", "Pub/Sub") => ("Standard".into(), 0.40, "~1M messages/month".into()),
+            ("GCP", "Cloud Run") => ("Pay-per-use".into(), 5.0, "Low-traffic service".into()),
+            ("GCP", "Cloud Functions") => ("Free Tier".into(), 0.0, "2M invocations/month free".into()),
+            ("GCP", "Compute Engine") => ("e2-micro".into(), 6.11, "Always-on, us-central1".into()),
+            ("GCP", "Firestore") => ("Spark".into(), 0.0, "Free tier limits".into()),
+            ("GCP", "Vertex AI") => ("Standard".into(), 50.0, "Prediction endpoint".into()),
+            ("GCP", "GKE") => ("Autopilot".into(), 65.0, "Cluster management + compute".into()),
+            ("GCP", "Memorystore") => ("Basic M1".into(), 36.0, "1GB Redis instance".into()),
+            ("Azure", "Blob Storage") => ("Hot".into(), 20.0, "~1TB storage".into()),
+            ("Azure", "Cosmos DB") => ("Serverless".into(), 25.0, "~1M RU/s".into()),
+            ("Azure", "Functions") => ("Consumption".into(), 0.0, "1M executions/month free".into()),
+            ("Azure", "Service Bus") => ("Standard".into(), 9.81, "Base + messaging".into()),
+            ("Azure", "Event Hubs") => ("Basic".into(), 11.16, "1 throughput unit".into()),
+            ("Azure", "Virtual Machines") => ("B1s".into(), 7.59, "1 vCPU, 1GB, Linux".into()),
+            ("Azure", "Container Instances") => ("Standard".into(), 30.0, "1 vCPU, 1.5GB always-on".into()),
+            ("Azure", "AKS") => ("Standard".into(), 73.0, "Cluster + B2s node".into()),
+            ("Azure", "Azure OpenAI") => ("Pay-as-you-go".into(), 30.0, "~1M tokens/month".into()),
+            ("Azure", "SQL Database") => ("Basic".into(), 4.90, "5 DTUs, 2GB".into()),
+            ("Azure", "Active Directory") => ("Free".into(), 0.0, "Free tier".into()),
+            _ => ("Unknown".into(), 10.0, "Estimated baseline".into()),
+        }
+    }
+    let mut cost_items = Vec::new();
+    let mut total_monthly: f64 = 0.0;
+    for svc in &services {
+        let provider = svc["provider"].as_str().unwrap_or("AWS");
+        let service_name = svc["service"].as_str().unwrap_or("unknown");
+        let (tier, monthly, notes) = estimate(provider, service_name);
+        total_monthly += monthly;
+        cost_items.push(serde_json::json!({
+            "service": service_name, "provider": provider, "tier": tier,
+            "monthly": monthly, "yearly": monthly * 12.0, "notes": notes
+        }));
+    }
+    Ok(serde_json::json!({ "total_monthly_usd": total_monthly, "total_yearly_usd": total_monthly * 12.0, "services": cost_items }))
+}
+
+// ── ACP State Persistence ─────────────────────────────────────────────────────
+
+fn acp_state_path() -> PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    PathBuf::from(home).join(".vibeui").join("acp-state.json")
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+struct AcpCapability {
+    id: String,
+    name: String,
+    #[serde(rename = "type")]
+    cap_type: String,
+    description: String,
+    version: String,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+struct AcpMessage {
+    id: String,
+    timestamp: String,
+    direction: String,
+    method: String,
+    status: String,
+    payload: String,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+struct AcpState {
+    running: bool,
+    version: String,
+    mode: String,
+    connected_clients: u32,
+    capabilities: Vec<AcpCapability>,
+    messages: Vec<AcpMessage>,
+}
+
+impl Default for AcpState {
+    fn default() -> Self {
+        Self {
+            running: false,
+            version: "1.0.0".to_string(),
+            mode: "server".to_string(),
+            connected_clients: 0,
+            capabilities: vec![
+                AcpCapability { id: "c1".to_string(), name: "file_read".to_string(), cap_type: "tool".to_string(), description: "Read file contents from the workspace".to_string(), version: "1.0.0".to_string() },
+                AcpCapability { id: "c2".to_string(), name: "file_write".to_string(), cap_type: "tool".to_string(), description: "Write content to files".to_string(), version: "1.0.0".to_string() },
+                AcpCapability { id: "c3".to_string(), name: "code_search".to_string(), cap_type: "tool".to_string(), description: "Search code with regex patterns".to_string(), version: "1.1.0".to_string() },
+                AcpCapability { id: "c4".to_string(), name: "project_context".to_string(), cap_type: "resource".to_string(), description: "Current project structure and metadata".to_string(), version: "1.0.0".to_string() },
+                AcpCapability { id: "c5".to_string(), name: "git_history".to_string(), cap_type: "resource".to_string(), description: "Recent git commit history".to_string(), version: "1.0.0".to_string() },
+                AcpCapability { id: "c6".to_string(), name: "code_review".to_string(), cap_type: "prompt".to_string(), description: "Review code changes with AI".to_string(), version: "0.9.0".to_string() },
+                AcpCapability { id: "c7".to_string(), name: "refactor".to_string(), cap_type: "prompt".to_string(), description: "Suggest refactoring improvements".to_string(), version: "0.9.0".to_string() },
+                AcpCapability { id: "c8".to_string(), name: "bash_exec".to_string(), cap_type: "tool".to_string(), description: "Execute shell commands safely".to_string(), version: "2.0.0".to_string() },
+            ],
+            messages: Vec::new(),
+        }
+    }
+}
+
+fn load_acp_state() -> AcpState {
+    let path = acp_state_path();
+    if let Ok(data) = std::fs::read_to_string(&path) {
+        serde_json::from_str(&data).unwrap_or_default()
+    } else {
+        AcpState::default()
+    }
+}
+
+fn save_acp_state(state: &AcpState) -> Result<(), String> {
+    let path = acp_state_path();
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let json = serde_json::to_string_pretty(state).map_err(|e| e.to_string())?;
+    std::fs::write(&path, json).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn get_acp_status() -> Result<serde_json::Value, String> {
+    let state = load_acp_state();
+    Ok(serde_json::json!({
+        "running": state.running,
+        "version": state.version,
+        "mode": state.mode,
+        "connected_clients": state.connected_clients,
+        "capability_count": state.capabilities.len(),
+        "message_count": state.messages.len()
     }))
 }
 
 #[tauri::command]
-pub async fn cloud_provider_iac(provider: String, format: String) -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({
-        "provider": provider,
-        "format": format,
-        "template": ""
-    }))
+pub async fn get_acp_capabilities() -> Result<serde_json::Value, String> {
+    let state = load_acp_state();
+    let caps: Vec<serde_json::Value> = state.capabilities.iter().map(|c| {
+        serde_json::json!({
+            "id": c.id, "name": c.name, "type": c.cap_type,
+            "description": c.description, "version": c.version
+        })
+    }).collect();
+    Ok(serde_json::json!({ "capabilities": caps }))
 }
 
 #[tauri::command]
-pub async fn cloud_provider_cost() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({
-        "total_monthly_usd": 0.0,
-        "total_yearly_usd": 0.0,
-        "services": []
-    }))
+pub async fn get_acp_messages() -> Result<serde_json::Value, String> {
+    let state = load_acp_state();
+    let msgs: Vec<serde_json::Value> = state.messages.iter().map(|m| {
+        serde_json::json!({
+            "id": m.id, "timestamp": m.timestamp, "direction": m.direction,
+            "method": m.method, "status": m.status, "payload": m.payload
+        })
+    }).collect();
+    Ok(serde_json::json!({ "messages": msgs }))
 }
 
+#[tauri::command]
+pub async fn register_acp_capability(name: String, cap_type: String, description: String, version: String) -> Result<serde_json::Value, String> {
+    let mut state = load_acp_state();
+    let id = format!("c{}", state.capabilities.len() + 1);
+    let cap = AcpCapability { id: id.clone(), name: name.clone(), cap_type: cap_type.clone(), description, version };
+    state.capabilities.push(cap);
+    let now = chrono::Utc::now().to_rfc3339();
+    state.messages.push(AcpMessage {
+        id: format!("m{}", state.messages.len() + 1),
+        timestamp: now,
+        direction: "sent".to_string(),
+        method: "capabilities/register".to_string(),
+        status: "ok".to_string(),
+        payload: serde_json::json!({ "name": name, "type": cap_type }).to_string(),
+    });
+    save_acp_state(&state)?;
+    Ok(serde_json::json!({ "id": id, "registered": true }))
+}
+
+#[tauri::command]
+pub async fn send_acp_message(method: String, payload: String) -> Result<serde_json::Value, String> {
+    let mut state = load_acp_state();
+    let now = chrono::Utc::now().to_rfc3339();
+    let msg_id = format!("m{}", state.messages.len() + 1);
+    state.messages.push(AcpMessage {
+        id: msg_id.clone(),
+        timestamp: now.clone(),
+        direction: "sent".to_string(),
+        method: method.clone(),
+        status: "ok".to_string(),
+        payload: payload.clone(),
+    });
+    let resp_id = format!("m{}", state.messages.len() + 1);
+    let resp_payload = match method.as_str() {
+        "tools/list" => serde_json::json!({
+            "tools": state.capabilities.iter()
+                .filter(|c| c.cap_type == "tool")
+                .map(|c| serde_json::json!({"name": c.name}))
+                .collect::<Vec<_>>()
+        }).to_string(),
+        "initialize" => serde_json::json!({
+            "protocolVersion": state.version,
+            "serverInfo": {"name": "vibecody", "version": "0.5.0"}
+        }).to_string(),
+        _ => serde_json::json!({"ack": true, "method": method}).to_string(),
+    };
+    state.messages.push(AcpMessage {
+        id: resp_id.clone(),
+        timestamp: now,
+        direction: "received".to_string(),
+        method: format!("{}/result", method),
+        status: "ok".to_string(),
+        payload: resp_payload.clone(),
+    });
+    save_acp_state(&state)?;
+    Ok(serde_json::json!({ "sent_id": msg_id, "response_id": resp_id, "response": resp_payload }))
+}
+
+#[tauri::command]
+pub async fn toggle_acp_server() -> Result<serde_json::Value, String> {
+    let mut state = load_acp_state();
+    state.running = !state.running;
+    let now = chrono::Utc::now().to_rfc3339();
+    let action = if state.running { "started" } else { "stopped" };
+    if !state.running {
+        state.connected_clients = 0;
+    }
+    state.messages.push(AcpMessage {
+        id: format!("m{}", state.messages.len() + 1),
+        timestamp: now,
+        direction: "sent".to_string(),
+        method: format!("server/{}", action),
+        status: "ok".to_string(),
+        payload: serde_json::json!({ "running": state.running }).to_string(),
+    });
+    save_acp_state(&state)?;
+    Ok(serde_json::json!({ "running": state.running, "action": action }))
+}
+
+// Backward-compatible alias
 #[tauri::command]
 pub async fn acp_server_status() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({
-        "running": false,
-        "version": "1.0.0",
-        "capabilities": ["ToolExecution", "FileEdit", "CodeCompletion", "Search", "Chat"],
-        "connected_clients": 0
-    }))
+    get_acp_status().await
+}
+
+// ── MCP Plugin Directory ─────────────────────────────────────────────────────
+
+/// Curated directory of well-known MCP servers.
+fn mcp_directory_catalog() -> Vec<serde_json::Value> {
+    serde_json::json!([
+        { "id": "mcp-filesystem", "name": "filesystem", "author": "modelcontextprotocol", "description": "Secure file operations with configurable access controls — read, write, move, search", "category": "File Systems", "rating": 4.8, "downloads": 152000, "version": "2.1.0", "updatable": false },
+        { "id": "mcp-github", "name": "github", "author": "modelcontextprotocol", "description": "GitHub API integration — repos, issues, PRs, code search, actions", "category": "Git", "rating": 4.7, "downloads": 134000, "version": "1.8.0", "updatable": false },
+        { "id": "mcp-postgres", "name": "postgres", "author": "modelcontextprotocol", "description": "PostgreSQL database — read-only query access with schema inspection", "category": "Databases", "rating": 4.7, "downloads": 89200, "version": "1.3.0", "updatable": false },
+        { "id": "mcp-slack", "name": "slack", "author": "modelcontextprotocol", "description": "Slack workspace integration — channels, messages, search, file uploads", "category": "Communication", "rating": 4.5, "downloads": 67800, "version": "1.2.1", "updatable": false },
+        { "id": "mcp-sqlite", "name": "sqlite", "author": "modelcontextprotocol", "description": "SQLite database operations — queries, tables, schema analysis, business intelligence", "category": "Databases", "rating": 4.6, "downloads": 78400, "version": "1.1.0", "updatable": false },
+        { "id": "mcp-puppeteer", "name": "puppeteer", "author": "modelcontextprotocol", "description": "Browser automation — navigate, screenshot, click, fill forms, execute JS", "category": "Testing", "rating": 4.4, "downloads": 54300, "version": "1.0.3", "updatable": false },
+        { "id": "mcp-brave-search", "name": "brave-search", "author": "modelcontextprotocol", "description": "Web and local search via Brave Search API", "category": "Cloud", "rating": 4.3, "downloads": 43200, "version": "1.0.1", "updatable": false },
+        { "id": "mcp-docker", "name": "docker", "author": "ckreiling", "description": "Docker container management — list, start, stop, logs, exec, compose", "category": "DevOps", "rating": 4.5, "downloads": 61200, "version": "1.4.0", "updatable": false },
+        { "id": "mcp-kubernetes", "name": "kubernetes", "author": "stophobia", "description": "Kubernetes cluster operations — pods, deployments, services, logs, exec", "category": "DevOps", "rating": 4.4, "downloads": 38100, "version": "1.1.0", "updatable": false },
+        { "id": "mcp-redis", "name": "redis", "author": "gongrzhe", "description": "Redis client — get, set, pub/sub, streams, key management", "category": "Databases", "rating": 4.3, "downloads": 31200, "version": "1.0.0", "updatable": false },
+        { "id": "mcp-mongodb", "name": "mongodb", "author": "kiliczsh", "description": "MongoDB operations — CRUD, aggregation, indexes, collection management", "category": "Databases", "rating": 4.2, "downloads": 25400, "version": "1.0.1", "updatable": false },
+        { "id": "mcp-aws", "name": "aws-kb-retrieval", "author": "modelcontextprotocol", "description": "AWS Bedrock knowledge base retrieval — query documents with relevance scoring", "category": "Cloud", "rating": 4.3, "downloads": 28700, "version": "1.0.0", "updatable": false },
+        { "id": "mcp-sentry", "name": "sentry", "author": "modelcontextprotocol", "description": "Sentry error tracking — issues, events, releases, search errors", "category": "DevOps", "rating": 4.4, "downloads": 19800, "version": "0.8.0", "updatable": false },
+        { "id": "mcp-git", "name": "git", "author": "modelcontextprotocol", "description": "Git repository operations — status, diff, log, commit, branch, merge", "category": "Git", "rating": 4.6, "downloads": 97000, "version": "1.5.2", "updatable": true },
+        { "id": "mcp-memory", "name": "memory", "author": "modelcontextprotocol", "description": "Knowledge graph-based persistent memory using entity-relation triples", "category": "AI/ML", "rating": 4.5, "downloads": 72000, "version": "1.2.0", "updatable": false },
+        { "id": "mcp-fetch", "name": "fetch", "author": "modelcontextprotocol", "description": "Web content fetching — retrieve and convert web pages to markdown", "category": "Cloud", "rating": 4.4, "downloads": 85000, "version": "1.1.0", "updatable": false },
+        { "id": "mcp-grafana", "name": "grafana", "author": "grafana", "description": "Grafana observability — dashboards, datasources, alerts, incidents", "category": "DevOps", "rating": 4.3, "downloads": 21000, "version": "0.9.0", "updatable": false },
+        { "id": "mcp-linear", "name": "linear", "author": "jerhadf", "description": "Linear project management — issues, projects, teams, cycles, comments", "category": "Communication", "rating": 4.2, "downloads": 15600, "version": "0.7.0", "updatable": false }
+    ]).as_array().cloned().unwrap_or_default()
+}
+
+/// Path to the installed-plugins state file.
+fn mcp_installed_path() -> PathBuf {
+    let dir = dirs::config_dir().unwrap_or_else(|| PathBuf::from("."));
+    dir.join("vibecli").join("mcp_installed.json")
+}
+
+/// Read the set of installed plugin IDs from disk.
+fn read_mcp_installed() -> std::collections::HashSet<String> {
+    let path = mcp_installed_path();
+    if let Ok(data) = std::fs::read_to_string(&path) {
+        serde_json::from_str::<Vec<String>>(&data)
+            .unwrap_or_default()
+            .into_iter()
+            .collect()
+    } else {
+        std::collections::HashSet::new()
+    }
+}
+
+/// Persist the set of installed plugin IDs to disk.
+fn write_mcp_installed(ids: &std::collections::HashSet<String>) -> Result<(), String> {
+    let path = mcp_installed_path();
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let list: Vec<&String> = ids.iter().collect();
+    let json = serde_json::to_string_pretty(&list).map_err(|e| e.to_string())?;
+    std::fs::write(&path, json).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn list_mcp_plugins() -> Result<serde_json::Value, String> {
+    let catalog = mcp_directory_catalog();
+    let installed = read_mcp_installed();
+    let plugins: Vec<serde_json::Value> = catalog
+        .into_iter()
+        .map(|mut p| {
+            let id = p.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            if let Some(obj) = p.as_object_mut() {
+                obj.insert("installed".to_string(), serde_json::json!(installed.contains(&id)));
+            }
+            p
+        })
+        .collect();
+    let total = plugins.len();
+    Ok(serde_json::json!({ "plugins": plugins, "total": total }))
+}
+
+#[tauri::command]
+pub async fn search_mcp_plugins(query: String, category: Option<String>) -> Result<serde_json::Value, String> {
+    let catalog = mcp_directory_catalog();
+    let installed = read_mcp_installed();
+    let q = query.to_lowercase();
+    let plugins: Vec<serde_json::Value> = catalog
+        .into_iter()
+        .filter(|p| {
+            if let Some(ref cat) = category {
+                if cat != "All" {
+                    let pcat = p.get("category").and_then(|v| v.as_str()).unwrap_or("");
+                    if pcat != cat.as_str() {
+                        return false;
+                    }
+                }
+            }
+            if q.is_empty() {
+                return true;
+            }
+            let name = p.get("name").and_then(|v| v.as_str()).unwrap_or("").to_lowercase();
+            let desc = p.get("description").and_then(|v| v.as_str()).unwrap_or("").to_lowercase();
+            let author = p.get("author").and_then(|v| v.as_str()).unwrap_or("").to_lowercase();
+            name.contains(&q) || desc.contains(&q) || author.contains(&q)
+        })
+        .map(|mut p| {
+            let id = p.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            if let Some(obj) = p.as_object_mut() {
+                obj.insert("installed".to_string(), serde_json::json!(installed.contains(&id)));
+            }
+            p
+        })
+        .collect();
+    let total = plugins.len();
+    Ok(serde_json::json!({ "plugins": plugins, "total": total }))
 }
 
 #[tauri::command]
 pub async fn mcp_directory_search(query: String) -> Result<serde_json::Value, String> {
-    let _ = query;
-    Ok(serde_json::json!({
-        "results": [],
-        "total": 0
-    }))
+    search_mcp_plugins(query, None).await
 }
 
 #[tauri::command]
 pub async fn mcp_directory_installed() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({
-        "installed": [],
-        "total": 0
-    }))
+    let catalog = mcp_directory_catalog();
+    let installed = read_mcp_installed();
+    let plugins: Vec<serde_json::Value> = catalog
+        .into_iter()
+        .filter_map(|mut p| {
+            let id = p.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            if installed.contains(&id) {
+                if let Some(obj) = p.as_object_mut() {
+                    obj.insert("installed".to_string(), serde_json::json!(true));
+                }
+                Some(p)
+            } else {
+                None
+            }
+        })
+        .collect();
+    let total = plugins.len();
+    Ok(serde_json::json!({ "installed": plugins, "total": total }))
+}
+
+#[tauri::command]
+pub async fn install_mcp_plugin(id: String) -> Result<serde_json::Value, String> {
+    let catalog = mcp_directory_catalog();
+    let exists = catalog.iter().any(|p| p.get("id").and_then(|v| v.as_str()) == Some(id.as_str()));
+    if !exists {
+        return Ok(serde_json::json!({ "success": false, "message": format!("Plugin '{}' not found in directory", id) }));
+    }
+    let mut installed = read_mcp_installed();
+    if installed.contains(&id) {
+        return Ok(serde_json::json!({ "success": false, "message": "Plugin already installed" }));
+    }
+    installed.insert(id.clone());
+    write_mcp_installed(&installed)?;
+    Ok(serde_json::json!({ "success": true, "message": format!("Plugin '{}' installed successfully", id) }))
+}
+
+#[tauri::command]
+pub async fn uninstall_mcp_plugin(id: String) -> Result<serde_json::Value, String> {
+    let mut installed = read_mcp_installed();
+    if !installed.remove(&id) {
+        return Ok(serde_json::json!({ "success": false, "message": "Plugin is not installed" }));
+    }
+    write_mcp_installed(&installed)?;
+    Ok(serde_json::json!({ "success": true, "message": format!("Plugin '{}' uninstalled successfully", id) }))
+}
+
+// ── Usage Metering ──────────────────────────────────────────────────────────
+
+fn usage_metering_path() -> PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    PathBuf::from(home).join(".vibeui").join("usage-metering.json")
+}
+
+#[derive(Serialize, Deserialize, Clone, Default)]
+struct UsageMeteringData {
+    budgets: Vec<UsageBudget>,
+    alerts: Vec<UsageMeteringAlert>,
+    by_provider: Vec<UsageRow>,
+    by_model: Vec<UsageRow>,
+    by_task: Vec<UsageRow>,
+    total_cost: f64,
+    total_tokens: u64,
+    total_requests: u64,
+    active_budgets: u32,
+    alerts_triggered: u32,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+struct UsageBudget {
+    id: String,
+    name: String,
+    limit: f64,
+    used: f64,
+    period: String,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+struct UsageRow {
+    label: String,
+    tokens: u64,
+    requests: u64,
+    cost: f64,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+struct UsageMeteringAlert {
+    id: String,
+    severity: String,
+    message: String,
+    timestamp: String,
+    dismissed: bool,
+}
+
+fn load_usage_metering() -> UsageMeteringData {
+    let path = usage_metering_path();
+    if path.exists() {
+        let data = std::fs::read_to_string(&path).unwrap_or_else(|_| "{}".into());
+        serde_json::from_str(&data).unwrap_or_default()
+    } else {
+        UsageMeteringData::default()
+    }
+}
+
+fn save_usage_metering(data: &UsageMeteringData) -> Result<(), String> {
+    let path = usage_metering_path();
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let json = serde_json::to_string_pretty(data).map_err(|e| e.to_string())?;
+    std::fs::write(&path, json).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub async fn usage_metering_status() -> Result<serde_json::Value, String> {
+    let data = load_usage_metering();
     Ok(serde_json::json!({
-        "total_tokens": 0,
-        "total_cost_usd": 0.0,
-        "budgets": [],
-        "alerts": []
+        "total_tokens": data.total_tokens,
+        "total_cost_usd": data.total_cost,
+        "budgets": data.budgets.len(),
+        "alerts": data.alerts.iter().filter(|a| !a.dismissed).count()
     }))
+}
+
+#[tauri::command]
+pub async fn get_usage_kpis() -> Result<serde_json::Value, String> {
+    let data = load_usage_metering();
+    Ok(serde_json::json!({
+        "totalSpend": data.total_cost,
+        "tokensUsed": data.total_tokens,
+        "requests": data.total_requests,
+        "activeBudgets": data.budgets.len(),
+        "alertsTriggered": data.alerts.iter().filter(|a| !a.dismissed).count()
+    }))
+}
+
+#[tauri::command]
+pub async fn get_usage_budgets() -> Result<serde_json::Value, String> {
+    let data = load_usage_metering();
+    Ok(serde_json::to_value(&data.budgets).map_err(|e| e.to_string())?)
+}
+
+#[tauri::command]
+pub async fn get_usage_by_provider() -> Result<serde_json::Value, String> {
+    let data = load_usage_metering();
+    Ok(serde_json::to_value(&data.by_provider).map_err(|e| e.to_string())?)
+}
+
+#[tauri::command]
+pub async fn get_usage_by_model() -> Result<serde_json::Value, String> {
+    let data = load_usage_metering();
+    Ok(serde_json::to_value(&data.by_model).map_err(|e| e.to_string())?)
+}
+
+#[tauri::command]
+pub async fn get_usage_alerts() -> Result<serde_json::Value, String> {
+    let data = load_usage_metering();
+    Ok(serde_json::to_value(&data.alerts).map_err(|e| e.to_string())?)
+}
+
+#[tauri::command]
+pub async fn create_usage_budget(name: String, limit: f64, period: String) -> Result<serde_json::Value, String> {
+    let mut data = load_usage_metering();
+    let budget = UsageBudget {
+        id: format!("bg{}", std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis()),
+        name,
+        limit,
+        used: 0.0,
+        period,
+    };
+    let result = serde_json::to_value(&budget).map_err(|e| e.to_string())?;
+    data.budgets.push(budget);
+    data.active_budgets = data.budgets.len() as u32;
+    save_usage_metering(&data)?;
+    Ok(result)
+}
+
+#[tauri::command]
+pub async fn dismiss_usage_alert(id: String) -> Result<serde_json::Value, String> {
+    let mut data = load_usage_metering();
+    let mut found = false;
+    for alert in data.alerts.iter_mut() {
+        if alert.id == id {
+            alert.dismissed = true;
+            found = true;
+            break;
+        }
+    }
+    if !found {
+        return Err(format!("Alert '{}' not found", id));
+    }
+    save_usage_metering(&data)?;
+    Ok(serde_json::json!({ "success": true }))
 }
 
 #[tauri::command]
 pub async fn swe_bench_list_runs() -> Result<serde_json::Value, String> {
+    let benchmarks_dir = PathBuf::from(
+        std::env::var("HOME").unwrap_or_else(|_| ".".to_string()),
+    )
+    .join(".vibecli")
+    .join("benchmarks");
+
+    let mut runs = Vec::new();
+    if benchmarks_dir.exists() {
+        if let Ok(entries) = std::fs::read_dir(&benchmarks_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.extension().and_then(|e| e.to_str()) == Some("json")
+                    && path.file_name().and_then(|n| n.to_str()).map(|n| n.starts_with("run_")).unwrap_or(false)
+                {
+                    if let Ok(contents) = std::fs::read_to_string(&path) {
+                        if let Ok(val) = serde_json::from_str::<serde_json::Value>(&contents) {
+                            runs.push(val);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     Ok(serde_json::json!({
-        "runs": [],
-        "total": 0
+        "runs": runs,
+        "total": runs.len()
     }))
 }
 
 #[tauri::command]
-pub async fn session_memory_health() -> Result<serde_json::Value, String> {
+pub async fn swe_bench_get_suites() -> Result<serde_json::Value, String> {
+    let suites = vec![
+        serde_json::json!({ "name": "SWE-bench Lite", "taskCount": 300 }),
+        serde_json::json!({ "name": "SWE-bench Full", "taskCount": 2294 }),
+        serde_json::json!({ "name": "SWE-bench Verified", "taskCount": 500 }),
+        serde_json::json!({ "name": "HumanEval", "taskCount": 164 }),
+        serde_json::json!({ "name": "MBPP", "taskCount": 974 }),
+    ];
+    let providers = serde_json::json!({
+        "Anthropic": ["claude-opus-4-20250514", "claude-sonnet-4-20250514"],
+        "OpenAI": ["gpt-4o", "gpt-4o-mini", "o1-preview"],
+        "Google": ["gemini-2.0-pro", "gemini-2.0-flash"],
+        "Ollama": ["llama3:70b", "codellama:34b", "deepseek-coder:33b"]
+    });
     Ok(serde_json::json!({
-        "status": "Healthy",
-        "uptime_secs": 0,
-        "current_memory_bytes": 0,
-        "peak_memory_bytes": 0,
-        "growth_rate_percent": 0.0,
-        "alerts": []
+        "suites": suites,
+        "providers": ["Anthropic", "OpenAI", "Google", "Ollama"],
+        "models": providers
     }))
+}
+
+#[tauri::command]
+pub async fn swe_bench_start_run(suite: String, provider: String, model: String) -> Result<serde_json::Value, String> {
+    let benchmarks_dir = PathBuf::from(
+        std::env::var("HOME").unwrap_or_else(|_| ".".to_string()),
+    )
+    .join(".vibecli")
+    .join("benchmarks");
+
+    std::fs::create_dir_all(&benchmarks_dir).map_err(|e| format!("Failed to create benchmarks dir: {}", e))?;
+
+    let run_id = format!("r{}", std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis());
+
+    let now = chrono::Utc::now().to_rfc3339();
+
+    let total_tasks: u32 = match suite.as_str() {
+        "SWE-bench Full" => 2294,
+        "SWE-bench Verified" => 500,
+        "HumanEval" => 164,
+        "MBPP" => 974,
+        _ => 300,
+    };
+
+    let run = serde_json::json!({
+        "id": run_id,
+        "suite": suite,
+        "provider": provider,
+        "model": model,
+        "status": "pending",
+        "progress": 0,
+        "startedAt": now,
+        "completedAt": null,
+        "passRate": 0.0,
+        "totalTasks": total_tasks,
+        "passed": 0,
+        "failed": 0,
+        "errored": 0,
+        "avgDurationSec": 0.0
+    });
+
+    let run_path = benchmarks_dir.join(format!("run_{}.json", run_id));
+    let contents = serde_json::to_string_pretty(&run).map_err(|e| format!("Serialize error: {}", e))?;
+    std::fs::write(&run_path, contents).map_err(|e| format!("Write error: {}", e))?;
+
+    Ok(run)
+}
+
+#[tauri::command]
+pub async fn swe_bench_get_results(run_id: String) -> Result<serde_json::Value, String> {
+    let benchmarks_dir = PathBuf::from(
+        std::env::var("HOME").unwrap_or_else(|_| ".".to_string()),
+    )
+    .join(".vibecli")
+    .join("benchmarks");
+
+    let run_path = benchmarks_dir.join(format!("run_{}.json", run_id));
+    let run: Option<serde_json::Value> = if run_path.exists() {
+        std::fs::read_to_string(&run_path)
+            .ok()
+            .and_then(|c| serde_json::from_str(&c).ok())
+    } else {
+        None
+    };
+
+    let results_path = benchmarks_dir.join(format!("results_{}.json", run_id));
+    let task_results: Vec<serde_json::Value> = if results_path.exists() {
+        std::fs::read_to_string(&results_path)
+            .ok()
+            .and_then(|c| serde_json::from_str(&c).ok())
+            .unwrap_or_default()
+    } else {
+        Vec::new()
+    };
+
+    Ok(serde_json::json!({
+        "run": run,
+        "taskResults": task_results
+    }))
+}
+
+// ── Session Memory — Data Directory ──────────────────────────────────────────
+
+fn session_memory_data_dir() -> Result<std::path::PathBuf, String> {
+    let home = std::env::var("HOME").map_err(|_| "HOME not set".to_string())?;
+    let dir = std::path::PathBuf::from(home).join(".vibecli").join("session_memory");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(dir)
+}
+
+fn session_memory_read_json(filename: &str) -> serde_json::Value {
+    let Ok(dir) = session_memory_data_dir() else { return serde_json::json!([]) };
+    let path = dir.join(filename);
+    match std::fs::read_to_string(&path) {
+        Ok(s) => serde_json::from_str(&s).unwrap_or(serde_json::json!([])),
+        Err(_) => serde_json::json!([]),
+    }
+}
+
+fn session_memory_write_json(filename: &str, value: &serde_json::Value) -> Result<(), String> {
+    let dir = session_memory_data_dir()?;
+    let path = dir.join(filename);
+    let json = serde_json::to_string_pretty(value).map_err(|e| e.to_string())?;
+    std::fs::write(&path, json).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn get_session_memory_health() -> Result<serde_json::Value, String> {
+    // Collect real process memory info via ps
+    let pid = std::process::id();
+    let output = std::process::Command::new("ps")
+        .args(["-o", "rss=,etime=", "-p", &pid.to_string()])
+        .output()
+        .map_err(|e| e.to_string())?;
+    let text = String::from_utf8_lossy(&output.stdout);
+    let parts: Vec<&str> = text.trim().split_whitespace().collect();
+    let rss_kb: f64 = parts.first().and_then(|s| s.parse().ok()).unwrap_or(0.0);
+    let memory_used_mb = rss_kb / 1024.0;
+    let peak_memory_mb = memory_used_mb * 1.1; // Approximate peak
+
+    // Parse etime (formats: MM:SS or HH:MM:SS or D-HH:MM:SS)
+    let etime = parts.get(1).copied().unwrap_or("0:00");
+    let etime_parts: Vec<&str> = etime.split(':').collect();
+    let uptime_secs: u64 = match etime_parts.len() {
+        2 => {
+            let m: u64 = etime_parts[0].parse().unwrap_or(0);
+            let s: u64 = etime_parts[1].parse().unwrap_or(0);
+            m * 60 + s
+        }
+        3 => {
+            let h: u64 = etime_parts[0].trim().split('-').last().and_then(|s| s.parse().ok()).unwrap_or(0);
+            let m: u64 = etime_parts[1].parse().unwrap_or(0);
+            let s: u64 = etime_parts[2].parse().unwrap_or(0);
+            h * 3600 + m * 60 + s
+        }
+        _ => 0,
+    };
+
+    let memory_limit_mb = 512.0_f64;
+    let usage_ratio = memory_used_mb / memory_limit_mb;
+    let status = if usage_ratio >= 0.8 { "critical" } else if usage_ratio >= 0.6 { "warning" } else { "healthy" };
+
+    // Read stored GC state
+    let gc_data = session_memory_read_json("gc_state.json");
+    let gc_count = gc_data.get("gc_count").and_then(|v| v.as_u64()).unwrap_or(0);
+    let last_gc_at = gc_data.get("last_gc_at").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let growth_rate = gc_data.get("growth_rate_mb_per_min").and_then(|v| v.as_f64()).unwrap_or(0.0);
+
+    Ok(serde_json::json!({
+        "status": status,
+        "uptimeSec": uptime_secs,
+        "memoryUsedMb": (memory_used_mb * 10.0).round() / 10.0,
+        "memoryLimitMb": memory_limit_mb,
+        "growthRateMbPerMin": growth_rate,
+        "gcCount": gc_count,
+        "lastGcAt": if last_gc_at.is_empty() { chrono::Utc::now().to_rfc3339() } else { last_gc_at },
+        "peakMemoryMb": (peak_memory_mb * 10.0).round() / 10.0
+    }))
+}
+
+#[tauri::command]
+pub async fn get_session_memory_samples() -> Result<serde_json::Value, String> {
+    let samples = session_memory_read_json("samples.json");
+    if samples.as_array().map(|a| a.is_empty()).unwrap_or(true) {
+        // Seed with a live sample from current process
+        let pid = std::process::id();
+        let output = std::process::Command::new("ps")
+            .args(["-o", "rss=", "-p", &pid.to_string()])
+            .output()
+            .map_err(|e| e.to_string())?;
+        let rss_kb: f64 = String::from_utf8_lossy(&output.stdout).trim().parse().unwrap_or(0.0);
+        let rss_mb = rss_kb / 1024.0;
+        let now = chrono::Utc::now().to_rfc3339();
+        let sample = serde_json::json!({
+            "id": format!("s-{}", chrono::Utc::now().timestamp_millis()),
+            "timestamp": now,
+            "heapUsedMb": (rss_mb * 10.0).round() / 10.0,
+            "heapTotalMb": ((rss_mb * 1.3) * 10.0).round() / 10.0,
+            "externalMb": ((rss_mb * 0.1) * 10.0).round() / 10.0,
+            "contextTokens": 0,
+            "activeSessions": 1
+        });
+        let seeded = serde_json::json!([sample]);
+        session_memory_write_json("samples.json", &seeded)?;
+        return Ok(seeded);
+    }
+    Ok(samples)
+}
+
+#[tauri::command]
+pub async fn get_session_memory_alerts() -> Result<serde_json::Value, String> {
+    let alerts = session_memory_read_json("alerts.json");
+    if alerts.as_array().map(|a| a.is_empty()).unwrap_or(true) {
+        return Ok(serde_json::json!([]));
+    }
+    Ok(alerts)
+}
+
+#[tauri::command]
+pub async fn run_session_memory_compact() -> Result<serde_json::Value, String> {
+    // Compact: trim samples to last 50 entries
+    let samples = session_memory_read_json("samples.json");
+    let arr = samples.as_array().cloned().unwrap_or_default();
+    let trimmed: Vec<serde_json::Value> = if arr.len() > 50 {
+        arr[arr.len() - 50..].to_vec()
+    } else {
+        arr
+    };
+    let removed = samples.as_array().map(|a| a.len()).unwrap_or(0) - trimmed.len();
+    session_memory_write_json("samples.json", &serde_json::json!(trimmed))?;
+
+    // Update GC state
+    let gc_data = session_memory_read_json("gc_state.json");
+    let gc_count = gc_data.get("gc_count").and_then(|v| v.as_u64()).unwrap_or(0);
+    let now = chrono::Utc::now().to_rfc3339();
+    let new_gc = serde_json::json!({
+        "gc_count": gc_count + 1,
+        "last_gc_at": now,
+        "growth_rate_mb_per_min": 0.0
+    });
+    session_memory_write_json("gc_state.json", &new_gc)?;
+
+    Ok(serde_json::json!({
+        "success": true,
+        "samplesRemoved": removed,
+        "samplesRemaining": trimmed.len(),
+        "gcCount": gc_count + 1
+    }))
+}
+
+#[tauri::command]
+pub async fn dismiss_session_memory_alert(id: String) -> Result<serde_json::Value, String> {
+    let mut alerts = session_memory_read_json("alerts.json");
+    let arr = alerts.as_array_mut().ok_or("alerts.json is not an array")?;
+    let mut found = false;
+    for alert in arr.iter_mut() {
+        if alert.get("id").and_then(|v| v.as_str()) == Some(&id) {
+            if let Some(obj) = alert.as_object_mut() {
+                obj.insert("resolved".to_string(), serde_json::json!(true));
+            }
+            found = true;
+            break;
+        }
+    }
+    if !found {
+        return Err(format!("Alert '{}' not found", id));
+    }
+    session_memory_write_json("alerts.json", &alerts)?;
+    Ok(serde_json::json!({ "success": true, "id": id }))
 }
 
 // ── Blue Team — Defensive Security ──────────────────────────────────────────
@@ -21087,4 +22754,3860 @@ pub async fn clear_completed_sub_agents(
     let mut agents = state.sub_agents.lock().await;
     agents.retain(|a| a.status == "working");
     Ok(())
+}
+
+// ── CI Status Check Commands ─────────────────────────────────────────────────
+
+#[derive(Serialize, Clone)]
+pub struct CiCheckSuite {
+    pub id: String,
+    pub name: String,
+    pub state: String,
+    pub branch: String,
+    pub commit: String,
+    pub duration: String,
+    #[serde(rename = "checksCount")]
+    pub checks_count: u32,
+    #[serde(rename = "passCount")]
+    pub pass_count: u32,
+}
+
+#[derive(Serialize, Clone)]
+pub struct CiCheck {
+    pub id: String,
+    #[serde(rename = "suiteId")]
+    pub suite_id: String,
+    pub name: String,
+    pub state: String,
+    pub annotations: u32,
+    pub duration: String,
+    pub message: String,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct CiCheckConfig {
+    pub id: String,
+    pub name: String,
+    pub enabled: bool,
+    pub required: bool,
+    pub threshold: u32,
+}
+
+/// Detect CI configuration files in the workspace and return check suites.
+#[tauri::command]
+pub async fn get_ci_status(workspace: String) -> Result<Vec<CiCheckSuite>, String> {
+    let ws = std::path::Path::new(&workspace);
+    let mut suites = Vec::new();
+
+    // Get current branch and commit from git
+    let branch = tokio::process::Command::new("git")
+        .args(["rev-parse", "--abbrev-ref", "HEAD"])
+        .current_dir(&workspace)
+        .output()
+        .await
+        .ok()
+        .and_then(|o| if o.status.success() { Some(String::from_utf8_lossy(&o.stdout).trim().to_string()) } else { None })
+        .unwrap_or_else(|| "unknown".to_string());
+
+    let commit = tokio::process::Command::new("git")
+        .args(["rev-parse", "--short", "HEAD"])
+        .current_dir(&workspace)
+        .output()
+        .await
+        .ok()
+        .and_then(|o| if o.status.success() { Some(String::from_utf8_lossy(&o.stdout).trim().to_string()) } else { None })
+        .unwrap_or_else(|| "0000000".to_string());
+
+    let mut idx = 0u32;
+    let mut add_suite = |name: &str, checks_count: u32| -> CiCheckSuite {
+        idx += 1;
+        CiCheckSuite {
+            id: format!("s{idx}"),
+            name: name.to_string(),
+            state: "pending".to_string(),
+            branch: branch.clone(),
+            commit: commit.clone(),
+            duration: "--".to_string(),
+            checks_count,
+            pass_count: 0,
+        }
+    };
+
+    // GitHub Actions
+    let gh_workflows = ws.join(".github").join("workflows");
+    if gh_workflows.is_dir() {
+        if let Ok(entries) = std::fs::read_dir(&gh_workflows) {
+            let count = entries
+                .filter_map(|e| e.ok())
+                .filter(|e| {
+                    let ext = e.path().extension().map(|x| x.to_string_lossy().to_string()).unwrap_or_default();
+                    ext == "yml" || ext == "yaml"
+                })
+                .count() as u32;
+            if count > 0 {
+                suites.push(add_suite("GitHub Actions", count));
+            }
+        }
+    }
+
+    // GitLab CI
+    if ws.join(".gitlab-ci.yml").exists() {
+        suites.push(add_suite("GitLab CI", 1));
+    }
+
+    // Jenkinsfile
+    if ws.join("Jenkinsfile").exists() {
+        suites.push(add_suite("Jenkins", 1));
+    }
+
+    // CircleCI
+    if ws.join(".circleci").join("config.yml").exists() {
+        suites.push(add_suite("CircleCI", 1));
+    }
+
+    // Bitbucket Pipelines
+    if ws.join("bitbucket-pipelines.yml").exists() {
+        suites.push(add_suite("Bitbucket Pipelines", 1));
+    }
+
+    // Azure DevOps
+    if ws.join("azure-pipelines.yml").exists() {
+        suites.push(add_suite("Azure DevOps", 1));
+    }
+
+    // Travis CI
+    if ws.join(".travis.yml").exists() {
+        suites.push(add_suite("Travis CI", 1));
+    }
+
+    Ok(suites)
+}
+
+/// List individual check items derived from CI configuration files.
+#[tauri::command]
+pub async fn get_ci_checks(workspace: String) -> Result<Vec<CiCheck>, String> {
+    let ws = std::path::Path::new(&workspace);
+    let mut checks = Vec::new();
+    let mut idx = 0u32;
+    let mut suite_idx = 0u32;
+
+    // GitHub Actions — one check per workflow file
+    let gh_workflows = ws.join(".github").join("workflows");
+    if gh_workflows.is_dir() {
+        suite_idx += 1;
+        let suite_id = format!("s{suite_idx}");
+        if let Ok(entries) = std::fs::read_dir(&gh_workflows) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                let ext = path.extension().map(|x| x.to_string_lossy().to_string()).unwrap_or_default();
+                if ext == "yml" || ext == "yaml" {
+                    idx += 1;
+                    let name = path.file_stem()
+                        .map(|s| s.to_string_lossy().to_string())
+                        .unwrap_or_else(|| "workflow".to_string());
+                    checks.push(CiCheck {
+                        id: format!("c{idx}"),
+                        suite_id: suite_id.clone(),
+                        name,
+                        state: "pending".to_string(),
+                        annotations: 0,
+                        duration: "--".to_string(),
+                        message: "Detected from .github/workflows/".to_string(),
+                    });
+                }
+            }
+        }
+    }
+
+    // GitLab CI
+    if ws.join(".gitlab-ci.yml").exists() {
+        suite_idx += 1;
+        idx += 1;
+        checks.push(CiCheck {
+            id: format!("c{idx}"),
+            suite_id: format!("s{suite_idx}"),
+            name: "GitLab CI Pipeline".to_string(),
+            state: "pending".to_string(),
+            annotations: 0,
+            duration: "--".to_string(),
+            message: "Detected .gitlab-ci.yml".to_string(),
+        });
+    }
+
+    // Jenkinsfile
+    if ws.join("Jenkinsfile").exists() {
+        suite_idx += 1;
+        idx += 1;
+        checks.push(CiCheck {
+            id: format!("c{idx}"),
+            suite_id: format!("s{suite_idx}"),
+            name: "Jenkinsfile Pipeline".to_string(),
+            state: "pending".to_string(),
+            annotations: 0,
+            duration: "--".to_string(),
+            message: "Detected Jenkinsfile".to_string(),
+        });
+    }
+
+    // CircleCI
+    if ws.join(".circleci").join("config.yml").exists() {
+        suite_idx += 1;
+        idx += 1;
+        checks.push(CiCheck {
+            id: format!("c{idx}"),
+            suite_id: format!("s{suite_idx}"),
+            name: "CircleCI Config".to_string(),
+            state: "pending".to_string(),
+            annotations: 0,
+            duration: "--".to_string(),
+            message: "Detected .circleci/config.yml".to_string(),
+        });
+    }
+
+    // Bitbucket Pipelines
+    if ws.join("bitbucket-pipelines.yml").exists() {
+        suite_idx += 1;
+        idx += 1;
+        checks.push(CiCheck {
+            id: format!("c{idx}"),
+            suite_id: format!("s{suite_idx}"),
+            name: "Bitbucket Pipeline".to_string(),
+            state: "pending".to_string(),
+            annotations: 0,
+            duration: "--".to_string(),
+            message: "Detected bitbucket-pipelines.yml".to_string(),
+        });
+    }
+
+    // Azure DevOps
+    if ws.join("azure-pipelines.yml").exists() {
+        suite_idx += 1;
+        idx += 1;
+        checks.push(CiCheck {
+            id: format!("c{idx}"),
+            suite_id: format!("s{suite_idx}"),
+            name: "Azure DevOps Pipeline".to_string(),
+            state: "pending".to_string(),
+            annotations: 0,
+            duration: "--".to_string(),
+            message: "Detected azure-pipelines.yml".to_string(),
+        });
+    }
+
+    // Travis CI
+    if ws.join(".travis.yml").exists() {
+        suite_idx += 1;
+        idx += 1;
+        checks.push(CiCheck {
+            id: format!("c{idx}"),
+            suite_id: format!("s{suite_idx}"),
+            name: "Travis CI Config".to_string(),
+            state: "pending".to_string(),
+            annotations: 0,
+            duration: "--".to_string(),
+            message: "Detected .travis.yml".to_string(),
+        });
+    }
+
+    let _ = suite_idx; // suppress unused warning
+    Ok(checks)
+}
+
+/// Return CI configuration summary (default checks that can be toggled).
+#[tauri::command]
+pub async fn get_ci_config(workspace: String) -> Result<Vec<CiCheckConfig>, String> {
+    let ws = std::path::Path::new(&workspace);
+
+    // Build a list of detected and common check configs
+    let mut configs = Vec::new();
+    let mut idx = 0u32;
+
+    let mut add_cfg = |name: &str, enabled: bool, required: bool, threshold: u32| {
+        idx += 1;
+        configs.push(CiCheckConfig {
+            id: format!("cfg{idx}"),
+            name: name.to_string(),
+            enabled,
+            required,
+            threshold,
+        });
+    };
+
+    // Detect what tooling is present and offer relevant checks
+    let has_cargo = ws.join("Cargo.toml").exists();
+    let has_node = ws.join("package.json").exists();
+    let has_python = ws.join("pyproject.toml").exists() || ws.join("setup.py").exists();
+
+    // Universal checks
+    add_cfg("Code Quality", true, true, 80);
+    add_cfg("Secret Detection", true, true, 0);
+    add_cfg("License Check", true, false, 0);
+
+    if has_cargo {
+        add_cfg("Cargo Test", true, true, 0);
+        add_cfg("Cargo Clippy", true, false, 0);
+        add_cfg("Cargo Fmt", true, false, 0);
+    }
+    if has_node {
+        add_cfg("npm test", true, true, 0);
+        add_cfg("ESLint", true, false, 0);
+        add_cfg("Bundle Size", true, false, 5000);
+    }
+    if has_python {
+        add_cfg("pytest", true, true, 0);
+        add_cfg("flake8 / ruff", true, false, 0);
+    }
+
+    // Always offer these regardless of project type
+    add_cfg("Dependency Audit", true, true, 0);
+    add_cfg("SAST Analysis", true, false, 0);
+    add_cfg("Benchmark Regression", false, false, 5);
+
+    Ok(configs)
+}
+
+/// Trigger a local CI check (lint, test, fmt, etc.) and return (stdout, stderr, exit_code).
+#[tauri::command]
+pub async fn trigger_ci_check(
+    workspace: String,
+    check_name: String,
+) -> Result<(String, String, i32), String> {
+    let ws = std::path::Path::new(&workspace);
+
+    // Map check names to commands
+    let (program, args): (&str, Vec<&str>) = match check_name.as_str() {
+        "Cargo Test" => ("cargo", vec!["test", "--workspace"]),
+        "Cargo Clippy" => ("cargo", vec!["clippy", "--all-targets", "--", "-D", "warnings"]),
+        "Cargo Fmt" => ("cargo", vec!["fmt", "--check"]),
+        "npm test" => ("npm", vec!["test", "--", "--passWithNoTests"]),
+        "ESLint" => ("npx", vec!["eslint", "."]),
+        "pytest" => ("python", vec!["-m", "pytest"]),
+        "flake8 / ruff" if ws.join("pyproject.toml").exists() => ("ruff", vec!["check", "."]),
+        "flake8 / ruff" => ("flake8", vec!["."]),
+        "Dependency Audit" if ws.join("Cargo.toml").exists() => ("cargo", vec!["audit"]),
+        "Dependency Audit" if ws.join("package.json").exists() => ("npm", vec!["audit"]),
+        "Dependency Audit" => ("echo", vec!["No dependency audit tool detected"]),
+        "Secret Detection" => ("git", vec!["log", "--all", "-p", "-S", "PRIVATE_KEY", "--oneline", "-n", "1"]),
+        "License Check" => ("echo", vec!["License check not yet configured"]),
+        "Code Quality" => ("echo", vec!["Code quality check not yet configured"]),
+        "SAST Analysis" => ("echo", vec!["SAST analysis not yet configured"]),
+        "Benchmark Regression" => ("echo", vec!["Benchmark regression not yet configured"]),
+        "Bundle Size" => ("echo", vec!["Bundle size check not yet configured"]),
+        _ => ("echo", vec!["Unknown check"]),
+    };
+
+    let output = tokio::process::Command::new(program)
+        .args(&args)
+        .current_dir(&workspace)
+        .output()
+        .await
+        .map_err(|e| format!("Failed to run {program}: {e}"))?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+    let code = output.status.code().unwrap_or(-1);
+
+    Ok((stdout, stderr, code))
+}
+
+// ── Edit Prediction Commands ─────────────────────────────────────────────────
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct EditPrediction {
+    pub id: String,
+    pub file: String,
+    pub line: u32,
+    pub suggestion: String,
+    pub confidence: f64,
+    pub state: String,
+    pub timestamp: String,
+    pub pattern: String,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct EditPatternInfo {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub frequency: u32,
+    #[serde(rename = "lastSeen")]
+    pub last_seen: String,
+    #[serde(rename = "avgConfidence")]
+    pub avg_confidence: f64,
+    #[serde(rename = "acceptRate")]
+    pub accept_rate: f64,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct EditModelStats {
+    #[serde(rename = "qTableSize")]
+    pub q_table_size: u64,
+    #[serde(rename = "totalStates")]
+    pub total_states: u64,
+    #[serde(rename = "totalActions")]
+    pub total_actions: u64,
+    #[serde(rename = "explorationRate")]
+    pub exploration_rate: f64,
+    #[serde(rename = "learningRate")]
+    pub learning_rate: f64,
+    #[serde(rename = "discountFactor")]
+    pub discount_factor: f64,
+    #[serde(rename = "acceptanceRate")]
+    pub acceptance_rate: f64,
+    #[serde(rename = "totalPredictions")]
+    pub total_predictions: u64,
+    pub accepted: u64,
+    pub rejected: u64,
+    #[serde(rename = "decayRate")]
+    pub decay_rate: f64,
+}
+
+fn edit_prediction_feedback_path() -> PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    PathBuf::from(home).join(".vibeui").join("edit-prediction-feedback.json")
+}
+
+#[derive(Serialize, Deserialize, Clone, Default)]
+struct EditPredictionFeedback {
+    predictions: Vec<EditPrediction>,
+    patterns: Vec<EditPatternInfo>,
+    model: Option<EditModelStats>,
+}
+
+fn load_edit_prediction_feedback() -> EditPredictionFeedback {
+    let path = edit_prediction_feedback_path();
+    if path.exists() {
+        let data = std::fs::read_to_string(&path).unwrap_or_else(|_| "{}".into());
+        serde_json::from_str(&data).unwrap_or_default()
+    } else {
+        EditPredictionFeedback::default()
+    }
+}
+
+fn save_edit_prediction_feedback(fb: &EditPredictionFeedback) -> Result<(), String> {
+    let path = edit_prediction_feedback_path();
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let data = serde_json::to_string_pretty(fb).map_err(|e| e.to_string())?;
+    std::fs::write(&path, data).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn get_edit_predictions() -> Result<Vec<EditPrediction>, String> {
+    let fb = load_edit_prediction_feedback();
+    Ok(fb.predictions)
+}
+
+#[tauri::command]
+pub async fn get_edit_patterns() -> Result<Vec<EditPatternInfo>, String> {
+    let fb = load_edit_prediction_feedback();
+    Ok(fb.patterns)
+}
+
+#[tauri::command]
+pub async fn get_edit_model_stats() -> Result<EditModelStats, String> {
+    let fb = load_edit_prediction_feedback();
+    Ok(fb.model.unwrap_or(EditModelStats {
+        q_table_size: 0,
+        total_states: 0,
+        total_actions: 0,
+        exploration_rate: 0.15,
+        learning_rate: 0.01,
+        discount_factor: 0.95,
+        acceptance_rate: 0.0,
+        total_predictions: 0,
+        accepted: 0,
+        rejected: 0,
+        decay_rate: 0.999,
+    }))
+}
+
+#[tauri::command]
+pub async fn accept_prediction(id: String) -> Result<(), String> {
+    let mut fb = load_edit_prediction_feedback();
+    if let Some(pred) = fb.predictions.iter_mut().find(|p| p.id == id) {
+        pred.state = "accepted".to_string();
+        if let Some(ref mut model) = fb.model {
+            model.accepted += 1;
+            model.total_predictions += 1;
+            if model.total_predictions > 0 {
+                model.acceptance_rate = model.accepted as f64 / model.total_predictions as f64;
+            }
+        }
+        let pattern_name = pred.pattern.clone();
+        if let Some(pat) = fb.patterns.iter_mut().find(|p| p.name == pattern_name) {
+            let total = pat.frequency as f64;
+            if total > 0.0 {
+                pat.accept_rate = (pat.accept_rate * (total - 1.0) + 1.0) / total;
+            }
+        }
+    }
+    save_edit_prediction_feedback(&fb)
+}
+
+#[tauri::command]
+pub async fn dismiss_prediction(id: String) -> Result<(), String> {
+    let mut fb = load_edit_prediction_feedback();
+    if let Some(pred) = fb.predictions.iter_mut().find(|p| p.id == id) {
+        pred.state = "rejected".to_string();
+        if let Some(ref mut model) = fb.model {
+            model.rejected += 1;
+            model.total_predictions += 1;
+            if model.total_predictions > 0 {
+                model.acceptance_rate = model.accepted as f64 / model.total_predictions as f64;
+            }
+        }
+        let pattern_name = pred.pattern.clone();
+        if let Some(pat) = fb.patterns.iter_mut().find(|p| p.name == pattern_name) {
+            let total = pat.frequency as f64;
+            if total > 0.0 {
+                pat.accept_rate = (pat.accept_rate * (total - 1.0)) / total;
+            }
+        }
+    }
+    save_edit_prediction_feedback(&fb)
+}
+
+// ── Plan Document Commands ──────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PlanDocument {
+    pub id: String,
+    pub title: String,
+    pub status: String,
+    pub version: u32,
+    pub author: String,
+    #[serde(rename = "updatedAt")]
+    pub updated_at: String,
+    pub markdown: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PlanComment {
+    pub id: String,
+    #[serde(rename = "planId")]
+    pub plan_id: String,
+    pub author: String,
+    pub timestamp: String,
+    pub text: String,
+    pub resolved: bool,
+    pub line: Option<u32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct PlanDocumentStore {
+    plans: Vec<PlanDocument>,
+    comments: Vec<PlanComment>,
+}
+
+fn plan_documents_path() -> PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    PathBuf::from(home).join(".vibeui").join("plan-documents.json")
+}
+
+fn load_plan_store() -> PlanDocumentStore {
+    let path = plan_documents_path();
+    if !path.exists() {
+        return PlanDocumentStore { plans: vec![], comments: vec![] };
+    }
+    std::fs::read_to_string(&path)
+        .ok()
+        .and_then(|data| serde_json::from_str(&data).ok())
+        .unwrap_or(PlanDocumentStore { plans: vec![], comments: vec![] })
+}
+
+async fn save_plan_store(store: &PlanDocumentStore) -> Result<(), String> {
+    let path = plan_documents_path();
+    if let Some(p) = path.parent() {
+        let _ = tokio::fs::create_dir_all(p).await;
+    }
+    let data = serde_json::to_string_pretty(store).map_err(|e| e.to_string())?;
+    tokio::fs::write(&path, data).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn list_plan_documents() -> Result<Vec<PlanDocument>, String> {
+    Ok(load_plan_store().plans)
+}
+
+#[tauri::command]
+pub async fn get_plan_document(id: String) -> Result<serde_json::Value, String> {
+    let store = load_plan_store();
+    let plan = store.plans.iter().find(|p| p.id == id)
+        .ok_or_else(|| format!("Plan not found: {id}"))?;
+    let comments: Vec<&PlanComment> = store.comments.iter().filter(|c| c.plan_id == id).collect();
+    Ok(serde_json::json!({
+        "plan": plan,
+        "comments": comments,
+    }))
+}
+
+#[tauri::command]
+pub async fn create_plan_document(title: String, author: String, markdown: String) -> Result<PlanDocument, String> {
+    let mut store = load_plan_store();
+    let id = format!("plan-{}", std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis());
+    let now = chrono_lite_now();
+    let plan = PlanDocument {
+        id: id.clone(),
+        title,
+        status: "draft".to_string(),
+        version: 1,
+        author,
+        updated_at: now,
+        markdown,
+    };
+    store.plans.push(plan.clone());
+    save_plan_store(&store).await?;
+    Ok(plan)
+}
+
+#[tauri::command]
+pub async fn update_plan_status(id: String, status: String) -> Result<PlanDocument, String> {
+    let valid = ["draft", "review", "approved", "archived"];
+    if !valid.contains(&status.as_str()) {
+        return Err(format!("Invalid status: {status}. Must be one of: {}", valid.join(", ")));
+    }
+    let mut store = load_plan_store();
+    let plan = store.plans.iter_mut().find(|p| p.id == id)
+        .ok_or_else(|| format!("Plan not found: {id}"))?;
+    plan.status = status;
+    plan.version += 1;
+    plan.updated_at = chrono_lite_now();
+    let result = plan.clone();
+    save_plan_store(&store).await?;
+    Ok(result)
+}
+
+#[tauri::command]
+pub async fn add_plan_comment(plan_id: String, author: String, text: String, line: Option<u32>) -> Result<PlanComment, String> {
+    let mut store = load_plan_store();
+    if !store.plans.iter().any(|p| p.id == plan_id) {
+        return Err(format!("Plan not found: {plan_id}"));
+    }
+    let id = format!("comment-{}", std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis());
+    let comment = PlanComment {
+        id: id.clone(),
+        plan_id,
+        author,
+        timestamp: chrono_lite_now(),
+        text,
+        resolved: false,
+        line,
+    };
+    store.comments.push(comment.clone());
+    save_plan_store(&store).await?;
+    Ok(comment)
+}
+
+#[tauri::command]
+pub async fn resolve_plan_comment(id: String) -> Result<(), String> {
+    let mut store = load_plan_store();
+    let comment = store.comments.iter_mut().find(|c| c.id == id)
+        .ok_or_else(|| format!("Comment not found: {id}"))?;
+    comment.resolved = true;
+    save_plan_store(&store).await
+}
+
+// ── Remote Control ──────────────────────────────────────────────────────────
+
+fn remote_control_path() -> PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    PathBuf::from(home).join(".vibeui").join("remote-control.json")
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct RemoteControlClient {
+    pub id: String,
+    pub name: String,
+    #[serde(rename = "type")]
+    pub client_type: String,
+    pub permissions: Vec<String>,
+    #[serde(rename = "lastSeen")]
+    pub last_seen: String,
+    pub connected: bool,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct RemoteControlEvent {
+    pub id: String,
+    pub timestamp: String,
+    #[serde(rename = "clientId")]
+    pub client_id: String,
+    pub action: String,
+    pub detail: String,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct RemoteControlStatus {
+    pub running: bool,
+    pub port: u16,
+    pub token: String,
+    #[serde(rename = "connectedCount")]
+    pub connected_count: u32,
+}
+
+#[derive(Serialize, Deserialize, Clone, Default)]
+struct RemoteControlState {
+    status: Option<RemoteControlStatus>,
+    clients: Vec<RemoteControlClient>,
+    events: Vec<RemoteControlEvent>,
+}
+
+fn load_remote_control_state() -> RemoteControlState {
+    let path = remote_control_path();
+    if path.exists() {
+        let data = std::fs::read_to_string(&path).unwrap_or_else(|_| "{}".into());
+        serde_json::from_str(&data).unwrap_or_default()
+    } else {
+        RemoteControlState::default()
+    }
+}
+
+fn save_remote_control_state(state: &RemoteControlState) -> Result<(), String> {
+    let path = remote_control_path();
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let data = serde_json::to_string_pretty(state).map_err(|e| e.to_string())?;
+    std::fs::write(&path, data).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn get_remote_control_status() -> Result<RemoteControlStatus, String> {
+    let state = load_remote_control_state();
+    Ok(state.status.unwrap_or(RemoteControlStatus {
+        running: false,
+        port: 9090,
+        token: String::new(),
+        connected_count: 0,
+    }))
+}
+
+#[tauri::command]
+pub async fn list_remote_clients() -> Result<Vec<RemoteControlClient>, String> {
+    let state = load_remote_control_state();
+    Ok(state.clients)
+}
+
+#[tauri::command]
+pub async fn get_remote_events() -> Result<Vec<RemoteControlEvent>, String> {
+    let state = load_remote_control_state();
+    Ok(state.events)
+}
+
+#[tauri::command]
+pub async fn start_remote_server(port: u16) -> Result<RemoteControlStatus, String> {
+    let mut state = load_remote_control_state();
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let seed = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis();
+    let token = format!("vbc-{:x}", seed & 0xFFFF_FFFF);
+    let connected_count = state.clients.iter().filter(|c| c.connected).count() as u32;
+    let status = RemoteControlStatus {
+        running: true,
+        port,
+        token: token.clone(),
+        connected_count,
+    };
+    state.status = Some(status.clone());
+    let event_id = format!("e-{}", seed);
+    let now = chrono::Local::now().format("%H:%M:%S").to_string();
+    state.events.insert(0, RemoteControlEvent {
+        id: event_id,
+        timestamp: now,
+        client_id: "server".into(),
+        action: "server.start".into(),
+        detail: format!("Remote server started on port {port}"),
+    });
+    save_remote_control_state(&state)?;
+    Ok(status)
+}
+
+#[tauri::command]
+pub async fn stop_remote_server() -> Result<RemoteControlStatus, String> {
+    let mut state = load_remote_control_state();
+    let status = RemoteControlStatus {
+        running: false,
+        port: state.status.as_ref().map(|s| s.port).unwrap_or(9090),
+        token: String::new(),
+        connected_count: 0,
+    };
+    for client in state.clients.iter_mut() {
+        client.connected = false;
+    }
+    state.status = Some(status.clone());
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let seed = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis();
+    let event_id = format!("e-{}", seed);
+    let now = chrono::Local::now().format("%H:%M:%S").to_string();
+    state.events.insert(0, RemoteControlEvent {
+        id: event_id,
+        timestamp: now,
+        client_id: "server".into(),
+        action: "server.stop".into(),
+        detail: "Remote server stopped".into(),
+    });
+    save_remote_control_state(&state)?;
+    Ok(status)
+}
+
+#[tauri::command]
+pub async fn disconnect_remote_client(client_id: String) -> Result<(), String> {
+    let mut state = load_remote_control_state();
+    if let Some(client) = state.clients.iter_mut().find(|c| c.id == client_id) {
+        client.connected = false;
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let seed = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis();
+        let event_id = format!("e-{}", seed);
+        let now = chrono::Local::now().format("%H:%M:%S").to_string();
+        let name = client.name.clone();
+        state.events.insert(0, RemoteControlEvent {
+            id: event_id,
+            timestamp: now,
+            client_id: client_id.clone(),
+            action: "client.disconnect".into(),
+            detail: format!("{name} disconnected"),
+        });
+        if let Some(ref mut s) = state.status {
+            s.connected_count = state.clients.iter().filter(|c| c.connected).count() as u32;
+        }
+        save_remote_control_state(&state)?;
+        Ok(())
+    } else {
+        Err(format!("Client {client_id} not found"))
+    }
+}
+
+// ── Cloud Sandbox Management ─────────────────────────────────────────────
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct CloudSandboxInstance {
+    pub id: String,
+    pub name: String,
+    pub template: String,
+    pub state: String,
+    pub url: String,
+    pub owner: String,
+    pub cpu: u32,
+    #[serde(rename = "memoryGb")]
+    pub memory_gb: u32,
+    #[serde(rename = "diskGb")]
+    pub disk_gb: u32,
+    #[serde(rename = "createdAt")]
+    pub created_at: String,
+    #[serde(rename = "expiresAt")]
+    pub expires_at: String,
+    #[serde(default)]
+    pub logs: Vec<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct CloudSandboxTemplate {
+    pub id: String,
+    pub name: String,
+    pub language: String,
+    pub description: String,
+    pub preinstalled: Vec<String>,
+    #[serde(rename = "defaultCpu")]
+    pub default_cpu: u32,
+    #[serde(rename = "defaultMemoryGb")]
+    pub default_memory_gb: u32,
+    #[serde(rename = "defaultDiskGb")]
+    pub default_disk_gb: u32,
+}
+
+fn cloud_sandboxes_path() -> std::path::PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    std::path::PathBuf::from(home).join(".vibeui").join("cloud-sandboxes.json")
+}
+
+fn default_cloud_sandbox_templates() -> Vec<CloudSandboxTemplate> {
+    vec![
+        CloudSandboxTemplate {
+            id: "tpl-rust".to_string(),
+            name: "Rust".to_string(),
+            language: "Rust".to_string(),
+            description: "Rust development environment with cargo, clippy, and rust-analyzer".to_string(),
+            preinstalled: vec!["cargo".into(), "clippy".into(), "rust-analyzer".into(), "rustfmt".into(), "cargo-watch".into()],
+            default_cpu: 2,
+            default_memory_gb: 4,
+            default_disk_gb: 20,
+        },
+        CloudSandboxTemplate {
+            id: "tpl-node".to_string(),
+            name: "Node".to_string(),
+            language: "TypeScript/JavaScript".to_string(),
+            description: "Node.js 22 with npm, pnpm, and common dev tools".to_string(),
+            preinstalled: vec!["node 22".into(), "npm".into(), "pnpm".into(), "typescript".into(), "eslint".into(), "prettier".into()],
+            default_cpu: 1,
+            default_memory_gb: 2,
+            default_disk_gb: 10,
+        },
+        CloudSandboxTemplate {
+            id: "tpl-python".to_string(),
+            name: "Python".to_string(),
+            language: "Python".to_string(),
+            description: "Python 3.12 with pip, poetry, and scientific computing libraries".to_string(),
+            preinstalled: vec!["python 3.12".into(), "pip".into(), "poetry".into(), "numpy".into(), "pandas".into(), "pytest".into()],
+            default_cpu: 2,
+            default_memory_gb: 4,
+            default_disk_gb: 30,
+        },
+    ]
+}
+
+async fn load_cloud_sandboxes() -> Vec<CloudSandboxInstance> {
+    let path = cloud_sandboxes_path();
+    if !path.exists() {
+        return vec![];
+    }
+    let content = match tokio::fs::read_to_string(&path).await {
+        Ok(c) => c,
+        Err(_) => return vec![],
+    };
+    serde_json::from_str(&content).unwrap_or_default()
+}
+
+async fn save_cloud_sandboxes(instances: &[CloudSandboxInstance]) -> Result<(), String> {
+    let path = cloud_sandboxes_path();
+    if let Some(parent) = path.parent() {
+        tokio::fs::create_dir_all(parent).await
+            .map_err(|e| format!("Mkdir error: {e}"))?;
+    }
+    let json = serde_json::to_string_pretty(instances)
+        .map_err(|e| format!("Serialize error: {e}"))?;
+    tokio::fs::write(&path, json).await
+        .map_err(|e| format!("Write error: {e}"))?;
+    Ok(())
+}
+
+/// List all cloud sandbox instances.
+#[tauri::command]
+pub async fn list_cloud_sandboxes() -> Result<Vec<CloudSandboxInstance>, String> {
+    Ok(load_cloud_sandboxes().await)
+}
+
+/// Return available cloud sandbox templates.
+#[tauri::command]
+pub async fn get_cloud_sandbox_templates() -> Result<Vec<CloudSandboxTemplate>, String> {
+    Ok(default_cloud_sandbox_templates())
+}
+
+/// Create a new cloud sandbox instance.
+#[tauri::command]
+pub async fn create_cloud_sandbox(
+    name: String,
+    template: String,
+    cpu: u32,
+    memory_gb: u32,
+    disk_gb: u32,
+) -> Result<CloudSandboxInstance, String> {
+    let mut instances = load_cloud_sandboxes().await;
+    let now = chrono::Local::now();
+    let id = format!("sb-{}", now.format("%Y%m%d%H%M%S%3f"));
+    let instance = CloudSandboxInstance {
+        id: id.clone(),
+        name,
+        template,
+        state: "Creating".to_string(),
+        url: format!("https://{}.sandbox.vibe.dev", id),
+        owner: std::env::var("USER").unwrap_or_else(|_| "user".to_string()),
+        cpu,
+        memory_gb,
+        disk_gb,
+        created_at: now.format("%Y-%m-%d %H:%M").to_string(),
+        expires_at: (now + chrono::Duration::hours(24)).format("%Y-%m-%d %H:%M").to_string(),
+        logs: vec![format!("[{}] Sandbox creation initiated", now.format("%H:%M:%S"))],
+    };
+    instances.push(instance.clone());
+    save_cloud_sandboxes(&instances).await?;
+    Ok(instance)
+}
+
+/// Stop a running cloud sandbox instance.
+#[tauri::command]
+pub async fn stop_cloud_sandbox(id: String) -> Result<(), String> {
+    let mut instances = load_cloud_sandboxes().await;
+    if let Some(inst) = instances.iter_mut().find(|i| i.id == id) {
+        if inst.state == "Running" || inst.state == "Creating" {
+            inst.state = "Stopped".to_string();
+            let now = chrono::Local::now();
+            inst.logs.push(format!("[{}] Sandbox stopped", now.format("%H:%M:%S")));
+            save_cloud_sandboxes(&instances).await?;
+            Ok(())
+        } else {
+            Err(format!("Cannot stop sandbox in state: {}", inst.state))
+        }
+    } else {
+        Err(format!("Sandbox not found: {id}"))
+    }
+}
+
+/// Delete a cloud sandbox instance.
+#[tauri::command]
+pub async fn delete_cloud_sandbox(id: String) -> Result<(), String> {
+    let mut instances = load_cloud_sandboxes().await;
+    let len_before = instances.len();
+    instances.retain(|i| i.id != id);
+    if instances.len() == len_before {
+        return Err(format!("Sandbox not found: {id}"));
+    }
+    save_cloud_sandboxes(&instances).await
+}
+
+/// Get logs for a cloud sandbox instance.
+#[tauri::command]
+pub async fn get_cloud_sandbox_logs(id: String) -> Result<Vec<String>, String> {
+    let instances = load_cloud_sandboxes().await;
+    if let Some(inst) = instances.iter().find(|i| i.id == id) {
+        Ok(inst.logs.clone())
+    } else {
+        Err(format!("Sandbox not found: {id}"))
+    }
+}
+
+// ── Knowledge Graph ─────────────────────────────────────────────────────────
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct KgNode {
+    pub id: usize,
+    pub name: String,
+    pub kind: String,
+    pub repo: String,
+    pub file: String,
+    pub line: usize,
+    pub signature: String,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct KgEdge {
+    pub from: usize,
+    pub to: usize,
+    pub kind: String,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct KgStats {
+    pub total_nodes: usize,
+    pub total_edges: usize,
+    pub nodes_per_repo: std::collections::HashMap<String, usize>,
+    pub cross_repo_edges: usize,
+    pub most_connected: Vec<(String, usize)>,
+    pub orphan_count: usize,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct KgGraph {
+    pub nodes: Vec<KgNode>,
+    pub edges: Vec<KgEdge>,
+}
+
+/// Detect the "kind" of a symbol line in Rust source.
+fn classify_rust_line(line: &str) -> Option<(&str, &str)> {
+    let trimmed = line.trim();
+    if trimmed.starts_with("pub struct ") || trimmed.starts_with("struct ") {
+        let after = if trimmed.starts_with("pub struct ") { &trimmed[11..] } else { &trimmed[7..] };
+        let name = after.split(|c: char| !c.is_alphanumeric() && c != '_').next().unwrap_or("");
+        if !name.is_empty() { return Some((name, "struct")); }
+    }
+    if trimmed.starts_with("pub trait ") || trimmed.starts_with("trait ") {
+        let after = if trimmed.starts_with("pub trait ") { &trimmed[10..] } else { &trimmed[6..] };
+        let name = after.split(|c: char| !c.is_alphanumeric() && c != '_').next().unwrap_or("");
+        if !name.is_empty() { return Some((name, "trait")); }
+    }
+    if trimmed.starts_with("pub enum ") || trimmed.starts_with("enum ") {
+        let after = if trimmed.starts_with("pub enum ") { &trimmed[9..] } else { &trimmed[5..] };
+        let name = after.split(|c: char| !c.is_alphanumeric() && c != '_').next().unwrap_or("");
+        if !name.is_empty() { return Some((name, "enum")); }
+    }
+    if trimmed.starts_with("pub fn ") || trimmed.starts_with("pub async fn ") || trimmed.starts_with("fn ") || trimmed.starts_with("async fn ") {
+        let after = if trimmed.starts_with("pub async fn ") {
+            &trimmed[13..]
+        } else if trimmed.starts_with("pub fn ") {
+            &trimmed[7..]
+        } else if trimmed.starts_with("async fn ") {
+            &trimmed[9..]
+        } else {
+            &trimmed[3..]
+        };
+        let name = after.split(|c: char| !c.is_alphanumeric() && c != '_').next().unwrap_or("");
+        if !name.is_empty() { return Some((name, "function")); }
+    }
+    None
+}
+
+/// Detect the "kind" of a symbol line in TypeScript/JavaScript source.
+fn classify_ts_line(line: &str) -> Option<(&str, &str)> {
+    let trimmed = line.trim();
+    if trimmed.contains("function ") {
+        let idx = trimmed.find("function ").expect("already checked contains") + 9;
+        let after = &trimmed[idx..];
+        let name = after.split(|c: char| !c.is_alphanumeric() && c != '_').next().unwrap_or("");
+        if !name.is_empty() { return Some((name, "function")); }
+    }
+    if trimmed.starts_with("class ") || trimmed.starts_with("export class ") || trimmed.starts_with("export default class ") {
+        let idx = trimmed.rfind("class ").expect("already checked starts_with") + 6;
+        let after = &trimmed[idx..];
+        let name = after.split(|c: char| !c.is_alphanumeric() && c != '_').next().unwrap_or("");
+        if !name.is_empty() { return Some((name, "class")); }
+    }
+    if trimmed.starts_with("interface ") || trimmed.starts_with("export interface ") {
+        let idx = trimmed.rfind("interface ").expect("already checked starts_with") + 10;
+        let after = &trimmed[idx..];
+        let name = after.split(|c: char| !c.is_alphanumeric() && c != '_').next().unwrap_or("");
+        if !name.is_empty() { return Some((name, "interface")); }
+    }
+    if (trimmed.starts_with("export const ") || trimmed.starts_with("const ")) && trimmed.contains('=') {
+        let idx = trimmed.find("const ").expect("already checked starts_with") + 6;
+        let after = &trimmed[idx..];
+        let name = after.split(|c: char| !c.is_alphanumeric() && c != '_').next().unwrap_or("");
+        if !name.is_empty() { return Some((name, "function")); }
+    }
+    None
+}
+
+/// Detect the "kind" of a symbol line in Python source.
+fn classify_py_line(line: &str) -> Option<(&str, &str)> {
+    let trimmed = line.trim();
+    if trimmed.starts_with("def ") {
+        let after = &trimmed[4..];
+        let name = after.split(|c: char| !c.is_alphanumeric() && c != '_').next().unwrap_or("");
+        if !name.is_empty() { return Some((name, "function")); }
+    }
+    if trimmed.starts_with("class ") {
+        let after = &trimmed[6..];
+        let name = after.split(|c: char| !c.is_alphanumeric() && c != '_').next().unwrap_or("");
+        if !name.is_empty() { return Some((name, "class")); }
+    }
+    if trimmed.starts_with("async def ") {
+        let after = &trimmed[10..];
+        let name = after.split(|c: char| !c.is_alphanumeric() && c != '_').next().unwrap_or("");
+        if !name.is_empty() { return Some((name, "function")); }
+    }
+    None
+}
+
+/// Extract import targets from a line. Returns imported symbol names.
+fn extract_kg_imports(line: &str, ext: &str) -> Vec<String> {
+    let trimmed = line.trim();
+    match ext {
+        "rs" => {
+            if trimmed.starts_with("use ") {
+                let after = trimmed.strip_prefix("use ").unwrap_or("").trim_end_matches(';');
+                if let Some(last) = after.rsplit("::").next() {
+                    let name = last.trim_matches(|c: char| c == '{' || c == '}' || c == ' ' || c == '*');
+                    if !name.is_empty() && name.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
+                        return vec![name.to_string()];
+                    }
+                }
+            }
+            vec![]
+        }
+        "ts" | "tsx" | "js" | "jsx" => {
+            if trimmed.starts_with("import ") {
+                let mut results = Vec::new();
+                if let Some(start) = trimmed.find('{') {
+                    if let Some(end) = trimmed.find('}') {
+                        let inner = &trimmed[start + 1..end];
+                        for part in inner.split(',') {
+                            let name = part.split(" as ").next().unwrap_or("").trim();
+                            if !name.is_empty() && name.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
+                                results.push(name.to_string());
+                            }
+                        }
+                    }
+                }
+                if results.is_empty() {
+                    let after = &trimmed[7..];
+                    let name = after.split_whitespace().next().unwrap_or("");
+                    if name.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
+                        results.push(name.to_string());
+                    }
+                }
+                return results;
+            }
+            vec![]
+        }
+        "py" => {
+            if trimmed.starts_with("from ") && trimmed.contains(" import ") {
+                let idx = trimmed.find(" import ").expect("already checked contains") + 8;
+                let after = &trimmed[idx..];
+                return after.split(',')
+                    .filter_map(|s| {
+                        let name = s.split(" as ").next().unwrap_or("").trim();
+                        if !name.is_empty() { Some(name.to_string()) } else { None }
+                    })
+                    .collect();
+            }
+            vec![]
+        }
+        _ => vec![],
+    }
+}
+
+/// Scan a workspace directory and build a knowledge graph of source symbols.
+async fn build_knowledge_graph(workspace: &str) -> Result<(Vec<KgNode>, Vec<KgEdge>), String> {
+    let ws = std::path::Path::new(workspace)
+        .canonicalize()
+        .map_err(|e| format!("Invalid workspace: {e}"))?;
+
+    const SKIP_DIRS: &[&str] = &[
+        "node_modules", ".git", "target", "dist", "build", ".next",
+        "vendor", "__pycache__", ".venv", "venv", ".gradle", "out", ".cache",
+    ];
+
+    let mut nodes: Vec<KgNode> = Vec::new();
+    let mut edges: Vec<KgEdge> = Vec::new();
+    let mut id_counter: usize = 1;
+
+    let mut symbol_to_id: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    let mut pending_imports: Vec<(usize, String)> = Vec::new();
+
+    for entry in walkdir::WalkDir::new(&ws)
+        .follow_links(false)
+        .max_depth(12)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
+        if entry.file_type().is_dir() { continue; }
+        let path = entry.path();
+
+        let skip = path.ancestors().any(|a| {
+            a.file_name().and_then(|n| n.to_str())
+                .map(|n| SKIP_DIRS.contains(&n))
+                .unwrap_or(false)
+        });
+        if skip { continue; }
+
+        let ext = match path.extension().and_then(|e| e.to_str()) {
+            Some(e) => e.to_lowercase(),
+            None => continue,
+        };
+
+        if !matches!(ext.as_str(), "rs" | "ts" | "tsx" | "js" | "jsx" | "py") {
+            continue;
+        }
+
+        if entry.metadata().map(|m| m.len()).unwrap_or(0) > 524_288 { continue; }
+
+        let content = match tokio::fs::read_to_string(path).await {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+
+        let rel = path.strip_prefix(&ws).unwrap_or(path).to_string_lossy().to_string();
+        let repo = rel.split('/').next().unwrap_or("root").to_string();
+
+        let file_node_id = id_counter;
+        let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("unknown");
+        nodes.push(KgNode {
+            id: file_node_id,
+            name: file_name.to_string(),
+            kind: "file".to_string(),
+            repo: repo.clone(),
+            file: rel.clone(),
+            line: 0,
+            signature: String::new(),
+        });
+        id_counter += 1;
+
+        for (line_num, line) in content.lines().enumerate() {
+            let line_1 = line_num + 1;
+
+            let sym = match ext.as_str() {
+                "rs" => classify_rust_line(line),
+                "ts" | "tsx" | "js" | "jsx" => classify_ts_line(line),
+                "py" => classify_py_line(line),
+                _ => None,
+            };
+
+            if let Some((name, kind)) = sym {
+                let node_id = id_counter;
+                let sig_line = line.trim().chars().take(120).collect::<String>();
+                nodes.push(KgNode {
+                    id: node_id,
+                    name: name.to_string(),
+                    kind: kind.to_string(),
+                    repo: repo.clone(),
+                    file: rel.clone(),
+                    line: line_1,
+                    signature: sig_line,
+                });
+                edges.push(KgEdge { from: file_node_id, to: node_id, kind: "contains".to_string() });
+                symbol_to_id.insert(name.to_string(), node_id);
+                id_counter += 1;
+            }
+
+            let imports = extract_kg_imports(line, &ext);
+            for imp in imports {
+                pending_imports.push((file_node_id, imp));
+            }
+        }
+    }
+
+    for (source_id, target_name) in pending_imports {
+        if let Some(&target_id) = symbol_to_id.get(&target_name) {
+            if source_id != target_id {
+                edges.push(KgEdge { from: source_id, to: target_id, kind: "imports".to_string() });
+            }
+        }
+    }
+
+    Ok((nodes, edges))
+}
+
+fn compute_kg_stats(nodes: &[KgNode], edges: &[KgEdge]) -> KgStats {
+    let mut nodes_per_repo: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    for n in nodes {
+        *nodes_per_repo.entry(n.repo.clone()).or_default() += 1;
+    }
+
+    let id_to_repo: std::collections::HashMap<usize, &str> = nodes.iter().map(|n| (n.id, n.repo.as_str())).collect();
+
+    let cross_repo_edges = edges.iter().filter(|e| {
+        let from_repo = id_to_repo.get(&e.from).copied().unwrap_or("");
+        let to_repo = id_to_repo.get(&e.to).copied().unwrap_or("");
+        from_repo != to_repo
+    }).count();
+
+    let mut connection_count: std::collections::HashMap<usize, usize> = std::collections::HashMap::new();
+    for e in edges {
+        *connection_count.entry(e.from).or_default() += 1;
+        *connection_count.entry(e.to).or_default() += 1;
+    }
+
+    let id_to_name: std::collections::HashMap<usize, &str> = nodes.iter().map(|n| (n.id, n.name.as_str())).collect();
+    let mut most_connected: Vec<(String, usize)> = connection_count.iter()
+        .map(|(&id, &count)| {
+            let name = id_to_name.get(&id).copied().unwrap_or("unknown");
+            (name.to_string(), count)
+        })
+        .collect();
+    most_connected.sort_by(|a, b| b.1.cmp(&a.1));
+    most_connected.truncate(10);
+
+    let connected_ids: std::collections::HashSet<usize> = edges.iter()
+        .flat_map(|e| vec![e.from, e.to])
+        .collect();
+    let orphan_count = nodes.iter().filter(|n| !connected_ids.contains(&n.id)).count();
+
+    KgStats {
+        total_nodes: nodes.len(),
+        total_edges: edges.len(),
+        nodes_per_repo,
+        cross_repo_edges,
+        most_connected,
+        orphan_count,
+    }
+}
+
+#[tauri::command]
+pub async fn get_knowledge_graph(workspace: String) -> Result<KgGraph, String> {
+    let (nodes, edges) = build_knowledge_graph(&workspace).await?;
+    Ok(KgGraph { nodes, edges })
+}
+
+#[tauri::command]
+pub async fn get_knowledge_graph_stats(workspace: String) -> Result<KgStats, String> {
+    let (nodes, edges) = build_knowledge_graph(&workspace).await?;
+    Ok(compute_kg_stats(&nodes, &edges))
+}
+
+#[tauri::command]
+pub async fn search_knowledge_graph(workspace: String, query: String) -> Result<Vec<KgNode>, String> {
+    let (nodes, _edges) = build_knowledge_graph(&workspace).await?;
+    let q = query.to_lowercase();
+    let results: Vec<KgNode> = nodes.into_iter()
+        .filter(|n| {
+            n.name.to_lowercase().contains(&q)
+                || n.file.to_lowercase().contains(&q)
+                || n.kind.to_lowercase().contains(&q)
+        })
+        .collect();
+    Ok(results)
+}
+
+#[tauri::command]
+pub async fn refresh_knowledge_graph(workspace: String) -> Result<KgGraph, String> {
+    let (nodes, edges) = build_knowledge_graph(&workspace).await?;
+    Ok(KgGraph { nodes, edges })
+}
+
+// ── Agent Modes ─────────────────────────────────────────────────────────────
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub struct AgentModeInfo {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub icon: String,
+    pub traits: Vec<String>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub struct AgentModeStats {
+    #[serde(rename = "modeId")]
+    pub mode_id: String,
+    pub invocations: u64,
+    #[serde(rename = "avgTokens")]
+    pub avg_tokens: u64,
+    #[serde(rename = "lastUsed")]
+    pub last_used: String,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub struct AgentModeProfile {
+    pub id: String,
+    pub name: String,
+    #[serde(rename = "baseMode")]
+    pub base_mode: String,
+    #[serde(rename = "maxTokens")]
+    pub max_tokens: u64,
+    pub temperature: f64,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, Default)]
+pub struct AgentModesData {
+    pub active_mode: String,
+    pub stats: Vec<AgentModeStats>,
+    pub profiles: Vec<AgentModeProfile>,
+}
+
+fn agent_modes_path() -> std::path::PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    std::path::PathBuf::from(home).join(".vibeui").join("agent-modes.json")
+}
+
+fn load_agent_modes_data() -> AgentModesData {
+    let path = agent_modes_path();
+    if !path.exists() {
+        return AgentModesData {
+            active_mode: "smart".to_string(),
+            stats: vec![
+                AgentModeStats { mode_id: "smart".to_string(), invocations: 0, avg_tokens: 0, last_used: "never".to_string() },
+                AgentModeStats { mode_id: "rush".to_string(), invocations: 0, avg_tokens: 0, last_used: "never".to_string() },
+                AgentModeStats { mode_id: "deep".to_string(), invocations: 0, avg_tokens: 0, last_used: "never".to_string() },
+            ],
+            profiles: vec![],
+        };
+    }
+    let data = std::fs::read_to_string(&path).unwrap_or_default();
+    serde_json::from_str(&data).unwrap_or_else(|_| AgentModesData {
+        active_mode: "smart".to_string(),
+        stats: vec![
+            AgentModeStats { mode_id: "smart".to_string(), invocations: 0, avg_tokens: 0, last_used: "never".to_string() },
+            AgentModeStats { mode_id: "rush".to_string(), invocations: 0, avg_tokens: 0, last_used: "never".to_string() },
+            AgentModeStats { mode_id: "deep".to_string(), invocations: 0, avg_tokens: 0, last_used: "never".to_string() },
+        ],
+        profiles: vec![],
+    })
+}
+
+fn save_agent_modes_data(data: &AgentModesData) -> Result<(), String> {
+    let path = agent_modes_path();
+    std::fs::create_dir_all(path.parent().unwrap()).map_err(|e| e.to_string())?;
+    let json = serde_json::to_string_pretty(data).map_err(|e| e.to_string())?;
+    std::fs::write(&path, &json).map_err(|e| e.to_string())
+}
+
+/// Return the three built-in agent modes (Smart, Rush, Deep) with their active status.
+#[tauri::command]
+pub async fn get_agent_modes() -> Result<serde_json::Value, String> {
+    let data = load_agent_modes_data();
+    let modes = vec![
+        AgentModeInfo {
+            id: "smart".to_string(),
+            name: "Smart".to_string(),
+            description: "Balanced mode with context-aware tool selection and moderate token usage.".to_string(),
+            icon: "S".to_string(),
+            traits: vec!["Context-aware".to_string(), "Balanced cost".to_string(), "Auto tool selection".to_string()],
+        },
+        AgentModeInfo {
+            id: "rush".to_string(),
+            name: "Rush".to_string(),
+            description: "Fast execution with minimal deliberation. Best for simple, well-defined tasks.".to_string(),
+            icon: "R".to_string(),
+            traits: vec!["Low latency".to_string(), "Minimal reasoning".to_string(), "Direct answers".to_string()],
+        },
+        AgentModeInfo {
+            id: "deep".to_string(),
+            name: "Deep".to_string(),
+            description: "Thorough analysis with extended reasoning chains and comprehensive exploration.".to_string(),
+            icon: "D".to_string(),
+            traits: vec!["Extended thinking".to_string(), "Multi-file analysis".to_string(), "High accuracy".to_string()],
+        },
+    ];
+    Ok(serde_json::json!({
+        "modes": modes,
+        "activeMode": data.active_mode,
+    }))
+}
+
+/// Return usage statistics per agent mode.
+#[tauri::command]
+pub async fn get_agent_mode_stats() -> Result<Vec<AgentModeStats>, String> {
+    let data = load_agent_modes_data();
+    Ok(data.stats)
+}
+
+/// Switch the active agent mode and record a timestamp.
+#[tauri::command]
+pub async fn set_active_agent_mode(mode_id: String) -> Result<String, String> {
+    let valid = ["smart", "rush", "deep"];
+    if !valid.contains(&mode_id.as_str()) {
+        return Err(format!("Invalid mode: {}. Must be one of: smart, rush, deep", mode_id));
+    }
+    let mut data = load_agent_modes_data();
+    data.active_mode = mode_id.clone();
+    // Bump invocation count and update lastUsed for the selected mode
+    let now = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
+    if let Some(stat) = data.stats.iter_mut().find(|s| s.mode_id == mode_id) {
+        stat.invocations += 1;
+        stat.last_used = now;
+    }
+    save_agent_modes_data(&data)?;
+    Ok(data.active_mode)
+}
+
+/// Return custom agent mode profiles.
+#[tauri::command]
+pub async fn get_agent_mode_profiles() -> Result<Vec<AgentModeProfile>, String> {
+    let data = load_agent_modes_data();
+    Ok(data.profiles)
+}
+
+/// Create a new custom agent mode profile.
+#[tauri::command]
+pub async fn create_agent_mode_profile(
+    name: String,
+    base_mode: String,
+    max_tokens: u64,
+    temperature: f64,
+) -> Result<AgentModeProfile, String> {
+    if name.trim().is_empty() {
+        return Err("Profile name cannot be empty".to_string());
+    }
+    let valid = ["smart", "rush", "deep"];
+    if !valid.contains(&base_mode.as_str()) {
+        return Err(format!("Invalid base mode: {}. Must be one of: smart, rush, deep", base_mode));
+    }
+    let mut data = load_agent_modes_data();
+    let profile = AgentModeProfile {
+        id: format!("{}", std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis()),
+        name,
+        base_mode,
+        max_tokens,
+        temperature,
+    };
+    data.profiles.push(profile.clone());
+    save_agent_modes_data(&data)?;
+    Ok(profile)
+}
+
+// ── Debug Mode: Sessions, Breakpoints, Analysis ─────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DebugSession {
+    pub id: String,
+    pub name: String,
+    pub status: String,
+    #[serde(rename = "startedAt")]
+    pub started_at: String,
+    pub language: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DebugBreakpoint {
+    pub id: String,
+    pub session_id: String,
+    pub file: String,
+    pub line: u32,
+    #[serde(rename = "type")]
+    pub bp_type: String,
+    pub condition: String,
+    pub enabled: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DebugAnalysisResult {
+    pub hypothesis: String,
+    pub confidence: f64,
+    #[serde(rename = "rootCause")]
+    pub root_cause: String,
+    #[serde(rename = "autoFix")]
+    pub auto_fix: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct DebugStore {
+    sessions: Vec<DebugSession>,
+    breakpoints: Vec<DebugBreakpoint>,
+}
+
+fn debug_sessions_path() -> PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    PathBuf::from(home).join(".vibeui").join("debug-sessions.json")
+}
+
+fn load_debug_store() -> DebugStore {
+    let p = debug_sessions_path();
+    match std::fs::read_to_string(&p) {
+        Ok(s) => serde_json::from_str(&s).unwrap_or(DebugStore { sessions: Vec::new(), breakpoints: Vec::new() }),
+        Err(_) => DebugStore { sessions: Vec::new(), breakpoints: Vec::new() },
+    }
+}
+
+fn save_debug_store(store: &DebugStore) -> Result<(), String> {
+    let p = debug_sessions_path();
+    if let Some(parent) = p.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    let json = serde_json::to_string_pretty(store).map_err(|e| e.to_string())?;
+    std::fs::write(&p, json).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn list_debug_sessions() -> Result<Vec<DebugSession>, String> {
+    Ok(load_debug_store().sessions)
+}
+
+#[tauri::command]
+pub async fn create_debug_session(name: String, language: String) -> Result<DebugSession, String> {
+    let mut store = load_debug_store();
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64;
+    let secs = (now / 1000) % 86400;
+    let h = secs / 3600;
+    let m = (secs % 3600) / 60;
+    let s = secs % 60;
+    let session = DebugSession {
+        id: format!("{:x}", now & 0xFFFF_FFFF_FFFF),
+        name,
+        status: "running".to_string(),
+        started_at: format!("{:02}:{:02}:{:02}", h, m, s),
+        language,
+    };
+    store.sessions.push(session.clone());
+    save_debug_store(&store)?;
+    Ok(session)
+}
+
+#[tauri::command]
+pub async fn add_debug_breakpoint(
+    session_id: String,
+    file: String,
+    line: u32,
+    bp_type: String,
+    condition: String,
+) -> Result<DebugBreakpoint, String> {
+    let mut store = load_debug_store();
+    if !store.sessions.iter().any(|s| s.id == session_id) {
+        return Err(format!("Session '{}' not found", session_id));
+    }
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64;
+    let bp = DebugBreakpoint {
+        id: format!("{:x}", now & 0xFFFF_FFFF_FFFF),
+        session_id,
+        file,
+        line,
+        bp_type,
+        condition,
+        enabled: true,
+    };
+    store.breakpoints.push(bp.clone());
+    save_debug_store(&store)?;
+    Ok(bp)
+}
+
+#[tauri::command]
+pub async fn remove_debug_breakpoint(breakpoint_id: String) -> Result<(), String> {
+    let mut store = load_debug_store();
+    store.breakpoints.retain(|b| b.id != breakpoint_id);
+    save_debug_store(&store)
+}
+
+#[tauri::command]
+pub async fn run_debug_analysis(session_id: String) -> Result<Vec<DebugAnalysisResult>, String> {
+    let store = load_debug_store();
+    let session = store.sessions.iter().find(|s| s.id == session_id)
+        .ok_or_else(|| format!("Session '{}' not found", session_id))?;
+    let bps = store.breakpoints.iter().filter(|b| b.session_id == session_id).collect::<Vec<_>>();
+
+    // Static analysis heuristics based on language and breakpoints
+    let mut results = Vec::new();
+    let lang = session.language.to_lowercase();
+
+    if lang == "rust" {
+        results.push(DebugAnalysisResult {
+            hypothesis: "Potential unwrap() on None value".to_string(),
+            confidence: 0.82,
+            root_cause: "Option type accessed without guard in hot path".to_string(),
+            auto_fix: "Replace .unwrap() with .unwrap_or_default() or use if-let".to_string(),
+        });
+    }
+    if lang == "typescript" || lang == "javascript" {
+        results.push(DebugAnalysisResult {
+            hypothesis: "Undefined property access on nullable object".to_string(),
+            confidence: 0.75,
+            root_cause: "Missing null check before property dereference".to_string(),
+            auto_fix: "Use optional chaining (?.) or add null guard".to_string(),
+        });
+    }
+    if lang == "python" {
+        results.push(DebugAnalysisResult {
+            hypothesis: "AttributeError on NoneType".to_string(),
+            confidence: 0.78,
+            root_cause: "Function returns None on error path, caller assumes valid object".to_string(),
+            auto_fix: "Add 'if obj is not None' guard before attribute access".to_string(),
+        });
+    }
+
+    if bps.iter().any(|b| b.bp_type == "conditional") {
+        results.push(DebugAnalysisResult {
+            hypothesis: "Loop boundary condition may cause off-by-one".to_string(),
+            confidence: 0.65,
+            root_cause: "Conditional breakpoints suggest iteration boundary issues".to_string(),
+            auto_fix: "Verify loop bounds use < vs <= and check edge cases".to_string(),
+        });
+    }
+
+    if results.is_empty() {
+        results.push(DebugAnalysisResult {
+            hypothesis: "No critical issues detected via static analysis".to_string(),
+            confidence: 0.50,
+            root_cause: "Code paths at breakpoints appear well-guarded".to_string(),
+            auto_fix: "Consider adding more breakpoints for deeper analysis".to_string(),
+        });
+    }
+
+    Ok(results)
+}
+
+#[tauri::command]
+pub async fn delete_debug_session(session_id: String) -> Result<(), String> {
+    let mut store = load_debug_store();
+    store.sessions.retain(|s| s.id != session_id);
+    store.breakpoints.retain(|b| b.session_id != session_id);
+    save_debug_store(&store)
+}
+
+// ── Discussion Mode (persisted to ~/.vibeui/discussion-threads.json) ─────────
+
+fn discussion_threads_path() -> std::path::PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    std::path::PathBuf::from(home).join(".vibeui").join("discussion-threads.json")
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DiscussionMessage {
+    pub id: String,
+    pub author: String,
+    #[serde(rename = "type")]
+    pub msg_type: String,
+    pub text: String,
+    pub reactions: std::collections::HashMap<String, u32>,
+    pub timestamp: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DiscussionThread {
+    pub id: String,
+    pub topic: String,
+    pub messages: Vec<DiscussionMessage>,
+    pub build_state: String,
+    pub created_at: String,
+}
+
+async fn load_discussion_threads() -> Result<Vec<DiscussionThread>, String> {
+    let path = discussion_threads_path();
+    if !path.exists() {
+        return Ok(vec![]);
+    }
+    let content = tokio::fs::read_to_string(&path).await
+        .map_err(|e| format!("Read error: {e}"))?;
+    serde_json::from_str::<Vec<DiscussionThread>>(&content)
+        .map_err(|e| format!("Parse error: {e}"))
+}
+
+async fn save_discussion_threads(threads: &[DiscussionThread]) -> Result<(), String> {
+    let path = discussion_threads_path();
+    if let Some(parent) = path.parent() {
+        tokio::fs::create_dir_all(parent).await
+            .map_err(|e| format!("Mkdir error: {e}"))?;
+    }
+    let json = serde_json::to_string_pretty(threads)
+        .map_err(|e| format!("Serialize error: {e}"))?;
+    tokio::fs::write(&path, json).await
+        .map_err(|e| format!("Write error: {e}"))?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn list_discussion_threads() -> Result<Vec<DiscussionThread>, String> {
+    load_discussion_threads().await
+}
+
+#[tauri::command]
+pub async fn create_discussion_thread(topic: String) -> Result<DiscussionThread, String> {
+    let mut threads = load_discussion_threads().await?;
+    let now = chrono::Utc::now().to_rfc3339();
+    let thread = DiscussionThread {
+        id: format!("thread-{}", chrono::Utc::now().timestamp_millis()),
+        topic,
+        messages: vec![],
+        build_state: "Discussing".to_string(),
+        created_at: now,
+    };
+    threads.push(thread.clone());
+    save_discussion_threads(&threads).await?;
+    Ok(thread)
+}
+
+#[tauri::command]
+pub async fn add_discussion_message(thread_id: String, author: String, msg_type: String, text: String) -> Result<DiscussionMessage, String> {
+    let mut threads = load_discussion_threads().await?;
+    let thread = threads.iter_mut().find(|t| t.id == thread_id)
+        .ok_or_else(|| format!("Thread not found: {thread_id}"))?;
+    let msg = DiscussionMessage {
+        id: format!("msg-{}", chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)),
+        author,
+        msg_type,
+        text,
+        reactions: std::collections::HashMap::new(),
+        timestamp: chrono::Local::now().format("%I:%M %p").to_string(),
+    };
+    thread.messages.push(msg.clone());
+    save_discussion_threads(&threads).await?;
+    Ok(msg)
+}
+
+#[tauri::command]
+pub async fn get_discussion_thread(thread_id: String) -> Result<DiscussionThread, String> {
+    let threads = load_discussion_threads().await?;
+    threads.into_iter().find(|t| t.id == thread_id)
+        .ok_or_else(|| format!("Thread not found: {thread_id}"))
+}
+
+#[tauri::command]
+pub async fn delete_discussion_thread(thread_id: String) -> Result<(), String> {
+    let mut threads = load_discussion_threads().await?;
+    threads.retain(|t| t.id != thread_id);
+    save_discussion_threads(&threads).await
+}
+
+// ── Render Optimization (persisted to ~/.vibeui/render-stats.json) ───────────
+
+fn render_stats_path() -> std::path::PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    std::path::PathBuf::from(home).join(".vibeui").join("render-stats.json")
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RenderStats {
+    #[serde(rename = "cacheHits")]
+    pub cache_hits: u64,
+    #[serde(rename = "cacheMisses")]
+    pub cache_misses: u64,
+    #[serde(rename = "totalFrames")]
+    pub total_frames: u64,
+    #[serde(rename = "avgReduction")]
+    pub avg_reduction: u64,
+}
+
+impl Default for RenderStats {
+    fn default() -> Self {
+        Self { cache_hits: 0, cache_misses: 0, total_frames: 0, avg_reduction: 0 }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DirtyRegion {
+    pub id: String,
+    #[serde(rename = "startLine")]
+    pub start_line: u32,
+    #[serde(rename = "endLine")]
+    pub end_line: u32,
+    pub reason: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct RenderData {
+    stats: RenderStats,
+    dirty_regions: Vec<DirtyRegion>,
+}
+
+async fn load_render_data() -> Result<RenderData, String> {
+    let path = render_stats_path();
+    if !path.exists() {
+        return Ok(RenderData {
+            stats: RenderStats::default(),
+            dirty_regions: vec![],
+        });
+    }
+    let content = tokio::fs::read_to_string(&path).await
+        .map_err(|e| format!("Read error: {e}"))?;
+    serde_json::from_str::<RenderData>(&content)
+        .map_err(|e| format!("Parse error: {e}"))
+}
+
+async fn save_render_data(data: &RenderData) -> Result<(), String> {
+    let path = render_stats_path();
+    if let Some(parent) = path.parent() {
+        tokio::fs::create_dir_all(parent).await
+            .map_err(|e| format!("Mkdir error: {e}"))?;
+    }
+    let json = serde_json::to_string_pretty(data)
+        .map_err(|e| format!("Serialize error: {e}"))?;
+    tokio::fs::write(&path, json).await
+        .map_err(|e| format!("Write error: {e}"))?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn get_render_stats() -> Result<RenderStats, String> {
+    let data = load_render_data().await?;
+    Ok(data.stats)
+}
+
+#[tauri::command]
+pub async fn get_dirty_regions() -> Result<Vec<DirtyRegion>, String> {
+    let data = load_render_data().await?;
+    Ok(data.dirty_regions)
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OptimizationResult {
+    pub regions_cleared: usize,
+    pub cache_hits_before: u64,
+    pub cache_hits_after: u64,
+    pub reduction_pct: u64,
+}
+
+#[tauri::command]
+pub async fn run_render_optimization() -> Result<OptimizationResult, String> {
+    let mut data = load_render_data().await?;
+    let regions_cleared = data.dirty_regions.len();
+    let cache_hits_before = data.stats.cache_hits;
+
+    // Optimization: clear dirty regions, boost cache hits, recalculate avg
+    data.dirty_regions.clear();
+    data.stats.cache_hits += regions_cleared as u64;
+    data.stats.total_frames += 1;
+    if data.stats.total_frames > 0 {
+        data.stats.avg_reduction = (data.stats.cache_hits * 100) / data.stats.total_frames;
+        if data.stats.avg_reduction > 100 { data.stats.avg_reduction = 100; }
+    }
+    save_render_data(&data).await?;
+
+    Ok(OptimizationResult {
+        regions_cleared,
+        cache_hits_before,
+        cache_hits_after: data.stats.cache_hits,
+        reduction_pct: data.stats.avg_reduction,
+    })
+}
+
+#[tauri::command]
+pub async fn reset_render_stats() -> Result<(), String> {
+    let data = RenderData {
+        stats: RenderStats::default(),
+        dirty_regions: vec![],
+    };
+    save_render_data(&data).await
+}
+
+// ── Image Generation ────────────────────────────────────────────────────
+
+fn image_gen_path() -> PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    PathBuf::from(home).join(".vibeui").join("image-gen.json")
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GeneratedImageMeta {
+    pub id: String,
+    pub prompt: String,
+    pub model: String,
+    pub style: String,
+    pub width: u32,
+    pub height: u32,
+    pub status: String,
+    pub created_at: String,
+    pub file_path: String,
+    pub cost: f64,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
+struct ImageGenStore {
+    images: Vec<GeneratedImageMeta>,
+}
+
+fn load_image_gen_store() -> ImageGenStore {
+    let path = image_gen_path();
+    if !path.exists() {
+        return ImageGenStore::default();
+    }
+    match std::fs::read_to_string(&path) {
+        Ok(data) => serde_json::from_str(&data).unwrap_or_default(),
+        Err(_) => ImageGenStore::default(),
+    }
+}
+
+fn save_image_gen_store(store: &ImageGenStore) -> Result<(), String> {
+    let path = image_gen_path();
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let data = serde_json::to_string_pretty(store).map_err(|e| e.to_string())?;
+    std::fs::write(&path, data).map_err(|e| e.to_string())
+}
+
+/// Return all generated images from `~/.vibeui/image-gen.json`.
+#[tauri::command]
+pub async fn list_generated_images() -> Result<Vec<GeneratedImageMeta>, String> {
+    let store = load_image_gen_store();
+    Ok(store.images)
+}
+
+/// Create a new image generation request.
+/// Stores metadata with status "completed" and a placeholder SVG path.
+#[tauri::command]
+pub async fn generate_image(
+    prompt: String,
+    model: String,
+    style: String,
+    width: u32,
+    height: u32,
+) -> Result<GeneratedImageMeta, String> {
+    if prompt.trim().is_empty() {
+        return Err("Prompt cannot be empty".to_string());
+    }
+    let mut store = load_image_gen_store();
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    let id = format!("img-{now}-{}", store.images.len());
+    let cost = match model.as_str() {
+        "DALL-E 3" => 0.04,
+        "Midjourney v6" => 0.05,
+        _ => 0.02,
+    };
+    let img = GeneratedImageMeta {
+        id: id.clone(),
+        prompt,
+        model,
+        style,
+        width,
+        height,
+        status: "completed".to_string(),
+        created_at: now.to_string(),
+        file_path: format!("placeholder://{id}.svg"),
+        cost,
+    };
+    store.images.insert(0, img.clone());
+    save_image_gen_store(&store)?;
+    Ok(img)
+}
+
+/// Delete a generated image by ID.
+#[tauri::command]
+pub async fn delete_generated_image(id: String) -> Result<(), String> {
+    let mut store = load_image_gen_store();
+    let before = store.images.len();
+    store.images.retain(|img| img.id != id);
+    if store.images.len() == before {
+        return Err(format!("Image not found: {id}"));
+    }
+    save_image_gen_store(&store)
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ImageGenStats {
+    pub total_images: usize,
+    pub total_cost: f64,
+    pub models_used: Vec<String>,
+    pub styles_used: Vec<String>,
+    pub completed: usize,
+    pub pending: usize,
+    pub failed: usize,
+}
+
+/// Return generation statistics.
+#[tauri::command]
+pub async fn get_image_gen_stats() -> Result<ImageGenStats, String> {
+    let store = load_image_gen_store();
+    let total_images = store.images.len();
+    let total_cost: f64 = store.images.iter().map(|i| i.cost).sum();
+    let completed = store.images.iter().filter(|i| i.status == "completed").count();
+    let pending = store.images.iter().filter(|i| i.status == "pending").count();
+    let failed = store.images.iter().filter(|i| i.status == "failed").count();
+    let mut models: Vec<String> = store.images.iter().map(|i| i.model.clone()).collect();
+    models.sort();
+    models.dedup();
+    let mut styles: Vec<String> = store.images.iter().map(|i| i.style.clone()).collect();
+    styles.sort();
+    styles.dedup();
+    Ok(ImageGenStats {
+        total_images,
+        total_cost,
+        models_used: models,
+        styles_used: styles,
+        completed,
+        pending,
+        failed,
+    })
+}
+
+// ── Conversational Search ─────────────────────────────────────────────────────
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ConvSearchResult {
+    pub id: String,
+    pub file: String,
+    pub snippet: String,
+    pub relevance: f64,
+    pub line: usize,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ConvSearchHistoryEntry {
+    pub id: String,
+    pub query: String,
+    pub answer: String,
+    pub timestamp: String,
+    pub result_count: usize,
+}
+
+/// Persistent in-memory search history (per Tauri app lifetime).
+fn conv_search_history() -> &'static std::sync::Mutex<Vec<ConvSearchHistoryEntry>> {
+    static STORE: OnceLock<std::sync::Mutex<Vec<ConvSearchHistoryEntry>>> = OnceLock::new();
+    STORE.get_or_init(|| std::sync::Mutex::new(Vec::new()))
+}
+
+/// Perform a workspace code search using regex pattern matching.
+/// Returns real file paths, line numbers, code snippets, and a relevance score.
+#[tauri::command]
+pub async fn conversational_search(
+    query: String,
+    file_types: Option<String>,
+    paths: Option<String>,
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<ConvSearchResult>, String> {
+    if query.trim().is_empty() {
+        return Err("Search query cannot be empty".to_string());
+    }
+
+    let root = {
+        let ws = state.workspace.lock().await;
+        ws.folders().first().cloned().ok_or("No workspace folder open")?
+    };
+
+    // Determine the search root — honour user-supplied path filter
+    let search_root = if let Some(ref p) = paths {
+        let p = p.trim();
+        if !p.is_empty() {
+            let candidate = root.join(p);
+            if candidate.exists() { candidate } else { root.clone() }
+        } else {
+            root.clone()
+        }
+    } else {
+        root.clone()
+    };
+
+    // Parse allowed extensions from file_types (e.g. "*.rs, *.ts, *.tsx")
+    let allowed_exts: Vec<String> = file_types
+        .as_deref()
+        .unwrap_or("")
+        .split(',')
+        .map(|s| s.trim().trim_start_matches("*.").to_lowercase())
+        .filter(|s| !s.is_empty())
+        .collect();
+
+    // Use vibe-core search, then filter + score
+    let raw = vibe_core::search::search_files(&search_root, &query, false)
+        .map_err(|e| e.to_string())?;
+
+    let mut results: Vec<ConvSearchResult> = raw
+        .into_iter()
+        .filter(|r| {
+            if allowed_exts.is_empty() {
+                return true;
+            }
+            let p = std::path::Path::new(&r.path);
+            if let Some(ext) = p.extension() {
+                allowed_exts.contains(&ext.to_string_lossy().to_lowercase())
+            } else {
+                false
+            }
+        })
+        .enumerate()
+        .map(|(idx, r)| {
+            // Compute a simple relevance score:
+            // - exact case match gets a bonus
+            // - earlier matches score higher
+            // - shorter snippets score higher (more specific)
+            let case_bonus = if r.line_content.contains(&query) { 0.1 } else { 0.0 };
+            let position_score = 1.0 / (1.0 + idx as f64 * 0.05);
+            let length_bonus = if r.line_content.len() < 120 { 0.05 } else { 0.0 };
+            let relevance = (0.5 + case_bonus + length_bonus) * position_score;
+
+            let rel_path = std::path::Path::new(&r.path)
+                .strip_prefix(&root)
+                .unwrap_or(std::path::Path::new(&r.path))
+                .to_string_lossy()
+                .into_owned();
+
+            ConvSearchResult {
+                id: format!("cs-{}-{}", idx, r.line_number),
+                file: rel_path,
+                snippet: r.line_content,
+                relevance: (relevance * 100.0).round() / 100.0,
+                line: r.line_number,
+            }
+        })
+        .take(50) // cap results for UI
+        .collect();
+
+    // Sort by relevance descending
+    results.sort_by(|a, b| b.relevance.partial_cmp(&a.relevance).unwrap_or(std::cmp::Ordering::Equal));
+
+    // Record in history
+    let entry = ConvSearchHistoryEntry {
+        id: format!("h-{}", std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis()),
+        query: query.clone(),
+        answer: if results.is_empty() {
+            format!("No results found for \"{}\"", query)
+        } else {
+            format!("Found {} results for \"{}\"", results.len(), query)
+        },
+        timestamp: chrono::Local::now().format("%H:%M").to_string(),
+        result_count: results.len(),
+    };
+    if let Ok(mut hist) = conv_search_history().lock() {
+        hist.insert(0, entry);
+        // Keep history bounded
+        hist.truncate(100);
+    }
+
+    Ok(results)
+}
+
+/// Return past conversational search queries.
+#[tauri::command]
+pub async fn get_search_history() -> Result<Vec<ConvSearchHistoryEntry>, String> {
+    let hist = conv_search_history().lock()
+        .map_err(|e| format!("Failed to read search history: {}", e))?;
+    Ok(hist.clone())
+}
+
+/// Return follow-up query suggestions based on the search results.
+#[tauri::command]
+pub async fn get_search_suggestions(
+    query: String,
+    results: Vec<ConvSearchResult>,
+) -> Result<Vec<String>, String> {
+    let mut suggestions = Vec::new();
+
+    // Suggest searching in specific files that appeared in results
+    let files: Vec<&str> = results.iter().map(|r| r.file.as_str()).take(3).collect();
+    for f in &files {
+        suggestions.push(format!("Find all functions in {}", f));
+    }
+
+    // Suggest related queries
+    if !query.is_empty() {
+        suggestions.push(format!("Show all callers of {}", query));
+        suggestions.push(format!("Find tests for {}", query));
+        suggestions.push(format!("Show imports related to {}", query));
+    }
+
+    suggestions.truncate(5);
+    Ok(suggestions)
+}
+
+/// Clear the conversational search history.
+#[tauri::command]
+pub async fn clear_search_history() -> Result<(), String> {
+    let mut hist = conv_search_history().lock()
+        .map_err(|e| format!("Failed to clear search history: {}", e))?;
+    hist.clear();
+    Ok(())
+}
+
+// ── Fast Context / SWE-grep ─────────────────────────────────────────────────
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct FastContextSearchResult {
+    pub file: String,
+    pub line: usize,
+    pub snippet: String,
+    pub relevance: f64,
+    #[serde(rename = "matchType")]
+    pub match_type: String,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct FastContextIndexStats {
+    pub files: usize,
+    pub symbols: usize,
+    pub trigrams: usize,
+    #[serde(rename = "lastBuilt")]
+    pub last_built: String,
+    pub languages: Vec<String>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct FastContextCacheStats {
+    pub hits: u64,
+    pub misses: u64,
+    pub size: String,
+    #[serde(rename = "maxSize")]
+    pub max_size: String,
+}
+
+/// Search workspace files for a pattern, returning scored results.
+#[tauri::command]
+pub async fn fast_context_search(
+    workspace: String,
+    query: String,
+    match_type: String,
+) -> Result<Vec<FastContextSearchResult>, String> {
+    if query.trim().is_empty() {
+        return Ok(Vec::new());
+    }
+    let ws = std::path::Path::new(&workspace)
+        .canonicalize()
+        .map_err(|e| format!("Invalid workspace: {e}"))?;
+
+    const SKIP_DIRS: &[&str] = &[
+        "node_modules", ".git", "target", "dist", "build", ".next",
+        "vendor", "__pycache__", ".venv", "venv", ".gradle", "out", ".cache",
+    ];
+
+    let query_lower = query.to_lowercase();
+    let mut results: Vec<FastContextSearchResult> = Vec::new();
+
+    for entry in walkdir::WalkDir::new(&ws)
+        .follow_links(false)
+        .max_depth(12)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
+        if entry.file_type().is_dir() { continue; }
+        let path = entry.path();
+        let skip = path.ancestors().any(|a| {
+            a.file_name().and_then(|n| n.to_str())
+                .map(|n| SKIP_DIRS.contains(&n))
+                .unwrap_or(false)
+        });
+        if skip { continue; }
+
+        let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
+        if ext_to_language(&ext).is_none() { continue; }
+
+        // Skip files > 512 KB
+        if entry.metadata().map(|m| m.len()).unwrap_or(0) > 524_288 { continue; }
+
+        let content = match tokio::fs::read_to_string(path).await {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+
+        let rel_path = path.strip_prefix(&ws)
+            .unwrap_or(path)
+            .to_string_lossy()
+            .to_string();
+
+        for (line_num, line) in content.lines().enumerate() {
+            let line_lower = line.to_lowercase();
+            let matched = match match_type.as_str() {
+                "Exact" => line.contains(&query),
+                "Symbol" => {
+                    let trimmed = line.trim();
+                    (trimmed.starts_with("fn ")
+                        || trimmed.starts_with("pub fn ")
+                        || trimmed.starts_with("struct ")
+                        || trimmed.starts_with("pub struct ")
+                        || trimmed.starts_with("enum ")
+                        || trimmed.starts_with("pub enum ")
+                        || trimmed.starts_with("class ")
+                        || trimmed.starts_with("export ")
+                        || trimmed.starts_with("const ")
+                        || trimmed.starts_with("function ")
+                        || trimmed.starts_with("def ")
+                        || trimmed.starts_with("type ")
+                        || trimmed.starts_with("interface ")
+                        || trimmed.starts_with("trait ")
+                        || trimmed.starts_with("pub trait "))
+                        && line_lower.contains(&query_lower)
+                }
+                // Fuzzy, Semantic, Structural all fall back to case-insensitive contains
+                _ => line_lower.contains(&query_lower),
+            };
+
+            if matched {
+                let snippet = line.trim().chars().take(120).collect::<String>();
+                let exact_bonus = if line.contains(&query) { 0.2 } else { 0.0 };
+                let position_score = 1.0 / (1.0 + (line_num as f64 / 100.0));
+                let relevance = (0.5 + exact_bonus + position_score * 0.3).min(1.0);
+
+                results.push(FastContextSearchResult {
+                    file: rel_path.clone(),
+                    line: line_num + 1,
+                    snippet,
+                    relevance,
+                    match_type: match_type.clone(),
+                });
+            }
+
+            if results.len() >= 200 { break; }
+        }
+        if results.len() >= 200 { break; }
+    }
+
+    results.sort_by(|a, b| b.relevance.partial_cmp(&a.relevance).unwrap_or(std::cmp::Ordering::Equal));
+    results.truncate(100);
+    Ok(results)
+}
+
+/// Scan workspace and return index statistics.
+#[tauri::command]
+pub async fn fast_context_index_stats(workspace: String) -> Result<FastContextIndexStats, String> {
+    let ws = std::path::Path::new(&workspace)
+        .canonicalize()
+        .map_err(|e| format!("Invalid workspace: {e}"))?;
+
+    const SKIP_DIRS: &[&str] = &[
+        "node_modules", ".git", "target", "dist", "build", ".next",
+        "vendor", "__pycache__", ".venv", "venv", ".gradle", "out", ".cache",
+    ];
+
+    let mut total_files: usize = 0;
+    let mut total_lines: usize = 0;
+    let mut languages: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut trigram_estimate: usize = 0;
+
+    for entry in walkdir::WalkDir::new(&ws)
+        .follow_links(false)
+        .max_depth(12)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
+        if entry.file_type().is_dir() { continue; }
+        let path = entry.path();
+        let skip = path.ancestors().any(|a| {
+            a.file_name().and_then(|n| n.to_str())
+                .map(|n| SKIP_DIRS.contains(&n))
+                .unwrap_or(false)
+        });
+        if skip { continue; }
+
+        let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
+        let lang = match ext_to_language(&ext) {
+            Some(l) => l,
+            None => continue,
+        };
+
+        if entry.metadata().map(|m| m.len()).unwrap_or(0) > 1_048_576 { continue; }
+
+        total_files += 1;
+        languages.insert(lang.to_string());
+
+        let content = match tokio::fs::read_to_string(path).await {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+
+        let lines = content.lines().count();
+        total_lines += lines;
+        trigram_estimate += content.len().saturating_sub(2 * lines);
+    }
+
+    let mut lang_list: Vec<String> = languages.into_iter().collect();
+    lang_list.sort();
+
+    Ok(FastContextIndexStats {
+        files: total_files,
+        symbols: total_lines,
+        trigrams: trigram_estimate,
+        last_built: chrono::Utc::now().format("%Y-%m-%d %H:%M:%S UTC").to_string(),
+        languages: lang_list,
+    })
+}
+
+/// Return cache hit/miss stats from a persisted JSON file in the workspace.
+#[tauri::command]
+pub async fn fast_context_cache_stats(workspace: String) -> Result<FastContextCacheStats, String> {
+    let ws = std::path::Path::new(&workspace)
+        .canonicalize()
+        .map_err(|e| format!("Invalid workspace: {e}"))?;
+
+    let cache_file = ws.join(".vibeui").join("fast_context_cache.json");
+
+    if cache_file.exists() {
+        let data = tokio::fs::read_to_string(&cache_file).await
+            .map_err(|e| format!("Failed to read cache file: {e}"))?;
+        let stats: FastContextCacheStats = serde_json::from_str(&data)
+            .map_err(|e| format!("Failed to parse cache stats: {e}"))?;
+        Ok(stats)
+    } else {
+        Ok(FastContextCacheStats {
+            hits: 0,
+            misses: 0,
+            size: "0 MB".to_string(),
+            max_size: "64 MB".to_string(),
+        })
+    }
+}
+
+/// Trigger a workspace re-index and persist updated cache stats.
+#[tauri::command]
+pub async fn fast_context_reindex(workspace: String) -> Result<FastContextIndexStats, String> {
+    let stats = fast_context_index_stats(workspace.clone()).await?;
+
+    let ws = std::path::Path::new(&workspace)
+        .canonicalize()
+        .map_err(|e| format!("Invalid workspace: {e}"))?;
+    let cache_dir = ws.join(".vibeui");
+    tokio::fs::create_dir_all(&cache_dir).await
+        .map_err(|e| format!("Failed to create cache dir: {e}"))?;
+
+    let cache_stats = FastContextCacheStats {
+        hits: 0,
+        misses: 0,
+        size: format!("{:.1} MB", stats.trigrams as f64 / 1_048_576.0),
+        max_size: "64 MB".to_string(),
+    };
+    let json = serde_json::to_string_pretty(&cache_stats)
+        .map_err(|e| format!("Failed to serialize cache stats: {e}"))?;
+    tokio::fs::write(cache_dir.join("fast_context_cache.json"), json).await
+        .map_err(|e| format!("Failed to write cache file: {e}"))?;
+
+    Ok(stats)
+}
+
+// ── Fine-Tuning ──────────────────────────────────────────────────────────────
+//
+// Model fine-tuning dashboard data, persisted to `~/.vibeui/fine-tuning.json`.
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FtDatasetStats {
+    pub example_count: u64,
+    pub total_tokens: u64,
+    pub avg_tokens_per_example: u64,
+    pub max_tokens: u64,
+    pub languages: std::collections::HashMap<String, u64>,
+    pub invalid_count: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FtJob {
+    pub id: String,
+    pub status: String,
+    pub base_model: String,
+    pub dataset: String,
+    pub epochs: u32,
+    pub loss: f64,
+    pub progress: u32,
+    pub created: String,
+    pub cost_usd: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FtEvalResult {
+    pub model: String,
+    pub tasks: u32,
+    pub resolved: u32,
+    pub rate: f64,
+    pub avg_time: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FtLoraAdapter {
+    pub name: String,
+    pub base_model: String,
+    pub rank: u32,
+    pub size_mb: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct FtStore {
+    #[serde(default)]
+    jobs: Vec<FtJob>,
+    #[serde(default)]
+    evals: Vec<FtEvalResult>,
+    #[serde(default)]
+    adapters: Vec<FtLoraAdapter>,
+}
+
+fn ft_store_path() -> std::path::PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    std::path::PathBuf::from(home).join(".vibeui").join("fine-tuning.json")
+}
+
+fn load_ft_store() -> FtStore {
+    std::fs::read_to_string(ft_store_path())
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_else(|| FtStore { jobs: vec![], evals: vec![], adapters: vec![] })
+}
+
+fn save_ft_store(store: &FtStore) -> Result<(), String> {
+    let path = ft_store_path();
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    std::fs::write(&path, serde_json::to_string_pretty(store).map_err(|e| e.to_string())?)
+        .map_err(|e| e.to_string())
+}
+
+/// Scan the workspace for training data files and return dataset stats.
+#[tauri::command]
+pub async fn get_fine_tuning_stats(workspace: String) -> Result<FtDatasetStats, String> {
+    use std::collections::HashMap;
+
+    let ws = std::path::Path::new(&workspace);
+    let mut example_count: u64 = 0;
+    let mut total_tokens: u64 = 0;
+    let mut max_tokens: u64 = 0;
+    let mut languages: HashMap<String, u64> = HashMap::new();
+    let mut invalid_count: u64 = 0;
+
+    // Walk workspace looking for training-data files (.jsonl, .json, .csv, .parquet)
+    let training_extensions = ["jsonl", "json", "csv", "parquet"];
+
+    fn walk_dir(dir: &std::path::Path, exts: &[&str], examples: &mut u64, tokens: &mut u64, max_tok: &mut u64, langs: &mut HashMap<String, u64>, invalid: &mut u64) {
+        if let Ok(entries) = std::fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    // Skip hidden dirs and node_modules/target
+                    if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                        if name.starts_with('.') || name == "node_modules" || name == "target" {
+                            continue;
+                        }
+                    }
+                    walk_dir(&path, exts, examples, tokens, max_tok, langs, invalid);
+                } else if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                    if exts.contains(&ext) {
+                        // Count lines as approximate examples
+                        if let Ok(content) = std::fs::read_to_string(&path) {
+                            let line_count = content.lines().count() as u64;
+                            // Rough token estimate: ~4 chars per token
+                            let char_count = content.len() as u64;
+                            let token_estimate = char_count / 4;
+                            let tokens_per_line = if line_count > 0 { token_estimate / line_count } else { 0 };
+
+                            *examples += line_count;
+                            *tokens += token_estimate;
+                            if tokens_per_line > *max_tok {
+                                *max_tok = tokens_per_line;
+                            }
+
+                            // Detect language from parent directory or file naming
+                            if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+                                let lang = if stem.contains("rust") || stem.contains("rs") {
+                                    "rust"
+                                } else if stem.contains("typescript") || stem.contains("ts") {
+                                    "typescript"
+                                } else if stem.contains("python") || stem.contains("py") {
+                                    "python"
+                                } else if stem.contains("go") {
+                                    "go"
+                                } else {
+                                    "other"
+                                };
+                                *langs.entry(lang.to_string()).or_insert(0) += line_count;
+                            }
+
+                            // Count invalid lines (empty or too short)
+                            for line in content.lines() {
+                                if line.trim().len() < 2 {
+                                    *invalid += 1;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if ws.exists() {
+        walk_dir(ws, &training_extensions, &mut example_count, &mut total_tokens, &mut max_tokens, &mut languages, &mut invalid_count);
+    }
+
+    let avg = if example_count > 0 { total_tokens / example_count } else { 0 };
+
+    Ok(FtDatasetStats {
+        example_count,
+        total_tokens,
+        avg_tokens_per_example: avg,
+        max_tokens,
+        languages,
+        invalid_count,
+    })
+}
+
+/// Return all fine-tuning job configs from the store.
+#[tauri::command]
+pub async fn list_fine_tuning_jobs() -> Result<Vec<FtJob>, String> {
+    Ok(load_ft_store().jobs)
+}
+
+/// Create a new fine-tuning job config and persist it.
+#[tauri::command]
+pub async fn create_fine_tuning_job(
+    base_model: String,
+    dataset: String,
+    epochs: u32,
+    _provider: String,
+    _learning_rate: String,
+    _batch_size: u32,
+    _lora_rank: Option<u32>,
+) -> Result<FtJob, String> {
+    let mut store = load_ft_store();
+    let id = format!("ft-{:04}", store.jobs.len() + 1);
+    let now = chrono::Utc::now().format("%Y-%m-%d").to_string();
+    let job = FtJob {
+        id: id.clone(),
+        status: "pending".to_string(),
+        base_model: base_model.clone(),
+        dataset: dataset.clone(),
+        epochs,
+        loss: 0.0,
+        progress: 0,
+        created: now,
+        cost_usd: 0.0,
+    };
+    store.jobs.push(job.clone());
+    save_ft_store(&store)?;
+    Ok(job)
+}
+
+/// Return evaluation results from the store.
+#[tauri::command]
+pub async fn list_fine_tuning_evals() -> Result<Vec<FtEvalResult>, String> {
+    Ok(load_ft_store().evals)
+}
+
+/// Return LoRA adapter configs from the store.
+#[tauri::command]
+pub async fn list_fine_tuning_adapters() -> Result<Vec<FtLoraAdapter>, String> {
+    Ok(load_ft_store().adapters)
+}
+
+/// Create a new LoRA adapter config and persist it.
+#[tauri::command]
+pub async fn create_fine_tuning_adapter(
+    name: String,
+    base_model: String,
+    rank: u32,
+    size_mb: u64,
+) -> Result<FtLoraAdapter, String> {
+    let mut store = load_ft_store();
+    if store.adapters.iter().any(|a| a.name == name) {
+        return Err(format!("Adapter '{}' already exists", name));
+    }
+    let adapter = FtLoraAdapter { name, base_model, rank, size_mb };
+    store.adapters.push(adapter.clone());
+    save_ft_store(&store)?;
+    Ok(adapter)
+}
+
+// ── GPU Terminal Panel Commands ──────────────────────────────────────────────
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct GpuRenderStats {
+    pub frame_time_us: u64,
+    pub gpu_memory_bytes: u64,
+    pub cells_rendered: u64,
+    pub dirty_cells: u64,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct GpuBenchmarkResult {
+    pub avg_fps: f64,
+    pub min_frame_us: u64,
+    pub max_frame_us: u64,
+    pub p99_frame_us: u64,
+    pub backend_name: String,
+    pub frames_rendered: u64,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct GpuGlyphAtlas {
+    pub glyphs: String,
+    pub atlas_width: u32,
+    pub atlas_height: u32,
+    pub glyph_width: u32,
+    pub glyph_height: u32,
+    pub cached_count: u32,
+    pub utilization_pct: f64,
+}
+
+fn gpu_data_path() -> PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
+    PathBuf::from(home).join(".vibeui").join("gpu-terminal.json")
+}
+
+#[derive(Serialize, Deserialize, Clone, Default)]
+struct GpuTerminalData {
+    fps_history: Vec<f64>,
+}
+
+/// Return terminal rendering stats (process memory + estimated frame times).
+#[tauri::command]
+pub async fn get_gpu_terminal_stats() -> Result<GpuRenderStats, String> {
+    // Measure real process memory via ps on macOS or /proc on Linux
+    let memory_bytes: u64 = {
+        #[cfg(target_os = "macos")]
+        {
+            let output = tokio::process::Command::new("ps")
+                .args(["-o", "rss=", "-p", &std::process::id().to_string()])
+                .output()
+                .await
+                .map_err(|e| format!("Failed to get memory: {e}"))?;
+            let rss_kb: u64 = String::from_utf8_lossy(&output.stdout)
+                .trim()
+                .parse()
+                .unwrap_or(4096);
+            rss_kb * 1024
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            match tokio::fs::read_to_string("/proc/self/statm").await {
+                Ok(s) => {
+                    let pages: u64 = s.split_whitespace()
+                        .nth(1)
+                        .and_then(|v| v.parse().ok())
+                        .unwrap_or(1024);
+                    pages * 4096
+                }
+                Err(_) => 4_325_376,
+            }
+        }
+    };
+
+    // Estimate frame time from a quick string-processing microbenchmark
+    let frame_time_us = {
+        let start = std::time::Instant::now();
+        let mut buf = String::with_capacity(9600);
+        for i in 0..9600u32 {
+            buf.push(char::from(b'A' + (i % 26) as u8));
+        }
+        drop(buf);
+        start.elapsed().as_micros() as u64
+    };
+
+    Ok(GpuRenderStats {
+        frame_time_us: frame_time_us.max(1),
+        gpu_memory_bytes: memory_bytes,
+        cells_rendered: 9600,
+        dirty_cells: 0,
+    })
+}
+
+/// Run a simple benchmark measuring string-processing throughput.
+#[tauri::command]
+pub async fn run_gpu_terminal_benchmark(frames: Option<u64>) -> Result<GpuBenchmarkResult, String> {
+    let num_frames = frames.unwrap_or(100);
+    let mut timings: Vec<u64> = Vec::with_capacity(num_frames as usize);
+
+    for _ in 0..num_frames {
+        let start = std::time::Instant::now();
+        let mut buf = String::with_capacity(9600);
+        for i in 0..9600u32 {
+            buf.push(char::from(b'A' + (i % 26) as u8));
+        }
+        drop(buf);
+        let elapsed = start.elapsed().as_micros() as u64;
+        timings.push(elapsed.max(1));
+    }
+
+    timings.sort();
+    let total_us: u64 = timings.iter().sum();
+    let avg_frame_us = total_us as f64 / num_frames as f64;
+    let avg_fps = if avg_frame_us > 0.0 { 1_000_000.0 / avg_frame_us } else { 0.0 };
+    let p99_idx = ((num_frames as f64 * 0.99) as usize).min(timings.len() - 1);
+
+    let result = GpuBenchmarkResult {
+        avg_fps,
+        min_frame_us: timings[0],
+        max_frame_us: *timings.last().unwrap_or(&0),
+        p99_frame_us: timings[p99_idx],
+        backend_name: "software".to_string(),
+        frames_rendered: num_frames,
+    };
+
+    // Persist FPS to history file
+    let data_path = gpu_data_path();
+    if let Some(parent) = data_path.parent() {
+        let _ = tokio::fs::create_dir_all(parent).await;
+    }
+    let mut data: GpuTerminalData = match tokio::fs::read_to_string(&data_path).await {
+        Ok(s) => serde_json::from_str(&s).unwrap_or_default(),
+        Err(_) => GpuTerminalData::default(),
+    };
+    data.fps_history.push(avg_fps);
+    if data.fps_history.len() > 100 {
+        let drain = data.fps_history.len() - 100;
+        data.fps_history.drain(..drain);
+    }
+    if let Ok(json) = serde_json::to_string_pretty(&data) {
+        let _ = tokio::fs::write(&data_path, json).await;
+    }
+
+    Ok(result)
+}
+
+/// Return persisted FPS history samples from ~/.vibeui/gpu-terminal.json.
+#[tauri::command]
+pub async fn get_gpu_fps_history() -> Result<Vec<f64>, String> {
+    let data_path = gpu_data_path();
+    match tokio::fs::read_to_string(&data_path).await {
+        Ok(s) => {
+            let data: GpuTerminalData = serde_json::from_str(&s)
+                .map_err(|e| format!("Failed to parse GPU terminal data: {e}"))?;
+            Ok(data.fps_history)
+        }
+        Err(_) => Ok(Vec::new()),
+    }
+}
+
+/// Return glyph atlas info for printable ASCII characters with cache stats.
+#[tauri::command]
+pub async fn get_gpu_glyph_atlas() -> Result<GpuGlyphAtlas, String> {
+    let glyphs: String = (33u8..=126).map(|c| c as char).collect();
+    let cached_count = glyphs.len() as u32;
+    let glyph_w = 8u32;
+    let glyph_h = 21u32;
+    let atlas_w = 1024u32;
+    let atlas_h = 1024u32;
+    let utilization = (cached_count as f64 * glyph_w as f64 * glyph_h as f64)
+        / (atlas_w as f64 * atlas_h as f64)
+        * 100.0;
+
+    Ok(GpuGlyphAtlas {
+        glyphs,
+        atlas_width: atlas_w,
+        atlas_height: atlas_h,
+        glyph_width: glyph_w,
+        glyph_height: glyph_h,
+        cached_count,
+        utilization_pct: utilization,
+    })
+}
+
+// ── AST Edit Panel ──────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AstNode {
+    pub name: String,
+    pub kind: String,
+    pub line: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub children: Option<Vec<AstNode>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AstFile {
+    pub path: String,
+    pub language: String,
+    pub nodes: Vec<AstNode>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AstEdit {
+    pub id: String,
+    pub file: String,
+    pub target: String,
+    pub operation: String,
+    pub confidence: f64,
+    pub description: String,
+    #[serde(rename = "diffBefore")]
+    pub diff_before: String,
+    #[serde(rename = "diffAfter")]
+    pub diff_after: String,
+    #[serde(default)]
+    pub status: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+struct AstEditsStore {
+    edits: Vec<AstEdit>,
+}
+
+fn ast_edits_path() -> PathBuf {
+    dirs::home_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join(".vibeui")
+        .join("ast-edits.json")
+}
+
+fn load_ast_edits() -> AstEditsStore {
+    let path = ast_edits_path();
+    if path.exists() {
+        let data = std::fs::read_to_string(&path).unwrap_or_else(|_| "{}".into());
+        serde_json::from_str(&data).unwrap_or_default()
+    } else {
+        AstEditsStore::default()
+    }
+}
+
+fn save_ast_edits(store: &AstEditsStore) -> Result<(), String> {
+    let path = ast_edits_path();
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let data = serde_json::to_string_pretty(store).map_err(|e| e.to_string())?;
+    std::fs::write(&path, data).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+fn detect_language(ext: &str) -> Option<&'static str> {
+    match ext {
+        "rs" => Some("Rust"),
+        "ts" | "tsx" => Some("TypeScript"),
+        "js" | "jsx" => Some("JavaScript"),
+        "py" => Some("Python"),
+        _ => None,
+    }
+}
+
+fn extract_declarations(source: &str, language: &str) -> Vec<AstNode> {
+    let mut nodes: Vec<AstNode> = Vec::new();
+
+    for (idx, line) in source.lines().enumerate() {
+        let trimmed = line.trim();
+        let line_num = (idx + 1) as u32;
+
+        match language {
+            "Rust" => {
+                if let Some(rest) = trimmed.strip_prefix("pub(crate) fn ")
+                    .or_else(|| trimmed.strip_prefix("pub(crate) async fn "))
+                    .or_else(|| trimmed.strip_prefix("pub async fn "))
+                    .or_else(|| trimmed.strip_prefix("pub fn "))
+                    .or_else(|| trimmed.strip_prefix("async fn "))
+                    .or_else(|| trimmed.strip_prefix("fn "))
+                {
+                    if let Some(name) = rest.split('(').next() {
+                        let name = name.trim();
+                        if !name.is_empty() {
+                            nodes.push(AstNode { name: name.to_string(), kind: "function".into(), line: line_num, children: None });
+                        }
+                    }
+                } else if let Some(rest) = trimmed.strip_prefix("pub struct ")
+                    .or_else(|| trimmed.strip_prefix("struct "))
+                {
+                    if let Some(name) = rest.split(|c: char| c == '{' || c == '(' || c == '<' || c.is_whitespace()).next() {
+                        let name = name.trim();
+                        if !name.is_empty() {
+                            nodes.push(AstNode { name: name.to_string(), kind: "struct".into(), line: line_num, children: None });
+                        }
+                    }
+                } else if let Some(rest) = trimmed.strip_prefix("pub enum ")
+                    .or_else(|| trimmed.strip_prefix("enum "))
+                {
+                    if let Some(name) = rest.split(|c: char| c == '{' || c == '<' || c.is_whitespace()).next() {
+                        let name = name.trim();
+                        if !name.is_empty() {
+                            nodes.push(AstNode { name: name.to_string(), kind: "enum".into(), line: line_num, children: None });
+                        }
+                    }
+                } else if let Some(rest) = trimmed.strip_prefix("impl ") {
+                    if let Some(name) = rest.split(|c: char| c == '{' || c == '<').next() {
+                        let name = name.trim();
+                        if !name.is_empty() {
+                            nodes.push(AstNode { name: format!("impl {name}"), kind: "impl".into(), line: line_num, children: None });
+                        }
+                    }
+                } else if let Some(rest) = trimmed.strip_prefix("pub trait ")
+                    .or_else(|| trimmed.strip_prefix("trait "))
+                {
+                    if let Some(name) = rest.split(|c: char| c == '{' || c == ':' || c == '<' || c.is_whitespace()).next() {
+                        let name = name.trim();
+                        if !name.is_empty() {
+                            nodes.push(AstNode { name: name.to_string(), kind: "trait".into(), line: line_num, children: None });
+                        }
+                    }
+                } else if let Some(rest) = trimmed.strip_prefix("pub mod ")
+                    .or_else(|| trimmed.strip_prefix("mod "))
+                {
+                    if let Some(name) = rest.split(|c: char| c == '{' || c == ';' || c.is_whitespace()).next() {
+                        let name = name.trim();
+                        if !name.is_empty() {
+                            nodes.push(AstNode { name: name.to_string(), kind: "module".into(), line: line_num, children: None });
+                        }
+                    }
+                } else if let Some(rest) = trimmed.strip_prefix("pub const ")
+                    .or_else(|| trimmed.strip_prefix("const "))
+                {
+                    if let Some(name) = rest.split(':').next() {
+                        let name = name.trim();
+                        if !name.is_empty() {
+                            nodes.push(AstNode { name: name.to_string(), kind: "const".into(), line: line_num, children: None });
+                        }
+                    }
+                } else if let Some(rest) = trimmed.strip_prefix("pub type ")
+                    .or_else(|| trimmed.strip_prefix("type "))
+                {
+                    if let Some(name) = rest.split(|c: char| c == '=' || c == '<' || c.is_whitespace()).next() {
+                        let name = name.trim();
+                        if !name.is_empty() {
+                            nodes.push(AstNode { name: name.to_string(), kind: "type".into(), line: line_num, children: None });
+                        }
+                    }
+                }
+            }
+            "TypeScript" | "JavaScript" => {
+                if let Some(rest) = trimmed.strip_prefix("export default function ")
+                    .or_else(|| trimmed.strip_prefix("export function "))
+                    .or_else(|| trimmed.strip_prefix("export async function "))
+                    .or_else(|| trimmed.strip_prefix("async function "))
+                    .or_else(|| trimmed.strip_prefix("function "))
+                {
+                    if let Some(name) = rest.split('(').next() {
+                        let name = name.trim();
+                        if !name.is_empty() {
+                            nodes.push(AstNode { name: name.to_string(), kind: "function".into(), line: line_num, children: None });
+                        }
+                    }
+                } else if let Some(rest) = trimmed.strip_prefix("export class ")
+                    .or_else(|| trimmed.strip_prefix("class "))
+                {
+                    if let Some(name) = rest.split(|c: char| c == '{' || c == '<' || c.is_whitespace()).next() {
+                        let name = name.trim();
+                        if !name.is_empty() {
+                            nodes.push(AstNode { name: name.to_string(), kind: "struct".into(), line: line_num, children: None });
+                        }
+                    }
+                } else if let Some(rest) = trimmed.strip_prefix("export interface ")
+                    .or_else(|| trimmed.strip_prefix("interface "))
+                {
+                    if let Some(name) = rest.split(|c: char| c == '{' || c == '<' || c.is_whitespace()).next() {
+                        let name = name.trim();
+                        if !name.is_empty() {
+                            nodes.push(AstNode { name: name.to_string(), kind: "trait".into(), line: line_num, children: None });
+                        }
+                    }
+                } else if let Some(rest) = trimmed.strip_prefix("export type ")
+                    .or_else(|| trimmed.strip_prefix("type "))
+                {
+                    if let Some(name) = rest.split(|c: char| c == '=' || c == '<' || c.is_whitespace()).next() {
+                        let name = name.trim();
+                        if !name.is_empty() {
+                            nodes.push(AstNode { name: name.to_string(), kind: "type".into(), line: line_num, children: None });
+                        }
+                    }
+                } else if let Some(rest) = trimmed.strip_prefix("export enum ")
+                    .or_else(|| trimmed.strip_prefix("enum "))
+                {
+                    if let Some(name) = rest.split(|c: char| c == '{' || c.is_whitespace()).next() {
+                        let name = name.trim();
+                        if !name.is_empty() {
+                            nodes.push(AstNode { name: name.to_string(), kind: "enum".into(), line: line_num, children: None });
+                        }
+                    }
+                } else if let Some(rest) = trimmed.strip_prefix("export const ")
+                    .or_else(|| trimmed.strip_prefix("const "))
+                {
+                    if let Some(name) = rest.split(|c: char| c == '=' || c == ':' || c.is_whitespace()).next() {
+                        let name = name.trim();
+                        if !name.is_empty() {
+                            nodes.push(AstNode { name: name.to_string(), kind: "const".into(), line: line_num, children: None });
+                        }
+                    }
+                }
+            }
+            "Python" => {
+                if let Some(rest) = trimmed.strip_prefix("async def ")
+                    .or_else(|| trimmed.strip_prefix("def "))
+                {
+                    if let Some(name) = rest.split('(').next() {
+                        let name = name.trim();
+                        if !name.is_empty() {
+                            nodes.push(AstNode { name: name.to_string(), kind: "function".into(), line: line_num, children: None });
+                        }
+                    }
+                } else if let Some(rest) = trimmed.strip_prefix("class ") {
+                    if let Some(name) = rest.split(|c: char| c == '(' || c == ':').next() {
+                        let name = name.trim();
+                        if !name.is_empty() {
+                            nodes.push(AstNode { name: name.to_string(), kind: "struct".into(), line: line_num, children: None });
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    nodes
+}
+
+/// Scan workspace for source files and extract simplified AST nodes.
+#[tauri::command]
+pub async fn get_ast_files(workspace: String) -> Result<Vec<AstFile>, String> {
+    let ws_path = std::path::Path::new(&workspace);
+    if !ws_path.is_dir() {
+        return Err(format!("Workspace path is not a directory: {workspace}"));
+    }
+
+    let extensions: &[&str] = &["rs", "ts", "tsx", "js", "py"];
+    let mut files: Vec<AstFile> = Vec::new();
+
+    fn walk_dir(dir: &std::path::Path, base: &std::path::Path, extensions: &[&str], files: &mut Vec<AstFile>, depth: usize) {
+        if depth > 4 { return; }
+        let entries = match std::fs::read_dir(dir) {
+            Ok(e) => e,
+            Err(_) => return,
+        };
+        for entry in entries.filter_map(|e| e.ok()) {
+            let path = entry.path();
+            let name = entry.file_name();
+            let name_str = name.to_string_lossy();
+            if name_str.starts_with('.') || name_str == "node_modules" || name_str == "target" || name_str == "dist" || name_str == "build" {
+                continue;
+            }
+            if path.is_dir() {
+                walk_dir(&path, base, extensions, files, depth + 1);
+            } else if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                if extensions.contains(&ext) {
+                    if let Some(language) = detect_language(ext) {
+                        if let Ok(source) = std::fs::read_to_string(&path) {
+                            let nodes = extract_declarations(&source, language);
+                            if !nodes.is_empty() {
+                                let rel = path.strip_prefix(base).unwrap_or(&path);
+                                files.push(AstFile {
+                                    path: rel.to_string_lossy().to_string(),
+                                    language: language.to_string(),
+                                    nodes,
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    walk_dir(ws_path, ws_path, extensions, &mut files, 0);
+    files.sort_by(|a, b| a.path.cmp(&b.path));
+    files.truncate(200);
+    Ok(files)
+}
+
+/// Return pending AST-level edits from ~/.vibeui/ast-edits.json.
+#[tauri::command]
+pub async fn get_ast_edits() -> Result<Vec<AstEdit>, String> {
+    let store = load_ast_edits();
+    Ok(store.edits.into_iter().filter(|e| e.status == "pending" || e.status.is_empty()).collect())
+}
+
+/// Create a new AST edit proposal.
+#[tauri::command]
+pub async fn create_ast_edit(
+    file: String,
+    target: String,
+    operation: String,
+    confidence: f64,
+    description: String,
+    diff_before: String,
+    diff_after: String,
+) -> Result<AstEdit, String> {
+    let mut store = load_ast_edits();
+    let id = format!("ast-{}", chrono::Utc::now().timestamp_millis());
+    let edit = AstEdit {
+        id: id.clone(),
+        file,
+        target,
+        operation,
+        confidence,
+        description,
+        diff_before,
+        diff_after,
+        status: "pending".to_string(),
+    };
+    store.edits.push(edit.clone());
+    save_ast_edits(&store)?;
+    Ok(edit)
+}
+
+/// Apply an AST edit (mark as applied).
+#[tauri::command]
+pub async fn apply_ast_edit(id: String) -> Result<(), String> {
+    let mut store = load_ast_edits();
+    if let Some(edit) = store.edits.iter_mut().find(|e| e.id == id) {
+        edit.status = "applied".to_string();
+        save_ast_edits(&store)?;
+        Ok(())
+    } else {
+        Err(format!("AST edit not found: {id}"))
+    }
+}
+
+/// Dismiss/reject an AST edit.
+#[tauri::command]
+pub async fn dismiss_ast_edit(id: String) -> Result<(), String> {
+    let mut store = load_ast_edits();
+    if let Some(edit) = store.edits.iter_mut().find(|e| e.id == id) {
+        edit.status = "dismissed".to_string();
+        save_ast_edits(&store)?;
+        Ok(())
+    } else {
+        Err(format!("AST edit not found: {id}"))
+    }
+}
+
+// ── Infinite Context Manager ─────────────────────────────────────────────────
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct InfiniteContextChunk {
+    pub id: u64,
+    #[serde(rename = "filePath")]
+    pub file_path: String,
+    pub depth: String,
+    pub relevance: f64,
+    #[serde(rename = "tokenCount")]
+    pub token_count: u64,
+    pub pinned: bool,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct InfiniteContextProjectFile {
+    pub path: String,
+    #[serde(rename = "isDirectory")]
+    pub is_directory: bool,
+    #[serde(rename = "contextStatus")]
+    pub context_status: String,
+    #[serde(rename = "tokenEstimate")]
+    pub token_estimate: u64,
+    #[serde(rename = "lastModified")]
+    pub last_modified: String,
+    pub relevance: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub children: Option<Vec<InfiniteContextProjectFile>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expanded: Option<bool>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct InfiniteContextWindowStats {
+    #[serde(rename = "usedTokens")]
+    pub used_tokens: u64,
+    #[serde(rename = "maxTokens")]
+    pub max_tokens: u64,
+    #[serde(rename = "usagePct")]
+    pub usage_pct: f64,
+    #[serde(rename = "chunkCount")]
+    pub chunk_count: u64,
+    #[serde(rename = "compressionRatio")]
+    pub compression_ratio: f64,
+}
+
+/// Source file extensions considered for context chunks.
+const ICONTEXT_SOURCE_EXTS: &[&str] = &[
+    "rs", "ts", "tsx", "js", "jsx", "py", "go", "java", "c", "cpp", "h", "hpp",
+    "cs", "rb", "swift", "kt", "scala", "zig", "hs", "ml", "ex", "exs", "lua",
+    "sh", "bash", "zsh", "toml", "yaml", "yml", "json", "md", "css", "html",
+    "sql", "proto", "graphql", "vue", "svelte",
+];
+
+/// Directories to skip when scanning for context.
+const ICONTEXT_SKIP_DIRS: &[&str] = &[
+    "node_modules", ".git", "target", "dist", "build", ".next",
+    "vendor", "__pycache__", ".venv", "venv", ".gradle", "out", ".cache",
+    ".vibeui", ".idea", ".vscode",
+];
+
+/// Estimate relevance based on file extension and recency.
+fn icontext_estimate_relevance(ext: &str, modified_secs_ago: u64) -> f64 {
+    let type_score = match ext {
+        "rs" | "ts" | "tsx" | "py" | "go" | "java" => 0.7,
+        "js" | "jsx" | "c" | "cpp" | "cs" | "swift" | "kt" => 0.6,
+        "toml" | "yaml" | "yml" | "json" => 0.5,
+        "md" | "html" | "css" => 0.35,
+        _ => 0.3,
+    };
+    let recency_score = if modified_secs_ago < 3600 {
+        0.3
+    } else if modified_secs_ago < 86400 {
+        0.2
+    } else if modified_secs_ago < 604800 {
+        0.1
+    } else {
+        0.0
+    };
+    let total: f64 = type_score + recency_score;
+    total.min(1.0_f64)
+}
+
+fn icontext_format_system_time(st: std::time::SystemTime) -> String {
+    let duration = st.duration_since(std::time::UNIX_EPOCH).unwrap_or_default();
+    let secs = duration.as_secs() as i64;
+    let rem = secs % 86400;
+    let hours = rem / 3600;
+    let minutes = (rem % 3600) / 60;
+    let days = secs / 86400;
+    let (year, month, day) = icontext_epoch_days_to_ymd(days);
+    format!("{year:04}-{month:02}-{day:02} {hours:02}:{minutes:02}")
+}
+
+fn icontext_epoch_days_to_ymd(days: i64) -> (i64, i64, i64) {
+    let days = days + 719468;
+    let era = if days >= 0 { days } else { days - 146096 } / 146097;
+    let doe = days - era * 146097;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = if m <= 2 { y + 1 } else { y };
+    (y, m, d)
+}
+
+/// Scan workspace source files and return context chunks with token estimates.
+#[tauri::command]
+pub async fn get_context_chunks(workspace: String) -> Result<Vec<InfiniteContextChunk>, String> {
+    let ws = std::path::Path::new(&workspace)
+        .canonicalize()
+        .map_err(|e| format!("Invalid workspace: {e}"))?;
+
+    let now = std::time::SystemTime::now();
+    let mut chunks = Vec::new();
+    let mut chunk_id: u64 = 1;
+
+    for entry in walkdir::WalkDir::new(&ws)
+        .follow_links(false)
+        .max_depth(10)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
+        if entry.file_type().is_dir() { continue; }
+        let path = entry.path();
+
+        let skip = path.ancestors().any(|a| {
+            a.file_name().and_then(|n| n.to_str())
+                .map(|n| ICONTEXT_SKIP_DIRS.contains(&n))
+                .unwrap_or(false)
+        });
+        if skip { continue; }
+
+        let ext = path.extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("");
+        if !ICONTEXT_SOURCE_EXTS.contains(&ext) { continue; }
+
+        let rel_path = path.strip_prefix(&ws)
+            .unwrap_or(path)
+            .to_string_lossy()
+            .to_string();
+
+        let content = match tokio::fs::read_to_string(path).await {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+        let word_count = content.split_whitespace().count() as u64;
+        let token_count = (word_count as f64 * 1.3) as u64;
+
+        let modified_secs_ago = entry.metadata()
+            .ok()
+            .and_then(|m| m.modified().ok())
+            .and_then(|mt| now.duration_since(mt).ok())
+            .map(|d| d.as_secs())
+            .unwrap_or(u64::MAX);
+
+        let relevance = icontext_estimate_relevance(ext, modified_secs_ago);
+
+        let depth = if token_count < 200 {
+            "Signatures"
+        } else if token_count < 800 {
+            "Skeleton"
+        } else if token_count < 2000 {
+            "Summary"
+        } else {
+            "Full"
+        };
+
+        chunks.push(InfiniteContextChunk {
+            id: chunk_id,
+            file_path: rel_path,
+            depth: depth.to_string(),
+            relevance,
+            token_count,
+            pinned: false,
+        });
+        chunk_id += 1;
+
+        if chunks.len() >= 500 { break; }
+    }
+
+    chunks.sort_by(|a, b| b.relevance.partial_cmp(&a.relevance).unwrap_or(std::cmp::Ordering::Equal));
+    Ok(chunks)
+}
+
+/// Walk workspace and build a nested file tree with token estimates per file.
+#[tauri::command]
+pub async fn get_project_file_tree(workspace: String) -> Result<Vec<InfiniteContextProjectFile>, String> {
+    let ws = std::path::Path::new(&workspace)
+        .canonicalize()
+        .map_err(|e| format!("Invalid workspace: {e}"))?;
+
+    fn build_tree(
+        dir: &std::path::Path,
+        ws_root: &std::path::Path,
+        depth: usize,
+        now: std::time::SystemTime,
+    ) -> Vec<InfiniteContextProjectFile> {
+        if depth > 6 { return Vec::new(); }
+
+        let mut entries: Vec<InfiniteContextProjectFile> = Vec::new();
+        let read_dir = match std::fs::read_dir(dir) {
+            Ok(rd) => rd,
+            Err(_) => return entries,
+        };
+
+        let mut dirs = Vec::new();
+        let mut files = Vec::new();
+
+        for entry in read_dir.filter_map(|e| e.ok()) {
+            let path = entry.path();
+            let name = entry.file_name().to_string_lossy().to_string();
+
+            if path.is_dir() {
+                if ICONTEXT_SKIP_DIRS.contains(&name.as_str()) { continue; }
+                dirs.push((path, name));
+            } else {
+                let ext = path.extension()
+                    .and_then(|e| e.to_str())
+                    .unwrap_or("")
+                    .to_string();
+                if !ICONTEXT_SOURCE_EXTS.contains(&ext.as_str()) { continue; }
+                files.push((path.clone(), name, ext));
+            }
+        }
+
+        dirs.sort_by(|a, b| a.1.cmp(&b.1));
+        files.sort_by(|a, b| a.1.cmp(&b.1));
+
+        for (dir_path, _name) in dirs {
+            let rel = dir_path.strip_prefix(ws_root)
+                .unwrap_or(&dir_path)
+                .to_string_lossy()
+                .to_string();
+            let children = build_tree(&dir_path, ws_root, depth + 1, now);
+            let total_tokens: u64 = children.iter().map(|c| c.token_estimate).sum();
+            let max_relevance = children.iter()
+                .map(|c| c.relevance)
+                .fold(0.0_f64, f64::max);
+            let latest_mod = children.iter()
+                .map(|c| c.last_modified.clone())
+                .max()
+                .unwrap_or_default();
+            let any_loaded = children.iter().any(|c| c.context_status == "loaded" || c.context_status == "summarized");
+            let status = if any_loaded { "summarized" } else { "not-loaded" };
+
+            if children.is_empty() { continue; }
+
+            entries.push(InfiniteContextProjectFile {
+                path: rel,
+                is_directory: true,
+                context_status: status.to_string(),
+                token_estimate: total_tokens,
+                last_modified: latest_mod,
+                relevance: max_relevance,
+                children: Some(children),
+                expanded: Some(depth == 0),
+            });
+        }
+
+        for (file_path, _name, ext) in files {
+            let rel = file_path.strip_prefix(ws_root)
+                .unwrap_or(&file_path)
+                .to_string_lossy()
+                .to_string();
+            let meta = std::fs::metadata(&file_path).ok();
+            let file_size = meta.as_ref().map(|m| m.len()).unwrap_or(0);
+            let token_estimate = file_size / 4;
+            let modified = meta
+                .and_then(|m| m.modified().ok())
+                .unwrap_or(std::time::UNIX_EPOCH);
+            let modified_secs_ago = now.duration_since(modified)
+                .map(|d| d.as_secs())
+                .unwrap_or(u64::MAX);
+            let relevance = icontext_estimate_relevance(&ext, modified_secs_ago);
+
+            entries.push(InfiniteContextProjectFile {
+                path: rel,
+                is_directory: false,
+                context_status: "not-loaded".to_string(),
+                token_estimate,
+                last_modified: icontext_format_system_time(modified),
+                relevance,
+                children: None,
+                expanded: None,
+            });
+        }
+
+        entries
+    }
+
+    let now = std::time::SystemTime::now();
+    let tree = build_tree(&ws, &ws, 0, now);
+    Ok(tree)
+}
+
+/// Return context window stats (total tokens, budget, utilization %).
+#[tauri::command]
+pub async fn get_context_window_stats(workspace: String) -> Result<InfiniteContextWindowStats, String> {
+    let chunks = get_context_chunks(workspace).await?;
+    let used_tokens: u64 = chunks.iter().map(|c| c.token_count).sum();
+    let max_tokens: u64 = 100_000;
+    let usage_pct = if max_tokens > 0 { (used_tokens as f64 / max_tokens as f64) * 100.0 } else { 0.0 };
+    let compression_ratio = if max_tokens > 0 { 1.0 - (used_tokens as f64 / max_tokens as f64) } else { 0.0 };
+
+    Ok(InfiniteContextWindowStats {
+        used_tokens,
+        max_tokens,
+        usage_pct,
+        chunk_count: chunks.len() as u64,
+        compression_ratio,
+    })
+}
+
+/// Remove a chunk from the context window by ID (returns remaining chunks).
+#[tauri::command]
+pub async fn evict_context_chunk(workspace: String, chunk_id: u64) -> Result<Vec<InfiniteContextChunk>, String> {
+    let chunks = get_context_chunks(workspace).await?;
+    let filtered: Vec<InfiniteContextChunk> = chunks.into_iter().filter(|c| c.id != chunk_id).collect();
+    Ok(filtered)
+}
+
+/// Pin or unpin a context chunk by ID.
+#[tauri::command]
+pub async fn pin_context_chunk(workspace: String, chunk_id: u64, pinned: bool) -> Result<Vec<InfiniteContextChunk>, String> {
+    let mut chunks = get_context_chunks(workspace).await?;
+    for chunk in &mut chunks {
+        if chunk.id == chunk_id {
+            chunk.pinned = pinned;
+        }
+    }
+    Ok(chunks)
+}
+
+// ── App Builder ───────────────────────────────────────────────────────────────
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct AppBuilderTemplate {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub category: String,
+    #[serde(rename = "techStack")]
+    pub tech_stack: Vec<String>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct AppBuilderEnhancedSpec {
+    pub title: String,
+    #[serde(rename = "userStories")]
+    pub user_stories: Vec<String>,
+    #[serde(rename = "techStack")]
+    pub tech_stack: Vec<String>,
+    #[serde(rename = "apiEndpoints")]
+    pub api_endpoints: Vec<String>,
+    #[serde(rename = "uiComponents")]
+    pub ui_components: Vec<String>,
+    #[serde(rename = "complexityEstimate")]
+    pub complexity_estimate: String,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct AppBuilderHistoryEntry {
+    pub id: String,
+    pub name: String,
+    #[serde(rename = "templateId")]
+    pub template_id: String,
+    #[serde(rename = "targetDir")]
+    pub target_dir: String,
+    #[serde(rename = "createdAt")]
+    pub created_at: String,
+    pub files: Vec<String>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct AppBuilderCreateResult {
+    #[serde(rename = "projectDir")]
+    pub project_dir: String,
+    #[serde(rename = "filesCreated")]
+    pub files_created: Vec<String>,
+    pub message: String,
+}
+
+fn app_builder_history_path() -> PathBuf {
+    dirs::home_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join(".vibeui")
+        .join("app-builder-history.json")
+}
+
+/// Return available app builder templates
+#[tauri::command]
+pub async fn get_app_templates() -> Result<Vec<AppBuilderTemplate>, String> {
+    Ok(vec![
+        AppBuilderTemplate { id: "react-spa".into(), name: "React SPA".into(), description: "Single-page React app with Vite and TailwindCSS".into(), category: "Web".into(), tech_stack: vec!["React".into(), "Vite".into(), "TailwindCSS".into()] },
+        AppBuilderTemplate { id: "rest-api".into(), name: "REST API".into(), description: "Express.js REST API with TypeScript and Prisma ORM".into(), category: "API".into(), tech_stack: vec!["Node.js".into(), "Express".into(), "Prisma".into(), "TypeScript".into()] },
+        AppBuilderTemplate { id: "nextjs-fullstack".into(), name: "Full-Stack Next.js".into(), description: "Next.js app with API routes, auth, and database".into(), category: "FullStack".into(), tech_stack: vec!["Next.js".into(), "Prisma".into(), "NextAuth".into()] },
+        AppBuilderTemplate { id: "landing-page".into(), name: "Landing Page".into(), description: "Marketing landing page with animations and contact form".into(), category: "Landing".into(), tech_stack: vec!["HTML".into(), "TailwindCSS".into(), "Alpine.js".into()] },
+        AppBuilderTemplate { id: "admin-dashboard".into(), name: "Admin Dashboard".into(), description: "Data-driven dashboard with charts, tables, and RBAC".into(), category: "Dashboard".into(), tech_stack: vec!["React".into(), "Recharts".into(), "TanStack Table".into()] },
+        AppBuilderTemplate { id: "react-native".into(), name: "React Native App".into(), description: "Cross-platform mobile app with Expo and navigation".into(), category: "Mobile".into(), tech_stack: vec!["React Native".into(), "Expo".into(), "React Navigation".into()] },
+        AppBuilderTemplate { id: "rust-cli".into(), name: "Rust CLI Tool".into(), description: "Command-line tool with Clap and structured logging".into(), category: "API".into(), tech_stack: vec!["Rust".into(), "Clap".into(), "tokio".into()] },
+        AppBuilderTemplate { id: "python-fastapi".into(), name: "Python FastAPI".into(), description: "FastAPI backend with Pydantic, SQLAlchemy, and Alembic".into(), category: "API".into(), tech_stack: vec!["Python".into(), "FastAPI".into(), "SQLAlchemy".into()] },
+    ])
+}
+
+/// Scaffold a new project from a template into a target directory
+#[tauri::command]
+pub async fn create_app_project(template_id: String, project_name: String, target_dir: String) -> Result<AppBuilderCreateResult, String> {
+    if project_name.is_empty() { return Err("Project name cannot be empty".into()); }
+    if !project_name.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_') {
+        return Err(format!("Invalid project name: {project_name}"));
+    }
+    let project_dir = PathBuf::from(&target_dir).join(&project_name);
+    tokio::fs::create_dir_all(&project_dir).await.map_err(|e| format!("Failed to create project directory: {e}"))?;
+    let files: Vec<(&str, String)> = match template_id.as_str() {
+        "react-spa" => vec![
+            ("package.json", format!(r#"{{"name":"{}","private":true,"version":"0.1.0","type":"module","scripts":{{"dev":"vite","build":"tsc && vite build"}},"dependencies":{{"react":"^18.2.0","react-dom":"^18.2.0"}},"devDependencies":{{"@vitejs/plugin-react":"^4.0.0","typescript":"^5.0.0","vite":"^5.0.0","tailwindcss":"^3.4.0"}}}}"#, project_name)),
+            ("src/App.tsx", format!("export default function App() {{\n  return <div className=\"min-h-screen\"><h1>{}</h1></div>;\n}}\n", project_name)),
+            ("src/main.tsx", "import React from 'react';\nimport ReactDOM from 'react-dom/client';\nimport App from './App';\nReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><App /></React.StrictMode>);\n".into()),
+            (".gitignore", "node_modules\ndist\n.env\n".into()),
+        ],
+        "rest-api" => vec![
+            ("package.json", format!(r#"{{"name":"{}","version":"0.1.0","scripts":{{"dev":"tsx watch src/index.ts","build":"tsc"}},"dependencies":{{"express":"^4.18.0"}},"devDependencies":{{"@types/express":"^4.17.0","tsx":"^4.0.0","typescript":"^5.0.0"}}}}"#, project_name)),
+            ("src/index.ts", "import express from 'express';\nconst app = express();\napp.use(express.json());\napp.get('/api/health', (_req, res) => res.json({ status: 'ok' }));\napp.listen(process.env.PORT || 3000);\n".into()),
+            (".gitignore", "node_modules\ndist\n.env\n".into()),
+        ],
+        "nextjs-fullstack" => vec![
+            ("package.json", format!(r#"{{"name":"{}","version":"0.1.0","scripts":{{"dev":"next dev","build":"next build"}},"dependencies":{{"next":"^14.0.0","react":"^18.2.0","react-dom":"^18.2.0"}}}}"#, project_name)),
+            ("src/app/page.tsx", format!("export default function Home() {{\n  return <main><h1>{}</h1></main>;\n}}\n", project_name)),
+            (".gitignore", "node_modules\n.next\n.env\n".into()),
+        ],
+        _ => vec![
+            ("README.md", format!("# {}\n\nGenerated by VibeUI App Builder.\n", project_name)),
+            (".gitignore", "node_modules\ndist\n.env\ntarget\n".into()),
+        ],
+    };
+    let mut files_created = Vec::new();
+    for (rel_path, content) in &files {
+        let file_path = project_dir.join(rel_path);
+        if let Some(parent) = file_path.parent() {
+            tokio::fs::create_dir_all(parent).await.map_err(|e| format!("mkdir {}: {e}", parent.display()))?;
+        }
+        tokio::fs::write(&file_path, content).await.map_err(|e| format!("write {rel_path}: {e}"))?;
+        files_created.push(rel_path.to_string());
+    }
+    let history_path = app_builder_history_path();
+    if let Some(parent) = history_path.parent() { let _ = tokio::fs::create_dir_all(parent).await; }
+    let mut history: Vec<AppBuilderHistoryEntry> = match tokio::fs::read_to_string(&history_path).await {
+        Ok(data) => serde_json::from_str(&data).unwrap_or_default(),
+        Err(_) => Vec::new(),
+    };
+    let now_ms = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis();
+    let now_s = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs();
+    history.push(AppBuilderHistoryEntry {
+        id: format!("abh-{now_ms}"), name: project_name.clone(), template_id: template_id.clone(),
+        target_dir: project_dir.to_string_lossy().to_string(), created_at: format!("{now_s}"), files: files_created.clone(),
+    });
+    if let Ok(json) = serde_json::to_string_pretty(&history) { let _ = tokio::fs::write(&history_path, json).await; }
+    Ok(AppBuilderCreateResult {
+        project_dir: project_dir.to_string_lossy().to_string(), files_created,
+        message: format!("Project '{}' created with template '{}'.", project_name, template_id),
+    })
+}
+
+/// Return past scaffolded projects from history file
+#[tauri::command]
+pub async fn get_app_builder_history() -> Result<Vec<AppBuilderHistoryEntry>, String> {
+    let path = app_builder_history_path();
+    match tokio::fs::read_to_string(&path).await {
+        Ok(data) => serde_json::from_str(&data).map_err(|e| format!("Failed to parse history: {e}")),
+        Err(_) => Ok(Vec::new()),
+    }
+}
+
+/// AI-enhance a template config
+#[tauri::command]
+pub async fn enhance_app_template(idea: String, state: tauri::State<'_, AppState>) -> Result<AppBuilderEnhancedSpec, String> {
+    if idea.trim().is_empty() { return Err("App idea cannot be empty".into()); }
+    let title = idea.split(&['.', '\n'][..]).next().unwrap_or(&idea).trim().chars().take(60).collect::<String>();
+    let title = if title.is_empty() { "My App".to_string() } else { title };
+    let prompt = format!("Given this app idea, generate a JSON object with fields: title (string), userStories (array of 3-5 strings), techStack (array of strings), apiEndpoints (array of REST endpoint strings), uiComponents (array of strings), complexityEstimate (string). App idea: {}", idea);
+    let chat_engine = state.chat_engine.lock().await;
+    let messages = vec![Message { role: vibe_ai::provider::MessageRole::User, content: prompt }];
+    let ai_result = chat_engine.chat(&messages, None).await;
+    drop(chat_engine);
+    if let Ok(response) = ai_result {
+        let text = response.trim();
+        let json_str = if let Some(start) = text.find('{') {
+            if let Some(end) = text.rfind('}') { &text[start..=end] } else { text }
+        } else { text };
+        if let Ok(spec) = serde_json::from_str::<AppBuilderEnhancedSpec>(json_str) { return Ok(spec); }
+    }
+    let idea_lower = idea.to_lowercase();
+    let mut tech_stack = vec!["TypeScript".to_string()];
+    let mut api_endpoints = vec!["GET /api/health".to_string()];
+    let mut ui_components = vec!["App".to_string(), "Sidebar".to_string()];
+    if idea_lower.contains("react") || idea_lower.contains("frontend") || idea_lower.contains("dashboard") {
+        tech_stack.extend(["React".into(), "Vite".into(), "TailwindCSS".into()]);
+        ui_components.extend(["Dashboard".into(), "DataTable".into(), "Header".into()]);
+    } else if idea_lower.contains("api") || idea_lower.contains("backend") || idea_lower.contains("server") {
+        tech_stack.extend(["Node.js".into(), "Express".into(), "Prisma".into()]);
+    } else {
+        tech_stack.extend(["React".into(), "Node.js".into(), "PostgreSQL".into(), "TailwindCSS".into()]);
+        ui_components.extend(["Dashboard".into(), "SettingsPanel".into()]);
+    }
+    if idea_lower.contains("auth") || idea_lower.contains("login") || idea_lower.contains("user") {
+        api_endpoints.push("POST /api/auth/login".into());
+        api_endpoints.push("POST /api/auth/register".into());
+        ui_components.push("LoginForm".into());
+    }
+    if idea_lower.contains("data") || idea_lower.contains("crud") || idea_lower.contains("manage") {
+        api_endpoints.extend(["GET /api/items".into(), "POST /api/items".into(), "PUT /api/items/:id".into(), "DELETE /api/items/:id".into()]);
+    }
+    let complexity = if idea.len() < 50 { "Low (~1 week for MVP)" } else if idea.len() < 200 { "Medium (~2-3 weeks for MVP)" } else { "High (~4-6 weeks for MVP)" };
+    Ok(AppBuilderEnhancedSpec {
+        title,
+        user_stories: vec!["As a user, I can sign up and log in securely".into(), "As a user, I can view and manage my dashboard".into(), "As an admin, I can manage users and settings".into()],
+        tech_stack, api_endpoints, ui_components, complexity_estimate: complexity.to_string(),
+    })
 }

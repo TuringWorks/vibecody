@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 // -- Types --------------------------------------------------------------------
 
@@ -17,6 +18,7 @@ interface SandboxInstance {
   diskGb: number;
   createdAt: string;
   expiresAt: string;
+  logs: string[];
 }
 
 interface SandboxTemplate {
@@ -38,22 +40,6 @@ interface CreateForm {
   disk: number;
 }
 
-// -- Mock Data ----------------------------------------------------------------
-
-const MOCK_INSTANCES: SandboxInstance[] = [
-  { id: "sb-001", name: "api-prototype", template: "Rust", state: "Running", url: "https://sb-001.sandbox.vibe.dev", owner: "alice", cpu: 2, memoryGb: 4, diskGb: 20, createdAt: "2026-03-09 08:00", expiresAt: "2026-03-10 08:00" },
-  { id: "sb-002", name: "ml-experiment", template: "Python", state: "Running", url: "https://sb-002.sandbox.vibe.dev", owner: "bob", cpu: 4, memoryGb: 8, diskGb: 50, createdAt: "2026-03-09 10:30", expiresAt: "2026-03-10 10:30" },
-  { id: "sb-003", name: "frontend-spike", template: "Node", state: "Stopped", url: "https://sb-003.sandbox.vibe.dev", owner: "alice", cpu: 1, memoryGb: 2, diskGb: 10, createdAt: "2026-03-08 14:00", expiresAt: "2026-03-09 14:00" },
-  { id: "sb-004", name: "data-pipeline", template: "Python", state: "Creating", url: "https://sb-004.sandbox.vibe.dev", owner: "carol", cpu: 2, memoryGb: 4, diskGb: 30, createdAt: "2026-03-09 15:00", expiresAt: "2026-03-10 15:00" },
-  { id: "sb-005", name: "old-demo", template: "Node", state: "Expired", url: "https://sb-005.sandbox.vibe.dev", owner: "bob", cpu: 1, memoryGb: 2, diskGb: 10, createdAt: "2026-03-05 09:00", expiresAt: "2026-03-06 09:00" },
-];
-
-const MOCK_TEMPLATES: SandboxTemplate[] = [
-  { id: "tpl-rust", name: "Rust", language: "Rust", description: "Rust development environment with cargo, clippy, and rust-analyzer", preinstalled: ["cargo", "clippy", "rust-analyzer", "rustfmt", "cargo-watch"], defaultCpu: 2, defaultMemoryGb: 4, defaultDiskGb: 20 },
-  { id: "tpl-node", name: "Node", language: "TypeScript/JavaScript", description: "Node.js 22 with npm, pnpm, and common dev tools", preinstalled: ["node 22", "npm", "pnpm", "typescript", "eslint", "prettier"], defaultCpu: 1, defaultMemoryGb: 2, defaultDiskGb: 10 },
-  { id: "tpl-python", name: "Python", language: "Python", description: "Python 3.12 with pip, poetry, and scientific computing libraries", preinstalled: ["python 3.12", "pip", "poetry", "numpy", "pandas", "pytest"], defaultCpu: 2, defaultMemoryGb: 4, defaultDiskGb: 30 },
-];
-
 // -- Helpers ------------------------------------------------------------------
 
 const stateColor = (s: InstanceState): string => {
@@ -69,16 +55,77 @@ const stateColor = (s: InstanceState): string => {
 
 const CloudSandboxPanel: React.FC = () => {
   const [tab, setTab] = useState<TabName>("Instances");
-  const [instances] = useState<SandboxInstance[]>(MOCK_INSTANCES);
+  const [instances, setInstances] = useState<SandboxInstance[]>([]);
+  const [templates, setTemplates] = useState<SandboxTemplate[]>([]);
   const [form, setForm] = useState<CreateForm>({ name: "", template: "Rust", cpu: 2, memory: 4, disk: 20 });
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const tabs: TabName[] = ["Instances", "Templates", "Create"];
 
-  const handleCreate = () => {
+  const loadInstances = useCallback(async () => {
+    try {
+      const data = await invoke<SandboxInstance[]>("list_cloud_sandboxes");
+      setInstances(data);
+    } catch (e) {
+      setError(`Failed to load instances: ${e}`);
+    }
+  }, []);
+
+  const loadTemplates = useCallback(async () => {
+    try {
+      const data = await invoke<SandboxTemplate[]>("get_cloud_sandbox_templates");
+      setTemplates(data);
+    } catch (e) {
+      setError(`Failed to load templates: ${e}`);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadInstances();
+    loadTemplates();
+  }, [loadInstances, loadTemplates]);
+
+  const handleCreate = async () => {
     if (!form.name.trim()) return;
-    setError(`Creating sandbox "${form.name}" with template ${form.template} (${form.cpu} CPU, ${form.memory}GB RAM, ${form.disk}GB disk)`);
-    setForm({ name: "", template: "Rust", cpu: 2, memory: 4, disk: 20 });
+    setLoading(true);
+    setError(null);
+    try {
+      await invoke<SandboxInstance>("create_cloud_sandbox", {
+        name: form.name,
+        template: form.template,
+        cpu: form.cpu,
+        memoryGb: form.memory,
+        diskGb: form.disk,
+      });
+      setForm({ name: "", template: "Rust", cpu: 2, memory: 4, disk: 20 });
+      await loadInstances();
+      setTab("Instances");
+    } catch (e) {
+      setError(`Failed to create sandbox: ${e}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStop = async (id: string) => {
+    setError(null);
+    try {
+      await invoke("stop_cloud_sandbox", { id });
+      await loadInstances();
+    } catch (e) {
+      setError(`Failed to stop sandbox: ${e}`);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    setError(null);
+    try {
+      await invoke("delete_cloud_sandbox", { id });
+      await loadInstances();
+    } catch (e) {
+      setError(`Failed to delete sandbox: ${e}`);
+    }
   };
 
   const handleTemplateSelect = (tpl: SandboxTemplate) => {
@@ -90,7 +137,7 @@ const CloudSandboxPanel: React.FC = () => {
     <div style={{ padding: 12, fontFamily: "var(--font-family, sans-serif)", fontSize: 13, height: "100%", overflowY: "auto", color: "var(--text-primary)", background: "var(--bg-primary)" }}>
       <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12 }}>Cloud Sandbox</div>
 
-      {error && <div className="panel-error"><span>{error}</span><button onClick={() => setError(null)}>✕</button></div>}
+      {error && <div className="panel-error"><span>{error}</span><button onClick={() => setError(null)}>&#x2715;</button></div>}
 
       {/* Tab bar */}
       <div style={{ display: "flex", gap: 0, marginBottom: 12, borderBottom: "1px solid var(--border-color)" }}>
@@ -119,6 +166,12 @@ const CloudSandboxPanel: React.FC = () => {
                 {inst.state === "Running" && (
                   <a href={inst.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: "var(--accent-color)", textDecoration: "none" }}>{inst.url}</a>
                 )}
+                {(inst.state === "Running" || inst.state === "Creating") && (
+                  <button onClick={() => handleStop(inst.id)} style={{ fontSize: 10, padding: "2px 8px", borderRadius: 3, border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)", cursor: "pointer" }}>Stop</button>
+                )}
+                {(inst.state === "Stopped" || inst.state === "Expired") && (
+                  <button onClick={() => handleDelete(inst.id)} style={{ fontSize: 10, padding: "2px 8px", borderRadius: 3, border: "1px solid var(--error-color)", background: "var(--bg-primary)", color: "var(--error-color)", cursor: "pointer" }}>Delete</button>
+                )}
                 <span style={{ marginLeft: "auto", fontSize: 10, color: "var(--text-muted)" }}>Created: {inst.createdAt}</span>
               </div>
             </div>
@@ -132,7 +185,7 @@ const CloudSandboxPanel: React.FC = () => {
       {/* Templates Tab */}
       {tab === "Templates" && (
         <div>
-          {MOCK_TEMPLATES.map((tpl) => (
+          {templates.map((tpl) => (
             <div key={tpl.id} style={{ padding: "10px 12px", marginBottom: 8, borderRadius: 4, background: "var(--bg-secondary)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span style={{ fontWeight: 600, fontSize: 13 }}>{tpl.name}</span>
@@ -149,6 +202,9 @@ const CloudSandboxPanel: React.FC = () => {
               </div>
             </div>
           ))}
+          {templates.length === 0 && (
+            <div style={{ textAlign: "center", padding: 30, color: "var(--text-muted)" }}>Loading templates...</div>
+          )}
         </div>
       )}
 
@@ -161,8 +217,8 @@ const CloudSandboxPanel: React.FC = () => {
           </div>
           <div style={{ marginBottom: 12 }}>
             <label style={{ fontSize: 11, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>Template</label>
-            <select value={form.template} onChange={(e) => { const tpl = MOCK_TEMPLATES.find((t) => t.name === e.target.value); if (tpl) { setForm({ ...form, template: tpl.name, cpu: tpl.defaultCpu, memory: tpl.defaultMemoryGb, disk: tpl.defaultDiskGb }); } }} style={{ width: "100%", padding: "6px 10px", fontSize: 12, background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4 }}>
-              {MOCK_TEMPLATES.map((t) => (
+            <select value={form.template} onChange={(e) => { const tpl = templates.find((t) => t.name === e.target.value); if (tpl) { setForm({ ...form, template: tpl.name, cpu: tpl.defaultCpu, memory: tpl.defaultMemoryGb, disk: tpl.defaultDiskGb }); } }} style={{ width: "100%", padding: "6px 10px", fontSize: 12, background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4 }}>
+              {templates.map((t) => (
                 <option key={t.id} value={t.name}>{t.name} ({t.language})</option>
               ))}
             </select>
@@ -178,8 +234,8 @@ const CloudSandboxPanel: React.FC = () => {
           <div style={{ padding: "8px 12px", borderRadius: 4, background: "var(--bg-secondary)", marginBottom: 12, fontSize: 11, color: "var(--text-muted)" }}>
             Configuration: {form.template} template with {form.cpu} CPU, {form.memory}GB RAM, {form.disk}GB disk. Instance expires in 24 hours.
           </div>
-          <button onClick={handleCreate} disabled={!form.name.trim()} style={{ width: "100%", padding: "8px 16px", fontSize: 13, borderRadius: 4, border: "none", background: form.name.trim() ? "var(--accent-color)" : "var(--text-muted)", color: "white", cursor: form.name.trim() ? "pointer" : "not-allowed", fontWeight: 600 }}>
-            Create Sandbox
+          <button onClick={handleCreate} disabled={!form.name.trim() || loading} style={{ width: "100%", padding: "8px 16px", fontSize: 13, borderRadius: 4, border: "none", background: form.name.trim() && !loading ? "var(--accent-color)" : "var(--text-muted)", color: "white", cursor: form.name.trim() && !loading ? "pointer" : "not-allowed", fontWeight: 600 }}>
+            {loading ? "Creating..." : "Create Sandbox"}
           </button>
         </div>
       )}

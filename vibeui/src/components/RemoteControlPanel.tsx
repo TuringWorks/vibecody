@@ -3,9 +3,10 @@
  *
  * Tabs: Server (start/stop, QR code, pairing token),
  * Clients (connected devices), Events (scrollable event log).
- * Pure TypeScript — no Tauri commands.
+ * Wired to Tauri backend commands persisted in ~/.vibeui/remote-control.json.
  */
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 type Tab = "server" | "clients" | "events";
 
@@ -86,23 +87,12 @@ interface RemoteEvent {
   detail: string;
 }
 
-const MOCK_CLIENTS: ConnectedClient[] = [
-  { id: "c1", name: "iPhone 15 Pro", type: "mobile", permissions: ["navigate", "execute", "view"], lastSeen: "2s ago", connected: true },
-  { id: "c2", name: "iPad Air", type: "tablet", permissions: ["navigate", "view"], lastSeen: "15s ago", connected: true },
-  { id: "c3", name: "Chrome Web", type: "web", permissions: ["view"], lastSeen: "2m ago", connected: false },
-  { id: "c4", name: "MacBook Remote", type: "desktop", permissions: ["navigate", "execute", "view", "edit"], lastSeen: "1h ago", connected: false },
-];
-
-const MOCK_EVENTS: RemoteEvent[] = [
-  { id: "e1", timestamp: "14:32:01", clientId: "c1", action: "file.open", detail: "src/main.rs" },
-  { id: "e2", timestamp: "14:31:45", clientId: "c1", action: "command.run", detail: "cargo test" },
-  { id: "e3", timestamp: "14:31:20", clientId: "c2", action: "navigate", detail: "Switched to Tests tab" },
-  { id: "e4", timestamp: "14:30:58", clientId: "c1", action: "file.save", detail: "src/lib.rs" },
-  { id: "e5", timestamp: "14:30:12", clientId: "c3", action: "connect", detail: "Web client connected" },
-  { id: "e6", timestamp: "14:29:44", clientId: "c2", action: "command.run", detail: "git status" },
-  { id: "e7", timestamp: "14:28:30", clientId: "c1", action: "file.open", detail: "Cargo.toml" },
-  { id: "e8", timestamp: "14:27:15", clientId: "c3", action: "disconnect", detail: "Web client disconnected" },
-];
+interface RemoteStatus {
+  running: boolean;
+  port: number;
+  token: string;
+  connectedCount: number;
+}
 
 const tabBtn = (active: boolean): React.CSSProperties => ({
   padding: "6px 14px",
@@ -121,21 +111,88 @@ export default function RemoteControlPanel() {
   const [tab, setTab] = useState<Tab>("server");
   const [serverRunning, setServerRunning] = useState(false);
   const [port, setPort] = useState(9090);
-  const [token] = useState("vbc-" + Math.random().toString(36).slice(2, 10));
-  const [clients, setClients] = useState(MOCK_CLIENTS);
-  const [events] = useState(MOCK_EVENTS);
+  const [token, setToken] = useState("");
+  const [clients, setClients] = useState<ConnectedClient[]>([]);
+  const [events, setEvents] = useState<RemoteEvent[]>([]);
   const qrRef = useRef<HTMLCanvasElement>(null);
+
+  // Load initial state from backend
+  const loadStatus = useCallback(async () => {
+    try {
+      const status = await invoke<RemoteStatus>("get_remote_control_status");
+      setServerRunning(status.running);
+      setPort(status.port);
+      setToken(status.token);
+    } catch {
+      // Backend unavailable — leave defaults
+    }
+  }, []);
+
+  const loadClients = useCallback(async () => {
+    try {
+      const data = await invoke<ConnectedClient[]>("list_remote_clients");
+      setClients(data);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const loadEvents = useCallback(async () => {
+    try {
+      const data = await invoke<RemoteEvent[]>("get_remote_events");
+      setEvents(data);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    loadStatus();
+    loadClients();
+    loadEvents();
+  }, [loadStatus, loadClients, loadEvents]);
+
+  // Refresh clients & events when switching tabs
+  useEffect(() => {
+    if (tab === "clients") loadClients();
+    if (tab === "events") loadEvents();
+  }, [tab, loadClients, loadEvents]);
 
   // Generate QR code when server starts
   useEffect(() => {
-    if (serverRunning && qrRef.current) {
+    if (serverRunning && qrRef.current && token) {
       const pairingUrl = `vibecli://pair?host=localhost&port=${port}&token=${token}`;
       drawQrCode(qrRef.current, pairingUrl, 240);
     }
   }, [serverRunning, port, token]);
 
-  const toggleClient = (id: string) => {
-    setClients(cs => cs.map(c => c.id === id ? { ...c, connected: !c.connected } : c));
+  const handleToggleServer = async () => {
+    try {
+      if (serverRunning) {
+        const status = await invoke<RemoteStatus>("stop_remote_server");
+        setServerRunning(status.running);
+        setToken(status.token);
+      } else {
+        const status = await invoke<RemoteStatus>("start_remote_server", { port });
+        setServerRunning(status.running);
+        setToken(status.token);
+        setPort(status.port);
+      }
+      loadEvents();
+      loadClients();
+    } catch {
+      // ignore errors
+    }
+  };
+
+  const handleDisconnectClient = async (clientId: string) => {
+    try {
+      await invoke("disconnect_remote_client", { clientId });
+      loadClients();
+      loadEvents();
+    } catch {
+      // ignore
+    }
   };
 
   return (
@@ -162,7 +219,7 @@ export default function RemoteControlPanel() {
                 <label style={{ fontSize: 11, color: "var(--text-muted)" }}>Port:</label>
                 <input type="number" value={port} onChange={e => setPort(Number(e.target.value))}
                   style={{ width: 80, padding: "4px 8px", fontSize: 12, fontFamily: "monospace", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)" }} />
-                <button onClick={() => setServerRunning(!serverRunning)}
+                <button onClick={handleToggleServer}
                   style={{ padding: "6px 16px", fontSize: 11, fontWeight: 600, borderRadius: 4, border: "none", cursor: "pointer",
                     background: serverRunning ? "var(--text-danger)" : "var(--text-success)",
                     color: "var(--bg-primary)" }}>
@@ -192,8 +249,8 @@ export default function RemoteControlPanel() {
             <div style={{ padding: 14, background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)" }}>
               <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 8 }}>Pairing Token</div>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <code style={{ flex: 1, padding: "6px 10px", background: "var(--bg-primary)", borderRadius: 4, fontSize: 13, fontFamily: "monospace", color: "var(--accent-color)", letterSpacing: 1 }}>{token}</code>
-                <button onClick={() => navigator.clipboard.writeText(token)}
+                <code style={{ flex: 1, padding: "6px 10px", background: "var(--bg-primary)", borderRadius: 4, fontSize: 13, fontFamily: "monospace", color: "var(--accent-color)", letterSpacing: 1 }}>{token || "---"}</code>
+                <button onClick={() => token && navigator.clipboard.writeText(token)}
                   style={{ padding: "5px 12px", fontSize: 10, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-muted)", cursor: "pointer" }}>Copy</button>
               </div>
             </div>
@@ -213,12 +270,19 @@ export default function RemoteControlPanel() {
             <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 10, background: c.connected ? "rgba(166,227,161,0.15)" : "rgba(243,139,168,0.15)", color: c.connected ? "var(--text-success)" : "var(--text-danger)" }}>
               {c.connected ? "Online" : "Offline"}
             </span>
-            <button onClick={() => toggleClient(c.id)}
-              style={{ padding: "4px 10px", fontSize: 10, borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-muted)", cursor: "pointer" }}>
-              {c.connected ? "Disconnect" : "Reconnect"}
-            </button>
+            {c.connected && (
+              <button onClick={() => handleDisconnectClient(c.id)}
+                style={{ padding: "4px 10px", fontSize: 10, borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-muted)", cursor: "pointer" }}>
+                Disconnect
+              </button>
+            )}
           </div>
         ))}
+        {tab === "clients" && clients.length === 0 && (
+          <div style={{ textAlign: "center", padding: 24, color: "var(--text-muted)", fontSize: 12 }}>
+            No clients connected. Start the server and pair a device.
+          </div>
+        )}
 
         {/* Events tab */}
         {tab === "events" && (
@@ -231,6 +295,11 @@ export default function RemoteControlPanel() {
                 <span style={{ color: "var(--text-muted)", fontSize: 10 }}>{e.clientId}</span>
               </div>
             ))}
+            {events.length === 0 && (
+              <div style={{ textAlign: "center", padding: 24, color: "var(--text-muted)", fontSize: 12 }}>
+                No events yet.
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -3,9 +3,10 @@
  *
  * Monitor session health, view memory usage over time, and manage
  * memory alerts with severity tracking.
- * Pure TypeScript — no Tauri commands needed.
+ * Wired to Tauri backend commands for live data.
  */
-import { useState, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -39,40 +40,18 @@ interface MemoryAlert {
   resolved: boolean;
 }
 
-// ── Mock Data ─────────────────────────────────────────────────────────────────
+// ── Fallback Data ─────────────────────────────────────────────────────────────
 
-const MOCK_HEALTH: HealthStatus = {
-  status: "warning",
-  uptimeSec: 14520,
-  memoryUsedMb: 384,
+const FALLBACK_HEALTH: HealthStatus = {
+  status: "healthy",
+  uptimeSec: 0,
+  memoryUsedMb: 0,
   memoryLimitMb: 512,
-  growthRateMbPerMin: 1.2,
-  gcCount: 47,
-  lastGcAt: "2026-03-13T08:28:00Z",
-  peakMemoryMb: 412,
+  growthRateMbPerMin: 0,
+  gcCount: 0,
+  lastGcAt: new Date().toISOString(),
+  peakMemoryMb: 0,
 };
-
-const MOCK_SAMPLES: MemorySample[] = [
-  { id: "s1", timestamp: "2026-03-13T04:00:00Z", heapUsedMb: 120, heapTotalMb: 200, externalMb: 15, contextTokens: 24000, activeSessions: 2 },
-  { id: "s2", timestamp: "2026-03-13T05:00:00Z", heapUsedMb: 145, heapTotalMb: 220, externalMb: 18, contextTokens: 42000, activeSessions: 3 },
-  { id: "s3", timestamp: "2026-03-13T05:30:00Z", heapUsedMb: 198, heapTotalMb: 280, externalMb: 22, contextTokens: 68000, activeSessions: 4 },
-  { id: "s4", timestamp: "2026-03-13T06:00:00Z", heapUsedMb: 230, heapTotalMb: 320, externalMb: 28, contextTokens: 95000, activeSessions: 5 },
-  { id: "s5", timestamp: "2026-03-13T06:30:00Z", heapUsedMb: 185, heapTotalMb: 280, externalMb: 20, contextTokens: 52000, activeSessions: 3 },
-  { id: "s6", timestamp: "2026-03-13T07:00:00Z", heapUsedMb: 260, heapTotalMb: 360, externalMb: 32, contextTokens: 110000, activeSessions: 6 },
-  { id: "s7", timestamp: "2026-03-13T07:30:00Z", heapUsedMb: 310, heapTotalMb: 400, externalMb: 38, contextTokens: 145000, activeSessions: 7 },
-  { id: "s8", timestamp: "2026-03-13T08:00:00Z", heapUsedMb: 348, heapTotalMb: 440, externalMb: 42, contextTokens: 172000, activeSessions: 8 },
-  { id: "s9", timestamp: "2026-03-13T08:15:00Z", heapUsedMb: 372, heapTotalMb: 460, externalMb: 45, contextTokens: 188000, activeSessions: 8 },
-  { id: "s10", timestamp: "2026-03-13T08:30:00Z", heapUsedMb: 384, heapTotalMb: 480, externalMb: 48, contextTokens: 195000, activeSessions: 9 },
-];
-
-const MOCK_ALERTS: MemoryAlert[] = [
-  { id: "a1", type: "high_usage", severity: "critical", message: "Memory usage at 75% of limit (384/512 MB)", timestamp: "2026-03-13T08:30:00Z", resolved: false },
-  { id: "a2", type: "rapid_growth", severity: "warning", message: "Memory growing at 1.2 MB/min — will exhaust in ~107 minutes", timestamp: "2026-03-13T08:15:00Z", resolved: false },
-  { id: "a3", type: "token_overflow", severity: "warning", message: "Context tokens approaching 200k limit (195k used)", timestamp: "2026-03-13T08:30:00Z", resolved: false },
-  { id: "a4", type: "gc_pressure", severity: "info", message: "GC running frequently — 12 collections in last 30 minutes", timestamp: "2026-03-13T08:00:00Z", resolved: false },
-  { id: "a5", type: "leak_suspected", severity: "warning", message: "Possible memory leak: heap grew 164 MB without corresponding session increase", timestamp: "2026-03-13T07:30:00Z", resolved: true },
-  { id: "a6", type: "high_usage", severity: "info", message: "Memory usage crossed 50% threshold", timestamp: "2026-03-13T06:00:00Z", resolved: true },
-];
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
@@ -108,20 +87,99 @@ type Tab = "health" | "samples" | "alerts";
 
 export function SessionMemoryPanel() {
   const [tab, setTab] = useState<Tab>("health");
-  const [alerts, setAlerts] = useState<MemoryAlert[]>(MOCK_ALERTS);
+  const [health, setHealth] = useState<HealthStatus>(FALLBACK_HEALTH);
+  const [samples, setSamples] = useState<MemorySample[]>([]);
+  const [alerts, setAlerts] = useState<MemoryAlert[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [compacting, setCompacting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchHealth = useCallback(async () => {
+    try {
+      const data = await invoke<HealthStatus>("get_session_memory_health");
+      setHealth(data);
+    } catch (err) {
+      console.error("Failed to fetch session memory health:", err);
+      setError(String(err));
+    }
+  }, []);
+
+  const fetchSamples = useCallback(async () => {
+    try {
+      const data = await invoke<MemorySample[]>("get_session_memory_samples");
+      setSamples(data);
+    } catch (err) {
+      console.error("Failed to fetch session memory samples:", err);
+    }
+  }, []);
+
+  const fetchAlerts = useCallback(async () => {
+    try {
+      const data = await invoke<MemoryAlert[]>("get_session_memory_alerts");
+      setAlerts(data);
+    } catch (err) {
+      console.error("Failed to fetch session memory alerts:", err);
+    }
+  }, []);
+
+  const loadAll = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    await Promise.all([fetchHealth(), fetchSamples(), fetchAlerts()]);
+    setLoading(false);
+  }, [fetchHealth, fetchSamples, fetchAlerts]);
+
+  useEffect(() => {
+    loadAll();
+    const interval = setInterval(loadAll, 15000);
+    return () => clearInterval(interval);
+  }, [loadAll]);
 
   const activeAlerts = useMemo(() => alerts.filter((a) => !a.resolved), [alerts]);
-  const memPct = (MOCK_HEALTH.memoryUsedMb / MOCK_HEALTH.memoryLimitMb) * 100;
+  const memPct = health.memoryLimitMb > 0 ? (health.memoryUsedMb / health.memoryLimitMb) * 100 : 0;
   const memBarColor = memPct >= 80 ? "var(--error-color)" : memPct >= 60 ? "var(--warning-color)" : "var(--success-color)";
-  const maxHeap = Math.max(...MOCK_SAMPLES.map((s) => s.heapTotalMb));
+  const maxHeap = samples.length > 0 ? Math.max(...samples.map((s) => s.heapTotalMb)) : 1;
 
-  const resolveAlert = (id: string) => {
-    setAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, resolved: true } : a)));
+  const resolveAlert = async (id: string) => {
+    try {
+      await invoke("dismiss_session_memory_alert", { id });
+      setAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, resolved: true } : a)));
+    } catch (err) {
+      console.error("Failed to dismiss alert:", err);
+    }
+  };
+
+  const runCompact = async () => {
+    setCompacting(true);
+    try {
+      await invoke("run_session_memory_compact");
+      await loadAll();
+    } catch (err) {
+      console.error("Failed to compact session memory:", err);
+    } finally {
+      setCompacting(false);
+    }
   };
 
   return (
     <div style={panelStyle}>
-      <h2 style={headingStyle}>Session Memory Profiling</h2>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <h2 style={{ ...headingStyle, margin: 0 }}>Session Memory Profiling</h2>
+        <div style={{ display: "flex", gap: 6 }}>
+          <button style={btnStyle} onClick={runCompact} disabled={compacting}>
+            {compacting ? "Compacting..." : "Compact"}
+          </button>
+          <button style={btnStyle} onClick={loadAll} disabled={loading}>
+            {loading ? "Loading..." : "Refresh"}
+          </button>
+        </div>
+      </div>
+
+      {error && (
+        <div style={{ ...cardStyle, borderColor: "var(--error-color)", color: "var(--error-color)", fontSize: 12 }}>
+          Error: {error}
+        </div>
+      )}
 
       <div style={{ marginBottom: 12 }}>
         <button style={tabBtnStyle(tab === "health")} onClick={() => setTab("health")}>Health</button>
@@ -135,36 +193,36 @@ export function SessionMemoryPanel() {
             <div>
               <div style={{ fontWeight: 600, fontSize: 14 }}>Session Status</div>
               <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }}>
-                Uptime: {formatUptime(MOCK_HEALTH.uptimeSec)} | GC runs: {MOCK_HEALTH.gcCount}
+                Uptime: {formatUptime(health.uptimeSec)} | GC runs: {health.gcCount}
               </div>
             </div>
-            <span style={badgeStyle(statusColors[MOCK_HEALTH.status])}>{MOCK_HEALTH.status.toUpperCase()}</span>
+            <span style={badgeStyle(statusColors[health.status] || "var(--info-color)")}>{health.status.toUpperCase()}</span>
           </div>
 
           <div style={cardStyle}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
               <span style={labelStyle}>Memory Usage</span>
-              <span style={{ fontSize: 11 }}>{MOCK_HEALTH.memoryUsedMb} / {MOCK_HEALTH.memoryLimitMb} MB</span>
+              <span style={{ fontSize: 11 }}>{health.memoryUsedMb} / {health.memoryLimitMb} MB</span>
             </div>
             <div style={barBg}>
               <div style={barFill(memPct, memBarColor)} />
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "var(--text-secondary)", marginTop: 4 }}>
               <span>{memPct.toFixed(1)}% used</span>
-              <span>Peak: {MOCK_HEALTH.peakMemoryMb} MB</span>
+              <span>Peak: {health.peakMemoryMb} MB</span>
             </div>
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
             <div style={cardStyle}>
               <div style={labelStyle}>Growth Rate</div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: MOCK_HEALTH.growthRateMbPerMin > 1 ? "var(--warning-color)" : "var(--success-color)" }}>
-                {MOCK_HEALTH.growthRateMbPerMin} MB/min
+              <div style={{ fontSize: 20, fontWeight: 700, color: health.growthRateMbPerMin > 1 ? "var(--warning-color)" : "var(--success-color)" }}>
+                {health.growthRateMbPerMin} MB/min
               </div>
             </div>
             <div style={cardStyle}>
               <div style={labelStyle}>Last GC</div>
-              <div style={{ fontSize: 13, fontWeight: 600 }}>{new Date(MOCK_HEALTH.lastGcAt).toLocaleTimeString()}</div>
+              <div style={{ fontSize: 13, fontWeight: 600 }}>{new Date(health.lastGcAt).toLocaleTimeString()}</div>
             </div>
             <div style={cardStyle}>
               <div style={labelStyle}>Active Alerts</div>
@@ -178,59 +236,65 @@ export function SessionMemoryPanel() {
 
       {tab === "samples" && (
         <div>
-          <div style={cardStyle}>
-            <div style={labelStyle}>Memory Timeline (heap used)</div>
-            <div style={{ marginTop: 8 }}>
-              {MOCK_SAMPLES.map((s) => {
-                const pct = (s.heapUsedMb / maxHeap) * 100;
-                return (
-                  <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                    <div style={{ width: 50, fontSize: 10, color: "var(--text-secondary)" }}>{new Date(s.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
-                    <div style={{ ...barBg, flex: 1, height: 6 }}>
-                      <div style={barFill(pct, pct > 75 ? "var(--error-color)" : pct > 50 ? "var(--warning-color)" : "var(--info-color)")} />
-                    </div>
-                    <div style={{ width: 50, fontSize: 10, textAlign: "right" }}>{s.heapUsedMb} MB</div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          {samples.length === 0 && <div style={cardStyle}>No memory samples recorded yet.</div>}
+          {samples.length > 0 && (
+            <>
+              <div style={cardStyle}>
+                <div style={labelStyle}>Memory Timeline (heap used)</div>
+                <div style={{ marginTop: 8 }}>
+                  {samples.map((s) => {
+                    const pct = (s.heapUsedMb / maxHeap) * 100;
+                    return (
+                      <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                        <div style={{ width: 50, fontSize: 10, color: "var(--text-secondary)" }}>{new Date(s.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
+                        <div style={{ ...barBg, flex: 1, height: 6 }}>
+                          <div style={barFill(pct, pct > 75 ? "var(--error-color)" : pct > 50 ? "var(--warning-color)" : "var(--info-color)")} />
+                        </div>
+                        <div style={{ width: 50, fontSize: 10, textAlign: "right" }}>{s.heapUsedMb} MB</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
 
-          <div style={cardStyle}>
-            <div style={labelStyle}>Detailed Samples</div>
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr>
-                    <th style={thStyle}>Time</th>
-                    <th style={{ ...thStyle, textAlign: "right" }}>Heap Used</th>
-                    <th style={{ ...thStyle, textAlign: "right" }}>Heap Total</th>
-                    <th style={{ ...thStyle, textAlign: "right" }}>External</th>
-                    <th style={{ ...thStyle, textAlign: "right" }}>Ctx Tokens</th>
-                    <th style={{ ...thStyle, textAlign: "right" }}>Sessions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {MOCK_SAMPLES.map((s) => (
-                    <tr key={s.id}>
-                      <td style={tdStyle}>{new Date(s.timestamp).toLocaleTimeString()}</td>
-                      <td style={{ ...tdStyle, textAlign: "right" }}>{s.heapUsedMb} MB</td>
-                      <td style={{ ...tdStyle, textAlign: "right" }}>{s.heapTotalMb} MB</td>
-                      <td style={{ ...tdStyle, textAlign: "right" }}>{s.externalMb} MB</td>
-                      <td style={{ ...tdStyle, textAlign: "right" }}>{formatTokens(s.contextTokens)}</td>
-                      <td style={{ ...tdStyle, textAlign: "right" }}>{s.activeSessions}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+              <div style={cardStyle}>
+                <div style={labelStyle}>Detailed Samples</div>
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <thead>
+                      <tr>
+                        <th style={thStyle}>Time</th>
+                        <th style={{ ...thStyle, textAlign: "right" }}>Heap Used</th>
+                        <th style={{ ...thStyle, textAlign: "right" }}>Heap Total</th>
+                        <th style={{ ...thStyle, textAlign: "right" }}>External</th>
+                        <th style={{ ...thStyle, textAlign: "right" }}>Ctx Tokens</th>
+                        <th style={{ ...thStyle, textAlign: "right" }}>Sessions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {samples.map((s) => (
+                        <tr key={s.id}>
+                          <td style={tdStyle}>{new Date(s.timestamp).toLocaleTimeString()}</td>
+                          <td style={{ ...tdStyle, textAlign: "right" }}>{s.heapUsedMb} MB</td>
+                          <td style={{ ...tdStyle, textAlign: "right" }}>{s.heapTotalMb} MB</td>
+                          <td style={{ ...tdStyle, textAlign: "right" }}>{s.externalMb} MB</td>
+                          <td style={{ ...tdStyle, textAlign: "right" }}>{formatTokens(s.contextTokens)}</td>
+                          <td style={{ ...tdStyle, textAlign: "right" }}>{s.activeSessions}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       )}
 
       {tab === "alerts" && (
         <div>
-          {activeAlerts.length === 0 && <div style={cardStyle}>No active memory alerts.</div>}
+          {alerts.length === 0 && <div style={cardStyle}>No memory alerts recorded.</div>}
+          {activeAlerts.length === 0 && alerts.length > 0 && <div style={{ ...cardStyle, color: "var(--success-color)" }}>All alerts resolved.</div>}
           {alerts.map((a) => (
             <div key={a.id} style={{ ...cardStyle, opacity: a.resolved ? 0.5 : 1 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>

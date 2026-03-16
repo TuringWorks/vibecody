@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 type MessageType = "Question" | "Suggestion" | "Concern" | "Decision" | "Action";
 
@@ -11,19 +12,41 @@ interface DiscussionMessage {
   timestamp: string;
 }
 
+interface DiscussionThread {
+  id: string;
+  topic: string;
+  messages: DiscussionMessage[];
+  build_state: string;
+  created_at: string;
+}
+
 const DiscussionModePanel: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("discussion");
-  const [topic] = useState("API redesign for v3 migration");
+  const [threads, setThreads] = useState<DiscussionThread[]>([]);
+  const [activeThread, setActiveThread] = useState<DiscussionThread | null>(null);
+  const [newTopic, setNewTopic] = useState("");
   const [newText, setNewText] = useState("");
   const [newType, setNewType] = useState<MessageType>("Question");
   const [buildState, setBuildState] = useState<"Building" | "Discussing" | "Paused">("Discussing");
-  const [messages, setMessages] = useState<DiscussionMessage[]>([
-    { id: "m1", author: "Alice", type: "Question", text: "Should we use REST or GraphQL for the new endpoints?", reactions: { "\u{1F44D}": 3, "\u{1F914}": 1 }, timestamp: "10:02 AM" },
-    { id: "m2", author: "Bob", type: "Suggestion", text: "GraphQL would reduce over-fetching for the mobile clients.", reactions: { "\u{1F44D}": 5 }, timestamp: "10:05 AM" },
-    { id: "m3", author: "Carol", type: "Concern", text: "GraphQL adds complexity to the backend. We need to consider caching.", reactions: { "\u{1F44D}": 2 }, timestamp: "10:08 AM" },
-    { id: "m4", author: "Alice", type: "Decision", text: "Use GraphQL for read-heavy endpoints, REST for writes.", reactions: { "\u2705": 4 }, timestamp: "10:15 AM" },
-    { id: "m5", author: "Bob", type: "Action", text: "Create proof-of-concept GraphQL schema by Friday.", reactions: { "\u{1F44D}": 2 }, timestamp: "10:18 AM" },
-  ]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadThreads = useCallback(async () => {
+    try {
+      const result = await invoke<DiscussionThread[]>("list_discussion_threads");
+      setThreads(result);
+      if (result.length > 0 && !activeThread) {
+        setActiveThread(result[0]);
+        setBuildState((result[0].build_state || "Discussing") as "Building" | "Discussing" | "Paused");
+      }
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
+  }, [activeThread]);
+
+  useEffect(() => { loadThreads(); }, [loadThreads]);
 
   const containerStyle: React.CSSProperties = {
     padding: "16px", color: "var(--text-primary)",
@@ -73,27 +96,95 @@ const DiscussionModePanel: React.FC = () => {
   const messageTypes: MessageType[] = ["Question", "Suggestion", "Concern", "Decision", "Action"];
   const reactionEmojis = ["\u{1F44D}", "\u{1F44E}", "\u2705", "\u{1F914}", "\u{1F525}"];
 
-  const handleAddMessage = () => {
-    if (!newText.trim()) return;
-    setMessages(prev => [...prev, {
-      id: `m-${Date.now()}`, author: "You", type: newType, text: newText,
-      reactions: {}, timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    }]);
-    setNewText("");
+  const handleCreateThread = async () => {
+    if (!newTopic.trim()) return;
+    try {
+      const thread = await invoke<DiscussionThread>("create_discussion_thread", { topic: newTopic });
+      setThreads(prev => [...prev, thread]);
+      setActiveThread(thread);
+      setBuildState("Discussing");
+      setNewTopic("");
+    } catch (e) {
+      setError(String(e));
+    }
+  };
+
+  const handleDeleteThread = async (threadId: string) => {
+    try {
+      await invoke("delete_discussion_thread", { threadId });
+      setThreads(prev => prev.filter(t => t.id !== threadId));
+      if (activeThread?.id === threadId) {
+        setActiveThread(null);
+      }
+    } catch (e) {
+      setError(String(e));
+    }
+  };
+
+  const handleAddMessage = async () => {
+    if (!newText.trim() || !activeThread) return;
+    try {
+      const msg = await invoke<DiscussionMessage>("add_discussion_message", {
+        threadId: activeThread.id,
+        author: "You",
+        msgType: newType,
+        text: newText,
+      });
+      // The backend returns the message with `type` field via serde rename
+      const mapped: DiscussionMessage = {
+        id: msg.id,
+        author: msg.author,
+        type: (msg as unknown as Record<string, unknown>).type as MessageType || newType,
+        text: msg.text,
+        reactions: msg.reactions || {},
+        timestamp: msg.timestamp,
+      };
+      setActiveThread(prev => prev ? { ...prev, messages: [...prev.messages, mapped] } : null);
+      setNewText("");
+    } catch (e) {
+      setError(String(e));
+    }
   };
 
   const handleReaction = (msgId: string, emoji: string) => {
-    setMessages(prev => prev.map(m =>
-      m.id === msgId ? { ...m, reactions: { ...m.reactions, [emoji]: (m.reactions[emoji] || 0) + 1 } } : m
-    ));
+    if (!activeThread) return;
+    setActiveThread(prev => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        messages: prev.messages.map(m =>
+          m.id === msgId ? { ...m, reactions: { ...m.reactions, [emoji]: (m.reactions[emoji] || 0) + 1 } } : m
+        ),
+      };
+    });
   };
+
+  const handleSelectThread = async (threadId: string) => {
+    try {
+      const thread = await invoke<DiscussionThread>("get_discussion_thread", { threadId });
+      // Map msg_type -> type for each message
+      const mappedThread: DiscussionThread = {
+        ...thread,
+        messages: thread.messages.map(m => ({
+          ...m,
+          type: ((m as unknown as Record<string, unknown>).type as MessageType) || "Question",
+        })),
+      };
+      setActiveThread(mappedThread);
+      setBuildState((mappedThread.build_state || "Discussing") as "Building" | "Discussing" | "Paused");
+    } catch (e) {
+      setError(String(e));
+    }
+  };
+
+  const messages = activeThread?.messages || [];
 
   const renderMessageCard = (m: DiscussionMessage) => (
     <div key={m.id} style={cardStyle}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
         <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
           <strong>{m.author}</strong>
-          <span style={badgeStyle(typeColors[m.type])}>{m.type}</span>
+          <span style={badgeStyle(typeColors[m.type] || "#888")}>{m.type}</span>
         </div>
         <span style={{ fontSize: "11px", opacity: 0.6 }}>{m.timestamp}</span>
       </div>
@@ -112,22 +203,53 @@ const DiscussionModePanel: React.FC = () => {
     </div>
   );
 
+  const renderThreadList = () => (
+    <div style={{ marginBottom: "12px" }}>
+      <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
+        <input style={{ ...inputStyle, flex: 1 }} placeholder="New thread topic..."
+          value={newTopic} onChange={e => setNewTopic(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && handleCreateThread()} />
+        <button style={btnStyle} onClick={handleCreateThread}>New Thread</button>
+      </div>
+      {threads.map(t => (
+        <div key={t.id} style={{
+          ...cardStyle, cursor: "pointer",
+          border: activeThread?.id === t.id ? "1px solid var(--accent-color)" : "1px solid var(--border-color)",
+          display: "flex", justifyContent: "space-between", alignItems: "center",
+        }} onClick={() => handleSelectThread(t.id)}>
+          <div>
+            <div style={{ fontWeight: 600 }}>{t.topic}</div>
+            <div style={{ fontSize: "11px", opacity: 0.6 }}>{t.messages.length} messages</div>
+          </div>
+          <button style={{ ...btnStyle, backgroundColor: "var(--error-color)", padding: "4px 8px", fontSize: "11px" }}
+            onClick={e => { e.stopPropagation(); handleDeleteThread(t.id); }}>Delete</button>
+        </div>
+      ))}
+      {threads.length === 0 && <div style={{ opacity: 0.6 }}>No threads yet. Create one above.</div>}
+    </div>
+  );
+
   const renderDiscussion = () => (
     <div>
-      <div style={{ ...cardStyle, marginBottom: "12px" }}>
-        <div style={{ fontSize: "11px", opacity: 0.6 }}>Topic</div>
-        <div style={{ fontWeight: 600, fontSize: "14px" }}>{topic}</div>
-      </div>
-      {messages.map(renderMessageCard)}
-      <div style={{ marginTop: "12px", display: "flex", gap: "8px" }}>
-        <select style={{ ...inputStyle, width: "130px" }} value={newType}
-          onChange={e => setNewType(e.target.value as MessageType)}>
-          {messageTypes.map(t => <option key={t} value={t}>{t}</option>)}
-        </select>
-        <input style={{ ...inputStyle, flex: 1 }} placeholder="Add a message..." value={newText}
-          onChange={e => setNewText(e.target.value)} onKeyDown={e => e.key === "Enter" && handleAddMessage()} />
-        <button style={btnStyle} onClick={handleAddMessage}>Add</button>
-      </div>
+      {renderThreadList()}
+      {activeThread && (
+        <>
+          <div style={{ ...cardStyle, marginBottom: "12px" }}>
+            <div style={{ fontSize: "11px", opacity: 0.6 }}>Topic</div>
+            <div style={{ fontWeight: 600, fontSize: "14px" }}>{activeThread.topic}</div>
+          </div>
+          {messages.map(renderMessageCard)}
+          <div style={{ marginTop: "12px", display: "flex", gap: "8px" }}>
+            <select style={{ ...inputStyle, width: "130px" }} value={newType}
+              onChange={e => setNewType(e.target.value as MessageType)}>
+              {messageTypes.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+            <input style={{ ...inputStyle, flex: 1 }} placeholder="Add a message..." value={newText}
+              onChange={e => setNewText(e.target.value)} onKeyDown={e => e.key === "Enter" && handleAddMessage()} />
+            <button style={btnStyle} onClick={handleAddMessage}>Add</button>
+          </div>
+        </>
+      )}
     </div>
   );
 
@@ -173,9 +295,14 @@ const DiscussionModePanel: React.FC = () => {
     </div>
   );
 
+  if (loading) {
+    return <div style={containerStyle}><p>Loading discussion threads...</p></div>;
+  }
+
   return (
     <div style={containerStyle}>
       <h2 style={{ margin: "0 0 12px" }}>Discussion Mode</h2>
+      {error && <div style={{ color: "var(--error-color)", marginBottom: "8px" }}>{error}</div>}
       <div style={tabBarStyle}>
         {[["discussion", "Discussion"], ["decisions", "Decisions"], ["summary", "Summary"]].map(([id, label]) => (
           <button key={id} style={tabStyle(activeTab === id)} onClick={() => setActiveTab(id)}>{label}</button>

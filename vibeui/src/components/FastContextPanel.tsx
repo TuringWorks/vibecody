@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 interface SearchResult {
   file: string;
@@ -8,17 +9,56 @@ interface SearchResult {
   matchType: string;
 }
 
+interface IndexStats {
+  files: number;
+  symbols: number;
+  trigrams: number;
+  lastBuilt: string;
+  languages: string[];
+}
+
+interface CacheStats {
+  hits: number;
+  misses: number;
+  size: string;
+  maxSize: string;
+}
+
 const FastContextPanel: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("search");
   const [query, setQuery] = useState("");
   const [matchType, setMatchType] = useState("Exact");
-  const [results, setResults] = useState<SearchResult[]>([
-    { file: "src/main.rs", line: 42, snippet: "fn main() { ... }", relevance: 0.98, matchType: "Exact" },
-    { file: "src/config.rs", line: 15, snippet: "pub struct Config { ... }", relevance: 0.87, matchType: "Symbol" },
-    { file: "src/agent.rs", line: 210, snippet: "async fn run_agent(...)", relevance: 0.74, matchType: "Fuzzy" },
-  ]);
-  const [indexStats, setIndexStats] = useState({ files: 1247, symbols: 18432, trigrams: 294817, lastBuilt: "2 min ago" });
-  const [cacheStats, setCacheStats] = useState({ hits: 3842, misses: 291, size: "14.2 MB", maxSize: "64 MB" });
+  const [results, setResults] = useState<SearchResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [indexStats, setIndexStats] = useState<IndexStats>({ files: 0, symbols: 0, trigrams: 0, lastBuilt: "-", languages: [] });
+  const [cacheStats, setCacheStats] = useState<CacheStats>({ hits: 0, misses: 0, size: "0 MB", maxSize: "64 MB" });
+  const [reindexing, setReindexing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const workspace = ".";
+
+  const loadIndexStats = useCallback(async () => {
+    try {
+      const stats = await invoke<IndexStats>("fast_context_index_stats", { workspace });
+      setIndexStats(stats);
+    } catch (err) {
+      console.error("Failed to load index stats:", err);
+    }
+  }, [workspace]);
+
+  const loadCacheStats = useCallback(async () => {
+    try {
+      const stats = await invoke<CacheStats>("fast_context_cache_stats", { workspace });
+      setCacheStats(stats);
+    } catch (err) {
+      console.error("Failed to load cache stats:", err);
+    }
+  }, [workspace]);
+
+  useEffect(() => {
+    loadIndexStats();
+    loadCacheStats();
+  }, [loadIndexStats, loadCacheStats]);
 
   const containerStyle: React.CSSProperties = {
     padding: "16px", color: "var(--text-primary)",
@@ -48,6 +88,11 @@ const FastContextPanel: React.FC = () => {
     backgroundColor: "var(--accent-color)",
     color: "var(--text-primary)",
   };
+  const btnDisabledStyle: React.CSSProperties = {
+    ...btnStyle,
+    opacity: 0.6,
+    cursor: "not-allowed",
+  };
   const cardStyle: React.CSSProperties = {
     padding: "10px", marginBottom: "8px", borderRadius: "4px",
     backgroundColor: "var(--bg-secondary)",
@@ -66,12 +111,42 @@ const FastContextPanel: React.FC = () => {
   const hitRate = cacheStats.hits + cacheStats.misses > 0
     ? ((cacheStats.hits / (cacheStats.hits + cacheStats.misses)) * 100).toFixed(1) : "0";
 
-  const handleSearch = () => {
+  const handleSearch = async () => {
     if (!query.trim()) return;
-    setResults(prev => [
-      { file: "search/result.rs", line: 1, snippet: query, relevance: Math.random() * 0.3 + 0.7, matchType },
-      ...prev,
-    ]);
+    setSearching(true);
+    setError(null);
+    try {
+      const res = await invoke<SearchResult[]>("fast_context_search", {
+        workspace,
+        query,
+        matchType,
+      });
+      setResults(res);
+    } catch (err) {
+      setError(String(err));
+      console.error("Search failed:", err);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const handleReindex = async () => {
+    setReindexing(true);
+    setError(null);
+    try {
+      const stats = await invoke<IndexStats>("fast_context_reindex", { workspace });
+      setIndexStats(stats);
+      await loadCacheStats();
+    } catch (err) {
+      setError(String(err));
+      console.error("Reindex failed:", err);
+    } finally {
+      setReindexing(false);
+    }
+  };
+
+  const handleClearCache = async () => {
+    setCacheStats({ hits: 0, misses: 0, size: "0 MB", maxSize: "64 MB" });
   };
 
   const renderSearch = () => (
@@ -83,8 +158,13 @@ const FastContextPanel: React.FC = () => {
           onChange={e => setMatchType(e.target.value)}>
           {matchTypes.map(t => <option key={t} value={t}>{t}</option>)}
         </select>
-        <button style={btnStyle} onClick={handleSearch}>Search</button>
+        <button style={searching ? btnDisabledStyle : btnStyle} onClick={handleSearch} disabled={searching}>
+          {searching ? "Searching..." : "Search"}
+        </button>
       </div>
+      {error && (
+        <div style={{ color: "var(--error-color)", fontSize: "12px", marginBottom: "8px" }}>{error}</div>
+      )}
       <div style={{ fontSize: "12px", marginBottom: "8px", opacity: 0.7 }}>
         {results.length} result{results.length !== 1 ? "s" : ""}
       </div>
@@ -112,11 +192,20 @@ const FastContextPanel: React.FC = () => {
       <div style={statRow}><span>Symbols</span><strong>{indexStats.symbols.toLocaleString()}</strong></div>
       <div style={statRow}><span>Trigrams</span><strong>{indexStats.trigrams.toLocaleString()}</strong></div>
       <div style={statRow}><span>Last Built</span><strong>{indexStats.lastBuilt}</strong></div>
+      {indexStats.languages.length > 0 && (
+        <div style={statRow}>
+          <span>Languages</span>
+          <strong>{indexStats.languages.join(", ")}</strong>
+        </div>
+      )}
       <div style={{ marginTop: "16px" }}>
-        <button style={btnStyle} onClick={() => setIndexStats(s => ({ ...s, lastBuilt: "just now" }))}>
-          Rebuild Index
+        <button style={reindexing ? btnDisabledStyle : btnStyle} onClick={handleReindex} disabled={reindexing}>
+          {reindexing ? "Rebuilding..." : "Rebuild Index"}
         </button>
       </div>
+      {error && (
+        <div style={{ color: "var(--error-color)", fontSize: "12px", marginTop: "8px" }}>{error}</div>
+      )}
     </div>
   );
 
@@ -132,7 +221,7 @@ const FastContextPanel: React.FC = () => {
       <div style={statRow}><span>Cache Size</span><strong>{cacheStats.size}</strong></div>
       <div style={statRow}><span>Max Size</span><strong>{cacheStats.maxSize}</strong></div>
       <div style={{ marginTop: "16px" }}>
-        <button style={btnStyle} onClick={() => setCacheStats({ hits: 0, misses: 0, size: "0 MB", maxSize: "64 MB" })}>
+        <button style={btnStyle} onClick={handleClearCache}>
           Clear Cache
         </button>
       </div>

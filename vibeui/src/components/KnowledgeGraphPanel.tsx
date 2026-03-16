@@ -4,7 +4,8 @@
  * Interactive symbol graph with repo registration, cross-repo queries,
  * callers/callees/implementors, shortest path finder, and DOT export.
  */
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 interface GraphNode {
  id: number;
@@ -31,39 +32,12 @@ interface GraphStats {
  orphan_count: number;
 }
 
+interface KgGraph {
+ nodes: GraphNode[];
+ edges: GraphEdge[];
+}
+
 type QueryMode = "callers" | "callees" | "implementors" | "dependencies" | "dependents" | "path" | "subgraph";
-
-// ── Sample data for demo ─────────────────────────────────────────────────────
-
-const SAMPLE_NODES: GraphNode[] = [
- { id: 1, name: "AgentLoop", kind: "struct", repo: "vibe-ai", file: "src/agent.rs", line: 42, signature: "pub struct AgentLoop { ... }" },
- { id: 2, name: "run", kind: "function", repo: "vibe-ai", file: "src/agent.rs", line: 100, signature: "pub async fn run(&mut self) -> Result<()>" },
- { id: 3, name: "AIProvider", kind: "trait", repo: "vibe-ai", file: "src/provider.rs", line: 15, signature: "pub trait AIProvider: Send + Sync" },
- { id: 4, name: "OllamaProvider", kind: "struct", repo: "vibe-ai", file: "src/providers/ollama.rs", line: 8, signature: "pub struct OllamaProvider { ... }" },
- { id: 5, name: "ToolExecutor", kind: "struct", repo: "vibecli", file: "src/tool_executor.rs", line: 20, signature: "pub struct ToolExecutor { ... }" },
- { id: 6, name: "execute_tool", kind: "function", repo: "vibecli", file: "src/tool_executor.rs", line: 55, signature: "pub async fn execute_tool(&self, name: &str, args: &Value)" },
- { id: 7, name: "EmbeddingIndex", kind: "struct", repo: "vibe-core", file: "src/index/embeddings.rs", line: 98, signature: "pub struct EmbeddingIndex { ... }" },
- { id: 8, name: "search", kind: "function", repo: "vibe-core", file: "src/index/embeddings.rs", line: 150, signature: "pub async fn search(&self, query: &str, k: usize)" },
-];
-
-const SAMPLE_EDGES: GraphEdge[] = [
- { from: 1, to: 2, kind: "contains" },
- { from: 2, to: 3, kind: "calls" },
- { from: 4, to: 3, kind: "implements" },
- { from: 2, to: 6, kind: "calls" },
- { from: 5, to: 6, kind: "contains" },
- { from: 2, to: 8, kind: "calls" },
- { from: 7, to: 8, kind: "contains" },
-];
-
-const SAMPLE_STATS: GraphStats = {
- total_nodes: 8,
- total_edges: 7,
- nodes_per_repo: { "vibe-ai": 4, "vibecli": 2, "vibe-core": 2 },
- cross_repo_edges: 3,
- most_connected: [["AgentLoop", 5], ["AIProvider", 3], ["ToolExecutor", 2]],
- orphan_count: 0,
-};
 
 const KIND_COLORS: Record<string, string> = {
  function: "var(--accent-color)",
@@ -81,6 +55,8 @@ const REPO_COLORS: Record<string, string> = {
  "vibe-ai": "#89b4fa",
  "vibecli": "#a6e3a1",
  "vibe-core": "#fab387",
+ "src": "#f9e2af",
+ "crates": "#89b4fa",
 };
 
 export default function KnowledgeGraphPanel() {
@@ -92,26 +68,99 @@ export default function KnowledgeGraphPanel() {
  const [newRepoName, setNewRepoName] = useState("");
  const [newRepoPath, setNewRepoPath] = useState("");
  const [queryMode, setQueryMode] = useState<QueryMode>("callers");
- const [querySymbol, setQuerySymbol] = useState("AIProvider");
+ const [querySymbol, setQuerySymbol] = useState("");
  const [targetSymbol, setTargetSymbol] = useState("");
- const [depth, setDepth] = useState(2);
+ const [depth] = useState(2);
  const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
  const [tab, setTab] = useState<"graph" | "stats" | "export">("graph");
 
- const queryResults = (): GraphNode[] => {
-   switch (queryMode) {
-     case "callers":
-       return SAMPLE_NODES.filter(n => ["AgentLoop", "OllamaProvider"].includes(n.name));
-     case "callees":
-       return SAMPLE_NODES.filter(n => ["AIProvider", "ToolExecutor", "EmbeddingIndex"].includes(n.name));
-     case "implementors":
-       return SAMPLE_NODES.filter(n => n.name === "OllamaProvider");
-     default:
-       return SAMPLE_NODES;
-   }
- };
+ const [nodes, setNodes] = useState<GraphNode[]>([]);
+ const [edges, setEdges] = useState<GraphEdge[]>([]);
+ const [stats, setStats] = useState<GraphStats | null>(null);
+ const [searchResults, setSearchResults] = useState<GraphNode[] | null>(null);
+ const [loading, setLoading] = useState(false);
+ const [error, setError] = useState<string | null>(null);
+ const [workspace, setWorkspace] = useState(".");
 
- const results = queryResults();
+ const loadGraph = useCallback(async () => {
+   setLoading(true);
+   setError(null);
+   try {
+     const graph = await invoke<KgGraph>("get_knowledge_graph", { workspace });
+     setNodes(graph.nodes);
+     setEdges(graph.edges);
+     setSearchResults(null);
+   } catch (e) {
+     setError(String(e));
+   } finally {
+     setLoading(false);
+   }
+ }, [workspace]);
+
+ const loadStats = useCallback(async () => {
+   setLoading(true);
+   setError(null);
+   try {
+     const s = await invoke<GraphStats>("get_knowledge_graph_stats", { workspace });
+     setStats(s);
+   } catch (e) {
+     setError(String(e));
+   } finally {
+     setLoading(false);
+   }
+ }, [workspace]);
+
+ const handleSearch = useCallback(async () => {
+   if (!querySymbol.trim()) return;
+   setLoading(true);
+   setError(null);
+   try {
+     const results = await invoke<GraphNode[]>("search_knowledge_graph", {
+       workspace,
+       query: querySymbol,
+     });
+     setSearchResults(results);
+   } catch (e) {
+     setError(String(e));
+   } finally {
+     setLoading(false);
+   }
+ }, [workspace, querySymbol]);
+
+ const handleRefresh = useCallback(async () => {
+   setLoading(true);
+   setError(null);
+   try {
+     const graph = await invoke<KgGraph>("refresh_knowledge_graph", { workspace });
+     setNodes(graph.nodes);
+     setEdges(graph.edges);
+     setSearchResults(null);
+     if (tab === "stats") {
+       const s = await invoke<GraphStats>("get_knowledge_graph_stats", { workspace });
+       setStats(s);
+     }
+   } catch (e) {
+     setError(String(e));
+   } finally {
+     setLoading(false);
+   }
+ }, [workspace, tab]);
+
+ useEffect(() => {
+   loadGraph();
+ }, [loadGraph]);
+
+ useEffect(() => {
+   if (tab === "stats") {
+     loadStats();
+   }
+ }, [tab, loadStats]);
+
+ // Filter displayed nodes based on query mode and search results
+ const displayedNodes = searchResults ?? nodes;
+ const results = searchResults ?? (querySymbol
+   ? nodes.filter(n => n.name.toLowerCase().includes(querySymbol.toLowerCase()))
+   : nodes);
 
  const addRepo = () => {
    if (newRepoName && newRepoPath) {
@@ -121,16 +170,64 @@ export default function KnowledgeGraphPanel() {
    }
  };
 
+ // Layout: show up to 50 nodes in the SVG for performance
+ const visibleNodes = displayedNodes.slice(0, 50);
  const graphWidth = 700;
  const graphHeight = 400;
- const nodePositions = SAMPLE_NODES.map((_, i) => ({
+ const nodePositions = visibleNodes.map((_, i) => ({
    x: 80 + (i % 4) * 170,
    y: 60 + Math.floor(i / 4) * 160,
  }));
 
+ // Build a set of visible node IDs for edge filtering
+ const visibleIds = new Set(visibleNodes.map(n => n.id));
+ const visibleEdges = edges.filter(e => visibleIds.has(e.from) && visibleIds.has(e.to));
+
+ // Generate DOT export from real data
+ const dotExport = () => {
+   const lines = ["digraph KnowledgeGraph {", " rankdir=LR;", " node [shape=box];", ""];
+   for (const n of nodes) {
+     const shape = n.kind === "function" ? "ellipse" : n.kind === "trait" || n.kind === "interface" ? "diamond" : "box";
+     lines.push(` n${n.id} [label="${n.name}\\n(${n.kind})" shape=${shape}];`);
+   }
+   lines.push("");
+   for (const e of edges) {
+     lines.push(` n${e.from} -> n${e.to} [label="${e.kind}"];`);
+   }
+   lines.push("}");
+   return lines.join("\n");
+ };
+
  return (
    <div style={{ padding: 16, color: "var(--text-primary)", background: "var(--bg-primary)", minHeight: "100%" }}>
-     <h2 style={{ margin: "0 0 12px", fontSize: 18 }}>Knowledge Graph</h2>
+     <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+       <h2 style={{ margin: 0, fontSize: 18 }}>Knowledge Graph</h2>
+       <button onClick={handleRefresh} disabled={loading} style={{
+         padding: "4px 10px", background: "var(--accent-color)", color: "white",
+         border: "none", borderRadius: 4, cursor: loading ? "wait" : "pointer", opacity: loading ? 0.6 : 1,
+       }}>
+         {loading ? "Scanning..." : "Refresh"}
+       </button>
+       <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+         {nodes.length} nodes, {edges.length} edges
+       </span>
+     </div>
+
+     {error && (
+       <div style={{ padding: 8, marginBottom: 12, background: "var(--error-bg, #3b1d1d)", border: "1px solid var(--error-color, #f38ba8)", borderRadius: 6, fontSize: 12, color: "var(--error-color, #f38ba8)" }}>
+         {error}
+       </div>
+     )}
+
+     {/* Workspace Path */}
+     <div style={{ marginBottom: 12, display: "flex", gap: 6, alignItems: "center" }}>
+       <label style={{ fontSize: 12 }}>Workspace:</label>
+       <input value={workspace} onChange={e => setWorkspace(e.target.value)}
+         style={{ flex: 1, padding: 4, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4, fontSize: 12 }} />
+       <button onClick={loadGraph} disabled={loading} style={{ padding: "4px 10px", background: "var(--accent-color)", color: "white", border: "none", borderRadius: 4, cursor: "pointer", fontSize: 12 }}>
+         Load
+       </button>
+     </div>
 
      {/* Repo Registration */}
      <div style={{ marginBottom: 12, padding: 10, border: "1px solid var(--border-color)", borderRadius: 6 }}>
@@ -143,7 +240,7 @@ export default function KnowledgeGraphPanel() {
            }}>
              {r.name}: {r.path}
              <button onClick={() => setRepos(repos.filter(x => x.name !== r.name))}
-               style={{ marginLeft: 4, background: "none", border: "none", cursor: "pointer", color: "#1e1e2e" }}>×</button>
+               style={{ marginLeft: 4, background: "none", border: "none", cursor: "pointer", color: "#1e1e2e" }}>x</button>
            </span>
          ))}
        </div>
@@ -180,7 +277,8 @@ export default function KnowledgeGraphPanel() {
              <option value="path">Shortest Path</option>
              <option value="subgraph">Subgraph</option>
            </select>
-           <input value={querySymbol} onChange={e => setQuerySymbol(e.target.value)} placeholder="Symbol name"
+           <input value={querySymbol} onChange={e => setQuerySymbol(e.target.value)} placeholder="Search symbol name"
+             onKeyDown={e => e.key === "Enter" && handleSearch()}
              style={{ flex: 1, padding: 4, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4 }} />
            {queryMode === "path" && (
              <input value={targetSymbol} onChange={e => setTargetSymbol(e.target.value)} placeholder="Target symbol"
@@ -188,10 +286,12 @@ export default function KnowledgeGraphPanel() {
            )}
            {queryMode === "subgraph" && (
              <label style={{ fontSize: 12 }}>
-               Depth: <input type="number" value={depth} onChange={e => setDepth(+e.target.value)} min={0} max={5}
-                 style={{ width: 40, padding: 2, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4 }} />
+               Depth: {depth}
              </label>
            )}
+           <button onClick={handleSearch} disabled={loading} style={{
+             padding: "4px 10px", background: "var(--accent-color)", color: "white", border: "none", borderRadius: 4, cursor: "pointer",
+           }}>Search</button>
          </div>
 
          {/* Graph SVG */}
@@ -201,13 +301,15 @@ export default function KnowledgeGraphPanel() {
                <polygon points="0 0, 8 3, 0 6" fill="var(--border-color)" />
              </marker>
            </defs>
-           {SAMPLE_EDGES.map((e, i) => {
-             const fromIdx = SAMPLE_NODES.findIndex(n => n.id === e.from);
-             const toIdx = SAMPLE_NODES.findIndex(n => n.id === e.to);
+           {visibleEdges.map((e, i) => {
+             const fromIdx = visibleNodes.findIndex(n => n.id === e.from);
+             const toIdx = visibleNodes.findIndex(n => n.id === e.to);
              if (fromIdx < 0 || toIdx < 0) return null;
              const fp = nodePositions[fromIdx];
              const tp = nodePositions[toIdx];
-             const isCrossRepo = SAMPLE_NODES[fromIdx].repo !== SAMPLE_NODES[toIdx].repo;
+             const fromNode = visibleNodes[fromIdx];
+             const toNode = visibleNodes[toIdx];
+             const isCrossRepo = fromNode.repo !== toNode.repo;
              return (
                <g key={i}>
                  <line x1={fp.x} y1={fp.y} x2={tp.x} y2={tp.y}
@@ -217,9 +319,9 @@ export default function KnowledgeGraphPanel() {
                </g>
              );
            })}
-           {SAMPLE_NODES.map((node, i) => {
+           {visibleNodes.map((node, i) => {
              const pos = nodePositions[i];
-             const isResult = results.some(r => r.id === node.id);
+             const isResult = searchResults ? searchResults.some(r => r.id === node.id) : true;
              return (
                <g key={node.id} onClick={() => setSelectedNode(node)} style={{ cursor: "pointer" }}>
                  <circle cx={pos.x} cy={pos.y} r={isResult ? 22 : 18}
@@ -231,6 +333,11 @@ export default function KnowledgeGraphPanel() {
                </g>
              );
            })}
+           {visibleNodes.length === 0 && !loading && (
+             <text x={graphWidth / 2} y={graphHeight / 2} textAnchor="middle" fill="var(--text-secondary)" fontSize={14}>
+               {error ? "Error loading graph" : "No nodes found. Click Refresh to scan workspace."}
+             </text>
+           )}
          </svg>
 
          {/* Legend */}
@@ -263,7 +370,7 @@ export default function KnowledgeGraphPanel() {
                </tr>
              </thead>
              <tbody>
-               {results.map(n => (
+               {results.slice(0, 100).map(n => (
                  <tr key={n.id} onClick={() => setSelectedNode(n)} style={{ cursor: "pointer", borderBottom: "1px solid var(--border-color)" }}>
                    <td style={{ padding: 4, color: KIND_COLORS[n.kind] }}>{n.name}</td>
                    <td style={{ padding: 4 }}>{n.kind}</td>
@@ -273,57 +380,70 @@ export default function KnowledgeGraphPanel() {
                ))}
              </tbody>
            </table>
+           {results.length > 100 && (
+             <div style={{ marginTop: 4, fontSize: 11, color: "var(--text-secondary)" }}>
+               Showing 100 of {results.length} results
+             </div>
+           )}
          </div>
        </>
      )}
 
      {tab === "stats" && (
        <div style={{ fontSize: 13 }}>
-         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 12 }}>
-           <div style={{ padding: 10, border: "1px solid var(--border-color)", borderRadius: 6, textAlign: "center" }}>
-             <div style={{ fontSize: 24, fontWeight: 700, color: "var(--accent-color)" }}>{SAMPLE_STATS.total_nodes}</div>
-             <div>Nodes</div>
-           </div>
-           <div style={{ padding: 10, border: "1px solid var(--border-color)", borderRadius: 6, textAlign: "center" }}>
-             <div style={{ fontSize: 24, fontWeight: 700, color: "var(--success-color)" }}>{SAMPLE_STATS.total_edges}</div>
-             <div>Edges</div>
-           </div>
-           <div style={{ padding: 10, border: "1px solid var(--border-color)", borderRadius: 6, textAlign: "center" }}>
-             <div style={{ fontSize: 24, fontWeight: 700, color: "var(--warning-color)" }}>{SAMPLE_STATS.cross_repo_edges}</div>
-             <div>Cross-Repo</div>
-           </div>
-         </div>
-
-         <strong>Nodes per Repo</strong>
-         <div style={{ marginTop: 4, marginBottom: 12 }}>
-           {Object.entries(SAMPLE_STATS.nodes_per_repo).map(([repo, count]) => (
-             <div key={repo} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-               <span style={{ width: 80, color: REPO_COLORS[repo] }}>{repo}</span>
-               <div style={{ flex: 1, height: 16, background: "var(--border-color)", borderRadius: 4, overflow: "hidden" }}>
-                 <div style={{ height: "100%", width: `${(count / SAMPLE_STATS.total_nodes) * 100}%`, background: REPO_COLORS[repo] || "var(--accent-color)", borderRadius: 4 }} />
+         {stats ? (
+           <>
+             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 12 }}>
+               <div style={{ padding: 10, border: "1px solid var(--border-color)", borderRadius: 6, textAlign: "center" }}>
+                 <div style={{ fontSize: 24, fontWeight: 700, color: "var(--accent-color)" }}>{stats.total_nodes}</div>
+                 <div>Nodes</div>
                </div>
-               <span style={{ width: 30, textAlign: "right" }}>{count}</span>
+               <div style={{ padding: 10, border: "1px solid var(--border-color)", borderRadius: 6, textAlign: "center" }}>
+                 <div style={{ fontSize: 24, fontWeight: 700, color: "var(--success-color)" }}>{stats.total_edges}</div>
+                 <div>Edges</div>
+               </div>
+               <div style={{ padding: 10, border: "1px solid var(--border-color)", borderRadius: 6, textAlign: "center" }}>
+                 <div style={{ fontSize: 24, fontWeight: 700, color: "var(--warning-color)" }}>{stats.cross_repo_edges}</div>
+                 <div>Cross-Repo</div>
+               </div>
              </div>
-           ))}
-         </div>
 
-         <strong>Most Connected Symbols</strong>
-         <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 4 }}>
-           <thead><tr style={{ borderBottom: "1px solid var(--border-color)" }}>
-             <th style={{ textAlign: "left", padding: 4 }}>Symbol</th>
-             <th style={{ textAlign: "right", padding: 4 }}>Connections</th>
-           </tr></thead>
-           <tbody>
-             {SAMPLE_STATS.most_connected.map(([name, count]) => (
-               <tr key={name} style={{ borderBottom: "1px solid var(--border-color)" }}>
-                 <td style={{ padding: 4, color: "var(--accent-color)" }}>{name}</td>
-                 <td style={{ padding: 4, textAlign: "right" }}>{count}</td>
-               </tr>
-             ))}
-           </tbody>
-         </table>
+             <strong>Nodes per Repo</strong>
+             <div style={{ marginTop: 4, marginBottom: 12 }}>
+               {Object.entries(stats.nodes_per_repo).map(([repo, count]) => (
+                 <div key={repo} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                   <span style={{ width: 80, color: REPO_COLORS[repo] }}>{repo}</span>
+                   <div style={{ flex: 1, height: 16, background: "var(--border-color)", borderRadius: 4, overflow: "hidden" }}>
+                     <div style={{ height: "100%", width: `${(count / stats.total_nodes) * 100}%`, background: REPO_COLORS[repo] || "var(--accent-color)", borderRadius: 4 }} />
+                   </div>
+                   <span style={{ width: 30, textAlign: "right" }}>{count}</span>
+                 </div>
+               ))}
+             </div>
 
-         <div style={{ marginTop: 12 }}>Orphan symbols: <strong>{SAMPLE_STATS.orphan_count}</strong></div>
+             <strong>Most Connected Symbols</strong>
+             <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 4 }}>
+               <thead><tr style={{ borderBottom: "1px solid var(--border-color)" }}>
+                 <th style={{ textAlign: "left", padding: 4 }}>Symbol</th>
+                 <th style={{ textAlign: "right", padding: 4 }}>Connections</th>
+               </tr></thead>
+               <tbody>
+                 {stats.most_connected.map(([name, count]) => (
+                   <tr key={name} style={{ borderBottom: "1px solid var(--border-color)" }}>
+                     <td style={{ padding: 4, color: "var(--accent-color)" }}>{name}</td>
+                     <td style={{ padding: 4, textAlign: "right" }}>{count}</td>
+                   </tr>
+                 ))}
+               </tbody>
+             </table>
+
+             <div style={{ marginTop: 12 }}>Orphan symbols: <strong>{stats.orphan_count}</strong></div>
+           </>
+         ) : (
+           <div style={{ textAlign: "center", padding: 20, color: "var(--text-secondary)" }}>
+             {loading ? "Loading stats..." : "No stats available. Click Refresh to scan."}
+           </div>
+         )}
        </div>
      )}
 
@@ -334,29 +454,11 @@ export default function KnowledgeGraphPanel() {
            marginTop: 8, padding: 10, background: "var(--bg-primary)", border: "1px solid var(--border-color)",
            borderRadius: 6, fontSize: 11, overflow: "auto", maxHeight: 300,
          }}>
-{`digraph KnowledgeGraph {
- rankdir=LR;
- node [shape=box];
-
- n1 [label="AgentLoop\\n(struct)" shape=box];
- n2 [label="run\\n(function)" shape=ellipse];
- n3 [label="AIProvider\\n(trait)" shape=diamond];
- n4 [label="OllamaProvider\\n(struct)" shape=box];
- n5 [label="ToolExecutor\\n(struct)" shape=box];
- n6 [label="execute_tool\\n(function)" shape=ellipse];
- n7 [label="EmbeddingIndex\\n(struct)" shape=box];
- n8 [label="search\\n(function)" shape=ellipse];
-
- n1 -> n2 [label="contains"];
- n2 -> n3 [label="calls"];
- n4 -> n3 [label="implements"];
- n2 -> n6 [label="calls"];
- n5 -> n6 [label="contains"];
- n2 -> n8 [label="calls"];
- n7 -> n8 [label="contains"];
-}`}
+           {nodes.length > 0 ? dotExport() : "No graph data. Click Refresh to scan workspace."}
          </pre>
-         <button style={{ marginTop: 8, padding: "6px 12px", background: "var(--accent-color)", color: "white", border: "none", borderRadius: 4, cursor: "pointer" }}>
+         <button onClick={() => {
+           navigator.clipboard.writeText(dotExport()).catch(() => {});
+         }} style={{ marginTop: 8, padding: "6px 12px", background: "var(--accent-color)", color: "white", border: "none", borderRadius: 4, cursor: "pointer" }}>
            Copy to Clipboard
          </button>
        </div>
