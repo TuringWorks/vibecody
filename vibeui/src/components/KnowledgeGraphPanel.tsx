@@ -214,7 +214,7 @@ export default function KnowledgeGraphPanel() {
      </div>
 
      {error && (
-       <div style={{ padding: 8, marginBottom: 12, background: "var(--error-bg, #3b1d1d)", border: "1px solid var(--error-color, #f38ba8)", borderRadius: 6, fontSize: 12, color: "var(--error-color, #f38ba8)" }}>
+       <div style={{ padding: 8, marginBottom: 12, background: "var(--error-bg)", border: "1px solid var(--error-color)", borderRadius: 6, fontSize: 12, color: "var(--error-color)" }}>
          {error}
        </div>
      )}

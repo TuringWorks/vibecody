@@ -189,8 +189,8 @@ const DebugModePanel: React.FC = () => {
 
   const btnDangerStyle: React.CSSProperties = {
     ...btnStyle,
-    background: "var(--error-color, #e53e3e)",
-    border: "1px solid var(--error-color, #e53e3e)",
+    background: "var(--error-color)",
+    border: "1px solid var(--error-color)",
   };
 
   const inputStyle: React.CSSProperties = {
@@ -219,7 +219,7 @@ const DebugModePanel: React.FC = () => {
       <h3 style={{ margin: "0 0 12px" }}>Debug Mode</h3>
 
       {error && (
-        <div style={{ padding: "8px", marginBottom: "8px", background: "var(--error-color, #e53e3e)", color: "white", borderRadius: "4px", fontSize: "12px" }}>
+        <div style={{ padding: "8px", marginBottom: "8px", background: "var(--error-color)", color: "white", borderRadius: "4px", fontSize: "12px" }}>
           {error}
         </div>
       )}

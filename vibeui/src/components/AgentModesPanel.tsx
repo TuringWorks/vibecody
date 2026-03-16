@@ -173,7 +173,7 @@ const AgentModesPanel: React.FC = () => {
     <div style={containerStyle}>
       <h3 style={{ margin: "0 0 12px" }}>Agent Modes</h3>
       {error && (
-        <div style={{ padding: "8px", marginBottom: "8px", borderRadius: "4px", backgroundColor: "var(--error-bg, #3c1f1f)", color: "var(--error-color, #f87171)", fontSize: "12px" }}>
+        <div style={{ padding: "8px", marginBottom: "8px", borderRadius: "4px", backgroundColor: "var(--error-bg)", color: "var(--error-color)", fontSize: "12px" }}>
           {error}
         </div>
       )}

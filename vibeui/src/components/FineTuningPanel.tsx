@@ -169,9 +169,9 @@ export default function FineTuningPanel() {
      <h2 style={{ margin: "0 0 12px", fontSize: 18 }}>Fine-Tuning</h2>
 
      {error && (
-       <div style={{ padding: 8, marginBottom: 8, background: "var(--vp-c-danger)", color: "#fff", borderRadius: 4, fontSize: 12 }}>
+       <div style={{ padding: 8, marginBottom: 8, background: "var(--error-bg)", color: "var(--text-danger)", borderRadius: 4, fontSize: 12 }}>
          {error}
-         <button onClick={() => setError(null)} style={{ marginLeft: 8, background: "transparent", color: "#fff", border: "none", cursor: "pointer" }}>dismiss</button>
+         <button onClick={() => setError(null)} style={{ marginLeft: 8, background: "transparent", color: "var(--text-danger)", border: "none", cursor: "pointer" }}>dismiss</button>
        </div>
      )}
 

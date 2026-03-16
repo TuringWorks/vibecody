@@ -54,7 +54,7 @@ export const ThemeToggle = () => {
             ) : (
                 <Sun size={16} strokeWidth={2} style={{
                     transition: 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s',
-                    color: 'var(--accent-gold, #d4a017)',
+                    color: 'var(--accent-gold)',
                 }} />
             )}
         </button>

@@ -279,7 +279,7 @@ export function QuantumComputingPanel() {
                 Classical bits<br />
                 <input type="number" value={ncClassical} onChange={e => setNcClassical(+e.target.value)} min={0} max={100} style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border-primary)", background: "var(--bg-secondary)", color: "var(--text-primary)", width: 60 }} />
               </label>
-              <button onClick={createCircuit} style={{ padding: "6px 14px", borderRadius: 6, border: "none", background: "var(--accent-primary)", color: "#fff", cursor: "pointer", fontWeight: 600, fontSize: 13 }}>
+              <button onClick={createCircuit} style={{ padding: "6px 14px", borderRadius: 6, border: "none", background: "var(--accent-primary)", color: "var(--text-primary)", cursor: "pointer", fontWeight: 600, fontSize: 13 }}>
                 Create Circuit
               </button>
             </div>
@@ -347,7 +347,7 @@ export function QuantumComputingPanel() {
                 Description<br />
                 <input value={npDesc} onChange={e => setNpDesc(e.target.value)} style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border-primary)", background: "var(--bg-secondary)", color: "var(--text-primary)", width: 200 }} />
               </label>
-              <button onClick={createProject} style={{ padding: "6px 14px", borderRadius: 6, border: "none", background: "var(--accent-primary)", color: "#fff", cursor: "pointer", fontWeight: 600, fontSize: 13 }}>
+              <button onClick={createProject} style={{ padding: "6px 14px", borderRadius: 6, border: "none", background: "var(--accent-primary)", color: "var(--text-primary)", cursor: "pointer", fontWeight: 600, fontSize: 13 }}>
                 Create Project
               </button>
             </div>

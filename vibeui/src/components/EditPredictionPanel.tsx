@@ -167,7 +167,7 @@ export default function EditPredictionPanel() {
                   <button onClick={() => handlePrediction(p.id, "rejected")}
                     style={{ padding: "3px 10px", fontSize: 10, borderRadius: 3, border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-danger)", cursor: "pointer" }}>Reject</button>
                   <button onClick={() => handlePrediction(p.id, "accepted")}
-                    style={{ padding: "3px 10px", fontSize: 10, borderRadius: 3, border: "none", background: "var(--text-success)", color: "#1e1e2e", cursor: "pointer", fontWeight: 600 }}>Accept</button>
+                    style={{ padding: "3px 10px", fontSize: 10, borderRadius: 3, border: "none", background: "var(--text-success)", color: "var(--bg-primary)", cursor: "pointer", fontWeight: 600 }}>Accept</button>
                 </>
               ) : (
                 <span style={{ fontSize: 10, color: p.state === "accepted" ? "var(--text-success)" : "var(--text-danger)" }}>{p.state}</span>
