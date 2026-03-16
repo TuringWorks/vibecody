@@ -52,11 +52,10 @@ export function TransformPanel() {
   const handleExecute = async () => {
     if (!selected || !plan) return;
     setExecuting(true);
-    setProgress(10);
+    setProgress(20);
     setResult(null);
     setError(null);
     try {
-      setProgress(30);
       const res = await invoke<{ files_modified: number; summary: string }>("execute_transform", {
         transformType: selected,
         files: plan.map((p) => p.file),
