@@ -16,32 +16,56 @@
 
 ## Quick Start
 
-### VibeCLI — Terminal AI Assistant
+### One-Command Setup (macOS / Linux / WSL)
 
 ```bash
-# Build
-cargo build --release -p vibecli
+git clone https://github.com/TuringWorks/vibecody.git
+cd vibecody
+make setup    # Installs Rust, Node.js, system libs, npm deps
+```
 
-# Run with TUI
-./target/release/vibecli --tui
+Or run the setup script directly:
 
-# Run with a specific provider
+```bash
+./scripts/setup.sh
+```
+
+### Run VibeUI (Desktop Editor)
+
+```bash
+make ui
+```
+
+### Build & Run VibeCLI (Terminal AI Assistant)
+
+```bash
+make cli                    # Build release binary
+./target/release/vibecli --tui   # Run with TUI
+
+# Or with a specific provider
 ./target/release/vibecli --tui --provider claude --model claude-3-5-sonnet-20241022
 ```
 
-### VibeUI — Desktop Editor
+### Verify Your Environment
 
 ```bash
-cd vibeui
+make doctor    # Checks all required + optional tools
+```
 
-# Install frontend dependencies
-npm install
+### All Make Targets
 
-# Run in development mode
-npm run tauri dev
-
-# Build for production
-npm run tauri build
+```
+make setup      Install all prerequisites
+make doctor     Verify dev environment is ready
+make ui         Run VibeUI in dev mode (Vite + Tauri)
+make cli        Build VibeCLI release binary
+make test       Run all workspace tests
+make test-fast  Run tests (excluding collab crate)
+make check      Fast type-check (Rust + TypeScript)
+make lint       Run clippy + TypeScript check
+make build      Build everything for production
+make clean      Remove build artifacts
+make docker     Build Docker image
 ```
 
 ---
@@ -197,35 +221,59 @@ require_approval_for_file_changes = true
 
 ## Prerequisites
 
-| Requirement | Version | Notes |
-|-------------|---------|-------|
-| Rust | stable (≥ 1.75) | `rustup update stable` |
-| Node.js | ≥ 18 | For VibeUI frontend |
-| npm / pnpm | any | For VibeUI frontend |
-| Ollama | any | Optional — for local AI |
+`make setup` installs everything automatically. If you prefer manual setup:
+
+| Requirement | Version | Install |
+|-------------|---------|---------|
+| Rust | stable | `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \| sh` |
+| Node.js | >= 20 | [nodejs.org](https://nodejs.org/) or `nvm install 20` |
+| Git | any | Usually pre-installed |
+| Ollama | any | Optional — [ollama.ai](https://ollama.ai/) for local AI |
 | Docker | any | Optional — for container sandbox |
+
+**Linux only** (Tauri system dependencies):
+```bash
+# Debian/Ubuntu
+sudo apt install libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf build-essential libssl-dev pkg-config
+
+# Fedora
+sudo dnf install webkit2gtk4.1-devel gtk3-devel libappindicator-gtk3-devel librsvg2-devel patchelf openssl-devel
+
+# Arch
+sudo pacman -S webkit2gtk-4.1 gtk3 libappindicator-gtk3 librsvg patchelf openssl base-devel
+```
+
+**macOS only**: Xcode command line tools (`xcode-select --install`)
 
 ---
 
 ## Running Tests
 
-**2,810 unit tests** across the workspace.
+**5,900+ unit tests** across the workspace.
 
 ```bash
-# All workspace tests (excluding collab for faster iteration)
-cargo test --workspace --exclude vibe-collab
-
-# All tests including collab
-cargo test --workspace
+make test          # All workspace tests
+make test-fast     # Skip collab crate (faster)
+make check         # Type-check only (Rust + TypeScript)
 
 # Specific crates
-cargo test -p vibe-core    # 293 tests
-cargo test -p vibe-ai      # 843 tests
-cargo test -p vibecli      # 1,264 tests
-
-# Type-check frontend
-cd vibeui && npx tsc --noEmit
+cargo test -p vibe-core
+cargo test -p vibe-ai
+cargo test -p vibecli
 ```
+
+---
+
+## Troubleshooting
+
+| Problem | Fix |
+|---------|-----|
+| `rustup could not choose a version of cargo` | Run `rustup default stable` |
+| `npm run tauri dev` can't find cargo (Linux) | Use `make ui` or `npm run tauri:dev` — these prepend `~/.cargo/bin` to PATH |
+| Port 1420 already in use | Kill stale Vite: `lsof -i :1420` then `kill <pid>` |
+| `"VibeUI" is damaged` (macOS) | Run `xattr -cr /Applications/VibeUI.app` (unsigned app — Gatekeeper quarantine) |
+| Missing `libwebkit2gtk-4.1-dev` (Linux) | Run `make setup` or install manually (see Prerequisites) |
+| `Failed to run cargo: No such file` (macOS .app) | Fixed in v0.3.0 — app now inherits shell PATH at startup |
 
 ---
 
