@@ -206,6 +206,8 @@ mod blue_team;
 mod purple_team;
 #[allow(dead_code)]
 mod idp;
+#[allow(dead_code)]
+mod quantum_computing;
 
 #[derive(Parser)]
 #[command(name = "vibecli")]

@@ -19567,3 +19567,498 @@ pub async fn agile_save_safe(data: serde_json::Value) -> Result<(), String> {
     agile_write_json("safe.json", &data)?;
     Ok(())
 }
+
+// ── AI Story Splitting ──────────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn agile_ai_split_story(
+    story: serde_json::Value,
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let title = story.get("title").and_then(|v| v.as_str()).unwrap_or("Untitled");
+    let description = story.get("description").and_then(|v| v.as_str()).unwrap_or("");
+    let story_points = story.get("storyPoints").and_then(|v| v.as_u64()).unwrap_or(0);
+    let acceptance_criteria = story.get("acceptanceCriteria")
+        .and_then(|v| v.as_array())
+        .map(|arr| arr.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>().join(", "))
+        .unwrap_or_default();
+
+    let prompt = format!(
+        r#"You are an expert Agile coach. Split this user story into 2-3 smaller, independently deliverable stories. Each sub-story should be small enough to complete in 1-3 days.
+
+Story: {}, {}, Points: {}, Acceptance Criteria: {}
+
+Respond with ONLY valid JSON:
+{{
+  "stories": [{{ "title": "...", "description": "...", "storyPoints": 0, "acceptanceCriteria": ["..."] }}],
+  "rationale": "why this split makes sense"
+}}"#,
+        title, description, story_points, acceptance_criteria,
+    );
+
+    let messages = vec![Message { role: vibe_ai::MessageRole::User, content: prompt }];
+    let engine = state.chat_engine.lock().await;
+    let raw = engine.chat(&messages, None).await.map_err(|e| e.to_string())?;
+    drop(engine);
+
+    let json_start = raw.find('{').unwrap_or(0);
+    let json_end = raw.rfind('}').map(|i| i + 1).unwrap_or(raw.len());
+    let json_str = if json_start < json_end { &raw[json_start..json_end] } else { "{}" };
+
+    let result: serde_json::Value = serde_json::from_str(json_str)
+        .unwrap_or(serde_json::json!({ "stories": [], "rationale": "AI analysis unavailable" }));
+
+    Ok(result)
+}
+
+// ── AI Subtask Generation ────────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn agile_ai_generate_subtasks(
+    card: serde_json::Value,
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let title = card.get("title").and_then(|v| v.as_str()).unwrap_or("Untitled");
+    let description = card.get("description").and_then(|v| v.as_str()).unwrap_or("");
+    let acceptance_criteria = card.get("acceptanceCriteria")
+        .and_then(|v| v.as_array())
+        .map(|arr| arr.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>().join(", "))
+        .unwrap_or_default();
+
+    let prompt = format!(
+        r#"You are an expert software engineer. Given this user story, generate a checklist of implementation subtasks. Each subtask should be a concrete, actionable step.
+
+Story: {}
+Description: {}
+Acceptance Criteria: {}
+
+Respond with ONLY valid JSON:
+{{
+  "subtasks": [{{ "title": "concrete subtask description" }}]
+}}"#,
+        title, description, acceptance_criteria,
+    );
+
+    let messages = vec![Message { role: vibe_ai::MessageRole::User, content: prompt }];
+    let engine = state.chat_engine.lock().await;
+    let raw = engine.chat(&messages, None).await.map_err(|e| e.to_string())?;
+    drop(engine);
+
+    let json_start = raw.find('{').unwrap_or(0);
+    let json_end = raw.rfind('}').map(|i| i + 1).unwrap_or(raw.len());
+    let json_str = if json_start < json_end { &raw[json_start..json_end] } else { "{}" };
+
+    let result: serde_json::Value = serde_json::from_str(json_str)
+        .unwrap_or(serde_json::json!({ "subtasks": [] }));
+
+    Ok(result)
+}
+
+// ── AI Acceptance Criteria Generation ────────────────────────────────────────
+
+#[tauri::command]
+pub async fn agile_ai_generate_ac(
+    title: String,
+    description: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let prompt = format!(
+        r#"You are an expert Product Owner. Generate clear, testable acceptance criteria for this user story using Given/When/Then format.
+
+Title: {}
+Description: {}
+
+Respond with ONLY valid JSON:
+{{
+  "criteria": ["Given X, When Y, Then Z"]
+}}"#,
+        title, description,
+    );
+
+    let messages = vec![Message { role: vibe_ai::MessageRole::User, content: prompt }];
+    let engine = state.chat_engine.lock().await;
+    let raw = engine.chat(&messages, None).await.map_err(|e| e.to_string())?;
+    drop(engine);
+
+    let json_start = raw.find('{').unwrap_or(0);
+    let json_end = raw.rfind('}').map(|i| i + 1).unwrap_or(raw.len());
+    let json_str = if json_start < json_end { &raw[json_start..json_end] } else { "{}" };
+
+    let result: serde_json::Value = serde_json::from_str(json_str)
+        .unwrap_or(serde_json::json!({ "criteria": [] }));
+
+    Ok(result)
+}
+
+// ── AI Story Point Estimation ────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn agile_ai_estimate_points(
+    stories: serde_json::Value,
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let stories_str = serde_json::to_string_pretty(&stories).unwrap_or_default();
+
+    let prompt = format!(
+        r#"You are an expert Agile estimator. Estimate story points for each story using the Fibonacci scale (1, 2, 3, 5, 8, 13, 21). Consider complexity, effort, and uncertainty.
+
+Stories: {}
+
+Respond with ONLY valid JSON:
+{{
+  "estimates": [{{ "id": "story_id", "points": 0, "confidence": "high", "reasoning": "brief explanation" }}]
+}}"#,
+        stories_str,
+    );
+
+    let messages = vec![Message { role: vibe_ai::MessageRole::User, content: prompt }];
+    let engine = state.chat_engine.lock().await;
+    let raw = engine.chat(&messages, None).await.map_err(|e| e.to_string())?;
+    drop(engine);
+
+    let json_start = raw.find('{').unwrap_or(0);
+    let json_end = raw.rfind('}').map(|i| i + 1).unwrap_or(raw.len());
+    let json_str = if json_start < json_end { &raw[json_start..json_end] } else { "{}" };
+
+    let result: serde_json::Value = serde_json::from_str(json_str)
+        .unwrap_or(serde_json::json!({ "estimates": [] }));
+
+    Ok(result)
+}
+
+// ── AI Retrospective Generation ──────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn agile_ai_retro_generate(
+    sprint_data: serde_json::Value,
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let sprint_str = serde_json::to_string_pretty(&sprint_data).unwrap_or_default();
+
+    let prompt = format!(
+        r#"You are an expert Agile coach facilitating a retrospective. Based on the sprint data, generate insightful retrospective cards for each category.
+
+Sprint: {}
+
+Respond with ONLY valid JSON:
+{{
+  "well": ["things that went well"],
+  "didnt": ["things that didn't go well"],
+  "actions": ["concrete action items for improvement"]
+}}"#,
+        sprint_str,
+    );
+
+    let messages = vec![Message { role: vibe_ai::MessageRole::User, content: prompt }];
+    let engine = state.chat_engine.lock().await;
+    let raw = engine.chat(&messages, None).await.map_err(|e| e.to_string())?;
+    drop(engine);
+
+    let json_start = raw.find('{').unwrap_or(0);
+    let json_end = raw.rfind('}').map(|i| i + 1).unwrap_or(raw.len());
+    let json_str = if json_start < json_end { &raw[json_start..json_end] } else { "{}" };
+
+    let result: serde_json::Value = serde_json::from_str(json_str)
+        .unwrap_or(serde_json::json!({ "well": [], "didnt": [], "actions": [] }));
+
+    Ok(result)
+}
+
+// ── Quantum Computing ────────────────────────────────────────────────────────
+
+/// Helper: path to quantum data directory (~/.vibecli/quantum/)
+fn quantum_data_dir() -> Result<std::path::PathBuf, String> {
+    let home = std::env::var("HOME").map_err(|_| "HOME not set".to_string())?;
+    let dir = std::path::PathBuf::from(home).join(".vibecli").join("quantum");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(dir)
+}
+
+fn quantum_read_json(filename: &str) -> serde_json::Value {
+    let Ok(dir) = quantum_data_dir() else { return serde_json::json!([]) };
+    let path = dir.join(filename);
+    std::fs::read_to_string(path)
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or(serde_json::json!([]))
+}
+
+fn quantum_write_json(filename: &str, data: &serde_json::Value) -> Result<(), String> {
+    let dir = quantum_data_dir()?;
+    let path = dir.join(filename);
+    let content = serde_json::to_string_pretty(data).map_err(|e| e.to_string())?;
+    std::fs::write(path, content).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn quantum_get_languages() -> Result<serde_json::Value, String> {
+    let languages = serde_json::json!([
+        { "name": "Qiskit", "hostLanguage": "Python", "vendor": "IBM Quantum", "installCommand": "pip install qiskit qiskit-aer qiskit-ibm-runtime" },
+        { "name": "Cirq", "hostLanguage": "Python", "vendor": "Google Quantum AI", "installCommand": "pip install cirq" },
+        { "name": "PennyLane", "hostLanguage": "Python", "vendor": "Xanadu", "installCommand": "pip install pennylane pennylane-qiskit" },
+        { "name": "Q#", "hostLanguage": "Q# (standalone / Python host)", "vendor": "Microsoft", "installCommand": "dotnet new -i Microsoft.Quantum.ProjectTemplates && pip install qsharp" },
+        { "name": "Quipper", "hostLanguage": "Haskell", "vendor": "Dalhousie / IARPA", "installCommand": "cabal install quipper" },
+        { "name": "Silq", "hostLanguage": "Silq (standalone)", "vendor": "ETH Zürich", "installCommand": "# Download from https://silq.ethz.ch" },
+        { "name": "OpenQASM 2.0", "hostLanguage": "QASM (standalone)", "vendor": "IBM / OpenQASM Spec", "installCommand": "pip install openqasm3" },
+        { "name": "OpenQASM 3.0", "hostLanguage": "QASM (standalone)", "vendor": "IBM / OpenQASM Spec", "installCommand": "pip install openqasm3" },
+        { "name": "Scaffold", "hostLanguage": "C-like (standalone)", "vendor": "Princeton", "installCommand": "# Build from https://github.com/epiqc/ScaffCC" },
+        { "name": "ProjectQ", "hostLanguage": "Python", "vendor": "ETH Zürich", "installCommand": "pip install projectq" },
+        { "name": "Strawberry Fields", "hostLanguage": "Python", "vendor": "Xanadu", "installCommand": "pip install strawberryfields" },
+        { "name": "t|ket⟩", "hostLanguage": "Python / C++", "vendor": "Quantinuum", "installCommand": "pip install pytket" },
+        { "name": "Amazon Braket SDK", "hostLanguage": "Python", "vendor": "Amazon Web Services", "installCommand": "pip install amazon-braket-sdk" },
+        { "name": "CUDA Quantum", "hostLanguage": "C++ / Python", "vendor": "NVIDIA", "installCommand": "pip install cuda-quantum" },
+        { "name": "Qulacs", "hostLanguage": "Python / C++", "vendor": "QunaSys / Osaka Univ", "installCommand": "pip install qulacs" },
+        { "name": "Stim", "hostLanguage": "Python / C++", "vendor": "Google Quantum AI", "installCommand": "pip install stim" },
+        { "name": "Bloqade", "hostLanguage": "Python", "vendor": "QuEra Computing", "installCommand": "pip install bloqade" },
+        { "name": "IonQ SDK", "hostLanguage": "Python", "vendor": "IonQ", "installCommand": "pip install qiskit-ionq" },
+        { "name": "QIR", "hostLanguage": "LLVM IR", "vendor": "QIR Alliance", "installCommand": "pip install pyqir" },
+        { "name": "Twist", "hostLanguage": "Twist (standalone)", "vendor": "MIT CSAIL", "installCommand": "# Build from https://github.com/psg-mit/twist-popl22" },
+    ]);
+    Ok(languages)
+}
+
+#[tauri::command]
+pub async fn quantum_get_os_list() -> Result<serde_json::Value, String> {
+    let os_list = serde_json::json!([
+        { "name": "Qiskit Runtime", "layer": "Cloud orchestration", "vendor": "IBM Quantum" },
+        { "name": "Azure Quantum", "layer": "Cloud orchestration", "vendor": "Microsoft" },
+        { "name": "Amazon Braket", "layer": "Cloud orchestration", "vendor": "Amazon Web Services" },
+        { "name": "Google Quantum Engine", "layer": "Cloud orchestration", "vendor": "Google Quantum AI" },
+        { "name": "QUA / Quantum Machines OPX+", "layer": "Hardware control plane", "vendor": "Quantum Machines" },
+        { "name": "ARTIQ", "layer": "Hardware control plane", "vendor": "M-Labs (NIST / Oxford)" },
+        { "name": "Q-CTRL Boulder Opal", "layer": "Error mitigation / firmware", "vendor": "Q-CTRL" },
+        { "name": "Mitiq", "layer": "Error mitigation (software)", "vendor": "Unitary Fund" },
+        { "name": "Qibo", "layer": "Full-stack (compiler + runtime)", "vendor": "Technology Innovation Institute" },
+        { "name": "Oxford QC Pulse OS", "layer": "Hardware control plane", "vendor": "Oxford Quantum Circuits" },
+        { "name": "staq", "layer": "Compiler + optimiser", "vendor": "Princeton / Yale" },
+        { "name": "QNodeOS (QuTech)", "layer": "Quantum network OS", "vendor": "QuTech (TU Delft + TNO)" },
+        { "name": "Q-CTRL Fire Opal", "layer": "Error mitigation / firmware", "vendor": "Q-CTRL" },
+        { "name": "Keysight True-Q", "layer": "Error mitigation / firmware", "vendor": "Keysight Technologies" },
+        { "name": "Rigetti QCS", "layer": "Cloud orchestration", "vendor": "Rigetti Computing" },
+    ]);
+    Ok(os_list)
+}
+
+#[tauri::command]
+pub async fn quantum_get_algorithms() -> Result<serde_json::Value, String> {
+    let algorithms = serde_json::json!([
+        { "name": "Grover's search", "category": "Oracle / search", "scaling": "O(√N) queries, N qubits for N-item search" },
+        { "name": "Shor's factoring", "category": "Number-theoretic", "scaling": "O(n³) gates for n-bit integer (2n+3 qubits)" },
+        { "name": "VQE", "category": "Variational (NISQ-friendly)", "scaling": "Problem-dependent ansatz depth, typically 4-50 qubits" },
+        { "name": "QAOA", "category": "Variational (NISQ-friendly)", "scaling": "Problem-size + p rounds of alternating unitaries" },
+        { "name": "QPE", "category": "Number-theoretic", "scaling": "O(1/ε) ancilla qubits for precision ε" },
+        { "name": "Bernstein–Vazirani", "category": "Oracle / search", "scaling": "n qubits for n-bit secret" },
+        { "name": "Deutsch–Jozsa", "category": "Oracle / search", "scaling": "n+1 qubits, single oracle query" },
+        { "name": "Simon's problem", "category": "Oracle / search", "scaling": "n qubits, O(n) queries" },
+        { "name": "HHL (linear systems)", "category": "Linear algebra / simulation", "scaling": "O(log N) qubits for N×N system" },
+        { "name": "Quantum walk", "category": "Graph / combinatorial", "scaling": "O(log N) qubits for N-vertex graph" },
+        { "name": "Quantum Monte Carlo", "category": "Linear algebra / simulation", "scaling": "Quadratic speedup over classical MC" },
+        { "name": "Quantum SVM", "category": "Quantum machine learning", "scaling": "O(log N) qubits for N-dim feature space" },
+        { "name": "Quantum Neural Network", "category": "Quantum machine learning", "scaling": "Parameterised circuit depth × width" },
+        { "name": "Quantum Boltzmann Machine", "category": "Quantum machine learning", "scaling": "Visible + hidden qubit layers" },
+        { "name": "DMRG / tensor-network", "category": "Tensor-network / chemistry", "scaling": "Bond dimension dependent, hybrid" },
+    ]);
+    Ok(algorithms)
+}
+
+#[tauri::command]
+pub async fn quantum_get_hardware_types() -> Result<serde_json::Value, String> {
+    let hw = serde_json::json!([
+        { "type": "Superconducting transmon", "vendors": ["IBM", "Google", "Rigetti", "Oxford QC", "IQM"] },
+        { "type": "Trapped-ion", "vendors": ["IonQ", "Quantinuum (Honeywell)", "Alpine Quantum"] },
+        { "type": "Photonic", "vendors": ["Xanadu", "PsiQuantum", "Quandela"] },
+        { "type": "Neutral atom", "vendors": ["QuEra", "Pasqal", "Atom Computing"] },
+        { "type": "Topological qubit", "vendors": ["Microsoft (Station Q)"] },
+        { "type": "Nitrogen-vacancy (NV) center", "vendors": ["Element Six / De Beers", "Quantum Brilliance"] },
+        { "type": "Quantum dot / spin qubit", "vendors": ["Intel", "Silicon Quantum Computing"] },
+        { "type": "Quantum annealing processor", "vendors": ["D-Wave"] },
+    ]);
+    Ok(hw)
+}
+
+#[tauri::command]
+pub async fn quantum_get_hello_circuit(language: String) -> Result<String, String> {
+    let code = match language.as_str() {
+        "Qiskit" => r#"from qiskit import QuantumCircuit
+from qiskit_aer import AerSimulator
+
+qc = QuantumCircuit(2, 2)
+qc.h(0)           # Hadamard on qubit 0
+qc.cx(0, 1)       # CNOT — creates Bell state |Φ+⟩
+qc.measure([0, 1], [0, 1])
+
+sim = AerSimulator()
+result = sim.run(qc, shots=1024).result()
+print(result.get_counts())
+"#,
+        "Cirq" => r#"import cirq
+
+q0, q1 = cirq.LineQubit.range(2)
+circuit = cirq.Circuit([
+    cirq.H(q0),
+    cirq.CNOT(q0, q1),
+    cirq.measure(q0, q1, key='result'),
+])
+
+sim = cirq.Simulator()
+result = sim.run(circuit, repetitions=1024)
+print(result.histogram(key='result'))
+"#,
+        "Q#" => r#"namespace BellState {
+    open Microsoft.Quantum.Canon;
+    open Microsoft.Quantum.Intrinsic;
+    open Microsoft.Quantum.Measurement;
+
+    @EntryPoint()
+    operation Main() : (Result, Result) {
+        use (q0, q1) = (Qubit(), Qubit());
+        H(q0);
+        CNOT(q0, q1);
+        let r0 = MResetZ(q0);
+        let r1 = MResetZ(q1);
+        return (r0, r1);
+    }
+}
+"#,
+        "OpenQASM 3.0" => r#"OPENQASM 3.0;
+include "stdgates.inc";
+
+qubit[2] q;
+bit[2] c;
+
+h q[0];
+cx q[0], q[1];
+
+c = measure q;
+"#,
+        "PennyLane" => r#"import pennylane as qml
+from pennylane import numpy as np
+
+dev = qml.device("default.qubit", wires=2)
+
+@qml.qnode(dev)
+def bell_state():
+    qml.Hadamard(wires=0)
+    qml.CNOT(wires=[0, 1])
+    return qml.probs(wires=[0, 1])
+
+print(bell_state())
+"#,
+        _ => "// See official documentation for this language's hello-world circuit.",
+    };
+    Ok(code.to_string())
+}
+
+#[tauri::command]
+pub async fn quantum_get_compatibility() -> Result<serde_json::Value, String> {
+    let compat = serde_json::json!([
+        { "language": "Qiskit", "compatibleOs": ["Qiskit Runtime", "Azure Quantum", "Amazon Braket"] },
+        { "language": "Cirq", "compatibleOs": ["Google Quantum Engine", "Azure Quantum", "Amazon Braket"] },
+        { "language": "PennyLane", "compatibleOs": ["Qiskit Runtime", "Amazon Braket", "Google Quantum Engine"] },
+        { "language": "Q#", "compatibleOs": ["Azure Quantum"] },
+        { "language": "Amazon Braket SDK", "compatibleOs": ["Amazon Braket"] },
+        { "language": "t|ket⟩", "compatibleOs": ["Qiskit Runtime", "Azure Quantum", "Amazon Braket", "Rigetti QCS"] },
+        { "language": "CUDA Quantum", "compatibleOs": ["Qiskit Runtime", "Google Quantum Engine"] },
+        { "language": "Bloqade", "compatibleOs": ["Amazon Braket"] },
+        { "language": "OpenQASM 3.0", "compatibleOs": ["Qiskit Runtime", "Azure Quantum", "Amazon Braket"] },
+    ]);
+    Ok(compat)
+}
+
+#[tauri::command]
+pub async fn quantum_get_projects() -> Result<serde_json::Value, String> {
+    Ok(quantum_read_json("projects.json"))
+}
+
+#[tauri::command]
+pub async fn quantum_create_project(
+    name: String, language: String, hardware: String,
+    num_qubits: usize, description: String,
+) -> Result<serde_json::Value, String> {
+    let mut projects = quantum_read_json("projects.json");
+    if !projects.is_array() { projects = serde_json::json!([]); }
+    let id = format!("QP-{:04}", projects.as_array().map(|a| a.len()).unwrap_or(0) + 1);
+    let project = serde_json::json!({
+        "id": id,
+        "name": name,
+        "language": language,
+        "targetOs": null,
+        "targetHardware": hardware,
+        "algorithm": null,
+        "errorCorrection": null,
+        "numQubits": num_qubits,
+        "description": description,
+        "estimatedPhysicalQubits": num_qubits,
+    });
+    projects.as_array_mut().unwrap().push(project.clone());
+    quantum_write_json("projects.json", &projects)?;
+    Ok(project)
+}
+
+#[tauri::command]
+pub async fn quantum_delete_project(project_id: String) -> Result<(), String> {
+    let mut projects = quantum_read_json("projects.json");
+    if let Some(arr) = projects.as_array_mut() {
+        arr.retain(|p| p.get("id").and_then(|v| v.as_str()) != Some(&project_id));
+    }
+    quantum_write_json("projects.json", &projects)
+}
+
+#[tauri::command]
+pub async fn quantum_get_circuits() -> Result<serde_json::Value, String> {
+    Ok(quantum_read_json("circuits.json"))
+}
+
+#[tauri::command]
+pub async fn quantum_create_circuit(
+    name: String, num_qubits: usize, num_classical: usize,
+) -> Result<serde_json::Value, String> {
+    let mut circuits = quantum_read_json("circuits.json");
+    if !circuits.is_array() { circuits = serde_json::json!([]); }
+    let index = circuits.as_array().map(|a| a.len()).unwrap_or(0);
+    let circuit = serde_json::json!({
+        "index": index,
+        "name": name,
+        "numQubits": num_qubits,
+        "numClassical": num_classical,
+        "gateCount": 0,
+        "depth": 0,
+        "twoQubitGates": 0,
+    });
+    circuits.as_array_mut().unwrap().push(circuit.clone());
+    quantum_write_json("circuits.json", &circuits)?;
+    Ok(circuit)
+}
+
+#[tauri::command]
+pub async fn quantum_export_circuit(index: usize, format: String) -> Result<String, String> {
+    let circuits = quantum_read_json("circuits.json");
+    let arr = circuits.as_array().ok_or("No circuits")?;
+    let c = arr.get(index).ok_or("Circuit not found")?;
+    let nq = c.get("numQubits").and_then(|v| v.as_u64()).unwrap_or(2) as usize;
+    let nc = c.get("numClassical").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
+    let name = c.get("name").and_then(|v| v.as_str()).unwrap_or("circuit");
+    match format.as_str() {
+        "qasm3" => {
+            Ok(format!(
+                "OPENQASM 3.0;\ninclude \"stdgates.inc\";\n\nqubit[{}] q;\n{}// Add gates for '{}' here\n",
+                nq,
+                if nc > 0 { format!("bit[{}] c;\n", nc) } else { String::new() },
+                name
+            ))
+        }
+        "qiskit" => {
+            Ok(format!(
+                "from qiskit import QuantumCircuit\n\nqc = QuantumCircuit({}, {})\n# Add gates for '{}' here\n",
+                nq, nc, name
+            ))
+        }
+        "cirq" => {
+            Ok(format!(
+                "import cirq\n\nqubits = cirq.LineQubit.range({})\ncircuit = cirq.Circuit([\n    # Add gates for '{}' here\n])\n",
+                nq, name
+            ))
+        }
+        _ => Err(format!("Unknown format: {}", format)),
+    }
+}

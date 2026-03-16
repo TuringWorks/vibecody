@@ -576,6 +576,24 @@ pub fn run() {
             commands::agile_update_wip_limits,
             commands::agile_get_safe,
             commands::agile_save_safe,
+            commands::agile_ai_split_story,
+            commands::agile_ai_generate_subtasks,
+            commands::agile_ai_generate_ac,
+            commands::agile_ai_estimate_points,
+            commands::agile_ai_retro_generate,
+            // Quantum Computing
+            commands::quantum_get_languages,
+            commands::quantum_get_os_list,
+            commands::quantum_get_algorithms,
+            commands::quantum_get_hardware_types,
+            commands::quantum_get_hello_circuit,
+            commands::quantum_get_compatibility,
+            commands::quantum_get_projects,
+            commands::quantum_create_project,
+            commands::quantum_delete_project,
+            commands::quantum_get_circuits,
+            commands::quantum_create_circuit,
+            commands::quantum_export_circuit,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

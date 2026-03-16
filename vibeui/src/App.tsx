@@ -1091,9 +1091,9 @@ function App() {
           <button
             className="btn-secondary"
             onClick={() => setShowAIChat(!showAIChat)}
-            title="Toggle AI Toolkit"
+            title="Toggle Vibe Toolkit"
           >
-            <LayoutGrid size={14} strokeWidth={1.5} /> AI Toolkit
+            <LayoutGrid size={14} strokeWidth={1.5} /> Vibe Toolkit
           </button>
           <button className="btn-primary" onClick={saveFile} disabled={!currentFile}>
             <Save size={14} strokeWidth={1.5} /> Save {currentFile && "(⌘S)"}

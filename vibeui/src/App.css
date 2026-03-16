@@ -938,7 +938,7 @@ textarea::placeholder {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   Panel Toolkit — Shared utility classes for AI Toolkit panels
+   Panel Toolkit — Shared utility classes for Vibe Toolkit panels
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .panel-container { display: flex; flex-direction: column; height: 100%; overflow: hidden; color: var(--text-primary); font-size: 13px; }

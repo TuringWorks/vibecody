@@ -87,6 +87,7 @@ pub static COMMANDS: &[&str] = &[
     "/blueteam",
     "/purpleteam",
     "/idp",
+    "/quantum",
 ];
 
 // ── Sub-command tables ────────────────────────────────────────────────────────
@@ -177,6 +178,9 @@ static PURPLETEAM_SUBS: &[&str] = &["status", "exercise", "simulate", "validate"
 
 /// Sub-commands for `/idp <sub>`
 static IDP_SUBS: &[&str] = &["status", "catalog", "register", "golden", "scorecard", "infra", "team", "onboard", "backstage", "platforms", "report"];
+
+/// Sub-commands for `/quantum <sub>`
+static QUANTUM_SUBS: &[&str] = &["languages", "os", "hardware", "algorithms", "circuits", "projects", "create", "export", "compat", "status"];
 
 /// Sub-commands for `/arena <sub>`
 static ARENA_SUBS: &[&str] = &["compare", "stats", "history"];
@@ -293,6 +297,7 @@ fn command_hint(cmd: &str) -> Option<&'static str> {
         "/blueteam" => Some("[status|scan|incidents|iocs|rules|forensics|playbooks|siem|hunt|report]  — defensive security"),
         "/purpleteam" => Some("[status|exercise|simulate|validate|matrix|gaps|heatmap|report]  — ATT&CK exercises"),
         "/idp" => Some("[status|catalog|register|golden|scorecard|infra|team|onboard|backstage|platforms|report]  — internal developer platform"),
+        "/quantum" => Some("[languages|os|hardware|algorithms|circuits|projects|create|export|compat|status]  — quantum computing"),
         _ => None,
     }
 }
@@ -394,6 +399,7 @@ fn complete_slash(line: &str) -> Option<(usize, Vec<Pair>)> {
                 "/blueteam" => Some(BLUETEAM_SUBS),
                 "/purpleteam" => Some(PURPLETEAM_SUBS),
                 "/idp" => Some(IDP_SUBS),
+                "/quantum" => Some(QUANTUM_SUBS),
                 _ => None,
             };
 

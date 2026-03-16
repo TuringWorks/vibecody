@@ -488,11 +488,27 @@ function BoardTab() {
   }, [newTitle, saveCard, boardMode, activeSprint]);
 
   /* ── Subtask helpers ── */
+  const [subtaskLoading, setSubtaskLoading] = useState(false);
+
   const addSubtask = () => {
     if (!editingCard) return;
-    const title = prompt("Subtask title:");
+    const title = window.prompt("Subtask title:");
     if (!title) return;
     setEditingCard({ ...editingCard, subtasks: [...(editingCard.subtasks || []), { id: genId(), title, done: false }] });
+  };
+
+  const aiGenerateSubtasks = async () => {
+    if (!editingCard) return;
+    setSubtaskLoading(true);
+    try {
+      const result = await invoke<{ subtasks: { title: string }[] }>("agile_ai_generate_subtasks", { card: editingCard });
+      const newSubtasks = (result.subtasks || []).map(s => ({ id: genId(), title: s.title, done: false }));
+      setEditingCard({ ...editingCard, subtasks: [...(editingCard.subtasks || []), ...newSubtasks] });
+    } catch (e: any) {
+      setError(typeof e === "string" ? e : e?.message || "AI subtask generation failed");
+    } finally {
+      setSubtaskLoading(false);
+    }
   };
   const toggleSubtask = (subId: string) => {
     if (!editingCard) return;
@@ -700,13 +716,49 @@ function BoardTab() {
               </div>
             </div>
             <label style={{ fontSize: 12, color: "var(--text-secondary)" }}>Labels (comma-separated)</label>
-            <input style={{ ...inputStyle, marginBottom: 12 }} value={editingCard.labels.join(", ")} onChange={e => setEditingCard({ ...editingCard, labels: e.target.value.split(",").map(s => s.trim()).filter(Boolean) })} />
+            <input style={{ ...inputStyle, marginBottom: 8 }} value={editingCard.labels.join(", ")} onChange={e => setEditingCard({ ...editingCard, labels: e.target.value.split(",").map(s => s.trim()).filter(Boolean) })} />
+
+            {/* Acceptance Criteria */}
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                <label style={{ fontSize: 12, color: "var(--text-secondary)" }}>Acceptance Criteria</label>
+                <button style={{ ...btnStyle, padding: "2px 8px", fontSize: 11, color: "var(--accent-blue)" }} onClick={async () => {
+                  try {
+                    const result = await invoke<{ criteria: string[] }>("agile_ai_generate_ac", { title: editingCard.title, description: editingCard.description });
+                    if (result.criteria?.length) {
+                      setEditingCard({ ...editingCard, acceptanceCriteria: [...editingCard.acceptanceCriteria, ...result.criteria] });
+                    }
+                  } catch (e: any) {
+                    setError(typeof e === "string" ? e : "Failed to generate AC");
+                  }
+                }}>AI Generate</button>
+              </div>
+              {editingCard.acceptanceCriteria.map((ac, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                  <span style={{ flex: 1, fontSize: 12, color: "var(--text-primary)" }}>{ac}</span>
+                  <button style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", fontSize: 12 }} onClick={() => {
+                    setEditingCard({ ...editingCard, acceptanceCriteria: editingCard.acceptanceCriteria.filter((_, j) => j !== i) });
+                  }}>x</button>
+                </div>
+              ))}
+              <input style={{ ...inputStyle, fontSize: 12 }} placeholder="Add acceptance criterion..." onKeyDown={e => {
+                if (e.key === "Enter" && (e.target as HTMLInputElement).value.trim()) {
+                  setEditingCard({ ...editingCard, acceptanceCriteria: [...editingCard.acceptanceCriteria, (e.target as HTMLInputElement).value.trim()] });
+                  (e.target as HTMLInputElement).value = "";
+                }
+              }} />
+            </div>
 
             {/* Subtasks section */}
             <div style={{ marginBottom: 12, borderTop: "1px solid var(--border-color)", paddingTop: 12 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                 <label style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>Subtasks ({(editingCard.subtasks || []).length})</label>
-                <button style={{ ...btnStyle, padding: "3px 10px", fontSize: 11 }} onClick={addSubtask}>+ Add</button>
+                <div style={{ display: "flex", gap: 4 }}>
+                  <button style={{ ...btnStyle, padding: "3px 10px", fontSize: 11 }} onClick={addSubtask}>+ Add</button>
+                  <button style={{ ...btnPrimaryStyle, padding: "3px 10px", fontSize: 11 }} onClick={aiGenerateSubtasks} disabled={subtaskLoading}>
+                    {subtaskLoading ? "Generating..." : "AI Generate"}
+                  </button>
+                </div>
               </div>
               {(editingCard.subtasks || []).map(sub => (
                 <div key={sub.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", borderBottom: "1px solid var(--border-color)" }}>
@@ -980,24 +1032,37 @@ function BacklogTab() {
     }
   }, [items]);
 
+  const [splitLoading, setSplitLoading] = useState<string | null>(null);
+
   const suggestSplit = useCallback(async (id: string) => {
     const item = items.find(c => c.id === id);
     if (!item) return;
-    // AI-powered suggestion: split large stories
-    if (item.storyPoints > 5) {
-      const half = Math.ceil(item.storyPoints / 2);
-      const childA: Card = { ...item, id: genId(), title: `${item.title} (Part 1)`, storyPoints: half };
-      const childB: Card = { ...item, id: genId(), title: `${item.title} (Part 2)`, storyPoints: item.storyPoints - half };
-      try {
-        await invoke("agile_create_story", { story: childA });
-        await invoke("agile_create_story", { story: childB });
-        setItems(prev => [childA, childB, ...prev.filter(c => c.id !== id)]);
-      } catch (e: any) {
-        setError(typeof e === "string" ? e : e?.message || "Failed to split story");
+    setSplitLoading(id);
+    try {
+      const result = await invoke<{ stories: { title: string; description: string; storyPoints: number; acceptanceCriteria: string[] }[]; rationale: string }>("agile_ai_split_story", { story: item });
+      if (result.stories && result.stories.length > 0) {
+        const newCards: Card[] = result.stories.map(s => ({
+          ...item,
+          id: genId(),
+          title: s.title,
+          description: s.description || item.description,
+          storyPoints: s.storyPoints,
+          acceptanceCriteria: s.acceptanceCriteria || [],
+          createdAt: new Date().toISOString(),
+        }));
+        for (const card of newCards) {
+          await invoke("agile_create_story", { story: card });
+        }
+        await invoke("agile_delete_story", { storyId: id });
+        setItems(prev => [...newCards, ...prev.filter(c => c.id !== id)]);
+      } else {
+        setError("AI could not determine a good split for this story.");
+        setTimeout(() => setError(""), 3000);
       }
-    } else {
-      setError("Story is already small enough (<=5 pts). No split needed.");
-      setTimeout(() => setError(""), 3000);
+    } catch (e: any) {
+      setError(typeof e === "string" ? e : e?.message || "AI split failed");
+    } finally {
+      setSplitLoading(null);
     }
   }, [items]);
 
@@ -1046,6 +1111,27 @@ function BacklogTab() {
         </select>
         <input style={{ ...inputStyle, width: 140 }} placeholder="Label" value={filterLabel} onChange={e => setFilterLabel(e.target.value)} />
         <input style={{ ...inputStyle, width: 140 }} placeholder="Assignee" value={filterAssignee} onChange={e => setFilterAssignee(e.target.value)} />
+        <button style={{ ...btnPrimaryStyle, fontSize: 11, padding: "4px 10px", marginLeft: "auto" }} onClick={async () => {
+          const unestimated = items.filter(c => c.storyPoints === 0);
+          if (unestimated.length === 0) { setError("All stories already have estimates."); setTimeout(() => setError(""), 3000); return; }
+          try {
+            const result = await invoke<{ estimates: { id: string; points: number; confidence: string; reasoning: string }[] }>("agile_ai_estimate_points", { stories: unestimated });
+            if (result.estimates?.length) {
+              const updates = new Map(result.estimates.map(e => [e.id, e]));
+              const next = items.map(c => {
+                const est = updates.get(c.id);
+                return est ? { ...c, storyPoints: est.points } : c;
+              });
+              setItems(next);
+              for (const est of result.estimates) {
+                const card = next.find(c => c.id === est.id);
+                if (card) await invoke("agile_update_story", { story: card });
+              }
+            }
+          } catch (e: any) {
+            setError(typeof e === "string" ? e : "AI estimation failed");
+          }
+        }}>AI Estimate</button>
       </div>
 
       {/* Backlog list */}
@@ -1075,7 +1161,9 @@ function BacklogTab() {
             onChange={e => updateInline(item.id, "storyPoints", Number(e.target.value))}
             onClick={e => e.stopPropagation()}
           />
-          <button style={{ ...btnStyle, fontSize: 11, padding: "4px 8px" }} title="AI Split Suggestion" onClick={() => suggestSplit(item.id)}>Split</button>
+          <button style={{ ...btnPrimaryStyle, fontSize: 11, padding: "4px 8px" }} title="AI-powered story decomposition" onClick={() => suggestSplit(item.id)} disabled={splitLoading === item.id}>
+            {splitLoading === item.id ? "Splitting..." : "AI Split"}
+          </button>
         </div>
       ))}
       {filtered.length === 0 && <div style={{ textAlign: "center", color: "var(--text-secondary)", padding: 24 }}>No backlog items found</div>}
@@ -1243,8 +1331,24 @@ function CeremoniesTab() {
       {subTab === "retro" && (
         <div>
           <div style={sectionTitle}>Retrospective</div>
-          <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
+          <div style={{ display: "flex", gap: 8, marginBottom: 12, alignItems: "center" }}>
             <input style={{ ...inputStyle, flex: 1 }} placeholder="Add a card..." value={newRetroText} onChange={e => setNewRetroText(e.target.value)} />
+            <button style={{ ...btnPrimaryStyle, whiteSpace: "nowrap", fontSize: 12 }} onClick={async () => {
+              try {
+                const sprintData = await invoke("agile_get_sprints");
+                const result = await invoke<{ well: string[]; didnt: string[]; actions: string[] }>("agile_ai_retro_generate", { sprintData });
+                const newCards: RetroCard[] = [
+                  ...(result.well || []).map(t => ({ id: genId(), text: t, category: "well" as const })),
+                  ...(result.didnt || []).map(t => ({ id: genId(), text: t, category: "didnt" as const })),
+                  ...(result.actions || []).map(t => ({ id: genId(), text: t, category: "action" as const })),
+                ];
+                const next = [...retro, ...newCards];
+                setRetro(next);
+                saveCeremony({ retro: next });
+              } catch (e: any) {
+                setError(typeof e === "string" ? e : "AI retro generation failed");
+              }
+            }}>AI Generate Cards</button>
           </div>
           <div style={{ display: "flex", gap: 12 }}>
             {(["well", "didnt", "action"] as const).map(cat => {
@@ -1570,12 +1674,22 @@ function MethodologyTab() {
 
 function AiCoachTab() {
   const [sprintId, setSprintId] = useState("");
+  const [sprints, setSprints] = useState<Sprint[]>([]);
   const [analysis, setAnalysis] = useState<AiAnalysis | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const cancelRef = useRef(false);
   const taskIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await invoke<{ sprints: Sprint[] }>("agile_get_sprints");
+        setSprints(data.sprints || []);
+      } catch { /* ignore */ }
+    })();
+  }, []);
 
   const analyzesprint = useCallback(async () => {
     if (!sprintId.trim()) {
@@ -1615,8 +1729,11 @@ function AiCoachTab() {
       {error && <div style={{ color: "var(--error-color)", marginBottom: 8, fontSize: 12 }}>{error}</div>}
 
       <div style={{ display: "flex", gap: 8, marginBottom: 16, alignItems: "center" }}>
-        <input style={{ ...inputStyle, width: 200 }} placeholder="Sprint ID" value={sprintId} onChange={e => setSprintId(e.target.value)} />
-        <button style={btnPrimaryStyle} onClick={analyzesprint} disabled={loading}>
+        <select style={{ ...inputStyle, width: 200 }} value={sprintId} onChange={e => setSprintId(e.target.value)}>
+          <option value="">Select Sprint...</option>
+          {sprints.map(s => <option key={s.id} value={s.id}>{s.name} ({s.status})</option>)}
+        </select>
+        <button style={btnPrimaryStyle} onClick={analyzesprint} disabled={loading || !sprintId}>
           {loading ? "Analyzing..." : "Analyze Sprint"}
         </button>
         {loading && (
@@ -1769,20 +1886,52 @@ function SAFeTab() {
       save({ ...safeData, programIncrements: safeData.programIncrements.map(p => p.id === piId ? { ...p, status } : p) });
     };
 
+    const [featureTitle, setFeatureTitle] = useState("");
+    const [showFeatureForm, setShowFeatureForm] = useState<string | null>(null);
+    const [featureLoading, setFeatureLoading] = useState(false);
+
     const addFeature = (piId: string) => {
-      const title = prompt("Feature title:");
-      if (!title) return;
+      if (!featureTitle.trim()) { setShowFeatureForm(piId); return; }
       const teamId = safeData.teams.length > 0 ? safeData.teams[0].id : "unassigned";
-      const f: Feature = { id: `feat-${Date.now()}`, title, description: "", teamId, iteration: 1, businessValue: 5, timeCriticality: 5, riskReduction: 5, jobSize: 5, status: "To Do" };
+      const f: Feature = { id: `feat-${Date.now()}`, title: featureTitle.trim(), description: "", teamId, iteration: 1, businessValue: 5, timeCriticality: 5, riskReduction: 5, jobSize: 5, status: "To Do" };
       save({ ...safeData, programIncrements: safeData.programIncrements.map(p => p.id === piId ? { ...p, features: [...p.features, f] } : p) });
+      setFeatureTitle("");
+      setShowFeatureForm(null);
     };
 
+    const aiGenerateFeatures = async (piId: string) => {
+      const pi = safeData.programIncrements.find(p => p.id === piId);
+      if (!pi) return;
+      setFeatureLoading(true);
+      try {
+        const objectives = pi.objectives.map(o => o.description).join("; ");
+        const result = await invoke<{ features: { title: string; description: string; businessValue: number; timeCriticality: number; riskReduction: number; jobSize: number }[] }>("agile_ai_enhance_safe", { piId, objectiveText: objectives || pi.name });
+        if (result.features?.length) {
+          const teamId = safeData.teams.length > 0 ? safeData.teams[0].id : "unassigned";
+          const newFeatures: Feature[] = result.features.map((f, i) => ({
+            id: `feat-${Date.now()}-${i}`, title: f.title, description: f.description || "",
+            teamId, iteration: 1, businessValue: f.businessValue || 5, timeCriticality: f.timeCriticality || 5,
+            riskReduction: f.riskReduction || 5, jobSize: f.jobSize || 5, status: "To Do" as Column,
+          }));
+          save({ ...safeData, programIncrements: safeData.programIncrements.map(p => p.id === piId ? { ...p, features: [...p.features, ...newFeatures] } : p) });
+        }
+      } catch (e: any) {
+        // silently fail — user can add manually
+      } finally {
+        setFeatureLoading(false);
+      }
+    };
+
+    const [objectiveDesc, setObjectiveDesc] = useState("");
+    const [showObjectiveForm, setShowObjectiveForm] = useState<string | null>(null);
+
     const addObjective = (piId: string) => {
-      const desc = prompt("PI Objective description:");
-      if (!desc) return;
+      if (!objectiveDesc.trim()) { setShowObjectiveForm(piId); return; }
       const teamId = safeData.teams.length > 0 ? safeData.teams[0].id : "unassigned";
-      const obj: PIObjective = { id: `obj-${Date.now()}`, teamId, description: desc, businessValue: 5, committed: true, achieved: false };
+      const obj: PIObjective = { id: `obj-${Date.now()}`, teamId, description: objectiveDesc.trim(), businessValue: 5, committed: true, achieved: false };
       save({ ...safeData, programIncrements: safeData.programIncrements.map(p => p.id === piId ? { ...p, objectives: [...p.objectives, obj] } : p) });
+      setObjectiveDesc("");
+      setShowObjectiveForm(null);
     };
 
     const PI_STATUSES: PIStatus[] = ["Planning", "Executing", "IP", "Completed"];
@@ -1811,8 +1960,20 @@ function SAFeTab() {
             <div style={{ marginBottom: 8 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
                 <span style={{ fontWeight: 600, fontSize: 12 }}>Features ({pi.features.length})</span>
-                <button style={{ ...btnStyle, padding: "2px 8px", fontSize: 11 }} onClick={() => addFeature(pi.id)}>+ Feature</button>
+                <div style={{ display: "flex", gap: 4 }}>
+                  <button style={{ ...btnStyle, padding: "2px 8px", fontSize: 11 }} onClick={() => addFeature(pi.id)}>+ Feature</button>
+                  <button style={{ ...btnPrimaryStyle, padding: "2px 8px", fontSize: 11 }} onClick={() => aiGenerateFeatures(pi.id)} disabled={featureLoading}>
+                    {featureLoading ? "Generating..." : "AI Generate"}
+                  </button>
+                </div>
               </div>
+              {showFeatureForm === pi.id && (
+                <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
+                  <input style={{ ...inputStyle, fontSize: 12 }} placeholder="Feature title" value={featureTitle} onChange={e => setFeatureTitle(e.target.value)} onKeyDown={e => e.key === "Enter" && addFeature(pi.id)} autoFocus />
+                  <button style={{ ...btnPrimaryStyle, padding: "2px 10px", fontSize: 11 }} onClick={() => addFeature(pi.id)}>Add</button>
+                  <button style={{ ...btnStyle, padding: "2px 10px", fontSize: 11 }} onClick={() => { setShowFeatureForm(null); setFeatureTitle(""); }}>Cancel</button>
+                </div>
+              )}
               {pi.features.sort((a, b) => wsjf(b) - wsjf(a)).map(f => (
                 <div key={f.id} style={{ padding: "4px 8px", borderRadius: 4, background: "var(--bg-tertiary)", marginBottom: 4, fontSize: 12, display: "flex", justifyContent: "space-between" }}>
                   <span>{f.title}</span>
@@ -1825,6 +1986,13 @@ function SAFeTab() {
                 <span style={{ fontWeight: 600, fontSize: 12 }}>PI Objectives ({pi.objectives.length})</span>
                 <button style={{ ...btnStyle, padding: "2px 8px", fontSize: 11 }} onClick={() => addObjective(pi.id)}>+ Objective</button>
               </div>
+              {showObjectiveForm === pi.id && (
+                <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
+                  <input style={{ ...inputStyle, fontSize: 12 }} placeholder="PI Objective description" value={objectiveDesc} onChange={e => setObjectiveDesc(e.target.value)} onKeyDown={e => e.key === "Enter" && addObjective(pi.id)} autoFocus />
+                  <button style={{ ...btnPrimaryStyle, padding: "2px 10px", fontSize: 11 }} onClick={() => addObjective(pi.id)}>Add</button>
+                  <button style={{ ...btnStyle, padding: "2px 10px", fontSize: 11 }} onClick={() => { setShowObjectiveForm(null); setObjectiveDesc(""); }}>Cancel</button>
+                </div>
+              )}
               {pi.objectives.map(obj => (
                 <div key={obj.id} style={{ padding: "4px 8px", borderRadius: 4, background: "var(--bg-tertiary)", marginBottom: 4, fontSize: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <span>{obj.description}</span>
@@ -1895,11 +2063,15 @@ function SAFeTab() {
   const PortfolioKanban = () => {
     const EPIC_COLUMNS: EpicStatus[] = ["Funnel", "Analyzing", "Backlog", "Implementing", "Done"];
 
+    const [epicTitle, setEpicTitle] = useState("");
+    const [showEpicForm, setShowEpicForm] = useState(false);
+
     const addEpic = () => {
-      const title = prompt("Epic title:");
-      if (!title) return;
-      const epic: Epic = { id: `epic-${Date.now()}`, title, description: "", status: "Funnel", leanBusinessCase: "", wsjfScore: 0, features: [] };
+      if (!epicTitle.trim()) { setShowEpicForm(true); return; }
+      const epic: Epic = { id: `epic-${Date.now()}`, title: epicTitle.trim(), description: "", status: "Funnel", leanBusinessCase: "", wsjfScore: 0, features: [] };
       save({ ...safeData, epics: [...safeData.epics, epic] });
+      setEpicTitle("");
+      setShowEpicForm(false);
     };
 
     const moveEpic = (id: string, status: EpicStatus) => {
@@ -1912,8 +2084,15 @@ function SAFeTab() {
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
           <div style={{ fontWeight: 600, fontSize: 14 }}>Portfolio Kanban</div>
-          <button style={btnStyle} onClick={addEpic}>+ Epic</button>
+          <button style={btnStyle} onClick={() => setShowEpicForm(true)}>+ Epic</button>
         </div>
+        {showEpicForm && (
+          <div style={{ display: "flex", gap: 4, marginBottom: 12 }}>
+            <input style={{ ...inputStyle, fontSize: 12 }} placeholder="Epic title" value={epicTitle} onChange={e => setEpicTitle(e.target.value)} onKeyDown={e => e.key === "Enter" && addEpic()} autoFocus />
+            <button style={{ ...btnPrimaryStyle, padding: "4px 12px", fontSize: 11 }} onClick={addEpic}>Add</button>
+            <button style={{ ...btnStyle, padding: "4px 12px", fontSize: 11 }} onClick={() => { setShowEpicForm(false); setEpicTitle(""); }}>Cancel</button>
+          </div>
+        )}
         <div style={{ display: "grid", gridTemplateColumns: `repeat(${EPIC_COLUMNS.length}, 1fr)`, gap: 8 }}>
           {EPIC_COLUMNS.map(col => (
             <div key={col} style={{ background: "var(--bg-secondary)", borderRadius: 8, padding: 8, minHeight: 120 }}>
