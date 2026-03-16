@@ -218,3 +218,54 @@
     opacity: 0.7;
     cursor: wait;
 }
+
+/* REC badge on mic button while listening */
+.mic-recording-badge {
+    position: absolute;
+    top: -6px;
+    right: -8px;
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    background: var(--text-danger, #ff4d4f);
+    color: #fff;
+    padding: 1px 4px;
+    border-radius: 3px;
+    line-height: 1.2;
+    animation: mic-pulse 1s ease-in-out infinite;
+}
+
+.mic-btn {
+    position: relative;
+}
+
+/* Interim voice transcript preview */
+.voice-interim {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    right: 0;
+    padding: 6px 10px;
+    margin-bottom: 4px;
+    background: var(--bg-elevated, #222638);
+    border: 1px solid var(--accent-blue, #6c8cff);
+    border-radius: 6px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-style: italic;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    animation: slideIn 0.2s ease-out;
+    z-index: 10;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.voice-interim-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--text-danger, #ff4d4f);
+    flex-shrink: 0;
+    animation: mic-pulse 1s ease-in-out infinite;
+}

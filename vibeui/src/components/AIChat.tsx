@@ -7,23 +7,101 @@ import { flowContext } from "../utils/FlowContext";
 import { Mic, User } from "lucide-react";
 import "./AIChat.css";
 
-// ── Voice input hook (MediaRecorder + Groq Whisper via Tauri backend) ────────
+// ── Voice input hook ─────────────────────────────────────────────────────────
+// Strategy 1: Web Speech API (webkitSpeechRecognition) — works natively in
+//   Chromium-based webviews, no API key needed, real-time interim results.
+// Strategy 2: MediaRecorder + Groq Whisper — fallback when SpeechRecognition
+//   is unavailable (requires GROQ_API_KEY env var on the Tauri backend).
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
 function useVoiceInput(onTranscript: (text: string) => void) {
  const [isListening, setIsListening] = useState(false);
  const [isTranscribing, setIsTranscribing] = useState(false);
+ const [interimText, setInterimText] = useState("");
+ // eslint-disable-next-line @typescript-eslint/no-explicit-any
+ const recognitionRef = useRef<any>(null);
  const recorderRef = useRef<MediaRecorder | null>(null);
  const chunksRef = useRef<Blob[]>([]);
  const { toast } = useToast();
 
+ // Cleanup on unmount
+ useEffect(() => {
+   return () => {
+     if (recognitionRef.current) {
+       try { recognitionRef.current.abort(); } catch { /* ignore */ }
+     }
+   };
+ }, []);
+
  const toggle = useCallback(async () => {
-   // Stop recording
-   if (isListening && recorderRef.current) {
-     recorderRef.current.stop();
+   // ── Stop ──
+   if (isListening) {
+     if (recognitionRef.current) {
+       recognitionRef.current.stop();
+     } else if (recorderRef.current) {
+       recorderRef.current.stop();
+     }
      return;
    }
 
-   // Start recording
+   // ── Start — prefer Web Speech API ──
+   if (SpeechRecognition) {
+     try {
+       const recognition = new SpeechRecognition();
+       recognition.continuous = true;
+       recognition.interimResults = true;
+       recognition.lang = "en-US";
+       recognition.maxAlternatives = 1;
+
+       let finalTranscript = "";
+
+       recognition.onresult = (event: { resultIndex: number; results: { length: number; [i: number]: { isFinal: boolean; [j: number]: { transcript: string } } } }) => {
+         let interim = "";
+         for (let i = event.resultIndex; i < event.results.length; i++) {
+           const result = event.results[i];
+           if (result.isFinal) {
+             finalTranscript += result[0].transcript;
+             setInterimText("");
+           } else {
+             interim += result[0].transcript;
+           }
+         }
+         if (interim) setInterimText(interim);
+         if (finalTranscript) {
+           onTranscript(finalTranscript);
+           finalTranscript = "";
+         }
+       };
+
+       recognition.onerror = (event: { error: string }) => {
+         setIsListening(false);
+         setInterimText("");
+         recognitionRef.current = null;
+         if (event.error === "not-allowed") {
+           toast.warn("Microphone access denied. Check browser/system permissions.");
+         } else if (event.error !== "aborted") {
+           toast.error(`Speech recognition error: ${event.error}`);
+         }
+       };
+
+       recognition.onend = () => {
+         setIsListening(false);
+         setInterimText("");
+         recognitionRef.current = null;
+       };
+
+       recognition.start();
+       recognitionRef.current = recognition;
+       setIsListening(true);
+     } catch (e) {
+       toast.error(`Speech recognition failed to start: ${e}`);
+     }
+     return;
+   }
+
+   // ── Fallback: MediaRecorder + Groq Whisper ──
    try {
      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
@@ -37,16 +115,14 @@ function useVoiceInput(onTranscript: (text: string) => void) {
      };
 
      recorder.onstop = async () => {
-       // Stop all tracks to release mic
        stream.getTracks().forEach((t) => t.stop());
        setIsListening(false);
 
        const blob = new Blob(chunksRef.current, { type: mimeType });
-       if (blob.size < 100) return; // too short
+       if (blob.size < 100) return;
 
        setIsTranscribing(true);
        try {
-         // Convert blob to base64
          const arrayBuf = await blob.arrayBuffer();
          const bytes = new Uint8Array(arrayBuf);
          let binary = "";
@@ -55,7 +131,7 @@ function useVoiceInput(onTranscript: (text: string) => void) {
 
          const text = await invoke<string>("transcribe_audio_bytes", {
            audioBase64: base64,
-           mimeType: mimeType.split(";")[0], // "audio/webm"
+           mimeType: mimeType.split(";")[0],
          });
          if (text.trim()) onTranscript(text);
        } catch (e) {
@@ -83,7 +159,7 @@ function useVoiceInput(onTranscript: (text: string) => void) {
    }
  }, [isListening, onTranscript, toast]);
 
- return { isListening, isTranscribing, toggle };
+ return { isListening, isTranscribing, interimText, toggle };
 }
 
 interface Message {
@@ -148,8 +224,8 @@ export function AIChat({ provider, context, fileTree, currentFile, onFileAction,
  const streamStartMsRef = useRef<number | null>(null);
  const streamCharsRef = useRef<number>(0);
  const [tokensPerSec, setTokensPerSec] = useState<number | null>(null);
- const { isListening, isTranscribing, toggle: toggleVoice } = useVoiceInput((transcript) =>
- setInput((prev) => prev + transcript)
+ const { isListening, isTranscribing, interimText, toggle: toggleVoice } = useVoiceInput((transcript) =>
+ setInput((prev) => (prev ? prev + " " : "") + transcript)
  );
 
  // Auto-scroll to latest message or new streaming chunk
@@ -466,22 +542,30 @@ export function AIChat({ provider, context, fileTree, currentFile, onFileAction,
  onClose={() => setPickerQuery(null)}
  />
  )}
+ {isListening && interimText && (
+ <div className="voice-interim">
+ <span className="voice-interim-dot" />
+ {interimText}
+ </div>
+ )}
  <textarea
  ref={textareaRef}
  value={input}
  onChange={handleInputChange}
  onKeyDown={handleKeyDown}
- placeholder="Ask a question… (Enter to send, Shift+Enter for newline, @ for context)"
+ placeholder={isListening ? "Listening… speak now" : "Ask a question… (Enter to send, Shift+Enter for newline, @ for context)"}
  rows={3}
  />
  <div style={{ display: "flex", gap: "6px", alignSelf: "flex-end" }}>
  <button
  onClick={toggleVoice}
- title={isTranscribing ? "Transcribing..." : isListening ? "Stop recording" : "Voice input"}
+ title={isTranscribing ? "Transcribing..." : isListening ? "Click to stop" : "Voice input (click to speak)"}
  className={`mic-btn${isListening ? " listening" : ""}${isTranscribing ? " transcribing" : ""}`}
  disabled={isTranscribing}
+ aria-label={isListening ? "Stop voice recording" : "Start voice input"}
  >
  <Mic size={14} strokeWidth={1.5} />
+ {isListening && <span className="mic-recording-badge">REC</span>}
  </button>
  <button onClick={sendMessage} disabled={!input.trim() || isLoading}>
  Send

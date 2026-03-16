@@ -5,7 +5,8 @@
  * produces IaC templates, and estimates costs.
  * Pure TypeScript — no Tauri commands needed.
  */
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -163,9 +164,37 @@ const tdStyle: React.CSSProperties = { padding: "6px 10px", borderBottom: "1px s
 
 type Tab = "scan" | "iam" | "iac" | "cost";
 
+interface CloudConnection {
+  provider: string;
+  connected: boolean;
+  expired: boolean;
+  email: string;
+  display_name: string;
+}
+
+const CLOUD_OAUTH_MAP: Record<string, string> = {
+  AWS: "google",      // AWS uses Google or custom — map to relevant OAuth
+  GCP: "google",
+  Azure: "microsoft",
+};
+
 export function CloudProviderPanel() {
   const [tab, setTab] = useState<Tab>("scan");
   const [iacFormat, setIacFormat] = useState<string>("Terraform");
+  const [connections, setConnections] = useState<CloudConnection[]>([]);
+
+  useEffect(() => {
+    invoke<CloudConnection[]>("cloud_oauth_list_connected")
+      .then(setConnections)
+      .catch(() => {});
+  }, []);
+
+  const isCloudConnected = (cloudProvider: string): boolean => {
+    const oauthId = CLOUD_OAUTH_MAP[cloudProvider];
+    return connections.some(c => c.provider === oauthId && c.connected && !c.expired);
+  };
+
+  const connectedProviders = ["AWS", "GCP", "Azure"].filter(isCloudConnected);
 
   const totalMonthly = MOCK_COSTS.reduce((s, c) => s + c.monthly, 0);
   const totalYearly = MOCK_COSTS.reduce((s, c) => s + c.yearly, 0);
@@ -173,6 +202,22 @@ export function CloudProviderPanel() {
   return (
     <div style={panelStyle}>
       <h2 style={headingStyle}>Cloud Provider Integration</h2>
+
+      {/* Connection status banner */}
+      <div style={{ ...cardStyle, display: "flex", alignItems: "center", gap: 10, fontSize: 12 }}>
+        <span style={{ fontWeight: 600 }}>Connected:</span>
+        {connectedProviders.length > 0 ? (
+          connectedProviders.map(p => (
+            <span key={p} style={{ padding: "2px 8px", borderRadius: 10, fontSize: 11, background: "var(--success-bg)", color: "var(--success-color)" }}>
+              {p}
+            </span>
+          ))
+        ) : (
+          <span style={{ color: "var(--text-secondary)" }}>
+            None — connect providers in Settings → OAuth
+          </span>
+        )}
+      </div>
 
       <div style={{ marginBottom: 12 }}>
         <button style={tabBtnStyle(tab === "scan")} onClick={() => setTab("scan")}>Scan</button>

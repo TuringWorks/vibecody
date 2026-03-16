@@ -2388,6 +2388,464 @@ pub async fn get_mcp_token_status(server_name: String) -> Result<serde_json::Val
     }
 }
 
+// ─── Cloud OAuth Commands ──────────────────────────────────────────────────────
+
+fn cloud_oauth_token_path() -> std::path::PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    std::path::PathBuf::from(home).join(".vibeui").join("cloud-oauth-tokens.json")
+}
+
+fn load_cloud_oauth_tokens() -> serde_json::Map<String, serde_json::Value> {
+    let path = cloud_oauth_token_path();
+    if let Ok(text) = std::fs::read_to_string(&path) {
+        if let Ok(serde_json::Value::Object(map)) = serde_json::from_str(&text) {
+            return map;
+        }
+    }
+    serde_json::Map::new()
+}
+
+fn save_cloud_oauth_tokens(tokens: &serde_json::Map<String, serde_json::Value>) -> Result<(), String> {
+    let path = cloud_oauth_token_path();
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let text = serde_json::to_string_pretty(&serde_json::Value::Object(tokens.clone()))
+        .map_err(|e| e.to_string())?;
+    std::fs::write(&path, text).map_err(|e| e.to_string())
+}
+
+/// OAuth configuration for each cloud provider.
+fn cloud_oauth_config(provider: &str) -> Result<serde_json::Value, String> {
+    let config = match provider {
+        "google" => serde_json::json!({
+            "auth_url": "https://accounts.google.com/o/oauth2/v2/auth",
+            "token_url": "https://oauth2.googleapis.com/token",
+            "userinfo_url": "https://www.googleapis.com/oauth2/v3/userinfo",
+            "scopes": "openid email profile https://www.googleapis.com/auth/cloud-platform",
+            "name": "Google Cloud"
+        }),
+        "github" => serde_json::json!({
+            "auth_url": "https://github.com/login/oauth/authorize",
+            "token_url": "https://github.com/login/oauth/access_token",
+            "userinfo_url": "https://api.github.com/user",
+            "scopes": "user:email repo read:org",
+            "name": "GitHub"
+        }),
+        "gitlab" => serde_json::json!({
+            "auth_url": "https://gitlab.com/oauth/authorize",
+            "token_url": "https://gitlab.com/oauth/token",
+            "userinfo_url": "https://gitlab.com/api/v4/user",
+            "scopes": "read_user api read_repository",
+            "name": "GitLab"
+        }),
+        "bitbucket" => serde_json::json!({
+            "auth_url": "https://bitbucket.org/site/oauth2/authorize",
+            "token_url": "https://bitbucket.org/site/oauth2/access_token",
+            "userinfo_url": "https://api.bitbucket.org/2.0/user",
+            "scopes": "account repository",
+            "name": "Bitbucket"
+        }),
+        "microsoft" => serde_json::json!({
+            "auth_url": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+            "token_url": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+            "userinfo_url": "https://graph.microsoft.com/v1.0/me",
+            "scopes": "openid email profile User.Read",
+            "name": "Microsoft Azure"
+        }),
+        "apple" => serde_json::json!({
+            "auth_url": "https://appleid.apple.com/auth/authorize",
+            "token_url": "https://appleid.apple.com/auth/token",
+            "userinfo_url": "",
+            "scopes": "name email",
+            "name": "Apple"
+        }),
+        _ => return Err(format!("Unknown provider: {}", provider)),
+    };
+    Ok(config)
+}
+
+/// Initiate OAuth flow for a cloud provider — opens browser to auth URL.
+#[tauri::command]
+pub async fn cloud_oauth_initiate(
+    app: tauri::AppHandle,
+    provider: String,
+    client_id: String,
+    redirect_uri: String,
+) -> Result<String, String> {
+    use tauri_plugin_opener::OpenerExt;
+    let config = cloud_oauth_config(&provider)?;
+    let auth_url = config["auth_url"].as_str().ok_or("Missing auth_url")?;
+    let scopes = config["scopes"].as_str().unwrap_or("");
+
+    let state_token = format!("vibeui-{}-{}", provider, std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs());
+
+    let oauth_url = {
+        let mut params: Vec<(&str, &str)> = vec![
+            ("client_id",     &client_id),
+            ("redirect_uri",  &redirect_uri),
+            ("response_type", "code"),
+            ("scope",         scopes),
+            ("state",         &state_token),
+        ];
+        // Google needs access_type=offline for refresh tokens
+        if provider == "google" {
+            params.push(("access_type", "offline"));
+            params.push(("prompt", "consent"));
+        }
+        // Apple needs response_mode=form_post
+        if provider == "apple" {
+            params.push(("response_mode", "form_post"));
+        }
+        let qs: String = url::form_urlencoded::Serializer::new(String::new())
+            .extend_pairs(params)
+            .finish();
+        format!("{}?{}", auth_url, qs)
+    };
+
+    app.opener()
+        .open_url(&oauth_url, None::<&str>)
+        .map_err(|e| format!("Failed to open browser: {}", e))?;
+    Ok(state_token)
+}
+
+/// Exchange authorization code for tokens and fetch user info.
+#[tauri::command]
+pub async fn cloud_oauth_complete(
+    provider: String,
+    code: String,
+    client_id: String,
+    client_secret: String,
+    redirect_uri: String,
+) -> Result<serde_json::Value, String> {
+    let config = cloud_oauth_config(&provider)?;
+    let token_url = config["token_url"].as_str().ok_or("Missing token_url")?;
+    let userinfo_url = config["userinfo_url"].as_str().unwrap_or("");
+
+    let client = reqwest::Client::new();
+
+    // Exchange code for token
+    let mut form = vec![
+        ("grant_type",    "authorization_code".to_string()),
+        ("code",          code),
+        ("client_id",     client_id),
+        ("redirect_uri",  redirect_uri),
+    ];
+    if !client_secret.is_empty() {
+        form.push(("client_secret", client_secret));
+    }
+
+    let mut token_req = client.post(token_url);
+
+    // GitHub wants Accept: application/json
+    if provider == "github" {
+        token_req = token_req.header("Accept", "application/json");
+    }
+
+    let resp = token_req
+        .form(&form)
+        .send()
+        .await
+        .map_err(|e| format!("Token request failed: {}", e))?;
+
+    let body: serde_json::Value = resp.json().await
+        .map_err(|e| format!("Token parse error: {}", e))?;
+
+    let access_token = body["access_token"].as_str()
+        .ok_or_else(|| format!("No access_token in response: {}", body))?
+        .to_string();
+
+    // Fetch user info if endpoint is available
+    let mut email = String::new();
+    let mut display_name = String::new();
+
+    if !userinfo_url.is_empty() {
+        let user_resp = client.get(userinfo_url)
+            .header("Authorization", format!("Bearer {}", access_token))
+            .header("User-Agent", "VibeCody/1.0")
+            .send()
+            .await;
+
+        if let Ok(resp) = user_resp {
+            if let Ok(user_info) = resp.json::<serde_json::Value>().await {
+                // Different providers use different field names
+                email = user_info["email"].as_str()
+                    .or_else(|| user_info["mail"].as_str())
+                    .unwrap_or("").to_string();
+                display_name = user_info["name"].as_str()
+                    .or_else(|| user_info["displayName"].as_str())
+                    .or_else(|| user_info["display_name"].as_str())
+                    .or_else(|| user_info["login"].as_str())
+                    .or_else(|| user_info["username"].as_str())
+                    .unwrap_or("").to_string();
+
+                // GitHub: email may be null in profile, fetch from /user/emails
+                if email.is_empty() && provider == "github" {
+                    if let Ok(emails_resp) = client.get("https://api.github.com/user/emails")
+                        .header("Authorization", format!("Bearer {}", access_token))
+                        .header("User-Agent", "VibeCody/1.0")
+                        .send().await
+                    {
+                        if let Ok(emails) = emails_resp.json::<Vec<serde_json::Value>>().await {
+                            if let Some(primary) = emails.iter().find(|e| e["primary"].as_bool() == Some(true)) {
+                                email = primary["email"].as_str().unwrap_or("").to_string();
+                            } else if let Some(first) = emails.first() {
+                                email = first["email"].as_str().unwrap_or("").to_string();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs();
+
+    let token_record = serde_json::json!({
+        "access_token": access_token,
+        "refresh_token": body["refresh_token"].as_str().unwrap_or(""),
+        "token_type": body["token_type"].as_str().unwrap_or("Bearer"),
+        "expires_in": body["expires_in"].as_u64().unwrap_or(3600),
+        "obtained_at": now,
+        "email": email,
+        "display_name": display_name,
+        "provider": provider,
+    });
+
+    // Persist token
+    let mut tokens = load_cloud_oauth_tokens();
+    tokens.insert(provider.clone(), token_record.clone());
+    save_cloud_oauth_tokens(&tokens)?;
+
+    Ok(serde_json::json!({
+        "provider": provider,
+        "email": email,
+        "display_name": display_name,
+        "connected": true,
+    }))
+}
+
+/// Check connection status for a cloud provider.
+#[tauri::command]
+pub async fn cloud_oauth_status(provider: String) -> Result<serde_json::Value, String> {
+    let tokens = load_cloud_oauth_tokens();
+    if let Some(rec) = tokens.get(&provider) {
+        let obtained = rec["obtained_at"].as_u64().unwrap_or(0);
+        let expires = rec["expires_in"].as_u64().unwrap_or(3600);
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs();
+        let expired = now > obtained + expires;
+        Ok(serde_json::json!({
+            "connected": true,
+            "expired": expired,
+            "email": rec["email"].as_str().unwrap_or(""),
+            "display_name": rec["display_name"].as_str().unwrap_or(""),
+            "provider": provider,
+        }))
+    } else {
+        Ok(serde_json::json!({
+            "connected": false,
+            "expired": true,
+            "email": "",
+            "display_name": "",
+            "provider": provider,
+        }))
+    }
+}
+
+/// Get all connected cloud providers and their status.
+#[tauri::command]
+pub async fn cloud_oauth_list_connected() -> Result<Vec<serde_json::Value>, String> {
+    let tokens = load_cloud_oauth_tokens();
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs();
+    let mut result = Vec::new();
+    for (provider, rec) in &tokens {
+        let obtained = rec["obtained_at"].as_u64().unwrap_or(0);
+        let expires = rec["expires_in"].as_u64().unwrap_or(3600);
+        let expired = now > obtained + expires;
+        result.push(serde_json::json!({
+            "provider": provider,
+            "connected": true,
+            "expired": expired,
+            "email": rec["email"].as_str().unwrap_or(""),
+            "display_name": rec["display_name"].as_str().unwrap_or(""),
+        }));
+    }
+    Ok(result)
+}
+
+/// Disconnect (revoke) a cloud provider's OAuth token.
+#[tauri::command]
+pub async fn cloud_oauth_disconnect(provider: String) -> Result<(), String> {
+    let mut tokens = load_cloud_oauth_tokens();
+    tokens.remove(&provider);
+    save_cloud_oauth_tokens(&tokens)
+}
+
+/// Refresh an expired OAuth token using the refresh_token.
+#[tauri::command]
+pub async fn cloud_oauth_refresh(
+    provider: String,
+    client_id: String,
+    client_secret: String,
+) -> Result<serde_json::Value, String> {
+    let tokens = load_cloud_oauth_tokens();
+    let rec = tokens.get(&provider)
+        .ok_or_else(|| format!("No token found for {}", provider))?;
+    let refresh_token = rec["refresh_token"].as_str()
+        .ok_or("No refresh_token available")?;
+    if refresh_token.is_empty() {
+        return Err("No refresh_token available — re-authenticate".to_string());
+    }
+
+    let config = cloud_oauth_config(&provider)?;
+    let token_url = config["token_url"].as_str().ok_or("Missing token_url")?;
+
+    let client = reqwest::Client::new();
+    let mut form = vec![
+        ("grant_type",     "refresh_token".to_string()),
+        ("refresh_token",  refresh_token.to_string()),
+        ("client_id",      client_id),
+    ];
+    if !client_secret.is_empty() {
+        form.push(("client_secret", client_secret));
+    }
+
+    let resp = client.post(token_url)
+        .form(&form)
+        .send()
+        .await
+        .map_err(|e| format!("Refresh token request failed: {}", e))?;
+
+    let body: serde_json::Value = resp.json().await
+        .map_err(|e| format!("Refresh parse error: {}", e))?;
+
+    let access_token = body["access_token"].as_str()
+        .ok_or_else(|| format!("No access_token in refresh response: {}", body))?
+        .to_string();
+
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs();
+
+    // Update stored token
+    let mut tokens = load_cloud_oauth_tokens();
+    if let Some(existing) = tokens.get_mut(&provider) {
+        if let serde_json::Value::Object(ref mut map) = existing {
+            map.insert("access_token".to_string(), serde_json::json!(access_token));
+            map.insert("obtained_at".to_string(), serde_json::json!(now));
+            if let Some(exp) = body["expires_in"].as_u64() {
+                map.insert("expires_in".to_string(), serde_json::json!(exp));
+            }
+            // If a new refresh_token was issued, update it
+            if let Some(new_rt) = body["refresh_token"].as_str() {
+                map.insert("refresh_token".to_string(), serde_json::json!(new_rt));
+            }
+        }
+    }
+    save_cloud_oauth_tokens(&tokens)?;
+
+    Ok(serde_json::json!({ "provider": provider, "refreshed": true }))
+}
+
+/// Get the stored access token for a cloud provider (for use by other commands).
+#[tauri::command]
+pub async fn cloud_oauth_get_token(provider: String) -> Result<String, String> {
+    let tokens = load_cloud_oauth_tokens();
+    let rec = tokens.get(&provider)
+        .ok_or_else(|| format!("Not connected to {}", provider))?;
+    rec["access_token"].as_str()
+        .map(|s| s.to_string())
+        .ok_or_else(|| "No access_token stored".to_string())
+}
+
+/// Fetch Google profile (name, email, avatar) using stored OAuth token.
+/// Falls back to stored token data if the API call fails.
+#[tauri::command]
+pub async fn cloud_oauth_google_profile() -> Result<serde_json::Value, String> {
+    let tokens = load_cloud_oauth_tokens();
+    let rec = tokens.get("google")
+        .ok_or("Not connected to Google. Please connect via OAuth first.")?;
+    let access_token = rec["access_token"].as_str()
+        .ok_or("No access token stored for Google")?;
+
+    // Try to fetch fresh profile data from Google userinfo endpoint
+    let client = reqwest::Client::new();
+    let resp = client.get("https://www.googleapis.com/oauth2/v3/userinfo")
+        .header("Authorization", format!("Bearer {}", access_token))
+        .send()
+        .await;
+
+    if let Ok(resp) = resp {
+        if resp.status().is_success() {
+            if let Ok(info) = resp.json::<serde_json::Value>().await {
+                return Ok(serde_json::json!({
+                    "displayName": info["name"].as_str().unwrap_or(""),
+                    "email": info["email"].as_str().unwrap_or(""),
+                    "avatarUrl": info["picture"].as_str().unwrap_or(""),
+                    "source": "google_api",
+                }));
+            }
+        }
+    }
+
+    // Fallback to stored token data
+    Ok(serde_json::json!({
+        "displayName": rec["display_name"].as_str().unwrap_or(""),
+        "email": rec["email"].as_str().unwrap_or(""),
+        "avatarUrl": "",
+        "source": "stored_token",
+    }))
+}
+
+/// Save OAuth client credentials (client_id, client_secret) for a provider.
+#[tauri::command]
+pub async fn cloud_oauth_save_client_config(
+    provider: String,
+    client_id: String,
+    client_secret: String,
+) -> Result<(), String> {
+    let path = {
+        let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+        std::path::PathBuf::from(home).join(".vibeui").join("oauth-clients.json")
+    };
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let mut configs: serde_json::Map<String, serde_json::Value> = if let Ok(text) = std::fs::read_to_string(&path) {
+        if let Ok(serde_json::Value::Object(map)) = serde_json::from_str(&text) { map } else { serde_json::Map::new() }
+    } else {
+        serde_json::Map::new()
+    };
+    configs.insert(provider, serde_json::json!({
+        "client_id": client_id,
+        "client_secret": client_secret,
+    }));
+    let text = serde_json::to_string_pretty(&serde_json::Value::Object(configs))
+        .map_err(|e| e.to_string())?;
+    std::fs::write(&path, text).map_err(|e| e.to_string())
+}
+
+/// Load stored OAuth client credentials for a provider.
+#[tauri::command]
+pub async fn cloud_oauth_get_client_config(provider: String) -> Result<serde_json::Value, String> {
+    let path = {
+        let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+        std::path::PathBuf::from(home).join(".vibeui").join("oauth-clients.json")
+    };
+    let configs: serde_json::Map<String, serde_json::Value> = if let Ok(text) = std::fs::read_to_string(&path) {
+        if let Ok(serde_json::Value::Object(map)) = serde_json::from_str(&text) { map } else { serde_json::Map::new() }
+    } else {
+        serde_json::Map::new()
+    };
+    Ok(configs.get(&provider).cloned().unwrap_or(serde_json::json!({
+        "client_id": "",
+        "client_secret": "",
+    })))
+}
+
 // ─── Test Runner (Phase 43) ───────────────────────────────────────────────────
 
 #[derive(Serialize, Deserialize, Clone)]

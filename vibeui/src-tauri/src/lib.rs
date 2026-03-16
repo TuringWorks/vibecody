@@ -595,6 +595,17 @@ pub fn run() {
             commands::quantum_get_circuits,
             commands::quantum_create_circuit,
             commands::quantum_export_circuit,
+            // Cloud OAuth
+            commands::cloud_oauth_initiate,
+            commands::cloud_oauth_complete,
+            commands::cloud_oauth_status,
+            commands::cloud_oauth_list_connected,
+            commands::cloud_oauth_disconnect,
+            commands::cloud_oauth_refresh,
+            commands::cloud_oauth_get_token,
+            commands::cloud_oauth_google_profile,
+            commands::cloud_oauth_save_client_config,
+            commands::cloud_oauth_get_client_config,
             // Panel Settings Store
             commands::panel_settings_get,
             commands::panel_settings_get_all,

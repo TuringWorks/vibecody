@@ -42,6 +42,8 @@ interface OAuthProvider {
   icon: string;
   connected: boolean;
   email?: string;
+  displayName?: string;
+  expired?: boolean;
 }
 
 interface SavedCustomization {
@@ -272,7 +274,7 @@ export const THEMES: ThemeDef[] = [
     preview: { bg: "#272822", fg: "#f8f8f2", accent: "#a6e22e", secondary: "#3e3d32" },
     vars: {
       "--bg-primary": "#272822", "--bg-secondary": "#3e3d32", "--bg-tertiary": "#49483e", "--bg-elevated": "#555449",
-      "--text-primary": "#f8f8f2", "--text-secondary": "#75715e", "--accent-blue": "#66d9ef", "--accent-green": "#a6e22e",
+      "--text-primary": "#f8f8f2", "--text-secondary": "#a5a08a", "--accent-blue": "#66d9ef", "--accent-green": "#a6e22e",
       "--accent-purple": "#ae81ff", "--accent-gold": "#e6db74", "--accent-rose": "#f92672",
       "--border-color": "rgba(255, 255, 255, 0.07)", "--error-color": "#f92672",
     },
@@ -282,7 +284,7 @@ export const THEMES: ThemeDef[] = [
     preview: { bg: "#fafafa", fg: "#272822", accent: "#629755", secondary: "#eeeee8" },
     vars: {
       "--bg-primary": "#fafafa", "--bg-secondary": "#eeeee8", "--bg-tertiary": "#e0e0d8", "--bg-elevated": "#ffffff",
-      "--text-primary": "#272822", "--text-secondary": "#75715e", "--accent-blue": "#1290bf", "--accent-green": "#629755",
+      "--text-primary": "#272822", "--text-secondary": "#605c46", "--accent-blue": "#1290bf", "--accent-green": "#629755",
       "--accent-purple": "#7a3ea0", "--accent-gold": "#b58900", "--accent-rose": "#c4265e",
       "--border-color": "rgba(0, 0, 0, 0.08)", "--error-color": "#c4265e",
     },
@@ -293,7 +295,7 @@ export const THEMES: ThemeDef[] = [
     preview: { bg: "#282a36", fg: "#f8f8f2", accent: "#bd93f9", secondary: "#44475a" },
     vars: {
       "--bg-primary": "#282a36", "--bg-secondary": "#44475a", "--bg-tertiary": "#4e5166", "--bg-elevated": "#555770",
-      "--text-primary": "#f8f8f2", "--text-secondary": "#6272a4", "--accent-blue": "#8be9fd", "--accent-green": "#50fa7b",
+      "--text-primary": "#f8f8f2", "--text-secondary": "#8a96c0", "--accent-blue": "#8be9fd", "--accent-green": "#50fa7b",
       "--accent-purple": "#bd93f9", "--accent-gold": "#f1fa8c", "--accent-rose": "#ff79c6",
       "--border-color": "rgba(255, 255, 255, 0.08)", "--error-color": "#ff5555",
     },
@@ -303,7 +305,7 @@ export const THEMES: ThemeDef[] = [
     preview: { bg: "#f8f8f2", fg: "#282a36", accent: "#7c3aed", secondary: "#ededec" },
     vars: {
       "--bg-primary": "#f8f8f2", "--bg-secondary": "#ededec", "--bg-tertiary": "#e0dfe0", "--bg-elevated": "#ffffff",
-      "--text-primary": "#282a36", "--text-secondary": "#6272a4", "--accent-blue": "#0891b2", "--accent-green": "#16a34a",
+      "--text-primary": "#282a36", "--text-secondary": "#4e5a7e", "--accent-blue": "#0891b2", "--accent-green": "#16a34a",
       "--accent-purple": "#7c3aed", "--accent-gold": "#a16207", "--accent-rose": "#db2777",
       "--border-color": "rgba(0, 0, 0, 0.08)", "--error-color": "#dc2626",
     },
@@ -314,7 +316,7 @@ export const THEMES: ThemeDef[] = [
     preview: { bg: "#2e3440", fg: "#eceff4", accent: "#88c0d0", secondary: "#3b4252" },
     vars: {
       "--bg-primary": "#2e3440", "--bg-secondary": "#3b4252", "--bg-tertiary": "#434c5e", "--bg-elevated": "#4c566a",
-      "--text-primary": "#eceff4", "--text-secondary": "#7b88a1", "--accent-blue": "#88c0d0", "--accent-green": "#a3be8c",
+      "--text-primary": "#eceff4", "--text-secondary": "#9aa4b8", "--accent-blue": "#88c0d0", "--accent-green": "#a3be8c",
       "--accent-purple": "#b48ead", "--accent-gold": "#ebcb8b", "--accent-rose": "#bf616a",
       "--border-color": "rgba(255, 255, 255, 0.06)", "--error-color": "#bf616a",
     },
@@ -335,7 +337,7 @@ export const THEMES: ThemeDef[] = [
     preview: { bg: "#282c34", fg: "#abb2bf", accent: "#61afef", secondary: "#21252b" },
     vars: {
       "--bg-primary": "#282c34", "--bg-secondary": "#21252b", "--bg-tertiary": "#2c313a", "--bg-elevated": "#333842",
-      "--text-primary": "#abb2bf", "--text-secondary": "#5c6370", "--accent-blue": "#61afef", "--accent-green": "#98c379",
+      "--text-primary": "#abb2bf", "--text-secondary": "#838994", "--accent-blue": "#61afef", "--accent-green": "#98c379",
       "--accent-purple": "#c678dd", "--accent-gold": "#e5c07b", "--accent-rose": "#e06c75",
       "--border-color": "rgba(255, 255, 255, 0.06)", "--error-color": "#e06c75",
     },
@@ -345,7 +347,7 @@ export const THEMES: ThemeDef[] = [
     preview: { bg: "#fafafa", fg: "#383a42", accent: "#4078f2", secondary: "#f0f0f0" },
     vars: {
       "--bg-primary": "#fafafa", "--bg-secondary": "#f0f0f0", "--bg-tertiary": "#e5e5e6", "--bg-elevated": "#ffffff",
-      "--text-primary": "#383a42", "--text-secondary": "#a0a1a7", "--accent-blue": "#4078f2", "--accent-green": "#50a14f",
+      "--text-primary": "#383a42", "--text-secondary": "#696a70", "--accent-blue": "#4078f2", "--accent-green": "#50a14f",
       "--accent-purple": "#a626a4", "--accent-gold": "#c18401", "--accent-rose": "#e45649",
       "--border-color": "rgba(0, 0, 0, 0.08)", "--error-color": "#e45649",
     },
@@ -356,7 +358,7 @@ export const THEMES: ThemeDef[] = [
     preview: { bg: "#0d1117", fg: "#e6edf3", accent: "#58a6ff", secondary: "#161b22" },
     vars: {
       "--bg-primary": "#0d1117", "--bg-secondary": "#161b22", "--bg-tertiary": "#21262d", "--bg-elevated": "#30363d",
-      "--text-primary": "#e6edf3", "--text-secondary": "#7d8590", "--accent-blue": "#58a6ff", "--accent-green": "#3fb950",
+      "--text-primary": "#e6edf3", "--text-secondary": "#8b929a", "--accent-blue": "#58a6ff", "--accent-green": "#3fb950",
       "--accent-purple": "#bc8cff", "--accent-gold": "#d29922", "--accent-rose": "#f85149",
       "--border-color": "rgba(255, 255, 255, 0.06)", "--error-color": "#f85149",
     },
@@ -377,7 +379,7 @@ export const THEMES: ThemeDef[] = [
     preview: { bg: "#1e1e2e", fg: "#cdd6f4", accent: "#89b4fa", secondary: "#313244" },
     vars: {
       "--bg-primary": "#1e1e2e", "--bg-secondary": "#313244", "--bg-tertiary": "#45475a", "--bg-elevated": "#585b70",
-      "--text-primary": "#cdd6f4", "--text-secondary": "#6c7086", "--accent-blue": "#89b4fa", "--accent-green": "#a6e3a1",
+      "--text-primary": "#cdd6f4", "--text-secondary": "#9399b2", "--accent-blue": "#89b4fa", "--accent-green": "#a6e3a1",
       "--accent-purple": "#cba6f7", "--accent-gold": "#f9e2af", "--accent-rose": "#f38ba8",
       "--border-color": "rgba(255, 255, 255, 0.06)", "--error-color": "#f38ba8",
     },
@@ -387,7 +389,7 @@ export const THEMES: ThemeDef[] = [
     preview: { bg: "#eff1f5", fg: "#4c4f69", accent: "#1e66f5", secondary: "#e6e9ef" },
     vars: {
       "--bg-primary": "#eff1f5", "--bg-secondary": "#e6e9ef", "--bg-tertiary": "#ccd0da", "--bg-elevated": "#ffffff",
-      "--text-primary": "#4c4f69", "--text-secondary": "#6c6f85", "--accent-blue": "#1e66f5", "--accent-green": "#40a02b",
+      "--text-primary": "#4c4f69", "--text-secondary": "#5c5f73", "--accent-blue": "#1e66f5", "--accent-green": "#40a02b",
       "--accent-purple": "#8839ef", "--accent-gold": "#df8e1d", "--accent-rose": "#d20f39",
       "--border-color": "rgba(0, 0, 0, 0.08)", "--error-color": "#d20f39",
     },
@@ -398,7 +400,7 @@ export const THEMES: ThemeDef[] = [
     preview: { bg: "#282828", fg: "#ebdbb2", accent: "#fabd2f", secondary: "#3c3836" },
     vars: {
       "--bg-primary": "#282828", "--bg-secondary": "#3c3836", "--bg-tertiary": "#504945", "--bg-elevated": "#665c54",
-      "--text-primary": "#ebdbb2", "--text-secondary": "#928374", "--accent-blue": "#83a598", "--accent-green": "#b8bb26",
+      "--text-primary": "#ebdbb2", "--text-secondary": "#a89b8c", "--accent-blue": "#83a598", "--accent-green": "#b8bb26",
       "--accent-purple": "#d3869b", "--accent-gold": "#fabd2f", "--accent-rose": "#fb4934",
       "--border-color": "rgba(255, 255, 255, 0.06)", "--error-color": "#fb4934",
     },
@@ -408,7 +410,7 @@ export const THEMES: ThemeDef[] = [
     preview: { bg: "#fbf1c7", fg: "#3c3836", accent: "#b57614", secondary: "#ebdbb2" },
     vars: {
       "--bg-primary": "#fbf1c7", "--bg-secondary": "#ebdbb2", "--bg-tertiary": "#d5c4a1", "--bg-elevated": "#fffbef",
-      "--text-primary": "#3c3836", "--text-secondary": "#7c6f64", "--accent-blue": "#076678", "--accent-green": "#79740e",
+      "--text-primary": "#3c3836", "--text-secondary": "#5e5448", "--accent-blue": "#076678", "--accent-green": "#79740e",
       "--accent-purple": "#8f3f71", "--accent-gold": "#b57614", "--accent-rose": "#9d0006",
       "--border-color": "rgba(0, 0, 0, 0.08)", "--error-color": "#9d0006",
     },
@@ -419,7 +421,7 @@ export const THEMES: ThemeDef[] = [
     preview: { bg: "#1a1b26", fg: "#c0caf5", accent: "#7aa2f7", secondary: "#24283b" },
     vars: {
       "--bg-primary": "#1a1b26", "--bg-secondary": "#24283b", "--bg-tertiary": "#2f3347", "--bg-elevated": "#3b3f54",
-      "--text-primary": "#c0caf5", "--text-secondary": "#565f89", "--accent-blue": "#7aa2f7", "--accent-green": "#9ece6a",
+      "--text-primary": "#c0caf5", "--text-secondary": "#7a82a8", "--accent-blue": "#7aa2f7", "--accent-green": "#9ece6a",
       "--accent-purple": "#bb9af7", "--accent-gold": "#e0af68", "--accent-rose": "#f7768e",
       "--border-color": "rgba(255, 255, 255, 0.06)", "--error-color": "#f7768e",
     },
@@ -429,7 +431,7 @@ export const THEMES: ThemeDef[] = [
     preview: { bg: "#d5d6db", fg: "#343b58", accent: "#34548a", secondary: "#c8c8ce" },
     vars: {
       "--bg-primary": "#d5d6db", "--bg-secondary": "#c8c8ce", "--bg-tertiary": "#b8b8c0", "--bg-elevated": "#e5e5ea",
-      "--text-primary": "#343b58", "--text-secondary": "#6172a6", "--accent-blue": "#34548a", "--accent-green": "#485e30",
+      "--text-primary": "#343b58", "--text-secondary": "#4a5880", "--accent-blue": "#34548a", "--accent-green": "#485e30",
       "--accent-purple": "#7847bd", "--accent-gold": "#8f5e15", "--accent-rose": "#8c4351",
       "--border-color": "rgba(0, 0, 0, 0.08)", "--error-color": "#8c4351",
     },
@@ -440,7 +442,7 @@ export const THEMES: ThemeDef[] = [
     preview: { bg: "#212121", fg: "#eeffff", accent: "#82aaff", secondary: "#303030" },
     vars: {
       "--bg-primary": "#212121", "--bg-secondary": "#303030", "--bg-tertiary": "#3a3a3a", "--bg-elevated": "#424242",
-      "--text-primary": "#eeffff", "--text-secondary": "#545454", "--accent-blue": "#82aaff", "--accent-green": "#c3e88d",
+      "--text-primary": "#eeffff", "--text-secondary": "#8a8a8a", "--accent-blue": "#82aaff", "--accent-green": "#c3e88d",
       "--accent-purple": "#c792ea", "--accent-gold": "#ffcb6b", "--accent-rose": "#f07178",
       "--border-color": "rgba(255, 255, 255, 0.05)", "--error-color": "#f07178",
     },
@@ -450,7 +452,7 @@ export const THEMES: ThemeDef[] = [
     preview: { bg: "#fafafa", fg: "#546e7a", accent: "#6182b8", secondary: "#eaeaea" },
     vars: {
       "--bg-primary": "#fafafa", "--bg-secondary": "#eaeaea", "--bg-tertiary": "#d4d4d4", "--bg-elevated": "#ffffff",
-      "--text-primary": "#546e7a", "--text-secondary": "#90a4ae", "--accent-blue": "#6182b8", "--accent-green": "#91b859",
+      "--text-primary": "#546e7a", "--text-secondary": "#5e7680", "--accent-blue": "#6182b8", "--accent-green": "#91b859",
       "--accent-purple": "#7c4dff", "--accent-gold": "#f6a434", "--accent-rose": "#e53935",
       "--border-color": "rgba(0, 0, 0, 0.07)", "--error-color": "#e53935",
     },
@@ -461,17 +463,17 @@ export const THEMES: ThemeDef[] = [
     preview: { bg: "#002b36", fg: "#839496", accent: "#268bd2", secondary: "#073642" },
     vars: {
       "--bg-primary": "#002b36", "--bg-secondary": "#073642", "--bg-tertiary": "#0a4050", "--bg-elevated": "#0d4f5e",
-      "--text-primary": "#839496", "--text-secondary": "#586e75", "--accent-blue": "#268bd2", "--accent-green": "#859900",
+      "--text-primary": "#93a1a1", "--text-secondary": "#6d8388", "--accent-blue": "#268bd2", "--accent-green": "#859900",
       "--accent-purple": "#6c71c4", "--accent-gold": "#b58900", "--accent-rose": "#dc322f",
       "--border-color": "rgba(255, 255, 255, 0.06)", "--error-color": "#dc322f",
     },
   },
   {
     id: "light-solarized", name: "Solarized Light", category: "standard", mode: "light", pairId: "solarized",
-    preview: { bg: "#fdf6e3", fg: "#657b83", accent: "#268bd2", secondary: "#eee8d5" },
+    preview: { bg: "#fdf6e3", fg: "#4a5a60", accent: "#268bd2", secondary: "#eee8d5" },
     vars: {
       "--bg-primary": "#fdf6e3", "--bg-secondary": "#eee8d5", "--bg-tertiary": "#e0dbc7", "--bg-elevated": "#fffdf5",
-      "--text-primary": "#657b83", "--text-secondary": "#93a1a1", "--accent-blue": "#268bd2", "--accent-green": "#859900",
+      "--text-primary": "#4a5a60", "--text-secondary": "#6b7c80", "--accent-blue": "#268bd2", "--accent-green": "#859900",
       "--accent-purple": "#6c71c4", "--accent-gold": "#b58900", "--accent-rose": "#dc322f",
       "--border-color": "rgba(0, 0, 0, 0.07)", "--error-color": "#dc322f",
     },
@@ -482,7 +484,7 @@ export const THEMES: ThemeDef[] = [
     preview: { bg: "#292d3e", fg: "#a6accd", accent: "#82aaff", secondary: "#34324a" },
     vars: {
       "--bg-primary": "#292d3e", "--bg-secondary": "#34324a", "--bg-tertiary": "#3e3c56", "--bg-elevated": "#484660",
-      "--text-primary": "#a6accd", "--text-secondary": "#676e95", "--accent-blue": "#82aaff", "--accent-green": "#c3e88d",
+      "--text-primary": "#bfc5e0", "--text-secondary": "#8088b0", "--accent-blue": "#82aaff", "--accent-green": "#c3e88d",
       "--accent-purple": "#c792ea", "--accent-gold": "#ffcb6b", "--accent-rose": "#f07178",
       "--border-color": "rgba(255, 255, 255, 0.06)", "--error-color": "#f07178",
     },
@@ -492,7 +494,7 @@ export const THEMES: ThemeDef[] = [
     preview: { bg: "#f0f0f8", fg: "#3b3d55", accent: "#5a6acf", secondary: "#e4e4ef" },
     vars: {
       "--bg-primary": "#f0f0f8", "--bg-secondary": "#e4e4ef", "--bg-tertiary": "#d4d4e2", "--bg-elevated": "#fafaff",
-      "--text-primary": "#3b3d55", "--text-secondary": "#676e95", "--accent-blue": "#5a6acf", "--accent-green": "#689d6a",
+      "--text-primary": "#3b3d55", "--text-secondary": "#555b7a", "--accent-blue": "#5a6acf", "--accent-green": "#689d6a",
       "--accent-purple": "#9c5fb5", "--accent-gold": "#c08b30", "--accent-rose": "#c45060",
       "--border-color": "rgba(0, 0, 0, 0.07)", "--error-color": "#c45060",
     },
@@ -503,7 +505,7 @@ export const THEMES: ThemeDef[] = [
     preview: { bg: "#0a0e14", fg: "#b3b1ad", accent: "#ffb454", secondary: "#1f2430" },
     vars: {
       "--bg-primary": "#0a0e14", "--bg-secondary": "#1f2430", "--bg-tertiary": "#272d38", "--bg-elevated": "#2e3440",
-      "--text-primary": "#b3b1ad", "--text-secondary": "#5c6773", "--accent-blue": "#36a3d9", "--accent-green": "#bae67e",
+      "--text-primary": "#b3b1ad", "--text-secondary": "#7e8894", "--accent-blue": "#36a3d9", "--accent-green": "#bae67e",
       "--accent-purple": "#d4bfff", "--accent-gold": "#ffb454", "--accent-rose": "#ff3333",
       "--border-color": "rgba(255, 255, 255, 0.05)", "--error-color": "#ff3333",
     },
@@ -513,7 +515,7 @@ export const THEMES: ThemeDef[] = [
     preview: { bg: "#fafafa", fg: "#575f66", accent: "#ff9940", secondary: "#f0f0f0" },
     vars: {
       "--bg-primary": "#fafafa", "--bg-secondary": "#f0f0f0", "--bg-tertiary": "#e1e1e1", "--bg-elevated": "#ffffff",
-      "--text-primary": "#575f66", "--text-secondary": "#abb0b6", "--accent-blue": "#399ee6", "--accent-green": "#86b300",
+      "--text-primary": "#575f66", "--text-secondary": "#6e7478", "--accent-blue": "#399ee6", "--accent-green": "#86b300",
       "--accent-purple": "#a37acc", "--accent-gold": "#ff9940", "--accent-rose": "#f51818",
       "--border-color": "rgba(0, 0, 0, 0.08)", "--error-color": "#f51818",
     },
@@ -566,7 +568,7 @@ export const THEMES: ThemeDef[] = [
     preview: { bg: "#262335", fg: "#e0def4", accent: "#f97e72", secondary: "#34294f" },
     vars: {
       "--bg-primary": "#262335", "--bg-secondary": "#34294f", "--bg-tertiary": "#3e3461", "--bg-elevated": "#4a3f73",
-      "--text-primary": "#e0def4", "--text-secondary": "#7f7a9b", "--accent-blue": "#72f1b8", "--accent-green": "#72f1b8",
+      "--text-primary": "#e0def4", "--text-secondary": "#9d98b8", "--accent-blue": "#72f1b8", "--accent-green": "#72f1b8",
       "--accent-purple": "#f97e72", "--accent-gold": "#fede5d", "--accent-rose": "#fe4450",
       "--border-color": "rgba(255, 255, 255, 0.07)", "--error-color": "#fe4450",
     },
@@ -576,7 +578,7 @@ export const THEMES: ThemeDef[] = [
     preview: { bg: "#f5f0ff", fg: "#2d2350", accent: "#c44040", secondary: "#e8e0f5" },
     vars: {
       "--bg-primary": "#f5f0ff", "--bg-secondary": "#e8e0f5", "--bg-tertiary": "#d8cee8", "--bg-elevated": "#ffffff",
-      "--text-primary": "#2d2350", "--text-secondary": "#685a8b", "--accent-blue": "#2a8a5e", "--accent-green": "#2a8a5e",
+      "--text-primary": "#2d2350", "--text-secondary": "#504068", "--accent-blue": "#2a8a5e", "--accent-green": "#2a8a5e",
       "--accent-purple": "#c44040", "--accent-gold": "#a78000", "--accent-rose": "#c02030",
       "--border-color": "rgba(0, 0, 0, 0.07)", "--error-color": "#c02030",
     },
@@ -597,7 +599,7 @@ export const THEMES: ThemeDef[] = [
     preview: { bg: "#fdf6e3", fg: "#5c6a72", accent: "#8da101", secondary: "#f0ead2" },
     vars: {
       "--bg-primary": "#fdf6e3", "--bg-secondary": "#f0ead2", "--bg-tertiary": "#e0dab8", "--bg-elevated": "#fffbf0",
-      "--text-primary": "#5c6a72", "--text-secondary": "#829181", "--accent-blue": "#3a94c5", "--accent-green": "#8da101",
+      "--text-primary": "#5c6a72", "--text-secondary": "#5c6860", "--accent-blue": "#3a94c5", "--accent-green": "#8da101",
       "--accent-purple": "#df69ba", "--accent-gold": "#dfa000", "--accent-rose": "#f85552",
       "--border-color": "rgba(0, 0, 0, 0.07)", "--error-color": "#f85552",
     },
@@ -608,7 +610,7 @@ export const THEMES: ThemeDef[] = [
     preview: { bg: "#1f1f28", fg: "#dcd7ba", accent: "#7e9cd8", secondary: "#2a2a37" },
     vars: {
       "--bg-primary": "#1f1f28", "--bg-secondary": "#2a2a37", "--bg-tertiary": "#363646", "--bg-elevated": "#3d3d55",
-      "--text-primary": "#dcd7ba", "--text-secondary": "#727169", "--accent-blue": "#7e9cd8", "--accent-green": "#98bb6c",
+      "--text-primary": "#dcd7ba", "--text-secondary": "#908f85", "--accent-blue": "#7e9cd8", "--accent-green": "#98bb6c",
       "--accent-purple": "#957fb8", "--accent-gold": "#e6c384", "--accent-rose": "#e82424",
       "--border-color": "rgba(255, 255, 255, 0.06)", "--error-color": "#e82424",
     },
@@ -618,7 +620,7 @@ export const THEMES: ThemeDef[] = [
     preview: { bg: "#f2ecbc", fg: "#43436c", accent: "#4d699b", secondary: "#e7dba0" },
     vars: {
       "--bg-primary": "#f2ecbc", "--bg-secondary": "#e7dba0", "--bg-tertiary": "#d8cc88", "--bg-elevated": "#faf5d0",
-      "--text-primary": "#43436c", "--text-secondary": "#8a8980", "--accent-blue": "#4d699b", "--accent-green": "#6f894e",
+      "--text-primary": "#43436c", "--text-secondary": "#5e5e50", "--accent-blue": "#4d699b", "--accent-green": "#6f894e",
       "--accent-purple": "#624c83", "--accent-gold": "#a96b2c", "--accent-rose": "#c84053",
       "--border-color": "rgba(0, 0, 0, 0.08)", "--error-color": "#c84053",
     },
@@ -664,28 +666,39 @@ for (const t of THEMES) {
   const tert = t.vars["--bg-tertiary"];
   if (sec && tert && !sec.startsWith("rgba") && !tert.startsWith("rgba")) {
     if (contrast(sec, tert) < 3.0) {
-      // Darken for light themes, lighten for dark themes
-      if (t.mode === "dark") {
-        // Make secondary lighter
-        const lum = hexLum(sec);
-        const tertLum = hexLum(tert);
-        // Target ~3.5:1 contrast — solve for needed luminance
-        const needed = (tertLum + 0.05) * 3.5 - 0.05;
-        if (needed <= 1 && needed > lum) {
-          const factor = Math.min(1, needed / Math.max(lum, 0.01));
-          const h = sec.replace('#', '');
-          const r = Math.min(255, Math.round(parseInt(h.substring(0, 2), 16) * factor + (255 - parseInt(h.substring(0, 2), 16) * factor) * 0.3));
-          const g = Math.min(255, Math.round(parseInt(h.substring(2, 4), 16) * factor + (255 - parseInt(h.substring(2, 4), 16) * factor) * 0.3));
-          const b = Math.min(255, Math.round(parseInt(h.substring(4, 6), 16) * factor + (255 - parseInt(h.substring(4, 6), 16) * factor) * 0.3));
-          t.vars["--text-secondary"] = `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`;
+      // Iteratively adjust until ≥3.1:1 contrast
+      const h = sec.replace('#', '');
+      let r = parseInt(h.substring(0, 2), 16);
+      let g = parseInt(h.substring(2, 4), 16);
+      let b = parseInt(h.substring(4, 6), 16);
+      for (let i = 0; i < 60; i++) {
+        if (t.mode === "dark") {
+          r = Math.min(255, r + 3); g = Math.min(255, g + 3); b = Math.min(255, b + 3);
+        } else {
+          r = Math.max(0, r - 3); g = Math.max(0, g - 3); b = Math.max(0, b - 3);
         }
-      } else {
-        // Make secondary darker
-        const h = sec.replace('#', '');
-        const r = Math.max(0, Math.round(parseInt(h.substring(0, 2), 16) * 0.65));
-        const g = Math.max(0, Math.round(parseInt(h.substring(2, 4), 16) * 0.65));
-        const b = Math.max(0, Math.round(parseInt(h.substring(4, 6), 16) * 0.65));
-        t.vars["--text-secondary"] = `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`;
+        const adj = `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`;
+        if (contrast(adj, tert) >= 3.1) { t.vars["--text-secondary"] = adj; break; }
+      }
+    }
+  }
+  // Fix text-primary on bg-elevated if < 4.5:1
+  const pri = t.vars["--text-primary"];
+  const elev = t.vars["--bg-elevated"];
+  if (pri && elev && !pri.startsWith("rgba") && !elev.startsWith("rgba")) {
+    if (contrast(pri, elev) < 4.5) {
+      const hp = pri.replace('#', '');
+      let r = parseInt(hp.substring(0, 2), 16);
+      let g = parseInt(hp.substring(2, 4), 16);
+      let b = parseInt(hp.substring(4, 6), 16);
+      for (let i = 0; i < 80; i++) {
+        if (t.mode === "dark") {
+          r = Math.min(255, r + 2); g = Math.min(255, g + 2); b = Math.min(255, b + 2);
+        } else {
+          r = Math.max(0, r - 2); g = Math.max(0, g - 2); b = Math.max(0, b - 2);
+        }
+        const adj = `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`;
+        if (contrast(adj, elev) >= 4.5) { t.vars["--text-primary"] = adj; break; }
       }
     }
   }
@@ -757,17 +770,37 @@ const cardBox: React.CSSProperties = {
   padding: 14, borderRadius: "var(--radius-md)", border: "1px solid var(--border-color)",
   background: "var(--bg-secondary)", marginBottom: 10,
 };
+const inputStyle: React.CSSProperties = {
+  padding: "6px 10px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)",
+  background: "var(--bg-primary)", color: "var(--text-primary)", width: "100%", boxSizing: "border-box",
+};
 
 /* ── Section Components ────────────────────────────────────────────── */
 
 function ProfileSection() {
   const [profile, setProfile] = useState<UserProfile>({ displayName: "", email: "", bio: "", avatarUrl: "" });
   const [saved, setSaved] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [googleConnected, setGoogleConnected] = useState(false);
+  const [googleError, setGoogleError] = useState<string | null>(null);
+  const [googleConfiguring, setGoogleConfiguring] = useState(false);
+  const [gClientId, setGClientId] = useState("");
+  const [gClientSecret, setGClientSecret] = useState("");
+  const [gAuthCode, setGAuthCode] = useState("");
+  const [gAwaitingCode, setGAwaitingCode] = useState(false);
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEYS.profile);
     if (stored) setProfile(JSON.parse(stored));
+    checkGoogleStatus();
   }, []);
+
+  const checkGoogleStatus = async () => {
+    try {
+      const status = await invoke<{ connected: boolean; expired: boolean; email: string }>("cloud_oauth_status", { provider: "google" });
+      setGoogleConnected(status.connected && !status.expired);
+    } catch { /* not connected */ }
+  };
 
   const save = () => {
     localStorage.setItem(STORAGE_KEYS.profile, JSON.stringify(profile));
@@ -775,11 +808,230 @@ function ProfileSection() {
     setTimeout(() => setSaved(false), 2000);
   };
 
+  const handleGoogleLogin = async () => {
+    setGoogleError(null);
+    // First check if already connected — just fetch profile
+    try {
+      const gProfile = await invoke<{ displayName: string; email: string; avatarUrl: string }>("cloud_oauth_google_profile");
+      if (gProfile.email) {
+        const updated = {
+          ...profile,
+          displayName: gProfile.displayName || profile.displayName,
+          email: gProfile.email || profile.email,
+          avatarUrl: gProfile.avatarUrl || profile.avatarUrl,
+        };
+        setProfile(updated);
+        localStorage.setItem(STORAGE_KEYS.profile, JSON.stringify(updated));
+        setGoogleConnected(true);
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+        return;
+      }
+    } catch { /* not connected yet, start flow */ }
+
+    // Check if client config exists
+    try {
+      const config = await invoke<{ client_id: string; client_secret: string }>("cloud_oauth_get_client_config", { provider: "google" });
+      if (config.client_id) {
+        await startGoogleOAuth(config.client_id);
+        return;
+      }
+    } catch { /* no config */ }
+
+    // Need to configure client credentials first
+    setGoogleConfiguring(true);
+    setGClientId("");
+    setGClientSecret("");
+  };
+
+  const startGoogleOAuth = async (clientId: string) => {
+    setGoogleLoading(true);
+    setGoogleError(null);
+    try {
+      const redirectUri = "http://localhost:7878/oauth/callback";
+      await invoke<string>("cloud_oauth_initiate", {
+        provider: "google",
+        clientId,
+        redirectUri,
+      });
+      setGAwaitingCode(true);
+      setGAuthCode("");
+    } catch (e) {
+      setGoogleError(String(e));
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  const saveGoogleConfig = async () => {
+    if (!gClientId.trim()) { setGoogleError("Client ID is required"); return; }
+    setGoogleLoading(true);
+    try {
+      await invoke("cloud_oauth_save_client_config", {
+        provider: "google",
+        clientId: gClientId.trim(),
+        clientSecret: gClientSecret.trim(),
+      });
+      setGoogleConfiguring(false);
+      await startGoogleOAuth(gClientId.trim());
+    } catch (e) {
+      setGoogleError(String(e));
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  const completeGoogleOAuth = async () => {
+    if (!gAuthCode.trim()) { setGoogleError("Authorization code is required"); return; }
+    setGoogleLoading(true);
+    setGoogleError(null);
+    try {
+      const config = await invoke<{ client_id: string; client_secret: string }>("cloud_oauth_get_client_config", { provider: "google" });
+      await invoke<{ provider: string; email: string; display_name: string; connected: boolean }>("cloud_oauth_complete", {
+        provider: "google",
+        code: gAuthCode.trim(),
+        clientId: config.client_id,
+        clientSecret: config.client_secret || "",
+        redirectUri: "http://localhost:7878/oauth/callback",
+      });
+      setGAwaitingCode(false);
+      setGAuthCode("");
+
+      // Now fetch the full Google profile including avatar
+      const gProfile = await invoke<{ displayName: string; email: string; avatarUrl: string }>("cloud_oauth_google_profile");
+      const updated = {
+        ...profile,
+        displayName: gProfile.displayName || profile.displayName,
+        email: gProfile.email || profile.email,
+        avatarUrl: gProfile.avatarUrl || profile.avatarUrl,
+      };
+      setProfile(updated);
+      localStorage.setItem(STORAGE_KEYS.profile, JSON.stringify(updated));
+      setGoogleConnected(true);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (e) {
+      setGoogleError(String(e));
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  const handleGoogleDisconnect = async () => {
+    try {
+      await invoke("cloud_oauth_disconnect", { provider: "google" });
+      setGoogleConnected(false);
+    } catch (e) {
+      setGoogleError(String(e));
+    }
+  };
+
   const initials = profile.displayName.split(/\s+/).map(w => w[0]?.toUpperCase() || "").join("").slice(0, 2) || "?";
 
   return (
     <div>
       <h3 style={{ margin: "0 0 16px", fontSize: 16, fontWeight: 600, color: "var(--text-primary)" }}>Profile</h3>
+
+      {/* Google Sign-In card */}
+      <div style={{
+        padding: 14, borderRadius: "var(--radius-md)", marginBottom: 20,
+        border: googleConnected ? "1px solid var(--success-color)" : "1px solid var(--border-color)",
+        background: googleConnected ? "var(--success-bg)" : "var(--bg-secondary)",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          {/* Google "G" logo */}
+          <div style={{
+            width: 40, height: 40, borderRadius: "var(--radius-sm)", background: "#fff",
+            display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+            border: "1px solid var(--border-color)",
+          }}>
+            <svg width="20" height="20" viewBox="0 0 48 48">
+              <path fill="#4285F4" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+              <path fill="#34A853" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+              <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+              <path fill="#EA4335" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+            </svg>
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 600, fontSize: 13, color: "var(--text-primary)" }}>Sign in with Google</div>
+            <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+              {googleConnected
+                ? `Connected as ${profile.email || "Google user"}`
+                : "Auto-fill your profile with your Google account"}
+            </div>
+          </div>
+          <div>
+            {googleConnected ? (
+              <div style={{ display: "flex", gap: 6 }}>
+                <button style={{ ...btnStyle, padding: "5px 12px", fontSize: 11 }} onClick={handleGoogleLogin}>
+                  Refresh
+                </button>
+                <button style={{ ...btnStyle, padding: "5px 12px", fontSize: 11, color: "var(--error-color)" }} onClick={handleGoogleDisconnect}>
+                  Disconnect
+                </button>
+              </div>
+            ) : (
+              <button
+                style={{
+                  padding: "8px 20px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)",
+                  background: "#fff", color: "#3c4043", cursor: "pointer", fontSize: 13, fontWeight: 500,
+                  display: "flex", alignItems: "center", gap: 8,
+                }}
+                onClick={handleGoogleLogin}
+                disabled={googleLoading}
+              >
+                {googleLoading ? "..." : "Sign in with Google"}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {googleError && (
+          <div style={{ marginTop: 8, padding: "6px 10px", borderRadius: 4, background: "var(--error-bg)", color: "var(--error-color)", fontSize: 11 }}>
+            {googleError}
+            <button style={{ float: "right", background: "none", border: "none", cursor: "pointer", color: "inherit" }} onClick={() => setGoogleError(null)}>x</button>
+          </div>
+        )}
+
+        {/* Client credential configuration */}
+        {googleConfiguring && (
+          <div style={{ marginTop: 10, padding: 10, background: "var(--bg-tertiary)", borderRadius: "var(--radius-sm)" }}>
+            <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 8 }}>
+              Enter your Google OAuth client credentials. Create them at{" "}
+              <span style={{ color: "var(--accent-blue)" }}>Google Cloud Console &gt; APIs &amp; Services &gt; Credentials</span>.
+              Set the redirect URI to <code style={{ fontSize: 10, background: "var(--bg-primary)", padding: "1px 4px", borderRadius: 3 }}>http://localhost:7878/oauth/callback</code>.
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <input style={{ ...inputStyle, fontSize: 12 }} placeholder="Client ID" value={gClientId} onChange={e => setGClientId(e.target.value)} />
+              <input style={{ ...inputStyle, fontSize: 12 }} placeholder="Client Secret" type="password" value={gClientSecret} onChange={e => setGClientSecret(e.target.value)} />
+              <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+                <button style={{ ...btnStyle, padding: "4px 10px", fontSize: 11 }} onClick={() => setGoogleConfiguring(false)}>Cancel</button>
+                <button style={{ ...btnPrimary, padding: "4px 10px", fontSize: 11 }} onClick={saveGoogleConfig} disabled={googleLoading || !gClientId.trim()}>
+                  {googleLoading ? "Saving..." : "Save & Connect"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Authorization code entry */}
+        {gAwaitingCode && (
+          <div style={{ marginTop: 10, padding: 10, background: "var(--bg-tertiary)", borderRadius: "var(--radius-sm)" }}>
+            <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 8 }}>
+              A browser window has opened. After authorizing with Google, paste the authorization code below:
+            </div>
+            <div style={{ display: "flex", gap: 6 }}>
+              <input style={{ ...inputStyle, fontSize: 12, flex: 1 }} placeholder="Paste authorization code here"
+                value={gAuthCode} onChange={e => setGAuthCode(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && completeGoogleOAuth()} />
+              <button style={{ ...btnStyle, padding: "4px 10px", fontSize: 11 }} onClick={() => { setGAwaitingCode(false); setGAuthCode(""); }}>Cancel</button>
+              <button style={{ ...btnPrimary, padding: "4px 10px", fontSize: 11 }} onClick={completeGoogleOAuth} disabled={googleLoading || !gAuthCode.trim()}>
+                {googleLoading ? "Connecting..." : "Complete"}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Avatar */}
       <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20 }}>
@@ -949,62 +1201,247 @@ function AppearanceSection() {
 }
 
 function OAuthSection() {
-  const [providers, setProviders] = useState<OAuthProvider[]>(() => {
-    const stored = localStorage.getItem(STORAGE_KEYS.oauth);
-    return stored ? JSON.parse(stored) : OAUTH_PROVIDERS;
-  });
+  const [providers, setProviders] = useState<OAuthProvider[]>(OAUTH_PROVIDERS);
+  const [loading, setLoading] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [configuring, setConfiguring] = useState<string | null>(null);
+  const [clientId, setClientId] = useState("");
+  const [clientSecret, setClientSecret] = useState("");
+  const [authCode, setAuthCode] = useState("");
+  const [awaitingCode, setAwaitingCode] = useState<string | null>(null);
 
-  const save = (updated: OAuthProvider[]) => {
-    setProviders(updated);
-    localStorage.setItem(STORAGE_KEYS.oauth, JSON.stringify(updated));
+  // Load connection status on mount
+  useEffect(() => {
+    loadStatuses();
+  }, []);
+
+  const loadStatuses = async () => {
+    try {
+      const connected = await invoke<Array<{ provider: string; email: string; display_name: string; expired: boolean }>>("cloud_oauth_list_connected");
+      setProviders(prev => prev.map(p => {
+        const match = connected.find((c: { provider: string }) => c.provider === p.id);
+        if (match) {
+          return { ...p, connected: true, email: match.email || match.display_name, displayName: match.display_name, expired: match.expired };
+        }
+        return { ...p, connected: false, email: undefined, displayName: undefined, expired: undefined };
+      }));
+    } catch { /* ignore — first run */ }
   };
 
-  const handleConnect = (id: string) => {
-    // In a real app this would redirect to OAuth flow. For now, simulate connection.
-    const email = prompt(`Enter your ${providers.find(p => p.id === id)?.name} email to simulate OAuth login:`);
-    if (!email) return;
-    save(providers.map(p => p.id === id ? { ...p, connected: true, email } : p));
+  const handleConnect = async (id: string) => {
+    setError(null);
+    // Check if client config exists
+    try {
+      const config = await invoke<{ client_id: string; client_secret: string }>("cloud_oauth_get_client_config", { provider: id });
+      if (!config.client_id) {
+        setConfiguring(id);
+        setClientId("");
+        setClientSecret("");
+        return;
+      }
+      // Start OAuth flow
+      await startOAuthFlow(id, config.client_id);
+    } catch (e) {
+      setConfiguring(id);
+      setClientId("");
+      setClientSecret("");
+    }
   };
 
-  const handleDisconnect = (id: string) => {
-    save(providers.map(p => p.id === id ? { ...p, connected: false, email: undefined } : p));
+  const startOAuthFlow = async (id: string, cId: string) => {
+    setLoading(id);
+    setError(null);
+    try {
+      const redirectUri = "http://localhost:7878/oauth/callback";
+      await invoke<string>("cloud_oauth_initiate", {
+        provider: id,
+        clientId: cId,
+        redirectUri,
+      });
+      // Browser opened — now wait for auth code
+      setAwaitingCode(id);
+      setAuthCode("");
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const completeOAuth = async (id: string) => {
+    if (!authCode.trim()) { setError("Authorization code is required"); return; }
+    setLoading(id);
+    setError(null);
+    try {
+      const config = await invoke<{ client_id: string; client_secret: string }>("cloud_oauth_get_client_config", { provider: id });
+      const result = await invoke<{ provider: string; email: string; display_name: string; connected: boolean }>("cloud_oauth_complete", {
+        provider: id,
+        code: authCode.trim(),
+        clientId: config.client_id,
+        clientSecret: config.client_secret || "",
+        redirectUri: "http://localhost:7878/oauth/callback",
+      });
+      setProviders(prev => prev.map(p =>
+        p.id === id ? { ...p, connected: true, email: result.email || result.display_name, displayName: result.display_name, expired: false } : p
+      ));
+      setAwaitingCode(null);
+      setAuthCode("");
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const saveClientConfig = async (id: string) => {
+    if (!clientId.trim()) { setError("Client ID is required"); return; }
+    setLoading(id);
+    try {
+      await invoke("cloud_oauth_save_client_config", {
+        provider: id,
+        clientId: clientId.trim(),
+        clientSecret: clientSecret.trim(),
+      });
+      setConfiguring(null);
+      // Now start the OAuth flow
+      await startOAuthFlow(id, clientId.trim());
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const handleDisconnect = async (id: string) => {
+    setLoading(id);
+    try {
+      await invoke("cloud_oauth_disconnect", { provider: id });
+      setProviders(prev => prev.map(p => p.id === id ? { ...p, connected: false, email: undefined, displayName: undefined, expired: undefined } : p));
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const handleRefresh = async (id: string) => {
+    setLoading(id);
+    setError(null);
+    try {
+      const config = await invoke<{ client_id: string; client_secret: string }>("cloud_oauth_get_client_config", { provider: id });
+      await invoke("cloud_oauth_refresh", {
+        provider: id,
+        clientId: config.client_id,
+        clientSecret: config.client_secret || "",
+      });
+      await loadStatuses();
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(null);
+    }
   };
 
   const providerColors: Record<string, string> = {
-    google: "#4285f4", github: "#333", gitlab: "#fc6d26",
-    bitbucket: "#0052cc", microsoft: "#00a4ef", apple: "#000",
+    google: "#4285f4", github: "var(--text-secondary)", gitlab: "#fc6d26",
+    bitbucket: "#0052cc", microsoft: "#00a4ef", apple: "var(--text-primary)",
   };
 
   return (
     <div>
-      <h3 style={{ margin: "0 0 6px", fontSize: 16, fontWeight: 600, color: "var(--text-primary)" }}>OAuth Login</h3>
+      <h3 style={{ margin: "0 0 6px", fontSize: 16, fontWeight: 600, color: "var(--text-primary)" }}>Cloud OAuth</h3>
       <p style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 16, lineHeight: 1.5 }}>
-        Connect your accounts for seamless authentication and source control integration.
+        Connect your cloud accounts via OAuth 2.0 for scanning, IAM, IaC generation, and cost analysis.
+        You'll need to register an OAuth app with each provider and enter your client credentials.
       </p>
 
+      {error && (
+        <div style={{ ...cardBox, background: "var(--error-bg)", borderColor: "var(--error-color)", color: "var(--error-color)", fontSize: 12, marginBottom: 12 }}>
+          {error}
+          <button style={{ float: "right", background: "none", border: "none", cursor: "pointer", color: "inherit" }} onClick={() => setError(null)}>×</button>
+        </div>
+      )}
+
       {providers.map(p => (
-        <div key={p.id} style={{ ...cardBox, display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{
-            width: 36, height: 36, borderRadius: "var(--radius-sm)", background: providerColors[p.id] || "var(--bg-tertiary)",
-            display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, fontWeight: 700, flexShrink: 0,
-          }}>
-            {p.icon}
+        <div key={p.id} style={{ ...cardBox, marginBottom: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{
+              width: 36, height: 36, borderRadius: "var(--radius-sm)", background: providerColors[p.id] || "var(--bg-tertiary)",
+              display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, fontWeight: 700, flexShrink: 0,
+            }}>
+              {p.icon}
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 600, fontSize: 13, color: "var(--text-primary)" }}>{p.name}</div>
+              {p.connected ? (
+                <div style={{ fontSize: 11 }}>
+                  <span style={{ color: p.expired ? "var(--warning-color)" : "var(--success-color)" }}>
+                    {p.expired ? "Token expired" : "Connected"}
+                  </span>
+                  {p.email && <span style={{ color: "var(--text-secondary)", marginLeft: 6 }}>{p.email}</span>}
+                </div>
+              ) : (
+                <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Not connected</div>
+              )}
+            </div>
+            <div style={{ display: "flex", gap: 6 }}>
+              {p.connected && p.expired && (
+                <button style={{ ...btnStyle, padding: "5px 10px", fontSize: 11, color: "var(--warning-color)" }}
+                  onClick={() => handleRefresh(p.id)} disabled={loading === p.id}>
+                  Refresh
+                </button>
+              )}
+              {p.connected ? (
+                <button style={{ ...btnStyle, padding: "5px 12px", fontSize: 11, color: "var(--error-color)" }}
+                  onClick={() => handleDisconnect(p.id)} disabled={loading === p.id}>
+                  Disconnect
+                </button>
+              ) : (
+                <button style={{ ...btnPrimary, padding: "5px 12px", fontSize: 11 }}
+                  onClick={() => handleConnect(p.id)} disabled={loading === p.id}>
+                  {loading === p.id ? "..." : "Connect"}
+                </button>
+              )}
+            </div>
           </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 600, fontSize: 13, color: "var(--text-primary)" }}>{p.name}</div>
-            {p.connected
-              ? <div style={{ fontSize: 11, color: "var(--success-color)" }}>Connected as {p.email}</div>
-              : <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Not connected</div>
-            }
-          </div>
-          {p.connected ? (
-            <button style={{ ...btnStyle, padding: "5px 12px", fontSize: 11, color: "var(--error-color)" }} onClick={() => handleDisconnect(p.id)}>
-              Disconnect
-            </button>
-          ) : (
-            <button style={{ ...btnPrimary, padding: "5px 12px", fontSize: 11 }} onClick={() => handleConnect(p.id)}>
-              Connect
-            </button>
+
+          {/* Client credential configuration form */}
+          {configuring === p.id && (
+            <div style={{ marginTop: 10, padding: 10, background: "var(--bg-tertiary)", borderRadius: "var(--radius-sm)" }}>
+              <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 8 }}>
+                Enter your OAuth app credentials for {p.name}. Register an app at the provider's developer console.
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <input style={{ ...inputStyle, fontSize: 12 }} placeholder="Client ID" value={clientId} onChange={e => setClientId(e.target.value)} />
+                <input style={{ ...inputStyle, fontSize: 12 }} placeholder="Client Secret (optional for some providers)" type="password"
+                  value={clientSecret} onChange={e => setClientSecret(e.target.value)} />
+                <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+                  <button style={{ ...btnStyle, padding: "4px 10px", fontSize: 11 }} onClick={() => setConfiguring(null)}>Cancel</button>
+                  <button style={{ ...btnPrimary, padding: "4px 10px", fontSize: 11 }}
+                    onClick={() => saveClientConfig(p.id)} disabled={loading === p.id || !clientId.trim()}>
+                    {loading === p.id ? "Saving..." : "Save & Connect"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Authorization code entry (after browser redirect) */}
+          {awaitingCode === p.id && (
+            <div style={{ marginTop: 10, padding: 10, background: "var(--bg-tertiary)", borderRadius: "var(--radius-sm)" }}>
+              <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 8 }}>
+                A browser window has opened. After authorizing, paste the authorization code below:
+              </div>
+              <div style={{ display: "flex", gap: 6 }}>
+                <input style={{ ...inputStyle, fontSize: 12, flex: 1 }} placeholder="Paste authorization code here"
+                  value={authCode} onChange={e => setAuthCode(e.target.value)} />
+                <button style={{ ...btnStyle, padding: "4px 10px", fontSize: 11 }} onClick={() => { setAwaitingCode(null); setAuthCode(""); }}>Cancel</button>
+                <button style={{ ...btnPrimary, padding: "4px 10px", fontSize: 11 }}
+                  onClick={() => completeOAuth(p.id)} disabled={loading === p.id || !authCode.trim()}>
+                  {loading === p.id ? "Connecting..." : "Complete"}
+                </button>
+              </div>
+            </div>
           )}
         </div>
       ))}
