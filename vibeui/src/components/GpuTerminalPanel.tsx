@@ -200,7 +200,7 @@ export default function GpuTerminalPanel() {
          <div style={{ marginBottom: 12 }}>
            <strong style={{ fontSize: 12 }}>FPS History{fpsHistory.length === 0 ? " (no data yet — run a benchmark)" : ""}</strong>
            {fpsHistory.length > 0 && (
-             <svg width="100%" height={80} style={{ border: "1px solid var(--vp-c-border)", borderRadius: 6, background: "#11111b", marginTop: 4 }}>
+             <svg width="100%" height={80} style={{ border: "1px solid var(--vp-c-border)", borderRadius: 6, background: "var(--bg-primary)", marginTop: 4 }}>
                {fpsHistory.map((fps, i) => {
                  const x = (i / (fpsHistory.length - 1)) * 100;
                  const y = 75 - (fps / maxFps) * 70;
@@ -252,14 +252,14 @@ export default function GpuTerminalPanel() {
            Glyph Atlas ({glyphAtlas ? `${glyphAtlas.atlas_width}x${glyphAtlas.atlas_height}` : "..."}, {glyphAtlas ? `${glyphAtlas.cached_count} glyphs cached` : "loading..."})
          </strong>
          <div style={{
-           marginTop: 8, padding: 8, background: "#11111b", border: "1px solid var(--vp-c-border)",
+           marginTop: 8, padding: 8, background: "var(--bg-primary)", border: "1px solid var(--vp-c-border)",
            borderRadius: 6, display: "flex", flexWrap: "wrap", gap: 2,
          }}>
            {glyphs.split("").map((ch, i) => (
              <div key={i} onClick={() => setSelectedGlyph(ch)} style={{
                width: 22, height: 24, display: "flex", alignItems: "center", justifyContent: "center",
                fontFamily: "monospace", fontSize: 13, cursor: "pointer", borderRadius: 2,
-               background: selectedGlyph === ch ? "var(--vp-c-brand)" : "#313244",
+               background: selectedGlyph === ch ? "var(--vp-c-brand)" : "var(--bg-secondary)",
                color: selectedGlyph === ch ? "white" : "var(--vp-c-text)",
              }}>{ch}</div>
            ))}

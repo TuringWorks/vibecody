@@ -144,7 +144,7 @@ export function CodeMetricsPanel({ workspacePath }: CodeMetricsPanelProps) {
  onClick={handleSuspend}
  style={{
  padding: "6px 16px", fontSize: 12, fontWeight: 600,
- background: "var(--error-color)", color: "white",
+ background: "var(--error-color)", color: "var(--text-primary)",
  border: "none", borderRadius: 4, cursor: "pointer",
  }}
  >
@@ -155,7 +155,7 @@ export function CodeMetricsPanel({ workspacePath }: CodeMetricsPanelProps) {
  onClick={scan}
  style={{
  padding: "6px 16px", fontSize: 12, fontWeight: 600,
- background: "var(--accent-blue)", color: "white",
+ background: "var(--accent-blue)", color: "var(--text-primary)",
  border: "none", borderRadius: 4, cursor: "pointer",
  }}
  >

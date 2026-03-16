@@ -203,7 +203,7 @@ export default function KnowledgeGraphPanel() {
      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
        <h2 style={{ margin: 0, fontSize: 18 }}>Knowledge Graph</h2>
        <button onClick={handleRefresh} disabled={loading} style={{
-         padding: "4px 10px", background: "var(--accent-color)", color: "white",
+         padding: "4px 10px", background: "var(--accent-color)", color: "var(--text-primary)",
          border: "none", borderRadius: 4, cursor: loading ? "wait" : "pointer", opacity: loading ? 0.6 : 1,
        }}>
          {loading ? "Scanning..." : "Refresh"}
@@ -224,7 +224,7 @@ export default function KnowledgeGraphPanel() {
        <label style={{ fontSize: 12 }}>Workspace:</label>
        <input value={workspace} onChange={e => setWorkspace(e.target.value)}
          style={{ flex: 1, padding: 4, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4, fontSize: 12 }} />
-       <button onClick={loadGraph} disabled={loading} style={{ padding: "4px 10px", background: "var(--accent-color)", color: "white", border: "none", borderRadius: 4, cursor: "pointer", fontSize: 12 }}>
+       <button onClick={loadGraph} disabled={loading} style={{ padding: "4px 10px", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: 4, cursor: "pointer", fontSize: 12 }}>
          Load
        </button>
      </div>
@@ -249,7 +249,7 @@ export default function KnowledgeGraphPanel() {
            style={{ flex: 1, padding: 4, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4 }} />
          <input value={newRepoPath} onChange={e => setNewRepoPath(e.target.value)} placeholder="Path"
            style={{ flex: 2, padding: 4, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4 }} />
-         <button onClick={addRepo} style={{ padding: "4px 10px", background: "var(--accent-color)", color: "white", border: "none", borderRadius: 4, cursor: "pointer" }}>Add</button>
+         <button onClick={addRepo} style={{ padding: "4px 10px", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: 4, cursor: "pointer" }}>Add</button>
        </div>
      </div>
 
@@ -258,7 +258,7 @@ export default function KnowledgeGraphPanel() {
        {(["graph", "stats", "export"] as const).map(t => (
          <button key={t} onClick={() => setTab(t)} style={{
            padding: "4px 12px", border: "1px solid var(--border-color)", borderRadius: 4, cursor: "pointer",
-           background: tab === t ? "var(--accent-color)" : "transparent", color: tab === t ? "white" : "var(--text-primary)",
+           background: tab === t ? "var(--accent-color)" : "transparent", color: tab === t ? "var(--text-primary)" : "var(--text-primary)",
          }}>{t.charAt(0).toUpperCase() + t.slice(1)}</button>
        ))}
      </div>
@@ -290,7 +290,7 @@ export default function KnowledgeGraphPanel() {
              </label>
            )}
            <button onClick={handleSearch} disabled={loading} style={{
-             padding: "4px 10px", background: "var(--accent-color)", color: "white", border: "none", borderRadius: 4, cursor: "pointer",
+             padding: "4px 10px", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: 4, cursor: "pointer",
            }}>Search</button>
          </div>
 
@@ -458,7 +458,7 @@ export default function KnowledgeGraphPanel() {
          </pre>
          <button onClick={() => {
            navigator.clipboard.writeText(dotExport()).catch(() => {});
-         }} style={{ marginTop: 8, padding: "6px 12px", background: "var(--accent-color)", color: "white", border: "none", borderRadius: 4, cursor: "pointer" }}>
+         }} style={{ marginTop: 8, padding: "6px 12px", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: 4, cursor: "pointer" }}>
            Copy to Clipboard
          </button>
        </div>

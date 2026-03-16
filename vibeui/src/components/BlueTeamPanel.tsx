@@ -658,7 +658,7 @@ export function BlueTeamPanel() {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <strong style={{ fontSize: 14 }}>{rule.name}</strong>
-                <span style={{ ...badgeStyle("#89b4fa"), marginLeft: 8 }}>{rule.platform}</span>
+                <span style={{ ...badgeStyle("var(--info-color)"), marginLeft: 8 }}>{rule.platform}</span>
                 {rule.mitre_ids.map((mid) => (
                   <span key={mid} style={{ ...badgeStyle("#cba6f7"), marginLeft: 4, fontSize: 10 }}>{mid}</span>
                 ))}
@@ -777,7 +777,7 @@ export function BlueTeamPanel() {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }} onClick={() => setExpandedPlaybook(expandedPlaybook === pb.id ? null : pb.id)}>
               <div>
                 <strong style={{ fontSize: 14 }}>{pb.name}</strong>
-                <span style={{ ...badgeStyle("#89b4fa"), marginLeft: 8 }}>{pb.category}</span>
+                <span style={{ ...badgeStyle("var(--info-color)"), marginLeft: 8 }}>{pb.category}</span>
                 <span style={{ marginLeft: 8, fontSize: 11, color: "var(--text-secondary)" }}>{pb.steps.length} steps</span>
               </div>
               <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>{expandedPlaybook === pb.id ? "▲" : "▼"}</span>
@@ -790,7 +790,7 @@ export function BlueTeamPanel() {
                     <div style={{ flex: 1 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <span style={{ fontSize: 13, fontWeight: 500 }}>{step.name || step.action}</span>
-                        {step.automated && <span style={badgeStyle("#a6e3a1")}>Auto</span>}
+                        {step.automated && <span style={badgeStyle("var(--success-color)")}>Auto</span>}
                       </div>
                       <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--text-secondary)" }}>{step.description}</p>
                     </div>
@@ -841,7 +841,7 @@ export function BlueTeamPanel() {
             </div>
             <div style={{ display: "flex", gap: 6, marginBottom: 8, flexWrap: "wrap" }}>
               {hunt.data_sources.map((ds) => (
-                <span key={ds} style={{ ...badgeStyle("#89b4fa"), fontSize: 10 }}>{ds}</span>
+                <span key={ds} style={{ ...badgeStyle("var(--info-color)"), fontSize: 10 }}>{ds}</span>
               ))}
             </div>
             {hunt.query && (
@@ -886,12 +886,12 @@ export function BlueTeamPanel() {
       </div>
       <div style={contentStyle}>
         {successMsg && (
-          <div style={{ padding: "8px 12px", marginBottom: 12, background: "rgba(76,175,80,0.13)", border: "1px solid var(--success-color)", borderRadius: 4, fontSize: 12, color: "var(--success-color)" }}>
+          <div style={{ padding: "8px 12px", marginBottom: 12, background: "var(--success-bg)", border: "1px solid var(--success-color)", borderRadius: 4, fontSize: 12, color: "var(--success-color)" }}>
             {successMsg}
           </div>
         )}
         {error && (
-          <div style={{ padding: "8px 12px", marginBottom: 12, background: "rgba(244,67,54,0.13)", border: "1px solid var(--error-color)", borderRadius: 4, fontSize: 12, color: "var(--error-color)", display: "flex", justifyContent: "space-between" }}>
+          <div style={{ padding: "8px 12px", marginBottom: 12, background: "var(--error-bg)", border: "1px solid var(--error-color)", borderRadius: 4, fontSize: 12, color: "var(--error-color)", display: "flex", justifyContent: "space-between" }}>
             <span>{error}</span>
             <button style={{ background: "none", border: "none", color: "var(--error-color)", cursor: "pointer", fontSize: 14 }} onClick={() => setError(null)}>×</button>
           </div>

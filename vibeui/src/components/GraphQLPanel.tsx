@@ -376,7 +376,7 @@ export function GraphQLPanel() {
  style={{
  padding: "2px 8px", fontSize: 10, borderRadius: 3,
  background: viewTab === v ? "var(--accent-color)" : "var(--bg-secondary)",
- color: viewTab === v ? "white" : "var(--text-muted)",
+ color: viewTab === v ? "var(--text-primary)" : "var(--text-muted)",
  border: "1px solid var(--border-color)", cursor: "pointer",
  }}
  >

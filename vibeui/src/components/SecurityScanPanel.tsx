@@ -61,7 +61,7 @@ const severityColor = (s: Severity): string => {
     case "Critical": return "#f38ba8";
     case "High": return "#fab387";
     case "Medium": return "#f9e2af";
-    case "Low": return "#89b4fa";
+    case "Low": return "var(--info-color)";
     case "Info": return "#6c7086";
   }
 };
@@ -206,7 +206,7 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
           style={{
             padding: "5px 14px", borderRadius: 5, border: "none",
             background: scanning ? "var(--bg-tertiary)" : "var(--accent-blue)",
-            color: "white", cursor: scanning ? "wait" : "pointer",
+            color: "var(--text-primary)", cursor: scanning ? "wait" : "pointer",
             fontWeight: 600, fontSize: 12, flexShrink: 0,
           }}
         >

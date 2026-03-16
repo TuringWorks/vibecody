@@ -81,29 +81,29 @@ interface IdpPlatform {
 const TABS: IdpTab[] = ["Service Catalog", "Golden Paths", "Scorecards", "Infrastructure", "Teams", "Platforms", "Backstage"];
 
 const TIER_COLORS: Record<string, string> = {
-  Tier0: "#f38ba8",
-  Tier1: "#fab387",
-  Tier2: "#f9e2af",
-  Tier3: "#a6e3a1",
+  Tier0: "var(--error-color)",
+  Tier1: "var(--warning-color)",
+  Tier2: "var(--warning-color)",
+  Tier3: "var(--success-color)",
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  Active: "#a6e3a1",
-  Deprecated: "#f38ba8",
-  Incubating: "#89b4fa",
-  Sunset: "#6c7086",
-  Pending: "#f9e2af",
-  Provisioning: "#89b4fa",
-  Completed: "#a6e3a1",
-  Failed: "#f38ba8",
+  Active: "var(--success-color)",
+  Deprecated: "var(--error-color)",
+  Incubating: "var(--info-color)",
+  Sunset: "var(--text-muted)",
+  Pending: "var(--warning-color)",
+  Provisioning: "var(--info-color)",
+  Completed: "var(--success-color)",
+  Failed: "var(--error-color)",
 };
 
 const GRADE_COLORS: Record<string, string> = {
-  A: "#a6e3a1",
-  B: "#89b4fa",
-  C: "#f9e2af",
-  D: "#fab387",
-  F: "#f38ba8",
+  A: "var(--success-color)",
+  B: "var(--info-color)",
+  C: "var(--warning-color)",
+  D: "var(--warning-color)",
+  F: "var(--error-color)",
 };
 
 const INFRA_TEMPLATES = [
@@ -223,8 +223,9 @@ const badgeStyle = (color: string): React.CSSProperties => ({
   borderRadius: 10,
   fontSize: 11,
   fontWeight: 600,
-  background: color + "22",
+  background: "transparent",
   color,
+  border: `1px solid ${color}`,
 });
 
 const cardStyle: React.CSSProperties = {
@@ -1060,13 +1061,13 @@ spec:
       </div>
       <div style={contentStyle}>
         {successMsg && (
-          <div style={{ padding: "8px 12px", marginBottom: 12, background: "rgba(166,227,161,0.13)", border: "1px solid var(--success-color)", borderRadius: 4, fontSize: 12, color: "var(--success-color)", display: "flex", justifyContent: "space-between" }}>
+          <div style={{ padding: "8px 12px", marginBottom: 12, background: "color-mix(in srgb, var(--success-color) 13%, transparent)", border: "1px solid var(--success-color)", borderRadius: 4, fontSize: 12, color: "var(--success-color)", display: "flex", justifyContent: "space-between" }}>
             <span>{successMsg}</span>
             <button style={{ background: "none", border: "none", color: "var(--success-color)", cursor: "pointer", fontSize: 14 }} onClick={() => setSuccessMsg(null)}>x</button>
           </div>
         )}
         {error && (
-          <div style={{ padding: "8px 12px", marginBottom: 12, background: "rgba(243,139,168,0.13)", border: "1px solid var(--error-color)", borderRadius: 4, fontSize: 12, color: "var(--error-color)", display: "flex", justifyContent: "space-between" }}>
+          <div style={{ padding: "8px 12px", marginBottom: 12, background: "color-mix(in srgb, var(--error-color) 13%, transparent)", border: "1px solid var(--error-color)", borderRadius: 4, fontSize: 12, color: "var(--error-color)", display: "flex", justifyContent: "space-between" }}>
             <span>{error}</span>
             <button style={{ background: "none", border: "none", color: "var(--error-color)", cursor: "pointer", fontSize: 14 }} onClick={() => setError(null)}>x</button>
           </div>

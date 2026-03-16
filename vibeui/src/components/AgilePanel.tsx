@@ -188,9 +188,9 @@ interface SAFeData {
 
 const PRIORITY_COLORS: Record<Priority, string> = {
   P0: "var(--error-color)",
-  P1: "#f59e0b",
-  P2: "#3b82f6",
-  P3: "#6b7280",
+  P1: "var(--warning-color)",
+  P2: "var(--info-color)",
+  P3: "var(--text-muted)",
 };
 
 const riskColor = (r: RiskLevel) =>
@@ -322,7 +322,7 @@ function AvatarBadge({ name, size = 24 }: { name: string; size?: number }) {
   return (
     <div title={name} style={{
       width: size, height: size, borderRadius: "50%", background: AVATAR_COLORS[colorIdx],
-      color: "#fff", fontSize: size * 0.42, fontWeight: 700, display: "flex", alignItems: "center",
+      color: "var(--text-primary)", fontSize: size * 0.42, fontWeight: 700, display: "flex", alignItems: "center",
       justifyContent: "center", flexShrink: 0, border: "2px solid var(--bg-primary)",
     }}>
       {initials}
@@ -1445,22 +1445,22 @@ function MetricsTab() {
             <div key={row.date} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
               <span style={{ width: 60, fontSize: 11, color: "var(--text-secondary)" }}>{row.date}</span>
               <div style={{ flex: 1, display: "flex", height: 18, borderRadius: "var(--radius-sm)", overflow: "hidden" }}>
-                <div style={{ width: pct(row.backlog), background: "#6b7280", transition: "var(--transition-smooth)" }} title={`Backlog: ${row.backlog}`} />
-                <div style={{ width: pct(row.todo), background: "#3b82f6", transition: "var(--transition-smooth)" }} title={`To Do: ${row.todo}`} />
-                <div style={{ width: pct(row.inProgress), background: "#f59e0b", transition: "var(--transition-smooth)" }} title={`In Progress: ${row.inProgress}`} />
-                <div style={{ width: pct(row.inReview), background: "#8b5cf6", transition: "var(--transition-smooth)" }} title={`In Review: ${row.inReview}`} />
-                <div style={{ width: pct(row.done), background: "#10b981", transition: "var(--transition-smooth)" }} title={`Done: ${row.done}`} />
+                <div style={{ width: pct(row.backlog), background: "var(--text-muted)", transition: "var(--transition-smooth)" }} title={`Backlog: ${row.backlog}`} />
+                <div style={{ width: pct(row.todo), background: "var(--info-color)", transition: "var(--transition-smooth)" }} title={`To Do: ${row.todo}`} />
+                <div style={{ width: pct(row.inProgress), background: "var(--warning-color)", transition: "var(--transition-smooth)" }} title={`In Progress: ${row.inProgress}`} />
+                <div style={{ width: pct(row.inReview), background: "var(--accent-purple)", transition: "var(--transition-smooth)" }} title={`In Review: ${row.inReview}`} />
+                <div style={{ width: pct(row.done), background: "var(--success-color)", transition: "var(--transition-smooth)" }} title={`Done: ${row.done}`} />
               </div>
             </div>
           );
         })}
         <div style={{ display: "flex", gap: 12, marginTop: 6, fontSize: 11 }}>
           {[
-            { label: "Backlog", color: "#6b7280" },
-            { label: "To Do", color: "#3b82f6" },
-            { label: "In Progress", color: "#f59e0b" },
-            { label: "In Review", color: "#8b5cf6" },
-            { label: "Done", color: "#10b981" },
+            { label: "Backlog", color: "var(--text-muted)" },
+            { label: "To Do", color: "var(--info-color)" },
+            { label: "In Progress", color: "var(--warning-color)" },
+            { label: "In Review", color: "var(--accent-purple)" },
+            { label: "Done", color: "var(--success-color)" },
           ].map(({ label, color }) => (
             <span key={label} style={{ display: "flex", alignItems: "center", gap: 4, color: "var(--text-secondary)" }}>
               <span style={{ width: 10, height: 10, borderRadius: 2, background: color, display: "inline-block" }} />

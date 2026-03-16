@@ -94,7 +94,7 @@ export function Terminal({ onClose }: TerminalProps) {
     }, []);
 
     return (
-        <div className="terminal-container" style={{ height: '100%', width: '100%', padding: '4px', background: '#1e1e1e', overflow: 'hidden', position: 'relative' }}>
+        <div className="terminal-container" style={{ height: '100%', width: '100%', padding: '4px', background: 'var(--bg-primary)', overflow: 'hidden', position: 'relative' }}>
             <button
                 onClick={onClose}
                 style={{
@@ -104,7 +104,7 @@ export function Terminal({ onClose }: TerminalProps) {
                     zIndex: 10,
                     background: 'transparent',
                     border: 'none',
-                    color: '#666',
+                    color: 'var(--text-muted)',
                     cursor: 'pointer',
                     fontSize: '16px'
                 }}

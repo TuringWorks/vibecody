@@ -24,7 +24,7 @@ const SEVERITY_COLOR: Record<string, string> = {
  high: "#fab387",
  medium: "#f9e2af",
  low: "#a6e3a1",
- info: "#89b4fa",
+ info: "var(--info-color)",
 };
 
 const SEVERITY_ICON: Record<string, React.ReactNode> = {
@@ -32,7 +32,7 @@ const SEVERITY_ICON: Record<string, React.ReactNode> = {
  high: <Circle size={10} strokeWidth={0} fill="#fab387" />,
  medium: <Circle size={10} strokeWidth={0} fill="#f9e2af" />,
  low: <Circle size={10} strokeWidth={0} fill="#a6e3a1" />,
- info: <Circle size={10} strokeWidth={0} fill="#89b4fa" />,
+ info: <Circle size={10} strokeWidth={0} fill="var(--info-color)" />,
 };
 
 const CATEGORY_LABEL: Record<string, string> = {
@@ -126,7 +126,7 @@ export function BugBotPanel({ workspacePath, onOpenFile }: BugBotPanelProps) {
  borderRadius: 5,
  border: "none",
  background: "var(--error-color)",
- color: "white",
+ color: "var(--text-primary)",
  cursor: "pointer",
  fontWeight: 600,
  fontSize: 12,
@@ -143,7 +143,7 @@ export function BugBotPanel({ workspacePath, onOpenFile }: BugBotPanelProps) {
  borderRadius: 5,
  border: "none",
  background: "var(--accent-blue)",
- color: "white",
+ color: "var(--text-primary)",
  cursor: "pointer",
  fontWeight: 600,
  fontSize: 12,

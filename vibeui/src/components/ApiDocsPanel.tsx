@@ -153,7 +153,7 @@ function TryIt({ endpoint, serverUrl }: { endpoint: Endpoint; serverUrl: string 
  disabled={loading}
  style={{
  marginLeft: "auto", padding: "4px 12px", fontSize: 11,
- background: "var(--accent-color)", color: "white",
+ background: "var(--accent-color)", color: "var(--text-primary)",
  border: "none", borderRadius: 4, cursor: loading ? "wait" : "pointer",
  flexShrink: 0,
  }}
@@ -254,7 +254,7 @@ function EndpointRow({ endpoint, serverUrl }: { endpoint: Endpoint; serverUrl: s
  onClick={() => setTryIt((p) => !p)}
  style={{
  padding: "4px 10px", fontSize: 11, background: tryIt ? "var(--accent-color)" : "var(--bg-secondary)",
- color: tryIt ? "white" : "var(--text-primary)", border: "1px solid var(--border-color)",
+ color: tryIt ? "var(--text-primary)" : "var(--text-primary)", border: "1px solid var(--border-color)",
  borderRadius: 4, cursor: "pointer",
  }}
  >
@@ -410,7 +410,7 @@ export function ApiDocsPanel({ workspacePath }: ApiDocsPanelProps) {
  style={{
  padding: "3px 10px", fontSize: 11, borderRadius: 12,
  background: source === s ? "var(--accent-color)" : "transparent",
- color: source === s ? "white" : "var(--text-muted)",
+ color: source === s ? "var(--text-primary)" : "var(--text-muted)",
  border: `1px solid ${source === s ? "var(--accent-color)" : "var(--border-color)"}`,
  cursor: "pointer",
  }}
@@ -437,7 +437,7 @@ export function ApiDocsPanel({ workspacePath }: ApiDocsPanelProps) {
  <button
  onClick={handleLoadFile}
  disabled={loading || !filePath || !workspacePath}
- style={{ padding: "5px 12px", fontSize: 12, background: "var(--accent-color)", color: "white", border: "none", borderRadius: 4, cursor: "pointer" }}
+ style={{ padding: "5px 12px", fontSize: 12, background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: 4, cursor: "pointer" }}
  >
  {loading ? "" : "Load"}
  </button>
@@ -454,7 +454,7 @@ export function ApiDocsPanel({ workspacePath }: ApiDocsPanelProps) {
  <button
  onClick={handleLoadUrl}
  disabled={loading || !urlInput}
- style={{ padding: "5px 12px", fontSize: 12, background: "var(--accent-color)", color: "white", border: "none", borderRadius: 4, cursor: "pointer" }}
+ style={{ padding: "5px 12px", fontSize: 12, background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: 4, cursor: "pointer" }}
  >
  {loading ? "" : "Fetch"}
  </button>
@@ -501,7 +501,7 @@ export function ApiDocsPanel({ workspacePath }: ApiDocsPanelProps) {
  border: "none", cursor: "pointer",
  fontWeight: 700,
  ...(m === "ALL"
- ? { background: methodFilter === "ALL" ? "var(--accent-color)" : "var(--bg-secondary)", color: methodFilter === "ALL" ? "white" : "var(--text-muted)" }
+ ? { background: methodFilter === "ALL" ? "var(--accent-color)" : "var(--bg-secondary)", color: methodFilter === "ALL" ? "var(--text-primary)" : "var(--text-muted)" }
  : { ...(methodFilter === m ? METHOD_COLORS[m] : { background: "var(--bg-secondary)", color: "var(--text-muted)" }) }),
  }}
  >

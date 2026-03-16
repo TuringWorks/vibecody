@@ -157,7 +157,7 @@ export default function PlanDocumentPanel() {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
       {error && (
-        <div style={{ padding: "6px 10px", fontSize: 11, background: "var(--text-danger)", color: "#1e1e2e", cursor: "pointer" }} onClick={() => setError(null)}>
+        <div style={{ padding: "6px 10px", fontSize: 11, background: "var(--text-danger)", color: "var(--bg-primary)", cursor: "pointer" }} onClick={() => setError(null)}>
           {error} (click to dismiss)
         </div>
       )}
@@ -166,7 +166,7 @@ export default function PlanDocumentPanel() {
           <button key={t} onClick={() => setTab(t)} style={tabBtn(tab === t)}>
             {t[0].toUpperCase() + t.slice(1)}
             {t === "comments" && allUnresolved.length > 0 && (
-              <span style={{ marginLeft: 4, fontSize: 9, padding: "0 4px", borderRadius: 6, background: "var(--text-danger)", color: "#1e1e2e" }}>{allUnresolved.length}</span>
+              <span style={{ marginLeft: 4, fontSize: 9, padding: "0 4px", borderRadius: 6, background: "var(--text-danger)", color: "var(--bg-primary)" }}>{allUnresolved.length}</span>
             )}
           </button>
         ))}
@@ -188,7 +188,7 @@ export default function PlanDocumentPanel() {
                 <textarea value={newMarkdown} onChange={e => setNewMarkdown(e.target.value)} placeholder="Markdown content (optional)" rows={4}
                   style={{ padding: "5px 8px", fontSize: 11, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", fontFamily: "monospace", resize: "vertical" }} />
                 <button onClick={createPlan}
-                  style={{ alignSelf: "flex-start", padding: "5px 12px", fontSize: 11, background: "var(--text-success)", border: "none", borderRadius: 4, color: "#1e1e2e", cursor: "pointer", fontWeight: 600 }}>
+                  style={{ alignSelf: "flex-start", padding: "5px 12px", fontSize: 11, background: "var(--text-success)", border: "none", borderRadius: 4, color: "var(--bg-primary)", cursor: "pointer", fontWeight: 600 }}>
                   Create Plan
                 </button>
               </div>
@@ -231,7 +231,7 @@ export default function PlanDocumentPanel() {
                   disabled={plan.status === s}
                   style={{ padding: "3px 8px", fontSize: 10, borderRadius: 4, border: "1px solid var(--border-color)",
                     background: plan.status === s ? statusColors[s] : "transparent",
-                    color: plan.status === s ? "#1e1e2e" : "var(--text-muted)", cursor: plan.status === s ? "default" : "pointer", opacity: plan.status === s ? 1 : 0.7 }}>
+                    color: plan.status === s ? "var(--bg-primary)" : "var(--text-muted)", cursor: plan.status === s ? "default" : "pointer", opacity: plan.status === s ? 1 : 0.7 }}>
                   {s}
                 </button>
               ))}
@@ -253,7 +253,7 @@ export default function PlanDocumentPanel() {
                 onKeyDown={e => { if (e.key === "Enter") addComment(); }}
                 style={{ flex: 1, padding: "4px 8px", fontSize: 10, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)" }} />
               <button onClick={addComment}
-                style={{ padding: "4px 10px", fontSize: 10, borderRadius: 4, border: "none", background: "var(--accent-primary)", color: "#1e1e2e", cursor: "pointer", fontWeight: 600 }}>
+                style={{ padding: "4px 10px", fontSize: 10, borderRadius: 4, border: "none", background: "var(--accent-primary)", color: "var(--bg-primary)", cursor: "pointer", fontWeight: 600 }}>
                 Post
               </button>
             </div>
@@ -281,7 +281,7 @@ export default function PlanDocumentPanel() {
                   </div>
                   <div style={{ fontSize: 11, color: "var(--text-primary)", marginBottom: 8 }}>{c.text}</div>
                   <button onClick={() => resolveComment(c.id)}
-                    style={{ padding: "4px 12px", fontSize: 10, borderRadius: 4, border: "none", background: "var(--text-success)", color: "#1e1e2e", cursor: "pointer", fontWeight: 600 }}>
+                    style={{ padding: "4px 12px", fontSize: 10, borderRadius: 4, border: "none", background: "var(--text-success)", color: "var(--bg-primary)", cursor: "pointer", fontWeight: 600 }}>
                     Resolve
                   </button>
                 </div>
