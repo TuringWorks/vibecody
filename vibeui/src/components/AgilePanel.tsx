@@ -260,7 +260,7 @@ const btnStyle: React.CSSProperties = {
 const btnPrimaryStyle: React.CSSProperties = {
   ...btnStyle,
   background: "var(--accent-blue)",
-  color: "white",
+  color: "var(--btn-primary-fg)",
   borderColor: "var(--accent-blue)",
 };
 
@@ -531,8 +531,8 @@ function BoardTab() {
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginBottom: 10, padding: "8px 0", borderBottom: "1px solid var(--border-color)" }}>
         {/* Board mode toggle */}
         <div style={{ display: "flex", borderRadius: "var(--radius-sm)", overflow: "hidden", border: "1px solid var(--border-color)" }}>
-          <button style={{ ...btnStyle, border: "none", borderRadius: 0, background: boardMode === "kanban" ? "var(--accent-blue)" : "var(--bg-elevated)", color: boardMode === "kanban" ? "#fff" : "var(--text-primary)", fontSize: 11, padding: "4px 10px" }} onClick={() => setBoardMode("kanban")}>Kanban</button>
-          <button style={{ ...btnStyle, border: "none", borderRadius: 0, background: boardMode === "sprint" ? "var(--accent-blue)" : "var(--bg-elevated)", color: boardMode === "sprint" ? "#fff" : "var(--text-primary)", fontSize: 11, padding: "4px 10px" }} onClick={() => setBoardMode("sprint")}>Sprint Board</button>
+          <button style={{ ...btnStyle, border: "none", borderRadius: 0, background: boardMode === "kanban" ? "var(--accent-blue)" : "var(--bg-elevated)", color: boardMode === "kanban" ? "var(--btn-primary-fg)" : "var(--text-primary)", fontSize: 11, padding: "4px 10px" }} onClick={() => setBoardMode("kanban")}>Kanban</button>
+          <button style={{ ...btnStyle, border: "none", borderRadius: 0, background: boardMode === "sprint" ? "var(--accent-blue)" : "var(--bg-elevated)", color: boardMode === "sprint" ? "var(--btn-primary-fg)" : "var(--text-primary)", fontSize: 11, padding: "4px 10px" }} onClick={() => setBoardMode("sprint")}>Sprint Board</button>
         </div>
 
         {boardMode === "sprint" && (
@@ -877,8 +877,8 @@ function SprintTab() {
           {sprints.map(s => <option key={s.id} value={s.id}>{s.name} ({s.status})</option>)}
         </select>
         <button style={btnPrimaryStyle} onClick={() => setCreating(true)}>+ New Sprint</button>
-        {current && current.status === "Planning" && <button style={{ ...btnStyle, background: "var(--accent-green)", color: "white" }} onClick={() => updateSprintStatus("Active")}>Start Sprint</button>}
-        {current && current.status === "Active" && <button style={{ ...btnStyle, background: "var(--accent-rose)", color: "white" }} onClick={() => updateSprintStatus("Completed")}>End Sprint</button>}
+        {current && current.status === "Planning" && <button style={{ ...btnStyle, background: "var(--accent-green)", color: "var(--btn-primary-fg)" }} onClick={() => updateSprintStatus("Active")}>Start Sprint</button>}
+        {current && current.status === "Active" && <button style={{ ...btnStyle, background: "var(--accent-rose)", color: "var(--btn-error-fg)" }} onClick={() => updateSprintStatus("Completed")}>End Sprint</button>}
       </div>
 
       {/* Create sprint form */}
@@ -1246,7 +1246,7 @@ function CeremoniesTab() {
   };
 
   const subTabBtn = (key: typeof subTab, label: string) => (
-    <button style={{ ...btnStyle, background: subTab === key ? "var(--accent-blue)" : "var(--bg-elevated)", color: subTab === key ? "white" : "var(--text-primary)" }} onClick={() => setSubTab(key)}>{label}</button>
+    <button style={{ ...btnStyle, background: subTab === key ? "var(--accent-blue)" : "var(--bg-elevated)", color: subTab === key ? "var(--btn-primary-fg)" : "var(--text-primary)" }} onClick={() => setSubTab(key)}>{label}</button>
   );
 
   return (
@@ -1586,7 +1586,7 @@ function MethodologyTab() {
       {/* Methodology selector */}
       <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
         {METHODOLOGIES.map(m => (
-          <button key={m.name} style={{ ...btnStyle, background: selected === m.name ? "var(--accent-blue)" : "var(--bg-elevated)", color: selected === m.name ? "white" : "var(--text-primary)" }} onClick={() => setSelected(m.name)}>
+          <button key={m.name} style={{ ...btnStyle, background: selected === m.name ? "var(--accent-blue)" : "var(--bg-elevated)", color: selected === m.name ? "var(--btn-primary-fg)" : "var(--text-primary)" }} onClick={() => setSelected(m.name)}>
             {m.name}
           </button>
         ))}
@@ -1737,7 +1737,7 @@ function AiCoachTab() {
           {loading ? "Analyzing..." : "Analyze Sprint"}
         </button>
         {loading && (
-          <button style={{ ...btnStyle, background: "var(--accent-rose)", color: "white", borderColor: "var(--accent-rose)" }} onClick={handleSuspend}>
+          <button style={{ ...btnStyle, background: "var(--accent-rose)", color: "var(--btn-error-fg)", borderColor: "var(--accent-rose)" }} onClick={handleSuspend}>
             Suspend
           </button>
         )}
@@ -1952,7 +1952,7 @@ function SAFeTab() {
               <div style={{ fontWeight: 600, fontSize: 14 }}>{pi.name}</div>
               <div style={{ display: "flex", gap: 4 }}>
                 {PI_STATUSES.map(s => (
-                  <button key={s} style={{ ...btnStyle, padding: "2px 8px", fontSize: 11, background: pi.status === s ? "var(--accent-blue)" : "var(--bg-tertiary)", color: pi.status === s ? "#fff" : "var(--text-secondary)" }} onClick={() => updatePIStatus(pi.id, s)}>{s}</button>
+                  <button key={s} style={{ ...btnStyle, padding: "2px 8px", fontSize: 11, background: pi.status === s ? "var(--accent-blue)" : "var(--bg-tertiary)", color: pi.status === s ? "var(--btn-primary-fg)" : "var(--text-secondary)" }} onClick={() => updatePIStatus(pi.id, s)}>{s}</button>
                 ))}
               </div>
             </div>
@@ -2148,7 +2148,7 @@ function SAFeTab() {
                     return (
                       <td key={iter} style={{ padding: 4, borderBottom: "1px solid var(--border-color)", verticalAlign: "top" }}>
                         {features.map(f => (
-                          <div key={f.id} style={{ padding: "2px 6px", borderRadius: 4, background: "var(--accent-blue)", color: "#fff", fontSize: 10, marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={`${f.title} (WSJF: ${wsjf(f).toFixed(1)})`}>
+                          <div key={f.id} style={{ padding: "2px 6px", borderRadius: 4, background: "var(--accent-blue)", color: "var(--btn-primary-fg)", fontSize: 10, marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={`${f.title} (WSJF: ${wsjf(f).toFixed(1)})`}>
                             {f.title}
                           </div>
                         ))}
@@ -2177,7 +2177,7 @@ function SAFeTab() {
     <div>
       <div style={{ display: "flex", gap: 4, marginBottom: 12 }}>
         {SUB_VIEWS.map(sv => (
-          <button key={sv.key} style={{ ...btnStyle, background: subView === sv.key ? "var(--accent-blue)" : "var(--bg-tertiary)", color: subView === sv.key ? "#fff" : "var(--text-secondary)", fontSize: 12 }} onClick={() => setSubView(sv.key)}>
+          <button key={sv.key} style={{ ...btnStyle, background: subView === sv.key ? "var(--accent-blue)" : "var(--bg-tertiary)", color: subView === sv.key ? "var(--btn-primary-fg)" : "var(--text-secondary)", fontSize: 12 }} onClick={() => setSubView(sv.key)}>
             {sv.label}
           </button>
         ))}

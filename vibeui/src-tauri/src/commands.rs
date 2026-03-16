@@ -20062,3 +20062,117 @@ pub async fn quantum_export_circuit(index: usize, format: String) -> Result<Stri
         _ => Err(format!("Unknown format: {}", format)),
     }
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Panel Settings Store — Encrypted SQLite with profile support
+// ═══════════════════════════════════════════════════════════════════════════════
+
+use crate::panel_store::PanelStore;
+
+#[tauri::command]
+pub async fn panel_settings_get(
+    profile_id: String,
+    panel: String,
+    key: String,
+) -> Result<serde_json::Value, String> {
+    let store = PanelStore::new()?;
+    match store.get(&profile_id, &panel, &key)? {
+        Some(v) => {
+            // Try to parse as JSON, fall back to string
+            Ok(serde_json::from_str(&v).unwrap_or(serde_json::Value::String(v)))
+        }
+        None => Ok(serde_json::Value::Null),
+    }
+}
+
+#[tauri::command]
+pub async fn panel_settings_get_all(
+    profile_id: String,
+    panel: String,
+) -> Result<serde_json::Value, String> {
+    let store = PanelStore::new()?;
+    store.get_all(&profile_id, &panel)
+}
+
+#[tauri::command]
+pub async fn panel_settings_set(
+    profile_id: String,
+    panel: String,
+    key: String,
+    value: serde_json::Value,
+) -> Result<(), String> {
+    let store = PanelStore::new()?;
+    let val_str = match &value {
+        serde_json::Value::String(s) => s.clone(),
+        other => serde_json::to_string(other).unwrap_or_default(),
+    };
+    store.set(&profile_id, &panel, &key, &val_str)
+}
+
+#[tauri::command]
+pub async fn panel_settings_delete(
+    profile_id: String,
+    panel: String,
+    key: String,
+) -> Result<(), String> {
+    let store = PanelStore::new()?;
+    store.delete(&profile_id, &panel, &key)
+}
+
+#[tauri::command]
+pub async fn panel_settings_delete_panel(
+    profile_id: String,
+    panel: String,
+) -> Result<(), String> {
+    let store = PanelStore::new()?;
+    store.delete_panel(&profile_id, &panel)
+}
+
+#[tauri::command]
+pub async fn panel_settings_list_profiles() -> Result<serde_json::Value, String> {
+    let store = PanelStore::new()?;
+    let profiles = store.list_profiles()?;
+    Ok(serde_json::Value::Array(profiles))
+}
+
+#[tauri::command]
+pub async fn panel_settings_create_profile(
+    id: String,
+    name: String,
+) -> Result<(), String> {
+    let store = PanelStore::new()?;
+    store.create_profile(&id, &name)
+}
+
+#[tauri::command]
+pub async fn panel_settings_delete_profile(id: String) -> Result<(), String> {
+    let store = PanelStore::new()?;
+    store.delete_profile(&id)
+}
+
+#[tauri::command]
+pub async fn panel_settings_set_default_profile(id: String) -> Result<(), String> {
+    let store = PanelStore::new()?;
+    store.set_default_profile(&id)
+}
+
+#[tauri::command]
+pub async fn panel_settings_get_default_profile() -> Result<String, String> {
+    let store = PanelStore::new()?;
+    store.get_default_profile_id()
+}
+
+#[tauri::command]
+pub async fn panel_settings_export(profile_id: String) -> Result<serde_json::Value, String> {
+    let store = PanelStore::new()?;
+    store.export_profile(&profile_id)
+}
+
+#[tauri::command]
+pub async fn panel_settings_import(
+    profile_id: String,
+    data: serde_json::Value,
+) -> Result<u32, String> {
+    let store = PanelStore::new()?;
+    store.import_profile(&profile_id, &data)
+}

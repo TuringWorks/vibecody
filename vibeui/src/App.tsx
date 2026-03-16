@@ -28,6 +28,7 @@ import { OnboardingTour } from "./components/OnboardingTour";
 import { GroupedTabBar } from "./components/GroupedTabBar";
 import "./components/GroupedTabBar.css";
 import { PanelHost } from "./components/LazyPanels";
+import { SettingsPanel } from "./components/SettingsPanel";
 import { ALL_TABS } from "./constants/tabGroups";
 import { TAB_META, DEFAULT_TAB_META } from "./constants/tabMeta";
 
@@ -73,6 +74,7 @@ function App() {
   const [bottomTab, setBottomTab] = useState<"terminal" | "browser">("terminal");
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showTour, setShowTour] = useState(() => !localStorage.getItem('vibeui-onboarding-complete'));
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
 
   const completeTour = useCallback(() => {
     localStorage.setItem('vibeui-onboarding-complete', 'true');
@@ -1161,7 +1163,7 @@ function App() {
             <GitGraph size={24} />
           </button>
           <div className="activity-bar-spacer" />
-          <button className="activity-bar-item" title="Settings" aria-label="Settings" style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}>
+          <button className="activity-bar-item" title="Settings" aria-label="Settings" style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }} onClick={() => setShowSettingsModal(true)}>
             <Settings size={24} />
           </button>
         </div>
@@ -1676,6 +1678,19 @@ function App() {
       {/* Onboarding Tour */}
       {showTour && workspaceFolders.length > 0 && (
         <OnboardingTour onComplete={completeTour} />
+      )}
+
+      {/* Settings Modal */}
+      {showSettingsModal && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 9999,
+          background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }} onClick={() => setShowSettingsModal(false)}>
+          <div style={{ width: 760, height: '80vh', maxHeight: 700 }} onClick={e => e.stopPropagation()}>
+            <SettingsPanel onClose={() => setShowSettingsModal(false)} />
+          </div>
+        </div>
       )}
 
       {/* Context Menu */}

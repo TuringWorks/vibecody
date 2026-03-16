@@ -1,0 +1,176 @@
+/**
+ * ProfileManager — Manage settings profiles.
+ * Can be embedded in the Settings panel or used standalone.
+ */
+import { useState, useEffect, useCallback } from "react";
+import {
+  listProfiles,
+  createProfile,
+  deleteProfile,
+  setDefaultProfile,
+  exportProfile,
+  importProfile,
+  ProfileInfo,
+} from "../hooks/usePanelSettings";
+
+export function ProfileManager() {
+  const [profiles, setProfiles] = useState<ProfileInfo[]>([]);
+  const [newId, setNewId] = useState("");
+  const [newName, setNewName] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const list = await listProfiles();
+      setProfiles(list);
+    } catch (e: any) {
+      setError(typeof e === "string" ? e : "Failed to load profiles");
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleCreate = async () => {
+    if (!newId.trim() || !newName.trim()) return;
+    try {
+      await createProfile(newId.trim(), newName.trim());
+      setNewId("");
+      setNewName("");
+      setSuccess(`Profile "${newName}" created`);
+      setTimeout(() => setSuccess(null), 3000);
+      await load();
+    } catch (e: any) {
+      setError(typeof e === "string" ? e : "Failed to create profile");
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteProfile(id);
+      await load();
+    } catch (e: any) {
+      setError(typeof e === "string" ? e : "Cannot delete this profile");
+    }
+  };
+
+  const handleSetDefault = async (id: string) => {
+    try {
+      await setDefaultProfile(id);
+      await load();
+    } catch (e: any) {
+      setError(typeof e === "string" ? e : "Failed to set default");
+    }
+  };
+
+  const handleExport = async (id: string) => {
+    try {
+      const data = await exportProfile(id);
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `vibeui-profile-${id}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setSuccess("Profile exported");
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (e: any) {
+      setError(typeof e === "string" ? e : "Export failed");
+    }
+  };
+
+  const handleImport = async (id: string) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".json";
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const data = JSON.parse(text);
+        const count = await importProfile(id, data);
+        setSuccess(`Imported ${count} settings`);
+        setTimeout(() => setSuccess(null), 3000);
+      } catch (e: any) {
+        setError(typeof e === "string" ? e : "Import failed");
+      }
+    };
+    input.click();
+  };
+
+  const btnStyle: React.CSSProperties = {
+    padding: "4px 10px", fontSize: 11, borderRadius: 4, cursor: "pointer",
+    border: "1px solid var(--border-color)", background: "var(--bg-tertiary)",
+    color: "var(--text-primary)",
+  };
+  const btnPrimary: React.CSSProperties = {
+    ...btnStyle, background: "var(--accent-color)", color: "white", border: "none",
+  };
+  const inputStyle: React.CSSProperties = {
+    padding: "4px 8px", fontSize: 12, borderRadius: 4,
+    border: "1px solid var(--border-color)", background: "var(--bg-secondary)",
+    color: "var(--text-primary)",
+  };
+
+  return (
+    <div style={{ padding: 12 }}>
+      <h4 style={{ margin: "0 0 12px", fontSize: 14, color: "var(--text-primary)" }}>Settings Profiles</h4>
+      <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 12px" }}>
+        Profiles let you save and switch between different panel configurations. All settings are encrypted and stored locally.
+      </p>
+
+      {error && (
+        <div style={{ padding: "6px 10px", marginBottom: 8, borderRadius: 4, background: "var(--error-bg)", color: "var(--error-color)", fontSize: 12 }}>
+          {error}
+          <button onClick={() => setError(null)} style={{ float: "right", background: "none", border: "none", color: "inherit", cursor: "pointer" }}>x</button>
+        </div>
+      )}
+      {success && (
+        <div style={{ padding: "6px 10px", marginBottom: 8, borderRadius: 4, background: "var(--success-bg)", color: "var(--success-color)", fontSize: 12 }}>
+          {success}
+        </div>
+      )}
+
+      {/* Profile list */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
+        {profiles.map((p) => (
+          <div key={p.id} style={{
+            display: "flex", alignItems: "center", gap: 8, padding: "8px 10px",
+            borderRadius: 6, background: "var(--bg-secondary)", border: "1px solid var(--border-color)",
+          }}>
+            <div style={{ flex: 1 }}>
+              <span style={{ fontWeight: 600, fontSize: 13 }}>{p.name}</span>
+              <span style={{ marginLeft: 6, fontSize: 11, color: "var(--text-secondary)" }}>({p.id})</span>
+              {p.is_default && (
+                <span style={{ marginLeft: 6, padding: "1px 6px", borderRadius: 3, fontSize: 10, background: "var(--accent-color)", color: "white" }}>default</span>
+              )}
+            </div>
+            <div style={{ display: "flex", gap: 4 }}>
+              {!p.is_default && <button style={btnStyle} onClick={() => handleSetDefault(p.id)}>Set Default</button>}
+              <button style={btnStyle} onClick={() => handleExport(p.id)}>Export</button>
+              <button style={btnStyle} onClick={() => handleImport(p.id)}>Import</button>
+              {p.id !== "default" && (
+                <button style={{ ...btnStyle, color: "var(--error-color)" }} onClick={() => handleDelete(p.id)}>Delete</button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Create profile form */}
+      <div style={{
+        padding: 10, borderRadius: 6, background: "var(--bg-secondary)",
+        border: "1px solid var(--border-color)",
+      }}>
+        <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 8 }}>New Profile</div>
+        <div style={{ display: "flex", gap: 6 }}>
+          <input style={{ ...inputStyle, width: 120 }} placeholder="Profile ID" value={newId} onChange={(e) => setNewId(e.target.value)} />
+          <input style={{ ...inputStyle, flex: 1 }} placeholder="Profile Name" value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleCreate()} />
+          <button style={btnPrimary} onClick={handleCreate}>Create</button>
+        </div>
+      </div>
+    </div>
+  );
+}

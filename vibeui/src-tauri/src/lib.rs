@@ -4,6 +4,7 @@ mod commands;
 mod flow;
 mod agent_executor;
 mod memory;
+mod panel_store;
 pub mod shadow_workspace;
 
 use commands::AppState;
@@ -594,6 +595,19 @@ pub fn run() {
             commands::quantum_get_circuits,
             commands::quantum_create_circuit,
             commands::quantum_export_circuit,
+            // Panel Settings Store
+            commands::panel_settings_get,
+            commands::panel_settings_get_all,
+            commands::panel_settings_set,
+            commands::panel_settings_delete,
+            commands::panel_settings_delete_panel,
+            commands::panel_settings_list_profiles,
+            commands::panel_settings_create_profile,
+            commands::panel_settings_delete_profile,
+            commands::panel_settings_set_default_profile,
+            commands::panel_settings_get_default_profile,
+            commands::panel_settings_export,
+            commands::panel_settings_import,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
