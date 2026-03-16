@@ -74,22 +74,33 @@ pub fn get_status(root_path: &Path) -> Result<GitStatus> {
     })
 }
 
-pub fn commit(repo_path: &Path, message: &str, files: Vec<String>) -> Result<()> {
+pub fn commit(
+    repo_path: &Path,
+    message: &str,
+    files: Vec<String>,
+    author_name: Option<&str>,
+    author_email: Option<&str>,
+) -> Result<()> {
     let repo = Repository::open(repo_path)?;
     let mut index = repo.index()?;
-    
+
     // Stage files
     for file in files {
         index.add_path(Path::new(&file))?;
     }
     index.write()?;
-    
+
     // Create commit
     let tree_id = index.write_tree()?;
     let tree = repo.find_tree(tree_id)?;
-    let signature = repo.signature()?;
+    let signature = repo.signature().or_else(|_| {
+        // Use provided author info, or fall back to defaults
+        let name = author_name.unwrap_or("VibeUI User");
+        let email = author_email.unwrap_or("user@vibeui.local");
+        git2::Signature::now(name, email)
+    })?;
     let parent_commit = repo.head()?.peel_to_commit()?;
-    
+
     repo.commit(
         Some("HEAD"),
         &signature,
@@ -98,7 +109,7 @@ pub fn commit(repo_path: &Path, message: &str, files: Vec<String>) -> Result<()>
         &tree,
         &[&parent_commit],
     )?;
-    
+
     Ok(())
 }
 
@@ -758,7 +769,7 @@ mod tests {
         };
         run(&["add", "new.txt"]);
 
-        commit(dir.path(), "add new file", vec!["new.txt".to_string()]).unwrap();
+        commit(dir.path(), "add new file", vec!["new.txt".to_string()], None, None).unwrap();
 
         let history = get_history(dir.path(), 1).unwrap();
         assert!(history[0].message.contains("add new file"));

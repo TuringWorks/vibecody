@@ -221,7 +221,9 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  const handleGenerateMsg = async () => {
  setGeneratingMsg(true);
  try {
- const msg = await invoke<string>('generate_commit_message');
+ const msg = await invoke<string>('generate_commit_message', {
+ files: selectedFiles.length > 0 ? selectedFiles : null,
+ });
  setCommitMessage(msg);
  } catch (e) {
  toast.error(`AI commit message failed: ${e}`);
@@ -235,10 +237,15 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
 
  setIsLoading(true);
  try {
+ // Read profile for git author fallback
+ const profileStr = localStorage.getItem('vibeui-profile');
+ const profile = profileStr ? JSON.parse(profileStr) : {};
  await invoke('git_commit', {
  path: workspacePath,
  message: commitMessage,
  files: selectedFiles,
+ authorName: profile.displayName || null,
+ authorEmail: profile.email || null,
  });
  setCommitMessage('');
  setSelectedFiles([]);

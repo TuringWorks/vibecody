@@ -226,6 +226,11 @@ function App() {
         setActiveSidebarTab('git');
         setShowSidebar(true);
       }
+      // Cmd+O — open folder
+      if (mod && !e.shiftKey && e.key === 'o') {
+        e.preventDefault();
+        openFolder();
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -807,6 +812,11 @@ function App() {
     }, 100);
   };
 
+  // Platform-aware modifier keys for shortcut display
+  const isMac = typeof navigator !== 'undefined' && /Mac/.test(navigator.userAgent);
+  const modKey = isMac ? '⌘' : 'Ctrl+';
+  const shiftMod = isMac ? '⇧' : 'Shift+';
+
   // Define commands for command palette
   const commands: Command[] = [
     // File operations
@@ -815,7 +825,7 @@ function App() {
       label: 'Open Folder',
       category: 'File',
       icon: <FolderOpen size={16} strokeWidth={1.5} />,
-      shortcut: '⌘O',
+      shortcut: modKey + 'O',
       action: openFolder,
     },
     {
@@ -823,7 +833,7 @@ function App() {
       label: 'Save File',
       category: 'File',
       icon: <Save size={16} strokeWidth={1.5} />,
-      shortcut: '⌘S',
+      shortcut: modKey + 'S',
       action: saveFile,
     },
     {
@@ -846,7 +856,7 @@ function App() {
       label: 'Toggle Sidebar',
       category: 'Editor',
       icon: <PanelLeft size={16} strokeWidth={1.5} />,
-      shortcut: '⌘B',
+      shortcut: modKey + 'B',
       action: () => setShowSidebar(prev => !prev),
     },
     {
@@ -854,7 +864,7 @@ function App() {
       label: 'Toggle AI Chat',
       category: 'Editor',
       icon: <MessageSquare size={16} strokeWidth={1.5} />,
-      shortcut: '⌘J',
+      shortcut: modKey + 'J',
       action: () => setShowAIChat(prev => !prev),
     },
     {
@@ -870,7 +880,7 @@ function App() {
       label: 'Toggle Terminal',
       category: 'View',
       icon: <TerminalIcon size={16} strokeWidth={1.5} />,
-      shortcut: '⌘`',
+      shortcut: modKey + '`',
       action: () => setShowTerminal(prev => !prev),
     },
     {
@@ -878,7 +888,7 @@ function App() {
       label: 'Show Explorer',
       category: 'View',
       icon: <FolderOpen size={16} strokeWidth={1.5} />,
-      shortcut: '⌘⇧E',
+      shortcut: modKey + shiftMod + 'E',
       action: () => {
         setShowSidebar(true);
         setActiveSidebarTab('explorer');
@@ -889,7 +899,7 @@ function App() {
       label: 'Show Source Control',
       category: 'View',
       icon: <GitGraph size={16} strokeWidth={1.5} />,
-      shortcut: '⌘⇧G',
+      shortcut: modKey + shiftMod + 'G',
       action: () => {
         setShowSidebar(true);
         setActiveSidebarTab('git');
@@ -1103,7 +1113,7 @@ function App() {
             <LayoutGrid size={14} strokeWidth={1.5} /> Vibe Toolkit
           </button>
           <button className="btn-primary" onClick={saveFile} disabled={!currentFile}>
-            <Save size={14} strokeWidth={1.5} /> Save {currentFile && "(⌘S)"}
+            <Save size={14} strokeWidth={1.5} /> Save {currentFile && `(${modKey}S)`}
           </button>
           {currentFile && currentFile.endsWith('.md') && (
             <button
@@ -1130,7 +1140,7 @@ function App() {
               }
             }}
             title="Explorer"
-            aria-label="Explorer (⌘⇧E)"
+            aria-label={`Explorer (${modKey}${shiftMod}E)`}
             style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}
           >
             <Files size={24} />
@@ -1162,7 +1172,7 @@ function App() {
               }
             }}
             title="Source Control"
-            aria-label="Source Control (⌘⇧G)"
+            aria-label={`Source Control (${modKey}${shiftMod}G)`}
             style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}
           >
             <GitGraph size={24} />
@@ -1418,16 +1428,23 @@ function App() {
               <div className="features">
                 <h3>Keyboard Shortcuts</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 24px', textAlign: 'left', marginBottom: '24px' }}>
-                  {[
-                    ['⌘K', 'Command Palette'],
-                    ['⌘J', 'Toggle AI Panel'],
-                    ['⌘B', 'Toggle Sidebar'],
-                    ['⌘`', 'Toggle Terminal'],
-                    ['⌘⇧E', 'Explorer'],
-                    ['⌘⇧G', 'Source Control'],
-                    ['⌘S', 'Save File'],
-                    ['⌘1-9', 'Switch AI Tab'],
-                  ].map(([key, desc]) => (
+                  {(() => {
+                    const isMac = /Mac/.test(navigator.userAgent);
+                    const mod = isMac ? '⌘' : 'Ctrl+';
+                    const shift = isMac ? '⇧' : 'Shift+';
+                    return [
+                      [`${mod}K`, 'Command Palette / Inline Chat'],
+                      [`${mod}${shift}P`, 'Command Palette'],
+                      [`${mod}J`, 'Toggle AI Panel'],
+                      [`${mod}B`, 'Toggle Sidebar'],
+                      [`${mod}\``, 'Toggle Terminal'],
+                      [`${mod}${shift}E`, 'Explorer'],
+                      [`${mod}${shift}G`, 'Source Control'],
+                      [`${mod}S`, 'Save File'],
+                      [`${mod}O`, 'Open Folder'],
+                      [`${mod}1-9`, 'Switch AI Tab'],
+                    ];
+                  })().map(([key, desc]) => (
                     <div key={key} style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
                       <kbd>{key}</kbd> {desc}
                     </div>
@@ -1570,7 +1587,7 @@ function App() {
             Browser
           </button>
           <span style={{ opacity: 0.7, fontSize: '11px', cursor: 'pointer' }} onClick={() => setShowCommandPalette(true)}>
-            ⌘K Command Palette
+            {modKey}K Command Palette
           </span>
           <ThemeToggle />
           {currentFile && (

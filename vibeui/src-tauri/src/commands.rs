@@ -613,9 +613,17 @@ pub async fn git_commit(
     path: String,
     message: String,
     files: Vec<String>,
+    author_name: Option<String>,
+    author_email: Option<String>,
 ) -> Result<(), String> {
-    vibe_core::git::commit(&PathBuf::from(path), &message, files)
-        .map_err(|e| e.to_string())
+    vibe_core::git::commit(
+        &PathBuf::from(path),
+        &message,
+        files,
+        author_name.as_deref(),
+        author_email.as_deref(),
+    )
+    .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -3031,8 +3039,11 @@ pub async fn run_tests(
 // ─── AI Commit Message (Phase 43) ─────────────────────────────────────────────
 
 /// Generate a commit message for the current git diff using the active LLM provider.
+/// Accepts optional `files` list — if provided and nothing is staged, diffs those
+/// specific files (unstaged) so the user doesn't have to manually `git add` first.
 #[tauri::command]
 pub async fn generate_commit_message(
+    files: Option<Vec<String>>,
     state: tauri::State<'_, AppState>,
 ) -> Result<String, String> {
     // Get the workspace path
@@ -3042,23 +3053,66 @@ pub async fn generate_commit_message(
         .ok_or_else(|| "No workspace open".to_string())?;
     drop(ws);
 
-    // Run git diff --staged
+    // Try staged diff first
     let diff_output = std::process::Command::new("git")
         .args(["diff", "--staged", "--stat", "--diff-algorithm=histogram"])
         .current_dir(&ws_path)
         .output()
         .map_err(|e| format!("git diff failed: {}", e))?;
-    let stat = String::from_utf8_lossy(&diff_output.stdout);
+    let mut stat = String::from_utf8_lossy(&diff_output.stdout).to_string();
 
     let diff_output2 = std::process::Command::new("git")
         .args(["diff", "--staged", "--unified=3"])
         .current_dir(&ws_path)
         .output()
         .map_err(|e| format!("git diff body failed: {}", e))?;
-    let diff_body = String::from_utf8_lossy(&diff_output2.stdout);
+    let mut diff_body = String::from_utf8_lossy(&diff_output2.stdout).to_string();
 
+    // If nothing staged, fall back to unstaged diff of the selected files (or all)
     if stat.trim().is_empty() && diff_body.trim().is_empty() {
-        return Err("No staged changes. Stage files first with git add.".to_string());
+        let file_args: Vec<String> = files.unwrap_or_default();
+
+        // Get stat for unstaged changes
+        let mut stat_cmd = std::process::Command::new("git");
+        stat_cmd.args(["diff", "--stat", "--diff-algorithm=histogram"]);
+        if !file_args.is_empty() {
+            stat_cmd.arg("--");
+            for f in &file_args { stat_cmd.arg(f); }
+        }
+        let stat_out = stat_cmd.current_dir(&ws_path).output()
+            .map_err(|e| format!("git diff failed: {}", e))?;
+        stat = String::from_utf8_lossy(&stat_out.stdout).to_string();
+
+        // Get diff body for unstaged changes
+        let mut diff_cmd = std::process::Command::new("git");
+        diff_cmd.args(["diff", "--unified=3"]);
+        if !file_args.is_empty() {
+            diff_cmd.arg("--");
+            for f in &file_args { diff_cmd.arg(f); }
+        }
+        let diff_out = diff_cmd.current_dir(&ws_path).output()
+            .map_err(|e| format!("git diff body failed: {}", e))?;
+        diff_body = String::from_utf8_lossy(&diff_out.stdout).to_string();
+
+        // Also check for untracked files in the selection
+        if stat.trim().is_empty() && diff_body.trim().is_empty() {
+            // Check if any of the files are new/untracked
+            let ls_out = std::process::Command::new("git")
+                .args(["status", "--porcelain"])
+                .current_dir(&ws_path)
+                .output()
+                .map_err(|e| format!("git status failed: {}", e))?;
+            let status_lines = String::from_utf8_lossy(&ls_out.stdout);
+            let untracked: Vec<&str> = status_lines.lines()
+                .filter(|l| l.starts_with("??") || l.starts_with(" M") || l.starts_with("M ") || l.starts_with("A "))
+                .collect();
+            if untracked.is_empty() {
+                return Err("No changes detected. Modify files first.".to_string());
+            }
+            // Build a summary from status for untracked/new files
+            stat = untracked.join("\n");
+            diff_body = "(new/untracked files — no diff available)".to_string();
+        }
     }
 
     let prompt = format!(

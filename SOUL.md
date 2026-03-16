@@ -1,72 +1,46 @@
-# The Soul of VibeCody
 
-## Why VibeCody Exists
+# The Soul of Vibecody
 
-The AI coding tool market is dominated by closed-source products that lock developers into specific providers, collect telemetry without consent, and treat the developer's own codebase as someone else's training data. VibeCody exists because developers deserve better.
+## Our Core Philosophy
 
-VibeCody is an open-source, provider-agnostic developer toolchain where **you own everything** -- your tools, your data, your choice of AI, and your workflow. It runs on your machine, connects to any model you choose (or no model at all), and never phones home.
+Vibecody is built on the belief that code understanding should be intuitive, contextual, and deeply integrated into the developer's workflow. We don't just index code—we understand its *vibe*.
 
-## Core Beliefs
+## What Drives Us
 
-### The developer is sovereign
+### **Context Over Content**
+We prioritize understanding the *why* behind code over just the *what*. Every function, class, and module has a story to tell about the intentions of its creators.
 
-Your code stays on your machine. Your conversations stay on your machine. Your configuration, your history, your memories -- all local files you can read, edit, and delete. No cloud accounts required. No telemetry. No lock-in. If VibeCody disappeared tomorrow, you'd lose nothing but the tool itself.
+### **Developer Empathy**
+Every feature we build starts with a simple question: "How does this make the developer's life easier?" We're not just building tools; we're crafting experiences.
 
-### Provider choice is a right, not a feature
+### **Universal Accessibility**
+Code understanding shouldn't be locked behind specific IDEs or platforms. Whether you're in VS Code, JetBrains, Neovim, or the terminal, Vibecody should be there.
 
-AI is a commodity. Today's best model is tomorrow's second-best. VibeCody treats providers as interchangeable adapters behind a single trait. Seventeen providers ship today -- from local Ollama to cloud APIs -- and the FailoverProvider can chain them automatically. You should never be stuck because one company had a bad day.
+## Our North Star
 
-### The terminal is not a lesser interface
+> "To create a world where every line of code speaks clearly, every repository tells its story, and every developer feels understood."
 
-VibeCLI is not a consolation prize for people who can't install an IDE. It's a first-class tool with its own TUI, REPL, agent loop, voice input, and 536 skill files. Many of our most powerful features -- red team scanning, workflow orchestration, batch generation, gateway bots -- were born in the terminal. The CLI and the desktop editor share the same Rust crates and the same capabilities.
+## How We Live This Daily
 
-### Simplicity over cleverness
+### In Our Codebase
+- **Modular Architecture**: Our Rust-based indexer (`vibe-indexer`) is designed for performance and reliability
+- **Multi-client Support**: Native apps (`vibeapp`), CLI tools (`vibecli`), and editor extensions ensure universal access
+- **Real-time Understanding**: We process and index code as you write it
 
-A `config.toml` file you can read. JSONL trace logs you can `grep`. Skill files that are plain Markdown. Hooks that are shell scripts with exit codes. We choose boring, inspectable formats over clever abstractions. If you can't understand how something works by reading the file, we've failed.
+### In Our Community
+- **Open Source First**: Transparency in development and clear contribution paths
+- **Developer-Centric Documentation**: Not just API references, but guides that teach concepts
+- **Feedback Loops**: We listen, we learn, we iterate
 
-### Ship the tool, not the promise
+### In Our Vision
+- **Beyond Search**: Moving from finding code to understanding systems
+- **Collaborative Intelligence**: Making team knowledge as accessible as individual knowledge
+- **Learning Systems**: Codebases that get smarter over time
 
-Every feature in VibeCody exists in code, has tests, and can be built from source today. We don't ship roadmap items as bullet points. If it's in the documentation, you can run it. If it doesn't work, that's a bug, not a "coming soon."
+## Our Promise
 
-### Security is non-negotiable
+When you use Vibecody, you're not just getting another development tool—you're gaining a teammate that understands your codebase as deeply as you do, and sometimes even better.
 
-Sandbox-by-default command execution. Approval gates before destructive actions. Path traversal prevention. SSRF validation. Crypto-random identifiers. Rate limiting. These aren't features -- they're the floor. An AI tool with access to your filesystem and shell has an enormous trust surface. We take that seriously.
+---
 
-## Design Principles
-
-### Shared crates, separate surfaces
-
-`vibe-core`, `vibe-ai`, `vibe-lsp`, and `vibe-extensions` are the foundation. VibeCLI and VibeUI are just different frontends to the same capabilities. A fix in `vibe-ai` improves both the terminal and the desktop. A new provider works everywhere instantly. This is not accidental -- it's the most important architectural decision in the project.
-
-### Traits over implementations
-
-The `AIProvider` trait. The `ContainerRuntime` trait. The `WorktreeManager` trait. VibeCody is built on abstract interfaces that decouple capabilities from specific implementations. This is what makes 17 providers possible without 17 codepaths, and what lets Docker, Podman, and OpenSandbox share a single integration surface.
-
-### Tests are not optional
-
-Over 5,300 tests run on every change. Zero failures is the baseline, not the goal. If you add a module, you add its tests. If you fix a bug, you add a regression test. The test suite is the project's immune system.
-
-### Accessible by default
-
-Modal focus traps. ARIA labels. Keyboard navigation. Screen reader support. Skip-to-content links. These aren't checkboxes on an accessibility audit -- they're part of how we think about UI from the start. A tool that only works for some developers isn't a good tool.
-
-## What VibeCody Is Not
-
-- **Not a cloud service.** There is no VibeCody account, no VibeCody server, no VibeCody subscription. You bring your own API keys or run local models.
-- **Not a VS Code fork.** VibeUI is built from scratch with Tauri and Monaco. It shares VS Code's editor component, not its architecture, extension model, or telemetry.
-- **Not a wrapper around one model.** VibeCody works with Claude, GPT, Gemini, Grok, Groq, Mistral, Ollama, and many others -- including offline. The agent loop uses XML tool calling that works with any instruction-following model.
-- **Not a startup's growth hack.** VibeCody is MIT licensed. There are no paid tiers, no premium features, no usage limits. The full tool is the free tool.
-
-## How to Know If a Change Belongs
-
-Before adding a feature, ask:
-
-1. **Does it respect developer sovereignty?** If it requires phoning home, creating an account, or sending data to a third party the developer didn't explicitly choose -- it doesn't belong.
-2. **Does it work with any provider?** If it only works with one AI model or service, it needs a provider-agnostic abstraction first.
-3. **Is it tested?** If you can't write tests for it, reconsider whether it's well-defined enough to ship.
-4. **Is it inspectable?** Can a developer understand what it does by reading local files? Can they debug it with standard Unix tools?
-5. **Does it earn its complexity?** A feature that helps one workflow but complicates ten others is a net negative. The bar for adding complexity is high. The bar for removing it is low.
-
-## The Name
-
-"Vibe" -- because the best development sessions have a flow state to them. The tool should amplify that feeling, not interrupt it with configuration dialogs, authentication flows, or loading spinners. Get in, do the work, ship it. That's the vibe.
+*This document is alive, just like our code. Feel free to suggest changes.*
