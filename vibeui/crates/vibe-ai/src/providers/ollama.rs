@@ -47,7 +47,7 @@ struct OllamaChatMessage {
 
 #[derive(Debug, Deserialize)]
 struct OllamaChatResponse {
-    message: OllamaChatMessage,
+    message: Option<OllamaChatMessage>,
     #[allow(dead_code)]
     done: bool,
 }
@@ -317,7 +317,7 @@ impl AIProvider for OllamaProvider {
         let ollama_response: OllamaChatResponse = serde_json::from_str(&body_text)
             .context(format!("Failed to parse Ollama chat response: {}", body_text))?;
 
-        Ok(ollama_response.message.content)
+        Ok(ollama_response.message.map(|m| m.content).unwrap_or_default())
     }
 
     async fn stream_chat(&self, messages: &[Message]) -> Result<CompletionStream> {
@@ -345,12 +345,22 @@ impl AIProvider for OllamaProvider {
             .context("Failed to send chat request to Ollama")?;
 
         let stream = response.bytes_stream();
-        
+
         let completion_stream = stream
-            .map(|chunk| {
+            .map(|chunk| -> Result<String, anyhow::Error> {
                 let chunk = chunk?;
-                let response: OllamaChatResponse = serde_json::from_slice(&chunk)?;
-                Ok(response.message.content)
+                let text = std::str::from_utf8(&chunk)?;
+                let mut result = String::new();
+                for line in text.lines() {
+                    let line = line.trim();
+                    if line.is_empty() { continue; }
+                    if let Ok(response) = serde_json::from_str::<OllamaChatResponse>(line) {
+                        if let Some(msg) = response.message {
+                            result.push_str(&msg.content);
+                        }
+                    }
+                }
+                Ok(result)
             })
             .boxed();
 
@@ -557,8 +567,17 @@ mod tests {
     fn ollama_chat_response_deser() {
         let json = r#"{"message":{"role":"assistant","content":"reply"},"done":true}"#;
         let resp: OllamaChatResponse = serde_json::from_str(json).unwrap();
-        assert_eq!(resp.message.role, "assistant");
-        assert_eq!(resp.message.content, "reply");
+        let msg = resp.message.unwrap();
+        assert_eq!(msg.role, "assistant");
+        assert_eq!(msg.content, "reply");
+        assert!(resp.done);
+    }
+
+    #[test]
+    fn ollama_chat_response_done_without_message() {
+        let json = r#"{"done":true,"total_duration":123456}"#;
+        let resp: OllamaChatResponse = serde_json::from_str(json).unwrap();
+        assert!(resp.message.is_none());
         assert!(resp.done);
     }
 }
