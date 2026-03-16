@@ -56,35 +56,30 @@ pub fn run() {
     // Initialize Chat Engine
     let mut chat_engine = ChatEngine::new();
 
-    // Initialize Ollama if enabled
+    // Initialize Ollama from config if present.
+    // No hardcoded model fallback — real models are discovered dynamically
+    // by get_available_ai_providers() which queries Ollama's /api/tags endpoint
+    // and registers each installed model as a separate provider.
     if let Some(ollama_conf) = ai_config.ollama {
         if ollama_conf.enabled {
-            let config = ProviderConfig {
-                provider_type: "ollama".to_string(),
-                api_key: ollama_conf.api_key,
-                model: ollama_conf.model.unwrap_or_else(|| "codellama".to_string()),
-                api_url: ollama_conf.api_url.or_else(|| Some("http://localhost:11434".to_string())),
-                max_tokens: ollama_conf.max_tokens,
-                temperature: ollama_conf.temperature,
-                ..Default::default()
-            };
-            let provider = providers::ollama::OllamaProvider::new(config);
-            chat_engine.add_provider(Arc::new(provider));
+            if let Some(model) = ollama_conf.model {
+                let config = ProviderConfig {
+                    provider_type: "ollama".to_string(),
+                    api_key: ollama_conf.api_key,
+                    model,
+                    api_url: ollama_conf.api_url.or_else(|| Some("http://localhost:11434".to_string())),
+                    max_tokens: ollama_conf.max_tokens,
+                    temperature: ollama_conf.temperature,
+                    ..Default::default()
+                };
+                let provider = providers::ollama::OllamaProvider::new(config);
+                chat_engine.add_provider(Arc::new(provider));
+            }
+            // If no model specified in config, skip — models will be auto-discovered
         }
-    } else {
-        // Default fallback if config missing
-        let config = ProviderConfig {
-            provider_type: "ollama".to_string(),
-            api_key: None,
-            model: "codellama".to_string(),
-            api_url: Some("http://localhost:11434".to_string()),
-            max_tokens: None,
-            temperature: None,
-            ..Default::default()
-        };
-        let provider = providers::ollama::OllamaProvider::new(config);
-        chat_engine.add_provider(Arc::new(provider));
     }
+    // No else-branch: don't register a hardcoded fallback model.
+    // get_available_ai_providers() discovers all locally installed Ollama models.
 
     // Additional providers (OpenAI, Claude, Gemini, etc.) are configured at
     // runtime via the BYOK settings panel and injected through ChatEngine::add_provider().

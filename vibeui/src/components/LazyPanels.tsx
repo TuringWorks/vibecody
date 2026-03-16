@@ -238,7 +238,7 @@ export function PanelHost(props: PanelHostProps) {
       {panel("cascade", <LazyPanel Component={CascadePanel} props={{ onInjectContext }} />)}
       {panel("specs", <LazyPanel Component={SpecPanel} props={{ workspacePath: wp, provider: selectedProvider }} />)}
       {panel("workflow", <LazyPanel Component={WorkflowPanel} props={{ workspacePath: wp, provider: selectedProvider }} />)}
-      {panel("orchestration", <LazyPanel Component={OrchestrationPanel} props={{ workspacePath: wp }} />)}
+      {panel("orchestration", <LazyPanel Component={OrchestrationPanel} props={{ workspacePath: wp, provider: selectedProvider }} />)}
       {panel("design", <LazyPanel Component={DesignMode} props={{ workspacePath: wp, provider: selectedProvider }} />)}
       {panel("deploy", <LazyPanel Component={DeployPanel} props={{ workspacePath: wp }} />)}
       {panel("database", <LazyPanel Component={DatabasePanel} props={{ workspacePath: wp, provider: selectedProvider }} />)}
@@ -251,44 +251,44 @@ export function PanelHost(props: PanelHostProps) {
       {panel("tests", <LazyPanel Component={TestPanel} props={{ workspacePath: wp }} />)}
       {panel("collab", <LazyPanel Component={CollabPanel} props={{ connected: collab.connected, roomId: collab.roomId || "", peerId: collab.peerId || "", peers: collab.peers, onConnect: collab.connect, onDisconnect: collab.disconnect }} />)}
       {panel("coverage", <LazyPanel Component={CoveragePanel} props={{ workspacePath: wp }} />)}
-      {panel("compare", <LazyPanel Component={MultiModelPanel} props={{}} />)}
-      {panel("http", <LazyPanel Component={HttpPlayground} props={{ workspacePath: wp }} />)}
-      {panel("arena", <LazyPanel Component={ArenaPanel} props={{}} />)}
-      {panel("cost", <LazyPanel Component={CostPanel} props={{}} />)}
-      {panel("autofix", <LazyPanel Component={AutofixPanel} props={{ workspacePath: wp }} />)}
+      {panel("compare", <LazyPanel Component={MultiModelPanel} props={{ provider: selectedProvider }} />)}
+      {panel("http", <LazyPanel Component={HttpPlayground} props={{ workspacePath: wp, provider: selectedProvider }} />)}
+      {panel("arena", <LazyPanel Component={ArenaPanel} props={{ provider: selectedProvider }} />)}
+      {panel("cost", <LazyPanel Component={CostPanel} props={{ provider: selectedProvider }} />)}
+      {panel("autofix", <LazyPanel Component={AutofixPanel} props={{ workspacePath: wp, provider: selectedProvider }} />)}
       {panel("processes", <LazyPanel Component={ProcessPanel} props={{}} />)}
-      {panel("cicd", <LazyPanel Component={CicdPanel} props={{ workspacePath: wp }} />)}
+      {panel("cicd", <LazyPanel Component={CicdPanel} props={{ workspacePath: wp, provider: selectedProvider }} />)}
       {panel("k8s", <LazyPanel Component={K8sPanel} props={{ workspacePath: wp }} />)}
       {panel("env", <LazyPanel Component={EnvPanel} props={{ workspacePath: wp }} />)}
       {panel("profiler", <LazyPanel Component={ProfilerPanel} props={{ workspacePath: wp }} />)}
       {panel("docker", <LazyPanel Component={DockerPanel} props={{ workspacePath: wp }} />)}
       {panel("deps", <LazyPanel Component={DepsPanel} props={{ workspacePath: wp }} />)}
-      {panel("apidocs", <LazyPanel Component={ApiDocsPanel} props={{ workspacePath: wp }} />)}
-      {panel("migrations", <LazyPanel Component={MigrationsPanel} props={{ workspacePath: wp }} />)}
+      {panel("apidocs", <LazyPanel Component={ApiDocsPanel} props={{ workspacePath: wp, provider: selectedProvider }} />)}
+      {panel("migrations", <LazyPanel Component={MigrationsPanel} props={{ workspacePath: wp, provider: selectedProvider }} />)}
       {panel("logs", <LazyPanel Component={LogPanel} props={{ workspacePath: wp }} />)}
       {panel("scripts", <LazyPanel Component={ScriptPanel} props={{ workspacePath: wp }} />)}
-      {panel("notebook", <LazyPanel Component={NotebookPanel} props={{ workspacePath: wp }} />)}
+      {panel("notebook", <LazyPanel Component={NotebookPanel} props={{ workspacePath: wp, provider: selectedProvider }} />)}
       {panel("ssh", <LazyPanel Component={SshPanel} props={{ workspacePath: wp }} />)}
       {panel("utils", <LazyPanel Component={UtilitiesPanel} props={{}} />)}
       {panel("markers", <LazyPanel Component={BookmarkPanel} props={{ workspacePath: wp }} />)}
       {panel("bisect", <LazyPanel Component={BisectPanel} props={{ workspacePath: wp }} />)}
       {panel("snippets", <LazyPanel Component={SnippetPanel} props={{ workspacePath: wp }} />)}
       {panel("mock", <LazyPanel Component={MockServerPanel} props={{}} />)}
-      {panel("graphql", <LazyPanel Component={GraphQLPanel} props={{}} />)}
+      {panel("graphql", <LazyPanel Component={GraphQLPanel} props={{ provider: selectedProvider }} />)}
       {panel("metrics", <LazyPanel Component={CodeMetricsPanel} props={{ workspacePath: wp }} />)}
-      {panel("loadtest", <LazyPanel Component={LoadTestPanel} props={{}} />)}
+      {panel("loadtest", <LazyPanel Component={LoadTestPanel} props={{ provider: selectedProvider }} />)}
       {panel("network", <LazyPanel Component={NetworkPanel} props={{}} />)}
-      {panel("teams", <LazyPanel Component={AgentTeamPanel} props={{}} />)}
-      {panel("cibot", <LazyPanel Component={CIReviewPanel} props={{}} />)}
+      {panel("teams", <LazyPanel Component={AgentTeamPanel} props={{ provider: selectedProvider }} />)}
+      {panel("cibot", <LazyPanel Component={CIReviewPanel} props={{ provider: selectedProvider }} />)}
       {panel("traces", <LazyPanel Component={TraceDashboard} props={{}} />)}
       {panel("marketplace", <LazyPanel Component={MarketplacePanel} props={{}} />)}
-      {panel("transform", <LazyPanel Component={TransformPanel} props={{}} />)}
-      {panel("img2app", <LazyPanel Component={ScreenshotToApp} props={{ workspacePath: wp }} />)}
-      {panel("recording", <LazyPanel Component={AgentRecordingPanel} props={{}} />)}
-      {panel("visualtest", <LazyPanel Component={VisualTestPanel} props={{}} />)}
-      {panel("cloud", <LazyPanel Component={CloudAgentPanel} props={{}} />)}
+      {panel("transform", <LazyPanel Component={TransformPanel} props={{ provider: selectedProvider }} />)}
+      {panel("img2app", <LazyPanel Component={ScreenshotToApp} props={{ workspacePath: wp, provider: selectedProvider }} />)}
+      {panel("recording", <LazyPanel Component={AgentRecordingPanel} props={{ provider: selectedProvider }} />)}
+      {panel("visualtest", <LazyPanel Component={VisualTestPanel} props={{ provider: selectedProvider }} />)}
+      {panel("cloud", <LazyPanel Component={CloudAgentPanel} props={{ provider: selectedProvider }} />)}
       {panel("compliance", <LazyPanel Component={CompliancePanel} props={{}} />)}
-      {panel("scaffold", <LazyPanel Component={ScaffoldPanel} props={{ workspacePath: wp }} />)}
+      {panel("scaffold", <LazyPanel Component={ScaffoldPanel} props={{ workspacePath: wp, provider: selectedProvider }} />)}
       {panel("health", <LazyPanel Component={HealthMonitorPanel} props={{}} />)}
       {panel("websocket", <LazyPanel Component={WebSocketPanel} props={{}} />)}
       {panel("colors", <LazyPanel Component={ColorPalettePanel} props={{ workspacePath: wp }} />)}
@@ -308,55 +308,55 @@ export function PanelHost(props: PanelHostProps) {
       {panel("csv", <LazyPanel Component={CsvPanel} props={{}} />)}
       {panel("units", <LazyPanel Component={UnitConverterPanel} props={{}} />)}
       {panel("unicode", <LazyPanel Component={UnicodePanel} props={{}} />)}
-      {panel("sandbox", <LazyPanel Component={SandboxPanel} props={{}} />)}
-      {panel("dashboard", <LazyPanel Component={DashboardPanel} props={{}} />)}
+      {panel("sandbox", <LazyPanel Component={SandboxPanel} props={{ provider: selectedProvider }} />)}
+      {panel("dashboard", <LazyPanel Component={DashboardPanel} props={{ provider: selectedProvider }} />)}
       {panel("webhooks", <LazyPanel Component={WebhookPanel} props={{}} />)}
       {panel("admin", <LazyPanel Component={AdminPanel} props={{}} />)}
-      {panel("appbuilder", <LazyPanel Component={AppBuilderPanel} props={{ workspacePath: wp || "" }} />)}
-      {panel("icontext", <LazyPanel Component={InfiniteContextPanel} props={{ workspacePath: wp || "" }} />)}
-      {panel("batchbuilder", <LazyPanel Component={BatchBuilderPanel} props={{}} />)}
-      {panel("streaming", <LazyPanel Component={StreamingPanel} props={{}} />)}
-      {panel("inference", <LazyPanel Component={InferencePanel} props={{}} />)}
-      {panel("training", <LazyPanel Component={TrainingPanel} props={{}} />)}
-      {panel("ingest", <LazyPanel Component={DocumentIngestPanel} props={{}} />)}
+      {panel("appbuilder", <LazyPanel Component={AppBuilderPanel} props={{ workspacePath: wp || "", provider: selectedProvider }} />)}
+      {panel("icontext", <LazyPanel Component={InfiniteContextPanel} props={{ workspacePath: wp || "", provider: selectedProvider }} />)}
+      {panel("batchbuilder", <LazyPanel Component={BatchBuilderPanel} props={{ provider: selectedProvider }} />)}
+      {panel("streaming", <LazyPanel Component={StreamingPanel} props={{ provider: selectedProvider }} />)}
+      {panel("inference", <LazyPanel Component={InferencePanel} props={{ provider: selectedProvider }} />)}
+      {panel("training", <LazyPanel Component={TrainingPanel} props={{ provider: selectedProvider }} />)}
+      {panel("ingest", <LazyPanel Component={DocumentIngestPanel} props={{ provider: selectedProvider }} />)}
       {panel("crawler", <LazyPanel Component={WebCrawlerPanel} props={{}} />)}
-      {panel("vectordb", <LazyPanel Component={VectorDbPanel} props={{}} />)}
-      {panel("qa-validation", <LazyPanel Component={QaValidationPanel} props={{}} />)}
-      {panel("astedit", <LazyPanel Component={AstEditPanel} props={{}} />)}
-      {panel("cistatus", <LazyPanel Component={CiStatusPanel} props={{}} />)}
-      {panel("cloudsandbox", <LazyPanel Component={CloudSandboxPanel} props={{}} />)}
-      {panel("editpredict", <LazyPanel Component={EditPredictionPanel} props={{}} />)}
-      {panel("plandoc", <LazyPanel Component={PlanDocumentPanel} props={{}} />)}
-      {panel("remotecontrol", <LazyPanel Component={RemoteControlPanel} props={{}} />)}
-      {panel("securityscan", <LazyPanel Component={SecurityScanPanel} props={{ workspacePath: wp || undefined, onOpenFile }} />)}
+      {panel("vectordb", <LazyPanel Component={VectorDbPanel} props={{ provider: selectedProvider }} />)}
+      {panel("qa-validation", <LazyPanel Component={QaValidationPanel} props={{ provider: selectedProvider }} />)}
+      {panel("astedit", <LazyPanel Component={AstEditPanel} props={{ provider: selectedProvider }} />)}
+      {panel("cistatus", <LazyPanel Component={CiStatusPanel} props={{ provider: selectedProvider }} />)}
+      {panel("cloudsandbox", <LazyPanel Component={CloudSandboxPanel} props={{ provider: selectedProvider }} />)}
+      {panel("editpredict", <LazyPanel Component={EditPredictionPanel} props={{ provider: selectedProvider }} />)}
+      {panel("plandoc", <LazyPanel Component={PlanDocumentPanel} props={{ provider: selectedProvider }} />)}
+      {panel("remotecontrol", <LazyPanel Component={RemoteControlPanel} props={{ provider: selectedProvider }} />)}
+      {panel("securityscan", <LazyPanel Component={SecurityScanPanel} props={{ workspacePath: wp || undefined, onOpenFile, provider: selectedProvider }} />)}
       {panel("sessions", <LazyPanel Component={SessionBrowserPanel} props={{}} />)}
-      {panel("subagents", <LazyPanel Component={SubAgentPanel} props={{}} />)}
-      {panel("clarify", <LazyPanel Component={ClarifyingQuestionsPanel} props={{}} />)}
-      {panel("codesearch", <LazyPanel Component={ConversationalSearchPanel} props={{}} />)}
+      {panel("subagents", <LazyPanel Component={SubAgentPanel} props={{ provider: selectedProvider }} />)}
+      {panel("clarify", <LazyPanel Component={ClarifyingQuestionsPanel} props={{ provider: selectedProvider }} />)}
+      {panel("codesearch", <LazyPanel Component={ConversationalSearchPanel} props={{ provider: selectedProvider }} />)}
       {panel("demo", <LazyPanel Component={DemoPanel} props={{}} />)}
-      {panel("cloudautofix", <LazyPanel Component={CloudAutofixPanel} props={{}} />)}
-      {panel("fastcontext", <LazyPanel Component={FastContextPanel} props={{}} />)}
-      {panel("imagegen", <LazyPanel Component={ImageGenPanel} props={{}} />)}
-      {panel("governance", <LazyPanel Component={TeamGovernancePanel} props={{}} />)}
-      {panel("agentteams", <LazyPanel Component={AgentTeamsPanel} props={{}} />)}
-      {panel("discuss", <LazyPanel Component={DiscussionModePanel} props={{}} />)}
-      {panel("fullstack", <LazyPanel Component={FullStackGenPanel} props={{}} />)}
-      {panel("ghactions", <LazyPanel Component={GhActionsPanel} props={{}} />)}
+      {panel("cloudautofix", <LazyPanel Component={CloudAutofixPanel} props={{ provider: selectedProvider }} />)}
+      {panel("fastcontext", <LazyPanel Component={FastContextPanel} props={{ provider: selectedProvider }} />)}
+      {panel("imagegen", <LazyPanel Component={ImageGenPanel} props={{ provider: selectedProvider }} />)}
+      {panel("governance", <LazyPanel Component={TeamGovernancePanel} props={{ provider: selectedProvider }} />)}
+      {panel("agentteams", <LazyPanel Component={AgentTeamsPanel} props={{ provider: selectedProvider }} />)}
+      {panel("discuss", <LazyPanel Component={DiscussionModePanel} props={{ provider: selectedProvider }} />)}
+      {panel("fullstack", <LazyPanel Component={FullStackGenPanel} props={{ provider: selectedProvider }} />)}
+      {panel("ghactions", <LazyPanel Component={GhActionsPanel} props={{ provider: selectedProvider }} />)}
       {panel("renderopt", <LazyPanel Component={RenderOptimizePanel} props={{}} />)}
-      {panel("soul", <LazyPanel Component={SoulPanel} props={{ workspacePath: wp }} />)}
-      {panel("mcplazy", <LazyPanel Component={McpLazyPanel} props={{}} />)}
-      {panel("bundles", <LazyPanel Component={ContextBundlePanel} props={{ workspacePath: wp }} />)}
+      {panel("soul", <LazyPanel Component={SoulPanel} props={{ workspacePath: wp, provider: selectedProvider }} />)}
+      {panel("mcplazy", <LazyPanel Component={McpLazyPanel} props={{ provider: selectedProvider }} />)}
+      {panel("bundles", <LazyPanel Component={ContextBundlePanel} props={{ workspacePath: wp, provider: selectedProvider }} />)}
       {panel("cloudproviders", <LazyPanel Component={CloudProviderPanel} props={{ workspacePath: wp }} />)}
-      {panel("acpprotocol", <LazyPanel Component={AcpPanel} props={{}} />)}
-      {panel("mcpdirectory", <LazyPanel Component={McpDirectoryPanel} props={{}} />)}
+      {panel("acpprotocol", <LazyPanel Component={AcpPanel} props={{ provider: selectedProvider }} />)}
+      {panel("mcpdirectory", <LazyPanel Component={McpDirectoryPanel} props={{ provider: selectedProvider }} />)}
       {panel("usagemetering", <LazyPanel Component={UsageMeteringPanel} props={{}} />)}
-      {panel("swebench", <LazyPanel Component={SweBenchPanel} props={{}} />)}
+      {panel("swebench", <LazyPanel Component={SweBenchPanel} props={{ provider: selectedProvider }} />)}
       {panel("sessionmemory", <LazyPanel Component={SessionMemoryPanel} props={{}} />)}
-      {panel("blueteam", <LazyPanel Component={BlueTeamPanel} props={{}} />)}
-      {panel("purpleteam", <LazyPanel Component={PurpleTeamPanel} props={{}} />)}
-      {panel("idp", <LazyPanel Component={IdpPanel} props={{}} />)}
-      {panel("quantum", <LazyPanel Component={QuantumComputingPanel} props={{}} />)}
-      {panel("agile", <LazyPanel Component={AgilePanel} props={{}} />)}
+      {panel("blueteam", <LazyPanel Component={BlueTeamPanel} props={{ provider: selectedProvider }} />)}
+      {panel("purpleteam", <LazyPanel Component={PurpleTeamPanel} props={{ provider: selectedProvider }} />)}
+      {panel("idp", <LazyPanel Component={IdpPanel} props={{ provider: selectedProvider }} />)}
+      {panel("quantum", <LazyPanel Component={QuantumComputingPanel} props={{ provider: selectedProvider }} />)}
+      {panel("agile", <LazyPanel Component={AgilePanel} props={{ provider: selectedProvider }} />)}
       {/* Fallback for unknown tabs — only render when active and not matched above */}
       {!visited.has(tab) || ![
         "chat","agent","memory","history","checkpoints","artifacts","manager","hooks","jobs","mcp",
