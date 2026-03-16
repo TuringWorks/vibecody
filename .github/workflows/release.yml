@@ -418,10 +418,10 @@ jobs:
             ---
 
             ### What's Included
-            - **VibeCLI**: 17 AI providers, 507 skills, TUI + REPL, HTTP daemon
-            - **VibeUI**: Monaco editor, 90+ panel tabs, agent mode, CRDT collab
+            - **VibeCLI**: 17 AI providers, 530+ skills, TUI + REPL, HTTP daemon
+            - **VibeUI**: Monaco editor, 139+ panel tabs, 40+ themes, agent mode, CRDT collab
             - **VibeCLI App**: Lightweight desktop wrapper with system tray
-            - **2,810+ tests**, zero compiler warnings
+            - **5,900+ tests**, zero compiler warnings
           files: |
             artifacts/**/*.tar.gz
             artifacts/**/*.zip
