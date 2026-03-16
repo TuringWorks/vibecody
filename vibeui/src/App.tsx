@@ -28,6 +28,7 @@ import { OnboardingTour } from "./components/OnboardingTour";
 import { GroupedTabBar } from "./components/GroupedTabBar";
 import "./components/GroupedTabBar.css";
 import { PanelHost } from "./components/LazyPanels";
+import { useEditorTheme } from "./hooks/useEditorTheme";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { ALL_TABS } from "./constants/tabGroups";
 import { TAB_META, DEFAULT_TAB_META } from "./constants/tabMeta";
@@ -59,6 +60,7 @@ interface OpenFile {
 
 function App() {
   const { toasts, toast, dismiss } = useToast();
+  const { themeName: editorTheme, defineTheme: defineEditorTheme } = useEditorTheme();
   const [openFiles, setOpenFiles] = useState<OpenFile[]>([]);
   const [activeFilePath, setActiveFilePath] = useState<string | null>(null);
   const [workspaceFolders, setWorkspaceFolders] = useState<string[]>([]);
@@ -391,6 +393,9 @@ function App() {
   const handleEditorDidMount: OnMount = (editor, monaco) => {
     // Store editor reference for Inline Chat
     editorRef.current = editor;
+
+    // Register VibeUI theme with Monaco so the editor matches the app theme
+    defineEditorTheme(monaco);
 
     const getRootPath = () => workspaceFolders[0] || ""; // Simple assumption for MVP
 
@@ -1339,7 +1344,7 @@ function App() {
               <DiffEditor
                 height="100%"
                 language={detectLanguage(gitDiffView.file)}
-                theme="vs-dark"
+                theme={editorTheme}
                 original={gitDiffView.original}
                 modified={gitDiffView.modified}
                 options={{
@@ -1384,7 +1389,7 @@ function App() {
               <Editor
                 height="calc(100% - 35px)" // Subtract tab bar height
                 language={editorLanguage}
-                theme="vs-dark"
+                theme={editorTheme}
                 value={editorContent}
                 onChange={handleEditorChange}
                 onMount={handleEditorDidMount}
