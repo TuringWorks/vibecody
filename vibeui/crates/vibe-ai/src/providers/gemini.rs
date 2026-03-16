@@ -56,11 +56,14 @@ struct GeminiPartResponse {
 pub struct GeminiProvider {
     config: ProviderConfig,
     client: reqwest::Client,
+    display_name: String,
 }
 
 impl GeminiProvider {
     pub fn new(config: ProviderConfig) -> Self {
+        let display_name = format!("Gemini ({})", config.model);
         Self {
+            display_name,
             config,
             client: reqwest::Client::builder()
                 .timeout(std::time::Duration::from_secs(90))
@@ -101,7 +104,7 @@ impl GeminiProvider {
 #[async_trait]
 impl AIProvider for GeminiProvider {
     fn name(&self) -> &str {
-        "Gemini"
+        &self.display_name
     }
 
     async fn is_available(&self) -> bool {
@@ -291,7 +294,7 @@ mod tests {
     #[test]
     fn name_is_gemini() {
         let p = GeminiProvider::new(test_config());
-        assert_eq!(p.name(), "Gemini");
+        assert!(p.name().starts_with("Gemini ("));
     }
 
     #[tokio::test]

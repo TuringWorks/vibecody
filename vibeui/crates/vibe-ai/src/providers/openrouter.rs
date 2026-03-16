@@ -69,11 +69,14 @@ pub struct OpenRouterProvider {
     site_url: String,
     /// App name for OpenRouter attribution (optional).
     app_name: String,
+    display_name: String,
 }
 
 impl OpenRouterProvider {
     pub fn new(config: ProviderConfig) -> Self {
+        let display_name = format!("OpenRouter ({})", config.model);
         Self {
+            display_name,
             config,
             client: reqwest::Client::builder()
                 .timeout(std::time::Duration::from_secs(90))
@@ -114,7 +117,7 @@ impl OpenRouterProvider {
 
 #[async_trait]
 impl AIProvider for OpenRouterProvider {
-    fn name(&self) -> &str { "OpenRouter" }
+    fn name(&self) -> &str { &self.display_name }
 
     async fn is_available(&self) -> bool { self.config.api_key.is_some() }
 
@@ -229,7 +232,7 @@ mod tests {
     #[test]
     fn name_is_openrouter() {
         let p = OpenRouterProvider::new(test_config());
-        assert_eq!(p.name(), "OpenRouter");
+        assert!(p.name().starts_with("OpenRouter ("));
     }
 
     #[tokio::test]

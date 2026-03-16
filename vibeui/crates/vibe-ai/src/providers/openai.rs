@@ -61,11 +61,14 @@ struct OpenAIDelta {
 pub struct OpenAIProvider {
     config: ProviderConfig,
     client: reqwest::Client,
+    display_name: String,
 }
 
 impl OpenAIProvider {
     pub fn new(config: ProviderConfig) -> Self {
+        let display_name = format!("OpenAI ({})", config.model);
         Self {
+            display_name,
             config,
             client: reqwest::Client::builder()
                 .timeout(std::time::Duration::from_secs(90))
@@ -166,7 +169,7 @@ impl OpenAIProvider {
 #[async_trait]
 impl AIProvider for OpenAIProvider {
     fn name(&self) -> &str {
-        "OpenAI"
+        &self.display_name
     }
 
     async fn is_available(&self) -> bool {
@@ -379,7 +382,7 @@ mod tests {
     #[test]
     fn name_is_openai() {
         let p = OpenAIProvider::new(test_config());
-        assert_eq!(p.name(), "OpenAI");
+        assert!(p.name().starts_with("OpenAI ("));
     }
 
     #[tokio::test]

@@ -53,11 +53,14 @@ struct GrokDelta {
 pub struct GrokProvider {
     config: ProviderConfig,
     client: reqwest::Client,
+    display_name: String,
 }
 
 impl GrokProvider {
     pub fn new(config: ProviderConfig) -> Self {
+        let display_name = format!("Grok ({})", config.model);
         Self {
+            display_name,
             config,
             client: reqwest::Client::builder()
                 .timeout(std::time::Duration::from_secs(90))
@@ -90,7 +93,7 @@ impl GrokProvider {
 #[async_trait]
 impl AIProvider for GrokProvider {
     fn name(&self) -> &str {
-        "Grok"
+        &self.display_name
     }
 
     async fn is_available(&self) -> bool {
@@ -234,7 +237,7 @@ mod tests {
     #[test]
     fn name_is_grok() {
         let p = GrokProvider::new(test_config());
-        assert_eq!(p.name(), "Grok");
+        assert!(p.name().starts_with("Grok ("));
     }
 
     #[tokio::test]

@@ -71,11 +71,14 @@ struct ClaudeDelta {
 pub struct ClaudeProvider {
     config: ProviderConfig,
     client: reqwest::Client,
+    display_name: String,
 }
 
 impl ClaudeProvider {
     pub fn new(config: ProviderConfig) -> Self {
+        let display_name = format!("Claude ({})", config.model);
         Self {
+            display_name,
             config,
             client: reqwest::Client::builder()
                 .timeout(std::time::Duration::from_secs(90))
@@ -199,7 +202,7 @@ impl ClaudeProvider {
 #[async_trait]
 impl AIProvider for ClaudeProvider {
     fn name(&self) -> &str {
-        "Claude"
+        &self.display_name
     }
 
     async fn is_available(&self) -> bool {
@@ -445,7 +448,7 @@ mod tests {
     #[test]
     fn name_is_claude() {
         let p = ClaudeProvider::new(test_config());
-        assert_eq!(p.name(), "Claude");
+        assert!(p.name().starts_with("Claude ("));
     }
 
     #[tokio::test]
