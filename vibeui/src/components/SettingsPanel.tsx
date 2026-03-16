@@ -625,6 +625,220 @@ export const THEMES: ThemeDef[] = [
       "--border-color": "rgba(0, 0, 0, 0.08)", "--error-color": "#c84053",
     },
   },
+  // ═══════════════════════════════════════════════════════════════════
+  //  Rivian R1 & R2 — Exterior & Interior Inspired Themes
+  // ═══════════════════════════════════════════════════════════════════
+
+  // ── Pair: Rivian Blue (R1 flagship exterior) ──
+  {
+    id: "dark-rivian-blue", name: "Rivian Blue", category: "standard", mode: "dark", pairId: "rivian-blue",
+    preview: { bg: "#0b1628", fg: "#d4dce8", accent: "#3d7bce", secondary: "#122040" },
+    vars: {
+      "--bg-primary": "#0b1628", "--bg-secondary": "#122040", "--bg-tertiary": "#1a2d52", "--bg-elevated": "#233a64",
+      "--text-primary": "#d4dce8", "--text-secondary": "#7a90ad", "--accent-blue": "#3d7bce", "--accent-green": "#4caf82",
+      "--accent-purple": "#9b8ec7", "--accent-gold": "#e5b84c", "--accent-rose": "#e06070",
+      "--border-color": "rgba(61, 123, 206, 0.12)", "--error-color": "#e06070",
+    },
+  },
+  {
+    id: "light-rivian-blue", name: "Glacier White", category: "standard", mode: "light", pairId: "rivian-blue",
+    preview: { bg: "#f4f6f9", fg: "#1a2a42", accent: "#2a5fa0", secondary: "#e6ebf2" },
+    vars: {
+      "--bg-primary": "#f4f6f9", "--bg-secondary": "#e6ebf2", "--bg-tertiary": "#d4dce8", "--bg-elevated": "#ffffff",
+      "--text-primary": "#1a2a42", "--text-secondary": "#5a6e85", "--accent-blue": "#2a5fa0", "--accent-green": "#2d8a5e",
+      "--accent-purple": "#6b5ea0", "--accent-gold": "#b08a20", "--accent-rose": "#c44858",
+      "--border-color": "rgba(42, 95, 160, 0.10)", "--error-color": "#c44858",
+    },
+  },
+  // ── Pair: Forest Green (R1 exterior) / Limestone (R1 warm beige) ──
+  {
+    id: "dark-rivian-forest", name: "Forest Green", category: "standard", mode: "dark", pairId: "rivian-forest",
+    preview: { bg: "#0e1a15", fg: "#d0ddd4", accent: "#4a8c6a", secondary: "#162820" },
+    vars: {
+      "--bg-primary": "#0e1a15", "--bg-secondary": "#162820", "--bg-tertiary": "#1e352b", "--bg-elevated": "#274236",
+      "--text-primary": "#d0ddd4", "--text-secondary": "#7a9988", "--accent-blue": "#4a8c6a", "--accent-green": "#5ebd88",
+      "--accent-purple": "#a28db5", "--accent-gold": "#d4a855", "--accent-rose": "#d46a5a",
+      "--border-color": "rgba(74, 140, 106, 0.12)", "--error-color": "#d46a5a",
+    },
+  },
+  {
+    id: "light-rivian-forest", name: "Limestone", category: "standard", mode: "light", pairId: "rivian-forest",
+    preview: { bg: "#f5f0e8", fg: "#2a2820", accent: "#3d7a58", secondary: "#e8e0d2" },
+    vars: {
+      "--bg-primary": "#f5f0e8", "--bg-secondary": "#e8e0d2", "--bg-tertiary": "#d8cebc", "--bg-elevated": "#fdf8f0",
+      "--text-primary": "#2a2820", "--text-secondary": "#6a6456", "--accent-blue": "#3d7a58", "--accent-green": "#4a9060",
+      "--accent-purple": "#7a6690", "--accent-gold": "#a08228", "--accent-rose": "#b84a40",
+      "--border-color": "rgba(61, 122, 88, 0.10)", "--error-color": "#b84a40",
+    },
+  },
+  // ── Pair: El Cap Granite (R1 exterior) / LA Silver (R1 exterior) ──
+  {
+    id: "dark-rivian-granite", name: "El Cap Granite", category: "standard", mode: "dark", pairId: "rivian-granite",
+    preview: { bg: "#161514", fg: "#d5d0ca", accent: "#a09080", secondary: "#221f1d" },
+    vars: {
+      "--bg-primary": "#161514", "--bg-secondary": "#221f1d", "--bg-tertiary": "#2e2a27", "--bg-elevated": "#3a3532",
+      "--text-primary": "#d5d0ca", "--text-secondary": "#8a8278", "--accent-blue": "#a09080", "--accent-green": "#7aaa6c",
+      "--accent-purple": "#b098b8", "--accent-gold": "#d4a855", "--accent-rose": "#cc6a5a",
+      "--border-color": "rgba(160, 144, 128, 0.12)", "--error-color": "#cc6a5a",
+    },
+  },
+  {
+    id: "light-rivian-granite", name: "LA Silver", category: "standard", mode: "light", pairId: "rivian-granite",
+    preview: { bg: "#f0eeec", fg: "#2a2624", accent: "#6a6058", secondary: "#e2dedb" },
+    vars: {
+      "--bg-primary": "#f0eeec", "--bg-secondary": "#e2dedb", "--bg-tertiary": "#d0ccc7", "--bg-elevated": "#faf8f6",
+      "--text-primary": "#2a2624", "--text-secondary": "#6e665e", "--accent-blue": "#6a6058", "--accent-green": "#508a48",
+      "--accent-purple": "#7a6880", "--accent-gold": "#9a7a28", "--accent-rose": "#aa4a40",
+      "--border-color": "rgba(106, 96, 88, 0.10)", "--error-color": "#aa4a40",
+    },
+  },
+  // ── Pair: Midnight (R1 exterior) / Ocean Coast (R1 interior) ──
+  {
+    id: "dark-rivian-midnight", name: "Midnight", category: "standard", mode: "dark", pairId: "rivian-midnight",
+    preview: { bg: "#08090e", fg: "#cdd2dc", accent: "#5a8aaa", secondary: "#10121a" },
+    vars: {
+      "--bg-primary": "#08090e", "--bg-secondary": "#10121a", "--bg-tertiary": "#181c28", "--bg-elevated": "#222838",
+      "--text-primary": "#cdd2dc", "--text-secondary": "#6a7488", "--accent-blue": "#5a8aaa", "--accent-green": "#4aaa80",
+      "--accent-purple": "#8a80b8", "--accent-gold": "#ccaa44", "--accent-rose": "#d85860",
+      "--border-color": "rgba(90, 138, 170, 0.10)", "--error-color": "#d85860",
+    },
+  },
+  {
+    id: "light-rivian-midnight", name: "Ocean Coast", category: "standard", mode: "light", pairId: "rivian-midnight",
+    preview: { bg: "#f0f6f8", fg: "#1a2830", accent: "#3a7a94", secondary: "#deeef4" },
+    vars: {
+      "--bg-primary": "#f0f6f8", "--bg-secondary": "#deeef4", "--bg-tertiary": "#c8dee8", "--bg-elevated": "#fafcfd",
+      "--text-primary": "#1a2830", "--text-secondary": "#4a6878", "--accent-blue": "#3a7a94", "--accent-green": "#2a8a60",
+      "--accent-purple": "#6a6090", "--accent-gold": "#a08828", "--accent-rose": "#c04850",
+      "--border-color": "rgba(58, 122, 148, 0.10)", "--error-color": "#c04850",
+    },
+  },
+  // ── Pair: Red Canyon (R1 exterior) ──
+  {
+    id: "dark-rivian-canyon", name: "Red Canyon", category: "standard", mode: "dark", pairId: "rivian-canyon",
+    preview: { bg: "#140c0a", fg: "#e0d0c8", accent: "#b85a42", secondary: "#221410" },
+    vars: {
+      "--bg-primary": "#140c0a", "--bg-secondary": "#221410", "--bg-tertiary": "#30201a", "--bg-elevated": "#3e2c24",
+      "--text-primary": "#e0d0c8", "--text-secondary": "#a08878", "--accent-blue": "#b85a42", "--accent-green": "#6aaa58",
+      "--accent-purple": "#a87898", "--accent-gold": "#d4a040", "--accent-rose": "#d85040",
+      "--border-color": "rgba(184, 90, 66, 0.14)", "--error-color": "#d85040",
+    },
+  },
+  {
+    id: "light-rivian-canyon", name: "Warm Sand", category: "standard", mode: "light", pairId: "rivian-canyon",
+    preview: { bg: "#f8f2ec", fg: "#2e1e18", accent: "#984838", secondary: "#ecddd0" },
+    vars: {
+      "--bg-primary": "#f8f2ec", "--bg-secondary": "#ecddd0", "--bg-tertiary": "#dccabc", "--bg-elevated": "#fffaf5",
+      "--text-primary": "#2e1e18", "--text-secondary": "#7a5e50", "--accent-blue": "#984838", "--accent-green": "#4a8a3e",
+      "--accent-purple": "#804a6a", "--accent-gold": "#a07820", "--accent-rose": "#b83830",
+      "--border-color": "rgba(152, 72, 56, 0.10)", "--error-color": "#b83830",
+    },
+  },
+  // ── Pair: Launch Green (R1 Quad-Motor exclusive) ──
+  {
+    id: "dark-rivian-launch", name: "Launch Green", category: "standard", mode: "dark", pairId: "rivian-launch",
+    preview: { bg: "#0a140e", fg: "#d0e0d4", accent: "#4caf50", secondary: "#142218" },
+    vars: {
+      "--bg-primary": "#0a140e", "--bg-secondary": "#142218", "--bg-tertiary": "#1e3024", "--bg-elevated": "#283e30",
+      "--text-primary": "#d0e0d4", "--text-secondary": "#7aa088", "--accent-blue": "#4caf50", "--accent-green": "#66cc6a",
+      "--accent-purple": "#a090c0", "--accent-gold": "#ccb040", "--accent-rose": "#e05858",
+      "--border-color": "rgba(76, 175, 80, 0.14)", "--error-color": "#e05858",
+    },
+  },
+  {
+    id: "light-rivian-launch", name: "Black Mountain", category: "standard", mode: "light", pairId: "rivian-launch",
+    preview: { bg: "#f2f6f2", fg: "#1a2420", accent: "#2e8a38", secondary: "#e0eae2" },
+    vars: {
+      "--bg-primary": "#f2f6f2", "--bg-secondary": "#e0eae2", "--bg-tertiary": "#cddcd0", "--bg-elevated": "#fafcfa",
+      "--text-primary": "#1a2420", "--text-secondary": "#4a6a52", "--accent-blue": "#2e8a38", "--accent-green": "#3aa040",
+      "--accent-purple": "#6a5a8a", "--accent-gold": "#8a7a18", "--accent-rose": "#b84040",
+      "--border-color": "rgba(46, 138, 56, 0.10)", "--error-color": "#b84040",
+    },
+  },
+  // ── Pair: Catalina Cove (R2 exclusive) / Coastal Cloud (R2 interior) ──
+  {
+    id: "dark-rivian-catalina", name: "Catalina Cove", category: "standard", mode: "dark", pairId: "rivian-catalina",
+    preview: { bg: "#0a1418", fg: "#ccdce0", accent: "#3a9aaa", secondary: "#122028" },
+    vars: {
+      "--bg-primary": "#0a1418", "--bg-secondary": "#122028", "--bg-tertiary": "#1a2e38", "--bg-elevated": "#223c48",
+      "--text-primary": "#ccdce0", "--text-secondary": "#6a8a94", "--accent-blue": "#3a9aaa", "--accent-green": "#4ab888",
+      "--accent-purple": "#8a88c0", "--accent-gold": "#d0a848", "--accent-rose": "#d86068",
+      "--border-color": "rgba(58, 154, 170, 0.12)", "--error-color": "#d86068",
+    },
+  },
+  {
+    id: "light-rivian-catalina", name: "Coastal Cloud", category: "standard", mode: "light", pairId: "rivian-catalina",
+    preview: { bg: "#f2f8f8", fg: "#182828", accent: "#2a808e", secondary: "#dceef0" },
+    vars: {
+      "--bg-primary": "#f2f8f8", "--bg-secondary": "#dceef0", "--bg-tertiary": "#c6e0e4", "--bg-elevated": "#fafefe",
+      "--text-primary": "#182828", "--text-secondary": "#486a70", "--accent-blue": "#2a808e", "--accent-green": "#2a9068",
+      "--accent-purple": "#5a6090", "--accent-gold": "#98841e", "--accent-rose": "#b84850",
+      "--border-color": "rgba(42, 128, 142, 0.10)", "--error-color": "#b84850",
+    },
+  },
+  // ── Pair: Storm Blue (R1 Tri/Quad) / Esker Silver (R2 default) ──
+  {
+    id: "dark-rivian-storm", name: "Storm Blue", category: "standard", mode: "dark", pairId: "rivian-storm",
+    preview: { bg: "#0c1218", fg: "#ccd4dc", accent: "#4a6a88", secondary: "#141e2a" },
+    vars: {
+      "--bg-primary": "#0c1218", "--bg-secondary": "#141e2a", "--bg-tertiary": "#1e2c3c", "--bg-elevated": "#283a4e",
+      "--text-primary": "#ccd4dc", "--text-secondary": "#6e8098", "--accent-blue": "#4a6a88", "--accent-green": "#58a878",
+      "--accent-purple": "#8878a8", "--accent-gold": "#c8a44a", "--accent-rose": "#cc5860",
+      "--border-color": "rgba(74, 106, 136, 0.12)", "--error-color": "#cc5860",
+    },
+  },
+  {
+    id: "light-rivian-storm", name: "Esker Silver", category: "standard", mode: "light", pairId: "rivian-storm",
+    preview: { bg: "#f0f2f4", fg: "#1e2830", accent: "#3a5a72", secondary: "#e0e4e8" },
+    vars: {
+      "--bg-primary": "#f0f2f4", "--bg-secondary": "#e0e4e8", "--bg-tertiary": "#ccd2d8", "--bg-elevated": "#fafbfc",
+      "--text-primary": "#1e2830", "--text-secondary": "#546878", "--accent-blue": "#3a5a72", "--accent-green": "#388a58",
+      "--accent-purple": "#605880", "--accent-gold": "#8a7a1e", "--accent-rose": "#a84448",
+      "--border-color": "rgba(58, 90, 114, 0.10)", "--error-color": "#a84448",
+    },
+  },
+  // ── Pair: Half Moon Grey (R2 exterior) / Slate Sky (R1 interior) ──
+  {
+    id: "dark-rivian-halfmoon", name: "Half Moon Grey", category: "standard", mode: "dark", pairId: "rivian-halfmoon",
+    preview: { bg: "#121210", fg: "#d2d0cc", accent: "#8a8478", secondary: "#1e1c1a" },
+    vars: {
+      "--bg-primary": "#121210", "--bg-secondary": "#1e1c1a", "--bg-tertiary": "#2a2826", "--bg-elevated": "#363432",
+      "--text-primary": "#d2d0cc", "--text-secondary": "#8a8680", "--accent-blue": "#8a8478", "--accent-green": "#6ea868",
+      "--accent-purple": "#a890b0", "--accent-gold": "#c8a448", "--accent-rose": "#c86058",
+      "--border-color": "rgba(138, 132, 120, 0.12)", "--error-color": "#c86058",
+    },
+  },
+  {
+    id: "light-rivian-halfmoon", name: "Slate Sky", category: "standard", mode: "light", pairId: "rivian-halfmoon",
+    preview: { bg: "#f0eeec", fg: "#242220", accent: "#6a6460", secondary: "#e0dcda" },
+    vars: {
+      "--bg-primary": "#f0eeec", "--bg-secondary": "#e0dcda", "--bg-tertiary": "#cec8c4", "--bg-elevated": "#faf8f6",
+      "--text-primary": "#242220", "--text-secondary": "#645e58", "--accent-blue": "#6a6460", "--accent-green": "#488a40",
+      "--accent-purple": "#6a5878", "--accent-gold": "#8a7a20", "--accent-rose": "#a84038",
+      "--border-color": "rgba(106, 100, 96, 0.10)", "--error-color": "#a84038",
+    },
+  },
+  // ── Pair: Borealis (R2 Performance exclusive) ──
+  {
+    id: "dark-rivian-borealis", name: "Borealis", category: "standard", mode: "dark", pairId: "rivian-borealis",
+    preview: { bg: "#0a1210", fg: "#d0e0d8", accent: "#38a088", secondary: "#142220" },
+    vars: {
+      "--bg-primary": "#0a1210", "--bg-secondary": "#142220", "--bg-tertiary": "#1c302c", "--bg-elevated": "#243e38",
+      "--text-primary": "#d0e0d8", "--text-secondary": "#6a9a8c", "--accent-blue": "#38a088", "--accent-green": "#50c898",
+      "--accent-purple": "#8888c0", "--accent-gold": "#c8b048", "--accent-rose": "#d06060",
+      "--border-color": "rgba(56, 160, 136, 0.14)", "--error-color": "#d06060",
+    },
+  },
+  {
+    id: "light-rivian-borealis", name: "Birch Wood", category: "standard", mode: "light", pairId: "rivian-borealis",
+    preview: { bg: "#f4f8f6", fg: "#1a2822", accent: "#2a8070", secondary: "#e0ece8" },
+    vars: {
+      "--bg-primary": "#f4f8f6", "--bg-secondary": "#e0ece8", "--bg-tertiary": "#ccdcd6", "--bg-elevated": "#fafefc",
+      "--text-primary": "#1a2822", "--text-secondary": "#466a60", "--accent-blue": "#2a8070", "--accent-green": "#38a06a",
+      "--accent-purple": "#5a5a88", "--accent-gold": "#8a8020", "--accent-rose": "#b04040",
+      "--border-color": "rgba(42, 128, 112, 0.10)", "--error-color": "#b04040",
+    },
+  },
 ];
 
 /**
@@ -712,7 +926,7 @@ export function getPairedTheme(currentId: string): ThemeDef | undefined {
   return THEMES.find(t => t.pairId === current.pairId && t.mode === targetMode);
 }
 
-/** Apply a theme by id — sets CSS vars and localStorage */
+/** Apply a theme by id — sets CSS vars, localStorage, and notifies Monaco editor */
 export function applyThemeById(themeId: string): void {
   const theme = THEMES.find(t => t.id === themeId);
   if (!theme) return;
@@ -722,6 +936,8 @@ export function applyThemeById(themeId: string): void {
   for (const [key, value] of Object.entries(theme.vars)) {
     document.documentElement.style.setProperty(key, value);
   }
+  // Notify Monaco editor to update its theme
+  window.dispatchEvent(new CustomEvent("vibeui-theme-change", { detail: { themeId: theme.id, mode: theme.mode } }));
 }
 
 const OAUTH_PROVIDERS: OAuthProvider[] = [

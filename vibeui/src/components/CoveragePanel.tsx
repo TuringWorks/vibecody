@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { CircleCheck, FlaskConical, Loader2, Play } from "lucide-react";
+import { usePersistentState } from "../hooks/usePersistentState";
 
 interface FileCoverage {
  path: string;
@@ -38,13 +39,13 @@ const toolLabel: Record<string, string> = {
 };
 
 export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
- const [tool, setTool] = useState<string | null>(null);
- const [result, setResult] = useState<CoverageResult | null>(null);
+ const [tool, setTool] = usePersistentState<string | null>("coverage.tool", null);
+ const [result, setResult] = usePersistentState<CoverageResult | null>("coverage.result", null);
  const [running, setRunning] = useState(false);
- const [error, setError] = useState<string | null>(null);
- const [filter, setFilter] = useState<Filter>("all");
+ const [error, setError] = usePersistentState<string | null>("coverage.error", null);
+ const [filter, setFilter] = usePersistentState<Filter>("coverage.filter", "all");
  const [expanded, setExpanded] = useState<Set<string>>(new Set());
- const [showRaw, setShowRaw] = useState(false);
+ const [showRaw, setShowRaw] = usePersistentState("coverage.showRaw", false);
  const cancelRef = useRef(false);
  const taskIdRef = useRef(0);
 

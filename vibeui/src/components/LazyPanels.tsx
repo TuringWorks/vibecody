@@ -1,4 +1,4 @@
-import { lazy, Suspense, type ComponentType } from "react";
+import { lazy, Suspense, useRef, type ComponentType } from "react";
 import { ErrorBoundary } from "./ErrorBoundary";
 
 const PanelLoading = () => (
@@ -13,6 +13,24 @@ function LazyPanel<P extends object>({ Component, props }: { Component: Componen
         <Component {...props} />
       </Suspense>
     </ErrorBoundary>
+  );
+}
+
+/**
+ * KeepAlivePanel — wraps a panel so it stays mounted (hidden) when inactive.
+ * The panel is only rendered once it has been visited at least once.
+ */
+function KeepAlivePanel({ active, children }: { active: boolean; children: React.ReactNode }) {
+  return (
+    <div
+      style={{
+        display: active ? "contents" : "none",
+        // "contents" makes this wrapper invisible to layout — the panel renders
+        // as if it were a direct child of the parent container.
+      }}
+    >
+      {children}
+    </div>
   );
 }
 
@@ -175,279 +193,190 @@ interface PanelHostProps {
   };
 }
 
-/** Renders the active panel with lazy loading + per-panel ErrorBoundary. */
+/**
+ * PanelHost — Keep-alive panel renderer.
+ *
+ * Instead of unmounting panels on tab switch (which destroys all state),
+ * we keep every visited panel mounted but hidden (display:none). This means:
+ *   - Panel state (useState, useRef, etc.) survives tab switches
+ *   - Lazy-loading still works — panels only load when first visited
+ *   - No serialization overhead — React state stays in memory
+ *
+ * For cross-session persistence (surviving app restarts), individual panels
+ * can use the `usePersistentState` hook or `usePanelSettings`.
+ */
 export function PanelHost(props: PanelHostProps) {
   const { tab, selectedProvider, availableProviders, editorContent, fileTree, currentFile, workspacePath, onPendingWrite, onInjectContext, onOpenFile, collab } = props;
   const wp = workspacePath;
 
-  switch (tab) {
-    case "chat":
-      return <LazyPanel Component={ChatTabManager} props={{ defaultProvider: selectedProvider, availableProviders, context: editorContent, fileTree, currentFile, onPendingWrite }} />;
-    case "agent":
-      return <LazyPanel Component={AgentPanel} props={{ provider: selectedProvider, workspacePath: wp }} />;
-    case "memory":
-      return <LazyPanel Component={MemoryPanel} props={{ workspacePath: wp }} />;
-    case "history":
-      return <LazyPanel Component={HistoryPanel} props={{}} />;
-    case "checkpoints":
-      return <LazyPanel Component={CheckpointPanel} props={{ workspacePath: wp }} />;
-    case "artifacts":
-      return <LazyPanel Component={ArtifactsPanel} props={{ artifacts: [] }} />;
-    case "manager":
-      return <LazyPanel Component={ManagerView} props={{ provider: selectedProvider }} />;
-    case "hooks":
-      return <LazyPanel Component={HooksPanel} props={{ workspacePath: wp }} />;
-    case "jobs":
-      return <LazyPanel Component={BackgroundJobsPanel} props={{}} />;
-    case "mcp":
-      return <LazyPanel Component={McpPanel} props={{}} />;
-    case "settings":
-      return <LazyPanel Component={SettingsPanel} props={{}} />;
-    case "cascade":
-      return <LazyPanel Component={CascadePanel} props={{ onInjectContext }} />;
-    case "specs":
-      return <LazyPanel Component={SpecPanel} props={{ workspacePath: wp, provider: selectedProvider }} />;
-    case "workflow":
-      return <LazyPanel Component={WorkflowPanel} props={{ workspacePath: wp, provider: selectedProvider }} />;
-    case "orchestration":
-      return <LazyPanel Component={OrchestrationPanel} props={{ workspacePath: wp }} />;
-    case "design":
-      return <LazyPanel Component={DesignMode} props={{ workspacePath: wp, provider: selectedProvider }} />;
-    case "deploy":
-      return <LazyPanel Component={DeployPanel} props={{ workspacePath: wp }} />;
-    case "database":
-      return <LazyPanel Component={DatabasePanel} props={{ workspacePath: wp, provider: selectedProvider }} />;
-    case "supabase":
-      return <LazyPanel Component={SupabasePanel} props={{ workspacePath: wp, provider: selectedProvider }} />;
-    case "auth":
-      return <LazyPanel Component={AuthPanel} props={{ workspacePath: wp, provider: selectedProvider }} />;
-    case "github":
-      return <LazyPanel Component={GitHubSyncPanel} props={{ workspacePath: wp }} />;
-    case "steering":
-      return <LazyPanel Component={SteeringPanel} props={{ workspaceRoot: wp || undefined }} />;
-    case "bugbot":
-      return <LazyPanel Component={BugBotPanel} props={{ workspacePath: wp || undefined, onOpenFile }} />;
-    case "redteam":
-      return <LazyPanel Component={RedTeamPanel} props={{ workspacePath: wp, provider: selectedProvider }} />;
-    case "tests":
-      return <LazyPanel Component={TestPanel} props={{ workspacePath: wp }} />;
-    case "collab":
-      return <LazyPanel Component={CollabPanel} props={{ connected: collab.connected, roomId: collab.roomId || "", peerId: collab.peerId || "", peers: collab.peers, onConnect: collab.connect, onDisconnect: collab.disconnect }} />;
-    case "coverage":
-      return <LazyPanel Component={CoveragePanel} props={{ workspacePath: wp }} />;
-    case "compare":
-      return <LazyPanel Component={MultiModelPanel} props={{}} />;
-    case "http":
-      return <LazyPanel Component={HttpPlayground} props={{ workspacePath: wp }} />;
-    case "arena":
-      return <LazyPanel Component={ArenaPanel} props={{}} />;
-    case "cost":
-      return <LazyPanel Component={CostPanel} props={{}} />;
-    case "autofix":
-      return <LazyPanel Component={AutofixPanel} props={{ workspacePath: wp }} />;
-    case "processes":
-      return <LazyPanel Component={ProcessPanel} props={{}} />;
-    case "cicd":
-      return <LazyPanel Component={CicdPanel} props={{ workspacePath: wp }} />;
-    case "k8s":
-      return <LazyPanel Component={K8sPanel} props={{ workspacePath: wp }} />;
-    case "env":
-      return <LazyPanel Component={EnvPanel} props={{ workspacePath: wp }} />;
-    case "profiler":
-      return <LazyPanel Component={ProfilerPanel} props={{ workspacePath: wp }} />;
-    case "docker":
-      return <LazyPanel Component={DockerPanel} props={{ workspacePath: wp }} />;
-    case "deps":
-      return <LazyPanel Component={DepsPanel} props={{ workspacePath: wp }} />;
-    case "apidocs":
-      return <LazyPanel Component={ApiDocsPanel} props={{ workspacePath: wp }} />;
-    case "migrations":
-      return <LazyPanel Component={MigrationsPanel} props={{ workspacePath: wp }} />;
-    case "logs":
-      return <LazyPanel Component={LogPanel} props={{ workspacePath: wp }} />;
-    case "scripts":
-      return <LazyPanel Component={ScriptPanel} props={{ workspacePath: wp }} />;
-    case "notebook":
-      return <LazyPanel Component={NotebookPanel} props={{ workspacePath: wp }} />;
-    case "ssh":
-      return <LazyPanel Component={SshPanel} props={{ workspacePath: wp }} />;
-    case "utils":
-      return <LazyPanel Component={UtilitiesPanel} props={{}} />;
-    case "markers":
-      return <LazyPanel Component={BookmarkPanel} props={{ workspacePath: wp }} />;
-    case "bisect":
-      return <LazyPanel Component={BisectPanel} props={{ workspacePath: wp }} />;
-    case "snippets":
-      return <LazyPanel Component={SnippetPanel} props={{ workspacePath: wp }} />;
-    case "mock":
-      return <LazyPanel Component={MockServerPanel} props={{}} />;
-    case "graphql":
-      return <LazyPanel Component={GraphQLPanel} props={{}} />;
-    case "metrics":
-      return <LazyPanel Component={CodeMetricsPanel} props={{ workspacePath: wp }} />;
-    case "loadtest":
-      return <LazyPanel Component={LoadTestPanel} props={{}} />;
-    case "network":
-      return <LazyPanel Component={NetworkPanel} props={{}} />;
-    case "teams":
-      return <LazyPanel Component={AgentTeamPanel} props={{}} />;
-    case "cibot":
-      return <LazyPanel Component={CIReviewPanel} props={{}} />;
-    case "traces":
-      return <LazyPanel Component={TraceDashboard} props={{}} />;
-    case "marketplace":
-      return <LazyPanel Component={MarketplacePanel} props={{}} />;
-    case "transform":
-      return <LazyPanel Component={TransformPanel} props={{}} />;
-    case "img2app":
-      return <LazyPanel Component={ScreenshotToApp} props={{ workspacePath: wp }} />;
-    case "recording":
-      return <LazyPanel Component={AgentRecordingPanel} props={{}} />;
-    case "visualtest":
-      return <LazyPanel Component={VisualTestPanel} props={{}} />;
-    case "cloud":
-      return <LazyPanel Component={CloudAgentPanel} props={{}} />;
-    case "compliance":
-      return <LazyPanel Component={CompliancePanel} props={{}} />;
-    case "scaffold":
-      return <LazyPanel Component={ScaffoldPanel} props={{ workspacePath: wp }} />;
-    case "health":
-      return <LazyPanel Component={HealthMonitorPanel} props={{}} />;
-    case "websocket":
-      return <LazyPanel Component={WebSocketPanel} props={{}} />;
-    case "colors":
-      return <LazyPanel Component={ColorPalettePanel} props={{ workspacePath: wp }} />;
-    case "markdown":
-      return <LazyPanel Component={MarkdownPanel} props={{ workspacePath: wp }} />;
-    case "difftool":
-      return <LazyPanel Component={DiffToolPanel} props={{}} />;
-    case "canvas":
-      return <LazyPanel Component={CanvasPanel} props={{}} />;
-    case "cron":
-      return <LazyPanel Component={CronPanel} props={{}} />;
-    case "regex":
-      return <LazyPanel Component={RegexPanel} props={{}} />;
-    case "jwt":
-      return <LazyPanel Component={JwtPanel} props={{}} />;
-    case "jsontools":
-      return <LazyPanel Component={JsonToolsPanel} props={{}} />;
-    case "encoding":
-      return <LazyPanel Component={EncodingPanel} props={{}} />;
-    case "numbers":
-      return <LazyPanel Component={NumberBasePanel} props={{}} />;
-    case "datagen":
-      return <LazyPanel Component={DataGenPanel} props={{}} />;
-    case "timestamp":
-      return <LazyPanel Component={TimestampPanel} props={{}} />;
-    case "colorconv":
-      return <LazyPanel Component={ColorConverterPanel} props={{}} />;
-    case "cidr":
-      return <LazyPanel Component={CidrPanel} props={{}} />;
-    case "csv":
-      return <LazyPanel Component={CsvPanel} props={{}} />;
-    case "units":
-      return <LazyPanel Component={UnitConverterPanel} props={{}} />;
-    case "unicode":
-      return <LazyPanel Component={UnicodePanel} props={{}} />;
-    case "sandbox":
-      return <LazyPanel Component={SandboxPanel} props={{}} />;
-    case "dashboard":
-      return <LazyPanel Component={DashboardPanel} props={{}} />;
-    case "webhooks":
-      return <LazyPanel Component={WebhookPanel} props={{}} />;
-    case "admin":
-      return <LazyPanel Component={AdminPanel} props={{}} />;
-    case "appbuilder":
-      return <LazyPanel Component={AppBuilderPanel} props={{ workspacePath: wp || "" }} />;
-    case "icontext":
-      return <LazyPanel Component={InfiniteContextPanel} props={{ workspacePath: wp || "" }} />;
-    case "batchbuilder":
-      return <LazyPanel Component={BatchBuilderPanel} props={{}} />;
-    case "streaming":
-      return <LazyPanel Component={StreamingPanel} props={{}} />;
-    case "inference":
-      return <LazyPanel Component={InferencePanel} props={{}} />;
-    case "training":
-      return <LazyPanel Component={TrainingPanel} props={{}} />;
-    case "ingest":
-      return <LazyPanel Component={DocumentIngestPanel} props={{}} />;
-    case "crawler":
-      return <LazyPanel Component={WebCrawlerPanel} props={{}} />;
-    case "vectordb":
-      return <LazyPanel Component={VectorDbPanel} props={{}} />;
-    case "qa-validation":
-      return <LazyPanel Component={QaValidationPanel} props={{}} />;
-    case "astedit":
-      return <LazyPanel Component={AstEditPanel} props={{}} />;
-    case "cistatus":
-      return <LazyPanel Component={CiStatusPanel} props={{}} />;
-    case "cloudsandbox":
-      return <LazyPanel Component={CloudSandboxPanel} props={{}} />;
-    case "editpredict":
-      return <LazyPanel Component={EditPredictionPanel} props={{}} />;
-    case "plandoc":
-      return <LazyPanel Component={PlanDocumentPanel} props={{}} />;
-    case "remotecontrol":
-      return <LazyPanel Component={RemoteControlPanel} props={{}} />;
-    case "securityscan":
-      return <LazyPanel Component={SecurityScanPanel} props={{ workspacePath: wp || undefined, onOpenFile }} />;
-    case "sessions":
-      return <LazyPanel Component={SessionBrowserPanel} props={{}} />;
-    case "subagents":
-      return <LazyPanel Component={SubAgentPanel} props={{}} />;
-    case "clarify":
-      return <LazyPanel Component={ClarifyingQuestionsPanel} props={{}} />;
-    case "codesearch":
-      return <LazyPanel Component={ConversationalSearchPanel} props={{}} />;
-    case "demo":
-      return <LazyPanel Component={DemoPanel} props={{}} />;
-    case "cloudautofix":
-      return <LazyPanel Component={CloudAutofixPanel} props={{}} />;
-    case "fastcontext":
-      return <LazyPanel Component={FastContextPanel} props={{}} />;
-    case "imagegen":
-      return <LazyPanel Component={ImageGenPanel} props={{}} />;
-    case "governance":
-      return <LazyPanel Component={TeamGovernancePanel} props={{}} />;
-    case "agentteams":
-      return <LazyPanel Component={AgentTeamsPanel} props={{}} />;
-    case "discuss":
-      return <LazyPanel Component={DiscussionModePanel} props={{}} />;
-    case "fullstack":
-      return <LazyPanel Component={FullStackGenPanel} props={{}} />;
-    case "ghactions":
-      return <LazyPanel Component={GhActionsPanel} props={{}} />;
-    case "renderopt":
-      return <LazyPanel Component={RenderOptimizePanel} props={{}} />;
-    case "soul":
-      return <LazyPanel Component={SoulPanel} props={{ workspacePath: wp }} />;
-    case "mcplazy":
-      return <LazyPanel Component={McpLazyPanel} props={{}} />;
-    case "bundles":
-      return <LazyPanel Component={ContextBundlePanel} props={{ workspacePath: wp }} />;
-    case "cloudproviders":
-      return <LazyPanel Component={CloudProviderPanel} props={{ workspacePath: wp }} />;
-    case "acpprotocol":
-      return <LazyPanel Component={AcpPanel} props={{}} />;
-    case "mcpdirectory":
-      return <LazyPanel Component={McpDirectoryPanel} props={{}} />;
-    case "usagemetering":
-      return <LazyPanel Component={UsageMeteringPanel} props={{}} />;
-    case "swebench":
-      return <LazyPanel Component={SweBenchPanel} props={{}} />;
-    case "sessionmemory":
-      return <LazyPanel Component={SessionMemoryPanel} props={{}} />;
-    case "blueteam":
-      return <LazyPanel Component={BlueTeamPanel} props={{}} />;
-    case "purpleteam":
-      return <LazyPanel Component={PurpleTeamPanel} props={{}} />;
-    case "idp":
-      return <LazyPanel Component={IdpPanel} props={{}} />;
-    case "quantum":
-      return <LazyPanel Component={QuantumComputingPanel} props={{}} />;
-    case "agile":
-      return <LazyPanel Component={AgilePanel} props={{}} />;
-    default:
-      return <div style={{ padding: 16, color: "var(--text-secondary)" }}>Unknown panel: {tab}</div>;
-  }
+  // Track which tabs have been visited so we only mount them once they're first opened.
+  const visitedRef = useRef<Set<string>>(new Set());
+  visitedRef.current.add(tab);
+  const visited = visitedRef.current;
+
+  /** Helper: render a panel only if it has been visited. */
+  const panel = (id: string, element: React.ReactNode) =>
+    visited.has(id) ? (
+      <KeepAlivePanel key={id} active={tab === id}>
+        {element}
+      </KeepAlivePanel>
+    ) : null;
+
+  return (
+    <>
+      {panel("chat", <LazyPanel Component={ChatTabManager} props={{ defaultProvider: selectedProvider, availableProviders, context: editorContent, fileTree, currentFile, onPendingWrite }} />)}
+      {panel("agent", <LazyPanel Component={AgentPanel} props={{ provider: selectedProvider, workspacePath: wp }} />)}
+      {panel("memory", <LazyPanel Component={MemoryPanel} props={{ workspacePath: wp }} />)}
+      {panel("history", <LazyPanel Component={HistoryPanel} props={{}} />)}
+      {panel("checkpoints", <LazyPanel Component={CheckpointPanel} props={{ workspacePath: wp }} />)}
+      {panel("artifacts", <LazyPanel Component={ArtifactsPanel} props={{ artifacts: [] }} />)}
+      {panel("manager", <LazyPanel Component={ManagerView} props={{ provider: selectedProvider }} />)}
+      {panel("hooks", <LazyPanel Component={HooksPanel} props={{ workspacePath: wp }} />)}
+      {panel("jobs", <LazyPanel Component={BackgroundJobsPanel} props={{}} />)}
+      {panel("mcp", <LazyPanel Component={McpPanel} props={{}} />)}
+      {panel("settings", <LazyPanel Component={SettingsPanel} props={{}} />)}
+      {panel("cascade", <LazyPanel Component={CascadePanel} props={{ onInjectContext }} />)}
+      {panel("specs", <LazyPanel Component={SpecPanel} props={{ workspacePath: wp, provider: selectedProvider }} />)}
+      {panel("workflow", <LazyPanel Component={WorkflowPanel} props={{ workspacePath: wp, provider: selectedProvider }} />)}
+      {panel("orchestration", <LazyPanel Component={OrchestrationPanel} props={{ workspacePath: wp }} />)}
+      {panel("design", <LazyPanel Component={DesignMode} props={{ workspacePath: wp, provider: selectedProvider }} />)}
+      {panel("deploy", <LazyPanel Component={DeployPanel} props={{ workspacePath: wp }} />)}
+      {panel("database", <LazyPanel Component={DatabasePanel} props={{ workspacePath: wp, provider: selectedProvider }} />)}
+      {panel("supabase", <LazyPanel Component={SupabasePanel} props={{ workspacePath: wp, provider: selectedProvider }} />)}
+      {panel("auth", <LazyPanel Component={AuthPanel} props={{ workspacePath: wp, provider: selectedProvider }} />)}
+      {panel("github", <LazyPanel Component={GitHubSyncPanel} props={{ workspacePath: wp }} />)}
+      {panel("steering", <LazyPanel Component={SteeringPanel} props={{ workspaceRoot: wp || undefined }} />)}
+      {panel("bugbot", <LazyPanel Component={BugBotPanel} props={{ workspacePath: wp || undefined, onOpenFile }} />)}
+      {panel("redteam", <LazyPanel Component={RedTeamPanel} props={{ workspacePath: wp, provider: selectedProvider }} />)}
+      {panel("tests", <LazyPanel Component={TestPanel} props={{ workspacePath: wp }} />)}
+      {panel("collab", <LazyPanel Component={CollabPanel} props={{ connected: collab.connected, roomId: collab.roomId || "", peerId: collab.peerId || "", peers: collab.peers, onConnect: collab.connect, onDisconnect: collab.disconnect }} />)}
+      {panel("coverage", <LazyPanel Component={CoveragePanel} props={{ workspacePath: wp }} />)}
+      {panel("compare", <LazyPanel Component={MultiModelPanel} props={{}} />)}
+      {panel("http", <LazyPanel Component={HttpPlayground} props={{ workspacePath: wp }} />)}
+      {panel("arena", <LazyPanel Component={ArenaPanel} props={{}} />)}
+      {panel("cost", <LazyPanel Component={CostPanel} props={{}} />)}
+      {panel("autofix", <LazyPanel Component={AutofixPanel} props={{ workspacePath: wp }} />)}
+      {panel("processes", <LazyPanel Component={ProcessPanel} props={{}} />)}
+      {panel("cicd", <LazyPanel Component={CicdPanel} props={{ workspacePath: wp }} />)}
+      {panel("k8s", <LazyPanel Component={K8sPanel} props={{ workspacePath: wp }} />)}
+      {panel("env", <LazyPanel Component={EnvPanel} props={{ workspacePath: wp }} />)}
+      {panel("profiler", <LazyPanel Component={ProfilerPanel} props={{ workspacePath: wp }} />)}
+      {panel("docker", <LazyPanel Component={DockerPanel} props={{ workspacePath: wp }} />)}
+      {panel("deps", <LazyPanel Component={DepsPanel} props={{ workspacePath: wp }} />)}
+      {panel("apidocs", <LazyPanel Component={ApiDocsPanel} props={{ workspacePath: wp }} />)}
+      {panel("migrations", <LazyPanel Component={MigrationsPanel} props={{ workspacePath: wp }} />)}
+      {panel("logs", <LazyPanel Component={LogPanel} props={{ workspacePath: wp }} />)}
+      {panel("scripts", <LazyPanel Component={ScriptPanel} props={{ workspacePath: wp }} />)}
+      {panel("notebook", <LazyPanel Component={NotebookPanel} props={{ workspacePath: wp }} />)}
+      {panel("ssh", <LazyPanel Component={SshPanel} props={{ workspacePath: wp }} />)}
+      {panel("utils", <LazyPanel Component={UtilitiesPanel} props={{}} />)}
+      {panel("markers", <LazyPanel Component={BookmarkPanel} props={{ workspacePath: wp }} />)}
+      {panel("bisect", <LazyPanel Component={BisectPanel} props={{ workspacePath: wp }} />)}
+      {panel("snippets", <LazyPanel Component={SnippetPanel} props={{ workspacePath: wp }} />)}
+      {panel("mock", <LazyPanel Component={MockServerPanel} props={{}} />)}
+      {panel("graphql", <LazyPanel Component={GraphQLPanel} props={{}} />)}
+      {panel("metrics", <LazyPanel Component={CodeMetricsPanel} props={{ workspacePath: wp }} />)}
+      {panel("loadtest", <LazyPanel Component={LoadTestPanel} props={{}} />)}
+      {panel("network", <LazyPanel Component={NetworkPanel} props={{}} />)}
+      {panel("teams", <LazyPanel Component={AgentTeamPanel} props={{}} />)}
+      {panel("cibot", <LazyPanel Component={CIReviewPanel} props={{}} />)}
+      {panel("traces", <LazyPanel Component={TraceDashboard} props={{}} />)}
+      {panel("marketplace", <LazyPanel Component={MarketplacePanel} props={{}} />)}
+      {panel("transform", <LazyPanel Component={TransformPanel} props={{}} />)}
+      {panel("img2app", <LazyPanel Component={ScreenshotToApp} props={{ workspacePath: wp }} />)}
+      {panel("recording", <LazyPanel Component={AgentRecordingPanel} props={{}} />)}
+      {panel("visualtest", <LazyPanel Component={VisualTestPanel} props={{}} />)}
+      {panel("cloud", <LazyPanel Component={CloudAgentPanel} props={{}} />)}
+      {panel("compliance", <LazyPanel Component={CompliancePanel} props={{}} />)}
+      {panel("scaffold", <LazyPanel Component={ScaffoldPanel} props={{ workspacePath: wp }} />)}
+      {panel("health", <LazyPanel Component={HealthMonitorPanel} props={{}} />)}
+      {panel("websocket", <LazyPanel Component={WebSocketPanel} props={{}} />)}
+      {panel("colors", <LazyPanel Component={ColorPalettePanel} props={{ workspacePath: wp }} />)}
+      {panel("markdown", <LazyPanel Component={MarkdownPanel} props={{ workspacePath: wp }} />)}
+      {panel("difftool", <LazyPanel Component={DiffToolPanel} props={{}} />)}
+      {panel("canvas", <LazyPanel Component={CanvasPanel} props={{}} />)}
+      {panel("cron", <LazyPanel Component={CronPanel} props={{}} />)}
+      {panel("regex", <LazyPanel Component={RegexPanel} props={{}} />)}
+      {panel("jwt", <LazyPanel Component={JwtPanel} props={{}} />)}
+      {panel("jsontools", <LazyPanel Component={JsonToolsPanel} props={{}} />)}
+      {panel("encoding", <LazyPanel Component={EncodingPanel} props={{}} />)}
+      {panel("numbers", <LazyPanel Component={NumberBasePanel} props={{}} />)}
+      {panel("datagen", <LazyPanel Component={DataGenPanel} props={{}} />)}
+      {panel("timestamp", <LazyPanel Component={TimestampPanel} props={{}} />)}
+      {panel("colorconv", <LazyPanel Component={ColorConverterPanel} props={{}} />)}
+      {panel("cidr", <LazyPanel Component={CidrPanel} props={{}} />)}
+      {panel("csv", <LazyPanel Component={CsvPanel} props={{}} />)}
+      {panel("units", <LazyPanel Component={UnitConverterPanel} props={{}} />)}
+      {panel("unicode", <LazyPanel Component={UnicodePanel} props={{}} />)}
+      {panel("sandbox", <LazyPanel Component={SandboxPanel} props={{}} />)}
+      {panel("dashboard", <LazyPanel Component={DashboardPanel} props={{}} />)}
+      {panel("webhooks", <LazyPanel Component={WebhookPanel} props={{}} />)}
+      {panel("admin", <LazyPanel Component={AdminPanel} props={{}} />)}
+      {panel("appbuilder", <LazyPanel Component={AppBuilderPanel} props={{ workspacePath: wp || "" }} />)}
+      {panel("icontext", <LazyPanel Component={InfiniteContextPanel} props={{ workspacePath: wp || "" }} />)}
+      {panel("batchbuilder", <LazyPanel Component={BatchBuilderPanel} props={{}} />)}
+      {panel("streaming", <LazyPanel Component={StreamingPanel} props={{}} />)}
+      {panel("inference", <LazyPanel Component={InferencePanel} props={{}} />)}
+      {panel("training", <LazyPanel Component={TrainingPanel} props={{}} />)}
+      {panel("ingest", <LazyPanel Component={DocumentIngestPanel} props={{}} />)}
+      {panel("crawler", <LazyPanel Component={WebCrawlerPanel} props={{}} />)}
+      {panel("vectordb", <LazyPanel Component={VectorDbPanel} props={{}} />)}
+      {panel("qa-validation", <LazyPanel Component={QaValidationPanel} props={{}} />)}
+      {panel("astedit", <LazyPanel Component={AstEditPanel} props={{}} />)}
+      {panel("cistatus", <LazyPanel Component={CiStatusPanel} props={{}} />)}
+      {panel("cloudsandbox", <LazyPanel Component={CloudSandboxPanel} props={{}} />)}
+      {panel("editpredict", <LazyPanel Component={EditPredictionPanel} props={{}} />)}
+      {panel("plandoc", <LazyPanel Component={PlanDocumentPanel} props={{}} />)}
+      {panel("remotecontrol", <LazyPanel Component={RemoteControlPanel} props={{}} />)}
+      {panel("securityscan", <LazyPanel Component={SecurityScanPanel} props={{ workspacePath: wp || undefined, onOpenFile }} />)}
+      {panel("sessions", <LazyPanel Component={SessionBrowserPanel} props={{}} />)}
+      {panel("subagents", <LazyPanel Component={SubAgentPanel} props={{}} />)}
+      {panel("clarify", <LazyPanel Component={ClarifyingQuestionsPanel} props={{}} />)}
+      {panel("codesearch", <LazyPanel Component={ConversationalSearchPanel} props={{}} />)}
+      {panel("demo", <LazyPanel Component={DemoPanel} props={{}} />)}
+      {panel("cloudautofix", <LazyPanel Component={CloudAutofixPanel} props={{}} />)}
+      {panel("fastcontext", <LazyPanel Component={FastContextPanel} props={{}} />)}
+      {panel("imagegen", <LazyPanel Component={ImageGenPanel} props={{}} />)}
+      {panel("governance", <LazyPanel Component={TeamGovernancePanel} props={{}} />)}
+      {panel("agentteams", <LazyPanel Component={AgentTeamsPanel} props={{}} />)}
+      {panel("discuss", <LazyPanel Component={DiscussionModePanel} props={{}} />)}
+      {panel("fullstack", <LazyPanel Component={FullStackGenPanel} props={{}} />)}
+      {panel("ghactions", <LazyPanel Component={GhActionsPanel} props={{}} />)}
+      {panel("renderopt", <LazyPanel Component={RenderOptimizePanel} props={{}} />)}
+      {panel("soul", <LazyPanel Component={SoulPanel} props={{ workspacePath: wp }} />)}
+      {panel("mcplazy", <LazyPanel Component={McpLazyPanel} props={{}} />)}
+      {panel("bundles", <LazyPanel Component={ContextBundlePanel} props={{ workspacePath: wp }} />)}
+      {panel("cloudproviders", <LazyPanel Component={CloudProviderPanel} props={{ workspacePath: wp }} />)}
+      {panel("acpprotocol", <LazyPanel Component={AcpPanel} props={{}} />)}
+      {panel("mcpdirectory", <LazyPanel Component={McpDirectoryPanel} props={{}} />)}
+      {panel("usagemetering", <LazyPanel Component={UsageMeteringPanel} props={{}} />)}
+      {panel("swebench", <LazyPanel Component={SweBenchPanel} props={{}} />)}
+      {panel("sessionmemory", <LazyPanel Component={SessionMemoryPanel} props={{}} />)}
+      {panel("blueteam", <LazyPanel Component={BlueTeamPanel} props={{}} />)}
+      {panel("purpleteam", <LazyPanel Component={PurpleTeamPanel} props={{}} />)}
+      {panel("idp", <LazyPanel Component={IdpPanel} props={{}} />)}
+      {panel("quantum", <LazyPanel Component={QuantumComputingPanel} props={{}} />)}
+      {panel("agile", <LazyPanel Component={AgilePanel} props={{}} />)}
+      {/* Fallback for unknown tabs — only render when active and not matched above */}
+      {!visited.has(tab) || ![
+        "chat","agent","memory","history","checkpoints","artifacts","manager","hooks","jobs","mcp",
+        "settings","cascade","specs","workflow","orchestration","design","deploy","database","supabase",
+        "auth","github","steering","bugbot","redteam","tests","collab","coverage","compare","http",
+        "arena","cost","autofix","processes","cicd","k8s","env","profiler","docker","deps","apidocs",
+        "migrations","logs","scripts","notebook","ssh","utils","markers","bisect","snippets","mock",
+        "graphql","metrics","loadtest","network","teams","cibot","traces","marketplace","transform",
+        "img2app","recording","visualtest","cloud","compliance","scaffold","health","websocket","colors",
+        "markdown","difftool","canvas","cron","regex","jwt","jsontools","encoding","numbers","datagen",
+        "timestamp","colorconv","cidr","csv","units","unicode","sandbox","dashboard","webhooks","admin",
+        "appbuilder","icontext","batchbuilder","streaming","inference","training","ingest","crawler",
+        "vectordb","qa-validation","astedit","cistatus","cloudsandbox","editpredict","plandoc",
+        "remotecontrol","securityscan","sessions","subagents","clarify","codesearch","demo","cloudautofix",
+        "fastcontext","imagegen","governance","agentteams","discuss","fullstack","ghactions","renderopt",
+        "soul","mcplazy","bundles","cloudproviders","acpprotocol","mcpdirectory","usagemetering",
+        "swebench","sessionmemory","blueteam","purpleteam","idp","quantum","agile",
+      ].includes(tab) ? (
+        <div style={{ padding: 16, color: "var(--text-secondary)" }}>Unknown panel: {tab}</div>
+      ) : null}
+    </>
+  );
 }
