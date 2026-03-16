@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "tauri:dev": "PATH=\"$HOME/.cargo/bin:$PATH\" tauri dev",
+    "tauri:build": "PATH=\"$HOME/.cargo/bin:$PATH\" tauri build"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
