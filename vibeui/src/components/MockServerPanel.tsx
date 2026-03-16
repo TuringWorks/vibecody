@@ -31,11 +31,11 @@ type SubTab = "routes" | "log" | "import";
 const METHOD_OPTIONS = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"];
 
 const methodColor: Record<string, string> = {
-  GET: "var(--success-color, #a6e3a1)",
-  POST: "var(--accent-color, #89b4fa)",
-  PUT: "var(--warning-color, #f9e2af)",
-  DELETE: "var(--error-color, #f38ba8)",
-  PATCH: "var(--text-accent, #cba6f7)",
+  GET: "var(--success-color)",
+  POST: "var(--accent-color)",
+  PUT: "var(--warning-color)",
+  DELETE: "var(--error-color)",
+  PATCH: "var(--text-accent)",
   HEAD: "var(--text-muted)",
   OPTIONS: "var(--text-muted)",
 };

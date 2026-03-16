@@ -127,7 +127,7 @@ export function LoadTestPanel() {
 
  <div style={{ flex: 1, overflow: "auto", padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
  {error && (
- <div style={{ padding: "6px 10px", background: "var(--error-bg, #2a1a1a)", color: "var(--error-color)", borderRadius: 4, fontSize: 11 }}> {error}</div>
+ <div style={{ padding: "6px 10px", background: "var(--error-bg)", color: "var(--error-color)", borderRadius: 4, fontSize: 11 }}> {error}</div>
  )}
 
  {/* URL + method */}

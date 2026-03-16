@@ -136,7 +136,7 @@ export function ScaffoldPanel({ workspacePath }: { workspacePath: string | null 
  style={{
  display: "block", width: "100%", textAlign: "left",
  padding: "8px 10px", cursor: "pointer",
- background: selected?.id === t.id ? "var(--accent-bg, rgba(99,102,241,0.15))" : "transparent",
+ background: selected?.id === t.id ? "var(--accent-bg)" : "transparent",
  border: "none", borderBottom: "1px solid var(--border-color)",
  color: "var(--text-primary)",
  }}
@@ -215,7 +215,7 @@ export function ScaffoldPanel({ workspacePath }: { workspacePath: string | null 
  style={{
  display: "block", width: "100%", textAlign: "left",
  padding: "6px 10px", fontSize: 11, fontFamily: "monospace",
- background: previewFile?.path === f.path ? "var(--accent-bg, rgba(99,102,241,0.15))" : "transparent",
+ background: previewFile?.path === f.path ? "var(--accent-bg)" : "transparent",
  border: "none", borderBottom: "1px solid var(--border-color)",
  color: "var(--text-primary)", cursor: "pointer",
  wordBreak: "break-all",

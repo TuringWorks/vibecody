@@ -187,7 +187,7 @@ interface SAFeData {
 /* ── Priority colors ────────────────────────────────────────────────── */
 
 const PRIORITY_COLORS: Record<Priority, string> = {
-  P0: "#ef4444",
+  P0: "var(--error-color)",
   P1: "#f59e0b",
   P2: "#3b82f6",
   P3: "#6b7280",
@@ -277,7 +277,7 @@ const inputStyle: React.CSSProperties = {
 
 const cardStyle: React.CSSProperties = {
   padding: 12,
-  borderRadius: "var(--radius-md, 8px)",
+  borderRadius: "var(--radius-md)",
   border: "1px solid var(--border-color)",
   background: "var(--bg-secondary)",
 };
@@ -314,7 +314,7 @@ const defaultCard = (column: Column): Card => ({
    ═══════════════════════════════════════════════════════════════════════ */
 
 /* Assignee avatar (colored initials circle) */
-const AVATAR_COLORS = ["#6366f1", "#ec4899", "#14b8a6", "#f59e0b", "#8b5cf6", "#ef4444", "#06b6d4", "#84cc16"];
+const AVATAR_COLORS = ["#6366f1", "#ec4899", "#14b8a6", "#f59e0b", "#8b5cf6", "var(--error-color)", "#06b6d4", "#84cc16"];
 function AvatarBadge({ name, size = 24 }: { name: string; size?: number }) {
   if (!name) return null;
   const initials = name.split(/\s+/).map(w => w[0]?.toUpperCase() || "").join("").slice(0, 2);

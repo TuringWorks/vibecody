@@ -60,8 +60,10 @@ interface ApiKeySettings {
   openai_api_key: string;
   gemini_api_key: string;
   grok_api_key: string;
+  openrouter_api_key: string;
   claude_model: string;
   openai_model: string;
+  openrouter_model: string;
 }
 
 /* ── Theme definitions ─────────────────────────────────────────────── */
@@ -1196,6 +1198,7 @@ const btnStyle: React.CSSProperties = {
   fontSize: 12, fontWeight: 500, transition: "var(--transition-fast)",
 };
 const btnPrimary: React.CSSProperties = { ...btnStyle, background: "var(--accent-blue)", color: "var(--btn-primary-fg)", borderColor: "var(--accent-blue)" };
+const modelsHintStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", margin: "4px 0 0", lineHeight: 1.4, opacity: 0.8 };
 const dividerStyle: React.CSSProperties = { height: 1, background: "var(--border-color)", margin: "16px 0" };
 const cardBox: React.CSSProperties = {
   padding: 14, borderRadius: "var(--radius-md)", border: "1px solid var(--border-color)",
@@ -2019,8 +2022,8 @@ function CustomizationsSection() {
 
 function ApiKeysSection() {
   const [settings, setSettings] = useState<ApiKeySettings>({
-    anthropic_api_key: "", openai_api_key: "", gemini_api_key: "", grok_api_key: "",
-    claude_model: "claude-3-5-sonnet-latest", openai_model: "gpt-4o",
+    anthropic_api_key: "", openai_api_key: "", gemini_api_key: "", grok_api_key: "", openrouter_api_key: "",
+    claude_model: "claude-3-5-sonnet-latest", openai_model: "gpt-4o", openrouter_model: "",
   });
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -2037,8 +2040,10 @@ function ApiKeysSection() {
   const handleSave = async () => {
     setSaving(true); setMessage(null);
     try {
-      await invoke("save_provider_api_keys", { settings });
-      setMessage({ type: "success", text: "Settings saved. Providers re-registered." });
+      const providers = await invoke<string[]>("save_provider_api_keys", { settings });
+      // Emit a custom event so App.tsx can refresh its provider dropdown
+      window.dispatchEvent(new CustomEvent("vibeui:providers-updated", { detail: providers }));
+      setMessage({ type: "success", text: `Saved. ${providers.length} model(s) available.` });
     } catch (e) {
       setMessage({ type: "error", text: String(e) });
     } finally { setSaving(false); }
@@ -2078,29 +2083,45 @@ function ApiKeysSection() {
       <div style={{ marginBottom: 20 }}>
         <SectionHeader title="Anthropic (Claude)" />
         <SecretField label="API Key" fieldKey="anthropic_api_key" placeholder="sk-ant-api03-..." />
-        <div style={{ marginBottom: 12 }}>
-          <label style={labelStyle}>Model</label>
-          <input style={fieldStyle} value={settings.claude_model} onChange={e => setSettings({ ...settings, claude_model: e.target.value })} placeholder="claude-3-5-sonnet-latest" />
-        </div>
+        <p style={modelsHintStyle}>
+          Models: Opus 4.6, Sonnet 4.6, Haiku 4.5, 3.5 Sonnet, 3.5 Haiku, 3 Opus
+        </p>
       </div>
 
       <div style={{ marginBottom: 20 }}>
         <SectionHeader title="OpenAI" />
         <SecretField label="API Key" fieldKey="openai_api_key" placeholder="sk-proj-..." />
-        <div style={{ marginBottom: 12 }}>
-          <label style={labelStyle}>Model</label>
-          <input style={fieldStyle} value={settings.openai_model} onChange={e => setSettings({ ...settings, openai_model: e.target.value })} placeholder="gpt-4o" />
-        </div>
+        <p style={modelsHintStyle}>
+          Models: GPT-4o, GPT-4o mini, GPT-4 Turbo, GPT-4, GPT-3.5 Turbo, o1, o1-mini, o1-preview, o3-mini
+        </p>
       </div>
 
       <div style={{ marginBottom: 20 }}>
         <SectionHeader title="Google (Gemini)" />
         <SecretField label="API Key" fieldKey="gemini_api_key" placeholder="AIzaSy..." />
+        <p style={modelsHintStyle}>
+          Models: 2.5 Pro, 2.5 Flash, 2.0 Flash, 2.0 Flash Lite, 1.5 Pro, 1.5 Flash
+        </p>
       </div>
 
       <div style={{ marginBottom: 20 }}>
         <SectionHeader title="xAI (Grok)" />
         <SecretField label="API Key" fieldKey="grok_api_key" placeholder="xai-..." />
+        <p style={modelsHintStyle}>
+          Models: Grok-3, Grok-3 mini, Grok-2, Grok-2 mini
+        </p>
+      </div>
+
+      <div style={{ marginBottom: 20 }}>
+        <SectionHeader title="OpenRouter" />
+        <SecretField label="API Key" fieldKey="openrouter_api_key" placeholder="sk-or-v1-..." />
+        <div style={{ marginBottom: 12 }}>
+          <label style={labelStyle}>Model</label>
+          <input style={fieldStyle} value={settings.openrouter_model} onChange={e => setSettings({ ...settings, openrouter_model: e.target.value })} placeholder="anthropic/claude-3.5-sonnet" />
+        </div>
+        <p style={modelsHintStyle}>
+          Routes to 200+ models. Enter a model ID or browse at openrouter.ai/models
+        </p>
       </div>
 
       <button style={{ ...btnPrimary, width: "100%" }} onClick={handleSave} disabled={saving}>

@@ -181,7 +181,7 @@ export function EncodingPanel() {
  <span style={{ fontSize: 13, fontWeight: 600 }}>Encoding & Hash</span>
  <div style={{ display: "flex", gap: 4 }}>
  {TABS.map(t => (
- <button key={t.id} onClick={() => setSubTab(t.id)} style={{ padding: "2px 10px", fontSize: 10, borderRadius: 10, background: subTab === t.id ? "rgba(99,102,241,0.2)" : "var(--bg-primary)", border: `1px solid ${subTab === t.id ? "var(--accent-color, #6366f1)" : "var(--border-color)"}`, color: subTab === t.id ? "var(--info-color, #89b4fa)" : "var(--text-muted)", cursor: "pointer", fontWeight: subTab === t.id ? 700 : 400 }}>{t.label}</button>
+ <button key={t.id} onClick={() => setSubTab(t.id)} style={{ padding: "2px 10px", fontSize: 10, borderRadius: 10, background: subTab === t.id ? "rgba(99,102,241,0.2)" : "var(--bg-primary)", border: `1px solid ${subTab === t.id ? "var(--accent-color)" : "var(--border-color)"}`, color: subTab === t.id ? "var(--info-color)" : "var(--text-muted)", cursor: "pointer", fontWeight: subTab === t.id ? 700 : 400 }}>{t.label}</button>
  ))}
  </div>
  </div>
@@ -206,7 +206,7 @@ export function EncodingPanel() {
  <div>
  <div style={{ padding: "4px 12px", display: "flex", gap: 8, alignItems: "center", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
  <label style={{ fontSize: 10, color: "var(--text-muted)", display: "flex", gap: 4, alignItems: "center", cursor: "pointer" }}>
- <input type="checkbox" checked={urlSafe} onChange={e => setUrlSafe(e.target.checked)} style={{ accentColor: "var(--accent-color, #6366f1)" }} />
+ <input type="checkbox" checked={urlSafe} onChange={e => setUrlSafe(e.target.checked)} style={{ accentColor: "var(--accent-color)" }} />
  URL-safe (no +/=//)
  </label>
  </div>
@@ -241,7 +241,7 @@ export function EncodingPanel() {
  ))
  }
  <div style={{ padding: "10px 12px", fontSize: 10, color: "var(--text-muted)", lineHeight: 1.7, background: "var(--bg-secondary)", borderTop: "1px solid var(--border-color)" }}>
- <strong style={{ color: "var(--text-warning-alt, #fab387)" }}>Note:</strong>MD5 is not available in Web Crypto (deprecated for security). Use SHA-256 or higher for any security-sensitive purpose.
+ <strong style={{ color: "var(--text-warning-alt)" }}>Note:</strong>MD5 is not available in Web Crypto (deprecated for security). Use SHA-256 or higher for any security-sensitive purpose.
  </div>
  </div>
  )}

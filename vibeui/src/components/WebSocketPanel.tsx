@@ -183,7 +183,7 @@ export function WebSocketPanel() {
  </div>
  <button
  onClick={e => { e.stopPropagation(); removeConfig(c.id); }}
- style={{ fontSize: 10, background: "none", border: "none", color: "var(--text-danger, #f38ba8)", cursor: "pointer", padding: "0 2px" }}
+ style={{ fontSize: 10, background: "none", border: "none", color: "var(--text-danger)", cursor: "pointer", padding: "0 2px" }}
  >✕</button>
  </div>
  ))}
@@ -275,7 +275,7 @@ export function WebSocketPanel() {
  {tryPretty(m.data)}
  </pre>
  {m.latency !== undefined && (
- <span style={{ fontSize: 9, color: "var(--text-warning, #f9e2af)", flexShrink: 0, paddingTop: 2 }}>{m.latency}ms</span>
+ <span style={{ fontSize: 9, color: "var(--text-warning)", flexShrink: 0, paddingTop: 2 }}>{m.latency}ms</span>
  )}
  </div>
  ))}

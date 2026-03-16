@@ -135,7 +135,7 @@ export function ChatTabManager({
                             background: activeTabId === tab.id ? "var(--bg-primary)" : "transparent",
                             color: activeTabId === tab.id ? "var(--text-primary)" : "var(--text-secondary)",
                             borderBottom: activeTabId === tab.id
-                                ? "2px solid var(--accent-blue, #007acc)"
+                                ? "2px solid var(--accent-blue)"
                                 : "2px solid transparent",
                         }}
                     >
@@ -176,7 +176,7 @@ export function ChatTabManager({
                             style={{
                                 padding: "2px 4px", fontSize: "11px",
                                 background: "var(--bg-tertiary)", border: "1px solid var(--border-color)",
-                                color: activeTab.manualOverride ? "var(--accent-gold, #f5c542)" : "var(--text-secondary)",
+                                color: activeTab.manualOverride ? "var(--accent-gold)" : "var(--text-secondary)",
                                 borderRadius: "3px",
                                 maxWidth: "160px",
                             }}

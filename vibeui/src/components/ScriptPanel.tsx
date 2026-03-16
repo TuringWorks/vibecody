@@ -209,7 +209,7 @@ export function ScriptPanel({ workspacePath }: ScriptPanelProps) {
  )}
 
  {error && (
- <div style={{ margin: "8px 12px", padding: "6px 10px", background: "var(--error-bg, #2a1a1a)", color: "var(--error-color)", borderRadius: 4, fontSize: 12 }}>
+ <div style={{ margin: "8px 12px", padding: "6px 10px", background: "var(--error-bg)", color: "var(--error-color)", borderRadius: 4, fontSize: 12 }}>
  {error}
  </div>
  )}

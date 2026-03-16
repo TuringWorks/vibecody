@@ -116,7 +116,7 @@ export function WebhookPanel() {
             <button key={t} onClick={() => setTab(t)} style={{
               padding: '4px 12px', fontSize: 12, borderRadius: 4, cursor: 'pointer',
               background: tab === t ? 'var(--accent-color)' : 'var(--bg-tertiary)',
-              color: tab === t ? 'var(--text-on-accent, #fff)' : 'var(--text-secondary)',
+              color: tab === t ? 'var(--text-on-accent)' : 'var(--text-secondary)',
               border: '1px solid var(--border-color)',
             }}>{t === 'config' ? 'Webhooks' : 'Activity Log'}</button>
           ))}
@@ -129,7 +129,7 @@ export function WebhookPanel() {
         <>
           <button onClick={() => setEditing(newWebhook())} style={{
             padding: '6px 14px', marginBottom: 12, fontSize: 12, borderRadius: 4,
-            background: 'var(--accent-color)', color: 'var(--text-on-accent, #fff)', border: 'none', cursor: 'pointer',
+            background: 'var(--accent-color)', color: 'var(--text-on-accent)', border: 'none', cursor: 'pointer',
           }}>+ Add Webhook</button>
 
           {webhooks.length === 0 && (
@@ -214,7 +214,7 @@ export function WebhookPanel() {
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={handleSave} style={{
-              padding: '6px 16px', background: 'var(--accent-color)', color: 'var(--text-on-accent, #fff)',
+              padding: '6px 16px', background: 'var(--accent-color)', color: 'var(--text-on-accent)',
               border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12,
             }}>Save</button>
             <button onClick={() => setEditing(null)} style={{

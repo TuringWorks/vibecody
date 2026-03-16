@@ -215,8 +215,8 @@
 }
 
 .mic-btn.listening {
-    color: var(--text-danger, #ff4d4f);
-    border-color: var(--text-danger, #ff4d4f);
+    color: var(--text-danger);
+    border-color: var(--text-danger);
     animation: mic-pulse 1s ease-in-out infinite;
 }
 
@@ -226,8 +226,8 @@
 }
 
 .mic-btn.transcribing {
-    color: var(--text-warning, #f5a623);
-    border-color: var(--text-warning, #f5a623);
+    color: var(--text-warning);
+    border-color: var(--text-warning);
     opacity: 0.7;
     cursor: wait;
 }
@@ -240,7 +240,7 @@
     font-size: 8px;
     font-weight: 700;
     letter-spacing: 0.5px;
-    background: var(--text-danger, #ff4d4f);
+    background: var(--text-danger);
     color: #fff;
     padding: 1px 4px;
     border-radius: 3px;
@@ -260,8 +260,8 @@
     right: 0;
     padding: 6px 10px;
     margin-bottom: 4px;
-    background: var(--bg-elevated, #222638);
-    border: 1px solid var(--accent-blue, #6c8cff);
+    background: var(--bg-elevated);
+    border: 1px solid var(--accent-blue);
     border-radius: 6px;
     font-size: 12px;
     color: var(--text-secondary);
@@ -278,7 +278,7 @@
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: var(--text-danger, #ff4d4f);
+    background: var(--text-danger);
     flex-shrink: 0;
     animation: mic-pulse 1s ease-in-out infinite;
 }

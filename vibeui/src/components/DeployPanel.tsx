@@ -180,7 +180,7 @@ export function DeployPanel({ workspacePath }: DeployPanelProps) {
  }}
  >
  <span>{t.icon}</span> {t.label}
- {isRec && <span style={{ fontSize: 9, color: "var(--text-success, #a6e3a1)", marginLeft: 2 }}>★</span>}
+ {isRec && <span style={{ fontSize: 9, color: "var(--text-success)", marginLeft: 2 }}>★</span>}
  </button>
  );
  })}
@@ -208,8 +208,8 @@ export function DeployPanel({ workspacePath }: DeployPanelProps) {
  {/* Deployed URL */}
  {deployedUrl && (
  <div style={{ background: "rgba(166,227,161,0.1)", border: "1px solid var(--success-color)", borderRadius: 6, padding: 10 }}>
- <div style={{ fontSize: 12, color: "var(--text-success, #a6e3a1)", marginBottom: 4 }}>Live at</div>
- <a href={deployedUrl} target="_blank" rel="noopener noreferrer" style={{ color: "var(--text-info, #89b4fa)", fontSize: 13, fontFamily: "monospace" }}>
+ <div style={{ fontSize: 12, color: "var(--text-success)", marginBottom: 4 }}>Live at</div>
+ <a href={deployedUrl} target="_blank" rel="noopener noreferrer" style={{ color: "var(--text-info)", fontSize: 13, fontFamily: "monospace" }}>
  {deployedUrl}
  </a>
  </div>
@@ -237,7 +237,7 @@ export function DeployPanel({ workspacePath }: DeployPanelProps) {
  </div>
  {domainResult && (
  <div style={{ marginTop: 8, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 6, padding: 10 }}>
- <div style={{ fontSize: 11, color: "var(--text-accent, #cba6f7)", marginBottom: 4 }}>DNS Instructions</div>
+ <div style={{ fontSize: 11, color: "var(--text-accent)", marginBottom: 4 }}>DNS Instructions</div>
  <pre style={{ fontSize: 11, margin: 0, whiteSpace: "pre-wrap", fontFamily: "monospace", color: "var(--text-primary)" }}>
  {domainResult.instructions}
  </pre>
@@ -263,7 +263,7 @@ export function DeployPanel({ workspacePath }: DeployPanelProps) {
  <div key={rec.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: "1px solid var(--border-color)", fontSize: 12 }}>
  <span>{rec.status === "success" ? "" : rec.status === "running" ? "" : ""}</span>
  <span style={{ opacity: 0.7 }}>{rec.target}</span>
- {rec.url && <a href={rec.url} target="_blank" rel="noopener noreferrer" style={{ color: "var(--text-info, #89b4fa)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{rec.url}</a>}
+ {rec.url && <a href={rec.url} target="_blank" rel="noopener noreferrer" style={{ color: "var(--text-info)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{rec.url}</a>}
  <span style={{ opacity: 0.4, flexShrink: 0 }}>{new Date(rec.timestamp).toLocaleDateString()}</span>
  </div>
  ))}

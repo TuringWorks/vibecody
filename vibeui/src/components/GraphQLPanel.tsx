@@ -247,7 +247,7 @@ export function GraphQLPanel() {
  style={{
  padding: "5px 14px", fontSize: 11, fontWeight: 600, cursor: "pointer",
  background: running ? "var(--bg-secondary)" : "var(--accent-color)",
- color: running ? "var(--text-muted)" : "white",
+ color: running ? "var(--text-muted)" : "var(--text-primary)",
  border: "none", borderRadius: 4,
  }}
  >

@@ -3,8 +3,8 @@
     bottom: calc(100% + 4px);
     left: 0;
     right: 0;
-    background: var(--bg-secondary, #1e1e2e);
-    border: 1px solid var(--border, #313244);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
     border-radius: 6px;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
     z-index: 1000;
@@ -17,10 +17,10 @@
     padding: 4px 10px;
     font-size: 11px;
     font-weight: 600;
-    color: var(--text-muted, #6c7086);
+    color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    border-bottom: 1px solid var(--border, #313244);
+    border-bottom: 1px solid var(--border-color);
 }
 
 .context-picker-item {
@@ -34,11 +34,11 @@
 
 .context-picker-item:hover,
 .context-picker-item.selected {
-    background: var(--bg-hover, #313244);
+    background: var(--bg-hover);
 }
 
 .context-picker-label {
-    color: var(--accent, #89b4fa);
+    color: var(--accent-color);
     font-family: monospace;
     font-size: 12px;
     white-space: nowrap;
@@ -48,7 +48,7 @@
 }
 
 .context-picker-desc {
-    color: var(--text-muted, #6c7086);
+    color: var(--text-muted);
     font-size: 11px;
     white-space: nowrap;
     overflow: hidden;
@@ -58,7 +58,7 @@
 .context-picker-hint {
     padding: 4px 10px;
     font-size: 10px;
-    color: var(--text-muted, #45475a);
-    border-top: 1px solid var(--border, #313244);
+    color: var(--text-muted);
+    border-top: 1px solid var(--border-color);
     text-align: center;
 }

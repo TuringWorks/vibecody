@@ -71,8 +71,8 @@ function BitGrid({ val, bits, onToggle }: { val: bigint; bits: BitWidth; onToggl
  display: "flex", alignItems: "center", justifyContent: "center",
  fontSize: bits > 32 ? 8 : 10, fontWeight: 700, fontFamily: "monospace",
  background: isSet ? (isMsb ? "rgba(243,139,168,0.3)" : "rgba(137,180,250,0.25)") : "var(--bg-secondary)",
- border: `1px solid ${isSet ? (isMsb ? "var(--error-color, #f38ba8)" : "var(--accent-color, #89b4fa)") : "var(--border-color)"}`,
- borderRadius: 2, color: isSet ? (isMsb ? "var(--error-color, #f38ba8)" : "var(--accent-color, #89b4fa)") : "var(--text-muted)",
+ border: `1px solid ${isSet ? (isMsb ? "var(--error-color)" : "var(--accent-color)") : "var(--border-color)"}`,
+ borderRadius: 2, color: isSet ? (isMsb ? "var(--error-color)" : "var(--accent-color)") : "var(--text-muted)",
  cursor: "pointer", padding: 0,
  }}>
  {isSet ? "1" : "0"}
@@ -95,7 +95,7 @@ function BaseInput({ label, prefix, value, onChange, valid, mono = true }: {
  <span style={{ width: 60, fontSize: 10, fontWeight: 700, color: "var(--text-muted)", flexShrink: 0 }}>{label}</span>
  <span style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "monospace", flexShrink: 0 }}>{prefix}</span>
  <input value={value} onChange={e => onChange(e.target.value)} spellCheck={false}
- style={{ flex: 1, padding: "4px 8px", fontSize: 12, fontFamily: mono ? "monospace" : "inherit", background: !valid && value ? "rgba(243,139,168,0.08)" : "var(--bg-primary)", border: `1px solid ${!valid && value ? "var(--error-color, #f38ba8)" : "var(--border-color)"}`, borderRadius: 4, color: "var(--text-primary)", outline: "none" }} />
+ style={{ flex: 1, padding: "4px 8px", fontSize: 12, fontFamily: mono ? "monospace" : "inherit", background: !valid && value ? "rgba(243,139,168,0.08)" : "var(--bg-primary)", border: `1px solid ${!valid && value ? "var(--error-color)" : "var(--border-color)"}`, borderRadius: 4, color: "var(--text-primary)", outline: "none" }} />
  </div>
  );
 }
@@ -208,17 +208,17 @@ export function NumberBasePanel() {
  <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
  <span style={{ fontSize: 13, fontWeight: 600 }}>Number Bases</span>
  {(["convert","bitwise","float32"] as SubTab[]).map(t => (
- <button key={t} onClick={() => setSubTab(t)} style={{ padding: "2px 10px", fontSize: 10, borderRadius: 10, background: subTab === t ? "rgba(99,102,241,0.2)" : "var(--bg-primary)", border: `1px solid ${subTab === t ? "var(--accent-color, #6366f1)" : "var(--border-color)"}`, color: subTab === t ? "var(--info-color, #89b4fa)" : "var(--text-muted)", cursor: "pointer", fontWeight: subTab === t ? 700 : 400 }}>
+ <button key={t} onClick={() => setSubTab(t)} style={{ padding: "2px 10px", fontSize: 10, borderRadius: 10, background: subTab === t ? "rgba(99,102,241,0.2)" : "var(--bg-primary)", border: `1px solid ${subTab === t ? "var(--accent-color)" : "var(--border-color)"}`, color: subTab === t ? "var(--info-color)" : "var(--text-muted)", cursor: "pointer", fontWeight: subTab === t ? 700 : 400 }}>
  {t === "convert" ? "Convert" : t === "bitwise" ? "Bitwise" : "Float32"}
  </button>
  ))}
  <div style={{ marginLeft: "auto", display: "flex", gap: 6, alignItems: "center" }}>
  {/* Bit width */}
  {BIT_WIDTHS.map(w => (
- <button key={w} onClick={() => setBits(w)} style={{ padding: "2px 8px", fontSize: 10, borderRadius: 4, background: bits === w ? "rgba(99,102,241,0.2)" : "var(--bg-primary)", border: `1px solid ${bits === w ? "var(--accent-color, #6366f1)" : "var(--border-color)"}`, color: bits === w ? "var(--info-color, #89b4fa)" : "var(--text-muted)", cursor: "pointer" }}>{w}-bit</button>
+ <button key={w} onClick={() => setBits(w)} style={{ padding: "2px 8px", fontSize: 10, borderRadius: 4, background: bits === w ? "rgba(99,102,241,0.2)" : "var(--bg-primary)", border: `1px solid ${bits === w ? "var(--accent-color)" : "var(--border-color)"}`, color: bits === w ? "var(--info-color)" : "var(--text-muted)", cursor: "pointer" }}>{w}-bit</button>
  ))}
  <label style={{ fontSize: 10, color: "var(--text-muted)", display: "flex", gap: 4, alignItems: "center", cursor: "pointer" }}>
- <input type="checkbox" checked={signed} onChange={e => setSigned(e.target.checked)} style={{ accentColor: "var(--accent-color, #6366f1)" }} />
+ <input type="checkbox" checked={signed} onChange={e => setSigned(e.target.checked)} style={{ accentColor: "var(--accent-color)" }} />
  signed
  </label>
  </div>
@@ -252,9 +252,9 @@ export function NumberBasePanel() {
  {/* Integer range info */}
  <div style={{ marginTop: 8, padding: "8px 12px", background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)", fontSize: 11, lineHeight: 1.8 }}>
  <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
- <span style={{ color: "var(--text-muted)" }}>Min: <span style={{ fontFamily: "monospace", color: "var(--text-danger, #f38ba8)" }}>{signed ? (-(1n << BigInt(bits - 1))).toString() : "0"}</span></span>
- <span style={{ color: "var(--text-muted)" }}>Max: <span style={{ fontFamily: "monospace", color: "var(--text-success, #a6e3a1)" }}>{signed ? ((1n << BigInt(bits - 1)) - 1n).toString() : ((1n << BigInt(bits)) - 1n).toString()}</span></span>
- {canonical !== null && <span style={{ color: "var(--text-muted)" }}>Value: <span style={{ fontFamily: "monospace", color: "var(--text-info, #89b4fa)" }}>{canonical.toString()}</span></span>}
+ <span style={{ color: "var(--text-muted)" }}>Min: <span style={{ fontFamily: "monospace", color: "var(--text-danger)" }}>{signed ? (-(1n << BigInt(bits - 1))).toString() : "0"}</span></span>
+ <span style={{ color: "var(--text-muted)" }}>Max: <span style={{ fontFamily: "monospace", color: "var(--text-success)" }}>{signed ? ((1n << BigInt(bits - 1)) - 1n).toString() : ((1n << BigInt(bits)) - 1n).toString()}</span></span>
+ {canonical !== null && <span style={{ color: "var(--text-muted)" }}>Value: <span style={{ fontFamily: "monospace", color: "var(--text-info)" }}>{canonical.toString()}</span></span>}
  </div>
  </div>
  </div>
@@ -271,16 +271,16 @@ export function NumberBasePanel() {
  {bitwiseOps !== null ? (
  <div style={{ marginTop: 4 }}>
  {([
- ["A AND B", bitwiseOps.AND, "var(--success-color, #a6e3a1)"],
- ["A OR B", bitwiseOps.OR, "var(--accent-color, #89b4fa)"],
- ["A XOR B", bitwiseOps.XOR, "var(--text-accent, #cba6f7)"],
- ["NOT A", bitwiseOps.NOT_A,"var(--error-color, #f38ba8)"],
- ["A << 1", bitwiseOps.SHL1, "var(--warning-color, #fab387)"],
- ["A >> 1", bitwiseOps.SHR1, "var(--warning-color, #f9e2af)"],
- ["A << 4", bitwiseOps.SHL4, "var(--warning-color, #fab387)"],
- ["A >> 4", bitwiseOps.SHR4, "var(--warning-color, #f9e2af)"],
+ ["A AND B", bitwiseOps.AND, "var(--success-color)"],
+ ["A OR B", bitwiseOps.OR, "var(--accent-color)"],
+ ["A XOR B", bitwiseOps.XOR, "var(--text-accent)"],
+ ["NOT A", bitwiseOps.NOT_A,"var(--error-color)"],
+ ["A << 1", bitwiseOps.SHL1, "var(--warning-color)"],
+ ["A >> 1", bitwiseOps.SHR1, "var(--warning-color)"],
+ ["A << 4", bitwiseOps.SHL4, "var(--warning-color)"],
+ ["A >> 4", bitwiseOps.SHR4, "var(--warning-color)"],
  ] as [string, bigint, string][]).map(([label, result, colour]) => (
- <div key={label} style={{ borderBottom: "1px solid var(--border-color, rgba(255,255,255,0.04))", padding: "5px 0", display: "flex", gap: 10, alignItems: "center" }}>
+ <div key={label} style={{ borderBottom: "1px solid var(--border-color)", padding: "5px 0", display: "flex", gap: 10, alignItems: "center" }}>
  <span style={{ width: 80, fontSize: 11, fontWeight: 700, color: "var(--text-muted)", flexShrink: 0, fontFamily: "monospace" }}>{label}</span>
  <span style={{ fontFamily: "monospace", fontSize: 11, color: colour, flex: 1 }}>0x{result.toString(16).toUpperCase().padStart(bits / 4, "0")}</span>
  <span style={{ fontFamily: "monospace", fontSize: 10, color: "var(--text-muted)" }}>{result.toString(10)}</span>
@@ -307,7 +307,7 @@ export function NumberBasePanel() {
  <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 4 }}>
  {/* Float value */}
  <div style={{ padding: "10px 12px", background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)", textAlign: "center" }}>
- <div style={{ fontSize: 24, fontWeight: 700, fontFamily: "monospace", color: f32.isNaN ? "var(--error-color, #f38ba8)" : f32.isInf ? "var(--warning-color, #fab387)" : "var(--accent-color, #89b4fa)" }}>
+ <div style={{ fontSize: 24, fontWeight: 700, fontFamily: "monospace", color: f32.isNaN ? "var(--error-color)" : f32.isInf ? "var(--warning-color)" : "var(--accent-color)" }}>
  {f32.isNaN ? "NaN" : f32.isInf ? (f32.sign ? "-∞" : "+∞") : f32.float.toPrecision(8)}
  </div>
  <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 4 }}>float32 value</div>
@@ -315,9 +315,9 @@ export function NumberBasePanel() {
  {/* Breakdown */}
  <div style={{ display: "flex", gap: 8 }}>
  {[
- { label: "Sign", bits2: 1, value: f32.sign, colour: "var(--error-color, #f38ba8)", note: f32.sign ? "negative" : "positive" },
- { label: "Exponent", bits2: 8, value: f32.rawExp, colour: "var(--warning-color, #fab387)", note: `2^${f32.exp} (biased ${f32.rawExp})` },
- { label: "Mantissa", bits2: 23, value: f32.mant, colour: "var(--success-color, #a6e3a1)", note: `0x${f32.mant.toString(16).toUpperCase().padStart(6, "0")}` },
+ { label: "Sign", bits2: 1, value: f32.sign, colour: "var(--error-color)", note: f32.sign ? "negative" : "positive" },
+ { label: "Exponent", bits2: 8, value: f32.rawExp, colour: "var(--warning-color)", note: `2^${f32.exp} (biased ${f32.rawExp})` },
+ { label: "Mantissa", bits2: 23, value: f32.mant, colour: "var(--success-color)", note: `0x${f32.mant.toString(16).toUpperCase().padStart(6, "0")}` },
  ].map(({ label, bits2, value, colour, note }) => (
  <div key={label} style={{ flex: bits2, padding: "8px", background: "var(--bg-secondary)", border: `1px solid ${colour}`, borderRadius: 6, minWidth: 0 }}>
  <div style={{ fontSize: 9, fontWeight: 700, color: colour, marginBottom: 2 }}>{label} ({bits2}b)</div>

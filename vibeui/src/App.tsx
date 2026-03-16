@@ -137,16 +137,27 @@ function App() {
 
   useEffect(() => {
     // Load available AI providers
+    const refreshProviders = (providers: string[]) => {
+      setAiProviders(providers);
+      if (providers.length > 0 && !selectedProvider) {
+        const defaultProvider = providers.find(p => p.startsWith("Ollama")) || providers[0];
+        setSelectedProvider(defaultProvider);
+      }
+    };
     invoke<string[]>("get_available_ai_providers")
-      .then((providers) => {
-        setAiProviders(providers);
-        if (providers.length > 0 && !selectedProvider) {
-          // Default to first Ollama model if available, otherwise first provider
-          const defaultProvider = providers.find(p => p.startsWith("Ollama")) || providers[0];
-          setSelectedProvider(defaultProvider);
-        }
-      })
+      .then(refreshProviders)
       .catch(console.error);
+
+    // Listen for provider updates from Settings panel (API key changes)
+    const onProvidersUpdated = (e: Event) => {
+      const providers = (e as CustomEvent<string[]>).detail;
+      setAiProviders(providers);
+      // If current selection is no longer valid, pick the first available
+      if (providers.length > 0 && !providers.includes(selectedProvider)) {
+        setSelectedProvider(providers[0]);
+      }
+    };
+    window.addEventListener("vibeui:providers-updated", onProvidersUpdated);
 
     // Load workspace folders
     invoke<string[]>("get_workspace_folders")
@@ -173,6 +184,10 @@ function App() {
     } catch (e) {
       toast.error(`Failed to initialize extension worker: ${e}`);
     }
+
+    return () => {
+      window.removeEventListener("vibeui:providers-updated", onProvidersUpdated);
+    };
   }, []);
 
   // Global keyboard shortcuts

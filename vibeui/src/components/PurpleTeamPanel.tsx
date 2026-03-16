@@ -47,23 +47,23 @@ interface CoverageGap {
 const TABS: PurpleTeamTab[] = ["Exercises", "ATT&CK Matrix", "Simulations", "Coverage Gaps", "Reports"];
 
 const COVERAGE_COLORS: Record<string, string> = {
-  Detected: "#a6e3a1",
-  Partial: "#f9e2af",
-  Missed: "#f38ba8",
-  NotTested: "#6c7086",
+  Detected: "var(--success-color)",
+  Partial: "var(--warning-color)",
+  Missed: "var(--error-color)",
+  NotTested: "var(--text-muted)",
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  Planned: "#89b4fa",
-  Active: "#a6e3a1",
-  Completed: "#6c7086",
-  Cancelled: "#f38ba8",
+  Planned: "var(--accent-blue)",
+  Active: "var(--success-color)",
+  Completed: "var(--text-muted)",
+  Cancelled: "var(--error-color)",
 };
 
 const EFFORT_COLORS: Record<string, string> = {
-  Low: "#a6e3a1",
-  Medium: "#f9e2af",
-  High: "#f38ba8",
+  Low: "var(--success-color)",
+  Medium: "var(--warning-color)",
+  High: "var(--error-color)",
 };
 
 const TACTICS = [
@@ -165,7 +165,7 @@ const badgeStyle = (color: string): React.CSSProperties => ({
   borderRadius: 10,
   fontSize: 11,
   fontWeight: 600,
-  background: color + "22",
+  background: "color-mix(in srgb, " + color + " 13%, transparent)",
   color,
 });
 
@@ -399,11 +399,11 @@ export function PurpleTeamPanel() {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <strong style={{ fontSize: 14 }}>{ex.name}</strong>
-                <span style={{ ...badgeStyle(STATUS_COLORS[ex.status] || "#6c7086"), marginLeft: 8 }}>{ex.status}</span>
+                <span style={{ ...badgeStyle(STATUS_COLORS[ex.status] || "var(--text-muted)"), marginLeft: 8 }}>{ex.status}</span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: ex.coverage_score >= 70 ? "#a6e3a1" : ex.coverage_score >= 40 ? "#f9e2af" : "#f38ba8" }}>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: ex.coverage_score >= 70 ? "var(--success-color)" : ex.coverage_score >= 40 ? "var(--warning-color)" : "var(--error-color)" }}>
                     {ex.coverage_score}%
                   </div>
                   <div style={{ fontSize: 10, color: "var(--text-secondary)" }}>Coverage</div>
@@ -441,7 +441,7 @@ export function PurpleTeamPanel() {
 
         <div style={{ display: "flex", gap: 16, marginBottom: 16, flexWrap: "wrap" }}>
           <div style={{ ...cardStyle, flex: "1 1 120px", textAlign: "center", marginBottom: 0 }}>
-            <div style={{ fontSize: 24, fontWeight: 700, color: stats.percentage >= 70 ? "#a6e3a1" : stats.percentage >= 40 ? "#f9e2af" : "#f38ba8" }}>{stats.percentage}%</div>
+            <div style={{ fontSize: 24, fontWeight: 700, color: stats.percentage >= 70 ? "var(--success-color)" : stats.percentage >= 40 ? "var(--warning-color)" : "var(--error-color)" }}>{stats.percentage}%</div>
             <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Overall Coverage</div>
           </div>
           <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
@@ -638,11 +638,11 @@ export function PurpleTeamPanel() {
                 </td>
                 <td style={tdStyle}>{gap.tactic}</td>
                 <td style={tdStyle}>
-                  <span style={badgeStyle(COVERAGE_COLORS[gap.current_coverage] || "#6c7086")}>{gap.current_coverage}</span>
+                  <span style={badgeStyle(COVERAGE_COLORS[gap.current_coverage] || "var(--text-muted)")}>{gap.current_coverage}</span>
                 </td>
                 <td style={{ ...tdStyle, fontSize: 12 }}>{gap.recommendation}</td>
                 <td style={tdStyle}>
-                  <span style={badgeStyle(EFFORT_COLORS[gap.effort] || "#6c7086")}>{gap.effort}</span>
+                  <span style={badgeStyle(EFFORT_COLORS[gap.effort] || "var(--text-muted)")}>{gap.effort}</span>
                 </td>
               </tr>
             ))}

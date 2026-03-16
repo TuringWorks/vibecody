@@ -4234,9 +4234,13 @@ pub struct ApiKeySettings {
     #[serde(default)]
     pub grok_api_key: String,
     #[serde(default)]
+    pub openrouter_api_key: String,
+    #[serde(default)]
     pub claude_model: String,
     #[serde(default)]
     pub openai_model: String,
+    #[serde(default)]
+    pub openrouter_model: String,
 }
 
 /// Load API key settings from `~/.vibeui/api_keys.json`.
@@ -4255,7 +4259,7 @@ pub async fn get_provider_api_keys() -> Result<ApiKeySettings, String> {
 pub async fn save_provider_api_keys(
     settings: ApiKeySettings,
     state: tauri::State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<Vec<String>, String> {
     // Persist to disk
     let path = api_keys_path();
     if let Some(parent) = path.parent() {
@@ -4264,77 +4268,128 @@ pub async fn save_provider_api_keys(
     let json = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
     std::fs::write(&path, json).map_err(|e| e.to_string())?;
 
-    // Re-register cloud providers in the chat engine
+    // Re-register cloud providers in the chat engine — register ALL models per provider
     let mut engine = state.chat_engine.lock().await;
     engine.clear_cloud_providers();
 
     if !settings.anthropic_api_key.is_empty() {
-        let model = if settings.claude_model.is_empty() {
-            "claude-3-5-sonnet-latest".to_string()
-        } else {
-            settings.claude_model.clone()
-        };
-        let config = vibe_ai::provider::ProviderConfig {
-            provider_type: "claude".to_string(),
-            api_key: Some(settings.anthropic_api_key.clone()),
-            model,
-            api_url: None,
-            max_tokens: None,
-            temperature: None,
-            ..Default::default()
-        };
-        let provider = vibe_ai::providers::claude::ClaudeProvider::new(config);
-        engine.add_provider(Arc::new(provider));
+        let claude_models = [
+            "claude-opus-4-6",
+            "claude-sonnet-4-6",
+            "claude-haiku-4-5-20251001",
+            "claude-3-5-sonnet-latest",
+            "claude-3-5-haiku-latest",
+            "claude-3-opus-latest",
+        ];
+        for model_id in &claude_models {
+            let config = vibe_ai::provider::ProviderConfig {
+                provider_type: "claude".to_string(),
+                api_key: Some(settings.anthropic_api_key.clone()),
+                model: model_id.to_string(),
+                api_url: None,
+                max_tokens: None,
+                temperature: None,
+                ..Default::default()
+            };
+            let provider = vibe_ai::providers::claude::ClaudeProvider::new(config);
+            engine.add_provider(Arc::new(provider));
+        }
     }
 
     if !settings.openai_api_key.is_empty() {
-        let model = if settings.openai_model.is_empty() {
-            "gpt-4o".to_string()
+        let openai_models = [
+            "gpt-4o",
+            "gpt-4o-mini",
+            "gpt-4-turbo",
+            "gpt-4",
+            "gpt-3.5-turbo",
+            "o1",
+            "o1-mini",
+            "o1-preview",
+            "o3-mini",
+        ];
+        for model_id in &openai_models {
+            let config = vibe_ai::provider::ProviderConfig {
+                provider_type: "openai".to_string(),
+                api_key: Some(settings.openai_api_key.clone()),
+                model: model_id.to_string(),
+                api_url: None,
+                max_tokens: None,
+                temperature: None,
+                ..Default::default()
+            };
+            let provider = vibe_ai::providers::openai::OpenAIProvider::new(config);
+            engine.add_provider(Arc::new(provider));
+        }
+    }
+
+    if !settings.gemini_api_key.is_empty() {
+        let gemini_models = [
+            "gemini-2.5-pro-preview-06-05",
+            "gemini-2.5-flash-preview-05-20",
+            "gemini-2.0-flash",
+            "gemini-2.0-flash-lite",
+            "gemini-1.5-pro",
+            "gemini-1.5-flash",
+        ];
+        for model_id in &gemini_models {
+            let config = vibe_ai::provider::ProviderConfig {
+                provider_type: "gemini".to_string(),
+                api_key: Some(settings.gemini_api_key.clone()),
+                model: model_id.to_string(),
+                api_url: None,
+                max_tokens: None,
+                temperature: None,
+                ..Default::default()
+            };
+            let provider = vibe_ai::providers::gemini::GeminiProvider::new(config);
+            engine.add_provider(Arc::new(provider));
+        }
+    }
+
+    if !settings.grok_api_key.is_empty() {
+        let grok_models = [
+            "grok-3",
+            "grok-3-mini",
+            "grok-2-latest",
+            "grok-2-mini",
+        ];
+        for model_id in &grok_models {
+            let config = vibe_ai::provider::ProviderConfig {
+                provider_type: "grok".to_string(),
+                api_key: Some(settings.grok_api_key.clone()),
+                model: model_id.to_string(),
+                api_url: None,
+                max_tokens: None,
+                temperature: None,
+                ..Default::default()
+            };
+            let provider = vibe_ai::providers::grok::GrokProvider::new(config);
+            engine.add_provider(Arc::new(provider));
+        }
+    }
+
+    if !settings.openrouter_api_key.is_empty() {
+        let model = if settings.openrouter_model.is_empty() {
+            "anthropic/claude-3.5-sonnet".to_string()
         } else {
-            settings.openai_model.clone()
+            settings.openrouter_model.clone()
         };
         let config = vibe_ai::provider::ProviderConfig {
-            provider_type: "openai".to_string(),
-            api_key: Some(settings.openai_api_key.clone()),
+            provider_type: "openrouter".to_string(),
+            api_key: Some(settings.openrouter_api_key.clone()),
             model,
             api_url: None,
             max_tokens: None,
             temperature: None,
             ..Default::default()
         };
-        let provider = vibe_ai::providers::openai::OpenAIProvider::new(config);
+        let provider = vibe_ai::providers::openrouter::OpenRouterProvider::new(config);
         engine.add_provider(Arc::new(provider));
     }
 
-    if !settings.gemini_api_key.is_empty() {
-        let config = vibe_ai::provider::ProviderConfig {
-            provider_type: "gemini".to_string(),
-            api_key: Some(settings.gemini_api_key.clone()),
-            model: "gemini-2.0-flash".to_string(),
-            api_url: None,
-            max_tokens: None,
-            temperature: None,
-            ..Default::default()
-        };
-        let provider = vibe_ai::providers::gemini::GeminiProvider::new(config);
-        engine.add_provider(Arc::new(provider));
-    }
-
-    if !settings.grok_api_key.is_empty() {
-        let config = vibe_ai::provider::ProviderConfig {
-            provider_type: "grok".to_string(),
-            api_key: Some(settings.grok_api_key.clone()),
-            model: "grok-2-latest".to_string(),
-            api_url: None,
-            max_tokens: None,
-            temperature: None,
-            ..Default::default()
-        };
-        let provider = vibe_ai::providers::grok::GrokProvider::new(config);
-        engine.add_provider(Arc::new(provider));
-    }
-
-    Ok(())
+    // Return updated provider list so frontend can refresh immediately
+    Ok(engine.get_provider_names())
 }
 
 // ── Spec commands ─────────────────────────────────────────────────────────────

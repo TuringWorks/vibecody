@@ -108,7 +108,7 @@ const tabBtn = (active: boolean): React.CSSProperties => ({
   padding: "6px 14px",
   fontSize: 11,
   fontWeight: active ? 600 : 400,
-  background: active ? "var(--accent-bg, rgba(99,102,241,0.15))" : "transparent",
+  background: active ? "var(--accent-bg)" : "transparent",
   border: "1px solid " + (active ? "var(--accent-color)" : "var(--border-color)"),
   borderRadius: 4,
   color: active ? "var(--text-info)" : "var(--text-muted)",
