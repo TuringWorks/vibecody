@@ -552,7 +552,7 @@ export function PurpleTeamPanel() {
               </div>
               <div style={{ ...formGroup, flex: 1 }}>
                 <label style={labelStyle}>Outcome</label>
-                <select style={inputStyle} value={simOutcome} onChange={(e) => setSimOutcome(e.target.value as any)}>
+                <select style={inputStyle} value={simOutcome} onChange={(e) => setSimOutcome(e.target.value as "Detected" | "Partial" | "Missed")}>
                   <option value="Detected">Detected</option>
                   <option value="Partial">Partial</option>
                   <option value="Missed">Missed</option>

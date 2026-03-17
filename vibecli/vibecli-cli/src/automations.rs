@@ -360,7 +360,7 @@ impl AutomationRule {
                         || payload
                             .fields
                             .get("repository")
-                            .map_or(false, |r| repos.contains(r)))
+                            .is_some_and(|r| repos.contains(r)))
             }
             TriggerSource::Slack { events, channels } => {
                 payload.source == "slack"
@@ -369,7 +369,7 @@ impl AutomationRule {
                         || payload
                             .fields
                             .get("channel")
-                            .map_or(false, |c| channels.contains(c)))
+                            .is_some_and(|c| channels.contains(c)))
             }
             TriggerSource::Linear { actions, team_ids } => {
                 payload.source == "linear"
@@ -378,7 +378,7 @@ impl AutomationRule {
                         || payload
                             .fields
                             .get("team_id")
-                            .map_or(false, |t| team_ids.contains(t)))
+                            .is_some_and(|t| team_ids.contains(t)))
             }
             TriggerSource::PagerDuty {
                 severity,
@@ -389,12 +389,12 @@ impl AutomationRule {
                         || payload
                             .fields
                             .get("severity")
-                            .map_or(false, |s| severity.contains(s)))
+                            .is_some_and(|s| severity.contains(s)))
                     && (services.is_empty()
                         || payload
                             .fields
                             .get("service")
-                            .map_or(false, |s| services.contains(s)))
+                            .is_some_and(|s| services.contains(s)))
             }
             TriggerSource::Telegram { events, chat_ids } => {
                 payload.source == "telegram"
@@ -403,7 +403,7 @@ impl AutomationRule {
                         || payload
                             .fields
                             .get("chat_id")
-                            .map_or(false, |c| chat_ids.contains(c)))
+                            .is_some_and(|c| chat_ids.contains(c)))
             }
             TriggerSource::Signal { events, group_ids } => {
                 payload.source == "signal"
@@ -412,7 +412,7 @@ impl AutomationRule {
                         || payload
                             .fields
                             .get("group_id")
-                            .map_or(false, |g| group_ids.contains(g)))
+                            .is_some_and(|g| group_ids.contains(g)))
             }
             TriggerSource::WhatsApp {
                 events,
@@ -424,7 +424,7 @@ impl AutomationRule {
                         || payload
                             .fields
                             .get("from")
-                            .map_or(false, |f| phone_numbers.contains(f)))
+                            .is_some_and(|f| phone_numbers.contains(f)))
             }
             TriggerSource::Discord {
                 events,
@@ -437,12 +437,12 @@ impl AutomationRule {
                         || payload
                             .fields
                             .get("channel_id")
-                            .map_or(false, |c| channel_ids.contains(c)))
+                            .is_some_and(|c| channel_ids.contains(c)))
                     && (guild_ids.is_empty()
                         || payload
                             .fields
                             .get("guild_id")
-                            .map_or(false, |g| guild_ids.contains(g)))
+                            .is_some_and(|g| guild_ids.contains(g)))
             }
             TriggerSource::Teams { events, channel_ids } => {
                 payload.source == "teams"
@@ -451,7 +451,7 @@ impl AutomationRule {
                         || payload
                             .fields
                             .get("channel_id")
-                            .map_or(false, |c| channel_ids.contains(c)))
+                            .is_some_and(|c| channel_ids.contains(c)))
             }
             TriggerSource::Matrix { events, room_ids } => {
                 payload.source == "matrix"
@@ -460,7 +460,7 @@ impl AutomationRule {
                         || payload
                             .fields
                             .get("room_id")
-                            .map_or(false, |r| room_ids.contains(r)))
+                            .is_some_and(|r| room_ids.contains(r)))
             }
             TriggerSource::TwilioSms {
                 events,
@@ -472,7 +472,7 @@ impl AutomationRule {
                         || payload
                             .fields
                             .get("from")
-                            .map_or(false, |f| from_numbers.contains(f)))
+                            .is_some_and(|f| from_numbers.contains(f)))
             }
             TriggerSource::IMessage { events, contacts } => {
                 payload.source == "imessage"
@@ -481,7 +481,7 @@ impl AutomationRule {
                         || payload
                             .fields
                             .get("sender")
-                            .map_or(false, |s| contacts.contains(s)))
+                            .is_some_and(|s| contacts.contains(s)))
             }
             TriggerSource::Irc { events, channels } => {
                 payload.source == "irc"
@@ -490,7 +490,7 @@ impl AutomationRule {
                         || payload
                             .fields
                             .get("channel")
-                            .map_or(false, |c| channels.contains(c)))
+                            .is_some_and(|c| channels.contains(c)))
             }
             TriggerSource::Twitch { events, channels } => {
                 payload.source == "twitch"
@@ -499,7 +499,7 @@ impl AutomationRule {
                         || payload
                             .fields
                             .get("channel")
-                            .map_or(false, |c| channels.contains(c)))
+                            .is_some_and(|c| channels.contains(c)))
             }
             TriggerSource::Cron { .. } => payload.source == "cron",
             TriggerSource::FileWatch { patterns, .. } => {
@@ -512,7 +512,7 @@ impl AutomationRule {
                 payload
                     .fields
                     .get("path")
-                    .map_or(false, |p| patterns.iter().any(|pat| simple_glob_match(pat, p)))
+                    .is_some_and(|p| patterns.iter().any(|pat| simple_glob_match(pat, p)))
             }
             TriggerSource::Webhook { .. } => payload.source == "webhook",
         };
@@ -1068,8 +1068,7 @@ fn extract_json_field(json: &str, field: &str) -> Option<String> {
     let rest = rest.strip_prefix(':')?;
     let rest = rest.trim_start();
     // Extract string value
-    if rest.starts_with('"') {
-        let rest = &rest[1..];
+    if let Some(rest) = rest.strip_prefix('"') {
         let end = rest.find('"')?;
         Some(rest[..end].to_string())
     } else {

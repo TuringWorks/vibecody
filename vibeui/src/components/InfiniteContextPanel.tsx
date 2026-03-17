@@ -326,7 +326,7 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
     fontSize: "10px",
     fontWeight: 600,
     background: color,
-    color: "#000",
+    color: "var(--bg-primary)",
     marginRight: "6px",
   });
 

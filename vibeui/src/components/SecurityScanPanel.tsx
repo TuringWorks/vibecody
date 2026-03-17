@@ -466,7 +466,7 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
                     {p.vulnerabilityClass}
                   </span>
                   {p.matchCount > 0 && (
-                    <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 10, background: "#f38ba822", color: "#f38ba8", fontWeight: 600 }}>
+                    <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 10, background: "var(--error-bg)", color: "var(--error-color)", fontWeight: 600 }}>
                       {p.matchCount}
                     </span>
                   )}

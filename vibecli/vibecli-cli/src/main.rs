@@ -618,7 +618,7 @@ async fn main() -> Result<()> {
 
         match subcmd.as_str() {
             "create" => {
-                let name = extra_args.first().expect("Usage: vibecli --plugin create <name> [--kind connector|adapter|optimizer|theme|skillpack|workflow]");
+                let name = extra_args.first().ok_or_else(|| anyhow::anyhow!("Usage: vibecli --plugin create <name> [--kind connector|adapter|optimizer|theme|skillpack|workflow]"))?;
                 let kind_str = extra_args.iter()
                     .position(|a| *a == "--kind")
                     .and_then(|i| extra_args.get(i + 1))
@@ -633,7 +633,7 @@ async fn main() -> Result<()> {
                     "extension" => plugin_sdk::PluginKind::Extension,
                     _ => plugin_sdk::PluginKind::Connector,
                 };
-                let dir = std::env::current_dir().expect("cannot read cwd");
+                let dir = std::env::current_dir().map_err(|e| anyhow::anyhow!("Cannot read current directory: {e}"))?;
                 match plugin_sdk::PluginScaffold::create(name, kind, &dir) {
                     Ok(path) => println!("Plugin scaffolded at {}", path.display()),
                     Err(e) => eprintln!("Error: {}", e),
@@ -641,10 +641,10 @@ async fn main() -> Result<()> {
                 return Ok(());
             }
             "install" => {
-                let target = extra_args.first().expect("Usage: vibecli --plugin install <name|repo-url>");
+                let target = extra_args.first().ok_or_else(|| anyhow::anyhow!("Usage: vibecli --plugin install <name|repo-url>"))?;
                 let mut lifecycle = plugin_lifecycle::PluginLifecycle::new()?;
                 if target.starts_with("http") || target.starts_with("git@") {
-                    let plugin_name = target.split('/').last().unwrap_or(target).trim_end_matches(".git");
+                    let plugin_name = target.split('/').next_back().unwrap_or(target).trim_end_matches(".git");
                     match lifecycle.install_from_repo(plugin_name, target) {
                         Ok(p) => println!("Installed {} v{}", p.name, p.version),
                         Err(e) => eprintln!("Error: {}", e),
@@ -668,7 +668,7 @@ async fn main() -> Result<()> {
                 return Ok(());
             }
             "uninstall" | "remove" => {
-                let name = extra_args.first().expect("Usage: vibecli --plugin uninstall <name>");
+                let name = extra_args.first().ok_or_else(|| anyhow::anyhow!("Usage: vibecli --plugin uninstall <name>"))?;
                 let mut lifecycle = plugin_lifecycle::PluginLifecycle::new()?;
                 match lifecycle.uninstall(name) {
                     Ok(()) => println!("Uninstalled {}", name),
@@ -677,7 +677,7 @@ async fn main() -> Result<()> {
                 return Ok(());
             }
             "enable" => {
-                let name = extra_args.first().expect("Usage: vibecli --plugin enable <name>");
+                let name = extra_args.first().ok_or_else(|| anyhow::anyhow!("Usage: vibecli --plugin enable <name>"))?;
                 let mut lifecycle = plugin_lifecycle::PluginLifecycle::new()?;
                 match lifecycle.enable(name) {
                     Ok(()) => println!("Enabled {}", name),
@@ -686,7 +686,7 @@ async fn main() -> Result<()> {
                 return Ok(());
             }
             "disable" => {
-                let name = extra_args.first().expect("Usage: vibecli --plugin disable <name>");
+                let name = extra_args.first().ok_or_else(|| anyhow::anyhow!("Usage: vibecli --plugin disable <name>"))?;
                 let mut lifecycle = plugin_lifecycle::PluginLifecycle::new()?;
                 match lifecycle.disable(name) {
                     Ok(()) => println!("Disabled {}", name),
@@ -736,7 +736,7 @@ async fn main() -> Result<()> {
                 return Ok(());
             }
             "info" => {
-                let name = extra_args.first().expect("Usage: vibecli --plugin info <name>");
+                let name = extra_args.first().ok_or_else(|| anyhow::anyhow!("Usage: vibecli --plugin info <name>"))?;
                 let lifecycle = plugin_lifecycle::PluginLifecycle::new()?;
                 match lifecycle.info(name) {
                     Ok(info) => {
@@ -5351,7 +5351,7 @@ async fn main() -> Result<()> {
                                     match plugin_lifecycle::PluginLifecycle::new() {
                                         Ok(mut lc) => {
                                             if sub_args.starts_with("http") || sub_args.starts_with("git@") {
-                                                let name = sub_args.split('/').last().unwrap_or(sub_args).trim_end_matches(".git");
+                                                let name = sub_args.split('/').next_back().unwrap_or(sub_args).trim_end_matches(".git");
                                                 match lc.install_from_repo(name, sub_args) {
                                                     Ok(p) => println!("Installed {} v{}\n", p.name, p.version),
                                                     Err(e) => println!("Error: {e}\n"),
@@ -7116,7 +7116,7 @@ fn edit_distance(a: &str, b: &str) -> usize {
     let b: Vec<char> = b.chars().collect();
     let (m, n) = (a.len(), b.len());
     let mut dp = vec![vec![0usize; n + 1]; m + 1];
-    for i in 0..=m { dp[i][0] = i; }
+    for (i, row) in dp.iter_mut().enumerate().take(m + 1) { row[0] = i; }
     for j in 0..=n { dp[0][j] = j; }
     for i in 1..=m {
         for j in 1..=n {
@@ -7135,7 +7135,7 @@ fn find_closest_command(input: &str) -> Option<&'static str> {
     let mut best: Option<(&str, usize)> = None;
     for &cmd in COMMANDS {
         let d = edit_distance(input, cmd);
-        if d <= 3 && best.map_or(true, |(_, bd)| d < bd) {
+        if d <= 3 && best.is_none_or(|(_, bd)| d < bd) {
             best = Some((cmd, d));
         }
     }

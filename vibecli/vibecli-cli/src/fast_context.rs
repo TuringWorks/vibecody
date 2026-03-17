@@ -4,8 +4,6 @@
 //! symbol-aware search, structural queries (trait implementations, callers),
 //! and LRU-cached ranked results.
 
-#![allow(dead_code)]
-
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 

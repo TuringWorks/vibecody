@@ -236,11 +236,11 @@ export default function KnowledgeGraphPanel() {
          {repos.map(r => (
            <span key={r.name} style={{
              padding: "2px 8px", borderRadius: 4, fontSize: 12,
-             background: REPO_COLORS[r.name] || "var(--border-color)", color: "#1e1e2e",
+             background: REPO_COLORS[r.name] || "var(--border-color)", color: "var(--bg-primary)",
            }}>
              {r.name}: {r.path}
              <button onClick={() => setRepos(repos.filter(x => x.name !== r.name))}
-               style={{ marginLeft: 4, background: "none", border: "none", cursor: "pointer", color: "#1e1e2e" }}>x</button>
+               style={{ marginLeft: 4, background: "none", border: "none", cursor: "pointer", color: "var(--bg-primary)" }}>x</button>
            </span>
          ))}
        </div>

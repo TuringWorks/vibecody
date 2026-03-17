@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Debug Mode — dedicated debugging workflow module.
 //!
 //! Closes the "Partial" competitor parity entry for Cursor's "Debug mode" feature.
@@ -21,10 +20,11 @@ use std::collections::HashMap;
 // ── Debug Mode ──────────────────────────────────────────────────────────────
 
 /// How the debug session is driven.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum DebugMode {
     /// User steps through manually.
+    #[default]
     Interactive,
     /// AI drives the session end-to-end.
     Automated,
@@ -32,11 +32,6 @@ pub enum DebugMode {
     Hybrid,
 }
 
-impl Default for DebugMode {
-    fn default() -> Self {
-        Self::Interactive
-    }
-}
 
 impl std::fmt::Display for DebugMode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -207,10 +202,11 @@ impl std::fmt::Display for DebugAction {
 // ── Debug Session State ─────────────────────────────────────────────────────
 
 /// High-level state of a debug session.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SessionState {
     /// Not yet started.
+    #[default]
     Created,
     /// Program is running (between breakpoints).
     Running,
@@ -222,11 +218,6 @@ pub enum SessionState {
     Crashed,
 }
 
-impl Default for SessionState {
-    fn default() -> Self {
-        Self::Created
-    }
-}
 
 // ── Debug Hypothesis ────────────────────────────────────────────────────────
 

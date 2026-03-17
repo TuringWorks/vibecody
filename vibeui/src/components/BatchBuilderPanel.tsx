@@ -525,7 +525,7 @@ const BatchBuilderPanel: React.FC = () => {
   // Load history from backend on mount
   const loadHistory = useCallback(async () => {
     try {
-      const runs = await invoke<any[]>("batch_list_runs");
+      const runs = await invoke<Record<string, unknown>[]>("batch_list_runs");
       if (Array.isArray(runs)) {
         setHistoryRuns(runs.filter((r: any) => ["Completed", "Failed", "Cancelled"].includes(r.status)).map((r: any) => ({
           id: r.id || "",
@@ -565,7 +565,7 @@ const BatchBuilderPanel: React.FC = () => {
         dataModels: dataModels.map(m => m.name),
         agentCount: estimate?.agents.length || AGENT_ROLES.length,
       };
-      const run = await invoke<any>("batch_create_run", { spec });
+      const run = await invoke<Record<string, unknown>>("batch_create_run", { spec });
       const newRunId = run.id || runId;
 
       setRunStatus("Planning");

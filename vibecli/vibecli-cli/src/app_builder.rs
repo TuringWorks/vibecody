@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! App Builder module — Bolt.new-inspired features for VibeCody.
 //!
 //! Provides template management, AI-enhanced spec generation, project scaffolding,
@@ -1323,9 +1322,7 @@ impl ManagedBackend {
         }
 
         // Ingress
-        out.push_str(&format!(
-            "---\napiVersion: networking.k8s.io/v1\nkind: Ingress\nmetadata:\n  name: app-ingress\n  annotations:\n    nginx.ingress.kubernetes.io/rewrite-target: /\nspec:\n  rules:\n    - host: app.example.com\n      http:\n        paths:\n          - path: /\n            pathType: Prefix\n            backend:\n              service:\n                name: app-service\n                port:\n                  number: 80\n"
-        ));
+        out.push_str("---\napiVersion: networking.k8s.io/v1\nkind: Ingress\nmetadata:\n  name: app-ingress\n  annotations:\n    nginx.ingress.kubernetes.io/rewrite-target: /\nspec:\n  rules:\n    - host: app.example.com\n      http:\n        paths:\n          - path: /\n            pathType: Prefix\n            backend:\n              service:\n                name: app-service\n                port:\n                  number: 80\n");
 
         out
     }

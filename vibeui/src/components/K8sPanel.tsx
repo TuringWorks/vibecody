@@ -471,7 +471,7 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
  <button
  onClick={handleApplyArgo}
  disabled={argoLoading}
- style={{ padding: "7px 14px", fontSize: 12, background: "#1a3a2a", color: "var(--success-color)", border: "1px solid var(--success-color)", borderRadius: 6, cursor: "pointer" }}
+ style={{ padding: "7px 14px", fontSize: 12, background: "var(--bg-tertiary)", color: "var(--success-color)", border: "1px solid var(--success-color)", borderRadius: 6, cursor: "pointer" }}
  >
  Apply to Cluster
  </button>

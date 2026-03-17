@@ -54,7 +54,7 @@ pub struct SearchAnswer {
     pub follow_ups: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct SearchContext {
     pub topic: Option<String>,
     pub relevant_files: Vec<String>,
@@ -62,16 +62,6 @@ pub struct SearchContext {
     pub turn_count: usize,
 }
 
-impl Default for SearchContext {
-    fn default() -> Self {
-        Self {
-            topic: None,
-            relevant_files: Vec::new(),
-            accumulated_facts: Vec::new(),
-            turn_count: 0,
-        }
-    }
-}
 
 // ---------------------------------------------------------------------------
 // Answer synthesizer

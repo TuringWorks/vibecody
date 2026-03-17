@@ -484,8 +484,7 @@ impl ContextScorer {
             return 1.0;
         }
         let distance = (components_a.len() - common) + (components_b.len() - common);
-        let score = 1.0 / (1.0 + distance as f64 * 0.25);
-        score
+        1.0 / (1.0 + distance as f64 * 0.25)
     }
 
     /// Score by keyword match: simple TF-IDF-like scoring.
@@ -983,7 +982,7 @@ pub fn token_estimate(text: &str) -> usize {
     // Approximate: 1 token ≈ 4 characters (GPT-family heuristic)
     // We use character count / 4 as it's more reliable than word count for code
     let char_count = text.len();
-    (char_count + 3) / 4 // ceiling division
+    char_count.div_ceil(4)
 }
 
 // ── Tests ────────────────────────────────────────────────────────────────────

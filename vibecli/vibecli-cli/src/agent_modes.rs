@@ -1,12 +1,11 @@
-#![allow(dead_code)]
-
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// The three agent modes matching Amp's Smart/Rush/Deep paradigm.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum AgentMode {
     /// Balanced speed and quality using the best available model (Claude Opus).
+    #[default]
     Smart,
     /// Optimized for speed using the fastest model (Haiku). Best for simple tasks.
     Rush,
@@ -24,11 +23,6 @@ impl std::fmt::Display for AgentMode {
     }
 }
 
-impl Default for AgentMode {
-    fn default() -> Self {
-        AgentMode::Smart
-    }
-}
 
 /// Task complexity level used for automatic mode selection.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

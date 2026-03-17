@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! AST-aware code application — deterministic edits using AST targeting.
 //!
 //! Closes P2 Gap 8: Use AST targeting for deterministic edits instead of

@@ -484,7 +484,7 @@ export function BlueTeamPanel() {
             <div style={{ display: "flex", gap: 10 }}>
               <div style={{ ...formGroup, flex: 1 }}>
                 <label style={labelStyle}>Severity</label>
-                <select style={inputStyle} value={incSeverity} onChange={(e) => setIncSeverity(e.target.value as any)}>
+                <select style={inputStyle} value={incSeverity} onChange={(e) => setIncSeverity(e.target.value as "P1" | "P2" | "P3" | "P4")}>
                   <option value="P1">P1 - Critical</option>
                   <option value="P2">P2 - High</option>
                   <option value="P3">P3 - Medium</option>
@@ -559,7 +559,7 @@ export function BlueTeamPanel() {
             <div style={{ display: "flex", gap: 10 }}>
               <div style={{ ...formGroup, flex: 1 }}>
                 <label style={labelStyle}>Type</label>
-                <select style={inputStyle} value={iocType} onChange={(e) => setIOCType(e.target.value as any)}>
+                <select style={inputStyle} value={iocType} onChange={(e) => setIOCType(e.target.value as "IP" | "Domain" | "Hash" | "URL" | "Email" | "File")}>
                   {["IP", "Domain", "Hash", "URL", "Email", "File"].map((t) => (
                     <option key={t} value={t}>{t}</option>
                   ))}
@@ -633,7 +633,7 @@ export function BlueTeamPanel() {
             <div style={{ display: "flex", gap: 10 }}>
               <div style={{ ...formGroup, flex: 1 }}>
                 <label style={labelStyle}>Platform</label>
-                <select style={inputStyle} value={rulePlatform} onChange={(e) => setRulePlatform(e.target.value as any)}>
+                <select style={inputStyle} value={rulePlatform} onChange={(e) => setRulePlatform(e.target.value as "Sigma" | "YARA" | "Snort" | "KQL" | "SPL" | "EQL")}>
                   {["Sigma", "YARA", "Snort", "KQL", "SPL", "EQL"].map((p) => (
                     <option key={p} value={p}>{p}</option>
                   ))}

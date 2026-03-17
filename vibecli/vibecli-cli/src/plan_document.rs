@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Plan-as-document with feedback — markdown plan view with inline comments
 //! for human feedback before execution.
 

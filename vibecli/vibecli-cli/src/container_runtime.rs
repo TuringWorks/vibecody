@@ -49,20 +49,15 @@ pub struct ResourceLimits {
 }
 
 /// Network access policy.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub enum NetworkPolicy {
     /// No network access.
     None,
     /// Only allow egress to specific domains.
     Restricted { allowed_domains: Vec<String> },
     /// Full unrestricted network.
+    #[default]
     Full,
-}
-
-impl Default for NetworkPolicy {
-    fn default() -> Self {
-        Self::Full
-    }
 }
 
 /// A host→container volume mount.
@@ -245,7 +240,7 @@ pub async fn detect_runtime(
             }
             anyhow::bail!("OpenSandbox requested but not available");
         }
-        "auto" | _ => {
+        _ => {
             // Try Docker first, then Podman, then OpenSandbox
             let docker = crate::docker_runtime::DockerRuntime::new();
             if docker.is_available().await {

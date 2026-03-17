@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! CI/CD AI status checks — AI runs as GitHub/GitLab status check on every PR.
 //!
 //! Closes P2 Gap 9: AI runs as a GitHub status check on every PR (green/red

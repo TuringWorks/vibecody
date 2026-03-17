@@ -185,7 +185,7 @@ impl MigrationRunner {
             .filter(|e| {
                 e.path()
                     .extension()
-                    .map_or(false, |ext| ext == "sql")
+                    .is_some_and(|ext| ext == "sql")
             })
             .collect();
 
@@ -302,7 +302,7 @@ impl DatabaseClient {
 
         match self.config.engine {
             DatabaseEngine::PostgreSQL => {
-                let mut s = format!("postgresql://");
+                let mut s = "postgresql://".to_string();
                 if let Some(ref user) = self.config.username {
                     s.push_str(user);
                     if let Some(ref pass) = self.config.password {

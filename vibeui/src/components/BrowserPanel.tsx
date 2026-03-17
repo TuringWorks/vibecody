@@ -38,6 +38,7 @@ export function BrowserPanel() {
  styles: Record<string, string>;
  parentChain?: string[];
  } | null>(null);
+ const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
  // Listen for element-selected postMessages from the inspector
  useEffect(() => {
@@ -47,7 +48,10 @@ export function BrowserPanel() {
  }
  };
  window.addEventListener('message', handler);
- return () => window.removeEventListener('message', handler);
+ return () => {
+ window.removeEventListener('message', handler);
+ if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+ };
  }, []);
 
  const toggleInspect = () => {
@@ -132,10 +136,11 @@ export function BrowserPanel() {
  const refresh = () => {
  // Capture current URL before clearing, so the setTimeout callback
  // restores the correct URL even if the user navigated in the meantime.
+ if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
  setIframeSrc(prev => {
  if (prev) {
  const saved = prev;
- setTimeout(() => setIframeSrc(saved), 50);
+ refreshTimerRef.current = setTimeout(() => setIframeSrc(saved), 50);
  }
  return '';
  });

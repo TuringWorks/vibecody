@@ -1079,6 +1079,7 @@ spec:
         yaml
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn register_backstage_component(
         &mut self,
         kind: &str,

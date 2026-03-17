@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Context Bundles / Spaces for VibeCody.
 //!
 //! A context bundle is a named, shareable set of context that includes pinned files,

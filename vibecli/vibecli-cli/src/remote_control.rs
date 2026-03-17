@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Mobile/web remote control — control CLI sessions from phone/browser via QR code.
 //!
 //! Code stays local, only chat flows through an encrypted bridge.

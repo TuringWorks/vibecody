@@ -81,13 +81,20 @@ fn now_ms() -> u64 {
 
 fn persist_job(jobs_dir: &std::path::Path, record: &JobRecord) {
     let path = jobs_dir.join(format!("{}.json", record.session_id));
-    if let Ok(json) = serde_json::to_string_pretty(record) {
-        let _ = std::fs::write(&path, json);
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let _ = std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600));
+    match serde_json::to_string_pretty(record) {
+        Ok(json) => {
+            if let Err(e) = std::fs::write(&path, json) {
+                eprintln!("[serve] failed to persist job {}: {e}", record.session_id);
+            }
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                if let Err(e) = std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)) {
+                    eprintln!("[serve] failed to set permissions on {}: {e}", path.display());
+                }
+            }
         }
+        Err(e) => eprintln!("[serve] failed to serialize job {}: {e}", record.session_id),
     }
 }
 

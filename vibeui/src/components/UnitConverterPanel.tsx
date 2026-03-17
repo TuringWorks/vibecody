@@ -320,7 +320,7 @@ export function UnitConverterPanel() {
  <td style={{ padding: "4px 10px", fontWeight: isFrom || isTo ? 600 : undefined }}>
  {unit.label}
  {isFrom && <span style={{ marginLeft: 6, fontSize: 10, color: "var(--accent-color)" }}>FROM</span>}
- {isTo && <span style={{ marginLeft: 6, fontSize: 10, color: "#6dc46d" }}>TO</span>}
+ {isTo && <span style={{ marginLeft: 6, fontSize: 10, color: "var(--success-color)" }}>TO</span>}
  </td>
  <td style={{ padding: "4px 10px", color: "var(--text-secondary)", fontFamily: "monospace" }}>{unit.symbol}</td>
  <td style={{ padding: "4px 10px", fontFamily: "monospace", color: "var(--text-primary)" }}>

@@ -823,7 +823,7 @@ fn apply_unified_patch(original: &str, patch: &str) -> Result<String> {
     let mut orig_idx = 0usize;
 
     for chunk in patch.split("\n@@") {
-        if chunk.trim().is_empty() || !chunk.contains("@@") && result.is_empty() {
+        if chunk.trim().is_empty() || (!chunk.contains("@@") && result.is_empty()) {
             continue;
         }
         let hunk_str = if chunk.starts_with("@@") {

@@ -974,8 +974,8 @@ impl GitPlatformClient {
     pub fn latest_pipeline_for_branch(&self, branch: &str) -> Option<&Pipeline> {
         self.pipelines
             .iter()
-            .filter(|p| p.branch == branch)
-            .last()
+            .rev()
+            .find(|p| p.branch == branch)
     }
 
     // --- Branch operations ---
@@ -1147,10 +1147,8 @@ impl PlatformManager {
 
     pub fn remove_platform(&mut self, name: &str) -> bool {
         let removed = self.clients.remove(name).is_some();
-        if removed {
-            if self.default_platform.as_deref() == Some(name) {
-                self.default_platform = self.clients.keys().next().cloned();
-            }
+        if removed && self.default_platform.as_deref() == Some(name) {
+            self.default_platform = self.clients.keys().next().cloned();
         }
         removed
     }
