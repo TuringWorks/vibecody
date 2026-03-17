@@ -15051,25 +15051,121 @@ pub struct TransformExecResult {
 #[tauri::command]
 pub async fn detect_transform(workspace: String) -> Result<Vec<String>, String> {
     let ws = std::path::PathBuf::from(&workspace);
-    // Quick file extension scan to detect potential transforms
     let mut transforms = Vec::new();
-    let has_js = walkdir::WalkDir::new(&ws).max_depth(3).into_iter()
-        .filter_map(|e| e.ok())
-        .any(|e| e.path().extension().and_then(|x| x.to_str()) == Some("js"));
-    if has_js { transforms.push("commonjs_to_esm".to_string()); }
 
-    let has_jsx = walkdir::WalkDir::new(&ws).max_depth(3).into_iter()
-        .filter_map(|e| e.ok())
-        .any(|e| {
-            let ext = e.path().extension().and_then(|x| x.to_str()).unwrap_or("");
-            ext == "jsx" || ext == "tsx"
-        });
-    if has_jsx { transforms.push("react_class_to_hooks".to_string()); }
+    // Collect all extensions present in the workspace (max depth 4)
+    let mut exts = std::collections::HashSet::new();
+    let mut has_csproj = false;
+    let mut has_packages_config = false;
+    for entry in walkdir::WalkDir::new(&ws).max_depth(4).into_iter().filter_map(|e| e.ok()) {
+        if let Some(ext) = entry.path().extension().and_then(|x| x.to_str()) {
+            exts.insert(ext.to_lowercase());
+        }
+        let fname = entry.path().file_name().and_then(|n| n.to_str()).unwrap_or("");
+        if fname.ends_with(".csproj") { has_csproj = true; }
+        if fname == "packages.config" || fname == "global.json" { has_packages_config = true; }
+    }
 
-    let has_py = walkdir::WalkDir::new(&ws).max_depth(3).into_iter()
-        .filter_map(|e| e.ok())
-        .any(|e| e.path().extension().and_then(|x| x.to_str()) == Some("py"));
-    if has_py { transforms.push("python2_to3".to_string()); }
+    // ── Legacy language transforms ────────────────────────────────────
+    if exts.contains("cob") || exts.contains("cbl") || exts.contains("cpy") {
+        transforms.push("cobol_to_java".to_string());
+        transforms.push("cobol_to_rust".to_string());
+        transforms.push("cobol_to_csharp".to_string());
+        transforms.push("cobol_to_python".to_string());
+    }
+    if exts.contains("f") || exts.contains("f90") || exts.contains("f77") || exts.contains("for") {
+        transforms.push("fortran_to_rust".to_string());
+        transforms.push("fortran_to_python".to_string());
+    }
+    if exts.contains("vb") || exts.contains("bas") || exts.contains("frm") || exts.contains("cls") {
+        transforms.push("vb6_to_csharp".to_string());
+        transforms.push("vb6_to_java".to_string());
+    }
+    if exts.contains("pas") || exts.contains("dpr") || exts.contains("dpk") {
+        transforms.push("delphi_to_csharp".to_string());
+        transforms.push("delphi_to_rust".to_string());
+    }
+    if exts.contains("pl") || exts.contains("pm") {
+        transforms.push("perl_to_python".to_string());
+    }
+
+    // ── .NET upgrade transforms ───────────────────────────────────────
+    if has_csproj || exts.contains("cs") {
+        transforms.push("dotnet_upgrade".to_string());
+        transforms.push("csharp_to_rust".to_string());
+    }
+    if exts.contains("vbnet") || (exts.contains("vb") && has_csproj) {
+        transforms.push("vbnet_to_csharp".to_string());
+    }
+    if has_packages_config {
+        transforms.push("packages_config_to_packageref".to_string());
+    }
+
+    // ── Java transforms ───────────────────────────────────────────────
+    if exts.contains("java") {
+        transforms.push("java_to_kotlin".to_string());
+        transforms.push("java_to_rust".to_string());
+        transforms.push("java8_to_java21".to_string());
+        transforms.push("junit4_to_junit5".to_string());
+    }
+    if exts.contains("kt") || exts.contains("kts") {
+        transforms.push("kotlin_to_rust".to_string());
+    }
+
+    // ── JavaScript/TypeScript transforms ──────────────────────────────
+    if exts.contains("js") || exts.contains("cjs") {
+        transforms.push("commonjs_to_esm".to_string());
+        transforms.push("javascript_to_typescript".to_string());
+    }
+    if exts.contains("jsx") || exts.contains("tsx") {
+        transforms.push("react_class_to_hooks".to_string());
+    }
+    if exts.contains("ts") || exts.contains("tsx") || exts.contains("js") {
+        transforms.push("express_to_fastify".to_string());
+    }
+    if exts.contains("vue") {
+        transforms.push("vue2_to_vue3".to_string());
+    }
+
+    // ── Python transforms ─────────────────────────────────────────────
+    if exts.contains("py") {
+        transforms.push("python2_to_python3".to_string());
+        transforms.push("flask_to_fastapi".to_string());
+        transforms.push("python_to_rust".to_string());
+        transforms.push("sync_to_async_python".to_string());
+    }
+
+    // ── Other transforms ──────────────────────────────────────────────
+    if exts.contains("rb") {
+        transforms.push("ruby_to_python".to_string());
+        transforms.push("ruby_to_rust".to_string());
+    }
+    if exts.contains("php") {
+        transforms.push("php_to_python".to_string());
+        transforms.push("php_to_typescript".to_string());
+    }
+    if exts.contains("go") {
+        transforms.push("go_to_rust".to_string());
+    }
+    if exts.contains("m") || exts.contains("mm") {
+        transforms.push("objc_to_swift".to_string());
+    }
+    if exts.contains("swift") {
+        transforms.push("swift_to_kotlin".to_string());
+    }
+    if exts.contains("c") || exts.contains("h") {
+        transforms.push("c_to_rust".to_string());
+    }
+    if exts.contains("cpp") || exts.contains("cc") || exts.contains("cxx") || exts.contains("hpp") {
+        transforms.push("cpp_to_rust".to_string());
+    }
+    if exts.contains("sql") {
+        transforms.push("sql_dialect_convert".to_string());
+    }
+
+    // Always offer these universal transforms
+    transforms.push("add_type_annotations".to_string());
+    transforms.push("modernize_syntax".to_string());
 
     Ok(transforms)
 }
@@ -15088,10 +15184,30 @@ pub async fn plan_transform(
 
     // Find files matching the transform type
     let extensions: Vec<&str> = match transform_type.as_str() {
-        "commonjs_to_esm" => vec!["js", "cjs"],
+        "cobol_to_java" | "cobol_to_rust" | "cobol_to_csharp" | "cobol_to_python" => vec!["cob", "cbl", "cpy"],
+        "fortran_to_rust" | "fortran_to_python" => vec!["f", "f90", "f77", "for"],
+        "vb6_to_csharp" | "vb6_to_java" => vec!["vb", "bas", "frm", "cls"],
+        "delphi_to_csharp" | "delphi_to_rust" => vec!["pas", "dpr", "dpk"],
+        "perl_to_python" => vec!["pl", "pm"],
+        "dotnet_upgrade" | "csharp_to_rust" => vec!["cs"],
+        "vbnet_to_csharp" => vec!["vb"],
+        "packages_config_to_packageref" => vec!["config"],
+        "java_to_kotlin" | "java_to_rust" | "java8_to_java21" | "junit4_to_junit5" => vec!["java"],
+        "kotlin_to_rust" => vec!["kt", "kts"],
+        "commonjs_to_esm" | "javascript_to_typescript" => vec!["js", "cjs"],
         "react_class_to_hooks" => vec!["jsx", "tsx"],
-        "python2_to3" => vec!["py"],
-        "vue2_to3" => vec!["vue"],
+        "express_to_fastify" => vec!["js", "ts"],
+        "vue2_to_vue3" => vec!["vue"],
+        "python2_to_python3" | "flask_to_fastapi" | "python_to_rust" | "sync_to_async_python" => vec!["py"],
+        "ruby_to_python" | "ruby_to_rust" => vec!["rb"],
+        "php_to_python" | "php_to_typescript" => vec!["php"],
+        "go_to_rust" => vec!["go"],
+        "objc_to_swift" => vec!["m", "mm"],
+        "swift_to_kotlin" => vec!["swift"],
+        "c_to_rust" => vec!["c", "h"],
+        "cpp_to_rust" => vec!["cpp", "cc", "cxx", "hpp"],
+        "sql_dialect_convert" => vec!["sql"],
+        "add_type_annotations" | "modernize_syntax" => vec!["js", "ts", "py", "rb", "php"],
         _ => vec!["js", "ts", "py"],
     };
 

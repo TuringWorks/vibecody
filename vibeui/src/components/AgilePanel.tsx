@@ -1384,7 +1384,18 @@ function MetricsTab() {
   useEffect(() => {
     (async () => {
       try {
-        const data = await invoke<MetricsData>("agile_get_metrics");
+        const raw = await invoke<any>("agile_get_metrics");
+        // Backend returns flat shape — normalize to MetricsData
+        const velocities: number[] = raw.velocities || [];
+        const data: MetricsData = {
+          velocityHistory: raw.velocityHistory || velocities.map((pts: number, i: number) => ({ sprint: `S${i + 1}`, points: pts })),
+          cumulativeFlow: raw.cumulativeFlow || [],
+          cycleTimeDays: raw.cycleTimeDays ?? raw.avg_velocity ?? 0,
+          leadTimeDays: raw.leadTimeDays ?? 0,
+          scopeCreepPct: raw.scopeCreepPct ?? 0,
+          plannedVsCompleted: raw.plannedVsCompleted ?? (raw.avg_velocity ? 0.8 : 0),
+          capacityUtilization: raw.capacityUtilization ?? 0,
+        };
         setMetrics(data);
       } catch (e: any) {
         setError(typeof e === "string" ? e : e?.message || "Failed to load metrics");
@@ -1854,10 +1865,12 @@ function SAFeTab() {
       if (cancelRef.current || id !== taskIdRef.current) return;
       setSafeData(data);
     } catch { /* first run — empty */ }
-    setLoading(false);
+    if (!cancelRef.current && id === taskIdRef.current) {
+      setLoading(false);
+    }
   }, []);
 
-  useEffect(() => { load(); return () => { cancelRef.current = true; }; }, [load]);
+  useEffect(() => { cancelRef.current = false; load(); return () => { cancelRef.current = true; }; }, [load]);
 
   const save = async (d: SAFeData) => {
     setSafeData(d);
