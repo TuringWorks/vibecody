@@ -121,7 +121,7 @@ export const TAB_META: Record<string, TabMeta> = {
   fastcontext: { icon: SearchCode,         label: "Fast Ctx" },
   imagegen:    { icon: Image,              label: "ImageGen" },
   governance:  { icon: ShieldAlert,         label: "Govern" },
-  agentteams:  { icon: UsersRound,          label: "A-Teams" },
+  agentteams:  { icon: UsersRound,          label: "Agent Teams" },
   discuss:     { icon: MessagesSquare,      label: "Discuss" },
   fullstack:   { icon: Code2,               label: "FullStack" },
   ghactions:   { icon: GitPullRequest,      label: "GH Actions" },

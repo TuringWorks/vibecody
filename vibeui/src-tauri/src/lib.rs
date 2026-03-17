@@ -435,6 +435,7 @@ pub fn run() {
             commands::get_team_status,
             commands::send_team_message,
             commands::dismiss_team,
+            commands::get_team_history,
             // Phase 8.2: CI/CD Review Bot
             commands::get_ci_review_config,
             commands::save_ci_review_config,

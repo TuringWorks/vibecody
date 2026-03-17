@@ -1,251 +1,520 @@
-import React, { useState } from "react";
+/**
+ * AgentTeamsPanel — Agent Teams management with real Tauri backend.
+ *
+ * Tabs: Team (create/manage teams), Messages (inter-agent communication),
+ * Tasks (task decomposition and progress), History (past team runs).
+ * All data flows through Tauri invoke() calls backed by vibe-ai agent_team.
+ */
+import { useState, useEffect, useRef, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 
-type AgentRole = "Lead" | "Teammate" | "Observer";
-type AgentStatus = "Active" | "Idle" | "Busy" | "Offline";
-type TaskStatus = "Todo" | "In Progress" | "Done" | "Blocked";
-type TaskPriority = "High" | "Medium" | "Low";
+type Tab = "team" | "messages" | "tasks" | "history";
 
-interface Agent {
+interface TeamTask {
   id: string;
-  name: string;
-  role: AgentRole;
-  status: AgentStatus;
-  specialty: string;
+  agent_id: string;
+  description: string;
+  status: string;
+  result: string | null;
 }
 
 interface TeamMessage {
-  id: string;
-  from: string;
-  to: string;
-  type: "Info" | "Request" | "Update" | "Alert";
-  text: string;
-  timestamp: string;
+  from_agent_id: string;
+  to_agent_id: string | null;
+  msg_type: string;
+  content: string;
+  timestamp: number;
 }
 
-interface Task {
+interface TeamInfo {
   id: string;
-  title: string;
-  status: TaskStatus;
-  assignee: string;
-  priority: TaskPriority;
+  lead_agent_id: string;
+  member_ids: string[];
+  goal: string;
+  status: string;
+  tasks: TeamTask[];
+  message_count: number;
+  messages: TeamMessage[];
 }
+
+interface TeamHistoryEntry {
+  id: string;
+  goal: string;
+  status: string;
+  member_count: number;
+  task_count: number;
+  completed_at: string;
+}
+
+const statusColor: Record<string, string> = {
+  Pending: "var(--text-muted)",
+  InProgress: "var(--accent-color)",
+  Completed: "var(--success-color)",
+  Failed: "var(--error-color)",
+};
+
+const msgTypeColor: Record<string, string> = {
+  Finding: "var(--success-color)",
+  Challenge: "var(--warning-color)",
+  Request: "var(--accent-color)",
+  Status: "var(--text-muted)",
+  TaskAssignment: "var(--text-info)",
+  Ack: "var(--text-muted)",
+  Info: "var(--accent-color)",
+  Update: "var(--success-color)",
+  Alert: "var(--error-color)",
+};
+
+const statusBadge: Record<string, { bg: string; color: string }> = {
+  working: { bg: "rgba(137,180,250,0.15)", color: "var(--info-color)" },
+  complete: { bg: "rgba(52,211,153,0.15)", color: "var(--success-color)" },
+  failed: { bg: "rgba(239,68,68,0.15)", color: "var(--error-color)" },
+};
 
 const AgentTeamsPanel: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<string>("team");
-  const [newAgentName, setNewAgentName] = useState("");
-  const [newAgentRole, setNewAgentRole] = useState<AgentRole>("Teammate");
-  const [newMsgText, setNewMsgText] = useState("");
-  const [newMsgTo, setNewMsgTo] = useState("All");
-  const [newMsgType, setNewMsgType] = useState<"Info" | "Request" | "Update" | "Alert">("Info");
-  const [newTaskTitle, setNewTaskTitle] = useState("");
-  const [newTaskPriority, setNewTaskPriority] = useState<TaskPriority>("Medium");
+  const [tab, setTab] = useState<Tab>("team");
+  const [goal, setGoal] = useState("");
+  const [memberCount, setMemberCount] = useState(3);
+  const [team, setTeam] = useState<TeamInfo | null>(null);
+  const [history, setHistory] = useState<TeamHistoryEntry[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [userMsg, setUserMsg] = useState("");
+  const teamIdRef = useRef<string | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const [agents, setAgents] = useState<Agent[]>([
-    { id: "a1", name: "Architect", role: "Lead", status: "Active", specialty: "System design" },
-    { id: "a2", name: "Coder", role: "Teammate", status: "Busy", specialty: "Implementation" },
-    { id: "a3", name: "Reviewer", role: "Teammate", status: "Idle", specialty: "Code review" },
-    { id: "a4", name: "Tester", role: "Teammate", status: "Active", specialty: "QA & testing" },
-    { id: "a5", name: "Watcher", role: "Observer", status: "Active", specialty: "Monitoring" },
-  ]);
+  const refreshTeam = useCallback(async () => {
+    if (!teamIdRef.current) return;
+    try {
+      const info = await invoke<TeamInfo>("get_team_status", { teamId: teamIdRef.current });
+      setTeam(info);
+    } catch {
+      // Team may have been dismissed
+    }
+  }, []);
 
-  const [messages, setMessages] = useState<TeamMessage[]>([
-    { id: "msg1", from: "Architect", to: "All", type: "Info", text: "Starting API module redesign.", timestamp: "10:00 AM" },
-    { id: "msg2", from: "Coder", to: "Architect", type: "Request", text: "Need schema clarification for User model.", timestamp: "10:05 AM" },
-    { id: "msg3", from: "Reviewer", to: "Coder", type: "Update", text: "PR #42 approved with minor suggestions.", timestamp: "10:12 AM" },
-    { id: "msg4", from: "Tester", to: "All", type: "Alert", text: "Integration tests failing on auth module.", timestamp: "10:18 AM" },
-  ]);
+  const loadHistory = useCallback(async () => {
+    try {
+      const h = await invoke<TeamHistoryEntry[]>("get_team_history");
+      setHistory(h);
+    } catch {
+      // History command may not exist yet — fallback to empty
+      setHistory([]);
+    }
+  }, []);
 
-  const [tasks, setTasks] = useState<Task[]>([
-    { id: "t1", title: "Design API schema", status: "Done", assignee: "Architect", priority: "High" },
-    { id: "t2", title: "Implement user endpoints", status: "In Progress", assignee: "Coder", priority: "High" },
-    { id: "t3", title: "Write auth middleware", status: "Todo", assignee: "Coder", priority: "Medium" },
-    { id: "t4", title: "Review database migrations", status: "Blocked", assignee: "Reviewer", priority: "Medium" },
-    { id: "t5", title: "Add integration tests", status: "In Progress", assignee: "Tester", priority: "Low" },
-  ]);
+  useEffect(() => {
+    loadHistory();
+  }, [loadHistory]);
 
-  const containerStyle: React.CSSProperties = {
-    padding: "16px", color: "var(--text-primary)",
-    backgroundColor: "var(--bg-primary)",
-    fontFamily: "inherit", fontSize: "13px",
-    height: "100%", overflow: "auto",
-  };
-  const tabBarStyle: React.CSSProperties = {
-    display: "flex", gap: "4px", marginBottom: "16px",
-    borderBottom: "1px solid var(--border-color)", paddingBottom: "8px",
-  };
-  const tabStyle = (active: boolean): React.CSSProperties => ({
-    padding: "6px 14px", cursor: "pointer", border: "none",
-    backgroundColor: active ? "var(--accent-color)" : "transparent",
-    color: active ? "white" : "var(--text-primary)",
-    borderRadius: "4px", fontSize: "13px",
-  });
-  const inputStyle: React.CSSProperties = {
-    width: "100%", padding: "6px 10px", boxSizing: "border-box",
-    backgroundColor: "var(--bg-secondary)", color: "var(--text-primary)",
-    border: "1px solid var(--border-color)", borderRadius: "4px",
-  };
-  const btnStyle: React.CSSProperties = {
-    padding: "6px 14px", cursor: "pointer", border: "none", borderRadius: "4px",
-    backgroundColor: "var(--accent-color)", color: "white",
-  };
-  const btnSmall: React.CSSProperties = { ...btnStyle, padding: "3px 8px", fontSize: "11px" };
-  const cardStyle: React.CSSProperties = {
-    padding: "10px", marginBottom: "8px", borderRadius: "4px",
-    backgroundColor: "var(--bg-secondary)",
-    border: "1px solid var(--border-color)",
-  };
-  const badgeStyle = (color: string): React.CSSProperties => ({
-    display: "inline-block", padding: "2px 8px", borderRadius: "10px",
-    fontSize: "11px", fontWeight: 600, backgroundColor: color, color: "var(--text-primary)",
-  });
+  useEffect(() => {
+    const unlisten = listen("team:updated", () => { refreshTeam(); });
+    return () => { unlisten.then((f) => f()); };
+  }, [refreshTeam]);
 
-  const roleColors: Record<AgentRole, string> = { Lead: "#6a1b9a", Teammate: "#1565c0", Observer: "#757575" };
-  const statusColors: Record<AgentStatus, string> = { Active: "#2e7d32", Idle: "#f57f17", Busy: "#e65100", Offline: "#757575" };
-  const msgTypeColors = { Info: "#1565c0", Request: "#6a1b9a", Update: "#2e7d32", Alert: "#c62828" };
-  const taskStatusColors: Record<TaskStatus, string> = { Todo: "#757575", "In Progress": "#1565c0", Done: "#2e7d32", Blocked: "#c62828" };
-  const priorityColors: Record<TaskPriority, string> = { High: "#c62828", Medium: "#f57f17", Low: "#757575" };
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [team?.messages]);
 
-  const handleAddAgent = () => {
-    if (!newAgentName.trim()) return;
-    setAgents(prev => [...prev, {
-      id: `a-${Date.now()}`, name: newAgentName, role: newAgentRole, status: "Idle", specialty: "General",
-    }]);
-    setNewAgentName("");
+  const handleCreate = async () => {
+    if (!goal.trim()) { setError("Please enter a goal for the team"); return; }
+    setLoading(true);
+    setError(null);
+    try {
+      const info = await invoke<TeamInfo>("start_agent_team", {
+        goal: goal.trim(),
+        memberCount,
+      });
+      teamIdRef.current = info.id;
+      setTeam(info);
+      setTab("tasks");
+    } catch (e) {
+      setError(String(e));
+    }
+    setLoading(false);
   };
 
-  const handleSendMessage = () => {
-    if (!newMsgText.trim()) return;
-    setMessages(prev => [...prev, {
-      id: `msg-${Date.now()}`, from: "You", to: newMsgTo, type: newMsgType, text: newMsgText,
-      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    }]);
-    setNewMsgText("");
+  const handleDismiss = async () => {
+    if (team) {
+      // Save to history before dismissing
+      setHistory(prev => [{
+        id: team.id,
+        goal: team.goal,
+        status: team.status,
+        member_count: team.member_ids.length,
+        task_count: team.tasks.length,
+        completed_at: new Date().toISOString(),
+      }, ...prev]);
+    }
+    await invoke("dismiss_team").catch(() => {});
+    teamIdRef.current = null;
+    setTeam(null);
+    setGoal("");
+    setTab("team");
   };
 
-  const handleAddTask = () => {
-    if (!newTaskTitle.trim()) return;
-    setTasks(prev => [...prev, {
-      id: `t-${Date.now()}`, title: newTaskTitle, status: "Todo", assignee: "Unassigned", priority: newTaskPriority,
-    }]);
-    setNewTaskTitle("");
+  const handleSendMessage = async () => {
+    if (!userMsg.trim() || !teamIdRef.current) return;
+    try {
+      await invoke("send_team_message", {
+        teamId: teamIdRef.current,
+        content: userMsg.trim(),
+      });
+      setUserMsg("");
+      await refreshTeam();
+    } catch (e) {
+      setError(String(e));
+    }
   };
 
-  const cycleTaskStatus = (id: string) => {
-    const order: TaskStatus[] = ["Todo", "In Progress", "Done", "Blocked"];
-    setTasks(prev => prev.map(t => {
-      if (t.id !== id) return t;
-      const idx = order.indexOf(t.status);
-      return { ...t, status: order[(idx + 1) % order.length] };
-    }));
-  };
-
-  const renderTeam = () => (
-    <div>
-      <div style={{ fontSize: "12px", opacity: 0.7, marginBottom: "8px" }}>{agents.length} agents</div>
-      {agents.map(a => (
-        <div key={a.id} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div>
-            <div style={{ display: "flex", gap: "8px", alignItems: "center", marginBottom: "4px" }}>
-              <strong>{a.name}</strong>
-              <span style={badgeStyle(roleColors[a.role])}>{a.role}</span>
-            </div>
-            <div style={{ fontSize: "12px", opacity: 0.7 }}>{a.specialty}</div>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-            <span style={{ width: "8px", height: "8px", borderRadius: "50%",
-              backgroundColor: statusColors[a.status], display: "inline-block" }} />
-            <span style={{ fontSize: "12px" }}>{a.status}</span>
-          </div>
-        </div>
-      ))}
-      <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
-        <input style={{ ...inputStyle, flex: 1 }} value={newAgentName} onChange={e => setNewAgentName(e.target.value)}
-          placeholder="Agent name..." onKeyDown={e => e.key === "Enter" && handleAddAgent()} />
-        <select style={{ ...inputStyle, width: "120px" }} value={newAgentRole}
-          onChange={e => setNewAgentRole(e.target.value as AgentRole)}>
-          {(["Lead", "Teammate", "Observer"] as AgentRole[]).map(r => <option key={r} value={r}>{r}</option>)}
-        </select>
-        <button style={btnStyle} onClick={handleAddAgent}>Add</button>
-      </div>
-    </div>
-  );
-
-  const renderMessages = () => (
-    <div>
-      {messages.map(m => (
-        <div key={m.id} style={cardStyle}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
-            <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-              <strong>{m.from}</strong>
-              <span style={{ opacity: 0.5 }}>&rarr;</span>
-              <span>{m.to}</span>
-              <span style={badgeStyle(msgTypeColors[m.type])}>{m.type}</span>
-            </div>
-            <span style={{ fontSize: "11px", opacity: 0.6 }}>{m.timestamp}</span>
-          </div>
-          <div style={{ fontSize: "13px" }}>{m.text}</div>
-        </div>
-      ))}
-      <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
-        <select style={{ ...inputStyle, width: "100px" }} value={newMsgTo} onChange={e => setNewMsgTo(e.target.value)}>
-          <option value="All">All</option>
-          {agents.map(a => <option key={a.id} value={a.name}>{a.name}</option>)}
-        </select>
-        <select style={{ ...inputStyle, width: "100px" }} value={newMsgType}
-          onChange={e => setNewMsgType(e.target.value as "Info" | "Request" | "Update" | "Alert")}>
-          {(["Info", "Request", "Update", "Alert"] as const).map(t => <option key={t} value={t}>{t}</option>)}
-        </select>
-        <input style={{ ...inputStyle, flex: 1 }} value={newMsgText} onChange={e => setNewMsgText(e.target.value)}
-          placeholder="Send a message..." onKeyDown={e => e.key === "Enter" && handleSendMessage()} />
-        <button style={btnStyle} onClick={handleSendMessage}>Send</button>
-      </div>
-    </div>
-  );
-
-  const renderTasks = () => (
-    <div>
-      {tasks.map(t => (
-        <div key={t.id} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ display: "flex", gap: "8px", alignItems: "center", marginBottom: "4px" }}>
-              <span style={{ fontWeight: 600 }}>{t.title}</span>
-              <span style={badgeStyle(priorityColors[t.priority])}>{t.priority}</span>
-            </div>
-            <div style={{ fontSize: "12px", opacity: 0.7 }}>Assigned to: {t.assignee}</div>
-          </div>
-          <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-            <span style={badgeStyle(taskStatusColors[t.status])}>{t.status}</span>
-            <button style={btnSmall} onClick={() => cycleTaskStatus(t.id)} title="Cycle status">
-              &rarr;
-            </button>
-          </div>
-        </div>
-      ))}
-      <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
-        <input style={{ ...inputStyle, flex: 1 }} value={newTaskTitle} onChange={e => setNewTaskTitle(e.target.value)}
-          placeholder="New task..." onKeyDown={e => e.key === "Enter" && handleAddTask()} />
-        <select style={{ ...inputStyle, width: "100px" }} value={newTaskPriority}
-          onChange={e => setNewTaskPriority(e.target.value as TaskPriority)}>
-          {(["High", "Medium", "Low"] as TaskPriority[]).map(p => <option key={p} value={p}>{p}</option>)}
-        </select>
-        <button style={btnStyle} onClick={handleAddTask}>Add</button>
-      </div>
-    </div>
-  );
+  const completedTasks = team?.tasks.filter(t => t.status === "Completed").length ?? 0;
+  const totalTasks = team?.tasks.length ?? 0;
+  const progressPct = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
   return (
-    <div style={containerStyle}>
-      <h2 style={{ margin: "0 0 12px" }}>Agent Teams</h2>
-      <div style={tabBarStyle}>
-        {[["team", "Team"], ["messages", "Messages"], ["tasks", "Tasks"]].map(([id, label]) => (
-          <button key={id} style={tabStyle(activeTab === id)} onClick={() => setActiveTab(id)}>{label}</button>
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden", color: "var(--text-primary)" }}>
+      {/* Header */}
+      <div style={{
+        padding: "8px 12px", borderBottom: "1px solid var(--border-color)",
+        display: "flex", alignItems: "center", gap: 8,
+      }}>
+        <span style={{ fontSize: 14, fontWeight: 700 }}>Agent Teams</span>
+        {team && (
+          <>
+            <span style={{
+              fontSize: 10, padding: "2px 8px", borderRadius: 10, fontWeight: 600,
+              background: (statusBadge[team.status] ?? statusBadge.working).bg,
+              color: (statusBadge[team.status] ?? statusBadge.working).color,
+            }}>
+              {team.status}
+            </span>
+            <span style={{ fontSize: 10, color: "var(--text-muted)" }}>
+              {completedTasks}/{totalTasks} tasks
+            </span>
+          </>
+        )}
+        <div style={{ flex: 1 }} />
+        {team && (
+          <button onClick={handleDismiss} style={btnSecondary}>
+            New Team
+          </button>
+        )}
+      </div>
+
+      {/* Tab bar */}
+      <div style={{ display: "flex", gap: 0, borderBottom: "1px solid var(--border-color)" }}>
+        {([
+          ["team", "Team"],
+          ["tasks", `Tasks${team ? ` (${totalTasks})` : ""}`],
+          ["messages", `Messages${team ? ` (${team.message_count})` : ""}`],
+          ["history", `History${history.length ? ` (${history.length})` : ""}`],
+        ] as [Tab, string][]).map(([id, label]) => (
+          <button
+            key={id}
+            onClick={() => setTab(id)}
+            style={{
+              padding: "6px 14px", cursor: "pointer", fontSize: 12,
+              borderBottom: tab === id ? "2px solid var(--accent-color)" : "2px solid transparent",
+              color: tab === id ? "var(--accent-color)" : "var(--text-secondary)",
+              background: "none", border: "none", borderBottomStyle: "solid",
+            }}
+          >
+            {label}
+          </button>
         ))}
       </div>
-      {activeTab === "team" && renderTeam()}
-      {activeTab === "messages" && renderMessages()}
-      {activeTab === "tasks" && renderTasks()}
+
+      {/* Error banner */}
+      {error && (
+        <div style={{
+          padding: "6px 12px", background: "var(--error-bg)", borderBottom: "1px solid var(--error-color)",
+          display: "flex", alignItems: "center", gap: 8, fontSize: 11, color: "var(--text-danger)",
+        }}>
+          <span style={{ flex: 1 }}>{error}</span>
+          <button onClick={() => setError(null)} style={{ ...btnSecondary, fontSize: 10, padding: "2px 6px" }}>Dismiss</button>
+        </div>
+      )}
+
+      {/* Content area */}
+      <div style={{ flex: 1, overflowY: "auto", padding: "10px 12px" }}>
+
+        {/* TEAM TAB */}
+        {tab === "team" && !team && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 500 }}>
+            <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5 }}>
+              Create a team of AI agents that collaborate on a shared goal.
+              The lead agent decomposes the task into sub-tasks and coordinates team members.
+              Each agent works autonomously and communicates findings via the message bus.
+            </div>
+            <div>
+              <div style={labelStyle}>Goal</div>
+              <textarea
+                value={goal}
+                onChange={(e) => setGoal(e.target.value)}
+                rows={4}
+                placeholder="e.g., Refactor the authentication module to use JWT tokens with refresh rotation..."
+                style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit", width: "100%", boxSizing: "border-box" }}
+              />
+            </div>
+            <div>
+              <div style={labelStyle}>Team Size</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <input
+                  type="range" min={2} max={8} value={memberCount}
+                  onChange={(e) => setMemberCount(parseInt(e.target.value))}
+                  style={{ flex: 1 }}
+                />
+                <span style={{ fontSize: 13, fontWeight: 700, fontFamily: "monospace", minWidth: 60 }}>
+                  {memberCount} agents
+                </span>
+              </div>
+              <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 4 }}>
+                1 lead + {memberCount - 1} worker{memberCount - 1 !== 1 ? "s" : ""}
+              </div>
+            </div>
+            <button onClick={handleCreate} disabled={loading || !goal.trim()} style={{
+              ...btnPrimary,
+              opacity: loading || !goal.trim() ? 0.5 : 1,
+              cursor: loading || !goal.trim() ? "not-allowed" : "pointer",
+            }}>
+              {loading ? "Creating Team & Decomposing Goal..." : "Create Team"}
+            </button>
+          </div>
+        )}
+
+        {tab === "team" && team && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {/* Goal */}
+            <div style={{ padding: "10px 12px", background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)" }}>
+              <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Goal</div>
+              <div style={{ fontSize: 12 }}>{team.goal}</div>
+            </div>
+
+            {/* Progress bar */}
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                <span style={{ fontSize: 10, color: "var(--text-muted)" }}>Progress</span>
+                <span style={{ fontSize: 10, fontWeight: 600, color: "var(--text-info)" }}>{progressPct}%</span>
+              </div>
+              <div style={{ height: 8, background: "var(--bg-primary)", borderRadius: 4, overflow: "hidden" }}>
+                <div style={{
+                  width: `${progressPct}%`, height: "100%", borderRadius: 4,
+                  background: progressPct === 100 ? "var(--success-color)" : "var(--accent-color)",
+                  transition: "width 0.5s ease",
+                }} />
+              </div>
+            </div>
+
+            {/* Members */}
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                Members ({team.member_ids.length})
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {team.member_ids.map((id) => {
+                  const isLead = id === team.lead_agent_id;
+                  const agentTasks = team.tasks.filter(t => t.agent_id === id);
+                  const completed = agentTasks.filter(t => t.status === "Completed").length;
+                  const inProgress = agentTasks.filter(t => t.status === "InProgress").length;
+                  return (
+                    <div key={id} style={{
+                      padding: "6px 10px", borderRadius: 6, minWidth: 120,
+                      background: isLead ? "rgba(99,102,241,0.1)" : "var(--bg-secondary)",
+                      border: `1px solid ${isLead ? "var(--accent-color)" : "var(--border-color)"}`,
+                    }}>
+                      <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 2 }}>
+                        {isLead ? "Lead" : id.split("-").pop()}
+                      </div>
+                      <div style={{ fontSize: 10, color: "var(--text-muted)" }}>
+                        {inProgress > 0 && <span style={{ color: "var(--accent-color)" }}>Working </span>}
+                        {completed > 0 && <span style={{ color: "var(--success-color)" }}>{completed} done </span>}
+                        {agentTasks.length === 0 && "Idle"}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TASKS TAB */}
+        {tab === "tasks" && !team && (
+          <div style={{ textAlign: "center", padding: 40, color: "var(--text-muted)", fontSize: 12 }}>
+            Create a team first to see task decomposition.
+          </div>
+        )}
+
+        {tab === "tasks" && team && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {team.tasks.length === 0 && (
+              <div style={{ textAlign: "center", padding: 30, color: "var(--text-muted)", fontSize: 12 }}>
+                The lead agent is decomposing the goal into sub-tasks...
+              </div>
+            )}
+            {team.tasks.map((t) => (
+              <div key={t.id} style={{
+                padding: "8px 10px", borderRadius: 6,
+                border: "1px solid var(--border-color)",
+                background: "var(--bg-secondary)",
+                borderLeft: `3px solid ${statusColor[t.status] ?? "var(--text-muted)"}`,
+              }}>
+                <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4 }}>
+                  <span style={{
+                    fontSize: 9, padding: "1px 6px", borderRadius: 3, fontWeight: 700,
+                    background: `${statusColor[t.status] ?? "var(--text-muted)"}22`,
+                    color: statusColor[t.status] ?? "var(--text-muted)",
+                  }}>
+                    {t.status}
+                  </span>
+                  <span style={{ fontSize: 10, color: "var(--text-muted)" }}>
+                    {t.agent_id === team.lead_agent_id ? "Lead" : t.agent_id.split("-").pop()}
+                  </span>
+                </div>
+                <div style={{ fontSize: 12, marginBottom: t.result ? 6 : 0 }}>{t.description}</div>
+                {t.result && (
+                  <div style={{
+                    fontSize: 11, color: "var(--text-muted)", marginTop: 4,
+                    padding: "6px 8px", background: "var(--bg-primary)", borderRadius: 4,
+                    fontStyle: "italic", lineHeight: 1.4,
+                  }}>
+                    {t.result}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* MESSAGES TAB */}
+        {tab === "messages" && !team && (
+          <div style={{ textAlign: "center", padding: 40, color: "var(--text-muted)", fontSize: 12 }}>
+            Create a team first to see inter-agent messages.
+          </div>
+        )}
+
+        {tab === "messages" && team && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            {team.messages.length === 0 && (
+              <div style={{ textAlign: "center", padding: 30, color: "var(--text-muted)", fontSize: 12 }}>
+                No messages yet. Agents will communicate as they work.
+              </div>
+            )}
+            {team.messages.map((m, i) => (
+              <div key={i} style={{
+                padding: "6px 10px", borderRadius: 4,
+                borderLeft: `3px solid ${msgTypeColor[m.msg_type] ?? "var(--text-muted)"}`,
+                background: "var(--bg-secondary)",
+              }}>
+                <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 2 }}>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: msgTypeColor[m.msg_type] ?? "var(--text-muted)" }}>
+                    {m.msg_type}
+                  </span>
+                  <span style={{ fontSize: 9, color: "var(--text-muted)" }}>
+                    {m.from_agent_id === team.lead_agent_id ? "Lead" : m.from_agent_id.split("-").pop()}
+                    {m.to_agent_id ? ` → ${m.to_agent_id === team.lead_agent_id ? "Lead" : m.to_agent_id.split("-").pop()}` : " → all"}
+                  </span>
+                  <div style={{ flex: 1 }} />
+                  <span style={{ fontSize: 9, color: "var(--text-muted)", fontFamily: "monospace", opacity: 0.6 }}>
+                    {new Date(m.timestamp).toLocaleTimeString()}
+                  </span>
+                </div>
+                <div style={{ fontSize: 11, lineHeight: 1.4 }}>{m.content}</div>
+              </div>
+            ))}
+            <div ref={messagesEndRef} />
+          </div>
+        )}
+
+        {/* HISTORY TAB */}
+        {tab === "history" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {history.length === 0 && (
+              <div style={{ textAlign: "center", padding: 40, color: "var(--text-muted)", fontSize: 12 }}>
+                No past team runs yet. Completed teams will appear here.
+              </div>
+            )}
+            {history.map((h) => (
+              <div key={h.id} style={{
+                padding: "8px 10px", borderRadius: 6,
+                border: "1px solid var(--border-color)",
+                background: "var(--bg-secondary)",
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                  <span style={{
+                    fontSize: 9, padding: "1px 6px", borderRadius: 3, fontWeight: 700,
+                    background: (statusBadge[h.status] ?? statusBadge.complete).bg,
+                    color: (statusBadge[h.status] ?? statusBadge.complete).color,
+                  }}>
+                    {h.status}
+                  </span>
+                  <span style={{ fontSize: 10, color: "var(--text-muted)" }}>
+                    {h.member_count} agents · {h.task_count} tasks
+                  </span>
+                  <div style={{ flex: 1 }} />
+                  <span style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "monospace" }}>
+                    {new Date(h.completed_at).toLocaleDateString()}
+                  </span>
+                </div>
+                <div style={{ fontSize: 12 }}>{h.goal}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Message input bar (visible when team exists and on messages tab) */}
+      {team && tab === "messages" && (
+        <div style={{
+          padding: "8px 12px", borderTop: "1px solid var(--border-color)",
+          display: "flex", gap: 8, alignItems: "center",
+        }}>
+          <input
+            value={userMsg}
+            onChange={(e) => setUserMsg(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
+            placeholder="Send a message to the team..."
+            style={{ ...inputStyle, flex: 1 }}
+          />
+          <button onClick={handleSendMessage} disabled={!userMsg.trim()} style={{
+            ...btnPrimary,
+            opacity: !userMsg.trim() ? 0.5 : 1,
+            cursor: !userMsg.trim() ? "not-allowed" : "pointer",
+          }}>
+            Send
+          </button>
+        </div>
+      )}
     </div>
   );
 };
 
 export default AgentTeamsPanel;
+
+const btnPrimary: React.CSSProperties = {
+  padding: "6px 14px", fontSize: 12, fontWeight: 600,
+  border: "none", borderRadius: 4,
+  background: "var(--accent-color)", color: "white",
+  cursor: "pointer",
+};
+
+const btnSecondary: React.CSSProperties = {
+  padding: "4px 10px", fontSize: 10, fontWeight: 600,
+  border: "1px solid var(--border-color)", borderRadius: 4,
+  background: "var(--bg-secondary)", color: "var(--text-primary)",
+  cursor: "pointer",
+};
+
+const inputStyle: React.CSSProperties = {
+  padding: "6px 10px", fontSize: 12, borderRadius: 4,
+  border: "1px solid var(--border-color)",
+  background: "var(--bg-primary)", color: "var(--text-primary)",
+  outline: "none",
+};
+
+const labelStyle: React.CSSProperties = {
+  fontSize: 10, fontWeight: 600, marginBottom: 4,
+  color: "var(--text-muted)",
+  textTransform: "uppercase" as const, letterSpacing: "0.05em",
+};

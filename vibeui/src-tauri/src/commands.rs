@@ -14968,14 +14968,48 @@ pub async fn send_team_message(
     }
 }
 
-/// Dismiss the active team so a new one can be created.
+/// Dismiss the active team, saving it to history first.
 #[tauri::command]
 pub async fn dismiss_team(
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
     let mut active = state.active_team.lock().await;
+    if let Some(team) = active.as_ref() {
+        let info = team_to_info(team).await;
+        let entry = serde_json::json!({
+            "id": info.id,
+            "goal": info.goal,
+            "status": info.status,
+            "member_count": info.member_ids.len(),
+            "task_count": info.tasks.len(),
+            "completed_at": chrono::Utc::now().to_rfc3339(),
+        });
+        // Append to history file
+        let dir = dirs::home_dir().unwrap_or_default().join(".vibeui");
+        let _ = std::fs::create_dir_all(&dir);
+        let path = dir.join("team_history.json");
+        let mut history: Vec<serde_json::Value> = std::fs::read_to_string(&path)
+            .ok()
+            .and_then(|s| serde_json::from_str(&s).ok())
+            .unwrap_or_default();
+        history.insert(0, entry);
+        // Keep last 50 entries
+        history.truncate(50);
+        let _ = std::fs::write(&path, serde_json::to_string_pretty(&history).unwrap_or_default());
+    }
     *active = None;
     Ok(())
+}
+
+/// Get history of past team runs.
+#[tauri::command]
+pub async fn get_team_history() -> Result<serde_json::Value, String> {
+    let path = dirs::home_dir().unwrap_or_default().join(".vibeui").join("team_history.json");
+    let history: Vec<serde_json::Value> = std::fs::read_to_string(&path)
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_default();
+    Ok(serde_json::json!(history))
 }
 
 async fn team_to_info(team: &vibe_ai::agent_team::AgentTeam) -> AgentTeamInfo {
