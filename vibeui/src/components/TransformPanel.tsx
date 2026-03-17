@@ -6,6 +6,7 @@
  */
 import { useState, useEffect, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 
 interface TransformPanelProps {
   provider: string;
@@ -128,11 +129,22 @@ export function TransformPanel({ provider }: TransformPanelProps) {
   const [transformedCode, setTransformedCode] = useState("");
   const [pasteMode, setPasteMode] = useState(false);
   const [pasteTransforming, setPasteTransforming] = useState(false);
+  const [progress, setProgress] = useState<{ current: number; total: number; file: string } | null>(null);
   const mountedRef = useRef(true);
 
   useEffect(() => {
     mountedRef.current = true;
     return () => { mountedRef.current = false; };
+  }, []);
+
+  // Listen for per-file progress from the backend
+  useEffect(() => {
+    const unlisten = listen<{ current: number; total: number; file: string }>("transform:progress", (e) => {
+      if (mountedRef.current) {
+        setProgress(e.payload.file === "done" ? null : e.payload);
+      }
+    });
+    return () => { unlisten.then(f => f()); };
   }, []);
 
   // Detect transforms for workspace
@@ -174,6 +186,7 @@ export function TransformPanel({ provider }: TransformPanelProps) {
     setExecuting(true);
     setExecResult(null);
     setError("");
+    setProgress(null);
     try {
       const result = await invoke<ExecResult>("execute_transform", {
         transformType: selectedTransform,
@@ -463,9 +476,11 @@ export function TransformPanel({ provider }: TransformPanelProps) {
                   <button
                     onClick={handleExecute}
                     disabled={executing || selectedFiles.size === 0}
-                    style={{ background: "var(--success-color)", border: "none", borderRadius: 6, padding: "10px 24px", color: "#fff", cursor: "pointer", fontWeight: 600, fontSize: 14, opacity: executing || selectedFiles.size === 0 ? 0.5 : 1 }}
+                    style={{ background: "var(--accent-color)", border: "none", borderRadius: 6, padding: "10px 24px", color: "var(--btn-primary-fg)", cursor: "pointer", fontWeight: 600, fontSize: 14, opacity: executing || selectedFiles.size === 0 ? 0.5 : 1 }}
                   >
-                    {executing ? "Transforming..." : `Transform ${selectedFiles.size} File${selectedFiles.size !== 1 ? "s" : ""}`}
+                    {executing
+                      ? (progress ? `Transforming ${progress.current}/${progress.total}...` : "Transforming...")
+                      : `Transform ${selectedFiles.size} File${selectedFiles.size !== 1 ? "s" : ""}`}
                   </button>
                   <button
                     onClick={() => { setPlan(null); setExecResult(null); }}
@@ -474,6 +489,20 @@ export function TransformPanel({ provider }: TransformPanelProps) {
                     Re-plan
                   </button>
                 </div>
+                {executing && progress && (
+                  <div style={{ marginTop: 8 }}>
+                    <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 }}>
+                      Processing: {progress.file}
+                    </div>
+                    <div style={{ height: 4, background: "var(--bg-tertiary)", borderRadius: 2, overflow: "hidden" }}>
+                      <div style={{
+                        width: `${Math.round((progress.current / progress.total) * 100)}%`,
+                        height: "100%", background: "var(--accent-color)", borderRadius: 2,
+                        transition: "width 0.3s ease",
+                      }} />
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

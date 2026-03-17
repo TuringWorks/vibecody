@@ -15466,31 +15466,59 @@ pub async fn execute_transform(
     transform_type: String,
     files: Vec<String>,
     state: tauri::State<'_, AppState>,
+    app_handle: tauri::AppHandle,
 ) -> Result<TransformExecResult, String> {
-    let engine = state.chat_engine.lock().await;
-    let llm = engine.active_provider().ok_or("No active AI provider")?;
-    let workspace_folders = state.workspace.lock().await.folders().to_vec();
-    let ws = workspace_folders.first()
-        .map(std::path::PathBuf::from)
-        .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
+    // Resolve workspace root while holding the lock briefly
+    let ws = {
+        let workspace_folders = state.workspace.lock().await.folders().to_vec();
+        workspace_folders.first()
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| std::env::current_dir().unwrap_or_default())
+    };
 
+    let total = files.len();
     let mut modified = 0;
-    for file in &files {
+    let mut errors = Vec::new();
+
+    for (i, file) in files.iter().enumerate() {
+        // Emit progress so the UI can update
+        let _ = app_handle.emit("transform:progress", serde_json::json!({
+            "current": i + 1,
+            "total": total,
+            "file": file,
+        }));
+
         let file_path = ws.join(file);
         let content = match std::fs::read_to_string(&file_path) {
             Ok(c) => c,
-            Err(_) => continue,
+            Err(e) => {
+                errors.push(format!("{}: {}", file, e));
+                continue;
+            }
         };
 
+        // Skip very large files to avoid overwhelming the LLM
+        if content.len() > 100_000 {
+            errors.push(format!("{}: skipped (>100KB)", file));
+            continue;
+        }
+
         let prompt = format!(
-            "Apply '{}' transformation to this file. Return ONLY the transformed code:\n```\n{}\n```",
+            "Apply '{}' transformation to this file. Return ONLY the transformed code, no explanations:\n```\n{}\n```",
             transform_type, content
         );
         let messages = vec![
             vibe_ai::Message { role: vibe_ai::MessageRole::User, content: prompt },
         ];
 
-        match llm.chat(&messages, None).await {
+        // Acquire and release the chat engine lock per file so other
+        // commands are not blocked for the entire batch.
+        let result = {
+            let engine = state.chat_engine.lock().await;
+            engine.chat(&messages, None).await
+        };
+
+        match result {
             Ok(response) => {
                 let code = response.trim();
                 let code = if code.starts_with("```") {
@@ -15504,13 +15532,27 @@ pub async fn execute_transform(
                     modified += 1;
                 }
             }
-            Err(_) => continue,
+            Err(e) => {
+                errors.push(format!("{}: {}", file, e));
+            }
         }
     }
 
+    let _ = app_handle.emit("transform:progress", serde_json::json!({
+        "current": total,
+        "total": total,
+        "file": "done",
+    }));
+
+    let summary = if errors.is_empty() {
+        format!("Transformed {}/{} files with '{}'", modified, total, transform_type)
+    } else {
+        format!("Transformed {}/{} files with '{}' ({} errors)", modified, total, transform_type, errors.len())
+    };
+
     Ok(TransformExecResult {
         files_modified: modified,
-        summary: format!("Transformed {}/{} files with {}", modified, files.len(), transform_type),
+        summary,
     })
 }
 
