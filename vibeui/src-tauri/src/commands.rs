@@ -26918,3 +26918,461 @@ pub async fn batch_save_migration(run_id: String, migration: serde_json::Value) 
     }
     batch_write_json("runs.json", &runs)
 }
+
+// ── Cloud Autofix (persisted to ~/.vibeui/cloud-autofix.json) ────────────────
+
+fn cloud_autofix_path() -> std::path::PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    std::path::PathBuf::from(home).join(".vibeui").join("cloud-autofix.json")
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AutofixAttempt {
+    pub id: String,
+    #[serde(rename = "type")]
+    pub fix_type: String,
+    pub description: String,
+    pub confidence: u32,
+    #[serde(rename = "testStatus")]
+    pub test_status: String,
+    #[serde(rename = "filesChanged")]
+    pub files_changed: u32,
+    pub status: String,
+    #[serde(rename = "prNumber")]
+    pub pr_number: String,
+    #[serde(rename = "createdAt")]
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AutofixStats {
+    #[serde(rename = "mergeRate")]
+    pub merge_rate: f64,
+    #[serde(rename = "totalAttempts")]
+    pub total_attempts: u32,
+    pub merged: u32,
+    pub rejected: u32,
+    pub pending: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AutofixConfig {
+    #[serde(rename = "containerImage")]
+    pub container_image: String,
+    #[serde(rename = "timeoutMinutes")]
+    pub timeout_minutes: u32,
+    #[serde(rename = "cpuLimit")]
+    pub cpu_limit: String,
+    #[serde(rename = "memoryLimit")]
+    pub memory_limit: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct CloudAutofixStore {
+    attempts: Vec<AutofixAttempt>,
+    config: AutofixConfig,
+}
+
+impl Default for CloudAutofixStore {
+    fn default() -> Self {
+        Self {
+            attempts: vec![],
+            config: AutofixConfig {
+                container_image: "node:20-slim".to_string(),
+                timeout_minutes: 10,
+                cpu_limit: "2".to_string(),
+                memory_limit: "4Gi".to_string(),
+            },
+        }
+    }
+}
+
+async fn load_cloud_autofix_store() -> Result<CloudAutofixStore, String> {
+    let path = cloud_autofix_path();
+    if !path.exists() {
+        return Ok(CloudAutofixStore::default());
+    }
+    let content = tokio::fs::read_to_string(&path).await
+        .map_err(|e| format!("Read error: {e}"))?;
+    serde_json::from_str::<CloudAutofixStore>(&content)
+        .map_err(|e| format!("Parse error: {e}"))
+}
+
+async fn save_cloud_autofix_store(store: &CloudAutofixStore) -> Result<(), String> {
+    let path = cloud_autofix_path();
+    if let Some(parent) = path.parent() {
+        tokio::fs::create_dir_all(parent).await
+            .map_err(|e| format!("Mkdir error: {e}"))?;
+    }
+    let json = serde_json::to_string_pretty(store)
+        .map_err(|e| format!("Serialize error: {e}"))?;
+    tokio::fs::write(&path, json).await
+        .map_err(|e| format!("Write error: {e}"))?;
+    Ok(())
+}
+
+/// Return all autofix attempts.
+#[tauri::command]
+pub async fn list_autofix_attempts() -> Result<Vec<AutofixAttempt>, String> {
+    let store = load_cloud_autofix_store().await?;
+    Ok(store.attempts)
+}
+
+/// Return autofix statistics computed from persisted attempts.
+#[tauri::command]
+pub async fn get_autofix_stats() -> Result<AutofixStats, String> {
+    let store = load_cloud_autofix_store().await?;
+    let total = store.attempts.len() as u32;
+    let merged = store.attempts.iter().filter(|a| a.status == "merged").count() as u32;
+    let rejected = store.attempts.iter().filter(|a| a.status == "rejected").count() as u32;
+    let pending = total - merged - rejected;
+    let merge_rate = if total > 0 { (merged as f64 / total as f64) * 100.0 } else { 0.0 };
+    Ok(AutofixStats { merge_rate, total_attempts: total, merged, rejected, pending })
+}
+
+/// Create a new autofix attempt for a pull request.
+#[tauri::command]
+pub async fn create_autofix_attempt(
+    pr_number: String,
+    fix_type: String,
+    description: String,
+    confidence: u32,
+    files_changed: u32,
+) -> Result<AutofixAttempt, String> {
+    let mut store = load_cloud_autofix_store().await?;
+    let attempt = AutofixAttempt {
+        id: format!("af-{}", chrono::Utc::now().timestamp_millis()),
+        fix_type,
+        description,
+        confidence,
+        test_status: "pending".to_string(),
+        files_changed,
+        status: "pending".to_string(),
+        pr_number,
+        created_at: chrono::Utc::now().to_rfc3339(),
+    };
+    store.attempts.push(attempt.clone());
+    save_cloud_autofix_store(&store).await?;
+    Ok(attempt)
+}
+
+/// Update an autofix attempt's status (merged / rejected).
+#[tauri::command]
+pub async fn update_autofix_status(attempt_id: String, status: String) -> Result<AutofixAttempt, String> {
+    let mut store = load_cloud_autofix_store().await?;
+    let attempt = store.attempts.iter_mut().find(|a| a.id == attempt_id)
+        .ok_or_else(|| format!("Attempt not found: {attempt_id}"))?;
+    attempt.status = status;
+    let snapshot = attempt.clone();
+    save_cloud_autofix_store(&store).await?;
+    Ok(snapshot)
+}
+
+/// Return autofix configuration (container image, timeout, resource limits).
+#[tauri::command]
+pub async fn get_autofix_config() -> Result<AutofixConfig, String> {
+    let store = load_cloud_autofix_store().await?;
+    Ok(store.config)
+}
+
+/// Save autofix configuration.
+#[tauri::command]
+pub async fn save_autofix_config(config: AutofixConfig) -> Result<(), String> {
+    let mut store = load_cloud_autofix_store().await?;
+    store.config = config;
+    save_cloud_autofix_store(&store).await
+}
+
+// ── Team Governance (persisted to ~/.vibeui/team-governance.json) ────────────
+
+fn governance_data_dir() -> Result<PathBuf, String> {
+    let home = dirs::home_dir().ok_or("Cannot determine home directory")?;
+    let dir = home.join(".vibeui");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(dir)
+}
+
+fn governance_read() -> serde_json::Value {
+    let Ok(dir) = governance_data_dir() else { return serde_json::json!({"plugins":[],"audit":[],"policies":{}}) };
+    let path = dir.join("team-governance.json");
+    std::fs::read_to_string(path)
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or(serde_json::json!({"plugins":[],"audit":[],"policies":{}}))
+}
+
+fn governance_write(data: &serde_json::Value) -> Result<(), String> {
+    let dir = governance_data_dir()?;
+    let path = dir.join("team-governance.json");
+    let content = serde_json::to_string_pretty(data).map_err(|e| e.to_string())?;
+    std::fs::write(path, content).map_err(|e| e.to_string())
+}
+
+fn governance_append_audit(data: &mut serde_json::Value, action: &str, user: &str, detail: &str) {
+    let now = chrono::Utc::now().format("%Y-%m-%d %H:%M").to_string();
+    let entry = serde_json::json!({
+        "timestamp": now,
+        "action": action,
+        "user": user,
+        "detail": detail,
+    });
+    if let Some(arr) = data.get_mut("audit").and_then(|v| v.as_array_mut()) {
+        arr.insert(0, entry);
+    }
+}
+
+/// List all governance plugins with their approval status.
+#[tauri::command]
+pub async fn list_governance_plugins() -> Result<serde_json::Value, String> {
+    let data = governance_read();
+    Ok(data.get("plugins").cloned().unwrap_or(serde_json::json!([])))
+}
+
+/// Submit a new plugin for team approval.
+#[tauri::command]
+pub async fn submit_plugin_for_approval(
+    name: String,
+    version: String,
+    visibility: String,
+    author: String,
+) -> Result<serde_json::Value, String> {
+    let mut data = governance_read();
+    let plugins = data.get("plugins").and_then(|v| v.as_array()).map(|a| a.len()).unwrap_or(0);
+    let id = format!("gov-{}", plugins + 1);
+    let plugin = serde_json::json!({
+        "id": id,
+        "name": name,
+        "version": version,
+        "visibility": visibility,
+        "status": "Pending",
+        "author": author,
+    });
+    if let Some(arr) = data.get_mut("plugins").and_then(|v| v.as_array_mut()) {
+        arr.push(plugin.clone());
+    }
+    governance_append_audit(&mut data, "Plugin submitted", &author, &format!("{} v{}", name, version));
+    governance_write(&data)?;
+    Ok(plugin)
+}
+
+/// Approve a pending plugin by id.
+#[tauri::command]
+pub async fn approve_plugin(plugin_id: String, reviewer: String) -> Result<serde_json::Value, String> {
+    let mut data = governance_read();
+    let mut detail_str = String::new();
+    if let Some(arr) = data.get_mut("plugins").and_then(|v| v.as_array_mut()) {
+        if let Some(p) = arr.iter_mut().find(|p| p.get("id").and_then(|v| v.as_str()) == Some(&plugin_id)) {
+            if let Some(obj) = p.as_object_mut() {
+                let name = obj.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                let ver = obj.get("version").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                obj.insert("status".into(), serde_json::json!("Approved"));
+                detail_str = format!("{} v{}", name, ver);
+            }
+        } else {
+            return Err(format!("Plugin '{}' not found", plugin_id));
+        }
+    }
+    governance_append_audit(&mut data, "Plugin approved", &reviewer, &detail_str);
+    governance_write(&data)?;
+    Ok(data.get("plugins").cloned().unwrap_or(serde_json::json!([])))
+}
+
+/// Reject a pending plugin by id.
+#[tauri::command]
+pub async fn reject_plugin(plugin_id: String, reviewer: String) -> Result<serde_json::Value, String> {
+    let mut data = governance_read();
+    let mut detail_str = String::new();
+    if let Some(arr) = data.get_mut("plugins").and_then(|v| v.as_array_mut()) {
+        if let Some(p) = arr.iter_mut().find(|p| p.get("id").and_then(|v| v.as_str()) == Some(&plugin_id)) {
+            if let Some(obj) = p.as_object_mut() {
+                let name = obj.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                let ver = obj.get("version").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                obj.insert("status".into(), serde_json::json!("Rejected"));
+                detail_str = format!("{} v{}", name, ver);
+            }
+        } else {
+            return Err(format!("Plugin '{}' not found", plugin_id));
+        }
+    }
+    governance_append_audit(&mut data, "Plugin rejected", &reviewer, &detail_str);
+    governance_write(&data)?;
+    Ok(data.get("plugins").cloned().unwrap_or(serde_json::json!([])))
+}
+
+/// Return audit trail entries for governance actions.
+#[tauri::command]
+pub async fn get_governance_audit_log() -> Result<serde_json::Value, String> {
+    let data = governance_read();
+    Ok(data.get("audit").cloned().unwrap_or(serde_json::json!([])))
+}
+
+/// Return team governance policies/rules.
+#[tauri::command]
+pub async fn get_governance_policies() -> Result<serde_json::Value, String> {
+    let data = governance_read();
+    Ok(data.get("policies").cloned().unwrap_or(serde_json::json!({
+        "requireApproval": true,
+        "allowedCategories": "linting,formatting,testing,deployment",
+        "maxSizeMb": 50,
+        "requireShaPin": true,
+    })))
+}
+
+// ── GitHub Actions Panel ─────────────────────────────────────────────────
+
+fn gh_actions_data_dir() -> Result<std::path::PathBuf, String> {
+    let home = std::env::var("HOME").map_err(|_| "HOME not set".to_string())?;
+    let dir = std::path::PathBuf::from(home).join(".vibeui").join("gh-actions");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(dir)
+}
+
+fn gh_actions_read_json(filename: &str) -> serde_json::Value {
+    let Ok(dir) = gh_actions_data_dir() else { return serde_json::json!([]) };
+    let path = dir.join(filename);
+    std::fs::read_to_string(path)
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or(serde_json::json!([]))
+}
+
+fn gh_actions_write_json(filename: &str, data: &serde_json::Value) -> Result<(), String> {
+    let dir = gh_actions_data_dir()?;
+    let path = dir.join(filename);
+    let content = serde_json::to_string_pretty(data).map_err(|e| e.to_string())?;
+    std::fs::write(path, content).map_err(|e| e.to_string())
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct GhWorkflowTemplate {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    #[serde(rename = "estimatedMinutes")]
+    pub estimated_minutes: u32,
+    pub category: String,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct GhSecretEntry {
+    pub name: String,
+    pub description: String,
+    pub required: bool,
+}
+
+#[derive(Deserialize)]
+pub struct GhWorkflowConfig {
+    pub name: String,
+    pub triggers: Vec<String>,
+    pub jobs: Vec<String>,
+}
+
+/// Return available GitHub Actions workflow templates.
+#[tauri::command]
+pub async fn list_gh_workflow_templates() -> Result<Vec<GhWorkflowTemplate>, String> {
+    Ok(vec![
+        GhWorkflowTemplate { id: "t1".into(), name: "CodeReview".into(), description: "AI-powered code review on PRs with inline suggestions".into(), estimated_minutes: 3, category: "Quality".into() },
+        GhWorkflowTemplate { id: "t2".into(), name: "AutoFix".into(), description: "Automatically fix lint and type errors, push corrections".into(), estimated_minutes: 5, category: "Automation".into() },
+        GhWorkflowTemplate { id: "t3".into(), name: "TestSuite".into(), description: "Run unit, integration, and e2e tests with coverage report".into(), estimated_minutes: 8, category: "Testing".into() },
+        GhWorkflowTemplate { id: "t4".into(), name: "SecurityScan".into(), description: "SAST, dependency audit, and secret detection scan".into(), estimated_minutes: 4, category: "Security".into() },
+        GhWorkflowTemplate { id: "t5".into(), name: "Deploy".into(), description: "Build, push container, deploy to staging or production".into(), estimated_minutes: 10, category: "Deployment".into() },
+        GhWorkflowTemplate { id: "t6".into(), name: "Release".into(), description: "Semantic versioning, changelog generation, and GitHub release".into(), estimated_minutes: 6, category: "Release".into() },
+        GhWorkflowTemplate { id: "t7".into(), name: "Custom".into(), description: "Blank workflow template with common boilerplate".into(), estimated_minutes: 1, category: "Custom".into() },
+    ])
+}
+
+/// Generate a GitHub Actions YAML workflow from a configuration.
+#[tauri::command]
+pub async fn generate_gh_workflow(config: GhWorkflowConfig) -> Result<String, String> {
+    if config.name.is_empty() {
+        return Err("Workflow name is required".to_string());
+    }
+    if config.triggers.is_empty() {
+        return Err("At least one trigger is required".to_string());
+    }
+    if config.jobs.is_empty() {
+        return Err("At least one job is required".to_string());
+    }
+
+    let mut yaml = format!("name: {}\n\non:\n", config.name);
+    for trigger in &config.triggers {
+        yaml.push_str(&format!("  {}:\n", trigger));
+    }
+    yaml.push_str("\njobs:\n");
+    for job in &config.jobs {
+        let job_id = job.trim().replace(' ', "_");
+        yaml.push_str(&format!(
+            "  {}:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - name: Run {}\n        run: echo \"Running {}\"\n\n",
+            job_id, job.trim(), job.trim()
+        ));
+    }
+
+    // Record in history
+    let history_data = gh_actions_read_json("history.json");
+    let mut arr = history_data.as_array().cloned().unwrap_or_default();
+    let entry = serde_json::json!({
+        "id": format!("wf-{}", arr.len() + 1),
+        "name": config.name,
+        "triggers": config.triggers,
+        "jobs": config.jobs,
+        "generatedAt": chrono::Utc::now().to_rfc3339(),
+        "yaml": yaml,
+    });
+    arr.push(entry);
+    let _ = gh_actions_write_json("history.json", &serde_json::json!(arr));
+
+    Ok(yaml)
+}
+
+/// Return configured secret names (not values) for GitHub Actions.
+#[tauri::command]
+pub async fn list_gh_secrets() -> Result<Vec<GhSecretEntry>, String> {
+    let data = gh_actions_read_json("secrets.json");
+    if let Ok(secrets) = serde_json::from_value::<Vec<GhSecretEntry>>(data) {
+        if !secrets.is_empty() {
+            return Ok(secrets);
+        }
+    }
+    // Return defaults if no saved secrets
+    Ok(vec![
+        GhSecretEntry { name: "GITHUB_TOKEN".into(), description: "Automatically provided by GitHub Actions".into(), required: true },
+        GhSecretEntry { name: "DEPLOY_KEY".into(), description: "SSH key for deployment target".into(), required: true },
+        GhSecretEntry { name: "SLACK_WEBHOOK".into(), description: "Webhook URL for Slack notifications".into(), required: false },
+    ])
+}
+
+/// Save a generated workflow YAML to .github/workflows/ in the workspace.
+#[tauri::command]
+pub async fn save_gh_workflow(
+    state: tauri::State<'_, AppState>,
+    filename: String,
+    yaml: String,
+) -> Result<String, String> {
+    // Validate filename
+    if filename.is_empty() || (!filename.ends_with(".yml") && !filename.ends_with(".yaml")) {
+        return Err("Filename must end with .yml or .yaml".to_string());
+    }
+    // Prevent path traversal
+    if filename.contains("..") || filename.contains('/') || filename.contains('\\') {
+        return Err("Invalid filename".to_string());
+    }
+
+    let ws = state.workspace.lock().await;
+    let workspace_root = ws.folders().first()
+        .cloned()
+        .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
+    drop(ws);
+
+    let workflows_dir = workspace_root.join(".github").join("workflows");
+    std::fs::create_dir_all(&workflows_dir).map_err(|e| format!("Failed to create workflows dir: {e}"))?;
+    let filepath = workflows_dir.join(&filename);
+    std::fs::write(&filepath, &yaml).map_err(|e| format!("Failed to write workflow: {e}"))?;
+
+    Ok(filepath.display().to_string())
+}
+
+/// Return past generated workflows from ~/.vibeui/gh-actions-history.json.
+#[tauri::command]
+pub async fn get_gh_actions_history() -> Result<serde_json::Value, String> {
+    Ok(gh_actions_read_json("history.json"))
+}

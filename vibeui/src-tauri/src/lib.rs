@@ -800,6 +800,26 @@ pub fn run() {
             commands::create_app_project,
             commands::get_app_builder_history,
             commands::enhance_app_template,
+            // Cloud Autofix
+            commands::list_autofix_attempts,
+            commands::get_autofix_stats,
+            commands::create_autofix_attempt,
+            commands::update_autofix_status,
+            commands::get_autofix_config,
+            commands::save_autofix_config,
+            // Team Governance
+            commands::list_governance_plugins,
+            commands::submit_plugin_for_approval,
+            commands::approve_plugin,
+            commands::reject_plugin,
+            commands::get_governance_audit_log,
+            commands::get_governance_policies,
+            // GitHub Actions Panel
+            commands::list_gh_workflow_templates,
+            commands::generate_gh_workflow,
+            commands::list_gh_secrets,
+            commands::save_gh_workflow,
+            commands::get_gh_actions_history,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

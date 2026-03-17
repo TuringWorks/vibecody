@@ -1,12 +1,31 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 interface FixAttempt {
   id: string;
-  type: "lint" | "typecheck" | "test" | "security" | "style";
+  type: string;
   description: string;
   confidence: number;
-  testStatus: "passed" | "failed" | "running" | "pending";
+  testStatus: string;
   filesChanged: number;
+  status: string;
+  prNumber: string;
+  createdAt: string;
+}
+
+interface AutofixStats {
+  mergeRate: number;
+  totalAttempts: number;
+  merged: number;
+  rejected: number;
+  pending: number;
+}
+
+interface AutofixConfig {
+  containerImage: string;
+  timeoutMinutes: number;
+  cpuLimit: string;
+  memoryLimit: string;
 }
 
 const CloudAutofixPanel: React.FC = () => {
@@ -17,15 +36,45 @@ const CloudAutofixPanel: React.FC = () => {
   const [cpuLimit, setCpuLimit] = useState("2");
   const [memoryLimit, setMemoryLimit] = useState("4Gi");
   const [analyzing, setAnalyzing] = useState(false);
-  const [fixes] = useState<FixAttempt[]>([
-    { id: "f1", type: "typecheck", description: "Fix missing return type on fetchData()", confidence: 95, testStatus: "passed", filesChanged: 1 },
-    { id: "f2", type: "lint", description: "Replace var with const in utils.ts", confidence: 88, testStatus: "passed", filesChanged: 3 },
-    { id: "f3", type: "test", description: "Add missing assertion in auth.test.ts", confidence: 72, testStatus: "running", filesChanged: 1 },
-    { id: "f4", type: "security", description: "Sanitize user input in query builder", confidence: 81, testStatus: "pending", filesChanged: 2 },
-    { id: "f5", type: "style", description: "Normalize indentation in config module", confidence: 99, testStatus: "passed", filesChanged: 5 },
-  ]);
+  const [fixes, setFixes] = useState<FixAttempt[]>([]);
   const [strategy, setStrategy] = useState("Minimal");
-  const [stats] = useState({ mergeRate: 78, totalAttempts: 142, merged: 111, rejected: 19, pending: 12 });
+  const [stats, setStats] = useState<AutofixStats>({ mergeRate: 0, totalAttempts: 0, merged: 0, rejected: 0, pending: 0 });
+
+  const loadFixes = useCallback(async () => {
+    try {
+      const attempts = await invoke<FixAttempt[]>("list_autofix_attempts");
+      setFixes(attempts);
+    } catch (e) {
+      console.error("Failed to load autofix attempts:", e);
+    }
+  }, []);
+
+  const loadStats = useCallback(async () => {
+    try {
+      const s = await invoke<AutofixStats>("get_autofix_stats");
+      setStats(s);
+    } catch (e) {
+      console.error("Failed to load autofix stats:", e);
+    }
+  }, []);
+
+  const loadConfig = useCallback(async () => {
+    try {
+      const cfg = await invoke<AutofixConfig>("get_autofix_config");
+      setContainerImage(cfg.containerImage);
+      setTimeoutMinutes(cfg.timeoutMinutes);
+      setCpuLimit(cfg.cpuLimit);
+      setMemoryLimit(cfg.memoryLimit);
+    } catch (e) {
+      console.error("Failed to load autofix config:", e);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadFixes();
+    loadStats();
+    loadConfig();
+  }, [loadFixes, loadStats, loadConfig]);
 
   const containerStyle: React.CSSProperties = {
     padding: "16px", color: "var(--text-primary)",
@@ -60,7 +109,55 @@ const CloudAutofixPanel: React.FC = () => {
   const typeColor = (t: string) => t === "typecheck" ? "#1f6feb" : t === "lint" ? "#8957e5" : t === "test" ? "#d29922" : t === "security" ? "#f85149" : "#6e7681";
   const testStatusColor = (s: string) => s === "passed" ? "#2ea043" : s === "failed" ? "#f85149" : s === "running" ? "#d29922" : "#6e7681";
 
-  const handleAnalyze = () => { setAnalyzing(true); setTimeout(() => setAnalyzing(false), 2000); };
+  const handleAnalyze = async () => {
+    if (!prNumber.trim()) return;
+    setAnalyzing(true);
+    try {
+      await invoke<FixAttempt>("create_autofix_attempt", {
+        prNumber: prNumber.trim(),
+        fixType: "typecheck",
+        description: `Autofix analysis for PR #${prNumber.trim()}`,
+        confidence: 80,
+        filesChanged: 1,
+      });
+      await loadFixes();
+      await loadStats();
+    } catch (e) {
+      console.error("Failed to create autofix attempt:", e);
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  const handleSaveConfig = async () => {
+    try {
+      await invoke("save_autofix_config", {
+        config: { containerImage, timeoutMinutes, cpuLimit, memoryLimit },
+      });
+    } catch (e) {
+      console.error("Failed to save autofix config:", e);
+    }
+  };
+
+  const handleMerge = async (attemptId: string) => {
+    try {
+      await invoke<FixAttempt>("update_autofix_status", { attemptId, status: "merged" });
+      await loadFixes();
+      await loadStats();
+    } catch (e) {
+      console.error("Failed to merge attempt:", e);
+    }
+  };
+
+  const handleReject = async (attemptId: string) => {
+    try {
+      await invoke<FixAttempt>("update_autofix_status", { attemptId, status: "rejected" });
+      await loadFixes();
+      await loadStats();
+    } catch (e) {
+      console.error("Failed to reject attempt:", e);
+    }
+  };
 
   return (
     <div style={containerStyle}>
@@ -102,6 +199,9 @@ const CloudAutofixPanel: React.FC = () => {
                 <input style={{ ...input, width: "100%" }} value={memoryLimit} onChange={e => setMemoryLimit(e.target.value)} />
               </div>
             </div>
+            <div style={{ marginTop: "12px", display: "flex", justifyContent: "flex-end" }}>
+              <button style={btn} onClick={handleSaveConfig}>Save Config</button>
+            </div>
           </div>
         </div>
       )}
@@ -109,11 +209,17 @@ const CloudAutofixPanel: React.FC = () => {
       {activeTab === "fixes" && (
         <div>
           <h4 style={{ margin: "0 0 12px" }}>Fix Attempts ({fixes.length})</h4>
+          {fixes.length === 0 && (
+            <div style={{ ...card, textAlign: "center", opacity: 0.6 }}>No autofix attempts yet. Use the Pipeline tab to analyze a PR.</div>
+          )}
           {fixes.map(f => (
             <div key={f.id} style={card}>
               <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
                 <span style={badge(typeColor(f.type))}>{f.type}</span>
                 <strong>{f.description}</strong>
+                {f.status !== "pending" && (
+                  <span style={badge(f.status === "merged" ? "#2ea043" : "#f85149")}>{f.status}</span>
+                )}
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "8px" }}>
                 <div style={{ flex: 1 }}>
@@ -127,10 +233,12 @@ const CloudAutofixPanel: React.FC = () => {
                 <span style={badge(testStatusColor(f.testStatus))}>{f.testStatus}</span>
                 <span style={{ opacity: 0.6 }}>{f.filesChanged} file{f.filesChanged > 1 ? "s" : ""}</span>
               </div>
-              <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end" }}>
-                <button style={btn}>Propose</button>
-                <button style={{ ...btn, backgroundColor: "var(--success-color)" }}>Merge</button>
-              </div>
+              {f.status === "pending" && (
+                <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end" }}>
+                  <button style={{ ...btn, backgroundColor: "var(--error-color)" }} onClick={() => handleReject(f.id)}>Reject</button>
+                  <button style={{ ...btn, backgroundColor: "var(--success-color)" }} onClick={() => handleMerge(f.id)}>Merge</button>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -142,8 +250,8 @@ const CloudAutofixPanel: React.FC = () => {
             <h4 style={{ margin: "0 0 12px" }}>Merge Rate</h4>
             <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "8px" }}>
               <div style={{ flex: 1, height: "20px", borderRadius: "10px", backgroundColor: "var(--border-color)" }}>
-                <div style={{ height: "100%", borderRadius: "10px", width: `${stats.mergeRate}%`, backgroundColor: "var(--success-color)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: 700, color: "white" }}>
-                  {stats.mergeRate}%
+                <div style={{ height: "100%", borderRadius: "10px", width: `${Math.round(stats.mergeRate)}%`, backgroundColor: "var(--success-color)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: 700, color: "white" }}>
+                  {Math.round(stats.mergeRate)}%
                 </div>
               </div>
             </div>
@@ -155,7 +263,7 @@ const CloudAutofixPanel: React.FC = () => {
               { label: "Rejected", value: stats.rejected, color: "var(--error-color)" },
               { label: "Pending", value: stats.pending, color: "var(--warning-color)" },
             ].map(s => (
-              <div key={s.label} style={{ ...card, textAlign: "center" }}>
+              <div key={s.label} style={{ ...card, textAlign: "center" as const }}>
                 <div style={{ fontSize: "24px", fontWeight: 700, color: s.color }}>{s.value}</div>
                 <div style={{ opacity: 0.7, fontSize: "12px" }}>{s.label}</div>
               </div>

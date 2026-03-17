@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 interface PluginEntry {
   id: string;
@@ -9,36 +10,127 @@ interface PluginEntry {
   author: string;
 }
 
-interface ApprovalRequest {
-  id: string;
-  pluginName: string;
-  requestedBy: string;
-  reviewer: string;
-  reason: string;
-  date: string;
+interface AuditEntry {
+  timestamp: string;
+  action: string;
+  user: string;
+  detail: string;
+}
+
+interface GovernancePolicies {
+  requireApproval: boolean;
+  allowedCategories: string;
+  maxSizeMb: number;
+  requireShaPin: boolean;
 }
 
 const TeamGovernancePanel: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("plugins");
-  const [plugins] = useState<PluginEntry[]>([
-    { id: "1", name: "code-formatter", version: "1.2.0", visibility: "Org", status: "Approved", author: "alice" },
-    { id: "2", name: "lint-rules", version: "0.9.1", visibility: "TeamOnly", status: "Pending", author: "bob" },
-    { id: "3", name: "deploy-helper", version: "2.0.0", visibility: "Public", status: "Approved", author: "carol" },
-    { id: "4", name: "legacy-bridge", version: "0.3.0", visibility: "Private", status: "Deprecated", author: "dave" },
-  ]);
-  const [approvals, setApprovals] = useState<ApprovalRequest[]>([
-    { id: "a1", pluginName: "lint-rules", requestedBy: "bob", reviewer: "alice", reason: "Team standardization", date: "2026-03-08" },
-    { id: "a2", pluginName: "metrics-exporter", requestedBy: "eve", reviewer: "", reason: "Observability integration", date: "2026-03-09" },
-  ]);
-  const [requireApproval, setRequireApproval] = useState(true);
-  const [allowedCategories, setAllowedCategories] = useState("linting,formatting,testing,deployment");
-  const [maxSizeMb, setMaxSizeMb] = useState(50);
-  const [requireShaPin, setRequireShaPin] = useState(true);
-  const [auditLog] = useState([
-    { timestamp: "2026-03-08 14:22", action: "Plugin approved", user: "alice", detail: "code-formatter v1.2.0" },
-    { timestamp: "2026-03-07 09:15", action: "Policy updated", user: "admin", detail: "Enabled SHA pinning" },
-    { timestamp: "2026-03-06 16:40", action: "Plugin rejected", user: "alice", detail: "unsafe-exec v0.1.0" },
-  ]);
+  const [plugins, setPlugins] = useState<PluginEntry[]>([]);
+  const [auditLog, setAuditLog] = useState<AuditEntry[]>([]);
+  const [policies, setPolicies] = useState<GovernancePolicies>({
+    requireApproval: true,
+    allowedCategories: "linting,formatting,testing,deployment",
+    maxSizeMb: 50,
+    requireShaPin: true,
+  });
+  const [loading, setLoading] = useState(false);
+
+  // Registration form state
+  const [newName, setNewName] = useState("");
+  const [newVersion, setNewVersion] = useState("");
+  const [newVisibility, setNewVisibility] = useState<string>("TeamOnly");
+  const [newAuthor, setNewAuthor] = useState("");
+  const [showRegisterForm, setShowRegisterForm] = useState(false);
+
+  const loadPlugins = useCallback(async () => {
+    try {
+      const result = await invoke<PluginEntry[]>("list_governance_plugins");
+      setPlugins(result);
+    } catch (e) {
+      console.error("Failed to load governance plugins:", e);
+    }
+  }, []);
+
+  const loadAuditLog = useCallback(async () => {
+    try {
+      const result = await invoke<AuditEntry[]>("get_governance_audit_log");
+      setAuditLog(result);
+    } catch (e) {
+      console.error("Failed to load governance audit log:", e);
+    }
+  }, []);
+
+  const loadPolicies = useCallback(async () => {
+    try {
+      const result = await invoke<GovernancePolicies>("get_governance_policies");
+      setPolicies(result);
+    } catch (e) {
+      console.error("Failed to load governance policies:", e);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadPlugins();
+    loadAuditLog();
+    loadPolicies();
+  }, [loadPlugins, loadAuditLog, loadPolicies]);
+
+  const handleSubmitPlugin = async () => {
+    if (!newName || !newVersion || !newAuthor) return;
+    setLoading(true);
+    try {
+      await invoke("submit_plugin_for_approval", {
+        name: newName,
+        version: newVersion,
+        visibility: newVisibility,
+        author: newAuthor,
+      });
+      setNewName("");
+      setNewVersion("");
+      setNewVisibility("TeamOnly");
+      setNewAuthor("");
+      setShowRegisterForm(false);
+      await loadPlugins();
+      await loadAuditLog();
+    } catch (e) {
+      console.error("Failed to submit plugin:", e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleApprove = async (id: string) => {
+    setLoading(true);
+    try {
+      const updated = await invoke<PluginEntry[]>("approve_plugin", {
+        pluginId: id,
+        reviewer: "current-user",
+      });
+      setPlugins(updated);
+      await loadAuditLog();
+    } catch (e) {
+      console.error("Failed to approve plugin:", e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReject = async (id: string) => {
+    setLoading(true);
+    try {
+      const updated = await invoke<PluginEntry[]>("reject_plugin", {
+        pluginId: id,
+        reviewer: "current-user",
+      });
+      setPlugins(updated);
+      await loadAuditLog();
+    } catch (e) {
+      console.error("Failed to reject plugin:", e);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const containerStyle: React.CSSProperties = {
     padding: "16px", color: "var(--text-primary)",
@@ -73,8 +165,7 @@ const TeamGovernancePanel: React.FC = () => {
   const visibilityColor = (v: string) => v === "Public" ? "var(--success-color)" : v === "Org" ? "var(--info-color)" : v === "TeamOnly" ? "var(--accent-color)" : "var(--text-muted)";
   const statusColor = (s: string) => s === "Approved" ? "var(--success-color)" : s === "Pending" ? "var(--warning-color)" : s === "Rejected" ? "var(--error-color)" : "var(--text-muted)";
 
-  const handleApprove = (id: string) => setApprovals(prev => prev.filter(a => a.id !== id));
-  const handleReject = (id: string) => setApprovals(prev => prev.filter(a => a.id !== id));
+  const pendingPlugins = plugins.filter(p => p.status === "Pending");
 
   return (
     <div style={containerStyle}>
@@ -91,8 +182,38 @@ const TeamGovernancePanel: React.FC = () => {
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "12px" }}>
             <span style={{ fontWeight: 600 }}>{plugins.length} registered plugins</span>
-            <button style={btn}>Register Plugin</button>
+            <button style={btn} onClick={() => setShowRegisterForm(!showRegisterForm)}>
+              {showRegisterForm ? "Cancel" : "Register Plugin"}
+            </button>
           </div>
+          {showRegisterForm && (
+            <div style={{ ...card, marginBottom: "16px" }}>
+              <div style={{ marginBottom: "8px" }}>
+                <label style={{ display: "block", marginBottom: "4px", fontWeight: 600 }}>Plugin Name</label>
+                <input style={input} value={newName} onChange={e => setNewName(e.target.value)} placeholder="e.g. my-plugin" />
+              </div>
+              <div style={{ marginBottom: "8px" }}>
+                <label style={{ display: "block", marginBottom: "4px", fontWeight: 600 }}>Version</label>
+                <input style={input} value={newVersion} onChange={e => setNewVersion(e.target.value)} placeholder="e.g. 1.0.0" />
+              </div>
+              <div style={{ marginBottom: "8px" }}>
+                <label style={{ display: "block", marginBottom: "4px", fontWeight: 600 }}>Visibility</label>
+                <select style={{ ...input, width: "auto" }} value={newVisibility} onChange={e => setNewVisibility(e.target.value)}>
+                  <option value="Private">Private</option>
+                  <option value="TeamOnly">TeamOnly</option>
+                  <option value="Org">Org</option>
+                  <option value="Public">Public</option>
+                </select>
+              </div>
+              <div style={{ marginBottom: "8px" }}>
+                <label style={{ display: "block", marginBottom: "4px", fontWeight: 600 }}>Author</label>
+                <input style={input} value={newAuthor} onChange={e => setNewAuthor(e.target.value)} placeholder="e.g. alice" />
+              </div>
+              <button style={btn} disabled={loading || !newName || !newVersion || !newAuthor} onClick={handleSubmitPlugin}>
+                {loading ? "Submitting..." : "Submit for Approval"}
+              </button>
+            </div>
+          )}
           {plugins.map(p => (
             <div key={p.id} style={card}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -110,19 +231,18 @@ const TeamGovernancePanel: React.FC = () => {
 
       {activeTab === "approvals" && (
         <div>
-          <h4 style={{ margin: "0 0 12px" }}>Pending Approvals ({approvals.length})</h4>
-          {approvals.length === 0 && <p style={{ opacity: 0.6 }}>No pending approvals.</p>}
-          {approvals.map(a => (
-            <div key={a.id} style={card}>
+          <h4 style={{ margin: "0 0 12px" }}>Pending Approvals ({pendingPlugins.length})</h4>
+          {pendingPlugins.length === 0 && <p style={{ opacity: 0.6 }}>No pending approvals.</p>}
+          {pendingPlugins.map(p => (
+            <div key={p.id} style={card}>
               <div style={{ marginBottom: "8px" }}>
-                <strong>{a.pluginName}</strong> <span style={{ opacity: 0.6 }}>requested by {a.requestedBy} on {a.date}</span>
+                <strong>{p.name}</strong> <span style={{ opacity: 0.6 }}>v{p.version} by {p.author}</span>
               </div>
-              <div style={{ marginBottom: "8px", opacity: 0.8 }}>Reason: {a.reason}</div>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <span style={{ opacity: 0.7 }}>Reviewer: {a.reviewer || "Unassigned"}</span>
+                <span style={{ opacity: 0.7 }}>Visibility: {p.visibility}</span>
                 <div style={{ marginLeft: "auto", display: "flex", gap: "6px" }}>
-                  <button style={{ ...btn, backgroundColor: "var(--success-color)" }} onClick={() => handleApprove(a.id)}>Approve</button>
-                  <button style={{ ...btn, backgroundColor: "var(--error-color)" }} onClick={() => handleReject(a.id)}>Reject</button>
+                  <button style={{ ...btn, backgroundColor: "var(--success-color)" }} disabled={loading} onClick={() => handleApprove(p.id)}>Approve</button>
+                  <button style={{ ...btn, backgroundColor: "var(--error-color)" }} disabled={loading} onClick={() => handleReject(p.id)}>Reject</button>
                 </div>
               </div>
             </div>
@@ -135,19 +255,19 @@ const TeamGovernancePanel: React.FC = () => {
           <h4 style={{ margin: "0 0 12px" }}>Governance Policy</h4>
           <div style={card}>
             <label style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
-              <input type="checkbox" checked={requireApproval} onChange={e => setRequireApproval(e.target.checked)} />
+              <input type="checkbox" checked={policies.requireApproval} onChange={e => setPolicies({ ...policies, requireApproval: e.target.checked })} />
               Require approval for new plugins
             </label>
             <div style={{ marginBottom: "12px" }}>
               <label style={{ display: "block", marginBottom: "4px", fontWeight: 600 }}>Allowed Categories</label>
-              <input style={input} value={allowedCategories} onChange={e => setAllowedCategories(e.target.value)} />
+              <input style={input} value={policies.allowedCategories} onChange={e => setPolicies({ ...policies, allowedCategories: e.target.value })} />
             </div>
             <div style={{ marginBottom: "12px" }}>
               <label style={{ display: "block", marginBottom: "4px", fontWeight: 600 }}>Max Plugin Size (MB)</label>
-              <input style={{ ...input, width: "120px" }} type="number" value={maxSizeMb} onChange={e => setMaxSizeMb(Number(e.target.value))} />
+              <input style={{ ...input, width: "120px" }} type="number" value={policies.maxSizeMb} onChange={e => setPolicies({ ...policies, maxSizeMb: Number(e.target.value) })} />
             </div>
             <label style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <input type="checkbox" checked={requireShaPin} onChange={e => setRequireShaPin(e.target.checked)} />
+              <input type="checkbox" checked={policies.requireShaPin} onChange={e => setPolicies({ ...policies, requireShaPin: e.target.checked })} />
               Require SHA pinning for plugin versions
             </label>
           </div>
