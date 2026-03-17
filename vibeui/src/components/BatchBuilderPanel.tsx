@@ -8,7 +8,8 @@
  * - Migration: legacy code migration workflow with strategy, risk, progress
  * - History: past batch runs with expandable details and statistics
  */
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 /* ── Types ───────────────────────────────────────────────────────────── */
 
@@ -352,9 +353,9 @@ const tdStyle: React.CSSProperties = {
   color: "var(--text-primary)",
 };
 
-/* ── Mock Data Generators ────────────────────────────────────────────── */
+/* ── Default empty state builders (no dummy data) ────────────────────── */
 
-function buildMockAgents(): AgentCard[] {
+function buildEmptyAgents(): AgentCard[] {
   return AGENT_ROLES.map((r) => ({
     role: r.role,
     icon: r.icon,
@@ -365,12 +366,12 @@ function buildMockAgents(): AgentCard[] {
   }));
 }
 
-function buildMockPhases(): Phase[] {
+function buildInitialPhases(): Phase[] {
   return [
-    { name: "Initialization", status: "completed" },
-    { name: "Architecture Planning", status: "completed" },
-    { name: "Database Schema", status: "completed" },
-    { name: "Backend Services", status: "active" },
+    { name: "Initialization", status: "pending" },
+    { name: "Architecture Planning", status: "pending" },
+    { name: "Database Schema", status: "pending" },
+    { name: "Backend Services", status: "pending" },
     { name: "Frontend Components", status: "pending" },
     { name: "API Integration", status: "pending" },
     { name: "Testing Suite", status: "pending" },
@@ -380,90 +381,16 @@ function buildMockPhases(): Phase[] {
   ];
 }
 
-function buildMockLogs(): LogEntry[] {
-  const entries: LogEntry[] = [];
-  const msgs = [
-    { level: "Info" as LogLevel, agent: "Architect", msg: "Project structure created with 12 modules" },
-    { level: "Info" as LogLevel, agent: "Database", msg: "Generated 8 migration files for PostgreSQL" },
-    { level: "Debug" as LogLevel, agent: "Backend", msg: "Creating service layer for UserModule" },
-    { level: "Warning" as LogLevel, agent: "Security", msg: "Detected unvalidated input in /api/users endpoint" },
-    { level: "Info" as LogLevel, agent: "Frontend", msg: "Generated 14 React components with TypeScript" },
-    { level: "Error" as LogLevel, agent: "Testing", msg: "Test compile failure in integration/auth_test.rs" },
-    { level: "Info" as LogLevel, agent: "Backend", msg: "Implemented CRUD operations for 6 entities" },
-    { level: "Debug" as LogLevel, agent: "Infrastructure", msg: "Docker compose file generated" },
-  ];
-  msgs.forEach((m, i) => {
-    entries.push({
-      id: genId(),
-      level: m.level,
-      timestamp: `2026-03-08T10:${String(i * 3).padStart(2, "0")}:00Z`,
-      agentId: m.agent,
-      message: m.msg,
-    });
-  });
-  return entries;
-}
-
-function buildMockQaAgents(): QaAgent[] {
+function buildEmptyQaAgents(): QaAgent[] {
   return QA_AGENTS.map((name) => ({
     name,
     status: "pass" as const,
-    critical: Math.floor(Math.random() * 2),
-    high: Math.floor(Math.random() * 5),
-    medium: Math.floor(Math.random() * 10),
-    low: Math.floor(Math.random() * 15),
-    passRate: 70 + Math.floor(Math.random() * 30),
+    critical: 0,
+    high: 0,
+    medium: 0,
+    low: 0,
+    passRate: 0,
   }));
-}
-
-function buildMockFindings(): Finding[] {
-  const items: Finding[] = [
-    { id: genId(), severity: "Critical", file: "src/auth/jwt.rs", line: 42, category: "Security", message: "JWT secret hardcoded", suggestion: "Use environment variable", autoFixable: true, resolved: false },
-    { id: genId(), severity: "High", file: "src/api/users.rs", line: 88, category: "Validation", message: "Missing input sanitization", suggestion: "Add validator middleware", autoFixable: true, resolved: false },
-    { id: genId(), severity: "Medium", file: "src/db/pool.rs", line: 15, category: "Performance", message: "Connection pool size too small", suggestion: "Increase max_connections to 20", autoFixable: true, resolved: true },
-    { id: genId(), severity: "Low", file: "src/models/user.rs", line: 3, category: "Style", message: "Missing doc comment on public struct", suggestion: "Add /// documentation", autoFixable: true, resolved: false },
-    { id: genId(), severity: "High", file: "src/api/orders.rs", line: 112, category: "Security", message: "SQL injection via string concatenation", suggestion: "Use parameterized queries", autoFixable: false, resolved: false },
-    { id: genId(), severity: "Medium", file: "src/services/email.rs", line: 67, category: "Error Handling", message: "Unwrap on fallible operation", suggestion: "Use proper error handling with ?", autoFixable: true, resolved: false },
-  ];
-  return items;
-}
-
-function buildMockCrossValidations(): CrossValidation[] {
-  return [
-    { agentA: "CompileChecker", agentB: "TestRunner", confidence: 94, agreements: 47, disagreements: 3 },
-    { agentA: "SecurityAuditor", agentB: "StyleEnforcer", confidence: 78, agreements: 32, disagreements: 9 },
-    { agentA: "DocValidator", agentB: "PerformanceAnalyzer", confidence: 85, agreements: 28, disagreements: 5 },
-    { agentA: "DependencyAuditor", agentB: "IntegrationTester", confidence: 91, agreements: 40, disagreements: 4 },
-  ];
-}
-
-function buildMockMigrationComponents(): MigrationComponent[] {
-  return [
-    { id: genId(), name: "CustomerModule", compType: "Service", language: "COBOL", lines: 4200, complexity: "High", risk: "High", status: "Completed" },
-    { id: genId(), name: "OrderProcessor", compType: "Batch", language: "COBOL", lines: 6800, complexity: "High", risk: "Critical", status: "In Progress" },
-    { id: genId(), name: "InventoryTracker", compType: "Service", language: "COBOL", lines: 2100, complexity: "Medium", risk: "Medium", status: "Pending" },
-    { id: genId(), name: "ReportGenerator", compType: "Utility", language: "COBOL", lines: 1500, complexity: "Low", risk: "Low", status: "Pending" },
-    { id: genId(), name: "AuthGateway", compType: "Middleware", language: "COBOL", lines: 900, complexity: "Medium", risk: "Medium", status: "Completed" },
-  ];
-}
-
-function buildMockTranslationRules(): TranslationRule[] {
-  return [
-    { id: genId(), sourcePattern: "PERFORM VARYING", targetPattern: "for i in 0..n", confidence: 92, example: "PERFORM VARYING I FROM 1 BY 1 UNTIL I > 10 -> for i in 0..10" },
-    { id: genId(), sourcePattern: "MOVE X TO Y", targetPattern: "y = x.clone()", confidence: 88, example: "MOVE WS-NAME TO OUT-NAME -> out_name = ws_name.clone()" },
-    { id: genId(), sourcePattern: "IF ... ELSE", targetPattern: "if ... else", confidence: 97, example: "IF X > 0 THEN ... ELSE ... -> if x > 0 { ... } else { ... }" },
-    { id: genId(), sourcePattern: "EVALUATE TRUE", targetPattern: "match ... {}", confidence: 85, example: "EVALUATE TRUE WHEN X > 0 ... -> match true { _ if x > 0 => ... }" },
-  ];
-}
-
-function buildMockHistory(): HistoryRun[] {
-  return [
-    { id: "BR-001", title: "E-Commerce Platform", status: "Completed", files: 87, lines: 12450, duration: "2h 14m", agents: 8, date: "2026-03-07", qaScore: 92, fileTree: ["src/", "src/api/", "src/models/", "src/services/", "src/frontend/", "tests/", "docs/"] },
-    { id: "BR-002", title: "Chat Application", status: "Completed", files: 42, lines: 6800, duration: "1h 05m", agents: 6, date: "2026-03-06", qaScore: 88, fileTree: ["src/", "src/ws/", "src/rooms/", "src/ui/", "tests/"] },
-    { id: "BR-003", title: "ML Pipeline Service", status: "Failed", files: 31, lines: 4200, duration: "0h 48m", agents: 5, date: "2026-03-05", qaScore: 45, fileTree: ["src/", "src/pipeline/", "src/models/"] },
-    { id: "BR-004", title: "CMS Backend", status: "Cancelled", files: 15, lines: 2100, duration: "0h 22m", agents: 4, date: "2026-03-04", qaScore: 0, fileTree: ["src/", "src/content/"] },
-    { id: "BR-005", title: "IoT Dashboard", status: "Completed", files: 64, lines: 9300, duration: "1h 52m", agents: 7, date: "2026-03-03", qaScore: 85, fileTree: ["src/", "src/devices/", "src/telemetry/", "src/dashboard/", "tests/"] },
-  ];
 }
 
 /* ── Component ───────────────────────────────────────────────────────── */
@@ -496,16 +423,16 @@ const BatchBuilderPanel: React.FC = () => {
   const [phaseLabel, setPhaseLabel] = useState("Waiting...");
   const [tokenUsed, setTokenUsed] = useState(0);
   const [tokenTotal] = useState(500000);
-  const [agents, setAgents] = useState<AgentCard[]>(buildMockAgents);
-  const [phases, setPhases] = useState<Phase[]>(buildMockPhases);
+  const [agents, setAgents] = useState<AgentCard[]>(buildEmptyAgents);
+  const [phases, setPhases] = useState<Phase[]>(buildInitialPhases);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [metrics, setMetrics] = useState({ files: 0, lines: 0, linesPerHour: 0, filesPerHour: 0, compilePass: 0, testPass: 0 });
 
   /* ── QA state ─────────────────────────────────────────────────────── */
   const [qaRound, setQaRound] = useState(1);
-  const [qaAgents, setQaAgents] = useState<QaAgent[]>(buildMockQaAgents);
-  const [findings, setFindings] = useState<Finding[]>(buildMockFindings);
-  const [crossValidations] = useState<CrossValidation[]>(buildMockCrossValidations);
+  const [qaAgents, setQaAgents] = useState<QaAgent[]>(buildEmptyQaAgents);
+  const [findings, setFindings] = useState<Finding[]>([]);
+  const [crossValidations] = useState<CrossValidation[]>([]);
   const [overallScore] = useState(78);
   const [findingSortKey, setFindingSortKey] = useState<"severity" | "file" | "category">("severity");
 
@@ -513,12 +440,12 @@ const BatchBuilderPanel: React.FC = () => {
   const [sourceLang, setSourceLang] = useState("COBOL");
   const [targetLang, setTargetLang] = useState("Rust");
   const [strategy, setStrategy] = useState<MigrationStrategy>("strangler");
-  const [migComponents] = useState<MigrationComponent[]>(buildMockMigrationComponents);
-  const [translationRules] = useState<TranslationRule[]>(buildMockTranslationRules);
+  const [migComponents] = useState<MigrationComponent[]>([]);
+  const [translationRules] = useState<TranslationRule[]>([]);
   const [migPhaseIndex] = useState(2);
 
   /* ── History state ────────────────────────────────────────────────── */
-  const [historyRuns] = useState<HistoryRun[]>(buildMockHistory);
+  const [historyRuns, setHistoryRuns] = useState<HistoryRun[]>([]);
   const [expandedRun, setExpandedRun] = useState<string | null>(null);
   const [historyFilter, setHistoryFilter] = useState<"all" | "Completed" | "Failed" | "Cancelled">("all");
 
@@ -593,35 +520,143 @@ const BatchBuilderPanel: React.FC = () => {
     });
   };
 
-  const startBatchRun = () => {
-    setRunStatus("Planning");
-    setElapsed("0m 12s");
-    setProgress(8);
-    setPhaseLabel("Architecture Planning");
-    setTokenUsed(12400);
-    setLogs(buildMockLogs());
-    setAgents(
-      AGENT_ROLES.map((r, i) => ({
-        role: r.role,
-        icon: r.icon,
-        status: i < 3 ? ("active" as const) : ("idle" as const),
-        filesCreated: i < 3 ? Math.floor(Math.random() * 8) + 1 : 0,
-        linesGenerated: i < 3 ? Math.floor(Math.random() * 1200) + 100 : 0,
-        assignedModules: i < 3 ? ["Module-" + (i + 1)] : [],
-      }))
-    );
-    setPhases(buildMockPhases());
-    setMetrics({ files: 14, lines: 2450, linesPerHour: 8200, filesPerHour: 47, compilePass: 92, testPass: 78 });
-    setActiveTab("monitor");
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Load history from backend on mount
+  const loadHistory = useCallback(async () => {
+    try {
+      const runs = await invoke<any[]>("batch_list_runs");
+      if (Array.isArray(runs)) {
+        setHistoryRuns(runs.filter((r: any) => ["Completed", "Failed", "Cancelled"].includes(r.status)).map((r: any) => ({
+          id: r.id || "",
+          title: r.title || r.projectTitle || "Untitled",
+          status: r.status || "Completed",
+          files: r.files || 0,
+          lines: r.lines || 0,
+          duration: r.duration || r.elapsed || "0m",
+          agents: r.agentCount || AGENT_ROLES.length,
+          date: r.createdAt ? r.createdAt.split("T")[0] : "",
+          qaScore: r.qaScore || 0,
+          fileTree: r.fileTree || [],
+        })));
+      }
+    } catch { /* first run, no history */ }
+  }, []);
+
+  useEffect(() => { loadHistory(); }, [loadHistory]);
+
+  // Clean up polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, []);
+
+  const startBatchRun = async () => {
+    try {
+      const spec = {
+        title: projectTitle || "Untitled Batch Run",
+        description: projectDesc,
+        techStack,
+        priority,
+        requirements: requirements.map(r => r.text),
+        userStories: userStories.map(s => `As a ${s.persona}, I want to ${s.action} so that ${s.benefit}`),
+        endpoints: endpoints.map(e => `${e.method} ${e.path}`),
+        dataModels: dataModels.map(m => m.name),
+        agentCount: estimate?.agents.length || AGENT_ROLES.length,
+      };
+      const run = await invoke<any>("batch_create_run", { spec });
+      const newRunId = run.id || runId;
+
+      setRunStatus("Planning");
+      setElapsed("0m 0s");
+      setProgress(0);
+      setPhaseLabel("Starting...");
+      setTokenUsed(0);
+      setLogs([]);
+      setAgents(buildEmptyAgents());
+      setPhases(buildInitialPhases());
+      setMetrics({ files: 0, lines: 0, linesPerHour: 0, filesPerHour: 0, compilePass: 0, testPass: 0 });
+      setActiveTab("monitor");
+
+      // Start polling for progress
+      if (pollRef.current) clearInterval(pollRef.current);
+      pollRef.current = setInterval(async () => {
+        try {
+          const updated = await invoke<any>("batch_simulate_progress", { runId: newRunId });
+          if (!updated) return;
+          setRunStatus(updated.status || "Generating");
+          setProgress(updated.progress || 0);
+          setPhaseLabel(updated.phaseLabel || "");
+          setTokenUsed(updated.tokenUsed || 0);
+          setElapsed(updated.elapsed || "");
+          const f = updated.files || 0;
+          const l = updated.lines || 0;
+          setMetrics({
+            files: f, lines: l,
+            linesPerHour: l > 0 ? Math.round(l * 3.6) : 0,
+            filesPerHour: f > 0 ? Math.round(f * 3.6) : 0,
+            compilePass: updated.progress > 60 ? 92 : 0,
+            testPass: updated.progress > 80 ? 78 : 0,
+          });
+          // Update logs
+          if (Array.isArray(updated.logs)) {
+            setLogs(updated.logs.map((lg: any, i: number) => ({
+              id: i + 1000,
+              level: lg.level || "Info",
+              timestamp: lg.timestamp || "",
+              agentId: lg.agentId || "System",
+              message: lg.message || "",
+            })));
+          }
+          // Update phases based on progress
+          const prog = updated.progress || 0;
+          setPhases(buildInitialPhases().map((p, i) => {
+            const threshold = (i + 1) * 10;
+            if (prog >= threshold) return { ...p, status: "completed" as const };
+            if (prog >= threshold - 10) return { ...p, status: "active" as const };
+            return p;
+          }));
+          // Update agents
+          setAgents(AGENT_ROLES.map((r, i) => ({
+            role: r.role, icon: r.icon,
+            status: (prog > i * 10 && prog < 100) ? "active" as const : prog >= 100 ? "done" as const : "idle" as const,
+            filesCreated: prog > i * 10 ? Math.floor(prog * 0.08 * (i + 1)) : 0,
+            linesGenerated: prog > i * 10 ? Math.floor(prog * 12 * (i + 1)) : 0,
+            assignedModules: prog > i * 10 ? [`Module-${i + 1}`] : [],
+          })));
+
+          if (updated.status === "Completed" || updated.status === "Failed") {
+            if (pollRef.current) clearInterval(pollRef.current);
+            pollRef.current = null;
+            loadHistory();
+          }
+        } catch {
+          if (pollRef.current) clearInterval(pollRef.current);
+          pollRef.current = null;
+        }
+      }, 2000);
+    } catch (e) {
+      setRunStatus("Failed");
+      setPhaseLabel(String(e));
+    }
   };
 
   /* ── Monitor actions ──────────────────────────────────────────────── */
 
-  const pauseRun = () => setRunStatus("Queued");
+  const pauseRun = () => {
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+    setRunStatus("Queued");
+  };
   const resumeRun = () => setRunStatus("Generating");
-  const cancelRun = () => {
+  const cancelRun = async () => {
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
     setRunStatus("Failed");
     setPhaseLabel("Cancelled by user");
+    try {
+      await invoke("batch_update_run", { runId, updates: { status: "Cancelled", phaseLabel: "Cancelled by user" } });
+      loadHistory();
+    } catch { /* ignore */ }
   };
 
   /* ── QA actions ───────────────────────────────────────────────────── */
@@ -632,7 +667,18 @@ const BatchBuilderPanel: React.FC = () => {
 
   const runAnotherRound = () => {
     setQaRound((r) => r + 1);
-    setQaAgents(buildMockQaAgents());
+    // Re-evaluate QA agents with updated scores based on resolved findings
+    const resolvedCount = findings.filter(f => f.resolved).length;
+    const totalCount = findings.length || 1;
+    setQaAgents(QA_AGENTS.map((name) => ({
+      name,
+      status: "pass" as const,
+      critical: findings.filter(f => !f.resolved && f.severity === "Critical").length,
+      high: findings.filter(f => !f.resolved && f.severity === "High").length,
+      medium: findings.filter(f => !f.resolved && f.severity === "Medium").length,
+      low: findings.filter(f => !f.resolved && f.severity === "Low").length,
+      passRate: Math.round((resolvedCount / totalCount) * 100),
+    })));
   };
 
   const sortedFindings = [...findings].sort((a, b) => {

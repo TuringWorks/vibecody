@@ -26727,3 +26727,194 @@ pub async fn enhance_app_template(idea: String, state: tauri::State<'_, AppState
         tech_stack, api_endpoints, ui_components, complexity_estimate: complexity.to_string(),
     })
 }
+
+// ── Batch Builder ────────────────────────────────────────────────────────────
+
+fn batch_data_dir() -> Result<std::path::PathBuf, String> {
+    let home = std::env::var("HOME").map_err(|_| "HOME not set".to_string())?;
+    let dir = std::path::PathBuf::from(home).join(".vibecli").join("batch");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(dir)
+}
+
+fn batch_read_json(filename: &str) -> serde_json::Value {
+    let Ok(dir) = batch_data_dir() else { return serde_json::json!([]) };
+    let path = dir.join(filename);
+    std::fs::read_to_string(path)
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or(serde_json::json!([]))
+}
+
+fn batch_write_json(filename: &str, data: &serde_json::Value) -> Result<(), String> {
+    let dir = batch_data_dir()?;
+    let path = dir.join(filename);
+    let content = serde_json::to_string_pretty(data).map_err(|e| e.to_string())?;
+    std::fs::write(path, content).map_err(|e| e.to_string())
+}
+
+/// Create a new batch run and persist it.
+#[tauri::command]
+pub async fn batch_create_run(spec: serde_json::Value) -> Result<serde_json::Value, String> {
+    let mut runs = batch_read_json("runs.json");
+    if !runs.is_array() { runs = serde_json::json!([]); }
+    let idx = runs.as_array().map(|a| a.len()).unwrap_or(0) + 1;
+    let id = format!("BR-{:03}", idx);
+    let now = chrono::Utc::now().to_rfc3339();
+    let mut run = spec.clone();
+    if let Some(obj) = run.as_object_mut() {
+        obj.insert("id".into(), serde_json::json!(id));
+        obj.insert("status".into(), serde_json::json!("Queued"));
+        obj.insert("createdAt".into(), serde_json::json!(now));
+        obj.insert("progress".into(), serde_json::json!(0));
+        obj.insert("elapsed".into(), serde_json::json!("0m 0s"));
+        obj.insert("tokenUsed".into(), serde_json::json!(0));
+        obj.insert("files".into(), serde_json::json!(0));
+        obj.insert("lines".into(), serde_json::json!(0));
+        obj.insert("qaScore".into(), serde_json::json!(0));
+        obj.insert("logs".into(), serde_json::json!([]));
+        obj.insert("findings".into(), serde_json::json!([]));
+        obj.insert("agents".into(), serde_json::json!([]));
+        obj.insert("phases".into(), serde_json::json!([]));
+    }
+    runs.as_array_mut().unwrap().push(run.clone());
+    batch_write_json("runs.json", &runs)?;
+    Ok(run)
+}
+
+/// List all batch runs (history).
+#[tauri::command]
+pub async fn batch_list_runs() -> Result<serde_json::Value, String> {
+    Ok(batch_read_json("runs.json"))
+}
+
+/// Get a single batch run by ID.
+#[tauri::command]
+pub async fn batch_get_run(run_id: String) -> Result<serde_json::Value, String> {
+    let runs = batch_read_json("runs.json");
+    if let Some(arr) = runs.as_array() {
+        if let Some(run) = arr.iter().find(|r| r.get("id").and_then(|v| v.as_str()) == Some(&run_id)) {
+            return Ok(run.clone());
+        }
+    }
+    Err(format!("Run {} not found", run_id))
+}
+
+/// Update a batch run's status and metrics.
+#[tauri::command]
+pub async fn batch_update_run(run_id: String, updates: serde_json::Value) -> Result<(), String> {
+    let mut runs = batch_read_json("runs.json");
+    if let Some(arr) = runs.as_array_mut() {
+        if let Some(run) = arr.iter_mut().find(|r| r.get("id").and_then(|v| v.as_str()) == Some(&run_id)) {
+            if let (Some(run_obj), Some(upd_obj)) = (run.as_object_mut(), updates.as_object()) {
+                for (k, v) in upd_obj {
+                    run_obj.insert(k.clone(), v.clone());
+                }
+            }
+        }
+    }
+    batch_write_json("runs.json", &runs)
+}
+
+/// Delete a batch run.
+#[tauri::command]
+pub async fn batch_delete_run(run_id: String) -> Result<(), String> {
+    let mut runs = batch_read_json("runs.json");
+    if let Some(arr) = runs.as_array_mut() {
+        arr.retain(|r| r.get("id").and_then(|v| v.as_str()) != Some(&run_id));
+    }
+    batch_write_json("runs.json", &runs)
+}
+
+/// Simulate running a batch — advances status through phases.
+/// In a real implementation this would spawn agent tasks; here we generate
+/// realistic incremental progress that the frontend polls.
+#[tauri::command]
+pub async fn batch_simulate_progress(run_id: String) -> Result<serde_json::Value, String> {
+    let mut runs = batch_read_json("runs.json");
+    let arr = runs.as_array_mut().ok_or("No runs")?;
+    let run = arr.iter_mut()
+        .find(|r| r.get("id").and_then(|v| v.as_str()) == Some(&run_id))
+        .ok_or("Run not found")?;
+
+    // Extract values before mutably borrowing
+    let status = run.get("status").and_then(|v| v.as_str()).unwrap_or("Queued").to_string();
+    let progress = run.get("progress").and_then(|v| v.as_u64()).unwrap_or(0);
+
+    // Advance through statuses
+    let (new_status, new_progress, phase_label) = match status.as_str() {
+        "Queued" => ("Planning", 5u64, "Architecture Planning"),
+        "Planning" => ("Generating", 15, "Generating Code"),
+        "Generating" if progress < 50 => ("Generating", progress + 12, "Generating Code"),
+        "Generating" => ("Validating", 55, "Validating Output"),
+        "Validating" => ("Compiling", 65, "Compiling Project"),
+        "Compiling" => ("Testing", 80, "Running Tests"),
+        "Testing" if progress < 95 => ("Testing", progress + 8, "Running Tests"),
+        "Testing" => ("Completed", 100, "All Phases Complete"),
+        _ => ("Completed", progress, "Done"),
+    };
+
+    let files = (new_progress as f64 * 0.9) as u64;
+    let lines = files * 135;
+    let token_used = new_progress * 4800;
+
+    if let Some(obj) = run.as_object_mut() {
+        obj.insert("status".into(), serde_json::json!(new_status));
+        obj.insert("progress".into(), serde_json::json!(new_progress));
+        obj.insert("phaseLabel".into(), serde_json::json!(phase_label));
+        obj.insert("files".into(), serde_json::json!(files));
+        obj.insert("lines".into(), serde_json::json!(lines));
+        obj.insert("tokenUsed".into(), serde_json::json!(token_used));
+        // Generate a log entry for this step
+        let now = chrono::Utc::now().to_rfc3339();
+        let log = serde_json::json!({
+            "level": if new_status == "Completed" { "Info" } else { "Debug" },
+            "timestamp": now,
+            "agentId": "System",
+            "message": format!("Phase: {} — progress {}%", phase_label, new_progress),
+        });
+        if let Some(logs) = obj.get_mut("logs").and_then(|v| v.as_array_mut()) {
+            logs.push(log);
+        } else {
+            obj.insert("logs".into(), serde_json::json!([log]));
+        }
+        if new_status == "Completed" {
+            obj.insert("qaScore".into(), serde_json::json!(75 + (files % 20)));
+            let duration_mins = 45 + (files % 30);
+            obj.insert("duration".into(), serde_json::json!(format!("{}h {}m", duration_mins / 60, duration_mins % 60)));
+            obj.insert("elapsed".into(), serde_json::json!(format!("{}m {}s", duration_mins, (files * 7) % 60)));
+        }
+    }
+
+    let snapshot = run.clone();
+    batch_write_json("runs.json", &runs)?;
+    Ok(snapshot)
+}
+
+/// Save QA findings for a batch run.
+#[tauri::command]
+pub async fn batch_save_findings(run_id: String, findings: serde_json::Value) -> Result<(), String> {
+    let mut runs = batch_read_json("runs.json");
+    if let Some(arr) = runs.as_array_mut() {
+        if let Some(run) = arr.iter_mut().find(|r| r.get("id").and_then(|v| v.as_str()) == Some(&run_id)) {
+            if let Some(obj) = run.as_object_mut() {
+                obj.insert("findings".into(), findings);
+            }
+        }
+    }
+    batch_write_json("runs.json", &runs)
+}
+
+/// Save migration config for a batch run.
+#[tauri::command]
+pub async fn batch_save_migration(run_id: String, migration: serde_json::Value) -> Result<(), String> {
+    let mut runs = batch_read_json("runs.json");
+    if let Some(arr) = runs.as_array_mut() {
+        if let Some(run) = arr.iter_mut().find(|r| r.get("id").and_then(|v| v.as_str()) == Some(&run_id)) {
+            if let Some(obj) = run.as_object_mut() {
+                obj.insert("migration".into(), migration);
+            }
+        }
+    }
+    batch_write_json("runs.json", &runs)
+}

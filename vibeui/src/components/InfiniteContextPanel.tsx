@@ -71,7 +71,7 @@ const DEPTH_DEMOTE: Record<DepthLevel, DepthLevel> = {
   Signatures: "Signatures",
 };
 
-/* ── Helpers ─uta────────────────────────────────────────────────────────── */
+/* ── Helpers ──────────────────────────────────────────────────────────── */
 
 const fmtTokens = (n: number): string =>
   n >= 1_000_000
@@ -424,47 +424,42 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
     </div>
   );
 
+  /* ── Tab pane helper — keeps all tabs mounted ────────────────────── */
+
+  const tabPane = (id: TabId, content: React.ReactNode) => (
+    <div
+      key={id}
+      style={{
+        flex: 1,
+        overflow: "auto",
+        padding: "12px",
+        display: activeTab === id ? "block" : "none",
+      }}
+    >
+      {content}
+    </div>
+  );
+
   /* ── Main render ─────────────────────────────────────────────────── */
 
   return (
-    <div
-      style={{
-        padding: "12px",
-        fontFamily: "var(--font-family)",
-        color: "var(--text-primary)",
-        height: "100%",
-        overflow: "auto",
-        fontSize: "13px",
-      }}
-    >
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-        <div style={{ fontWeight: "bold", fontSize: "14px" }}>
-          Infinite Context Manager
-        </div>
-        <button
-          style={btnStyle}
-          onClick={() => { loadChunks(); loadProjectTree(); }}
-          disabled={loading}
-        >
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden", fontFamily: "var(--font-family)", color: "var(--text-primary)", fontSize: "13px" }}>
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", borderBottom: "1px solid var(--border-color)", flexShrink: 0 }}>
+        <div style={{ fontWeight: 600, fontSize: "15px" }}>Infinite Context Manager</div>
+        <button style={btnStyle} onClick={() => { loadChunks(); loadProjectTree(); }} disabled={loading}>
           {loading ? "Loading..." : "Refresh"}
         </button>
       </div>
 
       {error && (
-        <div style={{ color: "var(--error-color)", fontSize: "12px", marginBottom: "8px", padding: "6px 10px", background: "var(--bg-secondary)", borderRadius: "4px" }}>
+        <div style={{ color: "var(--error-color)", fontSize: "12px", padding: "6px 14px", background: "var(--bg-secondary)", flexShrink: 0 }}>
           {error}
         </div>
       )}
 
-      {/* Tabs */}
-      <div
-        style={{
-          display: "flex",
-          gap: "4px",
-          borderBottom: "1px solid var(--border-color)",
-          marginBottom: "12px",
-        }}
-      >
+      {/* Tab bar */}
+      <div style={{ display: "flex", gap: "4px", borderBottom: "1px solid var(--border-color)", padding: "0 14px", flexShrink: 0 }}>
         <button style={tabStyle(activeTab === "context")} onClick={() => setActiveTab("context")}>
           Context Window
         </button>
@@ -477,7 +472,7 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
       </div>
 
       {/* ── Tab 1: Context Window ─────────────────────────────────────── */}
-      {activeTab === "context" && (
+      {tabPane("context", (
         <div>
           {/* Token usage bar */}
           <div style={cardStyle}>
@@ -487,196 +482,100 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
                 {fmtTokens(usedTokens)} / {fmtTokens(maxTokens)} tokens
               </span>
             </div>
-            <div
-              style={{
-                height: "8px",
+            <div style={{ height: "8px", borderRadius: "4px", background: "var(--bg-primary)", overflow: "hidden" }}>
+              <div style={{
+                height: "100%",
+                width: `${Math.min(usagePct, 100)}%`,
                 borderRadius: "4px",
-                background: "var(--bg-primary)",
-                overflow: "hidden",
-              }}
-            >
-              <div
-                style={{
-                  height: "100%",
-                  width: `${Math.min(usagePct, 100)}%`,
-                  borderRadius: "4px",
-                  background:
-                    usagePct > 90
-                      ? "var(--error-color)"
-                      : usagePct > 70
-                        ? "var(--warning-color)"
-                        : "var(--success-color)",
-                  transition: "width 0.3s ease",
-                }}
-              />
+                background: usagePct > 90 ? "var(--error-color)" : usagePct > 70 ? "var(--warning-color)" : "var(--success-color)",
+                transition: "width 0.3s ease",
+              }} />
             </div>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                marginTop: "6px",
-                fontSize: "11px",
-                color: "var(--text-secondary)",
-              }}
-            >
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: "6px", fontSize: "11px", color: "var(--text-secondary)" }}>
               <span>{usagePct.toFixed(1)}% used</span>
-              <span>Compression ratio: {fmtPct(compressionRatio)}</span>
+              <span>Compression: {fmtPct(compressionRatio)}</span>
             </div>
           </div>
 
-          {/* Sort controls */}
-          <div style={{ display: "flex", gap: "6px", alignItems: "center", marginBottom: "10px" }}>
-            <span style={{ fontSize: "11px", color: "var(--text-secondary)" }}>Sort by:</span>
-            {(["relevance", "filePath", "tokenCount"] as SortKey[]).map(key => (
-              <button
-                key={key}
-                style={{
-                  ...btnSmall,
-                  borderColor: sortKey === key ? "var(--accent-color)" : "var(--border-color)",
-                  color: sortKey === key ? "var(--accent-color)" : "var(--text-secondary)",
-                }}
-                onClick={() => setSortKey(key)}
-              >
-                {key === "filePath" ? "Path" : key === "tokenCount" ? "Size" : "Relevance"}
-              </button>
-            ))}
-          </div>
-
-          {/* Depth legend */}
-          <div style={{ display: "flex", gap: "10px", marginBottom: "10px", fontSize: "10px" }}>
-            {(Object.keys(DEPTH_COLORS) as DepthLevel[]).map(d => (
-              <span key={d} style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                <span
-                  style={{
-                    width: "8px",
-                    height: "8px",
-                    borderRadius: "50%",
-                    background: DEPTH_COLORS[d],
-                    display: "inline-block",
-                  }}
-                />
-                <span style={{ color: "var(--text-secondary)" }}>{d}</span>
-              </span>
-            ))}
+          {/* Sort + legend row */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px", flexWrap: "wrap", gap: "8px" }}>
+            <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+              <span style={{ fontSize: "11px", color: "var(--text-secondary)" }}>Sort:</span>
+              {(["relevance", "filePath", "tokenCount"] as SortKey[]).map(key => (
+                <button
+                  key={key}
+                  style={{ ...btnSmall, borderColor: sortKey === key ? "var(--accent-color)" : "var(--border-color)", color: sortKey === key ? "var(--accent-color)" : "var(--text-secondary)" }}
+                  onClick={() => setSortKey(key)}
+                >
+                  {key === "filePath" ? "Path" : key === "tokenCount" ? "Size" : "Relevance"}
+                </button>
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: "10px", fontSize: "10px" }}>
+              {(Object.keys(DEPTH_COLORS) as DepthLevel[]).map(d => (
+                <span key={d} style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                  <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: DEPTH_COLORS[d], display: "inline-block" }} />
+                  <span style={{ color: "var(--text-secondary)" }}>{d}</span>
+                </span>
+              ))}
+            </div>
           </div>
 
           {/* Chunk list */}
           {loading && chunks.length === 0 && (
-            <div style={{ color: "var(--text-secondary)", textAlign: "center", padding: "20px" }}>
-              Loading context chunks...
-            </div>
+            <div style={{ color: "var(--text-secondary)", textAlign: "center", padding: "20px" }}>Loading context chunks...</div>
           )}
           {!loading && sortedChunks.length === 0 && (
-            <div style={{ color: "var(--text-secondary)", textAlign: "center", padding: "20px" }}>
-              No context chunks loaded. Use the Project Map to load files.
-            </div>
+            <div style={{ color: "var(--text-secondary)", textAlign: "center", padding: "20px" }}>No context chunks loaded. Use the Project Map to load files.</div>
           )}
           {sortedChunks.map(chunk => (
             <div key={chunk.id} style={{ ...cardStyle, display: "flex", alignItems: "center", gap: "8px" }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
-                  <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{chunk.filePath}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px", flexWrap: "wrap" }}>
+                  <span style={{ fontWeight: 600, color: "var(--text-primary)", wordBreak: "break-all" }}>{chunk.filePath}</span>
                   <span style={badgeStyle(DEPTH_COLORS[chunk.depth])}>{chunk.depth}</span>
-                  {chunk.pinned && (
-                    <span style={{ fontSize: "10px", color: "var(--warning-color)", fontWeight: 600 }}>PINNED</span>
-                  )}
+                  {chunk.pinned && <span style={{ fontSize: "10px", color: "var(--warning-color)", fontWeight: 600 }}>PINNED</span>}
                 </div>
                 <div style={{ display: "flex", gap: "12px", fontSize: "11px", color: "var(--text-secondary)" }}>
                   <span>Relevance: <span style={{ color: "var(--accent-color)" }}>{fmtPct(chunk.relevance)}</span></span>
                   <span>Tokens: {fmtTokens(chunk.tokenCount)}</span>
                 </div>
               </div>
-              <div style={{ display: "flex", gap: "4px" }}>
-                <button
-                  style={btnSmall}
-                  onClick={() => pinChunk(chunk.id, !chunk.pinned)}
-                >
-                  {chunk.pinned ? "Unpin" : "Pin"}
-                </button>
-                <button
-                  style={{
-                    ...btnSmall,
-                    opacity: chunk.depth === "Full" ? 0.4 : 1,
-                  }}
-                  disabled={chunk.depth === "Full"}
-                  onClick={() => expandChunk(chunk.id)}
-                >
-                  Expand
-                </button>
-                <button
-                  style={{
-                    ...btnSmall,
-                    opacity: chunk.depth === "Signatures" ? 0.4 : 1,
-                  }}
-                  disabled={chunk.depth === "Signatures"}
-                  onClick={() => compressChunk(chunk.id)}
-                >
-                  Compress
-                </button>
-                <button style={{ ...btnSmall, ...btnDanger }} onClick={() => evictChunk(chunk.id)}>
-                  Evict
-                </button>
+              <div style={{ display: "flex", gap: "4px", flexShrink: 0, flexWrap: "wrap" }}>
+                <button style={btnSmall} onClick={() => pinChunk(chunk.id, !chunk.pinned)}>{chunk.pinned ? "Unpin" : "Pin"}</button>
+                <button style={{ ...btnSmall, opacity: chunk.depth === "Full" ? 0.4 : 1 }} disabled={chunk.depth === "Full"} onClick={() => expandChunk(chunk.id)}>Expand</button>
+                <button style={{ ...btnSmall, opacity: chunk.depth === "Signatures" ? 0.4 : 1 }} disabled={chunk.depth === "Signatures"} onClick={() => compressChunk(chunk.id)}>Compress</button>
+                <button style={{ ...btnSmall, ...btnDanger }} onClick={() => evictChunk(chunk.id)}>Evict</button>
               </div>
             </div>
           ))}
         </div>
-      )}
+      ))}
 
       {/* ── Tab 2: Project Map ────────────────────────────────────────── */}
-      {activeTab === "projectMap" && (
+      {tabPane("projectMap", (
         <div>
           {/* Stats bar */}
-          <div
-            style={{
-              display: "flex",
-              gap: "12px",
-              flexWrap: "wrap",
-              marginBottom: "12px",
-            }}
-          >
+          <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginBottom: "12px" }}>
             {[
               { label: "Total Files", value: String(fileStats.total) },
               { label: "Indexed", value: String(fileStats.indexed) },
               { label: "Coverage", value: `${coveragePct}%` },
             ].map(({ label, value }) => (
-              <div
-                key={label}
-                style={{
-                  background: "var(--bg-secondary)",
-                  padding: "8px 14px",
-                  borderRadius: "6px",
-                  textAlign: "center",
-                  minWidth: "80px",
-                }}
-              >
-                <div style={{ fontSize: "18px", fontWeight: "bold", color: "var(--accent-color)" }}>
-                  {value}
-                </div>
-                <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginTop: "2px" }}>
-                  {label}
-                </div>
+              <div key={label} style={{ background: "var(--bg-secondary)", padding: "8px 14px", borderRadius: "6px", textAlign: "center", minWidth: "80px" }}>
+                <div style={{ fontSize: "18px", fontWeight: "bold", color: "var(--accent-color)" }}>{value}</div>
+                <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginTop: "2px" }}>{label}</div>
               </div>
             ))}
           </div>
 
           {/* Search/filter */}
-          <div style={{ marginBottom: "10px" }}>
-            <input
-              value={fileFilter}
-              onChange={e => setFileFilter(e.target.value)}
-              placeholder="Filter files..."
-              style={{
-                width: "100%",
-                padding: "6px 10px",
-                fontSize: "12px",
-                background: "var(--bg-primary)",
-                border: "1px solid var(--border-color)",
-                borderRadius: "4px",
-                color: "var(--text-primary)",
-                boxSizing: "border-box",
-              }}
-            />
-          </div>
+          <input
+            value={fileFilter}
+            onChange={e => setFileFilter(e.target.value)}
+            placeholder="Filter files..."
+            style={{ width: "100%", padding: "6px 10px", fontSize: "12px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "4px", color: "var(--text-primary)", boxSizing: "border-box", marginBottom: "10px" }}
+          />
 
           {/* Legend */}
           <div style={{ display: "flex", gap: "12px", marginBottom: "8px", fontSize: "10px" }}>
@@ -689,67 +588,42 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
           </div>
 
           {/* File tree */}
-          <div style={{ ...cardStyle, padding: "6px 10px" }}>
+          <div style={{ ...cardStyle, padding: "6px 10px", overflow: "auto" }}>
             {loading && projectFiles.length === 0 && (
-              <div style={{ color: "var(--text-secondary)", textAlign: "center", padding: "12px" }}>
-                Loading project tree...
-              </div>
+              <div style={{ color: "var(--text-secondary)", textAlign: "center", padding: "12px" }}>Loading project tree...</div>
             )}
             {renderFileTree(filterFiles(projectFiles))}
             {!loading && filterFiles(projectFiles).length === 0 && (
-              <div style={{ color: "var(--text-secondary)", textAlign: "center", padding: "12px" }}>
-                No files match filter.
-              </div>
+              <div style={{ color: "var(--text-secondary)", textAlign: "center", padding: "12px" }}>No files match filter.</div>
             )}
           </div>
         </div>
-      )}
+      ))}
 
       {/* ── Tab 3: Settings ───────────────────────────────────────────── */}
-      {activeTab === "settings" && (
+      {tabPane("settings", (
         <div>
           {/* Max tokens slider */}
           <div style={cardStyle}>
             <div style={sliderLabelStyle}>
               <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>Max Tokens</span>
-              <span style={{ color: "var(--accent-color)", fontWeight: 600 }}>
-                {fmtTokens(settingsMaxTokens)}
-              </span>
+              <span style={{ color: "var(--accent-color)", fontWeight: 600 }}>{fmtTokens(settingsMaxTokens)}</span>
             </div>
             <input
-              type="range"
-              min={10_000}
-              max={500_000}
-              step={10_000}
+              type="range" min={10_000} max={500_000} step={10_000}
               value={settingsMaxTokens}
               onChange={e => setSettingsMaxTokens(parseInt(e.target.value, 10))}
               style={{ width: "100%", accentColor: "var(--accent-color)" }}
             />
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                fontSize: "10px",
-                color: "var(--text-secondary)",
-                marginTop: "2px",
-              }}
-            >
-              <span>10K</span>
-              <span>500K</span>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", color: "var(--text-secondary)", marginTop: "2px" }}>
+              <span>10K</span><span>500K</span>
             </div>
-            <button
-              style={{ ...btnStyle, marginTop: "8px" }}
-              onClick={applyMaxTokens}
-            >
-              Apply
-            </button>
+            <button style={{ ...btnStyle, marginTop: "8px" }} onClick={applyMaxTokens}>Apply</button>
           </div>
 
           {/* Scoring weights */}
           <div style={cardStyle}>
-            <div style={{ fontWeight: 600, marginBottom: "10px", fontSize: "13px" }}>
-              Scoring Weights
-            </div>
+            <div style={{ fontWeight: 600, marginBottom: "10px", fontSize: "13px" }}>Scoring Weights</div>
             {renderSlider("Recency", recencyWeight, setRecencyWeight)}
             {renderSlider("Proximity", proximityWeight, setProximityWeight)}
             {renderSlider("Keyword Match", keywordWeight, setKeywordWeight)}
@@ -761,21 +635,11 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
           <div style={cardStyle}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
-                <div style={{ fontWeight: 600, fontSize: "13px", color: "var(--text-primary)" }}>
-                  Auto-Compress
-                </div>
-                <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginTop: "2px" }}>
-                  Automatically compress chunks when context window is 90% full
-                </div>
+                <div style={{ fontWeight: 600, fontSize: "13px", color: "var(--text-primary)" }}>Auto-Compress</div>
+                <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginTop: "2px" }}>Automatically compress when 90% full</div>
               </div>
               <button
-                style={{
-                  ...btnStyle,
-                  background: autoCompress ? "var(--success-color)" : "var(--bg-secondary)",
-                  color: autoCompress ? "#000" : "var(--text-primary)",
-                  fontWeight: 600,
-                  minWidth: "50px",
-                }}
+                style={{ ...btnStyle, background: autoCompress ? "var(--success-color)" : "var(--bg-secondary)", color: autoCompress ? "#000" : "var(--text-primary)", fontWeight: 600, minWidth: "50px" }}
                 onClick={() => setAutoCompress(prev => !prev)}
               >
                 {autoCompress ? "ON" : "OFF"}
@@ -787,38 +651,21 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
           <div style={cardStyle}>
             <div style={{ fontWeight: 600, marginBottom: "8px", fontSize: "13px" }}>Cache</div>
             <div style={{ display: "flex", gap: "8px", alignItems: "center", marginBottom: "8px" }}>
-              <label style={{ fontSize: "12px", color: "var(--text-secondary)", minWidth: "100px" }}>
-                Cache Size
-              </label>
+              <label style={{ fontSize: "12px", color: "var(--text-secondary)", minWidth: "100px" }}>Cache Size</label>
               <input
-                type="number"
-                min={16}
-                max={4096}
-                value={cacheSize}
+                type="number" min={16} max={4096} value={cacheSize}
                 onChange={e => setCacheSize(parseInt(e.target.value, 10) || 256)}
-                style={{
-                  width: "80px",
-                  padding: "4px 8px",
-                  fontSize: "12px",
-                  background: "var(--bg-primary)",
-                  border: "1px solid var(--border-color)",
-                  borderRadius: "4px",
-                  color: "var(--text-primary)",
-                }}
+                style={{ width: "80px", padding: "4px 8px", fontSize: "12px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "4px", color: "var(--text-primary)" }}
               />
               <span style={{ fontSize: "11px", color: "var(--text-secondary)" }}>summaries</span>
             </div>
             <div style={{ display: "flex", gap: "8px" }}>
-              <button style={btnDanger} onClick={() => setCacheSize(256)}>
-                Clear Cache
-              </button>
-              <button style={btnStyle} onClick={() => { loadChunks(); loadProjectTree(); }}>
-                Rebuild Index
-              </button>
+              <button style={btnDanger} onClick={() => setCacheSize(256)}>Clear Cache</button>
+              <button style={btnStyle} onClick={() => { loadChunks(); loadProjectTree(); }}>Rebuild Index</button>
             </div>
           </div>
         </div>
-      )}
+      ))}
     </div>
   );
 }

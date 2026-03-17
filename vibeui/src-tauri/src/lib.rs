@@ -657,6 +657,15 @@ pub fn run() {
             commands::quantum_get_circuits,
             commands::quantum_create_circuit,
             commands::quantum_export_circuit,
+            // Batch Builder
+            commands::batch_create_run,
+            commands::batch_list_runs,
+            commands::batch_get_run,
+            commands::batch_update_run,
+            commands::batch_delete_run,
+            commands::batch_simulate_progress,
+            commands::batch_save_findings,
+            commands::batch_save_migration,
             // Cloud OAuth
             commands::cloud_oauth_initiate,
             commands::cloud_oauth_complete,
