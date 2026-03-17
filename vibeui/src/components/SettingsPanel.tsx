@@ -3,7 +3,7 @@
  *
  * Sections:
  *   1. Profile — Display name, avatar, email, bio
- *   2. Appearance — 12 theme pairs (dark/light/high-contrast/color-blind), font size, UI density
+ *   2. Appearance — 18 theme pairs (dark/light/high-contrast/color-blind/supercar), font size, UI density
  *   3. OAuth Login — Google, GitHub, GitLab, Bitbucket, Microsoft, Apple
  *   4. Saved Customizations — Export/import/reset workspace preferences
  *   5. API Keys — BYOK provider keys (existing functionality preserved)
@@ -29,7 +29,7 @@ interface UserProfile {
 export interface ThemeDef {
   id: string;
   name: string;
-  category: "standard" | "high-contrast" | "color-blind";
+  category: "standard" | "high-contrast" | "color-blind" | "supercar";
   mode: "dark" | "light";
   pairId: string; // links dark/light counterparts
   preview: { bg: string; fg: string; accent: string; secondary: string };
@@ -1271,6 +1271,142 @@ export const THEMES: ThemeDef[] = [
       "--border-color": "rgba(160, 144, 32, 0.10)", "--error-color": "#b04038",
     },
   },
+
+  // ═══════════════════════════════════════════════════════════════════
+  //  Supercar-Inspired Themes
+  // ═══════════════════════════════════════════════════════════════════
+
+  // ── Pair: Pagani (Huayra Silver & Carbon) ──
+  {
+    id: "dark-pagani", name: "Pagani Huayra", category: "supercar", mode: "dark", pairId: "pagani",
+    preview: { bg: "#0a0c10", fg: "#c8cdd8", accent: "#7eb8da", secondary: "#141820" },
+    vars: {
+      "--bg-primary": "#0a0c10", "--bg-secondary": "#141820", "--bg-tertiary": "#1c222e", "--bg-elevated": "#242c3a",
+      "--text-primary": "#c8cdd8", "--text-secondary": "#6a7488", "--accent-blue": "#7eb8da", "--accent-green": "#6ecfb0",
+      "--accent-purple": "#9ca8c0", "--accent-gold": "#b8c4d8", "--accent-rose": "#d47888",
+      "--border-color": "rgba(126, 184, 218, 0.08)", "--error-color": "#d47888",
+    },
+  },
+  {
+    id: "light-pagani", name: "Pagani Zonda", category: "supercar", mode: "light", pairId: "pagani",
+    preview: { bg: "#f4f6f9", fg: "#0e1218", accent: "#3a7ca5", secondary: "#e4e8ee" },
+    vars: {
+      "--bg-primary": "#f4f6f9", "--bg-secondary": "#e4e8ee", "--bg-tertiary": "#d0d6e0", "--bg-elevated": "#ffffff",
+      "--text-primary": "#0e1218", "--text-secondary": "#5a6478", "--accent-blue": "#3a7ca5", "--accent-green": "#3a9a7c",
+      "--accent-purple": "#6878a0", "--accent-gold": "#5a7a98", "--accent-rose": "#a84858",
+      "--border-color": "rgba(58, 124, 165, 0.10)", "--error-color": "#a84858",
+    },
+  },
+
+  // ── Pair: Lamborghini (Giallo Orion / Verde Mantis) ──
+  {
+    id: "dark-lamborghini", name: "Lamborghini Nero", category: "supercar", mode: "dark", pairId: "lamborghini",
+    preview: { bg: "#0c0a00", fg: "#f0e8c8", accent: "#e8c820", secondary: "#1c1800" },
+    vars: {
+      "--bg-primary": "#0c0a00", "--bg-secondary": "#1c1800", "--bg-tertiary": "#282200", "--bg-elevated": "#342c08",
+      "--text-primary": "#f0e8c8", "--text-secondary": "#8a8260", "--accent-blue": "#e8c820", "--accent-green": "#88c828",
+      "--accent-purple": "#c8a830", "--accent-gold": "#e8c820", "--accent-rose": "#e84830",
+      "--border-color": "rgba(232, 200, 32, 0.10)", "--error-color": "#e84830",
+    },
+  },
+  {
+    id: "light-lamborghini", name: "Lamborghini Giallo", category: "supercar", mode: "light", pairId: "lamborghini",
+    preview: { bg: "#fefbe8", fg: "#1a1800", accent: "#b89b00", secondary: "#f5f0c8" },
+    vars: {
+      "--bg-primary": "#fefbe8", "--bg-secondary": "#f5f0c8", "--bg-tertiary": "#e8e2a8", "--bg-elevated": "#fffef0",
+      "--text-primary": "#1a1800", "--text-secondary": "#6a6230", "--accent-blue": "#b89b00", "--accent-green": "#5a8a10",
+      "--accent-purple": "#8a7a18", "--accent-gold": "#b89b00", "--accent-rose": "#c03020",
+      "--border-color": "rgba(184, 155, 0, 0.12)", "--error-color": "#c03020",
+    },
+  },
+
+  // ── Pair: Ferrari (Rosso Corsa / Bianco Avus) ──
+  {
+    id: "dark-ferrari", name: "Ferrari Rosso", category: "supercar", mode: "dark", pairId: "ferrari",
+    preview: { bg: "#100000", fg: "#f0d0d0", accent: "#dc2626", secondary: "#200808" },
+    vars: {
+      "--bg-primary": "#100000", "--bg-secondary": "#200808", "--bg-tertiary": "#2c1010", "--bg-elevated": "#381818",
+      "--text-primary": "#f0d0d0", "--text-secondary": "#8a6060", "--accent-blue": "#dc2626", "--accent-green": "#c8a008",
+      "--accent-purple": "#a83030", "--accent-gold": "#c8a008", "--accent-rose": "#dc2626",
+      "--border-color": "rgba(220, 38, 38, 0.12)", "--error-color": "#ff4040",
+    },
+  },
+  {
+    id: "light-ferrari", name: "Ferrari Bianco", category: "supercar", mode: "light", pairId: "ferrari",
+    preview: { bg: "#fef5f5", fg: "#1a0808", accent: "#b91c1c", secondary: "#fce4e4" },
+    vars: {
+      "--bg-primary": "#fef5f5", "--bg-secondary": "#fce4e4", "--bg-tertiary": "#f5cccc", "--bg-elevated": "#ffffff",
+      "--text-primary": "#1a0808", "--text-secondary": "#7a4040", "--accent-blue": "#b91c1c", "--accent-green": "#9a8008",
+      "--accent-purple": "#882020", "--accent-gold": "#9a8008", "--accent-rose": "#b91c1c",
+      "--border-color": "rgba(185, 28, 28, 0.10)", "--error-color": "#991b1b",
+    },
+  },
+
+  // ── Pair: Porsche (GT Silver / Racing Green) ──
+  {
+    id: "dark-porsche", name: "Porsche GT Night", category: "supercar", mode: "dark", pairId: "porsche",
+    preview: { bg: "#08100c", fg: "#d0e0d4", accent: "#2e8b57", secondary: "#142018" },
+    vars: {
+      "--bg-primary": "#08100c", "--bg-secondary": "#142018", "--bg-tertiary": "#1c2e24", "--bg-elevated": "#243a2e",
+      "--text-primary": "#d0e0d4", "--text-secondary": "#6a8a74", "--accent-blue": "#2e8b57", "--accent-green": "#4ade80",
+      "--accent-purple": "#58a878", "--accent-gold": "#c8b830", "--accent-rose": "#d06858",
+      "--border-color": "rgba(46, 139, 87, 0.10)", "--error-color": "#d06858",
+    },
+  },
+  {
+    id: "light-porsche", name: "Porsche GT Silver", category: "supercar", mode: "light", pairId: "porsche",
+    preview: { bg: "#f2f7f4", fg: "#0a1a10", accent: "#1a6b3c", secondary: "#dceee4" },
+    vars: {
+      "--bg-primary": "#f2f7f4", "--bg-secondary": "#dceee4", "--bg-tertiary": "#c4e0cc", "--bg-elevated": "#ffffff",
+      "--text-primary": "#0a1a10", "--text-secondary": "#4a6a54", "--accent-blue": "#1a6b3c", "--accent-green": "#2a9a58",
+      "--accent-purple": "#3a7a50", "--accent-gold": "#9a8a10", "--accent-rose": "#a85040",
+      "--border-color": "rgba(26, 107, 60, 0.10)", "--error-color": "#a85040",
+    },
+  },
+
+  // ── Pair: Bugatti (Atlantic Blue / Chiron White) ──
+  {
+    id: "dark-bugatti", name: "Bugatti Atlantic", category: "supercar", mode: "dark", pairId: "bugatti",
+    preview: { bg: "#040810", fg: "#c0c8e0", accent: "#1e3a8a", secondary: "#0c1428" },
+    vars: {
+      "--bg-primary": "#040810", "--bg-secondary": "#0c1428", "--bg-tertiary": "#142040", "--bg-elevated": "#1c2850",
+      "--text-primary": "#c0c8e0", "--text-secondary": "#5868a0", "--accent-blue": "#3b82f6", "--accent-green": "#38b2ac",
+      "--accent-purple": "#5b6abf", "--accent-gold": "#c0a030", "--accent-rose": "#c84858",
+      "--border-color": "rgba(59, 130, 246, 0.10)", "--error-color": "#c84858",
+    },
+  },
+  {
+    id: "light-bugatti", name: "Bugatti Chiron", category: "supercar", mode: "light", pairId: "bugatti",
+    preview: { bg: "#f0f4fc", fg: "#0a1028", accent: "#1e40af", secondary: "#dce4f8" },
+    vars: {
+      "--bg-primary": "#f0f4fc", "--bg-secondary": "#dce4f8", "--bg-tertiary": "#c4d0f0", "--bg-elevated": "#ffffff",
+      "--text-primary": "#0a1028", "--text-secondary": "#4a5888", "--accent-blue": "#1e40af", "--accent-green": "#1a8a80",
+      "--accent-purple": "#3a4a98", "--accent-gold": "#987a10", "--accent-rose": "#a03848",
+      "--border-color": "rgba(30, 64, 175, 0.10)", "--error-color": "#a03848",
+    },
+  },
+
+  // ── Pair: Maserati (Blu Sofisticato / Bianco Eldorado) ──
+  {
+    id: "dark-maserati", name: "Maserati Blu Notte", category: "supercar", mode: "dark", pairId: "maserati",
+    preview: { bg: "#080c18", fg: "#d0d4e8", accent: "#4a6fa5", secondary: "#101828" },
+    vars: {
+      "--bg-primary": "#080c18", "--bg-secondary": "#101828", "--bg-tertiary": "#182438", "--bg-elevated": "#203048",
+      "--text-primary": "#d0d4e8", "--text-secondary": "#6878a0", "--accent-blue": "#4a6fa5", "--accent-green": "#50a878",
+      "--accent-purple": "#7888b8", "--accent-gold": "#b8a050", "--accent-rose": "#b86068",
+      "--border-color": "rgba(74, 111, 165, 0.10)", "--error-color": "#b86068",
+    },
+  },
+  {
+    id: "light-maserati", name: "Maserati Eldorado", category: "supercar", mode: "light", pairId: "maserati",
+    preview: { bg: "#f4f6fb", fg: "#0c1020", accent: "#2c5282", secondary: "#e0e6f2" },
+    vars: {
+      "--bg-primary": "#f4f6fb", "--bg-secondary": "#e0e6f2", "--bg-tertiary": "#ccd4e6", "--bg-elevated": "#ffffff",
+      "--text-primary": "#0c1020", "--text-secondary": "#4a5a80", "--accent-blue": "#2c5282", "--accent-green": "#2a8060",
+      "--accent-purple": "#4a6098", "--accent-gold": "#8a7820", "--accent-rose": "#984050",
+      "--border-color": "rgba(44, 82, 130, 0.10)", "--error-color": "#984050",
+    },
+  },
 ];
 
 /**
@@ -1725,7 +1861,7 @@ function AppearanceSection() {
   const [activeThemeId, setActiveThemeId] = useState("dark-default");
   const [fontSize, setFontSize] = useState(13);
   const [density, setDensity] = useState<"compact" | "normal" | "spacious">("normal");
-  const [filterCategory, setFilterCategory] = useState<"all" | "standard" | "high-contrast" | "color-blind">("all");
+  const [filterCategory, setFilterCategory] = useState<"all" | "standard" | "high-contrast" | "color-blind" | "supercar">("all");
 
   useEffect(() => {
     const storedTheme = localStorage.getItem(STORAGE_KEYS.theme) || "dark-default";
@@ -1762,7 +1898,7 @@ function AppearanceSection() {
 
       {/* Category filter */}
       <div style={{ display: "flex", gap: 4, marginBottom: 14, flexWrap: "wrap" }}>
-        {(["all", "standard", "high-contrast", "color-blind"] as const).map(cat => (
+        {(["all", "standard", "supercar", "high-contrast", "color-blind"] as const).map(cat => (
           <button key={cat} onClick={() => setFilterCategory(cat)} style={{
             ...btnStyle, padding: "4px 12px", fontSize: 11, textTransform: "capitalize",
             background: filterCategory === cat ? "var(--accent-blue)" : "var(--bg-elevated)",
