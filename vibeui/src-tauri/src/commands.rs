@@ -739,11 +739,9 @@ pub async fn store_git_credentials(url: String, username: String, token: String)
     // Use git credential-store to persist credentials
     // Format: https://user:token@host/path
     let parsed = url.trim_end_matches('/');
-    let cred_url = if parsed.starts_with("https://") {
-        let host_path = &parsed["https://".len()..];
+    let cred_url = if let Some(host_path) = parsed.strip_prefix("https://") {
         format!("https://{}:{}@{}", username, token, host_path)
-    } else if parsed.starts_with("http://") {
-        let host_path = &parsed["http://".len()..];
+    } else if let Some(host_path) = parsed.strip_prefix("http://") {
         format!("http://{}:{}@{}", username, token, host_path)
     } else {
         return Err("URL must start with https:// or http://".to_string());
@@ -2744,17 +2742,15 @@ pub async fn cloud_oauth_refresh(
 
     // Update stored token
     let mut tokens = load_cloud_oauth_tokens();
-    if let Some(existing) = tokens.get_mut(&provider) {
-        if let serde_json::Value::Object(ref mut map) = existing {
-            map.insert("access_token".to_string(), serde_json::json!(access_token));
-            map.insert("obtained_at".to_string(), serde_json::json!(now));
-            if let Some(exp) = body["expires_in"].as_u64() {
-                map.insert("expires_in".to_string(), serde_json::json!(exp));
-            }
-            // If a new refresh_token was issued, update it
-            if let Some(new_rt) = body["refresh_token"].as_str() {
-                map.insert("refresh_token".to_string(), serde_json::json!(new_rt));
-            }
+    if let Some(serde_json::Value::Object(ref mut map)) = tokens.get_mut(&provider) {
+        map.insert("access_token".to_string(), serde_json::json!(access_token));
+        map.insert("obtained_at".to_string(), serde_json::json!(now));
+        if let Some(exp) = body["expires_in"].as_u64() {
+            map.insert("expires_in".to_string(), serde_json::json!(exp));
+        }
+        // If a new refresh_token was issued, update it
+        if let Some(new_rt) = body["refresh_token"].as_str() {
+            map.insert("refresh_token".to_string(), serde_json::json!(new_rt));
         }
     }
     save_cloud_oauth_tokens(&tokens)?;
@@ -14784,7 +14780,7 @@ fn extract_code_files(response: &str) -> Vec<ExtractedFile> {
         // Validate it looks like a file path (contains / or .)
         if !path.contains('/') && !path.contains('.') {
             // Probably just a language name like "rust" or "typescript" — skip content
-            while let Some(l) = lines.next() {
+            for l in lines.by_ref() {
                 if l.trim().starts_with("```") { break; }
             }
             continue;
@@ -14792,7 +14788,7 @@ fn extract_code_files(response: &str) -> Vec<ExtractedFile> {
 
         // Reject paths that try to escape the project root
         if path.contains("..") || path.starts_with('/') {
-            while let Some(l) = lines.next() {
+            for l in lines.by_ref() {
                 if l.trim().starts_with("```") { break; }
             }
             continue;
@@ -14800,7 +14796,7 @@ fn extract_code_files(response: &str) -> Vec<ExtractedFile> {
 
         // Collect content until closing fence
         let mut content = String::new();
-        while let Some(l) = lines.next() {
+        for l in lines.by_ref() {
             if l.trim().starts_with("```") { break; }
             if !content.is_empty() { content.push('\n'); }
             content.push_str(l);
@@ -17092,12 +17088,9 @@ pub async fn create_sandbox(
         args.push("--memory".to_string());
         args.push(m.clone());
     }
-    match network_mode.as_deref() {
-        Some("none") => {
-            args.push("--network".to_string());
-            args.push("none".to_string());
-        }
-        _ => {}
+    if let Some("none") = network_mode.as_deref() {
+        args.push("--network".to_string());
+        args.push("none".to_string());
     }
 
     args.push(img.clone());
@@ -17822,7 +17815,7 @@ pub async fn cdp_capture_page(url: String) -> Result<serde_json::Value, String> 
         .timeout(std::time::Duration::from_secs(5))
         .build().map_err(|e| e.to_string())?;
 
-    let cdp_url = format!("http://localhost:9222/json/list");
+    let cdp_url = "http://localhost:9222/json/list".to_string();
     let resp = client.get(&cdp_url).send().await
         .map_err(|_| "Cannot connect to Chrome DevTools. Start Chrome with --remote-debugging-port=9222".to_string())?;
 
@@ -17899,7 +17892,7 @@ pub async fn cdp_open_tab(url: String) -> Result<serde_json::Value, String> {
         .timeout(std::time::Duration::from_secs(5))
         .build().map_err(|e| e.to_string())?;
 
-    let resp = client.get(&format!("http://localhost:9222/json/new?{}", url))
+    let resp = client.get(format!("http://localhost:9222/json/new?{}", url))
         .send().await
         .map_err(|_| "Chrome DevTools not available".to_string())?;
 
@@ -19032,7 +19025,7 @@ fn scan_file_for_cloud_services(
                     let existing_conf = results[existing_idx]["confidence"].as_f64().unwrap_or(0.0);
                     if existing_conf < pat.confidence {
                         results[existing_idx] = serde_json::json!({
-                            "id": format!("s-{}-{}", pat.provider.to_lowercase(), pat.service_name.to_lowercase().replace(' ', "-").replace('/', "-")),
+                            "id": format!("s-{}-{}", pat.provider.to_lowercase(), pat.service_name.to_lowercase().replace([' ', '/'], "-")),
                             "provider": pat.provider, "service": pat.service_name,
                             "usage_type": pat.usage_type, "confidence": pat.confidence,
                             "file": file_path, "line": line_idx + 1
@@ -19041,7 +19034,7 @@ fn scan_file_for_cloud_services(
                 } else {
                     let idx = results.len();
                     results.push(serde_json::json!({
-                        "id": format!("s-{}-{}", pat.provider.to_lowercase(), pat.service_name.to_lowercase().replace(' ', "-").replace('/', "-")),
+                        "id": format!("s-{}-{}", pat.provider.to_lowercase(), pat.service_name.to_lowercase().replace([' ', '/'], "-")),
                         "provider": pat.provider, "service": pat.service_name,
                         "usage_type": pat.usage_type, "confidence": pat.confidence,
                         "file": file_path, "line": line_idx + 1
@@ -19779,25 +19772,25 @@ pub async fn get_usage_kpis() -> Result<serde_json::Value, String> {
 #[tauri::command]
 pub async fn get_usage_budgets() -> Result<serde_json::Value, String> {
     let data = load_usage_metering();
-    Ok(serde_json::to_value(&data.budgets).map_err(|e| e.to_string())?)
+    serde_json::to_value(&data.budgets).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub async fn get_usage_by_provider() -> Result<serde_json::Value, String> {
     let data = load_usage_metering();
-    Ok(serde_json::to_value(&data.by_provider).map_err(|e| e.to_string())?)
+    serde_json::to_value(&data.by_provider).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub async fn get_usage_by_model() -> Result<serde_json::Value, String> {
     let data = load_usage_metering();
-    Ok(serde_json::to_value(&data.by_model).map_err(|e| e.to_string())?)
+    serde_json::to_value(&data.by_model).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub async fn get_usage_alerts() -> Result<serde_json::Value, String> {
     let data = load_usage_metering();
-    Ok(serde_json::to_value(&data.alerts).map_err(|e| e.to_string())?)
+    serde_json::to_value(&data.alerts).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -20009,7 +20002,7 @@ pub async fn get_session_memory_health() -> Result<serde_json::Value, String> {
         .output()
         .map_err(|e| e.to_string())?;
     let text = String::from_utf8_lossy(&output.stdout);
-    let parts: Vec<&str> = text.trim().split_whitespace().collect();
+    let parts: Vec<&str> = text.split_whitespace().collect();
     let rss_kb: f64 = parts.first().and_then(|s| s.parse().ok()).unwrap_or(0.0);
     let memory_used_mb = rss_kb / 1024.0;
     let peak_memory_mb = memory_used_mb * 1.1; // Approximate peak
@@ -20024,7 +20017,7 @@ pub async fn get_session_memory_health() -> Result<serde_json::Value, String> {
             m * 60 + s
         }
         3 => {
-            let h: u64 = etime_parts[0].trim().split('-').last().and_then(|s| s.parse().ok()).unwrap_or(0);
+            let h: u64 = etime_parts[0].trim().split('-').next_back().and_then(|s| s.parse().ok()).unwrap_or(0);
             let m: u64 = etime_parts[1].parse().unwrap_or(0);
             let s: u64 = etime_parts[2].parse().unwrap_or(0);
             h * 3600 + m * 60 + s
@@ -20796,6 +20789,7 @@ pub async fn get_purple_team_matrix() -> Result<serde_json::Value, String> {
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn record_purple_team_simulation(
     exercise_id: String,
     technique_id: String,
@@ -20966,7 +20960,7 @@ pub async fn generate_purple_team_report(exercise_id: String, compare_id: Option
                 sim["detection_source"].as_str().unwrap_or("N/A"),
             ));
         }
-        report.push_str("\n");
+        report.push('\n');
 
         // Summary statistics
         let total = ex_sims.len() as u64;
@@ -21599,29 +21593,29 @@ fn fs_infra_templates(project_name: &str, backend: &str, db: &str) -> Vec<(Strin
     };
 
     let mut files = vec![
-        (format!("Dockerfile"), format!(
+        ("Dockerfile".to_string(), format!(
             "FROM {} AS builder\nWORKDIR /app\nCOPY backend/ .\n{}\n\nFROM {} AS runtime\nWORKDIR /app\nCOPY --from=builder /app .\nEXPOSE 8080\n{}\n",
             backend_image,
             if backend.contains("Rust") { "RUN cargo build --release" } else if backend.contains("Node") { "RUN npm ci && npm run build" } else { "RUN pip install -r requirements.txt" },
             if backend.contains("Rust") { "debian:bookworm-slim" } else { backend_image },
             if backend.contains("Rust") { "CMD [\"./target/release/backend\"]" } else if backend.contains("Node") { "CMD [\"node\", \"dist/index.js\"]" } else { "CMD [\"uvicorn\", \"app.main:app\", \"--host\", \"0.0.0.0\", \"--port\", \"8080\"]" },
         )),
-        (format!(".github/workflows/ci.yml"), format!(
+        (".github/workflows/ci.yml".to_string(), format!(
             "name: CI\n\non:\n  push:\n    branches: [main]\n  pull_request:\n    branches: [main]\n\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - name: Build\n        run: echo \"Add build steps for {}\"\n      - name: Test\n        run: echo \"Add test steps\"\n",
             project_name,
         )),
-        (format!(".env.example"), format!(
+        (".env.example".to_string(), format!(
             "# {} Environment Variables\nDATABASE_URL=\nJWT_SECRET=change-me-in-production\nPORT=8080\n",
             project_name,
         )),
-        (format!("README.md"), format!(
+        ("README.md".to_string(), format!(
             "# {}\n\nGenerated by VibeCody Full Stack Generator.\n\n## Stack\n- Backend: {}\n- Database: {}\n\n## Getting Started\n\n```bash\n# Start database\ndocker-compose up -d db\n\n# Run backend\ncd backend && cargo run  # or npm run dev / uvicorn\n\n# Run frontend\ncd frontend && npm run dev\n```\n\n## Project Structure\n\n```\n{}/\n  frontend/     # Frontend application\n  backend/      # Backend API\n  database/     # Migrations and schemas\n```\n",
             project_name, backend, db, project_name,
         )),
     ];
 
     if !db_image.is_empty() {
-        files.push((format!("docker-compose.yml"), format!(
+        files.push(("docker-compose.yml".to_string(), format!(
             "version: '3.8'\n\nservices:\n  app:\n    build: .\n    ports:\n      - \"8080:8080\"\n    environment:\n      - DATABASE_URL=${{DATABASE_URL}}\n    depends_on:\n      - db\n\n  db:\n    image: {}\n    ports:\n      - \"5432:5432\"\n    environment:\n{}\n    volumes:\n      - db_data:/var/lib/{}\n\nvolumes:\n  db_data:\n",
             db_image,
             match db {
@@ -22007,17 +22001,39 @@ fn agile_write_json(filename: &str, data: &serde_json::Value) -> Result<(), Stri
 
 #[tauri::command]
 pub async fn agile_get_board() -> Result<serde_json::Value, String> {
-    let board = agile_read_json("board.json");
-    if board.as_array().map_or(true, |a| a.is_empty()) {
-        // Return default empty board structure
-        Ok(serde_json::json!({
+    let mut board = agile_read_json("board.json");
+    if !board.is_object() {
+        board = serde_json::json!({
             "columns": ["Backlog", "To Do", "In Progress", "In Review", "Done"],
             "wip_limits": { "In Progress": 5, "In Review": 3 },
             "cards": []
-        }))
-    } else {
-        Ok(board)
+        });
     }
+
+    // Merge backlog items into the board's Backlog column (dedup by id)
+    let backlog = agile_read_json("backlog.json");
+    let board_cards = board.get("cards").and_then(|c| c.as_array()).cloned().unwrap_or_default();
+    let board_ids: std::collections::HashSet<String> = board_cards.iter()
+        .filter_map(|c| c.get("id").and_then(|v| v.as_str()).map(String::from))
+        .collect();
+
+    let mut merged = board_cards;
+    if let Some(bl_arr) = backlog.as_array() {
+        for item in bl_arr {
+            let id = item.get("id").and_then(|v| v.as_str()).unwrap_or("");
+            if !id.is_empty() && !board_ids.contains(id) {
+                // Ensure backlog items have column = "Backlog"
+                let mut card = item.clone();
+                if card.get("column").is_none() {
+                    card["column"] = serde_json::json!("Backlog");
+                }
+                merged.push(card);
+            }
+        }
+    }
+    board["cards"] = serde_json::json!(merged);
+
+    Ok(board)
 }
 
 #[tauri::command]
@@ -22048,11 +22064,59 @@ pub async fn agile_update_card(card: serde_json::Value) -> Result<serde_json::Va
 #[tauri::command]
 pub async fn agile_move_card(card_id: String, column: String) -> Result<serde_json::Value, String> {
     let mut board = agile_read_json("board.json");
-    if let Some(cards) = board.get_mut("cards").and_then(|c| c.as_array_mut()) {
-        if let Some(card) = cards.iter_mut().find(|c| c.get("id").and_then(|v| v.as_str()) == Some(&card_id)) {
+    if !board.is_object() {
+        board = serde_json::json!({
+            "columns": ["Backlog", "To Do", "In Progress", "In Review", "Done"],
+            "wip_limits": {},
+            "cards": []
+        });
+    }
+
+    let cards = board.get_mut("cards").and_then(|c| c.as_array_mut());
+    let found_in_board = if let Some(arr) = cards {
+        if let Some(card) = arr.iter_mut().find(|c| c.get("id").and_then(|v| v.as_str()) == Some(&card_id)) {
             card["column"] = serde_json::json!(column);
+            true
+        } else {
+            false
+        }
+    } else {
+        false
+    };
+
+    // If not found in board.json, check backlog.json and promote the card
+    if !found_in_board {
+        let mut backlog = agile_read_json("backlog.json");
+        if let Some(bl_arr) = backlog.as_array_mut() {
+            if let Some(pos) = bl_arr.iter().position(|c| c.get("id").and_then(|v| v.as_str()) == Some(&card_id)) {
+                let mut card = bl_arr.remove(pos);
+                card["column"] = serde_json::json!(column);
+                // Add to board
+                if let Some(board_cards) = board.get_mut("cards").and_then(|c| c.as_array_mut()) {
+                    board_cards.push(card);
+                }
+                // Remove from backlog
+                agile_write_json("backlog.json", &serde_json::json!(bl_arr))?;
+            }
         }
     }
+
+    // If moved back to Backlog column, move card from board to backlog
+    if column == "Backlog" {
+        if let Some(board_cards) = board.get_mut("cards").and_then(|c| c.as_array_mut()) {
+            if let Some(pos) = board_cards.iter().position(|c| c.get("id").and_then(|v| v.as_str()) == Some(&card_id)) {
+                let card = board_cards.remove(pos);
+                let mut bl = agile_read_json("backlog.json");
+                if let Some(arr) = bl.as_array_mut() {
+                    arr.push(card);
+                } else {
+                    bl = serde_json::json!([card]);
+                }
+                agile_write_json("backlog.json", &bl)?;
+            }
+        }
+    }
+
     agile_write_json("board.json", &board)?;
     Ok(board)
 }
@@ -22071,7 +22135,14 @@ pub async fn agile_delete_card(card_id: String) -> Result<(), String> {
 
 #[tauri::command]
 pub async fn agile_get_sprints() -> Result<serde_json::Value, String> {
-    Ok(agile_read_json("sprints.json"))
+    let sprints = agile_read_json("sprints.json");
+    let backlog = agile_read_json("backlog.json");
+    // Return sprints data along with available backlog items for sprint planning
+    Ok(serde_json::json!({
+        "sprints": sprints.as_array().cloned().unwrap_or_default(),
+        "history": [],
+        "backlog": backlog.as_array().cloned().unwrap_or_default(),
+    }))
 }
 
 #[tauri::command]
@@ -22489,6 +22560,727 @@ Respond with ONLY valid JSON:
 
     let result: serde_json::Value = serde_json::from_str(json_str)
         .unwrap_or(serde_json::json!({ "well": [], "didnt": [], "actions": [] }));
+
+    Ok(result)
+}
+
+// ── AI Backlog Generation ────────────────────────────────────────────────────
+
+/// Analyze the project and generate a set of backlog stories from a user prompt.
+/// Returns suggested stories with ordering, dependencies, and epics.
+#[tauri::command]
+pub async fn agile_ai_generate_backlog(
+    prompt: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    // Gather project context: file tree summary
+    let ws = {
+        let workspace = state.workspace.lock().await;
+        workspace.folders().first().cloned()
+            .unwrap_or_else(|| std::env::current_dir().unwrap_or_default())
+    };
+
+    // Build a concise file listing (max 200 files, skip hidden/node_modules/target)
+    let mut file_list = Vec::new();
+    fn walk_dir(dir: &std::path::Path, prefix: &str, out: &mut Vec<String>, depth: u8) {
+        if depth > 4 || out.len() > 200 { return; }
+        let Ok(entries) = std::fs::read_dir(dir) else { return };
+        for entry in entries.flatten() {
+            let name = entry.file_name().to_string_lossy().to_string();
+            if name.starts_with('.') || name == "node_modules" || name == "target" || name == "dist" || name == "__pycache__" { continue; }
+            let path_str = if prefix.is_empty() { name.clone() } else { format!("{}/{}", prefix, name) };
+            if entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
+                out.push(format!("{}/", path_str));
+                walk_dir(&entry.path(), &path_str, out, depth + 1);
+            } else {
+                out.push(path_str);
+            }
+            if out.len() > 200 { return; }
+        }
+    }
+    walk_dir(&ws, "", &mut file_list, 0);
+    let project_tree = file_list.join("\n");
+
+    // Get existing backlog for context
+    let existing = agile_read_json("backlog.json");
+    let existing_titles: Vec<String> = existing.as_array()
+        .map(|arr| arr.iter().filter_map(|c| c.get("title").and_then(|t| t.as_str()).map(String::from)).collect())
+        .unwrap_or_default();
+    let existing_context = if existing_titles.is_empty() {
+        "No existing backlog items.".to_string()
+    } else {
+        format!("Existing backlog items (do NOT duplicate these):\n- {}", existing_titles.join("\n- "))
+    };
+
+    let ai_prompt = format!(
+        r#"You are an expert Agile product owner and software architect. Analyze this project and the user's request, then generate a comprehensive set of backlog stories.
+
+PROJECT FILE TREE:
+{project_tree}
+
+{existing_context}
+
+USER REQUEST:
+{prompt}
+
+Generate user stories, technical tasks, and epics. For each item include:
+- A clear title
+- Description with context
+- Story points estimate (Fibonacci: 1, 2, 3, 5, 8, 13)
+- Priority (P0=critical, P1=high, P2=medium, P3=low)
+- Labels/tags
+- Acceptance criteria (2-4 per story)
+- Epic grouping
+- Dependencies on other generated stories (by index number, 0-based)
+- Suggested ordering (lower = higher priority to implement first)
+
+Respond with ONLY valid JSON:
+{{
+  "epics": ["Epic Name 1", "Epic Name 2"],
+  "stories": [
+    {{
+      "title": "Story title",
+      "description": "Detailed description",
+      "storyPoints": 3,
+      "priority": "P1",
+      "labels": ["backend", "api"],
+      "acceptanceCriteria": ["Given...", "When...", "Then..."],
+      "epic": "Epic Name 1",
+      "dependsOn": [],
+      "order": 0
+    }}
+  ]
+}}"#
+    );
+
+    let messages = vec![Message { role: vibe_ai::MessageRole::User, content: ai_prompt }];
+    let engine = state.chat_engine.lock().await;
+    let raw = engine.chat(&messages, None).await.map_err(|e| e.to_string())?;
+    drop(engine);
+
+    // Extract JSON from the response
+    let json_start = raw.find('{').unwrap_or(0);
+    let json_end = raw.rfind('}').map(|i| i + 1).unwrap_or(raw.len());
+    let json_str = if json_start < json_end { &raw[json_start..json_end] } else { "{}" };
+
+    let result: serde_json::Value = serde_json::from_str(json_str)
+        .unwrap_or(serde_json::json!({ "epics": [], "stories": [] }));
+
+    Ok(result)
+}
+
+// ── Work Management ─────────────────────────────────────────────────────────
+
+fn wm_data_dir() -> Result<std::path::PathBuf, String> {
+    let home = std::env::var("HOME").map_err(|_| "HOME not set".to_string())?;
+    let dir = std::path::PathBuf::from(home).join(".vibeui").join("workmanagement");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(dir)
+}
+
+fn wm_read_json(filename: &str) -> serde_json::Value {
+    let Ok(dir) = wm_data_dir() else { return serde_json::json!([]) };
+    let path = dir.join(filename);
+    match std::fs::read_to_string(&path) {
+        Ok(s) => serde_json::from_str(&s).unwrap_or(serde_json::json!([])),
+        Err(_) => serde_json::json!([]),
+    }
+}
+
+fn wm_write_json(filename: &str, data: &serde_json::Value) -> Result<(), String> {
+    let dir = wm_data_dir()?;
+    let path = dir.join(filename);
+    let s = serde_json::to_string_pretty(data).map_err(|e| e.to_string())?;
+    std::fs::write(path, s).map_err(|e| e.to_string())
+}
+
+fn wm_next_id(prefix: &str) -> Result<String, String> {
+    let mut seqs = wm_read_json("sequences.json");
+    if !seqs.is_object() { seqs = serde_json::json!({}); }
+    let current = seqs.get(prefix).and_then(|v| v.as_u64()).unwrap_or(0);
+    let next = current + 1;
+    seqs[prefix] = serde_json::json!(next);
+    wm_write_json("sequences.json", &seqs)?;
+    Ok(format!("{}-{}", prefix, next))
+}
+
+fn wm_default_config() -> serde_json::Value {
+    serde_json::json!({
+        "prefixes": {
+            "INIT": ["initiative"],
+            "OKR": ["okr"],
+            "EPIC": ["epic"],
+            "FEAT": ["feature"],
+            "STORY": ["story"],
+            "TASK": ["task", "subtask"],
+            "BUG": ["bug"],
+            "RISK": ["risk"],
+            "DEC": ["decision"],
+            "MILE": ["milestone"],
+            "SPIKE": ["spike"]
+        },
+        "workflows": {
+            "initiative": { "statuses": ["Draft", "Proposed", "Approved", "In Progress", "Done", "Cancelled"], "defaultStatus": "Draft", "doneStatuses": ["Done", "Cancelled"] },
+            "okr": { "statuses": ["Draft", "Active", "At Risk", "Achieved", "Missed"], "defaultStatus": "Draft", "doneStatuses": ["Achieved", "Missed"] },
+            "epic": { "statuses": ["Backlog", "Refining", "Ready", "In Progress", "Done"], "defaultStatus": "Backlog", "doneStatuses": ["Done"] },
+            "feature": { "statuses": ["Backlog", "To Do", "In Progress", "In Review", "Done"], "defaultStatus": "Backlog", "doneStatuses": ["Done"] },
+            "story": { "statuses": ["Backlog", "To Do", "In Progress", "In Review", "Done"], "defaultStatus": "Backlog", "doneStatuses": ["Done"] },
+            "task": { "statuses": ["To Do", "In Progress", "Done"], "defaultStatus": "To Do", "doneStatuses": ["Done"] },
+            "subtask": { "statuses": ["To Do", "In Progress", "Done"], "defaultStatus": "To Do", "doneStatuses": ["Done"] },
+            "bug": { "statuses": ["New", "Triaged", "In Progress", "Fixed", "Verified", "Closed", "Wont Fix"], "defaultStatus": "New", "doneStatuses": ["Closed", "Wont Fix"] },
+            "risk": { "statuses": ["Identified", "Analyzing", "Mitigating", "Accepted", "Resolved"], "defaultStatus": "Identified", "doneStatuses": ["Accepted", "Resolved"] },
+            "decision": { "statuses": ["Proposed", "Under Review", "Accepted", "Rejected", "Superseded"], "defaultStatus": "Proposed", "doneStatuses": ["Accepted", "Rejected", "Superseded"] },
+            "milestone": { "statuses": ["Planned", "In Progress", "Reached", "Missed"], "defaultStatus": "Planned", "doneStatuses": ["Reached", "Missed"] },
+            "spike": { "statuses": ["To Do", "In Progress", "Done"], "defaultStatus": "To Do", "doneStatuses": ["Done"] }
+        }
+    })
+}
+
+// ── Work Management: Config ─────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn wm_get_config() -> Result<serde_json::Value, String> {
+    let data = wm_read_json("config.json");
+    if data.is_null() || data == serde_json::json!([]) || (data.is_object() && data.as_object().map(|o| o.is_empty()).unwrap_or(false)) {
+        Ok(wm_default_config())
+    } else {
+        Ok(data)
+    }
+}
+
+#[tauri::command]
+pub async fn wm_save_config(config: serde_json::Value) -> Result<(), String> {
+    wm_write_json("config.json", &config)
+}
+
+// ── Work Management: Organizations ──────────────────────────────────────────
+
+#[tauri::command]
+pub async fn wm_list_orgs() -> Result<serde_json::Value, String> {
+    Ok(wm_read_json("organizations.json"))
+}
+
+#[tauri::command]
+pub async fn wm_save_org(org: serde_json::Value) -> Result<(), String> {
+    let mut orgs = wm_read_json("organizations.json");
+    let arr = orgs.as_array_mut().ok_or("Invalid organizations data")?;
+    let id = org.get("id").and_then(|v| v.as_str()).ok_or("Org must have an id")?;
+    if let Some(pos) = arr.iter().position(|o| o.get("id").and_then(|v| v.as_str()) == Some(id)) {
+        arr[pos] = org;
+    } else {
+        arr.push(org);
+    }
+    wm_write_json("organizations.json", &orgs)
+}
+
+#[tauri::command]
+pub async fn wm_delete_org(org_id: String) -> Result<(), String> {
+    let mut orgs = wm_read_json("organizations.json");
+    let arr = orgs.as_array_mut().ok_or("Invalid organizations data")?;
+    arr.retain(|o| o.get("id").and_then(|v| v.as_str()) != Some(&org_id));
+    wm_write_json("organizations.json", &orgs)
+}
+
+// ── Work Management: Groups ─────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn wm_list_groups(org_id: String) -> Result<serde_json::Value, String> {
+    let groups = wm_read_json("groups.json");
+    let filtered: Vec<&serde_json::Value> = groups.as_array()
+        .map(|arr| arr.iter().filter(|g| g.get("orgId").and_then(|v| v.as_str()) == Some(&org_id)).collect())
+        .unwrap_or_default();
+    Ok(serde_json::json!(filtered))
+}
+
+#[tauri::command]
+pub async fn wm_save_group(group: serde_json::Value) -> Result<(), String> {
+    let mut groups = wm_read_json("groups.json");
+    let arr = groups.as_array_mut().ok_or("Invalid groups data")?;
+    let id = group.get("id").and_then(|v| v.as_str()).ok_or("Group must have an id")?;
+    if let Some(pos) = arr.iter().position(|g| g.get("id").and_then(|v| v.as_str()) == Some(id)) {
+        arr[pos] = group;
+    } else {
+        arr.push(group);
+    }
+    wm_write_json("groups.json", &groups)
+}
+
+#[tauri::command]
+pub async fn wm_delete_group(group_id: String) -> Result<(), String> {
+    let mut groups = wm_read_json("groups.json");
+    let arr = groups.as_array_mut().ok_or("Invalid groups data")?;
+    arr.retain(|g| g.get("id").and_then(|v| v.as_str()) != Some(&group_id));
+    wm_write_json("groups.json", &groups)
+}
+
+// ── Work Management: Teams ──────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn wm_list_teams(group_id: String) -> Result<serde_json::Value, String> {
+    let teams = wm_read_json("teams.json");
+    let filtered: Vec<&serde_json::Value> = teams.as_array()
+        .map(|arr| arr.iter().filter(|t| t.get("groupId").and_then(|v| v.as_str()) == Some(&group_id)).collect())
+        .unwrap_or_default();
+    Ok(serde_json::json!(filtered))
+}
+
+#[tauri::command]
+pub async fn wm_save_team(team: serde_json::Value) -> Result<(), String> {
+    let mut teams = wm_read_json("teams.json");
+    let arr = teams.as_array_mut().ok_or("Invalid teams data")?;
+    let id = team.get("id").and_then(|v| v.as_str()).ok_or("Team must have an id")?;
+    if let Some(pos) = arr.iter().position(|t| t.get("id").and_then(|v| v.as_str()) == Some(id)) {
+        arr[pos] = team;
+    } else {
+        arr.push(team);
+    }
+    wm_write_json("teams.json", &teams)
+}
+
+#[tauri::command]
+pub async fn wm_delete_team(team_id: String) -> Result<(), String> {
+    let mut teams = wm_read_json("teams.json");
+    let arr = teams.as_array_mut().ok_or("Invalid teams data")?;
+    arr.retain(|t| t.get("id").and_then(|v| v.as_str()) != Some(&team_id));
+    wm_write_json("teams.json", &teams)
+}
+
+// ── Work Management: Workspaces ─────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn wm_list_workspaces(team_id: String) -> Result<serde_json::Value, String> {
+    let workspaces = wm_read_json("workspaces.json");
+    let filtered: Vec<&serde_json::Value> = workspaces.as_array()
+        .map(|arr| arr.iter().filter(|w| w.get("teamId").and_then(|v| v.as_str()) == Some(&team_id)).collect())
+        .unwrap_or_default();
+    Ok(serde_json::json!(filtered))
+}
+
+#[tauri::command]
+pub async fn wm_save_workspace(workspace: serde_json::Value) -> Result<(), String> {
+    let mut workspaces = wm_read_json("workspaces.json");
+    let arr = workspaces.as_array_mut().ok_or("Invalid workspaces data")?;
+    let id = workspace.get("id").and_then(|v| v.as_str()).ok_or("Workspace must have an id")?;
+    if let Some(pos) = arr.iter().position(|w| w.get("id").and_then(|v| v.as_str()) == Some(id)) {
+        arr[pos] = workspace;
+    } else {
+        arr.push(workspace);
+    }
+    wm_write_json("workspaces.json", &workspaces)
+}
+
+#[tauri::command]
+pub async fn wm_delete_workspace(workspace_id: String) -> Result<(), String> {
+    let mut workspaces = wm_read_json("workspaces.json");
+    let arr = workspaces.as_array_mut().ok_or("Invalid workspaces data")?;
+    arr.retain(|w| w.get("id").and_then(|v| v.as_str()) != Some(&workspace_id));
+    wm_write_json("workspaces.json", &workspaces)
+}
+
+// ── Work Management: Work Items ─────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn wm_create_item(item: serde_json::Value) -> Result<serde_json::Value, String> {
+    let config = {
+        let data = wm_read_json("config.json");
+        if data.is_null() || data == serde_json::json!([]) { wm_default_config() } else { data }
+    };
+    let item_type = item.get("type").and_then(|v| v.as_str()).unwrap_or("task");
+
+    // Find the prefix for this item type
+    let prefixes = config.get("prefixes").and_then(|p| p.as_object());
+    let prefix = prefixes.and_then(|ps| {
+        ps.iter().find_map(|(k, v)| {
+            v.as_array().and_then(|arr| {
+                if arr.iter().any(|t| t.as_str() == Some(item_type)) { Some(k.as_str()) } else { None }
+            })
+        })
+    }).unwrap_or("TASK");
+
+    let display_id = wm_next_id(prefix)?;
+    let now = chrono::Utc::now().to_rfc3339();
+
+    // Get default status from workflow config
+    let default_status = config.get("workflows")
+        .and_then(|w| w.get(item_type))
+        .and_then(|wf| wf.get("defaultStatus"))
+        .and_then(|s| s.as_str())
+        .unwrap_or("To Do");
+
+    let mut new_item = item.clone();
+    let obj = new_item.as_object_mut().ok_or("Item must be an object")?;
+    obj.insert("displayId".to_string(), serde_json::json!(display_id));
+    obj.insert("createdAt".to_string(), serde_json::json!(now));
+    obj.insert("updatedAt".to_string(), serde_json::json!(now));
+    if !obj.contains_key("status") {
+        obj.insert("status".to_string(), serde_json::json!(default_status));
+    }
+    if !obj.contains_key("relationships") {
+        obj.insert("relationships".to_string(), serde_json::json!([]));
+    }
+
+    let mut items = wm_read_json("items.json");
+    let arr = items.as_array_mut().ok_or("Invalid items data")?;
+    arr.push(new_item.clone());
+    wm_write_json("items.json", &items)?;
+
+    Ok(new_item)
+}
+
+#[tauri::command]
+pub async fn wm_update_item(item: serde_json::Value) -> Result<(), String> {
+    let display_id = item.get("displayId").and_then(|v| v.as_str()).ok_or("Item must have a displayId")?;
+    let now = chrono::Utc::now().to_rfc3339();
+    let mut items = wm_read_json("items.json");
+    let arr = items.as_array_mut().ok_or("Invalid items data")?;
+    let pos = arr.iter().position(|i| i.get("displayId").and_then(|v| v.as_str()) == Some(display_id))
+        .ok_or("Item not found")?;
+    let mut updated = item.clone();
+    updated.as_object_mut().map(|o| o.insert("updatedAt".to_string(), serde_json::json!(now)));
+    arr[pos] = updated;
+    wm_write_json("items.json", &items)
+}
+
+#[tauri::command]
+pub async fn wm_delete_item(display_id: String) -> Result<(), String> {
+    let mut items = wm_read_json("items.json");
+    let arr = items.as_array_mut().ok_or("Invalid items data")?;
+    arr.retain(|i| i.get("displayId").and_then(|v| v.as_str()) != Some(&display_id));
+    // Remove from any relationships in remaining items
+    for item in arr.iter_mut() {
+        if let Some(rels) = item.get_mut("relationships").and_then(|r| r.as_array_mut()) {
+            rels.retain(|r| r.get("targetId").and_then(|v| v.as_str()) != Some(&display_id));
+        }
+    }
+    wm_write_json("items.json", &items)
+}
+
+#[tauri::command]
+pub async fn wm_list_items(filter: serde_json::Value) -> Result<serde_json::Value, String> {
+    let items = wm_read_json("items.json");
+    let arr = items.as_array().cloned().unwrap_or_default();
+
+    let org_id = filter.get("orgId").and_then(|v| v.as_str());
+    let group_id = filter.get("groupId").and_then(|v| v.as_str());
+    let team_id = filter.get("teamId").and_then(|v| v.as_str());
+    let workspace_id = filter.get("workspaceId").and_then(|v| v.as_str());
+    let item_type = filter.get("type").and_then(|v| v.as_str());
+    let status = filter.get("status").and_then(|v| v.as_str());
+    let assignee = filter.get("assignee").and_then(|v| v.as_str());
+    let parent_id = filter.get("parentId").and_then(|v| v.as_str());
+    let label = filter.get("label").and_then(|v| v.as_str());
+
+    let filtered: Vec<serde_json::Value> = arr.into_iter().filter(|i| {
+        if let Some(v) = org_id { if i.get("orgId").and_then(|x| x.as_str()) != Some(v) { return false; } }
+        if let Some(v) = group_id { if i.get("groupId").and_then(|x| x.as_str()) != Some(v) { return false; } }
+        if let Some(v) = team_id { if i.get("teamId").and_then(|x| x.as_str()) != Some(v) { return false; } }
+        if let Some(v) = workspace_id { if i.get("workspaceId").and_then(|x| x.as_str()) != Some(v) { return false; } }
+        if let Some(v) = item_type { if i.get("type").and_then(|x| x.as_str()) != Some(v) { return false; } }
+        if let Some(v) = status { if i.get("status").and_then(|x| x.as_str()) != Some(v) { return false; } }
+        if let Some(v) = assignee { if i.get("assignee").and_then(|x| x.as_str()) != Some(v) { return false; } }
+        if let Some(v) = parent_id { if i.get("parentId").and_then(|x| x.as_str()) != Some(v) { return false; } }
+        if let Some(v) = label {
+            let has_label = i.get("labels").and_then(|l| l.as_array())
+                .map(|arr| arr.iter().any(|l| l.as_str() == Some(v)))
+                .unwrap_or(false);
+            if !has_label { return false; }
+        }
+        true
+    }).collect();
+
+    Ok(serde_json::json!(filtered))
+}
+
+#[tauri::command]
+pub async fn wm_get_item(display_id: String) -> Result<serde_json::Value, String> {
+    let items = wm_read_json("items.json");
+    let arr = items.as_array().ok_or("Invalid items data")?;
+    arr.iter().find(|i| i.get("displayId").and_then(|v| v.as_str()) == Some(&display_id))
+        .cloned()
+        .ok_or_else(|| format!("Item {} not found", display_id))
+}
+
+#[tauri::command]
+pub async fn wm_move_item(display_id: String, status: String) -> Result<(), String> {
+    let now = chrono::Utc::now().to_rfc3339();
+    let mut items = wm_read_json("items.json");
+    let arr = items.as_array_mut().ok_or("Invalid items data")?;
+    let item = arr.iter_mut().find(|i| i.get("displayId").and_then(|v| v.as_str()) == Some(&display_id))
+        .ok_or("Item not found")?;
+    item.as_object_mut().map(|o| {
+        o.insert("status".to_string(), serde_json::json!(status));
+        o.insert("updatedAt".to_string(), serde_json::json!(now));
+    });
+    wm_write_json("items.json", &items)
+}
+
+// ── Work Management: Relationships ──────────────────────────────────────────
+
+fn wm_inverse_rel(rel_type: &str) -> &str {
+    match rel_type {
+        "blocks" => "blocked_by",
+        "blocked_by" => "blocks",
+        "parent" => "child",
+        "child" => "parent",
+        "implements" => "implemented_by",
+        "implemented_by" => "implements",
+        "duplicates" => "duplicated_by",
+        "duplicated_by" => "duplicates",
+        "relates_to" => "relates_to",
+        other => other,
+    }
+}
+
+#[tauri::command]
+pub async fn wm_add_relationship(source_id: String, target_id: String, rel_type: String) -> Result<(), String> {
+    let mut items = wm_read_json("items.json");
+    let arr = items.as_array_mut().ok_or("Invalid items data")?;
+
+    // Add relationship to source
+    if let Some(source) = arr.iter_mut().find(|i| i.get("displayId").and_then(|v| v.as_str()) == Some(&source_id)) {
+        let rels = source.as_object_mut().unwrap()
+            .entry("relationships").or_insert(serde_json::json!([]));
+        if let Some(rels_arr) = rels.as_array_mut() {
+            let already = rels_arr.iter().any(|r|
+                r.get("targetId").and_then(|v| v.as_str()) == Some(&target_id) &&
+                r.get("type").and_then(|v| v.as_str()) == Some(&rel_type));
+            if !already {
+                rels_arr.push(serde_json::json!({"targetId": target_id, "type": rel_type}));
+            }
+        }
+    }
+
+    // Add inverse relationship to target
+    let inverse = wm_inverse_rel(&rel_type);
+    if let Some(target) = arr.iter_mut().find(|i| i.get("displayId").and_then(|v| v.as_str()) == Some(&target_id)) {
+        let rels = target.as_object_mut().unwrap()
+            .entry("relationships").or_insert(serde_json::json!([]));
+        if let Some(rels_arr) = rels.as_array_mut() {
+            let already = rels_arr.iter().any(|r|
+                r.get("targetId").and_then(|v| v.as_str()) == Some(&source_id) &&
+                r.get("type").and_then(|v| v.as_str()) == Some(inverse));
+            if !already {
+                rels_arr.push(serde_json::json!({"targetId": source_id, "type": inverse}));
+            }
+        }
+    }
+
+    wm_write_json("items.json", &items)
+}
+
+#[tauri::command]
+pub async fn wm_remove_relationship(source_id: String, target_id: String, rel_type: String) -> Result<(), String> {
+    let mut items = wm_read_json("items.json");
+    let arr = items.as_array_mut().ok_or("Invalid items data")?;
+
+    // Remove from source
+    if let Some(source) = arr.iter_mut().find(|i| i.get("displayId").and_then(|v| v.as_str()) == Some(&source_id)) {
+        if let Some(rels) = source.get_mut("relationships").and_then(|r| r.as_array_mut()) {
+            rels.retain(|r|
+                !(r.get("targetId").and_then(|v| v.as_str()) == Some(&target_id) &&
+                  r.get("type").and_then(|v| v.as_str()) == Some(&rel_type)));
+        }
+    }
+
+    // Remove inverse from target
+    let inverse = wm_inverse_rel(&rel_type);
+    if let Some(target) = arr.iter_mut().find(|i| i.get("displayId").and_then(|v| v.as_str()) == Some(&target_id)) {
+        if let Some(rels) = target.get_mut("relationships").and_then(|r| r.as_array_mut()) {
+            rels.retain(|r|
+                !(r.get("targetId").and_then(|v| v.as_str()) == Some(&source_id) &&
+                  r.get("type").and_then(|v| v.as_str()) == Some(inverse)));
+        }
+    }
+
+    wm_write_json("items.json", &items)
+}
+
+// ── Work Management: Queries ────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn wm_get_item_tree(display_id: String) -> Result<serde_json::Value, String> {
+    let items = wm_read_json("items.json");
+    let arr = items.as_array().ok_or("Invalid items data")?;
+
+    fn build_tree(display_id: &str, all_items: &[serde_json::Value]) -> serde_json::Value {
+        let item = all_items.iter().find(|i| i.get("displayId").and_then(|v| v.as_str()) == Some(display_id));
+        match item {
+            Some(item) => {
+                let mut result = item.clone();
+                let children: Vec<serde_json::Value> = all_items.iter()
+                    .filter(|i| i.get("parentId").and_then(|v| v.as_str()) == Some(display_id))
+                    .map(|child| {
+                        let child_id = child.get("displayId").and_then(|v| v.as_str()).unwrap_or("");
+                        build_tree(child_id, all_items)
+                    })
+                    .collect();
+                result.as_object_mut().map(|o| o.insert("children".to_string(), serde_json::json!(children)));
+                result
+            }
+            None => serde_json::json!(null),
+        }
+    }
+
+    Ok(build_tree(&display_id, arr))
+}
+
+#[tauri::command]
+pub async fn wm_get_dashboard(scope: serde_json::Value) -> Result<serde_json::Value, String> {
+    let items = wm_read_json("items.json");
+    let arr = items.as_array().cloned().unwrap_or_default();
+
+    // Apply scope filters
+    let org_id = scope.get("orgId").and_then(|v| v.as_str());
+    let group_id = scope.get("groupId").and_then(|v| v.as_str());
+    let team_id = scope.get("teamId").and_then(|v| v.as_str());
+    let workspace_id = scope.get("workspaceId").and_then(|v| v.as_str());
+
+    let filtered: Vec<&serde_json::Value> = arr.iter().filter(|i| {
+        if let Some(v) = org_id { if i.get("orgId").and_then(|x| x.as_str()) != Some(v) { return false; } }
+        if let Some(v) = group_id { if i.get("groupId").and_then(|x| x.as_str()) != Some(v) { return false; } }
+        if let Some(v) = team_id { if i.get("teamId").and_then(|x| x.as_str()) != Some(v) { return false; } }
+        if let Some(v) = workspace_id { if i.get("workspaceId").and_then(|x| x.as_str()) != Some(v) { return false; } }
+        true
+    }).collect();
+
+    // Counts by type
+    let mut by_type: std::collections::HashMap<String, u64> = std::collections::HashMap::new();
+    let mut by_status: std::collections::HashMap<String, u64> = std::collections::HashMap::new();
+    let mut okr_progress_sum: f64 = 0.0;
+    let mut okr_count: u64 = 0;
+
+    for item in &filtered {
+        let item_type = item.get("type").and_then(|v| v.as_str()).unwrap_or("unknown");
+        *by_type.entry(item_type.to_string()).or_insert(0) += 1;
+
+        let status = item.get("status").and_then(|v| v.as_str()).unwrap_or("unknown");
+        *by_status.entry(status.to_string()).or_insert(0) += 1;
+
+        if item_type == "okr" {
+            if let Some(progress) = item.get("progress").and_then(|v| v.as_f64()) {
+                okr_progress_sum += progress;
+                okr_count += 1;
+            }
+        }
+    }
+
+    let okr_avg = if okr_count > 0 { okr_progress_sum / okr_count as f64 } else { 0.0 };
+
+    Ok(serde_json::json!({
+        "totalItems": filtered.len(),
+        "byType": by_type,
+        "byStatus": by_status,
+        "okrProgressAverage": okr_avg
+    }))
+}
+
+// ── Work Management: AI Commands ────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn wm_ai_suggest_breakdown(
+    item: serde_json::Value,
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let title = item.get("title").and_then(|v| v.as_str()).unwrap_or("Untitled");
+    let description = item.get("description").and_then(|v| v.as_str()).unwrap_or("");
+    let item_type = item.get("type").and_then(|v| v.as_str()).unwrap_or("feature");
+
+    let child_type = match item_type {
+        "initiative" => "epic",
+        "epic" => "feature",
+        "feature" => "story",
+        "story" => "task",
+        _ => "task",
+    };
+
+    let prompt = format!(
+        r#"You are an expert project manager. Break down this {item_type} into smaller {child_type} items that can be independently worked on.
+
+{item_type}: {title}
+Description: {description}
+
+Generate 3-6 child items. Respond with ONLY valid JSON:
+{{
+  "items": [
+    {{
+      "title": "...",
+      "description": "...",
+      "type": "{child_type}",
+      "priority": "P1",
+      "storyPoints": 3,
+      "labels": ["..."],
+      "acceptanceCriteria": ["Given...", "When...", "Then..."]
+    }}
+  ]
+}}"#
+    );
+
+    let messages = vec![Message { role: vibe_ai::MessageRole::User, content: prompt }];
+    let engine = state.chat_engine.lock().await;
+    let raw = engine.chat(&messages, None).await.map_err(|e| e.to_string())?;
+    drop(engine);
+
+    let json_start = raw.find('{').unwrap_or(0);
+    let json_end = raw.rfind('}').map(|i| i + 1).unwrap_or(raw.len());
+    let json_str = if json_start < json_end { &raw[json_start..json_end] } else { "{}" };
+
+    let result: serde_json::Value = serde_json::from_str(json_str)
+        .unwrap_or(serde_json::json!({ "items": [] }));
+
+    Ok(result)
+}
+
+#[tauri::command]
+pub async fn wm_ai_assess_risk(
+    items: serde_json::Value,
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let items_summary: Vec<String> = items.as_array()
+        .map(|arr| arr.iter().map(|i| {
+            let title = i.get("title").and_then(|v| v.as_str()).unwrap_or("Untitled");
+            let item_type = i.get("type").and_then(|v| v.as_str()).unwrap_or("task");
+            let status = i.get("status").and_then(|v| v.as_str()).unwrap_or("unknown");
+            let display_id = i.get("displayId").and_then(|v| v.as_str()).unwrap_or("");
+            format!("[{display_id}] ({item_type}, {status}) {title}")
+        }).collect())
+        .unwrap_or_default();
+
+    let prompt = format!(
+        r#"You are an expert project risk analyst. Analyze these work items for risks, blockers, and dependency issues.
+
+Work Items:
+{}
+
+Identify potential risks, scheduling conflicts, dependency cycles, resource bottlenecks, and scope concerns.
+
+Respond with ONLY valid JSON:
+{{
+  "risks": [
+    {{
+      "title": "Risk title",
+      "description": "Detailed risk description",
+      "likelihood": "high",
+      "impact": "high",
+      "mitigation": "Suggested mitigation strategy",
+      "affectedItems": ["ITEM-1", "ITEM-2"]
+    }}
+  ],
+  "suggestions": ["Actionable suggestion 1", "Actionable suggestion 2"]
+}}"#,
+        items_summary.join("\n")
+    );
+
+    let messages = vec![Message { role: vibe_ai::MessageRole::User, content: prompt }];
+    let engine = state.chat_engine.lock().await;
+    let raw = engine.chat(&messages, None).await.map_err(|e| e.to_string())?;
+    drop(engine);
+
+    let json_start = raw.find('{').unwrap_or(0);
+    let json_end = raw.rfind('}').map(|i| i + 1).unwrap_or(raw.len());
+    let json_str = if json_start < json_end { &raw[json_start..json_end] } else { "{}" };
+
+    let result: serde_json::Value = serde_json::from_str(json_str)
+        .unwrap_or(serde_json::json!({ "risks": [], "suggestions": [] }));
 
     Ok(result)
 }
@@ -24173,35 +24965,31 @@ pub struct KgGraph {
     pub edges: Vec<KgEdge>,
 }
 
+fn extract_ident(s: &str) -> &str {
+    s.split(|c: char| !c.is_alphanumeric() && c != '_').next().unwrap_or("")
+}
+
 /// Detect the "kind" of a symbol line in Rust source.
 fn classify_rust_line(line: &str) -> Option<(&str, &str)> {
     let trimmed = line.trim();
-    if trimmed.starts_with("pub struct ") || trimmed.starts_with("struct ") {
-        let after = if trimmed.starts_with("pub struct ") { &trimmed[11..] } else { &trimmed[7..] };
-        let name = after.split(|c: char| !c.is_alphanumeric() && c != '_').next().unwrap_or("");
+    if let Some(after) = trimmed.strip_prefix("pub struct ").or_else(|| trimmed.strip_prefix("struct ")) {
+        let name = extract_ident(after);
         if !name.is_empty() { return Some((name, "struct")); }
     }
-    if trimmed.starts_with("pub trait ") || trimmed.starts_with("trait ") {
-        let after = if trimmed.starts_with("pub trait ") { &trimmed[10..] } else { &trimmed[6..] };
-        let name = after.split(|c: char| !c.is_alphanumeric() && c != '_').next().unwrap_or("");
+    if let Some(after) = trimmed.strip_prefix("pub trait ").or_else(|| trimmed.strip_prefix("trait ")) {
+        let name = extract_ident(after);
         if !name.is_empty() { return Some((name, "trait")); }
     }
-    if trimmed.starts_with("pub enum ") || trimmed.starts_with("enum ") {
-        let after = if trimmed.starts_with("pub enum ") { &trimmed[9..] } else { &trimmed[5..] };
-        let name = after.split(|c: char| !c.is_alphanumeric() && c != '_').next().unwrap_or("");
+    if let Some(after) = trimmed.strip_prefix("pub enum ").or_else(|| trimmed.strip_prefix("enum ")) {
+        let name = extract_ident(after);
         if !name.is_empty() { return Some((name, "enum")); }
     }
-    if trimmed.starts_with("pub fn ") || trimmed.starts_with("pub async fn ") || trimmed.starts_with("fn ") || trimmed.starts_with("async fn ") {
-        let after = if trimmed.starts_with("pub async fn ") {
-            &trimmed[13..]
-        } else if trimmed.starts_with("pub fn ") {
-            &trimmed[7..]
-        } else if trimmed.starts_with("async fn ") {
-            &trimmed[9..]
-        } else {
-            &trimmed[3..]
-        };
-        let name = after.split(|c: char| !c.is_alphanumeric() && c != '_').next().unwrap_or("");
+    if let Some(after) = trimmed.strip_prefix("pub async fn ")
+        .or_else(|| trimmed.strip_prefix("pub fn "))
+        .or_else(|| trimmed.strip_prefix("async fn "))
+        .or_else(|| trimmed.strip_prefix("fn "))
+    {
+        let name = extract_ident(after);
         if !name.is_empty() { return Some((name, "function")); }
     }
     None
@@ -24240,20 +25028,13 @@ fn classify_ts_line(line: &str) -> Option<(&str, &str)> {
 /// Detect the "kind" of a symbol line in Python source.
 fn classify_py_line(line: &str) -> Option<(&str, &str)> {
     let trimmed = line.trim();
-    if trimmed.starts_with("def ") {
-        let after = &trimmed[4..];
-        let name = after.split(|c: char| !c.is_alphanumeric() && c != '_').next().unwrap_or("");
+    if let Some(after) = trimmed.strip_prefix("async def ").or_else(|| trimmed.strip_prefix("def ")) {
+        let name = extract_ident(after);
         if !name.is_empty() { return Some((name, "function")); }
     }
-    if trimmed.starts_with("class ") {
-        let after = &trimmed[6..];
-        let name = after.split(|c: char| !c.is_alphanumeric() && c != '_').next().unwrap_or("");
+    if let Some(after) = trimmed.strip_prefix("class ") {
+        let name = extract_ident(after);
         if !name.is_empty() { return Some((name, "class")); }
-    }
-    if trimmed.starts_with("async def ") {
-        let after = &trimmed[10..];
-        let name = after.split(|c: char| !c.is_alphanumeric() && c != '_').next().unwrap_or("");
-        if !name.is_empty() { return Some((name, "function")); }
     }
     None
 }
@@ -24289,7 +25070,7 @@ fn extract_kg_imports(line: &str, ext: &str) -> Vec<String> {
                     }
                 }
                 if results.is_empty() {
-                    let after = &trimmed[7..];
+                    let after = trimmed.strip_prefix("import ").unwrap_or("");
                     let name = after.split_whitespace().next().unwrap_or("");
                     if name.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
                         results.push(name.to_string());
@@ -24981,7 +25762,7 @@ fn render_stats_path() -> std::path::PathBuf {
     std::path::PathBuf::from(home).join(".vibeui").join("render-stats.json")
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct RenderStats {
     #[serde(rename = "cacheHits")]
     pub cache_hits: u64,
@@ -24991,12 +25772,6 @@ pub struct RenderStats {
     pub total_frames: u64,
     #[serde(rename = "avgReduction")]
     pub avg_reduction: u64,
-}
-
-impl Default for RenderStats {
-    fn default() -> Self {
-        Self { cache_hits: 0, cache_misses: 0, total_frames: 0, avg_reduction: 0 }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -26200,7 +26975,7 @@ fn extract_declarations(source: &str, language: &str) -> Vec<AstNode> {
                         }
                     }
                 } else if let Some(rest) = trimmed.strip_prefix("impl ") {
-                    if let Some(name) = rest.split(|c: char| c == '{' || c == '<').next() {
+                    if let Some(name) = rest.split(['{', '<']).next() {
                         let name = name.trim();
                         if !name.is_empty() {
                             nodes.push(AstNode { name: format!("impl {name}"), kind: "impl".into(), line: line_num, children: None });
@@ -26209,7 +26984,7 @@ fn extract_declarations(source: &str, language: &str) -> Vec<AstNode> {
                 } else if let Some(rest) = trimmed.strip_prefix("pub trait ")
                     .or_else(|| trimmed.strip_prefix("trait "))
                 {
-                    if let Some(name) = rest.split(|c: char| c == '{' || c == ':' || c == '<' || c.is_whitespace()).next() {
+                    if let Some(name) = rest.split(['{', ':', '<', ' ']).next() {
                         let name = name.trim();
                         if !name.is_empty() {
                             nodes.push(AstNode { name: name.to_string(), kind: "trait".into(), line: line_num, children: None });

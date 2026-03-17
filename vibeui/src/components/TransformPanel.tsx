@@ -318,7 +318,7 @@ export function TransformPanel({ provider }: TransformPanelProps) {
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                           <span style={{ fontSize: 13, fontWeight: 600 }}>{t.label}</span>
                           {detectedIds.includes(t.id) && (
-                            <span style={{ fontSize: 9, background: "var(--success-color)", color: "#fff", borderRadius: 4, padding: "1px 5px", fontWeight: 600 }}>DETECTED</span>
+                            <span style={{ fontSize: 9, background: "var(--success-color)", color: "var(--bg-primary)", borderRadius: 4, padding: "1px 5px", fontWeight: 600 }}>DETECTED</span>
                           )}
                         </div>
                         <div style={{ fontSize: 11, color: active ? "rgba(255,255,255,0.8)" : "var(--text-secondary)", lineHeight: 1.4 }}>

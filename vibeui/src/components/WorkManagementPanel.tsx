@@ -1,0 +1,701 @@
+/**
+ * WorkManagementPanel — Enterprise work management with organizational hierarchy,
+ * work item tracking, relationships, OKRs, risks, and AI-powered breakdown.
+ *
+ * Tabs: Hierarchy | Items | Board | Relationships | OKRs | Risks | Dashboard
+ */
+import { useState, useEffect, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
+
+/* ── Types ─────────────────────────────────────────────────── */
+
+type TabKey = "hierarchy" | "items" | "board" | "relationships" | "okrs" | "risks" | "dashboard";
+
+type WorkItemType = "initiative" | "okr" | "epic" | "feature" | "story" | "task" | "subtask" | "bug" | "risk" | "decision" | "milestone" | "spike";
+type Priority = "critical" | "high" | "medium" | "low" | "none";
+type RelationType = "parent" | "child" | "blocks" | "blocked_by" | "relates_to" | "duplicates" | "duplicated_by" | "implements" | "implemented_by";
+
+const ITEM_TYPES: WorkItemType[] = ["initiative", "okr", "epic", "feature", "story", "task", "subtask", "bug", "risk", "decision", "milestone", "spike"];
+const PRIORITIES: Priority[] = ["critical", "high", "medium", "low", "none"];
+const REL_TYPES: RelationType[] = ["parent", "child", "blocks", "blocked_by", "relates_to", "duplicates", "implements"];
+
+interface Org { id: string; name: string; description: string; createdAt: string; }
+interface Group { id: string; orgId: string; name: string; description: string; createdAt: string; }
+interface Team { id: string; groupId: string; orgId: string; name: string; description: string; createdAt: string; }
+interface Workspace { id: string; teamId: string; orgId: string; name: string; description: string; prefix: string; createdAt: string; }
+
+interface Relationship { targetId: string; type: RelationType; }
+
+interface WorkItem {
+  id: string;
+  displayId: string;
+  type: WorkItemType;
+  title: string;
+  description: string;
+  status: string;
+  priority: Priority;
+  assignee?: string;
+  labels: string[];
+  storyPoints?: number;
+  dueDate?: string;
+  orgId: string;
+  groupId?: string;
+  teamId?: string;
+  workspaceId?: string;
+  parentId?: string;
+  relationships: Relationship[];
+  acceptanceCriteria?: string[];
+  okrKeyResults?: { id: string; title: string; target: number; current: number }[];
+  okrProgress?: number;
+  riskLikelihood?: string;
+  riskImpact?: string;
+  riskMitigation?: string;
+  decisionStatus?: string;
+  decisionOutcome?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface Scope { orgId?: string; groupId?: string; teamId?: string; workspaceId?: string; }
+
+/* ── Styles ────────────────────────────────────────────────── */
+
+const cardS: React.CSSProperties = { background: "var(--bg-elevated)", border: "1px solid var(--border-color)", borderRadius: 8, padding: 12, marginBottom: 8 };
+const btnS: React.CSSProperties = { padding: "5px 12px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-elevated)", color: "var(--text-primary)", cursor: "pointer", fontSize: 12, fontWeight: 500 };
+const btnP: React.CSSProperties = { ...btnS, background: "var(--accent-color)", color: "var(--btn-primary-fg)", borderColor: "var(--accent-color)" };
+const inpS: React.CSSProperties = { padding: "5px 8px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: 12, width: "100%", boxSizing: "border-box" as const };
+const badge = (bg: string, fg = "var(--text-primary)"): React.CSSProperties => ({ display: "inline-block", padding: "1px 6px", borderRadius: 3, fontSize: 10, fontWeight: 600, background: bg, color: fg, marginRight: 4 });
+
+const TYPE_COLORS: Record<string, string> = {
+  initiative: "var(--accent-purple)", okr: "var(--accent-gold)", epic: "var(--accent-blue)",
+  feature: "var(--accent-green)", story: "var(--accent-blue)", task: "var(--text-secondary)",
+  subtask: "var(--text-muted)", bug: "var(--error-color)", risk: "var(--warning-color)",
+  decision: "var(--info-color)", milestone: "var(--accent-rose)", spike: "var(--accent-purple)",
+};
+
+const PRIORITY_COLORS: Record<string, string> = {
+  critical: "var(--error-color)", high: "var(--warning-color)", medium: "var(--accent-blue)",
+  low: "var(--text-secondary)", none: "var(--text-muted)",
+};
+
+const genId = () => Math.random().toString(36).slice(2, 10);
+
+/* ── Main Panel ────────────────────────────────────────────── */
+
+export default function WorkManagementPanel() {
+  const [tab, setTab] = useState<TabKey>("hierarchy");
+  const [scope, setScope] = useState<Scope>({});
+  const [orgs, setOrgs] = useState<Org[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [items, setItems] = useState<WorkItem[]>([]);
+  const [error, setError] = useState("");
+
+  const loadOrgs = useCallback(async () => {
+    try { const d = await invoke<Org[]>("wm_list_orgs"); setOrgs(d || []); } catch { /* empty */ }
+  }, []);
+
+  const loadItems = useCallback(async () => {
+    try { const d = await invoke<WorkItem[]>("wm_list_items", { filter: scope }); setItems(d || []); } catch { /* empty */ }
+  }, [scope]);
+
+  useEffect(() => {
+    loadOrgs();
+  }, [loadOrgs]);
+
+  useEffect(() => { loadItems(); }, [loadItems]);
+
+  // Load groups when org selected
+  useEffect(() => {
+    if (scope.orgId) {
+      invoke<Group[]>("wm_list_groups", { orgId: scope.orgId }).then(d => setGroups(d || [])).catch(() => {});
+    } else { setGroups([]); }
+  }, [scope.orgId]);
+
+  // Load teams when group selected
+  useEffect(() => {
+    if (scope.groupId) {
+      invoke<Team[]>("wm_list_teams", { groupId: scope.groupId }).then(d => setTeams(d || [])).catch(() => {});
+    } else { setTeams([]); }
+  }, [scope.groupId]);
+
+  // Load workspaces when team selected
+  useEffect(() => {
+    if (scope.teamId) {
+      invoke<Workspace[]>("wm_list_workspaces", { teamId: scope.teamId }).then(d => setWorkspaces(d || [])).catch(() => {});
+    } else { setWorkspaces([]); }
+  }, [scope.teamId]);
+
+  const tabs: { id: TabKey; label: string }[] = [
+    { id: "hierarchy", label: "Hierarchy" },
+    { id: "items", label: `Items (${items.length})` },
+    { id: "board", label: "Board" },
+    { id: "relationships", label: "Links" },
+    { id: "okrs", label: "OKRs" },
+    { id: "risks", label: "Risks" },
+    { id: "dashboard", label: "Dashboard" },
+  ];
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", color: "var(--text-primary)" }}>
+      {/* Header */}
+      <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-color)", display: "flex", alignItems: "center", gap: 8 }}>
+        <span style={{ fontSize: 14, fontWeight: 700 }}>Work Management</span>
+        {scope.orgId && <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+          {orgs.find(o => o.id === scope.orgId)?.name}
+          {scope.groupId && ` / ${groups.find(g => g.id === scope.groupId)?.name || ""}`}
+          {scope.teamId && ` / ${teams.find(t => t.id === scope.teamId)?.name || ""}`}
+          {scope.workspaceId && ` / ${workspaces.find(w => w.id === scope.workspaceId)?.name || ""}`}
+        </span>}
+        {scope.orgId && <button style={{ ...btnS, fontSize: 10, padding: "2px 6px", marginLeft: "auto" }} onClick={() => setScope({})}>Clear scope</button>}
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display: "flex", borderBottom: "1px solid var(--border-color)" }}>
+        {tabs.map(t => (
+          <button key={t.id} onClick={() => setTab(t.id)} style={{
+            padding: "6px 14px", fontSize: 12, border: "none", background: "none", cursor: "pointer",
+            borderBottom: tab === t.id ? "2px solid var(--accent-color)" : "2px solid transparent",
+            color: tab === t.id ? "var(--accent-color)" : "var(--text-secondary)",
+          }}>{t.label}</button>
+        ))}
+      </div>
+
+      {error && <div style={{ padding: "6px 12px", fontSize: 11, color: "var(--error-color)", background: "var(--error-bg)" }}>{error}<button style={{ float: "right", ...btnS, fontSize: 10, padding: "1px 6px" }} onClick={() => setError("")}>x</button></div>}
+
+      <div style={{ flex: 1, overflowY: "auto", padding: "10px 12px" }}>
+        {tab === "hierarchy" && <HierarchyTab orgs={orgs} groups={groups} teams={teams} workspaces={workspaces} scope={scope} setScope={setScope} onRefresh={loadOrgs} setError={setError} />}
+        {tab === "items" && <ItemsTab items={items} scope={scope} onRefresh={loadItems} setError={setError} />}
+        {tab === "board" && <BoardTab items={items} onRefresh={loadItems} setError={setError} />}
+        {tab === "relationships" && <RelationshipsTab items={items} onRefresh={loadItems} setError={setError} />}
+        {tab === "okrs" && <OkrTab items={items} />}
+        {tab === "risks" && <RisksTab items={items} />}
+        {tab === "dashboard" && <DashboardTab items={items} />}
+      </div>
+    </div>
+  );
+}
+
+/* ── Hierarchy Tab ─────────────────────────────────────────── */
+
+function HierarchyTab({ orgs, groups, teams, workspaces, scope, setScope, onRefresh, setError }: {
+  orgs: Org[]; groups: Group[]; teams: Team[]; workspaces: Workspace[]; scope: Scope;
+  setScope: (s: Scope) => void; onRefresh: () => void; setError: (e: string) => void;
+}) {
+  const [creating, setCreating] = useState<"org" | "group" | "team" | "workspace" | null>(null);
+  const [name, setName] = useState("");
+  const [desc, setDesc] = useState("");
+  const [prefix, setPrefix] = useState("");
+
+  const handleCreate = async () => {
+    if (!name.trim()) return;
+    try {
+      const now = new Date().toISOString();
+      if (creating === "org") {
+        await invoke("wm_save_org", { org: { id: genId(), name, description: desc, createdAt: now } });
+      } else if (creating === "group" && scope.orgId) {
+        await invoke("wm_save_group", { group: { id: genId(), orgId: scope.orgId, name, description: desc, createdAt: now } });
+      } else if (creating === "team" && scope.groupId) {
+        await invoke("wm_save_team", { team: { id: genId(), groupId: scope.groupId, orgId: scope.orgId, name, description: desc, createdAt: now } });
+      } else if (creating === "workspace" && scope.teamId) {
+        await invoke("wm_save_workspace", { workspace: { id: genId(), teamId: scope.teamId, orgId: scope.orgId, name, description: desc, prefix: prefix.toUpperCase() || "WRK", createdAt: now } });
+      }
+      setCreating(null); setName(""); setDesc(""); setPrefix("");
+      onRefresh();
+    } catch (e: any) { setError(String(e)); }
+  };
+
+  const renderLevel = (label: string, items: { id: string; name: string; description: string }[], onSelect: (id: string) => void, selectedId?: string, createType?: "org" | "group" | "team" | "workspace") => (
+    <div style={{ marginBottom: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+        <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)" }}>{label} ({items.length})</span>
+        {createType && <button style={{ ...btnS, fontSize: 10, padding: "2px 8px" }} onClick={() => setCreating(createType)}>+</button>}
+      </div>
+      {items.map(item => (
+        <div key={item.id} onClick={() => onSelect(item.id)} style={{
+          ...cardS, cursor: "pointer", padding: "8px 12px",
+          borderLeft: selectedId === item.id ? "3px solid var(--accent-color)" : "3px solid transparent",
+          background: selectedId === item.id ? "var(--accent-bg)" : "var(--bg-elevated)",
+        }}>
+          <div style={{ fontWeight: 600, fontSize: 13 }}>{item.name}</div>
+          {item.description && <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }}>{item.description}</div>}
+        </div>
+      ))}
+      {items.length === 0 && <div style={{ fontSize: 11, color: "var(--text-muted)", padding: 8 }}>No {label.toLowerCase()} yet</div>}
+    </div>
+  );
+
+  return (
+    <div>
+      {creating && (
+        <div style={{ ...cardS, marginBottom: 12 }}>
+          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8, color: "var(--text-primary)" }}>Create {creating}</div>
+          <input style={{ ...inpS, marginBottom: 6 }} placeholder="Name" value={name} onChange={e => setName(e.target.value)} />
+          <input style={{ ...inpS, marginBottom: 6 }} placeholder="Description" value={desc} onChange={e => setDesc(e.target.value)} />
+          {creating === "workspace" && <input style={{ ...inpS, marginBottom: 6 }} placeholder="ID Prefix (e.g. PROJ)" value={prefix} onChange={e => setPrefix(e.target.value)} />}
+          <div style={{ display: "flex", gap: 6 }}>
+            <button style={btnP} onClick={handleCreate}>Create</button>
+            <button style={btnS} onClick={() => setCreating(null)}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <div>
+          {renderLevel("Organizations", orgs, id => setScope({ orgId: id }), scope.orgId, "org")}
+          {scope.orgId && renderLevel("Groups", groups, id => setScope({ ...scope, groupId: id, teamId: undefined, workspaceId: undefined }), scope.groupId, "group")}
+        </div>
+        <div>
+          {scope.groupId && renderLevel("Teams", teams, id => setScope({ ...scope, teamId: id, workspaceId: undefined }), scope.teamId, "team")}
+          {scope.teamId && renderLevel("Workspaces", workspaces, id => setScope({ ...scope, workspaceId: id }), scope.workspaceId, "workspace")}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Items Tab ─────────────────────────────────────────────── */
+
+function ItemsTab({ items, scope, onRefresh, setError }: {
+  items: WorkItem[]; scope: Scope; onRefresh: () => void; setError: (e: string) => void;
+}) {
+  const [filterType, setFilterType] = useState<WorkItemType | "">("");
+  const [filterStatus, setFilterStatus] = useState("");
+  const [search, setSearch] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [newItem, setNewItem] = useState({ type: "story" as WorkItemType, title: "", description: "", priority: "medium" as Priority, labels: "", storyPoints: 0, parentId: "" });
+  const [aiBreaking, setAiBreaking] = useState<string | null>(null);
+
+  const filtered = items.filter(i => {
+    if (filterType && i.type !== filterType) return false;
+    if (filterStatus && i.status !== filterStatus) return false;
+    if (search && !i.title.toLowerCase().includes(search.toLowerCase()) && !i.displayId.toLowerCase().includes(search.toLowerCase())) return false;
+    return true;
+  });
+
+  const handleCreate = async () => {
+    if (!newItem.title.trim()) return;
+    try {
+      await invoke("wm_create_item", {
+        item: {
+          type: newItem.type,
+          title: newItem.title,
+          description: newItem.description,
+          priority: newItem.priority,
+          labels: newItem.labels.split(",").map(s => s.trim()).filter(Boolean),
+          storyPoints: newItem.storyPoints || undefined,
+          parentId: newItem.parentId || undefined,
+          orgId: scope.orgId || "",
+          groupId: scope.groupId,
+          teamId: scope.teamId,
+          workspaceId: scope.workspaceId,
+          relationships: [],
+        },
+      });
+      setCreating(false);
+      setNewItem({ type: "story", title: "", description: "", priority: "medium", labels: "", storyPoints: 0, parentId: "" });
+      onRefresh();
+    } catch (e: any) { setError(String(e)); }
+  };
+
+  const handleAiBreakdown = async (item: WorkItem) => {
+    setAiBreaking(item.displayId);
+    try {
+      const result = await invoke<{ items: any[] }>("wm_ai_suggest_breakdown", { item });
+      if (result.items?.length) {
+        for (const child of result.items) {
+          await invoke("wm_create_item", {
+            item: { ...child, orgId: item.orgId, groupId: item.groupId, teamId: item.teamId, workspaceId: item.workspaceId, parentId: item.displayId, relationships: [] },
+          });
+        }
+        onRefresh();
+      }
+    } catch (e: any) { setError(String(e)); }
+    setAiBreaking(null);
+  };
+
+  const allStatuses = [...new Set(items.map(i => i.status))];
+
+  return (
+    <div>
+      {/* Create form */}
+      {creating ? (
+        <div style={{ ...cardS, marginBottom: 12 }}>
+          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Create Work Item</div>
+          <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+            <select style={{ ...inpS, width: "auto" }} value={newItem.type} onChange={e => setNewItem({ ...newItem, type: e.target.value as WorkItemType })}>
+              {ITEM_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+            <select style={{ ...inpS, width: "auto" }} value={newItem.priority} onChange={e => setNewItem({ ...newItem, priority: e.target.value as Priority })}>
+              {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
+            <input style={{ ...inpS, width: 60 }} type="number" min={0} placeholder="Pts" value={newItem.storyPoints || ""} onChange={e => setNewItem({ ...newItem, storyPoints: Number(e.target.value) })} />
+          </div>
+          <input style={{ ...inpS, marginBottom: 6 }} placeholder="Title" value={newItem.title} onChange={e => setNewItem({ ...newItem, title: e.target.value })} />
+          <textarea style={{ ...inpS, marginBottom: 6, minHeight: 50, resize: "vertical" }} placeholder="Description" value={newItem.description} onChange={e => setNewItem({ ...newItem, description: e.target.value })} />
+          <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+            <input style={{ ...inpS, flex: 1 }} placeholder="Labels (comma-separated)" value={newItem.labels} onChange={e => setNewItem({ ...newItem, labels: e.target.value })} />
+            <input style={{ ...inpS, width: 100 }} placeholder="Parent ID" value={newItem.parentId} onChange={e => setNewItem({ ...newItem, parentId: e.target.value })} />
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button style={btnP} onClick={handleCreate}>Create</button>
+            <button style={btnS} onClick={() => setCreating(false)}>Cancel</button>
+          </div>
+        </div>
+      ) : (
+        <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+          <button style={btnP} onClick={() => setCreating(true)}>+ Create Item</button>
+        </div>
+      )}
+
+      {/* Filters */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap", alignItems: "center" }}>
+        <input style={{ ...inpS, width: 160 }} placeholder="Search by title or ID..." value={search} onChange={e => setSearch(e.target.value)} />
+        <select style={{ ...inpS, width: "auto" }} value={filterType} onChange={e => setFilterType(e.target.value as WorkItemType | "")}>
+          <option value="">All Types</option>
+          {ITEM_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+        </select>
+        <select style={{ ...inpS, width: "auto" }} value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+          <option value="">All Statuses</option>
+          {allStatuses.map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+        <span style={{ fontSize: 11, color: "var(--text-muted)", marginLeft: "auto" }}>{filtered.length} items</span>
+      </div>
+
+      {/* Item list */}
+      {filtered.map(item => (
+        <div key={item.id} style={{ ...cardS, borderLeft: `3px solid ${TYPE_COLORS[item.type] || "var(--border-color)"}` }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+            <span style={{ fontFamily: "monospace", fontSize: 11, fontWeight: 700, color: "var(--accent-color)" }}>{item.displayId}</span>
+            <span style={badge(TYPE_COLORS[item.type] || "var(--bg-tertiary)", "var(--btn-primary-fg)")}>{item.type}</span>
+            <span style={badge(PRIORITY_COLORS[item.priority] || "var(--bg-tertiary)", "var(--btn-primary-fg)")}>{item.priority}</span>
+            <span style={badge("var(--bg-tertiary)", "var(--text-secondary)")}>{item.status}</span>
+            {item.storyPoints !== undefined && item.storyPoints > 0 && <span style={{ fontSize: 10, color: "var(--text-muted)" }}>{item.storyPoints} pts</span>}
+            {item.parentId && <span style={{ fontSize: 10, color: "var(--text-muted)" }}>parent: {item.parentId}</span>}
+            <div style={{ flex: 1 }} />
+            {["initiative", "epic", "feature", "story"].includes(item.type) && (
+              <button style={{ ...btnS, fontSize: 10, padding: "2px 6px" }} onClick={() => handleAiBreakdown(item)} disabled={aiBreaking === item.displayId}>
+                {aiBreaking === item.displayId ? "Breaking down..." : "AI Breakdown"}
+              </button>
+            )}
+          </div>
+          <div style={{ fontWeight: 500, fontSize: 13 }}>{item.title}</div>
+          {item.description && <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 2 }}>{item.description.slice(0, 150)}{item.description.length > 150 ? "..." : ""}</div>}
+          {item.relationships.length > 0 && (
+            <div style={{ display: "flex", gap: 4, marginTop: 4, flexWrap: "wrap" }}>
+              {item.relationships.map((r, i) => (
+                <span key={i} style={{ fontSize: 10, color: "var(--text-muted)" }}>{r.type}: <strong>{r.targetId}</strong></span>
+              ))}
+            </div>
+          )}
+          {item.labels.length > 0 && (
+            <div style={{ display: "flex", gap: 3, marginTop: 4, flexWrap: "wrap" }}>
+              {item.labels.map(l => <span key={l} style={badge("var(--bg-tertiary)", "var(--text-secondary)")}>{l}</span>)}
+            </div>
+          )}
+        </div>
+      ))}
+      {filtered.length === 0 && <div style={{ textAlign: "center", padding: 24, color: "var(--text-muted)", fontSize: 12 }}>No work items. Create one or select a scope from the Hierarchy tab.</div>}
+    </div>
+  );
+}
+
+/* ── Board Tab ─────────────────────────────────────────────── */
+
+function BoardTab({ items, onRefresh, setError }: {
+  items: WorkItem[]; onRefresh: () => void; setError: (e: string) => void;
+}) {
+  // Derive columns from most common workflow
+  const statusCounts = new Map<string, number>();
+  items.forEach(i => statusCounts.set(i.status, (statusCounts.get(i.status) || 0) + 1));
+  const columns = statusCounts.size > 0
+    ? [...statusCounts.entries()].sort((a, b) => b[1] - a[1]).map(([s]) => s)
+    : ["Backlog", "To Do", "In Progress", "In Review", "Done"];
+
+  const moveItem = async (displayId: string, newStatus: string) => {
+    try {
+      await invoke("wm_move_item", { displayId, status: newStatus });
+      onRefresh();
+    } catch (e: any) { setError(String(e)); }
+  };
+
+  return (
+    <div style={{ display: "flex", gap: 8, overflowX: "auto", minHeight: 300 }}>
+      {columns.map(col => {
+        const colItems = items.filter(i => i.status === col);
+        return (
+          <div key={col} style={{ minWidth: 200, flex: 1, background: "var(--bg-secondary)", borderRadius: 8, padding: 8, border: "1px solid var(--border-color)" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 8, letterSpacing: "0.05em" }}>
+              {col} ({colItems.length})
+            </div>
+            {colItems.map(item => (
+              <div key={item.id} style={{ ...cardS, padding: 8, marginBottom: 6, fontSize: 12 }}>
+                <div style={{ display: "flex", gap: 4, marginBottom: 4 }}>
+                  <span style={{ fontFamily: "monospace", fontSize: 10, color: "var(--accent-color)" }}>{item.displayId}</span>
+                  <span style={badge(PRIORITY_COLORS[item.priority] || "var(--bg-tertiary)", "var(--btn-primary-fg)")}>{item.priority}</span>
+                </div>
+                <div style={{ fontWeight: 500, marginBottom: 4 }}>{item.title}</div>
+                <select style={{ ...inpS, fontSize: 10, padding: "2px 4px" }} value={item.status} onChange={e => moveItem(item.displayId, e.target.value)}>
+                  {columns.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ── Relationships Tab ─────────────────────────────────────── */
+
+function RelationshipsTab({ items, onRefresh, setError }: { items: WorkItem[]; onRefresh: () => void; setError: (e: string) => void }) {
+  const [sourceId, setSourceId] = useState("");
+  const [targetId, setTargetId] = useState("");
+  const [relType, setRelType] = useState<RelationType>("relates_to");
+
+  const handleAdd = async () => {
+    if (!sourceId.trim() || !targetId.trim()) return;
+    try {
+      await invoke("wm_add_relationship", { sourceId: sourceId.trim(), targetId: targetId.trim(), relType });
+      setSourceId(""); setTargetId("");
+      onRefresh();
+    } catch (e: any) { setError(String(e)); }
+  };
+
+  const linked = items.filter(i => i.relationships.length > 0);
+
+  return (
+    <div>
+      {/* Add relationship form */}
+      <div style={{ ...cardS, marginBottom: 12 }}>
+        <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Link Work Items</div>
+        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+          <input style={{ ...inpS, width: 100 }} placeholder="Source ID" value={sourceId} onChange={e => setSourceId(e.target.value)} />
+          <select style={{ ...inpS, width: "auto" }} value={relType} onChange={e => setRelType(e.target.value as RelationType)}>
+            {REL_TYPES.map(r => <option key={r} value={r}>{r.replace("_", " ")}</option>)}
+          </select>
+          <input style={{ ...inpS, width: 100 }} placeholder="Target ID" value={targetId} onChange={e => setTargetId(e.target.value)} />
+          <button style={btnP} onClick={handleAdd}>Link</button>
+        </div>
+      </div>
+
+      {/* Relationship list */}
+      {linked.map(item => (
+        <div key={item.id} style={{ ...cardS }}>
+          <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 4 }}>
+            <span style={{ fontFamily: "monospace", color: "var(--accent-color)" }}>{item.displayId}</span> — {item.title}
+          </div>
+          {item.relationships.map((r, i) => (
+            <div key={i} style={{ fontSize: 11, color: "var(--text-secondary)", padding: "2px 0", display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={badge("var(--bg-tertiary)", "var(--text-secondary)")}>{r.type.replace("_", " ")}</span>
+              <span style={{ fontFamily: "monospace", fontWeight: 600, color: "var(--accent-color)" }}>{r.targetId}</span>
+              <button style={{ ...btnS, fontSize: 9, padding: "1px 4px", marginLeft: "auto" }} onClick={async () => {
+                try { await invoke("wm_remove_relationship", { sourceId: item.displayId, targetId: r.targetId, relType: r.type }); onRefresh(); } catch (e: any) { setError(String(e)); }
+              }}>x</button>
+            </div>
+          ))}
+        </div>
+      ))}
+      {linked.length === 0 && <div style={{ textAlign: "center", padding: 24, color: "var(--text-muted)", fontSize: 12 }}>No linked items yet. Use the form above to create relationships.</div>}
+    </div>
+  );
+}
+
+/* ── OKR Tab ───────────────────────────────────────────────── */
+
+function OkrTab({ items }: { items: WorkItem[] }) {
+  const okrs = items.filter(i => i.type === "okr");
+  return (
+    <div>
+      {okrs.map(okr => (
+        <div key={okr.id} style={{ ...cardS }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+            <span style={{ fontFamily: "monospace", fontSize: 11, color: "var(--accent-color)" }}>{okr.displayId}</span>
+            <span style={{ fontWeight: 600, fontSize: 13 }}>{okr.title}</span>
+            <span style={badge(okr.status === "Achieved" ? "var(--success-color)" : okr.status === "At Risk" ? "var(--warning-color)" : "var(--bg-tertiary)", "var(--btn-primary-fg)")}>{okr.status}</span>
+          </div>
+          {okr.description && <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8 }}>{okr.description}</div>}
+
+          {/* Key Results */}
+          {(okr.okrKeyResults || []).map(kr => {
+            const pct = kr.target > 0 ? Math.round((kr.current / kr.target) * 100) : 0;
+            return (
+              <div key={kr.id} style={{ marginBottom: 6 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 2 }}>
+                  <span>{kr.title}</span>
+                  <span style={{ fontWeight: 600, color: pct >= 100 ? "var(--success-color)" : pct >= 70 ? "var(--accent-color)" : "var(--warning-color)" }}>{pct}%</span>
+                </div>
+                <div style={{ height: 6, background: "var(--bg-tertiary)", borderRadius: 3, overflow: "hidden" }}>
+                  <div style={{ width: `${Math.min(pct, 100)}%`, height: "100%", background: pct >= 100 ? "var(--success-color)" : "var(--accent-color)", borderRadius: 3, transition: "width 0.3s" }} />
+                </div>
+                <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 1 }}>{kr.current} / {kr.target}</div>
+              </div>
+            );
+          })}
+
+          {/* Linked items */}
+          {okr.relationships.filter(r => r.type === "implemented_by" || r.type === "child").length > 0 && (
+            <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>
+              Linked: {okr.relationships.filter(r => r.type === "implemented_by" || r.type === "child").map(r => r.targetId).join(", ")}
+            </div>
+          )}
+        </div>
+      ))}
+      {okrs.length === 0 && <div style={{ textAlign: "center", padding: 24, color: "var(--text-muted)", fontSize: 12 }}>No OKRs. Create one from the Items tab with type "okr".</div>}
+    </div>
+  );
+}
+
+/* ── Risks Tab ─────────────────────────────────────────────── */
+
+function RisksTab({ items }: { items: WorkItem[] }) {
+  const risks = items.filter(i => i.type === "risk");
+  const decisions = items.filter(i => i.type === "decision");
+
+  const riskMatrix: Record<string, Record<string, WorkItem[]>> = { high: { high: [], medium: [], low: [] }, medium: { high: [], medium: [], low: [] }, low: { high: [], medium: [], low: [] } };
+  risks.forEach(r => {
+    const l = r.riskLikelihood || "medium";
+    const imp = r.riskImpact || "medium";
+    if (riskMatrix[l]?.[imp]) riskMatrix[l][imp].push(r);
+  });
+
+  const matrixColor = (l: string, i: string) => {
+    if (l === "high" && i === "high") return "var(--error-bg)";
+    if ((l === "high" && i === "medium") || (l === "medium" && i === "high")) return "var(--warning-bg)";
+    return "var(--bg-secondary)";
+  };
+
+  return (
+    <div>
+      {/* Risk Matrix */}
+      <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Risk Matrix</div>
+      <table style={{ borderCollapse: "collapse", marginBottom: 16, width: "100%", maxWidth: 500 }}>
+        <thead>
+          <tr>
+            <th style={{ padding: 6, fontSize: 10, color: "var(--text-muted)" }}></th>
+            {["high", "medium", "low"].map(i => <th key={i} style={{ padding: 6, fontSize: 10, textTransform: "uppercase", color: "var(--text-muted)" }}>Impact: {i}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {(["high", "medium", "low"] as const).map(l => (
+            <tr key={l}>
+              <td style={{ padding: 6, fontSize: 10, textTransform: "uppercase", color: "var(--text-muted)", fontWeight: 600 }}>Likelihood: {l}</td>
+              {(["high", "medium", "low"] as const).map(i => (
+                <td key={i} style={{ padding: 6, background: matrixColor(l, i), border: "1px solid var(--border-color)", textAlign: "center", minWidth: 80 }}>
+                  {riskMatrix[l][i].map(r => (
+                    <div key={r.id} style={{ fontSize: 10, marginBottom: 2 }}>
+                      <span style={{ fontFamily: "monospace", color: "var(--accent-color)" }}>{r.displayId}</span>
+                    </div>
+                  ))}
+                  {riskMatrix[l][i].length === 0 && <span style={{ fontSize: 10, color: "var(--text-muted)" }}>-</span>}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {/* Risk list */}
+      {risks.map(r => (
+        <div key={r.id} style={{ ...cardS, borderLeft: "3px solid var(--warning-color)" }}>
+          <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4 }}>
+            <span style={{ fontFamily: "monospace", fontSize: 11, color: "var(--accent-color)" }}>{r.displayId}</span>
+            <span style={badge("var(--warning-bg)", "var(--warning-color)")}>{r.status}</span>
+            {r.riskLikelihood && <span style={{ fontSize: 10, color: "var(--text-muted)" }}>L:{r.riskLikelihood}</span>}
+            {r.riskImpact && <span style={{ fontSize: 10, color: "var(--text-muted)" }}>I:{r.riskImpact}</span>}
+          </div>
+          <div style={{ fontWeight: 500, fontSize: 13 }}>{r.title}</div>
+          {r.riskMitigation && <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 4 }}>Mitigation: {r.riskMitigation}</div>}
+        </div>
+      ))}
+
+      {/* Decision Log */}
+      {decisions.length > 0 && (
+        <div style={{ marginTop: 16 }}>
+          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Decision Log</div>
+          {decisions.map(d => (
+            <div key={d.id} style={{ ...cardS, borderLeft: "3px solid var(--info-color)" }}>
+              <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4 }}>
+                <span style={{ fontFamily: "monospace", fontSize: 11, color: "var(--accent-color)" }}>{d.displayId}</span>
+                <span style={badge(d.status === "Accepted" ? "var(--success-bg)" : "var(--bg-tertiary)", d.status === "Accepted" ? "var(--success-color)" : "var(--text-secondary)")}>{d.status}</span>
+              </div>
+              <div style={{ fontWeight: 500, fontSize: 13 }}>{d.title}</div>
+              {d.decisionOutcome && <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 4 }}>Outcome: {d.decisionOutcome}</div>}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {risks.length === 0 && decisions.length === 0 && <div style={{ textAlign: "center", padding: 24, color: "var(--text-muted)", fontSize: 12 }}>No risks or decisions tracked yet.</div>}
+    </div>
+  );
+}
+
+/* ── Dashboard Tab ─────────────────────────────────────────── */
+
+function DashboardTab({ items }: { items: WorkItem[] }) {
+  const byType = new Map<string, number>();
+  const byStatus = new Map<string, number>();
+  const byPriority = new Map<string, number>();
+  items.forEach(i => {
+    byType.set(i.type, (byType.get(i.type) || 0) + 1);
+    byStatus.set(i.status, (byStatus.get(i.status) || 0) + 1);
+    byPriority.set(i.priority, (byPriority.get(i.priority) || 0) + 1);
+  });
+
+  const totalPoints = items.reduce((sum, i) => sum + (i.storyPoints || 0), 0);
+  const doneItems = items.filter(i => ["Done", "Closed", "Achieved", "Resolved", "Reached", "Verified"].includes(i.status));
+  const okrs = items.filter(i => i.type === "okr");
+  const avgOkrProgress = okrs.length > 0 ? Math.round(okrs.reduce((s, o) => s + (o.okrProgress || 0), 0) / okrs.length) : 0;
+
+  const renderBar = (label: string, count: number, total: number, color: string) => (
+    <div key={label} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+      <span style={{ fontSize: 11, width: 80, textAlign: "right", color: "var(--text-secondary)" }}>{label}</span>
+      <div style={{ flex: 1, height: 14, background: "var(--bg-tertiary)", borderRadius: 3, overflow: "hidden" }}>
+        <div style={{ width: total > 0 ? `${(count / total) * 100}%` : "0%", height: "100%", background: color, borderRadius: 3 }} />
+      </div>
+      <span style={{ fontSize: 11, fontWeight: 600, width: 30, color: "var(--text-primary)" }}>{count}</span>
+    </div>
+  );
+
+  return (
+    <div>
+      {/* Summary cards */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 8, marginBottom: 16 }}>
+        {[
+          { label: "Total Items", value: items.length },
+          { label: "Done", value: doneItems.length },
+          { label: "Story Points", value: totalPoints },
+          { label: "OKR Progress", value: `${avgOkrProgress}%` },
+          { label: "Open Risks", value: items.filter(i => i.type === "risk" && !["Resolved", "Accepted"].includes(i.status)).length },
+          { label: "Open Bugs", value: items.filter(i => i.type === "bug" && !["Closed", "Wont Fix", "Verified"].includes(i.status)).length },
+        ].map(({ label, value }) => (
+          <div key={label} style={{ background: "var(--bg-secondary)", borderRadius: 6, padding: "10px 12px", border: "1px solid var(--border-color)" }}>
+            <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)" }}>{value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* By type */}
+      <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>By Type</div>
+      {[...byType.entries()].sort((a, b) => b[1] - a[1]).map(([type, count]) =>
+        renderBar(type, count, items.length, TYPE_COLORS[type] || "var(--accent-color)")
+      )}
+
+      {/* By status */}
+      <div style={{ fontWeight: 600, fontSize: 13, marginTop: 16, marginBottom: 8 }}>By Status</div>
+      {[...byStatus.entries()].sort((a, b) => b[1] - a[1]).map(([status, count]) =>
+        renderBar(status, count, items.length, "var(--accent-color)")
+      )}
+
+      {/* By priority */}
+      <div style={{ fontWeight: 600, fontSize: 13, marginTop: 16, marginBottom: 8 }}>By Priority</div>
+      {[...byPriority.entries()].sort((a, b) => PRIORITIES.indexOf(a[0] as Priority) - PRIORITIES.indexOf(b[0] as Priority)).map(([pri, count]) =>
+        renderBar(pri, count, items.length, PRIORITY_COLORS[pri] || "var(--accent-color)")
+      )}
+    </div>
+  );
+}

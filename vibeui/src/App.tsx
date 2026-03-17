@@ -1287,7 +1287,7 @@ function App() {
                 </div>
                 <div className="file-tree">
                   {currentDirectory && (
-                    <div className="file-item directory" onClick={handleGoUp} title="Go to Parent">
+                    <div className="file-item directory" onClick={handleGoUp} onKeyDown={e => e.key === "Enter" && handleGoUp()} role="button" tabIndex={0} title="Go to Parent">
                       <span className="file-icon"><FolderOpen size={14} strokeWidth={1.5} /></span>
                       <span className="file-name">..</span>
                     </div>
@@ -1304,11 +1304,19 @@ function App() {
                       {files.map((file) => <div
                         key={file.path}
                         className={`file-item ${file.is_directory ? "directory" : "file"}`}
+                        role="button"
+                        tabIndex={0}
                         onClick={() => {
                           if (file.is_directory) {
                             loadDirectory(file.path);
                           } else {
                             openFile(file.path);
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            if (file.is_directory) loadDirectory(file.path);
+                            else openFile(file.path);
                           }
                         }}
                         onContextMenu={(e) => {

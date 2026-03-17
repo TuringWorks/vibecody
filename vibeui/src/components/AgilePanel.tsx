@@ -796,13 +796,15 @@ function SprintTab() {
   const [creating, setCreating] = useState(false);
   const [newSprint, setNewSprint] = useState({ name: "", goal: "", startDate: "", endDate: "" });
   const [error, setError] = useState("");
+  const [availableBacklog, setAvailableBacklog] = useState<Card[]>([]);
 
   useEffect(() => {
     (async () => {
       try {
-        const data = await invoke<{ sprints: Sprint[]; history: SprintHistory[] }>("agile_get_sprints");
+        const data = await invoke<{ sprints: Sprint[]; history: SprintHistory[]; backlog: Card[] }>("agile_get_sprints");
         setSprints(data.sprints || []);
         setHistory(data.history || []);
+        setAvailableBacklog(data.backlog || []);
         const active = (data.sprints || []).find(s => s.status === "Active");
         if (active) setCurrent(active);
         else if ((data.sprints || []).length > 0) setCurrent(data.sprints[0]);
@@ -945,6 +947,43 @@ function SprintTab() {
             </table>
           </div>
 
+          {/* Pull from backlog */}
+          {availableBacklog.length > 0 && current && current.status !== "Completed" && (
+            <div style={{ marginTop: 12 }}>
+              <div style={sectionTitle}>Add from Backlog ({availableBacklog.length} available)</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 200, overflowY: "auto" }}>
+                {availableBacklog.map(item => (
+                  <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)" }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 12, fontWeight: 500, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.title}</div>
+                      <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>{item.priority} · {item.storyPoints} pts</div>
+                    </div>
+                    <button
+                      style={{ ...btnPrimaryStyle, fontSize: 11, padding: "3px 8px", flexShrink: 0 }}
+                      onClick={async () => {
+                        const updated: Sprint = {
+                          ...current,
+                          cards: [...(current.cards || []), { ...item, sprintId: current.id }],
+                          plannedPoints: current.plannedPoints + item.storyPoints,
+                        };
+                        try {
+                          await invoke("agile_update_sprint", { sprint: updated });
+                          setCurrent(updated);
+                          setSprints(prev => prev.map(s => s.id === updated.id ? updated : s));
+                          setAvailableBacklog(prev => prev.filter(b => b.id !== item.id));
+                        } catch (e: any) {
+                          setError(typeof e === "string" ? e : "Failed to add to sprint");
+                        }
+                      }}
+                    >
+                      Add to Sprint
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Burndown */}
           <div style={{ ...sectionTitle, marginTop: 16 }}>Burndown Chart</div>
           <pre style={{ background: "var(--bg-secondary)", padding: 12, borderRadius: "var(--radius-sm)", fontSize: 11, overflow: "auto", color: "var(--text-primary)", border: "1px solid var(--border-color)" }}>
@@ -976,6 +1015,19 @@ function SprintTab() {
    Backlog Tab
    ═══════════════════════════════════════════════════════════════════════ */
 
+interface AiSuggestion {
+  title: string;
+  description: string;
+  storyPoints: number;
+  priority: Priority;
+  labels: string[];
+  acceptanceCriteria: string[];
+  epic: string;
+  dependsOn: number[];
+  order: number;
+  _accepted?: boolean;
+}
+
 function BacklogTab() {
   const [items, setItems] = useState<Card[]>([]);
   const [filterPriority, setFilterPriority] = useState<Priority | "">("");
@@ -984,6 +1036,13 @@ function BacklogTab() {
   const [showCreate, setShowCreate] = useState(false);
   const [newStory, setNewStory] = useState({ title: "", description: "", storyPoints: 0, priority: "P2" as Priority, labels: "", acceptanceCriteria: "" });
   const [error, setError] = useState("");
+
+  // AI generation state
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState<AiSuggestion[]>([]);
+  const [aiEpics, setAiEpics] = useState<string[]>([]);
+  const [showAiGenerate, setShowAiGenerate] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -1066,6 +1125,71 @@ function BacklogTab() {
     }
   }, [items]);
 
+  // AI backlog generation
+  const handleAiGenerate = useCallback(async () => {
+    if (!aiPrompt.trim()) return;
+    setAiGenerating(true);
+    setAiSuggestions([]);
+    setAiEpics([]);
+    setError("");
+    try {
+      const result = await invoke<{ epics?: string[]; stories?: AiSuggestion[] }>("agile_ai_generate_backlog", { prompt: aiPrompt.trim() });
+      const stories = (result.stories || []).map(s => ({
+        ...s,
+        priority: (["P0","P1","P2","P3"].includes(s.priority) ? s.priority : "P2") as Priority,
+        labels: s.labels || [],
+        acceptanceCriteria: s.acceptanceCriteria || [],
+        dependsOn: s.dependsOn || [],
+        order: s.order ?? 0,
+        _accepted: true,
+      }));
+      stories.sort((a, b) => a.order - b.order);
+      setAiSuggestions(stories);
+      setAiEpics(result.epics || []);
+    } catch (e: any) {
+      setError(typeof e === "string" ? e : e?.message || "AI generation failed");
+    } finally {
+      setAiGenerating(false);
+    }
+  }, [aiPrompt]);
+
+  const toggleSuggestion = (idx: number) => {
+    setAiSuggestions(prev => prev.map((s, i) => i === idx ? { ...s, _accepted: !s._accepted } : s));
+  };
+
+  const acceptAllSuggestions = () => setAiSuggestions(prev => prev.map(s => ({ ...s, _accepted: true })));
+  const rejectAllSuggestions = () => setAiSuggestions(prev => prev.map(s => ({ ...s, _accepted: false })));
+
+  const commitAccepted = useCallback(async () => {
+    const accepted = aiSuggestions.filter(s => s._accepted);
+    if (accepted.length === 0) return;
+    const newCards: Card[] = accepted.map((s) => ({
+      id: genId(),
+      title: s.title,
+      description: s.description,
+      assignee: "",
+      priority: s.priority,
+      storyPoints: s.storyPoints,
+      labels: [...s.labels, ...(s.epic ? [`epic:${s.epic}`] : [])],
+      column: "Backlog" as Column,
+      acceptanceCriteria: s.acceptanceCriteria,
+      createdAt: new Date().toISOString(),
+      epic: s.epic,
+    }));
+    try {
+      for (const card of newCards) {
+        await invoke("agile_create_story", { story: card });
+      }
+      setItems(prev => [...newCards, ...prev]);
+      setAiSuggestions([]);
+      setAiEpics([]);
+      setAiPrompt("");
+      setShowAiGenerate(false);
+    } catch (e: any) {
+      setError(typeof e === "string" ? e : e?.message || "Failed to add stories");
+    }
+  }, [aiSuggestions]);
+
   const filtered = items.filter(c => {
     if (filterPriority && c.priority !== filterPriority) return false;
     if (filterLabel && !c.labels.some(l => l.toLowerCase().includes(filterLabel.toLowerCase()))) return false;
@@ -1073,34 +1197,152 @@ function BacklogTab() {
     return true;
   });
 
+  const acceptedCount = aiSuggestions.filter(s => s._accepted).length;
+
   return (
     <div>
       {error && <div style={{ color: "var(--error-color)", marginBottom: 8, fontSize: 12 }}>{error}</div>}
 
-      {/* Create story form */}
+      {/* AI Backlog Generation */}
       <div style={{ marginBottom: 12 }}>
-        {showCreate ? (
+        {showAiGenerate ? (
           <div style={{ ...cardBaseStyle }}>
-            <h4 style={{ margin: "0 0 8px", color: "var(--text-primary)" }}>Create Story</h4>
-            <input style={{ ...inputStyle, marginBottom: 6 }} placeholder="Title" value={newStory.title} onChange={e => setNewStory({ ...newStory, title: e.target.value })} />
-            <textarea style={{ ...inputStyle, marginBottom: 6, minHeight: 50, resize: "vertical" }} placeholder="Description" value={newStory.description} onChange={e => setNewStory({ ...newStory, description: e.target.value })} />
-            <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
-              <select style={{ ...inputStyle, width: "auto" }} value={newStory.priority} onChange={e => setNewStory({ ...newStory, priority: e.target.value as Priority })}>
-                {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
-              </select>
-              <input style={{ ...inputStyle, width: 80 }} type="number" min={0} placeholder="Points" value={newStory.storyPoints || ""} onChange={e => setNewStory({ ...newStory, storyPoints: Number(e.target.value) })} />
-              <input style={{ ...inputStyle, flex: 1 }} placeholder="Labels (comma-separated)" value={newStory.labels} onChange={e => setNewStory({ ...newStory, labels: e.target.value })} />
+            <h4 style={{ margin: "0 0 8px", color: "var(--text-primary)" }}>AI Backlog Generator</h4>
+            <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8, lineHeight: 1.5 }}>
+              Describe what you want to build. The AI will analyze your project structure and generate epics, stories, estimates, dependencies, and ordering.
             </div>
-            <textarea style={{ ...inputStyle, marginBottom: 8, minHeight: 40, resize: "vertical" }} placeholder="Acceptance criteria (one per line)" value={newStory.acceptanceCriteria} onChange={e => setNewStory({ ...newStory, acceptanceCriteria: e.target.value })} />
-            <div style={{ display: "flex", gap: 8 }}>
-              <button style={btnPrimaryStyle} onClick={createStory}>Create</button>
-              <button style={btnStyle} onClick={() => setShowCreate(false)}>Cancel</button>
+            <textarea
+              style={{ ...inputStyle, marginBottom: 8, minHeight: 80, resize: "vertical" }}
+              placeholder="e.g., Build a user authentication system with OAuth2, email/password login, role-based access control, and password reset flow..."
+              value={aiPrompt}
+              onChange={e => setAiPrompt(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleAiGenerate(); }}
+            />
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <button style={btnPrimaryStyle} onClick={handleAiGenerate} disabled={aiGenerating || !aiPrompt.trim()}>
+                {aiGenerating ? "Analyzing project..." : "Generate Backlog"}
+              </button>
+              <button style={btnStyle} onClick={() => { setShowAiGenerate(false); setAiSuggestions([]); setAiEpics([]); }}>Cancel</button>
+              {aiGenerating && <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>AI is scanning files and generating stories...</span>}
             </div>
+
+            {/* Suggestions review */}
+            {aiSuggestions.length > 0 && (
+              <div style={{ marginTop: 12 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>
+                    {aiSuggestions.length} stories generated
+                    {aiEpics.length > 0 && <span style={{ fontWeight: 400, color: "var(--text-secondary)" }}> across {aiEpics.length} epic{aiEpics.length !== 1 ? "s" : ""}</span>}
+                  </div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button style={{ ...btnStyle, fontSize: 11, padding: "3px 8px" }} onClick={acceptAllSuggestions}>Accept All</button>
+                    <button style={{ ...btnStyle, fontSize: 11, padding: "3px 8px" }} onClick={rejectAllSuggestions}>Reject All</button>
+                  </div>
+                </div>
+
+                {/* Epic legend */}
+                {aiEpics.length > 0 && (
+                  <div style={{ display: "flex", gap: 6, marginBottom: 8, flexWrap: "wrap" }}>
+                    {aiEpics.map(ep => (
+                      <span key={ep} style={badgeStyle("var(--accent-bg)", "var(--accent-color)")}>{ep}</span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Story list */}
+                {aiSuggestions.map((s, idx) => {
+                  const deps = s.dependsOn?.filter(d => d < aiSuggestions.length).map(d => aiSuggestions[d]?.title).filter(Boolean) || [];
+                  return (
+                    <div
+                      key={idx}
+                      style={{
+                        ...cardBaseStyle,
+                        opacity: s._accepted ? 1 : 0.45,
+                        borderLeft: `3px solid ${s._accepted ? "var(--accent-color)" : "var(--border-color)"}`,
+                        cursor: "pointer",
+                      }}
+                      onClick={() => toggleSuggestion(idx)}
+                    >
+                      <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                        <div style={{
+                          width: 20, height: 20, borderRadius: 4, flexShrink: 0, marginTop: 1,
+                          background: s._accepted ? "var(--accent-color)" : "var(--bg-tertiary)",
+                          border: `1px solid ${s._accepted ? "var(--accent-color)" : "var(--border-color)"}`,
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          color: "var(--btn-primary-fg)", fontSize: 12, fontWeight: 700,
+                        }}>
+                          {s._accepted ? "\u2713" : ""}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
+                            <span style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "monospace" }}>#{idx + 1}</span>
+                            <span style={{ fontWeight: 600, fontSize: 13, color: "var(--text-primary)" }}>{s.title}</span>
+                          </div>
+                          <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 4, lineHeight: 1.4 }}>{s.description}</div>
+                          <div style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}>
+                            <span style={badgeStyle("var(--bg-tertiary)", "var(--text-secondary)")}>{s.priority}</span>
+                            <span style={badgeStyle("var(--bg-tertiary)", "var(--text-secondary)")}>{s.storyPoints} pts</span>
+                            {s.epic && <span style={badgeStyle("var(--accent-bg)", "var(--accent-color)")}>{s.epic}</span>}
+                            {s.labels.map(l => <span key={l} style={badgeStyle("var(--bg-tertiary)", "var(--text-secondary)")}>{l}</span>)}
+                            {deps.length > 0 && (
+                              <span style={{ fontSize: 10, color: "var(--text-muted)" }}>
+                                depends on: {deps.join(", ")}
+                              </span>
+                            )}
+                          </div>
+                          {s.acceptanceCriteria.length > 0 && (
+                            <details style={{ marginTop: 4 }}>
+                              <summary style={{ fontSize: 11, color: "var(--text-muted)", cursor: "pointer" }}>
+                                {s.acceptanceCriteria.length} acceptance criteria
+                              </summary>
+                              <ul style={{ margin: "4px 0 0 16px", fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.6 }}>
+                                {s.acceptanceCriteria.map((ac, i) => <li key={i}>{ac}</li>)}
+                              </ul>
+                            </details>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                  <button style={btnPrimaryStyle} onClick={commitAccepted} disabled={acceptedCount === 0}>
+                    Add {acceptedCount} Stor{acceptedCount !== 1 ? "ies" : "y"} to Backlog
+                  </button>
+                  <button style={btnStyle} onClick={() => { setAiSuggestions([]); setAiEpics([]); }}>Discard All</button>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
-          <button style={btnPrimaryStyle} onClick={() => setShowCreate(true)}>+ Create Story</button>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button style={btnPrimaryStyle} onClick={() => setShowAiGenerate(true)}>AI Generate Backlog</button>
+            <button style={btnStyle} onClick={() => setShowCreate(true)}>+ Create Story</button>
+          </div>
         )}
       </div>
+
+      {/* Manual create form */}
+      {showCreate && !showAiGenerate && (
+        <div style={{ ...cardBaseStyle, marginBottom: 12 }}>
+          <h4 style={{ margin: "0 0 8px", color: "var(--text-primary)" }}>Create Story</h4>
+          <input style={{ ...inputStyle, marginBottom: 6 }} placeholder="Title" value={newStory.title} onChange={e => setNewStory({ ...newStory, title: e.target.value })} />
+          <textarea style={{ ...inputStyle, marginBottom: 6, minHeight: 50, resize: "vertical" }} placeholder="Description" value={newStory.description} onChange={e => setNewStory({ ...newStory, description: e.target.value })} />
+          <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
+            <select style={{ ...inputStyle, width: "auto" }} value={newStory.priority} onChange={e => setNewStory({ ...newStory, priority: e.target.value as Priority })}>
+              {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
+            <input style={{ ...inputStyle, width: 80 }} type="number" min={0} placeholder="Points" value={newStory.storyPoints || ""} onChange={e => setNewStory({ ...newStory, storyPoints: Number(e.target.value) })} />
+            <input style={{ ...inputStyle, flex: 1 }} placeholder="Labels (comma-separated)" value={newStory.labels} onChange={e => setNewStory({ ...newStory, labels: e.target.value })} />
+          </div>
+          <textarea style={{ ...inputStyle, marginBottom: 8, minHeight: 40, resize: "vertical" }} placeholder="Acceptance criteria (one per line)" value={newStory.acceptanceCriteria} onChange={e => setNewStory({ ...newStory, acceptanceCriteria: e.target.value })} />
+          <div style={{ display: "flex", gap: 8 }}>
+            <button style={btnPrimaryStyle} onClick={createStory}>Create</button>
+            <button style={btnStyle} onClick={() => setShowCreate(false)}>Cancel</button>
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap", alignItems: "center" }}>
@@ -1166,7 +1408,7 @@ function BacklogTab() {
           </button>
         </div>
       ))}
-      {filtered.length === 0 && <div style={{ textAlign: "center", color: "var(--text-secondary)", padding: 24 }}>No backlog items found</div>}
+      {filtered.length === 0 && !showAiGenerate && <div style={{ textAlign: "center", color: "var(--text-secondary)", padding: 24 }}>No backlog items found. Use "AI Generate Backlog" to get started.</div>}
     </div>
   );
 }
@@ -1315,7 +1557,7 @@ function CeremoniesTab() {
         <div>
           <div style={sectionTitle}>Demo Checklist</div>
           {demoChecklist.map((d, i) => (
-            <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, cursor: "pointer" }} onClick={() => toggleDemo(i)}>
+            <div key={i} role="checkbox" aria-checked={d.done} tabIndex={0} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, cursor: "pointer" }} onClick={() => toggleDemo(i)} onKeyDown={e => e.key === "Enter" && toggleDemo(i)}>
               <span style={{ fontSize: 16, color: d.done ? "var(--success-color)" : "var(--text-secondary)" }}>{d.done ? "[x]" : "[ ]"}</span>
               <span style={{ fontSize: 13, color: d.done ? "var(--text-secondary)" : "var(--text-primary)", textDecoration: d.done ? "line-through" : "none" }}>{d.item}</span>
             </div>
