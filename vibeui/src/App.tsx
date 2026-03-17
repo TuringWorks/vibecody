@@ -3,6 +3,7 @@ import { useToast } from "./hooks/useToast";
 import { Toaster } from "./components/Toaster";
 import Editor, { DiffEditor, OnMount } from "@monaco-editor/react";
 import { invoke } from "@tauri-apps/api/core";
+import { getVersion } from "@tauri-apps/api/app";
 import { open } from "@tauri-apps/plugin-dialog";
 import { InlineChat } from "./components/InlineChat";
 import type { InlineChatSelection } from "./components/InlineChat";
@@ -15,7 +16,7 @@ import { CommandPalette, Command } from "./components/CommandPalette";
 import Modal from "./components/Modal";
 import { GitPanel } from "./components/GitPanel";
 import { MarkdownPreview } from "./components/MarkdownPreview";
-import { FilePlus, FolderPlus, FolderOpen, Files, Search, GitGraph, Settings, Menu, MessageSquare, Save, Terminal as TerminalIcon, PanelLeft, Puzzle, Hand, Sparkles, Bot, Rocket, Plug, Eye, FileText, GraduationCap, LayoutGrid } from "lucide-react";
+import { FilePlus, FolderPlus, FolderOpen, Files, Search, GitGraph, Settings, Menu, MessageSquare, Save, Terminal as TerminalIcon, PanelLeft, Puzzle, Hand, Sparkles, Bot, Rocket, Plug, Eye, FileText, GraduationCap, LayoutGrid, Bug, Box, Play, Shield, Globe } from "lucide-react";
 import "./ActivityBar.css";
 import { ExtensionManager } from "./extensions/ExtensionManager";
 // Import worker using Vite's syntax
@@ -26,6 +27,7 @@ import { flowContext } from "./utils/FlowContext";
 import { supercompleteEngine } from "./utils/SupercompleteEngine";
 import { OnboardingTour } from "./components/OnboardingTour";
 import { GroupedTabBar } from "./components/GroupedTabBar";
+import { MenuBar, MenuGroup } from "./components/MenuBar";
 import "./components/GroupedTabBar.css";
 import { PanelHost } from "./components/LazyPanels";
 import { useEditorTheme } from "./hooks/useEditorTheme";
@@ -68,7 +70,7 @@ function App() {
   const [aiProviders, setAiProviders] = useState<string[]>([]);
   const [selectedProvider, setSelectedProvider] = useState<string>("");
   const [showSidebar, setShowSidebar] = useState(true);
-  const [activeSidebarTab, setActiveSidebarTab] = useState<"explorer" | "search" | "git">("explorer");
+  const [activeSidebarTab, setActiveSidebarTab] = useState<"explorer" | "search" | "git" | "debug" | "extensions" | "docker" | "ai" | "security">("explorer");
   const [showAIChat, setShowAIChat] = useState(false);
   const [aiPanelTab, setAiPanelTab] = useState("chat");
   const [showFilterBar, setShowFilterBar] = useState(true);
@@ -77,6 +79,7 @@ function App() {
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showTour, setShowTour] = useState(() => !localStorage.getItem('vibeui-onboarding-complete'));
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [appVersion, setAppVersion] = useState("0.0.0");
 
   const completeTour = useCallback(() => {
     localStorage.setItem('vibeui-onboarding-complete', 'true');
@@ -163,6 +166,9 @@ function App() {
     invoke<string[]>("get_workspace_folders")
       .then(setWorkspaceFolders)
       .catch(console.error);
+
+    // Load app version from Tauri
+    getVersion().then(setAppVersion).catch(() => {});
 
     // Initialize Extension Manager
     const manager = new ExtensionManager({
@@ -948,6 +954,81 @@ function App() {
     }
   ];
 
+  // Top menu bar definitions
+  const appMenus: MenuGroup[] = [
+    {
+      label: "File",
+      items: [
+        { label: "Open Folder...", shortcut: modKey + "O", action: openFolder },
+        { label: "New File", action: handleNewFile },
+        { label: "New Folder", action: handleNewFolder },
+        { separator: true, label: "" },
+        { label: "Save", shortcut: modKey + "S", action: saveFile, disabled: !currentFile },
+        { separator: true, label: "" },
+        { label: "Close File", action: () => { if (activeFilePath) closeFile(activeFilePath); }, disabled: !activeFilePath },
+        { label: "Close All Files", action: () => setOpenFiles([]), disabled: openFiles.length === 0 },
+      ],
+    },
+    {
+      label: "Edit",
+      items: [
+        { label: "Undo", shortcut: modKey + "Z", action: () => editorRef.current?.trigger("menu", "undo", null) },
+        { label: "Redo", shortcut: modKey + shiftMod + "Z", action: () => editorRef.current?.trigger("menu", "redo", null) },
+        { separator: true, label: "" },
+        { label: "Cut", shortcut: modKey + "X", action: () => editorRef.current?.trigger("menu", "editor.action.clipboardCutAction", null) },
+        { label: "Copy", shortcut: modKey + "C", action: () => editorRef.current?.trigger("menu", "editor.action.clipboardCopyAction", null) },
+        { label: "Paste", shortcut: modKey + "V", action: () => editorRef.current?.trigger("menu", "editor.action.clipboardPasteAction", null) },
+        { separator: true, label: "" },
+        { label: "Find", shortcut: modKey + "F", action: () => editorRef.current?.trigger("menu", "actions.find", null) },
+        { label: "Replace", shortcut: modKey + "H", action: () => editorRef.current?.trigger("menu", "editor.action.startFindReplaceAction", null) },
+        { separator: true, label: "" },
+        { label: "Search in Files", action: () => { setShowSidebar(true); setActiveSidebarTab("search"); } },
+      ],
+    },
+    {
+      label: "View",
+      items: [
+        { label: "Explorer", shortcut: modKey + shiftMod + "E", action: () => { setShowSidebar(true); setActiveSidebarTab("explorer"); } },
+        { label: "Source Control", shortcut: modKey + shiftMod + "G", action: () => { setShowSidebar(true); setActiveSidebarTab("git"); } },
+        { label: "Search", action: () => { setShowSidebar(true); setActiveSidebarTab("search"); } },
+        { separator: true, label: "" },
+        { label: showSidebar ? "Hide Sidebar" : "Show Sidebar", shortcut: modKey + "B", action: () => setShowSidebar(prev => !prev) },
+        { label: showTerminal ? "Hide Terminal" : "Show Terminal", shortcut: modKey + "`", action: () => setShowTerminal(prev => !prev) },
+        { label: showAIChat ? "Hide AI Toolkit" : "Show AI Toolkit", shortcut: modKey + "J", action: () => setShowAIChat(prev => !prev) },
+        { separator: true, label: "" },
+        { label: "Command Palette...", shortcut: modKey + shiftMod + "P", action: () => setShowCommandPalette(true) },
+      ],
+    },
+    {
+      label: "Tools",
+      items: [
+        { label: "AI Chat", action: () => { setShowAIChat(true); setAiPanelTab("chat"); } },
+        { label: "Agent", action: () => { setShowAIChat(true); setAiPanelTab("agent"); } },
+        { label: "Agent Teams", action: () => { setShowAIChat(true); setAiPanelTab("agentteams"); } },
+        { separator: true, label: "" },
+        { label: "Docker", action: () => { setShowAIChat(true); setAiPanelTab("docker"); } },
+        { label: "CI/CD", action: () => { setShowAIChat(true); setAiPanelTab("cicd"); } },
+        { label: "Kubernetes", action: () => { setShowAIChat(true); setAiPanelTab("k8s"); } },
+        { separator: true, label: "" },
+        { label: "HTTP Playground", action: () => { setShowAIChat(true); setAiPanelTab("http"); } },
+        { label: "GraphQL", action: () => { setShowAIChat(true); setAiPanelTab("graphql"); } },
+        { label: "Terminal", shortcut: modKey + "`", action: () => setShowTerminal(true) },
+        { separator: true, label: "" },
+        { label: "Settings", action: () => setShowSettingsModal(true) },
+      ],
+    },
+    {
+      label: "Help",
+      items: [
+        { label: "Welcome Tour", action: () => { localStorage.removeItem("vibeui-onboarding-complete"); setShowTour(true); } },
+        { label: "Command Palette...", shortcut: modKey + shiftMod + "P", action: () => setShowCommandPalette(true) },
+        { separator: true, label: "" },
+        { label: "Documentation", action: () => window.open("https://github.com/TuringWorks/vibecody", "_blank") },
+        { label: "Report Issue", action: () => window.open("https://github.com/TuringWorks/vibecody/issues", "_blank") },
+      ],
+    },
+  ];
+
   const handleRename = async () => {
     if (!contextMenu) return;
     const file = contextMenu.file;
@@ -1103,6 +1184,7 @@ function App() {
             <Menu size={18} strokeWidth={1.5} />
           </button>
           <h1 className="app-title">VibeUI</h1>
+          <MenuBar menus={appMenus} />
         </div>
         <div className="header-center">
           {currentFile && <span className="current-file">{currentFile}</span>}
@@ -1128,7 +1210,7 @@ function App() {
             <LayoutGrid size={14} strokeWidth={1.5} /> Vibe Toolkit
           </button>
           <button className="btn-primary" onClick={saveFile} disabled={!currentFile}>
-            <Save size={14} strokeWidth={1.5} /> Save {currentFile && `(${modKey}S)`}
+            <Save size={14} strokeWidth={1.5} /> Save
           </button>
           {currentFile && currentFile.endsWith('.md') && (
             <button
@@ -1144,57 +1226,42 @@ function App() {
       <div className="main-container">
         {/* Activity Bar */}
         <div className="activity-bar">
-          <button
-            className={`activity-bar-item ${activeSidebarTab === 'explorer' && showSidebar ? 'active' : ''}`}
-            onClick={() => {
-              if (activeSidebarTab === 'explorer' && showSidebar) {
-                setShowSidebar(false);
-              } else {
-                setActiveSidebarTab('explorer');
-                setShowSidebar(true);
-              }
-            }}
-            title="Explorer"
-            aria-label={`Explorer (${modKey}${shiftMod}E)`}
-            style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}
-          >
-            <Files size={24} />
-          </button>
-          <button
-            className={`activity-bar-item ${activeSidebarTab === 'search' && showSidebar ? 'active' : ''}`}
-            onClick={() => {
-              if (activeSidebarTab === 'search' && showSidebar) {
-                setShowSidebar(false);
-              } else {
-                setActiveSidebarTab('search');
-                setShowSidebar(true);
-              }
-            }}
-            title="Search"
-            aria-label="Search"
-            style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}
-          >
-            <Search size={24} />
-          </button>
-          <button
-            className={`activity-bar-item ${activeSidebarTab === 'git' && showSidebar ? 'active' : ''}`}
-            onClick={() => {
-              if (activeSidebarTab === 'git' && showSidebar) {
-                setShowSidebar(false);
-              } else {
-                setActiveSidebarTab('git');
-                setShowSidebar(true);
-              }
-            }}
-            title="Source Control"
-            aria-label={`Source Control (${modKey}${shiftMod}G)`}
-            style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}
-          >
-            <GitGraph size={24} />
-          </button>
+          {([
+            { id: "explorer" as const, icon: <Files size={20} strokeWidth={1.5} />, title: "Explorer", shortcut: `${modKey}${shiftMod}E` },
+            { id: "search" as const, icon: <Search size={20} strokeWidth={1.5} />, title: "Search", shortcut: undefined },
+            { id: "git" as const, icon: <GitGraph size={20} strokeWidth={1.5} />, title: "Source Control", shortcut: `${modKey}${shiftMod}G` },
+            { id: "debug" as const, icon: <Bug size={20} strokeWidth={1.5} />, title: "Debug", shortcut: undefined },
+            { id: "extensions" as const, icon: <Puzzle size={20} strokeWidth={1.5} />, title: "Extensions", shortcut: undefined },
+            { id: "docker" as const, icon: <Box size={20} strokeWidth={1.5} />, title: "Containers", shortcut: undefined },
+            { id: "ai" as const, icon: <Bot size={20} strokeWidth={1.5} />, title: "AI Toolkit", shortcut: `${modKey}J` },
+            { id: "security" as const, icon: <Shield size={20} strokeWidth={1.5} />, title: "Security", shortcut: undefined },
+          ]).map(({ id, icon, title, shortcut }) => (
+            <button
+              key={id}
+              className={`activity-bar-item ${activeSidebarTab === id && showSidebar ? 'active' : ''}`}
+              onClick={() => {
+                if (id === 'ai') {
+                  // AI button toggles the right-side AI panel directly
+                  setShowAIChat(prev => !prev);
+                } else if (activeSidebarTab === id && showSidebar) {
+                  setShowSidebar(false);
+                } else {
+                  setActiveSidebarTab(id);
+                  setShowSidebar(true);
+                }
+              }}
+              title={shortcut ? `${title} (${shortcut})` : title}
+              aria-label={shortcut ? `${title} (${shortcut})` : title}
+            >
+              {icon}
+            </button>
+          ))}
           <div className="activity-bar-spacer" />
-          <button className="activity-bar-item" title="Settings" aria-label="Settings" style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }} onClick={() => setShowSettingsModal(true)}>
-            <Settings size={24} />
+          <button className="activity-bar-item" title="Terminal" aria-label={`Terminal (${modKey}\`)`} onClick={() => setShowTerminal(prev => !prev)}>
+            <TerminalIcon size={20} strokeWidth={1.5} />
+          </button>
+          <button className="activity-bar-item" title="Settings" aria-label="Settings" onClick={() => setShowSettingsModal(true)}>
+            <Settings size={20} strokeWidth={1.5} />
           </button>
         </div>
 
@@ -1266,17 +1333,17 @@ function App() {
               </>
             )}
             {activeSidebarTab === 'search' && (
-              <div className="search-panel" style={{ padding: '10px', display: 'flex', flexDirection: 'column', height: '100%' }}>
-                <div className="search-input-container" style={{ display: 'flex', gap: '5px', marginBottom: '10px' }}>
+              <div className="search-panel" style={{ padding: '8px', display: 'flex', flexDirection: 'column', height: '100%' }}>
+                <div className="search-input-container" style={{ display: 'flex', gap: '4px', marginBottom: '8px' }}>
                   <input
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                     placeholder="Search..."
-                    style={{ flex: 1, padding: '5px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
+                    style={{ flex: 1, minWidth: 0, padding: '3px 6px', fontSize: 12 }}
                   />
-                  <button onClick={handleSearch} className="btn-primary" disabled={isSearching}>
+                  <button onClick={handleSearch} className="btn-primary" disabled={isSearching} style={{ padding: '3px 10px', fontSize: 11, flexShrink: 0 }}>
                     {isSearching ? '...' : 'Go'}
                   </button>
                 </div>
@@ -1304,6 +1371,101 @@ function App() {
             )}
             {activeSidebarTab === 'git' && (
               <GitPanel workspacePath={workspaceFolders[0] || null} onCompareFile={handleCompareFile} />
+            )}
+
+            {activeSidebarTab === 'debug' && (
+              <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 10, height: "100%", overflow: "auto" }}>
+                <div className="sidebar-section-title">Run & Debug</div>
+                <button className="btn-secondary" style={{ width: "100%", justifyContent: "center", gap: 6, display: "flex", alignItems: "center" }}
+                  onClick={() => { setShowAIChat(true); setAiPanelTab("debugmode"); }}>
+                  <Play size={14} strokeWidth={1.5} /> Start Debug Session
+                </button>
+                <div style={{ fontSize: 11, color: "var(--text-muted)", lineHeight: 1.5 }}>
+                  Launch AI-assisted debugging. The debug agent can set breakpoints, inspect variables, and step through code.
+                </div>
+                <div className="sidebar-section-title" style={{ marginTop: 8 }}>Quick Actions</div>
+                {([
+                  { label: "Debug Mode", panel: "debugmode" },
+                  { label: "Profiler", panel: "profiler" },
+                  { label: "Coverage", panel: "coverage" },
+                  { label: "Test Runner", panel: "tests" },
+                  { label: "Bisect", panel: "bisect" },
+                ] as const).map(({ label, panel }) => (
+                  <button key={panel} className="sidebar-action-item"
+                    onClick={() => { setShowAIChat(true); setAiPanelTab(panel); }}
+>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {activeSidebarTab === 'extensions' && (
+              <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 10, height: "100%", overflow: "auto" }}>
+                <div className="sidebar-section-title">Extensions</div>
+                <button className="btn-secondary" style={{ width: "100%", justifyContent: "center", gap: 6, display: "flex", alignItems: "center" }}
+                  onClick={() => { setShowAIChat(true); setAiPanelTab("marketplace"); }}>
+                  <Globe size={14} strokeWidth={1.5} /> Browse Marketplace
+                </button>
+                <div className="sidebar-section-title" style={{ marginTop: 8 }}>Manage</div>
+                {([
+                  { label: "Installed Plugins", panel: "marketplace" },
+                  { label: "MCP Servers", panel: "mcp" },
+                  { label: "MCP Directory", panel: "mcpdirectory" },
+                  { label: "Skills Library", panel: "manager" },
+                  { label: "Hooks", panel: "hooks" },
+                ] as const).map(({ label, panel }) => (
+                  <button key={panel} className="sidebar-action-item"
+                    onClick={() => { setShowAIChat(true); setAiPanelTab(panel); }}
+>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {activeSidebarTab === 'docker' && (
+              <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 10, height: "100%", overflow: "auto" }}>
+                <div className="sidebar-section-title">Containers & Infra</div>
+                {([
+                  { label: "Docker", panel: "docker" },
+                  { label: "Kubernetes", panel: "k8s" },
+                  { label: "CI/CD Pipelines", panel: "cicd" },
+                  { label: "GitHub Actions", panel: "ghactions" },
+                  { label: "Sandbox", panel: "sandbox" },
+                  { label: "Environment", panel: "env" },
+                  { label: "Cloud Provider", panel: "cloudproviders" },
+                  { label: "SSH", panel: "ssh" },
+                  { label: "Service Health", panel: "health" },
+                  { label: "Processes", panel: "processes" },
+                ] as const).map(({ label, panel }) => (
+                  <button key={panel} className="sidebar-action-item"
+                    onClick={() => { setShowAIChat(true); setAiPanelTab(panel); }}
+>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {activeSidebarTab === 'security' && (
+              <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 10, height: "100%", overflow: "auto" }}>
+                <div className="sidebar-section-title">Security & Compliance</div>
+                {([
+                  { label: "Security Scan", panel: "securityscan" },
+                  { label: "Red Team", panel: "redteam" },
+                  { label: "Blue Team", panel: "blueteam" },
+                  { label: "Purple Team", panel: "purpleteam" },
+                  { label: "Compliance", panel: "compliance" },
+                  { label: "Audit Admin", panel: "admin" },
+                ] as const).map(({ label, panel }) => (
+                  <button key={panel} className="sidebar-action-item"
+                    onClick={() => { setShowAIChat(true); setAiPanelTab(panel); }}
+>
+                    {label}
+                  </button>
+                ))}
+              </div>
             )}
           </aside>
         )}
@@ -1576,7 +1738,7 @@ function App() {
       {/* Status Bar */}
       <footer className="status-bar">
         <div className="status-left">
-          <span>VibeUI v0.1.0</span>
+          <span>VibeUI v{appVersion}</span>
           {workspaceFolders.length > 0 && <span>• {workspaceFolders.length} folder(s)</span>}
           {currentFile && <span>• {editorLanguage}</span>}
           {gitStatus && (
@@ -1587,23 +1749,15 @@ function App() {
           )}
         </div>
         <div className="status-right">
-          <button
-            className="status-item"
-            onClick={() => { setBottomTab('terminal'); setShowTerminal(true); }}
-            style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', marginRight: '4px' }}
-          >
+          <button className="status-item" onClick={() => { setBottomTab('terminal'); setShowTerminal(true); }}>
             Terminal
           </button>
-          <button
-            className="status-item"
-            onClick={() => { setBottomTab('browser'); setShowTerminal(true); }}
-            style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', marginRight: '10px' }}
-          >
+          <button className="status-item" onClick={() => { setBottomTab('browser'); setShowTerminal(true); }}>
             Browser
           </button>
-          <span style={{ opacity: 0.7, fontSize: '11px', cursor: 'pointer' }} onClick={() => setShowCommandPalette(true)}>
+          <button className="status-item" onClick={() => setShowCommandPalette(true)}>
             {modKey}K Command Palette
-          </span>
+          </button>
           <ThemeToggle />
           {currentFile && (
             <>

@@ -14720,6 +14720,7 @@ pub struct AgentTeamTask {
     pub description: String,
     pub status: String,
     pub result: Option<String>,
+    pub generated_files: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -14729,6 +14730,88 @@ pub struct AgentTeamMessage {
     pub msg_type: String,
     pub content: String,
     pub timestamp: u64,
+}
+
+/// Sanitize a string for use as a filename component.
+fn sanitize_filename(s: &str) -> String {
+    s.chars()
+        .map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '_' })
+        .take(50)
+        .collect::<String>()
+        .trim_end_matches('_')
+        .to_string()
+}
+
+/// A code block extracted from an AI response, tagged with a file path.
+struct ExtractedFile {
+    path: String,
+    content: String,
+}
+
+/// Extract fenced code blocks with file paths from an AI response.
+///
+/// Recognises patterns like:
+///   ```rust:src/main.rs
+///   ```path/to/file.ts
+///   ``` src/lib.rs
+/// The path must contain at least one `/` or `.` to be treated as a file path
+/// (avoids matching bare language names like ```rust).
+fn extract_code_files(response: &str) -> Vec<ExtractedFile> {
+    let mut files = Vec::new();
+    let mut lines = response.lines().peekable();
+
+    while let Some(line) = lines.next() {
+        let trimmed = line.trim();
+        if !trimmed.starts_with("```") {
+            continue;
+        }
+
+        // Parse the fence header: ```lang:path, ```path, or ``` path
+        let after_ticks = trimmed.trim_start_matches('`');
+        if after_ticks.is_empty() {
+            // closing fence or bare ``` — skip
+            continue;
+        }
+
+        let path = if let Some((_lang, p)) = after_ticks.split_once(':') {
+            // ```rust:src/main.rs
+            p.trim().to_string()
+        } else {
+            // ```src/main.rs  or  ``` src/main.rs
+            after_ticks.trim().to_string()
+        };
+
+        // Validate it looks like a file path (contains / or .)
+        if !path.contains('/') && !path.contains('.') {
+            // Probably just a language name like "rust" or "typescript" — skip content
+            while let Some(l) = lines.next() {
+                if l.trim().starts_with("```") { break; }
+            }
+            continue;
+        }
+
+        // Reject paths that try to escape the project root
+        if path.contains("..") || path.starts_with('/') {
+            while let Some(l) = lines.next() {
+                if l.trim().starts_with("```") { break; }
+            }
+            continue;
+        }
+
+        // Collect content until closing fence
+        let mut content = String::new();
+        while let Some(l) = lines.next() {
+            if l.trim().starts_with("```") { break; }
+            if !content.is_empty() { content.push('\n'); }
+            content.push_str(l);
+        }
+
+        if !content.is_empty() {
+            files.push(ExtractedFile { path, content });
+        }
+    }
+
+    files
 }
 
 /// Start an agent team with a goal and member count.
@@ -14787,6 +14870,7 @@ pub async fn start_agent_team(
                             description: if desc.is_empty() { line.trim().to_string() } else { desc },
                             status: TeamTaskStatus::Pending,
                             result: None,
+                            generated_files: vec![],
                         }
                     })
                     .collect();
@@ -14823,6 +14907,12 @@ pub async fn start_agent_team(
         *active = Some(team);
     }
 
+    // Resolve the project root from the workspace's first folder
+    let project_root = {
+        let ws = state.workspace.lock().await;
+        ws.folders().first().cloned().unwrap_or_else(|| std::env::current_dir().unwrap_or_default())
+    };
+
     // Spawn background workers to execute each task via AI
     let chat_engine = state.chat_engine.clone();
     let active_team = state.active_team.clone();
@@ -14831,6 +14921,7 @@ pub async fn start_agent_team(
 
     tokio::spawn(async move {
         use vibe_ai::agent_team::*;
+        let project_root = project_root;
 
         let team_guard = active_team.lock().await;
         let team = match team_guard.as_ref() {
@@ -14871,7 +14962,12 @@ pub async fn start_agent_team(
                 let prompt = format!(
                     "You are agent '{}' on a team working toward: {}\n\n\
                      Your assigned sub-task: {}\n\n\
-                     Complete this sub-task. Provide a brief result summary (1-3 sentences).",
+                     Complete this sub-task. Generate the required code files.\n\
+                     For each file, use a fenced code block with the file path after the backticks, e.g.:\n\
+                     ```src/auth/jwt.rs\n\
+                     // code here\n\
+                     ```\n\n\
+                     After the code blocks, provide a brief summary of what you created or changed.",
                     agent_id, goal_clone, description
                 );
                 let messages = vec![vibe_ai::Message {
@@ -14881,7 +14977,7 @@ pub async fn start_agent_team(
                 engine.chat(&messages, None).await
             };
 
-            // Update task status
+            // Update task status and write code artifacts to the project
             {
                 let team_guard = active_team.lock().await;
                 if let Some(team) = team_guard.as_ref() {
@@ -14889,17 +14985,32 @@ pub async fn start_agent_team(
                     if let Some(t) = tasks.iter_mut().find(|t| t.id == task_id) {
                         match &result {
                             Ok(response) => {
-                                let summary = response.lines().next().unwrap_or("Done").to_string();
                                 t.status = TeamTaskStatus::Completed;
-                                t.result = Some(if summary.len() > 300 {
-                                    format!("{}...", &summary[..300])
+                                t.result = Some(response.clone());
+
+                                // Extract code blocks and write files to the project
+                                let extracted = extract_code_files(response);
+                                let mut written_files = Vec::new();
+                                for file in &extracted {
+                                    let target = project_root.join(&file.path);
+                                    if let Some(parent) = target.parent() {
+                                        let _ = std::fs::create_dir_all(parent);
+                                    }
+                                    if std::fs::write(&target, &file.content).is_ok() {
+                                        written_files.push(file.path.clone());
+                                    }
+                                }
+                                t.generated_files = written_files.clone();
+
+                                let files_msg = if written_files.is_empty() {
+                                    "Completed (no files generated)".to_string()
                                 } else {
-                                    summary.clone()
-                                });
+                                    format!("Completed — wrote {} file(s): {}", written_files.len(), written_files.join(", "))
+                                };
                                 let _ = bus.send(TeamMessage::new(
                                     &agent_id,
                                     TeamMessageType::Finding,
-                                    &format!("Completed: {}", t.result.as_deref().unwrap_or("")),
+                                    &files_msg,
                                 )).await;
                             }
                             Err(e) => {
@@ -14976,24 +15087,76 @@ pub async fn dismiss_team(
     let mut active = state.active_team.lock().await;
     if let Some(team) = active.as_ref() {
         let info = team_to_info(team).await;
+        let dir = dirs::home_dir().unwrap_or_default().join(".vibeui");
+        let _ = std::fs::create_dir_all(&dir);
+
+        // Write full artifacts for this run
+        let artifacts_dir = dir.join("team_artifacts").join(&info.id);
+        let _ = std::fs::create_dir_all(&artifacts_dir);
+
+        // Save each task result as a separate file
+        for task in &info.tasks {
+            if let Some(result) = &task.result {
+                let filename = format!("{}-{}.md", task.id, sanitize_filename(&task.description));
+                let content = format!(
+                    "# Task: {}\n\n**Agent:** {}\n**Status:** {}\n\n---\n\n{}\n",
+                    task.description, task.agent_id, task.status, result
+                );
+                let _ = std::fs::write(artifacts_dir.join(&filename), &content);
+            }
+        }
+
+        // Save all messages
+        let messages_json: Vec<serde_json::Value> = info.messages.iter().map(|m| {
+            serde_json::json!({
+                "from": m.from_agent_id,
+                "to": m.to_agent_id,
+                "type": m.msg_type,
+                "content": m.content,
+            })
+        }).collect();
+        let _ = std::fs::write(
+            artifacts_dir.join("messages.json"),
+            serde_json::to_string_pretty(&messages_json).unwrap_or_default(),
+        );
+
+        // Save summary
+        let summary = serde_json::json!({
+            "id": info.id,
+            "goal": info.goal,
+            "status": info.status,
+            "member_ids": info.member_ids,
+            "tasks": info.tasks.iter().map(|t| serde_json::json!({
+                "id": t.id,
+                "agent_id": t.agent_id,
+                "description": t.description,
+                "status": t.status,
+                "result": t.result,
+                "generated_files": t.generated_files,
+            })).collect::<Vec<_>>(),
+            "completed_at": chrono::Utc::now().to_rfc3339(),
+        });
+        let _ = std::fs::write(
+            artifacts_dir.join("summary.json"),
+            serde_json::to_string_pretty(&summary).unwrap_or_default(),
+        );
+
+        // Append entry to history index
         let entry = serde_json::json!({
             "id": info.id,
             "goal": info.goal,
             "status": info.status,
             "member_count": info.member_ids.len(),
             "task_count": info.tasks.len(),
+            "artifacts_dir": artifacts_dir.to_string_lossy(),
             "completed_at": chrono::Utc::now().to_rfc3339(),
         });
-        // Append to history file
-        let dir = dirs::home_dir().unwrap_or_default().join(".vibeui");
-        let _ = std::fs::create_dir_all(&dir);
         let path = dir.join("team_history.json");
         let mut history: Vec<serde_json::Value> = std::fs::read_to_string(&path)
             .ok()
             .and_then(|s| serde_json::from_str(&s).ok())
             .unwrap_or_default();
         history.insert(0, entry);
-        // Keep last 50 entries
         history.truncate(50);
         let _ = std::fs::write(&path, serde_json::to_string_pretty(&history).unwrap_or_default());
     }
@@ -15028,6 +15191,7 @@ async fn team_to_info(team: &vibe_ai::agent_team::AgentTeam) -> AgentTeamInfo {
             description: t.description.clone(),
             status: format!("{:?}", t.status),
             result: t.result.clone(),
+            generated_files: t.generated_files.clone(),
         }).collect(),
         message_count: history.len(),
         messages: history.iter().map(|m| AgentTeamMessage {

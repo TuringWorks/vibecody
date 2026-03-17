@@ -138,6 +138,9 @@ pub struct TeamSubTask {
     pub description: String,
     pub status: TeamTaskStatus,
     pub result: Option<String>,
+    /// File paths generated/modified by this task (relative to project root).
+    #[serde(default)]
+    pub generated_files: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -322,12 +325,12 @@ mod tests {
             TeamSubTask {
                 id: "t1".into(), agent_id: "worker-1".into(),
                 description: "Fix auth bug".into(),
-                status: TeamTaskStatus::Pending, result: None,
+                status: TeamTaskStatus::Pending, result: None, generated_files: vec![],
             },
             TeamSubTask {
                 id: "t2".into(), agent_id: "worker-2".into(),
                 description: "Fix API bug".into(),
-                status: TeamTaskStatus::Pending, result: None,
+                status: TeamTaskStatus::Pending, result: None, generated_files: vec![],
             },
         ]).await;
 
@@ -342,9 +345,9 @@ mod tests {
     async fn team_progress_summary() {
         let team = AgentTeam::new("team-1", "lead", "goal");
         team.set_tasks(vec![
-            TeamSubTask { id: "t1".into(), agent_id: "a".into(), description: "d".into(), status: TeamTaskStatus::Completed, result: None },
-            TeamSubTask { id: "t2".into(), agent_id: "b".into(), description: "d".into(), status: TeamTaskStatus::InProgress, result: None },
-            TeamSubTask { id: "t3".into(), agent_id: "c".into(), description: "d".into(), status: TeamTaskStatus::Failed, result: None },
+            TeamSubTask { id: "t1".into(), agent_id: "a".into(), description: "d".into(), status: TeamTaskStatus::Completed, result: None, generated_files: vec![] },
+            TeamSubTask { id: "t2".into(), agent_id: "b".into(), description: "d".into(), status: TeamTaskStatus::InProgress, result: None, generated_files: vec![] },
+            TeamSubTask { id: "t3".into(), agent_id: "c".into(), description: "d".into(), status: TeamTaskStatus::Failed, result: None, generated_files: vec![] },
         ]).await;
 
         let summary = team.progress_summary().await;
@@ -443,6 +446,7 @@ mod tests {
             description: "Fix auth bug".into(),
             status: TeamTaskStatus::InProgress,
             result: Some("Working on it".into()),
+            generated_files: vec![],
         };
         let json = serde_json::to_string(&task).unwrap();
         let back: TeamSubTask = serde_json::from_str(&json).unwrap();
@@ -485,6 +489,7 @@ mod tests {
                 description: "Fix auth".into(),
                 status: TeamTaskStatus::Completed,
                 result: Some("Fixed".into()),
+                generated_files: vec![],
             }],
             message_count: 5,
         };
@@ -531,6 +536,7 @@ mod tests {
             description: "d".into(),
             status: TeamTaskStatus::Pending,
             result: None,
+            generated_files: vec![],
         }]).await;
         // Should not panic
         team.update_task_status("nonexistent", TeamTaskStatus::Completed, None).await;
@@ -636,6 +642,7 @@ mod tests {
             description: "do work".into(),
             status: TeamTaskStatus::Pending,
             result: None,
+            generated_files: vec![],
         };
         assert!(task.result.is_none());
         assert_eq!(task.status, TeamTaskStatus::Pending);
@@ -649,6 +656,7 @@ mod tests {
             description: "work".into(),
             status: TeamTaskStatus::InProgress,
             result: Some("partial".into()),
+            generated_files: vec![],
         };
         let cloned = task.clone();
         assert_eq!(cloned.id, "t1");

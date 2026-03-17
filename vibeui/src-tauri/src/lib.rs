@@ -96,6 +96,28 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .setup(|app| {
+            // Replace the default native menu with a minimal app-only menu.
+            // On macOS this keeps Cmd+Q / Cmd+H / Cmd+M working while removing
+            // the duplicate File/Edit/View/Window/Help menus (handled in React).
+            // On Windows/Linux there is no native menu bar by default, so this
+            // is effectively a no-op.
+            use tauri::menu::{MenuBuilder, SubmenuBuilder};
+            let app_submenu = SubmenuBuilder::new(app, "VibeUI")
+                .about(None)
+                .separator()
+                .hide()
+                .hide_others()
+                .show_all()
+                .separator()
+                .quit()
+                .build()?;
+            let menu = MenuBuilder::new(app)
+                .item(&app_submenu)
+                .build()?;
+            app.set_menu(menu)?;
+            Ok(())
+        })
         .manage(AppState {
             workspace,
             chat_engine,

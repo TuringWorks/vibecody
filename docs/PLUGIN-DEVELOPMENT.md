@@ -1,6 +1,7 @@
 ---
 layout: default
 title: Plugin Development Guide
+permalink: /plugin-development/
 nav_order: 10
 ---
 

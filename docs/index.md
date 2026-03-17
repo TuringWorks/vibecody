@@ -24,10 +24,9 @@ Both tools are backed by a shared set of Rust library crates for AI provider int
 | [VibeUI Reference](./vibeui/) | Desktop editor features and setup |
 | [Configuration Guide](./configuration/) | All configuration options for providers and UI |
 | [Architecture](./architecture/) | Crate structure, data flow, and design decisions |
-| [Roadmap v2](./ROADMAP-v2/) | Current roadmap and planned features |
-| [Plugin Development](./PLUGIN-DEVELOPMENT/) | Build plugins, skills, hooks, WASM extensions, and MCP integrations |
-| [Competitive Analysis](./SHANNON-COMPARISON/) | Feature comparison with other AI coding tools |
-| [Changelog](./CHANGELOG/) | Release history and breaking changes |
+| [Roadmap v2](./roadmap-v2/) | Current roadmap and planned features |
+| [Plugin Development](./plugin-development/) | Build plugins, skills, hooks, WASM extensions, and MCP integrations |
+| [Competitive Analysis](./shannon-comparison/) | Feature comparison with other AI coding tools |
 | [Contributing](./contributing/) | How to build, test, and contribute |
 
 ---
@@ -84,7 +83,7 @@ All providers support streaming. Local providers require no API key.
 
 ```bash
 # Clone
-git clone https://github.com/vibecody/vibecody.git
+git clone https://github.com/TuringWorks/vibecody.git
 cd vibecody
 
 # Build VibeCLI

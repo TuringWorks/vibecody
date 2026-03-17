@@ -1,30 +1,32 @@
-/* Activity Bar — Premium */
+/* Activity Bar */
 .activity-bar {
-    width: 50px;
+    width: 44px;
     background: var(--bg-secondary);
     border-right: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;
     align-items: center;
     padding-top: 8px;
+    padding-bottom: 8px;
     flex-shrink: 0;
     gap: 2px;
 }
 
 .activity-bar-item {
-    width: 42px;
-    height: 42px;
+    width: 36px;
+    height: 36px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     color: var(--text-secondary);
     position: relative;
-    transition: all var(--transition-fast);
-    border-radius: var(--radius-sm);
+    transition: color 0.15s ease, background 0.15s ease;
+    border-radius: 6px;
     margin: 1px 0;
     background: none;
     border: none;
+    padding: 0;
 }
 
 .activity-bar-item:hover {
@@ -33,13 +35,12 @@
 }
 
 .activity-bar-item:active {
-    transform: scale(0.92);
+    transform: scale(0.93);
 }
 
 .activity-bar-item.active {
     color: var(--text-primary);
     background: var(--bg-tertiary);
-    border-left: none;
 }
 
 .activity-bar-item.active::before {
@@ -48,9 +49,9 @@
     left: 0;
     top: 8px;
     bottom: 8px;
-    width: 3px;
-    background: var(--gradient-accent);
-    border-radius: 0 3px 3px 0;
+    width: 2px;
+    background: var(--accent-color, var(--gradient-accent));
+    border-radius: 0 2px 2px 0;
 }
 
 .activity-bar-spacer {
@@ -59,4 +60,37 @@
 
 .sidebar {
     width: 250px;
+}
+
+/* Sidebar section title */
+.sidebar-section-title {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    padding: 2px 0;
+}
+
+/* Sidebar action items (links to panels) */
+.sidebar-action-item {
+    display: block;
+    width: 100%;
+    padding: 6px 8px;
+    font-size: 12px;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-primary);
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.12s ease;
+}
+
+.sidebar-action-item:hover {
+    background: var(--bg-tertiary);
+}
+
+.sidebar-action-item:active {
+    background: var(--bg-hover);
 }

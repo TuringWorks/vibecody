@@ -17,6 +17,7 @@ interface TeamTask {
   description: string;
   status: string;
   result: string | null;
+  generated_files: string[];
 }
 
 interface TeamMessage {
@@ -44,6 +45,7 @@ interface TeamHistoryEntry {
   status: string;
   member_count: number;
   task_count: number;
+  artifacts_dir?: string;
   completed_at: string;
 }
 
@@ -136,22 +138,12 @@ const AgentTeamsPanel: React.FC = () => {
   };
 
   const handleDismiss = async () => {
-    if (team) {
-      // Save to history before dismissing
-      setHistory(prev => [{
-        id: team.id,
-        goal: team.goal,
-        status: team.status,
-        member_count: team.member_ids.length,
-        task_count: team.tasks.length,
-        completed_at: new Date().toISOString(),
-      }, ...prev]);
-    }
     await invoke("dismiss_team").catch(() => {});
     teamIdRef.current = null;
     setTeam(null);
     setGoal("");
-    setTab("team");
+    await loadHistory();
+    setTab("history");
   };
 
   const handleSendMessage = async () => {
@@ -373,14 +365,35 @@ const AgentTeamsPanel: React.FC = () => {
                   </span>
                 </div>
                 <div style={{ fontSize: 12, marginBottom: t.result ? 6 : 0 }}>{t.description}</div>
-                {t.result && (
+                {t.generated_files?.length > 0 && (
                   <div style={{
-                    fontSize: 11, color: "var(--text-muted)", marginTop: 4,
-                    padding: "6px 8px", background: "var(--bg-primary)", borderRadius: 4,
-                    fontStyle: "italic", lineHeight: 1.4,
+                    fontSize: 11, marginTop: 4, padding: "6px 8px",
+                    background: "rgba(52,211,153,0.08)", borderRadius: 4,
+                    border: "1px solid rgba(52,211,153,0.2)",
                   }}>
-                    {t.result}
+                    <div style={{ fontSize: 9, fontWeight: 700, color: "var(--success-color)", marginBottom: 3, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      Generated Files ({t.generated_files.length})
+                    </div>
+                    {t.generated_files.map((f, i) => (
+                      <div key={i} style={{ fontFamily: "monospace", fontSize: 11, color: "var(--text-primary)", lineHeight: 1.6 }}>
+                        {f}
+                      </div>
+                    ))}
                   </div>
+                )}
+                {t.result && (
+                  <details style={{ marginTop: 4 }}>
+                    <summary style={{ fontSize: 10, color: "var(--text-muted)", cursor: "pointer" }}>
+                      Full response
+                    </summary>
+                    <div style={{
+                      fontSize: 11, color: "var(--text-muted)", marginTop: 4,
+                      padding: "6px 8px", background: "var(--bg-primary)", borderRadius: 4,
+                      lineHeight: 1.4, whiteSpace: "pre-wrap", maxHeight: 300, overflowY: "auto",
+                    }}>
+                      {t.result}
+                    </div>
+                  </details>
                 )}
               </div>
             ))}
@@ -458,6 +471,14 @@ const AgentTeamsPanel: React.FC = () => {
                   </span>
                 </div>
                 <div style={{ fontSize: 12 }}>{h.goal}</div>
+                {h.artifacts_dir && (
+                  <div style={{
+                    fontSize: 10, color: "var(--text-muted)", marginTop: 4,
+                    fontFamily: "monospace", opacity: 0.8,
+                  }}>
+                    Artifacts: {h.artifacts_dir}
+                  </div>
+                )}
               </div>
             ))}
           </div>
