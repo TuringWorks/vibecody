@@ -581,9 +581,9 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  style={{
  position: 'absolute', top: '4px', right: '4px',
  padding: '2px 7px', fontSize: '10px', fontWeight: 600,
- background: generatingMsg ? 'var(--bg-secondary)' : 'rgba(99,102,241,0.2)',
+ background: generatingMsg ? 'var(--bg-secondary)' : 'var(--accent-bg)',
  color: generatingMsg ? 'var(--text-secondary)' : 'var(--accent-color)',
- border: '1px solid rgba(99,102,241,0.4)', borderRadius: '3px',
+ border: '1px solid var(--border-color)', borderRadius: '3px',
  cursor: generatingMsg ? 'not-allowed' : 'pointer',
  }}
  >
@@ -644,7 +644,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  <button
  onClick={handleSuggestBranch}
  disabled={suggestingBranch || !branchTask.trim()}
- style={{ background: 'rgba(99,102,241,0.2)', color: 'var(--accent-color)', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontSize: 11 }}
+ style={{ background: 'var(--accent-bg)', color: 'var(--accent-color)', border: '1px solid var(--border-color)', borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontSize: 11 }}
  >
  {suggestingBranch ? '…' : ''}
  </button>
@@ -683,7 +683,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  <button
  onClick={handleGenerateChangelog}
  disabled={generatingChangelog}
- style={{ background: 'rgba(99,102,241,0.2)', color: 'var(--accent-color)', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontSize: 11 }}
+ style={{ background: 'var(--accent-bg)', color: 'var(--accent-color)', border: '1px solid var(--border-color)', borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontSize: 11 }}
  >
  {generatingChangelog ? '…' : ' Generate'}
  </button>
@@ -735,7 +735,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  <button
  onClick={handleResolveConflict}
  disabled={resolvingConflict || !conflictText.trim()}
- style={{ width: '100%', background: 'rgba(99,102,241,0.2)', color: 'var(--accent-color)', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 4, padding: '4px 0', cursor: 'pointer', fontSize: 11, marginBottom: 5 }}
+ style={{ width: '100%', background: 'var(--accent-bg)', color: 'var(--accent-color)', border: '1px solid var(--border-color)', borderRadius: 4, padding: '4px 0', cursor: 'pointer', fontSize: 11, marginBottom: 5 }}
  >
  {resolvingConflict ? ' Resolving…' : ' AI Resolve'}
  </button>
@@ -774,7 +774,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  >
  <span>{showGitSettings ? '▼' : '▶'}</span>
  <span>Git Settings</span>
- {sshAvailable && <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: 'rgba(76, 175, 80, 0.13)', color: 'var(--success-color)' }}>SSH</span>}
+ {sshAvailable && <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: 'var(--success-bg)', color: 'var(--success-color)' }}>SSH</span>}
  </button>
  {showGitSettings && (
  <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -797,7 +797,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  <button
  onClick={saveGitConfig}
  disabled={!gitUserName && !gitUserEmail}
- style={{ alignSelf: 'flex-start', background: 'rgba(99,102,241,0.2)', color: 'var(--accent-color)', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontSize: 11 }}
+ style={{ alignSelf: 'flex-start', background: 'var(--accent-bg)', color: 'var(--accent-color)', border: '1px solid var(--border-color)', borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontSize: 11 }}
  >
  Save Identity
  </button>
@@ -842,7 +842,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  <button
  onClick={saveGitCredentials}
  disabled={!gitCredUrl || !gitCredUser || !gitCredToken}
- style={{ alignSelf: 'flex-start', background: 'rgba(99,102,241,0.2)', color: 'var(--accent-color)', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontSize: 11 }}
+ style={{ alignSelf: 'flex-start', background: 'var(--accent-bg)', color: 'var(--accent-color)', border: '1px solid var(--border-color)', borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontSize: 11 }}
  >
  Store Credentials
  </button>

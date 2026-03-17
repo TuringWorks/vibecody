@@ -1821,7 +1821,7 @@ function ProfileSection() {
       {/* Avatar */}
       <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20 }}>
         <div style={{
-          width: 64, height: 64, borderRadius: "50%", background: "var(--gradient-accent)",
+          width: 64, height: 64, borderRadius: "50%", background: "var(--accent-color)",
           display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, fontWeight: 700, color: "#fff",
           overflow: "hidden", flexShrink: 0,
         }}>
@@ -2525,7 +2525,7 @@ export function SettingsPanel({ onClose }: { onClose?: () => void }) {
         display: "flex", flexDirection: "column", padding: "12px 8px",
       }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 8px", marginBottom: 12 }}>
-          <span style={{ fontWeight: 700, fontSize: 14, background: "var(--gradient-accent)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Settings</span>
+          <span style={{ fontWeight: 700, fontSize: 14, color: "var(--accent-color)" }}>Settings</span>
           {onClose && <button onClick={onClose} style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer" }}><X size={16} /></button>}
         </div>
         {SECTIONS.map(s => (

@@ -2223,7 +2223,7 @@ function AgilePanel() {
 
   return (
     <div style={{ padding: 16, height: "100%", overflowY: "auto", background: "var(--bg-primary)", color: "var(--text-primary)" }}>
-      <h2 style={{ margin: "0 0 12px", fontSize: 18, fontWeight: 700, background: "var(--gradient-accent)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+      <h2 style={{ margin: "0 0 12px", fontSize: 18, fontWeight: 700, color: "var(--accent-color)" }}>
         Agile Project Management
       </h2>
 

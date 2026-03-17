@@ -1857,7 +1857,7 @@ function App() {
               </button>
               <button
                 onClick={confirmDelete}
-                style={{ padding: '6px 14px', borderRadius: '4px', border: 'none', background: 'var(--text-danger, #ff4d4f)', color: '#fff', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}
+                style={{ padding: '6px 14px', borderRadius: '4px', border: 'none', background: 'var(--error-color)', color: 'var(--btn-primary-fg)', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}
               >
                 Delete
               </button>

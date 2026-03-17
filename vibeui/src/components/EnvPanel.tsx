@@ -304,7 +304,7 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
           style={{
             padding: "6px 14px", fontSize: 12, fontWeight: 600,
             background: dirty ? "var(--accent-color)" : "var(--bg-secondary)",
-            color: dirty ? "var(--text-primary)" : "var(--text-primary)",
+            color: dirty ? "var(--btn-primary-fg)" : "var(--text-secondary)",
             border: "none", borderRadius: 4, cursor: dirty ? "pointer" : "default",
             opacity: dirty ? 1 : 0.5,
           }}
@@ -315,7 +315,7 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
 
       {/* Error */}
       {error && (
-        <div style={{ background: "rgba(243,139,168,0.15)", border: "1px solid var(--error-color)", borderRadius: 6, padding: 8, fontSize: 11, color: "var(--text-danger)" }}>
+        <div style={{ background: "var(--error-bg)", border: "1px solid var(--error-color)", borderRadius: 6, padding: 8, fontSize: 11, color: "var(--text-danger)" }}>
           {error}
         </div>
       )}
@@ -418,7 +418,7 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
             disabled={!newKey.trim() || !newValue.trim()}
             style={{
               padding: "6px 14px", fontSize: 12, fontWeight: 600,
-              background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: 4,
+              background: "var(--accent-color)", color: "var(--btn-primary-fg)", border: "none", borderRadius: 4,
               cursor: "pointer", whiteSpace: "nowrap",
             }}
           >

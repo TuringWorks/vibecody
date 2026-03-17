@@ -28,10 +28,10 @@
   --elevation-3: 0 8px 30px rgba(0, 0, 0, 0.45);
   --glow-accent: 0 0 20px rgba(108, 140, 255, 0.15);
 
-  /* Gradients */
-  --gradient-accent: linear-gradient(135deg, #6c8cff, #a78bfa);
-  --gradient-warm: linear-gradient(135deg, #f5c542, #f472b6);
-  --gradient-cool: linear-gradient(135deg, #34d399, #6c8cff);
+  /* Gradients — use CSS variables so custom themes override them automatically */
+  --gradient-accent: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+  --gradient-warm: linear-gradient(135deg, var(--accent-gold), var(--accent-rose));
+  --gradient-cool: linear-gradient(135deg, var(--accent-green), var(--accent-blue));
   --gradient-surface: linear-gradient(180deg, var(--bg-secondary), var(--bg-primary));
 
   /* Radii */
@@ -114,7 +114,7 @@
   --elevation-3: 0 8px 30px rgba(0, 0, 0, 0.1);
   --glow-accent: 0 0 20px rgba(79, 109, 245, 0.12);
 
-  --gradient-accent: linear-gradient(135deg, #4f6df5, #8b5cf6);
+  --gradient-accent: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
   --gradient-surface: linear-gradient(180deg, var(--bg-secondary), var(--bg-primary));
 
   --git-modified: #d4a017;
@@ -302,10 +302,7 @@ body,
   font-size: 15px;
   font-weight: 700;
   letter-spacing: -0.02em;
-  background: var(--gradient-accent);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--accent-color);
   margin: 0;
 }
 
@@ -345,7 +342,7 @@ body,
 
 .btn-primary,
 .btn-secondary {
-  background: var(--gradient-accent);
+  background: var(--accent-color);
   color: var(--btn-primary-fg);
   border: none;
   padding: 6px 16px;
@@ -533,10 +530,7 @@ body,
   font-size: 36px;
   font-weight: 800;
   letter-spacing: -0.03em;
-  background: var(--gradient-accent);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--text-primary);
 }
 
 .welcome-screen p {
@@ -588,7 +582,7 @@ body,
   align-items: center;
   justify-content: space-between;
   height: 26px;
-  background: var(--gradient-accent);
+  background: var(--accent-color);
   color: var(--btn-primary-fg);
   padding: 0 16px;
   font-size: 11px;
@@ -712,7 +706,7 @@ body,
   left: 0;
   right: 0;
   height: 2px;
-  background: var(--gradient-accent);
+  background: var(--accent-color);
   border-radius: 2px 2px 0 0;
 }
 
