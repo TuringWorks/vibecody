@@ -307,7 +307,7 @@ pub fn normalize_url(url: &str) -> String {
 pub fn save_crawl_results(result: &CrawlResult, output_dir: &Path) -> anyhow::Result<PathBuf> {
     std::fs::create_dir_all(output_dir)?;
     let filename = format!("crawl-{}.json",
-        result.seed_url.replace("://", "-").replace('/', "_").replace('.', "_"));
+        result.seed_url.replace("://", "-").replace(['/', '.'], "_"));
     let path = output_dir.join(filename);
     let data = serde_json::to_string_pretty(result)?;
     std::fs::write(&path, data)?;

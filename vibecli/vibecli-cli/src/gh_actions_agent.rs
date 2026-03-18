@@ -427,15 +427,15 @@ impl GhActionsAgent {
             }
 
             // Warn about hardcoded secrets
-            if line.contains("api_key") || line.contains("API_KEY") {
-                if !line.contains("secrets.") && !line.contains("${{") {
-                    issues.push(ValidationIssue {
-                        line: line_num,
-                        message: "Possible hardcoded secret; use ${{ secrets.* }} instead"
-                            .to_string(),
-                        severity: ValidationSeverity::Warning,
-                    });
-                }
+            if (line.contains("api_key") || line.contains("API_KEY"))
+                && !line.contains("secrets.") && !line.contains("${{")
+            {
+                issues.push(ValidationIssue {
+                    line: line_num,
+                    message: "Possible hardcoded secret; use ${{ secrets.* }} instead"
+                        .to_string(),
+                    severity: ValidationSeverity::Warning,
+                });
             }
 
             // Check for missing timeout

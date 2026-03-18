@@ -645,7 +645,7 @@ impl BlueTeamManager {
             report.push('\n');
         }
 
-        report.push_str(&format!("## Summary\n\n"));
+        report.push_str("## Summary\n\n");
         report.push_str(&format!("- Total incidents: {}\n", self.incidents.len()));
         report.push_str(&format!(
             "- Open incidents: {}\n",

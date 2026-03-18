@@ -22357,7 +22357,8 @@ pub async fn agile_update_wip_limits(limits: serde_json::Value) -> Result<(), St
 #[tauri::command]
 pub async fn agile_get_safe() -> Result<serde_json::Value, String> {
     let data = agile_read_json("safe.json");
-    if data.is_null() {
+    // agile_read_json returns [] for missing files; SAFeTab expects an object
+    if !data.is_object() {
         return Ok(serde_json::json!({
             "programIncrements": [],
             "teams": [],

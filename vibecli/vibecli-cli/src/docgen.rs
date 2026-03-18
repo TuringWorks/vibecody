@@ -539,8 +539,7 @@ pub fn extract_interfaces(source: &str, file_path: &str) -> Vec<DetectedInterfac
             ("export interface ", "interface"),
             ("export class ", "class"),
         ] {
-            if trimmed.starts_with(keyword) {
-                let rest = &trimmed[keyword.len()..];
+            if let Some(rest) = trimmed.strip_prefix(keyword) {
                 let name_end = rest.find([' ', '{', '(', '<', ':']).unwrap_or(rest.len());
                 let name = rest[..name_end].to_string();
                 if !name.is_empty() {

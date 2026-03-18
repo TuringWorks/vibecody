@@ -652,7 +652,7 @@ impl SecurityScanner {
         md.push_str("# Security Scan Report\n\n");
         md.push_str(&format!("**Status:** {}\n\n", if report.blocked { "BLOCKED" } else { "PASSED" }));
         md.push_str("## Summary\n\n");
-        md.push_str(&format!("| Severity | Count |\n"));
+        md.push_str("| Severity | Count |\n");
         md.push_str("| --- | --- |\n");
         md.push_str(&format!("| Critical | {} |\n", report.critical));
         md.push_str(&format!("| High | {} |\n", report.high));

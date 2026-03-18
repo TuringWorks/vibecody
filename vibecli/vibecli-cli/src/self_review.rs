@@ -642,7 +642,7 @@ impl SelfReviewGate {
     /// Generate a summary report of all review iterations.
     pub fn report(&self) -> ReviewReport {
         let total_iterations = self.results.len();
-        let final_passed = self.results.last().map_or(false, |r| r.passed);
+        let final_passed = self.results.last().is_some_and(|r| r.passed);
         let total_findings: usize = self.results.iter().map(|r| r.total_findings()).sum();
         let checks_run: Vec<String> = self
             .config

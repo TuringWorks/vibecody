@@ -556,11 +556,10 @@ impl SubAgentOrchestrator {
         if let Some(role) = best_role {
             self.agents
                 .iter()
-                .filter(|a| a.role == *role && a.is_available())
-                .next()
+                .find(|a| a.role == *role && a.is_available())
                 .or_else(|| {
                     // Fall back to any available agent with matching role
-                    self.agents.iter().filter(|a| a.role == *role).next()
+                    self.agents.iter().find(|a| a.role == *role)
                 })
         } else {
             // Return first available agent

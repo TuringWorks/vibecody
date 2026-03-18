@@ -425,7 +425,7 @@ impl TeamCoordinator {
     pub fn tasks_for_agent(&self, agent_id: &str) -> Vec<&SharedTask> {
         self.tasks
             .iter()
-            .filter(|t| t.assignee.as_ref().map_or(false, |a| a.0 == agent_id))
+            .filter(|t| t.assignee.as_ref().is_some_and(|a| a.0 == agent_id))
             .collect()
     }
 

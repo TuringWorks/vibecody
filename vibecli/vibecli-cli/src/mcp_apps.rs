@@ -594,8 +594,7 @@ fn extract_field(json: &str, field: &str) -> Option<String> {
     let rest = &json[idx + pattern.len()..];
     let rest = rest.trim_start().strip_prefix(':')?;
     let rest = rest.trim_start();
-    if rest.starts_with('"') {
-        let rest = &rest[1..];
+    if let Some(rest) = rest.strip_prefix('"') {
         let end = rest.find('"')?;
         Some(rest[..end].to_string())
     } else {

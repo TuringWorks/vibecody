@@ -709,7 +709,7 @@ impl CloudProviderManager {
                     "Cloud Run" => { props.insert("location".into(), "us-central1".into()); ("google_cloud_run_service", "app_service") },
                     "Cloud Functions" => { props.insert("runtime".into(), "nodejs20".into()); ("google_cloudfunctions_function", "app_function") },
                     "Compute Engine" => { props.insert("machine_type".into(), "e2-micro".into()); ("google_compute_instance", "app_instance") },
-                    _ => { let t = format!("google_{}", service_name.to_lowercase().replace(' ', "_").replace('/', "_")); let l = format!("app_{}", service_name.to_lowercase().replace(' ', "_").replace('/', "_")); return (t, l, props); },
+                    _ => { let t = format!("google_{}", service_name.to_lowercase().replace([' ', '/'], "_")); let l = format!("app_{}", service_name.to_lowercase().replace([' ', '/'], "_")); return (t, l, props); },
                 };
                 (resource_type.into(), logical.into(), props)
             }
@@ -876,7 +876,7 @@ impl CloudProviderManager {
             CloudProvider::GCP => "@pulumi/gcp",
             CloudProvider::Azure => "@pulumi/azure-native",
         };
-        output.push_str(&format!("import * as pulumi from \"@pulumi/pulumi\";\n"));
+        output.push_str("import * as pulumi from \"@pulumi/pulumi\";\n");
         output.push_str(&format!("import * as cloud from \"{}\";\n\n", import_pkg));
 
         for resource in &template.resources {
@@ -899,7 +899,7 @@ impl CloudProviderManager {
     pub fn policy_to_json(policy: &IamPolicy) -> String {
         let mut output = String::with_capacity(512);
         output.push_str("{\n");
-        output.push_str(&format!("  \"Version\": \"2012-10-17\",\n"));
+        output.push_str("  \"Version\": \"2012-10-17\",\n");
         output.push_str(&format!("  \"PolicyName\": \"{}\",\n", policy.name));
         output.push_str(&format!("  \"Provider\": \"{}\",\n", policy.provider));
         output.push_str("  \"Statement\": [\n");

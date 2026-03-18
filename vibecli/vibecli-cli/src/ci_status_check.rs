@@ -281,8 +281,8 @@ impl StatusCheck {
 
     /// Format as a GitHub Checks API JSON payload.
     pub fn to_github_json(&self) -> String {
-        let started = self.started_at.map(|t| format_time(t)).unwrap_or_default();
-        let completed = self.completed_at.map(|t| format_time(t)).unwrap_or_default();
+        let started = self.started_at.map(format_time).unwrap_or_default();
+        let completed = self.completed_at.map(format_time).unwrap_or_default();
         let annotations_json: Vec<String> = self.output.annotations.iter().map(|a| {
             let suggestion_field = match &a.suggestion {
                 Some(s) => format!(", \"raw_details\": \"{}\"", escape_json(s)),

@@ -346,13 +346,13 @@ impl UnifiedAgent {
                 InputMode::Text => {
                     if let Some(ref text) = input.text {
                         if text.starts_with("search ") || text.starts_with("find ") {
-                            let query = text.splitn(2, ' ').nth(1).unwrap_or("").to_string();
+                            let query = text.split_once(' ').map(|(_, q)| q).unwrap_or("").to_string();
                             actions.push(AgentAction::SearchCode {
                                 query,
                                 results: Vec::new(),
                             });
                         } else if text.starts_with("run ") {
-                            let cmd = text.splitn(2, ' ').nth(1).unwrap_or("").to_string();
+                            let cmd = text.split_once(' ').map(|(_, c)| c).unwrap_or("").to_string();
                             actions.push(AgentAction::RunCommand { cmd });
                         }
                     }

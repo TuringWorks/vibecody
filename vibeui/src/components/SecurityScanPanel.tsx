@@ -217,7 +217,7 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
       {error && (
         <div style={{ padding: "6px 10px", background: "rgba(244,67,54,0.13)", color: "var(--error-color)", borderRadius: 5, fontSize: 12, display: "flex", justifyContent: "space-between" }}>
           <span>{error}</span>
-          <button onClick={() => setError(null)} style={{ background: "none", border: "none", color: "var(--error-color)", cursor: "pointer" }}>×</button>
+          <button aria-label="Dismiss error" onClick={() => setError(null)} style={{ background: "none", border: "none", color: "var(--error-color)", cursor: "pointer" }}>×</button>
         </div>
       )}
 

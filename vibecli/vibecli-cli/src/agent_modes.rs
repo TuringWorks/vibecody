@@ -304,7 +304,7 @@ impl ModeRouter {
     /// Register or update a mode configuration.
     pub fn register_mode(&mut self, mode: AgentMode, config: ModeConfig) {
         self.configs.insert(mode, config);
-        self.stats.entry(mode).or_insert_with(ModeUsageStats::new);
+        self.stats.entry(mode).or_default();
     }
 
     /// Set a manual mode override. Pass `None` to clear.
@@ -362,7 +362,7 @@ impl ModeRouter {
     pub fn record_usage(&mut self, mode: AgentMode, tokens: u64) {
         self.stats
             .entry(mode)
-            .or_insert_with(ModeUsageStats::new)
+            .or_default()
             .record(tokens);
     }
 

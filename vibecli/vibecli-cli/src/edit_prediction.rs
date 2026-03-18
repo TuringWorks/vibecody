@@ -376,7 +376,7 @@ impl EditPredictor {
     }
 
     fn find_matching_pattern(&self, state: &EditState) -> Option<&EditPattern> {
-        let recent: Vec<String> = state.recent_actions.iter().cloned().collect();
+        let recent: Vec<String> = state.recent_actions.to_vec();
         self.patterns.iter().max_by(|a, b| {
             let a_match = pattern_matches(&a.sequence, &recent);
             let b_match = pattern_matches(&b.sequence, &recent);

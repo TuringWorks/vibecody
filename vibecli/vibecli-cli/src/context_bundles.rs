@@ -543,11 +543,9 @@ impl BundleManager {
 
 /// Simple glob-like pattern matching: supports * as wildcard segment and exact prefix.
 fn path_matches_pattern(path: &str, pattern: &str) -> bool {
-    if pattern.ends_with('*') {
-        let prefix = &pattern[..pattern.len() - 1];
+    if let Some(prefix) = pattern.strip_suffix('*') {
         path.starts_with(prefix)
-    } else if pattern.starts_with('*') {
-        let suffix = &pattern[1..];
+    } else if let Some(suffix) = pattern.strip_prefix('*') {
         path.ends_with(suffix)
     } else {
         path == pattern || path.contains(pattern)

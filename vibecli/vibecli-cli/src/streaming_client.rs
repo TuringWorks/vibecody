@@ -292,10 +292,10 @@ pub fn validate_stream_config(config: &StreamConfig) -> Vec<String> {
         }
     }
     if let Some(ref auth) = config.auth {
-        if auth.mechanism == AuthMechanism::Plain {
-            if auth.username.is_none() || auth.password.is_none() {
-                errors.push("PLAIN auth requires username and password".to_string());
-            }
+        if auth.mechanism == AuthMechanism::Plain
+            && (auth.username.is_none() || auth.password.is_none())
+        {
+            errors.push("PLAIN auth requires username and password".to_string());
         }
     }
     errors
@@ -351,7 +351,7 @@ pub fn generate_docker_compose_kafka(brokers: u32, zookeeper: bool) -> String {
         yaml.push_str("      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,INTERNAL:PLAINTEXT\n");
         yaml.push_str("      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL\n");
         yaml.push_str(&format!("      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: {}\n", brokers.min(3)));
-        yaml.push_str("\n");
+        yaml.push('\n');
     }
     yaml
 }
