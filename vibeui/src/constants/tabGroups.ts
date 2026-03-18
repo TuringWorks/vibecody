@@ -28,7 +28,7 @@ export const TAB_GROUPS: TabGroup[] = [
   },
   {
     label: "Data & API",
-    tabs: ["database", "supabase", "migrations", "http", "graphql", "mock", "websocket", "apidocs", "streaming", "vectordb", "ingest", "crawler"],
+    tabs: ["vibesql", "database", "supabase", "migrations", "http", "graphql", "mock", "websocket", "apidocs", "streaming", "vectordb", "ingest", "crawler"],
   },
   {
     label: "DevTools",

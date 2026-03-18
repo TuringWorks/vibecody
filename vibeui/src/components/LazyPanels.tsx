@@ -54,6 +54,7 @@ const OrchestrationPanel = lazy(() => import("./OrchestrationPanel").then(m => (
 const DesignMode = lazy(() => import("./DesignMode").then(m => ({ default: m.DesignMode })));
 const DeployPanel = lazy(() => import("./DeployPanel").then(m => ({ default: m.DeployPanel })));
 const DatabasePanel = lazy(() => import("./DatabasePanel").then(m => ({ default: m.DatabasePanel })));
+const VibeSqlPanel = lazy(() => import("./VibeSqlPanel").then(m => ({ default: m.VibeSqlPanel })));
 const SupabasePanel = lazy(() => import("./SupabasePanel").then(m => ({ default: m.SupabasePanel })));
 const AuthPanel = lazy(() => import("./AuthPanel").then(m => ({ default: m.AuthPanel })));
 const GitHubSyncPanel = lazy(() => import("./GitHubSyncPanel").then(m => ({ default: m.GitHubSyncPanel })));
@@ -245,6 +246,7 @@ export function PanelHost(props: PanelHostProps) {
       {panel("orchestration", <LazyPanel Component={OrchestrationPanel} props={{ workspacePath: wp, provider: selectedProvider }} />)}
       {panel("design", <LazyPanel Component={DesignMode} props={{ workspacePath: wp, provider: selectedProvider }} />)}
       {panel("deploy", <LazyPanel Component={DeployPanel} props={{ workspacePath: wp }} />)}
+      {panel("vibesql", <LazyPanel Component={VibeSqlPanel} props={{ workspacePath: wp, provider: selectedProvider }} />)}
       {panel("database", <LazyPanel Component={DatabasePanel} props={{ workspacePath: wp, provider: selectedProvider }} />)}
       {panel("supabase", <LazyPanel Component={SupabasePanel} props={{ workspacePath: wp, provider: selectedProvider }} />)}
       {panel("auth", <LazyPanel Component={AuthPanel} props={{ workspacePath: wp, provider: selectedProvider }} />)}

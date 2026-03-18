@@ -899,6 +899,15 @@ pub fn run() {
             commands::list_gh_secrets,
             commands::save_gh_workflow,
             commands::get_gh_actions_history,
+            // VibeSQL Server
+            commands::vibesql_list_connections,
+            commands::vibesql_save_connection,
+            commands::vibesql_delete_connection,
+            commands::vibesql_connect,
+            commands::vibesql_list_tables,
+            commands::vibesql_execute_query,
+            commands::vibesql_server_info,
+            commands::vibesql_generate_sql,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

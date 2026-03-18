@@ -27253,6 +27253,281 @@ pub async fn get_generated_image_data(id: String) -> Result<String, String> {
     Ok(format!("data:image/png;base64,{b64}"))
 }
 
+// ── VibeSQL Server Integration ────────────────────────────────────────────────
+
+fn vibesql_connections_path() -> PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    PathBuf::from(home).join(".vibeui").join("vibesql-connections.json")
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VibeSqlConnection {
+    pub id: String,
+    pub name: String,
+    pub edition: String,
+    pub host: String,
+    pub port: u16,
+    pub database: String,
+    pub username: String,
+    #[serde(default)]
+    pub password: String,
+    #[serde(default, rename = "useSsl")]
+    pub use_ssl: bool,
+    #[serde(default, rename = "cloudApiKey")]
+    pub cloud_api_key: String,
+    #[serde(default, rename = "savedAt")]
+    pub saved_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VibeSqlTableInfo {
+    pub name: String,
+    pub schema: String,
+    pub row_count: i64,
+    pub columns: Vec<VibeSqlColumn>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VibeSqlColumn {
+    pub name: String,
+    pub data_type: String,
+    pub nullable: bool,
+    pub primary_key: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VibeSqlQueryResult {
+    pub columns: Vec<String>,
+    pub rows: Vec<Vec<String>>,
+    pub row_count: usize,
+    pub elapsed_ms: u64,
+    pub error: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VibeSqlServerInfo {
+    pub version: String,
+    pub edition: String,
+    pub uptime: String,
+    pub databases: Vec<String>,
+    pub connections_active: u32,
+    pub memory_used_mb: f64,
+}
+
+fn load_vibesql_connections() -> Vec<VibeSqlConnection> {
+    let path = vibesql_connections_path();
+    if !path.exists() { return Vec::new(); }
+    match std::fs::read_to_string(&path) {
+        Ok(data) => serde_json::from_str(&data).unwrap_or_default(),
+        Err(_) => Vec::new(),
+    }
+}
+
+fn save_vibesql_connections(conns: &[VibeSqlConnection]) -> Result<(), String> {
+    let path = vibesql_connections_path();
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let data = serde_json::to_string_pretty(conns).map_err(|e| e.to_string())?;
+    std::fs::write(&path, data).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn vibesql_list_connections() -> Result<Vec<VibeSqlConnection>, String> {
+    Ok(load_vibesql_connections())
+}
+
+#[tauri::command]
+pub async fn vibesql_save_connection(connection: VibeSqlConnection) -> Result<(), String> {
+    let mut conns = load_vibesql_connections();
+    conns.retain(|c| c.id != connection.id);
+    conns.insert(0, connection);
+    save_vibesql_connections(&conns)
+}
+
+#[tauri::command]
+pub async fn vibesql_delete_connection(id: String) -> Result<(), String> {
+    let mut conns = load_vibesql_connections();
+    conns.retain(|c| c.id != id);
+    save_vibesql_connections(&conns)
+}
+
+/// Connect to a VibeSQL server and verify the connection.
+#[tauri::command]
+pub async fn vibesql_connect(connection_string: String) -> Result<String, String> {
+    // Parse the connection string to extract host/port
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build().map_err(|e| format!("HTTP client error: {e}"))?;
+
+    // VibeSQL exposes a REST API — test connectivity via /api/v1/health
+    let base_url = vibesql_base_url(&connection_string)?;
+    let resp = client.get(format!("{base_url}/api/v1/health"))
+        .header("Authorization", vibesql_auth_header(&connection_string))
+        .send().await
+        .map_err(|e| format!("Cannot connect to VibeSQL server: {e}"))?;
+
+    if !resp.status().is_success() {
+        let body = resp.text().await.unwrap_or_default();
+        return Err(format!("VibeSQL connection failed: {body}"));
+    }
+    Ok("Connected".to_string())
+}
+
+/// List tables in the connected VibeSQL database.
+#[tauri::command]
+pub async fn vibesql_list_tables(connection_string: String) -> Result<Vec<VibeSqlTableInfo>, String> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(15))
+        .build().map_err(|e| format!("HTTP client error: {e}"))?;
+
+    let base_url = vibesql_base_url(&connection_string)?;
+    let db = vibesql_database(&connection_string);
+    let resp = client.get(format!("{base_url}/api/v1/databases/{db}/tables"))
+        .header("Authorization", vibesql_auth_header(&connection_string))
+        .send().await
+        .map_err(|e| format!("Failed to list tables: {e}"))?;
+
+    if !resp.status().is_success() {
+        let body = resp.text().await.unwrap_or_default();
+        return Err(format!("Failed to list tables: {body}"));
+    }
+    resp.json().await.map_err(|e| format!("Failed to parse tables response: {e}"))
+}
+
+/// Execute a SQL query against VibeSQL.
+#[tauri::command]
+pub async fn vibesql_execute_query(connection_string: String, sql: String) -> Result<VibeSqlQueryResult, String> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build().map_err(|e| format!("HTTP client error: {e}"))?;
+
+    let base_url = vibesql_base_url(&connection_string)?;
+    let db = vibesql_database(&connection_string);
+    let start = std::time::Instant::now();
+
+    let resp = client.post(format!("{base_url}/api/v1/databases/{db}/query"))
+        .header("Authorization", vibesql_auth_header(&connection_string))
+        .header("Content-Type", "application/json")
+        .json(&serde_json::json!({ "sql": sql }))
+        .send().await
+        .map_err(|e| format!("Query execution failed: {e}"))?;
+
+    let elapsed_ms = start.elapsed().as_millis() as u64;
+
+    if !resp.status().is_success() {
+        let body = resp.text().await.unwrap_or_default();
+        return Ok(VibeSqlQueryResult {
+            columns: vec![], rows: vec![], row_count: 0, elapsed_ms,
+            error: Some(format!("Query error: {body}")),
+        });
+    }
+
+    let body: serde_json::Value = resp.json().await
+        .map_err(|e| format!("Failed to parse query result: {e}"))?;
+
+    let columns: Vec<String> = body["columns"].as_array()
+        .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+        .unwrap_or_default();
+
+    let rows: Vec<Vec<String>> = body["rows"].as_array()
+        .map(|arr| arr.iter().map(|row| {
+            row.as_array()
+                .map(|cells| cells.iter().map(|c| match c {
+                    serde_json::Value::String(s) => s.clone(),
+                    serde_json::Value::Null => "NULL".to_string(),
+                    other => other.to_string(),
+                }).collect())
+                .unwrap_or_default()
+        }).collect())
+        .unwrap_or_default();
+
+    let row_count = rows.len();
+    Ok(VibeSqlQueryResult { columns, rows, row_count, elapsed_ms, error: None })
+}
+
+/// Get VibeSQL server info.
+#[tauri::command]
+pub async fn vibesql_server_info(connection_string: String) -> Result<VibeSqlServerInfo, String> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build().map_err(|e| format!("HTTP client error: {e}"))?;
+
+    let base_url = vibesql_base_url(&connection_string)?;
+    let resp = client.get(format!("{base_url}/api/v1/status"))
+        .header("Authorization", vibesql_auth_header(&connection_string))
+        .send().await
+        .map_err(|e| format!("Failed to get server info: {e}"))?;
+
+    if !resp.status().is_success() {
+        let body = resp.text().await.unwrap_or_default();
+        return Err(format!("Failed to get server status: {body}"));
+    }
+    resp.json().await.map_err(|e| format!("Failed to parse server info: {e}"))
+}
+
+/// Generate SQL from natural language using AI provider.
+#[tauri::command]
+pub async fn vibesql_generate_sql(
+    description: String,
+    schema: String,
+    provider: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<String, String> {
+    let engine = state.chat_engine.lock().await;
+    let prompt = format!(
+        "You are a SQL expert for VibeSQL Server (PostgreSQL-compatible). Generate a single SQL query.\n\n\
+         Schema:\n{schema}\n\n\
+         Request: {description}\n\n\
+         Return ONLY the SQL query, no explanation or markdown."
+    );
+    let messages = vec![vibe_ai::Message {
+        role: vibe_ai::provider::MessageRole::User,
+        content: prompt,
+    }];
+    engine.chat(&messages, Some(provider)).await.map_err(|e| e.to_string())
+}
+
+/// Parse a VibeSQL connection string into a base URL.
+fn vibesql_base_url(conn_str: &str) -> Result<String, String> {
+    // vibesql://user:pass@host:port/db or vibesql+cloud://key@cloud.vibesql.online/db
+    if conn_str.contains("+cloud://") || conn_str.contains("cloud.vibesql.online") {
+        Ok("https://cloud.vibesql.online".to_string())
+    } else {
+        // Extract host:port from vibesql://user:pass@host:port/db
+        let after_scheme = conn_str.split("://").nth(1).unwrap_or(conn_str);
+        let host_part = after_scheme.split('@').nth(1).unwrap_or(after_scheme);
+        let host_port = host_part.split('/').next().unwrap_or("localhost:5432");
+        let host_port = host_port.split('?').next().unwrap_or(host_port);
+        Ok(format!("http://{host_port}"))
+    }
+}
+
+/// Extract the database name from a VibeSQL connection string.
+fn vibesql_database(conn_str: &str) -> String {
+    let after_scheme = conn_str.split("://").nth(1).unwrap_or(conn_str);
+    let after_at = after_scheme.split('@').nth(1).unwrap_or(after_scheme);
+    let after_host = after_at.split('/').nth(1).unwrap_or("vibesql");
+    after_host.split('?').next().unwrap_or("vibesql").to_string()
+}
+
+/// Build the Authorization header for a VibeSQL connection.
+fn vibesql_auth_header(conn_str: &str) -> String {
+    if conn_str.contains("+cloud://") {
+        // vibesql+cloud://API_KEY@host/db
+        let after_scheme = conn_str.split("://").nth(1).unwrap_or("");
+        let key = after_scheme.split('@').next().unwrap_or("");
+        format!("Bearer {key}")
+    } else {
+        // vibesql://user:pass@host/db — use Basic auth
+        let after_scheme = conn_str.split("://").nth(1).unwrap_or("");
+        let user_pass = after_scheme.split('@').next().unwrap_or("admin:");
+        use base64::Engine;
+        let encoded = base64::engine::general_purpose::STANDARD.encode(user_pass.as_bytes());
+        format!("Basic {encoded}")
+    }
+}
+
 // ── Conversational Search ─────────────────────────────────────────────────────
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
