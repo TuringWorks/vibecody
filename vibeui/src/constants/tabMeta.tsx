@@ -119,7 +119,7 @@ export const TAB_META: Record<string, TabMeta> = {
   batchbuilder:{ icon: Factory,            label: "Batch" },
   cloudautofix:{ icon: CloudLightning,     label: "Cloud Fix" },
   fastcontext: { icon: SearchCode,         label: "Fast Ctx" },
-  imagegen:    { icon: Image,              label: "ImageGen" },
+  imagegen:    { icon: Image,              label: "Image Generation" },
   governance:  { icon: ShieldAlert,         label: "Govern" },
   agentteams:  { icon: UsersRound,          label: "Agent Teams" },
   discuss:     { icon: MessagesSquare,      label: "Discuss" },

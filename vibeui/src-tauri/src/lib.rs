@@ -81,8 +81,19 @@ pub fn run() {
     // No else-branch: don't register a hardcoded fallback model.
     // get_available_ai_providers() discovers all locally installed Ollama models.
 
-    // Additional providers (OpenAI, Claude, Gemini, etc.) are configured at
-    // runtime via the BYOK settings panel and injected through ChatEngine::add_provider().
+    // Load saved API keys from ~/.vibeui/api_keys.json and register cloud providers at startup.
+    {
+        let keys_path = std::path::PathBuf::from(
+            std::env::var("HOME").unwrap_or_else(|_| ".".to_string())
+        ).join(".vibeui").join("api_keys.json");
+        if keys_path.exists() {
+            if let Ok(json) = std::fs::read_to_string(&keys_path) {
+                if let Ok(settings) = serde_json::from_str::<commands::ApiKeySettings>(&json) {
+                    commands::register_cloud_providers(&mut chat_engine, &settings);
+                }
+            }
+        }
+    }
 
     let chat_engine = Arc::new(Mutex::new(chat_engine));
     let terminal_manager = Arc::new(TerminalManager::new());
@@ -102,7 +113,7 @@ pub fn run() {
             // the duplicate File/Edit/View/Window/Help menus (handled in React).
             // On Windows/Linux there is no native menu bar by default, so this
             // is effectively a no-op.
-            use tauri::menu::{MenuBuilder, SubmenuBuilder};
+            use tauri::menu::{MenuBuilder, SubmenuBuilder, PredefinedMenuItem};
             let app_submenu = SubmenuBuilder::new(app, "VibeUI")
                 .about(None)
                 .separator()
@@ -112,8 +123,18 @@ pub fn run() {
                 .separator()
                 .quit()
                 .build()?;
+            let edit_submenu = SubmenuBuilder::new(app, "Edit")
+                .item(&PredefinedMenuItem::undo(app, None)?)
+                .item(&PredefinedMenuItem::redo(app, None)?)
+                .separator()
+                .item(&PredefinedMenuItem::cut(app, None)?)
+                .item(&PredefinedMenuItem::copy(app, None)?)
+                .item(&PredefinedMenuItem::paste(app, None)?)
+                .item(&PredefinedMenuItem::select_all(app, None)?)
+                .build()?;
             let menu = MenuBuilder::new(app)
                 .item(&app_submenu)
+                .item(&edit_submenu)
                 .build()?;
             app.set_menu(menu)?;
             Ok(())
@@ -812,6 +833,8 @@ pub fn run() {
             commands::generate_image,
             commands::delete_generated_image,
             commands::get_image_gen_stats,
+            commands::get_generated_image_data,
+            commands::get_available_image_providers,
             // Conversational Search
             commands::conversational_search,
             commands::get_search_history,

@@ -2400,7 +2400,7 @@ function ApiKeysSection() {
     } finally { setSaving(false); }
   };
 
-  const SecretField = ({ label, fieldKey, placeholder }: { label: string; fieldKey: keyof ApiKeySettings; placeholder: string }) => (
+  const renderSecretField = (label: string, fieldKey: keyof ApiKeySettings, placeholder: string) => (
     <div style={{ marginBottom: 12 }}>
       <label style={labelStyle}>{label}</label>
       <div style={{ display: "flex", gap: 6 }}>
@@ -2418,7 +2418,7 @@ function ApiKeysSection() {
     </div>
   );
 
-  const SectionHeader = ({ title }: { title: string }) => (
+  const renderSectionHeader = (title: string) => (
     <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 10, borderBottom: "1px solid var(--border-color)", paddingBottom: 4 }}>
       {title}
     </div>
@@ -2432,40 +2432,40 @@ function ApiKeysSection() {
       </p>
 
       <div style={{ marginBottom: 20 }}>
-        <SectionHeader title="Anthropic (Claude)" />
-        <SecretField label="API Key" fieldKey="anthropic_api_key" placeholder="sk-ant-api03-..." />
+        {renderSectionHeader("Anthropic (Claude)")}
+        {renderSecretField("API Key", "anthropic_api_key", "sk-ant-api03-...")}
         <p style={modelsHintStyle}>
           Models: Opus 4.6, Sonnet 4.6, Haiku 4.5, 3.5 Sonnet, 3.5 Haiku, 3 Opus
         </p>
       </div>
 
       <div style={{ marginBottom: 20 }}>
-        <SectionHeader title="OpenAI" />
-        <SecretField label="API Key" fieldKey="openai_api_key" placeholder="sk-proj-..." />
+        {renderSectionHeader("OpenAI")}
+        {renderSecretField("API Key", "openai_api_key", "sk-proj-...")}
         <p style={modelsHintStyle}>
           Models: GPT-4o, GPT-4o mini, GPT-4 Turbo, GPT-4, GPT-3.5 Turbo, o1, o1-mini, o1-preview, o3-mini
         </p>
       </div>
 
       <div style={{ marginBottom: 20 }}>
-        <SectionHeader title="Google (Gemini)" />
-        <SecretField label="API Key" fieldKey="gemini_api_key" placeholder="AIzaSy..." />
+        {renderSectionHeader("Google (Gemini)")}
+        {renderSecretField("API Key", "gemini_api_key", "AIzaSy...")}
         <p style={modelsHintStyle}>
           Models: 2.5 Pro, 2.5 Flash, 2.0 Flash, 2.0 Flash Lite, 1.5 Pro, 1.5 Flash
         </p>
       </div>
 
       <div style={{ marginBottom: 20 }}>
-        <SectionHeader title="xAI (Grok)" />
-        <SecretField label="API Key" fieldKey="grok_api_key" placeholder="xai-..." />
+        {renderSectionHeader("xAI (Grok)")}
+        {renderSecretField("API Key", "grok_api_key", "xai-...")}
         <p style={modelsHintStyle}>
           Models: Grok-3, Grok-3 mini, Grok-2, Grok-2 mini
         </p>
       </div>
 
       <div style={{ marginBottom: 20 }}>
-        <SectionHeader title="OpenRouter" />
-        <SecretField label="API Key" fieldKey="openrouter_api_key" placeholder="sk-or-v1-..." />
+        {renderSectionHeader("OpenRouter")}
+        {renderSecretField("API Key", "openrouter_api_key", "sk-or-v1-...")}
         <div style={{ marginBottom: 12 }}>
           <label style={labelStyle}>Model</label>
           <input style={fieldStyle} value={settings.openrouter_model} onChange={e => setSettings({ ...settings, openrouter_model: e.target.value })} placeholder="anthropic/claude-3.5-sonnet" />
@@ -2491,7 +2491,7 @@ function ApiKeysSection() {
       )}
 
       <div style={{ marginTop: 24, borderTop: "1px solid var(--border-color)", paddingTop: 16 }}>
-        <SectionHeader title="Local Models (Ollama)" />
+        {renderSectionHeader("Local Models (Ollama)")}
         <p style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5 }}>
           Ollama auto-detected at <code style={{ background: "var(--bg-tertiary)", padding: "1px 4px", borderRadius: 3 }}>http://localhost:11434</code>. Start Ollama and models appear automatically.
         </p>

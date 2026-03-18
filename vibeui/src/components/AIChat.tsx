@@ -190,6 +190,10 @@ interface AIChatProps {
  pendingInput?: string;
  /** Called once after pendingInput is consumed. */
  onPendingInputConsumed?: () => void;
+ /** Available provider names for the inline provider selector. */
+ availableProviders?: string[];
+ /** Callback when the user changes the provider via the inline selector. */
+ onProviderChange?: (provider: string) => void;
 }
 
 /** Extract the `@query` fragment at the cursor position, or null if none. */
@@ -210,7 +214,8 @@ function formatTime(ts?: number): string {
  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-export function AIChat({ provider, context, fileTree, currentFile, onFileAction, onPendingWrite, pendingInput, onPendingInputConsumed }: AIChatProps) {
+export function AIChat({ provider, context, fileTree, currentFile, onFileAction, onPendingWrite, pendingInput, onPendingInputConsumed, availableProviders, onProviderChange }: AIChatProps) {
+ const [chatMode, setChatMode] = useState<"chat" | "planning">("chat");
  const [messages, setMessages] = useState<Message[]>([]);
  const [input, setInput] = useState("");
  const [isLoading, setIsLoading] = useState(false);
@@ -534,7 +539,7 @@ export function AIChat({ provider, context, fileTree, currentFile, onFileAction,
  <div ref={messagesEndRef} />
  </div>
 
- <div className="chat-input" style={{ position: "relative" }}>
+ <div className="chat-input-card" style={{ position: "relative" }}>
  {pickerQuery !== null && (
  <ContextPicker
  query={pickerQuery}
@@ -553,22 +558,61 @@ export function AIChat({ provider, context, fileTree, currentFile, onFileAction,
  value={input}
  onChange={handleInputChange}
  onKeyDown={handleKeyDown}
- placeholder={isListening ? "Listening…" : "Ask a question… (@ for context)"}
+ placeholder={isListening ? "Listening…" : "Ask anything, @ to mention, / for wor..."}
  rows={1}
  />
+ <div className="chat-input-toolbar">
+ <button
+ className="chat-toolbar-btn"
+ title="Add context (@file, @web, @git)"
+ onClick={() => {
+   const ta = textareaRef.current;
+   if (ta) { const v = input + "@"; setInput(v); ta.focus(); handleInputChange({ target: { value: v, selectionStart: v.length } } as React.ChangeEvent<HTMLTextAreaElement>); }
+ }}
+ >+</button>
+ <select
+ className="chat-toolbar-select"
+ value={chatMode}
+ onChange={e => setChatMode(e.target.value as "chat" | "planning")}
+ title="Chat mode"
+ >
+ <option value="chat">Chat</option>
+ <option value="planning">Planning</option>
+ </select>
+ {availableProviders && availableProviders.length > 0 && (
+ <select
+ className="chat-toolbar-select provider-select"
+ value={provider}
+ onChange={e => onProviderChange?.(e.target.value)}
+ title="AI Provider"
+ >
+ {availableProviders.map(p => {
+   const short = p.length > 18 ? p.slice(0, 16) + "…" : p;
+   return <option key={p} value={p}>{short}</option>;
+ })}
+ </select>
+ )}
+ <div style={{ flex: 1 }} />
  <button
  onClick={toggleVoice}
  title={isTranscribing ? "Transcribing..." : isListening ? "Click to stop" : "Voice input"}
- className={`mic-btn${isListening ? " listening" : ""}${isTranscribing ? " transcribing" : ""}`}
+ className={`chat-toolbar-btn mic-icon${isListening ? " listening" : ""}${isTranscribing ? " transcribing" : ""}`}
  disabled={isTranscribing}
  aria-label={isListening ? "Stop voice recording" : "Start voice input"}
  >
  <Mic size={14} strokeWidth={1.5} />
  {isListening && <span className="mic-recording-badge">REC</span>}
  </button>
- <button onClick={sendMessage} disabled={!input.trim() || isLoading}>
- Send
+ <button
+ className="chat-toolbar-send"
+ onClick={sendMessage}
+ disabled={!input.trim() || isLoading}
+ aria-label="Send message"
+ title="Send (Enter)"
+ >
+ <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
  </button>
+ </div>
  </div>
  </div>
  );

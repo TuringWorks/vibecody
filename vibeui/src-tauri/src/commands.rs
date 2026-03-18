@@ -4415,22 +4415,9 @@ pub async fn get_provider_api_keys() -> Result<ApiKeySettings, String> {
     serde_json::from_str(&json).map_err(|e| e.to_string())
 }
 
-/// Save API key settings and re-register cloud providers in the chat engine.
-#[tauri::command]
-pub async fn save_provider_api_keys(
-    settings: ApiKeySettings,
-    state: tauri::State<'_, AppState>,
-) -> Result<Vec<String>, String> {
-    // Persist to disk
-    let path = api_keys_path();
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-    }
-    let json = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
-    std::fs::write(&path, json).map_err(|e| e.to_string())?;
-
-    // Re-register cloud providers in the chat engine — register ALL models per provider
-    let mut engine = state.chat_engine.lock().await;
+/// Register cloud providers from an `ApiKeySettings` into a `ChatEngine`.
+/// Called at startup (from lib.rs) and when the user saves API keys.
+pub fn register_cloud_providers(engine: &mut ChatEngine, settings: &ApiKeySettings) {
     engine.clear_cloud_providers();
 
     if !settings.anthropic_api_key.is_empty() {
@@ -4549,7 +4536,25 @@ pub async fn save_provider_api_keys(
         engine.add_provider(Arc::new(provider));
     }
 
-    // Return updated provider list so frontend can refresh immediately
+}
+
+/// Save API key settings and re-register cloud providers in the chat engine.
+#[tauri::command]
+pub async fn save_provider_api_keys(
+    settings: ApiKeySettings,
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<String>, String> {
+    // Persist to disk
+    let path = api_keys_path();
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let json = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
+    std::fs::write(&path, json).map_err(|e| e.to_string())?;
+
+    // Re-register cloud providers
+    let mut engine = state.chat_engine.lock().await;
+    register_cloud_providers(&mut engine, &settings);
     Ok(engine.get_provider_names())
 }
 
@@ -25923,8 +25928,46 @@ pub async fn list_generated_images() -> Result<Vec<GeneratedImageMeta>, String> 
     Ok(store.images)
 }
 
+/// Helper: resolve the images directory (`~/.vibeui/images/`), creating it if needed.
+fn images_dir() -> Result<PathBuf, String> {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    let dir = PathBuf::from(home).join(".vibeui").join("images");
+    std::fs::create_dir_all(&dir).map_err(|e| format!("Cannot create images dir: {e}"))?;
+    Ok(dir)
+}
+
+/// Get the OpenAI API key — first from settings file, then from env var.
+fn get_openai_api_key() -> Result<String, String> {
+    // Try settings file first
+    let path = api_keys_path();
+    if path.exists() {
+        if let Ok(json) = std::fs::read_to_string(&path) {
+            if let Ok(settings) = serde_json::from_str::<ApiKeySettings>(&json) {
+                if !settings.openai_api_key.is_empty() {
+                    return Ok(settings.openai_api_key);
+                }
+            }
+        }
+    }
+    // Fallback to env var
+    std::env::var("OPENAI_API_KEY")
+        .map_err(|_| "No OpenAI API key found. Set it in Settings > API Keys or via OPENAI_API_KEY env var.".to_string())
+}
+
+/// Nearest valid DALL-E 3 size for a requested dimension pair.
+fn dalle3_size(w: u32, h: u32) -> &'static str {
+    let aspect = w as f64 / h as f64;
+    if aspect > 1.3 {
+        "1792x1024"  // landscape
+    } else if aspect < 0.77 {
+        "1024x1792"  // portrait
+    } else {
+        "1024x1024"  // square
+    }
+}
+
 /// Create a new image generation request.
-/// Stores metadata with status "completed" and a placeholder SVG path.
+/// Calls the OpenAI DALL-E 3 API, downloads the image, and saves to disk.
 #[tauri::command]
 pub async fn generate_image(
     prompt: String,
@@ -25936,27 +25979,79 @@ pub async fn generate_image(
     if prompt.trim().is_empty() {
         return Err("Prompt cannot be empty".to_string());
     }
-    let mut store = load_image_gen_store();
+
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs();
+    let mut store = load_image_gen_store();
     let id = format!("img-{now}-{}", store.images.len());
-    let cost = match model.as_str() {
-        "DALL-E 3" => 0.04,
-        "Midjourney v6" => 0.05,
-        _ => 0.02,
+
+    // Build the full prompt with style modifier
+    let full_prompt = if style.is_empty() || style == "None" {
+        prompt.clone()
+    } else {
+        format!("{prompt}, {style} style")
     };
+
+    // Determine cost and which API to call
+    let gen_result: Result<(f64, String, String), String> = match model.as_str() {
+        "DALL-E 3" | "GPT Image" => {
+            let api_key = get_openai_api_key()?;
+            let size = dalle3_size(width, height);
+            let cost = if size == "1024x1024" { 0.04 } else { 0.08 };
+            call_dalle3_api(&api_key, &full_prompt, size, &id).await
+                .map(|path| (cost, path, "completed".to_string()))
+        }
+        "Gemini Imagen" => {
+            let api_key = get_provider_key("gemini_api_key")?;
+            call_gemini_imagen_api(&api_key, &full_prompt, &id).await
+                .map(|path| (0.04, path, "completed".to_string()))
+        }
+        "Grok Aurora" => {
+            let api_key = get_provider_key("grok_api_key")?;
+            call_grok_aurora_api(&api_key, &full_prompt, &id).await
+                .map(|path| (0.04, path, "completed".to_string()))
+        }
+        "OpenRouter Image" => {
+            let api_key = get_provider_key("openrouter_api_key")?;
+            // OpenRouter proxies to various image models via OpenAI-compatible endpoint
+            let size = dalle3_size(width, height);
+            call_openrouter_image_api(&api_key, &full_prompt, size, &id).await
+                .map(|path| (0.03, path, "completed".to_string()))
+        }
+        _ => Err(format!("Model '{model}' is not supported for image generation.")),
+    };
+
+    let (cost, file_path, status) = match gen_result {
+        Ok(result) => result,
+        Err(e) => {
+            let img = GeneratedImageMeta {
+                id: id.clone(),
+                prompt: prompt.clone(),
+                model: model.clone(),
+                style: style.clone(),
+                width, height,
+                status: "failed".to_string(),
+                created_at: now.to_string(),
+                file_path: String::new(),
+                cost: 0.0,
+            };
+            store.images.insert(0, img);
+            save_image_gen_store(&store).ok();
+            return Err(e);
+        }
+    };
+
     let img = GeneratedImageMeta {
         id: id.clone(),
         prompt,
         model,
         style,
-        width,
-        height,
-        status: "completed".to_string(),
+        width, height,
+        status,
         created_at: now.to_string(),
-        file_path: format!("placeholder://{id}.svg"),
+        file_path,
         cost,
     };
     store.images.insert(0, img.clone());
@@ -25964,10 +26059,282 @@ pub async fn generate_image(
     Ok(img)
 }
 
-/// Delete a generated image by ID.
+/// Call the OpenAI DALL-E 3 API, download the resulting image, save to disk.
+/// Returns the absolute file path of the saved PNG.
+async fn call_dalle3_api(
+    api_key: &str,
+    prompt: &str,
+    size: &str,
+    image_id: &str,
+) -> Result<String, String> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(120))
+        .build()
+        .map_err(|e| format!("HTTP client error: {e}"))?;
+
+    // 1. Request image generation
+    let resp = client
+        .post("https://api.openai.com/v1/images/generations")
+        .header("Authorization", format!("Bearer {api_key}"))
+        .header("Content-Type", "application/json")
+        .json(&serde_json::json!({
+            "model": "dall-e-3",
+            "prompt": prompt,
+            "n": 1,
+            "size": size,
+            "response_format": "url"
+        }))
+        .send()
+        .await
+        .map_err(|e| format!("OpenAI API request failed: {e}"))?;
+
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        // Try to extract a human-readable error message
+        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&body) {
+            if let Some(msg) = json["error"]["message"].as_str() {
+                return Err(format!("DALL-E 3 API error ({status}): {msg}"));
+            }
+        }
+        return Err(format!("DALL-E 3 API error ({status}): {body}"));
+    }
+
+    let body: serde_json::Value = resp.json().await
+        .map_err(|e| format!("Failed to parse DALL-E response: {e}"))?;
+
+    let image_url = body["data"][0]["url"]
+        .as_str()
+        .ok_or_else(|| "DALL-E response missing image URL".to_string())?;
+
+    // 2. Download the image
+    let img_resp = client
+        .get(image_url)
+        .timeout(std::time::Duration::from_secs(60))
+        .send()
+        .await
+        .map_err(|e| format!("Failed to download generated image: {e}"))?;
+
+    if !img_resp.status().is_success() {
+        return Err(format!("Image download failed with status: {}", img_resp.status()));
+    }
+
+    let bytes = img_resp.bytes().await
+        .map_err(|e| format!("Failed to read image bytes: {e}"))?;
+
+    // 3. Save to disk
+    let dir = images_dir()?;
+    let file_name = format!("{image_id}.png");
+    let file_path = dir.join(&file_name);
+    std::fs::write(&file_path, &bytes)
+        .map_err(|e| format!("Failed to save image to disk: {e}"))?;
+
+    Ok(file_path.to_string_lossy().to_string())
+}
+
+/// Get a specific provider key from settings, with env var fallback.
+fn get_provider_key(field: &str) -> Result<String, String> {
+    let path = api_keys_path();
+    if path.exists() {
+        if let Ok(json) = std::fs::read_to_string(&path) {
+            if let Ok(val) = serde_json::from_str::<serde_json::Value>(&json) {
+                if let Some(key) = val[field].as_str() {
+                    if !key.is_empty() { return Ok(key.to_string()); }
+                }
+            }
+        }
+    }
+    // Env var fallback: GEMINI_API_KEY, GROK_API_KEY, OPENROUTER_API_KEY
+    let env_name = field.to_uppercase();
+    std::env::var(&env_name).map_err(|_| format!("No API key found for {field}. Set it in Settings > API Keys."))
+}
+
+/// Call Gemini Imagen API (Google AI).
+async fn call_gemini_imagen_api(api_key: &str, prompt: &str, image_id: &str) -> Result<String, String> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(120))
+        .build().map_err(|e| format!("HTTP client error: {e}"))?;
+
+    let url = format!(
+        "https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key={api_key}"
+    );
+
+    let resp = client.post(&url)
+        .header("Content-Type", "application/json")
+        .json(&serde_json::json!({
+            "instances": [{ "prompt": prompt }],
+            "parameters": { "sampleCount": 1 }
+        }))
+        .send().await.map_err(|e| format!("Gemini Imagen API request failed: {e}"))?;
+
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&body) {
+            if let Some(msg) = json["error"]["message"].as_str() {
+                return Err(format!("Gemini Imagen error ({status}): {msg}"));
+            }
+        }
+        return Err(format!("Gemini Imagen error ({status}): {body}"));
+    }
+
+    let body: serde_json::Value = resp.json().await
+        .map_err(|e| format!("Failed to parse Gemini Imagen response: {e}"))?;
+
+    let b64_data = body["predictions"][0]["bytesBase64Encoded"].as_str()
+        .ok_or_else(|| "Gemini Imagen response missing image data".to_string())?;
+
+    use base64::Engine as _;
+    let bytes = base64::engine::general_purpose::STANDARD.decode(b64_data)
+        .map_err(|e| format!("Failed to decode Gemini image: {e}"))?;
+
+    let dir = images_dir()?;
+    let file_path = dir.join(format!("{image_id}.png"));
+    std::fs::write(&file_path, &bytes).map_err(|e| format!("Failed to save image: {e}"))?;
+    Ok(file_path.to_string_lossy().to_string())
+}
+
+/// Call xAI Grok Aurora image generation API.
+async fn call_grok_aurora_api(api_key: &str, prompt: &str, image_id: &str) -> Result<String, String> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(120))
+        .build().map_err(|e| format!("HTTP client error: {e}"))?;
+
+    let resp = client.post("https://api.x.ai/v1/images/generations")
+        .header("Authorization", format!("Bearer {api_key}"))
+        .header("Content-Type", "application/json")
+        .json(&serde_json::json!({
+            "model": "grok-2-image",
+            "prompt": prompt,
+            "n": 1,
+            "response_format": "url"
+        }))
+        .send().await.map_err(|e| format!("Grok Aurora API request failed: {e}"))?;
+
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&body) {
+            if let Some(msg) = json["error"]["message"].as_str() {
+                return Err(format!("Grok Aurora error ({status}): {msg}"));
+            }
+        }
+        return Err(format!("Grok Aurora error ({status}): {body}"));
+    }
+
+    let body: serde_json::Value = resp.json().await
+        .map_err(|e| format!("Failed to parse Grok Aurora response: {e}"))?;
+
+    let image_url = body["data"][0]["url"].as_str()
+        .ok_or_else(|| "Grok Aurora response missing image URL".to_string())?;
+
+    // Download
+    let img_resp = client.get(image_url)
+        .timeout(std::time::Duration::from_secs(60))
+        .send().await.map_err(|e| format!("Failed to download Grok image: {e}"))?;
+    let bytes = img_resp.bytes().await.map_err(|e| format!("Failed to read image bytes: {e}"))?;
+
+    let dir = images_dir()?;
+    let file_path = dir.join(format!("{image_id}.png"));
+    std::fs::write(&file_path, &bytes).map_err(|e| format!("Failed to save image: {e}"))?;
+    Ok(file_path.to_string_lossy().to_string())
+}
+
+/// Call OpenRouter image generation (proxies to DALL-E or Flux via OpenAI-compatible API).
+async fn call_openrouter_image_api(api_key: &str, prompt: &str, size: &str, image_id: &str) -> Result<String, String> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(120))
+        .build().map_err(|e| format!("HTTP client error: {e}"))?;
+
+    let resp = client.post("https://openrouter.ai/api/v1/images/generations")
+        .header("Authorization", format!("Bearer {api_key}"))
+        .header("Content-Type", "application/json")
+        .json(&serde_json::json!({
+            "model": "openai/dall-e-3",
+            "prompt": prompt,
+            "n": 1,
+            "size": size,
+            "response_format": "url"
+        }))
+        .send().await.map_err(|e| format!("OpenRouter image API request failed: {e}"))?;
+
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&body) {
+            if let Some(msg) = json["error"]["message"].as_str() {
+                return Err(format!("OpenRouter image error ({status}): {msg}"));
+            }
+        }
+        return Err(format!("OpenRouter image error ({status}): {body}"));
+    }
+
+    let body: serde_json::Value = resp.json().await
+        .map_err(|e| format!("Failed to parse OpenRouter image response: {e}"))?;
+
+    let image_url = body["data"][0]["url"].as_str()
+        .ok_or_else(|| "OpenRouter image response missing URL".to_string())?;
+
+    let img_resp = client.get(image_url)
+        .timeout(std::time::Duration::from_secs(60))
+        .send().await.map_err(|e| format!("Failed to download image: {e}"))?;
+    let bytes = img_resp.bytes().await.map_err(|e| format!("Failed to read image bytes: {e}"))?;
+
+    let dir = images_dir()?;
+    let file_path = dir.join(format!("{image_id}.png"));
+    std::fs::write(&file_path, &bytes).map_err(|e| format!("Failed to save image: {e}"))?;
+    Ok(file_path.to_string_lossy().to_string())
+}
+
+/// Return the list of image generation providers whose API keys are configured.
+#[tauri::command]
+pub async fn get_available_image_providers() -> Result<Vec<serde_json::Value>, String> {
+    // All known image generation providers
+    let all_providers = [
+        ("DALL-E 3", "openai_api_key", "OpenAI DALL-E 3 — $0.04-$0.08/image"),
+        ("GPT Image", "openai_api_key", "OpenAI GPT Image 1 — latest model"),
+        ("Gemini Imagen", "gemini_api_key", "Google Imagen 3 via Gemini API"),
+        ("Grok Aurora", "grok_api_key", "xAI Grok Aurora image generation"),
+        ("OpenRouter Image", "openrouter_api_key", "OpenRouter (proxies to DALL-E 3)"),
+    ];
+
+    // Load saved keys
+    let path = api_keys_path();
+    let settings: serde_json::Value = if path.exists() {
+        std::fs::read_to_string(&path).ok()
+            .and_then(|json| serde_json::from_str(&json).ok())
+            .unwrap_or(serde_json::json!({}))
+    } else {
+        serde_json::json!({})
+    };
+
+    let mut result = Vec::new();
+    for (model_name, key_field, description) in &all_providers {
+        let has_key = settings[key_field].as_str().is_some_and(|k| !k.is_empty());
+        // Also check env var fallback
+        let env_name = key_field.to_uppercase();
+        let has_env = std::env::var(&env_name).is_ok();
+        result.push(serde_json::json!({
+            "model": model_name,
+            "description": description,
+            "available": has_key || has_env,
+            "key_field": key_field,
+        }));
+    }
+    Ok(result)
+}
+
+/// Delete a generated image by ID (removes metadata and file from disk).
 #[tauri::command]
 pub async fn delete_generated_image(id: String) -> Result<(), String> {
     let mut store = load_image_gen_store();
+    // Find the image to get its file path before removing
+    if let Some(img) = store.images.iter().find(|i| i.id == id) {
+        let path = std::path::Path::new(&img.file_path);
+        if path.exists() && path.is_file() {
+            let _ = std::fs::remove_file(path);
+        }
+    }
     let before = store.images.len();
     store.images.retain(|img| img.id != id);
     if store.images.len() == before {
@@ -26011,6 +26378,22 @@ pub async fn get_image_gen_stats() -> Result<ImageGenStats, String> {
         pending,
         failed,
     })
+}
+
+/// Read a generated image file and return it as a base64-encoded data URL.
+#[tauri::command]
+pub async fn get_generated_image_data(id: String) -> Result<String, String> {
+    let store = load_image_gen_store();
+    let img = store.images.iter().find(|i| i.id == id)
+        .ok_or_else(|| format!("Image not found: {id}"))?;
+    let path = std::path::Path::new(&img.file_path);
+    if !path.exists() {
+        return Err("Image file not found on disk".to_string());
+    }
+    let bytes = std::fs::read(path).map_err(|e| format!("Cannot read image: {e}"))?;
+    use base64::Engine;
+    let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+    Ok(format!("data:image/png;base64,{b64}"))
 }
 
 // ── Conversational Search ─────────────────────────────────────────────────────

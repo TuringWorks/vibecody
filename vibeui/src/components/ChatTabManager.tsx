@@ -228,6 +228,8 @@ export function ChatTabManager({
                             onPendingInputConsumed={() =>
                                 setInjectedText((prev) => { const next = { ...prev }; delete next[tab.id]; return next; })
                             }
+                            availableProviders={availableProviders}
+                            onProviderChange={(p) => setTabProvider(tab.id, p)}
                         />
                     </div>
                 ))}
