@@ -12524,7 +12524,20 @@ pub async fn run_profiler(
 
     match tool.as_str() {
         "cargo-flamegraph" => {
-            // Use cargo bench or just build + run with flamegraph
+            // Check if cargo-flamegraph is installed
+            if !tool_exists("cargo-flamegraph") {
+                let check = std::process::Command::new("cargo").args(["flamegraph", "--version"]).output();
+                let installed = check.map(|o| o.status.success()).unwrap_or(false);
+                if !installed {
+                    return Err(
+                        "cargo-flamegraph is not installed.\n\n\
+                        Install it with:\n  cargo install flamegraph\n\n\
+                        On macOS you also need:\n  brew install dtrace\n\n\
+                        On Linux you may need:\n  sudo apt install linux-perf\n\n\
+                        Then try profiling again.".to_string()
+                    );
+                }
+            }
             let mut args = vec!["flamegraph", "--output", "profile.svg"];
             if !target_str.is_empty() {
                 args.push("--");
@@ -12572,7 +12585,9 @@ pub async fn run_profiler(
         }
 
         "go-pprof" => {
-            // Run go test with CPU profile, then parse with pprof -top
+            if !tool_exists("go") {
+                return Err("Go is not installed.\n\nInstall it from: https://go.dev/dl/\nOr: brew install go".to_string());
+            }
             let test_output = tokio::time::timeout(
                 std::time::Duration::from_secs(120),
                 tokio::process::Command::new("go")
@@ -12608,6 +12623,9 @@ pub async fn run_profiler(
         }
 
         "py-spy" => {
+            if !tool_exists("py-spy") {
+                return Err("py-spy is not installed.\n\nInstall it with:\n  pip install py-spy\n\nOr: brew install py-spy".to_string());
+            }
             let target_cmd = if target_str.is_empty() { "python -c 'import time; time.sleep(1)'".to_string() } else { format!("python {target_str}") };
             let output = tokio::time::timeout(
                 std::time::Duration::from_secs(120),
@@ -12637,6 +12655,9 @@ pub async fn run_profiler(
         }
 
         "clinic" => {
+            if !tool_exists("npx") {
+                return Err("Node.js/npx is not installed.\n\nInstall Node.js from: https://nodejs.org/\nOr: brew install node\n\nThen: npm install -g clinic".to_string());
+            }
             let target_cmd = if target_str.is_empty() { "node .".to_string() } else { format!("node {target_str}") };
             let output = tokio::time::timeout(
                 std::time::Duration::from_secs(120),
