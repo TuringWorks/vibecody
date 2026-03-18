@@ -960,7 +960,12 @@ pub async fn send_chat_message(
         If a required tool is not installed, tell the user how to install it.\n\n\
         IMPORTANT: Always use <write_file> tags when generating code that should be saved to a file.\n\
         You may also use fenced code blocks with file paths like ```path/to/file.ts as a fallback.\n\
-        The path should be relative to the project root.\n\n"
+        The path should be relative to the project root.\n\n\
+        When the user asks you to check, review, fix, improve, refactor, or update code, you MUST:\n\
+        1. Read the relevant files using <read_file>\n\
+        2. Analyze the code for issues, improvements, or requested changes\n\
+        3. Write the improved version back using <write_file> with the COMPLETE updated file content\n\
+        Never just describe changes — always write the updated files so the user can review the diff.\n\n"
     );
 
     // Inject project + global AI rules (Phase 4)
@@ -1078,7 +1083,12 @@ pub async fn stream_chat_message(
         If a required tool is not installed, tell the user how to install it.\n\n\
         IMPORTANT: Always use <write_file> tags when generating code that should be saved to a file.\n\
         You may also use fenced code blocks with file paths like ```path/to/file.ts as a fallback.\n\
-        The path should be relative to the project root.\n\n"
+        The path should be relative to the project root.\n\n\
+        When the user asks you to check, review, fix, improve, refactor, or update code, you MUST:\n\
+        1. Read the relevant files using <read_file>\n\
+        2. Analyze the code for issues, improvements, or requested changes\n\
+        3. Write the improved version back using <write_file> with the COMPLETE updated file content\n\
+        Never just describe changes — always write the updated files so the user can review the diff.\n\n"
     );
     {
         let ws = state.workspace.lock().await;
