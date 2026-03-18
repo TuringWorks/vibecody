@@ -3873,6 +3873,40 @@ pub async fn detect_build_system(workspace: String) -> Result<Vec<BuildSystem>, 
             systems.push(build_sys("swift", &format!("swiftc -o main {}", files_str), "./main", &files_str, "swiftc",
                 "Install Swift: https://www.swift.org/download/ (included with Xcode on macOS)"));
         }
+
+        // Zig
+        if has_ext(".zig") {
+            let zig_files: Vec<&String> = entries.iter().filter(|f| f.ends_with(".zig")).collect();
+            let main_file = zig_files.iter().find(|f| **f == "main.zig").unwrap_or_else(|| zig_files.first().unwrap());
+            systems.push(build_sys("zig", &format!("zig build-exe {}", main_file), &format!("./main"), main_file, "zig",
+                "Install Zig: https://ziglang.org/download/ or `brew install zig`"));
+        }
+
+        // Nim
+        if has_ext(".nim") {
+            let nim_files: Vec<&String> = entries.iter().filter(|f| f.ends_with(".nim")).collect();
+            let main_file = nim_files.iter().find(|f| **f == "main.nim").unwrap_or_else(|| nim_files.first().unwrap());
+            let bin_name = main_file.trim_end_matches(".nim");
+            systems.push(build_sys("nim", &format!("nim compile {}", main_file), &format!("./{}", bin_name), main_file, "nim",
+                "Install Nim: https://nim-lang.org/install.html or `brew install nim`"));
+        }
+
+        // Crystal
+        if has_ext(".cr") {
+            let cr_files: Vec<&String> = entries.iter().filter(|f| f.ends_with(".cr")).collect();
+            let main_file = cr_files.iter().find(|f| **f == "main.cr").unwrap_or_else(|| cr_files.first().unwrap());
+            systems.push(build_sys("crystal", &format!("crystal build {}", main_file), &format!("./{}", main_file.trim_end_matches(".cr")), main_file, "crystal",
+                "Install Crystal: https://crystal-lang.org/install/ or `brew install crystal`"));
+        }
+
+        // Ada (GNAT)
+        if has_ext(".adb") || has_ext(".ads") {
+            let ada_files: Vec<&String> = entries.iter().filter(|f| f.ends_with(".adb")).collect();
+            let main_file = ada_files.iter().find(|f| **f == "main.adb").unwrap_or_else(|| ada_files.first().unwrap());
+            let bin_name = main_file.trim_end_matches(".adb");
+            systems.push(build_sys("gnat", &format!("gnatmake {}", main_file), &format!("./{}", bin_name), main_file, "gnatmake",
+                "Install GNAT: `apt install gnat` (Linux) or `brew install gnat` (macOS) — https://www.adacore.com/download"));
+        }
     }
 
     Ok(systems)

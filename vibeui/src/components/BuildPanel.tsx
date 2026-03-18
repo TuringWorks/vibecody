@@ -54,9 +54,12 @@ const STATUS_COLORS: Record<Status, string> = {
 };
 
 const SYSTEM_ICONS: Record<string, string> = {
-  cargo: "Rust", npm: "Node", yarn: "Yarn", bun: "Bun", pnpm: "pnpm",
+  cargo: "Rust", rustc: "Rust", npm: "Node", yarn: "Yarn", bun: "Bun", pnpm: "pnpm",
   maven: "Maven", gradle: "Gradle", cmake: "CMake", make: "Make",
   go: "Go", python: "Python", elixir: "Elixir", dotnet: ".NET", ruby: "Ruby",
+  javac: "Java", "g++": "C++", "c++": "C++", gcc: "C", cc: "C",
+  typescript: "TypeScript", kotlin: "Kotlin", swift: "Swift",
+  zig: "Zig", nim: "Nim", crystal: "Crystal", gnat: "Ada",
 };
 
 export function BuildPanel({ workspacePath, onOpenFile }: BuildPanelProps) {
