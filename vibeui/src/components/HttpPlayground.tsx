@@ -182,7 +182,7 @@ export function HttpPlayground({ workspacePath }: { workspacePath: string | null
  placeholder="Value"
  style={{ flex: 2, background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "4px", padding: "3px 6px", fontFamily: "inherit", fontSize: "12px" }}
  />
- <button onClick={() => removeHeader(i)} style={{ background: "none", color: "var(--error-color)", border: "none", cursor: "pointer", padding: "0 6px", fontSize: "14px" }}>×</button>
+ <button aria-label="Remove header" onClick={() => removeHeader(i)} style={{ background: "none", color: "var(--error-color)", border: "none", cursor: "pointer", padding: "0 6px", fontSize: "14px" }}>×</button>
  </div>
  ))}
  </div>

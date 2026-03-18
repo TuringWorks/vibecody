@@ -139,38 +139,38 @@ const MAX_TERMINAL_LINES: usize = 500;
 fn safe_resolve_path(workspace: &Workspace, path: &str) -> Result<PathBuf, String> {
     let path_buf = PathBuf::from(path);
 
-    // For existing paths: canonicalize directly.
-    // For new paths: normalize manually (collapse .. components).
-    let canonical = if path_buf.exists() {
-        path_buf.canonicalize().map_err(|e| format!("Cannot resolve path '{}': {}", path, e))?
-    } else {
-        let mut resolved = PathBuf::new();
-        for component in path_buf.components() {
-            match component {
-                std::path::Component::ParentDir => { resolved.pop(); }
-                std::path::Component::CurDir => {}
-                c => resolved.push(c),
-            }
-        }
-        resolved
-    };
-
-    // Check against each workspace folder.
-    for folder in workspace.folders() {
-        let root = if folder.exists() {
-            folder.canonicalize().unwrap_or_else(|_| folder.clone())
-        } else {
-            folder.clone()
-        };
-        if canonical.starts_with(&root) {
-            return Ok(path_buf);
-        }
+    // Reject obvious traversal attempts
+    if path.contains("..") {
+        return Err(format!("Path traversal blocked: '{}' contains '..'", path));
     }
 
-    Err(format!(
-        "Path traversal blocked: '{}' is outside workspace boundaries",
-        path
-    ))
+    // If the path is already absolute, validate it's inside a workspace folder
+    if path_buf.is_absolute() {
+        let canonical = if path_buf.exists() {
+            path_buf.canonicalize().unwrap_or_else(|_| path_buf.clone())
+        } else {
+            path_buf.clone()
+        };
+        for folder in workspace.folders() {
+            let root = folder.canonicalize().unwrap_or_else(|_| folder.clone());
+            if canonical.starts_with(&root) {
+                return Ok(path_buf);
+            }
+        }
+        return Err(format!("Path traversal blocked: '{}' is outside workspace boundaries", path));
+    }
+
+    // Relative path — resolve against the first workspace folder
+    if let Some(root) = workspace.folders().first() {
+        let resolved = root.join(&path_buf);
+        // Create parent directories for new files
+        if let Some(parent) = resolved.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        return Ok(resolved);
+    }
+
+    Err(format!("No workspace folder open — cannot write '{}'", path))
 }
 
 /// File operations
@@ -946,10 +946,13 @@ pub async fn send_chat_message(
     // Inject system prompt with tools and file tree
     let mut system_prompt = String::from(
         "You are an advanced coding assistant with access to the file system.\n\
-        You can use the following tools by outputting XML tags:\n\
-        - <read_file path=\"path/to/file\" />: Read file content\n\
-        - <write_file path=\"path/to/file\">content</write_file>: Write content to file\n\
-        - <list_dir path=\"path/to/dir\" />: List directory contents\n\n"
+        When the user asks you to create or modify files, you MUST use these XML tags to write files:\n\
+        - <write_file path=\"path/to/file\">file content here</write_file>\n\
+        - <read_file path=\"path/to/file\" />\n\
+        - <list_dir path=\"path/to/dir\" />\n\n\
+        IMPORTANT: Always use <write_file> tags when generating code that should be saved to a file.\n\
+        You may also use fenced code blocks with file paths like ```path/to/file.ts as a fallback.\n\
+        The path should be relative to the project root.\n\n"
     );
 
     // Inject project + global AI rules (Phase 4)
@@ -1053,10 +1056,13 @@ pub async fn stream_chat_message(
     // Inject system prompt (same as send_chat_message)
     let mut system_prompt = String::from(
         "You are an advanced coding assistant with access to the file system.\n\
-        You can use the following tools by outputting XML tags:\n\
-        - <read_file path=\"path/to/file\" />: Read file content\n\
-        - <write_file path=\"path/to/file\">content</write_file>: Write content to file\n\
-        - <list_dir path=\"path/to/dir\" />: List directory contents\n\n"
+        When the user asks you to create or modify files, you MUST use these XML tags to write files:\n\
+        - <write_file path=\"path/to/file\">file content here</write_file>\n\
+        - <read_file path=\"path/to/file\" />\n\
+        - <list_dir path=\"path/to/dir\" />\n\n\
+        IMPORTANT: Always use <write_file> tags when generating code that should be saved to a file.\n\
+        You may also use fenced code blocks with file paths like ```path/to/file.ts as a fallback.\n\
+        The path should be relative to the project root.\n\n"
     );
     {
         let ws = state.workspace.lock().await;
@@ -1575,44 +1581,98 @@ async fn fetch_github_issue(url: &str, token: Option<String>) -> Result<GithubIs
 
 async fn process_tool_calls(response: &str, workspace_lock: &Arc<Mutex<Workspace>>) -> (String, Option<PendingWrite>) {
     let mut output = String::new();
-    let mut pending_write = None;
+    let mut pending_write: Option<PendingWrite> = None;
     let workspace = workspace_lock.lock().await;
 
-
-    // <read_file path="...">
+    // Process ALL <read_file path="..." /> tags
     let read_tag = "<read_file path=\"";
-    if let Some(start) = response.find(read_tag) {
+    let mut search_from = 0;
+    while let Some(rel_start) = response[search_from..].find(read_tag) {
+        let start = search_from + rel_start;
         if let Some(end) = response[start..].find("\" />") {
             let path = &response[start + read_tag.len()..start + end];
             match workspace.file_system().read_file(&PathBuf::from(path)).await {
                 Ok(content) => output.push_str(&format!("Read file '{}':\n{}\n", path, content)),
                 Err(e) => output.push_str(&format!("Failed to read file '{}': {}\n", path, e)),
             }
+            search_from = start + end + 4;
+        } else {
+            break;
         }
     }
 
-    // <write_file path="...">content</write_file>
+    // Process ALL <write_file path="...">content</write_file> tags
+    // The last one becomes the pending_write (shown in diff review)
     let write_tag_start = "<write_file path=\"";
-    if let Some(start) = response.find(write_tag_start) {
+    search_from = 0;
+    while let Some(rel_start) = response[search_from..].find(write_tag_start) {
+        let start = search_from + rel_start;
         if let Some(path_end) = response[start..].find("\">") {
             let path = &response[start + write_tag_start.len()..start + path_end];
             if let Some(content_end) = response[start..].find("</write_file>") {
                 let content_start = start + path_end + 2;
                 let content = &response[content_start..start + content_end];
-                
-                // Instead of writing immediately, create a pending write
+
                 pending_write = Some(PendingWrite {
                     path: path.to_string(),
                     content: content.to_string(),
                 });
                 output.push_str(&format!("Proposed write to file '{}'. Waiting for user approval.\n", path));
+                search_from = start + content_end + 13; // len("</write_file>")
+            } else {
+                break;
             }
+        } else {
+            break;
         }
     }
 
-    // <list_dir path="...">
+    // Fallback: if no <write_file> found, look for fenced code blocks with file paths
+    // Pattern: ```path/to/file.ext or ```lang:path/to/file.ext
+    if pending_write.is_none() {
+        let mut pos = 0;
+        while let Some(fence_start) = response[pos..].find("```") {
+            let abs_start = pos + fence_start;
+            let after_ticks = &response[abs_start + 3..];
+            let line_end = after_ticks.find('\n').unwrap_or(after_ticks.len());
+            let header = after_ticks[..line_end].trim();
+
+            // Skip empty headers (closing fences) and bare language names
+            if !header.is_empty() {
+                let file_path = if let Some((_lang, p)) = header.split_once(':') {
+                    p.trim()
+                } else {
+                    header
+                };
+
+                // Check if it looks like a file path (has / or .)
+                if (file_path.contains('/') || file_path.contains('.'))
+                    && !file_path.contains("..")
+                    && !file_path.starts_with('/')
+                {
+                    let content_start = abs_start + 3 + line_end + 1;
+                    if let Some(close) = response[content_start..].find("```") {
+                        let content = &response[content_start..content_start + close];
+                        if !content.trim().is_empty() {
+                            pending_write = Some(PendingWrite {
+                                path: file_path.to_string(),
+                                content: content.to_string(),
+                            });
+                            output.push_str(&format!("Detected file '{}' from code block. Waiting for user approval.\n", file_path));
+                            break;
+                        }
+                    }
+                }
+            }
+            pos = abs_start + 3 + line_end.min(1);
+        }
+    }
+
+    // Process ALL <list_dir path="..." /> tags
     let list_tag = "<list_dir path=\"";
-    if let Some(start) = response.find(list_tag) {
+    search_from = 0;
+    while let Some(rel_start) = response[search_from..].find(list_tag) {
+        let start = search_from + rel_start;
         if let Some(end) = response[start..].find("\" />") {
             let path = &response[start + list_tag.len()..start + end];
             match workspace.file_system().list_directory(&PathBuf::from(path)).await {
@@ -1624,6 +1684,9 @@ async fn process_tool_calls(response: &str, workspace_lock: &Arc<Mutex<Workspace
                 },
                 Err(e) => output.push_str(&format!("Failed to list directory '{}': {}\n", path, e)),
             }
+            search_from = start + end + 4;
+        } else {
+            break;
         }
     }
 
@@ -3368,6 +3431,104 @@ pub async fn inline_edit(
         let _ = chat_engine.set_provider_by_name(&provider);
     }
     chat_engine.chat(&messages, None).await.map_err(|e| e.to_string())
+}
+
+/// Generate code at cursor position using file context, project context, and user instruction.
+#[tauri::command]
+pub async fn generate_code(
+    state: tauri::State<'_, AppState>,
+    file_path: String,
+    language: String,
+    file_content: String,
+    cursor_line: u32,
+    instruction: String,
+    provider: String,
+) -> Result<String, String> {
+    // Gather nearby context: lines around cursor
+    let lines: Vec<&str> = file_content.lines().collect();
+    let total = lines.len();
+    let cursor = cursor_line as usize;
+    let before_start = cursor.saturating_sub(40);
+    let after_end = (cursor + 20).min(total);
+    let before_ctx = lines[before_start..cursor.min(total)].join("\n");
+    let after_ctx = if cursor < total { lines[cursor..after_end].join("\n") } else { String::new() };
+
+    // Get project file tree for context
+    let ws = {
+        let workspace = state.workspace.lock().await;
+        workspace.folders().first().cloned()
+            .unwrap_or_else(|| std::env::current_dir().unwrap_or_default())
+    };
+    let mut file_list = Vec::new();
+    fn walk_brief(dir: &std::path::Path, prefix: &str, out: &mut Vec<String>, depth: u8) {
+        if depth > 3 || out.len() > 100 { return; }
+        let Ok(entries) = std::fs::read_dir(dir) else { return };
+        for entry in entries.flatten() {
+            let name = entry.file_name().to_string_lossy().to_string();
+            if name.starts_with('.') || name == "node_modules" || name == "target" || name == "dist" { continue; }
+            let path_str = if prefix.is_empty() { name.clone() } else { format!("{}/{}", prefix, name) };
+            if entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
+                out.push(format!("{}/", path_str));
+                walk_brief(&entry.path(), &path_str, out, depth + 1);
+            } else {
+                out.push(path_str);
+            }
+            if out.len() > 100 { return; }
+        }
+    }
+    walk_brief(&ws, "", &mut file_list, 0);
+    let project_tree = if file_list.is_empty() { String::new() } else {
+        format!("\nPROJECT FILES:\n{}\n", file_list.join("\n"))
+    };
+
+    let prompt = format!(
+        r#"You are an expert {language} developer. Generate code to insert at line {line} in file "{file_path}".
+{project_tree}
+=== CODE BEFORE CURSOR (line {before_start_line}-{cursor_line}) ===
+{before_ctx}
+=== CURSOR IS HERE (line {line}) ===
+=== CODE AFTER CURSOR (line {after_start}-{after_end_line}) ===
+{after_ctx}
+=== END FILE CONTEXT ===
+
+INSTRUCTION: {instruction}
+
+Generate ONLY the code to insert at the cursor position. No markdown fences, no explanations.
+Follow the existing code style, indentation, and patterns in the file.
+If the instruction is a comment describing what to build, generate the implementation."#,
+        language = language,
+        file_path = file_path,
+        line = cursor_line + 1,
+        before_start_line = before_start + 1,
+        cursor_line = cursor.min(total),
+        after_start = cursor + 1,
+        after_end_line = after_end,
+        before_ctx = before_ctx,
+        after_ctx = after_ctx,
+        instruction = instruction,
+        project_tree = project_tree,
+    );
+
+    let messages = vec![vibe_ai::provider::Message {
+        role: vibe_ai::provider::MessageRole::User,
+        content: prompt,
+    }];
+
+    let mut chat_engine = state.chat_engine.lock().await;
+    if !provider.is_empty() {
+        let _ = chat_engine.set_provider_by_name(&provider);
+    }
+    let result = chat_engine.chat(&messages, None).await.map_err(|e| e.to_string())?;
+
+    // Strip markdown fences if the model wrapped them anyway
+    let code = result.trim();
+    let code = if code.starts_with("```") {
+        let s = code.find('\n').map(|i| i + 1).unwrap_or(3);
+        let e = code.rfind("```").unwrap_or(code.len());
+        &code[s..e]
+    } else { code };
+
+    Ok(code.to_string())
 }
 
 // ─── Phase 5 — Trace / History Commands ───────────────────────────────────────
@@ -16595,7 +16756,9 @@ pub async fn get_health_monitors() -> Result<Vec<HealthMonitor>, String> {
 #[tauri::command]
 pub async fn save_health_monitors(monitors: Vec<HealthMonitor>) -> Result<(), String> {
     let path = health_monitors_path();
-    std::fs::create_dir_all(path.parent().unwrap()).map_err(|e| e.to_string())?;
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
     let data = serde_json::to_string_pretty(&monitors).map_err(|e| e.to_string())?;
     std::fs::write(&path, &data).map_err(|e| e.to_string())
 }
@@ -16676,7 +16839,9 @@ pub async fn get_ws_configs() -> Result<Vec<WsConfig>, String> {
 #[tauri::command]
 pub async fn save_ws_configs(configs: Vec<WsConfig>) -> Result<(), String> {
     let path = ws_configs_path();
-    std::fs::create_dir_all(path.parent().unwrap()).map_err(|e| e.to_string())?;
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
     std::fs::write(
         &path,
         serde_json::to_string_pretty(&configs).map_err(|e| e.to_string())?,
@@ -16715,7 +16880,9 @@ pub async fn get_color_palettes() -> Result<Vec<ColorPalette>, String> {
 #[tauri::command]
 pub async fn save_color_palettes(palettes: Vec<ColorPalette>) -> Result<(), String> {
     let path = palettes_path();
-    std::fs::create_dir_all(path.parent().unwrap()).map_err(|e| e.to_string())?;
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
     std::fs::write(&path, serde_json::to_string_pretty(&palettes).map_err(|e| e.to_string())?)
         .map_err(|e| e.to_string())
 }
@@ -23013,10 +23180,10 @@ pub async fn wm_move_item(display_id: String, status: String) -> Result<(), Stri
     let arr = items.as_array_mut().ok_or("Invalid items data")?;
     let item = arr.iter_mut().find(|i| i.get("displayId").and_then(|v| v.as_str()) == Some(&display_id))
         .ok_or("Item not found")?;
-    item.as_object_mut().map(|o| {
+    if let Some(o) = item.as_object_mut() {
         o.insert("status".to_string(), serde_json::json!(status));
         o.insert("updatedAt".to_string(), serde_json::json!(now));
-    });
+    }
     wm_write_json("items.json", &items)
 }
 
@@ -23044,7 +23211,8 @@ pub async fn wm_add_relationship(source_id: String, target_id: String, rel_type:
 
     // Add relationship to source
     if let Some(source) = arr.iter_mut().find(|i| i.get("displayId").and_then(|v| v.as_str()) == Some(&source_id)) {
-        let rels = source.as_object_mut().unwrap()
+        if let Some(source_obj) = source.as_object_mut() {
+        let rels = source_obj
             .entry("relationships").or_insert(serde_json::json!([]));
         if let Some(rels_arr) = rels.as_array_mut() {
             let already = rels_arr.iter().any(|r|
@@ -23054,12 +23222,14 @@ pub async fn wm_add_relationship(source_id: String, target_id: String, rel_type:
                 rels_arr.push(serde_json::json!({"targetId": target_id, "type": rel_type}));
             }
         }
+        }
     }
 
     // Add inverse relationship to target
     let inverse = wm_inverse_rel(&rel_type);
     if let Some(target) = arr.iter_mut().find(|i| i.get("displayId").and_then(|v| v.as_str()) == Some(&target_id)) {
-        let rels = target.as_object_mut().unwrap()
+        if let Some(target_obj) = target.as_object_mut() {
+        let rels = target_obj
             .entry("relationships").or_insert(serde_json::json!([]));
         if let Some(rels_arr) = rels.as_array_mut() {
             let already = rels_arr.iter().any(|r|
@@ -23068,6 +23238,7 @@ pub async fn wm_add_relationship(source_id: String, target_id: String, rel_type:
             if !already {
                 rels_arr.push(serde_json::json!({"targetId": source_id, "type": inverse}));
             }
+        }
         }
     }
 
@@ -23517,7 +23688,7 @@ pub async fn quantum_create_project(
         "description": description,
         "estimatedPhysicalQubits": num_qubits,
     });
-    projects.as_array_mut().unwrap().push(project.clone());
+    if let Some(arr) = projects.as_array_mut() { arr.push(project.clone()); }
     quantum_write_json("projects.json", &projects)?;
     Ok(project)
 }
@@ -23552,7 +23723,7 @@ pub async fn quantum_create_circuit(
         "depth": 0,
         "twoQubitGates": 0,
     });
-    circuits.as_array_mut().unwrap().push(circuit.clone());
+    if let Some(arr) = circuits.as_array_mut() { arr.push(circuit.clone()); }
     quantum_write_json("circuits.json", &circuits)?;
     Ok(circuit)
 }
@@ -25363,7 +25534,9 @@ fn load_agent_modes_data() -> AgentModesData {
 
 fn save_agent_modes_data(data: &AgentModesData) -> Result<(), String> {
     let path = agent_modes_path();
-    std::fs::create_dir_all(path.parent().unwrap()).map_err(|e| e.to_string())?;
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
     let json = serde_json::to_string_pretty(data).map_err(|e| e.to_string())?;
     std::fs::write(&path, &json).map_err(|e| e.to_string())
 }
@@ -27474,7 +27647,7 @@ fn extract_declarations(source: &str, language: &str) -> Vec<AstNode> {
                         }
                     }
                 } else if let Some(rest) = trimmed.strip_prefix("class ") {
-                    if let Some(name) = rest.split(|c: char| c == '(' || c == ':').next() {
+                    if let Some(name) = rest.split(['(', ':']).next() {
                         let name = name.trim();
                         if !name.is_empty() {
                             nodes.push(AstNode { name: name.to_string(), kind: "struct".into(), line: line_num, children: None });
@@ -28176,7 +28349,7 @@ pub async fn batch_create_run(spec: serde_json::Value) -> Result<serde_json::Val
         obj.insert("agents".into(), serde_json::json!([]));
         obj.insert("phases".into(), serde_json::json!([]));
     }
-    runs.as_array_mut().unwrap().push(run.clone());
+    if let Some(arr) = runs.as_array_mut() { arr.push(run.clone()); }
     batch_write_json("runs.json", &runs)?;
     Ok(run)
 }

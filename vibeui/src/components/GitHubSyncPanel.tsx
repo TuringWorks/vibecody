@@ -165,7 +165,7 @@ export function GitHubSyncPanel({ workspacePath }: { workspacePath: string | nul
  {(error || success) && (
  <div style={{ padding: "8px 12px", background: error ? "var(--error-bg)" : "var(--success-bg)", color: error ? "var(--error-color)" : "var(--success-color)", fontSize: "12px" }}>
  {error || success}
- <button style={{ float: "right", background: "none", border: "none", cursor: "pointer", color: "inherit" }} onClick={() => { setError(null); setSuccess(null); }}>×</button>
+ <button aria-label="Dismiss" style={{ float: "right", background: "none", border: "none", cursor: "pointer", color: "inherit" }} onClick={() => { setError(null); setSuccess(null); }}>×</button>
  </div>
  )}
 

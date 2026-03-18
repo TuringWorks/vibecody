@@ -425,29 +425,30 @@ function App() {
 
     const getRootPath = () => workspaceFolders[0] || ""; // Simple assumption for MVP
 
-    // ── Cmd+K: open Inline Chat when there's a selection ──────────────────────
+    // ── Cmd+K: Inline Chat (edit selection) or Generate Code (no selection) ──
     editor.addCommand(
       monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK,
       () => {
         const selection = editor.getSelection();
-        if (!selection || selection.isEmpty()) return;
         const model = editor.getModel();
         if (!model) return;
-        const selectedText = model.getValueInRange(selection);
-        if (!selectedText.trim()) return;
 
-        // Compute pixel position of the selection start
-        const lineTop = editor.getTopForLineNumber(selection.startLineNumber);
+        const pos = editor.getPosition();
+        const lineNum = pos?.lineNumber ?? 1;
+        const lineTop = editor.getTopForLineNumber(lineNum);
         const scrollTop = editor.getScrollTop();
         const layoutInfo = editor.getLayoutInfo();
         const editorDom = editor.getDomNode();
         const rect = editorDom?.getBoundingClientRect() ?? { top: 0, left: 0 };
 
+        const hasSelection = selection && !selection.isEmpty();
+        const selectedText = hasSelection ? model.getValueInRange(selection) : "";
+
         setInlineChat({
           selection: {
             text: selectedText,
-            startLine: selection.startLineNumber - 1,
-            endLine: selection.endLineNumber - 1,
+            startLine: hasSelection ? selection.startLineNumber - 1 : lineNum - 1,
+            endLine: hasSelection ? selection.endLineNumber - 1 : lineNum - 1,
             filePath: activeFilePath ?? "",
             language: model.getLanguageId(),
           },
@@ -1186,9 +1187,7 @@ function App() {
           <h1 className="app-title">VibeUI</h1>
           <MenuBar menus={appMenus} />
         </div>
-        <div className="header-center">
-          {currentFile && <span className="current-file">{currentFile}</span>}
-        </div>
+        <div className="header-center" />
         <div className="header-right">
           <select
             className="ai-selector"
@@ -1356,11 +1355,14 @@ function App() {
                   </button>
                 </div>
                 <div className="search-results" style={{ flex: 1, overflowY: 'auto' }}>
-                  {searchResults.map((result, index) => (
+                  {searchResults.map((result) => (
                     <div
-                      key={index}
+                      key={`${result.path}:${result.line_number}`}
                       className="search-result-item"
+                      role="button"
+                      tabIndex={0}
                       onClick={() => handleSearchResultClick(result)}
+                      onKeyDown={e => e.key === "Enter" && handleSearchResultClick(result)}
                       style={{ padding: '5px', borderBottom: '1px solid var(--border-color)', cursor: 'pointer' }}
                     >
                       <div style={{ fontSize: '12px', color: 'var(--accent-blue)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -1672,7 +1674,7 @@ function App() {
                     <span style={{ color: "var(--text-primary)", fontWeight: 500 }}>{(TAB_META[aiPanelTab] || DEFAULT_TAB_META).label}</span>
                   </div>
                 )}
-                <div style={{ flex: 1, overflow: "hidden" }}>
+                <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
                   <PanelHost
                     tab={aiPanelTab}
                     selectedProvider={selectedProvider}
@@ -1748,6 +1750,18 @@ function App() {
         <div className="status-left">
           <span>VibeUI v{appVersion}</span>
           {workspaceFolders.length > 0 && <span>• {workspaceFolders.length} folder(s)</span>}
+          {currentFile && (
+            <span
+              className="status-file-path"
+              title={currentFile}
+              onClick={() => {
+                const el = document.querySelector('.status-file-path');
+                if (el) el.classList.toggle('status-file-path--expanded');
+              }}
+            >
+              {currentFile.split('/').pop()} <span className="status-file-dir">— {currentFile}</span>
+            </span>
+          )}
           {currentFile && <span>• {editorLanguage}</span>}
           {gitStatus && (
             <span style={{ marginLeft: '10px', display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -1798,33 +1812,49 @@ function App() {
           selection={inlineChat.selection}
           position={inlineChat.position}
           provider={selectedProvider}
+          fileContent={editorContent}
           onAccept={(newText) => {
             const editor = editorRef.current;
+            const isGenerate = !inlineChat.selection.text.trim();
             if (editor) {
               const model = editor.getModel();
               if (model) {
                 const sel = inlineChat.selection;
-                const range = {
-                  startLineNumber: sel.startLine + 1,
-                  startColumn: 1,
-                  endLineNumber: sel.endLine + 1,
-                  endColumn: model.getLineMaxColumn(sel.endLine + 1),
-                };
-                editor.executeEdits("inline-chat", [{
-                  range,
-                  text: newText,
-                  forceMoveMarkers: true,
-                }]);
+                if (isGenerate) {
+                  // Generate mode: insert at cursor line
+                  const insertLine = sel.startLine + 1;
+                  const col = model.getLineMaxColumn(insertLine);
+                  editor.executeEdits("inline-generate", [{
+                    range: { startLineNumber: insertLine, startColumn: col, endLineNumber: insertLine, endColumn: col },
+                    text: "\n" + newText,
+                    forceMoveMarkers: true,
+                  }]);
+                } else {
+                  // Edit mode: replace selection
+                  const range = {
+                    startLineNumber: sel.startLine + 1,
+                    startColumn: 1,
+                    endLineNumber: sel.endLine + 1,
+                    endColumn: model.getLineMaxColumn(sel.endLine + 1),
+                  };
+                  editor.executeEdits("inline-chat", [{
+                    range,
+                    text: newText,
+                    forceMoveMarkers: true,
+                  }]);
+                }
               }
             }
-            // Record accepted inline edit in Cascade flow
             flowContext.add({
-              kind: "inline_edit",
-              summary: `Inline edit in ${inlineChat.selection.filePath.split("/").pop() ?? "file"} (lines ${inlineChat.selection.startLine + 1}–${inlineChat.selection.endLine + 1})`,
-              detail: `Original:\n${inlineChat.selection.text.slice(0, 400)}\n\nReplaced with:\n${newText.slice(0, 400)}`,
+              kind: isGenerate ? "inline_generate" : "inline_edit",
+              summary: isGenerate
+                ? `Generated code at line ${inlineChat.selection.startLine + 1} in ${inlineChat.selection.filePath.split("/").pop() ?? "file"}`
+                : `Inline edit in ${inlineChat.selection.filePath.split("/").pop() ?? "file"} (lines ${inlineChat.selection.startLine + 1}–${inlineChat.selection.endLine + 1})`,
+              detail: isGenerate
+                ? `Generated:\n${newText.slice(0, 400)}`
+                : `Original:\n${inlineChat.selection.text.slice(0, 400)}\n\nReplaced with:\n${newText.slice(0, 400)}`,
               filePath: inlineChat.selection.filePath,
             });
-            // Invalidate supercomplete cache after edit
             supercompleteEngine.invalidate();
             setInlineChat(null);
           }}
@@ -1881,7 +1911,7 @@ function App() {
 
       {/* Settings Modal */}
       {showSettingsModal && (
-        <div style={{
+        <div role="dialog" aria-modal="true" aria-label="Settings" style={{
           position: 'fixed', inset: 0, zIndex: 9999,
           background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',

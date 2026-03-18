@@ -294,7 +294,7 @@ export function ColorConverterPanel() {
  {tints.map((c, i) => {
  const h = rgbToHex(c);
  return (
- <div key={i} onClick={() => setHex(h)} style={{ cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+ <div key={i} role="button" tabIndex={0} onClick={() => setHex(h)} onKeyDown={e => e.key === "Enter" && setHex(h)} style={{ cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
  <div style={{ width: 40, height: 40, background: h, borderRadius: 6, border: "1px solid var(--border-color)", transition: "transform 0.1s" }} title={h} />
  <span style={{ fontSize: 8, fontFamily: "monospace", color: "var(--text-muted)" }}>{i * 10}%</span>
  </div>
@@ -306,7 +306,7 @@ export function ColorConverterPanel() {
  {shades.map((c, i) => {
  const h = rgbToHex(c);
  return (
- <div key={i} onClick={() => setHex(h)} style={{ cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+ <div key={i} role="button" tabIndex={0} onClick={() => setHex(h)} onKeyDown={e => e.key === "Enter" && setHex(h)} style={{ cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
  <div style={{ width: 40, height: 40, background: h, borderRadius: 6, border: "1px solid var(--border-color)" }} title={h} />
  <span style={{ fontSize: 8, fontFamily: "monospace", color: "var(--text-muted)" }}>{i * 10}%</span>
  </div>

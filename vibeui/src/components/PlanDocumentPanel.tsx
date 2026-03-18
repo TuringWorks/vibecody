@@ -197,7 +197,7 @@ export default function PlanDocumentPanel() {
               <div style={{ textAlign: "center", color: "var(--text-muted)", fontSize: 12, padding: 40 }}>No plans yet. Create one to get started.</div>
             )}
             {plans.map(p => (
-              <div key={p.id} onClick={() => { setSelectedPlan(p.id); setTab("editor"); }}
+              <div key={p.id} role="button" tabIndex={0} onClick={() => { setSelectedPlan(p.id); setTab("editor"); }} onKeyDown={e => e.key === "Enter" && (setSelectedPlan(p.id), setTab("editor"))}
                 style={{ padding: 10, background: selectedPlan === p.id ? "var(--accent-bg)" : "var(--bg-secondary)", borderRadius: 6, border: `1px solid ${selectedPlan === p.id ? "var(--accent-primary)" : "var(--border-color)"}`, cursor: "pointer" }}>
                 <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4 }}>
                   <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>{p.title}</span>

@@ -515,7 +515,7 @@ impl KnowledgeGraph {
         let mut connected: HashSet<NodeId> = HashSet::new();
         let mut cross_repo = 0;
 
-        for (_, node) in &self.nodes {
+        for node in self.nodes.values() {
             *nodes_per_repo.entry(node.repo.clone()).or_default() += 1;
         }
 

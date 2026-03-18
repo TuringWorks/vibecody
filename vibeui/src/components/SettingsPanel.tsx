@@ -72,7 +72,7 @@ interface ApiKeySettings {
 export const THEMES: ThemeDef[] = [
   // ── Pair: Default (Midnight Blue / Clean White) ──
   {
-    id: "dark-default", name: "Midnight Blue", category: "standard", mode: "dark", pairId: "default",
+    id: "dark-default", name: "Default", category: "standard", mode: "dark", pairId: "default",
     preview: { bg: "#0f1117", fg: "#e2e4ea", accent: "#6c8cff", secondary: "#161821" },
     vars: {
       "--bg-primary": "#0f1117", "--bg-secondary": "#161821", "--bg-tertiary": "#1c1f2b", "--bg-elevated": "#222638",
@@ -82,7 +82,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-default", name: "Clean White", category: "standard", mode: "light", pairId: "default",
+    id: "light-default", name: "Default", category: "standard", mode: "light", pairId: "default",
     preview: { bg: "#fafbfd", fg: "#1a1d2e", accent: "#4f6df5", secondary: "#f0f1f5" },
     vars: {
       "--bg-primary": "#fafbfd", "--bg-secondary": "#f0f1f5", "--bg-tertiary": "#e6e8ef", "--bg-elevated": "#ffffff",
@@ -103,7 +103,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-charcoal", name: "Silver", category: "standard", mode: "light", pairId: "charcoal",
+    id: "light-charcoal", name: "Charcoal", category: "standard", mode: "light", pairId: "charcoal",
     preview: { bg: "#f3f3f3", fg: "#1e1e1e", accent: "#005fb8", secondary: "#e8e8e8" },
     vars: {
       "--bg-primary": "#f3f3f3", "--bg-secondary": "#e8e8e8", "--bg-tertiary": "#d6d6d6", "--bg-elevated": "#ffffff",
@@ -114,7 +114,7 @@ export const THEMES: ThemeDef[] = [
   },
   // ── Pair: Warm (Warm Dusk / Warm Sand) ──
   {
-    id: "dark-warm", name: "Warm Dusk", category: "standard", mode: "dark", pairId: "warm",
+    id: "dark-warm", name: "Warm", category: "standard", mode: "dark", pairId: "warm",
     preview: { bg: "#1a1410", fg: "#e6ddd0", accent: "#d4a373", secondary: "#2a2118" },
     vars: {
       "--bg-primary": "#1a1410", "--bg-secondary": "#2a2118", "--bg-tertiary": "#3a2e22", "--bg-elevated": "#453828",
@@ -124,7 +124,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-warm", name: "Warm Sand", category: "standard", mode: "light", pairId: "warm",
+    id: "light-warm", name: "Warm", category: "standard", mode: "light", pairId: "warm",
     preview: { bg: "#fdf6e3", fg: "#073642", accent: "#268bd2", secondary: "#eee8d5" },
     vars: {
       "--bg-primary": "#fdf6e3", "--bg-secondary": "#eee8d5", "--bg-tertiary": "#e0dbc7", "--bg-elevated": "#fffdf5",
@@ -135,7 +135,7 @@ export const THEMES: ThemeDef[] = [
   },
   // ── Pair: Ocean (Deep Ocean / Coastal Light) ──
   {
-    id: "dark-ocean", name: "Deep Ocean", category: "standard", mode: "dark", pairId: "ocean",
+    id: "dark-ocean", name: "Ocean", category: "standard", mode: "dark", pairId: "ocean",
     preview: { bg: "#0d1b2a", fg: "#e0e1dd", accent: "#48cae4", secondary: "#1b2838" },
     vars: {
       "--bg-primary": "#0d1b2a", "--bg-secondary": "#1b2838", "--bg-tertiary": "#233345", "--bg-elevated": "#2b3e50",
@@ -145,7 +145,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-ocean", name: "Coastal Light", category: "standard", mode: "light", pairId: "ocean",
+    id: "light-ocean", name: "Ocean", category: "standard", mode: "light", pairId: "ocean",
     preview: { bg: "#f0f8ff", fg: "#0d1b2a", accent: "#0077b6", secondary: "#e0f0fa" },
     vars: {
       "--bg-primary": "#f0f8ff", "--bg-secondary": "#e0f0fa", "--bg-tertiary": "#c8e3f5", "--bg-elevated": "#ffffff",
@@ -156,7 +156,7 @@ export const THEMES: ThemeDef[] = [
   },
   // ── Pair: Rose (Rose Night / Rose Garden) ──
   {
-    id: "dark-rose", name: "Rose Night", category: "standard", mode: "dark", pairId: "rose",
+    id: "dark-rose", name: "Rose", category: "standard", mode: "dark", pairId: "rose",
     preview: { bg: "#1a0f10", fg: "#f0dde0", accent: "#f43f5e", secondary: "#2a1a1c" },
     vars: {
       "--bg-primary": "#1a0f10", "--bg-secondary": "#2a1a1c", "--bg-tertiary": "#3a2528", "--bg-elevated": "#452e32",
@@ -166,7 +166,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-rose", name: "Rose Garden", category: "standard", mode: "light", pairId: "rose",
+    id: "light-rose", name: "Rose", category: "standard", mode: "light", pairId: "rose",
     preview: { bg: "#fff5f5", fg: "#2d1b1b", accent: "#e11d48", secondary: "#ffe4e6" },
     vars: {
       "--bg-primary": "#fff5f5", "--bg-secondary": "#ffe4e6", "--bg-tertiary": "#fecdd3", "--bg-elevated": "#ffffff",
@@ -177,7 +177,7 @@ export const THEMES: ThemeDef[] = [
   },
   // ── Pair: High Contrast ──
   {
-    id: "hc-dark", name: "High Contrast Dark", category: "high-contrast", mode: "dark", pairId: "hc",
+    id: "hc-dark", name: "High Contrast", category: "high-contrast", mode: "dark", pairId: "hc",
     preview: { bg: "#000000", fg: "#ffffff", accent: "#00e0ff", secondary: "#0a0a0a" },
     vars: {
       "--bg-primary": "#000000", "--bg-secondary": "#0a0a0a", "--bg-tertiary": "#141414", "--bg-elevated": "#1e1e1e",
@@ -187,7 +187,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "hc-light", name: "High Contrast Light", category: "high-contrast", mode: "light", pairId: "hc",
+    id: "hc-light", name: "High Contrast", category: "high-contrast", mode: "light", pairId: "hc",
     preview: { bg: "#ffffff", fg: "#000000", accent: "#0033cc", secondary: "#f0f0f0" },
     vars: {
       "--bg-primary": "#ffffff", "--bg-secondary": "#f0f0f0", "--bg-tertiary": "#e0e0e0", "--bg-elevated": "#ffffff",
@@ -198,7 +198,7 @@ export const THEMES: ThemeDef[] = [
   },
   // ── Pair: Deuteranopia ──
   {
-    id: "cb-deuteranopia-dark", name: "Deuteranopia Dark", category: "color-blind", mode: "dark", pairId: "deuteranopia",
+    id: "cb-deuteranopia-dark", name: "Deuteranopia", category: "color-blind", mode: "dark", pairId: "deuteranopia",
     preview: { bg: "#0f1117", fg: "#e2e4ea", accent: "#648fff", secondary: "#161821" },
     vars: {
       "--bg-primary": "#0f1117", "--bg-secondary": "#161821", "--bg-tertiary": "#1c1f2b", "--bg-elevated": "#222638",
@@ -209,7 +209,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "cb-deuteranopia-light", name: "Deuteranopia Light", category: "color-blind", mode: "light", pairId: "deuteranopia",
+    id: "cb-deuteranopia-light", name: "Deuteranopia", category: "color-blind", mode: "light", pairId: "deuteranopia",
     preview: { bg: "#fafbfd", fg: "#1a1d2e", accent: "#3949ab", secondary: "#f0f1f5" },
     vars: {
       "--bg-primary": "#fafbfd", "--bg-secondary": "#f0f1f5", "--bg-tertiary": "#e6e8ef", "--bg-elevated": "#ffffff",
@@ -221,7 +221,7 @@ export const THEMES: ThemeDef[] = [
   },
   // ── Pair: Protanopia ──
   {
-    id: "cb-protanopia-dark", name: "Protanopia Dark", category: "color-blind", mode: "dark", pairId: "protanopia",
+    id: "cb-protanopia-dark", name: "Protanopia", category: "color-blind", mode: "dark", pairId: "protanopia",
     preview: { bg: "#0f1117", fg: "#e2e4ea", accent: "#785ef0", secondary: "#161821" },
     vars: {
       "--bg-primary": "#0f1117", "--bg-secondary": "#161821", "--bg-tertiary": "#1c1f2b", "--bg-elevated": "#222638",
@@ -232,7 +232,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "cb-protanopia-light", name: "Protanopia Light", category: "color-blind", mode: "light", pairId: "protanopia",
+    id: "cb-protanopia-light", name: "Protanopia", category: "color-blind", mode: "light", pairId: "protanopia",
     preview: { bg: "#fafbfd", fg: "#1a1d2e", accent: "#5c41c9", secondary: "#f0f1f5" },
     vars: {
       "--bg-primary": "#fafbfd", "--bg-secondary": "#f0f1f5", "--bg-tertiary": "#e6e8ef", "--bg-elevated": "#ffffff",
@@ -244,7 +244,7 @@ export const THEMES: ThemeDef[] = [
   },
   // ── Pair: Tritanopia ──
   {
-    id: "cb-tritanopia-dark", name: "Tritanopia Dark", category: "color-blind", mode: "dark", pairId: "tritanopia",
+    id: "cb-tritanopia-dark", name: "Tritanopia", category: "color-blind", mode: "dark", pairId: "tritanopia",
     preview: { bg: "#0f1117", fg: "#e2e4ea", accent: "#e8384f", secondary: "#161821" },
     vars: {
       "--bg-primary": "#0f1117", "--bg-secondary": "#161821", "--bg-tertiary": "#1c1f2b", "--bg-elevated": "#222638",
@@ -255,7 +255,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "cb-tritanopia-light", name: "Tritanopia Light", category: "color-blind", mode: "light", pairId: "tritanopia",
+    id: "cb-tritanopia-light", name: "Tritanopia", category: "color-blind", mode: "light", pairId: "tritanopia",
     preview: { bg: "#fafbfd", fg: "#1a1d2e", accent: "#c62038", secondary: "#f0f1f5" },
     vars: {
       "--bg-primary": "#fafbfd", "--bg-secondary": "#f0f1f5", "--bg-tertiary": "#e6e8ef", "--bg-elevated": "#ffffff",
@@ -282,7 +282,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-monokai", name: "Monokai Light", category: "standard", mode: "light", pairId: "monokai",
+    id: "light-monokai", name: "Monokai", category: "standard", mode: "light", pairId: "monokai",
     preview: { bg: "#fafafa", fg: "#272822", accent: "#629755", secondary: "#eeeee8" },
     vars: {
       "--bg-primary": "#fafafa", "--bg-secondary": "#eeeee8", "--bg-tertiary": "#e0e0d8", "--bg-elevated": "#ffffff",
@@ -303,7 +303,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-dracula", name: "Dracula Soft", category: "standard", mode: "light", pairId: "dracula",
+    id: "light-dracula", name: "Dracula", category: "standard", mode: "light", pairId: "dracula",
     preview: { bg: "#f8f8f2", fg: "#282a36", accent: "#7c3aed", secondary: "#ededec" },
     vars: {
       "--bg-primary": "#f8f8f2", "--bg-secondary": "#ededec", "--bg-tertiary": "#e0dfe0", "--bg-elevated": "#ffffff",
@@ -324,7 +324,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-nord", name: "Nord Light", category: "standard", mode: "light", pairId: "nord",
+    id: "light-nord", name: "Nord", category: "standard", mode: "light", pairId: "nord",
     preview: { bg: "#eceff4", fg: "#2e3440", accent: "#5e81ac", secondary: "#e5e9f0" },
     vars: {
       "--bg-primary": "#eceff4", "--bg-secondary": "#e5e9f0", "--bg-tertiary": "#d8dee9", "--bg-elevated": "#f8fafc",
@@ -335,7 +335,7 @@ export const THEMES: ThemeDef[] = [
   },
   // ── Pair: One (Atom) ──
   {
-    id: "dark-one", name: "One Dark", category: "standard", mode: "dark", pairId: "one",
+    id: "dark-one", name: "One", category: "standard", mode: "dark", pairId: "one",
     preview: { bg: "#282c34", fg: "#abb2bf", accent: "#61afef", secondary: "#21252b" },
     vars: {
       "--bg-primary": "#282c34", "--bg-secondary": "#21252b", "--bg-tertiary": "#2c313a", "--bg-elevated": "#333842",
@@ -345,7 +345,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-one", name: "One Light", category: "standard", mode: "light", pairId: "one",
+    id: "light-one", name: "One", category: "standard", mode: "light", pairId: "one",
     preview: { bg: "#fafafa", fg: "#383a42", accent: "#4078f2", secondary: "#f0f0f0" },
     vars: {
       "--bg-primary": "#fafafa", "--bg-secondary": "#f0f0f0", "--bg-tertiary": "#e5e5e6", "--bg-elevated": "#ffffff",
@@ -356,7 +356,7 @@ export const THEMES: ThemeDef[] = [
   },
   // ── Pair: GitHub ──
   {
-    id: "dark-github", name: "GitHub Dark", category: "standard", mode: "dark", pairId: "github",
+    id: "dark-github", name: "GitHub", category: "standard", mode: "dark", pairId: "github",
     preview: { bg: "#0d1117", fg: "#e6edf3", accent: "#58a6ff", secondary: "#161b22" },
     vars: {
       "--bg-primary": "#0d1117", "--bg-secondary": "#161b22", "--bg-tertiary": "#21262d", "--bg-elevated": "#30363d",
@@ -366,7 +366,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-github", name: "GitHub Light", category: "standard", mode: "light", pairId: "github",
+    id: "light-github", name: "GitHub", category: "standard", mode: "light", pairId: "github",
     preview: { bg: "#ffffff", fg: "#1f2328", accent: "#0969da", secondary: "#f6f8fa" },
     vars: {
       "--bg-primary": "#ffffff", "--bg-secondary": "#f6f8fa", "--bg-tertiary": "#eaeef2", "--bg-elevated": "#ffffff",
@@ -377,7 +377,7 @@ export const THEMES: ThemeDef[] = [
   },
   // ── Pair: Catppuccin (Mocha/Latte) ──
   {
-    id: "dark-catppuccin", name: "Catppuccin Mocha", category: "standard", mode: "dark", pairId: "catppuccin",
+    id: "dark-catppuccin", name: "Catppuccin", category: "standard", mode: "dark", pairId: "catppuccin",
     preview: { bg: "#1e1e2e", fg: "#cdd6f4", accent: "#89b4fa", secondary: "#313244" },
     vars: {
       "--bg-primary": "#1e1e2e", "--bg-secondary": "#313244", "--bg-tertiary": "#45475a", "--bg-elevated": "#585b70",
@@ -387,7 +387,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-catppuccin", name: "Catppuccin Latte", category: "standard", mode: "light", pairId: "catppuccin",
+    id: "light-catppuccin", name: "Catppuccin", category: "standard", mode: "light", pairId: "catppuccin",
     preview: { bg: "#eff1f5", fg: "#4c4f69", accent: "#1e66f5", secondary: "#e6e9ef" },
     vars: {
       "--bg-primary": "#eff1f5", "--bg-secondary": "#e6e9ef", "--bg-tertiary": "#ccd0da", "--bg-elevated": "#ffffff",
@@ -398,7 +398,7 @@ export const THEMES: ThemeDef[] = [
   },
   // ── Pair: Gruvbox ──
   {
-    id: "dark-gruvbox", name: "Gruvbox Dark", category: "standard", mode: "dark", pairId: "gruvbox",
+    id: "dark-gruvbox", name: "Gruvbox", category: "standard", mode: "dark", pairId: "gruvbox",
     preview: { bg: "#282828", fg: "#ebdbb2", accent: "#fabd2f", secondary: "#3c3836" },
     vars: {
       "--bg-primary": "#282828", "--bg-secondary": "#3c3836", "--bg-tertiary": "#504945", "--bg-elevated": "#665c54",
@@ -408,7 +408,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-gruvbox", name: "Gruvbox Light", category: "standard", mode: "light", pairId: "gruvbox",
+    id: "light-gruvbox", name: "Gruvbox", category: "standard", mode: "light", pairId: "gruvbox",
     preview: { bg: "#fbf1c7", fg: "#3c3836", accent: "#b57614", secondary: "#ebdbb2" },
     vars: {
       "--bg-primary": "#fbf1c7", "--bg-secondary": "#ebdbb2", "--bg-tertiary": "#d5c4a1", "--bg-elevated": "#fffbef",
@@ -419,7 +419,7 @@ export const THEMES: ThemeDef[] = [
   },
   // ── Pair: Tokyo Night ──
   {
-    id: "dark-tokyo", name: "Tokyo Night", category: "standard", mode: "dark", pairId: "tokyo",
+    id: "dark-tokyo", name: "Tokyo", category: "standard", mode: "dark", pairId: "tokyo",
     preview: { bg: "#1a1b26", fg: "#c0caf5", accent: "#7aa2f7", secondary: "#24283b" },
     vars: {
       "--bg-primary": "#1a1b26", "--bg-secondary": "#24283b", "--bg-tertiary": "#2f3347", "--bg-elevated": "#3b3f54",
@@ -429,7 +429,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-tokyo", name: "Tokyo Day", category: "standard", mode: "light", pairId: "tokyo",
+    id: "light-tokyo", name: "Tokyo", category: "standard", mode: "light", pairId: "tokyo",
     preview: { bg: "#d5d6db", fg: "#343b58", accent: "#34548a", secondary: "#c8c8ce" },
     vars: {
       "--bg-primary": "#d5d6db", "--bg-secondary": "#c8c8ce", "--bg-tertiary": "#b8b8c0", "--bg-elevated": "#e5e5ea",
@@ -440,7 +440,7 @@ export const THEMES: ThemeDef[] = [
   },
   // ── Pair: Material ──
   {
-    id: "dark-material", name: "Material Darker", category: "standard", mode: "dark", pairId: "material",
+    id: "dark-material", name: "Material", category: "standard", mode: "dark", pairId: "material",
     preview: { bg: "#212121", fg: "#eeffff", accent: "#82aaff", secondary: "#303030" },
     vars: {
       "--bg-primary": "#212121", "--bg-secondary": "#303030", "--bg-tertiary": "#3a3a3a", "--bg-elevated": "#424242",
@@ -450,7 +450,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-material", name: "Material Lighter", category: "standard", mode: "light", pairId: "material",
+    id: "light-material", name: "Material", category: "standard", mode: "light", pairId: "material",
     preview: { bg: "#fafafa", fg: "#546e7a", accent: "#6182b8", secondary: "#eaeaea" },
     vars: {
       "--bg-primary": "#fafafa", "--bg-secondary": "#eaeaea", "--bg-tertiary": "#d4d4d4", "--bg-elevated": "#ffffff",
@@ -461,7 +461,7 @@ export const THEMES: ThemeDef[] = [
   },
   // ── Pair: Solarized ──
   {
-    id: "dark-solarized", name: "Solarized Dark", category: "standard", mode: "dark", pairId: "solarized",
+    id: "dark-solarized", name: "Solarized", category: "standard", mode: "dark", pairId: "solarized",
     preview: { bg: "#002b36", fg: "#839496", accent: "#268bd2", secondary: "#073642" },
     vars: {
       "--bg-primary": "#002b36", "--bg-secondary": "#073642", "--bg-tertiary": "#0a4050", "--bg-elevated": "#0d4f5e",
@@ -471,7 +471,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-solarized", name: "Solarized Light", category: "standard", mode: "light", pairId: "solarized",
+    id: "light-solarized", name: "Solarized", category: "standard", mode: "light", pairId: "solarized",
     preview: { bg: "#fdf6e3", fg: "#4a5a60", accent: "#268bd2", secondary: "#eee8d5" },
     vars: {
       "--bg-primary": "#fdf6e3", "--bg-secondary": "#eee8d5", "--bg-tertiary": "#e0dbc7", "--bg-elevated": "#fffdf5",
@@ -492,7 +492,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-palenight", name: "Paleday", category: "standard", mode: "light", pairId: "palenight",
+    id: "light-palenight", name: "Palenight", category: "standard", mode: "light", pairId: "palenight",
     preview: { bg: "#f0f0f8", fg: "#3b3d55", accent: "#5a6acf", secondary: "#e4e4ef" },
     vars: {
       "--bg-primary": "#f0f0f8", "--bg-secondary": "#e4e4ef", "--bg-tertiary": "#d4d4e2", "--bg-elevated": "#fafaff",
@@ -503,7 +503,7 @@ export const THEMES: ThemeDef[] = [
   },
   // ── Pair: Ayu ──
   {
-    id: "dark-ayu", name: "Ayu Dark", category: "standard", mode: "dark", pairId: "ayu",
+    id: "dark-ayu", name: "Ayu", category: "standard", mode: "dark", pairId: "ayu",
     preview: { bg: "#0a0e14", fg: "#b3b1ad", accent: "#ffb454", secondary: "#1f2430" },
     vars: {
       "--bg-primary": "#0a0e14", "--bg-secondary": "#1f2430", "--bg-tertiary": "#272d38", "--bg-elevated": "#2e3440",
@@ -513,7 +513,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-ayu", name: "Ayu Light", category: "standard", mode: "light", pairId: "ayu",
+    id: "light-ayu", name: "Ayu", category: "standard", mode: "light", pairId: "ayu",
     preview: { bg: "#fafafa", fg: "#575f66", accent: "#ff9940", secondary: "#f0f0f0" },
     vars: {
       "--bg-primary": "#fafafa", "--bg-secondary": "#f0f0f0", "--bg-tertiary": "#e1e1e1", "--bg-elevated": "#ffffff",
@@ -524,7 +524,7 @@ export const THEMES: ThemeDef[] = [
   },
   // ── Pair: Slack (Organization) ──
   {
-    id: "dark-slack", name: "Slack Aubergine", category: "standard", mode: "dark", pairId: "slack",
+    id: "dark-slack", name: "Slack", category: "standard", mode: "dark", pairId: "slack",
     preview: { bg: "#1a1d21", fg: "#d1d2d3", accent: "#36c5f0", secondary: "#27242c" },
     vars: {
       "--bg-primary": "#1a1d21", "--bg-secondary": "#27242c", "--bg-tertiary": "#332f3b", "--bg-elevated": "#3d3848",
@@ -534,7 +534,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-slack", name: "Slack Daylight", category: "standard", mode: "light", pairId: "slack",
+    id: "light-slack", name: "Slack", category: "standard", mode: "light", pairId: "slack",
     preview: { bg: "#ffffff", fg: "#1d1c1d", accent: "#1264a3", secondary: "#f8f8f8" },
     vars: {
       "--bg-primary": "#ffffff", "--bg-secondary": "#f8f8f8", "--bg-tertiary": "#ececec", "--bg-elevated": "#ffffff",
@@ -545,7 +545,7 @@ export const THEMES: ThemeDef[] = [
   },
   // ── Pair: Cobalt ──
   {
-    id: "dark-cobalt", name: "Cobalt2", category: "standard", mode: "dark", pairId: "cobalt",
+    id: "dark-cobalt", name: "Cobalt", category: "standard", mode: "dark", pairId: "cobalt",
     preview: { bg: "#193549", fg: "#e1efff", accent: "#ffc600", secondary: "#1f4662" },
     vars: {
       "--bg-primary": "#193549", "--bg-secondary": "#1f4662", "--bg-tertiary": "#245170", "--bg-elevated": "#2a5c80",
@@ -555,7 +555,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-cobalt", name: "Cobalt Light", category: "standard", mode: "light", pairId: "cobalt",
+    id: "light-cobalt", name: "Cobalt", category: "standard", mode: "light", pairId: "cobalt",
     preview: { bg: "#f0f5fa", fg: "#193549", accent: "#b8860b", secondary: "#dfe8f0" },
     vars: {
       "--bg-primary": "#f0f5fa", "--bg-secondary": "#dfe8f0", "--bg-tertiary": "#c8d8e4", "--bg-elevated": "#ffffff",
@@ -576,7 +576,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-synthwave", name: "Synthwave Day", category: "standard", mode: "light", pairId: "synthwave",
+    id: "light-synthwave", name: "Synthwave '84", category: "standard", mode: "light", pairId: "synthwave",
     preview: { bg: "#f5f0ff", fg: "#2d2350", accent: "#c44040", secondary: "#e8e0f5" },
     vars: {
       "--bg-primary": "#f5f0ff", "--bg-secondary": "#e8e0f5", "--bg-tertiary": "#d8cee8", "--bg-elevated": "#ffffff",
@@ -587,7 +587,7 @@ export const THEMES: ThemeDef[] = [
   },
   // ── Pair: Everforest ──
   {
-    id: "dark-everforest", name: "Everforest Dark", category: "standard", mode: "dark", pairId: "everforest",
+    id: "dark-everforest", name: "Everforest", category: "standard", mode: "dark", pairId: "everforest",
     preview: { bg: "#2d353b", fg: "#d3c6aa", accent: "#a7c080", secondary: "#343f44" },
     vars: {
       "--bg-primary": "#2d353b", "--bg-secondary": "#343f44", "--bg-tertiary": "#3d484d", "--bg-elevated": "#475258",
@@ -597,7 +597,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-everforest", name: "Everforest Light", category: "standard", mode: "light", pairId: "everforest",
+    id: "light-everforest", name: "Everforest", category: "standard", mode: "light", pairId: "everforest",
     preview: { bg: "#fdf6e3", fg: "#5c6a72", accent: "#8da101", secondary: "#f0ead2" },
     vars: {
       "--bg-primary": "#fdf6e3", "--bg-secondary": "#f0ead2", "--bg-tertiary": "#e0dab8", "--bg-elevated": "#fffbf0",
@@ -618,7 +618,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-kanagawa", name: "Kanagawa Lotus", category: "standard", mode: "light", pairId: "kanagawa",
+    id: "light-kanagawa", name: "Kanagawa", category: "standard", mode: "light", pairId: "kanagawa",
     preview: { bg: "#f2ecbc", fg: "#43436c", accent: "#4d699b", secondary: "#e7dba0" },
     vars: {
       "--bg-primary": "#f2ecbc", "--bg-secondary": "#e7dba0", "--bg-tertiary": "#d8cc88", "--bg-elevated": "#faf5d0",
@@ -643,7 +643,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-rivian-blue", name: "Glacier White", category: "standard", mode: "light", pairId: "rivian-blue",
+    id: "light-rivian-blue", name: "Rivian Blue", category: "standard", mode: "light", pairId: "rivian-blue",
     preview: { bg: "#f4f6f9", fg: "#1a2a42", accent: "#2a5fa0", secondary: "#e6ebf2" },
     vars: {
       "--bg-primary": "#f4f6f9", "--bg-secondary": "#e6ebf2", "--bg-tertiary": "#d4dce8", "--bg-elevated": "#ffffff",
@@ -654,7 +654,7 @@ export const THEMES: ThemeDef[] = [
   },
   // ── Pair: Forest Green (R1 exterior) / Limestone (R1 warm beige) ──
   {
-    id: "dark-rivian-forest", name: "Forest Green", category: "standard", mode: "dark", pairId: "rivian-forest",
+    id: "dark-rivian-forest", name: "Rivian Forest", category: "standard", mode: "dark", pairId: "rivian-forest",
     preview: { bg: "#0e1a15", fg: "#d0ddd4", accent: "#4a8c6a", secondary: "#162820" },
     vars: {
       "--bg-primary": "#0e1a15", "--bg-secondary": "#162820", "--bg-tertiary": "#1e352b", "--bg-elevated": "#274236",
@@ -664,7 +664,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-rivian-forest", name: "Limestone", category: "standard", mode: "light", pairId: "rivian-forest",
+    id: "light-rivian-forest", name: "Rivian Forest", category: "standard", mode: "light", pairId: "rivian-forest",
     preview: { bg: "#f5f0e8", fg: "#2a2820", accent: "#3d7a58", secondary: "#e8e0d2" },
     vars: {
       "--bg-primary": "#f5f0e8", "--bg-secondary": "#e8e0d2", "--bg-tertiary": "#d8cebc", "--bg-elevated": "#fdf8f0",
@@ -675,7 +675,7 @@ export const THEMES: ThemeDef[] = [
   },
   // ── Pair: El Cap Granite (R1 exterior) / LA Silver (R1 exterior) ──
   {
-    id: "dark-rivian-granite", name: "El Cap Granite", category: "standard", mode: "dark", pairId: "rivian-granite",
+    id: "dark-rivian-granite", name: "Rivian Granite", category: "standard", mode: "dark", pairId: "rivian-granite",
     preview: { bg: "#161514", fg: "#d5d0ca", accent: "#a09080", secondary: "#221f1d" },
     vars: {
       "--bg-primary": "#161514", "--bg-secondary": "#221f1d", "--bg-tertiary": "#2e2a27", "--bg-elevated": "#3a3532",
@@ -685,7 +685,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-rivian-granite", name: "LA Silver", category: "standard", mode: "light", pairId: "rivian-granite",
+    id: "light-rivian-granite", name: "Rivian Granite", category: "standard", mode: "light", pairId: "rivian-granite",
     preview: { bg: "#f0eeec", fg: "#2a2624", accent: "#6a6058", secondary: "#e2dedb" },
     vars: {
       "--bg-primary": "#f0eeec", "--bg-secondary": "#e2dedb", "--bg-tertiary": "#d0ccc7", "--bg-elevated": "#faf8f6",
@@ -696,7 +696,7 @@ export const THEMES: ThemeDef[] = [
   },
   // ── Pair: Midnight (R1 exterior) / Ocean Coast (R1 interior) ──
   {
-    id: "dark-rivian-midnight", name: "Midnight", category: "standard", mode: "dark", pairId: "rivian-midnight",
+    id: "dark-rivian-midnight", name: "Rivian Midnight", category: "standard", mode: "dark", pairId: "rivian-midnight",
     preview: { bg: "#08090e", fg: "#cdd2dc", accent: "#5a8aaa", secondary: "#10121a" },
     vars: {
       "--bg-primary": "#08090e", "--bg-secondary": "#10121a", "--bg-tertiary": "#181c28", "--bg-elevated": "#222838",
@@ -706,7 +706,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-rivian-midnight", name: "Ocean Coast", category: "standard", mode: "light", pairId: "rivian-midnight",
+    id: "light-rivian-midnight", name: "Rivian Midnight", category: "standard", mode: "light", pairId: "rivian-midnight",
     preview: { bg: "#f0f6f8", fg: "#1a2830", accent: "#3a7a94", secondary: "#deeef4" },
     vars: {
       "--bg-primary": "#f0f6f8", "--bg-secondary": "#deeef4", "--bg-tertiary": "#c8dee8", "--bg-elevated": "#fafcfd",
@@ -717,7 +717,7 @@ export const THEMES: ThemeDef[] = [
   },
   // ── Pair: Red Canyon (R1 exterior) ──
   {
-    id: "dark-rivian-canyon", name: "Red Canyon", category: "standard", mode: "dark", pairId: "rivian-canyon",
+    id: "dark-rivian-canyon", name: "Rivian Canyon", category: "standard", mode: "dark", pairId: "rivian-canyon",
     preview: { bg: "#140c0a", fg: "#e0d0c8", accent: "#b85a42", secondary: "#221410" },
     vars: {
       "--bg-primary": "#140c0a", "--bg-secondary": "#221410", "--bg-tertiary": "#30201a", "--bg-elevated": "#3e2c24",
@@ -727,7 +727,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-rivian-canyon", name: "Warm Sand", category: "standard", mode: "light", pairId: "rivian-canyon",
+    id: "light-rivian-canyon", name: "Rivian Canyon", category: "standard", mode: "light", pairId: "rivian-canyon",
     preview: { bg: "#f8f2ec", fg: "#2e1e18", accent: "#984838", secondary: "#ecddd0" },
     vars: {
       "--bg-primary": "#f8f2ec", "--bg-secondary": "#ecddd0", "--bg-tertiary": "#dccabc", "--bg-elevated": "#fffaf5",
@@ -738,7 +738,7 @@ export const THEMES: ThemeDef[] = [
   },
   // ── Pair: Launch Green (R1 Quad-Motor exclusive) ──
   {
-    id: "dark-rivian-launch", name: "Launch Green", category: "standard", mode: "dark", pairId: "rivian-launch",
+    id: "dark-rivian-launch", name: "Rivian Launch", category: "standard", mode: "dark", pairId: "rivian-launch",
     preview: { bg: "#0a140e", fg: "#d0e0d4", accent: "#4caf50", secondary: "#142218" },
     vars: {
       "--bg-primary": "#0a140e", "--bg-secondary": "#142218", "--bg-tertiary": "#1e3024", "--bg-elevated": "#283e30",
@@ -748,7 +748,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-rivian-launch", name: "Black Mountain", category: "standard", mode: "light", pairId: "rivian-launch",
+    id: "light-rivian-launch", name: "Rivian Launch", category: "standard", mode: "light", pairId: "rivian-launch",
     preview: { bg: "#f2f6f2", fg: "#1a2420", accent: "#2e8a38", secondary: "#e0eae2" },
     vars: {
       "--bg-primary": "#f2f6f2", "--bg-secondary": "#e0eae2", "--bg-tertiary": "#cddcd0", "--bg-elevated": "#fafcfa",
@@ -759,7 +759,7 @@ export const THEMES: ThemeDef[] = [
   },
   // ── Pair: Catalina Cove (R2 exclusive) / Coastal Cloud (R2 interior) ──
   {
-    id: "dark-rivian-catalina", name: "Catalina Cove", category: "standard", mode: "dark", pairId: "rivian-catalina",
+    id: "dark-rivian-catalina", name: "Rivian Catalina", category: "standard", mode: "dark", pairId: "rivian-catalina",
     preview: { bg: "#0a1418", fg: "#ccdce0", accent: "#3a9aaa", secondary: "#122028" },
     vars: {
       "--bg-primary": "#0a1418", "--bg-secondary": "#122028", "--bg-tertiary": "#1a2e38", "--bg-elevated": "#223c48",
@@ -769,7 +769,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-rivian-catalina", name: "Coastal Cloud", category: "standard", mode: "light", pairId: "rivian-catalina",
+    id: "light-rivian-catalina", name: "Rivian Catalina", category: "standard", mode: "light", pairId: "rivian-catalina",
     preview: { bg: "#f2f8f8", fg: "#182828", accent: "#2a808e", secondary: "#dceef0" },
     vars: {
       "--bg-primary": "#f2f8f8", "--bg-secondary": "#dceef0", "--bg-tertiary": "#c6e0e4", "--bg-elevated": "#fafefe",
@@ -780,7 +780,7 @@ export const THEMES: ThemeDef[] = [
   },
   // ── Pair: Storm Blue (R1 Tri/Quad) / Esker Silver (R2 default) ──
   {
-    id: "dark-rivian-storm", name: "Storm Blue", category: "standard", mode: "dark", pairId: "rivian-storm",
+    id: "dark-rivian-storm", name: "Rivian Storm", category: "standard", mode: "dark", pairId: "rivian-storm",
     preview: { bg: "#0c1218", fg: "#ccd4dc", accent: "#4a6a88", secondary: "#141e2a" },
     vars: {
       "--bg-primary": "#0c1218", "--bg-secondary": "#141e2a", "--bg-tertiary": "#1e2c3c", "--bg-elevated": "#283a4e",
@@ -790,7 +790,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-rivian-storm", name: "Esker Silver", category: "standard", mode: "light", pairId: "rivian-storm",
+    id: "light-rivian-storm", name: "Rivian Storm", category: "standard", mode: "light", pairId: "rivian-storm",
     preview: { bg: "#f0f2f4", fg: "#1e2830", accent: "#3a5a72", secondary: "#e0e4e8" },
     vars: {
       "--bg-primary": "#f0f2f4", "--bg-secondary": "#e0e4e8", "--bg-tertiary": "#ccd2d8", "--bg-elevated": "#fafbfc",
@@ -801,7 +801,7 @@ export const THEMES: ThemeDef[] = [
   },
   // ── Pair: Half Moon Grey (R2 exterior) / Slate Sky (R1 interior) ──
   {
-    id: "dark-rivian-halfmoon", name: "Half Moon Grey", category: "standard", mode: "dark", pairId: "rivian-halfmoon",
+    id: "dark-rivian-halfmoon", name: "Rivian Halfmoon", category: "standard", mode: "dark", pairId: "rivian-halfmoon",
     preview: { bg: "#121210", fg: "#d2d0cc", accent: "#8a8478", secondary: "#1e1c1a" },
     vars: {
       "--bg-primary": "#121210", "--bg-secondary": "#1e1c1a", "--bg-tertiary": "#2a2826", "--bg-elevated": "#363432",
@@ -811,7 +811,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-rivian-halfmoon", name: "Slate Sky", category: "standard", mode: "light", pairId: "rivian-halfmoon",
+    id: "light-rivian-halfmoon", name: "Rivian Halfmoon", category: "standard", mode: "light", pairId: "rivian-halfmoon",
     preview: { bg: "#f0eeec", fg: "#242220", accent: "#6a6460", secondary: "#e0dcda" },
     vars: {
       "--bg-primary": "#f0eeec", "--bg-secondary": "#e0dcda", "--bg-tertiary": "#cec8c4", "--bg-elevated": "#faf8f6",
@@ -822,7 +822,7 @@ export const THEMES: ThemeDef[] = [
   },
   // ── Pair: Borealis (R2 Performance exclusive) ──
   {
-    id: "dark-rivian-borealis", name: "Borealis", category: "standard", mode: "dark", pairId: "rivian-borealis",
+    id: "dark-rivian-borealis", name: "Rivian Borealis", category: "standard", mode: "dark", pairId: "rivian-borealis",
     preview: { bg: "#0a1210", fg: "#d0e0d8", accent: "#38a088", secondary: "#142220" },
     vars: {
       "--bg-primary": "#0a1210", "--bg-secondary": "#142220", "--bg-tertiary": "#1c302c", "--bg-elevated": "#243e38",
@@ -832,7 +832,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-rivian-borealis", name: "Birch Wood", category: "standard", mode: "light", pairId: "rivian-borealis",
+    id: "light-rivian-borealis", name: "Rivian Borealis", category: "standard", mode: "light", pairId: "rivian-borealis",
     preview: { bg: "#f4f8f6", fg: "#1a2822", accent: "#2a8070", secondary: "#e0ece8" },
     vars: {
       "--bg-primary": "#f4f8f6", "--bg-secondary": "#e0ece8", "--bg-tertiary": "#ccdcd6", "--bg-elevated": "#fafefc",
@@ -848,7 +848,7 @@ export const THEMES: ThemeDef[] = [
 
   // ── Pair: Midnight Cherry (Model S/X refresh) / Pearl White (most popular) ──
   {
-    id: "dark-tesla-cherry", name: "Midnight Cherry", category: "standard", mode: "dark", pairId: "tesla-cherry",
+    id: "dark-tesla-cherry", name: "Tesla Cherry", category: "standard", mode: "dark", pairId: "tesla-cherry",
     preview: { bg: "#140a0e", fg: "#e4d0d6", accent: "#c0485a", secondary: "#221218" },
     vars: {
       "--bg-primary": "#140a0e", "--bg-secondary": "#221218", "--bg-tertiary": "#301c22", "--bg-elevated": "#3e262e",
@@ -858,7 +858,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-tesla-cherry", name: "Pearl White", category: "standard", mode: "light", pairId: "tesla-cherry",
+    id: "light-tesla-cherry", name: "Tesla Cherry", category: "standard", mode: "light", pairId: "tesla-cherry",
     preview: { bg: "#f8f6f6", fg: "#2a1a1e", accent: "#9a2840", secondary: "#ece4e6" },
     vars: {
       "--bg-primary": "#f8f6f6", "--bg-secondary": "#ece4e6", "--bg-tertiary": "#dcd0d4", "--bg-elevated": "#ffffff",
@@ -869,7 +869,7 @@ export const THEMES: ThemeDef[] = [
   },
   // ── Pair: Ultra Red (Model 3/Y) / Quicksilver (Model S/X/3/Y) ──
   {
-    id: "dark-tesla-red", name: "Ultra Red", category: "standard", mode: "dark", pairId: "tesla-red",
+    id: "dark-tesla-red", name: "Tesla Red", category: "standard", mode: "dark", pairId: "tesla-red",
     preview: { bg: "#180808", fg: "#e8d0d0", accent: "#e03030", secondary: "#2a1010" },
     vars: {
       "--bg-primary": "#180808", "--bg-secondary": "#2a1010", "--bg-tertiary": "#3a1a1a", "--bg-elevated": "#4a2424",
@@ -879,7 +879,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-tesla-red", name: "Quicksilver", category: "standard", mode: "light", pairId: "tesla-red",
+    id: "light-tesla-red", name: "Tesla Red", category: "standard", mode: "light", pairId: "tesla-red",
     preview: { bg: "#f2f2f0", fg: "#222220", accent: "#6a6a68", secondary: "#e4e4e0" },
     vars: {
       "--bg-primary": "#f2f2f0", "--bg-secondary": "#e4e4e0", "--bg-tertiary": "#d2d2ce", "--bg-elevated": "#fafaf8",
@@ -890,7 +890,7 @@ export const THEMES: ThemeDef[] = [
   },
   // ── Pair: Deep Blue Metallic (Model S/X) / Solid Black (base color) ──
   {
-    id: "dark-tesla-blue", name: "Deep Blue Metallic", category: "standard", mode: "dark", pairId: "tesla-blue",
+    id: "dark-tesla-blue", name: "Tesla Blue", category: "standard", mode: "dark", pairId: "tesla-blue",
     preview: { bg: "#080e18", fg: "#d0d8e6", accent: "#4070b0", secondary: "#101828" },
     vars: {
       "--bg-primary": "#080e18", "--bg-secondary": "#101828", "--bg-tertiary": "#1a2438", "--bg-elevated": "#243048",
@@ -900,7 +900,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-tesla-blue", name: "Solid Black", category: "standard", mode: "light", pairId: "tesla-blue",
+    id: "light-tesla-blue", name: "Tesla Blue", category: "standard", mode: "light", pairId: "tesla-blue",
     preview: { bg: "#f0f2f4", fg: "#141618", accent: "#2a4a78", secondary: "#e0e4e8" },
     vars: {
       "--bg-primary": "#f0f2f4", "--bg-secondary": "#e0e4e8", "--bg-tertiary": "#ccd2d8", "--bg-elevated": "#fafbfc",
@@ -911,7 +911,7 @@ export const THEMES: ThemeDef[] = [
   },
   // ── Pair: Midnight Silver (classic Model 3/Y) / Ultra White Interior ──
   {
-    id: "dark-tesla-silver", name: "Midnight Silver", category: "standard", mode: "dark", pairId: "tesla-silver",
+    id: "dark-tesla-silver", name: "Tesla Silver", category: "standard", mode: "dark", pairId: "tesla-silver",
     preview: { bg: "#101214", fg: "#d2d4d8", accent: "#7a8898", secondary: "#1a1e22" },
     vars: {
       "--bg-primary": "#101214", "--bg-secondary": "#1a1e22", "--bg-tertiary": "#262a30", "--bg-elevated": "#32383e",
@@ -921,7 +921,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-tesla-silver", name: "Ultra White", category: "standard", mode: "light", pairId: "tesla-silver",
+    id: "light-tesla-silver", name: "Tesla Silver", category: "standard", mode: "light", pairId: "tesla-silver",
     preview: { bg: "#fafafa", fg: "#1e2024", accent: "#4a5468", secondary: "#eeeeee" },
     vars: {
       "--bg-primary": "#fafafa", "--bg-secondary": "#eeeeee", "--bg-tertiary": "#dcdcdc", "--bg-elevated": "#ffffff",
@@ -932,7 +932,7 @@ export const THEMES: ThemeDef[] = [
   },
   // ── Pair: Stealth Grey (Cybertruck) / Stainless Steel (Cybertruck raw) ──
   {
-    id: "dark-tesla-stealth", name: "Stealth Grey", category: "standard", mode: "dark", pairId: "tesla-stealth",
+    id: "dark-tesla-stealth", name: "Tesla Stealth", category: "standard", mode: "dark", pairId: "tesla-stealth",
     preview: { bg: "#0e0e10", fg: "#c8c8cc", accent: "#5a5a62", secondary: "#1a1a1e" },
     vars: {
       "--bg-primary": "#0e0e10", "--bg-secondary": "#1a1a1e", "--bg-tertiary": "#26262c", "--bg-elevated": "#32323a",
@@ -942,7 +942,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-tesla-stealth", name: "Stainless Steel", category: "standard", mode: "light", pairId: "tesla-stealth",
+    id: "light-tesla-stealth", name: "Tesla Stealth", category: "standard", mode: "light", pairId: "tesla-stealth",
     preview: { bg: "#f0f0ee", fg: "#202024", accent: "#707078", secondary: "#e2e2de" },
     vars: {
       "--bg-primary": "#f0f0ee", "--bg-secondary": "#e2e2de", "--bg-tertiary": "#d0d0cc", "--bg-elevated": "#fafaf8",
@@ -953,7 +953,7 @@ export const THEMES: ThemeDef[] = [
   },
   // ── Pair: Glacier Blue (Model Y Juniper) / Cream Interior (Juniper tan) ──
   {
-    id: "dark-tesla-glacier", name: "Glacier Blue", category: "standard", mode: "dark", pairId: "tesla-glacier",
+    id: "dark-tesla-glacier", name: "Tesla Glacier", category: "standard", mode: "dark", pairId: "tesla-glacier",
     preview: { bg: "#0a1218", fg: "#d0dce4", accent: "#5a9abc", secondary: "#142028" },
     vars: {
       "--bg-primary": "#0a1218", "--bg-secondary": "#142028", "--bg-tertiary": "#1e2e38", "--bg-elevated": "#283a48",
@@ -963,7 +963,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-tesla-glacier", name: "Cream Interior", category: "standard", mode: "light", pairId: "tesla-glacier",
+    id: "light-tesla-glacier", name: "Tesla Glacier", category: "standard", mode: "light", pairId: "tesla-glacier",
     preview: { bg: "#f8f4ee", fg: "#2a2418", accent: "#3a7a9a", secondary: "#ece4d8" },
     vars: {
       "--bg-primary": "#f8f4ee", "--bg-secondary": "#ece4d8", "--bg-tertiary": "#dcd2c4", "--bg-elevated": "#fffcf6",
@@ -974,7 +974,7 @@ export const THEMES: ThemeDef[] = [
   },
   // ── Pair: Lunar Silver (Model S Plaid) / Titanium Copper (Model Y Highland) ──
   {
-    id: "dark-tesla-lunar", name: "Lunar Silver", category: "standard", mode: "dark", pairId: "tesla-lunar",
+    id: "dark-tesla-lunar", name: "Tesla Lunar", category: "standard", mode: "dark", pairId: "tesla-lunar",
     preview: { bg: "#0e1012", fg: "#d4d6d8", accent: "#8a9098", secondary: "#1a1e20" },
     vars: {
       "--bg-primary": "#0e1012", "--bg-secondary": "#1a1e20", "--bg-tertiary": "#282c30", "--bg-elevated": "#343a3e",
@@ -984,7 +984,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-tesla-lunar", name: "Titanium Copper", category: "standard", mode: "light", pairId: "tesla-lunar",
+    id: "light-tesla-lunar", name: "Tesla Lunar", category: "standard", mode: "light", pairId: "tesla-lunar",
     preview: { bg: "#f6f0ea", fg: "#28201a", accent: "#8a6840", secondary: "#e8dcd0" },
     vars: {
       "--bg-primary": "#f6f0ea", "--bg-secondary": "#e8dcd0", "--bg-tertiary": "#d8cab8", "--bg-elevated": "#fefaf4",
@@ -995,7 +995,7 @@ export const THEMES: ThemeDef[] = [
   },
   // ── Pair: Ludicrous Red (Performance) / Plaid Neon (Easter egg green) ──
   {
-    id: "dark-tesla-ludicrous", name: "Ludicrous Red", category: "standard", mode: "dark", pairId: "tesla-ludicrous",
+    id: "dark-tesla-ludicrous", name: "Tesla Ludicrous", category: "standard", mode: "dark", pairId: "tesla-ludicrous",
     preview: { bg: "#1a0808", fg: "#e8cccc", accent: "#ff2020", secondary: "#2e1010" },
     vars: {
       "--bg-primary": "#1a0808", "--bg-secondary": "#2e1010", "--bg-tertiary": "#401818", "--bg-elevated": "#502222",
@@ -1005,7 +1005,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-tesla-ludicrous", name: "Plaid Neon", category: "standard", mode: "light", pairId: "tesla-ludicrous",
+    id: "light-tesla-ludicrous", name: "Tesla Ludicrous", category: "standard", mode: "light", pairId: "tesla-ludicrous",
     preview: { bg: "#f0faf2", fg: "#0e2818", accent: "#18aa40", secondary: "#d8f0de" },
     vars: {
       "--bg-primary": "#f0faf2", "--bg-secondary": "#d8f0de", "--bg-tertiary": "#c4e2cc", "--bg-elevated": "#fafef8",
@@ -1016,7 +1016,7 @@ export const THEMES: ThemeDef[] = [
   },
   // ── Pair: Cyberbeast Matte Black / Foundation Series Satin ──
   {
-    id: "dark-tesla-cyberbeast", name: "Cyberbeast", category: "standard", mode: "dark", pairId: "tesla-cyberbeast",
+    id: "dark-tesla-cyberbeast", name: "Tesla Cyberbeast", category: "standard", mode: "dark", pairId: "tesla-cyberbeast",
     preview: { bg: "#080808", fg: "#c0c0c0", accent: "#e0e0e0", secondary: "#141414" },
     vars: {
       "--bg-primary": "#080808", "--bg-secondary": "#141414", "--bg-tertiary": "#1e1e1e", "--bg-elevated": "#2a2a2a",
@@ -1026,7 +1026,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-tesla-cyberbeast", name: "Foundation Satin", category: "standard", mode: "light", pairId: "tesla-cyberbeast",
+    id: "light-tesla-cyberbeast", name: "Tesla Cyberbeast", category: "standard", mode: "light", pairId: "tesla-cyberbeast",
     preview: { bg: "#f4f4f2", fg: "#1a1a1a", accent: "#404040", secondary: "#e6e6e2" },
     vars: {
       "--bg-primary": "#f4f4f2", "--bg-secondary": "#e6e6e2", "--bg-tertiary": "#d4d4d0", "--bg-elevated": "#fcfcfa",
@@ -1037,7 +1037,7 @@ export const THEMES: ThemeDef[] = [
   },
   // ── Pair: Autopilot Blue (UI accent) / Supercharger White ──
   {
-    id: "dark-tesla-autopilot", name: "Autopilot Blue", category: "standard", mode: "dark", pairId: "tesla-autopilot",
+    id: "dark-tesla-autopilot", name: "Tesla Autopilot", category: "standard", mode: "dark", pairId: "tesla-autopilot",
     preview: { bg: "#0a0e1a", fg: "#d0d8ea", accent: "#3880e0", secondary: "#121828" },
     vars: {
       "--bg-primary": "#0a0e1a", "--bg-secondary": "#121828", "--bg-tertiary": "#1c2638", "--bg-elevated": "#263248",
@@ -1047,7 +1047,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-tesla-autopilot", name: "Supercharger White", category: "standard", mode: "light", pairId: "tesla-autopilot",
+    id: "light-tesla-autopilot", name: "Tesla Autopilot", category: "standard", mode: "light", pairId: "tesla-autopilot",
     preview: { bg: "#fafcfe", fg: "#141820", accent: "#2060c0", secondary: "#eaf0f8" },
     vars: {
       "--bg-primary": "#fafcfe", "--bg-secondary": "#eaf0f8", "--bg-tertiary": "#d4dfe8", "--bg-elevated": "#ffffff",
@@ -1073,7 +1073,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-mac-spaceblack", name: "MacBook Silver", category: "standard", mode: "light", pairId: "mac-spaceblack",
+    id: "light-mac-spaceblack", name: "Space Black", category: "standard", mode: "light", pairId: "mac-spaceblack",
     preview: { bg: "#f4f4f6", fg: "#1c1c22", accent: "#3478f6", secondary: "#e8e8ec" },
     vars: {
       "--bg-primary": "#f4f4f6", "--bg-secondary": "#e8e8ec", "--bg-tertiary": "#d8d8de", "--bg-elevated": "#ffffff",
@@ -1084,7 +1084,7 @@ export const THEMES: ThemeDef[] = [
   },
   // ── Pair: Midnight (MacBook Air M2/M3 — dark navy) / Starlight (MacBook Air warm champagne) ──
   {
-    id: "dark-mac-midnight", name: "Mac Midnight", category: "standard", mode: "dark", pairId: "mac-midnight",
+    id: "dark-mac-midnight", name: "Starlight", category: "standard", mode: "dark", pairId: "mac-midnight",
     preview: { bg: "#0a0c14", fg: "#d0d4e0", accent: "#4a78c0", secondary: "#141828" },
     vars: {
       "--bg-primary": "#0a0c14", "--bg-secondary": "#141828", "--bg-tertiary": "#1c2238", "--bg-elevated": "#262e48",
@@ -1115,7 +1115,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-mac-spacegray", name: "iMac White", category: "standard", mode: "light", pairId: "mac-spacegray",
+    id: "light-mac-spacegray", name: "Space Gray", category: "standard", mode: "light", pairId: "mac-spacegray",
     preview: { bg: "#f6f6f8", fg: "#1e1e24", accent: "#5a5a72", secondary: "#eaeaee" },
     vars: {
       "--bg-primary": "#f6f6f8", "--bg-secondary": "#eaeaee", "--bg-tertiary": "#dcdce2", "--bg-elevated": "#ffffff",
@@ -1136,7 +1136,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-iphone-blackti", name: "White Titanium", category: "standard", mode: "light", pairId: "iphone-blackti",
+    id: "light-iphone-blackti", name: "Black Titanium", category: "standard", mode: "light", pairId: "iphone-blackti",
     preview: { bg: "#f6f4f2", fg: "#22201e", accent: "#706c68", secondary: "#eae8e4" },
     vars: {
       "--bg-primary": "#f6f4f2", "--bg-secondary": "#eae8e4", "--bg-tertiary": "#d8d4d0", "--bg-elevated": "#fcfaf8",
@@ -1157,7 +1157,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-iphone-blueti", name: "Natural Titanium", category: "standard", mode: "light", pairId: "iphone-blueti",
+    id: "light-iphone-blueti", name: "Blue Titanium", category: "standard", mode: "light", pairId: "iphone-blueti",
     preview: { bg: "#f2f0ee", fg: "#222020", accent: "#5a6878", secondary: "#e4e2de" },
     vars: {
       "--bg-primary": "#f2f0ee", "--bg-secondary": "#e4e2de", "--bg-tertiary": "#d2cec8", "--bg-elevated": "#faf8f6",
@@ -1178,7 +1178,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-iphone-desertti", name: "Desert Sand", category: "standard", mode: "light", pairId: "iphone-desertti",
+    id: "light-iphone-desertti", name: "Desert Titanium", category: "standard", mode: "light", pairId: "iphone-desertti",
     preview: { bg: "#f6f0ea", fg: "#282218", accent: "#886838", secondary: "#ece2d6" },
     vars: {
       "--bg-primary": "#f6f0ea", "--bg-secondary": "#ece2d6", "--bg-tertiary": "#dcd0c0", "--bg-elevated": "#fef8f0",
@@ -1199,7 +1199,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-iphone-ultramarine", name: "Ultramarine Light", category: "standard", mode: "light", pairId: "iphone-ultramarine",
+    id: "light-iphone-ultramarine", name: "Ultramarine", category: "standard", mode: "light", pairId: "iphone-ultramarine",
     preview: { bg: "#f2f2fa", fg: "#181830", accent: "#3040b0", secondary: "#e2e2f0" },
     vars: {
       "--bg-primary": "#f2f2fa", "--bg-secondary": "#e2e2f0", "--bg-tertiary": "#d0d0e2", "--bg-elevated": "#fafaff",
@@ -1220,7 +1220,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-iphone-teal", name: "Teal Mist", category: "standard", mode: "light", pairId: "iphone-teal",
+    id: "light-iphone-teal", name: "iPhone Teal", category: "standard", mode: "light", pairId: "iphone-teal",
     preview: { bg: "#f0f8f8", fg: "#182828", accent: "#288088", secondary: "#dceef0" },
     vars: {
       "--bg-primary": "#f0f8f8", "--bg-secondary": "#dceef0", "--bg-tertiary": "#c8e0e2", "--bg-elevated": "#fafefe",
@@ -1241,7 +1241,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-iphone-pink", name: "Rose Gold", category: "standard", mode: "light", pairId: "iphone-pink",
+    id: "light-iphone-pink", name: "iPhone Pink", category: "standard", mode: "light", pairId: "iphone-pink",
     preview: { bg: "#f8f0f2", fg: "#2a1e22", accent: "#a04868", secondary: "#f0e0e4" },
     vars: {
       "--bg-primary": "#f8f0f2", "--bg-secondary": "#f0e0e4", "--bg-tertiary": "#e0ccd2", "--bg-elevated": "#fef8fa",
@@ -1262,7 +1262,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-iphone-green", name: "iPhone Yellow", category: "standard", mode: "light", pairId: "iphone-green",
+    id: "light-iphone-green", name: "iPhone Green", category: "standard", mode: "light", pairId: "iphone-green",
     preview: { bg: "#f8f6ee", fg: "#22201a", accent: "#a09020", secondary: "#eeeadc" },
     vars: {
       "--bg-primary": "#f8f6ee", "--bg-secondary": "#eeeadc", "--bg-tertiary": "#dcd6c4", "--bg-elevated": "#fefcf4",
@@ -1278,7 +1278,7 @@ export const THEMES: ThemeDef[] = [
 
   // ── Pair: Pagani (Huayra Silver & Carbon) ──
   {
-    id: "dark-pagani", name: "Pagani Huayra", category: "supercar", mode: "dark", pairId: "pagani",
+    id: "dark-pagani", name: "Pagani", category: "supercar", mode: "dark", pairId: "pagani",
     preview: { bg: "#0a0c10", fg: "#c8cdd8", accent: "#7eb8da", secondary: "#141820" },
     vars: {
       "--bg-primary": "#0a0c10", "--bg-secondary": "#141820", "--bg-tertiary": "#1c222e", "--bg-elevated": "#242c3a",
@@ -1288,7 +1288,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-pagani", name: "Pagani Zonda", category: "supercar", mode: "light", pairId: "pagani",
+    id: "light-pagani", name: "Pagani", category: "supercar", mode: "light", pairId: "pagani",
     preview: { bg: "#f4f6f9", fg: "#0e1218", accent: "#3a7ca5", secondary: "#e4e8ee" },
     vars: {
       "--bg-primary": "#f4f6f9", "--bg-secondary": "#e4e8ee", "--bg-tertiary": "#d0d6e0", "--bg-elevated": "#ffffff",
@@ -1300,7 +1300,7 @@ export const THEMES: ThemeDef[] = [
 
   // ── Pair: Lamborghini (Giallo Orion / Verde Mantis) ──
   {
-    id: "dark-lamborghini", name: "Lamborghini Nero", category: "supercar", mode: "dark", pairId: "lamborghini",
+    id: "dark-lamborghini", name: "Lamborghini", category: "supercar", mode: "dark", pairId: "lamborghini",
     preview: { bg: "#0c0a00", fg: "#f0e8c8", accent: "#e8c820", secondary: "#1c1800" },
     vars: {
       "--bg-primary": "#0c0a00", "--bg-secondary": "#1c1800", "--bg-tertiary": "#282200", "--bg-elevated": "#342c08",
@@ -1310,7 +1310,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-lamborghini", name: "Lamborghini Giallo", category: "supercar", mode: "light", pairId: "lamborghini",
+    id: "light-lamborghini", name: "Lamborghini", category: "supercar", mode: "light", pairId: "lamborghini",
     preview: { bg: "#fefbe8", fg: "#1a1800", accent: "#b89b00", secondary: "#f5f0c8" },
     vars: {
       "--bg-primary": "#fefbe8", "--bg-secondary": "#f5f0c8", "--bg-tertiary": "#e8e2a8", "--bg-elevated": "#fffef0",
@@ -1322,29 +1322,33 @@ export const THEMES: ThemeDef[] = [
 
   // ── Pair: Ferrari (Rosso Corsa / Bianco Avus) ──
   {
-    id: "dark-ferrari", name: "Ferrari Rosso", category: "supercar", mode: "dark", pairId: "ferrari",
-    preview: { bg: "#100000", fg: "#f0d0d0", accent: "#dc2626", secondary: "#200808" },
+    id: "dark-ferrari", name: "Ferrari", category: "supercar", mode: "dark", pairId: "ferrari",
+    preview: { bg: "#0e0a0a", fg: "#f2e8e6", accent: "#e12726", secondary: "#1c1414" },
     vars: {
-      "--bg-primary": "#100000", "--bg-secondary": "#200808", "--bg-tertiary": "#2c1010", "--bg-elevated": "#381818",
-      "--text-primary": "#f0d0d0", "--text-secondary": "#8a6060", "--accent-blue": "#dc2626", "--accent-green": "#c8a008",
-      "--accent-purple": "#a83030", "--accent-gold": "#c8a008", "--accent-rose": "#dc2626",
-      "--border-color": "rgba(220, 38, 38, 0.12)", "--error-color": "#ff4040",
+      "--bg-primary": "#0e0a0a", "--bg-secondary": "#1c1414", "--bg-tertiary": "#2a1e1e", "--bg-elevated": "#362828",
+      "--text-primary": "#f2e8e6", "--text-secondary": "#9a7e7a", "--accent-blue": "#e12726", "--accent-green": "#f0c808",
+      "--accent-purple": "#cc3838", "--accent-gold": "#f0c808", "--accent-rose": "#ff4040",
+      "--border-color": "rgba(225, 39, 38, 0.14)", "--error-color": "#ff5050",
+      "--success-color": "#f0c808", "--warning-color": "#e89020", "--info-color": "#e12726",
+      "--accent-color": "#e12726", "--glow-accent": "0 0 20px rgba(225, 39, 38, 0.25)",
     },
   },
   {
-    id: "light-ferrari", name: "Ferrari Bianco", category: "supercar", mode: "light", pairId: "ferrari",
-    preview: { bg: "#fef5f5", fg: "#1a0808", accent: "#b91c1c", secondary: "#fce4e4" },
+    id: "light-ferrari", name: "Ferrari", category: "supercar", mode: "light", pairId: "ferrari",
+    preview: { bg: "#fdf6f5", fg: "#1a0c0a", accent: "#e12726", secondary: "#f8e6e4" },
     vars: {
-      "--bg-primary": "#fef5f5", "--bg-secondary": "#fce4e4", "--bg-tertiary": "#f5cccc", "--bg-elevated": "#ffffff",
-      "--text-primary": "#1a0808", "--text-secondary": "#7a4040", "--accent-blue": "#b91c1c", "--accent-green": "#9a8008",
-      "--accent-purple": "#882020", "--accent-gold": "#9a8008", "--accent-rose": "#b91c1c",
-      "--border-color": "rgba(185, 28, 28, 0.10)", "--error-color": "#991b1b",
+      "--bg-primary": "#fdf6f5", "--bg-secondary": "#f8e6e4", "--bg-tertiary": "#f0d4d0", "--bg-elevated": "#ffffff",
+      "--text-primary": "#1a0c0a", "--text-secondary": "#7a504c", "--accent-blue": "#c82020", "--accent-green": "#b89b00",
+      "--accent-purple": "#a82828", "--accent-gold": "#b89b00", "--accent-rose": "#e12726",
+      "--border-color": "rgba(200, 32, 32, 0.12)", "--error-color": "#b91c1c",
+      "--success-color": "#b89b00", "--warning-color": "#c07818", "--info-color": "#c82020",
+      "--accent-color": "#c82020", "--glow-accent": "0 0 20px rgba(200, 32, 32, 0.15)",
     },
   },
 
   // ── Pair: Porsche (GT Silver / Racing Green) ──
   {
-    id: "dark-porsche", name: "Porsche GT Night", category: "supercar", mode: "dark", pairId: "porsche",
+    id: "dark-porsche", name: "Porsche", category: "supercar", mode: "dark", pairId: "porsche",
     preview: { bg: "#08100c", fg: "#d0e0d4", accent: "#2e8b57", secondary: "#142018" },
     vars: {
       "--bg-primary": "#08100c", "--bg-secondary": "#142018", "--bg-tertiary": "#1c2e24", "--bg-elevated": "#243a2e",
@@ -1354,7 +1358,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-porsche", name: "Porsche GT Silver", category: "supercar", mode: "light", pairId: "porsche",
+    id: "light-porsche", name: "Porsche", category: "supercar", mode: "light", pairId: "porsche",
     preview: { bg: "#f2f7f4", fg: "#0a1a10", accent: "#1a6b3c", secondary: "#dceee4" },
     vars: {
       "--bg-primary": "#f2f7f4", "--bg-secondary": "#dceee4", "--bg-tertiary": "#c4e0cc", "--bg-elevated": "#ffffff",
@@ -1366,7 +1370,7 @@ export const THEMES: ThemeDef[] = [
 
   // ── Pair: Bugatti (Atlantic Blue / Chiron White) ──
   {
-    id: "dark-bugatti", name: "Bugatti Atlantic", category: "supercar", mode: "dark", pairId: "bugatti",
+    id: "dark-bugatti", name: "Bugatti", category: "supercar", mode: "dark", pairId: "bugatti",
     preview: { bg: "#040810", fg: "#c0c8e0", accent: "#1e3a8a", secondary: "#0c1428" },
     vars: {
       "--bg-primary": "#040810", "--bg-secondary": "#0c1428", "--bg-tertiary": "#142040", "--bg-elevated": "#1c2850",
@@ -1376,7 +1380,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-bugatti", name: "Bugatti Chiron", category: "supercar", mode: "light", pairId: "bugatti",
+    id: "light-bugatti", name: "Bugatti", category: "supercar", mode: "light", pairId: "bugatti",
     preview: { bg: "#f0f4fc", fg: "#0a1028", accent: "#1e40af", secondary: "#dce4f8" },
     vars: {
       "--bg-primary": "#f0f4fc", "--bg-secondary": "#dce4f8", "--bg-tertiary": "#c4d0f0", "--bg-elevated": "#ffffff",
@@ -1388,7 +1392,7 @@ export const THEMES: ThemeDef[] = [
 
   // ── Pair: Maserati (Blu Sofisticato / Bianco Eldorado) ──
   {
-    id: "dark-maserati", name: "Maserati Blu Notte", category: "supercar", mode: "dark", pairId: "maserati",
+    id: "dark-maserati", name: "Maserati", category: "supercar", mode: "dark", pairId: "maserati",
     preview: { bg: "#080c18", fg: "#d0d4e8", accent: "#4a6fa5", secondary: "#101828" },
     vars: {
       "--bg-primary": "#080c18", "--bg-secondary": "#101828", "--bg-tertiary": "#182438", "--bg-elevated": "#203048",
@@ -1398,7 +1402,7 @@ export const THEMES: ThemeDef[] = [
     },
   },
   {
-    id: "light-maserati", name: "Maserati Eldorado", category: "supercar", mode: "light", pairId: "maserati",
+    id: "light-maserati", name: "Maserati", category: "supercar", mode: "light", pairId: "maserati",
     preview: { bg: "#f4f6fb", fg: "#0c1020", accent: "#2c5282", secondary: "#e0e6f2" },
     vars: {
       "--bg-primary": "#f4f6fb", "--bg-secondary": "#e0e6f2", "--bg-tertiary": "#ccd4e6", "--bg-elevated": "#ffffff",
@@ -1917,7 +1921,7 @@ function AppearanceSection() {
           const pair = filtered.filter(t => t.pairId === pid);
           const dark = pair.find(t => t.mode === "dark");
           const light = pair.find(t => t.mode === "light");
-          const pairName = dark?.name.replace(/ Dark$/, "") || light?.name.replace(/ Light$/, "") || pid;
+          const pairName = dark?.name || light?.name || pid;
           const isActivePair = pair.some(t => t.id === activeThemeId);
           return (
             <div key={pid} style={{
@@ -2143,7 +2147,7 @@ function OAuthSection() {
       {error && (
         <div style={{ ...cardBox, background: "var(--error-bg)", borderColor: "var(--error-color)", color: "var(--error-color)", fontSize: 12, marginBottom: 12 }}>
           {error}
-          <button style={{ float: "right", background: "none", border: "none", cursor: "pointer", color: "inherit" }} onClick={() => setError(null)}>×</button>
+          <button aria-label="Dismiss error" style={{ float: "right", background: "none", border: "none", cursor: "pointer", color: "inherit" }} onClick={() => setError(null)}>×</button>
         </div>
       )}
 

@@ -652,7 +652,7 @@ impl QaPipeline {
             0.0
         };
         let score = pass_rate - severity_penalty;
-        score.max(0.0).min(100.0)
+        score.clamp(0.0, 100.0)
     }
 
     pub fn make_recommendation(&self, score: f64, critical_count: usize) -> QaRecommendation {

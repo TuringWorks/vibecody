@@ -594,7 +594,7 @@ impl FileAst {
     }
 
     pub fn node_at_line(&self, line: usize) -> Option<&AstNode> {
-        fn find_deepest<'a>(nodes: &'a [AstNode], line: usize) -> Option<&'a AstNode> {
+        fn find_deepest(nodes: &[AstNode], line: usize) -> Option<&AstNode> {
             for node in nodes {
                 if node.contains_line(line) {
                     if let Some(child) = find_deepest(&node.children, line) {

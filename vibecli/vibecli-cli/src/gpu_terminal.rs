@@ -53,7 +53,7 @@ impl Color {
     pub const BLACK: Self = Self::rgb(0, 0, 0);
     pub const TRANSPARENT: Self = Self::rgba(0, 0, 0, 0);
 
-    pub fn to_hex(&self) -> String {
+    pub fn to_hex(self) -> String {
         if self.a == 255 {
             format!("#{:02x}{:02x}{:02x}", self.r, self.g, self.b)
         } else {

@@ -163,7 +163,7 @@ export function SupabasePanel({ workspacePath, provider }: { workspacePath: stri
  <button style={{ ...s.btn, background: "var(--bg-secondary)", color: "var(--text-secondary)" }} onClick={() => fetchTables()}>Refresh</button>
  </div>
  {tables.map(t => (
- <div key={t.name} onClick={() => selectTable(t.name)} style={{ display: "flex", justifyContent: "space-between", padding: "8px 10px", borderRadius: "4px", cursor: "pointer", marginBottom: "2px", background: selectedTable === t.name ? "var(--bg-tertiary)" : "transparent" }}>
+ <div key={t.name} role="button" tabIndex={0} onClick={() => selectTable(t.name)} onKeyDown={e => e.key === "Enter" && selectTable(t.name)} style={{ display: "flex", justifyContent: "space-between", padding: "8px 10px", borderRadius: "4px", cursor: "pointer", marginBottom: "2px", background: selectedTable === t.name ? "var(--bg-tertiary)" : "transparent" }}>
  <span> {t.name}</span>
  <span style={{ color: "var(--text-secondary)", fontSize: "11px" }}>{t.row_count.toLocaleString()} rows</span>
  </div>

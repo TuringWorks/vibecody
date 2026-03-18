@@ -160,7 +160,7 @@ export function ContextBundlePanel() {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                 <div style={{ fontWeight: 600 }}>{b.name}</div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={toggleStyle(b.active)} onClick={() => toggleActive(b.id)}>
+                  <div role="switch" aria-checked={b.active} tabIndex={0} style={toggleStyle(b.active)} onClick={() => toggleActive(b.id)} onKeyDown={e => e.key === "Enter" && toggleActive(b.id)}>
                     <div style={toggleDot(b.active)} />
                   </div>
                   <span style={{ fontSize: 10, color: b.active ? "var(--success-color)" : "var(--text-secondary)" }}>{b.active ? "Active" : "Inactive"}</span>

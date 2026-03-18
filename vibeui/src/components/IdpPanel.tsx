@@ -901,7 +901,7 @@ spec:
                 <div style={{ marginTop: 10, borderTop: "1px solid var(--border-color)", paddingTop: 8 }}>
                   <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>Onboarding Checklist</span>
                   {team.onboarding_checklist.map((item, i) => (
-                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", fontSize: 12, cursor: "pointer" }} onClick={() => toggleChecklist(team.id, i)}>
+                    <div key={i} role="checkbox" aria-checked={item.completed} tabIndex={0} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", fontSize: 12, cursor: "pointer" }} onClick={() => toggleChecklist(team.id, i)} onKeyDown={e => e.key === "Enter" && toggleChecklist(team.id, i)}>
                       <input type="checkbox" checked={item.completed} readOnly style={{ cursor: "pointer" }} />
                       <span style={{ textDecoration: item.completed ? "line-through" : "none", color: item.completed ? "var(--text-secondary)" : "var(--text-primary)" }}>{item.label}</span>
                     </div>

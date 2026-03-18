@@ -11,6 +11,7 @@
 export type FlowEventKind =
   | "chat"          // user sent a chat message + received reply
   | "inline_edit"   // Cmd+K inline AI edit was accepted
+  | "inline_generate" // Cmd+K code generation at cursor
   | "agent_step"    // agent executed a tool call
   | "agent_complete"// agent finished a task
   | "terminal_cmd"  // user ran a command in the terminal

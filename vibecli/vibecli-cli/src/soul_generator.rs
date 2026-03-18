@@ -58,6 +58,7 @@ impl SoulDocument {
 // ── Project scanner ──────────────────────────────────────────────────────────
 
 /// Scan a project directory and extract signals for soul generation.
+#[allow(clippy::field_reassign_with_default)]
 pub fn scan_project(workspace: &Path) -> ProjectSignals {
     let mut signals = ProjectSignals::default();
 
@@ -513,7 +514,7 @@ pub fn generate_template_soul(signals: &ProjectSignals) -> SoulDocument {
     });
 
     // Section 5: Decision framework
-    let questions = vec![
+    let questions = [
         "Does it solve a real problem that users actually have?",
         "Can you explain it in one sentence without jargon?",
         "Is it tested? If you can't write tests for it, is it well-defined enough to ship?",

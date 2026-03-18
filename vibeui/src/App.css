@@ -597,6 +597,41 @@ body,
   gap: 14px;
 }
 
+.status-file-path {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  transition: max-width 0.3s ease;
+}
+
+.status-file-path:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="light"] .status-file-path:hover {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.status-file-dir {
+  display: none;
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+.status-file-path--expanded {
+  max-width: 600px;
+}
+
+.status-file-path--expanded .status-file-dir {
+  display: inline;
+}
+
 .status-item {
   background: none;
   border: none;

@@ -213,7 +213,7 @@ export function OrchestrationPanel({ workspacePath: _workspacePath }: Orchestrat
 
               {/* Todo list */}
               {state.todos.map(todo => (
-                <div key={todo.id} onClick={() => toggleTodo(todo.id)} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "4px 0", cursor: "pointer", opacity: todo.done ? 0.5 : 1 }}>
+                <div key={todo.id} role="checkbox" aria-checked={todo.done} tabIndex={0} onClick={() => toggleTodo(todo.id)} onKeyDown={e => e.key === "Enter" && toggleTodo(todo.id)} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "4px 0", cursor: "pointer", opacity: todo.done ? 0.5 : 1 }}>
                   <span style={{ width: "16px", height: "16px", border: "1px solid var(--border-color)", borderRadius: "3px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", background: todo.done ? "var(--success-color)" : "transparent", color: "white" }}>
                     {todo.done ? "x" : ""}
                   </span>

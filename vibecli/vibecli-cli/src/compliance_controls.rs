@@ -381,7 +381,7 @@ impl ControlInventory {
                     let mut output = String::new();
                     let mut chars = result.chars().peekable();
                     let mut buf = String::new();
-                    while let Some(c) = chars.next() {
+                    for c in chars.by_ref() {
                         if c.is_ascii_digit() || c == '.' {
                             buf.push(c);
                         } else {

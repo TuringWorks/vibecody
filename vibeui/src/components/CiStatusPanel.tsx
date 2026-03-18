@@ -158,7 +158,7 @@ export default function CiStatusPanel() {
         )}
 
         {tab === "suites" && suites.map(s => (
-          <div key={s.id} onClick={() => { setSelectedSuite(s.id); setTab("checks"); }}
+          <div key={s.id} role="button" tabIndex={0} onClick={() => { setSelectedSuite(s.id); setTab("checks"); }} onKeyDown={e => e.key === "Enter" && (setSelectedSuite(s.id), setTab("checks"))}
             style={{ padding: 10, background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)", cursor: "pointer" }}>
             <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
               <span style={{ width: 8, height: 8, borderRadius: "50%", background: stateColors[s.state] }} />

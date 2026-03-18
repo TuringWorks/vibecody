@@ -766,7 +766,7 @@ async fn main() -> Result<()> {
                 if results.is_empty() {
                     println!("No plugins found for '{}'", query);
                 } else {
-                    println!("{:<30} {:<12} {:<10} {}", "NAME", "VERSION", "DOWNLOADS", "DESCRIPTION");
+                    println!("{:<30} {:<12} {:<10} DESCRIPTION", "NAME", "VERSION", "DOWNLOADS");
                     println!("{}", "-".repeat(80));
                     for e in results.iter().take(20) {
                         let desc = if e.description.len() > 40 {
@@ -5331,7 +5331,7 @@ async fn main() -> Result<()> {
                                             if results.is_empty() {
                                                 println!("No plugins found for '{sub_args}'.\n");
                                             } else {
-                                                println!("{:<30} {:<10} {:<8} {}", "NAME", "VERSION", "DL", "DESCRIPTION");
+                                                println!("{:<30} {:<10} {:<8} DESCRIPTION", "NAME", "VERSION", "DL");
                                                 println!("{}", "-".repeat(76));
                                                 for e in results.iter().take(15) {
                                                     let desc = if e.description.len() > 30 {
@@ -7117,7 +7117,7 @@ fn edit_distance(a: &str, b: &str) -> usize {
     let (m, n) = (a.len(), b.len());
     let mut dp = vec![vec![0usize; n + 1]; m + 1];
     for (i, row) in dp.iter_mut().enumerate().take(m + 1) { row[0] = i; }
-    for j in 0..=n { dp[0][j] = j; }
+    for (j, cell) in dp[0].iter_mut().enumerate().take(n + 1) { *cell = j; }
     for i in 1..=m {
         for j in 1..=n {
             let cost = if a[i - 1] == b[j - 1] { 0 } else { 1 };

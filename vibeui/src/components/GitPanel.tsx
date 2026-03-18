@@ -425,7 +425,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  <div>
  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
  <h3 style={{ fontSize: '13px' }}>Commit History</h3>
- <button onClick={() => setShowHistory(false)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '16px' }}>×</button>
+ <button aria-label="Close history" onClick={() => setShowHistory(false)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '16px' }}>×</button>
  </div>
  {selectedCommit ? (
  <div>

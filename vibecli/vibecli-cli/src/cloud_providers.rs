@@ -365,12 +365,11 @@ impl CloudProviderManager {
             .collect();
 
         let name = format!("vibecody-{}-policy", provider.to_string().to_lowercase());
-        let policy = IamPolicy {
+        IamPolicy {
             provider: provider.clone(),
             statements,
             name,
-        };
-        policy
+        }
     }
 
     /// Return least-privilege actions and resource ARNs for a given service.

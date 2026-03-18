@@ -452,7 +452,7 @@ export function AIChat({ provider, context, fileTree, currentFile, onFileAction,
  </p>
  </div>
 
- <div className="chat-messages">
+ <div className="chat-messages" role="log" aria-live="polite" aria-label="Chat messages">
  {messages.length === 0 ? (
  <div className="chat-empty">
  <p>Hi! I'm your AI coding assistant.</p>

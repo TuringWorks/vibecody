@@ -167,7 +167,7 @@ export default function AstEditPanel() {
         )}
 
         {tab === "edits" && edits.map(e => (
-          <div key={e.id} onClick={() => { setSelectedEdit(e.id); setTab("preview"); }}
+          <div key={e.id} role="button" tabIndex={0} onClick={() => { setSelectedEdit(e.id); setTab("preview"); }} onKeyDown={ev => ev.key === "Enter" && (setSelectedEdit(e.id), setTab("preview"))}
             style={{ padding: 10, background: selectedEdit === e.id ? "var(--accent-bg, rgba(99,102,241,0.15))" : "var(--bg-secondary)", borderRadius: 6, border: `1px solid ${selectedEdit === e.id ? "var(--accent-primary)" : "var(--border-color)"}`, cursor: "pointer" }}>
             <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
               <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 3, background: "rgba(99,102,241,0.15)", color: "var(--text-info)", fontWeight: 600 }}>{e.operation}</span>

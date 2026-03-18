@@ -774,7 +774,7 @@ export function BlueTeamPanel() {
         {playbooks.length === 0 && <p style={{ color: "var(--text-secondary)", textAlign: "center" }}>No playbooks defined.</p>}
         {playbooks.map((pb) => (
           <div key={pb.id} style={cardStyle}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }} onClick={() => setExpandedPlaybook(expandedPlaybook === pb.id ? null : pb.id)}>
+            <div role="button" tabIndex={0} aria-expanded={expandedPlaybook === pb.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }} onClick={() => setExpandedPlaybook(expandedPlaybook === pb.id ? null : pb.id)} onKeyDown={e => e.key === "Enter" && setExpandedPlaybook(expandedPlaybook === pb.id ? null : pb.id)}>
               <div>
                 <strong style={{ fontSize: 14 }}>{pb.name}</strong>
                 <span style={{ ...badgeStyle("var(--info-color)"), marginLeft: 8 }}>{pb.category}</span>

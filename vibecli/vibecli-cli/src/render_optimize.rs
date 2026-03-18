@@ -140,9 +140,9 @@ impl RenderOptimizer {
         let total_lines = new_hashes.len();
         let mut changed_lines = Vec::new();
 
-        for i in 0..total_lines {
+        for (i, new_hash) in new_hashes.iter().enumerate() {
             let changed = match old_hashes.get(i) {
-                Some(oh) => *oh != new_hashes[i],
+                Some(oh) => oh != new_hash,
                 None => true, // new line has no old counterpart
             };
             if changed {

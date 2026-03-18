@@ -228,6 +228,7 @@ pub fn run() {
             // Phase 7.3 commands — Next-Edit Prediction
             commands::predict_next_edit,
             commands::inline_edit,
+            commands::generate_code,
             // Hooks Config UI commands
             commands::get_hooks_config,
             commands::save_hooks_config,

@@ -428,7 +428,7 @@ impl FastGrep {
     }
 
     /// Sort results: match-type rank ascending, then relevance descending.
-    fn sort_results(results: &mut Vec<ContextResult>) {
+    fn sort_results(results: &mut [ContextResult]) {
         results.sort_by(|a, b| {
             a.match_type
                 .rank()

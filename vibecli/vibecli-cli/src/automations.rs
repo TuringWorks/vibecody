@@ -849,7 +849,7 @@ pub fn parse_telegram_event(body: &str) -> EventPayload {
         payload = payload.with_field("chat_id", &chat_id);
     }
     // Try nested chat.id
-    if payload.fields.get("chat_id").is_none() {
+    if !payload.fields.contains_key("chat_id") {
         if let Some(id) = extract_json_field(body, "id") {
             payload = payload.with_field("chat_id", &id);
         }
@@ -1017,7 +1017,7 @@ pub fn parse_twitch_event(body: &str) -> EventPayload {
         payload = payload.with_field("user", &user);
     }
     // Fallback user field
-    if payload.fields.get("user").is_none() {
+    if !payload.fields.contains_key("user") {
         if let Some(user) = extract_json_field(body, "user_login") {
             payload = payload.with_field("user", &user);
         }

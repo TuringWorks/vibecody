@@ -1896,7 +1896,7 @@ function MethodologyTab() {
           <div>
             <div style={sectionTitle}>Ceremonies / Practices</div>
             {info.ceremonies.map(c => (
-              <div key={c} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, cursor: "pointer" }} onClick={() => togglePractice(`${info.name}:${c}`)}>
+              <div key={c} role="checkbox" aria-checked={enabledPractices[`${info.name}:${c}`] !== false} tabIndex={0} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, cursor: "pointer" }} onClick={() => togglePractice(`${info.name}:${c}`)} onKeyDown={e => e.key === "Enter" && togglePractice(`${info.name}:${c}`)}>
                 <span style={{ fontSize: 14, color: enabledPractices[`${info.name}:${c}`] !== false ? "var(--success-color)" : "var(--text-secondary)" }}>
                   {enabledPractices[`${info.name}:${c}`] !== false ? "[x]" : "[ ]"}
                 </span>

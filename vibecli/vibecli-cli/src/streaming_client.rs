@@ -245,9 +245,8 @@ impl KafkaCliBuilder {
             cmd.push("--group".to_string());
             cmd.push(group.clone());
         }
-        match config.offset_reset {
-            OffsetReset::Earliest => { cmd.push("--from-beginning".to_string()); }
-            _ => {}
+        if config.offset_reset == OffsetReset::Earliest {
+            cmd.push("--from-beginning".to_string());
         }
         if config.max_poll_records > 0 {
             cmd.push("--max-messages".to_string());
@@ -375,7 +374,7 @@ pub fn suggest_partition_count(throughput_mbps: f64, consumer_count: u32) -> u32
     // At least as many partitions as consumers for parallelism
     let by_consumers = consumer_count;
     // Minimum 1, practical max 256
-    by_throughput.max(by_consumers).max(1).min(256)
+    by_throughput.max(by_consumers).clamp(1, 256)
 }
 
 // ---------------------------------------------------------------------------

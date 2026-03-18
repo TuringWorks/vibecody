@@ -14,6 +14,7 @@ import { flowContext, FlowEvent, FlowEventKind } from "../utils/FlowContext";
 const KIND_ICONS: Record<FlowEventKind, string> = {
  chat: "",
  inline_edit: "",
+ inline_generate: "",
  agent_step: "",
  agent_complete: "",
  terminal_cmd: "",
@@ -23,6 +24,7 @@ const KIND_ICONS: Record<FlowEventKind, string> = {
 const KIND_LABELS: Record<FlowEventKind, string> = {
  chat: "Chat",
  inline_edit: "Inline Edit",
+ inline_generate: "Generate",
  agent_step: "Agent Step",
  agent_complete: "Agent Done",
  terminal_cmd: "Terminal",
