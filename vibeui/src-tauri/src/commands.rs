@@ -949,7 +949,12 @@ pub async fn send_chat_message(
         When the user asks you to create or modify files, you MUST use these XML tags to write files:\n\
         - <write_file path=\"path/to/file\">file content here</write_file>\n\
         - <read_file path=\"path/to/file\" />\n\
-        - <list_dir path=\"path/to/dir\" />\n\n\
+        - <list_dir path=\"path/to/dir\" />\n\
+        - <build /> — Build/compile the project (auto-detects build system). Use <build command=\"custom cmd\" /> for a custom build command.\n\
+        - <run /> — Run the application (auto-detects run command). Use <run command=\"custom cmd\" /> for a custom run command.\n\n\
+        Use <build /> when the user asks to build, compile, or make the project.\n\
+        Use <run /> when the user asks to run, start, or execute the application.\n\
+        Use <build /> then <run /> when the user says 'build and run'.\n\n\
         IMPORTANT: Always use <write_file> tags when generating code that should be saved to a file.\n\
         You may also use fenced code blocks with file paths like ```path/to/file.ts as a fallback.\n\
         The path should be relative to the project root.\n\n"
@@ -1059,7 +1064,12 @@ pub async fn stream_chat_message(
         When the user asks you to create or modify files, you MUST use these XML tags to write files:\n\
         - <write_file path=\"path/to/file\">file content here</write_file>\n\
         - <read_file path=\"path/to/file\" />\n\
-        - <list_dir path=\"path/to/dir\" />\n\n\
+        - <list_dir path=\"path/to/dir\" />\n\
+        - <build /> — Build/compile the project (auto-detects build system). Use <build command=\"custom cmd\" /> for a custom build command.\n\
+        - <run /> — Run the application (auto-detects run command). Use <run command=\"custom cmd\" /> for a custom run command.\n\n\
+        Use <build /> when the user asks to build, compile, or make the project.\n\
+        Use <run /> when the user asks to run, start, or execute the application.\n\
+        Use <build /> then <run /> when the user says 'build and run'.\n\n\
         IMPORTANT: Always use <write_file> tags when generating code that should be saved to a file.\n\
         You may also use fenced code blocks with file paths like ```path/to/file.ts as a fallback.\n\
         The path should be relative to the project root.\n\n"
@@ -1687,6 +1697,75 @@ async fn process_tool_calls(response: &str, workspace_lock: &Arc<Mutex<Workspace
             search_from = start + end + 4;
         } else {
             break;
+        }
+    }
+
+    // Extract workspace root for build/run commands
+    let ws_root = workspace.folders().first()
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_else(|| ".".to_string());
+    // Release workspace lock early — build commands can take a long time
+    drop(workspace);
+
+    // Process <build /> and <build command="..." /> tags
+    if let Some(start) = response.find("<build command=\"") {
+        if let Some(end) = response[start..].find("\" />") {
+            let cmd = &response[start + 16..start + end];
+            match std::process::Command::new("sh").arg("-c").arg(cmd).current_dir(&ws_root).output() {
+                Ok(o) => {
+                    let text = String::from_utf8_lossy(&o.stdout).to_string() + &String::from_utf8_lossy(&o.stderr);
+                    let status = if o.status.success() { "succeeded" } else { "failed" };
+                    let truncated: String = text.chars().take(3000).collect();
+                    output.push_str(&format!("Build {} (exit {}):\n{}\n", status, o.status.code().unwrap_or(-1), truncated));
+                }
+                Err(e) => output.push_str(&format!("Build failed to start: {}\n", e)),
+            }
+        }
+    } else if response.contains("<build />") || response.contains("<build/>") {
+        let systems = detect_build_system(ws_root.clone()).await.unwrap_or_default();
+        if let Some(sys) = systems.first() {
+            match std::process::Command::new("sh").arg("-c").arg(&sys.build_command).current_dir(&ws_root).output() {
+                Ok(o) => {
+                    let text = String::from_utf8_lossy(&o.stdout).to_string() + &String::from_utf8_lossy(&o.stderr);
+                    let status = if o.status.success() { "succeeded" } else { "failed" };
+                    let truncated: String = text.chars().take(3000).collect();
+                    output.push_str(&format!("Build ({}) {} (exit {}):\n{}\n", sys.name, status, o.status.code().unwrap_or(-1), truncated));
+                }
+                Err(e) => output.push_str(&format!("Build failed to start: {}\n", e)),
+            }
+        } else {
+            output.push_str("No build system detected in workspace.\n");
+        }
+    }
+
+    // Process <run /> and <run command="..." /> tags
+    if let Some(start) = response.find("<run command=\"") {
+        if let Some(end) = response[start..].find("\" />") {
+            let cmd = &response[start + 14..start + end];
+            match std::process::Command::new("sh").arg("-c").arg(cmd).current_dir(&ws_root).output() {
+                Ok(o) => {
+                    let text = String::from_utf8_lossy(&o.stdout).to_string() + &String::from_utf8_lossy(&o.stderr);
+                    let status = if o.status.success() { "completed" } else { "failed" };
+                    let truncated: String = text.chars().take(3000).collect();
+                    output.push_str(&format!("Run {} (exit {}):\n{}\n", status, o.status.code().unwrap_or(-1), truncated));
+                }
+                Err(e) => output.push_str(&format!("Run failed to start: {}\n", e)),
+            }
+        }
+    } else if response.contains("<run />") || response.contains("<run/>") {
+        let systems = detect_build_system(ws_root.clone()).await.unwrap_or_default();
+        if let Some(sys) = systems.first() {
+            match std::process::Command::new("sh").arg("-c").arg(&sys.run_command).current_dir(&ws_root).output() {
+                Ok(o) => {
+                    let text = String::from_utf8_lossy(&o.stdout).to_string() + &String::from_utf8_lossy(&o.stderr);
+                    let status = if o.status.success() { "completed" } else { "failed" };
+                    let truncated: String = text.chars().take(3000).collect();
+                    output.push_str(&format!("Run ({}) {} (exit {}):\n{}\n", sys.name, status, o.status.code().unwrap_or(-1), truncated));
+                }
+                Err(e) => output.push_str(&format!("Run failed to start: {}\n", e)),
+            }
+        } else {
+            output.push_str("No run command detected in workspace.\n");
         }
     }
 
@@ -3529,6 +3608,346 @@ If the instruction is a comment describing what to build, generate the implement
     } else { code };
 
     Ok(code.to_string())
+}
+
+// ─── Build System Commands ───────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BuildSystem {
+    pub name: String,
+    pub build_command: String,
+    pub run_command: String,
+    pub config_file: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct BuildError {
+    pub file: Option<String>,
+    pub line: Option<u32>,
+    pub column: Option<u32>,
+    pub message: String,
+    pub severity: String,
+}
+
+#[derive(Serialize)]
+pub struct BuildResult {
+    pub build_system: String,
+    pub success: bool,
+    pub exit_code: i32,
+    pub duration_ms: u64,
+    pub errors: Vec<BuildError>,
+    pub output: String,
+}
+
+#[tauri::command]
+pub async fn detect_build_system(workspace: String) -> Result<Vec<BuildSystem>, String> {
+    let path = std::path::PathBuf::from(&workspace);
+    let mut systems = Vec::new();
+
+    // Detect package manager for Node
+    let node_mgr = if path.join("bun.lockb").exists() { "bun" }
+        else if path.join("yarn.lock").exists() { "yarn" }
+        else if path.join("pnpm-lock.yaml").exists() { "pnpm" }
+        else { "npm" };
+
+    // Check each build system
+    if path.join("Cargo.toml").exists() {
+        systems.push(BuildSystem { name: "cargo".into(), build_command: "cargo build".into(), run_command: "cargo run".into(), config_file: "Cargo.toml".into() });
+    }
+    if path.join("package.json").exists() {
+        let mut build_cmd = format!("{} run build", node_mgr);
+        let mut run_cmd = format!("{} start", node_mgr);
+        if let Ok(content) = std::fs::read_to_string(path.join("package.json")) {
+            if let Ok(pkg) = serde_json::from_str::<serde_json::Value>(&content) {
+                if let Some(scripts) = pkg.get("scripts").and_then(|s| s.as_object()) {
+                    if scripts.contains_key("dev") {
+                        run_cmd = format!("{} run dev", node_mgr);
+                    }
+                    if !scripts.contains_key("build") {
+                        build_cmd = format!("{} install", node_mgr);
+                    }
+                }
+            }
+        }
+        systems.push(BuildSystem { name: node_mgr.into(), build_command: build_cmd, run_command: run_cmd, config_file: "package.json".into() });
+    }
+    if path.join("pom.xml").exists() {
+        systems.push(BuildSystem { name: "maven".into(), build_command: "mvn package -q".into(), run_command: "mvn exec:java -q".into(), config_file: "pom.xml".into() });
+    }
+    if path.join("build.gradle").exists() || path.join("build.gradle.kts").exists() {
+        let wrapper = if path.join("gradlew").exists() { "./gradlew" } else { "gradle" };
+        systems.push(BuildSystem { name: "gradle".into(), build_command: format!("{} build", wrapper), run_command: format!("{} run", wrapper), config_file: "build.gradle".into() });
+    }
+    if path.join("CMakeLists.txt").exists() {
+        systems.push(BuildSystem { name: "cmake".into(), build_command: "cmake -B build && cmake --build build".into(), run_command: "./build/main".into(), config_file: "CMakeLists.txt".into() });
+    }
+    if path.join("Makefile").exists() || path.join("makefile").exists() {
+        systems.push(BuildSystem { name: "make".into(), build_command: "make".into(), run_command: "make run".into(), config_file: "Makefile".into() });
+    }
+    if path.join("go.mod").exists() {
+        systems.push(BuildSystem { name: "go".into(), build_command: "go build ./...".into(), run_command: "go run .".into(), config_file: "go.mod".into() });
+    }
+    if path.join("pyproject.toml").exists() || path.join("setup.py").exists() {
+        let cfg = if path.join("pyproject.toml").exists() { "pyproject.toml" } else { "setup.py" };
+        systems.push(BuildSystem { name: "python".into(), build_command: "pip install -e .".into(), run_command: "python -m $(basename $(pwd))".into(), config_file: cfg.into() });
+    }
+    if path.join("mix.exs").exists() {
+        systems.push(BuildSystem { name: "elixir".into(), build_command: "mix compile".into(), run_command: "mix run".into(), config_file: "mix.exs".into() });
+    }
+    // .NET
+    let has_csproj = std::fs::read_dir(&path).ok().map(|entries| entries.flatten().any(|e| e.file_name().to_string_lossy().ends_with(".csproj") || e.file_name().to_string_lossy().ends_with(".sln"))).unwrap_or(false);
+    if has_csproj {
+        systems.push(BuildSystem { name: "dotnet".into(), build_command: "dotnet build".into(), run_command: "dotnet run".into(), config_file: "*.csproj".into() });
+    }
+    if path.join("Gemfile").exists() {
+        systems.push(BuildSystem { name: "ruby".into(), build_command: "bundle install".into(), run_command: "bundle exec ruby main.rb".into(), config_file: "Gemfile".into() });
+    }
+
+    Ok(systems)
+}
+
+#[tauri::command]
+pub async fn run_build(
+    app_handle: tauri::AppHandle,
+    workspace: String,
+    command: Option<String>,
+) -> Result<BuildResult, String> {
+    let cmd_str = if let Some(cmd) = command {
+        cmd
+    } else {
+        let systems = detect_build_system(workspace.clone()).await?;
+        systems.first().map(|s| s.build_command.clone()).ok_or("No build system detected")?
+    };
+    let build_system_name = detect_build_system(workspace.clone()).await.ok().and_then(|s| s.first().map(|b| b.name.clone())).unwrap_or("unknown".into());
+
+    let _ = app_handle.emit("build:log", format!("$ {}", cmd_str));
+    let started = std::time::Instant::now();
+
+    use tokio::process::Command as TokioCommand;
+    use tokio::io::{AsyncBufReadExt, BufReader};
+
+    let mut child = TokioCommand::new("sh")
+        .arg("-c")
+        .arg(&cmd_str)
+        .current_dir(&workspace)
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("Failed to spawn build: {}", e))?;
+
+    let stdout = child.stdout.take().expect("stdout piped");
+    let stderr = child.stderr.take().expect("stderr piped");
+
+    let app2 = app_handle.clone();
+    let stderr_handle = tokio::spawn(async move {
+        let mut lines = BufReader::new(stderr).lines();
+        let mut collected = Vec::new();
+        while let Ok(Some(line)) = lines.next_line().await {
+            let _ = app2.emit("build:log", line.clone());
+            collected.push(line);
+        }
+        collected
+    });
+
+    let mut all_output = Vec::new();
+    let mut stdout_reader = BufReader::new(stdout).lines();
+    while let Ok(Some(line)) = stdout_reader.next_line().await {
+        let _ = app_handle.emit("build:log", line.clone());
+        all_output.push(line);
+    }
+
+    let stderr_lines = stderr_handle.await.unwrap_or_default();
+    all_output.extend(stderr_lines);
+
+    let status = child.wait().await.map_err(|e| e.to_string())?;
+    let duration_ms = started.elapsed().as_millis() as u64;
+    let exit_code = status.code().unwrap_or(-1);
+    let combined = all_output.join("\n");
+
+    // Parse errors from output
+    let errors = parse_build_errors(&combined, &build_system_name);
+
+    let _ = app_handle.emit("build:log", format!("\nBuild {} in {:.1}s (exit {})", if status.success() { "succeeded" } else { "failed" }, duration_ms as f64 / 1000.0, exit_code));
+
+    Ok(BuildResult {
+        build_system: build_system_name,
+        success: status.success(),
+        exit_code,
+        duration_ms,
+        errors,
+        output: if combined.len() > 4000 { combined[combined.len()-4000..].to_string() } else { combined },
+    })
+}
+
+#[tauri::command]
+pub async fn run_app(
+    app_handle: tauri::AppHandle,
+    workspace: String,
+    command: Option<String>,
+) -> Result<BuildResult, String> {
+    let cmd_str = if let Some(cmd) = command {
+        cmd
+    } else {
+        let systems = detect_build_system(workspace.clone()).await?;
+        systems.first().map(|s| s.run_command.clone()).ok_or("No run command detected")?
+    };
+
+    let _ = app_handle.emit("run:log", format!("$ {}", cmd_str));
+    let started = std::time::Instant::now();
+
+    use tokio::process::Command as TokioCommand;
+    use tokio::io::{AsyncBufReadExt, BufReader};
+
+    let mut child = TokioCommand::new("sh")
+        .arg("-c")
+        .arg(&cmd_str)
+        .current_dir(&workspace)
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("Failed to spawn app: {}", e))?;
+
+    let stdout = child.stdout.take().expect("stdout piped");
+    let stderr = child.stderr.take().expect("stderr piped");
+
+    let app2 = app_handle.clone();
+    let stderr_handle = tokio::spawn(async move {
+        let mut lines = BufReader::new(stderr).lines();
+        let mut collected = Vec::new();
+        while let Ok(Some(line)) = lines.next_line().await {
+            let _ = app2.emit("run:log", line.clone());
+            collected.push(line);
+        }
+        collected
+    });
+
+    let mut all_output = Vec::new();
+    let mut stdout_reader = BufReader::new(stdout).lines();
+    while let Ok(Some(line)) = stdout_reader.next_line().await {
+        let _ = app_handle.emit("run:log", line.clone());
+        all_output.push(line);
+    }
+
+    let stderr_lines = stderr_handle.await.unwrap_or_default();
+    all_output.extend(stderr_lines);
+
+    let status = child.wait().await.map_err(|e| e.to_string())?;
+    let duration_ms = started.elapsed().as_millis() as u64;
+    let combined = all_output.join("\n");
+
+    Ok(BuildResult {
+        build_system: "app".into(),
+        success: status.success(),
+        exit_code: status.code().unwrap_or(-1),
+        duration_ms,
+        errors: vec![],
+        output: if combined.len() > 4000 { combined[combined.len()-4000..].to_string() } else { combined },
+    })
+}
+
+fn parse_build_errors(output: &str, build_system: &str) -> Vec<BuildError> {
+    let mut errors = Vec::new();
+    let lines: Vec<&str> = output.lines().collect();
+
+    for (i, line) in lines.iter().enumerate() {
+        match build_system {
+            "cargo" => {
+                // Rust: "error[E0308]: mismatched types" followed by " --> src/main.rs:10:5"
+                if line.contains("error[E") || line.starts_with("error:") || line.starts_with("warning:") {
+                    let severity = if line.contains("warning") { "warning" } else { "error" };
+                    let msg = line.trim().to_string();
+                    let mut file = None;
+                    let mut ln = None;
+                    let mut col = None;
+                    for j in i+1..lines.len().min(i+5) {
+                        if let Some(arrow) = lines[j].find("--> ") {
+                            let loc = &lines[j][arrow+4..];
+                            let parts: Vec<&str> = loc.rsplitn(3, ':').collect();
+                            if parts.len() >= 3 {
+                                col = parts[0].trim().parse().ok();
+                                ln = parts[1].trim().parse().ok();
+                                file = Some(parts[2].to_string());
+                            }
+                            break;
+                        }
+                    }
+                    errors.push(BuildError { file, line: ln, column: col, message: msg, severity: severity.into() });
+                }
+            }
+            "npm" | "yarn" | "bun" | "pnpm" => {
+                // TypeScript: "src/App.tsx(10,5): error TS2345: ..."
+                if line.contains("): error TS") || line.contains("): warning TS") {
+                    let severity = if line.contains("warning") { "warning" } else { "error" };
+                    if let Some(paren) = line.find('(') {
+                        let file = line[..paren].trim().to_string();
+                        let rest = &line[paren+1..];
+                        if let Some(close) = rest.find(')') {
+                            let coords = &rest[..close];
+                            let parts: Vec<&str> = coords.split(',').collect();
+                            let ln = parts.first().and_then(|s| s.trim().parse().ok());
+                            let col = parts.get(1).and_then(|s| s.trim().parse().ok());
+                            let msg = rest[close+1..].trim_start_matches(':').trim().to_string();
+                            errors.push(BuildError { file: Some(file), line: ln, column: col, message: msg, severity: severity.into() });
+                        }
+                    }
+                }
+            }
+            "go" | "cmake" | "make" => {
+                // GCC/Go: "file.go:10:5: error message"
+                let parts: Vec<&str> = line.splitn(4, ':').collect();
+                if parts.len() >= 4 {
+                    let ln: Option<u32> = parts[1].trim().parse().ok();
+                    let col: Option<u32> = parts[2].trim().parse().ok();
+                    if ln.is_some() {
+                        let msg = parts[3].trim().to_string();
+                        let severity = if msg.starts_with(" warning") || msg.starts_with("warning") { "warning" } else { "error" };
+                        errors.push(BuildError { file: Some(parts[0].to_string()), line: ln, column: col, message: msg, severity: severity.into() });
+                    }
+                }
+            }
+            "maven" => {
+                // Maven: "[ERROR] /path/File.java:[10,5] error message"
+                if line.starts_with("[ERROR]") && line.contains(":[") {
+                    let content = &line[7..].trim();
+                    if let Some(colon) = content.find(":[") {
+                        let file = content[..colon].to_string();
+                        let rest = &content[colon+2..];
+                        if let Some(bracket) = rest.find(']') {
+                            let coords = &rest[..bracket];
+                            let parts: Vec<&str> = coords.split(',').collect();
+                            let ln = parts.first().and_then(|s| s.trim().parse().ok());
+                            let col = parts.get(1).and_then(|s| s.trim().parse().ok());
+                            let msg = rest[bracket+1..].trim().to_string();
+                            errors.push(BuildError { file: Some(file), line: ln, column: col, message: msg, severity: "error".into() });
+                        }
+                    }
+                }
+            }
+            "dotnet" => {
+                // .NET: "File.cs(10,5): error CS0001: message"
+                if (line.contains("): error") || line.contains("): warning")) && line.contains("CS") {
+                    let severity = if line.contains("warning") { "warning" } else { "error" };
+                    if let Some(paren) = line.find('(') {
+                        let file = line[..paren].trim().to_string();
+                        let rest = &line[paren+1..];
+                        if let Some(close) = rest.find(')') {
+                            let coords = &rest[..close];
+                            let parts: Vec<&str> = coords.split(',').collect();
+                            let ln = parts.first().and_then(|s| s.trim().parse().ok());
+                            let col = parts.get(1).and_then(|s| s.trim().parse().ok());
+                            let msg = rest[close+1..].trim_start_matches(':').trim().to_string();
+                            errors.push(BuildError { file: Some(file), line: ln, column: col, message: msg, severity: severity.into() });
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    // Deduplicate
+    errors.dedup_by(|a, b| a.message == b.message && a.file == b.file && a.line == b.line);
+    errors
 }
 
 // ─── Phase 5 — Trace / History Commands ───────────────────────────────────────

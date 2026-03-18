@@ -229,6 +229,10 @@ pub fn run() {
             commands::predict_next_edit,
             commands::inline_edit,
             commands::generate_code,
+            // Build System commands
+            commands::detect_build_system,
+            commands::run_build,
+            commands::run_app,
             // Hooks Config UI commands
             commands::get_hooks_config,
             commands::save_hooks_config,

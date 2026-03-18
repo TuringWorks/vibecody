@@ -161,6 +161,7 @@ export const TAB_META: Record<string, TabMeta> = {
   sessions:    { icon: FolderOpen,         label: "Sessions" },
   agile:       { icon: ClipboardList,     label: "Agile" },
   workmanagement: { icon: ClipboardList,  label: "Work Mgmt" },
+  build:       { icon: Hammer,            label: "Build" },
 };
 
 export const DEFAULT_TAB_META: TabMeta = { icon: Workflow, label: "Panel" };

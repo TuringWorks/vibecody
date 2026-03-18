@@ -61,6 +61,7 @@ const SteeringPanel = lazy(() => import("./SteeringPanel"));
 const BugBotPanel = lazy(() => import("./BugBotPanel").then(m => ({ default: m.BugBotPanel })));
 const RedTeamPanel = lazy(() => import("./RedTeamPanel").then(m => ({ default: m.RedTeamPanel })));
 const TestPanel = lazy(() => import("./TestPanel").then(m => ({ default: m.TestPanel })));
+const BuildPanel = lazy(() => import("./BuildPanel").then(m => ({ default: m.BuildPanel })));
 const CollabPanel = lazy(() => import("./CollabPanel").then(m => ({ default: m.CollabPanel })));
 const CoveragePanel = lazy(() => import("./CoveragePanel").then(m => ({ default: m.CoveragePanel })));
 const MultiModelPanel = lazy(() => import("./MultiModelPanel").then(m => ({ default: m.MultiModelPanel })));
@@ -252,6 +253,7 @@ export function PanelHost(props: PanelHostProps) {
       {panel("bugbot", <LazyPanel Component={BugBotPanel} props={{ workspacePath: wp || undefined, onOpenFile }} />)}
       {panel("redteam", <LazyPanel Component={RedTeamPanel} props={{ workspacePath: wp, provider: selectedProvider }} />)}
       {panel("tests", <LazyPanel Component={TestPanel} props={{ workspacePath: wp }} />)}
+      {panel("build", <LazyPanel Component={BuildPanel} props={{ workspacePath: wp, onOpenFile }} />)}
       {panel("collab", <LazyPanel Component={CollabPanel} props={{ connected: collab.connected, roomId: collab.roomId || "", peerId: collab.peerId || "", peers: collab.peers, onConnect: collab.connect, onDisconnect: collab.disconnect }} />)}
       {panel("coverage", <LazyPanel Component={CoveragePanel} props={{ workspacePath: wp }} />)}
       {panel("compare", <LazyPanel Component={MultiModelPanel} props={{ provider: selectedProvider }} />)}
@@ -380,7 +382,7 @@ export function PanelHost(props: PanelHostProps) {
         "fastcontext","imagegen","governance","agentteams","discuss","fullstack","ghactions","renderopt",
         "soul","mcplazy","bundles","cloudproviders","acpprotocol","mcpdirectory","usagemetering",
         "swebench","sessionmemory","blueteam","purpleteam","idp","quantum","agile",
-        "debugmode","agentmodes","workmanagement",
+        "debugmode","agentmodes","workmanagement","build",
       ].includes(tab) ? (
         <div style={{ padding: 16, color: "var(--text-secondary)" }}>Unknown panel: {tab}</div>
       ) : null}
