@@ -131,6 +131,34 @@ const MAX_TERMINAL_LINES: usize = 500;
 
 // ── Path safety ─────────────────────────────────────────────────────────────
 
+/// Returns the workspace-scoped `.vibecli/<subdir>` data directory for the current project.
+/// Reads the active workspace from `~/.vibeui/active-workspace.txt`.
+/// Falls back to `~/.vibecli/` if no workspace is active.
+/// This ensures project data (agile boards, work items, team artifacts, etc.)
+/// stays isolated per workspace and doesn't leak between projects.
+fn project_data_dir(subdir: &str) -> Result<std::path::PathBuf, String> {
+    let home = std::env::var("HOME").map_err(|_| "HOME not set".to_string())?;
+    let marker = std::path::PathBuf::from(&home).join(".vibeui").join("active-workspace.txt");
+    let ws_root = std::fs::read_to_string(&marker).ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty() && std::path::Path::new(s).is_dir());
+    let dir = if let Some(root) = ws_root {
+        std::path::PathBuf::from(root).join(".vibecli").join(subdir)
+    } else {
+        std::path::PathBuf::from(&home).join(".vibecli").join(subdir)
+    };
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(dir)
+}
+
+/// Write the active workspace path to the marker file so all panels can find it.
+fn set_active_workspace(path: &str) {
+    let home = std::env::var("HOME").unwrap_or_default();
+    let dir = std::path::PathBuf::from(&home).join(".vibeui");
+    let _ = std::fs::create_dir_all(&dir);
+    let _ = std::fs::write(dir.join("active-workspace.txt"), path);
+}
+
 /// Verify that `path` stays within the workspace root directories.
 ///
 /// Canonicalizes the path and checks it is a descendant of at least one
@@ -281,6 +309,7 @@ pub async fn add_workspace_folder(
     path: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
+    set_active_workspace(&path);
     let mut workspace = state.workspace.lock().await;
     workspace
         .add_folder(PathBuf::from(path))
@@ -15884,7 +15913,7 @@ pub async fn dismiss_team(
     let mut active = state.active_team.lock().await;
     if let Some(team) = active.as_ref() {
         let info = team_to_info(team).await;
-        let dir = dirs::home_dir().unwrap_or_default().join(".vibeui");
+        let dir = project_data_dir("teams").unwrap_or_else(|_| dirs::home_dir().unwrap_or_default().join(".vibeui"));
         let _ = std::fs::create_dir_all(&dir);
 
         // Write full artifacts for this run
@@ -15964,7 +15993,7 @@ pub async fn dismiss_team(
 /// Get history of past team runs.
 #[tauri::command]
 pub async fn get_team_history() -> Result<serde_json::Value, String> {
-    let path = dirs::home_dir().unwrap_or_default().join(".vibeui").join("team_history.json");
+    let path = project_data_dir("teams").unwrap_or_else(|_| dirs::home_dir().unwrap_or_default().join(".vibeui")).join("team_history.json");
     let history: Vec<serde_json::Value> = std::fs::read_to_string(&path)
         .ok()
         .and_then(|s| serde_json::from_str(&s).ok())
@@ -20949,10 +20978,7 @@ pub async fn dismiss_session_memory_alert(id: String) -> Result<serde_json::Valu
 
 /// Helper: path to Blue Team data directory (~/.vibecli/blueteam/)
 fn blueteam_data_dir() -> Result<std::path::PathBuf, String> {
-    let home = std::env::var("HOME").map_err(|_| "HOME not set".to_string())?;
-    let dir = std::path::PathBuf::from(home).join(".vibecli").join("blueteam");
-    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    Ok(dir)
+    project_data_dir("blueteam")
 }
 
 fn blueteam_read_json(filename: &str) -> serde_json::Value {
@@ -21463,10 +21489,7 @@ pub async fn generate_blue_team_report() -> Result<String, String> {
 
 /// Helper: path to Purple Team data directory (~/.vibecli/purpleteam/)
 fn purpleteam_data_dir() -> Result<std::path::PathBuf, String> {
-    let home = std::env::var("HOME").map_err(|_| "HOME not set".to_string())?;
-    let dir = std::path::PathBuf::from(home).join(".vibecli").join("purpleteam");
-    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    Ok(dir)
+    project_data_dir("purpleteam")
 }
 
 fn purpleteam_read_json(filename: &str) -> serde_json::Value {
@@ -22534,10 +22557,7 @@ pub async fn fullstack_write_file(path: String, content: String) -> Result<(), S
 // ── Security Scanner ────────────────────────────────────────────────────────
 
 fn secscan_data_dir() -> Result<std::path::PathBuf, String> {
-    let home = std::env::var("HOME").map_err(|_| "HOME not set".to_string())?;
-    let dir = std::path::PathBuf::from(home).join(".vibecli").join("secscan");
-    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    Ok(dir)
+    project_data_dir("secscan")
 }
 
 fn secscan_read_json(filename: &str) -> serde_json::Value {
@@ -22782,10 +22802,7 @@ pub async fn get_security_scan_history(workspace_path: String) -> Result<serde_j
 // ══════════════════════════════════════════════════════════════════════════════
 
 fn agile_data_dir() -> Result<std::path::PathBuf, String> {
-    let home = std::env::var("HOME").map_err(|_| "HOME not set".to_string())?;
-    let dir = std::path::PathBuf::from(home).join(".vibecli").join("agile");
-    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    Ok(dir)
+    project_data_dir("agile")
 }
 
 fn agile_read_json(filename: &str) -> serde_json::Value {
@@ -23480,10 +23497,7 @@ Respond with ONLY valid JSON:
 // ── Work Management ─────────────────────────────────────────────────────────
 
 fn wm_data_dir() -> Result<std::path::PathBuf, String> {
-    let home = std::env::var("HOME").map_err(|_| "HOME not set".to_string())?;
-    let dir = std::path::PathBuf::from(home).join(".vibeui").join("workmanagement");
-    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    Ok(dir)
+    project_data_dir("workmanagement")
 }
 
 fn wm_read_json(filename: &str) -> serde_json::Value {
@@ -26314,8 +26328,10 @@ struct DebugStore {
 }
 
 fn debug_sessions_path() -> PathBuf {
-    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-    PathBuf::from(home).join(".vibeui").join("debug-sessions.json")
+    project_data_dir("debug").unwrap_or_else(|_| {
+        let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+        PathBuf::from(home).join(".vibeui")
+    }).join("sessions.json")
 }
 
 fn load_debug_store() -> DebugStore {
@@ -28938,10 +28954,7 @@ pub async fn enhance_app_template(idea: String, state: tauri::State<'_, AppState
 // ── Batch Builder ────────────────────────────────────────────────────────────
 
 fn batch_data_dir() -> Result<std::path::PathBuf, String> {
-    let home = std::env::var("HOME").map_err(|_| "HOME not set".to_string())?;
-    let dir = std::path::PathBuf::from(home).join(".vibecli").join("batch");
-    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    Ok(dir)
+    project_data_dir("batch")
 }
 
 fn batch_read_json(filename: &str) -> serde_json::Value {
