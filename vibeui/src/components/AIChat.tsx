@@ -309,6 +309,18 @@ export function AIChat({ provider, context, fileTree, currentFile, onFileAction,
  // eslint-disable-next-line react-hooks/exhaustive-deps
  }, [pendingInput]);
 
+ // Clear chat when workspace changes
+ useEffect(() => {
+  const handler = () => {
+   setMessages([]);
+   setStreamingText("");
+   setInput("");
+   setIsLoading(false);
+  };
+  window.addEventListener("vibeui:workspace-changed", handler);
+  return () => window.removeEventListener("vibeui:workspace-changed", handler);
+ }, []);
+
  const cleanMessage = (content: string): string => {
  let cleaned = content.replace(/<write_file path="([^"]+)">[\s\S]*?<\/write_file>/g, "📄 Proposed changes to `$1`");
  cleaned = cleaned.replace(/<read_file path="([^"]+)" \/>/g, "📖 Read `$1`");

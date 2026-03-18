@@ -268,8 +268,14 @@ function App() {
 
       if (selected && typeof selected === 'string') {
         await invoke("add_workspace_folder", { path: selected });
-        setWorkspaceFolders((prev) => [...prev, selected]);
+        setWorkspaceFolders([selected]);
+        setOpenFiles([]);
+        setActiveFilePath(null);
         loadDirectory(selected);
+        // Store workspace for panels that read it from localStorage
+        localStorage.setItem("vibeui_workspace", selected);
+        // Notify chat to reset context for the new workspace
+        window.dispatchEvent(new CustomEvent("vibeui:workspace-changed", { detail: selected }));
       }
     } catch (error) {
       console.error("Failed to open folder:", error);
