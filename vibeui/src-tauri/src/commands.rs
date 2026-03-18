@@ -954,7 +954,10 @@ pub async fn send_chat_message(
         - <run /> — Run the application (auto-detects run command). Use <run command=\"custom cmd\" /> for a custom run command.\n\n\
         Use <build /> when the user asks to build, compile, or make the project.\n\
         Use <run /> when the user asks to run, start, or execute the application.\n\
-        Use <build /> then <run /> when the user says 'build and run'.\n\n\
+        Use <build /> then <run /> when the user says 'build and run'.\n\
+        The build system auto-detects compilers: javac for .java, gcc/g++ for .c/.cpp, go for .go, rustc for .rs, python3 for .py, etc.\n\
+        No Makefile or build config is needed for standalone source files — the compiler is invoked directly.\n\
+        If a required tool is not installed, tell the user how to install it.\n\n\
         IMPORTANT: Always use <write_file> tags when generating code that should be saved to a file.\n\
         You may also use fenced code blocks with file paths like ```path/to/file.ts as a fallback.\n\
         The path should be relative to the project root.\n\n"
@@ -1009,18 +1012,13 @@ pub async fn send_chat_message(
         }
     }
 
-    let mut response_text = chat_engine
+    let response_text = chat_engine
         .chat(&request.messages, context)
         .await
         .map_err(|e| e.to_string())?;
 
     // Process tool calls
     let (tool_output, pending_write) = process_tool_calls(&response_text, &state.workspace).await;
-
-    // Append tool output to the message so the user sees build/run results
-    if !tool_output.is_empty() {
-        response_text.push_str(&format!("\n\n---\n**Tool Output:**\n```\n{}\n```\n", tool_output));
-    }
 
     Ok(ChatResponse {
         message: response_text,
@@ -1074,7 +1072,10 @@ pub async fn stream_chat_message(
         - <run /> — Run the application (auto-detects run command). Use <run command=\"custom cmd\" /> for a custom run command.\n\n\
         Use <build /> when the user asks to build, compile, or make the project.\n\
         Use <run /> when the user asks to run, start, or execute the application.\n\
-        Use <build /> then <run /> when the user says 'build and run'.\n\n\
+        Use <build /> then <run /> when the user says 'build and run'.\n\
+        The build system auto-detects compilers: javac for .java, gcc/g++ for .c/.cpp, go for .go, rustc for .rs, python3 for .py, etc.\n\
+        No Makefile or build config is needed for standalone source files — the compiler is invoked directly.\n\
+        If a required tool is not installed, tell the user how to install it.\n\n\
         IMPORTANT: Always use <write_file> tags when generating code that should be saved to a file.\n\
         You may also use fenced code blocks with file paths like ```path/to/file.ts as a fallback.\n\
         The path should be relative to the project root.\n\n"
@@ -1161,14 +1162,6 @@ pub async fn stream_chat_message(
         }
         // Process tool calls in the completed response (same as send_chat_message)
         let (tool_output, pending_write) = process_tool_calls(&accumulated, &workspace).await;
-
-        // If tools produced output (e.g., build results), stream it as additional content
-        // so the user sees it inline in the chat
-        if !tool_output.is_empty() {
-            let tool_block = format!("\n\n---\n**Tool Output:**\n```\n{}\n```\n", tool_output);
-            accumulated.push_str(&tool_block);
-            let _ = app_handle.emit("chat:chunk", tool_block);
-        }
 
         let response = ChatResponse {
             message: accumulated,
@@ -1608,6 +1601,16 @@ async fn process_tool_calls(response: &str, workspace_lock: &Arc<Mutex<Workspace
     let mut pending_write: Option<PendingWrite> = None;
     let workspace = workspace_lock.lock().await;
 
+    // Resolve workspace root for relative paths
+    let ws_root = workspace.folders().first().cloned()
+        .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
+
+    // Resolve a path: if relative, join with workspace root
+    let resolve = |p: &str| -> PathBuf {
+        let pb = PathBuf::from(p);
+        if pb.is_absolute() { pb } else { ws_root.join(pb) }
+    };
+
     // Process ALL <read_file path="..." /> tags
     let read_tag = "<read_file path=\"";
     let mut search_from = 0;
@@ -1615,7 +1618,8 @@ async fn process_tool_calls(response: &str, workspace_lock: &Arc<Mutex<Workspace
         let start = search_from + rel_start;
         if let Some(end) = response[start..].find("\" />") {
             let path = &response[start + read_tag.len()..start + end];
-            match workspace.file_system().read_file(&PathBuf::from(path)).await {
+            let resolved = resolve(path);
+            match workspace.file_system().read_file(&resolved).await {
                 Ok(content) => output.push_str(&format!("Read file '{}':\n{}\n", path, content)),
                 Err(e) => output.push_str(&format!("Failed to read file '{}': {}\n", path, e)),
             }
@@ -1626,7 +1630,9 @@ async fn process_tool_calls(response: &str, workspace_lock: &Arc<Mutex<Workspace
     }
 
     // Process ALL <write_file path="...">content</write_file> tags
-    // The last one becomes the pending_write (shown in diff review)
+    // If the response also contains <build /> or <run />, write files immediately
+    // so the build/run commands can use them. Otherwise defer to user approval.
+    let has_build_or_run = response.contains("<build") || response.contains("<run");
     let write_tag_start = "<write_file path=\"";
     search_from = 0;
     while let Some(rel_start) = response[search_from..].find(write_tag_start) {
@@ -1637,11 +1643,24 @@ async fn process_tool_calls(response: &str, workspace_lock: &Arc<Mutex<Workspace
                 let content_start = start + path_end + 2;
                 let content = &response[content_start..start + content_end];
 
-                pending_write = Some(PendingWrite {
-                    path: path.to_string(),
-                    content: content.to_string(),
-                });
-                output.push_str(&format!("Proposed write to file '{}'. Waiting for user approval.\n", path));
+                if has_build_or_run {
+                    // Write immediately so build/run can use the files
+                    let target = resolve(path);
+                    if let Some(parent) = target.parent() {
+                        let _ = std::fs::create_dir_all(parent);
+                    }
+                    match std::fs::write(&target, content) {
+                        Ok(_) => output.push_str(&format!("Wrote file '{}'.\n", path)),
+                        Err(e) => output.push_str(&format!("Failed to write '{}': {}\n", path, e)),
+                    }
+                } else {
+                    // Defer to user approval via diff review
+                    pending_write = Some(PendingWrite {
+                        path: path.to_string(),
+                        content: content.to_string(),
+                    });
+                    output.push_str(&format!("Proposed write to file '{}'. Waiting for user approval.\n", path));
+                }
                 search_from = start + content_end + 13; // len("</write_file>")
             } else {
                 break;
@@ -1699,7 +1718,7 @@ async fn process_tool_calls(response: &str, workspace_lock: &Arc<Mutex<Workspace
         let start = search_from + rel_start;
         if let Some(end) = response[start..].find("\" />") {
             let path = &response[start + list_tag.len()..start + end];
-            match workspace.file_system().list_directory(&PathBuf::from(path)).await {
+            match workspace.file_system().list_directory(&resolve(path)).await {
                 Ok(entries) => {
                     output.push_str(&format!("Directory '{}':\n", path));
                     for entry in entries {
@@ -1714,18 +1733,15 @@ async fn process_tool_calls(response: &str, workspace_lock: &Arc<Mutex<Workspace
         }
     }
 
-    // Extract workspace root for build/run commands
-    let ws_root = workspace.folders().first()
-        .map(|p| p.to_string_lossy().to_string())
-        .unwrap_or_else(|| ".".to_string());
     // Release workspace lock early — build commands can take a long time
+    let ws_root_str = ws_root.to_string_lossy().to_string();
     drop(workspace);
 
     // Process <build /> and <build command="..." /> tags
     if let Some(start) = response.find("<build command=\"") {
         if let Some(end) = response[start..].find("\" />") {
             let cmd = &response[start + 16..start + end];
-            match std::process::Command::new("sh").arg("-c").arg(cmd).current_dir(&ws_root).output() {
+            match std::process::Command::new("sh").arg("-c").arg(cmd).current_dir(&ws_root_str).output() {
                 Ok(o) => {
                     let text = String::from_utf8_lossy(&o.stdout).to_string() + &String::from_utf8_lossy(&o.stderr);
                     let status = if o.status.success() { "succeeded" } else { "failed" };
@@ -1736,9 +1752,9 @@ async fn process_tool_calls(response: &str, workspace_lock: &Arc<Mutex<Workspace
             }
         }
     } else if response.contains("<build />") || response.contains("<build/>") {
-        let systems = detect_build_system(ws_root.clone()).await.unwrap_or_default();
+        let systems = detect_build_system(ws_root_str.clone()).await.unwrap_or_default();
         if let Some(sys) = systems.first() {
-            match std::process::Command::new("sh").arg("-c").arg(&sys.build_command).current_dir(&ws_root).output() {
+            match std::process::Command::new("sh").arg("-c").arg(&sys.build_command).current_dir(&ws_root_str).output() {
                 Ok(o) => {
                     let text = String::from_utf8_lossy(&o.stdout).to_string() + &String::from_utf8_lossy(&o.stderr);
                     let status = if o.status.success() { "succeeded" } else { "failed" };
@@ -1752,24 +1768,34 @@ async fn process_tool_calls(response: &str, workspace_lock: &Arc<Mutex<Workspace
         }
     }
 
-    // Process <run /> and <run command="..." /> tags
-    if let Some(start) = response.find("<run command=\"") {
-        if let Some(end) = response[start..].find("\" />") {
-            let cmd = &response[start + 14..start + end];
-            match std::process::Command::new("sh").arg("-c").arg(cmd).current_dir(&ws_root).output() {
-                Ok(o) => {
-                    let text = String::from_utf8_lossy(&o.stdout).to_string() + &String::from_utf8_lossy(&o.stderr);
-                    let status = if o.status.success() { "completed" } else { "failed" };
-                    let truncated: String = text.chars().take(3000).collect();
-                    output.push_str(&format!("Run {} (exit {}):\n{}\n", status, o.status.code().unwrap_or(-1), truncated));
+    // Process ALL <run command="..." /> tags (e.g., chmod + run in sequence)
+    {
+        let run_cmd_tag = "<run command=\"";
+        let mut run_from = 0;
+        let mut found_run_cmd = false;
+        while let Some(rel) = response[run_from..].find(run_cmd_tag) {
+            let start = run_from + rel;
+            if let Some(end) = response[start..].find("\" />") {
+                let cmd = response[start + run_cmd_tag.len()..start + end].to_string();
+                found_run_cmd = true;
+                match std::process::Command::new("sh").arg("-c").arg(&cmd).current_dir(&ws_root_str).output() {
+                    Ok(o) => {
+                        let text = String::from_utf8_lossy(&o.stdout).to_string() + &String::from_utf8_lossy(&o.stderr);
+                        let status = if o.status.success() { "completed" } else { "failed" };
+                        let truncated: String = text.chars().take(3000).collect();
+                        output.push_str(&format!("$ {} — {} (exit {}):\n{}\n", cmd, status, o.status.code().unwrap_or(-1), truncated));
+                    }
+                    Err(e) => output.push_str(&format!("$ {} — failed to start: {}\n", cmd, e)),
                 }
-                Err(e) => output.push_str(&format!("Run failed to start: {}\n", e)),
+                run_from = start + end + 4;
+            } else {
+                break;
             }
         }
-    } else if response.contains("<run />") || response.contains("<run/>") {
-        let systems = detect_build_system(ws_root.clone()).await.unwrap_or_default();
+        if !found_run_cmd && (response.contains("<run />") || response.contains("<run/>")) {
+        let systems = detect_build_system(ws_root_str.clone()).await.unwrap_or_default();
         if let Some(sys) = systems.first() {
-            match std::process::Command::new("sh").arg("-c").arg(&sys.run_command).current_dir(&ws_root).output() {
+            match std::process::Command::new("sh").arg("-c").arg(&sys.run_command).current_dir(&ws_root_str).output() {
                 Ok(o) => {
                     let text = String::from_utf8_lossy(&o.stdout).to_string() + &String::from_utf8_lossy(&o.stderr);
                     let status = if o.status.success() { "completed" } else { "failed" };
@@ -1780,6 +1806,7 @@ async fn process_tool_calls(response: &str, workspace_lock: &Arc<Mutex<Workspace
             }
         } else {
             output.push_str("No run command detected in workspace.\n");
+        }
         }
     }
 
@@ -3632,6 +3659,28 @@ pub struct BuildSystem {
     pub build_command: String,
     pub run_command: String,
     pub config_file: String,
+    #[serde(default)]
+    pub tool_available: bool,
+    #[serde(default)]
+    pub install_hint: String,
+}
+
+/// Check if a command-line tool is available on PATH.
+fn tool_exists(name: &str) -> bool {
+    std::process::Command::new("which").arg(name).output()
+        .map(|o| o.status.success()).unwrap_or(false)
+}
+
+/// Build a BuildSystem with availability check and install hint.
+fn build_sys(name: &str, build_cmd: &str, run_cmd: &str, config: &str, tool: &str, install: &str) -> BuildSystem {
+    BuildSystem {
+        name: name.into(),
+        build_command: build_cmd.into(),
+        run_command: run_cmd.into(),
+        config_file: config.into(),
+        tool_available: tool_exists(tool),
+        install_hint: install.into(),
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -3658,15 +3707,15 @@ pub async fn detect_build_system(workspace: String) -> Result<Vec<BuildSystem>, 
     let path = std::path::PathBuf::from(&workspace);
     let mut systems = Vec::new();
 
-    // Detect package manager for Node
+    // ── 1. Check for build config files (project-level build systems) ──
     let node_mgr = if path.join("bun.lockb").exists() { "bun" }
         else if path.join("yarn.lock").exists() { "yarn" }
         else if path.join("pnpm-lock.yaml").exists() { "pnpm" }
         else { "npm" };
 
-    // Check each build system
     if path.join("Cargo.toml").exists() {
-        systems.push(BuildSystem { name: "cargo".into(), build_command: "cargo build".into(), run_command: "cargo run".into(), config_file: "Cargo.toml".into() });
+        systems.push(build_sys("cargo", "cargo build", "cargo run", "Cargo.toml", "cargo",
+            "Install Rust: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"));
     }
     if path.join("package.json").exists() {
         let mut build_cmd = format!("{} run build", node_mgr);
@@ -3674,47 +3723,156 @@ pub async fn detect_build_system(workspace: String) -> Result<Vec<BuildSystem>, 
         if let Ok(content) = std::fs::read_to_string(path.join("package.json")) {
             if let Ok(pkg) = serde_json::from_str::<serde_json::Value>(&content) {
                 if let Some(scripts) = pkg.get("scripts").and_then(|s| s.as_object()) {
-                    if scripts.contains_key("dev") {
-                        run_cmd = format!("{} run dev", node_mgr);
-                    }
-                    if !scripts.contains_key("build") {
-                        build_cmd = format!("{} install", node_mgr);
-                    }
+                    if scripts.contains_key("dev") { run_cmd = format!("{} run dev", node_mgr); }
+                    if !scripts.contains_key("build") { build_cmd = format!("{} install", node_mgr); }
                 }
             }
         }
-        systems.push(BuildSystem { name: node_mgr.into(), build_command: build_cmd, run_command: run_cmd, config_file: "package.json".into() });
+        systems.push(build_sys(node_mgr, &build_cmd, &run_cmd, "package.json", node_mgr,
+            "Install Node.js: https://nodejs.org/ or `brew install node`"));
     }
     if path.join("pom.xml").exists() {
-        systems.push(BuildSystem { name: "maven".into(), build_command: "mvn package -q".into(), run_command: "mvn exec:java -q".into(), config_file: "pom.xml".into() });
+        systems.push(build_sys("maven", "mvn package -q", "mvn exec:java -q", "pom.xml", "mvn",
+            "Install Maven: https://maven.apache.org/download.cgi or `brew install maven`"));
     }
     if path.join("build.gradle").exists() || path.join("build.gradle.kts").exists() {
         let wrapper = if path.join("gradlew").exists() { "./gradlew" } else { "gradle" };
-        systems.push(BuildSystem { name: "gradle".into(), build_command: format!("{} build", wrapper), run_command: format!("{} run", wrapper), config_file: "build.gradle".into() });
+        systems.push(build_sys("gradle", &format!("{} build", wrapper), &format!("{} run", wrapper), "build.gradle", "gradle",
+            "Install Gradle: https://gradle.org/install/ or `brew install gradle`"));
     }
     if path.join("CMakeLists.txt").exists() {
-        systems.push(BuildSystem { name: "cmake".into(), build_command: "cmake -B build && cmake --build build".into(), run_command: "./build/main".into(), config_file: "CMakeLists.txt".into() });
+        systems.push(build_sys("cmake", "cmake -B build && cmake --build build", "./build/main", "CMakeLists.txt", "cmake",
+            "Install CMake: https://cmake.org/download/ or `brew install cmake`"));
     }
     if path.join("Makefile").exists() || path.join("makefile").exists() {
-        systems.push(BuildSystem { name: "make".into(), build_command: "make".into(), run_command: "make run".into(), config_file: "Makefile".into() });
+        systems.push(build_sys("make", "make", "make run", "Makefile", "make",
+            "Install Make: `xcode-select --install` (macOS) or `apt install build-essential` (Linux)"));
     }
     if path.join("go.mod").exists() {
-        systems.push(BuildSystem { name: "go".into(), build_command: "go build ./...".into(), run_command: "go run .".into(), config_file: "go.mod".into() });
+        systems.push(build_sys("go", "go build ./...", "go run .", "go.mod", "go",
+            "Install Go: https://go.dev/dl/ or `brew install go`"));
     }
     if path.join("pyproject.toml").exists() || path.join("setup.py").exists() {
         let cfg = if path.join("pyproject.toml").exists() { "pyproject.toml" } else { "setup.py" };
-        systems.push(BuildSystem { name: "python".into(), build_command: "pip install -e .".into(), run_command: "python -m $(basename $(pwd))".into(), config_file: cfg.into() });
+        systems.push(build_sys("python", "pip install -e .", "python -m $(basename $(pwd))", cfg, "python3",
+            "Install Python: https://www.python.org/downloads/ or `brew install python`"));
     }
     if path.join("mix.exs").exists() {
-        systems.push(BuildSystem { name: "elixir".into(), build_command: "mix compile".into(), run_command: "mix run".into(), config_file: "mix.exs".into() });
+        systems.push(build_sys("elixir", "mix compile", "mix run", "mix.exs", "elixir",
+            "Install Elixir: https://elixir-lang.org/install.html or `brew install elixir`"));
     }
-    // .NET
-    let has_csproj = std::fs::read_dir(&path).ok().map(|entries| entries.flatten().any(|e| e.file_name().to_string_lossy().ends_with(".csproj") || e.file_name().to_string_lossy().ends_with(".sln"))).unwrap_or(false);
+    let has_csproj = std::fs::read_dir(&path).ok()
+        .map(|entries| entries.flatten().any(|e| {
+            let n = e.file_name().to_string_lossy().to_string();
+            n.ends_with(".csproj") || n.ends_with(".sln")
+        })).unwrap_or(false);
     if has_csproj {
-        systems.push(BuildSystem { name: "dotnet".into(), build_command: "dotnet build".into(), run_command: "dotnet run".into(), config_file: "*.csproj".into() });
+        systems.push(build_sys("dotnet", "dotnet build", "dotnet run", "*.csproj", "dotnet",
+            "Install .NET: https://dotnet.microsoft.com/download or `brew install dotnet`"));
     }
     if path.join("Gemfile").exists() {
-        systems.push(BuildSystem { name: "ruby".into(), build_command: "bundle install".into(), run_command: "bundle exec ruby main.rb".into(), config_file: "Gemfile".into() });
+        systems.push(build_sys("ruby", "bundle install", "bundle exec ruby main.rb", "Gemfile", "ruby",
+            "Install Ruby: https://www.ruby-lang.org/en/downloads/ or `brew install ruby`"));
+    }
+
+    // ── 2. If no build config found, scan for standalone source files ──
+    if systems.is_empty() {
+        let entries: Vec<String> = std::fs::read_dir(&path).ok()
+            .map(|rd| rd.flatten()
+                .filter_map(|e| {
+                    let name = e.file_name().to_string_lossy().to_string();
+                    if e.file_type().map(|t| t.is_file()).unwrap_or(false) { Some(name) } else { None }
+                }).collect())
+            .unwrap_or_default();
+
+        let has_ext = |ext: &str| entries.iter().any(|f| f.ends_with(ext));
+
+        // Java: compile all .java files, run the one with main()
+        if has_ext(".java") {
+            let java_files: Vec<&String> = entries.iter().filter(|f| f.ends_with(".java")).collect();
+            let files_str = java_files.iter().map(|f| f.as_str()).collect::<Vec<_>>().join(" ");
+            // Find main class: check each file for "public static void main"
+            let mut main_class = java_files.first().map(|f| f.trim_end_matches(".java").to_string()).unwrap_or_default();
+            for f in &java_files {
+                if let Ok(content) = std::fs::read_to_string(path.join(f)) {
+                    if content.contains("public static void main") {
+                        main_class = f.trim_end_matches(".java").to_string();
+                        break;
+                    }
+                }
+            }
+            systems.push(build_sys("javac", &format!("javac {}", files_str), &format!("java {}", main_class), &files_str, "javac",
+                "Install JDK: https://adoptium.net/ or `brew install openjdk`"));
+        }
+
+        // C files
+        if has_ext(".c") {
+            let c_files: Vec<&String> = entries.iter().filter(|f| f.ends_with(".c")).collect();
+            let files_str = c_files.iter().map(|f| f.as_str()).collect::<Vec<_>>().join(" ");
+            let compiler = if tool_exists("gcc") { "gcc" } else { "cc" };
+            systems.push(build_sys(compiler, &format!("{} -o main {}", compiler, files_str), "./main", &files_str, compiler,
+                "Install GCC: `xcode-select --install` (macOS) or `apt install gcc` (Linux)"));
+        }
+
+        // C++ files
+        if has_ext(".cpp") || has_ext(".cc") || has_ext(".cxx") {
+            let cpp_files: Vec<&String> = entries.iter().filter(|f| f.ends_with(".cpp") || f.ends_with(".cc") || f.ends_with(".cxx")).collect();
+            let files_str = cpp_files.iter().map(|f| f.as_str()).collect::<Vec<_>>().join(" ");
+            let compiler = if tool_exists("g++") { "g++" } else { "c++" };
+            systems.push(build_sys(compiler, &format!("{} -o main {}", compiler, files_str), "./main", &files_str, compiler,
+                "Install G++: `xcode-select --install` (macOS) or `apt install g++` (Linux)"));
+        }
+
+        // Go standalone (no go.mod)
+        if has_ext(".go") {
+            let go_files: Vec<&String> = entries.iter().filter(|f| f.ends_with(".go")).collect();
+            let files_str = go_files.iter().map(|f| f.as_str()).collect::<Vec<_>>().join(" ");
+            systems.push(build_sys("go", &format!("go build {}", files_str), &format!("go run {}", files_str), &files_str, "go",
+                "Install Go: https://go.dev/dl/ or `brew install go`"));
+        }
+
+        // Rust standalone (no Cargo.toml)
+        if has_ext(".rs") {
+            let rs_files: Vec<&String> = entries.iter().filter(|f| f.ends_with(".rs")).collect();
+            let main_file = rs_files.iter().find(|f| **f == "main.rs").unwrap_or_else(|| rs_files.first().unwrap());
+            systems.push(build_sys("rustc", &format!("rustc {}", main_file), "./main", main_file, "rustc",
+                "Install Rust: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"));
+        }
+
+        // Python (standalone scripts)
+        if has_ext(".py") {
+            let py_files: Vec<&String> = entries.iter().filter(|f| f.ends_with(".py")).collect();
+            let main_file = py_files.iter().find(|f| **f == "main.py" || **f == "app.py")
+                .unwrap_or_else(|| py_files.first().unwrap());
+            systems.push(build_sys("python", &format!("python3 -m py_compile {}", main_file), &format!("python3 {}", main_file), main_file, "python3",
+                "Install Python: https://www.python.org/downloads/ or `brew install python`"));
+        }
+
+        // TypeScript standalone
+        if has_ext(".ts") && !has_ext(".js") {
+            let ts_files: Vec<&String> = entries.iter().filter(|f| f.ends_with(".ts")).collect();
+            let files_str = ts_files.iter().map(|f| f.as_str()).collect::<Vec<_>>().join(" ");
+            let runner = if tool_exists("bun") { "bun" } else if tool_exists("ts-node") { "ts-node" } else { "npx ts-node" };
+            let main = ts_files.iter().find(|f| **f == "index.ts" || **f == "main.ts").unwrap_or_else(|| ts_files.first().unwrap());
+            systems.push(build_sys("typescript", &format!("npx tsc {}", files_str), &format!("{} {}", runner, main), &files_str, "tsc",
+                "Install TypeScript: `npm install -g typescript` or use Bun: https://bun.sh/"));
+        }
+
+        // Kotlin
+        if has_ext(".kt") {
+            let kt_files: Vec<&String> = entries.iter().filter(|f| f.ends_with(".kt")).collect();
+            let files_str = kt_files.iter().map(|f| f.as_str()).collect::<Vec<_>>().join(" ");
+            systems.push(build_sys("kotlin", &format!("kotlinc {} -include-runtime -d app.jar", files_str), "java -jar app.jar", &files_str, "kotlinc",
+                "Install Kotlin: https://kotlinlang.org/docs/command-line.html or `brew install kotlin`"));
+        }
+
+        // Swift
+        if has_ext(".swift") {
+            let sw_files: Vec<&String> = entries.iter().filter(|f| f.ends_with(".swift")).collect();
+            let files_str = sw_files.iter().map(|f| f.as_str()).collect::<Vec<_>>().join(" ");
+            systems.push(build_sys("swift", &format!("swiftc -o main {}", files_str), "./main", &files_str, "swiftc",
+                "Install Swift: https://www.swift.org/download/ (included with Xcode on macOS)"));
+        }
     }
 
     Ok(systems)

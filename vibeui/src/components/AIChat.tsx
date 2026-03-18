@@ -261,8 +261,11 @@ export function AIChat({ provider, context, fileTree, currentFile, onFileAction,
  const response = e.payload;
  const displayContent = cleanMessage(response.message);
  setMessages((prev) => {
- // Replace the in-progress streaming entry with final message
  const updated = [...prev, { role: "assistant" as const, content: displayContent, timestamp: Date.now() }];
+ // If tools produced output (build results, file reads, etc.), add as a follow-up message
+ if (response.tool_output && response.tool_output.trim()) {
+   updated.push({ role: "assistant" as const, content: "```\n" + response.tool_output.trim() + "\n```", timestamp: Date.now() });
+ }
  return updated;
  });
  setStreamingText("");
@@ -307,9 +310,13 @@ export function AIChat({ provider, context, fileTree, currentFile, onFileAction,
  }, [pendingInput]);
 
  const cleanMessage = (content: string): string => {
- let cleaned = content.replace(/<write_file path="([^"]+)">[\s\S]*?<\/write_file>/g, "Proposed changes to $1");
- cleaned = cleaned.replace(/<read_file path="([^"]+)" \/>/g, "Read file $1");
- cleaned = cleaned.replace(/<list_dir path="([^"]+)" \/>/g, "Listed directory $1");
+ let cleaned = content.replace(/<write_file path="([^"]+)">[\s\S]*?<\/write_file>/g, "📄 Proposed changes to `$1`");
+ cleaned = cleaned.replace(/<read_file path="([^"]+)" \/>/g, "📖 Read `$1`");
+ cleaned = cleaned.replace(/<list_dir path="([^"]+)" \/>/g, "📁 Listed `$1`");
+ cleaned = cleaned.replace(/<build\s*\/>/g, "🔨 Building project...");
+ cleaned = cleaned.replace(/<build\s+command="([^"]+)"\s*\/>/g, "🔨 Running: `$1`");
+ cleaned = cleaned.replace(/<run\s*\/>/g, "▶ Running application...");
+ cleaned = cleaned.replace(/<run\s+command="([^"]+)"\s*\/>/g, "▶ Running: `$1`");
  return cleaned;
  };
 

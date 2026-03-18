@@ -22,6 +22,8 @@ interface BuildSystem {
   build_command: string;
   run_command: string;
   config_file: string;
+  tool_available: boolean;
+  install_hint: string;
 }
 
 interface BuildError {
@@ -225,6 +227,20 @@ export function BuildPanel({ workspacePath, onOpenFile }: BuildPanelProps) {
             onChange={e => setCustomRunCmd(e.target.value)}
             placeholder={selected?.run_command || "auto-detect"}
           />
+        </div>
+      )}
+
+      {/* Tool availability warning */}
+      {selected && !selected.tool_available && (
+        <div style={{
+          padding: "8px 12px", borderBottom: "1px solid var(--border-color)",
+          background: "var(--warning-bg)", fontSize: 12, display: "flex", alignItems: "flex-start", gap: 8, flexWrap: "wrap",
+        }}>
+          <span style={{ color: "var(--warning-color)", fontWeight: 600, flexShrink: 0 }}>Tool not found:</span>
+          <span style={{ color: "var(--text-primary)" }}>`{selected.name}` is not installed.</span>
+          {selected.install_hint && (
+            <span style={{ color: "var(--text-secondary)", fontSize: 11, fontFamily: "var(--font-mono)" }}>{selected.install_hint}</span>
+          )}
         </div>
       )}
 
