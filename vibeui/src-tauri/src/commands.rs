@@ -1009,13 +1009,18 @@ pub async fn send_chat_message(
         }
     }
 
-    let response_text = chat_engine
+    let mut response_text = chat_engine
         .chat(&request.messages, context)
         .await
         .map_err(|e| e.to_string())?;
 
     // Process tool calls
     let (tool_output, pending_write) = process_tool_calls(&response_text, &state.workspace).await;
+
+    // Append tool output to the message so the user sees build/run results
+    if !tool_output.is_empty() {
+        response_text.push_str(&format!("\n\n---\n**Tool Output:**\n```\n{}\n```\n", tool_output));
+    }
 
     Ok(ChatResponse {
         message: response_text,
@@ -1156,6 +1161,15 @@ pub async fn stream_chat_message(
         }
         // Process tool calls in the completed response (same as send_chat_message)
         let (tool_output, pending_write) = process_tool_calls(&accumulated, &workspace).await;
+
+        // If tools produced output (e.g., build results), stream it as additional content
+        // so the user sees it inline in the chat
+        if !tool_output.is_empty() {
+            let tool_block = format!("\n\n---\n**Tool Output:**\n```\n{}\n```\n", tool_output);
+            accumulated.push_str(&tool_block);
+            let _ = app_handle.emit("chat:chunk", tool_block);
+        }
+
         let response = ChatResponse {
             message: accumulated,
             tool_output,
