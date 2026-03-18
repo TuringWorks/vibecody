@@ -136,7 +136,7 @@ export function GroupedTabBar({ activeTab, onTabChange, onCollapse }: Props) {
                         tabIndex={isActive ? 0 : -1}
                         id={`ai-tab-${tab}`}
                         className={`tab-item${isActive ? " tab-item--active" : ""}`}
-                        onClick={() => onTabChange(tab)}
+                        onClick={() => { onTabChange(tab); onCollapse?.(); }}
                         onKeyDown={handleTabKeyDown}
                       >
                         <Icon size={14} strokeWidth={1.5} />
