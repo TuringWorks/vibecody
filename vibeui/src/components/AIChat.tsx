@@ -369,6 +369,7 @@ export function AIChat({ provider, context, fileTree, currentFile, onFileAction,
  context,
  file_tree: fileTree,
  current_file: currentFile,
+ mode: chatMode,
  },
  });
  } catch (error) {

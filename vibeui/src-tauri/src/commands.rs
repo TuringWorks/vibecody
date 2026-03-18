@@ -946,6 +946,8 @@ pub struct ChatRequest {
     pub context: Option<String>,
     pub file_tree: Option<Vec<String>>,
     pub current_file: Option<String>,
+    #[serde(default)]
+    pub mode: Option<String>,
 }
 
 #[derive(Serialize, Clone)]
@@ -1016,6 +1018,21 @@ pub async fn send_chat_message(
             system_prompt.push_str(&format!("- {}\n", file));
         }
         system_prompt.push('\n');
+    }
+
+    // Add mode-specific instructions
+    if request.mode.as_deref() == Some("planning") {
+        system_prompt.push_str(
+            "MODE: PLANNING\n\
+            You are in planning mode. Focus on:\n\
+            - Analyzing the codebase structure and architecture\n\
+            - Creating detailed implementation plans with step-by-step instructions\n\
+            - Identifying risks, dependencies, and trade-offs\n\
+            - Estimating complexity and suggesting the best approach\n\
+            - Breaking down large tasks into smaller, actionable steps\n\
+            Do NOT write code directly. Instead, describe what files to create/modify, \
+            what patterns to use, and the implementation order.\n\n"
+        );
     }
 
     // Prepend system message
@@ -1137,6 +1154,21 @@ pub async fn stream_chat_message(
         }
         system_prompt.push('\n');
     }
+    // Add mode-specific instructions
+    if request.mode.as_deref() == Some("planning") {
+        system_prompt.push_str(
+            "MODE: PLANNING\n\
+            You are in planning mode. Focus on:\n\
+            - Analyzing the codebase structure and architecture\n\
+            - Creating detailed implementation plans with step-by-step instructions\n\
+            - Identifying risks, dependencies, and trade-offs\n\
+            - Estimating complexity and suggesting the best approach\n\
+            - Breaking down large tasks into smaller, actionable steps\n\
+            Do NOT write code directly. Instead, describe what files to create/modify, \
+            what patterns to use, and the implementation order.\n\n"
+        );
+    }
+
     request.messages.insert(0, vibe_ai::Message {
         role: vibe_ai::MessageRole::System,
         content: system_prompt,
