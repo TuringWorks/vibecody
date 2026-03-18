@@ -164,8 +164,10 @@
     font-size: 13px;
     font-family: inherit;
     resize: none;
-    min-height: 36px;
-    max-height: 120px;
+    min-height: 56px;
+    max-height: 160px;
+    white-space: pre-wrap;
+    word-break: break-word;
     line-height: 1.4;
     overflow-y: auto;
 }

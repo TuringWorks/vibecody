@@ -578,7 +578,7 @@ export function AIChat({ provider, context, fileTree, currentFile, onFileAction,
  onChange={handleInputChange}
  onKeyDown={handleKeyDown}
  placeholder={isListening ? "Listening…" : "Ask anything, @ to mention, / for wor..."}
- rows={1}
+ rows={3}
  />
  <div className="chat-input-toolbar">
  <button
