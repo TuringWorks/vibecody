@@ -214,7 +214,7 @@ function formatTime(ts?: number): string {
  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-export function AIChat({ provider, context, fileTree, currentFile, onFileAction, onPendingWrite, pendingInput, onPendingInputConsumed, availableProviders, onProviderChange }: AIChatProps) {
+export function AIChat({ provider, context, fileTree, currentFile, onFileAction, onPendingWrite, pendingInput, onPendingInputConsumed }: AIChatProps) {
  const [chatMode, setChatMode] = useState<"chat" | "planning">("chat");
  const [messages, setMessages] = useState<Message[]>([]);
  const [input, setInput] = useState("");
@@ -598,19 +598,6 @@ export function AIChat({ provider, context, fileTree, currentFile, onFileAction,
  <option value="chat">Chat</option>
  <option value="planning">Planning</option>
  </select>
- {availableProviders && availableProviders.length > 0 && (
- <select
- className="chat-toolbar-select provider-select"
- value={provider}
- onChange={e => onProviderChange?.(e.target.value)}
- title="AI Provider"
- >
- {availableProviders.map(p => {
-   const short = p.length > 18 ? p.slice(0, 16) + "…" : p;
-   return <option key={p} value={p}>{short}</option>;
- })}
- </select>
- )}
  <div style={{ flex: 1 }} />
  <button
  onClick={toggleVoice}

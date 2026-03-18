@@ -1209,7 +1209,7 @@ function App() {
           </select>
           <button
             className="btn-secondary"
-            onClick={() => setShowAIChat(!showAIChat)}
+            onClick={() => { setShowAIChat(!showAIChat); if (!showAIChat) setShowFilterBar(false); }}
             title="Toggle Vibe Toolkit"
           >
             <LayoutGrid size={14} strokeWidth={1.5} /> Vibe Toolkit
