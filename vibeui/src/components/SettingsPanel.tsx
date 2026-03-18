@@ -1411,6 +1411,32 @@ export const THEMES: ThemeDef[] = [
       "--border-color": "rgba(44, 82, 130, 0.10)", "--error-color": "#984050",
     },
   },
+
+  // ── Pair: Blaze (Red · Black · Gold) ──
+  {
+    id: "dark-blaze", name: "Blaze", category: "supercar", mode: "dark", pairId: "blaze",
+    preview: { bg: "#0c0806", fg: "#f5e8e0", accent: "#e84428", secondary: "#1c1210" },
+    vars: {
+      "--bg-primary": "#0c0806", "--bg-secondary": "#1c1210", "--bg-tertiary": "#2a1c18", "--bg-elevated": "#362420",
+      "--text-primary": "#f5e8e0", "--text-secondary": "#a08878", "--accent-blue": "#e84428", "--accent-green": "#ffe44d",
+      "--accent-purple": "#d44030", "--accent-gold": "#ffe44d", "--accent-rose": "#e84428",
+      "--border-color": "rgba(232, 68, 40, 0.14)", "--error-color": "#ff5040",
+      "--success-color": "#ffe44d", "--warning-color": "#f0a020", "--info-color": "#e84428",
+      "--accent-color": "#e84428", "--glow-accent": "0 0 20px rgba(232, 68, 40, 0.25)",
+    },
+  },
+  {
+    id: "light-blaze", name: "Blaze", category: "supercar", mode: "light", pairId: "blaze",
+    preview: { bg: "#fef8f5", fg: "#1a0c08", accent: "#d44030", secondary: "#f8e8e2" },
+    vars: {
+      "--bg-primary": "#fef8f5", "--bg-secondary": "#f8e8e2", "--bg-tertiary": "#f0d8cc", "--bg-elevated": "#ffffff",
+      "--text-primary": "#1a0c08", "--text-secondary": "#7a5848", "--accent-blue": "#d44030", "--accent-green": "#c8a010",
+      "--accent-purple": "#b83020", "--accent-gold": "#c8a010", "--accent-rose": "#d44030",
+      "--border-color": "rgba(212, 64, 48, 0.12)", "--error-color": "#b82020",
+      "--success-color": "#c8a010", "--warning-color": "#d08818", "--info-color": "#d44030",
+      "--accent-color": "#d44030", "--glow-accent": "0 0 20px rgba(212, 64, 48, 0.15)",
+    },
+  },
 ];
 
 /**
