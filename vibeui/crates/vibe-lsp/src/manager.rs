@@ -30,6 +30,7 @@ impl LspManager {
         server_configs.insert("zig".into(),          s("zls", &[]));
         server_configs.insert("nim".into(),          s("nimlangserver", &[]));
         server_configs.insert("d".into(),             s("serve-d", &[]));
+        server_configs.insert("dlang".into(),         s("serve-d", &[]));
         server_configs.insert("v".into(),             s("v-analyzer", &[]));
         server_configs.insert("vala".into(),          s("vala-language-server", &[]));
 

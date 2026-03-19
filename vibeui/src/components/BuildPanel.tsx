@@ -60,6 +60,9 @@ const SYSTEM_ICONS: Record<string, string> = {
   javac: "Java", "g++": "C++", "c++": "C++", gcc: "C", cc: "C",
   typescript: "TypeScript", kotlin: "Kotlin", swift: "Swift",
   zig: "Zig", nim: "Nim", crystal: "Crystal", gnat: "Ada",
+  dmd: "D", dart: "Dart", ghc: "Haskell", scalac: "Scala", ocaml: "OCaml",
+  erlc: "Erlang", perl: "Perl", php: "PHP", lua: "Lua", r: "R",
+  julia: "Julia", gfortran: "Fortran", vlang: "V", racket: "Racket", fpc: "Pascal",
 };
 
 export function BuildPanel({ workspacePath, onOpenFile }: BuildPanelProps) {
