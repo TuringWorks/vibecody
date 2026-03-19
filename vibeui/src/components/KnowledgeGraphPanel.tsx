@@ -353,7 +353,7 @@ export default function KnowledgeGraphPanel() {
            <div style={{ padding: 8, border: "1px solid var(--border-color)", borderRadius: 6, fontSize: 12, marginBottom: 12 }}>
              <strong>{selectedNode.name}</strong> ({selectedNode.kind})
              <div style={{ marginTop: 4 }}>Repo: {selectedNode.repo} | File: {selectedNode.file}:{selectedNode.line}</div>
-             <div style={{ marginTop: 2, fontFamily: "monospace", fontSize: 11 }}>{selectedNode.signature}</div>
+             <div style={{ marginTop: 2, fontFamily: "var(--font-mono)", fontSize: 11 }}>{selectedNode.signature}</div>
            </div>
          )}
 
@@ -375,7 +375,7 @@ export default function KnowledgeGraphPanel() {
                    <td style={{ padding: 4, color: KIND_COLORS[n.kind] }}>{n.name}</td>
                    <td style={{ padding: 4 }}>{n.kind}</td>
                    <td style={{ padding: 4, color: REPO_COLORS[n.repo] }}>{n.repo}</td>
-                   <td style={{ padding: 4, fontFamily: "monospace", fontSize: 11 }}>{n.file}:{n.line}</td>
+                   <td style={{ padding: 4, fontFamily: "var(--font-mono)", fontSize: 11 }}>{n.file}:{n.line}</td>
                  </tr>
                ))}
              </tbody>
@@ -395,15 +395,15 @@ export default function KnowledgeGraphPanel() {
            <>
              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 12 }}>
                <div style={{ padding: 10, border: "1px solid var(--border-color)", borderRadius: 6, textAlign: "center" }}>
-                 <div style={{ fontSize: 24, fontWeight: 700, color: "var(--accent-color)" }}>{stats.total_nodes}</div>
+                 <div style={{ fontSize: 24, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--accent-color)" }}>{stats.total_nodes}</div>
                  <div>Nodes</div>
                </div>
                <div style={{ padding: 10, border: "1px solid var(--border-color)", borderRadius: 6, textAlign: "center" }}>
-                 <div style={{ fontSize: 24, fontWeight: 700, color: "var(--success-color)" }}>{stats.total_edges}</div>
+                 <div style={{ fontSize: 24, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--success-color)" }}>{stats.total_edges}</div>
                  <div>Edges</div>
                </div>
                <div style={{ padding: 10, border: "1px solid var(--border-color)", borderRadius: 6, textAlign: "center" }}>
-                 <div style={{ fontSize: 24, fontWeight: 700, color: "var(--warning-color)" }}>{stats.cross_repo_edges}</div>
+                 <div style={{ fontSize: 24, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--warning-color)" }}>{stats.cross_repo_edges}</div>
                  <div>Cross-Repo</div>
                </div>
              </div>

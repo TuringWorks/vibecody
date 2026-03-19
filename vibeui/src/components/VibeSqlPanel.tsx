@@ -79,7 +79,7 @@ const input: React.CSSProperties = {
 const monoInput: React.CSSProperties = { ...input, fontFamily: "var(--font-mono, monospace)" };
 const btnPrimary: React.CSSProperties = {
   padding: "7px 16px", cursor: "pointer", border: "none", borderRadius: "var(--radius-sm)",
-  background: "var(--accent-color)", color: "#fff", fontSize: 12, fontWeight: 600,
+  background: "var(--accent-color)", color: "var(--btn-primary-fg)", fontSize: 12, fontWeight: 600,
 };
 const btnSecondary: React.CSSProperties = {
   ...btnPrimary, background: "var(--bg-tertiary)", color: "var(--text-primary)",
@@ -87,7 +87,7 @@ const btnSecondary: React.CSSProperties = {
 };
 const badge = (bg: string): React.CSSProperties => ({
   display: "inline-block", padding: "2px 8px", borderRadius: 10,
-  fontSize: 10, fontWeight: 600, background: bg, color: "#fff",
+  fontSize: 10, fontWeight: 600, background: bg, color: "var(--btn-primary-fg)",
 });
 
 // ── Component ────────────────────────────────────────────────────────────────

@@ -227,7 +227,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
  onChange={(e) => setSqlQuery(e.target.value)}
  rows={2}
  placeholder="SELECT * FROM users LIMIT 50"
- style={{ flex: 1, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "inherit", padding: "5px 8px", fontSize: 12, fontFamily: "monospace", resize: "none" }}
+ style={{ flex: 1, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "inherit", padding: "5px 8px", fontSize: 12, fontFamily: "var(--font-mono)", resize: "none" }}
  />
  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
  <button onClick={() => runQuery(sqlQuery)} disabled={isLoading || !sqlQuery.trim()} style={{ background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: 4, padding: "4px 10px", cursor: "pointer", fontSize: 11 }}>Run</button>
@@ -240,7 +240,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
  <div style={{ flex: 1, overflow: "auto", padding: 12 }}>
  {isLoading && <div style={{ opacity: 0.5 }}>Loading…</div>}
  {queryResult?.error && (
- <div style={{ color: "var(--error-color)", fontFamily: "monospace", fontSize: 12, padding: 8, background: "rgba(243,139,168,0.1)", borderRadius: 4 }}>
+ <div style={{ color: "var(--error-color)", fontFamily: "var(--font-mono)", fontSize: 12, padding: 8, background: "rgba(243,139,168,0.1)", borderRadius: 4 }}>
  {queryResult.error}
  </div>
  )}
@@ -248,7 +248,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
  <>
  <div style={{ fontSize: 11, opacity: 0.5, marginBottom: 8 }}>{queryResult.row_count} rows</div>
  <div style={{ overflowX: "auto" }}>
- <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, fontFamily: "monospace" }}>
+ <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, fontFamily: "var(--font-mono)" }}>
  <thead>
  <tr style={{ background: "var(--bg-secondary)" }}>
  {queryResult.columns.map((col) => (

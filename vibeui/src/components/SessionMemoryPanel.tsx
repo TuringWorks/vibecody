@@ -55,23 +55,23 @@ const FALLBACK_HEALTH: HealthStatus = {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-mono, monospace)", fontSize: 13, height: "100%", overflow: "auto", background: "var(--bg-primary)" };
+const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, height: "100%", overflow: "auto", background: "var(--bg-primary)" };
 const headingStyle: React.CSSProperties = { margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" };
-const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-primary)" };
+const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-color)" };
 const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
-const btnStyle: React.CSSProperties = { padding: "6px 14px", borderRadius: 4, border: "1px solid var(--border-primary)", background: "var(--bg-tertiary)", color: "var(--text-primary)", cursor: "pointer", fontSize: 12 };
-const tabBtnStyle = (active: boolean): React.CSSProperties => ({ ...btnStyle, background: active ? "var(--accent-primary)" : "var(--bg-tertiary)", color: active ? "white" : "var(--text-primary)", marginRight: 4 });
+const btnStyle: React.CSSProperties = { padding: "6px 14px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", cursor: "pointer", fontSize: 12 };
+const tabBtnStyle = (active: boolean): React.CSSProperties => ({ ...btnStyle, background: active ? "var(--accent-primary)" : "var(--bg-tertiary)", color: active ? "var(--btn-primary-fg)" : "var(--text-primary)", marginRight: 4 });
 
 const barBg: React.CSSProperties = { height: 12, borderRadius: 6, background: "var(--bg-tertiary)", overflow: "hidden" };
 const barFill = (pct: number, color: string): React.CSSProperties => ({ height: "100%", width: `${Math.min(pct, 100)}%`, borderRadius: 6, background: color });
 
-const thStyle: React.CSSProperties = { textAlign: "left", padding: "6px 10px", borderBottom: "1px solid var(--border-primary)", fontSize: 11, color: "var(--text-secondary)" };
-const tdStyle: React.CSSProperties = { padding: "6px 10px", borderBottom: "1px solid var(--border-primary)", fontSize: 12 };
+const thStyle: React.CSSProperties = { textAlign: "left", padding: "6px 10px", borderBottom: "1px solid var(--border-color)", fontSize: 11, color: "var(--text-secondary)" };
+const tdStyle: React.CSSProperties = { padding: "6px 10px", borderBottom: "1px solid var(--border-color)", fontSize: 12, fontFamily: "var(--font-mono)" };
 
 const statusColors: Record<string, string> = { healthy: "var(--success-color)", warning: "var(--warning-color)", critical: "var(--error-color)" };
 const severityColors: Record<string, string> = { info: "var(--info-color)", warning: "var(--warning-color)", critical: "var(--error-color)" };
 const typeLabels: Record<string, string> = { high_usage: "High Usage", rapid_growth: "Rapid Growth", gc_pressure: "GC Pressure", token_overflow: "Token Overflow", leak_suspected: "Leak Suspected" };
-const badgeStyle = (color: string): React.CSSProperties => ({ display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 600, color: "white", background: color });
+const badgeStyle = (color: string): React.CSSProperties => ({ display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 600, color: "var(--btn-primary-fg)", background: color });
 
 const formatUptime = (sec: number): string => {
   const h = Math.floor(sec / 3600);
@@ -191,8 +191,8 @@ export function SessionMemoryPanel() {
         <div>
           <div style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
-              <div style={{ fontWeight: 600, fontSize: 14 }}>Session Status</div>
-              <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }}>
+              <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text-primary)" }}>Session Status</div>
+              <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2, fontFamily: "var(--font-mono)" }}>
                 Uptime: {formatUptime(health.uptimeSec)} | GC runs: {health.gcCount}
               </div>
             </div>
@@ -202,12 +202,12 @@ export function SessionMemoryPanel() {
           <div style={cardStyle}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
               <span style={labelStyle}>Memory Usage</span>
-              <span style={{ fontSize: 11 }}>{health.memoryUsedMb} / {health.memoryLimitMb} MB</span>
+              <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{health.memoryUsedMb} / {health.memoryLimitMb} MB</span>
             </div>
             <div style={barBg}>
               <div style={barFill(memPct, memBarColor)} />
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "var(--text-secondary)", marginTop: 4 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "var(--text-secondary)", fontFamily: "var(--font-mono)", marginTop: 4 }}>
               <span>{memPct.toFixed(1)}% used</span>
               <span>Peak: {health.peakMemoryMb} MB</span>
             </div>
@@ -216,17 +216,17 @@ export function SessionMemoryPanel() {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
             <div style={cardStyle}>
               <div style={labelStyle}>Growth Rate</div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: health.growthRateMbPerMin > 1 ? "var(--warning-color)" : "var(--success-color)" }}>
+              <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--font-mono)", color: health.growthRateMbPerMin > 1 ? "var(--warning-color)" : "var(--success-color)" }}>
                 {health.growthRateMbPerMin} MB/min
               </div>
             </div>
             <div style={cardStyle}>
               <div style={labelStyle}>Last GC</div>
-              <div style={{ fontSize: 13, fontWeight: 600 }}>{new Date(health.lastGcAt).toLocaleTimeString()}</div>
+              <div style={{ fontSize: 13, fontWeight: 600, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{new Date(health.lastGcAt).toLocaleTimeString()}</div>
             </div>
             <div style={cardStyle}>
               <div style={labelStyle}>Active Alerts</div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: activeAlerts.length > 0 ? "var(--warning-color)" : "var(--success-color)" }}>
+              <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--font-mono)", color: activeAlerts.length > 0 ? "var(--warning-color)" : "var(--success-color)" }}>
                 {activeAlerts.length}
               </div>
             </div>
@@ -306,8 +306,8 @@ export function SessionMemoryPanel() {
                   <button style={{ ...btnStyle, fontSize: 10, padding: "3px 8px" }} onClick={() => resolveAlert(a.id)}>Resolve</button>
                 )}
               </div>
-              <div style={{ marginTop: 6 }}>{a.message}</div>
-              <div style={{ fontSize: 10, color: "var(--text-secondary)", marginTop: 4 }}>
+              <div style={{ marginTop: 6, color: "var(--text-primary)" }}>{a.message}</div>
+              <div style={{ fontSize: 10, color: "var(--text-secondary)", fontFamily: "var(--font-mono)", marginTop: 4 }}>
                 {new Date(a.timestamp).toLocaleString()} {a.resolved && "— Resolved"}
               </div>
             </div>

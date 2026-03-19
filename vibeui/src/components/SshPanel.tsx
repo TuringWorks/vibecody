@@ -235,7 +235,7 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  <span style={{ fontSize: 18 }}></span>
  <div style={{ flex: 1 }}>
  <div style={{ fontSize: 12, fontWeight: 600 }}>{p.name}</div>
- <div style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "monospace" }}>
+ <div style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
  {p.user}@{p.host}:{p.port}
  {p.key_path && <span style={{ marginLeft: 6, color: "var(--success-color)" }}></span>}
  </div>
@@ -328,7 +328,7 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  </div>
 
  {selected && (
- <div style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "monospace", padding: "4px 8px", background: "var(--bg-secondary)", borderRadius: 4, border: "1px solid var(--border-color)" }}>
+ <div style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)", padding: "4px 8px", background: "var(--bg-secondary)", borderRadius: 4, border: "1px solid var(--border-color)" }}>
  {selected.user}@{selected.host}:{selected.port}
  {selected.key_path && ` (-i ${selected.key_path})`}
  </div>
@@ -363,7 +363,7 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  flex: 1, padding: "6px 10px", fontSize: 12,
  background: "var(--bg-secondary)", border: "1px solid var(--border-color)",
  borderRadius: 4, color: "var(--text-primary)", outline: "none",
- fontFamily: "monospace",
+ fontFamily: "var(--font-mono)",
  }}
  />
  <button
@@ -401,7 +401,7 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  ref={logRef}
  style={{
  background: "var(--bg-primary)", borderRadius: 6, padding: "8px 10px",
- fontFamily: "monospace", fontSize: 11, lineHeight: 1.5,
+ fontFamily: "var(--font-mono)", fontSize: 11, lineHeight: 1.5,
  overflow: "auto", maxHeight: 320,
  border: "1px solid var(--border-color)",
  whiteSpace: "pre-wrap", wordBreak: "break-all",

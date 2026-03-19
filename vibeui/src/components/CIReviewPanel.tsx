@@ -151,7 +151,7 @@ export function CIReviewPanel() {
             </label>
 
             <button onClick={handleSave} disabled={saving} style={{
-              ...btnStyle, background: "var(--accent-primary)", color: "white", fontWeight: 700,
+              ...btnStyle, background: "var(--accent-primary)", color: "var(--btn-primary-fg)", fontWeight: 700,
               opacity: saving ? 0.5 : 1,
             }}>
               {saving ? "Saving..." : "Save Configuration"}
@@ -192,7 +192,7 @@ export function CIReviewPanel() {
           <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>CLI CI Mode</div>
           <div style={{
             fontSize: 10, padding: "8px 10px", borderRadius: 4,
-            background: "var(--bg-primary)", fontFamily: "monospace",
+            background: "var(--bg-primary)", fontFamily: "var(--font-mono)",
           }}>
             vibecli --review --ci-mode --base $BASE_SHA<br />
             vibecli --review --ci-mode --severity-threshold medium
@@ -228,7 +228,7 @@ export function CIReviewPanel() {
                       {r.repo} #{r.pr_number}
                     </span>
                     <div style={{ flex: 1 }} />
-                    <span style={{ fontSize: 9, opacity: 0.5, fontFamily: "monospace" }}>
+                    <span style={{ fontSize: 9, opacity: 0.5, fontFamily: "var(--font-mono)" }}>
                       {new Date(r.timestamp * 1000).toLocaleString()}
                     </span>
                   </div>
@@ -255,7 +255,7 @@ export function CIReviewPanel() {
                       </span>
                     )}
                   </div>
-                  <div style={{ fontSize: 9, opacity: 0.4, marginTop: 2, fontFamily: "monospace" }}>
+                  <div style={{ fontSize: 9, opacity: 0.4, marginTop: 2, fontFamily: "var(--font-mono)" }}>
                     {r.commit_sha.slice(0, 8)}
                   </div>
                 </div>

@@ -153,7 +153,7 @@ function FileChangeBody({ path, diff }: { path: string; diff: string }) {
 function CommandOutputBody({ command, stdout, stderr, exit_code }: { command: string; stdout: string; stderr: string; exit_code: number }) {
  return (
  <div>
- <div style={{ fontSize: "11px", fontFamily: "monospace", color: "var(--accent-blue)", marginBottom: "6px" }}>$ {command}</div>
+ <div style={{ fontSize: "11px", fontFamily: "var(--font-mono)", color: "var(--accent-blue)", marginBottom: "6px" }}>$ {command}</div>
  {stdout && (
  <pre style={{ fontSize: "11px", margin: "0 0 4px 0", maxHeight: "120px", overflowY: "auto", color: "var(--text-primary)" }}>
  {stdout.trim()}

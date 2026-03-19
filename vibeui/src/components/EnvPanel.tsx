@@ -280,7 +280,7 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
       </div>
 
       {/* File info */}
-      <div style={{ fontSize: 11, opacity: 0.6, fontFamily: "monospace" }}>
+      <div style={{ fontSize: 11, opacity: 0.6, fontFamily: "var(--font-mono)" }}>
         {envToFilename(activeEnv)} &middot; {entries.length} variable{entries.length !== 1 ? "s" : ""}
         {dirty && <span style={{ color: "var(--text-warning)", marginLeft: 8 }}>Unsaved changes</span>}
       </div>
@@ -340,7 +340,7 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
               }}
             >
               {/* Key */}
-              <span style={{ fontFamily: "monospace", fontWeight: 600, minWidth: 140, flexShrink: 0 }}>
+              <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600, minWidth: 140, flexShrink: 0 }}>
                 {entry.key}
               </span>
               {/* Value */}
@@ -349,7 +349,7 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
                 value={entry.value}
                 onChange={(e) => handleValueChange(entry.key, e.target.value)}
                 style={{
-                  flex: 1, padding: "3px 8px", fontSize: 11, fontFamily: "monospace",
+                  flex: 1, padding: "3px 8px", fontSize: 11, fontFamily: "var(--font-mono)",
                   background: "var(--bg-secondary)",
                   border: "1px solid var(--border-color)", borderRadius: 4,
                   color: "var(--text-primary)", outline: "none",
@@ -394,7 +394,7 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
             onChange={(e) => setNewKey(e.target.value)}
             placeholder="KEY_NAME"
             style={{
-              width: 140, padding: "6px 8px", fontSize: 11, fontFamily: "monospace",
+              width: 140, padding: "6px 8px", fontSize: 11, fontFamily: "var(--font-mono)",
               background: "var(--bg-secondary)", textTransform: "uppercase",
               border: "1px solid var(--border-color)", borderRadius: 4,
               color: "var(--text-primary)", outline: "none",
@@ -407,7 +407,7 @@ export function EnvPanel({ workspacePath }: EnvPanelProps) {
             placeholder="value"
             onKeyDown={(e) => e.key === "Enter" && handleAddVar()}
             style={{
-              flex: 1, padding: "6px 8px", fontSize: 11, fontFamily: "monospace",
+              flex: 1, padding: "6px 8px", fontSize: 11, fontFamily: "var(--font-mono)",
               background: "var(--bg-secondary)",
               border: "1px solid var(--border-color)", borderRadius: 4,
               color: "var(--text-primary)", outline: "none",

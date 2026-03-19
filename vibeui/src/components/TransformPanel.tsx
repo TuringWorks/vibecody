@@ -359,7 +359,7 @@ export function TransformPanel({ provider }: TransformPanelProps) {
                   onChange={e => setSourceCode(e.target.value)}
                   placeholder={`Paste your ${selectedDef?.from} code here...`}
                   spellCheck={false}
-                  style={{ flex: 1, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 8, color: "var(--text-primary)", padding: 12, fontSize: 12, fontFamily: "monospace", resize: "none", boxSizing: "border-box" }}
+                  style={{ flex: 1, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 8, color: "var(--text-primary)", padding: 12, fontSize: 12, fontFamily: "var(--font-mono)", resize: "none", boxSizing: "border-box" }}
                 />
               </div>
 
@@ -379,7 +379,7 @@ export function TransformPanel({ provider }: TransformPanelProps) {
                 <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4, color: "var(--text-secondary)" }}>
                   Output ({selectedDef?.to})
                 </div>
-                <pre style={{ flex: 1, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 8, color: "var(--text-success)", padding: 12, fontSize: 12, fontFamily: "monospace", overflow: "auto", margin: 0, whiteSpace: "pre" }}>
+                <pre style={{ flex: 1, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 8, color: "var(--text-success)", padding: 12, fontSize: 12, fontFamily: "var(--font-mono)", overflow: "auto", margin: 0, whiteSpace: "pre" }}>
                   {transformedCode || (pasteTransforming ? "Transforming..." : "Transformed code will appear here")}
                 </pre>
               </div>
@@ -464,7 +464,7 @@ export function TransformPanel({ provider }: TransformPanelProps) {
                     >
                       <input type="checkbox" checked={selectedFiles.has(item.file)} onChange={() => toggleFile(item.file)} style={{ marginTop: 2, flexShrink: 0 }} />
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 12, fontFamily: "monospace", fontWeight: 500, wordBreak: "break-all" }}>{item.file}</div>
+                        <div style={{ fontSize: 12, fontFamily: "var(--font-mono)", fontWeight: 500, wordBreak: "break-all" }}>{item.file}</div>
                         <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }}>{item.description}</div>
                       </div>
                       <div style={{ fontSize: 11, color: "var(--text-secondary)", flexShrink: 0 }}>~{item.estimated_changes}</div>

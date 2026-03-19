@@ -220,7 +220,7 @@ export function HealthMonitorPanel() {
  </div>
  <div style={{ display: "flex", flexDirection: "column", gap: 3, flex: 1 }}>
  <label style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)" }}>URL</label>
- <input value={newUrl} onChange={e => setNewUrl(e.target.value)} placeholder="https://api.example.com/health" style={{ padding: "4px 8px", fontSize: 11, fontFamily: "monospace", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none" }} />
+ <input value={newUrl} onChange={e => setNewUrl(e.target.value)} placeholder="https://api.example.com/health" style={{ padding: "4px 8px", fontSize: 11, fontFamily: "var(--font-mono)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none" }} />
  </div>
  <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
  <label style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)" }}>Timeout</label>
@@ -259,7 +259,7 @@ export function HealthMonitorPanel() {
  {/* Label + URL */}
  <div style={{ flex: 1, minWidth: 0 }}>
  <div style={{ fontSize: 12, fontWeight: 600 }}>{m.label}</div>
- <div style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.url}</div>
+ <div style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "var(--font-mono)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.url}</div>
  </div>
 
  {/* Sparkline */}

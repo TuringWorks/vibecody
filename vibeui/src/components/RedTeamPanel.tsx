@@ -212,7 +212,7 @@ export function RedTeamPanel({ workspacePath, provider: _provider }: Props) {
             onClick={handleSuspend}
             style={{
               padding: "6px 16px", fontSize: 13, borderRadius: 4, border: "none",
-              background: "var(--error-color)", color: "white", cursor: "pointer",
+              background: "var(--error-color)", color: "var(--btn-primary-fg)", cursor: "pointer",
               fontWeight: 600,
             }}
           >
@@ -224,7 +224,7 @@ export function RedTeamPanel({ workspacePath, provider: _provider }: Props) {
             disabled={!targetUrl.trim()}
             style={{
               padding: "6px 16px", fontSize: 13, borderRadius: 4, border: "none",
-              background: "var(--accent-color)", color: "white",
+              background: "var(--accent-color)", color: "var(--btn-primary-fg)",
               cursor: !targetUrl.trim() ? "not-allowed" : "pointer",
               fontWeight: 600,
             }}
@@ -320,12 +320,12 @@ export function RedTeamPanel({ workspacePath, provider: _provider }: Props) {
                   <span style={{ fontSize: 12, fontWeight: 600, flex: 1 }}>{f.title}</span>
                   <span style={{
                     fontSize: 10, padding: "2px 6px", borderRadius: 3,
-                    background: severityColor(f.severity), color: "white", fontWeight: 600,
+                    background: severityColor(f.severity), color: "var(--btn-primary-fg)", fontWeight: 600,
                   }}>
                     CVSS {f.cvss_score.toFixed(1)}
                   </span>
                   {f.confirmed && (
-                    <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 3, background: "var(--error-color)", color: "white" }}>
+                    <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 3, background: "var(--error-color)", color: "var(--btn-primary-fg)" }}>
                       CONFIRMED
                     </span>
                   )}
@@ -378,7 +378,7 @@ export function RedTeamPanel({ workspacePath, provider: _provider }: Props) {
                 }
               }}
             >
-              <span style={{ fontFamily: "monospace", fontSize: 11 }}>{s.id}</span>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>{s.id}</span>
               <span style={{ color: "var(--text-secondary)" }}>{s.target_url}</span>
               <span style={{ flex: 1 }} />
               <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>

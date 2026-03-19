@@ -352,7 +352,7 @@ export function CsvPanel() {
  { label: "Total Cells", value: dataRows.length * (headers.length || 1) },
  ].map(({ label, value }) => (
  <div key={label} style={CARD}>
- <div style={{ fontSize: 20, fontWeight: 700 }}>{value}</div>
+ <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{value}</div>
  <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>{label}</div>
  </div>
  ))}

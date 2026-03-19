@@ -257,7 +257,7 @@ const AgentTeamsPanel: React.FC = () => {
                   onChange={(e) => setMemberCount(parseInt(e.target.value))}
                   style={{ flex: 1 }}
                 />
-                <span style={{ fontSize: 13, fontWeight: 700, fontFamily: "monospace", minWidth: 60 }}>
+                <span style={{ fontSize: 13, fontWeight: 700, fontFamily: "var(--font-mono)", minWidth: 60 }}>
                   {memberCount} agents
                 </span>
               </div>
@@ -375,7 +375,7 @@ const AgentTeamsPanel: React.FC = () => {
                       Generated Files ({t.generated_files.length})
                     </div>
                     {t.generated_files.map((f, i) => (
-                      <div key={i} style={{ fontFamily: "monospace", fontSize: 11, color: "var(--text-primary)", lineHeight: 1.6 }}>
+                      <div key={i} style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-primary)", lineHeight: 1.6 }}>
                         {f}
                       </div>
                     ))}
@@ -429,7 +429,7 @@ const AgentTeamsPanel: React.FC = () => {
                     {m.to_agent_id ? ` → ${m.to_agent_id === team.lead_agent_id ? "Lead" : m.to_agent_id.split("-").pop()}` : " → all"}
                   </span>
                   <div style={{ flex: 1 }} />
-                  <span style={{ fontSize: 9, color: "var(--text-muted)", fontFamily: "monospace", opacity: 0.6 }}>
+                  <span style={{ fontSize: 9, color: "var(--text-muted)", fontFamily: "var(--font-mono)", opacity: 0.6 }}>
                     {new Date(m.timestamp).toLocaleTimeString()}
                   </span>
                 </div>
@@ -466,7 +466,7 @@ const AgentTeamsPanel: React.FC = () => {
                     {h.member_count} agents · {h.task_count} tasks
                   </span>
                   <div style={{ flex: 1 }} />
-                  <span style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "monospace" }}>
+                  <span style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
                     {new Date(h.completed_at).toLocaleDateString()}
                   </span>
                 </div>
@@ -474,7 +474,7 @@ const AgentTeamsPanel: React.FC = () => {
                 {h.artifacts_dir && (
                   <div style={{
                     fontSize: 10, color: "var(--text-muted)", marginTop: 4,
-                    fontFamily: "monospace", opacity: 0.8,
+                    fontFamily: "var(--font-mono)", opacity: 0.8,
                   }}>
                     Artifacts: {h.artifacts_dir}
                   </div>
@@ -516,7 +516,7 @@ export default AgentTeamsPanel;
 const btnPrimary: React.CSSProperties = {
   padding: "6px 14px", fontSize: 12, fontWeight: 600,
   border: "none", borderRadius: 4,
-  background: "var(--accent-color)", color: "white",
+  background: "var(--accent-color)", color: "var(--btn-primary-fg)",
   cursor: "pointer",
 };
 

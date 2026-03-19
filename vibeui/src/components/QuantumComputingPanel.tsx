@@ -165,7 +165,7 @@ export function QuantumComputingPanel() {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", color: "var(--text-primary)", background: "var(--bg-primary)" }}>
       {/* Tab bar */}
-      <div style={{ display: "flex", gap: 2, padding: "8px 12px", borderBottom: "1px solid var(--border-primary)", flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 2, padding: "8px 12px", borderBottom: "1px solid var(--border-color)", flexWrap: "wrap" }}>
         {TABS.map(t => (
           <button
             key={t.id}
@@ -195,7 +195,7 @@ export function QuantumComputingPanel() {
                   style={{
                     padding: 12, borderRadius: 8, cursor: "pointer",
                     background: selectedLang === l.name ? "var(--accent-primary-10)" : "var(--bg-secondary)",
-                    border: selectedLang === l.name ? "1px solid var(--accent-primary)" : "1px solid var(--border-primary)",
+                    border: selectedLang === l.name ? "1px solid var(--accent-primary)" : "1px solid var(--border-color)",
                   }}
                 >
                   <div style={{ fontWeight: 600, fontSize: 14 }}>{l.name}</div>
@@ -223,7 +223,7 @@ export function QuantumComputingPanel() {
                 <h4 style={{ margin: "0 0 8px" }}>Language / OS Compatibility Matrix</h4>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                   <thead>
-                    <tr style={{ borderBottom: "2px solid var(--border-primary)" }}>
+                    <tr style={{ borderBottom: "2px solid var(--border-color)" }}>
                       <th style={{ textAlign: "left", padding: 6 }}>Language</th>
                       <th style={{ textAlign: "left", padding: 6 }}>Compatible Quantum OS</th>
                     </tr>
@@ -248,7 +248,7 @@ export function QuantumComputingPanel() {
             <h3 style={{ margin: "0 0 12px" }}>Quantum Operating Systems (15)</h3>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 12 }}>
               {osList.map(o => (
-                <div key={o.name} style={{ padding: 12, borderRadius: 8, background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}>
+                <div key={o.name} style={{ padding: 12, borderRadius: 8, background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
                   <div style={{ fontWeight: 600, fontSize: 14 }}>{o.name}</div>
                   <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>
                     Layer: {o.layer}
@@ -269,15 +269,15 @@ export function QuantumComputingPanel() {
             <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "flex-end" }}>
               <label style={{ fontSize: 12 }}>
                 Name<br />
-                <input value={ncName} onChange={e => setNcName(e.target.value)} style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border-primary)", background: "var(--bg-secondary)", color: "var(--text-primary)", width: 140 }} />
+                <input value={ncName} onChange={e => setNcName(e.target.value)} style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", width: 140 }} />
               </label>
               <label style={{ fontSize: 12 }}>
                 Qubits<br />
-                <input type="number" value={ncQubits} onChange={e => setNcQubits(+e.target.value)} min={1} max={100} style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border-primary)", background: "var(--bg-secondary)", color: "var(--text-primary)", width: 60 }} />
+                <input type="number" value={ncQubits} onChange={e => setNcQubits(+e.target.value)} min={1} max={100} style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", width: 60 }} />
               </label>
               <label style={{ fontSize: 12 }}>
                 Classical bits<br />
-                <input type="number" value={ncClassical} onChange={e => setNcClassical(+e.target.value)} min={0} max={100} style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border-primary)", background: "var(--bg-secondary)", color: "var(--text-primary)", width: 60 }} />
+                <input type="number" value={ncClassical} onChange={e => setNcClassical(+e.target.value)} min={0} max={100} style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", width: 60 }} />
               </label>
               <button onClick={createCircuit} style={{ padding: "6px 14px", borderRadius: 6, border: "none", background: "var(--accent-primary)", color: "var(--text-primary)", cursor: "pointer", fontWeight: 600, fontSize: 13 }}>
                 Create Circuit
@@ -288,7 +288,7 @@ export function QuantumComputingPanel() {
             ) : (
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                 <thead>
-                  <tr style={{ borderBottom: "2px solid var(--border-primary)" }}>
+                  <tr style={{ borderBottom: "2px solid var(--border-color)" }}>
                     <th style={{ textAlign: "left", padding: 6 }}>Name</th>
                     <th style={{ textAlign: "right", padding: 6 }}>Qubits</th>
                     <th style={{ textAlign: "right", padding: 6 }}>Gates</th>
@@ -306,9 +306,9 @@ export function QuantumComputingPanel() {
                       <td style={{ padding: 6, textAlign: "right" }}>{c.depth}</td>
                       <td style={{ padding: 6, textAlign: "right" }}>{c.twoQubitGates}</td>
                       <td style={{ padding: 6, textAlign: "center" }}>
-                        <button onClick={() => exportCircuit(c.index, "qasm3")} style={{ marginRight: 4, background: "none", border: "1px solid var(--border-primary)", borderRadius: 4, color: "var(--text-secondary)", cursor: "pointer", padding: "2px 6px", fontSize: 11 }}>QASM3</button>
-                        <button onClick={() => exportCircuit(c.index, "qiskit")} style={{ marginRight: 4, background: "none", border: "1px solid var(--border-primary)", borderRadius: 4, color: "var(--text-secondary)", cursor: "pointer", padding: "2px 6px", fontSize: 11 }}>Qiskit</button>
-                        <button onClick={() => exportCircuit(c.index, "cirq")} style={{ background: "none", border: "1px solid var(--border-primary)", borderRadius: 4, color: "var(--text-secondary)", cursor: "pointer", padding: "2px 6px", fontSize: 11 }}>Cirq</button>
+                        <button onClick={() => exportCircuit(c.index, "qasm3")} style={{ marginRight: 4, background: "none", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-secondary)", cursor: "pointer", padding: "2px 6px", fontSize: 11 }}>QASM3</button>
+                        <button onClick={() => exportCircuit(c.index, "qiskit")} style={{ marginRight: 4, background: "none", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-secondary)", cursor: "pointer", padding: "2px 6px", fontSize: 11 }}>Qiskit</button>
+                        <button onClick={() => exportCircuit(c.index, "cirq")} style={{ background: "none", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-secondary)", cursor: "pointer", padding: "2px 6px", fontSize: 11 }}>Cirq</button>
                       </td>
                     </tr>
                   ))}
@@ -325,27 +325,27 @@ export function QuantumComputingPanel() {
             <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "flex-end" }}>
               <label style={{ fontSize: 12 }}>
                 Name<br />
-                <input value={npName} onChange={e => setNpName(e.target.value)} style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border-primary)", background: "var(--bg-secondary)", color: "var(--text-primary)", width: 140 }} />
+                <input value={npName} onChange={e => setNpName(e.target.value)} style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", width: 140 }} />
               </label>
               <label style={{ fontSize: 12 }}>
                 Language<br />
-                <select value={npLang} onChange={e => setNpLang(e.target.value)} style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border-primary)", background: "var(--bg-secondary)", color: "var(--text-primary)" }}>
+                <select value={npLang} onChange={e => setNpLang(e.target.value)} style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)" }}>
                   {languages.map(l => <option key={l.name} value={l.name}>{l.name}</option>)}
                 </select>
               </label>
               <label style={{ fontSize: 12 }}>
                 Hardware<br />
-                <select value={npHw} onChange={e => setNpHw(e.target.value)} style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border-primary)", background: "var(--bg-secondary)", color: "var(--text-primary)" }}>
+                <select value={npHw} onChange={e => setNpHw(e.target.value)} style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)" }}>
                   {hardware.map(h => <option key={h.type} value={h.type}>{h.type}</option>)}
                 </select>
               </label>
               <label style={{ fontSize: 12 }}>
                 Qubits<br />
-                <input type="number" value={npQubits} onChange={e => setNpQubits(+e.target.value)} min={1} max={10000} style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border-primary)", background: "var(--bg-secondary)", color: "var(--text-primary)", width: 60 }} />
+                <input type="number" value={npQubits} onChange={e => setNpQubits(+e.target.value)} min={1} max={10000} style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", width: 60 }} />
               </label>
               <label style={{ fontSize: 12 }}>
                 Description<br />
-                <input value={npDesc} onChange={e => setNpDesc(e.target.value)} style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border-primary)", background: "var(--bg-secondary)", color: "var(--text-primary)", width: 200 }} />
+                <input value={npDesc} onChange={e => setNpDesc(e.target.value)} style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", width: 200 }} />
               </label>
               <button onClick={createProject} style={{ padding: "6px 14px", borderRadius: 6, border: "none", background: "var(--accent-primary)", color: "var(--text-primary)", cursor: "pointer", fontWeight: 600, fontSize: 13 }}>
                 Create Project
@@ -356,7 +356,7 @@ export function QuantumComputingPanel() {
             ) : (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 12 }}>
                 {projects.map(p => (
-                  <div key={p.id} style={{ padding: 12, borderRadius: 8, background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}>
+                  <div key={p.id} style={{ padding: 12, borderRadius: 8, background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <div style={{ fontWeight: 600, fontSize: 14 }}>{p.name}</div>
                       <button onClick={() => deleteProject(p.id)} style={{ background: "none", border: "none", color: "var(--text-tertiary)", cursor: "pointer", fontSize: 16 }} title="Delete project">&times;</button>
@@ -386,7 +386,7 @@ export function QuantumComputingPanel() {
             <h3 style={{ margin: "0 0 12px" }}>Quantum Algorithms (15)</h3>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
               <thead>
-                <tr style={{ borderBottom: "2px solid var(--border-primary)" }}>
+                <tr style={{ borderBottom: "2px solid var(--border-color)" }}>
                   <th style={{ textAlign: "left", padding: 6 }}>Algorithm</th>
                   <th style={{ textAlign: "left", padding: 6 }}>Category</th>
                   <th style={{ textAlign: "left", padding: 6 }}>Qubit Scaling</th>
@@ -411,7 +411,7 @@ export function QuantumComputingPanel() {
             <h3 style={{ margin: "0 0 12px" }}>Quantum Hardware Types</h3>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 12 }}>
               {hardware.map(h => (
-                <div key={h.type} style={{ padding: 12, borderRadius: 8, background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}>
+                <div key={h.type} style={{ padding: 12, borderRadius: 8, background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
                   <div style={{ fontWeight: 600, fontSize: 14 }}>{h.type}</div>
                   <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 6 }}>
                     {h.vendors.map(v => (

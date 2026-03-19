@@ -149,7 +149,7 @@ export function DeployPanel({ workspacePath }: DeployPanelProps) {
  <div style={{ background: "var(--bg-secondary)", borderRadius: 8, padding: 12, border: "1px solid var(--border-color)" }}>
  <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 4 }}>Detected Project</div>
  <div style={{ fontWeight: 600 }}>{detected.detected_framework || "Static Site"}</div>
- <div style={{ fontSize: 11, opacity: 0.6, fontFamily: "monospace" }}>Build: {detected.build_cmd}</div>
+ <div style={{ fontSize: 11, opacity: 0.6, fontFamily: "var(--font-mono)" }}>Build: {detected.build_cmd}</div>
  </div>
  )}
 
@@ -209,7 +209,7 @@ export function DeployPanel({ workspacePath }: DeployPanelProps) {
  {deployedUrl && (
  <div style={{ background: "rgba(166,227,161,0.1)", border: "1px solid var(--success-color)", borderRadius: 6, padding: 10 }}>
  <div style={{ fontSize: 12, color: "var(--text-success)", marginBottom: 4 }}>Live at</div>
- <a href={deployedUrl} target="_blank" rel="noopener noreferrer" style={{ color: "var(--text-info)", fontSize: 13, fontFamily: "monospace" }}>
+ <a href={deployedUrl} target="_blank" rel="noopener noreferrer" style={{ color: "var(--text-info)", fontSize: 13, fontFamily: "var(--font-mono)" }}>
  {deployedUrl}
  </a>
  </div>
@@ -225,7 +225,7 @@ export function DeployPanel({ workspacePath }: DeployPanelProps) {
  onChange={(e) => setCustomDomain(e.target.value)}
  placeholder="myapp.example.com"
  onKeyDown={(e) => e.key === "Enter" && handleSetDomain()}
- style={{ flex: 1, padding: "6px 10px", fontSize: 12, fontFamily: "monospace", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none" }}
+ style={{ flex: 1, padding: "6px 10px", fontSize: 12, fontFamily: "var(--font-mono)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none" }}
  />
  <button
  onClick={handleSetDomain}
@@ -238,7 +238,7 @@ export function DeployPanel({ workspacePath }: DeployPanelProps) {
  {domainResult && (
  <div style={{ marginTop: 8, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 6, padding: 10 }}>
  <div style={{ fontSize: 11, color: "var(--text-accent)", marginBottom: 4 }}>DNS Instructions</div>
- <pre style={{ fontSize: 11, margin: 0, whiteSpace: "pre-wrap", fontFamily: "monospace", color: "var(--text-primary)" }}>
+ <pre style={{ fontSize: 11, margin: 0, whiteSpace: "pre-wrap", fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>
  {domainResult.instructions}
  </pre>
  </div>
@@ -247,7 +247,7 @@ export function DeployPanel({ workspacePath }: DeployPanelProps) {
 
  {/* Log stream */}
  {logs.length > 0 && (
- <div style={{ background: "var(--bg-secondary)", borderRadius: 6, padding: 10, maxHeight: 200, overflowY: "auto", fontFamily: "monospace", fontSize: 11 }}>
+ <div style={{ background: "var(--bg-secondary)", borderRadius: 6, padding: 10, maxHeight: 200, overflowY: "auto", fontFamily: "var(--font-mono)", fontSize: 11 }}>
  {logs.map((line, i) => (
  <div key={i} style={{ opacity: 0.8 }}>{line}</div>
  ))}

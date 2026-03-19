@@ -295,7 +295,7 @@ export function BrowserPanel() {
  background: 'rgba(34,197,94,0.15)', color: 'var(--success-color)',
  }}>PAGE</span>
  <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{t.title.slice(0, 40)}</span>
- <span style={{ color: 'var(--text-secondary)', fontFamily: 'monospace', fontSize: 10 }}>
+ <span style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', fontSize: 10 }}>
  {t.url.slice(0, 60)}
  </span>
  <button onClick={(e) => { e.stopPropagation(); cdpOpenTab(t.url); }}
@@ -330,7 +330,7 @@ export function BrowserPanel() {
  <div style={{
  position: 'absolute', bottom: 0, left: 0, right: 0,
  background: 'var(--bg-secondary)', borderTop: '1px solid var(--border-color)',
- padding: '8px 12px', fontSize: '12px', fontFamily: 'monospace',
+ padding: '8px 12px', fontSize: '12px', fontFamily: 'var(--font-mono)',
  maxHeight: '180px', overflowY: 'auto',
  }}>
  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>

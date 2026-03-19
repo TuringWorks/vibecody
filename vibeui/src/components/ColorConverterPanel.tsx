@@ -139,7 +139,7 @@ function FmtRow({ label, value }: { label: string; value: string }) {
  return (
  <div style={{ display: "flex", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.04)", padding: "5px 12px", gap: 10 }}>
  <span style={{ width: 100, flexShrink: 0, fontSize: 10, fontWeight: 700, color: "var(--text-muted)" }}>{label}</span>
- <span style={{ flex: 1, fontFamily: "monospace", fontSize: 12, color: "var(--text-primary)", wordBreak: "break-all" }}>{value}</span>
+ <span style={{ flex: 1, fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-primary)", wordBreak: "break-all" }}>{value}</span>
  <CopyBtn text={value} />
  </div>
  );
@@ -207,7 +207,7 @@ export function ColorConverterPanel() {
  <span style={{ fontSize: 12, fontWeight: 700, color: hexNorm }}>Aa</span>
  </div>
  <div>
- <div style={{ fontSize: 15, fontWeight: 700, fontFamily: "monospace", color: ratio >= 7 ? "var(--success-color, #a6e3a1)" : ratio >= 4.5 ? "var(--warning-color, #f9e2af)" : "var(--error-color, #f38ba8)" }}>{ratio.toFixed(2)}:1</div>
+ <div style={{ fontSize: 15, fontWeight: 700, fontFamily: "var(--font-mono)", color: ratio >= 7 ? "var(--success-color, #a6e3a1)" : ratio >= 4.5 ? "var(--warning-color, #f9e2af)" : "var(--error-color, #f38ba8)" }}>{ratio.toFixed(2)}:1</div>
  <div style={{ fontSize: 9, color: "var(--text-muted)" }}>on {isLightBg ? "light" : "dark"} bg</div>
  </div>
  <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
@@ -248,18 +248,18 @@ export function ColorConverterPanel() {
  </div>
  {/* Hex input */}
  <input value={hex} onChange={e => handleHexInput(e.target.value)} maxLength={7} spellCheck={false}
- style={{ width: 100, padding: "5px 8px", fontSize: 13, fontFamily: "monospace", fontWeight: 700, background: "var(--bg-primary)", border: `1px solid ${hexToRgb(hex) ? "var(--border-color)" : "var(--error-color, #f38ba8)"}`, borderRadius: 4, color: hexNorm, outline: "none", letterSpacing: "0.05em" }} />
+ style={{ width: 100, padding: "5px 8px", fontSize: 13, fontFamily: "var(--font-mono)", fontWeight: 700, background: "var(--bg-primary)", border: `1px solid ${hexToRgb(hex) ? "var(--border-color)" : "var(--error-color, #f38ba8)"}`, borderRadius: 4, color: hexNorm, outline: "none", letterSpacing: "0.05em" }} />
  {/* Alpha */}
  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
  <span style={{ fontSize: 10, color: "var(--text-muted)" }}>α:</span>
  <input type="range" min={0} max={100} value={alpha} onChange={e => setAlpha(+e.target.value)} style={{ width: 80, accentColor: hexNorm }} />
- <span style={{ fontSize: 11, fontFamily: "monospace", color: "var(--text-muted)", width: 32 }}>{alpha}%</span>
+ <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--text-muted)", width: 32 }}>{alpha}%</span>
  </div>
  {/* Nearest name */}
  <span style={{ fontSize: 10, color: "var(--text-muted)" }}>≈ <span style={{ color: hexNorm, fontWeight: 700 }}>{nearestName}</span></span>
  {/* Luminance */}
  <span style={{ fontSize: 10, color: "var(--text-muted)", marginLeft: "auto" }}>
- L: <span style={{ fontFamily: "monospace" }}>{luminance(rgb).toFixed(3)}</span>
+ L: <span style={{ fontFamily: "var(--font-mono)" }}>{luminance(rgb).toFixed(3)}</span>
  <span style={{ marginLeft: 8, fontSize: 9, padding: "1px 6px", borderRadius: 10, background: luminance(rgb) > 0.5 ? "rgba(249,226,175,0.15)" : "rgba(30,30,46,0.5)", border: "1px solid var(--border-color)", color: luminance(rgb) > 0.5 ? "var(--warning-color, #f9e2af)" : "var(--info-color, #89b4fa)" }}>
  {luminance(rgb) > 0.5 ? "light" : "dark"}
  </span>
@@ -296,7 +296,7 @@ export function ColorConverterPanel() {
  return (
  <div key={i} role="button" tabIndex={0} onClick={() => setHex(h)} onKeyDown={e => e.key === "Enter" && setHex(h)} style={{ cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
  <div style={{ width: 40, height: 40, background: h, borderRadius: 6, border: "1px solid var(--border-color)", transition: "transform 0.1s" }} title={h} />
- <span style={{ fontSize: 8, fontFamily: "monospace", color: "var(--text-muted)" }}>{i * 10}%</span>
+ <span style={{ fontSize: 8, fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>{i * 10}%</span>
  </div>
  );
  })}
@@ -308,7 +308,7 @@ export function ColorConverterPanel() {
  return (
  <div key={i} role="button" tabIndex={0} onClick={() => setHex(h)} onKeyDown={e => e.key === "Enter" && setHex(h)} style={{ cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
  <div style={{ width: 40, height: 40, background: h, borderRadius: 6, border: "1px solid var(--border-color)" }} title={h} />
- <span style={{ fontSize: 8, fontFamily: "monospace", color: "var(--text-muted)" }}>{i * 10}%</span>
+ <span style={{ fontSize: 8, fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>{i * 10}%</span>
  </div>
  );
  })}
@@ -331,7 +331,7 @@ export function ColorConverterPanel() {
  style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%", height: "100%" }} />
  </div>
  <input value={bgHex} onChange={e => setBgHex(e.target.value)} maxLength={7}
- style={{ width: 90, padding: "3px 6px", fontSize: 11, fontFamily: "monospace", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none" }} />
+ style={{ width: 90, padding: "3px 6px", fontSize: 11, fontFamily: "var(--font-mono)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none" }} />
  </div>
  <ContrastBadge ratio={contrastCustom} bg={bgRgb} />
 

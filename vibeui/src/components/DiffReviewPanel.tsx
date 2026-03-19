@@ -233,7 +233,7 @@ export function DiffReviewPanel({ original, modified, filePath, onApply }: DiffR
  return (
  <div style={{
  display: "flex", flexDirection: "column", height: "100%",
- background: "var(--bg-primary)", fontFamily: "monospace",
+ background: "var(--bg-primary)", fontFamily: "var(--font-mono)",
  }}>
  {/* Header */}
  <div style={{

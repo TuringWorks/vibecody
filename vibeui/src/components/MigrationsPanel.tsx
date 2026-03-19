@@ -238,7 +238,7 @@ export function MigrationsPanel({ workspacePath }: MigrationsPanelProps) {
  }}
  >
  <span>{STATE_ICONS[m.state]}</span>
- <span style={{ fontFamily: "monospace", flex: 1, fontSize: 11 }}>{m.name}</span>
+ <span style={{ fontFamily: "var(--font-mono)", flex: 1, fontSize: 11 }}>{m.name}</span>
  <span style={{ fontSize: 10, color: STATE_COLORS[m.state], fontWeight: 600 }}>
  {m.state}
  </span>

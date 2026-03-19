@@ -109,7 +109,7 @@ export function ProfilerPanel({ workspacePath }: ProfilerPanelProps) {
           {tool ? toolLabel[tool] || tool : "No profiler detected"}
         </div>
         {tool && (
-          <span style={{ fontSize: 11, opacity: 0.5, fontFamily: "monospace" }}>{tool}</span>
+          <span style={{ fontSize: 11, opacity: 0.5, fontFamily: "var(--font-mono)" }}>{tool}</span>
         )}
       </div>
 
@@ -121,7 +121,7 @@ export function ProfilerPanel({ workspacePath }: ProfilerPanelProps) {
           onChange={(e) => setTarget(e.target.value)}
           placeholder={tool === "cargo-flamegraph" ? "target binary (optional)" : tool === "py-spy" ? "script.py" : tool === "clinic" ? "server.js" : "target (optional)"}
           style={{
-            flex: 1, padding: "8px 10px", fontSize: 12, fontFamily: "monospace",
+            flex: 1, padding: "8px 10px", fontSize: 12, fontFamily: "var(--font-mono)",
             background: "var(--bg-secondary)",
             border: "1px solid var(--border-color)", borderRadius: 4,
             color: "var(--text-primary)", outline: "none",
@@ -133,7 +133,7 @@ export function ProfilerPanel({ workspacePath }: ProfilerPanelProps) {
             style={{
               padding: "8px 18px", fontSize: 13, fontWeight: 700,
               background: "var(--error-color)",
-              color: "white", border: "none", borderRadius: 6,
+              color: "var(--btn-primary-fg)", border: "none", borderRadius: 6,
               cursor: "pointer",
               whiteSpace: "nowrap",
             }}
@@ -147,7 +147,7 @@ export function ProfilerPanel({ workspacePath }: ProfilerPanelProps) {
             style={{
               padding: "8px 18px", fontSize: 13, fontWeight: 700,
               background: "var(--accent-color)",
-              color: "white", border: "none", borderRadius: 6,
+              color: "var(--btn-primary-fg)", border: "none", borderRadius: 6,
               cursor: !tool ? "not-allowed" : "pointer",
               whiteSpace: "nowrap",
             }}
@@ -207,7 +207,7 @@ export function ProfilerPanel({ workspacePath }: ProfilerPanelProps) {
                     background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.02)",
                   }}
                 >
-                  <span style={{ fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                  <span style={{ fontFamily: "var(--font-mono)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
                     title={h.function_name}
                   >
                     {h.function_name}
@@ -223,7 +223,7 @@ export function ProfilerPanel({ workspacePath }: ProfilerPanelProps) {
                     </span>
                   </span>
                   <span style={{ textAlign: "right", opacity: 0.7 }}>{h.total_pct.toFixed(1)}%</span>
-                  <span style={{ textAlign: "right", fontFamily: "monospace", opacity: 0.6 }}>
+                  <span style={{ textAlign: "right", fontFamily: "var(--font-mono)", opacity: 0.6 }}>
                     {h.samples > 0 ? h.samples.toLocaleString() : "-"}
                   </span>
                 </div>
@@ -254,7 +254,7 @@ export function ProfilerPanel({ workspacePath }: ProfilerPanelProps) {
             {showRaw && (
               <pre style={{
                 marginTop: 8, background: "var(--bg-secondary)", borderRadius: 6,
-                padding: 10, fontSize: 10, fontFamily: "monospace", maxHeight: 200,
+                padding: 10, fontSize: 10, fontFamily: "var(--font-mono)", maxHeight: 200,
                 overflowY: "auto", whiteSpace: "pre-wrap", color: "var(--text-primary)",
                 border: "1px solid var(--border-color)",
               }}>

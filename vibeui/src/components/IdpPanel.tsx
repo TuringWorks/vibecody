@@ -707,7 +707,7 @@ spec:
           <div>
             <div style={{ display: "flex", gap: 16, marginBottom: 16 }}>
               <div style={{ ...cardStyle, textAlign: "center", minWidth: 120, marginBottom: 0 }}>
-                <div style={{ fontSize: 36, fontWeight: 700, color: GRADE_COLORS[scorecard.overall_grade] || "var(--text-primary)" }}>
+                <div style={{ fontSize: 36, fontWeight: 700, fontFamily: "var(--font-mono)", color: GRADE_COLORS[scorecard.overall_grade] || "var(--text-primary)" }}>
                   {scorecard.overall_grade}
                 </div>
                 <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Overall Grade</div>

@@ -1852,7 +1852,7 @@ function ProfileSection() {
       <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20 }}>
         <div style={{
           width: 64, height: 64, borderRadius: "50%", background: "var(--accent-color)",
-          display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, fontWeight: 700, color: "#fff",
+          display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, fontWeight: 700, color: "var(--btn-primary-fg)",
           overflow: "hidden", flexShrink: 0,
         }}>
           {profile.avatarUrl ? <img src={profile.avatarUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : initials}
@@ -2182,7 +2182,7 @@ function OAuthSection() {
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div style={{
               width: 36, height: 36, borderRadius: "var(--radius-sm)", background: providerColors[p.id] || "var(--bg-tertiary)",
-              display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, fontWeight: 700, flexShrink: 0,
+              display: "flex", alignItems: "center", justifyContent: "center", color: "var(--btn-primary-fg)", fontSize: 12, fontWeight: 700, flexShrink: 0,
             }}>
               {p.icon}
             </div>

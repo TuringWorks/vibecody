@@ -55,19 +55,19 @@ interface CostResult {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-mono, monospace)", fontSize: 13, height: "100%", overflow: "auto", background: "var(--bg-primary)" };
+const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, height: "100%", overflow: "auto", background: "var(--bg-primary)" };
 const headingStyle: React.CSSProperties = { margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" };
-const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-primary)" };
+const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-color)" };
 const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
-const btnStyle: React.CSSProperties = { padding: "6px 14px", borderRadius: 4, border: "1px solid var(--border-primary)", background: "var(--bg-tertiary)", color: "var(--text-primary)", cursor: "pointer", fontSize: 12 };
+const btnStyle: React.CSSProperties = { padding: "6px 14px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", cursor: "pointer", fontSize: 12 };
 const tabBtnStyle = (active: boolean): React.CSSProperties => ({ ...btnStyle, background: active ? "var(--accent-primary)" : "var(--bg-tertiary)", color: active ? "var(--text-primary)" : "var(--text-primary)", marginRight: 4 });
 
-const preStyle: React.CSSProperties = { background: "var(--bg-tertiary)", padding: 10, borderRadius: 4, fontSize: 11, overflow: "auto", whiteSpace: "pre-wrap", border: "1px solid var(--border-primary)", maxHeight: 400 };
+const preStyle: React.CSSProperties = { background: "var(--bg-tertiary)", padding: 10, borderRadius: 4, fontSize: 11, overflow: "auto", whiteSpace: "pre-wrap", border: "1px solid var(--border-color)", maxHeight: 400 };
 const providerColor: Record<string, string> = { AWS: "var(--warning-color)", GCP: "var(--info-color)", Azure: "var(--accent-primary)" };
 const confidenceColor = (c: number) => c >= 0.9 ? "var(--success-color)" : c >= 0.7 ? "var(--warning-color)" : "var(--error-color)";
 
-const thStyle: React.CSSProperties = { textAlign: "left", padding: "6px 10px", borderBottom: "1px solid var(--border-primary)", fontSize: 11, color: "var(--text-secondary)" };
-const tdStyle: React.CSSProperties = { padding: "6px 10px", borderBottom: "1px solid var(--border-primary)", fontSize: 12 };
+const thStyle: React.CSSProperties = { textAlign: "left", padding: "6px 10px", borderBottom: "1px solid var(--border-color)", fontSize: 11, color: "var(--text-secondary)" };
+const tdStyle: React.CSSProperties = { padding: "6px 10px", borderBottom: "1px solid var(--border-color)", fontSize: 12 };
 const errorStyle: React.CSSProperties = { ...cardStyle, color: "var(--error-color)", borderColor: "var(--error-color)" };
 const spinnerStyle: React.CSSProperties = { ...cardStyle, color: "var(--text-secondary)", fontStyle: "italic" };
 
@@ -396,11 +396,11 @@ export function CloudProviderPanel() {
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
                     <div style={cardStyle}>
                       <div style={labelStyle}>Estimated Monthly</div>
-                      <div style={{ fontSize: 22, fontWeight: 700, color: "var(--accent-primary)" }}>${costResult.total_monthly_usd.toFixed(2)}</div>
+                      <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--accent-primary)" }}>${costResult.total_monthly_usd.toFixed(2)}</div>
                     </div>
                     <div style={cardStyle}>
                       <div style={labelStyle}>Estimated Yearly</div>
-                      <div style={{ fontSize: 22, fontWeight: 700, color: "var(--accent-primary)" }}>${costResult.total_yearly_usd.toFixed(2)}</div>
+                      <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--accent-primary)" }}>${costResult.total_yearly_usd.toFixed(2)}</div>
                     </div>
                   </div>
                   <div style={cardStyle}>

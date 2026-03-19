@@ -46,11 +46,11 @@ interface LoraAdapter {
 const PROVIDERS = ["OpenAI", "TogetherAI", "Fireworks", "Local (LoRA)"];
 
 const STATUS_COLORS: Record<string, string> = {
- completed: "var(--vp-c-success)",
- running: "var(--vp-c-brand)",
- pending: "var(--vp-c-warning)",
- failed: "var(--vp-c-danger)",
- cancelled: "var(--vp-c-border)",
+ completed: "var(--success-color)",
+ running: "var(--accent-color)",
+ pending: "var(--warning-color)",
+ failed: "var(--error-color)",
+ cancelled: "var(--border-color)",
 };
 
 const EMPTY_STATS: DatasetStats = {
@@ -165,7 +165,7 @@ export default function FineTuningPanel() {
  };
 
  return (
-   <div style={{ padding: 16, color: "var(--vp-c-text)", background: "var(--vp-c-bg)", minHeight: "100%" }}>
+   <div style={{ padding: 16, color: "var(--text-primary)", background: "var(--bg-primary)", minHeight: "100%" }}>
      <h2 style={{ margin: "0 0 12px", fontSize: 18 }}>Fine-Tuning</h2>
 
      {error && (
@@ -179,8 +179,8 @@ export default function FineTuningPanel() {
      <div style={{ display: "flex", gap: 4, marginBottom: 12 }}>
        {(["dataset", "train", "jobs", "eval", "lora"] as const).map(t => (
          <button key={t} onClick={() => setTab(t)} style={{
-           padding: "4px 12px", border: "1px solid var(--vp-c-border)", borderRadius: 4, cursor: "pointer",
-           background: tab === t ? "var(--vp-c-brand)" : "transparent", color: tab === t ? "var(--text-primary)" : "var(--vp-c-text)",
+           padding: "4px 12px", border: "1px solid var(--border-color)", borderRadius: 4, cursor: "pointer",
+           background: tab === t ? "var(--accent-color)" : "transparent", color: tab === t ? "var(--text-primary)" : "var(--text-primary)",
          }}>{t === "eval" ? "SWE-Bench" : t === "lora" ? "LoRA" : t.charAt(0).toUpperCase() + t.slice(1)}</button>
        ))}
      </div>
@@ -193,9 +193,9 @@ export default function FineTuningPanel() {
            <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
              {(["codebase", "git", "conversations"] as const).map(s => (
                <button key={s} onClick={() => setDataSource(s)} style={{
-                 padding: "6px 14px", border: "1px solid var(--vp-c-border)", borderRadius: 4, cursor: "pointer",
-                 background: dataSource === s ? "var(--vp-c-brand)" : "transparent",
-                 color: dataSource === s ? "var(--text-primary)" : "var(--vp-c-text)",
+                 padding: "6px 14px", border: "1px solid var(--border-color)", borderRadius: 4, cursor: "pointer",
+                 background: dataSource === s ? "var(--accent-color)" : "transparent",
+                 color: dataSource === s ? "var(--text-primary)" : "var(--text-primary)",
                }}>{s === "git" ? "Git History" : s.charAt(0).toUpperCase() + s.slice(1)}</button>
              ))}
            </div>
@@ -203,24 +203,24 @@ export default function FineTuningPanel() {
 
          {/* Stats */}
          {loading ? (
-           <div style={{ padding: 20, textAlign: "center", color: "var(--vp-c-text-2)" }}>Scanning workspace...</div>
+           <div style={{ padding: 20, textAlign: "center", color: "var(--text-secondary)" }}>Scanning workspace...</div>
          ) : (
            <>
              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 12 }}>
-               <div style={{ padding: 10, border: "1px solid var(--vp-c-border)", borderRadius: 6, textAlign: "center" }}>
-                 <div style={{ fontSize: 22, fontWeight: 700, color: "var(--vp-c-brand)" }}>{stats.example_count.toLocaleString()}</div>
+               <div style={{ padding: 10, border: "1px solid var(--border-color)", borderRadius: 6, textAlign: "center" }}>
+                 <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--accent-color)" }}>{stats.example_count.toLocaleString()}</div>
                  <div style={{ fontSize: 11 }}>Examples</div>
                </div>
-               <div style={{ padding: 10, border: "1px solid var(--vp-c-border)", borderRadius: 6, textAlign: "center" }}>
-                 <div style={{ fontSize: 22, fontWeight: 700, color: "var(--vp-c-success)" }}>{(stats.total_tokens / 1000).toFixed(0)}K</div>
+               <div style={{ padding: 10, border: "1px solid var(--border-color)", borderRadius: 6, textAlign: "center" }}>
+                 <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--success-color)" }}>{(stats.total_tokens / 1000).toFixed(0)}K</div>
                  <div style={{ fontSize: 11 }}>Tokens</div>
                </div>
-               <div style={{ padding: 10, border: "1px solid var(--vp-c-border)", borderRadius: 6, textAlign: "center" }}>
-                 <div style={{ fontSize: 22, fontWeight: 700 }}>{stats.avg_tokens_per_example.toFixed(0)}</div>
+               <div style={{ padding: 10, border: "1px solid var(--border-color)", borderRadius: 6, textAlign: "center" }}>
+                 <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{stats.avg_tokens_per_example.toFixed(0)}</div>
                  <div style={{ fontSize: 11 }}>Avg Tokens/Ex</div>
                </div>
-               <div style={{ padding: 10, border: "1px solid var(--vp-c-border)", borderRadius: 6, textAlign: "center" }}>
-                 <div style={{ fontSize: 22, fontWeight: 700, color: stats.invalid_count > 0 ? "var(--vp-c-danger)" : "var(--vp-c-success)" }}>
+               <div style={{ padding: 10, border: "1px solid var(--border-color)", borderRadius: 6, textAlign: "center" }}>
+                 <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "var(--font-mono)", color: stats.invalid_count > 0 ? "var(--error-color)" : "var(--success-color)" }}>
                    {stats.invalid_count}
                  </div>
                  <div style={{ fontSize: 11 }}>Invalid</div>
@@ -233,8 +233,8 @@ export default function FineTuningPanel() {
                {Object.entries(stats.languages).map(([lang, count]) => (
                  <div key={lang} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                    <span style={{ width: 80 }}>{lang}</span>
-                   <div style={{ flex: 1, height: 16, background: "var(--vp-c-border)", borderRadius: 4, overflow: "hidden" }}>
-                     <div style={{ height: "100%", width: `${stats.example_count > 0 ? (count / stats.example_count) * 100 : 0}%`, background: "var(--vp-c-brand)", borderRadius: 4 }} />
+                   <div style={{ flex: 1, height: 16, background: "var(--border-color)", borderRadius: 4, overflow: "hidden" }}>
+                     <div style={{ height: "100%", width: `${stats.example_count > 0 ? (count / stats.example_count) * 100 : 0}%`, background: "var(--accent-color)", borderRadius: 4 }} />
                    </div>
                    <span style={{ width: 50, textAlign: "right", fontSize: 12 }}>{count}</span>
                  </div>
@@ -244,13 +244,13 @@ export default function FineTuningPanel() {
          )}
 
          <div style={{ display: "flex", gap: 6, marginTop: 12 }}>
-           <button onClick={loadStats} style={{ padding: "6px 14px", background: "var(--vp-c-brand)", color: "var(--text-primary)", border: "none", borderRadius: 4, cursor: "pointer" }}>
+           <button onClick={loadStats} style={{ padding: "6px 14px", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: 4, cursor: "pointer" }}>
              Build Dataset
            </button>
-           <button style={{ padding: "6px 14px", background: "transparent", color: "var(--vp-c-text)", border: "1px solid var(--vp-c-border)", borderRadius: 4, cursor: "pointer" }}>
+           <button style={{ padding: "6px 14px", background: "transparent", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4, cursor: "pointer" }}>
              Export JSONL
            </button>
-           <button style={{ padding: "6px 14px", background: "transparent", color: "var(--vp-c-text)", border: "1px solid var(--vp-c-border)", borderRadius: 4, cursor: "pointer" }}>
+           <button style={{ padding: "6px 14px", background: "transparent", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4, cursor: "pointer" }}>
              Deduplicate
            </button>
          </div>
@@ -263,50 +263,50 @@ export default function FineTuningPanel() {
            <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
              <span>Provider</span>
              <select value={provider} onChange={e => setProvider(e.target.value)}
-               style={{ width: 180, padding: 4, background: "var(--vp-c-bg)", color: "var(--vp-c-text)", border: "1px solid var(--vp-c-border)", borderRadius: 4 }}>
+               style={{ width: 180, padding: 4, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4 }}>
                {PROVIDERS.map(p => <option key={p}>{p}</option>)}
              </select>
            </label>
            <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
              <span>Base Model</span>
              <input value={baseModel} onChange={e => setBaseModel(e.target.value)}
-               style={{ width: 180, padding: 4, background: "var(--vp-c-bg)", color: "var(--vp-c-text)", border: "1px solid var(--vp-c-border)", borderRadius: 4 }} />
+               style={{ width: 180, padding: 4, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4 }} />
            </label>
            <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
              <span>Epochs</span>
              <input type="number" value={epochs} onChange={e => setEpochs(+e.target.value)} min={1} max={10}
-               style={{ width: 70, padding: 4, background: "var(--vp-c-bg)", color: "var(--vp-c-text)", border: "1px solid var(--vp-c-border)", borderRadius: 4 }} />
+               style={{ width: 70, padding: 4, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4 }} />
            </label>
            <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
              <span>Batch Size</span>
              <input type="number" value={batchSize} onChange={e => setBatchSize(+e.target.value)} min={1} max={64}
-               style={{ width: 70, padding: 4, background: "var(--vp-c-bg)", color: "var(--vp-c-text)", border: "1px solid var(--vp-c-border)", borderRadius: 4 }} />
+               style={{ width: 70, padding: 4, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4 }} />
            </label>
            <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
              <span>Learning Rate</span>
              <input value={lr} onChange={e => setLr(e.target.value)}
-               style={{ width: 100, padding: 4, background: "var(--vp-c-bg)", color: "var(--vp-c-text)", border: "1px solid var(--vp-c-border)", borderRadius: 4 }} />
+               style={{ width: 100, padding: 4, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4 }} />
            </label>
            {provider === "Local (LoRA)" && (
              <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                <span>LoRA Rank</span>
                <input type="number" value={loraRank} onChange={e => setLoraRank(+e.target.value)} min={4} max={128}
-                 style={{ width: 70, padding: 4, background: "var(--vp-c-bg)", color: "var(--vp-c-text)", border: "1px solid var(--vp-c-border)", borderRadius: 4 }} />
+                 style={{ width: 70, padding: 4, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4 }} />
              </label>
            )}
          </div>
 
          {/* Cost estimate */}
-         <div style={{ marginTop: 12, padding: 10, border: "1px solid var(--vp-c-border)", borderRadius: 6, fontSize: 12 }}>
+         <div style={{ marginTop: 12, padding: 10, border: "1px solid var(--border-color)", borderRadius: 6, fontSize: 12 }}>
            <strong>Cost Estimate</strong>
            <div style={{ marginTop: 4 }}>
              Tokens: {(stats.total_tokens * epochs / 1000).toFixed(0)}K |
-             Est. Cost: <span style={{ color: "var(--vp-c-warning)" }}>${(stats.total_tokens * epochs * 0.000008).toFixed(2)}</span> |
+             Est. Cost: <span style={{ color: "var(--warning-color)" }}>${(stats.total_tokens * epochs * 0.000008).toFixed(2)}</span> |
              Est. Time: ~{Math.ceil(stats.total_tokens * epochs / 50000)} min
            </div>
          </div>
 
-         <button onClick={handleCreateJob} disabled={loading} style={{ marginTop: 12, padding: "8px 20px", background: "var(--vp-c-brand)", color: "var(--text-primary)", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 600, opacity: loading ? 0.6 : 1 }}>
+         <button onClick={handleCreateJob} disabled={loading} style={{ marginTop: 12, padding: "8px 20px", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 600, opacity: loading ? 0.6 : 1 }}>
            {loading ? "Creating..." : "Launch Training Job"}
          </button>
        </div>
@@ -315,13 +315,13 @@ export default function FineTuningPanel() {
      {tab === "jobs" && (
        <>
          {jobs.length === 0 ? (
-           <div style={{ padding: 20, textAlign: "center", color: "var(--vp-c-text-2)" }}>
+           <div style={{ padding: 20, textAlign: "center", color: "var(--text-secondary)" }}>
              No fine-tuning jobs yet. Go to the Train tab to create one.
            </div>
          ) : (
            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
              <thead>
-               <tr style={{ borderBottom: "1px solid var(--vp-c-border)" }}>
+               <tr style={{ borderBottom: "1px solid var(--border-color)" }}>
                  <th style={{ textAlign: "left", padding: 6 }}>ID</th>
                  <th style={{ textAlign: "left", padding: 6 }}>Status</th>
                  <th style={{ textAlign: "left", padding: 6 }}>Model</th>
@@ -333,10 +333,10 @@ export default function FineTuningPanel() {
              </thead>
              <tbody>
                {jobs.map(job => (
-                 <tr key={job.id} style={{ borderBottom: "1px solid var(--vp-c-border)" }}>
-                   <td style={{ padding: 6, fontFamily: "monospace" }}>{job.id}</td>
+                 <tr key={job.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
+                   <td style={{ padding: 6, fontFamily: "var(--font-mono)" }}>{job.id}</td>
                    <td style={{ padding: 6 }}>
-                     <span style={{ color: STATUS_COLORS[job.status] || "var(--vp-c-text)" }}>
+                     <span style={{ color: STATUS_COLORS[job.status] || "var(--text-primary)" }}>
                        {job.status}
                      </span>
                    </td>
@@ -345,7 +345,7 @@ export default function FineTuningPanel() {
                    <td style={{ padding: 6, textAlign: "right" }}>{job.loss > 0 ? job.loss.toFixed(3) : "-"}</td>
                    <td style={{ padding: 6, textAlign: "right" }}>
                      <div style={{ display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end" }}>
-                       <div style={{ width: 60, height: 8, background: "var(--vp-c-border)", borderRadius: 4, overflow: "hidden" }}>
+                       <div style={{ width: 60, height: 8, background: "var(--border-color)", borderRadius: 4, overflow: "hidden" }}>
                          <div style={{ height: "100%", width: `${job.progress}%`, background: STATUS_COLORS[job.status], borderRadius: 4 }} />
                        </div>
                        {job.progress}%
@@ -364,13 +364,13 @@ export default function FineTuningPanel() {
        <>
          <strong>SWE-Bench Evaluation Results</strong>
          {evals.length === 0 ? (
-           <div style={{ padding: 20, textAlign: "center", color: "var(--vp-c-text-2)" }}>
+           <div style={{ padding: 20, textAlign: "center", color: "var(--text-secondary)" }}>
              No evaluation results yet. Run an evaluation to see results.
            </div>
          ) : (
            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, marginTop: 8 }}>
              <thead>
-               <tr style={{ borderBottom: "1px solid var(--vp-c-border)" }}>
+               <tr style={{ borderBottom: "1px solid var(--border-color)" }}>
                  <th style={{ textAlign: "left", padding: 6 }}>Model</th>
                  <th style={{ textAlign: "right", padding: 6 }}>Tasks</th>
                  <th style={{ textAlign: "right", padding: 6 }}>Resolved</th>
@@ -380,8 +380,8 @@ export default function FineTuningPanel() {
              </thead>
              <tbody>
                {evals.map(ev => (
-                 <tr key={ev.model} style={{ borderBottom: "1px solid var(--vp-c-border)" }}>
-                   <td style={{ padding: 6, color: ev.rate > 20 ? "var(--vp-c-success)" : "var(--vp-c-text)" }}>{ev.model}</td>
+                 <tr key={ev.model} style={{ borderBottom: "1px solid var(--border-color)" }}>
+                   <td style={{ padding: 6, color: ev.rate > 20 ? "var(--success-color)" : "var(--text-primary)" }}>{ev.model}</td>
                    <td style={{ padding: 6, textAlign: "right" }}>{ev.tasks}</td>
                    <td style={{ padding: 6, textAlign: "right" }}>{ev.resolved}</td>
                    <td style={{ padding: 6, textAlign: "right", fontWeight: 700 }}>{ev.rate.toFixed(1)}%</td>
@@ -391,7 +391,7 @@ export default function FineTuningPanel() {
              </tbody>
            </table>
          )}
-         <button style={{ marginTop: 12, padding: "6px 14px", background: "var(--vp-c-brand)", color: "var(--text-primary)", border: "none", borderRadius: 4, cursor: "pointer" }}>
+         <button style={{ marginTop: 12, padding: "6px 14px", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: 4, cursor: "pointer" }}>
            Run Evaluation
          </button>
        </>
@@ -401,13 +401,13 @@ export default function FineTuningPanel() {
        <>
          <strong>LoRA Adapters</strong>
          {adapters.length === 0 ? (
-           <div style={{ padding: 20, textAlign: "center", color: "var(--vp-c-text-2)" }}>
+           <div style={{ padding: 20, textAlign: "center", color: "var(--text-secondary)" }}>
              No LoRA adapters configured yet.
            </div>
          ) : (
            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, marginTop: 8 }}>
              <thead>
-               <tr style={{ borderBottom: "1px solid var(--vp-c-border)" }}>
+               <tr style={{ borderBottom: "1px solid var(--border-color)" }}>
                  <th style={{ textAlign: "left", padding: 6 }}>Name</th>
                  <th style={{ textAlign: "left", padding: 6 }}>Base Model</th>
                  <th style={{ textAlign: "right", padding: 6 }}>Rank</th>
@@ -417,21 +417,21 @@ export default function FineTuningPanel() {
              </thead>
              <tbody>
                {adapters.map(a => (
-                 <tr key={a.name} style={{ borderBottom: "1px solid var(--vp-c-border)" }}>
-                   <td style={{ padding: 6, fontFamily: "monospace", color: "var(--vp-c-brand)" }}>{a.name}</td>
+                 <tr key={a.name} style={{ borderBottom: "1px solid var(--border-color)" }}>
+                   <td style={{ padding: 6, fontFamily: "var(--font-mono)", color: "var(--accent-color)" }}>{a.name}</td>
                    <td style={{ padding: 6 }}>{a.base_model}</td>
                    <td style={{ padding: 6, textAlign: "right" }}>{a.rank}</td>
                    <td style={{ padding: 6, textAlign: "right" }}>{a.size_mb} MB</td>
                    <td style={{ padding: 6, textAlign: "right" }}>
-                     <button style={{ padding: "2px 8px", background: "transparent", color: "var(--vp-c-brand)", border: "1px solid var(--vp-c-brand)", borderRadius: 4, cursor: "pointer", marginRight: 4, fontSize: 11 }}>Merge</button>
-                     <button style={{ padding: "2px 8px", background: "transparent", color: "var(--vp-c-danger)", border: "1px solid var(--vp-c-danger)", borderRadius: 4, cursor: "pointer", fontSize: 11 }}>Delete</button>
+                     <button style={{ padding: "2px 8px", background: "transparent", color: "var(--accent-color)", border: "1px solid var(--accent-color)", borderRadius: 4, cursor: "pointer", marginRight: 4, fontSize: 11 }}>Merge</button>
+                     <button style={{ padding: "2px 8px", background: "transparent", color: "var(--error-color)", border: "1px solid var(--error-color)", borderRadius: 4, cursor: "pointer", fontSize: 11 }}>Delete</button>
                    </td>
                  </tr>
                ))}
              </tbody>
            </table>
          )}
-         <button onClick={handleCreateAdapter} style={{ marginTop: 12, padding: "6px 14px", background: "var(--vp-c-brand)", color: "var(--text-primary)", border: "none", borderRadius: 4, cursor: "pointer" }}>
+         <button onClick={handleCreateAdapter} style={{ marginTop: 12, padding: "6px 14px", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: 4, cursor: "pointer" }}>
            Create Adapter
          </button>
        </>

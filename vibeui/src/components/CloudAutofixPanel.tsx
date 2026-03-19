@@ -91,7 +91,7 @@ const CloudAutofixPanel: React.FC = () => {
   });
   const btn: React.CSSProperties = {
     padding: "6px 14px", border: "none", borderRadius: "4px", cursor: "pointer",
-    backgroundColor: "var(--accent-color)", color: "white",
+    backgroundColor: "var(--accent-color)", color: "var(--btn-primary-fg)",
   };
   const input: React.CSSProperties = {
     padding: "6px 10px", borderRadius: "4px", border: "1px solid var(--border-color)",
@@ -103,7 +103,7 @@ const CloudAutofixPanel: React.FC = () => {
   };
   const badge = (color: string): React.CSSProperties => ({
     padding: "2px 8px", borderRadius: "10px", fontSize: "11px", fontWeight: 600,
-    backgroundColor: color, color: "white",
+    backgroundColor: color, color: "var(--btn-primary-fg)",
   });
 
   const typeColor = (t: string) => t === "typecheck" ? "#1f6feb" : t === "lint" ? "#8957e5" : t === "test" ? "#d29922" : t === "security" ? "#f85149" : "#6e7681";
@@ -250,7 +250,7 @@ const CloudAutofixPanel: React.FC = () => {
             <h4 style={{ margin: "0 0 12px" }}>Merge Rate</h4>
             <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "8px" }}>
               <div style={{ flex: 1, height: "20px", borderRadius: "10px", backgroundColor: "var(--border-color)" }}>
-                <div style={{ height: "100%", borderRadius: "10px", width: `${Math.round(stats.mergeRate)}%`, backgroundColor: "var(--success-color)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: 700, color: "white" }}>
+                <div style={{ height: "100%", borderRadius: "10px", width: `${Math.round(stats.mergeRate)}%`, backgroundColor: "var(--success-color)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: 700, color: "var(--btn-primary-fg)" }}>
                   {Math.round(stats.mergeRate)}%
                 </div>
               </div>

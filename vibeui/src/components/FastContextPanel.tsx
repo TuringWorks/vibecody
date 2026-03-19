@@ -100,7 +100,7 @@ const FastContextPanel: React.FC = () => {
   };
   const badgeStyle = (color: string): React.CSSProperties => ({
     display: "inline-block", padding: "2px 8px", borderRadius: "10px",
-    fontSize: "11px", fontWeight: 600, backgroundColor: color, color: "white",
+    fontSize: "11px", fontWeight: 600, backgroundColor: color, color: "var(--btn-primary-fg)",
   });
   const statRow: React.CSSProperties = {
     display: "flex", justifyContent: "space-between", padding: "8px 0",

@@ -203,7 +203,7 @@ function DirRulesTab({ workspacePath }: { workspacePath?: string | null }) {
  />
  <div style={{ display: "flex", gap: "6px" }}>
  <button onClick={createFile} disabled={!newName.trim() || saving}
- style={{ padding: "4px 10px", fontSize: "12px", background: "var(--accent-color)", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}>
+ style={{ padding: "4px 10px", fontSize: "12px", background: "var(--accent-color)", color: "var(--btn-primary-fg)", border: "none", borderRadius: "4px", cursor: "pointer" }}>
  Create
  </button>
  <button onClick={() => setCreating(false)}
@@ -259,7 +259,7 @@ function DirRulesTab({ workspacePath }: { workspacePath?: string | null }) {
  {/* Editor */}
  {selected ? (
  <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "6px", minWidth: 0 }}>
- <div style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "monospace" }}>
+ <div style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>
  {dirLabel}{selected}
  </div>
  <textarea
@@ -273,7 +273,7 @@ function DirRulesTab({ workspacePath }: { workspacePath?: string | null }) {
  borderRadius: "4px",
  padding: "8px",
  fontSize: "12px",
- fontFamily: "monospace",
+ fontFamily: "var(--font-mono)",
  resize: "none",
  outline: "none",
  }}
@@ -283,7 +283,7 @@ function DirRulesTab({ workspacePath }: { workspacePath?: string | null }) {
  <button
  onClick={saveFile}
  disabled={saving}
- style={{ padding: "5px 12px", fontSize: "12px", background: "var(--accent-color)", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}
+ style={{ padding: "5px 12px", fontSize: "12px", background: "var(--accent-color)", color: "var(--btn-primary-fg)", border: "none", borderRadius: "4px", cursor: "pointer" }}
  >
  {saving ? "Saving…" : saved ? "✓ Saved" : "Save"}
  </button>
@@ -321,7 +321,7 @@ function DirRulesTab({ workspacePath }: { workspacePath?: string | null }) {
  Cancel
  </button>
  <button onClick={() => deleteFile(confirmDelete)}
- style={{ padding: "6px 14px", fontSize: "12px", background: "var(--error-color)", border: "none", borderRadius: "4px", color: "white", cursor: "pointer" }}>
+ style={{ padding: "6px 14px", fontSize: "12px", background: "var(--error-color)", border: "none", borderRadius: "4px", color: "var(--btn-primary-fg)", cursor: "pointer" }}>
  Delete
  </button>
  </div>
@@ -445,7 +445,7 @@ function AutoFactsTab() {
  <button
  onClick={addFact}
  disabled={adding || !newFact.trim()}
- style={{ padding: "4px 12px", fontSize: 12, borderRadius: 4, background: "var(--accent-color)", color: "white", border: "none", cursor: "pointer" }}
+ style={{ padding: "4px 12px", fontSize: 12, borderRadius: 4, background: "var(--accent-color)", color: "var(--btn-primary-fg)", border: "none", cursor: "pointer" }}
  >
  {adding ? "Saving…" : "Save"}
  </button>
@@ -651,7 +651,7 @@ export function MemoryPanel({ workspacePath }: MemoryPanelProps) {
  borderRadius: "4px",
  padding: "8px",
  fontSize: "13px",
- fontFamily: "monospace",
+ fontFamily: "var(--font-mono)",
  resize: "none",
  opacity: activeTab === "workspace" && !workspacePath ? 0.5 : 1,
  }}

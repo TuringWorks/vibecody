@@ -218,7 +218,7 @@ export default function RemoteControlPanel() {
               <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 10 }}>
                 <label style={{ fontSize: 11, color: "var(--text-muted)" }}>Port:</label>
                 <input type="number" value={port} onChange={e => setPort(Number(e.target.value))}
-                  style={{ width: 80, padding: "4px 8px", fontSize: 12, fontFamily: "monospace", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)" }} />
+                  style={{ width: 80, padding: "4px 8px", fontSize: 12, fontFamily: "var(--font-mono)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)" }} />
                 <button onClick={handleToggleServer}
                   style={{ padding: "6px 16px", fontSize: 11, fontWeight: 600, borderRadius: 4, border: "none", cursor: "pointer",
                     background: serverRunning ? "var(--text-danger)" : "var(--text-success)",
@@ -249,7 +249,7 @@ export default function RemoteControlPanel() {
             <div style={{ padding: 14, background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)" }}>
               <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 8 }}>Pairing Token</div>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <code style={{ flex: 1, padding: "6px 10px", background: "var(--bg-primary)", borderRadius: 4, fontSize: 13, fontFamily: "monospace", color: "var(--accent-color)", letterSpacing: 1 }}>{token || "---"}</code>
+                <code style={{ flex: 1, padding: "6px 10px", background: "var(--bg-primary)", borderRadius: 4, fontSize: 13, fontFamily: "var(--font-mono)", color: "var(--accent-color)", letterSpacing: 1 }}>{token || "---"}</code>
                 <button onClick={() => token && navigator.clipboard.writeText(token)}
                   style={{ padding: "5px 12px", fontSize: 10, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-muted)", cursor: "pointer" }}>Copy</button>
               </div>
@@ -288,7 +288,7 @@ export default function RemoteControlPanel() {
         {tab === "events" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             {events.map(e => (
-              <div key={e.id} style={{ display: "flex", gap: 10, padding: "6px 10px", background: "var(--bg-secondary)", borderRadius: 4, border: "1px solid var(--border-color)", fontSize: 11, fontFamily: "monospace" }}>
+              <div key={e.id} style={{ display: "flex", gap: 10, padding: "6px 10px", background: "var(--bg-secondary)", borderRadius: 4, border: "1px solid var(--border-color)", fontSize: 11, fontFamily: "var(--font-mono)" }}>
                 <span style={{ color: "var(--text-muted)", minWidth: 60 }}>{e.timestamp}</span>
                 <span style={{ color: "var(--accent-color)", minWidth: 80 }}>{e.action}</span>
                 <span style={{ color: "var(--text-primary)", flex: 1 }}>{e.detail}</span>

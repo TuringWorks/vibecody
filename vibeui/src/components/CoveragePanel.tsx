@@ -106,7 +106,7 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  const barWidth = (pct: number) => `${Math.max(2, Math.min(100, pct))}%`;
 
  return (
- <div style={{ padding: "12px", fontFamily: "monospace", fontSize: "13px", height: "100%", overflowY: "auto" }}>
+ <div style={{ padding: "12px", fontFamily: "var(--font-family)", fontSize: "13px", height: "100%", overflowY: "auto" }}>
  {/* Header */}
  <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px", flexWrap: "wrap" }}>
  <span style={{ fontWeight: "bold", display: "flex", alignItems: "center", gap: 6 }}><FlaskConical size={16} strokeWidth={1.5} />Coverage</span>
@@ -127,7 +127,7 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  style={{
  marginLeft: "auto",
  background: "var(--error-color)",
- color: "white", border: "none", borderRadius: "4px",
+ color: "var(--btn-primary-fg)", border: "none", borderRadius: "4px",
  padding: "4px 12px", cursor: "pointer",
  }}
  >
@@ -139,7 +139,7 @@ export function CoveragePanel({ workspacePath }: CoveragePanelProps) {
  disabled={!tool || !workspacePath}
  style={{
  marginLeft: "auto",
- background: "var(--accent-blue)", color: "white",
+ background: "var(--accent-blue)", color: "var(--btn-primary-fg)",
  border: "none", borderRadius: "4px",
  padding: "4px 12px", cursor: !tool || !workspacePath ? "default" : "pointer",
  }}

@@ -121,7 +121,7 @@ const codeBlock: React.CSSProperties = {
   border: "1px solid var(--border-color)",
   borderRadius: 4,
   padding: 12,
-  fontFamily: "monospace",
+  fontFamily: "var(--font-mono)",
   fontSize: 11,
   whiteSpace: "pre-wrap",
   wordBreak: "break-all",
@@ -627,7 +627,7 @@ export function InferencePanel() {
               </div>
             ) : (
               <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, fontFamily: "monospace" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, fontFamily: "var(--font-mono)" }}>
                   <thead>
                     <tr style={{ background: "var(--bg-secondary)" }}>
                       <th style={{ padding: "6px 8px", textAlign: "center", borderBottom: "1px solid var(--border-color)", fontWeight: 600, width: 36 }}>Cmp</th>

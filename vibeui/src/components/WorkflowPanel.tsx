@@ -181,7 +181,7 @@ export function WorkflowPanel({ workspacePath, provider = "ollama" }: WorkflowPa
  <div style={{ flex: 1 }} />
  <button
  onClick={() => setShowNewForm((f) => !f)}
- style={{ padding: "4px 10px", fontSize: "11px", background: "var(--accent-color)", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}
+ style={{ padding: "4px 10px", fontSize: "11px", background: "var(--accent-color)", color: "var(--btn-primary-fg)", border: "none", borderRadius: "4px", cursor: "pointer" }}
  >
  + New Workflow
  </button>
@@ -213,7 +213,7 @@ export function WorkflowPanel({ workspacePath, provider = "ollama" }: WorkflowPa
  <button
  onClick={createWorkflow}
  disabled={loading || !newName.trim() || !newDesc.trim()}
- style={{ flex: 1, padding: "6px", background: "var(--accent-color)", color: "white", border: "none", borderRadius: "4px", cursor: "pointer", opacity: loading ? 0.6 : 1 }}
+ style={{ flex: 1, padding: "6px", background: "var(--accent-color)", color: "var(--btn-primary-fg)", border: "none", borderRadius: "4px", cursor: "pointer", opacity: loading ? 0.6 : 1 }}
  >
  {loading ? "Creating..." : "Create Workflow"}
  </button>
@@ -384,7 +384,7 @@ export function WorkflowPanel({ workspacePath, provider = "ollama" }: WorkflowPa
  background: item.done ? "var(--success-color)" : "transparent",
  display: "flex", alignItems: "center", justifyContent: "center",
  }}>
- {item.done && <span style={{ color: "white", fontSize: "10px" }}>✓</span>}
+ {item.done && <span style={{ color: "var(--btn-primary-fg)", fontSize: "10px" }}>✓</span>}
  </div>
  <div style={{ fontSize: "12px", textDecoration: item.done ? "line-through" : "none" }}>{item.description}</div>
  </div>
@@ -397,7 +397,7 @@ export function WorkflowPanel({ workspacePath, provider = "ollama" }: WorkflowPa
  disabled={generating}
  style={{
  padding: "5px 12px", fontSize: "11px",
- background: "var(--accent-color)", color: "white",
+ background: "var(--accent-color)", color: "var(--btn-primary-fg)",
  border: "none", borderRadius: "4px", cursor: "pointer",
  opacity: generating ? 0.6 : 1,
  }}
@@ -409,7 +409,7 @@ export function WorkflowPanel({ workspacePath, provider = "ollama" }: WorkflowPa
  onClick={advanceStage}
  style={{
  padding: "5px 12px", fontSize: "11px",
- background: "var(--success-color)", color: "white",
+ background: "var(--success-color)", color: "var(--btn-primary-fg)",
  border: "none", borderRadius: "4px", cursor: "pointer",
  }}
  >

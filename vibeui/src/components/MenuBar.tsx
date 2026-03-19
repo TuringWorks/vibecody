@@ -162,7 +162,7 @@ const itemStyle: React.CSSProperties = {
 const shortcutStyle: React.CSSProperties = {
   fontSize: 11,
   color: "var(--text-muted)",
-  fontFamily: "monospace",
+  fontFamily: "var(--font-mono)",
   marginLeft: 24,
 };
 

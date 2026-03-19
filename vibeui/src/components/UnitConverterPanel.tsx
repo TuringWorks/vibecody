@@ -322,8 +322,8 @@ export function UnitConverterPanel() {
  {isFrom && <span style={{ marginLeft: 6, fontSize: 10, color: "var(--accent-color)" }}>FROM</span>}
  {isTo && <span style={{ marginLeft: 6, fontSize: 10, color: "var(--success-color)" }}>TO</span>}
  </td>
- <td style={{ padding: "4px 10px", color: "var(--text-secondary)", fontFamily: "monospace" }}>{unit.symbol}</td>
- <td style={{ padding: "4px 10px", fontFamily: "monospace", color: "var(--text-primary)" }}>
+ <td style={{ padding: "4px 10px", color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>{unit.symbol}</td>
+ <td style={{ padding: "4px 10px", fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>
  {isNaN(inputNum) ? "—" : fmt(value)}
  </td>
  <td style={{ padding: "4px 6px" }}>

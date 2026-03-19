@@ -247,7 +247,7 @@ export function ScriptPanel({ workspacePath }: ScriptPanelProps) {
 
  {/* Script info */}
  <div style={{ flex: 1, minWidth: 0 }}>
- <div style={{ fontSize: 12, fontWeight: 600, fontFamily: "monospace" }}>
+ <div style={{ fontSize: 12, fontWeight: 600, fontFamily: "var(--font-mono)" }}>
  {script.name}
  </div>
  {script.description && (
@@ -255,7 +255,7 @@ export function ScriptPanel({ workspacePath }: ScriptPanelProps) {
  {script.description}
  </div>
  )}
- <div style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "monospace", opacity: 0.7, marginTop: 1 }}>
+ <div style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "var(--font-mono)", opacity: 0.7, marginTop: 1 }}>
  {script.command}
  </div>
  </div>
@@ -345,7 +345,7 @@ export function ScriptPanel({ workspacePath }: ScriptPanelProps) {
  ref={logRef}
  style={{
  maxHeight: 220, overflow: "auto", padding: "8px 12px",
- background: "var(--bg-primary)", fontFamily: "monospace", fontSize: 11,
+ background: "var(--bg-primary)", fontFamily: "var(--font-mono)", fontSize: 11,
  lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-all",
  }}
  >

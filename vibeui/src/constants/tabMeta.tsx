@@ -146,7 +146,7 @@ export const TAB_META: Record<string, TabMeta> = {
   clarify:     { icon: HelpCircle,         label: "Clarify" },
   codesearch:  { icon: Search,             label: "CodeSearch" },
   astedit:     { icon: TreeDeciduous,      label: "AST Edit" },
-  securityscan:{ icon: ScanLine,           label: "SecScan" },
+  securityscan:{ icon: ScanLine,           label: "Security Scanner" },
   editpredict: { icon: Sparkles,           label: "Predict" },
   cloudsandbox:{ icon: CloudCog,           label: "CloudBox" },
   training:    { icon: GraduationCap,      label: "Training" },

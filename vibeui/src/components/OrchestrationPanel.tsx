@@ -180,7 +180,7 @@ export function OrchestrationPanel({ workspacePath: _workspacePath }: Orchestrat
                   placeholder="Describe the task goal..."
                   style={{ flex: 1, padding: "6px 8px", background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "4px", fontSize: "13px" }}
                 />
-                <button onClick={createTask} style={{ padding: "6px 12px", background: "var(--accent-color)", color: "white", border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "13px" }}>Create</button>
+                <button onClick={createTask} style={{ padding: "6px 12px", background: "var(--accent-color)", color: "var(--btn-primary-fg)", border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "13px" }}>Create</button>
               </div>
             </div>
           ) : (
@@ -198,7 +198,7 @@ export function OrchestrationPanel({ workspacePath: _workspacePath }: Orchestrat
                 <div style={{ display: "flex", gap: "4px" }}>
                   {!state.planned && <button onClick={markPlanned} style={{ padding: "4px 8px", background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "3px", cursor: "pointer", fontSize: "11px" }}>Mark Planned</button>}
                   {!state.verified && <button onClick={markVerified} style={{ padding: "4px 8px", background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "3px", cursor: "pointer", fontSize: "11px" }}>Verify</button>}
-                  <button onClick={resetTask} style={{ padding: "4px 8px", background: "var(--error-color)", color: "white", border: "none", borderRadius: "3px", cursor: "pointer", fontSize: "11px" }}>Reset</button>
+                  <button onClick={resetTask} style={{ padding: "4px 8px", background: "var(--error-color)", color: "var(--btn-primary-fg)", border: "none", borderRadius: "3px", cursor: "pointer", fontSize: "11px" }}>Reset</button>
                 </div>
               </div>
 
@@ -214,7 +214,7 @@ export function OrchestrationPanel({ workspacePath: _workspacePath }: Orchestrat
               {/* Todo list */}
               {state.todos.map(todo => (
                 <div key={todo.id} role="checkbox" aria-checked={todo.done} tabIndex={0} onClick={() => toggleTodo(todo.id)} onKeyDown={e => e.key === "Enter" && toggleTodo(todo.id)} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "4px 0", cursor: "pointer", opacity: todo.done ? 0.5 : 1 }}>
-                  <span style={{ width: "16px", height: "16px", border: "1px solid var(--border-color)", borderRadius: "3px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", background: todo.done ? "var(--success-color)" : "transparent", color: "white" }}>
+                  <span style={{ width: "16px", height: "16px", border: "1px solid var(--border-color)", borderRadius: "3px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", background: todo.done ? "var(--success-color)" : "transparent", color: "var(--btn-primary-fg)" }}>
                     {todo.done ? "x" : ""}
                   </span>
                   <span style={{ fontSize: "10px", padding: "1px 4px", background: "var(--bg-primary)", borderRadius: "2px", color: "var(--text-muted)" }}>
@@ -233,7 +233,7 @@ export function OrchestrationPanel({ workspacePath: _workspacePath }: Orchestrat
                   placeholder="Add a task item..."
                   style={{ flex: 1, padding: "6px 8px", background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "4px", fontSize: "13px" }}
                 />
-                <button onClick={addTodo} style={{ padding: "6px 12px", background: "var(--accent-color)", color: "white", border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "13px" }}>Add</button>
+                <button onClick={addTodo} style={{ padding: "6px 12px", background: "var(--accent-color)", color: "var(--btn-primary-fg)", border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "13px" }}>Add</button>
               </div>
             </div>
           )}
@@ -285,7 +285,7 @@ export function OrchestrationPanel({ workspacePath: _workspacePath }: Orchestrat
                 placeholder="Rule to prevent recurrence..."
                 style={{ flex: 1, padding: "6px 8px", background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "4px", fontSize: "13px" }}
               />
-              <button onClick={addLesson} style={{ padding: "6px 12px", background: "var(--accent-color)", color: "white", border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "13px" }}>Add</button>
+              <button onClick={addLesson} style={{ padding: "6px 12px", background: "var(--accent-color)", color: "var(--btn-primary-fg)", border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "13px" }}>Add</button>
             </div>
           </div>
         </div>

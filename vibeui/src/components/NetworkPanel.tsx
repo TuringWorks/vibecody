@@ -213,12 +213,12 @@ export function NetworkPanel() {
  </div>
  {filteredPorts.map((p, i) => (
  <div key={i} style={{ display: "grid", gridTemplateColumns: "70px 60px 140px 1fr 90px", gap: 8, padding: "5px 8px", fontSize: 11, borderBottom: "1px solid var(--border-color)", alignItems: "center" }}>
- <span style={{ fontFamily: "monospace", fontWeight: 700, color: "var(--text-info)" }}>{p.port}</span>
+ <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--text-info)" }}>{p.port}</span>
  <span style={{ fontSize: 10, fontWeight: 600, color: p.protocol === "tcp" ? "var(--accent-color)" : "var(--warning-color)" }}>{p.protocol.toUpperCase()}</span>
- <span style={{ fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={`${p.process ?? ""} (${p.pid ?? "?"})`}>
+ <span style={{ fontFamily: "var(--font-mono)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={`${p.process ?? ""} (${p.pid ?? "?"})`}>
  {p.process ?? "—"}{p.pid ? ` (${p.pid})` : ""}
  </span>
- <span style={{ fontFamily: "monospace", fontSize: 10, color: "var(--text-muted)" }}>{p.address}</span>
+ <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-muted)" }}>{p.address}</span>
  <span style={{ fontSize: 10, fontWeight: 600, color: STATE_COLORS[p.state] ?? "var(--text-muted)", padding: "1px 6px", background: STATE_COLORS[p.state] ? `${STATE_COLORS[p.state]}22` : "var(--bg-secondary)", borderRadius: 10 }}>{p.state}</span>
  </div>
  ))}
@@ -240,7 +240,7 @@ export function NetworkPanel() {
  onChange={(e) => setDnsDomain(e.target.value)}
  onKeyDown={(e) => e.key === "Enter" && lookupDns()}
  placeholder="example.com"
- style={{ flex: 1, padding: "6px 10px", fontSize: 12, fontFamily: "monospace", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none" }}
+ style={{ flex: 1, padding: "6px 10px", fontSize: 12, fontFamily: "var(--font-mono)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none" }}
  />
  <select
  value={dnsType}
@@ -269,7 +269,7 @@ export function NetworkPanel() {
  {dnsRecords.map((r, i) => (
  <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 10px", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4 }}>
  <span style={{ fontSize: 10, fontWeight: 700, color: "var(--text-info)", width: 40 }}>{r.record_type}</span>
- <span style={{ fontFamily: "monospace", fontSize: 12, flex: 1 }}>{r.value}</span>
+ <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, flex: 1 }}>{r.value}</span>
  <button onClick={() => navigator.clipboard.writeText(r.value).catch(() => {})} style={{ padding: "2px 6px", fontSize: 10, background: "none", border: "1px solid var(--border-color)", borderRadius: 3, color: "var(--text-muted)", cursor: "pointer" }}>Copy</button>
  </div>
  ))}
@@ -293,7 +293,7 @@ export function NetworkPanel() {
  onChange={(e) => setTlsHost(e.target.value)}
  onKeyDown={(e) => e.key === "Enter" && checkTls()}
  placeholder="example.com or https://example.com"
- style={{ flex: 1, padding: "6px 10px", fontSize: 12, fontFamily: "monospace", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none" }}
+ style={{ flex: 1, padding: "6px 10px", fontSize: 12, fontFamily: "var(--font-mono)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none" }}
  />
  <input
  type="number" value={tlsPort} min={1} max={65535}
@@ -327,7 +327,7 @@ export function NetworkPanel() {
  <span style={{ marginLeft: 10, fontSize: 11, color: "var(--text-muted)" }}>{tlsHost}:{tlsPort}</span>
  </div>
  <div style={{ textAlign: "right" }}>
- <div style={{ fontSize: 20, fontWeight: 700, color: tlsCert.days_remaining > 30 ? "var(--success-color)" : tlsCert.days_remaining > 7 ? "var(--warning-color)" : "var(--error-color)" }}>
+ <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--font-mono)", color: tlsCert.days_remaining > 30 ? "var(--success-color)" : tlsCert.days_remaining > 7 ? "var(--warning-color)" : "var(--error-color)" }}>
  {tlsCert.days_remaining}d
  </div>
  <div style={{ fontSize: 9, color: "var(--text-muted)" }}>remaining</div>
@@ -344,7 +344,7 @@ export function NetworkPanel() {
  ].filter(([, v]) => v).map(([label, value]) => (
  <div key={label} style={{ display: "flex", gap: 10, padding: "6px 10px", background: "var(--bg-secondary)", borderRadius: 4, border: "1px solid var(--border-color)", alignItems: "flex-start" }}>
  <span style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", width: 90, flexShrink: 0 }}>{label}</span>
- <span style={{ fontFamily: "monospace", fontSize: 11, flex: 1, wordBreak: "break-all" }}>{value}</span>
+ <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, flex: 1, wordBreak: "break-all" }}>{value}</span>
  </div>
  ))}
 
@@ -356,7 +356,7 @@ export function NetworkPanel() {
  </div>
  <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
  {tlsCert.san.map((s) => (
- <span key={s} style={{ padding: "2px 8px", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 10, fontSize: 11, fontFamily: "monospace" }}>{s}</span>
+ <span key={s} style={{ padding: "2px 8px", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 10, fontSize: 11, fontFamily: "var(--font-mono)" }}>{s}</span>
  ))}
  </div>
  </div>

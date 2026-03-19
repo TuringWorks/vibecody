@@ -134,7 +134,7 @@ export function SandboxPanel() {
     <div style={{ padding: "12px", height: "100%", overflow: "auto", color: "var(--text-secondary)", fontSize: 13 }}>
       <h3 style={{ margin: "0 0 12px", color: "var(--text-primary)" }}>Container Sandbox</h3>
 
-      {error && <div className="panel-error" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", marginBottom: 12, background: "var(--error-color)", borderRadius: 4, color: "white", fontSize: 12 }}><span>{error}</span><button onClick={() => setError(null)} style={{ background: "none", border: "none", color: "white", cursor: "pointer", fontSize: 14 }}>&#x2715;</button></div>}
+      {error && <div className="panel-error" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", marginBottom: 12, background: "var(--error-color)", borderRadius: 4, color: "var(--btn-primary-fg)", fontSize: 12 }}><span>{error}</span><button onClick={() => setError(null)} style={{ background: "none", border: "none", color: "var(--btn-primary-fg)", cursor: "pointer", fontSize: 14 }}>&#x2715;</button></div>}
 
       {/* Runtime Detection */}
       <div style={{ marginBottom: 16, padding: "8px 12px", background: "var(--bg-primary)", borderRadius: 6, border: "1px solid var(--border-color)" }}>

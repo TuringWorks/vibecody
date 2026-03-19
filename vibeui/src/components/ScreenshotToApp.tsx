@@ -129,7 +129,7 @@ export function ScreenshotToApp({ workspacePath }: { workspacePath: string | nul
   };
 
   return (
-    <div style={{ padding: "12px", fontFamily: "monospace", fontSize: "13px", height: "100%", overflowY: "auto", background: "var(--bg-tertiary)" }}>
+    <div style={{ padding: "12px", fontFamily: "var(--font-family)", fontSize: "13px", height: "100%", overflowY: "auto", background: "var(--bg-tertiary)" }}>
       <div style={{ fontWeight: "bold", marginBottom: "12px", color: "var(--text-primary)" }}>
         Screenshot to App
       </div>

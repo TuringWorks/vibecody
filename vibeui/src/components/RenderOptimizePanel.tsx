@@ -65,7 +65,7 @@ const RenderOptimizePanel: React.FC = () => {
   });
   const btn: React.CSSProperties = {
     padding: "6px 14px", border: "none", borderRadius: "4px", cursor: "pointer",
-    backgroundColor: "var(--accent-color)", color: "white",
+    backgroundColor: "var(--accent-color)", color: "var(--btn-primary-fg)",
   };
   const card: React.CSSProperties = {
     padding: "12px", marginBottom: "8px", borderRadius: "6px",
@@ -117,7 +117,7 @@ const RenderOptimizePanel: React.FC = () => {
             <h4 style={{ margin: "0 0 8px" }}>Cache Hit Rate</h4>
             <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "4px" }}>
               <div style={{ flex: 1, height: "24px", borderRadius: "12px", backgroundColor: "var(--border-color)", overflow: "hidden" }}>
-                <div style={{ height: "100%", borderRadius: "12px", width: `${hitRate}%`, backgroundColor: hitRate > 70 ? "var(--success-color)" : hitRate > 40 ? "var(--warning-color)" : "var(--error-color)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: 700, color: "white", transition: "width 0.3s" }}>
+                <div style={{ height: "100%", borderRadius: "12px", width: `${hitRate}%`, backgroundColor: hitRate > 70 ? "var(--success-color)" : hitRate > 40 ? "var(--warning-color)" : "var(--error-color)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: 700, color: "var(--btn-primary-fg)", transition: "width 0.3s" }}>
                   {hitRate}%
                 </div>
               </div>
@@ -169,7 +169,7 @@ const RenderOptimizePanel: React.FC = () => {
                 <span style={{ fontWeight: 600 }}>Lines {r.startLine}-{r.endLine}</span>
                 <span style={{ opacity: 0.6, marginLeft: "8px" }}>({r.endLine - r.startLine + 1} line{r.endLine - r.startLine > 0 ? "s" : ""})</span>
               </div>
-              <span style={{ opacity: 0.7, fontSize: "12px", padding: "2px 8px", borderRadius: "10px", backgroundColor: "var(--bg-tertiary)", color: "white" }}>
+              <span style={{ opacity: 0.7, fontSize: "12px", padding: "2px 8px", borderRadius: "10px", backgroundColor: "var(--bg-tertiary)", color: "var(--btn-primary-fg)" }}>
                 {r.reason}
               </span>
             </div>

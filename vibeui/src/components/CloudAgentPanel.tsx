@@ -271,7 +271,7 @@ export function CloudAgentPanel() {
               border: "1px solid var(--border-color)",
               borderRadius: 4,
               fontSize: 11,
-              fontFamily: "'Fira Code', 'Cascadia Code', 'Consolas', monospace",
+              fontFamily: "var(--font-mono)",
               maxHeight: 200,
               overflowY: "auto",
               margin: 0,

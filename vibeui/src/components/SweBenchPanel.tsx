@@ -54,20 +54,20 @@ interface ResultsResponse {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-mono, monospace)", fontSize: 13, height: "100%", overflow: "auto", background: "var(--bg-primary)" };
+const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, height: "100%", overflow: "auto", background: "var(--bg-primary)" };
 const headingStyle: React.CSSProperties = { margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" };
-const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-primary)" };
+const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-color)" };
 const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
-const btnStyle: React.CSSProperties = { padding: "6px 14px", borderRadius: 4, border: "1px solid var(--border-primary)", background: "var(--bg-tertiary)", color: "var(--text-primary)", cursor: "pointer", fontSize: 12 };
-const tabBtnStyle = (active: boolean): React.CSSProperties => ({ ...btnStyle, background: active ? "var(--accent-primary)" : "var(--bg-tertiary)", color: active ? "white" : "var(--text-primary)", marginRight: 4 });
+const btnStyle: React.CSSProperties = { padding: "6px 14px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", cursor: "pointer", fontSize: 12 };
+const tabBtnStyle = (active: boolean): React.CSSProperties => ({ ...btnStyle, background: active ? "var(--accent-primary)" : "var(--bg-tertiary)", color: active ? "var(--btn-primary-fg)" : "var(--text-primary)", marginRight: 4 });
 
-const selectStyle: React.CSSProperties = { width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid var(--border-primary)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: 12, fontFamily: "var(--font-mono, monospace)", boxSizing: "border-box", cursor: "pointer" };
+const selectStyle: React.CSSProperties = { width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: 12, fontFamily: "var(--font-family)", boxSizing: "border-box", cursor: "pointer" };
 
 const barBg: React.CSSProperties = { height: 8, borderRadius: 4, background: "var(--bg-tertiary)", overflow: "hidden" };
 const barFill = (pct: number, color: string): React.CSSProperties => ({ height: "100%", width: `${Math.min(pct, 100)}%`, borderRadius: 4, background: color });
 
-const thStyle: React.CSSProperties = { textAlign: "left", padding: "6px 10px", borderBottom: "1px solid var(--border-primary)", fontSize: 11, color: "var(--text-secondary)" };
-const tdStyle: React.CSSProperties = { padding: "6px 10px", borderBottom: "1px solid var(--border-primary)", fontSize: 12 };
+const thStyle: React.CSSProperties = { textAlign: "left", padding: "6px 10px", borderBottom: "1px solid var(--border-color)", fontSize: 11, color: "var(--text-secondary)" };
+const tdStyle: React.CSSProperties = { padding: "6px 10px", borderBottom: "1px solid var(--border-color)", fontSize: 12 };
 
 const statusColor: Record<string, string> = { pass: "var(--success-color)", fail: "var(--error-color)", error: "var(--warning-color)", completed: "var(--success-color)", running: "var(--info-color)", pending: "var(--text-muted)", failed: "var(--error-color)" };
 const badgeStyle = (status: string): React.CSSProperties => ({ display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 600, color: "var(--text-primary)", background: statusColor[status] || "var(--text-muted)" });
@@ -229,7 +229,7 @@ export function SweBenchPanel() {
               </div>
             </div>
             <button
-              style={{ ...btnStyle, background: "var(--accent-primary)", color: "white", marginTop: 12 }}
+              style={{ ...btnStyle, background: "var(--accent-primary)", color: "var(--btn-primary-fg)", marginTop: 12 }}
               onClick={startBenchmark}
               disabled={isStarting}
             >
@@ -275,19 +275,19 @@ export function SweBenchPanel() {
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
                 <div style={cardStyle}>
                   <div style={labelStyle}>Pass@1</div>
-                  <div style={{ fontSize: 22, fontWeight: 700, color: "var(--success-color)" }}>{selectedRun.passRate}%</div>
+                  <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--success-color)" }}>{selectedRun.passRate}%</div>
                 </div>
                 <div style={cardStyle}>
                   <div style={labelStyle}>Passed</div>
-                  <div style={{ fontSize: 22, fontWeight: 700 }}>{selectedRun.passed}/{selectedRun.totalTasks}</div>
+                  <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{selectedRun.passed}/{selectedRun.totalTasks}</div>
                 </div>
                 <div style={cardStyle}>
                   <div style={labelStyle}>Failed</div>
-                  <div style={{ fontSize: 22, fontWeight: 700, color: "var(--error-color)" }}>{selectedRun.failed}</div>
+                  <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--error-color)" }}>{selectedRun.failed}</div>
                 </div>
                 <div style={cardStyle}>
                   <div style={labelStyle}>Avg Duration</div>
-                  <div style={{ fontSize: 22, fontWeight: 700 }}>{selectedRun.avgDurationSec}s</div>
+                  <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{selectedRun.avgDurationSec}s</div>
                 </div>
               </div>
 

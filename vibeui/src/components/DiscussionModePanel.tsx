@@ -61,7 +61,7 @@ const DiscussionModePanel: React.FC = () => {
   const tabStyle = (active: boolean): React.CSSProperties => ({
     padding: "6px 14px", cursor: "pointer", border: "none",
     backgroundColor: active ? "var(--accent-color)" : "transparent",
-    color: active ? "white" : "var(--text-primary)",
+    color: active ? "var(--btn-primary-fg)" : "var(--text-primary)",
     borderRadius: "4px", fontSize: "13px",
   });
   const inputStyle: React.CSSProperties = {
@@ -71,7 +71,7 @@ const DiscussionModePanel: React.FC = () => {
   };
   const btnStyle: React.CSSProperties = {
     padding: "6px 14px", cursor: "pointer", border: "none", borderRadius: "4px",
-    backgroundColor: "var(--accent-color)", color: "white",
+    backgroundColor: "var(--accent-color)", color: "var(--btn-primary-fg)",
   };
   const cardStyle: React.CSSProperties = {
     padding: "10px", marginBottom: "8px", borderRadius: "4px",

@@ -175,7 +175,7 @@ export function SupabasePanel({ workspacePath, provider }: { workspacePath: stri
  {activeTab === "query" && (
  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
  <textarea
- style={{ ...s.input, height: "120px", resize: "vertical", fontFamily: "monospace" }}
+ style={{ ...s.input, height: "120px", resize: "vertical", fontFamily: "var(--font-mono)" }}
  placeholder="SELECT * FROM users LIMIT 10"
  value={query}
  onChange={e => setQuery(e.target.value)}

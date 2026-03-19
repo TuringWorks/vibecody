@@ -38,17 +38,17 @@ interface AcpStatus {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-mono, monospace)", fontSize: 13, height: "100%", overflow: "auto", background: "var(--bg-primary)" };
+const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, height: "100%", overflow: "auto", background: "var(--bg-primary)" };
 const headingStyle: React.CSSProperties = { margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" };
-const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-primary)" };
+const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-color)" };
 const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
-const btnStyle: React.CSSProperties = { padding: "6px 14px", borderRadius: 4, border: "1px solid var(--border-primary)", background: "var(--bg-tertiary)", color: "var(--text-primary)", cursor: "pointer", fontSize: 12 };
-const tabBtnStyle = (active: boolean): React.CSSProperties => ({ ...btnStyle, background: active ? "var(--accent-primary)" : "var(--bg-tertiary)", color: active ? "white" : "var(--text-primary)", marginRight: 4 });
+const btnStyle: React.CSSProperties = { padding: "6px 14px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", cursor: "pointer", fontSize: 12 };
+const tabBtnStyle = (active: boolean): React.CSSProperties => ({ ...btnStyle, background: active ? "var(--accent-primary)" : "var(--bg-tertiary)", color: active ? "var(--btn-primary-fg)" : "var(--text-primary)", marginRight: 4 });
 
-const inputStyle: React.CSSProperties = { width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid var(--border-primary)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: 12, fontFamily: "var(--font-mono)", boxSizing: "border-box" };
+const inputStyle: React.CSSProperties = { width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: 12, fontFamily: "var(--font-mono)", boxSizing: "border-box" };
 const badgeStyle = (variant: string): React.CSSProperties => {
   const colors: Record<string, string> = { tool: "var(--accent-color)", resource: "var(--accent-purple)", prompt: "var(--warning-color)", ok: "var(--success-color)", error: "var(--error-color)", pending: "var(--text-muted)", sent: "var(--accent-color)", received: "var(--accent-purple)" };
-  return { display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 600, color: "white", background: colors[variant] || "var(--text-muted)" };
+  return { display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 600, color: "var(--btn-primary-fg)", background: colors[variant] || "var(--text-muted)" };
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -200,7 +200,7 @@ export function AcpPanel() {
               {status && <div style={{ fontSize: 10, color: "var(--text-secondary)" }}>v{status.version} | {status.connected_clients} client(s)</div>}
             </div>
             <button
-              style={{ ...btnStyle, background: serverRunning ? "var(--error-color)" : "var(--success-color)", color: "white" }}
+              style={{ ...btnStyle, background: serverRunning ? "var(--error-color)" : "var(--success-color)", color: "var(--btn-primary-fg)" }}
               onClick={handleToggleServer}
             >
               {serverRunning ? "Stop Server" : "Start Server"}
@@ -210,15 +210,15 @@ export function AcpPanel() {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
             <div style={cardStyle}>
               <div style={labelStyle}>Tools</div>
-              <div style={{ fontSize: 20, fontWeight: 700 }}>{toolCount}</div>
+              <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{toolCount}</div>
             </div>
             <div style={cardStyle}>
               <div style={labelStyle}>Resources</div>
-              <div style={{ fontSize: 20, fontWeight: 700 }}>{resourceCount}</div>
+              <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{resourceCount}</div>
             </div>
             <div style={cardStyle}>
               <div style={labelStyle}>Prompts</div>
-              <div style={{ fontSize: 20, fontWeight: 700 }}>{promptCount}</div>
+              <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{promptCount}</div>
             </div>
           </div>
 
@@ -252,7 +252,7 @@ export function AcpPanel() {
             </div>
             <div style={{ display: "flex", gap: 6 }}>
               <input style={{ ...inputStyle, flex: 1 }} placeholder="Description" value={newCapDesc} onChange={(e) => setNewCapDesc(e.target.value)} />
-              <button style={{ ...btnStyle, background: "var(--accent-primary)", color: "white" }} onClick={handleRegisterCapability}>Register</button>
+              <button style={{ ...btnStyle, background: "var(--accent-primary)", color: "var(--btn-primary-fg)" }} onClick={handleRegisterCapability}>Register</button>
             </div>
           </div>
         </div>
@@ -265,9 +265,9 @@ export function AcpPanel() {
             <div style={{ display: "flex", gap: 8 }}>
               <input style={{ ...inputStyle, flex: 1 }} value={clientUrl} onChange={(e) => setClientUrl(e.target.value)} placeholder="http://localhost:3001/acp" />
               {!clientConnected ? (
-                <button style={{ ...btnStyle, background: "var(--accent-primary)", color: "white" }} onClick={connectClient}>Connect</button>
+                <button style={{ ...btnStyle, background: "var(--accent-primary)", color: "var(--btn-primary-fg)" }} onClick={connectClient}>Connect</button>
               ) : (
-                <button style={{ ...btnStyle, background: "var(--error-color)", color: "white" }} onClick={disconnectClient}>Disconnect</button>
+                <button style={{ ...btnStyle, background: "var(--error-color)", color: "var(--btn-primary-fg)" }} onClick={disconnectClient}>Disconnect</button>
               )}
             </div>
           </div>
@@ -328,7 +328,7 @@ export function AcpPanel() {
                 </div>
                 <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>{new Date(msg.timestamp).toLocaleTimeString()}</span>
               </div>
-              <div style={{ fontSize: 10, color: "var(--text-secondary)", fontFamily: "var(--font-mono, monospace)", wordBreak: "break-all" }}>
+              <div style={{ fontSize: 10, color: "var(--text-secondary)", fontFamily: "var(--font-family)", wordBreak: "break-all" }}>
                 {msg.payload}
               </div>
             </div>

@@ -151,7 +151,7 @@ const TeamGovernancePanel: React.FC = () => {
   });
   const btn: React.CSSProperties = {
     padding: "6px 14px", border: "none", borderRadius: "4px", cursor: "pointer",
-    backgroundColor: "var(--accent-color)", color: "white",
+    backgroundColor: "var(--accent-color)", color: "var(--btn-primary-fg)",
   };
   const input: React.CSSProperties = {
     padding: "6px 10px", borderRadius: "4px", border: "1px solid var(--border-color)",

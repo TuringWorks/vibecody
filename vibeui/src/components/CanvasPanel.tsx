@@ -214,10 +214,10 @@ export default function CanvasPanel() {
  placeholder="Workflow name"
  style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", color: "var(--text-secondary)", padding: "4px 8px", borderRadius: 4, flex: 1, maxWidth: 200 }}
  />
- <button onClick={handleSave} style={{ background: "var(--success-color)", border: "none", color: "white", padding: "4px 12px", borderRadius: 4, cursor: "pointer" }}>
+ <button onClick={handleSave} style={{ background: "var(--success-color)", border: "none", color: "var(--btn-primary-fg)", padding: "4px 12px", borderRadius: 4, cursor: "pointer" }}>
  Save
  </button>
- <button onClick={handleRun} style={{ background: "var(--accent-color)", border: "none", color: "white", padding: "4px 12px", borderRadius: 4, cursor: "pointer" }}>
+ <button onClick={handleRun} style={{ background: "var(--accent-color)", border: "none", color: "var(--btn-primary-fg)", padding: "4px 12px", borderRadius: 4, cursor: "pointer" }}>
  Run
  </button>
  {connecting && (

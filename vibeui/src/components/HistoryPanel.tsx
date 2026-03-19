@@ -142,7 +142,7 @@ export function HistoryPanel() {
  background: "var(--bg-tertiary)",
  borderRadius: "6px",
  padding: "8px",
- fontFamily: "monospace",
+ fontFamily: "var(--font-mono)",
  fontSize: "11px",
  display: "flex",
  flexDirection: "column",

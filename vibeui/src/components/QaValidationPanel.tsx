@@ -80,7 +80,7 @@ export function QaValidationPanel() {
 
   const btnPrimary: React.CSSProperties = {
     background: "var(--accent)",
-    color: "white",
+    color: "var(--btn-primary-fg)",
     border: "none",
     borderRadius: 4,
     padding: "8px 16px",
@@ -123,7 +123,7 @@ export function QaValidationPanel() {
                 onChange={(e) => setInputText(e.target.value)}
                 placeholder={"response contains 'success'\nstatus_code == 200\nlatency_ms < 500\nresult.length > 0\nno errors in output"}
                 rows={8}
-                style={{ ...inputStyle, fontFamily: "monospace", resize: "vertical" }}
+                style={{ ...inputStyle, fontFamily: "var(--font-mono)", resize: "vertical" }}
               />
             </div>
 
@@ -160,7 +160,7 @@ export function QaValidationPanel() {
                   >
                     <span style={{ fontSize: 14, lineHeight: "20px", flexShrink: 0 }}>{c.passed ? "[PASS]" : "[FAIL]"}</span>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 12, fontFamily: "monospace" }}>{c.assertion}</div>
+                      <div style={{ fontSize: 12, fontFamily: "var(--font-mono)" }}>{c.assertion}</div>
                       <div style={{ fontSize: 11, color: c.passed ? "var(--success-color)" : "var(--error-color)", marginTop: 2 }}>{c.message}</div>
                     </div>
                   </div>
@@ -196,7 +196,7 @@ export function QaValidationPanel() {
                   <tbody>
                     {history.map((run, i) => (
                       <tr key={run.id} style={{ background: i % 2 === 0 ? "transparent" : "var(--bg-secondary)" }}>
-                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", fontFamily: "monospace", fontSize: 11 }}>{new Date(run.timestamp).toLocaleString()}</td>
+                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", fontFamily: "var(--font-mono)", fontSize: 11 }}>{new Date(run.timestamp).toLocaleString()}</td>
                         <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", textAlign: "center" }}>
                           <span style={{
                             display: "inline-block",
@@ -252,7 +252,7 @@ export function QaValidationPanel() {
                   >
                     <span style={{ fontSize: 14, lineHeight: "20px", flexShrink: 0 }}>{c.passed ? "[PASS]" : "[FAIL]"}</span>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 12, fontFamily: "monospace" }}>{c.assertion}</div>
+                      <div style={{ fontSize: 12, fontFamily: "var(--font-mono)" }}>{c.assertion}</div>
                       <div style={{ fontSize: 11, color: c.passed ? "var(--success-color)" : "var(--error-color)", marginTop: 2 }}>{c.message}</div>
                     </div>
                   </div>

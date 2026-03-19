@@ -189,7 +189,7 @@ collection = client.create_collection(
 
   const btnPrimary: React.CSSProperties = {
     background: "var(--accent)",
-    color: "white",
+    color: "var(--btn-primary-fg)",
     border: "none",
     borderRadius: 4,
     padding: "8px 16px",
@@ -289,7 +289,7 @@ collection = client.create_collection(
                   <tbody>
                     {collections.map((c, i) => (
                       <tr key={c.name} style={{ background: i % 2 === 0 ? "transparent" : "var(--bg-secondary)" }}>
-                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", fontFamily: "monospace" }}>{c.name}</td>
+                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", fontFamily: "var(--font-mono)" }}>{c.name}</td>
                         <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", textAlign: "center" }}>{c.dimension}</td>
                         <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", textAlign: "center" }}>{c.metric}</td>
                         <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", textAlign: "center" }}>{c.vectorCount.toLocaleString()}</td>
@@ -318,7 +318,7 @@ collection = client.create_collection(
                 onChange={(e) => setVectorInput(e.target.value)}
                 placeholder="0.1, -0.23, 0.87, 0.54, ..."
                 rows={3}
-                style={{ ...inputStyle, fontFamily: "monospace", resize: "vertical" }}
+                style={{ ...inputStyle, fontFamily: "var(--font-mono)", resize: "vertical" }}
               />
             </div>
 
@@ -352,7 +352,7 @@ collection = client.create_collection(
                   <tbody>
                     {searchResults.map((r, i) => (
                       <tr key={r.id} style={{ background: i % 2 === 0 ? "transparent" : "var(--bg-secondary)" }}>
-                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", fontFamily: "monospace" }}>{r.id}</td>
+                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", fontFamily: "var(--font-mono)" }}>{r.id}</td>
                         <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", textAlign: "center", color: r.score > 0.8 ? "var(--success-color)" : r.score > 0.5 ? "var(--warning-color)" : "var(--text-secondary)" }}>{r.score}</td>
                         <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", fontSize: 11 }}>
                           {Object.entries(r.payload).map(([k, v]) => (
@@ -396,7 +396,7 @@ collection = client.create_collection(
                 borderRadius: 4,
                 padding: 16,
                 fontSize: 12,
-                fontFamily: "monospace",
+                fontFamily: "var(--font-mono)",
                 margin: 0,
                 whiteSpace: "pre-wrap",
                 color: "var(--text-primary)",

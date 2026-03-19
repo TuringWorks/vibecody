@@ -130,7 +130,7 @@ export function MultiModelPanel() {
  };
 
  return (
- <div style={{ display: "flex", flexDirection: "column", height: "100%", padding: "12px", gap: "10px", fontFamily: "monospace", fontSize: "13px" }}>
+ <div style={{ display: "flex", flexDirection: "column", height: "100%", padding: "12px", gap: "10px", fontFamily: "var(--font-mono)", fontSize: "13px" }}>
  {/* Header */}
  <div style={{ fontWeight: "bold", marginBottom: "2px" }}>Multi-Model Comparison</div>
 

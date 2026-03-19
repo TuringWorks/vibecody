@@ -131,9 +131,9 @@ const triggerIcons: Record<TriggerSource, string> = {
 };
 
 const statusColors: Record<string, string> = {
-  queued: 'var(--vp-c-text-2)', running: 'var(--vp-c-brand)',
-  completed: 'var(--vp-c-green-1)', failed: 'var(--vp-c-red-1)',
-  cancelled: 'var(--vp-c-text-3)',
+  queued: 'var(--text-secondary)', running: 'var(--accent-color)',
+  completed: 'var(--success-color)', failed: 'var(--error-color)',
+  cancelled: 'var(--text-muted)',
 };
 
 // ---------------------------------------------------------------------------
@@ -149,7 +149,7 @@ const AutomationsPanel: React.FC = () => {
   const [newTrigger, setNewTrigger] = useState<TriggerSource>('github');
 
   return (
-    <div style={{ padding: 16, color: 'var(--vp-c-text-1)', background: 'var(--vp-c-bg)', minHeight: '100%' }}>
+    <div style={{ padding: 16, color: 'var(--text-primary)', background: 'var(--bg-primary)', minHeight: '100%' }}>
       <h2 style={{ margin: '0 0 12px' }}>Event-Driven Automations</h2>
 
       {/* Stats bar */}
@@ -161,27 +161,27 @@ const AutomationsPanel: React.FC = () => {
           { label: 'Completed', value: stats.completedTasks },
           { label: 'Failed', value: stats.failedTasks },
         ].map((s) => (
-          <div key={s.label} style={{ background: 'var(--vp-c-bg-soft)', padding: '8px 16px', borderRadius: 6, textAlign: 'center' }}>
-            <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--vp-c-brand)' }}>{s.value}</div>
-            <div style={{ fontSize: 11, color: 'var(--vp-c-text-2)' }}>{s.label}</div>
+          <div key={s.label} style={{ background: 'var(--bg-secondary)', padding: '8px 16px', borderRadius: 6, textAlign: 'center' }}>
+            <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--font-mono)", color: 'var(--accent-color)' }}>{s.value}</div>
+            <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{s.label}</div>
           </div>
         ))}
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 12, borderBottom: '1px solid var(--vp-c-divider)' }}>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 12, borderBottom: '1px solid var(--border-color)' }}>
         {(['rules', 'tasks', 'logs'] as const).map((t) => (
           <button key={t} onClick={() => setTab(t)} style={{
             padding: '6px 16px', border: 'none', cursor: 'pointer', fontSize: 13,
-            background: tab === t ? 'var(--vp-c-brand)' : 'transparent',
-            color: tab === t ? 'var(--text-primary)' : 'var(--vp-c-text-2)', borderRadius: '6px 6px 0 0',
+            background: tab === t ? 'var(--accent-color)' : 'transparent',
+            color: tab === t ? 'var(--text-primary)' : 'var(--text-secondary)', borderRadius: '6px 6px 0 0',
           }}>
             {t.charAt(0).toUpperCase() + t.slice(1)}
           </button>
         ))}
         <button onClick={() => setShowCreateModal(!showCreateModal)} style={{
           marginLeft: 'auto', padding: '6px 14px', border: 'none', cursor: 'pointer',
-          background: 'var(--vp-c-green-1)', color: 'var(--text-primary)', borderRadius: 6, fontSize: 13,
+          background: 'var(--success-color)', color: 'var(--text-primary)', borderRadius: 6, fontSize: 13,
         }}>
           + New Rule
         </button>
@@ -189,16 +189,16 @@ const AutomationsPanel: React.FC = () => {
 
       {/* Create modal */}
       {showCreateModal && (
-        <div style={{ background: 'var(--vp-c-bg-soft)', padding: 16, borderRadius: 8, marginBottom: 12, border: '1px solid var(--vp-c-divider)' }}>
+        <div style={{ background: 'var(--bg-secondary)', padding: 16, borderRadius: 8, marginBottom: 12, border: '1px solid var(--border-color)' }}>
           <h3 style={{ margin: '0 0 8px' }}>Create Automation Rule</h3>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             <label style={{ fontSize: 12 }}>
               Name
-              <input type="text" placeholder="e.g. PR Review Agent" style={{ width: '100%', padding: 6, background: 'var(--vp-c-bg)', color: 'var(--vp-c-text-1)', border: '1px solid var(--vp-c-divider)', borderRadius: 4 }} />
+              <input type="text" placeholder="e.g. PR Review Agent" style={{ width: '100%', padding: 6, background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4 }} />
             </label>
             <label style={{ fontSize: 12 }}>
               Trigger Source
-              <select value={newTrigger} onChange={(e) => setNewTrigger(e.target.value as TriggerSource)} style={{ width: '100%', padding: 6, background: 'var(--vp-c-bg)', color: 'var(--vp-c-text-1)', border: '1px solid var(--vp-c-divider)', borderRadius: 4 }}>
+              <select value={newTrigger} onChange={(e) => setNewTrigger(e.target.value as TriggerSource)} style={{ width: '100%', padding: 6, background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4 }}>
                 <option value="github">GitHub</option>
                 <option value="slack">Slack</option>
                 <option value="linear">Linear</option>
@@ -220,16 +220,16 @@ const AutomationsPanel: React.FC = () => {
             </label>
             <label style={{ fontSize: 12, gridColumn: 'span 2' }}>
               Events (comma-separated)
-              <input type="text" placeholder="e.g. push, pull_request.opened" style={{ width: '100%', padding: 6, background: 'var(--vp-c-bg)', color: 'var(--vp-c-text-1)', border: '1px solid var(--vp-c-divider)', borderRadius: 4 }} />
+              <input type="text" placeholder="e.g. push, pull_request.opened" style={{ width: '100%', padding: 6, background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4 }} />
             </label>
             <label style={{ fontSize: 12, gridColumn: 'span 2' }}>
               Prompt Template
-              <textarea placeholder="Use {{variables}} from event payload" rows={3} style={{ width: '100%', padding: 6, background: 'var(--vp-c-bg)', color: 'var(--vp-c-text-1)', border: '1px solid var(--vp-c-divider)', borderRadius: 4, fontFamily: 'monospace' }} />
+              <textarea placeholder="Use {{variables}} from event payload" rows={3} style={{ width: '100%', padding: 6, background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4, fontFamily: 'var(--font-mono)' }} />
             </label>
           </div>
           <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-            <button style={{ padding: '6px 14px', background: 'var(--vp-c-brand)', color: 'var(--text-primary)', border: 'none', borderRadius: 4, cursor: 'pointer' }}>Create</button>
-            <button onClick={() => setShowCreateModal(false)} style={{ padding: '6px 14px', background: 'var(--vp-c-bg)', color: 'var(--vp-c-text-2)', border: '1px solid var(--vp-c-divider)', borderRadius: 4, cursor: 'pointer' }}>Cancel</button>
+            <button style={{ padding: '6px 14px', background: 'var(--accent-color)', color: 'var(--text-primary)', border: 'none', borderRadius: 4, cursor: 'pointer' }}>Create</button>
+            <button onClick={() => setShowCreateModal(false)} style={{ padding: '6px 14px', background: 'var(--bg-primary)', color: 'var(--text-secondary)', border: '1px solid var(--border-color)', borderRadius: 4, cursor: 'pointer' }}>Cancel</button>
           </div>
         </div>
       )}
@@ -239,26 +239,26 @@ const AutomationsPanel: React.FC = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {rules.map((rule) => (
             <div key={rule.id} style={{
-              background: 'var(--vp-c-bg-soft)', padding: 12, borderRadius: 8,
-              border: `1px solid ${rule.enabled ? 'var(--vp-c-divider)' : 'var(--vp-c-text-3)'}`,
+              background: 'var(--bg-secondary)', padding: 12, borderRadius: 8,
+              border: `1px solid ${rule.enabled ? 'var(--border-color)' : 'var(--text-muted)'}`,
               opacity: rule.enabled ? 1 : 0.6,
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                 <span style={{
                   display: 'inline-block', padding: '2px 6px', borderRadius: 4, fontSize: 11,
-                  fontWeight: 700, background: 'var(--vp-c-brand)', color: 'var(--text-primary)',
+                  fontWeight: 700, background: 'var(--accent-color)', color: 'var(--text-primary)',
                 }}>{triggerIcons[rule.trigger]}</span>
                 <strong>{rule.name}</strong>
-                <span style={{ fontSize: 11, color: 'var(--vp-c-text-3)', marginLeft: 'auto' }}>
+                <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 'auto' }}>
                   {rule.fireCount} runs {rule.lastFired ? `· last ${rule.lastFired}` : ''}
                 </span>
               </div>
-              <div style={{ fontSize: 12, color: 'var(--vp-c-text-2)', marginBottom: 4 }}>{rule.description}</div>
-              <div style={{ fontSize: 11, color: 'var(--vp-c-text-3)' }}>
+              <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 4 }}>{rule.description}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                 Events: {rule.events.join(', ')} · Provider: {rule.provider} · Max turns: {rule.maxTurns}
                 {rule.sandbox && ' · Sandbox'}
               </div>
-              <div style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--vp-c-text-2)', marginTop: 4, padding: 4, background: 'var(--vp-c-bg)', borderRadius: 4 }}>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-secondary)', marginTop: 4, padding: 4, background: 'var(--bg-primary)', borderRadius: 4 }}>
                 {rule.promptTemplate}
               </div>
             </div>
@@ -271,7 +271,7 @@ const AutomationsPanel: React.FC = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {tasks.map((task) => (
             <div key={task.taskId} style={{
-              background: 'var(--vp-c-bg-soft)', padding: 10, borderRadius: 6,
+              background: 'var(--bg-secondary)', padding: 10, borderRadius: 6,
               borderLeft: `3px solid ${statusColors[task.status]}`,
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
@@ -279,12 +279,12 @@ const AutomationsPanel: React.FC = () => {
                   fontSize: 11, padding: '1px 6px', borderRadius: 3,
                   background: statusColors[task.status], color: 'var(--text-primary)', fontWeight: 600,
                 }}>{task.status}</span>
-                <span style={{ fontSize: 12, fontFamily: 'monospace', color: 'var(--vp-c-text-3)' }}>{task.taskId}</span>
-                <span style={{ fontSize: 11, color: 'var(--vp-c-text-3)', marginLeft: 'auto' }}>{task.createdAt}</span>
+                <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>{task.taskId}</span>
+                <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 'auto' }}>{task.createdAt}</span>
               </div>
-              <div style={{ fontSize: 12, color: 'var(--vp-c-text-1)' }}>{task.prompt}</div>
+              <div style={{ fontSize: 12, color: 'var(--text-primary)' }}>{task.prompt}</div>
               {task.output && (
-                <div style={{ fontSize: 11, color: 'var(--vp-c-text-2)', marginTop: 4 }}>
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>
                   Output: {task.output}
                 </div>
               )}
@@ -295,7 +295,7 @@ const AutomationsPanel: React.FC = () => {
 
       {/* Logs tab */}
       {tab === 'logs' && (
-        <div style={{ fontFamily: 'monospace', fontSize: 12, background: 'var(--vp-c-bg-soft)', padding: 12, borderRadius: 8, lineHeight: 1.8, color: 'var(--vp-c-text-2)' }}>
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, background: 'var(--bg-secondary)', padding: 12, borderRadius: 8, lineHeight: 1.8, color: 'var(--text-secondary)' }}>
           <div>[14:32:05] Webhook received: github/pull_request.opened → matched rule auto-1</div>
           <div>[14:32:05] Spawning agent task-1 (provider: claude, sandbox: true)</div>
           <div>[14:33:12] Task task-1 completed (67s, 12 turns)</div>

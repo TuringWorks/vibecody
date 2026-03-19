@@ -98,7 +98,7 @@ const badgeStyle = (color: string): React.CSSProperties => ({
   padding: "2px 8px",
   borderRadius: 10,
   background: color,
-  color: "white",
+  color: "var(--btn-primary-fg)",
   fontWeight: 600,
 });
 
@@ -249,7 +249,7 @@ const SubAgentPanel: React.FC<SubAgentPanelProps> = ({ provider }) => {
 
       {/* Global error */}
       {error && (
-        <div style={{ padding: "8px 10px", marginBottom: 8, borderRadius: 4, background: "var(--error-color)", color: "white", fontSize: 12 }}>
+        <div style={{ padding: "8px 10px", marginBottom: 8, borderRadius: 4, background: "var(--error-color)", color: "var(--btn-primary-fg)", fontSize: 12 }}>
           {error}
         </div>
       )}
@@ -310,7 +310,7 @@ const SubAgentPanel: React.FC<SubAgentPanelProps> = ({ provider }) => {
                     <>
                       <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 6, marginBottom: 4 }}>Context Files:</div>
                       {agent.context_files.map((f) => (
-                        <div key={f} style={{ fontSize: 11, fontFamily: "monospace", padding: "2px 6px", marginBottom: 2, background: "var(--bg-primary)", borderRadius: 3 }}>{f}</div>
+                        <div key={f} style={{ fontSize: 11, fontFamily: "var(--font-mono)", padding: "2px 6px", marginBottom: 2, background: "var(--bg-primary)", borderRadius: 3 }}>{f}</div>
                       ))}
                     </>
                   )}
@@ -386,7 +386,7 @@ const SubAgentPanel: React.FC<SubAgentPanelProps> = ({ provider }) => {
                   <div style={{ marginTop: 6 }}>
                     <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Modified: </span>
                     {agent.files_modified.map((f) => (
-                      <span key={f} style={{ fontSize: 10, fontFamily: "monospace", padding: "1px 5px", borderRadius: 3, background: "var(--bg-primary)", marginLeft: 4 }}>{f}</span>
+                      <span key={f} style={{ fontSize: 10, fontFamily: "var(--font-mono)", padding: "1px 5px", borderRadius: 3, background: "var(--bg-primary)", marginLeft: 4 }}>{f}</span>
                     ))}
                   </div>
                 )}
@@ -400,12 +400,12 @@ const SubAgentPanel: React.FC<SubAgentPanelProps> = ({ provider }) => {
       {tab === "Spawn" && (
         <div>
           {spawnError && (
-            <div style={{ padding: "8px 10px", marginBottom: 8, borderRadius: 4, background: "var(--error-color)", color: "white", fontSize: 12 }}>
+            <div style={{ padding: "8px 10px", marginBottom: 8, borderRadius: 4, background: "var(--error-color)", color: "var(--btn-primary-fg)", fontSize: 12 }}>
               {spawnError}
             </div>
           )}
           {spawnSuccess && (
-            <div style={{ padding: "8px 10px", marginBottom: 8, borderRadius: 4, background: "var(--success-color)", color: "white", fontSize: 12 }}>
+            <div style={{ padding: "8px 10px", marginBottom: 8, borderRadius: 4, background: "var(--success-color)", color: "var(--btn-primary-fg)", fontSize: 12 }}>
               {spawnSuccess}
             </div>
           )}
@@ -449,7 +449,7 @@ const SubAgentPanel: React.FC<SubAgentPanelProps> = ({ provider }) => {
               onChange={(e) => setSpawnContextFiles(e.target.value)}
               placeholder="src/main.rs, src/lib.rs"
               rows={3}
-              style={{ ...inputStyle, resize: "vertical", fontFamily: "monospace" }}
+              style={{ ...inputStyle, resize: "vertical", fontFamily: "var(--font-mono)" }}
             />
           </div>
 
@@ -471,7 +471,7 @@ const SubAgentPanel: React.FC<SubAgentPanelProps> = ({ provider }) => {
             style={{
               ...buttonStyle,
               background: spawning || !spawnTask.trim() ? "var(--border-color)" : "var(--accent-color)",
-              color: "white",
+              color: "var(--btn-primary-fg)",
               width: "100%",
               padding: "8px 16px",
               opacity: spawning || !spawnTask.trim() ? 0.6 : 1,

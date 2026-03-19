@@ -184,7 +184,7 @@ const SessionBrowserPanel: React.FC = () => {
             borderRadius: 4,
             border: "none",
             background: "var(--accent-color)",
-            color: "white",
+            color: "var(--btn-primary-fg)",
             cursor: "pointer",
           }}
         >

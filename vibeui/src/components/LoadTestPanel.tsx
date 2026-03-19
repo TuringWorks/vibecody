@@ -36,7 +36,7 @@ const PRESETS = [
 function StatCard({ label, value, unit, color }: { label: string; value: string | number; unit?: string; color?: string }) {
  return (
  <div style={{ flex: 1, padding: "8px 10px", background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)", textAlign: "center" }}>
- <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "monospace", color: color ?? "var(--text-primary)" }}>
+ <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "var(--font-mono)", color: color ?? "var(--text-primary)" }}>
  {typeof value === "number" ? value.toFixed(value < 10 ? 1 : 0) : value}
  {unit && <span style={{ fontSize: 11, fontWeight: 400, marginLeft: 2 }}>{unit}</span>}
  </div>
@@ -143,7 +143,7 @@ export function LoadTestPanel() {
  value={url}
  onChange={(e) => setUrl(e.target.value)}
  placeholder="https://api.example.com/endpoint"
- style={{ flex: 1, padding: "6px 10px", fontSize: 12, fontFamily: "monospace", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none" }}
+ style={{ flex: 1, padding: "6px 10px", fontSize: 12, fontFamily: "var(--font-mono)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none" }}
  />
  </div>
 
@@ -182,7 +182,7 @@ export function LoadTestPanel() {
  style={{
  padding: "6px 20px", fontSize: 12, fontWeight: 700, alignSelf: "flex-end",
  background: "var(--error-color)",
- color: "white",
+ color: "var(--btn-primary-fg)",
  border: "none", borderRadius: 4, cursor: "pointer",
  height: 32,
  }}
@@ -196,7 +196,7 @@ export function LoadTestPanel() {
  style={{
  padding: "6px 20px", fontSize: 12, fontWeight: 700, alignSelf: "flex-end",
  background: "var(--accent-color)",
- color: "white",
+ color: "var(--btn-primary-fg)",
  border: "none", borderRadius: 4, cursor: !url ? "not-allowed" : "pointer",
  height: 32,
  }}
@@ -215,7 +215,7 @@ export function LoadTestPanel() {
  onChange={(e) => setBody(e.target.value)}
  rows={3}
  placeholder='{"key": "value"}'
- style={{ padding: "6px 10px", fontSize: 11, fontFamily: "monospace", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none", resize: "vertical" }}
+ style={{ padding: "6px 10px", fontSize: 11, fontFamily: "var(--font-mono)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none", resize: "vertical" }}
  />
  </div>
  )}
@@ -226,7 +226,7 @@ export function LoadTestPanel() {
  value={headersText}
  onChange={(e) => setHeadersText(e.target.value)}
  placeholder='{"Authorization": "Bearer TOKEN"}'
- style={{ padding: "5px 10px", fontSize: 11, fontFamily: "monospace", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-muted)", outline: "none" }}
+ style={{ padding: "5px 10px", fontSize: 11, fontFamily: "var(--font-mono)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-muted)", outline: "none" }}
  />
  </div>
 
@@ -259,17 +259,17 @@ export function LoadTestPanel() {
  {/* Success / failure */}
  <div style={{ display: "flex", gap: 6 }}>
  <div style={{ flex: 1, padding: "8px 10px", background: "rgba(166,227,161,0.1)", border: "1px solid var(--success-color)", borderRadius: 6, textAlign: "center" }}>
- <div style={{ fontSize: 18, fontWeight: 700, color: "var(--success-color)" }}>{result.success}</div>
+ <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--success-color)" }}>{result.success}</div>
  <div style={{ fontSize: 9, color: "var(--success-color)", fontWeight: 600 }}>SUCCESS ({successRate}%)</div>
  </div>
  {result.failed > 0 && (
  <div style={{ flex: 1, padding: "8px 10px", background: "rgba(243,139,168,0.1)", border: "1px solid var(--error-color)", borderRadius: 6, textAlign: "center" }}>
- <div style={{ fontSize: 18, fontWeight: 700, color: "var(--error-color)" }}>{result.failed}</div>
+ <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--error-color)" }}>{result.failed}</div>
  <div style={{ fontSize: 9, color: "var(--error-color)", fontWeight: 600 }}>FAILED ({100 - (successRate ?? 0)}%)</div>
  </div>
  )}
  <div style={{ flex: 1, padding: "8px 10px", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 6, textAlign: "center" }}>
- <div style={{ fontSize: 18, fontWeight: 700 }}>{(result.duration_ms / 1000).toFixed(2)}s</div>
+ <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{(result.duration_ms / 1000).toFixed(2)}s</div>
  <div style={{ fontSize: 9, color: "var(--text-muted)", fontWeight: 600 }}>TOTAL TIME</div>
  </div>
  </div>

@@ -534,7 +534,7 @@ function ItemsTab({ items, scope, onRefresh, setError }: {
       {filtered.map(item => (
         <div key={item.id} style={{ ...cardS, borderLeft: `3px solid ${TYPE_COLORS[item.type] || "var(--border-color)"}` }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-            <span style={{ fontFamily: "monospace", fontSize: 11, fontWeight: 700, color: "var(--accent-color)" }}>{item.displayId}</span>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--accent-color)" }}>{item.displayId}</span>
             <span style={badge(TYPE_COLORS[item.type] || "var(--bg-tertiary)", "var(--btn-primary-fg)")}>{item.type}</span>
             <span style={badge(PRIORITY_COLORS[item.priority] || "var(--bg-tertiary)", "var(--btn-primary-fg)")}>{item.priority}</span>
             <span style={badge("var(--bg-tertiary)", "var(--text-secondary)")}>{item.status}</span>
@@ -618,7 +618,7 @@ function BoardTab({ items, onRefresh, setError }: {
             {colItems.map(item => (
               <div key={item.id} style={{ ...cardS, padding: 8, marginBottom: 6, fontSize: 12 }}>
                 <div style={{ display: "flex", gap: 4, marginBottom: 4 }}>
-                  <span style={{ fontFamily: "monospace", fontSize: 10, color: "var(--accent-color)" }}>{item.displayId}</span>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--accent-color)" }}>{item.displayId}</span>
                   <span style={badge(PRIORITY_COLORS[item.priority] || "var(--bg-tertiary)", "var(--btn-primary-fg)")}>{item.priority}</span>
                 </div>
                 <div style={{ fontWeight: 500, marginBottom: 4 }}>{item.title}</div>
@@ -671,12 +671,12 @@ function RelationshipsTab({ items, onRefresh, setError }: { items: WorkItem[]; o
       {linked.map(item => (
         <div key={item.id} style={{ ...cardS }}>
           <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 4 }}>
-            <span style={{ fontFamily: "monospace", color: "var(--accent-color)" }}>{item.displayId}</span> — {item.title}
+            <span style={{ fontFamily: "var(--font-mono)", color: "var(--accent-color)" }}>{item.displayId}</span> — {item.title}
           </div>
           {item.relationships.map((r, i) => (
             <div key={i} style={{ fontSize: 11, color: "var(--text-secondary)", padding: "2px 0", display: "flex", alignItems: "center", gap: 6 }}>
               <span style={badge("var(--bg-tertiary)", "var(--text-secondary)")}>{r.type.replace("_", " ")}</span>
-              <span style={{ fontFamily: "monospace", fontWeight: 600, color: "var(--accent-color)" }}>{r.targetId}</span>
+              <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--accent-color)" }}>{r.targetId}</span>
               <button style={{ ...btnS, fontSize: 9, padding: "1px 4px", marginLeft: "auto" }} onClick={async () => {
                 try { await invoke("wm_remove_relationship", { sourceId: item.displayId, targetId: r.targetId, relType: r.type }); onRefresh(); } catch (e: any) { setError(String(e)); }
               }}>x</button>
@@ -698,7 +698,7 @@ function OkrTab({ items }: { items: WorkItem[] }) {
       {okrs.map(okr => (
         <div key={okr.id} style={{ ...cardS }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-            <span style={{ fontFamily: "monospace", fontSize: 11, color: "var(--accent-color)" }}>{okr.displayId}</span>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--accent-color)" }}>{okr.displayId}</span>
             <span style={{ fontWeight: 600, fontSize: 13 }}>{okr.title}</span>
             <span style={badge(okr.status === "Achieved" ? "var(--success-color)" : okr.status === "At Risk" ? "var(--warning-color)" : "var(--bg-tertiary)", "var(--btn-primary-fg)")}>{okr.status}</span>
           </div>
@@ -772,7 +772,7 @@ function RisksTab({ items }: { items: WorkItem[] }) {
                 <td key={i} style={{ padding: 6, background: matrixColor(l, i), border: "1px solid var(--border-color)", textAlign: "center", minWidth: 80 }}>
                   {riskMatrix[l][i].map(r => (
                     <div key={r.id} style={{ fontSize: 10, marginBottom: 2 }}>
-                      <span style={{ fontFamily: "monospace", color: "var(--accent-color)" }}>{r.displayId}</span>
+                      <span style={{ fontFamily: "var(--font-mono)", color: "var(--accent-color)" }}>{r.displayId}</span>
                     </div>
                   ))}
                   {riskMatrix[l][i].length === 0 && <span style={{ fontSize: 10, color: "var(--text-muted)" }}>-</span>}
@@ -787,7 +787,7 @@ function RisksTab({ items }: { items: WorkItem[] }) {
       {risks.map(r => (
         <div key={r.id} style={{ ...cardS, borderLeft: "3px solid var(--warning-color)" }}>
           <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4 }}>
-            <span style={{ fontFamily: "monospace", fontSize: 11, color: "var(--accent-color)" }}>{r.displayId}</span>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--accent-color)" }}>{r.displayId}</span>
             <span style={badge("var(--warning-bg)", "var(--warning-color)")}>{r.status}</span>
             {r.riskLikelihood && <span style={{ fontSize: 10, color: "var(--text-muted)" }}>L:{r.riskLikelihood}</span>}
             {r.riskImpact && <span style={{ fontSize: 10, color: "var(--text-muted)" }}>I:{r.riskImpact}</span>}
@@ -804,7 +804,7 @@ function RisksTab({ items }: { items: WorkItem[] }) {
           {decisions.map(d => (
             <div key={d.id} style={{ ...cardS, borderLeft: "3px solid var(--info-color)" }}>
               <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4 }}>
-                <span style={{ fontFamily: "monospace", fontSize: 11, color: "var(--accent-color)" }}>{d.displayId}</span>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--accent-color)" }}>{d.displayId}</span>
                 <span style={badge(d.status === "Accepted" ? "var(--success-bg)" : "var(--bg-tertiary)", d.status === "Accepted" ? "var(--success-color)" : "var(--text-secondary)")}>{d.status}</span>
               </div>
               <div style={{ fontWeight: 500, fontSize: 13 }}>{d.title}</div>
@@ -860,7 +860,7 @@ function DashboardTab({ items }: { items: WorkItem[] }) {
         ].map(({ label, value }) => (
           <div key={label} style={{ background: "var(--bg-secondary)", borderRadius: 6, padding: "10px 12px", border: "1px solid var(--border-color)" }}>
             <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)" }}>{value}</div>
+            <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{value}</div>
           </div>
         ))}
       </div>

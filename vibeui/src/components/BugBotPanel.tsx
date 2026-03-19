@@ -282,7 +282,7 @@ export function BugBotPanel({ workspacePath, onOpenFile }: BugBotPanelProps) {
  onOpenFile(fullPath, report.line_hint ?? undefined);
  }
  }}
- style={{ fontSize: 10, color: "var(--accent-blue)", fontFamily: "monospace", cursor: onOpenFile ? "pointer" : "default", textDecoration: onOpenFile ? "underline" : "none" }}
+ style={{ fontSize: 10, color: "var(--accent-blue)", fontFamily: "var(--font-mono)", cursor: onOpenFile ? "pointer" : "default", textDecoration: onOpenFile ? "underline" : "none" }}
  title="Open in editor"
  >
  {report.file_path}{report.line_hint ? `:${report.line_hint}` : ""}

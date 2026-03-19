@@ -269,7 +269,7 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
  disabled={manifestLoading}
  style={{
  padding: "7px 14px", fontSize: 12,
- background: "var(--accent-color)", color: "white",
+ background: "var(--accent-color)", color: "var(--btn-primary-fg)",
  border: "none", borderRadius: 6,
  cursor: manifestLoading ? "wait" : "pointer",
  opacity: manifestLoading ? 0.7 : 1,
@@ -382,7 +382,7 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
  disabled={cmdLoading}
  style={{
  padding: "6px 14px", fontSize: 12,
- background: "var(--accent-color)", color: "white",
+ background: "var(--accent-color)", color: "var(--btn-primary-fg)",
  border: "none", borderRadius: 6,
  cursor: cmdLoading ? "wait" : "pointer",
  opacity: cmdLoading ? 0.7 : 1,
@@ -452,7 +452,7 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
  disabled={argoLoading}
  style={{
  padding: "7px 14px", fontSize: 12,
- background: "var(--accent-color)", color: "white",
+ background: "var(--accent-color)", color: "var(--btn-primary-fg)",
  border: "none", borderRadius: 6,
  cursor: argoLoading ? "wait" : "pointer",
  opacity: argoLoading ? 0.7 : 1,

@@ -95,7 +95,7 @@ const ClarifyingQuestionsPanel: React.FC = () => {
     padding: "4px 10px",
     border: "1px solid var(--accent-color)",
     background: "var(--accent-color)",
-    color: "white",
+    color: "var(--btn-primary-fg)",
     borderRadius: "3px",
     cursor: "pointer",
     fontFamily: "inherit",
@@ -178,7 +178,7 @@ const ClarifyingQuestionsPanel: React.FC = () => {
               <div style={{ fontSize: "12px", opacity: 0.7, marginBottom: "4px" }}>Effort: {step.effort}</div>
               <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
                 {step.files.map((f) => (
-                  <span key={f} style={{ padding: "2px 6px", borderRadius: "3px", fontSize: "11px", backgroundColor: "var(--bg-tertiary)", color: "white" }}>
+                  <span key={f} style={{ padding: "2px 6px", borderRadius: "3px", fontSize: "11px", backgroundColor: "var(--bg-tertiary)", color: "var(--btn-primary-fg)" }}>
                     {f}
                   </span>
                 ))}

@@ -243,7 +243,7 @@ export function JsonToolsPanel() {
  // ── Shared styles ───────────────────────────────────────────────────────────
 
  const outputStyle: React.CSSProperties = {
- margin: 0, padding: "10px 12px", fontFamily: "monospace", fontSize: 12,
+ margin: 0, padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: 12,
  lineHeight: 1.7, whiteSpace: "pre-wrap", wordBreak: "break-all",
  background: "var(--bg-primary)", color: "var(--text-primary)",
  flex: 1, overflow: "auto",
@@ -286,7 +286,7 @@ export function JsonToolsPanel() {
  </div>
  </div>
  <textarea value={input} onChange={e => setInput(e.target.value)} rows={7} spellCheck={false}
- style={{ resize: "vertical", padding: "8px 12px", fontSize: 12, fontFamily: "monospace", lineHeight: 1.6, background: parseError && input.trim() ? "rgba(243,139,168,0.04)" : "var(--bg-primary)", color: "var(--text-primary)", border: "none", outline: "none", width: "100%", boxSizing: "border-box" }} />
+ style={{ resize: "vertical", padding: "8px 12px", fontSize: 12, fontFamily: "var(--font-mono)", lineHeight: 1.6, background: parseError && input.trim() ? "rgba(243,139,168,0.04)" : "var(--bg-primary)", color: "var(--text-primary)", border: "none", outline: "none", width: "100%", boxSizing: "border-box" }} />
  {parseError && input.trim() && <div style={{ padding: "3px 12px", fontSize: 10, color: "var(--text-danger)", background: "rgba(243,139,168,0.06)" }}>{parseError}</div>}
  </div>
 
@@ -304,7 +304,7 @@ export function JsonToolsPanel() {
  </div>
  </div>
  {parsed != null && (
- <div style={{ flex: 1, overflow: "auto", padding: "10px 12px", fontFamily: "monospace", fontSize: 12, lineHeight: 1.7, background: "var(--bg-primary)" }}>
+ <div style={{ flex: 1, overflow: "auto", padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: 12, lineHeight: 1.7, background: "var(--bg-primary)" }}>
  {/* Stats */}
  <div style={{ marginBottom: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
  {[
@@ -365,13 +365,13 @@ export function JsonToolsPanel() {
  <div style={{ padding: "6px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 8, alignItems: "center" }}>
  <span style={{ fontSize: 11, color: "var(--text-muted)", flexShrink: 0 }}>Path:</span>
  <input value={queryPath_} onChange={e => setQueryPath(e.target.value)} placeholder="user.address.city or [0].name"
- style={{ flex: 1, padding: "4px 8px", fontSize: 12, fontFamily: "monospace", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none" }} />
+ style={{ flex: 1, padding: "4px 8px", fontSize: 12, fontFamily: "var(--font-mono)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none" }} />
  <button onClick={() => setQueryPath("")} style={{ fontSize: 10, background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer" }}>✕</button>
  </div>
  {/* Suggestions */}
  <div style={{ padding: "4px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 4, flexWrap: "wrap" }}>
  {suggestions.slice(0, 12).map(s => (
- <button key={s} onClick={() => setQueryPath(s)} style={{ fontSize: 9, fontFamily: "monospace", padding: "1px 6px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: queryPath_ === s ? "var(--accent-color)" : "var(--text-muted)", cursor: "pointer" }}>{s}</button>
+ <button key={s} onClick={() => setQueryPath(s)} style={{ fontSize: 9, fontFamily: "var(--font-mono)", padding: "1px 6px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: queryPath_ === s ? "var(--accent-color)" : "var(--text-muted)", cursor: "pointer" }}>{s}</button>
  ))}
  </div>
  {/* Result */}

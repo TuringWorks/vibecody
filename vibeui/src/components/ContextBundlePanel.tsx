@@ -25,17 +25,17 @@ const MODEL_OPTIONS = ["claude-opus-4-20250514", "claude-sonnet-4-20250514", "gp
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-mono, monospace)", fontSize: 13, height: "100%", overflow: "auto", background: "var(--bg-primary)" };
+const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, height: "100%", overflow: "auto", background: "var(--bg-primary)" };
 const headingStyle: React.CSSProperties = { margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" };
-const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-primary)" };
+const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-color)" };
 const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
-const btnStyle: React.CSSProperties = { padding: "6px 14px", borderRadius: 4, border: "1px solid var(--border-primary)", background: "var(--bg-tertiary)", color: "var(--text-primary)", cursor: "pointer", fontSize: 12 };
-const tabBtnStyle = (active: boolean): React.CSSProperties => ({ ...btnStyle, background: active ? "var(--accent-primary)" : "var(--bg-tertiary)", color: active ? "white" : "var(--text-primary)", marginRight: 4 });
+const btnStyle: React.CSSProperties = { padding: "6px 14px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", cursor: "pointer", fontSize: 12 };
+const tabBtnStyle = (active: boolean): React.CSSProperties => ({ ...btnStyle, background: active ? "var(--accent-primary)" : "var(--bg-tertiary)", color: active ? "var(--btn-primary-fg)" : "var(--text-primary)", marginRight: 4 });
 
-const inputStyle: React.CSSProperties = { width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid var(--border-primary)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: 12, fontFamily: "var(--font-mono, monospace)", boxSizing: "border-box" };
+const inputStyle: React.CSSProperties = { width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: 12, fontFamily: "var(--font-family)", boxSizing: "border-box" };
 const textareaStyle: React.CSSProperties = { ...inputStyle, minHeight: 80, resize: "vertical" as const };
 const selectStyle: React.CSSProperties = { ...inputStyle, cursor: "pointer" };
-const toggleStyle = (on: boolean): React.CSSProperties => ({ display: "inline-block", width: 36, height: 18, borderRadius: 9, background: on ? "var(--success-color)" : "var(--bg-tertiary)", position: "relative", cursor: "pointer", border: "1px solid var(--border-primary)", transition: "background 0.2s" });
+const toggleStyle = (on: boolean): React.CSSProperties => ({ display: "inline-block", width: 36, height: 18, borderRadius: 9, background: on ? "var(--success-color)" : "var(--bg-tertiary)", position: "relative", cursor: "pointer", border: "1px solid var(--border-color)", transition: "background 0.2s" });
 const toggleDot = (on: boolean): React.CSSProperties => ({ position: "absolute", top: 2, left: on ? 18 : 2, width: 12, height: 12, borderRadius: "50%", background: "white", transition: "left 0.2s" });
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -211,7 +211,7 @@ export function ContextBundlePanel() {
                 {MODEL_OPTIONS.map((m) => <option key={m} value={m}>{m}</option>)}
               </select>
             </div>
-            <button style={{ ...btnStyle, background: "var(--accent-primary)", color: "white" }} onClick={createBundle}>Create Bundle</button>
+            <button style={{ ...btnStyle, background: "var(--accent-primary)", color: "var(--btn-primary-fg)" }} onClick={createBundle}>Create Bundle</button>
           </div>
         </div>
       )}
@@ -223,7 +223,7 @@ export function ContextBundlePanel() {
             <textarea style={{ ...textareaStyle, minHeight: 200 }} value={jsonText} onChange={(e) => setJsonText(e.target.value)} placeholder="Paste bundle JSON here to import, or click Export to populate..." />
             <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
               <button style={btnStyle} onClick={exportBundles}>Export Current Bundles</button>
-              <button style={{ ...btnStyle, background: "var(--accent-primary)", color: "white" }} onClick={importBundles}>Import from JSON</button>
+              <button style={{ ...btnStyle, background: "var(--accent-primary)", color: "var(--btn-primary-fg)" }} onClick={importBundles}>Import from JSON</button>
             </div>
             {importMsg && <div style={{ marginTop: 8, fontSize: 11, color: importMsg.startsWith("Error") ? "var(--error-color)" : "var(--success-color)" }}>{importMsg}</div>}
           </div>

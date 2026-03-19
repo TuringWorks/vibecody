@@ -442,7 +442,7 @@ export function PurpleTeamPanel() {
                     {aiPlan.simulations.map((sim: any, i: number) => (
                       <div key={i} style={{ padding: "6px 10px", marginBottom: 4, borderRadius: 4, background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
                         <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 2 }}>
-                          <span style={{ fontFamily: "monospace", fontSize: 10, color: "var(--accent-color)" }}>{sim.technique_id}</span>
+                          <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--accent-color)" }}>{sim.technique_id}</span>
                           <span style={{ fontWeight: 500, fontSize: 12 }}>{sim.technique_name}</span>
                           <span style={{ ...badgeStyle("var(--bg-tertiary)"), fontSize: 9 }}>{sim.tactic}</span>
                           {sim.difficulty && <span style={{ ...badgeStyle(sim.difficulty === "High" ? "var(--error-bg)" : sim.difficulty === "Medium" ? "var(--warning-bg)" : "var(--success-bg)"), fontSize: 9 }}>{sim.difficulty}</span>}
@@ -510,7 +510,7 @@ export function PurpleTeamPanel() {
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: ex.coverage_score >= 70 ? "var(--success-color)" : ex.coverage_score >= 40 ? "var(--warning-color)" : "var(--error-color)" }}>
+                  <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "var(--font-mono)", color: ex.coverage_score >= 70 ? "var(--success-color)" : ex.coverage_score >= 40 ? "var(--warning-color)" : "var(--error-color)" }}>
                     {ex.coverage_score}%
                   </div>
                   <div style={{ fontSize: 10, color: "var(--text-secondary)" }}>Coverage</div>
@@ -548,7 +548,7 @@ export function PurpleTeamPanel() {
 
         <div style={{ display: "flex", gap: 16, marginBottom: 16, flexWrap: "wrap" }}>
           <div style={{ ...cardStyle, flex: "1 1 120px", textAlign: "center", marginBottom: 0 }}>
-            <div style={{ fontSize: 24, fontWeight: 700, color: stats.percentage >= 70 ? "var(--success-color)" : stats.percentage >= 40 ? "var(--warning-color)" : "var(--error-color)" }}>{stats.percentage}%</div>
+            <div style={{ fontSize: 24, fontWeight: 700, fontFamily: "var(--font-mono)", color: stats.percentage >= 70 ? "var(--success-color)" : stats.percentage >= 40 ? "var(--warning-color)" : "var(--error-color)" }}>{stats.percentage}%</div>
             <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Overall Coverage</div>
           </div>
           <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>

@@ -150,7 +150,7 @@ const AgentModesPanel: React.FC = () => {
     padding: "4px 10px",
     border: "1px solid var(--accent-color)",
     background: "var(--accent-color)",
-    color: "white",
+    color: "var(--btn-primary-fg)",
     borderRadius: "3px",
     cursor: "pointer",
     fontFamily: "inherit",
@@ -200,7 +200,7 @@ const AgentModesPanel: React.FC = () => {
               onClick={() => handleSetMode(m.id)}
             >
               <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "6px" }}>
-                <div style={{ width: "32px", height: "32px", borderRadius: "50%", backgroundColor: "var(--accent-color)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>
+                <div style={{ width: "32px", height: "32px", borderRadius: "50%", backgroundColor: "var(--accent-color)", color: "var(--btn-primary-fg)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>
                   {m.icon}
                 </div>
                 <div>
@@ -211,7 +211,7 @@ const AgentModesPanel: React.FC = () => {
               <p style={{ margin: "4px 0 8px", fontSize: "12px", opacity: 0.8 }}>{m.description}</p>
               <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
                 {m.traits.map((t) => (
-                  <span key={t} style={{ padding: "2px 8px", borderRadius: "10px", fontSize: "11px", backgroundColor: "var(--bg-tertiary)", color: "white" }}>{t}</span>
+                  <span key={t} style={{ padding: "2px 8px", borderRadius: "10px", fontSize: "11px", backgroundColor: "var(--bg-tertiary)", color: "var(--btn-primary-fg)" }}>{t}</span>
                 ))}
               </div>
             </div>

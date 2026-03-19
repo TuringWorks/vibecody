@@ -46,7 +46,7 @@ const btnSecondary: React.CSSProperties = {
 };
 const codeBlockStyle: React.CSSProperties = {
   background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4,
-  padding: 12, fontFamily: "monospace", fontSize: 11, whiteSpace: "pre-wrap", overflowX: "auto",
+  padding: 12, fontFamily: "var(--font-mono)", fontSize: 11, whiteSpace: "pre-wrap", overflowX: "auto",
   color: "var(--text-primary)", maxHeight: 360, overflowY: "auto",
 };
 const fieldRow: React.CSSProperties = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 10 };
@@ -404,7 +404,7 @@ export function TrainingPanel() {
                   setLoraTargets(next);
                 }}
               />
-              <code style={{ fontFamily: "monospace", fontSize: 11 }}>{mod}</code>
+              <code style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>{mod}</code>
             </label>
           ))}
         </div>
@@ -533,7 +533,7 @@ export function TrainingPanel() {
         {(() => {
           const est = estimateVram(estimatorParams, estimatorPrecision);
           return (
-            <div style={{ fontSize: 12, fontFamily: "monospace", color: "var(--text-primary)" }}>
+            <div style={{ fontSize: 12, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>
               <table style={{ borderCollapse: "collapse", width: "100%" }}>
                 <tbody>
                   {([
@@ -576,7 +576,7 @@ export function TrainingPanel() {
           const suggestion = suggestParallelism(estimatorParams, estimatorGpuCount, estimatorVram);
           return (
             <div style={{ marginTop: 8, padding: 10, background: "var(--bg-secondary)", borderRadius: 4, fontSize: 12, color: "var(--text-primary)" }}>
-              <div style={{ display: "flex", gap: 16, marginBottom: 6, fontFamily: "monospace" }}>
+              <div style={{ display: "flex", gap: 16, marginBottom: 6, fontFamily: "var(--font-mono)" }}>
                 <span>DP={suggestion.dp}</span>
                 <span>TP={suggestion.tp}</span>
                 <span>PP={suggestion.pp}</span>

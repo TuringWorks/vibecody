@@ -140,7 +140,7 @@ export function DocumentIngestPanel() {
               <button
                 onClick={handleIngestFile}
                 disabled={isLoading || !filePath.trim()}
-                style={{ flex: 1, background: "var(--accent)", color: "white", border: "none", borderRadius: 4, padding: "8px 0", cursor: "pointer", fontSize: 12, fontWeight: 600, opacity: isLoading || !filePath.trim() ? 0.5 : 1 }}
+                style={{ flex: 1, background: "var(--accent)", color: "var(--btn-primary-fg)", border: "none", borderRadius: 4, padding: "8px 0", cursor: "pointer", fontSize: 12, fontWeight: 600, opacity: isLoading || !filePath.trim() ? 0.5 : 1 }}
               >
                 {isLoading ? "Ingesting..." : "Ingest File"}
               </button>
@@ -187,7 +187,7 @@ export function DocumentIngestPanel() {
             <div>
               <label style={{ fontSize: 11, color: "var(--text-secondary)", display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                 <span>Max Tokens per Chunk</span>
-                <span style={{ fontFamily: "monospace" }}>{config.maxTokens}</span>
+                <span style={{ fontFamily: "var(--font-mono)" }}>{config.maxTokens}</span>
               </label>
               <input
                 type="range"
@@ -207,7 +207,7 @@ export function DocumentIngestPanel() {
             <div>
               <label style={{ fontSize: 11, color: "var(--text-secondary)", display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                 <span>Overlap (tokens)</span>
-                <span style={{ fontFamily: "monospace" }}>{config.overlap}</span>
+                <span style={{ fontFamily: "var(--font-mono)" }}>{config.overlap}</span>
               </label>
               <input
                 type="range"

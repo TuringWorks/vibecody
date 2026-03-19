@@ -155,7 +155,7 @@ const CloudSandboxPanel: React.FC = () => {
             <div key={inst.id} style={{ padding: "8px 10px", marginBottom: 6, borderRadius: 4, background: "var(--bg-secondary)", borderLeft: `3px solid ${stateColor(inst.state)}` }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span style={{ fontWeight: 600, fontSize: 12 }}>{inst.name}</span>
-                <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 10, background: stateColor(inst.state), color: "white", fontWeight: 600 }}>{inst.state}</span>
+                <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 10, background: stateColor(inst.state), color: "var(--btn-primary-fg)", fontWeight: 600 }}>{inst.state}</span>
               </div>
               <div style={{ display: "flex", gap: 10, marginTop: 4, fontSize: 11, color: "var(--text-muted)", flexWrap: "wrap" }}>
                 <span>{inst.template}</span>
@@ -189,7 +189,7 @@ const CloudSandboxPanel: React.FC = () => {
             <div key={tpl.id} style={{ padding: "10px 12px", marginBottom: 8, borderRadius: 4, background: "var(--bg-secondary)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span style={{ fontWeight: 600, fontSize: 13 }}>{tpl.name}</span>
-                <button onClick={() => handleTemplateSelect(tpl)} style={{ padding: "4px 12px", fontSize: 11, borderRadius: 4, border: "none", background: "var(--accent-color)", color: "white", cursor: "pointer" }}>Use Template</button>
+                <button onClick={() => handleTemplateSelect(tpl)} style={{ padding: "4px 12px", fontSize: 11, borderRadius: 4, border: "none", background: "var(--accent-color)", color: "var(--btn-primary-fg)", cursor: "pointer" }}>Use Template</button>
               </div>
               <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>{tpl.language} - {tpl.description}</div>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
@@ -234,7 +234,7 @@ const CloudSandboxPanel: React.FC = () => {
           <div style={{ padding: "8px 12px", borderRadius: 4, background: "var(--bg-secondary)", marginBottom: 12, fontSize: 11, color: "var(--text-muted)" }}>
             Configuration: {form.template} template with {form.cpu} CPU, {form.memory}GB RAM, {form.disk}GB disk. Instance expires in 24 hours.
           </div>
-          <button onClick={handleCreate} disabled={!form.name.trim() || loading} style={{ width: "100%", padding: "8px 16px", fontSize: 13, borderRadius: 4, border: "none", background: form.name.trim() && !loading ? "var(--accent-color)" : "var(--text-muted)", color: "white", cursor: form.name.trim() && !loading ? "pointer" : "not-allowed", fontWeight: 600 }}>
+          <button onClick={handleCreate} disabled={!form.name.trim() || loading} style={{ width: "100%", padding: "8px 16px", fontSize: 13, borderRadius: 4, border: "none", background: form.name.trim() && !loading ? "var(--accent-color)" : "var(--text-muted)", color: "var(--btn-primary-fg)", cursor: form.name.trim() && !loading ? "pointer" : "not-allowed", fontWeight: 600 }}>
             {loading ? "Creating..." : "Create Sandbox"}
           </button>
         </div>

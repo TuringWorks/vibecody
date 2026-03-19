@@ -164,7 +164,7 @@ export function ScaffoldPanel({ workspacePath }: { workspacePath: string | null 
  <input
  value={projectName}
  onChange={e => setProjectName(e.target.value.replace(/[^a-zA-Z0-9_-]/g, ""))}
- style={{ padding: "4px 8px", fontSize: 12, fontFamily: "monospace", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none", width: 160 }}
+ style={{ padding: "4px 8px", fontSize: 12, fontFamily: "var(--font-mono)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none", width: 160 }}
  />
  </div>
  <div style={{ display: "flex", flexDirection: "column", gap: 3, flex: 1 }}>
@@ -173,7 +173,7 @@ export function ScaffoldPanel({ workspacePath }: { workspacePath: string | null 
  value={outputDir}
  onChange={e => setOutputDir(e.target.value)}
  placeholder="/path/to/output"
- style={{ padding: "4px 8px", fontSize: 11, fontFamily: "monospace", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none" }}
+ style={{ padding: "4px 8px", fontSize: 11, fontFamily: "var(--font-mono)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none" }}
  />
  </div>
  <button
@@ -198,8 +198,8 @@ export function ScaffoldPanel({ workspacePath }: { workspacePath: string | null 
 
  {written && (
  <div style={{ padding: "6px 12px", background: "rgba(166,227,161,0.1)", color: "var(--text-success)", fontSize: 11, borderBottom: "1px solid var(--border-color)" }}>
- Scaffold written to <code style={{ fontFamily: "monospace" }}>{outputDir}</code>
- {preview?.install_command && <> — run <code style={{ fontFamily: "monospace" }}>{preview.install_command}</code></>}
+ Scaffold written to <code style={{ fontFamily: "var(--font-mono)" }}>{outputDir}</code>
+ {preview?.install_command && <> — run <code style={{ fontFamily: "var(--font-mono)" }}>{preview.install_command}</code></>}
  </div>
  )}
 
@@ -214,7 +214,7 @@ export function ScaffoldPanel({ workspacePath }: { workspacePath: string | null 
  onClick={() => setPreviewFile(f)}
  style={{
  display: "block", width: "100%", textAlign: "left",
- padding: "6px 10px", fontSize: 11, fontFamily: "monospace",
+ padding: "6px 10px", fontSize: 11, fontFamily: "var(--font-mono)",
  background: previewFile?.path === f.path ? "var(--accent-bg)" : "transparent",
  border: "none", borderBottom: "1px solid var(--border-color)",
  color: "var(--text-primary)", cursor: "pointer",
@@ -236,10 +236,10 @@ export function ScaffoldPanel({ workspacePath }: { workspacePath: string | null 
  <div style={{ flex: 1, overflow: "auto" }}>
  {previewFile ? (
  <>
- <div style={{ padding: "6px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", fontSize: 11, fontFamily: "monospace", color: "var(--text-muted)" }}>
+ <div style={{ padding: "6px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>
  {previewFile.path}
  </div>
- <pre style={{ margin: 0, padding: "12px 14px", fontSize: 11, fontFamily: "monospace", lineHeight: 1.6, color: "var(--text-primary)", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+ <pre style={{ margin: 0, padding: "12px 14px", fontSize: 11, fontFamily: "var(--font-mono)", lineHeight: 1.6, color: "var(--text-primary)", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
  {previewFile.content}
  </pre>
  </>

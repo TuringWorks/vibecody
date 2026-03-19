@@ -274,7 +274,7 @@ export function AgentTeamPanel() {
                         {m.to_agent_id ? ` → ${m.to_agent_id.split("-").pop()}` : ""}
                       </span>
                       <div style={{ flex: 1 }} />
-                      <span style={{ fontSize: 9, opacity: 0.3, fontFamily: "monospace" }}>
+                      <span style={{ fontSize: 9, opacity: 0.3, fontFamily: "var(--font-mono)" }}>
                         {new Date(m.timestamp).toLocaleTimeString()}
                       </span>
                     </div>

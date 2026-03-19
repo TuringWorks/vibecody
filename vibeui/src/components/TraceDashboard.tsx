@@ -129,14 +129,14 @@ export function TraceDashboard() {
  color: "var(--text-primary)",
  }}>
  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
- <span style={{ fontSize: 10, fontFamily: "monospace", color: "var(--text-info)" }}>
+ <span style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--text-info)" }}>
  {s.session_id.slice(0, 12)}
  </span>
  <div style={{ flex: 1 }} />
  <span style={{ fontSize: 9, opacity: 0.5 }}>
  {s.step_count} steps
  </span>
- <span style={{ fontSize: 9, opacity: 0.4, fontFamily: "monospace" }}>
+ <span style={{ fontSize: 9, opacity: 0.4, fontFamily: "var(--font-mono)" }}>
  {new Date(s.timestamp).toLocaleString()}
  </span>
  </div>
@@ -231,10 +231,10 @@ export function TraceDashboard() {
  {!s.success && (
  <span style={{ fontSize: 9, color: "var(--text-danger)", fontWeight: 700 }}>FAIL</span>
  )}
- <span style={{ fontSize: 9, opacity: 0.5, fontFamily: "monospace" }}>
+ <span style={{ fontSize: 9, opacity: 0.5, fontFamily: "var(--font-mono)" }}>
  {formatDuration(s.duration_ms)}
  </span>
- <span style={{ fontSize: 9, opacity: 0.3, fontFamily: "monospace" }}>
+ <span style={{ fontSize: 9, opacity: 0.3, fontFamily: "var(--font-mono)" }}>
  {formatTimestamp(s.timestamp)}
  </span>
  <span style={{ fontSize: 10, opacity: 0.4 }}>{isExpanded ? "▼" : ""}</span>

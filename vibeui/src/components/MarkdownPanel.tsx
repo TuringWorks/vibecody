@@ -243,7 +243,7 @@ export function MarkdownPanel({ workspacePath }: { workspacePath: string | null 
  spellCheck={false}
  style={{
  flex: 1, resize: "none", padding: "14px 16px",
- fontSize: 13, fontFamily: "monospace", lineHeight: 1.7,
+ fontSize: 13, fontFamily: "var(--font-mono)", lineHeight: 1.7,
  background: "var(--bg-primary)", color: "var(--text-primary)",
  border: "none", outline: "none",
  }}
@@ -274,8 +274,8 @@ export function MarkdownPanel({ workspacePath }: { workspacePath: string | null 
  code: ({ className, children }) => {
  const isBlock = className?.startsWith("language-");
  return isBlock
- ? <code style={{ display: "block", background: "var(--bg-secondary)", padding: "14px 16px", borderRadius: 6, fontSize: 12, fontFamily: "monospace", overflowX: "auto", margin: "12px 0", whiteSpace: "pre" }}>{children}</code>
- : <code style={{ background: "var(--bg-secondary)", padding: "1px 5px", borderRadius: 3, fontSize: "0.9em", fontFamily: "monospace" }}>{children}</code>;
+ ? <code style={{ display: "block", background: "var(--bg-secondary)", padding: "14px 16px", borderRadius: 6, fontSize: 12, fontFamily: "var(--font-mono)", overflowX: "auto", margin: "12px 0", whiteSpace: "pre" }}>{children}</code>
+ : <code style={{ background: "var(--bg-secondary)", padding: "1px 5px", borderRadius: 3, fontSize: "0.9em", fontFamily: "var(--font-mono)" }}>{children}</code>;
  },
  pre: ({ children }) => <>{children}</>,
  blockquote: ({ children }) => <blockquote style={{ borderLeft: "3px solid var(--accent-color)", margin: "16px 0", paddingLeft: 16, color: "var(--text-muted)", fontStyle: "italic" }}>{children}</blockquote>,

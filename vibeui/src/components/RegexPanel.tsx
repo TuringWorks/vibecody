@@ -175,18 +175,18 @@ export function RegexPanel() {
  {/* Pattern row */}
  <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
  {/* Delimiter */}
- <span style={{ fontSize: 16, color: "var(--text-muted)", fontFamily: "monospace" }}>/</span>
+ <span style={{ fontSize: 16, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>/</span>
  <input
  value={pattern}
  onChange={e => { setPattern(e.target.value); setActiveLib(null); }}
  placeholder="pattern"
  spellCheck={false}
- style={{ flex: 1, minWidth: 0, padding: "4px 8px", fontSize: 13, fontFamily: "monospace", background: error ? "rgba(243,139,168,0.08)" : "var(--bg-primary)", border: `1px solid ${error ? "var(--text-danger)" : "var(--border-color)"}`, borderRadius: 4, color: "var(--text-primary)", outline: "none" }}
+ style={{ flex: 1, minWidth: 0, padding: "4px 8px", fontSize: 13, fontFamily: "var(--font-mono)", background: error ? "rgba(243,139,168,0.08)" : "var(--bg-primary)", border: `1px solid ${error ? "var(--text-danger)" : "var(--border-color)"}`, borderRadius: 4, color: "var(--text-primary)", outline: "none" }}
  />
- <span style={{ fontSize: 16, color: "var(--text-muted)", fontFamily: "monospace" }}>/</span>
+ <span style={{ fontSize: 16, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>/</span>
  {/* Flags */}
  {["g","i","m","s","u"].map(f => (
- <button key={f} onClick={() => toggleFlag(f)} style={{ padding: "2px 8px", fontSize: 11, fontFamily: "monospace", fontWeight: 700, borderRadius: 4, border: `1px solid ${flags.includes(f) ? "var(--accent-primary)" : "var(--border-color)"}`, background: flags.includes(f) ? "rgba(99,102,241,0.2)" : "var(--bg-primary)", color: flags.includes(f) ? "var(--text-info)" : "var(--text-muted)", cursor: "pointer" }}>{f}</button>
+ <button key={f} onClick={() => toggleFlag(f)} style={{ padding: "2px 8px", fontSize: 11, fontFamily: "var(--font-mono)", fontWeight: 700, borderRadius: 4, border: `1px solid ${flags.includes(f) ? "var(--accent-primary)" : "var(--border-color)"}`, background: flags.includes(f) ? "rgba(99,102,241,0.2)" : "var(--bg-primary)", color: flags.includes(f) ? "var(--text-info)" : "var(--text-muted)", cursor: "pointer" }}>{f}</button>
  ))}
  {/* Replace toggle */}
  <button onClick={() => setShowReplace(v => !v)} style={{ padding: "3px 10px", fontSize: 10, borderRadius: 4, border: `1px solid ${showReplace ? "var(--text-warning-alt)" : "var(--border-color)"}`, background: showReplace ? "rgba(250,179,135,0.1)" : "var(--bg-primary)", color: showReplace ? "var(--text-warning-alt)" : "var(--text-muted)", cursor: "pointer" }}>⇄ Replace</button>
@@ -196,7 +196,7 @@ export function RegexPanel() {
  {showReplace && (
  <div style={{ padding: "6px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 8, alignItems: "center" }}>
  <span style={{ fontSize: 11, color: "var(--text-muted)", flexShrink: 0 }}>Replace with:</span>
- <input value={replaceStr} onChange={e => setReplaceStr(e.target.value)} placeholder="replacement (use $1, $2 for groups)" spellCheck={false} style={{ flex: 1, padding: "3px 8px", fontSize: 12, fontFamily: "monospace", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none" }} />
+ <input value={replaceStr} onChange={e => setReplaceStr(e.target.value)} placeholder="replacement (use $1, $2 for groups)" spellCheck={false} style={{ flex: 1, padding: "3px 8px", fontSize: 12, fontFamily: "var(--font-mono)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none" }} />
  </div>
  )}
 
@@ -210,13 +210,13 @@ export function RegexPanel() {
  <button onClick={() => setTestText("")} style={{ fontSize: 9, background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer" }}>✕ Clear</button>
  </div>
  <textarea value={testText} onChange={e => setTestText(e.target.value)} rows={5} spellCheck={false}
- style={{ width: "100%", resize: "vertical", padding: "8px 12px", fontSize: 12, fontFamily: "monospace", lineHeight: 1.6, background: "var(--bg-primary)", color: "var(--text-primary)", border: "none", outline: "none", boxSizing: "border-box" }} />
+ style={{ width: "100%", resize: "vertical", padding: "8px 12px", fontSize: 12, fontFamily: "var(--font-mono)", lineHeight: 1.6, background: "var(--bg-primary)", color: "var(--text-primary)", border: "none", outline: "none", boxSizing: "border-box" }} />
  </div>
 
  {/* Highlighted preview */}
  <div style={{ borderBottom: "1px solid var(--border-color)" }}>
  <div style={{ padding: "4px 12px", fontSize: 10, fontWeight: 700, color: "var(--text-muted)", background: "var(--bg-secondary)" }}>MATCH PREVIEW</div>
- <div style={{ padding: "8px 12px", fontFamily: "monospace", fontSize: 12, lineHeight: 1.8, whiteSpace: "pre-wrap", wordBreak: "break-all", minHeight: 40 }}>
+ <div style={{ padding: "8px 12px", fontFamily: "var(--font-mono)", fontSize: 12, lineHeight: 1.8, whiteSpace: "pre-wrap", wordBreak: "break-all", minHeight: 40 }}>
  {testText.length === 0
  ? <span style={{ color: "var(--text-muted)", fontStyle: "italic" }}>Enter test string above…</span>
  : segments.map((seg, i) => (
@@ -240,7 +240,7 @@ export function RegexPanel() {
  <span>REPLACE PREVIEW</span>
  <button onClick={() => { navigator.clipboard.writeText(replacePreview); }} style={{ fontSize: 9, background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer" }}>Copy</button>
  </div>
- <pre style={{ margin: 0, padding: "8px 12px", fontFamily: "monospace", fontSize: 12, lineHeight: 1.6, whiteSpace: "pre-wrap", wordBreak: "break-all", background: "var(--bg-primary)", color: "var(--text-warning-alt)" }}>{replacePreview}</pre>
+ <pre style={{ margin: 0, padding: "8px 12px", fontFamily: "var(--font-mono)", fontSize: 12, lineHeight: 1.6, whiteSpace: "pre-wrap", wordBreak: "break-all", background: "var(--bg-primary)", color: "var(--text-warning-alt)" }}>{replacePreview}</pre>
  </div>
  )}
 
@@ -256,7 +256,7 @@ export function RegexPanel() {
  </span>
  <div style={{ flex: 1, minWidth: 0 }}>
  {/* Match value */}
- <div style={{ fontFamily: "monospace", fontSize: 12, color: "var(--text-primary)", wordBreak: "break-all" }}>{m.value || <em style={{ color: "var(--text-muted)" }}>(empty match)</em>}</div>
+ <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-primary)", wordBreak: "break-all" }}>{m.value || <em style={{ color: "var(--text-muted)" }}>(empty match)</em>}</div>
  {/* Position */}
  <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>pos {m.start}–{m.end} · len {m.end - m.start}</div>
  {/* Capture groups */}
@@ -264,7 +264,7 @@ export function RegexPanel() {
  <div style={{ marginTop: 4, display: "flex", flexWrap: "wrap", gap: 4 }}>
  {m.groups.map((g, gi) => (
  <span key={gi} style={{ fontSize: 10, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, padding: "1px 6px", color: "var(--text-muted)" }}>
- <span style={{ color: "var(--text-info)" }}>${gi + 1}</span> = <span style={{ fontFamily: "monospace", color: "var(--text-primary)" }}>{g ?? <em>undefined</em>}</span>
+ <span style={{ color: "var(--text-info)" }}>${gi + 1}</span> = <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{g ?? <em>undefined</em>}</span>
  </span>
  ))}
  </div>
@@ -274,7 +274,7 @@ export function RegexPanel() {
  <div style={{ marginTop: 4, display: "flex", flexWrap: "wrap", gap: 4 }}>
  {Object.entries(m.namedGroups).map(([k, v]) => (
  <span key={k} style={{ fontSize: 10, background: "rgba(99,102,241,0.08)", border: "1px solid var(--accent-primary)", borderRadius: 4, padding: "1px 6px" }}>
- <span style={{ color: "var(--text-info)" }}>{k}</span> = <span style={{ fontFamily: "monospace", color: "var(--text-primary)" }}>{v ?? <em>undefined</em>}</span>
+ <span style={{ color: "var(--text-info)" }}>{k}</span> = <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{v ?? <em>undefined</em>}</span>
  </span>
  ))}
  </div>

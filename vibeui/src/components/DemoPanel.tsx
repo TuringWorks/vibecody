@@ -101,7 +101,7 @@ const badgeStyle = (status: string): React.CSSProperties => ({
         : status === "failed"
           ? "var(--error-color)"
           : "var(--accent-color)",
-  color: "white",
+  color: "var(--btn-primary-fg)",
 });
 
 const frameRowStyle: React.CSSProperties = {

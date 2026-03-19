@@ -167,8 +167,8 @@ export default function CiStatusPanel() {
               <span style={{ fontSize: 10, color: "var(--text-muted)", marginLeft: "auto" }}>{s.duration}</span>
             </div>
             <div style={{ display: "flex", gap: 12, fontSize: 10, color: "var(--text-muted)" }}>
-              <span>Branch: <span style={{ fontFamily: "monospace", color: "var(--text-info)" }}>{s.branch}</span></span>
-              <span>Commit: <span style={{ fontFamily: "monospace" }}>{s.commit}</span></span>
+              <span>Branch: <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-info)" }}>{s.branch}</span></span>
+              <span>Commit: <span style={{ fontFamily: "var(--font-mono)" }}>{s.commit}</span></span>
               <span style={{ marginLeft: "auto" }}>{s.passCount}/{s.checksCount} passed</span>
             </div>
             <div style={{ marginTop: 6, height: 3, background: "var(--bg-primary)", borderRadius: 2, overflow: "hidden" }}>
@@ -225,7 +225,7 @@ export default function CiStatusPanel() {
                 <span style={{ fontSize: 11, color: c.enabled ? "var(--text-primary)" : "var(--text-muted)" }}>{c.name}</span>
                 <input type="checkbox" checked={c.enabled} onChange={() => toggleConfig(c.id, "enabled")} style={{ cursor: "pointer" }} />
                 <input type="checkbox" checked={c.required} onChange={() => toggleConfig(c.id, "required")} disabled={!c.enabled} style={{ cursor: "pointer" }} />
-                <span style={{ fontSize: 11, fontFamily: "monospace", color: "var(--text-muted)" }}>{c.threshold}</span>
+                <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>{c.threshold}</span>
                 <button
                   disabled={!c.enabled || runningCheck === c.name}
                   onClick={() => triggerCheck(c.name)}

@@ -106,7 +106,7 @@ export function ProfileManager() {
     color: "var(--text-primary)",
   };
   const btnPrimary: React.CSSProperties = {
-    ...btnStyle, background: "var(--accent-color)", color: "white", border: "none",
+    ...btnStyle, background: "var(--accent-color)", color: "var(--btn-primary-fg)", border: "none",
   };
   const inputStyle: React.CSSProperties = {
     padding: "4px 8px", fontSize: 12, borderRadius: 4,
@@ -144,7 +144,7 @@ export function ProfileManager() {
               <span style={{ fontWeight: 600, fontSize: 13 }}>{p.name}</span>
               <span style={{ marginLeft: 6, fontSize: 11, color: "var(--text-secondary)" }}>({p.id})</span>
               {p.is_default && (
-                <span style={{ marginLeft: 6, padding: "1px 6px", borderRadius: 3, fontSize: 10, background: "var(--accent-color)", color: "white" }}>default</span>
+                <span style={{ marginLeft: 6, padding: "1px 6px", borderRadius: 3, fontSize: 10, background: "var(--accent-color)", color: "var(--btn-primary-fg)" }}>default</span>
               )}
             </div>
             <div style={{ display: "flex", gap: 4 }}>

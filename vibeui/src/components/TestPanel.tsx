@@ -164,7 +164,7 @@ export function TestPanel({ workspacePath }: TestPanelProps) {
  onClick={handleSuspend}
  style={{
  marginLeft: "auto", padding: "4px 12px", fontSize: 12,
- background: "var(--error-color)", color: "white",
+ background: "var(--error-color)", color: "var(--btn-primary-fg)",
  border: "none", borderRadius: 4, cursor: "pointer",
  fontWeight: 600,
  }}
@@ -176,7 +176,7 @@ export function TestPanel({ workspacePath }: TestPanelProps) {
  onClick={runTests}
  style={{
  marginLeft: "auto", padding: "4px 12px", fontSize: 12,
- background: "var(--accent-blue)", color: "white",
+ background: "var(--accent-blue)", color: "var(--btn-primary-fg)",
  border: "none", borderRadius: 4, cursor: "pointer",
  fontWeight: 600,
  }}
@@ -193,7 +193,7 @@ export function TestPanel({ workspacePath }: TestPanelProps) {
  onChange={(e) => setCustomCmd(e.target.value)}
  placeholder={`Custom command (default: auto-detect${framework ? ` → ${framework}` : ""})`}
  style={{
- padding: "5px 8px", fontSize: 11, fontFamily: "monospace",
+ padding: "5px 8px", fontSize: 11, fontFamily: "var(--font-mono)",
  background: "var(--bg-secondary)", border: "1px solid var(--border-color)",
  borderRadius: 4, color: "var(--text-primary)", outline: "none",
  }}
@@ -285,7 +285,7 @@ export function TestPanel({ workspacePath }: TestPanelProps) {
 
  {/* Live log during run */}
  {running && liveLog.length > 0 && (
- <div style={{ background: "var(--bg-secondary)", borderRadius: 4, padding: "6px 8px", maxHeight: 160, overflowY: "auto", fontFamily: "monospace", fontSize: 10 }}>
+ <div style={{ background: "var(--bg-secondary)", borderRadius: 4, padding: "6px 8px", maxHeight: 160, overflowY: "auto", fontFamily: "var(--font-mono)", fontSize: 10 }}>
  {liveLog.map((line, i) => (
  <div key={i} style={{ color: "var(--text-secondary)" }}>{line}</div>
  ))}

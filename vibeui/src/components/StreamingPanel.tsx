@@ -103,7 +103,7 @@ export function StreamingPanel() {
     border: "1px solid var(--border)",
     borderRadius: 4,
     padding: 12,
-    fontFamily: "monospace",
+    fontFamily: "var(--font-mono)",
     fontSize: 11,
     whiteSpace: "pre-wrap",
     overflowX: "auto",
@@ -316,7 +316,7 @@ export function StreamingPanel() {
               <div style={{ opacity: 0.5, fontSize: 12 }}>No topics created yet. Use the form above to add topics.</div>
             ) : (
               <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, fontFamily: "monospace" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, fontFamily: "var(--font-mono)" }}>
                   <thead>
                     <tr style={{ background: "var(--bg-secondary)" }}>
                       <th style={{ padding: "6px 8px", textAlign: "left", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>Name</th>

@@ -46,18 +46,18 @@ interface ApiDocsPanelProps {
 
 // ── HTTP method colours ────────────────────────────────────────────────────
 const METHOD_COLORS: Record<string, { bg: string; color: string }> = {
- GET: { bg: "#0a3a5a", color: "#61dafb" },
- POST: { bg: "#0a3a1a", color: "var(--text-success)" },
- PUT: { bg: "#3a2a00", color: "var(--text-warning)" },
- PATCH: { bg: "#2a2000", color: "var(--text-warning-alt)" },
- DELETE: { bg: "#3a0a0a", color: "var(--text-danger)" },
- HEAD: { bg: "#1a1a3a", color: "var(--text-accent)" },
- OPTIONS: { bg: "#1a2a2a", color: "#94e2d5" },
+ GET: { bg: "var(--info-bg)", color: "var(--info-color)" },
+ POST: { bg: "var(--success-bg)", color: "var(--text-success)" },
+ PUT: { bg: "var(--warning-bg)", color: "var(--text-warning)" },
+ PATCH: { bg: "var(--warning-bg)", color: "var(--text-warning)" },
+ DELETE: { bg: "var(--error-bg)", color: "var(--text-danger)" },
+ HEAD: { bg: "var(--accent-bg)", color: "var(--text-accent)" },
+ OPTIONS: { bg: "var(--success-bg)", color: "var(--text-success)" },
 };
 
 const methodStyle = (method: string) => {
- const c = METHOD_COLORS[method.toUpperCase()] ?? { bg: "#1a1a2a", color: "var(--text-primary)" };
- return { background: c.bg, color: c.color, padding: "2px 6px", borderRadius: 3, fontSize: 10, fontWeight: 700, fontFamily: "monospace", flexShrink: 0 as const };
+ const c = METHOD_COLORS[method.toUpperCase()] ?? { bg: "var(--bg-tertiary)", color: "var(--text-primary)" };
+ return { background: c.bg, color: c.color, padding: "2px 6px", borderRadius: 3, fontSize: 10, fontWeight: 700, fontFamily: "var(--font-mono)", flexShrink: 0 as const };
 };
 
 // ── Simple JSON schema renderer ────────────────────────────────────────────
@@ -139,7 +139,7 @@ function TryIt({ endpoint, serverUrl }: { endpoint: Endpoint; serverUrl: string 
  width: "100%", minHeight: 60, padding: 6,
  background: "var(--bg-secondary)", border: "1px solid var(--border-color)",
  borderRadius: 4, color: "var(--text-primary)", fontSize: 11,
- fontFamily: "monospace", resize: "vertical", boxSizing: "border-box",
+ fontFamily: "var(--font-mono)", resize: "vertical", boxSizing: "border-box",
  }}
  />
  </div>
@@ -195,7 +195,7 @@ function EndpointRow({ endpoint, serverUrl }: { endpoint: Endpoint; serverUrl: s
  }}
  >
  <span style={methodStyle(endpoint.method)}>{endpoint.method.toUpperCase()}</span>
- <span style={{ fontFamily: "monospace", fontSize: 12, flex: 1 }}>{endpoint.path}</span>
+ <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, flex: 1 }}>{endpoint.path}</span>
  {op.summary && <span style={{ fontSize: 11, color: "var(--text-muted)", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{op.summary}</span>}
  <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{open ? "" : "▼"}</span>
  </div>
@@ -210,7 +210,7 @@ function EndpointRow({ endpoint, serverUrl }: { endpoint: Endpoint; serverUrl: s
  <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", marginBottom: 4 }}>PARAMETERS</div>
  {op.parameters.map((p) => (
  <div key={p.name} style={{ display: "flex", gap: 8, fontSize: 11, lineHeight: 1.7 }}>
- <span style={{ fontFamily: "monospace", color: "var(--text-accent)", minWidth: 120 }}>{p.name}</span>
+ <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-accent)", minWidth: 120 }}>{p.name}</span>
  <span style={{ color: "var(--text-muted)", minWidth: 60 }}>{p.in}</span>
  {p.required && <span style={{ color: "var(--text-danger)", fontSize: 10 }}>required</span>}
  {p.description && <span style={{ color: "var(--text-secondary)" }}>{p.description}</span>}
@@ -225,7 +225,7 @@ function EndpointRow({ endpoint, serverUrl }: { endpoint: Endpoint; serverUrl: s
  <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", marginBottom: 4 }}>REQUEST BODY</div>
  {Object.entries(op.requestBody.content).map(([ct, body]) => (
  <div key={ct}>
- <span style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "monospace" }}>{ct}</span>
+ <span style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>{ct}</span>
  {body.schema && <SchemaView schema={body.schema} />}
  </div>
  ))}
@@ -239,7 +239,7 @@ function EndpointRow({ endpoint, serverUrl }: { endpoint: Endpoint; serverUrl: s
  {Object.entries(op.responses).map(([code, resp]) => (
  <div key={code} style={{ display: "flex", gap: 8, fontSize: 11, lineHeight: 1.7 }}>
  <span style={{
- fontFamily: "monospace", fontWeight: 700, minWidth: 40,
+ fontFamily: "var(--font-mono)", fontWeight: 700, minWidth: 40,
  color: code.startsWith("2") ? "var(--success-color)" : code.startsWith("4") ? "var(--warning-color)" : code.startsWith("5") ? "var(--error-color)" : "var(--text-primary)",
  }}>{code}</span>
  <span style={{ color: "var(--text-secondary)" }}>{resp.description}</span>

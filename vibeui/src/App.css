@@ -76,6 +76,7 @@
   --bg-hover: var(--bg-tertiary);
 
   /* Font stacks */
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', 'Monaco', 'Menlo', monospace;
 
   /* Semantic backgrounds */
@@ -144,6 +145,7 @@
   --bg-input: #ffffff;
   --bg-hover: var(--bg-tertiary);
 
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', 'Monaco', 'Menlo', monospace;
 
   --success-bg: rgba(16, 185, 129, 0.1);
@@ -172,7 +174,7 @@
 }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--font-family);
   font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

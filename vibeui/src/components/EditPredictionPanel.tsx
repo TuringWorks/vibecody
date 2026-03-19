@@ -152,7 +152,7 @@ export default function EditPredictionPanel() {
         {tab === "predictions" && predictions.map(p => (
           <div key={p.id} style={{ padding: 10, background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)", opacity: p.state !== "pending" ? 0.6 : 1 }}>
             <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
-              <span style={{ fontSize: 11, fontFamily: "monospace", color: "var(--text-info)" }}>{p.file}:{p.line}</span>
+              <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--text-info)" }}>{p.file}:{p.line}</span>
               <span style={{ fontSize: 9, padding: "1px 5px", borderRadius: 3, background: "rgba(99,102,241,0.12)", color: "var(--text-muted)" }}>{p.pattern}</span>
               <span style={{ fontSize: 10, color: "var(--text-muted)", marginLeft: "auto" }}>{p.timestamp}</span>
             </div>
@@ -185,7 +185,7 @@ export default function EditPredictionPanel() {
         {tab === "patterns" && patterns.map(p => (
           <div key={p.id} style={{ padding: 10, background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)" }}>
             <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4 }}>
-              <span style={{ fontSize: 11, fontWeight: 600, fontFamily: "monospace", color: "var(--accent-primary)" }}>{p.name}</span>
+              <span style={{ fontSize: 11, fontWeight: 600, fontFamily: "var(--font-mono)", color: "var(--accent-primary)" }}>{p.name}</span>
               <span style={{ fontSize: 10, color: "var(--text-muted)", marginLeft: "auto" }}>seen {p.frequency}x</span>
             </div>
             <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 8 }}>{p.description}</div>
@@ -211,7 +211,7 @@ export default function EditPredictionPanel() {
                   ["Actions", model.totalActions.toString()],
                 ].map(([l, v]) => (
                   <div key={l} style={{ textAlign: "center", padding: 10, background: "var(--bg-primary)", borderRadius: 4 }}>
-                    <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text-info)", fontFamily: "monospace" }}>{v}</div>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text-info)", fontFamily: "var(--font-mono)" }}>{v}</div>
                     <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 4 }}>{l}</div>
                   </div>
                 ))}
@@ -227,7 +227,7 @@ export default function EditPredictionPanel() {
                   ["Rejected", model.rejected.toLocaleString(), "var(--text-danger)"],
                 ].map(([l, v, c]) => (
                   <div key={l} style={{ textAlign: "center", padding: 10, background: "var(--bg-primary)", borderRadius: 4 }}>
-                    <div style={{ fontSize: 18, fontWeight: 700, color: c, fontFamily: "monospace" }}>{v}</div>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: c, fontFamily: "var(--font-mono)" }}>{v}</div>
                     <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 4 }}>{l}</div>
                   </div>
                 ))}
@@ -246,13 +246,13 @@ export default function EditPredictionPanel() {
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <span style={{ fontSize: 11, color: "var(--text-muted)", minWidth: 120 }}>Exploration Rate</span>
                   <button onClick={() => adjustExploration(-0.01)} style={{ padding: "2px 8px", fontSize: 10, border: "1px solid var(--border-color)", borderRadius: 3, background: "var(--bg-primary)", color: "var(--text-muted)", cursor: "pointer" }}>-</button>
-                  <span style={{ fontSize: 12, fontFamily: "monospace", fontWeight: 600, color: "var(--text-info)", minWidth: 40, textAlign: "center" }}>{model.explorationRate.toFixed(2)}</span>
+                  <span style={{ fontSize: 12, fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--text-info)", minWidth: 40, textAlign: "center" }}>{model.explorationRate.toFixed(2)}</span>
                   <button onClick={() => adjustExploration(0.01)} style={{ padding: "2px 8px", fontSize: 10, border: "1px solid var(--border-color)", borderRadius: 3, background: "var(--bg-primary)", color: "var(--text-muted)", cursor: "pointer" }}>+</button>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <span style={{ fontSize: 11, color: "var(--text-muted)", minWidth: 120 }}>Decay Rate</span>
                   <button onClick={() => adjustDecay(-0.001)} style={{ padding: "2px 8px", fontSize: 10, border: "1px solid var(--border-color)", borderRadius: 3, background: "var(--bg-primary)", color: "var(--text-muted)", cursor: "pointer" }}>-</button>
-                  <span style={{ fontSize: 12, fontFamily: "monospace", fontWeight: 600, color: "var(--text-info)", minWidth: 40, textAlign: "center" }}>{model.decayRate.toFixed(3)}</span>
+                  <span style={{ fontSize: 12, fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--text-info)", minWidth: 40, textAlign: "center" }}>{model.decayRate.toFixed(3)}</span>
                   <button onClick={() => adjustDecay(0.001)} style={{ padding: "2px 8px", fontSize: 10, border: "1px solid var(--border-color)", borderRadius: 3, background: "var(--bg-primary)", color: "var(--text-muted)", cursor: "pointer" }}>+</button>
                 </div>
                 <div style={{ display: "flex", gap: 16, fontSize: 10, color: "var(--text-muted)", marginTop: 4 }}>

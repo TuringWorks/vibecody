@@ -267,7 +267,7 @@ export function McpPanel() {
  </div>
 
  {/* Command */}
- <div style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+ <div style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-mono)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
  $ {srv.command}{srv.args.length > 0 ? " " + srv.args.join(" ") : ""}
  </div>
 
@@ -464,5 +464,5 @@ const inputStyle: React.CSSProperties = {
  borderRadius: "4px",
  color: "var(--text-primary)",
  outline: "none",
- fontFamily: "monospace",
+ fontFamily: "var(--font-mono)",
 };

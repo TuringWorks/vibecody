@@ -103,7 +103,7 @@ function Swatch({ token, onEdit, onRemove }: {
  <button onClick={e => { e.stopPropagation(); onRemove(); }} style={{ background: "rgba(0,0,0,0.4)", border: "none", borderRadius: 3, color: "var(--text-danger, #f38ba8)", fontSize: 9, padding: "1px 5px", cursor: "pointer" }}>✕</button>
  </div>
  <div style={{ padding: "5px 7px", background: "var(--bg-secondary)" }}>
- <div style={{ fontSize: 9, fontWeight: 700, fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{copied ? "Copied!" : token.value}</div>
+ <div style={{ fontSize: 9, fontWeight: 700, fontFamily: "var(--font-mono)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{copied ? "Copied!" : token.value}</div>
  <div style={{ fontSize: 9, color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>--{token.name}</div>
  </div>
  </div>
@@ -280,11 +280,11 @@ export function ColorPalettePanel({ workspacePath }: { workspacePath: string | n
  <input type="color" value={editToken.value.startsWith("#") ? editToken.value.slice(0, 7) : "#6366f1"} onChange={e => setEditToken({ ...editToken, value: e.target.value })} style={{ width: 40, height: 32, border: "none", borderRadius: 4, cursor: "pointer" }} />
  <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
  <label style={{ fontSize: 9, color: "var(--text-muted)", fontWeight: 600 }}>Name</label>
- <input value={editToken.name} onChange={e => setEditToken({ ...editToken, name: e.target.value })} style={{ padding: "3px 8px", fontSize: 11, fontFamily: "monospace", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none", width: 160 }} />
+ <input value={editToken.name} onChange={e => setEditToken({ ...editToken, name: e.target.value })} style={{ padding: "3px 8px", fontSize: 11, fontFamily: "var(--font-mono)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none", width: 160 }} />
  </div>
  <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
  <label style={{ fontSize: 9, color: "var(--text-muted)", fontWeight: 600 }}>Hex</label>
- <input value={editToken.value} onChange={e => setEditToken({ ...editToken, value: e.target.value })} style={{ padding: "3px 8px", fontSize: 11, fontFamily: "monospace", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none", width: 100 }} />
+ <input value={editToken.value} onChange={e => setEditToken({ ...editToken, value: e.target.value })} style={{ padding: "3px 8px", fontSize: 11, fontFamily: "var(--font-mono)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none", width: 100 }} />
  </div>
  <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{hexToRgb(editToken.value)}</div>
  <button onClick={commitEdit} style={{ padding: "4px 14px", fontSize: 11, fontWeight: 700, background: "var(--accent-primary, #6366f1)", border: "none", borderRadius: 4, color: "var(--text-primary, #fff)", cursor: "pointer", marginLeft: "auto" }}>✓ Done</button>
@@ -316,7 +316,7 @@ export function ColorPalettePanel({ workspacePath }: { workspacePath: string | n
  <button onClick={() => setShowExport(false)} style={{ fontSize: 10, padding: "2px 8px", background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer" }}>✕</button>
  </div>
  </div>
- <pre style={{ flex: 1, overflowY: "auto", margin: 0, padding: "10px 14px", fontSize: 11, fontFamily: "monospace", lineHeight: 1.6, color: "var(--text-primary)", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+ <pre style={{ flex: 1, overflowY: "auto", margin: 0, padding: "10px 14px", fontSize: 11, fontFamily: "var(--font-mono)", lineHeight: 1.6, color: "var(--text-primary)", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
  {exported}
  </pre>
  </div>

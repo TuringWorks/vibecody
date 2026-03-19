@@ -168,7 +168,7 @@ export function VisualEditOverlay({ element, onClose, onApply }: VisualEditOverl
                   flex: 1, padding: "3px 6px", fontSize: "11px",
                   background: "var(--bg-primary)", border: "1px solid var(--border-color)",
                   borderRadius: "3px", color: "var(--text-primary)", outline: "none",
-                  fontFamily: "monospace",
+                  fontFamily: "var(--font-mono)",
                 }}
               />
             </div>

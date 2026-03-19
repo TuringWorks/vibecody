@@ -186,7 +186,7 @@ export default function PlanDocumentPanel() {
                 <input value={newAuthor} onChange={e => setNewAuthor(e.target.value)} placeholder="Author"
                   style={{ padding: "5px 8px", fontSize: 11, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)" }} />
                 <textarea value={newMarkdown} onChange={e => setNewMarkdown(e.target.value)} placeholder="Markdown content (optional)" rows={4}
-                  style={{ padding: "5px 8px", fontSize: 11, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", fontFamily: "monospace", resize: "vertical" }} />
+                  style={{ padding: "5px 8px", fontSize: 11, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", fontFamily: "var(--font-mono)", resize: "vertical" }} />
                 <button onClick={createPlan}
                   style={{ alignSelf: "flex-start", padding: "5px 12px", fontSize: 11, background: "var(--text-success)", border: "none", borderRadius: 4, color: "var(--bg-primary)", cursor: "pointer", fontWeight: 600 }}>
                   Create Plan
@@ -236,7 +236,7 @@ export default function PlanDocumentPanel() {
                 </button>
               ))}
             </div>
-            <pre style={{ padding: 14, background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)", fontSize: 12, fontFamily: "monospace", color: "var(--text-primary)", whiteSpace: "pre-wrap", margin: 0, lineHeight: 1.6 }}>
+            <pre style={{ padding: 14, background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)", fontSize: 12, fontFamily: "var(--font-mono)", color: "var(--text-primary)", whiteSpace: "pre-wrap", margin: 0, lineHeight: 1.6 }}>
               {plan.markdown}
             </pre>
             {planComments.length > 0 && (

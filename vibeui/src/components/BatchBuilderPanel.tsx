@@ -285,7 +285,7 @@ const badge = (_: string, color: string): React.CSSProperties => ({
   borderRadius: 4,
   fontSize: 11,
   fontWeight: 600,
-  color: "white",
+  color: "var(--btn-primary-fg)",
   background: color,
   marginRight: 4,
 });
@@ -303,7 +303,7 @@ const inputStyle: React.CSSProperties = {
 
 const btnStyle: React.CSSProperties = {
   background: "var(--accent-color)",
-  color: "white",
+  color: "var(--btn-primary-fg)",
   border: "none",
   borderRadius: 4,
   padding: "6px 14px",
@@ -827,7 +827,7 @@ const BatchBuilderPanel: React.FC = () => {
             {endpoints.map((ep) => (
               <tr key={ep.id}>
                 <td style={tdStyle}><span style={badge(ep.method, ep.method === "GET" ? "var(--success-color)" : ep.method === "DELETE" ? "var(--error-color)" : "var(--info-color)")}>{ep.method}</span></td>
-                <td style={{ ...tdStyle, fontFamily: "monospace" }}>{ep.path}</td>
+                <td style={{ ...tdStyle, fontFamily: "var(--font-mono)" }}>{ep.path}</td>
                 <td style={tdStyle}>{ep.description}</td>
                 <td style={tdStyle}>{ep.auth ? "Yes" : "No"}</td>
                 <td style={tdStyle}><button style={{ ...btnDanger, padding: "2px 8px", fontSize: 11 }} onClick={() => removeEndpoint(ep.id)}>Remove</button></td>
@@ -889,10 +889,10 @@ const BatchBuilderPanel: React.FC = () => {
       </div>
       {estimate && (
         <div style={{ ...cardStyle, marginTop: 12, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 12 }}>
-          <div><div style={{ fontSize: 11, color: "var(--text-muted)" }}>Est. Files</div><div style={{ fontSize: 20, fontWeight: 700 }}>{estimate.files}</div></div>
-          <div><div style={{ fontSize: 11, color: "var(--text-muted)" }}>Est. Lines</div><div style={{ fontSize: 20, fontWeight: 700 }}>{estimate.lines.toLocaleString()}</div></div>
-          <div><div style={{ fontSize: 11, color: "var(--text-muted)" }}>Duration</div><div style={{ fontSize: 20, fontWeight: 700 }}>{estimate.duration}</div></div>
-          <div><div style={{ fontSize: 11, color: "var(--text-muted)" }}>Complexity</div><div style={{ fontSize: 20, fontWeight: 700, color: scoreColor(100 - estimate.complexity) }}>{estimate.complexity}/100</div></div>
+          <div><div style={{ fontSize: 11, color: "var(--text-muted)" }}>Est. Files</div><div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{estimate.files}</div></div>
+          <div><div style={{ fontSize: 11, color: "var(--text-muted)" }}>Est. Lines</div><div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{estimate.lines.toLocaleString()}</div></div>
+          <div><div style={{ fontSize: 11, color: "var(--text-muted)" }}>Duration</div><div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{estimate.duration}</div></div>
+          <div><div style={{ fontSize: 11, color: "var(--text-muted)" }}>Complexity</div><div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--font-mono)", color: scoreColor(100 - estimate.complexity) }}>{estimate.complexity}/100</div></div>
           <div style={{ gridColumn: "span 2" }}>
             <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>Recommended Agents</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
@@ -911,7 +911,7 @@ const BatchBuilderPanel: React.FC = () => {
       {/* Status bar */}
       <div style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-          <span style={{ fontSize: 12, fontFamily: "monospace", color: "var(--text-muted)" }}>{runId}</span>
+          <span style={{ fontSize: 12, fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>{runId}</span>
           <span style={badge(runStatus, STATUS_COLORS[runStatus])}>{runStatus}</span>
         </div>
         <span style={{ fontSize: 12, color: "var(--text-primary)" }}>Elapsed: {elapsed}</span>
@@ -947,7 +947,7 @@ const BatchBuilderPanel: React.FC = () => {
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
               <span style={{
                 width: 24, height: 24, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 11, fontWeight: 700, background: "var(--bg-tertiary)", color: "white",
+                fontSize: 11, fontWeight: 700, background: "var(--bg-tertiary)", color: "var(--btn-primary-fg)",
               }}>{a.icon}</span>
               <span style={{ fontSize: 12, fontWeight: 600 }}>{a.role}</span>
             </div>
@@ -988,7 +988,7 @@ const BatchBuilderPanel: React.FC = () => {
         ].map((m) => (
           <div key={m.label} style={cardStyle}>
             <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{m.label}</div>
-            <div style={{ fontSize: 18, fontWeight: 700 }}>{m.value}</div>
+            <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{m.value}</div>
           </div>
         ))}
       </div>
@@ -1009,7 +1009,7 @@ const BatchBuilderPanel: React.FC = () => {
         maxHeight: 240,
         overflowY: "auto",
         padding: 8,
-        fontFamily: "monospace",
+        fontFamily: "var(--font-mono)",
         fontSize: 11,
       }}>
         {logs.length === 0 && <div style={{ color: "var(--text-muted)" }}>No log entries yet. Start a batch run to see logs.</div>}
@@ -1043,7 +1043,7 @@ const BatchBuilderPanel: React.FC = () => {
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: 32, fontWeight: 700, color: scoreColor(overallScore) }}>{overallScore}</div>
+              <div style={{ fontSize: 32, fontWeight: 700, fontFamily: "var(--font-mono)", color: scoreColor(overallScore) }}>{overallScore}</div>
               <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Overall Score</div>
             </div>
             <span style={badge(rec.text, rec.color)}>{rec.text}</span>
@@ -1111,7 +1111,7 @@ const BatchBuilderPanel: React.FC = () => {
               {sortedFindings.map((f) => (
                 <tr key={f.id} style={{ opacity: f.resolved ? 0.5 : 1 }}>
                   <td style={tdStyle}><span style={badge(f.severity, SEVERITY_COLORS[f.severity])}>{f.severity}</span></td>
-                  <td style={{ ...tdStyle, fontFamily: "monospace", fontSize: 11 }}>{f.file}</td>
+                  <td style={{ ...tdStyle, fontFamily: "var(--font-mono)", fontSize: 11 }}>{f.file}</td>
                   <td style={tdStyle}>{f.line}</td>
                   <td style={tdStyle}>{f.message}</td>
                   <td style={{ ...tdStyle, fontSize: 11, color: "var(--text-muted)" }}>{f.suggestion}</td>
@@ -1261,8 +1261,8 @@ const BatchBuilderPanel: React.FC = () => {
           <tbody>
             {translationRules.map((rule) => (
               <tr key={rule.id}>
-                <td style={{ ...tdStyle, fontFamily: "monospace", fontSize: 11 }}>{rule.sourcePattern}</td>
-                <td style={{ ...tdStyle, fontFamily: "monospace", fontSize: 11 }}>{rule.targetPattern}</td>
+                <td style={{ ...tdStyle, fontFamily: "var(--font-mono)", fontSize: 11 }}>{rule.sourcePattern}</td>
+                <td style={{ ...tdStyle, fontFamily: "var(--font-mono)", fontSize: 11 }}>{rule.targetPattern}</td>
                 <td style={tdStyle}><span style={{ color: scoreColor(rule.confidence), fontWeight: 600 }}>{rule.confidence}%</span></td>
                 <td style={{ ...tdStyle, fontSize: 11, color: "var(--text-muted)" }}>{rule.example}</td>
               </tr>
@@ -1315,23 +1315,23 @@ const BatchBuilderPanel: React.FC = () => {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 8 }}>
           <div style={cardStyle}>
             <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Components Migrated</div>
-            <div style={{ fontSize: 18, fontWeight: 700 }}>{completedCount} / {migComponents.length}</div>
+            <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{completedCount} / {migComponents.length}</div>
           </div>
           <div style={cardStyle}>
             <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Lines (Source → Target)</div>
-            <div style={{ fontSize: 18, fontWeight: 700 }}>{completedLines.toLocaleString()} → {Math.round(completedLines * 0.6).toLocaleString()}</div>
+            <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{completedLines.toLocaleString()} → {Math.round(completedLines * 0.6).toLocaleString()}</div>
           </div>
           <div style={cardStyle}>
             <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Total Source Lines</div>
-            <div style={{ fontSize: 18, fontWeight: 700 }}>{totalSourceLines.toLocaleString()}</div>
+            <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{totalSourceLines.toLocaleString()}</div>
           </div>
           <div style={cardStyle}>
             <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Overall Confidence</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: scoreColor(overallConfidence) }}>{overallConfidence}%</div>
+            <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "var(--font-mono)", color: scoreColor(overallConfidence) }}>{overallConfidence}%</div>
           </div>
           <div style={cardStyle}>
             <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Manual Reviews Needed</div>
-            <div style={{ fontSize: 18, fontWeight: 700 }}>{manualReviews}</div>
+            <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{manualReviews}</div>
           </div>
         </div>
       </div>
@@ -1346,15 +1346,15 @@ const BatchBuilderPanel: React.FC = () => {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 8, marginBottom: 16 }}>
         <div style={cardStyle}>
           <div style={{ fontSize: 11, color: "var(--text-muted)" }}>All-Time Lines Generated</div>
-          <div style={{ fontSize: 20, fontWeight: 700 }}>{allTimeLines.toLocaleString()}</div>
+          <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{allTimeLines.toLocaleString()}</div>
         </div>
         <div style={cardStyle}>
           <div style={{ fontSize: 11, color: "var(--text-muted)" }}>All-Time Files Created</div>
-          <div style={{ fontSize: 20, fontWeight: 700 }}>{allTimeFiles}</div>
+          <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{allTimeFiles}</div>
         </div>
         <div style={cardStyle}>
           <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Average Run Duration</div>
-          <div style={{ fontSize: 20, fontWeight: 700 }}>1h 16m</div>
+          <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>1h 16m</div>
         </div>
       </div>
 
@@ -1401,7 +1401,7 @@ const BatchBuilderPanel: React.FC = () => {
                 onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-secondary)"; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
               >
-                <td style={{ ...tdStyle, fontFamily: "monospace", fontSize: 11 }}>{run.id}</td>
+                <td style={{ ...tdStyle, fontFamily: "var(--font-mono)", fontSize: 11 }}>{run.id}</td>
                 <td style={tdStyle}>{run.title}</td>
                 <td style={tdStyle}>
                   <span style={badge(run.status, run.status === "Completed" ? "var(--success-color)" : run.status === "Failed" ? "var(--error-color)" : "var(--text-muted)")}>
@@ -1428,7 +1428,7 @@ const BatchBuilderPanel: React.FC = () => {
                       </div>
                       <div>
                         <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 13 }}>Generated File Tree</div>
-                        <div style={{ fontFamily: "monospace", fontSize: 11 }}>
+                        <div style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>
                           {run.fileTree.map((f, i) => (
                             <div key={i} style={{ color: "var(--text-muted)" }}>{f}</div>
                           ))}

@@ -100,7 +100,7 @@ export function WebCrawlerPanel() {
 
   const btnPrimary: React.CSSProperties = {
     background: "var(--accent)",
-    color: "white",
+    color: "var(--btn-primary-fg)",
     border: "none",
     borderRadius: 4,
     padding: "8px 16px",
@@ -258,7 +258,7 @@ export function WebCrawlerPanel() {
               <div style={{ marginTop: 8 }}>
                 <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 8 }}>{crawlResults.length} page(s) crawled</div>
                 <div style={{ overflowX: "auto" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, fontFamily: "monospace" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, fontFamily: "var(--font-mono)" }}>
                     <thead>
                       <tr style={{ background: "var(--bg-secondary)" }}>
                         <th style={{ padding: "6px 8px", textAlign: "left", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>URL</th>
@@ -307,7 +307,7 @@ export function WebCrawlerPanel() {
                 <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: 4, padding: 12, maxHeight: 200, overflow: "auto" }}>
                   <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 6 }}>{sitemapUrls.length} URLs found</div>
                   {sitemapUrls.map((u, i) => (
-                    <div key={i} style={{ fontSize: 12, fontFamily: "monospace", padding: "2px 0", borderBottom: i < sitemapUrls.length - 1 ? "1px solid var(--border)" : "none" }}>
+                    <div key={i} style={{ fontSize: 12, fontFamily: "var(--font-mono)", padding: "2px 0", borderBottom: i < sitemapUrls.length - 1 ? "1px solid var(--border)" : "none" }}>
                       {u}
                     </div>
                   ))}
@@ -337,7 +337,7 @@ export function WebCrawlerPanel() {
                 Check robots.txt
               </button>
               {robotsResult && (
-                <pre style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: 4, padding: 12, fontSize: 12, fontFamily: "monospace", margin: 0, whiteSpace: "pre-wrap", color: "var(--text-primary)" }}>
+                <pre style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: 4, padding: 12, fontSize: 12, fontFamily: "var(--font-mono)", margin: 0, whiteSpace: "pre-wrap", color: "var(--text-primary)" }}>
                   {robotsResult}
                 </pre>
               )}

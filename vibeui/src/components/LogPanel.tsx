@@ -315,7 +315,7 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
       {/* Log entries */}
       {result && filtered.length > 0 ? (
         <div style={{
-          flex: 1, overflowY: "auto", fontFamily: "monospace", fontSize: 11,
+          flex: 1, overflowY: "auto", fontFamily: "var(--font-mono)", fontSize: 11,
           background: "var(--bg-secondary)", borderRadius: 6,
           border: "1px solid var(--border-color)", padding: 4,
         }}>

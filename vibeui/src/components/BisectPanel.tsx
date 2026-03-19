@@ -182,7 +182,7 @@ export function BisectPanel({ workspacePath }: BisectPanelProps) {
             }}>
               <div style={{ fontSize: 10, fontWeight: 600, opacity: 0.6, marginBottom: 4 }}>Current Commit</div>
               {current.current_commit && (
-                <div style={{ fontFamily: "monospace", fontSize: 12, color: "var(--text-warning)" }}>
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-warning)" }}>
                   {current.current_commit.substring(0, 12)}
                 </div>
               )}
@@ -231,7 +231,7 @@ export function BisectPanel({ workspacePath }: BisectPanelProps) {
 
             {showLog && bisectLog && (
               <pre style={{
-                padding: 8, fontSize: 10, fontFamily: "monospace", borderRadius: 4,
+                padding: 8, fontSize: 10, fontFamily: "var(--font-mono)", borderRadius: 4,
                 background: "var(--bg-primary)", maxHeight: 150, overflowY: "auto",
                 whiteSpace: "pre-wrap", wordBreak: "break-all",
               }}>
@@ -259,7 +259,7 @@ export function BisectPanel({ workspacePath }: BisectPanelProps) {
               background: "rgba(243,139,168,0.1)", border: "1px solid rgba(243,139,168,0.3)",
             }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-danger)" }}>Culprit Found!</div>
-              <div style={{ fontFamily: "monospace", fontSize: 14, color: "var(--text-warning)", marginTop: 6 }}>
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: 14, color: "var(--text-warning)", marginTop: 6 }}>
                 {current.culprit_commit || current.current_commit}
               </div>
               <div style={{ fontSize: 11, marginTop: 4, opacity: 0.7 }}>
@@ -300,5 +300,5 @@ const inputStyle: React.CSSProperties = {
   padding: "6px 8px", fontSize: 12, borderRadius: 4,
   border: "1px solid var(--border-color)",
   background: "var(--bg-primary)", color: "var(--text-primary)",
-  outline: "none", fontFamily: "monospace",
+  outline: "none", fontFamily: "var(--font-mono)",
 };

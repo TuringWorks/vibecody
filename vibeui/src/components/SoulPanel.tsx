@@ -127,7 +127,7 @@ export function SoulPanel({ workspacePath }: { workspacePath?: string | null }) 
           <>
             {content ? (
               <div style={cardStyle}>
-                <pre style={{ fontFamily: "monospace", fontSize: "13px", lineHeight: "1.6", whiteSpace: "pre-wrap", wordBreak: "break-word", color: "var(--text-primary)", margin: 0 }}>
+                <pre style={{ fontFamily: "var(--font-mono)", fontSize: "13px", lineHeight: "1.6", whiteSpace: "pre-wrap", wordBreak: "break-word", color: "var(--text-primary)", margin: 0 }}>
                   {content}
                 </pre>
               </div>

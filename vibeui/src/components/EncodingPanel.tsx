@@ -132,7 +132,7 @@ function OutputRow({ label, value, colour = "var(--text-primary)" }: { label: st
  <span>{label}</span>
  <CopyButton text={value} />
  </div>
- <div style={{ padding: "6px 12px", fontFamily: "monospace", fontSize: 12, color: colour, wordBreak: "break-all", lineHeight: 1.6, background: "var(--bg-primary)" }}>{value || <span style={{ color: "var(--text-muted)", fontStyle: "italic" }}>—</span>}</div>
+ <div style={{ padding: "6px 12px", fontFamily: "var(--font-mono)", fontSize: 12, color: colour, wordBreak: "break-all", lineHeight: 1.6, background: "var(--bg-primary)" }}>{value || <span style={{ color: "var(--text-muted)", fontStyle: "italic" }}>—</span>}</div>
  </div>
  );
 }
@@ -195,7 +195,7 @@ export function EncodingPanel() {
  <span style={{ marginLeft: "auto", fontSize: 9, color: "var(--text-muted)" }}>{input.length} chars</span>
  </div>
  <textarea value={input} onChange={e => setInput(e.target.value)} rows={4} spellCheck={false}
- style={{ width: "100%", resize: "vertical", padding: "8px 12px", fontSize: 12, fontFamily: "monospace", lineHeight: 1.6, background: "var(--bg-primary)", color: "var(--text-primary)", border: "none", outline: "none", boxSizing: "border-box" }} />
+ style={{ width: "100%", resize: "vertical", padding: "8px 12px", fontSize: 12, fontFamily: "var(--font-mono)", lineHeight: 1.6, background: "var(--bg-primary)", color: "var(--text-primary)", border: "none", outline: "none", boxSizing: "border-box" }} />
  </div>
 
  {/* Output area */}
@@ -253,8 +253,8 @@ export function EncodingPanel() {
  const result = input ? fn(input) : "";
  return (
  <div key={label} style={{ borderBottom: "1px solid var(--border-color)", display: "flex", alignItems: "center" }}>
- <span style={{ width: 140, flexShrink: 0, padding: "6px 12px", fontSize: 10, fontWeight: 700, color: "var(--text-muted)", fontFamily: "monospace", background: "var(--bg-secondary)", alignSelf: "stretch", display: "flex", alignItems: "center" }}>{label}</span>
- <div style={{ flex: 1, padding: "6px 12px", fontFamily: "monospace", fontSize: 12, color: "var(--text-primary)", wordBreak: "break-all" }}>{result || <span style={{ color: "var(--text-muted)", fontStyle: "italic" }}>—</span>}</div>
+ <span style={{ width: 140, flexShrink: 0, padding: "6px 12px", fontSize: 10, fontWeight: 700, color: "var(--text-muted)", fontFamily: "var(--font-mono)", background: "var(--bg-secondary)", alignSelf: "stretch", display: "flex", alignItems: "center" }}>{label}</span>
+ <div style={{ flex: 1, padding: "6px 12px", fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-primary)", wordBreak: "break-all" }}>{result || <span style={{ color: "var(--text-muted)", fontStyle: "italic" }}>—</span>}</div>
  {result && (
  <div style={{ paddingRight: 10, flexShrink: 0 }}>
  <button onClick={() => setInput(result)} style={{ fontSize: 9, padding: "2px 6px", background: "none", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-muted)", cursor: "pointer", marginRight: 4 }}>↑ Use</button>
@@ -281,7 +281,7 @@ export function EncodingPanel() {
  { label: "Paragraphs", value: stats.paragraphs, colour: "var(--error-color)" },
  ].map(({ label, value, colour }) => (
  <div key={label} style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 6, padding: "8px 10px", textAlign: "center" }}>
- <div style={{ fontSize: 20, fontWeight: 700, color: colour, fontFamily: "monospace" }}>{value.toLocaleString()}</div>
+ <div style={{ fontSize: 20, fontWeight: 700, color: colour, fontFamily: "var(--font-mono)" }}>{value.toLocaleString()}</div>
  <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>{label}</div>
  </div>
  ))}
@@ -294,11 +294,11 @@ export function EncodingPanel() {
  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
  {stats.topChars.map(([ch, count]) => (
  <div key={ch} style={{ display: "flex", alignItems: "center", gap: 8 }}>
- <span style={{ width: 24, textAlign: "center", fontFamily: "monospace", fontSize: 13, fontWeight: 700, color: "var(--text-primary)", flexShrink: 0, background: "var(--bg-secondary)", borderRadius: 4, padding: "1px 0" }}>{ch === " " ? "·" : ch}</span>
+ <span style={{ width: 24, textAlign: "center", fontFamily: "var(--font-mono)", fontSize: 13, fontWeight: 700, color: "var(--text-primary)", flexShrink: 0, background: "var(--bg-secondary)", borderRadius: 4, padding: "1px 0" }}>{ch === " " ? "·" : ch}</span>
  <div style={{ flex: 1, background: "var(--bg-secondary)", borderRadius: 4, height: 12, overflow: "hidden" }}>
  <div style={{ width: `${(count / stats.maxFreq) * 100}%`, height: "100%", background: "rgba(137,180,250,0.5)", transition: "width 0.2s" }} />
  </div>
- <span style={{ fontSize: 11, color: "var(--text-muted)", minWidth: 30, textAlign: "right", fontFamily: "monospace" }}>{count}</span>
+ <span style={{ fontSize: 11, color: "var(--text-muted)", minWidth: 30, textAlign: "right", fontFamily: "var(--font-mono)" }}>{count}</span>
  </div>
  ))}
  </div>

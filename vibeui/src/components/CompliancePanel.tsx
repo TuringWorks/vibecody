@@ -156,7 +156,7 @@ export function CompliancePanel() {
  style={{ cursor: "pointer", background: expanded === ctrl.id ? "rgba(124,58,237,0.1)" : undefined }}
  onClick={() => setExpanded(expanded === ctrl.id ? null : ctrl.id)}
  >
- <td style={{ padding: "5px 8px", borderBottom: "1px solid var(--border-color)", fontFamily: "monospace" }}>{ctrl.id}</td>
+ <td style={{ padding: "5px 8px", borderBottom: "1px solid var(--border-color)", fontFamily: "var(--font-mono)" }}>{ctrl.id}</td>
  <td style={{ padding: "5px 8px", borderBottom: "1px solid var(--border-color)" }}>
  {ctrl.name}
  {expanded === ctrl.id && (

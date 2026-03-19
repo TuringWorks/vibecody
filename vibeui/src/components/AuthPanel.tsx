@@ -75,8 +75,8 @@ export function AuthPanel({ workspacePath, provider }: { workspacePath: string |
  label: { display: "block", marginBottom: "4px", fontSize: "11px", color: "var(--text-secondary)" } as React.CSSProperties,
  select: { width: "100%", background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", color: "var(--text-primary)", padding: "6px 8px", borderRadius: "4px", fontSize: "12px" } as React.CSSProperties,
  input: { width: "100%", background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", color: "var(--text-primary)", padding: "6px 8px", borderRadius: "4px", fontSize: "12px", boxSizing: "border-box" as const } as React.CSSProperties,
- btn: { padding: "8px 16px", background: "var(--accent-color)", color: "white", border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "13px", fontWeight: 600 } as React.CSSProperties,
- code: { background: "var(--bg-secondary)", padding: "10px", borderRadius: "4px", fontSize: "11px", fontFamily: "monospace", whiteSpace: "pre" as const, overflow: "auto", maxHeight: "300px", border: "1px solid var(--border-color)" } as React.CSSProperties,
+ btn: { padding: "8px 16px", background: "var(--accent-color)", color: "var(--btn-primary-fg)", border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "13px", fontWeight: 600 } as React.CSSProperties,
+ code: { background: "var(--bg-secondary)", padding: "10px", borderRadius: "4px", fontSize: "11px", fontFamily: "var(--font-mono)", whiteSpace: "pre" as const, overflow: "auto", maxHeight: "300px", border: "1px solid var(--border-color)" } as React.CSSProperties,
  row: { display: "flex", gap: "8px", alignItems: "center" } as React.CSSProperties,
  chip: (active: boolean): React.CSSProperties => ({ padding: "4px 12px", border: `1px solid ${active ? "var(--accent-color)" : "var(--border-color)"}`, borderRadius: "12px", cursor: "pointer", fontSize: "12px", background: active ? "rgba(0,122,204,0.15)" : "transparent", color: active ? "var(--accent-color)" : "var(--text-secondary)" }),
  };

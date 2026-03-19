@@ -86,7 +86,7 @@ const ConversationalSearchPanel: React.FC = () => {
     padding: "6px 14px",
     border: "1px solid var(--accent-color)",
     background: "var(--accent-color)",
-    color: "white",
+    color: "var(--btn-primary-fg)",
     borderRadius: "3px",
     cursor: "pointer",
     fontFamily: "inherit",

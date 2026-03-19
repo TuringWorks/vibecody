@@ -35,7 +35,7 @@ type ToolId = typeof TOOL_LIST[number]["id"];
 const S = {
  textarea: {
  width: "100%", boxSizing: "border-box" as const,
- padding: "7px 10px", fontSize: 12, fontFamily: "monospace",
+ padding: "7px 10px", fontSize: 12, fontFamily: "var(--font-mono)",
  background: "var(--bg-primary)", border: "1px solid var(--border-color)",
  borderRadius: 4, color: "var(--text-primary)", outline: "none",
  resize: "vertical" as const, lineHeight: 1.5,
@@ -57,7 +57,7 @@ const S = {
  }),
  label: { fontSize: 10, fontWeight: 600 as const, color: "var(--text-muted)", marginBottom: 3, display: "block" as const },
  result: {
- padding: "8px 10px", background: "var(--bg-primary)", borderRadius: 4, fontFamily: "monospace",
+ padding: "8px 10px", background: "var(--bg-primary)", borderRadius: 4, fontFamily: "var(--font-mono)",
  fontSize: 11, lineHeight: 1.6, whiteSpace: "pre-wrap" as const,
  border: "1px solid var(--border-color)", wordBreak: "break-all" as const,
  color: "var(--text-primary)", overflowY: "auto" as const, maxHeight: 280,
@@ -328,7 +328,7 @@ function TimestampTool() {
  ].map(([k, v]) => (
  <div key={k} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 8px", background: "var(--bg-secondary)", borderRadius: 4, border: "1px solid var(--border-color)" }}>
  <span style={{ fontSize: 10, color: "var(--text-muted)", fontWeight: 600, width: 90 }}>{k}</span>
- <span style={{ fontFamily: "monospace", fontSize: 11, flex: 1 }}>{v}</span>
+ <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, flex: 1 }}>{v}</span>
  <button onClick={() => copyText(v)} style={{ ...S.btn(), fontSize: 10, padding: "2px 6px" }}>Copy</button>
  </div>
  ))}
@@ -434,7 +434,7 @@ function HashTool() {
  {Object.entries(hashes).map(([label, hash]) => (
  <div key={label} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 8px", background: "var(--bg-secondary)", borderRadius: 4, border: "1px solid var(--border-color)" }}>
  <span style={{ fontSize: 10, color: "var(--text-muted)", fontWeight: 600, width: 65 }}>{label}</span>
- <span style={{ fontFamily: "monospace", fontSize: 10, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{hash}</span>
+ <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{hash}</span>
  <button onClick={() => copyText(hash)} style={{ ...S.btn(), fontSize: 10, padding: "2px 6px", flexShrink: 0 }}>Copy</button>
  </div>
  ))}
@@ -481,7 +481,7 @@ function UrlTool() {
  <div style={S.label}>Query Params ({params.length})</div>
  <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
  {params.map(([k, v]) => (
- <div key={k} style={{ display: "flex", gap: 8, padding: "4px 8px", background: "var(--bg-secondary)", borderRadius: 4, border: "1px solid var(--border-color)", fontSize: 11, fontFamily: "monospace" }}>
+ <div key={k} style={{ display: "flex", gap: 8, padding: "4px 8px", background: "var(--bg-secondary)", borderRadius: 4, border: "1px solid var(--border-color)", fontSize: 11, fontFamily: "var(--font-mono)" }}>
  <span style={{ color: "var(--text-info)", fontWeight: 600 }}>{k}</span>
  <span style={{ color: "var(--text-muted)" }}>=</span>
  <span style={{ flex: 1 }}>{v}</span>
@@ -522,7 +522,7 @@ export function UtilitiesPanel() {
  alignItems: "center", gap: 3, width: "100%",
  }}
  >
- <span style={{ fontSize: 16, fontFamily: "monospace" }}>{icon}</span>
+ <span style={{ fontSize: 16, fontFamily: "var(--font-mono)" }}>{icon}</span>
  <span>{label}</span>
  </button>
  ))}

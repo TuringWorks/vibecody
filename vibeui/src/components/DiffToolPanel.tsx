@@ -165,7 +165,7 @@ export function DiffToolPanel() {
  value={value}
  onChange={e => setter(e.target.value)}
  spellCheck={false}
- style={{ flex: 1, resize: "none", padding: "8px 10px", fontSize: 12, fontFamily: "monospace", lineHeight: 1.6, background: "var(--bg-primary)", color: "var(--text-primary)", border: "none", outline: "none" }}
+ style={{ flex: 1, resize: "none", padding: "8px 10px", fontSize: 12, fontFamily: "var(--font-mono)", lineHeight: 1.6, background: "var(--bg-primary)", color: "var(--text-primary)", border: "none", outline: "none" }}
  />
  </div>
  ))}
@@ -173,7 +173,7 @@ export function DiffToolPanel() {
  )}
 
  {/* Diff output */}
- <div style={{ flex: 1, overflow: "auto", fontFamily: "monospace", fontSize: 12 }}>
+ <div style={{ flex: 1, overflow: "auto", fontFamily: "var(--font-mono)", fontSize: 12 }}>
 
  {/* Unified patch */}
  {mode === "unified" && (
@@ -182,7 +182,7 @@ export function DiffToolPanel() {
  {[{ label: "Original (A)", value: left, setter: setLeft }, { label: "Modified (B)", value: right, setter: setRight }].map(({ label, value, setter }, idx) => (
  <div key={idx} style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
  <label style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)" }}>{label}</label>
- <textarea value={value} onChange={e => setter(e.target.value)} rows={5} spellCheck={false} style={{ resize: "vertical", padding: "6px 8px", fontSize: 11, fontFamily: "monospace", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none" }} />
+ <textarea value={value} onChange={e => setter(e.target.value)} rows={5} spellCheck={false} style={{ resize: "vertical", padding: "6px 8px", fontSize: 11, fontFamily: "var(--font-mono)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none" }} />
  </div>
  ))}
  </div>

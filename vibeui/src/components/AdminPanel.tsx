@@ -289,7 +289,7 @@ export function AdminPanel() {
                     background: p.action === 'allow' ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
                     color: p.action === 'allow' ? 'var(--success-color)' : 'var(--error-color)',
                   }}>{p.action.toUpperCase()}</span>
-                  <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{p.resource}</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>{p.resource}</span>
                   <div style={{ display: 'flex', gap: 3 }}>
                     {p.roles.map(r => (
                       <span key={r} style={{
@@ -325,7 +325,7 @@ export function AdminPanel() {
               }}>
                 <div style={{ fontWeight: 600, marginBottom: 4 }}>{m.name}</div>
                 {m.api_keys.map((k, i) => (
-                  <div key={i} style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--text-secondary)' }}>
+                  <div key={i} style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
                     {k.slice(0, 8)}...{k.slice(-4)}
                   </div>
                 ))}

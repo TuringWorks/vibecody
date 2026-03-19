@@ -158,7 +158,7 @@ export function WebhookPanel() {
                   <button onClick={() => handleDelete(wh.id)} style={{ ...smallBtn, color: 'var(--error-color)' }}>Delete</button>
                 </div>
               </div>
-              <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4, fontFamily: 'monospace' }}>
+              <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4, fontFamily: 'var(--font-mono)' }}>
                 {wh.url}
               </div>
               <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 6 }}>
@@ -259,7 +259,7 @@ export function WebhookPanel() {
                 </div>
               </div>
               {expandedLog === log.id && (
-                <div style={{ marginTop: 8, fontSize: 11, fontFamily: 'monospace' }}>
+                <div style={{ marginTop: 8, fontSize: 11, fontFamily: 'var(--font-mono)' }}>
                   <div style={{ marginBottom: 4, color: 'var(--text-secondary)' }}>Request:</div>
                   <pre style={{
                     background: 'var(--bg-tertiary)', padding: 8, borderRadius: 4,

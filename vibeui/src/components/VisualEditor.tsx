@@ -106,7 +106,7 @@ export function VisualEditor({ onEdit, workspacePath, iframeOffset = { top: 0, l
         }}
       >
         <div style={{ display: "flex", alignItems: "center", marginBottom: 8, gap: 6 }}>
-          <span style={{ fontSize: 11, opacity: 0.7, fontFamily: "monospace" }}>
+          <span style={{ fontSize: 11, opacity: 0.7, fontFamily: "var(--font-mono)" }}>
             {elementName}
           </span>
           <button
@@ -179,7 +179,7 @@ export function VisualEditor({ onEdit, workspacePath, iframeOffset = { top: 0, l
         {/* Computed styles preview */}
         <details style={{ fontSize: 11, opacity: 0.7 }}>
           <summary style={{ cursor: "pointer", marginBottom: 4 }}>Computed styles</summary>
-          <div style={{ fontFamily: "monospace", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2px 8px" }}>
+          <div style={{ fontFamily: "var(--font-mono)", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2px 8px" }}>
             {Object.entries(selected.styles).map(([k, v]) => (
               <React.Fragment key={k}>
                 <span style={{ opacity: 0.6 }}>{k}:</span>
@@ -190,7 +190,7 @@ export function VisualEditor({ onEdit, workspacePath, iframeOffset = { top: 0, l
         </details>
 
         {lastResult && (
-          <div style={{ marginTop: 8, fontSize: 12, color: "var(--success-color)", fontFamily: "monospace" }}>
+          <div style={{ marginTop: 8, fontSize: 12, color: "var(--success-color)", fontFamily: "var(--font-mono)" }}>
             {lastResult}
           </div>
         )}

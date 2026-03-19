@@ -198,7 +198,7 @@ export function DockerPanel({ workspacePath }: DockerPanelProps) {
  padding: 10, fontSize: 11, lineHeight: 1.5,
  minHeight: 60, maxHeight: 260,
  overflow: "auto", whiteSpace: "pre-wrap", wordBreak: "break-all",
- fontFamily: "monospace",
+ fontFamily: "var(--font-mono)",
  };
 
  return (
@@ -262,12 +262,12 @@ export function DockerPanel({ workspacePath }: DockerPanelProps) {
  >
  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
  <span>{statusIcon(c.status)}</span>
- <span style={{ fontWeight: 600, fontSize: 12, flex: 1, fontFamily: "monospace" }}>{c.name}</span>
+ <span style={{ fontWeight: 600, fontSize: 12, flex: 1, fontFamily: "var(--font-mono)" }}>{c.name}</span>
  <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{c.image}</span>
  <span style={{ fontSize: 11, color: statusColor(c.status) }}>{c.status.split(" ")[0]}</span>
  </div>
  {c.ports && (
- <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 3, fontFamily: "monospace" }}>
+ <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 3, fontFamily: "var(--font-mono)" }}>
  {c.ports}
  </div>
  )}
@@ -341,11 +341,11 @@ export function DockerPanel({ workspacePath }: DockerPanelProps) {
  background: "var(--bg-secondary)", border: "1px solid var(--border-color)",
  borderRadius: 6, fontSize: 12,
  }}>
- <span style={{ fontFamily: "monospace", flex: 1 }}>
+ <span style={{ fontFamily: "var(--font-mono)", flex: 1 }}>
  {img.repository}:{img.tag}
  </span>
  <span style={{ color: "var(--text-muted)", fontSize: 11 }}>{img.size}</span>
- <span style={{ color: "var(--text-muted)", fontSize: 10, fontFamily: "monospace" }}>{img.id.slice(0, 12)}</span>
+ <span style={{ color: "var(--text-muted)", fontSize: 10, fontFamily: "var(--font-mono)" }}>{img.id.slice(0, 12)}</span>
  </div>
  ))}
  </div>

@@ -541,7 +541,7 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
 
                   <div>
                     <div style={{ ...labelStyle, marginBottom: 4 }}>API Endpoints</div>
-                    <ul style={{ margin: 0, paddingLeft: 16, fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.8, fontFamily: "monospace" }}>
+                    <ul style={{ margin: 0, paddingLeft: 16, fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.8, fontFamily: "var(--font-mono)" }}>
                       {enhancedSpec.apiEndpoints.map((e, i) => <li key={i}>{e}</li>)}
                     </ul>
                   </div>
@@ -597,7 +597,7 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
                     <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
                       <Check size={14} /> {buildResult.message}
                     </div>
-                    <div style={{ fontSize: 11, color: "var(--text-secondary)", fontFamily: "monospace" }}>
+                    <div style={{ fontSize: 11, color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>
                       {buildResult.projectDir}
                     </div>
                     <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
@@ -617,7 +617,7 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
                     <div key={h.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
                       <FileText size={12} color="var(--text-secondary)" />
                       <span style={{ color: "var(--text-primary)", fontWeight: 500 }}>{h.name}</span>
-                      <span style={{ color: "var(--text-secondary)", fontFamily: "monospace", fontSize: 10 }}>{h.templateId}</span>
+                      <span style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono)", fontSize: 10 }}>{h.templateId}</span>
                       <span style={{ color: "var(--text-secondary)", fontSize: 10, marginLeft: "auto" }}>{h.files.length} files</span>
                     </div>
                   ))}
@@ -688,7 +688,7 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
               <div style={cardStyle}>
                 <div style={{ ...labelStyle, marginBottom: 8 }}>Import Template (JSON)</div>
                 <textarea
-                  style={{ ...inputStyle, minHeight: 80, fontFamily: "monospace", resize: "vertical" }}
+                  style={{ ...inputStyle, minHeight: 80, fontFamily: "var(--font-mono)", resize: "vertical" }}
                   placeholder='Paste template JSON here...'
                   value={importJson}
                   onChange={(e) => setImportJson(e.target.value)}
@@ -877,7 +877,7 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
                       {f.status === "generated" && <Check size={12} color="var(--success)" />}
                       {f.status === "error" && <AlertCircle size={12} color="var(--error)" />}
                       <FileText size={12} color="var(--text-secondary)" />
-                      <span style={{ color: "var(--text-primary)", fontFamily: "monospace", fontSize: 11 }}>{f.path}</span>
+                      <span style={{ color: "var(--text-primary)", fontFamily: "var(--font-mono)", fontSize: 11 }}>{f.path}</span>
                     </div>
                   ))}
                 </div>
@@ -994,13 +994,13 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
                 {envVars.map((v, i) => (
                   <div key={i} style={{ display: "flex", gap: 6, alignItems: "center" }}>
                     <input
-                      style={{ ...inputStyle, width: "40%", fontFamily: "monospace", fontSize: 11 }}
+                      style={{ ...inputStyle, width: "40%", fontFamily: "var(--font-mono)", fontSize: 11 }}
                       placeholder="KEY"
                       value={v.key}
                       onChange={(e) => handleUpdateEnvVar(i, "key", e.target.value)}
                     />
                     <input
-                      style={{ ...inputStyle, flex: 1, fontFamily: "monospace", fontSize: 11 }}
+                      style={{ ...inputStyle, flex: 1, fontFamily: "var(--font-mono)", fontSize: 11 }}
                       placeholder="value"
                       value={v.value}
                       onChange={(e) => handleUpdateEnvVar(i, "value", e.target.value)}

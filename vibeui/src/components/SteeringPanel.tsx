@@ -267,7 +267,7 @@ export default function SteeringPanel({ workspaceRoot }: SteeringPanelProps) {
  color: "var(--text-primary)",
  border: "1px solid var(--bg-secondary)",
  fontSize: 13,
- fontFamily: "monospace",
+ fontFamily: "var(--font-mono)",
  lineHeight: 1.6,
  minHeight: 200,
  }}

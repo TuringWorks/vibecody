@@ -179,7 +179,7 @@ export function WebSocketPanel() {
  >
  <div style={{ flex: 1, minWidth: 0 }}>
  <div style={{ fontSize: 11, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.label}</div>
- <div style={{ fontSize: 9, color: "var(--text-muted)", fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.url}</div>
+ <div style={{ fontSize: 9, color: "var(--text-muted)", fontFamily: "var(--font-mono)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.url}</div>
  </div>
  <button
  onClick={e => { e.stopPropagation(); removeConfig(c.id); }}
@@ -216,7 +216,7 @@ export function WebSocketPanel() {
  onChange={e => setUrl(e.target.value)}
  onKeyDown={e => e.key === "Enter" && status !== "open" && connect()}
  placeholder="wss://echo.websocket.org"
- style={{ flex: 1, padding: "5px 10px", fontSize: 12, fontFamily: "monospace", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none", minWidth: 200 }}
+ style={{ flex: 1, padding: "5px 10px", fontSize: 12, fontFamily: "var(--font-mono)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none", minWidth: 200 }}
  />
  <input
  value={protocols}
@@ -261,7 +261,7 @@ export function WebSocketPanel() {
  </div>
 
  {/* Message log */}
- <div ref={logRef} style={{ flex: 1, overflowY: "auto", padding: "6px 0", fontFamily: "monospace" }}>
+ <div ref={logRef} style={{ flex: 1, overflowY: "auto", padding: "6px 0", fontFamily: "var(--font-mono)" }}>
  {filtered.length === 0 && (
  <div style={{ padding: 24, textAlign: "center", color: "var(--text-muted)", fontSize: 12 }}>
  {status === "idle" ? "Enter a WebSocket URL and click Connect" : "No messages yet"}
@@ -289,7 +289,7 @@ export function WebSocketPanel() {
  onKeyDown={e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); send(); } }}
  placeholder='{"type":"hello"} — Ctrl+Enter to send'
  rows={2}
- style={{ flex: 1, padding: "6px 10px", fontSize: 11, fontFamily: "monospace", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none", resize: "none" }}
+ style={{ flex: 1, padding: "6px 10px", fontSize: 11, fontFamily: "var(--font-mono)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none", resize: "none" }}
  />
  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
  <button

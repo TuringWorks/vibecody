@@ -216,7 +216,7 @@ export function CodeMetricsPanel({ workspacePath }: CodeMetricsPanelProps) {
  <span style={{ width: 10, height: 10, borderRadius: "50%", background: color, flexShrink: 0, display: "inline-block" }} />
  <span style={{ fontSize: 12, fontWeight: 600, flex: 1 }}>{lang.language}</span>
  <span style={{ fontSize: 10, color: "var(--text-muted)" }}>{lang.file_count} files</span>
- <span style={{ fontSize: 11, fontFamily: "monospace", fontWeight: 600 }}>{fmt(lang.lines)} lines</span>
+ <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", fontWeight: 600 }}>{fmt(lang.lines)} lines</span>
  <span style={{ fontSize: 10, color: "var(--text-muted)", width: 36, textAlign: "right" }}>{pct(lang.lines, metrics.total_lines)}%</span>
  </div>
  <Bar value={lang.lines} max={maxLines} color={color} />
@@ -239,10 +239,10 @@ export function CodeMetricsPanel({ workspacePath }: CodeMetricsPanelProps) {
  </div>
  {metrics.largest_files.map((f, i) => (
  <div key={f.path} style={{ display: "grid", gridTemplateColumns: "1fr 70px 60px", gap: 8, padding: "5px 8px", fontSize: 11, borderBottom: "1px solid var(--border-color)", alignItems: "center" }}>
- <span style={{ fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={f.path}>
+ <span style={{ fontFamily: "var(--font-mono)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={f.path}>
  <span style={{ color: "var(--text-muted)", marginRight: 6 }}>{i + 1}.</span>{f.path}
  </span>
- <span style={{ textAlign: "right", fontFamily: "monospace" }}>{fmt(f.lines)}</span>
+ <span style={{ textAlign: "right", fontFamily: "var(--font-mono)" }}>{fmt(f.lines)}</span>
  <span style={{ textAlign: "right", fontSize: 10, color: LANG_COLORS[f.language] ?? "#6366f1" }}>{f.language}</span>
  </div>
  ))}
@@ -265,11 +265,11 @@ export function CodeMetricsPanel({ workspacePath }: CodeMetricsPanelProps) {
  return (
  <div key={f.path} style={{ padding: "5px 8px", borderBottom: "1px solid var(--border-color)" }}>
  <div style={{ display: "grid", gridTemplateColumns: "1fr 80px 80px", gap: 8, fontSize: 11, alignItems: "center", marginBottom: 3 }}>
- <span style={{ fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={f.path}>
+ <span style={{ fontFamily: "var(--font-mono)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={f.path}>
  <span style={{ color: "var(--text-muted)", marginRight: 6 }}>{i + 1}.</span>{f.path}
  </span>
- <span style={{ textAlign: "right", fontFamily: "monospace", fontWeight: 600, color }}>{fmt(f.complexity)}</span>
- <span style={{ textAlign: "right", fontFamily: "monospace", fontSize: 10, color: "var(--text-muted)" }}>{fmt(f.lines)}</span>
+ <span style={{ textAlign: "right", fontFamily: "var(--font-mono)", fontWeight: 600, color }}>{fmt(f.complexity)}</span>
+ <span style={{ textAlign: "right", fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-muted)" }}>{fmt(f.lines)}</span>
  </div>
  <div style={{ height: 4, background: "var(--bg-primary)", borderRadius: 2, overflow: "hidden" }}>
  <div style={{ width: `${bar}%`, height: "100%", background: color, borderRadius: 2 }} />

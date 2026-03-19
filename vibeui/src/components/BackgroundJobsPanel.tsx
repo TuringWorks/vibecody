@@ -242,7 +242,7 @@ export function BackgroundJobsPanel({ daemonUrl = 'http://localhost:7878' }: Bac
  )}
  {liveEvents[job.session_id] && liveEvents[job.session_id].length > 0 && (
  <div style={{
- fontSize: '10px', fontFamily: 'monospace', maxHeight: '120px',
+ fontSize: '10px', fontFamily: 'var(--font-mono)', maxHeight: '120px',
  overflowY: 'auto', background: 'var(--bg-tertiary)', padding: '4px 6px',
  borderRadius: '4px', color: 'var(--text-secondary)',
  }}>

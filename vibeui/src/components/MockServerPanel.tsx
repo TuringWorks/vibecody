@@ -229,7 +229,7 @@ export function MockServerPanel() {
               placeholder='Response body JSON...'
               value={addBody}
               onChange={(e) => setAddBody(e.target.value)}
-              style={{ ...inputStyle, fontFamily: "monospace", fontSize: 10 }}
+              style={{ ...inputStyle, fontFamily: "var(--font-mono)", fontSize: 10 }}
             />
 
             {/* Route list */}
@@ -244,7 +244,7 @@ export function MockServerPanel() {
                 }}>
                   {r.method}
                 </span>
-                <span style={{ fontFamily: "monospace", color: "var(--text-info)" }}>{r.path}</span>
+                <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-info)" }}>{r.path}</span>
                 <span style={{ fontSize: 10, opacity: 0.5 }}>{r.status}</span>
                 <div style={{ flex: 1 }} />
                 <span style={{ fontSize: 10, opacity: 0.5, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -279,7 +279,7 @@ export function MockServerPanel() {
                 display: "flex", gap: 8, alignItems: "center", padding: "4px 6px",
                 borderBottom: "1px solid var(--border-color)", fontSize: 11,
               }}>
-                <span style={{ fontSize: 9, opacity: 0.4, fontFamily: "monospace" }}>
+                <span style={{ fontSize: 9, opacity: 0.4, fontFamily: "var(--font-mono)" }}>
                   {new Date(r.timestamp).toLocaleTimeString()}
                 </span>
                 <span style={{
@@ -288,7 +288,7 @@ export function MockServerPanel() {
                 }}>
                   {r.method}
                 </span>
-                <span style={{ fontFamily: "monospace", color: "var(--text-info)" }}>{r.path}</span>
+                <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-info)" }}>{r.path}</span>
                 <div style={{ flex: 1 }} />
                 <span style={{
                   fontSize: 9, padding: "1px 6px", borderRadius: 3,
@@ -313,7 +313,7 @@ export function MockServerPanel() {
                 placeholder="Path to OpenAPI spec (JSON/YAML)..."
                 value={specPath}
                 onChange={(e) => setSpecPath(e.target.value)}
-                style={{ ...inputStyle, flex: 1, fontFamily: "monospace" }}
+                style={{ ...inputStyle, flex: 1, fontFamily: "var(--font-mono)" }}
               />
               <button onClick={handleImport} disabled={importing} style={{ ...btnStyle, color: "var(--text-info)" }}>
                 {importing ? "Importing..." : "Generate Mocks"}
@@ -325,7 +325,7 @@ export function MockServerPanel() {
                   Generated {importResult.length} routes:
                 </div>
                 {importResult.map((r) => (
-                  <div key={r.id} style={{ fontSize: 10, padding: "2px 0", fontFamily: "monospace" }}>
+                  <div key={r.id} style={{ fontSize: 10, padding: "2px 0", fontFamily: "var(--font-mono)" }}>
                     <span style={{ color: methodColor[r.method] || "var(--text-muted)" }}>{r.method}</span>{" "}
                     <span style={{ color: "var(--text-info)" }}>{r.path}</span>{" "}
                     <span style={{ opacity: 0.5 }}>{r.status}</span>

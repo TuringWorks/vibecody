@@ -53,7 +53,7 @@ const FullStackGenPanel: React.FC = () => {
   const tabStyle = (active: boolean): React.CSSProperties => ({
     padding: "6px 14px", cursor: "pointer", border: "none",
     backgroundColor: active ? "var(--accent-blue)" : "transparent",
-    color: active ? "white" : "var(--text-primary)",
+    color: active ? "var(--btn-primary-fg)" : "var(--text-primary)",
     borderRadius: "4px", fontSize: 12,
   });
   const inputStyle: React.CSSProperties = {
@@ -64,7 +64,7 @@ const FullStackGenPanel: React.FC = () => {
   };
   const btnStyle: React.CSSProperties = {
     padding: "6px 14px", cursor: "pointer", border: "none", borderRadius: "4px",
-    backgroundColor: "var(--accent-blue)", color: "white", fontSize: 12,
+    backgroundColor: "var(--accent-blue)", color: "var(--btn-primary-fg)", fontSize: 12,
   };
   const cardStyle: React.CSSProperties = {
     padding: "10px", marginBottom: "8px", borderRadius: "4px",
@@ -80,7 +80,7 @@ const FullStackGenPanel: React.FC = () => {
   };
   const badgeStyle = (color: string): React.CSSProperties => ({
     display: "inline-block", padding: "2px 8px", borderRadius: "10px",
-    fontSize: "11px", fontWeight: 600, backgroundColor: color, color: "white",
+    fontSize: "11px", fontWeight: 600, backgroundColor: color, color: "var(--btn-primary-fg)",
   });
 
   const handleGenerate = async () => {
@@ -296,7 +296,7 @@ const FullStackGenPanel: React.FC = () => {
               flex: 1, width: "100%", boxSizing: "border-box",
               backgroundColor: "var(--bg-tertiary)", color: "var(--text-primary)",
               border: "1px solid var(--border-color)", borderRadius: "4px",
-              fontFamily: "monospace", fontSize: 12, padding: "10px",
+              fontFamily: "var(--font-mono)", fontSize: 12, padding: "10px",
               resize: "none", lineHeight: 1.5,
             }}
             value={editContent}

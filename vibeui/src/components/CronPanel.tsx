@@ -212,7 +212,7 @@ export function CronPanel() {
  }}
  >
  <div style={{ fontSize: 11, fontWeight: expr === p.expr ? 600 : 400 }}>{p.label}</div>
- <div style={{ fontSize: 10, fontFamily: "monospace", color: "var(--accent-primary)" }}>{p.expr}</div>
+ <div style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--accent-primary)" }}>{p.expr}</div>
  </button>
  ))}
  </div>
@@ -230,7 +230,7 @@ export function CronPanel() {
  onChange={e => setExpr(e.target.value)}
  spellCheck={false}
  style={{
- flex: 1, padding: "8px 12px", fontSize: 16, fontFamily: "monospace", fontWeight: 700,
+ flex: 1, padding: "8px 12px", fontSize: 16, fontFamily: "var(--font-mono)", fontWeight: 700,
  background: "var(--bg-secondary)", border: `1px solid ${error ? "var(--text-danger)" : "var(--border-color)"}`,
  borderRadius: 6, color: error ? "var(--text-danger)" : "var(--text-info)", outline: "none",
  }}
@@ -258,7 +258,7 @@ export function CronPanel() {
  onChange={e => setPart(i, e.target.value)}
  spellCheck={false}
  style={{
- padding: "5px 8px", fontSize: 13, fontFamily: "monospace", fontWeight: 600, textAlign: "center",
+ padding: "5px 8px", fontSize: 13, fontFamily: "var(--font-mono)", fontWeight: 600, textAlign: "center",
  background: "var(--bg-secondary)", border: `1px solid ${parts[i] && !validatePart(parts[i], f) ? "var(--text-danger)" : "var(--border-color)"}`,
  borderRadius: 4, color: "var(--text-primary)", outline: "none",
  }}
@@ -294,7 +294,7 @@ export function CronPanel() {
  {/* Field reference */}
  <div style={{ padding: "10px 14px", background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)" }}>
  <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 8 }}>Syntax Reference</div>
- <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 20px", fontSize: 11, fontFamily: "monospace" }}>
+ <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 20px", fontSize: 11, fontFamily: "var(--font-mono)" }}>
  {[
  ["*", "any value"],
  ["*/n", "every n steps"],
@@ -317,7 +317,7 @@ export function CronPanel() {
  <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 8 }}>Next {runs.length} Scheduled Runs</div>
  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
  {runs.map((d, i) => (
- <div key={i} style={{ display: "flex", gap: 12, padding: "5px 10px", background: i === 0 ? "rgba(99,102,241,0.1)" : "var(--bg-secondary)", borderRadius: 4, border: `1px solid ${i === 0 ? "var(--accent-primary)" : "var(--border-color)"}`, fontSize: 12, fontFamily: "monospace" }}>
+ <div key={i} style={{ display: "flex", gap: 12, padding: "5px 10px", background: i === 0 ? "rgba(99,102,241,0.1)" : "var(--bg-secondary)", borderRadius: 4, border: `1px solid ${i === 0 ? "var(--accent-primary)" : "var(--border-color)"}`, fontSize: 12, fontFamily: "var(--font-mono)" }}>
  <span style={{ color: "var(--text-muted)", minWidth: 20 }}>#{i + 1}</span>
  <span style={{ color: i === 0 ? "var(--text-info)" : "var(--text-primary)", fontWeight: i === 0 ? 600 : 400 }}>
  {d.toLocaleString([], { weekday: "short", year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}

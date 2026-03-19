@@ -77,7 +77,7 @@ const DEMO_ITERATIONS: ReviewIteration[] = [
 // ---------------------------------------------------------------------------
 
 const severityColors: Record<string, string> = {
-  info: 'var(--vp-c-text-2)',
+  info: 'var(--text-secondary)',
   warning: 'var(--warning-color)',
   error: 'var(--error-color)',
   critical: 'var(--error-color)',
@@ -100,14 +100,14 @@ const SelfReviewPanel: React.FC = () => {
   const totalFindings = iterations.reduce((sum, it) => sum + it.checks.reduce((s, c) => s + c.findings.length, 0), 0);
 
   return (
-    <div style={{ padding: 16, color: 'var(--vp-c-text-1)', background: 'var(--vp-c-bg)', minHeight: '100%' }}>
+    <div style={{ padding: 16, color: 'var(--text-primary)', background: 'var(--bg-primary)', minHeight: '100%' }}>
       <h2 style={{ margin: '0 0 12px' }}>Agent Self-Review Gate</h2>
 
       {/* Status banner */}
       <div style={{
         padding: '10px 16px', borderRadius: 8, marginBottom: 16,
         background: latestIteration?.passed ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-        border: `1px solid ${latestIteration?.passed ? 'var(--vp-c-green-1)' : 'var(--vp-c-red-1)'}`,
+        border: `1px solid ${latestIteration?.passed ? 'var(--success-color)' : 'var(--error-color)'}`,
         display: 'flex', alignItems: 'center', gap: 12,
       }}>
         <span style={{ fontSize: 24 }}>{latestIteration?.passed ? '\u2713' : '\u2717'}</span>
@@ -115,7 +115,7 @@ const SelfReviewPanel: React.FC = () => {
           <div style={{ fontWeight: 700 }}>
             {latestIteration?.passed ? 'All checks passed' : 'Checks failed — agent iterating'}
           </div>
-          <div style={{ fontSize: 12, color: 'var(--vp-c-text-2)' }}>
+          <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
             {iterations.length} iteration(s) · {totalFindings} total findings
           </div>
         </div>
@@ -129,20 +129,20 @@ const SelfReviewPanel: React.FC = () => {
           { label: 'Checks', value: config.checks.length },
           { label: 'Findings', value: totalFindings },
         ].map((s) => (
-          <div key={s.label} style={{ background: 'var(--vp-c-bg-soft)', padding: '6px 14px', borderRadius: 6, textAlign: 'center' }}>
-            <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--vp-c-brand)' }}>{s.value}</div>
-            <div style={{ fontSize: 11, color: 'var(--vp-c-text-2)' }}>{s.label}</div>
+          <div key={s.label} style={{ background: 'var(--bg-secondary)', padding: '6px 14px', borderRadius: 6, textAlign: 'center' }}>
+            <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "var(--font-mono)", color: 'var(--accent-color)' }}>{s.value}</div>
+            <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{s.label}</div>
           </div>
         ))}
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 12, borderBottom: '1px solid var(--vp-c-divider)' }}>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 12, borderBottom: '1px solid var(--border-color)' }}>
         {(['results', 'config', 'report'] as const).map((t) => (
           <button key={t} onClick={() => setTab(t)} style={{
             padding: '6px 16px', border: 'none', cursor: 'pointer', fontSize: 13,
-            background: tab === t ? 'var(--vp-c-brand)' : 'transparent',
-            color: tab === t ? 'white' : 'var(--vp-c-text-2)', borderRadius: '6px 6px 0 0',
+            background: tab === t ? 'var(--accent-color)' : 'transparent',
+            color: tab === t ? 'white' : 'var(--text-secondary)', borderRadius: '6px 6px 0 0',
           }}>
             {t.charAt(0).toUpperCase() + t.slice(1)}
           </button>
@@ -154,15 +154,15 @@ const SelfReviewPanel: React.FC = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {iterations.map((iter) => (
             <div key={iter.iteration} style={{
-              background: 'var(--vp-c-bg-soft)', padding: 12, borderRadius: 8,
-              border: `1px solid ${iter.passed ? 'var(--vp-c-green-1)' : 'var(--vp-c-red-1)'}`,
+              background: 'var(--bg-secondary)', padding: 12, borderRadius: 8,
+              border: `1px solid ${iter.passed ? 'var(--success-color)' : 'var(--error-color)'}`,
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                 <strong>Iteration {iter.iteration}</strong>
                 <span style={{
                   fontSize: 11, padding: '1px 8px', borderRadius: 3,
-                  background: iter.passed ? 'var(--vp-c-green-1)' : 'var(--vp-c-red-1)',
-                  color: 'white', fontWeight: 600,
+                  background: iter.passed ? 'var(--success-color)' : 'var(--error-color)',
+                  color: 'var(--btn-primary-fg)', fontWeight: 600,
                 }}>
                   {iter.passed ? 'PASS' : 'FAIL'}
                 </span>
@@ -180,16 +180,16 @@ const SelfReviewPanel: React.FC = () => {
                       <span style={{
                         display: 'inline-block', width: 22, height: 22, lineHeight: '22px', textAlign: 'center',
                         borderRadius: 4, fontSize: 10, fontWeight: 700,
-                        background: check.passed ? 'var(--vp-c-green-1)' : 'var(--vp-c-red-1)', color: 'white',
+                        background: check.passed ? 'var(--success-color)' : 'var(--error-color)', color: 'var(--btn-primary-fg)',
                       }}>{checkIcons[check.kind] || check.kind[0].toUpperCase()}</span>
                       <span style={{ fontWeight: 600, fontSize: 13 }}>{check.kind}</span>
-                      <span style={{ fontSize: 11, color: 'var(--vp-c-text-3)', marginLeft: 'auto' }}>{check.durationMs}ms</span>
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 'auto' }}>{check.durationMs}ms</span>
                     </div>
                     {check.command && (
-                      <div style={{ fontSize: 10, fontFamily: 'monospace', color: 'var(--vp-c-text-3)', marginTop: 4 }}>{check.command}</div>
+                      <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', marginTop: 4 }}>{check.command}</div>
                     )}
                     {check.findings.length > 0 && (
-                      <div style={{ fontSize: 11, color: 'var(--vp-c-text-2)', marginTop: 4 }}>
+                      <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>
                         {check.findings.length} finding(s)
                       </div>
                     )}
@@ -201,10 +201,10 @@ const SelfReviewPanel: React.FC = () => {
               {iter.checks.some(c => c.findings.length > 0) && (
                 <div style={{ fontSize: 12 }}>
                   {iter.checks.filter(c => c.findings.length > 0).flatMap(c => c.findings).map((f, i) => (
-                    <div key={i} style={{ display: 'flex', gap: 6, padding: '3px 0', borderBottom: '1px solid var(--vp-c-divider)' }}>
+                    <div key={i} style={{ display: 'flex', gap: 6, padding: '3px 0', borderBottom: '1px solid var(--border-color)' }}>
                       <span style={{ color: severityColors[f.severity], fontWeight: 600, fontSize: 11, minWidth: 55 }}>{f.severity}</span>
-                      <span style={{ color: 'var(--vp-c-text-1)' }}>{f.message}</span>
-                      {f.file && <span style={{ color: 'var(--vp-c-text-3)', fontFamily: 'monospace', marginLeft: 'auto', fontSize: 11 }}>{f.file}{f.line ? `:${f.line}` : ''}</span>}
+                      <span style={{ color: 'var(--text-primary)' }}>{f.message}</span>
+                      {f.file && <span style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginLeft: 'auto', fontSize: 11 }}>{f.file}{f.line ? `:${f.line}` : ''}</span>}
                     </div>
                   ))}
                 </div>
@@ -216,7 +216,7 @@ const SelfReviewPanel: React.FC = () => {
 
       {/* Config tab */}
       {tab === 'config' && (
-        <div style={{ background: 'var(--vp-c-bg-soft)', padding: 16, borderRadius: 8 }}>
+        <div style={{ background: 'var(--bg-secondary)', padding: 16, borderRadius: 8 }}>
           <h3 style={{ margin: '0 0 12px' }}>Self-Review Configuration</h3>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <label style={{ fontSize: 12 }}>
@@ -227,11 +227,11 @@ const SelfReviewPanel: React.FC = () => {
             </label>
             <label style={{ fontSize: 12 }}>
               Max retries
-              <input type="number" value={config.maxRetries} min={1} max={10} onChange={(e) => setConfig({ ...config, maxRetries: parseInt(e.target.value) || 3 })} style={{ width: '100%', padding: 6, background: 'var(--vp-c-bg)', color: 'var(--vp-c-text-1)', border: '1px solid var(--vp-c-divider)', borderRadius: 4 }} />
+              <input type="number" value={config.maxRetries} min={1} max={10} onChange={(e) => setConfig({ ...config, maxRetries: parseInt(e.target.value) || 3 })} style={{ width: '100%', padding: 6, background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4 }} />
             </label>
             <label style={{ fontSize: 12 }}>
               Min blocking severity
-              <select value={config.minBlockingSeverity} onChange={(e) => setConfig({ ...config, minBlockingSeverity: e.target.value })} style={{ width: '100%', padding: 6, background: 'var(--vp-c-bg)', color: 'var(--vp-c-text-1)', border: '1px solid var(--vp-c-divider)', borderRadius: 4 }}>
+              <select value={config.minBlockingSeverity} onChange={(e) => setConfig({ ...config, minBlockingSeverity: e.target.value })} style={{ width: '100%', padding: 6, background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4 }}>
                 <option value="info">Info</option>
                 <option value="warning">Warning</option>
                 <option value="error">Error</option>
@@ -242,7 +242,7 @@ const SelfReviewPanel: React.FC = () => {
           <h4 style={{ margin: '16px 0 8px' }}>Active Checks</h4>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {['build', 'lint', 'test', 'security', 'format', 'typecheck', 'diff_review'].map((check) => (
-              <label key={check} style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 4, background: 'var(--vp-c-bg)', padding: '4px 10px', borderRadius: 4 }}>
+              <label key={check} style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 4, background: 'var(--bg-primary)', padding: '4px 10px', borderRadius: 4 }}>
                 <input type="checkbox" checked={config.checks.includes(check)} onChange={(e) => {
                   if (e.target.checked) {
                     setConfig({ ...config, checks: [...config.checks, check] });
@@ -254,7 +254,7 @@ const SelfReviewPanel: React.FC = () => {
               </label>
             ))}
           </div>
-          <div style={{ marginTop: 16, padding: 12, background: 'var(--vp-c-bg)', borderRadius: 6, fontFamily: 'monospace', fontSize: 11, color: 'var(--vp-c-text-2)' }}>
+          <div style={{ marginTop: 16, padding: 12, background: 'var(--bg-primary)', borderRadius: 6, fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-secondary)' }}>
             <div># config.toml</div>
             <div>[agent]</div>
             <div>self_review = {config.enabled.toString()}</div>
@@ -268,7 +268,7 @@ const SelfReviewPanel: React.FC = () => {
 
       {/* Report tab */}
       {tab === 'report' && (
-        <div style={{ fontFamily: 'monospace', fontSize: 12, background: 'var(--vp-c-bg-soft)', padding: 16, borderRadius: 8, whiteSpace: 'pre-wrap', color: 'var(--vp-c-text-1)', lineHeight: 1.6 }}>
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, background: 'var(--bg-secondary)', padding: 16, borderRadius: 8, whiteSpace: 'pre-wrap', color: 'var(--text-primary)', lineHeight: 1.6 }}>
 {`# Self-Review Report
 
 **Status**: ${latestIteration?.passed ? 'PASSED' : 'FAILED'}

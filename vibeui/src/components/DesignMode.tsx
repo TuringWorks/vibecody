@@ -314,7 +314,7 @@ root.render(React.createElement(${componentName}));
         <div>
           <div style={{ padding: 12, background: "var(--bg-secondary)", borderRadius: 8, border: "1px solid var(--border-color)", marginBottom: 12 }}>
             <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 4 }}>Component</div>
-            <div style={{ fontSize: 14, fontFamily: "monospace", fontWeight: 600 }}>
+            <div style={{ fontSize: 14, fontFamily: "var(--font-mono)", fontWeight: 600 }}>
               {selectedElement.reactComponent ?? `<${selectedElement.tagName}>`}
             </div>
             <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 6, wordBreak: "break-all" }}>
@@ -371,7 +371,7 @@ root.render(React.createElement(${componentName}));
         <div style={{ marginTop: 16, padding: 12, background: "var(--bg-secondary)", borderRadius: 8, border: "1px solid var(--border-color)" }}>
           <div style={{ fontSize: 13, color: "var(--text-success)", marginBottom: 8, fontWeight: 600 }}>Generated {figmaResult.length} file(s)</div>
           {figmaResult.map((f) => (
-            <div key={f.path} style={{ fontSize: 12, fontFamily: "monospace", color: "var(--text-secondary)", padding: "2px 0" }}>{f.path}</div>
+            <div key={f.path} style={{ fontSize: 12, fontFamily: "var(--font-mono)", color: "var(--text-secondary)", padding: "2px 0" }}>{f.path}</div>
           ))}
         </div>
       )}

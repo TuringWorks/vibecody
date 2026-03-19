@@ -61,7 +61,7 @@ function NodeTree({ nodes, depth = 0 }: { nodes: AstNode[]; depth?: number }) {
         <div key={n.name + n.line}>
           <div style={{ display: "flex", gap: 8, padding: "3px 8px", paddingLeft: 8 + depth * 16, fontSize: 11, alignItems: "center" }}>
             <span style={{ color: kindColor[n.kind], fontSize: 9, fontWeight: 600, minWidth: 50 }}>{n.kind}</span>
-            <span style={{ color: "var(--text-primary)", fontFamily: "monospace" }}>{n.name}</span>
+            <span style={{ color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}>{n.name}</span>
             <span style={{ color: "var(--text-muted)", fontSize: 10, marginLeft: "auto" }}>L{n.line}</span>
           </div>
           {n.children && <NodeTree nodes={n.children} depth={depth + 1} />}
@@ -156,7 +156,7 @@ export default function AstEditPanel() {
         {tab === "files" && !loading && files.map(f => (
           <div key={f.path} style={{ background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)", overflow: "hidden" }}>
             <div style={{ padding: "6px 10px", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontSize: 12, fontWeight: 600, fontFamily: "monospace", color: "var(--text-primary)" }}>{f.path}</span>
+              <span style={{ fontSize: 12, fontWeight: 600, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{f.path}</span>
               <span style={{ fontSize: 10, color: "var(--text-muted)" }}>{f.language} | {f.nodes.length} top-level</span>
             </div>
             <NodeTree nodes={f.nodes} />
@@ -171,7 +171,7 @@ export default function AstEditPanel() {
             style={{ padding: 10, background: selectedEdit === e.id ? "var(--accent-bg, rgba(99,102,241,0.15))" : "var(--bg-secondary)", borderRadius: 6, border: `1px solid ${selectedEdit === e.id ? "var(--accent-primary)" : "var(--border-color)"}`, cursor: "pointer" }}>
             <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
               <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 3, background: "rgba(99,102,241,0.15)", color: "var(--text-info)", fontWeight: 600 }}>{e.operation}</span>
-              <span style={{ fontSize: 11, fontFamily: "monospace", color: "var(--text-primary)" }}>{e.target}</span>
+              <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{e.target}</span>
               <span style={{ fontSize: 10, color: "var(--text-muted)", marginLeft: "auto" }}>{e.file}</span>
             </div>
             <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 6 }}>{e.description}</div>
@@ -198,11 +198,11 @@ export default function AstEditPanel() {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <div>
                 <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-danger)", marginBottom: 4 }}>Before</div>
-                <pre style={{ padding: 10, background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)", fontSize: 11, fontFamily: "monospace", color: "var(--text-primary)", whiteSpace: "pre-wrap", margin: 0 }}>{selected.diffBefore}</pre>
+                <pre style={{ padding: 10, background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)", fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--text-primary)", whiteSpace: "pre-wrap", margin: 0 }}>{selected.diffBefore}</pre>
               </div>
               <div>
                 <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-success)", marginBottom: 4 }}>After</div>
-                <pre style={{ padding: 10, background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)", fontSize: 11, fontFamily: "monospace", color: "var(--text-primary)", whiteSpace: "pre-wrap", margin: 0 }}>{selected.diffAfter}</pre>
+                <pre style={{ padding: 10, background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)", fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--text-primary)", whiteSpace: "pre-wrap", margin: 0 }}>{selected.diffAfter}</pre>
               </div>
             </div>
           </div>

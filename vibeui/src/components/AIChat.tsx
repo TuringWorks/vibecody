@@ -450,7 +450,7 @@ export function AIChat({ provider, context, fileTree, currentFile, onFileAction,
  {isLoading && (
  <button
  onClick={stopMessage}
- style={{ fontSize: "11px", padding: "2px 8px", background: "var(--text-danger)", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}
+ style={{ fontSize: "11px", padding: "2px 8px", background: "var(--text-danger)", color: "var(--btn-primary-fg)", border: "none", borderRadius: "4px", cursor: "pointer" }}
  title="Stop generation"
  >
  Stop

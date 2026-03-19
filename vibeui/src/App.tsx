@@ -1399,7 +1399,7 @@ function App() {
                       <div style={{ fontSize: '12px', color: 'var(--accent-blue)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {result.path.split('/').pop()} <span style={{ color: 'var(--text-secondary)' }}>:{result.line_number}</span>
                       </div>
-                      <div style={{ fontSize: '13px', whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>
+                      <div style={{ fontSize: '13px', whiteSpace: 'pre-wrap', fontFamily: 'var(--font-mono)' }}>
                         {result.line_content.trim()}
                       </div>
                     </div>

@@ -1275,7 +1275,7 @@ function BacklogTab() {
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
-                            <span style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "monospace" }}>#{idx + 1}</span>
+                            <span style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>#{idx + 1}</span>
                             <span style={{ fontWeight: 600, fontSize: 13, color: "var(--text-primary)" }}>{s.title}</span>
                           </div>
                           <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 4, lineHeight: 1.4 }}>{s.description}</div>
@@ -1664,7 +1664,7 @@ function MetricsTab() {
         ].map(({ label, value, color }) => (
           <div key={label} style={{ background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "12px 18px", border: "1px solid var(--border-color)", minWidth: 130, boxShadow: "var(--card-shadow)" }}>
             <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>{label}</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color }}>{value}</div>
+            <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--font-mono)", color }}>{value}</div>
           </div>
         ))}
       </div>
@@ -2067,7 +2067,7 @@ function AiCoachTab() {
                 return (
                   <div key={level} style={{ ...cardBaseStyle, flex: 1, textAlign: "center" }}>
                     <div style={{ width: 24, height: 24, borderRadius: "50%", background: riskColor(level), margin: "0 auto 6px" }} />
-                    <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)" }}>{count}</div>
+                    <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{count}</div>
                     <div style={{ fontSize: 11, color: "var(--text-secondary)", textTransform: "capitalize" }}>{level}</div>
                   </div>
                 );

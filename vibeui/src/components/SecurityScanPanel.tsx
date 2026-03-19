@@ -325,7 +325,7 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
                       <span
                         onClick={(e) => { e.stopPropagation(); handleFileClick(f.file, f.line); }}
                         style={{
-                          fontSize: 10, color: "var(--accent-blue)", fontFamily: "monospace",
+                          fontSize: 10, color: "var(--accent-blue)", fontFamily: "var(--font-mono)",
                           cursor: onOpenFile ? "pointer" : "default",
                           textDecoration: onOpenFile ? "underline" : "none",
                         }}
@@ -398,7 +398,7 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
                 { label: "Suppressed", value: suppressedFindings.length, color: "var(--text-secondary)" },
               ].map(({ label, value, color }) => (
                 <div key={label} style={{ background: "var(--bg-tertiary)", padding: "10px 16px", borderRadius: 6, textAlign: "center", minWidth: 80, border: "1px solid var(--border-color)" }}>
-                  <div style={{ fontSize: 22, fontWeight: 700, color }}>{value}</div>
+                  <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "var(--font-mono)", color }}>{value}</div>
                   <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }}>{label}</div>
                 </div>
               ))}
@@ -432,7 +432,7 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
                   .map(([file, count]) => (
                     <div key={file} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", fontSize: 11 }}>
                       <span
-                        style={{ flex: 1, fontFamily: "monospace", color: "var(--accent-blue)", cursor: onOpenFile ? "pointer" : "default" }}
+                        style={{ flex: 1, fontFamily: "var(--font-mono)", color: "var(--accent-blue)", cursor: onOpenFile ? "pointer" : "default" }}
                         onClick={() => handleFileClick(file, 1)}
                       >
                         {file}

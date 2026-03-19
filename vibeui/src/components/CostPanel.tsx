@@ -100,7 +100,7 @@ export function CostPanel() {
  const maxProviderCost = providerCosts.length > 0 ? Math.max(...providerCosts) : 0;
 
  return (
- <div style={{ padding: "12px", fontFamily: "monospace", fontSize: "13px", height: "100%", overflowY: "auto" }}>
+ <div style={{ padding: "12px", fontFamily: "var(--font-family)", fontSize: "13px", height: "100%", overflowY: "auto" }}>
  <div style={{ fontWeight: "bold", marginBottom: "12px" }}>Cost & Performance Observatory</div>
 
  {loading && !metrics && (

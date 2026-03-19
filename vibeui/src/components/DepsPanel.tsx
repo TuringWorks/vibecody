@@ -141,7 +141,7 @@ export function DepsPanel({ workspacePath }: DepsPanelProps) {
             onClick={handleSuspend}
             style={{
               padding: "6px 16px", fontSize: 12, fontWeight: 600,
-              background: "var(--error-color)", color: "white",
+              background: "var(--error-color)", color: "var(--btn-primary-fg)",
               border: "none", borderRadius: 6, cursor: "pointer",
             }}
           >
@@ -154,7 +154,7 @@ export function DepsPanel({ workspacePath }: DepsPanelProps) {
             style={{
               padding: "6px 16px", fontSize: 12, fontWeight: 600,
               background: !manager ? "var(--bg-tertiary)" : "var(--accent-blue)",
-              color: "white", border: "none", borderRadius: 6,
+              color: "var(--btn-primary-fg)", border: "none", borderRadius: 6,
               cursor: !manager ? "not-allowed" : "pointer",
             }}
           >
@@ -234,12 +234,12 @@ export function DepsPanel({ workspacePath }: DepsPanelProps) {
                     background: dep.is_vulnerable ? "rgba(243,139,168,0.05)" : "transparent",
                   }}
                 >
-                  <span style={{ fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={dep.name}>
+                  <span style={{ fontFamily: "var(--font-mono)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={dep.name}>
                     {dep.name}
                   </span>
-                  <span style={{ textAlign: "right", fontFamily: "monospace", opacity: 0.7 }}>{dep.current}</span>
-                  <span style={{ textAlign: "right", fontFamily: "monospace", opacity: 0.7 }}>{dep.wanted}</span>
-                  <span style={{ textAlign: "right", fontFamily: "monospace", color: dep.is_outdated ? "var(--warning-color)" : "inherit" }}>
+                  <span style={{ textAlign: "right", fontFamily: "var(--font-mono)", opacity: 0.7 }}>{dep.current}</span>
+                  <span style={{ textAlign: "right", fontFamily: "var(--font-mono)", opacity: 0.7 }}>{dep.wanted}</span>
+                  <span style={{ textAlign: "right", fontFamily: "var(--font-mono)", color: dep.is_outdated ? "var(--warning-color)" : "inherit" }}>
                     {dep.latest}
                   </span>
                   <span style={{ textAlign: "center", fontSize: 10 }}>
@@ -287,7 +287,7 @@ export function DepsPanel({ workspacePath }: DepsPanelProps) {
             {showRaw && (
               <pre style={{
                 marginTop: 8, background: "var(--bg-secondary)", borderRadius: 6,
-                padding: 10, fontSize: 10, fontFamily: "monospace", maxHeight: 200,
+                padding: 10, fontSize: 10, fontFamily: "var(--font-mono)", maxHeight: 200,
                 overflowY: "auto", whiteSpace: "pre-wrap", color: "var(--text-primary)",
                 border: "1px solid var(--border-color)",
               }}>

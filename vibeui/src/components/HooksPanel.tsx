@@ -213,7 +213,7 @@ function HookRow({
  value={hook.http_headers}
  onChange={(e) => update({ http_headers: e.target.value })}
  placeholder='{"Authorization": "Bearer ..."}'
- style={{ ...inputStyle, fontFamily: "monospace", fontSize: "10px" }}
+ style={{ ...inputStyle, fontFamily: "var(--font-mono)", fontSize: "10px" }}
  />
  </div>
  <div>

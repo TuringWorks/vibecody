@@ -180,7 +180,7 @@ const DebugModePanel: React.FC = () => {
     padding: "4px 10px",
     border: "1px solid var(--accent-color)",
     background: "var(--accent-color)",
-    color: "white",
+    color: "var(--btn-primary-fg)",
     borderRadius: "3px",
     cursor: "pointer",
     fontFamily: "inherit",
@@ -219,7 +219,7 @@ const DebugModePanel: React.FC = () => {
       <h3 style={{ margin: "0 0 12px" }}>Debug Mode</h3>
 
       {error && (
-        <div style={{ padding: "8px", marginBottom: "8px", background: "var(--error-color)", color: "white", borderRadius: "4px", fontSize: "12px" }}>
+        <div style={{ padding: "8px", marginBottom: "8px", background: "var(--error-color)", color: "var(--btn-primary-fg)", borderRadius: "4px", fontSize: "12px" }}>
           {error}
         </div>
       )}

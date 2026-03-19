@@ -25,7 +25,7 @@ export function Terminal({ onClose }: TerminalProps) {
                 background: '#1e1e1e',
                 foreground: '#d4d4d4',
             },
-            fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+            fontFamily: 'var(--font-mono)',
             fontSize: 14,
         });
 

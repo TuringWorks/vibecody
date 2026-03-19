@@ -220,7 +220,7 @@ export function SnippetPanel({ workspacePath: _workspacePath }: SnippetPanelProp
             </div>
             <pre style={{
               flex: 1, margin: 0, padding: "8px 10px", overflowY: "auto",
-              fontFamily: "monospace", fontSize: 12, lineHeight: 1.5,
+              fontFamily: "var(--font-mono)", fontSize: 12, lineHeight: 1.5,
               background: "var(--bg-primary)", color: "var(--text-primary)",
               whiteSpace: "pre-wrap", wordBreak: "break-all",
             }}>
@@ -255,7 +255,7 @@ export function SnippetPanel({ workspacePath: _workspacePath }: SnippetPanelProp
               placeholder="Snippet code..."
               style={{
                 flex: 1, minHeight: 120, padding: "8px 10px",
-                fontFamily: "monospace", fontSize: 12, lineHeight: 1.5,
+                fontFamily: "var(--font-mono)", fontSize: 12, lineHeight: 1.5,
                 background: "var(--bg-primary)", color: "var(--text-primary)",
                 border: "1px solid var(--border-color)", borderRadius: 4,
                 outline: "none", resize: "vertical",

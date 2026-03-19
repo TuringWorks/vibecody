@@ -112,7 +112,7 @@ export function AutofixPanel({ workspacePath }: { workspacePath: string | null }
  const diffLines = result?.diff.split("\n") ?? [];
 
  return (
- <div style={{ padding: "12px", fontFamily: "monospace", fontSize: "13px", height: "100%", overflowY: "auto" }}>
+ <div style={{ padding: "12px", fontFamily: "var(--font-family)", fontSize: "13px", height: "100%", overflowY: "auto" }}>
  <div style={{ fontWeight: "bold", marginBottom: "12px" }}>Codemod & Auto-Fix</div>
 
  {/* Framework selector */}
@@ -137,7 +137,7 @@ export function AutofixPanel({ workspacePath }: { workspacePath: string | null }
  onClick={handleSuspend}
  style={{
  background: "var(--error-color)",
- color: "white", border: "none", borderRadius: "4px",
+ color: "var(--btn-primary-fg)", border: "none", borderRadius: "4px",
  padding: "4px 16px", cursor: "pointer",
  }}
  >
@@ -149,7 +149,7 @@ export function AutofixPanel({ workspacePath }: { workspacePath: string | null }
  disabled={!workspacePath}
  style={{
  background: "var(--accent-color)",
- color: "white", border: "none", borderRadius: "4px",
+ color: "var(--btn-primary-fg)", border: "none", borderRadius: "4px",
  padding: "4px 16px", cursor: !workspacePath ? "default" : "pointer",
  }}
  >
@@ -241,7 +241,7 @@ export function AutofixPanel({ workspacePath }: { workspacePath: string | null }
  line.startsWith("diff ") || line.startsWith("---") || line.startsWith("+++") ? "var(--text-secondary)" :
  "var(--text-secondary)";
  return (
- <div key={i} style={{ background: color, color: textColor, padding: "1px 8px", whiteSpace: "pre", fontFamily: "monospace" }}>
+ <div key={i} style={{ background: color, color: textColor, padding: "1px 8px", whiteSpace: "pre", fontFamily: "var(--font-mono)" }}>
  {line || " "}
  </div>
  );

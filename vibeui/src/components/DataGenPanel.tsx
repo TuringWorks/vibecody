@@ -284,7 +284,7 @@ export function DataGenPanel() {
  <div key={f.id} style={{ padding: "5px 8px", borderBottom: "1px solid rgba(255,255,255,0.04)", display: "flex", gap: 5, alignItems: "center" }}>
  <span style={{ fontSize: 10, color: "var(--text-muted)", width: 14, flexShrink: 0 }}>{i+1}.</span>
  <input value={f.name} onChange={e => updateField(f.id, { name: e.target.value })} placeholder="field name"
- style={{ width: 72, padding: "2px 5px", fontSize: 10, fontFamily: "monospace", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 3, color: "var(--text-primary)", outline: "none" }} />
+ style={{ width: 72, padding: "2px 5px", fontSize: 10, fontFamily: "var(--font-mono)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 3, color: "var(--text-primary)", outline: "none" }} />
  <select value={f.type} onChange={e => updateField(f.id, { type: e.target.value as FakeType })}
  style={{ flex: 1, padding: "2px 4px", fontSize: 10, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 3, color: "var(--text-primary)", outline: "none" }}>
  {FAKE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
@@ -305,7 +305,7 @@ export function DataGenPanel() {
  </div>
  {outFormat === "sql" && (
  <input value={sqlTable} onChange={e => setSqlTable(e.target.value)} placeholder="table name"
- style={{ padding: "3px 6px", fontSize: 11, fontFamily: "monospace", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none" }} />
+ style={{ padding: "3px 6px", fontSize: 11, fontFamily: "var(--font-mono)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none" }} />
  )}
  <button onClick={genFakeData} style={{ padding: "5px", fontSize: 11, fontWeight: 700, background: "rgba(166,227,161,0.15)", border: "1px solid var(--success-color)", borderRadius: 4, color: "var(--text-success)", cursor: "pointer" }}>Generate</button>
  </div>
@@ -316,7 +316,7 @@ export function DataGenPanel() {
  <span>OUTPUT</span>
  {fakeOutput && <CopyBtn text={fakeOutput} label="Copy all" />}
  </div>
- <pre style={{ flex: 1, margin: 0, padding: "10px 12px", fontFamily: "monospace", fontSize: 11, lineHeight: 1.6, overflow: "auto", whiteSpace: "pre-wrap", wordBreak: "break-all", color: "var(--text-primary)", background: "var(--bg-primary)" }}>
+ <pre style={{ flex: 1, margin: 0, padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: 11, lineHeight: 1.6, overflow: "auto", whiteSpace: "pre-wrap", wordBreak: "break-all", color: "var(--text-primary)", background: "var(--bg-primary)" }}>
  {fakeOutput || <span style={{ color: "var(--text-muted)", fontStyle: "italic" }}>Configure schema and click Generate </span>}
  </pre>
  </div>
@@ -357,8 +357,8 @@ export function DataGenPanel() {
  ? <span style={{ color: "var(--text-muted)", fontSize: 12, fontStyle: "italic" }}>Click Generate to produce UUIDs.</span>
  : uuids.map((u, i) => (
  <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
- <span style={{ fontSize: 9, color: "var(--text-muted)", width: 24, textAlign: "right", flexShrink: 0, fontFamily: "monospace" }}>{i+1}</span>
- <span style={{ fontFamily: "monospace", fontSize: 12, color: "var(--text-info)", flex: 1, letterSpacing: "0.03em" }}>{u}</span>
+ <span style={{ fontSize: 9, color: "var(--text-muted)", width: 24, textAlign: "right", flexShrink: 0, fontFamily: "var(--font-mono)" }}>{i+1}</span>
+ <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-info)", flex: 1, letterSpacing: "0.03em" }}>{u}</span>
  <CopyBtn text={u} />
  </div>
  ))
@@ -375,7 +375,7 @@ export function DataGenPanel() {
  <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
  <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Length:</span>
  <input type="range" min={6} max={128} value={pwLen} onChange={e => setPwLen(+e.target.value)} style={{ flex: 1, minWidth: 80, accentColor: "var(--accent-color)" }} />
- <span style={{ fontSize: 12, fontFamily: "monospace", color: "var(--text-primary)", width: 30 }}>{pwLen}</span>
+ <span style={{ fontSize: 12, fontFamily: "var(--font-mono)", color: "var(--text-primary)", width: 30 }}>{pwLen}</span>
  </div>
  <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
  {([["upper","A–Z"],["lower","a–z"],["digits","0–9"],["symbols","!@#"]] as [keyof typeof pwOpts, string][]).map(([k, label]) => (
@@ -401,7 +401,7 @@ export function DataGenPanel() {
  const str = passwordStrength(pw);
  return (
  <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
- <span style={{ fontFamily: "monospace", fontSize: 12, color: "var(--text-primary)", flex: 1, letterSpacing: "0.05em", wordBreak: "break-all" }}>{pw}</span>
+ <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-primary)", flex: 1, letterSpacing: "0.05em", wordBreak: "break-all" }}>{pw}</span>
  <span style={{ fontSize: 9, fontWeight: 700, color: str.colour, padding: "1px 6px", background: `${str.colour}22`, border: `1px solid ${str.colour}`, borderRadius: 10, flexShrink: 0 }}>{str.label}</span>
  <CopyBtn text={pw} />
  </div>

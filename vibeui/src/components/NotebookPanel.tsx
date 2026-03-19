@@ -268,7 +268,7 @@ export function NotebookPanel({ workspacePath }: NotebookPanelProps) {
  }}
  style={{
  width: "100%", minHeight: 60, padding: "8px 10px",
- fontFamily: "monospace", fontSize: 12, lineHeight: 1.5,
+ fontFamily: "var(--font-mono)", fontSize: 12, lineHeight: 1.5,
  background: "var(--bg-primary)", color: "var(--text-primary)",
  border: "none", outline: "none", resize: "vertical",
  boxSizing: "border-box",
@@ -306,7 +306,7 @@ export function NotebookPanel({ workspacePath }: NotebookPanelProps) {
  {cell.output && (
  <div style={{
  borderTop: "1px solid var(--border-color)",
- padding: "6px 10px", fontSize: 11, fontFamily: "monospace",
+ padding: "6px 10px", fontSize: 11, fontFamily: "var(--font-mono)",
  maxHeight: 200, overflowY: "auto",
  background: cell.output.exit_code !== 0 ? "rgba(243,139,168,0.05)" : "rgba(166,227,161,0.05)",
  }}>

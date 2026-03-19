@@ -186,7 +186,7 @@ export function UnicodePanel() {
         </div>
         <div>
           <div style={{ fontWeight: 600, fontSize: 14 }}>{info.name}</div>
-          <div style={{ color: "var(--text-secondary)", fontSize: 12, fontFamily: "monospace" }}>U+{cpToHex(info.cp)} · dec {info.cp}</div>
+          <div style={{ color: "var(--text-secondary)", fontSize: 12, fontFamily: "var(--font-mono)" }}>U+{cpToHex(info.cp)} · dec {info.cp}</div>
         </div>
         <button onClick={() => toggleFavorite(info)}
           style={{ marginLeft: "auto", background: "none", border: "1px solid var(--border-color)", borderRadius: 4, padding: "4px 8px", cursor: "pointer", color: isFav(info.cp) ? "#f5a623" : "var(--text-secondary)", fontSize: 16 }}>
@@ -205,7 +205,7 @@ export function UnicodePanel() {
           <div key={label} style={{ background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, padding: "5px 8px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6 }}>
             <div>
               <div style={{ fontSize: 10, color: "var(--text-secondary)" }}>{label}</div>
-              <div style={{ fontFamily: "monospace", fontSize: 12 }}>{value}</div>
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}>{value}</div>
             </div>
             <button onClick={() => navigator.clipboard.writeText(value)}
               style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", fontSize: 11, flexShrink: 0 }}>⎘</button>
@@ -327,11 +327,11 @@ export function UnicodePanel() {
                 <tbody>
                   {inputAnalysis.map((info, i) => (
                     <tr key={i} style={{ background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.02)", cursor: "pointer" }} onClick={() => setSelected(info)}>
-                      <td style={{ padding: "4px 10px", fontSize: 20, fontFamily: "monospace" }}>{info.char}</td>
-                      <td style={{ padding: "4px 10px", fontFamily: "monospace", color: "var(--accent-color)" }}>U+{cpToHex(info.cp)}</td>
+                      <td style={{ padding: "4px 10px", fontSize: 20, fontFamily: "var(--font-mono)" }}>{info.char}</td>
+                      <td style={{ padding: "4px 10px", fontFamily: "var(--font-mono)", color: "var(--accent-color)" }}>U+{cpToHex(info.cp)}</td>
                       <td style={{ padding: "4px 10px", color: "var(--text-secondary)" }}>{info.name}</td>
-                      <td style={{ padding: "4px 10px", fontFamily: "monospace" }}>{htmlEntity(info.cp)}</td>
-                      <td style={{ padding: "4px 10px", fontFamily: "monospace", color: "var(--text-secondary)" }}>{Array.from(new TextEncoder().encode(info.char)).map(b => b.toString(16).padStart(2, "0").toUpperCase()).join(" ")}</td>
+                      <td style={{ padding: "4px 10px", fontFamily: "var(--font-mono)" }}>{htmlEntity(info.cp)}</td>
+                      <td style={{ padding: "4px 10px", fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{Array.from(new TextEncoder().encode(info.char)).map(b => b.toString(16).padStart(2, "0").toUpperCase()).join(" ")}</td>
                     </tr>
                   ))}
                 </tbody>

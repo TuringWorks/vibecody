@@ -176,7 +176,7 @@ function AgentCard({
  <span style={{ fontSize: "10px", color: s.success ? "var(--success-color)" : "var(--error-color)" }}>
  {s.success ? "✔" : "✘"}
  </span>
- <span style={{ fontSize: "11px", fontFamily: "monospace", color: "var(--accent-color)" }}>
+ <span style={{ fontSize: "11px", fontFamily: "var(--font-mono)", color: "var(--accent-color)" }}>
  {s.tool}
  </span>
  </div>
