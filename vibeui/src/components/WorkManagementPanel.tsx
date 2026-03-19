@@ -1,15 +1,18 @@
 /**
- * WorkManagementPanel — Enterprise work management with organizational hierarchy,
- * work item tracking, relationships, OKRs, risks, and AI-powered breakdown.
+ * WorkManagementPanel — Unified project management combining enterprise work
+ * management (hierarchy, work items, OKRs, risks) with Agile project management
+ * (Kanban board, sprints, backlog, ceremonies, SAFe).
  *
- * Tabs: Hierarchy | Items | Board | Relationships | OKRs | Risks | Dashboard
+ * Tabs: Hierarchy | Agile | Items | Board | Links | OKRs | Risks | Dashboard
  */
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import { invoke } from "@tauri-apps/api/core";
+
+const AgilePanel = lazy(() => import("./AgilePanel"));
 
 /* ── Types ─────────────────────────────────────────────────── */
 
-type TabKey = "hierarchy" | "items" | "board" | "relationships" | "okrs" | "risks" | "dashboard";
+type TabKey = "hierarchy" | "agile" | "items" | "board" | "relationships" | "okrs" | "risks" | "dashboard";
 
 type WorkItemType = "initiative" | "okr" | "epic" | "feature" | "story" | "task" | "subtask" | "bug" | "risk" | "decision" | "milestone" | "spike";
 type Priority = "critical" | "high" | "medium" | "low" | "none";
@@ -135,6 +138,7 @@ export default function WorkManagementPanel() {
 
   const tabs: { id: TabKey; label: string }[] = [
     { id: "hierarchy", label: "Hierarchy" },
+    { id: "agile", label: "Agile" },
     { id: "items", label: `Items (${items.length})` },
     { id: "board", label: "Board" },
     { id: "relationships", label: "Links" },
@@ -147,7 +151,7 @@ export default function WorkManagementPanel() {
     <div style={{ display: "flex", flexDirection: "column", height: "100%", color: "var(--text-primary)" }}>
       {/* Header */}
       <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-color)", display: "flex", alignItems: "center", gap: 8 }}>
-        <span style={{ fontSize: 14, fontWeight: 700 }}>Work Management</span>
+        <span style={{ fontSize: 14, fontWeight: 700 }}>Project Management</span>
         {scope.orgId && <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
           {orgs.find(o => o.id === scope.orgId)?.name}
           {scope.groupId && ` / ${groups.find(g => g.id === scope.groupId)?.name || ""}`}
@@ -172,6 +176,11 @@ export default function WorkManagementPanel() {
 
       <div style={{ flex: 1, overflowY: "auto", padding: "10px 12px" }}>
         {tab === "hierarchy" && <HierarchyTab orgs={orgs} groups={groups} teams={teams} workspaces={workspaces} scope={scope} setScope={setScope} onRefresh={refreshAll} setError={setError} />}
+        {tab === "agile" && (
+          <Suspense fallback={<div style={{ padding: 16, color: "var(--text-secondary)" }}>Loading Agile...</div>}>
+            <AgilePanel />
+          </Suspense>
+        )}
         {tab === "items" && <ItemsTab items={items} scope={scope} onRefresh={loadItems} setError={setError} />}
         {tab === "board" && <BoardTab items={items} onRefresh={loadItems} setError={setError} />}
         {tab === "relationships" && <RelationshipsTab items={items} onRefresh={loadItems} setError={setError} />}

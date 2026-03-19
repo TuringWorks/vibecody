@@ -160,8 +160,8 @@ export const TAB_META: Record<string, TabMeta> = {
   admin:       { icon: UserCog,            label: "Admin" },
   "qa-validation": { icon: CheckSquare,    label: "QA" },
   sessions:    { icon: FolderOpen,         label: "Sessions" },
-  agile:       { icon: ClipboardList,     label: "Agile Project Management" },
-  workmanagement: { icon: ClipboardList,  label: "Work Management" },
+  // agile is now embedded inside workmanagement panel
+  workmanagement: { icon: ClipboardList,  label: "Project Management" },
   build:       { icon: Hammer,            label: "Build" },
 };
 
