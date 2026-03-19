@@ -14,6 +14,7 @@ import { listen } from "@tauri-apps/api/event";
 
 interface BuildPanelProps {
   workspacePath: string | null;
+  currentFile?: string | null;
   onOpenFile?: (path: string, line?: number) => void;
 }
 
@@ -112,7 +113,7 @@ const MANUAL_PRESETS: { label: string; build: string; run: string }[] = [
   { label: "Docker Compose", build: "docker compose build", run: "docker compose up" },
 ];
 
-export function BuildPanel({ workspacePath, onOpenFile }: BuildPanelProps) {
+export function BuildPanel({ workspacePath, currentFile, onOpenFile }: BuildPanelProps) {
   const [systems, setSystems] = useState<BuildSystem[]>([]);
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [status, setStatus] = useState<Status>("idle");
@@ -122,15 +123,38 @@ export function BuildPanel({ workspacePath, onOpenFile }: BuildPanelProps) {
   const [customRunCmd, setCustomRunCmd] = useState("");
   const [showErrors, setShowErrors] = useState(true);
   const [showCustom, setShowCustom] = useState(false);
+  const [buildDir, setBuildDir] = useState<string>(""); // empty = workspace root
+  const [subdirs, setSubdirs] = useState<string[]>([]);
   const logEndRef = useRef<HTMLDivElement>(null);
 
-  // Auto-detect build systems
+  // Derive the current file's directory as default build dir
+  useEffect(() => {
+    if (currentFile && workspacePath) {
+      const dir = currentFile.substring(0, currentFile.lastIndexOf("/"));
+      if (dir && dir !== workspacePath) {
+        setBuildDir(dir);
+      }
+    }
+  }, [currentFile, workspacePath]);
+
+  // Load subdirectories for the directory picker
   useEffect(() => {
     if (!workspacePath) return;
-    invoke<BuildSystem[]>("detect_build_system", { workspace: workspacePath })
-      .then(s => { setSystems(s || []); setSelectedIdx(0); })
+    invoke<string[]>("list_workspace_subdirs", { workspace: workspacePath })
+      .then(dirs => setSubdirs(dirs || []))
       .catch(() => {});
   }, [workspacePath]);
+
+  // The effective directory where build/run commands execute
+  const effectiveDir = buildDir || workspacePath || "";
+
+  // Auto-detect build systems in the effective directory
+  useEffect(() => {
+    if (!effectiveDir) return;
+    invoke<BuildSystem[]>("detect_build_system", { workspace: effectiveDir })
+      .then(s => { setSystems(s || []); setSelectedIdx(0); })
+      .catch(() => {});
+  }, [effectiveDir]);
 
   // Listen for build/run log events
   useEffect(() => {
@@ -158,45 +182,45 @@ export function BuildPanel({ workspacePath, onOpenFile }: BuildPanelProps) {
   }, [log]);
 
   const handleBuild = useCallback(async () => {
-    if (!workspacePath) return;
+    if (!effectiveDir) return;
     setStatus("building");
-    setLog([]);
+    setLog([`[pwd] ${effectiveDir}`]);
     setResult(null);
     try {
       const cmd = customBuildCmd.trim() || undefined;
-      const r = await invoke<BuildResult>("run_build", { workspace: workspacePath, command: cmd });
+      const r = await invoke<BuildResult>("run_build", { workspace: effectiveDir, command: cmd });
       setResult(r);
       setStatus(r.success ? "success" : "error");
     } catch (e) {
       setStatus("error");
       setLog(prev => [...prev, `Build failed: ${e}`]);
     }
-  }, [workspacePath, customBuildCmd]);
+  }, [effectiveDir, customBuildCmd]);
 
   const handleRun = useCallback(async () => {
-    if (!workspacePath) return;
+    if (!effectiveDir) return;
     setStatus("running");
-    setLog([]);
+    setLog([`[pwd] ${effectiveDir}`]);
     setResult(null);
     try {
       const cmd = customRunCmd.trim() || undefined;
-      const r = await invoke<BuildResult>("run_app", { workspace: workspacePath, command: cmd });
+      const r = await invoke<BuildResult>("run_app", { workspace: effectiveDir, command: cmd });
       setResult(r);
       setStatus(r.success ? "success" : "error");
     } catch (e) {
       setStatus("error");
       setLog(prev => [...prev, `Run failed: ${e}`]);
     }
-  }, [workspacePath, customRunCmd]);
+  }, [effectiveDir, customRunCmd]);
 
   const handleBuildAndRun = useCallback(async () => {
-    if (!workspacePath) return;
+    if (!effectiveDir) return;
     setStatus("building");
-    setLog([]);
+    setLog([`[pwd] ${effectiveDir}`]);
     setResult(null);
     try {
       const buildCmd = customBuildCmd.trim() || undefined;
-      const buildResult = await invoke<BuildResult>("run_build", { workspace: workspacePath, command: buildCmd });
+      const buildResult = await invoke<BuildResult>("run_build", { workspace: effectiveDir, command: buildCmd });
       if (!buildResult.success) {
         setResult(buildResult);
         setStatus("error");
@@ -204,25 +228,54 @@ export function BuildPanel({ workspacePath, onOpenFile }: BuildPanelProps) {
       }
       setStatus("running");
       const runCmd = customRunCmd.trim() || undefined;
-      const runResult = await invoke<BuildResult>("run_app", { workspace: workspacePath, command: runCmd });
+      const runResult = await invoke<BuildResult>("run_app", { workspace: effectiveDir, command: runCmd });
       setResult(runResult);
       setStatus(runResult.success ? "success" : "error");
     } catch (e) {
       setStatus("error");
       setLog(prev => [...prev, `Failed: ${e}`]);
     }
-  }, [workspacePath, customBuildCmd, customRunCmd]);
+  }, [effectiveDir, customBuildCmd, customRunCmd]);
 
   const selected = systems[selectedIdx];
   const errorCount = result?.errors.filter(e => e.severity === "error").length ?? 0;
   const warningCount = result?.errors.filter(e => e.severity === "warning").length ?? 0;
   const busy = status === "building" || status === "running";
 
+  // Short display path for the working directory
+  const shortDir = effectiveDir && workspacePath
+    ? (effectiveDir === workspacePath ? "/" : effectiveDir.replace(workspacePath, "").replace(/^\//, "") || "/")
+    : "/";
+
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", color: "var(--text-primary)" }}>
+      {/* Working directory selector */}
+      <div style={{ padding: "4px 12px", borderBottom: "1px solid var(--border-color)", display: "flex", alignItems: "center", gap: 6, fontSize: 11, background: "var(--bg-secondary)" }}>
+        <span style={{ color: "var(--text-secondary)", flexShrink: 0 }}>Working dir:</span>
+        <select
+          style={{ flex: 1, minWidth: 0, padding: "2px 6px", fontSize: 11, borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)", fontFamily: "var(--font-mono, monospace)" }}
+          value={buildDir}
+          onChange={e => setBuildDir(e.target.value)}
+        >
+          <option value="">{workspacePath ? `/ (workspace root)` : "No workspace"}</option>
+          {subdirs.map(d => (
+            <option key={d} value={`${workspacePath}/${d}`}>{d}/</option>
+          ))}
+        </select>
+        {buildDir && buildDir !== workspacePath && (
+          <button
+            onClick={() => setBuildDir("")}
+            aria-label="Reset to workspace root"
+            style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", fontSize: 12, padding: "0 4px" }}
+            title="Reset to workspace root"
+          >×</button>
+        )}
+      </div>
+
       {/* Header */}
       <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-color)", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <span style={{ fontSize: 14, fontWeight: 700 }}>Build</span>
+        <span style={{ fontSize: 10, fontFamily: "var(--font-mono, monospace)", color: "var(--text-secondary)", background: "var(--bg-tertiary)", padding: "1px 6px", borderRadius: 3 }}>{shortDir}</span>
 
         {/* Status badge */}
         <span style={{
@@ -252,13 +305,13 @@ export function BuildPanel({ workspacePath, onOpenFile }: BuildPanelProps) {
         <div style={{ flex: 1 }} />
 
         {/* Action buttons */}
-        <button onClick={handleBuild} disabled={busy || !workspacePath} style={{ ...btnS, background: "var(--accent-color)", color: "var(--btn-primary-fg)", borderColor: "var(--accent-color)", opacity: busy ? 0.5 : 1 }}>
+        <button onClick={handleBuild} disabled={busy || !effectiveDir} style={{ ...btnS, background: "var(--accent-color)", color: "var(--btn-primary-fg)", borderColor: "var(--accent-color)", opacity: busy ? 0.5 : 1 }}>
           Build
         </button>
-        <button onClick={handleRun} disabled={busy || !workspacePath} style={{ ...btnS, opacity: busy ? 0.5 : 1 }}>
+        <button onClick={handleRun} disabled={busy || !effectiveDir} style={{ ...btnS, opacity: busy ? 0.5 : 1 }}>
           Run
         </button>
-        <button onClick={handleBuildAndRun} disabled={busy || !workspacePath} style={{ ...btnS, background: "var(--accent-color)", color: "var(--btn-primary-fg)", borderColor: "var(--accent-color)", opacity: busy ? 0.5 : 1 }}>
+        <button onClick={handleBuildAndRun} disabled={busy || !effectiveDir} style={{ ...btnS, background: "var(--accent-color)", color: "var(--btn-primary-fg)", borderColor: "var(--accent-color)", opacity: busy ? 0.5 : 1 }}>
           Build & Run
         </button>
         <button onClick={() => setShowCustom(prev => !prev)} style={{ ...btnS, fontSize: 10, padding: "2px 6px" }}>

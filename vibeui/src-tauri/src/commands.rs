@@ -3813,6 +3813,36 @@ pub struct BuildResult {
     pub output: String,
 }
 
+/// List subdirectories (up to 2 levels deep) for the build directory picker.
+#[tauri::command]
+pub async fn list_workspace_subdirs(workspace: String) -> Result<Vec<String>, String> {
+    let root = std::path::Path::new(&workspace);
+    if !root.is_dir() { return Ok(Vec::new()); }
+    let mut dirs = Vec::new();
+    let Ok(entries) = std::fs::read_dir(root) else { return Ok(dirs); };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !path.is_dir() { continue; }
+        let name = entry.file_name().to_string_lossy().to_string();
+        if name.starts_with('.') || name == "node_modules" || name == "target" || name == "__pycache__"
+            || name == "dist" || name == "build" || name == ".git" || name == "vendor" { continue; }
+        dirs.push(name.clone());
+        // Second level
+        if let Ok(sub_entries) = std::fs::read_dir(&path) {
+            for sub in sub_entries.flatten() {
+                if sub.path().is_dir() {
+                    let sub_name = sub.file_name().to_string_lossy().to_string();
+                    if !sub_name.starts_with('.') && sub_name != "node_modules" && sub_name != "target" {
+                        dirs.push(format!("{name}/{sub_name}"));
+                    }
+                }
+            }
+        }
+    }
+    dirs.sort();
+    Ok(dirs)
+}
+
 #[tauri::command]
 pub async fn detect_build_system(workspace: String) -> Result<Vec<BuildSystem>, String> {
     let path = std::path::PathBuf::from(&workspace);

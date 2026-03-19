@@ -255,7 +255,7 @@ export function PanelHost(props: PanelHostProps) {
       {panel("bugbot", <LazyPanel Component={BugBotPanel} props={{ workspacePath: wp || undefined, onOpenFile }} />)}
       {panel("redteam", <LazyPanel Component={RedTeamPanel} props={{ workspacePath: wp, provider: selectedProvider }} />)}
       {panel("tests", <LazyPanel Component={TestPanel} props={{ workspacePath: wp }} />)}
-      {panel("build", <LazyPanel Component={BuildPanel} props={{ workspacePath: wp, onOpenFile }} />)}
+      {panel("build", <LazyPanel Component={BuildPanel} props={{ workspacePath: wp, currentFile, onOpenFile }} />)}
       {panel("collab", <LazyPanel Component={CollabPanel} props={{ connected: collab.connected, roomId: collab.roomId || "", peerId: collab.peerId || "", peers: collab.peers, onConnect: collab.connect, onDisconnect: collab.disconnect }} />)}
       {panel("coverage", <LazyPanel Component={CoveragePanel} props={{ workspacePath: wp }} />)}
       {panel("compare", <LazyPanel Component={MultiModelPanel} props={{ provider: selectedProvider }} />)}

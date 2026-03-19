@@ -231,6 +231,7 @@ pub fn run() {
             commands::inline_edit,
             commands::generate_code,
             // Build System commands
+            commands::list_workspace_subdirs,
             commands::detect_build_system,
             commands::run_build,
             commands::run_app,
