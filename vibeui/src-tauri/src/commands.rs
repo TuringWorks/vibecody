@@ -3757,6 +3757,9 @@ pub struct BuildSystem {
     pub tool_available: bool,
     #[serde(default)]
     pub install_hint: String,
+    /// Relative path from workspace root (empty = root, "services/api" = subproject)
+    #[serde(default)]
+    pub project_path: String,
 }
 
 /// Check if a command-line tool is available on PATH.
@@ -3774,6 +3777,20 @@ fn build_sys(name: &str, build_cmd: &str, run_cmd: &str, config: &str, tool: &st
         config_file: config.into(),
         tool_available: tool_exists(tool),
         install_hint: install.into(),
+        project_path: String::new(),
+    }
+}
+
+/// Build a BuildSystem scoped to a sub-project path.
+fn build_sys_at(name: &str, build_cmd: &str, run_cmd: &str, config: &str, tool: &str, install: &str, rel_path: &str) -> BuildSystem {
+    BuildSystem {
+        name: name.into(),
+        build_command: build_cmd.into(),
+        run_command: run_cmd.into(),
+        config_file: config.into(),
+        tool_available: tool_exists(tool),
+        install_hint: install.into(),
+        project_path: rel_path.into(),
     }
 }
 
@@ -3869,7 +3886,60 @@ pub async fn detect_build_system(workspace: String) -> Result<Vec<BuildSystem>, 
             "Install Ruby: https://www.ruby-lang.org/en/downloads/ or `brew install ruby`"));
     }
 
-    // ── 2. If no build config found, scan for standalone source files ──
+    // ── 2. Scan subdirectories for sub-projects (monorepo support) ──
+    let skip = ["node_modules", "target", "dist", "build", ".git", "__pycache__", "vendor", ".next", ".nuxt"];
+    if let Ok(entries) = std::fs::read_dir(&path) {
+        for entry in entries.flatten() {
+            let name = entry.file_name().to_string_lossy().to_string();
+            if !entry.file_type().map(|t| t.is_dir()).unwrap_or(false) { continue; }
+            if name.starts_with('.') || skip.contains(&name.as_str()) { continue; }
+
+            let sub = entry.path();
+            let rel = name.clone();
+
+            // Check for build config files in subdirectory
+            if sub.join("Cargo.toml").exists() {
+                systems.push(build_sys_at("cargo", &format!("cargo build --manifest-path {}/Cargo.toml", rel), &format!("cargo run --manifest-path {}/Cargo.toml", rel), "Cargo.toml", "cargo",
+                    "Install Rust: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh", &rel));
+            }
+            if sub.join("package.json").exists() {
+                let mgr = if sub.join("bun.lockb").exists() { "bun" } else if sub.join("yarn.lock").exists() { "yarn" } else { "npm" };
+                systems.push(build_sys_at(mgr, &format!("cd {} && {} run build", rel, mgr), &format!("cd {} && {} start", rel, mgr), "package.json", mgr,
+                    "Install Node.js: https://nodejs.org/", &rel));
+            }
+            if sub.join("pom.xml").exists() {
+                systems.push(build_sys_at("maven", &format!("cd {} && mvn package -q", rel), &format!("cd {} && mvn exec:java -q", rel), "pom.xml", "mvn",
+                    "Install Maven: https://maven.apache.org/", &rel));
+            }
+            if sub.join("build.gradle").exists() || sub.join("build.gradle.kts").exists() {
+                let wrapper = if sub.join("gradlew").exists() { format!("{}/gradlew", rel) } else { "gradle".into() };
+                systems.push(build_sys_at("gradle", &format!("cd {} && {} build", rel, wrapper), &format!("cd {} && {} run", rel, wrapper), "build.gradle", "gradle",
+                    "Install Gradle: https://gradle.org/install/", &rel));
+            }
+            if sub.join("go.mod").exists() {
+                systems.push(build_sys_at("go", &format!("cd {} && go build ./...", rel), &format!("cd {} && go run .", rel), "go.mod", "go",
+                    "Install Go: https://go.dev/dl/", &rel));
+            }
+            if sub.join("CMakeLists.txt").exists() {
+                systems.push(build_sys_at("cmake", &format!("cd {} && cmake -B build && cmake --build build", rel), &format!("./{}/build/main", rel), "CMakeLists.txt", "cmake",
+                    "Install CMake: https://cmake.org/download/", &rel));
+            }
+            if sub.join("Makefile").exists() {
+                systems.push(build_sys_at("make", &format!("cd {} && make", rel), &format!("cd {} && make run", rel), "Makefile", "make",
+                    "Install Make: xcode-select --install (macOS)", &rel));
+            }
+            if sub.join("pyproject.toml").exists() || sub.join("setup.py").exists() {
+                systems.push(build_sys_at("python", &format!("cd {} && pip install -e .", rel), &format!("cd {} && python -m .", rel), "pyproject.toml", "python3",
+                    "Install Python: https://www.python.org/downloads/", &rel));
+            }
+            if sub.join("mix.exs").exists() {
+                systems.push(build_sys_at("elixir", &format!("cd {} && mix compile", rel), &format!("cd {} && mix run", rel), "mix.exs", "elixir",
+                    "Install Elixir: https://elixir-lang.org/install.html", &rel));
+            }
+        }
+    }
+
+    // ── 3. If no build config found, scan for standalone source files ──
     if systems.is_empty() {
         let entries: Vec<String> = std::fs::read_dir(&path).ok()
             .map(|rd| rd.flatten()

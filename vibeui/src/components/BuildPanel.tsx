@@ -24,6 +24,7 @@ interface BuildSystem {
   config_file: string;
   tool_available: boolean;
   install_hint: string;
+  project_path: string;
 }
 
 interface BuildError {
@@ -64,6 +65,52 @@ const SYSTEM_ICONS: Record<string, string> = {
   erlc: "Erlang", perl: "Perl", php: "PHP", lua: "Lua", r: "R",
   julia: "Julia", gfortran: "Fortran", vlang: "V", racket: "Racket", fpc: "Pascal",
 };
+
+// Manual build system presets when auto-detection fails
+const MANUAL_PRESETS: { label: string; build: string; run: string }[] = [
+  { label: "Rust (Cargo)", build: "cargo build --release", run: "cargo run" },
+  { label: "Node.js (npm)", build: "npm run build", run: "npm start" },
+  { label: "Node.js (yarn)", build: "yarn build", run: "yarn start" },
+  { label: "Node.js (pnpm)", build: "pnpm build", run: "pnpm start" },
+  { label: "Node.js (bun)", build: "bun run build", run: "bun run start" },
+  { label: "TypeScript (tsc)", build: "npx tsc", run: "node dist/index.js" },
+  { label: "Go", build: "go build ./...", run: "go run ." },
+  { label: "Python", build: "pip install -r requirements.txt", run: "python main.py" },
+  { label: "Python (Poetry)", build: "poetry install", run: "poetry run python main.py" },
+  { label: "Python (uv)", build: "uv sync", run: "uv run python main.py" },
+  { label: "Java (Maven)", build: "mvn package", run: "java -jar target/*.jar" },
+  { label: "Java (Gradle)", build: "./gradlew build", run: "./gradlew run" },
+  { label: "C (gcc)", build: "gcc -o main main.c", run: "./main" },
+  { label: "C++ (g++)", build: "g++ -o main main.cpp", run: "./main" },
+  { label: "C++ (CMake)", build: "cmake -B build && cmake --build build", run: "./build/main" },
+  { label: "C/C++ (Make)", build: "make", run: "./a.out" },
+  { label: ".NET (C#)", build: "dotnet build", run: "dotnet run" },
+  { label: "Swift", build: "swift build", run: "swift run" },
+  { label: "Kotlin (Gradle)", build: "./gradlew build", run: "./gradlew run" },
+  { label: "Ruby", build: "bundle install", run: "ruby main.rb" },
+  { label: "Ruby on Rails", build: "bundle install", run: "rails server" },
+  { label: "PHP", build: "composer install", run: "php -S localhost:8000" },
+  { label: "PHP (Laravel)", build: "composer install", run: "php artisan serve" },
+  { label: "Elixir (Mix)", build: "mix compile", run: "mix run" },
+  { label: "Elixir (Phoenix)", build: "mix deps.get && mix compile", run: "mix phx.server" },
+  { label: "Dart", build: "dart compile exe bin/main.dart", run: "dart run" },
+  { label: "Flutter", build: "flutter build", run: "flutter run" },
+  { label: "Zig", build: "zig build", run: "zig-out/bin/main" },
+  { label: "Haskell (Cabal)", build: "cabal build", run: "cabal run" },
+  { label: "Haskell (Stack)", build: "stack build", run: "stack run" },
+  { label: "Scala (sbt)", build: "sbt compile", run: "sbt run" },
+  { label: "OCaml (dune)", build: "dune build", run: "dune exec main" },
+  { label: "Nim", build: "nim c main.nim", run: "./main" },
+  { label: "Crystal", build: "crystal build main.cr", run: "./main" },
+  { label: "Lua", build: "", run: "lua main.lua" },
+  { label: "Julia", build: "", run: "julia main.jl" },
+  { label: "R", build: "", run: "Rscript main.R" },
+  { label: "Perl", build: "", run: "perl main.pl" },
+  { label: "Fortran", build: "gfortran -o main main.f90", run: "./main" },
+  { label: "V", build: "v .", run: "./main" },
+  { label: "Docker", build: "docker build -t app .", run: "docker run -it app" },
+  { label: "Docker Compose", build: "docker compose build", run: "docker compose up" },
+];
 
 export function BuildPanel({ workspacePath, onOpenFile }: BuildPanelProps) {
   const [systems, setSystems] = useState<BuildSystem[]>([]);
@@ -192,11 +239,14 @@ export function BuildPanel({ workspacePath, onOpenFile }: BuildPanelProps) {
             value={selectedIdx}
             onChange={e => setSelectedIdx(Number(e.target.value))}
           >
-            {systems.map((s, i) => <option key={i} value={i}>{SYSTEM_ICONS[s.name] || s.name} ({s.config_file})</option>)}
+            {systems.map((s, i) => <option key={i} value={i}>{SYSTEM_ICONS[s.name] || s.name}{s.project_path ? ` — ${s.project_path}/` : ""} ({s.config_file})</option>)}
           </select>
         )}
         {systems.length === 1 && selected && (
-          <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>{SYSTEM_ICONS[selected.name] || selected.name}</span>
+          <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+            {SYSTEM_ICONS[selected.name] || selected.name}
+            {selected.project_path && <span style={{ color: "var(--text-muted)" }}> — {selected.project_path}/</span>}
+          </span>
         )}
 
         <div style={{ flex: 1 }} />
@@ -319,10 +369,38 @@ export function BuildPanel({ workspacePath, onOpenFile }: BuildPanelProps) {
       {/* Output log */}
       <div style={{ flex: 1, overflowY: "auto", background: "var(--bg-primary)", padding: "8px 12px" }}>
         {log.length === 0 && !busy && (
-          <div style={{ textAlign: "center", color: "var(--text-muted)", padding: 40, fontSize: 12 }}>
-            {systems.length > 0
-              ? `${SYSTEM_ICONS[systems[0]?.name] || systems[0]?.name} project detected. Click Build to compile.`
-              : workspacePath ? "No build system detected. Use Custom to set a build command." : "Open a folder to start building."}
+          <div style={{ textAlign: "center", color: "var(--text-muted)", padding: 24, fontSize: 12 }}>
+            {systems.length > 0 ? (
+              `${SYSTEM_ICONS[systems[0]?.name] || systems[0]?.name} project detected. Click Build to compile.`
+            ) : workspacePath ? (
+              <div>
+                <div style={{ marginBottom: 12 }}>No build system detected. Select a language or use Custom.</div>
+                <select
+                  style={{
+                    padding: "6px 10px", fontSize: 12, borderRadius: "var(--radius-sm)",
+                    border: "1px solid var(--border-color)", background: "var(--bg-secondary)",
+                    color: "var(--text-primary)", width: 280, marginBottom: 8,
+                  }}
+                  defaultValue=""
+                  onChange={e => {
+                    const preset = MANUAL_PRESETS.find(p => p.label === e.target.value);
+                    if (preset) {
+                      setCustomBuildCmd(preset.build);
+                      setCustomRunCmd(preset.run);
+                      setShowCustom(true);
+                    }
+                  }}
+                >
+                  <option value="" disabled>Select language / build system...</option>
+                  {MANUAL_PRESETS.map(p => (
+                    <option key={p.label} value={p.label}>{p.label}</option>
+                  ))}
+                </select>
+                <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+                  This will pre-fill the Custom build and run commands.
+                </div>
+              </div>
+            ) : "Open a folder to start building."}
           </div>
         )}
         <pre style={{ margin: 0, fontFamily: "var(--font-mono)", fontSize: 11, lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-all", color: "var(--text-primary)" }}>
