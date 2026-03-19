@@ -11,20 +11,160 @@ pub struct LspManager {
     server_configs: HashMap<String, (String, Vec<String>)>, // language_id -> (cmd, args)
 }
 
+/// LSP server metadata: command, args, install instructions
+pub struct LspServerInfo {
+    pub command: String,
+    pub args: Vec<String>,
+    pub install_hint: String,
+}
+
 impl LspManager {
     pub fn new() -> Self {
         let mut server_configs = HashMap::new();
-        
-        // Default configurations (assumes binaries are in PATH)
-        server_configs.insert("rust".to_string(), ("rust-analyzer".to_string(), vec![]));
-        server_configs.insert("typescript".to_string(), ("typescript-language-server".to_string(), vec!["--stdio".to_string()]));
-        server_configs.insert("javascript".to_string(), ("typescript-language-server".to_string(), vec!["--stdio".to_string()]));
-        server_configs.insert("python".to_string(), ("pylsp".to_string(), vec![]));
+        let s = |cmd: &str, args: &[&str]| (cmd.to_string(), args.iter().map(|a| a.to_string()).collect::<Vec<_>>());
+
+        // ── Systems languages ──
+        server_configs.insert("rust".into(),         s("rust-analyzer", &[]));
+        server_configs.insert("c".into(),            s("clangd", &[]));
+        server_configs.insert("cpp".into(),          s("clangd", &[]));
+        server_configs.insert("zig".into(),          s("zls", &[]));
+        server_configs.insert("nim".into(),          s("nimlangserver", &[]));
+        server_configs.insert("d".into(),             s("serve-d", &[]));
+        server_configs.insert("v".into(),             s("v-analyzer", &[]));
+        server_configs.insert("vala".into(),          s("vala-language-server", &[]));
+
+        // ── Web languages ──
+        server_configs.insert("typescript".into(),   s("typescript-language-server", &["--stdio"]));
+        server_configs.insert("javascript".into(),   s("typescript-language-server", &["--stdio"]));
+        server_configs.insert("html".into(),          s("vscode-html-language-server", &["--stdio"]));
+        server_configs.insert("css".into(),           s("vscode-css-language-server", &["--stdio"]));
+        server_configs.insert("json".into(),          s("vscode-json-language-server", &["--stdio"]));
+
+        // ── JVM languages ──
+        server_configs.insert("java".into(),         s("jdtls", &[]));
+        server_configs.insert("kotlin".into(),       s("kotlin-language-server", &[]));
+        server_configs.insert("scala".into(),        s("metals", &[]));
+        server_configs.insert("groovy".into(),       s("groovy-language-server", &[]));
+        server_configs.insert("clojure".into(),      s("clojure-lsp", &[]));
+
+        // ── .NET languages ──
+        server_configs.insert("csharp".into(),       s("OmniSharp", &["-lsp"]));
+        server_configs.insert("fsharp".into(),       s("fsautocomplete", &["--adaptive-lsp-server-enabled"]));
+        server_configs.insert("vb".into(),            s("OmniSharp", &["-lsp"]));
+
+        // ── Scripting languages ──
+        server_configs.insert("python".into(),       s("pyright-langserver", &["--stdio"]));
+        server_configs.insert("ruby".into(),         s("solargraph", &["stdio"]));
+        server_configs.insert("php".into(),           s("intelephense", &["--stdio"]));
+        server_configs.insert("perl".into(),          s("perl-language-server", &[]));
+        server_configs.insert("lua".into(),           s("lua-language-server", &[]));
+        server_configs.insert("r".into(),             s("R", &["--slave", "-e", "languageserver::run()"]));
+
+        // ── Go ──
+        server_configs.insert("go".into(),           s("gopls", &[]));
+
+        // ── Functional languages ──
+        server_configs.insert("haskell".into(),      s("haskell-language-server-wrapper", &["--lsp"]));
+        server_configs.insert("elixir".into(),       s("elixir-ls", &[]));
+        server_configs.insert("erlang".into(),       s("erlang_ls", &[]));
+        server_configs.insert("ocaml".into(),        s("ocamllsp", &[]));
+        server_configs.insert("racket".into(),       s("racket-langserver", &[]));
+        server_configs.insert("lisp".into(),          s("cl-lsp", &[]));
+
+        // ── Mobile / Apple ──
+        server_configs.insert("swift".into(),        s("sourcekit-lsp", &[]));
+        server_configs.insert("dart".into(),         s("dart", &["language-server", "--protocol=lsp"]));
+
+        // ── Other compiled ──
+        server_configs.insert("crystal".into(),      s("crystalline", &[]));
+        server_configs.insert("fortran".into(),      s("fortls", &[]));
+        server_configs.insert("pascal".into(),       s("pasls", &[]));
+        server_configs.insert("julia".into(),        s("julia", &["--project=@.", "-e", "using LanguageServer; runserver()"]));
+        server_configs.insert("prolog".into(),       s("swipl", &["-g", "use_module(library(lsp_server))", "-t", "lsp_server:main"]));
+
+        // ── Markup / Config ──
+        server_configs.insert("yaml".into(),         s("yaml-language-server", &["--stdio"]));
+        server_configs.insert("toml".into(),         s("taplo", &["lsp", "stdio"]));
+        server_configs.insert("dockerfile".into(),   s("docker-langserver", &["--stdio"]));
+        server_configs.insert("markdown".into(),     s("marksman", &["server"]));
+        server_configs.insert("sql".into(),           s("sqls", &[]));
+        server_configs.insert("graphql".into(),      s("graphql-lsp", &["server", "-m", "stream"]));
+
+        // ── CFML ──
+        server_configs.insert("cfml".into(),          s("cfml-language-server", &[]));
 
         Self {
             clients: HashMap::new(),
             server_configs,
         }
+    }
+
+    /// Get the full list of supported languages and their LSP server info.
+    pub fn supported_languages(&self) -> Vec<(String, String, String)> {
+        let install_hints = Self::install_hints();
+        self.server_configs.iter().map(|(lang, (cmd, _))| {
+            let hint = install_hints.get(lang.as_str()).unwrap_or(&"Check your package manager");
+            (lang.clone(), cmd.clone(), hint.to_string())
+        }).collect()
+    }
+
+    /// Check which LSP servers are available on PATH.
+    pub fn check_available(&self) -> Vec<(String, String, bool)> {
+        self.server_configs.iter().map(|(lang, (cmd, _))| {
+            let available = std::process::Command::new("which").arg(cmd).output()
+                .map(|o| o.status.success()).unwrap_or(false);
+            (lang.clone(), cmd.clone(), available)
+        }).collect()
+    }
+
+    fn install_hints() -> HashMap<&'static str, &'static str> {
+        let mut h = HashMap::new();
+        h.insert("rust", "rustup component add rust-analyzer");
+        h.insert("c", "brew install llvm (macOS) | apt install clangd (Linux)");
+        h.insert("cpp", "brew install llvm (macOS) | apt install clangd (Linux)");
+        h.insert("typescript", "npm i -g typescript-language-server typescript");
+        h.insert("javascript", "npm i -g typescript-language-server typescript");
+        h.insert("python", "pip install pyright | pip install python-lsp-server");
+        h.insert("go", "go install golang.org/x/tools/gopls@latest");
+        h.insert("java", "https://github.com/eclipse-jdtls/eclipse.jdt.ls");
+        h.insert("kotlin", "https://github.com/fwcd/kotlin-language-server");
+        h.insert("scala", "https://scalameta.org/metals/docs/editors/new-editor");
+        h.insert("ruby", "gem install solargraph");
+        h.insert("php", "npm i -g @intelephense/server");
+        h.insert("lua", "brew install lua-language-server");
+        h.insert("swift", "Included with Xcode | swift.org/download");
+        h.insert("dart", "dart pub global activate dart_language_server");
+        h.insert("haskell", "ghcup install hls");
+        h.insert("elixir", "https://github.com/elixir-lsp/elixir-ls");
+        h.insert("erlang", "https://github.com/erlang-ls/erlang_ls");
+        h.insert("ocaml", "opam install ocaml-lsp-server");
+        h.insert("crystal", "https://github.com/elbywan/crystalline");
+        h.insert("zig", "brew install zls | https://github.com/zigtools/zls");
+        h.insert("nim", "nimble install nimlangserver");
+        h.insert("d", "https://github.com/Pure-D/serve-d");
+        h.insert("csharp", "https://github.com/OmniSharp/omnisharp-roslyn");
+        h.insert("fsharp", "dotnet tool install fsautocomplete");
+        h.insert("perl", "cpanm Perl::LanguageServer");
+        h.insert("r", "R -e 'install.packages(\"languageserver\")'");
+        h.insert("fortran", "pip install fortls");
+        h.insert("julia", "julia -e 'using Pkg; Pkg.add(\"LanguageServer\")'");
+        h.insert("clojure", "brew install clojure-lsp/brew/clojure-lsp-native");
+        h.insert("groovy", "https://github.com/GroovyLanguageServer/groovy-language-server");
+        h.insert("racket", "raco pkg install racket-langserver");
+        h.insert("yaml", "npm i -g yaml-language-server");
+        h.insert("toml", "cargo install taplo-cli");
+        h.insert("dockerfile", "npm i -g dockerfile-language-server-nodejs");
+        h.insert("markdown", "brew install marksman");
+        h.insert("sql", "go install github.com/sqls-server/sqls@latest");
+        h.insert("graphql", "npm i -g graphql-language-service-cli");
+        h.insert("html", "npm i -g vscode-langservers-extracted");
+        h.insert("css", "npm i -g vscode-langservers-extracted");
+        h.insert("json", "npm i -g vscode-langservers-extracted");
+        h.insert("pascal", "https://github.com/castle-engine/pascal-language-server");
+        h.insert("v", "https://github.com/nickolasgasworker/v-analyzer");
+        h.insert("vala", "https://github.com/vala-lang/vala-language-server");
+        h.insert("prolog", "swipl (SWI-Prolog with lsp_server pack)");
+        h
     }
 
     /// Get or create a client for the given language
@@ -78,7 +218,7 @@ mod tests {
     #[test]
     fn new_has_four_default_configs() {
         let mgr = LspManager::new();
-        assert_eq!(mgr.server_configs.len(), 4);
+        assert!(mgr.server_configs.len() >= 40);
     }
 
     #[test]
@@ -104,10 +244,10 @@ mod tests {
     }
 
     #[test]
-    fn default_python_config_is_pylsp() {
+    fn default_python_config_is_pyright() {
         let mgr = LspManager::new();
         let (cmd, _) = mgr.server_configs.get("python").unwrap();
-        assert_eq!(cmd, "pylsp");
+        assert_eq!(cmd, "pyright-langserver");
     }
 
     #[test]
@@ -125,7 +265,7 @@ mod tests {
     #[test]
     fn default_is_same_as_new() {
         let mgr = LspManager::default();
-        assert_eq!(mgr.server_configs.len(), 4);
+        assert!(mgr.server_configs.len() >= 40);
     }
 
     #[test]
@@ -201,19 +341,19 @@ mod tests {
     }
 
     #[test]
-    fn server_configs_do_not_include_go_by_default() {
+    fn server_configs_include_go_c_java() {
         let mgr = LspManager::new();
-        assert!(!mgr.server_configs.contains_key("go"));
-        assert!(!mgr.server_configs.contains_key("c"));
-        assert!(!mgr.server_configs.contains_key("java"));
+        assert!(mgr.server_configs.contains_key("go"));
+        assert!(mgr.server_configs.contains_key("c"));
+        assert!(mgr.server_configs.contains_key("java"));
     }
 
     #[tokio::test]
     async fn get_client_for_language_error_message_contains_language_name() {
         let mut mgr = LspManager::new();
-        let result = mgr.get_client_for_language("zig", std::path::Path::new("/tmp")).await;
+        let result = mgr.get_client_for_language("brainfuck", std::path::Path::new("/tmp")).await;
         match result {
-            Err(e) => assert!(e.to_string().contains("zig"), "Error should mention the language name"),
+            Err(e) => assert!(e.to_string().contains("brainfuck"), "Error should mention the language name"),
             Ok(_) => panic!("Expected error for unsupported language"),
         }
     }
@@ -226,10 +366,10 @@ mod tests {
     }
 
     #[test]
-    fn python_pylsp_has_no_args() {
+    fn python_pyright_has_stdio_arg() {
         let mgr = LspManager::new();
         let (_, args) = mgr.server_configs.get("python").unwrap();
-        assert!(args.is_empty(), "pylsp should have no default args");
+        assert_eq!(args, &["--stdio"]);
     }
 
     #[test]
@@ -258,12 +398,12 @@ mod tests {
     #[tokio::test]
     async fn get_client_for_language_unknown_returns_descriptive_error() {
         let mut mgr = LspManager::new();
-        let result = mgr.get_client_for_language("fortran", std::path::Path::new("/tmp")).await;
+        let result = mgr.get_client_for_language("cobol", std::path::Path::new("/tmp")).await;
         match result {
             Err(e) => {
                 let msg = e.to_string();
                 assert!(msg.contains("No LSP server configured"), "error should mention missing config");
-                assert!(msg.contains("fortran"), "error should name the language");
+                assert!(msg.contains("cobol"), "error should name the language");
             }
             Ok(_) => panic!("Expected error for unsupported language"),
         }

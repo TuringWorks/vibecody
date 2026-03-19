@@ -201,6 +201,7 @@ pub fn run() {
             commands::lsp_did_open,
             commands::lsp_did_change,
             commands::lsp_did_save,
+            commands::lsp_list_servers,
             commands::request_inline_completion,
             commands::track_flow_event,
             commands::get_flow_context,

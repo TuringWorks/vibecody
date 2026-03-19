@@ -2028,6 +2028,29 @@ pub async fn lsp_did_save(
         .map_err(|e| e.to_string())
 }
 
+/// List all supported LSP servers with their availability status and install instructions.
+#[tauri::command]
+pub async fn lsp_list_servers(
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let manager = state.lsp_manager.lock().await;
+    let servers = manager.check_available();
+    let supported = manager.supported_languages();
+
+    let mut result = Vec::new();
+    for (lang, cmd, available) in &servers {
+        let install = supported.iter().find(|(l, _, _)| l == lang).map(|(_, _, h)| h.as_str()).unwrap_or("");
+        result.push(serde_json::json!({
+            "language": lang,
+            "server": cmd,
+            "available": available,
+            "install_hint": install,
+        }));
+    }
+    result.sort_by(|a, b| a["language"].as_str().cmp(&b["language"].as_str()));
+    Ok(serde_json::json!(result))
+}
+
 /// Inline AI completion using FIM format for Ollama or chat prompt for others.
 /// Returns the completion text (suffix to insert at cursor).
 #[tauri::command]
@@ -3977,6 +4000,119 @@ pub async fn detect_build_system(workspace: String) -> Result<Vec<BuildSystem>, 
             let bin_name = main_file.trim_end_matches(".adb");
             systems.push(build_sys("gnat", &format!("gnatmake {}", main_file), &format!("./{}", bin_name), main_file, "gnatmake",
                 "Install GNAT: `apt install gnat` (Linux) or `brew install gnat` (macOS) — https://www.adacore.com/download"));
+        }
+
+        // D
+        if has_ext(".d") {
+            let d_files: Vec<&String> = entries.iter().filter(|f| f.ends_with(".d")).collect();
+            let files_str = d_files.iter().map(|f| f.as_str()).collect::<Vec<_>>().join(" ");
+            systems.push(build_sys("dmd", &format!("dmd -of=main {}", files_str), "./main", &files_str, "dmd",
+                "Install D: https://dlang.org/download.html or `brew install dmd`"));
+        }
+
+        // Dart
+        if has_ext(".dart") {
+            let main = entries.iter().find(|f| *f == "main.dart" || f.ends_with(".dart")).unwrap();
+            systems.push(build_sys("dart", &format!("dart compile exe {}", main), &format!("dart run {}", main), main, "dart",
+                "Install Dart: https://dart.dev/get-dart or `brew install dart`"));
+        }
+
+        // Haskell
+        if has_ext(".hs") {
+            let main = entries.iter().find(|f| *f == "Main.hs" || f.ends_with(".hs")).unwrap();
+            systems.push(build_sys("ghc", &format!("ghc -o main {}", main), "./main", main, "ghc",
+                "Install GHC: https://www.haskell.org/ghcup/ or `brew install ghc`"));
+        }
+
+        // Scala
+        if has_ext(".scala") {
+            let main = entries.iter().find(|f| f.ends_with(".scala")).unwrap();
+            systems.push(build_sys("scalac", &format!("scalac {}", main), &format!("scala {}", main.trim_end_matches(".scala")), main, "scalac",
+                "Install Scala: https://www.scala-lang.org/download/ or `brew install scala`"));
+        }
+
+        // OCaml
+        if has_ext(".ml") {
+            let main = entries.iter().find(|f| f.ends_with(".ml")).unwrap();
+            systems.push(build_sys("ocaml", &format!("ocamlfind ocamlopt -o main {}", main), "./main", main, "ocamlfind",
+                "Install OCaml: https://ocaml.org/install or `brew install ocaml opam`"));
+        }
+
+        // Erlang
+        if has_ext(".erl") {
+            let main = entries.iter().find(|f| f.ends_with(".erl")).unwrap();
+            let mod_name = main.trim_end_matches(".erl");
+            systems.push(build_sys("erlc", &format!("erlc {}", main), &format!("erl -noshell -s {} start -s init stop", mod_name), main, "erlc",
+                "Install Erlang: https://www.erlang.org/downloads or `brew install erlang`"));
+        }
+
+        // Perl
+        if has_ext(".pl") {
+            let main = entries.iter().find(|f| *f == "main.pl" || *f == "app.pl" || f.ends_with(".pl")).unwrap();
+            systems.push(build_sys("perl", &format!("perl -c {}", main), &format!("perl {}", main), main, "perl",
+                "Perl is usually pre-installed. Otherwise: https://www.perl.org/get.html"));
+        }
+
+        // PHP
+        if has_ext(".php") {
+            let main = entries.iter().find(|f| *f == "index.php" || f.ends_with(".php")).unwrap();
+            systems.push(build_sys("php", &format!("php -l {}", main), &format!("php {}", main), main, "php",
+                "Install PHP: https://www.php.net/downloads or `brew install php`"));
+        }
+
+        // Lua
+        if has_ext(".lua") {
+            let main = entries.iter().find(|f| *f == "main.lua" || *f == "init.lua" || f.ends_with(".lua")).unwrap();
+            systems.push(build_sys("lua", &format!("luac -p {}", main), &format!("lua {}", main), main, "lua",
+                "Install Lua: https://www.lua.org/download.html or `brew install lua`"));
+        }
+
+        // R
+        if has_ext(".R") || has_ext(".r") {
+            let main = entries.iter().find(|f| f.ends_with(".R") || f.ends_with(".r")).unwrap();
+            systems.push(build_sys("r", &format!("Rscript --vanilla {}", main), &format!("Rscript {}", main), main, "Rscript",
+                "Install R: https://cran.r-project.org/ or `brew install r`"));
+        }
+
+        // Julia
+        if has_ext(".jl") {
+            let main = entries.iter().find(|f| *f == "main.jl" || f.ends_with(".jl")).unwrap();
+            systems.push(build_sys("julia", &format!("julia --compiled-modules=yes {}", main), &format!("julia {}", main), main, "julia",
+                "Install Julia: https://julialang.org/downloads/ or `brew install julia`"));
+        }
+
+        // Fortran
+        if has_ext(".f90") || has_ext(".f") || has_ext(".f95") {
+            let f_files: Vec<&String> = entries.iter().filter(|f| f.ends_with(".f90") || f.ends_with(".f") || f.ends_with(".f95")).collect();
+            let files_str = f_files.iter().map(|f| f.as_str()).collect::<Vec<_>>().join(" ");
+            systems.push(build_sys("gfortran", &format!("gfortran -o main {}", files_str), "./main", &files_str, "gfortran",
+                "Install GFortran: `brew install gcc` (macOS) or `apt install gfortran` (Linux)"));
+        }
+
+        // V
+        if has_ext(".v") && !has_ext(".vala") {
+            let main = entries.iter().find(|f| f.ends_with(".v")).unwrap();
+            systems.push(build_sys("vlang", &format!("v {}", main), &format!("v run {}", main), main, "v",
+                "Install V: https://vlang.io/ or `brew install vlang`"));
+        }
+
+        // Racket
+        if has_ext(".rkt") {
+            let main = entries.iter().find(|f| f.ends_with(".rkt")).unwrap();
+            systems.push(build_sys("racket", &format!("raco make {}", main), &format!("racket {}", main), main, "racket",
+                "Install Racket: https://racket-lang.org/download/ or `brew install racket`"));
+        }
+
+        // Pascal
+        if has_ext(".pas") || has_ext(".pp") {
+            let main = entries.iter().find(|f| f.ends_with(".pas") || f.ends_with(".pp")).unwrap();
+            systems.push(build_sys("fpc", &format!("fpc {}", main), &format!("./{}", main.split('.').next().unwrap_or("main")), main, "fpc",
+                "Install Free Pascal: https://www.freepascal.org/ or `brew install fpc`"));
+        }
+
+        // Prolog
+        if has_ext(".pl") && entries.iter().any(|f| f.ends_with(".pro") || (f.ends_with(".pl") && std::fs::read_to_string(std::path::Path::new(&path).join(f)).unwrap_or_default().contains(":-"))) {
+            // Skip if already detected as Perl
         }
     }
 
