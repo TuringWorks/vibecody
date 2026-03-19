@@ -96,36 +96,42 @@ export default function WorkManagementPanel() {
     try { const d = await invoke<Org[]>("wm_list_orgs"); setOrgs(d || []); } catch { /* empty */ }
   }, []);
 
+  const loadGroups = useCallback(async () => {
+    if (scope.orgId) {
+      try { const d = await invoke<Group[]>("wm_list_groups", { orgId: scope.orgId }); setGroups(d || []); } catch { /* empty */ }
+    } else { setGroups([]); }
+  }, [scope.orgId]);
+
+  const loadTeams = useCallback(async () => {
+    if (scope.groupId) {
+      try { const d = await invoke<Team[]>("wm_list_teams", { groupId: scope.groupId }); setTeams(d || []); } catch { /* empty */ }
+    } else { setTeams([]); }
+  }, [scope.groupId]);
+
+  const loadWorkspaces = useCallback(async () => {
+    if (scope.teamId) {
+      try { const d = await invoke<Workspace[]>("wm_list_workspaces", { teamId: scope.teamId }); setWorkspaces(d || []); } catch { /* empty */ }
+    } else { setWorkspaces([]); }
+  }, [scope.teamId]);
+
   const loadItems = useCallback(async () => {
     try { const d = await invoke<WorkItem[]>("wm_list_items", { filter: scope }); setItems(d || []); } catch { /* empty */ }
   }, [scope]);
 
-  useEffect(() => {
-    loadOrgs();
-  }, [loadOrgs]);
+  const refreshAll = useCallback(async () => {
+    await loadOrgs();
+    await loadGroups();
+    await loadTeams();
+    await loadWorkspaces();
+    await loadItems();
+  }, [loadOrgs, loadGroups, loadTeams, loadWorkspaces, loadItems]);
 
+  useEffect(() => { loadOrgs(); }, [loadOrgs]);
+  useEffect(() => { loadGroups(); }, [loadGroups]);
+  useEffect(() => { loadTeams(); }, [loadTeams]);
+  useEffect(() => { loadWorkspaces(); }, [loadWorkspaces]);
   useEffect(() => { loadItems(); }, [loadItems]);
 
-  // Load groups when org selected
-  useEffect(() => {
-    if (scope.orgId) {
-      invoke<Group[]>("wm_list_groups", { orgId: scope.orgId }).then(d => setGroups(d || [])).catch(() => {});
-    } else { setGroups([]); }
-  }, [scope.orgId]);
-
-  // Load teams when group selected
-  useEffect(() => {
-    if (scope.groupId) {
-      invoke<Team[]>("wm_list_teams", { groupId: scope.groupId }).then(d => setTeams(d || [])).catch(() => {});
-    } else { setTeams([]); }
-  }, [scope.groupId]);
-
-  // Load workspaces when team selected
-  useEffect(() => {
-    if (scope.teamId) {
-      invoke<Workspace[]>("wm_list_workspaces", { teamId: scope.teamId }).then(d => setWorkspaces(d || [])).catch(() => {});
-    } else { setWorkspaces([]); }
-  }, [scope.teamId]);
 
   const tabs: { id: TabKey; label: string }[] = [
     { id: "hierarchy", label: "Hierarchy" },
@@ -165,7 +171,7 @@ export default function WorkManagementPanel() {
       {error && <div style={{ padding: "6px 12px", fontSize: 11, color: "var(--error-color)", background: "var(--error-bg)" }}>{error}<button style={{ float: "right", ...btnS, fontSize: 10, padding: "1px 6px" }} onClick={() => setError("")}>x</button></div>}
 
       <div style={{ flex: 1, overflowY: "auto", padding: "10px 12px" }}>
-        {tab === "hierarchy" && <HierarchyTab orgs={orgs} groups={groups} teams={teams} workspaces={workspaces} scope={scope} setScope={setScope} onRefresh={loadOrgs} setError={setError} />}
+        {tab === "hierarchy" && <HierarchyTab orgs={orgs} groups={groups} teams={teams} workspaces={workspaces} scope={scope} setScope={setScope} onRefresh={refreshAll} setError={setError} />}
         {tab === "items" && <ItemsTab items={items} scope={scope} onRefresh={loadItems} setError={setError} />}
         {tab === "board" && <BoardTab items={items} onRefresh={loadItems} setError={setError} />}
         {tab === "relationships" && <RelationshipsTab items={items} onRefresh={loadItems} setError={setError} />}
@@ -222,7 +228,7 @@ function HierarchyTab({ orgs, groups, teams, workspaces, scope, setScope, onRefr
           {item.description && <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }}>{item.description}</div>}
         </div>
       ))}
-      {items.length === 0 && <div style={{ fontSize: 11, color: "var(--text-muted)", padding: 8 }}>No {label.toLowerCase()} yet</div>}
+      {items.length === 0 && <div style={{ fontSize: 11, color: "var(--text-muted)", padding: 8 }}>No {label.toLowerCase()} yet. Click + to create one.</div>}
     </div>
   );
 
@@ -241,6 +247,31 @@ function HierarchyTab({ orgs, groups, teams, workspaces, scope, setScope, onRefr
         </div>
       )}
 
+      {/* Getting started guide */}
+      {orgs.length === 0 && !creating && (
+        <div style={{ ...cardS, textAlign: "center", padding: 24, marginBottom: 16 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>Get Started with Work Management</div>
+          <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.6, marginBottom: 12 }}>
+            Create an organizational hierarchy to track work items across your teams.<br />
+            Organization &rarr; Group/Division &rarr; Team &rarr; Workspace/Project
+          </div>
+          <button style={btnP} onClick={() => setCreating("org")}>Create Your First Organization</button>
+        </div>
+      )}
+
+      {/* Breadcrumb flow */}
+      {orgs.length > 0 && (
+        <div style={{ display: "flex", gap: 6, marginBottom: 12, fontSize: 11, color: "var(--text-muted)", alignItems: "center", flexWrap: "wrap" }}>
+          <span style={{ fontWeight: scope.orgId ? 600 : 400, color: scope.orgId ? "var(--accent-color)" : "var(--text-muted)", cursor: "pointer" }}
+            onClick={() => setScope({})}>
+            Organizations
+          </span>
+          {scope.orgId && <>&rarr; <span style={{ fontWeight: scope.groupId ? 600 : 400, color: scope.groupId ? "var(--accent-color)" : "var(--text-muted)" }}>Groups</span></>}
+          {scope.groupId && <>&rarr; <span style={{ fontWeight: scope.teamId ? 600 : 400, color: scope.teamId ? "var(--accent-color)" : "var(--text-muted)" }}>Teams</span></>}
+          {scope.teamId && <>&rarr; <span style={{ fontWeight: scope.workspaceId ? 600 : 400, color: scope.workspaceId ? "var(--accent-color)" : "var(--text-muted)" }}>Workspaces</span></>}
+        </div>
+      )}
+
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <div>
           {renderLevel("Organizations", orgs, id => setScope({ orgId: id }), scope.orgId, "org")}
@@ -251,6 +282,28 @@ function HierarchyTab({ orgs, groups, teams, workspaces, scope, setScope, onRefr
           {scope.teamId && renderLevel("Workspaces", workspaces, id => setScope({ ...scope, workspaceId: id }), scope.workspaceId, "workspace")}
         </div>
       </div>
+
+      {/* Next step hints */}
+      {scope.orgId && groups.length === 0 && !creating && (
+        <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 8, textAlign: "center" }}>
+          Create a Group/Division within your organization to organize teams.
+        </div>
+      )}
+      {scope.groupId && teams.length === 0 && !creating && (
+        <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 8, textAlign: "center" }}>
+          Create a Team within this group to start managing work.
+        </div>
+      )}
+      {scope.teamId && workspaces.length === 0 && !creating && (
+        <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 8, textAlign: "center" }}>
+          Create a Workspace/Project to define ID prefixes and start tracking work items.
+        </div>
+      )}
+      {scope.workspaceId && (
+        <div style={{ fontSize: 12, color: "var(--success-color)", marginTop: 8, textAlign: "center" }}>
+          Workspace selected. Switch to the Items tab to create and manage work items.
+        </div>
+      )}
     </div>
   );
 }
@@ -396,7 +449,19 @@ function ItemsTab({ items, scope, onRefresh, setError }: {
           )}
         </div>
       ))}
-      {filtered.length === 0 && <div style={{ textAlign: "center", padding: 24, color: "var(--text-muted)", fontSize: 12 }}>No work items. Create one or select a scope from the Hierarchy tab.</div>}
+      {filtered.length === 0 && (
+        <div style={{ textAlign: "center", padding: 24, color: "var(--text-muted)", fontSize: 12 }}>
+          {scope.orgId
+            ? "No work items in this scope. Click + Create Item to get started."
+            : "Select an organization from the Hierarchy tab first, then create work items here."}
+          <div style={{ marginTop: 12, display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
+            {ITEM_TYPES.slice(0, 6).map(t => (
+              <span key={t} style={{ ...badge(TYPE_COLORS[t] || "var(--bg-tertiary)", "var(--btn-primary-fg)"), fontSize: 10 }}>{t}</span>
+            ))}
+            <span style={{ fontSize: 10, color: "var(--text-muted)" }}>+{ITEM_TYPES.length - 6} more types</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

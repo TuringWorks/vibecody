@@ -161,7 +161,7 @@ export const TAB_META: Record<string, TabMeta> = {
   "qa-validation": { icon: CheckSquare,    label: "QA" },
   sessions:    { icon: FolderOpen,         label: "Sessions" },
   agile:       { icon: ClipboardList,     label: "Agile" },
-  workmanagement: { icon: ClipboardList,  label: "Work Mgmt" },
+  workmanagement: { icon: ClipboardList,  label: "Work Management" },
   build:       { icon: Hammer,            label: "Build" },
 };
 
