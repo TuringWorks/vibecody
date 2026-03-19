@@ -429,6 +429,31 @@ function App() {
     // Register VibeUI theme with Monaco so the editor matches the app theme
     defineEditorTheme(monaco);
 
+    // Register languages that Monaco doesn't have built-in support for.
+    // Map them to similar languages for syntax highlighting.
+    const extraLangs: Array<{ id: string; extensions: string[]; aliases?: string[] }> = [
+      { id: "haskell", extensions: [".hs", ".lhs"], aliases: ["Haskell"] },
+      { id: "fortran", extensions: [".f", ".f90", ".f95", ".f03", ".f08"], aliases: ["Fortran"] },
+      { id: "prolog", extensions: [".pro", ".pl"], aliases: ["Prolog"] },
+      { id: "toml", extensions: [".toml"], aliases: ["TOML"] },
+      { id: "zig", extensions: [".zig"], aliases: ["Zig"] },
+      { id: "nim", extensions: [".nim", ".nims"], aliases: ["Nim"] },
+      { id: "d", extensions: [".d"], aliases: ["D"] },
+      { id: "crystal", extensions: [".cr"], aliases: ["Crystal"] },
+      { id: "v", extensions: [".v"], aliases: ["V"] },
+      { id: "ada", extensions: [".adb", ".ads"], aliases: ["Ada"] },
+      { id: "ocaml", extensions: [".ml", ".mli"], aliases: ["OCaml"] },
+      { id: "erlang", extensions: [".erl", ".hrl"], aliases: ["Erlang"] },
+      { id: "racket", extensions: [".rkt"], aliases: ["Racket"] },
+      { id: "vala", extensions: [".vala"], aliases: ["Vala"] },
+    ];
+    const registered = new Set(monaco.languages.getLanguages().map((l: { id: string }) => l.id));
+    for (const lang of extraLangs) {
+      if (!registered.has(lang.id)) {
+        monaco.languages.register({ id: lang.id, extensions: lang.extensions, aliases: lang.aliases });
+      }
+    }
+
     const getRootPath = () => workspaceFolders[0] || ""; // Simple assumption for MVP
 
     // ── Cmd+K: Inline Chat (edit selection) or Generate Code (no selection) ──

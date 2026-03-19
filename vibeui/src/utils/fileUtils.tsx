@@ -6,79 +6,119 @@ export function detectLanguage(filename: string): string {
 
     const languageMap: Record<string, string> = {
         // JavaScript/TypeScript
-        'js': 'javascript',
-        'jsx': 'javascript',
-        'ts': 'typescript',
-        'tsx': 'typescript',
-        'mjs': 'javascript',
-        'cjs': 'javascript',
+        'js': 'javascript', 'jsx': 'javascript', 'ts': 'typescript', 'tsx': 'typescript',
+        'mjs': 'javascript', 'cjs': 'javascript',
 
         // Web
-        'html': 'html',
-        'htm': 'html',
-        'css': 'css',
-        'scss': 'scss',
-        'sass': 'sass',
-        'less': 'less',
+        'html': 'html', 'htm': 'html', 'css': 'css', 'scss': 'scss', 'sass': 'scss', 'less': 'less',
+        'vue': 'html', 'svelte': 'html',
 
-        // Rust
-        'rs': 'rust',
-        'toml': 'toml',
+        // Systems
+        'rs': 'rust', 'c': 'c', 'cpp': 'cpp', 'cc': 'cpp', 'cxx': 'cpp', 'h': 'c', 'hpp': 'cpp',
+        'go': 'go', 'zig': 'cpp',  // Zig → C++ syntax (closest match)
+        'd': 'cpp',                 // D → C++ syntax
+        'v': 'cpp',                 // V (vlang) → C++ syntax
+        'vala': 'csharp',           // Vala → C# syntax (similar)
+
+        // JVM
+        'java': 'java', 'kt': 'kotlin', 'kts': 'kotlin', 'scala': 'scala',
+        'groovy': 'java',           // Groovy → Java syntax
+        'clj': 'clojure', 'cljs': 'clojure', 'cljc': 'clojure', 'edn': 'clojure',
+
+        // .NET
+        'cs': 'csharp', 'fs': 'fsharp', 'fsx': 'fsharp', 'vb': 'vb',
 
         // Python
-        'py': 'python',
-        'pyw': 'python',
+        'py': 'python', 'pyw': 'python', 'pyi': 'python',
 
-        // Go
-        'go': 'go',
-
-        // C/C++
-        'c': 'c',
-        'cpp': 'cpp',
-        'cc': 'cpp',
-        'cxx': 'cpp',
-        'h': 'c',
-        'hpp': 'cpp',
-
-        // Java/Kotlin
-        'java': 'java',
-        'kt': 'kotlin',
-        'kts': 'kotlin',
-
-        // C#
-        'cs': 'csharp',
+        // Ruby
+        'rb': 'ruby', 'erb': 'ruby', 'rake': 'ruby', 'gemspec': 'ruby',
 
         // PHP
         'php': 'php',
 
-        // Ruby
-        'rb': 'ruby',
+        // Swift / Objective-C
+        'swift': 'swift', 'm': 'objective-c', 'mm': 'objective-c',
+
+        // Dart
+        'dart': 'dart',
+
+        // Elixir / Erlang
+        'ex': 'elixir', 'exs': 'elixir', 'erl': 'elixir', 'hrl': 'elixir',
+
+        // Haskell
+        'hs': 'haskell',            // Monaco doesn't have Haskell; map to plaintext with custom later
+        'lhs': 'haskell',
+
+        // Functional
+        'ml': 'fsharp',             // OCaml → F# syntax (ML family)
+        'mli': 'fsharp',
+        'rkt': 'scheme',            // Racket → Scheme
+        'scm': 'scheme',
+        'lisp': 'scheme', 'cl': 'scheme', 'el': 'scheme',
+
+        // Crystal / Nim
+        'cr': 'ruby',               // Crystal → Ruby syntax (very similar)
+        'nim': 'python',            // Nim → Python syntax (similar indentation)
+        'nims': 'python',
+
+        // Perl
+        'pl': 'perl', 'pm': 'perl', 'pod': 'perl',
+
+        // Lua
+        'lua': 'lua',
+
+        // R / Julia
+        'r': 'r', 'R': 'r',
+        'jl': 'julia',
 
         // Shell
-        'sh': 'shell',
-        'bash': 'shell',
-        'zsh': 'shell',
+        'sh': 'shell', 'bash': 'shell', 'zsh': 'shell', 'fish': 'shell',
+        'ps1': 'powershell', 'psm1': 'powershell',
 
-        // Config/Data
-        'json': 'json',
-        'yaml': 'yaml',
-        'yml': 'yaml',
-        'xml': 'xml',
-        'md': 'markdown',
-        'markdown': 'markdown',
+        // Fortran
+        'f': 'fortran', 'f90': 'fortran', 'f95': 'fortran', 'f03': 'fortran', 'f08': 'fortran',
+
+        // Pascal
+        'pas': 'pascal', 'pp': 'pascal',
+
+        // Ada
+        'adb': 'pascal',            // Ada → Pascal syntax (similar)
+        'ads': 'pascal',
+
+        // Prolog
+        'pro': 'prolog',
+
+        // Config / Data
+        'json': 'json', 'jsonc': 'json', 'json5': 'json',
+        'yaml': 'yaml', 'yml': 'yaml',
+        'xml': 'xml', 'svg': 'xml', 'xsl': 'xml', 'xsd': 'xml',
+        'toml': 'ini',              // TOML → INI (closest in Monaco)
+        'ini': 'ini', 'cfg': 'ini', 'conf': 'ini',
+        'env': 'ini',
+
+        // Markup
+        'md': 'markdown', 'markdown': 'markdown', 'mdx': 'markdown',
+        'rst': 'plaintext', 'tex': 'plaintext', 'latex': 'plaintext',
         'txt': 'plaintext',
 
         // SQL
-        'sql': 'sql',
+        'sql': 'sql', 'mysql': 'mysql', 'pgsql': 'pgsql',
 
-        // Docker
+        // Docker / Infra
         'dockerfile': 'dockerfile',
+        'tf': 'hcl', 'tfvars': 'hcl',
+        'bicep': 'bicep',
 
-        // Others
-        'swift': 'swift',
-        'r': 'r',
-        'lua': 'lua',
-        'vim': 'vim',
+        // GraphQL / Protobuf
+        'graphql': 'graphql', 'gql': 'graphql',
+        'proto': 'protobuf',
+
+        // Other
+        'vim': 'plaintext',
+        'makefile': 'shell', 'cmake': 'plaintext',
+        'gradle': 'java',
+        'lock': 'json',
     };
 
     return languageMap[ext || ''] || 'plaintext';
