@@ -199,6 +199,7 @@ function HierarchyTab({ orgs, groups, teams, workspaces, scope, setScope, onRefr
   setScope: (s: Scope) => void; onRefresh: () => void; setError: (e: string) => void;
 }) {
   const [creating, setCreating] = useState<"org" | "group" | "team" | "workspace" | null>(null);
+  const [editing, setEditing] = useState<{ type: "org" | "group" | "team" | "workspace"; item: any } | null>(null);
   const [name, setName] = useState("");
   const [desc, setDesc] = useState("");
   const [prefix, setPrefix] = useState("");
@@ -217,6 +218,27 @@ function HierarchyTab({ orgs, groups, teams, workspaces, scope, setScope, onRefr
         await invoke("wm_save_workspace", { workspace: { id: genId(), teamId: scope.teamId, orgId: scope.orgId, name, description: desc, prefix: prefix.toUpperCase() || "WRK", createdAt: now } });
       }
       setCreating(null); setName(""); setDesc(""); setPrefix("");
+      onRefresh();
+    } catch (e: any) { setError(String(e)); }
+  };
+
+  const startEdit = (type: "org" | "group" | "team" | "workspace", item: any) => {
+    setEditing({ type, item });
+    setName(item.name || "");
+    setDesc(item.description || "");
+    setPrefix(item.prefix || "");
+    setCreating(null);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editing || !name.trim()) return;
+    try {
+      const updated = { ...editing.item, name, description: desc };
+      if (editing.type === "workspace") updated.prefix = prefix.toUpperCase() || updated.prefix;
+      const cmd = editing.type === "org" ? "wm_save_org" : editing.type === "group" ? "wm_save_group" : editing.type === "team" ? "wm_save_team" : "wm_save_workspace";
+      const param = editing.type === "org" ? { org: updated } : editing.type === "group" ? { group: updated } : editing.type === "team" ? { team: updated } : { workspace: updated };
+      await invoke(cmd, param);
+      setEditing(null); setName(""); setDesc(""); setPrefix("");
       onRefresh();
     } catch (e: any) { setError(String(e)); }
   };
@@ -254,13 +276,22 @@ function HierarchyTab({ orgs, groups, teams, workspaces, scope, setScope, onRefr
             {item.description && <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }}>{item.description}</div>}
           </div>
           {createType && (
-            <button
-              onClick={(e) => { e.stopPropagation(); handleDelete(createType, item.id, item.name); }}
-              style={{ ...btnS, fontSize: 9, padding: "2px 6px", color: "var(--error-color)", borderColor: "var(--error-color)", flexShrink: 0, background: "transparent" }}
-              title={`Delete ${createType}`}
-            >
-              Delete
-            </button>
+            <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+              <button
+                onClick={(e) => { e.stopPropagation(); startEdit(createType, item); }}
+                style={{ ...btnS, fontSize: 9, padding: "2px 6px" }}
+                title={`Edit ${createType}`}
+              >
+                Edit
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); handleDelete(createType, item.id, item.name); }}
+                style={{ ...btnS, fontSize: 9, padding: "2px 6px", color: "var(--error-color)", borderColor: "var(--error-color)", background: "transparent" }}
+                title={`Delete ${createType}`}
+              >
+                Delete
+              </button>
+            </div>
           )}
         </div>
       ))}
@@ -278,7 +309,20 @@ function HierarchyTab({ orgs, groups, teams, workspaces, scope, setScope, onRefr
           {creating === "workspace" && <input style={{ ...inpS, marginBottom: 6 }} placeholder="ID Prefix (e.g. PROJ)" value={prefix} onChange={e => setPrefix(e.target.value)} />}
           <div style={{ display: "flex", gap: 6 }}>
             <button style={btnP} onClick={handleCreate}>Create</button>
-            <button style={btnS} onClick={() => setCreating(null)}>Cancel</button>
+            <button style={btnS} onClick={() => { setCreating(null); setName(""); setDesc(""); setPrefix(""); }}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {editing && (
+        <div style={{ ...cardS, marginBottom: 12, borderLeft: "3px solid var(--accent-color)" }}>
+          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8, color: "var(--text-primary)" }}>Edit {editing.type}: {editing.item.name}</div>
+          <input style={{ ...inpS, marginBottom: 6 }} placeholder="Name" value={name} onChange={e => setName(e.target.value)} />
+          <input style={{ ...inpS, marginBottom: 6 }} placeholder="Description" value={desc} onChange={e => setDesc(e.target.value)} />
+          {editing.type === "workspace" && <input style={{ ...inpS, marginBottom: 6 }} placeholder="ID Prefix" value={prefix} onChange={e => setPrefix(e.target.value)} />}
+          <div style={{ display: "flex", gap: 6 }}>
+            <button style={btnP} onClick={handleSaveEdit}>Save</button>
+            <button style={btnS} onClick={() => { setEditing(null); setName(""); setDesc(""); setPrefix(""); }}>Cancel</button>
           </div>
         </div>
       )}
@@ -355,6 +399,7 @@ function ItemsTab({ items, scope, onRefresh, setError }: {
   const [creating, setCreating] = useState(false);
   const [newItem, setNewItem] = useState({ type: "story" as WorkItemType, title: "", description: "", priority: "medium" as Priority, labels: "", storyPoints: 0, parentId: "" });
   const [aiBreaking, setAiBreaking] = useState<string | null>(null);
+  const [editingItem, setEditingItem] = useState<WorkItem | null>(null);
 
   const filtered = items.filter(i => {
     if (filterType && i.type !== filterType) return false;
@@ -438,6 +483,39 @@ function ItemsTab({ items, scope, onRefresh, setError }: {
         </div>
       )}
 
+      {/* Edit item form */}
+      {editingItem && (
+        <div style={{ ...cardS, marginBottom: 12, borderLeft: "3px solid var(--accent-color)" }}>
+          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Edit {editingItem.displayId}: {editingItem.title}</div>
+          <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+            <select style={{ ...inpS, width: "auto" }} value={editingItem.type} onChange={e => setEditingItem({ ...editingItem, type: e.target.value as WorkItemType })}>
+              {ITEM_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+            <select style={{ ...inpS, width: "auto" }} value={editingItem.priority} onChange={e => setEditingItem({ ...editingItem, priority: e.target.value as Priority })}>
+              {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
+            <select style={{ ...inpS, width: "auto" }} value={editingItem.status} onChange={e => setEditingItem({ ...editingItem, status: e.target.value })}>
+              {[...new Set(items.map(i => i.status)), "Backlog", "To Do", "In Progress", "In Review", "Done"].filter((v, i, a) => a.indexOf(v) === i).map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+            <input style={{ ...inpS, width: 60 }} type="number" min={0} value={editingItem.storyPoints || ""} onChange={e => setEditingItem({ ...editingItem, storyPoints: Number(e.target.value) })} placeholder="Pts" />
+          </div>
+          <input style={{ ...inpS, marginBottom: 6 }} value={editingItem.title} onChange={e => setEditingItem({ ...editingItem, title: e.target.value })} placeholder="Title" />
+          <textarea style={{ ...inpS, marginBottom: 6, minHeight: 50, resize: "vertical" }} value={editingItem.description} onChange={e => setEditingItem({ ...editingItem, description: e.target.value })} placeholder="Description" />
+          <input style={{ ...inpS, marginBottom: 6 }} value={editingItem.assignee || ""} onChange={e => setEditingItem({ ...editingItem, assignee: e.target.value })} placeholder="Assignee" />
+          <input style={{ ...inpS, marginBottom: 6 }} value={editingItem.labels.join(", ")} onChange={e => setEditingItem({ ...editingItem, labels: e.target.value.split(",").map(s => s.trim()).filter(Boolean) })} placeholder="Labels (comma-separated)" />
+          <div style={{ display: "flex", gap: 6 }}>
+            <button style={btnP} onClick={async () => {
+              try {
+                await invoke("wm_update_item", { item: editingItem });
+                setEditingItem(null);
+                onRefresh();
+              } catch (e: any) { setError(String(e)); }
+            }}>Save</button>
+            <button style={btnS} onClick={() => setEditingItem(null)}>Cancel</button>
+          </div>
+        </div>
+      )}
+
       {/* Filters */}
       <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap", alignItems: "center" }}>
         <input style={{ ...inpS, width: 160 }} placeholder="Search by title or ID..." value={search} onChange={e => setSearch(e.target.value)} />
@@ -463,11 +541,18 @@ function ItemsTab({ items, scope, onRefresh, setError }: {
             {item.storyPoints !== undefined && item.storyPoints > 0 && <span style={{ fontSize: 10, color: "var(--text-muted)" }}>{item.storyPoints} pts</span>}
             {item.parentId && <span style={{ fontSize: 10, color: "var(--text-muted)" }}>parent: {item.parentId}</span>}
             <div style={{ flex: 1 }} />
+            <button style={{ ...btnS, fontSize: 10, padding: "2px 6px" }} onClick={() => setEditingItem(item)}>Edit</button>
             {["initiative", "epic", "feature", "story"].includes(item.type) && (
               <button style={{ ...btnS, fontSize: 10, padding: "2px 6px" }} onClick={() => handleAiBreakdown(item)} disabled={aiBreaking === item.displayId}>
                 {aiBreaking === item.displayId ? "Breaking down..." : "AI Breakdown"}
               </button>
             )}
+            <button style={{ ...btnS, fontSize: 10, padding: "2px 6px", color: "var(--error-color)", borderColor: "var(--error-color)", background: "transparent" }}
+              onClick={async () => {
+                if (!confirm(`Delete ${item.displayId}?`)) return;
+                try { await invoke("wm_delete_item", { displayId: item.displayId }); onRefresh(); }
+                catch (e: any) { setError(String(e)); }
+              }}>Delete</button>
           </div>
           <div style={{ fontWeight: 500, fontSize: 13 }}>{item.title}</div>
           {item.description && <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 2 }}>{item.description.slice(0, 150)}{item.description.length > 150 ? "..." : ""}</div>}
