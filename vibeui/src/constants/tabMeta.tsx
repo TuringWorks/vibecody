@@ -161,7 +161,7 @@ export const TAB_META: Record<string, TabMeta> = {
   "qa-validation": { icon: CheckSquare,    label: "QA" },
   sessions:    { icon: FolderOpen,         label: "Sessions" },
   // agile is now embedded inside workmanagement panel
-  workmanagement: { icon: ClipboardList,  label: "Project Management" },
+  workmanagement: { icon: ClipboardList,  label: "Work Management" },
   build:       { icon: Hammer,            label: "Build" },
 };
 

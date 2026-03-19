@@ -151,7 +151,7 @@ export default function WorkManagementPanel() {
     <div style={{ display: "flex", flexDirection: "column", height: "100%", color: "var(--text-primary)" }}>
       {/* Header */}
       <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-color)", display: "flex", alignItems: "center", gap: 8 }}>
-        <span style={{ fontSize: 14, fontWeight: 700 }}>Project Management</span>
+        <span style={{ fontSize: 14, fontWeight: 700 }}>Work Management</span>
         {scope.orgId && <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
           {orgs.find(o => o.id === scope.orgId)?.name}
           {scope.groupId && ` / ${groups.find(g => g.id === scope.groupId)?.name || ""}`}
