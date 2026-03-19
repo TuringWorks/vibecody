@@ -18188,7 +18188,13 @@ pub struct DashboardData {
 
 #[tauri::command]
 pub async fn get_project_dashboard() -> Result<DashboardData, String> {
-    let workspace = std::env::current_dir().map_err(|e| e.to_string())?;
+    // Use the active workspace, not the process cwd
+    let home = std::env::var("HOME").unwrap_or_default();
+    let marker = std::path::PathBuf::from(&home).join(".vibeui").join("active-workspace.txt");
+    let workspace = std::fs::read_to_string(&marker).ok()
+        .map(|s| std::path::PathBuf::from(s.trim()))
+        .filter(|p| p.is_dir())
+        .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
     let project_name = workspace
         .file_name()
         .map(|n| n.to_string_lossy().to_string())
