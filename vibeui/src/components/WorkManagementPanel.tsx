@@ -212,6 +212,21 @@ function HierarchyTab({ orgs, groups, teams, workspaces, scope, setScope, onRefr
     } catch (e: any) { setError(String(e)); }
   };
 
+  const handleDelete = async (type: "org" | "group" | "team" | "workspace", id: string, name: string) => {
+    if (!confirm(`Delete ${type} "${name}"? This cannot be undone.`)) return;
+    try {
+      const cmd = type === "org" ? "wm_delete_org" : type === "group" ? "wm_delete_group" : type === "team" ? "wm_delete_team" : "wm_delete_workspace";
+      const param = type === "org" ? { orgId: id } : type === "group" ? { groupId: id } : type === "team" ? { teamId: id } : { workspaceId: id };
+      await invoke(cmd, param);
+      // Clear scope if the deleted item was selected
+      if (type === "org" && scope.orgId === id) setScope({});
+      else if (type === "group" && scope.groupId === id) setScope({ orgId: scope.orgId });
+      else if (type === "team" && scope.teamId === id) setScope({ orgId: scope.orgId, groupId: scope.groupId });
+      else if (type === "workspace" && scope.workspaceId === id) setScope({ orgId: scope.orgId, groupId: scope.groupId, teamId: scope.teamId });
+      onRefresh();
+    } catch (e: any) { setError(String(e)); }
+  };
+
   const renderLevel = (label: string, items: { id: string; name: string; description: string }[], onSelect: (id: string) => void, selectedId?: string, createType?: "org" | "group" | "team" | "workspace") => (
     <div style={{ marginBottom: 16 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
@@ -223,9 +238,21 @@ function HierarchyTab({ orgs, groups, teams, workspaces, scope, setScope, onRefr
           ...cardS, cursor: "pointer", padding: "8px 12px",
           borderLeft: selectedId === item.id ? "3px solid var(--accent-color)" : "3px solid transparent",
           background: selectedId === item.id ? "var(--accent-bg)" : "var(--bg-elevated)",
+          display: "flex", alignItems: "center", gap: 8,
         }}>
-          <div style={{ fontWeight: 600, fontSize: 13 }}>{item.name}</div>
-          {item.description && <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }}>{item.description}</div>}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 600, fontSize: 13 }}>{item.name}</div>
+            {item.description && <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }}>{item.description}</div>}
+          </div>
+          {createType && (
+            <button
+              onClick={(e) => { e.stopPropagation(); handleDelete(createType, item.id, item.name); }}
+              style={{ ...btnS, fontSize: 9, padding: "2px 6px", color: "var(--error-color)", borderColor: "var(--error-color)", flexShrink: 0, background: "transparent" }}
+              title={`Delete ${createType}`}
+            >
+              Delete
+            </button>
+          )}
         </div>
       ))}
       {items.length === 0 && <div style={{ fontSize: 11, color: "var(--text-muted)", padding: 8 }}>No {label.toLowerCase()} yet. Click + to create one.</div>}
