@@ -642,6 +642,7 @@ pub fn run() {
             // Purple Team — ATT&CK Exercises
             commands::list_purple_team_exercises,
             commands::create_purple_team_exercise,
+            commands::purple_team_ai_generate_exercise,
             commands::get_purple_team_matrix,
             commands::record_purple_team_simulation,
             commands::get_purple_team_simulations,

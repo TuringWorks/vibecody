@@ -137,7 +137,7 @@ export const TAB_META: Record<string, TabMeta> = {
   swebench:    { icon: Gauge,              label: "Bench" },
   sessionmemory:{ icon: Activity,          label: "Mem Prof" },
   blueteam:    { icon: ShieldPlus,         label: "Blue" },
-  purpleteam:  { icon: Target,             label: "Purple" },
+  purpleteam:  { icon: Target,             label: "Purple Team" },
   idp:         { icon: Building2,          label: "IDP" },
   // Previously missing — were showing as "Flow"
   subagents:   { icon: TreeDeciduous,      label: "SubAgents" },

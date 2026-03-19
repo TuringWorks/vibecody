@@ -21590,6 +21590,88 @@ pub async fn create_purple_team_exercise(name: String, lead: String, description
     Ok(exercise)
 }
 
+/// AI-generated purple team exercise based on a threat scenario prompt.
+#[tauri::command]
+pub async fn purple_team_ai_generate_exercise(
+    prompt: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let ai_prompt = format!(
+        r#"You are an expert purple team security professional. Generate a detailed purple team exercise plan based on this scenario:
+
+{prompt}
+
+Create a comprehensive exercise with attack simulations mapped to MITRE ATT&CK techniques.
+
+Respond with ONLY valid JSON:
+{{
+  "name": "Exercise name",
+  "description": "Exercise objectives and scope",
+  "lead": "Purple Team Lead",
+  "threat_scenario": "Description of the threat actor and scenario",
+  "objectives": ["objective 1", "objective 2"],
+  "simulations": [
+    {{
+      "technique_id": "T1566",
+      "technique_name": "Phishing",
+      "tactic": "Initial Access",
+      "steps": ["Step 1: Craft phishing email...", "Step 2: ..."],
+      "expected_detection": "Email gateway should flag attachment",
+      "tools": ["Gophish", "custom payload"],
+      "difficulty": "Medium"
+    }}
+  ],
+  "success_criteria": ["criteria 1", "criteria 2"],
+  "duration_hours": 8,
+  "required_resources": ["Red team operator", "SOC analysts", "SIEM access"]
+}}"#
+    );
+
+    let messages = vec![Message { role: vibe_ai::MessageRole::User, content: ai_prompt }];
+    let engine = state.chat_engine.lock().await;
+    let raw = engine.chat(&messages, None).await.map_err(|e| e.to_string())?;
+    drop(engine);
+
+    let json_start = raw.find('{').unwrap_or(0);
+    let json_end = raw.rfind('}').map(|i| i + 1).unwrap_or(raw.len());
+    let json_str = if json_start < json_end { &raw[json_start..json_end] } else { "{}" };
+
+    let generated: serde_json::Value = serde_json::from_str(json_str)
+        .unwrap_or(serde_json::json!({ "name": "Generated Exercise", "simulations": [] }));
+
+    // Auto-save the exercise
+    let name = generated.get("name").and_then(|v| v.as_str()).unwrap_or("AI Exercise").to_string();
+    let desc = generated.get("description").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let lead = generated.get("lead").and_then(|v| v.as_str()).unwrap_or("Purple Team").to_string();
+    let sim_count = generated.get("simulations").and_then(|v| v.as_array()).map(|a| a.len()).unwrap_or(0);
+
+    let mut exercises = purpleteam_read_json("exercises.json");
+    let arr = exercises.as_array_mut().ok_or("Corrupt exercises.json")?;
+    let id = format!("EX-{:04}", arr.len() + 1);
+    let today = chrono::Local::now().format("%Y-%m-%d").to_string();
+
+    let exercise = serde_json::json!({
+        "id": id,
+        "name": name,
+        "lead": lead,
+        "description": desc,
+        "status": "Planned",
+        "date": today,
+        "coverage_score": 0,
+        "technique_count": sim_count,
+    });
+    arr.push(exercise.clone());
+    purpleteam_write_json("exercises.json", &exercises)?;
+
+    // Save the full generated plan
+    purpleteam_write_json(&format!("{}.json", id), &generated)?;
+
+    Ok(serde_json::json!({
+        "exercise": exercise,
+        "plan": generated,
+    }))
+}
+
 #[tauri::command]
 pub async fn get_purple_team_matrix() -> Result<serde_json::Value, String> {
     Ok(serde_json::json!([

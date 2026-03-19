@@ -203,6 +203,12 @@ export function PurpleTeamPanel() {
   const [exLead, setExLead] = useState("");
   const [exDescription, setExDescription] = useState("");
 
+  // AI generation
+  const [showAiGenerate, setShowAiGenerate] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiPlan, setAiPlan] = useState<any>(null);
+
   // Simulation form
   const [showSimForm, setShowSimForm] = useState(false);
   const [simExerciseId, setSimExerciseId] = useState("");
@@ -370,10 +376,111 @@ export function PurpleTeamPanel() {
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <h3 style={{ margin: 0, fontSize: 15 }}>Purple Team Exercises</h3>
-          <button style={btnStyle} onClick={() => setShowExerciseForm(!showExerciseForm)}>
-            {showExerciseForm ? "Cancel" : "+ New Exercise"}
-          </button>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button style={{ ...btnStyle, background: "var(--accent-color)", color: "var(--btn-primary-fg)", borderColor: "var(--accent-color)" }} onClick={() => { setShowAiGenerate(!showAiGenerate); setShowExerciseForm(false); }}>
+              {showAiGenerate ? "Cancel" : "AI Generate Exercise"}
+            </button>
+            <button style={btnStyle} onClick={() => { setShowExerciseForm(!showExerciseForm); setShowAiGenerate(false); }}>
+              {showExerciseForm ? "Cancel" : "+ Manual"}
+            </button>
+          </div>
         </div>
+
+        {/* AI Exercise Generation */}
+        {showAiGenerate && (
+          <div style={{ ...cardStyle, marginBottom: 16 }}>
+            <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8, lineHeight: 1.5 }}>
+              Describe a threat scenario and the AI will generate a complete purple team exercise with ATT&CK technique mappings, attack steps, and detection expectations.
+            </div>
+            <textarea
+              style={{ ...inputStyle, height: 80, resize: "vertical" }}
+              value={aiPrompt}
+              onChange={(e) => setAiPrompt(e.target.value)}
+              placeholder="e.g., Simulate a ransomware attack targeting healthcare organizations via spear-phishing with macro-enabled documents, followed by lateral movement and data exfiltration before encryption..."
+            />
+            <div style={{ display: "flex", gap: 8, marginTop: 8, alignItems: "center" }}>
+              <button
+                style={{ ...btnStyle, background: "var(--accent-color)", color: "var(--btn-primary-fg)", borderColor: "var(--accent-color)" }}
+                onClick={async () => {
+                  if (!aiPrompt.trim()) return;
+                  setAiGenerating(true);
+                  setAiPlan(null);
+                  setError(null);
+                  try {
+                    const result = await invoke<{ exercise: Exercise; plan: any }>("purple_team_ai_generate_exercise", { prompt: aiPrompt.trim() });
+                    setAiPlan(result.plan);
+                    setExercises(prev => [result.exercise, ...prev]);
+                    showSuccess(`Exercise "${result.exercise.name}" created with ${result.plan?.simulations?.length || 0} simulations`);
+                  } catch (e: any) {
+                    setError(e?.toString() ?? "AI generation failed");
+                  }
+                  setAiGenerating(false);
+                }}
+                disabled={aiGenerating || !aiPrompt.trim()}
+              >
+                {aiGenerating ? "Generating exercise plan..." : "Generate"}
+              </button>
+              {aiGenerating && <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>AI is mapping ATT&CK techniques...</span>}
+            </div>
+
+            {/* Show generated plan */}
+            {aiPlan && (
+              <div style={{ marginTop: 12 }}>
+                <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>{aiPlan.name}</div>
+                {aiPlan.threat_scenario && <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8 }}>{aiPlan.threat_scenario}</div>}
+                {aiPlan.objectives?.length > 0 && (
+                  <div style={{ marginBottom: 8 }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 4 }}>Objectives</div>
+                    <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12 }}>
+                      {aiPlan.objectives.map((o: string, i: number) => <li key={i}>{o}</li>)}
+                    </ul>
+                  </div>
+                )}
+                {aiPlan.simulations?.length > 0 && (
+                  <div style={{ marginBottom: 8 }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 4 }}>Attack Simulations ({aiPlan.simulations.length})</div>
+                    {aiPlan.simulations.map((sim: any, i: number) => (
+                      <div key={i} style={{ padding: "6px 10px", marginBottom: 4, borderRadius: 4, background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
+                        <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 2 }}>
+                          <span style={{ fontFamily: "monospace", fontSize: 10, color: "var(--accent-color)" }}>{sim.technique_id}</span>
+                          <span style={{ fontWeight: 500, fontSize: 12 }}>{sim.technique_name}</span>
+                          <span style={{ ...badgeStyle("var(--bg-tertiary)"), fontSize: 9 }}>{sim.tactic}</span>
+                          {sim.difficulty && <span style={{ ...badgeStyle(sim.difficulty === "High" ? "var(--error-bg)" : sim.difficulty === "Medium" ? "var(--warning-bg)" : "var(--success-bg)"), fontSize: 9 }}>{sim.difficulty}</span>}
+                        </div>
+                        {sim.expected_detection && <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Expected: {sim.expected_detection}</div>}
+                        {sim.steps?.length > 0 && (
+                          <details style={{ marginTop: 2 }}>
+                            <summary style={{ fontSize: 10, color: "var(--text-muted)", cursor: "pointer" }}>{sim.steps.length} steps</summary>
+                            <ol style={{ margin: "4px 0 0 16px", fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.5 }}>
+                              {sim.steps.map((s: string, j: number) => <li key={j}>{s}</li>)}
+                            </ol>
+                          </details>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {aiPlan.success_criteria?.length > 0 && (
+                  <div style={{ marginBottom: 8 }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 4 }}>Success Criteria</div>
+                    <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12 }}>
+                      {aiPlan.success_criteria.map((c: string, i: number) => <li key={i}>{c}</li>)}
+                    </ul>
+                  </div>
+                )}
+                {aiPlan.required_resources?.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 4 }}>Required Resources</div>
+                    <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                      {aiPlan.required_resources.map((r: string, i: number) => <span key={i} style={badgeStyle("var(--bg-tertiary)")}>{r}</span>)}
+                    </div>
+                  </div>
+                )}
+                {aiPlan.duration_hours && <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 8 }}>Duration: {aiPlan.duration_hours} hours</div>}
+              </div>
+            )}
+          </div>
+        )}
 
         {showExerciseForm && (
           <div style={{ ...cardStyle, marginBottom: 16 }}>
