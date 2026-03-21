@@ -199,6 +199,9 @@ static QUANTUM_SUBS: &[&str] = &["languages", "os", "hardware", "algorithms", "c
 /// Sub-commands for `/autoresearch <sub>`
 static AUTORESEARCH_SUBS: &[&str] = &["new", "start", "stop", "pause", "status", "list", "analyze", "export", "suggest", "lessons", "config"];
 
+/// Sub-commands for `/openmemory <sub>`
+static OPENMEMORY_SUBS: &[&str] = &["add", "query", "list", "delete", "pin", "unpin", "fact", "facts", "decay", "consolidate", "stats", "export", "encrypt", "context"];
+
 /// Sub-commands for `/arena <sub>`
 static ARENA_SUBS: &[&str] = &["compare", "stats", "history"];
 
@@ -271,6 +274,7 @@ fn command_hint(cmd: &str) -> Option<&'static str> {
         "/profile" => Some("[list|show|create|delete]"),
         "/plugin"  => Some("[list|install|remove|info]"),
         "/memory"  => Some("[show|edit]"),
+        "/openmemory" => Some("[add|query|list|fact|facts|decay|consolidate|stats|export|encrypt|context]  — cognitive memory engine"),
         "/trace"   => Some("[view <id>]"),
         "/mcp"     => Some("[list|tools <server>]"),
         "/logs"    => Some("[tail <file>|sources|errors <file>|analyze <file>]  — log viewer & analyzer"),
@@ -386,6 +390,7 @@ fn complete_slash(line: &str) -> Option<(usize, Vec<Pair>)> {
                 "/profile"  => Some(PROFILE_SUBS),
                 "/plugin"   => Some(PLUGIN_SUBS),
                 "/memory"   => Some(MEMORY_SUBS),
+                "/openmemory" => Some(OPENMEMORY_SUBS),
                 "/migration" => Some(MIGRATION_SUBS),
                 "/spec"     => Some(SPEC_SUBS),
                 "/agents"   => Some(AGENTS_SUBS),

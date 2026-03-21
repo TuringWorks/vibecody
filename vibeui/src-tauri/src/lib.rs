@@ -920,6 +920,20 @@ pub fn run() {
             commands::autoresearch_save_lesson,
             commands::autoresearch_export_tsv,
             commands::autoresearch_delete_session,
+            // OpenMemory — Cognitive Memory Engine
+            commands::openmemory_stats,
+            commands::openmemory_list,
+            commands::openmemory_add,
+            commands::openmemory_delete,
+            commands::openmemory_pin,
+            commands::openmemory_unpin,
+            commands::openmemory_query,
+            commands::openmemory_facts,
+            commands::openmemory_add_fact,
+            commands::openmemory_run_decay,
+            commands::openmemory_consolidate,
+            commands::openmemory_export,
+            commands::openmemory_enable_encryption,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
