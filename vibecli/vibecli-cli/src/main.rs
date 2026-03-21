@@ -6720,48 +6720,17 @@ async fn main() -> Result<()> {
                         role: MessageRole::User,
                         content: expanded,
                     });
-                    // Stream the response, collecting full text for post-processing
-                    match llm.stream_chat(&messages).await {
-                        Ok(mut stream) => {
-                            use futures::StreamExt;
-                            let mut full_response = String::new();
-                            // Count lines streamed so we can clear them for re-rendering
-                            let mut raw_line_count: usize = 0;
-                            while let Some(chunk) = stream.next().await {
-                                match chunk {
-                                    Ok(text) => {
-                                        // Count newlines for later clearing
-                                        raw_line_count += text.chars().filter(|&c| c == '\n').count();
-                                        print!("{}", text);
-                                        io::stdout().flush().ok();
-                                        full_response.push_str(&text);
-                                    }
-                                    Err(e) => {
-                                        eprintln!("\n❌ Stream error: {:#}", e);
-                                        break;
-                                    }
-                                }
-                            }
-                            // Move cursor up to overwrite raw streamed text, then re-render
-                            // with full markdown highlighting
+                    // Collect full response then render with markdown highlighting
+                    match llm.chat(&messages, None).await {
+                        Ok(full_response) => {
                             if !full_response.is_empty() {
-                                // Add 1 for the partial last line
-                                let lines_to_clear = raw_line_count + 1;
-                                // Move up and clear each line
-                                for _ in 0..lines_to_clear {
-                                    print!("\x1b[A\x1b[2K");
-                                }
-                                io::stdout().flush().ok();
-                                // Re-render with full markdown + syntax highlighting
                                 let rendered = if full_response.contains("```mermaid") {
                                     let mermaid = mermaid_ascii::render_mermaid_blocks(&full_response);
                                     highlight_code_blocks(&mermaid)
                                 } else {
                                     highlight_code_blocks(&full_response)
                                 };
-                                println!("{}\n", rendered);
-                            } else {
-                                println!();
+                                print!("{}\n", rendered);
                             }
                             if !full_response.is_empty() {
                                 messages.push(Message {
