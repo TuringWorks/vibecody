@@ -4,8 +4,6 @@ title: VibeCody Feature Demos
 permalink: /demos/
 ---
 
-# VibeCody Feature Demos
-
 Interactive walkthroughs covering VibeCody's major capabilities across CLI, Desktop IDE, and API surfaces.
 
 ---
