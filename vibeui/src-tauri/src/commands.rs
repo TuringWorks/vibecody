@@ -7481,8 +7481,41 @@ pub async fn write_auth_scaffold(
     let dir = resolved;
 
     let ext = match framework.as_str() {
-        "fastapi" => "py",
-        "axum" => "rs",
+        // Python
+        "fastapi" | "django" | "flask" | "starlette" | "litestar" | "sanic" | "tornado" | "falcon" | "robyn" => "py",
+        // Rust
+        "axum" | "actix" | "rocket" | "warp-rust" | "salvo" | "tide" => "rs",
+        // Go
+        "gin" | "fiber" | "echo" | "chi" | "go-std" | "fasthttp" | "hertz" | "goframe" | "goravel" => "go",
+        // C#
+        "aspnet" | "fastendpoints" | "carter" | "servicestack" => "cs",
+        // Java
+        "spring" | "spring-webflux" | "quarkus" | "micronaut" | "vertx" | "javalin" | "helidon" | "dropwizard" | "jetty" | "undertow" | "netty" | "play2-java" => "java",
+        // Kotlin
+        "ktor" | "http4k" | "hexagon" => "kt",
+        // Ruby
+        "rails" | "sinatra" | "hanami" | "grape" | "rage" => "rb",
+        // PHP
+        "laravel" | "symfony" | "slim" | "cakephp" | "codeigniter" | "yii2" | "hyperf" => "php",
+        // Elixir
+        "phoenix" | "plug" => "ex",
+        // Scala
+        "play2-scala" | "akka-http" | "http4s" | "zio-http" => "scala",
+        // Swift
+        "vapor" | "hummingbird" => "swift",
+        // Dart
+        "dart_frog" | "shelf" => "dart",
+        // Clojure
+        "ring" => "clj",
+        // Haskell
+        "servant" => "hs",
+        // Crystal
+        "kemal" => "cr",
+        // Nim
+        "jester" => "nim",
+        // Zig
+        "zap" => "zig",
+        // TypeScript/JavaScript (default)
         _ => "ts",
     };
     let file_name = format!("auth.{}", ext);
