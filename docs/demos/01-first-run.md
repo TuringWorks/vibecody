@@ -37,13 +37,13 @@ The installer downloads a pre-built binary for your platform and verifies the SH
 **Option B: Build from source with Cargo**
 
 ```bash
-cargo install --git https://github.com/AiChefDev/vibecody.git vibecli
+cargo install --git https://github.com/TuringWorks/vibecody.git vibecli
 ```
 
 Or clone and build locally:
 
 ```bash
-git clone https://github.com/AiChefDev/vibecody.git
+git clone https://github.com/TuringWorks/vibecody.git
 cd vibecody
 cargo build --release -p vibecli
 # Binary is at target/release/vibecli

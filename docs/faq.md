@@ -191,4 +191,4 @@ The usage metering system tracks token consumption and API costs across users, p
 
 ## More Questions?
 
-If your question is not answered here, check the [Troubleshooting](/troubleshooting/) guide or open an issue on [GitHub](https://github.com/vibecody/vibecody/issues).
+If your question is not answered here, check the [Troubleshooting](/troubleshooting/) guide or open an issue on [GitHub](https://github.com/TuringWorks/vibecody/issues).

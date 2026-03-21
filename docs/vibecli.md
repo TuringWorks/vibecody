@@ -23,7 +23,7 @@ VibeCLI provides two interaction modes: a rich **Terminal UI (TUI)** powered by 
 ### Build from Source
 
 ```bash
-git clone https://github.com/vibecody/vibecody.git
+git clone https://github.com/TuringWorks/vibecody.git
 cd vibecody
 
 cargo build --release -p vibecli

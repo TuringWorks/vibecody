@@ -15,7 +15,7 @@ Thank you for your interest in contributing! This guide covers how to get your d
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/vibecody/vibecody.git
+git clone https://github.com/TuringWorks/vibecody.git
 cd vibecody
 ```
 

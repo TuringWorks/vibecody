@@ -943,7 +943,7 @@ cd vibeui && npx tsc --noEmit
 cd vibeui/e2e && npm test
 ```
 
-See [TESTING.md](https://github.com/vibecody/vibecody/blob/main/vibeui/TESTING.md) for manual testing checklist.
+See [TESTING.md](https://github.com/TuringWorks/vibecody/blob/main/vibeui/TESTING.md) for manual testing checklist.
 
 ---
 
@@ -956,4 +956,4 @@ Open DevTools in the running app:
 
 Or right-click anywhere and select **Inspect**.
 
-See [DEBUG.md](https://github.com/vibecody/vibecody/blob/main/vibeui/DEBUG.md) for common troubleshooting steps.
+See [DEBUG.md](https://github.com/TuringWorks/vibecody/blob/main/vibeui/DEBUG.md) for common troubleshooting steps.

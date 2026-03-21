@@ -608,7 +608,7 @@ If none of the above solutions resolve your issue:
 vibecli doctor
 ```
 
-2. Check [GitHub Issues](https://github.com/vibecody/vibecody/issues) for known problems.
+2. Check [GitHub Issues](https://github.com/TuringWorks/vibecody/issues) for known problems.
 3. Open a new issue with:
    - Your OS and version
    - VibeCody version (`vibecli --version`)
