@@ -7189,9 +7189,11 @@ async fn run_agent_repl_with_context(
                     trace.record(0, call.name(), &call.summary(), "rejected by user", false, dur, "rejected");
                     let _ = result_tx.send(None);
                 } else {
-                    // Execute the tool
+                    // Execute the tool and show output
                     let result = executor.execute(&call).await;
-                    println!("{}", crate::syntax::format_tool_output_preview(&result.output, result.success));
+                    if !result.output.trim().is_empty() {
+                        println!("{}", crate::syntax::format_tool_output(&result.output, result.success));
+                    }
                     trace.record(0, call.name(), &call.summary(), &result.output, result.success, dur, "user");
                     let _ = result_tx.send(Some(result));
                 }
@@ -7204,6 +7206,10 @@ async fn run_agent_repl_with_context(
                     "{}",
                     crate::syntax::format_step_result(step.step_num + 1, &step.tool_call.summary(), step.tool_result.success)
                 );
+                // Show tool output
+                if !step.tool_result.output.trim().is_empty() {
+                    println!("{}", crate::syntax::format_tool_output(&step.tool_result.output, step.tool_result.success));
+                }
                 trace.record(
                     step.step_num,
                     step.tool_call.name(),

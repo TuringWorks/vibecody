@@ -435,7 +435,27 @@ pub fn colored_prompt(provider_name: &str, model: Option<&str>) -> String {
     }
 }
 
+/// Format full tool output with dim styling and a max line limit.
+pub fn format_tool_output(output: &str, _success: bool) -> String {
+    let lines: Vec<&str> = output.lines().collect();
+    let max_lines = 30;
+    let mut result = String::new();
+    let display_lines = if lines.len() > max_lines {
+        &lines[..max_lines]
+    } else {
+        &lines[..]
+    };
+    for line in display_lines {
+        result.push_str(&format!("  {}{}{}\n", DIM, line, RESET));
+    }
+    if lines.len() > max_lines {
+        result.push_str(&format!("  {}... ({} more lines){}\n", DIM, lines.len() - max_lines, RESET));
+    }
+    result
+}
+
 /// Format tool output preview (first line, dimmed).
+#[allow(dead_code)]
 pub fn format_tool_output_preview(output: &str, success: bool) -> String {
     let first_line = output.lines().next().unwrap_or("");
     let truncated = if first_line.len() > 100 {
