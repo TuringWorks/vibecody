@@ -158,11 +158,11 @@ const FullStackGenPanel = lazy(() => import("./FullStackGenPanel"));
 const GhActionsPanel = lazy(() => import("./GhActionsPanel"));
 const RenderOptimizePanel = lazy(() => import("./RenderOptimizePanel"));
 const SoulPanel = lazy(() => import("./SoulPanel").then(m => ({ default: m.SoulPanel })));
-const McpLazyPanel = lazy(() => import("./McpLazyPanel").then(m => ({ default: m.McpLazyPanel })));
+// McpLazy and McpDirectory merged into McpPanel (unified MCP panel)
 const ContextBundlePanel = lazy(() => import("./ContextBundlePanel").then(m => ({ default: m.ContextBundlePanel })));
 const CloudProviderPanel = lazy(() => import("./CloudProviderPanel").then(m => ({ default: m.CloudProviderPanel })));
 const AcpPanel = lazy(() => import("./AcpPanel").then(m => ({ default: m.AcpPanel })));
-const McpDirectoryPanel = lazy(() => import("./McpDirectoryPanel").then(m => ({ default: m.McpDirectoryPanel })));
+// McpDirectoryPanel merged into McpPanel
 const UsageMeteringPanel = lazy(() => import("./UsageMeteringPanel").then(m => ({ default: m.UsageMeteringPanel })));
 const SweBenchPanel = lazy(() => import("./SweBenchPanel").then(m => ({ default: m.SweBenchPanel })));
 const SessionMemoryPanel = lazy(() => import("./SessionMemoryPanel").then(m => ({ default: m.SessionMemoryPanel })));
@@ -353,11 +353,11 @@ export function PanelHost(props: PanelHostProps) {
       {panel("ghactions", <LazyPanel Component={GhActionsPanel} props={{ provider: selectedProvider }} />)}
       {panel("renderopt", <LazyPanel Component={RenderOptimizePanel} props={{}} />)}
       {panel("soul", <LazyPanel Component={SoulPanel} props={{ workspacePath: wp, provider: selectedProvider }} />)}
-      {panel("mcplazy", <LazyPanel Component={McpLazyPanel} props={{ provider: selectedProvider }} />)}
+      {/* mcplazy merged into mcp panel */}
       {panel("bundles", <LazyPanel Component={ContextBundlePanel} props={{ workspacePath: wp, provider: selectedProvider }} />)}
       {panel("cloudproviders", <LazyPanel Component={CloudProviderPanel} props={{ workspacePath: wp }} />)}
       {panel("acpprotocol", <LazyPanel Component={AcpPanel} props={{ provider: selectedProvider }} />)}
-      {panel("mcpdirectory", <LazyPanel Component={McpDirectoryPanel} props={{ provider: selectedProvider }} />)}
+      {/* mcpdirectory merged into mcp panel */}
       {panel("usagemetering", <LazyPanel Component={UsageMeteringPanel} props={{}} />)}
       {panel("swebench", <LazyPanel Component={SweBenchPanel} props={{ provider: selectedProvider }} />)}
       {panel("sessionmemory", <LazyPanel Component={SessionMemoryPanel} props={{}} />)}
@@ -386,7 +386,7 @@ export function PanelHost(props: PanelHostProps) {
         "vectordb","qa-validation","astedit","cistatus","cloudsandbox","editpredict","plandoc",
         "remotecontrol","securityscan","sessions","subagents","clarify","codesearch","demo","cloudautofix",
         "fastcontext","imagegen","governance","agentteams","discuss","fullstack","ghactions","renderopt",
-        "soul","mcplazy","bundles","cloudproviders","acpprotocol","mcpdirectory","usagemetering",
+        "soul","bundles","cloudproviders","acpprotocol","usagemetering",
         "swebench","sessionmemory","blueteam","purpleteam","idp","quantum",
         "debugmode","agentmodes","workmanagement","build","autoresearch","openmemory",
       ].includes(tab) ? (

@@ -44,7 +44,7 @@ export const TAB_GROUPS: TabGroup[] = [
   },
   {
     label: "Settings",
-    tabs: ["settings", "hooks", "jobs", "mcp", "mcplazy", "mcpdirectory", "acpprotocol", "artifacts", "manager", "auth", "cost", "usagemetering", "markers", "img2app", "visualtest", "webhooks", "admin", "qa-validation", "sessions", "governance"],
+    tabs: ["settings", "hooks", "jobs", "mcp", "acpprotocol", "artifacts", "manager", "auth", "cost", "usagemetering", "markers", "img2app", "visualtest", "webhooks", "admin", "qa-validation", "sessions", "governance"],
   },
 ];
 

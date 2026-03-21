@@ -1,468 +1,470 @@
-import { useState, useEffect } from "react";
+/**
+ * McpPanel — Unified MCP panel combining Servers, Tool Registry, Directory, and Metrics.
+ */
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
+// ── Types ─────────────────────────────────────────────────────────────────────
+
 interface McpServer {
- name: string;
- command: string;
- args: string[];
- env: Record<string, string>;
+  name: string;
+  command: string;
+  args: string[];
+  env: Record<string, string>;
 }
 
-interface McpToolInfo {
- name: string;
- description: string;
-}
+interface McpToolInfo { name: string; description: string; }
 
 interface OAuthForm {
- serverName: string;
- clientId: string;
- authUrl: string;
- tokenUrl: string;
- redirectUri: string;
- scopes: string;
- authCode: string;
- step: "config" | "code";
- busy: boolean;
- msg: string | null;
+  serverName: string; clientId: string; authUrl: string; tokenUrl: string;
+  redirectUri: string; scopes: string; authCode: string;
+  step: "config" | "code"; busy: boolean; msg: string | null;
 }
+
+interface ToolManifest {
+  id: string; name: string; description: string; version: string;
+  server_name: string; status: "loaded" | "unloaded" | "loading";
+  size_kb: number; last_used: string | null; load_time_ms: number | null;
+}
+
+interface SearchResult {
+  tool_id: string; name: string; description: string;
+  server_name: string; relevance: number;
+}
+
+interface LazyMetrics {
+  context_savings_pct: number; cache_hits: number; cache_misses: number;
+  cache_hit_rate: number; avg_load_time_ms: number;
+  load_times: { label: string; ms: number }[]; total_load_time_ms: number;
+}
+
+interface McpPlugin {
+  id: string; name: string; author: string; description: string;
+  category: string; rating: number; downloads: number; version: string;
+  installed: boolean; updatable: boolean;
+}
+
+// ── Styles ────────────────────────────────────────────────────────────────────
+
+const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, height: "100%", overflow: "auto", background: "var(--bg-primary)" };
+const headingStyle: React.CSSProperties = { margin: "0 0 4px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" };
+const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-color)" };
+const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
+const btnStyle: React.CSSProperties = { padding: "6px 14px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", cursor: "pointer", fontSize: 12 };
+const tabBtnStyle = (active: boolean): React.CSSProperties => ({ ...btnStyle, background: active ? "var(--accent-primary)" : "var(--bg-tertiary)", color: active ? "var(--btn-primary-fg, var(--text-primary))" : "var(--text-primary)", marginRight: 4, fontWeight: active ? 600 : 400 });
+const inputStyle: React.CSSProperties = { padding: "5px 8px", fontSize: "12px", background: "var(--bg-input, var(--bg-primary))", border: "1px solid var(--border-color)", borderRadius: "4px", color: "var(--text-primary)", outline: "none", fontFamily: "var(--font-mono)", width: "100%", boxSizing: "border-box" };
+const barBg: React.CSSProperties = { height: 8, borderRadius: 4, background: "var(--bg-tertiary)", overflow: "hidden" };
+const barFill = (pct: number, color: string): React.CSSProperties => ({ height: "100%", width: `${Math.min(pct, 100)}%`, borderRadius: 4, background: color });
+const badgeStyle = (v: string): React.CSSProperties => ({ display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 600, color: "#fff", background: v === "loaded" ? "var(--success-color)" : v === "loading" ? "var(--warning-color)" : "var(--text-muted)" });
 
 const EMPTY_SERVER: McpServer = { name: "", command: "", args: [], env: {} };
+const CATEGORIES = ["All", "File Systems", "Git", "Databases", "Cloud", "AI/ML", "Testing", "DevOps", "Communication"];
+
+const renderStars = (r: number): string => "★".repeat(Math.floor(r)) + (r - Math.floor(r) >= 0.5 ? "½" : "") + "☆".repeat(5 - Math.floor(r) - (r - Math.floor(r) >= 0.5 ? 1 : 0));
+const formatDl = (n: number): string => n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
+type Tab = "servers" | "tools" | "directory" | "metrics";
 
 export function McpPanel() {
- const [servers, setServers] = useState<McpServer[]>([]);
- const [editing, setEditing] = useState<McpServer | null>(null);
- const [editIdx, setEditIdx] = useState<number | null>(null);
- const [saving, setSaving] = useState(false);
- const [error, setError] = useState<string | null>(null);
- const [testing, setTesting] = useState<number | null>(null);
- const [testResult, setTestResult] = useState<Record<number, McpToolInfo[] | string>>({});
- const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
- const [oauthForm, setOauthForm] = useState<OAuthForm | null>(null);
- const [tokenStatus, setTokenStatus] = useState<Record<string, boolean>>({});
+  const [tab, setTab] = useState<Tab>("servers");
+  const [error, setError] = useState<string | null>(null);
 
- useEffect(() => {
- loadServers();
- }, []);
+  // ── Servers state ─────────────────────────────────────────────────────────
+  const [servers, setServers] = useState<McpServer[]>([]);
+  const [editing, setEditing] = useState<McpServer | null>(null);
+  const [editIdx, setEditIdx] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState<number | null>(null);
+  const [testResult, setTestResult] = useState<Record<number, McpToolInfo[] | string>>({});
+  const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
+  const [oauthForm, setOauthForm] = useState<OAuthForm | null>(null);
+  const [tokenStatus, setTokenStatus] = useState<Record<string, boolean>>({});
 
- // Load token status for all servers whenever the list changes
- useEffect(() => {
- let cancelled = false;
- servers.forEach((srv) => {
- invoke<{ connected: boolean; expired: boolean }>("get_mcp_token_status", { serverName: srv.name })
- .then((s) => { if (!cancelled) setTokenStatus((prev) => ({ ...prev, [srv.name]: s.connected && !s.expired })); })
- .catch(() => { if (!cancelled) setTokenStatus((prev) => ({ ...prev, [srv.name]: false })); });
- });
- return () => { cancelled = true; };
- }, [servers]);
+  // ── Tools state ───────────────────────────────────────────────────────────
+  const [manifests, setManifests] = useState<ToolManifest[]>([]);
+  const [toolSearch, setToolSearch] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [metrics, setMetrics] = useState<LazyMetrics | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
- function startOAuth(serverName: string) {
- setOauthForm({
- serverName,
- clientId: "",
- authUrl: "",
- tokenUrl: "",
- redirectUri: "http://localhost:7879/oauth/callback",
- scopes: "read",
- authCode: "",
- step: "config",
- busy: false,
- msg: null,
- });
- }
+  // ── Directory state ───────────────────────────────────────────────────────
+  const [plugins, setPlugins] = useState<McpPlugin[]>([]);
+  const [dirSearch, setDirSearch] = useState("");
+  const [catFilter, setCatFilter] = useState("All");
+  const [dirLoading, setDirLoading] = useState(false);
+  const [pluginAction, setPluginAction] = useState<string | null>(null);
 
- async function initiateOAuth() {
- if (!oauthForm) return;
- setOauthForm((f) => f && { ...f, busy: true, msg: null });
- try {
- await invoke("initiate_mcp_oauth", {
- serverName: oauthForm.serverName,
- clientId: oauthForm.clientId,
- authUrl: oauthForm.authUrl,
- redirectUri: oauthForm.redirectUri,
- scopes: oauthForm.scopes,
- });
- setOauthForm((f) => f && { ...f, busy: false, step: "code", msg: "Browser opened. Paste the authorization code below." });
- } catch (e) {
- setOauthForm((f) => f && { ...f, busy: false, msg: `Error: ${e}` });
- }
- }
+  // ── Load data ─────────────────────────────────────────────────────────────
+  useEffect(() => { loadServers(); }, []);
 
- async function completeOAuth() {
- if (!oauthForm) return;
- setOauthForm((f) => f && { ...f, busy: true, msg: null });
- try {
- await invoke("complete_mcp_oauth", {
- serverName: oauthForm.serverName,
- code: oauthForm.authCode,
- tokenUrl: oauthForm.tokenUrl,
- clientId: oauthForm.clientId,
- redirectUri: oauthForm.redirectUri,
- });
- setTokenStatus((prev) => ({ ...prev, [oauthForm.serverName]: true }));
- setOauthForm(null);
- } catch (e) {
- setOauthForm((f) => f && { ...f, busy: false, msg: `Token exchange failed: ${e}` });
- }
- }
+  async function loadServers() {
+    try { setServers(await invoke<McpServer[]>("get_mcp_servers")); }
+    catch (e) { setError(String(e)); }
+  }
 
- async function loadServers() {
- setError(null);
- try {
- const list = await invoke<McpServer[]>("get_mcp_servers");
- setServers(list);
- } catch (e) {
- setError(String(e));
- }
- }
+  useEffect(() => {
+    let c = false;
+    servers.forEach(srv => {
+      invoke<{ connected: boolean; expired: boolean }>("get_mcp_token_status", { serverName: srv.name })
+        .then(s => { if (!c) setTokenStatus(p => ({ ...p, [srv.name]: s.connected && !s.expired })); })
+        .catch(() => { if (!c) setTokenStatus(p => ({ ...p, [srv.name]: false })); });
+    });
+    return () => { c = true; };
+  }, [servers]);
 
- async function save(list: McpServer[]) {
- setSaving(true);
- setError(null);
- try {
- await invoke("save_mcp_servers", { servers: list });
- setServers(list);
- } catch (e) {
- setError(String(e));
- } finally {
- setSaving(false);
- }
- }
+  const fetchTools = useCallback(async () => {
+    try { const r = await invoke<{ tools: ToolManifest[] }>("mcp_lazy_list_tools"); setManifests(r.tools ?? []); }
+    catch (e) { setError(`Tools: ${e}`); }
+  }, []);
 
- function startAdd() {
- setEditing({ ...EMPTY_SERVER });
- setEditIdx(null);
- }
+  const fetchMetrics = useCallback(async () => {
+    try { setMetrics(await invoke<LazyMetrics>("mcp_lazy_metrics")); }
+    catch (e) { setError(`Metrics: ${e}`); }
+  }, []);
 
- function startEdit(idx: number) {
- setEditing({ ...servers[idx], args: [...servers[idx].args] });
- setEditIdx(idx);
- }
+  useEffect(() => { if (tab === "tools") { fetchTools(); } }, [tab, fetchTools]);
+  useEffect(() => { if (tab === "metrics") { fetchTools(); fetchMetrics(); } }, [tab, fetchTools, fetchMetrics]);
+  useEffect(() => {
+    if (tab === "directory" && plugins.length === 0) {
+      setDirLoading(true);
+      invoke<{ plugins: McpPlugin[]; total: number }>("list_mcp_plugins")
+        .then(r => setPlugins(r.plugins ?? []))
+        .catch(e => setError(String(e)))
+        .finally(() => setDirLoading(false));
+    }
+  }, [tab, plugins.length]);
 
- async function commitEdit() {
- if (!editing || !editing.name.trim() || !editing.command.trim()) return;
- const updated = [...servers];
- if (editIdx === null) {
- updated.push({ ...editing });
- } else {
- updated[editIdx] = { ...editing };
- }
- await save(updated);
- setEditing(null);
- setEditIdx(null);
- }
+  // ── Tool search ───────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!toolSearch.trim()) { setSearchResults([]); return; }
+    let c = false;
+    const t = setTimeout(async () => {
+      try {
+        const r = await invoke<{ results: SearchResult[] }>("mcp_lazy_search", { query: toolSearch });
+        if (!c) setSearchResults(r.results ?? []);
+      } catch (e) { if (!c) setError(`Search: ${e}`); }
+    }, 200);
+    return () => { c = true; clearTimeout(t); };
+  }, [toolSearch]);
 
- async function deleteServer(idx: number) {
- const updated = servers.filter((_, i) => i !== idx);
- await save(updated);
- setConfirmDelete(null);
- // Clear any test result for deleted server
- setTestResult((prev) => {
- const next = { ...prev };
- delete next[idx];
- return next;
- });
- }
+  // ── Server actions ────────────────────────────────────────────────────────
+  async function saveServers(list: McpServer[]) {
+    setSaving(true);
+    try { await invoke("save_mcp_servers", { servers: list }); setServers(list); }
+    catch (e) { setError(String(e)); }
+    finally { setSaving(false); }
+  }
 
- async function testServer(idx: number) {
- setTesting(idx);
- setTestResult((prev) => ({ ...prev, [idx]: [] }));
- try {
- const tools = await invoke<McpToolInfo[]>("test_mcp_server", { server: servers[idx] });
- setTestResult((prev) => ({ ...prev, [idx]: tools }));
- } catch (e) {
- setTestResult((prev) => ({ ...prev, [idx]: String(e) }));
- } finally {
- setTesting(null);
- }
- }
+  async function commitEdit() {
+    if (!editing || !editing.name.trim() || !editing.command.trim()) return;
+    const updated = [...servers];
+    if (editIdx === null) updated.push({ ...editing }); else updated[editIdx] = { ...editing };
+    await saveServers(updated);
+    setEditing(null); setEditIdx(null);
+  }
 
- const result = (idx: number) => testResult[idx];
+  async function testServer(idx: number) {
+    setTesting(idx);
+    try {
+      const result = await invoke<McpToolInfo[]>("test_mcp_server", { server: servers[idx] });
+      setTestResult(p => ({ ...p, [idx]: result }));
+    }
+    catch (e) { setTestResult(p => ({ ...p, [idx]: String(e) })); }
+    finally { setTesting(null); }
+  }
 
- return (
- <div style={{ display: "flex", flexDirection: "column", height: "100%", padding: "12px", gap: "10px", fontFamily: "var(--font-mono, monospace)", position: "relative" }}>
- {/* Header */}
- <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
- <span style={{ fontWeight: 600, fontSize: "14px" }}>MCP Servers</span>
- <button
- onClick={startAdd}
- style={{ marginLeft: "auto", padding: "4px 10px", fontSize: "12px", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "4px", cursor: "pointer" }}
- >
- + Add Server
- </button>
- </div>
+  // ── OAuth ─────────────────────────────────────────────────────────────────
+  function startOAuth(name: string) { setOauthForm({ serverName: name, clientId: "", authUrl: "", tokenUrl: "", redirectUri: "http://localhost:7879/oauth/callback", scopes: "read", authCode: "", step: "config", busy: false, msg: null }); }
 
- <p style={{ fontSize: "12px", color: "var(--text-secondary)", margin: 0 }}>
- Configure external MCP servers. Their tools are injected into the agent context as{" "}
- <code style={{ fontSize: "11px" }}>mcp__&lt;server&gt;__&lt;tool&gt;</code>.
- </p>
+  async function initiateOAuth() {
+    if (!oauthForm) return;
+    setOauthForm(f => f && { ...f, busy: true, msg: null });
+    try {
+      await invoke("initiate_mcp_oauth", { serverName: oauthForm.serverName, clientId: oauthForm.clientId, authUrl: oauthForm.authUrl, redirectUri: oauthForm.redirectUri, scopes: oauthForm.scopes });
+      setOauthForm(f => f && { ...f, busy: false, step: "code", msg: "Browser opened. Paste the authorization code below." });
+    } catch (e) { setOauthForm(f => f && { ...f, busy: false, msg: `Error: ${e}` }); }
+  }
 
- {error && (
- <div style={{ fontSize: "12px", color: "var(--error-color)", padding: "6px 8px", background: "rgba(220,50,50,0.15)", borderRadius: "4px" }}>
- {error}
- </div>
- )}
+  async function completeOAuth() {
+    if (!oauthForm) return;
+    setOauthForm(f => f && { ...f, busy: true, msg: null });
+    try {
+      await invoke("complete_mcp_oauth", { serverName: oauthForm.serverName, code: oauthForm.authCode, tokenUrl: oauthForm.tokenUrl, clientId: oauthForm.clientId, redirectUri: oauthForm.redirectUri });
+      setTokenStatus(p => ({ ...p, [oauthForm.serverName]: true }));
+      setOauthForm(null);
+    } catch (e) { setOauthForm(f => f && { ...f, busy: false, msg: `Token exchange failed: ${e}` }); }
+  }
 
- {/* Server list */}
- <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: "8px" }}>
- {servers.length === 0 && (
- <div style={{ fontSize: "12px", color: "var(--text-secondary)", textAlign: "center", padding: "32px 16px" }}>
- No MCP servers configured.<br />
- <span style={{ opacity: 0.7 }}>Click "+ Add Server" to add one.</span>
- </div>
- )}
+  // ── Tool load/unload ──────────────────────────────────────────────────────
+  async function toggleTool(id: string, status: string) {
+    setActionLoading(id);
+    try {
+      if (status === "loaded") await invoke("mcp_lazy_unload_tool", { toolId: id });
+      else {
+        setManifests(p => p.map(m => m.id === id ? { ...m, status: "loading" as const } : m));
+        await invoke("mcp_lazy_load_tool", { toolId: id });
+      }
+      await fetchTools(); await fetchMetrics();
+    } catch (e) { setError(`Action: ${e}`); await fetchTools(); }
+    finally { setActionLoading(null); }
+  }
 
- {servers.map((srv, idx) => {
- const res = result(idx);
- const isTools = Array.isArray(res);
- const isErr = typeof res === "string";
- return (
- <div
- key={srv.name}
- style={{
- border: "1px solid var(--border-color)",
- borderRadius: "6px",
- padding: "10px 12px",
- background: "var(--bg-secondary)",
- display: "flex",
- flexDirection: "column",
- gap: "6px",
- }}
- >
- {/* Server header row */}
- <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
- <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", flex: 1 }}>
- {srv.name}
- {tokenStatus[srv.name] && (
- <span style={{ marginLeft: 6, fontSize: "10px", color: "var(--text-success)", background: "var(--success-bg)", padding: "1px 5px", borderRadius: 3 }}>
- OAuth
- </span>
- )}
- </span>
- <button
- onClick={() => testServer(idx)}
- disabled={testing === idx}
- style={{ padding: "2px 8px", fontSize: "11px", background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "3px", color: "var(--text-primary)", cursor: "pointer" }}
- >
- {testing === idx ? "Testing…" : "Test"}
- </button>
- <button
- onClick={() => startOAuth(srv.name)}
- style={{ padding: "2px 8px", fontSize: "11px", background: tokenStatus[srv.name] ? "rgba(166,227,161,0.15)" : "var(--bg-tertiary)", border: `1px solid ${tokenStatus[srv.name] ? "var(--success-color)" : "var(--border-color)"}`, borderRadius: "3px", color: tokenStatus[srv.name] ? "var(--success-color)" : "var(--text-primary)", cursor: "pointer" }}
- title="Connect via OAuth"
- >
- OAuth
- </button>
- <button
- onClick={() => startEdit(idx)}
- style={{ padding: "2px 8px", fontSize: "11px", background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "3px", color: "var(--text-primary)", cursor: "pointer" }}
- >
- Edit
- </button>
- <button
- onClick={() => setConfirmDelete(idx)}
- style={{ padding: "2px 8px", fontSize: "11px", background: "transparent", border: "1px solid var(--error-color)", borderRadius: "3px", color: "var(--error-color)", cursor: "pointer" }}
- >
- ✕
- </button>
- </div>
+  // ── Plugin actions ────────────────────────────────────────────────────────
+  async function installPlugin(id: string) {
+    setPluginAction(id);
+    try { await invoke<{ success: boolean; message: string }>("install_mcp_plugin", { id }); setPlugins(p => p.map(pl => pl.id === id ? { ...pl, installed: true } : pl)); }
+    catch (e) { setError(String(e)); }
+    finally { setPluginAction(null); }
+  }
 
- {/* Command */}
- <div style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-mono)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
- $ {srv.command}{srv.args.length > 0 ? " " + srv.args.join(" ") : ""}
- </div>
+  async function uninstallPlugin(id: string) {
+    setPluginAction(id);
+    try { await invoke<{ success: boolean; message: string }>("uninstall_mcp_plugin", { id }); setPlugins(p => p.map(pl => pl.id === id ? { ...pl, installed: false } : pl)); }
+    catch (e) { setError(String(e)); }
+    finally { setPluginAction(null); }
+  }
 
- {/* Tool test results */}
- {isErr && (
- <div style={{ fontSize: "11px", color: "var(--error-color)", padding: "4px 6px", background: "rgba(220,50,50,0.1)", borderRadius: "3px" }}>
- {res}
- </div>
- )}
- {isTools && res.length === 0 && (
- <div style={{ fontSize: "11px", color: "var(--text-secondary)" }}>No tools exposed.</div>
- )}
- {isTools && res.length > 0 && (
- <div style={{ display: "flex", flexDirection: "column", gap: "2px", marginTop: "2px" }}>
- <div style={{ fontSize: "10px", color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
- {res.length} tool{res.length !== 1 ? "s" : ""}
- </div>
- {res.map((t) => (
- <div key={t.name} style={{ fontSize: "11px", display: "flex", gap: "6px" }}>
- <code style={{ color: "var(--accent-color)", flexShrink: 0 }}>{t.name}</code>
- <span style={{ color: "var(--text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.description}</span>
- </div>
- ))}
- </div>
- )}
- </div>
- );
- })}
- </div>
+  // ── Derived ───────────────────────────────────────────────────────────────
+  const loadedCount = useMemo(() => manifests.filter(m => m.status === "loaded").length, [manifests]);
+  const installedCount = useMemo(() => plugins.filter(p => p.installed).length, [plugins]);
+  const dirResults = useMemo(() => {
+    let f = plugins;
+    if (catFilter !== "All") f = f.filter(p => p.category === catFilter);
+    if (dirSearch.trim()) { const q = dirSearch.toLowerCase(); f = f.filter(p => p.name.toLowerCase().includes(q) || p.description.toLowerCase().includes(q)); }
+    return f;
+  }, [plugins, dirSearch, catFilter]);
 
- {/* Edit / Add form */}
- {editing && (
- <div style={{
- position: "absolute",
- inset: 0,
- background: "rgba(0,0,0,0.5)",
- display: "flex",
- alignItems: "center",
- justifyContent: "center",
- zIndex: 100,
- }}>
- <div style={{
- background: "var(--bg-secondary)",
- border: "1px solid var(--border-color)",
- borderRadius: "8px",
- padding: "20px",
- width: "360px",
- display: "flex",
- flexDirection: "column",
- gap: "10px",
- }}>
- <div style={{ fontSize: "13px", fontWeight: 600 }}>
- {editIdx === null ? "Add MCP Server" : "Edit MCP Server"}
- </div>
+  // ── Render ────────────────────────────────────────────────────────────────
+  return (
+    <div style={panelStyle}>
+      <h2 style={headingStyle}>MCP</h2>
+      <p style={{ fontSize: 11, color: "var(--text-secondary)", margin: "0 0 10px" }}>
+        Model Context Protocol — servers, tools, and plugins
+      </p>
 
- <label style={{ fontSize: "12px", display: "flex", flexDirection: "column", gap: "4px" }}>
- Name
- <input
- autoFocus
- type="text"
- value={editing.name}
- onChange={(e) => setEditing({ ...editing, name: e.target.value })}
- placeholder="e.g. github"
- style={inputStyle}
- />
- </label>
+      {error && (
+        <div style={{ fontSize: 12, color: "var(--error-color)", padding: "6px 8px", background: "rgba(220,50,50,0.15)", borderRadius: 4, marginBottom: 8 }}>
+          {error} <button style={{ ...btnStyle, fontSize: 10, marginLeft: 8, padding: "2px 8px" }} onClick={() => setError(null)}>Dismiss</button>
+        </div>
+      )}
 
- <label style={{ fontSize: "12px", display: "flex", flexDirection: "column", gap: "4px" }}>
- Command
- <input
- type="text"
- value={editing.command}
- onChange={(e) => setEditing({ ...editing, command: e.target.value })}
- placeholder="e.g. npx @modelcontextprotocol/server-github"
- style={inputStyle}
- />
- </label>
+      {/* Tab bar */}
+      <div style={{ marginBottom: 12, display: "flex", flexWrap: "wrap", gap: 2 }} role="tablist">
+        {(["servers", "tools", "directory", "metrics"] as Tab[]).map(t => (
+          <button key={t} role="tab" aria-selected={tab === t} style={tabBtnStyle(tab === t)} onClick={() => setTab(t)}>
+            {t === "servers" ? `Servers (${servers.length})` : t === "tools" ? `Tools (${manifests.length})` : t === "directory" ? `Directory (${plugins.length})` : "Metrics"}
+          </button>
+        ))}
+      </div>
 
- <label style={{ fontSize: "12px", display: "flex", flexDirection: "column", gap: "4px" }}>
- Extra args (space-separated)
- <input
- type="text"
- value={editing.args.join(" ")}
- onChange={(e) => setEditing({ ...editing, args: e.target.value ? e.target.value.split(" ") : [] })}
- placeholder="optional"
- style={inputStyle}
- />
- </label>
+      {/* ── SERVERS TAB ──────────────────────────────────────────────────────── */}
+      {tab === "servers" && (
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+              Tools are injected as <code style={{ fontSize: 11 }}>mcp__&lt;server&gt;__&lt;tool&gt;</code>
+            </span>
+            <button onClick={() => { setEditing({ ...EMPTY_SERVER }); setEditIdx(null); }} style={{ ...btnStyle, background: "var(--accent-color)", fontSize: 11 }}>+ Add Server</button>
+          </div>
 
- <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end", marginTop: "4px" }}>
- <button
- onClick={() => { setEditing(null); setEditIdx(null); }}
- style={{ padding: "6px 14px", fontSize: "12px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "4px", color: "var(--text-primary)", cursor: "pointer" }}
- >
- Cancel
- </button>
- <button
- onClick={commitEdit}
- disabled={!editing.name.trim() || !editing.command.trim() || saving}
- style={{ padding: "6px 14px", fontSize: "12px", background: "var(--accent-color)", border: "none", borderRadius: "4px", color: "var(--text-primary)", cursor: "pointer" }}
- >
- {saving ? "Saving…" : editIdx === null ? "Add" : "Save"}
- </button>
- </div>
- </div>
- </div>
- )}
+          {servers.length === 0 && <div style={{ ...cardStyle, textAlign: "center", color: "var(--text-secondary)" }}>No MCP servers configured.</div>}
 
- {/* OAuth Setup Modal */}
- {oauthForm && (
- <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 110 }}>
- <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "8px", padding: "20px", width: "380px", display: "flex", flexDirection: "column", gap: "10px" }}>
- <div style={{ fontSize: "13px", fontWeight: 600 }}>
- OAuth Setup — {oauthForm.serverName}
- </div>
- {oauthForm.step === "config" ? (
- <>
- <label style={{ fontSize: "12px", display: "flex", flexDirection: "column", gap: "3px" }}>
- Client ID
- <input type="text" value={oauthForm.clientId} onChange={(e) => setOauthForm((f) => f && { ...f, clientId: e.target.value })} placeholder="your-client-id" style={inputStyle} />
- </label>
- <label style={{ fontSize: "12px", display: "flex", flexDirection: "column", gap: "3px" }}>
- Authorization URL
- <input type="text" value={oauthForm.authUrl} onChange={(e) => setOauthForm((f) => f && { ...f, authUrl: e.target.value })} placeholder="https://provider.example.com/oauth/authorize" style={inputStyle} />
- </label>
- <label style={{ fontSize: "12px", display: "flex", flexDirection: "column", gap: "3px" }}>
- Token URL
- <input type="text" value={oauthForm.tokenUrl} onChange={(e) => setOauthForm((f) => f && { ...f, tokenUrl: e.target.value })} placeholder="https://provider.example.com/oauth/token" style={inputStyle} />
- </label>
- <label style={{ fontSize: "12px", display: "flex", flexDirection: "column", gap: "3px" }}>
- Scopes (space-separated)
- <input type="text" value={oauthForm.scopes} onChange={(e) => setOauthForm((f) => f && { ...f, scopes: e.target.value })} placeholder="read write" style={inputStyle} />
- </label>
- </>
- ) : (
- <label style={{ fontSize: "12px", display: "flex", flexDirection: "column", gap: "3px" }}>
- Authorization Code
- <input autoFocus type="text" value={oauthForm.authCode} onChange={(e) => setOauthForm((f) => f && { ...f, authCode: e.target.value })} placeholder="Paste the code from your browser" style={inputStyle} />
- </label>
- )}
- {oauthForm.msg && (
- <div style={{ fontSize: "11px", padding: "6px 8px", borderRadius: "4px", background: oauthForm.msg.startsWith("Error") ? "rgba(220,50,50,0.15)" : "rgba(166,227,161,0.15)", color: oauthForm.msg.startsWith("Error") ? "var(--error-color)" : "var(--success-color)" }}>
- {oauthForm.msg}
- </div>
- )}
- <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end", marginTop: "4px" }}>
- <button onClick={() => setOauthForm(null)} style={{ padding: "6px 14px", fontSize: "12px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "4px", color: "var(--text-primary)", cursor: "pointer" }}>
- Cancel
- </button>
- {oauthForm.step === "config" ? (
- <button onClick={initiateOAuth} disabled={oauthForm.busy || !oauthForm.clientId || !oauthForm.authUrl} style={{ padding: "6px 14px", fontSize: "12px", background: "var(--accent-color)", border: "none", borderRadius: "4px", color: "var(--text-primary)", cursor: "pointer" }}>
- {oauthForm.busy ? "Opening…" : "Open Browser"}
- </button>
- ) : (
- <button onClick={completeOAuth} disabled={oauthForm.busy || !oauthForm.authCode} style={{ padding: "6px 14px", fontSize: "12px", background: "var(--success-color)", border: "none", borderRadius: "4px", color: "var(--bg-tertiary)", cursor: "pointer", fontWeight: 600 }}>
- {oauthForm.busy ? "Exchanging…" : "Connect"}
- </button>
- )}
- </div>
- </div>
- </div>
- )}
+          {servers.map((srv, idx) => {
+            const res = testResult[idx];
+            const isTools = Array.isArray(res); const isErr = typeof res === "string";
+            return (
+              <div key={srv.name} style={cardStyle}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, flex: 1 }}>
+                    {srv.name}
+                    {tokenStatus[srv.name] && <span style={{ marginLeft: 6, fontSize: 10, color: "var(--success-color)", background: "rgba(166,227,161,0.15)", padding: "1px 5px", borderRadius: 3 }}>OAuth</span>}
+                  </span>
+                  <button onClick={() => testServer(idx)} disabled={testing === idx} style={{ ...btnStyle, fontSize: 11, padding: "2px 8px" }}>{testing === idx ? "..." : "Test"}</button>
+                  <button onClick={() => startOAuth(srv.name)} style={{ ...btnStyle, fontSize: 11, padding: "2px 8px" }}>OAuth</button>
+                  <button onClick={() => { setEditing({ ...srv, args: [...srv.args] }); setEditIdx(idx); }} style={{ ...btnStyle, fontSize: 11, padding: "2px 8px" }}>Edit</button>
+                  <button onClick={() => setConfirmDelete(idx)} style={{ ...btnStyle, fontSize: 11, padding: "2px 8px", borderColor: "var(--error-color)", color: "var(--error-color)" }}>✕</button>
+                </div>
+                <div style={{ fontSize: 11, color: "var(--text-secondary)", fontFamily: "var(--font-mono)", marginTop: 4 }}>$ {srv.command}{srv.args.length > 0 ? " " + srv.args.join(" ") : ""}</div>
+                {isErr && <div style={{ fontSize: 11, color: "var(--error-color)", marginTop: 4 }}>{res}</div>}
+                {isTools && res.length > 0 && (
+                  <div style={{ marginTop: 4 }}>
+                    <div style={{ fontSize: 10, color: "var(--text-secondary)", textTransform: "uppercase" }}>{res.length} tool{res.length !== 1 ? "s" : ""}</div>
+                    {res.map(t => (
+                      <div key={t.name} style={{ fontSize: 11, display: "flex", gap: 6 }}>
+                        <code style={{ color: "var(--accent-color)", flexShrink: 0 }}>{t.name}</code>
+                        <span style={{ color: "var(--text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.description}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
- {/* Confirm delete modal */}
- {confirmDelete !== null && (
- <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
- <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "8px", padding: "20px", maxWidth: "300px", width: "90%", display: "flex", flexDirection: "column", gap: "12px" }}>
- <div style={{ fontSize: "13px", fontWeight: 600 }}>Remove Server?</div>
- <div style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
- Remove <strong>{servers[confirmDelete]?.name}</strong> from the list?
- </div>
- <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
- <button onClick={() => setConfirmDelete(null)}
- style={{ padding: "6px 14px", fontSize: "12px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "4px", color: "var(--text-primary)", cursor: "pointer" }}>
- Cancel
- </button>
- <button onClick={() => deleteServer(confirmDelete)}
- style={{ padding: "6px 14px", fontSize: "12px", background: "var(--error-color)", border: "none", borderRadius: "4px", color: "var(--text-primary)", cursor: "pointer" }}>
- Remove
- </button>
- </div>
- </div>
- </div>
- )}
- </div>
- );
+      {/* ── TOOLS TAB (Lazy Loading) ─────────────────────────────────────────── */}
+      {tab === "tools" && (
+        <div>
+          <div style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span>{loadedCount} / {manifests.length} tools loaded</span>
+            <div style={{ ...barBg, minWidth: 120 }}><div style={barFill(manifests.length > 0 ? (loadedCount / manifests.length) * 100 : 0, "var(--info-color)")} /></div>
+          </div>
+
+          <div style={{ marginBottom: 10 }}>
+            <input style={inputStyle} placeholder="Search tools by name or description..." value={toolSearch} onChange={e => setToolSearch(e.target.value)} />
+          </div>
+
+          {toolSearch.trim() ? (
+            searchResults.length === 0 ? <div style={cardStyle}>No tools matching "{toolSearch}".</div> :
+            searchResults.map(r => (
+              <div key={r.tool_id} style={{ ...cardStyle, display: "flex", justifyContent: "space-between" }}>
+                <div><div style={{ fontWeight: 600 }}>{r.name}</div><div style={labelStyle}>{r.description}</div></div>
+                <div style={{ textAlign: "right" }}><div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Relevance</div><div style={{ fontWeight: 600, color: "var(--accent-primary)" }}>{(r.relevance * 100).toFixed(0)}%</div></div>
+              </div>
+            ))
+          ) : (
+            manifests.map(m => (
+              <div key={m.id} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600 }}>{m.name} <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>v{m.version}</span></div>
+                  <div style={labelStyle}>{m.description}</div>
+                  <div style={{ fontSize: 10, color: "var(--text-secondary)" }}>
+                    {m.size_kb} KB{m.server_name ? ` | ${m.server_name}` : ""}{m.load_time_ms != null ? ` | ${m.load_time_ms}ms` : ""}
+                  </div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={badgeStyle(m.status)}>{m.status}</span>
+                  <button style={{ ...btnStyle, opacity: actionLoading === m.id ? 0.6 : 1 }} disabled={actionLoading === m.id} onClick={() => toggleTool(m.id, m.status)}>
+                    {actionLoading === m.id ? "..." : m.status === "loaded" ? "Unload" : "Load"}
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+          {manifests.length === 0 && !toolSearch.trim() && <div style={cardStyle}>No tools registered.</div>}
+        </div>
+      )}
+
+      {/* ── DIRECTORY TAB ────────────────────────────────────────────────────── */}
+      {tab === "directory" && (
+        <div>
+          <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+            <input style={{ ...inputStyle, flex: 1 }} value={dirSearch} onChange={e => setDirSearch(e.target.value)} placeholder="Search plugins..." />
+            <select style={{ ...inputStyle, width: "auto" }} value={catFilter} onChange={e => setCatFilter(e.target.value)}>
+              {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8 }}>{dirResults.length} plugins | {installedCount} installed</div>
+          {dirLoading && <div style={cardStyle}>Loading...</div>}
+          {dirResults.map(p => (
+            <div key={p.id} style={cardStyle}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600 }}>{p.name} <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>v{p.version}</span></div>
+                  <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }}>by {p.author} | {p.category}</div>
+                  <div style={{ fontSize: 12, marginTop: 4 }}>{p.description}</div>
+                  <div style={{ display: "flex", gap: 12, marginTop: 4, fontSize: 11 }}>
+                    <span style={{ color: "var(--warning-color)" }}>{renderStars(p.rating)} {p.rating.toFixed(1)}</span>
+                    <span style={{ color: "var(--text-secondary)" }}>{formatDl(p.downloads)} downloads</span>
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  {!p.installed && <button style={{ ...btnStyle, background: "var(--accent-primary)" }} onClick={() => installPlugin(p.id)} disabled={pluginAction === p.id}>{pluginAction === p.id ? "..." : "Install"}</button>}
+                  {p.installed && <button style={{ ...btnStyle, borderColor: "var(--error-color)", color: "var(--error-color)" }} onClick={() => uninstallPlugin(p.id)} disabled={pluginAction === p.id}>{pluginAction === p.id ? "..." : "Uninstall"}</button>}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── METRICS TAB ──────────────────────────────────────────────────────── */}
+      {tab === "metrics" && metrics && (
+        <div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
+            <div style={cardStyle}><div style={labelStyle}>Context Savings</div><div style={{ fontSize: 22, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--success-color)" }}>{metrics.context_savings_pct}%</div></div>
+            <div style={cardStyle}><div style={labelStyle}>Cache Hits</div><div style={{ fontSize: 22, fontWeight: 700, fontFamily: "var(--font-mono)" }}>{metrics.cache_hits.toLocaleString()}</div></div>
+            <div style={cardStyle}><div style={labelStyle}>Cache Misses</div><div style={{ fontSize: 22, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--error-color)" }}>{metrics.cache_misses}</div></div>
+          </div>
+          <div style={cardStyle}>
+            <div style={labelStyle}>Cache Hit Rate</div>
+            <div style={barBg}><div style={barFill(metrics.cache_hit_rate, "var(--success-color)")} /></div>
+            <div style={{ fontSize: 10, color: "var(--text-secondary)", marginTop: 4 }}>{metrics.cache_hit_rate.toFixed(1)}%</div>
+          </div>
+          <div style={cardStyle}>
+            <div style={labelStyle}>Avg Load Time: {metrics.avg_load_time_ms}ms</div>
+            {metrics.load_times.map(lt => (
+              <div key={lt.label} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                <div style={{ width: 90, fontSize: 11 }}>{lt.label}</div>
+                <div style={{ ...barBg, flex: 1 }}><div style={barFill((lt.ms / 60) * 100, "var(--info-color)")} /></div>
+                <div style={{ width: 40, fontSize: 10, textAlign: "right" }}>{lt.ms}ms</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ ...cardStyle, display: "flex", justifyContent: "space-between" }}>
+            <span>Tools loaded: {loadedCount} / {manifests.length}</span>
+            <span>Total load time: {metrics.total_load_time_ms}ms</span>
+          </div>
+        </div>
+      )}
+      {tab === "metrics" && !metrics && <div style={cardStyle}>Loading metrics...</div>}
+
+      {/* ── Modals ───────────────────────────────────────────────────────────── */}
+      {editing && (
+        <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
+          <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 8, padding: 20, width: 360, display: "flex", flexDirection: "column", gap: 10 }}>
+            <div style={{ fontSize: 13, fontWeight: 600 }}>{editIdx === null ? "Add MCP Server" : "Edit MCP Server"}</div>
+            <label style={{ fontSize: 12, display: "flex", flexDirection: "column", gap: 4 }}>Name<input autoFocus type="text" value={editing.name} onChange={e => setEditing({ ...editing, name: e.target.value })} placeholder="e.g. github" style={inputStyle} /></label>
+            <label style={{ fontSize: 12, display: "flex", flexDirection: "column", gap: 4 }}>Command<input type="text" value={editing.command} onChange={e => setEditing({ ...editing, command: e.target.value })} placeholder="npx @modelcontextprotocol/server-github" style={inputStyle} /></label>
+            <label style={{ fontSize: 12, display: "flex", flexDirection: "column", gap: 4 }}>Args (space-separated)<input type="text" value={editing.args.join(" ")} onChange={e => setEditing({ ...editing, args: e.target.value ? e.target.value.split(" ") : [] })} placeholder="optional" style={inputStyle} /></label>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button onClick={() => { setEditing(null); setEditIdx(null); }} style={btnStyle}>Cancel</button>
+              <button onClick={commitEdit} disabled={!editing.name.trim() || !editing.command.trim() || saving} style={{ ...btnStyle, background: "var(--accent-color)" }}>{saving ? "Saving..." : editIdx === null ? "Add" : "Save"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {oauthForm && (
+        <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 110 }}>
+          <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 8, padding: 20, width: 380, display: "flex", flexDirection: "column", gap: 10 }}>
+            <div style={{ fontSize: 13, fontWeight: 600 }}>OAuth — {oauthForm.serverName}</div>
+            {oauthForm.step === "config" ? (<>
+              <label style={{ fontSize: 12, display: "flex", flexDirection: "column", gap: 3 }}>Client ID<input type="text" value={oauthForm.clientId} onChange={e => setOauthForm(f => f && { ...f, clientId: e.target.value })} style={inputStyle} /></label>
+              <label style={{ fontSize: 12, display: "flex", flexDirection: "column", gap: 3 }}>Auth URL<input type="text" value={oauthForm.authUrl} onChange={e => setOauthForm(f => f && { ...f, authUrl: e.target.value })} style={inputStyle} /></label>
+              <label style={{ fontSize: 12, display: "flex", flexDirection: "column", gap: 3 }}>Token URL<input type="text" value={oauthForm.tokenUrl} onChange={e => setOauthForm(f => f && { ...f, tokenUrl: e.target.value })} style={inputStyle} /></label>
+              <label style={{ fontSize: 12, display: "flex", flexDirection: "column", gap: 3 }}>Scopes<input type="text" value={oauthForm.scopes} onChange={e => setOauthForm(f => f && { ...f, scopes: e.target.value })} style={inputStyle} /></label>
+            </>) : (
+              <label style={{ fontSize: 12, display: "flex", flexDirection: "column", gap: 3 }}>Authorization Code<input autoFocus type="text" value={oauthForm.authCode} onChange={e => setOauthForm(f => f && { ...f, authCode: e.target.value })} style={inputStyle} /></label>
+            )}
+            {oauthForm.msg && <div style={{ fontSize: 11, padding: "6px 8px", borderRadius: 4, background: oauthForm.msg.startsWith("Error") ? "rgba(220,50,50,0.15)" : "rgba(166,227,161,0.15)", color: oauthForm.msg.startsWith("Error") ? "var(--error-color)" : "var(--success-color)" }}>{oauthForm.msg}</div>}
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button onClick={() => setOauthForm(null)} style={btnStyle}>Cancel</button>
+              {oauthForm.step === "config" ? (
+                <button onClick={initiateOAuth} disabled={oauthForm.busy || !oauthForm.clientId || !oauthForm.authUrl} style={{ ...btnStyle, background: "var(--accent-color)" }}>{oauthForm.busy ? "Opening..." : "Open Browser"}</button>
+              ) : (
+                <button onClick={completeOAuth} disabled={oauthForm.busy || !oauthForm.authCode} style={{ ...btnStyle, background: "var(--success-color)", fontWeight: 600 }}>{oauthForm.busy ? "Exchanging..." : "Connect"}</button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmDelete !== null && (
+        <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
+          <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 8, padding: 20, maxWidth: 300, display: "flex", flexDirection: "column", gap: 12 }}>
+            <div style={{ fontSize: 13, fontWeight: 600 }}>Remove Server?</div>
+            <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Remove <strong>{servers[confirmDelete]?.name}</strong>?</div>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button onClick={() => setConfirmDelete(null)} style={btnStyle}>Cancel</button>
+              <button onClick={async () => { await saveServers(servers.filter((_, i) => i !== confirmDelete)); setConfirmDelete(null); }} style={{ ...btnStyle, background: "var(--error-color)" }}>Remove</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
-
-const inputStyle: React.CSSProperties = {
- padding: "5px 8px",
- fontSize: "12px",
- background: "var(--bg-input, var(--bg-primary))",
- border: "1px solid var(--border-color)",
- borderRadius: "4px",
- color: "var(--text-primary)",
- outline: "none",
- fontFamily: "var(--font-mono)",
-};
