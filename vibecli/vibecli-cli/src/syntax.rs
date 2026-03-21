@@ -94,7 +94,188 @@ impl Default for SyntaxHighlighter {
     }
 }
 
-/// Extract and highlight code blocks from markdown-style text.
+// ── ANSI escape codes ────────────────────────────────────────────────────────
+const RESET: &str = "\x1b[0m";
+const BOLD: &str = "\x1b[1m";
+const DIM: &str = "\x1b[2m";
+const ITALIC: &str = "\x1b[3m";
+const UNDERLINE: &str = "\x1b[4m";
+const CYAN: &str = "\x1b[36m";
+const GREEN: &str = "\x1b[32m";
+const YELLOW: &str = "\x1b[33m";
+const MAGENTA: &str = "\x1b[35m";
+const BLUE: &str = "\x1b[34m";
+const WHITE: &str = "\x1b[37m";
+const BRIGHT_BLACK: &str = "\x1b[90m"; // gray
+const BG_GRAY: &str = "\x1b[48;5;236m"; // dark gray background for code blocks
+const BRIGHT_CYAN: &str = "\x1b[96m";
+const BRIGHT_GREEN: &str = "\x1b[92m";
+const BRIGHT_YELLOW: &str = "\x1b[93m";
+
+/// Render inline markdown formatting within a line (bold, italic, inline code, links).
+fn render_inline_markdown(line: &str) -> String {
+    let mut result = String::with_capacity(line.len() + 64);
+    let chars: Vec<char> = line.chars().collect();
+    let len = chars.len();
+    let mut i = 0;
+
+    while i < len {
+        // Inline code: `code`
+        if chars[i] == '`' && i + 1 < len {
+            if let Some(end) = chars[i+1..].iter().position(|&c| c == '`') {
+                let code: String = chars[i+1..i+1+end].iter().collect();
+                result.push_str(BG_GRAY);
+                result.push_str(BRIGHT_CYAN);
+                result.push_str(&code);
+                result.push_str(RESET);
+                i += end + 2;
+                continue;
+            }
+        }
+        // Bold + Italic: ***text*** or ___text___
+        if i + 2 < len && chars[i] == '*' && chars[i+1] == '*' && chars[i+2] == '*' {
+            if let Some(end) = find_closing(&chars, i + 3, &['*', '*', '*']) {
+                let text: String = chars[i+3..end].iter().collect();
+                result.push_str(BOLD);
+                result.push_str(ITALIC);
+                result.push_str(&text);
+                result.push_str(RESET);
+                i = end + 3;
+                continue;
+            }
+        }
+        // Bold: **text** or __text__
+        if i + 1 < len && chars[i] == '*' && chars[i+1] == '*' {
+            if let Some(end) = find_closing(&chars, i + 2, &['*', '*']) {
+                let text: String = chars[i+2..end].iter().collect();
+                result.push_str(BOLD);
+                result.push_str(WHITE);
+                result.push_str(&text);
+                result.push_str(RESET);
+                i = end + 2;
+                continue;
+            }
+        }
+        // Italic: *text* (single)
+        if chars[i] == '*' && i + 1 < len && chars[i+1] != ' ' {
+            if let Some(end) = chars[i+1..].iter().position(|&c| c == '*') {
+                let text: String = chars[i+1..i+1+end].iter().collect();
+                result.push_str(ITALIC);
+                result.push_str(&text);
+                result.push_str(RESET);
+                i += end + 2;
+                continue;
+            }
+        }
+        // Link: [text](url) — show text underlined, dim the URL
+        if chars[i] == '[' {
+            if let Some(close_bracket) = chars[i+1..].iter().position(|&c| c == ']') {
+                let text_end = i + 1 + close_bracket;
+                if text_end + 1 < len && chars[text_end + 1] == '(' {
+                    if let Some(close_paren) = chars[text_end+2..].iter().position(|&c| c == ')') {
+                        let link_text: String = chars[i+1..text_end].iter().collect();
+                        let url: String = chars[text_end+2..text_end+2+close_paren].iter().collect();
+                        result.push_str(UNDERLINE);
+                        result.push_str(CYAN);
+                        result.push_str(&link_text);
+                        result.push_str(RESET);
+                        result.push_str(DIM);
+                        result.push(' ');
+                        result.push_str(&url);
+                        result.push_str(RESET);
+                        i = text_end + 2 + close_paren + 1;
+                        continue;
+                    }
+                }
+            }
+        }
+        result.push(chars[i]);
+        i += 1;
+    }
+    result
+}
+
+/// Find closing delimiter sequence in chars starting at `from`.
+fn find_closing(chars: &[char], from: usize, delim: &[char]) -> Option<usize> {
+    let dlen = delim.len();
+    if from + dlen > chars.len() { return None; }
+    for i in from..=chars.len() - dlen {
+        if chars[i..i+dlen] == *delim {
+            return Some(i);
+        }
+    }
+    None
+}
+
+/// Render a single markdown prose line with ANSI colors.
+fn render_markdown_line(line: &str) -> String {
+    let trimmed = line.trim_start();
+
+    // Headings: # ## ### ####
+    if trimmed.starts_with("#### ") {
+        return format!("{}{}{}{}\n", BOLD, BLUE, render_inline_markdown(trimmed.trim_start_matches('#').trim()), RESET);
+    }
+    if trimmed.starts_with("### ") {
+        return format!("{}{}{}{}\n", BOLD, MAGENTA, render_inline_markdown(trimmed.trim_start_matches('#').trim()), RESET);
+    }
+    if trimmed.starts_with("## ") {
+        return format!("\n{}{}{}{}\n", BOLD, CYAN, render_inline_markdown(trimmed.trim_start_matches('#').trim()), RESET);
+    }
+    if trimmed.starts_with("# ") {
+        return format!("\n{}{}{}{}\n", BOLD, BRIGHT_GREEN, render_inline_markdown(trimmed.trim_start_matches('#').trim()), RESET);
+    }
+
+    // Horizontal rule: --- or *** or ___
+    if trimmed.len() >= 3 && (trimmed.chars().all(|c| c == '-') || trimmed.chars().all(|c| c == '*') || trimmed.chars().all(|c| c == '_')) {
+        return format!("{}{}─────────────────────────────────────────{}\n", DIM, BRIGHT_BLACK, RESET);
+    }
+
+    // Task list: - [ ] or - [x] (must be before unordered list)
+    if let Some(rest) = trimmed.strip_prefix("- [ ] ") {
+        return format!("  {}☐{} {}\n", DIM, RESET, render_inline_markdown(rest));
+    }
+    if let Some(rest) = trimmed.strip_prefix("- [x] ").or_else(|| trimmed.strip_prefix("- [X] ")) {
+        return format!("  {}{}☑{} {}\n", GREEN, BOLD, RESET, render_inline_markdown(rest));
+    }
+
+    // Blockquote: > text
+    if let Some(rest) = trimmed.strip_prefix("> ") {
+        return format!("  {}{}│{} {}{}\n", DIM, GREEN, RESET, ITALIC, render_inline_markdown(rest));
+    }
+    if trimmed == ">" {
+        return format!("  {}{}│{}\n", DIM, GREEN, RESET);
+    }
+
+    // Unordered list: - item, * item, + item
+    if let Some(rest) = trimmed.strip_prefix("- ").or_else(|| trimmed.strip_prefix("* ")).or_else(|| trimmed.strip_prefix("+ ")) {
+        let indent = line.len() - trimmed.len();
+        let pad: String = " ".repeat(indent);
+        return format!("{}{}  •{} {}\n", pad, BRIGHT_YELLOW, RESET, render_inline_markdown(rest));
+    }
+
+    // Ordered list: 1. item, 2. item, etc.
+    if let Some(dot_pos) = trimmed.find(". ") {
+        let prefix = &trimmed[..dot_pos];
+        if !prefix.is_empty() && prefix.chars().all(|c| c.is_ascii_digit()) {
+            let rest = &trimmed[dot_pos + 2..];
+            let indent = line.len() - trimmed.len();
+            let pad: String = " ".repeat(indent);
+            return format!("{}{}{}{}.{} {}\n", pad, BRIGHT_YELLOW, BOLD, prefix, RESET, render_inline_markdown(rest));
+        }
+    }
+
+    // Empty line
+    if trimmed.is_empty() {
+        return "\n".to_string();
+    }
+
+    // Regular text with inline formatting
+    format!("{}\n", render_inline_markdown(line))
+}
+
+/// Extract and highlight code blocks from markdown-style text,
+/// and render markdown prose with ANSI colors (headers, bold, italic,
+/// inline code, lists, blockquotes, links, horizontal rules).
 pub fn highlight_code_blocks(text: &str) -> String {
     let highlighter = SyntaxHighlighter::new();
     let mut result = String::new();
@@ -105,10 +286,16 @@ pub fn highlight_code_blocks(text: &str) -> String {
     for line in text.lines() {
         if line.starts_with("```") {
             if in_code_block {
-                // End of code block - highlight and add
+                // End of code block — syntax highlight the accumulated code
+                let lang_label = language.as_deref().unwrap_or("text");
+                // Code block header
+                result.push_str(&format!("{}{}┌─ {} ─{}\n", DIM, BRIGHT_BLACK, lang_label, RESET));
                 let highlighted = highlighter.highlight(&code_buffer, language.as_deref());
-                result.push_str(&highlighted);
-                result.push_str("\x1b[0m\n"); // Reset color
+                // Add left gutter to each line
+                for hl_line in highlighted.lines() {
+                    result.push_str(&format!("{}{}│{} {}\n", DIM, BRIGHT_BLACK, RESET, hl_line));
+                }
+                result.push_str(&format!("{}{}└─────────{}\n", DIM, BRIGHT_BLACK, RESET));
                 code_buffer.clear();
                 language = None;
                 in_code_block = false;
@@ -124,12 +311,64 @@ pub fn highlight_code_blocks(text: &str) -> String {
             code_buffer.push_str(line);
             code_buffer.push('\n');
         } else {
-            result.push_str(line);
-            result.push('\n');
+            result.push_str(&render_markdown_line(line));
         }
     }
 
+    // Handle unclosed code block
+    if in_code_block && !code_buffer.is_empty() {
+        let highlighted = highlighter.highlight(&code_buffer, language.as_deref());
+        result.push_str(&highlighted);
+        result.push_str(RESET);
+    }
+
     result
+}
+
+/// Format a tool call summary with color for the agent REPL.
+pub fn format_tool_call(tool_name: &str, summary: &str) -> String {
+    format!(
+        "\n{}{}⚡ Tool:{} {}{}{} {}{}",
+        BOLD, YELLOW, RESET,
+        BOLD, BRIGHT_CYAN, tool_name, RESET,
+        summary
+    )
+}
+
+/// Format a step result with color.
+pub fn format_step_result(step_num: usize, tool_summary: &str, success: bool) -> String {
+    let (icon, color) = if success { ("✅", GREEN) } else { ("❌", "\x1b[31m") };
+    format!(
+        "\n{}{} Step {}:{} {}",
+        color, icon, step_num, RESET,
+        tool_summary
+    )
+}
+
+/// Format agent completion message.
+pub fn format_agent_complete(summary: &str) -> String {
+    format!(
+        "\n\n{}{}✅ Agent complete:{} {}",
+        BOLD, GREEN, RESET, summary
+    )
+}
+
+/// Format agent error message.
+pub fn format_agent_error(error: &str) -> String {
+    format!(
+        "\n{}{}❌ Agent error:{} {}",
+        BOLD, "\x1b[31m", RESET, error
+    )
+}
+
+/// Format the REPL prompt with color.
+pub fn colored_prompt(provider_name: &str) -> String {
+    format!(
+        "{}{}vibecli{} {}[{}]{} {}▸{} ",
+        BOLD, BRIGHT_GREEN, RESET,
+        DIM, provider_name, RESET,
+        BRIGHT_CYAN, RESET,
+    )
 }
 
 #[cfg(test)]
@@ -291,5 +530,283 @@ mod tests {
         assert!(out.contains("Text"));
         assert!(out.contains("Middle"));
         assert!(out.contains("End"));
+    }
+
+    // ── Markdown rendering ──────────────────────────────────────────────────
+
+    #[test]
+    fn render_h1() {
+        let out = render_markdown_line("# Hello World");
+        assert!(out.contains("Hello World"));
+        assert!(out.contains(BOLD));
+        assert!(out.contains(BRIGHT_GREEN));
+    }
+
+    #[test]
+    fn render_h2() {
+        let out = render_markdown_line("## Section");
+        assert!(out.contains("Section"));
+        assert!(out.contains(CYAN));
+    }
+
+    #[test]
+    fn render_h3() {
+        let out = render_markdown_line("### Subsection");
+        assert!(out.contains("Subsection"));
+        assert!(out.contains(MAGENTA));
+    }
+
+    #[test]
+    fn render_h4() {
+        let out = render_markdown_line("#### Detail");
+        assert!(out.contains("Detail"));
+        assert!(out.contains(BLUE));
+    }
+
+    #[test]
+    fn render_unordered_list_dash() {
+        let out = render_markdown_line("- item one");
+        assert!(out.contains("•"));
+        assert!(out.contains("item one"));
+    }
+
+    #[test]
+    fn render_unordered_list_star() {
+        let out = render_markdown_line("* item two");
+        assert!(out.contains("•"));
+        assert!(out.contains("item two"));
+    }
+
+    #[test]
+    fn render_ordered_list() {
+        let out = render_markdown_line("1. first");
+        assert!(out.contains("1."));
+        assert!(out.contains("first"));
+        assert!(out.contains(BRIGHT_YELLOW));
+    }
+
+    #[test]
+    fn render_blockquote() {
+        let out = render_markdown_line("> quoted text");
+        assert!(out.contains("│"));
+        assert!(out.contains("quoted text"));
+        assert!(out.contains(ITALIC));
+    }
+
+    #[test]
+    fn render_horizontal_rule() {
+        let out = render_markdown_line("---");
+        assert!(out.contains("─"));
+        assert!(out.contains(DIM));
+    }
+
+    #[test]
+    fn render_task_list_unchecked() {
+        let out = render_markdown_line("- [ ] todo");
+        assert!(out.contains("☐"));
+        assert!(out.contains("todo"));
+    }
+
+    #[test]
+    fn render_task_list_checked() {
+        let out = render_markdown_line("- [x] done");
+        assert!(out.contains("☑"));
+        assert!(out.contains("done"));
+    }
+
+    #[test]
+    fn render_empty_line() {
+        let out = render_markdown_line("");
+        assert_eq!(out, "\n");
+    }
+
+    // ── Inline markdown ─────────────────────────────────────────────────────
+
+    #[test]
+    fn inline_code() {
+        let out = render_inline_markdown("use `cargo build` here");
+        assert!(out.contains("cargo build"));
+        assert!(out.contains(BRIGHT_CYAN));
+        assert!(out.contains(BG_GRAY));
+    }
+
+    #[test]
+    fn inline_bold() {
+        let out = render_inline_markdown("this is **bold** text");
+        assert!(out.contains("bold"));
+        assert!(out.contains(BOLD));
+    }
+
+    #[test]
+    fn inline_italic() {
+        let out = render_inline_markdown("this is *italic* text");
+        assert!(out.contains("italic"));
+        assert!(out.contains(ITALIC));
+    }
+
+    #[test]
+    fn inline_bold_italic() {
+        let out = render_inline_markdown("this is ***both*** styled");
+        assert!(out.contains("both"));
+        assert!(out.contains(BOLD));
+        assert!(out.contains(ITALIC));
+    }
+
+    #[test]
+    fn inline_link() {
+        let out = render_inline_markdown("click [here](https://example.com) now");
+        assert!(out.contains("here"));
+        assert!(out.contains("https://example.com"));
+        assert!(out.contains(UNDERLINE));
+        assert!(out.contains(CYAN));
+    }
+
+    #[test]
+    fn inline_no_formatting() {
+        let out = render_inline_markdown("plain text");
+        assert_eq!(out, "plain text");
+    }
+
+    #[test]
+    fn inline_unclosed_backtick() {
+        // Should not panic and should include the backtick
+        let out = render_inline_markdown("incomplete `code");
+        assert!(out.contains('`'));
+    }
+
+    // ── Code block rendering with gutter ─────────────────────────────────────
+
+    #[test]
+    fn code_block_has_gutter() {
+        let input = "```rust\nfn main() {}\n```\n";
+        let out = highlight_code_blocks(input);
+        assert!(out.contains("┌─"));
+        assert!(out.contains("│"));
+        assert!(out.contains("└─"));
+        assert!(out.contains("rust"));
+    }
+
+    #[test]
+    fn code_block_no_lang_shows_text() {
+        let input = "```\nhello\n```\n";
+        let out = highlight_code_blocks(input);
+        assert!(out.contains("text"));
+        assert!(out.contains("hello"));
+    }
+
+    // ── Formatting helpers ──────────────────────────────────────────────────
+
+    #[test]
+    fn format_tool_call_contains_name() {
+        let out = format_tool_call("write_file", "path: main.rs");
+        assert!(out.contains("write_file"));
+        assert!(out.contains("Tool:"));
+        assert!(out.contains(YELLOW));
+    }
+
+    #[test]
+    fn format_step_success() {
+        let out = format_step_result(1, "wrote main.rs", true);
+        assert!(out.contains("Step 1:"));
+        assert!(out.contains("✅"));
+        assert!(out.contains(GREEN));
+    }
+
+    #[test]
+    fn format_step_failure() {
+        let out = format_step_result(2, "compile failed", false);
+        assert!(out.contains("Step 2:"));
+        assert!(out.contains("❌"));
+    }
+
+    #[test]
+    fn format_complete_msg() {
+        let out = format_agent_complete("all done");
+        assert!(out.contains("Agent complete:"));
+        assert!(out.contains("all done"));
+        assert!(out.contains(GREEN));
+    }
+
+    #[test]
+    fn format_error_msg() {
+        let out = format_agent_error("something broke");
+        assert!(out.contains("Agent error:"));
+        assert!(out.contains("something broke"));
+    }
+
+    #[test]
+    fn colored_prompt_contains_provider() {
+        let out = colored_prompt("ollama");
+        assert!(out.contains("vibecli"));
+        assert!(out.contains("ollama"));
+        assert!(out.contains("▸"));
+    }
+
+    // ── Full markdown document ──────────────────────────────────────────────
+
+    #[test]
+    fn full_markdown_document() {
+        let input = r#"# Title
+
+## Introduction
+
+This is a paragraph with **bold** and *italic* text.
+
+- First item
+- Second item with `inline code`
+
+```rust
+fn main() {
+    println!("hello");
+}
+```
+
+> A blockquote
+
+1. Ordered item
+2. Another item
+
+---
+
+### Conclusion
+
+Visit [the docs](https://vibecody.dev) for more."#;
+        let out = highlight_code_blocks(input);
+        // Headers are colored
+        assert!(out.contains(BRIGHT_GREEN)); // h1
+        assert!(out.contains(CYAN)); // h2
+        assert!(out.contains(MAGENTA)); // h3
+        // Lists have bullets
+        assert!(out.contains("•"));
+        // Code block has gutter
+        assert!(out.contains("┌─"));
+        // Bold text is styled
+        assert!(out.contains(BOLD));
+        // Blockquote has pipe
+        assert!(out.contains("│"));
+        // Horizontal rule
+        assert!(out.contains("─────"));
+        // Link is underlined
+        assert!(out.contains(UNDERLINE));
+    }
+
+    // ── find_closing ────────────────────────────────────────────────────────
+
+    #[test]
+    fn find_closing_found() {
+        let chars: Vec<char> = "hello**world".chars().collect();
+        assert_eq!(find_closing(&chars, 0, &['*', '*']), Some(5));
+    }
+
+    #[test]
+    fn find_closing_not_found() {
+        let chars: Vec<char> = "hello world".chars().collect();
+        assert_eq!(find_closing(&chars, 0, &['*', '*']), None);
+    }
+
+    #[test]
+    fn find_closing_at_end() {
+        let chars: Vec<char> = "ab**".chars().collect();
+        assert_eq!(find_closing(&chars, 0, &['*', '*']), Some(2));
     }
 }

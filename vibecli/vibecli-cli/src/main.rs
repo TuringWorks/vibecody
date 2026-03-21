@@ -7185,11 +7185,12 @@ async fn run_agent_repl_with_context(
 
         match event {
             AgentEvent::StreamChunk(text) => {
+                // Buffer chunks and render markdown when we get a complete line
                 print!("{}", text);
                 io::stdout().flush()?;
             }
             AgentEvent::ToolCallPending { call, result_tx } => {
-                println!("\n\n⚡ Tool call: {}", call.summary());
+                println!("{}", crate::syntax::format_tool_call(call.name(), &call.summary()));
                 print!("   Approve? (y/n/a=approve-all): ");
                 io::stdout().flush()?;
 
@@ -7216,12 +7217,9 @@ async fn run_agent_repl_with_context(
                 let dur = step_start.elapsed().as_millis() as u64;
                 step_start = std::time::Instant::now();
                 step_count += 1;
-                let status = if step.tool_result.success { "✅" } else { "❌" };
                 println!(
-                    "\n{} Step {}: {}",
-                    status,
-                    step.step_num + 1,
-                    step.tool_call.summary()
+                    "{}",
+                    crate::syntax::format_step_result(step.step_num + 1, &step.tool_call.summary(), step.tool_result.success)
                 );
                 trace.record(
                     step.step_num,
@@ -7244,7 +7242,7 @@ async fn run_agent_repl_with_context(
                 }
             }
             AgentEvent::Complete(summary) => {
-                println!("\n\n✅ Agent complete: {}", summary);
+                println!("{}", crate::syntax::format_agent_complete(&summary));
                 println!("   Trace saved: {}", trace.path().display());
                 println!("   Resume with: vibecli --resume {}", trace.session_id());
                 if let Some(ref store) = db {
@@ -7293,7 +7291,7 @@ async fn run_agent_repl_with_context(
                 break;
             }
             AgentEvent::Error(e) => {
-                eprintln!("\n❌ Agent error: {}", e);
+                eprintln!("{}", crate::syntax::format_agent_error(&e));
                 if let Some(ref store) = db {
                     let _ = store.finish_session(&session_id, "failed", Some(&e));
                 }
