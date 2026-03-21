@@ -288,14 +288,23 @@ pub fn highlight_code_blocks(text: &str) -> String {
             if in_code_block {
                 // End of code block — syntax highlight the accumulated code
                 let lang_label = language.as_deref().unwrap_or("text");
-                // Code block header
-                result.push_str(&format!("{}{}┌─ {} ─{}\n", DIM, BRIGHT_BLACK, lang_label, RESET));
+                // Code block header with language label
+                result.push_str(&format!("  {}{}┌─ {} ─{}\n", DIM, BRIGHT_BLACK, lang_label, RESET));
                 let highlighted = highlighter.highlight(&code_buffer, language.as_deref());
-                // Add left gutter to each line
-                for hl_line in highlighted.lines() {
-                    result.push_str(&format!("{}{}│{} {}\n", DIM, BRIGHT_BLACK, RESET, hl_line));
+                let lines: Vec<&str> = highlighted.lines().collect();
+                let line_count = lines.len();
+                let width = if line_count > 0 { format!("{}", line_count).len() } else { 1 };
+                // Add left gutter with line numbers + background color
+                for (i, hl_line) in lines.iter().enumerate() {
+                    let line_num = i + 1;
+                    result.push_str(&format!(
+                        "  {}{}{:>width$} │{} {}{}{}\n",
+                        DIM, BRIGHT_BLACK, line_num, RESET,
+                        BG_GRAY, hl_line, RESET,
+                        width = width,
+                    ));
                 }
-                result.push_str(&format!("{}{}└─────────{}\n", DIM, BRIGHT_BLACK, RESET));
+                result.push_str(&format!("  {}{}└─────────{}\n", DIM, BRIGHT_BLACK, RESET));
                 code_buffer.clear();
                 language = None;
                 in_code_block = false;
