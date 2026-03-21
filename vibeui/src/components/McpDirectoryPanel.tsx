@@ -211,8 +211,83 @@ export function McpDirectoryPanel() {
 
       {!loading && tab === "installed" && (
         <div>
-          {installedPlugins.length === 0 && <div style={cardStyle}>No plugins installed.</div>}
-          {installedPlugins.map((p) => renderPluginCard(p, false))}
+          {installedPlugins.length === 0 && (
+            <div style={cardStyle}>
+              <div style={{ textAlign: "center", padding: "16px 0" }}>
+                <div style={{ fontSize: 14, marginBottom: 6 }}>No MCP plugins installed</div>
+                <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 10 }}>
+                  Browse the directory to find and install plugins.
+                </div>
+                <button style={{ ...btnStyle, background: "var(--accent-primary, #0e639c)", color: "#fff" }} onClick={() => setTab("browse")}>
+                  Browse Directory
+                </button>
+              </div>
+            </div>
+          )}
+
+          {installedPlugins.length > 0 && (
+            <>
+              {/* Summary */}
+              <div style={{ ...cardStyle, display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+                <span>{installedPlugins.length} plugin{installedPlugins.length !== 1 ? "s" : ""} installed</span>
+                {installedPlugins.some(p => p.updatable) && (
+                  <span style={{ color: "var(--warning-color, #cca700)" }}>
+                    {installedPlugins.filter(p => p.updatable).length} update{installedPlugins.filter(p => p.updatable).length !== 1 ? "s" : ""} available
+                  </span>
+                )}
+              </div>
+
+              {/* Plugin cards with status and config info */}
+              {installedPlugins.map((p) => (
+                <div key={p.id} style={{ ...cardStyle, borderLeft: `3px solid ${p.updatable ? "var(--warning-color, #cca700)" : "var(--success-color, #4caf50)"}` }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontWeight: 600 }}>{p.name}</span>
+                        <span style={{ fontSize: 10, color: "var(--text-secondary, #888)" }}>v{p.version}</span>
+                        <span style={{
+                          fontSize: 10, padding: "1px 6px", borderRadius: 8,
+                          background: p.updatable ? "var(--warning-color, #cca700)" : "var(--success-color, #4caf50)",
+                          color: "#fff",
+                        }}>
+                          {p.updatable ? "Update available" : "Active"}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 11, color: "var(--text-secondary, #888)", marginTop: 3 }}>
+                        by {p.author} | {p.category}
+                      </div>
+                      <div style={{ fontSize: 12, marginTop: 4 }}>{p.description}</div>
+                      <div style={{ display: "flex", gap: 12, marginTop: 6, fontSize: 11 }}>
+                        <span style={{ color: "var(--warning-color, #cca700)" }}>{renderStars(p.rating)} {p.rating.toFixed(1)}</span>
+                        <span style={{ color: "var(--text-secondary, #888)" }}>{formatDownloads(p.downloads)} downloads</span>
+                      </div>
+                      <div style={{ fontSize: 11, color: "var(--text-secondary, #888)", marginTop: 6, fontFamily: "monospace" }}>
+                        Config: ~/.vibecli/mcp/{p.id}/config.json
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                      {p.updatable && (
+                        <button
+                          style={{ ...btnStyle, background: "var(--warning-color, #cca700)", color: "#fff", fontSize: 11 }}
+                          onClick={() => handleInstall(p.id)}
+                          disabled={actionInProgress === p.id}
+                        >
+                          {actionInProgress === p.id ? "..." : "Update"}
+                        </button>
+                      )}
+                      <button
+                        style={{ ...btnStyle, borderColor: "var(--error-color, #f44336)", color: "var(--error-color, #f44336)", fontSize: 11 }}
+                        onClick={() => handleUninstall(p.id)}
+                        disabled={actionInProgress === p.id}
+                      >
+                        {actionInProgress === p.id ? "..." : "Uninstall"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
         </div>
       )}
 

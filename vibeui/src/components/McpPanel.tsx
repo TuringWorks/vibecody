@@ -65,7 +65,7 @@ const formatDl = (n: number): string => n >= 1000 ? `${(n / 1000).toFixed(1)}k` 
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-type Tab = "servers" | "tools" | "directory" | "metrics";
+type Tab = "servers" | "tools" | "directory" | "installed" | "metrics";
 
 export function McpPanel() {
   const [tab, setTab] = useState<Tab>("servers");
@@ -252,9 +252,9 @@ export function McpPanel() {
 
       {/* Tab bar */}
       <div style={{ marginBottom: 12, display: "flex", flexWrap: "wrap", gap: 2 }} role="tablist">
-        {(["servers", "tools", "directory", "metrics"] as Tab[]).map(t => (
+        {(["servers", "tools", "directory", "installed", "metrics"] as Tab[]).map(t => (
           <button key={t} role="tab" aria-selected={tab === t} style={tabBtnStyle(tab === t)} onClick={() => setTab(t)}>
-            {t === "servers" ? `Servers (${servers.length})` : t === "tools" ? `Tools (${manifests.length})` : t === "directory" ? `Directory (${plugins.length})` : "Metrics"}
+            {t === "servers" ? `Servers (${servers.length})` : t === "tools" ? `Tools (${manifests.length})` : t === "directory" ? `Directory (${plugins.length})` : t === "installed" ? `Installed (${plugins.filter(p => p.installed).length})` : "Metrics"}
           </button>
         ))}
       </div>
@@ -378,6 +378,130 @@ export function McpPanel() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* ── INSTALLED TAB ────────────────────────────────────────────────────── */}
+      {tab === "installed" && (
+        <div>
+          {(() => {
+            const installed = plugins.filter(p => p.installed);
+            if (installed.length === 0) {
+              return (
+                <div style={cardStyle}>
+                  <div style={{ textAlign: "center", padding: "20px 0" }}>
+                    <div style={{ fontSize: 14, marginBottom: 8 }}>No MCP plugins installed</div>
+                    <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 12 }}>
+                      Browse the Directory tab to find and install plugins.
+                    </div>
+                    <button style={{ ...btnStyle, background: "var(--accent-primary)" }} onClick={() => setTab("directory")}>
+                      Browse Directory
+                    </button>
+                  </div>
+                </div>
+              );
+            }
+            return (
+              <>
+                {/* Summary bar */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
+                  <div style={cardStyle}>
+                    <div style={labelStyle}>Installed</div>
+                    <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--font-mono)" }}>{installed.length}</div>
+                  </div>
+                  <div style={cardStyle}>
+                    <div style={labelStyle}>Updates Available</div>
+                    <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--font-mono)", color: installed.some(p => p.updatable) ? "var(--warning-color)" : "var(--success-color)" }}>
+                      {installed.filter(p => p.updatable).length}
+                    </div>
+                  </div>
+                  <div style={cardStyle}>
+                    <div style={labelStyle}>Categories</div>
+                    <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--font-mono)" }}>
+                      {new Set(installed.map(p => p.category)).size}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Update all button */}
+                {installed.some(p => p.updatable) && (
+                  <div style={{ marginBottom: 12 }}>
+                    <button style={{ ...btnStyle, background: "var(--warning-color)", color: "var(--text-primary)" }}>
+                      Update All ({installed.filter(p => p.updatable).length})
+                    </button>
+                  </div>
+                )}
+
+                {/* Installed plugin cards with details */}
+                {installed.map(p => (
+                  <div key={p.id} style={{ ...cardStyle, borderLeft: `3px solid ${p.updatable ? "var(--warning-color)" : "var(--success-color)"}` }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span style={{ fontWeight: 600, fontSize: 14 }}>{p.name}</span>
+                          <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 8, background: "var(--bg-tertiary)", color: "var(--text-secondary)" }}>
+                            v{p.version}
+                          </span>
+                          <span style={{
+                            fontSize: 10, padding: "1px 6px", borderRadius: 8,
+                            background: p.updatable ? "var(--warning-color)" : "var(--success-color)",
+                            color: "#fff",
+                          }}>
+                            {p.updatable ? "Update available" : "Up to date"}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 4 }}>
+                          by {p.author} | {p.category}
+                        </div>
+                        <div style={{ fontSize: 12, marginTop: 4 }}>{p.description}</div>
+
+                        {/* Plugin details */}
+                        <div style={{ display: "flex", gap: 16, marginTop: 8, fontSize: 11 }}>
+                          <span style={{ color: "var(--warning-color)" }}>{renderStars(p.rating)} {p.rating.toFixed(1)}</span>
+                          <span style={{ color: "var(--text-secondary)" }}>{formatDl(p.downloads)} downloads</span>
+                          <span style={{ color: "var(--text-secondary)" }}>ID: {p.id}</span>
+                        </div>
+
+                        {/* Config location hint */}
+                        <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 6, fontFamily: "var(--font-mono)" }}>
+                          Config: ~/.vibecli/mcp/{p.id}/config.json
+                        </div>
+                      </div>
+
+                      {/* Action buttons */}
+                      <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 80 }}>
+                        {p.updatable && (
+                          <button
+                            style={{ ...btnStyle, background: "var(--warning-color)", color: "#fff", fontSize: 11 }}
+                            onClick={() => installPlugin(p.id)}
+                            disabled={pluginAction === p.id}
+                          >
+                            {pluginAction === p.id ? "..." : "Update"}
+                          </button>
+                        )}
+                        <button
+                          style={{ ...btnStyle, fontSize: 11 }}
+                          onClick={() => {
+                            // Switch to Tools tab filtered to this plugin's server
+                            setTab("tools");
+                          }}
+                        >
+                          View Tools
+                        </button>
+                        <button
+                          style={{ ...btnStyle, borderColor: "var(--error-color)", color: "var(--error-color)", fontSize: 11 }}
+                          onClick={() => uninstallPlugin(p.id)}
+                          disabled={pluginAction === p.id}
+                        >
+                          {pluginAction === p.id ? "..." : "Uninstall"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </>
+            );
+          })()}
         </div>
       )}
 
