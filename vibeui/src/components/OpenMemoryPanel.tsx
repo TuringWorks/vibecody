@@ -547,21 +547,28 @@ const OpenMemoryPanel: React.FC = () => {
               Multi-waypoint graph (up to 5 links per memory). Exceeds OpenMemory's single-link limitation.
             </p>
 
-            {/* ASCII graph representation */}
-            <div style={{
-              background: 'var(--vibe-bg-tertiary, #1e293b)', borderRadius: 8, padding: 16,
-              fontFamily: 'var(--vibe-font-mono, monospace)', fontSize: 12, color: 'var(--vibe-text-primary, #e2e8f0)',
-              whiteSpace: 'pre-wrap', minHeight: 200,
-            }}>
-              {stats.total_memories === 0
-                ? 'No memories to graph. Add memories to see the associative network.'
-                : generateAsciiGraph(memories)
-              }
-            </div>
+            {/* SVG force-directed graph */}
+            {stats.total_memories === 0 ? (
+              <div style={{
+                background: 'var(--vibe-bg-tertiary, #1e293b)', borderRadius: 8, padding: 32,
+                textAlign: 'center', color: 'var(--vibe-text-secondary, #94a3b8)', fontSize: 13,
+              }}>
+                No memories to graph. Add memories to see the associative network.
+              </div>
+            ) : (
+              <div style={{ background: 'var(--vibe-bg-tertiary, #1e293b)', borderRadius: 8, overflow: 'hidden' }}>
+                <ForceGraph memories={memories} />
+              </div>
+            )}
 
-            <div style={{ marginTop: 12, fontSize: 12, color: 'var(--vibe-text-secondary, #94a3b8)' }}>
-              <strong>Legend:</strong> [E]=Episodic [S]=Semantic [P]=Procedural [M]=Emotional [R]=Reflective
-              &nbsp; | Lines show waypoint connections with weight
+            <div style={{ marginTop: 12, fontSize: 12, color: 'var(--vibe-text-secondary, #94a3b8)', display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+              {Object.entries(SECTOR_COLORS).map(([name, color]) => (
+                <span key={name} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: color, display: 'inline-block' }} />
+                  {name}
+                </span>
+              ))}
+              <span style={{ marginLeft: 8 }}>Node size = salience | Lines = waypoint links</span>
             </div>
           </div>
         )}
@@ -640,32 +647,146 @@ const OpenMemoryPanel: React.FC = () => {
   );
 };
 
-// ─── ASCII Graph Generator ───────────────────────────────────────────────────
+// ─── Force-Directed Graph Component ──────────────────────────────────────────
 
-function generateAsciiGraph(memories: MemoryNode[]): string {
-  if (memories.length === 0) return 'Empty graph.';
-  const lines: string[] = ['Associative Memory Network:', ''];
-
-  const bySection: Record<string, MemoryNode[]> = {};
-  for (const m of memories) {
-    (bySection[m.sector] ||= []).push(m);
-  }
-
-  for (const [sector, mems] of Object.entries(bySection)) {
-    const icon = SECTOR_ICONS[sector as SectorName] || '?';
-    lines.push(`  [${icon}] ${sector.toUpperCase()} (${mems.length} nodes):`);
-    for (const m of mems.slice(0, 5)) {
-      const sal = (m.effective_salience * 100).toFixed(0);
-      const snippet = m.content.slice(0, 50).replace(/\n/g, ' ');
-      const links = m.waypoint_count > 0 ? ` --${m.waypoint_count} links-->` : '';
-      lines.push(`    * ${sal}% "${snippet}..."${links}`);
-    }
-    if (mems.length > 5) lines.push(`    ... and ${mems.length - 5} more`);
-    lines.push('');
-  }
-
-  return lines.join('\n');
+interface GraphNode {
+  id: string;
+  sector: SectorName;
+  label: string;
+  salience: number;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
 }
+
+const ForceGraph: React.FC<{ memories: MemoryNode[] }> = ({ memories }) => {
+  const width = 700;
+  const height = 400;
+  const [hoveredNode, setHoveredNode] = useState<string | null>(null);
+
+  // Build graph nodes with simple force layout
+  const nodes: GraphNode[] = React.useMemo(() => {
+    const centerX = width / 2;
+    const centerY = height / 2;
+
+    // Group by sector and arrange in clusters
+    const sectorOrder: SectorName[] = ['episodic', 'semantic', 'procedural', 'emotional', 'reflective'];
+    const sectorCenters: Record<string, { x: number; y: number }> = {};
+    sectorOrder.forEach((s, i) => {
+      const angle = (i / sectorOrder.length) * Math.PI * 2 - Math.PI / 2;
+      sectorCenters[s] = {
+        x: centerX + Math.cos(angle) * 120,
+        y: centerY + Math.sin(angle) * 120,
+      };
+    });
+
+    return memories.slice(0, 50).map((m, i) => {
+      const sc = sectorCenters[m.sector] || { x: centerX, y: centerY };
+      // Spread nodes around sector center with some randomness based on index
+      const spread = 60;
+      const angle = (i * 2.399) % (Math.PI * 2); // Golden angle
+      return {
+        id: m.id,
+        sector: m.sector as SectorName,
+        label: m.content.slice(0, 30).replace(/\n/g, ' '),
+        salience: m.effective_salience,
+        x: sc.x + Math.cos(angle) * spread * (0.3 + Math.random() * 0.7),
+        y: sc.y + Math.sin(angle) * spread * (0.3 + Math.random() * 0.7),
+        vx: 0,
+        vy: 0,
+      };
+    });
+  }, [memories]);
+
+  // Build edges from waypoint_count (simulated — connect to nearest same-sector nodes)
+  const edges = React.useMemo(() => {
+    const result: { from: string; to: string; weight: number }[] = [];
+    for (let i = 0; i < nodes.length; i++) {
+      const n = nodes[i];
+      if (memories[i]?.waypoint_count > 0) {
+        // Connect to closest nodes of same sector
+        const sameType = nodes
+          .filter((o, j) => j !== i && o.sector === n.sector)
+          .sort((a, b) => {
+            const da = Math.hypot(a.x - n.x, a.y - n.y);
+            const db = Math.hypot(b.x - n.x, b.y - n.y);
+            return da - db;
+          });
+        for (const target of sameType.slice(0, Math.min(memories[i].waypoint_count, 3))) {
+          // Avoid duplicates
+          if (!result.some(e => (e.from === n.id && e.to === target.id) || (e.from === target.id && e.to === n.id))) {
+            result.push({ from: n.id, to: target.id, weight: 0.5 + Math.random() * 0.5 });
+          }
+        }
+      }
+    }
+    return result;
+  }, [nodes, memories]);
+
+  const nodeMap = React.useMemo(() => {
+    const m: Record<string, GraphNode> = {};
+    nodes.forEach(n => { m[n.id] = n; });
+    return m;
+  }, [nodes]);
+
+  return (
+    <svg width={width} height={height} style={{ display: 'block' }}>
+      {/* Edges */}
+      {edges.map((e, i) => {
+        const from = nodeMap[e.from];
+        const to = nodeMap[e.to];
+        if (!from || !to) return null;
+        return (
+          <line key={`e-${i}`}
+            x1={from.x} y1={from.y} x2={to.x} y2={to.y}
+            stroke="var(--vibe-border, #334155)" strokeWidth={e.weight * 2} strokeOpacity={0.4}
+          />
+        );
+      })}
+      {/* Sector labels */}
+      {['episodic', 'semantic', 'procedural', 'emotional', 'reflective'].map((s, i) => {
+        const angle = (i / 5) * Math.PI * 2 - Math.PI / 2;
+        const lx = width / 2 + Math.cos(angle) * 180;
+        const ly = height / 2 + Math.sin(angle) * 180;
+        return (
+          <text key={`label-${s}`} x={lx} y={ly}
+            textAnchor="middle" fontSize={10} fontWeight={600} fill={SECTOR_COLORS[s as SectorName] || '#666'}
+            opacity={0.6}
+          >{s.toUpperCase()}</text>
+        );
+      })}
+      {/* Nodes */}
+      {nodes.map(n => {
+        const r = 4 + n.salience * 10; // radius based on salience
+        const isHovered = hoveredNode === n.id;
+        return (
+          <g key={n.id}
+            onMouseEnter={() => setHoveredNode(n.id)}
+            onMouseLeave={() => setHoveredNode(null)}
+            style={{ cursor: 'pointer' }}
+          >
+            <circle cx={n.x} cy={n.y} r={r}
+              fill={SECTOR_COLORS[n.sector] || '#666'}
+              fillOpacity={0.7 + n.salience * 0.3}
+              stroke={isHovered ? '#fff' : 'none'}
+              strokeWidth={isHovered ? 2 : 0}
+            />
+            {isHovered && (
+              <text x={n.x} y={n.y - r - 4} textAnchor="middle"
+                fontSize={10} fill="var(--vibe-text-primary, #e2e8f0)"
+              >{n.label}...</text>
+            )}
+          </g>
+        );
+      })}
+      {/* Center stats */}
+      <text x={width / 2} y={height - 10} textAnchor="middle"
+        fontSize={11} fill="var(--vibe-text-secondary, #94a3b8)"
+      >{nodes.length} nodes | {edges.length} edges</text>
+    </svg>
+  );
+};
 
 // ─── Shared Styles ───────────────────────────────────────────────────────────
 

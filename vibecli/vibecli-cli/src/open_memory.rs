@@ -1916,6 +1916,201 @@ impl OpenMemoryStore {
     }
 }
 
+// ─── Per-Project Isolation ────────────────────────────────────────────────────
+
+/// Detect the project root (git root) and return a project-scoped store.
+pub fn project_scoped_store(workspace: &std::path::Path) -> OpenMemoryStore {
+    let project_id = detect_project_id(workspace);
+    let data_dir = dirs::data_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join("vibecli")
+        .join("openmemory");
+    let mut store = OpenMemoryStore::load(&data_dir, "default")
+        .unwrap_or_else(|_| OpenMemoryStore::new(&data_dir, "default"));
+    if let Some(pid) = &project_id {
+        store.set_project(pid);
+    }
+    store
+}
+
+/// Detect a project identifier from the workspace path.
+/// Uses git remote URL if available, otherwise the directory name.
+fn detect_project_id(workspace: &std::path::Path) -> Option<String> {
+    // Try git remote origin URL first (unique per repo)
+    let output = std::process::Command::new("git")
+        .args(["config", "--get", "remote.origin.url"])
+        .current_dir(workspace)
+        .output()
+        .ok();
+    if let Some(out) = output {
+        if out.status.success() {
+            let url = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            if !url.is_empty() {
+                // Normalize: strip .git suffix and protocol
+                let normalized = url
+                    .trim_end_matches(".git")
+                    .rsplit('/')
+                    .take(2)
+                    .collect::<Vec<_>>()
+                    .into_iter()
+                    .rev()
+                    .collect::<Vec<_>>()
+                    .join("/");
+                return Some(normalized);
+            }
+        }
+    }
+    // Fallback: use directory name
+    workspace.file_name()
+        .and_then(|n| n.to_str())
+        .map(|s| s.to_string())
+}
+
+// ─── Migration Tools ─────────────────────────────────────────────────────────
+
+/// Import memories from Mem0 JSON export format.
+/// Mem0 stores: {memories: [{id, memory, hash, metadata, created_at, updated_at, user_id}]}
+pub fn import_from_mem0(store: &mut OpenMemoryStore, json: &str) -> Result<usize> {
+    let parsed: serde_json::Value = serde_json::from_str(json)?;
+    let memories = parsed.get("memories")
+        .or_else(|| parsed.get("results"))
+        .and_then(|v| v.as_array());
+
+    let entries = match memories {
+        Some(arr) => arr,
+        None => {
+            // Try as flat array
+            match parsed.as_array() {
+                Some(arr) => arr,
+                None => anyhow::bail!("expected 'memories' array or flat JSON array"),
+            }
+        }
+    };
+
+    let mut count = 0;
+    for entry in entries {
+        let content = entry.get("memory")
+            .or_else(|| entry.get("content"))
+            .or_else(|| entry.get("text"))
+            .and_then(|v| v.as_str())
+            .unwrap_or_default();
+        if content.is_empty() {
+            continue;
+        }
+
+        let tags: Vec<String> = entry.get("metadata")
+            .and_then(|v| v.as_object())
+            .map(|obj| {
+                obj.get("tags")
+                    .and_then(|v| v.as_array())
+                    .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                    .unwrap_or_default()
+            })
+            .unwrap_or_default();
+
+        store.add_with_tags(content, tags, HashMap::new());
+        count += 1;
+    }
+    Ok(count)
+}
+
+/// Import memories from Zep JSON export format.
+/// Zep stores: [{uuid, content, metadata, role, token_count, created_at}]
+pub fn import_from_zep(store: &mut OpenMemoryStore, json: &str) -> Result<usize> {
+    let entries: Vec<serde_json::Value> = serde_json::from_str(json)?;
+    let mut count = 0;
+    for entry in &entries {
+        let content = entry.get("content")
+            .or_else(|| entry.get("text"))
+            .and_then(|v| v.as_str())
+            .unwrap_or_default();
+        if content.is_empty() {
+            continue;
+        }
+
+        let role = entry.get("role")
+            .and_then(|v| v.as_str())
+            .unwrap_or("unknown");
+
+        let mut metadata = HashMap::new();
+        metadata.insert("source".to_string(), "zep".to_string());
+        metadata.insert("role".to_string(), role.to_string());
+
+        store.add_with_tags(content, vec!["zep-import".to_string()], metadata);
+        count += 1;
+    }
+    Ok(count)
+}
+
+/// Import from VibeCody's existing auto-memory system (memory_auto.rs MemoryFact format).
+/// Reads ~/.vibecli/auto-memory.json and project-level .vibecli/auto-memory.json
+pub fn import_from_auto_memory(store: &mut OpenMemoryStore, json: &str) -> Result<usize> {
+    let facts: Vec<serde_json::Value> = serde_json::from_str(json)?;
+    let mut count = 0;
+    for fact in &facts {
+        let content = fact.get("fact")
+            .and_then(|v| v.as_str())
+            .unwrap_or_default();
+        if content.is_empty() {
+            continue;
+        }
+
+        let confidence = fact.get("confidence")
+            .and_then(|v| v.as_f64())
+            .unwrap_or(0.7);
+
+        // Only import high-confidence facts
+        if confidence < 0.5 {
+            continue;
+        }
+
+        let tags: Vec<String> = fact.get("tags")
+            .and_then(|v| v.as_array())
+            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+            .unwrap_or_default();
+
+        let pinned = fact.get("pinned")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+
+        let id = store.add_with_tags(content, tags, HashMap::new());
+        if pinned {
+            store.pin(&id);
+        }
+        // Set salience based on confidence
+        if let Some(node) = store.get_mut(&id) {
+            node.salience = confidence as f64;
+        }
+        count += 1;
+    }
+    Ok(count)
+}
+
+/// Sync: load auto-memory facts from default locations and import into OpenMemory.
+pub fn sync_auto_memories(store: &mut OpenMemoryStore) -> Result<usize> {
+    let mut total = 0;
+
+    // Global auto-memory
+    if let Some(home) = dirs::home_dir() {
+        let global_path = home.join(".vibecli").join("auto-memory.json");
+        if global_path.exists() {
+            if let Ok(json) = std::fs::read_to_string(&global_path) {
+                total += import_from_auto_memory(store, &json).unwrap_or(0);
+            }
+        }
+    }
+
+    // Project auto-memory (current directory)
+    let project_path = PathBuf::from(".vibecli").join("auto-memory.json");
+    if project_path.exists() {
+        if let Ok(json) = std::fs::read_to_string(&project_path) {
+            total += import_from_auto_memory(store, &json).unwrap_or(0);
+        }
+    }
+
+    Ok(total)
+}
+
 // ─── Data Source Connectors ──────────────────────────────────────────────────
 
 /// Connector trait for ingesting from external data sources.
@@ -3247,5 +3442,171 @@ mod tests {
         // 14. Decay (no effect on fresh memories)
         let purged = store.run_decay();
         assert_eq!(purged, 0);
+    }
+
+    // ── Project isolation tests ──────────────────────────────────────────
+
+    #[test]
+    fn detect_project_id_from_directory() {
+        let tmp = std::env::temp_dir().join("vibecody-test-detect");
+        let _ = std::fs::create_dir_all(&tmp);
+        let id = detect_project_id(&tmp);
+        assert!(id.is_some());
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn project_scoped_store_sets_project() {
+        let tmp = std::env::temp_dir().join("vibecody-test-project-scope");
+        let _ = std::fs::create_dir_all(&tmp);
+        let store = project_scoped_store(&tmp);
+        // Store should be usable
+        assert_eq!(store.total_memories(), 0);
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    // ── Mem0 import tests ────────────────────────────────────────────────
+
+    #[test]
+    fn import_mem0_basic() {
+        let mut store = test_store();
+        let json = r#"{"memories": [
+            {"memory": "User prefers dark theme", "metadata": {"tags": ["preference"]}},
+            {"memory": "Project uses React 18"}
+        ]}"#;
+        let count = import_from_mem0(&mut store, json).expect("import");
+        assert_eq!(count, 2);
+        assert_eq!(store.total_memories(), 2);
+    }
+
+    #[test]
+    fn import_mem0_flat_array() {
+        let mut store = test_store();
+        let json = r#"[{"memory": "Fact one"}, {"memory": "Fact two"}]"#;
+        let count = import_from_mem0(&mut store, json).expect("import");
+        assert_eq!(count, 2);
+    }
+
+    #[test]
+    fn import_mem0_empty() {
+        let mut store = test_store();
+        let json = r#"{"memories": []}"#;
+        let count = import_from_mem0(&mut store, json).expect("import");
+        assert_eq!(count, 0);
+    }
+
+    #[test]
+    fn import_mem0_skips_empty_content() {
+        let mut store = test_store();
+        let json = r#"{"memories": [{"memory": ""}, {"memory": "valid"}]}"#;
+        let count = import_from_mem0(&mut store, json).expect("import");
+        assert_eq!(count, 1);
+    }
+
+    #[test]
+    fn import_mem0_content_field_fallback() {
+        let mut store = test_store();
+        let json = r#"[{"content": "from content field"}, {"text": "from text field"}]"#;
+        let count = import_from_mem0(&mut store, json).expect("import");
+        assert_eq!(count, 2);
+    }
+
+    // ── Zep import tests ─────────────────────────────────────────────────
+
+    #[test]
+    fn import_zep_basic() {
+        let mut store = test_store();
+        let json = r#"[
+            {"content": "User asked about deployment", "role": "user"},
+            {"content": "I explained the kubectl process", "role": "assistant"}
+        ]"#;
+        let count = import_from_zep(&mut store, json).expect("import");
+        assert_eq!(count, 2);
+        // Should have zep-import tag
+        let tagged = store.list_by_tag("zep-import");
+        assert_eq!(tagged.len(), 2);
+    }
+
+    #[test]
+    fn import_zep_empty() {
+        let mut store = test_store();
+        let count = import_from_zep(&mut store, "[]").expect("import");
+        assert_eq!(count, 0);
+    }
+
+    #[test]
+    fn import_zep_skips_empty_content() {
+        let mut store = test_store();
+        let json = r#"[{"content": "", "role": "user"}, {"content": "valid", "role": "assistant"}]"#;
+        let count = import_from_zep(&mut store, json).expect("import");
+        assert_eq!(count, 1);
+    }
+
+    // ── Auto-memory bridge tests ─────────────────────────────────────────
+
+    #[test]
+    fn import_auto_memory_basic() {
+        let mut store = test_store();
+        let json = r#"[
+            {"id": "abc", "fact": "Project uses Rust", "confidence": 0.9, "tags": ["rust"], "pinned": false},
+            {"id": "def", "fact": "Build with cargo", "confidence": 0.8, "tags": ["build"], "pinned": true}
+        ]"#;
+        let count = import_from_auto_memory(&mut store, json).expect("import");
+        assert_eq!(count, 2);
+
+        // Pinned fact should be pinned in OpenMemory
+        let mems = store.list_memories(0, 10);
+        let pinned_count = mems.iter().filter(|m| m.pinned).count();
+        assert_eq!(pinned_count, 1);
+    }
+
+    #[test]
+    fn import_auto_memory_filters_low_confidence() {
+        let mut store = test_store();
+        let json = r#"[
+            {"id": "a", "fact": "High confidence", "confidence": 0.9, "tags": []},
+            {"id": "b", "fact": "Low confidence", "confidence": 0.3, "tags": []}
+        ]"#;
+        let count = import_from_auto_memory(&mut store, json).expect("import");
+        assert_eq!(count, 1); // Only high-confidence imported
+    }
+
+    #[test]
+    fn import_auto_memory_sets_salience() {
+        let mut store = test_store();
+        let json = r#"[{"id": "a", "fact": "Test fact", "confidence": 0.75, "tags": []}]"#;
+        import_from_auto_memory(&mut store, json).expect("import");
+        let mems = store.list_memories(0, 10);
+        assert!((mems[0].salience - 0.75).abs() < 0.01);
+    }
+
+    #[test]
+    fn import_auto_memory_empty() {
+        let mut store = test_store();
+        let count = import_from_auto_memory(&mut store, "[]").expect("import");
+        assert_eq!(count, 0);
+    }
+
+    // ── Migration invalid JSON tests ─────────────────────────────────────
+
+    #[test]
+    fn import_mem0_invalid_json() {
+        let mut store = test_store();
+        let result = import_from_mem0(&mut store, "not json");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn import_zep_invalid_json() {
+        let mut store = test_store();
+        let result = import_from_zep(&mut store, "{bad}");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn import_auto_memory_invalid_json() {
+        let mut store = test_store();
+        let result = import_from_auto_memory(&mut store, "???");
+        assert!(result.is_err());
     }
 }

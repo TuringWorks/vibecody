@@ -6556,6 +6556,74 @@ async fn main() -> Result<()> {
                                 "encrypt" => {
                                     println!("Encryption is configured via ~/.vibecli/config.toml [openmemory] section.\n  Set encryption_passphrase = \"your-key\" to enable AES-256-GCM encryption.\n");
                                 }
+                                "import" => {
+                                    let parts: Vec<&str> = rest.splitn(2, ' ').collect();
+                                    let format = parts.first().copied().unwrap_or("help");
+                                    let file_path = parts.get(1).copied().unwrap_or("");
+                                    match format {
+                                        "mem0" | "zep" | "auto" | "openmemory" => {
+                                            if file_path.is_empty() && format != "auto" {
+                                                println!("Usage: /openmemory import {} <file.json>\n", format);
+                                            } else {
+                                                let mut store = open_memory::project_scoped_store(&std::env::current_dir().unwrap_or_default());
+                                                let result = if format == "auto" {
+                                                    open_memory::sync_auto_memories(&mut store)
+                                                } else {
+                                                    std::fs::read_to_string(file_path)
+                                                        .map_err(|e| anyhow::anyhow!("read error: {e}"))
+                                                        .and_then(|json| match format {
+                                                            "mem0" => open_memory::import_from_mem0(&mut store, &json),
+                                                            "zep" => open_memory::import_from_zep(&mut store, &json),
+                                                            "openmemory" => store.import_openmemory_json(&json),
+                                                            _ => Ok(0),
+                                                        })
+                                                };
+                                                match result {
+                                                    Ok(count) => {
+                                                        let _ = store.save();
+                                                        println!("Imported {} memories from {}.\n", count, format);
+                                                    }
+                                                    Err(e) => println!("Import failed: {}\n", e),
+                                                }
+                                            }
+                                        }
+                                        _ => {
+                                            println!("Import/Migration Tools:");
+                                            println!("  /openmemory import mem0 <file.json>      — Import from Mem0 export");
+                                            println!("  /openmemory import zep <file.json>       — Import from Zep export");
+                                            println!("  /openmemory import openmemory <file.json>— Import from OpenMemory JSON");
+                                            println!("  /openmemory import auto                  — Sync VibeCLI auto-facts into OpenMemory\n");
+                                        }
+                                    }
+                                }
+                                "reflect" => {
+                                    let mut store = open_memory::project_scoped_store(&std::env::current_dir().unwrap_or_default());
+                                    match store.auto_reflect() {
+                                        Some(text) => {
+                                            let _ = store.save();
+                                            println!("Generated reflection:\n  {}\n", text);
+                                        }
+                                        None => println!("Not enough memories for reflection (need >= 5).\n"),
+                                    }
+                                }
+                                "summary" => {
+                                    let store = open_memory::project_scoped_store(&std::env::current_dir().unwrap_or_default());
+                                    println!("{}\n", store.user_summary());
+                                }
+                                "at-risk" => {
+                                    let store = open_memory::project_scoped_store(&std::env::current_dir().unwrap_or_default());
+                                    let at_risk = store.at_risk_memories(0.3);
+                                    if at_risk.is_empty() {
+                                        println!("No at-risk memories. All memories have healthy salience.\n");
+                                    } else {
+                                        println!("At-risk memories ({} found, salience < 30%):\n", at_risk.len());
+                                        for m in &at_risk {
+                                            let snippet = &m.content[..m.content.len().min(60)];
+                                            println!("  [{}] sal={:.0}% \"{}\"", m.sector, m.effective_salience() * 100.0, snippet);
+                                        }
+                                        println!("\n  Pin them with /openmemory pin <id> or they may be purged.\n");
+                                    }
+                                }
                                 _ => {
                                     println!("VibeCody OpenMemory — Cognitive Memory Engine\n");
                                     println!("  /openmemory add <content>                    — Store a memory (auto-classified)");
@@ -6565,6 +6633,10 @@ async fn main() -> Result<()> {
                                     println!("  /openmemory facts                            — Show current facts");
                                     println!("  /openmemory decay                            — Run exponential decay cycle");
                                     println!("  /openmemory consolidate                      — Merge similar weak memories");
+                                    println!("  /openmemory reflect                          — Generate auto-reflection");
+                                    println!("  /openmemory summary                          — Show user memory profile");
+                                    println!("  /openmemory at-risk                          — Show memories near purge threshold");
+                                    println!("  /openmemory import [mem0|zep|openmemory|auto] — Import/migrate memories");
                                     println!("  /openmemory stats                            — Show sector statistics");
                                     println!("  /openmemory export                           — Export as markdown");
                                     println!("  /openmemory context [query]                  — Get agent context string");
@@ -6996,18 +7068,11 @@ async fn run_agent_repl_with_context(
         .take(5) // Max 5 files to avoid bloating context
         .collect();
 
-    // OpenMemory: inject relevant memories into agent system prompt
+    // OpenMemory: inject relevant memories into agent system prompt (project-scoped)
     let memory_context = {
-        let mem_dir = dirs::data_dir()
-            .unwrap_or_else(|| std::path::PathBuf::from("."))
-            .join("vibecli")
-            .join("openmemory");
-        open_memory::OpenMemoryStore::load(&mem_dir, "default")
-            .ok()
-            .and_then(|store| {
-                let ctx = store.get_agent_context(task, 8);
-                if ctx.is_empty() { None } else { Some(ctx) }
-            })
+        let store = open_memory::project_scoped_store(&workspace);
+        let ctx = store.get_agent_context(task, 8);
+        if ctx.is_empty() { None } else { Some(ctx) }
     };
 
     let context = AgentContext {
@@ -7164,24 +7229,31 @@ async fn run_agent_repl_with_context(
                         }
                     });
                 }
-                // Bridge session summary to OpenMemory as an episodic memory
+                // Bridge session summary to OpenMemory + auto-reflect
                 {
                     let summary_for_mem = summary.clone();
                     let task_for_mem = task.to_string();
+                    let workspace_for_mem = workspace.clone();
                     tokio::spawn(async move {
-                        let mem_dir = dirs::data_dir()
-                            .unwrap_or_else(|| std::path::PathBuf::from("."))
-                            .join("vibecli")
-                            .join("openmemory");
-                        if let Ok(mut store) = open_memory::OpenMemoryStore::load(&mem_dir, "default") {
-                            let content = format!("Session: {} — {}", task_for_mem, summary_for_mem);
-                            store.add_with_tags(
-                                content,
-                                vec!["session".to_string(), "auto".to_string()],
-                                std::collections::HashMap::new(),
-                            );
-                            let _ = store.save();
+                        let mut store = open_memory::project_scoped_store(&workspace_for_mem);
+                        // Store session as episodic memory
+                        let content = format!("Session: {} — {}", task_for_mem, summary_for_mem);
+                        store.add_with_tags(
+                            content,
+                            vec!["session".to_string(), "auto".to_string()],
+                            std::collections::HashMap::new(),
+                        );
+                        // Trigger auto-reflection every 10 sessions
+                        if store.total_memories() % 10 == 0 {
+                            store.auto_reflect();
                         }
+                        // Reinforce memories that were used in context
+                        let results = store.query(&task_for_mem, 5);
+                        let ids: Vec<String> = results.iter().map(|r| r.memory.id.clone()).collect();
+                        if !ids.is_empty() {
+                            store.reinforce(&ids);
+                        }
+                        let _ = store.save();
                     });
                 }
                 break;
