@@ -14,81 +14,81 @@ Interactive walkthroughs covering VibeCody's major capabilities across CLI, Desk
 
 | Demo | Surface | Description |
 |------|---------|-------------|
-| [01 — First Run & Setup](/demos/first-run/) | CLI | Install, configure providers, first AI chat |
-| [02 — TUI Interface](/demos/tui-interface/) | CLI | Navigate the terminal UI, panels, keybindings |
+| [01 — First Run & Setup](first-run/) | CLI | Install, configure providers, first AI chat |
+| [02 — TUI Interface](tui-interface/) | CLI | Navigate the terminal UI, panels, keybindings |
 
 ## AI & Providers
 
 | Demo | Surface | Description |
 |------|---------|-------------|
-| [03 — Multi-Provider AI Chat](/demos/multi-provider-chat/) | CLI + UI | Switch between 22 AI providers, streaming responses |
-| [04 — Agent Loop & Tool Execution](/demos/agent-loop/) | CLI + UI | Autonomous coding with file edit, shell, search tools |
-| [05 — Model Arena](/demos/model-arena/) | UI | Side-by-side model comparison and ranking |
-| [06 — Cost Observatory](/demos/cost-observatory/) | CLI + UI | Track token usage and costs across providers |
+| [03 — Multi-Provider AI Chat](multi-provider-chat/) | CLI + UI | Switch between 22 AI providers, streaming responses |
+| [04 — Agent Loop & Tool Execution](agent-loop/) | CLI + UI | Autonomous coding with file edit, shell, search tools |
+| [05 — Model Arena](model-arena/) | UI | Side-by-side model comparison and ranking |
+| [06 — Cost Observatory](cost-observatory/) | CLI + UI | Track token usage and costs across providers |
 
 ## Code Intelligence
 
 | Demo | Surface | Description |
 |------|---------|-------------|
-| [07 — Inline Chat & Completions](/demos/07-inline-chat/) | UI | Context-aware code suggestions in the editor |
-| [08 — Code Search & Embeddings](/demos/08-code-search/) | CLI + UI | Semantic search across codebases |
-| [09 — Autofix & Diagnostics](/demos/09-autofix/) | CLI + UI | Automated bug detection and repair |
-| [10 — Code Transforms](/demos/10-code-transforms/) | CLI + UI | AST-based refactoring and code generation |
+| [07 — Inline Chat & Completions](07-inline-chat/) | UI | Context-aware code suggestions in the editor |
+| [08 — Code Search & Embeddings](08-code-search/) | CLI + UI | Semantic search across codebases |
+| [09 — Autofix & Diagnostics](09-autofix/) | CLI + UI | Automated bug detection and repair |
+| [10 — Code Transforms](10-code-transforms/) | CLI + UI | AST-based refactoring and code generation |
 
 ## DevOps & Infrastructure
 
 | Demo | Surface | Description |
 |------|---------|-------------|
-| [11 — Docker & Container Management](/demos/11-docker/) | CLI + UI | Build, run, manage containers |
-| [12 — Kubernetes Operations](/demos/12-kubernetes/) | CLI + UI | Deploy, scale, monitor K8s workloads |
-| [13 — CI/CD Pipeline](/demos/13-cicd/) | CLI + UI | GitHub Actions, pipeline monitoring |
-| [14 — Cloud Provider Integration](/demos/14-cloud-providers/) | CLI + UI | AWS/GCP/Azure scanning, IAM, IaC generation |
-| [15 — Deploy & Database](/demos/15-deploy-database/) | CLI + UI | Deployment workflows and database management |
+| [11 — Docker & Container Management](11-docker/) | CLI + UI | Build, run, manage containers |
+| [12 — Kubernetes Operations](12-kubernetes/) | CLI + UI | Deploy, scale, monitor K8s workloads |
+| [13 — CI/CD Pipeline](13-cicd/) | CLI + UI | GitHub Actions, pipeline monitoring |
+| [14 — Cloud Provider Integration](14-cloud-providers/) | CLI + UI | AWS/GCP/Azure scanning, IAM, IaC generation |
+| [15 — Deploy & Database](15-deploy-database/) | CLI + UI | Deployment workflows and database management |
 
 ## MCP & Extensions
 
 | Demo | Surface | Description |
 |------|---------|-------------|
-| [16 — MCP Server Integration](/demos/16-mcp-servers/) | CLI + UI | Connect external tool servers |
-| [17 — MCP Lazy Loading](/demos/17-mcp-lazy-loading/) | CLI + UI | Scalable tool registry with on-demand loading |
-| [18 — MCP Plugin Directory](/demos/18-mcp-directory/) | UI | Browse, install, rate verified plugins |
+| [16 — MCP Server Integration](16-mcp-servers/) | CLI + UI | Connect external tool servers |
+| [17 — MCP Lazy Loading](17-mcp-lazy-loading/) | CLI + UI | Scalable tool registry with on-demand loading |
+| [18 — MCP Plugin Directory](18-mcp-directory/) | UI | Browse, install, rate verified plugins |
 
 ## Collaboration & Context
 
 | Demo | Surface | Description |
 |------|---------|-------------|
-| [19 — Context Bundles](/demos/context-bundles/) | CLI + UI | Shareable context sets for teams |
-| [20 — Agent Teams](/demos/agent-teams/) | CLI + UI | Multi-agent collaboration with roles |
-| [21 — CRDT Collaboration](/demos/crdt-collab/) | UI | Real-time multi-user editing |
-| [22 — Gateway Messaging](/demos/gateway/) | CLI | AI assistant on 18 platforms (Slack, Discord, etc.) |
+| [19 — Context Bundles](context-bundles/) | CLI + UI | Shareable context sets for teams |
+| [20 — Agent Teams](agent-teams/) | CLI + UI | Multi-agent collaboration with roles |
+| [21 — CRDT Collaboration](crdt-collab/) | UI | Real-time multi-user editing |
+| [22 — Gateway Messaging](gateway/) | CLI | AI assistant on 18 platforms (Slack, Discord, etc.) |
 
 ## Testing & Quality
 
 | Demo | Surface | Description |
 |------|---------|-------------|
-| [23 — Test Runner & Coverage](/demos/test-coverage/) | CLI + UI | Run tests, track coverage, generate tests |
-| [24 — Red Team Security](/demos/red-team/) | CLI + UI | Security scanning and vulnerability detection |
-| [25 — SWE-bench Benchmarking](/demos/swe-bench/) | CLI + UI | Benchmark AI coding performance |
-| [26 — QA Validation Pipeline](/demos/qa-validation/) | CLI + UI | Multi-round quality validation |
+| [23 — Test Runner & Coverage](test-coverage/) | CLI + UI | Run tests, track coverage, generate tests |
+| [24 — Red Team Security](red-team/) | CLI + UI | Security scanning and vulnerability detection |
+| [25 — SWE-bench Benchmarking](swe-bench/) | CLI + UI | Benchmark AI coding performance |
+| [26 — QA Validation Pipeline](qa-validation/) | CLI + UI | Multi-round quality validation |
 
 ## Developer Tools
 
 | Demo | Surface | Description |
 |------|---------|-------------|
-| [27 — HTTP Playground](/demos/http-playground/) | CLI + UI | API testing with history and collections |
-| [28 — GraphQL Explorer](/demos/graphql/) | UI | Schema introspection and query building |
-| [29 — Regex & Encoding Tools](/demos/regex-encoding/) | UI | Regex tester, JWT decoder, base converter |
-| [30 — Notebook & Scripts](/demos/notebook-scripts/) | CLI + UI | Interactive notebooks and script runner |
+| [27 — HTTP Playground](http-playground/) | CLI + UI | API testing with history and collections |
+| [28 — GraphQL Explorer](graphql/) | UI | Schema introspection and query building |
+| [29 — Regex & Encoding Tools](regex-encoding/) | UI | Regex tester, JWT decoder, base converter |
+| [30 — Notebook & Scripts](notebook-scripts/) | CLI + UI | Interactive notebooks and script runner |
 
 ## Enterprise & Advanced
 
 | Demo | Surface | Description |
 |------|---------|-------------|
-| [31 — Batch Builder](/demos/31-batch-builder/) | CLI + UI | Generate entire codebases (3M+ lines) |
-| [32 — Legacy Migration](/demos/32-legacy-migration/) | CLI + UI | COBOL/Fortran to modern languages |
-| [33 — App Builder](/demos/33-app-builder/) | CLI + UI | Full-stack app scaffolding from prompts |
-| [34 — Usage Metering](/demos/34-usage-metering/) | CLI + UI | Credit budgets and team cost allocation |
-| [35 — Compliance & Audit](/demos/35-compliance/) | CLI + UI | SOC 2 controls and audit trails |
+| [31 — Batch Builder](31-batch-builder/) | CLI + UI | Generate entire codebases (3M+ lines) |
+| [32 — Legacy Migration](32-legacy-migration/) | CLI + UI | COBOL/Fortran to modern languages |
+| [33 — App Builder](33-app-builder/) | CLI + UI | Full-stack app scaffolding from prompts |
+| [34 — Usage Metering](34-usage-metering/) | CLI + UI | Credit budgets and team cost allocation |
+| [35 — Compliance & Audit](35-compliance/) | CLI + UI | SOC 2 controls and audit trails |
 
 ---
 
