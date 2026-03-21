@@ -215,6 +215,8 @@ mod auto_research;
 mod open_memory;
 #[allow(dead_code)]
 mod vulnerability_db;
+#[allow(dead_code)]
+mod resource_manager;
 mod project_init;
 mod spec_pipeline;
 mod vm_orchestrator;
@@ -6992,6 +6994,69 @@ async fn main() -> Result<()> {
                                     println!("  /vulnscan db-update           — Download full OSV database (~60K advisories)");
                                     println!("  /vulnscan db-status           — Show local snapshot status");
                                     println!("  /vulnscan cache-clear         — Clear advisory cache\n");
+                                }
+                            }
+                        }
+
+                        "/resources" => {
+                            let sub = args.trim().split_whitespace().next().unwrap_or("status");
+                            let mgr = resource_manager::ResourceManager::default_manager();
+                            match sub {
+                                "export" => {
+                                    match mgr.export_defaults() {
+                                        Ok(result) => {
+                                            println!("Exported {} resource files to {}\n",
+                                                result.files_written.len(), result.resources_dir.display());
+                                            for f in &result.files_written {
+                                                println!("  {}", f);
+                                            }
+                                            println!("\n  Manifest written with SHA-256 checksums.");
+                                            println!("  Files secured with 0600 permissions.\n");
+                                        }
+                                        Err(e) => println!("Export failed: {}\n", e),
+                                    }
+                                }
+                                "verify" => {
+                                    let results = mgr.verify_all();
+                                    println!("Resource Integrity Verification\n");
+                                    let mut all_ok = true;
+                                    for r in &results {
+                                        let icon = match r.status {
+                                            resource_manager::VerifyStatus::Ok => "OK",
+                                            resource_manager::VerifyStatus::Missing => { all_ok = false; "MISSING" },
+                                            resource_manager::VerifyStatus::Corrupted => { all_ok = false; "CORRUPTED" },
+                                            resource_manager::VerifyStatus::NoManifest => { all_ok = false; "NO MANIFEST" },
+                                        };
+                                        let size = r.size.map(|s| format!(" ({} bytes)", s)).unwrap_or_default();
+                                        println!("  [{}] {}{}", icon, r.resource, size);
+                                    }
+                                    if all_ok {
+                                        println!("\n  All resources verified.\n");
+                                    } else {
+                                        println!("\n  Some resources need attention. Run /resources export to fix.\n");
+                                    }
+                                }
+                                "path" => {
+                                    println!("Resources directory: {}\n", resource_manager::ResourceManager::default_dir().display());
+                                }
+                                _ => {
+                                    let status = mgr.status();
+                                    println!("Secure Resource Manager\n");
+                                    println!("  Directory: {}", status.resources_dir.display());
+                                    println!("  Initialized: {}", status.initialized);
+                                    println!("  Resources: {} total ({} OK, {} missing, {} corrupted)",
+                                        status.total_resources, status.ok_count, status.missing_count, status.corrupted_count);
+                                    if status.total_size_bytes > 0 {
+                                        println!("  Total size: {} bytes", status.total_size_bytes);
+                                    }
+                                    if let Some(ts) = status.manifest_updated_at {
+                                        let age = resource_manager::sha256_hex(b""); // just to show it exists
+                                        let _ = age;
+                                        println!("  Last updated: epoch {}", ts);
+                                    }
+                                    println!("\n  /resources export   — Export embedded defaults to disk");
+                                    println!("  /resources verify   — Verify file integrity (SHA-256)");
+                                    println!("  /resources path     — Show resources directory path\n");
                                 }
                             }
                         }

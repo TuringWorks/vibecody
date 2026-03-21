@@ -103,6 +103,7 @@ pub static COMMANDS: &[&str] = &[
     "/agentic",
     "/openmemory",
     "/vulnscan",
+    "/resources",
 ];
 
 // ── Sub-command tables ────────────────────────────────────────────────────────
@@ -206,6 +207,9 @@ static OPENMEMORY_SUBS: &[&str] = &["add", "query", "list", "delete", "pin", "un
 /// Sub-commands for `/vulnscan <sub>`
 static VULNSCAN_SUBS: &[&str] = &["scan", "deps", "file", "lockfile", "sarif", "report", "summary", "db-update", "db-status", "cache-clear"];
 
+/// Sub-commands for `/resources <sub>`
+static RESOURCES_SUBS: &[&str] = &["status", "export", "verify", "path"];
+
 /// Sub-commands for `/arena <sub>`
 static ARENA_SUBS: &[&str] = &["compare", "stats", "history"];
 
@@ -280,6 +284,7 @@ fn command_hint(cmd: &str) -> Option<&'static str> {
         "/memory"  => Some("[show|edit]"),
         "/openmemory" => Some("[add|query|list|fact|facts|decay|consolidate|stats|export|encrypt|context]  — cognitive memory engine"),
         "/vulnscan" => Some("[scan|deps|file|lockfile|sarif|report|db-update|db-status|cache-clear]  — vulnerability scanner"),
+        "/resources" => Some("[status|export|verify|path]  — manage externalized resource files"),
         "/trace"   => Some("[view <id>]"),
         "/mcp"     => Some("[list|tools <server>]"),
         "/logs"    => Some("[tail <file>|sources|errors <file>|analyze <file>]  — log viewer & analyzer"),
@@ -397,6 +402,7 @@ fn complete_slash(line: &str) -> Option<(usize, Vec<Pair>)> {
                 "/memory"   => Some(MEMORY_SUBS),
                 "/openmemory" => Some(OPENMEMORY_SUBS),
                 "/vulnscan" => Some(VULNSCAN_SUBS),
+                "/resources" => Some(RESOURCES_SUBS),
                 "/migration" => Some(MIGRATION_SUBS),
                 "/spec"     => Some(SPEC_SUBS),
                 "/agents"   => Some(AGENTS_SUBS),
