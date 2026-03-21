@@ -66,25 +66,39 @@ vibecli> /agent fix the unwrap panic in src/auth.rs -- use proper error handling
 
 ### What the Agent Does
 
-```
-[agent] Planning task: fix the unwrap panic in src/auth.rs
-[agent] Reading file: src/auth.rs
-[agent] Found 3 unwrap() calls on lines 34, 67, 91
-[agent] Line 34: reqwest::get(url).await.unwrap() — network call
-[agent] Line 67: serde_json::from_str(&body).unwrap() — parse
-[agent] Line 91: db.query(&sql).unwrap() — database call
-[agent] Writing changes to: src/auth.rs
-  + Line 34: reqwest::get(url).await? → replaced with ? operator
-  + Line 67: serde_json::from_str(&body)? → replaced with ? operator
-  + Line 91: db.query(&sql).context("database query failed")? → added context
-  + Updated function signature to return Result<AuthResponse>
-[agent] Running: cargo check
-[agent] Build succeeded.
+The agent streams its reasoning and shows each tool step with a checkmark:
 
-Accept changes? [y/n/diff]:
+```
+ Agent   fix the unwrap panic in src/auth.rs -- use proper error handling with anyhow
+  Policy: suggest (ask before every action)  |  Press Ctrl+C to stop
+
+I'll read the file first to understand the current error handling patterns.
+
+ ✓ Reading src/auth.rs
+
+I can see 3 unwrap() calls that need to be replaced with proper error handling.
+
+  apply_patch  Patching src/auth.rs (3 hunks)
+   Approve? (y/n/a=approve-all): y
+
+ ✓ Patching src/auth.rs (3 hunks)
+
+Now let me verify the build still passes.
+
+  bash  Running: cargo check
+   Approve? (y/n/a=approve-all): y
+
+ ✓ Running: cargo check
+
+Agent complete: Replaced 3 unwrap() calls with ? operator and anyhow context.
+   Files modified: src/auth.rs
+   Commands run: 1
+   Steps: 3/3 succeeded
+   Trace saved: ~/.vibecli/traces/1711234567.jsonl
+   Resume with: vibecli --resume 1711234567
 ```
 
-Type `diff` to see the exact changes:
+The diff shows exactly what changed:
 
 ```diff
 -    let resp = reqwest::get(url).await.unwrap();
@@ -97,7 +111,7 @@ Type `diff` to see the exact changes:
 +    let rows = db.query(&sql).context("database query failed")?;
 ```
 
-Type `y` to accept.
+In `suggest` mode, the agent asks before each destructive action (`y` to approve, `n` to reject, `a` to approve all remaining steps).
 
 ---
 
@@ -112,27 +126,30 @@ vibecli --exec "add rate limiting to the API server in src/server.rs -- use a to
 ### What the Agent Does
 
 ```
-[agent] Planning task: add rate limiting to src/server.rs
-[agent] Reading file: src/server.rs
-[agent] Reading file: Cargo.toml (checking existing dependencies)
-[agent] Plan:
-  1. Add a TokenBucket struct with per-IP tracking
-  2. Add middleware that checks the bucket before handling requests
-  3. Return 429 Too Many Requests when limit exceeded
-  4. Add governor crate to Cargo.toml for production-ready implementation
-[agent] Writing changes to: Cargo.toml
-  + Added: governor = "0.6"
-[agent] Writing changes to: src/rate_limit.rs (new file)
-  + TokenBucket struct with HashMap<IpAddr, Bucket>
-  + check_rate_limit() middleware function
-[agent] Writing changes to: src/server.rs
-  + Added rate_limit middleware to router
-[agent] Running: cargo check
-[agent] Build succeeded.
-[agent] Running: cargo test
-[agent] All 14 tests passed.
+ Agent   add rate limiting to the API server in src/server.rs
+  Policy: auto-edit (auto-apply files, ask for commands)  |  Press Ctrl+C to stop
 
-Accept changes? [y/n/diff]:
+ ✓ Reading src/server.rs
+ ✓ Reading Cargo.toml
+ ✓ Searching: "middleware"
+ ✓ Patching Cargo.toml (1 hunks)
+ ✓ Writing src/rate_limit.rs (45 lines)
+ ✓ Patching src/server.rs (2 hunks)
+
+  bash  Running: cargo check
+   Approve? (y/n/a=approve-all): y
+
+ ✓ Running: cargo check
+
+  bash  Running: cargo test
+   Approve? (y/n/a=approve-all): a
+
+ ✓ Running: cargo test
+
+Agent complete: Added token bucket rate limiter with per-IP tracking.
+   Files modified: Cargo.toml, src/rate_limit.rs, src/server.rs
+   Commands run: 2
+   Steps: 8/8 succeeded
 ```
 
 ---
@@ -147,52 +164,69 @@ vibecli --exec "refactor the database module to use a connection pool -- extract
 
 ### What the Agent Does
 
-```
-[agent] Planning task: refactor database module
-[agent] Reading: src/db.rs, src/main.rs, src/handlers/*.rs
-[agent] Found 7 files that directly call db::connect()
-[agent] Plan:
-  1. Create src/pool.rs with a ConnectionPool struct
-  2. Move connection logic from db.rs to pool.rs
-  3. Update db.rs to use the pool
-  4. Update 7 caller files to use shared pool reference
-  5. Verify build and tests
-[agent] Writing 9 files...
-[agent] Running: cargo check
-[agent] Build succeeded.
-[agent] Running: cargo test
-[agent] 23/23 tests passed.
+In `--exec` (full-auto) mode, the agent runs without prompting:
 
-Accept changes? [y/n/diff]:
+```
+ Agent   refactor the database module to use a connection pool
+  Policy: full-auto (execute everything)  |  Press Ctrl+C to stop
+
+ ✓ Reading src/db.rs
+ ✓ Searching: "db::connect"
+ ✓ Reading src/main.rs
+ ✓ Reading src/handlers/auth.rs
+ ✓ Reading src/handlers/users.rs
+ ✓ Writing src/pool.rs (62 lines)
+ ✓ Patching src/db.rs (4 hunks)
+ ✓ Patching src/main.rs (2 hunks)
+ ✓ Patching src/handlers/auth.rs (1 hunks)
+ ✓ Patching src/handlers/users.rs (1 hunks)
+ ✓ Running: cargo check
+ ✓ Running: cargo test
+
+Agent complete: Extracted connection pool into src/pool.rs, updated 4 callers.
+   Files modified: src/pool.rs, src/db.rs, src/main.rs, src/handlers/auth.rs, src/handlers/users.rs
+   Commands run: 2
+   Steps: 12/12 succeeded
 ```
 
 ---
 
 ## Understanding Tool Calls
 
-The agent works by making "tool calls" -- structured actions that read or modify your project. The main tools are:
+The agent works by making "tool calls" -- structured actions that read or modify your project:
 
-| Tool | What It Does |
-|------|-------------|
-| **read_file** | Read a file's contents |
-| **write_file** | Write or overwrite a file |
-| **edit_file** | Apply a targeted edit to part of a file |
-| **bash** | Run a shell command (build, test, git, etc.) |
-| **search** | Search across the codebase by pattern |
-| **list_files** | List files in a directory |
+| Tool | What It Does | Needs Approval |
+|------|-------------|----------------|
+| **read_file** | Read a file's contents | No (read-only) |
+| **write_file** | Write or overwrite a file | Yes (in suggest mode) |
+| **apply_patch** | Apply a unified diff patch to a file | Yes (in suggest mode) |
+| **bash** | Run a shell command (build, test, git, etc.) | Yes (in suggest/auto-edit modes) |
+| **search_files** | Search across the codebase by pattern | No (read-only) |
+| **list_directory** | List files in a directory | No (read-only) |
+| **think** | Internal reasoning step (free, no side effects) | No |
+| **web_search** | Search the web via DuckDuckGo | No |
+| **fetch_url** | Fetch a web page (SSRF-protected) | No |
+| **spawn_agent** | Delegate a sub-task to a child agent | Yes |
+| **task_complete** | Signal that the task is done | No |
 
-In suggest mode, you see each tool call before it executes and can approve or deny it. In auto-edit mode, file operations run automatically but shell commands still require approval.
+In `suggest` mode, you see each tool call before it executes and can approve (`y`), deny (`n`), or approve all remaining (`a`). In `auto-edit` mode, file operations run automatically but shell commands still require approval.
 
 ---
 
-## Reviewing Changes Before Accepting
+## Reviewing Changes
 
-When the agent finishes, you always have the option to review before accepting. The prompt supports:
+After each step, the agent shows what it did with a checkmark (success) or cross (failure). At completion, you get a summary:
 
-| Response | Effect |
-|----------|--------|
-| `y` or `yes` | Accept all changes |
-| `n` or `no` | Reject all changes (files revert to original) |
+```
+Agent complete: <summary>
+   Files modified: file1.rs, file2.rs
+   Commands run: 2
+   Steps: 5/5 succeeded
+   Trace saved: ~/.vibecli/traces/<id>.jsonl
+   Resume with: vibecli --resume <id>
+```
+
+You can resume any previous session with `/resume <id>` to continue where you left off.
 | `diff` | Show the full diff of all changes |
 
 If you are using Git (recommended), you can also accept and then review with `git diff` afterward. If anything looks wrong, `git checkout .` reverts everything.

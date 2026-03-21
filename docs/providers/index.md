@@ -6,7 +6,7 @@ permalink: /providers/
 
 # AI Providers
 
-VibeCody supports 17 AI providers (plus a failover wrapper), covering cloud APIs, local models, and specialized services. This page provides a comparison and links to individual setup guides.
+VibeCody supports 22 AI providers, covering cloud APIs, local models, inference platforms, and specialized services. This page provides a comparison and links to individual setup guides.
 
 ---
 
@@ -38,6 +38,11 @@ VibeCody supports 17 AI providers (plus a failover wrapper), covering cloud APIs
 | Cerebras | Cloud | `CEREBRAS_API_KEY` | `llama3.1-70b` | Yes (limited) | Yes |
 | Zhipu | Cloud | `ZHIPU_API_KEY` | `glm-4` | No | Yes |
 | Vercel AI | Cloud | Via provider key | Provider-dependent | No | Yes |
+| MiniMax | Cloud | `MINIMAX_API_KEY` | `abab6.5s-chat` | No | Yes |
+| Perplexity | Cloud | `PERPLEXITY_API_KEY` | `sonar-pro` | No | Yes |
+| Together AI | Inference | `TOGETHER_API_KEY` | `meta-llama/Llama-3.1-70B-Instruct-Turbo` | Yes (limited) | Yes |
+| Fireworks AI | Inference | `FIREWORKS_API_KEY` | `llama-v3p1-70b-instruct` | Yes (limited) | Yes |
+| SambaNova | Inference | `SAMBANOVA_API_KEY` | `Meta-Llama-3.1-70B-Instruct` | Yes (limited) | Yes |
 | LocalEdit | Local | None | Local model | Yes (fully free) | Yes |
 | Failover | Wrapper | N/A | N/A | N/A | Yes |
 
@@ -51,7 +56,11 @@ VibeCody supports 17 AI providers (plus a failover wrapper), covering cloud APIs
 
 **For budget-conscious use:** [DeepSeek](deepseek/) offers strong coding performance at very low prices. [Gemini](gemini/) has a generous free tier.
 
-**For fastest inference:** [Groq](https://groq.com) runs open-source models on custom LPU hardware with extremely low latency. [Cerebras](https://cerebras.ai) also provides fast inference.
+**For fastest inference:** [Groq](https://groq.com) runs open-source models on custom LPU hardware with extremely low latency. [Cerebras](https://cerebras.ai) and SambaNova also provide fast inference on custom hardware.
+
+**For open models:** Together AI, Fireworks AI, and SambaNova host open-source models (Llama, Mixtral, Qwen) with competitive pricing and free tiers.
+
+**For search-augmented AI:** Perplexity's Sonar models combine LLM reasoning with real-time web search — excellent for research tasks.
 
 **For enterprise:** Azure OpenAI and AWS Bedrock integrate with your existing cloud infrastructure and compliance requirements.
 

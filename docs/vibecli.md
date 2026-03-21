@@ -55,7 +55,8 @@ vibecli --provider gemini
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--provider <name>` | `ollama` | AI provider: `ollama`, `claude`, `openai`, `gemini`, `grok`, `groq`, `openrouter`, `azure`, `bedrock`, `copilot`, `mistral`, `cerebras`, `deepseek`, `zhipu`, `vercel`, `local_edit` |
+| `--provider <name>` | `ollama` | AI provider: `ollama`, `claude`, `openai`, `gemini`, `grok`, `groq`, `openrouter`, `azure`, `bedrock`, `copilot`, `mistral`, `cerebras`, `deepseek`, `zhipu`, `vercel`, `minimax`, `perplexity`, `together`, `fireworks`, `sambanova` |
+| `--channel-daemon <platform>` | — | Start always-on channel daemon: `telegram`, `discord`, `slack` |
 | `--model <name>` | provider default | Override the model for the selected provider |
 | `--tui` | false | Launch the Terminal UI instead of REPL |
 | `--exec <task>` | — | Run an agent task non-interactively (CI mode) |
@@ -201,6 +202,19 @@ In REPL mode, the following slash commands are available:
 | `/idp backstage` | Backstage integration (catalog-info.yaml, templates) |
 | `/idp platforms` | List all 12 supported IDP platforms and their status |
 | `/idp report` | Generate IDP report |
+| `/init` | Scan project and cache profile (languages, frameworks, build/test/lint commands) |
+| `/orient` | AI-powered project analysis (architecture, entry points, recommendations) |
+| `/daemon start\|stop\|status\|channels` | Always-on channel daemon management (Slack, Discord, GitHub webhooks) |
+| `/vm launch\|list\|status\|stop` | Cloud VM agent orchestration (parallel agents in isolated containers) |
+| `/branch-agent create\|list\|status` | Agent-per-branch workflow (auto-creates feature branches, auto-PR on completion) |
+| `/design import <url\|path>` | Design-to-code: import Figma, SVG, or screenshots → React/Vue/Svelte components |
+| `/audio speak\|changelog\|summary` | Text-to-speech output for changelogs, summaries, and agent results |
+| `/org index\|search\|patterns` | Cross-repo org-wide context engine (shared embeddings, conventions) |
+| `/share-session export\|import\|spectate` | Agent session sharing — export for review, live spectating |
+| `/data load\|query\|viz\|summary` | Data analysis mode — load CSV/JSON, run SQL, generate visualizations |
+| `/ci-gates list\|validate\|add` | Source-controlled CI quality gates |
+| `/extension install\|list\|remove` | VS Code extension compatibility (TextMate grammars, snippets, themes) |
+| `/agentic fix-build\|gen-tests\|resolve-merge` | Agentic CI/CD — auto-fix builds, generate tests, resolve conflicts |
 | `/config` | Display current configuration |
 | `/help` | Show command reference |
 | `/exit` or `/quit` | Exit VibeCLI |
@@ -249,6 +263,90 @@ Once a conversation is started, you can type freely without `/chat`.
 > /exec list all Rust files modified in the last 7 days
 📝 Suggested command: find . -name "*.rs" -mtime -7
 ⚠️  Execute this command? (y/N): y
+```
+
+### Project Initialization
+
+Scan a project to auto-detect its type, build system, and test framework:
+
+```text
+> /init
+🔍 Scanning project...
+
+Project: my-web-app
+Architecture: full-stack application
+Languages: TypeScript, Rust
+Frameworks: React, Vite, Axum, Tokio
+Package managers: pnpm, cargo
+
+Build commands:
+  pnpm run build
+  cargo build --workspace
+
+Test commands:
+  pnpm run test (Vitest)
+  cargo test --workspace (cargo test)
+
+Entry points: src/App.tsx, src/main.rs
+Expected env vars: DATABASE_URL, API_KEY, JWT_SECRET
+
+✅ Project profile cached to .vibecli/project-profile.json
+   This context will be auto-injected into every agent session.
+```
+
+After running `/init`, the agent automatically understands your project structure in every conversation.
+
+### Agent-Per-Branch Workflow
+
+Run agent tasks in isolated git branches with automatic PR creation:
+
+```text
+> /branch-agent create add JWT auth middleware
+🌿 Creating branch agent for: add JWT auth middleware
+  1. Create a feature branch from current HEAD
+  2. Run the agent autonomously on the branch
+  3. Auto-commit changes with descriptive messages
+  4. Push and create a PR on completion
+```
+
+### Always-On Channel Daemon
+
+Start a persistent daemon that listens on Slack/Discord/GitHub and auto-responds:
+
+```bash
+# Start daemon (listens for messages, routes through automation rules)
+vibecli --channel-daemon slack
+
+# Or manage from the REPL
+> /daemon start
+> /daemon status
+> /daemon channels
+```
+
+### Data Analysis
+
+Load and query data files directly:
+
+```text
+> /data load sales.csv
+📊 Loading data from: sales.csv
+
+> /data query "SELECT region, SUM(amount) FROM sales GROUP BY region"
+> /data viz bar    # Generate bar chart
+> /data summary    # Statistical summary
+```
+
+### Agentic CI/CD
+
+Auto-fix failed builds and generate tests:
+
+```text
+> /agentic fix-build
+🔧 Auto-fixing build failures...
+  Reads CI logs, identifies errors, generates patches.
+
+> /agentic gen-tests src/auth.rs
+🧪 Generating tests for: src/auth.rs
 ```
 
 ---

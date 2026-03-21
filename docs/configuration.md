@@ -288,6 +288,66 @@ vibecli --tui --provider claude
    model = "grok-3-mini"
    ```
 
+### Perplexity (Search-Augmented AI)
+
+1. Get an API key at [perplexity.ai](https://www.perplexity.ai/)
+
+2. Configure:
+
+   ```toml
+   [perplexity]
+   api_key = "pplx-..."
+   model = "sonar-pro"     # Also: sonar, sonar-deep-research, sonar-reasoning-pro
+   ```
+
+### Together AI (Open Model Hosting)
+
+1. Get an API key at [together.ai](https://www.together.ai/)
+
+2. Configure:
+
+   ```toml
+   [together]
+   api_key = "..."
+   model = "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo"
+   ```
+
+### Fireworks AI (Fast Open Model Inference)
+
+1. Get an API key at [fireworks.ai](https://fireworks.ai/)
+
+2. Configure:
+
+   ```toml
+   [fireworks]
+   api_key = "..."
+   model = "accounts/fireworks/models/llama-v3p1-70b-instruct"
+   ```
+
+### SambaNova (Hardware-Accelerated Inference)
+
+1. Get an API key at [sambanova.ai](https://sambanova.ai/)
+
+2. Configure:
+
+   ```toml
+   [sambanova]
+   api_key = "..."
+   model = "Meta-Llama-3.1-70B-Instruct"
+   ```
+
+### MiniMax (Chinese AI Models)
+
+1. Get an API key from [minimax.chat](https://api.minimax.chat/)
+
+2. Configure:
+
+   ```toml
+   [minimax]
+   api_key = "..."
+   model = "abab6.5s-chat"    # Also: abab6.5-chat, MiniMax-Text-01
+   ```
+
 ### `apiKeyHelper` — Rotating Credentials
 
 For secrets management (Vault, 1Password CLI, AWS Secrets Manager, etc.), use a helper script instead of a static key:
