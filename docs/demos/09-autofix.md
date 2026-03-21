@@ -413,6 +413,6 @@ Auto-fix available for 3/3 findings. Run `/bugbot fix --all` to apply.
 
 ## What's Next
 
-- [Demo 10 — Code Transforms](10-code-transforms.md) — Structural refactoring with AST-based transforms
-- [Demo 08 — Code Search & Embeddings](08-code-search.md) — Find code to fix with semantic search
-- [Demo 11 — Docker & Container Management](11-docker.md) — Run autofix agents in sandboxed containers
+- [Demo 10 — Code Transforms](../10-code-transforms/) — Structural refactoring with AST-based transforms
+- [Demo 08 — Code Search & Embeddings](../08-code-search/) — Find code to fix with semantic search
+- [Demo 11 — Docker & Container Management](../11-docker/) — Run autofix agents in sandboxed containers

@@ -393,6 +393,6 @@ vibecli embeddings export . --format jsonl --output embeddings.jsonl
 
 ## What's Next
 
-- [Demo 09 — Autofix & Diagnostics](09-autofix.md) — AI-powered fixes for issues found during search
-- [Demo 07 — Inline Chat & Completions](07-inline-chat.md) — Edit code directly from search results
-- [Demo 10 — Code Transforms](10-code-transforms.md) — Refactor code found via semantic search
+- [Demo 09 — Autofix & Diagnostics](../09-autofix/) — AI-powered fixes for issues found during search
+- [Demo 07 — Inline Chat & Completions](../07-inline-chat/) — Edit code directly from search results
+- [Demo 10 — Code Transforms](../10-code-transforms/) — Refactor code found via semantic search

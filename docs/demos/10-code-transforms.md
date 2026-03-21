@@ -448,6 +448,6 @@ The panel shows:
 
 ## What's Next
 
-- [Demo 11 — Docker & Container Management](11-docker.md) — Containerize your refactored project
-- [Demo 09 — Autofix & Diagnostics](09-autofix.md) — Fix issues introduced during transforms
-- [Demo 07 — Inline Chat & Completions](07-inline-chat.md) — Use inline chat for ad-hoc transforms
+- [Demo 11 — Docker & Container Management](../11-docker/) — Containerize your refactored project
+- [Demo 09 — Autofix & Diagnostics](../09-autofix/) — Fix issues introduced during transforms
+- [Demo 07 — Inline Chat & Completions](../07-inline-chat/) — Use inline chat for ad-hoc transforms

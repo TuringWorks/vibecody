@@ -16,7 +16,7 @@ VibeCody supports 17 AI providers out of the box, from cloud APIs like Claude an
 
 ## Prerequisites
 
-- VibeCLI installed and configured (see [Demo 1: First Run](../01-first-run/))
+- VibeCLI installed and configured (see [Demo 1: First Run](../first-run/))
 - API keys for at least two providers (to demonstrate switching)
 - Ollama installed locally for offline demos (optional)
 
@@ -224,7 +224,7 @@ Session cost summary:
   Total:    $0.0470
 ```
 
-See [Demo 6: Cost Observatory](../06-cost-observatory/) for the full cost dashboard.
+See [Demo 6: Cost Observatory](../cost-observatory/) for the full cost dashboard.
 
 ### Step 9: Provider comparison
 
@@ -333,6 +333,6 @@ In VibeUI, open the AI panel (`Cmd+J`) and use the provider dropdown in the top 
 
 ## What's Next
 
-- [Demo 4: Agent Loop](../04-agent-loop/) -- Autonomous code editing with tool execution
-- [Demo 5: Model Arena](../05-model-arena/) -- Compare models in a structured evaluation
-- [Demo 6: Cost Observatory](../06-cost-observatory/) -- Deep dive into token costs and budgets
+- [Demo 4: Agent Loop](../agent-loop/) -- Autonomous code editing with tool execution
+- [Demo 5: Model Arena](../model-arena/) -- Compare models in a structured evaluation
+- [Demo 6: Cost Observatory](../cost-observatory/) -- Deep dive into token costs and budgets

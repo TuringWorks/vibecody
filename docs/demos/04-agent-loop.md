@@ -18,7 +18,7 @@ The agent loop is VibeCody's most powerful feature. Instead of just chatting, th
 
 - VibeCLI installed and configured with an AI provider that supports tool use (Claude, OpenAI, Gemini)
 - A code project to work with (any language)
-- Familiarity with [Demo 1: First Run](../01-first-run/)
+- Familiarity with [Demo 1: First Run](../first-run/)
 
 ## How the Agent Loop Works
 
@@ -378,6 +378,6 @@ In VibeUI, the Agent panel (`Cmd+J` then "Agent" tab) provides a visual represen
 
 ## What's Next
 
-- [Demo 5: Model Arena](../05-model-arena/) -- Compare how different models handle agent tasks
-- [Demo 6: Cost Observatory](../06-cost-observatory/) -- Track agent session costs
-- [Demo 1: First Run](../01-first-run/) -- Revisit setup if you need to configure additional providers
+- [Demo 5: Model Arena](../model-arena/) -- Compare how different models handle agent tasks
+- [Demo 6: Cost Observatory](../cost-observatory/) -- Track agent session costs
+- [Demo 1: First Run](../first-run/) -- Revisit setup if you need to configure additional providers

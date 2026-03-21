@@ -588,6 +588,6 @@ frontend      NodePort       10.96.56.78    <none>           3000:30080/TCP   1d
 
 ## What's Next
 
-- [Demo 13 — CI/CD Pipeline](13-cicd.md) — Integrate K8s deployments into CI/CD workflows
-- [Demo 11 — Docker & Container Management](11-docker.md) — Build the images you deploy to K8s
-- [Demo 15 — Deploy & Database](15-deploy-database.md) — Full deployment workflows with database migrations
+- [Demo 13 — CI/CD Pipeline](../13-cicd/) — Integrate K8s deployments into CI/CD workflows
+- [Demo 11 — Docker & Container Management](../11-docker/) — Build the images you deploy to K8s
+- [Demo 15 — Deploy & Database](../15-deploy-database/) — Full deployment workflows with database migrations

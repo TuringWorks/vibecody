@@ -353,6 +353,6 @@ Remove `--dry-run` to apply changes.
 
 ## What's Next
 
-- [Demo 08 — Code Search & Embeddings](08-code-search.md) — Find code semantically across your project
-- [Demo 09 — Autofix & Diagnostics](09-autofix.md) — Let AI fix errors detected by inline chat
-- [Demo 10 — Code Transforms](10-code-transforms.md) — AST-level refactoring beyond inline edits
+- [Demo 08 — Code Search & Embeddings](../08-code-search/) — Find code semantically across your project
+- [Demo 09 — Autofix & Diagnostics](../09-autofix/) — Let AI fix errors detected by inline chat
+- [Demo 10 — Code Transforms](../10-code-transforms/) — AST-level refactoring beyond inline edits

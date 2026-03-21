@@ -572,4 +572,4 @@ The MCP Directory panel has three tabs:
 
 - [Demo 16: MCP Server Integration](../16-mcp-servers/) -- MCP fundamentals and building custom servers
 - [Demo 17: MCP Lazy Loading](../17-mcp-lazy-loading/) -- Scale to 100+ servers with on-demand loading
-- [Demo 19: Context Bundles](../19-context-bundles/) -- Create shareable context sets for teams
+- [Demo 19: Context Bundles](../context-bundles/) -- Create shareable context sets for teams

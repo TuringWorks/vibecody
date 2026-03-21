@@ -483,6 +483,6 @@ Runtime-specific features:
 
 ## What's Next
 
-- [Demo 12 — Kubernetes Operations](12-kubernetes.md) — Deploy containers to Kubernetes clusters
-- [Demo 09 — Autofix & Diagnostics](09-autofix.md) — Run autofix agents in sandboxed containers
-- [Demo 10 — Code Transforms](10-code-transforms.md) — Refactor Dockerfiles and Compose files
+- [Demo 12 — Kubernetes Operations](../12-kubernetes/) — Deploy containers to Kubernetes clusters
+- [Demo 09 — Autofix & Diagnostics](../09-autofix/) — Run autofix agents in sandboxed containers
+- [Demo 10 — Code Transforms](../10-code-transforms/) — Refactor Dockerfiles and Compose files

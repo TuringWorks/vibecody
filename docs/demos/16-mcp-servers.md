@@ -519,4 +519,4 @@ The current weather in Tokyo is 22C and sunny with 45% humidity.
 
 - [Demo 17: MCP Lazy Loading](../17-mcp-lazy-loading/) -- Scale to 100+ MCP servers with on-demand tool loading
 - [Demo 18: MCP Plugin Directory](../18-mcp-directory/) -- Browse and install verified MCP plugins
-- [Demo 4: Agent Loop & Tool Execution](../04-agent-loop/) -- See how agents use tools autonomously
+- [Demo 4: Agent Loop & Tool Execution](../agent-loop/) -- See how agents use tools autonomously

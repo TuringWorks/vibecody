@@ -16,8 +16,8 @@ The Model Arena lets you compare AI models head-to-head by sending the same prom
 
 ## Prerequisites
 
-- VibeCLI installed and configured (see [Demo 1: First Run](../01-first-run/))
-- API keys for at least two AI providers (see [Demo 3: Multi-Provider Chat](../03-multi-provider-chat/))
+- VibeCLI installed and configured (see [Demo 1: First Run](../first-run/))
+- API keys for at least two AI providers (see [Demo 3: Multi-Provider Chat](../multi-provider-chat/))
 - VibeUI installed for the graphical Arena panel (optional -- CLI arena also available)
 
 ## Step-by-Step Walkthrough
@@ -387,6 +387,6 @@ The VibeUI Arena panel provides additional graphical features:
 
 ## What's Next
 
-- [Demo 6: Cost Observatory](../06-cost-observatory/) -- Understand the cost of each model you tested
-- [Demo 3: Multi-Provider Chat](../03-multi-provider-chat/) -- Deep dive into provider configuration
-- [Demo 4: Agent Loop](../04-agent-loop/) -- Compare how different models perform in agent tasks
+- [Demo 6: Cost Observatory](../cost-observatory/) -- Understand the cost of each model you tested
+- [Demo 3: Multi-Provider Chat](../multi-provider-chat/) -- Deep dive into provider configuration
+- [Demo 4: Agent Loop](../agent-loop/) -- Compare how different models perform in agent tasks

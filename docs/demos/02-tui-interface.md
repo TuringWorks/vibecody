@@ -16,7 +16,7 @@ VibeCLI includes a full terminal user interface (TUI) built with Ratatui, offeri
 
 ## Prerequisites
 
-- VibeCLI installed and configured (see [Demo 1: First Run](../01-first-run/))
+- VibeCLI installed and configured (see [Demo 1: First Run](../first-run/))
 - A terminal emulator with 256-color or true-color support (iTerm2, Alacritty, WezTerm, Kitty, or Windows Terminal)
 - Terminal size of at least 120x40 characters recommended
 
@@ -393,6 +393,6 @@ In VibeUI (the desktop IDE), the same panels are available in the AI sidebar. Op
 
 ## What's Next
 
-- [Demo 3: Multi-Provider Chat](../03-multi-provider-chat/) -- Use 17 different AI providers
-- [Demo 4: Agent Loop](../04-agent-loop/) -- Let the AI edit your code
-- [Demo 5: Model Arena](../05-model-arena/) -- Compare models side by side
+- [Demo 3: Multi-Provider Chat](../multi-provider-chat/) -- Use 17 different AI providers
+- [Demo 4: Agent Loop](../agent-loop/) -- Let the AI edit your code
+- [Demo 5: Model Arena](../model-arena/) -- Compare models side by side

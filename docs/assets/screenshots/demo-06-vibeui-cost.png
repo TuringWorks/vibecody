@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450" viewBox="0 0 800 450">
+  <rect width="800" height="450" fill="#1c1c22"/>
+  <text x="400" y="210" text-anchor="middle" fill="#555" font-family="system-ui" font-size="18">Screenshot coming soon</text>
+  <text x="400" y="240" text-anchor="middle" fill="#444" font-family="system-ui" font-size="14">This demo screenshot is being prepared</text>
+</svg>
