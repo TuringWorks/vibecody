@@ -234,6 +234,7 @@ pub mod cross_surface_routing;
 pub mod extension_compat;
 pub mod context_streaming;
 pub mod model_marketplace;
+pub mod warp_features;
 
 #[derive(Parser)]
 #[command(name = "vibecli")]
@@ -1527,7 +1528,65 @@ async fn main() -> Result<()> {
                 }
                 rl.add_history_entry(line.as_str())?;
 
-                // Direct shell command
+                // ── # Natural language → command (Warp-style) ──────────────
+                if let Some(nl_query) = input.strip_prefix('#') {
+                    let nl_query = nl_query.trim();
+                    if !nl_query.is_empty() {
+                        let cwd = std::env::current_dir().unwrap_or_default();
+                        let shell = std::env::var("SHELL").unwrap_or_else(|_| "bash".to_string());
+                        let prompt = warp_features::generate_command_prompt(nl_query, &cwd.display().to_string(), &shell);
+                        print!("\x1b[2mTranslating...\x1b[0m");
+                        io::stdout().flush()?;
+                        match llm.chat(&[Message { role: MessageRole::User, content: prompt }], None).await {
+                            Ok(response) => {
+                                print!("\r\x1b[2K"); // Clear "Translating..." line
+                                if let Some(cmd) = warp_features::parse_command_response(&response) {
+                                    println!("  \x1b[1m{}\x1b[0m", cmd.generated);
+                                    if !cmd.explanation.is_empty() {
+                                        println!("  \x1b[2m{}\x1b[0m", cmd.explanation);
+                                    }
+                                    print!("  Run? (y/N): ");
+                                    io::stdout().flush()?;
+                                    let mut confirm = String::new();
+                                    io::stdin().read_line(&mut confirm)?;
+                                    if confirm.trim().to_lowercase() == "y" {
+                                        let start = std::time::Instant::now();
+                                        let output = std::process::Command::new("sh").arg("-c").arg(&cmd.generated).output();
+                                        let duration_ms = start.elapsed().as_millis() as u64;
+                                        match output {
+                                            Ok(out) => {
+                                                let exit_code = out.status.code().unwrap_or(-1);
+                                                let stdout = String::from_utf8_lossy(&out.stdout).to_string();
+                                                let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+                                                let redactor = warp_features::SecretRedactor::new();
+                                                let block = warp_features::OutputBlock {
+                                                    command: cmd.generated.clone(),
+                                                    output: redactor.redact(&format!("{}{}", stdout, stderr)),
+                                                    exit_code,
+                                                    duration_ms,
+                                                    cwd: cwd.display().to_string(),
+                                                    timestamp: warp_features::epoch_secs(),
+                                                };
+                                                print!("{}", block.format());
+                                            }
+                                            Err(e) => eprintln!("  Execution failed: {}", e),
+                                        }
+                                    }
+                                } else {
+                                    print!("\r\x1b[2K");
+                                    println!("{}", highlight_code_blocks(&response));
+                                }
+                            }
+                            Err(e) => {
+                                print!("\r\x1b[2K");
+                                eprintln!("  Error: {}", e);
+                            }
+                        }
+                    }
+                    continue;
+                }
+
+                // ── ! Direct shell command (with block output + corrections) ─
                 if let Some(shell_cmd) = input.strip_prefix('!') {
                     let command = shell_cmd.trim();
                     if !command.is_empty() {
@@ -1535,7 +1594,7 @@ async fn main() -> Result<()> {
                             .map(|c| c.safety.require_approval_for_commands)
                             .unwrap_or(true);
                         let should_run = if require_approval {
-                            print!("  Execute command: {}? (y/N): ", command);
+                            print!("  Execute: {}? (y/N): ", command);
                             io::stdout().flush()?;
                             let mut confirm = String::new();
                             io::stdin().read_line(&mut confirm)?;
@@ -1544,25 +1603,56 @@ async fn main() -> Result<()> {
                             true
                         };
                         if should_run {
-                            println!("Executing...");
+                            let start = std::time::Instant::now();
                             use std::process::Command;
                             let output = if cfg!(target_os = "windows") {
                                 Command::new("cmd").args(["/C", command]).output()
                             } else {
                                 Command::new("sh").arg("-c").arg(command).output()
                             };
+                            let duration_ms = start.elapsed().as_millis() as u64;
                             match output {
-                                Ok(output) => {
-                                    println!("{}", String::from_utf8_lossy(&output.stdout));
-                                    if !output.stderr.is_empty() {
-                                        eprintln!("{}", String::from_utf8_lossy(&output.stderr));
+                                Ok(out) => {
+                                    let exit_code = out.status.code().unwrap_or(-1);
+                                    let stdout = String::from_utf8_lossy(&out.stdout).to_string();
+                                    let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+                                    let redactor = warp_features::SecretRedactor::new();
+                                    let cwd = std::env::current_dir().unwrap_or_default();
+                                    // Block-formatted output
+                                    let block = warp_features::OutputBlock {
+                                        command: command.to_string(),
+                                        output: redactor.redact(&format!("{}{}", stdout, stderr)),
+                                        exit_code,
+                                        duration_ms,
+                                        cwd: cwd.display().to_string(),
+                                        timestamp: warp_features::epoch_secs(),
+                                    };
+                                    print!("{}", block.format());
+                                    // Command corrections on failure
+                                    if exit_code != 0 {
+                                        if let Some(correction) = warp_features::suggest_correction(command, exit_code, &stderr) {
+                                            println!("  \x1b[33mDid you mean:\x1b[0m \x1b[1m{}\x1b[0m", correction.suggested_command);
+                                            println!("  \x1b[2m{}\x1b[0m", correction.reason);
+                                        }
+                                    }
+                                    // Next command suggestions on success
+                                    if exit_code == 0 {
+                                        let suggestions = warp_features::suggest_next_commands(command, exit_code, &cwd.display().to_string());
+                                        if !suggestions.is_empty() {
+                                            let s = &suggestions[0];
+                                            println!("  \x1b[2mNext: {}\x1b[0m", s.command);
+                                        }
+                                    }
+                                    // Desktop notification for long commands
+                                    if warp_features::should_notify(duration_ms, 30_000) {
+                                        let title = if exit_code == 0 { "Command completed" } else { "Command failed" };
+                                        let _ = warp_features::send_notification(title, command);
                                     }
                                 }
-                                Err(e) => eprintln!("❌ Execution failed: {}", e),
+                                Err(e) => eprintln!("  Execution failed: {}", e),
                             }
-                            println!();
                         } else {
-                            println!("❌ Command execution cancelled\n");
+                            println!("  Cancelled\n");
                         }
                     }
                     continue;
