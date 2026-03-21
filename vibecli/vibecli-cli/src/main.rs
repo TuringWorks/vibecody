@@ -213,6 +213,8 @@ mod quantum_computing;
 mod auto_research;
 #[allow(dead_code)]
 mod open_memory;
+#[allow(dead_code)]
+mod vulnerability_db;
 mod project_init;
 mod spec_pipeline;
 mod vm_orchestrator;

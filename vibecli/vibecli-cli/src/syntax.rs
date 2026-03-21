@@ -855,7 +855,7 @@ mod tests {
 
     #[test]
     fn colored_prompt_contains_provider() {
-        let out = colored_prompt("ollama");
+        let out = colored_prompt("ollama", None);
         assert!(out.contains("vibecli"));
         assert!(out.contains("ollama"));
         assert!(out.contains(">"));
