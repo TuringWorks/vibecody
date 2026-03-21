@@ -7174,7 +7174,7 @@ async fn run_agent_repl_with_context(
                 io::stdout().flush()?;
             }
             AgentEvent::ToolCallPending { call, result_tx } => {
-                println!("{}", crate::syntax::format_tool_call(call.name(), &call.summary()));
+                println!("{}", crate::syntax::format_tool_pending(call.name(), &call.summary()));
                 print!("   Approve? (y/n/a=approve-all): ");
                 io::stdout().flush()?;
 
@@ -7191,8 +7191,7 @@ async fn run_agent_repl_with_context(
                 } else {
                     // Execute the tool
                     let result = executor.execute(&call).await;
-                    let status = if result.success { "✅" } else { "❌" };
-                    println!("   {} {}\n", status, &result.output.lines().next().unwrap_or(""));
+                    println!("{}", crate::syntax::format_tool_output_preview(&result.output, result.success));
                     trace.record(0, call.name(), &call.summary(), &result.output, result.success, dur, "user");
                     let _ = result_tx.send(Some(result));
                 }

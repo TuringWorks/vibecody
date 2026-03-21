@@ -102,6 +102,7 @@ const ITALIC: &str = "\x1b[3m";
 const UNDERLINE: &str = "\x1b[4m";
 const CYAN: &str = "\x1b[36m";
 const GREEN: &str = "\x1b[32m";
+#[allow(dead_code)]
 const YELLOW: &str = "\x1b[33m";
 const MAGENTA: &str = "\x1b[35m";
 const BLUE: &str = "\x1b[34m";
@@ -334,30 +335,85 @@ pub fn highlight_code_blocks(text: &str) -> String {
     result
 }
 
-/// Format a tool call summary with color for the agent REPL.
+// ── Dark background box for tool calls (Claude Code style) ──────────────────
+const BG_DARK: &str = "\x1b[48;5;235m"; // dark background for tool call boxes
+const FG_GREEN_CHECK: &str = "\x1b[38;5;114m"; // muted green for checkmarks
+const FG_RED_CROSS: &str = "\x1b[38;5;167m"; // muted red for failures
+
+/// Get terminal width (fallback to 80).
+fn terminal_width() -> usize {
+    crossterm::terminal::size().map(|(w, _)| w as usize).unwrap_or(80)
+}
+
+/// Render a tool call in a dark background box (Claude Code style).
+#[allow(dead_code)]
+/// ```
+///   ✓ ls -la src/ | head -20
+/// ```
 pub fn format_tool_call(tool_name: &str, summary: &str) -> String {
+    let width = terminal_width();
+    let content = format!(" {} {}", tool_name, summary);
+    let padded_len = width.saturating_sub(2);
+    let display = if content.len() < padded_len {
+        format!("{}{}", content, " ".repeat(padded_len - content.len()))
+    } else {
+        content[..padded_len].to_string()
+    };
     format!(
-        "\n{}{}⚡ Tool:{} {}{}{} {}{}",
-        BOLD, YELLOW, RESET,
-        BOLD, BRIGHT_CYAN, tool_name, RESET,
-        summary
+        "\n{}{}  {}  {}{}\n",
+        BG_DARK, BRIGHT_YELLOW, display, RESET, ""
     )
 }
 
-/// Format a step result with color.
-pub fn format_step_result(step_num: usize, tool_summary: &str, success: bool) -> String {
-    let (icon, color) = if success { ("✅", GREEN) } else { ("❌", "\x1b[31m") };
+/// Format a tool call pending approval (with tool name in dark box).
+pub fn format_tool_pending(tool_name: &str, summary: &str) -> String {
+    let width = terminal_width();
+    let content = format!("  {} {}", tool_name, summary);
+    let padded_len = width.saturating_sub(2);
+    let display = if content.len() < padded_len {
+        format!("{}{}", content, " ".repeat(padded_len - content.len()))
+    } else {
+        content[..padded_len].to_string()
+    };
     format!(
-        "\n{}{} Step {}:{} {}",
-        color, icon, step_num, RESET,
-        tool_summary
+        "\n{}{}{}{}",
+        BG_DARK, WHITE, display, RESET
+    )
+}
+
+/// Format a completed step result in a dark background box with checkmark/cross.
+pub fn format_step_result(_step_num: usize, tool_summary: &str, success: bool) -> String {
+    let width = terminal_width();
+    let icon = if success { "\u{2713}" } else { "\u{2717}" }; // ✓ or ✗
+    let icon_color = if success { FG_GREEN_CHECK } else { FG_RED_CROSS };
+    let content = format!(" {} {}", icon, tool_summary);
+    let padded_len = width.saturating_sub(2);
+    let display = if content.len() < padded_len {
+        format!("{}{}", content, " ".repeat(padded_len - content.len()))
+    } else {
+        content[..padded_len].to_string()
+    };
+    format!(
+        "\n{}{} {}{}",
+        BG_DARK, icon_color, display, RESET
+    )
+}
+
+/// Format a "thinking" status line (dim gray, like Claude Code).
+#[allow(dead_code)]
+pub fn format_thinking(duration_secs: u64) -> String {
+    format!(
+        "{}Thought for {} second{}{}",
+        BRIGHT_BLACK, duration_secs,
+        if duration_secs == 1 { "" } else { "s" },
+        RESET
     )
 }
 
 /// Format agent completion message.
 pub fn format_agent_complete(summary: &str) -> String {
     format!(
-        "\n\n{}{}✅ Agent complete:{} {}",
+        "\n{}{}Agent complete:{} {}",
         BOLD, GREEN, RESET, summary
     )
 }
@@ -365,19 +421,35 @@ pub fn format_agent_complete(summary: &str) -> String {
 /// Format agent error message.
 pub fn format_agent_error(error: &str) -> String {
     format!(
-        "\n{}{}❌ Agent error:{} {}",
-        BOLD, "\x1b[31m", RESET, error
+        "\n{}{}Error:{} {}",
+        BOLD, FG_RED_CROSS, RESET, error
     )
 }
 
 /// Format the REPL prompt with color.
 pub fn colored_prompt(provider_name: &str) -> String {
     format!(
-        "{}{}vibecli{} {}[{}]{} {}▸{} ",
-        BOLD, BRIGHT_GREEN, RESET,
-        DIM, provider_name, RESET,
+        "{}[{}{}vibecli{} {}]{} {}>{} ",
+        DIM, RESET, BRIGHT_GREEN, RESET,
+        provider_name,
+        RESET,
         BRIGHT_CYAN, RESET,
     )
+}
+
+/// Format tool output preview (first line, dimmed).
+pub fn format_tool_output_preview(output: &str, success: bool) -> String {
+    let first_line = output.lines().next().unwrap_or("");
+    let truncated = if first_line.len() > 100 {
+        format!("{}...", &first_line[..97])
+    } else {
+        first_line.to_string()
+    };
+    if success {
+        format!("   {}{}{}", DIM, truncated, RESET)
+    } else {
+        format!("   {}{}{}{}", FG_RED_CROSS, DIM, truncated, RESET)
+    }
 }
 
 #[cfg(test)]
@@ -709,23 +781,43 @@ mod tests {
     fn format_tool_call_contains_name() {
         let out = format_tool_call("write_file", "path: main.rs");
         assert!(out.contains("write_file"));
-        assert!(out.contains("Tool:"));
-        assert!(out.contains(YELLOW));
+        assert!(out.contains(BG_DARK));
+    }
+
+    #[test]
+    fn format_tool_pending_contains_name() {
+        let out = format_tool_pending("bash", "ls -la");
+        assert!(out.contains("bash"));
+        assert!(out.contains("ls -la"));
+        assert!(out.contains(BG_DARK));
     }
 
     #[test]
     fn format_step_success() {
         let out = format_step_result(1, "wrote main.rs", true);
-        assert!(out.contains("Step 1:"));
-        assert!(out.contains("✅"));
-        assert!(out.contains(GREEN));
+        assert!(out.contains("wrote main.rs"));
+        assert!(out.contains("\u{2713}")); // checkmark
+        assert!(out.contains(BG_DARK));
     }
 
     #[test]
     fn format_step_failure() {
         let out = format_step_result(2, "compile failed", false);
-        assert!(out.contains("Step 2:"));
-        assert!(out.contains("❌"));
+        assert!(out.contains("compile failed"));
+        assert!(out.contains("\u{2717}")); // cross
+    }
+
+    #[test]
+    fn format_thinking_singular() {
+        let out = format_thinking(1);
+        assert!(out.contains("1 second"));
+        assert!(!out.contains("seconds"));
+    }
+
+    #[test]
+    fn format_thinking_plural() {
+        let out = format_thinking(5);
+        assert!(out.contains("5 seconds"));
     }
 
     #[test]
@@ -739,7 +831,7 @@ mod tests {
     #[test]
     fn format_error_msg() {
         let out = format_agent_error("something broke");
-        assert!(out.contains("Agent error:"));
+        assert!(out.contains("Error:"));
         assert!(out.contains("something broke"));
     }
 
@@ -748,7 +840,26 @@ mod tests {
         let out = colored_prompt("ollama");
         assert!(out.contains("vibecli"));
         assert!(out.contains("ollama"));
-        assert!(out.contains("▸"));
+        assert!(out.contains(">"));
+    }
+
+    #[test]
+    fn format_tool_output_preview_success() {
+        let out = format_tool_output_preview("file written successfully\nmore details", true);
+        assert!(out.contains("file written successfully"));
+        assert!(out.contains(DIM));
+    }
+
+    #[test]
+    fn format_tool_output_preview_truncates_long() {
+        let long = "x".repeat(150);
+        let out = format_tool_output_preview(&long, true);
+        assert!(out.contains("..."));
+    }
+
+    #[test]
+    fn terminal_width_returns_positive() {
+        assert!(terminal_width() > 0);
     }
 
     // ── Full markdown document ──────────────────────────────────────────────
