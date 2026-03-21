@@ -21,7 +21,7 @@ Interactive walkthroughs covering VibeCody's major capabilities across CLI, Desk
 
 | Demo | Surface | Description |
 |------|---------|-------------|
-| [03 — Multi-Provider AI Chat](03-multi-provider-chat.md) | CLI + UI | Switch between 17 AI providers, streaming responses |
+| [03 — Multi-Provider AI Chat](03-multi-provider-chat.md) | CLI + UI | Switch between 22 AI providers, streaming responses |
 | [04 — Agent Loop & Tool Execution](04-agent-loop.md) | CLI + UI | Autonomous coding with file edit, shell, search tools |
 | [05 — Model Arena](05-model-arena.md) | UI | Side-by-side model comparison and ranking |
 | [06 — Cost Observatory](06-cost-observatory.md) | CLI + UI | Track token usage and costs across providers |
@@ -89,6 +89,20 @@ Interactive walkthroughs covering VibeCody's major capabilities across CLI, Desk
 | [33 — App Builder](33-app-builder.md) | CLI + UI | Full-stack app scaffolding from prompts |
 | [34 — Usage Metering](34-usage-metering.md) | CLI + UI | Credit budgets and team cost allocation |
 | [35 — Compliance & Audit](35-compliance.md) | CLI + UI | SOC 2 controls and audit trails |
+
+## New Features (2026-03)
+
+| Demo | Surface | Description |
+|------|---------|-------------|
+| [36 — Project Init & Auto-Context](36-project-init.md) | CLI | `/init` project scanning, auto-context injection, smart file selection |
+| [37 — Always-On Channel Daemon](37-channel-daemon.md) | CLI | `--channel-daemon` persistent agent on Slack/Discord/GitHub |
+| [38 — Agent-Per-Branch Workflow](38-branch-agent.md) | CLI | Isolated git branches per task, auto-PR on completion |
+| [39 — Spec-Driven Development](39-spec-pipeline.md) | CLI | EARS requirements → design → tasks structured pipeline |
+| [40 — VM Agent Orchestration](40-vm-orchestrator.md) | CLI | Parallel agents in isolated Docker containers |
+| [41 — Design Canvas](41-design-canvas.md) | UI | Visual drag-and-drop component builder → React/Tailwind code |
+| [42 — Vulnerability Scanner](42-vulnscan.md) | CLI + UI | CVE scanning, SAST rules, lockfile parsing, SARIF output |
+| [43 — Data Analysis Mode](43-data-analysis.md) | CLI | CSV/JSON loading, SQL queries, visualizations |
+| [44 — Agentic CI/CD](44-agentic-cicd.md) | CLI | Auto-fix builds, generate tests, resolve merge conflicts |
 
 ---
 

@@ -19,6 +19,8 @@ Hands-on guides to get the most out of VibeCody. Each tutorial is self-contained
 | [AI-Powered Code Review](./code-review/) | 10 min | Review uncommitted changes, branches, and GitHub PRs |
 | Using @ Context References | 10 min | Attach files, URLs, and symbols to your prompts with `@` |
 
+| [Project Init & Auto-Context](./project-init/) | 10 min | `/init` project scanning, auto-context in every agent conversation |
+
 ---
 
 ## Intermediate
@@ -29,6 +31,8 @@ Hands-on guides to get the most out of VibeCody. Each tutorial is self-contained
 | Creating Custom Skills | 20 min | Write skill files that trigger on keywords and inject context |
 | Setting Up MCP Servers | 15 min | Connect external tools via Model Context Protocol |
 | Configuring Hooks for CI/CD | 15 min | Run pre/post hooks on agent actions for validation and logging |
+
+| [Always-On Channel Daemon](./channel-daemon/) | 20 min | Run a persistent bot on Slack/Discord/GitHub with automation rules |
 
 ---
 
@@ -41,6 +45,10 @@ Hands-on guides to get the most out of VibeCody. Each tutorial is self-contained
 | Multi-Agent Orchestration | 25 min | Coordinate agent teams with the inter-agent messaging bus |
 | Deploying VibeCody for Teams | 20 min | HTTP daemon mode, RBAC, usage metering, and team governance |
 | Air-Gapped Deployment with Ollama | 15 min | Docker Compose setup with no internet access |
+| Agent-Per-Branch Workflow | 15 min | Isolated git branches per task, auto-commit, auto-PR |
+| Spec-Driven Development (EARS) | 20 min | Structured requirements → design → tasks pipeline |
+| VM Agent Orchestration | 20 min | Run 4+ parallel agents in isolated Docker containers |
+| Vulnerability Scanner | 15 min | CVE scanning, SAST rules, lockfile parsing |
 
 ---
 
