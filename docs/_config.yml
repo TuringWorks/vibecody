@@ -11,52 +11,95 @@ highlighter: rouge
 kramdown:
   input: GFM
   syntax_highlighter: rouge
+  toc_levels: "2..3"
 
 plugins:
   - jekyll-feed
   - jekyll-seo-tag
 
-nav:
-  - title: Home
+# Sidebar navigation (grouped with collapsible sections)
+sidebar:
+  - title: Overview
+    icon: home
     url: /
   - title: Quickstart
+    icon: zap
     url: /quickstart/
   - title: Tutorials
-    url: /tutorials/
+    icon: book
+    children:
+      - title: Overview
+        url: /tutorials/
+      - title: First Provider
+        url: /tutorials/first-provider/
+      - title: Code Review
+        url: /tutorials/code-review/
+      - title: Agent Workflow
+        url: /tutorials/agent-workflow/
+      - title: Project Init
+        url: /tutorials/36-project-init/
+      - title: Channel Daemon
+        url: /tutorials/37-channel-daemon/
   - title: VibeCLI
+    icon: terminal
     url: /vibecli/
   - title: VibeUI
+    icon: layout
     url: /vibeui/
   - title: Providers
-    url: /providers/
+    icon: cloud
+    children:
+      - title: Overview
+        url: /providers/
+      - title: Ollama
+        url: /providers/ollama/
+      - title: Claude
+        url: /providers/claude/
+      - title: OpenAI
+        url: /providers/openai/
+      - title: Gemini
+        url: /providers/gemini/
+      - title: DeepSeek
+        url: /providers/deepseek/
   - title: Configuration
+    icon: settings
     url: /configuration/
   - title: API Reference
+    icon: code
     url: /api-reference/
   - title: Architecture
+    icon: layers
     url: /architecture/
   - title: Plugin Development
+    icon: puzzle
     url: /plugin-development/
-  - title: Demos
-    url: /demos/
   - title: Security
+    icon: shield
     url: /security/
+  - title: Demos
+    icon: play
+    children:
+      - title: Overview
+        url: /demos/
   - title: FAQ
+    icon: help
     url: /faq/
   - title: Troubleshooting
+    icon: tool
     url: /troubleshooting/
   - title: Glossary
+    icon: book-open
     url: /glossary/
+
+# Top tabs (like OpenRouter's Docs / API Reference / SDK Reference)
+top_tabs:
+  - title: Docs
+    url: /
+    active: true
+  - title: API Reference
+    url: /api-reference/
   - title: Changelog
     url: /changelog/
-  - title: Roadmap
-    url: /roadmap-v4/
-  - title: Fit-Gap Analysis
-    url: /fit-gap-analysis-v6/
-  - title: Development Guide
-    url: /development/
-  - title: Contributing
-    url: /contributing/
 
 header_pages:
   - index.md
