@@ -114,12 +114,35 @@ impl TokenUsage {
     /// Estimated cost in USD based on provider name and model string.
     pub fn estimated_cost_usd(&self, provider: &str, model: &str) -> f64 {
         let (input_price, output_price): (f64, f64) = match (provider, model) {
+            // Anthropic Claude
             (_, m) if m.contains("claude-opus-4") => (15.0 / 1_000_000.0, 75.0 / 1_000_000.0),
             (_, m) if m.contains("claude-sonnet-4") => (3.0 / 1_000_000.0, 15.0 / 1_000_000.0),
             (_, m) if m.contains("claude-haiku-4") => (0.8 / 1_000_000.0, 4.0 / 1_000_000.0),
+            // OpenAI
             (_, m) if m.contains("gpt-4o") => (2.5 / 1_000_000.0, 10.0 / 1_000_000.0),
             (_, m) if m.contains("gpt-4-turbo") => (10.0 / 1_000_000.0, 30.0 / 1_000_000.0),
             (_, m) if m.contains("gpt-3.5") => (0.5 / 1_000_000.0, 1.5 / 1_000_000.0),
+            // Google Gemini
+            (_, m) if m.contains("gemini-2.5-pro") => (1.25 / 1_000_000.0, 10.0 / 1_000_000.0),
+            (_, m) if m.contains("gemini-2.5-flash") || m.contains("gemini-2.0-flash") => (0.15 / 1_000_000.0, 0.6 / 1_000_000.0),
+            // DeepSeek
+            (_, m) if m.contains("deepseek") => (0.27 / 1_000_000.0, 1.1 / 1_000_000.0),
+            // Mistral
+            (_, m) if m.contains("mistral-large") => (2.0 / 1_000_000.0, 6.0 / 1_000_000.0),
+            (_, m) if m.contains("mistral-small") || m.contains("mistral-medium") => (0.2 / 1_000_000.0, 0.6 / 1_000_000.0),
+            // Perplexity Sonar
+            (_, m) if m.contains("sonar-pro") || m.contains("sonar-reasoning") => (3.0 / 1_000_000.0, 15.0 / 1_000_000.0),
+            (_, m) if m.contains("sonar") => (1.0 / 1_000_000.0, 1.0 / 1_000_000.0),
+            // xAI Grok
+            (_, m) if m.contains("grok-3") => (3.0 / 1_000_000.0, 15.0 / 1_000_000.0),
+            (_, m) if m.contains("grok") => (5.0 / 1_000_000.0, 10.0 / 1_000_000.0),
+            // Inference platforms (approximate per-provider pricing)
+            ("groq", _) => (0.05 / 1_000_000.0, 0.08 / 1_000_000.0),
+            ("cerebras", _) => (0.1 / 1_000_000.0, 0.1 / 1_000_000.0),
+            ("sambanova", _) => (0.1 / 1_000_000.0, 0.1 / 1_000_000.0),
+            ("fireworks", _) => (0.2 / 1_000_000.0, 0.2 / 1_000_000.0),
+            ("together", _) => (0.2 / 1_000_000.0, 0.2 / 1_000_000.0),
+            ("minimax", _) => (0.2 / 1_000_000.0, 0.2 / 1_000_000.0),
             _ => (0.0, 0.0), // Ollama / local providers = free
         };
         self.prompt_tokens as f64 * input_price + self.completion_tokens as f64 * output_price

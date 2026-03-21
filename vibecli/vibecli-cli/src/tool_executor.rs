@@ -225,6 +225,9 @@ impl ToolExecutorTrait for ToolExecutor {
             ToolCall::SpawnAgent { task, max_steps, max_depth } => {
                 self.spawn_sub_agent(task, *max_steps, *max_depth).await
             }
+            ToolCall::Think { thought } => {
+                ToolResult::ok("think", format!("Reasoning noted ({} chars).", thought.len()))
+            }
         }
     }
 }

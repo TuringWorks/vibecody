@@ -174,6 +174,7 @@ const QuantumComputingPanel = lazy(() => import("./QuantumComputingPanel").then(
 const DebugModePanel = lazy(() => import("./DebugModePanel"));
 const AgentModesPanel = lazy(() => import("./AgentModesPanel"));
 const WorkManagementPanel = lazy(() => import("./WorkManagementPanel"));
+const AutoResearchPanel = lazy(() => import("./AutoResearchPanel").then(m => ({ default: m.AutoResearchPanel })));
 
 // --- Props interfaces ---
 
@@ -367,6 +368,7 @@ export function PanelHost(props: PanelHostProps) {
       {panel("debugmode", <LazyPanel Component={DebugModePanel} props={{}} />)}
       {panel("agentmodes", <LazyPanel Component={AgentModesPanel} props={{}} />)}
       {panel("workmanagement", <LazyPanel Component={WorkManagementPanel} props={{}} />)}
+      {panel("autoresearch", <LazyPanel Component={AutoResearchPanel} props={{ workspacePath: wp || "", provider: selectedProvider }} />)}
       {/* Fallback for unknown tabs — only render when active and not matched above */}
       {!visited.has(tab) || ![
         "chat","agent","memory","history","checkpoints","artifacts","manager","hooks","jobs","mcp",
@@ -384,7 +386,7 @@ export function PanelHost(props: PanelHostProps) {
         "fastcontext","imagegen","governance","agentteams","discuss","fullstack","ghactions","renderopt",
         "soul","mcplazy","bundles","cloudproviders","acpprotocol","mcpdirectory","usagemetering",
         "swebench","sessionmemory","blueteam","purpleteam","idp","quantum",
-        "debugmode","agentmodes","workmanagement","build",
+        "debugmode","agentmodes","workmanagement","build","autoresearch",
       ].includes(tab) ? (
         <div style={{ padding: 16, color: "var(--text-secondary)" }}>Unknown panel: {tab}</div>
       ) : null}

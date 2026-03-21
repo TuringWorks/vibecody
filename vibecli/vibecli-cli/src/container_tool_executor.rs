@@ -181,6 +181,10 @@ impl ToolExecutorTrait for ContainerToolExecutor {
                     Err(e) => ToolResult::err("spawn_agent", e.to_string()),
                 }
             }
+
+            ToolCall::Think { thought } => {
+                ToolResult::ok("think", format!("Reasoning noted ({} chars).", thought.len()))
+            }
         }
     }
 }

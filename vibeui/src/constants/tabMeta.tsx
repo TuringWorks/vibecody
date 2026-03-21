@@ -18,7 +18,7 @@ import {
   ShieldPlus, Target, Building2, FileSearch, Smartphone,
   HelpCircle, Search, TreeDeciduous, ScanLine, Sparkles, CloudCog,
   GraduationCap, Cpu, Radio, FileUp, Webhook, UserCog,
-  FolderOpen, CheckSquare,
+  FolderOpen, CheckSquare, FlaskConical,
 } from "lucide-react";
 
 export interface TabMeta {
@@ -163,6 +163,7 @@ export const TAB_META: Record<string, TabMeta> = {
   // agile is now embedded inside workmanagement panel
   workmanagement: { icon: ClipboardList,  label: "Work Management" },
   build:       { icon: Hammer,            label: "Build" },
+  autoresearch:{ icon: FlaskConical,      label: "Research" },
 };
 
 export const DEFAULT_TAB_META: TabMeta = { icon: Workflow, label: "Panel" };

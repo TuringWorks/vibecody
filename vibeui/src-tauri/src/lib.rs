@@ -911,6 +911,15 @@ pub fn run() {
             commands::vibesql_execute_query,
             commands::vibesql_server_info,
             commands::vibesql_generate_sql,
+            // AutoResearch — Autonomous Iterative Research Agent
+            commands::autoresearch_list_sessions,
+            commands::autoresearch_get_session,
+            commands::autoresearch_create_session,
+            commands::autoresearch_record_experiment,
+            commands::autoresearch_get_memory,
+            commands::autoresearch_save_lesson,
+            commands::autoresearch_export_tsv,
+            commands::autoresearch_delete_session,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

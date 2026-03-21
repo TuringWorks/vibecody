@@ -66,6 +66,16 @@ pub struct Config {
     pub zhipu: Option<ProviderConfig>,
     /// Vercel AI Gateway — unified proxy (VERCEL_AI_API_KEY + api_url required).
     pub vercel_ai: Option<ProviderConfig>,
+    /// MiniMax — Chinese AI models (MINIMAX_API_KEY).
+    pub minimax: Option<ProviderConfig>,
+    /// Perplexity — search-augmented AI (PERPLEXITY_API_KEY).
+    pub perplexity: Option<ProviderConfig>,
+    /// Together AI — open model hosting (TOGETHER_API_KEY).
+    pub together: Option<ProviderConfig>,
+    /// Fireworks AI — fast inference (FIREWORKS_API_KEY).
+    pub fireworks: Option<ProviderConfig>,
+    /// SambaNova — fast inference (SAMBANOVA_API_KEY).
+    pub sambanova: Option<ProviderConfig>,
 
     /// Provider failover chain — try providers in order.
     ///

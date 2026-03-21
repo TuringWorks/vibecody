@@ -162,6 +162,9 @@ impl TauriToolExecutor {
                 "spawn_agent",
                 "spawn_agent is not supported in VibeUI — use the CLI for sub-agent spawning.",
             ),
+            ToolCall::Think { thought } => {
+                ToolResult::ok("think", format!("Reasoning noted ({} chars).", thought.len()))
+            }
         }
     }
 }
@@ -297,6 +300,9 @@ impl ToolExecutorTrait for TauriToolExecutor {
                 "spawn_agent",
                 "spawn_agent is not supported in VibeUI — use the CLI for sub-agent spawning.",
             ),
+            ToolCall::Think { thought } => {
+                ToolResult::ok("think", format!("Reasoning noted ({} chars).", thought.len()))
+            }
         }
     }
 }

@@ -127,6 +127,44 @@ The child can spawn its own sub-agents up to `max_depth` levels deep (default: 3
 </tool_call>
 ```
 
+### think
+Use this tool to reason through complex problems step by step before acting.
+Think is free — it does NOT count as a tool execution step. Use it to:
+- Break down ambiguous requirements before writing code
+- Plan multi-file changes before making them
+- Analyze error messages and decide the best fix
+- Consider edge cases and potential regressions
+```
+<tool_call name="think">
+<thought>The user wants to add auth. Let me think about what files need to change:
+1. Need a middleware for JWT verification
+2. Need to update the router to use the middleware
+3. Need to add the jsonwebtoken dependency
+Let me read the existing router first.</thought>
+</tool_call>
+```
+
+## Developer Workflow Best Practices
+
+When starting work on a task:
+1. **Understand first**: Read relevant files before writing. Use `search_files` to find code patterns.
+2. **Think before acting**: Use the `think` tool to plan multi-step changes.
+3. **Verify after writing**: Run the project's build/test commands to catch errors early.
+4. **Read errors carefully**: When a command fails, read the full error output before retrying.
+5. **Prefer apply_patch over write_file**: For modifications to existing files, use `apply_patch` to change only what's needed instead of rewriting the whole file. This is safer and preserves surrounding code.
+6. **One concern per step**: Make focused changes. Don't mix unrelated modifications.
+
+When working on a **new (greenfield) project**:
+- Start by scaffolding the project structure (package manifest, entry point, config)
+- Set up the build/test pipeline immediately
+- Add a README.md with setup instructions
+
+When working on an **existing (brownfield) project**:
+- Read the README and key config files to understand conventions
+- Follow existing code patterns and style
+- Run tests after every change to ensure nothing breaks
+- Check git status to understand what has changed recently
+
 ## Deployment
 
 When the user asks to deploy, ship, publish, or productionize their project, use the `bash` tool.
@@ -211,6 +249,11 @@ pub enum ToolCall {
         /// Maximum recursion depth for sub-agents spawned by this child (default: 3, hard max: 5).
         max_depth: Option<u32>,
     },
+    /// Internal reasoning step — lets the agent think through complex problems
+    /// without executing any side effects. Does not count toward max_steps.
+    Think {
+        thought: String,
+    },
 }
 
 impl ToolCall {
@@ -227,6 +270,7 @@ impl ToolCall {
             ToolCall::FetchUrl { .. } => "fetch_url",
             ToolCall::TaskComplete { .. } => "task_complete",
             ToolCall::SpawnAgent { .. } => "spawn_agent",
+            ToolCall::Think { .. } => "think",
         }
     }
 
@@ -273,6 +317,10 @@ impl ToolCall {
                 let short = if task.len() > 60 { let end = task.char_indices().nth(60).map(|(i,_)| i).unwrap_or(task.len()); format!("{}…", &task[..end]) } else { task.clone() };
                 format!("spawn_agent(task={:?}, max_steps={}, max_depth={})", short, max_steps.unwrap_or(10), max_depth.unwrap_or(3))
             }
+            ToolCall::Think { thought } => {
+                let short = if thought.len() > 80 { let end = thought.char_indices().nth(80).map(|(i,_)| i).unwrap_or(thought.len()); format!("{}…", &thought[..end]) } else { thought.clone() };
+                format!("think({})", short)
+            }
         }
     }
 
@@ -283,6 +331,11 @@ impl ToolCall {
             ToolCall::Bash { .. } | ToolCall::WriteFile { .. } | ToolCall::ApplyPatch { .. }
                 | ToolCall::SpawnAgent { .. }
         )
+    }
+
+    /// Returns true if this is a no-op reasoning step (think tool).
+    pub fn is_think(&self) -> bool {
+        matches!(self, ToolCall::Think { .. })
     }
 
     /// Returns true if this ends the agent loop.
@@ -403,6 +456,10 @@ fn parse_single_tool(name: &str, body: &str) -> Option<ToolCall> {
             let max_depth = extract_tag(body, "max_depth")
                 .and_then(|s| s.parse().ok());
             Some(ToolCall::SpawnAgent { task, max_steps, max_depth })
+        }
+        "think" => {
+            let thought = extract_tag(body, "thought").unwrap_or_default();
+            Some(ToolCall::Think { thought })
         }
         _ => None,
     }

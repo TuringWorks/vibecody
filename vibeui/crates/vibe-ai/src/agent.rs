@@ -341,6 +341,13 @@ pub struct AgentContext {
     /// Agent's own ID within a team (for sending messages).
     #[serde(default)]
     pub team_agent_id: Option<String>,
+    /// Auto-detected project summary (from project_init scanner).
+    /// Injected into system prompt for always-on project understanding.
+    #[serde(default)]
+    pub project_summary: Option<String>,
+    /// Auto-gathered relevant file contents for the current task.
+    #[serde(default)]
+    pub task_context_files: Vec<(String, String)>, // (path, preview)
 }
 
 // ── Tool Executor Trait ───────────────────────────────────────────────────────
@@ -655,7 +662,18 @@ impl AgentLoop {
                 return Ok(());
             }
 
-            // ── 3a. Admin policy check ────────────────────────────────────────
+            // ── 3a. Think tool shortcut — no-op, doesn't count as a step ────
+            if call.is_think() {
+                let result = ToolResult::ok("think", "Reasoning noted.");
+                messages.push(Message {
+                    role: MessageRole::User,
+                    content: format_tool_result(&call, &result),
+                });
+                // Don't increment step counter — think is free
+                continue;
+            }
+
+            // ── 3b. Admin policy check ────────────────────────────────────────
             match self.policy.check_tool(call.name()) {
                 crate::policy::PolicyDecision::Block(reason) => {
                     tracing::warn!(tool = %call.name(), reason = %reason, "Tool call blocked by admin policy");
@@ -1061,6 +1079,26 @@ fn build_system_prompt(context: &AgentContext) -> String {
                 extras.push('\n');
                 extras.push_str(&skill.content);
             }
+        }
+    }
+
+    // Auto-inject project context (always-on project understanding)
+    if let Some(project_summary) = &context.project_summary {
+        if !project_summary.is_empty() {
+            extras.push_str(&format!("\n\n{}", project_summary));
+        }
+    }
+
+    // Auto-inject task-relevant file previews
+    if !context.task_context_files.is_empty() {
+        extras.push_str("\n\n## Relevant Files (auto-gathered)\nThe following files were automatically identified as relevant to your task:\n");
+        for (path, preview) in &context.task_context_files {
+            let short = if preview.len() > 2000 {
+                format!("{}…\n[truncated]", &preview[..preview.char_indices().nth(2000).map(|(i,_)| i).unwrap_or(preview.len())])
+            } else {
+                preview.clone()
+            };
+            extras.push_str(&format!("\n### {}\n```\n{}\n```\n", path, short));
         }
     }
 

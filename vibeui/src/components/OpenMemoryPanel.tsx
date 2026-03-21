@@ -1,0 +1,702 @@
+import React, { useState, useEffect, useCallback } from 'react';
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+interface MemoryNode {
+  id: string;
+  content: string;
+  sector: string;
+  tags: string[];
+  salience: number;
+  effective_salience: number;
+  created_at: number;
+  last_seen_at: number;
+  pinned: boolean;
+  encrypted: boolean;
+  project_id?: string;
+  waypoint_count: number;
+}
+
+interface SectorStats {
+  sector: string;
+  count: number;
+  avg_salience: number;
+  avg_age_days: number;
+  pinned_count: number;
+}
+
+interface TemporalFact {
+  id: string;
+  subject: string;
+  predicate: string;
+  object: string;
+  valid_from: number;
+  valid_to: number | null;
+  confidence: number;
+}
+
+interface QueryResult {
+  memory: MemoryNode;
+  score: number;
+  similarity: number;
+  effective_salience: number;
+  recency_score: number;
+  waypoint_score: number;
+  sector_match_score: number;
+}
+
+type Tab = 'overview' | 'memories' | 'query' | 'facts' | 'graph' | 'settings';
+type SectorName = 'episodic' | 'semantic' | 'procedural' | 'emotional' | 'reflective';
+
+const SECTOR_COLORS: Record<SectorName, string> = {
+  episodic: 'var(--vibe-accent-blue, #3b82f6)',
+  semantic: 'var(--vibe-accent-green, #22c55e)',
+  procedural: 'var(--vibe-accent-yellow, #eab308)',
+  emotional: 'var(--vibe-accent-red, #ef4444)',
+  reflective: 'var(--vibe-accent-purple, #a855f7)',
+};
+
+const SECTOR_ICONS: Record<SectorName, string> = {
+  episodic: 'E',
+  semantic: 'S',
+  procedural: 'P',
+  emotional: 'M',
+  reflective: 'R',
+};
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function formatDate(epoch: number): string {
+  if (!epoch) return '—';
+  return new Date(epoch * 1000).toLocaleDateString(undefined, {
+    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+  });
+}
+
+function salienceColor(sal: number): string {
+  if (sal >= 0.7) return 'var(--vibe-accent-green, #22c55e)';
+  if (sal >= 0.4) return 'var(--vibe-accent-yellow, #eab308)';
+  return 'var(--vibe-accent-red, #ef4444)';
+}
+
+// ─── Tauri invoke wrapper (falls back to mock data) ──────────────────────────
+
+async function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
+  try {
+    const { invoke: tauriInvoke } = await import('@tauri-apps/api/core');
+    return await tauriInvoke<T>(cmd, args);
+  } catch {
+    return getMockData(cmd, args) as T;
+  }
+}
+
+function getMockData(cmd: string, args?: Record<string, unknown>): unknown {
+  switch (cmd) {
+    case 'openmemory_stats': return {
+      total_memories: 0, total_waypoints: 0, total_facts: 0,
+      sectors: [],
+    };
+    case 'openmemory_list': return [];
+    case 'openmemory_query': return [];
+    case 'openmemory_facts': return [];
+    default: return null;
+  }
+}
+
+// ─── Component ───────────────────────────────────────────────────────────────
+
+const OpenMemoryPanel: React.FC = () => {
+  const [tab, setTab] = useState<Tab>('overview');
+  const [stats, setStats] = useState<{ total_memories: number; total_waypoints: number; total_facts: number; sectors: SectorStats[] }>({
+    total_memories: 0, total_waypoints: 0, total_facts: 0, sectors: [],
+  });
+  const [memories, setMemories] = useState<MemoryNode[]>([]);
+  const [queryText, setQueryText] = useState('');
+  const [queryResults, setQueryResults] = useState<QueryResult[]>([]);
+  const [facts, setFacts] = useState<TemporalFact[]>([]);
+  const [newContent, setNewContent] = useState('');
+  const [newTags, setNewTags] = useState('');
+  const [sectorFilter, setSectorFilter] = useState<string>('all');
+  const [toast, setToast] = useState<string | null>(null);
+  const [addFactForm, setAddFactForm] = useState({ subject: '', predicate: '', object: '' });
+  const [encryptionKey, setEncryptionKey] = useState('');
+  const [encryptionEnabled, setEncryptionEnabled] = useState(false);
+
+  const showToast = useCallback((msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 3000);
+  }, []);
+
+  const loadStats = useCallback(async () => {
+    const s = await invoke<typeof stats>('openmemory_stats');
+    if (s) setStats(s);
+  }, []);
+
+  const loadMemories = useCallback(async () => {
+    const m = await invoke<MemoryNode[]>('openmemory_list', {
+      offset: 0, limit: 100, sector: sectorFilter === 'all' ? null : sectorFilter,
+    });
+    if (m) setMemories(m);
+  }, [sectorFilter]);
+
+  const loadFacts = useCallback(async () => {
+    const f = await invoke<TemporalFact[]>('openmemory_facts');
+    if (f) setFacts(f);
+  }, []);
+
+  useEffect(() => {
+    loadStats();
+  }, [loadStats]);
+
+  useEffect(() => {
+    if (tab === 'memories') loadMemories();
+    if (tab === 'facts') loadFacts();
+  }, [tab, loadMemories, loadFacts]);
+
+  const handleAdd = async () => {
+    if (!newContent.trim()) return;
+    await invoke('openmemory_add', {
+      content: newContent,
+      tags: newTags.split(',').map(t => t.trim()).filter(Boolean),
+    });
+    setNewContent('');
+    setNewTags('');
+    showToast('Memory added');
+    loadStats();
+    if (tab === 'memories') loadMemories();
+  };
+
+  const handleQuery = async () => {
+    if (!queryText.trim()) return;
+    const results = await invoke<QueryResult[]>('openmemory_query', {
+      text: queryText, limit: 20,
+      sector: sectorFilter === 'all' ? null : sectorFilter,
+    });
+    if (results) setQueryResults(results);
+  };
+
+  const handleDelete = async (id: string) => {
+    await invoke('openmemory_delete', { id });
+    showToast('Memory deleted');
+    loadMemories();
+    loadStats();
+  };
+
+  const handlePin = async (id: string, pin: boolean) => {
+    await invoke(pin ? 'openmemory_pin' : 'openmemory_unpin', { id });
+    showToast(pin ? 'Pinned' : 'Unpinned');
+    loadMemories();
+  };
+
+  const handleAddFact = async () => {
+    const { subject, predicate, object } = addFactForm;
+    if (!subject.trim() || !predicate.trim() || !object.trim()) return;
+    await invoke('openmemory_add_fact', { subject, predicate, object });
+    setAddFactForm({ subject: '', predicate: '', object: '' });
+    showToast('Fact added');
+    loadFacts();
+    loadStats();
+  };
+
+  const handleRunDecay = async () => {
+    const result = await invoke<{ purged: number }>('openmemory_run_decay');
+    showToast(`Decay complete: ${result?.purged ?? 0} memories purged`);
+    loadStats();
+    loadMemories();
+  };
+
+  const handleConsolidate = async () => {
+    const result = await invoke<{ consolidated: number }>('openmemory_consolidate');
+    showToast(`Consolidation: ${result?.consolidated ?? 0} groups merged`);
+    loadStats();
+    loadMemories();
+  };
+
+  const handleExport = async () => {
+    const md = await invoke<string>('openmemory_export');
+    if (md) {
+      const blob = new Blob([md], { type: 'text/markdown' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'openmemory-export.md';
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Exported to markdown');
+    }
+  };
+
+  const tabs: { key: Tab; label: string }[] = [
+    { key: 'overview', label: 'Overview' },
+    { key: 'memories', label: 'Memories' },
+    { key: 'query', label: 'Query' },
+    { key: 'facts', label: 'Facts' },
+    { key: 'graph', label: 'Graph' },
+    { key: 'settings', label: 'Settings' },
+  ];
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', fontFamily: 'var(--vibe-font-family, system-ui)' }}>
+      {/* Toast */}
+      {toast && (
+        <div style={{
+          position: 'fixed', top: 12, right: 12, zIndex: 9999,
+          background: 'var(--vibe-bg-tertiary, #1e293b)', color: 'var(--vibe-text-primary, #e2e8f0)',
+          padding: '8px 16px', borderRadius: 6, fontSize: 13, boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+        }}>{toast}</div>
+      )}
+
+      {/* Tab Bar */}
+      <div style={{
+        display: 'flex', borderBottom: '1px solid var(--vibe-border, #334155)',
+        background: 'var(--vibe-bg-secondary, #0f172a)',
+      }}>
+        {tabs.map(t => (
+          <button key={t.key} onClick={() => setTab(t.key)} style={{
+            padding: '8px 16px', border: 'none', cursor: 'pointer', fontSize: 13,
+            background: tab === t.key ? 'var(--vibe-bg-primary, #1e293b)' : 'transparent',
+            color: tab === t.key ? 'var(--vibe-accent-blue, #3b82f6)' : 'var(--vibe-text-secondary, #94a3b8)',
+            borderBottom: tab === t.key ? '2px solid var(--vibe-accent-blue, #3b82f6)' : '2px solid transparent',
+          }}>{t.label}</button>
+        ))}
+      </div>
+
+      {/* Content */}
+      <div style={{ flex: 1, overflow: 'auto', padding: 16 }}>
+        {/* ─── Overview ─────────────────────────────────────────────── */}
+        {tab === 'overview' && (
+          <div>
+            <h3 style={{ margin: '0 0 12px', color: 'var(--vibe-text-primary, #e2e8f0)' }}>
+              Cognitive Memory Engine
+            </h3>
+            <p style={{ color: 'var(--vibe-text-secondary, #94a3b8)', fontSize: 13, marginBottom: 16 }}>
+              Bio-inspired 5-sector memory with decay, reinforcement, multi-waypoint graph, HNSW vector search, and temporal knowledge graph.
+            </p>
+
+            {/* Summary Cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
+              {[
+                { label: 'Memories', value: stats.total_memories },
+                { label: 'Waypoints', value: stats.total_waypoints },
+                { label: 'Facts', value: stats.total_facts },
+              ].map(c => (
+                <div key={c.label} style={{
+                  background: 'var(--vibe-bg-tertiary, #1e293b)', borderRadius: 8, padding: 16, textAlign: 'center',
+                }}>
+                  <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--vibe-accent-blue, #3b82f6)' }}>{c.value}</div>
+                  <div style={{ fontSize: 12, color: 'var(--vibe-text-secondary, #94a3b8)', marginTop: 4 }}>{c.label}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Sector Breakdown */}
+            <h4 style={{ color: 'var(--vibe-text-primary, #e2e8f0)', marginBottom: 8 }}>Sector Distribution</h4>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
+              {stats.sectors.map(s => (
+                <div key={s.sector} style={{
+                  background: 'var(--vibe-bg-tertiary, #1e293b)', borderRadius: 8, padding: 12,
+                  borderLeft: `3px solid ${SECTOR_COLORS[s.sector as SectorName] || '#666'}`,
+                }}>
+                  <div style={{ fontSize: 11, textTransform: 'uppercase', color: SECTOR_COLORS[s.sector as SectorName] || '#666', marginBottom: 4 }}>
+                    {SECTOR_ICONS[s.sector as SectorName] || '?'} {s.sector}
+                  </div>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--vibe-text-primary, #e2e8f0)' }}>{s.count}</div>
+                  <div style={{ fontSize: 11, color: 'var(--vibe-text-secondary, #94a3b8)' }}>
+                    avg sal: {(s.avg_salience * 100).toFixed(0)}%
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--vibe-text-secondary, #94a3b8)' }}>
+                    {s.pinned_count} pinned
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Quick Add */}
+            <h4 style={{ color: 'var(--vibe-text-primary, #e2e8f0)', margin: '20px 0 8px' }}>Quick Add Memory</h4>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input
+                value={newContent} onChange={e => setNewContent(e.target.value)}
+                placeholder="Enter memory content..."
+                onKeyDown={e => e.key === 'Enter' && handleAdd()}
+                style={{
+                  flex: 1, padding: '8px 12px', borderRadius: 6, border: '1px solid var(--vibe-border, #334155)',
+                  background: 'var(--vibe-bg-tertiary, #1e293b)', color: 'var(--vibe-text-primary, #e2e8f0)', fontSize: 13,
+                }}
+              />
+              <input
+                value={newTags} onChange={e => setNewTags(e.target.value)}
+                placeholder="Tags (comma-sep)"
+                style={{
+                  width: 150, padding: '8px 12px', borderRadius: 6, border: '1px solid var(--vibe-border, #334155)',
+                  background: 'var(--vibe-bg-tertiary, #1e293b)', color: 'var(--vibe-text-primary, #e2e8f0)', fontSize: 13,
+                }}
+              />
+              <button onClick={handleAdd} style={{
+                padding: '8px 16px', borderRadius: 6, border: 'none', cursor: 'pointer',
+                background: 'var(--vibe-accent-blue, #3b82f6)', color: '#fff', fontSize: 13, fontWeight: 600,
+              }}>Add</button>
+            </div>
+
+            {/* Actions */}
+            <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+              <button onClick={handleRunDecay} style={actionBtnStyle}>Run Decay</button>
+              <button onClick={handleConsolidate} style={actionBtnStyle}>Consolidate</button>
+              <button onClick={handleExport} style={actionBtnStyle}>Export Markdown</button>
+            </div>
+          </div>
+        )}
+
+        {/* ─── Memories List ────────────────────────────────────────── */}
+        {tab === 'memories' && (
+          <div>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+              <select value={sectorFilter} onChange={e => setSectorFilter(e.target.value)} style={selectStyle}>
+                <option value="all">All Sectors</option>
+                {Object.keys(SECTOR_COLORS).map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+              <button onClick={loadMemories} style={actionBtnStyle}>Refresh</button>
+            </div>
+
+            {memories.length === 0 ? (
+              <p style={{ color: 'var(--vibe-text-secondary, #94a3b8)', fontSize: 13 }}>
+                No memories yet. Add one from the Overview tab or use the /openmemory REPL command.
+              </p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {memories.map(m => (
+                  <div key={m.id} style={{
+                    background: 'var(--vibe-bg-tertiary, #1e293b)', borderRadius: 8, padding: 12,
+                    borderLeft: `3px solid ${SECTOR_COLORS[m.sector as SectorName] || '#666'}`,
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <span style={{
+                          fontSize: 11, textTransform: 'uppercase', fontWeight: 600,
+                          color: SECTOR_COLORS[m.sector as SectorName] || '#666',
+                        }}>{m.sector}</span>
+                        <span style={{ fontSize: 11, color: salienceColor(m.effective_salience) }}>
+                          {(m.effective_salience * 100).toFixed(0)}%
+                        </span>
+                        {m.pinned && <span style={{ fontSize: 10, color: 'var(--vibe-accent-yellow, #eab308)' }}>PINNED</span>}
+                        {m.encrypted && <span style={{ fontSize: 10, color: 'var(--vibe-accent-purple, #a855f7)' }}>ENCRYPTED</span>}
+                      </div>
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        <button onClick={() => handlePin(m.id, !m.pinned)} style={smallBtnStyle}>
+                          {m.pinned ? 'Unpin' : 'Pin'}
+                        </button>
+                        <button onClick={() => handleDelete(m.id)} style={{ ...smallBtnStyle, color: 'var(--vibe-accent-red, #ef4444)' }}>
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 13, color: 'var(--vibe-text-primary, #e2e8f0)', marginBottom: 6 }}>
+                      {m.content.length > 300 ? m.content.slice(0, 300) + '...' : m.content}
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {m.tags.map(t => (
+                        <span key={t} style={{
+                          fontSize: 11, padding: '2px 8px', borderRadius: 10,
+                          background: 'var(--vibe-bg-primary, #0f172a)', color: 'var(--vibe-text-secondary, #94a3b8)',
+                        }}>{t}</span>
+                      ))}
+                      <span style={{ fontSize: 11, color: 'var(--vibe-text-secondary, #94a3b8)' }}>
+                        {formatDate(m.created_at)}
+                      </span>
+                      {m.waypoint_count > 0 && (
+                        <span style={{ fontSize: 11, color: 'var(--vibe-text-secondary, #94a3b8)' }}>
+                          {m.waypoint_count} links
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ─── Query ────────────────────────────────────────────────── */}
+        {tab === 'query' && (
+          <div>
+            <h4 style={{ color: 'var(--vibe-text-primary, #e2e8f0)', marginBottom: 8 }}>Semantic Memory Query</h4>
+            <p style={{ color: 'var(--vibe-text-secondary, #94a3b8)', fontSize: 12, marginBottom: 12 }}>
+              Composite scoring: similarity + salience + recency + waypoint expansion + sector match
+            </p>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+              <input
+                value={queryText} onChange={e => setQueryText(e.target.value)}
+                placeholder="Search your memories..."
+                onKeyDown={e => e.key === 'Enter' && handleQuery()}
+                style={{
+                  flex: 1, padding: '8px 12px', borderRadius: 6, border: '1px solid var(--vibe-border, #334155)',
+                  background: 'var(--vibe-bg-tertiary, #1e293b)', color: 'var(--vibe-text-primary, #e2e8f0)', fontSize: 13,
+                }}
+              />
+              <select value={sectorFilter} onChange={e => setSectorFilter(e.target.value)} style={selectStyle}>
+                <option value="all">All Sectors</option>
+                {Object.keys(SECTOR_COLORS).map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+              <button onClick={handleQuery} style={{
+                padding: '8px 16px', borderRadius: 6, border: 'none', cursor: 'pointer',
+                background: 'var(--vibe-accent-blue, #3b82f6)', color: '#fff', fontSize: 13, fontWeight: 600,
+              }}>Search</button>
+            </div>
+
+            {queryResults.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {queryResults.map((r, i) => (
+                  <div key={r.memory.id} style={{
+                    background: 'var(--vibe-bg-tertiary, #1e293b)', borderRadius: 8, padding: 12,
+                    borderLeft: `3px solid ${SECTOR_COLORS[r.memory.sector as SectorName] || '#666'}`,
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--vibe-accent-blue, #3b82f6)' }}>
+                        #{i + 1} Score: {r.score.toFixed(3)}
+                      </span>
+                      <span style={{
+                        fontSize: 11, textTransform: 'uppercase',
+                        color: SECTOR_COLORS[r.memory.sector as SectorName] || '#666',
+                      }}>{r.memory.sector}</span>
+                    </div>
+                    <div style={{ fontSize: 13, color: 'var(--vibe-text-primary, #e2e8f0)', marginBottom: 8 }}>
+                      {r.memory.content.length > 400 ? r.memory.content.slice(0, 400) + '...' : r.memory.content}
+                    </div>
+                    <div style={{ display: 'flex', gap: 16, fontSize: 11, color: 'var(--vibe-text-secondary, #94a3b8)' }}>
+                      <span>sim: {r.similarity.toFixed(3)}</span>
+                      <span>sal: {r.effective_salience.toFixed(3)}</span>
+                      <span>rec: {r.recency_score.toFixed(3)}</span>
+                      <span>wp: {r.waypoint_score.toFixed(3)}</span>
+                      <span>sec: {r.sector_match_score.toFixed(3)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ─── Facts ────────────────────────────────────────────────── */}
+        {tab === 'facts' && (
+          <div>
+            <h4 style={{ color: 'var(--vibe-text-primary, #e2e8f0)', marginBottom: 8 }}>Temporal Knowledge Graph</h4>
+            <p style={{ color: 'var(--vibe-text-secondary, #94a3b8)', fontSize: 12, marginBottom: 12 }}>
+              Bi-temporal facts with validity windows. New facts auto-close previous conflicting entries.
+            </p>
+
+            {/* Add Fact Form */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+              <input
+                value={addFactForm.subject} onChange={e => setAddFactForm(f => ({ ...f, subject: e.target.value }))}
+                placeholder="Subject" style={inputStyle}
+              />
+              <input
+                value={addFactForm.predicate} onChange={e => setAddFactForm(f => ({ ...f, predicate: e.target.value }))}
+                placeholder="Predicate" style={inputStyle}
+              />
+              <input
+                value={addFactForm.object} onChange={e => setAddFactForm(f => ({ ...f, object: e.target.value }))}
+                placeholder="Object" style={inputStyle}
+                onKeyDown={e => e.key === 'Enter' && handleAddFact()}
+              />
+              <button onClick={handleAddFact} style={{
+                padding: '8px 16px', borderRadius: 6, border: 'none', cursor: 'pointer',
+                background: 'var(--vibe-accent-green, #22c55e)', color: '#fff', fontSize: 13, fontWeight: 600,
+              }}>Add Fact</button>
+            </div>
+
+            {facts.length === 0 ? (
+              <p style={{ color: 'var(--vibe-text-secondary, #94a3b8)', fontSize: 13 }}>No temporal facts recorded yet.</p>
+            ) : (
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--vibe-border, #334155)' }}>
+                    <th style={thStyle}>Subject</th>
+                    <th style={thStyle}>Predicate</th>
+                    <th style={thStyle}>Object</th>
+                    <th style={thStyle}>Valid From</th>
+                    <th style={thStyle}>Valid To</th>
+                    <th style={thStyle}>Conf.</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {facts.map(f => (
+                    <tr key={f.id} style={{ borderBottom: '1px solid var(--vibe-border, #1e293b)' }}>
+                      <td style={tdStyle}>{f.subject}</td>
+                      <td style={tdStyle}>{f.predicate}</td>
+                      <td style={tdStyle}>{f.object}</td>
+                      <td style={tdStyle}>{formatDate(f.valid_from)}</td>
+                      <td style={tdStyle}>{f.valid_to ? formatDate(f.valid_to) : 'Current'}</td>
+                      <td style={tdStyle}>{(f.confidence * 100).toFixed(0)}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
+
+        {/* ─── Graph Visualization ──────────────────────────────────── */}
+        {tab === 'graph' && (
+          <div>
+            <h4 style={{ color: 'var(--vibe-text-primary, #e2e8f0)', marginBottom: 8 }}>Associative Memory Graph</h4>
+            <p style={{ color: 'var(--vibe-text-secondary, #94a3b8)', fontSize: 12, marginBottom: 16 }}>
+              Multi-waypoint graph (up to 5 links per memory). Exceeds OpenMemory's single-link limitation.
+            </p>
+
+            {/* ASCII graph representation */}
+            <div style={{
+              background: 'var(--vibe-bg-tertiary, #1e293b)', borderRadius: 8, padding: 16,
+              fontFamily: 'var(--vibe-font-mono, monospace)', fontSize: 12, color: 'var(--vibe-text-primary, #e2e8f0)',
+              whiteSpace: 'pre-wrap', minHeight: 200,
+            }}>
+              {stats.total_memories === 0
+                ? 'No memories to graph. Add memories to see the associative network.'
+                : generateAsciiGraph(memories)
+              }
+            </div>
+
+            <div style={{ marginTop: 12, fontSize: 12, color: 'var(--vibe-text-secondary, #94a3b8)' }}>
+              <strong>Legend:</strong> [E]=Episodic [S]=Semantic [P]=Procedural [M]=Emotional [R]=Reflective
+              &nbsp; | Lines show waypoint connections with weight
+            </div>
+          </div>
+        )}
+
+        {/* ─── Settings ─────────────────────────────────────────────── */}
+        {tab === 'settings' && (
+          <div>
+            <h4 style={{ color: 'var(--vibe-text-primary, #e2e8f0)', marginBottom: 12 }}>OpenMemory Settings</h4>
+
+            {/* Encryption */}
+            <div style={{ background: 'var(--vibe-bg-tertiary, #1e293b)', borderRadius: 8, padding: 16, marginBottom: 12 }}>
+              <h5 style={{ color: 'var(--vibe-text-primary, #e2e8f0)', marginBottom: 8 }}>Encryption at Rest</h5>
+              <p style={{ fontSize: 12, color: 'var(--vibe-text-secondary, #94a3b8)', marginBottom: 8 }}>
+                AES-256-GCM encryption for memory content. New memories will be encrypted after enabling.
+              </p>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input
+                  type="password"
+                  value={encryptionKey} onChange={e => setEncryptionKey(e.target.value)}
+                  placeholder="Encryption passphrase..."
+                  style={inputStyle}
+                />
+                <button onClick={async () => {
+                  if (encryptionKey) {
+                    await invoke('openmemory_enable_encryption', { passphrase: encryptionKey });
+                    setEncryptionEnabled(true);
+                    showToast('Encryption enabled');
+                  }
+                }} style={{
+                  ...actionBtnStyle,
+                  background: encryptionEnabled
+                    ? 'var(--vibe-accent-green, #22c55e)'
+                    : 'var(--vibe-accent-blue, #3b82f6)',
+                }}>{encryptionEnabled ? 'Enabled' : 'Enable'}</button>
+              </div>
+            </div>
+
+            {/* Feature Comparison */}
+            <div style={{ background: 'var(--vibe-bg-tertiary, #1e293b)', borderRadius: 8, padding: 16 }}>
+              <h5 style={{ color: 'var(--vibe-text-primary, #e2e8f0)', marginBottom: 8 }}>
+                VibeCody vs OpenMemory
+              </h5>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--vibe-border, #334155)' }}>
+                    <th style={thStyle}>Feature</th>
+                    <th style={thStyle}>OpenMemory</th>
+                    <th style={thStyle}>VibeCody</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    ['Classification', 'Regex patterns', 'TF-IDF + keyword scoring'],
+                    ['Graph links', 'Single (1 per node)', 'Multi (top-5 per node)'],
+                    ['Vector search', 'Brute-force cosine', 'HNSW ANN index'],
+                    ['Encryption', 'Not implemented', 'AES-256-GCM'],
+                    ['Consolidation', 'None', 'Sleep-cycle merging'],
+                    ['Embeddings', 'External API required', 'Local TF-IDF (zero deps)'],
+                    ['Temporal graph', 'Basic validity', 'Bi-temporal + point-in-time'],
+                    ['Scoping', 'user_id only', 'User + project + workspace'],
+                    ['IDE integration', 'VS Code extension', 'CLI + REPL + VibeUI + agents'],
+                  ].map(([feat, om, vc]) => (
+                    <tr key={feat} style={{ borderBottom: '1px solid var(--vibe-border, #1e293b)' }}>
+                      <td style={tdStyle}>{feat}</td>
+                      <td style={tdStyle}>{om}</td>
+                      <td style={{ ...tdStyle, color: 'var(--vibe-accent-green, #22c55e)' }}>{vc}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ─── ASCII Graph Generator ───────────────────────────────────────────────────
+
+function generateAsciiGraph(memories: MemoryNode[]): string {
+  if (memories.length === 0) return 'Empty graph.';
+  const lines: string[] = ['Associative Memory Network:', ''];
+
+  const bySection: Record<string, MemoryNode[]> = {};
+  for (const m of memories) {
+    (bySection[m.sector] ||= []).push(m);
+  }
+
+  for (const [sector, mems] of Object.entries(bySection)) {
+    const icon = SECTOR_ICONS[sector as SectorName] || '?';
+    lines.push(`  [${icon}] ${sector.toUpperCase()} (${mems.length} nodes):`);
+    for (const m of mems.slice(0, 5)) {
+      const sal = (m.effective_salience * 100).toFixed(0);
+      const snippet = m.content.slice(0, 50).replace(/\n/g, ' ');
+      const links = m.waypoint_count > 0 ? ` --${m.waypoint_count} links-->` : '';
+      lines.push(`    * ${sal}% "${snippet}..."${links}`);
+    }
+    if (mems.length > 5) lines.push(`    ... and ${mems.length - 5} more`);
+    lines.push('');
+  }
+
+  return lines.join('\n');
+}
+
+// ─── Shared Styles ───────────────────────────────────────────────────────────
+
+const actionBtnStyle: React.CSSProperties = {
+  padding: '6px 14px', borderRadius: 6, border: '1px solid var(--vibe-border, #334155)',
+  cursor: 'pointer', fontSize: 12, fontWeight: 500,
+  background: 'var(--vibe-bg-tertiary, #1e293b)', color: 'var(--vibe-text-primary, #e2e8f0)',
+};
+
+const smallBtnStyle: React.CSSProperties = {
+  padding: '2px 8px', borderRadius: 4, border: '1px solid var(--vibe-border, #334155)',
+  cursor: 'pointer', fontSize: 11,
+  background: 'transparent', color: 'var(--vibe-text-secondary, #94a3b8)',
+};
+
+const selectStyle: React.CSSProperties = {
+  padding: '8px 12px', borderRadius: 6, border: '1px solid var(--vibe-border, #334155)',
+  background: 'var(--vibe-bg-tertiary, #1e293b)', color: 'var(--vibe-text-primary, #e2e8f0)', fontSize: 13,
+};
+
+const inputStyle: React.CSSProperties = {
+  flex: 1, padding: '8px 12px', borderRadius: 6, border: '1px solid var(--vibe-border, #334155)',
+  background: 'var(--vibe-bg-tertiary, #1e293b)', color: 'var(--vibe-text-primary, #e2e8f0)', fontSize: 13,
+};
+
+const thStyle: React.CSSProperties = {
+  textAlign: 'left', padding: '6px 8px', color: 'var(--vibe-text-secondary, #94a3b8)', fontWeight: 600,
+};
+
+const tdStyle: React.CSSProperties = {
+  padding: '6px 8px', color: 'var(--vibe-text-primary, #e2e8f0)',
+};
+
+export default OpenMemoryPanel;

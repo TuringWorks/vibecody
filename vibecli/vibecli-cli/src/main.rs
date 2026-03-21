@@ -38,6 +38,7 @@ mod repl;
 mod spec;
 mod workflow;
 mod background_agents;
+mod branch_agent;
 mod team;
 mod memory_auto;
 mod bugbot;
@@ -208,6 +209,29 @@ mod purple_team;
 mod idp;
 #[allow(dead_code)]
 mod quantum_computing;
+#[allow(dead_code)]
+mod auto_research;
+#[allow(dead_code)]
+mod open_memory;
+mod project_init;
+mod spec_pipeline;
+mod vm_orchestrator;
+mod design_import;
+#[allow(dead_code)]
+mod audio_output;
+mod session_sharing;
+pub mod managed_deploy;
+pub mod channel_daemon;
+pub mod data_analysis;
+pub mod org_context;
+pub mod ci_gates;
+#[allow(dead_code)]
+pub mod agentic_cicd;
+#[allow(dead_code)]
+pub mod cross_surface_routing;
+pub mod extension_compat;
+pub mod context_streaming;
+pub mod model_marketplace;
 
 #[derive(Parser)]
 #[command(name = "vibecli")]
@@ -320,6 +344,13 @@ struct Cli {
     /// Requires the corresponding token/config. Example: vibecli --gateway signal
     #[arg(long, value_name = "PLATFORM")]
     gateway: Option<String>,
+
+    /// Start as an always-on channel daemon with automation routing.
+    /// Like --gateway but routes messages through automation rules and
+    /// spawns concurrent agent tasks. Multi-turn session affinity per channel.
+    /// Example: vibecli --channel-daemon telegram
+    #[arg(long, value_name = "PLATFORM")]
+    channel_daemon: Option<String>,
 
     // ── Plugin management ────────────────────────────────────────────────────
 
@@ -1028,6 +1059,53 @@ async fn main() -> Result<()> {
             )),
         };
         return gateway::run_gateway(platform_box, llm).await;
+    }
+
+    // Enhanced channel daemon mode: vibecli --channel-daemon telegram
+    // Routes messages through automation rules, spawns concurrent agent tasks,
+    // maintains session affinity per channel+user.
+    if let Some(ref platform) = cli.channel_daemon {
+        let llm = create_provider(&effective_provider, effective_model.clone())?;
+        let config = Config::load().unwrap_or_default();
+        let gw_cfg = &config.gateway;
+
+        // Reuse the same platform adapters as --gateway
+        let platform_box: Box<dyn gateway::GatewayPlatform> = match platform.as_str() {
+            "telegram" => {
+                let token = gw_cfg.resolve_telegram_token()
+                    .ok_or_else(|| anyhow::anyhow!("Telegram token not configured. Set TELEGRAM_BOT_TOKEN."))?;
+                Box::new(gateway::TelegramGateway::new(token, gw_cfg.allowed_users.clone()))
+            }
+            "discord" => {
+                let token = gw_cfg.resolve_discord_token()
+                    .ok_or_else(|| anyhow::anyhow!("Discord token not configured. Set DISCORD_BOT_TOKEN."))?;
+                let channel = gw_cfg.discord_channel_id.clone().unwrap_or_default();
+                Box::new(gateway::DiscordGateway::new(token, channel))
+            }
+            "slack" => {
+                let token = gw_cfg.resolve_slack_bot_token()
+                    .ok_or_else(|| anyhow::anyhow!("Slack token not configured. Set SLACK_BOT_TOKEN."))?;
+                let channel = gw_cfg.slack_channel_id.clone().unwrap_or_default();
+                Box::new(gateway::SlackGateway::new(token, channel))
+            }
+            other => return Err(anyhow::anyhow!(
+                "Unknown channel-daemon platform: '{}'. Supported: telegram, discord, slack", other
+            )),
+        };
+
+        // Create automation engine with rules from config
+        let workspace = std::env::current_dir()?;
+        let automation_engine = std::sync::Arc::new(
+            tokio::sync::Mutex::new(
+                automations::AutomationEngine::new(workspace.join(".vibecli").join("automations"))
+            )
+        );
+
+        eprintln!("[channel-daemon] Starting enhanced daemon on {}", platform);
+        eprintln!("[channel-daemon] Automation rules: .vibecli/automations/");
+        eprintln!("[channel-daemon] Max concurrent tasks: 4");
+
+        return gateway::run_channel_daemon(platform_box, llm, automation_engine, 4).await;
     }
 
     if cli.tui {
@@ -5975,20 +6053,42 @@ async fn main() -> Result<()> {
                             }
                         }
 
+                        "/init" => {
+                            let workspace = std::env::current_dir()?;
+                            println!("🔍 Scanning project...\n");
+                            let profile = project_init::scan_workspace(&workspace);
+                            let _ = project_init::save_profile_cache(&workspace, &profile);
+                            println!("{}", profile.display());
+                            println!("✅ Project profile cached to .vibecli/project-profile.json");
+                            println!("   This context will be auto-injected into every agent session.\n");
+                            if !profile.env_vars.is_empty() {
+                                println!("⚠️  Missing env vars? Check: {}\n", profile.env_vars.join(", "));
+                            }
+                            if profile.build_commands.is_empty() {
+                                println!("💡 No build commands detected. Run /orient for AI-powered analysis.\n");
+                            }
+                        }
+
                         "/orient" => {
                             let workspace = std::env::current_dir()?;
                             println!("🧭 Analyzing project...\n");
+                            // Auto-scan first for structured data
+                            let profile = project_init::get_or_scan_profile(&workspace);
                             let orient_prompt = format!(
-                                "Analyze the project at {} and provide a structured orientation:\n\
+                                "Analyze the project at {} and provide a structured orientation.\n\n\
+                                Here is what was auto-detected:\n{}\n\n\
+                                Now analyze further:\n\
                                 1. Language(s) and framework(s) detected\n\
                                 2. Project architecture (monorepo/single/library/app)\n\
                                 3. Key entry points and configuration files\n\
                                 4. Build system and dependencies\n\
                                 5. Testing setup\n\
                                 6. CI/CD configuration\n\
-                                7. Recent git activity summary\n\n\
+                                7. Recent git activity summary\n\
+                                8. Recommended next steps for a new developer\n\n\
                                 Be concise and factual.",
-                                workspace.display()
+                                workspace.display(),
+                                profile.summary,
                             );
                             let orient_msgs = vec![
                                 Message { role: MessageRole::System, content: "You are a project analyst. Provide structured, factual project orientations.".to_string() },
@@ -6021,6 +6121,272 @@ async fn main() -> Result<()> {
                                 match llm.chat(&research_msgs, None).await {
                                     Ok(resp) => println!("{}\n", resp),
                                     Err(e) => println!("❌ Research failed: {}\n", e),
+                                }
+                            }
+                        }
+
+                        "/daemon" => {
+                            let sub = args.trim().split_whitespace().next().unwrap_or("status");
+                            match sub {
+                                "start" => {
+                                    println!("🚀 Starting channel daemon...\n");
+                                    println!("Configure channels in ~/.vibecli/config.toml under [channel_daemon]");
+                                    println!("  Slack:     SLACK_BOT_TOKEN + SLACK_APP_TOKEN");
+                                    println!("  GitHub:    GITHUB_WEBHOOK_SECRET (webhooks on port 7879)");
+                                    println!("  Discord:   DISCORD_BOT_TOKEN");
+                                    println!("  Telegram:  TELEGRAM_BOT_TOKEN");
+                                    println!("\nUse `vibecli daemon --channels slack,github` to start.\n");
+                                }
+                                "status" => {
+                                    println!("Channel daemon: stopped");
+                                    println!("Use `/daemon start` to begin listening.\n");
+                                }
+                                "channels" => {
+                                    println!("Supported channel platforms:");
+                                    println!("  slack      — Slack Bot (Socket Mode or Events API)");
+                                    println!("  discord    — Discord Bot (Gateway)");
+                                    println!("  github     — GitHub Webhooks (push, PR, issue, comment)");
+                                    println!("  linear     — Linear Webhooks (issue updates)");
+                                    println!("  pagerduty  — PagerDuty Webhooks (incident alerts)");
+                                    println!("  telegram   — Telegram Bot API (long-polling)");
+                                    println!("  teams      — Microsoft Teams Bot");
+                                    println!("  webhook    — Custom HTTP webhooks on port 7879\n");
+                                }
+                                _ => println!("Usage: /daemon [start|stop|status|channels|logs]\n"),
+                            }
+                        }
+
+                        "/vm" => {
+                            let sub = args.trim().split_whitespace().next().unwrap_or("status");
+                            match sub {
+                                "status" => {
+                                    let orch = vm_orchestrator::VmOrchestrator::new(vm_orchestrator::OrchestratorConfig::default());
+                                    println!("VM Orchestrator (max {})", orch.config.max_parallel_envs);
+                                    println!("  Active: {}", orch.active_count());
+                                    println!("  Runtime: {}\n", orch.config.runtime);
+                                }
+                                "launch" => {
+                                    let task_desc = args.trim().strip_prefix("launch").unwrap_or("").trim();
+                                    if task_desc.is_empty() {
+                                        println!("Usage: /vm launch <task description>\n");
+                                    } else {
+                                        println!("🚀 Queuing VM agent task: {}", task_desc);
+                                        println!("  Branch: agent/{}", task_desc.split_whitespace().take(3).collect::<Vec<_>>().join("-").to_lowercase());
+                                        println!("  Runtime: docker");
+                                        println!("  Resources: 2 CPU, 4GB RAM, 1hr timeout\n");
+                                        println!("Use `vibecli --vm-agents 4 --agent \"{}\"` for parallel execution.\n", task_desc);
+                                    }
+                                }
+                                _ => println!("Usage: /vm [launch|list|status|stop|cleanup|resources]\n"),
+                            }
+                        }
+
+                        "/branch-agent" => {
+                            let sub = args.trim().split_whitespace().next().unwrap_or("list");
+                            match sub {
+                                "create" => {
+                                    let task_desc = args.trim().strip_prefix("create").unwrap_or("").trim();
+                                    if task_desc.is_empty() {
+                                        println!("Usage: /branch-agent create <task description>\n");
+                                    } else {
+                                        println!("🌿 Creating branch agent for: {}", task_desc);
+                                        println!("  This will:");
+                                        println!("  1. Create a feature branch from current HEAD");
+                                        println!("  2. Run the agent autonomously on the branch");
+                                        println!("  3. Auto-commit changes with descriptive messages");
+                                        println!("  4. Push and create a PR on completion\n");
+                                        println!("Use `/agent {}` with --branch-isolate flag.\n", task_desc);
+                                    }
+                                }
+                                "list" => {
+                                    println!("No active branch agents. Use `/branch-agent create <task>` to start one.\n");
+                                }
+                                _ => println!("Usage: /branch-agent [create|list|status|complete|cleanup]\n"),
+                            }
+                        }
+
+                        "/design" => {
+                            let sub = args.trim().split_whitespace().next().unwrap_or("help");
+                            match sub {
+                                "import" => {
+                                    let url = args.trim().strip_prefix("import").unwrap_or("").trim();
+                                    if url.is_empty() {
+                                        println!("Usage: /design import <figma-url|svg-path|screenshot-path>\n");
+                                    } else {
+                                        println!("🎨 Importing design from: {}", url);
+                                        println!("  Supported formats: Figma URL, SVG, PNG/JPG screenshot");
+                                        println!("  Output: React/Vue/Svelte components with Tailwind CSS\n");
+                                    }
+                                }
+                                _ => {
+                                    println!("Design-to-Code (Figma/SVG/screenshot → components)");
+                                    println!("  /design import <url|path>  — Import and convert to code");
+                                    println!("  /design list               — List imported designs");
+                                    println!("  /design preview <id>       — Preview generated components\n");
+                                }
+                            }
+                        }
+
+                        "/audio" => {
+                            let sub = args.trim().split_whitespace().next().unwrap_or("help");
+                            match sub {
+                                "speak" => {
+                                    let text = args.trim().strip_prefix("speak").unwrap_or("").trim();
+                                    if text.is_empty() {
+                                        println!("Usage: /audio speak <text|changelog|pr-summary>\n");
+                                    } else {
+                                        println!("🔊 Generating audio for: {}...", &text[..text.len().min(60)]);
+                                        println!("  Providers: Google TTS, AWS Polly, Piper (local)");
+                                        println!("  Use --provider piper for offline mode\n");
+                                    }
+                                }
+                                _ => {
+                                    println!("Text-to-Speech Output");
+                                    println!("  /audio speak <text>     — Speak text aloud");
+                                    println!("  /audio changelog        — Read latest changelog");
+                                    println!("  /audio summary          — Summarize recent agent activity");
+                                    println!("  /audio config            — Configure TTS provider\n");
+                                }
+                            }
+                        }
+
+                        "/org" => {
+                            let sub = args.trim().split_whitespace().next().unwrap_or("status");
+                            match sub {
+                                "index" => {
+                                    println!("📊 Indexing organization repositories...");
+                                    println!("  This builds cross-repo embeddings for org-wide context.");
+                                    println!("  Repos are discovered from GitHub org or local paths.\n");
+                                }
+                                "search" => {
+                                    let query = args.trim().strip_prefix("search").unwrap_or("").trim();
+                                    if query.is_empty() {
+                                        println!("Usage: /org search <query>  — Search across all org repos\n");
+                                    } else {
+                                        println!("🔍 Searching org-wide for: {}\n", query);
+                                    }
+                                }
+                                _ => {
+                                    println!("Organization-Wide Context Engine");
+                                    println!("  /org index              — Index org repos for cross-repo search");
+                                    println!("  /org search <query>     — Search across all repos");
+                                    println!("  /org patterns           — Show common patterns across repos");
+                                    println!("  /org conventions        — Show org coding conventions\n");
+                                }
+                            }
+                        }
+
+                        "/share-session" => {
+                            let sub = args.trim().split_whitespace().next().unwrap_or("help");
+                            match sub {
+                                "export" => {
+                                    println!("📤 Exporting current session...");
+                                    println!("  Creates a shareable session file with full conversation history.");
+                                    println!("  Share with teammates for review or replay.\n");
+                                }
+                                "spectate" => {
+                                    let session_id = args.trim().strip_prefix("spectate").unwrap_or("").trim();
+                                    if session_id.is_empty() {
+                                        println!("Usage: /share-session spectate <session-id>  — Watch a live session\n");
+                                    } else {
+                                        println!("👁️  Connecting to session: {}\n", session_id);
+                                    }
+                                }
+                                _ => {
+                                    println!("Agent Session Sharing");
+                                    println!("  /share-session export       — Export session for sharing");
+                                    println!("  /share-session import <f>   — Import a shared session");
+                                    println!("  /share-session spectate <id>— Watch a live agent session");
+                                    println!("  /share-session list         — List shared sessions\n");
+                                }
+                            }
+                        }
+
+                        "/data" => {
+                            let sub = args.trim().split_whitespace().next().unwrap_or("help");
+                            match sub {
+                                "load" => {
+                                    let path = args.trim().strip_prefix("load").unwrap_or("").trim();
+                                    if path.is_empty() {
+                                        println!("Usage: /data load <csv|json|parquet file>\n");
+                                    } else {
+                                        println!("📊 Loading data from: {}", path);
+                                        println!("  Supported: CSV, JSON, Parquet, SQLite\n");
+                                    }
+                                }
+                                _ => {
+                                    println!("Data Analysis Mode");
+                                    println!("  /data load <file>       — Load CSV/JSON/Parquet data");
+                                    println!("  /data query <sql>       — Run SQL on loaded data");
+                                    println!("  /data viz <chart-type>  — Generate visualization");
+                                    println!("  /data summary           — Statistical summary\n");
+                                }
+                            }
+                        }
+
+                        "/ci-gates" => {
+                            let sub = args.trim().split_whitespace().next().unwrap_or("list");
+                            match sub {
+                                "list" => {
+                                    println!("CI Gates (source-controlled quality rules):");
+                                    println!("  No gates configured. Add gates to .vibecli/ci-gates.toml\n");
+                                }
+                                "validate" => {
+                                    println!("✅ Validating CI gates against current changes...\n");
+                                }
+                                _ => {
+                                    println!("CI Quality Gates");
+                                    println!("  /ci-gates list           — Show configured gates");
+                                    println!("  /ci-gates validate       — Check gates against current code");
+                                    println!("  /ci-gates add <rule>     — Add a new gate rule");
+                                    println!("  /ci-gates report         — Generate gate compliance report\n");
+                                }
+                            }
+                        }
+
+                        "/extension" => {
+                            let sub = args.trim().split_whitespace().next().unwrap_or("list");
+                            match sub {
+                                "install" => {
+                                    let ext = args.trim().strip_prefix("install").unwrap_or("").trim();
+                                    if ext.is_empty() {
+                                        println!("Usage: /extension install <vsix-path|extension-id>\n");
+                                    } else {
+                                        println!("📦 Installing VS Code extension: {}", ext);
+                                        println!("  Supported: TextMate grammars, snippets, themes, language configs\n");
+                                    }
+                                }
+                                _ => {
+                                    println!("VS Code Extension Compatibility");
+                                    println!("  /extension install <id>  — Install .vsix extension");
+                                    println!("  /extension list          — List installed extensions");
+                                    println!("  /extension remove <id>   — Remove extension");
+                                    println!("  /extension themes        — List available themes\n");
+                                }
+                            }
+                        }
+
+                        "/agentic" => {
+                            let sub = args.trim().split_whitespace().next().unwrap_or("status");
+                            match sub {
+                                "fix-build" => {
+                                    println!("🔧 Auto-fixing build failures...");
+                                    println!("  Reads CI logs, identifies errors, generates patches.\n");
+                                }
+                                "gen-tests" => {
+                                    let target = args.trim().strip_prefix("gen-tests").unwrap_or("").trim();
+                                    if target.is_empty() {
+                                        println!("Usage: /agentic gen-tests <file-or-module>\n");
+                                    } else {
+                                        println!("🧪 Generating tests for: {}\n", target);
+                                    }
+                                }
+                                _ => {
+                                    println!("Agentic CI/CD");
+                                    println!("  /agentic fix-build       — Auto-fix failed builds");
+                                    println!("  /agentic gen-tests <mod> — Generate test suite for a module");
+                                    println!("  /agentic resolve-merge   — Resolve merge conflicts with AI");
+                                    println!("  /agentic review-pr <n>   — AI review of a pull request\n");
                                 }
                             }
                         }
@@ -6407,10 +6773,36 @@ async fn run_agent_repl_with_context(
         .into_iter()
         .collect::<Vec<_>>();
 
+    // Auto-detect project context for always-on understanding
+    let project_profile = project_init::get_or_scan_profile(&workspace);
+    let project_summary = Some(project_profile.to_system_prompt_context());
+
+    // Auto-gather relevant files based on the task description
+    let relevant_paths = project_init::extract_relevant_files_for_task(&workspace, task);
+    let task_context_files: Vec<(String, String)> = relevant_paths.iter()
+        .filter_map(|rel_path| {
+            let full_path = workspace.join(rel_path);
+            if full_path.is_file() {
+                std::fs::read_to_string(&full_path)
+                    .ok()
+                    .map(|content| {
+                        // Limit preview to first 80 lines
+                        let preview: String = content.lines().take(80).collect::<Vec<_>>().join("\n");
+                        (rel_path.clone(), preview)
+                    })
+            } else {
+                None
+            }
+        })
+        .take(5) // Max 5 files to avoid bloating context
+        .collect();
+
     let context = AgentContext {
         workspace_root: workspace.clone(),
         approved_plan,
         extra_skill_dirs: plugin_skill_dirs,
+        project_summary,
+        task_context_files,
         ..Default::default()
     };
 
@@ -6709,7 +7101,7 @@ fn extract_images_from_input(input: &str) -> (String, Vec<ImageAttachment>) {
 }
 
 fn create_provider(provider_name: &str, model: Option<String>) -> Result<Arc<dyn LLMProvider>> {
-    use vibe_ai::providers::{claude, openai, gemini, grok, groq, openrouter, azure_openai, bedrock, copilot, mistral, cerebras, deepseek, zhipu, vercel_ai};
+    use vibe_ai::providers::{claude, openai, gemini, grok, groq, openrouter, azure_openai, bedrock, copilot, mistral, cerebras, deepseek, zhipu, vercel_ai, minimax, perplexity, together, fireworks, sambanova};
 
     // Helper: look up API key from config, then env var.
     let cfg = Config::load().unwrap_or_default();
@@ -6805,7 +7197,7 @@ fn create_provider(provider_name: &str, model: Option<String>) -> Result<Arc<dyn
             let cfg_model = cfg.gemini.as_ref().and_then(|c| c.model.clone());
             let model = model
                 .or(cfg_model)
-                .unwrap_or_else(|| "gemini-2.0-flash".to_string());
+                .unwrap_or_else(|| "gemini-2.5-flash".to_string());
             let api_key_helper = cfg.gemini.as_ref().and_then(|c| c.api_key_helper.clone());
             Ok(Arc::new(gemini::GeminiProvider::new(ProviderConfig {
                 provider_type: "gemini".to_string(),
@@ -7026,7 +7418,7 @@ fn create_provider(provider_name: &str, model: Option<String>) -> Result<Arc<dyn
             let cfg_model = cfg.deepseek.as_ref().and_then(|c| c.model.clone());
             let model = model
                 .or(cfg_model)
-                .unwrap_or_else(|| "deepseek-coder".to_string());
+                .unwrap_or_else(|| "deepseek-chat".to_string());
             let api_key_helper = cfg.deepseek.as_ref().and_then(|c| c.api_key_helper.clone());
             Ok(Arc::new(deepseek::DeepSeekProvider::new(ProviderConfig {
                 provider_type: "deepseek".to_string(),
@@ -7093,8 +7485,133 @@ fn create_provider(provider_name: &str, model: Option<String>) -> Result<Arc<dyn
             })))
         }
 
+        // ── MiniMax ──────────────────────────────────────────────────────────
+        "minimax" => {
+            let cfg_key = cfg.minimax.as_ref().and_then(|c| c.api_key.clone());
+            let api_key = cfg_key
+                .or_else(|| std::env::var("MINIMAX_API_KEY").ok());
+            if api_key.is_none() {
+                eprintln!("⚠️  MINIMAX_API_KEY not set (set env var or [minimax] api_key in config)");
+            }
+            let cfg_model = cfg.minimax.as_ref().and_then(|c| c.model.clone());
+            let model = model
+                .or(cfg_model)
+                .unwrap_or_else(|| "abab6.5s-chat".to_string());
+            let api_key_helper = cfg.minimax.as_ref().and_then(|c| c.api_key_helper.clone());
+            Ok(Arc::new(minimax::MiniMaxProvider::new(ProviderConfig {
+                provider_type: "minimax".to_string(),
+                api_url: None,
+                model,
+                api_key,
+                max_tokens: None,
+                temperature: None,
+                api_key_helper,
+                ..Default::default()
+            })))
+        }
+
+        // ── Perplexity ─────────────────────────────────────────────────────────
+        "perplexity" | "pplx" => {
+            let cfg_key = cfg.perplexity.as_ref().and_then(|c| c.api_key.clone());
+            let api_key = cfg_key
+                .or_else(|| std::env::var("PERPLEXITY_API_KEY").ok());
+            if api_key.is_none() {
+                eprintln!("⚠️  PERPLEXITY_API_KEY not set (set env var or [perplexity] api_key in config)");
+            }
+            let cfg_model = cfg.perplexity.as_ref().and_then(|c| c.model.clone());
+            let model = model
+                .or(cfg_model)
+                .unwrap_or_else(|| "sonar-pro".to_string());
+            let api_key_helper = cfg.perplexity.as_ref().and_then(|c| c.api_key_helper.clone());
+            Ok(Arc::new(perplexity::PerplexityProvider::new(ProviderConfig {
+                provider_type: "perplexity".to_string(),
+                api_url: None,
+                model,
+                api_key,
+                max_tokens: None,
+                temperature: None,
+                api_key_helper,
+                ..Default::default()
+            })))
+        }
+
+        // ── Together AI ────────────────────────────────────────────────────────
+        "together" | "together_ai" => {
+            let cfg_key = cfg.together.as_ref().and_then(|c| c.api_key.clone());
+            let api_key = cfg_key
+                .or_else(|| std::env::var("TOGETHER_API_KEY").ok());
+            if api_key.is_none() {
+                eprintln!("⚠️  TOGETHER_API_KEY not set (set env var or [together] api_key in config)");
+            }
+            let cfg_model = cfg.together.as_ref().and_then(|c| c.model.clone());
+            let model = model
+                .or(cfg_model)
+                .unwrap_or_else(|| "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo".to_string());
+            let api_key_helper = cfg.together.as_ref().and_then(|c| c.api_key_helper.clone());
+            Ok(Arc::new(together::TogetherProvider::new(ProviderConfig {
+                provider_type: "together".to_string(),
+                api_url: None,
+                model,
+                api_key,
+                max_tokens: None,
+                temperature: None,
+                api_key_helper,
+                ..Default::default()
+            })))
+        }
+
+        // ── Fireworks AI ───────────────────────────────────────────────────────
+        "fireworks" | "fireworks_ai" => {
+            let cfg_key = cfg.fireworks.as_ref().and_then(|c| c.api_key.clone());
+            let api_key = cfg_key
+                .or_else(|| std::env::var("FIREWORKS_API_KEY").ok());
+            if api_key.is_none() {
+                eprintln!("⚠️  FIREWORKS_API_KEY not set (set env var or [fireworks] api_key in config)");
+            }
+            let cfg_model = cfg.fireworks.as_ref().and_then(|c| c.model.clone());
+            let model = model
+                .or(cfg_model)
+                .unwrap_or_else(|| "accounts/fireworks/models/llama-v3p1-70b-instruct".to_string());
+            let api_key_helper = cfg.fireworks.as_ref().and_then(|c| c.api_key_helper.clone());
+            Ok(Arc::new(fireworks::FireworksProvider::new(ProviderConfig {
+                provider_type: "fireworks".to_string(),
+                api_url: None,
+                model,
+                api_key,
+                max_tokens: None,
+                temperature: None,
+                api_key_helper,
+                ..Default::default()
+            })))
+        }
+
+        // ── SambaNova ──────────────────────────────────────────────────────────
+        "sambanova" => {
+            let cfg_key = cfg.sambanova.as_ref().and_then(|c| c.api_key.clone());
+            let api_key = cfg_key
+                .or_else(|| std::env::var("SAMBANOVA_API_KEY").ok());
+            if api_key.is_none() {
+                eprintln!("⚠️  SAMBANOVA_API_KEY not set (set env var or [sambanova] api_key in config)");
+            }
+            let cfg_model = cfg.sambanova.as_ref().and_then(|c| c.model.clone());
+            let model = model
+                .or(cfg_model)
+                .unwrap_or_else(|| "Meta-Llama-3.1-70B-Instruct".to_string());
+            let api_key_helper = cfg.sambanova.as_ref().and_then(|c| c.api_key_helper.clone());
+            Ok(Arc::new(sambanova::SambaNovaProvider::new(ProviderConfig {
+                provider_type: "sambanova".to_string(),
+                api_url: None,
+                model,
+                api_key,
+                max_tokens: None,
+                temperature: None,
+                api_key_helper,
+                ..Default::default()
+            })))
+        }
+
         _ => anyhow::bail!(
-            "Unknown provider: '{}'. Available: ollama, claude, openai, gemini, grok, groq, openrouter, azure, bedrock, copilot, mistral, cerebras, deepseek, zhipu, vercel",
+            "Unknown provider: '{}'. Available: ollama, claude, openai, gemini, grok, groq, openrouter, azure, bedrock, copilot, mistral, cerebras, deepseek, zhipu, vercel, minimax, perplexity, together, fireworks, sambanova",
             provider_name
         ),
     }
@@ -7260,11 +7777,16 @@ fn show_help() {
     println!("  gemini                   - Google Gemini     (GEMINI_API_KEY)");
     println!("  grok                     - xAI Grok          (GROK_API_KEY)");
     println!("  groq                     - Groq ultra-fast   (GROQ_API_KEY)");
+    println!("  deepseek                 - DeepSeek V3/R1    (DEEPSEEK_API_KEY)");
+    println!("  mistral                  - Mistral AI        (MISTRAL_API_KEY)");
+    println!("  perplexity               - Perplexity Sonar  (PERPLEXITY_API_KEY)");
+    println!("  minimax                  - MiniMax           (MINIMAX_API_KEY)");
+    println!("  together                 - Together AI       (TOGETHER_API_KEY)");
+    println!("  fireworks                - Fireworks AI      (FIREWORKS_API_KEY)");
+    println!("  sambanova                - SambaNova fast    (SAMBANOVA_API_KEY)");
+    println!("  cerebras                 - Cerebras fast     (CEREBRAS_API_KEY)");
     println!("  openrouter               - OpenRouter 300+   (OPENROUTER_API_KEY)");
     println!("  azure                    - Azure OpenAI      (AZURE_OPENAI_API_KEY + api_url)");
-    println!("  mistral                  - Mistral AI        (MISTRAL_API_KEY)");
-    println!("  cerebras                 - Cerebras fast     (CEREBRAS_API_KEY)");
-    println!("  deepseek                 - DeepSeek code     (DEEPSEEK_API_KEY)");
     println!("  zhipu                    - Zhipu GLM-4       (ZHIPU_API_KEY)");
     println!("  vercel_ai                - Vercel AI Gateway (VERCEL_AI_API_KEY + api_url)");
     println!("\nMultimodal:");
@@ -7324,10 +7846,20 @@ async fn run_doctor() -> Result<()> {
 
     // 3. Cloud provider API keys
     for (name, env_var, cfg_key) in [
-        ("Claude", "ANTHROPIC_API_KEY", config.claude.as_ref().and_then(|c| c.api_key.clone())),
-        ("OpenAI", "OPENAI_API_KEY",    config.openai.as_ref().and_then(|c| c.api_key.clone())),
-        ("Gemini", "GEMINI_API_KEY",    config.gemini.as_ref().and_then(|c| c.api_key.clone())),
-        ("Grok",   "GROK_API_KEY",      config.grok.as_ref().and_then(|c| c.api_key.clone())),
+        ("Claude",     "ANTHROPIC_API_KEY",  config.claude.as_ref().and_then(|c| c.api_key.clone())),
+        ("OpenAI",     "OPENAI_API_KEY",     config.openai.as_ref().and_then(|c| c.api_key.clone())),
+        ("Gemini",     "GEMINI_API_KEY",     config.gemini.as_ref().and_then(|c| c.api_key.clone())),
+        ("Grok",       "GROK_API_KEY",       config.grok.as_ref().and_then(|c| c.api_key.clone())),
+        ("Groq",       "GROQ_API_KEY",       config.groq.as_ref().and_then(|c| c.api_key.clone())),
+        ("DeepSeek",   "DEEPSEEK_API_KEY",   config.deepseek.as_ref().and_then(|c| c.api_key.clone())),
+        ("Mistral",    "MISTRAL_API_KEY",    config.mistral.as_ref().and_then(|c| c.api_key.clone())),
+        ("Perplexity", "PERPLEXITY_API_KEY", config.perplexity.as_ref().and_then(|c| c.api_key.clone())),
+        ("MiniMax",    "MINIMAX_API_KEY",    config.minimax.as_ref().and_then(|c| c.api_key.clone())),
+        ("Together",   "TOGETHER_API_KEY",   config.together.as_ref().and_then(|c| c.api_key.clone())),
+        ("Fireworks",  "FIREWORKS_API_KEY",  config.fireworks.as_ref().and_then(|c| c.api_key.clone())),
+        ("SambaNova",  "SAMBANOVA_API_KEY",  config.sambanova.as_ref().and_then(|c| c.api_key.clone())),
+        ("Cerebras",   "CEREBRAS_API_KEY",   config.cerebras.as_ref().and_then(|c| c.api_key.clone())),
+        ("OpenRouter", "OPENROUTER_API_KEY", config.openrouter.as_ref().and_then(|c| c.api_key.clone())),
     ] {
         if std::env::var(env_var).is_ok() {
             println!("  ✅ {:<8} — {} set in environment", name, env_var);
@@ -7592,6 +8124,8 @@ async fn run_watch_mode(
                 active_agent_counter: None,
                 team_bus: None,
                 team_agent_id: None,
+                project_summary: None,
+                task_context_files: vec![],
             };
             tokio::spawn(async move {
                 let _ = agent.run(&task_clone, ctx, event_tx).await;

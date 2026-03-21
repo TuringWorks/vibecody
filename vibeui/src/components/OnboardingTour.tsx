@@ -15,17 +15,22 @@ const STEPS: TourStep[] = [
   {
     target: '.ai-selector',
     title: 'AI Provider',
-    description: 'Select your AI provider here — Ollama, Claude, ChatGPT, Gemini, Grok, and more are supported.',
+    description: 'Select your AI provider here — Ollama, Claude, ChatGPT, Gemini, Grok, and more are supported. Set your API key in Settings.',
   },
   {
     target: '.btn-secondary',
-    title: 'AI Panel',
-    description: 'Toggle the AI panel with ⌘J. It has 30+ tabs: Chat, Agent, Code Review, Deploy, and more.',
+    title: 'AI Panel — Your Coding Partner',
+    description: 'Toggle with ⌘J. Use Chat for questions, Agent for autonomous tasks, and 130+ specialized panels. Type @ in chat to inject files, git context, docs, or web pages.',
   },
   {
     target: '.status-bar',
-    title: 'Status Bar',
-    description: 'Quick access to Terminal (⌘`), Browser, theme toggle, and the Command Palette (⌘K).',
+    title: 'Status Bar & Quick Actions',
+    description: 'Terminal (⌘`), Browser, theme toggle, Command Palette (⌘K). Pro tip: Use ⌘1-9 to switch AI panel tabs quickly.',
+  },
+  {
+    target: '.editor-area',
+    title: 'Getting Started With Your Project',
+    description: 'Open a folder to start. VibeCody auto-detects your project type, build system, and test framework. Use /init in the CLI to generate a project profile that gives the AI deep understanding of your codebase.',
   },
 ];
 

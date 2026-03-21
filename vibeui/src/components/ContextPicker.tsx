@@ -15,6 +15,7 @@ interface ContextPickerProps {
 }
 
 const SPECIAL_ITEMS = [
+    { label: "@project", description: "Inject auto-detected project profile (languages, build/test commands, architecture)" },
     { label: "@git", description: "Inject current git branch, changed files, and diff" },
     { label: "@web:", description: "Fetch a web page and inject its content" },
     { label: "@docs:", description: "Fetch library docs (e.g. @docs:tokio, @docs:py:requests, @docs:react)" },

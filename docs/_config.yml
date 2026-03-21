@@ -28,9 +28,9 @@ nav:
   - title: Architecture
     url: /architecture/
   - title: Roadmap
-    url: /roadmap-v3/
+    url: /roadmap-v4/
   - title: Fit-Gap Analysis
-    url: /fit-gap-analysis-v5/
+    url: /fit-gap-analysis-v6/
   - title: Demos
     url: /demos/
   - title: Plugin Development
@@ -47,8 +47,10 @@ header_pages:
   - ROADMAP.md
   - ROADMAP-v2.md
   - ROADMAP-v3.md
+  - ROADMAP-v4.md
   - FIT-GAP-ANALYSIS-v2.md
   - FIT-GAP-ANALYSIS-v5.md
+  - FIT-GAP-ANALYSIS-v6.md
   - SHANNON-COMPARISON.md
   - demos/index.md
   - PLUGIN-DEVELOPMENT.md

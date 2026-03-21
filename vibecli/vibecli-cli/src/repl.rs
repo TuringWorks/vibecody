@@ -31,6 +31,7 @@ pub static COMMANDS: &[&str] = &[
     "/generate",
     "/help",
     "/index",
+    "/init",
     "/jobs",
     "/linear",
     "/logs",
@@ -88,6 +89,19 @@ pub static COMMANDS: &[&str] = &[
     "/purpleteam",
     "/idp",
     "/quantum",
+    "/autoresearch",
+    "/daemon",
+    "/vm",
+    "/branch-agent",
+    "/design",
+    "/audio",
+    "/org",
+    "/share-session",
+    "/data",
+    "/ci-gates",
+    "/extension",
+    "/agentic",
+    "/openmemory",
 ];
 
 // ── Sub-command tables ────────────────────────────────────────────────────────
@@ -181,6 +195,9 @@ static IDP_SUBS: &[&str] = &["status", "catalog", "register", "golden", "scoreca
 
 /// Sub-commands for `/quantum <sub>`
 static QUANTUM_SUBS: &[&str] = &["languages", "os", "hardware", "algorithms", "circuits", "projects", "create", "export", "compat", "status"];
+
+/// Sub-commands for `/autoresearch <sub>`
+static AUTORESEARCH_SUBS: &[&str] = &["new", "start", "stop", "pause", "status", "list", "analyze", "export", "suggest", "lessons", "config"];
 
 /// Sub-commands for `/arena <sub>`
 static ARENA_SUBS: &[&str] = &["compare", "stats", "history"];
@@ -298,6 +315,7 @@ fn command_hint(cmd: &str) -> Option<&'static str> {
         "/purpleteam" => Some("[status|exercise|simulate|validate|matrix|gaps|heatmap|report]  — ATT&CK exercises"),
         "/idp" => Some("[status|catalog|register|golden|scorecard|infra|team|onboard|backstage|platforms|report]  — internal developer platform"),
         "/quantum" => Some("[languages|os|hardware|algorithms|circuits|projects|create|export|compat|status]  — quantum computing"),
+        "/autoresearch" => Some("[new|start|stop|pause|status|list|analyze|export|suggest|lessons|config]  — autonomous iterative research agent"),
         _ => None,
     }
 }
@@ -400,6 +418,7 @@ fn complete_slash(line: &str) -> Option<(usize, Vec<Pair>)> {
                 "/purpleteam" => Some(PURPLETEAM_SUBS),
                 "/idp" => Some(IDP_SUBS),
                 "/quantum" => Some(QUANTUM_SUBS),
+                "/autoresearch" => Some(AUTORESEARCH_SUBS),
                 _ => None,
             };
 
