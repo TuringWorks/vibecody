@@ -1,7 +1,7 @@
 /**
  * McpPanel — Unified MCP panel combining Servers, Tool Registry, Directory, and Metrics.
  */
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -103,6 +103,9 @@ export function McpPanel() {
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [metrics, setMetrics] = useState<LazyMetrics | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  /** When set, the Tools tab scrolls to and highlights this server's section. */
+  const [toolsHighlightServer, setToolsHighlightServer] = useState<string | null>(null);
+  const serverSectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   // ── Directory state ───────────────────────────────────────────────────────
   const [plugins, setPlugins] = useState<McpPlugin[]>([]);
@@ -140,6 +143,22 @@ export function McpPanel() {
   }, []);
 
   useEffect(() => { if (tab === "tools") { fetchTools(); } }, [tab, fetchTools]);
+
+  // Scroll to highlighted server section when navigating from Installed → View Tools
+  useEffect(() => {
+    if (tab === "tools" && toolsHighlightServer) {
+      // Small delay to let the DOM render the server sections
+      const timer = setTimeout(() => {
+        const el = serverSectionRefs.current[toolsHighlightServer];
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 100);
+      // Clear highlight after 3 seconds
+      const clearTimer = setTimeout(() => setToolsHighlightServer(null), 3000);
+      return () => { clearTimeout(timer); clearTimeout(clearTimer); };
+    }
+  }, [tab, toolsHighlightServer]);
   useEffect(() => { if (tab === "metrics") { fetchTools(); fetchMetrics(); } }, [tab, fetchTools, fetchMetrics]);
   useEffect(() => {
     if (tab === "directory" && plugins.length === 0) {
@@ -389,14 +408,30 @@ export function McpPanel() {
                       if (!byServer[key]) byServer[key] = [];
                       byServer[key].push(m);
                     });
-                    return Object.entries(byServer).map(([serverName, tools]) => (
-                      <div key={serverName}>
-                        <div style={{ fontSize: 11, fontWeight: 600, margin: "8px 0 4px", padding: "4px 8px", background: "var(--bg-tertiary)", borderRadius: 4, display: "flex", justifyContent: "space-between" }}>
+                    return Object.entries(byServer).map(([serverName, tools]) => {
+                      const isHighlighted = toolsHighlightServer != null &&
+                        serverName.toLowerCase().includes(toolsHighlightServer.toLowerCase());
+                      return (
+                      <div
+                        key={serverName}
+                        ref={(el) => { serverSectionRefs.current[serverName] = el; }}
+                      >
+                        <div style={{
+                          fontSize: 11, fontWeight: 600, margin: "8px 0 4px", padding: "4px 8px",
+                          background: isHighlighted ? "var(--accent-primary)" : "var(--bg-tertiary)",
+                          color: isHighlighted ? "#fff" : undefined,
+                          borderRadius: 4, display: "flex", justifyContent: "space-between",
+                          transition: "background 0.3s ease",
+                        }}>
                           <span>{serverName}</span>
-                          <span style={{ fontWeight: 400, color: "var(--text-secondary)" }}>{tools.length} tool{tools.length !== 1 ? "s" : ""}</span>
+                          <span style={{ fontWeight: 400, color: isHighlighted ? "rgba(255,255,255,0.8)" : "var(--text-secondary)" }}>{tools.length} tool{tools.length !== 1 ? "s" : ""}</span>
                         </div>
                         {tools.map(m => (
-                          <div key={m.id} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center", marginLeft: 8 }}>
+                          <div key={m.id} style={{
+                            ...cardStyle,
+                            display: "flex", justifyContent: "space-between", alignItems: "center", marginLeft: 8,
+                            borderLeft: isHighlighted ? "3px solid var(--accent-primary)" : undefined,
+                          }}>
                             <div style={{ flex: 1 }}>
                               <div style={{ fontWeight: 600 }}>{m.name} <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>v{m.version}</span></div>
                               <div style={labelStyle}>{m.description}</div>
@@ -413,7 +448,8 @@ export function McpPanel() {
                           </div>
                         ))}
                       </div>
-                    ));
+                    );
+                    });
                   })()}
                 </>
               )}
@@ -564,7 +600,9 @@ export function McpPanel() {
                         <button
                           style={{ ...btnStyle, fontSize: 11 }}
                           onClick={() => {
-                            // Switch to Tools tab filtered to this plugin's server
+                            // Navigate to Tools tab and scroll to this plugin's server section
+                            setToolsHighlightServer(p.name);
+                            setToolSearch("");
                             setTab("tools");
                           }}
                         >
