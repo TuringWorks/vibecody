@@ -1,9 +1,23 @@
-// VibeCody Docs — TOC generation, search, keyboard shortcuts
+// VibeCody Docs — TOC, search, theme toggle, keyboard shortcuts
 
 (function () {
   'use strict';
 
-  // ── Table of Contents Generation ───────────────────────────────────
+  // ── Theme Toggle ───────────────────────────────────────────────────
+  function initTheme() {
+    var toggle = document.getElementById('theme-toggle');
+    if (!toggle) return;
+
+    toggle.addEventListener('click', function () {
+      var html = document.documentElement;
+      var current = html.getAttribute('data-theme') || 'dark';
+      var next = current === 'dark' ? 'light' : 'dark';
+      html.setAttribute('data-theme', next);
+      localStorage.setItem('vibecody-theme', next);
+    });
+  }
+
+  // ── Table of Contents ──────────────────────────────────────────────
   function generateTOC() {
     var tocNav = document.getElementById('toc-nav');
     if (!tocNav) return;
@@ -19,7 +33,6 @@
     }
 
     headings.forEach(function (heading) {
-      // Ensure heading has an ID for linking
       if (!heading.id) {
         heading.id = heading.textContent
           .toLowerCase()
@@ -30,20 +43,18 @@
       var link = document.createElement('a');
       link.href = '#' + heading.id;
       link.textContent = heading.textContent;
-      if (heading.tagName === 'H3') {
-        link.classList.add('toc-h3');
-      }
+      if (heading.tagName === 'H3') link.classList.add('toc-h3');
       tocNav.appendChild(link);
     });
 
-    // Highlight active TOC item on scroll
+    // Active heading tracking
     var observer = new IntersectionObserver(function (entries) {
       entries.forEach(function (entry) {
         if (entry.isIntersecting) {
           var links = tocNav.querySelectorAll('a');
           links.forEach(function (l) { l.classList.remove('active'); });
-          var activeLink = tocNav.querySelector('a[href="#' + entry.target.id + '"]');
-          if (activeLink) activeLink.classList.add('active');
+          var active = tocNav.querySelector('a[href="#' + entry.target.id + '"]');
+          if (active) active.classList.add('active');
         }
       });
     }, { rootMargin: '-80px 0px -80% 0px' });
@@ -58,7 +69,17 @@
     var results = document.getElementById('search-results');
     if (!input || !overlay || !results) return;
 
-    // Keyboard shortcut: / to focus search
+    // Build search index from sidebar
+    var searchIndex = [];
+    document.querySelectorAll('.sidebar-nav .nav-link, .sidebar-nav .nav-group-toggle').forEach(function (el) {
+      var href = el.getAttribute('href') || '#';
+      var text = el.textContent.trim();
+      if (text && href !== '#') {
+        searchIndex.push({ title: text, url: href });
+      }
+    });
+
+    // "/" to focus
     document.addEventListener('keydown', function (e) {
       if (e.key === '/' && !e.ctrlKey && !e.metaKey) {
         var tag = document.activeElement.tagName;
@@ -73,25 +94,13 @@
       }
     });
 
-    // Build a simple search index from sidebar links
-    var searchIndex = [];
-    document.querySelectorAll('.nav-link, .nav-link.child').forEach(function (link) {
-      searchIndex.push({
-        title: link.textContent.trim(),
-        url: link.getAttribute('href') || '#',
-      });
-    });
-
     input.addEventListener('focus', function () {
       if (input.value.trim()) overlay.style.display = 'flex';
     });
 
     input.addEventListener('input', function () {
       var query = input.value.toLowerCase().trim();
-      if (!query) {
-        overlay.style.display = 'none';
-        return;
-      }
+      if (!query) { overlay.style.display = 'none'; return; }
       overlay.style.display = 'flex';
 
       var matches = searchIndex.filter(function (item) {
@@ -99,9 +108,9 @@
       });
 
       results.innerHTML = matches.length === 0
-        ? '<div style="padding:20px;text-align:center;color:#8888a0">No results for "' + query + '"</div>'
+        ? '<div style="padding:20px;text-align:center;color:var(--text-muted)">No results for "' + query + '"</div>'
         : matches.map(function (m) {
-            return '<a href="' + m.url + '" class="search-result-item" style="display:block;text-decoration:none">'
+            return '<a href="' + m.url + '" class="search-result-item">'
               + '<div class="search-result-title">' + m.title + '</div>'
               + '<div class="search-result-url">' + m.url + '</div></a>';
           }).join('');
@@ -112,22 +121,23 @@
     });
   }
 
-  // ── Smooth scroll for anchor links ─────────────────────────────────
+  // ── Smooth Scroll ──────────────────────────────────────────────────
   function initSmoothScroll() {
-    document.querySelectorAll('a[href^="#"]').forEach(function (a) {
-      a.addEventListener('click', function (e) {
-        var target = document.getElementById(this.getAttribute('href').slice(1));
-        if (target) {
-          e.preventDefault();
-          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          history.pushState(null, '', this.getAttribute('href'));
-        }
-      });
+    document.addEventListener('click', function (e) {
+      var link = e.target.closest('a[href^="#"]');
+      if (!link) return;
+      var target = document.getElementById(link.getAttribute('href').slice(1));
+      if (target) {
+        e.preventDefault();
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        history.pushState(null, '', link.getAttribute('href'));
+      }
     });
   }
 
   // ── Init ───────────────────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', function () {
+    initTheme();
     generateTOC();
     initSearch();
     initSmoothScroll();
