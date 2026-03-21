@@ -37,9 +37,9 @@ sidebar:
       - title: Agent Workflow
         url: /tutorials/agent-workflow/
       - title: Project Init
-        url: /tutorials/36-project-init/
+        url: /tutorials/project-init/
       - title: Channel Daemon
-        url: /tutorials/37-channel-daemon/
+        url: /tutorials/channel-daemon/
   - title: VibeCLI
     icon: terminal
     url: /vibecli/
