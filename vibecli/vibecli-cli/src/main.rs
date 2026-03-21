@@ -6391,6 +6391,205 @@ async fn main() -> Result<()> {
                             }
                         }
 
+                        "/openmemory" => {
+                            let sub = args.trim().split_whitespace().next().unwrap_or("stats");
+                            let rest = args.trim().strip_prefix(sub).unwrap_or("").trim();
+                            match sub {
+                                "add" => {
+                                    if rest.is_empty() {
+                                        println!("Usage: /openmemory add <content>\n");
+                                    } else {
+                                        let mut store = open_memory::OpenMemoryStore::new(
+                                            dirs::data_dir().unwrap_or_else(|| std::path::PathBuf::from(".")).join("vibecli").join("openmemory"),
+                                            "default",
+                                        );
+                                        let _ = open_memory::OpenMemoryStore::load(
+                                            dirs::data_dir().unwrap_or_else(|| std::path::PathBuf::from(".")).join("vibecli").join("openmemory"),
+                                            "default",
+                                        ).map(|s| store = s);
+                                        let id = store.add(rest);
+                                        let mem = store.get(&id).cloned();
+                                        let _ = store.save();
+                                        if let Some(m) = mem {
+                                            println!("Added memory [{}] sector={} salience={:.0}%\n",
+                                                &id[..8.min(id.len())], m.sector, m.salience * 100.0);
+                                        }
+                                    }
+                                }
+                                "query" | "search" => {
+                                    if rest.is_empty() {
+                                        println!("Usage: /openmemory query <search text>\n");
+                                    } else {
+                                        let store = open_memory::OpenMemoryStore::load(
+                                            dirs::data_dir().unwrap_or_else(|| std::path::PathBuf::from(".")).join("vibecli").join("openmemory"),
+                                            "default",
+                                        ).unwrap_or_else(|_| open_memory::OpenMemoryStore::new(
+                                            dirs::data_dir().unwrap_or_else(|| std::path::PathBuf::from(".")).join("vibecli").join("openmemory"),
+                                            "default",
+                                        ));
+                                        let results = store.query(rest, 10);
+                                        if results.is_empty() {
+                                            println!("No matching memories found.\n");
+                                        } else {
+                                            println!("Found {} memories:\n", results.len());
+                                            for (i, r) in results.iter().enumerate() {
+                                                let snippet = &r.memory.content[..r.memory.content.len().min(80)];
+                                                println!("  {}. [{}] score={:.3} sal={:.0}% \"{}\"",
+                                                    i + 1, r.memory.sector, r.score,
+                                                    r.effective_salience * 100.0, snippet);
+                                            }
+                                            println!();
+                                        }
+                                    }
+                                }
+                                "list" => {
+                                    let store = open_memory::OpenMemoryStore::load(
+                                        dirs::data_dir().unwrap_or_else(|| std::path::PathBuf::from(".")).join("vibecli").join("openmemory"),
+                                        "default",
+                                    ).unwrap_or_else(|_| open_memory::OpenMemoryStore::new(
+                                        dirs::data_dir().unwrap_or_else(|| std::path::PathBuf::from(".")).join("vibecli").join("openmemory"),
+                                        "default",
+                                    ));
+                                    let mems = store.list_memories(0, 20);
+                                    if mems.is_empty() {
+                                        println!("No memories stored yet. Use /openmemory add <content>\n");
+                                    } else {
+                                        println!("Memories ({} total):\n", store.total_memories());
+                                        for m in &mems {
+                                            let pin = if m.pinned { " [pinned]" } else { "" };
+                                            let snippet = &m.content[..m.content.len().min(60)];
+                                            println!("  [{}]{} sal={:.0}% \"{}\"\n    id={}",
+                                                m.sector, pin, m.effective_salience() * 100.0, snippet, &m.id[..8.min(m.id.len())]);
+                                        }
+                                        println!();
+                                    }
+                                }
+                                "fact" => {
+                                    let parts: Vec<&str> = rest.splitn(3, ' ').collect();
+                                    if parts.len() < 3 {
+                                        println!("Usage: /openmemory fact <subject> <predicate> <object>\n");
+                                    } else {
+                                        let mut store = open_memory::OpenMemoryStore::load(
+                                            dirs::data_dir().unwrap_or_else(|| std::path::PathBuf::from(".")).join("vibecli").join("openmemory"),
+                                            "default",
+                                        ).unwrap_or_else(|_| open_memory::OpenMemoryStore::new(
+                                            dirs::data_dir().unwrap_or_else(|| std::path::PathBuf::from(".")).join("vibecli").join("openmemory"),
+                                            "default",
+                                        ));
+                                        store.add_fact(parts[0], parts[1], parts[2]);
+                                        let _ = store.save();
+                                        println!("Added fact: {} {} {}\n", parts[0], parts[1], parts[2]);
+                                    }
+                                }
+                                "facts" => {
+                                    let store = open_memory::OpenMemoryStore::load(
+                                        dirs::data_dir().unwrap_or_else(|| std::path::PathBuf::from(".")).join("vibecli").join("openmemory"),
+                                        "default",
+                                    ).unwrap_or_else(|_| open_memory::OpenMemoryStore::new(
+                                        dirs::data_dir().unwrap_or_else(|| std::path::PathBuf::from(".")).join("vibecli").join("openmemory"),
+                                        "default",
+                                    ));
+                                    let facts = store.query_current_facts();
+                                    if facts.is_empty() {
+                                        println!("No temporal facts. Use /openmemory fact <subject> <predicate> <object>\n");
+                                    } else {
+                                        println!("Current temporal facts ({}):\n", facts.len());
+                                        for f in &facts {
+                                            println!("  {} {} {} (conf: {:.0}%)", f.subject, f.predicate, f.object, f.confidence * 100.0);
+                                        }
+                                        println!();
+                                    }
+                                }
+                                "decay" => {
+                                    let mut store = open_memory::OpenMemoryStore::load(
+                                        dirs::data_dir().unwrap_or_else(|| std::path::PathBuf::from(".")).join("vibecli").join("openmemory"),
+                                        "default",
+                                    ).unwrap_or_else(|_| open_memory::OpenMemoryStore::new(
+                                        dirs::data_dir().unwrap_or_else(|| std::path::PathBuf::from(".")).join("vibecli").join("openmemory"),
+                                        "default",
+                                    ));
+                                    let purged = store.run_decay();
+                                    let _ = store.save();
+                                    println!("Decay complete: {} memories purged, {} remaining\n", purged, store.total_memories());
+                                }
+                                "consolidate" => {
+                                    let mut store = open_memory::OpenMemoryStore::load(
+                                        dirs::data_dir().unwrap_or_else(|| std::path::PathBuf::from(".")).join("vibecli").join("openmemory"),
+                                        "default",
+                                    ).unwrap_or_else(|_| open_memory::OpenMemoryStore::new(
+                                        dirs::data_dir().unwrap_or_else(|| std::path::PathBuf::from(".")).join("vibecli").join("openmemory"),
+                                        "default",
+                                    ));
+                                    let results = store.consolidate();
+                                    let _ = store.save();
+                                    if results.is_empty() {
+                                        println!("No memories to consolidate.\n");
+                                    } else {
+                                        println!("Consolidated {} groups of similar memories.\n", results.len());
+                                    }
+                                }
+                                "export" => {
+                                    let store = open_memory::OpenMemoryStore::load(
+                                        dirs::data_dir().unwrap_or_else(|| std::path::PathBuf::from(".")).join("vibecli").join("openmemory"),
+                                        "default",
+                                    ).unwrap_or_else(|_| open_memory::OpenMemoryStore::new(
+                                        dirs::data_dir().unwrap_or_else(|| std::path::PathBuf::from(".")).join("vibecli").join("openmemory"),
+                                        "default",
+                                    ));
+                                    println!("{}", store.export_markdown());
+                                }
+                                "context" => {
+                                    let store = open_memory::OpenMemoryStore::load(
+                                        dirs::data_dir().unwrap_or_else(|| std::path::PathBuf::from(".")).join("vibecli").join("openmemory"),
+                                        "default",
+                                    ).unwrap_or_else(|_| open_memory::OpenMemoryStore::new(
+                                        dirs::data_dir().unwrap_or_else(|| std::path::PathBuf::from(".")).join("vibecli").join("openmemory"),
+                                        "default",
+                                    ));
+                                    let ctx = store.get_agent_context(if rest.is_empty() { "general" } else { rest }, 10);
+                                    if ctx.is_empty() {
+                                        println!("No relevant memories for agent context.\n");
+                                    } else {
+                                        println!("{}\n", ctx);
+                                    }
+                                }
+                                "encrypt" => {
+                                    println!("Encryption is configured via ~/.vibecli/config.toml [openmemory] section.\n  Set encryption_passphrase = \"your-key\" to enable AES-256-GCM encryption.\n");
+                                }
+                                _ => {
+                                    println!("VibeCody OpenMemory — Cognitive Memory Engine\n");
+                                    println!("  /openmemory add <content>                    — Store a memory (auto-classified)");
+                                    println!("  /openmemory query <text>                     — Semantic search with composite scoring");
+                                    println!("  /openmemory list                             — List all memories");
+                                    println!("  /openmemory fact <subject> <pred> <object>   — Add temporal fact");
+                                    println!("  /openmemory facts                            — Show current facts");
+                                    println!("  /openmemory decay                            — Run exponential decay cycle");
+                                    println!("  /openmemory consolidate                      — Merge similar weak memories");
+                                    println!("  /openmemory stats                            — Show sector statistics");
+                                    println!("  /openmemory export                           — Export as markdown");
+                                    println!("  /openmemory context [query]                  — Get agent context string");
+                                    println!("  /openmemory encrypt                          — Encryption setup info\n");
+                                    // Show stats
+                                    let store = open_memory::OpenMemoryStore::load(
+                                        dirs::data_dir().unwrap_or_else(|| std::path::PathBuf::from(".")).join("vibecli").join("openmemory"),
+                                        "default",
+                                    ).unwrap_or_else(|_| open_memory::OpenMemoryStore::new(
+                                        dirs::data_dir().unwrap_or_else(|| std::path::PathBuf::from(".")).join("vibecli").join("openmemory"),
+                                        "default",
+                                    ));
+                                    println!("  Memories: {}  |  Waypoints: {}  |  Facts: {}",
+                                        store.total_memories(), store.total_waypoints(), store.total_facts());
+                                    for s in store.sector_stats() {
+                                        if s.count > 0 {
+                                            println!("    {} — {} memories, avg salience {:.0}%, {} pinned",
+                                                s.sector, s.count, s.avg_salience * 100.0, s.pinned_count);
+                                        }
+                                    }
+                                    println!();
+                                }
+                            }
+                        }
+
                         _ => {
                             // Suggest closest command via edit distance
                             if let Some(suggestion) = find_closest_command(command) {
@@ -7742,6 +7941,7 @@ fn show_help() {
     println!("  /snippet delete <name>   - Delete a saved snippet");
     println!("  /jobs                    - List persisted background jobs (~/.vibecli/jobs/)");
     println!("  /jobs <session_id>       - Show full detail for a specific job");
+    println!("  /openmemory              - Cognitive memory engine (add|query|list|fact|decay|consolidate|export)");
     println!("  /config                  - Show current configuration");
     println!("  /help                    - Show this help message");
     println!("  /exit                    - Exit VibeCLI");

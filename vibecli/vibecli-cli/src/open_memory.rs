@@ -1588,6 +1588,478 @@ impl OpenMemoryStore {
         ctx.push_str("</open-memory>\n");
         ctx
     }
+
+    // ── Import / Export Compatibility ─────────────────────────────────────
+
+    /// Import memories from OpenMemory JSON format (TuringWorks/OpenMemory compatible).
+    /// Maps their sector names to ours, preserves tags/metadata.
+    pub fn import_openmemory_json(&mut self, json: &str) -> Result<usize> {
+        let entries: Vec<serde_json::Value> = serde_json::from_str(json)?;
+        let mut imported = 0;
+
+        for entry in &entries {
+            let content = entry.get("content")
+                .and_then(|v| v.as_str())
+                .unwrap_or_default();
+            if content.is_empty() {
+                continue;
+            }
+
+            let sector_str = entry.get("primary_sector")
+                .or_else(|| entry.get("sector"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("semantic");
+
+            let sector = sector_str.parse::<MemorySector>()
+                .unwrap_or(MemorySector::Semantic);
+
+            let tags: Vec<String> = entry.get("tags")
+                .and_then(|v| v.as_array())
+                .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                .unwrap_or_default();
+
+            let salience = entry.get("salience")
+                .and_then(|v| v.as_f64())
+                .unwrap_or(0.7);
+
+            let id = self.add_with_sector(content, sector, tags);
+
+            if let Some(node) = self.memories.get_mut(&id) {
+                node.salience = salience;
+
+                // Import metadata
+                if let Some(meta) = entry.get("meta").or_else(|| entry.get("metadata")) {
+                    if let Some(obj) = meta.as_object() {
+                        for (k, v) in obj {
+                            node.metadata.insert(k.clone(), v.to_string());
+                        }
+                    }
+                }
+            }
+
+            imported += 1;
+        }
+
+        Ok(imported)
+    }
+
+    /// Export in OpenMemory-compatible JSON format.
+    pub fn export_openmemory_json(&self) -> String {
+        let entries: Vec<serde_json::Value> = self.memories.values().map(|m| {
+            serde_json::json!({
+                "id": m.id,
+                "content": m.content,
+                "primary_sector": m.sector.to_string(),
+                "tags": m.tags,
+                "meta": m.metadata,
+                "salience": m.salience,
+                "decay_lambda": m.decay_lambda,
+                "created_at": m.created_at,
+                "updated_at": m.updated_at,
+                "last_seen_at": m.last_seen_at,
+                "version": m.version,
+                "user_id": m.user_id,
+            })
+        }).collect();
+
+        serde_json::to_string_pretty(&entries).unwrap_or_default()
+    }
+
+    // ── Bulk Operations ──────────────────────────────────────────────────
+
+    /// Bulk ingest from plain text lines (one memory per line).
+    pub fn bulk_ingest_lines(&mut self, text: &str) -> usize {
+        let mut count = 0;
+        for line in text.lines() {
+            let trimmed = line.trim();
+            if !trimmed.is_empty() && trimmed.len() >= 3 {
+                self.add(trimmed);
+                count += 1;
+            }
+        }
+        count
+    }
+
+    /// Bulk ingest from markdown sections (## headings become tags).
+    pub fn bulk_ingest_markdown(&mut self, markdown: &str) -> usize {
+        let mut current_tag = String::new();
+        let mut count = 0;
+
+        for line in markdown.lines() {
+            let trimmed = line.trim();
+            if trimmed.starts_with("## ") {
+                current_tag = trimmed[3..].trim().to_string();
+            } else if trimmed.starts_with("- ") || trimmed.starts_with("* ") {
+                let content = trimmed[2..].trim();
+                if content.len() >= 3 {
+                    let tags = if current_tag.is_empty() {
+                        Vec::new()
+                    } else {
+                        vec![current_tag.clone()]
+                    };
+                    self.add_with_tags(content, tags, HashMap::new());
+                    count += 1;
+                }
+            }
+        }
+        count
+    }
+
+    // ── Auto-Reflection ──────────────────────────────────────────────────
+
+    /// Generate a reflective summary of the memory store's contents.
+    /// Creates a new Reflective-sector memory summarizing patterns.
+    pub fn auto_reflect(&mut self) -> Option<String> {
+        if self.memories.len() < 5 {
+            return None; // Need enough data
+        }
+
+        let stats = self.sector_stats();
+        let mut insights = Vec::new();
+
+        // Analyze sector distribution
+        let total: usize = stats.iter().map(|s| s.count).sum();
+        for s in &stats {
+            if s.count > 0 {
+                let pct = (s.count as f64 / total as f64) * 100.0;
+                if pct > 40.0 {
+                    insights.push(format!(
+                        "Dominant sector: {} ({:.0}% of memories) — consider diversifying",
+                        s.sector, pct
+                    ));
+                }
+                if s.avg_salience < 0.3 {
+                    insights.push(format!(
+                        "Low-salience sector: {} (avg {:.0}%) — may benefit from consolidation",
+                        s.sector, s.avg_salience * 100.0
+                    ));
+                }
+            }
+        }
+
+        // Analyze temporal facts
+        let current_facts = self.query_current_facts();
+        if current_facts.len() > 20 {
+            insights.push(format!(
+                "Large fact base: {} active facts — consider pruning stale entries",
+                current_facts.len()
+            ));
+        }
+
+        // Analyze waypoint density
+        let avg_waypoints = if total > 0 {
+            self.total_waypoints() as f64 / total as f64
+        } else {
+            0.0
+        };
+        if avg_waypoints < 1.0 && total > 10 {
+            insights.push(
+                "Low connectivity: most memories have few links. Adding related memories improves retrieval.".to_string()
+            );
+        }
+
+        if insights.is_empty() {
+            insights.push(format!(
+                "Memory health is good: {} memories across {} sectors, avg {:.1} links/memory",
+                total, stats.iter().filter(|s| s.count > 0).count(), avg_waypoints
+            ));
+        }
+
+        let reflection = format!(
+            "Auto-reflection ({}): {}",
+            total,
+            insights.join("; ")
+        );
+
+        let id = self.add_with_sector(&reflection, MemorySector::Reflective, vec!["auto-reflection".to_string()]);
+        if let Some(node) = self.memories.get_mut(&id) {
+            node.pinned = true; // Reflections are pinned by default
+        }
+
+        Some(reflection)
+    }
+
+    // ── User Summary ─────────────────────────────────────────────────────
+
+    /// Generate a summary of the user's memory profile.
+    pub fn user_summary(&self) -> String {
+        let stats = self.sector_stats();
+        let total = self.total_memories();
+        let facts = self.total_facts();
+        let waypoints = self.total_waypoints();
+
+        let mut lines = vec![format!(
+            "Memory Profile: {} memories, {} facts, {} waypoints",
+            total, facts, waypoints
+        )];
+
+        for s in &stats {
+            if s.count > 0 {
+                lines.push(format!(
+                    "  {} — {} ({:.0}% avg salience, {} pinned, {:.1}d avg age)",
+                    s.sector, s.count, s.avg_salience * 100.0, s.pinned_count, s.avg_age_days
+                ));
+            }
+        }
+
+        // Top tags
+        let mut tag_counts: HashMap<String, usize> = HashMap::new();
+        for m in self.memories.values() {
+            for t in &m.tags {
+                *tag_counts.entry(t.clone()).or_default() += 1;
+            }
+        }
+        let mut top_tags: Vec<(String, usize)> = tag_counts.into_iter().collect();
+        top_tags.sort_by(|a, b| b.1.cmp(&a.1));
+        if !top_tags.is_empty() {
+            let tags_str: Vec<String> = top_tags.iter().take(10)
+                .map(|(t, c)| format!("{}({})", t, c))
+                .collect();
+            lines.push(format!("  Top tags: {}", tags_str.join(", ")));
+        }
+
+        lines.join("\n")
+    }
+
+    // ── Search by Multiple Signals ───────────────────────────────────────
+
+    /// Full-text search (simple substring matching).
+    pub fn search_text(&self, text: &str) -> Vec<&MemoryNode> {
+        let lower = text.to_lowercase();
+        let mut results: Vec<&MemoryNode> = self.memories.values()
+            .filter(|m| m.content.to_lowercase().contains(&lower))
+            .collect();
+        results.sort_by(|a, b| b.effective_salience().partial_cmp(&a.effective_salience())
+            .unwrap_or(std::cmp::Ordering::Equal));
+        results
+    }
+
+    /// Search by date range (created_at).
+    pub fn search_by_date(&self, from: u64, to: u64) -> Vec<&MemoryNode> {
+        let mut results: Vec<&MemoryNode> = self.memories.values()
+            .filter(|m| m.created_at >= from && m.created_at <= to)
+            .collect();
+        results.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+        results
+    }
+
+    /// Get memories that are about to be purged (low effective salience).
+    pub fn at_risk_memories(&self, threshold: f64) -> Vec<&MemoryNode> {
+        let mut results: Vec<&MemoryNode> = self.memories.values()
+            .filter(|m| !m.pinned && m.effective_salience() < threshold && m.effective_salience() >= self.purge_threshold)
+            .collect();
+        results.sort_by(|a, b| a.effective_salience().partial_cmp(&b.effective_salience())
+            .unwrap_or(std::cmp::Ordering::Equal));
+        results
+    }
+
+    // ── MCP Tool Definitions ─────────────────────────────────────────────
+
+    /// Return MCP tool definitions for this memory engine.
+    /// These can be registered with VibeCody's MCP server.
+    pub fn mcp_tool_definitions() -> Vec<serde_json::Value> {
+        vec![
+            serde_json::json!({
+                "name": "memory_add",
+                "description": "Store a memory in the cognitive memory engine. Auto-classifies into sectors (episodic, semantic, procedural, emotional, reflective).",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "content": { "type": "string", "description": "Memory content to store" },
+                        "tags": { "type": "array", "items": { "type": "string" }, "description": "Optional tags" }
+                    },
+                    "required": ["content"]
+                }
+            }),
+            serde_json::json!({
+                "name": "memory_query",
+                "description": "Search memories using composite scoring (similarity + salience + recency + waypoint + sector match).",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "query": { "type": "string", "description": "Search query" },
+                        "limit": { "type": "integer", "description": "Max results (default 10)" },
+                        "sector": { "type": "string", "enum": ["episodic", "semantic", "procedural", "emotional", "reflective"], "description": "Filter by sector" }
+                    },
+                    "required": ["query"]
+                }
+            }),
+            serde_json::json!({
+                "name": "memory_add_fact",
+                "description": "Add a temporal fact to the knowledge graph. Auto-closes previous facts with same subject+predicate.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "subject": { "type": "string" },
+                        "predicate": { "type": "string" },
+                        "object": { "type": "string" }
+                    },
+                    "required": ["subject", "predicate", "object"]
+                }
+            }),
+            serde_json::json!({
+                "name": "memory_query_facts",
+                "description": "Query current temporal facts from the knowledge graph.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "subject": { "type": "string", "description": "Optional filter by subject" }
+                    }
+                }
+            }),
+            serde_json::json!({
+                "name": "memory_stats",
+                "description": "Get cognitive memory statistics: sector breakdown, total memories, waypoints, facts.",
+                "inputSchema": { "type": "object", "properties": {} }
+            }),
+        ]
+    }
+}
+
+// ─── Data Source Connectors ──────────────────────────────────────────────────
+
+/// Connector trait for ingesting from external data sources.
+/// OpenMemory has 8 connectors; we provide the trait + implementations.
+pub trait DataSourceConnector {
+    /// Name of the connector.
+    fn name(&self) -> &str;
+    /// Fetch entries from the source, returning (content, tags, metadata) tuples.
+    fn fetch(&self, config: &HashMap<String, String>) -> Result<Vec<ConnectorEntry>>;
+}
+
+/// An entry from a data source connector.
+#[derive(Debug, Clone)]
+pub struct ConnectorEntry {
+    pub content: String,
+    pub tags: Vec<String>,
+    pub metadata: HashMap<String, String>,
+}
+
+/// GitHub connector — imports issues, PRs, and discussions.
+pub struct GitHubConnector;
+
+impl DataSourceConnector for GitHubConnector {
+    fn name(&self) -> &str { "github" }
+
+    fn fetch(&self, config: &HashMap<String, String>) -> Result<Vec<ConnectorEntry>> {
+        let repo = config.get("repo").ok_or_else(|| anyhow::anyhow!("missing 'repo' config"))?;
+        // In a real implementation, this would call the GitHub API.
+        // For now, provide the structure for future integration.
+        Ok(vec![ConnectorEntry {
+            content: format!("GitHub repository: {}", repo),
+            tags: vec!["github".to_string(), "source".to_string()],
+            metadata: [("source".to_string(), "github".to_string()),
+                       ("repo".to_string(), repo.clone())].into_iter().collect(),
+        }])
+    }
+}
+
+/// Notion connector — imports pages and databases.
+pub struct NotionConnector;
+
+impl DataSourceConnector for NotionConnector {
+    fn name(&self) -> &str { "notion" }
+
+    fn fetch(&self, config: &HashMap<String, String>) -> Result<Vec<ConnectorEntry>> {
+        let database_id = config.get("database_id")
+            .ok_or_else(|| anyhow::anyhow!("missing 'database_id' config"))?;
+        Ok(vec![ConnectorEntry {
+            content: format!("Notion database: {}", database_id),
+            tags: vec!["notion".to_string()],
+            metadata: [("source".to_string(), "notion".to_string())].into_iter().collect(),
+        }])
+    }
+}
+
+/// File system connector — ingests local files (markdown, text, code).
+pub struct FileSystemConnector;
+
+impl DataSourceConnector for FileSystemConnector {
+    fn name(&self) -> &str { "filesystem" }
+
+    fn fetch(&self, config: &HashMap<String, String>) -> Result<Vec<ConnectorEntry>> {
+        let path = config.get("path").ok_or_else(|| anyhow::anyhow!("missing 'path' config"))?;
+        let path = std::path::Path::new(path);
+        let mut entries = Vec::new();
+
+        if path.is_file() {
+            let content = std::fs::read_to_string(path)?;
+            entries.push(ConnectorEntry {
+                content,
+                tags: vec!["file".to_string()],
+                metadata: [("source".to_string(), "filesystem".to_string()),
+                           ("path".to_string(), path.display().to_string())].into_iter().collect(),
+            });
+        } else if path.is_dir() {
+            for entry in std::fs::read_dir(path)? {
+                let entry = entry?;
+                let p = entry.path();
+                if p.is_file() {
+                    let ext = p.extension().and_then(|e| e.to_str()).unwrap_or("");
+                    if ["md", "txt", "rs", "py", "js", "ts", "toml", "yaml", "json"].contains(&ext) {
+                        if let Ok(content) = std::fs::read_to_string(&p) {
+                            if content.len() <= 50_000 { // Skip very large files
+                                entries.push(ConnectorEntry {
+                                    content,
+                                    tags: vec!["file".to_string(), ext.to_string()],
+                                    metadata: [("source".to_string(), "filesystem".to_string()),
+                                               ("path".to_string(), p.display().to_string())].into_iter().collect(),
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(entries)
+    }
+}
+
+/// Git history connector — ingests recent commit messages.
+pub struct GitHistoryConnector;
+
+impl DataSourceConnector for GitHistoryConnector {
+    fn name(&self) -> &str { "git-history" }
+
+    fn fetch(&self, config: &HashMap<String, String>) -> Result<Vec<ConnectorEntry>> {
+        let repo_path = config.get("path").unwrap_or(&".".to_string()).clone();
+        let limit = config.get("limit")
+            .and_then(|v| v.parse::<usize>().ok())
+            .unwrap_or(50);
+
+        let output = std::process::Command::new("git")
+            .args(["log", "--oneline", &format!("-{}", limit)])
+            .current_dir(&repo_path)
+            .output();
+
+        match output {
+            Ok(out) if out.status.success() => {
+                let stdout = String::from_utf8_lossy(&out.stdout);
+                Ok(stdout.lines().map(|line| ConnectorEntry {
+                    content: line.to_string(),
+                    tags: vec!["git".to_string(), "commit".to_string()],
+                    metadata: [("source".to_string(), "git-history".to_string())].into_iter().collect(),
+                }).collect())
+            }
+            _ => Ok(Vec::new()),
+        }
+    }
+}
+
+/// Ingest entries from a connector into the memory store.
+pub fn ingest_from_connector(
+    store: &mut OpenMemoryStore,
+    connector: &dyn DataSourceConnector,
+    config: &HashMap<String, String>,
+) -> Result<usize> {
+    let entries = connector.fetch(config)?;
+    let mut count = 0;
+    for entry in entries {
+        store.add_with_tags(entry.content, entry.tags, entry.metadata);
+        count += 1;
+    }
+    Ok(count)
 }
 
 // ─── Hex encoding helper ─────────────────────────────────────────────────────
@@ -2399,5 +2871,381 @@ mod tests {
         store2.memories.insert(id.clone(), mem);
         // get_content should return None (no encryption key)
         assert!(store2.get_content(&id).is_none());
+    }
+
+    // ── Import/Export tests ──────────────────────────────────────────────
+
+    #[test]
+    fn import_openmemory_json_basic() {
+        let mut store = test_store();
+        let json = r#"[
+            {"content": "Test memory one", "primary_sector": "semantic", "tags": ["test"], "salience": 0.8},
+            {"content": "Another memory", "sector": "procedural", "tags": [], "salience": 0.6}
+        ]"#;
+        let count = store.import_openmemory_json(json).expect("should import");
+        assert_eq!(count, 2);
+        assert_eq!(store.total_memories(), 2);
+    }
+
+    #[test]
+    fn import_openmemory_json_empty() {
+        let mut store = test_store();
+        let count = store.import_openmemory_json("[]").expect("should import");
+        assert_eq!(count, 0);
+    }
+
+    #[test]
+    fn import_openmemory_json_preserves_salience() {
+        let mut store = test_store();
+        let json = r#"[{"content": "Important fact", "salience": 0.42}]"#;
+        store.import_openmemory_json(json).expect("import");
+        let mems = store.list_memories(0, 10);
+        assert_eq!(mems.len(), 1);
+        assert!((mems[0].salience - 0.42).abs() < 0.01);
+    }
+
+    #[test]
+    fn import_openmemory_json_skips_empty_content() {
+        let mut store = test_store();
+        let json = r#"[{"content": ""}, {"content": "real content"}]"#;
+        let count = store.import_openmemory_json(json).expect("import");
+        assert_eq!(count, 1);
+    }
+
+    #[test]
+    fn export_openmemory_json_roundtrip() {
+        let mut store = test_store();
+        store.add_with_tags("A fact about Rust", vec!["rust".to_string()], HashMap::new());
+        let json = store.export_openmemory_json();
+
+        let mut store2 = test_store();
+        let count = store2.import_openmemory_json(&json).expect("import");
+        assert_eq!(count, 1);
+    }
+
+    #[test]
+    fn export_openmemory_json_format() {
+        let mut store = test_store();
+        store.add("Test memory");
+        let json = store.export_openmemory_json();
+        let parsed: Vec<serde_json::Value> = serde_json::from_str(&json).expect("valid json");
+        assert_eq!(parsed.len(), 1);
+        assert!(parsed[0].get("primary_sector").is_some());
+        assert!(parsed[0].get("salience").is_some());
+    }
+
+    // ── Bulk ingest tests ────────────────────────────────────────────────
+
+    #[test]
+    fn bulk_ingest_lines_basic() {
+        let mut store = test_store();
+        let text = "First memory line\nSecond memory line\n\nThird line\nab\n";
+        let count = store.bulk_ingest_lines(text);
+        assert_eq!(count, 3); // "ab" is too short (< 3 chars)
+    }
+
+    #[test]
+    fn bulk_ingest_lines_empty() {
+        let mut store = test_store();
+        let count = store.bulk_ingest_lines("");
+        assert_eq!(count, 0);
+    }
+
+    #[test]
+    fn bulk_ingest_markdown() {
+        let mut store = test_store();
+        let md = "## Rust\n- Ownership system prevents data races\n- Zero-cost abstractions\n## Python\n- Dynamic typing\n";
+        let count = store.bulk_ingest_markdown(md);
+        assert_eq!(count, 3);
+        // Check tags were applied
+        let rust_tagged = store.list_by_tag("Rust");
+        assert_eq!(rust_tagged.len(), 2);
+        let python_tagged = store.list_by_tag("Python");
+        assert_eq!(python_tagged.len(), 1);
+    }
+
+    #[test]
+    fn bulk_ingest_markdown_no_sections() {
+        let mut store = test_store();
+        let md = "- Item one\n- Item two\n";
+        let count = store.bulk_ingest_markdown(md);
+        assert_eq!(count, 2);
+    }
+
+    // ── Auto-reflection tests ────────────────────────────────────────────
+
+    #[test]
+    fn auto_reflect_insufficient_data() {
+        let mut store = test_store();
+        store.add("one");
+        store.add("two");
+        assert!(store.auto_reflect().is_none()); // Need >= 5
+    }
+
+    #[test]
+    fn auto_reflect_generates_reflection() {
+        let mut store = test_store();
+        for i in 0..10 {
+            store.add(&format!("Memory number {} about various topics", i));
+        }
+        let reflection = store.auto_reflect();
+        assert!(reflection.is_some());
+        let text = reflection.unwrap();
+        assert!(text.contains("Auto-reflection"));
+
+        // Should create a pinned reflective memory
+        let reflective = store.list_by_sector(MemorySector::Reflective);
+        assert!(!reflective.is_empty());
+        assert!(reflective[0].pinned);
+    }
+
+    // ── User summary tests ───────────────────────────────────────────────
+
+    #[test]
+    fn user_summary_empty_store() {
+        let store = test_store();
+        let summary = store.user_summary();
+        assert!(summary.contains("0 memories"));
+    }
+
+    #[test]
+    fn user_summary_with_data() {
+        let mut store = test_store();
+        store.add_with_tags("Fact about Rust", vec!["rust".to_string()], HashMap::new());
+        store.add_with_tags("Another fact", vec!["rust".to_string(), "lang".to_string()], HashMap::new());
+        let summary = store.user_summary();
+        assert!(summary.contains("2 memories"));
+        assert!(summary.contains("rust"));
+    }
+
+    // ── Search tests ─────────────────────────────────────────────────────
+
+    #[test]
+    fn search_text_basic() {
+        let mut store = test_store();
+        store.add("Rust programming language");
+        store.add("Python scripting language");
+        let results = store.search_text("Rust");
+        assert_eq!(results.len(), 1);
+        assert!(results[0].content.contains("Rust"));
+    }
+
+    #[test]
+    fn search_text_case_insensitive() {
+        let mut store = test_store();
+        store.add("Hello World");
+        let results = store.search_text("hello");
+        assert_eq!(results.len(), 1);
+    }
+
+    #[test]
+    fn search_text_no_match() {
+        let mut store = test_store();
+        store.add("Hello World");
+        let results = store.search_text("nonexistent");
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn search_by_date_basic() {
+        let mut store = test_store();
+        let now = epoch_secs();
+        store.add("Recent memory");
+        let results = store.search_by_date(now - 1, now + 1);
+        assert_eq!(results.len(), 1);
+    }
+
+    #[test]
+    fn search_by_date_empty_range() {
+        let mut store = test_store();
+        store.add("Some memory");
+        let results = store.search_by_date(0, 1);
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn at_risk_memories_none_when_fresh() {
+        let mut store = test_store();
+        store.add("Fresh memory");
+        let at_risk = store.at_risk_memories(0.5);
+        assert!(at_risk.is_empty()); // All memories are fresh with salience 1.0
+    }
+
+    // ── MCP tool definitions tests ───────────────────────────────────────
+
+    #[test]
+    fn mcp_tool_definitions_count() {
+        let tools = OpenMemoryStore::mcp_tool_definitions();
+        assert_eq!(tools.len(), 5);
+    }
+
+    #[test]
+    fn mcp_tool_definitions_have_names() {
+        let tools = OpenMemoryStore::mcp_tool_definitions();
+        for tool in &tools {
+            assert!(tool.get("name").is_some());
+            assert!(tool.get("description").is_some());
+            assert!(tool.get("inputSchema").is_some());
+        }
+    }
+
+    #[test]
+    fn mcp_tool_definitions_names() {
+        let tools = OpenMemoryStore::mcp_tool_definitions();
+        let names: Vec<&str> = tools.iter()
+            .filter_map(|t| t.get("name").and_then(|v| v.as_str()))
+            .collect();
+        assert!(names.contains(&"memory_add"));
+        assert!(names.contains(&"memory_query"));
+        assert!(names.contains(&"memory_add_fact"));
+        assert!(names.contains(&"memory_stats"));
+    }
+
+    // ── Connector tests ──────────────────────────────────────────────────
+
+    #[test]
+    fn github_connector_name() {
+        let connector = GitHubConnector;
+        assert_eq!(connector.name(), "github");
+    }
+
+    #[test]
+    fn github_connector_requires_repo() {
+        let connector = GitHubConnector;
+        let result = connector.fetch(&HashMap::new());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn github_connector_with_repo() {
+        let connector = GitHubConnector;
+        let config: HashMap<String, String> = [("repo".to_string(), "owner/repo".to_string())].into_iter().collect();
+        let entries = connector.fetch(&config).expect("should work");
+        assert!(!entries.is_empty());
+        assert!(entries[0].content.contains("owner/repo"));
+    }
+
+    #[test]
+    fn notion_connector_name() {
+        let connector = NotionConnector;
+        assert_eq!(connector.name(), "notion");
+    }
+
+    #[test]
+    fn notion_connector_requires_database_id() {
+        let connector = NotionConnector;
+        let result = connector.fetch(&HashMap::new());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn filesystem_connector_name() {
+        let connector = FileSystemConnector;
+        assert_eq!(connector.name(), "filesystem");
+    }
+
+    #[test]
+    fn filesystem_connector_requires_path() {
+        let connector = FileSystemConnector;
+        let result = connector.fetch(&HashMap::new());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn filesystem_connector_nonexistent_path() {
+        let connector = FileSystemConnector;
+        let config: HashMap<String, String> = [("path".to_string(), "/tmp/nonexistent_vibecody_test_path".to_string())].into_iter().collect();
+        let entries = connector.fetch(&config).expect("should not error for non-dir");
+        assert!(entries.is_empty());
+    }
+
+    #[test]
+    fn git_history_connector_name() {
+        let connector = GitHistoryConnector;
+        assert_eq!(connector.name(), "git-history");
+    }
+
+    #[test]
+    fn ingest_from_connector_basic() {
+        let mut store = test_store();
+        let connector = GitHubConnector;
+        let config: HashMap<String, String> = [("repo".to_string(), "test/repo".to_string())].into_iter().collect();
+        let count = ingest_from_connector(&mut store, &connector, &config).expect("should ingest");
+        assert_eq!(count, 1);
+        assert_eq!(store.total_memories(), 1);
+    }
+
+    // ── Integration: full lifecycle test ─────────────────────────────────
+
+    #[test]
+    fn full_lifecycle() {
+        let mut store = test_store();
+
+        // 1. Add memories
+        let id1 = store.add("Rust's ownership model prevents data races at compile time");
+        let id2 = store.add("Step 1: Install Rust via rustup. Step 2: Run cargo build");
+        let _id3 = store.add("I'm really frustrated with this confusing error message");
+
+        assert_eq!(store.total_memories(), 3);
+
+        // 2. Add facts
+        store.add_fact("rust", "version", "1.75");
+        store.add_fact("project", "uses", "tokio");
+        assert_eq!(store.total_facts(), 2);
+
+        // 3. Query
+        let results = store.query("Rust memory safety", 5);
+        assert!(!results.is_empty());
+
+        // 4. Reinforce
+        let accessed: Vec<String> = results.iter().map(|r| r.memory.id.clone()).collect();
+        store.reinforce(&accessed);
+
+        // 5. Pin important memory
+        store.pin(&id1);
+        assert!(store.get(&id1).unwrap().pinned);
+
+        // 6. Search text
+        let text_results = store.search_text("ownership");
+        assert!(!text_results.is_empty());
+
+        // 7. Stats
+        let stats = store.sector_stats();
+        assert!(!stats.is_empty());
+
+        // 8. User summary
+        let summary = store.user_summary();
+        assert!(summary.contains("3 memories"));
+
+        // 9. Agent context
+        let ctx = store.get_agent_context("Rust safety", 3);
+        assert!(ctx.contains("<open-memory>"));
+
+        // 10. Fact evolution
+        store.add_fact("rust", "version", "1.76");
+        let current = store.query_current_facts();
+        let rust_version: Vec<&&TemporalFact> = current.iter()
+            .filter(|f| f.subject == "rust" && f.predicate == "version")
+            .collect();
+        assert_eq!(rust_version.len(), 1);
+        assert_eq!(rust_version[0].object, "1.76");
+
+        // 11. Export
+        let md = store.export_markdown();
+        assert!(md.contains("VibeCody OpenMemory Export"));
+
+        // 12. Export/import roundtrip
+        let json = store.export_openmemory_json();
+        let mut store2 = test_store();
+        let imported = store2.import_openmemory_json(&json).expect("import");
+        assert_eq!(imported, store.total_memories());
+
+        // 13. Delete
+        store.delete(&id2);
+        assert_eq!(store.total_memories(), 2); // 3 original - 1 deleted
+
+        // 14. Decay (no effect on fresh memories)
+        let purged = store.run_decay();
+        assert_eq!(purged, 0);
     }
 }

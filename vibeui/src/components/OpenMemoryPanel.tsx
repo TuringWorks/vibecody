@@ -90,7 +90,7 @@ async function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T
   }
 }
 
-function getMockData(cmd: string, args?: Record<string, unknown>): unknown {
+function getMockData(cmd: string, _args?: Record<string, unknown>): unknown {
   switch (cmd) {
     case 'openmemory_stats': return {
       total_memories: 0, total_waypoints: 0, total_facts: 0,
