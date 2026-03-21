@@ -1569,7 +1569,7 @@ async fn main() -> Result<()> {
                 if input.starts_with('/') {
                     let parts: Vec<&str> = input.splitn(2, ' ').collect();
                     let command = parts[0];
-                    let args = if parts.len() > 1 { parts[1] } else { "" };
+                    let args = if parts.len() > 1 { parts[1].trim() } else { "" };
 
                     match command {
                         "/exit" | "/quit" => {
