@@ -5,6 +5,56 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.4.0] — 2026-03-21
+
+### Added
+- 5 new AI providers: MiniMax, Perplexity, Together AI, Fireworks AI, SambaNova (22 total)
+- Smart project init (`/init`) with auto-context injection into every agent conversation
+- `think` tool for chain-of-thought reasoning (free, no side effects)
+- Always-on channel daemon (`--channel-daemon slack/discord/telegram`) with automation routing
+- Agent-per-branch workflow (`/branch-agent`) with auto-PR on completion
+- EARS spec-driven development pipeline (`/spec init|req|design|task|validate`)
+- VM agent orchestration (`/vm launch|list|status|stop`) for parallel isolated agents
+- Design Canvas panel: drag-and-drop → React/Tailwind code generation
+- Authorization panel expanded from 6 to 42 auth providers across 5 categories
+- Vulnerability scanner with 326 CVEs, 67 SAST rules, 7 lockfile parsers
+- MCP Installed tab with live tool discovery from registered servers
+- MCP plugin tool mappings for 22 known plugins as discovery fallback
+- View Tools navigation: click → scroll to and highlight server section
+- 11 new REPL commands: /init, /daemon, /vm, /branch-agent, /design, /audio, /org, /share-session, /data, /ci-gates, /agentic
+- Development Guide documentation with build/test/debug procedures
+- 2 new tutorials: Project Init & Auto-Context, Always-On Channel Daemon
+- 16 McpPanel unit tests (Vitest + React Testing Library)
+
+### Fixed
+- 4 broken tests in context_streaming (eviction window sizing, query search mode)
+- 2 broken tests: mcp_server tool count, open_memory project scope
+- TauriToolExecutor: path traversal via workspace-boundary canonicalization
+- SSRF protection in fetch_and_strip and agent fetch_url (block loopback, RFC 1918, metadata IPs)
+- Command injection: 19-pattern blocklist + 120s timeout in TauriToolExecutor
+- SQLite injection: block .shell/.system/.import dot-commands and ATTACH DATABASE
+- AI response command filtering for `<build command="">` and `<run command="">` tags
+- API keys stored without file permissions → now chmod 0600 on Unix
+- Trace save_context now redacts secrets (was only in save_messages)
+- Zhipu HMAC-SHA256: replaced hand-rolled implementation with audited hmac+sha2 crates
+- Collab sessions: upgraded from 64-bit to 128-bit IDs + session token auth
+- vibe-core executor: added 10 new blocklist patterns (shutdown, reverse shells, crontab, etc.)
+- run_project_script blocklist strengthened from 8 to 16 patterns
+
+### Changed
+- Agent output: structured banners, human-readable step descriptions, change summaries
+- Auth tab renamed to "Authorization"
+- Provider count in all docs: 17 → 22
+- Panel count in all docs: 60+/107 → 155+
+- REPL command count: 72+ → 93
+- Skill count: 526 → 543
+- Test count: 5,900+ → 7,400+
+- Workspace members: 6 → 9
+
+### Removed
+- Hand-rolled HMAC-SHA256 in zhipu.rs (replaced by crate)
+- Redundant Default impls in data_analysis.rs, session_sharing.rs (replaced by derive)
+
 ## [Unreleased]
 
 ### Features (Phases 7.26–7.34)
