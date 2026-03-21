@@ -1,11 +1,15 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ page.title | default: site.title }} — {{ site.title }}</title>
   <meta name="description" content="{{ page.description | default: site.description }}">
   <link rel="stylesheet" href="{{ '/assets/css/docs.css' | relative_url }}">
+  <script>
+    // Apply saved theme immediately to prevent flash
+    (function(){var t=localStorage.getItem('vibecody-theme')||'dark';document.documentElement.setAttribute('data-theme',t)})();
+  </script>
   {% seo %}
   {% feed_meta %}
 </head>
@@ -14,38 +18,48 @@
   <header class="top-header">
     <div class="header-left">
       <a href="{{ '/' | relative_url }}" class="logo">
-        <span class="logo-icon">&#9670;</span>
+        <svg class="logo-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"/><line x1="12" y1="22" x2="12" y2="15.5"/><polyline points="22 8.5 12 15.5 2 8.5"/></svg>
         <span class="logo-text">VibeCody</span>
       </a>
     </div>
     <div class="header-center">
       <div class="search-box" id="search-box">
-        <span class="search-icon">&#128269;</span>
-        <input type="text" id="search-input" placeholder="Search" autocomplete="off">
+        <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="search-input" placeholder="Search docs..." autocomplete="off">
         <kbd class="search-shortcut">/</kbd>
       </div>
     </div>
     <div class="header-right">
-      <a href="https://github.com/AceCana662/vibecody" class="header-link" target="_blank">GitHub</a>
-      <a href="{{ '/changelog/' | relative_url }}" class="header-link">Changelog</a>
-      <a href="{{ '/' | relative_url }}" class="header-link">Docs</a>
+      <!-- Theme toggle -->
+      <button class="theme-toggle" id="theme-toggle" title="Toggle light/dark mode" aria-label="Toggle theme">
+        <svg class="icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+        <svg class="icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+      </button>
+      <a href="https://github.com/AceCana662/vibecody" class="header-link" target="_blank">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 00-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0020 4.77 5.07 5.07 0 0019.91 1S18.73.65 16 2.48a13.38 13.38 0 00-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 005 4.77a5.44 5.44 0 00-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 009 18.13V22"/></svg>
+        <span>GitHub</span>
+      </a>
+      <a href="{{ '/' | relative_url }}" class="header-link">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        <span>Docs</span>
+      </a>
     </div>
   </header>
 
-  <!-- Top tabs bar (Docs / API Reference / Changelog) -->
+  <!-- Top tabs bar -->
   <nav class="top-tabs">
     {% for tab in site.top_tabs %}
     <a href="{{ tab.url | relative_url }}" class="top-tab {% if page.url == tab.url %}active{% endif %}">
-      {% if tab.url == '/' %}<span class="tab-icon">&#128196;</span>{% endif %}
-      {% if tab.url contains 'api' %}<span class="tab-icon">&lt;/&gt;</span>{% endif %}
-      {% if tab.url contains 'changelog' %}<span class="tab-icon">&#128466;</span>{% endif %}
+      {% if tab.url == '/' %}<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>{% endif %}
+      {% if tab.url contains 'api' %}<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>{% endif %}
+      {% if tab.url contains 'changelog' %}<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>{% endif %}
       {{ tab.title }}
     </a>
     {% endfor %}
   </nav>
 
   <div class="docs-layout">
-    <!-- Left sidebar navigation -->
+    <!-- Left sidebar -->
     <aside class="sidebar" id="sidebar">
       <nav class="sidebar-nav">
         {% for item in site.sidebar %}
@@ -54,11 +68,12 @@
           <button class="nav-group-toggle {% if page.url contains item.children[0].url %}open{% endif %}" onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">
             <span class="nav-icon">{% include icon.html name=item.icon %}</span>
             <span>{{ item.title }}</span>
-            <span class="chevron">&#9656;</span>
+            <svg class="chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
           </button>
           <div class="nav-group-children {% if page.url contains item.children[0].url %}open{% endif %}">
             {% for child in item.children %}
             <a href="{{ child.url | relative_url }}" class="nav-link child {% if page.url == child.url %}active{% endif %}">
+              <svg class="child-dot" width="6" height="6" viewBox="0 0 6 6"><circle cx="3" cy="3" r="2" fill="currentColor" opacity="0.4"/></svg>
               {{ child.title }}
             </a>
             {% endfor %}
@@ -74,21 +89,19 @@
       </nav>
     </aside>
 
-    <!-- Main content area -->
+    <!-- Main content -->
     <main class="content">
       {{ content }}
     </main>
 
-    <!-- Right "On this page" TOC -->
+    <!-- Right TOC -->
     <aside class="toc-sidebar" id="toc-sidebar">
       <div class="toc-title">On this page</div>
-      <nav class="toc-nav" id="toc-nav">
-        <!-- Generated by JS from h2/h3 headings -->
-      </nav>
+      <nav class="toc-nav" id="toc-nav"></nav>
     </aside>
   </div>
 
-  <!-- Search results overlay -->
+  <!-- Search overlay -->
   <div class="search-overlay" id="search-overlay" style="display:none">
     <div class="search-results" id="search-results"></div>
   </div>
