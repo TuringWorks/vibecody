@@ -102,6 +102,7 @@ pub static COMMANDS: &[&str] = &[
     "/extension",
     "/agentic",
     "/openmemory",
+    "/vulnscan",
 ];
 
 // ── Sub-command tables ────────────────────────────────────────────────────────
@@ -201,6 +202,9 @@ static AUTORESEARCH_SUBS: &[&str] = &["new", "start", "stop", "pause", "status",
 
 /// Sub-commands for `/openmemory <sub>`
 static OPENMEMORY_SUBS: &[&str] = &["add", "query", "list", "delete", "pin", "unpin", "fact", "facts", "decay", "consolidate", "reflect", "summary", "health", "at-risk", "dedup", "ingest", "import", "stats", "export", "encrypt", "context"];
+
+/// Sub-commands for `/vulnscan <sub>`
+static VULNSCAN_SUBS: &[&str] = &["scan", "deps", "file", "lockfile", "sarif", "report", "summary", "db-update", "db-status", "cache-clear"];
 
 /// Sub-commands for `/arena <sub>`
 static ARENA_SUBS: &[&str] = &["compare", "stats", "history"];
