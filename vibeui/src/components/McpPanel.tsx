@@ -132,17 +132,41 @@ export function McpPanel() {
     return () => { c = true; };
   }, [servers]);
 
+  /** Tracks tools discovered by connecting to live MCP servers. */
+  const [serverTools, setServerTools] = useState<Record<string, McpToolInfo[]>>({});
+  const [serverToolsLoading, setServerToolsLoading] = useState(false);
+
   const fetchTools = useCallback(async () => {
     try { const r = await invoke<{ tools: ToolManifest[] }>("mcp_lazy_list_tools"); setManifests(r.tools ?? []); }
     catch (e) { setError(`Tools: ${e}`); }
   }, []);
+
+  /** Probe all registered MCP servers for their live tools. */
+  const fetchServerTools = useCallback(async () => {
+    if (servers.length === 0) return;
+    setServerToolsLoading(true);
+    const results: Record<string, McpToolInfo[]> = {};
+    await Promise.all(
+      servers.map(async (srv) => {
+        try {
+          const tools = await invoke<McpToolInfo[]>("test_mcp_server", { server: srv });
+          results[srv.name] = tools;
+        } catch {
+          // Server not reachable — skip silently
+          results[srv.name] = [];
+        }
+      })
+    );
+    setServerTools(results);
+    setServerToolsLoading(false);
+  }, [servers]);
 
   const fetchMetrics = useCallback(async () => {
     try { setMetrics(await invoke<LazyMetrics>("mcp_lazy_metrics")); }
     catch (e) { setError(`Metrics: ${e}`); }
   }, []);
 
-  useEffect(() => { if (tab === "tools") { fetchTools(); } }, [tab, fetchTools]);
+  useEffect(() => { if (tab === "tools") { fetchTools(); fetchServerTools(); } }, [tab, fetchTools, fetchServerTools]);
 
   // Scroll to highlighted server section when navigating from Installed → View Tools
   useEffect(() => {
@@ -377,7 +401,7 @@ export function McpPanel() {
             <>
               {/* Summary bar */}
               <div style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span>{BUILTIN_TOOLS.length} built-in + {manifests.length} MCP tools ({loadedCount} loaded)</span>
+                <span>{BUILTIN_TOOLS.length} built-in + {manifests.length + Object.values(serverTools).reduce((s, t) => s + t.length, 0)} MCP tools{serverToolsLoading ? " (discovering...)" : ` (${loadedCount} loaded)`}</span>
                 <div style={{ ...barBg, minWidth: 120 }}><div style={barFill(manifests.length > 0 ? (loadedCount / manifests.length) * 100 : 0, "var(--info-color)")} /></div>
               </div>
 
@@ -396,71 +420,127 @@ export function McpPanel() {
                 </div>
               ))}
 
-              {/* MCP Server Tools */}
-              {manifests.length > 0 && (
-                <>
-                  <div style={{ fontSize: 12, fontWeight: 600, margin: "16px 0 6px", color: "var(--text-secondary)" }}>MCP SERVER TOOLS</div>
-                  {/* Group by server_name */}
-                  {(() => {
-                    const byServer: Record<string, ToolManifest[]> = {};
-                    manifests.forEach(m => {
-                      const key = m.server_name || "Unknown Server";
-                      if (!byServer[key]) byServer[key] = [];
-                      byServer[key].push(m);
-                    });
-                    return Object.entries(byServer).map(([serverName, tools]) => {
+              {/* MCP Server Tools — merged from lazy registry + live server discovery */}
+              {(() => {
+                // Merge tools from two sources:
+                // 1. Lazy registry manifests (grouped by server_name)
+                // 2. Live server discovery (from test_mcp_server calls)
+                const byServer: Record<string, { manifest: ToolManifest[]; live: McpToolInfo[] }> = {};
+
+                // Add manifest tools
+                manifests.forEach(m => {
+                  const key = m.server_name || "Unknown Server";
+                  if (!byServer[key]) byServer[key] = { manifest: [], live: [] };
+                  byServer[key].manifest.push(m);
+                });
+
+                // Add live-discovered tools (for servers not in manifest, or additional tools)
+                Object.entries(serverTools).forEach(([serverName, tools]) => {
+                  if (!byServer[serverName]) byServer[serverName] = { manifest: [], live: [] };
+                  // Only add live tools that aren't already in the manifest
+                  const manifestNames = new Set(byServer[serverName].manifest.map(m => m.name));
+                  tools.forEach(t => {
+                    if (!manifestNames.has(t.name)) {
+                      byServer[serverName].live.push(t);
+                    }
+                  });
+                });
+
+                const serverNames = Object.keys(byServer);
+                const totalServerTools = serverNames.reduce((sum, k) => sum + byServer[k].manifest.length + byServer[k].live.length, 0);
+
+                if (serverNames.length === 0 && !serverToolsLoading) {
+                  return (
+                    <div style={{ ...cardStyle, marginTop: 12 }}>
+                      <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                        No MCP server tools found. Add MCP servers in the Servers tab or install plugins from the Directory.
+                      </div>
+                    </div>
+                  );
+                }
+
+                return (
+                  <>
+                    <div style={{ fontSize: 12, fontWeight: 600, margin: "16px 0 6px", color: "var(--text-secondary)", display: "flex", justifyContent: "space-between" }}>
+                      <span>MCP SERVER TOOLS</span>
+                      {serverToolsLoading && <span style={{ fontWeight: 400, fontSize: 11 }}>Discovering tools from {servers.length} server{servers.length !== 1 ? "s" : ""}...</span>}
+                      {!serverToolsLoading && <span style={{ fontWeight: 400, fontSize: 11 }}>{totalServerTools} tool{totalServerTools !== 1 ? "s" : ""} across {serverNames.length} server{serverNames.length !== 1 ? "s" : ""}</span>}
+                    </div>
+
+                    {serverNames.map(serverName => {
+                      const { manifest: mTools, live: liveTools } = byServer[serverName];
+                      const totalCount = mTools.length + liveTools.length;
                       const isHighlighted = toolsHighlightServer != null &&
                         serverName.toLowerCase().includes(toolsHighlightServer.toLowerCase());
+
                       return (
-                      <div
-                        key={serverName}
-                        ref={(el) => { serverSectionRefs.current[serverName] = el; }}
-                      >
-                        <div style={{
-                          fontSize: 11, fontWeight: 600, margin: "8px 0 4px", padding: "4px 8px",
-                          background: isHighlighted ? "var(--accent-primary)" : "var(--bg-tertiary)",
-                          color: isHighlighted ? "#fff" : undefined,
-                          borderRadius: 4, display: "flex", justifyContent: "space-between",
-                          transition: "background 0.3s ease",
-                        }}>
-                          <span>{serverName}</span>
-                          <span style={{ fontWeight: 400, color: isHighlighted ? "rgba(255,255,255,0.8)" : "var(--text-secondary)" }}>{tools.length} tool{tools.length !== 1 ? "s" : ""}</span>
-                        </div>
-                        {tools.map(m => (
-                          <div key={m.id} style={{
-                            ...cardStyle,
-                            display: "flex", justifyContent: "space-between", alignItems: "center", marginLeft: 8,
-                            borderLeft: isHighlighted ? "3px solid var(--accent-primary)" : undefined,
+                        <div
+                          key={serverName}
+                          ref={(el) => { serverSectionRefs.current[serverName] = el; }}
+                        >
+                          <div style={{
+                            fontSize: 11, fontWeight: 600, margin: "8px 0 4px", padding: "4px 8px",
+                            background: isHighlighted ? "var(--accent-primary)" : "var(--bg-tertiary)",
+                            color: isHighlighted ? "#fff" : undefined,
+                            borderRadius: 4, display: "flex", justifyContent: "space-between",
+                            transition: "background 0.3s ease",
                           }}>
-                            <div style={{ flex: 1 }}>
-                              <div style={{ fontWeight: 600 }}>{m.name} <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>v{m.version}</span></div>
-                              <div style={labelStyle}>{m.description}</div>
-                              <div style={{ fontSize: 10, color: "var(--text-secondary)" }}>
-                                {m.size_kb} KB{m.load_time_ms != null ? ` | ${m.load_time_ms}ms` : ""}
+                            <span>{serverName}</span>
+                            <span style={{ fontWeight: 400, color: isHighlighted ? "rgba(255,255,255,0.8)" : "var(--text-secondary)" }}>
+                              {totalCount} tool{totalCount !== 1 ? "s" : ""}
+                              {liveTools.length > 0 && mTools.length > 0 ? ` (${liveTools.length} live)` : ""}
+                            </span>
+                          </div>
+
+                          {/* Manifest tools (richer metadata) */}
+                          {mTools.map(m => (
+                            <div key={m.id} style={{
+                              ...cardStyle,
+                              display: "flex", justifyContent: "space-between", alignItems: "center", marginLeft: 8,
+                              borderLeft: isHighlighted ? "3px solid var(--accent-primary)" : undefined,
+                            }}>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ fontWeight: 600 }}>{m.name} <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>v{m.version}</span></div>
+                                <div style={labelStyle}>{m.description}</div>
+                                <div style={{ fontSize: 10, color: "var(--text-secondary)" }}>
+                                  {m.size_kb} KB{m.load_time_ms != null ? ` | ${m.load_time_ms}ms` : ""}
+                                </div>
+                              </div>
+                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                <span style={badgeStyle(m.status)}>{m.status}</span>
+                                <button style={{ ...btnStyle, opacity: actionLoading === m.id ? 0.6 : 1 }} disabled={actionLoading === m.id} onClick={() => toggleTool(m.id, m.status)}>
+                                  {actionLoading === m.id ? "..." : m.status === "loaded" ? "Unload" : "Load"}
+                                </button>
                               </div>
                             </div>
-                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                              <span style={badgeStyle(m.status)}>{m.status}</span>
-                              <button style={{ ...btnStyle, opacity: actionLoading === m.id ? 0.6 : 1 }} disabled={actionLoading === m.id} onClick={() => toggleTool(m.id, m.status)}>
-                                {actionLoading === m.id ? "..." : m.status === "loaded" ? "Unload" : "Load"}
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    );
-                    });
-                  })()}
-                </>
-              )}
+                          ))}
 
-              {manifests.length === 0 && (
-                <div style={{ ...cardStyle, marginTop: 12 }}>
-                  <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
-                    No MCP server tools registered. Add MCP servers in the Servers tab or install plugins from the Directory.
-                  </div>
-                </div>
-              )}
+                          {/* Live-discovered tools (from server connection) */}
+                          {liveTools.map(t => (
+                            <div key={`live-${serverName}-${t.name}`} style={{
+                              ...cardStyle,
+                              display: "flex", justifyContent: "space-between", alignItems: "center", marginLeft: 8,
+                              borderLeft: isHighlighted ? "3px solid var(--accent-primary)" : "3px solid var(--info-color, #2196f3)",
+                            }}>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ fontWeight: 600 }}>{t.name}</div>
+                                <div style={labelStyle}>{t.description || "No description"}</div>
+                              </div>
+                              <span style={badgeStyle("loaded")}>live</span>
+                            </div>
+                          ))}
+
+                          {totalCount === 0 && (
+                            <div style={{ ...cardStyle, marginLeft: 8, fontSize: 12, color: "var(--text-secondary)" }}>
+                              {serverToolsLoading ? "Connecting to server..." : "No tools discovered. Server may be offline."}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </>
+                );
+              })()}
             </>
           )}
         </div>
