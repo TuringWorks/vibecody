@@ -1515,7 +1515,8 @@ async fn main() -> Result<()> {
     }
 
     loop {
-        let readline = rl.readline("> ");
+        let prompt = crate::syntax::colored_prompt(&effective_provider);
+        let readline = rl.readline(&prompt);
         match readline {
             Ok(line) => {
                 let input = line.trim();

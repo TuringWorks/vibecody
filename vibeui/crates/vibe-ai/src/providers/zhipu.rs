@@ -165,7 +165,8 @@ impl HmacSha256 {
     }
 }
 
-/// SHA-256 hash helper.
+/// SHA-256 hash helper (used by JWT signing for Zhipu API authentication).
+#[allow(dead_code)]
 fn sha256(data: &[u8]) -> [u8; 32] {
     use sha2::{Sha256, Digest};
     let mut hasher = Sha256::new();
