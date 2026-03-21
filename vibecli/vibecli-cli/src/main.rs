@@ -6217,7 +6217,7 @@ async fn main() -> Result<()> {
                         }
 
                         "/daemon" => {
-                            let sub = args.trim().split_whitespace().next().unwrap_or("status");
+                            let sub = args.split_whitespace().next().unwrap_or("status");
                             match sub {
                                 "start" => {
                                     println!("Starting channel daemon...\n");
@@ -6248,7 +6248,7 @@ async fn main() -> Result<()> {
                         }
 
                         "/vm" => {
-                            let sub = args.trim().split_whitespace().next().unwrap_or("status");
+                            let sub = args.split_whitespace().next().unwrap_or("status");
                             match sub {
                                 "status" => {
                                     let orch = vm_orchestrator::VmOrchestrator::new(vm_orchestrator::OrchestratorConfig::default());
@@ -6273,7 +6273,7 @@ async fn main() -> Result<()> {
                         }
 
                         "/branch-agent" => {
-                            let sub = args.trim().split_whitespace().next().unwrap_or("list");
+                            let sub = args.split_whitespace().next().unwrap_or("list");
                             match sub {
                                 "create" => {
                                     let task_desc = args.trim().strip_prefix("create").unwrap_or("").trim();
@@ -6297,7 +6297,7 @@ async fn main() -> Result<()> {
                         }
 
                         "/design" => {
-                            let sub = args.trim().split_whitespace().next().unwrap_or("help");
+                            let sub = args.split_whitespace().next().unwrap_or("help");
                             match sub {
                                 "import" => {
                                     let url = args.trim().strip_prefix("import").unwrap_or("").trim();
@@ -6319,7 +6319,7 @@ async fn main() -> Result<()> {
                         }
 
                         "/audio" => {
-                            let sub = args.trim().split_whitespace().next().unwrap_or("help");
+                            let sub = args.split_whitespace().next().unwrap_or("help");
                             match sub {
                                 "speak" => {
                                     let text = args.trim().strip_prefix("speak").unwrap_or("").trim();
@@ -6342,7 +6342,7 @@ async fn main() -> Result<()> {
                         }
 
                         "/org" => {
-                            let sub = args.trim().split_whitespace().next().unwrap_or("status");
+                            let sub = args.split_whitespace().next().unwrap_or("status");
                             match sub {
                                 "index" => {
                                     println!("Indexing organization repositories...");
@@ -6368,7 +6368,7 @@ async fn main() -> Result<()> {
                         }
 
                         "/share-session" => {
-                            let sub = args.trim().split_whitespace().next().unwrap_or("help");
+                            let sub = args.split_whitespace().next().unwrap_or("help");
                             match sub {
                                 "export" => {
                                     println!("📤 Exporting current session...");
@@ -6394,7 +6394,7 @@ async fn main() -> Result<()> {
                         }
 
                         "/data" => {
-                            let sub = args.trim().split_whitespace().next().unwrap_or("help");
+                            let sub = args.split_whitespace().next().unwrap_or("help");
                             match sub {
                                 "load" => {
                                     let path = args.trim().strip_prefix("load").unwrap_or("").trim();
@@ -6416,7 +6416,7 @@ async fn main() -> Result<()> {
                         }
 
                         "/ci-gates" => {
-                            let sub = args.trim().split_whitespace().next().unwrap_or("list");
+                            let sub = args.split_whitespace().next().unwrap_or("list");
                             match sub {
                                 "list" => {
                                     println!("CI Gates (source-controlled quality rules):");
@@ -6436,7 +6436,7 @@ async fn main() -> Result<()> {
                         }
 
                         "/extension" => {
-                            let sub = args.trim().split_whitespace().next().unwrap_or("list");
+                            let sub = args.split_whitespace().next().unwrap_or("list");
                             match sub {
                                 "install" => {
                                     let ext = args.trim().strip_prefix("install").unwrap_or("").trim();
@@ -6458,7 +6458,7 @@ async fn main() -> Result<()> {
                         }
 
                         "/agentic" => {
-                            let sub = args.trim().split_whitespace().next().unwrap_or("status");
+                            let sub = args.split_whitespace().next().unwrap_or("status");
                             match sub {
                                 "fix-build" => {
                                     println!("Auto-fixing build failures...");
@@ -6483,7 +6483,7 @@ async fn main() -> Result<()> {
                         }
 
                         "/openmemory" => {
-                            let sub = args.trim().split_whitespace().next().unwrap_or("stats");
+                            let sub = args.split_whitespace().next().unwrap_or("stats");
                             let rest = args.trim().strip_prefix(sub).unwrap_or("").trim();
                             match sub {
                                 "add" => {
@@ -6788,7 +6788,7 @@ async fn main() -> Result<()> {
                         }
 
                         "/vulnscan" => {
-                            let sub = args.trim().split_whitespace().next().unwrap_or("help");
+                            let sub = args.split_whitespace().next().unwrap_or("help");
                             let rest = args.trim().strip_prefix(sub).unwrap_or("").trim();
                             match sub {
                                 "scan" | "deps" => {

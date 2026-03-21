@@ -85,8 +85,9 @@ pub type Result<T> = std::result::Result<T, AnalysisError>;
 // ---------------------------------------------------------------------------
 
 /// Supported chart rendering libraries.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum ChartLibrary {
+    #[default]
     VegaLite,
     ECharts,
     ChartJs,
@@ -104,19 +105,15 @@ impl ChartLibrary {
     }
 }
 
-impl Default for ChartLibrary {
-    fn default() -> Self {
-        Self::VegaLite
-    }
-}
 
 // ---------------------------------------------------------------------------
 // Export format
 // ---------------------------------------------------------------------------
 
 /// Export format for analysis results.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum AnalysisExportFormat {
+    #[default]
     Html,
     Png,
     Json,
@@ -134,11 +131,6 @@ impl AnalysisExportFormat {
     }
 }
 
-impl Default for AnalysisExportFormat {
-    fn default() -> Self {
-        Self::Html
-    }
-}
 
 // ---------------------------------------------------------------------------
 // Data types
@@ -692,7 +684,7 @@ impl DataAnalyzer {
                 let max_val = sorted.last().copied();
                 let sum: f64 = nums.iter().sum();
                 let mean_val = sum / nums.len() as f64;
-                let median_val = if sorted.len() % 2 == 0 {
+                let median_val = if sorted.len().is_multiple_of(2) {
                     (sorted[sorted.len() / 2 - 1] + sorted[sorted.len() / 2]) / 2.0
                 } else {
                     sorted[sorted.len() / 2]

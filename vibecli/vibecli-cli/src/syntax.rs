@@ -463,9 +463,9 @@ pub fn describe_tool_action(tool_name: &str, summary: &str) -> String {
         }
         "web_search" => format!("Searching web: {}", summary),
         "fetch_url" => format!("Fetching URL: {}", summary),
-        "think" => format!("Thinking..."),
-        "task_complete" => format!("Task complete"),
-        "spawn_agent" => format!("Spawning sub-agent"),
+        "think" => "Thinking...".to_string(),
+        "task_complete" => "Task complete".to_string(),
+        "spawn_agent" => "Spawning sub-agent".to_string(),
         _ => summary.to_string(),
     }
 }

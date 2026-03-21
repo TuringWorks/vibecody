@@ -199,7 +199,7 @@ pub struct SharedSession {
     pub duration_secs: u64,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct SessionFilter {
     pub author: Option<String>,
     pub visibility: Option<Visibility>,
@@ -207,19 +207,6 @@ pub struct SessionFilter {
     pub after: Option<u64>,
     pub before: Option<u64>,
     pub keyword: Option<String>,
-}
-
-impl Default for SessionFilter {
-    fn default() -> Self {
-        Self {
-            author: None,
-            visibility: None,
-            outcome: None,
-            after: None,
-            before: None,
-            keyword: None,
-        }
-    }
 }
 
 // === Manager ===
