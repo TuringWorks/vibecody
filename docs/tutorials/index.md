@@ -4,7 +4,6 @@ title: Tutorials
 permalink: /tutorials/
 ---
 
-# Tutorials
 
 Hands-on guides to get the most out of VibeCody. Each tutorial is self-contained -- pick the one that matches what you want to do.
 

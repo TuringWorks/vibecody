@@ -4,7 +4,6 @@ title: "Demo 34: Usage Metering"
 permalink: /demos/34-usage-metering/
 ---
 
-# Demo 34: Usage Metering
 
 ## Overview
 

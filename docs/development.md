@@ -4,7 +4,6 @@ title: Development Guide
 permalink: /development/
 ---
 
-# Development Guide
 
 Internal guide for engineers contributing to VibeCody. Covers build procedures, testing, debugging, code organization, and common development workflows.
 

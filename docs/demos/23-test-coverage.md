@@ -6,7 +6,6 @@ nav_order: 23
 parent: Demos
 ---
 
-# Demo 23: Test Runner & Coverage
 
 ## Overview
 

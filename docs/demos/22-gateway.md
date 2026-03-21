@@ -6,7 +6,6 @@ nav_order: 22
 parent: Demos
 ---
 
-# Demo 22: Gateway Messaging
 
 ## Overview
 

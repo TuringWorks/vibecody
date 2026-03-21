@@ -4,7 +4,6 @@ title: "Demo 11 — Docker & Container Management"
 permalink: /demos/11-docker/
 ---
 
-# Demo 11 — Docker & Container Management
 
 ## Overview
 

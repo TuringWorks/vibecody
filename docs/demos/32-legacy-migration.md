@@ -4,7 +4,6 @@ title: "Demo 32: Legacy Migration"
 permalink: /demos/32-legacy-migration/
 ---
 
-# Demo 32: Legacy Migration
 
 ## Overview
 

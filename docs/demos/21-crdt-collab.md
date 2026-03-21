@@ -6,7 +6,6 @@ nav_order: 21
 parent: Demos
 ---
 
-# Demo 21: CRDT Collaboration
 
 ## Overview
 

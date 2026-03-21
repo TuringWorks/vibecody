@@ -4,7 +4,6 @@ title: "Demo 09 — Autofix & Diagnostics"
 permalink: /demos/09-autofix/
 ---
 
-# Demo 09 — Autofix & Diagnostics
 
 ## Overview
 

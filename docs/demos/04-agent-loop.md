@@ -6,7 +6,6 @@ nav_order: 4
 parent: Demos
 ---
 
-# Demo 4: Agent Loop & Tool Execution
 
 ## Overview
 

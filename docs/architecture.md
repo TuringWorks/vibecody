@@ -4,7 +4,6 @@ title: Architecture
 permalink: /architecture/
 ---
 
-# Architecture
 
 VibeCody is a Rust workspace (monorepo) with 9 crate members: three binary applications, five shared library crates, and a standalone indexing service, plus editor plugins, an agent SDK, and a skills library.
 

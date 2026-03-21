@@ -4,7 +4,6 @@ title: Fit-Gap Analysis v5 — Futureproofing 2026-2027
 permalink: /fit-gap-analysis-v5/
 ---
 
-# VibeCody Fit-Gap Analysis v5 — March 2026 Futureproofing Update
 
 **Date:** 2026-03-12
 **Previous analysis:** FIT-GAP-ANALYSIS-v4.md (2026-03-08)

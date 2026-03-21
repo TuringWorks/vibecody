@@ -6,7 +6,6 @@ nav_order: 14
 parent: Demos
 ---
 
-# Demo 14: Cloud Provider Integration
 
 ## Overview
 

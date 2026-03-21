@@ -4,7 +4,6 @@ title: Contributing
 permalink: /contributing/
 ---
 
-# Contributing to VibeCody
 
 Thank you for your interest in contributing! This guide covers how to get your development environment set up, the project conventions, and the contribution workflow.
 

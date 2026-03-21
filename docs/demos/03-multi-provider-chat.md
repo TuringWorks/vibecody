@@ -6,7 +6,6 @@ nav_order: 3
 parent: Demos
 ---
 
-# Demo 3: Multi-Provider AI Chat
 
 ## Overview
 

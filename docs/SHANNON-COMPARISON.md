@@ -4,7 +4,6 @@ title: Shannon vs VibeCody — Red Teaming Feature Comparison
 permalink: /shannon-comparison/
 ---
 
-# Shannon vs VibeCody — Red Teaming Feature Comparison
 
 **Date:** February 2026
 **Shannon:** [github.com/KeygraphHQ/shannon](https://github.com/KeygraphHQ/shannon) — Autonomous AI-powered penetration testing framework

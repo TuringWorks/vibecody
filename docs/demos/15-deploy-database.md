@@ -6,7 +6,6 @@ nav_order: 15
 parent: Demos
 ---
 
-# Demo 15: Deploy & Database
 
 ## Overview
 

@@ -4,7 +4,6 @@ title: "Demo 31: Batch Builder"
 permalink: /demos/31-batch-builder/
 ---
 
-# Demo 31: Batch Builder
 
 ## Overview
 

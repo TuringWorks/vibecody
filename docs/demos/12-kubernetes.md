@@ -4,7 +4,6 @@ title: "Demo 12 — Kubernetes Operations"
 permalink: /demos/12-kubernetes/
 ---
 
-# Demo 12 — Kubernetes Operations
 
 ## Overview
 

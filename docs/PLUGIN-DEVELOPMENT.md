@@ -5,7 +5,6 @@ permalink: /plugin-development/
 nav_order: 10
 ---
 
-# VibeCody Plugin Development Guide
 
 Complete reference for building VibeCody plugins, WASM extensions, MCP integrations, skills, and hooks. This document is designed for both human developers and AI coding assistants.
 

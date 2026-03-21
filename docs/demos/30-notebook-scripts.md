@@ -6,7 +6,6 @@ nav_order: 30
 parent: Demos
 ---
 
-# Demo 30: Notebook & Scripts
 
 ## Overview
 

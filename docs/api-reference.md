@@ -4,7 +4,6 @@ title: API Reference
 permalink: /api-reference/
 ---
 
-# API Reference
 
 Complete HTTP API reference for the VibeCLI daemon (`vibecli serve`).
 

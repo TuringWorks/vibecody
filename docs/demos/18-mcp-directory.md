@@ -6,7 +6,6 @@ nav_order: 18
 parent: Demos
 ---
 
-# Demo 18: MCP Plugin Directory
 
 ## Overview
 

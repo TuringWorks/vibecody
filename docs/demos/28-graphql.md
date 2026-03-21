@@ -6,7 +6,6 @@ nav_order: 28
 parent: Demos
 ---
 
-# Demo 28: GraphQL Explorer
 
 ## Overview
 

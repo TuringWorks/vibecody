@@ -6,7 +6,6 @@ nav_order: 5
 parent: Demos
 ---
 
-# Demo 5: Model Arena
 
 ## Overview
 

@@ -4,7 +4,6 @@ title: "Demo 10 — Code Transforms"
 permalink: /demos/10-code-transforms/
 ---
 
-# Demo 10 — Code Transforms
 
 ## Overview
 

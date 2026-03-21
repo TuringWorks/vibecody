@@ -4,7 +4,6 @@ title: Changelog
 permalink: /changelog/
 ---
 
-# Changelog
 
 All notable changes to VibeCody are documented here. This project follows [Semantic Versioning](https://semver.org/).
 

@@ -6,7 +6,6 @@ nav_order: 2
 parent: Demos
 ---
 
-# Demo 2: TUI Interface
 
 ## Overview
 

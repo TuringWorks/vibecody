@@ -6,7 +6,6 @@ nav_order: 20
 parent: Demos
 ---
 
-# Demo 20: Agent Teams
 
 ## Overview
 

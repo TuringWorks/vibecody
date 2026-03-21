@@ -6,7 +6,6 @@ nav_order: 13
 parent: Demos
 ---
 
-# Demo 13: CI/CD Pipeline
 
 ## Overview
 

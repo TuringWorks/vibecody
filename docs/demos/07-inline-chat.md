@@ -4,7 +4,6 @@ title: "Demo 07 — Inline Chat & Completions"
 permalink: /demos/07-inline-chat/
 ---
 
-# Demo 07 — Inline Chat & Completions
 
 ## Overview
 

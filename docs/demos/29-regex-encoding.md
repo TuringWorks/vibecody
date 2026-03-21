@@ -6,7 +6,6 @@ nav_order: 29
 parent: Demos
 ---
 
-# Demo 29: Regex & Encoding Tools
 
 ## Overview
 

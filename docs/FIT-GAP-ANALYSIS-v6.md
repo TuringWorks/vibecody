@@ -4,7 +4,6 @@ title: Fit-Gap Analysis v6 — March 2026 Competitive Reset
 permalink: /fit-gap-analysis-v6/
 ---
 
-# VibeCody Fit-Gap Analysis v6 — March 2026 Competitive Reset
 
 **Date:** 2026-03-20
 **Previous analysis:** FIT-GAP-ANALYSIS-v5.md (2026-03-12)

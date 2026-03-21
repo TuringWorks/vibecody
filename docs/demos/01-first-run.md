@@ -6,7 +6,6 @@ nav_order: 1
 parent: Demos
 ---
 
-# Demo 1: First Run & Setup
 
 ## Overview
 

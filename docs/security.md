@@ -4,7 +4,6 @@ title: Security
 permalink: /security/
 ---
 
-# Security
 
 This document describes VibeCody's security model, data privacy practices, and hardening recommendations for production deployments.
 

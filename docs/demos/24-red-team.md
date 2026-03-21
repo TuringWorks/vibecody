@@ -6,7 +6,6 @@ nav_order: 24
 parent: Demos
 ---
 
-# Demo 24: Red Team Security
 
 ## Overview
 

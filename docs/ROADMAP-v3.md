@@ -4,7 +4,6 @@ title: Competitive Roadmap v3 — Futureproofing 2026-2027
 permalink: /roadmap-v3/
 ---
 
-# VibeCody Competitive Roadmap v3
 
 **Date:** March 2026
 **Previous:** ROADMAP-v2.md (February 2026) — all phases complete

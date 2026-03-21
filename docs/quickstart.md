@@ -4,7 +4,6 @@ title: Quickstart
 permalink: /quickstart/
 ---
 
-# Quickstart
 
 **Zero to productive in 5 minutes.**
 

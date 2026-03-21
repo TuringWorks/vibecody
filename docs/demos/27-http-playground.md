@@ -6,7 +6,6 @@ nav_order: 27
 parent: Demos
 ---
 
-# Demo 27: HTTP Playground
 
 ## Overview
 

@@ -6,7 +6,6 @@ nav_order: 17
 parent: Demos
 ---
 
-# Demo 17: MCP Lazy Loading
 
 ## Overview
 

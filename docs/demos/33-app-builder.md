@@ -4,7 +4,6 @@ title: "Demo 33: App Builder"
 permalink: /demos/33-app-builder/
 ---
 
-# Demo 33: App Builder
 
 ## Overview
 

@@ -6,7 +6,6 @@ nav_order: 19
 parent: Demos
 ---
 
-# Demo 19: Context Bundles
 
 ## Overview
 

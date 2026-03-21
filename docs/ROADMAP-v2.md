@@ -4,7 +4,6 @@ title: Competitive Roadmap v2 — Surpassing the Competition
 permalink: /roadmap-v2/
 ---
 
-# VibeCody Competitive Roadmap v2
 
 **Date:** February 2026
 **Scope:** Detailed fit-gap analysis and feature-by-feature implementation plan to surpass Codex CLI, Claude Code (VibeCLI), and Cursor, Windsurf, Google Antigravity, Trae (VibeUI).

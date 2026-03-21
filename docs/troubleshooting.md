@@ -4,7 +4,6 @@ title: Troubleshooting
 permalink: /troubleshooting/
 ---
 
-# Troubleshooting
 
 This guide covers the most common issues you may encounter when installing, configuring, or using VibeCody. Each issue follows the format: **Symptom**, **Cause**, **Solution**.
 

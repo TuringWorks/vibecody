@@ -4,7 +4,6 @@ title: Glossary
 permalink: /glossary/
 ---
 
-# Glossary
 
 An alphabetical reference of terms used throughout VibeCody's documentation and codebase.
 

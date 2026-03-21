@@ -4,7 +4,6 @@ title: "Demo 35: Compliance & Audit"
 permalink: /demos/35-compliance/
 ---
 
-# Demo 35: Compliance & Audit
 
 ## Overview
 

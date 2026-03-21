@@ -4,7 +4,6 @@ title: Competitive Roadmap v4 — March 2026 Reset
 permalink: /roadmap-v4/
 ---
 
-# VibeCody Competitive Roadmap v4
 
 **Date:** 2026-03-20
 **Previous:** ROADMAP-v3.md (March 2026) — Phases 10-14 complete

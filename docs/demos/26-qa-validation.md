@@ -6,7 +6,6 @@ nav_order: 26
 parent: Demos
 ---
 
-# Demo 26: QA Validation Pipeline
 
 ## Overview
 

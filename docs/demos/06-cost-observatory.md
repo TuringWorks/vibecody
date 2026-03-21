@@ -6,7 +6,6 @@ nav_order: 6
 parent: Demos
 ---
 
-# Demo 6: Cost Observatory
 
 ## Overview
 

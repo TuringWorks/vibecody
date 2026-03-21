@@ -4,7 +4,6 @@ title: "Demo 08 — Code Search & Embeddings"
 permalink: /demos/08-code-search/
 ---
 
-# Demo 08 — Code Search & Embeddings
 
 ## Overview
 

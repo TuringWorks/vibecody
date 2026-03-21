@@ -6,7 +6,6 @@ nav_order: 16
 parent: Demos
 ---
 
-# Demo 16: MCP Server Integration
 
 ## Overview
 

@@ -6,7 +6,6 @@ nav_order: 25
 parent: Demos
 ---
 
-# Demo 25: SWE-bench Benchmarking
 
 ## Overview
 
