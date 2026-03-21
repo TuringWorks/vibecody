@@ -200,7 +200,7 @@ static QUANTUM_SUBS: &[&str] = &["languages", "os", "hardware", "algorithms", "c
 static AUTORESEARCH_SUBS: &[&str] = &["new", "start", "stop", "pause", "status", "list", "analyze", "export", "suggest", "lessons", "config"];
 
 /// Sub-commands for `/openmemory <sub>`
-static OPENMEMORY_SUBS: &[&str] = &["add", "query", "list", "delete", "pin", "unpin", "fact", "facts", "decay", "consolidate", "reflect", "summary", "at-risk", "import", "stats", "export", "encrypt", "context"];
+static OPENMEMORY_SUBS: &[&str] = &["add", "query", "list", "delete", "pin", "unpin", "fact", "facts", "decay", "consolidate", "reflect", "summary", "health", "at-risk", "dedup", "ingest", "import", "stats", "export", "encrypt", "context"];
 
 /// Sub-commands for `/arena <sub>`
 static ARENA_SUBS: &[&str] = &["compare", "stats", "history"];

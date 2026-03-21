@@ -6610,6 +6610,37 @@ async fn main() -> Result<()> {
                                     let store = open_memory::project_scoped_store(&std::env::current_dir().unwrap_or_default());
                                     println!("{}\n", store.user_summary());
                                 }
+                                "dedup" => {
+                                    let mut store = open_memory::project_scoped_store(&std::env::current_dir().unwrap_or_default());
+                                    let threshold = Config::load().map(|c| c.memory.openmemory.dedup_threshold).unwrap_or(0.8);
+                                    let removed = store.remove_duplicates(threshold);
+                                    let _ = store.save();
+                                    println!("Removed {} duplicate memories (threshold: {:.0}%).\n", removed, threshold * 100.0);
+                                }
+                                "health" => {
+                                    let store = open_memory::project_scoped_store(&std::env::current_dir().unwrap_or_default());
+                                    let h = store.health_metrics();
+                                    println!("OpenMemory Health Dashboard\n");
+                                    println!("  Memories: {}  |  Waypoints: {}  |  Facts: {}", h.total_memories, h.total_waypoints, h.total_facts);
+                                    println!("  Pinned: {}  |  At-risk: {}  |  Encrypted: {}", h.pinned_count, h.at_risk_count, h.encrypted_count);
+                                    println!("  Avg salience: {:.0}%  |  Avg age: {:.1} days", h.avg_salience * 100.0, h.avg_age_days);
+                                    println!("  Connectivity: {:.1} links/memory  |  Sector diversity: {:.0}%\n", h.connectivity, h.sector_diversity * 100.0);
+                                }
+                                "ingest" => {
+                                    if rest.is_empty() {
+                                        println!("Usage: /openmemory ingest <file-path>\n  Chunks large documents and stores as tagged memories.\n");
+                                    } else {
+                                        match std::fs::read_to_string(rest) {
+                                            Ok(content) => {
+                                                let mut store = open_memory::project_scoped_store(&std::env::current_dir().unwrap_or_default());
+                                                let chunks = store.ingest_document(&content, rest);
+                                                let _ = store.save();
+                                                println!("Ingested {} chunks from {}\n", chunks, rest);
+                                            }
+                                            Err(e) => println!("Failed to read {}: {}\n", rest, e),
+                                        }
+                                    }
+                                }
                                 "at-risk" => {
                                     let store = open_memory::project_scoped_store(&std::env::current_dir().unwrap_or_default());
                                     let at_risk = store.at_risk_memories(0.3);
@@ -6635,7 +6666,10 @@ async fn main() -> Result<()> {
                                     println!("  /openmemory consolidate                      — Merge similar weak memories");
                                     println!("  /openmemory reflect                          — Generate auto-reflection");
                                     println!("  /openmemory summary                          — Show user memory profile");
+                                    println!("  /openmemory health                           — Health dashboard (metrics, diversity)");
                                     println!("  /openmemory at-risk                          — Show memories near purge threshold");
+                                    println!("  /openmemory dedup                            — Remove duplicate memories");
+                                    println!("  /openmemory ingest <file>                    — Chunk & ingest a document");
                                     println!("  /openmemory import [mem0|zep|openmemory|auto] — Import/migrate memories");
                                     println!("  /openmemory stats                            — Show sector statistics");
                                     println!("  /openmemory export                           — Export as markdown");
@@ -7068,11 +7102,13 @@ async fn run_agent_repl_with_context(
         .take(5) // Max 5 files to avoid bloating context
         .collect();
 
-    // OpenMemory: inject relevant memories into agent system prompt (project-scoped)
-    let memory_context = {
+    // OpenMemory: inject relevant memories into agent system prompt (config-gated)
+    let memory_context = if config.memory.openmemory.enabled && config.memory.openmemory.auto_inject {
         let store = open_memory::project_scoped_store(&workspace);
-        let ctx = store.get_agent_context(task, 8);
+        let ctx = store.get_agent_context(task, config.memory.openmemory.max_memories_in_context);
         if ctx.is_empty() { None } else { Some(ctx) }
+    } else {
+        None
     };
 
     let context = AgentContext {
@@ -7229,22 +7265,20 @@ async fn run_agent_repl_with_context(
                         }
                     });
                 }
-                // Bridge session summary to OpenMemory + auto-reflect
-                {
+                // Bridge session summary to OpenMemory + auto-reflect (config-gated)
+                if config.memory.openmemory.enabled && config.memory.openmemory.auto_save_sessions {
                     let summary_for_mem = summary.clone();
                     let task_for_mem = task.to_string();
                     let workspace_for_mem = workspace.clone();
+                    let reflect_interval = config.memory.openmemory.auto_reflect_interval;
+                    let dedup_threshold = config.memory.openmemory.dedup_threshold;
                     tokio::spawn(async move {
                         let mut store = open_memory::project_scoped_store(&workspace_for_mem);
-                        // Store session as episodic memory
+                        // Store session as episodic memory (dedup-safe)
                         let content = format!("Session: {} — {}", task_for_mem, summary_for_mem);
-                        store.add_with_tags(
-                            content,
-                            vec!["session".to_string(), "auto".to_string()],
-                            std::collections::HashMap::new(),
-                        );
-                        // Trigger auto-reflection every 10 sessions
-                        if store.total_memories() % 10 == 0 {
+                        store.add_dedup(content, dedup_threshold);
+                        // Trigger auto-reflection at configured interval
+                        if reflect_interval > 0 && store.total_memories() % reflect_interval == 0 {
                             store.auto_reflect();
                         }
                         // Reinforce memories that were used in context

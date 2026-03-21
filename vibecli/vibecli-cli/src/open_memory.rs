@@ -932,6 +932,23 @@ pub struct SectorStats {
     pub pinned_count: usize,
 }
 
+/// Health metrics for the memory store dashboard.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HealthMetrics {
+    pub total_memories: usize,
+    pub at_risk_count: usize,
+    pub pinned_count: usize,
+    pub encrypted_count: usize,
+    pub avg_salience: f64,
+    pub avg_age_days: f64,
+    /// Average waypoints per memory (connectivity).
+    pub connectivity: f64,
+    /// Sector diversity score 0.0–1.0 (1.0 = perfectly balanced).
+    pub sector_diversity: f64,
+    pub total_waypoints: usize,
+    pub total_facts: usize,
+}
+
 // ─── Open Memory Store ───────────────────────────────────────────────────────
 
 /// The main cognitive memory store — VibeCody's OpenMemory engine.
@@ -1802,6 +1819,169 @@ impl OpenMemoryStore {
         count
     }
 
+    // ── Deduplication ────────────────────────────────────────────────────
+
+    /// Check if content is a near-duplicate of an existing memory.
+    /// Uses word-overlap similarity (same approach as memory_auto.rs).
+    pub fn is_duplicate(&self, content: &str, threshold: f64) -> bool {
+        let new_lower = content.to_lowercase();
+        let new_words: std::collections::HashSet<&str> = new_lower.split_whitespace().collect();
+        if new_words.is_empty() {
+            return false;
+        }
+
+        self.memories.values().any(|m| {
+            let ex_lower = m.content.to_lowercase();
+            let ex_words: std::collections::HashSet<&str> = ex_lower.split_whitespace().collect();
+            if ex_words.is_empty() {
+                return false;
+            }
+            let overlap = new_words.intersection(&ex_words).count();
+            let min_len = new_words.len().min(ex_words.len());
+            min_len > 0 && overlap as f64 / min_len as f64 >= threshold
+        })
+    }
+
+    /// Add a memory only if it's not a near-duplicate (dedup-safe add).
+    /// Returns Some(id) if added, None if duplicate detected.
+    pub fn add_dedup(&mut self, content: impl Into<String>, threshold: f64) -> Option<String> {
+        let content = content.into();
+        if self.is_duplicate(&content, threshold) {
+            return None;
+        }
+        Some(self.add(content))
+    }
+
+    /// Remove duplicate memories (keep the one with highest salience).
+    pub fn remove_duplicates(&mut self, threshold: f64) -> usize {
+        let ids: Vec<String> = self.memories.keys().cloned().collect();
+        let mut to_remove: std::collections::HashSet<String> = std::collections::HashSet::new();
+        let mut removed = 0;
+
+        for i in 0..ids.len() {
+            if to_remove.contains(&ids[i]) {
+                continue;
+            }
+            let m_i = match self.memories.get(&ids[i]) {
+                Some(m) => m,
+                None => continue,
+            };
+            let content_i = m_i.content.to_lowercase();
+            let words_i: std::collections::HashSet<&str> = content_i.split_whitespace().collect();
+            let salience_i = m_i.salience;
+
+            for j in (i + 1)..ids.len() {
+                if to_remove.contains(&ids[j]) {
+                    continue;
+                }
+                if let Some(m_j) = self.memories.get(&ids[j]) {
+                    let content_j = m_j.content.to_lowercase();
+                    let words_j: std::collections::HashSet<&str> = content_j.split_whitespace().collect();
+                    let overlap = words_i.intersection(&words_j).count();
+                    let min_len = words_i.len().min(words_j.len());
+                    if min_len > 0 && overlap as f64 / min_len as f64 >= threshold {
+                        // Remove the one with lower salience
+                        if salience_i >= m_j.salience {
+                            to_remove.insert(ids[j].clone());
+                        } else {
+                            to_remove.insert(ids[i].clone());
+                            break; // i is marked, skip rest
+                        }
+                    }
+                }
+            }
+        }
+
+        for id in &to_remove {
+            self.delete(id);
+            removed += 1;
+        }
+        removed
+    }
+
+    // ── Document Chunking ────────────────────────────────────────────────
+
+    /// Ingest a large document by chunking it (2048 chars, 256 overlap).
+    /// Each chunk becomes a separate memory tagged with the source.
+    /// Matches OpenMemory's document ingestion pipeline.
+    pub fn ingest_document(&mut self, content: &str, source: &str) -> usize {
+        self.ingest_document_with_options(content, source, 2048, 256)
+    }
+
+    /// Ingest with configurable chunk size and overlap.
+    pub fn ingest_document_with_options(
+        &mut self,
+        content: &str,
+        source: &str,
+        chunk_size: usize,
+        overlap: usize,
+    ) -> usize {
+        let chunks = chunk_text(content, chunk_size, overlap);
+        let total = chunks.len();
+        for (i, chunk) in chunks.iter().enumerate() {
+            let mut metadata = HashMap::new();
+            metadata.insert("source".to_string(), source.to_string());
+            metadata.insert("chunk".to_string(), format!("{}/{}", i + 1, total));
+            self.add_with_tags(
+                chunk.clone(),
+                vec!["document".to_string(), "chunk".to_string()],
+                metadata,
+            );
+        }
+        total
+    }
+
+    // ── Health Metrics ───────────────────────────────────────────────────
+
+    /// Get memory health metrics for dashboard display.
+    pub fn health_metrics(&self) -> HealthMetrics {
+        let total = self.total_memories();
+        let at_risk = self.at_risk_memories(0.3).len();
+        let pinned = self.memories.values().filter(|m| m.pinned).count();
+        let encrypted = self.memories.values().filter(|m| m.encrypted).count();
+        let avg_salience = if total > 0 {
+            self.memories.values().map(|m| m.effective_salience()).sum::<f64>() / total as f64
+        } else {
+            0.0
+        };
+        let avg_age_days = if total > 0 {
+            self.memories.values().map(|m| m.age_days()).sum::<f64>() / total as f64
+        } else {
+            0.0
+        };
+        let connectivity = if total > 0 {
+            self.total_waypoints() as f64 / total as f64
+        } else {
+            0.0
+        };
+
+        // Sector diversity score (0-1, 1 = perfectly balanced across 5 sectors)
+        let stats = self.sector_stats();
+        let sector_diversity = if total > 0 {
+            let expected = total as f64 / 5.0;
+            let variance: f64 = stats.iter()
+                .map(|s| (s.count as f64 - expected).powi(2))
+                .sum::<f64>() / 5.0;
+            let max_variance = (total as f64 - expected).powi(2) * 4.0 / 5.0 + expected.powi(2) * 4.0 / 5.0;
+            if max_variance > 0.0 { 1.0 - (variance / max_variance).sqrt() } else { 1.0 }
+        } else {
+            0.0
+        };
+
+        HealthMetrics {
+            total_memories: total,
+            at_risk_count: at_risk,
+            pinned_count: pinned,
+            encrypted_count: encrypted,
+            avg_salience,
+            avg_age_days,
+            connectivity,
+            sector_diversity,
+            total_waypoints: self.total_waypoints(),
+            total_facts: self.total_facts(),
+        }
+    }
+
     // ── Auto-Reflection ──────────────────────────────────────────────────
 
     /// Generate a reflective summary of the memory store's contents.
@@ -2373,6 +2553,33 @@ mod hex {
 }
 
 // ─── Utilities ───────────────────────────────────────────────────────────────
+
+/// Chunk text into overlapping segments for document ingestion.
+fn chunk_text(text: &str, chunk_size: usize, overlap: usize) -> Vec<String> {
+    if text.is_empty() || chunk_size == 0 {
+        return Vec::new();
+    }
+    let chars: Vec<char> = text.chars().collect();
+    if chars.len() <= chunk_size {
+        return vec![text.to_string()];
+    }
+
+    let step = chunk_size.saturating_sub(overlap).max(1);
+    let mut chunks = Vec::new();
+    let mut start = 0;
+    while start < chars.len() {
+        let end = (start + chunk_size).min(chars.len());
+        let chunk: String = chars[start..end].iter().collect();
+        if !chunk.trim().is_empty() {
+            chunks.push(chunk);
+        }
+        start += step;
+        if end == chars.len() {
+            break;
+        }
+    }
+    chunks
+}
 
 fn epoch_secs() -> u64 {
     SystemTime::now()
@@ -3931,5 +4138,215 @@ mod tests {
         store.add("Only memory");
         let page = store.list_memories(100, 10);
         assert!(page.is_empty());
+    }
+
+    // ── Deduplication tests ──────────────────────────────────────────────
+
+    #[test]
+    fn is_duplicate_detects_similar() {
+        let mut store = test_store();
+        store.add("Rust uses ownership for memory safety");
+        assert!(store.is_duplicate("Rust uses ownership for memory safety", 0.8));
+    }
+
+    #[test]
+    fn is_duplicate_rejects_different() {
+        let mut store = test_store();
+        store.add("Rust uses ownership for memory safety");
+        assert!(!store.is_duplicate("Python is great for data science", 0.8));
+    }
+
+    #[test]
+    fn is_duplicate_empty_store() {
+        let store = test_store();
+        assert!(!store.is_duplicate("anything", 0.8));
+    }
+
+    #[test]
+    fn is_duplicate_empty_content() {
+        let mut store = test_store();
+        store.add("Some content");
+        assert!(!store.is_duplicate("", 0.8));
+    }
+
+    #[test]
+    fn add_dedup_prevents_duplicates() {
+        let mut store = test_store();
+        let id1 = store.add_dedup("Rust ownership model", 0.8);
+        assert!(id1.is_some());
+        let id2 = store.add_dedup("Rust ownership model", 0.8);
+        assert!(id2.is_none()); // Duplicate
+        assert_eq!(store.total_memories(), 1);
+    }
+
+    #[test]
+    fn add_dedup_allows_different() {
+        let mut store = test_store();
+        store.add_dedup("Rust ownership model", 0.8);
+        let id2 = store.add_dedup("Python garbage collector", 0.8);
+        assert!(id2.is_some());
+        assert_eq!(store.total_memories(), 2);
+    }
+
+    #[test]
+    fn remove_duplicates_basic() {
+        let mut store = test_store();
+        store.add("Rust uses ownership for memory safety");
+        store.add("Rust uses ownership for memory safety guarantees");
+        store.add("Python is great for data science");
+        assert_eq!(store.total_memories(), 3);
+        let removed = store.remove_duplicates(0.7);
+        assert!(removed >= 1);
+        assert!(store.total_memories() <= 2);
+    }
+
+    #[test]
+    fn remove_duplicates_empty_store() {
+        let mut store = test_store();
+        let removed = store.remove_duplicates(0.8);
+        assert_eq!(removed, 0);
+    }
+
+    #[test]
+    fn remove_duplicates_keeps_higher_salience() {
+        let mut store = test_store();
+        let id1 = store.add("Exact same content here");
+        let id2 = store.add("Exact same content here");
+        // Boost id2 salience
+        if let Some(m) = store.get_mut(&id2) { m.salience = 0.5; }
+        // id1 has salience 1.0, id2 has 0.5 — id2 should be removed
+        store.remove_duplicates(0.9);
+        assert_eq!(store.total_memories(), 1);
+        assert!(store.get(&id1).is_some()); // Higher salience kept
+    }
+
+    // ── Document chunking tests ──────────────────────────────────────────
+
+    #[test]
+    fn chunk_text_empty() {
+        let chunks = chunk_text("", 100, 20);
+        assert!(chunks.is_empty());
+    }
+
+    #[test]
+    fn chunk_text_small_fits_one() {
+        let chunks = chunk_text("Hello world", 100, 20);
+        assert_eq!(chunks.len(), 1);
+        assert_eq!(chunks[0], "Hello world");
+    }
+
+    #[test]
+    fn chunk_text_large_creates_overlapping() {
+        let text = "a".repeat(100);
+        let chunks = chunk_text(&text, 30, 10);
+        assert!(chunks.len() > 1);
+        // Each chunk except last should be 30 chars
+        assert_eq!(chunks[0].len(), 30);
+        // Verify overlap: last 10 chars of chunk[0] = first 10 chars of chunk[1]
+        assert_eq!(&chunks[0][20..30], &chunks[1][..10]);
+    }
+
+    #[test]
+    fn chunk_text_zero_chunk_size() {
+        let chunks = chunk_text("hello", 0, 0);
+        assert!(chunks.is_empty());
+    }
+
+    #[test]
+    fn ingest_document_basic() {
+        let mut store = test_store();
+        let doc = "word ".repeat(500); // ~2500 chars
+        let chunks = store.ingest_document(&doc, "test.md");
+        assert!(chunks >= 2); // Should create multiple chunks
+        // All should have "document" tag
+        let tagged = store.list_by_tag("document");
+        assert_eq!(tagged.len(), chunks);
+    }
+
+    #[test]
+    fn ingest_document_small() {
+        let mut store = test_store();
+        let chunks = store.ingest_document("Short document", "test.txt");
+        assert_eq!(chunks, 1);
+    }
+
+    #[test]
+    fn ingest_document_with_options() {
+        let mut store = test_store();
+        let doc = "x".repeat(200);
+        let chunks = store.ingest_document_with_options(&doc, "src", 50, 10);
+        assert!(chunks >= 4); // 200 chars / (50-10) step ≈ 5 chunks
+    }
+
+    // ── Health metrics tests ─────────────────────────────────────────────
+
+    #[test]
+    fn health_metrics_empty_store() {
+        let store = test_store();
+        let h = store.health_metrics();
+        assert_eq!(h.total_memories, 0);
+        assert_eq!(h.at_risk_count, 0);
+        assert_eq!(h.pinned_count, 0);
+        assert_eq!(h.connectivity, 0.0);
+        assert_eq!(h.sector_diversity, 0.0);
+    }
+
+    #[test]
+    fn health_metrics_with_data() {
+        let mut store = test_store();
+        store.add_with_sector("fact", MemorySector::Semantic, vec![]);
+        store.add_with_sector("event", MemorySector::Episodic, vec![]);
+        let id = store.add_with_sector("pinned", MemorySector::Semantic, vec![]);
+        store.pin(&id);
+        store.add_fact("x", "is", "y");
+
+        let h = store.health_metrics();
+        assert_eq!(h.total_memories, 3);
+        assert_eq!(h.pinned_count, 1);
+        assert_eq!(h.total_facts, 1);
+        assert!(h.avg_salience > 0.9); // Fresh memories
+        assert!(h.sector_diversity > 0.0);
+    }
+
+    #[test]
+    fn health_metrics_diversity_perfect() {
+        let mut store = test_store();
+        // One memory per sector = perfect diversity
+        for sector in MemorySector::all() {
+            store.add_with_sector("test", *sector, vec![]);
+        }
+        let h = store.health_metrics();
+        assert!(h.sector_diversity > 0.9, "5 memories across 5 sectors should be near-perfect diversity, got {}", h.sector_diversity);
+    }
+
+    #[test]
+    fn health_metrics_diversity_imbalanced() {
+        let mut store = test_store();
+        // All in one sector = low diversity
+        for _ in 0..10 {
+            store.add_with_sector("all semantic", MemorySector::Semantic, vec![]);
+        }
+        let h = store.health_metrics();
+        assert!(h.sector_diversity < 0.5, "all-same-sector should have low diversity, got {}", h.sector_diversity);
+    }
+
+    // ── Config integration test ──────────────────────────────────────────
+
+    #[test]
+    fn health_metrics_serializes() {
+        let h = HealthMetrics {
+            total_memories: 10,
+            at_risk_count: 2,
+            pinned_count: 3,
+            encrypted_count: 0,
+            avg_salience: 0.75,
+            avg_age_days: 5.2,
+            connectivity: 2.1,
+            sector_diversity: 0.82,
+            total_waypoints: 21,
+            total_facts: 4,
+        };
+        let json = serde_json::to_string(&h).expect("serialize");
+        assert!(json.contains("sector_diversity"));
     }
 }

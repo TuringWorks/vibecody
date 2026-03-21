@@ -1152,13 +1152,72 @@ pub struct MemoryConfig {
     /// Minimum number of tool-use steps before auto-recording triggers.
     #[serde(default = "default_min_steps")]
     pub min_session_steps: usize,
+    /// OpenMemory cognitive engine settings.
+    #[serde(default)]
+    pub openmemory: OpenMemoryConfig,
 }
 
 fn default_min_steps() -> usize { 3 }
 
 impl Default for MemoryConfig {
     fn default() -> Self {
-        Self { auto_record: false, min_session_steps: 3 }
+        Self { auto_record: false, min_session_steps: 3, openmemory: OpenMemoryConfig::default() }
+    }
+}
+
+/// OpenMemory cognitive engine configuration.
+///
+/// ```toml
+/// [memory.openmemory]
+/// enabled = true
+/// auto_inject = true           # inject memories into agent system prompt
+/// auto_save_sessions = true    # save session summaries as episodic memories
+/// auto_reflect_interval = 10   # generate reflection every N sessions
+/// dedup_threshold = 0.8        # word-overlap % to consider duplicate
+/// max_memories_in_context = 8  # max memories injected into agent prompt
+/// encryption_passphrase = ""   # set to enable AES-256-GCM encryption
+/// ```
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OpenMemoryConfig {
+    /// Enable OpenMemory integration.
+    #[serde(default = "om_default_true")]
+    pub enabled: bool,
+    /// Auto-inject relevant memories into agent system prompts.
+    #[serde(default = "om_default_true")]
+    pub auto_inject: bool,
+    /// Auto-save session summaries as episodic memories.
+    #[serde(default = "om_default_true")]
+    pub auto_save_sessions: bool,
+    /// Generate auto-reflection every N sessions (0 = disabled).
+    #[serde(default = "default_reflect_interval")]
+    pub auto_reflect_interval: usize,
+    /// Word-overlap threshold for deduplication (0.0–1.0).
+    #[serde(default = "default_dedup_threshold")]
+    pub dedup_threshold: f64,
+    /// Max memories injected into agent context.
+    #[serde(default = "default_max_context")]
+    pub max_memories_in_context: usize,
+    /// Passphrase for AES-256-GCM encryption (empty = disabled).
+    #[serde(default)]
+    pub encryption_passphrase: String,
+}
+
+fn om_default_true() -> bool { true }
+fn default_reflect_interval() -> usize { 10 }
+fn default_dedup_threshold() -> f64 { 0.8 }
+fn default_max_context() -> usize { 8 }
+
+impl Default for OpenMemoryConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            auto_inject: true,
+            auto_save_sessions: true,
+            auto_reflect_interval: 10,
+            dedup_threshold: 0.8,
+            max_memories_in_context: 8,
+            encryption_passphrase: String::new(),
+        }
     }
 }
 
