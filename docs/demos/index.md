@@ -14,95 +14,81 @@ Interactive walkthroughs covering VibeCody's major capabilities across CLI, Desk
 
 | Demo | Surface | Description |
 |------|---------|-------------|
-| [01 — First Run & Setup](01-first-run.md) | CLI | Install, configure providers, first AI chat |
-| [02 — TUI Interface](02-tui-interface.md) | CLI | Navigate the terminal UI, panels, keybindings |
+| [01 — First Run & Setup](/demos/first-run/) | CLI | Install, configure providers, first AI chat |
+| [02 — TUI Interface](/demos/tui-interface/) | CLI | Navigate the terminal UI, panels, keybindings |
 
 ## AI & Providers
 
 | Demo | Surface | Description |
 |------|---------|-------------|
-| [03 — Multi-Provider AI Chat](03-multi-provider-chat.md) | CLI + UI | Switch between 22 AI providers, streaming responses |
-| [04 — Agent Loop & Tool Execution](04-agent-loop.md) | CLI + UI | Autonomous coding with file edit, shell, search tools |
-| [05 — Model Arena](05-model-arena.md) | UI | Side-by-side model comparison and ranking |
-| [06 — Cost Observatory](06-cost-observatory.md) | CLI + UI | Track token usage and costs across providers |
+| [03 — Multi-Provider AI Chat](/demos/multi-provider-chat/) | CLI + UI | Switch between 22 AI providers, streaming responses |
+| [04 — Agent Loop & Tool Execution](/demos/agent-loop/) | CLI + UI | Autonomous coding with file edit, shell, search tools |
+| [05 — Model Arena](/demos/model-arena/) | UI | Side-by-side model comparison and ranking |
+| [06 — Cost Observatory](/demos/cost-observatory/) | CLI + UI | Track token usage and costs across providers |
 
 ## Code Intelligence
 
 | Demo | Surface | Description |
 |------|---------|-------------|
-| [07 — Inline Chat & Completions](07-inline-chat.md) | UI | Context-aware code suggestions in the editor |
-| [08 — Code Search & Embeddings](08-code-search.md) | CLI + UI | Semantic search across codebases |
-| [09 — Autofix & Diagnostics](09-autofix.md) | CLI + UI | Automated bug detection and repair |
-| [10 — Code Transforms](10-code-transforms.md) | CLI + UI | AST-based refactoring and code generation |
+| [07 — Inline Chat & Completions](/demos/07-inline-chat/) | UI | Context-aware code suggestions in the editor |
+| [08 — Code Search & Embeddings](/demos/08-code-search/) | CLI + UI | Semantic search across codebases |
+| [09 — Autofix & Diagnostics](/demos/09-autofix/) | CLI + UI | Automated bug detection and repair |
+| [10 — Code Transforms](/demos/10-code-transforms/) | CLI + UI | AST-based refactoring and code generation |
 
 ## DevOps & Infrastructure
 
 | Demo | Surface | Description |
 |------|---------|-------------|
-| [11 — Docker & Container Management](11-docker.md) | CLI + UI | Build, run, manage containers |
-| [12 — Kubernetes Operations](12-kubernetes.md) | CLI + UI | Deploy, scale, monitor K8s workloads |
-| [13 — CI/CD Pipeline](13-cicd.md) | CLI + UI | GitHub Actions, pipeline monitoring |
-| [14 — Cloud Provider Integration](14-cloud-providers.md) | CLI + UI | AWS/GCP/Azure scanning, IAM, IaC generation |
-| [15 — Deploy & Database](15-deploy-database.md) | CLI + UI | Deployment workflows and database management |
+| [11 — Docker & Container Management](/demos/11-docker/) | CLI + UI | Build, run, manage containers |
+| [12 — Kubernetes Operations](/demos/12-kubernetes/) | CLI + UI | Deploy, scale, monitor K8s workloads |
+| [13 — CI/CD Pipeline](/demos/13-cicd/) | CLI + UI | GitHub Actions, pipeline monitoring |
+| [14 — Cloud Provider Integration](/demos/14-cloud-providers/) | CLI + UI | AWS/GCP/Azure scanning, IAM, IaC generation |
+| [15 — Deploy & Database](/demos/15-deploy-database/) | CLI + UI | Deployment workflows and database management |
 
 ## MCP & Extensions
 
 | Demo | Surface | Description |
 |------|---------|-------------|
-| [16 — MCP Server Integration](16-mcp-servers.md) | CLI + UI | Connect external tool servers |
-| [17 — MCP Lazy Loading](17-mcp-lazy-loading.md) | CLI + UI | Scalable tool registry with on-demand loading |
-| [18 — MCP Plugin Directory](18-mcp-directory.md) | UI | Browse, install, rate verified plugins |
+| [16 — MCP Server Integration](/demos/16-mcp-servers/) | CLI + UI | Connect external tool servers |
+| [17 — MCP Lazy Loading](/demos/17-mcp-lazy-loading/) | CLI + UI | Scalable tool registry with on-demand loading |
+| [18 — MCP Plugin Directory](/demos/18-mcp-directory/) | UI | Browse, install, rate verified plugins |
 
 ## Collaboration & Context
 
 | Demo | Surface | Description |
 |------|---------|-------------|
-| [19 — Context Bundles](19-context-bundles.md) | CLI + UI | Shareable context sets for teams |
-| [20 — Agent Teams](20-agent-teams.md) | CLI + UI | Multi-agent collaboration with roles |
-| [21 — CRDT Collaboration](21-crdt-collab.md) | UI | Real-time multi-user editing |
-| [22 — Gateway Messaging](22-gateway.md) | CLI | AI assistant on 18 platforms (Slack, Discord, etc.) |
+| [19 — Context Bundles](/demos/context-bundles/) | CLI + UI | Shareable context sets for teams |
+| [20 — Agent Teams](/demos/agent-teams/) | CLI + UI | Multi-agent collaboration with roles |
+| [21 — CRDT Collaboration](/demos/crdt-collab/) | UI | Real-time multi-user editing |
+| [22 — Gateway Messaging](/demos/gateway/) | CLI | AI assistant on 18 platforms (Slack, Discord, etc.) |
 
 ## Testing & Quality
 
 | Demo | Surface | Description |
 |------|---------|-------------|
-| [23 — Test Runner & Coverage](23-test-coverage.md) | CLI + UI | Run tests, track coverage, generate tests |
-| [24 — Red Team Security](24-red-team.md) | CLI + UI | Security scanning and vulnerability detection |
-| [25 — SWE-bench Benchmarking](25-swe-bench.md) | CLI + UI | Benchmark AI coding performance |
-| [26 — QA Validation Pipeline](26-qa-validation.md) | CLI + UI | Multi-round quality validation |
+| [23 — Test Runner & Coverage](/demos/test-coverage/) | CLI + UI | Run tests, track coverage, generate tests |
+| [24 — Red Team Security](/demos/red-team/) | CLI + UI | Security scanning and vulnerability detection |
+| [25 — SWE-bench Benchmarking](/demos/swe-bench/) | CLI + UI | Benchmark AI coding performance |
+| [26 — QA Validation Pipeline](/demos/qa-validation/) | CLI + UI | Multi-round quality validation |
 
 ## Developer Tools
 
 | Demo | Surface | Description |
 |------|---------|-------------|
-| [27 — HTTP Playground](27-http-playground.md) | CLI + UI | API testing with history and collections |
-| [28 — GraphQL Explorer](28-graphql.md) | UI | Schema introspection and query building |
-| [29 — Regex & Encoding Tools](29-regex-encoding.md) | UI | Regex tester, JWT decoder, base converter |
-| [30 — Notebook & Scripts](30-notebook-scripts.md) | CLI + UI | Interactive notebooks and script runner |
+| [27 — HTTP Playground](/demos/http-playground/) | CLI + UI | API testing with history and collections |
+| [28 — GraphQL Explorer](/demos/graphql/) | UI | Schema introspection and query building |
+| [29 — Regex & Encoding Tools](/demos/regex-encoding/) | UI | Regex tester, JWT decoder, base converter |
+| [30 — Notebook & Scripts](/demos/notebook-scripts/) | CLI + UI | Interactive notebooks and script runner |
 
 ## Enterprise & Advanced
 
 | Demo | Surface | Description |
 |------|---------|-------------|
-| [31 — Batch Builder](31-batch-builder.md) | CLI + UI | Generate entire codebases (3M+ lines) |
-| [32 — Legacy Migration](32-legacy-migration.md) | CLI + UI | COBOL/Fortran to modern languages |
-| [33 — App Builder](33-app-builder.md) | CLI + UI | Full-stack app scaffolding from prompts |
-| [34 — Usage Metering](34-usage-metering.md) | CLI + UI | Credit budgets and team cost allocation |
-| [35 — Compliance & Audit](35-compliance.md) | CLI + UI | SOC 2 controls and audit trails |
-
-## New Features (2026-03)
-
-| Demo | Surface | Description |
-|------|---------|-------------|
-| [36 — Project Init & Auto-Context](36-project-init.md) | CLI | `/init` project scanning, auto-context injection, smart file selection |
-| [37 — Always-On Channel Daemon](37-channel-daemon.md) | CLI | `--channel-daemon` persistent agent on Slack/Discord/GitHub |
-| [38 — Agent-Per-Branch Workflow](38-branch-agent.md) | CLI | Isolated git branches per task, auto-PR on completion |
-| [39 — Spec-Driven Development](39-spec-pipeline.md) | CLI | EARS requirements → design → tasks structured pipeline |
-| [40 — VM Agent Orchestration](40-vm-orchestrator.md) | CLI | Parallel agents in isolated Docker containers |
-| [41 — Design Canvas](41-design-canvas.md) | UI | Visual drag-and-drop component builder → React/Tailwind code |
-| [42 — Vulnerability Scanner](42-vulnscan.md) | CLI + UI | CVE scanning, SAST rules, lockfile parsing, SARIF output |
-| [43 — Data Analysis Mode](43-data-analysis.md) | CLI | CSV/JSON loading, SQL queries, visualizations |
-| [44 — Agentic CI/CD](44-agentic-cicd.md) | CLI | Auto-fix builds, generate tests, resolve merge conflicts |
+| [31 — Batch Builder](/demos/31-batch-builder/) | CLI + UI | Generate entire codebases (3M+ lines) |
+| [32 — Legacy Migration](/demos/32-legacy-migration/) | CLI + UI | COBOL/Fortran to modern languages |
+| [33 — App Builder](/demos/33-app-builder/) | CLI + UI | Full-stack app scaffolding from prompts |
+| [34 — Usage Metering](/demos/34-usage-metering/) | CLI + UI | Credit budgets and team cost allocation |
+| [35 — Compliance & Audit](/demos/35-compliance/) | CLI + UI | SOC 2 controls and audit trails |
 
 ---
 
@@ -126,7 +112,7 @@ vibecli demo export <demo-id> --format html
 
 ### VibeUI Demos
 
-1. Open VibeUI: `cd vibeui && npm run tauri dev`
+1. Open VibeUI: `cd vibeui && npm run tauri:dev`
 2. Navigate to the **Demo** tab in the AI panel
 3. Browse demos by category
 4. Click **Play** to step through interactively
@@ -138,28 +124,3 @@ vibecli demo export <demo-id> --format html
 docker-compose up -d
 vibecli --provider ollama chat "Hello"
 ```
-
----
-
-## Demo JSON Format
-
-Demos use VibeCody's `DemoRecording` format:
-
-```json
-{
-  "id": "demo-agent-loop",
-  "title": "Agent Loop & Tool Execution",
-  "description": "Watch the AI agent autonomously edit files",
-  "steps": [
-    { "action": "Navigate", "target": "http://localhost:7878" },
-    { "action": "Type", "target": "#prompt", "value": "Fix the bug in auth.rs" },
-    { "action": "Narrate", "value": "The agent analyzes the codebase..." },
-    { "action": "Screenshot", "label": "agent-thinking" },
-    { "action": "Wait", "duration_ms": 2000 },
-    { "action": "Assert", "target": ".tool-call", "value": "contains:EditFile" }
-  ],
-  "tags": ["agent", "tools", "coding"]
-}
-```
-
-Step types: `Navigate`, `Click`, `Type`, `Wait`, `Screenshot`, `Assert`, `Narrate`, `EvalJs`, `Scroll`, `WaitForSelector`
