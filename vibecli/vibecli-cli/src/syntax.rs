@@ -427,8 +427,12 @@ pub fn format_agent_error(error: &str) -> String {
 }
 
 /// Format the REPL prompt. Plain text to avoid rustyline ANSI width issues.
-pub fn colored_prompt(provider_name: &str) -> String {
-    format!("[vibecli {}] > ", provider_name)
+pub fn colored_prompt(provider_name: &str, model: Option<&str>) -> String {
+    if let Some(m) = model {
+        format!("[vibecli {} ({})] > ", provider_name, m)
+    } else {
+        format!("[vibecli {}] > ", provider_name)
+    }
 }
 
 /// Format tool output preview (first line, dimmed).

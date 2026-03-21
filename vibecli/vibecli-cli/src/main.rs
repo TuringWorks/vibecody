@@ -1515,7 +1515,7 @@ async fn main() -> Result<()> {
     }
 
     loop {
-        let prompt = crate::syntax::colored_prompt(&effective_provider);
+        let prompt = crate::syntax::colored_prompt(&effective_provider, effective_model.as_deref());
         let readline = rl.readline(&prompt);
         match readline {
             Ok(line) => {
