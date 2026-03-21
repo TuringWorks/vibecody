@@ -153,6 +153,22 @@ const OpenMemoryPanel: React.FC = () => {
     if (tab === 'facts') loadFacts();
   }, [tab, loadMemories, loadFacts]);
 
+  // Auto-refresh: poll stats every 10s, active tab data every 15s
+  useEffect(() => {
+    const statsInterval = setInterval(loadStats, 10000);
+    return () => clearInterval(statsInterval);
+  }, [loadStats]);
+
+  useEffect(() => {
+    if (tab === 'memories' || tab === 'facts') {
+      const dataInterval = setInterval(() => {
+        if (tab === 'memories') loadMemories();
+        if (tab === 'facts') loadFacts();
+      }, 15000);
+      return () => clearInterval(dataInterval);
+    }
+  }, [tab, loadMemories, loadFacts]);
+
   const handleAdd = async () => {
     if (!newContent.trim()) return;
     await invoke('openmemory_add', {

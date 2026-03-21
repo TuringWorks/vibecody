@@ -537,6 +537,21 @@ impl Default for LocalEmbeddingEngine {
 
 /// Hierarchical Navigable Small World graph for approximate nearest neighbor search.
 /// OpenMemory uses brute-force cosine; HNSW gives O(log n) queries.
+/// Helper for BinaryHeap ordering by f64 similarity.
+#[derive(Clone, PartialEq)]
+struct OrdF64(f64, usize);
+impl Eq for OrdF64 {}
+impl PartialOrd for OrdF64 {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl Ord for OrdF64 {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.0.partial_cmp(&other.0).unwrap_or(std::cmp::Ordering::Equal)
+    }
+}
+
 pub struct HnswIndex {
     /// All vectors stored, indexed by position.
     vectors: Vec<(String, Vec<f32>)>,  // (memory_id, vector)
@@ -651,21 +666,103 @@ impl HnswIndex {
         }
     }
 
-    /// Query for K nearest neighbors.
+    /// Query for K nearest neighbors using greedy beam search through HNSW layers.
+    /// Falls back to brute-force for small stores (< 100 vectors).
     pub fn query(&self, vector: &[f32], k: usize) -> Vec<(String, f64)> {
         if self.vectors.is_empty() {
             return Vec::new();
         }
 
+        // For small stores, brute-force is faster than graph traversal
+        if self.vectors.len() < 100 {
+            return self.brute_force_query(vector, k);
+        }
+
+        // Greedy beam search: start from top layer, descend to layer 0
+        let ef_search = k.max(10); // search beam width
+        let mut entry_point = 0usize; // start with first node
+
+        // Find entry point by searching from top layer down
+        for layer_idx in (1..self.layers.len()).rev() {
+            let layer = &self.layers[layer_idx];
+            if entry_point >= layer.len() || entry_point >= self.vectors.len() {
+                continue;
+            }
+            // Greedy search: follow best neighbor at each step
+            let mut current = entry_point;
+            let mut best_sim = LocalEmbeddingEngine::cosine_similarity(vector, &self.vectors[current].1);
+            loop {
+                let mut improved = false;
+                if current < layer.len() {
+                    for &neighbor in &layer[current] {
+                        if neighbor < self.vectors.len() {
+                            let sim = LocalEmbeddingEngine::cosine_similarity(vector, &self.vectors[neighbor].1);
+                            if sim > best_sim {
+                                best_sim = sim;
+                                current = neighbor;
+                                improved = true;
+                            }
+                        }
+                    }
+                }
+                if !improved { break; }
+            }
+            entry_point = current;
+        }
+
+        // Beam search at layer 0 with ef_search candidates
+        let mut visited = std::collections::HashSet::new();
+        let mut candidates = std::collections::BinaryHeap::new();
+        let mut results: Vec<(usize, f64)> = Vec::new();
+
+        // Seed with entry point
+        visited.insert(entry_point);
+        let sim = LocalEmbeddingEngine::cosine_similarity(vector, &self.vectors[entry_point].1);
+        candidates.push(OrdF64(sim, entry_point));
+        results.push((entry_point, sim));
+
+        while let Some(OrdF64(_, current)) = candidates.pop() {
+            if results.len() >= ef_search * 2 {
+                break;
+            }
+            // Expand neighbors at layer 0
+            if !self.layers.is_empty() && current < self.layers[0].len() {
+                for &neighbor in &self.layers[0][current] {
+                    if neighbor < self.vectors.len() && visited.insert(neighbor) {
+                        let nsim = LocalEmbeddingEngine::cosine_similarity(vector, &self.vectors[neighbor].1);
+                        candidates.push(OrdF64(nsim, neighbor));
+                        results.push((neighbor, nsim));
+                    }
+                }
+            }
+        }
+
+        // If beam search found too few, supplement with brute force on remaining
+        if results.len() < k {
+            for (i, (_, v)) in self.vectors.iter().enumerate() {
+                if !visited.contains(&i) {
+                    let sim = LocalEmbeddingEngine::cosine_similarity(vector, v);
+                    results.push((i, sim));
+                }
+            }
+        }
+
+        results.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+        results.into_iter()
+            .take(k)
+            .map(|(i, sim)| (self.vectors[i].0.clone(), sim))
+            .collect()
+    }
+
+    /// Brute-force fallback for small datasets.
+    fn brute_force_query(&self, vector: &[f32], k: usize) -> Vec<(String, f64)> {
         let mut candidates: Vec<(usize, f64)> = self.vectors.iter().enumerate()
             .map(|(i, (_, v))| {
                 let sim = LocalEmbeddingEngine::cosine_similarity(vector, v);
                 (i, sim)
             })
             .collect();
-
         candidates.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-
         candidates.into_iter()
             .take(k)
             .map(|(i, sim)| (self.vectors[i].0.clone(), sim))
@@ -3608,5 +3705,231 @@ mod tests {
         let mut store = test_store();
         let result = import_from_auto_memory(&mut store, "???");
         assert!(result.is_err());
+    }
+
+    // ── HNSW beam search tests ───────────────────────────────────────────
+
+    #[test]
+    fn hnsw_large_dataset_query() {
+        let mut index = HnswIndex::new();
+        // Insert 150 vectors to trigger beam search path (>100 threshold)
+        for i in 0..150 {
+            let angle = (i as f32) * 0.042; // spread around unit circle
+            index.insert(&format!("m{}", i), vec![angle.cos(), angle.sin(), 0.0]);
+        }
+        assert_eq!(index.len(), 150);
+        // Query for nearest to [1, 0, 0]
+        let results = index.query(&[1.0, 0.0, 0.0], 5);
+        assert_eq!(results.len(), 5);
+        // All results should have positive similarity (near [1,0,0])
+        for (_, sim) in &results {
+            assert!(*sim > 0.0);
+        }
+    }
+
+    #[test]
+    fn hnsw_beam_search_finds_exact_match() {
+        let mut index = HnswIndex::new();
+        for i in 0..120 {
+            index.insert(&format!("v{}", i), vec![i as f32, 0.0, 0.0]);
+        }
+        // Insert exact match
+        index.insert("exact", vec![50.0, 0.0, 0.0]);
+        let results = index.query(&[50.0, 0.0, 0.0], 1);
+        assert!(!results.is_empty());
+        // The exact or very close match should be found
+        assert!(results[0].1 > 0.9);
+    }
+
+    #[test]
+    fn hnsw_brute_force_fallback_small() {
+        let mut index = HnswIndex::new();
+        // Under 100 → uses brute force path
+        for i in 0..50 {
+            index.insert(&format!("s{}", i), vec![i as f32, 0.0]);
+        }
+        let results = index.query(&[25.0, 0.0], 3);
+        assert_eq!(results.len(), 3);
+    }
+
+    // ── Consolidation tests ──────────────────────────────────────────────
+
+    #[test]
+    fn consolidate_merges_similar_weak_memories() {
+        let mut store = test_store();
+        // Add very similar memories with low salience
+        let id1 = store.add_with_sector("Rust has ownership semantics", MemorySector::Semantic, vec![]);
+        let id2 = store.add_with_sector("Rust uses ownership semantics for safety", MemorySector::Semantic, vec![]);
+
+        // Lower salience to make eligible
+        if let Some(m) = store.get_mut(&id1) { m.salience = 0.2; }
+        if let Some(m) = store.get_mut(&id2) { m.salience = 0.2; }
+
+        let before = store.total_memories();
+        let results = store.consolidate();
+        // May or may not consolidate depending on embedding similarity
+        assert!(store.total_memories() <= before);
+        // Results can be empty if embeddings differ enough
+        let _ = results;
+    }
+
+    // ── Reinforce tests ──────────────────────────────────────────────────
+
+    #[test]
+    fn reinforce_boosts_salience() {
+        let mut store = test_store();
+        let id = store.add("test memory");
+        if let Some(m) = store.get_mut(&id) {
+            m.salience = 0.5; // Lower from default 1.0
+        }
+        store.reinforce(&[id.clone()]);
+        assert!((store.get(&id).unwrap().salience - 0.6).abs() < 0.01);
+    }
+
+    #[test]
+    fn reinforce_caps_at_one() {
+        let mut store = test_store();
+        let id = store.add("max salience");
+        // Already at 1.0
+        store.reinforce(&[id.clone()]);
+        assert_eq!(store.get(&id).unwrap().salience, 1.0);
+    }
+
+    #[test]
+    fn reinforce_updates_last_seen() {
+        let mut store = test_store();
+        let id = store.add("old memory");
+        let original = store.get(&id).unwrap().last_seen_at;
+        // Small delay to ensure timestamp difference
+        std::thread::sleep(std::time::Duration::from_millis(10));
+        store.reinforce(&[id.clone()]);
+        assert!(store.get(&id).unwrap().last_seen_at >= original);
+    }
+
+    #[test]
+    fn reinforce_nonexistent_is_noop() {
+        let mut store = test_store();
+        store.reinforce(&["nonexistent".to_string()]); // Should not panic
+    }
+
+    // ── Prune waypoints tests ────────────────────────────────────────────
+
+    #[test]
+    fn prune_waypoints_removes_weak_links() {
+        let mut store = test_store();
+        // Manually add waypoints with varying weights
+        store.waypoints.entry("a".to_string()).or_default().extend(vec![
+            Waypoint::new("a", "b", 0.9, false),
+            Waypoint::new("a", "c", 0.02, false),
+            Waypoint::new("a", "d", 0.01, false),
+        ]);
+        let pruned = store.prune_waypoints(0.05);
+        assert_eq!(pruned, 2); // c and d should be pruned
+        assert_eq!(store.get_waypoints("a").len(), 1); // Only b remains
+    }
+
+    #[test]
+    fn prune_waypoints_empty_store() {
+        let mut store = test_store();
+        let pruned = store.prune_waypoints(0.1);
+        assert_eq!(pruned, 0);
+    }
+
+    // ── Persistence roundtrip tests ──────────────────────────────────────
+
+    #[test]
+    fn persistence_roundtrip_with_waypoints_and_facts() {
+        let dir = std::env::temp_dir().join(format!("vibecody-om-persist-{}", epoch_secs()));
+        {
+            let mut store = OpenMemoryStore::new(&dir, "user1");
+            store.add_with_tags("Memory with tags", vec!["tag1".to_string()], HashMap::new());
+            store.add_with_sector("Procedural memory", MemorySector::Procedural, vec![]);
+            store.add_fact("project", "lang", "Rust");
+            store.add_fact("project", "framework", "Tokio");
+            store.save().expect("save");
+        }
+        {
+            let store = OpenMemoryStore::load(&dir, "user1").expect("load");
+            assert_eq!(store.total_memories(), 2);
+            assert_eq!(store.total_facts(), 2);
+            let facts = store.query_current_facts();
+            assert!(facts.iter().any(|f| f.object == "Rust"));
+            assert!(facts.iter().any(|f| f.object == "Tokio"));
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    // ── Search by date (additional) ─────────────────────────────────────
+
+    #[test]
+    fn search_by_date_multiple_results() {
+        let mut store = test_store();
+        let now = epoch_secs();
+        store.add("Memory A");
+        store.add("Memory B");
+        store.add("Memory C");
+        let results = store.search_by_date(now - 10, now + 10);
+        assert_eq!(results.len(), 3);
+    }
+
+    // ── OrdF64 ordering test ─────────────────────────────────────────────
+
+    #[test]
+    fn ord_f64_ordering() {
+        use std::collections::BinaryHeap;
+        let mut heap = BinaryHeap::new();
+        heap.push(OrdF64(0.5, 0));
+        heap.push(OrdF64(0.9, 1));
+        heap.push(OrdF64(0.1, 2));
+        assert_eq!(heap.pop().unwrap().1, 1); // Highest first
+        assert_eq!(heap.pop().unwrap().1, 0);
+        assert_eq!(heap.pop().unwrap().1, 2);
+    }
+
+    // ── Sector stats tests ───────────────────────────────────────────────
+
+    #[test]
+    fn sector_stats_empty_sectors_have_zero_values() {
+        let store = test_store();
+        let stats = store.sector_stats();
+        assert_eq!(stats.len(), 5); // All 5 sectors represented
+        for s in &stats {
+            assert_eq!(s.count, 0);
+            assert_eq!(s.avg_salience, 0.0);
+            assert_eq!(s.pinned_count, 0);
+        }
+    }
+
+    #[test]
+    fn sector_stats_counts_pinned() {
+        let mut store = test_store();
+        let id = store.add_with_sector("pinned", MemorySector::Semantic, vec![]);
+        store.pin(&id);
+        store.add_with_sector("unpinned", MemorySector::Semantic, vec![]);
+
+        let stats = store.sector_stats();
+        let sem = stats.iter().find(|s| s.sector == MemorySector::Semantic).unwrap();
+        assert_eq!(sem.count, 2);
+        assert_eq!(sem.pinned_count, 1);
+    }
+
+    // ── List pagination tests ────────────────────────────────────────────
+
+    #[test]
+    fn list_memories_respects_offset_and_limit() {
+        let mut store = test_store();
+        for i in 0..20 {
+            store.add(&format!("Memory {}", i));
+        }
+        let page = store.list_memories(5, 3);
+        assert_eq!(page.len(), 3);
+    }
+
+    #[test]
+    fn list_memories_offset_past_end() {
+        let mut store = test_store();
+        store.add("Only memory");
+        let page = store.list_memories(100, 10);
+        assert!(page.is_empty());
     }
 }

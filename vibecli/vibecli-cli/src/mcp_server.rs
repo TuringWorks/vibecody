@@ -302,6 +302,60 @@ fn tool_defs() -> Vec<Value> {
                 "required": ["task"]
             }
         }),
+        // ── OpenMemory MCP tools ─────────────────────────────────────────
+        json!({
+            "name": "memory_add",
+            "description": "Store a memory in VibeCody's cognitive memory engine. Auto-classifies into 5 sectors (episodic, semantic, procedural, emotional, reflective) with decay and reinforcement.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "content": { "type": "string", "description": "Memory content to store" },
+                    "tags": { "type": "array", "items": { "type": "string" }, "description": "Optional tags" }
+                },
+                "required": ["content"]
+            }
+        }),
+        json!({
+            "name": "memory_query",
+            "description": "Search the cognitive memory store using composite scoring (similarity + salience + recency + waypoint graph + sector match).",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "query": { "type": "string", "description": "Search query text" },
+                    "limit": { "type": "integer", "default": 10, "description": "Max results" },
+                    "sector": { "type": "string", "enum": ["episodic","semantic","procedural","emotional","reflective"], "description": "Optional sector filter" }
+                },
+                "required": ["query"]
+            }
+        }),
+        json!({
+            "name": "memory_add_fact",
+            "description": "Add a temporal fact to the knowledge graph. New facts auto-close previous conflicting entries with the same subject+predicate.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "subject": { "type": "string" },
+                    "predicate": { "type": "string" },
+                    "object": { "type": "string" }
+                },
+                "required": ["subject", "predicate", "object"]
+            }
+        }),
+        json!({
+            "name": "memory_facts",
+            "description": "Query current temporal facts from the knowledge graph. Returns all facts valid at the current time.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "subject": { "type": "string", "description": "Optional: filter by subject" }
+                }
+            }
+        }),
+        json!({
+            "name": "memory_stats",
+            "description": "Get cognitive memory statistics: total memories, waypoints, facts, and per-sector breakdown with salience averages.",
+            "inputSchema": { "type": "object", "properties": {} }
+        }),
     ]
 }
 
@@ -418,6 +472,76 @@ async fn call_tool(
                 sandbox,
             )
             .await?
+        }
+
+        // ── OpenMemory MCP tool handlers ─────────────────────────────────
+        "memory_add" => {
+            let content = args["content"].as_str().unwrap_or("").to_string();
+            let tags: Vec<String> = args["tags"].as_array()
+                .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                .unwrap_or_default();
+            let mut store = crate::open_memory::project_scoped_store(workspace_root);
+            let id = store.add_with_tags(content, tags, std::collections::HashMap::new());
+            let sector = store.get(&id).map(|m| m.sector.to_string()).unwrap_or_default();
+            let _ = store.save();
+            format!("Stored memory {} (sector: {})", id, sector)
+        }
+
+        "memory_query" => {
+            let query = args["query"].as_str().unwrap_or("").to_string();
+            let limit = args["limit"].as_u64().unwrap_or(10) as usize;
+            let sector_filter = args["sector"].as_str().and_then(|s| s.parse().ok());
+            let store = crate::open_memory::project_scoped_store(workspace_root);
+            let results = store.query_with_filters(&query, limit, sector_filter, None);
+            if results.is_empty() {
+                "No matching memories found.".to_string()
+            } else {
+                results.iter().map(|r| {
+                    format!("[{} | score:{:.2} | sal:{:.0}%] {}",
+                        r.memory.sector, r.score, r.effective_salience * 100.0,
+                        &r.memory.content[..r.memory.content.len().min(200)])
+                }).collect::<Vec<_>>().join("\n")
+            }
+        }
+
+        "memory_add_fact" => {
+            let subject = args["subject"].as_str().unwrap_or("").to_string();
+            let predicate = args["predicate"].as_str().unwrap_or("").to_string();
+            let object = args["object"].as_str().unwrap_or("").to_string();
+            let mut store = crate::open_memory::project_scoped_store(workspace_root);
+            let id = store.add_fact(subject.clone(), predicate.clone(), object.clone());
+            let _ = store.save();
+            format!("Added fact: {} {} {} (id: {})", subject, predicate, object, id)
+        }
+
+        "memory_facts" => {
+            let store = crate::open_memory::project_scoped_store(workspace_root);
+            let subject_filter = args["subject"].as_str();
+            let facts = store.query_current_facts();
+            let filtered: Vec<_> = facts.iter()
+                .filter(|f| subject_filter.map_or(true, |s| f.subject == s))
+                .collect();
+            if filtered.is_empty() {
+                "No current temporal facts.".to_string()
+            } else {
+                filtered.iter().map(|f| {
+                    format!("{} {} {} (conf: {:.0}%)", f.subject, f.predicate, f.object, f.confidence * 100.0)
+                }).collect::<Vec<_>>().join("\n")
+            }
+        }
+
+        "memory_stats" => {
+            let store = crate::open_memory::project_scoped_store(workspace_root);
+            let stats = store.sector_stats();
+            let mut lines = vec![format!("Memories: {} | Waypoints: {} | Facts: {}",
+                store.total_memories(), store.total_waypoints(), store.total_facts())];
+            for s in &stats {
+                if s.count > 0 {
+                    lines.push(format!("  {} — {} memories, avg sal {:.0}%, {} pinned",
+                        s.sector, s.count, s.avg_salience * 100.0, s.pinned_count));
+                }
+            }
+            lines.join("\n")
         }
 
         _ => return Err(anyhow::anyhow!("Unknown tool: {}", name)),
