@@ -63,6 +63,21 @@ const CATEGORIES = ["All", "File Systems", "Git", "Databases", "Cloud", "AI/ML",
 const renderStars = (r: number): string => "★".repeat(Math.floor(r)) + (r - Math.floor(r) >= 0.5 ? "½" : "") + "☆".repeat(5 - Math.floor(r) - (r - Math.floor(r) >= 0.5 ? 1 : 0));
 const formatDl = (n: number): string => n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
 
+/** Built-in agent tools — always available, no MCP server required. */
+const BUILTIN_TOOLS: { name: string; description: string; category: string }[] = [
+  { name: "read_file", description: "Read the contents of a file at the given path", category: "File I/O" },
+  { name: "write_file", description: "Write (create or overwrite) content to a file", category: "File I/O" },
+  { name: "apply_patch", description: "Apply a unified diff patch to modify an existing file", category: "File I/O" },
+  { name: "list_directory", description: "List all files and directories at the given path", category: "File I/O" },
+  { name: "search_files", description: "Search for files matching a pattern or containing specific text", category: "Search" },
+  { name: "bash", description: "Execute a shell command and return stdout + stderr", category: "Execution" },
+  { name: "web_search", description: "Search the web for current information using DuckDuckGo", category: "Web" },
+  { name: "fetch_url", description: "Fetch and extract the text content of a web page (SSRF-protected)", category: "Web" },
+  { name: "think", description: "Internal reasoning step — plan before acting (free, no side effects)", category: "Reasoning" },
+  { name: "spawn_agent", description: "Delegate a sub-task to a child agent running in parallel", category: "Agent" },
+  { name: "task_complete", description: "Signal that the current task is fully done", category: "Agent" },
+];
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 type Tab = "servers" | "tools" | "directory" | "installed" | "metrics";
@@ -305,46 +320,113 @@ export function McpPanel() {
         </div>
       )}
 
-      {/* ── TOOLS TAB (Lazy Loading) ─────────────────────────────────────────── */}
+      {/* ── TOOLS TAB ────────────────────────────────────────────────────────── */}
       {tab === "tools" && (
         <div>
-          <div style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span>{loadedCount} / {manifests.length} tools loaded</span>
-            <div style={{ ...barBg, minWidth: 120 }}><div style={barFill(manifests.length > 0 ? (loadedCount / manifests.length) * 100 : 0, "var(--info-color)")} /></div>
-          </div>
-
+          {/* Search across all tools */}
           <div style={{ marginBottom: 10 }}>
             <input style={inputStyle} placeholder="Search tools by name or description..." value={toolSearch} onChange={e => setToolSearch(e.target.value)} />
           </div>
 
           {toolSearch.trim() ? (
-            searchResults.length === 0 ? <div style={cardStyle}>No tools matching "{toolSearch}".</div> :
-            searchResults.map(r => (
-              <div key={r.tool_id} style={{ ...cardStyle, display: "flex", justifyContent: "space-between" }}>
-                <div><div style={{ fontWeight: 600 }}>{r.name}</div><div style={labelStyle}>{r.description}</div></div>
-                <div style={{ textAlign: "right" }}><div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Relevance</div><div style={{ fontWeight: 600, color: "var(--accent-primary)" }}>{(r.relevance * 100).toFixed(0)}%</div></div>
-              </div>
-            ))
+            /* Search results mode */
+            <>
+              {searchResults.length === 0 && (() => {
+                /* Also search built-in tools */
+                const q = toolSearch.toLowerCase();
+                const builtInMatches = BUILTIN_TOOLS.filter(t => t.name.toLowerCase().includes(q) || t.description.toLowerCase().includes(q));
+                if (builtInMatches.length === 0) return <div style={cardStyle}>No tools matching &quot;{toolSearch}&quot;.</div>;
+                return builtInMatches.map(t => (
+                  <div key={t.name} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 600 }}>{t.name} <span style={badgeStyle("loaded")}>built-in</span></div>
+                      <div style={labelStyle}>{t.description}</div>
+                    </div>
+                    <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>{t.category}</span>
+                  </div>
+                ));
+              })()}
+              {searchResults.map(r => (
+                <div key={r.tool_id} style={{ ...cardStyle, display: "flex", justifyContent: "space-between" }}>
+                  <div><div style={{ fontWeight: 600 }}>{r.name}</div><div style={labelStyle}>{r.description}</div></div>
+                  <div style={{ textAlign: "right" }}><div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Relevance</div><div style={{ fontWeight: 600, color: "var(--accent-primary)" }}>{(r.relevance * 100).toFixed(0)}%</div></div>
+                </div>
+              ))}
+            </>
           ) : (
-            manifests.map(m => (
-              <div key={m.id} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 600 }}>{m.name} <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>v{m.version}</span></div>
-                  <div style={labelStyle}>{m.description}</div>
-                  <div style={{ fontSize: 10, color: "var(--text-secondary)" }}>
-                    {m.size_kb} KB{m.server_name ? ` | ${m.server_name}` : ""}{m.load_time_ms != null ? ` | ${m.load_time_ms}ms` : ""}
+            /* Full listing mode */
+            <>
+              {/* Summary bar */}
+              <div style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span>{BUILTIN_TOOLS.length} built-in + {manifests.length} MCP tools ({loadedCount} loaded)</span>
+                <div style={{ ...barBg, minWidth: 120 }}><div style={barFill(manifests.length > 0 ? (loadedCount / manifests.length) * 100 : 0, "var(--info-color)")} /></div>
+              </div>
+
+              {/* Built-in Agent Tools */}
+              <div style={{ fontSize: 12, fontWeight: 600, margin: "12px 0 6px", color: "var(--text-secondary)" }}>BUILT-IN AGENT TOOLS</div>
+              {BUILTIN_TOOLS.map(t => (
+                <div key={t.name} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center", borderLeft: "3px solid var(--success-color)" }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600 }}>{t.name}</div>
+                    <div style={labelStyle}>{t.description}</div>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>{t.category}</span>
+                    <span style={badgeStyle("loaded")}>active</span>
                   </div>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={badgeStyle(m.status)}>{m.status}</span>
-                  <button style={{ ...btnStyle, opacity: actionLoading === m.id ? 0.6 : 1 }} disabled={actionLoading === m.id} onClick={() => toggleTool(m.id, m.status)}>
-                    {actionLoading === m.id ? "..." : m.status === "loaded" ? "Unload" : "Load"}
-                  </button>
+              ))}
+
+              {/* MCP Server Tools */}
+              {manifests.length > 0 && (
+                <>
+                  <div style={{ fontSize: 12, fontWeight: 600, margin: "16px 0 6px", color: "var(--text-secondary)" }}>MCP SERVER TOOLS</div>
+                  {/* Group by server_name */}
+                  {(() => {
+                    const byServer: Record<string, ToolManifest[]> = {};
+                    manifests.forEach(m => {
+                      const key = m.server_name || "Unknown Server";
+                      if (!byServer[key]) byServer[key] = [];
+                      byServer[key].push(m);
+                    });
+                    return Object.entries(byServer).map(([serverName, tools]) => (
+                      <div key={serverName}>
+                        <div style={{ fontSize: 11, fontWeight: 600, margin: "8px 0 4px", padding: "4px 8px", background: "var(--bg-tertiary)", borderRadius: 4, display: "flex", justifyContent: "space-between" }}>
+                          <span>{serverName}</span>
+                          <span style={{ fontWeight: 400, color: "var(--text-secondary)" }}>{tools.length} tool{tools.length !== 1 ? "s" : ""}</span>
+                        </div>
+                        {tools.map(m => (
+                          <div key={m.id} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center", marginLeft: 8 }}>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontWeight: 600 }}>{m.name} <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>v{m.version}</span></div>
+                              <div style={labelStyle}>{m.description}</div>
+                              <div style={{ fontSize: 10, color: "var(--text-secondary)" }}>
+                                {m.size_kb} KB{m.load_time_ms != null ? ` | ${m.load_time_ms}ms` : ""}
+                              </div>
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                              <span style={badgeStyle(m.status)}>{m.status}</span>
+                              <button style={{ ...btnStyle, opacity: actionLoading === m.id ? 0.6 : 1 }} disabled={actionLoading === m.id} onClick={() => toggleTool(m.id, m.status)}>
+                                {actionLoading === m.id ? "..." : m.status === "loaded" ? "Unload" : "Load"}
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ));
+                  })()}
+                </>
+              )}
+
+              {manifests.length === 0 && (
+                <div style={{ ...cardStyle, marginTop: 12 }}>
+                  <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                    No MCP server tools registered. Add MCP servers in the Servers tab or install plugins from the Directory.
+                  </div>
                 </div>
-              </div>
-            ))
+              )}
+            </>
           )}
-          {manifests.length === 0 && !toolSearch.trim() && <div style={cardStyle}>No tools registered.</div>}
         </div>
       )}
 
