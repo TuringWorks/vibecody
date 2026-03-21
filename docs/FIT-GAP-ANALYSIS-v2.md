@@ -4,7 +4,7 @@
 **VibeCLI competitors:** Codex CLI, Warp 2.0, Kiro, opencode, Claude Code, Aider, Cline, Continue.dev, Amazon Q Developer
 **VibeUI competitors:** Antigravity (Google), Cursor, Windsurf, Replit, Base44, Lovable, Zed AI, Void, Trae (ByteDance)
 
-> **Status:** All Phases 12–31 ✅ complete. Phases 32–46 polish/security/features/accessibility ✅ complete. Security hardening audit (P0–P3, 20 items) ✅ complete. This document reflects the current state of the codebase as of 2026-03-01.
+> **Status:** All Phases 12–31 Yes complete. Phases 32–46 polish/security/features/accessibility Yes complete. Security hardening audit (P0–P3, 20 items) Yes complete. This document reflects the current state of the codebase as of 2026-03-01.
 
 ---
 
@@ -14,81 +14,81 @@
 
 | Feature | VibeCLI | Codex CLI | Warp 2.0 | Kiro | opencode | Claude Code | Aider | Cline | Continue.dev | Amazon Q |
 |---------|---------|-----------|----------|------|----------|-------------|-------|-------|--------------|----------|
-| Multi-turn REPL | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Agent loop + tools | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Plan mode | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
-| Session resume | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Multi-provider support | ✅ (10+) | ✅ (1) | ✅ | ✅ | ✅ (75+) | ✅ (1) | ✅ (many) | ✅ | ✅ | ✅ (1) |
-| MCP client | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | ❌ |
-| Hooks (pre/post tool use) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Skills / slash commands | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
-| Git integration + PR review | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ |
-| Parallel multi-agent | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| HTTP daemon (`serve`) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Agent SDK (Node.js) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| OpenTelemetry tracing | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| VS Code extension | ✅ | ❌ | ✅ | ✅ | ❌ | ✅ | ❌ | ✅ | ✅ | ✅ |
-| JetBrains plugin | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ | ✅ |
-| Neovim plugin | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ | ❌ | ✅ | ❌ |
-| Named profiles | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Auto memory recording | ✅ | ❌ | ✅ | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ |
-| Rules directory | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ❌ | ❌ |
-| Wildcard tool permissions | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ |
-| opusplan model routing | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| OS-level sandboxing | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Network sandboxing | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Spec-driven development | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Steering files | ✅ | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| File-event hooks (save/create/delete) | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| --watch file monitoring | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Git worktree isolation per subagent | ✅ | ❌ | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| SQLite session storage | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Session full-text search | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Web-viewable agent sessions | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Team knowledge store | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Ambient agent session sharing | ✅ | ❌ | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Messaging gateway (9 platforms) | ✅ (9) | ❌ | ✅ (Slack) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| 75+ LLM providers via OpenRouter | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ | ✅ | ✅ | ❌ |
-| GitHub Copilot auth | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ | ✅ | ✅ | ❌ |
-| AWS Bedrock provider | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ |
-| Background/ambient agents | ✅ | ❌ | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Vim-like TUI editor | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ |
-| Notebook runner (.vibe) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Built-in scheduling (cron) | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Subagent spawning from tools | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Named snippets (/snippet) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| /rewind conversation checkpoints | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| /search full-text session history | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| @file / @web / @docs / @git context | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
-| Linear issue integration | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Background job persistence + REST | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Red team / autonomous pentest | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| OWASP/CWE static scanner (15 patterns) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| Secrets scrubbing in traces/logs | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Daemon auth (bearer token) + CORS | ✅ | — | — | — | — | — | — | — | — | — |
-| Rate limiting on API endpoints | ✅ | — | — | — | — | — | — | — | — | — |
-| Security response headers (CSP/X-Frame) | ✅ | — | — | — | — | — | — | — | — | — |
-| Graceful shutdown (SIGTERM handler) | ✅ | — | — | — | — | — | — | — | — | — |
-| Binary checksum verification (install) | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ |
-| SHA-pinned CI actions | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ |
-| cargo audit in CI | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ |
-| Code Complete workflow (8-stage) | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| LSP diagnostics panel (TUI) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| @jira issue context | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ |
-| @github issue context | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ |
-| Streaming REPL chat (token-by-token) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Tab-completion for REPL commands | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Integrated test runner (auto-detect framework) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| AI commit message generation | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Subagent tree tracking (max_depth) | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Code coverage UI | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| Multi-model comparison | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| HTTP Playground | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Cost observatory | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| AI git workflow | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Codemod auto-fix | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Arena Mode (blind A/B voting) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
-| Live Preview element selection | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
+| Multi-turn REPL | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Agent loop + tools | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Plan mode | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | No |
+| Session resume | Yes | Yes | Yes | Yes | Yes | Yes | No | No | No | No |
+| Multi-provider support | Yes (10+) | Yes (1) | Yes | Yes | Yes (75+) | Yes (1) | Yes (many) | Yes | Yes | Yes (1) |
+| MCP client | Yes | Yes | Yes | Yes | Yes | Yes | No | Yes | Yes | No |
+| Hooks (pre/post tool use) | Yes | Yes | Yes | Yes | Yes | Yes | No | No | No | No |
+| Skills / slash commands | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | No |
+| Git integration + PR review | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | No | Yes |
+| Parallel multi-agent | Yes | Yes | Yes | Yes | Yes | Yes | No | No | No | No |
+| HTTP daemon (`serve`) | Yes | No | No | No | No | No | No | No | No | No |
+| Agent SDK (Node.js) | Yes | No | No | No | No | No | No | No | No | No |
+| OpenTelemetry tracing | Yes | No | No | No | No | No | No | No | No | No |
+| VS Code extension | Yes | No | Yes | Yes | No | Yes | No | Yes | Yes | Yes |
+| JetBrains plugin | Yes | No | No | No | No | Yes | No | No | Yes | Yes |
+| Neovim plugin | Yes | No | No | No | No | Yes | Yes | No | Yes | No |
+| Named profiles | Yes | No | Yes | No | No | No | No | No | No | No |
+| Auto memory recording | Yes | No | Yes | Yes | No | Yes | No | Yes | No | No |
+| Rules directory | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes | No | No |
+| Wildcard tool permissions | Yes | Yes | Yes | Yes | No | Yes | No | Yes | No | No |
+| opusplan model routing | Yes | No | No | No | No | No | No | No | No | No |
+| OS-level sandboxing | Yes | Yes | No | No | No | No | No | No | No | No |
+| Network sandboxing | Yes | Yes | No | No | No | No | No | No | No | No |
+| Spec-driven development | Yes | No | No | Yes | No | No | No | No | No | No |
+| Steering files | Yes | No | Yes | Yes | No | No | No | No | No | No |
+| File-event hooks (save/create/delete) | Yes | No | No | Yes | No | No | No | No | No | No |
+| --watch file monitoring | Yes | No | No | Yes | No | No | No | No | No | No |
+| Git worktree isolation per subagent | Yes | No | Yes | No | No | Yes | No | No | No | No |
+| SQLite session storage | Yes | No | No | No | Yes | No | No | No | No | No |
+| Session full-text search | Yes | No | No | No | Yes | No | No | No | No | No |
+| Web-viewable agent sessions | Yes | No | Yes | No | No | No | No | No | No | No |
+| Team knowledge store | Yes | No | Yes | No | No | No | No | No | No | No |
+| Ambient agent session sharing | Yes | No | Yes | No | No | Yes | No | No | No | No |
+| Messaging gateway (9 platforms) | Yes (9) | No | Yes (Slack) | No | No | No | No | No | No | No |
+| 75+ LLM providers via OpenRouter | Yes | No | No | No | Yes | No | Yes | Yes | Yes | No |
+| GitHub Copilot auth | Yes | No | No | No | Yes | No | Yes | Yes | Yes | No |
+| AWS Bedrock provider | Yes | No | No | No | Yes | No | Yes | Yes | Yes | Yes |
+| Background/ambient agents | Yes | No | Yes | No | No | Yes | No | No | No | No |
+| Vim-like TUI editor | Yes | No | No | No | Yes | No | Yes | No | No | No |
+| Notebook runner (.vibe) | Yes | No | No | No | No | No | No | No | No | No |
+| Built-in scheduling (cron) | Yes | No | No | Yes | No | No | No | No | No | No |
+| Subagent spawning from tools | Yes | No | No | No | No | Yes | No | No | No | No |
+| Named snippets (/snippet) | Yes | No | No | No | No | No | No | No | No | No |
+| /rewind conversation checkpoints | Yes | No | No | No | No | No | No | No | No | No |
+| /search full-text session history | Yes | No | No | No | Yes | No | No | No | No | No |
+| @file / @web / @docs / @git context | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | No |
+| Linear issue integration | Yes | No | Yes | No | No | No | No | No | No | No |
+| Background job persistence + REST | Yes | No | No | No | No | No | No | No | No | No |
+| Red team / autonomous pentest | Yes | No | No | No | No | No | No | No | No | No |
+| OWASP/CWE static scanner (15 patterns) | Yes | No | No | No | No | No | No | No | No | Yes |
+| Secrets scrubbing in traces/logs | Yes | No | No | No | No | Yes | No | No | No | No |
+| Daemon auth (bearer token) + CORS | Yes | — | — | — | — | — | — | — | — | — |
+| Rate limiting on API endpoints | Yes | — | — | — | — | — | — | — | — | — |
+| Security response headers (CSP/X-Frame) | Yes | — | — | — | — | — | — | — | — | — |
+| Graceful shutdown (SIGTERM handler) | Yes | — | — | — | — | — | — | — | — | — |
+| Binary checksum verification (install) | Yes | Yes | No | No | No | Yes | No | No | No | Yes |
+| SHA-pinned CI actions | Yes | Yes | No | No | No | Yes | No | No | No | Yes |
+| cargo audit in CI | Yes | Yes | No | No | No | Yes | No | No | No | Yes |
+| Code Complete workflow (8-stage) | Yes | No | No | Yes | No | No | No | No | No | No |
+| LSP diagnostics panel (TUI) | Yes | No | No | No | No | No | No | No | No | No |
+| @jira issue context | Yes | No | No | No | No | No | No | No | Yes | No |
+| @github issue context | Yes | No | No | No | No | No | No | No | Yes | No |
+| Streaming REPL chat (token-by-token) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Tab-completion for REPL commands | Yes | Yes | Yes | Yes | Yes | Yes | No | No | No | No |
+| Integrated test runner (auto-detect framework) | Yes | No | No | No | No | No | No | No | No | Yes |
+| AI commit message generation | Yes | No | No | No | No | No | No | No | No | No |
+| Subagent tree tracking (max_depth) | Yes | No | No | No | No | Yes | No | No | No | No |
+| Code coverage UI | Yes | No | No | No | No | No | No | No | No | Yes |
+| Multi-model comparison | Yes | No | No | No | No | No | No | No | No | No |
+| HTTP Playground | Yes | No | No | No | No | No | No | No | No | No |
+| Cost observatory | Yes | No | No | No | No | No | No | No | No | No |
+| AI git workflow | Yes | No | No | No | No | No | No | No | No | No |
+| Codemod auto-fix | Yes | No | No | No | No | No | No | No | No | No |
+| Arena Mode (blind A/B voting) | Yes | No | No | No | No | No | No | Yes | No | No |
+| Live Preview element selection | Yes | No | No | No | No | No | No | Yes | No | No |
 
 ---
 
@@ -153,17 +153,17 @@ Warp Drive is a *shared knowledge base for humans and agents*:
 
 | Warp Feature | VibeCLI Status |
 |-------------|----------------|
-| Warp Drive (team knowledge store) | ✅ team.rs + /team REPL commands |
-| Ambient agent session sharing | ❌ Missing |
-| Web viewer for agent sessions | ✅ GET /view/:id + /sessions HTML |
-| Slack integration | ✅ gateway.rs |
-| Linear integration | ✅ linear.rs + /linear REPL commands |
-| Named shared commands | ✅ skills/ + snippets |
-| Multi-agent status UI | ✅ Manager view in VibeUI |
-| Notebook-style runnable docs | ✅ notebook.rs (.vibe format) |
-| Remote VM agent execution | ❌ Missing |
-| Codebase indexing | ✅ EmbeddingIndex + /index cmd |
-| Per-agent autonomy settings | ✅ approval policies |
+| Warp Drive (team knowledge store) | Yes team.rs + /team REPL commands |
+| Ambient agent session sharing | No Missing |
+| Web viewer for agent sessions | Yes GET /view/:id + /sessions HTML |
+| Slack integration | Yes gateway.rs |
+| Linear integration | Yes linear.rs + /linear REPL commands |
+| Named shared commands | Yes skills/ + snippets |
+| Multi-agent status UI | Yes Manager view in VibeUI |
+| Notebook-style runnable docs | Yes notebook.rs (.vibe format) |
+| Remote VM agent execution | No Missing |
+| Codebase indexing | Yes EmbeddingIndex + /index cmd |
+| Per-agent autonomy settings | Yes approval policies |
 
 **Remaining gap:** ambient session sharing, remote VM execution, GPU terminal
 
@@ -173,7 +173,7 @@ Warp Drive is a *shared knowledge base for humans and agents*:
 - **Steering files:** project-scope context (coding standards, workflows) — analogous to `.cursorrules` but more structured
 - **Agent hooks:** automated triggers on file-system events (save, create, delete) — not just tool-use hooks
 - **MCP:** with remote MCP server support
-- **VibeCLI status:** ✅ spec.rs + SpecPanel, ✅ steering files, ✅ FileSaved/FileCreated/FileDeleted hooks, ✅ MCP
+- **VibeCLI status:** Yes spec.rs + SpecPanel, Yes steering files, Yes FileSaved/FileCreated/FileDeleted hooks, Yes MCP
 
 #### opencode (opencode-ai/opencode, sst/opencode)
 
@@ -186,23 +186,23 @@ opencode is the **most technically ambitious** open-source CLI agent in 2026, bu
 
 | opencode Feature | VibeCLI Status |
 |-----------------|----------------|
-| 75+ providers | ✅ 10 direct + OpenRouter (300+) |
-| SQLite sessions | ✅ session_store.rs |
-| Vim-like TUI keybindings | ✅ vim_editor.rs (Normal/Insert/Visual modes) |
-| GitHub Copilot OAuth | ✅ copilot.rs + device flow |
-| LSP in TUI | ❌ (LSP only in VibeUI) |
-| AWS Bedrock | ✅ bedrock.rs |
-| Groq ultra-fast inference | ✅ groq.rs |
-| Azure OpenAI | ✅ azure_openai.rs |
-| OpenRouter (300+ models) | ✅ openrouter.rs |
-| Hooks system | ❌ Missing in opencode (VibeCLI wins) |
-| Admin policy | ❌ Missing in opencode (VibeCLI wins) |
-| HTTP daemon / SDK | ❌ Missing in opencode (VibeCLI wins) |
-| PR code review | ❌ Missing in opencode (VibeCLI wins) |
-| OTel tracing | ❌ Missing in opencode (VibeCLI wins) |
-| Multi-agent | ❌ opencode single-agent (VibeCLI wins) |
-| Named profiles | ❌ Missing in opencode (VibeCLI wins) |
-| Session full-text search | ✅ both have it |
+| 75+ providers | Yes 10 direct + OpenRouter (300+) |
+| SQLite sessions | Yes session_store.rs |
+| Vim-like TUI keybindings | Yes vim_editor.rs (Normal/Insert/Visual modes) |
+| GitHub Copilot OAuth | Yes copilot.rs + device flow |
+| LSP in TUI | No (LSP only in VibeUI) |
+| AWS Bedrock | Yes bedrock.rs |
+| Groq ultra-fast inference | Yes groq.rs |
+| Azure OpenAI | Yes azure_openai.rs |
+| OpenRouter (300+ models) | Yes openrouter.rs |
+| Hooks system | No Missing in opencode (VibeCLI wins) |
+| Admin policy | No Missing in opencode (VibeCLI wins) |
+| HTTP daemon / SDK | No Missing in opencode (VibeCLI wins) |
+| PR code review | No Missing in opencode (VibeCLI wins) |
+| OTel tracing | No Missing in opencode (VibeCLI wins) |
+| Multi-agent | No opencode single-agent (VibeCLI wins) |
+| Named profiles | No Missing in opencode (VibeCLI wins) |
+| Session full-text search | Yes both have it |
 
 **Remaining gap:** None material — VibeCLI matches or exceeds opencode on all axes.
 
@@ -213,7 +213,7 @@ opencode is the **most technically ambitious** open-source CLI agent in 2026, bu
 - **Hooks:** SubagentStop event with `last_assistant_message` field
 - **CLAUDE.md hierarchy:** 4-level loading (home → repo root → subfolder → current dir)
 - **MCP OAuth:** full OAuth2 for MCP server auth
-- **VibeCLI status:** ✅ worktree isolation (`--worktree`), ✅ background agents (background_agents.rs), ✅ 4-level VIBECLI.md, ✅ MCP OAuth (Phase 42)
+- **VibeCLI status:** Yes worktree isolation (`--worktree`), Yes background agents (background_agents.rs), Yes 4-level VIBECLI.md, Yes MCP OAuth (Phase 42)
 
 #### Aider (Paul Gauthier)
 
@@ -222,7 +222,7 @@ opencode is the **most technically ambitious** open-source CLI agent in 2026, bu
 - **Strength:** Architect + Editor dual-model mode (cheap fast model for edits, expensive model for planning)
 - **Strength:** Vim-native usage (`:!aider` in terminal, fully non-interactive mode)
 - **Weakness:** No daemon/HTTP API; no parallel agents; no hooks; no session persistence
-- **VibeCLI gap to close:** Architect+Editor dual-model routing → ✅ already done via `opusplan` routing (planning_provider + execution_provider in config.rs)
+- **VibeCLI gap to close:** Architect+Editor dual-model routing → Yes already done via `opusplan` routing (planning_provider + execution_provider in config.rs)
 
 #### Cline (formerly Claude Dev)
 
@@ -231,7 +231,7 @@ opencode is the **most technically ambitious** open-source CLI agent in 2026, bu
 - **Strength:** Auto-detects API errors and suggests cheaper models
 - **Strength:** Remembers custom instructions per project (`.clinerules` file)
 - **Weakness:** VS Code-only; no CLI; no daemon; no parallel agents; no hooks
-- **VibeCLI gap to close:** Better inline editor integration via VS Code extension ✅ (done in Phase 9.2 + Phase 31)
+- **VibeCLI gap to close:** Better inline editor integration via VS Code extension Yes (done in Phase 9.2 + Phase 31)
 
 #### Continue.dev (open source)
 
@@ -240,7 +240,7 @@ opencode is the **most technically ambitious** open-source CLI agent in 2026, bu
 - **Strength:** Context providers: `@codebase`, `@docs`, `@web`, `@terminal`, `@github`, `@jira`
 - **Strength:** Built-in embedding for codebase Q&A
 - **Weakness:** No agent mode (yet); just chat + tab completions; no CLI
-- **VibeCLI gap to close:** ✅ Closed — @github and @jira context providers implemented in Phase 42
+- **VibeCLI gap to close:** Yes Closed — @github and @jira context providers implemented in Phase 42
 
 #### Amazon Q Developer
 
@@ -262,14 +262,14 @@ opencode is the **most technically ambitious** open-source CLI agent in 2026, bu
 
 | PicoClaw Feature | VibeCLI Status |
 |-----------------|----------------|
-| Single binary releases (cargo dist / install.sh) | ✅ install.sh + release.yml (Phase 27) |
-| Messaging gateway (Telegram/Discord/Slack) | ✅ gateway.rs + --gateway flag (Phase 21) |
-| AI-optimized web search (Tavily) | ✅ Tavily + Brave + DDG multi-engine (Phase 21) |
-| Built-in cron/scheduling | ✅ scheduler.rs + /remind + /schedule (Phase 21) |
-| Subagent spawning from tools | ✅ spawn_agent tool + spawn_sub_agent() (Phase 22) |
-| Skills as distributable packages | ✅ .vibecli-skill.tar.gz packaging (Phase 21) |
+| Single binary releases (cargo dist / install.sh) | Yes install.sh + release.yml (Phase 27) |
+| Messaging gateway (Telegram/Discord/Slack) | Yes gateway.rs + --gateway flag (Phase 21) |
+| AI-optimized web search (Tavily) | Yes Tavily + Brave + DDG multi-engine (Phase 21) |
+| Built-in cron/scheduling | Yes scheduler.rs + /remind + /schedule (Phase 21) |
+| Subagent spawning from tools | Yes spawn_agent tool + spawn_sub_agent() (Phase 22) |
+| Skills as distributable packages | Yes .vibecli-skill.tar.gz packaging (Phase 21) |
 | Cold start < 1 second | Partial (~2-5s Rust startup) |
-| ARM64/RISC-V binary | ✅ release matrix includes aarch64 (Phase 27) |
+| ARM64/RISC-V binary | Yes release matrix includes aarch64 (Phase 27) |
 
 ---
 
@@ -279,53 +279,53 @@ opencode is the **most technically ambitious** open-source CLI agent in 2026, bu
 
 | Feature | VibeUI | Antigravity | Cursor | Windsurf | Replit | Base44 | Lovable | Zed AI | Void | Trae |
 |---------|--------|-------------|--------|----------|--------|--------|---------|--------|------|------|
-| Code editor | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ |
-| AI chat panel | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Agent (multi-file edits) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Inline Cmd+K chat | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ |
-| Tab next-edit prediction | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ |
-| Terminal panel | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ |
-| Git integration | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ |
-| LSP / code intelligence | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ |
-| MCP client | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ |
-| Multi-provider BYOK | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ | ✅ | ❌ |
-| Voice input | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| Background job persistence | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| @web / @docs / @git / @codebase context | ✅ | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ |
-| Browser preview panel | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ |
-| Artifact system | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Parallel Manager view | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Hooks config UI | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Cascade flow tracker | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| DiffReviewPanel (per-hunk accept/reject) | ✅ | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ |
-| Linter integration | ✅ | ❌ | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ |
-| Visual UI Editor (drag-drop) | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ |
-| Automated PR review (BugBot) | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Memories (auto-generated) | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Shadow workspace (bg lint) | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| One-click deployment | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ |
-| Built-in database UI | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
-| Auth + backend scaffolding | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
-| GitHub bidirectional sync | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ |
-| Supabase integration | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ |
-| Multiplayer / real-time collab | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ | ✅ | ❌ | ❌ |
-| Browser-embedded app testing | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| Figma import | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ |
-| Custom domain / publish | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
-| Design mode | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ |
-| Point-and-prompt in live app | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Custom SWE model (SWE-1) | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| WASM extension system | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
-| Steering files UI | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Spec-driven dev UI | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Semantic codebase search (embedding) | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ |
-| Multi-tab AI chat | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Auto-lint after agent write | ✅ | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ |
-| Inline confirmation dialogs | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Git auto-refresh | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ |
-| MCP server manager UI | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| MCP OAuth 2.0 install flow | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Path traversal protection | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Code editor | Yes | Yes | Yes | Yes | Yes | No | No | Yes | Yes | Yes |
+| AI chat panel | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Agent (multi-file edits) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Inline Cmd+K chat | Yes | Yes | Yes | Yes | Yes | No | No | Yes | Yes | Yes |
+| Tab next-edit prediction | Yes | Yes | Yes | Yes | Yes | No | No | Yes | Yes | Yes |
+| Terminal panel | Yes | Yes | Yes | Yes | Yes | No | No | Yes | Yes | Yes |
+| Git integration | Yes | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes |
+| LSP / code intelligence | Yes | Yes | Yes | Yes | No | No | No | Yes | Yes | Yes |
+| MCP client | Yes | Yes | Yes | Yes | No | No | No | Yes | No | Yes |
+| Multi-provider BYOK | Yes | Yes | Yes | Yes | No | No | No | Yes | Yes | No |
+| Voice input | Yes | No | No | No | No | No | No | No | No | Yes |
+| Background job persistence | Yes | No | Yes | No | No | No | No | No | No | No |
+| @web / @docs / @git / @codebase context | Yes | No | Yes | Yes | No | No | No | Yes | No | Yes |
+| Browser preview panel | Yes | Yes | Yes | Yes | Yes | Yes | Yes | No | No | Yes |
+| Artifact system | Yes | No | No | No | No | No | No | No | No | No |
+| Parallel Manager view | Yes | Yes | Yes | Yes | No | No | No | No | No | No |
+| Hooks config UI | Yes | No | No | No | No | No | No | No | No | No |
+| Cascade flow tracker | Yes | No | No | Yes | No | No | No | No | No | No |
+| DiffReviewPanel (per-hunk accept/reject) | Yes | No | Yes | Yes | No | No | No | Yes | Yes | Yes |
+| Linter integration | Yes | No | Yes | Yes | Yes | No | No | Yes | Yes | Yes |
+| Visual UI Editor (drag-drop) | Yes | Yes | Yes | No | No | Yes | Yes | No | No | No |
+| Automated PR review (BugBot) | Yes | No | Yes | No | No | No | No | No | No | No |
+| Memories (auto-generated) | Yes | Yes | Yes | Yes | No | No | No | No | No | No |
+| Shadow workspace (bg lint) | Yes | No | Yes | No | No | No | No | No | No | No |
+| One-click deployment | Yes | Yes | No | No | Yes | Yes | Yes | No | No | Yes |
+| Built-in database UI | Yes | Yes | No | No | Yes | Yes | Yes | No | No | No |
+| Auth + backend scaffolding | Yes | Yes | No | No | Yes | Yes | Yes | No | No | No |
+| GitHub bidirectional sync | Yes | No | No | No | No | No | Yes | No | No | No |
+| Supabase integration | Yes | Yes | No | No | Yes | No | Yes | No | No | No |
+| Multiplayer / real-time collab | No | No | No | No | Yes | No | Yes | Yes | No | No |
+| Browser-embedded app testing | Yes | No | No | No | Yes | No | No | No | No | Yes |
+| Figma import | Yes | No | No | No | No | No | Yes | No | No | No |
+| Custom domain / publish | Yes | Yes | No | No | Yes | Yes | Yes | No | No | No |
+| Design mode | Yes | Yes | Yes | No | No | Yes | Yes | No | No | No |
+| Point-and-prompt in live app | Yes | Yes | Yes | No | No | No | No | No | No | No |
+| Custom SWE model (SWE-1) | No | Yes | No | Yes | No | No | No | No | No | No |
+| WASM extension system | Yes | No | No | No | No | No | No | Yes | No | No |
+| Steering files UI | Yes | No | No | No | No | No | No | No | No | No |
+| Spec-driven dev UI | Yes | No | No | No | No | No | No | No | No | No |
+| Semantic codebase search (embedding) | Yes | Yes | Yes | Yes | No | No | No | Yes | No | Yes |
+| Multi-tab AI chat | Yes | Yes | Yes | Yes | No | No | No | No | No | No |
+| Auto-lint after agent write | Yes | No | Yes | Yes | No | No | No | Yes | No | Yes |
+| Inline confirmation dialogs | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Git auto-refresh | Yes | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes |
+| MCP server manager UI | Yes | No | Yes | No | No | No | No | No | No | Yes |
+| MCP OAuth 2.0 install flow | Yes | No | Yes | No | No | No | No | No | No | No |
+| Path traversal protection | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
 
 ---
 
@@ -346,7 +346,7 @@ opencode is the **most technically ambitious** open-source CLI agent in 2026, bu
 - **Visual Editor:** drag-drop elements in rendered live app + property sliders + point-and-prompt natural language UI editing
 - **Background agents:** high-risk (network/FS access) and low-risk categories
 - **One-click MCP install** with OAuth
-- **VibeUI status:** ✅ Shadow workspace, ✅ BugBot, ✅ Memories, ✅ Visual Editor, ✅ parallel agents with Manager view
+- **VibeUI status:** Yes Shadow workspace, Yes BugBot, Yes Memories, Yes Visual Editor, Yes parallel agents with Manager view
 - **Remaining gap:** remote machine agents
 
 #### Windsurf (Codeium)
@@ -355,7 +355,7 @@ opencode is the **most technically ambitious** open-source CLI agent in 2026, bu
 - **SWE-1 model family:** purpose-built for software engineering; free to use
 - **Supercomplete:** cross-file multi-line prediction
 - **Wave 13:** parallel multi-agent sessions, side-by-side Cascade panes, Git worktrees
-- **VibeUI status:** ✅ Cascade flow tracker (FlowContext.ts), ✅ Supercomplete (SupercompleteEngine.ts), ✅ parallel agents
+- **VibeUI status:** Yes Cascade flow tracker (FlowContext.ts), Yes Supercomplete (SupercompleteEngine.ts), Yes parallel agents
 - **Remaining gap:** SWE-1-style fine-tuned model support, full cross-IDE plugin coverage
 
 #### Replit
@@ -364,14 +364,14 @@ opencode is the **most technically ambitious** open-source CLI agent in 2026, bu
 - **Self-healing:** proprietary test system, 3x faster + 10x cheaper than Computer Use
 - **Built-in stack:** auth + database (PostgreSQL) + hosting + monitoring in one click
 - **Multiplayer:** real-time collaboration on same Repl
-- **VibeUI status:** ✅ browser app testing (agent_browser_action), ✅ built-in DB+auth, ✅ multiplayer (Phase 43 vibe-collab)
+- **VibeUI status:** Yes browser app testing (agent_browser_action), Yes built-in DB+auth, Yes multiplayer (Phase 43 vibe-collab)
 - **Remaining gap:** hosted cloud environment
 
 #### Base44 (acquired by Wix)
 
 - **All-in-one:** UI + database + auth + hosting — no external services
 - **Press Publish → live:** zero deployment friction
-- **VibeUI status:** ✅ deploy panel, ✅ database UI, ✅ auth scaffolding, ✅ custom domain (Phase 42), ❌ fully hosted stack
+- **VibeUI status:** Yes deploy panel, Yes database UI, Yes auth scaffolding, Yes custom domain (Phase 42), No fully hosted stack
 - **Remaining gap:** self-contained hosting stack, press-to-publish UX
 
 #### Lovable 2.0
@@ -381,7 +381,7 @@ opencode is the **most technically ambitious** open-source CLI agent in 2026, bu
 - **Supabase integration:** auth, database, storage out-of-the-box
 - **Multiplayer:** real-time collaborative editing (April 2025)
 - **Figma import** + **Deploy:** Netlify, Vercel, custom domains
-- **VibeUI status:** ✅ GitHub sync, ✅ Supabase, ✅ Design mode, ✅ Figma import, ✅ custom domain (Phase 42), ❌ multiplayer
+- **VibeUI status:** Yes GitHub sync, Yes Supabase, Yes Design mode, Yes Figma import, Yes custom domain (Phase 42), No multiplayer
 
 #### Zed AI (Zed Industries)
 
@@ -399,7 +399,7 @@ opencode is the **most technically ambitious** open-source CLI agent in 2026, bu
 - **Bring Your Own Keys:** all providers, fully local
 - **Agent:** multi-file editing with checkpoint system
 - **Checkpoint system:** save/restore editor state around each AI change
-- **VibeUI status:** ✅ checkpoint system (CheckpointPanel), ✅ BYOK (SettingsPanel)
+- **VibeUI status:** Yes checkpoint system (CheckpointPanel), Yes BYOK (SettingsPanel)
 - **Remaining gap:** Void's VS Code ecosystem compatibility
 
 #### Trae (ByteDance, January 2025)
@@ -415,7 +415,7 @@ opencode is the **most technically ambitious** open-source CLI agent in 2026, bu
 - **Context:** @codebase, @web, @docs, @terminal, @git built-in context providers
 - **Open-sourced trae-agent:** agent framework released as OSS (MIT license)
 - **Privacy concern:** ByteDance ownership raises enterprise data sovereignty questions
-- **VibeUI status:** ✅ Chat + Agent + autonomous modes, ✅ MCP, ✅ browser preview, ✅ deploy, ✅ rules, ✅ multimodal
+- **VibeUI status:** Yes Chat + Agent + autonomous modes, Yes MCP, Yes browser preview, Yes deploy, Yes rules, Yes multimodal
 - **VibeUI advantages over Trae:** BYOK (Trae locks you into their providers), local AI (Ollama), CRDT collab, WASM extensions, database UI, red team scanner, arena mode, notebook runner, SSH manager, cost observatory, Neovim/JetBrains plugins
 - **Remaining gap:** Trae's generous free tier (Claude 3.7 + GPT-4o at no cost) is a strong adoption driver
 
@@ -430,7 +430,7 @@ Features VibeCody has that **no competitor offers:**
 | **HTTP daemon + REST API** | `vibecli serve` — enables SDK, VibeUI, JetBrains/VS Code integration from one process |
 | **Node.js Agent SDK** | `packages/agent-sdk/` — only CLI tool with a programmable streaming SDK |
 | **OpenTelemetry OTLP tracing** | Observability-first; no competitor exports spans to Jaeger/Zipkin/Grafana |
-| **Voice input (Web Speech API)** | 🎤 button in AIChat — no desktop coding tool has it cleanly |
+| **Voice input (Web Speech API)** | button in AIChat — no desktop coding tool has it cleanly |
 | **Admin policy (glob-based)** | Enterprise tool restriction with wildcard deny/allow patterns |
 | **WASM extension system** | `vibe-extensions` with wasmtime — sandboxed plugin runtime |
 | **opusplan routing** | Separate planning vs execution model per request |
@@ -457,118 +457,118 @@ All gaps from Phases 16–46 are now resolved. Only low-impact infrastructure ga
 
 | Gap | Impact | Status | Competitor |
 |-----|--------|--------|------------|
-| Remote VM agent execution | Low | ❌ Open | Warp |
-| SWE-1-style fine-tuned model | Low | ❌ Open | Windsurf |
-| GPU-accelerated terminal | Low | ❌ Open | Warp/Zed |
-| Multiplayer / real-time collaboration | Medium | ✅ Phase 43 | Lovable/Replit/Zed |
-| Ambient agent session sharing | Medium | ✅ Phase 39 | Warp/Claude Code |
-| GCP / Firebase deploy target | Low | ✅ Phase 38 | Antigravity |
-| LSP diagnostics in TUI | Low | ✅ Phase 39 | opencode |
-| Security scanning (OWASP/CWE) | Medium | ✅ Phase 38/40 | Amazon Q |
-| @jira / @github context | Low | ✅ Phase 42 | Continue.dev |
-| MCP OAuth install | Medium | ✅ Phase 42 | Cursor |
-| Custom domain / publish | Medium | ✅ Phase 42 | Base44/Lovable/Replit |
+| Remote VM agent execution | Low | No Open | Warp |
+| SWE-1-style fine-tuned model | Low | No Open | Windsurf |
+| GPU-accelerated terminal | Low | No Open | Warp/Zed |
+| Multiplayer / real-time collaboration | Medium | Yes Phase 43 | Lovable/Replit/Zed |
+| Ambient agent session sharing | Medium | Yes Phase 39 | Warp/Claude Code |
+| GCP / Firebase deploy target | Low | Yes Phase 38 | Antigravity |
+| LSP diagnostics in TUI | Low | Yes Phase 39 | opencode |
+| Security scanning (OWASP/CWE) | Medium | Yes Phase 38/40 | Amazon Q |
+| @jira / @github context | Low | Yes Phase 42 | Continue.dev |
+| MCP OAuth install | Medium | Yes Phase 42 | Cursor |
+| Custom domain / publish | Medium | Yes Phase 42 | Base44/Lovable/Replit |
 
 ### Previously Closed Gaps (Phases 16–46)
 
 | Phase | Gap | Status |
 |-------|-----|--------|
-| 16 | Spec-driven development | ✅ spec.rs + SpecPanel.tsx |
-| 16 | Steering files | ✅ SteeringPanel.tsx |
-| 16 | File-event hooks | ✅ FileSaved/Created/Deleted |
-| 16 | OS-level sandboxing | ✅ macOS sandbox-exec + Linux bwrap |
-| 16 | Git worktree isolation | ✅ --worktree + IsolatedWorktree |
-| 17 | AWS Bedrock provider | ✅ bedrock.rs |
-| 17 | Groq ultra-fast inference | ✅ groq.rs |
-| 17 | Azure OpenAI | ✅ azure_openai.rs |
-| 17 | OpenRouter (300+ models) | ✅ openrouter.rs |
-| 17 | SQLite session storage | ✅ session_store.rs |
-| 17 | Ambient agent definitions | ✅ background_agents.rs |
-| 17 | Team knowledge store | ✅ team.rs + /team commands |
-| 18 | Memories auto-generation | ✅ memory_auto.rs + AutoFactsTab |
-| 18 | Shadow workspace (bg lint) | ✅ shadow_workspace.rs |
-| 18 | BugBot automated PR review | ✅ bugbot.rs + BugBotPanel.tsx |
-| 19 | Visual UI Editor | ✅ VisualEditor.tsx + inspector.js |
-| 19 | Design mode | ✅ DesignMode.tsx |
-| 19 | Figma import | ✅ import_figma Tauri command |
-| 20 | One-click deployment | ✅ DeployPanel.tsx |
-| 20 | Built-in database UI | ✅ DatabasePanel.tsx |
-| 20 | Supabase integration | ✅ SupabasePanel.tsx |
-| 20 | Auth scaffolding | ✅ AuthPanel.tsx |
-| 20 | GitHub bidirectional sync | ✅ GitHubSyncPanel.tsx |
-| 20 | Browser-embedded app testing | ✅ agent_browser_action |
-| 21 | Tavily/Brave web search | ✅ multi-engine search |
-| 21 | Messaging gateway (3 platforms) | ✅ gateway.rs (Telegram/Discord/Slack) |
-| 21 | Built-in scheduling | ✅ scheduler.rs + /schedule |
-| 21 | Single binary releases | ✅ install.sh + release.yml |
-| 22 | Session full-text search | ✅ /search REPL command |
-| 22 | Subagent spawning | ✅ spawn_agent tool |
-| 23 | SQLite session store | ✅ session_store.rs |
-| 23 | Web session viewer | ✅ GET /view/:id |
-| 24 | Vim-like TUI editor | ✅ vim_editor.rs |
-| 25 | AWS Bedrock (improved) | ✅ manual SigV4 without chrono |
-| 25 | GitHub Copilot auth | ✅ copilot.rs + device flow |
-| 25 | Notebook runner | ✅ notebook.rs (.vibe format) |
-| 26 | Supabase full panel | ✅ SupabasePanel + PostgREST |
-| 26 | Auth panel | ✅ 4 providers × 5 frameworks |
-| 26 | GitHub Sync panel | ✅ ahead/behind + push/pull |
-| 27 | Steering files UI | ✅ SteeringPanel.tsx |
-| 27 | Release pipeline | ✅ release.yml multi-platform |
-| 28 | Auto-memories UI | ✅ AutoFactsTab in MemoryPanel |
-| 28 | BugBot UI | ✅ BugBotPanel.tsx |
-| 28 | Linear integration | ✅ linear.rs + /linear REPL |
-| 29 | File-event hooks (agent) | ✅ HookEvent::FileSaved in agent |
-| 29 | --watch file monitoring | ✅ run_watch_mode() + notify |
-| 29 | Neovim plugin | ✅ neovim-plugin/lua/vibecli/ |
-| 30 | REPL streaming chat | ✅ stream_chat() token-by-token |
-| 30 | @file/@web/@docs/@git expand | ✅ expand_at_refs() in main.rs |
-| 30 | Named snippets | ✅ /snippet REPL commands |
-| 31 | Embedding semantic search | ✅ EmbeddingIndex + cosine |
-| 31 | build_embedding_index cmd | ✅ Tauri command |
-| 31 | VS Code extension v2 | ✅ vibecli.inlineEdit + streaming |
-| 31 | Neovim cmp source | ✅ cmp_vibecli.lua |
-| 32–34 | Toast notification system | ✅ useToast + Toaster (all panels) |
-| 35 | Auto-scroll + copy in AIChat | ✅ messagesEndRef + clipboard |
-| 35 | GitPanel auto-refresh | ✅ 30s setInterval |
-| 35 | search.rs buffered reading | ✅ BufReader + 10MB guard |
-| 36 | Lazy regex compilation | ✅ OnceLock-backed accessors |
-| 36 | Mutex poison recovery | ✅ unwrap_or_else(e.into_inner) |
-| 36 | confirm() → inline UI | ✅ GitPanel + SteeringPanel |
-| 37 | Path traversal security | ✅ is_safe_name() + canonicalize |
-| 37 | EventSource cleanup | ✅ useEffect unmount cleanup |
-| 37 | File delete modal | ✅ pendingDeleteFile state + modal |
-| 38 | @github issue context | ✅ fetch_github_issue + ContextPicker |
-| 38 | GCP/Firebase deploy targets | ✅ DeployPanel 6 targets |
-| 38 | OWASP/CWE static scanner (15) | ✅ detect_security_patterns in bugbot.rs |
-| 39 | Ambient session sharing | ✅ /share + GET /share/:id |
-| 39 | LSP diagnostics TUI panel | ✅ DiagnosticsComponent + /check |
-| 40 | Code Complete workflow (8-stage) | ✅ workflow.rs + WorkflowPanel.tsx |
-| 41 | Red team pentest pipeline | ✅ redteam.rs (5 stages, 15 CWE) |
-| 42 | @jira issue context | ✅ resolve_at_references + ContextPicker |
-| 42 | MCP OAuth 2.0 flow | ✅ McpPanel OAuth modal |
-| 42 | Custom domain publish | ✅ set_custom_domain + DeployPanel |
-| 43 | Multiplayer CRDT collab | ✅ vibe-collab crate + CollabPanel.tsx |
-| 43 | Test runner integration | ✅ TestPanel.tsx + /test REPL |
-| 43 | AI commit message gen | ✅ generate_commit_message + GitPanel |
-| 44 | Code coverage UI | ✅ CoveragePanel.tsx + LCOV/Go parsing |
-| 44 | Multi-model comparison | ✅ MultiModelPanel.tsx + tokio::join |
-| 44 | HTTP Playground | ✅ HttpPlayground.tsx + endpoint discovery |
-| 45 | Cost observatory | ✅ record_cost_entry + get_cost_metrics + budget limit |
-| 45 | AI git workflow | ✅ suggest_branch_name + resolve_merge_conflict + generate_changelog |
-| 45 | Codemod auto-fix | ✅ run_autofix (5 frameworks) + apply_autofix |
-| 44 | Subagent tree tracking | ✅ session_store.rs parent/depth/max_depth |
-| 44 | Messaging gateway expansion | ✅ +6 platforms (Signal/Matrix/Twilio/WhatsApp/iMessage/Teams) |
-| 44 | Arena Mode (blind A/B voting) | ✅ ArenaPanel.tsx + save_arena_vote + leaderboard |
-| 44 | Live Preview element selection | ✅ BrowserPanel inspect mode + inspector.js parentChain + @html-selected |
-| 44 | Recursive subagent tree depth/counter | ✅ AgentContext depth/counter + spawn_sub_agent enforcement |
-| 46 | HTTP client timeouts (all providers) | ✅ 90s/10s timeouts on Ollama, OpenAI, Claude, Gemini, Groq, OpenRouter, Azure OpenAI |
-| 46 | WCAG 2.1 AA keyboard navigation | ✅ 8 shortcuts (Cmd+J/`/Shift+P/1-9/Shift+E/G), focus-visible outlines |
-| 46 | Command palette ARIA roles | ✅ dialog/combobox/listbox/option + aria-activedescendant |
-| 46 | Modal focus trap + restore | ✅ Tab cycling, Escape close, previous focus restore, aria-modal |
-| 46 | Agent aria-live announcements | ✅ aria-live="polite" status region in AgentPanel |
-| 46 | Skip-to-content link | ✅ Hidden link appears on Tab, jumps past sidebar |
-| 46 | Onboarding tour | ✅ OnboardingTour.tsx first-run guided walkthrough |
-| — | Test coverage expansion (490 new tests) | ✅ Round 1: provider.rs (22), tools.rs (30), diff.rs (12), search.rs (8), executor.rs (18), symbol.rs (16), bedrock.rs (13), error.rs (13). Round 2: flow.rs (17), syntax.rs (22), diff_viewer.rs (9), memory.rs (6), chat.rs (14), completion.rs (16), agent_executor.rs (10), mcp_server.rs (12), manager.rs (9), workspace.rs (12), multi_agent.rs (10), scheduler.rs (16). Round 3: index/mod.rs (30), hooks.rs (37), buffer.rs (25), git.rs (19), rules.rs (14), background_agents.rs (14), team.rs (10), linear.rs (9), context.rs (8), config.rs (7) — total **829** |
+| 16 | Spec-driven development | Yes spec.rs + SpecPanel.tsx |
+| 16 | Steering files | Yes SteeringPanel.tsx |
+| 16 | File-event hooks | Yes FileSaved/Created/Deleted |
+| 16 | OS-level sandboxing | Yes macOS sandbox-exec + Linux bwrap |
+| 16 | Git worktree isolation | Yes --worktree + IsolatedWorktree |
+| 17 | AWS Bedrock provider | Yes bedrock.rs |
+| 17 | Groq ultra-fast inference | Yes groq.rs |
+| 17 | Azure OpenAI | Yes azure_openai.rs |
+| 17 | OpenRouter (300+ models) | Yes openrouter.rs |
+| 17 | SQLite session storage | Yes session_store.rs |
+| 17 | Ambient agent definitions | Yes background_agents.rs |
+| 17 | Team knowledge store | Yes team.rs + /team commands |
+| 18 | Memories auto-generation | Yes memory_auto.rs + AutoFactsTab |
+| 18 | Shadow workspace (bg lint) | Yes shadow_workspace.rs |
+| 18 | BugBot automated PR review | Yes bugbot.rs + BugBotPanel.tsx |
+| 19 | Visual UI Editor | Yes VisualEditor.tsx + inspector.js |
+| 19 | Design mode | Yes DesignMode.tsx |
+| 19 | Figma import | Yes import_figma Tauri command |
+| 20 | One-click deployment | Yes DeployPanel.tsx |
+| 20 | Built-in database UI | Yes DatabasePanel.tsx |
+| 20 | Supabase integration | Yes SupabasePanel.tsx |
+| 20 | Auth scaffolding | Yes AuthPanel.tsx |
+| 20 | GitHub bidirectional sync | Yes GitHubSyncPanel.tsx |
+| 20 | Browser-embedded app testing | Yes agent_browser_action |
+| 21 | Tavily/Brave web search | Yes multi-engine search |
+| 21 | Messaging gateway (3 platforms) | Yes gateway.rs (Telegram/Discord/Slack) |
+| 21 | Built-in scheduling | Yes scheduler.rs + /schedule |
+| 21 | Single binary releases | Yes install.sh + release.yml |
+| 22 | Session full-text search | Yes /search REPL command |
+| 22 | Subagent spawning | Yes spawn_agent tool |
+| 23 | SQLite session store | Yes session_store.rs |
+| 23 | Web session viewer | Yes GET /view/:id |
+| 24 | Vim-like TUI editor | Yes vim_editor.rs |
+| 25 | AWS Bedrock (improved) | Yes manual SigV4 without chrono |
+| 25 | GitHub Copilot auth | Yes copilot.rs + device flow |
+| 25 | Notebook runner | Yes notebook.rs (.vibe format) |
+| 26 | Supabase full panel | Yes SupabasePanel + PostgREST |
+| 26 | Auth panel | Yes 4 providers × 5 frameworks |
+| 26 | GitHub Sync panel | Yes ahead/behind + push/pull |
+| 27 | Steering files UI | Yes SteeringPanel.tsx |
+| 27 | Release pipeline | Yes release.yml multi-platform |
+| 28 | Auto-memories UI | Yes AutoFactsTab in MemoryPanel |
+| 28 | BugBot UI | Yes BugBotPanel.tsx |
+| 28 | Linear integration | Yes linear.rs + /linear REPL |
+| 29 | File-event hooks (agent) | Yes HookEvent::FileSaved in agent |
+| 29 | --watch file monitoring | Yes run_watch_mode() + notify |
+| 29 | Neovim plugin | Yes neovim-plugin/lua/vibecli/ |
+| 30 | REPL streaming chat | Yes stream_chat() token-by-token |
+| 30 | @file/@web/@docs/@git expand | Yes expand_at_refs() in main.rs |
+| 30 | Named snippets | Yes /snippet REPL commands |
+| 31 | Embedding semantic search | Yes EmbeddingIndex + cosine |
+| 31 | build_embedding_index cmd | Yes Tauri command |
+| 31 | VS Code extension v2 | Yes vibecli.inlineEdit + streaming |
+| 31 | Neovim cmp source | Yes cmp_vibecli.lua |
+| 32–34 | Toast notification system | Yes useToast + Toaster (all panels) |
+| 35 | Auto-scroll + copy in AIChat | Yes messagesEndRef + clipboard |
+| 35 | GitPanel auto-refresh | Yes 30s setInterval |
+| 35 | search.rs buffered reading | Yes BufReader + 10MB guard |
+| 36 | Lazy regex compilation | Yes OnceLock-backed accessors |
+| 36 | Mutex poison recovery | Yes unwrap_or_else(e.into_inner) |
+| 36 | confirm() → inline UI | Yes GitPanel + SteeringPanel |
+| 37 | Path traversal security | Yes is_safe_name() + canonicalize |
+| 37 | EventSource cleanup | Yes useEffect unmount cleanup |
+| 37 | File delete modal | Yes pendingDeleteFile state + modal |
+| 38 | @github issue context | Yes fetch_github_issue + ContextPicker |
+| 38 | GCP/Firebase deploy targets | Yes DeployPanel 6 targets |
+| 38 | OWASP/CWE static scanner (15) | Yes detect_security_patterns in bugbot.rs |
+| 39 | Ambient session sharing | Yes /share + GET /share/:id |
+| 39 | LSP diagnostics TUI panel | Yes DiagnosticsComponent + /check |
+| 40 | Code Complete workflow (8-stage) | Yes workflow.rs + WorkflowPanel.tsx |
+| 41 | Red team pentest pipeline | Yes redteam.rs (5 stages, 15 CWE) |
+| 42 | @jira issue context | Yes resolve_at_references + ContextPicker |
+| 42 | MCP OAuth 2.0 flow | Yes McpPanel OAuth modal |
+| 42 | Custom domain publish | Yes set_custom_domain + DeployPanel |
+| 43 | Multiplayer CRDT collab | Yes vibe-collab crate + CollabPanel.tsx |
+| 43 | Test runner integration | Yes TestPanel.tsx + /test REPL |
+| 43 | AI commit message gen | Yes generate_commit_message + GitPanel |
+| 44 | Code coverage UI | Yes CoveragePanel.tsx + LCOV/Go parsing |
+| 44 | Multi-model comparison | Yes MultiModelPanel.tsx + tokio::join |
+| 44 | HTTP Playground | Yes HttpPlayground.tsx + endpoint discovery |
+| 45 | Cost observatory | Yes record_cost_entry + get_cost_metrics + budget limit |
+| 45 | AI git workflow | Yes suggest_branch_name + resolve_merge_conflict + generate_changelog |
+| 45 | Codemod auto-fix | Yes run_autofix (5 frameworks) + apply_autofix |
+| 44 | Subagent tree tracking | Yes session_store.rs parent/depth/max_depth |
+| 44 | Messaging gateway expansion | Yes +6 platforms (Signal/Matrix/Twilio/WhatsApp/iMessage/Teams) |
+| 44 | Arena Mode (blind A/B voting) | Yes ArenaPanel.tsx + save_arena_vote + leaderboard |
+| 44 | Live Preview element selection | Yes BrowserPanel inspect mode + inspector.js parentChain + @html-selected |
+| 44 | Recursive subagent tree depth/counter | Yes AgentContext depth/counter + spawn_sub_agent enforcement |
+| 46 | HTTP client timeouts (all providers) | Yes 90s/10s timeouts on Ollama, OpenAI, Claude, Gemini, Groq, OpenRouter, Azure OpenAI |
+| 46 | WCAG 2.1 AA keyboard navigation | Yes 8 shortcuts (Cmd+J/`/Shift+P/1-9/Shift+E/G), focus-visible outlines |
+| 46 | Command palette ARIA roles | Yes dialog/combobox/listbox/option + aria-activedescendant |
+| 46 | Modal focus trap + restore | Yes Tab cycling, Escape close, previous focus restore, aria-modal |
+| 46 | Agent aria-live announcements | Yes aria-live="polite" status region in AgentPanel |
+| 46 | Skip-to-content link | Yes Hidden link appears on Tab, jumps past sidebar |
+| 46 | Onboarding tour | Yes OnboardingTour.tsx first-run guided walkthrough |
+| — | Test coverage expansion (490 new tests) | Yes Round 1: provider.rs (22), tools.rs (30), diff.rs (12), search.rs (8), executor.rs (18), symbol.rs (16), bedrock.rs (13), error.rs (13). Round 2: flow.rs (17), syntax.rs (22), diff_viewer.rs (9), memory.rs (6), chat.rs (14), completion.rs (16), agent_executor.rs (10), mcp_server.rs (12), manager.rs (9), workspace.rs (12), multi_agent.rs (10), scheduler.rs (16). Round 3: index/mod.rs (30), hooks.rs (37), buffer.rs (25), git.rs (19), rules.rs (14), background_agents.rs (14), team.rs (10), linear.rs (9), context.rs (8), config.rs (7) — total **829** |
 
 ---
 
@@ -578,7 +578,7 @@ All gaps from Phases 16–46 are now resolved. Only low-impact infrastructure ga
 
 ---
 
-## Part N — Phase 22: Session Search & Subagent Spawning ✅
+## Part N — Phase 22: Session Search & Subagent Spawning Yes
 
 Completed. See git commit history.
 
@@ -588,7 +588,7 @@ Completed. See git commit history.
 
 ---
 
-## Part P — Phase 23: SQLite Session Store + Web Session Viewer ✅
+## Part P — Phase 23: SQLite Session Store + Web Session Viewer Yes
 
 Completed. See git commit history.
 
@@ -600,55 +600,55 @@ Completed. See git commit history.
 
 ## Part Q — Phases 24–37: Recent Completions
 
-### Phase 24: Vim TUI Editor ✅
+### Phase 24: Vim TUI Editor Yes
 
 Full modal editor in VibeCLI TUI — Normal/Insert/Visual/VisualLine/Command/Search modes, hjkl/dd/yy/p/u/gg/G/Ctrl+f/b, /search+n/N, :w/:q/:wq/:set number.
 
-### Phase 25: AWS Bedrock + GitHub Copilot + Notebook Runner ✅
+### Phase 25: AWS Bedrock + GitHub Copilot + Notebook Runner Yes
 
 - AWS Bedrock via manual SigV4 (sha2+hmac+hex, no chrono dependency)
 - GitHub Copilot device-flow OAuth + 30min token cache
 - `.vibe` notebook format: YAML frontmatter + markdown + bash/python/rust/node cells
 
-### Phase 26: Supabase + Auth + GitHub Sync ✅
+### Phase 26: Supabase + Auth + GitHub Sync Yes
 
 - SupabasePanel: PostgREST introspection, SQL queries, AI-generated queries
 - AuthPanel: 4 auth providers × 5 frameworks, AI-generated scaffold code
 - GitHubSyncPanel: ahead/behind, commit+push, pull, create repo
 
-### Phase 27: Steering Files + Release Pipeline ✅
+### Phase 27: Steering Files + Release Pipeline Yes
 
 - SteeringPanel.tsx: workspace/global scopes, templates, CRUD
 - `.github/workflows/release.yml`: macOS arm64/x86, Linux musl amd64/aarch64, Windows x64
 - `install.sh`: curl one-liner with OS+arch detection
 
-### Phase 28: Auto-Memories + BugBot + Linear ✅
+### Phase 28: Auto-Memories + BugBot + Linear Yes
 
 - AutoFactsTab in MemoryPanel with confidence badges, pin/delete/add
 - BugBotPanel: severity/category filters, expand-to-details, fix snippets
 - `/linear list/new/open/attach` REPL commands + GraphQL client
 
-### Phase 29: File-Event Hooks + --watch + Neovim Plugin + Browser Actions ✅
+### Phase 29: File-Event Hooks + --watch + Neovim Plugin + Browser Actions Yes
 
 - `HookEvent::FileSaved` fired after WriteFile in agent.rs
 - `--watch/--watch-glob/--sandbox` flags + `run_watch_mode()` via notify crate
 - Neovim plugin: `:VibeCLI`, `:VibeCLIAsk`, `:VibeCLIInline`, SSE streaming
 - `agent_browser_action`: Navigate/GetText via reqwest, Screenshot via screencapture
 
-### Phase 30: REPL Streaming + Context Expansion + Snippets ✅
+### Phase 30: REPL Streaming + Context Expansion + Snippets Yes
 
 - `stream_chat()` with `futures::StreamExt` token-by-token output
 - `expand_at_refs()` in main.rs for @file:/@web:/@docs:/@git
 - `/snippet save/list/use/show/delete` at `~/.vibecli/snippets/`
 
-### Phase 31: Embedding Index + VS Code v2 + Neovim CMP ✅
+### Phase 31: Embedding Index + VS Code v2 + Neovim CMP Yes
 
 - `semantic_search_codebase` upgraded to EmbeddingIndex → cosine fallback → keyword
 - `build_embedding_index` Tauri command (ollama/openai providers)
 - VS Code ext: `vibecli.inlineEdit` (Cmd+Shift+K), streaming chat webview, auto file-ctx
 - `cmp_vibecli.lua`: slash-commands + @context completions for Neovim
 
-### Phases 32–37: Quality + Security + Polish ✅
+### Phases 32–37: Quality + Security + Polish Yes
 
 - **Toast system**: `useToast` hook + `Toaster` component; all `alert()` calls replaced
 - **AgentPanel**: Stop button (AbortHandle), Copy (clipboard), Expand/Collapse per step
@@ -673,69 +673,69 @@ After all completed phases, VibeCLI + VibeUI is the **most complete AI developme
 
 | Dimension | VibeCLI | Warp | Kiro | opencode | Claude Code | Aider | Cline | Amazon Q |
 |-----------|---------|------|------|----------|-------------|-------|-------|----------|
-| Provider breadth | ✅ 10+ direct + 300+ via OpenRouter | ✅ | ✅ | ✅ 75+ | ✅ 1 | ✅ many | ✅ | ✅ 1 |
-| Spec-driven dev | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| HTTP daemon + SDK | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| OTel tracing | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Messaging gateway (9 platforms) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Scheduling / cron agents | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Team knowledge store | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| OS-level sandboxing | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| SQLite sessions | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Web session viewer | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Multi-agent visual UI | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| WASM extensions | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Subagent spawning | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ |
-| Vim TUI editor | ✅ | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ |
-| Notebook runner | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Messaging (9 platforms) | ✅ all 9 | Partial | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Path traversal protection | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Secrets scrubbing in traces | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ |
-| Daemon bearer-token auth | ✅ | — | — | — | — | — | — | — |
-| Rate limiting + body limits | ✅ | — | — | — | — | — | — | — |
-| Security headers (CSP/HSTS) | ✅ | — | — | — | — | — | — | — |
-| Graceful shutdown (SIGTERM) | ✅ | — | — | — | — | — | — | — |
-| cargo audit + SHA-pinned CI | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ |
-| Restrictive config file perms | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ |
-| /rewind checkpoints | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| /snippet library | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Cost observatory | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| AI git workflow (branch/merge/changelog) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Codemod auto-fix (5 frameworks) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Provider breadth | Yes 10+ direct + 300+ via OpenRouter | Yes | Yes | Yes 75+ | Yes 1 | Yes many | Yes | Yes 1 |
+| Spec-driven dev | Yes | No | Yes | No | No | No | No | No |
+| HTTP daemon + SDK | Yes | No | No | No | No | No | No | No |
+| OTel tracing | Yes | No | No | No | No | No | No | No |
+| Messaging gateway (9 platforms) | Yes | No | No | No | No | No | No | No |
+| Scheduling / cron agents | Yes | No | Yes | No | No | No | No | No |
+| Team knowledge store | Yes | Yes | No | No | No | No | No | No |
+| OS-level sandboxing | Yes | No | No | No | No | No | No | No |
+| SQLite sessions | Yes | No | No | Yes | No | No | No | No |
+| Web session viewer | Yes | No | No | No | No | No | No | No |
+| Multi-agent visual UI | Yes | Yes | No | No | No | No | No | No |
+| WASM extensions | Yes | No | No | No | No | No | No | No |
+| Subagent spawning | Yes | No | No | No | Yes | No | No | No |
+| Vim TUI editor | Yes | No | No | Yes | No | Yes | No | No |
+| Notebook runner | Yes | No | No | No | No | No | No | No |
+| Messaging (9 platforms) | Yes all 9 | Partial | No | No | No | No | No | No |
+| Path traversal protection | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Secrets scrubbing in traces | Yes | No | No | No | Yes | No | No | No |
+| Daemon bearer-token auth | Yes | — | — | — | — | — | — | — |
+| Rate limiting + body limits | Yes | — | — | — | — | — | — | — |
+| Security headers (CSP/HSTS) | Yes | — | — | — | — | — | — | — |
+| Graceful shutdown (SIGTERM) | Yes | — | — | — | — | — | — | — |
+| cargo audit + SHA-pinned CI | Yes | No | No | No | Yes | No | No | No |
+| Restrictive config file perms | Yes | No | No | No | Yes | No | No | No |
+| /rewind checkpoints | Yes | No | No | No | No | No | No | No |
+| /snippet library | Yes | No | No | No | No | No | No | No |
+| Cost observatory | Yes | No | No | No | No | No | No | No |
+| AI git workflow (branch/merge/changelog) | Yes | No | No | No | No | No | No | No |
+| Codemod auto-fix (5 frameworks) | Yes | No | No | No | No | No | No | No |
 
 ### VibeUI Positioning
 
 | Dimension | VibeUI | Cursor | Windsurf | Replit | Base44 | Lovable | Zed AI | Void |
 |-----------|--------|--------|----------|--------|--------|---------|--------|------|
-| Visual UI Editor | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ |
-| One-click deploy | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ | ❌ | ❌ |
-| Built-in DB UI | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ | ❌ | ❌ |
-| Supabase integration | ✅ | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ |
-| GitHub sync | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
-| Multiplayer | ✅ | ❌ | ❌ | ✅ | ❌ | ✅ | ✅ | ❌ |
-| Code coverage UI | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Multi-model comparison | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| HTTP Playground | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Cost observatory | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Codemod auto-fix | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Voice input | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| WASM extensions | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ |
-| OTel tracing | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Spec-driven dev UI | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Background jobs UI | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| BugBot PR review | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Browser app testing | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Hooks config UI | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Cascade flow tracker | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Steering files UI | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| MCP server manager UI | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Auto-memories UI | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Shadow workspace lint | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| DiffReview per-hunk | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ | ✅ |
-| Figma import | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
-| Neovim plugin | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| JetBrains plugin | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| VS Code extension | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Visual UI Editor | Yes | Yes | No | No | Yes | Yes | No | No |
+| One-click deploy | Yes | No | No | Yes | Yes | Yes | No | No |
+| Built-in DB UI | Yes | No | No | Yes | Yes | Yes | No | No |
+| Supabase integration | Yes | No | No | Yes | No | Yes | No | No |
+| GitHub sync | Yes | No | No | No | No | Yes | No | No |
+| Multiplayer | Yes | No | No | Yes | No | Yes | Yes | No |
+| Code coverage UI | Yes | No | No | No | No | No | No | No |
+| Multi-model comparison | Yes | No | No | No | No | No | No | No |
+| HTTP Playground | Yes | No | No | No | No | No | No | No |
+| Cost observatory | Yes | No | No | No | No | No | No | No |
+| Codemod auto-fix | Yes | No | No | No | No | No | No | No |
+| Voice input | Yes | No | No | No | No | No | No | No |
+| WASM extensions | Yes | No | No | No | No | No | Yes | No |
+| OTel tracing | Yes | No | No | No | No | No | No | No |
+| Spec-driven dev UI | Yes | No | No | No | No | No | No | No |
+| Background jobs UI | Yes | Yes | No | No | No | No | No | No |
+| BugBot PR review | Yes | Yes | No | No | No | No | No | No |
+| Browser app testing | Yes | No | No | Yes | No | No | No | No |
+| Hooks config UI | Yes | No | No | No | No | No | No | No |
+| Cascade flow tracker | Yes | No | Yes | No | No | No | No | No |
+| Steering files UI | Yes | No | No | No | No | No | No | No |
+| MCP server manager UI | Yes | Yes | No | No | No | No | No | No |
+| Auto-memories UI | Yes | Yes | Yes | No | No | No | No | No |
+| Shadow workspace lint | Yes | Yes | No | No | No | No | No | No |
+| DiffReview per-hunk | Yes | Yes | Yes | No | No | No | Yes | Yes |
+| Figma import | Yes | No | No | No | No | Yes | No | No |
+| Neovim plugin | Yes | No | Yes | No | No | No | No | No |
+| JetBrains plugin | Yes | No | Yes | No | No | No | No | No |
+| VS Code extension | Yes | Yes | Yes | No | No | No | No | No |
 
 ---
 
@@ -748,15 +748,15 @@ All high- and medium-impact gaps are now closed. Only low-impact infrastructure 
 | Zed-style GPU terminal | Low | XL | Warp/Zed | Out of scope (webview limitation) |
 | Remote VM / cloud agent execution | Low | XL | Warp | Cloud infrastructure required |
 | SWE-1-style fine-tuned model | Low | XL | Windsurf | Requires custom model training |
-| ~~Multiplayer / real-time CRDT collab~~ | ~~High~~ | ~~XL~~ | ~~Replit/Lovable/Zed~~ | ✅ Phase 43: `vibe-collab` crate (yrs+DashMap+Axum WS), CollabPanel.tsx, useCollab.ts |
-| ~~Red team / autonomous pentest pipeline~~ | ~~High~~ | ~~L~~ | ~~Shannon~~ | ✅ Phase 41: redteam.rs 5-stage pipeline |
-| ~~Security scanning (OWASP/CWE patterns)~~ | ~~Medium~~ | ~~M~~ | ~~Amazon Q~~ | ✅ Phase 38 + Phase 41 (15 CWE patterns) |
-| ~~Custom domain / publish UX~~ | ~~Medium~~ | ~~M~~ | ~~Base44/Lovable~~ | ✅ Phase 42: DeployPanel + set_custom_domain |
-| ~~Ambient agent session sharing~~ | ~~Medium~~ | ~~L~~ | ~~Warp/Claude Code~~ | ✅ Phase 39: /share + GET /share/:id |
-| ~~@jira / @github issue context~~ | ~~Medium~~ | ~~M~~ | ~~Continue.dev~~ | ✅ Phase 42: resolve_at_references + ContextPicker |
-| ~~MCP OAuth 2.0 install flow~~ | ~~Medium~~ | ~~L~~ | ~~Cursor~~ | ✅ Phase 42: McpPanel OAuth modal |
-| ~~LSP diagnostics in TUI~~ | ~~Low~~ | ~~L~~ | ~~opencode~~ | ✅ Phase 39: DiagnosticsComponent + /check |
-| ~~GCP / Firebase deploy target~~ | ~~Low~~ | ~~M~~ | ~~Antigravity~~ | ✅ Phase 38: DeployPanel 6 targets |
+| ~~Multiplayer / real-time CRDT collab~~ | ~~High~~ | ~~XL~~ | ~~Replit/Lovable/Zed~~ | Yes Phase 43: `vibe-collab` crate (yrs+DashMap+Axum WS), CollabPanel.tsx, useCollab.ts |
+| ~~Red team / autonomous pentest pipeline~~ | ~~High~~ | ~~L~~ | ~~Shannon~~ | Yes Phase 41: redteam.rs 5-stage pipeline |
+| ~~Security scanning (OWASP/CWE patterns)~~ | ~~Medium~~ | ~~M~~ | ~~Amazon Q~~ | Yes Phase 38 + Phase 41 (15 CWE patterns) |
+| ~~Custom domain / publish UX~~ | ~~Medium~~ | ~~M~~ | ~~Base44/Lovable~~ | Yes Phase 42: DeployPanel + set_custom_domain |
+| ~~Ambient agent session sharing~~ | ~~Medium~~ | ~~L~~ | ~~Warp/Claude Code~~ | Yes Phase 39: /share + GET /share/:id |
+| ~~@jira / @github issue context~~ | ~~Medium~~ | ~~M~~ | ~~Continue.dev~~ | Yes Phase 42: resolve_at_references + ContextPicker |
+| ~~MCP OAuth 2.0 install flow~~ | ~~Medium~~ | ~~L~~ | ~~Cursor~~ | Yes Phase 42: McpPanel OAuth modal |
+| ~~LSP diagnostics in TUI~~ | ~~Low~~ | ~~L~~ | ~~opencode~~ | Yes Phase 39: DiagnosticsComponent + /check |
+| ~~GCP / Firebase deploy target~~ | ~~Low~~ | ~~M~~ | ~~Antigravity~~ | Yes Phase 38: DeployPanel 6 targets |
 
 ---
 

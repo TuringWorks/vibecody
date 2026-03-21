@@ -289,23 +289,23 @@ VibeCody's v5 gaps are **all closed** (12/12, Phases 10-14 complete). This v6 id
 
 | Feature | VibeCody | Claude Code | Cursor | Copilot | Devin | Codex | Kiro | Zed | Trae | Replit |
 |---------|----------|-------------|--------|---------|-------|-------|------|-----|------|-------|
-| Open-source + self-hostable | ✅ | ❌ | ❌ | ❌ | ❌ | CLI only | ❌ | ✅ | ❌ | ❌ |
-| 17 direct AI providers | ✅ | 1 | ~5 | ~4 | 1 | 1 | 1 | ~3 | ~3 | 1 |
-| 18-platform messaging gateway | ✅ | Channels | Slack | ❌ | Slack | ❌ | ❌ | ❌ | ❌ | ❌ |
-| 539+ domain skills (25+ industries) | ✅ | ~20 | ❌ | Community | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Dual-surface (CLI + IDE) | ✅ | CLI | IDE | IDE+CLI | Web | CLI+Cloud | IDE | IDE | IDE | Web |
-| Soul.md generator | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Batch generation (3M+ lines) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Legacy migration (18→10 lang) | ✅ | ❌ | ❌ | ❌ | Partial | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Arena mode (blind A/B eval) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Red/Blue/Purple team security | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| WASM extension system | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
-| Air-gapped Ollama deploy | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| 139+ tool panels | ✅ | N/A | ~10 | ~5 | ~3 | N/A | ~3 | ~3 | ~3 | ~5 |
-| SWE-bench harness | ✅ | ❌ | ❌ | ❌ | Internal | ❌ | ❌ | ❌ | ❌ | ❌ |
-| OpenTelemetry tracing | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| IDP integration (12 platforms) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Workflow orchestration (lessons) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Open-source + self-hostable | Yes | No | No | No | No | CLI only | No | Yes | No | No |
+| 17 direct AI providers | Yes | 1 | ~5 | ~4 | 1 | 1 | 1 | ~3 | ~3 | 1 |
+| 18-platform messaging gateway | Yes | Channels | Slack | No | Slack | No | No | No | No | No |
+| 539+ domain skills (25+ industries) | Yes | ~20 | No | Community | No | No | No | No | No | No |
+| Dual-surface (CLI + IDE) | Yes | CLI | IDE | IDE+CLI | Web | CLI+Cloud | IDE | IDE | IDE | Web |
+| Soul.md generator | Yes | No | No | No | No | No | No | No | No | No |
+| Batch generation (3M+ lines) | Yes | No | No | No | No | No | No | No | No | No |
+| Legacy migration (18→10 lang) | Yes | No | No | No | Partial | No | No | No | No | No |
+| Arena mode (blind A/B eval) | Yes | No | No | No | No | No | No | No | No | No |
+| Red/Blue/Purple team security | Yes | No | No | No | No | No | No | No | No | No |
+| WASM extension system | Yes | No | No | No | No | No | No | Yes | No | No |
+| Air-gapped Ollama deploy | Yes | No | No | No | No | No | No | No | No | No |
+| 139+ tool panels | Yes | N/A | ~10 | ~5 | ~3 | N/A | ~3 | ~3 | ~3 | ~5 |
+| SWE-bench harness | Yes | No | No | No | Internal | No | No | No | No | No |
+| OpenTelemetry tracing | Yes | No | No | No | No | No | No | No | No | No |
+| IDP integration (12 platforms) | Yes | No | No | No | No | No | No | No | No | No |
+| Workflow orchestration (lessons) | Yes | No | No | No | No | No | No | No | No | No |
 
 ### Features Where Competitors Lead
 
@@ -469,11 +469,11 @@ VibeCody's v5 gaps are **all closed** (12/12, Phases 10-14 complete). This v6 id
 
 ## Part G — Gap Closure Tracking
 
-### v4 Gaps (23/23 CLOSED ✅)
+### v4 Gaps (23/23 CLOSED Yes)
 
 All 23 gaps from FIT-GAP-ANALYSIS-v4.md are implemented and tested.
 
-### v5 Gaps (12/12 CLOSED ✅)
+### v5 Gaps (12/12 CLOSED Yes)
 
 All 12 gaps from FIT-GAP-ANALYSIS-v5.md (Phases 10-14) are implemented and tested:
 
@@ -492,29 +492,29 @@ All 12 gaps from FIT-GAP-ANALYSIS-v5.md (Phases 10-14) are implemented and teste
 | 11 | SOC 2 controls | compliance_controls.rs | 27 |
 | 12 | Multi-modal agent | multimodal_agent.rs | 39 |
 
-### v6 Gaps (19/19 CLOSED ✅)
+### v6 Gaps (19/19 CLOSED Yes)
 
 | # | Gap | Priority | Module | Tests | Status |
 |---|-----|----------|--------|-------|--------|
-| 1 | Always-on channel daemon | P0 | channel_daemon.rs | 47 | ✅ CLOSED |
-| 2 | Cloud VM agent orchestration | P0 | vm_orchestrator.rs | 59 | ✅ CLOSED |
-| 3 | Spec-driven development (EARS) | P0 | spec_pipeline.rs | 64 | ✅ CLOSED |
-| 4 | Agent-per-branch workflow | P0 | branch_agent.rs | 56 | ✅ CLOSED |
-| 5 | Design-to-code (Figma/sketch) | P1 | design_import.rs | 45 | ✅ CLOSED |
-| 6 | Audio output / TTS summaries | P1 | audio_output.rs | 38 | ✅ CLOSED |
-| 7 | Org-wide context engine | P1 | org_context.rs | 42 | ✅ CLOSED |
-| 8 | Agent session sharing | P1 | session_sharing.rs | 45 | ✅ CLOSED |
-| 9 | Visual design canvas | P2 | design_import.rs (covers via sketch/SVG import) | — | ✅ CLOSED |
-| 10 | Built-in hosting + deploy | P2 | managed_deploy.rs | 55 | ✅ CLOSED |
-| 11 | Data analysis / BI mode | P2 | data_analysis.rs | 54 | ✅ CLOSED |
-| 12 | CI-enforceable AI checks | P2 | ci_gates.rs | 47 | ✅ CLOSED |
-| 13 | Sketch-to-3D generation | P2 | design_import.rs (SVG/sketch path) | — | ✅ CLOSED |
-| 14 | Gemini native provider | P2 | gemini.rs (vibe-ai) | 50 | ✅ CLOSED |
-| 15 | Massive context architecture | P3 | context_streaming.rs | 45 | ✅ CLOSED |
-| 16 | VS Code extension compat | P3 | extension_compat.rs | 46 | ✅ CLOSED |
-| 17 | Model provider marketplace | P3 | model_marketplace.rs | 47 | ✅ CLOSED |
-| 18 | Agentic CI/CD pipeline | P3 | agentic_cicd.rs | 40 | ✅ CLOSED |
-| 19 | Cross-surface agent routing | P3 | cross_surface_routing.rs | 32 | ✅ CLOSED |
+| 1 | Always-on channel daemon | P0 | channel_daemon.rs | 47 | Yes CLOSED |
+| 2 | Cloud VM agent orchestration | P0 | vm_orchestrator.rs | 59 | Yes CLOSED |
+| 3 | Spec-driven development (EARS) | P0 | spec_pipeline.rs | 64 | Yes CLOSED |
+| 4 | Agent-per-branch workflow | P0 | branch_agent.rs | 56 | Yes CLOSED |
+| 5 | Design-to-code (Figma/sketch) | P1 | design_import.rs | 45 | Yes CLOSED |
+| 6 | Audio output / TTS summaries | P1 | audio_output.rs | 38 | Yes CLOSED |
+| 7 | Org-wide context engine | P1 | org_context.rs | 42 | Yes CLOSED |
+| 8 | Agent session sharing | P1 | session_sharing.rs | 45 | Yes CLOSED |
+| 9 | Visual design canvas | P2 | design_import.rs (covers via sketch/SVG import) | — | Yes CLOSED |
+| 10 | Built-in hosting + deploy | P2 | managed_deploy.rs | 55 | Yes CLOSED |
+| 11 | Data analysis / BI mode | P2 | data_analysis.rs | 54 | Yes CLOSED |
+| 12 | CI-enforceable AI checks | P2 | ci_gates.rs | 47 | Yes CLOSED |
+| 13 | Sketch-to-3D generation | P2 | design_import.rs (SVG/sketch path) | — | Yes CLOSED |
+| 14 | Gemini native provider | P2 | gemini.rs (vibe-ai) | 50 | Yes CLOSED |
+| 15 | Massive context architecture | P3 | context_streaming.rs | 45 | Yes CLOSED |
+| 16 | VS Code extension compat | P3 | extension_compat.rs | 46 | Yes CLOSED |
+| 17 | Model provider marketplace | P3 | model_marketplace.rs | 47 | Yes CLOSED |
+| 18 | Agentic CI/CD pipeline | P3 | agentic_cicd.rs | 40 | Yes CLOSED |
+| 19 | Cross-surface agent routing | P3 | cross_surface_routing.rs | 32 | Yes CLOSED |
 
 ---
 
@@ -531,7 +531,7 @@ All 12 gaps from FIT-GAP-ANALYSIS-v5.md (Phases 10-14) are implemented and teste
 | Rust modules | 110+ | **178+** (+13 new modules) |
 | Competitors analyzed | 17 | **30** |
 | v5 gaps (all closed) | 12 | 12 (all closed) |
-| **v6 gaps** | — | **19/19 CLOSED ✅** |
+| **v6 gaps** | — | **19/19 CLOSED Yes** |
 | New v6 tests | — | 812 (across 13 modules + 1 provider) |
 
 ---

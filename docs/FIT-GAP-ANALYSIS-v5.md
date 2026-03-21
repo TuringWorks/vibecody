@@ -143,26 +143,26 @@ VibeCody's v4 gaps are **all closed** (23/23). This v5 identifies **12 new futur
 
 | Feature | VibeCody | Claude Code | Cursor | Copilot | Devin | Augment | Amp | Replit | Amazon Q | Zed |
 |---------|----------|-------------|--------|---------|-------|---------|-----|--------|----------|-----|
-| Open-source + self-hostable | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| 17 direct AI providers + BYOK | ✅ | 1 | ~5 | ~4 | 1 | ~3 | ~3 | 1 | 1 | ~3 |
-| 18-platform messaging gateway | ✅ | ❌ | Slack | ❌ | Slack | ❌ | ❌ | ❌ | ❌ | ❌ |
-| 539+ domain skills | ✅ | ~20 | ❌ | Community | ❌ | ❌ | ❌ | ❌ | AWS-specific | ❌ |
-| Dual-surface (CLI + Desktop IDE) | ✅ | CLI only | IDE only | IDE+CLI | Web only | IDE only | Multi | Web only | IDE only | IDE only |
-| Soul.md generator | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Batch generation (3M+ lines) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Legacy migration (18 languages) | ✅ | ❌ | ❌ | ❌ | Partial | ❌ | ❌ | ❌ | Java/.NET | ❌ |
-| OpenTelemetry tracing | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Arena mode (blind A/B) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Red team / pentest pipeline | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| WASM extension system | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| Air-gapped mode (Ollama) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| 128+ tool panels | ✅ | N/A | ~10 | ~5 | ~3 | ~3 | ~3 | ~5 | ~5 | ~3 |
-| MCP lazy loading | ❌ | ✅ | Partial | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Context bundles (Spaces) | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Browser-based zero-setup | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ |
-| Deep cloud provider integration | ❌ | ❌ | ❌ | Partial | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ |
-| ACP compliance | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| SOC 2 Type II certified | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ | ✅ | ❌ |
+| Open-source + self-hostable | Yes | No | No | No | No | No | No | No | No | Yes |
+| 17 direct AI providers + BYOK | Yes | 1 | ~5 | ~4 | 1 | ~3 | ~3 | 1 | 1 | ~3 |
+| 18-platform messaging gateway | Yes | No | Slack | No | Slack | No | No | No | No | No |
+| 539+ domain skills | Yes | ~20 | No | Community | No | No | No | No | AWS-specific | No |
+| Dual-surface (CLI + Desktop IDE) | Yes | CLI only | IDE only | IDE+CLI | Web only | IDE only | Multi | Web only | IDE only | IDE only |
+| Soul.md generator | Yes | No | No | No | No | No | No | No | No | No |
+| Batch generation (3M+ lines) | Yes | No | No | No | No | No | No | No | No | No |
+| Legacy migration (18 languages) | Yes | No | No | No | Partial | No | No | No | Java/.NET | No |
+| OpenTelemetry tracing | Yes | No | No | No | No | No | No | No | No | No |
+| Arena mode (blind A/B) | Yes | No | No | No | No | No | No | No | No | No |
+| Red team / pentest pipeline | Yes | No | No | No | No | No | No | No | No | No |
+| WASM extension system | Yes | No | No | No | No | No | No | No | No | Yes |
+| Air-gapped mode (Ollama) | Yes | No | No | No | No | No | No | No | No | No |
+| 128+ tool panels | Yes | N/A | ~10 | ~5 | ~3 | ~3 | ~3 | ~5 | ~5 | ~3 |
+| MCP lazy loading | No | Yes | Partial | No | No | No | No | No | No | No |
+| Context bundles (Spaces) | No | No | No | Yes | No | No | No | No | No | No |
+| Browser-based zero-setup | No | No | No | No | Yes | No | No | Yes | No | No |
+| Deep cloud provider integration | No | No | No | Partial | No | No | No | No | Yes | No |
+| ACP compliance | No | No | No | No | No | No | No | No | No | Yes |
+| SOC 2 Type II certified | No | No | No | Yes | No | Yes | No | No | Yes | No |
 
 ### VibeCody's Structural Advantages (Unchanged)
 

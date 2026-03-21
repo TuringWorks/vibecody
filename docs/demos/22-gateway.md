@@ -150,7 +150,7 @@ The bot formats code blocks, uses embeds for long responses, and adds reaction-b
 [Embed: Code Fix Applied]
 File: tests/api_test.rs
 Lines changed: 23-27
-React with ✅ to apply, ❌ to reject
+React with Yes to apply, No to reject
 ```
 
 **Slack threads:**

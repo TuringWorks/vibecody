@@ -33,60 +33,60 @@ Shannon is a standalone autonomous pentesting tool ("The Red Team to your vibe-c
 
 | Capability | Shannon | VibeCody (Phase 41) | Notes |
 |------------|---------|---------------------|-------|
-| Autonomous pentest pipeline | ✅ 5-phase (pre-recon → recon → vuln → exploit → report) | ✅ 5-stage (recon → analysis → exploitation → validation → report) | Both use multi-stage orchestration |
-| Single-command launch | ✅ `./shannon start URL=<target> REPO=<name>` | ✅ `vibecli --redteam <url>` or `/redteam scan <url>` | Comparable UX |
-| White-box (source-code-aware) | ✅ Analyzes repo in `./repos/` | ✅ Analyzes workspace via codebase index + embeddings | VibeCody reuses existing semantic index |
-| Workspace resumability | ✅ Git commit checkpoints | ✅ Session resume + /rewind + SQLite persistence | VibeCody has richer session management |
-| Parallel vuln agents | ✅ 5 concurrent | ✅ Configurable (default 3) via multi-agent orchestrator | Both leverage parallel execution |
-| Report generation | ✅ Markdown pentest report with PoC | ✅ Markdown report with CVSS scores + PoC + remediation | Both produce actionable reports |
+| Autonomous pentest pipeline | Yes 5-phase (pre-recon → recon → vuln → exploit → report) | Yes 5-stage (recon → analysis → exploitation → validation → report) | Both use multi-stage orchestration |
+| Single-command launch | Yes `./shannon start URL=<target> REPO=<name>` | Yes `vibecli --redteam <url>` or `/redteam scan <url>` | Comparable UX |
+| White-box (source-code-aware) | Yes Analyzes repo in `./repos/` | Yes Analyzes workspace via codebase index + embeddings | VibeCody reuses existing semantic index |
+| Workspace resumability | Yes Git commit checkpoints | Yes Session resume + /rewind + SQLite persistence | VibeCody has richer session management |
+| Parallel vuln agents | Yes 5 concurrent | Yes Configurable (default 3) via multi-agent orchestrator | Both leverage parallel execution |
+| Report generation | Yes Markdown pentest report with PoC | Yes Markdown report with CVSS scores + PoC + remediation | Both produce actionable reports |
 
 ### 2.2 Vulnerability Coverage
 
 | Vulnerability Type | Shannon | VibeCody (Phase 41) | Detection Method |
 |--------------------|---------|---------------------|-----------------|
-| SQL Injection (CWE-89) | ✅ Exploit + PoC | ✅ Static regex + LLM analysis + HTTP validation | Shannon validates via browser; VibeCody via HTTP requests |
-| XSS — Reflected (CWE-79) | ✅ Browser-validated | ✅ Static regex + LLM + HTTP validation | Shannon uses Playwright; VibeCody uses reqwest + browser action |
-| XSS — Stored (CWE-79) | ✅ Browser-validated | ✅ LLM analysis + HTTP validation | Both require multi-step payloads |
-| SSRF (CWE-918) | ✅ Active exploitation | ✅ Static regex + LLM analysis | New CWE pattern added |
-| Command Injection (CWE-78) | ✅ Denylist bypass | ✅ Static regex + LLM analysis | Existing pattern extended |
-| Path Traversal (CWE-22) | ✅ | ✅ Static regex + LLM | Existing pattern |
-| IDOR (CWE-639) | ✅ Active exploitation | ✅ Static regex + LLM analysis | New CWE pattern |
-| Auth Bypass | ✅ JWT manipulation, registration bypass | ✅ LLM-driven auth flow testing | Shannon has deeper auth testing |
-| Mass Assignment | ✅ Active exploitation | ✅ LLM analysis | Both LLM-powered |
-| XXE (CWE-611) | ❌ Not mentioned | ✅ Static regex pattern | VibeCody advantage |
-| Insecure Deserialization (CWE-502) | ❌ Not mentioned | ✅ Static regex pattern | VibeCody advantage |
-| NoSQL Injection (CWE-943) | ❌ Not mentioned | ✅ Static regex pattern | VibeCody advantage |
-| Template Injection (CWE-1336) | ❌ Not mentioned | ✅ Static regex pattern | VibeCody advantage |
-| CSRF (CWE-352) | ❌ Not mentioned | ✅ Static regex pattern | VibeCody advantage |
-| Cleartext Transmission (CWE-319) | ❌ Not mentioned | ✅ Static regex pattern | VibeCody advantage |
-| Hardcoded Credentials (CWE-798) | ❌ Not mentioned | ✅ Static regex pattern | Existing pattern |
-| Insecure RNG (CWE-338) | ❌ Not mentioned | ✅ Static regex pattern | Existing pattern |
-| Open Redirect (CWE-601) | ❌ Not mentioned | ✅ Static regex pattern | Existing pattern |
+| SQL Injection (CWE-89) | Yes Exploit + PoC | Yes Static regex + LLM analysis + HTTP validation | Shannon validates via browser; VibeCody via HTTP requests |
+| XSS — Reflected (CWE-79) | Yes Browser-validated | Yes Static regex + LLM + HTTP validation | Shannon uses Playwright; VibeCody uses reqwest + browser action |
+| XSS — Stored (CWE-79) | Yes Browser-validated | Yes LLM analysis + HTTP validation | Both require multi-step payloads |
+| SSRF (CWE-918) | Yes Active exploitation | Yes Static regex + LLM analysis | New CWE pattern added |
+| Command Injection (CWE-78) | Yes Denylist bypass | Yes Static regex + LLM analysis | Existing pattern extended |
+| Path Traversal (CWE-22) | Yes | Yes Static regex + LLM | Existing pattern |
+| IDOR (CWE-639) | Yes Active exploitation | Yes Static regex + LLM analysis | New CWE pattern |
+| Auth Bypass | Yes JWT manipulation, registration bypass | Yes LLM-driven auth flow testing | Shannon has deeper auth testing |
+| Mass Assignment | Yes Active exploitation | Yes LLM analysis | Both LLM-powered |
+| XXE (CWE-611) | No Not mentioned | Yes Static regex pattern | VibeCody advantage |
+| Insecure Deserialization (CWE-502) | No Not mentioned | Yes Static regex pattern | VibeCody advantage |
+| NoSQL Injection (CWE-943) | No Not mentioned | Yes Static regex pattern | VibeCody advantage |
+| Template Injection (CWE-1336) | No Not mentioned | Yes Static regex pattern | VibeCody advantage |
+| CSRF (CWE-352) | No Not mentioned | Yes Static regex pattern | VibeCody advantage |
+| Cleartext Transmission (CWE-319) | No Not mentioned | Yes Static regex pattern | VibeCody advantage |
+| Hardcoded Credentials (CWE-798) | No Not mentioned | Yes Static regex pattern | Existing pattern |
+| Insecure RNG (CWE-338) | No Not mentioned | Yes Static regex pattern | Existing pattern |
+| Open Redirect (CWE-601) | No Not mentioned | Yes Static regex pattern | Existing pattern |
 
 ### 2.3 Infrastructure & Tooling
 
 | Capability | Shannon | VibeCody | Notes |
 |------------|---------|----------|-------|
-| Recon tools (nmap/subfinder/whatweb) | ✅ Docker containers | ⚠️ HTTP crawling + source analysis | Shannon has deeper network recon |
-| Browser automation | ✅ Playwright (full) | ⚠️ reqwest + screencapture (basic) | Shannon has richer browser control |
-| Docker isolation | ✅ Required | ❌ Uses OS sandbox (seatbelt/bwrap) | Different isolation models |
-| Temporal durable workflows | ✅ Crash recovery, queryable | ❌ Agent loop + background jobs | Shannon more resilient to crashes |
-| Auth flow YAML config | ✅ 2FA/TOTP/Google SSO | ✅ AuthFlow struct (URL, creds, selectors) | Shannon has broader auth support |
-| MCP server | ✅ mcp-server/ | ✅ --mcp-server | Both expose MCP interface |
-| CI/CD integration | ✅ Shannon Pro (commercial) | ✅ GitHub Actions + --exec mode | VibeCody CI is OSS |
-| Progress monitoring | ✅ `./shannon logs` + Temporal UI | ✅ REPL `/redteam show` + RedTeamPanel UI | Both have live monitoring |
+| Recon tools (nmap/subfinder/whatweb) | Yes Docker containers | Warning: HTTP crawling + source analysis | Shannon has deeper network recon |
+| Browser automation | Yes Playwright (full) | Warning: reqwest + screencapture (basic) | Shannon has richer browser control |
+| Docker isolation | Yes Required | No Uses OS sandbox (seatbelt/bwrap) | Different isolation models |
+| Temporal durable workflows | Yes Crash recovery, queryable | No Agent loop + background jobs | Shannon more resilient to crashes |
+| Auth flow YAML config | Yes 2FA/TOTP/Google SSO | Yes AuthFlow struct (URL, creds, selectors) | Shannon has broader auth support |
+| MCP server | Yes mcp-server/ | Yes --mcp-server | Both expose MCP interface |
+| CI/CD integration | Yes Shannon Pro (commercial) | Yes GitHub Actions + --exec mode | VibeCody CI is OSS |
+| Progress monitoring | Yes `./shannon logs` + Temporal UI | Yes REPL `/redteam show` + RedTeamPanel UI | Both have live monitoring |
 
 ### 2.4 Developer Experience
 
 | Capability | Shannon | VibeCody | Notes |
 |------------|---------|----------|-------|
-| Desktop GUI | ❌ CLI-only (+ Temporal Web UI) | ✅ RedTeamPanel.tsx in VibeUI | VibeCody has native desktop UI |
-| IDE integration | ❌ | ✅ VS Code, JetBrains, Neovim | VibeCody has full IDE ecosystem |
-| REPL commands | ❌ Shell script only | ✅ `/redteam` with tab-completion | VibeCody has interactive REPL |
-| Scheduling | ❌ Manual launch | ✅ `/schedule` cron integration | VibeCody can schedule recurring scans |
-| Notification gateways | ❌ | ✅ Slack/Telegram/Discord/Linear | VibeCody can alert on findings |
-| BugBot PR review | ❌ | ✅ Inline GitHub PR comments | VibeCody integrates with PR workflow |
-| Multi-provider LLM | ⚠️ Claude primary only | ✅ 10+ providers | VibeCody is provider-agnostic |
+| Desktop GUI | No CLI-only (+ Temporal Web UI) | Yes RedTeamPanel.tsx in VibeUI | VibeCody has native desktop UI |
+| IDE integration | No | Yes VS Code, JetBrains, Neovim | VibeCody has full IDE ecosystem |
+| REPL commands | No Shell script only | Yes `/redteam` with tab-completion | VibeCody has interactive REPL |
+| Scheduling | No Manual launch | Yes `/schedule` cron integration | VibeCody can schedule recurring scans |
+| Notification gateways | No | Yes Slack/Telegram/Discord/Linear | VibeCody can alert on findings |
+| BugBot PR review | No | Yes Inline GitHub PR comments | VibeCody integrates with PR workflow |
+| Multi-provider LLM | Warning: Claude primary only | Yes 10+ providers | VibeCody is provider-agnostic |
 
 ---
 

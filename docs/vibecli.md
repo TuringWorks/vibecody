@@ -239,8 +239,8 @@ Once a conversation is started, you can type freely without `/chat`.
 
 ```text
 > /generate a Rust function that parses TOML from a string and returns a HashMap
-💾 Save to file? (y/N or filename): parser.rs
-✅ Saved to: parser.rs
+Save to file? (y/N or filename): parser.rs
+Yes Saved to: parser.rs
 ```
 
 ### Apply AI Changes to a File
@@ -248,21 +248,21 @@ Once a conversation is started, you can type freely without `/chat`.
 ```text
 > /apply src/main.rs add proper error handling using anyhow
 
-📊 Proposed changes:
+Proposed changes:
 --- a/src/main.rs
 +++ b/src/main.rs
 ...
 
-✅ Apply these changes? (y/N): y
-✅ Changes applied to: src/main.rs
+Yes Apply these changes? (y/N): y
+Yes Changes applied to: src/main.rs
 ```
 
 ### AI-Suggested Command
 
 ```text
 > /exec list all Rust files modified in the last 7 days
-📝 Suggested command: find . -name "*.rs" -mtime -7
-⚠️  Execute this command? (y/N): y
+Suggested command: find . -name "*.rs" -mtime -7
+Warning:  Execute this command? (y/N): y
 ```
 
 ### Project Initialization
@@ -271,7 +271,7 @@ Scan a project to auto-detect its type, build system, and test framework:
 
 ```text
 > /init
-🔍 Scanning project...
+Scanning project...
 
 Project: my-web-app
 Architecture: full-stack application
@@ -290,7 +290,7 @@ Test commands:
 Entry points: src/App.tsx, src/main.rs
 Expected env vars: DATABASE_URL, API_KEY, JWT_SECRET
 
-✅ Project profile cached to .vibecli/project-profile.json
+Yes Project profile cached to .vibecli/project-profile.json
    This context will be auto-injected into every agent session.
 ```
 
@@ -302,7 +302,7 @@ Run agent tasks in isolated git branches with automatic PR creation:
 
 ```text
 > /branch-agent create add JWT auth middleware
-🌿 Creating branch agent for: add JWT auth middleware
+Creating branch agent for: add JWT auth middleware
   1. Create a feature branch from current HEAD
   2. Run the agent autonomously on the branch
   3. Auto-commit changes with descriptive messages
@@ -329,7 +329,7 @@ Load and query data files directly:
 
 ```text
 > /data load sales.csv
-📊 Loading data from: sales.csv
+Loading data from: sales.csv
 
 > /data query "SELECT region, SUM(amount) FROM sales GROUP BY region"
 > /data viz bar    # Generate bar chart
@@ -342,11 +342,11 @@ Auto-fix failed builds and generate tests:
 
 ```text
 > /agentic fix-build
-🔧 Auto-fixing build failures...
+Auto-fixing build failures...
   Reads CI logs, identifies errors, generates patches.
 
 > /agentic gen-tests src/auth.rs
-🧪 Generating tests for: src/auth.rs
+Generating tests for: src/auth.rs
 ```
 
 ---
@@ -562,14 +562,14 @@ Generate execution plans without running tools:
 ```
 > /plan refactor the auth module to use JWT tokens
 
-📝 Execution Plan:
+Execution Plan:
   1. Read current auth module (auth.rs)
   2. Add JWT dependency to Cargo.toml
   3. Implement JWT token generation
   4. Update auth middleware
   5. Write tests
 
-✅ Execute this plan? (y/N):
+Yes Execute this plan? (y/N):
 ```
 
 ---
@@ -596,24 +596,24 @@ Guide application development through 8 structured stages inspired by Steve McCo
 ```
 > /workflow new my_app Build a REST API for user management
 
-✅ Workflow 'my_app' created with 8 stages (Code Complete methodology)
+Yes Workflow 'my_app' created with 8 stages (Code Complete methodology)
    Current stage: Requirements
    Use /workflow generate my_app to AI-generate a checklist for the current stage.
 
 > /workflow generate my_app
 
-🤖 Generating Requirements checklist for 'my_app'...
-✅ Generated 10 checklist items:
+Generating Requirements checklist for 'my_app'...
+Yes Generated 10 checklist items:
    [ ] 1: Define core user CRUD endpoints (GET, POST, PUT, DELETE)
    [ ] 2: Specify authentication method (JWT vs session)
    ...
 
 > /workflow check my_app 1
-✅ Toggled item 1 in 'my_app'
+Yes Toggled item 1 in 'my_app'
 
 > /workflow show my_app
 
-🏗️  Workflow: my_app  [12% complete]
+Workflow: my_app  [12% complete]
    Build a REST API for user management
 
    ▶ 1. Requirements (1/10)
@@ -622,7 +622,7 @@ Guide application development through 8 structured stages inspired by Steve McCo
    ...
 
 > /workflow advance my_app
-✅ Advanced to stage: Architecture
+Yes Advanced to stage: Architecture
 ```
 
 Workflows are stored as markdown files in `.vibecli/workflows/` with YAML front-matter. The stage advancement gate requires ≥80% checklist completion in VibeUI.
@@ -682,15 +682,15 @@ Run project tests directly from the REPL with auto-detection of the test framewo
 ```
 > /test
 
-🧪 Running: cargo test
+Running: cargo test
 ...
-✅ Tests passed
+Yes Tests passed
 
 > /test npm test -- --coverage
 
-🧪 Running: npm test -- --coverage
+Running: npm test -- --coverage
 ...
-✅ Tests passed
+Yes Tests passed
 ```
 
 ### Framework Auto-Detection
@@ -704,7 +704,7 @@ Run project tests directly from the REPL with auto-detection of the test framewo
 
 If no framework is detected, provide a custom command: `/test <command>`.
 
-In VibeUI, the **🧪 Tests** panel provides a richer experience with live streaming log output, per-test pass/fail results, expandable failure details, filter tabs (All / Failed / Passed), and a custom command input field.
+In VibeUI, the **Tests** panel provides a richer experience with live streaming log output, per-test pass/fail results, expandable failure details, filter tabs (All / Failed / Passed), and a custom command input field.
 
 ---
 

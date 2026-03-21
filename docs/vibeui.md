@@ -105,7 +105,7 @@ The AI chat panel supports all 22 providers via the shared `vibe-ai` crate:
 - **Platform**: OpenRouter, Azure OpenAI, Bedrock, Copilot, Vercel AI
 - **Meta**: Failover (automatic provider fallback chain)
 
-Select the provider from the dropdown in the header, or switch per chat tab in `ChatTabManager`. Provider configuration is handled through the **⚙️ Keys** settings tab (BYOK), environment variables, or `~/.vibecli/config.toml`.
+Select the provider from the dropdown in the header, or switch per chat tab in `ChatTabManager`. Provider configuration is handled through the **Keys** settings tab (BYOK), environment variables, or `~/.vibecli/config.toml`.
 
 #### Provider Advanced Options
 
@@ -284,45 +284,45 @@ Press `Cmd+P` (macOS) / `Ctrl+P` (Windows/Linux) to open the Command Palette:
 
 ## AI Panel Tabs
 
-The AI panel (toggle with **💬 AI Chat** in the header) has **107 tabs** across categories:
+The AI panel (toggle with **AI Chat** in the header) has **107 tabs** across categories:
 
 | Tab | Component | Description |
 |-----|-----------|-------------|
-| **💬 Chat** | `ChatTabManager` | Multiple independent chat tabs, each with per-tab provider selection; voice input (🎤) |
-| **🤖 Agent** | `AgentPanel` | Autonomous multi-step agent with step timeline, approval UI, Turbo mode, and plan mode |
-| **🧠 Memory** | `MemoryPanel` | Edit per-workspace `.vibeui.md` and global `~/.vibeui/rules.md` |
+| **Chat** | `ChatTabManager` | Multiple independent chat tabs, each with per-tab provider selection; voice input () |
+| **Agent** | `AgentPanel` | Autonomous multi-step agent with step timeline, approval UI, Turbo mode, and plan mode |
+| **Memory** | `MemoryPanel` | Edit per-workspace `.vibeui.md` and global `~/.vibeui/rules.md` |
 | **🕐 History** | `HistoryPanel` | Audit log of past agent sessions; browse and expand trace entries |
-| **📝 Checkpoints** | `CheckpointPanel` | Timeline of AI checkpoints with restore, auto-checkpoint |
-| **📦 Artifacts** | `ArtifactsPanel` | Structured output cards with annotations and async feedback |
+| **Checkpoints** | `CheckpointPanel` | Timeline of AI checkpoints with restore, auto-checkpoint |
+| **Artifacts** | `ArtifactsPanel` | Structured output cards with annotations and async feedback |
 | **👥 Manager** | `ManagerView` | Multi-agent orchestration: task board, worktrees, parallel execution |
 | **🪝 Hooks** | `HooksPanel` | Configure event-driven hooks (PreToolUse, PostToolUse, etc.) |
-| **📋 Jobs** | `BackgroundJobsPanel` | Submit tasks to VibeCLI daemon; live SSE stream; job persistence across restarts |
-| **⚙️ Keys** | `SettingsPanel` | BYOK API key management for all cloud providers |
+| **Jobs** | `BackgroundJobsPanel` | Submit tasks to VibeCLI daemon; live SSE stream; job persistence across restarts |
+| **Keys** | `SettingsPanel` | BYOK API key management for all cloud providers |
 | **📐 Specs** | `SpecPanel` | Spec-driven development: AI-generated user stories, tasks, and acceptance criteria |
-| **🏗️ Workflow** | `WorkflowPanel` | Code Complete 8-stage development pipeline with AI-generated checklists per stage |
-| **🛡️ RedTeam** | `RedTeamPanel` | Autonomous 5-stage pentest pipeline with findings feed, CVSS scores, and report export |
+| **Workflow** | `WorkflowPanel` | Code Complete 8-stage development pipeline with AI-generated checklists per stage |
+| **RedTeam** | `RedTeamPanel` | Autonomous 5-stage pentest pipeline with findings feed, CVSS scores, and report export |
 | **🔌 MCP** | `McpPanel` | MCP server management with OAuth 2.0 install flow and tool testing |
-| **🚀 Deploy** | `DeployPanel` | Deploy to 6 targets (Vercel/Netlify/Railway/GH Pages/GCP/Firebase) with custom domain support |
+| **Deploy** | `DeployPanel` | Deploy to 6 targets (Vercel/Netlify/Railway/GH Pages/GCP/Firebase) with custom domain support |
 | **🐛 BugBot** | `BugBotPanel` | AI code scanner with severity/category filter and fix snippets |
 | **🐘 Supabase** | `SupabasePanel` | Supabase connection, table browser, SQL editor, AI query |
-| **🔐 Auth** | `AuthPanel` | Auth scaffold generator (4 providers × 5 frameworks) |
+| **Auth** | `AuthPanel` | Auth scaffold generator (4 providers × 5 frameworks) |
 | **🐙 GH Sync** | `GitHubSyncPanel` | GitHub sync with ahead/behind status, push/pull, repo management |
 | **🧭 Steering** | `SteeringPanel` | Workspace/global steering files with templates |
-| **🧪 Tests** | `TestPanel` | Test runner with framework detection, live log stream, filter tabs, pass/fail badges |
+| **Tests** | `TestPanel` | Test runner with framework detection, live log stream, filter tabs, pass/fail badges |
 | **👥 Collab** | `CollabPanel` | CRDT multiplayer collaboration: create/join rooms, peer list with color indicators, copy invite link |
 | **🥊 Arena** | `ArenaPanel` | Blind A/B model comparison: hidden identities, vote (A/B/Tie/Both bad), reveal, persistent leaderboard |
-| **📊 Coverage** | `CoveragePanel` | Code coverage: auto-detect tool, run coverage, per-file % bars, uncovered lines, filter tabs, raw output |
+| **Coverage** | `CoveragePanel` | Code coverage: auto-detect tool, run coverage, per-file % bars, uncovered lines, filter tabs, raw output |
 | **⚖️ Compare** | `MultiModelPanel` | Side-by-side dual-provider comparison: provider/model selectors, timing/tokens, Ctrl+Enter |
-| **🌐 HTTP** | `HttpPlayground` | HTTP request builder: method/URL/headers/body, quick-launch localhost, route discovery, response viewer with JSON pretty-print |
+| **HTTP** | `HttpPlayground` | HTTP request builder: method/URL/headers/body, quick-launch localhost, route discovery, response viewer with JSON pretty-print |
 | **💰 Cost** | `CostPanel` | AI cost observatory: per-provider breakdown, total spend, budget limit, cost history table, clear history |
-| **🔧 Autofix** | `AutofixPanel` | Codemod auto-fix: detect linter (clippy/eslint/ruff/gofmt/prettier), run fix, diff preview, apply/revert |
+| **Autofix** | `AutofixPanel` | Codemod auto-fix: detect linter (clippy/eslint/ruff/gofmt/prettier), run fix, diff preview, apply/revert |
 | **🐳 Docker** | `DockerPanel` | Docker container/image management with build, run, logs |
-| **📦 Deps** | `DepsPanel` | Dependency viewer with outdated detection, update, add/remove |
-| **🔍 Profiler** | `ProfilerPanel` | Performance profiling with flame graph visualization |
+| **Deps** | `DepsPanel` | Dependency viewer with outdated detection, update, add/remove |
+| **Profiler** | `ProfilerPanel` | Performance profiling with flame graph visualization |
 | **🌍 Env** | `EnvPanel` | Environment variable manager with .env file support |
-| **⚙️ CI/CD** | `CicdPanel` | CI/CD pipeline configuration and status monitoring |
+| **CI/CD** | `CicdPanel` | CI/CD pipeline configuration and status monitoring |
 | **☸️ K8s** | `K8sPanel` | Kubernetes cluster management: pods, services, deployments, scale, logs |
-| **🔑 SSH** | `SshPanel` | SSH connection manager with terminal sessions |
+| **SSH** | `SshPanel` | SSH connection manager with terminal sessions |
 | **📜 Scripts** | `ScriptPanel` | Script runner with task detection (npm, make, cargo) |
 | **📓 Notebook** | `NotebookPanel` | Jupyter-style notebook with code cells and outputs |
 | **🔖 Bookmarks** | `BookmarkPanel` | Code bookmark manager with annotations |
@@ -332,50 +332,50 @@ The AI panel (toggle with **💬 AI Chat** in the header) has **107 tabs** acros
 | **📡 GraphQL** | `GraphQLPanel` | GraphQL playground with schema introspection |
 | **📈 Metrics** | `CodeMetricsPanel` | Code metrics: complexity, LOC, duplication analysis |
 | **🏋️ Load Test** | `LoadTestPanel` | Load testing with configurable concurrency and latency charts |
-| **📚 API Docs** | `ApiDocsPanel` | OpenAPI/Swagger documentation viewer |
+| **API Docs** | `ApiDocsPanel` | OpenAPI/Swagger documentation viewer |
 | **🛠️ Utilities** | `UtilitiesPanel` | Developer utilities: hash, UUID, lorem ipsum, timestamp |
-| **⚡ Process** | `ProcessPanel` | System process monitor with kill capability |
-| **📦 Sandbox** | `SandboxPanel` | Container sandbox for safe code execution (Docker/Podman) |
+| **Process** | `ProcessPanel` | System process monitor with kill capability |
+| **Sandbox** | `SandboxPanel` | Container sandbox for safe code execution (Docker/Podman) |
 | **👥 Teams** | `AgentTeamPanel` | Multi-agent team orchestration with inter-agent messaging |
-| **🤖 CI Bot** | `CIReviewPanel` | CI review bot for automated PR analysis |
-| **📊 Traces** | `TraceDashboard` | OpenTelemetry trace viewer with span timeline |
+| **CI Bot** | `CIReviewPanel` | CI review bot for automated PR analysis |
+| **Traces** | `TraceDashboard` | OpenTelemetry trace viewer with span timeline |
 | **🏪 Marketplace** | `MarketplacePanel` | Extension marketplace with install/update/ratings |
-| **🔄 Transform** | `TransformPanel` | Code transformation and refactoring tools |
+| **Transform** | `TransformPanel` | Code transformation and refactoring tools |
 | **📸 Img2App** | `ScreenshotToApp` | Screenshot-to-code: upload image, generate UI code |
 | **🎥 Recording** | `AgentRecordingPanel` | Record and replay agent sessions |
 | **☁️ Cloud** | `CloudAgentPanel` | Cloud-hosted agent execution with Docker backends |
-| **🎨 Canvas** | `CanvasPanel` | Freeform drawing canvas for diagrams and wireframes |
-| **📝 Diff** | `DiffToolPanel` | Visual diff comparison tool |
-| **📄 Markdown** | `MarkdownPanel` | Markdown editor with live preview |
-| **⏰ Cron** | `CronPanel` | Cron expression builder with human-readable descriptions |
+| **Canvas** | `CanvasPanel` | Freeform drawing canvas for diagrams and wireframes |
+| **Diff** | `DiffToolPanel` | Visual diff comparison tool |
+| **Markdown** | `MarkdownPanel` | Markdown editor with live preview |
+| **Cron** | `CronPanel` | Cron expression builder with human-readable descriptions |
 | **🔤 Regex** | `RegexPanel` | Regex tester with match highlighting and group extraction |
-| **🔑 JWT** | `JwtPanel` | JWT decoder/encoder with claims inspection |
+| **JWT** | `JwtPanel` | JWT decoder/encoder with claims inspection |
 | **🔢 Encoding** | `EncodingPanel` | Base64/URL/HTML encoding and decoding |
 | **#️⃣ NumBase** | `NumberBasePanel` | Number base converter (binary, octal, decimal, hex) |
-| **📊 DataGen** | `DataGenPanel` | Test data generator with customizable schemas |
+| **DataGen** | `DataGenPanel` | Test data generator with customizable schemas |
 | **🕐 Timestamp** | `TimestampPanel` | Unix timestamp converter with timezone support |
 | **💚 Health** | `HealthMonitorPanel` | Service health monitor with uptime tracking |
 | **🔌 WebSocket** | `WebSocketPanel` | WebSocket client for testing real-time connections |
-| **🎨 Colors** | `ColorPalettePanel` | Color palette generator with design token export |
-| **🏗️ Scaffold** | `ScaffoldPanel` | Project scaffolding with framework templates |
-| **📋 Compliance** | `CompliancePanel` | Compliance reporting and policy enforcement |
+| **Colors** | `ColorPalettePanel` | Color palette generator with design token export |
+| **Scaffold** | `ScaffoldPanel` | Project scaffolding with framework templates |
+| **Compliance** | `CompliancePanel` | Compliance reporting and policy enforcement |
 | **🪝 Webhooks** | `WebhookPanel` | Webhook endpoint manager with request logging |
-| **🔒 Admin** | `AdminPanel` | Admin panel with RBAC, audit log, user management |
-| **📊 Dashboard** | `DashboardPanel` | Project overview dashboard with stats and activity |
+| **Admin** | `AdminPanel` | Admin panel with RBAC, audit log, user management |
+| **Dashboard** | `DashboardPanel` | Project overview dashboard with stats and activity |
 | **📐 Orchestrate** | `OrchestrationPanel` | Workflow orchestration with lessons and task tracking |
-| **📝 Log** | `LogPanel` | Structured log viewer with filtering and search |
-| **🌐 Network** | `NetworkPanel` | Network tools: port scan, DNS lookup, TLS inspection |
+| **Log** | `LogPanel` | Structured log viewer with filtering and search |
+| **Network** | `NetworkPanel` | Network tools: port scan, DNS lookup, TLS inspection |
 | **🗄️ Migrations** | `MigrationsPanel` | Database migration manager with up/down tracking |
 | **🔗 JSON** | `JsonToolsPanel` | JSON formatter, validator, and path query tool |
-| **🎨 ColorConv** | `ColorConverterPanel` | Color format converter (HEX/RGB/HSL/CMYK) |
-| **🌐 CIDR** | `CidrPanel` | CIDR/subnet calculator for network planning |
-| **📊 Cascade** | `CascadePanel` | Cascade AI pipeline with multi-step reasoning |
+| **ColorConv** | `ColorConverterPanel` | Color format converter (HEX/RGB/HSL/CMYK) |
+| **CIDR** | `CidrPanel` | CIDR/subnet calculator for network planning |
+| **Cascade** | `CascadePanel` | Cascade AI pipeline with multi-step reasoning |
 | **🖥️ GPU** | `GpuTerminalPanel` | GPU-accelerated terminal with performance monitoring |
 | **🔤 Unicode** | `UnicodePanel` | Unicode character lookup and conversion |
 | **📐 Units** | `UnitConverterPanel` | Unit converter (length, weight, temperature, etc.) |
-| **📊 CSV** | `CsvPanel` | CSV viewer and editor with filtering |
-| **🧠 Knowledge** | `KnowledgeGraphPanel` | Knowledge graph visualization |
-| **🎯 FineTune** | `FineTuningPanel` | Model fine-tuning configuration and monitoring |
+| **CSV** | `CsvPanel` | CSV viewer and editor with filtering |
+| **Knowledge** | `KnowledgeGraphPanel` | Knowledge graph visualization |
+| **FineTune** | `FineTuningPanel` | Model fine-tuning configuration and monitoring |
 | **🖼️ Visual** | `VisualTestPanel` | Visual regression testing with screenshot comparison |
 
 ---
@@ -397,7 +397,7 @@ The AI panel (toggle with **💬 AI Chat** in the header) has **107 tabs** acros
 | `ChatTabManager` | `src/components/ChatTabManager.tsx` | Multi-tab chat manager with per-tab provider selection |
 | `InlineChat` | `src/components/InlineChat.tsx` | Cmd+K floating edit overlay with Accept/Cancel |
 | `BackgroundJobsPanel` | `src/components/BackgroundJobsPanel.tsx` | VibeCLI daemon job queue with live SSE stream |
-| `BrowserPanel` | `src/components/BrowserPanel.tsx` | Embedded iframe browser with inspect mode (🔍), element selection, Send to Chat |
+| `BrowserPanel` | `src/components/BrowserPanel.tsx` | Embedded iframe browser with inspect mode (), element selection, Send to Chat |
 | `ArenaPanel` | `src/components/ArenaPanel.tsx` | Blind A/B model comparison with voting, leaderboard, and Send winner to Chat |
 | `CostPanel` | `src/components/CostPanel.tsx` | AI cost observatory with per-provider breakdown, budget limit, and history |
 | `AutofixPanel` | `src/components/AutofixPanel.tsx` | Codemod auto-fix with linter detection, diff preview, and apply/revert |
@@ -416,7 +416,7 @@ The AI panel (toggle with **💬 AI Chat** in the header) has **107 tabs** acros
 | `CollabPanel` | `src/components/CollabPanel.tsx` | CRDT multiplayer session management: create/join rooms, peer list with color indicators, invite link |
 | `DatabasePanel` | `src/components/DatabasePanel.tsx` | SQLite/PostgreSQL browser with AI query generation |
 | `ContextPicker` | `src/components/ContextPicker.tsx` | @ context dropdown; file, folder, git, web, terminal, symbol, github, jira, html-selected picker |
-| `GitPanel` | `src/components/GitPanel.tsx` | Full Git workflow panel; PR review; AI commit message button (✨ AI) |
+| `GitPanel` | `src/components/GitPanel.tsx` | Full Git workflow panel; PR review; AI commit message button (AI) |
 | `Terminal` | `src/components/Terminal.tsx` | xterm.js terminal integration |
 | `CommandPalette` | `src/components/CommandPalette.tsx` | Fuzzy search command palette |
 | `ThemeToggle` | `src/components/ThemeToggle.tsx` | Dark/light theme switcher |
@@ -601,7 +601,7 @@ The MCP panel supports OAuth 2.0 for authenticating with MCP servers:
 3. Paste the authorization code back into the modal
 4. Token is exchanged and stored at `~/.vibeui/mcp-tokens.json`
 
-Connected servers show a green **🔑 OAuth** badge.
+Connected servers show a green **OAuth** badge.
 
 ### Deploy & Custom Domains
 
@@ -614,7 +614,7 @@ Connected servers show a green **🔑 OAuth** badge.
 
 #### Custom Domain Support
 
-After deploying, enter a custom domain in the **🌐 Custom Domain** field:
+After deploying, enter a custom domain in the **Custom Domain** field:
 
 - **Vercel**: calls the Vercel REST API (requires `VERCEL_TOKEN` env var)
 - **Other targets**: returns CNAME record instructions for manual DNS configuration

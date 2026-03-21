@@ -273,35 +273,35 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 
 | Feature | VibeCody | Claude Code | Cursor | Copilot | Devin | Augment | Amp | Continue | Bolt.new | Blitzy |
 |---------|----------|-------------|--------|---------|-------|---------|-----|----------|---------|--------|
-| Open-source + self-hostable | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ (OSS) | ❌ |
-| HTTP daemon + REST API | ✅ | ❌ | ❌ | ❌ | API | ❌ | ❌ | ❌ | ❌ | API |
-| 17 direct AI providers + BYOK | ✅ | 1 | ~5 | ~3 | 1 | ~3 | ~3 | ✅ | 2 | Proprietary |
-| 18-platform messaging gateway | ✅ | ❌ | Slack | ❌ | Slack | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Workflow orchestration (plan/verify/lessons) | ✅ | ❌ | Memory | ❌ | Partial | ❌ | ❌ | ❌ | ❌ | ✅ |
-| 539 domain-specific skills | ✅ | ~20 | ❌ | Community | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| OpenTelemetry tracing | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Spec-driven development | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| Arena mode (blind A/B voting) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Cost observatory + budget limits | ✅ | ❌ | ❌ | ❌ | ACU | ❌ | ❌ | ❌ | Tokens | ❌ |
-| Red team / pentest pipeline | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| WASM extension system | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Node.js Agent SDK | ✅ | ❌ | ❌ | ❌ | API | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Notebook runner (.vibe) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| TUI diff view (unified/side-by-side) | ✅ | ❌ | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A |
-| 128+ VibeUI developer tool panels | ✅ | N/A | ~10 | ~5 | ~3 | ~3 | ~3 | ~3 | ~5 | N/A |
-| Self-improvement loop (lessons) | ✅ | ❌ | Memory | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Docker/Podman/OpenSandbox runtime | ✅ | ❌ | Cloud | ❌ | Cloud | ❌ | ❌ | ❌ | WebContainer | Cloud |
-| Dual-surface (CLI + Desktop IDE) | ✅ | CLI only | IDE only | IDE+CLI | Web only | IDE only | Multi | IDE only | Web only | Web only |
-| Air-gapped mode (Ollama) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | Partial | ❌ | VPC |
-| Browser-based zero-setup | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ | ✅ |
-| Managed hosting + DB + auth | Partial | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ |
-| Figma import | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ |
-| Batch generation (3M+ lines) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| Multi-QA agent validation | ✅ | ❌ | ❌ | Partial | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| Legacy language migration | ✅ | ❌ | ❌ | ❌ | Partial | ❌ | ❌ | ❌ | ❌ | ✅ |
-| SOC 2 Type II certified | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ |
-| 100M+ line codebase support | Partial | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ |
-| Multi-platform Git (5 platforms) | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Open-source + self-hostable | Yes | No | No | No | No | No | No | Yes | Yes (OSS) | No |
+| HTTP daemon + REST API | Yes | No | No | No | API | No | No | No | No | API |
+| 17 direct AI providers + BYOK | Yes | 1 | ~5 | ~3 | 1 | ~3 | ~3 | Yes | 2 | Proprietary |
+| 18-platform messaging gateway | Yes | No | Slack | No | Slack | No | No | No | No | No |
+| Workflow orchestration (plan/verify/lessons) | Yes | No | Memory | No | Partial | No | No | No | No | Yes |
+| 539 domain-specific skills | Yes | ~20 | No | Community | No | No | No | No | No | No |
+| OpenTelemetry tracing | Yes | No | No | No | No | No | No | No | No | No |
+| Spec-driven development | Yes | No | No | No | No | No | No | No | No | Yes |
+| Arena mode (blind A/B voting) | Yes | No | No | No | No | No | No | No | No | No |
+| Cost observatory + budget limits | Yes | No | No | No | ACU | No | No | No | Tokens | No |
+| Red team / pentest pipeline | Yes | No | No | No | No | No | No | No | No | No |
+| WASM extension system | Yes | No | No | No | No | No | No | No | No | No |
+| Node.js Agent SDK | Yes | No | No | No | API | No | No | No | No | No |
+| Notebook runner (.vibe) | Yes | No | No | No | No | No | No | No | No | No |
+| TUI diff view (unified/side-by-side) | Yes | No | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A |
+| 128+ VibeUI developer tool panels | Yes | N/A | ~10 | ~5 | ~3 | ~3 | ~3 | ~3 | ~5 | N/A |
+| Self-improvement loop (lessons) | Yes | No | Memory | No | No | No | No | No | No | No |
+| Docker/Podman/OpenSandbox runtime | Yes | No | Cloud | No | Cloud | No | No | No | WebContainer | Cloud |
+| Dual-surface (CLI + Desktop IDE) | Yes | CLI only | IDE only | IDE+CLI | Web only | IDE only | Multi | IDE only | Web only | Web only |
+| Air-gapped mode (Ollama) | Yes | No | No | No | No | No | No | Partial | No | VPC |
+| Browser-based zero-setup | No | No | No | No | Yes | No | No | No | Yes | Yes |
+| Managed hosting + DB + auth | Partial | No | No | No | No | No | No | No | Yes | Yes |
+| Figma import | Yes | No | No | No | No | No | No | No | Yes | No |
+| Batch generation (3M+ lines) | Yes | No | No | No | No | No | No | No | No | Yes |
+| Multi-QA agent validation | Yes | No | No | Partial | No | No | No | No | No | Yes |
+| Legacy language migration | Yes | No | No | No | Partial | No | No | No | No | Yes |
+| SOC 2 Type II certified | No | No | No | Yes | No | Yes | No | No | No | Yes |
+| 100M+ line codebase support | Partial | No | No | No | No | Yes | No | No | No | Yes |
+| Multi-platform Git (5 platforms) | Yes | No | No | Yes | No | No | No | No | No | Yes |
 
 ### VibeCody's Structural Advantages
 
@@ -354,7 +354,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 
 ## Part E — Recommended Roadmap for P0/P1 Gaps
 
-### Phase 53: Event-Driven Automations (P0) — ✅ IMPLEMENTED
+### Phase 53: Event-Driven Automations (P0) — Yes IMPLEMENTED
 - `automations.rs`: AutomationEngine with 7 TriggerSource variants (GitHub/Slack/Linear/PagerDuty/Cron/FileWatch/Webhook)
 - EventFilter (conditions, required_fields, body_pattern), PromptTemplate with `{{var}}` substitution
 - Event parsers: parse_github_event, parse_slack_event, parse_linear_event, parse_pagerduty_event
@@ -364,7 +364,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 - `event-automations.md` skill file (10 triggers)
 - **44 tests**, all passing
 
-### Phase 54: Agent Self-Review Gate (P0) — ✅ IMPLEMENTED
+### Phase 54: Agent Self-Review Gate (P0) — Yes IMPLEMENTED
 - `self_review.rs`: SelfReviewGate with 8 CheckKind variants (Build/Lint/Test/Security/Format/TypeCheck/DiffReview/Custom)
 - SecretScanner with 6 patterns (AWS keys, GitHub tokens, private keys, Slack webhooks, API keys, passwords)
 - LintConfig + TestConfig auto-detection for Rust, TypeScript, Python, Go projects
@@ -375,14 +375,14 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 - `self-review-gate.md` skill file (10 triggers)
 - **44 tests**, all passing
 
-### Phase 55: MCP Apps / Interactive Chat Widgets (P1) — ✅ IMPLEMENTED
+### Phase 55: MCP Apps / Interactive Chat Widgets (P1) — Yes IMPLEMENTED
 - `mcp_apps.rs`: WidgetRegistry with 10 widget types (Table/Chart/Form/Image/Mermaid/Markdown/Progress/Code/Tree/Metric)
 - MCP App response parser: `{ "type": "mcp-app", "component": "chart", "props": {...} }`
 - Data structures: TableData (ASCII table), ChartData (ASCII bars), FormData, ProgressData, MetricData (KPI+trend), TreeNode (ASCII tree)
 - WidgetDef with props, nested children, and TUI text renderer
 - **30 tests**, all passing
 
-### Phase 56: Agent Teams v2 — Peer Messaging (P1) — ✅ IMPLEMENTED
+### Phase 56: Agent Teams v2 — Peer Messaging (P1) — Yes IMPLEMENTED
 - `agent_teams_v2.rs`: TeamCoordinator with peer-to-peer messaging
 - PeerMessage types: Text, Request, Response, StatusUpdate, FileChange, ConflictAlert, TaskAssignment
 - SharedTask board: Pending → InProgress → InReview → Complete/Failed/Blocked lifecycle
@@ -391,7 +391,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 - AgentRole: Lead, Teammate, Reviewer, Specialist
 - **29 tests**, all passing
 
-### Phase 57: Semantic Index MCP Server (P1) — ✅ IMPLEMENTED
+### Phase 57: Semantic Index MCP Server (P1) — Yes IMPLEMENTED
 - `semantic_mcp.rs`: SemanticIndexServer exposing 6 MCP tools
 - Tools: search_codebase (keyword+exact), find_related_files (shared symbols), explain_symbol (docs+signature), dependency_graph, index_status, reindex
 - IndexEntry with symbols (10 SymbolKind variants), language detection, embedding hash
@@ -399,7 +399,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 - Results sorted by score/similarity, configurable limits
 - **22 tests**, all passing
 
-### Phase 58: Auto-Documentation Wiki (P1) — ✅ IMPLEMENTED
+### Phase 58: Auto-Documentation Wiki (P1) — Yes IMPLEMENTED
 - `docgen.rs`: WikiGenerator with source code analysis
 - Auto-detect: API endpoints (.get/.post patterns), public interfaces (pub struct/trait/enum, export class/interface), configuration options
 - Generates 4 page types: Index, API Endpoints, Data Models, Configuration
@@ -408,7 +408,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 - WikiStats, output file paths, configurable output directory
 - **28 tests**, all passing
 
-### Phase 59: Mobile/Web Remote Control (P2) — ✅ IMPLEMENTED
+### Phase 59: Mobile/Web Remote Control (P2) — Yes IMPLEMENTED
 - `remote_control.rs`: RemoteControlServer with QR code pairing
 - PairingToken generation, WebSocket-based RemoteClient with DeviceType enum
 - ClientPermissions: can_execute, can_approve, can_view_history, can_modify_files
@@ -416,7 +416,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 - Permission-based command dispatch, token expiry
 - **20 tests**, all passing
 
-### Phase 60: AST-Aware Code Application (P2) — ✅ IMPLEMENTED
+### Phase 60: AST-Aware Code Application (P2) — Yes IMPLEMENTED
 - `ast_edit.rs`: AstEditor with structural node targeting
 - AstNode with 17 NodeKind variants (Function, Struct, Enum, Impl, Trait, Module, etc.)
 - 8 EditOp types: ReplaceBody, Rename, Insert, Delete, Wrap, Extract, AddImport, ChangeVisibility
@@ -424,7 +424,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 - Scope-aware targeting via parent_path, EditResult with before/after tracking
 - **35 tests**, all passing
 
-### Phase 61: CI/CD AI Status Checks (P2) — ✅ IMPLEMENTED
+### Phase 61: CI/CD AI Status Checks (P2) — Yes IMPLEMENTED
 - `ci_status_check.rs`: CiCheckManager with AiCheckRun lifecycle
 - 7 CheckConclusion variants (Success/Failure/Neutral/Cancelled/TimedOut/Skipped/Pending)
 - 8 AiCheckType variants (CodeReview/SecurityScan/StyleCheck/TestCoverage/BreakingChange/DependencyAudit/Documentation/Custom)
@@ -433,7 +433,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 - CiCheckConfig: block_on_failure, auto_fix, provider/model selection
 - **16 tests**, all passing
 
-### Phase 62: VS Code Session Browser (P2) — ✅ IMPLEMENTED
+### Phase 62: VS Code Session Browser (P2) — Yes IMPLEMENTED
 - `vscode_sessions.rs`: SessionBrowser with session lifecycle management
 - SessionEntry: id, title, status (Active/Completed/Failed/Paused), provider, model, message count
 - FileChange tracking with ChangeType (Created/Modified/Deleted/Renamed)
@@ -442,7 +442,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 - replay_to_step() for step-by-step session replay
 - **17 tests**, all passing
 
-### Phase 63: Cloud Sandbox IDE (P2) — ✅ IMPLEMENTED
+### Phase 63: Cloud Sandbox IDE (P2) — Yes IMPLEMENTED
 - `cloud_sandbox.rs`: CloudSandboxManager with container-based sandbox instances
 - SandboxState lifecycle: Creating → Running → Stopped/Failed/Expired
 - SandboxConfig: image, CPU cores, memory, disk, ports, env vars, workspace path
@@ -451,7 +451,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 - File sync tracking, auto-generated sandbox URLs, owner-based instance filtering
 - **15 tests**, all passing
 
-### Phase 64: Plan-as-Document with Feedback (P2) — ✅ IMPLEMENTED
+### Phase 64: Plan-as-Document with Feedback (P2) — Yes IMPLEMENTED
 - `plan_document.rs`: PlanManager with PlanDocument lifecycle
 - PlanDocument: title, description, steps, comments, version tracking, tags
 - PlanStep with 8 StepStatus variants, FileChange tracking, dependency references
@@ -463,7 +463,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 - Progress percentage, total estimated lines, unresolved comment tracking
 - **45 tests**, all passing
 
-### Phase 65: Security Scanning in Agent Flow (P2) — ✅ IMPLEMENTED
+### Phase 65: Security Scanning in Agent Flow (P2) — Yes IMPLEMENTED
 - `security_scanning.rs`: SecurityScanner with pattern-based vulnerability detection
 - 13 VulnerabilityClass variants covering OWASP Top 10+ (SQLi, XSS, command injection, path traversal, SSRF, etc.)
 - 5 Severity levels (Critical/High/Medium/Low/Info) with numeric scoring
@@ -474,7 +474,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 - Custom pattern support via add_pattern()
 - **17 tests**, all passing
 
-### Phase 66: Specialized Sub-Agent Roles (P2) — ✅ IMPLEMENTED
+### Phase 66: Specialized Sub-Agent Roles (P2) — Yes IMPLEMENTED
 - `sub_agent_roles.rs`: SubAgentRegistry with typed agent roles
 - 11 AgentRole variants: CodeReviewer, TestWriter, SecurityReviewer, Refactorer, DocumentationWriter, Debugger, Architect, PerformanceOptimizer, DependencyManager, MigrationSpecialist, Custom
 - Role-specific system prompts (domain expertise instructions for each role)
@@ -485,7 +485,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 - Default configs for CodeReviewer (5 turns), TestWriter (15 turns), SecurityReviewer (8 turns), Debugger (20 turns)
 - **16 tests**, all passing
 
-### Phase 67: RL-Trained Next-Edit Prediction (P3) — ✅ IMPLEMENTED
+### Phase 67: RL-Trained Next-Edit Prediction (P3) — Yes IMPLEMENTED
 - `edit_prediction.rs`: EditPredictor with Q-learning reinforcement learning model
 - RlModel: Q-table based learning with configurable learning_rate, discount_factor, exploration_rate
 - EditState hashing: file type + recent actions (last 3) + context length for state space

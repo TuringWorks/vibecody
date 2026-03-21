@@ -17,55 +17,55 @@ All nine roadmap phases (1–5 original, 6–9 in this document) are complete. V
 
 | Feature | VibeCLI | VibeUI |
 |---------|---------|--------|
-| Agent loop (plan→act→observe) | ✅ 30-step max, streaming | ✅ Full panel UI |
-| 7 tools (read/write/patch/bash/search/list/complete) | ✅ | ✅ (via Tauri commands) |
-| 3 approval tiers (Suggest / AutoEdit / FullAuto) | ✅ | ✅ dropdown |
-| 5 AI providers (Ollama/Claude/OpenAI/Gemini/Grok) | ✅ | ✅ |
-| Streaming responses | ✅ | ✅ |
-| Codebase indexing (regex/heuristic + embeddings) | ✅ | ✅ |
-| Memory/rules system (VIBECLI.md, AGENTS.md) | ✅ | ✅ MemoryPanel |
-| MCP client (STDIO, JSON-RPC 2.0) | ✅ | — |
-| CI/non-interactive mode (--exec) | ✅ | — |
-| Multimodal input (Claude + OpenAI vision) | ✅ | ✅ AIChat UI |
-| OS sandbox (sandbox-exec / bwrap) | ✅ | ✅ |
-| Trace/audit log (JSONL per session) | ✅ | ✅ HistoryPanel |
-| Diff review before apply | — | ✅ Monaco DiffEditor |
-| Inline AI completions (FIM) | — | ✅ |
-| @ context system | — | ✅ |
-| Flow tracker (ring buffer + auto-injection) | ✅ | ✅ |
-| WASM extension system (wasmtime) | — | ✅ |
-| Checkpoint system | — | ✅ backend + CheckpointPanel UI |
-| LSP integration | — | ✅ |
-| Hooks system (events + shell + LLM handlers) | ✅ | ✅ (via config) |
-| Plan Mode (PlannerAgent) | ✅ /plan command | ✅ Agent panel toggle |
-| Session resume | ✅ --resume flag | — |
-| Web search tool | ✅ | ✅ |
-| Shell environment policy / Admin policy | ✅ | — |
-| Parallel multi-agent (git worktrees) | ✅ --parallel flag | ✅ ManagerView |
-| Embedding-based semantic indexing | ✅ | ✅ |
-| Code review agent | ✅ vibecli review | ✅ GitPanel review |
-| Skills system | ✅ | ✅ |
-| Artifacts | ✅ | ✅ ArtifactsPanel |
-| OpenTelemetry | ✅ | — |
-| GitHub Actions | ✅ | — |
-| Red team pentest pipeline (5-stage) | ✅ --redteam + /redteam | ✅ RedTeamPanel |
-| OWASP/CWE static scanner (15 patterns) | ✅ bugbot.rs | ✅ BugBotPanel |
-| Code Complete workflow (8-stage) | ✅ /workflow | ✅ WorkflowPanel |
-| LSP diagnostics panel | ✅ /check TUI command | — |
-| Session sharing | ✅ /share | — |
-| @jira context | ✅ @jira:PROJECT-123 | ✅ ContextPicker |
-| MCP OAuth install flow | — | ✅ McpPanel OAuth modal |
-| Custom domain / publish | — | ✅ DeployPanel domain config |
-| CRDT multiplayer collab | ✅ serve.rs WS | ✅ CollabPanel + useCollab |
-| Code coverage | — | ✅ detect_coverage_tool + run_coverage |
-| Multi-model comparison | — | ✅ compare_models |
-| HTTP Playground | — | ✅ send_http_request + discover_api_endpoints |
-| Cost observatory | — | ✅ record_cost_entry + get_cost_metrics |
-| AI git workflow | — | ✅ suggest_branch_name + resolve_merge_conflict + generate_changelog |
-| Codemod auto-fix | — | ✅ run_autofix + apply_autofix |
-| VibeCLI daemon (serve) | ✅ | — |
-| VS Code extension | ✅ | — |
-| Agent SDK (TypeScript) | ✅ | — |
+| Agent loop (plan→act→observe) | Yes 30-step max, streaming | Yes Full panel UI |
+| 7 tools (read/write/patch/bash/search/list/complete) | Yes | Yes (via Tauri commands) |
+| 3 approval tiers (Suggest / AutoEdit / FullAuto) | Yes | Yes dropdown |
+| 5 AI providers (Ollama/Claude/OpenAI/Gemini/Grok) | Yes | Yes |
+| Streaming responses | Yes | Yes |
+| Codebase indexing (regex/heuristic + embeddings) | Yes | Yes |
+| Memory/rules system (VIBECLI.md, AGENTS.md) | Yes | Yes MemoryPanel |
+| MCP client (STDIO, JSON-RPC 2.0) | Yes | — |
+| CI/non-interactive mode (--exec) | Yes | — |
+| Multimodal input (Claude + OpenAI vision) | Yes | Yes AIChat UI |
+| OS sandbox (sandbox-exec / bwrap) | Yes | Yes |
+| Trace/audit log (JSONL per session) | Yes | Yes HistoryPanel |
+| Diff review before apply | — | Yes Monaco DiffEditor |
+| Inline AI completions (FIM) | — | Yes |
+| @ context system | — | Yes |
+| Flow tracker (ring buffer + auto-injection) | Yes | Yes |
+| WASM extension system (wasmtime) | — | Yes |
+| Checkpoint system | — | Yes backend + CheckpointPanel UI |
+| LSP integration | — | Yes |
+| Hooks system (events + shell + LLM handlers) | Yes | Yes (via config) |
+| Plan Mode (PlannerAgent) | Yes /plan command | Yes Agent panel toggle |
+| Session resume | Yes --resume flag | — |
+| Web search tool | Yes | Yes |
+| Shell environment policy / Admin policy | Yes | — |
+| Parallel multi-agent (git worktrees) | Yes --parallel flag | Yes ManagerView |
+| Embedding-based semantic indexing | Yes | Yes |
+| Code review agent | Yes vibecli review | Yes GitPanel review |
+| Skills system | Yes | Yes |
+| Artifacts | Yes | Yes ArtifactsPanel |
+| OpenTelemetry | Yes | — |
+| GitHub Actions | Yes | — |
+| Red team pentest pipeline (5-stage) | Yes --redteam + /redteam | Yes RedTeamPanel |
+| OWASP/CWE static scanner (15 patterns) | Yes bugbot.rs | Yes BugBotPanel |
+| Code Complete workflow (8-stage) | Yes /workflow | Yes WorkflowPanel |
+| LSP diagnostics panel | Yes /check TUI command | — |
+| Session sharing | Yes /share | — |
+| @jira context | Yes @jira:PROJECT-123 | Yes ContextPicker |
+| MCP OAuth install flow | — | Yes McpPanel OAuth modal |
+| Custom domain / publish | — | Yes DeployPanel domain config |
+| CRDT multiplayer collab | Yes serve.rs WS | Yes CollabPanel + useCollab |
+| Code coverage | — | Yes detect_coverage_tool + run_coverage |
+| Multi-model comparison | — | Yes compare_models |
+| HTTP Playground | — | Yes send_http_request + discover_api_endpoints |
+| Cost observatory | — | Yes record_cost_entry + get_cost_metrics |
+| AI git workflow | — | Yes suggest_branch_name + resolve_merge_conflict + generate_changelog |
+| Codemod auto-fix | — | Yes run_autofix + apply_autofix |
+| VibeCLI daemon (serve) | Yes | — |
+| VS Code extension | Yes | — |
+| Agent SDK (TypeScript) | Yes | — |
 
 ---
 
@@ -101,24 +101,24 @@ All nine roadmap phases (1–5 original, 6–9 in this document) are complete. V
 - **1M-token context** via Opus 4.6
 - **CLAUDE.md hierarchical merging** — enterprise policy → user → project → directory-specific
 
-#### VibeCLI Gaps — All Closed ✅
+#### VibeCLI Gaps — All Closed Yes
 
 All previously-identified gaps have been closed:
 
 | Gap | Status | Implementation |
 |-----|--------|----------------|
-| Hooks system | ✅ Closed | `vibe-ai/src/hooks.rs` — HookRunner with shell + LLM handlers |
-| Parallel multi-agent | ✅ Closed | `vibe-ai/src/multi_agent.rs` — git worktrees |
-| Plan Mode | ✅ Closed | `vibe-ai/src/planner.rs` — PlannerAgent |
-| Session resume | ✅ Closed | `vibe-ai/src/trace.rs` — SessionSnapshot + load_session |
-| Web search tool | ✅ Closed | WebSearch + FetchUrl in ToolCall enum |
-| Shell environment policy | ✅ Closed | `vibe-ai/src/policy.rs` — AdminPolicy |
-| Code review agent | ✅ Closed | `vibecli/src/review.rs` — GitHub PR posting |
-| OpenTelemetry | ✅ Closed | `vibe-ai/src/otel.rs` + `vibecli/src/otel_init.rs` |
-| Admin policy enforcement | ✅ Closed | `vibe-ai/src/policy.rs` |
-| Skills system | ✅ Closed | `vibe-ai/src/skills.rs` — SkillLoader |
-| Cloud/remote tasks | ✅ Closed | `serve.rs` job persistence (`~/.vibecli/jobs/`), GET /jobs, cancel; BackgroundJobsPanel |
-| Agent SDK | ✅ Closed | `packages/agent-sdk/` — TypeScript SDK |
+| Hooks system | Yes Closed | `vibe-ai/src/hooks.rs` — HookRunner with shell + LLM handlers |
+| Parallel multi-agent | Yes Closed | `vibe-ai/src/multi_agent.rs` — git worktrees |
+| Plan Mode | Yes Closed | `vibe-ai/src/planner.rs` — PlannerAgent |
+| Session resume | Yes Closed | `vibe-ai/src/trace.rs` — SessionSnapshot + load_session |
+| Web search tool | Yes Closed | WebSearch + FetchUrl in ToolCall enum |
+| Shell environment policy | Yes Closed | `vibe-ai/src/policy.rs` — AdminPolicy |
+| Code review agent | Yes Closed | `vibecli/src/review.rs` — GitHub PR posting |
+| OpenTelemetry | Yes Closed | `vibe-ai/src/otel.rs` + `vibecli/src/otel_init.rs` |
+| Admin policy enforcement | Yes Closed | `vibe-ai/src/policy.rs` |
+| Skills system | Yes Closed | `vibe-ai/src/skills.rs` — SkillLoader |
+| Cloud/remote tasks | Yes Closed | `serve.rs` job persistence (`~/.vibecli/jobs/`), GET /jobs, cancel; BackgroundJobsPanel |
+| Agent SDK | Yes Closed | `packages/agent-sdk/` — TypeScript SDK |
 
 ---
 
@@ -167,24 +167,24 @@ All previously-identified gaps have been closed:
 - **No BYOK** — users cannot bring their own API keys; locked to ByteDance-provided models
 - **Privacy concern** — ByteDance ownership creates enterprise adoption friction (data sovereignty)
 
-#### VibeUI Gaps — All Critical/High Items Closed ✅
+#### VibeUI Gaps — All Critical/High Items Closed Yes
 
 | Gap | Status | Implementation |
 |-----|--------|----------------|
-| Parallel multi-agent with UI | ✅ Closed | `ManagerView.tsx` — multi-agent task board |
-| Plan Mode in VibeUI | ✅ Closed | AgentPanel "Plan first" toggle |
-| Checkpoint UI | ✅ Closed | `CheckpointPanel.tsx` — timeline + restore |
-| Next-edit prediction | ✅ Closed | Inline completion with edit tracking |
-| Real-time flow injection | ✅ Closed | FlowTracker auto-injection into prompts |
-| GitHub PR integration | ✅ Closed | `review.rs` + GitPanel review button |
-| Artifacts system | ✅ Closed | `ArtifactsPanel.tsx` — rich cards + annotations |
-| Manager View | ✅ Closed | `ManagerView.tsx` — 8 parallel agents |
-| Embedding-based codebase index | ✅ Closed | `vibe-core/src/index/embeddings.rs` |
-| Background agents (remote) | ✅ Closed | `serve.rs` job persistence + BackgroundJobsPanel; Jobs tab in AI panel |
-| Agent Skills | ✅ Closed | `vibe-ai/src/skills.rs` |
-| Async artifact feedback | ✅ Closed | ArtifactsPanel annotation queue |
-| Browser integration for web apps | ✅ Closed | BrowserPanel.tsx (iframe + quick-launch chips); Browser tab in bottom panel |
-| VS Code extension | ✅ Closed | `vscode-extension/src/extension.ts` |
+| Parallel multi-agent with UI | Yes Closed | `ManagerView.tsx` — multi-agent task board |
+| Plan Mode in VibeUI | Yes Closed | AgentPanel "Plan first" toggle |
+| Checkpoint UI | Yes Closed | `CheckpointPanel.tsx` — timeline + restore |
+| Next-edit prediction | Yes Closed | Inline completion with edit tracking |
+| Real-time flow injection | Yes Closed | FlowTracker auto-injection into prompts |
+| GitHub PR integration | Yes Closed | `review.rs` + GitPanel review button |
+| Artifacts system | Yes Closed | `ArtifactsPanel.tsx` — rich cards + annotations |
+| Manager View | Yes Closed | `ManagerView.tsx` — 8 parallel agents |
+| Embedding-based codebase index | Yes Closed | `vibe-core/src/index/embeddings.rs` |
+| Background agents (remote) | Yes Closed | `serve.rs` job persistence + BackgroundJobsPanel; Jobs tab in AI panel |
+| Agent Skills | Yes Closed | `vibe-ai/src/skills.rs` |
+| Async artifact feedback | Yes Closed | ArtifactsPanel annotation queue |
+| Browser integration for web apps | Yes Closed | BrowserPanel.tsx (iframe + quick-launch chips); Browser tab in bottom panel |
+| VS Code extension | Yes Closed | `vscode-extension/src/extension.ts` |
 
 ---
 
@@ -208,7 +208,7 @@ These are our *current* advantages that we must protect and amplify:
 
 ---
 
-### Phase 6 — Hooks, Planning & Intelligence ✅ Complete
+### Phase 6 — Hooks, Planning & Intelligence Yes Complete
 
 **Goal:** The two most powerful missing capabilities: a hooks system matching Claude Code's + planning mode matching Windsurf. Also: session resume, web search, flow injection.
 
@@ -511,7 +511,7 @@ fn build_env(policy: &ShellEnvPolicy) -> HashMap<String, String> {
 
 ---
 
-### Phase 7 — Parallel Agents & Intelligence Upgrades ✅ Complete
+### Phase 7 — Parallel Agents & Intelligence Upgrades Yes Complete
 
 **Goal:** Ship parallel multi-agent execution (closes the biggest throughput gap vs. Cursor/Windsurf), upgrade codebase indexing to embeddings, and ship next-edit prediction.
 
@@ -795,7 +795,7 @@ pub struct ReviewIssue {
 
 ---
 
-### Phase 8 — Ecosystem Features ✅ Complete
+### Phase 8 — Ecosystem Features Yes Complete
 
 **Goal:** Skills system, OpenTelemetry, Artifacts, GitHub Actions, agent configurability.
 
@@ -941,7 +941,7 @@ runs:
 
 ---
 
-### Phase 9 — Manager View & Scale ✅ Complete
+### Phase 9 — Manager View & Scale Yes Complete
 
 **Goal:** Ship the high-level orchestration UI (Manager View), VS Code extension, and Agent SDK.
 
@@ -1045,51 +1045,51 @@ for await (const event of agent.run('Add TypeScript strict mode to all files')) 
 
 | Capability | VibeCLI | Codex CLI | Claude Code | Cursor | Windsurf | Antigravity |
 |-----------|---------|-----------|-------------|--------|----------|-------------|
-| Agent loop | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Parallel agents | ✅ 8-way | experimental | ✅ 7-way | ✅ 8-way | ✅ | ✅ async |
-| Hooks system | ✅ | ❌ | ✅ 17 events | ❌ | ❌ | ❌ |
-| Plan Mode | ✅ | ❌ | ✅ | ❌ | ✅ | ✅ |
-| Web search tool | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
-| Session resume | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| OS sandbox | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
-| Shell env policy | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Code review agent | ✅ | ✅ | ✅ | BugBot | ❌ | ❌ |
-| MCP support | ✅ | ✅ | ✅ 300+ | ❌ | ✅ | ❌ |
-| Multimodal | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Semantic indexing | ✅ | ❌ | ❌ | ✅ | ✅ | partial |
-| OTel | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| GitHub Actions | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
-| Skills | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ |
-| Ollama first-class | ✅ | ❌ | ❌ | partial | partial | ❌ |
-| Open source | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Rust native | ✅ | ✅ | ❌ | ❌ | ❌ | partial |
-| Provider timeout hardening | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Agent loop | Yes | Yes | Yes | Yes | Yes | Yes |
+| Parallel agents | Yes 8-way | experimental | Yes 7-way | Yes 8-way | Yes | Yes async |
+| Hooks system | Yes | No | Yes 17 events | No | No | No |
+| Plan Mode | Yes | No | Yes | No | Yes | Yes |
+| Web search tool | Yes | Yes | Yes | No | No | No |
+| Session resume | Yes | Yes | Yes | Yes | Yes | Yes |
+| OS sandbox | Yes | Yes | Yes | No | No | No |
+| Shell env policy | Yes | Yes | No | No | No | No |
+| Code review agent | Yes | Yes | Yes | BugBot | No | No |
+| MCP support | Yes | Yes | Yes 300+ | No | Yes | No |
+| Multimodal | Yes | Yes | Yes | Yes | Yes | Yes |
+| Semantic indexing | Yes | No | No | Yes | Yes | partial |
+| OTel | Yes | Yes | No | No | No | No |
+| GitHub Actions | Yes | Yes | Yes | No | No | No |
+| Skills | Yes | No | Yes | No | Yes | No |
+| Ollama first-class | Yes | No | No | partial | partial | No |
+| Open source | Yes | No | No | No | No | No |
+| Rust native | Yes | Yes | No | No | No | partial |
+| Provider timeout hardening | Yes | No | No | No | No | No |
 
 | Capability | VibeUI | Cursor | Windsurf | Antigravity |
 |-----------|--------|--------|----------|-------------|
-| Next-edit prediction | ✅ | ✅ Tab | ✅ Supercomplete | partial |
-| Parallel agents + UI | ✅ Manager View | ✅ | ✅ | ✅ |
-| Plan Mode | ✅ | ❌ | ✅ | ✅ |
-| Checkpoints UI | ✅ | ❌ | ✅ | Artifacts |
-| Flow injection | ✅ | ❌ | ✅ | ❌ |
-| Artifacts | ✅ | ❌ | ❌ | ✅ |
-| GitHub PR review | ✅ | BugBot | ❌ | ❌ |
-| Semantic indexing | ✅ | ✅ | ✅ | partial |
-| WASM extensions | ✅ | ✅ | ✅ | ❌ |
-| Agent skills | ✅ | ❌ | ✅ | ❌ |
-| Multi-provider (5+) | ✅ | partial | partial | ✅ |
-| Rust native backend | ✅ | ❌ | ❌ | partial |
-| CRDT multiplayer collab | ✅ | ❌ | ❌ | ❌ |
-| Code coverage panel | ✅ | ❌ | ❌ | ❌ |
-| Multi-model comparison | ✅ | ❌ | ❌ | ❌ |
-| HTTP Playground | ✅ | ❌ | ❌ | ❌ |
-| Cost observatory | ✅ | ❌ | ❌ | ❌ |
-| AI git workflow | ✅ | ❌ | ❌ | ❌ |
-| Codemod auto-fix | ✅ | ❌ | ❌ | ❌ |
-| WCAG 2.1 AA accessibility | ✅ | partial | partial | partial |
-| Keyboard shortcuts (8+) | ✅ | ✅ | ✅ | partial |
-| Onboarding tour | ✅ | ✅ | ❌ | ❌ |
-| Provider timeout hardening | ✅ | ❌ | ❌ | ❌ |
+| Next-edit prediction | Yes | Yes Tab | Yes Supercomplete | partial |
+| Parallel agents + UI | Yes Manager View | Yes | Yes | Yes |
+| Plan Mode | Yes | No | Yes | Yes |
+| Checkpoints UI | Yes | No | Yes | Artifacts |
+| Flow injection | Yes | No | Yes | No |
+| Artifacts | Yes | No | No | Yes |
+| GitHub PR review | Yes | BugBot | No | No |
+| Semantic indexing | Yes | Yes | Yes | partial |
+| WASM extensions | Yes | Yes | Yes | No |
+| Agent skills | Yes | No | Yes | No |
+| Multi-provider (5+) | Yes | partial | partial | Yes |
+| Rust native backend | Yes | No | No | partial |
+| CRDT multiplayer collab | Yes | No | No | No |
+| Code coverage panel | Yes | No | No | No |
+| Multi-model comparison | Yes | No | No | No |
+| HTTP Playground | Yes | No | No | No |
+| Cost observatory | Yes | No | No | No |
+| AI git workflow | Yes | No | No | No |
+| Codemod auto-fix | Yes | No | No | No |
+| WCAG 2.1 AA accessibility | Yes | partial | partial | partial |
+| Keyboard shortcuts (8+) | Yes | Yes | Yes | partial |
+| Onboarding tour | Yes | Yes | No | No |
+| Provider timeout hardening | Yes | No | No | No |
 
 ---
 
@@ -1151,51 +1151,51 @@ vibeui (React + Tauri)
 
 ## 7. Completed Implementation Backlog
 
-### Phase 6 ✅ Complete
+### Phase 6 Yes Complete
 
 | # | Feature | Gap Closed vs. | Status |
 |---|---------|----------------|--------|
-| 1 | Hooks system (events + shell + LLM handlers) | Claude Code | ✅ Done |
-| 2 | Plan Mode (PlannerAgent + approval flow) | Windsurf, Claude Code | ✅ Done |
-| 3 | Web search tool | Codex CLI | ✅ Done |
-| 4 | Flow context auto-injection | Windsurf | ✅ Done |
-| 5 | Shell environment policy | Codex CLI | ✅ Done |
-| 6 | Session resume | Codex CLI | ✅ Done |
+| 1 | Hooks system (events + shell + LLM handlers) | Claude Code | Yes Done |
+| 2 | Plan Mode (PlannerAgent + approval flow) | Windsurf, Claude Code | Yes Done |
+| 3 | Web search tool | Codex CLI | Yes Done |
+| 4 | Flow context auto-injection | Windsurf | Yes Done |
+| 5 | Shell environment policy | Codex CLI | Yes Done |
+| 6 | Session resume | Codex CLI | Yes Done |
 
-### Phase 7 ✅ Complete
-
-| # | Feature | Gap Closed vs. | Status |
-|---|---------|----------------|--------|
-| 7 | Parallel multi-agent (git worktrees) | Cursor, Windsurf | ✅ Done |
-| 8 | Embedding-based semantic indexing | Cursor, Windsurf | ✅ Done |
-| 9 | Next-edit prediction in VibeUI | Cursor Tab, Windsurf Supercomplete | ✅ Done |
-| 10 | Checkpoint UI in VibeUI | Windsurf | ✅ Done |
-| 11 | GitHub PR review agent | Cursor BugBot | ✅ Done |
-
-### Phase 8 ✅ Complete
+### Phase 7 Yes Complete
 
 | # | Feature | Gap Closed vs. | Status |
 |---|---------|----------------|--------|
-| 12 | Skills system | Claude Code, Windsurf | ✅ Done |
-| 13 | Artifacts panel in VibeUI | Antigravity | ✅ Done |
-| 14 | OpenTelemetry spans | Codex CLI | ✅ Done |
-| 15 | GitHub Actions workflow | Codex CLI, Claude Code | ✅ Done |
-| 16 | Hooks config UI in VibeUI | — | ✅ Done |
-| 17 | Turbo Mode (VibeUI FullAuto toggle) | Windsurf | ✅ Done |
+| 7 | Parallel multi-agent (git worktrees) | Cursor, Windsurf | Yes Done |
+| 8 | Embedding-based semantic indexing | Cursor, Windsurf | Yes Done |
+| 9 | Next-edit prediction in VibeUI | Cursor Tab, Windsurf Supercomplete | Yes Done |
+| 10 | Checkpoint UI in VibeUI | Windsurf | Yes Done |
+| 11 | GitHub PR review agent | Cursor BugBot | Yes Done |
 
-### Phase 9 ✅ Complete
+### Phase 8 Yes Complete
 
 | # | Feature | Gap Closed vs. | Status |
 |---|---------|----------------|--------|
-| 18 | Manager View (VibeUI parallel orchestration) | Antigravity | ✅ Done |
-| 19 | VS Code extension | Cursor, Windsurf, all | ✅ Done |
-| 20 | VibeCLI daemon (`vibecli serve`) | Enables SDK + extension | ✅ Done |
-| 21 | Agent SDK (TypeScript) | Claude Code | ✅ Done |
-| 22 | Admin policy enforcement | Codex CLI | ✅ Done |
+| 12 | Skills system | Claude Code, Windsurf | Yes Done |
+| 13 | Artifacts panel in VibeUI | Antigravity | Yes Done |
+| 14 | OpenTelemetry spans | Codex CLI | Yes Done |
+| 15 | GitHub Actions workflow | Codex CLI, Claude Code | Yes Done |
+| 16 | Hooks config UI in VibeUI | — | Yes Done |
+| 17 | Turbo Mode (VibeUI FullAuto toggle) | Windsurf | Yes Done |
+
+### Phase 9 Yes Complete
+
+| # | Feature | Gap Closed vs. | Status |
+|---|---------|----------------|--------|
+| 18 | Manager View (VibeUI parallel orchestration) | Antigravity | Yes Done |
+| 19 | VS Code extension | Cursor, Windsurf, all | Yes Done |
+| 20 | VibeCLI daemon (`vibecli serve`) | Enables SDK + extension | Yes Done |
+| 21 | Agent SDK (TypeScript) | Claude Code | Yes Done |
+| 22 | Admin policy enforcement | Codex CLI | Yes Done |
 
 ---
 
-## 7.10 Phase 41 — Red Team Security Testing ✅
+## 7.10 Phase 41 — Red Team Security Testing Yes
 
 **Status:** Complete
 **Competitor reference:** Shannon (KeygraphHQ) — autonomous AI-powered pentesting framework
@@ -1203,39 +1203,39 @@ vibeui (React + Tauri)
 
 | Item | Status | Details |
 |------|--------|---------|
-| `redteam.rs` — 5-stage autonomous pentest pipeline | ✅ | Recon → Analysis → Exploitation → Validation → Report; RedTeamConfig, RedTeamSession, VulnFinding, AttackVector (15 types), CvssSeverity with CVSS scoring, RedTeamManager at `~/.vibecli/redteam/` |
-| Expanded CWE scanner (bugbot.rs) | ✅ | 8 new patterns: CWE-918 SSRF, CWE-611 XXE, CWE-502 deserialization, CWE-943 NoSQL injection, CWE-1336 template injection, CWE-639 IDOR, CWE-352 CSRF, CWE-319 cleartext; total: 15 CWE patterns |
-| CLI flags | ✅ | `--redteam <url>`, `--redteam-config <file>`, `--redteam-report <session-id>` |
-| REPL commands | ✅ | `/redteam` with sub-commands: scan, list, show, report, config; tab-completion + hints |
-| Config section | ✅ | `[redteam]` in config.toml: max_depth, timeout_secs, parallel_agents, scope_patterns, exclude_patterns, auth_config, auto_report |
-| RedTeamPanel.tsx | ✅ | Pipeline stage visualization, target URL input, findings feed with severity badges + CVSS scores, expand-to-details with PoC + remediation, report export button; 🛡️ RedTeam tab in AI panel |
-| Tauri commands | ✅ | start_redteam_scan, get_redteam_sessions, get_redteam_findings, generate_redteam_report, cancel_redteam_scan |
-| Shannon comparison doc | ✅ | `docs/SHANNON-COMPARISON.md` — full feature matrix, architectural comparison, integration opportunities |
+| `redteam.rs` — 5-stage autonomous pentest pipeline | Yes | Recon → Analysis → Exploitation → Validation → Report; RedTeamConfig, RedTeamSession, VulnFinding, AttackVector (15 types), CvssSeverity with CVSS scoring, RedTeamManager at `~/.vibecli/redteam/` |
+| Expanded CWE scanner (bugbot.rs) | Yes | 8 new patterns: CWE-918 SSRF, CWE-611 XXE, CWE-502 deserialization, CWE-943 NoSQL injection, CWE-1336 template injection, CWE-639 IDOR, CWE-352 CSRF, CWE-319 cleartext; total: 15 CWE patterns |
+| CLI flags | Yes | `--redteam <url>`, `--redteam-config <file>`, `--redteam-report <session-id>` |
+| REPL commands | Yes | `/redteam` with sub-commands: scan, list, show, report, config; tab-completion + hints |
+| Config section | Yes | `[redteam]` in config.toml: max_depth, timeout_secs, parallel_agents, scope_patterns, exclude_patterns, auth_config, auto_report |
+| RedTeamPanel.tsx | Yes | Pipeline stage visualization, target URL input, findings feed with severity badges + CVSS scores, expand-to-details with PoC + remediation, report export button; RedTeam tab in AI panel |
+| Tauri commands | Yes | start_redteam_scan, get_redteam_sessions, get_redteam_findings, generate_redteam_report, cancel_redteam_scan |
+| Shannon comparison doc | Yes | `docs/SHANNON-COMPARISON.md` — full feature matrix, architectural comparison, integration opportunities |
 
 ---
 
-## 7.11 Phase 42 — Jira Context, MCP OAuth, Custom Domains ✅
+## 7.11 Phase 42 — Jira Context, MCP OAuth, Custom Domains Yes
 
 **Status:** Complete
 
 | Item | Status | Details |
 |------|--------|---------|
-| `@jira:PROJECT-123` context | ✅ | VibeCLI `expand_at_refs()` + VibeUI `resolve_at_references()` + `ContextPicker.tsx` autocomplete; Jira REST API v2 with basic auth; env vars: `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN` |
-| MCP OAuth install flow | ✅ | `McpPanel.tsx` two-step modal (configure → paste auth code); 3 Tauri commands (`initiate_mcp_oauth`, `complete_mcp_oauth`, `get_mcp_token_status`); tokens at `~/.vibeui/mcp-tokens.json`; green 🔑 badge |
-| Custom domain / publish | ✅ | `DeployPanel.tsx` domain input + `set_custom_domain` Tauri command; Vercel REST API with `VERCEL_TOKEN`; CNAME instructions for other targets |
+| `@jira:PROJECT-123` context | Yes | VibeCLI `expand_at_refs()` + VibeUI `resolve_at_references()` + `ContextPicker.tsx` autocomplete; Jira REST API v2 with basic auth; env vars: `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN` |
+| MCP OAuth install flow | Yes | `McpPanel.tsx` two-step modal (configure → paste auth code); 3 Tauri commands (`initiate_mcp_oauth`, `complete_mcp_oauth`, `get_mcp_token_status`); tokens at `~/.vibeui/mcp-tokens.json`; green badge |
+| Custom domain / publish | Yes | `DeployPanel.tsx` domain input + `set_custom_domain` Tauri command; Vercel REST API with `VERCEL_TOKEN`; CNAME instructions for other targets |
 
 ---
 
-## 7.12 Phase 43 — Test Runner & AI Commit Message ✅
+## 7.12 Phase 43 — Test Runner & AI Commit Message Yes
 
 **Status:** Complete
 
 | Item | Status | Details |
 |------|--------|---------|
-| Test runner system | ✅ | `detect_test_framework` + `run_tests` Tauri commands; auto-detects Cargo/npm/pytest/Go; streams `test:log` events; parses structured output; `TestPanel.tsx` (🧪 Tests tab) with framework badge, live log, filter tabs, pass/fail badges; `/test` REPL command in VibeCLI |
-| AI commit message generation | ✅ | `generate_commit_message` Tauri command; `git diff --staged` → AI prompt → imperative one-liner; "✨ AI" button in `GitPanel.tsx` fills commit textarea |
+| Test runner system | Yes | `detect_test_framework` + `run_tests` Tauri commands; auto-detects Cargo/npm/pytest/Go; streams `test:log` events; parses structured output; `TestPanel.tsx` (Tests tab) with framework badge, live log, filter tabs, pass/fail badges; `/test` REPL command in VibeCLI |
+| AI commit message generation | Yes | `generate_commit_message` Tauri command; `git diff --staged` → AI prompt → imperative one-liner; "AI" button in `GitPanel.tsx` fills commit textarea |
 
-## 7.13 Phase 43 — CRDT Multiplayer Collaboration ✅
+## 7.13 Phase 43 — CRDT Multiplayer Collaboration Yes
 
 **Status:** Complete
 
@@ -1243,14 +1243,14 @@ Real-time collaborative editing powered by [yrs](https://github.com/y-crdt/y-crd
 
 | Item | Status | Details |
 |------|--------|---------|
-| `vibe-collab` crate | ✅ | New shared crate: `CollabServer` (DashMap room registry), `CollabRoom` (Y.Doc per room, Y.Text per file path, broadcast fan-out), `protocol.rs` (Yjs binary sync: SyncStep1/SyncStep2/Update), `awareness.rs` (cursor state + 8-color peer palette), `error.rs` |
-| WebSocket transport | ✅ | Axum 0.7 `extract::ws` handler at `/ws/collab/:room_id`; bearer token auth via query param; binary frames for Yjs sync, text frames for JSON session coordination; peer join/leave broadcast |
-| REST room management | ✅ | `POST /collab/rooms` (create), `GET /collab/rooms` (list), `GET /collab/rooms/:room_id/peers` (peer list); protected by existing auth + rate-limit middleware |
-| Tauri commands | ✅ | `create_collab_session`, `join_collab_session`, `leave_collab_session`, `list_collab_peers`, `get_collab_status` — 5 new commands registered in `lib.rs` |
-| `CollabPanel.tsx` | ✅ | Create/join room UI, peer list with color indicators, copy invite link, leave session; "👥 Collab" 25th AI panel tab |
-| `useCollab.ts` hook | ✅ | React hook managing WebSocket connection, Y.Doc lifecycle, awareness state, peer tracking, reconnection |
-| NPM dependencies | ✅ | `yjs ^13.6.0`, `y-monaco ^0.1.6`, `y-websocket ^2.0.0` added to `vibeui/package.json` |
-| Tests | ✅ | 15 unit tests: room lifecycle, peer management, room full, Y.Doc sync convergence, incremental updates, message serialization, color cycling, server cleanup |
+| `vibe-collab` crate | Yes | New shared crate: `CollabServer` (DashMap room registry), `CollabRoom` (Y.Doc per room, Y.Text per file path, broadcast fan-out), `protocol.rs` (Yjs binary sync: SyncStep1/SyncStep2/Update), `awareness.rs` (cursor state + 8-color peer palette), `error.rs` |
+| WebSocket transport | Yes | Axum 0.7 `extract::ws` handler at `/ws/collab/:room_id`; bearer token auth via query param; binary frames for Yjs sync, text frames for JSON session coordination; peer join/leave broadcast |
+| REST room management | Yes | `POST /collab/rooms` (create), `GET /collab/rooms` (list), `GET /collab/rooms/:room_id/peers` (peer list); protected by existing auth + rate-limit middleware |
+| Tauri commands | Yes | `create_collab_session`, `join_collab_session`, `leave_collab_session`, `list_collab_peers`, `get_collab_status` — 5 new commands registered in `lib.rs` |
+| `CollabPanel.tsx` | Yes | Create/join room UI, peer list with color indicators, copy invite link, leave session; "👥 Collab" 25th AI panel tab |
+| `useCollab.ts` hook | Yes | React hook managing WebSocket connection, Y.Doc lifecycle, awareness state, peer tracking, reconnection |
+| NPM dependencies | Yes | `yjs ^13.6.0`, `y-monaco ^0.1.6`, `y-websocket ^2.0.0` added to `vibeui/package.json` |
+| Tests | Yes | 15 unit tests: room lifecycle, peer management, room full, Y.Doc sync convergence, incremental updates, message serialization, color cycling, server cleanup |
 
 ### Architecture
 
@@ -1268,168 +1268,168 @@ Real-time collaborative editing powered by [yrs](https://github.com/y-crdt/y-crd
 
 ---
 
-## 7.14 Phase 44 — Code Coverage, Multi-Model Comparison, HTTP Playground ✅
+## 7.14 Phase 44 — Code Coverage, Multi-Model Comparison, HTTP Playground Yes
 
 **Status:** Complete
 
 | Item | Status | Details |
 |------|--------|---------|
-| Code coverage panel | ✅ | `detect_coverage_tool` (cargo-llvm-cov/nyc/coverage.py/go-cover) + `run_coverage` Tauri commands; LCOV and Go coverprofile parsers; `CoverageResult` with per-file uncovered lines and total percentage |
-| Multi-model comparison | ✅ | `compare_models` Tauri command; parallel `tokio::join!` dual-provider call; `build_temp_provider` factory (6 providers); `CompareResult` with timing, tokens, errors |
-| HTTP Playground | ✅ | `send_http_request` (method/URL/headers/body, 30s timeout, URL validation); `discover_api_endpoints` (regex grep for Express/Axum/FastAPI/Spring route patterns, 8 file types, max 60 results) |
-| Safety hardening | ✅ | Replaced `unwrap()` in 9 files: bugbot.rs, gateway.rs, redteam.rs, agent.rs, chat.rs, buffer.rs, git.rs, index/mod.rs, remote.rs |
+| Code coverage panel | Yes | `detect_coverage_tool` (cargo-llvm-cov/nyc/coverage.py/go-cover) + `run_coverage` Tauri commands; LCOV and Go coverprofile parsers; `CoverageResult` with per-file uncovered lines and total percentage |
+| Multi-model comparison | Yes | `compare_models` Tauri command; parallel `tokio::join!` dual-provider call; `build_temp_provider` factory (6 providers); `CompareResult` with timing, tokens, errors |
+| HTTP Playground | Yes | `send_http_request` (method/URL/headers/body, 30s timeout, URL validation); `discover_api_endpoints` (regex grep for Express/Axum/FastAPI/Spring route patterns, 8 file types, max 60 results) |
+| Safety hardening | Yes | Replaced `unwrap()` in 9 files: bugbot.rs, gateway.rs, redteam.rs, agent.rs, chat.rs, buffer.rs, git.rs, index/mod.rs, remote.rs |
 
-## 7.15 Phase 44 — Arena Mode, Live Preview, Recursive Subagent Trees ✅
-
-**Status:** Complete
-
-| Item | Status | Details |
-|------|--------|---------|
-| Arena Mode | ✅ | `ArenaPanel.tsx` (🥊 Arena tab) — blind A/B model comparison: randomized provider assignment, hidden identities, vote buttons (A/B/Tie/Both bad), post-vote reveal with timing/tokens, persistent leaderboard at `~/.vibeui/arena-votes.json`; `save_arena_vote` + `get_arena_history` Tauri commands; `/arena` REPL command with `compare`/`stats`/`history` sub-commands |
-| Live Preview with Element Selection | ✅ | BrowserPanel gains inspect mode toggle (🔍, localhost-only); injects `inspector.js` into iframe; postMessage listener for `vibe:element-selected`; element info overlay (tag, selector, React component, parent chain, outerHTML); "Send to Chat" via `vibeui:inject-context`; `inspector.js` gains `parentChain` in `buildInfo()`; `@html-selected` context type in ContextPicker + `resolve_at_references()` |
-| Recursive Subagent Trees | ✅ | `AgentContext` gains `parent_session_id`, `depth`, shared `active_agent_counter`; `ToolCall::SpawnAgent` gains `max_depth`; `spawn_sub_agent()` enforces depth ≤ 5, per-parent children ≤ 10, global agents ≤ 20; `session_store.rs` gains tree schema + `get_children()`/`get_tree()`/`list_root_sessions()` queries; 5 new unit tests |
-
-## 7.16 Phase 45 — Cost Observatory, AI Git Workflow, Codemod Auto-Fix ✅
+## 7.15 Phase 44 — Arena Mode, Live Preview, Recursive Subagent Trees Yes
 
 **Status:** Complete
 
 | Item | Status | Details |
 |------|--------|---------|
-| Cost & Performance Observatory | ✅ | `record_cost_entry` appends to `~/.vibeui/cost-log.jsonl` (JSONL); `get_cost_metrics` computes per-provider aggregates + budget remaining; `set_cost_limit` + `clear_cost_history`; uses `TokenUsage::estimated_cost_usd()` pricing |
-| AI Git Workflow | ✅ | `suggest_branch_name` (LLM-generated from task description); `resolve_merge_conflict` (AI merge resolution); `generate_changelog` (`git log` → Keep-a-Changelog format via LLM) |
-| Codemod & Lint Auto-Fix | ✅ | `run_autofix` auto-detects clippy/eslint/ruff/gofmt/prettier, runs fix mode, returns `AutofixResult` with diff + file count; `apply_autofix` stages or reverts via git |
-| Frontend: CostPanel | ✅ | `CostPanel.tsx` (💰 Cost tab) — per-provider cost breakdown, total spend, budget limit input, cost history table, clear history |
-| Frontend: AutofixPanel | ✅ | `AutofixPanel.tsx` (🔧 Autofix tab) — auto-detect linter, run fix, diff preview with file count, apply/revert |
-| Frontend: AI Git tools | ✅ | `GitPanel.tsx` — 🌿 AI Branch Name (suggest + copy), 📄 Generate Changelog (since-ref + editable result), ⚡ Resolve Merge Conflict (AI resolve + copy) |
-| VibeCLI /autofix | ✅ | `/autofix` added to REPL COMMANDS array |
-| UTF-8 safety | ✅ | Char-boundary-safe string slicing across 6 Rust files (tool_executor, tools, trace, commands, tui/mod, vim_editor); prevents panics on multi-byte characters |
+| Arena Mode | Yes | `ArenaPanel.tsx` (🥊 Arena tab) — blind A/B model comparison: randomized provider assignment, hidden identities, vote buttons (A/B/Tie/Both bad), post-vote reveal with timing/tokens, persistent leaderboard at `~/.vibeui/arena-votes.json`; `save_arena_vote` + `get_arena_history` Tauri commands; `/arena` REPL command with `compare`/`stats`/`history` sub-commands |
+| Live Preview with Element Selection | Yes | BrowserPanel gains inspect mode toggle (, localhost-only); injects `inspector.js` into iframe; postMessage listener for `vibe:element-selected`; element info overlay (tag, selector, React component, parent chain, outerHTML); "Send to Chat" via `vibeui:inject-context`; `inspector.js` gains `parentChain` in `buildInfo()`; `@html-selected` context type in ContextPicker + `resolve_at_references()` |
+| Recursive Subagent Trees | Yes | `AgentContext` gains `parent_session_id`, `depth`, shared `active_agent_counter`; `ToolCall::SpawnAgent` gains `max_depth`; `spawn_sub_agent()` enforces depth ≤ 5, per-parent children ≤ 10, global agents ≤ 20; `session_store.rs` gains tree schema + `get_children()`/`get_tree()`/`list_root_sessions()` queries; 5 new unit tests |
 
-## 7.17 Phase 46 — Provider Hardening + WCAG 2.1 AA Accessibility ✅
+## 7.16 Phase 45 — Cost Observatory, AI Git Workflow, Codemod Auto-Fix Yes
 
 **Status:** Complete
 
 | Item | Status | Details |
 |------|--------|---------|
-| HTTP client timeouts (all providers) | ✅ | Every AI provider uses `reqwest::Client::builder()` with 90s request + 10s connect timeouts — Ollama, OpenAI, Claude, Gemini, Groq, OpenRouter, Azure OpenAI (previously only Bedrock, Copilot, BugBot had timeouts) |
-| Copilot device flow hardening | ✅ | Token exchange and device flow use timeout-configured client; improved error handling (`copilot.rs`) |
-| Gemini streaming improvements | ✅ | Improved SSE chunk parsing and error resilience (`gemini.rs`) |
-| Agent stream buffer optimization | ✅ | Pre-allocated `String::with_capacity(8192)` + move instead of clone per LLM token (`agent.rs`) |
-| WCAG 2.1 AA keyboard navigation | ✅ | 8 new keyboard shortcuts: `Cmd+J` AI panel, `Cmd+`` terminal, `Cmd+Shift+P` palette, `Cmd+1-9` AI tabs, `Cmd+Shift+E` explorer, `Cmd+Shift+G` git; `focus-visible` outlines on all interactive elements |
-| Command palette ARIA | ✅ | `role="dialog"`, `role="combobox"`, `role="listbox"`, `role="option"`, `aria-activedescendant` for screen reader navigation (`CommandPalette.tsx`) |
-| Modal focus trap | ✅ | Tab cycles within modal; Escape closes; previous focus restored; `aria-modal`, `aria-labelledby` (`Modal.tsx`) |
-| Agent status announcements | ✅ | `aria-live="polite"` region announces status changes to screen readers (`AgentPanel.tsx`) |
-| Skip-to-content link | ✅ | Hidden link appears on Tab focus, jumps past sidebar to editor (`App.css` + `App.tsx`) |
-| OnboardingTour component | ✅ | First-run guided tour (localStorage gate), dismissible (`OnboardingTour.tsx`, 116 lines) |
-| EmptyState + LoadingSpinner | ✅ | Reusable UI primitives for consistent empty/loading states (`EmptyState.tsx`, `LoadingSpinner.tsx`) |
+| Cost & Performance Observatory | Yes | `record_cost_entry` appends to `~/.vibeui/cost-log.jsonl` (JSONL); `get_cost_metrics` computes per-provider aggregates + budget remaining; `set_cost_limit` + `clear_cost_history`; uses `TokenUsage::estimated_cost_usd()` pricing |
+| AI Git Workflow | Yes | `suggest_branch_name` (LLM-generated from task description); `resolve_merge_conflict` (AI merge resolution); `generate_changelog` (`git log` → Keep-a-Changelog format via LLM) |
+| Codemod & Lint Auto-Fix | Yes | `run_autofix` auto-detects clippy/eslint/ruff/gofmt/prettier, runs fix mode, returns `AutofixResult` with diff + file count; `apply_autofix` stages or reverts via git |
+| Frontend: CostPanel | Yes | `CostPanel.tsx` (💰 Cost tab) — per-provider cost breakdown, total spend, budget limit input, cost history table, clear history |
+| Frontend: AutofixPanel | Yes | `AutofixPanel.tsx` (Autofix tab) — auto-detect linter, run fix, diff preview with file count, apply/revert |
+| Frontend: AI Git tools | Yes | `GitPanel.tsx` — AI Branch Name (suggest + copy), Generate Changelog (since-ref + editable result), Resolve Merge Conflict (AI resolve + copy) |
+| VibeCLI /autofix | Yes | `/autofix` added to REPL COMMANDS array |
+| UTF-8 safety | Yes | Char-boundary-safe string slicing across 6 Rust files (tool_executor, tools, trace, commands, tui/mod, vim_editor); prevents panics on multi-byte characters |
 
-## 7.18 Test Coverage Expansion ✅
+## 7.17 Phase 46 — Provider Hardening + WCAG 2.1 AA Accessibility Yes
 
 **Status:** Complete
 
 | Item | Status | Details |
 |------|--------|---------|
-| provider.rs tests (22) | ✅ | TokenUsage total/add/estimated_cost_usd for all 6 pricing tiers (Claude Opus/Sonnet/Haiku, GPT-4o/4-turbo/3.5, Ollama free); ProviderConfig builder chain + serialization; base64 padding; Message/CompletionResponse serde |
-| tools.rs tests (30) | ✅ | ToolCall::name/is_destructive/is_terminal/summary for all 10 tool types; ToolResult::ok/err/truncation; format_tool_result success/error/truncated; parse edge cases (defaults, unknown, multiple calls) |
-| diff.rs tests (12) | ✅ | DiffEngine::generate_diff (identical/changed/added/removed/empty-to-content/content-to-empty); format_unified_diff headers/prefixes; apply_diff roundtrip; hunk line counts |
-| search.rs tests (8) | ✅ | search_files matching/multi-file/case-sensitive/insensitive/no-match/hidden-files-skipped/invalid-regex/trimmed-content |
-| executor.rs tests (18) | ✅ | is_safe_command blocklist (rm -rf, fork bomb, mkfs, dd, chmod 777, shred, device write) + safe commands; execute/execute_in; execute_with_approval gate; output_to_string stdout/stderr/both/empty |
-| symbol.rs tests (16) | ✅ | Language::from_extension (11 exts + case-insensitive), is_source, as_str; SymbolKind::as_str (11 kinds); SymbolInfo::format_ref; extract_symbols for Rust/Python/Go/TypeScript/Unknown; deduplication |
-| bedrock.rs SigV4 tests (13) | ✅ | sha256_hex known vectors; hmac_sha256 determinism/different-keys; derive_signing_key date/region variations; epoch_days_to_ymd (epoch/2000/2024/leap-day/year-end); sigv4_auth_header format/determinism/payload |
-| collab error.rs tests (13) | ✅ | CollabError Display for all 8 variants; StatusCode conversion (NOT_FOUND/CONFLICT/UNAUTHORIZED/BAD_REQUEST/INTERNAL_SERVER_ERROR) |
-| Total | ✅ | **508 tests** passing across workspace (was 344) |
+| HTTP client timeouts (all providers) | Yes | Every AI provider uses `reqwest::Client::builder()` with 90s request + 10s connect timeouts — Ollama, OpenAI, Claude, Gemini, Groq, OpenRouter, Azure OpenAI (previously only Bedrock, Copilot, BugBot had timeouts) |
+| Copilot device flow hardening | Yes | Token exchange and device flow use timeout-configured client; improved error handling (`copilot.rs`) |
+| Gemini streaming improvements | Yes | Improved SSE chunk parsing and error resilience (`gemini.rs`) |
+| Agent stream buffer optimization | Yes | Pre-allocated `String::with_capacity(8192)` + move instead of clone per LLM token (`agent.rs`) |
+| WCAG 2.1 AA keyboard navigation | Yes | 8 new keyboard shortcuts: `Cmd+J` AI panel, `Cmd+`` terminal, `Cmd+Shift+P` palette, `Cmd+1-9` AI tabs, `Cmd+Shift+E` explorer, `Cmd+Shift+G` git; `focus-visible` outlines on all interactive elements |
+| Command palette ARIA | Yes | `role="dialog"`, `role="combobox"`, `role="listbox"`, `role="option"`, `aria-activedescendant` for screen reader navigation (`CommandPalette.tsx`) |
+| Modal focus trap | Yes | Tab cycles within modal; Escape closes; previous focus restored; `aria-modal`, `aria-labelledby` (`Modal.tsx`) |
+| Agent status announcements | Yes | `aria-live="polite"` region announces status changes to screen readers (`AgentPanel.tsx`) |
+| Skip-to-content link | Yes | Hidden link appears on Tab focus, jumps past sidebar to editor (`App.css` + `App.tsx`) |
+| OnboardingTour component | Yes | First-run guided tour (localStorage gate), dismissible (`OnboardingTour.tsx`, 116 lines) |
+| EmptyState + LoadingSpinner | Yes | Reusable UI primitives for consistent empty/loading states (`EmptyState.tsx`, `LoadingSpinner.tsx`) |
 
-## 7.18b Test Coverage Expansion Round 2 ✅
-
-**Status:** Complete
-
-| Item | Status | Details |
-|------|--------|---------|
-| flow.rs tests (17) | ✅ | FlowTracker ring buffer eviction, dedup of opens/edits, context_string category filtering, limit param, unknown kind |
-| syntax.rs tests (22) | ✅ | detect_language (Rust/Python/JS/Go/prose/empty), highlight with/without language, highlight_code_blocks fenced/unclosed/empty/multiple |
-| diff_viewer.rs tests (9) | ✅ | colorize_diff ANSI (+green/-red/@@cyan), header lines not colored, context uncolored, mixed diff |
-| memory.rs tests (6) | ✅ | combined_rules section headers, save/load roundtrip, missing file returns empty |
-| chat.rs tests (14) | ✅ | Conversation role accessors, ChatEngine providers/conversations, out-of-bounds errors, serde |
-| completion.rs tests (16) | ✅ | estimate_confidence (empty/short/medium/long, syntactic endings, uncertainty markers, cap at 1.0) |
-| agent_executor.rs tests (10) | ✅ | truncate at/over limit, resolve paths, execute_call routing (unsupported tools, missing file) |
-| mcp_server.rs tests (12) | ✅ | resolve paths, tool_defs (6 tools, required params, inputSchema), RpcOk/RpcErr serde |
-| manager.rs tests (9) | ✅ | LspManager 4 default configs, client lookup, default() equivalence |
-| workspace.rs tests (12) | ✅ | from_config, setting types, dedup, close_file, WorkspaceConfig serde |
-| multi_agent.rs tests (10) | ✅ | AgentTask/Status/Result serde, AgentInstance clone, branch_name |
-| scheduler.rs tests (16) | ✅ | format_interval (s/m/h/d), parse_duration edge cases, ScheduleExpr serde roundtrip |
-| Total | ✅ | **664 tests** passing across workspace (was 508; +153 new) |
-
-## 7.18c Test Coverage Expansion Round 3 ✅
+## 7.18 Test Coverage Expansion Yes
 
 **Status:** Complete
 
 | Item | Status | Details |
 |------|--------|---------|
-| index/mod.rs tests (30) | ✅ | score_symbol, tokenize, should_skip expanded, build/search/refresh with tempfiles, relevant_symbols ranking, serde |
-| hooks.rs tests (37) | ✅ | type_name all 10 variants, tool_name, file_path, glob_match_path, segment_match, path filters, HookHandler/HookConfig/build_payload serde |
-| buffer.rs tests (25) | ✅ | from_file, save/save_as, apply_edits batch, cursors, slice, line_len, Position/Range/Edit serde, undo/redo empty no-op |
-| git.rs tests (19) | ✅ | list_branches, get_history, get_commit_files, get_diff, discard_changes, commit, switch_branch, pop_stash, struct serde |
-| rules.rs tests (14) | ✅ | RulesLoader::load with/without frontmatter, glob_match, load_for_workspace dedup, load_steering clears path, Rule serde |
-| background_agents.rs tests (14) | ✅ | cancel_run, Display/serde, AgentDef serde, AgentRun lifecycle, init, list/get runs |
-| team.rs tests (10) | ✅ | context_string edge cases, TeamConfig serde, save/load, add_knowledge dedup, remove_knowledge |
-| linear.rs tests (9) | ✅ | priority_label all values, LinearIssue serde, handle_linear_command subcommands |
-| context.rs tests (8) | ✅ | with_index, with_open_files, token_budget, empty/missing inputs |
-| config.rs tests (7) | ✅ | load_from_file, serde roundtrip, empty/invalid TOML |
-| Total | ✅ | **1,898 tests** passing across workspace (as of 2026-03-07) |
+| provider.rs tests (22) | Yes | TokenUsage total/add/estimated_cost_usd for all 6 pricing tiers (Claude Opus/Sonnet/Haiku, GPT-4o/4-turbo/3.5, Ollama free); ProviderConfig builder chain + serialization; base64 padding; Message/CompletionResponse serde |
+| tools.rs tests (30) | Yes | ToolCall::name/is_destructive/is_terminal/summary for all 10 tool types; ToolResult::ok/err/truncation; format_tool_result success/error/truncated; parse edge cases (defaults, unknown, multiple calls) |
+| diff.rs tests (12) | Yes | DiffEngine::generate_diff (identical/changed/added/removed/empty-to-content/content-to-empty); format_unified_diff headers/prefixes; apply_diff roundtrip; hunk line counts |
+| search.rs tests (8) | Yes | search_files matching/multi-file/case-sensitive/insensitive/no-match/hidden-files-skipped/invalid-regex/trimmed-content |
+| executor.rs tests (18) | Yes | is_safe_command blocklist (rm -rf, fork bomb, mkfs, dd, chmod 777, shred, device write) + safe commands; execute/execute_in; execute_with_approval gate; output_to_string stdout/stderr/both/empty |
+| symbol.rs tests (16) | Yes | Language::from_extension (11 exts + case-insensitive), is_source, as_str; SymbolKind::as_str (11 kinds); SymbolInfo::format_ref; extract_symbols for Rust/Python/Go/TypeScript/Unknown; deduplication |
+| bedrock.rs SigV4 tests (13) | Yes | sha256_hex known vectors; hmac_sha256 determinism/different-keys; derive_signing_key date/region variations; epoch_days_to_ymd (epoch/2000/2024/leap-day/year-end); sigv4_auth_header format/determinism/payload |
+| collab error.rs tests (13) | Yes | CollabError Display for all 8 variants; StatusCode conversion (NOT_FOUND/CONFLICT/UNAUTHORIZED/BAD_REQUEST/INTERNAL_SERVER_ERROR) |
+| Total | Yes | **508 tests** passing across workspace (was 344) |
+
+## 7.18b Test Coverage Expansion Round 2 Yes
+
+**Status:** Complete
+
+| Item | Status | Details |
+|------|--------|---------|
+| flow.rs tests (17) | Yes | FlowTracker ring buffer eviction, dedup of opens/edits, context_string category filtering, limit param, unknown kind |
+| syntax.rs tests (22) | Yes | detect_language (Rust/Python/JS/Go/prose/empty), highlight with/without language, highlight_code_blocks fenced/unclosed/empty/multiple |
+| diff_viewer.rs tests (9) | Yes | colorize_diff ANSI (+green/-red/@@cyan), header lines not colored, context uncolored, mixed diff |
+| memory.rs tests (6) | Yes | combined_rules section headers, save/load roundtrip, missing file returns empty |
+| chat.rs tests (14) | Yes | Conversation role accessors, ChatEngine providers/conversations, out-of-bounds errors, serde |
+| completion.rs tests (16) | Yes | estimate_confidence (empty/short/medium/long, syntactic endings, uncertainty markers, cap at 1.0) |
+| agent_executor.rs tests (10) | Yes | truncate at/over limit, resolve paths, execute_call routing (unsupported tools, missing file) |
+| mcp_server.rs tests (12) | Yes | resolve paths, tool_defs (6 tools, required params, inputSchema), RpcOk/RpcErr serde |
+| manager.rs tests (9) | Yes | LspManager 4 default configs, client lookup, default() equivalence |
+| workspace.rs tests (12) | Yes | from_config, setting types, dedup, close_file, WorkspaceConfig serde |
+| multi_agent.rs tests (10) | Yes | AgentTask/Status/Result serde, AgentInstance clone, branch_name |
+| scheduler.rs tests (16) | Yes | format_interval (s/m/h/d), parse_duration edge cases, ScheduleExpr serde roundtrip |
+| Total | Yes | **664 tests** passing across workspace (was 508; +153 new) |
+
+## 7.18c Test Coverage Expansion Round 3 Yes
+
+**Status:** Complete
+
+| Item | Status | Details |
+|------|--------|---------|
+| index/mod.rs tests (30) | Yes | score_symbol, tokenize, should_skip expanded, build/search/refresh with tempfiles, relevant_symbols ranking, serde |
+| hooks.rs tests (37) | Yes | type_name all 10 variants, tool_name, file_path, glob_match_path, segment_match, path filters, HookHandler/HookConfig/build_payload serde |
+| buffer.rs tests (25) | Yes | from_file, save/save_as, apply_edits batch, cursors, slice, line_len, Position/Range/Edit serde, undo/redo empty no-op |
+| git.rs tests (19) | Yes | list_branches, get_history, get_commit_files, get_diff, discard_changes, commit, switch_branch, pop_stash, struct serde |
+| rules.rs tests (14) | Yes | RulesLoader::load with/without frontmatter, glob_match, load_for_workspace dedup, load_steering clears path, Rule serde |
+| background_agents.rs tests (14) | Yes | cancel_run, Display/serde, AgentDef serde, AgentRun lifecycle, init, list/get runs |
+| team.rs tests (10) | Yes | context_string edge cases, TeamConfig serde, save/load, add_knowledge dedup, remove_knowledge |
+| linear.rs tests (9) | Yes | priority_label all values, LinearIssue serde, handle_linear_command subcommands |
+| context.rs tests (8) | Yes | with_index, with_open_files, token_budget, empty/missing inputs |
+| config.rs tests (7) | Yes | load_from_file, serde roundtrip, empty/invalid TOML |
+| Total | Yes | **1,898 tests** passing across workspace (as of 2026-03-07) |
 
 ---
 
-## 7.19 Phase 7.19 — Context Window Safety + Process Manager ✅
+## 7.19 Phase 7.19 — Context Window Safety + Process Manager Yes
 
 **Status:** Complete
 
 | Item | Status | Details |
 |------|--------|---------|
-| `estimate_tokens()` | ✅ | 1 token ≈ 4 chars + 8/msg overhead; fast O(n) pass |
-| `prune_messages()` | ✅ | Drains middle messages, preserves system+task+last-6; inserts placeholder |
-| `AgentLoop.with_context_limit()` | ✅ | Builder method; default 80 000 tokens |
-| Context pruning in agent step loop | ✅ | Called at top of each step before `stream_chat` |
-| `list_processes` Tauri cmd | ✅ | `ps aux` (POSIX) / `tasklist /FO CSV` (Windows); sorted by memory |
-| `kill_process(pid)` Tauri cmd | ✅ | `kill -TERM` (POSIX) / `taskkill /F` (Windows) |
-| `ProcessPanel.tsx` | ✅ | Filterable table, 5s auto-refresh, mem KB/MB/GB, status emoji, Kill+confirm |
-| `⚙️ Procs` AI panel tab | ✅ | 32nd tab in App.tsx |
-| Unit tests (5) | ✅ | estimate_empty, estimate_basic, prune_noop_under_budget, prune_removes_middle, prune_noop_too_few |
-| Total tests | ✅ | **513** (508 + 5 new) |
+| `estimate_tokens()` | Yes | 1 token ≈ 4 chars + 8/msg overhead; fast O(n) pass |
+| `prune_messages()` | Yes | Drains middle messages, preserves system+task+last-6; inserts placeholder |
+| `AgentLoop.with_context_limit()` | Yes | Builder method; default 80 000 tokens |
+| Context pruning in agent step loop | Yes | Called at top of each step before `stream_chat` |
+| `list_processes` Tauri cmd | Yes | `ps aux` (POSIX) / `tasklist /FO CSV` (Windows); sorted by memory |
+| `kill_process(pid)` Tauri cmd | Yes | `kill -TERM` (POSIX) / `taskkill /F` (Windows) |
+| `ProcessPanel.tsx` | Yes | Filterable table, 5s auto-refresh, mem KB/MB/GB, status emoji, Kill+confirm |
+| `Procs` AI panel tab | Yes | 32nd tab in App.tsx |
+| Unit tests (5) | Yes | estimate_empty, estimate_basic, prune_noop_under_budget, prune_removes_middle, prune_noop_too_few |
+| Total tests | Yes | **513** (508 + 5 new) |
 
 ---
 
-## 7.20 Phase 7.20 — Streaming Metrics + REPL Session Commands ✅
+## 7.20 Phase 7.20 — Streaming Metrics + REPL Session Commands Yes
 
 **Status:** Complete
 
 | Item | Status | Details |
 |------|--------|---------|
-| `/sessions` REPL command | ✅ | Lists last 15 root sessions from SQLite with ID, status, steps, task preview, age, resume hint |
-| `/sessions <prefix>` filter | ✅ | Filters list by session ID prefix |
-| `/resume` SQLite fallback | ✅ | When JSONL trace has no messages sidecar, falls back to `store.get_messages(id)`; pure SQLite lookup when no JSONL exists |
-| Token streaming speed (`tok/s`) | ✅ | `streamStartMsRef` + `streamCharsRef` → `tokensPerSec = chars/4/secs`; displayed as ⚡ badge |
-| Total tokens display | ✅ | Estimated total tokens shown next to tok/s during streaming |
-| `streamMetrics` state in `AgentPanel.tsx` | ✅ | `{ tokensPerSec, ttftMs, totalTokens }` — reset on each agent start |
-| Metrics badge visibility | ✅ | Shown only when `isRunning && streamMetrics` — hides after completion |
+| `/sessions` REPL command | Yes | Lists last 15 root sessions from SQLite with ID, status, steps, task preview, age, resume hint |
+| `/sessions <prefix>` filter | Yes | Filters list by session ID prefix |
+| `/resume` SQLite fallback | Yes | When JSONL trace has no messages sidecar, falls back to `store.get_messages(id)`; pure SQLite lookup when no JSONL exists |
+| Token streaming speed (`tok/s`) | Yes | `streamStartMsRef` + `streamCharsRef` → `tokensPerSec = chars/4/secs`; displayed as badge |
+| Total tokens display | Yes | Estimated total tokens shown next to tok/s during streaming |
+| `streamMetrics` state in `AgentPanel.tsx` | Yes | `{ tokensPerSec, ttftMs, totalTokens }` — reset on each agent start |
+| Metrics badge visibility | Yes | Shown only when `isRunning && streamMetrics` — hides after completion |
 
 ---
 
-## 7.21 Phase 7.21 — Real-time Chat Streaming ✅
+## 7.21 Phase 7.21 — Real-time Chat Streaming Yes
 
 **Status:** Complete
 
 | Item | Status | Details |
 |------|--------|---------|
-| `stream_chat_message` Tauri cmd | ✅ | Spawns tokio task; emits `chat:chunk`/`chat:complete`/`chat:error` events; cancels prior stream |
-| `stop_chat_stream` Tauri cmd | ✅ | Aborts background task via `AbortHandle`; adds partial text as final message |
-| `AppState.chat_abort_handle` | ✅ | `Arc<Mutex<Option<AbortHandle>>>` — same pattern as `agent_abort_handle` |
-| `futures = "0.3"` dependency | ✅ | Added to `vibeui/src-tauri/Cargo.toml` |
-| `ChatResponse` Clone | ✅ | Added `#[derive(Clone)]` so response can be emitted via Tauri events |
-| `AIChat.tsx` streaming mode | ✅ | `invoke("stream_chat_message")` kick-starts; `chat:chunk` listener builds text live |
-| Live streaming text display | ✅ | Shows `streamingText` with blinking cursor while loading; replaces typing-indicator once first chunk arrives |
-| Tok/s speed badge | ✅ | `⚡ N tok/s · ~M tokens` line below streaming text; uses same `streamStartMsRef`/`streamCharsRef` pattern as AgentPanel |
-| Stop button wired | ✅ | Calls `stopMessage()` which invokes `stop_chat_stream` + commits partial text |
-| `useCallback`/`listen` imports | ✅ | Clean TypeScript, `tsc --noEmit` passes |
-| Tests | ✅ | **513 passing** (no regression) |
+| `stream_chat_message` Tauri cmd | Yes | Spawns tokio task; emits `chat:chunk`/`chat:complete`/`chat:error` events; cancels prior stream |
+| `stop_chat_stream` Tauri cmd | Yes | Aborts background task via `AbortHandle`; adds partial text as final message |
+| `AppState.chat_abort_handle` | Yes | `Arc<Mutex<Option<AbortHandle>>>` — same pattern as `agent_abort_handle` |
+| `futures = "0.3"` dependency | Yes | Added to `vibeui/src-tauri/Cargo.toml` |
+| `ChatResponse` Clone | Yes | Added `#[derive(Clone)]` so response can be emitted via Tauri events |
+| `AIChat.tsx` streaming mode | Yes | `invoke("stream_chat_message")` kick-starts; `chat:chunk` listener builds text live |
+| Live streaming text display | Yes | Shows `streamingText` with blinking cursor while loading; replaces typing-indicator once first chunk arrives |
+| Tok/s speed badge | Yes | `N tok/s · ~M tokens` line below streaming text; uses same `streamStartMsRef`/`streamCharsRef` pattern as AgentPanel |
+| Stop button wired | Yes | Calls `stopMessage()` which invokes `stop_chat_stream` + commits partial text |
+| `useCallback`/`listen` imports | Yes | Clean TypeScript, `tsc --noEmit` passes |
+| Tests | Yes | **513 passing** (no regression) |
 
 ---
 

@@ -11,44 +11,44 @@
 
 | Feature | VibeCLI | Claude Code |
 |---------|---------|-------------|
-| Multi-turn REPL | ✅ | ✅ |
-| Agent loop (tools) | ✅ | ✅ |
-| Plan mode | ✅ | ✅ |
-| Session resume | ✅ | ✅ |
-| Hooks system (Pre/PostToolUse) | ✅ | ✅ |
-| Skills / slash commands | ✅ | ✅ |
-| MCP client | ✅ | ✅ |
-| Git integration | ✅ | ✅ |
-| Web search tool | ✅ | ✅ |
-| Multi-agent / parallel execution | ✅ | ✅ |
-| PR code review | ✅ | ✅ |
-| OpenTelemetry tracing | ✅ | ✅ |
-| Admin policy | ✅ | ✅ |
-| HTTP daemon (`serve`) | ✅ | ✅ |
-| VS Code extension | ✅ | ✅ |
-| Agent SDK (Node.js) | ✅ | ✅ |
-| Named profiles | ✅ | ✅ |
-| Doctor command | ✅ | ✅ |
-| REPL tab-completion | ✅ | ✅ |
-| **Image / screenshot attachment (`-i`)** | ✅ | ✅ |
-| **`/model` mid-session switching** | ✅ | ✅ |
-| **`/cost` token + USD tracking** | ✅ | ✅ |
-| **`/context` window usage** | ✅ | ✅ |
-| **`/status` provider status** | ✅ | ✅ |
-| **Named sessions (`--session-name`)** | ✅ | ✅ |
-| **Session forking (`/fork`)** | ✅ | ✅ |
-| **UserPromptSubmit hook event** | ✅ | ✅ |
-| **LLM-based hook execution** | ✅ | ✅ |
-| **Wildcard tool permission patterns** | ✅ | ✅ |
-| **`apiKeyHelper` rotating credentials** | ✅ | ✅ |
-| **Extended thinking mode** | ✅ | ✅ |
-| **`--add-dir` additional workspace dirs** | ✅ | ✅ |
-| **JSON streaming output (`--json`)** | ✅ | ✅ |
-| **Typed parallel agent roles** | ✅ | ✅ |
-| **Auto memory recording** | ✅ | ✅ |
-| **Rules directory (`.vibecli/rules/`)** | ✅ | ✅ |
-| **CLI `/rewind` session checkpoint** | ✅ | ✅ |
-| **PTY-backed bash tool** | ✅ | ✅ |
+| Multi-turn REPL | Yes | Yes |
+| Agent loop (tools) | Yes | Yes |
+| Plan mode | Yes | Yes |
+| Session resume | Yes | Yes |
+| Hooks system (Pre/PostToolUse) | Yes | Yes |
+| Skills / slash commands | Yes | Yes |
+| MCP client | Yes | Yes |
+| Git integration | Yes | Yes |
+| Web search tool | Yes | Yes |
+| Multi-agent / parallel execution | Yes | Yes |
+| PR code review | Yes | Yes |
+| OpenTelemetry tracing | Yes | Yes |
+| Admin policy | Yes | Yes |
+| HTTP daemon (`serve`) | Yes | Yes |
+| VS Code extension | Yes | Yes |
+| Agent SDK (Node.js) | Yes | Yes |
+| Named profiles | Yes | Yes |
+| Doctor command | Yes | Yes |
+| REPL tab-completion | Yes | Yes |
+| **Image / screenshot attachment (`-i`)** | Yes | Yes |
+| **`/model` mid-session switching** | Yes | Yes |
+| **`/cost` token + USD tracking** | Yes | Yes |
+| **`/context` window usage** | Yes | Yes |
+| **`/status` provider status** | Yes | Yes |
+| **Named sessions (`--session-name`)** | Yes | Yes |
+| **Session forking (`/fork`)** | Yes | Yes |
+| **UserPromptSubmit hook event** | Yes | Yes |
+| **LLM-based hook execution** | Yes | Yes |
+| **Wildcard tool permission patterns** | Yes | Yes |
+| **`apiKeyHelper` rotating credentials** | Yes | Yes |
+| **Extended thinking mode** | Yes | Yes |
+| **`--add-dir` additional workspace dirs** | Yes | Yes |
+| **JSON streaming output (`--json`)** | Yes | Yes |
+| **Typed parallel agent roles** | Yes | Yes |
+| **Auto memory recording** | Yes | Yes |
+| **Rules directory (`.vibecli/rules/`)** | Yes | Yes |
+| **CLI `/rewind` session checkpoint** | Yes | Yes |
+| **PTY-backed bash tool** | Yes | Yes |
 
 ---
 
@@ -58,19 +58,19 @@
 
 | Feature | VibeCLI | Codex CLI |
 |---------|---------|-----------|
-| Agent loop | ✅ | ✅ |
-| Plan mode | ✅ | ✅ |
-| Multi-provider support | ✅ (17 providers) | ✅ (OpenAI only) |
-| Web search | ✅ | ✅ |
-| HTTP daemon | ✅ | ❌ |
-| VS Code extension | ✅ | ❌ |
-| Agent SDK | ✅ | ❌ |
-| Multi-agent orchestration | ✅ | ❌ |
-| PR code review | ✅ | ❌ |
-| Voice input (VibeUI) | ✅ | ❌ |
-| **Sandboxed execution (Docker/macOS)** | ❌ | ✅ |
-| **`--approval=auto-edit`** granular modes | ✅ | ✅ |
-| **Desktop app (floating window)** | ❌ | ✅ |
+| Agent loop | Yes | Yes |
+| Plan mode | Yes | Yes |
+| Multi-provider support | Yes (17 providers) | Yes (OpenAI only) |
+| Web search | Yes | Yes |
+| HTTP daemon | Yes | No |
+| VS Code extension | Yes | No |
+| Agent SDK | Yes | No |
+| Multi-agent orchestration | Yes | No |
+| PR code review | Yes | No |
+| Voice input (VibeUI) | Yes | No |
+| **Sandboxed execution (Docker/macOS)** | No | Yes |
+| **`--approval=auto-edit`** granular modes | Yes | Yes |
+| **Desktop app (floating window)** | No | Yes |
 
 ---
 
@@ -80,39 +80,39 @@
 
 | Feature | VibeUI | Cursor |
 |---------|--------|--------|
-| Monaco code editor | ✅ | ✅ |
-| AI chat panel | ✅ | ✅ |
-| Agent panel | ✅ | ✅ |
-| File tree | ✅ | ✅ |
-| Terminal panel | ✅ | ✅ |
-| Git integration | ✅ | ✅ |
-| LSP support | ✅ | ✅ |
-| MCP client | ✅ | ✅ |
-| Hooks UI | ✅ | ✅ |
-| Multiple AI providers | ✅ | ✅ |
-| Voice input | ✅ | ❌ |
-| Background job persistence | ✅ | ❌ |
-| @web context | ✅ | ❌ |
-| Browser panel | ✅ | ❌ |
-| Artifact system | ✅ | ❌ |
-| Parallel agents (Manager view) | ✅ | ❌ |
-| **Inline chat / Cmd+K edit overlay** | ✅ | ✅ |
-| **Next-edit prediction (Tab ghost text)** | ✅ | ✅ |
-| **@symbol context (LSP-resolved)** | ✅ | ✅ |
-| **@codebase semantic search context** | ✅ | ✅ |
-| **@folder context injection** | ✅ | ✅ |
-| **@terminal context injection** | ✅ | ✅ |
-| **@docs context (library docs)** | ❌ | ✅ |
-| **@file:path:N-M line-range context** | ✅ | ✅ |
-| **Chunk-level diff accept/reject** | ❌ | ✅ |
-| **Multiple chat tabs** | ✅ | ✅ |
-| **Per-chat model switching** | ✅ | ✅ |
-| **BYOK settings UI** | ✅ | ✅ |
-| **Linter integration (auto-fix after write)** | ❌ | ✅ |
-| **MCP server manager UI** | ✅ | ✅ |
-| **Passive context tracking (Flows)** | ✅ | ✅ |
-| **Named checkpoint descriptions** | ✅ | ✅ |
-| **Rules directory UI** | ✅ | ✅ |
+| Monaco code editor | Yes | Yes |
+| AI chat panel | Yes | Yes |
+| Agent panel | Yes | Yes |
+| File tree | Yes | Yes |
+| Terminal panel | Yes | Yes |
+| Git integration | Yes | Yes |
+| LSP support | Yes | Yes |
+| MCP client | Yes | Yes |
+| Hooks UI | Yes | Yes |
+| Multiple AI providers | Yes | Yes |
+| Voice input | Yes | No |
+| Background job persistence | Yes | No |
+| @web context | Yes | No |
+| Browser panel | Yes | No |
+| Artifact system | Yes | No |
+| Parallel agents (Manager view) | Yes | No |
+| **Inline chat / Cmd+K edit overlay** | Yes | Yes |
+| **Next-edit prediction (Tab ghost text)** | Yes | Yes |
+| **@symbol context (LSP-resolved)** | Yes | Yes |
+| **@codebase semantic search context** | Yes | Yes |
+| **@folder context injection** | Yes | Yes |
+| **@terminal context injection** | Yes | Yes |
+| **@docs context (library docs)** | No | Yes |
+| **@file:path:N-M line-range context** | Yes | Yes |
+| **Chunk-level diff accept/reject** | No | Yes |
+| **Multiple chat tabs** | Yes | Yes |
+| **Per-chat model switching** | Yes | Yes |
+| **BYOK settings UI** | Yes | Yes |
+| **Linter integration (auto-fix after write)** | No | Yes |
+| **MCP server manager UI** | Yes | Yes |
+| **Passive context tracking (Flows)** | Yes | Yes |
+| **Named checkpoint descriptions** | Yes | Yes |
+| **Rules directory UI** | Yes | Yes |
 
 ---
 
@@ -122,20 +122,20 @@
 
 | Feature | VibeUI | Windsurf |
 |---------|--------|----------|
-| AI agent with file tools | ✅ | ✅ |
-| Streaming responses | ✅ | ✅ |
-| File tree + editor | ✅ | ✅ |
-| Terminal | ✅ | ✅ |
-| Voice input | ✅ | ❌ |
-| Multi-agent orchestration | ✅ | ❌ |
-| MCP client | ✅ | ✅ |
-| Background jobs | ✅ | ❌ |
-| **Cascade (unified flow: chat + inline + terminal)** | ❌ | ✅ |
-| **Per-file AI awareness (Flows)** | ❌ | ✅ |
-| **Cloud-based agent execution** | ❌ | ✅ |
-| **Cross-file next-edit prediction** | ❌ | ✅ |
-| **Dual-scale codebase indexing** | ❌ | ✅ |
-| **Remote collaboration** | ❌ | ✅ |
+| AI agent with file tools | Yes | Yes |
+| Streaming responses | Yes | Yes |
+| File tree + editor | Yes | Yes |
+| Terminal | Yes | Yes |
+| Voice input | Yes | No |
+| Multi-agent orchestration | Yes | No |
+| MCP client | Yes | Yes |
+| Background jobs | Yes | No |
+| **Cascade (unified flow: chat + inline + terminal)** | No | Yes |
+| **Per-file AI awareness (Flows)** | No | Yes |
+| **Cloud-based agent execution** | No | Yes |
+| **Cross-file next-edit prediction** | No | Yes |
+| **Dual-scale codebase indexing** | No | Yes |
+| **Remote collaboration** | No | Yes |
 
 ---
 
@@ -145,7 +145,7 @@ These features VibeCody has that **none** of the competitors offer cleanly:
 
 | Feature | Notes |
 |---------|-------|
-| **Voice input in AI chat** | Web Speech API integration, 🎤 button, interim transcripts |
+| **Voice input in AI chat** | Web Speech API integration, button, interim transcripts |
 | **Multi-provider (17 providers)** | Ollama, Claude, OpenAI, Gemini, Grok, Groq, Mistral, DeepSeek + 9 more — Codex is OpenAI-only |
 | **HTTP daemon + Agent SDK** | `vibecli serve` + Node.js SDK — unique among CLI tools |
 | **OpenTelemetry tracing** | OTLP/HTTP export for observability-first teams |

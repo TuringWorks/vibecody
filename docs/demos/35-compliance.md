@@ -179,11 +179,11 @@ Example output file excerpt:
 **Overall Score:** 80% (12/15 controls passing)
 
 ## Security (3/3 Passing)
-### SEC-01: Access Control ✅
+### SEC-01: Access Control Yes
 - RBAC enforced for all users and agents
 - Evidence: audit log entries for PermChange actions
 
-### SEC-02: Encryption at Rest ✅
+### SEC-02: Encryption at Rest Yes
 - All data at rest encrypted with AES-256
 ...
 ```

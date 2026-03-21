@@ -78,39 +78,39 @@ VibeCody has closed **100% of identified competitive gaps** (all 92 original + a
 
 | # | Gap | Competitors | Effort | Impact |
 |---|-----|-------------|--------|--------|
-| 1 | ✅ **Cloud-isolated agent execution** | Cursor, Copilot, Codex, Devin | XL | Docker-based agent execution (cloud_agent.rs, `--cloud` flag) |
-| 2 | ✅ **Agent Teams (peer-to-peer)** | Claude Code | L | AgentTeam with TeamMessageBus (agent_team.rs, `/team` REPL) |
-| 3 | ✅ **CI-integrated AI review** | Cursor BugBot, Continue, Copilot | L | GitHub App webhook (github_app.rs, `/webhook/github` route) |
-| 4 | ✅ **Computer use / visual self-testing** | Cursor, Devin | XL | Screenshot capture + visual assertions (computer_use.rs, VisualTestPanel) |
+| 1 | Yes **Cloud-isolated agent execution** | Cursor, Copilot, Codex, Devin | XL | Docker-based agent execution (cloud_agent.rs, `--cloud` flag) |
+| 2 | Yes **Agent Teams (peer-to-peer)** | Claude Code | L | AgentTeam with TeamMessageBus (agent_team.rs, `/team` REPL) |
+| 3 | Yes **CI-integrated AI review** | Cursor BugBot, Continue, Copilot | L | GitHub App webhook (github_app.rs, `/webhook/github` route) |
+| 4 | Yes **Computer use / visual self-testing** | Cursor, Devin | XL | Screenshot capture + visual assertions (computer_use.rs, VisualTestPanel) |
 
 ### B.2 — High Priority (Strong differentiation)
 
 | # | Gap | Competitors | Effort | Impact |
 |---|-----|-------------|--------|--------|
-| 5 | ✅ **Agent Client Protocol (ACP)** | Zed, JetBrains, Cursor | M | ACP server (acp.rs, `/acp/v1/*` routes in serve.rs) |
-| 6 | ✅ **Plugin marketplace** | Claude Code, Copilot | M | Marketplace client (marketplace.rs, MarketplacePanel, `/marketplace` REPL) |
-| 7 | ✅ **HTTP hooks** | Claude Code | S | HookHandler::Http variant (hooks.rs, HooksPanel HTTP type) |
-| 8 | ✅ **Code transformation agent** (`/transform`) | Amazon Q, Devin | L | TransformType enum + AI plan/execute (transform.rs, `/transform` REPL) |
-| 9 | ✅ **Trace visualization dashboard** | Codex | M | TraceDashboard.tsx (timeline view, step filters, color-coded) |
+| 5 | Yes **Agent Client Protocol (ACP)** | Zed, JetBrains, Cursor | M | ACP server (acp.rs, `/acp/v1/*` routes in serve.rs) |
+| 6 | Yes **Plugin marketplace** | Claude Code, Copilot | M | Marketplace client (marketplace.rs, MarketplacePanel, `/marketplace` REPL) |
+| 7 | Yes **HTTP hooks** | Claude Code | S | HookHandler::Http variant (hooks.rs, HooksPanel HTTP type) |
+| 8 | Yes **Code transformation agent** (`/transform`) | Amazon Q, Devin | L | TransformType enum + AI plan/execute (transform.rs, `/transform` REPL) |
+| 9 | Yes **Trace visualization dashboard** | Codex | M | TraceDashboard.tsx (timeline view, step filters, color-coded) |
 
 ### B.3 — Medium Priority (Polish & differentiation)
 
 | # | Gap | Competitors | Effort | Impact |
 |---|-----|-------------|--------|--------|
-| 10 | ✅ **Mermaid/diagram rendering in CLI** | Cursor | S | mermaid_ascii.rs (graph/flowchart/sequence, 21 tests) |
-| 11 | ✅ **Interactive UI in agent responses** | Cursor | M | AgentUIRenderer.tsx (buttons/form/table blocks) |
-| 12 | ✅ **AI checks as CI quality gate** | Continue.dev | M | GitHub Action (.github/actions/vibecli-review/action.yml) |
-| 13 | ✅ **Open next-edit model (Instinct-like)** | Continue (Instinct 7B) | M | LocalEditProvider (local_edit.rs, Ollama FIM) |
-| 14 | ✅ **Visual edit mode (click-to-modify)** | Lovable, Bolt v2 | S | VisualEditOverlay.tsx (enhanced BrowserPanel inspect) |
-| 15 | ✅ **Full-stack app generation from screenshot** | v0, Bolt, Lovable | L | ScreenshotToApp.tsx + generate_app_from_image Tauri cmd |
+| 10 | Yes **Mermaid/diagram rendering in CLI** | Cursor | S | mermaid_ascii.rs (graph/flowchart/sequence, 21 tests) |
+| 11 | Yes **Interactive UI in agent responses** | Cursor | M | AgentUIRenderer.tsx (buttons/form/table blocks) |
+| 12 | Yes **AI checks as CI quality gate** | Continue.dev | M | GitHub Action (.github/actions/vibecli-review/action.yml) |
+| 13 | Yes **Open next-edit model (Instinct-like)** | Continue (Instinct 7B) | M | LocalEditProvider (local_edit.rs, Ollama FIM) |
+| 14 | Yes **Visual edit mode (click-to-modify)** | Lovable, Bolt v2 | S | VisualEditOverlay.tsx (enhanced BrowserPanel inspect) |
+| 15 | Yes **Full-stack app generation from screenshot** | v0, Bolt, Lovable | L | ScreenshotToApp.tsx + generate_app_from_image Tauri cmd |
 
 ### B.4 — Low Priority (Future consideration)
 
 | # | Gap | Competitors | Effort | Impact |
 |---|-----|-------------|--------|--------|
-| 16 | ✅ **Internet-disabled sandbox mode** | Codex | M | `--no-network` flag, OS-level isolation (sandbox-exec/unshare) |
-| 17 | ✅ **Agent screen recording** | Cursor, Devin | M | screen_recorder.rs + `--record` flag |
-| 18 | ✅ **Compliance certifications** | Amazon Q, Copilot | XL | compliance.rs (SOC2/FedRAMP reports, CompliancePanel) |
+| 16 | Yes **Internet-disabled sandbox mode** | Codex | M | `--no-network` flag, OS-level isolation (sandbox-exec/unshare) |
+| 17 | Yes **Agent screen recording** | Cursor, Devin | M | screen_recorder.rs + `--record` flag |
+| 18 | Yes **Compliance certifications** | Amazon Q, Copilot | XL | compliance.rs (SOC2/FedRAMP reports, CompliancePanel) |
 
 ---
 
@@ -133,7 +133,7 @@ VibeCody is **ahead of most competitors** in several areas:
 
 ---
 
-## Part D: Implementation Status — ALL 18 GAPS CLOSED ✅
+## Part D: Implementation Status — ALL 18 GAPS CLOSED Yes
 
 All 18 gaps implemented as Phases 8.1–8.18. Key files created:
 

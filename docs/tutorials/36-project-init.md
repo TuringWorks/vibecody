@@ -38,7 +38,7 @@ vibecli
 Output:
 
 ```
-🔍 Scanning project...
+Scanning project...
 
 Project: my-saas-app
   A full-stack SaaS application with auth and billing.
@@ -64,7 +64,7 @@ Expected env vars: DATABASE_URL, STRIPE_SECRET_KEY, JWT_SECRET
 
 Key files: README.md (readme), Dockerfile (Dockerfile), .github/workflows/ci.yml (CI config)
 
-✅ Project profile cached to .vibecli/project-profile.json
+Yes Project profile cached to .vibecli/project-profile.json
    This context will be auto-injected into every agent session.
 ```
 
