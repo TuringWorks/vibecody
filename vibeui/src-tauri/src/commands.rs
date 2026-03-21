@@ -31007,7 +31007,98 @@ pub async fn vulnscan_scan_file(file_path: String, content: String) -> Result<se
     Ok(serde_json::json!({ "findings": findings, "count": findings.len() }))
 }
 
-/// Get scanner capabilities.
+/// Get the expected tools for an installed MCP plugin by ID.
+#[tauri::command]
+pub async fn get_mcp_plugin_tools(plugin_id: String) -> Result<serde_json::Value, String> {
+    // Map of plugin IDs to their known tools
+    let tools: Vec<serde_json::Value> = match plugin_id.as_str() {
+        "mcp-filesystem" => vec!["read_file", "write_file", "move_file", "delete_file", "list_directory", "search_files", "get_file_info", "create_directory"]
+            .into_iter().map(|t| serde_json::json!({"name": t, "description": format!("{} operation", t.replace('_', " "))})).collect(),
+        "mcp-github" => vec!["create_issue", "list_issues", "get_issue", "create_pull_request", "list_pulls", "merge_pull", "search_code", "get_repo", "list_branches", "create_branch", "push_files", "list_commits"]
+            .into_iter().map(|t| serde_json::json!({"name": t, "description": format!("GitHub {}", t.replace('_', " "))})).collect(),
+        "mcp-git" => vec!["git_status", "git_diff", "git_log", "git_commit", "git_branch", "git_checkout", "git_add", "git_reset", "git_stash", "git_merge"]
+            .into_iter().map(|t| serde_json::json!({"name": t, "description": format!("{}", t.replace('_', " "))})).collect(),
+        "mcp-postgres" | "mcp-sqlite" | "mcp-mysql" => vec!["query", "list_tables", "describe_table", "list_schemas"]
+            .into_iter().map(|t| serde_json::json!({"name": t, "description": format!("Database {}", t.replace('_', " "))})).collect(),
+        "mcp-slack" => vec!["send_message", "list_channels", "search_messages", "upload_file", "list_users", "get_channel_history"]
+            .into_iter().map(|t| serde_json::json!({"name": t, "description": format!("Slack {}", t.replace('_', " "))})).collect(),
+        "mcp-docker" => vec!["list_containers", "start_container", "stop_container", "container_logs", "exec_in_container", "list_images", "pull_image", "compose_up", "compose_down"]
+            .into_iter().map(|t| serde_json::json!({"name": t, "description": format!("Docker {}", t.replace('_', " "))})).collect(),
+        "mcp-kubernetes" => vec!["list_pods", "get_pod", "list_deployments", "scale_deployment", "get_logs", "list_services", "apply_manifest", "delete_resource", "list_namespaces"]
+            .into_iter().map(|t| serde_json::json!({"name": t, "description": format!("K8s {}", t.replace('_', " "))})).collect(),
+        "mcp-fetch" => vec!["fetch_url", "fetch_markdown", "fetch_html"]
+            .into_iter().map(|t| serde_json::json!({"name": t, "description": format!("{}", t.replace('_', " "))})).collect(),
+        "mcp-memory" => vec!["create_entities", "create_relations", "search_nodes", "open_nodes", "read_graph", "add_observations", "delete_entities"]
+            .into_iter().map(|t| serde_json::json!({"name": t, "description": format!("Knowledge graph {}", t.replace('_', " "))})).collect(),
+        "mcp-brave-search" => vec!["web_search", "local_search"]
+            .into_iter().map(|t| serde_json::json!({"name": t, "description": format!("Brave {}", t.replace('_', " "))})).collect(),
+        "mcp-puppeteer" | "mcp-playwright" => vec!["navigate", "screenshot", "click", "fill", "evaluate", "get_content", "wait_for_selector"]
+            .into_iter().map(|t| serde_json::json!({"name": t, "description": format!("Browser {}", t.replace('_', " "))})).collect(),
+        "mcp-notion" => vec!["search", "get_page", "create_page", "update_page", "list_databases", "query_database", "create_database_item"]
+            .into_iter().map(|t| serde_json::json!({"name": t, "description": format!("Notion {}", t.replace('_', " "))})).collect(),
+        "mcp-linear" => vec!["create_issue", "list_issues", "update_issue", "list_projects", "list_teams", "search_issues"]
+            .into_iter().map(|t| serde_json::json!({"name": t, "description": format!("Linear {}", t.replace('_', " "))})).collect(),
+        "mcp-redis" => vec!["get", "set", "del", "keys", "hget", "hset", "lpush", "lrange", "subscribe", "publish"]
+            .into_iter().map(|t| serde_json::json!({"name": t, "description": format!("Redis {}", t)})).collect(),
+        "mcp-mongodb" => vec!["find", "insert_one", "update_one", "delete_one", "aggregate", "list_collections", "create_index"]
+            .into_iter().map(|t| serde_json::json!({"name": t, "description": format!("MongoDB {}", t.replace('_', " "))})).collect(),
+        "mcp-sentry" => vec!["list_issues", "get_issue", "list_events", "search_issues", "list_releases"]
+            .into_iter().map(|t| serde_json::json!({"name": t, "description": format!("Sentry {}", t.replace('_', " "))})).collect(),
+        "mcp-grafana" => vec!["list_dashboards", "get_dashboard", "search_dashboards", "list_datasources", "list_alerts", "get_alert"]
+            .into_iter().map(|t| serde_json::json!({"name": t, "description": format!("Grafana {}", t.replace('_', " "))})).collect(),
+        "mcp-terraform" => vec!["plan", "apply", "show_state", "list_resources", "init", "validate", "output"]
+            .into_iter().map(|t| serde_json::json!({"name": t, "description": format!("Terraform {}", t.replace('_', " "))})).collect(),
+        "mcp-cloudflare" => vec!["list_zones", "list_workers", "deploy_worker", "kv_get", "kv_put", "d1_query", "r2_list", "dns_list_records"]
+            .into_iter().map(|t| serde_json::json!({"name": t, "description": format!("Cloudflare {}", t.replace('_', " "))})).collect(),
+        "mcp-stripe" => vec!["create_charge", "list_charges", "create_customer", "list_customers", "create_subscription", "list_invoices", "create_refund"]
+            .into_iter().map(|t| serde_json::json!({"name": t, "description": format!("Stripe {}", t.replace('_', " "))})).collect(),
+        "mcp-jira" => vec!["create_issue", "get_issue", "search_issues", "transition_issue", "add_comment", "list_projects", "list_sprints"]
+            .into_iter().map(|t| serde_json::json!({"name": t, "description": format!("Jira {}", t.replace('_', " "))})).collect(),
+        "mcp-semgrep" => vec!["scan_file", "scan_directory", "list_rules", "apply_fix"]
+            .into_iter().map(|t| serde_json::json!({"name": t, "description": format!("Semgrep {}", t.replace('_', " "))})).collect(),
+        "mcp-snyk" => vec!["code_scan", "sca_scan", "iac_scan", "container_scan", "sbom_scan", "auth_status"]
+            .into_iter().map(|t| serde_json::json!({"name": t, "description": format!("Snyk {}", t.replace('_', " "))})).collect(),
+        "mcp-figma" => vec!["get_file", "list_components", "get_styles", "export_images", "list_comments", "get_team_projects"]
+            .into_iter().map(|t| serde_json::json!({"name": t, "description": format!("Figma {}", t.replace('_', " "))})).collect(),
+        "mcp-supabase" => vec!["query", "insert", "update", "delete", "list_tables", "rpc", "storage_upload", "auth_list_users"]
+            .into_iter().map(|t| serde_json::json!({"name": t, "description": format!("Supabase {}", t.replace('_', " "))})).collect(),
+        "mcp-vercel" => vec!["list_projects", "list_deployments", "create_deployment", "get_domains", "list_env_vars"]
+            .into_iter().map(|t| serde_json::json!({"name": t, "description": format!("Vercel {}", t.replace('_', " "))})).collect(),
+        "mcp-datadog" => vec!["query_metrics", "list_monitors", "create_monitor", "list_dashboards", "search_logs", "list_incidents"]
+            .into_iter().map(|t| serde_json::json!({"name": t, "description": format!("Datadog {}", t.replace('_', " "))})).collect(),
+        "mcp-sequential-thinking" => vec!["create_thought", "revise_thought", "branch_thought", "summarize"]
+            .into_iter().map(|t| serde_json::json!({"name": t, "description": format!("{}", t.replace('_', " "))})).collect(),
+        "mcp-exa" => vec!["search", "find_similar", "get_contents", "get_highlights"]
+            .into_iter().map(|t| serde_json::json!({"name": t, "description": format!("Exa {}", t.replace('_', " "))})).collect(),
+        "mcp-google-drive" => vec!["search_files", "read_file", "list_files"]
+            .into_iter().map(|t| serde_json::json!({"name": t, "description": format!("Google Drive {}", t.replace('_', " "))})).collect(),
+        _ => {
+            // Generic tools based on category
+            let catalog = mcp_directory_catalog();
+            let cat = catalog.iter()
+                .find(|p| p.get("id").and_then(|v| v.as_str()) == Some(&plugin_id))
+                .and_then(|p| p.get("category").and_then(|v| v.as_str()))
+                .unwrap_or("Cloud");
+            match cat {
+                "Databases" => vec!["query", "list_tables", "describe"]
+                    .into_iter().map(|t| serde_json::json!({"name": t, "description": format!("Database {}", t)})).collect(),
+                "DevOps" => vec!["status", "deploy", "logs", "list"]
+                    .into_iter().map(|t| serde_json::json!({"name": t, "description": format!("{}", t)})).collect(),
+                "Communication" => vec!["send", "search", "list"]
+                    .into_iter().map(|t| serde_json::json!({"name": t, "description": format!("{}", t)})).collect(),
+                _ => vec!["invoke"]
+                    .into_iter().map(|t| serde_json::json!({"name": t, "description": "Invoke plugin operation"})).collect(),
+            }
+        }
+    };
+
+    Ok(serde_json::json!({
+        "plugin_id": plugin_id,
+        "tools": tools,
+        "count": tools.len(),
+    }))
+}
+
 #[tauri::command]
 pub async fn vulnscan_status() -> Result<serde_json::Value, String> {
     Ok(serde_json::json!({

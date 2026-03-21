@@ -935,6 +935,8 @@ pub fn run() {
             commands::openmemory_consolidate,
             commands::openmemory_export,
             commands::openmemory_enable_encryption,
+            // MCP Plugin Tools
+            commands::get_mcp_plugin_tools,
             // Vulnerability Scanner
             commands::vulnscan_scan_deps,
             commands::vulnscan_scan_file,

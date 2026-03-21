@@ -58,7 +58,7 @@ const barFill = (pct: number, color: string): React.CSSProperties => ({ height: 
 const badgeStyle = (v: string): React.CSSProperties => ({ display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 600, color: "#fff", background: v === "loaded" ? "var(--success-color)" : v === "loading" ? "var(--warning-color)" : "var(--text-muted)" });
 
 const EMPTY_SERVER: McpServer = { name: "", command: "", args: [], env: {} };
-const CATEGORIES = ["All", "File Systems", "Git", "Databases", "Cloud", "AI/ML", "Testing", "DevOps", "Communication"];
+const CATEGORIES = ["All", "File Systems", "Git", "Databases", "Cloud", "AI/ML", "Testing", "DevOps", "Communication", "Security", "Code Quality", "Finance", "Design", "Utilities"];
 
 const renderStars = (r: number): string => "★".repeat(Math.floor(r)) + (r - Math.floor(r) >= 0.5 ? "½" : "") + "☆".repeat(5 - Math.floor(r) - (r - Math.floor(r) >= 0.5 ? 1 : 0));
 const formatDl = (n: number): string => n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
@@ -113,9 +113,19 @@ export function McpPanel() {
   const [catFilter, setCatFilter] = useState("All");
   const [dirLoading, setDirLoading] = useState(false);
   const [pluginAction, setPluginAction] = useState<string | null>(null);
+  // Plugin tools expansion state
+  const [expandedPlugin, setExpandedPlugin] = useState<string | null>(null);
+  const [pluginTools, setPluginTools] = useState<Record<string, { name: string; description: string }[]>>({});
 
   // ── Load data ─────────────────────────────────────────────────────────────
-  useEffect(() => { loadServers(); }, []);
+  // Load servers and plugins on mount (not lazily on tab switch)
+  useEffect(() => {
+    loadServers();
+    // Pre-load directory so tab counts are correct on first render
+    invoke<{ plugins: McpPlugin[]; total: number }>("list_mcp_plugins")
+      .then(r => setPlugins(r.plugins ?? []))
+      .catch(() => {});
+  }, []);
 
   async function loadServers() {
     try { setServers(await invoke<McpServer[]>("get_mcp_servers")); }
@@ -310,11 +320,20 @@ export function McpPanel() {
 
       {/* Tab bar */}
       <div style={{ marginBottom: 12, display: "flex", flexWrap: "wrap", gap: 2 }} role="tablist">
-        {(["servers", "tools", "directory", "installed", "metrics"] as Tab[]).map(t => (
-          <button key={t} role="tab" aria-selected={tab === t} style={tabBtnStyle(tab === t)} onClick={() => setTab(t)}>
-            {t === "servers" ? `Servers (${servers.length})` : t === "tools" ? `Tools (${manifests.length})` : t === "directory" ? `Directory (${plugins.length})` : t === "installed" ? `Installed (${plugins.filter(p => p.installed).length})` : "Metrics"}
-          </button>
-        ))}
+        {(["servers", "tools", "directory", "installed", "metrics"] as Tab[]).map(t => {
+          const allToolsCount = BUILTIN_TOOLS.length + Object.values(serverTools).flat().length + manifests.length;
+          const installedCount = plugins.filter(p => p.installed).length;
+          const label = t === "servers" ? `Servers (${servers.length})`
+            : t === "tools" ? `Tools (${allToolsCount})`
+            : t === "directory" ? `Directory (${plugins.length})`
+            : t === "installed" ? `Installed (${installedCount})`
+            : "Metrics";
+          return (
+            <button key={t} role="tab" aria-selected={tab === t} style={tabBtnStyle(tab === t)} onClick={() => setTab(t)}>
+              {label}
+            </button>
+          );
+        })}
       </div>
 
       {/* ── SERVERS TAB ──────────────────────────────────────────────────────── */}
@@ -533,6 +552,99 @@ export function McpPanel() {
                           {totalCount === 0 && (
                             <div style={{ ...cardStyle, marginLeft: 8, fontSize: 12, color: "var(--text-secondary)" }}>
                               {serverToolsLoading ? "Connecting to server..." : "No tools discovered. Server may be offline."}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </>
+                );
+              })()}
+
+              {/* Installed Plugin Tools — click to expand and show tools */}
+              {(() => {
+                const installed = plugins.filter(p => p.installed);
+                if (installed.length === 0) return null;
+
+                const togglePlugin = async (pluginId: string) => {
+                  if (expandedPlugin === pluginId) {
+                    setExpandedPlugin(null);
+                    return;
+                  }
+                  setExpandedPlugin(pluginId);
+                  // Fetch tools if not cached
+                  if (!pluginTools[pluginId]) {
+                    try {
+                      const result = await invoke<{ tools: { name: string; description: string }[] }>("get_mcp_plugin_tools", { pluginId });
+                      setPluginTools(prev => ({ ...prev, [pluginId]: result.tools ?? [] }));
+                    } catch {
+                      setPluginTools(prev => ({ ...prev, [pluginId]: [] }));
+                    }
+                  }
+                };
+
+                return (
+                  <>
+                    <div style={{ fontSize: 12, fontWeight: 600, margin: "16px 0 6px", color: "var(--text-secondary)" }}>
+                      INSTALLED PLUGINS ({installed.length}) — click to see tools
+                    </div>
+                    {installed.map(p => {
+                      const isExpanded = expandedPlugin === p.id;
+                      const tools = pluginTools[p.id] ?? [];
+                      return (
+                        <div key={`plugin-${p.id}`}>
+                          <div
+                            onClick={() => togglePlugin(p.id)}
+                            style={{
+                              ...cardStyle,
+                              display: "flex", justifyContent: "space-between", alignItems: "center",
+                              borderLeft: `3px solid ${isExpanded ? "var(--accent-primary)" : "var(--success-color)"}`,
+                              cursor: "pointer",
+                              marginBottom: isExpanded ? 0 : undefined,
+                              borderBottomLeftRadius: isExpanded ? 0 : undefined,
+                              borderBottomRightRadius: isExpanded ? 0 : undefined,
+                            }}
+                          >
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontWeight: 600 }}>
+                                <span style={{ marginRight: 6, fontSize: 10 }}>{isExpanded ? "▼" : "▶"}</span>
+                                {p.name} <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>v{p.version}</span>
+                                {tools.length > 0 && <span style={{ fontSize: 10, color: "var(--text-secondary)", marginLeft: 8 }}>({tools.length} tools)</span>}
+                              </div>
+                              <div style={labelStyle}>{p.description}</div>
+                            </div>
+                            <span style={badgeStyle("loaded")}>installed</span>
+                          </div>
+                          {isExpanded && (
+                            <div style={{
+                              background: "var(--bg-secondary)",
+                              borderRadius: "0 0 6px 6px",
+                              border: "1px solid var(--border-color)",
+                              borderTop: "none",
+                              marginBottom: 10,
+                              padding: "4px 0",
+                            }}>
+                              {tools.length === 0 ? (
+                                <div style={{ padding: "8px 16px", fontSize: 12, color: "var(--text-secondary)" }}>Loading tools...</div>
+                              ) : (
+                                tools.map(t => (
+                                  <div key={t.name} style={{
+                                    padding: "6px 16px 6px 28px",
+                                    display: "flex", justifyContent: "space-between", alignItems: "center",
+                                    borderBottom: "1px solid var(--border-color)",
+                                    fontSize: 12,
+                                  }}>
+                                    <div>
+                                      <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--accent-primary)" }}>{t.name}</span>
+                                      <span style={{ marginLeft: 8, color: "var(--text-secondary)" }}>{t.description}</span>
+                                    </div>
+                                    <span style={badgeStyle("loaded")}>available</span>
+                                  </div>
+                                ))
+                              )}
+                              <div style={{ padding: "6px 16px", fontSize: 10, color: "var(--text-secondary)" }}>
+                                Config: <span style={{ fontFamily: "var(--font-mono)" }}>~/.vibecli/mcp/{p.id}/config.json</span>
+                              </div>
                             </div>
                           )}
                         </div>
