@@ -1826,18 +1826,34 @@ async fn process_tool_calls(response: &str, workspace_lock: &Arc<Mutex<Workspace
     let ws_root_str = ws_root.to_string_lossy().to_string();
     drop(workspace);
 
+    // Security: block dangerous commands extracted from AI responses
+    let is_ai_cmd_blocked = |cmd: &str| -> bool {
+        let lower = cmd.to_lowercase();
+        let blocked = [
+            "rm -rf /", "rm -rf ~", "rm -rf /*", "mkfs", "dd if=", ":(){ :|:& };:",
+            "poweroff", "reboot", "halt", "shutdown", "chmod -r 777 /",
+            "curl -d", "wget --post-data", "/dev/tcp/", "base64 -d|sh",
+            "base64 -d | sh", "> /dev/sd", "iptables", "crontab",
+        ];
+        blocked.iter().any(|p| lower.contains(p))
+    };
+
     // Process <build /> and <build command="..." /> tags
     if let Some(start) = response.find("<build command=\"") {
         if let Some(end) = response[start..].find("\" />") {
             let cmd = &response[start + 16..start + end];
-            match std::process::Command::new("sh").arg("-c").arg(cmd).current_dir(&ws_root_str).output() {
-                Ok(o) => {
-                    let text = String::from_utf8_lossy(&o.stdout).to_string() + &String::from_utf8_lossy(&o.stderr);
-                    let status = if o.status.success() { "succeeded" } else { "failed" };
-                    let truncated: String = text.chars().take(3000).collect();
-                    output.push_str(&format!("Build {} (exit {}):\n{}\n", status, o.status.code().unwrap_or(-1), truncated));
+            if is_ai_cmd_blocked(cmd) {
+                output.push_str(&format!("Build blocked: dangerous command '{}'\n", cmd));
+            } else {
+                match std::process::Command::new("sh").arg("-c").arg(cmd).current_dir(&ws_root_str).output() {
+                    Ok(o) => {
+                        let text = String::from_utf8_lossy(&o.stdout).to_string() + &String::from_utf8_lossy(&o.stderr);
+                        let status = if o.status.success() { "succeeded" } else { "failed" };
+                        let truncated: String = text.chars().take(3000).collect();
+                        output.push_str(&format!("Build {} (exit {}):\n{}\n", status, o.status.code().unwrap_or(-1), truncated));
+                    }
+                    Err(e) => output.push_str(&format!("Build failed to start: {}\n", e)),
                 }
-                Err(e) => output.push_str(&format!("Build failed to start: {}\n", e)),
             }
         }
     } else if response.contains("<build />") || response.contains("<build/>") {
@@ -1867,14 +1883,18 @@ async fn process_tool_calls(response: &str, workspace_lock: &Arc<Mutex<Workspace
             if let Some(end) = response[start..].find("\" />") {
                 let cmd = response[start + run_cmd_tag.len()..start + end].to_string();
                 found_run_cmd = true;
-                match std::process::Command::new("sh").arg("-c").arg(&cmd).current_dir(&ws_root_str).output() {
-                    Ok(o) => {
-                        let text = String::from_utf8_lossy(&o.stdout).to_string() + &String::from_utf8_lossy(&o.stderr);
-                        let status = if o.status.success() { "completed" } else { "failed" };
-                        let truncated: String = text.chars().take(3000).collect();
-                        output.push_str(&format!("$ {} — {} (exit {}):\n{}\n", cmd, status, o.status.code().unwrap_or(-1), truncated));
+                if is_ai_cmd_blocked(&cmd) {
+                    output.push_str(&format!("$ {} — blocked: dangerous command\n", cmd));
+                } else {
+                    match std::process::Command::new("sh").arg("-c").arg(&cmd).current_dir(&ws_root_str).output() {
+                        Ok(o) => {
+                            let text = String::from_utf8_lossy(&o.stdout).to_string() + &String::from_utf8_lossy(&o.stderr);
+                            let status = if o.status.success() { "completed" } else { "failed" };
+                            let truncated: String = text.chars().take(3000).collect();
+                            output.push_str(&format!("$ {} — {} (exit {}):\n{}\n", cmd, status, o.status.code().unwrap_or(-1), truncated));
+                        }
+                        Err(e) => output.push_str(&format!("$ {} — failed to start: {}\n", cmd, e)),
                     }
-                    Err(e) => output.push_str(&format!("$ {} — failed to start: {}\n", cmd, e)),
                 }
                 run_from = start + end + 4;
             } else {
@@ -7154,6 +7174,22 @@ pub async fn query_db(
 }
 
 fn query_sqlite(path: &str, sql: &str) -> Result<QueryResult, String> {
+    // Security: block SQLite dot-commands that can execute system commands
+    let sql_trimmed = sql.trim().to_lowercase();
+    let blocked_dot_cmds = [
+        ".shell", ".system", ".import", ".load", ".output", ".once",
+        ".log", ".open", ".save", ".backup", ".restore", ".clone",
+    ];
+    for dot_cmd in &blocked_dot_cmds {
+        if sql_trimmed.contains(dot_cmd) {
+            return Err(format!("Blocked: SQLite dot-command '{}' not allowed for security", dot_cmd));
+        }
+    }
+    // Also block ATTACH DATABASE which can access arbitrary files
+    if sql_trimmed.contains("attach") && sql_trimmed.contains("database") {
+        return Err("Blocked: ATTACH DATABASE not allowed for security".to_string());
+    }
+
     let output = std::process::Command::new("sqlite3")
         .arg("-json")
         .arg(path)
@@ -8326,14 +8362,17 @@ pub async fn create_collab_session(
     daemon_port: Option<u16>,
 ) -> Result<CollabSessionInfo, String> {
     let port = daemon_port.unwrap_or(7878);
-    let room = room_id.unwrap_or_else(|| format!("{:016x}", rand::random::<u64>()));
-    let ws_url = format!("ws://127.0.0.1:{port}/ws/collab/{room}");
+    // Use 128-bit random IDs (two u64s) for stronger unguessability
+    let room = room_id.unwrap_or_else(|| format!("{:016x}{:016x}", rand::random::<u64>(), rand::random::<u64>()));
+    // Generate a session token for authentication (shared out-of-band with collaborators)
+    let session_token = format!("{:016x}{:016x}", rand::random::<u64>(), rand::random::<u64>());
+    let ws_url = format!("ws://127.0.0.1:{port}/ws/collab/{room}?token={session_token}");
     Ok(CollabSessionInfo {
         room_id: room,
-        peer_id: format!("{:016x}", rand::random::<u64>()),
+        peer_id: format!("{:016x}{:016x}", rand::random::<u64>(), rand::random::<u64>()),
         ws_url,
         peers: vec![CollabPeerInfo {
-            peer_id: format!("{:016x}", rand::random::<u64>()),
+            peer_id: format!("{:016x}{:016x}", rand::random::<u64>(), rand::random::<u64>()),
             name: user_name,
             color: "#61afef".to_string(),
         }],
@@ -14116,8 +14155,11 @@ pub async fn run_project_script(
 
     // Safety: block destructive shell patterns
     const BLOCKED: &[&str] = &[
-        "rm -rf /", "rm -rf ~", ":(){:|:&};:", "dd if=/dev/zero",
-        "mkfs", "shutdown", "reboot", "halt",
+        "rm -rf /", "rm -rf ~", "rm -rf /*", ":(){:|:&};:", "dd if=/dev/zero",
+        "mkfs", "shutdown", "reboot", "halt", "poweroff",
+        "chmod -r 777 /", "curl -d", "wget --post-data",
+        "/dev/tcp/", "base64 -d|sh", "base64 -d | sh",
+        "> /dev/sd", "iptables", "crontab",
     ];
     let cmd_lower = command.to_lowercase();
     for pat in BLOCKED {

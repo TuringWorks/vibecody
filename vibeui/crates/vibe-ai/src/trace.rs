@@ -130,11 +130,12 @@ impl TraceWriter {
     }
 
     /// Persist the agent context snapshot for this session.
+    /// Secrets are scrubbed before writing (same as save_messages).
     pub fn save_context(&self, ctx: &AgentContext) -> std::io::Result<()> {
         let path = self.context_path();
         let json = serde_json::to_string_pretty(ctx)
             .map_err(std::io::Error::other)?;
-        fs::write(path, json)
+        fs::write(path, redact_secrets(&json))
     }
 
     fn messages_path(&self) -> PathBuf {

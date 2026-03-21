@@ -144,6 +144,23 @@ impl CommandExecutor {
                 r"chmod\s+(-[a-zA-Z]*R[a-zA-Z]*\s+)?777\s+/\s*$",
                 // Wiping commands
                 r"shred\s+.*\s+/",
+                // Shutdown/reboot
+                r"(?i)\b(poweroff|reboot|halt|shutdown)\b",
+                // Reverse shells and exfiltration
+                r"/dev/tcp/",
+                r"(?i)\bnc\s+.*-e\b",
+                r"(?i)\bncat\s+.*-e\b",
+                // Encoded execution
+                r"base64\s+-d\s*\|\s*sh",
+                r"base64\s+-d\s*\|\s*bash",
+                // crontab persistence
+                r"(?i)\bcrontab\b",
+                // Firewall manipulation
+                r"(?i)\biptables\b",
+                r"(?i)\bufw\b",
+                // curl/wget POST exfiltration
+                r"curl\s+.*-d\s",
+                r"wget\s+.*--post-data",
             ]
             .iter()
             .filter_map(|p| regex::Regex::new(p).ok())

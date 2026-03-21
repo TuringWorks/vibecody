@@ -142,18 +142,17 @@ impl std::fmt::Display for KeyFileRole {
 
 /// Scan a workspace and build a comprehensive project profile.
 pub fn scan_workspace(workspace: &Path) -> ProjectProfile {
-    let mut profile = ProjectProfile::default();
-
-    // Basic identity
-    profile.name = workspace
-        .file_name()
-        .map(|n| n.to_string_lossy().to_string())
-        .unwrap_or_else(|| "project".to_string());
-
-    profile.scanned_at = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs();
+    let mut profile = ProjectProfile {
+        name: workspace
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_else(|| "project".to_string()),
+        scanned_at: std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs(),
+        ..Default::default()
+    };
 
     // Detect languages, frameworks, build/test/lint commands
     detect_rust(workspace, &mut profile);
@@ -649,21 +648,17 @@ fn detect_architecture(workspace: &Path, profile: &mut ProjectProfile) {
     }
 
     // CLI tool signals
-    if workspace.join("src/main.rs").exists()
+    let has_binary_entry = workspace.join("src/main.rs").exists()
         || workspace.join("cmd/").exists()
-        || workspace.join("bin/").exists()
-    {
-        if !workspace.join("src/App.tsx").exists()
-            && !workspace.join("src/App.jsx").exists()
-            && !workspace.join("src/index.html").exists()
-            && !workspace.join("public/index.html").exists()
-        {
-            // Has binary entry but no frontend — likely CLI
-            if profile.languages.len() == 1 {
-                profile.architecture = ProjectArchitecture::CLITool;
-                return;
-            }
-        }
+        || workspace.join("bin/").exists();
+    let has_frontend_files = workspace.join("src/App.tsx").exists()
+        || workspace.join("src/App.jsx").exists()
+        || workspace.join("src/index.html").exists()
+        || workspace.join("public/index.html").exists();
+
+    if has_binary_entry && !has_frontend_files && profile.languages.len() == 1 {
+        profile.architecture = ProjectArchitecture::CLITool;
+        return;
     }
 
     // Full-stack signals
@@ -1003,7 +998,7 @@ pub fn save_profile_cache(workspace: &Path, profile: &ProjectProfile) -> std::io
     let dir = workspace.join(".vibecli");
     std::fs::create_dir_all(&dir)?;
     let content = serde_json::to_string_pretty(profile)
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+        .map_err(std::io::Error::other)?;
     std::fs::write(dir.join("project-profile.json"), content)
 }
 

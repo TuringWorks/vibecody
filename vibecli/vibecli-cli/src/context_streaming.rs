@@ -331,7 +331,7 @@ impl ContextStreamingEngine {
 
     /// Estimate token count (~4 characters per token).
     pub fn estimate_tokens(text: &str) -> usize {
-        (text.len() + 3) / 4
+        text.len().div_ceil(4)
     }
 
     // -- Segment CRUD --------------------------------------------------------
@@ -422,7 +422,7 @@ impl ContextStreamingEngine {
         }
         // Find a clean break point near the target.
         let end = content[..target_chars]
-            .rfind(|c: char| c == '.' || c == '\n')
+            .rfind(['.', '\n'])
             .unwrap_or(target_chars);
         let mut s = content[..end].to_string();
         s.push_str("...");

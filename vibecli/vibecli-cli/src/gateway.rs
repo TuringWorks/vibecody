@@ -1060,7 +1060,7 @@ pub async fn run_channel_daemon(
         iteration += 1;
 
         // Periodic health log
-        if iteration % 150 == 0 { // Every ~5 minutes at 2s interval
+        if iteration.is_multiple_of(150) { // Every ~5 minutes at 2s interval
             let engine = automation_engine.lock().await;
             let stats = engine.stats();
             eprintln!(

@@ -105,7 +105,7 @@ impl ChannelType {
 // ---------------------------------------------------------------------------
 
 /// Filters which events a channel should process.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct EventFilter {
     /// Whitelist of event types to process (empty = allow all).
     pub event_types: Vec<String>,
@@ -117,11 +117,7 @@ pub struct EventFilter {
 
 impl EventFilter {
     pub fn new() -> Self {
-        Self {
-            event_types: Vec::new(),
-            keywords: Vec::new(),
-            exclude_patterns: Vec::new(),
-        }
+        Self::default()
     }
 
     /// Returns `true` if the event passes the filter.

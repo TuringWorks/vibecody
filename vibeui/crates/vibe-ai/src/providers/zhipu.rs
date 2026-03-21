@@ -135,53 +135,37 @@ impl ZhipuProvider {
     }
 }
 
-/// Minimal HMAC-SHA256 implementation (avoids adding hmac/sha2 crates).
+/// HMAC-SHA256 using the audited `hmac` + `sha2` crates (same as bedrock.rs).
+/// Replaces the previous hand-rolled implementation.
 struct HmacSha256 {
-    inner_key: [u8; 64],
-    outer_key: [u8; 64],
-    data: Vec<u8>,
+    mac: hmac::Hmac<sha2::Sha256>,
 }
 
 impl HmacSha256 {
     fn new(key: &[u8]) -> Self {
-        let mut padded_key = [0u8; 64];
-        if key.len() > 64 {
-            // SHA-256 hash the key if too long
-            let hash = sha256(key);
-            padded_key[..32].copy_from_slice(&hash);
-        } else {
-            padded_key[..key.len()].copy_from_slice(key);
+        use hmac::Mac;
+        Self {
+            mac: hmac::Hmac::<sha2::Sha256>::new_from_slice(key)
+                .expect("HMAC can take key of any size"),
         }
-
-        let mut inner_key = [0x36u8; 64];
-        let mut outer_key = [0x5cu8; 64];
-        for i in 0..64 {
-            inner_key[i] ^= padded_key[i];
-            outer_key[i] ^= padded_key[i];
-        }
-        Self { inner_key, outer_key, data: Vec::new() }
     }
 
     fn update(&mut self, data: &[u8]) {
-        self.data.extend_from_slice(data);
+        use hmac::Mac;
+        self.mac.update(data);
     }
 
-    fn finalize(&self) -> [u8; 32] {
-        // inner hash = SHA-256(inner_key || data)
-        let mut inner_input = Vec::with_capacity(64 + self.data.len());
-        inner_input.extend_from_slice(&self.inner_key);
-        inner_input.extend_from_slice(&self.data);
-        let inner_hash = sha256(&inner_input);
-
-        // outer hash = SHA-256(outer_key || inner_hash)
-        let mut outer_input = Vec::with_capacity(64 + 32);
-        outer_input.extend_from_slice(&self.outer_key);
-        outer_input.extend_from_slice(&inner_hash);
-        sha256(&outer_input)
+    fn finalize(self) -> [u8; 32] {
+        use hmac::Mac;
+        let result = self.mac.finalize();
+        let bytes = result.into_bytes();
+        let mut out = [0u8; 32];
+        out.copy_from_slice(&bytes);
+        out
     }
 }
 
-/// Simple SHA-256 (we already have sha2 in the workspace via bedrock.rs).
+/// SHA-256 hash helper.
 fn sha256(data: &[u8]) -> [u8; 32] {
     use sha2::{Sha256, Digest};
     let mut hasher = Sha256::new();

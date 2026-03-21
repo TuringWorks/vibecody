@@ -8,6 +8,47 @@ use std::path::PathBuf;
 use vibe_ai::{ToolCall, ToolResult, ToolExecutorTrait};
 
 const MAX_OUTPUT: usize = 8_000;
+/// Maximum wall-clock time for a single bash command (seconds).
+const BASH_TIMEOUT_SECS: u64 = 120;
+
+/// Validate a URL against SSRF attacks. Blocks internal IPs, metadata endpoints,
+/// and non-HTTP schemes.
+fn validate_url_for_ssrf(url: &str) -> Result<(), String> {
+    let lower = url.to_lowercase();
+
+    // Only allow http:// and https://
+    if !lower.starts_with("http://") && !lower.starts_with("https://") {
+        return Err(format!("URL scheme not allowed: only http/https permitted (got '{}')", url));
+    }
+
+    // Extract hostname
+    let after_scheme = if lower.starts_with("https://") { &lower[8..] } else { &lower[7..] };
+    let host = after_scheme.split('/').next().unwrap_or("");
+    let host = host.split(':').next().unwrap_or(""); // strip port
+
+    // Block loopback
+    if host == "localhost" || host == "127.0.0.1" || host == "::1" || host == "0.0.0.0" {
+        return Err("SSRF blocked: localhost/loopback addresses not allowed".to_string());
+    }
+
+    // Block cloud metadata endpoints
+    if host == "169.254.169.254" || host == "metadata.google.internal" {
+        return Err("SSRF blocked: cloud metadata endpoint not allowed".to_string());
+    }
+
+    // Block private IP ranges (RFC 1918 + link-local)
+    if let Ok(ip) = host.parse::<std::net::Ipv4Addr>() {
+        if ip.is_private() || ip.is_loopback() || ip.is_link_local() || ip.is_unspecified() {
+            return Err(format!("SSRF blocked: private/internal IP {} not allowed", ip));
+        }
+        // Also block 169.254.x.x explicitly
+        if ip.octets()[0] == 169 && ip.octets()[1] == 254 {
+            return Err(format!("SSRF blocked: link-local IP {} not allowed", ip));
+        }
+    }
+
+    Ok(())
+}
 
 pub struct TauriToolExecutor {
     pub workspace_root: PathBuf,
@@ -18,9 +59,38 @@ impl TauriToolExecutor {
         Self { workspace_root }
     }
 
-    fn resolve(&self, path: &str) -> PathBuf {
+    /// Resolve a path safely within the workspace boundary.
+    /// Rejects absolute paths and `..` traversals that escape the workspace.
+    fn resolve(&self, path: &str) -> Result<PathBuf, String> {
         let p = PathBuf::from(path);
-        if p.is_absolute() { p } else { self.workspace_root.join(p) }
+        let resolved = if p.is_absolute() { p } else { self.workspace_root.join(p) };
+
+        // Canonicalize to resolve symlinks and `..` components.
+        // If the path doesn't exist yet (e.g. new file), canonicalize the parent.
+        let canonical = if resolved.exists() {
+            resolved.canonicalize().map_err(|e| format!("Path error: {}", e))?
+        } else if let Some(parent) = resolved.parent() {
+            if parent.exists() {
+                let canon_parent = parent.canonicalize().map_err(|e| format!("Path error: {}", e))?;
+                canon_parent.join(resolved.file_name().unwrap_or_default())
+            } else {
+                resolved.clone()
+            }
+        } else {
+            resolved.clone()
+        };
+
+        // Ensure the resolved path is within the workspace
+        let workspace_canonical = self.workspace_root.canonicalize()
+            .unwrap_or_else(|_| self.workspace_root.clone());
+        if !canonical.starts_with(&workspace_canonical) {
+            return Err(format!(
+                "Path traversal blocked: '{}' resolves outside workspace '{}'",
+                path, workspace_canonical.display()
+            ));
+        }
+
+        Ok(canonical)
     }
 
     fn truncate(mut s: String) -> (String, bool) {
@@ -34,7 +104,11 @@ impl TauriToolExecutor {
     }
 
     async fn read_file(&self, path: &str) -> ToolResult {
-        match std::fs::read_to_string(self.resolve(path)) {
+        let resolved = match self.resolve(path) {
+            Ok(p) => p,
+            Err(e) => return ToolResult::err("read_file", e),
+        };
+        match std::fs::read_to_string(resolved) {
             Ok(content) => {
                 let (out, truncated) = Self::truncate(content);
                 ToolResult { tool_name: "read_file".into(), output: out, success: true, truncated }
@@ -44,7 +118,10 @@ impl TauriToolExecutor {
     }
 
     async fn write_file(&self, path: &str, content: &str) -> ToolResult {
-        let p = self.resolve(path);
+        let p = match self.resolve(path) {
+            Ok(p) => p,
+            Err(e) => return ToolResult::err("write_file", e),
+        };
         if let Some(parent) = p.parent() {
             if let Err(e) = std::fs::create_dir_all(parent) {
                 return ToolResult::err("write_file", e.to_string());
@@ -59,15 +136,62 @@ impl TauriToolExecutor {
         }
     }
 
+    /// Check if a shell command is blocked (destructive, exfiltration, etc.).
+    fn is_blocked_command(command: &str) -> Option<&'static str> {
+        let lower = command.to_lowercase();
+        let blocked = [
+            ("rm -rf /", "destructive: rm -rf /"),
+            ("rm -rf /*", "destructive: rm -rf /*"),
+            ("mkfs", "destructive: mkfs"),
+            ("dd if=", "destructive: dd"),
+            (":(){ :|:& };:", "fork bomb"),
+            ("fork bomb", "fork bomb"),
+            ("poweroff", "system shutdown"),
+            ("reboot", "system reboot"),
+            ("halt", "system halt"),
+            ("shutdown", "system shutdown"),
+            ("chmod -r 777 /", "destructive permissions"),
+            ("curl -d", "potential data exfiltration"),
+            ("wget --post-data", "potential data exfiltration"),
+            ("/dev/tcp/", "reverse shell"),
+            ("base64 -d|sh", "encoded execution"),
+            ("base64 -d | sh", "encoded execution"),
+            ("> /dev/sd", "disk overwrite"),
+            ("iptables", "firewall manipulation"),
+            ("crontab", "persistence mechanism"),
+        ];
+        for (pattern, reason) in &blocked {
+            if lower.contains(pattern) {
+                return Some(reason);
+            }
+        }
+        None
+    }
+
     async fn run_bash(&self, command: &str) -> ToolResult {
-        use std::process::Command;
-        match Command::new("sh")
+        // Security: block dangerous commands
+        if let Some(reason) = Self::is_blocked_command(command) {
+            return ToolResult::err("bash", format!("Command blocked: {}", reason));
+        }
+
+        // Run with timeout to prevent DoS
+        use tokio::process::Command;
+        let child = Command::new("sh")
             .arg("-c")
             .arg(command)
             .current_dir(&self.workspace_root)
-            .output()
-        {
-            Ok(o) => {
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn();
+
+        let child = match child {
+            Ok(c) => c,
+            Err(e) => return ToolResult::err("bash", e.to_string()),
+        };
+
+        let timeout = tokio::time::Duration::from_secs(BASH_TIMEOUT_SECS);
+        match tokio::time::timeout(timeout, child.wait_with_output()).await {
+            Ok(Ok(o)) => {
                 let stdout = String::from_utf8_lossy(&o.stdout).into_owned();
                 let stderr = String::from_utf8_lossy(&o.stderr).into_owned();
                 let mut raw = format!("exit: {}\n", o.status.code().unwrap_or(-1));
@@ -77,7 +201,10 @@ impl TauriToolExecutor {
                 let (out, truncated) = Self::truncate(raw);
                 ToolResult { tool_name: "bash".into(), output: out, success, truncated }
             }
-            Err(e) => ToolResult::err("bash", e.to_string()),
+            Ok(Err(e)) => ToolResult::err("bash", e.to_string()),
+            Err(_) => {
+                ToolResult::err("bash", format!("Command timed out after {}s", BASH_TIMEOUT_SECS))
+            }
         }
     }
 
@@ -116,6 +243,10 @@ impl TauriToolExecutor {
     }
 
     async fn fetch_url(&self, url: &str) -> ToolResult {
+        // SSRF protection: block internal/metadata URLs
+        if let Err(reason) = validate_url_for_ssrf(url) {
+            return ToolResult::err("fetch_url", reason);
+        }
         match crate::commands::fetch_and_strip(url).await {
             Ok(text) => ToolResult::ok("fetch_url", format!("=== {} ===\n{}", url, text)),
             Err(e)   => ToolResult::err("fetch_url", e),
@@ -123,7 +254,10 @@ impl TauriToolExecutor {
     }
 
     async fn list_dir(&self, path: &str) -> ToolResult {
-        let p = self.resolve(path);
+        let p = match self.resolve(path) {
+            Ok(p) => p,
+            Err(e) => return ToolResult::err("list_directory", e),
+        };
         match std::fs::read_dir(&p) {
             Ok(entries) => {
                 let mut items: Vec<String> = entries
@@ -208,34 +342,37 @@ mod tests {
         assert!(!truncated);
     }
 
-    // ── resolve ──────────────────────────────────────────────────────────────
+    // ── resolve (security-hardened) ─────────────────────────────────────────
 
     #[test]
-    fn resolve_absolute_path_returned_as_is() {
-        let exec = TauriToolExecutor::new(PathBuf::from("/workspace"));
+    fn resolve_absolute_path_outside_workspace_blocked() {
+        let exec = TauriToolExecutor::new(PathBuf::from("/tmp"));
         let result = exec.resolve("/etc/passwd");
-        assert_eq!(result, PathBuf::from("/etc/passwd"));
+        assert!(result.is_err(), "absolute path outside workspace must be blocked");
+        assert!(result.unwrap_err().contains("traversal blocked"));
     }
 
     #[test]
-    fn resolve_relative_path_joined_to_workspace() {
-        let exec = TauriToolExecutor::new(PathBuf::from("/workspace"));
-        let result = exec.resolve("src/main.rs");
-        assert_eq!(result, PathBuf::from("/workspace/src/main.rs"));
+    fn resolve_relative_path_within_workspace_ok() {
+        // Use /tmp as workspace so canonicalization works
+        let exec = TauriToolExecutor::new(PathBuf::from("/tmp"));
+        let result = exec.resolve("test_file.rs");
+        assert!(result.is_ok());
+        assert!(result.unwrap().starts_with("/"));
     }
 
     #[test]
-    fn resolve_dot_path() {
-        let exec = TauriToolExecutor::new(PathBuf::from("/workspace"));
+    fn resolve_dot_dot_traversal_blocked() {
+        let exec = TauriToolExecutor::new(PathBuf::from("/tmp"));
+        let result = exec.resolve("../../etc/passwd");
+        assert!(result.is_err(), "path traversal with .. must be blocked");
+    }
+
+    #[test]
+    fn resolve_dot_path_ok() {
+        let exec = TauriToolExecutor::new(PathBuf::from("/tmp"));
         let result = exec.resolve(".");
-        assert_eq!(result, PathBuf::from("/workspace/."));
-    }
-
-    #[test]
-    fn resolve_empty_path() {
-        let exec = TauriToolExecutor::new(PathBuf::from("/workspace"));
-        let result = exec.resolve("");
-        assert_eq!(result, PathBuf::from("/workspace/"));
+        assert!(result.is_ok());
     }
 
     // ── execute_call routing ─────────────────────────────────────────────────

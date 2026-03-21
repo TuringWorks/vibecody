@@ -1353,6 +1353,401 @@ impl WarmStarter {
     }
 }
 
+// ── AblationEngine ─────────────────────────────────────────────────────────────
+
+/// When a compound change (multiple file edits) is kept, the ablation engine
+/// decomposes it into individual sub-changes and tests each in isolation to
+/// identify which sub-change actually contributed the improvement.
+pub struct AblationEngine;
+
+#[derive(Debug, Clone)]
+pub struct AblationResult {
+    pub original_experiment_id: String,
+    pub sub_changes: Vec<AblationSubChange>,
+    pub essential_changes: Vec<usize>,
+    pub redundant_changes: Vec<usize>,
+}
+
+#[derive(Debug, Clone)]
+pub struct AblationSubChange {
+    pub index: usize,
+    pub file_change: FileChange,
+    pub score_with: f64,
+    pub score_without: f64,
+    pub delta: f64,
+    pub is_essential: bool,
+}
+
+impl AblationEngine {
+    /// Plan ablation experiments for a compound change.
+    /// Returns the list of experiments to run (each omitting one sub-change).
+    pub fn plan_ablation(experiment: &Experiment) -> Vec<Vec<usize>> {
+        let n = experiment.file_changes.len();
+        if n <= 1 {
+            return Vec::new(); // Nothing to ablate
+        }
+        // Leave-one-out: for each change, create a variant without it
+        (0..n).map(|omit| (0..n).filter(|&i| i != omit).collect()).collect()
+    }
+
+    /// Analyze ablation results to determine which changes are essential.
+    pub fn analyze_ablation(
+        original_score: f64,
+        baseline_score: f64,
+        sub_scores: &[(usize, f64)],
+        file_changes: &[FileChange],
+    ) -> AblationResult {
+        let threshold = (original_score - baseline_score) * 0.1; // 10% of total improvement
+        let mut sub_changes = Vec::new();
+        let mut essential = Vec::new();
+        let mut redundant = Vec::new();
+
+        for &(idx, score_without) in sub_scores {
+            let delta = original_score - score_without;
+            let is_essential = delta > threshold;
+            if is_essential {
+                essential.push(idx);
+            } else {
+                redundant.push(idx);
+            }
+            sub_changes.push(AblationSubChange {
+                index: idx,
+                file_change: file_changes.get(idx).cloned().unwrap_or(FileChange {
+                    path: PathBuf::from("unknown"),
+                    diff: String::new(),
+                    lines_added: 0,
+                    lines_removed: 0,
+                }),
+                score_with: original_score,
+                score_without,
+                delta,
+                is_essential,
+            });
+        }
+
+        AblationResult {
+            original_experiment_id: String::new(),
+            sub_changes,
+            essential_changes: essential,
+            redundant_changes: redundant,
+        }
+    }
+}
+
+// ── SimplicityScorer ──────────────────────────────────────────────────────────
+
+/// Penalizes complexity: a 0.001 improvement adding 20 lines of hacky code
+/// is worse than a 0.001 improvement from deleting code.
+/// Inspired by autoresearch's simplicity criterion.
+pub struct SimplicityScorer;
+
+#[derive(Debug, Clone)]
+pub struct SimplicityScore {
+    pub raw_metric_delta: f64,
+    pub complexity_penalty: f64,
+    pub simplicity_bonus: f64,
+    pub adjusted_score: f64,
+    pub lines_added: usize,
+    pub lines_removed: usize,
+    pub net_lines: i64,
+    pub verdict: SimplicityVerdict,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum SimplicityVerdict {
+    /// Improvement + simpler code = definitely keep
+    ClearWin,
+    /// Improvement + moderate complexity = probably keep
+    Acceptable,
+    /// Improvement + high complexity = marginal, consider discarding
+    Marginal,
+    /// Improvement from deletion = always keep
+    CleanupWin,
+    /// No improvement = discard
+    NoImprovement,
+}
+
+impl SimplicityScorer {
+    /// Score an experiment considering both metric improvement and code complexity.
+    pub fn score(delta: f64, changes: &[FileChange], min_meaningful_delta: f64) -> SimplicityScore {
+        let lines_added: usize = changes.iter().map(|c| c.lines_added).sum();
+        let lines_removed: usize = changes.iter().map(|c| c.lines_removed).sum();
+        let net_lines = lines_added as i64 - lines_removed as i64;
+
+        // Complexity penalty: more lines added = higher penalty
+        let complexity_penalty = if lines_added > 0 {
+            (lines_added as f64).ln() * 0.001
+        } else {
+            0.0
+        };
+
+        // Simplicity bonus: net deletion with improvement = bonus
+        let simplicity_bonus = if net_lines < 0 && delta > 0.0 {
+            (-net_lines as f64).ln() * 0.002
+        } else {
+            0.0
+        };
+
+        let adjusted_score = delta - complexity_penalty + simplicity_bonus;
+
+        let verdict = if delta <= 0.0 {
+            SimplicityVerdict::NoImprovement
+        } else if net_lines < 0 {
+            SimplicityVerdict::CleanupWin
+        } else if delta < min_meaningful_delta && lines_added > 10 {
+            SimplicityVerdict::Marginal
+        } else if lines_added > 20 && delta < min_meaningful_delta * 3.0 {
+            SimplicityVerdict::Marginal
+        } else if lines_added > 5 {
+            SimplicityVerdict::Acceptable
+        } else {
+            SimplicityVerdict::ClearWin
+        };
+
+        SimplicityScore {
+            raw_metric_delta: delta,
+            complexity_penalty,
+            simplicity_bonus,
+            adjusted_score,
+            lines_added,
+            lines_removed,
+            net_lines,
+            verdict,
+        }
+    }
+
+    /// Should an experiment be kept based on simplicity-adjusted scoring?
+    pub fn should_keep(score: &SimplicityScore) -> bool {
+        matches!(score.verdict, SimplicityVerdict::ClearWin | SimplicityVerdict::Acceptable | SimplicityVerdict::CleanupWin)
+    }
+}
+
+// ── AdaptiveTimeBudget ────────────────────────────────────────────────────────
+
+/// Two-phase time budget: quick screening, then confirmation for promising candidates.
+/// Prevents wasting full budgets on clearly bad ideas while giving
+/// promising changes enough time to prove themselves.
+#[derive(Debug, Clone)]
+pub struct AdaptiveTimeBudget {
+    pub screening_duration: Duration,
+    pub confirmation_duration: Duration,
+    pub screening_threshold: f64,
+    pub confirmed_experiments: Vec<String>,
+    pub screened_out: Vec<String>,
+}
+
+impl AdaptiveTimeBudget {
+    pub fn new(screening_secs: u64, confirmation_secs: u64, threshold: f64) -> Self {
+        Self {
+            screening_duration: Duration::from_secs(screening_secs),
+            confirmation_duration: Duration::from_secs(confirmation_secs),
+            screening_threshold: threshold,
+            confirmed_experiments: Vec::new(),
+            screened_out: Vec::new(),
+        }
+    }
+
+    /// Determine if a screening result should proceed to full confirmation.
+    pub fn should_confirm(&self, screening_score: f64, baseline: f64) -> bool {
+        let relative = if baseline != 0.0 {
+            (screening_score - baseline) / baseline.abs()
+        } else {
+            screening_score
+        };
+        relative > self.screening_threshold
+    }
+
+    /// Record a screening outcome.
+    pub fn record_screening(&mut self, experiment_id: &str, passed: bool) {
+        if passed {
+            self.confirmed_experiments.push(experiment_id.to_string());
+        } else {
+            self.screened_out.push(experiment_id.to_string());
+        }
+    }
+
+    /// Get the appropriate duration for an experiment phase.
+    pub fn duration_for_phase(&self, is_confirmation: bool) -> Duration {
+        if is_confirmation { self.confirmation_duration } else { self.screening_duration }
+    }
+
+    /// Screening efficiency: what % of experiments were screened out early.
+    pub fn screening_efficiency(&self) -> f64 {
+        let total = self.confirmed_experiments.len() + self.screened_out.len();
+        if total == 0 { return 0.0; }
+        self.screened_out.len() as f64 / total as f64
+    }
+}
+
+// ── MultiSeedValidator ────────────────────────────────────────────────────────
+
+/// Runs the same configuration N times with different seeds to distinguish
+/// real improvements from noise. A 0.001 BPB improvement on a single run
+/// could easily be variance.
+#[derive(Debug, Clone)]
+pub struct SeedRun {
+    pub seed: u64,
+    pub score: f64,
+    pub duration: Duration,
+}
+
+pub struct MultiSeedValidator;
+
+impl MultiSeedValidator {
+    /// Compute statistics across multiple seed runs.
+    pub fn aggregate(runs: &[SeedRun]) -> SeedStats {
+        if runs.is_empty() {
+            return SeedStats { mean: 0.0, std_dev: 0.0, min: 0.0, max: 0.0, cv: 0.0, n: 0 };
+        }
+        let n = runs.len() as f64;
+        let scores: Vec<f64> = runs.iter().map(|r| r.score).collect();
+        let mean = scores.iter().sum::<f64>() / n;
+        let variance = scores.iter().map(|s| (s - mean).powi(2)).sum::<f64>() / (n - 1.0).max(1.0);
+        let std_dev = variance.sqrt();
+        let min = scores.iter().cloned().fold(f64::MAX, f64::min);
+        let max = scores.iter().cloned().fold(f64::MIN, f64::max);
+        let cv = if mean != 0.0 { std_dev / mean.abs() } else { 0.0 };
+        SeedStats { mean, std_dev, min, max, cv, n: runs.len() }
+    }
+
+    /// Is the improvement reliable across seeds?
+    /// Returns true if the worst-case run still beats the baseline.
+    pub fn is_reliable(experiment_runs: &[SeedRun], baseline_runs: &[SeedRun], direction: &MetricDirection) -> bool {
+        if experiment_runs.is_empty() || baseline_runs.is_empty() {
+            return false;
+        }
+        let exp_stats = Self::aggregate(experiment_runs);
+        let base_stats = Self::aggregate(baseline_runs);
+
+        match direction {
+            MetricDirection::Higher => {
+                // Conservative: worst experiment run > best baseline run
+                exp_stats.mean - exp_stats.std_dev > base_stats.mean + base_stats.std_dev
+            }
+            MetricDirection::Lower => {
+                // Conservative: worst experiment run < best baseline run
+                exp_stats.mean + exp_stats.std_dev < base_stats.mean - base_stats.std_dev
+            }
+        }
+    }
+
+    /// Suggested number of seeds based on coefficient of variation.
+    pub fn recommended_seeds(cv: f64) -> usize {
+        if cv < 0.01 { 1 }      // Very stable — 1 run is fine
+        else if cv < 0.05 { 3 }  // Low variance — 3 seeds
+        else if cv < 0.10 { 5 }  // Moderate — 5 seeds
+        else { 10 }              // High variance — need many seeds
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct SeedStats {
+    pub mean: f64,
+    pub std_dev: f64,
+    pub min: f64,
+    pub max: f64,
+    /// Coefficient of variation (std_dev / mean)
+    pub cv: f64,
+    pub n: usize,
+}
+
+// ── ProgramTemplateGenerator ──────────────────────────────────────────────────
+
+/// Generates domain-specific agent instructions (like autoresearch's program.md).
+/// These instructions tell the AI agent exactly how to run the research loop.
+pub struct ProgramTemplateGenerator;
+
+impl ProgramTemplateGenerator {
+    /// Generate a complete program.md for a given research config.
+    pub fn generate(config: &ResearchConfig) -> String {
+        let domain_desc = match &config.domain {
+            ResearchDomain::MlTraining => "ML model training",
+            ResearchDomain::ApiPerformance => "API/server performance optimization",
+            ResearchDomain::BuildOptimization => "build system optimization",
+            ResearchDomain::AlgorithmBench => "algorithm benchmarking",
+            ResearchDomain::DatabaseTuning => "database query tuning",
+            ResearchDomain::FrontendPerf => "frontend performance optimization",
+            ResearchDomain::Custom(d) => d.as_str(),
+        };
+
+        let editable = config.editable_files.iter()
+            .map(|p| format!("`{}`", p.display()))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let editable_str = if editable.is_empty() { "any project files".to_string() } else { editable };
+
+        let metrics_desc = config.metrics.iter()
+            .map(|m| format!("- **{}**: {} ({})", m.name, m.description,
+                match m.direction { MetricDirection::Higher => "higher is better", MetricDirection::Lower => "lower is better" }))
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        let timeout = config.resource_limits.max_duration.as_secs();
+
+        format!(
+r#"# AutoResearch Program — {domain_desc}
+
+You are an autonomous research agent. Your job is to iteratively improve the
+code through structured experimentation. You work **indefinitely** until
+manually stopped. Do NOT pause to ask the human — they may be asleep.
+
+## The Loop
+
+1. **Analyze** the current code and past results in `results.tsv`
+2. **Hypothesize** a specific, testable change
+3. **Modify** only these files: {editable_str}
+4. **Commit** with a descriptive message: `git commit -am "description"`
+5. **Run** the experiment: `{cmd} > run.log 2>&1`
+   - Hard time limit: {timeout} seconds. Kill if exceeded.
+   - NEVER use `tee` — redirect ALL output to run.log to save context
+6. **Extract** metrics from run.log
+7. **Evaluate** using these metrics:
+{metrics_desc}
+8. **Record** in results.tsv: `commit | status | metrics | description`
+9. **Decide**:
+   - If metrics improved → KEEP (advance branch)
+   - If metrics worsened → DISCARD (`git reset --hard HEAD~1`)
+   - If crashed/timeout → log as FAIL, revert, try something else
+10. **Repeat** from step 1. NEVER STOP.
+
+## Rules
+
+- **Simplicity criterion**: A tiny improvement that adds 20 lines of hacky
+  code? Probably not worth it. A tiny improvement from *deleting* code?
+  Definitely keep it. Favor clean, principled changes.
+- **One change at a time**: Make focused, atomic changes. If you change two
+  things and it improves, you won't know which one helped.
+- **Max {max_files} files per experiment**: Stay focused.
+- **No new dependencies**: Work within the existing stack.
+- **When stuck**: Re-read the code, try combining near-misses, try
+  more radical changes, read referenced papers/docs.
+- **Context management**: Keep run.log output OUT of your context window.
+  Only read the final metrics from it.
+
+## Strategy: {strategy}
+
+{strategy_desc}
+"#,
+            cmd = config.run_command,
+            max_files = config.resource_limits.max_file_changes,
+            strategy = match &config.strategy {
+                SearchStrategy::Greedy => "Greedy",
+                SearchStrategy::BeamSearch { .. } => "Beam Search",
+                SearchStrategy::Genetic { .. } => "Genetic",
+                SearchStrategy::Combinatorial { .. } => "Combinatorial",
+                SearchStrategy::Bayesian { .. } => "Bayesian",
+            },
+            strategy_desc = match &config.strategy {
+                SearchStrategy::Greedy => "Keep/discard each change independently. Simple and effective.".to_string(),
+                SearchStrategy::BeamSearch { beam_width } => format!("Maintain top-{} candidates. Branch from the best, prune the rest.", beam_width),
+                SearchStrategy::Genetic { population_size, mutation_rate } => format!("Population of {}. Mutate at {:.0}% rate. Crossover top performers.", population_size, mutation_rate * 100.0),
+                SearchStrategy::Combinatorial { max_combinations } => format!("After greedy phase, try combining up to {} discarded changes pairwise.", max_combinations),
+                SearchStrategy::Bayesian { exploration_weight } => format!("Use surrogate model. Exploration weight: {:.1}. Balance exploit vs explore.", exploration_weight),
+            },
+        )
+    }
+}
+
 // ── Tests ──────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -2709,5 +3104,330 @@ more output"#;
 
         let needed = WarmStarter::estimate_experiments_needed(&[past], 10.0);
         assert_eq!(needed, 100); // fallback
+    }
+
+    // ── AblationEngine tests ─────────────────────────────────────────────────
+
+    #[test]
+    fn test_ablation_plan_single_change() {
+        let h = Hypothesis::new("h1", "Test", "R");
+        let mut exp = Experiment::new("e1", "s1", h, "cmd");
+        exp.file_changes = vec![FileChange { path: "a.py".into(), diff: "+".into(), lines_added: 1, lines_removed: 0 }];
+        let plans = AblationEngine::plan_ablation(&exp);
+        assert!(plans.is_empty()); // Nothing to ablate with 1 change
+    }
+
+    #[test]
+    fn test_ablation_plan_multiple() {
+        let h = Hypothesis::new("h1", "Test", "R");
+        let mut exp = Experiment::new("e1", "s1", h, "cmd");
+        exp.file_changes = vec![
+            FileChange { path: "a.py".into(), diff: "+".into(), lines_added: 1, lines_removed: 0 },
+            FileChange { path: "b.py".into(), diff: "+".into(), lines_added: 1, lines_removed: 0 },
+            FileChange { path: "c.py".into(), diff: "+".into(), lines_added: 1, lines_removed: 0 },
+        ];
+        let plans = AblationEngine::plan_ablation(&exp);
+        assert_eq!(plans.len(), 3); // Leave-one-out for each
+        assert_eq!(plans[0], vec![1, 2]); // Omit index 0
+        assert_eq!(plans[1], vec![0, 2]); // Omit index 1
+        assert_eq!(plans[2], vec![0, 1]); // Omit index 2
+    }
+
+    #[test]
+    fn test_ablation_analyze() {
+        let changes = vec![
+            FileChange { path: "a.py".into(), diff: "+".into(), lines_added: 5, lines_removed: 0 },
+            FileChange { path: "b.py".into(), diff: "+".into(), lines_added: 2, lines_removed: 0 },
+        ];
+        // Original score: 1.0, baseline: 0.8
+        // Without change 0: score drops to 0.82 (essential — contributed 0.18)
+        // Without change 1: score stays at 0.99 (redundant — contributed 0.01)
+        let sub_scores = vec![(0, 0.82), (1, 0.99)];
+        let result = AblationEngine::analyze_ablation(1.0, 0.8, &sub_scores, &changes);
+        assert_eq!(result.essential_changes, vec![0]);
+        assert_eq!(result.redundant_changes, vec![1]);
+        assert!(result.sub_changes[0].is_essential);
+        assert!(!result.sub_changes[1].is_essential);
+    }
+
+    #[test]
+    fn test_ablation_all_essential() {
+        let changes = vec![
+            FileChange { path: "a.py".into(), diff: "+".into(), lines_added: 1, lines_removed: 0 },
+            FileChange { path: "b.py".into(), diff: "+".into(), lines_added: 1, lines_removed: 0 },
+        ];
+        let sub_scores = vec![(0, 0.5), (1, 0.5)];
+        let result = AblationEngine::analyze_ablation(1.0, 0.0, &sub_scores, &changes);
+        assert_eq!(result.essential_changes.len(), 2);
+    }
+
+    // ── SimplicityScorer tests ───────────────────────────────────────────────
+
+    #[test]
+    fn test_simplicity_clear_win() {
+        let changes = vec![FileChange { path: "a.py".into(), diff: "+".into(), lines_added: 2, lines_removed: 0 }];
+        let score = SimplicityScorer::score(0.05, &changes, 0.001);
+        assert_eq!(score.verdict, SimplicityVerdict::ClearWin);
+        assert!(SimplicityScorer::should_keep(&score));
+    }
+
+    #[test]
+    fn test_simplicity_cleanup_win() {
+        let changes = vec![FileChange { path: "a.py".into(), diff: "-".into(), lines_added: 0, lines_removed: 10 }];
+        let score = SimplicityScorer::score(0.001, &changes, 0.001);
+        assert_eq!(score.verdict, SimplicityVerdict::CleanupWin);
+        assert!(score.simplicity_bonus > 0.0);
+        assert!(SimplicityScorer::should_keep(&score));
+    }
+
+    #[test]
+    fn test_simplicity_marginal() {
+        let changes = vec![FileChange { path: "a.py".into(), diff: "+".into(), lines_added: 25, lines_removed: 0 }];
+        let score = SimplicityScorer::score(0.001, &changes, 0.001);
+        assert_eq!(score.verdict, SimplicityVerdict::Marginal);
+        assert!(!SimplicityScorer::should_keep(&score));
+    }
+
+    #[test]
+    fn test_simplicity_no_improvement() {
+        let changes = vec![FileChange { path: "a.py".into(), diff: "+".into(), lines_added: 5, lines_removed: 0 }];
+        let score = SimplicityScorer::score(-0.01, &changes, 0.001);
+        assert_eq!(score.verdict, SimplicityVerdict::NoImprovement);
+        assert!(!SimplicityScorer::should_keep(&score));
+    }
+
+    #[test]
+    fn test_simplicity_net_lines() {
+        let changes = vec![
+            FileChange { path: "a.py".into(), diff: "+".into(), lines_added: 5, lines_removed: 10 },
+        ];
+        let score = SimplicityScorer::score(0.01, &changes, 0.001);
+        assert_eq!(score.net_lines, -5);
+        assert_eq!(score.verdict, SimplicityVerdict::CleanupWin);
+    }
+
+    // ── AdaptiveTimeBudget tests ─────────────────────────────────────────────
+
+    #[test]
+    fn test_adaptive_budget_new() {
+        let budget = AdaptiveTimeBudget::new(120, 600, -0.01);
+        assert_eq!(budget.screening_duration, Duration::from_secs(120));
+        assert_eq!(budget.confirmation_duration, Duration::from_secs(600));
+    }
+
+    #[test]
+    fn test_adaptive_should_confirm() {
+        let budget = AdaptiveTimeBudget::new(120, 600, 0.01);
+        assert!(budget.should_confirm(1.05, 1.0)); // 5% improvement > 1% threshold
+        assert!(!budget.should_confirm(1.005, 1.0)); // 0.5% < 1% threshold
+    }
+
+    #[test]
+    fn test_adaptive_should_confirm_zero_baseline() {
+        let budget = AdaptiveTimeBudget::new(120, 600, 0.5);
+        assert!(budget.should_confirm(1.0, 0.0)); // score > threshold
+        assert!(!budget.should_confirm(0.3, 0.0));
+    }
+
+    #[test]
+    fn test_adaptive_record_screening() {
+        let mut budget = AdaptiveTimeBudget::new(120, 600, 0.01);
+        budget.record_screening("e1", true);
+        budget.record_screening("e2", false);
+        budget.record_screening("e3", false);
+        assert_eq!(budget.confirmed_experiments.len(), 1);
+        assert_eq!(budget.screened_out.len(), 2);
+    }
+
+    #[test]
+    fn test_adaptive_efficiency() {
+        let mut budget = AdaptiveTimeBudget::new(120, 600, 0.01);
+        budget.record_screening("e1", true);
+        budget.record_screening("e2", false);
+        budget.record_screening("e3", false);
+        budget.record_screening("e4", false);
+        assert!((budget.screening_efficiency() - 0.75).abs() < 0.001); // 3/4 screened out
+    }
+
+    #[test]
+    fn test_adaptive_efficiency_empty() {
+        let budget = AdaptiveTimeBudget::new(120, 600, 0.01);
+        assert_eq!(budget.screening_efficiency(), 0.0);
+    }
+
+    #[test]
+    fn test_adaptive_duration() {
+        let budget = AdaptiveTimeBudget::new(120, 600, 0.01);
+        assert_eq!(budget.duration_for_phase(false), Duration::from_secs(120));
+        assert_eq!(budget.duration_for_phase(true), Duration::from_secs(600));
+    }
+
+    // ── MultiSeedValidator tests ─────────────────────────────────────────────
+
+    #[test]
+    fn test_seed_stats_basic() {
+        let runs = vec![
+            SeedRun { seed: 1, score: 10.0, duration: Duration::from_secs(60) },
+            SeedRun { seed: 2, score: 12.0, duration: Duration::from_secs(60) },
+            SeedRun { seed: 3, score: 11.0, duration: Duration::from_secs(60) },
+        ];
+        let stats = MultiSeedValidator::aggregate(&runs);
+        assert_eq!(stats.n, 3);
+        assert_eq!(stats.mean, 11.0);
+        assert_eq!(stats.min, 10.0);
+        assert_eq!(stats.max, 12.0);
+        assert!(stats.std_dev > 0.0);
+    }
+
+    #[test]
+    fn test_seed_stats_empty() {
+        let stats = MultiSeedValidator::aggregate(&[]);
+        assert_eq!(stats.n, 0);
+        assert_eq!(stats.mean, 0.0);
+    }
+
+    #[test]
+    fn test_seed_stats_single() {
+        let runs = vec![SeedRun { seed: 42, score: 5.0, duration: Duration::from_secs(30) }];
+        let stats = MultiSeedValidator::aggregate(&runs);
+        assert_eq!(stats.mean, 5.0);
+        assert_eq!(stats.min, 5.0);
+        assert_eq!(stats.max, 5.0);
+    }
+
+    #[test]
+    fn test_seed_reliable_higher() {
+        let baseline = vec![
+            SeedRun { seed: 1, score: 1.0, duration: Duration::from_secs(60) },
+            SeedRun { seed: 2, score: 2.0, duration: Duration::from_secs(60) },
+            SeedRun { seed: 3, score: 1.5, duration: Duration::from_secs(60) },
+        ];
+        let experiment = vec![
+            SeedRun { seed: 1, score: 10.0, duration: Duration::from_secs(60) },
+            SeedRun { seed: 2, score: 11.0, duration: Duration::from_secs(60) },
+            SeedRun { seed: 3, score: 10.5, duration: Duration::from_secs(60) },
+        ];
+        assert!(MultiSeedValidator::is_reliable(&experiment, &baseline, &MetricDirection::Higher));
+    }
+
+    #[test]
+    fn test_seed_reliable_lower() {
+        let baseline = vec![
+            SeedRun { seed: 1, score: 10.0, duration: Duration::from_secs(60) },
+            SeedRun { seed: 2, score: 11.0, duration: Duration::from_secs(60) },
+        ];
+        let experiment = vec![
+            SeedRun { seed: 1, score: 1.0, duration: Duration::from_secs(60) },
+            SeedRun { seed: 2, score: 2.0, duration: Duration::from_secs(60) },
+        ];
+        assert!(MultiSeedValidator::is_reliable(&experiment, &baseline, &MetricDirection::Lower));
+    }
+
+    #[test]
+    fn test_seed_not_reliable_overlapping() {
+        let baseline = vec![
+            SeedRun { seed: 1, score: 5.0, duration: Duration::from_secs(60) },
+            SeedRun { seed: 2, score: 6.0, duration: Duration::from_secs(60) },
+        ];
+        let experiment = vec![
+            SeedRun { seed: 1, score: 5.5, duration: Duration::from_secs(60) },
+            SeedRun { seed: 2, score: 6.5, duration: Duration::from_secs(60) },
+        ];
+        // Overlapping distributions — not reliable
+        assert!(!MultiSeedValidator::is_reliable(&experiment, &baseline, &MetricDirection::Higher));
+    }
+
+    #[test]
+    fn test_seed_reliable_empty() {
+        assert!(!MultiSeedValidator::is_reliable(&[], &[], &MetricDirection::Higher));
+    }
+
+    #[test]
+    fn test_recommended_seeds() {
+        assert_eq!(MultiSeedValidator::recommended_seeds(0.005), 1);
+        assert_eq!(MultiSeedValidator::recommended_seeds(0.03), 3);
+        assert_eq!(MultiSeedValidator::recommended_seeds(0.07), 5);
+        assert_eq!(MultiSeedValidator::recommended_seeds(0.15), 10);
+    }
+
+    // ── ProgramTemplateGenerator tests ───────────────────────────────────────
+
+    #[test]
+    fn test_program_template_ml() {
+        let config = ResearchConfig {
+            domain: ResearchDomain::MlTraining,
+            run_command: "python train.py".to_string(),
+            editable_files: vec![PathBuf::from("train.py")],
+            strategy: SearchStrategy::Greedy,
+            ..Default::default()
+        };
+        let template = ProgramTemplateGenerator::generate(&config);
+        assert!(template.contains("ML model training"));
+        assert!(template.contains("python train.py"));
+        assert!(template.contains("`train.py`"));
+        assert!(template.contains("NEVER STOP"));
+        assert!(template.contains("Simplicity criterion"));
+        assert!(template.contains("Greedy"));
+        assert!(template.contains("run.log"));
+    }
+
+    #[test]
+    fn test_program_template_api() {
+        let config = ResearchConfig {
+            domain: ResearchDomain::ApiPerformance,
+            run_command: "k6 run bench.js".to_string(),
+            strategy: SearchStrategy::BeamSearch { beam_width: 5 },
+            ..Default::default()
+        };
+        let template = ProgramTemplateGenerator::generate(&config);
+        assert!(template.contains("API/server performance"));
+        assert!(template.contains("k6 run bench.js"));
+        assert!(template.contains("Beam Search"));
+        assert!(template.contains("top-5"));
+    }
+
+    #[test]
+    fn test_program_template_genetic() {
+        let config = ResearchConfig {
+            strategy: SearchStrategy::Genetic { population_size: 30, mutation_rate: 0.15 },
+            ..Default::default()
+        };
+        let template = ProgramTemplateGenerator::generate(&config);
+        assert!(template.contains("Genetic"));
+        assert!(template.contains("30"));
+        assert!(template.contains("15%"));
+    }
+
+    #[test]
+    fn test_program_template_custom_domain() {
+        let config = ResearchConfig {
+            domain: ResearchDomain::Custom("FPGA synthesis".into()),
+            ..Default::default()
+        };
+        let template = ProgramTemplateGenerator::generate(&config);
+        assert!(template.contains("FPGA synthesis"));
+    }
+
+    #[test]
+    fn test_program_template_contains_metrics() {
+        let config = ResearchConfig {
+            domain: ResearchDomain::MlTraining,
+            metrics: ResearchDomain::MlTraining.default_metrics(),
+            ..Default::default()
+        };
+        let template = ProgramTemplateGenerator::generate(&config);
+        assert!(template.contains("val_bpb"));
+        assert!(template.contains("lower is better"));
+        assert!(template.contains("higher is better"));
+    }
+
+    #[test]
+    fn test_program_template_timeout() {
+        let config = ResearchConfig {
+            resource_limits: ResourceLimits { max_duration: Duration::from_secs(600), ..Default::default() },
+            ..Default::default()
+        };
+        let template = ProgramTemplateGenerator::generate(&config);
+        assert!(template.contains("600 seconds"));
     }
 }
