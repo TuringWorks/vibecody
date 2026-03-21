@@ -39,3 +39,6 @@ coverage/
 # Logs
 logs/
 *.log
+
+# VibeCLI local data (auto-generated, user-specific)
+.vibecli/
