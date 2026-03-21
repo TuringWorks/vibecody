@@ -1,4 +1,5 @@
 //! VibeUI - AI-Powered Code Editor
+#![recursion_limit = "512"]
 
 mod commands;
 mod flow;
