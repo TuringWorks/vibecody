@@ -345,6 +345,9 @@ pub struct AgentContext {
     /// Injected into system prompt for always-on project understanding.
     #[serde(default)]
     pub project_summary: Option<String>,
+    /// OpenMemory context — relevant memories auto-injected into system prompt.
+    #[serde(default)]
+    pub memory_context: Option<String>,
     /// Auto-gathered relevant file contents for the current task.
     #[serde(default)]
     pub task_context_files: Vec<(String, String)>, // (path, preview)
@@ -1050,6 +1053,13 @@ fn build_system_prompt(context: &AgentContext) -> String {
                 "\n\n## Approved Execution Plan\nThe user has reviewed and approved this plan. Follow it step by step:\n{}",
                 plan
             ));
+        }
+    }
+
+    // OpenMemory: Inject relevant cognitive memories into agent context
+    if let Some(mem_ctx) = &context.memory_context {
+        if !mem_ctx.is_empty() {
+            extras.push_str(&format!("\n\n## Relevant Memories (OpenMemory)\n{}", mem_ctx));
         }
     }
 

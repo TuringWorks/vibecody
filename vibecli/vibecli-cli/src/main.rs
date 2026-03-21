@@ -6996,12 +6996,27 @@ async fn run_agent_repl_with_context(
         .take(5) // Max 5 files to avoid bloating context
         .collect();
 
+    // OpenMemory: inject relevant memories into agent system prompt
+    let memory_context = {
+        let mem_dir = dirs::data_dir()
+            .unwrap_or_else(|| std::path::PathBuf::from("."))
+            .join("vibecli")
+            .join("openmemory");
+        open_memory::OpenMemoryStore::load(&mem_dir, "default")
+            .ok()
+            .and_then(|store| {
+                let ctx = store.get_agent_context(task, 8);
+                if ctx.is_empty() { None } else { Some(ctx) }
+            })
+    };
+
     let context = AgentContext {
         workspace_root: workspace.clone(),
         approved_plan,
         extra_skill_dirs: plugin_skill_dirs,
         project_summary,
         task_context_files,
+        memory_context,
         ..Default::default()
     };
 
@@ -7146,6 +7161,26 @@ async fn run_agent_repl_with_context(
                     tokio::spawn(async move {
                         if let Err(e) = memory_recorder::record_session(llm2, &task2, steps2, &summary2).await {
                             tracing::warn!("Auto memory recording failed: {}", e);
+                        }
+                    });
+                }
+                // Bridge session summary to OpenMemory as an episodic memory
+                {
+                    let summary_for_mem = summary.clone();
+                    let task_for_mem = task.to_string();
+                    tokio::spawn(async move {
+                        let mem_dir = dirs::data_dir()
+                            .unwrap_or_else(|| std::path::PathBuf::from("."))
+                            .join("vibecli")
+                            .join("openmemory");
+                        if let Ok(mut store) = open_memory::OpenMemoryStore::load(&mem_dir, "default") {
+                            let content = format!("Session: {} — {}", task_for_mem, summary_for_mem);
+                            store.add_with_tags(
+                                content,
+                                vec!["session".to_string(), "auto".to_string()],
+                                std::collections::HashMap::new(),
+                            );
+                            let _ = store.save();
                         }
                     });
                 }
@@ -8326,6 +8361,7 @@ async fn run_watch_mode(
                 team_agent_id: None,
                 project_summary: None,
                 task_context_files: vec![],
+                memory_context: None,
             };
             tokio::spawn(async move {
                 let _ = agent.run(&task_clone, ctx, event_tx).await;

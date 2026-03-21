@@ -1263,6 +1263,24 @@ pub async fn stop_chat_stream(state: tauri::State<'_, AppState>) -> Result<(), S
 
 /// Fetch a URL, strip HTML tags, and return plain text (≤ 6000 chars).
 pub(crate) async fn fetch_and_strip(url: &str) -> Result<String, String> {
+    // SSRF protection: block internal/metadata URLs
+    let lower_url = url.to_lowercase();
+    if !lower_url.starts_with("http://") && !lower_url.starts_with("https://") {
+        return Err(format!("Only http/https URLs allowed (got '{}')", url));
+    }
+    let after_scheme = if lower_url.starts_with("https://") { &lower_url[8..] } else { &lower_url[7..] };
+    let host = after_scheme.split('/').next().unwrap_or("").split(':').next().unwrap_or("");
+    if host == "localhost" || host == "127.0.0.1" || host == "::1" || host == "0.0.0.0"
+        || host == "169.254.169.254" || host == "metadata.google.internal"
+    {
+        return Err(format!("SSRF blocked: requests to {} not allowed", host));
+    }
+    if let Ok(ip) = host.parse::<std::net::Ipv4Addr>() {
+        if ip.is_private() || ip.is_loopback() || ip.is_link_local() || ip.is_unspecified() {
+            return Err(format!("SSRF blocked: private/internal IP {} not allowed", ip));
+        }
+    }
+
     let body = reqwest::get(url)
         .await
         .map_err(|e| e.to_string())?
@@ -2189,6 +2207,7 @@ pub async fn start_agent_task(
         team_agent_id: None,
         project_summary: None,
         task_context_files: vec![],
+        memory_context: None,
     };
 
     let executor = Arc::new(TauriToolExecutor::new(workspace_root.clone()));
@@ -4870,6 +4889,7 @@ pub async fn start_parallel_agents(
                 team_agent_id: None,
                 project_summary: None,
                 task_context_files: vec![],
+                memory_context: None,
             };
 
             let executor = Arc::new(TauriToolExecutor::new(root2));
@@ -5648,6 +5668,14 @@ pub async fn save_provider_api_keys(
     }
     let json = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
     std::fs::write(&path, json).map_err(|e| e.to_string())?;
+
+    // Security: restrict file permissions to owner-only (0600) since it contains API keys
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let perms = std::fs::Permissions::from_mode(0o600);
+        let _ = std::fs::set_permissions(&path, perms);
+    }
 
     // Re-register cloud providers
     let mut engine = state.chat_engine.lock().await;

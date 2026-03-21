@@ -414,6 +414,7 @@ async fn start_agent(
             team_agent_id: None,
             project_summary: None,
             task_context_files: vec![],
+            memory_context: None,
         };
 
         let (event_tx, mut event_rx) = tokio::sync::mpsc::channel::<AgentEvent>(64);
@@ -809,6 +810,16 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route("/view/:id", get(view_session))
         .route("/share/:id", get(share_session))
         .route("/webhook/skill/:skill_name", post(skill_webhook_handler))
+        // OpenMemory — cognitive memory engine REST API
+        .route("/memory/add", post(memory_add))
+        .route("/memory/query", post(memory_query))
+        .route("/memory/list", get(memory_list))
+        .route("/memory/stats", get(memory_stats))
+        .route("/memory/fact", post(memory_add_fact))
+        .route("/memory/facts", get(memory_facts))
+        .route("/memory/decay", post(memory_decay))
+        .route("/memory/consolidate", post(memory_consolidate))
+        .route("/memory/export", get(memory_export))
         .route_layer(middleware::from_fn_with_state(limiter, rate_limit))
         .route_layer(middleware::from_fn_with_state(state.clone(), require_auth));
 
@@ -909,6 +920,27 @@ pub async fn serve(
     };
 
     let app = build_router(state, port);
+
+    // Background: periodic OpenMemory maintenance (decay + consolidation every 24h)
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(std::time::Duration::from_secs(86400));
+        interval.tick().await; // Skip first immediate tick
+        loop {
+            interval.tick().await;
+            let mem_dir = openmemory_dir();
+            if let Ok(mut store) = crate::open_memory::OpenMemoryStore::load(&mem_dir, "default") {
+                let decayed = store.run_decay();
+                let consolidated = store.consolidate();
+                let _ = store.save();
+                if decayed > 0 || !consolidated.is_empty() {
+                    eprintln!(
+                        "[openmemory] Daily maintenance: {} decayed, {} consolidated",
+                        decayed, consolidated.len()
+                    );
+                }
+            }
+        }
+    });
 
     let addr = format!("127.0.0.1:{port}");
     let listener = tokio::net::TcpListener::bind(&addr).await?;
@@ -1280,6 +1312,166 @@ async fn view_session(Path(id): Path<String>) -> impl IntoResponse {
             }
         },
     }
+}
+
+// ── OpenMemory REST API handlers ─────────────────────────────────────────────
+
+fn openmemory_dir() -> PathBuf {
+    dirs::data_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join("vibecli")
+        .join("openmemory")
+}
+
+fn load_memory_store() -> crate::open_memory::OpenMemoryStore {
+    crate::open_memory::OpenMemoryStore::load(openmemory_dir(), "default")
+        .unwrap_or_else(|_| crate::open_memory::OpenMemoryStore::new(openmemory_dir(), "default"))
+}
+
+#[derive(Deserialize)]
+struct MemoryAddRequest {
+    content: String,
+    #[serde(default)]
+    tags: Vec<String>,
+}
+
+#[derive(Deserialize)]
+struct MemoryQueryRequest {
+    text: String,
+    #[serde(default = "default_limit")]
+    limit: usize,
+    sector: Option<String>,
+}
+
+fn default_limit() -> usize { 10 }
+
+#[derive(Deserialize)]
+struct MemoryAddFactRequest {
+    subject: String,
+    predicate: String,
+    object: String,
+}
+
+async fn memory_add(
+    _state: State<ServeState>,
+    Json(req): Json<MemoryAddRequest>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let mut store = load_memory_store();
+    let id = store.add_with_tags(req.content, req.tags, std::collections::HashMap::new());
+    let sector = store.get(&id).map(|m| m.sector.to_string()).unwrap_or_default();
+    match store.save() {
+        Ok(_) => (StatusCode::CREATED, Json(serde_json::json!({ "id": id, "sector": sector }))),
+        Err(e) => json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("save failed: {e}")),
+    }
+}
+
+async fn memory_query(
+    _state: State<ServeState>,
+    Json(req): Json<MemoryQueryRequest>,
+) -> Json<serde_json::Value> {
+    let store = load_memory_store();
+    let sector_filter = req.sector.as_deref().and_then(|s| s.parse().ok());
+    let results = store.query_with_filters(&req.text, req.limit, sector_filter, None);
+
+    let items: Vec<serde_json::Value> = results.iter().map(|r| {
+        serde_json::json!({
+            "id": r.memory.id,
+            "content": r.memory.content,
+            "sector": r.memory.sector.to_string(),
+            "score": r.score,
+            "similarity": r.similarity,
+            "salience": r.effective_salience,
+            "recency": r.recency_score,
+            "tags": r.memory.tags,
+            "pinned": r.memory.pinned,
+        })
+    }).collect();
+
+    Json(serde_json::json!({ "results": items, "count": items.len() }))
+}
+
+async fn memory_list(_state: State<ServeState>) -> Json<serde_json::Value> {
+    let store = load_memory_store();
+    let mems = store.list_memories(0, 100);
+    let items: Vec<serde_json::Value> = mems.iter().map(|m| {
+        serde_json::json!({
+            "id": m.id,
+            "content": m.content,
+            "sector": m.sector.to_string(),
+            "salience": m.effective_salience(),
+            "tags": m.tags,
+            "pinned": m.pinned,
+            "created_at": m.created_at,
+        })
+    }).collect();
+    Json(serde_json::json!({ "memories": items, "total": store.total_memories() }))
+}
+
+async fn memory_stats(_state: State<ServeState>) -> Json<serde_json::Value> {
+    let store = load_memory_store();
+    let stats = store.sector_stats();
+    let sectors: Vec<serde_json::Value> = stats.iter().map(|s| {
+        serde_json::json!({
+            "sector": s.sector.to_string(),
+            "count": s.count,
+            "avg_salience": s.avg_salience,
+            "avg_age_days": s.avg_age_days,
+            "pinned_count": s.pinned_count,
+        })
+    }).collect();
+    Json(serde_json::json!({
+        "total_memories": store.total_memories(),
+        "total_waypoints": store.total_waypoints(),
+        "total_facts": store.total_facts(),
+        "sectors": sectors,
+    }))
+}
+
+async fn memory_add_fact(
+    _state: State<ServeState>,
+    Json(req): Json<MemoryAddFactRequest>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let mut store = load_memory_store();
+    let id = store.add_fact(req.subject, req.predicate, req.object);
+    match store.save() {
+        Ok(_) => (StatusCode::CREATED, Json(serde_json::json!({ "id": id }))),
+        Err(e) => json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("save failed: {e}")),
+    }
+}
+
+async fn memory_facts(_state: State<ServeState>) -> Json<serde_json::Value> {
+    let store = load_memory_store();
+    let facts: Vec<serde_json::Value> = store.query_current_facts().iter().map(|f| {
+        serde_json::json!({
+            "id": f.id,
+            "subject": f.subject,
+            "predicate": f.predicate,
+            "object": f.object,
+            "valid_from": f.valid_from,
+            "valid_to": f.valid_to,
+            "confidence": f.confidence,
+        })
+    }).collect();
+    Json(serde_json::json!({ "facts": facts, "count": facts.len() }))
+}
+
+async fn memory_decay(_state: State<ServeState>) -> Json<serde_json::Value> {
+    let mut store = load_memory_store();
+    let purged = store.run_decay();
+    let _ = store.save();
+    Json(serde_json::json!({ "purged": purged, "remaining": store.total_memories() }))
+}
+
+async fn memory_consolidate(_state: State<ServeState>) -> Json<serde_json::Value> {
+    let mut store = load_memory_store();
+    let results = store.consolidate();
+    let _ = store.save();
+    Json(serde_json::json!({ "consolidated": results.len(), "remaining": store.total_memories() }))
+}
+
+async fn memory_export(_state: State<ServeState>) -> (StatusCode, String) {
+    let store = load_memory_store();
+    (StatusCode::OK, store.export_markdown())
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────────
