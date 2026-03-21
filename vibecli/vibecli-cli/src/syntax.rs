@@ -426,16 +426,9 @@ pub fn format_agent_error(error: &str) -> String {
     )
 }
 
-/// Format the REPL prompt with color.
-/// Wraps ANSI escapes in \x01..\x02 so rustyline counts prompt width correctly.
+/// Format the REPL prompt. Plain text to avoid rustyline ANSI width issues.
 pub fn colored_prompt(provider_name: &str) -> String {
-    // \x01 and \x02 tell readline to ignore enclosed bytes for width calculation
-    format!(
-        "\x01{}\x02[\x01{}\x02\x01{}\x02vibecli\x01{}\x02 {}] \x01{}\x02>\x01{}\x02 ",
-        DIM, RESET, BRIGHT_GREEN, RESET,
-        provider_name,
-        BRIGHT_CYAN, RESET,
-    )
+    format!("[vibecli {}] > ", provider_name)
 }
 
 /// Format tool output preview (first line, dimmed).
