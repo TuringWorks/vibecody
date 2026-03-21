@@ -12,7 +12,7 @@ permalink: /quickstart/
 
 ## What is VibeCody?
 
-VibeCody is an AI-powered developer toolchain built in Rust. It gives you two ways to work: **VibeCLI**, a terminal-first AI coding assistant with a rich TUI and REPL, and **VibeUI**, a full desktop code editor with Monaco and 139+ AI panels. Both share the same backend crates, supporting 17 AI providers (local and cloud), an autonomous agent loop, code review, multi-agent orchestration, MCP integration, and 500+ built-in skills. You can start with a local model and zero API keys.
+VibeCody is an AI-powered developer toolchain built in Rust. It gives you two ways to work: **VibeCLI**, a terminal-first AI coding assistant with a rich TUI and REPL, and **VibeUI**, a full desktop code editor with Monaco and 139+ AI panels. Both share the same backend crates, supporting 22 AI providers (local and cloud), an autonomous agent loop, code review, multi-agent orchestration, MCP integration, and 500+ built-in skills. You can start with a local model and zero API keys.
 
 ---
 
@@ -24,7 +24,7 @@ VibeCody is an AI-powered developer toolchain built in Rust. It gives you two wa
 | **Interface** | TUI (Ratatui) or REPL | Desktop app (Tauri + Monaco) |
 | **Setup time** | 2 minutes | 5 minutes (needs Node.js) |
 | **Works headless** | Yes | No |
-| **AI features** | All 17 providers, agent, review, skills | All CLI features + visual panels |
+| **AI features** | All 22 providers, agent, review, skills | All CLI features + visual panels |
 
 **Recommendation:** Start with VibeCLI. You can add VibeUI later -- they share the same config and crates.
 
@@ -123,37 +123,50 @@ That is it -- you are chatting with an AI. Press `Ctrl+C` or type `/quit` to exi
 
 ## Your First Agent Task
 
-The agent loop lets VibeCody autonomously read files, write code, and run commands. Pass `--agent` (or use the `/agent` REPL command) with a natural language task:
+The agent loop lets VibeCody autonomously read files, write code, and run commands. Use `--agent` for interactive mode or `--exec` for non-interactive (CI) mode:
 
 ```bash
+# Interactive mode (asks for approval on each step)
+vibecli --agent "add error handling to main.rs"
+
+# Non-interactive mode (full-auto, JSON output)
 vibecli --exec "add error handling to main.rs"
 ```
 
-Expected output:
+Example output (interactive mode with default `suggest` policy):
 
 ```
-[agent] Planning task: add error handling to main.rs
-[agent] Reading file: src/main.rs
-[agent] Analyzing current error handling patterns...
-[agent] Writing changes to: src/main.rs
-  + Added Result<()> return type to main()
-  + Wrapped file I/O in match blocks
-  + Added anyhow::Context for descriptive errors
-[agent] Running: cargo check
-[agent] Build succeeded. 3 files modified.
+ Agent   add error handling to main.rs
+  Policy: suggest (ask before every action)  |  Press Ctrl+C to stop
 
-Accept changes? [y/n/diff]:
+ ✓ Reading src/main.rs
+ ✓ Searching: "error handling"
+
+  bash  Running: cargo check
+   Approve? (y/n/a=approve-all): y
+
+ ✓ Running: cargo check
+ ✓ Patching src/main.rs (3 hunks)
+
+Agent complete: Added Result<()> return type, wrapped I/O in match blocks.
+   Files modified: src/main.rs
+   Commands run: 1
+   Steps: 4/4 succeeded
+   Trace saved: ~/.vibecli/traces/1711234567.jsonl
+   Resume with: vibecli --resume 1711234567
 ```
 
-Type `y` to accept, `n` to reject, or `diff` to see exactly what changed before deciding.
+In `suggest` mode (default), the agent asks before shell commands and file writes. Type `y` to approve, `n` to reject, or `a` to auto-approve all remaining steps.
 
-By default the agent asks before every file edit. You can change this:
+### Approval Policies
 
 | Flag | Behavior |
 |------|----------|
 | *(default)* | Ask before every edit and command |
 | `--auto-edit` | Auto-apply file edits; ask before shell commands |
 | `--full-auto` | Auto-execute everything (use with `--sandbox`) |
+
+You can also use `/agent <task>` from the REPL to start agent tasks interactively, and `/plan <task>` to review a plan before executing.
 
 ---
 

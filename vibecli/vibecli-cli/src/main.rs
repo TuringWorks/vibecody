@@ -7117,13 +7117,15 @@ async fn run_agent_repl_with_context(
         let _ = store.insert_message(&session_id, "user", task);
     }
 
-    println!("Agent starting: {}", task);
-    println!("   Approval policy: {:?}", approval);
-    println!("   Trace: {}", trace.path().display());
+    let policy_label = match approval {
+        ApprovalPolicy::Suggest => "suggest (ask before every action)",
+        ApprovalPolicy::AutoEdit => "auto-edit (auto-apply files, ask for commands)",
+        ApprovalPolicy::FullAuto => "full-auto (execute everything)",
+    };
+    println!("{}", crate::syntax::format_agent_start(task, policy_label));
     if !resumed_messages.is_empty() {
         println!("   Resuming {} prior messages", resumed_messages.len());
     }
-    println!("   Press Ctrl+C to stop\n");
 
     // Save messages on completion for future resume
     let trace_for_save = TraceWriter::new(trace_dir);
@@ -7137,6 +7139,8 @@ async fn run_agent_repl_with_context(
 
     let mut step_start = std::time::Instant::now();
     let mut step_count: usize = 0;
+    // Track all steps for change summary at the end
+    let mut completed_steps: Vec<(String, String, bool)> = Vec::new();
 
     while let Some(event) = event_rx.recv().await {
         // In --json mode, emit a JSON line for each event and skip pretty printing.
@@ -7176,7 +7180,8 @@ async fn run_agent_repl_with_context(
                 io::stdout().flush()?;
             }
             AgentEvent::ToolCallPending { call, result_tx } => {
-                println!("{}", crate::syntax::format_tool_pending(call.name(), &call.summary()));
+                let description = crate::syntax::describe_tool_action(call.name(), &call.summary());
+                println!("{}", crate::syntax::format_tool_pending(call.name(), &description));
                 print!("   Approve? (y/n/a=approve-all): ");
                 io::stdout().flush()?;
 
@@ -7204,10 +7209,20 @@ async fn run_agent_repl_with_context(
                 let dur = step_start.elapsed().as_millis() as u64;
                 step_start = std::time::Instant::now();
                 step_count += 1;
+                // Use human-readable description instead of raw tool call summary
+                let description = crate::syntax::describe_tool_action(
+                    step.tool_call.name(),
+                    &step.tool_call.summary(),
+                );
                 println!(
                     "{}",
-                    crate::syntax::format_step_result(step.step_num + 1, &step.tool_call.summary(), step.tool_result.success)
+                    crate::syntax::format_step_result(step.step_num + 1, &description, step.tool_result.success)
                 );
+                completed_steps.push((
+                    step.tool_call.name().to_string(),
+                    step.tool_call.summary(),
+                    step.tool_result.success,
+                ));
                 // Show tool output
                 if !step.tool_result.output.trim().is_empty() {
                     println!("{}", crate::syntax::format_tool_output(&step.tool_result.output, step.tool_result.success));
@@ -7234,6 +7249,9 @@ async fn run_agent_repl_with_context(
             }
             AgentEvent::Complete(summary) => {
                 println!("{}", crate::syntax::format_agent_complete(&summary));
+                if !completed_steps.is_empty() {
+                    println!("{}", crate::syntax::format_change_summary(&completed_steps));
+                }
                 println!("   Trace saved: {}", trace.path().display());
                 println!("   Resume with: vibecli --resume {}", trace.session_id());
                 if let Some(ref store) = db {

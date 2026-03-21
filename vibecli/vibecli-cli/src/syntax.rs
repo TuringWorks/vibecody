@@ -410,12 +410,107 @@ pub fn format_thinking(duration_secs: u64) -> String {
     )
 }
 
-/// Format agent completion message.
+/// Format agent task start banner.
+pub fn format_agent_start(task: &str, policy: &str) -> String {
+    let task_preview = if task.len() > 120 {
+        let end = task.char_indices().nth(120).map(|(i,_)| i).unwrap_or(task.len());
+        format!("{}...", &task[..end])
+    } else {
+        task.to_string()
+    };
+    format!(
+        "\n{}{} Agent {}{}  {}\n{}  Policy: {}{}  Press Ctrl+C to stop{}\n",
+        BOLD, BRIGHT_YELLOW, RESET, BOLD, task_preview,
+        BRIGHT_BLACK, policy, "  |", RESET
+    )
+}
+
+/// Format a human-readable description of a tool call (for step output).
+pub fn describe_tool_action(tool_name: &str, summary: &str) -> String {
+    match tool_name {
+        "read_file" => {
+            let path = summary.strip_prefix("read_file(").and_then(|s| s.strip_suffix(')')).unwrap_or(summary);
+            format!("Reading {}", path)
+        }
+        "write_file" => {
+            // summary: "write_file(path, N lines)"
+            let inner = summary.strip_prefix("write_file(").and_then(|s| s.strip_suffix(')')).unwrap_or(summary);
+            if let Some((path, rest)) = inner.split_once(',') {
+                format!("Writing {} ({})", path.trim(), rest.trim())
+            } else {
+                format!("Writing {}", inner)
+            }
+        }
+        "apply_patch" => {
+            let inner = summary.strip_prefix("apply_patch(").and_then(|s| s.strip_suffix(')')).unwrap_or(summary);
+            if let Some((path, rest)) = inner.split_once(',') {
+                format!("Patching {} ({})", path.trim(), rest.trim())
+            } else {
+                format!("Patching {}", inner)
+            }
+        }
+        "bash" => {
+            let inner = summary.strip_prefix("bash(").and_then(|s| s.strip_suffix(')')).unwrap_or(summary);
+            format!("Running: {}", inner)
+        }
+        "search_files" => {
+            let inner = summary.strip_prefix("search_files(").and_then(|s| s.strip_suffix(')')).unwrap_or(summary);
+            format!("Searching: {}", inner)
+        }
+        "list_directory" => {
+            let inner = summary.strip_prefix("list_directory(").and_then(|s| s.strip_suffix(')')).unwrap_or(summary);
+            format!("Listing {}", inner)
+        }
+        "web_search" => format!("Searching web: {}", summary),
+        "fetch_url" => format!("Fetching URL: {}", summary),
+        "think" => format!("Thinking..."),
+        "task_complete" => format!("Task complete"),
+        "spawn_agent" => format!("Spawning sub-agent"),
+        _ => summary.to_string(),
+    }
+}
+
+/// Format agent completion message with change summary.
 pub fn format_agent_complete(summary: &str) -> String {
     format!(
         "\n{}{}Agent complete:{} {}",
         BOLD, GREEN, RESET, summary
     )
+}
+
+/// Format a change summary showing what files were modified.
+pub fn format_change_summary(steps: &[(String, String, bool)]) -> String {
+    // steps: [(tool_name, summary, success)]
+    let writes: Vec<&str> = steps.iter()
+        .filter(|(tool, _, success)| *success && (tool == "write_file" || tool == "apply_patch"))
+        .filter_map(|(_, summary, _)| {
+            summary.split('(').nth(1).and_then(|s| s.split(',').next())
+        })
+        .collect();
+    let commands: Vec<&str> = steps.iter()
+        .filter(|(tool, _, success)| *success && tool == "bash")
+        .filter_map(|(_, summary, _)| {
+            summary.strip_prefix("bash(").and_then(|s| s.strip_suffix(')'))
+        })
+        .collect();
+
+    let mut out = String::new();
+    if !writes.is_empty() {
+        out.push_str(&format!("\n   {}Files modified:{} ", BOLD, RESET));
+        let deduped: Vec<&str> = {
+            let mut seen = std::collections::HashSet::new();
+            writes.into_iter().filter(|w| seen.insert(*w)).collect()
+        };
+        out.push_str(&deduped.join(", "));
+    }
+    if !commands.is_empty() {
+        let count = commands.len();
+        out.push_str(&format!("\n   {}Commands run:{} {}", BOLD, RESET, count));
+    }
+    let total = steps.len();
+    let succeeded = steps.iter().filter(|(_, _, s)| *s).count();
+    out.push_str(&format!("\n   {}Steps:{} {}/{} succeeded", BOLD, RESET, succeeded, total));
+    out
 }
 
 /// Format agent error message.
