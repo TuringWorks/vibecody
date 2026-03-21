@@ -603,7 +603,7 @@ async fn main() -> Result<()> {
                     } else {
                         ov.approval_policy.unwrap_or_else(|| approval_policy.clone())
                     };
-                    eprintln!("📋 Profile '{}' → provider={}, approval={}", profile_name, provider, policy);
+                    eprintln!("Profile '{}' → provider={}, approval={}", profile_name, provider, policy);
                     (provider, model, policy)
                 }
                 Err(e) => {
@@ -1188,7 +1188,7 @@ async fn main() -> Result<()> {
             ..Default::default()
         };
 
-        println!("🔍 Running code review...");
+        println!("Running code review...");
         if !config.base_ref.is_empty() {
             println!("   Base: {}", config.base_ref);
         }
@@ -1384,7 +1384,7 @@ async fn main() -> Result<()> {
                 Ok(wt) => {
                     let wt_path = wt.path.clone();
                     let branch = wt.branch.clone();
-                    eprintln!("🌿 Worktree isolation: branch '{}' at {}", branch, wt_path.display());
+                    eprintln!("Worktree isolation: branch '{}' at {}", branch, wt_path.display());
                     eprintln!("   After the agent completes, merge with:");
                     eprintln!("   git merge {}", branch);
                     // Change CWD to the worktree so the agent runs there
@@ -1429,7 +1429,7 @@ async fn main() -> Result<()> {
             .join("traces");
         let sessions = list_traces(&trace_dir);
         if let Some(session) = sessions.iter().find(|s| s.session_id.starts_with(sid.as_str())) {
-            println!("📋 Session {} found ({} trace steps)", &session.session_id, session.step_count);
+            println!("Session {} found ({} trace steps)", &session.session_id, session.step_count);
             println!("Use: vibecli --agent \"<task to continue>\" --resume {}", &session.session_id[..session.session_id.len().min(8)]);
         } else {
             eprintln!("❌ No session found with ID prefix: {}", sid);
@@ -1457,7 +1457,7 @@ async fn main() -> Result<()> {
     let cwd = std::env::current_dir()?;
     let memory = ProjectMemory::load(&cwd);
     if !memory.is_empty() {
-        println!("📚 {}", memory.summary());
+        println!("{}", memory.summary());
     }
 
     let mut messages: Vec<Message> = Vec::new();
@@ -1484,10 +1484,10 @@ async fn main() -> Result<()> {
             });
         }
         if !lessons.is_empty() {
-            println!("📋 Loaded {} orchestration lessons", lessons.len());
+            println!("Loaded {} orchestration lessons", lessons.len());
         }
         if let Some(ref task) = current_task {
-            println!("🎯 Active task: {} ({}/{} done)", task.goal, task.completed(), task.todos.len());
+            println!("Active task: {} ({}/{} done)", task.goal, task.completed(), task.todos.len());
         }
     }
     let mut conversation_active = false;
@@ -1508,7 +1508,7 @@ async fn main() -> Result<()> {
     if cli.voice {
         let voice_cfg = Config::load().unwrap_or_default().voice;
         if voice_cfg.resolve_whisper_api_key(None).is_some() {
-            eprintln!("🎤 Voice mode enabled — use /voice transcribe <file> or /voice speak <text>");
+            eprintln!("Voice mode enabled — use /voice transcribe <file> or /voice speak <text>");
         } else {
             eprintln!("⚠️  --voice flag set but no Whisper API key found. Set GROQ_API_KEY or voice.whisper_api_key in config.");
         }
@@ -1533,7 +1533,7 @@ async fn main() -> Result<()> {
                             .map(|c| c.safety.require_approval_for_commands)
                             .unwrap_or(true);
                         let should_run = if require_approval {
-                            print!("⚡ Execute command: {}? (y/N): ", command);
+                            print!("  Execute command: {}? (y/N): ", command);
                             io::stdout().flush()?;
                             let mut confirm = String::new();
                             io::stdin().read_line(&mut confirm)?;
@@ -1542,7 +1542,7 @@ async fn main() -> Result<()> {
                             true
                         };
                         if should_run {
-                            println!("🚀 Executing...");
+                            println!("Executing...");
                             use std::process::Command;
                             let output = if cfg!(target_os = "windows") {
                                 Command::new("cmd").args(["/C", command]).output()
@@ -1616,9 +1616,9 @@ async fn main() -> Result<()> {
                                         .take(10)
                                         .collect();
                                     if resumable.is_empty() {
-                                        println!("📋 No resumable sessions (sessions must have saved messages)");
+                                        println!("No resumable sessions (sessions must have saved messages)");
                                     } else {
-                                        println!("\n📋 Resumable sessions:");
+                                        println!("\nResumable sessions:");
                                         for s in resumable {
                                             let elapsed = std::time::Duration::from_secs(
                                                 std::time::SystemTime::now()
@@ -1679,7 +1679,7 @@ async fn main() -> Result<()> {
                                     let id_prefix = parts[1];
                                     if let Some(session) = sessions.iter().find(|s| s.session_id.starts_with(id_prefix)) {
                                         let entries = load_trace(&session.path);
-                                        println!("\n📋 Trace: {} ({} steps)\n", session.session_id, entries.len());
+                                        println!("\nTrace: {} ({} steps)\n", session.session_id, entries.len());
                                         for e in &entries {
                                             let icon = if e.success { "✅" } else { "❌" };
                                             println!("{} Step {}: {} — {} ({}ms, {})", icon, e.step + 1, e.tool, e.input_summary, e.duration_ms, e.approved_by);
@@ -1695,9 +1695,9 @@ async fn main() -> Result<()> {
                                 _ => {
                                     // List sessions
                                     if sessions.is_empty() {
-                                        println!("📋 No traces found in {}", trace_dir.display());
+                                        println!("No traces found in {}", trace_dir.display());
                                     } else {
-                                        println!("\n📋 Recent agent traces ({})\n", trace_dir.display());
+                                        println!("\nRecent agent traces ({})\n", trace_dir.display());
                                         for session in sessions.iter().take(10) {
                                             let dt = std::time::SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(session.timestamp);
                                             let elapsed = std::time::SystemTime::now().duration_since(dt).unwrap_or_default();
@@ -1727,7 +1727,7 @@ async fn main() -> Result<()> {
                             if let Ok(store) = SessionStore::open_default() {
                                 match store.search(args) {
                                     Ok(results) if !results.is_empty() => {
-                                        println!("\n🔍 Search results for '{}' ({} sessions)\n", args, results.len());
+                                        println!("\nSearch results for '{}' ({} sessions)\n", args, results.len());
                                         let now_ms = std::time::SystemTime::now()
                                             .duration_since(std::time::UNIX_EPOCH)
                                             .unwrap_or_default()
@@ -1803,7 +1803,7 @@ async fn main() -> Result<()> {
                             if hits.is_empty() {
                                 println!("No sessions found matching '{}'\n", args);
                             } else {
-                                println!("\n🔍 Search results for '{}' ({} sessions match)\n", args, hits.len());
+                                println!("\nSearch results for '{}' ({} sessions match)\n", args, hits.len());
                                 for (id, ts, lines) in hits.iter().take(10) {
                                     let elapsed = std::time::SystemTime::now()
                                         .duration_since(std::time::UNIX_EPOCH + std::time::Duration::from_secs(*ts))
@@ -1811,7 +1811,7 @@ async fn main() -> Result<()> {
                                     let age = if elapsed.as_secs() < 3600 { format!("{}m ago", elapsed.as_secs() / 60) }
                                         else if elapsed.as_secs() < 86400 { format!("{}h ago", elapsed.as_secs() / 3600) }
                                         else { format!("{}d ago", elapsed.as_secs() / 86400) };
-                                    println!("  📋 {} ({})", &id[..id.len().min(12)], age);
+                                    println!("  {} ({})", &id[..id.len().min(12)], age);
                                     for line in lines.iter().take(2) {
                                         println!("     {}", line);
                                     }
@@ -1842,7 +1842,7 @@ async fn main() -> Result<()> {
                                             Ok(mut client) => {
                                                 match client.list_tools() {
                                                     Ok(tools) => {
-                                                        println!("\n🔧 Tools from '{}':", name);
+                                                        println!("\nTools from '{}':", name);
                                                         for t in &tools {
                                                             println!("  {} — {}", t.name, t.description);
                                                         }
@@ -1877,7 +1877,7 @@ async fn main() -> Result<()> {
                             let chat_result = if images.is_empty() {
                                 llm.chat(&messages, None).await
                             } else {
-                                println!("(📷 {} image{})", images.len(), if images.len() > 1 { "s" } else { "" });
+                                println!("({} image{})", images.len(), if images.len() > 1 { "s" } else { "" });
                                 llm.chat_with_images(&messages, &images, None).await
                             };
                             match chat_result {
@@ -1908,7 +1908,7 @@ async fn main() -> Result<()> {
                             match llm.chat(&gen_messages, None).await {
                                 Ok(response) => {
                                     println!("\n{}\n", highlight_code_blocks(&response));
-                                    print!("💾 Save to file? (y/N or filename): ");
+                                    print!("Save to file? (y/N or filename): ");
                                     io::stdout().flush()?;
                                     let mut save_input = String::new();
                                     io::stdin().read_line(&mut save_input)?;
@@ -1969,7 +1969,7 @@ async fn main() -> Result<()> {
                                                 .filter(|l| !l.starts_with("```"))
                                                 .collect::<Vec<_>>()
                                                 .join("\n");
-                                            println!("\n📊 Proposed changes:\n");
+                                            println!("\nProposed changes:\n");
                                             if let Err(e) = DiffViewer::show_diff(file_path, &current_content, &clean) {
                                                 eprintln!("Warning: Could not show diff: {}", e);
                                             }
@@ -1997,7 +1997,7 @@ async fn main() -> Result<()> {
                                 println!("Usage: /exec <description of what to do>");
                                 continue;
                             }
-                            println!("⚡ Generating command for: {}", args);
+                            println!("  Generating command for: {}", args);
                             let exec_messages = vec![
                                 Message {
                                     role: MessageRole::System,
@@ -2008,13 +2008,13 @@ async fn main() -> Result<()> {
                             match llm.chat(&exec_messages, None).await {
                                 Ok(command) => {
                                     let command = command.trim();
-                                    println!("📝 Suggested command: {}", command);
+                                    println!("Suggested command: {}", command);
                                     print!("⚠️  Execute this command? (y/N): ");
                                     io::stdout().flush()?;
                                     let mut confirm = String::new();
                                     io::stdin().read_line(&mut confirm)?;
                                     if confirm.trim().to_lowercase() == "y" {
-                                        println!("🚀 Executing...");
+                                        println!("Executing...");
                                         use std::process::Command;
                                         let output = if cfg!(target_os = "windows") {
                                             Command::new("cmd").args(["/C", command]).output()?
@@ -2037,7 +2037,7 @@ async fn main() -> Result<()> {
                         "/index" => {
                             // Build or refresh the semantic codebase index.
                             let model = if args.is_empty() { "nomic-embed-text" } else { args };
-                            println!("🔍 Building semantic index with model '{}' …", model);
+                            println!("Building semantic index with model '{}' …", model);
                             println!("   (embeds all source files — may take a minute on large repos)");
                             let provider = EmbeddingProvider::ollama(model);
                             match EmbeddingIndex::build(&cwd, &provider).await {
@@ -2083,7 +2083,7 @@ async fn main() -> Result<()> {
                                     continue;
                                 }
                             };
-                            println!("🔍 Searching codebase for: {}", args);
+                            println!("Searching codebase for: {}", args);
                             let hits = match index.search(args, 5).await {
                                 Ok(h) => h,
                                 Err(e) => {
@@ -2203,7 +2203,7 @@ async fn main() -> Result<()> {
                                         continue;
                                     }
                                     match mgr.delete(name) {
-                                        Ok(()) => println!("🗑️  Deleted profile '{}'\n", name),
+                                        Ok(()) => println!("Deleted profile '{}'\n", name),
                                         Err(e) => eprintln!("❌ {}\n", e),
                                     }
                                 }
@@ -2249,7 +2249,7 @@ async fn main() -> Result<()> {
                                 &active_provider,
                                 active_model.as_deref().unwrap_or(""),
                             );
-                            println!("📊 Session token usage:");
+                            println!("Session token usage:");
                             println!("   Prompt tokens:     {}", session_tokens.prompt_tokens);
                             println!("   Completion tokens: {}", session_tokens.completion_tokens);
                             println!("   Total:             {}", total);
@@ -2331,7 +2331,7 @@ async fn main() -> Result<()> {
                                         .map_err(|e| e.to_string())
                                         .and_then(|s| std::fs::write(&checkpoint_path, s).map_err(|e| e.to_string()));
                                     match save_result {
-                                        Ok(()) => println!("💾 Checkpoint saved ({} messages)\n   Restore with: /rewind {}\n", messages.len(), ts),
+                                        Ok(()) => println!("Checkpoint saved ({} messages)\n   Restore with: /rewind {}\n", messages.len(), ts),
                                         Err(e) => eprintln!("❌ Failed to save checkpoint: {}\n", e),
                                     }
                                 }
@@ -2347,7 +2347,7 @@ async fn main() -> Result<()> {
                                     if entries.is_empty() {
                                         println!("No checkpoints saved. Use /rewind to save one.\n");
                                     } else {
-                                        println!("\n💾 Saved checkpoints:");
+                                        println!("\nSaved checkpoints:");
                                         for entry in entries.iter().take(10) {
                                             let ts_str = entry.file_name().to_string_lossy().replace(".json", "");
                                             let ts_secs: u64 = ts_str.parse().unwrap_or(0);
@@ -2389,7 +2389,7 @@ async fn main() -> Result<()> {
                                             let count = restored.len();
                                             messages = restored;
                                             conversation_active = true;
-                                            println!("⏪ Rewound to checkpoint {} ({} messages)\n", ts_str, count);
+                                            println!("Rewound to checkpoint {} ({} messages)\n", ts_str, count);
                                         }
                                         Err(e) => eprintln!("❌ Failed to load checkpoint {}: {}\n", ts_str, e),
                                     }
@@ -2435,7 +2435,7 @@ async fn main() -> Result<()> {
                                     }
                                     match mgr.load(name) {
                                         Ok(spec) => {
-                                            println!("\n📋 Spec: {}  [{}]", spec.name, spec.status);
+                                            println!("\nSpec: {}  [{}]", spec.name, spec.status);
                                             if !spec.requirements.is_empty() {
                                                 println!("   Requirements: {}", spec.requirements);
                                             }
@@ -2488,7 +2488,7 @@ async fn main() -> Result<()> {
                                     match mgr.load(name) {
                                         Ok(spec) => {
                                             let ctx = spec.context_string();
-                                            println!("🤖 Running agent on spec '{}' ({} pending tasks)…\n", name, spec.pending());
+                                            println!("Running agent on spec '{}' ({} pending tasks)…\n", name, spec.pending());
                                             // Inject spec context into the system prompt for the next agent call
                                             println!("{}", ctx);
                                             println!("Use /agent to start the agent with the above spec as context.\n");
@@ -2534,7 +2534,7 @@ async fn main() -> Result<()> {
                                     }
                                     match mgr.load(name) {
                                         Ok(w) => {
-                                            println!("\n🏗️  Workflow: {}  [{:.0}% complete]", w.name, w.overall_progress());
+                                            println!("\nWorkflow: {}  [{:.0}% complete]", w.name, w.overall_progress());
                                             println!("   {}\n", w.description);
                                             for stage in &w.stages {
                                                 let marker = if stage.stage == w.current_stage { "▶" }
@@ -2631,7 +2631,7 @@ async fn main() -> Result<()> {
                                                 &w.current_stage,
                                                 &w.description,
                                             );
-                                            println!("🤖 Generating {} checklist for '{}'...", w.current_stage.label(), name);
+                                            println!("Generating {} checklist for '{}'...", w.current_stage.label(), name);
                                             match llm.chat(&[], Some(prompt)).await {
                                                 Ok(response) => {
                                                     let items = crate::workflow::parse_checklist_response(&response);
@@ -3653,7 +3653,7 @@ async fn main() -> Result<()> {
                                             if names.is_empty() {
                                                 println!("No snippets saved yet. Use: /snippet save <name>\n");
                                             } else {
-                                                println!("📌 Saved snippets ({}):", names.len());
+                                                println!("Saved snippets ({}):", names.len());
                                                 for n in &names { println!("  - {}", n); }
                                                 println!();
                                             }
@@ -3676,7 +3676,7 @@ async fn main() -> Result<()> {
                                             Some(content) => {
                                                 let path = snippet_dir.join(format!("{}.md", name));
                                                 match std::fs::write(&path, &content) {
-                                                    Ok(()) => println!("💾 Snippet '{}' saved.\n", name),
+                                                    Ok(()) => println!("Snippet '{}' saved.\n", name),
                                                     Err(e) => eprintln!("❌ Failed to save: {}\n", e),
                                                 }
                                             }
@@ -3694,7 +3694,7 @@ async fn main() -> Result<()> {
                                         let path = snippet_dir.join(format!("{}.md", name));
                                         match std::fs::read_to_string(&path) {
                                             Ok(content) => {
-                                                println!("📌 Snippet '{}':\n---\n{}\n---\n", name, content);
+                                                println!("Snippet '{}':\n---\n{}\n---\n", name, content);
                                                 // Inject as a user context message
                                                 messages.push(Message {
                                                     role: MessageRole::User,
@@ -3718,7 +3718,7 @@ async fn main() -> Result<()> {
                                     } else {
                                         let path = snippet_dir.join(format!("{}.md", name));
                                         match std::fs::remove_file(&path) {
-                                            Ok(()) => println!("🗑️  Snippet '{}' deleted.\n", name),
+                                            Ok(()) => println!("Snippet '{}' deleted.\n", name),
                                             Err(_) => println!("⚠️  Snippet '{}' not found.\n", name),
                                         }
                                     }
@@ -3733,7 +3733,7 @@ async fn main() -> Result<()> {
                                         let path = snippet_dir.join(format!("{}.md", name));
                                         match std::fs::read_to_string(&path) {
                                             Ok(content) => {
-                                                println!("📌 Snippet '{}':\n---\n{}\n---\n", name, content);
+                                                println!("Snippet '{}':\n---\n{}\n---\n", name, content);
                                             }
                                             Err(_) => println!("⚠️  Snippet '{}' not found.\n", name),
                                         }
@@ -3840,7 +3840,7 @@ async fn main() -> Result<()> {
                                 Ok(store) => {
                                     match store.list_root_sessions(15) {
                                         Ok(sessions) if sessions.is_empty() => {
-                                            println!("📋 No sessions recorded yet. Sessions are saved when you run /agent tasks.\n");
+                                            println!("No sessions recorded yet. Sessions are saved when you run /agent tasks.\n");
                                         }
                                         Ok(sessions) => {
                                             let filter = args.trim().to_lowercase();
@@ -3852,7 +3852,7 @@ async fn main() -> Result<()> {
                                             if filtered.is_empty() {
                                                 println!("No sessions matching '{}'.\n", args.trim());
                                             } else {
-                                                println!("\n📋 Recent sessions ({}):\n", filtered.len());
+                                                println!("\nRecent sessions ({}):\n", filtered.len());
                                                 println!("  {:<10}  {:<8}  {:<7}  {:<5}  Task",
                                                     "ID", "Status", "Steps", "Model");
                                                 println!("  {}", "─".repeat(72));
@@ -4008,7 +4008,7 @@ async fn main() -> Result<()> {
                                     println!();
                                 }
                                 _ => {
-                                    println!("🛡️  Red Team Commands:");
+                                    println!("Red Team Commands:");
                                     println!("  /redteam scan <url> [--repo <path>]  — run security scan");
                                     println!("  /redteam list                        — list all sessions");
                                     println!("  /redteam show <id>                   — show findings");
@@ -4121,7 +4121,7 @@ async fn main() -> Result<()> {
                                 args.trim().to_string()
                             };
                             let _ = ws;
-                            println!("🧪 Running: {}\n", cmd);
+                            println!("Running: {}\n", cmd);
                             let (prog, cmd_args) = if cmd.starts_with("cargo") {
                                 ("cargo", vec!["test"])
                             } else if cmd.starts_with("npm") {
@@ -4245,7 +4245,7 @@ async fn main() -> Result<()> {
                                         println!("❌ {} CLI not found (required for {}). Install it first.\n", cli, desc);
                                         continue;
                                     }
-                                    println!("🚀 Deploying to {} ({})...\n", resolved, desc);
+                                    println!("Deploying to {} ({})...\n", resolved, desc);
                                     println!("Running: {}\n", cmd);
                                     let status = std::process::Command::new("sh")
                                         .args(["-c", cmd])
@@ -4282,7 +4282,7 @@ async fn main() -> Result<()> {
                                     other      => { println!("❌ Unknown framework: {}. Use clippy|eslint|ruff|gofmt|prettier\n", other); continue; }
                                 }
                             };
-                            println!("🔧 Running: {}\n", fw);
+                            println!("Running: {}\n", fw);
                             let status = std::process::Command::new("sh")
                                 .args(["-c", fw])
                                 .current_dir(&cwd)
@@ -4357,16 +4357,16 @@ async fn main() -> Result<()> {
                             match subcmd {
                                 "" | "list" => {
                                     if !env_path.exists() {
-                                        println!("\n📋 No {} file found. Use `/env create` or `/env set KEY value`.\n", env_filename);
+                                        println!("\nNo {} file found. Use `/env create` or `/env set KEY value`.\n", env_filename);
                                     } else {
                                         let entries = parse_env_file(&env_path);
-                                        println!("\n🔑 Environment: {} ({})", active_env, env_filename);
+                                        println!("\nEnvironment: {} ({})", active_env, env_filename);
                                         if entries.is_empty() {
                                             println!("  (empty)\n");
                                         } else {
                                             for (key, value) in &entries {
                                                 if is_secret_key(key) {
-                                                    println!("  {:<30} ••••••••  🔒", key);
+                                                    println!("  {:<30} ••••••••  ", key);
                                                 } else {
                                                     println!("  {:<30} {}", key, value);
                                                 }
@@ -4376,7 +4376,7 @@ async fn main() -> Result<()> {
                                     }
                                 }
                                 "files" => {
-                                    println!("\n📁 Environment files:");
+                                    println!("\nEnvironment files:");
                                     let mut found = false;
                                     if let Ok(dir) = std::fs::read_dir(&cwd) {
                                         let mut files: Vec<_> = dir
@@ -4473,7 +4473,7 @@ async fn main() -> Result<()> {
                                             .collect();
                                         let new_content = filtered.join("\n") + "\n";
                                         match std::fs::write(&env_path, &new_content) {
-                                            Ok(_) => println!("🗑️  Deleted {} from {}\n", key, env_filename),
+                                            Ok(_) => println!("Deleted {} from {}\n", key, env_filename),
                                             Err(e) => println!("❌ Failed to write {}: {}\n", env_filename, e),
                                         }
                                     }
@@ -4487,7 +4487,7 @@ async fn main() -> Result<()> {
                                         let _ = std::fs::create_dir_all(&vibeui_dir);
                                         let target_file = if env_name == "default" { ".env".to_string() } else { format!(".env.{}", env_name) };
                                         match std::fs::write(vibeui_dir.join("active-env.txt"), env_name) {
-                                            Ok(_) => println!("🔄 Switched to environment: {} ({})\n", env_name, target_file),
+                                            Ok(_) => println!("Switched to environment: {} ({})\n", env_name, target_file),
                                             Err(e) => println!("❌ Failed to switch: {}\n", e),
                                         }
                                     }
@@ -4545,7 +4545,7 @@ async fn main() -> Result<()> {
 
                             match subcmd {
                                 "list-tools" => {
-                                    println!("\n🔥 Profiling tools:");
+                                    println!("\nProfiling tools:");
                                     let tools = [
                                         ("cargo-flamegraph", "flamegraph", "Rust CPU profiling (perf/dtrace + flamegraph)"),
                                         ("clinic",           "clinic",     "Node.js performance diagnostics"),
@@ -4576,7 +4576,7 @@ async fn main() -> Result<()> {
                                     }
                                     let target_arg = if subcmd == "run" && !sub_args.is_empty() { sub_args } else { "" };
 
-                                    println!("🔥 Profiling with {}...\n", tool);
+                                    println!("Profiling with {}...\n", tool);
 
                                     let cmd_str = match tool {
                                         "cargo-flamegraph" => {
@@ -4658,7 +4658,7 @@ async fn main() -> Result<()> {
 
                             match subcmd {
                                 "" | "scan" | "outdated" | "vulnerable" | "list" => {
-                                    println!("📦 Scanning dependencies ({})...\n", manager);
+                                    println!("Scanning dependencies ({})...\n", manager);
                                     let outdated_cmd = match manager {
                                         "npm" => "npm outdated --json",
                                         "yarn" => "yarn outdated --json",
@@ -4786,7 +4786,7 @@ async fn main() -> Result<()> {
                                         "go" => format!("go get {}@latest", pkg),
                                         _ => { println!("❌ Unsupported manager.\n"); continue; }
                                     };
-                                    println!("📦 Upgrading {} ({})...", pkg, manager);
+                                    println!("Upgrading {} ({})...", pkg, manager);
                                     let status = std::process::Command::new("sh")
                                         .args(["-c", &upgrade_cmd])
                                         .current_dir(&cwd)
@@ -4811,7 +4811,7 @@ async fn main() -> Result<()> {
 
                             match subcmd {
                                 "" | "sources" => {
-                                    println!("📋 Scanning for log files...\n");
+                                    println!("Scanning for log files...\n");
                                     let mut found: Vec<(String, String)> = Vec::new();
                                     for entry in walkdir::WalkDir::new(&cwd)
                                         .max_depth(4)
@@ -4863,7 +4863,7 @@ async fn main() -> Result<()> {
                                         Ok(content) => {
                                             let lines: Vec<&str> = content.lines().collect();
                                             let skip = if lines.len() > 50 { lines.len() - 50 } else { 0 };
-                                            println!("📋 Last {} lines of {}:\n", lines.len().min(50), sub_args);
+                                            println!("Last {} lines of {}:\n", lines.len().min(50), sub_args);
                                             for line in &lines[skip..] {
                                                 let upper = line.to_uppercase();
                                                 if upper.contains("ERROR") || upper.contains("FATAL") {
@@ -4890,7 +4890,7 @@ async fn main() -> Result<()> {
                                         Ok(content) => {
                                             let mut error_count = 0usize;
                                             let mut warn_count = 0usize;
-                                            println!("📋 Errors/warnings in {}:\n", sub_args);
+                                            println!("Errors/warnings in {}:\n", sub_args);
                                             for line in content.lines() {
                                                 let upper = line.to_uppercase();
                                                 if upper.contains("ERROR") || upper.contains("FATAL") || upper.contains("PANIC") {
@@ -4922,7 +4922,7 @@ async fn main() -> Result<()> {
                                             let lines: Vec<&str> = content.lines().collect();
                                             let tail: Vec<&str> = lines.iter().rev().take(100).copied().collect::<Vec<_>>().into_iter().rev().collect();
                                             let log_text = tail.join("\n");
-                                            println!("📋 Analyzing last {} lines with AI...\n", tail.len());
+                                            println!("Analyzing last {} lines with AI...\n", tail.len());
                                             let prompt = format!(
                                                 "Analyze these log entries. Identify errors, recurring patterns, probable root causes, and suggest fixes.\n\n```\n{}\n```",
                                                 log_text
@@ -5143,7 +5143,7 @@ async fn main() -> Result<()> {
                                             let err = String::from_utf8_lossy(&o.stderr);
                                             print!("{out}{err}");
                                             if out.contains("is the first bad commit") {
-                                                println!("\n🎯 Culprit found!\n");
+                                                println!("\nCulprit found!\n");
                                             }
                                         }
                                         Err(e) => println!("❌ Bisect step failed: {e}\n"),
@@ -5178,7 +5178,7 @@ async fn main() -> Result<()> {
                                                 println!("No bisect log available. Start a bisect session first.\n");
                                                 continue;
                                             }
-                                            println!("🤖 Analyzing bisect session...\n");
+                                            println!("Analyzing bisect session...\n");
                                             let prompt = format!(
                                                 "Analyze this git bisect log and identify the root cause commit. \
                                                  Explain what likely went wrong.\n\n```\n{}\n```",
@@ -5325,7 +5325,7 @@ async fn main() -> Result<()> {
                                             if index.plugins.is_empty() {
                                                 println!("No plugins in marketplace.\n");
                                             } else {
-                                                println!("📦 Marketplace ({} plugins):", index.plugins.len());
+                                                println!("Marketplace ({} plugins):", index.plugins.len());
                                                 for p in &index.plugins {
                                                     println!("  {} v{} — {}", p.name, p.version, p.description);
                                                 }
@@ -5789,7 +5789,7 @@ async fn main() -> Result<()> {
                                     } else {
                                         let audio_path = std::path::Path::new(sub_args);
                                         match voice::transcribe_audio(audio_path, &key).await {
-                                            Ok(text) => println!("📝 Transcription:\n{}\n", text),
+                                            Ok(text) => println!("Transcription:\n{}\n", text),
                                             Err(e) => println!("❌ Transcription failed: {e}\n"),
                                         }
                                     }
@@ -5820,7 +5820,7 @@ async fn main() -> Result<()> {
                         }
 
                         "/discover" => {
-                            println!("🔍 Scanning for VibeCLI peers on local network...\n");
+                            println!("Scanning for VibeCLI peers on local network...\n");
                             match discovery::discover_peers(5).await {
                                 Ok(peers) if peers.is_empty() => {
                                     println!("No peers found. Start another VibeCLI with --serve.\n");
@@ -5857,7 +5857,7 @@ async fn main() -> Result<()> {
 
                             match subcmd {
                                 "runtime" | "" | "status" => {
-                                    println!("🔍 Detecting container runtimes...\n");
+                                    println!("Detecting container runtimes...\n");
                                     let docker = docker_runtime::DockerRuntime::new();
                                     let podman = podman_runtime::PodmanRuntime::new();
                                     let osb_url = sb_cfg.opensandbox.resolve_api_url();
@@ -5881,7 +5881,7 @@ async fn main() -> Result<()> {
                                 }
                                 "start" => {
                                     let image = if sub_args.is_empty() { &sb_cfg.image } else { sub_args };
-                                    println!("🚀 Starting sandbox container (image: {image})...\n");
+                                    println!("Starting sandbox container (image: {image})...\n");
                                     match container_runtime::detect_runtime(&sb_cfg).await {
                                         Ok(rt) => {
                                             let mut cfg = sb_cfg.to_container_config();
@@ -5928,7 +5928,7 @@ async fn main() -> Result<()> {
                                                     println!("No VibeCody sandbox containers running.\n");
                                                 }
                                                 Ok(containers) => {
-                                                    println!("📦 VibeCody Sandbox Containers:\n");
+                                                    println!("VibeCody Sandbox Containers:\n");
                                                     for c in &containers {
                                                         println!("  {} | {} | {} | {}", &c.id[..12.min(c.id.len())], c.image, c.status, c.runtime);
                                                     }
@@ -6005,7 +6005,7 @@ async fn main() -> Result<()> {
                                 _ => verification::VerificationCategory::ALL.to_vec(), // "full" or default
                             };
                             let workspace = std::env::current_dir()?;
-                            println!("🔍 Running verification ({} categories)...\n", categories.len());
+                            println!("Running verification ({} categories)...\n", categories.len());
                             match verification::run_verification(&workspace, &categories, llm.clone()).await {
                                 Ok(report) => {
                                     println!("{}", report.to_markdown());
@@ -6025,7 +6025,7 @@ async fn main() -> Result<()> {
                                     if ids.is_empty() {
                                         println!("No handoff documents found.\n");
                                     } else {
-                                        println!("📋 Handoff documents:\n");
+                                        println!("Handoff documents:\n");
                                         for id in &ids {
                                             println!("  - {}", id);
                                         }
@@ -6043,7 +6043,7 @@ async fn main() -> Result<()> {
                                     }
                                 }
                                 "create" => {
-                                    println!("📝 Handoff documents are auto-generated at agent session end.\n");
+                                    println!("Handoff documents are auto-generated at agent session end.\n");
                                     println!("Use /handoff list to see existing handoffs.\n");
                                 }
                                 _ => {
@@ -6054,7 +6054,7 @@ async fn main() -> Result<()> {
 
                         "/init" => {
                             let workspace = std::env::current_dir()?;
-                            println!("🔍 Scanning project...\n");
+                            println!("Scanning project...\n");
                             let profile = project_init::scan_workspace(&workspace);
                             let _ = project_init::save_profile_cache(&workspace, &profile);
                             println!("{}", profile.display());
@@ -6064,7 +6064,7 @@ async fn main() -> Result<()> {
                                 println!("⚠️  Missing env vars? Check: {}\n", profile.env_vars.join(", "));
                             }
                             if profile.build_commands.is_empty() {
-                                println!("💡 No build commands detected. Run /orient for AI-powered analysis.\n");
+                                println!("No build commands detected. Run /orient for AI-powered analysis.\n");
                             }
                         }
 
@@ -6128,7 +6128,7 @@ async fn main() -> Result<()> {
                             let sub = args.trim().split_whitespace().next().unwrap_or("status");
                             match sub {
                                 "start" => {
-                                    println!("🚀 Starting channel daemon...\n");
+                                    println!("Starting channel daemon...\n");
                                     println!("Configure channels in ~/.vibecli/config.toml under [channel_daemon]");
                                     println!("  Slack:     SLACK_BOT_TOKEN + SLACK_APP_TOKEN");
                                     println!("  GitHub:    GITHUB_WEBHOOK_SECRET (webhooks on port 7879)");
@@ -6169,7 +6169,7 @@ async fn main() -> Result<()> {
                                     if task_desc.is_empty() {
                                         println!("Usage: /vm launch <task description>\n");
                                     } else {
-                                        println!("🚀 Queuing VM agent task: {}", task_desc);
+                                        println!("Queuing VM agent task: {}", task_desc);
                                         println!("  Branch: agent/{}", task_desc.split_whitespace().take(3).collect::<Vec<_>>().join("-").to_lowercase());
                                         println!("  Runtime: docker");
                                         println!("  Resources: 2 CPU, 4GB RAM, 1hr timeout\n");
@@ -6188,7 +6188,7 @@ async fn main() -> Result<()> {
                                     if task_desc.is_empty() {
                                         println!("Usage: /branch-agent create <task description>\n");
                                     } else {
-                                        println!("🌿 Creating branch agent for: {}", task_desc);
+                                        println!("Creating branch agent for: {}", task_desc);
                                         println!("  This will:");
                                         println!("  1. Create a feature branch from current HEAD");
                                         println!("  2. Run the agent autonomously on the branch");
@@ -6212,7 +6212,7 @@ async fn main() -> Result<()> {
                                     if url.is_empty() {
                                         println!("Usage: /design import <figma-url|svg-path|screenshot-path>\n");
                                     } else {
-                                        println!("🎨 Importing design from: {}", url);
+                                        println!("Importing design from: {}", url);
                                         println!("  Supported formats: Figma URL, SVG, PNG/JPG screenshot");
                                         println!("  Output: React/Vue/Svelte components with Tailwind CSS\n");
                                     }
@@ -6253,7 +6253,7 @@ async fn main() -> Result<()> {
                             let sub = args.trim().split_whitespace().next().unwrap_or("status");
                             match sub {
                                 "index" => {
-                                    println!("📊 Indexing organization repositories...");
+                                    println!("Indexing organization repositories...");
                                     println!("  This builds cross-repo embeddings for org-wide context.");
                                     println!("  Repos are discovered from GitHub org or local paths.\n");
                                 }
@@ -6262,7 +6262,7 @@ async fn main() -> Result<()> {
                                     if query.is_empty() {
                                         println!("Usage: /org search <query>  — Search across all org repos\n");
                                     } else {
-                                        println!("🔍 Searching org-wide for: {}\n", query);
+                                        println!("Searching org-wide for: {}\n", query);
                                     }
                                 }
                                 _ => {
@@ -6309,7 +6309,7 @@ async fn main() -> Result<()> {
                                     if path.is_empty() {
                                         println!("Usage: /data load <csv|json|parquet file>\n");
                                     } else {
-                                        println!("📊 Loading data from: {}", path);
+                                        println!("Loading data from: {}", path);
                                         println!("  Supported: CSV, JSON, Parquet, SQLite\n");
                                     }
                                 }
@@ -6351,7 +6351,7 @@ async fn main() -> Result<()> {
                                     if ext.is_empty() {
                                         println!("Usage: /extension install <vsix-path|extension-id>\n");
                                     } else {
-                                        println!("📦 Installing VS Code extension: {}", ext);
+                                        println!("Installing VS Code extension: {}", ext);
                                         println!("  Supported: TextMate grammars, snippets, themes, language configs\n");
                                     }
                                 }
@@ -6369,7 +6369,7 @@ async fn main() -> Result<()> {
                             let sub = args.trim().split_whitespace().next().unwrap_or("status");
                             match sub {
                                 "fix-build" => {
-                                    println!("🔧 Auto-fixing build failures...");
+                                    println!("Auto-fixing build failures...");
                                     println!("  Reads CI logs, identifies errors, generates patches.\n");
                                 }
                                 "gen-tests" => {
@@ -6377,7 +6377,7 @@ async fn main() -> Result<()> {
                                     if target.is_empty() {
                                         println!("Usage: /agentic gen-tests <file-or-module>\n");
                                     } else {
-                                        println!("🧪 Generating tests for: {}\n", target);
+                                        println!("Generating tests for: {}\n", target);
                                     }
                                 }
                                 _ => {
@@ -6843,7 +6843,7 @@ async fn run_parallel_agents(
 
     let (event_tx, mut event_rx) = tokio::sync::mpsc::channel::<OrchestratorEvent>(128);
 
-    println!("🚀 Starting {} parallel agents for task: {}", n, task);
+    println!("Starting {} parallel agents for task: {}", n, task);
     println!("   Approval: {:?}", approval_policy);
     println!("   Workspace: {}", workspace.display());
     println!();
@@ -6948,7 +6948,7 @@ async fn run_agent_repl_with_context(
     // Plan mode: generate plan before executing.
     // Uses planning_llm (opusplan routing) when provided, otherwise falls back to llm.
     let approved_plan: Option<String> = if plan_mode {
-        println!("🧠 Generating execution plan...\n");
+        println!("Generating execution plan...\n");
         let plan_provider = planning_llm.unwrap_or_else(|| llm.clone());
         let planner = PlannerAgent::new(plan_provider);
         let ctx = AgentContext {
@@ -7146,7 +7146,7 @@ async fn run_agent_repl_with_context(
         let _ = store.insert_message(&session_id, "user", task);
     }
 
-    println!("🤖 Agent starting: {}", task);
+    println!("Agent starting: {}", task);
     println!("   Approval policy: {:?}", approval);
     println!("   Trace: {}", trace.path().display());
     if !resumed_messages.is_empty() {
@@ -7344,7 +7344,7 @@ async fn maybe_offer_commit(workspace: &std::path::Path, task: &str, llm: &dyn L
         _ => return, // Not a git repo, or no changes
     };
 
-    println!("\n📝 Git changes detected:\n{}", changed.trim_end());
+    println!("\nGit changes detected:\n{}", changed.trim_end());
     print!("Commit these changes? (y/N): ");
     let _ = io::stdout().flush();
     let mut answer = String::new();
@@ -7364,7 +7364,7 @@ async fn maybe_offer_commit(workspace: &std::path::Path, task: &str, llm: &dyn L
         .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
         .unwrap_or_default();
 
-    println!("🤖 Generating commit message…");
+    println!("Generating commit message…");
     let prompt = format!(
         "Write a short git commit message (max 72 chars, imperative mood) \
          for these changes made by an AI agent.\n\
@@ -8013,7 +8013,7 @@ fn find_closest_command(input: &str) -> Option<&'static str> {
 }
 
 fn show_help() {
-    println!("\n📚 VibeCLI Commands:");
+    println!("\nVibeCLI Commands:");
     println!("  /chat <message>          - Chat with AI (supports [image.png] for vision)");
     println!("  /agent <task>            - Run autonomous coding agent on a task");
     println!("  /plan <task>             - Generate execution plan, then run agent");
@@ -8146,12 +8146,12 @@ fn show_help() {
     println!("  vercel_ai                - Vercel AI Gateway (VERCEL_AI_API_KEY + api_url)");
     println!("\nMultimodal:");
     println!("  /chat [screenshot.png] What is this error?  - Attach image to chat");
-    println!("\n💡 Tip: You can also just type a message to chat\n");
+    println!("\nTip: You can also just type a message to chat\n");
 }
 
 /// Run a health check of the VibeCLI installation: config, providers, git, plugins, profiles.
 async fn run_doctor() -> Result<()> {
-    println!("\n🩺 VibeCLI Doctor — health check\n");
+    println!("\nVibeCLI Doctor — health check\n");
 
     // 1. Config file
     let config_path = dirs::home_dir()
@@ -8274,7 +8274,7 @@ async fn run_doctor() -> Result<()> {
 
     // 8. Active profile note
     if let Some(active) = ProfileManager::read_active() {
-        println!("  📋 Active profile: {}", active);
+        println!("  Active profile: {}", active);
     }
 
     // 9. Sandbox availability
@@ -8324,7 +8324,7 @@ async fn run_doctor() -> Result<()> {
         } else {
             println!("  ○  OpenSandbox — not configured/reachable");
         }
-        println!("  📦 Sandbox cfg — runtime={}, image={}", config.sandbox_config.runtime, config.sandbox_config.image);
+        println!("  Sandbox cfg — runtime={}, image={}", config.sandbox_config.runtime, config.sandbox_config.image);
     }
 
     // 11. opusplan model routing
@@ -8348,7 +8348,7 @@ async fn run_doctor() -> Result<()> {
 async fn show_config() -> Result<()> {
     match Config::load() {
         Ok(config) => {
-            println!("\n⚙️  Configuration:");
+            println!("\n Configuration:");
             println!("  Location: ~/.vibecli/config.toml");
             println!("  Providers:");
             if let Some(ollama) = &config.ollama {
@@ -8452,7 +8452,7 @@ async fn run_watch_mode(
             let files_list = changed_paths.join(", ");
             let task = format!("{}\n\nChanged files: {}", task_template, files_list);
 
-            eprintln!("\n🔄 Change detected: {}", files_list);
+            eprintln!("\nChange detected: {}", files_list);
             eprintln!("   Running agent task…\n");
 
             let workspace_root = cwd.clone();
@@ -8493,7 +8493,7 @@ async fn run_watch_mode(
                         print!("{}", text);
                     }
                     AgentEvent::ToolCallExecuted(step) => {
-                        eprintln!("  🔧 {} → {}", step.tool_call.name(), if step.tool_result.success { "✓" } else { "✗" });
+                        eprintln!("  {} → {}", step.tool_call.name(), if step.tool_result.success { "✓" } else { "✗" });
                     }
                     AgentEvent::Complete(summary) => {
                         eprintln!("\n✅ Agent complete: {}\n", summary);
