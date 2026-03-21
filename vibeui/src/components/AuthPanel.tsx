@@ -2,7 +2,20 @@ import React, { useState, useMemo } from "react";
 import { Mail } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 
-type AuthProvider = "github" | "google" | "email" | "jwt" | "saml" | "ldap";
+type AuthProvider =
+  // OAuth / Social
+  | "github" | "google" | "apple" | "microsoft" | "facebook" | "twitter"
+  | "discord" | "slack" | "linkedin" | "gitlab" | "bitbucket" | "spotify"
+  | "twitch" | "dropbox" | "okta" | "auth0"
+  // Enterprise SSO
+  | "saml" | "ldap" | "oidc" | "kerberos" | "radius"
+  // Token / Key
+  | "jwt" | "api_key" | "oauth2_client_credentials" | "basic_auth" | "hawk" | "mtls"
+  // Credential
+  | "email" | "phone_otp" | "magic_link" | "passkey" | "totp_2fa"
+  // Platform / BaaS
+  | "supabase" | "firebase" | "clerk" | "auth0_universal" | "cognito"
+  | "keycloak" | "fusionauth" | "stytch" | "workos" | "descope";
 
 interface AuthConfig {
   auth_provider: AuthProvider;
@@ -179,35 +192,105 @@ export function AuthPanel({ workspacePath, provider }: { workspacePath: string |
     finally { setLoading(false); }
   };
 
-  const AUTH_PROVIDERS: { value: AuthProvider; label: string; icon: React.ReactNode }[] = [
-    { value: "github", label: "GitHub OAuth", icon: null },
-    { value: "google", label: "Google OAuth", icon: null },
-    { value: "email", label: "Email + Password", icon: <Mail size={14} strokeWidth={1.5} /> },
-    { value: "jwt", label: "JWT / Bearer", icon: null },
-    { value: "saml", label: "SAML SSO", icon: null },
-    { value: "ldap", label: "LDAP / AD", icon: null },
+  const AUTH_CATEGORIES: { label: string; providers: { value: AuthProvider; label: string; icon: React.ReactNode }[] }[] = [
+    {
+      label: "OAuth / Social",
+      providers: [
+        { value: "github", label: "GitHub", icon: null },
+        { value: "google", label: "Google", icon: null },
+        { value: "apple", label: "Apple", icon: null },
+        { value: "microsoft", label: "Microsoft", icon: null },
+        { value: "facebook", label: "Facebook", icon: null },
+        { value: "twitter", label: "Twitter / X", icon: null },
+        { value: "discord", label: "Discord", icon: null },
+        { value: "slack", label: "Slack", icon: null },
+        { value: "linkedin", label: "LinkedIn", icon: null },
+        { value: "gitlab", label: "GitLab", icon: null },
+        { value: "bitbucket", label: "Bitbucket", icon: null },
+        { value: "spotify", label: "Spotify", icon: null },
+        { value: "twitch", label: "Twitch", icon: null },
+        { value: "dropbox", label: "Dropbox", icon: null },
+      ],
+    },
+    {
+      label: "Enterprise SSO",
+      providers: [
+        { value: "saml", label: "SAML", icon: null },
+        { value: "oidc", label: "OpenID Connect", icon: null },
+        { value: "ldap", label: "LDAP / AD", icon: null },
+        { value: "kerberos", label: "Kerberos", icon: null },
+        { value: "radius", label: "RADIUS", icon: null },
+        { value: "okta", label: "Okta", icon: null },
+        { value: "auth0", label: "Auth0", icon: null },
+      ],
+    },
+    {
+      label: "Token / Key",
+      providers: [
+        { value: "jwt", label: "JWT Bearer", icon: null },
+        { value: "api_key", label: "API Key", icon: null },
+        { value: "oauth2_client_credentials", label: "OAuth2 Client Credentials", icon: null },
+        { value: "basic_auth", label: "Basic Auth", icon: null },
+        { value: "hawk", label: "Hawk", icon: null },
+        { value: "mtls", label: "Mutual TLS (mTLS)", icon: null },
+      ],
+    },
+    {
+      label: "Credential / Passwordless",
+      providers: [
+        { value: "email", label: "Email + Password", icon: <Mail size={14} strokeWidth={1.5} /> },
+        { value: "phone_otp", label: "Phone OTP (SMS)", icon: null },
+        { value: "magic_link", label: "Magic Link", icon: null },
+        { value: "passkey", label: "Passkey (WebAuthn)", icon: null },
+        { value: "totp_2fa", label: "TOTP 2FA", icon: null },
+      ],
+    },
+    {
+      label: "Platform / BaaS",
+      providers: [
+        { value: "supabase", label: "Supabase Auth", icon: null },
+        { value: "firebase", label: "Firebase Auth", icon: null },
+        { value: "clerk", label: "Clerk", icon: null },
+        { value: "cognito", label: "AWS Cognito", icon: null },
+        { value: "keycloak", label: "Keycloak", icon: null },
+        { value: "fusionauth", label: "FusionAuth", icon: null },
+        { value: "auth0_universal", label: "Auth0 Universal Login", icon: null },
+        { value: "stytch", label: "Stytch", icon: null },
+        { value: "workos", label: "WorkOS", icon: null },
+        { value: "descope", label: "Descope", icon: null },
+      ],
+    },
   ];
+
+  const allProviders = AUTH_CATEGORIES.flatMap(c => c.providers);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "var(--bg-primary)", color: "var(--text-primary)", fontSize: 13 }}>
       {/* Header */}
       <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
-        <span style={{ fontSize: 14, fontWeight: 600 }}>Auth Scaffolding</span>
+        <span style={{ fontSize: 14, fontWeight: 600 }}>Authorization Scaffolding</span>
         <span style={{ fontSize: 11, color: "var(--text-secondary)", marginLeft: 8 }}>
-          {FRAMEWORKS.length} frameworks across {LANGUAGES.length} languages
+          {allProviders.length} auth providers | {FRAMEWORKS.length} frameworks | {LANGUAGES.length} languages
         </span>
       </div>
 
       <div style={{ flex: 1, overflow: "auto", padding: 12, display: "flex", flexDirection: "column", gap: 12 }}>
-        {/* Auth Provider */}
+        {/* Auth Provider — organized by category */}
         <div>
-          <div style={labelStyle}>Auth Provider</div>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            {AUTH_PROVIDERS.map(p => (
-              <button key={p.value} onClick={() => setConfig(c => ({ ...c, auth_provider: p.value }))}
-                style={chipStyle(config.auth_provider === p.value)}>
-                {p.icon} {p.label}
-              </button>
+          <div style={labelStyle}>Auth Provider <span style={{ color: "var(--accent-color)", fontWeight: 600 }}>{allProviders.find(p => p.value === config.auth_provider)?.label}</span></div>
+          <div style={{ maxHeight: 220, overflowY: "auto", border: "1px solid var(--border-color)", borderRadius: 4, padding: 8, background: "var(--bg-secondary)" }}>
+            {AUTH_CATEGORIES.map(cat => (
+              <div key={cat.label} style={{ marginBottom: 8 }}>
+                <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", marginBottom: 4, letterSpacing: 0.5 }}>{cat.label}</div>
+                <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                  {cat.providers.map(p => (
+                    <button key={p.value} onClick={() => setConfig(c => ({ ...c, auth_provider: p.value }))}
+                      style={chipStyle(config.auth_provider === p.value)}>
+                      {p.icon} {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         </div>

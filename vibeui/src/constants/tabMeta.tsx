@@ -47,7 +47,7 @@ export const TAB_META: Record<string, TabMeta> = {
   vibesql:     { icon: Database,           label: "VibeSQL" },
   database:    { icon: Database,           label: "DB" },
   supabase:    { icon: Database,           label: "Supabase" },
-  auth:        { icon: Lock,               label: "Auth" },
+  auth:        { icon: Lock,               label: "Authorization" },
   github:      { icon: GitBranch,          label: "GH Sync" },
   steering:    { icon: Compass,            label: "Steering" },
   bugbot:      { icon: Bug,                label: "BugBot" },
