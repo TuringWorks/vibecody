@@ -356,6 +356,83 @@ fn tool_defs() -> Vec<Value> {
             "description": "Get cognitive memory statistics: total memories, waypoints, facts, and per-sector breakdown with salience averages.",
             "inputSchema": { "type": "object", "properties": {} }
         }),
+        // ── Security Scanner MCP tools (rivals Snyk MCP) ─────────────────
+        json!({
+            "name": "code_scan",
+            "description": "Static Application Security Testing (SAST) — scans source code for vulnerabilities using 67 rules across 10+ languages. Detects SQL injection, XSS, command injection, hardcoded secrets, insecure deserialization, path traversal, weak crypto, and more. Supports nosec/nosonar suppression comments.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "file_path": { "type": "string", "description": "File path for language detection (e.g., 'app.py', 'index.js', 'main.tf')" },
+                    "content": { "type": "string", "description": "Source code content to scan" }
+                },
+                "required": ["file_path", "content"]
+            }
+        }),
+        json!({
+            "name": "sca_scan",
+            "description": "Software Composition Analysis — scans dependencies for known CVEs across 8 ecosystems (npm, PyPI, crates.io, Go, Maven, RubyGems, NuGet, Packagist). Uses 326+ hardcoded CVEs offline, plus live OSV.dev and GitHub Advisory Database APIs for 60,000+ advisories. Returns CVE ID, CVSS score, EPSS exploit probability, and fix version.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "lockfile_name": { "type": "string", "description": "Lockfile name for format detection: package-lock.json, yarn.lock, Cargo.lock, requirements.txt, poetry.lock, go.sum, Gemfile.lock" },
+                    "content": { "type": "string", "description": "Lockfile content to scan" }
+                },
+                "required": ["lockfile_name", "content"]
+            }
+        }),
+        json!({
+            "name": "iac_scan",
+            "description": "Infrastructure as Code security scan — detects misconfigurations in Dockerfiles (root user, :latest tags, HTTP downloads), Kubernetes YAML (privileged containers, host network, missing limits), and Terraform (open security groups, unencrypted resources, public databases).",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "file_path": { "type": "string", "description": "IaC file path (e.g., 'Dockerfile', 'pod.yaml', 'main.tf')" },
+                    "content": { "type": "string", "description": "IaC file content to scan" }
+                },
+                "required": ["file_path", "content"]
+            }
+        }),
+        json!({
+            "name": "secret_scan",
+            "description": "Detect hardcoded secrets and credentials in source code — AWS keys, GitHub tokens, private keys, JWT tokens, database connection strings, Stripe keys, SendGrid keys, passwords, API keys, Slack webhooks, and more. Returns line numbers and remediation advice.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "content": { "type": "string", "description": "Source code or config content to scan for secrets" },
+                    "file_path": { "type": "string", "description": "Optional file path for context" }
+                },
+                "required": ["content"]
+            }
+        }),
+        json!({
+            "name": "scan_report",
+            "description": "Generate a comprehensive security scan report in SARIF or Markdown format. Scans both source files and dependencies, producing a unified report with severity breakdown, CVE details, EPSS scores, and remediation guidance. SARIF output is compatible with GitHub Code Scanning and Azure DevOps.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "format": { "type": "string", "enum": ["sarif", "markdown"], "default": "markdown", "description": "Report format: sarif (for CI/CD) or markdown (human-readable)" },
+                    "lockfile_name": { "type": "string", "description": "Optional lockfile to include in scan" },
+                    "lockfile_content": { "type": "string", "description": "Optional lockfile content" },
+                    "files": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "path": { "type": "string" },
+                                "content": { "type": "string" }
+                            }
+                        },
+                        "description": "Optional source files to SAST scan"
+                    }
+                }
+            }
+        }),
+        json!({
+            "name": "vuln_db_status",
+            "description": "Get vulnerability database status — shows count of offline CVEs (326+), SAST rules (67), supported ecosystems, lockfile formats, and whether the local OSV snapshot is available (~60,000 advisories).",
+            "inputSchema": { "type": "object", "properties": {} }
+        }),
     ]
 }
 
@@ -540,6 +617,155 @@ async fn call_tool(
                     lines.push(format!("  {} — {} memories, avg sal {:.0}%, {} pinned",
                         s.sector, s.count, s.avg_salience * 100.0, s.pinned_count));
                 }
+            }
+            lines.join("\n")
+        }
+
+        // ── Security Scanner MCP tool handlers ─────────────────────────
+        "code_scan" => {
+            let file_path = args["file_path"].as_str().unwrap_or("unknown.txt").to_string();
+            let content = args["content"].as_str().unwrap_or("").to_string();
+            let mut scanner = crate::vulnerability_db::VulnerabilityScanner::new();
+            let count = scanner.scan_file(&file_path, &content);
+            if count == 0 {
+                format!("No security issues found in {}", file_path)
+            } else {
+                let mut lines = vec![format!("{} findings in {}:", count, file_path)];
+                for f in scanner.active_findings().iter().take(25) {
+                    let line = f.line.map(|l| format!(":{}", l)).unwrap_or_default();
+                    lines.push(format!("  {} [{}] {}{} — {}",
+                        f.severity, f.cwe_id.as_deref().unwrap_or(""),
+                        f.file_path.as_deref().unwrap_or(&file_path), line, f.title));
+                    lines.push(format!("    Fix: {}", f.remediation));
+                }
+                lines.join("\n")
+            }
+        }
+
+        "sca_scan" => {
+            let lockfile_name = args["lockfile_name"].as_str().unwrap_or("").to_string();
+            let content = args["content"].as_str().unwrap_or("").to_string();
+            let deps = crate::vulnerability_db::parse_lockfile(&lockfile_name, &content);
+            if deps.is_empty() {
+                format!("No dependencies parsed from '{}'. Supported formats: package-lock.json, yarn.lock, Cargo.lock, requirements.txt, poetry.lock, go.sum, Gemfile.lock", lockfile_name)
+            } else {
+                let mut scanner = crate::vulnerability_db::VulnerabilityScanner::new();
+                scanner.scan_dependencies(&deps);
+                let s = scanner.summary();
+                let mut lines = vec![
+                    format!("{} packages scanned, {} vulnerabilities found", deps.len(), s.total_findings),
+                    format!("Critical: {} | High: {} | Medium: {} | Low: {}", s.critical, s.high, s.medium, s.low),
+                ];
+                if s.exploit_available_count > 0 {
+                    lines.push(format!("{} with known public exploit (EPSS avg: {:.0}%)", s.exploit_available_count, s.mean_epss * 100.0));
+                }
+                lines.push(String::new());
+                for f in scanner.active_findings().iter().take(30) {
+                    let fix = f.fixed_version.as_deref().unwrap_or("no fix");
+                    let exploit = if f.exploit_available { " [EXPLOIT]" } else { "" };
+                    lines.push(format!("  {} {} {}@{} → {}{}", f.severity,
+                        f.cve_id.as_deref().unwrap_or(""), f.package.as_deref().unwrap_or(""),
+                        f.installed_version.as_deref().unwrap_or("?"), fix, exploit));
+                }
+                lines.join("\n")
+            }
+        }
+
+        "iac_scan" => {
+            let file_path = args["file_path"].as_str().unwrap_or("unknown").to_string();
+            let content = args["content"].as_str().unwrap_or("").to_string();
+            let mut scanner = crate::vulnerability_db::VulnerabilityScanner::new();
+            let count = scanner.scan_file(&file_path, &content);
+            if count == 0 {
+                format!("No IaC misconfigurations found in {}", file_path)
+            } else {
+                let mut lines = vec![format!("{} IaC findings in {}:", count, file_path)];
+                for f in scanner.active_findings() {
+                    let line = f.line.map(|l| format!(":{}", l)).unwrap_or_default();
+                    lines.push(format!("  {} [{}] {}{} — {}", f.severity,
+                        f.cwe_id.as_deref().unwrap_or(""), file_path, line, f.title));
+                    lines.push(format!("    Fix: {}", f.remediation));
+                }
+                lines.join("\n")
+            }
+        }
+
+        "secret_scan" => {
+            let content = args["content"].as_str().unwrap_or("").to_string();
+            let file_path = args["file_path"].as_str().unwrap_or("input").to_string();
+            let mut scanner = crate::vulnerability_db::VulnerabilityScanner::new();
+            // Use SAST rules filtered to secret category
+            let _count = scanner.scan_file(&file_path, &content);
+            let secrets: Vec<_> = scanner.active_findings().into_iter()
+                .filter(|f| f.cwe_id.as_deref() == Some("CWE-798") || f.title.to_lowercase().contains("secret") || f.title.to_lowercase().contains("password") || f.title.to_lowercase().contains("key"))
+                .collect();
+            if secrets.is_empty() {
+                "No hardcoded secrets detected.".to_string()
+            } else {
+                let mut lines = vec![format!("{} potential secrets found:", secrets.len())];
+                for f in &secrets {
+                    let line = f.line.map(|l| format!(":{}", l)).unwrap_or_default();
+                    lines.push(format!("  {} {}{} — {}", f.severity, file_path, line, f.title));
+                    lines.push(format!("    Fix: {}", f.remediation));
+                }
+                lines.join("\n")
+            }
+        }
+
+        "scan_report" => {
+            let format = args["format"].as_str().unwrap_or("markdown");
+            let mut scanner = crate::vulnerability_db::VulnerabilityScanner::new();
+
+            // Scan lockfile if provided
+            if let (Some(lf_name), Some(lf_content)) = (
+                args["lockfile_name"].as_str(),
+                args["lockfile_content"].as_str()
+            ) {
+                let deps = crate::vulnerability_db::parse_lockfile(lf_name, lf_content);
+                scanner.scan_dependencies(&deps);
+            }
+
+            // Scan source files if provided
+            if let Some(files) = args["files"].as_array() {
+                for file in files {
+                    if let (Some(path), Some(content)) = (
+                        file.get("path").and_then(|p| p.as_str()),
+                        file.get("content").and_then(|c| c.as_str()),
+                    ) {
+                        scanner.scan_file(path, content);
+                    }
+                }
+            }
+
+            match format {
+                "sarif" => {
+                    let sarif = scanner.to_sarif();
+                    serde_json::to_string_pretty(&sarif).unwrap_or_else(|_| "SARIF generation failed".to_string())
+                }
+                _ => scanner.to_markdown(),
+            }
+        }
+
+        "vuln_db_status" => {
+            let scanner = crate::vulnerability_db::VulnerabilityScanner::new();
+            let snapshot = crate::vulnerability_db::OsvSnapshotDb::new(
+                crate::vulnerability_db::OsvSnapshotDb::default_path()
+            );
+            let mut lines = vec![
+                format!("VibeCody Vulnerability Scanner"),
+                format!("  Offline CVE database: {} known vulnerabilities", scanner.vuln_db_size()),
+                format!("  SAST rules: {} patterns", scanner.sast_rule_count()),
+                format!("  Ecosystems: npm, PyPI, crates.io, Go, Maven, RubyGems, NuGet, Packagist"),
+                format!("  Lockfile parsers: package-lock.json, yarn.lock, Cargo.lock, requirements.txt, poetry.lock, go.sum, Gemfile.lock"),
+                format!("  Live APIs: OSV.dev (60K+ advisories), GHSA (with GITHUB_TOKEN)"),
+                format!("  Output: SARIF v2.1.0, Markdown"),
+            ];
+            if snapshot.exists() {
+                lines.push(format!("  Local snapshot: {} advisories (age: {:.0}h)",
+                    snapshot.advisory_count(),
+                    snapshot.age_hours().unwrap_or(0.0)));
+            } else {
+                lines.push(format!("  Local snapshot: not downloaded"));
             }
             lines.join("\n")
         }
