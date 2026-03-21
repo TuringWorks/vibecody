@@ -1,0 +1,180 @@
+# VibeCody
+
+> AI-powered developer toolchain: VibeCLI (terminal) + VibeUI (desktop editor)
+
+VibeCody is an open-source, self-hostable AI coding assistant built in Rust and
+TypeScript. It ships two products that share a common library layer:
+
+- VibeCLI -- a terminal AI assistant with TUI, REPL, agent loop, and HTTP daemon
+- VibeUI  -- a full desktop code editor built on Tauri 2 + Monaco + React
+
+License: MIT
+Repository: https://github.com/TuringWorks/vibecody
+Language: Rust (backend/CLI) + TypeScript/React (frontend)
+AI Providers: 23 native + OpenRouter (300+ models)
+Unit Tests: ~5,900
+UI Panels: 149+
+Skill Files: 539+ across 25+ industries
+REPL Commands: 75+
+
+## Architecture
+
+Monorepo with 6 Cargo workspace members and a React/Vite frontend:
+
+  vibecody/
+    Cargo.toml              -- workspace root
+    vibecli/vibecli-cli/    -- CLI binary (TUI + REPL + HTTP daemon)
+    vibeui/                 -- Tauri desktop app (React frontend + Rust backend)
+    vibeui/crates/vibe-core -- text buffer, FS, workspace, Git, terminal, search
+    vibeui/crates/vibe-ai   -- 23 AI providers, agent loop, hooks, planner, tools
+    vibeui/crates/vibe-lsp  -- Language Server Protocol client
+    vibeui/crates/vibe-extensions -- WASM plugin runtime (Wasmtime)
+    vibeui/crates/vibe-collab     -- CRDT multiplayer collaboration
+    vibe-indexer/           -- remote indexing service
+    vscode-extension/       -- VS Code extension
+    jetbrains-plugin/       -- JetBrains IDE plugin
+    neovim-plugin/          -- Neovim plugin
+    packages/agent-sdk/     -- TypeScript Agent SDK
+
+All providers implement the AIProvider trait (vibe-ai). The agent loop uses
+XML-based tool calling in the system prompt, which works universally with every
+provider -- no native function-calling API required.
+
+## Docs
+
+- [Quickstart](/)
+- [VibeCLI Reference](/vibecli/)
+- [VibeUI Reference](/vibeui/)
+- [Configuration](/configuration/)
+- [Architecture](/architecture/)
+- [Plugin Development](/PLUGIN-DEVELOPMENT/)
+- [Tutorials](/tutorials/)
+- [Roadmap](/ROADMAP/)
+- [Competitive Analysis](/COMPETITIVE-ANALYSIS-2026-03/)
+- [Contributing](/contributing/)
+
+## Providers
+
+23 providers, listed with env var and default model:
+
+  1. Ollama         -- (no key needed)        -- qwen2.5-coder:7b
+  2. Claude         -- ANTHROPIC_API_KEY       -- claude-3-5-sonnet-20241022
+  3. OpenAI         -- OPENAI_API_KEY          -- gpt-4o
+  4. Gemini         -- GEMINI_API_KEY          -- gemini-2.0-flash
+  5. Grok           -- GROK_API_KEY            -- grok-3-mini
+  6. Groq           -- GROQ_API_KEY            -- llama-3.3-70b-versatile
+  7. OpenRouter     -- OPENROUTER_API_KEY      -- (user-specified)
+  8. Azure OpenAI   -- AZURE_OPENAI_API_KEY    -- (deployment-specific)
+  9. AWS Bedrock    -- AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY -- anthropic.claude-3-5-sonnet-20241022-v2:0
+ 10. GitHub Copilot -- COPILOT_TOKEN or ~/.config/github-copilot/hosts.json -- gpt-4o
+ 11. Mistral        -- MISTRAL_API_KEY         -- mistral-large-latest
+ 12. Cerebras       -- CEREBRAS_API_KEY        -- (user-specified)
+ 13. DeepSeek       -- DEEPSEEK_API_KEY        -- (user-specified)
+ 14. Zhipu          -- ZHIPU_API_KEY           -- (user-specified)
+ 15. Vercel AI      -- VERCEL_AI_API_KEY       -- (user-specified, requires api_url)
+ 16. MiniMax        -- MINIMAX_API_KEY         -- (user-specified)
+ 17. Perplexity     -- PERPLEXITY_API_KEY      -- (user-specified)
+ 18. Together       -- TOGETHER_API_KEY        -- (user-specified)
+ 19. Fireworks      -- FIREWORKS_API_KEY       -- (user-specified)
+ 20. SambaNova      -- SAMBANOVA_API_KEY       -- (user-specified)
+ 21. LocalEdit      -- (no key needed)         -- local edit model
+ 22. Failover       -- (chains other providers) -- configured via [failover] chain
+ 23. Custom         -- via config api_url      -- any OpenAI-compatible endpoint
+
+## CLI Usage
+
+  vibecli                         -- interactive REPL mode
+  vibecli --tui                   -- terminal UI (Ratatui)
+  vibecli --provider claude       -- select provider
+  vibecli --model gpt-4o          -- select model
+  vibecli --agent "fix all tests" -- non-interactive agent mode
+  vibecli --exec "task" --output-format json  -- CI/exec mode
+  vibecli --plan --agent "task"   -- plan before executing
+  vibecli --full-auto             -- auto-approve all tool calls
+  vibecli --auto-edit             -- auto-approve edits, prompt for bash
+  vibecli --suggest               -- prompt before every tool call
+  vibecli --serve --port 7878     -- HTTP daemon mode
+  vibecli --mcp-server            -- MCP server over stdio
+  vibecli --gateway telegram      -- messaging bot mode
+  vibecli --review --pr 42        -- code review mode
+  vibecli --doctor                -- health check
+  vibecli --sandbox               -- OS-level sandbox for commands
+  vibecli --worktree              -- git worktree isolation
+  vibecli --voice                 -- voice input (Groq Whisper)
+  vibecli --cloud                 -- run agent in Docker container
+  vibecli --notebook script.vibe  -- run notebook file
+  vibecli --redteam http://url    -- security scan
+  vibecli --copilot-login         -- GitHub Copilot device auth
+
+## Agent Tools
+
+9 built-in tools available to the AI agent:
+
+  read_file        -- read file contents at a path
+  write_file       -- create or overwrite a file
+  apply_patch      -- apply unified diff patch to a file
+  bash             -- execute shell command, return stdout+stderr
+  search_files     -- search files by pattern or content (ripgrep)
+  list_directory   -- list files and directories at a path
+  web_search       -- search the web via DuckDuckGo (no API key)
+  fetch_url        -- fetch and extract text from a web page
+  task_complete    -- signal task completion with summary
+  spawn_agent      -- delegate sub-task to a child agent
+
+Tool calling uses XML in the system prompt (<tool_call name="...">), which
+works universally with all providers without native function-calling APIs.
+
+## Configuration
+
+Config file: ~/.vibecli/config.toml
+
+Sections: [ollama], [claude], [openai], [gemini], [grok], [groq],
+[openrouter], [azure_openai], [bedrock], [copilot], [mistral], [cerebras],
+[deepseek], [zhipu], [vercel_ai], [minimax], [perplexity], [together],
+[fireworks], [sambanova], [failover], [safety], [ui], [tools], [memory],
+[routing], [gateway], [voice], [redteam], [github_app], [otel],
+[sandbox_config], [[mcp_servers]], [[hooks]]
+
+Each provider section accepts: enabled, api_key, api_url, model
+
+## Build Commands
+
+  make setup       -- install all prerequisites
+  make cli         -- build VibeCLI release binary
+  make ui          -- run VibeUI in dev mode
+  make test        -- run all ~5,900 tests
+  make test-fast   -- run tests excluding collab crate
+  make check       -- fast type-check (Rust + TypeScript)
+  make lint        -- clippy + TypeScript check
+  make docker      -- build Docker image
+  cargo build --release -p vibecli   -- build CLI directly
+  cargo test --workspace             -- all Rust tests
+
+## Key Environment Variables
+
+  ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY, GROK_API_KEY,
+  GROQ_API_KEY, OPENROUTER_API_KEY, AZURE_OPENAI_API_KEY,
+  AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, COPILOT_TOKEN,
+  MISTRAL_API_KEY, CEREBRAS_API_KEY, DEEPSEEK_API_KEY, ZHIPU_API_KEY,
+  VERCEL_AI_API_KEY, MINIMAX_API_KEY, PERPLEXITY_API_KEY,
+  TOGETHER_API_KEY, FIREWORKS_API_KEY, SAMBANOVA_API_KEY,
+  GITHUB_TOKEN, LINEAR_API_KEY, VIBECLI_API_KEY, ELEVENLABS_API_KEY
+
+## API Endpoints (vibecli serve)
+
+  GET  /health             -- liveness check
+  POST /chat               -- single-turn chat (non-streaming)
+  POST /chat/stream        -- streaming chat (SSE)
+  POST /agent              -- start agent task, returns {session_id}
+  GET  /stream/:session_id -- SSE stream of agent events
+  GET  /jobs               -- list background jobs
+  GET  /jobs/:id           -- get single job
+  POST /jobs/:id/cancel    -- cancel running job
+  GET  /sessions           -- HTML session index
+  GET  /sessions.json      -- JSON session list
+  GET  /view/:id           -- HTML session view
+  GET  /share/:id          -- shareable readonly session
+
+## Optional
+
+- llms-full.txt: /llms-full.txt -- complete documentation for AI agents (800+ lines)

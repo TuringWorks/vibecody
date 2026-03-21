@@ -19,43 +19,67 @@ plugins:
 nav:
   - title: Home
     url: /
+  - title: Quickstart
+    url: /quickstart/
+  - title: Tutorials
+    url: /tutorials/
   - title: VibeCLI
     url: /vibecli/
   - title: VibeUI
     url: /vibeui/
+  - title: Providers
+    url: /providers/
   - title: Configuration
     url: /configuration/
+  - title: API Reference
+    url: /api-reference/
   - title: Architecture
     url: /architecture/
+  - title: Plugin Development
+    url: /plugin-development/
+  - title: Demos
+    url: /demos/
+  - title: Security
+    url: /security/
+  - title: FAQ
+    url: /faq/
+  - title: Troubleshooting
+    url: /troubleshooting/
+  - title: Glossary
+    url: /glossary/
+  - title: Changelog
+    url: /changelog/
   - title: Roadmap
     url: /roadmap-v4/
   - title: Fit-Gap Analysis
     url: /fit-gap-analysis-v6/
-  - title: Demos
-    url: /demos/
-  - title: Plugin Development
-    url: /plugin-development/
   - title: Contributing
     url: /contributing/
 
 header_pages:
   - index.md
+  - quickstart.md
+  - tutorials/index.md
   - vibecli.md
   - vibeui.md
+  - providers/index.md
   - configuration.md
+  - api-reference.md
   - architecture.md
-  - ROADMAP.md
-  - ROADMAP-v2.md
-  - ROADMAP-v3.md
-  - ROADMAP-v4.md
-  - FIT-GAP-ANALYSIS-v2.md
-  - FIT-GAP-ANALYSIS-v5.md
-  - FIT-GAP-ANALYSIS-v6.md
-  - SHANNON-COMPARISON.md
-  - demos/index.md
   - PLUGIN-DEVELOPMENT.md
+  - security.md
+  - faq.md
+  - troubleshooting.md
+  - glossary.md
   - CHANGELOG.md
+  - ROADMAP-v4.md
+  - FIT-GAP-ANALYSIS-v6.md
   - contributing.md
+  - demos/index.md
+
+include:
+  - llms.txt
+  - llms-full.txt
 
 minima:
   skin: dark

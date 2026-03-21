@@ -20,6 +20,8 @@ Both tools are backed by a shared set of Rust library crates for AI provider int
 
 | Page | Description |
 |------|-------------|
+| [Quickstart](./quickstart/) | Zero to productive in 5 minutes |
+| [Tutorials](./tutorials/) | Step-by-step guides for common workflows |
 | [VibeCLI Reference](./vibecli/) | CLI commands, TUI usage, and configuration |
 | [VibeUI Reference](./vibeui/) | Desktop editor features and setup |
 | [Configuration Guide](./configuration/) | All configuration options for providers and UI |

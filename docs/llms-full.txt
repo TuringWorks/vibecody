@@ -1,0 +1,1139 @@
+# VibeCody -- Complete AI Agent Reference
+
+> AI-powered developer toolchain: VibeCLI (terminal) + VibeUI (desktop editor)
+> This is the comprehensive reference for AI agents working with VibeCody.
+> For the concise version, see llms.txt.
+
+================================================================================
+1. PROJECT OVERVIEW
+================================================================================
+
+VibeCody is an open-source, self-hostable AI coding assistant built in Rust and
+TypeScript/React. It ships two products sharing a common library layer:
+
+  VibeCLI -- terminal-first AI assistant (TUI + REPL + HTTP daemon)
+  VibeUI  -- full desktop code editor (Tauri 2 + Monaco Editor + React)
+
+License: MIT
+Repository: https://github.com/TuringWorks/vibecody
+Languages: Rust (backend, CLI, shared crates) + TypeScript/React (frontend)
+AI Providers: 23 native providers + OpenRouter gateway (300+ models)
+Unit Tests: ~5,900 (0 failures)
+UI Panels: 149+
+Skill Files: 539+ across 25+ industries
+REPL Commands: 75+
+Gateway Platforms: 18 (Telegram, Discord, Slack, Signal, Matrix, etc.)
+
+Monorepo structure (6 Cargo workspace members):
+
+  vibecody/
+  |- Cargo.toml                    Workspace root
+  |- Dockerfile                    Multi-stage musl build (Alpine runtime)
+  |- docker-compose.yml            VibeCLI + Ollama sidecar (air-gapped)
+  |- install.sh                    One-liner installer with SHA-256 verification
+  |- Makefile                      Build/test/run targets
+  |- vibecli/
+  |  \- vibecli-cli/               CLI binary crate
+  |     |- src/
+  |     |  |- main.rs              Entry point, clap CLI, command dispatch
+  |     |  |- config.rs            TOML config (~/.vibecli/config.toml)
+  |     |  |- serve.rs             HTTP daemon (Axum)
+  |     |  |- repl.rs              Rustyline REPL with tab completion
+  |     |  |- tool_executor.rs     Tool execution engine
+  |     |  \- tui/                 Ratatui TUI (app, ui, components)
+  |     \- skills/                 539+ skill files (25+ categories)
+  |- vibeui/
+  |  |- src/                       React + TypeScript frontend
+  |  |  |- App.tsx                 Root component
+  |  |  \- components/             149+ panel components
+  |  |- src-tauri/                 Tauri Rust backend
+  |  \- crates/                    Shared library crates
+  |     |- vibe-core/              Text buffer, FS, workspace, Git, terminal,
+  |     |                          diff engine, search, embeddings
+  |     |- vibe-ai/                AI providers, agent loop, hooks, planner,
+  |     |                          tools, skills, artifacts, traces, MCP
+  |     |- vibe-lsp/               Language Server Protocol client
+  |     |- vibe-extensions/        WASM plugin runtime (Wasmtime)
+  |     \- vibe-collab/            CRDT multiplayer collaboration
+  |- vibeapp/                      Secondary Tauri app
+  |- vibe-indexer/                 Remote indexing service
+  |- vscode-extension/             VS Code extension (chat + completions)
+  |- jetbrains-plugin/             JetBrains IDE plugin (Gradle)
+  |- neovim-plugin/                Neovim plugin
+  |- packages/
+  |  \- agent-sdk/                 TypeScript Agent SDK
+  |- docs/                         Jekyll GitHub Pages site
+  \- .github/workflows/            CI/CD (pages.yml, release.yml)
+
+
+================================================================================
+2. INSTALLATION
+================================================================================
+
+Prerequisites:
+  - Rust stable (rustup)
+  - Node.js >= 20
+  - Git
+  - Ollama (optional, for local AI)
+  - Docker (optional, for container sandbox)
+
+Quick start:
+  git clone https://github.com/TuringWorks/vibecody.git
+  cd vibecody
+  make setup          # installs Rust, Node.js, system libs, npm deps
+
+Linux (Tauri system deps):
+  # Debian/Ubuntu
+  sudo apt install libwebkit2gtk-4.1-dev libgtk-3-dev \
+    libayatana-appindicator3-dev librsvg2-dev patchelf \
+    build-essential libssl-dev pkg-config
+
+  # Fedora
+  sudo dnf install webkit2gtk4.1-devel gtk3-devel \
+    libappindicator-gtk3-devel librsvg2-devel patchelf openssl-devel
+
+  # Arch
+  sudo pacman -S webkit2gtk-4.1 gtk3 libappindicator-gtk3 \
+    librsvg patchelf openssl base-devel
+
+macOS: xcode-select --install
+
+One-liner install (prebuilt binary):
+  curl -fsSL https://raw.githubusercontent.com/TuringWorks/vibecody/main/install.sh | sh
+
+
+================================================================================
+3. ALL 23 AI PROVIDERS
+================================================================================
+
+Each provider implements the AIProvider trait from vibe-ai. Configure in
+~/.vibecli/config.toml or use --provider <name> --model <model> CLI flags.
+
+Provider        | Env Var                | Default Model                              | --provider flag
+----------------|------------------------|--------------------------------------------|----------------
+Ollama          | (none, local)          | qwen2.5-coder:7b                           | ollama
+Claude          | ANTHROPIC_API_KEY      | claude-3-5-sonnet-20241022                 | claude
+OpenAI          | OPENAI_API_KEY         | gpt-4o                                     | openai
+Gemini          | GEMINI_API_KEY         | gemini-2.0-flash                           | gemini
+Grok            | GROK_API_KEY           | grok-3-mini                                | grok
+Groq            | GROQ_API_KEY           | llama-3.3-70b-versatile                    | groq
+OpenRouter      | OPENROUTER_API_KEY     | (user-specified)                           | openrouter
+Azure OpenAI    | AZURE_OPENAI_API_KEY   | (deployment-specific)                      | azure_openai
+AWS Bedrock     | AWS_ACCESS_KEY_ID      | anthropic.claude-3-5-sonnet-20241022-v2:0  | bedrock
+                | AWS_SECRET_ACCESS_KEY  |                                            |
+                | AWS_SESSION_TOKEN      |                                            |
+GitHub Copilot  | COPILOT_TOKEN          | gpt-4o                                     | copilot
+Mistral         | MISTRAL_API_KEY        | mistral-large-latest                       | mistral
+Cerebras        | CEREBRAS_API_KEY       | (user-specified)                           | cerebras
+DeepSeek        | DEEPSEEK_API_KEY       | (user-specified)                           | deepseek
+Zhipu           | ZHIPU_API_KEY          | (user-specified, format: "id.secret")      | zhipu
+Vercel AI       | VERCEL_AI_API_KEY      | (user-specified, requires api_url)         | vercel_ai
+MiniMax         | MINIMAX_API_KEY        | (user-specified)                           | minimax
+Perplexity      | PERPLEXITY_API_KEY     | (user-specified)                           | perplexity
+Together        | TOGETHER_API_KEY       | (user-specified)                           | together
+Fireworks       | FIREWORKS_API_KEY      | (user-specified)                           | fireworks
+SambaNova       | SAMBANOVA_API_KEY      | (user-specified)                           | sambanova
+LocalEdit       | (none, local)          | local edit model                           | local_edit
+Failover        | (chains providers)     | configured via [failover] chain            | failover
+
+Copilot auto-loads token from ~/.config/github-copilot/hosts.json.
+Bedrock uses standard AWS credential chain (env vars, ~/.aws/credentials, IAM role).
+Any provider with api_url can point to a custom OpenAI-compatible endpoint.
+
+Failover configuration:
+  [failover]
+  chain = ["claude", "openai", "gemini"]
+
+Model routing (different models for planning vs. execution):
+  [routing]
+  planning_provider = "claude"
+  planning_model = "claude-opus-4-6"
+  execution_provider = "claude"
+  execution_model = "claude-sonnet-4-6"
+
+
+================================================================================
+4. COMPLETE CLI REFERENCE
+================================================================================
+
+Usage: vibecli [OPTIONS]
+
+Core modes:
+  (no flags)                     Interactive REPL mode
+  --tui                          Terminal UI (Ratatui full-screen)
+  --agent <TASK>                 Non-interactive agent mode
+  --exec <TASK>                  CI mode: run agent, output report, exit
+  --serve                        HTTP daemon for VS Code / Agent SDK
+  --mcp-server                   MCP server over stdio
+  --gateway <PLATFORM>           Messaging bot (telegram/discord/slack/...)
+  --channel-daemon <PLATFORM>    Always-on channel daemon with automation
+  --review                       Code review mode
+  --doctor                       Health check
+  --notebook <FILE>              Run .vibe notebook
+
+Provider selection:
+  -p, --provider <NAME>          Provider name (default: ollama)
+  -m, --model <MODEL>            Model name/ID
+  --profile <NAME>               Load named profile (~/.vibecli/profiles/<name>.toml)
+
+Approval policies:
+  --suggest                      Prompt before every tool call (most restrictive)
+  --auto-edit                    Auto-approve file edits, prompt for bash
+  --full-auto                    Execute all tool calls without prompting
+
+Agent options:
+  --plan                         Generate execution plan before running
+  --parallel <N>                 Run N parallel agents on same task
+  --resume <SESSION_ID>          Resume a previous session
+  --session-name <NAME>          Name this session
+  --worktree                     Git worktree isolation
+  --cloud                        Run agent in isolated Docker container
+  --watch                        Watch directory, re-run on file changes
+  --watch-glob <GLOB>            Glob pattern for watch mode
+  --sandbox                      OS-level sandbox for shell commands
+  --no-network                   Block all network access
+  --sandbox-runtime <RUNTIME>    Container runtime: docker/podman/opensandbox/auto
+
+Input/output:
+  -i, --image <FILE>             Attach image(s) to first message (vision)
+  --add-dir <DIR>                Add extra directory to agent context
+  --json                         Emit agent events as JSON lines
+  --output-format <FMT>          Format for --exec: json/markdown/verbose
+  --output <FILE>                Write --exec report to file
+  --output-schema <FILE>         Validate --exec output against JSON Schema
+
+Review mode:
+  --review                       Run code review on git changes
+  --base <REF>                   Base ref for review diff
+  --branch <REF>                 Target ref for review diff
+  --pr <NUMBER>                  GitHub PR number
+  --post-github                  Post review to GitHub (requires GITHUB_TOKEN)
+  --ci-mode                      Structured JSON review output
+  --severity-threshold <LEVEL>   Minimum severity to fail: critical/warning/info
+
+Daemon:
+  --serve                        Start HTTP daemon
+  --port <PORT>                  Daemon port (default: 7878)
+  --tailscale                    Expose via Tailscale Funnel (public HTTPS)
+
+Security:
+  --redteam <URL>                Red team security scan
+  --redteam-config <FILE>        Red team YAML config
+  --redteam-report <SESSION>     Generate report from previous scan
+
+Other:
+  --voice                        Voice input via Groq Whisper
+  --record                       Record agent actions as screenshots
+  --copilot-login                GitHub Copilot device flow auth
+  --continue-on-error            Continue notebook on cell failure
+  --plugin <SUBCOMMAND>          Plugin management
+
+
+================================================================================
+5. REPL COMMANDS (75+)
+================================================================================
+
+All commands are prefixed with / in the REPL or TUI.
+
+Session & navigation:
+  /help                          Show help
+  /exit, /quit                   Exit VibeCLI
+  /status                        Show provider, model, session info
+  /config                        Show current configuration
+  /model <provider> [model]      Switch active model
+  /context                       Show active context window size
+  /cost                          Show token usage and estimated cost
+  /fork [name]                   Fork session into named branch
+  /rewind [list|<timestamp>]     Save/restore conversation checkpoint
+  /resume [session-id] [task]    Resume a previous session
+  /sessions [id_prefix]          List recent sessions (SQLite)
+  /share <session_id>            Print shareable URL (requires serve)
+  /handoff [list|show|create]    Session handoff documents
+
+Agent & planning:
+  /agent <task>                  Run agent on a task
+  /agents [list|status|new]      Background agent management
+  /plan <task>                   Generate execution plan
+  /exec <task>                   Run agent in exec mode
+  /chat <message>                Single-turn chat
+  /generate <description>        Generate code from description
+  /qa <question>                 Ask about the codebase
+  /orient                        Analyze project structure and stack
+  /research <topic>              Research a topic in codebase context
+
+Code operations:
+  /diff <file>                   Show file diff
+  /apply <file> <changes>        Apply changes to file
+  /autofix [linter]              Run linter auto-fix (clippy/eslint/ruff/prettier)
+  /test [command]                Run project tests (auto-detects framework)
+  /bisect [start|good|bad|...]   Git bisect workflow
+  /snippet [list|save|use|...]   Code snippet manager
+  /transform                     Code transformations
+  /notebook <file.vibe>          Run notebook cells
+
+Project management:
+  /deps [scan|outdated|upgrade]  Dependency management
+  /deploy [target|list]          Deploy to cloud platforms
+  /env [list|get|set|switch]     Environment variable management
+  /profiler [run|top|list-tools] CPU/memory profiling
+  /logs [tail|sources|errors]    Log viewer and analyzer
+  /markers [scan|list|bookmarks] TODO/FIXME/HACK marker scanner
+  /migration [status|migrate]    Database migration management
+  /index [embedding-model]       Build codebase index
+
+DevOps & infrastructure:
+  /sandbox [status|start|stop]   Container sandbox management
+  /cloud [scan|iam|terraform]    Cloud provider tools (AWS/GCP/Azure)
+  /bundle [create|activate]      Context bundles (Spaces)
+  /idp [catalog|golden|scorecard] Internal developer platform
+  /benchmark [run|compare]       SWE-bench benchmarking
+  /metering [status|budget]      Usage metering and credits
+
+AI & agents:
+  /team [create|status|messages] Agent teams and peer communication
+  /spec [list|new|run|done]      Spec-driven development
+  /workflow [new|list|advance]   Code Complete workflow
+  /orchestrate                   Workflow orchestration
+  /batch                         Batch builder (multi-agent runs)
+  /qavalidate                    QA validation pipeline
+  /appbuilder                    App scaffolding and provisioning
+  /icontext                      Infinite context management
+  /soul                          Soul agent mode
+
+Integrations:
+  /mcp [list|tools <server>]     MCP server management
+  /plugin [list|install|remove]  Plugin management
+  /profile [list|show|create]    Configuration profiles
+  /memory [show|edit]            Project memory
+  /openmemory [add|query|list]   Cognitive memory engine
+  /trace [view <id>]             Agent trace viewer
+  /linear [list|new|open]        Linear issue tracker
+  /gitplatform                   Cross-platform Git (GitHub/GitLab/Azure/Bitbucket)
+  /legacymigrate                 Legacy code migration engine
+
+Scheduling & automation:
+  /remind in <dur> "task"        Set a reminder
+  /schedule every <dur> "task"   Schedule recurring tasks
+  /jobs                          List background agent jobs
+
+Security:
+  /redteam [scan|list|report]    Autonomous security scanning
+  /blueteam [scan|incidents]     Defensive security (SIEM, IOCs)
+  /purpleteam [exercise|simulate] ATT&CK exercises
+  /compliance [soc2|fedramp]     Compliance report generation
+  /verify [full|quick|security]  Verification checklist
+
+Communication:
+  /voice [transcribe|speak]      Voice transcription and TTS
+  /discover                      Discover VibeCLI peers on LAN
+  /pair [host:port]              Device pairing with QR code
+
+Visual & UI:
+  /theme [name]                  Switch TUI theme (dark/light/monokai/nord/solarized)
+  /demo                          Feature demo
+  /design                        Design tools
+
+Research & advanced:
+  /quantum                       Quantum computing tools
+  /autoresearch [new|start]      Autonomous iterative research agent
+  /mock [start|stop|add]         API mock server
+
+
+================================================================================
+6. COMPLETE CONFIGURATION REFERENCE
+================================================================================
+
+Config file location: ~/.vibecli/config.toml
+History file: ~/.vibecli/history.txt
+Profiles: ~/.vibecli/profiles/<name>.toml
+Skills: ~/.vibecli/skills/ (user) + vibecli-cli/skills/ (built-in)
+
+-- Provider sections (each accepts these fields) --
+
+  [<provider_name>]
+  enabled = true                 # enable/disable this provider
+  api_key = "sk-..."             # API key (or use env var)
+  api_url = "https://..."        # custom API endpoint (optional)
+  model = "model-name"           # default model
+
+Example provider configs:
+
+  [ollama]
+  enabled = true
+  api_url = "http://localhost:11434"
+  model = "qwen2.5-coder:7b"
+
+  [claude]
+  enabled = false
+  api_key = "sk-ant-..."
+  model = "claude-3-5-sonnet-20241022"
+
+  [openai]
+  enabled = false
+  api_key = "sk-..."
+  model = "gpt-4o"
+
+  [gemini]
+  enabled = false
+  api_key = "AIza..."
+  model = "gemini-2.0-flash"
+
+  [grok]
+  enabled = false
+  model = "grok-3-mini"
+
+  [groq]
+  enabled = false
+  model = "llama-3.3-70b-versatile"
+
+  [mistral]
+  enabled = false
+  model = "mistral-large-latest"
+
+  [bedrock]
+  enabled = true
+  region = "us-east-1"
+  model = "anthropic.claude-3-5-sonnet-20241022-v2:0"
+
+  [copilot]
+  enabled = true
+  model = "gpt-4o"
+
+-- Failover --
+
+  [failover]
+  chain = ["claude", "openai", "gemini"]
+
+-- Safety / approval --
+
+  [safety]
+  require_approval_for_commands = true
+  require_approval_for_file_changes = true
+  approval_policy = "suggest"    # "suggest" | "auto_edit" | "full_auto"
+
+-- UI preferences --
+
+  [ui]
+  theme = "dark"
+
+-- Tool configuration --
+
+  [tools]
+  web_search_enabled = true
+
+-- Memory --
+
+  [memory]
+  auto_record = true
+  min_session_steps = 3
+
+-- Model routing --
+
+  [routing]
+  planning_provider = "claude"
+  planning_model = "claude-opus-4-6"
+  execution_provider = "claude"
+  execution_model = "claude-sonnet-4-6"
+
+-- Gateway --
+
+  [gateway]
+  platform = "telegram"          # telegram/discord/slack/signal/matrix/...
+  telegram_token = "1234567:ABCDEF..."
+  allowed_users = ["@alice"]
+
+-- Voice --
+
+  [voice]
+  whisper_api_key = "gsk_..."    # or reuses groq.api_key / GROQ_API_KEY
+  elevenlabs_api_key = "..."     # or ELEVENLABS_API_KEY
+  elevenlabs_voice_id = "..."
+  tts_enabled = false
+
+-- Red Team --
+
+  [redteam]
+  max_depth = 3
+  timeout_secs = 300
+  parallel_agents = 3
+  auto_report = true
+
+-- GitHub App --
+
+  [github_app]
+  app_id = 12345
+  private_key_path = "path/to/key.pem"
+  webhook_secret = "your-webhook-secret"
+  auto_fix = false
+  severity_threshold = "high"
+
+-- OpenTelemetry --
+
+  [otel]
+  enabled = true
+  endpoint = "http://localhost:4318"
+  service_name = "vibecli"
+
+-- Container sandbox --
+
+  [sandbox_config]
+  runtime = "auto"               # "docker" | "podman" | "opensandbox" | "auto"
+  image = "ubuntu:22.04"
+  timeout_secs = 3600
+
+  [sandbox_config.resources]
+  cpus = "2.0"
+  memory = "4g"
+  pids_limit = 256
+
+  [sandbox_config.network]
+  mode = "restricted"            # "none" | "restricted" | "full"
+  allowed_domains = ["github.com", "registry.npmjs.org"]
+
+  [sandbox_config.opensandbox]
+  api_url = "http://localhost:8080"
+  api_key = ""                   # or OPEN_SANDBOX_API_KEY env
+
+-- MCP servers --
+
+  [[mcp_servers]]
+  name = "github"
+  command = "npx @modelcontextprotocol/server-github"
+
+  [[mcp_servers]]
+  name = "filesystem"
+  command = "npx @modelcontextprotocol/server-filesystem /path"
+
+-- Hooks --
+
+  [[hooks]]
+  event = "PostToolUse"          # PreToolUse | PostToolUse | PreChat | PostChat
+  tools = ["write_file"]         # filter to specific tools (optional)
+  handler = { command = "sh .vibecli/hooks/format.sh" }
+
+-- Linear --
+
+  linear_api_key = "lin_api_..."   # or LINEAR_API_KEY env var
+
+-- Index --
+
+  [index]
+  # Embedding index configuration
+
+
+================================================================================
+7. HTTP API REFERENCE (vibecli serve)
+================================================================================
+
+Start: vibecli serve --port 7878 --provider ollama
+
+All endpoints return JSON unless noted. CORS is enabled.
+
+GET /health
+  Response: { "status": "ok", "version": "0.3.3" }
+
+POST /chat
+  Body: { "message": "string", "context": "optional string" }
+  Response: { "response": "string", "usage": { "prompt_tokens": N, "completion_tokens": N } }
+
+POST /chat/stream
+  Body: { "message": "string", "context": "optional string" }
+  Response: SSE stream of { "type": "text|done|error", "content": "string" }
+
+POST /agent
+  Body: { "task": "string", "approval_policy": "full_auto" }
+  Response: { "session_id": "string" }
+
+GET /stream/:session_id
+  Response: SSE stream of agent events:
+    { "type": "thinking|tool_call|tool_result|text|complete|error", ... }
+
+GET /jobs
+  Response: [{ "session_id": "...", "task": "...", "status": "running|complete|failed|cancelled", ... }]
+
+GET /jobs/:id
+  Response: { "session_id": "...", "task": "...", "status": "...", ... }
+
+POST /jobs/:id/cancel
+  Response: { "status": "cancelled" }
+
+GET /sessions
+  Response: HTML page listing all agent sessions
+
+GET /sessions.json
+  Response: JSON array of session summaries
+
+GET /view/:id
+  Response: HTML page showing session details
+
+GET /share/:id
+  Response: HTML readonly session view with "Shared" banner
+
+WebSocket /ws
+  Bidirectional WebSocket for real-time collaboration (vibe-collab)
+
+Authentication: Set VIBECLI_API_KEY env var to require Bearer token auth.
+Rate limiting: Built-in request rate limiting per IP.
+
+
+================================================================================
+8. AGENT LOOP
+================================================================================
+
+The VibeCLI agent follows a plan-act-observe loop:
+
+  1. PLAN: The user provides a task. If --plan is set, a PlannerAgent generates
+     a step-by-step execution plan with estimated tools and file paths.
+
+  2. ACT: The agent sends the conversation (system prompt + history) to the LLM.
+     The system prompt includes XML tool definitions. The model outputs a
+     <tool_call> XML block to invoke a tool.
+
+  3. OBSERVE: The tool executor runs the tool, and the result is appended to the
+     conversation as an assistant/tool message. The loop returns to step 2.
+
+  4. COMPLETE: The agent calls task_complete with a summary. The session ends.
+
+Approval tiers (configured via --suggest / --auto-edit / --full-auto):
+  suggest   -- prompt user before EVERY tool call
+  auto_edit -- auto-approve read_file, write_file, apply_patch; prompt for bash
+  full_auto -- execute all tools without prompting
+
+The agent loop is implemented in vibe-ai/src/agent.rs (AgentLoop struct).
+Tool calling uses XML in the system prompt, making it work with ALL providers
+(no native function-calling API required).
+
+Multi-agent orchestration:
+  - MultiAgentOrchestrator runs N agents in parallel on the same task
+  - Agent teams (agent_team.rs) provide inter-agent messaging bus
+  - Cloud agents (cloud_agent.rs) run inside Docker containers
+  - SpawnAgent tool lets agents delegate sub-tasks to child agents
+
+
+================================================================================
+9. TOOL SYSTEM
+================================================================================
+
+9 built-in tools available to the agent:
+
+1. read_file
+   Read file contents at a given path.
+   Params: path (string)
+
+2. write_file
+   Create or overwrite a file with complete content.
+   Params: path (string), content (string)
+
+3. apply_patch
+   Apply a unified diff patch to modify an existing file.
+   Params: path (string), patch (string)
+
+4. bash
+   Execute a shell command, return stdout + stderr.
+   Params: command (string)
+
+5. search_files
+   Search for files matching a pattern or containing text.
+   Params: query (string), glob (optional string)
+
+6. list_directory
+   List files and directories at a path.
+   Params: path (string)
+
+7. web_search
+   Search the web via DuckDuckGo (no API key required).
+   Params: query (string), num_results (optional integer)
+
+8. fetch_url
+   Fetch and extract text content of a web page.
+   Params: url (string)
+
+9. task_complete
+   Signal that the task is complete with a summary.
+   Params: summary (string)
+
+10. spawn_agent
+    Delegate an independent sub-task to a child agent.
+    Params: task (string)
+
+Tool calling format (XML in system prompt):
+  <tool_call name="TOOL_NAME">
+  <param_name>param value</param_name>
+  </tool_call>
+
+Security: Tool executor validates URL schemes (SSRF prevention), blocks
+dangerous commands (configurable blocklist), and respects sandbox settings.
+
+
+================================================================================
+10. HOOKS SYSTEM
+================================================================================
+
+Hooks let you run custom scripts before/after agent actions.
+
+Events:
+  PreToolUse   -- before a tool call executes
+  PostToolUse  -- after a tool call completes
+  PreChat      -- before sending messages to the LLM
+  PostChat     -- after receiving LLM response
+
+Handler types:
+  command      -- run a shell command
+  The script receives JSON on stdin with event details.
+
+Exit codes:
+  0 = allow (continue execution)
+  2 = block (abort the tool call / message)
+
+Configuration in config.toml:
+  [[hooks]]
+  event = "PostToolUse"
+  tools = ["write_file"]           # optional: filter to specific tools
+  handler = { command = "sh .vibecli/hooks/format.sh" }
+
+  [[hooks]]
+  event = "PreToolUse"
+  tools = ["bash"]
+  handler = { command = "python3 .vibecli/hooks/validate-cmd.py" }
+
+Hooks receive a JSON payload on stdin:
+  {
+    "event": "PostToolUse",
+    "tool": "write_file",
+    "session_id": "...",
+    "call": { "name": "write_file", "params": { "path": "...", "content": "..." } },
+    "result": { "success": true, "output": "..." }
+  }
+
+
+================================================================================
+11. SKILLS SYSTEM
+================================================================================
+
+Skills are YAML-frontmatter Markdown files that provide domain-specific
+instructions to the agent. 539+ built-in skills across 25+ categories.
+
+Skill file format:
+  ---
+  name: rust-error-handling
+  description: Best practices for Rust error handling
+  triggers: [error, anyhow, thiserror, Result]
+  tools_allowed: [read_file, write_file, bash]
+  ---
+  When handling errors in Rust:
+  1. Use anyhow::Result for application code
+  2. Use thiserror for library error types
+  3. Always propagate with ? operator
+  ...
+
+Skill directories:
+  vibecli/vibecli-cli/skills/    -- built-in skills (539+ files)
+  ~/.vibecli/skills/             -- user custom skills
+
+Categories include: cloud (44+), security (15+), data, observability, web3,
+accessibility, agents, quantum, edge, AR/VR, sustainability, compliance, SRE,
+devex, workflows, scientific, aerospace, defense, safety-critical, TIOBE top 50
+languages, finance, insurance, robotics, healthcare, logistics, legal,
+real estate, hospitality, education, telecom, energy, media, agriculture,
+retail, construction, government, manufacturing, HR, fintech, gaming, biotech.
+
+Skills are auto-matched based on trigger keywords in the user's message.
+
+
+================================================================================
+12. MCP INTEGRATION
+================================================================================
+
+VibeCody supports the Model Context Protocol (MCP) in two modes:
+
+As MCP client (connecting to MCP servers):
+  Configure servers in config.toml:
+    [[mcp_servers]]
+    name = "github"
+    command = "npx @modelcontextprotocol/server-github"
+
+    [[mcp_servers]]
+    name = "filesystem"
+    command = "npx @modelcontextprotocol/server-filesystem /home/user/docs"
+
+  REPL commands:
+    /mcp list              -- list configured MCP servers
+    /mcp tools <server>    -- list tools from an MCP server
+
+  MCP lazy loading (mcp_lazy.rs): tools are loaded on demand with LRU eviction
+  to minimize context window usage.
+
+As MCP server (exposing VibeCody tools):
+  vibecli --mcp-server
+
+  Exposes these tools over stdio JSON-RPC:
+    read_file, write_file, list_directory, bash, search_files, agent_run
+
+  Add to Claude Desktop config.json:
+    {
+      "mcpServers": {
+        "vibecli": {
+          "command": "vibecli",
+          "args": ["--mcp-server"]
+        }
+      }
+    }
+
+MCP directory (mcp_directory.rs): searchable verified plugin directory with
+install, review, and verification pipeline.
+
+
+================================================================================
+13. PLUGIN ARCHITECTURE
+================================================================================
+
+5 extensibility layers:
+
+1. Skills (YAML+Markdown)
+   Lightweight prompt injection. No code required. Drop a .md file in the
+   skills directory.
+
+2. Hooks (shell scripts)
+   Pre/post event handlers. Run any external script. JSON stdin/stdout protocol.
+
+3. MCP Servers (external processes)
+   Connect to any MCP-compatible tool server. Adds tools dynamically to
+   the agent.
+
+4. WASM Extensions (vibe-extensions crate)
+   Compiled WebAssembly plugins loaded via Wasmtime. Full sandboxed execution.
+   Plugin API for custom tools, languages, and integrations.
+
+5. Native Rust Modules
+   Direct integration into the workspace crates for maximum performance.
+
+Plugin CLI:
+  vibecli plugin list
+  vibecli plugin install <name>
+  vibecli plugin remove <name>
+  vibecli plugin info <name>
+  vibecli plugin search <query>
+  vibecli plugin create <name>
+  vibecli plugin dev <path>
+  vibecli plugin publish
+
+
+================================================================================
+14. VIBEUI PANELS (149+)
+================================================================================
+
+Organized by category:
+
+AI & Agent:
+  Chat, Agent, Rules, History, Checkpoints, Artifacts, Manager, Flow, Keys,
+  MCP, Arena, Compare, Cost, Soul, McpLazy, ContextBundle, ACP, McpDirectory,
+  UsageMetering, SweBench, SessionMemory, AgentModes, DebugMode,
+  ConversationalSearch, ClarifyingQuestions, FastContext, DiscussionMode
+
+Code & Editor:
+  DiffTool, Markdown, Canvas, Autofix, Coverage, Transform, AstEdit,
+  EditPrediction, RenderOptimize
+
+DevOps & Infrastructure:
+  Docker, Deps, Profiler, Env, CI/CD, K8s, SSH, Scripts, Notebook, Process,
+  Sandbox, Health, WebSocket, Scaffold, CloudProvider, CloudSandbox, CiStatus,
+  GhActions, IDP
+
+Security:
+  RedTeam, BlueTeam, PurpleTeam, Compliance, SecurityScan, SubAgent
+
+Testing:
+  Tests, Bisect, MockServer, Load Test, Metrics, GraphQL, HTTP
+
+Collaboration:
+  Collab, Teams, CIBot, Marketplace, Cloud, Webhooks, Admin, Auth, GHSync
+
+Data & Tools:
+  Cron, Regex, JWT, Encoding, NumberBase, DataGen, Timestamp, Colors, Snippets,
+  Bookmarks, Utilities, APIDoc
+
+AI Generation:
+  ImageGen, FullStackGen, AppBuilder, BatchBuilder, InfiniteContext,
+  PlanDocument, RemoteControl
+
+Project:
+  Steering, AutoFacts, BugBot, Workflow, Traces, Supabase, Hooks, Linear,
+  KnowledgeGraph, GpuTerminal, FineTuning, Recording, VisualTest, Img2App,
+  SessionBrowser, TeamGovernance, CloudAutofix
+
+Communication:
+  Voice, Discover, Pair
+
+
+================================================================================
+15. TESTING
+================================================================================
+
+Total: ~5,900 unit tests (0 failures)
+
+Test counts by crate (approximate):
+  vibecli:          1,050
+  vibe-ai:            731
+  vibe-core:          246
+  vibe-collab:         53
+  vibe-ui (TS):       227
+  vibe-lsp:            57
+  vibe-extensions:     46
+  (+ integration tests across modules)
+
+Run commands:
+  make test              -- all workspace tests
+  make test-fast         -- skip collab crate (faster)
+  cargo test --workspace -- all Rust tests
+  cargo test -p vibe-core
+  cargo test -p vibe-ai
+  cargo test -p vibecli
+  cargo test -p vibe-lsp
+  cargo test -p vibe-extensions
+  cd vibeui && npm test  -- TypeScript/React tests
+
+Specific test module:
+  cargo test -p vibecli -- tool_executor
+  cargo test -p vibe-ai -- provider::ollama
+
+
+================================================================================
+16. DEPLOYMENT
+================================================================================
+
+Docker (single binary):
+  docker build -t vibecody .
+  docker run -it vibecody --provider ollama
+
+Docker Compose (with Ollama sidecar, air-gapped):
+  docker-compose up
+  # Includes VibeCLI + Ollama with GPU support profile
+
+Binary release (cross-platform):
+  .github/workflows/release.yml builds for:
+    - x86_64-unknown-linux-musl (static)
+    - x86_64-apple-darwin
+    - aarch64-apple-darwin
+    - x86_64-pc-windows-msvc
+
+One-liner installer:
+  curl -fsSL https://raw.githubusercontent.com/TuringWorks/vibecody/main/install.sh | sh
+  # SHA-256 verified binary download
+
+On-premises:
+  Dockerfile provides multi-stage musl build for fully static binary.
+  docker-compose.yml runs VibeCLI + Ollama for air-gapped environments.
+  No external API calls when using Ollama (100% local).
+
+HTTP daemon:
+  vibecli serve --port 7878 --provider ollama
+  # Expose via Tailscale Funnel:
+  vibecli serve --port 7878 --tailscale
+
+
+================================================================================
+17. SECURITY
+================================================================================
+
+Sandbox:
+  - macOS: sandbox-exec (Seatbelt) wraps bash calls
+  - Linux: bwrap (bubblewrap) or unshare for namespace isolation
+  - Container: Docker/Podman/OpenSandbox with resource limits and network policy
+  - --no-network blocks WebSearch/FetchUrl and wraps shell in network isolation
+
+SSRF prevention:
+  - URL scheme validation in tool_executor.rs (only http/https allowed)
+  - Blocked internal IP ranges (127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, etc.)
+
+Approval policies:
+  - suggest: user must approve every tool call
+  - auto_edit: file operations auto-approved, bash requires approval
+  - full_auto: all tools auto-approved (use with caution)
+
+Command blocklist:
+  - Configurable list of blocked shell commands
+  - Default blocks: rm -rf /, format, mkfs, dd if=/dev/zero, etc.
+
+Rate limiting:
+  - Built-in per-IP rate limiting on HTTP daemon
+  - Configurable via serve.rs
+
+Authentication:
+  - VIBECLI_API_KEY env var enables Bearer token auth on HTTP daemon
+  - Job records written with 0o600 permissions (owner-only)
+
+Crypto:
+  - Session IDs use cryptographic random generation
+  - SHA-256 verification for binary installer
+
+Audit:
+  - All agent actions logged to JSONL trace files
+  - Session traces include tool calls, results, timing, approval decisions
+  - Compliance controls module (SOC 2, FedRAMP report generation)
+
+
+================================================================================
+18. TROUBLESHOOTING
+================================================================================
+
+Problem: rustup could not choose a version of cargo
+Fix: Run `rustup default stable`
+
+Problem: npm run tauri dev can't find cargo (Linux)
+Fix: Use `make ui` or `npm run tauri:dev` (prepends ~/.cargo/bin to PATH)
+
+Problem: Port 1420 already in use
+Fix: Kill stale Vite: `lsof -i :1420` then `kill <pid>`
+
+Problem: "VibeUI" is damaged (macOS)
+Fix: Run `xattr -cr /Applications/VibeUI.app` (unsigned, Gatekeeper quarantine)
+
+Problem: Missing libwebkit2gtk-4.1-dev (Linux)
+Fix: Run `make setup` or install manually (see Prerequisites above)
+
+Problem: Failed to run cargo: No such file (macOS .app)
+Fix: Fixed in v0.3.0 -- app inherits shell PATH at startup
+
+Problem: Provider returns "Unauthorized" or "Invalid API key"
+Fix: Check env var is set correctly. Run `vibecli --doctor` to verify.
+
+Problem: Ollama not responding
+Fix: Ensure ollama is running (`ollama serve`). Check api_url in config.toml
+     defaults to http://localhost:11434.
+
+Problem: Agent stuck in loop
+Fix: Press Ctrl+C to interrupt. Use --suggest mode for step-by-step control.
+     Check /cost to see token usage.
+
+Problem: Config file parse error on startup
+Fix: VibeCody warns but falls back to defaults. Fix TOML syntax in
+     ~/.vibecli/config.toml or delete it to regenerate.
+
+
+================================================================================
+19. KEY FILE PATHS
+================================================================================
+
+Repository:
+  Cargo.toml                                 Workspace root (6 members)
+  Makefile                                   Build/test/run targets
+  Dockerfile                                 Multi-stage musl build
+  docker-compose.yml                         VibeCLI + Ollama sidecar
+  install.sh                                 One-liner installer
+
+VibeCLI source:
+  vibecli/vibecli-cli/src/main.rs            Entry point, CLI flags, dispatch
+  vibecli/vibecli-cli/src/config.rs          Config structs, TOML loading
+  vibecli/vibecli-cli/src/serve.rs           HTTP daemon (Axum)
+  vibecli/vibecli-cli/src/repl.rs            REPL with tab completion
+  vibecli/vibecli-cli/src/tool_executor.rs   Tool execution engine
+  vibecli/vibecli-cli/src/tui/               TUI (Ratatui)
+  vibecli/vibecli-cli/skills/                539+ skill files
+
+Shared crates:
+  vibeui/crates/vibe-ai/src/agent.rs         Agent loop (AgentLoop)
+  vibeui/crates/vibe-ai/src/tools.rs         Tool definitions + XML parser
+  vibeui/crates/vibe-ai/src/provider.rs      AIProvider trait
+  vibeui/crates/vibe-ai/src/hooks.rs         Hook system
+  vibeui/crates/vibe-ai/src/planner.rs       Execution planner
+  vibeui/crates/vibe-ai/src/skills.rs        Skill loader
+  vibeui/crates/vibe-ai/src/trace.rs         JSONL trace writer
+  vibeui/crates/vibe-ai/src/mcp.rs           MCP client
+  vibeui/crates/vibe-ai/src/artifacts.rs     Artifact system
+  vibeui/crates/vibe-core/src/              Core editor primitives
+  vibeui/crates/vibe-lsp/src/               LSP client
+  vibeui/crates/vibe-extensions/src/        WASM plugin runtime
+
+VibeUI frontend:
+  vibeui/src/App.tsx                         Root React component
+  vibeui/src/components/                     149+ panel components
+  vibeui/src-tauri/                          Tauri backend
+
+User config (runtime):
+  ~/.vibecli/config.toml                     Main configuration
+  ~/.vibecli/history.txt                     REPL command history
+  ~/.vibecli/profiles/                       Named configuration profiles
+  ~/.vibecli/skills/                         User custom skills
+  ~/.vibecli/traces/                         Agent session traces
+  ~/.vibecli/sessions/                       SQLite session store
+  ~/.vibecli/recordings/                     Screen recording frames
+  ~/.vibecli/jobs/                           Background job records
+  ~/.vibecli/plugins/                        Installed plugins
+
+
+================================================================================
+20. BUILD COMMANDS
+================================================================================
+
+  make setup           Install all prerequisites (Rust, Node.js, system libs)
+  make doctor          Verify dev environment is ready
+  make ui              Run VibeUI in dev mode (Vite + Tauri)
+  make cli             Build VibeCLI release binary
+  make test            Run all workspace tests
+  make test-fast       Run tests excluding collab crate
+  make check           Fast type-check (Rust + TypeScript)
+  make lint            Run clippy + TypeScript check
+  make build           Build everything for production
+  make clean           Remove build artifacts
+  make docker          Build Docker image
+
+Individual commands:
+  cargo build --release -p vibecli           Build CLI binary
+  cargo test --workspace                     All Rust tests
+  cargo check --workspace --exclude vibe-collab  Fast check
+  cd vibeui && npm install && npm run tauri:dev   VibeUI dev mode
+  cd vibeui && npm test                      Frontend tests
+  cd jetbrains-plugin && ./gradlew buildPlugin    JetBrains plugin
+
+
+================================================================================
+21. ENVIRONMENT VARIABLES
+================================================================================
+
+AI Provider keys:
+  ANTHROPIC_API_KEY          Claude API key
+  OPENAI_API_KEY             OpenAI API key
+  GEMINI_API_KEY             Google Gemini API key
+  GROK_API_KEY               xAI Grok API key
+  GROQ_API_KEY               Groq API key
+  OPENROUTER_API_KEY         OpenRouter API key
+  AZURE_OPENAI_API_KEY       Azure OpenAI API key
+  AWS_ACCESS_KEY_ID          AWS credentials (Bedrock)
+  AWS_SECRET_ACCESS_KEY      AWS credentials (Bedrock)
+  AWS_SESSION_TOKEN          AWS session token (Bedrock, optional)
+  COPILOT_TOKEN              GitHub Copilot token
+  MISTRAL_API_KEY            Mistral AI API key
+  CEREBRAS_API_KEY           Cerebras API key
+  DEEPSEEK_API_KEY           DeepSeek API key
+  ZHIPU_API_KEY              Zhipu API key (format: "id.secret")
+  VERCEL_AI_API_KEY          Vercel AI Gateway key
+  MINIMAX_API_KEY            MiniMax API key
+  PERPLEXITY_API_KEY         Perplexity API key
+  TOGETHER_API_KEY           Together AI API key
+  FIREWORKS_API_KEY          Fireworks AI API key
+  SAMBANOVA_API_KEY          SambaNova API key
+
+Integration keys:
+  GITHUB_TOKEN               GitHub API (for --post-github, PR reviews)
+  LINEAR_API_KEY             Linear issue tracker
+  ELEVENLABS_API_KEY         ElevenLabs TTS
+  OPEN_SANDBOX_API_URL       OpenSandbox API URL
+  OPEN_SANDBOX_API_KEY       OpenSandbox API key
+  REGISTRY_PASSWORD          Private container registry password
+
+Runtime:
+  VIBECLI_API_KEY            Bearer token auth for HTTP daemon
+  VIBECLI_HOME               Override config directory (default: ~/.vibecli)
+  RUST_LOG                   Rust logging level (e.g., debug, info, warn)
+  NO_COLOR                   Disable colored output
+
+Telemetry:
+  OTEL_EXPORTER_OTLP_ENDPOINT   OpenTelemetry collector endpoint
+
+
+================================================================================
+END OF DOCUMENT
+================================================================================
+
+This document was generated for the llms.txt standard (https://llmstxt.org).
+For the concise version, see llms.txt in the same directory.

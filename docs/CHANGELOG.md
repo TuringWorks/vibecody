@@ -1,0 +1,130 @@
+---
+layout: page
+title: Changelog
+permalink: /changelog/
+---
+
+# Changelog
+
+All notable changes to VibeCody are documented here. This project follows [Semantic Versioning](https://semver.org/).
+
+---
+
+## [0.3.3] - 2026-03-20
+
+### Added
+
+- 5 new AI providers: MiniMax, Perplexity, Together AI, Fireworks AI, SambaNova — bringing the total to 23 supported providers.
+- FIT-GAP v6: 19 new competitive gaps identified and closed across agent capabilities, context management, and cloud integrations.
+- 17 new Rust modules:
+  - `channel_daemon.rs` — Always-on background listener for multi-platform integration.
+  - `vm_orchestrator.rs` — Virtual machine lifecycle management for cloud sandboxes.
+  - `spec_pipeline.rs` — Spec-driven development pipeline with EARS syntax support.
+  - `branch_agent.rs` — Autonomous branch management with PR creation workflows.
+  - `design_import.rs` — Figma/Sketch design-to-code import pipeline.
+  - `audio_output.rs` — Text-to-speech for agent responses and accessibility.
+  - `org_context.rs` — Organization-wide context sharing across teams.
+  - `session_sharing.rs` — Share agent sessions with teammates via link or export.
+  - `ci_gates.rs` — Quality gates for CI pipelines with configurable thresholds.
+  - `data_analysis.rs` — Tabular data analysis with chart generation.
+  - `managed_deploy.rs` — One-click deploy to Vercel, Netlify, Railway, Fly.io.
+  - `context_streaming.rs` — Streaming context injection for long-running sessions.
+  - `extension_compat.rs` — Extension compatibility verification and migration.
+  - `model_marketplace.rs` — Browse and install models from community marketplace.
+  - `agentic_cicd.rs` — AI-driven CI/CD pipeline generation and optimization.
+  - `cross_surface_routing.rs` — Route agent actions across CLI, UI, and API surfaces.
+  - `soul.rs` — Project philosophy document management with agent integration.
+- 10 new VibeUI panels: Soul, McpLazy, ContextBundle, CloudProvider, ACP, McpDirectory, UsageMetering, SweBench, SessionMemory, IDP.
+- Gemini provider upgraded to native implementation (previously OpenRouter-only).
+- Best-in-class support documentation: troubleshooting guide, FAQ, glossary, security practices, and this changelog.
+- `llms.txt` for AI-friendly project context.
+- Tutorial guides for getting started, provider configuration, and skill development.
+
+### Fixed
+
+- DeepSeek default model updated from deprecated `deepseek-coder` to `deepseek-chat` (V3).
+- Gemini default model updated to `gemini-2.5-flash`.
+- Cost estimation now covers all 23 providers (previously only Claude and OpenAI).
+- Doctor command checks all 14 cloud provider API keys (previously only 4).
+- Session resume stability improved for cross-version session files.
+- Monaco editor performance with files over 1 MB (disabled minimap by default for large files).
+
+### Changed
+
+- Provider help text reorganized by popularity tier (Local, Major Cloud, Specialized, Meta).
+- 812 new unit tests across 17 modules, bringing the workspace total to approximately 6,050.
+- All production `unwrap()` calls replaced with `expect()` with descriptive messages.
+- Release profile optimized: LTO enabled, symbols stripped, panic set to abort, opt-level=s for workspace with opt-level=2 for vibecli.
+
+---
+
+## [0.3.2] - 2026-03-14
+
+### Added
+
+- **Blue Team** module (`blue_team.rs`, 49 tests) — Defensive security operations: incident management with P1-P4 severity, IOC tracking across 9 indicator types, SIEM integration for 8 platforms (Splunk, Sentinel, Elastic, QRadar, CrowdStrike, Wazuh, Datadog, SumoLogic), forensic case management, detection rules with platform-specific query generation, playbooks with 8 action types, and threat hunting workflows.
+- **Purple Team** module (`purple_team.rs`, 38 tests) — ATT&CK-aligned security exercises: 14 tactics, 20 pre-loaded techniques, attack simulation with outcome tracking, detection validation, coverage gap analysis, heatmap generation, and cross-exercise comparison.
+- **IDP** module (`idp.rs`, 80 tests) — Internal Developer Platform support for 12 platforms: Backstage, Cycloid, Humanitec, Port, Qovery, Mia Platform, OpsLevel, Roadie, Cortex, Morpheus Data, CloudBolt, Harness. Includes service catalogs, golden paths, DORA-metric scorecards, self-service infrastructure provisioning, and team onboarding.
+- 3 new VibeUI panels: BlueTeamPanel (7 tabs), PurpleTeamPanel (5 tabs), IdpPanel (7 tabs).
+- 3 new REPL commands: `/blueteam`, `/purpleteam`, `/idp` with full subcommand sets.
+- Workspace total: approximately 5,912 tests with 0 failures.
+
+---
+
+## [0.3.1] - 2026-03-13
+
+### Added
+
+- **Futureproofing Phases 10-14**: 10 new Rust modules implementing 12 FIT-GAP v5 gaps (419 tests total):
+  - MCP lazy loading with tool search and LRU eviction.
+  - Context bundles (Spaces) with priority ordering and TOML serialization.
+  - AWS/GCP/Azure deep integration: service detection, IAM policy generation, Terraform/CloudFormation/Pulumi templates, cost estimation.
+  - ACP (Agent Client Protocol) server/client modes with capability negotiation.
+  - MCP verified plugin directory with search, install, and review pipeline.
+  - Usage metering credit system with per-user/project/team budgets and alerts.
+  - SWE-bench benchmarking harness for run/compare/export.
+  - Session memory profiling with leak detection and auto-compact.
+  - SOC 2 compliance controls with audit trail, PII redaction, and retention policies.
+  - Unified voice+vision+code multimodal agent.
+- 8 new VibeUI panels and 4 new REPL commands.
+- FIT-GAP-ANALYSIS-v5.md and ROADMAP-v3.md published.
+- Workspace total: approximately 5,745 tests with 0 failures and 136+ panels.
+
+---
+
+## [0.3.0] - 2026-03-09
+
+### Added
+
+- **FIT-GAP v4**: All 23 identified gaps closed, including automations, self-review, MCP apps, agent teams v2, semantic MCP, docgen, remote control, AST editing, CI status checks, VS Code sessions, cloud sandbox, plan documents, security scanning, sub-agent roles, and edit prediction (RL Q-learning).
+- **Competitor Parity**: 13 new modules closing all code-addressable "Partial" entries from competitive analysis — debug mode, three agent modes (Smart/Rush/Deep), conversational search, clarifying questions, fast context (SWE-grep), image generation agent, discussion mode, full-stack generation, enhanced agent teams, team governance, cloud autofix, GitHub Actions agent, and render optimization.
+- **App Builder** (`app_builder.rs`, 70 tests) — Template-based application scaffolding with AI enhancement.
+- **Infinite Context** (`infinite_context.rs`, 79 tests) — 5-level context hierarchy with token budget, eviction, compression, and LRU caching.
+- **Blitzy Parity**: Batch builder (109 tests), QA validation pipeline (99 tests), legacy migration engine supporting 18 source languages including COBOL and Fortran (101 tests), and unified git platform manager for 5 hosting services (111 tests).
+- 13 new skill files and 4 new VibeUI panels.
+- Workspace total: approximately 5,236 tests with 0 failures.
+
+### Changed
+
+- Security audit completed: 20 findings (P0-P3) all resolved, including path traversal prevention, cryptographic IDs, CORS hardening, and command blocklist.
+- All production `unwrap()` calls replaced with `expect()` with descriptive messages.
+- Release profile added to workspace: LTO, symbol stripping, panic=abort.
+
+---
+
+## [0.2.x] - 2026-02 through 2026-03
+
+Earlier releases established the foundation:
+
+- Core agent loop with tool calling, streaming, and multi-provider support.
+- VibeCLI with TUI (Ratatui) and REPL (Rustyline).
+- VibeUI with Tauri 2, React, Monaco Editor.
+- 17 AI providers including Ollama, Claude, OpenAI, Gemini, and FailoverProvider.
+- MCP client and server support.
+- Container sandbox with Docker/Podman/OpenSandbox.
+- 500+ built-in skills across 25+ categories.
+- RAG pipeline with document ingestion, web crawling, and vector database support.
+- Gateway system supporting 18 messaging platforms.
+- Voice input (Groq Whisper), pairing (QR code), and Tailscale integration.
+
+See the [Roadmap](/roadmap/) for the complete feature history.
