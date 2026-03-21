@@ -32,7 +32,7 @@ rustup show && node --version && cargo tauri --version
 
 ```text
 vibecody/
-├── Cargo.toml                    # Workspace root (6 members)
+├── Cargo.toml                    # Workspace root (9 members)
 ├── vibecli/vibecli-cli/          # VibeCLI binary crate
 │   ├── src/main.rs               # CLI entry, REPL loop, 80+ commands
 │   ├── src/tool_executor.rs      # Agent tool execution (file I/O, bash, search)
@@ -46,7 +46,7 @@ vibecody/
 ├── vibeui/
 │   ├── src/                      # React + TypeScript frontend
 │   │   ├── App.tsx               # Root component, keyboard shortcuts
-│   │   └── components/           # 145+ panel components
+│   │   └── components/           # 155+ panel components
 │   ├── src-tauri/src/
 │   │   ├── lib.rs                # Tauri command registration (200+ commands)
 │   │   ├── commands.rs           # All Tauri command implementations
@@ -127,8 +127,8 @@ npm run typecheck    # TypeScript type checking
 
 | Crate | Tests | Focus |
 |-------|-------|-------|
-| vibecli | ~5,400+ | CLI commands, tool executor, providers, security, all feature modules |
-| vibe-ai | ~1,000+ | Provider implementations, agent loop, circuit breaker, tracing |
+| vibecli | ~5,600+ | CLI commands, tool executor, providers, security, all feature modules |
+| vibe-ai | ~1,020+ | Provider implementations, agent loop, circuit breaker, tracing |
 | vibe-core | ~290+ | Text buffer, filesystem, git, search, embeddings |
 | vibe-ui | ~230+ | Tauri commands, agent executor, panel components |
 | vibe-extensions | ~46 | WASM extension loading, manifest parsing |
@@ -137,7 +137,7 @@ npm run typecheck    # TypeScript type checking
 ### Running Tests
 
 ```bash
-# Full workspace (7,000+ tests)
+# Full workspace (7,400+ tests)
 cargo test --workspace --exclude vibe-collab
 
 # Single crate with output

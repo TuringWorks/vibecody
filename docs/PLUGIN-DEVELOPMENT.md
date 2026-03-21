@@ -319,7 +319,7 @@ When working with Docker:
 1. `<workspace>/.vibecli/skills/` (project-specific)
 2. `~/.vibecli/skills/` (user-global)
 3. `~/.vibecli/plugins/*/skills/` (from installed plugins)
-4. `vibecli/vibecli-cli/skills/` (built-in, 526 skills)
+4. `vibecli/vibecli-cli/skills/` (built-in, 543 skills)
 
 Later sources do NOT override earlier ones. All matching skills are injected.
 

@@ -98,7 +98,7 @@ The installer is placed in `src-tauri/target/release/bundle/`.
 
 ### AI Integration
 
-The AI chat panel supports all 17 providers via the shared `vibe-ai` crate:
+The AI chat panel supports all 22 providers via the shared `vibe-ai` crate:
 
 - **Local**: Ollama (default, no API key), LocalEdit
 - **Cloud**: Claude, OpenAI, Gemini, Grok, Groq, Mistral, Cerebras, DeepSeek, Zhipu
@@ -918,7 +918,7 @@ VibeUI implements WCAG 2.1 Level AA accessibility:
 | Crate | Tests | Key coverage areas |
 |-------|-------|--------------------|
 | vibecli | 3,224 | session store, serve, config, review, workflow, REPL, redteam, gateway, transform, marketplace, background agents, TUI, tool executor, bugbot, vim editor, security scan, automations, legacy migration, batch builder, QA validation, RAG, GPU cluster, inference, training |
-| vibe-ai | 843 | 17 providers (48+ provider tests), tools, trace, hooks, policy, skills, artifacts, planner, MCP, agent teams, multi-agent, SigV4 |
+| vibe-ai | 1,020+ | 22 providers, tools, trace, hooks, policy, skills, artifacts, planner, MCP, agent teams, multi-agent, SigV4 |
 | vibe-core | 293 | buffer, git, diff, context, file system, workspace, search, terminal, index/embeddings |
 | vibe-ui (Tauri) | 227 | Tauri commands, coverage, cost, flow, agent executor, shadow workspace |
 | vibe-lsp | 74 | LSP client, features, manager, language configs |

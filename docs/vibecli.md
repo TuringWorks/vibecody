@@ -612,7 +612,7 @@ In VibeUI, the **🧪 Tests** panel provides a richer experience with live strea
 
 ## Skills System
 
-VibeCody ships with **526 skill files** across 25+ categories covering finance, healthcare, security, cloud (AWS/Azure/GCP), data engineering, robotics, compliance, SRE, and more. Skills activate based on trigger keywords. Place custom `.md` files in `.vibecli/skills/` or `~/.vibecli/skills/`:
+VibeCody ships with **543 skill files** across 25+ categories covering finance, healthcare, security, cloud (AWS/Azure/GCP), data engineering, robotics, compliance, SRE, and more. Skills activate based on trigger keywords. Place custom `.md` files in `.vibecli/skills/` or `~/.vibecli/skills/`:
 
 ```markdown
 ---
@@ -691,7 +691,7 @@ Spans include session ID, task, tool name, and step metadata.
 ```
 vibecli/
 └── vibecli-cli/
-    ├── skills/             # 526 skill files (25+ categories)
+    ├── skills/             # 543 skill files (25+ categories)
     └── src/
         ├── main.rs         # CLI argument parsing, command dispatch
         ├── config.rs       # Config loading/saving (TOML)

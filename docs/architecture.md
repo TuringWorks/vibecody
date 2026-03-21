@@ -6,7 +6,7 @@ permalink: /architecture/
 
 # Architecture
 
-VibeCody is a Rust workspace (monorepo) containing two end-user applications and five shared library crates, plus editor plugins, an agent SDK, and a skills library.
+VibeCody is a Rust workspace (monorepo) with 9 crate members: three binary applications, five shared library crates, and a standalone indexing service, plus editor plugins, an agent SDK, and a skills library.
 
 ---
 
@@ -16,9 +16,9 @@ VibeCody is a Rust workspace (monorepo) containing two end-user applications and
 vibecody/                          ← Cargo workspace root
 ├── vibecli/
 │   └── vibecli-cli/               ← Binary: terminal assistant
-│       └── skills/                ← 526 skill files (25+ categories)
+│       └── skills/                ← 543 skill files (25+ categories)
 ├── vibeui/
-│   ├── src/                       ← React + TypeScript frontend (~107 panel tabs)
+│   ├── src/                       ← React + TypeScript frontend (155+ panel components)
 │   ├── src-tauri/                 ← Binary: Tauri desktop app
 │   └── crates/
 │       ├── vibe-core/             ← Library: editor primitives
@@ -213,7 +213,7 @@ let config = ProviderConfig::new("claude".into(), "claude-3-5-sonnet-20241022".i
 
 ### Provider Implementations
 
-All 17 providers follow the same pattern:
+All 22 providers follow the same pattern:
 
 1. Send HTTP request to provider API using `reqwest`
 2. For `chat()`: wait for full response
@@ -529,10 +529,10 @@ async fn ai_chat(
 
 | Crate | Tests | Key coverage areas |
 |-------|-------|--------------------|
-| `vibecli` | 3,224 | session store, serve, config, review, workflow, REPL, redteam, gateway, transform, marketplace, background agents, TUI, security scan, automations, legacy migration, batch builder, QA validation, RAG, GPU cluster, inference, training |
-| `vibe-ai` | 843 | 17 providers, tools, trace, hooks, policy, skills, agent, multi-agent, MCP, agent teams |
-| `vibe-core` | 293 | buffer, git, diff, context, file system, workspace, search, terminal, index/embeddings |
-| `vibe-ui` | 227 | Tauri commands, coverage, cost, flow, agent executor, shadow workspace |
+| `vibecli` | 5,600+ | session store, serve, config, review, workflow, REPL, redteam, gateway, channel daemon, branch agent, spec pipeline, VM orchestrator, transform, marketplace, background agents, TUI, security scan, automations, project init, all feature modules |
+| `vibe-ai` | 1,020+ | 22 providers, tools, trace, hooks, policy, skills, agent, multi-agent, MCP, agent teams |
+| `vibe-core` | 370+ | buffer, git, diff, context, file system, workspace, search, terminal, index/embeddings, executor |
+| `vibe-ui` | 230+ | Tauri commands, coverage, cost, flow, agent executor, shadow workspace |
 | `vibe-lsp` | 74 | LSP client, features, manager |
 | `vibe-collab` | 53 | CRDT rooms, server registry, protocol, awareness |
 | `vibe-extensions` | 46 | loader, manifest, permissions |

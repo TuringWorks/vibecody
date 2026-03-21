@@ -196,10 +196,10 @@ docs/architecture-diagram
 
 ### Larger Features
 
-- **Additional AI providers** — implement new `AIProvider` backends (17 providers exist today)
+- **Additional AI providers** — implement new `AIProvider` backends (22 providers exist today)
 - **WASM extensions** — develop plugins using the `vibe-extensions` WASM runtime
 - **CRDT collaboration** — enhance the `vibe-collab` real-time multiplayer editing
-- **Agent skills** — write new skill files in `vibecli/vibecli-cli/skills/` (526 skills exist today)
+- **Agent skills** — write new skill files in `vibecli/vibecli-cli/skills/` (543 skills exist today)
 - **Gateway adapters** — add new messaging platform adapters (18 platforms supported)
 - **TUI enhancements** — improve the Ratatui-based terminal interface
 

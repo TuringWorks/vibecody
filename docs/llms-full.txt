@@ -1015,7 +1015,7 @@ Fix: VibeCody warns but falls back to defaults. Fix TOML syntax in
 ================================================================================
 
 Repository:
-  Cargo.toml                                 Workspace root (6 members)
+  Cargo.toml                                 Workspace root (9 members)
   Makefile                                   Build/test/run targets
   Dockerfile                                 Multi-stage musl build
   docker-compose.yml                         VibeCLI + Ollama sidecar

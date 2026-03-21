@@ -74,7 +74,7 @@ make docker     Build Docker image
 
 ```
 vibecody/
-├── Cargo.toml                  # Workspace root (6 members)
+├── Cargo.toml                  # Workspace root (9 members)
 ├── Dockerfile                  # Multi-stage musl build (Alpine runtime)
 ├── docker-compose.yml          # VibeCLI + Ollama sidecar (air-gapped)
 ├── install.sh                  # One-liner installer (SHA-256 verified)
@@ -86,15 +86,15 @@ vibecody/
 │       │   ├── serve.rs        # HTTP daemon for VS Code ext/SDK
 │       │   ├── repl.rs         # Rustyline REPL helper
 │       │   └── tui/            # Ratatui TUI (app, ui, components)
-│       └── skills/             # 507 skill files (25 categories)
+│       └── skills/             # 543 skill files (25+ categories)
 ├── vibeui/
 │   ├── src/                    # React + TypeScript frontend
 │   │   ├── App.tsx             # Root component
-│   │   └── components/         # 60+ panel components
+│   │   └── components/         # 155+ panel components
 │   ├── src-tauri/              # Tauri Rust backend
 │   └── crates/                 # Shared Rust library crates
 │       ├── vibe-core/          # Text buffer, FS, workspace, Git, index
-│       ├── vibe-ai/            # 17 AI providers, agents, hooks, planner
+│       ├── vibe-ai/            # 22 AI providers, agents, hooks, planner
 │       ├── vibe-lsp/           # Language Server Protocol client
 │       ├── vibe-extensions/    # WASM-based extension system
 │       └── vibe-collab/        # CRDT multiplayer collaboration
@@ -121,24 +121,29 @@ Core editor primitives — text buffer (rope-based), file system operations, wor
 
 ### `vibe-ai`
 
-Unified AI provider abstraction with agent loop, hooks, planner, multi-agent orchestration, skills, artifacts, admin policy, trace/session resume, and OpenTelemetry. Supports 17 providers:
+Unified AI provider abstraction with agent loop, hooks, planner, multi-agent orchestration, skills, artifacts, admin policy, trace/session resume, and OpenTelemetry. Supports 22 providers:
 
 - **Ollama** — Local/private models (default)
-- **Anthropic Claude** — Claude 3.5 Sonnet/Opus
-- **OpenAI** — GPT-4 and variants
-- **Google Gemini** — Gemini Pro 1.5
-- **xAI Grok** — Grok Beta
-- **Groq** — Fast inference
+- **Anthropic Claude** — Claude 4 Sonnet/Opus
+- **OpenAI** — GPT-4o and variants
+- **Google Gemini** — Gemini 2.5 Pro/Flash
+- **xAI Grok** — Grok 2
+- **Groq** — Fast inference (Llama, Mixtral)
 - **OpenRouter** — Multi-provider gateway
 - **Azure OpenAI** — Enterprise Azure-hosted models
-- **AWS Bedrock** — AWS-hosted models
+- **AWS Bedrock** — AWS-hosted models (Claude, Llama, Titan)
 - **GitHub Copilot** — Copilot integration
 - **LocalEdit** — Local code editing model
 - **Mistral** — Mistral AI models
 - **Cerebras** — Wafer-scale inference
-- **DeepSeek** — DeepSeek models
-- **Zhipu** — GLM models
+- **DeepSeek** — DeepSeek V3/R1
+- **Zhipu** — GLM-4 models
 - **Vercel AI** — Vercel AI SDK
+- **MiniMax** — MiniMax-Text-01
+- **Perplexity** — Search-augmented Sonar models
+- **Together AI** — Open model hosting (Llama, Qwen)
+- **Fireworks AI** — Fast open model inference
+- **SambaNova** — Hardware-accelerated inference
 - **Failover** — Auto-failover wrapper (chains multiple providers)
 
 ### `vibe-lsp`

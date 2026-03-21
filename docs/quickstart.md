@@ -216,7 +216,7 @@ Other providers use the same pattern:
 | Grok | `GROK_API_KEY` | `--provider grok` |
 | Ollama | *(none)* | `--provider ollama` |
 
-See the [Configuration Guide](./configuration/) for all 17 providers.
+See the [Configuration Guide](./configuration/) for all 22 providers.
 
 ---
 

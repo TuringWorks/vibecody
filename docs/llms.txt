@@ -11,22 +11,22 @@ TypeScript. It ships two products that share a common library layer:
 License: MIT
 Repository: https://github.com/TuringWorks/vibecody
 Language: Rust (backend/CLI) + TypeScript/React (frontend)
-AI Providers: 23 native + OpenRouter (300+ models)
-Unit Tests: ~5,900
-UI Panels: 149+
-Skill Files: 539+ across 25+ industries
-REPL Commands: 75+
+AI Providers: 22 native + OpenRouter (300+ models)
+Unit Tests: ~7,400
+UI Panels: 155+
+Skill Files: 543 across 25+ industries
+REPL Commands: 93
 
 ## Architecture
 
-Monorepo with 6 Cargo workspace members and a React/Vite frontend:
+Monorepo with 9 Cargo workspace members and a React/Vite frontend:
 
   vibecody/
     Cargo.toml              -- workspace root
     vibecli/vibecli-cli/    -- CLI binary (TUI + REPL + HTTP daemon)
     vibeui/                 -- Tauri desktop app (React frontend + Rust backend)
     vibeui/crates/vibe-core -- text buffer, FS, workspace, Git, terminal, search
-    vibeui/crates/vibe-ai   -- 23 AI providers, agent loop, hooks, planner, tools
+    vibeui/crates/vibe-ai   -- 22 AI providers, agent loop, hooks, planner, tools
     vibeui/crates/vibe-lsp  -- Language Server Protocol client
     vibeui/crates/vibe-extensions -- WASM plugin runtime (Wasmtime)
     vibeui/crates/vibe-collab     -- CRDT multiplayer collaboration
