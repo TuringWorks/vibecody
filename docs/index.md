@@ -29,21 +29,24 @@ Both tools are backed by a shared set of Rust library crates for AI provider int
 | [Roadmap v2](./roadmap-v2/) | Current roadmap and planned features |
 | [Plugin Development](./plugin-development/) | Build plugins, skills, hooks, WASM extensions, and MCP integrations |
 | [Competitive Analysis](./shannon-comparison/) | Feature comparison with other AI coding tools |
+| [Development Guide](./development/) | Build, test, debug, and code organization for contributors |
+| [Security](./security/) | Security model, SSRF/path-traversal prevention, command blocklists |
 | [Contributing](./contributing/) | How to build, test, and contribute |
 
 ---
 
 ## Key Features
 
-### Multi-Provider AI (17 Providers)
+### Multi-Provider AI (22 Providers)
 
 Both VibeCLI and VibeUI share the `vibe-ai` provider abstraction:
 
 | Category | Providers |
 |----------|-----------|
 | **Local** | Ollama, LocalEdit |
-| **Cloud** | Claude, OpenAI, Gemini, Grok, Groq, Mistral, Cerebras, DeepSeek, Zhipu |
+| **Cloud** | Claude, OpenAI, Gemini, Grok, Groq, Mistral, Cerebras, DeepSeek, Zhipu, MiniMax |
 | **Platform** | OpenRouter, Azure OpenAI, Bedrock, Copilot, Vercel AI |
+| **Inference** | Perplexity, Together AI, Fireworks AI, SambaNova |
 | **Meta** | Failover (automatic provider fallback) |
 
 All providers support streaming. Local providers require no API key.

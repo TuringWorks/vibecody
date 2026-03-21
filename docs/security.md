@@ -137,23 +137,74 @@ When rotating API keys:
 
 ## SSRF Prevention
 
-The tool executor validates all URLs before making requests. Only the following URL schemes are permitted:
+Both the CLI tool executor and the VibeUI agent executor validate all URLs before making HTTP requests. The `validate_url_for_ssrf()` function enforces:
 
-- `http://`
-- `https://`
+**Allowed schemes:** `http://` and `https://` only. All others (`file://`, `ftp://`, `gopher://`, etc.) are rejected.
 
-Schemes such as `file://`, `ftp://`, `gopher://`, and others are blocked. Additionally, requests to private IP ranges (127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16) are rejected by default when operating in sandbox mode.
+**Blocked destinations:**
+- Loopback addresses: `127.0.0.1`, `localhost`, `::1`, `0.0.0.0`
+- Cloud metadata endpoints: `169.254.169.254`, `metadata.google.internal`
+- RFC 1918 private ranges: `10.x.x.x`, `172.16-31.x.x`, `192.168.x.x`
+- Link-local addresses: `169.254.x.x`
+
+This protection is enforced in three locations:
+1. `tool_executor.rs` — CLI agent's `fetch_url` tool
+2. `agent_executor.rs` — VibeUI agent's `fetch_url` tool
+3. `commands.rs` — `fetch_and_strip()` used by context pickers and chat
 
 ---
 
 ## Path Traversal Prevention
 
-All file operations performed by the agent go through a safe-name validation layer that:
+All file operations performed by the agent go through path validation that:
 
-- Rejects paths containing `..` components.
-- Resolves symlinks and verifies the resolved path is within the allowed workspace.
-- Blocks access to sensitive system paths (`/etc/passwd`, `~/.ssh/`, etc.).
-- Normalizes path separators to prevent bypass via mixed separators on Windows.
+- **Canonicalizes paths** via `std::fs::canonicalize()` to resolve symlinks and `..` components.
+- **Validates workspace boundary** — the resolved path must start with the workspace root.
+- **Blocks absolute paths** outside the workspace (e.g., `/etc/passwd`, `~/.ssh/`).
+- **Handles non-existent files** — for new file creation, the parent directory is canonicalized.
+- **Normalizes path separators** to prevent bypass via mixed separators on Windows.
+
+Both executor implementations (`tool_executor.rs` for CLI, `agent_executor.rs` for VibeUI) enforce these checks.
+
+---
+
+## Command Execution Security
+
+Shell commands executed by the agent (via the `bash` tool or AI-generated `<build>`/`<run>` tags) are subject to multiple layers of protection:
+
+### Command Blocklist
+
+The following patterns are blocked before execution:
+
+| Category | Blocked Patterns |
+|----------|-----------------|
+| **Destructive** | `rm -rf /`, `mkfs`, `dd if=`, `shred`, `> /dev/sd` |
+| **System control** | `poweroff`, `reboot`, `halt`, `shutdown` |
+| **Fork bombs** | `:(){ :|:& };:` |
+| **Exfiltration** | `curl -d`, `wget --post-data`, `/dev/tcp/` |
+| **Encoded execution** | `base64 -d \| sh`, `base64 -d \| bash` |
+| **Reverse shells** | `nc -e`, `ncat -e` |
+| **Persistence** | `crontab` |
+| **Firewall** | `iptables`, `ufw` |
+| **Permissions** | `chmod -R 777 /` |
+
+### Execution Timeout
+
+All agent bash commands have a wall-clock timeout:
+- **CLI executor:** Configurable, default unlimited (sandbox provides isolation)
+- **VibeUI executor:** 120 seconds (hard limit, process killed on expiry)
+- **Project scripts:** 300 seconds (5 minutes)
+
+### AI Response Command Filtering
+
+Commands extracted from LLM responses (`<build command="...">` and `<run command="...">` tags) pass through the same blocklist before execution. This prevents prompt injection attacks where a malicious LLM response attempts to execute dangerous commands.
+
+### SQLite Command Injection Prevention
+
+The database panel blocks SQLite dot-commands that could execute system commands:
+- `.shell`, `.system`, `.import`, `.load`, `.output`, `.once`, `.log`
+- `.open`, `.save`, `.backup`, `.restore`, `.clone`
+- `ATTACH DATABASE` (prevents accessing arbitrary files)
 
 ---
 

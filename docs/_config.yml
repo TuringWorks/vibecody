@@ -53,6 +53,8 @@ nav:
     url: /roadmap-v4/
   - title: Fit-Gap Analysis
     url: /fit-gap-analysis-v6/
+  - title: Development Guide
+    url: /development/
   - title: Contributing
     url: /contributing/
 
