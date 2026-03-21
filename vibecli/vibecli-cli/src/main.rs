@@ -7987,6 +7987,7 @@ fn show_help() {
     println!("  @web:<url>               - Fetch and inject web page content");
     println!("  @docs:<pkg>              - Fetch library docs (e.g. @docs:tokio, @docs:py:requests)");
     println!("  @git                     - Inject git status and recent commits");
+    println!("  @memory:<query>          - Search OpenMemory cognitive store and inject results");
     println!("\nCLI flags:");
     println!("  --agent <task>           - Run agent in REPL mode");
     println!("  --plan                   - Enable plan mode (generate plan before executing)");
@@ -8423,6 +8424,10 @@ fn re_at_jira() -> &'static regex::Regex {
     static R: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
     R.get_or_init(|| regex::Regex::new(r"@jira:([A-Z][A-Z0-9_]+-\d+)").expect("valid regex: @jira"))
 }
+fn re_at_memory() -> &'static regex::Regex {
+    static R: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    R.get_or_init(|| regex::Regex::new(r"@memory:(\S+(?:\s+\S+)*)").expect("valid regex: @memory"))
+}
 fn re_image_attachment() -> &'static regex::Regex {
     static R: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
     R.get_or_init(|| regex::Regex::new(r"\[([^\]]+\.(png|jpg|jpeg|gif|webp))\]").expect("valid regex: image_attachment"))
@@ -8649,6 +8654,44 @@ pub async fn expand_at_refs(input: &str) -> String {
             extra.push(format!("=== Jira Issue: {} ===\n{}", issue_key, text));
             result = result.replacen(&matched, "", 1);
         }
+    }
+
+    // ── @memory:query — search OpenMemory cognitive memory store ─────────────
+    for cap in re_at_memory().captures_iter(input) {
+        let query = &cap[1];
+        let mem_dir = dirs::data_dir()
+            .unwrap_or_else(|| std::path::PathBuf::from("."))
+            .join("vibecli")
+            .join("openmemory");
+        let text = if let Ok(store) = open_memory::OpenMemoryStore::load(&mem_dir, "default") {
+            let results = store.query(query, 8);
+            if results.is_empty() {
+                format!("(no memories matching '{}')", query)
+            } else {
+                let mut lines = Vec::new();
+                for r in &results {
+                    lines.push(format!("[{} | sal:{:.0}% | score:{:.2}] {}",
+                        r.memory.sector,
+                        r.effective_salience * 100.0,
+                        r.score,
+                        &r.memory.content[..r.memory.content.len().min(200)]
+                    ));
+                }
+                // Also include current temporal facts if any
+                let facts = store.query_current_facts();
+                if !facts.is_empty() {
+                    lines.push("--- temporal facts ---".to_string());
+                    for f in facts.iter().take(10) {
+                        lines.push(format!("{} {} {}", f.subject, f.predicate, f.object));
+                    }
+                }
+                lines.join("\n")
+            }
+        } else {
+            "(OpenMemory store not initialized — use /openmemory add to start)".to_string()
+        };
+        extra.push(format!("=== OpenMemory: {} ===\n{}", query, text));
+        result = result.replacen(&cap[0], "", 1);
     }
 
     // ── Assemble ──────────────────────────────────────────────────────────────
