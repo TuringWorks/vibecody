@@ -820,6 +820,10 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route("/memory/decay", post(memory_decay))
         .route("/memory/consolidate", post(memory_consolidate))
         .route("/memory/export", get(memory_export))
+        // Vulnerability Scanner — industry-grade SCA + SAST
+        .route("/vulnscan/scan", post(vulnscan_scan))
+        .route("/vulnscan/file", post(vulnscan_file))
+        .route("/vulnscan/summary", get(vulnscan_summary))
         .route_layer(middleware::from_fn_with_state(limiter, rate_limit))
         .route_layer(middleware::from_fn_with_state(state.clone(), require_auth));
 
@@ -1472,6 +1476,80 @@ async fn memory_consolidate(_state: State<ServeState>) -> Json<serde_json::Value
 async fn memory_export(_state: State<ServeState>) -> (StatusCode, String) {
     let store = load_memory_store();
     (StatusCode::OK, store.export_markdown())
+}
+
+// ── Vulnerability Scanner REST API ────────────────────────────────────────────
+
+#[derive(Deserialize)]
+struct VulnscanScanRequest {
+    /// Lockfile content.
+    content: String,
+    /// Lockfile filename (for format detection).
+    filename: String,
+}
+
+#[derive(Deserialize)]
+struct VulnscanFileRequest {
+    /// Source code content.
+    content: String,
+    /// File path (for language detection).
+    file_path: String,
+}
+
+async fn vulnscan_scan(
+    _state: State<ServeState>,
+    Json(req): Json<VulnscanScanRequest>,
+) -> Json<serde_json::Value> {
+    let deps = crate::vulnerability_db::parse_lockfile(&req.filename, &req.content);
+    let mut scanner = crate::vulnerability_db::VulnerabilityScanner::new();
+    scanner.scan_dependencies(&deps);
+    let summary = scanner.summary();
+    let findings: Vec<serde_json::Value> = scanner.active_findings().iter().map(|f| {
+        serde_json::json!({
+            "id": f.id, "severity": format!("{}", f.severity), "cvss": f.cvss_score,
+            "title": f.title, "cve": f.cve_id, "cwe": f.cwe_id,
+            "package": f.package, "version": f.installed_version, "fix": f.fixed_version,
+            "epss": f.epss_score, "exploit": f.exploit_available, "remediation": f.remediation,
+        })
+    }).collect();
+    Json(serde_json::json!({
+        "summary": summary,
+        "findings": findings,
+        "packages_scanned": deps.len(),
+    }))
+}
+
+async fn vulnscan_file(
+    _state: State<ServeState>,
+    Json(req): Json<VulnscanFileRequest>,
+) -> Json<serde_json::Value> {
+    let mut scanner = crate::vulnerability_db::VulnerabilityScanner::new();
+    scanner.scan_file(&req.file_path, &req.content);
+    let findings: Vec<serde_json::Value> = scanner.active_findings().iter().map(|f| {
+        serde_json::json!({
+            "id": f.id, "severity": format!("{}", f.severity),
+            "title": f.title, "cwe": f.cwe_id,
+            "file": f.file_path, "line": f.line,
+            "remediation": f.remediation, "owasp": f.owasp,
+        })
+    }).collect();
+    Json(serde_json::json!({ "findings": findings, "count": findings.len() }))
+}
+
+async fn vulnscan_summary(_state: State<ServeState>) -> Json<serde_json::Value> {
+    let scanner = crate::vulnerability_db::VulnerabilityScanner::new();
+    let snapshot = crate::vulnerability_db::OsvSnapshotDb::new(
+        crate::vulnerability_db::OsvSnapshotDb::default_path()
+    );
+    Json(serde_json::json!({
+        "vuln_db_size": scanner.vuln_db_size(),
+        "sast_rule_count": scanner.sast_rule_count(),
+        "snapshot_exists": snapshot.exists(),
+        "snapshot_advisory_count": snapshot.advisory_count(),
+        "snapshot_age_hours": snapshot.age_hours(),
+        "lockfile_formats": ["package-lock.json", "yarn.lock", "Cargo.lock", "requirements.txt", "poetry.lock", "go.sum", "Gemfile.lock"],
+        "ecosystems": ["npm", "PyPI", "crates.io", "Go", "Maven", "RubyGems", "NuGet", "Packagist"],
+    }))
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────────

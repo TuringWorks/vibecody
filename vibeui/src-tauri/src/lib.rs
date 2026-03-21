@@ -934,6 +934,10 @@ pub fn run() {
             commands::openmemory_consolidate,
             commands::openmemory_export,
             commands::openmemory_enable_encryption,
+            // Vulnerability Scanner
+            commands::vulnscan_scan_deps,
+            commands::vulnscan_scan_file,
+            commands::vulnscan_status,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

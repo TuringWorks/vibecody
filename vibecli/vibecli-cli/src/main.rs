@@ -6787,6 +6787,215 @@ async fn main() -> Result<()> {
                             }
                         }
 
+                        "/vulnscan" => {
+                            let sub = args.trim().split_whitespace().next().unwrap_or("help");
+                            let rest = args.trim().strip_prefix(sub).unwrap_or("").trim();
+                            match sub {
+                                "scan" | "deps" => {
+                                    // Auto-detect lockfiles in current directory
+                                    let cwd = std::env::current_dir().unwrap_or_default();
+                                    let lockfiles = ["package-lock.json", "yarn.lock", "Cargo.lock", "requirements.txt",
+                                                     "poetry.lock", "go.sum", "Gemfile.lock"];
+                                    let mut scanner = vulnerability_db::VulnerabilityScanner::new();
+                                    let mut total_deps = 0;
+                                    let mut total_vulns: usize = 0;
+                                    for lf in &lockfiles {
+                                        let path = cwd.join(lf);
+                                        if path.exists() {
+                                            if let Ok(content) = std::fs::read_to_string(&path) {
+                                                let deps = vulnerability_db::parse_lockfile(lf, &content);
+                                                if !deps.is_empty() {
+                                                    println!("  Scanning {} ({} packages)...", lf, deps.len());
+                                                    total_deps += deps.len();
+                                                    total_vulns += scanner.scan_dependencies(&deps);
+                                                }
+                                            }
+                                        }
+                                    }
+                                    let _ = total_vulns; // used via scanner.summary()
+                                    if total_deps == 0 {
+                                        println!("No lockfiles found in current directory.\n  Supported: {}\n", lockfiles.join(", "));
+                                    } else {
+                                        let s = scanner.summary();
+                                        println!("\n  {} packages scanned, {} vulnerabilities found", total_deps, s.total_findings);
+                                        if s.critical > 0 { println!("  CRITICAL: {}", s.critical); }
+                                        if s.high > 0 { println!("  HIGH: {}", s.high); }
+                                        if s.medium > 0 { println!("  MEDIUM: {}", s.medium); }
+                                        if s.low > 0 { println!("  LOW: {}", s.low); }
+                                        if s.exploit_available_count > 0 {
+                                            println!("  {} with known exploit", s.exploit_available_count);
+                                        }
+                                        if s.blocked { println!("  PR BLOCKED: Critical/High findings present"); }
+                                        println!();
+                                        // Show top findings
+                                        for f in scanner.active_findings().iter().take(10) {
+                                            let fix = f.fixed_version.as_deref().unwrap_or("no fix");
+                                            println!("  {} {} {} {} → {}",
+                                                f.severity, f.cve_id.as_deref().unwrap_or(""),
+                                                f.package.as_deref().unwrap_or(""),
+                                                f.installed_version.as_deref().unwrap_or(""), fix);
+                                        }
+                                        if scanner.active_findings().len() > 10 {
+                                            println!("  ... and {} more (use /vulnscan report for full details)\n",
+                                                scanner.active_findings().len() - 10);
+                                        } else { println!(); }
+                                    }
+                                }
+                                "file" => {
+                                    if rest.is_empty() {
+                                        println!("Usage: /vulnscan file <path>\n");
+                                    } else {
+                                        match std::fs::read_to_string(rest) {
+                                            Ok(content) => {
+                                                let mut scanner = vulnerability_db::VulnerabilityScanner::new();
+                                                let count = scanner.scan_file(rest, &content);
+                                                println!("  {} findings in {}", count, rest);
+                                                for f in scanner.active_findings().iter().take(20) {
+                                                    let line = f.line.map(|l| format!(":{}", l)).unwrap_or_default();
+                                                    println!("  {} {}{} — {}", f.severity,
+                                                        f.file_path.as_deref().unwrap_or(rest), line,
+                                                        f.title);
+                                                }
+                                                println!();
+                                            }
+                                            Err(e) => println!("Failed to read {}: {}\n", rest, e),
+                                        }
+                                    }
+                                }
+                                "lockfile" => {
+                                    if rest.is_empty() {
+                                        println!("Usage: /vulnscan lockfile <path>\n");
+                                    } else {
+                                        let filename = rest.rsplit('/').next().unwrap_or(rest);
+                                        match std::fs::read_to_string(rest) {
+                                            Ok(content) => {
+                                                let deps = vulnerability_db::parse_lockfile(filename, &content);
+                                                println!("  Parsed {} dependencies from {}", deps.len(), rest);
+                                                let mut scanner = vulnerability_db::VulnerabilityScanner::new();
+                                                let vulns = scanner.scan_dependencies(&deps);
+                                                println!("  {} vulnerabilities found\n", vulns);
+                                                for f in scanner.active_findings().iter().take(20) {
+                                                    println!("  {} {} {} → {}",
+                                                        f.severity,
+                                                        f.cve_id.as_deref().unwrap_or(""),
+                                                        f.package.as_deref().unwrap_or(""),
+                                                        f.fixed_version.as_deref().unwrap_or("no fix"));
+                                                }
+                                                println!();
+                                            }
+                                            Err(e) => println!("Failed to read {}: {}\n", rest, e),
+                                        }
+                                    }
+                                }
+                                "sarif" => {
+                                    let cwd = std::env::current_dir().unwrap_or_default();
+                                    let mut scanner = vulnerability_db::VulnerabilityScanner::new();
+                                    // Scan lockfiles
+                                    for lf in &["package-lock.json", "yarn.lock", "Cargo.lock", "requirements.txt", "go.sum"] {
+                                        let path = cwd.join(lf);
+                                        if path.exists() {
+                                            if let Ok(content) = std::fs::read_to_string(&path) {
+                                                let deps = vulnerability_db::parse_lockfile(lf, &content);
+                                                scanner.scan_dependencies(&deps);
+                                            }
+                                        }
+                                    }
+                                    let sarif = scanner.to_sarif();
+                                    match serde_json::to_string_pretty(&sarif) {
+                                        Ok(json) => {
+                                            let out_path = cwd.join("vibecody-scan.sarif.json");
+                                            match std::fs::write(&out_path, &json) {
+                                                Ok(_) => println!("SARIF report written to {}\n", out_path.display()),
+                                                Err(e) => println!("Failed to write SARIF: {}\n", e),
+                                            }
+                                        }
+                                        Err(e) => println!("Failed to serialize SARIF: {}\n", e),
+                                    }
+                                }
+                                "report" => {
+                                    let cwd = std::env::current_dir().unwrap_or_default();
+                                    let mut scanner = vulnerability_db::VulnerabilityScanner::new();
+                                    for lf in &["package-lock.json", "yarn.lock", "Cargo.lock", "requirements.txt", "go.sum", "Gemfile.lock"] {
+                                        let path = cwd.join(lf);
+                                        if path.exists() {
+                                            if let Ok(content) = std::fs::read_to_string(&path) {
+                                                let deps = vulnerability_db::parse_lockfile(lf, &content);
+                                                scanner.scan_dependencies(&deps);
+                                            }
+                                        }
+                                    }
+                                    println!("{}", scanner.to_markdown());
+                                }
+                                "summary" => {
+                                    let scanner = vulnerability_db::VulnerabilityScanner::new();
+                                    println!("VibeCody Vulnerability Scanner\n");
+                                    println!("  CVE database: {} known vulnerabilities (offline)", scanner.vuln_db_size());
+                                    println!("  SAST rules: {} patterns across 10+ languages", scanner.sast_rule_count());
+                                    println!("  Lockfile parsers: package-lock.json, yarn.lock, Cargo.lock, requirements.txt, poetry.lock, go.sum, Gemfile.lock");
+                                    println!("  Output: SARIF v2.1.0, Markdown");
+                                    println!("  Live APIs: OSV.dev (60K+ advisories), GHSA (with GITHUB_TOKEN)");
+                                    println!("  Cache: ~/.vibecli/vuln-cache/ (24h TTL)");
+                                    let snapshot = vulnerability_db::OsvSnapshotDb::new(vulnerability_db::OsvSnapshotDb::default_path());
+                                    if snapshot.exists() {
+                                        let count = snapshot.advisory_count();
+                                        let age = snapshot.age_hours().map(|h| format!("{:.0}h ago", h)).unwrap_or_else(|| "unknown".to_string());
+                                        println!("  Snapshot: {} advisories (updated {})", count, age);
+                                    } else {
+                                        println!("  Snapshot: not downloaded (run /vulnscan db-update)");
+                                    }
+                                    println!();
+                                }
+                                "db-update" => {
+                                    println!("Downloading OSV vulnerability database...\n");
+                                    println!("This downloads ~60,000 advisories from osv.dev (may take a few minutes).\n");
+                                    let db_dir = vulnerability_db::OsvSnapshotDb::default_path();
+                                    let rt = tokio::runtime::Handle::current();
+                                    let results = rt.block_on(vulnerability_db::OsvSnapshotDb::download_all(&db_dir));
+                                    let mut total = 0;
+                                    for (eco, result) in &results {
+                                        match result {
+                                            Ok(count) => {
+                                                println!("  {} — {} advisories", eco, count);
+                                                total += count;
+                                            }
+                                            Err(e) => println!("  {} — FAILED: {}", eco, e),
+                                        }
+                                    }
+                                    println!("\nTotal: {} advisories downloaded to {}\n", total, db_dir.display());
+                                }
+                                "db-status" => {
+                                    let snapshot = vulnerability_db::OsvSnapshotDb::new(vulnerability_db::OsvSnapshotDb::default_path());
+                                    if snapshot.exists() {
+                                        let count = snapshot.advisory_count();
+                                        let age = snapshot.age_hours().map(|h| format!("{:.1} hours ago", h)).unwrap_or_else(|| "unknown".to_string());
+                                        println!("OSV Snapshot Database\n");
+                                        println!("  Location: {}", vulnerability_db::OsvSnapshotDb::default_path().display());
+                                        println!("  Advisories: {}", count);
+                                        println!("  Last updated: {}\n", age);
+                                    } else {
+                                        println!("No local snapshot. Run /vulnscan db-update to download.\n");
+                                    }
+                                }
+                                "cache-clear" => {
+                                    let cache = vulnerability_db::AdvisoryCache::default_cache();
+                                    let cleared = cache.clear();
+                                    println!("Cleared {} cached advisory entries.\n", cleared);
+                                }
+                                _ => {
+                                    println!("VibeCody Vulnerability Scanner (rivals Snyk/Trivy)\n");
+                                    println!("  /vulnscan scan                — Auto-detect lockfiles and scan for CVEs");
+                                    println!("  /vulnscan file <path>         — SAST scan a source file (67 rules)");
+                                    println!("  /vulnscan lockfile <path>     — Scan a specific lockfile for CVEs");
+                                    println!("  /vulnscan sarif               — Generate SARIF report for CI/CD");
+                                    println!("  /vulnscan report              — Full markdown vulnerability report");
+                                    println!("  /vulnscan summary             — Show scanner capabilities and DB status");
+                                    println!("  /vulnscan db-update           — Download full OSV database (~60K advisories)");
+                                    println!("  /vulnscan db-status           — Show local snapshot status");
+                                    println!("  /vulnscan cache-clear         — Clear advisory cache\n");
+                                }
+                            }
+                        }
+
                         _ => {
                             // Suggest closest command via edit distance
                             if let Some(suggestion) = find_closest_command(command) {
@@ -8180,6 +8389,7 @@ fn show_help() {
     println!("  /jobs                    - List persisted background jobs (~/.vibecli/jobs/)");
     println!("  /jobs <session_id>       - Show full detail for a specific job");
     println!("  /openmemory              - Cognitive memory engine (add|query|list|fact|decay|consolidate|export)");
+    println!("  /vulnscan                - Vulnerability scanner (scan|file|lockfile|sarif|report|db-update)");
     println!("  /config                  - Show current configuration");
     println!("  /help                    - Show this help message");
     println!("  /exit                    - Exit VibeCLI");
