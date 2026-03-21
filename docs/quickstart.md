@@ -55,13 +55,13 @@ cp target/release/vibecli /usr/local/bin/
 Downloads the latest release binary for your platform (macOS and Linux, x86_64 and ARM):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/vibecody/vibecody/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/TuringWorks/vibecody/main/install.sh | sh
 ```
 
 The binary is installed to `~/.local/bin/vibecli` by default. Override with:
 
 ```bash
-INSTALL_DIR=/usr/local/bin curl -fsSL https://raw.githubusercontent.com/vibecody/vibecody/main/install.sh | sh
+INSTALL_DIR=/usr/local/bin curl -fsSL https://raw.githubusercontent.com/TuringWorks/vibecody/main/install.sh | sh
 ```
 
 ### Option C: Docker

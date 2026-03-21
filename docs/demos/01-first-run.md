@@ -29,7 +29,7 @@ Choose one of three installation methods.
 **Option A: One-liner installer (recommended)**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/AiChefDev/vibecody/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/TuringWorks/vibecody/main/install.sh | bash
 ```
 
 The installer downloads a pre-built binary for your platform and verifies the SHA-256 checksum before placing it in your PATH.

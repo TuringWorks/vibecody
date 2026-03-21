@@ -6,7 +6,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/vibecody/vibecody",
+    "url": "https://github.com/TuringWorks/vibecody",
     "directory": "packages/agent-sdk"
   },
   "keywords": ["ai", "agent", "coding-assistant", "vibecli", "llm"],

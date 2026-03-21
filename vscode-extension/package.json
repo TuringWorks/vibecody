@@ -4,7 +4,7 @@
   "description": "AI-powered coding assistant powered by VibeCLI — multi-provider, open-source",
   "version": "0.1.0",
   "publisher": "vibecody",
-  "repository": "https://github.com/vibecody/vibecody",
+  "repository": "https://github.com/TuringWorks/vibecody",
   "license": "MIT",
   "engines": {
     "vscode": "^1.85.0"

@@ -35,9 +35,9 @@ runs:
       run: |
         # Download and install vibecli
         if [ "${{ inputs.vibecli-version }}" = "latest" ]; then
-          curl -fsSL https://raw.githubusercontent.com/vibecody/vibecody/main/install.sh | bash
+          curl -fsSL https://raw.githubusercontent.com/TuringWorks/vibecody/main/install.sh | bash
         else
-          curl -fsSL https://raw.githubusercontent.com/vibecody/vibecody/main/install.sh | bash -s -- --version "${{ inputs.vibecli-version }}"
+          curl -fsSL https://raw.githubusercontent.com/TuringWorks/vibecody/main/install.sh | bash -s -- --version "${{ inputs.vibecli-version }}"
         fi
         echo "$HOME/.local/bin" >> $GITHUB_PATH
 
