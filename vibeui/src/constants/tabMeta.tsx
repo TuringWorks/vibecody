@@ -51,7 +51,7 @@ export const TAB_META: Record<string, TabMeta> = {
   github:      { icon: GitBranch,          label: "GH Sync" },
   steering:    { icon: Compass,            label: "Steering" },
   bugbot:      { icon: Bug,                label: "BugBot" },
-  redteam:     { icon: Shield,             label: "RedTeam" },
+  redteam:     { icon: Shield,             label: "Red Team" },
   tests:       { icon: TestTube,           label: "Tests" },
   collab:      { icon: Users,              label: "Collab" },
   coverage:    { icon: BarChart3,          label: "Coverage" },
@@ -134,7 +134,7 @@ export const TAB_META: Record<string, TabMeta> = {
   usagemetering:{ icon: DollarSign,        label: "Usage" },
   swebench:    { icon: Gauge,              label: "Bench" },
   sessionmemory:{ icon: Activity,          label: "Mem Prof" },
-  blueteam:    { icon: ShieldPlus,         label: "Blue" },
+  blueteam:    { icon: ShieldPlus,         label: "Blue Team" },
   purpleteam:  { icon: Target,             label: "Purple Team" },
   idp:         { icon: Building2,          label: "IDP" },
   // Previously missing — were showing as "Flow"
