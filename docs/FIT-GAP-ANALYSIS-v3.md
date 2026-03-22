@@ -1,4 +1,8 @@
-# VibeCody Competitive Analysis v3 (March 2026)
+---
+layout: page
+title: "FIT GAP ANALYSIS v3"
+---
+
 
 ## Executive Summary
 

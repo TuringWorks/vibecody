@@ -1,4 +1,8 @@
-# VibeCody Comprehensive Competitive Analysis — March 2026
+---
+layout: page
+title: "COMPETITIVE ANALYSIS 2026 03"
+---
+
 
 **Date:** 2026-03-07
 **Scope:** Full technical and business capability evaluation across 15 products in the AI-assisted development space

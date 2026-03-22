@@ -1,4 +1,8 @@
-# VibeCody Fit-Gap Analysis v2 — Full Competitive Landscape
+---
+layout: page
+title: "FIT GAP ANALYSIS v2"
+---
+
 
 **Date:** 2026-02-28 (updated)
 **VibeCLI competitors:** Codex CLI, Warp 2.0, Kiro, opencode, Claude Code, Aider, Cline, Continue.dev, Amazon Q Developer

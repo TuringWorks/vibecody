@@ -1,5 +1,5 @@
 ---
-layout: default
+layout: page
 title: Plugin Development Guide
 permalink: /plugin-development/
 nav_order: 10

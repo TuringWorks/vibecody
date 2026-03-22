@@ -1,4 +1,8 @@
-# VibeCody Fit-Gap Analysis & Implementation Roadmap
+---
+layout: page
+title: "FIT GAP ANALYSIS"
+---
+
 
 **Date:** 2026-02-25
 **Scope:** VibeCLI (vs Claude Code CLI, Codex CLI) · VibeUI (vs Cursor, Windsurf/Antigravity)

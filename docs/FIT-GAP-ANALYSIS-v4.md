@@ -1,4 +1,8 @@
-# VibeCody Fit-Gap Analysis v4 — March 2026 Competitive Landscape Update
+---
+layout: page
+title: "FIT GAP ANALYSIS v4"
+---
+
 
 **Date:** 2026-03-08
 **Previous analysis:** FIT-GAP-ANALYSIS-v3.md (2026-03-07)
