@@ -9,7 +9,7 @@ permalink: /tutorials/agent-workflow/
 The VibeCody agent is an autonomous loop that reads your codebase, plans changes, writes code, and runs commands -- all guided by a natural language task description. This tutorial walks you through three real-world scenarios.
 
 **Prerequisites:**
-- VibeCody installed with a working provider (see [First Provider Tutorial](./first-provider/))
+- VibeCody installed with a working provider (see [First Provider Tutorial](/tutorials/first-provider/))
 - A Git repository to work in
 
 ---
@@ -283,6 +283,6 @@ The agent picks up with full context of what it already did, what files it read,
 
 ## Next Steps
 
-- [AI-Powered Code Review](./code-review/) -- review code before committing
-- [Setting Up Your First Provider](./first-provider/) -- try a different model
+- [AI-Powered Code Review](/tutorials/code-review/) -- review code before committing
+- [Setting Up Your First Provider](/tutorials/first-provider/) -- try a different model
 - [Tutorials Index](./) -- browse all tutorials
