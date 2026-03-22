@@ -24,7 +24,7 @@ export const TAB_GROUPS: TabGroup[] = [
   },
   {
     label: "Infrastructure",
-    tabs: ["build", "deploy", "docker", "k8s", "cicd", "ghactions", "env", "sandbox", "cloudsandbox", "health", "scaffold", "appbuilder", "training", "inference", "cistatus", "fullstack", "cloudproviders", "idp", "quantum"],
+    tabs: ["build", "deploy", "docker", "k8s", "cicd", "ghactions", "env", "sandbox", "cloudsandbox", "health", "scaffold", "appbuilder", "training", "inference", "aiml", "modelwizard", "cistatus", "fullstack", "cloudproviders", "idp", "quantum"],
   },
   {
     label: "Data & API",
