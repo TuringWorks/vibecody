@@ -10,7 +10,6 @@ permalink: /vibecli/
 
 VibeCLI provides two interaction modes: a rich **Terminal UI (TUI)** powered by Ratatui, and a **REPL** mode for quick, scriptable use.
 
----
 
 ## Installation
 
@@ -32,7 +31,6 @@ cargo build --release -p vibecli
 cp target/release/vibecli /usr/local/bin/
 ```
 
----
 
 ## Usage
 
@@ -75,7 +73,6 @@ vibecli --provider gemini
 | `--tailscale` | false | Enable Tailscale funnel for remote access |
 | `--serve` | false | Run as HTTP daemon (REST + SSE API) |
 
----
 
 ## TUI Commands
 
@@ -90,7 +87,6 @@ Once inside the TUI, type messages naturally or use slash commands:
 | `/quit` or `/exit` | Exit VibeCLI |
 | `Tab` | Toggle between Chat and Diff views |
 
----
 
 ## REPL Commands
 
@@ -222,7 +218,6 @@ In REPL mode, the following slash commands are available:
 
 > **Safety**: By default, all shell command execution requires user confirmation (`y/N`). Disable this with `require_approval_for_commands = false` in config.
 
----
 
 ## Workflow Examples
 
@@ -349,7 +344,6 @@ Auto-fixing build failures...
 Generating tests for: src/auth.rs
 ```
 
----
 
 ## Git Context Awareness
 
@@ -361,13 +355,11 @@ VibeCLI automatically injects Git context into AI conversations:
 
 This gives the AI complete awareness of what you are working on without any extra prompting.
 
----
 
 ## Syntax Highlighting
 
 Code blocks in AI responses are highlighted in the terminal using `syntect`. Supported languages include Rust, Python, TypeScript, JavaScript, Go, TOML, YAML, JSON, Markdown, and more.
 
----
 
 ## Configuration
 
@@ -382,7 +374,6 @@ api_url = "http://localhost:11434"
 model = "qwen2.5-coder:7b"
 ```
 
----
 
 ## CI / Non-Interactive Mode
 
@@ -403,7 +394,6 @@ vibecli --exec "add docstrings to all public functions" \
 
 **Exit codes:** `0` = success, `1` = partial, `2` = failed, `3` = approval required.
 
----
 
 ## @ Context Types
 
@@ -430,7 +420,6 @@ Example:
 > /chat @github:torvalds/linux#1234 summarize this issue
 ```
 
----
 
 ## Multimodal Input (Vision)
 
@@ -443,7 +432,6 @@ Claude and GPT-4o providers support image attachments. Use `[path/to/image.png]`
 
 Images are base64-encoded and sent with the message. Non-vision providers fall back to text-only.
 
----
 
 ## Trace / Audit Log
 
@@ -456,7 +444,6 @@ Every agent session is recorded to `~/.vibecli/traces/<timestamp>.jsonl`. Browse
 
 Each entry records: step, tool, input summary, output, duration, and approval source (`user` / `auto` / `ci-auto` / `rejected`).
 
----
 
 ## MCP Integration
 
@@ -481,7 +468,6 @@ Then in the REPL:
 > /mcp tools github        # list tools from the github server
 ```
 
----
 
 ## Code Review Agent
 
@@ -499,7 +485,6 @@ Output is a structured `ReviewReport` with issues (severity: info/warning/critic
 
 Use `--pr` to post the review directly to a GitHub PR as a comment (via `gh` CLI).
 
----
 
 ## Server Mode (`vibecli serve`)
 
@@ -538,7 +523,6 @@ Endpoints:
 | POST | `/webhook/skill/:skill_name` | No | Trigger a skill by webhook name |
 | GET | `/pair` | No | Device pairing endpoint — generates a one-time pairing URL |
 
----
 
 ## Hooks System
 
@@ -553,7 +537,6 @@ handler = { type = "command", command = "echo 'Running shell command' >> /tmp/ho
 
 Events: `SessionStart`, `PreToolUse`, `PostToolUse`, `Stop`, `TaskCompleted`, `SubagentStart`.
 
----
 
 ## Plan Mode
 
@@ -572,7 +555,6 @@ Execution Plan:
 Yes Execute this plan? (y/N):
 ```
 
----
 
 ## Code Complete Workflow
 
@@ -627,7 +609,6 @@ Yes Advanced to stage: Architecture
 
 Workflows are stored as markdown files in `.vibecli/workflows/` with YAML front-matter. The stage advancement gate requires ≥80% checklist completion in VibeUI.
 
----
 
 ## Red Team Security Testing
 
@@ -673,7 +654,6 @@ Sessions are persisted as JSON at `~/.vibecli/redteam/`. Findings include CVSS s
 
 > **Authorization**: Red team features require explicit user consent and target only user-controlled applications (localhost / staging).
 
----
 
 ## Test Runner
 
@@ -706,23 +686,19 @@ If no framework is detected, provide a custom command: `/test <command>`.
 
 In VibeUI, the **Tests** panel provides a richer experience with live streaming log output, per-test pass/fail results, expandable failure details, filter tabs (All / Failed / Passed), and a custom command input field.
 
----
 
 ## Skills System
 
 VibeCody ships with **543 skill files** across 25+ categories covering finance, healthcare, security, cloud (AWS/Azure/GCP), data engineering, robotics, compliance, SRE, and more. Skills activate based on trigger keywords. Place custom `.md` files in `.vibecli/skills/` or `~/.vibecli/skills/`:
 
 ```markdown
----
 name: rust-testing
 triggers: [test, testing, cargo test]
 category: rust
 tools_allowed: [read_file, write_file, bash]
----
 Use `#[tokio::test]` for async tests...
 ```
 
----
 
 ## Gateway Messaging
 
@@ -739,7 +715,6 @@ bot_token = "..."
 whitelist = ["@username"]
 ```
 
----
 
 ## Session Resume
 
@@ -751,7 +726,6 @@ vibecli --resume 1740000000
 
 Restores the full message history, context, and trace from the JSONL log.
 
----
 
 ## Admin Policy
 
@@ -769,7 +743,6 @@ deny = ["*.env", "secrets/**"]
 max_steps = 10
 ```
 
----
 
 ## OpenTelemetry
 
@@ -825,7 +798,6 @@ vibecli/
                 └── diagnostics.rs # Cargo/eslint diagnostics panel
 ```
 
----
 
 ## Dependencies
 

@@ -10,7 +10,6 @@ title: "FIT GAP ANALYSIS v2"
 
 > **Status:** All Phases 12–31 Yes complete. Phases 32–46 polish/security/features/accessibility Yes complete. Security hardening audit (P0–P3, 20 items) Yes complete. This document reflects the current state of the codebase as of 2026-03-01.
 
----
 
 ## Part A — VibeCLI Competitive Analysis
 
@@ -94,7 +93,6 @@ title: "FIT GAP ANALYSIS v2"
 | Arena Mode (blind A/B voting) | Yes | No | No | No | No | No | No | Yes | No | No |
 | Live Preview element selection | Yes | No | No | No | No | No | No | Yes | No | No |
 
----
 
 ### A.2 Competitor Deep-Dive
 
@@ -256,7 +254,6 @@ opencode is the **most technically ambitious** open-source CLI agent in 2026, bu
 - **Weakness:** AWS-only focus; poor multi-provider; closed source; subscription required
 - **VibeCLI gap to close:** Security scanning integration → partial (bugbot.rs covers basic review)
 
----
 
 ### A.3 Extended Competitor — PicoClaw
 
@@ -275,7 +272,6 @@ opencode is the **most technically ambitious** open-source CLI agent in 2026, bu
 | Cold start < 1 second | Partial (~2-5s Rust startup) |
 | ARM64/RISC-V binary | Yes release matrix includes aarch64 (Phase 27) |
 
----
 
 ## Part B — VibeUI Competitive Analysis
 
@@ -331,7 +327,6 @@ opencode is the **most technically ambitious** open-source CLI agent in 2026, bu
 | MCP OAuth 2.0 install flow | Yes | No | Yes | No | No | No | No | No | No | No |
 | Path traversal protection | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
 
----
 
 ### B.2 Competitor Deep-Dive
 
@@ -423,7 +418,6 @@ opencode is the **most technically ambitious** open-source CLI agent in 2026, bu
 - **VibeUI advantages over Trae:** BYOK (Trae locks you into their providers), local AI (Ollama), CRDT collab, WASM extensions, database UI, red team scanner, arena mode, notebook runner, SSH manager, cost observatory, Neovim/JetBrains plugins
 - **Remaining gap:** Trae's generous free tier (Claude 3.7 + GPT-4o at no cost) is a strong adoption driver
 
----
 
 ## Part C — VibeCody Exclusive Advantages
 
@@ -453,7 +447,6 @@ Features VibeCody has that **no competitor offers:**
 | **Path traversal protection** | Validated file operations, `is_safe_name()`, canonicalized paths |
 | **Full security hardening (20 items)** | P0–P3 audit: secret scrubbing, bearer auth, rate limiting, CSP headers, graceful shutdown, cargo audit, SHA-pinned CI, file permissions |
 
----
 
 ## Part D — Gap Priority Matrix (Updated Status)
 
@@ -574,13 +567,11 @@ All gaps from Phases 16–46 are now resolved. Only low-impact infrastructure ga
 | 46 | Onboarding tour | Yes OnboardingTour.tsx first-run guided walkthrough |
 | — | Test coverage expansion (490 new tests) | Yes Round 1: provider.rs (22), tools.rs (30), diff.rs (12), search.rs (8), executor.rs (18), symbol.rs (16), bedrock.rs (13), error.rs (13). Round 2: flow.rs (17), syntax.rs (22), diff_viewer.rs (9), memory.rs (6), chat.rs (14), completion.rs (16), agent_executor.rs (10), mcp_server.rs (12), manager.rs (9), workspace.rs (12), multi_agent.rs (10), scheduler.rs (16). Round 3: index/mod.rs (30), hooks.rs (37), buffer.rs (25), git.rs (19), rules.rs (14), background_agents.rs (14), team.rs (10), linear.rs (9), context.rs (8), config.rs (7) — total **829** |
 
----
 
 ## Part E–M — Phase 16–21 Design (Completed)
 
 > These phases are fully implemented. Refer to the original design sections in git history for the implementation specifications. All new code is live in the repository.
 
----
 
 ## Part N — Phase 22: Session Search & Subagent Spawning Yes
 
@@ -590,7 +581,6 @@ Completed. See git commit history.
 - `spawn_agent` tool — child AgentLoop with shared provider, independent history
 - `TauriToolExecutor` returns "not supported" for VibeUI context
 
----
 
 ## Part P — Phase 23: SQLite Session Store + Web Session Viewer Yes
 
@@ -600,7 +590,6 @@ Completed. See git commit history.
 - Parallel write alongside JSONL (backwards-compatible)
 - `GET /sessions` HTML index, `GET /sessions.json` API, `GET /view/:id` dark-mode viewer
 
----
 
 ## Part Q — Phases 24–37: Recent Completions
 
@@ -667,7 +656,6 @@ Full modal editor in VibeCLI TUI — Normal/Insert/Visual/VisualLine/Command/Sea
 - **/jobs `<id>`**: Detail view (status/provider/task/duration/summary)
 - **/rewind list**: Corrupt checkpoint files show "(corrupt: ...)" instead of silent "0 messages"
 
----
 
 ## Part O — Final Competitive Positioning (Current)
 
@@ -741,7 +729,6 @@ After all completed phases, VibeCLI + VibeUI is the **most complete AI developme
 | JetBrains plugin | Yes | No | Yes | No | No | No | No | No |
 | VS Code extension | Yes | Yes | Yes | No | No | No | No | No |
 
----
 
 ## Part R — Next Horizon Gaps (Post Phase 37)
 
@@ -762,7 +749,6 @@ All high- and medium-impact gaps are now closed. Only low-impact infrastructure 
 | ~~LSP diagnostics in TUI~~ | ~~Low~~ | ~~L~~ | ~~opencode~~ | Yes Phase 39: DiagnosticsComponent + /check |
 | ~~GCP / Firebase deploy target~~ | ~~Low~~ | ~~M~~ | ~~Antigravity~~ | Yes Phase 38: DeployPanel 6 targets |
 
----
 
 ## Part R — Code Complete Workflow (Phase 40)
 
@@ -793,7 +779,6 @@ gathering to release-ready code, with AI-generated checklists at each quality ga
 7. **Integration & Testing** — E2E, regression, load testing, cross-platform, API validation
 8. **Code Complete** — All features done, docs updated, no TODOs, version tagged, deploy runbook
 
----
 
 ## Part S — Shannon Comparison (Phase 41)
 
@@ -819,7 +804,6 @@ Key differences:
 | Config | `[redteam]` in config.toml | max_depth, timeout_secs, parallel_agents, scope_patterns, auto_report |
 | Comparison doc | `docs/SHANNON-COMPARISON.md` | Full Shannon vs VibeCody feature matrix |
 
----
 
 ## Part T — Security Hardening Audit (Post Phase 42)
 
@@ -935,6 +919,5 @@ covering supply chain security, daemon hardening, data protection, and defense-i
 └───────────────────────────────────────────────────┘
 ```
 
----
 
 *Updated 2026-03-01 — reflects all phases 12–46 complete, plus full security hardening audit (P0–P3, 20 items), WCAG 2.1 AA accessibility (keyboard nav, ARIA roles, focus traps, skip links), HTTP client timeouts on all 9 AI providers, 9-platform messaging gateway, code coverage UI, multi-model comparison, HTTP playground, cost observatory, codemod auto-fix, Arena Mode, and onboarding tour. All file paths reference the VibeCody monorepo at github.com/TuringWorks/vibecody.*

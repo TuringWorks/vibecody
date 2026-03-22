@@ -9,7 +9,6 @@ permalink: /demos/12-kubernetes/
 
 VibeCody provides comprehensive Kubernetes management through the CLI and the VibeUI K8s panel. Browse namespaces and pods, view deployment status, scale workloads, stream pod logs, inspect YAML manifests, describe resources, and restart deployments. VibeCody supports 10 dedicated K8s Tauri commands and integrates with `kubectl` for full cluster operations.
 
----
 
 ## Prerequisites
 
@@ -24,7 +23,6 @@ kubectl cluster-info         # Verify cluster connectivity
 - A Kubernetes cluster (local via minikube/kind/k3d, or remote)
 - For VibeUI: `cd vibeui && npm install && npm run tauri dev`
 
----
 
 ## Step-by-Step Walkthrough
 
@@ -338,7 +336,6 @@ postgres      ClusterIP      10.96.12.34    <none>           5432/TCP         7d
 frontend      NodePort       10.96.56.78    <none>           3000:30080/TCP   1d8h
 ```
 
----
 
 ## Demo Recording
 
@@ -583,7 +580,6 @@ frontend      NodePort       10.96.56.78    <none>           3000:30080/TCP   1d
 }
 ```
 
----
 
 ## What's Next
 

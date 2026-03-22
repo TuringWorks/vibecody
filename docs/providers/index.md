@@ -7,7 +7,6 @@ permalink: /providers/
 
 VibeCody supports 22 AI providers, covering cloud APIs, local models, inference platforms, and specialized services. This page provides a comparison and links to individual setup guides.
 
----
 
 ## Quick Start
 
@@ -16,7 +15,6 @@ VibeCody supports 22 AI providers, covering cloud APIs, local models, inference 
 3. Set the environment variable or edit `~/.vibecli/config.toml`
 4. Run `vibecli --provider <name>` or enable it in VibeUI settings
 
----
 
 ## Provider Comparison
 
@@ -45,7 +43,6 @@ VibeCody supports 22 AI providers, covering cloud APIs, local models, inference 
 | LocalEdit | Local | None | Local model | Yes (fully free) | Yes |
 | Failover | Wrapper | N/A | N/A | N/A | Yes |
 
----
 
 ## Choosing a Provider
 
@@ -65,7 +62,6 @@ VibeCody supports 22 AI providers, covering cloud APIs, local models, inference 
 
 **For reliability:** The Failover provider wraps multiple providers and automatically falls back if one fails.
 
----
 
 ## Configuration
 
@@ -85,7 +81,6 @@ api_url = "http://localhost:11434"
 model = "qwen3-coder:480b-cloud"
 ```
 
----
 
 ## API Key Helpers
 

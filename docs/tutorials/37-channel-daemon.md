@@ -10,7 +10,6 @@ Run VibeCody as a persistent bot that listens on Slack, Discord, or GitHub webho
 
 **Prerequisites:** VibeCody installed, a provider configured, and a platform bot token.
 
----
 
 ## What Is the Channel Daemon?
 
@@ -23,7 +22,6 @@ The channel daemon is an always-on process that:
 
 Unlike the basic `--gateway` mode (which does simple chat), the channel daemon supports concurrent agent execution, automation rules, and session management.
 
----
 
 ## Quick Start
 
@@ -77,7 +75,6 @@ Output:
 
 The daemon runs indefinitely, polling for messages every 2 seconds.
 
----
 
 ## Automation Rules
 
@@ -149,7 +146,6 @@ approval_policy = "suggest"
 max_steps = 30
 ```
 
----
 
 ## Session Management
 
@@ -160,7 +156,6 @@ The daemon maintains per-user sessions with conversation history:
 - Sessions timeout after 30 minutes of inactivity (configurable)
 - History is capped at 50 messages to prevent unbounded growth
 
----
 
 ## Managing the Daemon from REPL
 
@@ -175,7 +170,6 @@ vibecli
 > /daemon logs            # Show recent event log
 ```
 
----
 
 ## Configuration
 
@@ -197,7 +191,6 @@ approval_policy = "auto-edit"    # Agent approval mode
 session_timeout_secs = 1800      # 30 minute session timeout
 ```
 
----
 
 ## Security
 

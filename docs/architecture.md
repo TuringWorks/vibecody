@@ -7,7 +7,6 @@ permalink: /architecture/
 
 VibeCody is a Rust workspace (monorepo) with 9 crate members: three binary applications, five shared library crates, and a standalone indexing service, plus editor plugins, an agent SDK, and a skills library.
 
----
 
 ## Workspace Layout
 
@@ -51,7 +50,6 @@ vibe-ui (Tauri) ───────-───────┤
                          vibe-extensions ── wasmtime, wasmtime-wasi
 ```
 
----
 
 ## `vibe-core` — Editor Primitives
 
@@ -163,7 +161,6 @@ impl EmbeddingIndex {
 }
 ```
 
----
 
 ## `vibe-ai` — AI Provider Abstraction
 
@@ -359,7 +356,6 @@ Model Context Protocol integration:
 - Discovers and invokes tools from external MCP servers
 - `/mcp list` and `/mcp tools <server>` in REPL
 
----
 
 ## `vibe-lsp` — Language Server Protocol
 
@@ -388,7 +384,6 @@ Editor ──→ LspClient ──→ ChildProcess (language server)
 - Code actions (quick fixes)
 - Rename symbol
 
----
 
 ## `vibe-extensions` — WASM Extension System
 
@@ -410,7 +405,6 @@ extension.on_key_press(|key| { /* ... */ });
 extension.register_command("my-command", |args| { /* ... */ });
 ```
 
----
 
 ## VibeCLI TUI Architecture
 
@@ -476,7 +470,6 @@ OTLP pipeline initialization:
 - Exports spans via OTLP/HTTP to any collector (Jaeger, Grafana, etc.)
 - `OtelGuard` ensures flush on shutdown
 
----
 
 ## VibeUI Tauri Architecture
 
@@ -520,7 +513,6 @@ async fn ai_chat(
 }
 ```
 
----
 
 ## Testing Strategy
 
@@ -537,7 +529,6 @@ async fn ai_chat(
 | `vibe-extensions` | 46 | loader, manifest, permissions |
 | TypeScript | — | `tsc --noEmit` type checking |
 
----
 
 ## VS Code Extension
 
@@ -548,7 +539,6 @@ The `vscode-extension/` directory contains a full VS Code extension:
 - **Agent mode** — start agent tasks directly from VS Code
 - **API client** — REST calls to `vibecli serve`
 
----
 
 ## Agent SDK
 

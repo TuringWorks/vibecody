@@ -8,7 +8,6 @@ permalink: /providers/gemini/
 
 [Google Gemini](https://ai.google.dev) is Google's multimodal AI model family. Gemini offers a generous free tier, making it an excellent choice for getting started without any cost.
 
----
 
 ## Get an API Key
 
@@ -20,7 +19,6 @@ permalink: /providers/gemini/
 
 Your key will look like: `AIza...`
 
----
 
 ## Configure VibeCody
 
@@ -49,7 +47,6 @@ api_key_helper = "~/.vibecli/get-key.sh gemini"
 model = "gemini-2.5-pro"
 ```
 
----
 
 ## Model Selection
 
@@ -67,7 +64,6 @@ Override from the CLI:
 vibecli --provider gemini --model gemini-2.5-pro
 ```
 
----
 
 ## Free Tier
 
@@ -83,7 +79,6 @@ RPM = requests per minute, TPM = tokens per minute.
 
 The free tier is sufficient for personal coding use. For higher throughput, enable billing in Google Cloud Console.
 
----
 
 ## Paid Pricing
 
@@ -97,7 +92,6 @@ For usage beyond the free tier (check [ai.google.dev/pricing](https://ai.google.
 
 Pricing varies by context length (under/over 200K tokens).
 
----
 
 ## Multimodal Capabilities
 
@@ -109,7 +103,6 @@ Gemini natively supports image understanding. In VibeUI, you can:
 
 This makes Gemini particularly useful for front-end development workflows.
 
----
 
 ## 1M Token Context Window
 
@@ -121,7 +114,6 @@ All Gemini models support a 1 million token context window, which means you can:
 
 VibeCody's infinite context manager works especially well with Gemini's large context window.
 
----
 
 ## Verify Connection
 
@@ -129,7 +121,6 @@ VibeCody's infinite context manager works especially well with Gemini's large co
 vibecli --provider gemini -c "Say hello and identify yourself"
 ```
 
----
 
 ## Troubleshooting
 

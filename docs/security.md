@@ -7,7 +7,6 @@ permalink: /security/
 
 This document describes VibeCody's security model, data privacy practices, and hardening recommendations for production deployments.
 
----
 
 ## Security Model Overview
 
@@ -22,7 +21,6 @@ VibeCody follows a **defense-in-depth** approach with multiple independent layer
 
 No single layer is relied upon in isolation. A failure in one layer is contained by the others.
 
----
 
 ## Data Privacy
 
@@ -42,7 +40,6 @@ When using cloud providers, review their data retention policies. Most major pro
 - Use environment variables or `api_key_helper` for API keys rather than hardcoding them in config files.
 - Avoid committing `.vibecli/config.toml` to version control if it contains API keys.
 
----
 
 ## Approval Policies
 
@@ -65,7 +62,6 @@ The agent can perform all actions — file edits, command execution, tool invoca
 approval_policy = "suggest"  # "suggest", "auto-edit", or "full-auto"
 ```
 
----
 
 ## Sandbox Isolation
 
@@ -96,7 +92,6 @@ timeout_secs = 300           # Kill the container after this duration
 
 When `allow_network = false`, the container is started with `--network=none`, preventing all inbound and outbound connections. This is critical for air-gapped deployments and prevents the agent from exfiltrating data or downloading malicious payloads.
 
----
 
 ## API Key Management
 
@@ -132,7 +127,6 @@ When rotating API keys:
 3. Verify with `vibecli doctor` to confirm the new key works.
 4. Revoke the old key from the provider's dashboard.
 
----
 
 ## SSRF Prevention
 
@@ -151,7 +145,6 @@ This protection is enforced in three locations:
 2. `agent_executor.rs` — VibeUI agent's `fetch_url` tool
 3. `commands.rs` — `fetch_and_strip()` used by context pickers and chat
 
----
 
 ## Path Traversal Prevention
 
@@ -165,7 +158,6 @@ All file operations performed by the agent go through path validation that:
 
 Both executor implementations (`tool_executor.rs` for CLI, `agent_executor.rs` for VibeUI) enforce these checks.
 
----
 
 ## Command Execution Security
 
@@ -205,7 +197,6 @@ The database panel blocks SQLite dot-commands that could execute system commands
 - `.open`, `.save`, `.backup`, `.restore`, `.clone`
 - `ATTACH DATABASE` (prevents accessing arbitrary files)
 
----
 
 ## Rate Limiting
 
@@ -226,7 +217,6 @@ rate_limit_chat = 60
 rate_limit_agent = 20
 ```
 
----
 
 ## Admin Policy
 
@@ -252,7 +242,6 @@ max_context_tokens = 200000
 
 Policy files are read at startup and cannot be overridden by user configuration.
 
----
 
 ## Audit Trail
 
@@ -274,7 +263,6 @@ Each trace entry includes:
 
 Traces can be reviewed in the VibeUI Traces panel or exported for external analysis. The compliance controls module supports configurable retention policies and automatic PII redaction.
 
----
 
 ## Air-Gapped Mode
 
@@ -301,7 +289,6 @@ curl https://example.com  # Should fail: network is disabled
 
 The Docker Compose configuration sets `network_mode: none` for the VibeCLI container and creates an internal-only network between VibeCLI and Ollama.
 
----
 
 ## Reporting Vulnerabilities
 
@@ -317,7 +304,6 @@ If you discover a security vulnerability in VibeCody, please report it responsib
 
 We appreciate responsible disclosure and will credit reporters (with permission) in the release notes.
 
----
 
 ## Security Hardening Checklist
 

@@ -7,7 +7,6 @@ permalink: /configuration/
 
 VibeCody uses TOML-based configuration for VibeCLI. VibeUI provider settings are managed through environment variables or the in-app settings UI.
 
----
 
 ## VibeCLI Configuration
 
@@ -159,7 +158,6 @@ cpu_limit = "1.0"
 # whitelist = ["@username"]
 ```
 
----
 
 ## Environment Variables
 
@@ -196,7 +194,6 @@ export ANTHROPIC_API_KEY="sk-ant-..."
 vibecli --tui --provider claude
 ```
 
----
 
 ## Provider Setup
 
@@ -370,7 +367,6 @@ case "$1" in
 esac
 ```
 
----
 
 ## Selecting a Provider
 
@@ -388,7 +384,6 @@ vibecli --tui --provider grok
 
 Use the provider dropdown in the top bar. The selection is persisted across sessions.
 
----
 
 ## Safety Settings
 
@@ -436,7 +431,6 @@ approval_policy = "full-auto"
 
 > **Warning:** Disabling command approval allows VibeCLI to execute AI-suggested commands without confirmation. Only disable in trusted, sandboxed environments.
 
----
 
 ## Auto Memory Recording
 
@@ -458,7 +452,6 @@ After a session completes, the LLM generates 1–3 concise bullet points and app
 
 The memory file is automatically injected into future agent system prompts.
 
----
 
 ## Rules Directory
 
@@ -467,17 +460,14 @@ Place `.md` files in `.vibecli/rules/` (project-level) or `~/.vibecli/rules/` (g
 Rules support optional YAML-style front-matter to restrict injection to specific file types:
 
 ```text
----
 name: rust-safety
 path_pattern: "**/*.rs"
----
 When editing Rust files, prefer `?` over `unwrap()`.
 Always add `#[must_use]` to functions returning Result or Option.
 ```
 
 Rules without a `path_pattern` always inject. Rules with a pattern only inject when a matching file is open in the session's workspace.
 
----
 
 ## Command History
 

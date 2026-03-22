@@ -10,7 +10,6 @@ Learn how VibeCody's smart project scanner gives the AI deep understanding of yo
 
 **Prerequisites:** VibeCody installed with a working provider. See [First Provider](/tutorials/first-provider/) if needed.
 
----
 
 ## The Problem
 
@@ -22,7 +21,6 @@ When you ask an AI agent to "fix the tests" or "add auth", it doesn't know:
 
 Without this context, the agent guesses — and often guesses wrong.
 
----
 
 ## The Solution: `/init`
 
@@ -84,7 +82,6 @@ The agent now knows:
 
 Without `/init`, the agent would have to spend multiple steps figuring this out.
 
----
 
 ## What Gets Detected
 
@@ -99,7 +96,6 @@ Without `/init`, the agent would have to spend multiple steps figuring this out.
 | **Key files** | README, Dockerfile, CI config, API specs, env examples, test configs, schemas |
 | **Env vars** | Extracted from `.env.example` / `.env.sample` / `.env.template` |
 
----
 
 ## Task-Based Auto-Context
 
@@ -117,7 +113,6 @@ When you give the agent a task, VibeCody also analyzes the task description and 
 
 Up to 5 relevant files are previewed and injected into the agent's context window.
 
----
 
 ## How It Works Under the Hood
 
@@ -129,7 +124,6 @@ Up to 5 relevant files are previewed and injected into the agent's context windo
 
 The profile is re-scanned automatically if the cache is older than 1 hour.
 
----
 
 ## AI Panel Context (VibeUI)
 
@@ -139,7 +133,6 @@ In VibeUI, the same project context is available:
 - **ProjectContextPanel** shows the full profile with 4 tabs: Overview, Commands, Key Files, AI Context
 - One-click build/test/lint execution from the Commands tab
 
----
 
 ## Combining with `/orient`
 
@@ -157,7 +150,6 @@ This sends the auto-detected profile to the AI and asks it to analyze:
 
 `/orient` uses the cached profile as a starting point, so it's faster and more accurate than running without `/init`.
 
----
 
 ## Tips
 

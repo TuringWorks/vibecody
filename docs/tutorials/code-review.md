@@ -12,7 +12,6 @@ Use VibeCody to get instant, AI-powered feedback on code changes -- uncommitted 
 - VibeCody installed with a working provider (see [First Provider Tutorial](/tutorials/first-provider/))
 - A Git repository with some changes to review
 
----
 
 ## Review Uncommitted Changes
 
@@ -63,7 +62,6 @@ vibecli> /review
 4 issues found (1 high, 2 medium, 1 low).
 ```
 
----
 
 ## Review a Specific Branch
 
@@ -75,7 +73,6 @@ vibecli> /review --branch feature/auth-refactor
 
 This diffs `feature/auth-refactor` against `main` (or your default branch) and reviews all the changes.
 
----
 
 ## Review a GitHub Pull Request
 
@@ -123,7 +120,6 @@ Post comments to GitHub? [y/n]:
 
 Type `y` to post inline comments directly on the PR.
 
----
 
 ## Understanding the Review Report
 
@@ -146,7 +142,6 @@ The AI reviewer analyzes changes for:
 - **Maintainability:** Code clarity, naming, documentation, test coverage
 - **Best practices:** Language idioms, library usage, API design
 
----
 
 ## Customizing Review Focus
 
@@ -166,7 +161,6 @@ vibecli> /review We are migrating from sync to async -- check for blocking calls
 
 The AI incorporates your guidance into its analysis and adjusts severity accordingly.
 
----
 
 ## Integrating with CI
 
@@ -236,7 +230,6 @@ code_review:
       - review.json
 ```
 
----
 
 ## Tips for Better Reviews
 
@@ -250,7 +243,6 @@ code_review:
 
 5. **Review your own code.** AI review is not just for PRs -- run it on your uncommitted changes as a pre-commit habit.
 
----
 
 ## Next Steps
 

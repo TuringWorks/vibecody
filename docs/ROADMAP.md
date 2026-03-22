@@ -9,7 +9,6 @@ permalink: /roadmap/
 **Date:** February 2026
 **Scope:** VibeCLI vs. OpenAI Codex CLI, Anthropic Claude Code — VibeUI vs. Google Antigravity, Cursor, Windsurf
 
----
 
 ## 1. Competitive Landscape Summary
 
@@ -28,7 +27,6 @@ permalink: /roadmap/
 | **Cursor** | Anysphere | Electron + VS Code fork | Tab model (next-action prediction), 8 parallel agents in git worktrees, 200k-token codebase indexing |
 | **Windsurf** | Codeium | Electron + VS Code fork | Cascade agent with flow-awareness (tracks every edit/command), planning agent, memory system, checkpoints |
 
----
 
 ## 2. Current VibeCLI — Feature Inventory
 
@@ -57,7 +55,6 @@ permalink: /roadmap/
 | Trace / audit log | Yes Done | JSONL per session; `/trace` + `/trace view <id>` |
 | GitHub Actions integration | Yes Done | `.github/actions/vibecli/action.yml` |
 
----
 
 ## 3. Current VibeUI — Feature Inventory
 
@@ -91,7 +88,6 @@ permalink: /roadmap/
 | Voice input | Yes Done | Web Speech API hook + mic button in AIChat; pulse animation |
 | Knowledge base (persistent snippets) | Yes Done | MemoryPanel + SkillLoader; auto-activating skills |
 
----
 
 ## 4. Fit-Gap Matrix
 
@@ -155,7 +151,6 @@ permalink: /roadmap/
 | Local/private AI (Ollama) | Yes | No | partial | partial | **Differentiator** |
 | Open source | Yes | No | No | No | **Differentiator** |
 
----
 
 ## 5. Differentiators to Exploit
 
@@ -167,7 +162,6 @@ VibeCody has unique advantages to lean into:
 4. **Privacy by design** — no telemetry, no cloud indexing, fully local option
 5. **Open source** — full transparency, extensibility, self-hostable
 
----
 
 ## 6. Implementation Plan
 
@@ -175,7 +169,6 @@ Organized into 5 phases. Each phase builds on the previous and targets specific 
 
 > **Status:** All 9 phases (1–5 in this document, 6–9 in [ROADMAP-v2](../roadmap-v2/)) are **complete** as of February 2026. VibeCody now has feature parity with Codex CLI, Claude Code, Cursor, Windsurf, and Antigravity across all critical capabilities.
 
----
 
 ### Phase 1 — Agent Foundation Yes Complete
 
@@ -194,7 +187,6 @@ Organized into 5 phases. Each phase builds on the previous and targets specific 
 **Files:** `tui/mod.rs`, `tui/app.rs`, `tui/ui.rs`
 **Estimate:** 3 days
 
----
 
 #### 1.2 Tool Use Framework (`vibe-ai`)
 
@@ -234,7 +226,6 @@ pub trait ToolExecutor: Send + Sync {
 **Files:** `vibe-ai/src/tools.rs` (new), `vibe-ai/src/provider.rs`, each `providers/*.rs`
 **Estimate:** 1 week
 
----
 
 #### 1.3 Agent Loop (`vibe-ai`)
 
@@ -271,7 +262,6 @@ impl AgentLoop {
 **Files:** `vibe-ai/src/agent.rs` (new), `vibecli-cli/src/main.rs`, `vibecli-cli/src/tui/`
 **Estimate:** 1 week
 
----
 
 #### 1.4 Approval Tiers (3-level)
 
@@ -294,7 +284,6 @@ CLI flags: `--suggest`, `--auto-edit`, `--full-auto`
 **Files:** `vibecli-cli/src/config.rs`, `vibe-ai/src/agent.rs`
 **Estimate:** 2 days
 
----
 
 #### 1.5 Multi-File Batch Edits
 
@@ -307,7 +296,6 @@ CLI flags: `--suggest`, `--auto-edit`, `--full-auto`
 **Files:** `vibecli-cli/src/tui/components/` (new `batch_diff.rs`), `vibe-core/src/git.rs`
 **Estimate:** 3 days
 
----
 
 ### Phase 2 — Context Intelligence Yes Complete
 
@@ -350,7 +338,6 @@ Implementation:
 **Files:** `vibe-core/src/index/` (new directory: `mod.rs`, `symbol.rs`, `content.rs`, `embeddings.rs`)
 **Estimate:** 2 weeks
 
----
 
 #### 2.2 Context Injection Upgrade
 
@@ -379,7 +366,6 @@ impl ContextBuilder<'_> {
 **Files:** `vibe-core/src/context.rs` (new), `vibecli-cli/src/tui/mod.rs`
 **Estimate:** 3 days
 
----
 
 #### 2.3 AGENTS.md / Project Memory
 
@@ -394,7 +380,6 @@ impl ContextBuilder<'_> {
 **Files:** `vibecli-cli/src/memory.rs` (new), `vibecli-cli/src/main.rs`, `vibecli-cli/src/tui/mod.rs`
 **Estimate:** 2 days
 
----
 
 #### 2.4 @ Context System (VibeUI)
 
@@ -410,7 +395,6 @@ In `vibeui/src/components/AIChat.tsx`:
 **Files:** `vibeui/src/components/AIChat.tsx`, `vibeui/src/components/ContextPicker.tsx` (new), `vibeui/src-tauri/src/commands/context.rs` (new)
 **Estimate:** 1 week
 
----
 
 ### Phase 3 — Inline Intelligence Yes Complete
 
@@ -430,7 +414,6 @@ Complete `vibe-lsp`:
 **Files:** `vibe-lsp/src/client.rs` (complete), `vibe-lsp/src/bridge.rs` (new), `vibeui/src-tauri/src/commands/lsp.rs` (new), `vibeui/src/App.tsx`
 **Estimate:** 2 weeks
 
----
 
 #### 3.2 Inline AI Completions
 
@@ -449,7 +432,6 @@ Implementation strategy:
 **Files:** `vibeui/src-tauri/src/commands/completion.rs` (new), `vibeui/src/App.tsx`, `vibeui/crates/vibe-ai/src/completion.rs`
 **Estimate:** 1 week
 
----
 
 #### 3.3 Flow Awareness Engine (VibeUI)
 
@@ -482,7 +464,6 @@ This gets injected into every AI request to give the model full awareness of wha
 **Files:** `vibeui/src-tauri/src/flow.rs` (new), `vibeui/src/App.tsx`
 **Estimate:** 1 week
 
----
 
 #### 3.4 Diff Review Before AI Apply (VibeUI)
 
@@ -495,7 +476,6 @@ This gets injected into every AI request to give the model full awareness of wha
 **Files:** `vibeui/src/components/DiffReview.tsx` (new), `vibeui/src-tauri/src/commands/git.rs`
 **Estimate:** 3 days
 
----
 
 ### Phase 4 — Agentic Editor Yes Complete
 
@@ -521,7 +501,6 @@ This gets injected into every AI request to give the model full awareness of wha
 **Files:** `vibeui/src/components/AgentPanel.tsx` (new), `vibeui/src-tauri/src/agent.rs` (new), `vibeui/crates/vibe-ai/src/agent.rs`
 **Estimate:** 2 weeks
 
----
 
 #### 4.2 Memory / Rules System (VibeUI)
 
@@ -536,7 +515,6 @@ This gets injected into every AI request to give the model full awareness of wha
 **Files:** `vibeui/src/components/MemoryPanel.tsx` (new), `vibeui/src-tauri/src/memory.rs` (new)
 **Estimate:** 1 week
 
----
 
 #### 4.3 Checkpoint System (VibeUI)
 
@@ -550,7 +528,6 @@ This gets injected into every AI request to give the model full awareness of wha
 **Files:** `vibeui/src/components/CheckpointPanel.tsx` (new), `vibeui/src-tauri/src/checkpoint.rs` (new), `vibe-core/src/git.rs`
 **Estimate:** 4 days
 
----
 
 #### 4.4 Planning Agent (two-level)
 
@@ -584,7 +561,6 @@ pub struct PlanStep {
 **Files:** `vibe-ai/src/planner.rs` (new), `vibeui/src/components/AgentPanel.tsx`
 **Estimate:** 1 week
 
----
 
 #### 4.5 Multi-Agent Parallel Execution
 
@@ -598,7 +574,6 @@ pub struct PlanStep {
 **Files:** `vibe-ai/src/multi_agent.rs` (new), `vibeui/src/components/ManagerView.tsx` (new), `vibe-core/src/git.rs` (add worktree support)
 **Estimate:** 2 weeks
 
----
 
 ### Phase 5 — Ecosystem & Polish Yes Complete
 
@@ -628,7 +603,6 @@ pub struct PlanStep {
 **Files:** `vibe-ai/src/mcp.rs` (new), `vibecli-cli/src/config.rs`, `vibeui/src-tauri/src/mcp.rs` (new)
 **Estimate:** 1.5 weeks
 
----
 
 #### 5.2 OS Sandbox for Command Execution
 
@@ -642,7 +616,6 @@ pub struct PlanStep {
 **Files:** `vibe-core/src/executor.rs`, `vibecli-cli/src/config.rs`
 **Estimate:** 1 week
 
----
 
 #### 5.3 Non-Interactive / CI Mode (VibeCLI)
 
@@ -661,7 +634,6 @@ vibecli exec "Fix all clippy warnings" --full-auto --sandbox
 **Files:** `vibecli-cli/src/main.rs`, `vibecli-cli/src/ci.rs` (new), `.github/actions/vibecli/` (new)
 **Estimate:** 1 week
 
----
 
 #### 5.4 Multimodal Input (VibeCLI + VibeUI)
 
@@ -674,7 +646,6 @@ vibecli exec "Fix all clippy warnings" --full-auto --sandbox
 **Files:** `vibe-ai/src/provider.rs` (add `ImageContent` to `Message`), `vibe-ai/src/providers/claude.rs`, `vibe-ai/src/providers/openai.rs`, `vibeui/src/components/AIChat.tsx`
 **Estimate:** 4 days
 
----
 
 #### 5.5 Extension System (VibeUI) — Complete
 
@@ -702,7 +673,6 @@ pub trait ExtensionHost {
 **Files:** `vibe-extensions/src/host.rs` (complete), `vibe-extensions/src/api.rs` (new), `vibeui/src-tauri/src/extensions.rs`
 **Estimate:** 2 weeks
 
----
 
 #### 5.6 Trace / Audit Log
 
@@ -717,7 +687,6 @@ pub trait ExtensionHost {
 **Files:** `vibe-ai/src/trace.rs` (new), `vibecli-cli/src/tui/components/trace_view.rs` (new), `vibeui/src/components/HistoryPanel.tsx` (new)
 **Estimate:** 3 days
 
----
 
 ## 7. Prioritized Feature Backlog
 
@@ -781,7 +750,6 @@ pub trait ExtensionHost {
 | 39 | VS Code extension | All | Yes Done |
 | 40 | Agent SDK (TypeScript) | Claude Code | Yes Done |
 
----
 
 ## 8. Architecture Summary (All Phases Complete)
 
@@ -835,7 +803,6 @@ packages/agent-sdk      (TypeScript SDK: @vibecody/agent-sdk)
 .github/actions/vibecli (GitHub Actions marketplace action)
 ```
 
----
 
 ## 9. Key Differentiators (Current)
 

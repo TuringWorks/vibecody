@@ -9,7 +9,6 @@ permalink: /demos/11-docker/
 
 VibeCody provides first-class Docker and container management through both the CLI and the VibeUI Docker panel. Build images, run and manage containers, view logs, exec into running containers, and manage Docker Compose stacks. VibeCody also supports **Podman** and **OpenSandbox** as alternative container runtimes, and uses containers as sandboxed execution environments for AI agents.
 
----
 
 ## Prerequisites
 
@@ -28,7 +27,6 @@ docker info        # Verify daemon is running
 docker compose version   # v2.20+
 ```
 
----
 
 ## Step-by-Step Walkthrough
 
@@ -268,7 +266,6 @@ Runtime-specific features:
 - **Podman** — Rootless containers, systemd integration, pods
 - **OpenSandbox** — Cloud-managed ephemeral containers with auto-cleanup
 
----
 
 ## Demo Recording
 
@@ -478,7 +475,6 @@ Runtime-specific features:
 }
 ```
 
----
 
 ## What's Next
 

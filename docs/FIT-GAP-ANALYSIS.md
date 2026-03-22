@@ -7,7 +7,6 @@ title: "FIT GAP ANALYSIS"
 **Date:** 2026-02-25
 **Scope:** VibeCLI (vs Claude Code CLI, Codex CLI) · VibeUI (vs Cursor, Windsurf/Antigravity)
 
----
 
 ## 1. VibeCLI vs Claude Code CLI
 
@@ -54,7 +53,6 @@ title: "FIT GAP ANALYSIS"
 | **CLI `/rewind` session checkpoint** | Yes | Yes |
 | **PTY-backed bash tool** | Yes | Yes |
 
----
 
 ## 2. VibeCLI vs Codex CLI
 
@@ -76,7 +74,6 @@ title: "FIT GAP ANALYSIS"
 | **`--approval=auto-edit`** granular modes | Yes | Yes |
 | **Desktop app (floating window)** | No | Yes |
 
----
 
 ## 3. VibeUI vs Cursor
 
@@ -118,7 +115,6 @@ title: "FIT GAP ANALYSIS"
 | **Named checkpoint descriptions** | Yes | Yes |
 | **Rules directory UI** | Yes | Yes |
 
----
 
 ## 4. VibeUI vs Windsurf (Antigravity)
 
@@ -141,7 +137,6 @@ title: "FIT GAP ANALYSIS"
 | **Dual-scale codebase indexing** | No | Yes |
 | **Remote collaboration** | No | Yes |
 
----
 
 ## 5. VibeCody Competitive Advantages
 
@@ -163,7 +158,6 @@ These features VibeCody has that **none** of the competitors offer cleanly:
 | **PR code review** | `--review`, `--base`, `--branch`, `--pr`, `--post-github` flags |
 | **WASM extension system** | `vibe-extensions` with wasmtime runtime |
 
----
 
 ## 6. Gap Priority Matrix
 
@@ -196,7 +190,6 @@ These features VibeCody has that **none** of the competitors offer cleanly:
 | @claude GitHub PR bot | Medium | L | 15 |
 | Supercomplete | High | XL | 15 |
 
----
 
 ## 7. Implementation Roadmap
 
@@ -276,7 +269,6 @@ These features VibeCody has that **none** of the competitors offer cleanly:
 | Schema validation (`--output-schema`) | M | Medium | VibeCLI | `main.rs`, new `schema.rs` — validate `task_complete` artifact JSON against JSON Schema |
 | TUI theme switching (`/theme`) | S | Low | VibeCLI | `tui/`, `config.rs` — switch `syntect` theme at runtime |
 
----
 
 ## 8. Detailed Implementation Specs
 
@@ -305,7 +297,6 @@ These features VibeCody has that **none** of the competitors offer cleanly:
 - `/model` with no args prints current provider and model
 - Invalid provider name prints error without crashing
 
----
 
 #### 12.2 `/cost` Token Tracking
 
@@ -334,7 +325,6 @@ static PROVIDER_PRICING: &[(&str, f64, f64)] = &[
 - `/cost` shows prompt tokens, completion tokens, total, and estimated USD cost
 - Ollama shows token count but `$0.00`
 
----
 
 #### 12.3 UserPromptSubmit Hook Event
 
@@ -349,7 +339,6 @@ static PROVIDER_PRICING: &[(&str, f64, f64)] = &[
 - `exit 2` cancels the task with the hook's reason message
 - `{"context": "..."}` JSON response prepends extra context to the user message
 
----
 
 #### 12.4 LLM Hook Execution
 
@@ -380,7 +369,6 @@ impl HookRunner {
 - `handler = { llm = "Is this command safe? Respond {\"ok\": true} or {\"ok\": false, \"reason\": \"...\"}" }` works
 - LLM hook shares the same provider as the running agent
 
----
 
 #### 12.5 Multiple Chat Tabs in VibeUI
 
@@ -411,7 +399,6 @@ const [activeChatTabId, setActiveChatTabId] = useState("default");
 - Each tab has its own provider/model dropdown
 - At least one tab always remains (no close on last tab)
 
----
 
 #### 12.6 Chunk-Level Diff Accept/Reject
 
@@ -429,7 +416,6 @@ const [activeChatTabId, setActiveChatTabId] = useState("default");
 - "Accept All" applies all immediately; "Reject All" discards all
 - Individual hunk rejection produces a valid partial patch
 
----
 
 #### 12.7 BYOK Settings UI
 
@@ -445,7 +431,6 @@ const [activeChatTabId, setActiveChatTabId] = useState("default");
 - Saving writes to config without overwriting other fields
 - New keys take effect immediately for subsequent requests
 
----
 
 #### 12.8 `@symbol`, `@codebase`, `@folder`, `@terminal` Context
 
@@ -462,7 +447,6 @@ const [activeChatTabId, setActiveChatTabId] = useState("default");
 - `@folder:src/components` lists all files under that path
 - `@terminal` injects last 200 lines of terminal buffer
 
----
 
 ### Phase 13 Specs
 
@@ -495,7 +479,6 @@ pub struct Rule {
 - Rules with no pattern always inject
 - `/memory show` displays active rules alongside memory content
 
----
 
 #### 13.2 Auto Memory Recording
 
@@ -511,7 +494,6 @@ pub struct Rule {
 - Feature is opt-in via `[memory] auto_record = true`
 - Recording is async and doesn't delay session completion
 
----
 
 #### 13.3 Wildcard Tool Permission Patterns
 
@@ -541,7 +523,6 @@ fn check_tool_with_args(&self, tool_name: &str, primary_arg: &str) -> PolicyDeci
 - `denied_tool_patterns = ["bash(rm*)"]` blocks `bash(rm -rf .)` but allows `bash(cargo build)`
 - Existing `denied_tools` exact-match continues to work
 
----
 
 #### 13.4 `apiKeyHelper` Rotating Credentials
 
@@ -555,7 +536,6 @@ fn check_tool_with_args(&self, tool_name: &str, primary_arg: &str) -> PolicyDeci
 - `api_key_helper = "~/.vibecli/get-key.sh claude"` executed before each API call
 - If script exits non-zero, falls back to static `api_key`
 
----
 
 #### 13.5 MCP Server Manager UI
 
@@ -571,7 +551,6 @@ fn check_tool_with_args(&self, tool_name: &str, primary_arg: &str) -> PolicyDeci
 - "Test" button spawns server, runs initialize, reports tool count
 - Tool browser shows names and descriptions
 
----
 
 ### Phase 14 Specs
 
@@ -605,7 +584,6 @@ interface InlineChatProps {
 - Accept replaces selection; Reject/Escape closes with no changes
 - Overlay positioned near selection, not offscreen
 
----
 
 #### 14.2 Next-Edit Prediction (Tab Acceptance)
 
@@ -621,7 +599,6 @@ The `predict_next_edit` Tauri command (Phase 7.3) is already implemented — onl
 - Tab accepts suggestion; Escape dismisses
 - Debounced to avoid excessive API calls
 
----
 
 #### 14.3 Linter Integration (Auto-Fix After Write)
 
@@ -637,7 +614,6 @@ The `predict_next_edit` Tauri command (Phase 7.3) is already implemented — onl
 - Lint errors injected as "[Linter] eslint found 2 errors: ..."
 - Agent gets one auto-fix turn before returning to user
 
----
 
 #### 14.4 PTY-Backed Bash Tool
 
@@ -651,7 +627,6 @@ The `predict_next_edit` Tauri command (Phase 7.3) is already implemented — onl
 - Output still capped at `MAX_TOOL_OUTPUT` chars
 - Backward-compatible: existing tests pass unchanged
 
----
 
 #### 14.5 `@docs` Context (Library Documentation)
 
@@ -667,7 +642,6 @@ The `predict_next_edit` Tauri command (Phase 7.3) is already implemented — onl
 - Results cached for 24 hours
 - Fetch errors show inline warning
 
----
 
 #### 14.6 opusplan Model Routing
 
@@ -691,7 +665,6 @@ execution_model = "claude-sonnet-4-6"
 - Falls back to `--provider`/`--model` flags if routing config absent
 - `vibecli --doctor` shows active planning and execution models
 
----
 
 ### Phase 15 Specs
 
@@ -709,7 +682,6 @@ execution_model = "claude-sonnet-4-6"
 - Search latency under 200ms
 - Configured via `[index] backend = "remote"` + `url`
 
----
 
 #### 15.2 JetBrains Plugin
 
@@ -727,7 +699,6 @@ execution_model = "claude-sonnet-4-6"
 - Chat and agent task submission works
 - Works in IntelliJ IDEA 2024.1+
 
----
 
 #### 15.3 `@vibecli` GitHub PR Bot
 
@@ -759,7 +730,6 @@ jobs:
 - Result posted as reply to triggering comment
 - Works with all supported providers via GitHub Secrets
 
----
 
 ## 9. File Modification Quick Reference
 
@@ -817,7 +787,6 @@ jobs:
 | `jetbrains-plugin/` | 15 | JetBrains IDE plugin |
 | `.github/workflows/pr-bot.yml` | 15 | GitHub PR bot workflow |
 
----
 
 ## 10. Implementation Sequence Recommendations
 
@@ -847,6 +816,5 @@ jobs:
 - Remote indexing → large monorepos
 - GitHub PR bot → organic discovery
 
----
 
 *Generated from codebase audit and competitor analysis. All file paths are absolute references to the VibeCody monorepo.*

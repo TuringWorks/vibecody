@@ -9,7 +9,6 @@ permalink: /roadmap-v3/
 **Previous:** ROADMAP-v2.md (February 2026) — all phases complete
 **Scope:** Futureproofing gaps identified in FIT-GAP-ANALYSIS-v5.md; 12 new phases across 4 priority tiers
 
----
 
 ## Current State
 
@@ -25,7 +24,6 @@ All phases from Roadmap v1 (1-5) and v2 (6-9) are **complete**. FIT-GAP v4's 23 
 | Gateway platforms | 18 |
 | Rust modules | 100+ |
 
----
 
 ## Phase 10: MCP Ecosystem & Scalability
 
@@ -53,7 +51,6 @@ All phases from Roadmap v1 (1-5) and v2 (6-9) are **complete**. FIT-GAP v4's 23 
 - [ ] REPL: `/mcp install|search|update|uninstall|verify`
 - [ ] Tests: 25+ unit tests
 
----
 
 ## Phase 11: Context & Collaboration
 
@@ -84,7 +81,6 @@ All phases from Roadmap v1 (1-5) and v2 (6-9) are **complete**. FIT-GAP v4's 23 
 - [ ] `UsageMeteringPanel.tsx` — dashboards, budgets, alerts, reports
 - [ ] Tests: 30+ unit tests
 
----
 
 ## Phase 12: Cloud & Infrastructure
 
@@ -113,7 +109,6 @@ All phases from Roadmap v1 (1-5) and v2 (6-9) are **complete**. FIT-GAP v4's 23 
 - [ ] Progressive enhancement: web → desktop migration path
 - [ ] Hosted at vibecody.dev (or similar)
 
----
 
 ## Phase 13: Protocol & Interoperability
 
@@ -140,7 +135,6 @@ All phases from Roadmap v1 (1-5) and v2 (6-9) are **complete**. FIT-GAP v4's 23 
 - [ ] Settings UI in JetBrains for hook configuration
 - [ ] Tests: 15+ unit tests
 
----
 
 ## Phase 14: Quality & Enterprise Readiness
 
@@ -191,7 +185,6 @@ All phases from Roadmap v1 (1-5) and v2 (6-9) are **complete**. FIT-GAP v4's 23 
 - [ ] Auto-detection of input mode
 - [ ] Tests: 25+ unit tests
 
----
 
 ## Priority & Timeline Summary
 
@@ -215,7 +208,6 @@ All phases from Roadmap v1 (1-5) and v2 (6-9) are **complete**. FIT-GAP v4's 23 
 **P2 total:** ~3-5 weeks (4 features)
 **P3 total:** ~7-9 days (2 features)
 
----
 
 ## Success Criteria
 
@@ -229,7 +221,6 @@ After completing Phases 10-14, VibeCody will:
 6. **Benchmarkable** — Built-in SWE-bench runner for transparent evaluation
 7. **Accessible** — Browser-based mode for zero-install onboarding
 
----
 
 ## Competitive Position After v3
 

@@ -8,7 +8,6 @@ nav_order: 10
 
 Complete reference for building VibeCody plugins, WASM extensions, MCP integrations, skills, and hooks. This document is designed for both human developers and AI coding assistants.
 
----
 
 ## Table of Contents
 
@@ -26,7 +25,6 @@ Complete reference for building VibeCody plugins, WASM extensions, MCP integrati
 12. [Configuration Reference](#configuration-reference)
 13. [Examples](#examples)
 
----
 
 ## Architecture Overview
 
@@ -72,7 +70,6 @@ vibecody/
   vibeui/src/                   # React/TypeScript frontend (Tauri 2)
 ```
 
----
 
 ## Plugin System
 
@@ -269,7 +266,6 @@ Stored in `~/.vibecli/plugin-state.json`:
 }
 ```
 
----
 
 ## Skills
 
@@ -278,11 +274,9 @@ Skills are context-aware capability bundles injected into the agent's system pro
 ### Skill File Format
 
 ```markdown
----
 triggers: ["docker", "container", "dockerfile", "docker-compose"]
 tools_allowed: ["read_file", "write_file", "bash"]
 category: devops
----
 
 # Docker Best Practices
 
@@ -334,7 +328,6 @@ fn matches(skill: &Skill, user_message: &str) -> bool {
 }
 ```
 
----
 
 ## Hooks
 
@@ -455,7 +448,6 @@ paths = ["src/**/*.rs", "tests/**"]     # Only Rust source files
 handler = { command = "cargo clippy" }
 ```
 
----
 
 ## WASM Extensions
 
@@ -577,7 +569,6 @@ pub extern "C" fn on_file_save(ptr: *const u8, len: usize) {
 
 Compile: `cargo build --target wasm32-wasi --release`
 
----
 
 ## MCP Server Integration
 
@@ -641,7 +632,6 @@ args = ["@modelcontextprotocol/server-filesystem", "/path/to/allowed"]
 
 External MCP tools become available to the agent as additional tool calls.
 
----
 
 ## ACP Protocol
 
@@ -700,7 +690,6 @@ curl -X POST http://localhost:7878/acp/v1/tasks \
 }
 ```
 
----
 
 ## HTTP Daemon API
 
@@ -772,7 +761,6 @@ data: {"kind": "step", "step_num": 2, "tool_name": "write_file", "success": true
 data: {"kind": "complete", "content": "Fixed the assertion on line 42"}
 ```
 
----
 
 ## AI Provider Trait
 
@@ -861,7 +849,6 @@ pub struct ImageAttachment {
 | 16 | LocalEdit | `local_edit` | Inline edits |
 | 17 | Failover | `failover` | Auto-failover chain |
 
----
 
 ## Tool System
 
@@ -901,7 +888,6 @@ These tools require approval under `Suggest` and `AutoEdit` policies:
 - `apply_patch`
 - `spawn_agent`
 
----
 
 ## Agent Loop
 
@@ -955,7 +941,6 @@ pub struct AgentContext {
 }
 ```
 
----
 
 ## Configuration Reference
 
@@ -1055,7 +1040,6 @@ image = "ubuntu:22.04"
 | `VIBECLI_API_TOKEN` | HTTP daemon auth token |
 | `GITHUB_TOKEN` | GitHub/Copilot token |
 
----
 
 ## Examples
 
@@ -1120,10 +1104,8 @@ default = "Task"
 
 **skills/jira-workflow.md:**
 ```markdown
----
 triggers: ["jira", "ticket", "sprint", "backlog", "story", "epic"]
 tools_allowed: ["bash", "read_file"]
----
 
 # Jira Workflow
 
@@ -1164,13 +1146,11 @@ async = true
 ### Example 3: Custom Skill
 
 ```markdown
----
 triggers: ["graphql", "query", "mutation", "schema", "resolver"]
 tools_allowed: ["read_file", "write_file", "bash"]
 category: api
 requires.bins: ["node"]
 install.npm: "graphql"
----
 
 # GraphQL Development
 
@@ -1236,7 +1216,6 @@ cargo build --target wasm32-wasi --release
 cp target/wasm32-wasi/release/word_counter.wasm ~/.vibeui/extensions/word-counter/extension.wasm
 ```
 
----
 
 ## Quick Reference
 
@@ -1261,10 +1240,8 @@ vibecli --plugin publish ./my-plugin
 # Create a .md file in your project
 mkdir -p .vibecli/skills
 cat > .vibecli/skills/my-rules.md << 'EOF'
----
 triggers: ["react", "component", "hook", "useState"]
 tools_allowed: ["read_file", "write_file"]
----
 
 # React Rules
 

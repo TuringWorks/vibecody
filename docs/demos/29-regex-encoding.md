@@ -81,7 +81,6 @@ Matches (2):
 
 In VibeUI, the **Regex** panel shows match highlighting in real time as you type, with colored overlays on the input text for each match and group.
 
----
 
 ### JWT Panel: Token Inspection
 
@@ -129,7 +128,6 @@ Token:
 
 In VibeUI, the **JWT** panel has two sections: paste a token at the top to see its decoded header, payload, and expiration status below. A separate "Encode" tab lets you build tokens from scratch.
 
----
 
 ### Encoding Panel: Data Conversion
 
@@ -166,7 +164,6 @@ Other encoding operations:
 
 In VibeUI, the **Encoding** panel shows input and output side by side with a format selector dropdown (Base64, URL, Hex, HTML Entities). Encoding and decoding update in real time as you type.
 
----
 
 ### Number Base Panel: Base Conversion
 
@@ -198,7 +195,6 @@ Binary:      1101000111111
 
 In VibeUI, the **Number Base** panel has four input fields (decimal, hex, octal, binary) that update each other in real time as you type in any field.
 
----
 
 ### Cron Panel: Expression Builder
 
@@ -247,7 +243,6 @@ Cron Builder (use arrow keys to select)
 
 In VibeUI, the **Cron** panel has dropdowns for each field plus a visual calendar preview highlighting when the job will run.
 
----
 
 ### Timestamp Panel: Epoch Converter
 
@@ -296,7 +291,6 @@ ISO 8601:             2026-03-13T12:00:00Z
 
 In VibeUI, the **Timestamp** panel has an input field that auto-detects epoch or date strings, and displays all timezone conversions below. A timezone selector lets you add custom zones.
 
----
 
 ### Data Gen Panel: Fake Data Generation
 

@@ -9,7 +9,6 @@ permalink: /demos/09-autofix/
 
 VibeCody's **Autofix** system detects and repairs code issues automatically. It integrates with LSP diagnostics (compiler errors, linter warnings, type errors) and uses AI to generate targeted fixes. You can fix a single diagnostic, batch-fix an entire file or project, or delegate to **Cloud Autofix agents** and **BugBot** for large-scale automated issue detection.
 
----
 
 ## Prerequisites
 
@@ -18,7 +17,6 @@ VibeCody's **Autofix** system detects and repairs code issues automatically. It 
 - A project with at least one language server available (e.g., `rust-analyzer` for Rust, `typescript-language-server` for TypeScript)
 - For VibeUI: `cd vibeui && npm install && npm run tauri dev`
 
----
 
 ## Step-by-Step Walkthrough
 
@@ -231,7 +229,6 @@ Auto-fix available for 3/3 findings. Run `/bugbot fix --all` to apply.
 3. Findings appear with severity badges and one-click fixes
 4. Click **Fix** on individual findings or **Fix All**
 
----
 
 ## Demo Recording
 
@@ -408,7 +405,6 @@ Auto-fix available for 3/3 findings. Run `/bugbot fix --all` to apply.
 }
 ```
 
----
 
 ## What's Next
 

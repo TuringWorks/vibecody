@@ -9,7 +9,6 @@ permalink: /demos/10-code-transforms/
 
 VibeCody's **Code Transforms** engine performs AST-based (Abstract Syntax Tree) code transformations that go beyond text search-and-replace. Rename symbols across files with full semantic awareness, extract functions and methods, convert between coding patterns (e.g., callbacks to async/await), and apply language-specific transforms. All transforms preserve formatting, comments, and semantics.
 
----
 
 ## Prerequisites
 
@@ -18,7 +17,6 @@ VibeCody's **Code Transforms** engine performs AST-based (Abstract Syntax Tree) 
 - A language server running for your project's language (for symbol resolution)
 - For VibeUI: `cd vibeui && npm install && npm run tauri dev`
 
----
 
 ## Step-by-Step Walkthrough
 
@@ -246,7 +244,6 @@ The panel shows:
 - A file tree showing affected files with change counts
 - A split diff view for before/after comparison
 
----
 
 ## Demo Recording
 
@@ -443,7 +440,6 @@ The panel shows:
 }
 ```
 
----
 
 ## What's Next
 

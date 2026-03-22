@@ -7,7 +7,6 @@ permalink: /tutorials/
 
 Hands-on guides to get the most out of VibeCody. Each tutorial is self-contained -- pick the one that matches what you want to do.
 
----
 
 ## Beginner
 
@@ -20,7 +19,6 @@ Hands-on guides to get the most out of VibeCody. Each tutorial is self-contained
 
 | [Project Init & Auto-Context](./project-init/) | 10 min | `/init` project scanning, auto-context in every agent conversation |
 
----
 
 ## Intermediate
 
@@ -33,7 +31,6 @@ Hands-on guides to get the most out of VibeCody. Each tutorial is self-contained
 
 | [Always-On Channel Daemon](./channel-daemon/) | 20 min | Run a persistent bot on Slack/Discord/GitHub with automation rules |
 
----
 
 ## Advanced
 
@@ -49,7 +46,6 @@ Hands-on guides to get the most out of VibeCody. Each tutorial is self-contained
 | VM Agent Orchestration | 20 min | Run 4+ parallel agents in isolated Docker containers |
 | Vulnerability Scanner | 15 min | CVE scanning, SAST rules, lockfile parsing |
 
----
 
 ## How to Use These Tutorials
 
@@ -58,7 +54,6 @@ Hands-on guides to get the most out of VibeCody. Each tutorial is self-contained
 3. **Follow it step by step** -- each tutorial lists prerequisites at the top.
 4. **Refer to the reference docs** ([VibeCLI](../vibecli/), [Configuration](../configuration/)) for full details on any command or option.
 
----
 
 ## Suggest a Tutorial
 

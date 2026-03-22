@@ -6,7 +6,6 @@ permalink: /demos/
 
 Interactive walkthroughs covering VibeCody's major capabilities across CLI, Desktop IDE, and API surfaces.
 
----
 
 ## Getting Started
 
@@ -88,7 +87,6 @@ Interactive walkthroughs covering VibeCody's major capabilities across CLI, Desk
 | [34 — Usage Metering](34-usage-metering/) | CLI + UI | Credit budgets and team cost allocation |
 | [35 — Compliance & Audit](35-compliance/) | CLI + UI | SOC 2 controls and audit trails |
 
----
 
 ## Running Demos
 

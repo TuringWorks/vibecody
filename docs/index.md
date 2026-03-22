@@ -14,7 +14,6 @@ VibeCody is a monorepo that provides two complementary tools for AI-assisted dev
 
 Both tools are backed by a shared set of Rust library crates for AI provider integration, text editing, Git operations, LSP, and extensions.
 
----
 
 ## Navigation
 
@@ -33,7 +32,6 @@ Both tools are backed by a shared set of Rust library crates for AI provider int
 | [Security](./security/) | Security model, SSRF/path-traversal prevention, command blocklists |
 | [Contributing](./contributing/) | How to build, test, and contribute |
 
----
 
 ## Key Features
 
@@ -82,7 +80,6 @@ All providers support streaming. Local providers require no API key.
 - Rope-based text buffer, async file I/O with file-watching
 - Full Git panel, integrated terminal (PTY), LSP client, WASM extension system
 
----
 
 ## Getting Started in 60 Seconds
 

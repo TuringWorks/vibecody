@@ -7,7 +7,6 @@ permalink: /glossary/
 
 An alphabetical reference of terms used throughout VibeCody's documentation and codebase.
 
----
 
 **ACP (Agent Client Protocol)** — An open protocol for communication between AI agents and client applications. VibeCody supports ACP in both server and client modes, enabling interoperability with other agent frameworks.
 

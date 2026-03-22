@@ -7,7 +7,6 @@ permalink: /contributing/
 
 Thank you for your interest in contributing! This guide covers how to get your development environment set up, the project conventions, and the contribution workflow.
 
----
 
 ## Development Setup
 
@@ -58,7 +57,6 @@ sudo apt install libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev
 cd vibeui && npm install && cd ..
 ```
 
----
 
 ## Building
 
@@ -88,7 +86,6 @@ cargo watch -x 'run -p vibecli -- --tui'
 cd vibeui && npm run tauri dev
 ```
 
----
 
 ## Running Tests
 
@@ -108,7 +105,6 @@ cargo test -p vibe-core -- --nocapture
 cd vibeui && npx tsc --noEmit
 ```
 
----
 
 ## Code Style
 
@@ -148,7 +144,6 @@ Key conventions:
 - CSS modules or co-located `.css` files for component styles
 - Tauri IPC calls wrapped in typed helper functions
 
----
 
 ## Project Conventions
 
@@ -182,7 +177,6 @@ docs/architecture-diagram
 - Reference any related issues
 - Ensure all tests pass before requesting review
 
----
 
 ## Areas to Contribute
 
@@ -202,7 +196,6 @@ docs/architecture-diagram
 - **Gateway adapters** — add new messaging platform adapters (18 platforms supported)
 - **TUI enhancements** — improve the Ratatui-based terminal interface
 
----
 
 ## Adding a New AI Provider
 
@@ -237,7 +230,6 @@ impl AIProvider for MyProvider {
 }
 ```
 
----
 
 ## Documentation
 
@@ -256,16 +248,13 @@ bundle exec jekyll serve
 Pages use GitHub-flavored Markdown with Jekyll front matter. Add a new page by creating `docs/mypage.md` with:
 
 ```markdown
----
 layout: page
 title: My Page
 permalink: /mypage/
----
 ```
 
 Then add it to `docs/_config.yml` under `header_pages`.
 
----
 
 ## License
 

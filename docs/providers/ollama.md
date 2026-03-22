@@ -8,7 +8,6 @@ permalink: /providers/ollama/
 
 Run AI models locally on your machine with [Ollama](https://ollama.ai). No API key required. Completely free. Your code never leaves your machine.
 
----
 
 ## Why Ollama?
 
@@ -17,7 +16,6 @@ Run AI models locally on your machine with [Ollama](https://ollama.ai). No API k
 - **Offline** -- works without an internet connection (air-gapped deployments)
 - **Fast startup** -- models load in seconds on modern hardware
 
----
 
 ## Installation
 
@@ -45,7 +43,6 @@ docker run -d -v ollama:/root/.ollama -p 11434:11434 --name ollama ollama/ollama
 ollama --version
 ```
 
----
 
 ## Pull a Model
 
@@ -59,7 +56,6 @@ ollama pull codellama:34b
 ollama pull deepseek-coder-v2:16b
 ```
 
----
 
 ## Recommended Models for Coding
 
@@ -76,7 +72,6 @@ ollama pull deepseek-coder-v2:16b
 
 **Minimum RAM:** 8 GB for 7B models, 16 GB for 13-16B models, 64 GB for 70B models.
 
----
 
 ## Configure VibeCody
 
@@ -102,7 +97,6 @@ model = "qwen3-coder:480b-cloud"
 vibecli --provider ollama --model llama3.1:8b
 ```
 
----
 
 ## Verify Connection
 
@@ -114,7 +108,6 @@ curl http://localhost:11434/api/tags
 vibecli --provider ollama -c "Say hello"
 ```
 
----
 
 ## GPU Acceleration
 
@@ -131,7 +124,6 @@ ollama run llama3.1:8b "hello"
 # Watch the logs: ollama will print which GPU layers are loaded
 ```
 
----
 
 ## Air-Gapped Deployment
 
@@ -150,7 +142,6 @@ For environments without internet access:
    ```
    This starts VibeCLI + Ollama as a sidecar with no external network dependencies.
 
----
 
 ## Troubleshooting
 

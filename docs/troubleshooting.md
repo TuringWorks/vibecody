@@ -7,7 +7,6 @@ permalink: /troubleshooting/
 
 This guide covers the most common issues you may encounter when installing, configuring, or using VibeCody. Each issue follows the format: **Symptom**, **Cause**, **Solution**.
 
----
 
 ## Installation Issues
 
@@ -49,7 +48,6 @@ sudo dnf install openssl-devel cmake clang-devel gtk3-devel \
 sudo pacman -S base-devel openssl cmake clang gtk3 libsoup3 webkit2gtk-4.1
 ```
 
----
 
 ### Node.js version mismatch
 
@@ -69,7 +67,6 @@ nvm use --lts
 # Or download directly from https://nodejs.org/
 ```
 
----
 
 ### Tauri prerequisites missing (Linux)
 
@@ -93,7 +90,6 @@ sudo dnf install webkit2gtk4.1-devel libappindicator-gtk3-devel \
 
 On macOS, WebView is bundled with the OS. On Windows, WebView2 is typically pre-installed on Windows 10/11.
 
----
 
 ### npm install failures
 
@@ -116,7 +112,6 @@ sudo chown -R $(whoami) ~/.npm
 npm install
 ```
 
----
 
 ## Provider Connection Issues
 
@@ -155,7 +150,6 @@ name = "claude"
 api_key = "sk-ant-..."
 ```
 
----
 
 ### "Connection refused" — Ollama not running
 
@@ -184,7 +178,6 @@ name = "ollama"
 api_url = "http://localhost:11434"
 ```
 
----
 
 ### "Rate limited" (HTTP 429)
 
@@ -206,7 +199,6 @@ chain = ["claude", "openai", "gemini"]
 
 4. For heavy usage, consider running a local model via Ollama.
 
----
 
 ### "Model not found"
 
@@ -232,7 +224,6 @@ Common correct model names:
 - Gemini: `gemini-2.5-flash`
 - DeepSeek: `deepseek-chat`
 
----
 
 ### Timeout errors
 
@@ -251,7 +242,6 @@ timeout_secs = 120  # default is 60
 
 For slow connections or large models, values of 120-300 seconds may be needed. Also check your network connectivity and try a different provider to isolate the issue.
 
----
 
 ### SSL certificate errors
 
@@ -272,7 +262,6 @@ export REQUESTS_CA_BUNDLE=/path/to/corporate-ca-bundle.crt
 
 For self-hosted providers, you can set a custom API URL with your internal CA.
 
----
 
 ## Agent Issues
 
@@ -295,7 +284,6 @@ max_steps = 25  # default is 50
 3. Break the task into smaller, more specific sub-tasks.
 4. Try a more capable model (e.g., switch from a local model to Claude).
 
----
 
 ### Agent making unwanted changes
 
@@ -322,7 +310,6 @@ git checkout -- .
 vibecli session restore --checkpoint latest
 ```
 
----
 
 ### "Tool not available" in sandbox
 
@@ -343,7 +330,6 @@ allowed_tools = ["read", "write", "bash", "search"]
 
 Some tools (e.g., `bash`) may be restricted by default in sandbox mode. Add the required tool to `allowed_tools` if you trust the context.
 
----
 
 ### Session resume not working
 
@@ -366,7 +352,6 @@ vibecli session new
 
 Session data is stored in `~/.vibecli/sessions/`. You can inspect or delete individual session files there.
 
----
 
 ## VibeUI Issues
 
@@ -394,7 +379,6 @@ WEBKIT_DISABLE_COMPOSITING_MODE=1 npm run tauri:dev
 **macOS:**
 - Update to the latest macOS version. WebView is bundled with the OS.
 
----
 
 ### Monaco editor slow with large files
 
@@ -408,7 +392,6 @@ WEBKIT_DISABLE_COMPOSITING_MODE=1 npm run tauri:dev
 2. Disable word wrap for very large files.
 3. For files over 5 MB, consider using the terminal-based editor or an external editor.
 
----
 
 ### Terminal panel not working
 
@@ -430,7 +413,6 @@ sudo usermod -aG tty $(whoami)
 
 On macOS, ensure Terminal has Full Disk Access in System Settings > Privacy & Security.
 
----
 
 ### Panels not loading
 
@@ -451,7 +433,6 @@ npm run tauri:dev
 
 4. If a specific panel consistently fails, report the issue with the console error message.
 
----
 
 ## Build Issues
 
@@ -474,7 +455,6 @@ cargo check --workspace --exclude vibe-collab
 cargo update
 ```
 
----
 
 ### Tauri build fails
 
@@ -498,7 +478,6 @@ npm install
 npm run tauri:build
 ```
 
----
 
 ### Docker build fails
 
@@ -519,7 +498,6 @@ docker build --platform linux/amd64 -t vibecody .
 docker-compose up
 ```
 
----
 
 ## Performance
 
@@ -547,7 +525,6 @@ vibecli session new  # Start a fresh session
 3. Use the `/compact` REPL command to compress context in the current session.
 4. Enable session memory profiling to detect leaks: `/metering status`
 
----
 
 ### Slow responses from AI provider
 
@@ -568,7 +545,6 @@ nvidia-smi  # NVIDIA
 ollama list  # See which models are loaded
 ```
 
----
 
 ### Large repository indexing is slow
 
@@ -595,7 +571,6 @@ exclude = [
 
 For repositories with more than 100,000 files, consider indexing only the directories you are actively working in.
 
----
 
 ## Still Stuck?
 

@@ -11,7 +11,6 @@ VibeCody provides **semantic code search** powered by embeddings, going beyond s
 
 The system supports file-level and function-level indexing, cross-repository search, and a full RAG (Retrieval-Augmented Generation) pipeline that feeds search results directly into AI conversations for context-aware answers.
 
----
 
 ## Prerequisites
 
@@ -33,7 +32,6 @@ dimensions = 1536
 - A project to index (the demo uses a sample Rust project)
 - For VibeUI: `cd vibeui && npm install && npm run tauri dev`
 
----
 
 ## Step-by-Step Walkthrough
 
@@ -246,7 +244,6 @@ vibecli embeddings drop .
 vibecli embeddings export . --format jsonl --output embeddings.jsonl
 ```
 
----
 
 ## Demo Recording
 
@@ -388,7 +385,6 @@ vibecli embeddings export . --format jsonl --output embeddings.jsonl
 }
 ```
 
----
 
 ## What's Next
 

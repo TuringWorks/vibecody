@@ -7,7 +7,6 @@ permalink: /development/
 
 Internal guide for engineers contributing to VibeCody. Covers build procedures, testing, debugging, code organization, and common development workflows.
 
----
 
 ## Prerequisites
 
@@ -25,7 +24,6 @@ Internal guide for engineers contributing to VibeCody. Covers build procedures, 
 rustup show && node --version && cargo tauri --version
 ```
 
----
 
 ## Repository Structure
 
@@ -61,7 +59,6 @@ vibecody/
 └── neovim-plugin/                # Neovim integration
 ```
 
----
 
 ## Build Commands
 
@@ -118,7 +115,6 @@ npm run lint         # ESLint
 npm run typecheck    # TypeScript type checking
 ```
 
----
 
 ## Testing
 
@@ -179,7 +175,6 @@ mod tests {
 }
 ```
 
----
 
 ## Architecture Patterns
 
@@ -246,7 +241,6 @@ tauri::generate_handler![
 ]
 ```
 
----
 
 ## Security Checklist
 
@@ -283,7 +277,6 @@ Before submitting code that touches these areas, verify:
 - [ ] No `danger_accept_invalid_certs(true)`
 - [ ] Cryptographic operations use `hmac`/`sha2` crates, not hand-rolled implementations
 
----
 
 ## Adding a REPL Command
 
@@ -306,7 +299,6 @@ Example:
 }
 ```
 
----
 
 ## Adding a VibeUI Panel
 
@@ -323,7 +315,6 @@ export function MyPanel({ workspacePath }: { workspacePath?: string | null }) {
 3. Import and add to the AI panel tab list in `App.tsx`
 4. If the panel needs Rust data, add a `#[tauri::command]` and register it
 
----
 
 ## Debugging
 
@@ -360,7 +351,6 @@ RUST_LOG=debug npm run tauri:dev
 | Tests fail with "provider not available" | These are integration tests needing API keys — unit tests should all pass |
 | npm `rustup` shadows cargo | Use `~/.cargo/bin/cargo` directly or uninstall the npm rustup package |
 
----
 
 ## Release Process
 
@@ -380,7 +370,6 @@ docker build -t vibecody/vibecli:latest .
 ./install.sh  # SHA-256 verified download
 ```
 
----
 
 ## Key Module Reference
 
@@ -399,7 +388,6 @@ docker build -t vibecody/vibecli:latest .
 | `commands.rs` | ~30,000 | 227+ | All Tauri command implementations |
 | `agent_executor.rs` | ~350 | 12 | VibeUI agent tool executor |
 
----
 
 ## Performance Notes
 

@@ -8,7 +8,6 @@ title: "FIT GAP ANALYSIS v4"
 **Previous analysis:** FIT-GAP-ANALYSIS-v3.md (2026-03-07)
 **Focus:** Recent competitor improvements (Jan–Mar 2026) and new gaps identified
 
----
 
 ## Executive Summary
 
@@ -25,7 +24,6 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 
 **New competitors added:** Amp (Sourcegraph), Continue.dev 1.0, Windsurf under Cognition, Blitzy
 
----
 
 ## Part A — Competitor Recent Improvements (Jan–Mar 2026)
 
@@ -222,7 +220,6 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 | **A-SWE autonomous agent** | Full app creation, testing, documentation (in development) | N/A — not yet released |
 | **Windsurf acquisition ($3B)** | Cascade + SWE-1 model IP acquired | N/A — competitive positioning shift |
 
----
 
 ## Part B — New Gap Priority Matrix
 
@@ -269,7 +266,6 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 | 22 | ~~Full legacy language migration~~ | Blitzy, Devin | **CLOSED** — `legacy_migration.rs`: MigrationEngine with 18 source languages (COBOL, Fortran, VB6, etc.), 10 target languages, 6 strategies (Strangler Fig, Big Bang, etc.), service boundary detection, translation rules, 101 tests |
 | 23 | ~~GitLab/Azure DevOps native integration~~ | Blitzy | **CLOSED** — `git_platform.rs`: PlatformManager with GitHub/GitLab/Azure DevOps/Bitbucket/Gitea, unified PR/issue/pipeline/webhook APIs, platform-specific URL builders, cross-platform PR sync, 111 tests |
 
----
 
 ## Part C — VibeCody Competitive Strengths (Updated)
 
@@ -317,7 +313,6 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 6. **Observability** — OpenTelemetry OTLP tracing to Jaeger/Zipkin/Grafana; no competitor offers this
 7. **Cost control** — Budget limits, cost observatory, arena mode for model evaluation; no competitor offers all three
 
----
 
 ## Part D — Competitive Positioning Shifts
 
@@ -354,7 +349,6 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 3. **Regulated industry focus** — No competitor addresses aerospace/defense/medical/finance with domain-specific skills
 4. **On-premises deployment** — Growing demand for air-gapped AI coding in defense, government, healthcare
 
----
 
 ## Part E — Recommended Roadmap for P0/P1 Gaps
 
@@ -502,7 +496,6 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 - History windowing with configurable max_history
 - **37 tests**, all passing
 
----
 
 ## Part F — Metrics Summary
 
@@ -521,7 +514,6 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 | Open gaps (P3) | 0 (all 9 closed) |
 | Competitors analyzed | 11 (Claude Code, Cursor, Copilot, Devin, Augment, Windsurf, Amp, Continue, Bolt.new, Blitzy, Aider) |
 
----
 
 ## Sources
 

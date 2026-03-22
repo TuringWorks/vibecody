@@ -7,7 +7,6 @@ permalink: /api-reference/
 
 Complete HTTP API reference for the VibeCLI daemon (`vibecli serve`).
 
----
 
 ## Overview
 
@@ -27,7 +26,6 @@ On startup, a **Bearer token** is printed to stderr. All authenticated endpoints
 | **Max body** | 1 MB |
 | **CORS origins** | `localhost`, `127.0.0.1`, `tauri://localhost` |
 
----
 
 ## Authentication
 
@@ -56,7 +54,6 @@ Restart the daemon to generate a new token. For persistent tokens, use the `--ap
 vibecli serve --port 7878 --api-token "my-secret-token"
 ```
 
----
 
 ## Error Handling
 
@@ -76,7 +73,6 @@ All errors return a consistent JSON structure:
 
 User-supplied input in error messages is sanitized (alphanumeric + `-_.` only, truncated to 200 chars).
 
----
 
 ## Rate Limiting
 
@@ -96,7 +92,6 @@ Retry-After: 5
 { "error": "Rate limit exceeded. Try again shortly." }
 ```
 
----
 
 ## Endpoints
 
@@ -117,7 +112,6 @@ Liveness check. No authentication required.
 curl http://localhost:7878/health
 ```
 
----
 
 ### POST /chat
 
@@ -164,7 +158,6 @@ curl -X POST http://localhost:7878/chat \
 |--------|-------|
 | `500` | `LLM provider error: ...` or `Stream error: ...` |
 
----
 
 ### POST /chat/stream
 
@@ -209,7 +202,6 @@ event: done
 data:
 ```
 
----
 
 ### POST /agent
 
@@ -244,7 +236,6 @@ curl -X POST http://localhost:7878/agent \
   }'
 ```
 
----
 
 ### GET /stream/:session_id
 
@@ -298,7 +289,6 @@ data: {"type":"complete","content":"Added input validation for all 3 handler fun
 |--------|-------|
 | `404` | `Session '<id>' not found` |
 
----
 
 ### GET /jobs
 
@@ -337,7 +327,6 @@ curl http://localhost:7878/jobs \
   -H "Authorization: Bearer $VIBECLI_TOKEN"
 ```
 
----
 
 ### GET /jobs/:id
 
@@ -352,7 +341,6 @@ curl http://localhost:7878/jobs/a1b2c3d4... \
 
 **Errors:** `404` if not found.
 
----
 
 ### POST /jobs/:id/cancel
 
@@ -367,7 +355,6 @@ curl -X POST http://localhost:7878/jobs/a1b2c3d4.../cancel \
 
 **Errors:** `404` if not found. If the job is already finished, it returns the record unchanged.
 
----
 
 ### GET /sessions
 
@@ -378,7 +365,6 @@ curl http://localhost:7878/sessions \
   -H "Authorization: Bearer $VIBECLI_TOKEN"
 ```
 
----
 
 ### GET /sessions.json
 
@@ -389,7 +375,6 @@ curl http://localhost:7878/sessions.json \
   -H "Authorization: Bearer $VIBECLI_TOKEN"
 ```
 
----
 
 ### GET /view/:id
 
@@ -400,7 +385,6 @@ curl http://localhost:7878/view/a1b2c3d4... \
   -H "Authorization: Bearer $VIBECLI_TOKEN"
 ```
 
----
 
 ### GET /share/:id
 
@@ -411,7 +395,6 @@ curl http://localhost:7878/share/a1b2c3d4... \
   -H "Authorization: Bearer $VIBECLI_TOKEN"
 ```
 
----
 
 ### WS /ws/collab/:room_id
 
@@ -433,7 +416,6 @@ websocat ws://localhost:7878/ws/collab/my-room
 | `GET` | `/collab/rooms` | List all active rooms |
 | `GET` | `/collab/rooms/:room_id/peers` | List peers in a room |
 
----
 
 ### POST /acp/v1/tasks
 
@@ -466,7 +448,6 @@ curl -X POST http://localhost:7878/acp/v1/tasks \
   -d '{"task": "Add tests for auth module"}'
 ```
 
----
 
 ### GET /acp/v1/tasks/:id
 
@@ -489,7 +470,6 @@ curl http://localhost:7878/acp/v1/tasks/acp-a1b2c3d4e5f6... \
   -H "Authorization: Bearer $VIBECLI_TOKEN"
 ```
 
----
 
 ### GET /acp/v1/capabilities
 
@@ -499,7 +479,6 @@ ACP capability advertisement. No authentication required.
 curl http://localhost:7878/acp/v1/capabilities
 ```
 
----
 
 ### POST /webhook/github
 
@@ -524,7 +503,6 @@ GitHub App webhook endpoint. No Bearer token required. Uses HMAC-SHA256 signatur
 
 Unhandled event types return `{"status": "ignored"}`.
 
----
 
 ### POST /webhook/skill/:skill_name
 
@@ -548,7 +526,6 @@ curl -X POST http://localhost:7878/webhook/skill/deploy-prod \
 
 **Errors:** `404` if no skill has a matching `webhook_trigger`.
 
----
 
 ### Memory Endpoints
 
@@ -582,7 +559,6 @@ curl -X POST http://localhost:7878/memory/query \
   -d '{"query": "How does authentication work?"}'
 ```
 
----
 
 ### GET /pair
 

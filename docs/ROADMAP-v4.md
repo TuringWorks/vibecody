@@ -9,7 +9,6 @@ permalink: /roadmap-v4/
 **Previous:** ROADMAP-v3.md (March 2026) — Phases 10-14 complete
 **Scope:** 19 new gaps from FIT-GAP-ANALYSIS-v6.md; 8 implementation phases across 4 priority tiers
 
----
 
 ## Current State
 
@@ -26,7 +25,6 @@ All phases from Roadmap v1 (1-5), v2 (6-9), and v3 (10-14) are **complete**. FIT
 | Rust modules | 165+ |
 | Competitors analyzed | 30 |
 
----
 
 ## Phase 15: Always-On Agent Infrastructure (P0)
 
@@ -63,7 +61,6 @@ All phases from Roadmap v1 (1-5), v2 (6-9), and v3 (10-14) are **complete**. FIT
 
 **Effort:** High (5-7 days total for 15.1 + 15.2)
 
----
 
 ## Phase 16: Spec-Driven Development (P0)
 
@@ -91,7 +88,6 @@ All phases from Roadmap v1 (1-5), v2 (6-9), and v3 (10-14) are **complete**. FIT
 
 **Effort:** Medium (3-4 days)
 
----
 
 ## Phase 17: Agent-Per-Branch Workflow (P0)
 
@@ -113,7 +109,6 @@ All phases from Roadmap v1 (1-5), v2 (6-9), and v3 (10-14) are **complete**. FIT
 
 **Effort:** Medium (2-3 days)
 
----
 
 ## Phase 18: Design & Voice Pipeline (P1)
 
@@ -149,7 +144,6 @@ All phases from Roadmap v1 (1-5), v2 (6-9), and v3 (10-14) are **complete**. FIT
 
 **Effort:** High (4-5 days total for 18.1 + 18.2)
 
----
 
 ## Phase 19: Enterprise Context & Collaboration (P1)
 
@@ -184,7 +178,6 @@ All phases from Roadmap v1 (1-5), v2 (6-9), and v3 (10-14) are **complete**. FIT
 
 **Effort:** High (5-6 days total for 19.1 + 19.2)
 
----
 
 ## Phase 20: Extended Platform Features (P2)
 
@@ -233,7 +226,6 @@ All phases from Roadmap v1 (1-5), v2 (6-9), and v3 (10-14) are **complete**. FIT
 
 **Effort:** Medium-High (5-7 days total for 20.1-20.3)
 
----
 
 ## Phase 21: Managed Deploy (P2)
 
@@ -258,7 +250,6 @@ All phases from Roadmap v1 (1-5), v2 (6-9), and v3 (10-14) are **complete**. FIT
 
 **Effort:** High (4-5 days)
 
----
 
 ## Phase 22: Future Architecture (P3)
 
@@ -325,7 +316,6 @@ All phases from Roadmap v1 (1-5), v2 (6-9), and v3 (10-14) are **complete**. FIT
 
 **Effort:** Very High (8-12 days total for 22.1-22.5)
 
----
 
 ## Priority & Timeline Summary
 
@@ -354,7 +344,6 @@ All phases from Roadmap v1 (1-5), v2 (6-9), and v3 (10-14) are **complete**. FIT
 | 13 | Sketch-to-3D generation | Novel but niche; wait for ecosystem maturity |
 | 16 | VS Code extension compat (partial) | Phase 22.2 covers high-value subset |
 
----
 
 ## Success Criteria
 
@@ -371,7 +360,6 @@ After completing Phases 15-22, VibeCody will:
 9. **CI-native** — AI checks as CI gates, matching Continue
 10. **18-provider** — Gemini added as 18th native provider
 
----
 
 ## Competitive Position After v4
 

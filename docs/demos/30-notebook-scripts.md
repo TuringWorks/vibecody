@@ -151,7 +151,6 @@ Open VibeUI and navigate to the **Notebook** panel. The interface provides:
 - **AI Generate** button opens a prompt where you describe what the cell should do, and VibeCody writes and executes it.
 - **Export menu** with format options (Markdown, HTML, Jupyter, PDF).
 
----
 
 ### Script Runner: Execute Scripts with AI
 

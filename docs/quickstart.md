@@ -7,13 +7,11 @@ permalink: /quickstart/
 
 **Zero to productive in 5 minutes.**
 
----
 
 ## What is VibeCody?
 
 VibeCody is an AI-powered developer toolchain built in Rust. It gives you two ways to work: **VibeCLI**, a terminal-first AI coding assistant with a rich TUI and REPL, and **VibeUI**, a full desktop code editor with Monaco and 139+ AI panels. Both share the same backend crates, supporting 22 AI providers (local and cloud), an autonomous agent loop, code review, multi-agent orchestration, MCP integration, and 500+ built-in skills. You can start with a local model and zero API keys.
 
----
 
 ## Choose Your Surface
 
@@ -27,7 +25,6 @@ VibeCody is an AI-powered developer toolchain built in Rust. It gives you two wa
 
 **Recommendation:** Start with VibeCLI. You can add VibeUI later -- they share the same config and crates.
 
----
 
 ## Install in 60 Seconds
 
@@ -75,7 +72,6 @@ docker-compose up
 
 This starts VibeCLI with a local Ollama instance. No API keys required.
 
----
 
 ## Your First Chat
 
@@ -118,7 +114,6 @@ Example:
 
 That is it -- you are chatting with an AI. Press `Ctrl+C` or type `/quit` to exit.
 
----
 
 ## Your First Agent Task
 
@@ -167,7 +162,6 @@ In `suggest` mode (default), the agent asks before shell commands and file write
 
 You can also use `/agent <task>` from the REPL to start agent tasks interactively, and `/plan <task>` to review a plan before executing.
 
----
 
 ## Connect a Cloud Provider
 
@@ -217,7 +211,6 @@ Other providers use the same pattern:
 
 See the [Configuration Guide](/configuration/) for all 22 providers.
 
----
 
 ## Your First Code Review
 
@@ -261,7 +254,6 @@ vibecli> /review --pr 42
 
 See the [Code Review Tutorial](/tutorials/code-review/) for more options.
 
----
 
 ## Next Steps
 
@@ -277,7 +269,6 @@ You are up and running. Here is where to go next:
 | Set up the desktop editor | [VibeUI Reference](/vibeui/) |
 | Full CLI reference | [VibeCLI Reference](/vibecli/) |
 
----
 
 ## Common Issues
 

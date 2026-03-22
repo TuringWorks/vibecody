@@ -11,7 +11,6 @@ VibeCody brings AI directly into the editor with **inline chat**, **context-awar
 
 This demo covers the VibeUI Monaco editor experience and the underlying CLI commands that power it.
 
----
 
 ## Prerequisites
 
@@ -34,7 +33,6 @@ cd vibeui && npm install && npm run tauri dev
 
 - A project open in VibeUI (File > Open Folder)
 
----
 
 ## Step-by-Step Walkthrough
 
@@ -178,7 +176,6 @@ Ghost text styling is controlled by CSS variables:
 
 Override these in VibeUI's Settings > Appearance > Theme Customization.
 
----
 
 ## CLI-Only Workflow
 
@@ -204,7 +201,6 @@ vibecli inline-edit \
 
 Remove `--dry-run` to apply changes.
 
----
 
 ## Demo Recording
 
@@ -348,7 +344,6 @@ Remove `--dry-run` to apply changes.
 }
 ```
 
----
 
 ## What's Next
 

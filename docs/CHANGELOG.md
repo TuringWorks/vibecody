@@ -7,7 +7,6 @@ permalink: /changelog/
 
 All notable changes to VibeCody are documented here. This project follows [Semantic Versioning](https://semver.org/).
 
----
 
 ## [0.4.0] - 2026-03-21
 
@@ -65,7 +64,6 @@ All notable changes to VibeCody are documented here. This project follows [Seman
 - 55 new unit tests (warp_features), 130 new provider tests, 812 gap-closure tests.
 - Documentation icons replaced with plain text (Yes/No/Warning instead of emoji checkmarks).
 
----
 
 ## [0.3.3] - 2026-03-20
 
@@ -113,7 +111,6 @@ All notable changes to VibeCody are documented here. This project follows [Seman
 - All production `unwrap()` calls replaced with `expect()` with descriptive messages.
 - Release profile optimized: LTO enabled, symbols stripped, panic set to abort, opt-level=s for workspace with opt-level=2 for vibecli.
 
----
 
 ## [0.3.2] - 2026-03-14
 
@@ -126,7 +123,6 @@ All notable changes to VibeCody are documented here. This project follows [Seman
 - 3 new REPL commands: `/blueteam`, `/purpleteam`, `/idp` with full subcommand sets.
 - Workspace total: approximately 5,912 tests with 0 failures.
 
----
 
 ## [0.3.1] - 2026-03-13
 
@@ -147,7 +143,6 @@ All notable changes to VibeCody are documented here. This project follows [Seman
 - FIT-GAP-ANALYSIS-v5.md and ROADMAP-v3.md published.
 - Workspace total: approximately 5,745 tests with 0 failures and 136+ panels.
 
----
 
 ## [0.3.0] - 2026-03-09
 
@@ -167,7 +162,6 @@ All notable changes to VibeCody are documented here. This project follows [Seman
 - All production `unwrap()` calls replaced with `expect()` with descriptive messages.
 - Release profile added to workspace: LTO, symbol stripping, panic=abort.
 
----
 
 ## [0.2.x] - 2026-02 through 2026-03
 
