@@ -30,6 +30,7 @@ Both tools are backed by a shared set of Rust library crates for AI provider int
 | [Competitive Analysis](./shannon-comparison/) | Feature comparison with other AI coding tools |
 | [Development Guide](./development/) | Build, test, debug, and code organization for contributors |
 | [Security](./security/) | Security model, SSRF/path-traversal prevention, command blocklists |
+| [Release Notes](./release/) | What's new in v0.4.0 — downloads, upgrade guide |
 | [Contributing](./contributing/) | How to build, test, and contribute |
 
 

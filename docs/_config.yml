@@ -90,6 +90,9 @@ sidebar:
   - title: Glossary
     icon: book-open
     url: /glossary/
+  - title: Release Notes
+    icon: tag
+    url: /release/
 
 # Top tabs (like OpenRouter's Docs / API Reference / SDK Reference)
 top_tabs:
@@ -98,6 +101,8 @@ top_tabs:
     active: true
   - title: API Reference
     url: /api-reference/
+  - title: Release Notes
+    url: /release/
   - title: Changelog
     url: /changelog/
 
