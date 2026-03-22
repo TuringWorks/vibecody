@@ -164,6 +164,7 @@ export const TAB_META: Record<string, TabMeta> = {
   autoresearch:{ icon: FlaskConical,      label: "Research" },
   openmemory:  { icon: Infinity,          label: "OpenMemory" },
   aiml:        { icon: Workflow,          label: "AI/ML Workflow" },
+  modelwizard: { icon: Sparkles,          label: "Model Wizard" },
 };
 
 export const DEFAULT_TAB_META: TabMeta = { icon: Workflow, label: "Panel" };
