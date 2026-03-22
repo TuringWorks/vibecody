@@ -8,7 +8,7 @@ permalink: /tutorials/first-provider/
 
 Connect VibeCody to an AI model so you can start chatting, generating code, and running the agent loop.
 
-**Prerequisites:** VibeCody installed and on your PATH. See the [Quickstart](../quickstart/) if you need to install it first.
+**Prerequisites:** VibeCody installed and on your PATH. See the [Quickstart](../../quickstart/) if you need to install it first.
 
 
 ## Choose a Provider
@@ -244,7 +244,7 @@ Then just use the `--provider` flag to switch:
 vibecli --provider claude
 ```
 
-See the full [Configuration Guide](../configuration/) for all provider options.
+See the full [Configuration Guide](../../configuration/) for all provider options.
 
 
 ## Troubleshooting

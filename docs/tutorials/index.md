@@ -49,10 +49,10 @@ Hands-on guides to get the most out of VibeCody. Each tutorial is self-contained
 
 ## How to Use These Tutorials
 
-1. **Start with the [Quickstart](../quickstart/)** if you have not installed VibeCody yet.
+1. **Start with the [Quickstart](../../quickstart/)** if you have not installed VibeCody yet.
 2. **Pick a tutorial** from the table above based on your goal.
 3. **Follow it step by step** -- each tutorial lists prerequisites at the top.
-4. **Refer to the reference docs** ([VibeCLI](../vibecli/), [Configuration](../configuration/)) for full details on any command or option.
+4. **Refer to the reference docs** ([VibeCLI](../../vibecli/), [Configuration](../../configuration/)) for full details on any command or option.
 
 
 ## Suggest a Tutorial
