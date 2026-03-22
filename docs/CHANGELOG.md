@@ -9,6 +9,64 @@ All notable changes to VibeCody are documented here. This project follows [Seman
 
 ---
 
+## [0.4.0] - 2026-03-21
+
+### Added
+
+- **Warp terminal-style features** (`warp_features.rs`, 55 tests):
+  - `# natural language` command — type `# find large files` to generate shell commands via AI with explanation and confirmation.
+  - Command corrections (thefuck-style) — 13 built-in rules for typos (`gti` to `git`), missing sudo, git push upstream, permission denied, wrong Python version, etc.
+  - Secret redaction — auto-detects and masks API keys (`sk-****`), AWS keys (`AKIA****`), GitHub tokens (`ghp_****`), Bearer tokens, passwords, and private keys in command output.
+  - Next command suggestions — proactive hints after successful commands (git add to git commit, cargo build to cargo test, etc.).
+  - Block-style output — shell command output formatted with colored left border (green=success, red=failure), command header, and duration display.
+  - Desktop notifications — macOS/Linux notifications for commands taking longer than 30 seconds.
+  - Output filtering and AI error explanation prompts.
+- **Auth scaffolding expanded to 85+ frameworks across 17 languages** — Go (Gin, Fiber, Echo, Chi, Hertz), Java (Spring Boot, Quarkus, Micronaut, Vert.x, Helidon, Javalin), Kotlin (Ktor, http4k), C# (ASP.NET Core, FastEndpoints), TypeScript (Next.js, Fastify, NestJS, Hono, Elysia), Python (FastAPI, Django, Flask, Starlette, Litestar), Rust (Axum, Actix, Rocket), Ruby (Rails, Sinatra), PHP (Laravel, Symfony), Elixir (Phoenix), Scala, Swift, Dart, Clojure, Haskell, Crystal, Nim, Zig. Auth providers expanded to 40+ including SAML, LDAP, OIDC, Passkey, TOTP, and 10 BaaS platforms. UI: searchable grid with language filter.
+- **Best-in-class documentation** (20 new files, ~5,500 lines):
+  - `llms.txt` and `llms-full.txt` — AI-agent-optimized project docs following the llms.txt standard. First AI coding tool to support this.
+  - `quickstart.md` — zero-to-productive in 5 minutes.
+  - 3 tutorials: first-provider setup, agent workflow, AI code review.
+  - `api-reference.md` — complete HTTP daemon API reference with curl examples for all endpoints.
+  - Per-provider setup guides: Ollama, Claude, OpenAI, DeepSeek, Gemini.
+  - `troubleshooting.md` (24 issues), `faq.md` (22 questions), `glossary.md` (50+ terms), `security.md` (13 sections), `CHANGELOG.md`.
+  - Jekyll nav reorganized: quickstart-first user journey ordering.
+- **Full ANSI markdown rendering in VibeCLI REPL**:
+  - Headers (H1-H4) in bold green/cyan/magenta/blue.
+  - Bold, italic, bold+italic text styling.
+  - Inline code with gray background and cyan text.
+  - Unordered and ordered lists with styled bullets/numbers.
+  - Blockquotes with green pipe and italic text.
+  - Task lists with checkbox symbols.
+  - Horizontal rules, links with underlined text and dim URLs.
+  - Code blocks with line numbers, language labels, dark background, and syntect syntax highlighting.
+- **Claude Code-style tool call rendering** — dark background boxes with terminal-width padding, green checkmark or red cross, tool output displayed below (capped at 30 lines).
+- **MCP panels consolidated** — merged MCP, MCP Lazy, and MCP Directory into a single unified panel with 4 tabs (Servers, Tools, Directory, Metrics).
+- **Model name in REPL prompt** — `[vibecli ollama (deepseek-chat)] >` shows both provider and model.
+
+### Fixed
+
+- All GitHub URLs corrected from `vibecody/vibecody`, `AceCana662/vibecody`, `AiChefDev/vibecody` to `TuringWorks/vibecody` across 18 files (docs, GitHub Actions, package.json, config).
+- DeepSeek default model: `deepseek-coder` to `deepseek-chat` (V3 current).
+- Gemini default model: `gemini-2.0-flash` to `gemini-2.5-flash` (latest).
+- Streaming chat response rendering — replaced flawed stream-then-clear-then-rerender with direct rendering, eliminating blank line artifacts.
+- Rustyline prompt double-bracket and cursor offset — switched to plain text prompt for reliable cursor positioning.
+- Tool output now displayed in agent REPL (was captured but not shown).
+- REPL args trimming — extra spaces after commands removed.
+- All decorative emojis removed from REPL output (70+) and documentation (1,138 replacements across 14 files).
+- Build warnings resolved (zero warnings, zero errors).
+- `.vibecli/` added to `.gitignore` (auto-generated local data).
+
+### Changed
+
+- **23 direct AI providers** (was 17): added MiniMax, Perplexity, Together AI, Fireworks AI, SambaNova, plus Gemini native upgrade.
+- Cost estimation expanded to cover all 23 providers with per-model pricing (was only Claude + OpenAI).
+- Doctor command checks all 14 cloud provider API keys (was 4).
+- Help text reorganized by popularity with all 23 providers listed.
+- 55 new unit tests (warp_features), 130 new provider tests, 812 gap-closure tests.
+- Documentation icons replaced with plain text (Yes/No/Warning instead of emoji checkmarks).
+
+---
+
 ## [0.3.3] - 2026-03-20
 
 ### Added
