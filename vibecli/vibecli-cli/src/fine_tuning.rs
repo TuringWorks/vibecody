@@ -40,6 +40,339 @@ impl FineTuneProvider {
     }
 }
 
+// ── Fine-Tuning Libraries ────────────────────────────────────────────────
+
+/// Open-source fine-tuning frameworks with command generation.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum FineTuneLibrary {
+    /// Unsloth — fast, memory-efficient LoRA/QLoRA on single GPU or Colab.
+    Unsloth,
+    /// Axolotl — YAML-config-driven fine-tuning with HuggingFace integration.
+    Axolotl,
+    /// LLaMA Factory — 100+ LLMs, DPO/PPO/SFT/RLHF alignment, CLI-driven.
+    LlamaFactory,
+    /// DeepSpeed — distributed multi-GPU/multi-node training with ZeRO.
+    DeepSpeed,
+    /// HuggingFace TRL — Transformer Reinforcement Learning (SFT, DPO, PPO).
+    HuggingFaceTRL,
+    /// PEFT — Parameter-Efficient Fine-Tuning (LoRA, AdaLoRA, prefix tuning).
+    PEFT,
+}
+
+impl FineTuneLibrary {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Unsloth => "unsloth",
+            Self::Axolotl => "axolotl",
+            Self::LlamaFactory => "llama-factory",
+            Self::DeepSpeed => "deepspeed",
+            Self::HuggingFaceTRL => "trl",
+            Self::PEFT => "peft",
+        }
+    }
+
+    pub fn github_url(&self) -> &'static str {
+        match self {
+            Self::Unsloth => "https://github.com/unslothai/unsloth",
+            Self::Axolotl => "https://github.com/axolotl-ai-cloud/axolotl",
+            Self::LlamaFactory => "https://github.com/hiyouga/LLaMA-Factory",
+            Self::DeepSpeed => "https://github.com/deepspeedai/DeepSpeed",
+            Self::HuggingFaceTRL => "https://github.com/huggingface/trl",
+            Self::PEFT => "https://github.com/huggingface/peft",
+        }
+    }
+
+    pub fn pip_install(&self) -> &'static str {
+        match self {
+            Self::Unsloth => "pip install unsloth",
+            Self::Axolotl => "pip install axolotl",
+            Self::LlamaFactory => "pip install llamafactory",
+            Self::DeepSpeed => "pip install deepspeed",
+            Self::HuggingFaceTRL => "pip install trl",
+            Self::PEFT => "pip install peft",
+        }
+    }
+
+    pub fn description(&self) -> &'static str {
+        match self {
+            Self::Unsloth => "Fast single-GPU fine-tuning with 2x speed, 60% less memory. Supports LoRA/QLoRA for Llama, Mistral, Gemma, Phi.",
+            Self::Axolotl => "YAML-config-driven fine-tuning. Minimal code, reproducible setups. LoRA, QLoRA, full fine-tune with HuggingFace models.",
+            Self::LlamaFactory => "100+ LLMs/VLMs. Full alignment: SFT, DPO, PPO, RLHF, KTO. CLI + Web UI. Distributed training support.",
+            Self::DeepSpeed => "Multi-GPU/multi-node distributed training. ZeRO stages 0-3 + Infinity. Gradient checkpointing, mixed precision.",
+            Self::HuggingFaceTRL => "Transformer RL: SFTTrainer, DPOTrainer, PPOTrainer. Direct preference optimization, reward modeling.",
+            Self::PEFT => "Parameter-efficient methods: LoRA, AdaLoRA, prefix tuning, prompt tuning, IA3. Works with any HuggingFace model.",
+        }
+    }
+
+    /// Generate a training command/script for this library.
+    pub fn generate_command(&self, model: &str, dataset: &str, output: &str) -> String {
+        match self {
+            Self::Unsloth => format!(
+                "python -c \"\nfrom unsloth import FastLanguageModel\nmodel, tokenizer = FastLanguageModel.from_pretrained('{model}', max_seq_length=2048, load_in_4bit=True)\nmodel = FastLanguageModel.get_peft_model(model, r=16, lora_alpha=16)\nfrom trl import SFTTrainer\nfrom transformers import TrainingArguments\nfrom datasets import load_dataset\ndataset = load_dataset('json', data_files='{dataset}')\ntrainer = SFTTrainer(model=model, tokenizer=tokenizer, train_dataset=dataset['train'],\n    args=TrainingArguments(output_dir='{output}', per_device_train_batch_size=2, num_train_epochs=3))\ntrainer.train()\nmodel.save_pretrained('{output}')\n\""
+            ),
+            Self::Axolotl => format!(
+                "# axolotl.yaml\nbase_model: {model}\ndatasets:\n  - path: {dataset}\n    type: alpaca\noutput_dir: {output}\nlora_r: 16\nlora_alpha: 32\nmicro_batch_size: 2\nnum_epochs: 3\nlearning_rate: 2e-4\n\n# Run:\naxolotl train axolotl.yaml"
+            ),
+            Self::LlamaFactory => format!(
+                "llamafactory-cli train \\\n  --model_name_or_path {model} \\\n  --dataset {dataset} \\\n  --output_dir {output} \\\n  --finetuning_type lora \\\n  --lora_rank 16 \\\n  --num_train_epochs 3 \\\n  --per_device_train_batch_size 2 \\\n  --learning_rate 2e-4 \\\n  --template default"
+            ),
+            Self::DeepSpeed => format!(
+                "deepspeed --num_gpus=4 train.py \\\n  --model_name_or_path {model} \\\n  --train_file {dataset} \\\n  --output_dir {output} \\\n  --deepspeed ds_config.json \\\n  --per_device_train_batch_size 2 \\\n  --num_train_epochs 3"
+            ),
+            Self::HuggingFaceTRL => format!(
+                "python -c \"\nfrom trl import SFTTrainer, SFTConfig\nfrom transformers import AutoModelForCausalLM, AutoTokenizer\nfrom datasets import load_dataset\nmodel = AutoModelForCausalLM.from_pretrained('{model}')\ntokenizer = AutoTokenizer.from_pretrained('{model}')\ndataset = load_dataset('json', data_files='{dataset}')\ntrainer = SFTTrainer(model=model, tokenizer=tokenizer, train_dataset=dataset['train'],\n    args=SFTConfig(output_dir='{output}', num_train_epochs=3))\ntrainer.train()\n\""
+            ),
+            Self::PEFT => format!(
+                "python -c \"\nfrom peft import LoraConfig, get_peft_model\nfrom transformers import AutoModelForCausalLM, AutoTokenizer, TrainingArguments, Trainer\nfrom datasets import load_dataset\nmodel = AutoModelForCausalLM.from_pretrained('{model}')\nlora_config = LoraConfig(r=16, lora_alpha=32, target_modules=['q_proj', 'v_proj'])\nmodel = get_peft_model(model, lora_config)\ndataset = load_dataset('json', data_files='{dataset}')\ntrainer = Trainer(model=model, train_dataset=dataset['train'],\n    args=TrainingArguments(output_dir='{output}', num_train_epochs=3))\ntrainer.train()\nmodel.save_pretrained('{output}')\n\""
+            ),
+        }
+    }
+
+    pub fn all() -> Vec<Self> {
+        vec![Self::Unsloth, Self::Axolotl, Self::LlamaFactory, Self::DeepSpeed, Self::HuggingFaceTRL, Self::PEFT]
+    }
+}
+
+// ── Notebook Environments ────────────────────────────────────────────────
+
+/// Notebook/environment platforms for training runs.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum NotebookEnvironment {
+    GoogleColab,
+    KaggleNotebook,
+    SageMakerStudio,
+    LightningStudio,
+    GradioSpaces,
+    LocalJupyter,
+}
+
+impl NotebookEnvironment {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::GoogleColab => "google_colab",
+            Self::KaggleNotebook => "kaggle",
+            Self::SageMakerStudio => "sagemaker",
+            Self::LightningStudio => "lightning",
+            Self::GradioSpaces => "gradio_spaces",
+            Self::LocalJupyter => "local_jupyter",
+        }
+    }
+
+    pub fn display_name(&self) -> &'static str {
+        match self {
+            Self::GoogleColab => "Google Colab (Free T4 GPU)",
+            Self::KaggleNotebook => "Kaggle Notebook (Free P100 GPU)",
+            Self::SageMakerStudio => "AWS SageMaker Studio",
+            Self::LightningStudio => "Lightning AI Studio",
+            Self::GradioSpaces => "Hugging Face Spaces",
+            Self::LocalJupyter => "Local Jupyter Lab",
+        }
+    }
+
+    pub fn gpu_info(&self) -> &'static str {
+        match self {
+            Self::GoogleColab => "T4 16GB (free) / A100 40GB (Pro) / L4 (Pro+)",
+            Self::KaggleNotebook => "P100 16GB (free, 30hr/week) / T4x2",
+            Self::SageMakerStudio => "ml.g5.xlarge (A10G) to ml.p4d.24xlarge (A100x8)",
+            Self::LightningStudio => "T4, A10G, A100 — pay-as-you-go",
+            Self::GradioSpaces => "T4 (free with ZeroGPU) / A10G (paid)",
+            Self::LocalJupyter => "Your local GPU(s)",
+        }
+    }
+
+    /// Generate a notebook cell that sets up the fine-tuning environment.
+    pub fn generate_setup_cell(&self, library: &FineTuneLibrary) -> String {
+        let install = library.pip_install();
+        match self {
+            Self::GoogleColab => format!(
+                "# Google Colab setup — run this cell first\n!{install}\n!pip install transformers datasets accelerate bitsandbytes\n\nimport torch\nprint(f'GPU: {{torch.cuda.get_device_name(0)}}')\nprint(f'VRAM: {{torch.cuda.get_device_properties(0).total_mem / 1e9:.1f}} GB')"
+            ),
+            Self::KaggleNotebook => format!(
+                "# Kaggle Notebook setup\n!{install}\n!pip install transformers datasets accelerate bitsandbytes\n\nimport torch\nprint(f'GPU: {{torch.cuda.get_device_name(0)}}')"
+            ),
+            Self::SageMakerStudio => format!(
+                "# SageMaker Studio setup\n!{install}\n!pip install sagemaker transformers datasets\n\nimport sagemaker\nsession = sagemaker.Session()\nprint(f'Region: {{session.boto_region_name}}')"
+            ),
+            Self::LightningStudio | Self::GradioSpaces | Self::LocalJupyter => format!(
+                "# Environment setup\n!{install}\n!pip install transformers datasets accelerate bitsandbytes\n\nimport torch\nif torch.cuda.is_available():\n    print(f'GPU: {{torch.cuda.get_device_name(0)}}')\nelse:\n    print('No GPU — will use CPU (slow)')"
+            ),
+        }
+    }
+
+    pub fn all() -> Vec<Self> {
+        vec![Self::GoogleColab, Self::KaggleNotebook, Self::SageMakerStudio, Self::LightningStudio, Self::GradioSpaces, Self::LocalJupyter]
+    }
+}
+
+// ── RL Gym Environments ──────────────────────────────────────────────────
+
+/// Reinforcement learning environment frameworks for agent training.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum RlEnvironment {
+    /// NeMo Gym (TuringWorks/Gym) — RL training environments for LLMs.
+    NeMoGym,
+    /// OpenAI Gymnasium — standard RL environments (CartPole, Atari, MuJoCo).
+    Gymnasium,
+    /// ReasoningGym — reasoning task environments for LLMs.
+    ReasoningGym,
+    /// SWE-Bench — software engineering task environment.
+    SweBench,
+    /// LMSYS Arena — human preference data for RLHF.
+    LmsysArena,
+    /// TRL + PPO — Transformer RL with proximal policy optimization.
+    TrlPpo,
+    /// Aviary — tool-use environments (search, calculators, APIs).
+    Aviary,
+}
+
+impl RlEnvironment {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::NeMoGym => "nemo_gym",
+            Self::Gymnasium => "gymnasium",
+            Self::ReasoningGym => "reasoning_gym",
+            Self::SweBench => "swe_bench",
+            Self::LmsysArena => "lmsys_arena",
+            Self::TrlPpo => "trl_ppo",
+            Self::Aviary => "aviary",
+        }
+    }
+
+    pub fn display_name(&self) -> &'static str {
+        match self {
+            Self::NeMoGym => "NeMo Gym (LLM RL environments)",
+            Self::Gymnasium => "OpenAI Gymnasium (classic RL)",
+            Self::ReasoningGym => "Reasoning Gym (logic/math tasks)",
+            Self::SweBench => "SWE-Bench (code editing tasks)",
+            Self::LmsysArena => "LMSYS Chatbot Arena (RLHF preference data)",
+            Self::TrlPpo => "TRL PPO Trainer (direct RLHF)",
+            Self::Aviary => "Aviary (tool-use RL environments)",
+        }
+    }
+
+    pub fn description(&self) -> &'static str {
+        match self {
+            Self::NeMoGym => "60+ resource servers: GPQA, MMLU, ARC, coding, math proofs (Lean4), tool-use (Aviary), safety. Client-server architecture with Ray rollout collection.",
+            Self::Gymnasium => "Standard RL API: CartPole, Atari, MuJoCo, robotics. Used for classic RL algorithm development. Wrapper-based extensibility.",
+            Self::ReasoningGym => "Logic puzzles, mathematical reasoning, pattern recognition. Designed for evaluating and training LLM reasoning capabilities.",
+            Self::SweBench => "Real-world GitHub issues. Agent must read codebase, understand bug, write fix. Gold standard for code agent evaluation.",
+            Self::LmsysArena => "Human preference data from Chatbot Arena. ELO-ranked model comparisons. Used for DPO/RLHF training data.",
+            Self::TrlPpo => "Proximal Policy Optimization with reward models. Train LLMs to optimize for human preferences via RL.",
+            Self::Aviary => "Tool-use environments: web search, calculators, calendar scheduling, API calls. Tests agent ability to use external tools.",
+        }
+    }
+
+    pub fn github_url(&self) -> &'static str {
+        match self {
+            Self::NeMoGym => "https://github.com/TuringWorks/Gym",
+            Self::Gymnasium => "https://github.com/Farama-Foundation/Gymnasium",
+            Self::ReasoningGym => "https://github.com/reasoning-gym/reasoning-gym",
+            Self::SweBench => "https://github.com/princeton-nlp/SWE-bench",
+            Self::LmsysArena => "https://github.com/lm-sys/FastChat",
+            Self::TrlPpo => "https://github.com/huggingface/trl",
+            Self::Aviary => "https://github.com/TuringWorks/Gym",
+        }
+    }
+
+    pub fn pip_install(&self) -> &'static str {
+        match self {
+            Self::NeMoGym => "pip install nemo-rl-gym",
+            Self::Gymnasium => "pip install gymnasium",
+            Self::ReasoningGym => "pip install reasoning-gym",
+            Self::SweBench => "pip install swebench",
+            Self::LmsysArena => "pip install fschat",
+            Self::TrlPpo => "pip install trl",
+            Self::Aviary => "pip install nemo-rl-gym",
+        }
+    }
+
+    /// Generate a sample training loop for this RL environment.
+    pub fn generate_sample(&self, model: &str) -> String {
+        match self {
+            Self::NeMoGym => format!(
+                "# NeMo Gym — multi-step RL environment for LLMs\nfrom nemo_rl import Environment, Agent\n\nenv = Environment.from_config('gpqa_diamond')\nagent = Agent.from_pretrained('{model}')\n\nfor episode in range(100):\n    obs = env.reset()\n    done = False\n    while not done:\n        action = agent.act(obs)\n        obs, reward, done, info = env.step(action)\n        agent.learn(reward)\n    print(f'Episode {{episode}}: reward={{reward:.2f}}')"
+            ),
+            Self::Gymnasium => format!(
+                "# OpenAI Gymnasium — classic RL\nimport gymnasium as gym\n\nenv = gym.make('CartPole-v1')\nobs, info = env.reset()\n\nfor _ in range(1000):\n    action = env.action_space.sample()  # Replace with your policy\n    obs, reward, terminated, truncated, info = env.step(action)\n    if terminated or truncated:\n        obs, info = env.reset()\nenv.close()"
+            ),
+            Self::TrlPpo => format!(
+                "# TRL PPO — RLHF training\nfrom trl import PPOTrainer, PPOConfig, AutoModelForCausalLMWithValueHead\nfrom transformers import AutoTokenizer\n\nmodel = AutoModelForCausalLMWithValueHead.from_pretrained('{model}')\ntokenizer = AutoTokenizer.from_pretrained('{model}')\n\nppo_config = PPOConfig(batch_size=4, learning_rate=1e-5)\ntrainer = PPOTrainer(config=ppo_config, model=model, tokenizer=tokenizer)\n\n# Training loop with reward model\nfor batch in dataloader:\n    queries = tokenizer(batch['query'], return_tensors='pt')\n    responses = model.generate(**queries)\n    rewards = reward_model(queries, responses)\n    trainer.step(queries, responses, rewards)"
+            ),
+            Self::SweBench => format!(
+                "# SWE-Bench — evaluate code agent on real GitHub issues\nfrom swebench import get_model_report\n\nresults = get_model_report(\n    model='{model}',\n    dataset='swebench_lite',\n    split='test'\n)\nprint(f'Pass@1: {{results[\"pass@1\"]:.1%}}')"
+            ),
+            _ => format!("# See {} for setup instructions\n# pip install: {}", self.github_url(), self.pip_install()),
+        }
+    }
+
+    pub fn all() -> Vec<Self> {
+        vec![Self::NeMoGym, Self::Gymnasium, Self::ReasoningGym, Self::SweBench, Self::LmsysArena, Self::TrlPpo, Self::Aviary]
+    }
+}
+
+// ── Document Processing (MinerU integration) ─────────────────────────────
+
+/// Document processing tools for RAG pipeline data preparation.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum DocumentProcessor {
+    /// MinerU — PDF to structured Markdown/JSON for LLMs.
+    MinerU,
+    /// Docling (IBM) — document understanding for RAG.
+    Docling,
+    /// Unstructured — open-source document ETL.
+    Unstructured,
+    /// LlamaParse — LlamaIndex document parsing.
+    LlamaParse,
+    /// VibeCody built-in — document_ingest.rs.
+    BuiltIn,
+}
+
+impl DocumentProcessor {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::MinerU => "mineru",
+            Self::Docling => "docling",
+            Self::Unstructured => "unstructured",
+            Self::LlamaParse => "llamaparse",
+            Self::BuiltIn => "builtin",
+        }
+    }
+
+    pub fn display_name(&self) -> &'static str {
+        match self {
+            Self::MinerU => "MinerU (PDF to Markdown/JSON)",
+            Self::Docling => "Docling (IBM document understanding)",
+            Self::Unstructured => "Unstructured (document ETL)",
+            Self::LlamaParse => "LlamaParse (LlamaIndex)",
+            Self::BuiltIn => "VibeCody Built-in (9 formats)",
+        }
+    }
+
+    pub fn install_command(&self) -> &'static str {
+        match self {
+            Self::MinerU => "pip install magic-pdf[full]",
+            Self::Docling => "pip install docling",
+            Self::Unstructured => "pip install unstructured[all-docs]",
+            Self::LlamaParse => "pip install llama-parse",
+            Self::BuiltIn => "# Built into VibeCody — use /ingest",
+        }
+    }
+
+    pub fn process_command(&self, input: &str, output: &str) -> String {
+        match self {
+            Self::MinerU => format!("magic-pdf -p {} -o {} -m auto", input, output),
+            Self::Docling => format!("docling {} --output {}", input, output),
+            Self::Unstructured => format!("unstructured-ingest local --input-path {} --output-dir {}", input, output),
+            Self::LlamaParse => format!("# Requires LLAMA_CLOUD_API_KEY\npython -c \"from llama_parse import LlamaParse; parser = LlamaParse(); result = parser.load_data('{}')\"", input),
+            Self::BuiltIn => format!("/ingest {}", input),
+        }
+    }
+
+    pub fn all() -> Vec<Self> {
+        vec![Self::MinerU, Self::Docling, Self::Unstructured, Self::LlamaParse, Self::BuiltIn]
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum DatasetFormat {
     ChatML,

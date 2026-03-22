@@ -276,13 +276,20 @@ export function AiMlWorkflowPanel() {
                   {stage.id === "data" && (
                     <div>
                       <div style={labelStyle}>Data Sources</div>
-                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                        {["Codebase files", "Git history", "Agent traces", "Documents", "CSV/JSON"].map(s => (
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+                        {["Codebase files", "Git history", "Agent traces", "Documents", "CSV/JSON", "PDF (scientific)"].map(s => (
                           <span key={s} style={{ ...btnStyle, fontSize: 11 }}>{s}</span>
                         ))}
                       </div>
-                      <div style={{ marginTop: 8, color: "var(--text-secondary)" }}>
-                        CLI: <code>/ingest ./docs</code> | <code>/train dataset from-codebase</code> | <code>/train dataset from-git</code>
+                      <div style={labelStyle}>Document Processors</div>
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+                        {["MinerU (PDF to MD)", "Docling (IBM)", "Unstructured", "LlamaParse", "VibeCody Built-in"].map(p => (
+                          <span key={p} style={{ ...btnStyle, fontSize: 11 }}>{p}</span>
+                        ))}
+                      </div>
+                      <div style={{ marginTop: 8, color: "var(--text-secondary)", fontSize: 11 }}>
+                        <div>CLI: <code>/ingest ./docs</code> | <code>/train dataset from-codebase</code> | <code>/train dataset from-git</code></div>
+                        <div style={{ marginTop: 4 }}>MinerU: <code>magic-pdf -p input.pdf -o output/ -m auto</code></div>
                       </div>
                     </div>
                   )}
@@ -301,17 +308,28 @@ export function AiMlWorkflowPanel() {
                   )}
                   {stage.id === "finetune" && (
                     <div>
-                      <div style={labelStyle}>Fine-Tune Provider</div>
-                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                        {["OpenAI", "Together AI", "Fireworks", "Local (LoRA)"].map(p => (
+                      <div style={labelStyle}>Fine-Tuning Libraries</div>
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+                        {["Unsloth", "Axolotl", "LLaMA Factory", "DeepSpeed", "HuggingFace TRL", "PEFT"].map(p => (
                           <span key={p} style={{ ...btnStyle, fontSize: 11 }}>{p}</span>
                         ))}
                       </div>
-                      <div style={{ marginTop: 6 }}>
-                        <div style={labelStyle}>Formats: ChatML, Alpaca, ShareGPT, Completion</div>
+                      <div style={labelStyle}>Cloud Providers</div>
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+                        {["OpenAI", "Together AI", "Fireworks", "Local (LoRA/QLoRA)"].map(p => (
+                          <span key={p} style={{ ...btnStyle, fontSize: 11 }}>{p}</span>
+                        ))}
                       </div>
+                      <div style={labelStyle}>Notebook Environments</div>
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+                        {["Google Colab (free T4)", "Kaggle (free P100)", "SageMaker Studio", "Lightning AI", "Local Jupyter"].map(e => (
+                          <span key={e} style={{ ...btnStyle, fontSize: 11 }}>{e}</span>
+                        ))}
+                      </div>
+                      <div style={labelStyle}>Alignment Methods: SFT, DPO, PPO, RLHF, KTO</div>
+                      <div style={labelStyle}>Formats: ChatML, Alpaca, ShareGPT, Completion</div>
                       <div style={{ marginTop: 8, color: "var(--text-secondary)" }}>
-                        CLI: <code>/train finetune --provider together --model llama-3.1-8b</code>
+                        CLI: <code>/train finetune --library unsloth --model llama-3.1-8b</code>
                       </div>
                     </div>
                   )}
@@ -361,13 +379,20 @@ export function AiMlWorkflowPanel() {
                   {stage.id === "agent" && (
                     <div>
                       <div style={labelStyle}>Agent Capabilities</div>
-                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
                         {["Tool Calling (MCP)", "Agent Protocol (ACP)", "RAG Context", "Memory", "Multi-Agent Teams", "Reasoning (think tool)"].map(c => (
                           <span key={c} style={{ ...btnStyle, fontSize: 11 }}>{c}</span>
                         ))}
                       </div>
-                      <div style={{ marginTop: 8, color: "var(--text-secondary)" }}>
-                        CLI: <code>/agent "task"</code> | <code>/team create my-team</code>
+                      <div style={labelStyle}>RL Training Environments</div>
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+                        {["NeMo Gym (60+ tasks)", "OpenAI Gymnasium", "Reasoning Gym", "SWE-Bench", "TRL PPO (RLHF)", "Aviary (tool-use)", "LMSYS Arena"].map(e => (
+                          <span key={e} style={{ ...btnStyle, fontSize: 11 }}>{e}</span>
+                        ))}
+                      </div>
+                      <div style={{ marginTop: 8, color: "var(--text-secondary)", fontSize: 11 }}>
+                        <div>CLI: <code>/agent "task"</code> | <code>/team create my-team</code></div>
+                        <div style={{ marginTop: 4 }}>RL: <code>/benchmark run --env nemo-gym --tasks gpqa,coding</code></div>
                       </div>
                     </div>
                   )}
