@@ -292,6 +292,6 @@ Local inference speed depends on your hardware. Options:
 
 ## Next Steps
 
-- [Using the Agent to Fix Bugs](/tutorials/agent-workflow/) -- put your provider to work
-- [AI-Powered Code Review](/tutorials/code-review/) -- review code with AI
+- [Using the Agent to Fix Bugs](/vibecody/tutorials/agent-workflow/) -- put your provider to work
+- [AI-Powered Code Review](/vibecody/tutorials/code-review/) -- review code with AI
 - [Tutorials Index](./) -- browse all tutorials

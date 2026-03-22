@@ -105,7 +105,7 @@ If you use Ollama or another local model, no code leaves your machine.
 2. Disable network access in the sandbox configuration.
 3. Use the Docker Compose air-gapped setup.
 
-See the [Security](/security/) page for full details.
+See the [Security](/vibecody/security/) page for full details.
 
 ### What is the sandbox?
 
@@ -174,7 +174,7 @@ VibeCody is open source (MIT). Enterprise features available in the codebase inc
 
 ### SOC 2 / compliance support?
 
-The `compliance_controls.rs` module provides technical controls aligned with SOC 2 requirements, including audit trail logging, PII detection and redaction, data retention policies, and exportable compliance reports. See the [Security](/security/) page for details.
+The `compliance_controls.rs` module provides technical controls aligned with SOC 2 requirements, including audit trail logging, PII detection and redaction, data retention policies, and exportable compliance reports. See the [Security](/vibecody/security/) page for details.
 
 ### How does usage metering work?
 
@@ -183,4 +183,4 @@ The usage metering system tracks token consumption and API costs across users, p
 
 ## More Questions?
 
-If your question is not answered here, check the [Troubleshooting](/troubleshooting/) guide or open an issue on [GitHub](https://github.com/TuringWorks/vibecody/issues).
+If your question is not answered here, check the [Troubleshooting](/vibecody/troubleshooting/) guide or open an issue on [GitHub](https://github.com/TuringWorks/vibecody/issues).

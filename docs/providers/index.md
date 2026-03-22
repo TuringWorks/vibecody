@@ -65,7 +65,7 @@ VibeCody supports 22 AI providers, covering cloud APIs, local models, inference 
 
 ## Configuration
 
-All providers are configured in `~/.vibecli/config.toml`. See the [Configuration Guide](/configuration/) for the full reference.
+All providers are configured in `~/.vibecli/config.toml`. See the [Configuration Guide](/vibecody/configuration/) for the full reference.
 
 Environment variables take precedence over config file values.
 

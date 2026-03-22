@@ -178,4 +178,4 @@ Earlier releases established the foundation:
 - Gateway system supporting 18 messaging platforms.
 - Voice input (Groq Whisper), pairing (QR code), and Tailscale integration.
 
-See the [Roadmap](/roadmap/) for the complete feature history.
+See the [Roadmap](/vibecody/roadmap/) for the complete feature history.

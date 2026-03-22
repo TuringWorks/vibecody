@@ -784,7 +784,7 @@ gathering to release-ready code, with AI-generated checklists at each quality ga
 
 VibeCody Phase 41 adds an autonomous red team security scanning module inspired by
 [Shannon](https://github.com/KeygraphHQ/shannon). See full comparison at
-[`docs/SHANNON-COMPARISON.md`](/shannon-comparison/).
+[`docs/SHANNON-COMPARISON.md`](/vibecody/shannon-comparison/).
 
 Key differences:
 

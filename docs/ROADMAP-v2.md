@@ -1097,7 +1097,7 @@ vibeui (React + Tauri)
 
 **Status:**Complete
 **Competitor reference:**Shannon (KeygraphHQ) — autonomous AI-powered pentesting framework
-**Comparison:** [`docs/SHANNON-COMPARISON.md`](/shannon-comparison/)
+**Comparison:** [`docs/SHANNON-COMPARISON.md`](/vibecody/shannon-comparison/)
 
 | Item | Status | Details |
 |------|--------|---------|

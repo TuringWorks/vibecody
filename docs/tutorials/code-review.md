@@ -9,7 +9,7 @@ permalink: /tutorials/code-review/
 Use VibeCody to get instant, AI-powered feedback on code changes -- uncommitted work, branches, or GitHub pull requests.
 
 **Prerequisites:**
-- VibeCody installed with a working provider (see [First Provider Tutorial](/tutorials/first-provider/))
+- VibeCody installed with a working provider (see [First Provider Tutorial](/vibecody/tutorials/first-provider/))
 - A Git repository with some changes to review
 
 
@@ -246,6 +246,6 @@ code_review:
 
 ## Next Steps
 
-- [Agent Workflow Tutorial](/tutorials/agent-workflow/) -- let the agent fix review findings automatically
-- [Setting Up Your First Provider](/tutorials/first-provider/) -- try Claude for higher-quality reviews
+- [Agent Workflow Tutorial](/vibecody/tutorials/agent-workflow/) -- let the agent fix review findings automatically
+- [Setting Up Your First Provider](/vibecody/tutorials/first-provider/) -- try Claude for higher-quality reviews
 - [Tutorials Index](./) -- browse all tutorials

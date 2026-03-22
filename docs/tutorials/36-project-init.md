@@ -8,7 +8,7 @@ permalink: /tutorials/project-init/
 
 Learn how VibeCody's smart project scanner gives the AI deep understanding of your codebase — automatically, in every conversation.
 
-**Prerequisites:** VibeCody installed with a working provider. See [First Provider](/tutorials/first-provider/) if needed.
+**Prerequisites:** VibeCody installed with a working provider. See [First Provider](/vibecody/tutorials/first-provider/) if needed.
 
 
 ## The Problem
