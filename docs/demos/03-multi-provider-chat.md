@@ -90,7 +90,6 @@ Switched to provider: claude (claude-sonnet-4-20250514)
 ```
 
 <!-- Screenshot placeholder: REPL showing provider switching -->
-![Provider switching in REPL](../assets/screenshots/demo-03-provider-switch.png)
 
 ### Step 3: Streaming responses
 
@@ -207,7 +206,6 @@ vibecli chat --provider failover "This message will be sent to the first availab
 If Claude returns a rate limit error, VibeCody automatically retries with OpenAI, then Gemini, then falls back to local Ollama.
 
 <!-- Screenshot placeholder: Failover chain in action -->
-![Failover provider chain](../assets/screenshots/demo-03-failover.png)
 
 ### Step 8: Cost tracking per provider
 
@@ -243,7 +241,6 @@ vibecli chat --provider gemini "Write FizzBuzz in Rust" > gemini_response.txt
 In VibeUI, open the AI panel (`Cmd+J`) and use the provider dropdown in the top toolbar to switch providers. The Keys panel (`Cmd+J` then "Keys" tab) lets you manage API keys with a graphical interface.
 
 <!-- Screenshot placeholder: VibeUI provider dropdown -->
-![VibeUI provider selector](../assets/screenshots/demo-03-vibeui-provider.png)
 
 ## Demo Recording
 

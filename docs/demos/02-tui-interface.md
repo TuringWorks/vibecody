@@ -30,7 +30,6 @@ vibecli tui
 The TUI opens with a default layout: the chat panel in the main area, a sidebar for navigation, and a status bar at the bottom.
 
 <!-- Screenshot placeholder: TUI initial layout -->
-![TUI initial layout](../assets/screenshots/demo-02-tui-launch.png)
 
 To launch with a specific provider:
 
@@ -57,7 +56,6 @@ The TUI organizes functionality into panels accessible via the tab bar at the to
 You can also cycle through panels with `Tab` (forward) and `Shift+Tab` (backward).
 
 <!-- Screenshot placeholder: Tab bar with panels highlighted -->
-![Panel tabs](../assets/screenshots/demo-02-panel-tabs.png)
 
 ### Step 3: Chat panel
 
@@ -74,7 +72,6 @@ The response streams in real time. While the response is streaming:
 - Press `PageUp/PageDown` for faster scrolling
 
 <!-- Screenshot placeholder: Chat panel with streaming response -->
-![Chat panel](../assets/screenshots/demo-02-chat-panel.png)
 
 ### Step 4: Agent panel
 
@@ -94,7 +91,6 @@ The agent panel displays:
 4. **Summary** -- final response with changes made
 
 <!-- Screenshot placeholder: Agent panel showing tool execution -->
-![Agent panel](../assets/screenshots/demo-02-agent-panel.png)
 
 ### Step 5: History panel
 
@@ -106,7 +102,6 @@ Switch to the history panel with `Cmd+3`. This panel shows all past conversation
 - Press `/` to search through session history
 
 <!-- Screenshot placeholder: History panel with session list -->
-![History panel](../assets/screenshots/demo-02-history-panel.png)
 
 ### Step 6: Keyboard shortcuts
 
@@ -164,7 +159,6 @@ Example workflow: Chat on the left, Diff View on the right:
 ```
 
 <!-- Screenshot placeholder: Split view with chat and diff -->
-![Split view](../assets/screenshots/demo-02-split-view.png)
 
 ### Step 8: Diff view
 
@@ -195,10 +189,8 @@ Press `s` to toggle to side-by-side mode. The left pane shows the original file 
 Line gutters show line numbers for both old and new versions. Scroll position is displayed in the status bar.
 
 <!-- Screenshot placeholder: Diff view in side-by-side mode -->
-![Diff view side-by-side](../assets/screenshots/demo-02-diff-side-by-side.png)
 
 <!-- Screenshot placeholder: Diff view in unified mode -->
-![Diff view unified](../assets/screenshots/demo-02-diff-unified.png)
 
 ### Step 9: Command palette
 
@@ -214,7 +206,6 @@ Press `Shift+P` to open the command palette. This fuzzy-search interface gives y
 Start typing to filter commands. Press `Enter` to execute, `Esc` to close.
 
 <!-- Screenshot placeholder: Command palette overlay -->
-![Command palette](../assets/screenshots/demo-02-command-palette.png)
 
 ### Step 10: Embedded terminal
 

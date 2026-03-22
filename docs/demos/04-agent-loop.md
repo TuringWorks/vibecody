@@ -59,7 +59,6 @@ vibecli agent --interactive "Refactor the database module"
 ```
 
 <!-- Screenshot placeholder: Agent session starting -->
-![Agent session start](../assets/screenshots/demo-04-agent-start.png)
 
 ### Step 2: Watch the agent think
 
@@ -139,7 +138,6 @@ The diff is displayed inline:
 ```
 
 <!-- Screenshot placeholder: Agent showing diff of edits -->
-![Agent edit diff](../assets/screenshots/demo-04-agent-edit.png)
 
 ### Step 6: Shell command execution
 
@@ -291,7 +289,6 @@ In VibeUI, the Agent panel (`Cmd+J` then "Agent" tab) provides a visual represen
 5. Checkpoint controls are available in the toolbar
 
 <!-- Screenshot placeholder: VibeUI agent panel -->
-![VibeUI agent panel](../assets/screenshots/demo-04-vibeui-agent.png)
 
 ## Demo Recording
 

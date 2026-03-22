@@ -51,7 +51,6 @@ This Month:
 **VibeUI:** Open the AI panel (`Cmd+J`) and click the "Cost" tab.
 
 <!-- Screenshot placeholder: Cost Observatory dashboard -->
-![Cost dashboard](../assets/screenshots/demo-06-dashboard.png)
 
 ### Step 2: Per-provider cost breakdown
 
@@ -274,13 +273,10 @@ In VibeUI, the Cost panel provides an interactive dashboard with:
 - **Export button** -- Download cost reports as CSV or JSON
 
 <!-- Screenshot placeholder: VibeUI Cost Observatory panel -->
-![VibeUI Cost Observatory](../assets/screenshots/demo-06-vibeui-cost.png)
 
 <!-- Screenshot placeholder: Cost pie chart by provider -->
-![Cost pie chart](../assets/screenshots/demo-06-pie-chart.png)
 
 <!-- Screenshot placeholder: Budget gauge showing usage -->
-![Budget gauge](../assets/screenshots/demo-06-budget-gauge.png)
 
 ## Demo Recording
 

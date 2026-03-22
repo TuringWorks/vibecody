@@ -135,7 +135,6 @@ vibecli chat "Hello! What can you help me with?"
 You should see a streaming response from your configured AI provider.
 
 <!-- Screenshot placeholder: terminal showing vibecli chat response -->
-![First chat response](../assets/screenshots/demo-01-first-chat.png)
 
 ### Step 5: Configure the default provider
 
@@ -238,7 +237,6 @@ npm run tauri dev
 VibeUI shares the same `~/.vibecli/config.toml` configuration, so any provider setup you did above carries over.
 
 <!-- Screenshot placeholder: VibeUI main window after first launch -->
-![VibeUI first launch](../assets/screenshots/demo-01-vibeui-launch.png)
 
 ## Demo Recording
 

@@ -30,7 +30,6 @@ Launch VibeUI and navigate to the Arena panel:
 3. Click the "Arena" tab in the panel tab bar
 
 <!-- Screenshot placeholder: Arena panel initial view -->
-![Arena panel](../assets/screenshots/demo-05-arena-panel.png)
 
 Alternatively, use the CLI:
 
@@ -64,7 +63,6 @@ vibecli arena --models claude:claude-sonnet-4-20250514,deepseek:deepseek-coder,m
 ```
 
 <!-- Screenshot placeholder: Model selector with 3 models chosen -->
-![Model selection](../assets/screenshots/demo-05-model-selection.png)
 
 ### Step 3: Send a prompt to all models
 
@@ -111,7 +109,6 @@ Responses appear in parallel columns (VibeUI) or sequentially labeled sections (
 ```
 
 <!-- Screenshot placeholder: Side-by-side responses in Arena -->
-![Side-by-side comparison](../assets/screenshots/demo-05-side-by-side.png)
 
 Each response card shows:
 
@@ -149,7 +146,6 @@ You can also rate on specific criteria:
 ```
 
 <!-- Screenshot placeholder: Rating interface with thumbs up/down -->
-![Rating responses](../assets/screenshots/demo-05-rating.png)
 
 ### Step 6: Elo ranking system
 
@@ -281,7 +277,6 @@ The VibeUI Arena panel provides additional graphical features:
 - **Quick rematch** -- Re-run the same prompt with updated models
 
 <!-- Screenshot placeholder: VibeUI Arena with charts -->
-![VibeUI Arena charts](../assets/screenshots/demo-05-vibeui-arena.png)
 
 ## Demo Recording
 
