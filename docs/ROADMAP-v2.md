@@ -5,8 +5,8 @@ permalink: /roadmap-v2/
 ---
 
 
-**Date:** February 2026
-**Scope:** Detailed fit-gap analysis and feature-by-feature implementation plan to surpass Codex CLI, Claude Code (VibeCLI), and Cursor, Windsurf, Google Antigravity, Trae (VibeUI).
+**Date:**February 2026
+**Scope:**Detailed fit-gap analysis and feature-by-feature implementation plan to surpass Codex CLI, Claude Code (VibeCLI), and Cursor, Windsurf, Google Antigravity, Trae (VibeUI).
 
 ---
 
@@ -74,7 +74,7 @@ All nine roadmap phases (1–5 original, 6–9 in this document) are complete. V
 
 #### Codex CLI Key Capabilities
 
-- **OS-level sandbox** with a two-axis security model (sandbox mode × approval policy configured independently)
+- **OS-level sandbox**with a two-axis security model (sandbox mode × approval policy configured independently)
 - **Shell environment policy** — `shell_environment_policy` controls exactly which env vars subprocesses inherit (all / core / none / include/exclude patterns)
 - **Web search tool** — cached, live, or disabled; first-class tool alongside file tools
 - **Session resume** — `codex resume` restores full session transcript, files, draft, and approvals
@@ -97,7 +97,7 @@ All nine roadmap phases (1–5 original, 6–9 in this document) are complete. V
 - **Session portability** — `/teleport`, `/desktop` to move sessions between terminal, Desktop app, browser
 - **IDE integrations** — VS Code, JetBrains, Desktop app, Web, iOS, Slack, GitHub Actions, GitLab CI/CD, Chrome extension
 - **Agent SDK** — TypeScript (v0.2.34) + Python SDK for building custom agents
-- **1M-token context** via Opus 4.6
+- **1M-token context**via Opus 4.6
 - **CLAUDE.md hierarchical merging** — enterprise policy → user → project → directory-specific
 
 #### VibeCLI Gaps — All Closed Yes
@@ -140,7 +140,7 @@ All previously-identified gaps have been closed:
 - **Persistent cross-session memory** — auto-learned coding style + manual rules; survives context window resets; builds per-developer personality model
 - **SWE-1.5** — proprietary model: Claude 4.5-quality at 13x speed; purpose-trained for edit-run-test agentic loops; supports images
 - **Plan Mode** — distinct planning phase before code execution; plan presented for review before execution
-- **Named checkpoints** per conversation — full project state snapshots, revertible at any time
+- **Named checkpoints**per conversation — full project state snapshots, revertible at any time
 - **Agent Skills** — standardized execution templates, auto-invoked by matching prompts
 - **Parallel agents** (Wave 13) — git worktrees, side-by-side panes, dedicated zsh terminal
 - **Turbo Mode** — fully autonomous terminal command execution without per-command confirmation
@@ -209,15 +209,13 @@ These are our *current* advantages that we must protect and amplify:
 
 ### Phase 6 — Hooks, Planning & Intelligence Yes Complete
 
-**Goal:** The two most powerful missing capabilities: a hooks system matching Claude Code's + planning mode matching Windsurf. Also: session resume, web search, flow injection.
+**Goal:**The two most powerful missing capabilities: a hooks system matching Claude Code's + planning mode matching Windsurf. Also: session resume, web search, flow injection.
 
 ---
 
 #### 6.1 Hooks System
 
-**Priority: Critical — Claude Code's most differentiated feature**
-
-The hooks system intercepts every agent event and allows shell scripts or LLM evaluations to block, modify, or react to tool calls. This enables: guaranteed lint-on-edit, format-on-save, security enforcement, test gates, and custom CI policies — all independent of model behavior.
+**Priority: Critical — Claude Code's most differentiated feature**The hooks system intercepts every agent event and allows shell scripts or LLM evaluations to block, modify, or react to tool calls. This enables: guaranteed lint-on-edit, format-on-save, security enforcement, test gates, and custom CI policies — all independent of model behavior.
 
 **New file:** `vibeui/crates/vibe-ai/src/hooks.rs`
 
@@ -302,7 +300,7 @@ async = false  # must pass before session ends
 { "context": "Format check failed: 3 warnings. Claude should fix before completing." }
 ```
 
-**VibeUI:** Add hooks configuration panel in Settings. Show hook execution timeline in HistoryPanel alongside trace entries.
+**VibeUI:**Add hooks configuration panel in Settings. Show hook execution timeline in HistoryPanel alongside trace entries.
 
 **Files:**
 
@@ -316,9 +314,7 @@ async = false  # must pass before session ends
 
 #### 6.2 Plan Mode (Planning Before Execution)
 
-**Priority: Critical — Windsurf Wave 13 + Claude Code differentiator**
-
-A dedicated planning phase separates reasoning from action. The model generates a structured plan; the user reviews and optionally edits it; then execution proceeds step by step against the approved plan.
+**Priority: Critical — Windsurf Wave 13 + Claude Code differentiator**A dedicated planning phase separates reasoning from action. The model generates a structured plan; the user reviews and optionally edits it; then execution proceeds step by step against the approved plan.
 
 **New file:** `vibeui/crates/vibe-ai/src/planner.rs`
 
@@ -364,7 +360,7 @@ impl PlannerAgent {
 
 **REPL:** `/plan <task>` — generates plan, shows it formatted, asks "Edit plan? (y/N) → Execute? (y/N)"
 
-**VibeUI Agent Panel:** Add "Plan first" toggle. When enabled: run planner → display `ExecutionPlan` as editable todo list → "Execute Plan" button triggers executor.
+**VibeUI Agent Panel:**Add "Plan first" toggle. When enabled: run planner → display `ExecutionPlan` as editable todo list → "Execute Plan" button triggers executor.
 
 **Plan prompt format (injected):**
 
@@ -381,9 +377,7 @@ DO NOT execute any actions. Generate ONLY the JSON plan.
 
 #### 6.3 Session Resume
 
-**Priority: High**
-
-Extend trace storage to include full message history. `vibecli --resume <session-id>` restores complete conversation state.
+**Priority: High**Extend trace storage to include full message history. `vibecli --resume <session-id>` restores complete conversation state.
 
 **Extend `TraceWriter`:**
 
@@ -412,9 +406,7 @@ pub struct SessionSnapshot {
 
 #### 6.4 Web Search Tool
 
-**Priority: High — Codex has it, we don't**
-
-Add `WebSearch` to `ToolCall` enum. Use DuckDuckGo's JSON API (no API key) with an optional Google CSE config.
+**Priority: High — Codex has it, we don't**Add `WebSearch` to `ToolCall` enum. Use DuckDuckGo's JSON API (no API key) with an optional Google CSE config.
 
 ```rust
 // In tools.rs:
@@ -451,9 +443,7 @@ max_results = 5
 
 #### 6.5 Flow Context Auto-Injection
 
-**Priority: High — Windsurf's core differentiator**
-
-The flow tracker already records events. The missing piece: inject recent activity into every AI prompt automatically, giving the model full awareness without the user having to re-explain.
+**Priority: High — Windsurf's core differentiator**The flow tracker already records events. The missing piece: inject recent activity into every AI prompt automatically, giving the model full awareness without the user having to re-explain.
 
 **In `AgentLoop::build_system_prompt()`:**
 
@@ -477,15 +467,13 @@ if !flow_ctx.is_empty() {
 
 This appears in every agent request, giving the model full situational awareness.
 
-**Also:** Inject flow context into VibeUI's AIChat `onSubmit` handler, not just the agent.
+**Also:**Inject flow context into VibeUI's AIChat `onSubmit` handler, not just the agent.
 
 ---
 
 #### 6.6 Shell Environment Policy
 
-**Priority: High — Codex differentiator for CI**
-
-Fine-grained control over what environment variables subprocess tool calls inherit.
+**Priority: High — Codex differentiator for CI**Fine-grained control over what environment variables subprocess tool calls inherit.
 
 ```toml
 [safety.shell_environment]
@@ -512,7 +500,7 @@ fn build_env(policy: &ShellEnvPolicy) -> HashMap<String, String> {
 
 ### Phase 7 — Parallel Agents & Intelligence Upgrades Yes Complete
 
-**Goal:** Ship parallel multi-agent execution (closes the biggest throughput gap vs. Cursor/Windsurf), upgrade codebase indexing to embeddings, and ship next-edit prediction.
+**Goal:**Ship parallel multi-agent execution (closes the biggest throughput gap vs. Cursor/Windsurf), upgrade codebase indexing to embeddings, and ship next-edit prediction.
 
 ---
 
@@ -586,17 +574,15 @@ pub fn list_worktrees(repo: &Path) -> Result<Vec<WorktreeInfo>>;
 pub fn merge_worktree_branch(repo: &Path, branch: &str) -> Result<MergeResult>;
 ```
 
-**TUI:** New `/multi-agent` command shows a split view with N panes, one per agent. Each pane streams its own steps.
+**TUI:**New `/multi-agent` command shows a split view with N panes, one per agent. Each pane streams its own steps.
 
-**VibeUI:** New **Parallel** tab in AI panel. Shows N side-by-side agent cards. "Merge Best" button diffs all outputs and lets user pick.
+**VibeUI:**New **Parallel**tab in AI panel. Shows N side-by-side agent cards. "Merge Best" button diffs all outputs and lets user pick.
 
 ---
 
 #### 7.2 Embedding-Based Codebase Indexing
 
-**Priority: High — Cursor's core competitive moat**
-
-Upgrade from regex-based symbol search to semantic search using local embeddings.
+**Priority: High — Cursor's core competitive moat**Upgrade from regex-based symbol search to semantic search using local embeddings.
 
 **New file:** `vibe-core/src/index/embeddings.rs`
 
@@ -649,19 +635,15 @@ rebuild_on_startup = false
 max_file_size_kb = 500
 ```
 
-**Integration with agent:** When an agent task starts, semantic search finds the most relevant files to include in context automatically.
+**Integration with agent:**When an agent task starts, semantic search finds the most relevant files to include in context automatically.
 
 ---
 
 #### 7.3 Next-Edit Prediction in VibeUI
 
-**Priority: Critical — Cursor Tab / Windsurf Supercomplete**
+**Priority: Critical — Cursor Tab / Windsurf Supercomplete**The current inline completion returns a single completion at cursor. True next-edit prediction watches what you've edited and predicts what you'll want to change next — in a different location.
 
-The current inline completion returns a single completion at cursor. True next-edit prediction watches what you've edited and predicts what you'll want to change next — in a different location.
-
-**Architecture:**
-
-1. After every keystroke (debounced 150ms), capture: current file state, cursor position, last 5 edits with positions and timestamps
+**Architecture:**1. After every keystroke (debounced 150ms), capture: current file state, cursor position, last 5 edits with positions and timestamps
 2. Send to fast model (Ollama `qwen2.5-coder:7b` or similar) with a next-edit prediction prompt
 3. If the model predicts an edit at a *different* location than the cursor: show a ghost annotation at that location
 4. User presses `Tab` to jump to predicted location and accept the edit
@@ -700,15 +682,13 @@ Predict the next edit the developer will make. Respond ONLY with JSON:
 {"line": 83, "col": 15, "replacement": "username", "confidence": 0.95}
 ```
 
-**Monaco integration:** When prediction arrives, render a dimmed inline decoration at target location. `Tab` key handler: if prediction pending and Tab pressed, jump + accept; otherwise normal tab behavior.
+**Monaco integration:**When prediction arrives, render a dimmed inline decoration at target location. `Tab` key handler: if prediction pending and Tab pressed, jump + accept; otherwise normal tab behavior.
 
 ---
 
 #### 7.4 Checkpoint UI in VibeUI
 
-**Priority: Critical — backend done, ship the UI**
-
-The Tauri backend already has `create_checkpoint`, `list_checkpoints`, `restore_checkpoint`. Ship the React UI.
+**Priority: Critical — backend done, ship the UI**The Tauri backend already has `create_checkpoint`, `list_checkpoints`, `restore_checkpoint`. Ship the React UI.
 
 **New file:** `vibeui/src/components/CheckpointPanel.tsx`
 
@@ -728,17 +708,15 @@ export function CheckpointPanel({ workspacePath }) {
 }
 ```
 
-**Add to AI panel tabs:** alongside Chat / Agent / Rules / History.
+**Add to AI panel tabs:**alongside Chat / Agent / Rules / History.
 
-**Auto-create checkpoint:** When agent starts a task (especially in FullAuto mode), automatically create a checkpoint named `before-agent-<task-summary>`.
+**Auto-create checkpoint:**When agent starts a task (especially in FullAuto mode), automatically create a checkpoint named `before-agent-<task-summary>`.
 
 ---
 
 #### 7.5 GitHub PR Integration (BugBot Equivalent)
 
-**Priority: High — Cursor BugBot is a major differentiator**
-
-A dedicated code review agent mode that analyzes diffs and produces structured reviews.
+**Priority: High — Cursor BugBot is a major differentiator**A dedicated code review agent mode that analyzes diffs and produces structured reviews.
 
 **VibeCLI:**
 
@@ -781,30 +759,26 @@ pub struct ReviewIssue {
 }
 ```
 
-**Review prompt strategy:**
-
-1. Get full diff: `git diff <base>..<target>`
+**Review prompt strategy:**1. Get full diff: `git diff <base>..<target>`
 2. For large diffs: chunk by file, review each file separately
 3. Aggregate results, deduplicate, rank by severity
 4. Output: structured JSON + human-readable Markdown
 
-**GitHub integration:** Use `gh` CLI to post review comments. Requires `GITHUB_TOKEN` in environment or config.
+**GitHub integration:**Use `gh` CLI to post review comments. Requires `GITHUB_TOKEN` in environment or config.
 
-**VibeUI:** Add "Review" button in GitPanel that opens a ReviewPanel showing issues with file/line links.
+**VibeUI:**Add "Review" button in GitPanel that opens a ReviewPanel showing issues with file/line links.
 
 ---
 
 ### Phase 8 — Ecosystem Features Yes Complete
 
-**Goal:** Skills system, OpenTelemetry, Artifacts, GitHub Actions, agent configurability.
+**Goal:**Skills system, OpenTelemetry, Artifacts, GitHub Actions, agent configurability.
 
 ---
 
 #### 8.1 Skills System
 
-**Priority: Medium — Claude Code's "Skills" are auto-activating capabilities**
-
-Skills are context-aware capability definitions that activate automatically when a task matches their description — no explicit invocation needed.
+**Priority: Medium — Claude Code's "Skills" are auto-activating capabilities**Skills are context-aware capability definitions that activate automatically when a task matches their description — no explicit invocation needed.
 
 **Directory:** `.vibecli/skills/` in repo root (or `~/.vibecli/skills/` for global).
 
@@ -825,17 +799,15 @@ When editing Rust code, always:
 4. Prefer `Arc<Mutex<T>>` over raw shared state
 ```
 
-**Skill activation:** Before each agent request, scan `.vibecli/skills/` directory. For each skill, check if any `triggers` keyword appears in the task description or recent tool outputs. Activated skills' content is appended to the system prompt.
+**Skill activation:**Before each agent request, scan `.vibecli/skills/` directory. For each skill, check if any `triggers` keyword appears in the task description or recent tool outputs. Activated skills' content is appended to the system prompt.
 
-**Implementation:** Add `SkillLoader` to `vibe-ai/src/skills.rs`. Call before building system prompt in `AgentLoop`.
+**Implementation:**Add `SkillLoader` to `vibe-ai/src/skills.rs`. Call before building system prompt in `AgentLoop`.
 
 ---
 
 #### 8.2 OpenTelemetry Integration
 
-**Priority: Medium — Enterprise/CI observability**
-
-Emit OpenTelemetry spans for agent steps, enabling Jaeger/Grafana/Datadog observability in CI pipelines.
+**Priority: Medium — Enterprise/CI observability**Emit OpenTelemetry spans for agent steps, enabling Jaeger/Grafana/Datadog observability in CI pipelines.
 
 ```toml
 [otel]
@@ -857,9 +829,7 @@ service_name = "vibecli"
 
 #### 8.3 Artifacts System (Antigravity-Inspired)
 
-**Priority: High — genuinely novel UX**
-
-Agents produce structured, inspectable, annotatable deliverables alongside text responses.
+**Priority: High — genuinely novel UX**Agents produce structured, inspectable, annotatable deliverables alongside text responses.
 
 **New type in `vibe-ai/src/artifacts.rs`:**
 
@@ -887,7 +857,7 @@ pub struct Annotation {
 }
 ```
 
-**VibeUI:** New `ArtifactsPanel` renders artifacts as rich cards. Users can expand, annotate, and mark artifacts as "feedback applied." Annotations are queued and injected into the agent's next context window as: `"User feedback on artifact: <annotation>"`.
+**VibeUI:**New `ArtifactsPanel` renders artifacts as rich cards. Users can expand, annotate, and mark artifacts as "feedback applied." Annotations are queued and injected into the agent's next context window as: `"User feedback on artifact: <annotation>"`.
 
 This enables **async feedback** — the user annotates while the agent continues working on the next step.
 
@@ -895,9 +865,7 @@ This enables **async feedback** — the user annotates while the agent continues
 
 #### 8.4 GitHub Actions Integration
 
-**Priority: Medium**
-
-Official GitHub Action for running VibeCLI in CI:
+**Priority: Medium**Official GitHub Action for running VibeCLI in CI:
 
 **`.github/actions/vibecli/action.yml`:**
 
@@ -942,15 +910,13 @@ runs:
 
 ### Phase 9 — Manager View & Scale Yes Complete
 
-**Goal:** Ship the high-level orchestration UI (Manager View), VS Code extension, and Agent SDK.
+**Goal:**Ship the high-level orchestration UI (Manager View), VS Code extension, and Agent SDK.
 
 ---
 
 #### 9.1 Manager View in VibeUI
 
-**Priority: High — Antigravity's most unique feature**
-
-A dedicated orchestration dashboard for managing multiple parallel agents at the **task level**, not the file level.
+**Priority: High — Antigravity's most unique feature**A dedicated orchestration dashboard for managing multiple parallel agents at the **task level**, not the file level.
 
 **New React component:** `vibeui/src/components/ManagerView.tsx`
 
@@ -962,7 +928,7 @@ A dedicated orchestration dashboard for managing multiple parallel agents at the
 ├──────────┬──────────┬──────────┬────────────────────-┤
 │ Agent 1  │ Agent 2  │ Agent 3  │ Task Board          │
 │ ──────── │ ──────── │ ──────── │ ──────────────────  │
-│ Status:  │ Status:  │ Status:  │ ☐ Task 1 → Agent 1  │
+│ Status:  │ Status:  │ Status:  │  Task 1 → Agent 1  │
 │ Running  │ Done x   │ Pending  │ x Task 2 → Agent 2  │
 │          │          │          │ z Task 3 → Agent 3  │
 │ Step 3/? │ 12 steps │ queued   │                     │
@@ -989,9 +955,7 @@ A dedicated orchestration dashboard for managing multiple parallel agents at the
 
 #### 9.2 VS Code Extension
 
-**Priority: Medium — critical for distribution**
-
-A VS Code extension that provides VibeCLI/VibeUI capabilities inside VS Code.
+**Priority: Medium — critical for distribution**A VS Code extension that provides VibeCLI/VibeUI capabilities inside VS Code.
 
 **Extension capabilities:**
 
@@ -1012,11 +976,9 @@ A VS Code extension that provides VibeCLI/VibeUI capabilities inside VS Code.
 
 #### 9.3 Agent SDK
 
-**Priority: Low-Medium — community/enterprise adoption**
+**Priority: Low-Medium — community/enterprise adoption**A library that lets developers build custom agents using VibeCLI's infrastructure.
 
-A library that lets developers build custom agents using VibeCLI's infrastructure.
-
-**Rust crate:** Publish `vibe-ai` as a standalone crate on crates.io.
+**Rust crate:**Publish `vibe-ai` as a standalone crate on crates.io.
 
 **TypeScript package:** `@vibecody/agent-sdk` wraps the VibeCLI daemon API:
 
@@ -1196,8 +1158,8 @@ vibeui (React + Tauri)
 
 ## 7.10 Phase 41 — Red Team Security Testing Yes
 
-**Status:** Complete
-**Competitor reference:** Shannon (KeygraphHQ) — autonomous AI-powered pentesting framework
+**Status:**Complete
+**Competitor reference:**Shannon (KeygraphHQ) — autonomous AI-powered pentesting framework
 **Comparison:** [`docs/SHANNON-COMPARISON.md`](/shannon-comparison/)
 
 | Item | Status | Details |
@@ -1215,7 +1177,7 @@ vibeui (React + Tauri)
 
 ## 7.11 Phase 42 — Jira Context, MCP OAuth, Custom Domains Yes
 
-**Status:** Complete
+**Status:**Complete
 
 | Item | Status | Details |
 |------|--------|---------|
@@ -1227,7 +1189,7 @@ vibeui (React + Tauri)
 
 ## 7.12 Phase 43 — Test Runner & AI Commit Message Yes
 
-**Status:** Complete
+**Status:**Complete
 
 | Item | Status | Details |
 |------|--------|---------|
@@ -1236,7 +1198,7 @@ vibeui (React + Tauri)
 
 ## 7.13 Phase 43 — CRDT Multiplayer Collaboration Yes
 
-**Status:** Complete
+**Status:**Complete
 
 Real-time collaborative editing powered by [yrs](https://github.com/y-crdt/y-crdt) (the Rust port of Yjs). Multiple users edit the same file simultaneously with automatic conflict resolution via CRDTs.
 
@@ -1246,7 +1208,7 @@ Real-time collaborative editing powered by [yrs](https://github.com/y-crdt/y-crd
 | WebSocket transport | Yes | Axum 0.7 `extract::ws` handler at `/ws/collab/:room_id`; bearer token auth via query param; binary frames for Yjs sync, text frames for JSON session coordination; peer join/leave broadcast |
 | REST room management | Yes | `POST /collab/rooms` (create), `GET /collab/rooms` (list), `GET /collab/rooms/:room_id/peers` (peer list); protected by existing auth + rate-limit middleware |
 | Tauri commands | Yes | `create_collab_session`, `join_collab_session`, `leave_collab_session`, `list_collab_peers`, `get_collab_status` — 5 new commands registered in `lib.rs` |
-| `CollabPanel.tsx` | Yes | Create/join room UI, peer list with color indicators, copy invite link, leave session; "👥 Collab" 25th AI panel tab |
+| `CollabPanel.tsx` | Yes | Create/join room UI, peer list with color indicators, copy invite link, leave session; " Collab" 25th AI panel tab |
 | `useCollab.ts` hook | Yes | React hook managing WebSocket connection, Y.Doc lifecycle, awareness state, peer tracking, reconnection |
 | NPM dependencies | Yes | `yjs ^13.6.0`, `y-monaco ^0.1.6`, `y-websocket ^2.0.0` added to `vibeui/package.json` |
 | Tests | Yes | 15 unit tests: room lifecycle, peer management, room full, Y.Doc sync convergence, incremental updates, message serialization, color cycling, server cleanup |
@@ -1269,7 +1231,7 @@ Real-time collaborative editing powered by [yrs](https://github.com/y-crdt/y-crd
 
 ## 7.14 Phase 44 — Code Coverage, Multi-Model Comparison, HTTP Playground Yes
 
-**Status:** Complete
+**Status:**Complete
 
 | Item | Status | Details |
 |------|--------|---------|
@@ -1280,24 +1242,24 @@ Real-time collaborative editing powered by [yrs](https://github.com/y-crdt/y-crd
 
 ## 7.15 Phase 44 — Arena Mode, Live Preview, Recursive Subagent Trees Yes
 
-**Status:** Complete
+**Status:**Complete
 
 | Item | Status | Details |
 |------|--------|---------|
-| Arena Mode | Yes | `ArenaPanel.tsx` (🥊 Arena tab) — blind A/B model comparison: randomized provider assignment, hidden identities, vote buttons (A/B/Tie/Both bad), post-vote reveal with timing/tokens, persistent leaderboard at `~/.vibeui/arena-votes.json`; `save_arena_vote` + `get_arena_history` Tauri commands; `/arena` REPL command with `compare`/`stats`/`history` sub-commands |
+| Arena Mode | Yes | `ArenaPanel.tsx` ( Arena tab) — blind A/B model comparison: randomized provider assignment, hidden identities, vote buttons (A/B/Tie/Both bad), post-vote reveal with timing/tokens, persistent leaderboard at `~/.vibeui/arena-votes.json`; `save_arena_vote` + `get_arena_history` Tauri commands; `/arena` REPL command with `compare`/`stats`/`history` sub-commands |
 | Live Preview with Element Selection | Yes | BrowserPanel gains inspect mode toggle (, localhost-only); injects `inspector.js` into iframe; postMessage listener for `vibe:element-selected`; element info overlay (tag, selector, React component, parent chain, outerHTML); "Send to Chat" via `vibeui:inject-context`; `inspector.js` gains `parentChain` in `buildInfo()`; `@html-selected` context type in ContextPicker + `resolve_at_references()` |
 | Recursive Subagent Trees | Yes | `AgentContext` gains `parent_session_id`, `depth`, shared `active_agent_counter`; `ToolCall::SpawnAgent` gains `max_depth`; `spawn_sub_agent()` enforces depth ≤ 5, per-parent children ≤ 10, global agents ≤ 20; `session_store.rs` gains tree schema + `get_children()`/`get_tree()`/`list_root_sessions()` queries; 5 new unit tests |
 
 ## 7.16 Phase 45 — Cost Observatory, AI Git Workflow, Codemod Auto-Fix Yes
 
-**Status:** Complete
+**Status:**Complete
 
 | Item | Status | Details |
 |------|--------|---------|
 | Cost & Performance Observatory | Yes | `record_cost_entry` appends to `~/.vibeui/cost-log.jsonl` (JSONL); `get_cost_metrics` computes per-provider aggregates + budget remaining; `set_cost_limit` + `clear_cost_history`; uses `TokenUsage::estimated_cost_usd()` pricing |
 | AI Git Workflow | Yes | `suggest_branch_name` (LLM-generated from task description); `resolve_merge_conflict` (AI merge resolution); `generate_changelog` (`git log` → Keep-a-Changelog format via LLM) |
 | Codemod & Lint Auto-Fix | Yes | `run_autofix` auto-detects clippy/eslint/ruff/gofmt/prettier, runs fix mode, returns `AutofixResult` with diff + file count; `apply_autofix` stages or reverts via git |
-| Frontend: CostPanel | Yes | `CostPanel.tsx` (💰 Cost tab) — per-provider cost breakdown, total spend, budget limit input, cost history table, clear history |
+| Frontend: CostPanel | Yes | `CostPanel.tsx` ( Cost tab) — per-provider cost breakdown, total spend, budget limit input, cost history table, clear history |
 | Frontend: AutofixPanel | Yes | `AutofixPanel.tsx` (Autofix tab) — auto-detect linter, run fix, diff preview with file count, apply/revert |
 | Frontend: AI Git tools | Yes | `GitPanel.tsx` — AI Branch Name (suggest + copy), Generate Changelog (since-ref + editable result), Resolve Merge Conflict (AI resolve + copy) |
 | VibeCLI /autofix | Yes | `/autofix` added to REPL COMMANDS array |
@@ -1305,7 +1267,7 @@ Real-time collaborative editing powered by [yrs](https://github.com/y-crdt/y-crd
 
 ## 7.17 Phase 46 — Provider Hardening + WCAG 2.1 AA Accessibility Yes
 
-**Status:** Complete
+**Status:**Complete
 
 | Item | Status | Details |
 |------|--------|---------|
@@ -1323,7 +1285,7 @@ Real-time collaborative editing powered by [yrs](https://github.com/y-crdt/y-crd
 
 ## 7.18 Test Coverage Expansion Yes
 
-**Status:** Complete
+**Status:**Complete
 
 | Item | Status | Details |
 |------|--------|---------|
@@ -1335,11 +1297,11 @@ Real-time collaborative editing powered by [yrs](https://github.com/y-crdt/y-crd
 | symbol.rs tests (16) | Yes | Language::from_extension (11 exts + case-insensitive), is_source, as_str; SymbolKind::as_str (11 kinds); SymbolInfo::format_ref; extract_symbols for Rust/Python/Go/TypeScript/Unknown; deduplication |
 | bedrock.rs SigV4 tests (13) | Yes | sha256_hex known vectors; hmac_sha256 determinism/different-keys; derive_signing_key date/region variations; epoch_days_to_ymd (epoch/2000/2024/leap-day/year-end); sigv4_auth_header format/determinism/payload |
 | collab error.rs tests (13) | Yes | CollabError Display for all 8 variants; StatusCode conversion (NOT_FOUND/CONFLICT/UNAUTHORIZED/BAD_REQUEST/INTERNAL_SERVER_ERROR) |
-| Total | Yes | **508 tests** passing across workspace (was 344) |
+| Total | Yes | **508 tests**passing across workspace (was 344) |
 
 ## 7.18b Test Coverage Expansion Round 2 Yes
 
-**Status:** Complete
+**Status:**Complete
 
 | Item | Status | Details |
 |------|--------|---------|
@@ -1355,11 +1317,11 @@ Real-time collaborative editing powered by [yrs](https://github.com/y-crdt/y-crd
 | workspace.rs tests (12) | Yes | from_config, setting types, dedup, close_file, WorkspaceConfig serde |
 | multi_agent.rs tests (10) | Yes | AgentTask/Status/Result serde, AgentInstance clone, branch_name |
 | scheduler.rs tests (16) | Yes | format_interval (s/m/h/d), parse_duration edge cases, ScheduleExpr serde roundtrip |
-| Total | Yes | **664 tests** passing across workspace (was 508; +153 new) |
+| Total | Yes | **664 tests**passing across workspace (was 508; +153 new) |
 
 ## 7.18c Test Coverage Expansion Round 3 Yes
 
-**Status:** Complete
+**Status:**Complete
 
 | Item | Status | Details |
 |------|--------|---------|
@@ -1373,13 +1335,13 @@ Real-time collaborative editing powered by [yrs](https://github.com/y-crdt/y-crd
 | linear.rs tests (9) | Yes | priority_label all values, LinearIssue serde, handle_linear_command subcommands |
 | context.rs tests (8) | Yes | with_index, with_open_files, token_budget, empty/missing inputs |
 | config.rs tests (7) | Yes | load_from_file, serde roundtrip, empty/invalid TOML |
-| Total | Yes | **1,898 tests** passing across workspace (as of 2026-03-07) |
+| Total | Yes | **1,898 tests**passing across workspace (as of 2026-03-07) |
 
 ---
 
 ## 7.19 Phase 7.19 — Context Window Safety + Process Manager Yes
 
-**Status:** Complete
+**Status:**Complete
 
 | Item | Status | Details |
 |------|--------|---------|
@@ -1398,7 +1360,7 @@ Real-time collaborative editing powered by [yrs](https://github.com/y-crdt/y-crd
 
 ## 7.20 Phase 7.20 — Streaming Metrics + REPL Session Commands Yes
 
-**Status:** Complete
+**Status:**Complete
 
 | Item | Status | Details |
 |------|--------|---------|
@@ -1414,7 +1376,7 @@ Real-time collaborative editing powered by [yrs](https://github.com/y-crdt/y-crd
 
 ## 7.21 Phase 7.21 — Real-time Chat Streaming Yes
 
-**Status:** Complete
+**Status:**Complete
 
 | Item | Status | Details |
 |------|--------|---------|
@@ -1434,7 +1396,7 @@ Real-time collaborative editing powered by [yrs](https://github.com/y-crdt/y-crd
 
 ## 8. VibeCody Wins — Competitive Position
 
-With all phases complete, VibeCody is the **only** developer toolchain that combines:
+With all phases complete, VibeCody is the **only**developer toolchain that combines:
 
 | - | - | - |
 |---|---------|----------------|
