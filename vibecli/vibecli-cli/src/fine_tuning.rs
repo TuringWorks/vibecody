@@ -292,9 +292,8 @@ impl RlEnvironment {
             Self::NeMoGym => format!(
                 "# NeMo Gym — multi-step RL environment for LLMs\nfrom nemo_rl import Environment, Agent\n\nenv = Environment.from_config('gpqa_diamond')\nagent = Agent.from_pretrained('{model}')\n\nfor episode in range(100):\n    obs = env.reset()\n    done = False\n    while not done:\n        action = agent.act(obs)\n        obs, reward, done, info = env.step(action)\n        agent.learn(reward)\n    print(f'Episode {{episode}}: reward={{reward:.2f}}')"
             ),
-            Self::Gymnasium => format!(
-                "# OpenAI Gymnasium — classic RL\nimport gymnasium as gym\n\nenv = gym.make('CartPole-v1')\nobs, info = env.reset()\n\nfor _ in range(1000):\n    action = env.action_space.sample()  # Replace with your policy\n    obs, reward, terminated, truncated, info = env.step(action)\n    if terminated or truncated:\n        obs, info = env.reset()\nenv.close()"
-            ),
+            Self::Gymnasium =>
+                "# OpenAI Gymnasium — classic RL\nimport gymnasium as gym\n\nenv = gym.make('CartPole-v1')\nobs, info = env.reset()\n\nfor _ in range(1000):\n    action = env.action_space.sample()  # Replace with your policy\n    obs, reward, terminated, truncated, info = env.step(action)\n    if terminated or truncated:\n        obs, info = env.reset()\nenv.close()".to_string(),
             Self::TrlPpo => format!(
                 "# TRL PPO — RLHF training\nfrom trl import PPOTrainer, PPOConfig, AutoModelForCausalLMWithValueHead\nfrom transformers import AutoTokenizer\n\nmodel = AutoModelForCausalLMWithValueHead.from_pretrained('{model}')\ntokenizer = AutoTokenizer.from_pretrained('{model}')\n\nppo_config = PPOConfig(batch_size=4, learning_rate=1e-5)\ntrainer = PPOTrainer(config=ppo_config, model=model, tokenizer=tokenizer)\n\n# Training loop with reward model\nfor batch in dataloader:\n    queries = tokenizer(batch['query'], return_tensors='pt')\n    responses = model.generate(**queries)\n    rewards = reward_model(queries, responses)\n    trainer.step(queries, responses, rewards)"
             ),

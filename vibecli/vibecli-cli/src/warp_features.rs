@@ -223,6 +223,10 @@ pub struct SecretRedactor {
     patterns: Vec<(&'static str, &'static str)>,
 }
 
+impl Default for SecretRedactor {
+    fn default() -> Self { Self::new() }
+}
+
 impl SecretRedactor {
     pub fn new() -> Self {
         Self {
