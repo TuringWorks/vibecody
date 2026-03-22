@@ -215,7 +215,7 @@ Other providers use the same pattern:
 | Grok | `GROK_API_KEY` | `--provider grok` |
 | Ollama | *(none)* | `--provider ollama` |
 
-See the [Configuration Guide](./configuration/) for all 22 providers.
+See the [Configuration Guide](/configuration/) for all 22 providers.
 
 ---
 
@@ -259,7 +259,7 @@ You can also review a GitHub PR directly:
 vibecli> /review --pr 42
 ```
 
-See the [Code Review Tutorial](./tutorials/code-review/) for more options.
+See the [Code Review Tutorial](/tutorials/code-review/) for more options.
 
 ---
 
@@ -269,13 +269,13 @@ You are up and running. Here is where to go next:
 
 | Goal | Link |
 |------|------|
-| Set up more AI providers | [First Provider Tutorial](./tutorials/first-provider/) |
-| Learn the agent workflow | [Agent Workflow Tutorial](./tutorials/agent-workflow/) |
-| Deep-dive on code review | [Code Review Tutorial](./tutorials/code-review/) |
-| Browse all tutorials | [Tutorials Index](./tutorials/) |
-| Configure VibeCLI fully | [Configuration Guide](./configuration/) |
-| Set up the desktop editor | [VibeUI Reference](./vibeui/) |
-| Full CLI reference | [VibeCLI Reference](./vibecli/) |
+| Set up more AI providers | [First Provider Tutorial](/tutorials/first-provider/) |
+| Learn the agent workflow | [Agent Workflow Tutorial](/tutorials/agent-workflow/) |
+| Deep-dive on code review | [Code Review Tutorial](/tutorials/code-review/) |
+| Browse all tutorials | [Tutorials Index](/tutorials/) |
+| Configure VibeCLI fully | [Configuration Guide](/configuration/) |
+| Set up the desktop editor | [VibeUI Reference](/vibeui/) |
+| Full CLI reference | [VibeCLI Reference](/vibecli/) |
 
 ---
 
