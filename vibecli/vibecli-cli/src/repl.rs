@@ -11,6 +11,7 @@ use std::borrow::Cow;
 pub static COMMANDS: &[&str] = &[
     "/agent",
     "/agents",
+    "/aiml",
     "/arena",
     "/apply",
     "/autofix",

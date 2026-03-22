@@ -51,6 +51,7 @@ const CascadePanel = lazy(() => import("./CascadePanel").then(m => ({ default: m
 const SpecPanel = lazy(() => import("./SpecPanel").then(m => ({ default: m.SpecPanel })));
 const WorkflowPanel = lazy(() => import("./WorkflowPanel").then(m => ({ default: m.WorkflowPanel })));
 const OrchestrationPanel = lazy(() => import("./OrchestrationPanel").then(m => ({ default: m.OrchestrationPanel })));
+const AiMlWorkflowPanel = lazy(() => import("./AiMlWorkflowPanel").then(m => ({ default: m.AiMlWorkflowPanel })));
 const DesignMode = lazy(() => import("./DesignMode").then(m => ({ default: m.DesignMode })));
 const DeployPanel = lazy(() => import("./DeployPanel").then(m => ({ default: m.DeployPanel })));
 const DatabasePanel = lazy(() => import("./DatabasePanel").then(m => ({ default: m.DatabasePanel })));
@@ -371,6 +372,7 @@ export function PanelHost(props: PanelHostProps) {
       {panel("workmanagement", <LazyPanel Component={WorkManagementPanel} props={{}} />)}
       {panel("autoresearch", <LazyPanel Component={AutoResearchPanel} props={{ workspacePath: wp || "", provider: selectedProvider }} />)}
       {panel("openmemory", <LazyPanel Component={OpenMemoryPanel} props={{}} />)}
+      {panel("aiml", <LazyPanel Component={AiMlWorkflowPanel} props={{}} />)}
       {/* Fallback for unknown tabs — only render when active and not matched above */}
       {!visited.has(tab) || ![
         "chat","agent","memory","history","checkpoints","artifacts","manager","hooks","jobs","mcp",
