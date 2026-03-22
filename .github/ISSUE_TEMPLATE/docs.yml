@@ -1,0 +1,51 @@
+name: Documentation Issue
+description: Report incorrect, missing, or unclear documentation
+title: "[Docs]: "
+labels: ["docs"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Help us improve the docs at [turingworks.github.io/vibecody](https://turingworks.github.io/vibecody).
+
+  - type: dropdown
+    id: type
+    attributes:
+      label: Issue type
+      options:
+        - Broken link
+        - Incorrect information
+        - Missing documentation
+        - Unclear / confusing explanation
+        - Typo / formatting
+        - Outdated content
+    validations:
+      required: true
+
+  - type: input
+    id: page
+    attributes:
+      label: Page URL or file path
+      description: Link to the page with the issue.
+      placeholder: https://turingworks.github.io/vibecody/quickstart/
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What's wrong?
+      description: Describe the issue and what the correct information should be.
+      placeholder: |
+        The Quickstart page says to run `vibecli init` but the correct
+        command is `vibecli --provider ollama`.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I checked the latest version of the docs (main branch)
+          required: true

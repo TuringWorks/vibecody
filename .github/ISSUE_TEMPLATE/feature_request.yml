@@ -1,0 +1,76 @@
+name: Feature Request
+description: Suggest a new capability or improvement
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have an idea for VibeCody? We'd love to hear it. Describe what you'd like and why it matters.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which part of VibeCody does this relate to?
+      options:
+        - VibeCLI (terminal assistant)
+        - VibeUI (desktop editor)
+        - AI Providers
+        - Agent / Tool system
+        - MCP integration
+        - Security scanning
+        - OpenMemory
+        - Documentation
+        - DevOps / CI-CD
+        - Performance
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or motivation
+      description: What problem does this solve, or what workflow does it improve?
+      placeholder: |
+        I often need to scan multiple repos in a monorepo for vulnerabilities,
+        but /vulnscan only scans the current directory.
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: How would you like this to work?
+      placeholder: |
+        Add a `--recursive` flag to /vulnscan that walks subdirectories and
+        detects lockfiles in each, producing a combined report.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any other approaches you've thought about.
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: How important is this to you?
+      options:
+        - Nice to have
+        - Important — affects my daily workflow
+        - Critical — blocking my adoption of VibeCody
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched existing issues and this hasn't been requested yet
+          required: true
+        - label: I'm willing to contribute a PR for this
+          required: false

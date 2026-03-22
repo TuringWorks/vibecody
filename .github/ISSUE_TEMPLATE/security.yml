@@ -1,0 +1,46 @@
+name: Security Vulnerability
+description: Report a security issue (use private reporting for sensitive findings)
+title: "[Security]: "
+labels: ["security", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **For sensitive security vulnerabilities**, please use [GitHub's private vulnerability reporting](https://github.com/TuringWorks/vibecody/security/advisories/new) instead of this public form.
+
+        Use this template for non-sensitive security improvements, hardening suggestions, or scanner false positives.
+
+  - type: dropdown
+    id: type
+    attributes:
+      label: Type
+      options:
+        - Scanner false positive / false negative
+        - Missing security rule
+        - Hardening suggestion
+        - Dependency vulnerability not detected
+        - General security improvement
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Describe the security issue or improvement.
+    validations:
+      required: true
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+      description: What is the potential impact if this is not addressed?
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: This is NOT a sensitive vulnerability (I would use private reporting for those)
+          required: true

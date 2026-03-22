@@ -1,0 +1,88 @@
+name: Bug Report
+description: Something isn't working as expected
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please fill out the sections below so we can reproduce and fix it.
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Surface
+      description: Where did you encounter this bug?
+      options:
+        - VibeCLI (terminal)
+        - VibeUI (desktop editor)
+        - HTTP daemon (vibecli serve)
+        - MCP server
+        - Documentation / Website
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the bug
+      description: A clear and concise description of what went wrong.
+      placeholder: |
+        When I run `/vulnscan scan` in the REPL, the scanner reports 0 packages
+        even though there is a package-lock.json in the current directory.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Minimal steps to trigger the bug.
+      placeholder: |
+        1. cd into a project with a package-lock.json
+        2. Run `vibecli --provider ollama`
+        3. Type `/vulnscan scan`
+        4. Observe: "No lockfiles found"
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should have happened instead?
+      placeholder: |
+        The scanner should detect package-lock.json and report vulnerabilities.
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Paste the output of `vibecli --version` and your OS.
+      placeholder: |
+        - VibeCody version: 0.3.3
+        - OS: macOS 15.3 / Ubuntu 24.04 / Windows 11
+        - Provider: ollama / claude / openai
+        - Rust: 1.82.0 (if building from source)
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / Error output
+      description: Any relevant terminal output, stack traces, or screenshots.
+      render: shell
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched existing issues and this hasn't been reported yet
+          required: true
+        - label: I'm using the latest version from `main`
+          required: false
