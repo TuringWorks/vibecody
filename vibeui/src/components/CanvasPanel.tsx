@@ -323,6 +323,125 @@ export default function CanvasPanel() {
  ))}
  </svg>
  </div>
+
+ {/* Properties sidebar — shown when a node is selected */}
+ {selectedNode && (() => {
+  const node = currentWorkflow.nodes.find(n => n.id === selectedNode);
+  if (!node) return null;
+
+  const updateConfig = (key: string, value: string) => {
+   setCurrentWorkflow(w => ({
+    ...w,
+    nodes: w.nodes.map(n => n.id === selectedNode ? { ...n, config: { ...n.config, [key]: value } } : n),
+   }));
+  };
+
+  const updateLabel = (label: string) => {
+   setCurrentWorkflow(w => ({
+    ...w,
+    nodes: w.nodes.map(n => n.id === selectedNode ? { ...n, label } : n),
+   }));
+  };
+
+  const pInput: React.CSSProperties = { width: "100%", padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-secondary)", fontSize: 11, boxSizing: "border-box" as const };
+  const pLabel: React.CSSProperties = { fontSize: 10, color: "var(--text-muted)", marginBottom: 2, display: "block", marginTop: 8 };
+
+  const toNodes = currentWorkflow.edges.filter(e => e.from === selectedNode).map(e => currentWorkflow.nodes.find(n => n.id === e.to)?.label).filter(Boolean);
+  const fromNodes = currentWorkflow.edges.filter(e => e.to === selectedNode).map(e => currentWorkflow.nodes.find(n => n.id === e.from)?.label).filter(Boolean);
+
+  return (
+   <div style={{ width: 220, borderLeft: "1px solid var(--border-color)", padding: 12, overflowY: "auto", fontSize: 12 }}>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+     <span style={{ fontWeight: 600, fontSize: 13 }}>Properties</span>
+     <button onClick={() => setSelectedNode(null)} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: 14 }}>x</button>
+    </div>
+
+    <div style={{ padding: "4px 8px", borderRadius: 4, background: NODE_COLORS[node.type] + "22", color: NODE_COLORS[node.type], fontSize: 11, fontWeight: 600, marginBottom: 8 }}>
+     {node.type.toUpperCase()}
+    </div>
+
+    <label style={pLabel}>Label</label>
+    <input style={pInput} value={node.label} onChange={e => updateLabel(e.target.value)} />
+
+    <label style={pLabel}>ID</label>
+    <input style={{ ...pInput, opacity: 0.5 }} value={node.id} readOnly />
+
+    {node.type === "provider" && (<>
+     <label style={pLabel}>Provider</label>
+     <select style={pInput} value={node.config.provider || ""} onChange={e => updateConfig("provider", e.target.value)}>
+      <option value="">Select...</option>
+      {["ollama","claude","openai","gemini","grok","groq","deepseek","perplexity","together","fireworks","sambanova","mistral"].map(p => <option key={p} value={p}>{p}</option>)}
+     </select>
+     <label style={pLabel}>Model</label>
+     <input style={pInput} placeholder="e.g. llama3.1:8b" value={node.config.model || ""} onChange={e => updateConfig("model", e.target.value)} />
+     <label style={pLabel}>Temperature</label>
+     <input style={pInput} type="number" step="0.1" min="0" max="2" placeholder="0.7" value={node.config.temperature || ""} onChange={e => updateConfig("temperature", e.target.value)} />
+    </>)}
+
+    {node.type === "skill" && (<>
+     <label style={pLabel}>Skill File</label>
+     <input style={pInput} placeholder="e.g. code-review" value={node.config.skill || ""} onChange={e => updateConfig("skill", e.target.value)} />
+     <label style={pLabel}>Trigger Keywords</label>
+     <input style={pInput} placeholder="e.g. review, lint" value={node.config.triggers || ""} onChange={e => updateConfig("triggers", e.target.value)} />
+    </>)}
+
+    {node.type === "tool" && (<>
+     <label style={pLabel}>Tool Type</label>
+     <select style={pInput} value={node.config.tool_type || ""} onChange={e => updateConfig("tool_type", e.target.value)}>
+      <option value="">Select...</option>
+      {["bash","read_file","write_file","search_files","web_search","fetch_url","mcp"].map(t => <option key={t} value={t}>{t}</option>)}
+     </select>
+     {node.config.tool_type === "bash" && (<>
+      <label style={pLabel}>Command</label>
+      <input style={pInput} placeholder="e.g. cargo test" value={node.config.command || ""} onChange={e => updateConfig("command", e.target.value)} />
+     </>)}
+     {node.config.tool_type === "mcp" && (<>
+      <label style={pLabel}>MCP Server</label>
+      <input style={pInput} placeholder="e.g. terraform" value={node.config.mcp_server || ""} onChange={e => updateConfig("mcp_server", e.target.value)} />
+      <label style={pLabel}>Tool Name</label>
+      <input style={pInput} placeholder="e.g. tf_plan" value={node.config.mcp_tool || ""} onChange={e => updateConfig("mcp_tool", e.target.value)} />
+     </>)}
+    </>)}
+
+    {node.type === "gateway" && (<>
+     <label style={pLabel}>Platform</label>
+     <select style={pInput} value={node.config.platform || ""} onChange={e => updateConfig("platform", e.target.value)}>
+      <option value="">Select...</option>
+      {["slack","discord","telegram","github","linear","teams","webhook"].map(p => <option key={p} value={p}>{p}</option>)}
+     </select>
+     <label style={pLabel}>Channel</label>
+     <input style={pInput} placeholder="e.g. #general" value={node.config.channel || ""} onChange={e => updateConfig("channel", e.target.value)} />
+    </>)}
+
+    {node.type === "transform" && (<>
+     <label style={pLabel}>Transform Type</label>
+     <select style={pInput} value={node.config.transform || ""} onChange={e => updateConfig("transform", e.target.value)}>
+      <option value="">Select...</option>
+      {["filter","map","split","merge","delay"].map(t => <option key={t} value={t}>{t}</option>)}
+     </select>
+     <label style={pLabel}>Expression</label>
+     <input style={pInput} placeholder="e.g. status == 'error'" value={node.config.expression || ""} onChange={e => updateConfig("expression", e.target.value)} />
+    </>)}
+
+    {(fromNodes.length > 0 || toNodes.length > 0) && (
+     <div style={{ marginTop: 12, padding: 8, background: "var(--bg-secondary)", borderRadius: 4 }}>
+      <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>CONNECTIONS</div>
+      {fromNodes.length > 0 && <div style={{ fontSize: 11 }}>From: {fromNodes.join(", ")}</div>}
+      {toNodes.length > 0 && <div style={{ fontSize: 11 }}>To: {toNodes.join(", ")}</div>}
+     </div>
+    )}
+
+    <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 4 }}>
+     <button onClick={() => setConnecting(selectedNode)} style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-secondary)", cursor: "pointer", fontSize: 11 }}>
+      Connect to another node
+     </button>
+     <button onClick={() => deleteNode(selectedNode)} style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid var(--error-color)", background: "transparent", color: "var(--error-color)", cursor: "pointer", fontSize: 11 }}>
+      Delete node
+     </button>
+    </div>
+   </div>
+  );
+ })()}
  </div>
  );
 }
