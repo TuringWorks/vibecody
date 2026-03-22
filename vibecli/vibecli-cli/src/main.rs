@@ -7061,6 +7061,24 @@ async fn main() -> Result<()> {
                             }
                         }
 
+                        "/wizard" => {
+                            println!("Model Wizard — Fine-tune and deploy models step by step\n");
+                            println!("Steps:");
+                            println!("  1. Choose base model (Llama, Mistral, Gemma, Phi, Qwen, DeepSeek)");
+                            println!("  2. Prepare dataset (codebase, git history, documents, existing JSONL)");
+                            println!("  3. Configure fine-tuning (Unsloth, Axolotl, LLaMA Factory, TRL, PEFT, DeepSpeed)");
+                            println!("  4. Select environment (Colab, Kaggle, SageMaker, local)");
+                            println!("  5. Quantize (GGUF, GPTQ, AWQ, Int8, FP16)");
+                            println!("  6. Deploy inference (Ollama, vLLM, llama.cpp, TGI, Triton)");
+                            println!("  7. Generate complete script\n");
+                            println!("Quick start examples:");
+                            println!("  /train dataset from-codebase --format chatml --output data.jsonl");
+                            println!("  /train finetune --library unsloth --model meta-llama/Llama-3.1-8B-Instruct");
+                            println!("  /inference quantize --method gguf-q4km --model ./output");
+                            println!("  /inference deploy --backend ollama --model ./model.gguf\n");
+                            println!("For the full interactive wizard, use the Model Wizard tab in VibeUI.\n");
+                        }
+
                         _ => {
                             // Suggest closest command via edit distance
                             if let Some(suggestion) = find_closest_command(command) {

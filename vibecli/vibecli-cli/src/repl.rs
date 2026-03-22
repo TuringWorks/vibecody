@@ -104,6 +104,7 @@ pub static COMMANDS: &[&str] = &[
     "/agentic",
     "/openmemory",
     "/vulnscan",
+    "/wizard",
     "/resources",
 ];
 

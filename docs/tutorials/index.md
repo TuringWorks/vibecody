@@ -45,6 +45,7 @@ Hands-on guides to get the most out of VibeCody. Each tutorial is self-contained
 | Spec-Driven Development (EARS) | 20 min | Structured requirements → design → tasks pipeline |
 | VM Agent Orchestration | 20 min | Run 4+ parallel agents in isolated Docker containers |
 | Vulnerability Scanner | 15 min | CVE scanning, SAST rules, lockfile parsing |
+| [Model Wizard](/vibecody/tutorials/model-wizard/) | 30 min | Fine-tune, quantize, and deploy custom models in 7 steps |
 
 
 ## How to Use These Tutorials

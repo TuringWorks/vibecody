@@ -40,6 +40,8 @@ sidebar:
         url: /tutorials/project-init/
       - title: Channel Daemon
         url: /tutorials/channel-daemon/
+      - title: Model Wizard
+        url: /tutorials/model-wizard/
   - title: VibeCLI
     icon: terminal
     url: /vibecli/
