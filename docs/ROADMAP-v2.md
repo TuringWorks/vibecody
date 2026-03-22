@@ -8,8 +8,6 @@ permalink: /roadmap-v2/
 **Date:**February 2026
 **Scope:**Detailed fit-gap analysis and feature-by-feature implementation plan to surpass Codex CLI, Claude Code (VibeCLI), and Cursor, Windsurf, Google Antigravity, Trae (VibeUI).
 
----
-
 ## 1. Current State (All Phases Complete)
 
 All nine roadmap phases (1–5 original, 6–9 in this document) are complete. VibeCody has:
@@ -66,8 +64,6 @@ All nine roadmap phases (1–5 original, 6–9 in this document) are complete. V
 | VS Code extension | Yes | — |
 | Agent SDK (TypeScript) | Yes | — |
 
----
-
 ## 2. Competitive Analysis
 
 ### 2.1 VibeCLI vs. Codex CLI (TuringWorks) and Claude Code
@@ -118,8 +114,6 @@ All previously-identified gaps have been closed:
 | Skills system | Yes Closed | `vibe-ai/src/skills.rs` — SkillLoader |
 | Cloud/remote tasks | Yes Closed | `serve.rs` job persistence (`~/.vibecli/jobs/`), GET /jobs, cancel; BackgroundJobsPanel |
 | Agent SDK | Yes Closed | `packages/agent-sdk/` — TypeScript SDK |
-
----
 
 ### 2.2 VibeUI vs. Cursor, Windsurf, Google Antigravity
 
@@ -185,8 +179,6 @@ All previously-identified gaps have been closed:
 | Browser integration for web apps | Yes Closed | BrowserPanel.tsx (iframe + quick-launch chips); Browser tab in bottom panel |
 | VS Code extension | Yes Closed | `vscode-extension/src/extension.ts` |
 
----
-
 ## 3. VibeCody Differentiators to Exploit
 
 These are our *current* advantages that we must protect and amplify:
@@ -201,17 +193,11 @@ These are our *current* advantages that we must protect and amplify:
 | **17 providers** | More than Cursor (3) or Windsurf (own + limited); unique for non-OpenAI shops |
 | **Hooks system** (planned) | With ours, we can match Claude Code's most differentiated feature |
 
----
-
 ## 4. Implementation Plan — Phases 6–9
-
----
 
 ### Phase 6 — Hooks, Planning & Intelligence Yes Complete
 
 **Goal:**The two most powerful missing capabilities: a hooks system matching Claude Code's + planning mode matching Windsurf. Also: session resume, web search, flow injection.
-
----
 
 #### 6.1 Hooks System
 
@@ -310,8 +296,6 @@ async = false  # must pass before session ends
 - `vibeui/src-tauri/src/commands.rs` (add hook management commands)
 - `vibeui/src/components/HooksPanel.tsx` (new — config UI)
 
----
-
 #### 6.2 Plan Mode (Planning Before Execution)
 
 **Priority: Critical — Windsurf Wave 13 + Claude Code differentiator**A dedicated planning phase separates reasoning from action. The model generates a structured plan; the user reviews and optionally edits it; then execution proceeds step by step against the approved plan.
@@ -373,8 +357,6 @@ Generate a detailed execution plan as JSON matching this schema:
 DO NOT execute any actions. Generate ONLY the JSON plan.
 ```
 
----
-
 #### 6.3 Session Resume
 
 **Priority: High**Extend trace storage to include full message history. `vibecli --resume <session-id>` restores complete conversation state.
@@ -401,8 +383,6 @@ pub struct SessionSnapshot {
 ```
 
 **CLI:** `vibecli --resume <session-id>` picks up where the session left off. `/resume` REPL command lists resumable sessions.
-
----
 
 #### 6.4 Web Search Tool
 
@@ -439,8 +419,6 @@ engine = "duckduckgo"   # "duckduckgo" | "google"
 max_results = 5
 ```
 
----
-
 #### 6.5 Flow Context Auto-Injection
 
 **Priority: High — Windsurf's core differentiator**The flow tracker already records events. The missing piece: inject recent activity into every AI prompt automatically, giving the model full awareness without the user having to re-explain.
@@ -469,8 +447,6 @@ This appears in every agent request, giving the model full situational awareness
 
 **Also:**Inject flow context into VibeUI's AIChat `onSubmit` handler, not just the agent.
 
----
-
 #### 6.6 Shell Environment Policy
 
 **Priority: High — Codex differentiator for CI**Fine-grained control over what environment variables subprocess tool calls inherit.
@@ -496,13 +472,9 @@ fn build_env(policy: &ShellEnvPolicy) -> HashMap<String, String> {
 }
 ```
 
----
-
 ### Phase 7 — Parallel Agents & Intelligence Upgrades Yes Complete
 
 **Goal:**Ship parallel multi-agent execution (closes the biggest throughput gap vs. Cursor/Windsurf), upgrade codebase indexing to embeddings, and ship next-edit prediction.
-
----
 
 #### 7.1 Parallel Multi-Agent (Git Worktrees)
 
@@ -578,8 +550,6 @@ pub fn merge_worktree_branch(repo: &Path, branch: &str) -> Result<MergeResult>;
 
 **VibeUI:**New **Parallel**tab in AI panel. Shows N side-by-side agent cards. "Merge Best" button diffs all outputs and lets user pick.
 
----
-
 #### 7.2 Embedding-Based Codebase Indexing
 
 **Priority: High — Cursor's core competitive moat**Upgrade from regex-based symbol search to semantic search using local embeddings.
@@ -637,8 +607,6 @@ max_file_size_kb = 500
 
 **Integration with agent:**When an agent task starts, semantic search finds the most relevant files to include in context automatically.
 
----
-
 #### 7.3 Next-Edit Prediction in VibeUI
 
 **Priority: Critical — Cursor Tab / Windsurf Supercomplete**The current inline completion returns a single completion at cursor. True next-edit prediction watches what you've edited and predicts what you'll want to change next — in a different location.
@@ -684,8 +652,6 @@ Predict the next edit the developer will make. Respond ONLY with JSON:
 
 **Monaco integration:**When prediction arrives, render a dimmed inline decoration at target location. `Tab` key handler: if prediction pending and Tab pressed, jump + accept; otherwise normal tab behavior.
 
----
-
 #### 7.4 Checkpoint UI in VibeUI
 
 **Priority: Critical — backend done, ship the UI**The Tauri backend already has `create_checkpoint`, `list_checkpoints`, `restore_checkpoint`. Ship the React UI.
@@ -711,8 +677,6 @@ export function CheckpointPanel({ workspacePath }) {
 **Add to AI panel tabs:**alongside Chat / Agent / Rules / History.
 
 **Auto-create checkpoint:**When agent starts a task (especially in FullAuto mode), automatically create a checkpoint named `before-agent-<task-summary>`.
-
----
 
 #### 7.5 GitHub PR Integration (BugBot Equivalent)
 
@@ -768,13 +732,9 @@ pub struct ReviewIssue {
 
 **VibeUI:**Add "Review" button in GitPanel that opens a ReviewPanel showing issues with file/line links.
 
----
-
 ### Phase 8 — Ecosystem Features Yes Complete
 
 **Goal:**Skills system, OpenTelemetry, Artifacts, GitHub Actions, agent configurability.
-
----
 
 #### 8.1 Skills System
 
@@ -785,12 +745,11 @@ pub struct ReviewIssue {
 **`rust-safety.md` example:**
 
 ```markdown
----
+
 name: rust-safety
 description: Activated when working on Rust code safety, memory, or correctness
 triggers: ["unsafe", "memory", "panic", "lifetime", "borrow"]
 tools_allowed: [read_file, write_file, bash]
----
 
 When editing Rust code, always:
 1. Check for `unwrap()` calls that should be `?` or `expect()`
@@ -802,8 +761,6 @@ When editing Rust code, always:
 **Skill activation:**Before each agent request, scan `.vibecli/skills/` directory. For each skill, check if any `triggers` keyword appears in the task description or recent tool outputs. Activated skills' content is appended to the system prompt.
 
 **Implementation:**Add `SkillLoader` to `vibe-ai/src/skills.rs`. Call before building system prompt in `AgentLoop`.
-
----
 
 #### 8.2 OpenTelemetry Integration
 
@@ -824,8 +781,6 @@ service_name = "vibecli"
 - `agent.llm_call` — LLM API call with model, token counts, latency
 
 **Crate:** `opentelemetry`, `opentelemetry-otlp`, `opentelemetry-sdk`
-
----
 
 #### 8.3 Artifacts System (Antigravity-Inspired)
 
@@ -860,8 +815,6 @@ pub struct Annotation {
 **VibeUI:**New `ArtifactsPanel` renders artifacts as rich cards. Users can expand, annotate, and mark artifacts as "feedback applied." Annotations are queued and injected into the agent's next context window as: `"User feedback on artifact: <annotation>"`.
 
 This enables **async feedback** — the user annotates while the agent continues working on the next step.
-
----
 
 #### 8.4 GitHub Actions Integration
 
@@ -906,13 +859,9 @@ runs:
 - Auto-refactor: `task: "Add error handling to all public API functions"`
 - Auto-review: `vibecli review --pr $PR_NUMBER --post-github`
 
----
-
 ### Phase 9 — Manager View & Scale Yes Complete
 
 **Goal:**Ship the high-level orchestration UI (Manager View), VS Code extension, and Agent SDK.
-
----
 
 #### 9.1 Manager View in VibeUI
 
@@ -951,8 +900,6 @@ runs:
 - `get_orchestrator_status()` → `Vec<AgentInstance>`
 - `merge_agent_branch(agent_id, strategy)` — merge worktree into main
 
----
-
 #### 9.2 VS Code Extension
 
 **Priority: Medium — critical for distribution**A VS Code extension that provides VibeCLI/VibeUI capabilities inside VS Code.
@@ -971,8 +918,6 @@ runs:
 - Extension is thin TypeScript client over this API
 
 **New file:** `vibecli-cli/src/serve.rs` — Axum HTTP server exposing VibeCLI capabilities
-
----
 
 #### 9.3 Agent SDK
 
@@ -999,8 +944,6 @@ for await (const event of agent.run('Add TypeScript strict mode to all files')) 
   if (event.type === 'complete') console.log('Done:', event.summary);
 }
 ```
-
----
 
 ## 5. Current Feature Matrix (All Phases Complete)
 
@@ -1051,8 +994,6 @@ for await (const event of agent.run('Add TypeScript strict mode to all files')) 
 | Keyboard shortcuts (8+) | Yes | Yes | Yes | partial |
 | Onboarding tour | Yes | Yes | No | No |
 | Provider timeout hardening | Yes | No | No | No |
-
----
 
 ## 6. Architecture (All Phases Complete)
 
@@ -1108,8 +1049,6 @@ vibeui (React + Tauri)
     └── ReviewPanel    (code review issues with file/line links)
 ```
 
----
-
 ## 7. Completed Implementation Backlog
 
 ### Phase 6 Yes Complete
@@ -1154,8 +1093,6 @@ vibeui (React + Tauri)
 | 21 | Agent SDK (TypeScript) | Claude Code | Yes Done |
 | 22 | Admin policy enforcement | Codex CLI | Yes Done |
 
----
-
 ## 7.10 Phase 41 — Red Team Security Testing Yes
 
 **Status:**Complete
@@ -1173,8 +1110,6 @@ vibeui (React + Tauri)
 | Tauri commands | Yes | start_redteam_scan, get_redteam_sessions, get_redteam_findings, generate_redteam_report, cancel_redteam_scan |
 | Shannon comparison doc | Yes | `docs/SHANNON-COMPARISON.md` — full feature matrix, architectural comparison, integration opportunities |
 
----
-
 ## 7.11 Phase 42 — Jira Context, MCP OAuth, Custom Domains Yes
 
 **Status:**Complete
@@ -1184,8 +1119,6 @@ vibeui (React + Tauri)
 | `@jira:PROJECT-123` context | Yes | VibeCLI `expand_at_refs()` + VibeUI `resolve_at_references()` + `ContextPicker.tsx` autocomplete; Jira REST API v2 with basic auth; env vars: `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN` |
 | MCP OAuth install flow | Yes | `McpPanel.tsx` two-step modal (configure → paste auth code); 3 Tauri commands (`initiate_mcp_oauth`, `complete_mcp_oauth`, `get_mcp_token_status`); tokens at `~/.vibeui/mcp-tokens.json`; green badge |
 | Custom domain / publish | Yes | `DeployPanel.tsx` domain input + `set_custom_domain` Tauri command; Vercel REST API with `VERCEL_TOKEN`; CNAME instructions for other targets |
-
----
 
 ## 7.12 Phase 43 — Test Runner & AI Commit Message Yes
 
@@ -1226,8 +1159,6 @@ Real-time collaborative editing powered by [yrs](https://github.com/y-crdt/y-crd
   └──────────────┘               │  └──────────┘│             └──────────────┘
                                  └──────────────┘
 ```
-
----
 
 ## 7.14 Phase 44 — Code Coverage, Multi-Model Comparison, HTTP Playground Yes
 
@@ -1337,8 +1268,6 @@ Real-time collaborative editing powered by [yrs](https://github.com/y-crdt/y-crd
 | config.rs tests (7) | Yes | load_from_file, serde roundtrip, empty/invalid TOML |
 | Total | Yes | **1,898 tests**passing across workspace (as of 2026-03-07) |
 
----
-
 ## 7.19 Phase 7.19 — Context Window Safety + Process Manager Yes
 
 **Status:**Complete
@@ -1356,8 +1285,6 @@ Real-time collaborative editing powered by [yrs](https://github.com/y-crdt/y-crd
 | Unit tests (5) | Yes | estimate_empty, estimate_basic, prune_noop_under_budget, prune_removes_middle, prune_noop_too_few |
 | Total tests | Yes | **513** (508 + 5 new) |
 
----
-
 ## 7.20 Phase 7.20 — Streaming Metrics + REPL Session Commands Yes
 
 **Status:**Complete
@@ -1371,8 +1298,6 @@ Real-time collaborative editing powered by [yrs](https://github.com/y-crdt/y-crd
 | Total tokens display | Yes | Estimated total tokens shown next to tok/s during streaming |
 | `streamMetrics` state in `AgentPanel.tsx` | Yes | `{ tokensPerSec, ttftMs, totalTokens }` — reset on each agent start |
 | Metrics badge visibility | Yes | Shown only when `isRunning && streamMetrics` — hides after completion |
-
----
 
 ## 7.21 Phase 7.21 — Real-time Chat Streaming Yes
 
@@ -1391,8 +1316,6 @@ Real-time collaborative editing powered by [yrs](https://github.com/y-crdt/y-crd
 | Stop button wired | Yes | Calls `stopMessage()` which invokes `stop_chat_stream` + commits partial text |
 | `useCallback`/`listen` imports | Yes | Clean TypeScript, `tsc --noEmit` passes |
 | Tests | Yes | **513 passing** (no regression) |
-
----
 
 ## 8. VibeCody Wins — Competitive Position
 

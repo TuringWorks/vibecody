@@ -8,8 +8,6 @@ permalink: /vibeui/
 
 **AI-powered desktop code editor built with Tauri 2 and Monaco.**VibeUI provides a VS Code-like editing experience with a native Rust backend, Monaco Editor frontend, integrated AI chat, autonomous agent mode, inline completions, terminal, Git panel, code review, and a WASM extension system.
 
----
-
 ## Architecture Overview
 
 ```text
@@ -37,8 +35,6 @@ permalink: /vibeui/
          │ vibe-collab │                          │
          └─────────────┴──────────────────────────┘
 ```
-
----
 
 ## Getting Started
 
@@ -76,8 +72,6 @@ npm run tauri build
 ```
 
 The installer is placed in `src-tauri/target/release/bundle/`.
-
----
 
 ## Features
 
@@ -278,8 +272,6 @@ Press `Cmd+P` (macOS) / `Ctrl+P` (Windows/Linux) to open the Command Palette:
 - Theme persists across sessions (stored in localStorage)
 - All UI elements (editor, panels, status bar) respect the active theme
 
----
-
 ## AI Panel Tabs
 
 The AI panel (toggle with **AI Chat**in the header) has **107 tabs**across categories:
@@ -376,8 +368,6 @@ The AI panel (toggle with **AI Chat**in the header) has **107 tabs**across categ
 | **FineTune** | `FineTuningPanel` | Model fine-tuning configuration and monitoring |
 | **Visual** | `VisualTestPanel` | Visual regression testing with screenshot comparison |
 
----
-
 ## UI Components
 
 | Component | File | Description |
@@ -423,8 +413,6 @@ The AI panel (toggle with **AI Chat**in the header) has **107 tabs**across categ
 | `OnboardingTour` | `src/components/OnboardingTour.tsx` | First-run guided tour with feature highlights; localStorage-gated, dismissible |
 | `EmptyState` | `src/components/EmptyState.tsx` | Reusable empty state placeholder with icon and message |
 | `LoadingSpinner` | `src/components/LoadingSpinner.tsx` | Reusable loading spinner with optional label |
-
----
 
 ## Tauri Commands (Backend API)
 
@@ -718,8 +706,6 @@ After deploying, enter a custom domain in the **Custom Domain**field:
 |---------|-------------|
 | `open_external_url(url)` | Open URL in system browser |
 
----
-
 ## Rust Crates
 
 ### `vibe-core`
@@ -828,8 +814,6 @@ pub extern "C" fn alloc(size: i32) -> i32 {
 }
 ```
 
----
-
 ## Backend Modules
 
 ### `agent_executor.rs`
@@ -872,8 +856,6 @@ Tracks developer activity in a 100-event ring buffer:
 | `save_workspace_rules(root, content)` | Save project rules |
 | `save_global_rules(content)` | Save global rules (creates `~/.vibeui/` if needed) |
 
----
-
 ## Keyboard Shortcuts
 
 | Shortcut | Action |
@@ -891,8 +873,6 @@ Tracks developer activity in a 100-event ring buffer:
 | `Cmd/Ctrl + Option/Alt + I` | Open DevTools |
 | `Tab` | Indent selection (in editor) |
 
----
-
 ## Accessibility (WCAG 2.1 AA)
 
 VibeUI implements WCAG 2.1 Level AA accessibility:
@@ -906,8 +886,6 @@ VibeUI implements WCAG 2.1 Level AA accessibility:
 | Agent status announcements | `aria-live="polite"` region announces running/complete/error/idle to screen readers |
 | Screen-reader utility | `.sr-only` CSS class for visually-hidden accessible text |
 | Onboarding tour | First-run guided walkthrough (localStorage gate), dismissible |
-
----
 
 ## Testing
 
@@ -942,8 +920,6 @@ cd vibeui/e2e && npm test
 ```
 
 See [TESTING.md](https://github.com/TuringWorks/vibecody/blob/main/vibeui/TESTING.md) for manual testing checklist.
-
----
 
 ## Debugging
 
