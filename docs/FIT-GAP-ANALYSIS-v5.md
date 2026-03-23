@@ -9,7 +9,6 @@ permalink: /fit-gap-analysis-v5/
 **Previous analysis:** FIT-GAP-ANALYSIS-v4.md (2026-03-08)
 **Focus:** Q1 2026 emerging trends, new entrants, and futureproofing gaps
 
-
 ## Executive Summary
 
 The AI coding assistant market is entering a new phase in March 2026. Key shifts since v4:
@@ -24,7 +23,6 @@ The AI coding assistant market is entering a new phase in March 2026. Key shifts
 VibeCody's v4 gaps are **all closed** (23/23). This v5 identifies **12 new futureproofing gaps** to maintain competitive leadership through 2026-2027.
 
 **New competitors added:** Replit Agent 3, Amazon Q Developer, Qodo, Roo Code, Cline, Zed
-
 
 ## Part A — New Competitor Developments (Since v4)
 
@@ -57,6 +55,7 @@ VibeCody's v4 gaps are **all closed** (23/23). This v5 identifies **12 new futur
 ### A.4 New Entrants
 
 #### Replit Agent 3
+
 | Feature | Description | VibeCody Status |
 |---------|-------------|-----------------|
 | **Browser-based agent IDE** | Full development environment in browser with AI agent | Partial — no browser-based mode |
@@ -64,6 +63,7 @@ VibeCody's v4 gaps are **all closed** (23/23). This v5 identifies **12 new futur
 | **Mobile development** | Build and test from mobile devices | Partial — remote_control.rs enables mobile interaction but not full mobile dev |
 
 #### Amazon Q Developer
+
 | Feature | Description | VibeCody Status |
 |---------|-------------|-----------------|
 | **AWS service integration** | Deep integration with 200+ AWS services; auto-generates IAM policies, CloudFormation | GAP — no deep cloud provider integration (AWS/GCP/Azure) |
@@ -71,12 +71,14 @@ VibeCody's v4 gaps are **all closed** (23/23). This v5 identifies **12 new futur
 | **Security scanning** | Built-in vulnerability scanning with auto-remediation | FIT — security_scanning.rs |
 
 #### Qodo (formerly CodiumAI)
+
 | Feature | Description | VibeCody Status |
 |---------|-------------|-----------------|
 | **Test generation focus** | AI-powered test generation with edge case discovery | FIT — test runner + coverage panel |
 | **PR review agent** | Automated PR quality analysis | FIT — bugbot.rs |
 
 #### Roo Code / Cline
+
 | Feature | Description | VibeCody Status |
 |---------|-------------|-----------------|
 | **Open-source VS Code agent** | Community-driven, fully open-source agent in VS Code | FIT — VibeCody is open-source |
@@ -84,6 +86,7 @@ VibeCody's v4 gaps are **all closed** (23/23). This v5 identifies **12 new futur
 | **Custom agent modes** | User-defined agent personalities and tool configs | FIT — agent_modes.rs |
 
 #### Zed (Agentic Editing)
+
 | Feature | Description | VibeCody Status |
 |---------|-------------|-----------------|
 | **Agent Client Protocol (ACP)** | Open protocol for standardized agent-editor communication | GAP — uses custom protocol; no ACP compliance |
@@ -91,11 +94,11 @@ VibeCody's v4 gaps are **all closed** (23/23). This v5 identifies **12 new futur
 | **Built-in agent with tool use** | Agent runs in editor process, no external dependencies | FIT — VibeUI has integrated agent |
 
 #### Visual Studio 2026
+
 | Feature | Description | VibeCody Status |
 |---------|-------------|-----------------|
 | **AI-native IDE** | AI woven into every IDE feature (not bolt-on) | N/A — different architecture approach |
 | **Copilot deep integration** | Tightest Copilot integration of any IDE | N/A — VibeCody is its own platform |
-
 
 ## Part B — New Gap Priority Matrix
 
@@ -130,7 +133,6 @@ VibeCody's v4 gaps are **all closed** (23/23). This v5 identifies **12 new futur
 |---|-----|-------------|-------------|--------|
 | 11 | **SOC 2 Type II / ISO 27001 path** | Augment, Blitzy, Copilot | Certification path documentation, compliance controls inventory, audit trail enhancements. Not the certification itself (requires organizational process) but the technical controls. | Medium |
 | 12 | **Multi-modal agent (voice + vision + code)** | Emerging | Unified agent that processes voice commands (voice.rs), screenshots (vision), and code edits in a single conversation turn. Current implementation has these as separate features. | High |
-
 
 ## Part C — Competitive Strengths Matrix (Updated)
 
@@ -169,7 +171,6 @@ VibeCody's v4 gaps are **all closed** (23/23). This v5 identifies **12 new futur
 6. **Observability** — OpenTelemetry OTLP tracing to Jaeger/Zipkin/Grafana
 7. **Cost control** — Budget limits, cost observatory, arena mode for model evaluation
 
-
 ## Part D — Market & Competitive Positioning Shifts (Since v4)
 
 ### New Market Dynamics
@@ -202,7 +203,6 @@ VibeCody's v4 gaps are **all closed** (23/23). This v5 identifies **12 new futur
 5. **Multi-agent orchestration** — VibeCody's agent teams + batch builder is the most complete open-source multi-agent coding system
 6. **Soul.md movement** — VibeCody is the only tool that generates project philosophy documents; could become a community standard
 
-
 ## Part E — Recommended Roadmap for New Gaps
 
 ### Phase 68: MCP Lazy Loading / Tool Search (P0)
@@ -210,6 +210,7 @@ VibeCody's v4 gaps are **all closed** (23/23). This v5 identifies **12 new futur
 **Goal:** Reduce MCP context overhead by 90%+ through deferred tool loading.
 
 **Implementation:**
+
 - `mcp_lazy.rs`: LazyToolRegistry that discovers available tools without loading full schemas
 - Tool manifests (name + description only) loaded at startup; full schema loaded on first use
 - ToolSearch command: keyword search across all MCP servers, loads matching tools on demand
@@ -223,6 +224,7 @@ VibeCody's v4 gaps are **all closed** (23/23). This v5 identifies **12 new futur
 **Goal:** Sharable, composable context sets for consistent AI behavior across team.
 
 **Implementation:**
+
 - `context_bundles.rs`: ContextBundle with pinned files, custom instructions, excluded paths, model preferences
 - Bundle file format: `.vibebundle.toml` (portable, version-controlled)
 - Bundle operations: create, activate, deactivate, share, import, export
@@ -238,6 +240,7 @@ VibeCody's v4 gaps are **all closed** (23/23). This v5 identifies **12 new futur
 **Goal:** Deep integration with AWS/GCP/Azure for infrastructure-aware AI coding.
 
 **Implementation:**
+
 - `cloud_providers.rs`: CloudProviderManager with AWS/GCP/Azure adapters
 - IAM policy generation from code analysis (detect S3, DynamoDB, Lambda usage → generate least-privilege IAM)
 - CloudFormation/Terraform/Pulumi template generation from project structure
@@ -253,6 +256,7 @@ VibeCody's v4 gaps are **all closed** (23/23). This v5 identifies **12 new futur
 **Goal:** Support the emerging ACP standard for inter-agent communication.
 
 **Implementation:**
+
 - `acp_protocol.rs`: ACP message types, capability negotiation, tool registration
 - Dual-protocol support: existing VibeCody protocol + ACP for external agents
 - ACP server mode: expose VibeCody tools to external ACP-compatible editors (Zed, others)
@@ -266,6 +270,7 @@ VibeCody's v4 gaps are **all closed** (23/23). This v5 identifies **12 new futur
 **Goal:** Curated, searchable directory of verified MCP plugins.
 
 **Implementation:**
+
 - `mcp_directory.rs`: PluginDirectory with categories, ratings, security verification status
 - Plugin manifest format: `mcp-plugin.toml` with metadata, dependencies, permissions
 - Verification pipeline: checksum validation, permission audit, sandboxed test execution
@@ -281,6 +286,7 @@ VibeCody's v4 gaps are **all closed** (23/23). This v5 identifies **12 new futur
 **Goal:** Granular usage tracking for team billing and cost allocation.
 
 **Implementation:**
+
 - `usage_metering.rs`: UsageMeter with per-agent, per-task, per-user token tracking
 - Credit budgets: configurable limits per team/user/project with alerts
 - Usage reports: daily/weekly/monthly breakdown by provider, model, task type
@@ -295,6 +301,7 @@ VibeCody's v4 gaps are **all closed** (23/23). This v5 identifies **12 new futur
 **Goal:** Zero-install web experience for onboarding and quick prototyping.
 
 **Implementation:**
+
 - Compile VibeCLI core to WASM (vibe-core + vibe-ai HTTP client)
 - Static site hosting with Monaco editor, terminal emulator, file tree
 - WebContainer or server-side sandbox for command execution
@@ -309,6 +316,7 @@ VibeCody's v4 gaps are **all closed** (23/23). This v5 identifies **12 new futur
 **Goal:** Built-in benchmark runner for evaluating agent performance.
 
 **Implementation:**
+
 - `swe_bench.rs`: BenchmarkRunner that downloads SWE-bench tasks, runs agent, measures pass@1
 - Support SWE-bench Verified, SWE-bench Pro, and custom benchmark suites
 - Automated scoring with detailed per-task reports
@@ -323,6 +331,7 @@ VibeCody's v4 gaps are **all closed** (23/23). This v5 identifies **12 new futur
 **Goal:** Hook system for JetBrains plugin agent lifecycle events.
 
 **Implementation:**
+
 - Extend JetBrains plugin with hook registration API
 - Events: pre-edit, post-edit, pre-commit, post-commit, agent-start, agent-complete
 - Hook types: shell command, HTTP webhook, LLM-based (consistent with VibeCLI hooks)
@@ -335,6 +344,7 @@ VibeCody's v4 gaps are **all closed** (23/23). This v5 identifies **12 new futur
 **Goal:** Detect and mitigate memory leaks in 8+ hour agent sessions.
 
 **Implementation:**
+
 - `session_memory.rs`: MemoryProfiler with periodic heap sampling
 - Leak detection: track allocation growth rate, flag abnormal patterns
 - Auto-compact: evict stale context, compress conversation history
@@ -348,6 +358,7 @@ VibeCody's v4 gaps are **all closed** (23/23). This v5 identifies **12 new futur
 **Goal:** Implement technical controls required for SOC 2 Type II readiness.
 
 **Implementation:**
+
 - `compliance_controls.rs`: ControlInventory mapping to SOC 2 Trust Service Criteria
 - Audit trail enhancements: immutable log of all AI-generated code changes
 - Access control documentation: RBAC policies, API key rotation, session management
@@ -362,6 +373,7 @@ VibeCody's v4 gaps are **all closed** (23/23). This v5 identifies **12 new futur
 **Goal:** Single agent conversation handling voice + vision + code in unified turns.
 
 **Implementation:**
+
 - `multimodal_agent.rs`: UnifiedAgent that processes mixed input types per turn
 - Voice → text → agent action pipeline (voice.rs integration)
 - Screenshot → vision → code generation pipeline (vision provider integration)
@@ -369,7 +381,6 @@ VibeCody's v4 gaps are **all closed** (23/23). This v5 identifies **12 new futur
 - Mode detection: auto-switch between voice, vision, and code input
 
 **Effort:** High (4-5 days)
-
 
 ## Part F — Metrics Summary (Updated)
 
@@ -389,7 +400,6 @@ VibeCody's v4 gaps are **all closed** (23/23). This v5 identifies **12 new futur
 | v5 P2 gaps | — | 4 |
 | v5 P3 gaps | — | 2 |
 
-
 ## Part G — Remaining "Partial" Entries (Not Code-Addressable)
 
 These items from v4 remain Partial and are **not closeable through code alone**:
@@ -401,7 +411,6 @@ These items from v4 remain Partial and are **not closeable through code alone**:
 | SOC 2 Type II certification | Organizational process, not a feature (Phase 78 addresses technical controls) |
 | Smaller plugin ecosystem vs Cursor (30+ partners) | Community/business development, not code (Phase 72 builds directory infrastructure) |
 | No managed hosting domain | Business decision requiring infrastructure investment |
-
 
 ## Sources
 

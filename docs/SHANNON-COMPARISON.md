@@ -9,7 +9,6 @@ permalink: /shannon-comparison/
 **Shannon:** [github.com/KeygraphHQ/shannon](https://github.com/KeygraphHQ/shannon) — Autonomous AI-powered penetration testing framework
 **VibeCody:** AI coding assistant with integrated security testing (Phase 41+)
 
-
 ## 1. Executive Summary
 
 Shannon is a standalone autonomous pentesting tool ("The Red Team to your vibe-coding Blue team"). VibeCody is a full-stack AI coding assistant that now integrates red teaming capabilities directly into its development workflow. The key difference: Shannon is a separate tool you run *after* building; VibeCody's red team module lets you security-test *while* building, closing the build→test gap.
@@ -22,7 +21,6 @@ Shannon is a standalone autonomous pentesting tool ("The Red Team to your vibe-c
 | **License** | AGPL-3.0 (Lite) / Commercial (Pro) | MIT |
 | **Cost per scan** | ~$50 (Claude Sonnet, 1-1.5 hrs) | Per-token (user's configured provider) |
 | **Target users** | Security teams, pentesters | Developers who want security built into their workflow |
-
 
 ## 2. Feature Matrix
 
@@ -85,7 +83,6 @@ Shannon is a standalone autonomous pentesting tool ("The Red Team to your vibe-c
 | BugBot PR review | No | Yes Inline GitHub PR comments | VibeCody integrates with PR workflow |
 | Multi-provider LLM | Warning: Claude primary only | Yes 10+ providers | VibeCody is provider-agnostic |
 
-
 ## 3. Architectural Comparison
 
 ### Shannon Architecture
@@ -104,7 +101,7 @@ CLI (./shannon) → Docker Compose → Temporal Worker
 
 ### VibeCody Red Team Architecture
 
-```
+```text
 CLI (vibecli --redteam) or REPL (/redteam scan) or VibeUI (RedTeamPanel)
   └─ 5-Stage Pipeline (redteam.rs):
      1. Recon (HTTP crawl + source analysis via codebase index)
@@ -117,7 +114,6 @@ CLI (vibecli --redteam) or REPL (/redteam scan) or VibeUI (RedTeamPanel)
   └─ Reuses: bugbot.rs patterns, AgentLoop, multi-agent orchestrator,
              background_agents, session_store, workflow stage patterns
 ```
-
 
 ## 4. When to Use Which
 
@@ -132,7 +128,6 @@ CLI (vibecli --redteam) or REPL (/redteam scan) or VibeUI (RedTeamPanel)
 | Team notification on findings | **VibeCody** | Slack/Telegram/Discord gateways built-in |
 | Scheduled recurring scans | **VibeCody** | `/schedule` cron integration |
 
-
 ## 5. Integration Opportunity
 
 Shannon and VibeCody are complementary, not competing:
@@ -141,6 +136,5 @@ Shannon and VibeCody are complementary, not competing:
 2. **Shannon MCP → VibeCody MCP**: Both expose MCP servers; a meta-orchestrator could chain them
 3. **VibeCody's `/redteam` for fast feedback** during development; **Shannon for thorough** pre-release security audit
 4. **Shared findings format**: Both produce markdown reports; findings could feed into VibeCody's BugBot for tracking
-
 
 *Updated 2026-02-26 — VibeCody Phase 41 (Red Team Module). Shannon analysis based on [KeygraphHQ/shannon](https://github.com/KeygraphHQ/shannon) repository.*

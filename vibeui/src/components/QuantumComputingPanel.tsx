@@ -723,7 +723,7 @@ const btnPrimary: React.CSSProperties = {
   borderRadius: 6,
   border: "none",
   background: "var(--accent-primary)",
-  color: "#fff",
+  color: "var(--btn-primary-fg)",
   cursor: "pointer",
   fontWeight: 600,
   fontSize: 13,
@@ -1412,7 +1412,7 @@ export function QuantumComputingPanel() {
         <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Probability Distribution</div>
         {nonZero.map(([label, prob]) => (
           <div key={label} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-            <span style={{ fontSize: 11, fontFamily: "monospace", width: 60, textAlign: "right", color: "var(--text-secondary)" }}>
+            <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", width: 60, textAlign: "right", color: "var(--text-secondary)" }}>
               |{label}&#x27E9;
             </span>
             <div style={{ flex: 1, height: 16, background: "var(--bg-tertiary)", borderRadius: 3, overflow: "hidden" }}>
@@ -1426,7 +1426,7 @@ export function QuantumComputingPanel() {
                 }}
               />
             </div>
-            <span style={{ fontSize: 11, fontFamily: "monospace", width: 55, color: "var(--text-primary)" }}>
+            <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", width: 55, color: "var(--text-primary)" }}>
               {(prob * 100).toFixed(1)}%
             </span>
           </div>
@@ -1447,7 +1447,7 @@ export function QuantumComputingPanel() {
         <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Sample Histogram (top {entries.length})</div>
         {entries.map(([label, count]) => (
           <div key={label} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
-            <span style={{ fontSize: 11, fontFamily: "monospace", width: 60, textAlign: "right", color: "var(--text-secondary)" }}>
+            <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", width: 60, textAlign: "right", color: "var(--text-secondary)" }}>
               {label}
             </span>
             <div style={{ flex: 1, height: 14, background: "var(--bg-tertiary)", borderRadius: 3, overflow: "hidden" }}>
@@ -1455,13 +1455,13 @@ export function QuantumComputingPanel() {
                 style={{
                   width: `${(count / maxCount) * 100}%`,
                   height: "100%",
-                  background: "#27ae60",
+                  background: "var(--success-color)",
                   borderRadius: 3,
                   minWidth: 2,
                 }}
               />
             </div>
-            <span style={{ fontSize: 11, fontFamily: "monospace", width: 45, color: "var(--text-primary)" }}>
+            <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", width: 45, color: "var(--text-primary)" }}>
               {count}
             </span>
           </div>
@@ -1661,7 +1661,7 @@ export function QuantumComputingPanel() {
                   <button onClick={() => exportCircuit(selectedCircuitIdx, "qasm3")} style={btnSmall}>Export QASM3</button>
                   <button onClick={() => exportCircuit(selectedCircuitIdx, "qiskit")} style={btnSmall}>Export Qiskit</button>
                   <button onClick={() => exportCircuit(selectedCircuitIdx, "cirq")} style={btnSmall}>Export Cirq</button>
-                  <button onClick={() => deleteCircuit(selectedCircuitIdx)} style={{ ...btnSmall, color: "#e74c3c" }}>Delete</button>
+                  <button onClick={() => deleteCircuit(selectedCircuitIdx)} style={{ ...btnSmall, color: "var(--error-color)" }}>Delete</button>
                 </>
               )}
             </div>
@@ -1890,10 +1890,10 @@ export function QuantumComputingPanel() {
                         const prob = re * re + im * im;
                         return (
                           <tr key={label} style={{ borderBottom: "1px solid var(--border-color)" }}>
-                            <td style={{ padding: 4, fontFamily: "monospace" }}>|{label}&#x27E9;</td>
-                            <td style={{ padding: 4, textAlign: "right", fontFamily: "monospace" }}>{re.toFixed(4)}</td>
-                            <td style={{ padding: 4, textAlign: "right", fontFamily: "monospace" }}>{im.toFixed(4)}</td>
-                            <td style={{ padding: 4, textAlign: "right", fontFamily: "monospace" }}>{(prob * 100).toFixed(2)}%</td>
+                            <td style={{ padding: 4, fontFamily: "var(--font-mono)" }}>|{label}&#x27E9;</td>
+                            <td style={{ padding: 4, textAlign: "right", fontFamily: "var(--font-mono)" }}>{re.toFixed(4)}</td>
+                            <td style={{ padding: 4, textAlign: "right", fontFamily: "var(--font-mono)" }}>{im.toFixed(4)}</td>
+                            <td style={{ padding: 4, textAlign: "right", fontFamily: "var(--font-mono)" }}>{(prob * 100).toFixed(2)}%</td>
                           </tr>
                         );
                       })}
@@ -2002,7 +2002,7 @@ export function QuantumComputingPanel() {
                   {costEstimates.map((est) => (
                     <tr key={est.provider} style={{ borderBottom: "1px solid var(--border-color)" }}>
                       <td style={{ padding: 6, fontWeight: 500 }}>{est.provider}</td>
-                      <td style={{ padding: 6, textAlign: "right", fontFamily: "monospace" }}>
+                      <td style={{ padding: 6, textAlign: "right", fontFamily: "var(--font-mono)" }}>
                         ${est.estimated_cost_usd.toFixed(4)}
                       </td>
                       <td style={{ padding: 6 }}>
@@ -2126,7 +2126,7 @@ export function QuantumComputingPanel() {
                       style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}
                       onClick={() => toggleScafExpand(f.path)}
                     >
-                      <div style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 600, color: "var(--accent-primary)" }}>
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 600, color: "var(--accent-primary)" }}>
                         {scafExpanded.has(f.path) ? "v " : "> "}
                         {f.path}
                       </div>

@@ -227,7 +227,7 @@ root.render(React.createElement(${componentName}));
           {...(previewSrcdoc ? { srcDoc: previewSrcdoc } : { src: previewUrl })}
           title="Live Preview"
           sandbox="allow-scripts allow-same-origin allow-forms allow-modals"
-          style={{ width: "100%", height: "100%", border: "none", background: "#fff" }}
+          style={{ width: "100%", height: "100%", border: "none", background: "var(--bg-elevated)" }}
         />
         {visualEditEnabled && (
           <div style={{ position: "absolute", top: 0, left: 0, pointerEvents: "none", width: "100%", height: "100%" }}>

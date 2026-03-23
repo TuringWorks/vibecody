@@ -12,6 +12,19 @@ export default defineConfig(async () => ({
   //
   // 1. prevent Vite from obscuring rust errors
   clearScreen: false,
+
+  // Ensure JS output is compatible with the WKWebView used by Tauri on macOS/iOS.
+  // Vite 7 defaults to "esnext" which can produce JS that WKWebView doesn't support,
+  // causing a blank white screen in the Tauri window.
+  build: {
+    // Target Safari 16+ (macOS 13+) for production builds
+    target: ["es2021", "safari16"],
+  },
+  esbuild: {
+    // Target the same level in dev mode (esbuild transform)
+    target: "es2021",
+  },
+
   // 2. tauri expects a fixed port, fail if that port is not available
   server: {
     port: 1420,

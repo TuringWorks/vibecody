@@ -8,7 +8,6 @@ nav_order: 10
 
 Complete reference for building VibeCody plugins, WASM extensions, MCP integrations, skills, and hooks. This document is designed for both human developers and AI coding assistants.
 
-
 ## Table of Contents
 
 1. [Architecture Overview](#architecture-overview)
@@ -25,7 +24,6 @@ Complete reference for building VibeCody plugins, WASM extensions, MCP integrati
 12. [Configuration Reference](#configuration-reference)
 13. [Examples](#examples)
 
-
 ## Architecture Overview
 
 VibeCody has a **five-layer extensibility architecture**:
@@ -40,7 +38,7 @@ VibeCody has a **five-layer extensibility architecture**:
 
 ### Monorepo Structure
 
-```
+```sh
 vibecody/
   vibecli/vibecli-cli/src/     # CLI binary (Rust)
     main.rs                     # Entry point, CLI args, command dispatch
@@ -70,12 +68,11 @@ vibecody/
   vibeui/src/                   # React/TypeScript frontend (Tauri 2)
 ```
 
-
 ## Plugin System
 
 ### Plugin Directory Layout
 
-```
+```sh
 ~/.vibecli/plugins/my-plugin/
   plugin.toml          # Required manifest
   skills/              # Auto-activated skill files (.md)
@@ -232,7 +229,7 @@ vibecli --plugin publish ./my-plugin
 
 ### Plugin Lifecycle States
 
-```
+```text
 Installed → Enabled ↔ Disabled
               ↓
            Outdated (newer version available)
@@ -265,7 +262,6 @@ Stored in `~/.vibecli/plugin-state.json`:
   ]
 }
 ```
-
 
 ## Skills
 
@@ -328,7 +324,6 @@ fn matches(skill: &Skill, user_message: &str) -> bool {
 }
 ```
 
-
 ## Hooks
 
 Hooks intercept agent events and can allow, block, or inject context.
@@ -385,9 +380,11 @@ Receives JSON event on **stdin**. Protocol:
 | Other | Allow (treated as error) |
 
 Or write JSON to stdout:
+
 ```json
 {"allow": false, "reason": "Blocked: command deletes production data"}
 ```
+
 ```json
 {"context": "Note: the previous write triggered a lint warning on line 42"}
 ```
@@ -416,7 +413,9 @@ The prompt is sent to the configured LLM provider with the event context. Expect
 ```json
 {"ok": true}
 ```
+
 or
+
 ```json
 {"ok": false, "reason": "This command would delete the database"}
 ```
@@ -448,14 +447,13 @@ paths = ["src/**/*.rs", "tests/**"]     # Only Rust source files
 handler = { command = "cargo clippy" }
 ```
 
-
 ## WASM Extensions
 
 Sandboxed WebAssembly modules that extend VibeUI (the desktop app).
 
 ### Extension Structure
 
-```
+```sh
 ~/.vibeui/extensions/my-extension/
   extension.json         # Manifest
   extension.wasm         # Compiled WASM module
@@ -569,7 +567,6 @@ pub extern "C" fn on_file_save(ptr: *const u8, len: usize) {
 
 Compile: `cargo build --target wasm32-wasi --release`
 
-
 ## MCP Server Integration
 
 VibeCLI can run as an MCP (Model Context Protocol) server, exposing its tools to Claude Desktop and other MCP clients.
@@ -632,7 +629,6 @@ args = ["@modelcontextprotocol/server-filesystem", "/path/to/allowed"]
 
 External MCP tools become available to the agent as additional tool calls.
 
-
 ## ACP Protocol
 
 The Agent Communication Protocol (ACP) enables external IDEs and tools to submit tasks to VibeCLI's HTTP daemon.
@@ -690,7 +686,6 @@ curl -X POST http://localhost:7878/acp/v1/tasks \
 }
 ```
 
-
 ## HTTP Daemon API
 
 Start the daemon:
@@ -728,6 +723,7 @@ curl -X POST http://localhost:7878/chat \
 ```
 
 Response:
+
 ```json
 {"content": "In Rust, async/await works through..."}
 ```
@@ -742,6 +738,7 @@ curl -X POST http://localhost:7878/agent \
 ```
 
 Response:
+
 ```json
 {"session_id": "abc123"}
 ```
@@ -754,13 +751,13 @@ curl -N http://localhost:7878/stream/abc123 \
 ```
 
 Event types:
+
 ```
 data: {"kind": "chunk", "content": "Let me read the test file..."}
 data: {"kind": "step", "step_num": 1, "tool_name": "read_file", "success": true}
 data: {"kind": "step", "step_num": 2, "tool_name": "write_file", "success": true}
 data: {"kind": "complete", "content": "Fixed the assertion on line 42"}
 ```
-
 
 ## AI Provider Trait
 
@@ -849,7 +846,6 @@ pub struct ImageAttachment {
 | 16 | LocalEdit | `local_edit` | Inline edits |
 | 17 | Failover | `failover` | Auto-failover chain |
 
-
 ## Tool System
 
 The agent uses XML-based tool calling that works with all providers.
@@ -883,11 +879,11 @@ pub struct ToolResult {
 ### Destructive Tools
 
 These tools require approval under `Suggest` and `AutoEdit` policies:
+
 - `bash`
 - `write_file`
 - `apply_patch`
 - `spawn_agent`
-
 
 ## Agent Loop
 
@@ -940,7 +936,6 @@ pub struct AgentContext {
     pub team_bus: Option<TeamMessageBus>, // Inter-agent messaging
 }
 ```
-
 
 ## Configuration Reference
 
@@ -1040,7 +1035,6 @@ image = "ubuntu:22.04"
 | `VIBECLI_API_TOKEN` | HTTP daemon auth token |
 | `GITHUB_TOKEN` | GitHub/Copilot token |
 
-
 ## Examples
 
 ### Example 1: Jira Connector Plugin
@@ -1058,6 +1052,7 @@ vibecody-jira/
 ```
 
 **plugin.toml:**
+
 ```toml
 name = "vibecody-jira"
 version = "1.2.0"
@@ -1103,6 +1098,7 @@ default = "Task"
 ```
 
 **skills/jira-workflow.md:**
+
 ```markdown
 triggers: ["jira", "ticket", "sprint", "backlog", "story", "epic"]
 tools_allowed: ["bash", "read_file"]
@@ -1116,6 +1112,7 @@ When the user mentions Jira tasks:
 ```
 
 **hooks/sync-on-complete.sh:**
+
 ```bash
 #!/bin/bash
 EVENT=$(cat)
@@ -1166,6 +1163,7 @@ When working with GraphQL APIs:
 ### Example 4: WASM Extension (Rust)
 
 **extension.json:**
+
 ```json
 {
   "name": "word-counter",
@@ -1179,6 +1177,7 @@ When working with GraphQL APIs:
 ```
 
 **src/lib.rs:**
+
 ```rust
 extern "C" {
     fn log(ptr: *const u8, len: usize);
@@ -1211,11 +1210,11 @@ pub extern "C" fn on_file_save(ptr: *const u8, len: usize) {
 ```
 
 **Build:**
+
 ```bash
 cargo build --target wasm32-wasi --release
 cp target/wasm32-wasi/release/word_counter.wasm ~/.vibeui/extensions/word-counter/extension.wasm
 ```
-
 
 ## Quick Reference
 

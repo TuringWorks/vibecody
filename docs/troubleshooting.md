@@ -7,7 +7,6 @@ permalink: /troubleshooting/
 
 This guide covers the most common issues you may encounter when installing, configuring, or using VibeCody. Each issue follows the format: **Symptom**, **Cause**, **Solution**.
 
-
 ## Installation Issues
 
 ### Rust compilation errors — missing system dependencies
@@ -48,7 +47,6 @@ sudo dnf install openssl-devel cmake clang-devel gtk3-devel \
 sudo pacman -S base-devel openssl cmake clang gtk3 libsoup3 webkit2gtk-4.1
 ```
 
-
 ### Node.js version mismatch
 
 **Symptom:** `npm install` fails with engine compatibility warnings or syntax errors in build scripts.
@@ -66,7 +64,6 @@ nvm use --lts
 
 # Or download directly from https://nodejs.org/
 ```
-
 
 ### Tauri prerequisites missing (Linux)
 
@@ -90,7 +87,6 @@ sudo dnf install webkit2gtk4.1-devel libappindicator-gtk3-devel \
 
 On macOS, WebView is bundled with the OS. On Windows, WebView2 is typically pre-installed on Windows 10/11.
 
-
 ### npm install failures
 
 **Symptom:** `npm install` in `vibeui/` fails with permission errors or dependency conflicts.
@@ -111,7 +107,6 @@ npm install
 sudo chown -R $(whoami) ~/.npm
 npm install
 ```
-
 
 ## Provider Connection Issues
 
@@ -150,7 +145,6 @@ name = "claude"
 api_key = "sk-ant-..."
 ```
 
-
 ### "Connection refused" — Ollama not running
 
 **Symptom:** `Connection refused` when provider is set to `ollama`.
@@ -178,7 +172,6 @@ name = "ollama"
 api_url = "http://localhost:11434"
 ```
 
-
 ### "Rate limited" (HTTP 429)
 
 **Symptom:** Requests fail with `429 Too Many Requests` or `rate_limit_exceeded`.
@@ -197,8 +190,7 @@ name = "failover"
 chain = ["claude", "openai", "gemini"]
 ```
 
-4. For heavy usage, consider running a local model via Ollama.
-
+1. For heavy usage, consider running a local model via Ollama.
 
 ### "Model not found"
 
@@ -219,11 +211,11 @@ vibecli config show
 ```
 
 Common correct model names:
+
 - Claude: `claude-sonnet-4-20250514`
 - OpenAI: `gpt-4o`
 - Gemini: `gemini-2.5-flash`
 - DeepSeek: `deepseek-chat`
-
 
 ### Timeout errors
 
@@ -241,7 +233,6 @@ timeout_secs = 120  # default is 60
 ```
 
 For slow connections or large models, values of 120-300 seconds may be needed. Also check your network connectivity and try a different provider to isolate the issue.
-
 
 ### SSL certificate errors
 
@@ -262,7 +253,6 @@ export REQUESTS_CA_BUNDLE=/path/to/corporate-ca-bundle.crt
 
 For self-hosted providers, you can set a custom API URL with your internal CA.
 
-
 ## Agent Issues
 
 ### Agent stuck in a loop
@@ -281,9 +271,8 @@ For self-hosted providers, you can set a custom API URL with your internal CA.
 max_steps = 25  # default is 50
 ```
 
-3. Break the task into smaller, more specific sub-tasks.
-4. Try a more capable model (e.g., switch from a local model to Claude).
-
+1. Break the task into smaller, more specific sub-tasks.
+2. Try a more capable model (e.g., switch from a local model to Claude).
 
 ### Agent making unwanted changes
 
@@ -310,7 +299,6 @@ git checkout -- .
 vibecli session restore --checkpoint latest
 ```
 
-
 ### "Tool not available" in sandbox
 
 **Symptom:** Agent reports a tool is unavailable when running inside a sandbox.
@@ -329,7 +317,6 @@ allowed_tools = ["read", "write", "bash", "search"]
 ```
 
 Some tools (e.g., `bash`) may be restricted by default in sandbox mode. Add the required tool to `allowed_tools` if you trust the context.
-
 
 ### Session resume not working
 
@@ -352,7 +339,6 @@ vibecli session new
 
 Session data is stored in `~/.vibecli/sessions/`. You can inspect or delete individual session files there.
 
-
 ## VibeUI Issues
 
 ### Blank screen on launch
@@ -364,6 +350,7 @@ Session data is stored in `~/.vibecli/sessions/`. You can inspect or delete indi
 **Solution:**
 
 **Linux:**
+
 ```bash
 # Ensure webkit2gtk is installed
 sudo apt install libwebkit2gtk-4.1-dev
@@ -373,12 +360,13 @@ WEBKIT_DISABLE_COMPOSITING_MODE=1 npm run tauri:dev
 ```
 
 **Windows:**
+
 - Ensure WebView2 Runtime is installed: [Microsoft WebView2](https://developer.microsoft.com/en-us/microsoft-edge/webview2/)
 - Update your GPU drivers.
 
 **macOS:**
-- Update to the latest macOS version. WebView is bundled with the OS.
 
+- Update to the latest macOS version. WebView is bundled with the OS.
 
 ### Monaco editor slow with large files
 
@@ -391,7 +379,6 @@ WEBKIT_DISABLE_COMPOSITING_MODE=1 npm run tauri:dev
 1. Disable the minimap in VibeUI settings (Settings > Editor > Minimap: off).
 2. Disable word wrap for very large files.
 3. For files over 5 MB, consider using the terminal-based editor or an external editor.
-
 
 ### Terminal panel not working
 
@@ -413,7 +400,6 @@ sudo usermod -aG tty $(whoami)
 
 On macOS, ensure Terminal has Full Disk Access in System Settings > Privacy & Security.
 
-
 ### Panels not loading
 
 **Symptom:** A panel tab shows "Loading..." indefinitely or displays an error.
@@ -431,8 +417,7 @@ cd vibeui
 npm run tauri:dev
 ```
 
-4. If a specific panel consistently fails, report the issue with the console error message.
-
+1. If a specific panel consistently fails, report the issue with the console error message.
 
 ## Build Issues
 
@@ -454,7 +439,6 @@ cargo check --workspace --exclude vibe-collab
 # If lockfile is stale
 cargo update
 ```
-
 
 ### Tauri build fails
 
@@ -478,7 +462,6 @@ npm install
 npm run tauri:build
 ```
 
-
 ### Docker build fails
 
 **Symptom:** `docker build` fails during the multi-stage Rust compilation.
@@ -498,7 +481,6 @@ docker build --platform linux/amd64 -t vibecody .
 docker-compose up
 ```
 
-
 ## Performance
 
 ### High memory usage
@@ -516,15 +498,14 @@ docker-compose up
 max_context_tokens = 100000  # Reduce from default
 ```
 
-2. Clear session history periodically:
+1. Clear session history periodically:
 
 ```bash
 vibecli session new  # Start a fresh session
 ```
 
-3. Use the `/compact` REPL command to compress context in the current session.
-4. Enable session memory profiling to detect leaks: `/metering status`
-
+1. Use the `/compact` REPL command to compress context in the current session.
+2. Enable session memory profiling to detect leaks: `/metering status`
 
 ### Slow responses from AI provider
 
@@ -544,7 +525,6 @@ vibecli session new  # Start a fresh session
 nvidia-smi  # NVIDIA
 ollama list  # See which models are loaded
 ```
-
 
 ### Large repository indexing is slow
 
@@ -571,7 +551,6 @@ exclude = [
 
 For repositories with more than 100,000 files, consider indexing only the directories you are actively working in.
 
-
 ## Still Stuck?
 
 If none of the above solutions resolve your issue:
@@ -582,8 +561,8 @@ If none of the above solutions resolve your issue:
 vibecli doctor
 ```
 
-2. Check [GitHub Issues](https://github.com/TuringWorks/vibecody/issues) for known problems.
-3. Open a new issue with:
+1. Check [GitHub Issues](https://github.com/TuringWorks/vibecody/issues) for known problems.
+2. Open a new issue with:
    - Your OS and version
    - VibeCody version (`vibecli --version`)
    - Full error output

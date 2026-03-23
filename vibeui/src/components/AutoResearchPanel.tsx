@@ -405,7 +405,7 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
       </div>
 
       {error && (
-        <div style={{ ...cardStyle, borderColor: "#e53935", color: "#e53935", fontSize: 12 }}>
+        <div style={{ ...cardStyle, borderColor: "#e53935", color: "var(--error-color)", fontSize: 12 }}>
           {error}
         </div>
       )}
@@ -438,7 +438,7 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
     <div>
       {sessionActive && (
         <div style={{ ...cardStyle, borderColor: "var(--accent)", display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#43a047", animation: "pulse 1.5s infinite" }} />
+          <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--success-color)", animation: "pulse 1.5s infinite" }} />
           <span style={{ fontWeight: 600 }}>Research loop active</span>
           <span style={{ color: "var(--text-secondary)", fontSize: 12 }}>
             {experiments.length} / {config.maxExperiments} experiments
@@ -454,15 +454,15 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
           <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Total</div>
         </div>
         <div style={statStyle}>
-          <div style={{ fontSize: 22, fontWeight: 700, color: "#43a047" }}>{keptCount}</div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: "var(--success-color)" }}>{keptCount}</div>
           <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Kept</div>
         </div>
         <div style={statStyle}>
-          <div style={{ fontSize: 22, fontWeight: 700, color: "#ff9800" }}>{discardedCount}</div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: "var(--warning-color)" }}>{discardedCount}</div>
           <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Discarded</div>
         </div>
         <div style={statStyle}>
-          <div style={{ fontSize: 22, fontWeight: 700, color: "#e53935" }}>{failedCount}</div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: "var(--error-color)" }}>{failedCount}</div>
           <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Failed</div>
         </div>
       </div>
@@ -519,7 +519,7 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
       <div>
         <div style={gridStyle(4)}>
           <div style={statStyle}>
-            <div style={{ fontSize: 18, fontWeight: 700, color: "#43a047" }}>{acceptanceRate.toFixed(1)}%</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: "var(--success-color)" }}>{acceptanceRate.toFixed(1)}%</div>
             <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Acceptance Rate</div>
           </div>
           <div style={statStyle}>
@@ -572,7 +572,7 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
             .map(exp => (
               <div key={exp.id} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", borderBottom: "1px solid var(--border)" }}>
                 <span>{exp.hypothesis}</span>
-                <span style={{ color: "#43a047", fontWeight: 600, ...monoStyle }}>+{exp.delta.toFixed(4)}</span>
+                <span style={{ color: "var(--success-color)", fontWeight: 600, ...monoStyle }}>+{exp.delta.toFixed(4)}</span>
               </div>
             ))
           }
@@ -611,7 +611,7 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
                 <span style={{ color: "var(--text-secondary)" }}>{"  ".repeat(i)}{i > 0 ? "└─ " : ""}</span>
                 <span style={monoStyle}>{exp.id}</span>
                 <span style={{ color: "var(--text-secondary)" }}>{exp.hypothesis}</span>
-                <span style={{ marginLeft: "auto", color: "#43a047", ...monoStyle }}>{exp.compositeScore.toFixed(4)}</span>
+                <span style={{ marginLeft: "auto", color: "var(--success-color)", ...monoStyle }}>{exp.compositeScore.toFixed(4)}</span>
               </div>
             ))}
           </div>
@@ -647,7 +647,7 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
 
       <div style={gridStyle(2)}>
         <div style={cardStyle}>
-          <div style={{ fontWeight: 600, marginBottom: 8, color: "#43a047" }}>Successful Patterns</div>
+          <div style={{ fontWeight: 600, marginBottom: 8, color: "var(--success-color)" }}>Successful Patterns</div>
           {successPatterns.map((p, i) => (
             <div key={i} style={{ padding: "4px 0", fontSize: 12 }}>
               <span style={tagStyle("#43a047")}>KEEP</span> {p}
@@ -656,7 +656,7 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
           {successPatterns.length === 0 && <div style={{ color: "var(--text-secondary)", fontSize: 12 }}>None yet</div>}
         </div>
         <div style={cardStyle}>
-          <div style={{ fontWeight: 600, marginBottom: 8, color: "#e53935" }}>Failed Patterns</div>
+          <div style={{ fontWeight: 600, marginBottom: 8, color: "var(--error-color)" }}>Failed Patterns</div>
           {failPatterns.map((p, i) => (
             <div key={i} style={{ padding: "4px 0", fontSize: 12 }}>
               <span style={tagStyle("#e53935")}>AVOID</span> {p}
@@ -725,8 +725,8 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
           </button>
         ))}
         {sessionActive && (
-          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#43a047" }}>
-            <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#43a047" }} />
+          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--success-color)" }}>
+            <div style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--success-color)" }} />
             Running
           </div>
         )}

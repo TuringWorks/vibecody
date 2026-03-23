@@ -22,7 +22,7 @@ export function Terminal({ onClose }: TerminalProps) {
         const term = new XTerm({
             cursorBlink: true,
             theme: {
-                background: '#1e1e1e',
+                background: 'var(--bg-primary)',
                 foreground: '#d4d4d4',
             },
             fontFamily: 'var(--font-mono)',

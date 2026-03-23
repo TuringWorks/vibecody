@@ -8,7 +8,6 @@ title: "FIT GAP ANALYSIS v4"
 **Previous analysis:** FIT-GAP-ANALYSIS-v3.md (2026-03-07)
 **Focus:** Recent competitor improvements (Jan–Mar 2026) and new gaps identified
 
-
 ## Executive Summary
 
 The AI coding assistant market has accelerated dramatically in Q1 2026. Key shifts:
@@ -23,7 +22,6 @@ The AI coding assistant market has accelerated dramatically in Q1 2026. Key shif
 VibeCody maintains strong feature parity across most dimensions but has **17 new gaps** to address, primarily around event-driven automations, interactive chat widgets, agent self-review, batch code generation, and new entrants (Amp, Continue 1.0, Blitzy).
 
 **New competitors added:** Amp (Sourcegraph), Continue.dev 1.0, Windsurf under Cognition, Blitzy
-
 
 ## Part A — Competitor Recent Improvements (Jan–Mar 2026)
 
@@ -158,12 +156,14 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 **Bolt.new positioning:** Bolt.new competes primarily with VibeUI (desktop IDE), not VibeCLI. It targets non-developers and rapid prototypers who want browser-based, zero-setup app generation. VibeCody targets professional developers who need deep tooling, multi-provider AI, and enterprise features.
 
 **Key gaps from Bolt.new — CLOSED:**
+
 - ~~Browser-based zero-setup builder mode~~ — Partial: `app_builder.rs` provides AI Enhancer + scaffolding + templates via CLI/VibeUI; not browser-only but equivalent functionality
 - ~~Automatic database provisioning per project~~ — **CLOSED**: `AppProvisioner::provision_database()` auto-creates schema + connection config (SQLite/PostgreSQL/Supabase)
 - ~~Team-shareable project templates~~ — **CLOSED**: `TeamTemplateStore` with save/load/export/import + JSON serialization
 - ~~Unified managed backend~~ — **CLOSED**: `ManagedBackend::generate_backend_config()` + docker-compose + deployment manifest generation
 
 **Where VibeCody wins over Bolt.new:**
+
 - Full IDE experience (Monaco editor, LSP, Git, terminal)
 - 17 AI providers vs Bolt's 2 (Claude, GPT)
 - CLI agent (VibeCLI) — Bolt has no terminal mode
@@ -195,6 +195,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 **Blitzy positioning:** Blitzy is an enterprise-focused, cloud-hosted autonomous development platform — fundamentally different from VibeCody's developer-tool approach. Blitzy targets teams wanting to outsource 80% of development to AI agents running for hours, while VibeCody targets professional developers who want AI-augmented control. Blitzy is a "give me the spec, I'll build it" platform; VibeCody is a "let's build it together" tool.
 
 **Key gaps from Blitzy — ALL CLOSED:**
+
 - ~~Batch/bulk code generation~~ — **CLOSED**: `batch_builder.rs` with BatchBuilder, 10 agent roles, 3M+ line target, architecture planning, checkpoint/resume (109 tests)
 - ~~Multi-QA agent cross-validation~~ — **CLOSED**: `qa_validation.rs` with QaPipeline, 8 QA agent types, multi-round validation, cross-validation (99 tests)
 - ~~Extended autonomous reasoning (8-12 hours)~~ — **CLOSED**: BatchConfig with max_duration_hours=12, checkpoint_interval=30min, pause/resume/cancel
@@ -202,6 +203,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 - ~~GitLab/Azure DevOps native integration~~ — **CLOSED**: `git_platform.rs` with 5 platforms, unified API, cross-platform PR sync (111 tests)
 
 **Where VibeCody wins over Blitzy:**
+
 - Free and open-source vs $10K+/year
 - Local-first, developer-in-the-loop vs cloud-only batch processing
 - 17 AI providers vs Blitzy's proprietary orchestration
@@ -219,7 +221,6 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 |-------------|-------------|-----------------|
 | **A-SWE autonomous agent** | Full app creation, testing, documentation (in development) | N/A — not yet released |
 | **Windsurf acquisition ($3B)** | Cascade + SWE-1 model IP acquired | N/A — competitive positioning shift |
-
 
 ## Part B — New Gap Priority Matrix
 
@@ -265,7 +266,6 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 | 21 | ~~Extended autonomous runs (8-12 hr)~~ | Blitzy | **CLOSED** — `batch_builder.rs`: BatchConfig with max_duration_hours (default 12), checkpoint_interval_minutes (default 30), pause/resume/cancel, time budget tracking |
 | 22 | ~~Full legacy language migration~~ | Blitzy, Devin | **CLOSED** — `legacy_migration.rs`: MigrationEngine with 18 source languages (COBOL, Fortran, VB6, etc.), 10 target languages, 6 strategies (Strangler Fig, Big Bang, etc.), service boundary detection, translation rules, 101 tests |
 | 23 | ~~GitLab/Azure DevOps native integration~~ | Blitzy | **CLOSED** — `git_platform.rs`: PlatformManager with GitHub/GitLab/Azure DevOps/Bitbucket/Gitea, unified PR/issue/pipeline/webhook APIs, platform-specific URL builders, cross-platform PR sync, 111 tests |
-
 
 ## Part C — VibeCody Competitive Strengths (Updated)
 
@@ -313,7 +313,6 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 6. **Observability** — OpenTelemetry OTLP tracing to Jaeger/Zipkin/Grafana; no competitor offers this
 7. **Cost control** — Budget limits, cost observatory, arena mode for model evaluation; no competitor offers all three
 
-
 ## Part D — Competitive Positioning Shifts
 
 ### Market Consolidation (Q1 2026)
@@ -349,10 +348,10 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 3. **Regulated industry focus** — No competitor addresses aerospace/defense/medical/finance with domain-specific skills
 4. **On-premises deployment** — Growing demand for air-gapped AI coding in defense, government, healthcare
 
-
 ## Part E — Recommended Roadmap for P0/P1 Gaps
 
 ### Phase 53: Event-Driven Automations (P0) — Yes IMPLEMENTED
+
 - `automations.rs`: AutomationEngine with 7 TriggerSource variants (GitHub/Slack/Linear/PagerDuty/Cron/FileWatch/Webhook)
 - EventFilter (conditions, required_fields, body_pattern), PromptTemplate with `{{var}}` substitution
 - Event parsers: parse_github_event, parse_slack_event, parse_linear_event, parse_pagerduty_event
@@ -363,6 +362,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 - **44 tests**, all passing
 
 ### Phase 54: Agent Self-Review Gate (P0) — Yes IMPLEMENTED
+
 - `self_review.rs`: SelfReviewGate with 8 CheckKind variants (Build/Lint/Test/Security/Format/TypeCheck/DiffReview/Custom)
 - SecretScanner with 6 patterns (AWS keys, GitHub tokens, private keys, Slack webhooks, API keys, passwords)
 - LintConfig + TestConfig auto-detection for Rust, TypeScript, Python, Go projects
@@ -374,6 +374,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 - **44 tests**, all passing
 
 ### Phase 55: MCP Apps / Interactive Chat Widgets (P1) — Yes IMPLEMENTED
+
 - `mcp_apps.rs`: WidgetRegistry with 10 widget types (Table/Chart/Form/Image/Mermaid/Markdown/Progress/Code/Tree/Metric)
 - MCP App response parser: `{ "type": "mcp-app", "component": "chart", "props": {...} }`
 - Data structures: TableData (ASCII table), ChartData (ASCII bars), FormData, ProgressData, MetricData (KPI+trend), TreeNode (ASCII tree)
@@ -381,6 +382,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 - **30 tests**, all passing
 
 ### Phase 56: Agent Teams v2 — Peer Messaging (P1) — Yes IMPLEMENTED
+
 - `agent_teams_v2.rs`: TeamCoordinator with peer-to-peer messaging
 - PeerMessage types: Text, Request, Response, StatusUpdate, FileChange, ConflictAlert, TaskAssignment
 - SharedTask board: Pending → InProgress → InReview → Complete/Failed/Blocked lifecycle
@@ -390,6 +392,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 - **29 tests**, all passing
 
 ### Phase 57: Semantic Index MCP Server (P1) — Yes IMPLEMENTED
+
 - `semantic_mcp.rs`: SemanticIndexServer exposing 6 MCP tools
 - Tools: search_codebase (keyword+exact), find_related_files (shared symbols), explain_symbol (docs+signature), dependency_graph, index_status, reindex
 - IndexEntry with symbols (10 SymbolKind variants), language detection, embedding hash
@@ -398,6 +401,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 - **22 tests**, all passing
 
 ### Phase 58: Auto-Documentation Wiki (P1) — Yes IMPLEMENTED
+
 - `docgen.rs`: WikiGenerator with source code analysis
 - Auto-detect: API endpoints (.get/.post patterns), public interfaces (pub struct/trait/enum, export class/interface), configuration options
 - Generates 4 page types: Index, API Endpoints, Data Models, Configuration
@@ -407,6 +411,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 - **28 tests**, all passing
 
 ### Phase 59: Mobile/Web Remote Control (P2) — Yes IMPLEMENTED
+
 - `remote_control.rs`: RemoteControlServer with QR code pairing
 - PairingToken generation, WebSocket-based RemoteClient with DeviceType enum
 - ClientPermissions: can_execute, can_approve, can_view_history, can_modify_files
@@ -415,6 +420,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 - **20 tests**, all passing
 
 ### Phase 60: AST-Aware Code Application (P2) — Yes IMPLEMENTED
+
 - `ast_edit.rs`: AstEditor with structural node targeting
 - AstNode with 17 NodeKind variants (Function, Struct, Enum, Impl, Trait, Module, etc.)
 - 8 EditOp types: ReplaceBody, Rename, Insert, Delete, Wrap, Extract, AddImport, ChangeVisibility
@@ -423,6 +429,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 - **35 tests**, all passing
 
 ### Phase 61: CI/CD AI Status Checks (P2) — Yes IMPLEMENTED
+
 - `ci_status_check.rs`: CiCheckManager with AiCheckRun lifecycle
 - 7 CheckConclusion variants (Success/Failure/Neutral/Cancelled/TimedOut/Skipped/Pending)
 - 8 AiCheckType variants (CodeReview/SecurityScan/StyleCheck/TestCoverage/BreakingChange/DependencyAudit/Documentation/Custom)
@@ -432,6 +439,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 - **16 tests**, all passing
 
 ### Phase 62: VS Code Session Browser (P2) — Yes IMPLEMENTED
+
 - `vscode_sessions.rs`: SessionBrowser with session lifecycle management
 - SessionEntry: id, title, status (Active/Completed/Failed/Paused), provider, model, message count
 - FileChange tracking with ChangeType (Created/Modified/Deleted/Renamed)
@@ -441,6 +449,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 - **17 tests**, all passing
 
 ### Phase 63: Cloud Sandbox IDE (P2) — Yes IMPLEMENTED
+
 - `cloud_sandbox.rs`: CloudSandboxManager with container-based sandbox instances
 - SandboxState lifecycle: Creating → Running → Stopped/Failed/Expired
 - SandboxConfig: image, CPU cores, memory, disk, ports, env vars, workspace path
@@ -450,6 +459,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 - **15 tests**, all passing
 
 ### Phase 64: Plan-as-Document with Feedback (P2) — Yes IMPLEMENTED
+
 - `plan_document.rs`: PlanManager with PlanDocument lifecycle
 - PlanDocument: title, description, steps, comments, version tracking, tags
 - PlanStep with 8 StepStatus variants, FileChange tracking, dependency references
@@ -462,6 +472,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 - **45 tests**, all passing
 
 ### Phase 65: Security Scanning in Agent Flow (P2) — Yes IMPLEMENTED
+
 - `security_scanning.rs`: SecurityScanner with pattern-based vulnerability detection
 - 13 VulnerabilityClass variants covering OWASP Top 10+ (SQLi, XSS, command injection, path traversal, SSRF, etc.)
 - 5 Severity levels (Critical/High/Medium/Low/Info) with numeric scoring
@@ -473,6 +484,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 - **17 tests**, all passing
 
 ### Phase 66: Specialized Sub-Agent Roles (P2) — Yes IMPLEMENTED
+
 - `sub_agent_roles.rs`: SubAgentRegistry with typed agent roles
 - 11 AgentRole variants: CodeReviewer, TestWriter, SecurityReviewer, Refactorer, DocumentationWriter, Debugger, Architect, PerformanceOptimizer, DependencyManager, MigrationSpecialist, Custom
 - Role-specific system prompts (domain expertise instructions for each role)
@@ -484,6 +496,7 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 - **16 tests**, all passing
 
 ### Phase 67: RL-Trained Next-Edit Prediction (P3) — Yes IMPLEMENTED
+
 - `edit_prediction.rs`: EditPredictor with Q-learning reinforcement learning model
 - RlModel: Q-table based learning with configurable learning_rate, discount_factor, exploration_rate
 - EditState hashing: file type + recent actions (last 3) + context length for state space
@@ -495,7 +508,6 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 - Exploration decay with configurable floor (min 0.01)
 - History windowing with configurable max_history
 - **37 tests**, all passing
-
 
 ## Part F — Metrics Summary
 
@@ -513,7 +525,6 @@ VibeCody maintains strong feature parity across most dimensions but has **17 new
 | Open gaps (P2) | 0 (all 8 closed) |
 | Open gaps (P3) | 0 (all 9 closed) |
 | Competitors analyzed | 11 (Claude Code, Cursor, Copilot, Devin, Augment, Windsurf, Amp, Continue, Bolt.new, Blitzy, Aider) |
-
 
 ## Sources
 

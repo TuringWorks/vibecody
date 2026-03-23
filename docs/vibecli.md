@@ -10,7 +10,6 @@ permalink: /vibecli/
 
 VibeCLI provides two interaction modes: a rich **Terminal UI (TUI)** powered by Ratatui, and a **REPL** mode for quick, scriptable use.
 
-
 ## Installation
 
 ### Prerequisites
@@ -30,7 +29,6 @@ cargo build --release -p vibecli
 # Optional: install to PATH
 cp target/release/vibecli /usr/local/bin/
 ```
-
 
 ## Usage
 
@@ -73,7 +71,6 @@ vibecli --provider gemini
 | `--tailscale` | false | Enable Tailscale funnel for remote access |
 | `--serve` | false | Run as HTTP daemon (REST + SSE API) |
 
-
 ## TUI Commands
 
 Once inside the TUI, type messages naturally or use slash commands:
@@ -86,7 +83,6 @@ Once inside the TUI, type messages naturally or use slash commands:
 | `/files` | Browse workspace file tree |
 | `/quit` or `/exit` | Exit VibeCLI |
 | `Tab` | Toggle between Chat and Diff views |
-
 
 ## REPL Commands
 
@@ -218,7 +214,6 @@ In REPL mode, the following slash commands are available:
 
 > **Safety**: By default, all shell command execution requires user confirmation (`y/N`). Disable this with `require_approval_for_commands = false` in config.
 
-
 ## Workflow Examples
 
 ### Chat with AI
@@ -344,7 +339,6 @@ Auto-fixing build failures...
 Generating tests for: src/auth.rs
 ```
 
-
 ## Git Context Awareness
 
 VibeCLI automatically injects Git context into AI conversations:
@@ -355,11 +349,9 @@ VibeCLI automatically injects Git context into AI conversations:
 
 This gives the AI complete awareness of what you are working on without any extra prompting.
 
-
 ## Syntax Highlighting
 
 Code blocks in AI responses are highlighted in the terminal using `syntect`. Supported languages include Rust, Python, TypeScript, JavaScript, Go, TOML, YAML, JSON, Markdown, and more.
-
 
 ## Configuration
 
@@ -373,7 +365,6 @@ enabled = true
 api_url = "http://localhost:11434"
 model = "qwen2.5-coder:7b"
 ```
-
 
 ## CI / Non-Interactive Mode
 
@@ -393,7 +384,6 @@ vibecli --exec "add docstrings to all public functions" \
 ```
 
 **Exit codes:** `0` = success, `1` = partial, `2` = failed, `3` = approval required.
-
 
 ## @ Context Types
 
@@ -415,23 +405,21 @@ VibeCLI supports inline context injection using `@` references in chat messages:
 
 Example:
 
-```
+```text
 > /chat @jira:AUTH-456 explain this ticket and suggest an implementation plan
 > /chat @github:torvalds/linux#1234 summarize this issue
 ```
-
 
 ## Multimodal Input (Vision)
 
 Claude and GPT-4o providers support image attachments. Use `[path/to/image.png]` syntax in `/chat`:
 
-```
+```text
 > /chat [screenshot.png] what error is shown in this screenshot?
 > /chat [diagram.jpg] [schema.png] explain this database design
 ```
 
 Images are base64-encoded and sent with the message. Non-vision providers fall back to text-only.
-
 
 ## Trace / Audit Log
 
@@ -443,7 +431,6 @@ Every agent session is recorded to `~/.vibecli/traces/<timestamp>.jsonl`. Browse
 ```
 
 Each entry records: step, tool, input summary, output, duration, and approval source (`user` / `auto` / `ci-auto` / `rejected`).
-
 
 ## MCP Integration
 
@@ -468,7 +455,6 @@ Then in the REPL:
 > /mcp tools github        # list tools from the github server
 ```
 
-
 ## Code Review Agent
 
 Run structured code reviews from the CLI:
@@ -484,7 +470,6 @@ vibecli review --focus security,perf  # limit review focus
 Output is a structured `ReviewReport` with issues (severity: info/warning/critical), suggestions, and a numeric score.
 
 Use `--pr` to post the review directly to a GitHub PR as a comment (via `gh` CLI).
-
 
 ## Server Mode (`vibecli serve`)
 
@@ -523,7 +508,6 @@ Endpoints:
 | POST | `/webhook/skill/:skill_name` | No | Trigger a skill by webhook name |
 | GET | `/pair` | No | Device pairing endpoint — generates a one-time pairing URL |
 
-
 ## Hooks System
 
 Hooks execute on agent events. Configure in `~/.vibecli/hooks.toml` or `.vibecli/hooks.toml`:
@@ -537,12 +521,11 @@ handler = { type = "command", command = "echo 'Running shell command' >> /tmp/ho
 
 Events: `SessionStart`, `PreToolUse`, `PostToolUse`, `Stop`, `TaskCompleted`, `SubagentStart`.
 
-
 ## Plan Mode
 
 Generate execution plans without running tools:
 
-```
+```text
 > /plan refactor the auth module to use JWT tokens
 
 Execution Plan:
@@ -554,7 +537,6 @@ Execution Plan:
 
 Yes Execute this plan? (y/N):
 ```
-
 
 ## Code Complete Workflow
 
@@ -575,7 +557,7 @@ Guide application development through 8 structured stages inspired by Steve McCo
 
 ### Usage
 
-```
+```text
 > /workflow new my_app Build a REST API for user management
 
 Yes Workflow 'my_app' created with 8 stages (Code Complete methodology)
@@ -609,7 +591,6 @@ Yes Advanced to stage: Architecture
 
 Workflows are stored as markdown files in `.vibecli/workflows/` with YAML front-matter. The stage advancement gate requires ≥80% checklist completion in VibeUI.
 
-
 ## Red Team Security Testing
 
 Run autonomous penetration tests against applications you build with VibeCody. The red team module executes a 5-stage pipeline: **Recon → Analysis → Exploitation → Validation → Report**.
@@ -641,7 +622,7 @@ vibecli --redteam http://localhost:3000 --redteam-config auth.yaml
 vibecli --redteam-report <session-id>
 ```
 
-```
+```bash
 # Interactive REPL
 > /redteam scan http://localhost:3000
 > /redteam list
@@ -654,12 +635,11 @@ Sessions are persisted as JSON at `~/.vibecli/redteam/`. Findings include CVSS s
 
 > **Authorization**: Red team features require explicit user consent and target only user-controlled applications (localhost / staging).
 
-
 ## Test Runner
 
 Run project tests directly from the REPL with auto-detection of the test framework:
 
-```
+```text
 > /test
 
 Running: cargo test
@@ -686,7 +666,6 @@ If no framework is detected, provide a custom command: `/test <command>`.
 
 In VibeUI, the **Tests** panel provides a richer experience with live streaming log output, per-test pass/fail results, expandable failure details, filter tabs (All / Failed / Passed), and a custom command input field.
 
-
 ## Skills System
 
 VibeCody ships with **543 skill files** across 25+ categories covering finance, healthcare, security, cloud (AWS/Azure/GCP), data engineering, robotics, compliance, SRE, and more. Skills activate based on trigger keywords. Place custom `.md` files in `.vibecli/skills/` or `~/.vibecli/skills/`:
@@ -698,7 +677,6 @@ category: rust
 tools_allowed: [read_file, write_file, bash]
 Use `#[tokio::test]` for async tests...
 ```
-
 
 ## Gateway Messaging
 
@@ -715,7 +693,6 @@ bot_token = "..."
 whitelist = ["@username"]
 ```
 
-
 ## Session Resume
 
 Resume a previous agent session:
@@ -725,7 +702,6 @@ vibecli --resume 1740000000
 ```
 
 Restores the full message history, context, and trace from the JSONL log.
-
 
 ## Admin Policy
 
@@ -742,7 +718,6 @@ deny = ["*.env", "secrets/**"]
 [limits]
 max_steps = 10
 ```
-
 
 ## OpenTelemetry
 
@@ -797,7 +772,6 @@ vibecli/
                 ├── vim_editor.rs # Vim-style modal editor (Normal/Insert/Visual/Command)
                 └── diagnostics.rs # Cargo/eslint diagnostics panel
 ```
-
 
 ## Dependencies
 

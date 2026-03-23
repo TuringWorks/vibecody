@@ -90,7 +90,7 @@ const ChannelDaemonPanel: React.FC = () => {
         {tab === "Events" && EVENTS.map((ev, i) => (
           <div key={i} style={cardStyle}>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ fontFamily: "monospace", fontSize: 12 }}>{ev.time}</span>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}>{ev.time}</span>
               <span style={badgeStyle("var(--info-color)")}>{ev.type}</span>
             </div>
             <div style={{ fontSize: 12, marginTop: 4 }}>[{ev.channel}] {ev.summary}</div>

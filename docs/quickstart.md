@@ -93,13 +93,13 @@ vibecli>
 
 Type a question:
 
-```
+```sh
 vibecli> What does the #[derive(Debug)] macro do in Rust?
 ```
 
 Expected output (streamed):
 
-```
+```sh
 The #[derive(Debug)] attribute macro automatically implements the
 `Debug` trait for a struct or enum, allowing you to print it with
 `{:?}` formatting in println!, dbg!, or format!.
@@ -129,7 +129,7 @@ vibecli --exec "add error handling to main.rs"
 
 Example output (interactive mode with default `suggest` policy):
 
-```
+```sh
  Agent   add error handling to main.rs
   Policy: suggest (ask before every action)  |  Press Ctrl+C to stop
 
@@ -185,7 +185,7 @@ vibecli --provider claude
 
 Expected output:
 
-```
+```sh
 VibeCLI v0.3.3 — AI coding assistant
 Provider: claude (claude-sonnet-4-6)
 
@@ -194,7 +194,7 @@ vibecli>
 
 **Step 4:** Verify it works:
 
-```
+```sh
 vibecli> Hello, which model am I talking to?
 ```
 
@@ -222,13 +222,13 @@ vibecli --review
 
 Or from inside the REPL:
 
-```
+```sh
 vibecli> /review
 ```
 
 Expected output:
 
-```
+```sh
 [review] Analyzing diff (3 files, +47 -12 lines)...
 
 ## Code Review Summary
@@ -248,7 +248,7 @@ Expected output:
 
 You can also review a GitHub PR directly:
 
-```
+```sh
 vibecli> /review --pr 42
 ```
 

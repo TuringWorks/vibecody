@@ -131,7 +131,7 @@ const CiGatesPanel: React.FC = () => {
             </div>
             <pre style={{
               background: "var(--bg-tertiary)", padding: 12, borderRadius: 6, fontSize: 12,
-              fontFamily: "monospace", overflow: "auto", border: "1px solid var(--border-color)",
+              fontFamily: "var(--font-mono)", overflow: "auto", border: "1px solid var(--border-color)",
               whiteSpace: "pre-wrap", color: "var(--text-primary)",
             }}>{GH_ACTION_YAML}</pre>
           </div>

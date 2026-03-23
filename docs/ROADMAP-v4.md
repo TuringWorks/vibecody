@@ -9,7 +9,6 @@ permalink: /roadmap-v4/
 **Previous:** ROADMAP-v3.md (March 2026) — Phases 10-14 complete
 **Scope:** 19 new gaps from FIT-GAP-ANALYSIS-v6.md; 8 implementation phases across 4 priority tiers
 
-
 ## Current State
 
 All phases from Roadmap v1 (1-5), v2 (6-9), and v3 (10-14) are **complete**. FIT-GAP v4 (23 gaps) and v5 (12 gaps) are **all closed**. FIT-GAP v6 identifies **19 new gaps** based on analysis of **30 competitors**.
@@ -25,7 +24,6 @@ All phases from Roadmap v1 (1-5), v2 (6-9), and v3 (10-14) are **complete**. FIT
 | Rust modules | 165+ |
 | Competitors analyzed | 30 |
 
-
 ## Phase 15: Always-On Agent Infrastructure (P0)
 
 **Why:** Claude Code Channels, Cursor Automations, and Codex Cloud Automations have established "always-on AI teammate" as a category. Developers now expect agents that work 24/7 on triggers — not just on-demand REPL interactions. This is the single highest-impact gap.
@@ -33,6 +31,7 @@ All phases from Roadmap v1 (1-5), v2 (6-9), and v3 (10-14) are **complete**. FIT
 ### 15.1 Channel Daemon
 
 **Deliverables:**
+
 - [ ] `channel_daemon.rs` — Persistent daemon process that:
   - Listens on configured gateway channels (Slack, Discord, GitHub webhooks, Linear, PagerDuty, custom HTTP, MCP channels)
   - Routes incoming events to automations.rs trigger evaluator
@@ -47,6 +46,7 @@ All phases from Roadmap v1 (1-5), v2 (6-9), and v3 (10-14) are **complete**. FIT
 ### 15.2 Cloud VM Agent Orchestration
 
 **Deliverables:**
+
 - [ ] `vm_orchestrator.rs` — Multi-environment agent manager:
   - Launch isolated Docker containers or cloud VMs per agent task
   - Each environment gets: fresh git clone, dedicated branch, resource limits (CPU/RAM/time)
@@ -61,7 +61,6 @@ All phases from Roadmap v1 (1-5), v2 (6-9), and v3 (10-14) are **complete**. FIT
 
 **Effort:** High (5-7 days total for 15.1 + 15.2)
 
-
 ## Phase 16: Spec-Driven Development (P0)
 
 **Why:** Kiro (AWS) has validated spec-driven development as a methodology. Augment is shipping "Intent" — a living-spec workspace. Structured requirements pipelines differentiate professional workflows from ad-hoc "vibe coding."
@@ -69,6 +68,7 @@ All phases from Roadmap v1 (1-5), v2 (6-9), and v3 (10-14) are **complete**. FIT
 ### 16.1 EARS Pipeline
 
 **Deliverables:**
+
 - [ ] `spec_pipeline.rs` — Structured development pipeline:
   - **Requirements phase:** EARS (Easy Approach to Requirements Syntax) parser with 5 pattern types:
     - Ubiquitous: "The [system] shall [action]"
@@ -88,12 +88,12 @@ All phases from Roadmap v1 (1-5), v2 (6-9), and v3 (10-14) are **complete**. FIT
 
 **Effort:** Medium (3-4 days)
 
-
 ## Phase 17: Agent-Per-Branch Workflow (P0)
 
 **Why:** Cursor and v0 both create branches per agent task. This enables true parallel development — multiple agents working simultaneously without stepping on each other. It's also the natural pairing with Phase 15.2 (VM orchestration).
 
 **Deliverables:**
+
 - [ ] `branch_agent.rs` — Per-task branching:
   - On task start: `git checkout -b agent/<task-slug>-<short-id>`
   - Work in isolation (all edits on branch)
@@ -109,7 +109,6 @@ All phases from Roadmap v1 (1-5), v2 (6-9), and v3 (10-14) are **complete**. FIT
 
 **Effort:** Medium (2-3 days)
 
-
 ## Phase 18: Design & Voice Pipeline (P1)
 
 **Why:** Bolt.new's Figma import, Replit's sketch-to-code, and Lovable's visual edits show demand for design-first workflows. Jules's audio summaries are a novel UX that no other tool offers. Both fill clear gaps in VibeCody's input/output modalities.
@@ -117,6 +116,7 @@ All phases from Roadmap v1 (1-5), v2 (6-9), and v3 (10-14) are **complete**. FIT
 ### 18.1 Design Import
 
 **Deliverables:**
+
 - [ ] `design_import.rs` — Design-to-code pipeline:
   - Figma API client (read-only): extract frames, components, styles, auto-layout
   - Image/sketch recognition: send wireframe image to vision provider, extract UI structure
@@ -131,6 +131,7 @@ All phases from Roadmap v1 (1-5), v2 (6-9), and v3 (10-14) are **complete**. FIT
 ### 18.2 Audio Output / TTS
 
 **Deliverables:**
+
 - [ ] `audio_output.rs` — Text-to-speech synthesis:
   - Cloud TTS: Google Cloud TTS, AWS Polly, Azure Speech (configurable)
   - Local TTS: Piper TTS (open-source, runs offline for air-gapped)
@@ -144,7 +145,6 @@ All phases from Roadmap v1 (1-5), v2 (6-9), and v3 (10-14) are **complete**. FIT
 
 **Effort:** High (4-5 days total for 18.1 + 18.2)
 
-
 ## Phase 19: Enterprise Context & Collaboration (P1)
 
 **Why:** Tabnine's Enterprise Context Engine and Augment's organizational understanding demonstrate enterprise demand for cross-repo intelligence. Amp's thread sharing and Lovable's real-time collab show agents need to be social, not solitary.
@@ -152,6 +152,7 @@ All phases from Roadmap v1 (1-5), v2 (6-9), and v3 (10-14) are **complete**. FIT
 ### 19.1 Org-Wide Context Engine
 
 **Deliverables:**
+
 - [ ] `org_context.rs` — Cross-repository organizational intelligence:
   - Multi-repo indexing: aggregate embeddings from configured repository list
   - Pattern detection: identify shared patterns, idioms, architecture decisions across org
@@ -166,6 +167,7 @@ All phases from Roadmap v1 (1-5), v2 (6-9), and v3 (10-14) are **complete**. FIT
 ### 19.2 Agent Session Sharing
 
 **Deliverables:**
+
 - [ ] `session_sharing.rs` — Shareable agent sessions:
   - Export session as shareable JSON (tool calls, reasoning, file changes, timestamps)
   - Import shared sessions for review or continuation
@@ -178,7 +180,6 @@ All phases from Roadmap v1 (1-5), v2 (6-9), and v3 (10-14) are **complete**. FIT
 
 **Effort:** High (5-6 days total for 19.1 + 19.2)
 
-
 ## Phase 20: Extended Platform Features (P2)
 
 **Why:** These features close gaps against specific competitors (Continue's CI gates, Lovable's data analysis, Google's Gemini) without being existential threats. Implementing them strengthens VibeCody's "most complete" positioning.
@@ -186,6 +187,7 @@ All phases from Roadmap v1 (1-5), v2 (6-9), and v3 (10-14) are **complete**. FIT
 ### 20.1 CI-Enforceable AI Checks
 
 **Deliverables:**
+
 - [ ] `ci_gates.rs` — AI review rules as CI gates:
   - Source-controlled rules in `.viberules/ci/` directory
   - Rule types: code quality, security, performance, style, test coverage thresholds
@@ -199,6 +201,7 @@ All phases from Roadmap v1 (1-5), v2 (6-9), and v3 (10-14) are **complete**. FIT
 ### 20.2 Data Analysis Mode
 
 **Deliverables:**
+
 - [ ] `data_analysis.rs` — AI-assisted data exploration:
   - Load datasets: CSV, Parquet, JSON, SQLite databases
   - Statistical summaries: distributions, correlations, outliers
@@ -213,6 +216,7 @@ All phases from Roadmap v1 (1-5), v2 (6-9), and v3 (10-14) are **complete**. FIT
 ### 20.3 Gemini Native Provider
 
 **Deliverables:**
+
 - [ ] `gemini.rs` in vibe-ai — Google Gemini provider:
   - Gemini 2.5 Pro, Gemini 2.5 Flash, Gemini 2.0 Flash
   - Streaming support with SSE parsing
@@ -226,12 +230,12 @@ All phases from Roadmap v1 (1-5), v2 (6-9), and v3 (10-14) are **complete**. FIT
 
 **Effort:** Medium-High (5-7 days total for 20.1-20.3)
 
-
 ## Phase 21: Managed Deploy (P2)
 
 **Why:** Lovable, Bolt Cloud, and v0/Vercel all offer one-click deployment. VibeCody generates deploy configs but doesn't manage infrastructure. Closing this gap eliminates a key reason developers choose app builders over VibeCody.
 
 **Deliverables:**
+
 - [ ] `managed_deploy.rs` — One-click deployment manager:
   - Platform adapters: Vercel, Netlify, Fly.io, Railway, Render, self-hosted Docker
   - Build detection: auto-detect framework (Next.js, Vite, Remix, etc.) and configure build
@@ -250,7 +254,6 @@ All phases from Roadmap v1 (1-5), v2 (6-9), and v3 (10-14) are **complete**. FIT
 
 **Effort:** High (4-5 days)
 
-
 ## Phase 22: Future Architecture (P3)
 
 **Why:** These are architectural investments that won't pay off immediately but position VibeCody for the 2027 landscape where 100M-token context, cross-surface agents, and model marketplaces become standard.
@@ -258,6 +261,7 @@ All phases from Roadmap v1 (1-5), v2 (6-9), and v3 (10-14) are **complete**. FIT
 ### 22.1 Massive Context Architecture
 
 **Deliverables:**
+
 - [ ] `context_streaming.rs` — Foundation for 10M-100M token windows:
   - Hierarchical summarization: multi-level abstractions (file→module→package→project)
   - Sliding window with retrieval: keep recent context live, retrieve older via embeddings
@@ -269,6 +273,7 @@ All phases from Roadmap v1 (1-5), v2 (6-9), and v3 (10-14) are **complete**. FIT
 ### 22.2 VS Code Extension Compatibility
 
 **Deliverables:**
+
 - [ ] `extension_compat.rs` — VS Code extension compatibility layer:
   - Load TextMate grammar bundles (.tmLanguage, .tmTheme) for syntax highlighting
   - Load snippet definitions (.code-snippets)
@@ -280,6 +285,7 @@ All phases from Roadmap v1 (1-5), v2 (6-9), and v3 (10-14) are **complete**. FIT
 ### 22.3 Model Provider Marketplace
 
 **Deliverables:**
+
 - [ ] `model_marketplace.rs` — Model comparison and discovery:
   - Model registry: name, provider, capabilities, pricing, benchmarks, context window
   - Pre-loaded with 50+ models across all 17 providers + OpenRouter
@@ -294,6 +300,7 @@ All phases from Roadmap v1 (1-5), v2 (6-9), and v3 (10-14) are **complete**. FIT
 ### 22.4 Cross-Surface Agent Routing
 
 **Deliverables:**
+
 - [ ] `cross_surface_routing.rs` — Multi-surface task routing:
   - Task handoff protocol: CLI ↔ IDE ↔ Cloud ↔ Mobile
   - Session sync: start on mobile (via channel daemon), work executes in cloud VM, results appear in IDE
@@ -305,6 +312,7 @@ All phases from Roadmap v1 (1-5), v2 (6-9), and v3 (10-14) are **complete**. FIT
 ### 22.5 Agentic CI/CD Pipeline
 
 **Deliverables:**
+
 - [ ] `agentic_cicd.rs` — AI agents as CI/CD participants:
   - Auto-fix failing builds: agent analyzes CI failure, creates fix PR
   - Missing test generation: detect uncovered code in PR, generate tests
@@ -315,7 +323,6 @@ All phases from Roadmap v1 (1-5), v2 (6-9), and v3 (10-14) are **complete**. FIT
 - [ ] Tests: 25+ unit tests
 
 **Effort:** Very High (8-12 days total for 22.1-22.5)
-
 
 ## Priority & Timeline Summary
 
@@ -344,7 +351,6 @@ All phases from Roadmap v1 (1-5), v2 (6-9), and v3 (10-14) are **complete**. FIT
 | 13 | Sketch-to-3D generation | Novel but niche; wait for ecosystem maturity |
 | 16 | VS Code extension compat (partial) | Phase 22.2 covers high-value subset |
 
-
 ## Success Criteria
 
 After completing Phases 15-22, VibeCody will:
@@ -359,7 +365,6 @@ After completing Phases 15-22, VibeCody will:
 8. **Deployable** — One-click deploy to 6+ platforms, matching Lovable/Bolt/v0
 9. **CI-native** — AI checks as CI gates, matching Continue
 10. **18-provider** — Gemini added as 18th native provider
-
 
 ## Competitive Position After v4
 

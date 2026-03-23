@@ -49,11 +49,11 @@ type Tab = 'overview' | 'memories' | 'query' | 'facts' | 'graph' | 'settings';
 type SectorName = 'episodic' | 'semantic' | 'procedural' | 'emotional' | 'reflective';
 
 const SECTOR_COLORS: Record<SectorName, string> = {
-  episodic: 'var(--vibe-accent-blue, #3b82f6)',
-  semantic: 'var(--vibe-accent-green, #22c55e)',
-  procedural: 'var(--vibe-accent-yellow, #eab308)',
-  emotional: 'var(--vibe-accent-red, #ef4444)',
-  reflective: 'var(--vibe-accent-purple, #a855f7)',
+  episodic: 'var(--accent-blue, #3b82f6)',
+  semantic: 'var(--accent-green, #22c55e)',
+  procedural: 'var(--accent-gold, #eab308)',
+  emotional: 'var(--accent-rose, #ef4444)',
+  reflective: 'var(--accent-purple, #a855f7)',
 };
 
 const SECTOR_ICONS: Record<SectorName, string> = {
@@ -74,9 +74,9 @@ function formatDate(epoch: number): string {
 }
 
 function salienceColor(sal: number): string {
-  if (sal >= 0.7) return 'var(--vibe-accent-green, #22c55e)';
-  if (sal >= 0.4) return 'var(--vibe-accent-yellow, #eab308)';
-  return 'var(--vibe-accent-red, #ef4444)';
+  if (sal >= 0.7) return 'var(--accent-green, #22c55e)';
+  if (sal >= 0.4) return 'var(--accent-gold, #eab308)';
+  return 'var(--accent-rose, #ef4444)';
 }
 
 // ─── Tauri invoke wrapper (falls back to mock data) ──────────────────────────
@@ -271,8 +271,8 @@ const OpenMemoryPanel: React.FC = () => {
           <button key={t.key} onClick={() => setTab(t.key)} style={{
             padding: '8px 16px', border: 'none', cursor: 'pointer', fontSize: 13,
             background: tab === t.key ? 'var(--vibe-bg-primary, #1e293b)' : 'transparent',
-            color: tab === t.key ? 'var(--vibe-accent-blue, #3b82f6)' : 'var(--vibe-text-secondary, #94a3b8)',
-            borderBottom: tab === t.key ? '2px solid var(--vibe-accent-blue, #3b82f6)' : '2px solid transparent',
+            color: tab === t.key ? 'var(--accent-blue, #3b82f6)' : 'var(--vibe-text-secondary, #94a3b8)',
+            borderBottom: tab === t.key ? '2px solid var(--accent-blue, #3b82f6)' : '2px solid transparent',
           }}>{t.label}</button>
         ))}
       </div>
@@ -299,7 +299,7 @@ const OpenMemoryPanel: React.FC = () => {
                 <div key={c.label} style={{
                   background: 'var(--vibe-bg-tertiary, #1e293b)', borderRadius: 8, padding: 16, textAlign: 'center',
                 }}>
-                  <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--vibe-accent-blue, #3b82f6)' }}>{c.value}</div>
+                  <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--accent-blue, #3b82f6)' }}>{c.value}</div>
                   <div style={{ fontSize: 12, color: 'var(--vibe-text-secondary, #94a3b8)', marginTop: 4 }}>{c.label}</div>
                 </div>
               ))}
@@ -349,7 +349,7 @@ const OpenMemoryPanel: React.FC = () => {
               />
               <button onClick={handleAdd} style={{
                 padding: '8px 16px', borderRadius: 6, border: 'none', cursor: 'pointer',
-                background: 'var(--vibe-accent-blue, #3b82f6)', color: '#fff', fontSize: 13, fontWeight: 600,
+                background: 'var(--accent-blue, #3b82f6)', color: 'var(--btn-primary-fg)', fontSize: 13, fontWeight: 600,
               }}>Add</button>
             </div>
 
@@ -395,14 +395,14 @@ const OpenMemoryPanel: React.FC = () => {
                         <span style={{ fontSize: 11, color: salienceColor(m.effective_salience) }}>
                           {(m.effective_salience * 100).toFixed(0)}%
                         </span>
-                        {m.pinned && <span style={{ fontSize: 10, color: 'var(--vibe-accent-yellow, #eab308)' }}>PINNED</span>}
-                        {m.encrypted && <span style={{ fontSize: 10, color: 'var(--vibe-accent-purple, #a855f7)' }}>ENCRYPTED</span>}
+                        {m.pinned && <span style={{ fontSize: 10, color: 'var(--accent-gold, #eab308)' }}>PINNED</span>}
+                        {m.encrypted && <span style={{ fontSize: 10, color: 'var(--accent-purple, #a855f7)' }}>ENCRYPTED</span>}
                       </div>
                       <div style={{ display: 'flex', gap: 4 }}>
                         <button onClick={() => handlePin(m.id, !m.pinned)} style={smallBtnStyle}>
                           {m.pinned ? 'Unpin' : 'Pin'}
                         </button>
-                        <button onClick={() => handleDelete(m.id)} style={{ ...smallBtnStyle, color: 'var(--vibe-accent-red, #ef4444)' }}>
+                        <button onClick={() => handleDelete(m.id)} style={{ ...smallBtnStyle, color: 'var(--accent-rose, #ef4444)' }}>
                           Delete
                         </button>
                       </div>
@@ -458,7 +458,7 @@ const OpenMemoryPanel: React.FC = () => {
               </select>
               <button onClick={handleQuery} style={{
                 padding: '8px 16px', borderRadius: 6, border: 'none', cursor: 'pointer',
-                background: 'var(--vibe-accent-blue, #3b82f6)', color: '#fff', fontSize: 13, fontWeight: 600,
+                background: 'var(--accent-blue, #3b82f6)', color: 'var(--btn-primary-fg)', fontSize: 13, fontWeight: 600,
               }}>Search</button>
             </div>
 
@@ -470,7 +470,7 @@ const OpenMemoryPanel: React.FC = () => {
                     borderLeft: `3px solid ${SECTOR_COLORS[r.memory.sector as SectorName] || '#666'}`,
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                      <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--vibe-accent-blue, #3b82f6)' }}>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent-blue, #3b82f6)' }}>
                         #{i + 1} Score: {r.score.toFixed(3)}
                       </span>
                       <span style={{
@@ -520,7 +520,7 @@ const OpenMemoryPanel: React.FC = () => {
               />
               <button onClick={handleAddFact} style={{
                 padding: '8px 16px', borderRadius: 6, border: 'none', cursor: 'pointer',
-                background: 'var(--vibe-accent-green, #22c55e)', color: '#fff', fontSize: 13, fontWeight: 600,
+                background: 'var(--accent-green, #22c55e)', color: 'var(--btn-primary-fg)', fontSize: 13, fontWeight: 600,
               }}>Add Fact</button>
             </div>
 
@@ -616,8 +616,8 @@ const OpenMemoryPanel: React.FC = () => {
                 }} style={{
                   ...actionBtnStyle,
                   background: encryptionEnabled
-                    ? 'var(--vibe-accent-green, #22c55e)'
-                    : 'var(--vibe-accent-blue, #3b82f6)',
+                    ? 'var(--accent-green, #22c55e)'
+                    : 'var(--accent-blue, #3b82f6)',
                 }}>{encryptionEnabled ? 'Enabled' : 'Enable'}</button>
               </div>
             </div>
@@ -650,7 +650,7 @@ const OpenMemoryPanel: React.FC = () => {
                     <tr key={feat} style={{ borderBottom: '1px solid var(--vibe-border, #1e293b)' }}>
                       <td style={tdStyle}>{feat}</td>
                       <td style={tdStyle}>{om}</td>
-                      <td style={{ ...tdStyle, color: 'var(--vibe-accent-green, #22c55e)' }}>{vc}</td>
+                      <td style={{ ...tdStyle, color: 'var(--accent-green, #22c55e)' }}>{vc}</td>
                     </tr>
                   ))}
                 </tbody>

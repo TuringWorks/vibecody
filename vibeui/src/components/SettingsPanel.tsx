@@ -1756,7 +1756,7 @@ function ProfileSection() {
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           {/* Google "G" logo */}
           <div style={{
-            width: 40, height: 40, borderRadius: "var(--radius-sm)", background: "#fff",
+            width: 40, height: 40, borderRadius: "var(--radius-sm)", background: "var(--bg-elevated)",
             display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
             border: "1px solid var(--border-color)",
           }}>
@@ -1789,7 +1789,7 @@ function ProfileSection() {
               <button
                 style={{
                   padding: "8px 20px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)",
-                  background: "#fff", color: "#3c4043", cursor: "pointer", fontSize: 13, fontWeight: 500,
+                  background: "var(--bg-elevated)", color: "var(--text-primary)", cursor: "pointer", fontSize: 13, fontWeight: 500,
                   display: "flex", alignItems: "center", gap: 8,
                 }}
                 onClick={handleGoogleLogin}

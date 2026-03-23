@@ -9,7 +9,6 @@ permalink: /roadmap-v3/
 **Previous:** ROADMAP-v2.md (February 2026) — all phases complete
 **Scope:** Futureproofing gaps identified in FIT-GAP-ANALYSIS-v5.md; 12 new phases across 4 priority tiers
 
-
 ## Current State
 
 All phases from Roadmap v1 (1-5) and v2 (6-9) are **complete**. FIT-GAP v4's 23 gaps are **all closed** (Phases 53-67). VibeCody has:
@@ -24,7 +23,6 @@ All phases from Roadmap v1 (1-5) and v2 (6-9) are **complete**. FIT-GAP v4's 23 
 | Gateway platforms | 18 |
 | Rust modules | 100+ |
 
-
 ## Phase 10: MCP Ecosystem & Scalability
 
 ### 10.1 MCP Lazy Loading / Tool Search (P0)
@@ -32,6 +30,7 @@ All phases from Roadmap v1 (1-5) and v2 (6-9) are **complete**. FIT-GAP v4's 23 
 **Why:** Claude Code v2.1.74 showed 95% context reduction through deferred tool loading. As MCP ecosystems grow (30+ plugins in Cursor alone), eager loading of all tool schemas at startup becomes unsustainable.
 
 **Deliverables:**
+
 - [ ] `mcp_lazy.rs` — LazyToolRegistry with manifest-only startup loading
 - [ ] ToolSearch: keyword search across all MCP servers, loads matching tools on demand
 - [ ] LRU eviction: auto-unload unused tool schemas after configurable idle timeout
@@ -44,13 +43,13 @@ All phases from Roadmap v1 (1-5) and v2 (6-9) are **complete**. FIT-GAP v4's 23 
 **Why:** Cursor has 30+ verified MCP partner plugins. VibeCody needs a curated directory to compete.
 
 **Deliverables:**
+
 - [ ] `mcp_directory.rs` — PluginDirectory with categories, ratings, verification status
 - [ ] Plugin manifest format: `mcp-plugin.toml`
 - [ ] Verification pipeline: checksum, permission audit, sandboxed test
 - [ ] `McpDirectoryPanel.tsx` — browse, search, install, rate
 - [ ] REPL: `/mcp install|search|update|uninstall|verify`
 - [ ] Tests: 25+ unit tests
-
 
 ## Phase 11: Context & Collaboration
 
@@ -59,6 +58,7 @@ All phases from Roadmap v1 (1-5) and v2 (6-9) are **complete**. FIT-GAP v4's 23 
 **Why:** Copilot Spaces allow teams to share curated context sets. No open-source equivalent exists. This is a differentiation opportunity.
 
 **Deliverables:**
+
 - [ ] `context_bundles.rs` — ContextBundle struct (pinned files, instructions, excludes, model prefs)
 - [ ] Bundle file format: `.vibebundle.toml` (portable, versionable)
 - [ ] Operations: create, activate, deactivate, share, import, export
@@ -73,6 +73,7 @@ All phases from Roadmap v1 (1-5) and v2 (6-9) are **complete**. FIT-GAP v4's 23 
 **Why:** Credit-based billing is replacing flat subscriptions (Cursor, Devin ACU). Even for BYOK users, teams need per-user/per-project cost allocation.
 
 **Deliverables:**
+
 - [ ] `usage_metering.rs` — UsageMeter with per-agent/task/user token tracking
 - [ ] Credit budgets: configurable limits per team/user/project with alerts
 - [ ] Usage reports: daily/weekly/monthly by provider, model, task type
@@ -81,7 +82,6 @@ All phases from Roadmap v1 (1-5) and v2 (6-9) are **complete**. FIT-GAP v4's 23 
 - [ ] `UsageMeteringPanel.tsx` — dashboards, budgets, alerts, reports
 - [ ] Tests: 30+ unit tests
 
-
 ## Phase 12: Cloud & Infrastructure
 
 ### 12.1 Cloud Provider Deep Integration (P0)
@@ -89,6 +89,7 @@ All phases from Roadmap v1 (1-5) and v2 (6-9) are **complete**. FIT-GAP v4's 23 
 **Why:** Amazon Q Developer's deep AWS integration is a moat. VibeCody needs equivalent coverage for AWS/GCP/Azure to serve enterprise teams.
 
 **Deliverables:**
+
 - [ ] `cloud_providers.rs` — CloudProviderManager with AWS/GCP/Azure adapters
 - [ ] IAM policy generation: analyze code → detect service usage → generate least-privilege policies
 - [ ] IaC template generation: CloudFormation, Terraform, Pulumi from project structure
@@ -102,13 +103,13 @@ All phases from Roadmap v1 (1-5) and v2 (6-9) are **complete**. FIT-GAP v4's 23 
 **Why:** Bolt.new, Replit, and Devin all offer zero-install web experiences. VibeCody should offer a lightweight web mode for onboarding and demos.
 
 **Deliverables:**
+
 - [ ] Compile vibe-core to WASM (text buffer, search, file system abstraction)
 - [ ] Static web app with Monaco editor, terminal emulator, file tree
 - [ ] WebContainer or server-side sandbox for command execution
 - [ ] Feature subset: chat, basic agent, file editing, preview
 - [ ] Progressive enhancement: web → desktop migration path
 - [ ] Hosted at vibecody.dev (or similar)
-
 
 ## Phase 13: Protocol & Interoperability
 
@@ -117,6 +118,7 @@ All phases from Roadmap v1 (1-5) and v2 (6-9) are **complete**. FIT-GAP v4's 23 
 **Why:** Zed is pushing ACP as a standard for agent-editor communication. Early adoption ensures VibeCody can participate in multi-agent ecosystems.
 
 **Deliverables:**
+
 - [ ] `acp_protocol.rs` — ACP message types, capability negotiation, tool registration
 - [ ] ACP server mode: expose VibeCody tools to ACP-compatible editors
 - [ ] ACP client mode: connect to external ACP agents as tool providers
@@ -129,12 +131,12 @@ All phases from Roadmap v1 (1-5) and v2 (6-9) are **complete**. FIT-GAP v4's 23 
 **Why:** Copilot's JetBrains GA includes agent hooks. VibeCody's JetBrains plugin should match.
 
 **Deliverables:**
+
 - [ ] Extend JetBrains plugin with hook registration API
 - [ ] Events: pre-edit, post-edit, pre-commit, post-commit, agent-start, agent-complete
 - [ ] Hook types: shell command, HTTP webhook, LLM-based
 - [ ] Settings UI in JetBrains for hook configuration
 - [ ] Tests: 15+ unit tests
-
 
 ## Phase 14: Quality & Enterprise Readiness
 
@@ -143,6 +145,7 @@ All phases from Roadmap v1 (1-5) and v2 (6-9) are **complete**. FIT-GAP v4's 23 
 **Why:** SWE-bench scores are the primary marketing metric in AI coding. VibeCody should let users benchmark their own provider+config.
 
 **Deliverables:**
+
 - [ ] `swe_bench.rs` — BenchmarkRunner with task download, agent execution, scoring
 - [ ] Support SWE-bench Verified, SWE-bench Pro, custom suites
 - [ ] Provider/model comparison across runs
@@ -155,6 +158,7 @@ All phases from Roadmap v1 (1-5) and v2 (6-9) are **complete**. FIT-GAP v4's 23 
 **Why:** Claude Code has fixed memory leaks in long sessions. VibeCody's 8+ hour batch runs need similar safeguards.
 
 **Deliverables:**
+
 - [ ] `session_memory.rs` — MemoryProfiler with periodic heap sampling
 - [ ] Leak detection: track allocation growth rate, flag anomalies
 - [ ] Auto-compact: evict stale context, compress history
@@ -166,6 +170,7 @@ All phases from Roadmap v1 (1-5) and v2 (6-9) are **complete**. FIT-GAP v4's 23 
 **Why:** Enterprise procurement increasingly requires SOC 2 / ISO 27001. Technical controls can be built now even if certification is later.
 
 **Deliverables:**
+
 - [ ] `compliance_controls.rs` — ControlInventory mapped to SOC 2 Trust Service Criteria
 - [ ] Immutable audit trail for all AI-generated code changes
 - [ ] Access control documentation: RBAC policies, key rotation, session management
@@ -178,13 +183,13 @@ All phases from Roadmap v1 (1-5) and v2 (6-9) are **complete**. FIT-GAP v4's 23 
 **Why:** Voice (voice.rs), vision (providers), and code (agent.rs) currently operate as separate features. Unifying them enables more natural developer interaction.
 
 **Deliverables:**
+
 - [ ] `multimodal_agent.rs` — UnifiedAgent processing mixed inputs per turn
 - [ ] Voice → text → agent action pipeline
 - [ ] Screenshot → vision → code generation pipeline
 - [ ] Interleaved conversation context (voice + images + code)
 - [ ] Auto-detection of input mode
 - [ ] Tests: 25+ unit tests
-
 
 ## Priority & Timeline Summary
 
@@ -208,7 +213,6 @@ All phases from Roadmap v1 (1-5) and v2 (6-9) are **complete**. FIT-GAP v4's 23 
 **P2 total:** ~3-5 weeks (4 features)
 **P3 total:** ~7-9 days (2 features)
 
-
 ## Success Criteria
 
 After completing Phases 10-14, VibeCody will:
@@ -220,7 +224,6 @@ After completing Phases 10-14, VibeCody will:
 5. **Enterprise-ready** — Usage metering, SOC 2 controls, compliance reports
 6. **Benchmarkable** — Built-in SWE-bench runner for transparent evaluation
 7. **Accessible** — Browser-based mode for zero-install onboarding
-
 
 ## Competitive Position After v3
 

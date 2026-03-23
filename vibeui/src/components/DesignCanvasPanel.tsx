@@ -290,7 +290,7 @@ export function DesignCanvasPanel() {
                   onDragStart={() => setDragType(item.type)}
                   onDragEnd={() => setDragType(null)}
                 >
-                  <span style={{ marginRight: "6px", fontFamily: "monospace" }}>{item.icon}</span>
+                  <span style={{ marginRight: "6px", fontFamily: "var(--font-mono)" }}>{item.icon}</span>
                   {item.label}
                 </div>
               ))}
@@ -423,7 +423,7 @@ export function DesignCanvasPanel() {
                     marginTop: "16px",
                     padding: "4px 12px",
                     background: "var(--error-color, #d32f2f)",
-                    color: "#fff",
+                    color: "var(--btn-primary-fg)",
                     border: "none",
                     borderRadius: "3px",
                     cursor: "pointer",
@@ -447,7 +447,7 @@ export function DesignCanvasPanel() {
                 style={{
                   padding: "2px 10px",
                   background: "var(--button-bg, #0e639c)",
-                  color: "#fff",
+                  color: "var(--btn-primary-fg)",
                   border: "none",
                   borderRadius: "3px",
                   cursor: "pointer",
@@ -558,7 +558,7 @@ export function DesignCanvasPanel() {
                 marginTop: "12px",
                 padding: "8px 16px",
                 background: aiPrompt.trim() ? "var(--button-bg, #0e639c)" : "var(--disabled-bg, #555)",
-                color: "#fff",
+                color: "var(--btn-primary-fg)",
                 border: "none",
                 borderRadius: "4px",
                 cursor: aiPrompt.trim() ? "pointer" : "not-allowed",
@@ -582,7 +582,7 @@ export function DesignCanvasPanel() {
                 style={{
                   padding: "8px 16px",
                   background: "var(--button-bg, #0e639c)",
-                  color: "#fff",
+                  color: "var(--btn-primary-fg)",
                   border: "none",
                   borderRadius: "4px",
                   cursor: "pointer",

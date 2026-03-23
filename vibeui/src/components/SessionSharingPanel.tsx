@@ -105,7 +105,7 @@ const SessionSharingPanel: React.FC = () => {
                 {FORMATS.map(f => <option key={f} value={f}>{f}</option>)}
               </select>
             </div>
-            <div style={{ ...cardStyle, background: "var(--bg-tertiary)", fontFamily: "monospace", fontSize: 12, whiteSpace: "pre-wrap" }}>
+            <div style={{ ...cardStyle, background: "var(--bg-tertiary)", fontFamily: "var(--font-mono)", fontSize: 12, whiteSpace: "pre-wrap" }}>
               {exportFormat === "Markdown" && "# Session Export\n\n## Auth refactor session\n**Owner:** alice | **Messages:** 24\n\n---\n> Message 1: ...\n> Message 2: ..."}
               {exportFormat === "JSON" && '{\n  "session_id": "sess-a1b2",\n  "title": "Auth refactor session",\n  "messages": [...]\n}'}
               {exportFormat === "HTML" && "<html>\n<body>\n  <h1>Session Export</h1>\n  <div class=\"message\">...</div>\n</body>\n</html>"}

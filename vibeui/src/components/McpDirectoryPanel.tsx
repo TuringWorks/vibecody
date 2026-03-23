@@ -218,7 +218,7 @@ export function McpDirectoryPanel() {
                 <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 10 }}>
                   Browse the directory to find and install plugins.
                 </div>
-                <button style={{ ...btnStyle, background: "var(--accent-primary, #0e639c)", color: "#fff" }} onClick={() => setTab("browse")}>
+                <button style={{ ...btnStyle, background: "var(--accent-primary, #0e639c)", color: "var(--btn-primary-fg)" }} onClick={() => setTab("browse")}>
                   Browse Directory
                 </button>
               </div>
@@ -248,7 +248,7 @@ export function McpDirectoryPanel() {
                         <span style={{
                           fontSize: 10, padding: "1px 6px", borderRadius: 8,
                           background: p.updatable ? "var(--warning-color, #cca700)" : "var(--success-color, #4caf50)",
-                          color: "#fff",
+                          color: "var(--btn-primary-fg)",
                         }}>
                           {p.updatable ? "Update available" : "Active"}
                         </span>
@@ -261,14 +261,14 @@ export function McpDirectoryPanel() {
                         <span style={{ color: "var(--warning-color, #cca700)" }}>{renderStars(p.rating)} {p.rating.toFixed(1)}</span>
                         <span style={{ color: "var(--text-secondary, #888)" }}>{formatDownloads(p.downloads)} downloads</span>
                       </div>
-                      <div style={{ fontSize: 11, color: "var(--text-secondary, #888)", marginTop: 6, fontFamily: "monospace" }}>
+                      <div style={{ fontSize: 11, color: "var(--text-secondary, #888)", marginTop: 6, fontFamily: "var(--font-mono)" }}>
                         Config: ~/.vibecli/mcp/{p.id}/config.json
                       </div>
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                       {p.updatable && (
                         <button
-                          style={{ ...btnStyle, background: "var(--warning-color, #cca700)", color: "#fff", fontSize: 11 }}
+                          style={{ ...btnStyle, background: "var(--warning-color, #cca700)", color: "var(--btn-primary-fg)", fontSize: 11 }}
                           onClick={() => handleInstall(p.id)}
                           disabled={actionInProgress === p.id}
                         >

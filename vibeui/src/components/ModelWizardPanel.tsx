@@ -92,7 +92,7 @@ const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", bord
 const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4, display: "block" };
 const inputStyle: React.CSSProperties = { width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", fontSize: 12, fontFamily: "var(--font-family)", boxSizing: "border-box" as const };
 const selectStyle: React.CSSProperties = { ...inputStyle, cursor: "pointer" };
-const btnPrimary: React.CSSProperties = { padding: "8px 20px", borderRadius: 4, border: "none", background: "var(--accent-primary, #7c6aef)", color: "#fff", cursor: "pointer", fontSize: 13, fontWeight: 600 };
+const btnPrimary: React.CSSProperties = { padding: "8px 20px", borderRadius: 4, border: "none", background: "var(--accent-primary, #7c6aef)", color: "var(--btn-primary-fg)", cursor: "pointer", fontSize: 13, fontWeight: 600 };
 const btnSecondary: React.CSSProperties = { padding: "8px 20px", borderRadius: 4, border: "1px solid var(--border-color)", background: "transparent", color: "var(--text-primary)", cursor: "pointer", fontSize: 13 };
 const optionBtn = (active: boolean): React.CSSProperties => ({
   padding: "8px 14px", borderRadius: 6, cursor: "pointer", fontSize: 12, textAlign: "left" as const,

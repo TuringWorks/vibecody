@@ -55,7 +55,7 @@ const tabBtnStyle = (active: boolean): React.CSSProperties => ({ ...btnStyle, ba
 const inputStyle: React.CSSProperties = { padding: "5px 8px", fontSize: "12px", background: "var(--bg-input, var(--bg-primary))", border: "1px solid var(--border-color)", borderRadius: "4px", color: "var(--text-primary)", outline: "none", fontFamily: "var(--font-mono)", width: "100%", boxSizing: "border-box" };
 const barBg: React.CSSProperties = { height: 8, borderRadius: 4, background: "var(--bg-tertiary)", overflow: "hidden" };
 const barFill = (pct: number, color: string): React.CSSProperties => ({ height: "100%", width: `${Math.min(pct, 100)}%`, borderRadius: 4, background: color });
-const badgeStyle = (v: string): React.CSSProperties => ({ display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 600, color: "#fff", background: v === "loaded" ? "var(--success-color)" : v === "loading" ? "var(--warning-color)" : "var(--text-muted)" });
+const badgeStyle = (v: string): React.CSSProperties => ({ display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 600, color: "var(--btn-primary-fg)", background: v === "loaded" ? "var(--success-color)" : v === "loading" ? "var(--warning-color)" : "var(--text-muted)" });
 
 const EMPTY_SERVER: McpServer = { name: "", command: "", args: [], env: {} };
 const CATEGORIES = ["All", "File Systems", "Git", "Databases", "Cloud", "AI/ML", "Testing", "DevOps", "Communication", "Security", "Code Quality", "Finance", "Design", "Utilities"];
@@ -755,7 +755,7 @@ export function McpPanel() {
                           <span style={{
                             fontSize: 10, padding: "1px 6px", borderRadius: 8,
                             background: p.updatable ? "var(--warning-color)" : "var(--success-color)",
-                            color: "#fff",
+                            color: "var(--btn-primary-fg)",
                           }}>
                             {p.updatable ? "Update available" : "Up to date"}
                           </span>
@@ -782,7 +782,7 @@ export function McpPanel() {
                       <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 80 }}>
                         {p.updatable && (
                           <button
-                            style={{ ...btnStyle, background: "var(--warning-color)", color: "#fff", fontSize: 11 }}
+                            style={{ ...btnStyle, background: "var(--warning-color)", color: "var(--btn-primary-fg)", fontSize: 11 }}
                             onClick={() => installPlugin(p.id)}
                             disabled={pluginAction === p.id}
                           >

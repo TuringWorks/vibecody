@@ -7,7 +7,6 @@ permalink: /security/
 
 This document describes VibeCody's security model, data privacy practices, and hardening recommendations for production deployments.
 
-
 ## Security Model Overview
 
 VibeCody follows a **defense-in-depth** approach with multiple independent layers of protection:
@@ -20,7 +19,6 @@ VibeCody follows a **defense-in-depth** approach with multiple independent layer
 6. **Admin policies** enforce organizational restrictions.
 
 No single layer is relied upon in isolation. A failure in one layer is contained by the others.
-
 
 ## Data Privacy
 
@@ -36,10 +34,10 @@ VibeCody itself does not collect telemetry, analytics, or usage data. What leave
 When using cloud providers, review their data retention policies. Most major providers (Anthropic, OpenAI, Google) offer API usage with no training on your data, but terms vary by provider and plan.
 
 **Recommendations:**
+
 - For sensitive codebases, use Ollama or an air-gapped deployment.
 - Use environment variables or `api_key_helper` for API keys rather than hardcoding them in config files.
 - Avoid committing `.vibecli/config.toml` to version control if it contains API keys.
-
 
 ## Approval Policies
 
@@ -61,7 +59,6 @@ The agent can perform all actions — file edits, command execution, tool invoca
 [agent]
 approval_policy = "suggest"  # "suggest", "auto-edit", or "full-auto"
 ```
-
 
 ## Sandbox Isolation
 
@@ -92,7 +89,6 @@ timeout_secs = 300           # Kill the container after this duration
 
 When `allow_network = false`, the container is started with `--network=none`, preventing all inbound and outbound connections. This is critical for air-gapped deployments and prevents the agent from exfiltrating data or downloading malicious payloads.
 
-
 ## API Key Management
 
 ### Storage Options
@@ -106,13 +102,13 @@ API keys can be provided through multiple mechanisms, listed from most secure to
 api_key_helper = "security find-generic-password -s vibecody-anthropic -w"
 ```
 
-2. **Environment variables** — Set in your shell profile or CI environment:
+1. **Environment variables** — Set in your shell profile or CI environment:
 
 ```bash
 export ANTHROPIC_API_KEY="sk-ant-..."
 ```
 
-3. **Config file** — Stored in `~/.vibecli/config.toml`. Ensure the file has restrictive permissions:
+1. **Config file** — Stored in `~/.vibecli/config.toml`. Ensure the file has restrictive permissions:
 
 ```bash
 chmod 600 ~/.vibecli/config.toml
@@ -127,7 +123,6 @@ When rotating API keys:
 3. Verify with `vibecli doctor` to confirm the new key works.
 4. Revoke the old key from the provider's dashboard.
 
-
 ## SSRF Prevention
 
 Both the CLI tool executor and the VibeUI agent executor validate all URLs before making HTTP requests. The `validate_url_for_ssrf()` function enforces:
@@ -135,16 +130,17 @@ Both the CLI tool executor and the VibeUI agent executor validate all URLs befor
 **Allowed schemes:** `http://` and `https://` only. All others (`file://`, `ftp://`, `gopher://`, etc.) are rejected.
 
 **Blocked destinations:**
+
 - Loopback addresses: `127.0.0.1`, `localhost`, `::1`, `0.0.0.0`
 - Cloud metadata endpoints: `169.254.169.254`, `metadata.google.internal`
 - RFC 1918 private ranges: `10.x.x.x`, `172.16-31.x.x`, `192.168.x.x`
 - Link-local addresses: `169.254.x.x`
 
 This protection is enforced in three locations:
+
 1. `tool_executor.rs` — CLI agent's `fetch_url` tool
 2. `agent_executor.rs` — VibeUI agent's `fetch_url` tool
 3. `commands.rs` — `fetch_and_strip()` used by context pickers and chat
-
 
 ## Path Traversal Prevention
 
@@ -157,7 +153,6 @@ All file operations performed by the agent go through path validation that:
 - **Normalizes path separators** to prevent bypass via mixed separators on Windows.
 
 Both executor implementations (`tool_executor.rs` for CLI, `agent_executor.rs` for VibeUI) enforce these checks.
-
 
 ## Command Execution Security
 
@@ -182,6 +177,7 @@ The following patterns are blocked before execution:
 ### Execution Timeout
 
 All agent bash commands have a wall-clock timeout:
+
 - **CLI executor:** Configurable, default unlimited (sandbox provides isolation)
 - **VibeUI executor:** 120 seconds (hard limit, process killed on expiry)
 - **Project scripts:** 300 seconds (5 minutes)
@@ -193,10 +189,10 @@ Commands extracted from LLM responses (`<build command="...">` and `<run command
 ### SQLite Command Injection Prevention
 
 The database panel blocks SQLite dot-commands that could execute system commands:
+
 - `.shell`, `.system`, `.import`, `.load`, `.output`, `.once`, `.log`
 - `.open`, `.save`, `.backup`, `.restore`, `.clone`
 - `ATTACH DATABASE` (prevents accessing arbitrary files)
-
 
 ## Rate Limiting
 
@@ -216,7 +212,6 @@ Rate limits are configurable in the serve configuration. Exceeding the limit ret
 rate_limit_chat = 60
 rate_limit_agent = 20
 ```
-
 
 ## Admin Policy
 
@@ -242,7 +237,6 @@ max_context_tokens = 200000
 
 Policy files are read at startup and cannot be overridden by user configuration.
 
-
 ## Audit Trail
 
 Every agent action is recorded in JSONL trace files:
@@ -255,6 +249,7 @@ Every agent action is recorded in JSONL trace files:
 ```
 
 Each trace entry includes:
+
 - Timestamp (ISO 8601)
 - Action type (tool_call, model_request, model_response, user_input)
 - Input and output data
@@ -262,7 +257,6 @@ Each trace entry includes:
 - Token usage (prompt and completion)
 
 Traces can be reviewed in the VibeUI Traces panel or exported for external analysis. The compliance controls module supports configurable retention policies and automatic PII redaction.
-
 
 ## Air-Gapped Mode
 
@@ -289,13 +283,12 @@ curl https://example.com  # Should fail: network is disabled
 
 The Docker Compose configuration sets `network_mode: none` for the VibeCLI container and creates an internal-only network between VibeCLI and Ollama.
 
-
 ## Reporting Vulnerabilities
 
 If you discover a security vulnerability in VibeCody, please report it responsibly:
 
 1. **Do not** open a public GitHub issue for security vulnerabilities.
-2. Email **security@vibecody.dev** with:
+2. Email **<security@vibecody.dev>** with:
    - A description of the vulnerability.
    - Steps to reproduce.
    - Potential impact assessment.
@@ -303,7 +296,6 @@ If you discover a security vulnerability in VibeCody, please report it responsib
 4. We aim to release a fix within 7 days for critical issues.
 
 We appreciate responsible disclosure and will credit reporters (with permission) in the release notes.
-
 
 ## Security Hardening Checklist
 
