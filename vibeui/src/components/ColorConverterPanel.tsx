@@ -10,6 +10,7 @@
  * Pure TypeScript + native browser APIs — no Tauri commands required.
  */
 import { useState, useMemo, useCallback } from "react";
+import { CopyButton as CopyBtn } from "./shared/CopyButton";
 
 // ── Colour math ────────────────────────────────────────────────────────────────
 
@@ -125,15 +126,7 @@ function closestNamedColor(rgb: RGB): string {
 
 type SubTab = "convert" | "tints" | "contrast" | "snippets";
 
-function CopyBtn({ text }: { text: string }) {
- const [ok, setOk] = useState(false);
- return (
- <button onClick={() => { navigator.clipboard.writeText(text); setOk(true); setTimeout(() => setOk(false), 1400); }}
- style={{ fontSize: 9, padding: "1px 6px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: ok ? "var(--success-color, #a6e3a1)" : "var(--text-muted)", cursor: "pointer", flexShrink: 0 }}>
- {ok ? "✓" : ""}
- </button>
- );
-}
+// CopyBtn imported from shared/CopyButton.tsx
 
 function FmtRow({ label, value }: { label: string; value: string }) {
  return (

@@ -2,63 +2,12 @@
 //!
 //! Supported models: deepseek-chat (V3), deepseek-reasoner (R1), deepseek-coder (legacy)
 
-use crate::provider::{AIProvider, CodeContext, CompletionResponse, CompletionStream, ImageAttachment, Message, ProviderConfig, TokenUsage};
+use super::openai_compat::{self, ChatRequest};
+use crate::provider::{AIProvider, CodeContext, CompletionResponse, CompletionStream, ImageAttachment, Message, ProviderConfig};
 use anyhow::{Context, Result};
 use async_trait::async_trait;
-use futures::stream::StreamExt;
-use serde::{Deserialize, Serialize};
 
 const DEEPSEEK_BASE_URL: &str = "https://api.deepseek.com/v1";
-
-#[derive(Debug, Serialize)]
-struct DeepSeekRequest {
-    model: String,
-    messages: Vec<DeepSeekMessage>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    temperature: Option<f32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    max_tokens: Option<usize>,
-    stream: bool,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct DeepSeekMessage {
-    role: String,
-    content: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct DeepSeekUsage {
-    prompt_tokens: u32,
-    completion_tokens: u32,
-}
-
-#[derive(Debug, Deserialize)]
-struct DeepSeekResponse {
-    choices: Vec<DeepSeekChoice>,
-    #[serde(default)]
-    usage: Option<DeepSeekUsage>,
-}
-
-#[derive(Debug, Deserialize)]
-struct DeepSeekChoice {
-    message: DeepSeekMessage,
-}
-
-#[derive(Debug, Deserialize)]
-struct DeepSeekStreamResponse {
-    choices: Vec<DeepSeekStreamChoice>,
-}
-
-#[derive(Debug, Deserialize)]
-struct DeepSeekStreamChoice {
-    delta: DeepSeekDelta,
-}
-
-#[derive(Debug, Deserialize)]
-struct DeepSeekDelta {
-    content: Option<String>,
-}
 
 /// DeepSeek provider — code-focused models with native FIM support.
 pub struct DeepSeekProvider {
@@ -70,11 +19,7 @@ impl DeepSeekProvider {
     pub fn new(config: ProviderConfig) -> Self {
         Self {
             config,
-            client: reqwest::Client::builder()
-                .timeout(std::time::Duration::from_secs(90))
-                .connect_timeout(std::time::Duration::from_secs(10))
-                .build()
-                .unwrap_or_else(|_| reqwest::Client::new()),
+            client: openai_compat::default_http_client(),
         }
     }
 
@@ -82,19 +27,22 @@ impl DeepSeekProvider {
         self.config.api_url.clone().unwrap_or_else(|| DEEPSEEK_BASE_URL.to_string())
     }
 
-    fn build_messages(&self, messages: &[Message], context: Option<String>) -> Vec<DeepSeekMessage> {
-        let mut result: Vec<DeepSeekMessage> = messages.iter().map(|m| DeepSeekMessage {
-            role: m.role.as_str().to_string(),
-            content: m.content.clone(),
-        }).collect();
-        if let Some(ctx) = context {
-            if let Some(last) = result.last_mut() {
-                if last.role == "user" {
-                    last.content = format!("Context:\n{}\n\nUser: {}", ctx, last.content);
-                }
-            }
+    fn chat_url(&self) -> String {
+        format!("{}/chat/completions", self.base_url())
+    }
+
+    fn api_key(&self) -> Result<&str> {
+        self.config.api_key.as_deref().context("DeepSeek API key not set (DEEPSEEK_API_KEY)")
+    }
+
+    fn make_request(&self, messages: &[Message], context: Option<String>, stream: bool) -> ChatRequest {
+        ChatRequest {
+            model: self.config.model.clone(),
+            messages: openai_compat::build_messages(messages, context),
+            temperature: self.config.temperature,
+            max_tokens: self.config.max_tokens,
+            stream,
         }
-        result
     }
 }
 
@@ -129,28 +77,9 @@ impl AIProvider for DeepSeekProvider {
     }
 
     async fn chat_response(&self, messages: &[Message], context: Option<String>) -> Result<CompletionResponse> {
-        let api_key = self.config.api_key.as_ref().context("DeepSeek API key not set (DEEPSEEK_API_KEY)")?;
-        let request = DeepSeekRequest {
-            model: self.config.model.clone(),
-            messages: self.build_messages(messages, context),
-            temperature: self.config.temperature,
-            max_tokens: self.config.max_tokens,
-            stream: false,
-        };
-        let url = format!("{}/chat/completions", self.base_url());
-        let resp = self.client.post(&url)
-            .header("Authorization", format!("Bearer {}", api_key))
-            .json(&request)
-            .send().await.context("DeepSeek request failed")?;
-
-        if !resp.status().is_success() {
-            let err = resp.text().await?;
-            anyhow::bail!("DeepSeek API error: {}", err);
-        }
-        let body: DeepSeekResponse = resp.json().await.context("Failed to parse DeepSeek response")?;
-        let text = body.choices.first().context("No choices")?.message.content.clone();
-        let usage = body.usage.map(|u| TokenUsage { prompt_tokens: u.prompt_tokens, completion_tokens: u.completion_tokens });
-        Ok(CompletionResponse { text, model: self.config.model.clone(), usage })
+        let api_key = self.api_key()?;
+        let request = self.make_request(messages, context, false);
+        openai_compat::send_chat_request(&self.client, &self.chat_url(), api_key, &request, "DeepSeek").await
     }
 
     async fn chat(&self, messages: &[Message], context: Option<String>) -> Result<String> {
@@ -158,41 +87,9 @@ impl AIProvider for DeepSeekProvider {
     }
 
     async fn stream_chat(&self, messages: &[Message]) -> Result<CompletionStream> {
-        let api_key = self.config.api_key.as_ref().context("DeepSeek API key not set")?;
-        let request = DeepSeekRequest {
-            model: self.config.model.clone(),
-            messages: self.build_messages(messages, None),
-            temperature: self.config.temperature,
-            max_tokens: self.config.max_tokens,
-            stream: true,
-        };
-        let url = format!("{}/chat/completions", self.base_url());
-        let resp = self.client.post(&url)
-            .header("Authorization", format!("Bearer {}", api_key))
-            .json(&request)
-            .send().await.context("DeepSeek stream request failed")?;
-
-        if !resp.status().is_success() {
-            let err = resp.text().await?;
-            anyhow::bail!("DeepSeek API error: {}", err);
-        }
-        let stream = resp.bytes_stream().map(|chunk| {
-            let chunk = chunk?;
-            let text = String::from_utf8_lossy(&chunk);
-            let mut content = String::new();
-            for line in text.lines() {
-                if let Some(data) = line.strip_prefix("data: ") {
-                    if data == "[DONE]" { continue; }
-                    if let Ok(r) = serde_json::from_str::<DeepSeekStreamResponse>(data) {
-                        if let Some(c) = r.choices.first().and_then(|ch| ch.delta.content.as_ref()) {
-                            content.push_str(c);
-                        }
-                    }
-                }
-            }
-            Ok(content)
-        }).boxed();
-        Ok(stream)
+        let api_key = self.api_key()?;
+        let request = self.make_request(messages, None, true);
+        openai_compat::send_stream_request(&self.client, &self.chat_url(), api_key, &request, "DeepSeek").await
     }
 
     async fn chat_with_images(&self, messages: &[Message], _images: &[ImageAttachment], context: Option<String>) -> Result<String> {
@@ -203,6 +100,7 @@ impl AIProvider for DeepSeekProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use openai_compat::{ChatResponse, ChatMessage, StreamResponse};
 
     fn test_config() -> ProviderConfig {
         ProviderConfig {
@@ -245,7 +143,7 @@ mod tests {
     #[test]
     fn deepseek_response_deser() {
         let json = r#"{"choices":[{"message":{"role":"assistant","content":"code"}}],"usage":{"prompt_tokens":8,"completion_tokens":3}}"#;
-        let resp: DeepSeekResponse = serde_json::from_str(json).unwrap();
+        let resp: ChatResponse = serde_json::from_str(json).unwrap();
         assert_eq!(resp.choices[0].message.content, "code");
         assert_eq!(resp.usage.unwrap().completion_tokens, 3);
     }
@@ -255,12 +153,11 @@ mod tests {
     #[test]
     fn build_messages_without_context() {
         use crate::provider::MessageRole;
-        let p = DeepSeekProvider::new(test_config());
         let msgs = vec![
             Message { role: MessageRole::System, content: "System prompt".into() },
             Message { role: MessageRole::User, content: "Help me".into() },
         ];
-        let result = p.build_messages(&msgs, None);
+        let result = openai_compat::build_messages(&msgs, None);
         assert_eq!(result.len(), 2);
         assert_eq!(result[0].role, "system");
         assert_eq!(result[0].content, "System prompt");
@@ -271,11 +168,10 @@ mod tests {
     #[test]
     fn build_messages_with_context_prepends_to_last_user() {
         use crate::provider::MessageRole;
-        let p = DeepSeekProvider::new(test_config());
         let msgs = vec![
             Message { role: MessageRole::User, content: "Review this".into() },
         ];
-        let result = p.build_messages(&msgs, Some("fn main() {}".into()));
+        let result = openai_compat::build_messages(&msgs, Some("fn main() {}".into()));
         assert_eq!(result.len(), 1);
         assert!(result[0].content.starts_with("Context:\nfn main() {}"));
         assert!(result[0].content.contains("User: Review this"));
@@ -284,13 +180,12 @@ mod tests {
     #[test]
     fn build_messages_context_only_modifies_last_user() {
         use crate::provider::MessageRole;
-        let p = DeepSeekProvider::new(test_config());
         let msgs = vec![
             Message { role: MessageRole::User, content: "First Q".into() },
             Message { role: MessageRole::Assistant, content: "First A".into() },
             Message { role: MessageRole::User, content: "Second Q".into() },
         ];
-        let result = p.build_messages(&msgs, Some("context data".into()));
+        let result = openai_compat::build_messages(&msgs, Some("context data".into()));
         // First user message should be unchanged
         assert_eq!(result[0].content, "First Q");
         // Last user message should have context injected
@@ -301,33 +196,30 @@ mod tests {
     #[test]
     fn build_messages_context_ignored_when_last_is_assistant() {
         use crate::provider::MessageRole;
-        let p = DeepSeekProvider::new(test_config());
         let msgs = vec![
             Message { role: MessageRole::User, content: "Q".into() },
             Message { role: MessageRole::Assistant, content: "A".into() },
         ];
-        let result = p.build_messages(&msgs, Some("extra ctx".into()));
+        let result = openai_compat::build_messages(&msgs, Some("extra ctx".into()));
         // Last message is assistant, context NOT injected
         assert_eq!(result[1].content, "A");
     }
 
     #[test]
     fn build_messages_empty_input() {
-        let p = DeepSeekProvider::new(test_config());
-        let result = p.build_messages(&[], Some("ctx".into()));
+        let result = openai_compat::build_messages(&[], Some("ctx".into()));
         assert!(result.is_empty());
     }
 
     #[test]
     fn build_messages_role_mapping_all_roles() {
         use crate::provider::MessageRole;
-        let p = DeepSeekProvider::new(test_config());
         let msgs = vec![
             Message { role: MessageRole::System, content: "s".into() },
             Message { role: MessageRole::User, content: "u".into() },
             Message { role: MessageRole::Assistant, content: "a".into() },
         ];
-        let result = p.build_messages(&msgs, None);
+        let result = openai_compat::build_messages(&msgs, None);
         assert_eq!(result[0].role, "system");
         assert_eq!(result[1].role, "user");
         assert_eq!(result[2].role, "assistant");
@@ -372,9 +264,9 @@ mod tests {
 
     #[test]
     fn deepseek_request_serde_minimal() {
-        let req = DeepSeekRequest {
+        let req = ChatRequest {
             model: "deepseek-coder".into(),
-            messages: vec![DeepSeekMessage { role: "user".into(), content: "test".into() }],
+            messages: vec![ChatMessage { role: "user".into(), content: "test".into() }],
             temperature: None,
             max_tokens: None,
             stream: false,
@@ -390,11 +282,11 @@ mod tests {
 
     #[test]
     fn deepseek_request_serde_full() {
-        let req = DeepSeekRequest {
+        let req = ChatRequest {
             model: "deepseek-chat".into(),
             messages: vec![
-                DeepSeekMessage { role: "system".into(), content: "sys".into() },
-                DeepSeekMessage { role: "user".into(), content: "usr".into() },
+                ChatMessage { role: "system".into(), content: "sys".into() },
+                ChatMessage { role: "user".into(), content: "usr".into() },
             ],
             temperature: Some(0.3),
             max_tokens: Some(4096),
@@ -411,7 +303,7 @@ mod tests {
     #[test]
     fn deepseek_response_deser_no_usage() {
         let json = r#"{"choices":[{"message":{"role":"assistant","content":"done"}}]}"#;
-        let resp: DeepSeekResponse = serde_json::from_str(json).unwrap();
+        let resp: ChatResponse = serde_json::from_str(json).unwrap();
         assert_eq!(resp.choices[0].message.content, "done");
         assert!(resp.usage.is_none());
     }
@@ -419,22 +311,22 @@ mod tests {
     #[test]
     fn deepseek_stream_response_deser() {
         let json = r#"{"choices":[{"delta":{"content":"token"}}]}"#;
-        let resp: DeepSeekStreamResponse = serde_json::from_str(json).unwrap();
+        let resp: StreamResponse = serde_json::from_str(json).unwrap();
         assert_eq!(resp.choices[0].delta.content.as_ref().unwrap(), "token");
     }
 
     #[test]
     fn deepseek_stream_response_deser_null_content() {
         let json = r#"{"choices":[{"delta":{"content":null}}]}"#;
-        let resp: DeepSeekStreamResponse = serde_json::from_str(json).unwrap();
+        let resp: StreamResponse = serde_json::from_str(json).unwrap();
         assert!(resp.choices[0].delta.content.is_none());
     }
 
     #[test]
     fn deepseek_message_deser_roundtrip() {
-        let msg = DeepSeekMessage { role: "user".into(), content: "hello world".into() };
+        let msg = ChatMessage { role: "user".into(), content: "hello world".into() };
         let json = serde_json::to_string(&msg).unwrap();
-        let msg2: DeepSeekMessage = serde_json::from_str(&json).unwrap();
+        let msg2: ChatMessage = serde_json::from_str(&json).unwrap();
         assert_eq!(msg.role, msg2.role);
         assert_eq!(msg.content, msg2.content);
     }
@@ -444,7 +336,7 @@ mod tests {
     #[test]
     fn deepseek_response_deser_multiple_choices() {
         let json = r#"{"choices":[{"message":{"role":"assistant","content":"x"}},{"message":{"role":"assistant","content":"y"}}]}"#;
-        let resp: DeepSeekResponse = serde_json::from_str(json).unwrap();
+        let resp: ChatResponse = serde_json::from_str(json).unwrap();
         assert_eq!(resp.choices.len(), 2);
         assert_eq!(resp.choices[1].message.content, "y");
     }
@@ -452,7 +344,7 @@ mod tests {
     #[test]
     fn deepseek_response_deser_large_token_counts() {
         let json = r#"{"choices":[{"message":{"role":"assistant","content":"ok"}}],"usage":{"prompt_tokens":100000,"completion_tokens":50000}}"#;
-        let resp: DeepSeekResponse = serde_json::from_str(json).unwrap();
+        let resp: ChatResponse = serde_json::from_str(json).unwrap();
         let usage = resp.usage.unwrap();
         assert_eq!(usage.prompt_tokens, 100000);
         assert_eq!(usage.completion_tokens, 50000);
@@ -461,7 +353,7 @@ mod tests {
     #[test]
     fn deepseek_stream_response_deser_empty_string_content() {
         let json = r#"{"choices":[{"delta":{"content":""}}]}"#;
-        let resp: DeepSeekStreamResponse = serde_json::from_str(json).unwrap();
+        let resp: StreamResponse = serde_json::from_str(json).unwrap();
         assert_eq!(resp.choices[0].delta.content.as_ref().unwrap(), "");
     }
 
@@ -470,11 +362,10 @@ mod tests {
     #[test]
     fn build_messages_empty_context_string_still_injects() {
         use crate::provider::MessageRole;
-        let p = DeepSeekProvider::new(test_config());
         let msgs = vec![
             Message { role: MessageRole::User, content: "query".into() },
         ];
-        let result = p.build_messages(&msgs, Some("".into()));
+        let result = openai_compat::build_messages(&msgs, Some("".into()));
         assert!(result[0].content.starts_with("Context:\n"));
         assert!(result[0].content.contains("User: query"));
     }
@@ -483,11 +374,11 @@ mod tests {
 
     #[test]
     fn deepseek_request_reasoner_model() {
-        let req = DeepSeekRequest {
+        let req = ChatRequest {
             model: "deepseek-reasoner".into(),
             messages: vec![
-                DeepSeekMessage { role: "system".into(), content: "think step by step".into() },
-                DeepSeekMessage { role: "user".into(), content: "solve this".into() },
+                ChatMessage { role: "system".into(), content: "think step by step".into() },
+                ChatMessage { role: "user".into(), content: "solve this".into() },
             ],
             temperature: Some(0.0),
             max_tokens: Some(8192),
@@ -501,9 +392,9 @@ mod tests {
 
     #[test]
     fn deepseek_request_chat_model() {
-        let req = DeepSeekRequest {
+        let req = ChatRequest {
             model: "deepseek-chat".into(),
-            messages: vec![DeepSeekMessage { role: "user".into(), content: "hi".into() }],
+            messages: vec![ChatMessage { role: "user".into(), content: "hi".into() }],
             temperature: None,
             max_tokens: None,
             stream: true,

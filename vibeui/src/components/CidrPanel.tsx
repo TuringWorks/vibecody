@@ -9,6 +9,7 @@
  * Supports IPv4 only. Pure TypeScript — no Tauri commands required.
  */
 import { useState, useMemo } from "react";
+import { CopyButton as CopyBtn } from "./shared/CopyButton";
 
 // ── IPv4 math ──────────────────────────────────────────────────────────────────
 
@@ -142,15 +143,7 @@ const PREFIX_TABLE = [
 
 type SubTab = "calc" | "split" | "reference";
 
-function CopyBtn({ text }: { text: string }) {
- const [ok, setOk] = useState(false);
- return (
- <button onClick={() => { navigator.clipboard.writeText(text); setOk(true); setTimeout(() => setOk(false), 1400); }}
- style={{ fontSize: 9, padding: "1px 6px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: ok ? "var(--success-color)" : "var(--text-muted)", cursor: "pointer", flexShrink: 0 }}>
- {ok ? "✓" : ""}
- </button>
- );
-}
+// CopyBtn imported from shared/CopyButton.tsx
 
 function InfoRow({ label, value, mono = true, colour }: { label: string; value: string; mono?: boolean; colour?: string }) {
  return (

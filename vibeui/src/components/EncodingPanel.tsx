@@ -12,6 +12,7 @@
  * Pure TypeScript + Web Crypto — no Tauri commands required.
  */
 import { useState, useEffect, useCallback } from "react";
+import { CopyButton } from "./shared/CopyButton";
 
 // ── Base64 ─────────────────────────────────────────────────────────────────────
 
@@ -115,15 +116,7 @@ const SAMPLE = "Hello, World! <script>alert('XSS')</script> © 2025";
 
 type SubTab = "base64" | "url" | "html" | "hash" | "case" | "stats";
 
-function CopyButton({ text }: { text: string }) {
- const [copied, setCopied] = useState(false);
- const click = () => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1500); };
- return (
- <button onClick={click} style={{ fontSize: 9, padding: "2px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-muted)", cursor: "pointer" }}>
- {copied ? "✓" : ""}
- </button>
- );
-}
+// CopyButton imported from shared module — see shared/CopyButton.tsx
 
 function OutputRow({ label, value, colour = "var(--text-primary)" }: { label: string; value: string; colour?: string }) {
  return (

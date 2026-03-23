@@ -11,6 +11,7 @@
  * Pure TypeScript + crypto.randomUUID — no Tauri commands required.
  */
 import { useState, useCallback } from "react";
+import { CopyButton as CopyBtn } from "./shared/CopyButton";
 
 // ── Lorem Ipsum word bank ──────────────────────────────────────────────────────
 
@@ -159,15 +160,7 @@ function passwordStrength(pw: string): { score: number; label: string; colour: s
 
 type SubTab = "lorem" | "fakedata" | "uuid" | "password";
 
-function CopyBtn({ text, label = "" }: { text: string; label?: string }) {
- const [ok, setOk] = useState(false);
- return (
- <button onClick={() => { navigator.clipboard.writeText(text); setOk(true); setTimeout(() => setOk(false), 1400); }}
- style={{ fontSize: 9, padding: "2px 7px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: ok ? "var(--success-color)" : "var(--text-muted)", cursor: "pointer" }}>
- {ok ? "✓" : label}
- </button>
- );
-}
+// CopyBtn imported from shared/CopyButton.tsx
 
 export function DataGenPanel() {
  const [subTab, setSubTab] = useState<SubTab>("fakedata");

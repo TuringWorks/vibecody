@@ -435,28 +435,10 @@ impl RetryConfig {
 }
 
 /// Classify an error string as retryable or permanent.
+/// Delegates to `resilient::is_retryable` which is the single source of truth
+/// for error classification (also covers h2, hyper, stream closed, etc.).
 fn is_retryable_error(error: &str) -> bool {
-    let lower = error.to_lowercase();
-    // Retryable: rate limits, server overload, timeouts, network issues, decode errors
-    lower.contains("rate limit")
-        || lower.contains("429")
-        || lower.contains("503")
-        || lower.contains("529")
-        || lower.contains("overloaded")
-        || lower.contains("timeout")
-        || lower.contains("timed out")
-        || lower.contains("connection reset")
-        || lower.contains("connection refused")
-        || lower.contains("broken pipe")
-        || lower.contains("error decoding")
-        || lower.contains("unexpected eof")
-        || lower.contains("incomplete message")
-        || lower.contains("network")
-        || lower.contains("dns")
-        || lower.contains("temporarily unavailable")
-        || lower.contains("bad gateway")
-        || lower.contains("502")
-        || lower.contains("504")
+    crate::resilient::is_retryable(error)
 }
 
 // ── Agent Context ─────────────────────────────────────────────────────────────

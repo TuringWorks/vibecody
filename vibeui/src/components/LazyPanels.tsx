@@ -112,7 +112,7 @@ interface PanelHostProps {
  * can use the `usePersistentState` hook or `usePanelSettings`.
  */
 export function PanelHost(props: PanelHostProps) {
-  const { tab, selectedProvider, availableProviders, editorContent, fileTree, currentFile, workspacePath, onPendingWrite, onInjectContext, onOpenFile, collab } = props;
+  const { tab, selectedProvider, availableProviders, editorContent, fileTree, currentFile, workspacePath, onPendingWrite } = props;
   const wp = workspacePath;
 
   // Track which tabs have been visited so we only mount them once they're first opened.
@@ -147,7 +147,7 @@ export function PanelHost(props: PanelHostProps) {
       {panel("chat", <LazyPanel Component={ChatTabManager} props={{ defaultProvider: selectedProvider, availableProviders, context: editorContent, fileTree, currentFile, onPendingWrite }} />)}
       {panel("agent", <LazyPanel Component={AgentPanel} props={{ provider: selectedProvider, workspacePath: wp }} />)}
       {panel("ai-teams", <LazyPanel Component={AiTeamsComposite} props={{ provider: selectedProvider }} />)}
-      {panel("ai-playground", <LazyPanel Component={AiPlaygroundComposite} props={{ provider: selectedProvider, onInjectContext }} />)}
+      {panel("ai-playground", <LazyPanel Component={AiPlaygroundComposite} props={{ provider: selectedProvider }} />)}
       {panel("ai-context", <LazyPanel Component={AiContextComposite} props={{ workspacePath: wp || "", provider: selectedProvider }} />)}
       {panel("ai-generation", <LazyPanel Component={AiGenerationComposite} props={{ workspacePath: wp || "", provider: selectedProvider }} />)}
       {panel("marketplace", <LazyPanel Component={MarketplacePanel} props={{}} />)}
@@ -159,17 +159,17 @@ export function PanelHost(props: PanelHostProps) {
       {panel("design", <LazyPanel Component={DesignComposite} props={{ workspacePath: wp, provider: selectedProvider }} />)}
 
       {/* --- Code Quality --- */}
-      {panel("security", <LazyPanel Component={SecurityComposite} props={{ workspacePath: wp, provider: selectedProvider, onOpenFile }} />)}
-      {panel("testing", <LazyPanel Component={TestingComposite} props={{ workspacePath: wp, provider: selectedProvider, onOpenFile }} />)}
+      {panel("security", <LazyPanel Component={SecurityComposite} props={{ workspacePath: wp, provider: selectedProvider }} />)}
+      {panel("testing", <LazyPanel Component={TestingComposite} props={{ workspacePath: wp, provider: selectedProvider }} />)}
       {panel("code-analysis", <LazyPanel Component={CodeAnalysisComposite} props={{ workspacePath: wp, provider: selectedProvider }} />)}
 
       {/* --- Source Control --- */}
       {panel("version-control", <LazyPanel Component={VersionControlComposite} props={{ workspacePath: wp }} />)}
       {panel("github", <LazyPanel Component={GitHubComposite} props={{ workspacePath: wp, provider: selectedProvider }} />)}
-      {panel("collaboration", <LazyPanel Component={CollaborationComposite} props={{ collab: { connected: collab.connected, roomId: collab.roomId, peerId: collab.peerId, peers: collab.peers, connect: collab.connect, disconnect: collab.disconnect } }} />)}
+      {panel("collaboration", <LazyPanel Component={CollaborationComposite} props={{ workspacePath: wp, provider: selectedProvider }} />)}
 
       {/* --- Infrastructure --- */}
-      {panel("build-deploy", <LazyPanel Component={BuildDeployComposite} props={{ workspacePath: wp, provider: selectedProvider, currentFile, onOpenFile }} />)}
+      {panel("build-deploy", <LazyPanel Component={BuildDeployComposite} props={{ workspacePath: wp, provider: selectedProvider }} />)}
       {panel("containers", <LazyPanel Component={ContainersComposite} props={{ workspacePath: wp, provider: selectedProvider }} />)}
       {panel("ci-cd", <LazyPanel Component={CiCdComposite} props={{ workspacePath: wp, provider: selectedProvider }} />)}
       {panel("cloud-platform", <LazyPanel Component={CloudPlatformComposite} props={{ workspacePath: wp, provider: selectedProvider }} />)}
