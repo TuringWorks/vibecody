@@ -3,61 +3,10 @@
 //! Routes requests through the user's Vercel AI Gateway instance.
 //! Requires `api_url` to be set (gateway endpoint).
 
-use crate::provider::{AIProvider, CodeContext, CompletionResponse, CompletionStream, ImageAttachment, Message, ProviderConfig, TokenUsage};
+use super::openai_compat::{self, ChatRequest};
+use crate::provider::{AIProvider, CodeContext, CompletionResponse, CompletionStream, ImageAttachment, Message, ProviderConfig};
 use anyhow::{Context, Result};
 use async_trait::async_trait;
-use futures::stream::StreamExt;
-use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Serialize)]
-struct VercelAIRequest {
-    model: String,
-    messages: Vec<VercelAIMessage>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    temperature: Option<f32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    max_tokens: Option<usize>,
-    stream: bool,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct VercelAIMessage {
-    role: String,
-    content: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct VercelAIUsage {
-    prompt_tokens: u32,
-    completion_tokens: u32,
-}
-
-#[derive(Debug, Deserialize)]
-struct VercelAIResponse {
-    choices: Vec<VercelAIChoice>,
-    #[serde(default)]
-    usage: Option<VercelAIUsage>,
-}
-
-#[derive(Debug, Deserialize)]
-struct VercelAIChoice {
-    message: VercelAIMessage,
-}
-
-#[derive(Debug, Deserialize)]
-struct VercelAIStreamResponse {
-    choices: Vec<VercelAIStreamChoice>,
-}
-
-#[derive(Debug, Deserialize)]
-struct VercelAIStreamChoice {
-    delta: VercelAIDelta,
-}
-
-#[derive(Debug, Deserialize)]
-struct VercelAIDelta {
-    content: Option<String>,
-}
 
 /// Vercel AI Gateway provider — unified proxy to multiple AI services.
 pub struct VercelAIProvider {
@@ -69,11 +18,7 @@ impl VercelAIProvider {
     pub fn new(config: ProviderConfig) -> Self {
         Self {
             config,
-            client: reqwest::Client::builder()
-                .timeout(std::time::Duration::from_secs(90))
-                .connect_timeout(std::time::Duration::from_secs(10))
-                .build()
-                .unwrap_or_else(|_| reqwest::Client::new()),
+            client: openai_compat::default_http_client(),
         }
     }
 
@@ -81,19 +26,22 @@ impl VercelAIProvider {
         self.config.api_url.clone().context("Vercel AI Gateway URL not set (vercel_ai.api_url in config)")
     }
 
-    fn build_messages(&self, messages: &[Message], context: Option<String>) -> Vec<VercelAIMessage> {
-        let mut result: Vec<VercelAIMessage> = messages.iter().map(|m| VercelAIMessage {
-            role: m.role.as_str().to_string(),
-            content: m.content.clone(),
-        }).collect();
-        if let Some(ctx) = context {
-            if let Some(last) = result.last_mut() {
-                if last.role == "user" {
-                    last.content = format!("Context:\n{}\n\nUser: {}", ctx, last.content);
-                }
-            }
+    fn chat_url(&self) -> Result<String> {
+        Ok(format!("{}/chat/completions", self.base_url()?))
+    }
+
+    fn api_key(&self) -> Result<&str> {
+        self.config.api_key.as_deref().context("Vercel AI API key not set (VERCEL_AI_API_KEY)")
+    }
+
+    fn make_request(&self, messages: &[Message], context: Option<String>, stream: bool) -> ChatRequest {
+        ChatRequest {
+            model: self.config.model.clone(),
+            messages: openai_compat::build_messages(messages, context),
+            temperature: self.config.temperature,
+            max_tokens: self.config.max_tokens,
+            stream,
         }
-        result
     }
 }
 
@@ -130,29 +78,10 @@ impl AIProvider for VercelAIProvider {
     }
 
     async fn chat_response(&self, messages: &[Message], context: Option<String>) -> Result<CompletionResponse> {
-        let api_key = self.config.api_key.as_ref().context("Vercel AI API key not set (VERCEL_AI_API_KEY)")?;
-        let base_url = self.base_url()?;
-        let request = VercelAIRequest {
-            model: self.config.model.clone(),
-            messages: self.build_messages(messages, context),
-            temperature: self.config.temperature,
-            max_tokens: self.config.max_tokens,
-            stream: false,
-        };
-        let url = format!("{}/chat/completions", base_url);
-        let resp = self.client.post(&url)
-            .header("Authorization", format!("Bearer {}", api_key))
-            .json(&request)
-            .send().await.context("Vercel AI request failed")?;
-
-        if !resp.status().is_success() {
-            let err = resp.text().await?;
-            anyhow::bail!("Vercel AI Gateway error: {}", err);
-        }
-        let body: VercelAIResponse = resp.json().await.context("Failed to parse Vercel AI response")?;
-        let text = body.choices.first().context("No choices")?.message.content.clone();
-        let usage = body.usage.map(|u| TokenUsage { prompt_tokens: u.prompt_tokens, completion_tokens: u.completion_tokens });
-        Ok(CompletionResponse { text, model: self.config.model.clone(), usage })
+        let api_key = self.api_key()?;
+        let url = self.chat_url()?;
+        let request = self.make_request(messages, context, false);
+        openai_compat::send_chat_request(&self.client, &url, api_key, &request, "Vercel AI").await
     }
 
     async fn chat(&self, messages: &[Message], context: Option<String>) -> Result<String> {
@@ -160,42 +89,10 @@ impl AIProvider for VercelAIProvider {
     }
 
     async fn stream_chat(&self, messages: &[Message]) -> Result<CompletionStream> {
-        let api_key = self.config.api_key.as_ref().context("Vercel AI API key not set")?;
-        let base_url = self.base_url()?;
-        let request = VercelAIRequest {
-            model: self.config.model.clone(),
-            messages: self.build_messages(messages, None),
-            temperature: self.config.temperature,
-            max_tokens: self.config.max_tokens,
-            stream: true,
-        };
-        let url = format!("{}/chat/completions", base_url);
-        let resp = self.client.post(&url)
-            .header("Authorization", format!("Bearer {}", api_key))
-            .json(&request)
-            .send().await.context("Vercel AI stream request failed")?;
-
-        if !resp.status().is_success() {
-            let err = resp.text().await?;
-            anyhow::bail!("Vercel AI Gateway error: {}", err);
-        }
-        let stream = resp.bytes_stream().map(|chunk| {
-            let chunk = chunk?;
-            let text = String::from_utf8_lossy(&chunk);
-            let mut content = String::new();
-            for line in text.lines() {
-                if let Some(data) = line.strip_prefix("data: ") {
-                    if data == "[DONE]" { continue; }
-                    if let Ok(r) = serde_json::from_str::<VercelAIStreamResponse>(data) {
-                        if let Some(c) = r.choices.first().and_then(|ch| ch.delta.content.as_ref()) {
-                            content.push_str(c);
-                        }
-                    }
-                }
-            }
-            Ok(content)
-        }).boxed();
-        Ok(stream)
+        let api_key = self.api_key()?;
+        let url = self.chat_url()?;
+        let request = self.make_request(messages, None, true);
+        openai_compat::send_stream_request(&self.client, &url, api_key, &request, "Vercel AI").await
     }
 
     async fn chat_with_images(&self, messages: &[Message], _images: &[ImageAttachment], context: Option<String>) -> Result<String> {
@@ -206,6 +103,7 @@ impl AIProvider for VercelAIProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use openai_compat::{ChatResponse, ChatMessage, StreamResponse, ChatRequest};
 
     fn test_config() -> ProviderConfig {
         ProviderConfig {
@@ -251,7 +149,7 @@ mod tests {
     #[test]
     fn vercel_ai_response_deser() {
         let json = r#"{"choices":[{"message":{"role":"assistant","content":"proxied"}}],"usage":{"prompt_tokens":6,"completion_tokens":1}}"#;
-        let resp: VercelAIResponse = serde_json::from_str(json).unwrap();
+        let resp: ChatResponse = serde_json::from_str(json).unwrap();
         assert_eq!(resp.choices[0].message.content, "proxied");
         assert_eq!(resp.usage.unwrap().prompt_tokens, 6);
     }
@@ -273,13 +171,12 @@ mod tests {
     #[test]
     fn build_messages_maps_roles() {
         use crate::provider::MessageRole;
-        let p = VercelAIProvider::new(test_config());
         let messages = vec![
             Message { role: MessageRole::System, content: "sys".into() },
             Message { role: MessageRole::User, content: "usr".into() },
             Message { role: MessageRole::Assistant, content: "ast".into() },
         ];
-        let result = p.build_messages(&messages, None);
+        let result = openai_compat::build_messages(&messages, None);
         assert_eq!(result[0].role, "system");
         assert_eq!(result[1].role, "user");
         assert_eq!(result[2].role, "assistant");
@@ -288,11 +185,10 @@ mod tests {
     #[test]
     fn build_messages_appends_context() {
         use crate::provider::MessageRole;
-        let p = VercelAIProvider::new(test_config());
         let messages = vec![
             Message { role: MessageRole::User, content: "ask".into() },
         ];
-        let result = p.build_messages(&messages, Some("relevant info".into()));
+        let result = openai_compat::build_messages(&messages, Some("relevant info".into()));
         assert!(result[0].content.contains("Context:"));
         assert!(result[0].content.contains("relevant info"));
         assert!(result[0].content.contains("ask"));
@@ -300,9 +196,9 @@ mod tests {
 
     #[test]
     fn vercel_ai_request_serializes_correctly() {
-        let req = VercelAIRequest {
+        let req = ChatRequest {
             model: "gpt-4o".into(),
-            messages: vec![VercelAIMessage { role: "user".into(), content: "test".into() }],
+            messages: vec![ChatMessage { role: "user".into(), content: "test".into() }],
             temperature: Some(0.25),
             max_tokens: Some(512),
             stream: true,
@@ -317,7 +213,7 @@ mod tests {
     #[test]
     fn vercel_ai_response_without_usage() {
         let json = r#"{"choices":[{"message":{"role":"assistant","content":"no usage"}}]}"#;
-        let resp: VercelAIResponse = serde_json::from_str(json).unwrap();
+        let resp: ChatResponse = serde_json::from_str(json).unwrap();
         assert_eq!(resp.choices[0].message.content, "no usage");
         assert!(resp.usage.is_none());
     }
@@ -327,21 +223,21 @@ mod tests {
     #[test]
     fn vercel_ai_stream_response_deser() {
         let json = r#"{"choices":[{"delta":{"content":"streamed"}}]}"#;
-        let resp: VercelAIStreamResponse = serde_json::from_str(json).unwrap();
+        let resp: StreamResponse = serde_json::from_str(json).unwrap();
         assert_eq!(resp.choices[0].delta.content.as_ref().unwrap(), "streamed");
     }
 
     #[test]
     fn vercel_ai_stream_response_deser_null_content() {
         let json = r#"{"choices":[{"delta":{"content":null}}]}"#;
-        let resp: VercelAIStreamResponse = serde_json::from_str(json).unwrap();
+        let resp: StreamResponse = serde_json::from_str(json).unwrap();
         assert!(resp.choices[0].delta.content.is_none());
     }
 
     #[test]
     fn vercel_ai_stream_response_deser_empty_choices() {
         let json = r#"{"choices":[]}"#;
-        let resp: VercelAIStreamResponse = serde_json::from_str(json).unwrap();
+        let resp: StreamResponse = serde_json::from_str(json).unwrap();
         assert!(resp.choices.is_empty());
     }
 
@@ -349,9 +245,9 @@ mod tests {
 
     #[test]
     fn vercel_ai_request_serde_minimal() {
-        let req = VercelAIRequest {
+        let req = ChatRequest {
             model: "claude-3-opus".into(),
-            messages: vec![VercelAIMessage { role: "user".into(), content: "hi".into() }],
+            messages: vec![ChatMessage { role: "user".into(), content: "hi".into() }],
             temperature: None,
             max_tokens: None,
             stream: false,
@@ -366,13 +262,13 @@ mod tests {
 
     #[test]
     fn vercel_ai_request_serde_multiple_messages() {
-        let req = VercelAIRequest {
+        let req = ChatRequest {
             model: "gpt-4o".into(),
             messages: vec![
-                VercelAIMessage { role: "system".into(), content: "sys".into() },
-                VercelAIMessage { role: "user".into(), content: "u1".into() },
-                VercelAIMessage { role: "assistant".into(), content: "a1".into() },
-                VercelAIMessage { role: "user".into(), content: "u2".into() },
+                ChatMessage { role: "system".into(), content: "sys".into() },
+                ChatMessage { role: "user".into(), content: "u1".into() },
+                ChatMessage { role: "assistant".into(), content: "a1".into() },
+                ChatMessage { role: "user".into(), content: "u2".into() },
             ],
             temperature: Some(0.5),
             max_tokens: Some(4096),
@@ -388,9 +284,9 @@ mod tests {
 
     #[test]
     fn vercel_ai_message_roundtrip() {
-        let msg = VercelAIMessage { role: "user".into(), content: "test input".into() };
+        let msg = ChatMessage { role: "user".into(), content: "test input".into() };
         let json = serde_json::to_string(&msg).unwrap();
-        let msg2: VercelAIMessage = serde_json::from_str(&json).unwrap();
+        let msg2: ChatMessage = serde_json::from_str(&json).unwrap();
         assert_eq!(msg.role, msg2.role);
         assert_eq!(msg.content, msg2.content);
     }
@@ -399,28 +295,25 @@ mod tests {
 
     #[test]
     fn build_messages_empty_input() {
-        let p = VercelAIProvider::new(test_config());
-        let result = p.build_messages(&[], None);
+        let result = openai_compat::build_messages(&[], None);
         assert!(result.is_empty());
     }
 
     #[test]
     fn build_messages_empty_input_with_context() {
-        let p = VercelAIProvider::new(test_config());
-        let result = p.build_messages(&[], Some("ctx".into()));
+        let result = openai_compat::build_messages(&[], Some("ctx".into()));
         assert!(result.is_empty());
     }
 
     #[test]
     fn build_messages_context_only_affects_last_user() {
         use crate::provider::MessageRole;
-        let p = VercelAIProvider::new(test_config());
         let messages = vec![
             Message { role: MessageRole::User, content: "first".into() },
             Message { role: MessageRole::Assistant, content: "mid".into() },
             Message { role: MessageRole::User, content: "second".into() },
         ];
-        let result = p.build_messages(&messages, Some("background".into()));
+        let result = openai_compat::build_messages(&messages, Some("background".into()));
         // First user message unchanged
         assert_eq!(result[0].content, "first");
         // Last user message gets context
@@ -431,12 +324,11 @@ mod tests {
     #[test]
     fn build_messages_context_skipped_when_last_is_assistant() {
         use crate::provider::MessageRole;
-        let p = VercelAIProvider::new(test_config());
         let messages = vec![
             Message { role: MessageRole::User, content: "q".into() },
             Message { role: MessageRole::Assistant, content: "a".into() },
         ];
-        let result = p.build_messages(&messages, Some("some ctx".into()));
+        let result = openai_compat::build_messages(&messages, Some("some ctx".into()));
         assert_eq!(result[1].content, "a");
         assert_eq!(result[0].content, "q");
     }
@@ -478,7 +370,7 @@ mod tests {
     #[test]
     fn vercel_ai_response_multiple_choices() {
         let json = r#"{"choices":[{"message":{"role":"assistant","content":"first"}},{"message":{"role":"assistant","content":"second"}}],"usage":{"prompt_tokens":5,"completion_tokens":2}}"#;
-        let resp: VercelAIResponse = serde_json::from_str(json).unwrap();
+        let resp: ChatResponse = serde_json::from_str(json).unwrap();
         assert_eq!(resp.choices.len(), 2);
         assert_eq!(resp.choices[0].message.content, "first");
         assert_eq!(resp.choices[1].message.content, "second");

@@ -95,19 +95,11 @@ impl AIProvider for FailoverProvider {
 
     async fn complete(&self, context: &CodeContext) -> Result<CompletionResponse> {
         let mut last_err = anyhow::anyhow!("No providers in failover chain");
-        for provider in self.ordered_chain() {
+        for p in self.ordered_chain() {
             let start = Instant::now();
-            match provider.complete(context).await {
-                Ok(resp) => {
-                    self.record_outcome(provider.name(), true, start.elapsed(), None);
-                    return Ok(resp);
-                }
-                Err(e) => {
-                    let err_str = e.to_string();
-                    self.record_outcome(provider.name(), false, start.elapsed(), Some(&err_str));
-                    tracing::warn!("[failover] {} complete failed: {}, trying next", provider.name(), e);
-                    last_err = e;
-                }
+            match p.complete(context).await {
+                Ok(v) => { self.record_outcome(p.name(), true, start.elapsed(), None); return Ok(v); }
+                Err(e) => { let s = e.to_string(); self.record_outcome(p.name(), false, start.elapsed(), Some(&s)); tracing::warn!("[failover] {} complete failed: {s}, trying next", p.name()); last_err = e; }
             }
         }
         Err(last_err)
@@ -115,19 +107,11 @@ impl AIProvider for FailoverProvider {
 
     async fn stream_complete(&self, context: &CodeContext) -> Result<CompletionStream> {
         let mut last_err = anyhow::anyhow!("No providers in failover chain");
-        for provider in self.ordered_chain() {
+        for p in self.ordered_chain() {
             let start = Instant::now();
-            match provider.stream_complete(context).await {
-                Ok(stream) => {
-                    self.record_outcome(provider.name(), true, start.elapsed(), None);
-                    return Ok(stream);
-                }
-                Err(e) => {
-                    let err_str = e.to_string();
-                    self.record_outcome(provider.name(), false, start.elapsed(), Some(&err_str));
-                    tracing::warn!("[failover] {} stream_complete failed: {}, trying next", provider.name(), e);
-                    last_err = e;
-                }
+            match p.stream_complete(context).await {
+                Ok(v) => { self.record_outcome(p.name(), true, start.elapsed(), None); return Ok(v); }
+                Err(e) => { let s = e.to_string(); self.record_outcome(p.name(), false, start.elapsed(), Some(&s)); tracing::warn!("[failover] {} stream_complete failed: {s}, trying next", p.name()); last_err = e; }
             }
         }
         Err(last_err)
@@ -135,19 +119,11 @@ impl AIProvider for FailoverProvider {
 
     async fn chat_response(&self, messages: &[Message], context: Option<String>) -> Result<CompletionResponse> {
         let mut last_err = anyhow::anyhow!("No providers in failover chain");
-        for provider in self.ordered_chain() {
+        for p in self.ordered_chain() {
             let start = Instant::now();
-            match provider.chat_response(messages, context.clone()).await {
-                Ok(resp) => {
-                    self.record_outcome(provider.name(), true, start.elapsed(), None);
-                    return Ok(resp);
-                }
-                Err(e) => {
-                    let err_str = e.to_string();
-                    self.record_outcome(provider.name(), false, start.elapsed(), Some(&err_str));
-                    tracing::warn!("[failover] {} chat_response failed: {}, trying next", provider.name(), e);
-                    last_err = e;
-                }
+            match p.chat_response(messages, context.clone()).await {
+                Ok(v) => { self.record_outcome(p.name(), true, start.elapsed(), None); return Ok(v); }
+                Err(e) => { let s = e.to_string(); self.record_outcome(p.name(), false, start.elapsed(), Some(&s)); tracing::warn!("[failover] {} chat_response failed: {s}, trying next", p.name()); last_err = e; }
             }
         }
         Err(last_err)
@@ -155,19 +131,11 @@ impl AIProvider for FailoverProvider {
 
     async fn chat(&self, messages: &[Message], context: Option<String>) -> Result<String> {
         let mut last_err = anyhow::anyhow!("No providers in failover chain");
-        for provider in self.ordered_chain() {
+        for p in self.ordered_chain() {
             let start = Instant::now();
-            match provider.chat(messages, context.clone()).await {
-                Ok(text) => {
-                    self.record_outcome(provider.name(), true, start.elapsed(), None);
-                    return Ok(text);
-                }
-                Err(e) => {
-                    let err_str = e.to_string();
-                    self.record_outcome(provider.name(), false, start.elapsed(), Some(&err_str));
-                    tracing::warn!("[failover] {} chat failed: {}, trying next", provider.name(), e);
-                    last_err = e;
-                }
+            match p.chat(messages, context.clone()).await {
+                Ok(v) => { self.record_outcome(p.name(), true, start.elapsed(), None); return Ok(v); }
+                Err(e) => { let s = e.to_string(); self.record_outcome(p.name(), false, start.elapsed(), Some(&s)); tracing::warn!("[failover] {} chat failed: {s}, trying next", p.name()); last_err = e; }
             }
         }
         Err(last_err)
@@ -175,19 +143,11 @@ impl AIProvider for FailoverProvider {
 
     async fn stream_chat(&self, messages: &[Message]) -> Result<CompletionStream> {
         let mut last_err = anyhow::anyhow!("No providers in failover chain");
-        for provider in self.ordered_chain() {
+        for p in self.ordered_chain() {
             let start = Instant::now();
-            match provider.stream_chat(messages).await {
-                Ok(stream) => {
-                    self.record_outcome(provider.name(), true, start.elapsed(), None);
-                    return Ok(stream);
-                }
-                Err(e) => {
-                    let err_str = e.to_string();
-                    self.record_outcome(provider.name(), false, start.elapsed(), Some(&err_str));
-                    tracing::warn!("[failover] {} stream_chat failed: {}, trying next", provider.name(), e);
-                    last_err = e;
-                }
+            match p.stream_chat(messages).await {
+                Ok(v) => { self.record_outcome(p.name(), true, start.elapsed(), None); return Ok(v); }
+                Err(e) => { let s = e.to_string(); self.record_outcome(p.name(), false, start.elapsed(), Some(&s)); tracing::warn!("[failover] {} stream_chat failed: {s}, trying next", p.name()); last_err = e; }
             }
         }
         Err(last_err)
@@ -195,19 +155,11 @@ impl AIProvider for FailoverProvider {
 
     async fn chat_with_images(&self, messages: &[Message], images: &[ImageAttachment], context: Option<String>) -> Result<String> {
         let mut last_err = anyhow::anyhow!("No providers in failover chain");
-        for provider in self.ordered_chain() {
+        for p in self.ordered_chain() {
             let start = Instant::now();
-            match provider.chat_with_images(messages, images, context.clone()).await {
-                Ok(text) => {
-                    self.record_outcome(provider.name(), true, start.elapsed(), None);
-                    return Ok(text);
-                }
-                Err(e) => {
-                    let err_str = e.to_string();
-                    self.record_outcome(provider.name(), false, start.elapsed(), Some(&err_str));
-                    tracing::warn!("[failover] {} chat_with_images failed: {}, trying next", provider.name(), e);
-                    last_err = e;
-                }
+            match p.chat_with_images(messages, images, context.clone()).await {
+                Ok(v) => { self.record_outcome(p.name(), true, start.elapsed(), None); return Ok(v); }
+                Err(e) => { let s = e.to_string(); self.record_outcome(p.name(), false, start.elapsed(), Some(&s)); tracing::warn!("[failover] {} chat_with_images failed: {s}, trying next", p.name()); last_err = e; }
             }
         }
         Err(last_err)
