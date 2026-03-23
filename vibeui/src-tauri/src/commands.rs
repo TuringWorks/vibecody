@@ -25269,15 +25269,14 @@ pub async fn quantum_simulate_circuit(index: usize, shots: usize) -> Result<serd
         .map_err(|e| format!("Simulation failed: {}", e))?;
 
     Ok(serde_json::json!({
-        "numQubits": result.num_qubits,
+        "num_qubits": result.num_qubits,
         "amplitudes": result.amplitudes.iter().map(|(label, re, im)| {
-            serde_json::json!({"label": label, "real": re, "imaginary": im})
+            serde_json::json!([label, re, im])
         }).collect::<Vec<_>>(),
         "probabilities": result.probabilities.iter().map(|(label, prob)| {
-            serde_json::json!({"label": label, "probability": prob})
+            serde_json::json!([label, prob])
         }).collect::<Vec<_>>(),
         "samples": result.samples,
-        "shots": shots,
     }))
 }
 
