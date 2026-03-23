@@ -17,6 +17,7 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use vibe_ai::provider::{AIProvider as LLMProvider, Message, MessageRole};
+use vibe_ai::{retry_async, RetryConfig};
 
 // ── Severity ──────────────────────────────────────────────────────────────────
 
@@ -354,15 +355,21 @@ Diff:
             .timeout(std::time::Duration::from_secs(30))
             .connect_timeout(std::time::Duration::from_secs(10))
             .build()?;
-        let mut req = client.get(&url)
-            .header("Accept", "application/vnd.github.v3.diff")
-            .header("User-Agent", "vibecli-bugbot/1.0");
-
-        if let Some(token) = &self.gh_token {
-            req = req.header("Authorization", format!("Bearer {}", token));
-        }
-
-        let resp = req.send().await?;
+        let gh_token = self.gh_token.clone();
+        let resp = retry_async(&RetryConfig::default(), "bugbot-fetch-pr-diff", || {
+            let client = client.clone();
+            let url = url.clone();
+            let gh_token = gh_token.clone();
+            async move {
+                let mut req = client.get(&url)
+                    .header("Accept", "application/vnd.github.v3.diff")
+                    .header("User-Agent", "vibecli-bugbot/1.0");
+                if let Some(token) = &gh_token {
+                    req = req.header("Authorization", format!("Bearer {}", token));
+                }
+                req.send().await.map_err(Into::into)
+            }
+        }).await?;
         if !resp.status().is_success() {
             anyhow::bail!("GitHub API error: {}", resp.status());
         }
@@ -420,12 +427,20 @@ Diff:
             "comments": comments,
         });
 
-        let resp = client.post(&url)
-            .header("Authorization", format!("Bearer {}", token))
-            .header("Accept", "application/vnd.github.v3+json")
-            .header("User-Agent", "vibecli-bugbot/1.0")
-            .json(&payload)
-            .send().await?;
+        let resp = retry_async(&RetryConfig::default(), "bugbot-post-review", || {
+            let client = client.clone();
+            let url = url.clone();
+            let token = token.clone();
+            let payload = payload.clone();
+            async move {
+                client.post(&url)
+                    .header("Authorization", format!("Bearer {}", token))
+                    .header("Accept", "application/vnd.github.v3+json")
+                    .header("User-Agent", "vibecli-bugbot/1.0")
+                    .json(&payload)
+                    .send().await.map_err(Into::into)
+            }
+        }).await?;
 
         if !resp.status().is_success() {
             let err = resp.text().await?;

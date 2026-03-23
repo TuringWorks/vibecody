@@ -17,6 +17,7 @@
 
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
+use vibe_ai::{retry_async, RetryConfig};
 
 const GRAPHQL_URL: &str = "https://api.linear.app/graphql";
 
@@ -85,15 +86,24 @@ impl LinearClient {
     /// Execute a GraphQL query.
     async fn graphql(&self, query: &str, variables: serde_json::Value) -> Result<serde_json::Value> {
         let payload = serde_json::json!({ "query": query, "variables": variables });
-        let resp = self.client
-            .post(GRAPHQL_URL)
-            .header("Authorization", &self.api_key)
-            .header("Content-Type", "application/json")
-            .json(&payload)
-            .send()
-            .await?
-            .json::<serde_json::Value>()
-            .await?;
+        let resp = retry_async(&RetryConfig::default(), "linear-graphql", || {
+            let client = self.client.clone();
+            let api_key = self.api_key.clone();
+            let payload = payload.clone();
+            async move {
+                client
+                    .post(GRAPHQL_URL)
+                    .header("Authorization", &api_key)
+                    .header("Content-Type", "application/json")
+                    .json(&payload)
+                    .send()
+                    .await
+                    .map_err(Into::into)
+            }
+        })
+        .await?
+        .json::<serde_json::Value>()
+        .await?;
 
         if let Some(errors) = resp.get("errors") {
             return Err(anyhow!("GraphQL error: {}", errors));

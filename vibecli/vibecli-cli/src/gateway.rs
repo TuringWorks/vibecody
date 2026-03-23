@@ -41,6 +41,7 @@
 use anyhow::Result;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use vibe_ai::{retry_async, RetryConfig};
 
 /// An incoming message from any gateway platform.
 #[derive(Debug, Clone)]
@@ -100,7 +101,11 @@ impl GatewayPlatform for TelegramGateway {
 
     async fn poll(&mut self) -> Result<Vec<IncomingMessage>> {
         let url = format!("{}/getUpdates?timeout=30&offset={}", self.base_url(), self.offset);
-        let resp = self.client.get(&url).send().await?.json::<serde_json::Value>().await?;
+        let resp = retry_async(&RetryConfig::default(), "telegram-poll", || {
+            let client = self.client.clone();
+            let url = url.clone();
+            async move { client.get(&url).send().await.map_err(Into::into) }
+        }).await?.json::<serde_json::Value>().await?;
 
         let mut messages = Vec::new();
         if let Some(updates) = resp["result"].as_array() {
@@ -148,7 +153,12 @@ impl GatewayPlatform for TelegramGateway {
         if let Some(reply_id) = response.reply_to {
             payload["reply_to_message_id"] = serde_json::Value::String(reply_id);
         }
-        self.client.post(&url).json(&payload).send().await?;
+        retry_async(&RetryConfig::default(), "telegram-send", || {
+            let client = self.client.clone();
+            let url = url.clone();
+            let payload = payload.clone();
+            async move { client.post(&url).json(&payload).send().await.map_err(Into::into) }
+        }).await?;
         Ok(())
     }
 }
@@ -187,9 +197,16 @@ impl GatewayPlatform for DiscordGateway {
             url.push_str(&format!("&after={}", after));
         }
 
-        let resp = self.client.get(&url)
-            .header("Authorization", format!("Bot {}", self.token))
-            .send().await?.json::<serde_json::Value>().await?;
+        let resp = retry_async(&RetryConfig::default(), "discord-poll", || {
+            let client = self.client.clone();
+            let url = url.clone();
+            let token = self.token.clone();
+            async move {
+                client.get(&url)
+                    .header("Authorization", format!("Bot {}", token))
+                    .send().await.map_err(Into::into)
+            }
+        }).await?.json::<serde_json::Value>().await?;
 
         let mut messages = Vec::new();
         if let Some(msgs) = resp.as_array() {
@@ -224,10 +241,18 @@ impl GatewayPlatform for DiscordGateway {
         let payload = serde_json::json!({
             "content": truncate_text(&response.text, 2000),
         });
-        self.client.post(&url)
-            .header("Authorization", format!("Bot {}", self.token))
-            .json(&payload)
-            .send().await?;
+        retry_async(&RetryConfig::default(), "discord-send", || {
+            let client = self.client.clone();
+            let url = url.clone();
+            let token = self.token.clone();
+            let payload = payload.clone();
+            async move {
+                client.post(&url)
+                    .header("Authorization", format!("Bot {}", token))
+                    .json(&payload)
+                    .send().await.map_err(Into::into)
+            }
+        }).await?;
         Ok(())
     }
 }
@@ -263,9 +288,16 @@ impl GatewayPlatform for SlackGateway {
         if let Some(ts) = &self.last_ts {
             url.push_str(&format!("&oldest={}", ts));
         }
-        let resp = self.client.get(&url)
-            .header("Authorization", format!("Bearer {}", self.bot_token))
-            .send().await?.json::<serde_json::Value>().await?;
+        let resp = retry_async(&RetryConfig::default(), "slack-poll", || {
+            let client = self.client.clone();
+            let url = url.clone();
+            let bot_token = self.bot_token.clone();
+            async move {
+                client.get(&url)
+                    .header("Authorization", format!("Bearer {}", bot_token))
+                    .send().await.map_err(Into::into)
+            }
+        }).await?.json::<serde_json::Value>().await?;
 
         let mut messages = Vec::new();
         if let Some(msgs) = resp["messages"].as_array() {
@@ -296,10 +328,17 @@ impl GatewayPlatform for SlackGateway {
             "channel": self.channel,
             "text": truncate_text(&response.text, 40000),
         });
-        self.client.post("https://slack.com/api/chat.postMessage")
-            .header("Authorization", format!("Bearer {}", self.bot_token))
-            .json(&payload)
-            .send().await?;
+        retry_async(&RetryConfig::default(), "slack-send", || {
+            let client = self.client.clone();
+            let bot_token = self.bot_token.clone();
+            let payload = payload.clone();
+            async move {
+                client.post("https://slack.com/api/chat.postMessage")
+                    .header("Authorization", format!("Bearer {}", bot_token))
+                    .json(&payload)
+                    .send().await.map_err(Into::into)
+            }
+        }).await?;
         Ok(())
     }
 }
@@ -336,7 +375,11 @@ impl GatewayPlatform for SignalGateway {
     async fn poll(&mut self) -> Result<Vec<IncomingMessage>> {
         // signal-cli REST: GET /v1/receive/{number} returns messages and consumes them
         let url = format!("{}/v1/receive/{}", self.api_url, self.phone_number);
-        let resp = self.client.get(&url).send().await?.json::<serde_json::Value>().await?;
+        let resp = retry_async(&RetryConfig::default(), "signal-poll", || {
+            let client = self.client.clone();
+            let url = url.clone();
+            async move { client.get(&url).send().await.map_err(Into::into) }
+        }).await?.json::<serde_json::Value>().await?;
 
         let mut messages = Vec::new();
         if let Some(entries) = resp.as_array() {
@@ -369,7 +412,12 @@ impl GatewayPlatform for SignalGateway {
             "number": self.phone_number,
             "recipients": [response.chat_id],
         });
-        self.client.post(&url).json(&payload).send().await?;
+        retry_async(&RetryConfig::default(), "signal-send", || {
+            let client = self.client.clone();
+            let url = url.clone();
+            let payload = payload.clone();
+            async move { client.post(&url).json(&payload).send().await.map_err(Into::into) }
+        }).await?;
         Ok(())
     }
 }
@@ -409,9 +457,16 @@ impl GatewayPlatform for MatrixGateway {
             url.push_str(&format!("&since={}", since));
         }
 
-        let resp = self.client.get(&url)
-            .header("Authorization", format!("Bearer {}", self.access_token))
-            .send().await?.json::<serde_json::Value>().await?;
+        let resp = retry_async(&RetryConfig::default(), "matrix-poll", || {
+            let client = self.client.clone();
+            let url = url.clone();
+            let access_token = self.access_token.clone();
+            async move {
+                client.get(&url)
+                    .header("Authorization", format!("Bearer {}", access_token))
+                    .send().await.map_err(Into::into)
+            }
+        }).await?.json::<serde_json::Value>().await?;
 
         // Update since token for next poll
         if let Some(next) = resp["next_batch"].as_str() {
@@ -462,10 +517,18 @@ impl GatewayPlatform for MatrixGateway {
             "msgtype": "m.text",
             "body": truncate_text(&response.text, 60000),
         });
-        self.client.put(&url)
-            .header("Authorization", format!("Bearer {}", self.access_token))
-            .json(&payload)
-            .send().await?;
+        retry_async(&RetryConfig::default(), "matrix-send", || {
+            let client = self.client.clone();
+            let url = url.clone();
+            let access_token = self.access_token.clone();
+            let payload = payload.clone();
+            async move {
+                client.put(&url)
+                    .header("Authorization", format!("Bearer {}", access_token))
+                    .json(&payload)
+                    .send().await.map_err(Into::into)
+            }
+        }).await?;
         Ok(())
     }
 }
@@ -501,9 +564,17 @@ impl GatewayPlatform for TwilioGateway {
             "https://api.twilio.com/2010-04-01/Accounts/{}/Messages.json?To={}&PageSize=5",
             self.account_sid, self.from_number
         );
-        let resp = self.client.get(&url)
-            .basic_auth(&self.account_sid, Some(&self.auth_token))
-            .send().await?.json::<serde_json::Value>().await?;
+        let resp = retry_async(&RetryConfig::default(), "twilio-poll", || {
+            let client = self.client.clone();
+            let url = url.clone();
+            let account_sid = self.account_sid.clone();
+            let auth_token = self.auth_token.clone();
+            async move {
+                client.get(&url)
+                    .basic_auth(&account_sid, Some(&auth_token))
+                    .send().await.map_err(Into::into)
+            }
+        }).await?.json::<serde_json::Value>().await?;
 
         let mut messages = Vec::new();
         if let Some(msgs) = resp["messages"].as_array() {
@@ -575,10 +646,20 @@ impl GatewayPlatform for TwilioGateway {
             ("From", self.from_number.as_str()),
             ("Body", &truncate_text(&response.text, 1600)),
         ];
-        self.client.post(&url)
-            .basic_auth(&self.account_sid, Some(&self.auth_token))
-            .form(&params)
-            .send().await?;
+        let params_vec: Vec<(String, String)> = params.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect();
+        retry_async(&RetryConfig::default(), "twilio-send", || {
+            let client = self.client.clone();
+            let url = url.clone();
+            let account_sid = self.account_sid.clone();
+            let auth_token = self.auth_token.clone();
+            let params_vec = params_vec.clone();
+            async move {
+                client.post(&url)
+                    .basic_auth(&account_sid, Some(&auth_token))
+                    .form(&params_vec)
+                    .send().await.map_err(Into::into)
+            }
+        }).await?;
         Ok(())
     }
 }
@@ -803,10 +884,18 @@ impl GatewayPlatform for WhatsAppGateway {
                 "body": truncate_text(&response.text, 4096)
             }
         });
-        self.client.post(&url)
-            .header("Authorization", format!("Bearer {}", self.access_token))
-            .json(&payload)
-            .send().await?;
+        retry_async(&RetryConfig::default(), "whatsapp-send", || {
+            let client = self.client.clone();
+            let url = url.clone();
+            let access_token = self.access_token.clone();
+            let payload = payload.clone();
+            async move {
+                client.post(&url)
+                    .header("Authorization", format!("Bearer {}", access_token))
+                    .json(&payload)
+                    .send().await.map_err(Into::into)
+            }
+        }).await?;
         Ok(())
     }
 }
@@ -910,8 +999,15 @@ impl TeamsGateway {
             ("client_secret", &self.client_secret),
             ("scope", "https://api.botframework.com/.default"),
         ];
-        let resp = self.client.post(&url).form(&params).send().await?
-            .json::<serde_json::Value>().await?;
+        let params_owned: Vec<(String, String)> = params.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect();
+        let resp = retry_async(&RetryConfig::default(), "teams-oauth-token", || {
+            let client = self.client.clone();
+            let url = url.clone();
+            let params_owned = params_owned.clone();
+            async move {
+                client.post(&url).form(&params_owned).send().await.map_err(Into::into)
+            }
+        }).await?.json::<serde_json::Value>().await?;
 
         let token = resp["access_token"].as_str()
             .ok_or_else(|| anyhow::anyhow!("Teams OAuth2 failed: no access_token in response"))?
@@ -957,10 +1053,18 @@ impl GatewayPlatform for TeamsGateway {
             "type": "message",
             "text": truncate_text(&response.text, 28000),
         });
-        self.client.post(&url)
-            .header("Authorization", format!("Bearer {}", token))
-            .json(&payload)
-            .send().await?;
+        retry_async(&RetryConfig::default(), "teams-send", || {
+            let client = self.client.clone();
+            let url = url.clone();
+            let token = token.clone();
+            let payload = payload.clone();
+            async move {
+                client.post(&url)
+                    .header("Authorization", format!("Bearer {}", token))
+                    .json(&payload)
+                    .send().await.map_err(Into::into)
+            }
+        }).await?;
         Ok(())
     }
 }

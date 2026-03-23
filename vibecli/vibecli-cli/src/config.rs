@@ -124,6 +124,19 @@ pub struct Config {
     #[serde(default)]
     pub memory: MemoryConfig,
 
+    /// Resilience and antifragility settings (retry, circuit breaker, health tracking, failure journal).
+    ///
+    /// ```toml
+    /// [resilience]
+    /// retry_max_attempts = 5
+    /// retry_jitter_enabled = true
+    /// cb_recovery_cooldown_secs = 30
+    /// health_aware_failover = true
+    /// failure_journal_enabled = true
+    /// ```
+    #[serde(default)]
+    pub resilience: vibe_ai::resilience::ResilienceConfig,
+
     /// opusplan model routing.
     ///
     /// Separate provider/model for the planning step vs. the execution step.

@@ -7,6 +7,7 @@ const LoadTestPanel = lazy(() => import("../LoadTestPanel").then(m => ({ default
 const RenderOptimizePanel = lazy(() => import("../RenderOptimizePanel")) as any;
 const SweBenchPanel = lazy(() => import("../SweBenchPanel").then(m => ({ default: m.SweBenchPanel }))) as any;
 const SessionMemoryPanel = lazy(() => import("../SessionMemoryPanel").then(m => ({ default: m.SessionMemoryPanel }))) as any;
+const ResiliencePanel = lazy(() => import("../ResiliencePanel").then(m => ({ default: m.ResiliencePanel }))) as any;
 
 const Loading = () => <div style={{ padding: 16, color: "var(--text-secondary)", fontSize: 13 }}>Loading...</div>;
 
@@ -25,6 +26,7 @@ export function DiagnosticsComposite({ workspacePath, provider }: Props) {
       { id: "renderopt", label: "Render", content: <Suspense fallback={<Loading />}><RenderOptimizePanel /></Suspense> },
       { id: "swebench", label: "SWE-Bench", content: <Suspense fallback={<Loading />}><SweBenchPanel provider={provider} /></Suspense> },
       { id: "sessionmemory", label: "Memory", content: <Suspense fallback={<Loading />}><SessionMemoryPanel /></Suspense> },
+      { id: "resilience", label: "Resilience", content: <Suspense fallback={<Loading />}><ResiliencePanel /></Suspense> },
     ]} />
   );
 }

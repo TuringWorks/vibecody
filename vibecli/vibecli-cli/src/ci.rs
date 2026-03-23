@@ -428,6 +428,11 @@ pub async fn run_ci(
                 outcome = CiOutcome::Failed;
                 break;
             }
+            AgentEvent::RetryableError { error, attempt, max_attempts, backoff_ms } => {
+                if verbose {
+                    eprintln!("  ⟳ Retrying ({}/{}) after {}ms: {}", attempt + 1, max_attempts, backoff_ms, error);
+                }
+            }
             AgentEvent::CircuitBreak { state, reason } => {
                 if verbose {
                     eprintln!("{}", reason);

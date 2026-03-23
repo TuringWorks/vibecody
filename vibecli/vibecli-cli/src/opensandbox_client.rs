@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
+use vibe_ai::{retry_async, RetryConfig};
 
 use crate::container_runtime::*;
 
@@ -100,14 +101,22 @@ impl OpenSandboxClient {
     /// Check if the OpenSandbox server is reachable.
     pub async fn health_check(&self) -> bool {
         let url = format!("{}/v1/sandboxes", self.base_url);
-        let mut req = self.client.get(&url);
-        if let Some((k, v)) = self.auth_header() {
-            req = req.header(k, v);
-        }
-        req.send()
-            .await
-            .map(|r| r.status().is_success() || r.status().as_u16() == 401)
-            .unwrap_or(false)
+        let auth = self.auth_header();
+        retry_async(&RetryConfig::default(), "opensandbox-health", || {
+            let client = self.client.clone();
+            let url = url.clone();
+            let auth = auth.clone();
+            async move {
+                let mut req = client.get(&url);
+                if let Some((k, v)) = auth {
+                    req = req.header(k, v);
+                }
+                req.send().await.map_err(Into::into)
+            }
+        })
+        .await
+        .map(|r| r.status().is_success() || r.status().as_u16() == 401)
+        .unwrap_or(false)
     }
 
     /// Create a new sandbox.
@@ -116,11 +125,21 @@ impl OpenSandboxClient {
         request: &CreateSandboxRequest,
     ) -> anyhow::Result<SandboxResponse> {
         let url = format!("{}/v1/sandboxes", self.base_url);
-        let mut req = self.client.post(&url).json(request);
-        if let Some((k, v)) = self.auth_header() {
-            req = req.header(k, v);
-        }
-        let resp = req.send().await?;
+        let auth = self.auth_header();
+        let request_json = serde_json::to_value(request)?;
+        let resp = retry_async(&RetryConfig::default(), "opensandbox-create", || {
+            let client = self.client.clone();
+            let url = url.clone();
+            let auth = auth.clone();
+            let request_json = request_json.clone();
+            async move {
+                let mut req = client.post(&url).json(&request_json);
+                if let Some((k, v)) = auth {
+                    req = req.header(k, v);
+                }
+                req.send().await.map_err(Into::into)
+            }
+        }).await?;
         if !resp.status().is_success() {
             let status = resp.status();
             let body = resp.text().await.unwrap_or_default();
@@ -138,11 +157,19 @@ impl OpenSandboxClient {
         if let Some(s) = state {
             url.push_str(&format!("?state={s}"));
         }
-        let mut req = self.client.get(&url);
-        if let Some((k, v)) = self.auth_header() {
-            req = req.header(k, v);
-        }
-        let resp = req.send().await?;
+        let auth = self.auth_header();
+        let resp = retry_async(&RetryConfig::default(), "opensandbox-list", || {
+            let client = self.client.clone();
+            let url = url.clone();
+            let auth = auth.clone();
+            async move {
+                let mut req = client.get(&url);
+                if let Some((k, v)) = auth {
+                    req = req.header(k, v);
+                }
+                req.send().await.map_err(Into::into)
+            }
+        }).await?;
         if !resp.status().is_success() {
             let status = resp.status();
             let body = resp.text().await.unwrap_or_default();
@@ -155,11 +182,19 @@ impl OpenSandboxClient {
     /// Get sandbox details.
     pub async fn get_sandbox(&self, id: &str) -> anyhow::Result<SandboxResponse> {
         let url = format!("{}/v1/sandboxes/{id}", self.base_url);
-        let mut req = self.client.get(&url);
-        if let Some((k, v)) = self.auth_header() {
-            req = req.header(k, v);
-        }
-        let resp = req.send().await?;
+        let auth = self.auth_header();
+        let resp = retry_async(&RetryConfig::default(), "opensandbox-get", || {
+            let client = self.client.clone();
+            let url = url.clone();
+            let auth = auth.clone();
+            async move {
+                let mut req = client.get(&url);
+                if let Some((k, v)) = auth {
+                    req = req.header(k, v);
+                }
+                req.send().await.map_err(Into::into)
+            }
+        }).await?;
         if !resp.status().is_success() {
             let status = resp.status();
             let body = resp.text().await.unwrap_or_default();
@@ -171,11 +206,19 @@ impl OpenSandboxClient {
     /// Delete (stop + remove) a sandbox.
     pub async fn delete_sandbox(&self, id: &str) -> anyhow::Result<()> {
         let url = format!("{}/v1/sandboxes/{id}", self.base_url);
-        let mut req = self.client.delete(&url);
-        if let Some((k, v)) = self.auth_header() {
-            req = req.header(k, v);
-        }
-        let resp = req.send().await?;
+        let auth = self.auth_header();
+        let resp = retry_async(&RetryConfig::default(), "opensandbox-delete", || {
+            let client = self.client.clone();
+            let url = url.clone();
+            let auth = auth.clone();
+            async move {
+                let mut req = client.delete(&url);
+                if let Some((k, v)) = auth {
+                    req = req.header(k, v);
+                }
+                req.send().await.map_err(Into::into)
+            }
+        }).await?;
         if !resp.status().is_success() {
             let status = resp.status();
             let body = resp.text().await.unwrap_or_default();
@@ -187,11 +230,19 @@ impl OpenSandboxClient {
     /// Pause a sandbox.
     pub async fn pause_sandbox(&self, id: &str) -> anyhow::Result<()> {
         let url = format!("{}/v1/sandboxes/{id}/pause", self.base_url);
-        let mut req = self.client.post(&url);
-        if let Some((k, v)) = self.auth_header() {
-            req = req.header(k, v);
-        }
-        let resp = req.send().await?;
+        let auth = self.auth_header();
+        let resp = retry_async(&RetryConfig::default(), "opensandbox-pause", || {
+            let client = self.client.clone();
+            let url = url.clone();
+            let auth = auth.clone();
+            async move {
+                let mut req = client.post(&url);
+                if let Some((k, v)) = auth {
+                    req = req.header(k, v);
+                }
+                req.send().await.map_err(Into::into)
+            }
+        }).await?;
         if !resp.status().is_success() {
             let status = resp.status();
             let body = resp.text().await.unwrap_or_default();
@@ -203,11 +254,19 @@ impl OpenSandboxClient {
     /// Resume a paused sandbox.
     pub async fn resume_sandbox(&self, id: &str) -> anyhow::Result<()> {
         let url = format!("{}/v1/sandboxes/{id}/resume", self.base_url);
-        let mut req = self.client.post(&url);
-        if let Some((k, v)) = self.auth_header() {
-            req = req.header(k, v);
-        }
-        let resp = req.send().await?;
+        let auth = self.auth_header();
+        let resp = retry_async(&RetryConfig::default(), "opensandbox-resume", || {
+            let client = self.client.clone();
+            let url = url.clone();
+            let auth = auth.clone();
+            async move {
+                let mut req = client.post(&url);
+                if let Some((k, v)) = auth {
+                    req = req.header(k, v);
+                }
+                req.send().await.map_err(Into::into)
+            }
+        }).await?;
         if !resp.status().is_success() {
             let status = resp.status();
             let body = resp.text().await.unwrap_or_default();
@@ -252,12 +311,21 @@ impl ExecdClient {
         request: &RunCommandRequest,
     ) -> anyhow::Result<ExecResult> {
         let url = format!("{}/command", self.base_url);
-        let mut req = self.client.post(&url).json(request);
-        if let Some((k, v)) = self.auth_header() {
-            req = req.header(k, v);
-        }
-
-        let resp = req.send().await?;
+        let auth = self.auth_header();
+        let request_json = serde_json::to_value(request)?;
+        let resp = retry_async(&RetryConfig::default(), "execd-run-command", || {
+            let client = self.client.clone();
+            let url = url.clone();
+            let auth = auth.clone();
+            let request_json = request_json.clone();
+            async move {
+                let mut req = client.post(&url).json(&request_json);
+                if let Some((k, v)) = auth {
+                    req = req.header(k, v);
+                }
+                req.send().await.map_err(Into::into)
+            }
+        }).await?;
         if !resp.status().is_success() {
             let status = resp.status();
             let body = resp.text().await.unwrap_or_default();
@@ -281,12 +349,21 @@ impl ExecdClient {
         tx: mpsc::Sender<ExecStreamEvent>,
     ) -> anyhow::Result<()> {
         let url = format!("{}/command", self.base_url);
-        let mut req = self.client.post(&url).json(request);
-        if let Some((k, v)) = self.auth_header() {
-            req = req.header(k, v);
-        }
-
-        let resp = req.send().await?;
+        let auth = self.auth_header();
+        let request_json = serde_json::to_value(request)?;
+        let resp = retry_async(&RetryConfig::default(), "execd-run-command-stream", || {
+            let client = self.client.clone();
+            let url = url.clone();
+            let auth = auth.clone();
+            let request_json = request_json.clone();
+            async move {
+                let mut req = client.post(&url).json(&request_json);
+                if let Some((k, v)) = auth {
+                    req = req.header(k, v);
+                }
+                req.send().await.map_err(Into::into)
+            }
+        }).await?;
         if !resp.status().is_success() {
             let status = resp.status();
             let body = resp.text().await.unwrap_or_default();
@@ -330,11 +407,19 @@ impl ExecdClient {
     /// Read a file from the sandbox.
     pub async fn download_file(&self, path: &str) -> anyhow::Result<String> {
         let url = format!("{}/file?path={}", self.base_url, urlencoding_encode(path));
-        let mut req = self.client.get(&url);
-        if let Some((k, v)) = self.auth_header() {
-            req = req.header(k, v);
-        }
-        let resp = req.send().await?;
+        let auth = self.auth_header();
+        let resp = retry_async(&RetryConfig::default(), "execd-download-file", || {
+            let client = self.client.clone();
+            let url = url.clone();
+            let auth = auth.clone();
+            async move {
+                let mut req = client.get(&url);
+                if let Some((k, v)) = auth {
+                    req = req.header(k, v);
+                }
+                req.send().await.map_err(Into::into)
+            }
+        }).await?;
         if !resp.status().is_success() {
             let status = resp.status();
             let body = resp.text().await.unwrap_or_default();
@@ -346,17 +431,24 @@ impl ExecdClient {
     /// Write content to a file in the sandbox.
     pub async fn upload_file(&self, path: &str, content: &str) -> anyhow::Result<()> {
         let url = format!("{}/file", self.base_url);
-        let mut req = self
-            .client
-            .post(&url)
-            .json(&serde_json::json!({
-                "path": path,
-                "content": content,
-            }));
-        if let Some((k, v)) = self.auth_header() {
-            req = req.header(k, v);
-        }
-        let resp = req.send().await?;
+        let auth = self.auth_header();
+        let payload = serde_json::json!({
+            "path": path,
+            "content": content,
+        });
+        let resp = retry_async(&RetryConfig::default(), "execd-upload-file", || {
+            let client = self.client.clone();
+            let url = url.clone();
+            let auth = auth.clone();
+            let payload = payload.clone();
+            async move {
+                let mut req = client.post(&url).json(&payload);
+                if let Some((k, v)) = auth {
+                    req = req.header(k, v);
+                }
+                req.send().await.map_err(Into::into)
+            }
+        }).await?;
         if !resp.status().is_success() {
             let status = resp.status();
             let body = resp.text().await.unwrap_or_default();
@@ -372,11 +464,19 @@ impl ExecdClient {
             self.base_url,
             urlencoding_encode(path)
         );
-        let mut req = self.client.get(&url);
-        if let Some((k, v)) = self.auth_header() {
-            req = req.header(k, v);
-        }
-        let resp = req.send().await?;
+        let auth = self.auth_header();
+        let resp = retry_async(&RetryConfig::default(), "execd-list-dir", || {
+            let client = self.client.clone();
+            let url = url.clone();
+            let auth = auth.clone();
+            async move {
+                let mut req = client.get(&url);
+                if let Some((k, v)) = auth {
+                    req = req.header(k, v);
+                }
+                req.send().await.map_err(Into::into)
+            }
+        }).await?;
         if !resp.status().is_success() {
             let status = resp.status();
             let body = resp.text().await.unwrap_or_default();
@@ -389,11 +489,19 @@ impl ExecdClient {
     /// Get sandbox metrics.
     pub async fn get_metrics(&self) -> anyhow::Result<ContainerMetrics> {
         let url = format!("{}/metrics", self.base_url);
-        let mut req = self.client.get(&url);
-        if let Some((k, v)) = self.auth_header() {
-            req = req.header(k, v);
-        }
-        let resp = req.send().await?;
+        let auth = self.auth_header();
+        let resp = retry_async(&RetryConfig::default(), "execd-get-metrics", || {
+            let client = self.client.clone();
+            let url = url.clone();
+            let auth = auth.clone();
+            async move {
+                let mut req = client.get(&url);
+                if let Some((k, v)) = auth {
+                    req = req.header(k, v);
+                }
+                req.send().await.map_err(Into::into)
+            }
+        }).await?;
         if !resp.status().is_success() {
             anyhow::bail!("get_metrics failed");
         }

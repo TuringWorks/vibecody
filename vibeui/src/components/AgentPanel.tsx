@@ -163,6 +163,16 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  });
  if (cancelled) { u5(); return; }
  unlisteners.push(u5);
+
+ const u6 = await listen<{ error: string; attempt: number; max_attempts: number; backoff_ms: number }>("agent:retry", (e) => {
+ const { error, attempt, max_attempts, backoff_ms } = e.payload;
+ setStreaming((prev) =>
+   (prev ? prev + "\n" : "") +
+   `⟳ Retrying (${attempt + 1}/${max_attempts}) in ${(backoff_ms / 1000).toFixed(1)}s — ${error}`
+ );
+ });
+ if (cancelled) { u6(); return; }
+ unlisteners.push(u6);
  })();
 
  return () => {
@@ -229,6 +239,27 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  setStreaming("");
  setPending(null);
  setTask("");
+ };
+
+ /** Retry after error — preserves completed steps and work. */
+ const retry = async () => {
+ if (!task.trim() || !provider) return;
+ setStreaming("");
+ setPending(null);
+ setStatus("running");
+ streamStartMsRef.current = Date.now();
+ streamCharsRef.current = 0;
+ setStreamMetrics(null);
+ try {
+   await invoke("start_agent_task", {
+     task: task.trim(),
+     approvalPolicy,
+     provider,
+   });
+ } catch (e) {
+   setStatus("error");
+   setStreaming(String(e));
+ }
  };
 
  // Handle interactive UI actions from AgentUIRenderer blocks
@@ -351,6 +382,15 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  </button>
  )}
 
+ {status === "error" && (
+ <button
+   onClick={retry}
+   style={{ whiteSpace: "nowrap", padding: "4px 10px", fontSize: "12px", background: "var(--accent-color)", color: "var(--bg-primary)", border: "none", borderRadius: "4px", cursor: "pointer", fontWeight: 600 }}
+   title="Retry — keeps completed steps"
+ >
+   ⟳ Retry
+ </button>
+ )}
  {(status === "complete" || status === "error") && (
  <button className="btn-secondary" onClick={reset} style={{ whiteSpace: "nowrap" }}>
  ↺ Reset

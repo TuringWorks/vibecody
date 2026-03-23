@@ -842,6 +842,7 @@ async fn run_agent(
                 break;
             }
             AgentEvent::StreamChunk(_) => {}
+            AgentEvent::RetryableError { .. } => {} // silently retry in MCP mode
             AgentEvent::CircuitBreak { state, reason } => {
                 log.push(format!("⚠ Circuit break ({}): {}", state, reason));
                 if state == vibe_ai::agent::AgentHealthState::Blocked {

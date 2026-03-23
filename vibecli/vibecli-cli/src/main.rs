@@ -520,6 +520,34 @@ struct Cli {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    // ── Global panic handler (antifragility: crash forensics) ─────────────
+    // Log panic info + backtrace to ~/.vibecli/crash.log before the default
+    // panic output so we can diagnose daemon crashes post-mortem.
+    let default_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        if let Some(home) = dirs::home_dir() {
+            let crash_dir = home.join(".vibecli");
+            let _ = std::fs::create_dir_all(&crash_dir);
+            let crash_log = crash_dir.join("crash.log");
+            if let Ok(mut f) = std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(&crash_log)
+            {
+                let timestamp = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_secs();
+                let _ = writeln!(f, "--- PANIC at epoch {} ---", timestamp);
+                let _ = writeln!(f, "{}", info);
+                let bt = std::backtrace::Backtrace::force_capture();
+                let _ = writeln!(f, "{}", bt);
+                let _ = writeln!(f, "---");
+            }
+        }
+        default_hook(info);
+    }));
+
     let cli = Cli::parse();
 
     // Validate config file on startup — warn (don't fail) if it exists but is malformed.
@@ -7538,6 +7566,7 @@ async fn run_agent_repl_with_context(
                 AgentEvent::Complete(s) => serde_json::json!({"type":"complete","summary":s}),
                 AgentEvent::Error(e) => serde_json::json!({"type":"error","message":e}),
                 AgentEvent::ToolCallPending { call, .. } => serde_json::json!({"type":"tool_pending","tool":call.name()}),
+                AgentEvent::RetryableError { ref error, attempt, max_attempts, backoff_ms } => serde_json::json!({"type":"retry","error":error,"attempt":attempt,"max_attempts":max_attempts,"backoff_ms":backoff_ms}),
                 AgentEvent::CircuitBreak { ref state, ref reason } => serde_json::json!({"type":"circuit_break","state":state.to_string(),"reason":reason}),
             };
             println!("{}", obj);
@@ -7688,6 +7717,12 @@ async fn run_agent_repl_with_context(
                 }
                 break;
             }
+            AgentEvent::RetryableError { error, attempt, max_attempts, backoff_ms } => {
+                eprintln!(
+                    "  ⟳ Retrying ({}/{}) in {}ms: {}",
+                    attempt + 1, max_attempts, backoff_ms, error
+                );
+            }
             AgentEvent::CircuitBreak { state, reason } => {
                 eprintln!("\n{}", reason);
                 if state == vibe_ai::agent::AgentHealthState::Blocked {
@@ -7830,10 +7865,14 @@ fn extract_images_from_input(input: &str) -> (String, Vec<ImageAttachment>) {
 }
 
 fn create_provider(provider_name: &str, model: Option<String>) -> Result<Arc<dyn LLMProvider>> {
-    use vibe_ai::providers::{claude, openai, gemini, grok, groq, openrouter, azure_openai, bedrock, copilot, mistral, cerebras, deepseek, zhipu, vercel_ai, minimax, perplexity, together, fireworks, sambanova};
-
-    // Helper: look up API key from config, then env var.
     let cfg = Config::load().unwrap_or_default();
+    let raw = create_raw_provider(provider_name, model, &cfg)?;
+    // Wrap with ResilientProvider for automatic retry on transient errors.
+    Ok(vibe_ai::ResilientProvider::wrap(raw))
+}
+
+fn create_raw_provider(provider_name: &str, model: Option<String>, cfg: &Config) -> Result<Arc<dyn LLMProvider>> {
+    use vibe_ai::providers::{claude, openai, gemini, grok, groq, openrouter, azure_openai, bedrock, copilot, mistral, cerebras, deepseek, zhipu, vercel_ai, minimax, perplexity, together, fireworks, sambanova};
 
     match provider_name.to_lowercase().as_str() {
         // ── Ollama (local, no API key required) ───────────────────────────────

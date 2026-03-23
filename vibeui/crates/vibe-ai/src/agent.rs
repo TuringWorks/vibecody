@@ -86,6 +86,7 @@ impl std::fmt::Display for AgentHealthState {
 }
 
 /// Monitors agent health and triggers circuit breaks when the agent is stuck.
+/// Supports time-based recovery via half-open probing (antifragility).
 #[derive(Debug, Clone)]
 pub struct CircuitBreaker {
     /// Steps since last file change (WriteFile/ApplyPatch success).
@@ -108,6 +109,12 @@ pub struct CircuitBreaker {
     pub degradation_pct: f64,
     /// Maximum approach rotations before declaring BLOCKED.
     pub max_rotations: u32,
+
+    // ── Recovery (antifragility) ──
+    /// When the state last changed away from Progress.
+    pub last_state_change: Option<std::time::Instant>,
+    /// Half-open recovery policy for automatic recovery probing.
+    pub recovery: crate::resilience::RecoveryPolicy,
 }
 
 impl Default for CircuitBreaker {
@@ -122,6 +129,26 @@ impl Default for CircuitBreaker {
             spin_threshold: 3,
             degradation_pct: 50.0,
             max_rotations: 3,
+            last_state_change: None,
+            recovery: crate::resilience::RecoveryPolicy::default(),
+        }
+    }
+}
+
+impl CircuitBreaker {
+    /// Construct from a ResilienceConfig, using defaults for missing values.
+    pub fn from_resilience_config(config: &crate::resilience::ResilienceConfig) -> Self {
+        Self {
+            stall_threshold: config.cb_stall_threshold(),
+            spin_threshold: config.cb_spin_threshold(),
+            degradation_pct: config.cb_degradation_pct(),
+            max_rotations: config.cb_max_rotations(),
+            recovery: crate::resilience::RecoveryPolicy {
+                cooldown: config.cb_recovery_cooldown(),
+                required_successes: config.cb_recovery_required_successes(),
+                ..Default::default()
+            },
+            ..Default::default()
         }
     }
 }
@@ -135,6 +162,35 @@ impl CircuitBreaker {
         output_len: usize,
     ) -> Option<AgentHealthState> {
         let old_state = self.state.clone();
+
+        // ── Recovery probing (antifragility) ─────────────────────────────────
+        // When in a non-Progress state, check if cooldown elapsed and probe.
+        if self.state != AgentHealthState::Progress && self.state != AgentHealthState::Blocked {
+            if let Some(last_change) = self.last_state_change {
+                if self.recovery.should_probe(last_change) {
+                    match self.recovery.record_probe_result(tool_result.success) {
+                        Some(true) => {
+                            // Recovery successful — reset to Progress
+                            tracing::info!("Circuit breaker recovery: probe succeeded, restoring Progress");
+                            self.state = AgentHealthState::Progress;
+                            self.steps_since_file_change = 0;
+                            self.recent_error_hashes.clear();
+                            self.approach_rotations = self.approach_rotations.saturating_sub(1);
+                            self.last_state_change = None;
+                            return Some(AgentHealthState::Progress);
+                        }
+                        Some(false) => {
+                            // Probe failed — reset cooldown timer for next attempt
+                            tracing::warn!("Circuit breaker recovery: probe failed, re-escalating");
+                            self.last_state_change = Some(std::time::Instant::now());
+                        }
+                        None => {
+                            // Still probing, keep current state
+                        }
+                    }
+                }
+            }
+        }
 
         // Track file changes
         let is_file_change = matches!(tool_call, ToolCall::WriteFile { .. } | ToolCall::ApplyPatch { .. })
@@ -166,6 +222,13 @@ impl CircuitBreaker {
         self.state = self.evaluate();
 
         if self.state != old_state {
+            // Record when state changed away from Progress (for recovery cooldown)
+            if self.state != AgentHealthState::Progress {
+                self.last_state_change = Some(std::time::Instant::now());
+                self.recovery.reset();
+            } else {
+                self.last_state_change = None;
+            }
             Some(self.state.clone())
         } else {
             None
@@ -303,11 +366,97 @@ pub enum AgentEvent {
     Complete(String),
     /// An unrecoverable error occurred.
     Error(String),
+    /// A retryable error occurred — agent will retry after backoff.
+    RetryableError {
+        error: String,
+        attempt: u32,
+        max_attempts: u32,
+        backoff_ms: u64,
+    },
     /// Circuit breaker triggered — agent health state changed.
     CircuitBreak {
         state: AgentHealthState,
         reason: String,
     },
+}
+
+// ── Retry Configuration ──────────────────────────────────────────────────────
+
+/// Configuration for retry behaviour on transient API errors.
+#[derive(Debug, Clone)]
+pub struct RetryConfig {
+    /// Maximum number of retry attempts per API call.
+    pub max_attempts: u32,
+    /// Initial backoff duration in milliseconds.
+    pub initial_backoff_ms: u64,
+    /// Maximum backoff duration in milliseconds.
+    pub max_backoff_ms: u64,
+    /// Multiplier applied to backoff after each attempt.
+    pub backoff_multiplier: f64,
+    /// Whether to add ±25% jitter to prevent thundering herd (default: true).
+    pub jitter_enabled: bool,
+}
+
+impl Default for RetryConfig {
+    fn default() -> Self {
+        Self {
+            max_attempts: 5,
+            initial_backoff_ms: 1_000,
+            max_backoff_ms: 60_000,
+            backoff_multiplier: 2.0,
+            jitter_enabled: true,
+        }
+    }
+}
+
+impl RetryConfig {
+    /// Calculate backoff duration for the given attempt (0-indexed).
+    /// Applies ±25% jitter when `jitter_enabled` is true to prevent thundering herd.
+    fn backoff_ms(&self, attempt: u32) -> u64 {
+        let base = self.initial_backoff_ms as f64 * self.backoff_multiplier.powi(attempt as i32);
+        let capped = (base as u64).min(self.max_backoff_ms);
+        if self.jitter_enabled {
+            crate::resilience::add_jitter(capped)
+        } else {
+            capped
+        }
+    }
+
+    /// Construct from a ResilienceConfig, using defaults for missing values.
+    pub fn from_resilience_config(config: &crate::resilience::ResilienceConfig) -> Self {
+        Self {
+            max_attempts: config.retry_max_attempts(),
+            initial_backoff_ms: config.retry_initial_backoff_ms(),
+            max_backoff_ms: config.retry_max_backoff_ms(),
+            backoff_multiplier: config.retry_multiplier(),
+            jitter_enabled: config.retry_jitter_enabled(),
+        }
+    }
+}
+
+/// Classify an error string as retryable or permanent.
+fn is_retryable_error(error: &str) -> bool {
+    let lower = error.to_lowercase();
+    // Retryable: rate limits, server overload, timeouts, network issues, decode errors
+    lower.contains("rate limit")
+        || lower.contains("429")
+        || lower.contains("503")
+        || lower.contains("529")
+        || lower.contains("overloaded")
+        || lower.contains("timeout")
+        || lower.contains("timed out")
+        || lower.contains("connection reset")
+        || lower.contains("connection refused")
+        || lower.contains("broken pipe")
+        || lower.contains("error decoding")
+        || lower.contains("unexpected eof")
+        || lower.contains("incomplete message")
+        || lower.contains("network")
+        || lower.contains("dns")
+        || lower.contains("temporarily unavailable")
+        || lower.contains("bad gateway")
+        || lower.contains("502")
+        || lower.contains("504")
 }
 
 // ── Agent Context ─────────────────────────────────────────────────────────────
@@ -384,6 +533,8 @@ pub struct AgentLoop {
     pub double_check_enabled: bool,
     /// Enable per-task atomic commits after successful write_file/apply_patch.
     pub atomic_commits: bool,
+    /// Retry configuration for transient API errors.
+    pub retry_config: RetryConfig,
 }
 
 impl AgentLoop {
@@ -403,6 +554,7 @@ impl AgentLoop {
             circuit_breaker_enabled: true,
             double_check_enabled: false,
             atomic_commits: false,
+            retry_config: RetryConfig::default(),
         }
     }
 
@@ -421,6 +573,12 @@ impl AgentLoop {
     /// Enable per-task atomic commits after successful file writes.
     pub fn with_atomic_commits(mut self, enabled: bool) -> Self {
         self.atomic_commits = enabled;
+        self
+    }
+
+    /// Configure retry behaviour for transient API errors.
+    pub fn with_retry_config(mut self, config: RetryConfig) -> Self {
+        self.retry_config = config;
         self
     }
 
@@ -537,7 +695,7 @@ impl AgentLoop {
             // AgentLoop::with_context_limit().
             prune_messages(&mut messages, self.max_context_tokens.unwrap_or(80_000));
 
-            // ── 1. Stream LLM response ────────────────────────────────────────
+            // ── 1. Stream LLM response (with retry) ─────────────────────────────
             let llm_span = tracing::info_span!(
                 "agent.llm_call",
                 step = step,
@@ -548,28 +706,70 @@ impl AgentLoop {
             let mut accumulated = String::with_capacity(8192);
             {
                 let _guard = llm_span.enter();
-                let mut stream = match self.provider.stream_chat(&messages).await {
-                    Ok(s) => s,
-                    Err(e) => {
-                        tracing::error!(error = %e, "LLM call failed");
-                        let _ = event_tx.send(AgentEvent::Error(e.to_string())).await;
-                        return Err(e);
-                    }
-                };
+                let retry = &self.retry_config;
+                let mut last_error: Option<anyhow::Error> = None;
 
-                while let Some(chunk) = stream.next().await {
-                    match chunk {
-                        Ok(text) => {
-                            // Borrow `text` for accumulated first, then move it
-                            // into the channel event — avoids a clone() per chunk.
-                            accumulated.push_str(&text);
-                            let _ = event_tx.send(AgentEvent::StreamChunk(text)).await;
-                        }
+                for attempt in 0..retry.max_attempts {
+                    if attempt > 0 {
+                        let backoff = retry.backoff_ms(attempt - 1);
+                        tracing::warn!(
+                            attempt = attempt + 1,
+                            max = retry.max_attempts,
+                            backoff_ms = backoff,
+                            "Retrying LLM call after transient error"
+                        );
+                        let _ = event_tx.send(AgentEvent::RetryableError {
+                            error: last_error.as_ref().map(|e| e.to_string()).unwrap_or_default(),
+                            attempt,
+                            max_attempts: retry.max_attempts,
+                            backoff_ms: backoff,
+                        }).await;
+                        tokio::time::sleep(std::time::Duration::from_millis(backoff)).await;
+                        // Clear any partial accumulation from the failed attempt
+                        accumulated.clear();
+                    }
+
+                    let stream_result = self.provider.stream_chat(&messages).await;
+                    let mut stream = match stream_result {
+                        Ok(s) => s,
                         Err(e) => {
-                            tracing::error!(error = %e, "LLM stream error");
-                            let _ = event_tx.send(AgentEvent::Error(e.to_string())).await;
+                            let err_str = e.to_string();
+                            if is_retryable_error(&err_str) && attempt + 1 < retry.max_attempts {
+                                tracing::warn!(error = %e, attempt = attempt + 1, "Retryable LLM connection error");
+                                last_error = Some(e);
+                                continue;
+                            }
+                            tracing::error!(error = %e, "LLM call failed (non-retryable or attempts exhausted)");
+                            let _ = event_tx.send(AgentEvent::Error(err_str)).await;
                             return Err(e);
                         }
+                    };
+
+                    let mut stream_failed = false;
+                    while let Some(chunk) = stream.next().await {
+                        match chunk {
+                            Ok(text) => {
+                                accumulated.push_str(&text);
+                                let _ = event_tx.send(AgentEvent::StreamChunk(text)).await;
+                            }
+                            Err(e) => {
+                                let err_str = e.to_string();
+                                if is_retryable_error(&err_str) && attempt + 1 < retry.max_attempts {
+                                    tracing::warn!(error = %err_str, attempt = attempt + 1, "Retryable stream error mid-response");
+                                    last_error = Some(e);
+                                    stream_failed = true;
+                                    break;
+                                }
+                                tracing::error!(error = %e, "LLM stream error (non-retryable or attempts exhausted)");
+                                let _ = event_tx.send(AgentEvent::Error(err_str)).await;
+                                return Err(e);
+                            }
+                        }
+                    }
+
+                    if !stream_failed {
+                        // Success — break out of retry loop
+                        break;
                     }
                 }
                 tracing::debug!(response_len = accumulated.len(), "LLM response complete");

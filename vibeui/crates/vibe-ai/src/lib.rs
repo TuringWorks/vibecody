@@ -18,8 +18,17 @@ pub mod otel;
 pub mod policy;
 pub mod rules;
 pub mod agent_team;
+pub mod resilient;
+pub mod resilience;
 
 pub use chat::ChatEngine;
+pub use resilient::{ResilientProvider, RetryConfig, retry_async, is_retryable};
+pub use resilience::{
+    ProviderHealthTracker, ProviderHealth, ProviderCallOutcome,
+    FailureCategory, FailureJournal, FailureRecord, FailurePattern,
+    FailureJournalSummary, RecoveryPolicy, ResilienceConfig,
+    add_jitter, classify_error,
+};
 pub use provider::{CodeContext, Message, MessageRole, CompletionStream, ImageAttachment};
 pub use providers::{
     BedrockProvider, CopilotProvider, AzureOpenAIProvider, OpenRouterProvider, GroqProvider,

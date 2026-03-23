@@ -1211,25 +1211,59 @@ pub async fn stream_chat_message(
 
     let join_handle = tokio::spawn(async move {
         use futures::StreamExt;
-        let mut stream = match provider.stream_chat(&messages).await {
-            Ok(s) => s,
-            Err(e) => {
-                let _ = app_handle.emit("chat:error", e.to_string());
-                return;
-            }
-        };
+        let retry_config = vibe_ai::RetryConfig::default();
         let mut accumulated = String::with_capacity(4096);
-        while let Some(chunk) = stream.next().await {
-            match chunk {
-                Ok(text) => {
-                    accumulated.push_str(&text);
-                    let _ = app_handle.emit("chat:chunk", text.clone());
-                }
+        let mut success = false;
+
+        for attempt in 0..retry_config.max_attempts {
+            if attempt > 0 {
+                let backoff = retry_config.initial_backoff_ms * 2u64.pow(attempt - 1);
+                let backoff = backoff.min(retry_config.max_backoff_ms);
+                eprintln!("[stream_chat] Retrying attempt {}/{}, backoff {}ms", attempt + 1, retry_config.max_attempts, backoff);
+                let _ = app_handle.emit("chat:chunk", format!("\n⟳ Retrying ({}/{})...\n", attempt + 1, retry_config.max_attempts));
+                tokio::time::sleep(std::time::Duration::from_millis(backoff)).await;
+                accumulated.clear();
+            }
+
+            let mut stream = match provider.stream_chat(&messages).await {
+                Ok(s) => s,
                 Err(e) => {
-                    let _ = app_handle.emit("chat:error", e.to_string());
+                    let err_str = e.to_string();
+                    if vibe_ai::is_retryable(&err_str) && attempt + 1 < retry_config.max_attempts {
+                        continue;
+                    }
+                    let _ = app_handle.emit("chat:error", err_str);
                     return;
                 }
+            };
+
+            let mut stream_failed = false;
+            while let Some(chunk) = stream.next().await {
+                match chunk {
+                    Ok(text) => {
+                        accumulated.push_str(&text);
+                        let _ = app_handle.emit("chat:chunk", text.clone());
+                    }
+                    Err(e) => {
+                        let err_str = e.to_string();
+                        if vibe_ai::is_retryable(&err_str) && attempt + 1 < retry_config.max_attempts {
+                            stream_failed = true;
+                            break;
+                        }
+                        let _ = app_handle.emit("chat:error", err_str);
+                        return;
+                    }
+                }
             }
+            if !stream_failed {
+                success = true;
+                break;
+            }
+        }
+
+        if !success {
+            let _ = app_handle.emit("chat:error", "All retry attempts exhausted".to_string());
+            return;
         }
         // Process tool calls in the completed response (same as send_chat_message)
         let (tool_output, pending_write) = process_tool_calls(&accumulated, &workspace).await;
@@ -1655,34 +1689,48 @@ async fn resolve_at_references(
 
 async fn fetch_jira_issue(url: &str, email: &str, token: &str) -> Result<JiraIssue, String> {
     let client = reqwest::Client::new();
-    let mut req = client
-        .get(url)
-        .header("Accept", "application/json")
-        .header("User-Agent", "vibecli/1.0");
-    if !email.is_empty() && !token.is_empty() {
-        req = req.basic_auth(email, Some(token));
-    }
-    req.send().await
-        .map_err(|e| e.to_string())?
-        .json::<JiraIssue>()
-        .await
-        .map_err(|e| e.to_string())
+    let url = url.to_string();
+    let email = email.to_string();
+    let token = token.to_string();
+    vibe_ai::retry_async(&vibe_ai::RetryConfig::default(), "fetch_jira_issue", || {
+        let client = client.clone();
+        let url = url.clone();
+        let email = email.clone();
+        let token = token.clone();
+        async move {
+            let mut req = client
+                .get(&url)
+                .header("Accept", "application/json")
+                .header("User-Agent", "vibecli/1.0");
+            if !email.is_empty() && !token.is_empty() {
+                req = req.basic_auth(&email, Some(&token));
+            }
+            let issue = req.send().await?.json::<JiraIssue>().await?;
+            Ok(issue)
+        }
+    }).await.map_err(|e| e.to_string())
 }
 
 async fn fetch_github_issue(url: &str, token: Option<String>) -> Result<GithubIssue, String> {
     let client = reqwest::Client::new();
-    let mut req = client
-        .get(url)
-        .header("Accept", "application/vnd.github.v3+json")
-        .header("User-Agent", "vibecli/1.0");
-    if let Some(t) = token {
-        req = req.header("Authorization", format!("Bearer {}", t));
-    }
-    req.send().await
-        .map_err(|e| e.to_string())?
-        .json::<GithubIssue>()
-        .await
-        .map_err(|e| e.to_string())
+    let url = url.to_string();
+    let token = token.clone();
+    vibe_ai::retry_async(&vibe_ai::RetryConfig::default(), "fetch_github_issue", || {
+        let client = client.clone();
+        let url = url.clone();
+        let token = token.clone();
+        async move {
+            let mut req = client
+                .get(&url)
+                .header("Accept", "application/vnd.github.v3+json")
+                .header("User-Agent", "vibecli/1.0");
+            if let Some(ref t) = token {
+                req = req.header("Authorization", format!("Bearer {}", t));
+            }
+            let issue = req.send().await?.json::<GithubIssue>().await?;
+            Ok(issue)
+        }
+    }).await.map_err(|e| e.to_string())
 }
 
 async fn process_tool_calls(response: &str, workspace_lock: &Arc<Mutex<Workspace>>) -> (String, Option<PendingWrite>) {
@@ -1944,7 +1992,7 @@ pub async fn get_available_ai_providers(state: tauri::State<'_, AppState>) -> Re
                     ..Default::default()
                 };
                 let provider = vibe_ai::providers::ollama::OllamaProvider::new(config);
-                chat_engine.add_provider(Arc::new(provider));
+                chat_engine.add_provider(vibe_ai::ResilientProvider::wrap(Arc::new(provider)));
             }
         }
     }
@@ -2283,6 +2331,15 @@ pub async fn start_agent_task(
                 AgentEvent::Error(msg) => {
                     let _ = app_handle.emit("agent:error", msg);
                     break;
+                }
+                AgentEvent::RetryableError { error, attempt, max_attempts, backoff_ms } => {
+                    let payload = serde_json::json!({
+                        "error": error,
+                        "attempt": attempt,
+                        "max_attempts": max_attempts,
+                        "backoff_ms": backoff_ms,
+                    });
+                    let _ = app_handle.emit("agent:retry", payload);
                 }
                 AgentEvent::CircuitBreak { state, reason } => {
                     let payload = serde_json::json!({
@@ -8706,7 +8763,8 @@ fn build_temp_provider(provider_type: &str, model: &str)
         "ollama"               => Arc::new(providers::OllamaProvider::new(cfg)),
         _                      => return None,
     };
-    Some(p)
+    // Wrap with ResilientProvider for automatic retry on transient errors.
+    Some(vibe_ai::ResilientProvider::wrap(p))
 }
 
 /// Call a single provider with a prompt and return a `ModelResponse`.

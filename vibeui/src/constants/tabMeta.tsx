@@ -59,7 +59,7 @@ export const TAB_META: Record<string, TabMeta> = {
   // --- Developer Tools ---
   "system-monitor":  { icon: Cog,          label: "System Monitor",    aliases: ["processes", "profiler", "debugmode", "debug"] },
   terminal:          { icon: TerminalSquare, label: "Terminal",         aliases: ["scripts", "ssh", "notebook", "logs"] },
-  diagnostics:       { icon: Wrench,       label: "Diagnostics",       aliases: ["deps", "network", "loadtest", "renderopt", "swebench", "sessionmemory", "load test"] },
+  diagnostics:       { icon: Wrench,       label: "Diagnostics",       aliases: ["deps", "network", "loadtest", "renderopt", "swebench", "sessionmemory", "resilience", "load test"] },
 
   // --- Toolkit ---
   converters:        { icon: Binary,       label: "Converters",        aliases: ["encoding", "numbers", "colorconv", "units", "unicode", "timestamp"] },

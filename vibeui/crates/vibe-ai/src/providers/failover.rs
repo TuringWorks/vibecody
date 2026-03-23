@@ -2,27 +2,81 @@
 //!
 //! When the primary provider fails, automatically falls through to
 //! the next provider in the chain until one succeeds.
+//!
+//! With an optional `ProviderHealthTracker`, providers are sorted by
+//! health score (antifragility: the system learns which providers are
+//! reliable and prefers them).
 
 use crate::provider::{AIProvider, CodeContext, CompletionResponse, CompletionStream, ImageAttachment, Message};
+use crate::resilience::{ProviderCallOutcome, ProviderHealthTracker, classify_error};
 use anyhow::Result;
 use async_trait::async_trait;
 use std::sync::Arc;
+use std::time::Instant;
 
 /// A provider that wraps multiple providers and tries each in sequence.
 /// If the first provider fails, it falls through to the next, and so on.
+///
+/// When a `ProviderHealthTracker` is attached, providers are tried in
+/// health-score order (healthiest first) instead of fixed chain order.
 pub struct FailoverProvider {
     chain: Vec<Arc<dyn AIProvider>>,
     name: String,
+    health_tracker: Option<Arc<ProviderHealthTracker>>,
 }
 
 impl FailoverProvider {
+    /// Create a failover provider with fixed ordering (original behavior).
     pub fn new(chain: Vec<Arc<dyn AIProvider>>) -> Self {
         let name = if chain.is_empty() {
             "Failover(empty)".to_string()
         } else {
             format!("Failover({})", chain.iter().map(|p| p.name().to_string()).collect::<Vec<_>>().join(" -> "))
         };
-        Self { chain, name }
+        Self { chain, name, health_tracker: None }
+    }
+
+    /// Create a failover provider with health-aware dynamic ordering.
+    /// Providers are tried in order of health score (highest first).
+    pub fn with_health_tracker(chain: Vec<Arc<dyn AIProvider>>, tracker: Arc<ProviderHealthTracker>) -> Self {
+        let name = if chain.is_empty() {
+            "Failover(empty)".to_string()
+        } else {
+            format!("Failover({})", chain.iter().map(|p| p.name().to_string()).collect::<Vec<_>>().join(" -> "))
+        };
+        Self { chain, name, health_tracker: Some(tracker) }
+    }
+
+    /// Get the providers sorted by health score if a tracker is attached,
+    /// otherwise return them in the original chain order.
+    fn ordered_chain(&self) -> Vec<Arc<dyn AIProvider>> {
+        match &self.health_tracker {
+            None => self.chain.clone(),
+            Some(tracker) => {
+                let names: Vec<String> = self.chain.iter().map(|p| p.name().to_string()).collect();
+                let ranked = tracker.ranked_providers(&names);
+                let mut ordered = Vec::with_capacity(self.chain.len());
+                for name in &ranked {
+                    if let Some(provider) = self.chain.iter().find(|p| p.name() == name) {
+                        ordered.push(provider.clone());
+                    }
+                }
+                ordered
+            }
+        }
+    }
+
+    /// Record a call outcome to the health tracker (if attached).
+    fn record_outcome(&self, provider_name: &str, success: bool, latency: std::time::Duration, error: Option<&str>) {
+        if let Some(tracker) = &self.health_tracker {
+            tracker.record(ProviderCallOutcome {
+                provider_name: provider_name.to_string(),
+                success,
+                latency,
+                timestamp: Instant::now(),
+                error_category: error.map(classify_error),
+            });
+        }
     }
 }
 
@@ -41,10 +95,16 @@ impl AIProvider for FailoverProvider {
 
     async fn complete(&self, context: &CodeContext) -> Result<CompletionResponse> {
         let mut last_err = anyhow::anyhow!("No providers in failover chain");
-        for provider in &self.chain {
+        for provider in self.ordered_chain() {
+            let start = Instant::now();
             match provider.complete(context).await {
-                Ok(resp) => return Ok(resp),
+                Ok(resp) => {
+                    self.record_outcome(provider.name(), true, start.elapsed(), None);
+                    return Ok(resp);
+                }
                 Err(e) => {
+                    let err_str = e.to_string();
+                    self.record_outcome(provider.name(), false, start.elapsed(), Some(&err_str));
                     tracing::warn!("[failover] {} complete failed: {}, trying next", provider.name(), e);
                     last_err = e;
                 }
@@ -55,10 +115,16 @@ impl AIProvider for FailoverProvider {
 
     async fn stream_complete(&self, context: &CodeContext) -> Result<CompletionStream> {
         let mut last_err = anyhow::anyhow!("No providers in failover chain");
-        for provider in &self.chain {
+        for provider in self.ordered_chain() {
+            let start = Instant::now();
             match provider.stream_complete(context).await {
-                Ok(stream) => return Ok(stream),
+                Ok(stream) => {
+                    self.record_outcome(provider.name(), true, start.elapsed(), None);
+                    return Ok(stream);
+                }
                 Err(e) => {
+                    let err_str = e.to_string();
+                    self.record_outcome(provider.name(), false, start.elapsed(), Some(&err_str));
                     tracing::warn!("[failover] {} stream_complete failed: {}, trying next", provider.name(), e);
                     last_err = e;
                 }
@@ -69,10 +135,16 @@ impl AIProvider for FailoverProvider {
 
     async fn chat_response(&self, messages: &[Message], context: Option<String>) -> Result<CompletionResponse> {
         let mut last_err = anyhow::anyhow!("No providers in failover chain");
-        for provider in &self.chain {
+        for provider in self.ordered_chain() {
+            let start = Instant::now();
             match provider.chat_response(messages, context.clone()).await {
-                Ok(resp) => return Ok(resp),
+                Ok(resp) => {
+                    self.record_outcome(provider.name(), true, start.elapsed(), None);
+                    return Ok(resp);
+                }
                 Err(e) => {
+                    let err_str = e.to_string();
+                    self.record_outcome(provider.name(), false, start.elapsed(), Some(&err_str));
                     tracing::warn!("[failover] {} chat_response failed: {}, trying next", provider.name(), e);
                     last_err = e;
                 }
@@ -83,10 +155,16 @@ impl AIProvider for FailoverProvider {
 
     async fn chat(&self, messages: &[Message], context: Option<String>) -> Result<String> {
         let mut last_err = anyhow::anyhow!("No providers in failover chain");
-        for provider in &self.chain {
+        for provider in self.ordered_chain() {
+            let start = Instant::now();
             match provider.chat(messages, context.clone()).await {
-                Ok(text) => return Ok(text),
+                Ok(text) => {
+                    self.record_outcome(provider.name(), true, start.elapsed(), None);
+                    return Ok(text);
+                }
                 Err(e) => {
+                    let err_str = e.to_string();
+                    self.record_outcome(provider.name(), false, start.elapsed(), Some(&err_str));
                     tracing::warn!("[failover] {} chat failed: {}, trying next", provider.name(), e);
                     last_err = e;
                 }
@@ -97,10 +175,16 @@ impl AIProvider for FailoverProvider {
 
     async fn stream_chat(&self, messages: &[Message]) -> Result<CompletionStream> {
         let mut last_err = anyhow::anyhow!("No providers in failover chain");
-        for provider in &self.chain {
+        for provider in self.ordered_chain() {
+            let start = Instant::now();
             match provider.stream_chat(messages).await {
-                Ok(stream) => return Ok(stream),
+                Ok(stream) => {
+                    self.record_outcome(provider.name(), true, start.elapsed(), None);
+                    return Ok(stream);
+                }
                 Err(e) => {
+                    let err_str = e.to_string();
+                    self.record_outcome(provider.name(), false, start.elapsed(), Some(&err_str));
                     tracing::warn!("[failover] {} stream_chat failed: {}, trying next", provider.name(), e);
                     last_err = e;
                 }
@@ -111,10 +195,16 @@ impl AIProvider for FailoverProvider {
 
     async fn chat_with_images(&self, messages: &[Message], images: &[ImageAttachment], context: Option<String>) -> Result<String> {
         let mut last_err = anyhow::anyhow!("No providers in failover chain");
-        for provider in &self.chain {
+        for provider in self.ordered_chain() {
+            let start = Instant::now();
             match provider.chat_with_images(messages, images, context.clone()).await {
-                Ok(text) => return Ok(text),
+                Ok(text) => {
+                    self.record_outcome(provider.name(), true, start.elapsed(), None);
+                    return Ok(text);
+                }
                 Err(e) => {
+                    let err_str = e.to_string();
+                    self.record_outcome(provider.name(), false, start.elapsed(), Some(&err_str));
                     tracing::warn!("[failover] {} chat_with_images failed: {}, trying next", provider.name(), e);
                     last_err = e;
                 }
@@ -142,16 +232,12 @@ mod tests {
 
     #[test]
     fn chain_name_shows_providers() {
-        // Use a simple mock-like setup — create two Groq providers with different names
-        // Just test the name generation logic
         let name = "Failover(A -> B -> C)";
-        let p = FailoverProvider { chain: vec![], name: name.to_string() };
+        let p = FailoverProvider { chain: vec![], name: name.to_string(), health_tracker: None };
         assert_eq!(p.name(), "Failover(A -> B -> C)");
     }
 
-    // ── name formatting with real providers ──────────────────────────────
-
-    /// A minimal mock provider for testing name generation.
+    /// A minimal mock provider for testing.
     struct MockProvider {
         mock_name: String,
     }
@@ -285,7 +371,6 @@ mod tests {
 
     // ── is_available with providers ──────────────────────────────────────
 
-    /// A provider that reports as available.
     struct AvailableProvider;
 
     #[async_trait]
@@ -309,8 +394,8 @@ mod tests {
     #[tokio::test]
     async fn is_available_true_if_any_provider_available() {
         let chain: Vec<Arc<dyn AIProvider>> = vec![
-            Arc::new(MockProvider::new("Offline")),  // is_available returns false
-            Arc::new(AvailableProvider),               // is_available returns true
+            Arc::new(MockProvider::new("Offline")),
+            Arc::new(AvailableProvider),
         ];
         let p = FailoverProvider::new(chain);
         assert!(p.is_available().await);
@@ -326,9 +411,8 @@ mod tests {
         assert!(!p.is_available().await);
     }
 
-    // ── fallback behavior with SuccessProvider ──────────────────────────
+    // ── fallback behavior ───────────────────────────────────────────────
 
-    /// A provider that always succeeds.
     struct SuccessProvider {
         label: String,
     }
@@ -455,5 +539,75 @@ mod tests {
         ];
         let p = FailoverProvider::new(chain);
         assert!(p.is_available().await);
+    }
+
+    // ── health-aware failover tests ─────────────────────────────────────
+
+    #[tokio::test]
+    async fn health_aware_failover_prefers_healthy_provider() {
+        let tracker = Arc::new(ProviderHealthTracker::new(50, std::time::Duration::from_secs(600)));
+
+        // Record "Backup" as healthy, "Primary" as unhealthy
+        for _ in 0..5 {
+            tracker.record(ProviderCallOutcome {
+                provider_name: "Backup".to_string(),
+                success: true,
+                latency: std::time::Duration::from_millis(100),
+                timestamp: Instant::now(),
+                error_category: None,
+            });
+            tracker.record(ProviderCallOutcome {
+                provider_name: "Primary".to_string(),
+                success: false,
+                latency: std::time::Duration::from_millis(5000),
+                timestamp: Instant::now(),
+                error_category: Some(crate::resilience::FailureCategory::ServerError),
+            });
+        }
+
+        // Both succeed, but health tracker should prefer "Backup"
+        let chain: Vec<Arc<dyn AIProvider>> = vec![
+            Arc::new(SuccessProvider::new("Primary")),
+            Arc::new(SuccessProvider::new("Backup")),
+        ];
+        let p = FailoverProvider::with_health_tracker(chain, tracker);
+        let msgs = vec![Message { role: crate::provider::MessageRole::User, content: "hi".into() }];
+        let result = p.chat(&msgs, None).await.unwrap();
+        // Should try "Backup" first since it has higher health score
+        assert_eq!(result, "Backup-chat");
+    }
+
+    #[tokio::test]
+    async fn health_tracker_records_outcomes_on_call() {
+        let tracker = Arc::new(ProviderHealthTracker::new(50, std::time::Duration::from_secs(600)));
+        let chain: Vec<Arc<dyn AIProvider>> = vec![
+            Arc::new(MockProvider::new("Failing")),
+            Arc::new(SuccessProvider::new("Working")),
+        ];
+        let p = FailoverProvider::with_health_tracker(chain, tracker.clone());
+        let msgs = vec![Message { role: crate::provider::MessageRole::User, content: "hi".into() }];
+        let _ = p.chat(&msgs, None).await;
+
+        // Tracker should have recorded both outcomes
+        let failing_health = tracker.health("Failing");
+        assert_eq!(failing_health.total_calls, 1);
+        assert_eq!(failing_health.recent_failures, 1);
+
+        let working_health = tracker.health("Working");
+        assert_eq!(working_health.total_calls, 1);
+        assert_eq!(working_health.recent_failures, 0);
+    }
+
+    #[tokio::test]
+    async fn without_tracker_uses_original_order() {
+        // Backward compat: FailoverProvider::new() with no tracker
+        let chain: Vec<Arc<dyn AIProvider>> = vec![
+            Arc::new(SuccessProvider::new("First")),
+            Arc::new(SuccessProvider::new("Second")),
+        ];
+        let p = FailoverProvider::new(chain);
+        let msgs = vec![Message { role: crate::provider::MessageRole::User, content: "hi".into() }];
+        let result = p.chat(&msgs, None).await.unwrap();
+        assert_eq!(result, "First-chat"); // always tries first in chain
     }
 }

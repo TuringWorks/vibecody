@@ -5,6 +5,7 @@
 //! and CLI voice input mode.
 
 use anyhow::{Context, Result};
+use vibe_ai::{retry_async, RetryConfig};
 
 /// Transcribe an audio file via Groq's Whisper endpoint.
 ///
@@ -26,21 +27,30 @@ pub async fn transcribe_audio(audio_path: &std::path::Path, api_key: &str) -> Re
         .unwrap_or("audio.wav")
         .to_string();
 
-    let part = reqwest::multipart::Part::bytes(file_bytes)
-        .file_name(file_name)
-        .mime_str("audio/wav")?;
-
-    let form = reqwest::multipart::Form::new()
-        .text("model", "whisper-large-v3")
-        .part("file", part);
-
-    let resp = client
-        .post("https://api.groq.com/openai/v1/audio/transcriptions")
-        .header("Authorization", format!("Bearer {}", api_key))
-        .multipart(form)
-        .send()
-        .await
-        .context("Whisper transcription request failed")?;
+    let api_key_owned = api_key.to_string();
+    let resp = retry_async(&RetryConfig::default(), "groq-whisper-transcribe", || {
+        let client = client.clone();
+        let file_bytes = file_bytes.clone();
+        let file_name = file_name.clone();
+        let api_key_owned = api_key_owned.clone();
+        async move {
+            let part = reqwest::multipart::Part::bytes(file_bytes)
+                .file_name(file_name)
+                .mime_str("audio/wav")?;
+            let form = reqwest::multipart::Form::new()
+                .text("model", "whisper-large-v3")
+                .part("file", part);
+            client
+                .post("https://api.groq.com/openai/v1/audio/transcriptions")
+                .header("Authorization", format!("Bearer {}", api_key_owned))
+                .multipart(form)
+                .send()
+                .await
+                .map_err(Into::into)
+        }
+    })
+    .await
+    .context("Whisper transcription request failed")?;
 
     if !resp.status().is_success() {
         let err = resp.text().await?;
@@ -68,21 +78,33 @@ pub async fn text_to_speech(
         voice_id
     );
 
-    let resp = client
-        .post(&url)
-        .header("xi-api-key", api_key)
-        .header("Content-Type", "application/json")
-        .json(&serde_json::json!({
-            "text": text,
-            "model_id": "eleven_multilingual_v2",
-            "voice_settings": {
-                "stability": 0.5,
-                "similarity_boost": 0.5
-            }
-        }))
-        .send()
-        .await
-        .context("ElevenLabs TTS request failed")?;
+    let api_key_owned = api_key.to_string();
+    let text_owned = text.to_string();
+    let resp = retry_async(&RetryConfig::default(), "elevenlabs-tts", || {
+        let client = client.clone();
+        let url = url.clone();
+        let api_key_owned = api_key_owned.clone();
+        let text_owned = text_owned.clone();
+        async move {
+            client
+                .post(&url)
+                .header("xi-api-key", &api_key_owned)
+                .header("Content-Type", "application/json")
+                .json(&serde_json::json!({
+                    "text": text_owned,
+                    "model_id": "eleven_multilingual_v2",
+                    "voice_settings": {
+                        "stability": 0.5,
+                        "similarity_boost": 0.5
+                    }
+                }))
+                .send()
+                .await
+                .map_err(Into::into)
+        }
+    })
+    .await
+    .context("ElevenLabs TTS request failed")?;
 
     if !resp.status().is_success() {
         let err = resp.text().await?;

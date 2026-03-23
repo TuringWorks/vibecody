@@ -59,6 +59,11 @@ pub async fn run(provider_name: String, model: Option<String>) -> Result<()> {
 }
 
 fn create_provider(provider_name: &str, model: Option<String>) -> Result<Arc<dyn LLMProvider>> {
+    let raw = create_raw_tui_provider(provider_name, model)?;
+    Ok(vibe_ai::ResilientProvider::wrap(raw))
+}
+
+fn create_raw_tui_provider(provider_name: &str, model: Option<String>) -> Result<Arc<dyn LLMProvider>> {
     let config = Config::load().unwrap_or_default();
     let provider_config = config.get_provider_config(provider_name);
 
@@ -657,6 +662,12 @@ async fn handle_chat_input(
                             }
                             AgentEvent::Complete(s) => AppEvent::AgentComplete(s),
                             AgentEvent::Error(e) => AppEvent::AgentError(e),
+                            AgentEvent::RetryableError { error, attempt, max_attempts, backoff_ms } => {
+                                AppEvent::AgentChunk(format!(
+                                    "\n⟳ Retrying ({}/{}) in {}ms: {}\n",
+                                    attempt + 1, max_attempts, backoff_ms, error
+                                ))
+                            }
                             AgentEvent::CircuitBreak { state, reason } => {
                                 if state == vibe_ai::agent::AgentHealthState::Blocked {
                                     AppEvent::AgentError(reason)
