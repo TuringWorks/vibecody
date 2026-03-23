@@ -127,6 +127,440 @@ const TABS: { id: QuantumTab; label: string }[] = [
   { id: "algorithms", label: "Algorithms" },
 ];
 
+// ── Algorithm Code Examples ─────────────────────────────────────────────────
+
+const ALGORITHM_EXAMPLES: Record<string, Record<string, string>> = {
+  "Grover's Search": {
+    Qiskit: `from qiskit import QuantumCircuit
+from qiskit_aer import AerSimulator
+
+qc = QuantumCircuit(2, 2)
+# Superposition
+qc.h([0, 1])
+# Oracle: mark |11⟩
+qc.cz(0, 1)
+# Diffusion operator
+qc.h([0, 1])
+qc.z([0, 1])
+qc.cz(0, 1)
+qc.h([0, 1])
+# Measure
+qc.measure([0, 1], [0, 1])
+
+sim = AerSimulator()
+result = sim.run(qc, shots=1024).result()
+print(result.get_counts())  # |11⟩ dominant`,
+    Cirq: `import cirq
+
+q0, q1 = cirq.LineQubit.range(2)
+circuit = cirq.Circuit([
+    cirq.H(q0), cirq.H(q1),          # Superposition
+    cirq.CZ(q0, q1),                  # Oracle: mark |11⟩
+    cirq.H(q0), cirq.H(q1),          # Diffusion
+    cirq.Z(q0), cirq.Z(q1),
+    cirq.CZ(q0, q1),
+    cirq.H(q0), cirq.H(q1),
+    cirq.measure(q0, q1, key='result')
+])
+
+sim = cirq.Simulator()
+result = sim.run(circuit, repetitions=1024)
+print(result.histogram(key='result'))`,
+    PennyLane: `import pennylane as qml
+from pennylane import numpy as np
+
+dev = qml.device('default.qubit', wires=2, shots=1024)
+
+@qml.qnode(dev)
+def grover():
+    # Superposition
+    qml.Hadamard(wires=0)
+    qml.Hadamard(wires=1)
+    # Oracle: mark |11⟩
+    qml.CZ(wires=[0, 1])
+    # Diffusion
+    qml.Hadamard(wires=0)
+    qml.Hadamard(wires=1)
+    qml.PauliZ(wires=0)
+    qml.PauliZ(wires=1)
+    qml.CZ(wires=[0, 1])
+    qml.Hadamard(wires=0)
+    qml.Hadamard(wires=1)
+    return qml.counts()
+
+print(grover())  # |11⟩ dominant`,
+  },
+  "Shor's Factoring": {
+    Qiskit: `from qiskit import QuantumCircuit
+from qiskit_aer import AerSimulator
+import numpy as np
+
+# Simplified Shor's for N=15, a=7
+# Uses 4 counting qubits + 4 work qubits
+qc = QuantumCircuit(8, 4)
+
+# Initialize counting register in superposition
+for i in range(4):
+    qc.h(i)
+
+# Modular exponentiation (simplified)
+qc.x(4)  # Set work register to |1⟩
+
+# Controlled modular multiplications
+# (simplified — full implementation needs modular arithmetic circuits)
+qc.cx(0, 4)
+
+# Inverse QFT on counting register
+for i in range(2):
+    qc.swap(i, 3 - i)
+for i in range(4):
+    qc.h(i)
+    for j in range(i + 1, 4):
+        qc.cp(-np.pi / 2**(j - i), j, i)
+
+qc.measure(range(4), range(4))
+
+sim = AerSimulator()
+result = sim.run(qc, shots=1024).result()
+print(result.get_counts())`,
+    Cirq: `import cirq
+import numpy as np
+
+# Simplified Shor's period-finding circuit
+n_count = 4
+qubits = cirq.LineQubit.range(n_count + 4)
+circuit = cirq.Circuit()
+
+# Hadamard on counting qubits
+circuit.append(cirq.H.on_each(*qubits[:n_count]))
+# Initialize work to |1⟩
+circuit.append(cirq.X(qubits[n_count]))
+# Controlled modular exponentiation (simplified)
+circuit.append(cirq.CNOT(qubits[0], qubits[n_count]))
+# Inverse QFT
+for i in range(n_count // 2):
+    circuit.append(cirq.SWAP(qubits[i], qubits[n_count - 1 - i]))
+for i in range(n_count):
+    circuit.append(cirq.H(qubits[i]))
+
+circuit.append(cirq.measure(*qubits[:n_count], key='result'))
+sim = cirq.Simulator()
+print(sim.run(circuit, repetitions=1024).histogram(key='result'))`,
+  },
+  "VQE": {
+    Qiskit: `from qiskit import QuantumCircuit
+from qiskit.primitives import Estimator
+from qiskit.quantum_info import SparsePauliOp
+from scipy.optimize import minimize
+
+# H2 Hamiltonian (simplified)
+hamiltonian = SparsePauliOp.from_list([
+    ("II", -1.05), ("IZ", 0.39), ("ZI", -0.39),
+    ("ZZ", -0.01), ("XX", 0.18)
+])
+
+def ansatz(params):
+    qc = QuantumCircuit(2)
+    qc.ry(params[0], 0)
+    qc.ry(params[1], 1)
+    qc.cx(0, 1)
+    qc.ry(params[2], 0)
+    qc.ry(params[3], 1)
+    return qc
+
+def cost_fn(params):
+    qc = ansatz(params)
+    estimator = Estimator()
+    result = estimator.run(qc, hamiltonian).result()
+    return result.values[0]
+
+result = minimize(cost_fn, x0=[0.1]*4, method='COBYLA')
+print(f"Ground state energy: {result.fun:.4f} Ha")`,
+    PennyLane: `import pennylane as qml
+from pennylane import numpy as np
+
+dev = qml.device('default.qubit', wires=2)
+
+# H2 Hamiltonian
+coeffs = [-1.05, 0.39, -0.39, -0.01, 0.18]
+obs = [qml.Identity(0) @ qml.Identity(1),
+       qml.Identity(0) @ qml.PauliZ(1),
+       qml.PauliZ(0) @ qml.Identity(1),
+       qml.PauliZ(0) @ qml.PauliZ(1),
+       qml.PauliX(0) @ qml.PauliX(1)]
+H = qml.Hamiltonian(coeffs, obs)
+
+@qml.qnode(dev)
+def circuit(params):
+    qml.RY(params[0], wires=0)
+    qml.RY(params[1], wires=1)
+    qml.CNOT(wires=[0, 1])
+    qml.RY(params[2], wires=0)
+    qml.RY(params[3], wires=1)
+    return qml.expval(H)
+
+opt = qml.GradientDescentOptimizer(stepsize=0.4)
+params = np.array([0.1, 0.1, 0.1, 0.1], requires_grad=True)
+for i in range(100):
+    params = opt.step(circuit, params)
+print(f"Ground state energy: {circuit(params):.4f} Ha")`,
+  },
+  "QAOA": {
+    Qiskit: `from qiskit import QuantumCircuit
+from qiskit_aer import AerSimulator
+import numpy as np
+
+n = 4  # qubits for MaxCut
+gamma, beta = 0.5, 0.5
+
+qc = QuantumCircuit(n, n)
+# Initial superposition
+for i in range(n):
+    qc.h(i)
+# Cost layer: ZZ on edges
+edges = [(0,1), (1,2), (2,3), (0,3)]
+for (i, j) in edges:
+    qc.cx(i, j)
+    qc.rz(2 * gamma, j)
+    qc.cx(i, j)
+# Mixer layer
+for i in range(n):
+    qc.rx(2 * beta, i)
+qc.measure(range(n), range(n))
+
+sim = AerSimulator()
+result = sim.run(qc, shots=1024).result()
+print(sorted(result.get_counts().items(), key=lambda x: -x[1])[:5])`,
+    PennyLane: `import pennylane as qml
+from pennylane import numpy as np
+
+n = 4
+dev = qml.device('default.qubit', wires=n, shots=1024)
+edges = [(0,1), (1,2), (2,3), (0,3)]
+
+def cost_layer(gamma):
+    for (i, j) in edges:
+        qml.CNOT(wires=[i, j])
+        qml.RZ(2 * gamma, wires=j)
+        qml.CNOT(wires=[i, j])
+
+def mixer_layer(beta):
+    for i in range(n):
+        qml.RX(2 * beta, wires=i)
+
+@qml.qnode(dev)
+def qaoa(params):
+    for i in range(n):
+        qml.Hadamard(wires=i)
+    cost_layer(params[0])
+    mixer_layer(params[1])
+    return qml.counts()
+
+print(qaoa([0.5, 0.5]))`,
+  },
+  "Quantum Phase Estimation": {
+    Qiskit: `from qiskit import QuantumCircuit
+from qiskit_aer import AerSimulator
+import numpy as np
+
+n_count = 3  # precision qubits
+qc = QuantumCircuit(n_count + 1, n_count)
+
+# Prepare eigenstate |1⟩ on target
+qc.x(n_count)
+# Hadamard on counting qubits
+for i in range(n_count):
+    qc.h(i)
+# Controlled unitary powers (U = phase gate with θ=π/4)
+for i in range(n_count):
+    angle = 2 * np.pi / (2**(n_count - i))
+    qc.cp(angle, i, n_count)
+# Inverse QFT
+for i in range(n_count // 2):
+    qc.swap(i, n_count - 1 - i)
+for i in range(n_count):
+    qc.h(i)
+    for j in range(i + 1, n_count):
+        qc.cp(-np.pi / 2**(j - i), j, i)
+qc.measure(range(n_count), range(n_count))
+
+sim = AerSimulator()
+result = sim.run(qc, shots=1024).result()
+print(result.get_counts())`,
+  },
+  "Deutsch-Jozsa": {
+    Qiskit: `from qiskit import QuantumCircuit
+from qiskit_aer import AerSimulator
+
+n = 3  # input qubits
+qc = QuantumCircuit(n + 1, n)
+
+# Prepare ancilla in |1⟩
+qc.x(n)
+# Hadamard all qubits
+qc.h(range(n + 1))
+# Oracle: balanced function f(x) = x₀
+qc.cx(0, n)
+# Hadamard on input qubits
+qc.h(range(n))
+# Measure input qubits
+qc.measure(range(n), range(n))
+
+sim = AerSimulator()
+result = sim.run(qc, shots=1024).result()
+counts = result.get_counts()
+# If all zeros → constant, otherwise → balanced
+print("Balanced" if any(k != "0"*n for k in counts) else "Constant")`,
+    Cirq: `import cirq
+
+n = 3
+qubits = cirq.LineQubit.range(n + 1)
+circuit = cirq.Circuit()
+
+circuit.append(cirq.X(qubits[n]))           # Ancilla |1⟩
+circuit.append(cirq.H.on_each(*qubits))     # Hadamard all
+circuit.append(cirq.CNOT(qubits[0], qubits[n]))  # Oracle
+circuit.append(cirq.H.on_each(*qubits[:n])) # Hadamard inputs
+circuit.append(cirq.measure(*qubits[:n], key='result'))
+
+sim = cirq.Simulator()
+result = sim.run(circuit, repetitions=1024)
+print(result.histogram(key='result'))`,
+  },
+  "Bernstein-Vazirani": {
+    Qiskit: `from qiskit import QuantumCircuit
+from qiskit_aer import AerSimulator
+
+secret = "1011"  # hidden string to find
+n = len(secret)
+qc = QuantumCircuit(n + 1, n)
+
+qc.x(n)                    # Ancilla |1⟩
+qc.h(range(n + 1))         # Hadamard all
+# Oracle: CNOT where secret bit = 1
+for i, bit in enumerate(reversed(secret)):
+    if bit == "1":
+        qc.cx(i, n)
+qc.h(range(n))             # Hadamard inputs
+qc.measure(range(n), range(n))
+
+sim = AerSimulator()
+result = sim.run(qc, shots=1).result()
+print(f"Found secret: {list(result.get_counts().keys())[0]}")`,
+    Cirq: `import cirq
+
+secret = "1011"
+n = len(secret)
+qubits = cirq.LineQubit.range(n + 1)
+circuit = cirq.Circuit()
+
+circuit.append(cirq.X(qubits[n]))
+circuit.append(cirq.H.on_each(*qubits))
+for i, bit in enumerate(reversed(secret)):
+    if bit == "1":
+        circuit.append(cirq.CNOT(qubits[i], qubits[n]))
+circuit.append(cirq.H.on_each(*qubits[:n]))
+circuit.append(cirq.measure(*qubits[:n], key='s'))
+
+result = cirq.Simulator().run(circuit, repetitions=1)
+print(f"Found secret: {result.measurements['s'][0]}")`,
+  },
+  "HHL Algorithm": {
+    Qiskit: `# HHL solves Ax = b for quantum-encoded vectors
+# Qiskit provides a built-in HHL implementation
+from qiskit.algorithms.linear_solvers import HHL, NumPyLinearSolver
+import numpy as np
+
+# 2x2 system: A|x⟩ = |b⟩
+A = np.array([[1, -1/3], [-1/3, 1]])
+b = np.array([1, 0])
+
+# Classical solution for comparison
+classical = NumPyLinearSolver().solve(A, b)
+
+# Quantum HHL solver
+hhl = HHL()
+quantum_solution = hhl.solve(A, b)
+print(f"Classical: {classical.euclidean_norm:.4f}")
+print(f"HHL:      {quantum_solution.euclidean_norm:.4f}")`,
+  },
+  "Quantum Walk": {
+    Qiskit: `from qiskit import QuantumCircuit
+from qiskit_aer import AerSimulator
+import numpy as np
+
+n = 4  # position qubits (2^4 = 16 positions)
+qc = QuantumCircuit(n + 1, n)  # +1 coin qubit
+
+# Initial state: coin in superposition, position at 0
+qc.h(0)  # coin qubit
+
+# 5 steps of quantum walk
+for step in range(5):
+    # Coin flip (Hadamard on coin)
+    qc.h(0)
+    # Conditional shift: increment position if coin=|1⟩
+    for i in range(n):
+        qc.cx(0, i + 1)
+
+qc.measure(range(1, n + 1), range(n))
+
+sim = AerSimulator()
+result = sim.run(qc, shots=1024).result()
+print(result.get_counts())`,
+  },
+  "QSVM": {
+    PennyLane: `import pennylane as qml
+from pennylane import numpy as np
+
+dev = qml.device('default.qubit', wires=2)
+
+# Quantum kernel: encode data, compute overlap
+@qml.qnode(dev)
+def kernel_circuit(x1, x2):
+    # Encode x1
+    qml.RX(x1[0], wires=0)
+    qml.RY(x1[1], wires=1)
+    # Adjoint encode x2
+    qml.adjoint(qml.RY)(x2[1], wires=1)
+    qml.adjoint(qml.RX)(x2[0], wires=0)
+    return qml.probs(wires=[0, 1])
+
+def kernel(x1, x2):
+    return kernel_circuit(x1, x2)[0]  # |00⟩ probability
+
+# Example: compute kernel matrix
+X = np.array([[0.1, 0.2], [0.5, 0.8], [1.0, 0.3]])
+K = np.array([[kernel(x1, x2) for x2 in X] for x1 in X])
+print("Kernel matrix:", K)`,
+  },
+  "QNN": {
+    PennyLane: `import pennylane as qml
+from pennylane import numpy as np
+
+n_qubits, n_layers = 4, 3
+dev = qml.device('default.qubit', wires=n_qubits)
+
+@qml.qnode(dev)
+def qnn(inputs, weights):
+    # Encode inputs
+    for i in range(n_qubits):
+        qml.RX(inputs[i], wires=i)
+    # Variational layers
+    for l in range(n_layers):
+        for i in range(n_qubits):
+            qml.RY(weights[l][i], wires=i)
+        for i in range(n_qubits - 1):
+            qml.CNOT(wires=[i, i+1])
+    return qml.expval(qml.PauliZ(0))
+
+weights = np.random.uniform(0, np.pi, (n_layers, n_qubits))
+inputs = np.array([0.1, 0.5, 0.3, 0.8])
+output = qnn(inputs, weights)
+print(f"QNN output: {output:.4f}")`,
+  },
+};
+
 // ── SVG Constants ────────────────────────────────────────────────────────────
 
 const WIRE_Y0 = 30;
@@ -372,6 +806,7 @@ export function QuantumComputingPanel() {
   const [tplGamma, setTplGamma] = useState(0.5);
   const [tplBeta, setTplBeta] = useState(0.5);
   const [tplLoading, setTplLoading] = useState<string | null>(null);
+  const [algoExpanded, setAlgoExpanded] = useState<string | null>(null);
 
   // Scaffold state
   const [scafName, setScafName] = useState("my-quantum-project");
@@ -1945,25 +2380,49 @@ export function QuantumComputingPanel() {
         {/* ── Algorithms Tab ──────────────────────────────────────────── */}
         {tab === "algorithms" && (
           <div>
-            <h3 style={{ margin: "0 0 12px" }}>Quantum Algorithms (15)</h3>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-              <thead>
-                <tr style={{ borderBottom: "2px solid var(--border-color)" }}>
-                  <th style={{ textAlign: "left", padding: 6 }}>Algorithm</th>
-                  <th style={{ textAlign: "left", padding: 6 }}>Category</th>
-                  <th style={{ textAlign: "left", padding: 6 }}>Qubit Scaling</th>
-                </tr>
-              </thead>
-              <tbody>
-                {algorithms.map((a) => (
-                  <tr key={a.name} style={{ borderBottom: "1px solid var(--border-secondary)" }}>
-                    <td style={{ padding: 6, fontWeight: 500 }}>{a.name}</td>
-                    <td style={{ padding: 6 }}>{a.category}</td>
-                    <td style={{ padding: 6, fontSize: 11, color: "var(--text-secondary)" }}>{a.scaling}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <h3 style={{ margin: "0 0 12px" }}>Quantum Algorithms</h3>
+            <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 12px" }}>
+              Click an algorithm to view code examples in Qiskit, Cirq, and PennyLane.
+            </p>
+            {algorithms.map((a) => {
+              const isExpanded = algoExpanded === a.name;
+              const examples = ALGORITHM_EXAMPLES[a.name];
+              return (
+                <div key={a.name} style={{ ...cardStyle, marginBottom: 8 }}>
+                  <div
+                    style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}
+                    onClick={() => setAlgoExpanded(isExpanded ? null : a.name)}
+                  >
+                    <div>
+                      <span style={{ fontWeight: 600, fontSize: 13 }}>{a.name}</span>
+                      <span style={{ fontSize: 11, color: "var(--text-secondary)", marginLeft: 8 }}>{a.category}</span>
+                      <span style={{ fontSize: 11, color: "var(--text-tertiary)", marginLeft: 8 }}>{a.scaling}</span>
+                    </div>
+                    <span style={{ fontSize: 11, color: "var(--accent-primary)" }}>{isExpanded ? "▼" : "▶"} Code</span>
+                  </div>
+                  {isExpanded && examples && (
+                    <div style={{ marginTop: 10 }}>
+                      {(["Qiskit", "Cirq", "PennyLane"] as const).map((lang) => {
+                        const code = examples[lang];
+                        if (!code) return null;
+                        return (
+                          <div key={lang} style={{ marginBottom: 10 }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                              <span style={{ fontSize: 12, fontWeight: 600, color: "var(--accent-primary)" }}>{lang}</span>
+                              <button onClick={() => navigator.clipboard.writeText(code)} style={btnSmall}>Copy</button>
+                            </div>
+                            <pre style={{ margin: 0, padding: 8, background: "var(--bg-primary)", borderRadius: 4, fontSize: 11, overflowX: "auto", whiteSpace: "pre-wrap", color: "var(--text-primary)", border: "1px solid var(--border-color)" }}>{code}</pre>
+                          </div>
+                        );
+                      })}
+                      {!examples && (
+                        <div style={{ fontSize: 12, color: "var(--text-secondary)", fontStyle: "italic" }}>Code examples coming soon.</div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
