@@ -8,43 +8,39 @@ export interface TabGroup {
 export const TAB_GROUPS: TabGroup[] = [
   {
     label: "AI",
-    tabs: ["chat", "agent", "cascade", "compare", "arena", "teams", "agentteams", "cloud", "cibot", "marketplace", "icontext", "batchbuilder", "subagents", "imagegen", "discuss", "autoresearch", "openmemory"],
+    tabs: ["chat", "agent", "ai-teams", "ai-playground", "ai-context", "ai-generation", "marketplace"],
   },
   {
     label: "Project",
-    tabs: ["workmanagement", "memory", "specs", "soul", "bundles", "workflow", "orchestration", "design", "steering", "traces", "dashboard", "recording", "demo", "fastcontext", "plandoc", "remotecontrol", "clarify", "codesearch"],
+    tabs: ["project-hub", "planning", "observability", "design"],
   },
   {
-    label: "Code",
-    tabs: ["autofix", "cloudautofix", "bugbot", "redteam", "blueteam", "purpleteam", "tests", "coverage", "transform", "metrics", "bisect", "snippets", "astedit", "securityscan", "editpredict"],
+    label: "Code Quality",
+    tabs: ["security", "testing", "code-analysis"],
   },
   {
-    label: "Git & Collab",
-    tabs: ["history", "checkpoints", "github", "collab", "compliance"],
+    label: "Source Control",
+    tabs: ["version-control", "github", "collaboration"],
   },
   {
     label: "Infrastructure",
-    tabs: ["build", "deploy", "docker", "k8s", "cicd", "ghactions", "env", "sandbox", "cloudsandbox", "health", "scaffold", "appbuilder", "training", "inference", "aiml", "modelwizard", "cistatus", "fullstack", "cloudproviders", "idp", "quantum"],
+    tabs: ["build-deploy", "containers", "ci-cd", "cloud-platform", "ai-ml"],
   },
   {
-    label: "Data & API",
-    tabs: ["vibesql", "database", "supabase", "migrations", "http", "graphql", "mock", "websocket", "apidocs", "streaming", "vectordb", "ingest", "crawler"],
+    label: "Data & APIs",
+    tabs: ["database", "api-tools", "data-pipeline"],
   },
   {
-    label: "DevTools",
-    tabs: ["processes", "profiler", "scripts", "ssh", "notebook", "logs", "deps", "network", "loadtest", "renderopt", "swebench", "sessionmemory"],
+    label: "Developer Tools",
+    tabs: ["system-monitor", "terminal", "diagnostics"],
   },
   {
-    label: "Utilities",
-    tabs: [
-      "regex", "jwt", "jsontools", "cron", "encoding", "numbers", "datagen",
-      "timestamp", "colorconv", "cidr", "csv", "units", "unicode", "difftool",
-      "markdown", "canvas", "colors", "utils",
-    ],
+    label: "Toolkit",
+    tabs: ["converters", "formatters", "editors"],
   },
   {
     label: "Settings",
-    tabs: ["settings", "hooks", "jobs", "mcp", "acpprotocol", "artifacts", "manager", "auth", "cost", "usagemetering", "markers", "img2app", "visualtest", "webhooks", "admin", "qa-validation", "sessions", "governance"],
+    tabs: ["config", "integrations", "administration", "billing", "tools-settings"],
   },
 ];
 
