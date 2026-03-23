@@ -1036,14 +1036,12 @@ function App() {
       items: [
         { label: "AI Chat", action: () => { setShowAIChat(true); setAiPanelTab("chat"); } },
         { label: "Agent", action: () => { setShowAIChat(true); setAiPanelTab("agent"); } },
-        { label: "Agent Teams", action: () => { setShowAIChat(true); setAiPanelTab("agentteams"); } },
+        { label: "AI Teams", action: () => { setShowAIChat(true); setAiPanelTab("ai-teams"); } },
         { separator: true, label: "" },
-        { label: "Docker", action: () => { setShowAIChat(true); setAiPanelTab("docker"); } },
-        { label: "CI/CD", action: () => { setShowAIChat(true); setAiPanelTab("cicd"); } },
-        { label: "Kubernetes", action: () => { setShowAIChat(true); setAiPanelTab("k8s"); } },
+        { label: "Containers", action: () => { setShowAIChat(true); setAiPanelTab("containers"); } },
+        { label: "CI/CD", action: () => { setShowAIChat(true); setAiPanelTab("ci-cd"); } },
         { separator: true, label: "" },
-        { label: "HTTP Playground", action: () => { setShowAIChat(true); setAiPanelTab("http"); } },
-        { label: "GraphQL", action: () => { setShowAIChat(true); setAiPanelTab("graphql"); } },
+        { label: "API Tools", action: () => { setShowAIChat(true); setAiPanelTab("api-tools"); } },
         { label: "Terminal", shortcut: modKey + "`", action: () => setShowTerminal(true) },
         { separator: true, label: "" },
         { label: "Settings", action: () => setShowSettingsModal(true) },
@@ -1418,7 +1416,7 @@ function App() {
               <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 10, height: "100%", overflow: "auto" }}>
                 <div className="sidebar-section-title">Run & Debug</div>
                 <button className="btn-secondary" style={{ width: "100%", justifyContent: "center", gap: 6, display: "flex", alignItems: "center" }}
-                  onClick={() => { setShowAIChat(true); setAiPanelTab("debugmode"); }}>
+                  onClick={() => { setShowAIChat(true); setAiPanelTab("system-monitor"); }}>
                   <Play size={14} strokeWidth={1.5} /> Start Debug Session
                 </button>
                 <div style={{ fontSize: 11, color: "var(--text-muted)", lineHeight: 1.5 }}>
@@ -1426,11 +1424,11 @@ function App() {
                 </div>
                 <div className="sidebar-section-title" style={{ marginTop: 8 }}>Quick Actions</div>
                 {([
-                  { label: "Debug Mode", panel: "debugmode" },
-                  { label: "Profiler", panel: "profiler" },
-                  { label: "Coverage", panel: "coverage" },
-                  { label: "Test Runner", panel: "tests" },
-                  { label: "Bisect", panel: "bisect" },
+                  { label: "Debug Mode", panel: "system-monitor" },
+                  { label: "Profiler", panel: "system-monitor" },
+                  { label: "Coverage", panel: "testing" },
+                  { label: "Test Runner", panel: "testing" },
+                  { label: "Bisect", panel: "version-control" },
                 ] as const).map(({ label, panel }) => (
                   <button key={panel} className="sidebar-action-item"
                     onClick={() => { setShowAIChat(true); setAiPanelTab(panel); }}
@@ -1451,10 +1449,9 @@ function App() {
                 <div className="sidebar-section-title" style={{ marginTop: 8 }}>Manage</div>
                 {([
                   { label: "Installed Plugins", panel: "marketplace" },
-                  { label: "MCP Servers", panel: "mcp" },
-                  { label: "MCP Directory", panel: "mcpdirectory" },
-                  { label: "Skills Library", panel: "manager" },
-                  { label: "Hooks", panel: "hooks" },
+                  { label: "MCP Servers", panel: "integrations" },
+                  { label: "Skills Library", panel: "administration" },
+                  { label: "Hooks", panel: "config" },
                 ] as const).map(({ label, panel }) => (
                   <button key={panel} className="sidebar-action-item"
                     onClick={() => { setShowAIChat(true); setAiPanelTab(panel); }}
@@ -1469,16 +1466,12 @@ function App() {
               <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 10, height: "100%", overflow: "auto" }}>
                 <div className="sidebar-section-title">Containers & Infra</div>
                 {([
-                  { label: "Docker", panel: "docker" },
-                  { label: "Kubernetes", panel: "k8s" },
-                  { label: "CI/CD Pipelines", panel: "cicd" },
-                  { label: "GitHub Actions", panel: "ghactions" },
-                  { label: "Sandbox", panel: "sandbox" },
-                  { label: "Environment", panel: "env" },
-                  { label: "Cloud Provider", panel: "cloudproviders" },
-                  { label: "SSH", panel: "ssh" },
-                  { label: "Service Health", panel: "health" },
-                  { label: "Processes", panel: "processes" },
+                  { label: "Containers", panel: "containers" },
+                  { label: "CI/CD Pipelines", panel: "ci-cd" },
+                  { label: "GitHub", panel: "github" },
+                  { label: "Cloud & Platform", panel: "cloud-platform" },
+                  { label: "Terminal", panel: "terminal" },
+                  { label: "System Monitor", panel: "system-monitor" },
                 ] as const).map(({ label, panel }) => (
                   <button key={panel} className="sidebar-action-item"
                     onClick={() => { setShowAIChat(true); setAiPanelTab(panel); }}
@@ -1493,12 +1486,9 @@ function App() {
               <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 10, height: "100%", overflow: "auto" }}>
                 <div className="sidebar-section-title">Security & Compliance</div>
                 {([
-                  { label: "Security Scan", panel: "securityscan" },
-                  { label: "Red Team", panel: "redteam" },
-                  { label: "Blue Team", panel: "blueteam" },
-                  { label: "Purple Team", panel: "purpleteam" },
-                  { label: "Compliance", panel: "compliance" },
-                  { label: "Audit Admin", panel: "admin" },
+                  { label: "Security", panel: "security" },
+                  { label: "Collaboration", panel: "collaboration" },
+                  { label: "Administration", panel: "administration" },
                 ] as const).map(({ label, panel }) => (
                   <button key={panel} className="sidebar-action-item"
                     onClick={() => { setShowAIChat(true); setAiPanelTab(panel); }}

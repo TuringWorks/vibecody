@@ -30,7 +30,8 @@ export function GroupedTabBar({ activeTab, onTabChange, onCollapse }: Props) {
         return (
           t.includes(q) ||
           meta.label.toLowerCase().includes(q) ||
-          g.label.toLowerCase().includes(q)
+          g.label.toLowerCase().includes(q) ||
+          (meta.aliases?.some((a) => a.toLowerCase().includes(q)) ?? false)
         );
       }),
     })).filter((g) => g.tabs.length > 0);
