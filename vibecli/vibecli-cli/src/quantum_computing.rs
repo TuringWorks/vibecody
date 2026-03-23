@@ -847,6 +847,721 @@ impl QuantumComputingManager {
     }
 }
 
+// ── Complex Number ────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Copy)]
+pub struct Complex {
+    pub re: f64,
+    pub im: f64,
+}
+
+impl Complex {
+    pub const ZERO: Self = Self { re: 0.0, im: 0.0 };
+    pub const ONE: Self = Self { re: 1.0, im: 0.0 };
+    pub const I: Self = Self { re: 0.0, im: 1.0 };
+
+    pub fn new(re: f64, im: f64) -> Self { Self { re, im } }
+    pub fn from_polar(r: f64, theta: f64) -> Self { Self { re: r * theta.cos(), im: r * theta.sin() } }
+    pub fn conj(self) -> Self { Self { re: self.re, im: -self.im } }
+    pub fn norm_sq(self) -> f64 { self.re * self.re + self.im * self.im }
+    pub fn norm(self) -> f64 { self.norm_sq().sqrt() }
+}
+
+impl std::ops::Add for Complex {
+    type Output = Self;
+    fn add(self, rhs: Self) -> Self { Self { re: self.re + rhs.re, im: self.im + rhs.im } }
+}
+
+impl std::ops::Sub for Complex {
+    type Output = Self;
+    fn sub(self, rhs: Self) -> Self { Self { re: self.re - rhs.re, im: self.im - rhs.im } }
+}
+
+impl std::ops::Mul for Complex {
+    type Output = Self;
+    fn mul(self, rhs: Self) -> Self {
+        Self {
+            re: self.re * rhs.re - self.im * rhs.im,
+            im: self.re * rhs.im + self.im * rhs.re,
+        }
+    }
+}
+
+impl std::ops::Mul<f64> for Complex {
+    type Output = Self;
+    fn mul(self, rhs: f64) -> Self { Self { re: self.re * rhs, im: self.im * rhs } }
+}
+
+impl std::ops::Neg for Complex {
+    type Output = Self;
+    fn neg(self) -> Self { Self { re: -self.re, im: -self.im } }
+}
+
+// ── Statevector Simulator ─────────────────────────────────────────────────────
+
+pub type GateMatrix = [[Complex; 2]; 2];
+
+/// Gate matrices for the standard quantum gate set.
+pub fn gate_h() -> GateMatrix {
+    let s = 1.0 / std::f64::consts::SQRT_2;
+    let c = Complex::new(s, 0.0);
+    [[c, c], [c, Complex::new(-s, 0.0)]]
+}
+pub fn gate_x() -> GateMatrix { [[Complex::ZERO, Complex::ONE], [Complex::ONE, Complex::ZERO]] }
+pub fn gate_y() -> GateMatrix { [[Complex::ZERO, -Complex::I], [Complex::I, Complex::ZERO]] }
+pub fn gate_z() -> GateMatrix { [[Complex::ONE, Complex::ZERO], [Complex::ZERO, Complex::new(-1.0, 0.0)]] }
+pub fn gate_s() -> GateMatrix { [[Complex::ONE, Complex::ZERO], [Complex::ZERO, Complex::I]] }
+pub fn gate_t() -> GateMatrix {
+    [[Complex::ONE, Complex::ZERO], [Complex::ZERO, Complex::from_polar(1.0, std::f64::consts::FRAC_PI_4)]]
+}
+pub fn gate_rx(theta: f64) -> GateMatrix {
+    let c = Complex::new((theta / 2.0).cos(), 0.0);
+    let s = Complex::new(0.0, -(theta / 2.0).sin());
+    [[c, s], [s, c]]
+}
+pub fn gate_ry(theta: f64) -> GateMatrix {
+    let c = Complex::new((theta / 2.0).cos(), 0.0);
+    let s = Complex::new((theta / 2.0).sin(), 0.0);
+    [[c, -s], [s, c]]
+}
+pub fn gate_rz(theta: f64) -> GateMatrix {
+    [[Complex::from_polar(1.0, -theta / 2.0), Complex::ZERO],
+     [Complex::ZERO, Complex::from_polar(1.0, theta / 2.0)]]
+}
+
+/// Simulation result returned to the frontend.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SimulationResult {
+    pub amplitudes: Vec<(String, f64, f64)>,  // (basis_label, re, im)
+    pub probabilities: Vec<(String, f64)>,
+    pub samples: std::collections::HashMap<String, usize>,
+    pub num_qubits: usize,
+}
+
+pub struct StatevectorSimulator {
+    pub num_qubits: usize,
+    pub state: Vec<Complex>,
+}
+
+impl StatevectorSimulator {
+    pub fn new(num_qubits: usize) -> Result<Self, String> {
+        if num_qubits == 0 || num_qubits > 16 {
+            return Err(format!("Qubit count must be 1-16, got {}", num_qubits));
+        }
+        let dim = 1 << num_qubits;
+        let mut state = vec![Complex::ZERO; dim];
+        state[0] = Complex::ONE; // |0...0⟩
+        Ok(Self { num_qubits, state })
+    }
+
+    /// Apply a 2x2 unitary to a single qubit.
+    pub fn apply_single_qubit(&mut self, qubit: usize, m: &GateMatrix) {
+        let dim = self.state.len();
+        let bit = 1 << qubit;
+        let mut i = 0;
+        while i < dim {
+            // Process pairs of indices differing in bit `qubit`
+            if i & bit == 0 {
+                let j = i | bit;
+                let a = self.state[i];
+                let b = self.state[j];
+                self.state[i] = m[0][0] * a + m[0][1] * b;
+                self.state[j] = m[1][0] * a + m[1][1] * b;
+            }
+            i += 1;
+        }
+    }
+
+    /// Apply a controlled-U gate (control, target, 2x2 matrix on target).
+    pub fn apply_controlled(&mut self, control: usize, target: usize, m: &GateMatrix) {
+        let dim = self.state.len();
+        let ctrl_bit = 1 << control;
+        let tgt_bit = 1 << target;
+        for i in 0..dim {
+            if i & ctrl_bit != 0 && i & tgt_bit == 0 {
+                let j = i | tgt_bit;
+                let a = self.state[i];
+                let b = self.state[j];
+                self.state[i] = m[0][0] * a + m[0][1] * b;
+                self.state[j] = m[1][0] * a + m[1][1] * b;
+            }
+        }
+    }
+
+    /// Apply a doubly-controlled-U gate (Toffoli-like).
+    pub fn apply_double_controlled(&mut self, c1: usize, c2: usize, target: usize, m: &GateMatrix) {
+        let dim = self.state.len();
+        let c1_bit = 1 << c1;
+        let c2_bit = 1 << c2;
+        let tgt_bit = 1 << target;
+        for i in 0..dim {
+            if i & c1_bit != 0 && i & c2_bit != 0 && i & tgt_bit == 0 {
+                let j = i | tgt_bit;
+                let a = self.state[i];
+                let b = self.state[j];
+                self.state[i] = m[0][0] * a + m[0][1] * b;
+                self.state[j] = m[1][0] * a + m[1][1] * b;
+            }
+        }
+    }
+
+    /// Apply SWAP gate.
+    pub fn apply_swap(&mut self, a: usize, b: usize) {
+        let dim = self.state.len();
+        let a_bit = 1 << a;
+        let b_bit = 1 << b;
+        for i in 0..dim {
+            // Only swap when bits differ: a=1,b=0
+            if i & a_bit != 0 && i & b_bit == 0 {
+                let j = (i & !a_bit) | b_bit;
+                self.state.swap(i, j);
+            }
+        }
+    }
+
+    /// Apply a QuantumGate to the statevector.
+    pub fn apply_gate(&mut self, gate: &QuantumGate) {
+        match gate {
+            QuantumGate::H(q) => self.apply_single_qubit(*q, &gate_h()),
+            QuantumGate::X(q) => self.apply_single_qubit(*q, &gate_x()),
+            QuantumGate::Y(q) => self.apply_single_qubit(*q, &gate_y()),
+            QuantumGate::Z(q) => self.apply_single_qubit(*q, &gate_z()),
+            QuantumGate::S(q) => self.apply_single_qubit(*q, &gate_s()),
+            QuantumGate::T(q) => self.apply_single_qubit(*q, &gate_t()),
+            QuantumGate::Rx(q, theta) => self.apply_single_qubit(*q, &gate_rx(*theta)),
+            QuantumGate::Ry(q, theta) => self.apply_single_qubit(*q, &gate_ry(*theta)),
+            QuantumGate::Rz(q, theta) => self.apply_single_qubit(*q, &gate_rz(*theta)),
+            QuantumGate::CNOT(c, t) => self.apply_controlled(*c, *t, &gate_x()),
+            QuantumGate::CZ(c, t) => self.apply_controlled(*c, *t, &gate_z()),
+            QuantumGate::SWAP(a, b) => self.apply_swap(*a, *b),
+            QuantumGate::Toffoli(c1, c2, t) => self.apply_double_controlled(*c1, *c2, *t, &gate_x()),
+            QuantumGate::Measure(_, _) => {} // measurement handled separately
+        }
+    }
+
+    /// Get probability of each computational basis state.
+    pub fn probabilities(&self) -> Vec<(String, f64)> {
+        self.state.iter().enumerate()
+            .map(|(i, amp)| {
+                let label = format!("{:0>width$b}", i, width = self.num_qubits);
+                (label, amp.norm_sq())
+            })
+            .filter(|(_, p)| *p > 1e-12)
+            .collect()
+    }
+
+    /// Get full amplitudes as (label, re, im) triples.
+    pub fn amplitudes(&self) -> Vec<(String, f64, f64)> {
+        self.state.iter().enumerate()
+            .map(|(i, amp)| {
+                let label = format!("{:0>width$b}", i, width = self.num_qubits);
+                (label, amp.re, amp.im)
+            })
+            .filter(|(_, re, im)| re.abs() > 1e-12 || im.abs() > 1e-12)
+            .collect()
+    }
+
+    /// Sample measurement outcomes.
+    pub fn sample(&self, shots: usize) -> std::collections::HashMap<String, usize> {
+        use std::collections::HashMap;
+        let probs = self.probabilities();
+        let mut counts: HashMap<String, usize> = HashMap::new();
+        // Simple sampling using cumulative distribution
+        let cumulative: Vec<f64> = {
+            let mut cum = Vec::with_capacity(probs.len());
+            let mut acc = 0.0;
+            for (_, p) in &probs {
+                acc += p;
+                cum.push(acc);
+            }
+            cum
+        };
+        // Pseudo-random sampling using hash-based RNG
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+        for shot in 0..shots {
+            let mut h = DefaultHasher::new();
+            shot.hash(&mut h);
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos()
+                .hash(&mut h);
+            let r = (h.finish() % 1_000_000) as f64 / 1_000_000.0;
+            let idx = cumulative.iter().position(|c| r < *c).unwrap_or(probs.len() - 1);
+            *counts.entry(probs[idx].0.clone()).or_insert(0) += 1;
+        }
+        counts
+    }
+
+    /// Simulate an entire circuit and return results.
+    pub fn simulate_circuit(circuit: &QuantumCircuit, shots: usize) -> Result<SimulationResult, String> {
+        let mut sim = Self::new(circuit.num_qubits)?;
+        for gate in &circuit.gates {
+            sim.apply_gate(gate);
+        }
+        Ok(SimulationResult {
+            amplitudes: sim.amplitudes(),
+            probabilities: sim.probabilities(),
+            samples: sim.sample(shots),
+            num_qubits: circuit.num_qubits,
+        })
+    }
+}
+
+// ── Circuit Optimizer ─────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct OptimizationResult {
+    pub original_gate_count: usize,
+    pub optimized_gate_count: usize,
+    pub original_depth: usize,
+    pub optimized_depth: usize,
+    pub rules_applied: Vec<String>,
+    pub savings_percent: f64,
+}
+
+pub struct CircuitOptimizer;
+
+impl CircuitOptimizer {
+    /// Optimize a circuit by applying gate cancellation and merging rules.
+    pub fn optimize(circuit: &QuantumCircuit) -> (QuantumCircuit, OptimizationResult) {
+        let original_count = circuit.gate_count();
+        let original_depth = circuit.depth();
+        let mut gates = circuit.gates.clone();
+        let mut rules: Vec<String> = Vec::new();
+
+        // Iterate passes until stable
+        for _ in 0..10 {
+            let before = gates.len();
+            gates = Self::cancel_identities(&gates, &mut rules);
+            gates = Self::merge_rotations(&gates, &mut rules);
+            if gates.len() == before { break; }
+        }
+
+        let optimized = QuantumCircuit {
+            name: format!("{}_optimized", circuit.name),
+            num_qubits: circuit.num_qubits,
+            num_classical: circuit.num_classical,
+            gates,
+        };
+        let opt_count = optimized.gate_count();
+        let savings = if original_count > 0 {
+            ((original_count - opt_count) as f64 / original_count as f64) * 100.0
+        } else { 0.0 };
+
+        let result = OptimizationResult {
+            original_gate_count: original_count,
+            optimized_gate_count: opt_count,
+            original_depth: original_depth,
+            optimized_depth: optimized.depth(),
+            rules_applied: rules,
+            savings_percent: savings,
+        };
+        (optimized, result)
+    }
+
+    fn cancel_identities(gates: &[QuantumGate], rules: &mut Vec<String>) -> Vec<QuantumGate> {
+        let mut result: Vec<QuantumGate> = Vec::new();
+        let mut i = 0;
+        while i < gates.len() {
+            if i + 1 < gates.len() {
+                let (a, b) = (&gates[i], &gates[i + 1]);
+                // Self-inverse gates: HH, XX, YY, ZZ, CNOT·CNOT
+                let cancelled = match (a, b) {
+                    (QuantumGate::H(q1), QuantumGate::H(q2)) if q1 == q2 => { rules.push(format!("HH→I on q{}", q1)); true }
+                    (QuantumGate::X(q1), QuantumGate::X(q2)) if q1 == q2 => { rules.push(format!("XX→I on q{}", q1)); true }
+                    (QuantumGate::Y(q1), QuantumGate::Y(q2)) if q1 == q2 => { rules.push(format!("YY→I on q{}", q1)); true }
+                    (QuantumGate::Z(q1), QuantumGate::Z(q2)) if q1 == q2 => { rules.push(format!("ZZ→I on q{}", q1)); true }
+                    (QuantumGate::CNOT(c1, t1), QuantumGate::CNOT(c2, t2)) if c1 == c2 && t1 == t2 => { rules.push(format!("CNOT·CNOT→I on q{},q{}", c1, t1)); true }
+                    _ => false,
+                };
+                if cancelled { i += 2; continue; }
+                // SS→Z, TT→S
+                match (a, b) {
+                    (QuantumGate::S(q1), QuantumGate::S(q2)) if q1 == q2 => {
+                        rules.push(format!("SS→Z on q{}", q1));
+                        result.push(QuantumGate::Z(*q1));
+                        i += 2; continue;
+                    }
+                    (QuantumGate::T(q1), QuantumGate::T(q2)) if q1 == q2 => {
+                        rules.push(format!("TT→S on q{}", q1));
+                        result.push(QuantumGate::S(*q1));
+                        i += 2; continue;
+                    }
+                    _ => {}
+                }
+            }
+            result.push(gates[i].clone());
+            i += 1;
+        }
+        result
+    }
+
+    fn merge_rotations(gates: &[QuantumGate], rules: &mut Vec<String>) -> Vec<QuantumGate> {
+        let mut result: Vec<QuantumGate> = Vec::new();
+        let mut i = 0;
+        while i < gates.len() {
+            if i + 1 < gates.len() {
+                let merged = match (&gates[i], &gates[i + 1]) {
+                    (QuantumGate::Rx(q1, a), QuantumGate::Rx(q2, b)) if q1 == q2 => {
+                        let sum = a + b;
+                        rules.push(format!("Rx merge on q{}: {:.3}+{:.3}={:.3}", q1, a, b, sum));
+                        if sum.abs() < 1e-10 || (sum - 2.0 * std::f64::consts::PI).abs() < 1e-10 { None }
+                        else { Some(QuantumGate::Rx(*q1, sum)) }
+                    }
+                    (QuantumGate::Ry(q1, a), QuantumGate::Ry(q2, b)) if q1 == q2 => {
+                        let sum = a + b;
+                        rules.push(format!("Ry merge on q{}: {:.3}+{:.3}={:.3}", q1, a, b, sum));
+                        if sum.abs() < 1e-10 || (sum - 2.0 * std::f64::consts::PI).abs() < 1e-10 { None }
+                        else { Some(QuantumGate::Ry(*q1, sum)) }
+                    }
+                    (QuantumGate::Rz(q1, a), QuantumGate::Rz(q2, b)) if q1 == q2 => {
+                        let sum = a + b;
+                        rules.push(format!("Rz merge on q{}: {:.3}+{:.3}={:.3}", q1, a, b, sum));
+                        if sum.abs() < 1e-10 || (sum - 2.0 * std::f64::consts::PI).abs() < 1e-10 { None }
+                        else { Some(QuantumGate::Rz(*q1, sum)) }
+                    }
+                    _ => { result.push(gates[i].clone()); i += 1; continue; }
+                };
+                if let Some(g) = merged { result.push(g); }
+                i += 2;
+                continue;
+            }
+            result.push(gates[i].clone());
+            i += 1;
+        }
+        result
+    }
+}
+
+// ── Algorithm Circuit Templates ───────────────────────────────────────────────
+
+pub struct AlgorithmTemplates;
+
+impl AlgorithmTemplates {
+    pub fn bell_state() -> QuantumCircuit {
+        let mut c = QuantumCircuit::new("Bell State", 2, 2);
+        c.add_gate(QuantumGate::H(0));
+        c.add_gate(QuantumGate::CNOT(0, 1));
+        c.add_gate(QuantumGate::Measure(0, 0));
+        c.add_gate(QuantumGate::Measure(1, 1));
+        c
+    }
+
+    pub fn ghz_state(n: usize) -> QuantumCircuit {
+        let n = n.max(2).min(16);
+        let mut c = QuantumCircuit::new(&format!("GHZ-{}", n), n, n);
+        c.add_gate(QuantumGate::H(0));
+        for i in 0..n - 1 {
+            c.add_gate(QuantumGate::CNOT(0, i + 1));
+        }
+        for i in 0..n { c.add_gate(QuantumGate::Measure(i, i)); }
+        c
+    }
+
+    pub fn qft(n: usize) -> QuantumCircuit {
+        let n = n.max(2).min(16);
+        let mut c = QuantumCircuit::new(&format!("QFT-{}", n), n, 0);
+        for i in 0..n {
+            c.add_gate(QuantumGate::H(i));
+            for j in (i + 1)..n {
+                let angle = std::f64::consts::PI / (1 << (j - i)) as f64;
+                // Controlled-Rz implemented as: CZ-like with rotation
+                // For simplicity, we use Rz as an approximation in the template
+                c.add_gate(QuantumGate::Rz(j, angle));
+            }
+        }
+        // SWAP to reverse qubit order
+        for i in 0..n / 2 {
+            c.add_gate(QuantumGate::SWAP(i, n - 1 - i));
+        }
+        c
+    }
+
+    pub fn grover_2qubit() -> QuantumCircuit {
+        let mut c = QuantumCircuit::new("Grover 2-qubit", 2, 2);
+        // Superposition
+        c.add_gate(QuantumGate::H(0));
+        c.add_gate(QuantumGate::H(1));
+        // Oracle (mark |11⟩)
+        c.add_gate(QuantumGate::CZ(0, 1));
+        // Diffusion
+        c.add_gate(QuantumGate::H(0));
+        c.add_gate(QuantumGate::H(1));
+        c.add_gate(QuantumGate::Z(0));
+        c.add_gate(QuantumGate::Z(1));
+        c.add_gate(QuantumGate::CZ(0, 1));
+        c.add_gate(QuantumGate::H(0));
+        c.add_gate(QuantumGate::H(1));
+        // Measure
+        c.add_gate(QuantumGate::Measure(0, 0));
+        c.add_gate(QuantumGate::Measure(1, 1));
+        c
+    }
+
+    pub fn deutsch_jozsa(n: usize) -> QuantumCircuit {
+        let n = n.max(1).min(15);
+        let mut c = QuantumCircuit::new(&format!("Deutsch-Jozsa {}", n), n + 1, n);
+        // Prepare ancilla in |1⟩
+        c.add_gate(QuantumGate::X(n));
+        // Hadamard all qubits
+        for i in 0..=n { c.add_gate(QuantumGate::H(i)); }
+        // Oracle: balanced function f(x) = x_0 (CNOT from q0 to ancilla)
+        c.add_gate(QuantumGate::CNOT(0, n));
+        // Hadamard on input qubits
+        for i in 0..n { c.add_gate(QuantumGate::H(i)); }
+        // Measure input qubits
+        for i in 0..n { c.add_gate(QuantumGate::Measure(i, i)); }
+        c
+    }
+
+    pub fn bernstein_vazirani(secret: &str) -> QuantumCircuit {
+        let bits: Vec<bool> = secret.chars().rev().map(|ch| ch == '1').collect();
+        let n = bits.len().max(1).min(15);
+        let mut c = QuantumCircuit::new(&format!("BV s={}", secret), n + 1, n);
+        // Prepare ancilla
+        c.add_gate(QuantumGate::X(n));
+        // Hadamard all
+        for i in 0..=n { c.add_gate(QuantumGate::H(i)); }
+        // Oracle: CNOT from q_i to ancilla where secret bit is 1
+        for (i, &bit) in bits.iter().enumerate() {
+            if bit { c.add_gate(QuantumGate::CNOT(i, n)); }
+        }
+        // Hadamard on input qubits
+        for i in 0..n { c.add_gate(QuantumGate::H(i)); }
+        // Measure
+        for i in 0..n { c.add_gate(QuantumGate::Measure(i, i)); }
+        c
+    }
+
+    pub fn vqe_ansatz(n: usize, layers: usize) -> QuantumCircuit {
+        let n = n.max(2).min(16);
+        let layers = layers.max(1).min(10);
+        let mut c = QuantumCircuit::new(&format!("VQE {}-qubit {}-layer", n, layers), n, n);
+        for layer in 0..layers {
+            // Ry rotation layer
+            for q in 0..n {
+                let angle = std::f64::consts::PI * (layer as f64 + 1.0) / (layers as f64 + 1.0);
+                c.add_gate(QuantumGate::Ry(q, angle));
+            }
+            // Entangling layer
+            for q in 0..n - 1 {
+                c.add_gate(QuantumGate::CNOT(q, q + 1));
+            }
+        }
+        for i in 0..n { c.add_gate(QuantumGate::Measure(i, i)); }
+        c
+    }
+
+    pub fn qaoa_layer(n: usize, gamma: f64, beta: f64) -> QuantumCircuit {
+        let n = n.max(2).min(16);
+        let mut c = QuantumCircuit::new(&format!("QAOA {}-qubit", n), n, n);
+        // Initial superposition
+        for q in 0..n { c.add_gate(QuantumGate::H(q)); }
+        // Cost layer: ZZ interactions on nearest-neighbor pairs
+        for q in 0..n - 1 {
+            c.add_gate(QuantumGate::CNOT(q, q + 1));
+            c.add_gate(QuantumGate::Rz(q + 1, 2.0 * gamma));
+            c.add_gate(QuantumGate::CNOT(q, q + 1));
+        }
+        // Mixer layer: Rx on all qubits
+        for q in 0..n { c.add_gate(QuantumGate::Rx(q, 2.0 * beta)); }
+        for i in 0..n { c.add_gate(QuantumGate::Measure(i, i)); }
+        c
+    }
+
+    /// Generic entry point: get a template by name with optional params.
+    pub fn get_template(name: &str, params: &std::collections::HashMap<String, String>) -> Result<QuantumCircuit, String> {
+        let n = params.get("qubits").and_then(|v| v.parse().ok()).unwrap_or(3);
+        match name.to_lowercase().replace(['-', '_', ' '], "").as_str() {
+            "bell" | "bellstate" => Ok(Self::bell_state()),
+            "ghz" | "ghzstate" => Ok(Self::ghz_state(n)),
+            "qft" | "quantumfouriertransform" => Ok(Self::qft(n)),
+            "grover" | "grover2qubit" => Ok(Self::grover_2qubit()),
+            "deutschjozsa" => Ok(Self::deutsch_jozsa(n)),
+            "bernsteinvazirani" | "bv" => {
+                let secret = params.get("secret").map(|s| s.as_str()).unwrap_or("101");
+                Ok(Self::bernstein_vazirani(secret))
+            }
+            "vqe" | "vqeansatz" => {
+                let layers = params.get("layers").and_then(|v| v.parse().ok()).unwrap_or(2);
+                Ok(Self::vqe_ansatz(n, layers))
+            }
+            "qaoa" => {
+                let gamma = params.get("gamma").and_then(|v| v.parse().ok()).unwrap_or(0.5);
+                let beta = params.get("beta").and_then(|v| v.parse().ok()).unwrap_or(0.5);
+                Ok(Self::qaoa_layer(n, gamma, beta))
+            }
+            _ => Err(format!("Unknown algorithm template: {}", name)),
+        }
+    }
+
+    /// List available templates with descriptions.
+    pub fn list() -> Vec<(&'static str, &'static str)> {
+        vec![
+            ("Bell State", "2-qubit entangled pair: H + CNOT"),
+            ("GHZ", "N-qubit GHZ state: maximally entangled"),
+            ("QFT", "Quantum Fourier Transform"),
+            ("Grover 2-qubit", "Grover's search on 2 qubits"),
+            ("Deutsch-Jozsa", "Determines if function is constant or balanced"),
+            ("Bernstein-Vazirani", "Finds hidden bit string in one query"),
+            ("VQE Ansatz", "Variational Quantum Eigensolver ansatz circuit"),
+            ("QAOA", "Quantum Approximate Optimization Algorithm"),
+        ]
+    }
+}
+
+// ── Cost Estimator ────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct CostEstimate {
+    pub provider: String,
+    pub estimated_cost_usd: f64,
+    pub breakdown: Vec<(String, f64)>,
+    pub notes: Vec<String>,
+}
+
+pub struct CostEstimator;
+
+impl CostEstimator {
+    /// IBM Quantum: $1.60/second runtime
+    pub fn estimate_ibm(circuit: &QuantumCircuit, shots: usize) -> CostEstimate {
+        // Gate times: single ~35ns, CNOT ~300ns, readout ~1μs
+        let single_ns: f64 = circuit.gates.iter().filter(|g| matches!(g, QuantumGate::H(_) | QuantumGate::X(_) | QuantumGate::Y(_) | QuantumGate::Z(_) | QuantumGate::S(_) | QuantumGate::T(_) | QuantumGate::Rx(..) | QuantumGate::Ry(..) | QuantumGate::Rz(..))).count() as f64 * 35.0;
+        let two_q_ns = circuit.two_qubit_gate_count() as f64 * 300.0;
+        let measure_ns = circuit.gates.iter().filter(|g| matches!(g, QuantumGate::Measure(..))).count() as f64 * 1000.0;
+        let total_ns_per_shot = single_ns + two_q_ns + measure_ns;
+        let total_seconds = total_ns_per_shot * shots as f64 / 1e9;
+        let cost = total_seconds * 1.60;
+        CostEstimate {
+            provider: "IBM Quantum".to_string(),
+            estimated_cost_usd: cost,
+            breakdown: vec![
+                ("Runtime (seconds)".to_string(), total_seconds),
+                ("Rate ($/second)".to_string(), 1.60),
+            ],
+            notes: vec!["Based on IBM Quantum pay-as-you-go pricing ($1.60/sec)".to_string()],
+        }
+    }
+
+    /// Amazon Braket: $0.30/task + per-shot pricing
+    pub fn estimate_braket(_circuit: &QuantumCircuit, shots: usize) -> CostEstimate {
+        let task_cost = 0.30;
+        let shot_cost = 0.00145 * shots as f64; // IonQ Aria pricing
+        let total = task_cost + shot_cost;
+        CostEstimate {
+            provider: "Amazon Braket (IonQ)".to_string(),
+            estimated_cost_usd: total,
+            breakdown: vec![
+                ("Task fee".to_string(), task_cost),
+                (format!("{} shots × $0.00145", shots), shot_cost),
+            ],
+            notes: vec!["IonQ Aria via Braket. Rigetti: $0.00035/shot, Simulators: $0.075/min".to_string()],
+        }
+    }
+
+    /// IonQ: per-gate pricing
+    pub fn estimate_ionq(circuit: &QuantumCircuit, shots: usize) -> CostEstimate {
+        let single_gates = circuit.gate_count() - circuit.two_qubit_gate_count();
+        let single_cost = single_gates as f64 * 0.00003 * shots as f64;
+        let two_q_cost = circuit.two_qubit_gate_count() as f64 * 0.0003 * shots as f64;
+        let shot_cost = shots as f64 * 0.01;
+        let total = single_cost + two_q_cost + shot_cost;
+        CostEstimate {
+            provider: "IonQ (direct)".to_string(),
+            estimated_cost_usd: total,
+            breakdown: vec![
+                (format!("{} 1Q gates × {} shots × $0.00003", single_gates, shots), single_cost),
+                (format!("{} 2Q gates × {} shots × $0.0003", circuit.two_qubit_gate_count(), shots), two_q_cost),
+                (format!("{} shots × $0.01", shots), shot_cost),
+            ],
+            notes: vec!["IonQ Aria direct access pricing".to_string()],
+        }
+    }
+
+    /// Estimate across all providers.
+    pub fn estimate_all(circuit: &QuantumCircuit, shots: usize) -> Vec<CostEstimate> {
+        vec![
+            Self::estimate_ibm(circuit, shots),
+            Self::estimate_braket(circuit, shots),
+            Self::estimate_ionq(circuit, shots),
+        ]
+    }
+}
+
+// ── Project Scaffolder ────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ScaffoldFile {
+    pub path: String,
+    pub content: String,
+}
+
+pub struct ProjectScaffolder;
+
+impl ProjectScaffolder {
+    pub fn scaffold(language: &str, name: &str, num_qubits: usize) -> Result<Vec<ScaffoldFile>, String> {
+        match language.to_lowercase().as_str() {
+            "qiskit" => Ok(Self::scaffold_qiskit(name, num_qubits)),
+            "cirq" => Ok(Self::scaffold_cirq(name, num_qubits)),
+            "pennylane" => Ok(Self::scaffold_pennylane(name, num_qubits)),
+            "q#" | "qsharp" => Ok(Self::scaffold_qsharp(name, num_qubits)),
+            _ => Err(format!("Unsupported language for scaffolding: {}", language)),
+        }
+    }
+
+    fn scaffold_qiskit(name: &str, qubits: usize) -> Vec<ScaffoldFile> {
+        vec![
+            ScaffoldFile { path: "requirements.txt".to_string(), content: "qiskit>=1.0\nqiskit-aer>=0.13\nqiskit-ibm-runtime>=0.20\npytest>=7.0\n".to_string() },
+            ScaffoldFile { path: "main.py".to_string(), content: format!(
+                "\"\"\"Quantum circuit: {name}\"\"\"\nfrom qiskit import QuantumCircuit\nfrom qiskit_aer import AerSimulator\n\ndef create_circuit() -> QuantumCircuit:\n    qc = QuantumCircuit({qubits}, {qubits})\n    # Add gates here\n    qc.h(0)\n    qc.measure_all()\n    return qc\n\ndef main():\n    qc = create_circuit()\n    sim = AerSimulator()\n    result = sim.run(qc, shots=1024).result()\n    counts = result.get_counts()\n    print(f\"Results: {{counts}}\")\n\nif __name__ == \"__main__\":\n    main()\n"
+            )},
+            ScaffoldFile { path: "test_circuit.py".to_string(), content: format!(
+                "from main import create_circuit\nfrom qiskit_aer import AerSimulator\n\ndef test_circuit_runs():\n    qc = create_circuit()\n    assert qc.num_qubits == {qubits}\n    sim = AerSimulator()\n    result = sim.run(qc, shots=100).result()\n    assert result.success\n\ndef test_circuit_depth():\n    qc = create_circuit()\n    assert qc.depth() > 0\n"
+            )},
+            ScaffoldFile { path: ".github/workflows/test.yml".to_string(), content: "name: Test\non: [push, pull_request]\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-python@v5\n        with:\n          python-version: '3.11'\n      - run: pip install -r requirements.txt\n      - run: pytest -v\n".to_string() },
+            ScaffoldFile { path: "README.md".to_string(), content: format!("# {name}\n\nQuantum circuit project using Qiskit ({qubits} qubits).\n\n## Setup\n```bash\npip install -r requirements.txt\npython main.py\n```\n\n## Test\n```bash\npytest -v\n```\n") },
+        ]
+    }
+
+    fn scaffold_cirq(name: &str, qubits: usize) -> Vec<ScaffoldFile> {
+        vec![
+            ScaffoldFile { path: "requirements.txt".to_string(), content: "cirq>=1.3\npytest>=7.0\n".to_string() },
+            ScaffoldFile { path: "main.py".to_string(), content: format!(
+                "\"\"\"Quantum circuit: {name}\"\"\"\nimport cirq\n\ndef create_circuit() -> cirq.Circuit:\n    qubits = cirq.LineQubit.range({qubits})\n    circuit = cirq.Circuit()\n    circuit.append(cirq.H(qubits[0]))\n    circuit.append(cirq.measure(*qubits, key='result'))\n    return circuit\n\ndef main():\n    circuit = create_circuit()\n    sim = cirq.Simulator()\n    result = sim.run(circuit, repetitions=1024)\n    print(f\"Results: {{result.histogram(key='result')}}\")\n\nif __name__ == \"__main__\":\n    main()\n"
+            )},
+            ScaffoldFile { path: "test_circuit.py".to_string(), content: format!(
+                "import cirq\nfrom main import create_circuit\n\ndef test_circuit_runs():\n    circuit = create_circuit()\n    sim = cirq.Simulator()\n    result = sim.run(circuit, repetitions=100)\n    assert len(result.measurements) > 0\n\ndef test_qubit_count():\n    circuit = create_circuit()\n    assert len(circuit.all_qubits()) <= {qubits}\n"
+            )},
+            ScaffoldFile { path: "README.md".to_string(), content: format!("# {name}\n\nQuantum circuit project using Cirq ({qubits} qubits).\n\n## Setup\n```bash\npip install -r requirements.txt\npython main.py\n```\n") },
+        ]
+    }
+
+    fn scaffold_pennylane(name: &str, qubits: usize) -> Vec<ScaffoldFile> {
+        vec![
+            ScaffoldFile { path: "requirements.txt".to_string(), content: "pennylane>=0.35\npytest>=7.0\n".to_string() },
+            ScaffoldFile { path: "main.py".to_string(), content: format!(
+                "\"\"\"Quantum circuit: {name}\"\"\"\nimport pennylane as qml\nfrom pennylane import numpy as np\n\ndev = qml.device('default.qubit', wires={qubits})\n\n@qml.qnode(dev)\ndef circuit(params):\n    for i in range({qubits}):\n        qml.RY(params[i], wires=i)\n    for i in range({qubits} - 1):\n        qml.CNOT(wires=[i, i + 1])\n    return qml.probs(wires=range({qubits}))\n\ndef main():\n    params = np.random.uniform(0, np.pi, {qubits})\n    probs = circuit(params)\n    print(f\"Probabilities: {{probs}}\")\n\nif __name__ == \"__main__\":\n    main()\n"
+            )},
+            ScaffoldFile { path: "test_circuit.py".to_string(), content: format!(
+                "import pennylane as qml\nfrom pennylane import numpy as np\nfrom main import circuit\n\ndef test_circuit_output():\n    params = np.zeros({qubits})\n    probs = circuit(params)\n    assert abs(sum(probs) - 1.0) < 1e-6\n"
+            )},
+            ScaffoldFile { path: "README.md".to_string(), content: format!("# {name}\n\nQuantum circuit project using PennyLane ({qubits} qubits).\n\n## Setup\n```bash\npip install -r requirements.txt\npython main.py\n```\n") },
+        ]
+    }
+
+    fn scaffold_qsharp(name: &str, qubits: usize) -> Vec<ScaffoldFile> {
+        vec![
+            ScaffoldFile { path: format!("{}.csproj", name), content: "<Project Sdk=\"Microsoft.Quantum.Sdk/0.28.302812\">\n  <PropertyGroup>\n    <OutputType>Exe</OutputType>\n    <TargetFramework>net6.0</TargetFramework>\n  </PropertyGroup>\n</Project>\n".to_string() },
+            ScaffoldFile { path: "Program.qs".to_string(), content: format!(
+                "namespace {name} {{\n    open Microsoft.Quantum.Canon;\n    open Microsoft.Quantum.Intrinsic;\n    open Microsoft.Quantum.Measurement;\n\n    @EntryPoint()\n    operation Main() : Result[] {{\n        use qubits = Qubit[{qubits}];\n        H(qubits[0]);\n        let results = MeasureEachZ(qubits);\n        Message($\"Results: {{results}}\");\n        return results;\n    }}\n}}\n"
+            )},
+            ScaffoldFile { path: "README.md".to_string(), content: format!("# {name}\n\nQuantum project using Q# ({qubits} qubits).\n\n## Run\n```bash\ndotnet run\n```\n") },
+        ]
+    }
+}
+
 // ── Tests ────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -1475,5 +2190,296 @@ mod tests {
         c.add_gate(QuantumGate::H(2));
         c.add_gate(QuantumGate::Toffoli(0, 1, 2));
         assert_eq!(c.depth(), 2);
+    }
+
+    // --- Statevector simulator tests ---
+
+    #[test]
+    fn test_simulator_init() {
+        let sim = StatevectorSimulator::new(2).unwrap();
+        assert_eq!(sim.state.len(), 4);
+        assert!((sim.state[0].re - 1.0).abs() < 1e-10);
+        assert!(sim.state[1].norm_sq() < 1e-10);
+    }
+
+    #[test]
+    fn test_simulator_max_qubits() {
+        assert!(StatevectorSimulator::new(17).is_err());
+        assert!(StatevectorSimulator::new(0).is_err());
+        assert!(StatevectorSimulator::new(16).is_ok());
+    }
+
+    #[test]
+    fn test_h_gate_superposition() {
+        let mut sim = StatevectorSimulator::new(1).unwrap();
+        sim.apply_gate(&QuantumGate::H(0));
+        let probs = sim.probabilities();
+        assert_eq!(probs.len(), 2);
+        for (_, p) in &probs {
+            assert!((p - 0.5).abs() < 1e-10);
+        }
+    }
+
+    #[test]
+    fn test_x_gate_flip() {
+        let mut sim = StatevectorSimulator::new(1).unwrap();
+        sim.apply_gate(&QuantumGate::X(0));
+        assert!(sim.state[0].norm_sq() < 1e-10);
+        assert!((sim.state[1].re - 1.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_bell_state_simulation() {
+        let circuit = AlgorithmTemplates::bell_state();
+        let result = StatevectorSimulator::simulate_circuit(&circuit, 1000).unwrap();
+        // Bell state should have 2 non-zero probabilities: |00⟩ and |11⟩
+        assert_eq!(result.probabilities.len(), 2);
+        for (label, p) in &result.probabilities {
+            assert!(label == "00" || label == "11");
+            assert!((p - 0.5).abs() < 1e-10);
+        }
+    }
+
+    #[test]
+    fn test_cnot_entanglement() {
+        let mut sim = StatevectorSimulator::new(2).unwrap();
+        sim.apply_gate(&QuantumGate::H(0));
+        sim.apply_gate(&QuantumGate::CNOT(0, 1));
+        let probs = sim.probabilities();
+        assert_eq!(probs.len(), 2);
+    }
+
+    #[test]
+    fn test_z_gate() {
+        let mut sim = StatevectorSimulator::new(1).unwrap();
+        sim.apply_gate(&QuantumGate::H(0));
+        sim.apply_gate(&QuantumGate::Z(0));
+        // Should produce |−⟩ state: (|0⟩ − |1⟩)/√2
+        let s = 1.0 / std::f64::consts::SQRT_2;
+        assert!((sim.state[0].re - s).abs() < 1e-10);
+        assert!((sim.state[1].re + s).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_swap_gate() {
+        let mut sim = StatevectorSimulator::new(2).unwrap();
+        sim.apply_gate(&QuantumGate::X(0)); // bit 0 set -> index 0b01
+        sim.apply_gate(&QuantumGate::SWAP(0, 1)); // swap bits -> index 0b10
+        assert!((sim.state[0b10].re - 1.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_toffoli_gate() {
+        let mut sim = StatevectorSimulator::new(3).unwrap();
+        sim.apply_gate(&QuantumGate::X(0)); // |001⟩ -> bit 0 = 1
+        sim.apply_gate(&QuantumGate::X(1)); // |011⟩ -> bit 1 = 1
+        sim.apply_gate(&QuantumGate::Toffoli(0, 1, 2)); // both controls on -> flip target
+        // State should be |111⟩ = index 0b111 = 7
+        assert!((sim.state[7].re - 1.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_sampling() {
+        let mut sim = StatevectorSimulator::new(1).unwrap();
+        sim.apply_gate(&QuantumGate::H(0));
+        let samples = sim.sample(1000);
+        assert!(samples.contains_key("0"));
+        assert!(samples.contains_key("1"));
+        let count_0 = *samples.get("0").unwrap_or(&0);
+        let count_1 = *samples.get("1").unwrap_or(&0);
+        assert_eq!(count_0 + count_1, 1000);
+        // Should be roughly 50/50 (within 20% tolerance)
+        assert!(count_0 > 300 && count_0 < 700);
+    }
+
+    #[test]
+    fn test_rotation_gates() {
+        let mut sim = StatevectorSimulator::new(1).unwrap();
+        // Rx(pi) should act like X gate
+        sim.apply_gate(&QuantumGate::Rx(0, std::f64::consts::PI));
+        assert!(sim.state[0].norm_sq() < 1e-8);
+        assert!(sim.state[1].norm_sq() > 0.99);
+    }
+
+    // --- Optimizer tests ---
+
+    #[test]
+    fn test_optimizer_hh_cancel() {
+        let mut c = QuantumCircuit::new("test", 1, 0);
+        c.add_gate(QuantumGate::H(0));
+        c.add_gate(QuantumGate::H(0));
+        let (opt, result) = CircuitOptimizer::optimize(&c);
+        assert_eq!(opt.gate_count(), 0);
+        assert!(result.rules_applied.iter().any(|r| r.contains("HH→I")));
+    }
+
+    #[test]
+    fn test_optimizer_ss_to_z() {
+        let mut c = QuantumCircuit::new("test", 1, 0);
+        c.add_gate(QuantumGate::S(0));
+        c.add_gate(QuantumGate::S(0));
+        let (opt, _) = CircuitOptimizer::optimize(&c);
+        assert_eq!(opt.gate_count(), 1);
+        assert!(matches!(opt.gates[0], QuantumGate::Z(0)));
+    }
+
+    #[test]
+    fn test_optimizer_rotation_merge() {
+        let mut c = QuantumCircuit::new("test", 1, 0);
+        c.add_gate(QuantumGate::Rx(0, 0.5));
+        c.add_gate(QuantumGate::Rx(0, 0.3));
+        let (opt, result) = CircuitOptimizer::optimize(&c);
+        assert_eq!(opt.gate_count(), 1);
+        if let QuantumGate::Rx(_, angle) = opt.gates[0] {
+            assert!((angle - 0.8).abs() < 1e-10);
+        } else { panic!("Expected Rx gate"); }
+        assert!(result.rules_applied.iter().any(|r| r.contains("Rx merge")));
+    }
+
+    #[test]
+    fn test_optimizer_rotation_to_zero() {
+        let mut c = QuantumCircuit::new("test", 1, 0);
+        c.add_gate(QuantumGate::Rz(0, 1.0));
+        c.add_gate(QuantumGate::Rz(0, -1.0));
+        let (opt, _) = CircuitOptimizer::optimize(&c);
+        assert_eq!(opt.gate_count(), 0);
+    }
+
+    #[test]
+    fn test_optimizer_cnot_cancel() {
+        let mut c = QuantumCircuit::new("test", 2, 0);
+        c.add_gate(QuantumGate::CNOT(0, 1));
+        c.add_gate(QuantumGate::CNOT(0, 1));
+        let (opt, _) = CircuitOptimizer::optimize(&c);
+        assert_eq!(opt.gate_count(), 0);
+    }
+
+    #[test]
+    fn test_optimizer_no_change() {
+        let mut c = QuantumCircuit::new("test", 2, 2);
+        c.add_gate(QuantumGate::H(0));
+        c.add_gate(QuantumGate::CNOT(0, 1));
+        let (opt, result) = CircuitOptimizer::optimize(&c);
+        assert_eq!(opt.gate_count(), 2);
+        assert_eq!(result.savings_percent, 0.0);
+    }
+
+    // --- Algorithm template tests ---
+
+    #[test]
+    fn test_bell_state_template() {
+        let c = AlgorithmTemplates::bell_state();
+        assert_eq!(c.num_qubits, 2);
+        assert_eq!(c.gate_count(), 4); // H + CNOT + 2 Measure
+    }
+
+    #[test]
+    fn test_ghz_template() {
+        let c = AlgorithmTemplates::ghz_state(4);
+        assert_eq!(c.num_qubits, 4);
+        // H(0) + 3 CNOTs + 4 Measures = 8
+        assert_eq!(c.gate_count(), 8);
+    }
+
+    #[test]
+    fn test_qft_template() {
+        let c = AlgorithmTemplates::qft(3);
+        assert_eq!(c.num_qubits, 3);
+        assert!(c.gate_count() > 0);
+    }
+
+    #[test]
+    fn test_bv_template() {
+        let c = AlgorithmTemplates::bernstein_vazirani("110");
+        assert_eq!(c.num_qubits, 4); // 3 + 1 ancilla
+    }
+
+    #[test]
+    fn test_vqe_template() {
+        let c = AlgorithmTemplates::vqe_ansatz(3, 2);
+        assert_eq!(c.num_qubits, 3);
+        assert!(c.gate_count() > 0);
+    }
+
+    #[test]
+    fn test_template_lookup() {
+        let params = std::collections::HashMap::new();
+        assert!(AlgorithmTemplates::get_template("bell", &params).is_ok());
+        assert!(AlgorithmTemplates::get_template("unknown", &params).is_err());
+    }
+
+    #[test]
+    fn test_template_list() {
+        let list = AlgorithmTemplates::list();
+        assert_eq!(list.len(), 8);
+    }
+
+    // --- Cost estimator tests ---
+
+    #[test]
+    fn test_cost_estimator_empty_circuit() {
+        let c = QuantumCircuit::new("empty", 2, 2);
+        let estimates = CostEstimator::estimate_all(&c, 1000);
+        assert_eq!(estimates.len(), 3);
+        for e in &estimates {
+            assert!(e.estimated_cost_usd >= 0.0);
+        }
+    }
+
+    #[test]
+    fn test_cost_estimator_bell_state() {
+        let c = AlgorithmTemplates::bell_state();
+        let estimates = CostEstimator::estimate_all(&c, 1000);
+        assert_eq!(estimates.len(), 3);
+        // All should have non-zero cost
+        for e in &estimates {
+            assert!(e.estimated_cost_usd > 0.0, "{} cost was 0", e.provider);
+        }
+    }
+
+    #[test]
+    fn test_cost_scales_with_shots() {
+        let c = AlgorithmTemplates::bell_state();
+        let low = CostEstimator::estimate_ibm(&c, 100);
+        let high = CostEstimator::estimate_ibm(&c, 10000);
+        assert!(high.estimated_cost_usd > low.estimated_cost_usd);
+    }
+
+    // --- Scaffolder tests ---
+
+    #[test]
+    fn test_scaffold_qiskit() {
+        let files = ProjectScaffolder::scaffold("qiskit", "myproject", 3).unwrap();
+        assert!(files.len() >= 4);
+        assert!(files.iter().any(|f| f.path == "main.py"));
+        assert!(files.iter().any(|f| f.path == "requirements.txt"));
+        assert!(files.iter().any(|f| f.path.contains("test_")));
+        let main = files.iter().find(|f| f.path == "main.py").unwrap();
+        assert!(main.content.contains("QuantumCircuit(3"));
+    }
+
+    #[test]
+    fn test_scaffold_cirq() {
+        let files = ProjectScaffolder::scaffold("cirq", "myproject", 4).unwrap();
+        assert!(files.len() >= 3);
+        let main = files.iter().find(|f| f.path == "main.py").unwrap();
+        assert!(main.content.contains("cirq"));
+    }
+
+    #[test]
+    fn test_scaffold_pennylane() {
+        let files = ProjectScaffolder::scaffold("pennylane", "myproject", 2).unwrap();
+        assert!(files.len() >= 3);
+    }
+
+    #[test]
+    fn test_scaffold_qsharp() {
+        let files = ProjectScaffolder::scaffold("q#", "myproject", 5).unwrap();
+        assert!(files.len() >= 2);
+    }
+
+    #[test]
+    fn test_scaffold_unknown() {
+        assert!(ProjectScaffolder::scaffold("unknown", "p", 2).is_err());
     }
 }

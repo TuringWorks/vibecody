@@ -43,6 +43,7 @@ vibe-lsp = { path = "../crates/vibe-lsp" }
 vibe-ai = { path = "../crates/vibe-ai" }
 vibe-extensions = { path = "../crates/vibe-extensions" }
 vibe-collab = { path = "../crates/vibe-collab" }
+vibecli_cli = { package = "vibecli", path = "../../vibecli/vibecli-cli" }
 base64 = "0.22.1"
 chrono = "0.4.44"
 rusqlite = { version = "0.31", features = ["bundled"] }

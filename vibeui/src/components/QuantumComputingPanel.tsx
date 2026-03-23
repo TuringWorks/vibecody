@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -44,21 +44,280 @@ interface CompatEntry {
   compatibleOs: string[];
 }
 
-type QuantumTab = "languages" | "os" | "circuits" | "projects" | "algorithms" | "hardware";
+interface GateInstance {
+  type: string;
+  targets?: number[];
+  target?: number;
+  control?: number;
+  controls?: number[];
+  angle?: number;
+  qubit?: number;
+  classical?: number;
+}
+
+interface CircuitDetail extends QuantumCircuit {
+  gates: GateInstance[];
+}
+
+interface SimulationResult {
+  amplitudes: [string, number, number][];
+  probabilities: [string, number][];
+  samples: Record<string, number>;
+  num_qubits: number;
+}
+
+interface OptimizationResult {
+  original_gate_count: number;
+  optimized_gate_count: number;
+  original_depth: number;
+  optimized_depth: number;
+  rules_applied: string[];
+  savings_percent: number;
+}
+
+interface CostEstimate {
+  provider: string;
+  estimated_cost_usd: number;
+  breakdown: [string, number][];
+  notes: string[];
+}
+
+interface ScaffoldFile {
+  path: string;
+  content: string;
+}
+
+interface AlgorithmTemplate {
+  name: string;
+  description: string;
+}
+
+interface HardwareTopology {
+  name: string;
+  vendor: string;
+  qubitCount: number;
+  qubits: { id: number; x: number; y: number }[];
+  couplings: [number, number][];
+}
+
+type QuantumTab =
+  | "circuitBuilder"
+  | "simulator"
+  | "optimizer"
+  | "cost"
+  | "templates"
+  | "scaffold"
+  | "topology"
+  | "languages"
+  | "os"
+  | "projects"
+  | "algorithms";
 
 const TABS: { id: QuantumTab; label: string }[] = [
+  { id: "circuitBuilder", label: "Circuit Builder" },
+  { id: "simulator", label: "Simulator" },
+  { id: "optimizer", label: "Optimizer" },
+  { id: "cost", label: "Cost" },
+  { id: "templates", label: "Templates" },
+  { id: "scaffold", label: "Scaffold" },
+  { id: "topology", label: "Topology" },
   { id: "languages", label: "Languages" },
   { id: "os", label: "Quantum OS" },
-  { id: "circuits", label: "Circuits" },
   { id: "projects", label: "Projects" },
   { id: "algorithms", label: "Algorithms" },
-  { id: "hardware", label: "Hardware" },
 ];
+
+// ── SVG Constants ────────────────────────────────────────────────────────────
+
+const WIRE_Y0 = 30;
+const WIRE_SPACING = 50;
+const COL_WIDTH = 55;
+const GATE_SIZE = 34;
+
+// ── Gate Definitions ─────────────────────────────────────────────────────────
+
+const SINGLE_QUBIT_GATES = ["H", "X", "Y", "Z", "S", "T"];
+const ROTATION_GATES = ["Rx", "Ry", "Rz"];
+const MULTI_QUBIT_GATES = ["CNOT", "CZ", "SWAP", "Toffoli"];
+const MEASUREMENT_GATES = ["Measure"];
+
+const GATE_COLORS: Record<string, string> = {
+  H: "#4a90d9",
+  X: "#e74c3c",
+  Y: "#27ae60",
+  Z: "#8e44ad",
+  S: "#f39c12",
+  T: "#1abc9c",
+  Rx: "#e67e22",
+  Ry: "#2ecc71",
+  Rz: "#9b59b6",
+  CNOT: "#3498db",
+  CZ: "#2980b9",
+  SWAP: "#e74c3c",
+  Toffoli: "#34495e",
+  Measure: "#7f8c8d",
+};
+
+// ── Topology Generators ──────────────────────────────────────────────────────
+
+function generateGrid(rows: number, cols: number, count: number) {
+  const qubits: { id: number; x: number; y: number }[] = [];
+  let id = 0;
+  for (let r = 0; r < rows && id < count; r++)
+    for (let c = 0; c < cols && id < count; c++)
+      qubits.push({ id: id++, x: c * 40 + 20, y: r * 40 + 20 });
+  return qubits;
+}
+
+function generateCircle(count: number) {
+  return Array.from({ length: count }, (_, i) => ({
+    id: i,
+    x: 150 + 120 * Math.cos((2 * Math.PI * i) / count),
+    y: 150 + 120 * Math.sin((2 * Math.PI * i) / count),
+  }));
+}
+
+function generateGridCouplings(rows: number, cols: number, count: number): [number, number][] {
+  const couplings: [number, number][] = [];
+  for (let r = 0; r < rows; r++)
+    for (let c = 0; c < cols; c++) {
+      const id = r * cols + c;
+      if (id >= count) continue;
+      if (c + 1 < cols && id + 1 < count) couplings.push([id, id + 1]);
+      if (r + 1 < rows && id + cols < count) couplings.push([id, id + cols]);
+    }
+  return couplings;
+}
+
+function generateAllToAll(count: number): [number, number][] {
+  const c: [number, number][] = [];
+  for (let i = 0; i < count; i++)
+    for (let j = i + 1; j < count; j++) c.push([i, j]);
+  return c;
+}
+
+function generateHeavyHex(count: number) {
+  const qubits: { id: number; x: number; y: number }[] = [];
+  const cols = 18;
+  const rows = Math.ceil(count / cols);
+  let id = 0;
+  for (let r = 0; r < rows && id < count; r++) {
+    for (let c = 0; c < cols && id < count; c++) {
+      const xOff = r % 2 === 1 ? 20 : 0;
+      qubits.push({ id: id++, x: c * 38 + 18 + xOff, y: r * 42 + 18 });
+    }
+  }
+  return qubits;
+}
+
+function generateHeavyHexCouplings(count: number): [number, number][] {
+  const cols = 18;
+  const rows = Math.ceil(count / cols);
+  const couplings: [number, number][] = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const id = r * cols + c;
+      if (id >= count) continue;
+      if (c + 1 < cols && id + 1 < count) couplings.push([id, id + 1]);
+      if (r + 1 < rows && id + cols < count && (c % 2 === 0 || r % 2 === 0))
+        couplings.push([id, id + cols]);
+    }
+  }
+  return couplings;
+}
+
+const TOPOLOGIES: HardwareTopology[] = [
+  {
+    name: "IBM Eagle r3",
+    vendor: "IBM",
+    qubitCount: 127,
+    qubits: generateHeavyHex(127),
+    couplings: generateHeavyHexCouplings(127),
+  },
+  {
+    name: "Google Sycamore",
+    vendor: "Google",
+    qubitCount: 53,
+    qubits: generateGrid(6, 9, 53),
+    couplings: generateGridCouplings(6, 9, 53),
+  },
+  {
+    name: "IonQ Aria",
+    vendor: "IonQ",
+    qubitCount: 25,
+    qubits: generateCircle(25),
+    couplings: generateAllToAll(25),
+  },
+  {
+    name: "Rigetti Ankaa-2",
+    vendor: "Rigetti",
+    qubitCount: 84,
+    qubits: generateGrid(9, 10, 84),
+    couplings: generateGridCouplings(9, 10, 84),
+  },
+  {
+    name: "Quantinuum H2",
+    vendor: "Quantinuum",
+    qubitCount: 32,
+    qubits: generateCircle(32),
+    couplings: generateAllToAll(32),
+  },
+];
+
+// ── Bloch Sphere Math ────────────────────────────────────────────────────────
+
+function amplitudesToBloch(re0: number, im0: number, re1: number, im1: number) {
+  const r0 = Math.sqrt(re0 * re0 + im0 * im0);
+  const theta = 2 * Math.acos(Math.min(r0, 1.0));
+  const phi = Math.atan2(im1, re1) - Math.atan2(im0, re0);
+  return { theta, phi };
+}
+
+// ── Shared Styles ────────────────────────────────────────────────────────────
+
+const inputStyle: React.CSSProperties = {
+  padding: "4px 8px",
+  borderRadius: 4,
+  border: "1px solid var(--border-color)",
+  background: "var(--bg-secondary)",
+  color: "var(--text-primary)",
+  fontSize: 12,
+};
+
+const btnPrimary: React.CSSProperties = {
+  padding: "6px 14px",
+  borderRadius: 6,
+  border: "none",
+  background: "var(--accent-primary)",
+  color: "#fff",
+  cursor: "pointer",
+  fontWeight: 600,
+  fontSize: 13,
+};
+
+const btnSmall: React.CSSProperties = {
+  background: "none",
+  border: "1px solid var(--border-color)",
+  borderRadius: 4,
+  color: "var(--text-secondary)",
+  cursor: "pointer",
+  padding: "2px 6px",
+  fontSize: 11,
+};
+
+const cardStyle: React.CSSProperties = {
+  padding: 12,
+  borderRadius: 8,
+  background: "var(--bg-secondary)",
+  border: "1px solid var(--border-color)",
+};
 
 // ── Component ────────────────────────────────────────────────────────────────
 
 export function QuantumComputingPanel() {
-  const [tab, setTab] = useState<QuantumTab>("languages");
+  const [tab, setTab] = useState<QuantumTab>("circuitBuilder");
+
+  // Shared data
   const [languages, setLanguages] = useState<QuantumLanguageInfo[]>([]);
   const [osList, setOsList] = useState<QuantumOSInfo[]>([]);
   const [projects, setProjects] = useState<QuantumProject[]>([]);
@@ -66,6 +325,8 @@ export function QuantumComputingPanel() {
   const [compat, setCompat] = useState<CompatEntry[]>([]);
   const [algorithms, setAlgorithms] = useState<{ name: string; category: string; scaling: string }[]>([]);
   const [hardware, setHardware] = useState<{ type: string; vendors: string[] }[]>([]);
+
+  // Languages tab
   const [helloCode, setHelloCode] = useState<string>("");
   const [selectedLang, setSelectedLang] = useState<string>("");
 
@@ -76,10 +337,52 @@ export function QuantumComputingPanel() {
   const [npQubits, setNpQubits] = useState(2);
   const [npDesc, setNpDesc] = useState("");
 
-  // New circuit form
-  const [ncName, setNcName] = useState("");
-  const [ncQubits, setNcQubits] = useState(2);
-  const [ncClassical, setNcClassical] = useState(2);
+  // Circuit Builder state
+  const [selectedCircuitIdx, setSelectedCircuitIdx] = useState<number | null>(null);
+  const [circuitDetail, setCircuitDetail] = useState<CircuitDetail | null>(null);
+  const [selectedGate, setSelectedGate] = useState<string | null>(null);
+  const [placingControl, setPlacingControl] = useState<number | null>(null);
+  const [placingControls, setPlacingControls] = useState<number[]>([]);
+  const [cbNewName, setCbNewName] = useState("");
+  const [cbNewQubits, setCbNewQubits] = useState(3);
+  const [cbNewClassical, setCbNewClassical] = useState(3);
+
+  // Simulator state
+  const [simCircuitIdx, setSimCircuitIdx] = useState<number | null>(null);
+  const [simShots, setSimShots] = useState(1024);
+  const [simResult, setSimResult] = useState<SimulationResult | null>(null);
+  const [simRunning, setSimRunning] = useState(false);
+
+  // Optimizer state
+  const [optCircuitIdx, setOptCircuitIdx] = useState<number | null>(null);
+  const [optResult, setOptResult] = useState<OptimizationResult | null>(null);
+  const [optRunning, setOptRunning] = useState(false);
+
+  // Cost state
+  const [costCircuitIdx, setCostCircuitIdx] = useState<number | null>(null);
+  const [costShots, setCostShots] = useState(1024);
+  const [costEstimates, setCostEstimates] = useState<CostEstimate[]>([]);
+  const [costRunning, setCostRunning] = useState(false);
+
+  // Templates state
+  const [templateList, setTemplateList] = useState<AlgorithmTemplate[]>([]);
+  const [tplQubits, setTplQubits] = useState(3);
+  const [tplSecret, setTplSecret] = useState("101");
+  const [tplLayers, setTplLayers] = useState(2);
+  const [tplGamma, setTplGamma] = useState(0.5);
+  const [tplBeta, setTplBeta] = useState(0.5);
+  const [tplLoading, setTplLoading] = useState<string | null>(null);
+
+  // Scaffold state
+  const [scafName, setScafName] = useState("my-quantum-project");
+  const [scafLang, setScafLang] = useState("Qiskit");
+  const [scafQubits, setScafQubits] = useState(4);
+  const [scafFiles, setScafFiles] = useState<ScaffoldFile[]>([]);
+  const [scafRunning, setScafRunning] = useState(false);
+  const [scafExpanded, setScafExpanded] = useState<Set<string>>(new Set());
+
+  // Topology state
+  const [selectedTopology, setSelectedTopology] = useState(0);
 
   useEffect(() => {
     loadAll();
@@ -104,9 +407,26 @@ export function QuantumComputingPanel() {
       setAlgorithms(algs);
       setHardware(hw);
     } catch {
-      // individual loads may fail, that's ok
+      // individual loads may fail
     }
   }
+
+  async function loadTemplates() {
+    try {
+      const tpls = await invoke<AlgorithmTemplate[]>("quantum_list_templates");
+      setTemplateList(tpls);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  useEffect(() => {
+    if (tab === "templates" && templateList.length === 0) {
+      loadTemplates();
+    }
+  }, [tab]);
+
+  // ── Languages helpers ────────────────────────────────────────────────────
 
   async function loadHelloCircuit(lang: string) {
     setSelectedLang(lang);
@@ -118,17 +438,25 @@ export function QuantumComputingPanel() {
     }
   }
 
+  // ── Projects helpers ─────────────────────────────────────────────────────
+
   async function createProject() {
     if (!npName.trim()) return;
     try {
       await invoke("quantum_create_project", {
-        name: npName, language: npLang, hardware: npHw,
-        numQubits: npQubits, description: npDesc,
+        name: npName,
+        language: npLang,
+        hardware: npHw,
+        numQubits: npQubits,
+        description: npDesc,
       });
-      setNpName(""); setNpDesc("");
+      setNpName("");
+      setNpDesc("");
       const projs = await invoke<QuantumProject[]>("quantum_get_projects");
       setProjects(projs);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 
   async function deleteProject(id: string) {
@@ -136,19 +464,84 @@ export function QuantumComputingPanel() {
       await invoke("quantum_delete_project", { projectId: id });
       const projs = await invoke<QuantumProject[]>("quantum_get_projects");
       setProjects(projs);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 
-  async function createCircuit() {
-    if (!ncName.trim()) return;
+  // ── Circuit Builder helpers ──────────────────────────────────────────────
+
+  async function loadCircuitDetail(index: number) {
+    try {
+      const detail = await invoke<CircuitDetail>("quantum_get_circuit_detail", { index });
+      setCircuitDetail(detail);
+      setSelectedCircuitIdx(index);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async function createNewCircuit() {
+    if (!cbNewName.trim()) return;
     try {
       await invoke("quantum_create_circuit", {
-        name: ncName, numQubits: ncQubits, numClassical: ncClassical,
+        name: cbNewName,
+        numQubits: cbNewQubits,
+        numClassical: cbNewClassical,
       });
-      setNcName("");
+      setCbNewName("");
       const circs = await invoke<QuantumCircuit[]>("quantum_get_circuits");
       setCircuits(circs);
-    } catch { /* ignore */ }
+      if (circs.length > 0) {
+        await loadCircuitDetail(circs[circs.length - 1].index);
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async function addGate(gate: GateInstance) {
+    if (selectedCircuitIdx === null) return;
+    try {
+      const updated = await invoke<CircuitDetail>("quantum_add_gate", {
+        index: selectedCircuitIdx,
+        gate,
+      });
+      setCircuitDetail(updated);
+      const circs = await invoke<QuantumCircuit[]>("quantum_get_circuits");
+      setCircuits(circs);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async function removeGate(gateIndex: number) {
+    if (selectedCircuitIdx === null) return;
+    try {
+      const updated = await invoke<CircuitDetail>("quantum_remove_gate", {
+        index: selectedCircuitIdx,
+        gateIndex,
+      });
+      setCircuitDetail(updated);
+      const circs = await invoke<QuantumCircuit[]>("quantum_get_circuits");
+      setCircuits(circs);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async function deleteCircuit(index: number) {
+    try {
+      await invoke("quantum_delete_circuit", { index });
+      const circs = await invoke<QuantumCircuit[]>("quantum_get_circuits");
+      setCircuits(circs);
+      if (selectedCircuitIdx === index) {
+        setSelectedCircuitIdx(null);
+        setCircuitDetail(null);
+      }
+    } catch {
+      /* ignore */
+    }
   }
 
   async function exportCircuit(index: number, format: string) {
@@ -156,25 +549,620 @@ export function QuantumComputingPanel() {
       const code = await invoke<string>("quantum_export_circuit", { index, format });
       setHelloCode(code);
       setSelectedLang(`Circuit export (${format})`);
-      setTab("languages"); // show in the code view area
-    } catch { /* ignore */ }
+      setTab("languages");
+    } catch {
+      /* ignore */
+    }
   }
 
-  // ── Render ────────────────────────────────────────────────────────────────
+  const handleSvgClick = useCallback(
+    (qubit: number) => {
+      if (!selectedGate || !circuitDetail) return;
+
+      if (SINGLE_QUBIT_GATES.includes(selectedGate) || selectedGate === "Measure") {
+        const gate: GateInstance = { type: selectedGate, target: qubit };
+        if (selectedGate === "Measure") {
+          gate.qubit = qubit;
+          gate.classical = qubit;
+        }
+        addGate(gate);
+        return;
+      }
+
+      if (ROTATION_GATES.includes(selectedGate)) {
+        const angleStr = prompt(`Enter angle (radians) for ${selectedGate}:`, String(Math.PI / 4));
+        if (angleStr === null) return;
+        const angle = parseFloat(angleStr);
+        if (isNaN(angle)) return;
+        addGate({ type: selectedGate, target: qubit, angle });
+        return;
+      }
+
+      if (selectedGate === "CNOT" || selectedGate === "CZ") {
+        if (placingControl === null) {
+          setPlacingControl(qubit);
+        } else {
+          if (qubit !== placingControl) {
+            addGate({ type: selectedGate, control: placingControl, target: qubit });
+          }
+          setPlacingControl(null);
+        }
+        return;
+      }
+
+      if (selectedGate === "SWAP") {
+        if (placingControl === null) {
+          setPlacingControl(qubit);
+        } else {
+          if (qubit !== placingControl) {
+            addGate({ type: selectedGate, targets: [placingControl, qubit] });
+          }
+          setPlacingControl(null);
+        }
+        return;
+      }
+
+      if (selectedGate === "Toffoli") {
+        if (placingControls.length < 2) {
+          const next = [...placingControls, qubit];
+          if (next.length < 2) {
+            setPlacingControls(next);
+          } else {
+            setPlacingControls(next);
+          }
+          if (next.length === 2) {
+            // waiting for target on next click
+          }
+        } else {
+          if (!placingControls.includes(qubit)) {
+            addGate({ type: "Toffoli", controls: placingControls, target: qubit });
+          }
+          setPlacingControls([]);
+        }
+        return;
+      }
+    },
+    [selectedGate, circuitDetail, placingControl, placingControls, selectedCircuitIdx],
+  );
+
+  // ── Simulator helpers ────────────────────────────────────────────────────
+
+  async function runSimulation() {
+    if (simCircuitIdx === null) return;
+    setSimRunning(true);
+    setSimResult(null);
+    try {
+      const result = await invoke<SimulationResult>("quantum_simulate_circuit", {
+        index: simCircuitIdx,
+        shots: simShots,
+      });
+      setSimResult(result);
+    } catch {
+      /* ignore */
+    }
+    setSimRunning(false);
+  }
+
+  // ── Optimizer helpers ────────────────────────────────────────────────────
+
+  async function runOptimizer() {
+    if (optCircuitIdx === null) return;
+    setOptRunning(true);
+    setOptResult(null);
+    try {
+      const result = await invoke<OptimizationResult>("quantum_optimize_circuit", {
+        index: optCircuitIdx,
+      });
+      setOptResult(result);
+    } catch {
+      /* ignore */
+    }
+    setOptRunning(false);
+  }
+
+  // ── Cost helpers ─────────────────────────────────────────────────────────
+
+  async function runCostEstimate() {
+    if (costCircuitIdx === null) return;
+    setCostRunning(true);
+    setCostEstimates([]);
+    try {
+      const result = await invoke<CostEstimate[]>("quantum_estimate_cost", {
+        index: costCircuitIdx,
+        shots: costShots,
+      });
+      setCostEstimates(result);
+    } catch {
+      /* ignore */
+    }
+    setCostRunning(false);
+  }
+
+  // ── Template helpers ─────────────────────────────────────────────────────
+
+  async function loadTemplate(name: string) {
+    setTplLoading(name);
+    const needsSecret = name.toLowerCase().includes("bernstein-vazirani") || name.toLowerCase().includes("bv");
+    const needsLayers = name.toLowerCase().includes("vqe");
+    const needsGammaBeta = name.toLowerCase().includes("qaoa");
+    const params: Record<string, string | number> = { qubits: tplQubits };
+    if (needsSecret) params.secret = tplSecret;
+    if (needsLayers) params.layers = tplLayers;
+    if (needsGammaBeta) {
+      params.gamma = tplGamma;
+      params.beta = tplBeta;
+    }
+    try {
+      const detail = await invoke<CircuitDetail>("quantum_get_algorithm_template", {
+        name,
+        params,
+      });
+      setCircuitDetail(detail);
+      setSelectedCircuitIdx(detail.index);
+      const circs = await invoke<QuantumCircuit[]>("quantum_get_circuits");
+      setCircuits(circs);
+      setTab("circuitBuilder");
+    } catch {
+      /* ignore */
+    }
+    setTplLoading(null);
+  }
+
+  // ── Scaffold helpers ─────────────────────────────────────────────────────
+
+  async function runScaffold() {
+    if (!scafName.trim()) return;
+    setScafRunning(true);
+    setScafFiles([]);
+    try {
+      const files = await invoke<ScaffoldFile[]>("quantum_scaffold_project", {
+        language: scafLang,
+        name: scafName,
+        numQubits: scafQubits,
+      });
+      setScafFiles(files);
+    } catch {
+      /* ignore */
+    }
+    setScafRunning(false);
+  }
+
+  function toggleScafExpand(path: string) {
+    setScafExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(path)) next.delete(path);
+      else next.add(path);
+      return next;
+    });
+  }
+
+  // ── Circuit SVG Renderer ─────────────────────────────────────────────────
+
+  function renderCircuitSvg() {
+    if (!circuitDetail) return null;
+    const { numQubits, gates } = circuitDetail;
+    const numCols = Math.max(gates.length + 1, 4);
+    const svgW = 80 + numCols * COL_WIDTH;
+    const svgH = WIRE_Y0 + numQubits * WIRE_SPACING + 20;
+
+    function gateQubit(g: GateInstance): number {
+      if (g.target !== undefined) return g.target;
+      if (g.qubit !== undefined) return g.qubit;
+      if (g.targets && g.targets.length > 0) return g.targets[0];
+      return 0;
+    }
+
+    return (
+      <svg
+        width="100%"
+        height={svgH}
+        viewBox={`0 0 ${svgW} ${svgH}`}
+        style={{ background: "var(--bg-tertiary)", borderRadius: 8, border: "1px solid var(--border-color)", cursor: selectedGate ? "crosshair" : "default" }}
+      >
+        {/* Qubit labels */}
+        {Array.from({ length: numQubits }, (_, q) => (
+          <text
+            key={`ql-${q}`}
+            x={12}
+            y={WIRE_Y0 + q * WIRE_SPACING + 5}
+            fill="var(--text-secondary)"
+            fontSize={12}
+            fontFamily="monospace"
+          >
+            |q{q}&#x27E9;
+          </text>
+        ))}
+
+        {/* Wire lines */}
+        {Array.from({ length: numQubits }, (_, q) => (
+          <line
+            key={`wl-${q}`}
+            x1={60}
+            y1={WIRE_Y0 + q * WIRE_SPACING}
+            x2={svgW - 10}
+            y2={WIRE_Y0 + q * WIRE_SPACING}
+            stroke="var(--text-tertiary)"
+            strokeWidth={1}
+            opacity={0.5}
+          />
+        ))}
+
+        {/* Clickable wire zones */}
+        {selectedGate &&
+          Array.from({ length: numQubits }, (_, q) => (
+            <rect
+              key={`cz-${q}`}
+              x={60 + gates.length * COL_WIDTH}
+              y={WIRE_Y0 + q * WIRE_SPACING - WIRE_SPACING / 2}
+              width={COL_WIDTH}
+              height={WIRE_SPACING}
+              fill="transparent"
+              style={{ cursor: "crosshair" }}
+              onClick={() => handleSvgClick(q)}
+            />
+          ))}
+
+        {/* Gate rendering */}
+        {gates.map((g, gi) => {
+          const col = gi;
+          const cx = 80 + col * COL_WIDTH;
+          const color = GATE_COLORS[g.type] || "#666";
+
+          // CNOT / CZ
+          if ((g.type === "CNOT" || g.type === "CZ") && g.control !== undefined && g.target !== undefined) {
+            const cy1 = WIRE_Y0 + g.control * WIRE_SPACING;
+            const cy2 = WIRE_Y0 + g.target * WIRE_SPACING;
+            return (
+              <g key={`g-${gi}`} style={{ cursor: "pointer" }} onClick={() => removeGate(gi)}>
+                <title>Click to remove {g.type}</title>
+                <line x1={cx} y1={cy1} x2={cx} y2={cy2} stroke={color} strokeWidth={2} />
+                <circle cx={cx} cy={cy1} r={5} fill={color} />
+                {g.type === "CNOT" ? (
+                  <>
+                    <circle cx={cx} cy={cy2} r={10} fill="none" stroke={color} strokeWidth={2} />
+                    <line x1={cx - 7} y1={cy2} x2={cx + 7} y2={cy2} stroke={color} strokeWidth={2} />
+                    <line x1={cx} y1={cy2 - 7} x2={cx} y2={cy2 + 7} stroke={color} strokeWidth={2} />
+                  </>
+                ) : (
+                  <circle cx={cx} cy={cy2} r={5} fill={color} />
+                )}
+              </g>
+            );
+          }
+
+          // SWAP
+          if (g.type === "SWAP" && g.targets && g.targets.length === 2) {
+            const cy1 = WIRE_Y0 + g.targets[0] * WIRE_SPACING;
+            const cy2 = WIRE_Y0 + g.targets[1] * WIRE_SPACING;
+            return (
+              <g key={`g-${gi}`} style={{ cursor: "pointer" }} onClick={() => removeGate(gi)}>
+                <title>Click to remove SWAP</title>
+                <line x1={cx} y1={cy1} x2={cx} y2={cy2} stroke={color} strokeWidth={2} />
+                <text x={cx} y={cy1 + 5} textAnchor="middle" fill={color} fontSize={16} fontWeight="bold">&#xd7;</text>
+                <text x={cx} y={cy2 + 5} textAnchor="middle" fill={color} fontSize={16} fontWeight="bold">&#xd7;</text>
+              </g>
+            );
+          }
+
+          // Toffoli
+          if (g.type === "Toffoli" && g.controls && g.target !== undefined) {
+            const tgtY = WIRE_Y0 + g.target * WIRE_SPACING;
+            const allQubits = [...g.controls, g.target];
+            const minY = Math.min(...allQubits.map((q) => WIRE_Y0 + q * WIRE_SPACING));
+            const maxY = Math.max(...allQubits.map((q) => WIRE_Y0 + q * WIRE_SPACING));
+            return (
+              <g key={`g-${gi}`} style={{ cursor: "pointer" }} onClick={() => removeGate(gi)}>
+                <title>Click to remove Toffoli</title>
+                <line x1={cx} y1={minY} x2={cx} y2={maxY} stroke={color} strokeWidth={2} />
+                {g.controls.map((c, ci) => (
+                  <circle key={ci} cx={cx} cy={WIRE_Y0 + c * WIRE_SPACING} r={5} fill={color} />
+                ))}
+                <circle cx={cx} cy={tgtY} r={10} fill="none" stroke={color} strokeWidth={2} />
+                <line x1={cx - 7} y1={tgtY} x2={cx + 7} y2={tgtY} stroke={color} strokeWidth={2} />
+                <line x1={cx} y1={tgtY - 7} x2={cx} y2={tgtY + 7} stroke={color} strokeWidth={2} />
+              </g>
+            );
+          }
+
+          // Measure
+          if (g.type === "Measure") {
+            const qb = gateQubit(g);
+            const cy = WIRE_Y0 + qb * WIRE_SPACING;
+            const half = GATE_SIZE / 2;
+            return (
+              <g key={`g-${gi}`} style={{ cursor: "pointer" }} onClick={() => removeGate(gi)}>
+                <title>Click to remove Measure</title>
+                <rect x={cx - half} y={cy - half} width={GATE_SIZE} height={GATE_SIZE} rx={4} fill={color} />
+                <text x={cx} y={cy + 5} textAnchor="middle" fill="#fff" fontSize={14} fontWeight="bold">
+                  M
+                </text>
+              </g>
+            );
+          }
+
+          // Single qubit / rotation gates
+          const qb = gateQubit(g);
+          const cy = WIRE_Y0 + qb * WIRE_SPACING;
+          const half = GATE_SIZE / 2;
+          return (
+            <g key={`g-${gi}`} style={{ cursor: "pointer" }} onClick={() => removeGate(gi)}>
+              <title>Click to remove {g.type}{g.angle !== undefined ? ` (${g.angle.toFixed(2)})` : ""}</title>
+              <rect x={cx - half} y={cy - half} width={GATE_SIZE} height={GATE_SIZE} rx={4} fill={color} />
+              <text x={cx} y={cy + 5} textAnchor="middle" fill="#fff" fontSize={11} fontWeight="bold">
+                {g.type}
+              </text>
+              {g.angle !== undefined && (
+                <text x={cx} y={cy + half + 12} textAnchor="middle" fill="var(--text-tertiary)" fontSize={9}>
+                  {g.angle.toFixed(2)}
+                </text>
+              )}
+            </g>
+          );
+        })}
+
+        {/* Placement hint column */}
+        {selectedGate && (
+          <rect
+            x={80 + (circuitDetail.gates.length) * COL_WIDTH - COL_WIDTH / 2}
+            y={WIRE_Y0 - WIRE_SPACING / 2}
+            width={COL_WIDTH}
+            height={numQubits * WIRE_SPACING}
+            fill="var(--accent-primary)"
+            opacity={0.06}
+            rx={4}
+          />
+        )}
+      </svg>
+    );
+  }
+
+  // ── Bloch Sphere Renderer ────────────────────────────────────────────────
+
+  function renderBlochSphere(amplitudes: [string, number, number][]) {
+    if (amplitudes.length !== 2) return null;
+    const [, re0, im0] = amplitudes[0];
+    const [, re1, im1] = amplitudes[1];
+    const { theta, phi } = amplitudesToBloch(re0, im0, re1, im1);
+
+    const R = 80;
+    const svgCx = 100;
+    const svgCy = 100;
+
+    const sx = R * Math.sin(theta) * Math.cos(phi);
+    const sy = R * Math.sin(theta) * Math.sin(phi);
+    const sz = R * Math.cos(theta);
+    const px = svgCx + sx - sy * 0.3;
+    const py = svgCy - sz + sy * 0.3;
+
+    return (
+      <div style={{ ...cardStyle, marginTop: 12 }}>
+        <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Bloch Sphere</div>
+        <svg width={200} height={200} viewBox="0 0 200 200">
+          {/* Main circle */}
+          <circle cx={svgCx} cy={svgCy} r={R} fill="none" stroke="var(--text-tertiary)" strokeWidth={1} opacity={0.5} />
+          {/* Equator ellipse (dashed) */}
+          <ellipse cx={svgCx} cy={svgCy} rx={R} ry={R * 0.3} fill="none" stroke="var(--text-tertiary)" strokeWidth={1} strokeDasharray="4 3" opacity={0.4} />
+          {/* Vertical axis */}
+          <line x1={svgCx} y1={svgCy - R - 5} x2={svgCx} y2={svgCy + R + 5} stroke="var(--text-tertiary)" strokeWidth={0.5} opacity={0.3} />
+          {/* Horizontal axis */}
+          <line x1={svgCx - R - 5} y1={svgCy} x2={svgCx + R + 5} y2={svgCy} stroke="var(--text-tertiary)" strokeWidth={0.5} opacity={0.3} />
+
+          {/* Axis labels */}
+          <text x={svgCx} y={svgCy - R - 10} textAnchor="middle" fill="var(--text-secondary)" fontSize={11}>|0&#x27E9;</text>
+          <text x={svgCx} y={svgCy + R + 16} textAnchor="middle" fill="var(--text-secondary)" fontSize={11}>|1&#x27E9;</text>
+          <text x={svgCx + R + 10} y={svgCy + 4} textAnchor="start" fill="var(--text-secondary)" fontSize={11}>|+&#x27E9;</text>
+          <text x={svgCx - R - 10} y={svgCy + 4} textAnchor="end" fill="var(--text-secondary)" fontSize={11}>|-&#x27E9;</text>
+
+          {/* State arrow */}
+          <line x1={svgCx} y1={svgCy} x2={px} y2={py} stroke="var(--accent-primary)" strokeWidth={2} />
+          <circle cx={px} cy={py} r={4} fill="var(--accent-primary)" />
+        </svg>
+        <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 4 }}>
+          theta = {theta.toFixed(3)} rad, phi = {phi.toFixed(3)} rad
+        </div>
+      </div>
+    );
+  }
+
+  // ── Probability Bar Chart ────────────────────────────────────────────────
+
+  function renderProbabilityChart(probs: [string, number][]) {
+    const nonZero = probs.filter(([, p]) => p > 0.001);
+    if (nonZero.length === 0) return <div style={{ color: "var(--text-secondary)", fontSize: 12 }}>No non-zero probabilities.</div>;
+    const maxP = Math.max(...nonZero.map(([, p]) => p));
+
+    return (
+      <div style={{ ...cardStyle, marginTop: 12 }}>
+        <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Probability Distribution</div>
+        {nonZero.map(([label, prob]) => (
+          <div key={label} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+            <span style={{ fontSize: 11, fontFamily: "monospace", width: 60, textAlign: "right", color: "var(--text-secondary)" }}>
+              |{label}&#x27E9;
+            </span>
+            <div style={{ flex: 1, height: 16, background: "var(--bg-tertiary)", borderRadius: 3, overflow: "hidden" }}>
+              <div
+                style={{
+                  width: `${(prob / maxP) * 100}%`,
+                  height: "100%",
+                  background: "var(--accent-primary)",
+                  borderRadius: 3,
+                  minWidth: 2,
+                }}
+              />
+            </div>
+            <span style={{ fontSize: 11, fontFamily: "monospace", width: 55, color: "var(--text-primary)" }}>
+              {(prob * 100).toFixed(1)}%
+            </span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // ── Sample Histogram ─────────────────────────────────────────────────────
+
+  function renderSampleHistogram(samples: Record<string, number>) {
+    const entries = Object.entries(samples).sort((a, b) => b[1] - a[1]).slice(0, 16);
+    if (entries.length === 0) return null;
+    const maxCount = Math.max(...entries.map(([, c]) => c));
+
+    return (
+      <div style={{ ...cardStyle, marginTop: 12 }}>
+        <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Sample Histogram (top {entries.length})</div>
+        {entries.map(([label, count]) => (
+          <div key={label} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
+            <span style={{ fontSize: 11, fontFamily: "monospace", width: 60, textAlign: "right", color: "var(--text-secondary)" }}>
+              {label}
+            </span>
+            <div style={{ flex: 1, height: 14, background: "var(--bg-tertiary)", borderRadius: 3, overflow: "hidden" }}>
+              <div
+                style={{
+                  width: `${(count / maxCount) * 100}%`,
+                  height: "100%",
+                  background: "#27ae60",
+                  borderRadius: 3,
+                  minWidth: 2,
+                }}
+              />
+            </div>
+            <span style={{ fontSize: 11, fontFamily: "monospace", width: 45, color: "var(--text-primary)" }}>
+              {count}
+            </span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // ── Topology SVG Renderer ────────────────────────────────────────────────
+
+  function renderTopologySvg(topo: HardwareTopology) {
+    const { qubits, couplings } = topo;
+    if (qubits.length === 0) return null;
+
+    const degreeMap: Record<number, number> = {};
+    couplings.forEach(([a, b]) => {
+      degreeMap[a] = (degreeMap[a] || 0) + 1;
+      degreeMap[b] = (degreeMap[b] || 0) + 1;
+    });
+    const maxDeg = Math.max(1, ...Object.values(degreeMap));
+
+    const xs = qubits.map((q) => q.x);
+    const ys = qubits.map((q) => q.y);
+    const minX = Math.min(...xs) - 20;
+    const minY = Math.min(...ys) - 20;
+    const maxX = Math.max(...xs) + 20;
+    const maxY = Math.max(...ys) + 20;
+    const vw = maxX - minX;
+    const vh = maxY - minY;
+
+    const qMap: Record<number, { x: number; y: number }> = {};
+    qubits.forEach((q) => {
+      qMap[q.id] = q;
+    });
+
+    function degreeColor(deg: number): string {
+      const t = deg / maxDeg;
+      const r = Math.round(60 + t * 140);
+      const g = Math.round(140 - t * 60);
+      const b = Math.round(220 - t * 100);
+      return `rgb(${r},${g},${b})`;
+    }
+
+    return (
+      <svg
+        width="100%"
+        height={Math.min(vh + 40, 500)}
+        viewBox={`${minX} ${minY} ${vw} ${vh}`}
+        style={{ background: "var(--bg-tertiary)", borderRadius: 8, border: "1px solid var(--border-color)" }}
+      >
+        {/* Coupling edges */}
+        {couplings.map(([a, b], i) => {
+          const qa = qMap[a];
+          const qb = qMap[b];
+          if (!qa || !qb) return null;
+          return (
+            <line
+              key={`e-${i}`}
+              x1={qa.x}
+              y1={qa.y}
+              x2={qb.x}
+              y2={qb.y}
+              stroke="var(--text-tertiary)"
+              strokeWidth={0.8}
+              opacity={0.3}
+            />
+          );
+        })}
+        {/* Qubit nodes */}
+        {qubits.map((q) => (
+          <circle
+            key={`n-${q.id}`}
+            cx={q.x}
+            cy={q.y}
+            r={6}
+            fill={degreeColor(degreeMap[q.id] || 0)}
+            stroke="var(--bg-primary)"
+            strokeWidth={1}
+          >
+            <title>q{q.id} (degree: {degreeMap[q.id] || 0})</title>
+          </circle>
+        ))}
+      </svg>
+    );
+  }
+
+  // ── Circuit Select Dropdown ──────────────────────────────────────────────
+
+  function CircuitSelect({
+    value,
+    onChange,
+    label,
+  }: {
+    value: number | null;
+    onChange: (v: number | null) => void;
+    label?: string;
+  }) {
+    return (
+      <label style={{ fontSize: 12 }}>
+        {label || "Circuit"}
+        <br />
+        <select
+          value={value ?? ""}
+          onChange={(e) => onChange(e.target.value ? Number(e.target.value) : null)}
+          style={{ ...inputStyle, minWidth: 160 }}
+        >
+          <option value="">-- Select circuit --</option>
+          {circuits.map((c) => (
+            <option key={c.index} value={c.index}>
+              {c.name} ({c.numQubits}q, {c.gateCount}g)
+            </option>
+          ))}
+        </select>
+      </label>
+    );
+  }
+
+  // ── Render ──────────────────────────────────────────────────────────────
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", color: "var(--text-primary)", background: "var(--bg-primary)" }}>
       {/* Tab bar */}
       <div style={{ display: "flex", gap: 2, padding: "8px 12px", borderBottom: "1px solid var(--border-color)", flexWrap: "wrap" }}>
-        {TABS.map(t => (
+        {TABS.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
             style={{
-              padding: "6px 14px", borderRadius: 6, border: "none", cursor: "pointer",
+              padding: "6px 14px",
+              borderRadius: 6,
+              border: "none",
+              cursor: "pointer",
               background: tab === t.id ? "var(--accent-primary)" : "var(--bg-secondary)",
               color: tab === t.id ? "#fff" : "var(--text-secondary)",
-              fontWeight: tab === t.id ? 600 : 400, fontSize: 13,
+              fontWeight: tab === t.id ? 600 : 400,
+              fontSize: 13,
+              borderBottom: tab === t.id ? "2px solid var(--accent-primary)" : "2px solid transparent",
             }}
           >
             {t.label}
@@ -183,17 +1171,626 @@ export function QuantumComputingPanel() {
       </div>
 
       <div style={{ flex: 1, overflow: "auto", padding: 16 }}>
-        {/* ── Languages Tab ─────────────────────────────────────────── */}
+        {/* ── Circuit Builder Tab ─────────────────────────────────────── */}
+        {tab === "circuitBuilder" && (
+          <div>
+            <h3 style={{ margin: "0 0 12px", color: "var(--text-primary)" }}>Circuit Builder</h3>
+
+            {/* Circuit selector + create */}
+            <div style={{ display: "flex", gap: 12, alignItems: "flex-end", marginBottom: 12, flexWrap: "wrap" }}>
+              <label style={{ fontSize: 12 }}>
+                Circuit
+                <br />
+                <select
+                  value={selectedCircuitIdx ?? ""}
+                  onChange={(e) => {
+                    const v = e.target.value ? Number(e.target.value) : null;
+                    if (v !== null) loadCircuitDetail(v);
+                    else {
+                      setSelectedCircuitIdx(null);
+                      setCircuitDetail(null);
+                    }
+                  }}
+                  style={{ ...inputStyle, minWidth: 180 }}
+                >
+                  <option value="">-- Select circuit --</option>
+                  {circuits.map((c) => (
+                    <option key={c.index} value={c.index}>
+                      {c.name} ({c.numQubits}q)
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>or</div>
+              <label style={{ fontSize: 12 }}>
+                Name
+                <br />
+                <input value={cbNewName} onChange={(e) => setCbNewName(e.target.value)} style={{ ...inputStyle, width: 120 }} />
+              </label>
+              <label style={{ fontSize: 12 }}>
+                Qubits
+                <br />
+                <input type="number" value={cbNewQubits} onChange={(e) => setCbNewQubits(+e.target.value)} min={1} max={20} style={{ ...inputStyle, width: 50 }} />
+              </label>
+              <label style={{ fontSize: 12 }}>
+                Classical
+                <br />
+                <input type="number" value={cbNewClassical} onChange={(e) => setCbNewClassical(+e.target.value)} min={0} max={20} style={{ ...inputStyle, width: 50 }} />
+              </label>
+              <button onClick={createNewCircuit} style={btnPrimary}>
+                New Circuit
+              </button>
+              {selectedCircuitIdx !== null && (
+                <>
+                  <button onClick={() => exportCircuit(selectedCircuitIdx, "qasm3")} style={btnSmall}>Export QASM3</button>
+                  <button onClick={() => exportCircuit(selectedCircuitIdx, "qiskit")} style={btnSmall}>Export Qiskit</button>
+                  <button onClick={() => exportCircuit(selectedCircuitIdx, "cirq")} style={btnSmall}>Export Cirq</button>
+                  <button onClick={() => deleteCircuit(selectedCircuitIdx)} style={{ ...btnSmall, color: "#e74c3c" }}>Delete</button>
+                </>
+              )}
+            </div>
+
+            {circuitDetail && (
+              <div style={{ display: "flex", gap: 12 }}>
+                {/* Gate palette */}
+                <div style={{ width: 100, flexShrink: 0 }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>SINGLE</div>
+                  {SINGLE_QUBIT_GATES.map((g) => (
+                    <button
+                      key={g}
+                      onClick={() => {
+                        setSelectedGate(selectedGate === g ? null : g);
+                        setPlacingControl(null);
+                        setPlacingControls([]);
+                      }}
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        marginBottom: 3,
+                        padding: "4px 8px",
+                        borderRadius: 4,
+                        border: selectedGate === g ? "2px solid var(--accent-primary)" : "1px solid var(--border-color)",
+                        background: selectedGate === g ? "var(--accent-primary-10)" : "var(--bg-secondary)",
+                        color: GATE_COLORS[g] || "var(--text-primary)",
+                        cursor: "pointer",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        textAlign: "left",
+                      }}
+                    >
+                      {g}
+                    </button>
+                  ))}
+                  <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", marginTop: 8, marginBottom: 6 }}>ROTATION</div>
+                  {ROTATION_GATES.map((g) => (
+                    <button
+                      key={g}
+                      onClick={() => {
+                        setSelectedGate(selectedGate === g ? null : g);
+                        setPlacingControl(null);
+                        setPlacingControls([]);
+                      }}
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        marginBottom: 3,
+                        padding: "4px 8px",
+                        borderRadius: 4,
+                        border: selectedGate === g ? "2px solid var(--accent-primary)" : "1px solid var(--border-color)",
+                        background: selectedGate === g ? "var(--accent-primary-10)" : "var(--bg-secondary)",
+                        color: GATE_COLORS[g] || "var(--text-primary)",
+                        cursor: "pointer",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        textAlign: "left",
+                      }}
+                    >
+                      {g}
+                    </button>
+                  ))}
+                  <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", marginTop: 8, marginBottom: 6 }}>MULTI-QUBIT</div>
+                  {MULTI_QUBIT_GATES.map((g) => (
+                    <button
+                      key={g}
+                      onClick={() => {
+                        setSelectedGate(selectedGate === g ? null : g);
+                        setPlacingControl(null);
+                        setPlacingControls([]);
+                      }}
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        marginBottom: 3,
+                        padding: "4px 8px",
+                        borderRadius: 4,
+                        border: selectedGate === g ? "2px solid var(--accent-primary)" : "1px solid var(--border-color)",
+                        background: selectedGate === g ? "var(--accent-primary-10)" : "var(--bg-secondary)",
+                        color: GATE_COLORS[g] || "var(--text-primary)",
+                        cursor: "pointer",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        textAlign: "left",
+                      }}
+                    >
+                      {g}
+                    </button>
+                  ))}
+                  <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", marginTop: 8, marginBottom: 6 }}>MEASURE</div>
+                  {MEASUREMENT_GATES.map((g) => (
+                    <button
+                      key={g}
+                      onClick={() => {
+                        setSelectedGate(selectedGate === g ? null : g);
+                        setPlacingControl(null);
+                        setPlacingControls([]);
+                      }}
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        marginBottom: 3,
+                        padding: "4px 8px",
+                        borderRadius: 4,
+                        border: selectedGate === g ? "2px solid var(--accent-primary)" : "1px solid var(--border-color)",
+                        background: selectedGate === g ? "var(--accent-primary-10)" : "var(--bg-secondary)",
+                        color: GATE_COLORS[g] || "var(--text-primary)",
+                        cursor: "pointer",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        textAlign: "left",
+                      }}
+                    >
+                      {g}
+                    </button>
+                  ))}
+                </div>
+
+                {/* SVG canvas */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  {/* Placement hint */}
+                  {selectedGate && (
+                    <div
+                      style={{
+                        padding: "4px 10px",
+                        marginBottom: 6,
+                        borderRadius: 4,
+                        background: "var(--accent-primary-10)",
+                        border: "1px solid var(--accent-primary)",
+                        fontSize: 12,
+                        color: "var(--text-primary)",
+                      }}
+                    >
+                      {placingControl !== null
+                        ? `Select target qubit for ${selectedGate} (control: q${placingControl})...`
+                        : placingControls.length > 0
+                          ? `Select ${placingControls.length < 2 ? "second control" : "target"} qubit for Toffoli (controls: ${placingControls.map((c) => `q${c}`).join(", ")})...`
+                          : `Click a qubit wire to place ${selectedGate}`}
+                    </div>
+                  )}
+
+                  <div style={{ overflowX: "auto" }}>{renderCircuitSvg()}</div>
+
+                  {/* Metrics bar */}
+                  <div
+                    style={{
+                      marginTop: 8,
+                      padding: "6px 12px",
+                      borderRadius: 6,
+                      background: "var(--bg-secondary)",
+                      border: "1px solid var(--border-color)",
+                      fontSize: 12,
+                      color: "var(--text-secondary)",
+                      display: "flex",
+                      gap: 16,
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <span>Gates: <strong style={{ color: "var(--text-primary)" }}>{circuitDetail.gateCount}</strong></span>
+                    <span>Depth: <strong style={{ color: "var(--text-primary)" }}>{circuitDetail.depth}</strong></span>
+                    <span>2Q: <strong style={{ color: "var(--text-primary)" }}>{circuitDetail.twoQubitGates}</strong></span>
+                    <span>Volume: <strong style={{ color: "var(--text-primary)" }}>{circuitDetail.depth * circuitDetail.numQubits}</strong></span>
+                    <span>Qubits: <strong style={{ color: "var(--text-primary)" }}>{circuitDetail.numQubits}</strong></span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {!circuitDetail && (
+              <div style={{ color: "var(--text-secondary)", fontSize: 13, marginTop: 20 }}>
+                Select an existing circuit or create a new one to start building.
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Simulator Tab ───────────────────────────────────────────── */}
+        {tab === "simulator" && (
+          <div>
+            <h3 style={{ margin: "0 0 12px", color: "var(--text-primary)" }}>Quantum Circuit Simulator</h3>
+            <div style={{ display: "flex", gap: 12, alignItems: "flex-end", marginBottom: 16, flexWrap: "wrap" }}>
+              <CircuitSelect value={simCircuitIdx} onChange={setSimCircuitIdx} />
+              <label style={{ fontSize: 12 }}>
+                Shots
+                <br />
+                <input
+                  type="number"
+                  value={simShots}
+                  onChange={(e) => setSimShots(+e.target.value)}
+                  min={1}
+                  max={100000}
+                  style={{ ...inputStyle, width: 80 }}
+                />
+              </label>
+              <button onClick={runSimulation} disabled={simCircuitIdx === null || simRunning} style={{ ...btnPrimary, opacity: simCircuitIdx === null || simRunning ? 0.5 : 1 }}>
+                {simRunning ? "Simulating..." : "Simulate"}
+              </button>
+            </div>
+
+            {simResult && (
+              <div>
+                <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8 }}>
+                  {simResult.num_qubits} qubit(s) | {simResult.probabilities.length} basis states | {Object.values(simResult.samples).reduce((a, b) => a + b, 0)} samples
+                </div>
+
+                {renderProbabilityChart(simResult.probabilities)}
+
+                {simResult.num_qubits === 1 && simResult.amplitudes.length === 2 && renderBlochSphere(simResult.amplitudes)}
+
+                {renderSampleHistogram(simResult.samples)}
+
+                {/* Amplitudes table */}
+                <div style={{ ...cardStyle, marginTop: 12 }}>
+                  <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>State Amplitudes</div>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+                    <thead>
+                      <tr style={{ borderBottom: "2px solid var(--border-color)" }}>
+                        <th style={{ textAlign: "left", padding: 4 }}>State</th>
+                        <th style={{ textAlign: "right", padding: 4 }}>Real</th>
+                        <th style={{ textAlign: "right", padding: 4 }}>Imag</th>
+                        <th style={{ textAlign: "right", padding: 4 }}>Prob</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {simResult.amplitudes.map(([label, re, im]) => {
+                        const prob = re * re + im * im;
+                        return (
+                          <tr key={label} style={{ borderBottom: "1px solid var(--border-color)" }}>
+                            <td style={{ padding: 4, fontFamily: "monospace" }}>|{label}&#x27E9;</td>
+                            <td style={{ padding: 4, textAlign: "right", fontFamily: "monospace" }}>{re.toFixed(4)}</td>
+                            <td style={{ padding: 4, textAlign: "right", fontFamily: "monospace" }}>{im.toFixed(4)}</td>
+                            <td style={{ padding: 4, textAlign: "right", fontFamily: "monospace" }}>{(prob * 100).toFixed(2)}%</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Optimizer Tab ───────────────────────────────────────────── */}
+        {tab === "optimizer" && (
+          <div>
+            <h3 style={{ margin: "0 0 12px", color: "var(--text-primary)" }}>Circuit Optimizer</h3>
+            <div style={{ display: "flex", gap: 12, alignItems: "flex-end", marginBottom: 16, flexWrap: "wrap" }}>
+              <CircuitSelect value={optCircuitIdx} onChange={setOptCircuitIdx} />
+              <button onClick={runOptimizer} disabled={optCircuitIdx === null || optRunning} style={{ ...btnPrimary, opacity: optCircuitIdx === null || optRunning ? 0.5 : 1 }}>
+                {optRunning ? "Optimizing..." : "Optimize"}
+              </button>
+            </div>
+
+            {optResult && (
+              <div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+                  {/* Original card */}
+                  <div style={cardStyle}>
+                    <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8, color: "var(--text-secondary)" }}>Original</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      <div style={{ fontSize: 12 }}>
+                        Gates: <strong>{optResult.original_gate_count}</strong>
+                      </div>
+                      <div style={{ fontSize: 12 }}>
+                        Depth: <strong>{optResult.original_depth}</strong>
+                      </div>
+                    </div>
+                  </div>
+                  {/* Optimized card */}
+                  <div style={{ ...cardStyle, borderColor: "var(--accent-primary)" }}>
+                    <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8, color: "var(--accent-primary)" }}>
+                      Optimized ({optResult.savings_percent.toFixed(1)}% savings)
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      <div style={{ fontSize: 12 }}>
+                        Gates: <strong>{optResult.optimized_gate_count}</strong>
+                      </div>
+                      <div style={{ fontSize: 12 }}>
+                        Depth: <strong>{optResult.optimized_depth}</strong>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Rules applied */}
+                {optResult.rules_applied.length > 0 && (
+                  <div style={cardStyle}>
+                    <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Optimization Rules Applied</div>
+                    <ul style={{ margin: 0, paddingLeft: 20, fontSize: 12, color: "var(--text-secondary)" }}>
+                      {optResult.rules_applied.map((r, i) => (
+                        <li key={i} style={{ marginBottom: 3 }}>
+                          {r}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Cost Tab ────────────────────────────────────────────────── */}
+        {tab === "cost" && (
+          <div>
+            <h3 style={{ margin: "0 0 12px", color: "var(--text-primary)" }}>Provider Cost Estimation</h3>
+            <div style={{ display: "flex", gap: 12, alignItems: "flex-end", marginBottom: 16, flexWrap: "wrap" }}>
+              <CircuitSelect value={costCircuitIdx} onChange={setCostCircuitIdx} />
+              <label style={{ fontSize: 12 }}>
+                Shots
+                <br />
+                <input
+                  type="number"
+                  value={costShots}
+                  onChange={(e) => setCostShots(+e.target.value)}
+                  min={1}
+                  max={1000000}
+                  style={{ ...inputStyle, width: 80 }}
+                />
+              </label>
+              <button onClick={runCostEstimate} disabled={costCircuitIdx === null || costRunning} style={{ ...btnPrimary, opacity: costCircuitIdx === null || costRunning ? 0.5 : 1 }}>
+                {costRunning ? "Estimating..." : "Estimate Cost"}
+              </button>
+            </div>
+
+            {costEstimates.length > 0 && (
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                <thead>
+                  <tr style={{ borderBottom: "2px solid var(--border-color)" }}>
+                    <th style={{ textAlign: "left", padding: 6 }}>Provider</th>
+                    <th style={{ textAlign: "right", padding: 6 }}>Estimated Cost ($)</th>
+                    <th style={{ textAlign: "left", padding: 6 }}>Breakdown</th>
+                    <th style={{ textAlign: "left", padding: 6 }}>Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {costEstimates.map((est) => (
+                    <tr key={est.provider} style={{ borderBottom: "1px solid var(--border-color)" }}>
+                      <td style={{ padding: 6, fontWeight: 500 }}>{est.provider}</td>
+                      <td style={{ padding: 6, textAlign: "right", fontFamily: "monospace" }}>
+                        ${est.estimated_cost_usd.toFixed(4)}
+                      </td>
+                      <td style={{ padding: 6 }}>
+                        {est.breakdown.map(([item, cost], i) => (
+                          <div key={i} style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+                            {item}: ${cost.toFixed(4)}
+                          </div>
+                        ))}
+                      </td>
+                      <td style={{ padding: 6, fontSize: 11, color: "var(--text-secondary)" }}>
+                        {est.notes.join("; ")}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
+
+        {/* ── Templates Tab ───────────────────────────────────────────── */}
+        {tab === "templates" && (
+          <div>
+            <h3 style={{ margin: "0 0 12px", color: "var(--text-primary)" }}>Algorithm Templates</h3>
+
+            {/* Parameters section */}
+            <div style={{ ...cardStyle, marginBottom: 16 }}>
+              <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Template Parameters</div>
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end" }}>
+                <label style={{ fontSize: 12 }}>
+                  Qubits
+                  <br />
+                  <input type="number" value={tplQubits} onChange={(e) => setTplQubits(+e.target.value)} min={1} max={20} style={{ ...inputStyle, width: 60 }} />
+                </label>
+                <label style={{ fontSize: 12 }}>
+                  Secret (BV)
+                  <br />
+                  <input value={tplSecret} onChange={(e) => setTplSecret(e.target.value)} style={{ ...inputStyle, width: 80 }} placeholder="101" />
+                </label>
+                <label style={{ fontSize: 12 }}>
+                  Layers (VQE)
+                  <br />
+                  <input type="number" value={tplLayers} onChange={(e) => setTplLayers(+e.target.value)} min={1} max={10} style={{ ...inputStyle, width: 60 }} />
+                </label>
+                <label style={{ fontSize: 12 }}>
+                  Gamma (QAOA)
+                  <br />
+                  <input type="number" value={tplGamma} onChange={(e) => setTplGamma(+e.target.value)} step={0.1} style={{ ...inputStyle, width: 60 }} />
+                </label>
+                <label style={{ fontSize: 12 }}>
+                  Beta (QAOA)
+                  <br />
+                  <input type="number" value={tplBeta} onChange={(e) => setTplBeta(+e.target.value)} step={0.1} style={{ ...inputStyle, width: 60 }} />
+                </label>
+              </div>
+            </div>
+
+            {/* Template cards */}
+            {templateList.length === 0 ? (
+              <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>Loading templates...</div>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
+                {templateList.map((tpl) => (
+                  <div key={tpl.name} style={cardStyle}>
+                    <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>{tpl.name}</div>
+                    <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8 }}>{tpl.description}</div>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button
+                        onClick={() => loadTemplate(tpl.name)}
+                        disabled={tplLoading === tpl.name}
+                        style={{ ...btnPrimary, fontSize: 11, padding: "4px 10px", opacity: tplLoading === tpl.name ? 0.5 : 1 }}
+                      >
+                        {tplLoading === tpl.name ? "Loading..." : "Load Template"}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Scaffold Tab ────────────────────────────────────────────── */}
+        {tab === "scaffold" && (
+          <div>
+            <h3 style={{ margin: "0 0 12px", color: "var(--text-primary)" }}>Project Scaffolding</h3>
+            <div style={{ display: "flex", gap: 12, alignItems: "flex-end", marginBottom: 16, flexWrap: "wrap" }}>
+              <label style={{ fontSize: 12 }}>
+                Project Name
+                <br />
+                <input value={scafName} onChange={(e) => setScafName(e.target.value)} style={{ ...inputStyle, width: 180 }} />
+              </label>
+              <label style={{ fontSize: 12 }}>
+                Language
+                <br />
+                <select value={scafLang} onChange={(e) => setScafLang(e.target.value)} style={{ ...inputStyle, minWidth: 120 }}>
+                  <option value="Qiskit">Qiskit</option>
+                  <option value="Cirq">Cirq</option>
+                  <option value="PennyLane">PennyLane</option>
+                  <option value="Q#">Q#</option>
+                </select>
+              </label>
+              <label style={{ fontSize: 12 }}>
+                Qubits
+                <br />
+                <input type="number" value={scafQubits} onChange={(e) => setScafQubits(+e.target.value)} min={1} max={100} style={{ ...inputStyle, width: 60 }} />
+              </label>
+              <button onClick={runScaffold} disabled={scafRunning || !scafName.trim()} style={{ ...btnPrimary, opacity: scafRunning || !scafName.trim() ? 0.5 : 1 }}>
+                {scafRunning ? "Generating..." : "Generate"}
+              </button>
+            </div>
+
+            {scafFiles.length > 0 && (
+              <div>
+                <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8 }}>
+                  Generated {scafFiles.length} file(s)
+                </div>
+                {scafFiles.map((f) => (
+                  <div key={f.path} style={{ ...cardStyle, marginBottom: 8 }}>
+                    <div
+                      style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}
+                      onClick={() => toggleScafExpand(f.path)}
+                    >
+                      <div style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 600, color: "var(--accent-primary)" }}>
+                        {scafExpanded.has(f.path) ? "v " : "> "}
+                        {f.path}
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigator.clipboard.writeText(f.content);
+                        }}
+                        style={btnSmall}
+                      >
+                        Copy
+                      </button>
+                    </div>
+                    {scafExpanded.has(f.path) && (
+                      <pre
+                        style={{
+                          marginTop: 8,
+                          padding: 10,
+                          background: "var(--bg-tertiary)",
+                          borderRadius: 6,
+                          fontSize: 11,
+                          overflow: "auto",
+                          maxHeight: 300,
+                          whiteSpace: "pre-wrap",
+                          color: "var(--text-primary)",
+                        }}
+                      >
+                        {f.content}
+                      </pre>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Topology Tab ────────────────────────────────────────────── */}
+        {tab === "topology" && (
+          <div>
+            <h3 style={{ margin: "0 0 12px", color: "var(--text-primary)" }}>Hardware Topology Viewer</h3>
+            <div style={{ display: "flex", gap: 12, alignItems: "flex-end", marginBottom: 16, flexWrap: "wrap" }}>
+              <label style={{ fontSize: 12 }}>
+                Backend
+                <br />
+                <select
+                  value={selectedTopology}
+                  onChange={(e) => setSelectedTopology(Number(e.target.value))}
+                  style={{ ...inputStyle, minWidth: 200 }}
+                >
+                  {TOPOLOGIES.map((t, i) => (
+                    <option key={i} value={i}>
+                      {t.name} ({t.vendor}, {t.qubitCount}q)
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            {(() => {
+              const topo = TOPOLOGIES[selectedTopology];
+              if (!topo) return null;
+              return (
+                <div>
+                  <div style={{ display: "flex", gap: 16, marginBottom: 12, fontSize: 12, color: "var(--text-secondary)" }}>
+                    <span>Vendor: <strong style={{ color: "var(--text-primary)" }}>{topo.vendor}</strong></span>
+                    <span>Qubits: <strong style={{ color: "var(--text-primary)" }}>{topo.qubitCount}</strong></span>
+                    <span>Couplings: <strong style={{ color: "var(--text-primary)" }}>{topo.couplings.length}</strong></span>
+                    <span>
+                      Connectivity:{" "}
+                      <strong style={{ color: "var(--text-primary)" }}>
+                        {topo.couplings.length === (topo.qubitCount * (topo.qubitCount - 1)) / 2
+                          ? "All-to-all"
+                          : `${((2 * topo.couplings.length) / (topo.qubitCount * (topo.qubitCount - 1)) * 100).toFixed(1)}%`}
+                      </strong>
+                    </span>
+                  </div>
+                  {renderTopologySvg(topo)}
+                  <div style={{ marginTop: 8, fontSize: 11, color: "var(--text-tertiary)" }}>
+                    Node brightness indicates connectivity degree. Hover over a qubit to see its ID and degree.
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        )}
+
+        {/* ── Languages Tab ───────────────────────────────────────────── */}
         {tab === "languages" && (
           <div>
             <h3 style={{ margin: "0 0 12px", color: "var(--text-primary)" }}>Quantum Programming Languages (20)</h3>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 12 }}>
-              {languages.map(l => (
+              {languages.map((l) => (
                 <div
                   key={l.name}
                   onClick={() => loadHelloCircuit(l.name)}
                   style={{
-                    padding: 12, borderRadius: 8, cursor: "pointer",
+                    padding: 12,
+                    borderRadius: 8,
+                    cursor: "pointer",
                     background: selectedLang === l.name ? "var(--accent-primary-10)" : "var(--bg-secondary)",
                     border: selectedLang === l.name ? "1px solid var(--accent-primary)" : "1px solid var(--border-color)",
                   }}
@@ -211,10 +1808,19 @@ export function QuantumComputingPanel() {
             {helloCode && (
               <div style={{ marginTop: 16 }}>
                 <h4 style={{ margin: "0 0 8px" }}>{selectedLang} — Example</h4>
-                <pre style={{
-                  background: "var(--bg-tertiary)", padding: 12, borderRadius: 8, fontSize: 12,
-                  overflow: "auto", maxHeight: 400, whiteSpace: "pre-wrap",
-                }}>{helloCode}</pre>
+                <pre
+                  style={{
+                    background: "var(--bg-tertiary)",
+                    padding: 12,
+                    borderRadius: 8,
+                    fontSize: 12,
+                    overflow: "auto",
+                    maxHeight: 400,
+                    whiteSpace: "pre-wrap",
+                  }}
+                >
+                  {helloCode}
+                </pre>
               </div>
             )}
 
@@ -229,7 +1835,7 @@ export function QuantumComputingPanel() {
                     </tr>
                   </thead>
                   <tbody>
-                    {compat.map(c => (
+                    {compat.map((c) => (
                       <tr key={c.language} style={{ borderBottom: "1px solid var(--border-secondary)" }}>
                         <td style={{ padding: 6, fontWeight: 500 }}>{c.language}</td>
                         <td style={{ padding: 6 }}>{c.compatibleOs.join(", ")}</td>
@@ -242,112 +1848,65 @@ export function QuantumComputingPanel() {
           </div>
         )}
 
-        {/* ── Quantum OS Tab ────────────────────────────────────────── */}
+        {/* ── Quantum OS Tab ──────────────────────────────────────────── */}
         {tab === "os" && (
           <div>
             <h3 style={{ margin: "0 0 12px" }}>Quantum Operating Systems (15)</h3>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 12 }}>
-              {osList.map(o => (
+              {osList.map((o) => (
                 <div key={o.name} style={{ padding: 12, borderRadius: 8, background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
                   <div style={{ fontWeight: 600, fontSize: 14 }}>{o.name}</div>
-                  <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>
-                    Layer: {o.layer}
-                  </div>
-                  <div style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 2 }}>
-                    Vendor: {o.vendor}
-                  </div>
+                  <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>Layer: {o.layer}</div>
+                  <div style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 2 }}>Vendor: {o.vendor}</div>
                 </div>
               ))}
             </div>
           </div>
         )}
 
-        {/* ── Circuits Tab ──────────────────────────────────────────── */}
-        {tab === "circuits" && (
-          <div>
-            <h3 style={{ margin: "0 0 12px" }}>Quantum Circuits</h3>
-            <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "flex-end" }}>
-              <label style={{ fontSize: 12 }}>
-                Name<br />
-                <input value={ncName} onChange={e => setNcName(e.target.value)} style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", width: 140 }} />
-              </label>
-              <label style={{ fontSize: 12 }}>
-                Qubits<br />
-                <input type="number" value={ncQubits} onChange={e => setNcQubits(+e.target.value)} min={1} max={100} style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", width: 60 }} />
-              </label>
-              <label style={{ fontSize: 12 }}>
-                Classical bits<br />
-                <input type="number" value={ncClassical} onChange={e => setNcClassical(+e.target.value)} min={0} max={100} style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", width: 60 }} />
-              </label>
-              <button onClick={createCircuit} style={{ padding: "6px 14px", borderRadius: 6, border: "none", background: "var(--accent-primary)", color: "var(--text-primary)", cursor: "pointer", fontWeight: 600, fontSize: 13 }}>
-                Create Circuit
-              </button>
-            </div>
-            {circuits.length === 0 ? (
-              <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>No circuits yet. Create one above.</div>
-            ) : (
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-                <thead>
-                  <tr style={{ borderBottom: "2px solid var(--border-color)" }}>
-                    <th style={{ textAlign: "left", padding: 6 }}>Name</th>
-                    <th style={{ textAlign: "right", padding: 6 }}>Qubits</th>
-                    <th style={{ textAlign: "right", padding: 6 }}>Gates</th>
-                    <th style={{ textAlign: "right", padding: 6 }}>Depth</th>
-                    <th style={{ textAlign: "right", padding: 6 }}>2Q Gates</th>
-                    <th style={{ textAlign: "center", padding: 6 }}>Export</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {circuits.map(c => (
-                    <tr key={c.index} style={{ borderBottom: "1px solid var(--border-secondary)" }}>
-                      <td style={{ padding: 6 }}>{c.name}</td>
-                      <td style={{ padding: 6, textAlign: "right" }}>{c.numQubits}</td>
-                      <td style={{ padding: 6, textAlign: "right" }}>{c.gateCount}</td>
-                      <td style={{ padding: 6, textAlign: "right" }}>{c.depth}</td>
-                      <td style={{ padding: 6, textAlign: "right" }}>{c.twoQubitGates}</td>
-                      <td style={{ padding: 6, textAlign: "center" }}>
-                        <button onClick={() => exportCircuit(c.index, "qasm3")} style={{ marginRight: 4, background: "none", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-secondary)", cursor: "pointer", padding: "2px 6px", fontSize: 11 }}>QASM3</button>
-                        <button onClick={() => exportCircuit(c.index, "qiskit")} style={{ marginRight: 4, background: "none", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-secondary)", cursor: "pointer", padding: "2px 6px", fontSize: 11 }}>Qiskit</button>
-                        <button onClick={() => exportCircuit(c.index, "cirq")} style={{ background: "none", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-secondary)", cursor: "pointer", padding: "2px 6px", fontSize: 11 }}>Cirq</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        )}
-
-        {/* ── Projects Tab ──────────────────────────────────────────── */}
+        {/* ── Projects Tab ────────────────────────────────────────────── */}
         {tab === "projects" && (
           <div>
             <h3 style={{ margin: "0 0 12px" }}>Quantum Projects</h3>
             <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "flex-end" }}>
               <label style={{ fontSize: 12 }}>
-                Name<br />
-                <input value={npName} onChange={e => setNpName(e.target.value)} style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", width: 140 }} />
+                Name
+                <br />
+                <input value={npName} onChange={(e) => setNpName(e.target.value)} style={{ ...inputStyle, width: 140 }} />
               </label>
               <label style={{ fontSize: 12 }}>
-                Language<br />
-                <select value={npLang} onChange={e => setNpLang(e.target.value)} style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)" }}>
-                  {languages.map(l => <option key={l.name} value={l.name}>{l.name}</option>)}
+                Language
+                <br />
+                <select value={npLang} onChange={(e) => setNpLang(e.target.value)} style={inputStyle}>
+                  {languages.map((l) => (
+                    <option key={l.name} value={l.name}>
+                      {l.name}
+                    </option>
+                  ))}
                 </select>
               </label>
               <label style={{ fontSize: 12 }}>
-                Hardware<br />
-                <select value={npHw} onChange={e => setNpHw(e.target.value)} style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)" }}>
-                  {hardware.map(h => <option key={h.type} value={h.type}>{h.type}</option>)}
+                Hardware
+                <br />
+                <select value={npHw} onChange={(e) => setNpHw(e.target.value)} style={inputStyle}>
+                  {hardware.map((h) => (
+                    <option key={h.type} value={h.type}>
+                      {h.type}
+                    </option>
+                  ))}
                 </select>
               </label>
               <label style={{ fontSize: 12 }}>
-                Qubits<br />
-                <input type="number" value={npQubits} onChange={e => setNpQubits(+e.target.value)} min={1} max={10000} style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", width: 60 }} />
+                Qubits
+                <br />
+                <input type="number" value={npQubits} onChange={(e) => setNpQubits(+e.target.value)} min={1} max={10000} style={{ ...inputStyle, width: 60 }} />
               </label>
               <label style={{ fontSize: 12 }}>
-                Description<br />
-                <input value={npDesc} onChange={e => setNpDesc(e.target.value)} style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", width: 200 }} />
+                Description
+                <br />
+                <input value={npDesc} onChange={(e) => setNpDesc(e.target.value)} style={{ ...inputStyle, width: 200 }} />
               </label>
-              <button onClick={createProject} style={{ padding: "6px 14px", borderRadius: 6, border: "none", background: "var(--accent-primary)", color: "var(--text-primary)", cursor: "pointer", fontWeight: 600, fontSize: 13 }}>
+              <button onClick={createProject} style={btnPrimary}>
                 Create Project
               </button>
             </div>
@@ -355,11 +1914,13 @@ export function QuantumComputingPanel() {
               <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>No quantum projects yet.</div>
             ) : (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 12 }}>
-                {projects.map(p => (
+                {projects.map((p) => (
                   <div key={p.id} style={{ padding: 12, borderRadius: 8, background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <div style={{ fontWeight: 600, fontSize: 14 }}>{p.name}</div>
-                      <button onClick={() => deleteProject(p.id)} style={{ background: "none", border: "none", color: "var(--text-tertiary)", cursor: "pointer", fontSize: 16 }} title="Delete project">&times;</button>
+                      <button onClick={() => deleteProject(p.id)} style={{ background: "none", border: "none", color: "var(--text-tertiary)", cursor: "pointer", fontSize: 16 }} title="Delete project">
+                        &times;
+                      </button>
                     </div>
                     <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>
                       {p.language} &middot; {p.targetHardware} &middot; {p.numQubits} qubits
@@ -380,7 +1941,7 @@ export function QuantumComputingPanel() {
           </div>
         )}
 
-        {/* ── Algorithms Tab ────────────────────────────────────────── */}
+        {/* ── Algorithms Tab ──────────────────────────────────────────── */}
         {tab === "algorithms" && (
           <div>
             <h3 style={{ margin: "0 0 12px" }}>Quantum Algorithms (15)</h3>
@@ -393,7 +1954,7 @@ export function QuantumComputingPanel() {
                 </tr>
               </thead>
               <tbody>
-                {algorithms.map(a => (
+                {algorithms.map((a) => (
                   <tr key={a.name} style={{ borderBottom: "1px solid var(--border-secondary)" }}>
                     <td style={{ padding: 6, fontWeight: 500 }}>{a.name}</td>
                     <td style={{ padding: 6 }}>{a.category}</td>
@@ -402,25 +1963,6 @@ export function QuantumComputingPanel() {
                 ))}
               </tbody>
             </table>
-          </div>
-        )}
-
-        {/* ── Hardware Tab ──────────────────────────────────────────── */}
-        {tab === "hardware" && (
-          <div>
-            <h3 style={{ margin: "0 0 12px" }}>Quantum Hardware Types</h3>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 12 }}>
-              {hardware.map(h => (
-                <div key={h.type} style={{ padding: 12, borderRadius: 8, background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
-                  <div style={{ fontWeight: 600, fontSize: 14 }}>{h.type}</div>
-                  <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 6 }}>
-                    {h.vendors.map(v => (
-                      <span key={v} style={{ display: "inline-block", padding: "2px 8px", marginRight: 4, marginBottom: 4, borderRadius: 4, background: "var(--bg-tertiary)", fontSize: 11 }}>{v}</span>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
           </div>
         )}
       </div>

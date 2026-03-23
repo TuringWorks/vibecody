@@ -25039,6 +25039,362 @@ pub async fn quantum_export_circuit(index: usize, format: String) -> Result<Stri
     }
 }
 
+// ── Quantum Computing — Extended Commands ────────────────────────────────────
+
+fn recompute_quantum_metrics(circuit: &mut serde_json::Value) {
+    let gates = circuit.get("gates").and_then(|g| g.as_array()).cloned().unwrap_or_default();
+    let num_qubits = circuit.get("numQubits").and_then(|n| n.as_u64()).unwrap_or(1) as usize;
+    let mut qubit_depth = vec![0usize; num_qubits];
+    let mut two_q = 0usize;
+
+    for gate in &gates {
+        let gt = gate.get("type").and_then(|t| t.as_str()).unwrap_or("");
+        match gt {
+            "H"|"X"|"Y"|"Z"|"S"|"T"|"Rx"|"Ry"|"Rz" => {
+                let target = gate.get("target").or(gate.get("targets").and_then(|t| t.get(0))).and_then(|t| t.as_u64()).unwrap_or(0) as usize;
+                if target < num_qubits { qubit_depth[target] += 1; }
+            }
+            "CNOT"|"CZ"|"SWAP" => {
+                let ctrl = gate.get("control").and_then(|c| c.as_u64()).unwrap_or(0) as usize;
+                let tgt = gate.get("target").and_then(|t| t.as_u64()).unwrap_or(1) as usize;
+                if ctrl < num_qubits && tgt < num_qubits {
+                    let d = qubit_depth[ctrl].max(qubit_depth[tgt]) + 1;
+                    qubit_depth[ctrl] = d;
+                    qubit_depth[tgt] = d;
+                }
+                two_q += 1;
+            }
+            "Toffoli" => {
+                let controls = gate.get("controls").and_then(|c| c.as_array());
+                let tgt = gate.get("target").and_then(|t| t.as_u64()).unwrap_or(2) as usize;
+                if let Some(ctrls) = controls {
+                    let c1 = ctrls.get(0).and_then(|c| c.as_u64()).unwrap_or(0) as usize;
+                    let c2 = ctrls.get(1).and_then(|c| c.as_u64()).unwrap_or(1) as usize;
+                    if c1 < num_qubits && c2 < num_qubits && tgt < num_qubits {
+                        let d = qubit_depth[c1].max(qubit_depth[c2]).max(qubit_depth[tgt]) + 1;
+                        qubit_depth[c1] = d;
+                        qubit_depth[c2] = d;
+                        qubit_depth[tgt] = d;
+                    }
+                }
+                two_q += 1;
+            }
+            "Measure" => {
+                let q = gate.get("qubit").and_then(|q| q.as_u64()).unwrap_or(0) as usize;
+                if q < num_qubits { qubit_depth[q] += 1; }
+            }
+            _ => {}
+        }
+    }
+
+    circuit["gateCount"] = serde_json::json!(gates.len());
+    circuit["depth"] = serde_json::json!(qubit_depth.iter().max().copied().unwrap_or(0));
+    circuit["twoQubitGates"] = serde_json::json!(two_q);
+}
+
+fn get_target(gate: &serde_json::Value) -> usize {
+    gate.get("target")
+        .or_else(|| gate.get("targets").and_then(|t| t.get(0)))
+        .and_then(|t| t.as_u64())
+        .unwrap_or(0) as usize
+}
+
+fn json_gates_to_quantum_circuit(circuit_json: &serde_json::Value) -> Result<vibecli_cli::quantum_computing::QuantumCircuit, String> {
+    use vibecli_cli::quantum_computing::{QuantumCircuit, QuantumGate};
+
+    let name = circuit_json.get("name").and_then(|n| n.as_str()).unwrap_or("circuit");
+    let num_qubits = circuit_json.get("numQubits").and_then(|n| n.as_u64()).unwrap_or(2) as usize;
+    let num_classical = circuit_json.get("numClassical").and_then(|n| n.as_u64()).unwrap_or(0) as usize;
+    let mut circuit = QuantumCircuit::new(name, num_qubits, num_classical);
+
+    if let Some(gates) = circuit_json.get("gates").and_then(|g| g.as_array()) {
+        for gate in gates {
+            let gt = gate.get("type").and_then(|t| t.as_str()).unwrap_or("");
+            let parsed = match gt {
+                "H" => { let t = get_target(gate); Some(QuantumGate::H(t)) }
+                "X" => { let t = get_target(gate); Some(QuantumGate::X(t)) }
+                "Y" => { let t = get_target(gate); Some(QuantumGate::Y(t)) }
+                "Z" => { let t = get_target(gate); Some(QuantumGate::Z(t)) }
+                "S" => { let t = get_target(gate); Some(QuantumGate::S(t)) }
+                "T" => { let t = get_target(gate); Some(QuantumGate::T(t)) }
+                "Rx" => { let t = get_target(gate); let a = gate.get("angle").and_then(|a| a.as_f64()).unwrap_or(0.0); Some(QuantumGate::Rx(t, a)) }
+                "Ry" => { let t = get_target(gate); let a = gate.get("angle").and_then(|a| a.as_f64()).unwrap_or(0.0); Some(QuantumGate::Ry(t, a)) }
+                "Rz" => { let t = get_target(gate); let a = gate.get("angle").and_then(|a| a.as_f64()).unwrap_or(0.0); Some(QuantumGate::Rz(t, a)) }
+                "CNOT" => { let c = gate.get("control").and_then(|c| c.as_u64()).unwrap_or(0) as usize; let t = get_target(gate); Some(QuantumGate::CNOT(c, t)) }
+                "CZ" => { let c = gate.get("control").and_then(|c| c.as_u64()).unwrap_or(0) as usize; let t = get_target(gate); Some(QuantumGate::CZ(c, t)) }
+                "SWAP" => { let c = gate.get("control").and_then(|c| c.as_u64()).unwrap_or(0) as usize; let t = get_target(gate); Some(QuantumGate::SWAP(c, t)) }
+                "Toffoli" => {
+                    let ctrls = gate.get("controls").and_then(|c| c.as_array());
+                    let t = get_target(gate);
+                    if let Some(cs) = ctrls {
+                        let c1 = cs.get(0).and_then(|c| c.as_u64()).unwrap_or(0) as usize;
+                        let c2 = cs.get(1).and_then(|c| c.as_u64()).unwrap_or(1) as usize;
+                        Some(QuantumGate::Toffoli(c1, c2, t))
+                    } else { None }
+                }
+                "Measure" => {
+                    let q = gate.get("qubit").and_then(|q| q.as_u64()).unwrap_or(0) as usize;
+                    let c = gate.get("classical").and_then(|c| c.as_u64()).unwrap_or(0) as usize;
+                    Some(QuantumGate::Measure(q, c))
+                }
+                _ => None,
+            };
+            if let Some(g) = parsed { circuit.add_gate(g); }
+        }
+    }
+    Ok(circuit)
+}
+
+fn quantum_circuit_to_gate_json(circuit: &vibecli_cli::quantum_computing::QuantumCircuit) -> Vec<serde_json::Value> {
+    use vibecli_cli::quantum_computing::QuantumGate;
+    circuit.gates.iter().map(|g| match g {
+        QuantumGate::H(t) => serde_json::json!({"type": "H", "targets": [t]}),
+        QuantumGate::X(t) => serde_json::json!({"type": "X", "targets": [t]}),
+        QuantumGate::Y(t) => serde_json::json!({"type": "Y", "targets": [t]}),
+        QuantumGate::Z(t) => serde_json::json!({"type": "Z", "targets": [t]}),
+        QuantumGate::S(t) => serde_json::json!({"type": "S", "targets": [t]}),
+        QuantumGate::T(t) => serde_json::json!({"type": "T", "targets": [t]}),
+        QuantumGate::Rx(t, a) => serde_json::json!({"type": "Rx", "target": t, "angle": a}),
+        QuantumGate::Ry(t, a) => serde_json::json!({"type": "Ry", "target": t, "angle": a}),
+        QuantumGate::Rz(t, a) => serde_json::json!({"type": "Rz", "target": t, "angle": a}),
+        QuantumGate::CNOT(c, t) => serde_json::json!({"type": "CNOT", "control": c, "target": t}),
+        QuantumGate::CZ(c, t) => serde_json::json!({"type": "CZ", "control": c, "target": t}),
+        QuantumGate::SWAP(a, b) => serde_json::json!({"type": "SWAP", "control": a, "target": b}),
+        QuantumGate::Toffoli(c1, c2, t) => serde_json::json!({"type": "Toffoli", "controls": [c1, c2], "target": t}),
+        QuantumGate::Measure(q, c) => serde_json::json!({"type": "Measure", "qubit": q, "classical": c}),
+    }).collect()
+}
+
+#[tauri::command]
+pub async fn quantum_add_gate(circuit_index: usize, gate_type: String, params: serde_json::Value) -> Result<serde_json::Value, String> {
+    let mut circuits = quantum_read_json("circuits.json");
+    let arr = circuits.as_array_mut().ok_or("No circuits")?;
+    let circuit = arr.get_mut(circuit_index).ok_or("Circuit not found")?;
+
+    // Parse gate
+    let gate_json = match gate_type.as_str() {
+        "H"|"X"|"Y"|"Z"|"S"|"T" => {
+            let target = params.get("target").and_then(|t| t.as_u64()).unwrap_or(0);
+            serde_json::json!({"type": gate_type, "targets": [target]})
+        }
+        "Rx"|"Ry"|"Rz" => {
+            let target = params.get("target").and_then(|t| t.as_u64()).unwrap_or(0);
+            let angle = params.get("angle").and_then(|a| a.as_f64()).unwrap_or(0.0);
+            serde_json::json!({"type": gate_type, "target": target, "angle": angle})
+        }
+        "CNOT"|"CZ"|"SWAP" => {
+            let control = params.get("control").and_then(|c| c.as_u64()).unwrap_or(0);
+            let target = params.get("target").and_then(|t| t.as_u64()).unwrap_or(1);
+            serde_json::json!({"type": gate_type, "control": control, "target": target})
+        }
+        "Toffoli" => {
+            let c1 = params.get("control1").and_then(|c| c.as_u64()).unwrap_or(0);
+            let c2 = params.get("control2").and_then(|c| c.as_u64()).unwrap_or(1);
+            let target = params.get("target").and_then(|t| t.as_u64()).unwrap_or(2);
+            serde_json::json!({"type": "Toffoli", "controls": [c1, c2], "target": target})
+        }
+        "Measure" => {
+            let qubit = params.get("qubit").and_then(|q| q.as_u64()).unwrap_or(0);
+            let classical = params.get("classical").and_then(|c| c.as_u64()).unwrap_or(0);
+            serde_json::json!({"type": "Measure", "qubit": qubit, "classical": classical})
+        }
+        _ => return Err(format!("Unknown gate type: {}", gate_type)),
+    };
+
+    // Ensure gates array exists
+    if circuit.get("gates").is_none() || !circuit["gates"].is_array() {
+        circuit["gates"] = serde_json::json!([]);
+    }
+    circuit["gates"].as_array_mut().unwrap().push(gate_json);
+
+    recompute_quantum_metrics(circuit);
+    let result = circuit.clone();
+    quantum_write_json("circuits.json", &circuits)?;
+    Ok(result)
+}
+
+#[tauri::command]
+pub async fn quantum_remove_gate(circuit_index: usize, gate_index: usize) -> Result<serde_json::Value, String> {
+    let mut circuits = quantum_read_json("circuits.json");
+    let arr = circuits.as_array_mut().ok_or("No circuits")?;
+    let circuit = arr.get_mut(circuit_index).ok_or("Circuit not found")?;
+
+    let gates = circuit.get_mut("gates")
+        .and_then(|g| g.as_array_mut())
+        .ok_or("No gates array")?;
+
+    if gate_index >= gates.len() {
+        return Err(format!("Gate index {} out of range ({})", gate_index, gates.len()));
+    }
+    gates.remove(gate_index);
+
+    recompute_quantum_metrics(circuit);
+    let result = circuit.clone();
+    quantum_write_json("circuits.json", &circuits)?;
+    Ok(result)
+}
+
+#[tauri::command]
+pub async fn quantum_get_circuit_detail(index: usize) -> Result<serde_json::Value, String> {
+    let circuits = quantum_read_json("circuits.json");
+    let arr = circuits.as_array().ok_or("No circuits")?;
+    let circuit = arr.get(index).ok_or("Circuit not found")?;
+    Ok(circuit.clone())
+}
+
+#[tauri::command]
+pub async fn quantum_simulate_circuit(index: usize, shots: usize) -> Result<serde_json::Value, String> {
+    use vibecli_cli::quantum_computing::StatevectorSimulator;
+
+    let circuits = quantum_read_json("circuits.json");
+    let arr = circuits.as_array().ok_or("No circuits")?;
+    let circuit_json = arr.get(index).ok_or("Circuit not found")?;
+    let circuit = json_gates_to_quantum_circuit(circuit_json)?;
+
+    let result = StatevectorSimulator::simulate_circuit(&circuit, shots)
+        .map_err(|e| format!("Simulation failed: {}", e))?;
+
+    Ok(serde_json::json!({
+        "numQubits": result.num_qubits,
+        "amplitudes": result.amplitudes.iter().map(|(label, re, im)| {
+            serde_json::json!({"label": label, "real": re, "imaginary": im})
+        }).collect::<Vec<_>>(),
+        "probabilities": result.probabilities.iter().map(|(label, prob)| {
+            serde_json::json!({"label": label, "probability": prob})
+        }).collect::<Vec<_>>(),
+        "samples": result.samples,
+        "shots": shots,
+    }))
+}
+
+#[tauri::command]
+pub async fn quantum_optimize_circuit(index: usize) -> Result<serde_json::Value, String> {
+    use vibecli_cli::quantum_computing::CircuitOptimizer;
+
+    let circuits = quantum_read_json("circuits.json");
+    let arr = circuits.as_array().ok_or("No circuits")?;
+    let circuit_json = arr.get(index).ok_or("Circuit not found")?;
+    let circuit = json_gates_to_quantum_circuit(circuit_json)?;
+
+    let (optimized, opt_result) = CircuitOptimizer::optimize(&circuit);
+    let optimized_gates = quantum_circuit_to_gate_json(&optimized);
+
+    Ok(serde_json::json!({
+        "originalGateCount": opt_result.original_gate_count,
+        "optimizedGateCount": opt_result.optimized_gate_count,
+        "originalDepth": opt_result.original_depth,
+        "optimizedDepth": opt_result.optimized_depth,
+        "rulesApplied": opt_result.rules_applied,
+        "savingsPercent": opt_result.savings_percent,
+        "optimizedCircuit": {
+            "name": optimized.name,
+            "numQubits": optimized.num_qubits,
+            "numClassical": optimized.num_classical,
+            "gates": optimized_gates,
+            "gateCount": optimized.gate_count(),
+            "depth": optimized.depth(),
+            "twoQubitGates": optimized.two_qubit_gate_count(),
+        }
+    }))
+}
+
+#[tauri::command]
+pub async fn quantum_estimate_cost(index: usize, shots: usize) -> Result<serde_json::Value, String> {
+    use vibecli_cli::quantum_computing::CostEstimator;
+
+    let circuits = quantum_read_json("circuits.json");
+    let arr = circuits.as_array().ok_or("No circuits")?;
+    let circuit_json = arr.get(index).ok_or("Circuit not found")?;
+    let circuit = json_gates_to_quantum_circuit(circuit_json)?;
+
+    let estimates = CostEstimator::estimate_all(&circuit, shots);
+
+    Ok(serde_json::json!(estimates.iter().map(|e| {
+        serde_json::json!({
+            "provider": e.provider,
+            "estimatedCostUsd": e.estimated_cost_usd,
+            "breakdown": e.breakdown.iter().map(|(k, v)| serde_json::json!({"item": k, "cost": v})).collect::<Vec<_>>(),
+            "notes": e.notes,
+        })
+    }).collect::<Vec<_>>()))
+}
+
+#[tauri::command]
+pub async fn quantum_get_algorithm_template(name: String, params: serde_json::Value) -> Result<serde_json::Value, String> {
+    use vibecli_cli::quantum_computing::AlgorithmTemplates;
+
+    let mut param_map = std::collections::HashMap::new();
+    if let Some(obj) = params.as_object() {
+        for (k, v) in obj {
+            param_map.insert(k.clone(), v.as_str().map(|s| s.to_string()).unwrap_or_else(|| v.to_string()));
+        }
+    }
+
+    let circuit = AlgorithmTemplates::get_template(&name, &param_map)
+        .map_err(|e| format!("Template error: {}", e))?;
+
+    let gates = quantum_circuit_to_gate_json(&circuit);
+
+    Ok(serde_json::json!({
+        "name": circuit.name,
+        "numQubits": circuit.num_qubits,
+        "numClassical": circuit.num_classical,
+        "gates": gates,
+        "gateCount": circuit.gate_count(),
+        "depth": circuit.depth(),
+        "twoQubitGates": circuit.two_qubit_gate_count(),
+    }))
+}
+
+#[tauri::command]
+pub async fn quantum_list_templates() -> Result<serde_json::Value, String> {
+    use vibecli_cli::quantum_computing::AlgorithmTemplates;
+
+    let templates = AlgorithmTemplates::list();
+    Ok(serde_json::json!(templates.iter().map(|(name, desc)| {
+        serde_json::json!({"name": name, "description": desc})
+    }).collect::<Vec<_>>()))
+}
+
+#[tauri::command]
+pub async fn quantum_scaffold_project(language: String, name: String, num_qubits: usize) -> Result<serde_json::Value, String> {
+    use vibecli_cli::quantum_computing::ProjectScaffolder;
+
+    let files = ProjectScaffolder::scaffold(&language, &name, num_qubits)
+        .map_err(|e| format!("Scaffold error: {}", e))?;
+
+    Ok(serde_json::json!(files.iter().map(|f| {
+        serde_json::json!({"path": f.path, "content": f.content})
+    }).collect::<Vec<_>>()))
+}
+
+#[tauri::command]
+pub async fn quantum_delete_circuit(index: usize) -> Result<(), String> {
+    let mut circuits = quantum_read_json("circuits.json");
+    let arr = circuits.as_array_mut().ok_or("No circuits")?;
+    if index >= arr.len() {
+        return Err(format!("Circuit index {} out of range ({})", index, arr.len()));
+    }
+    arr.remove(index);
+    quantum_write_json("circuits.json", &circuits)
+}
+
+#[tauri::command]
+pub async fn quantum_clear_circuit_gates(index: usize) -> Result<serde_json::Value, String> {
+    let mut circuits = quantum_read_json("circuits.json");
+    let arr = circuits.as_array_mut().ok_or("No circuits")?;
+    let circuit = arr.get_mut(index).ok_or("Circuit not found")?;
+
+    circuit["gates"] = serde_json::json!([]);
+    circuit["gateCount"] = serde_json::json!(0);
+    circuit["depth"] = serde_json::json!(0);
+    circuit["twoQubitGates"] = serde_json::json!(0);
+
+    let result = circuit.clone();
+    quantum_write_json("circuits.json", &circuits)?;
+    Ok(result)
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // Panel Settings Store — Encrypted SQLite with profile support
 // ═══════════════════════════════════════════════════════════════════════════════
