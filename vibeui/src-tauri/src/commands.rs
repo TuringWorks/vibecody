@@ -25010,7 +25010,8 @@ pub async fn quantum_create_circuit(
 pub async fn quantum_export_circuit(index: usize, format: String) -> Result<String, String> {
     let circuits = quantum_read_json("circuits.json");
     let arr = circuits.as_array().ok_or("No circuits")?;
-    let c = arr.get(index).ok_or("Circuit not found")?;
+    let pos = find_circuit_pos(arr, index).ok_or("Circuit not found")?;
+    let c = &arr[pos];
     let nq = c.get("numQubits").and_then(|v| v.as_u64()).unwrap_or(2) as usize;
     let nc = c.get("numClassical").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
     let name = c.get("name").and_then(|v| v.as_str()).unwrap_or("circuit");
@@ -25099,6 +25100,11 @@ fn get_target(gate: &serde_json::Value) -> usize {
         .unwrap_or(0) as usize
 }
 
+/// Find a circuit's array position by its `index` field (which is the circuit's ID, not its array position).
+fn find_circuit_pos(arr: &[serde_json::Value], index: usize) -> Option<usize> {
+    arr.iter().position(|c| c.get("index").and_then(|i| i.as_u64()) == Some(index as u64))
+}
+
 fn json_gates_to_quantum_circuit(circuit_json: &serde_json::Value) -> Result<vibecli_cli::quantum_computing::QuantumCircuit, String> {
     use vibecli_cli::quantum_computing::{QuantumCircuit, QuantumGate};
 
@@ -25169,7 +25175,8 @@ fn quantum_circuit_to_gate_json(circuit: &vibecli_cli::quantum_computing::Quantu
 pub async fn quantum_add_gate(circuit_index: usize, gate_type: String, params: serde_json::Value) -> Result<serde_json::Value, String> {
     let mut circuits = quantum_read_json("circuits.json");
     let arr = circuits.as_array_mut().ok_or("No circuits")?;
-    let circuit = arr.get_mut(circuit_index).ok_or("Circuit not found")?;
+    let pos = find_circuit_pos(arr, circuit_index).ok_or("Circuit not found")?;
+    let circuit = &mut arr[pos];
 
     // Parse gate
     let gate_json = match gate_type.as_str() {
@@ -25217,7 +25224,8 @@ pub async fn quantum_add_gate(circuit_index: usize, gate_type: String, params: s
 pub async fn quantum_remove_gate(circuit_index: usize, gate_index: usize) -> Result<serde_json::Value, String> {
     let mut circuits = quantum_read_json("circuits.json");
     let arr = circuits.as_array_mut().ok_or("No circuits")?;
-    let circuit = arr.get_mut(circuit_index).ok_or("Circuit not found")?;
+    let pos = find_circuit_pos(arr, circuit_index).ok_or("Circuit not found")?;
+    let circuit = &mut arr[pos];
 
     let gates = circuit.get_mut("gates")
         .and_then(|g| g.as_array_mut())
@@ -25238,7 +25246,8 @@ pub async fn quantum_remove_gate(circuit_index: usize, gate_index: usize) -> Res
 pub async fn quantum_get_circuit_detail(index: usize) -> Result<serde_json::Value, String> {
     let circuits = quantum_read_json("circuits.json");
     let arr = circuits.as_array().ok_or("No circuits")?;
-    let circuit = arr.get(index).ok_or("Circuit not found")?;
+    let pos = find_circuit_pos(arr, index).ok_or("Circuit not found")?;
+    let circuit = &arr[pos];
     Ok(circuit.clone())
 }
 
@@ -25248,7 +25257,8 @@ pub async fn quantum_simulate_circuit(index: usize, shots: usize) -> Result<serd
 
     let circuits = quantum_read_json("circuits.json");
     let arr = circuits.as_array().ok_or("No circuits")?;
-    let circuit_json = arr.get(index).ok_or("Circuit not found")?;
+    let pos = find_circuit_pos(arr, index).ok_or("Circuit not found")?;
+    let circuit_json = &arr[pos];
     let circuit = json_gates_to_quantum_circuit(circuit_json)?;
 
     let result = StatevectorSimulator::simulate_circuit(&circuit, shots)
@@ -25273,7 +25283,8 @@ pub async fn quantum_optimize_circuit(index: usize) -> Result<serde_json::Value,
 
     let circuits = quantum_read_json("circuits.json");
     let arr = circuits.as_array().ok_or("No circuits")?;
-    let circuit_json = arr.get(index).ok_or("Circuit not found")?;
+    let pos = find_circuit_pos(arr, index).ok_or("Circuit not found")?;
+    let circuit_json = &arr[pos];
     let circuit = json_gates_to_quantum_circuit(circuit_json)?;
 
     let (optimized, opt_result) = CircuitOptimizer::optimize(&circuit);
@@ -25304,7 +25315,8 @@ pub async fn quantum_estimate_cost(index: usize, shots: usize) -> Result<serde_j
 
     let circuits = quantum_read_json("circuits.json");
     let arr = circuits.as_array().ok_or("No circuits")?;
-    let circuit_json = arr.get(index).ok_or("Circuit not found")?;
+    let pos = find_circuit_pos(arr, index).ok_or("Circuit not found")?;
+    let circuit_json = &arr[pos];
     let circuit = json_gates_to_quantum_circuit(circuit_json)?;
 
     let estimates = CostEstimator::estimate_all(&circuit, shots);
@@ -25372,10 +25384,8 @@ pub async fn quantum_scaffold_project(language: String, name: String, num_qubits
 pub async fn quantum_delete_circuit(index: usize) -> Result<(), String> {
     let mut circuits = quantum_read_json("circuits.json");
     let arr = circuits.as_array_mut().ok_or("No circuits")?;
-    if index >= arr.len() {
-        return Err(format!("Circuit index {} out of range ({})", index, arr.len()));
-    }
-    arr.remove(index);
+    let pos = find_circuit_pos(arr, index).ok_or("Circuit not found")?;
+    arr.remove(pos);
     quantum_write_json("circuits.json", &circuits)
 }
 
@@ -25383,7 +25393,8 @@ pub async fn quantum_delete_circuit(index: usize) -> Result<(), String> {
 pub async fn quantum_clear_circuit_gates(index: usize) -> Result<serde_json::Value, String> {
     let mut circuits = quantum_read_json("circuits.json");
     let arr = circuits.as_array_mut().ok_or("No circuits")?;
-    let circuit = arr.get_mut(index).ok_or("Circuit not found")?;
+    let pos = find_circuit_pos(arr, index).ok_or("Circuit not found")?;
+    let circuit = &mut arr[pos];
 
     circuit["gates"] = serde_json::json!([]);
     circuit["gateCount"] = serde_json::json!(0);
