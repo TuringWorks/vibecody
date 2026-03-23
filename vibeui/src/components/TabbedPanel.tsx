@@ -58,12 +58,17 @@ export function TabbedPanel({ tabs, defaultTab }: TabbedPanelProps) {
           </button>
         ))}
       </div>
-      <div style={{ flex: 1, overflow: "auto" }}>
+      <div style={{ flex: 1, overflow: "auto", display: "flex", flexDirection: "column" }}>
         {tabs.map((t) =>
           visitedRef.current.has(t.id) ? (
             <div
               key={t.id}
-              style={{ display: active === t.id ? "contents" : "none" }}
+              style={{
+                display: active === t.id ? "flex" : "none",
+                flexDirection: "column",
+                flex: 1,
+                minHeight: 0,
+              }}
             >
               {t.content}
             </div>
