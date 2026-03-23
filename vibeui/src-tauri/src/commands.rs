@@ -25247,8 +25247,12 @@ pub async fn quantum_get_circuit_detail(index: usize) -> Result<serde_json::Valu
     let circuits = quantum_read_json("circuits.json");
     let arr = circuits.as_array().ok_or("No circuits")?;
     let pos = find_circuit_pos(arr, index).ok_or("Circuit not found")?;
-    let circuit = &arr[pos];
-    Ok(circuit.clone())
+    let mut circuit = arr[pos].clone();
+    // Ensure gates array exists (older circuits may lack it)
+    if circuit.get("gates").is_none() {
+        circuit["gates"] = serde_json::json!([]);
+    }
+    Ok(circuit)
 }
 
 #[tauri::command]

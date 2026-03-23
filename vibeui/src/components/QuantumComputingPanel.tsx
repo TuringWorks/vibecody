@@ -740,7 +740,8 @@ export function QuantumComputingPanel() {
 
   function renderCircuitSvg() {
     if (!circuitDetail) return null;
-    const { numQubits, gates } = circuitDetail;
+    const { numQubits } = circuitDetail;
+    const gates = circuitDetail.gates ?? [];
     const numCols = Math.max(gates.length + 1, 4);
     const svgW = 80 + numCols * COL_WIDTH;
     const svgH = WIRE_Y0 + numQubits * WIRE_SPACING + 20;
@@ -903,7 +904,7 @@ export function QuantumComputingPanel() {
         {/* Placement hint column */}
         {selectedGate && (
           <rect
-            x={80 + (circuitDetail.gates.length) * COL_WIDTH - COL_WIDTH / 2}
+            x={80 + gates.length * COL_WIDTH - COL_WIDTH / 2}
             y={WIRE_Y0 - WIRE_SPACING / 2}
             width={COL_WIDTH}
             height={numQubits * WIRE_SPACING}
