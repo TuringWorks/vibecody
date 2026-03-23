@@ -2,63 +2,12 @@
 //!
 //! Supported models: llama3.1-70b, llama3.1-8b, llama-3.3-70b
 
-use crate::provider::{AIProvider, CodeContext, CompletionResponse, CompletionStream, ImageAttachment, Message, ProviderConfig, TokenUsage};
+use super::openai_compat::{self, ChatRequest};
+use crate::provider::{AIProvider, CodeContext, CompletionResponse, CompletionStream, ImageAttachment, Message, ProviderConfig};
 use anyhow::{Context, Result};
 use async_trait::async_trait;
-use futures::stream::StreamExt;
-use serde::{Deserialize, Serialize};
 
 const CEREBRAS_BASE_URL: &str = "https://api.cerebras.ai/v1";
-
-#[derive(Debug, Serialize)]
-struct CerebrasRequest {
-    model: String,
-    messages: Vec<CerebrasMessage>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    temperature: Option<f32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    max_tokens: Option<usize>,
-    stream: bool,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct CerebrasMessage {
-    role: String,
-    content: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct CerebrasUsage {
-    prompt_tokens: u32,
-    completion_tokens: u32,
-}
-
-#[derive(Debug, Deserialize)]
-struct CerebrasResponse {
-    choices: Vec<CerebrasChoice>,
-    #[serde(default)]
-    usage: Option<CerebrasUsage>,
-}
-
-#[derive(Debug, Deserialize)]
-struct CerebrasChoice {
-    message: CerebrasMessage,
-}
-
-#[derive(Debug, Deserialize)]
-struct CerebrasStreamResponse {
-    choices: Vec<CerebrasStreamChoice>,
-}
-
-#[derive(Debug, Deserialize)]
-struct CerebrasStreamChoice {
-    delta: CerebrasDelta,
-}
-
-#[derive(Debug, Deserialize)]
-struct CerebrasDelta {
-    content: Option<String>,
-}
 
 /// Cerebras provider — ultra-fast inference via dedicated hardware.
 pub struct CerebrasProvider {
@@ -70,11 +19,7 @@ impl CerebrasProvider {
     pub fn new(config: ProviderConfig) -> Self {
         Self {
             config,
-            client: reqwest::Client::builder()
-                .timeout(std::time::Duration::from_secs(90))
-                .connect_timeout(std::time::Duration::from_secs(10))
-                .build()
-                .unwrap_or_else(|_| reqwest::Client::new()),
+            client: openai_compat::default_http_client(),
         }
     }
 
@@ -82,19 +27,22 @@ impl CerebrasProvider {
         self.config.api_url.clone().unwrap_or_else(|| CEREBRAS_BASE_URL.to_string())
     }
 
-    fn build_messages(&self, messages: &[Message], context: Option<String>) -> Vec<CerebrasMessage> {
-        let mut result: Vec<CerebrasMessage> = messages.iter().map(|m| CerebrasMessage {
-            role: m.role.as_str().to_string(),
-            content: m.content.clone(),
-        }).collect();
-        if let Some(ctx) = context {
-            if let Some(last) = result.last_mut() {
-                if last.role == "user" {
-                    last.content = format!("Context:\n{}\n\nUser: {}", ctx, last.content);
-                }
-            }
+    fn chat_url(&self) -> String {
+        format!("{}/chat/completions", self.base_url())
+    }
+
+    fn api_key(&self) -> Result<&str> {
+        self.config.api_key.as_deref().context("Cerebras API key not set (CEREBRAS_API_KEY)")
+    }
+
+    fn make_request(&self, messages: &[Message], context: Option<String>, stream: bool) -> ChatRequest {
+        ChatRequest {
+            model: self.config.model.clone(),
+            messages: openai_compat::build_messages(messages, context),
+            temperature: self.config.temperature,
+            max_tokens: self.config.max_tokens,
+            stream,
         }
-        result
     }
 }
 
@@ -129,28 +77,9 @@ impl AIProvider for CerebrasProvider {
     }
 
     async fn chat_response(&self, messages: &[Message], context: Option<String>) -> Result<CompletionResponse> {
-        let api_key = self.config.api_key.as_ref().context("Cerebras API key not set (CEREBRAS_API_KEY)")?;
-        let request = CerebrasRequest {
-            model: self.config.model.clone(),
-            messages: self.build_messages(messages, context),
-            temperature: self.config.temperature,
-            max_tokens: self.config.max_tokens,
-            stream: false,
-        };
-        let url = format!("{}/chat/completions", self.base_url());
-        let resp = self.client.post(&url)
-            .header("Authorization", format!("Bearer {}", api_key))
-            .json(&request)
-            .send().await.context("Cerebras request failed")?;
-
-        if !resp.status().is_success() {
-            let err = resp.text().await?;
-            anyhow::bail!("Cerebras API error: {}", err);
-        }
-        let body: CerebrasResponse = resp.json().await.context("Failed to parse Cerebras response")?;
-        let text = body.choices.first().context("No choices")?.message.content.clone();
-        let usage = body.usage.map(|u| TokenUsage { prompt_tokens: u.prompt_tokens, completion_tokens: u.completion_tokens });
-        Ok(CompletionResponse { text, model: self.config.model.clone(), usage })
+        let api_key = self.api_key()?;
+        let request = self.make_request(messages, context, false);
+        openai_compat::send_chat_request(&self.client, &self.chat_url(), api_key, &request, "Cerebras").await
     }
 
     async fn chat(&self, messages: &[Message], context: Option<String>) -> Result<String> {
@@ -158,41 +87,9 @@ impl AIProvider for CerebrasProvider {
     }
 
     async fn stream_chat(&self, messages: &[Message]) -> Result<CompletionStream> {
-        let api_key = self.config.api_key.as_ref().context("Cerebras API key not set")?;
-        let request = CerebrasRequest {
-            model: self.config.model.clone(),
-            messages: self.build_messages(messages, None),
-            temperature: self.config.temperature,
-            max_tokens: self.config.max_tokens,
-            stream: true,
-        };
-        let url = format!("{}/chat/completions", self.base_url());
-        let resp = self.client.post(&url)
-            .header("Authorization", format!("Bearer {}", api_key))
-            .json(&request)
-            .send().await.context("Cerebras stream request failed")?;
-
-        if !resp.status().is_success() {
-            let err = resp.text().await?;
-            anyhow::bail!("Cerebras API error: {}", err);
-        }
-        let stream = resp.bytes_stream().map(|chunk| {
-            let chunk = chunk?;
-            let text = String::from_utf8_lossy(&chunk);
-            let mut content = String::new();
-            for line in text.lines() {
-                if let Some(data) = line.strip_prefix("data: ") {
-                    if data == "[DONE]" { continue; }
-                    if let Ok(r) = serde_json::from_str::<CerebrasStreamResponse>(data) {
-                        if let Some(c) = r.choices.first().and_then(|ch| ch.delta.content.as_ref()) {
-                            content.push_str(c);
-                        }
-                    }
-                }
-            }
-            Ok(content)
-        }).boxed();
-        Ok(stream)
+        let api_key = self.api_key()?;
+        let request = self.make_request(messages, None, true);
+        openai_compat::send_stream_request(&self.client, &self.chat_url(), api_key, &request, "Cerebras").await
     }
 
     async fn chat_with_images(&self, messages: &[Message], _images: &[ImageAttachment], context: Option<String>) -> Result<String> {
@@ -203,6 +100,7 @@ impl AIProvider for CerebrasProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use openai_compat::{ChatResponse, ChatMessage, StreamResponse};
 
     fn test_config() -> ProviderConfig {
         ProviderConfig {
@@ -245,7 +143,7 @@ mod tests {
     #[test]
     fn cerebras_response_deser() {
         let json = r#"{"choices":[{"message":{"role":"assistant","content":"fast"}}],"usage":{"prompt_tokens":10,"completion_tokens":2}}"#;
-        let resp: CerebrasResponse = serde_json::from_str(json).unwrap();
+        let resp: ChatResponse = serde_json::from_str(json).unwrap();
         assert_eq!(resp.choices[0].message.content, "fast");
         assert_eq!(resp.usage.unwrap().prompt_tokens, 10);
     }
@@ -255,12 +153,11 @@ mod tests {
     #[test]
     fn build_messages_without_context() {
         use crate::provider::MessageRole;
-        let p = CerebrasProvider::new(test_config());
         let msgs = vec![
             Message { role: MessageRole::System, content: "You are helpful.".into() },
             Message { role: MessageRole::User, content: "Hello".into() },
         ];
-        let result = p.build_messages(&msgs, None);
+        let result = openai_compat::build_messages(&msgs, None);
         assert_eq!(result.len(), 2);
         assert_eq!(result[0].role, "system");
         assert_eq!(result[0].content, "You are helpful.");
@@ -271,11 +168,10 @@ mod tests {
     #[test]
     fn build_messages_with_context_injects_into_last_user() {
         use crate::provider::MessageRole;
-        let p = CerebrasProvider::new(test_config());
         let msgs = vec![
             Message { role: MessageRole::User, content: "Explain".into() },
         ];
-        let result = p.build_messages(&msgs, Some("source code here".into()));
+        let result = openai_compat::build_messages(&msgs, Some("source code here".into()));
         assert_eq!(result.len(), 1);
         assert!(result[0].content.starts_with("Context:\nsource code here"));
         assert!(result[0].content.contains("User: Explain"));
@@ -284,13 +180,12 @@ mod tests {
     #[test]
     fn build_messages_context_only_last_user_affected() {
         use crate::provider::MessageRole;
-        let p = CerebrasProvider::new(test_config());
         let msgs = vec![
             Message { role: MessageRole::User, content: "First".into() },
             Message { role: MessageRole::Assistant, content: "Mid".into() },
             Message { role: MessageRole::User, content: "Last".into() },
         ];
-        let result = p.build_messages(&msgs, Some("ctx".into()));
+        let result = openai_compat::build_messages(&msgs, Some("ctx".into()));
         // First user unchanged
         assert_eq!(result[0].content, "First");
         // Last user gets context
@@ -301,40 +196,36 @@ mod tests {
     #[test]
     fn build_messages_context_not_injected_when_last_is_assistant() {
         use crate::provider::MessageRole;
-        let p = CerebrasProvider::new(test_config());
         let msgs = vec![
             Message { role: MessageRole::User, content: "Q".into() },
             Message { role: MessageRole::Assistant, content: "A".into() },
         ];
-        let result = p.build_messages(&msgs, Some("ignored context".into()));
+        let result = openai_compat::build_messages(&msgs, Some("ignored context".into()));
         assert_eq!(result[1].content, "A");
         assert_eq!(result[0].content, "Q");
     }
 
     #[test]
     fn build_messages_empty_input() {
-        let p = CerebrasProvider::new(test_config());
-        let result = p.build_messages(&[], None);
+        let result = openai_compat::build_messages(&[], None);
         assert!(result.is_empty());
     }
 
     #[test]
     fn build_messages_empty_input_with_context() {
-        let p = CerebrasProvider::new(test_config());
-        let result = p.build_messages(&[], Some("ctx".into()));
+        let result = openai_compat::build_messages(&[], Some("ctx".into()));
         assert!(result.is_empty());
     }
 
     #[test]
     fn build_messages_role_mapping() {
         use crate::provider::MessageRole;
-        let p = CerebrasProvider::new(test_config());
         let msgs = vec![
             Message { role: MessageRole::System, content: "s".into() },
             Message { role: MessageRole::User, content: "u".into() },
             Message { role: MessageRole::Assistant, content: "a".into() },
         ];
-        let result = p.build_messages(&msgs, None);
+        let result = openai_compat::build_messages(&msgs, None);
         assert_eq!(result[0].role, "system");
         assert_eq!(result[1].role, "user");
         assert_eq!(result[2].role, "assistant");
@@ -379,9 +270,9 @@ mod tests {
 
     #[test]
     fn cerebras_request_serde_minimal() {
-        let req = CerebrasRequest {
+        let req = ChatRequest {
             model: "llama3.1-70b".into(),
-            messages: vec![CerebrasMessage { role: "user".into(), content: "hi".into() }],
+            messages: vec![ChatMessage { role: "user".into(), content: "hi".into() }],
             temperature: None,
             max_tokens: None,
             stream: false,
@@ -396,11 +287,11 @@ mod tests {
 
     #[test]
     fn cerebras_request_serde_full() {
-        let req = CerebrasRequest {
+        let req = ChatRequest {
             model: "llama-3.3-70b".into(),
             messages: vec![
-                CerebrasMessage { role: "system".into(), content: "sys".into() },
-                CerebrasMessage { role: "user".into(), content: "usr".into() },
+                ChatMessage { role: "system".into(), content: "sys".into() },
+                ChatMessage { role: "user".into(), content: "usr".into() },
             ],
             temperature: Some(0.8),
             max_tokens: Some(512),
@@ -417,7 +308,7 @@ mod tests {
     #[test]
     fn cerebras_response_deser_no_usage() {
         let json = r#"{"choices":[{"message":{"role":"assistant","content":"ok"}}]}"#;
-        let resp: CerebrasResponse = serde_json::from_str(json).unwrap();
+        let resp: ChatResponse = serde_json::from_str(json).unwrap();
         assert_eq!(resp.choices[0].message.content, "ok");
         assert!(resp.usage.is_none());
     }
@@ -425,22 +316,22 @@ mod tests {
     #[test]
     fn cerebras_stream_response_deser() {
         let json = r#"{"choices":[{"delta":{"content":"tok"}}]}"#;
-        let resp: CerebrasStreamResponse = serde_json::from_str(json).unwrap();
+        let resp: StreamResponse = serde_json::from_str(json).unwrap();
         assert_eq!(resp.choices[0].delta.content.as_ref().unwrap(), "tok");
     }
 
     #[test]
     fn cerebras_stream_response_deser_null_content() {
         let json = r#"{"choices":[{"delta":{"content":null}}]}"#;
-        let resp: CerebrasStreamResponse = serde_json::from_str(json).unwrap();
+        let resp: StreamResponse = serde_json::from_str(json).unwrap();
         assert!(resp.choices[0].delta.content.is_none());
     }
 
     #[test]
     fn cerebras_message_roundtrip() {
-        let msg = CerebrasMessage { role: "user".into(), content: "test data".into() };
+        let msg = ChatMessage { role: "user".into(), content: "test data".into() };
         let json = serde_json::to_string(&msg).unwrap();
-        let msg2: CerebrasMessage = serde_json::from_str(&json).unwrap();
+        let msg2: ChatMessage = serde_json::from_str(&json).unwrap();
         assert_eq!(msg.role, msg2.role);
         assert_eq!(msg.content, msg2.content);
     }
@@ -450,7 +341,7 @@ mod tests {
     #[test]
     fn cerebras_response_deser_multiple_choices() {
         let json = r#"{"choices":[{"message":{"role":"assistant","content":"a"}},{"message":{"role":"assistant","content":"b"}}]}"#;
-        let resp: CerebrasResponse = serde_json::from_str(json).unwrap();
+        let resp: ChatResponse = serde_json::from_str(json).unwrap();
         assert_eq!(resp.choices.len(), 2);
         assert_eq!(resp.choices[1].message.content, "b");
     }
@@ -458,7 +349,7 @@ mod tests {
     #[test]
     fn cerebras_response_deser_zero_token_usage() {
         let json = r#"{"choices":[{"message":{"role":"assistant","content":""}}],"usage":{"prompt_tokens":0,"completion_tokens":0}}"#;
-        let resp: CerebrasResponse = serde_json::from_str(json).unwrap();
+        let resp: ChatResponse = serde_json::from_str(json).unwrap();
         let usage = resp.usage.unwrap();
         assert_eq!(usage.prompt_tokens, 0);
         assert_eq!(usage.completion_tokens, 0);
@@ -467,7 +358,7 @@ mod tests {
     #[test]
     fn cerebras_stream_response_deser_empty_content() {
         let json = r#"{"choices":[{"delta":{"content":""}}]}"#;
-        let resp: CerebrasStreamResponse = serde_json::from_str(json).unwrap();
+        let resp: StreamResponse = serde_json::from_str(json).unwrap();
         assert_eq!(resp.choices[0].delta.content.as_ref().unwrap(), "");
     }
 
@@ -476,11 +367,10 @@ mod tests {
     #[test]
     fn build_messages_empty_context_still_injects() {
         use crate::provider::MessageRole;
-        let p = CerebrasProvider::new(test_config());
         let msgs = vec![
             Message { role: MessageRole::User, content: "q".into() },
         ];
-        let result = p.build_messages(&msgs, Some("".into()));
+        let result = openai_compat::build_messages(&msgs, Some("".into()));
         assert!(result[0].content.starts_with("Context:\n"));
         assert!(result[0].content.contains("User: q"));
     }
@@ -489,9 +379,9 @@ mod tests {
 
     #[test]
     fn cerebras_request_different_model() {
-        let req = CerebrasRequest {
+        let req = ChatRequest {
             model: "llama3.1-8b".into(),
-            messages: vec![CerebrasMessage { role: "user".into(), content: "test".into() }],
+            messages: vec![ChatMessage { role: "user".into(), content: "test".into() }],
             temperature: Some(0.0),
             max_tokens: Some(1),
             stream: false,

@@ -3,63 +3,12 @@
 //! Supported models: mistral-large-latest, mistral-medium-latest,
 //! mistral-small-latest, codestral-latest, open-mistral-nemo
 
-use crate::provider::{AIProvider, CodeContext, CompletionResponse, CompletionStream, ImageAttachment, Message, ProviderConfig, TokenUsage};
+use super::openai_compat::{self, ChatRequest};
+use crate::provider::{AIProvider, CodeContext, CompletionResponse, CompletionStream, ImageAttachment, Message, ProviderConfig};
 use anyhow::{Context, Result};
 use async_trait::async_trait;
-use futures::stream::StreamExt;
-use serde::{Deserialize, Serialize};
 
 const MISTRAL_BASE_URL: &str = "https://api.mistral.ai/v1";
-
-#[derive(Debug, Serialize)]
-struct MistralRequest {
-    model: String,
-    messages: Vec<MistralMessage>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    temperature: Option<f32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    max_tokens: Option<usize>,
-    stream: bool,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct MistralMessage {
-    role: String,
-    content: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct MistralUsage {
-    prompt_tokens: u32,
-    completion_tokens: u32,
-}
-
-#[derive(Debug, Deserialize)]
-struct MistralResponse {
-    choices: Vec<MistralChoice>,
-    #[serde(default)]
-    usage: Option<MistralUsage>,
-}
-
-#[derive(Debug, Deserialize)]
-struct MistralChoice {
-    message: MistralMessage,
-}
-
-#[derive(Debug, Deserialize)]
-struct MistralStreamResponse {
-    choices: Vec<MistralStreamChoice>,
-}
-
-#[derive(Debug, Deserialize)]
-struct MistralStreamChoice {
-    delta: MistralDelta,
-}
-
-#[derive(Debug, Deserialize)]
-struct MistralDelta {
-    content: Option<String>,
-}
 
 /// Mistral AI provider — native API endpoint.
 pub struct MistralProvider {
@@ -71,11 +20,7 @@ impl MistralProvider {
     pub fn new(config: ProviderConfig) -> Self {
         Self {
             config,
-            client: reqwest::Client::builder()
-                .timeout(std::time::Duration::from_secs(90))
-                .connect_timeout(std::time::Duration::from_secs(10))
-                .build()
-                .unwrap_or_else(|_| reqwest::Client::new()),
+            client: openai_compat::default_http_client(),
         }
     }
 
@@ -83,19 +28,22 @@ impl MistralProvider {
         self.config.api_url.clone().unwrap_or_else(|| MISTRAL_BASE_URL.to_string())
     }
 
-    fn build_messages(&self, messages: &[Message], context: Option<String>) -> Vec<MistralMessage> {
-        let mut result: Vec<MistralMessage> = messages.iter().map(|m| MistralMessage {
-            role: m.role.as_str().to_string(),
-            content: m.content.clone(),
-        }).collect();
-        if let Some(ctx) = context {
-            if let Some(last) = result.last_mut() {
-                if last.role == "user" {
-                    last.content = format!("Context:\n{}\n\nUser: {}", ctx, last.content);
-                }
-            }
+    fn chat_url(&self) -> String {
+        format!("{}/chat/completions", self.base_url())
+    }
+
+    fn api_key(&self) -> Result<&str> {
+        self.config.api_key.as_deref().context("Mistral API key not set (MISTRAL_API_KEY)")
+    }
+
+    fn make_request(&self, messages: &[Message], context: Option<String>, stream: bool) -> ChatRequest {
+        ChatRequest {
+            model: self.config.model.clone(),
+            messages: openai_compat::build_messages(messages, context),
+            temperature: self.config.temperature,
+            max_tokens: self.config.max_tokens,
+            stream,
         }
-        result
     }
 }
 
@@ -130,28 +78,9 @@ impl AIProvider for MistralProvider {
     }
 
     async fn chat_response(&self, messages: &[Message], context: Option<String>) -> Result<CompletionResponse> {
-        let api_key = self.config.api_key.as_ref().context("Mistral API key not set (MISTRAL_API_KEY)")?;
-        let request = MistralRequest {
-            model: self.config.model.clone(),
-            messages: self.build_messages(messages, context),
-            temperature: self.config.temperature,
-            max_tokens: self.config.max_tokens,
-            stream: false,
-        };
-        let url = format!("{}/chat/completions", self.base_url());
-        let resp = self.client.post(&url)
-            .header("Authorization", format!("Bearer {}", api_key))
-            .json(&request)
-            .send().await.context("Mistral request failed")?;
-
-        if !resp.status().is_success() {
-            let err = resp.text().await?;
-            anyhow::bail!("Mistral API error: {}", err);
-        }
-        let body: MistralResponse = resp.json().await.context("Failed to parse Mistral response")?;
-        let text = body.choices.first().context("No choices")?.message.content.clone();
-        let usage = body.usage.map(|u| TokenUsage { prompt_tokens: u.prompt_tokens, completion_tokens: u.completion_tokens });
-        Ok(CompletionResponse { text, model: self.config.model.clone(), usage })
+        let api_key = self.api_key()?;
+        let request = self.make_request(messages, context, false);
+        openai_compat::send_chat_request(&self.client, &self.chat_url(), api_key, &request, "Mistral").await
     }
 
     async fn chat(&self, messages: &[Message], context: Option<String>) -> Result<String> {
@@ -159,41 +88,9 @@ impl AIProvider for MistralProvider {
     }
 
     async fn stream_chat(&self, messages: &[Message]) -> Result<CompletionStream> {
-        let api_key = self.config.api_key.as_ref().context("Mistral API key not set")?;
-        let request = MistralRequest {
-            model: self.config.model.clone(),
-            messages: self.build_messages(messages, None),
-            temperature: self.config.temperature,
-            max_tokens: self.config.max_tokens,
-            stream: true,
-        };
-        let url = format!("{}/chat/completions", self.base_url());
-        let resp = self.client.post(&url)
-            .header("Authorization", format!("Bearer {}", api_key))
-            .json(&request)
-            .send().await.context("Mistral stream request failed")?;
-
-        if !resp.status().is_success() {
-            let err = resp.text().await?;
-            anyhow::bail!("Mistral API error: {}", err);
-        }
-        let stream = resp.bytes_stream().map(|chunk| {
-            let chunk = chunk?;
-            let text = String::from_utf8_lossy(&chunk);
-            let mut content = String::new();
-            for line in text.lines() {
-                if let Some(data) = line.strip_prefix("data: ") {
-                    if data == "[DONE]" { continue; }
-                    if let Ok(r) = serde_json::from_str::<MistralStreamResponse>(data) {
-                        if let Some(c) = r.choices.first().and_then(|ch| ch.delta.content.as_ref()) {
-                            content.push_str(c);
-                        }
-                    }
-                }
-            }
-            Ok(content)
-        }).boxed();
-        Ok(stream)
+        let api_key = self.api_key()?;
+        let request = self.make_request(messages, None, true);
+        openai_compat::send_stream_request(&self.client, &self.chat_url(), api_key, &request, "Mistral").await
     }
 
     async fn chat_with_images(&self, messages: &[Message], _images: &[ImageAttachment], context: Option<String>) -> Result<String> {
@@ -204,6 +101,7 @@ impl AIProvider for MistralProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use openai_compat::{ChatResponse, ChatMessage, StreamResponse};
 
     fn test_config() -> ProviderConfig {
         ProviderConfig {
@@ -246,7 +144,7 @@ mod tests {
     #[test]
     fn mistral_response_deser() {
         let json = r#"{"choices":[{"message":{"role":"assistant","content":"hello"}}],"usage":{"prompt_tokens":5,"completion_tokens":1}}"#;
-        let resp: MistralResponse = serde_json::from_str(json).unwrap();
+        let resp: ChatResponse = serde_json::from_str(json).unwrap();
         assert_eq!(resp.choices[0].message.content, "hello");
         assert_eq!(resp.usage.unwrap().completion_tokens, 1);
     }
@@ -256,12 +154,11 @@ mod tests {
     #[test]
     fn build_messages_without_context() {
         use crate::provider::MessageRole;
-        let p = MistralProvider::new(test_config());
         let msgs = vec![
             Message { role: MessageRole::System, content: "Be helpful.".into() },
             Message { role: MessageRole::User, content: "Hello".into() },
         ];
-        let result = p.build_messages(&msgs, None);
+        let result = openai_compat::build_messages(&msgs, None);
         assert_eq!(result.len(), 2);
         assert_eq!(result[0].role, "system");
         assert_eq!(result[0].content, "Be helpful.");
@@ -272,11 +169,10 @@ mod tests {
     #[test]
     fn build_messages_with_context_prepends_to_last_user() {
         use crate::provider::MessageRole;
-        let p = MistralProvider::new(test_config());
         let msgs = vec![
             Message { role: MessageRole::User, content: "Explain this".into() },
         ];
-        let result = p.build_messages(&msgs, Some("file.rs contents".into()));
+        let result = openai_compat::build_messages(&msgs, Some("file.rs contents".into()));
         assert_eq!(result.len(), 1);
         assert!(result[0].content.starts_with("Context:\nfile.rs contents"));
         assert!(result[0].content.contains("User: Explain this"));
@@ -285,13 +181,12 @@ mod tests {
     #[test]
     fn build_messages_context_only_affects_last_user_message() {
         use crate::provider::MessageRole;
-        let p = MistralProvider::new(test_config());
         let msgs = vec![
             Message { role: MessageRole::User, content: "First".into() },
             Message { role: MessageRole::Assistant, content: "Reply".into() },
             Message { role: MessageRole::User, content: "Second".into() },
         ];
-        let result = p.build_messages(&msgs, Some("ctx".into()));
+        let result = openai_compat::build_messages(&msgs, Some("ctx".into()));
         // First user message unchanged
         assert_eq!(result[0].content, "First");
         // Last message is user, gets context
@@ -302,12 +197,11 @@ mod tests {
     #[test]
     fn build_messages_context_skipped_when_last_is_not_user() {
         use crate::provider::MessageRole;
-        let p = MistralProvider::new(test_config());
         let msgs = vec![
             Message { role: MessageRole::User, content: "Q".into() },
             Message { role: MessageRole::Assistant, content: "A".into() },
         ];
-        let result = p.build_messages(&msgs, Some("some context".into()));
+        let result = openai_compat::build_messages(&msgs, Some("some context".into()));
         // Last message is assistant, context should NOT be injected
         assert_eq!(result[1].content, "A");
         assert_eq!(result[0].content, "Q");
@@ -315,21 +209,19 @@ mod tests {
 
     #[test]
     fn build_messages_empty_messages() {
-        let p = MistralProvider::new(test_config());
-        let result = p.build_messages(&[], None);
+        let result = openai_compat::build_messages(&[], None);
         assert!(result.is_empty());
     }
 
     #[test]
     fn build_messages_role_mapping() {
         use crate::provider::MessageRole;
-        let p = MistralProvider::new(test_config());
         let msgs = vec![
             Message { role: MessageRole::System, content: "sys".into() },
             Message { role: MessageRole::User, content: "usr".into() },
             Message { role: MessageRole::Assistant, content: "ast".into() },
         ];
-        let result = p.build_messages(&msgs, None);
+        let result = openai_compat::build_messages(&msgs, None);
         assert_eq!(result[0].role, "system");
         assert_eq!(result[1].role, "user");
         assert_eq!(result[2].role, "assistant");
@@ -379,9 +271,9 @@ mod tests {
 
     #[test]
     fn mistral_request_serde_stream_false() {
-        let req = MistralRequest {
+        let req = ChatRequest {
             model: "mistral-large-latest".into(),
-            messages: vec![MistralMessage { role: "user".into(), content: "hi".into() }],
+            messages: vec![ChatMessage { role: "user".into(), content: "hi".into() }],
             temperature: None,
             max_tokens: None,
             stream: false,
@@ -397,11 +289,11 @@ mod tests {
 
     #[test]
     fn mistral_request_serde_with_all_fields() {
-        let req = MistralRequest {
+        let req = ChatRequest {
             model: "codestral-latest".into(),
             messages: vec![
-                MistralMessage { role: "system".into(), content: "sys".into() },
-                MistralMessage { role: "user".into(), content: "code".into() },
+                ChatMessage { role: "system".into(), content: "sys".into() },
+                ChatMessage { role: "user".into(), content: "code".into() },
             ],
             temperature: Some(0.5),
             max_tokens: Some(2048),
@@ -418,7 +310,7 @@ mod tests {
     #[test]
     fn mistral_response_deser_no_usage() {
         let json = r#"{"choices":[{"message":{"role":"assistant","content":"ok"}}]}"#;
-        let resp: MistralResponse = serde_json::from_str(json).unwrap();
+        let resp: ChatResponse = serde_json::from_str(json).unwrap();
         assert_eq!(resp.choices[0].message.content, "ok");
         assert!(resp.usage.is_none());
     }
@@ -426,14 +318,14 @@ mod tests {
     #[test]
     fn mistral_stream_response_deser() {
         let json = r#"{"choices":[{"delta":{"content":"tok"}}]}"#;
-        let resp: MistralStreamResponse = serde_json::from_str(json).unwrap();
+        let resp: StreamResponse = serde_json::from_str(json).unwrap();
         assert_eq!(resp.choices[0].delta.content.as_ref().unwrap(), "tok");
     }
 
     #[test]
     fn mistral_stream_response_deser_null_content() {
         let json = r#"{"choices":[{"delta":{"content":null}}]}"#;
-        let resp: MistralStreamResponse = serde_json::from_str(json).unwrap();
+        let resp: StreamResponse = serde_json::from_str(json).unwrap();
         assert!(resp.choices[0].delta.content.is_none());
     }
 
@@ -442,16 +334,16 @@ mod tests {
     #[test]
     fn mistral_response_deser_multiple_choices() {
         let json = r#"{"choices":[{"message":{"role":"assistant","content":"a"}},{"message":{"role":"assistant","content":"b"}}],"usage":{"prompt_tokens":3,"completion_tokens":2}}"#;
-        let resp: MistralResponse = serde_json::from_str(json).unwrap();
+        let resp: ChatResponse = serde_json::from_str(json).unwrap();
         assert_eq!(resp.choices.len(), 2);
         assert_eq!(resp.choices[1].message.content, "b");
     }
 
     #[test]
     fn mistral_message_serde_roundtrip() {
-        let msg = MistralMessage { role: "system".into(), content: "Be precise.".into() };
+        let msg = ChatMessage { role: "system".into(), content: "Be precise.".into() };
         let json = serde_json::to_string(&msg).unwrap();
-        let msg2: MistralMessage = serde_json::from_str(&json).unwrap();
+        let msg2: ChatMessage = serde_json::from_str(&json).unwrap();
         assert_eq!(msg.role, msg2.role);
         assert_eq!(msg.content, msg2.content);
     }
@@ -459,7 +351,7 @@ mod tests {
     #[test]
     fn mistral_response_deser_zero_tokens() {
         let json = r#"{"choices":[{"message":{"role":"assistant","content":""}}],"usage":{"prompt_tokens":0,"completion_tokens":0}}"#;
-        let resp: MistralResponse = serde_json::from_str(json).unwrap();
+        let resp: ChatResponse = serde_json::from_str(json).unwrap();
         assert_eq!(resp.choices[0].message.content, "");
         let usage = resp.usage.unwrap();
         assert_eq!(usage.prompt_tokens, 0);
@@ -471,11 +363,10 @@ mod tests {
     #[test]
     fn build_messages_empty_context_string_still_injects() {
         use crate::provider::MessageRole;
-        let p = MistralProvider::new(test_config());
         let msgs = vec![
             Message { role: MessageRole::User, content: "query".into() },
         ];
-        let result = p.build_messages(&msgs, Some("".into()));
+        let result = openai_compat::build_messages(&msgs, Some("".into()));
         assert!(result[0].content.starts_with("Context:\n"));
         assert!(result[0].content.contains("User: query"));
     }
@@ -484,9 +375,9 @@ mod tests {
 
     #[test]
     fn mistral_request_with_different_model() {
-        let req = MistralRequest {
+        let req = ChatRequest {
             model: "open-mistral-nemo".into(),
-            messages: vec![MistralMessage { role: "user".into(), content: "hi".into() }],
+            messages: vec![ChatMessage { role: "user".into(), content: "hi".into() }],
             temperature: Some(1.0),
             max_tokens: Some(100),
             stream: false,
