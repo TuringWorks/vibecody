@@ -43,3 +43,4 @@ logs/
 # VibeCLI local data (auto-generated, user-specific)
 .vibecli/
 docs/Gemfile.lock
+/jetbrains-plugin/.gradle

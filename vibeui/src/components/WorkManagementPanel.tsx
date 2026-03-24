@@ -9,10 +9,11 @@ import { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
 const AgilePanel = lazy(() => import("./AgilePanel"));
+const DiscussionModePanel = lazy(() => import("./DiscussionModePanel"));
 
 /* ── Types ─────────────────────────────────────────────────── */
 
-type TabKey = "hierarchy" | "agile" | "items" | "board" | "relationships" | "okrs" | "risks" | "dashboard";
+type TabKey = "hierarchy" | "agile" | "items" | "board" | "relationships" | "okrs" | "risks" | "dashboard" | "discussions";
 
 type WorkItemType = "initiative" | "okr" | "epic" | "feature" | "story" | "task" | "subtask" | "bug" | "risk" | "decision" | "milestone" | "spike";
 type Priority = "critical" | "high" | "medium" | "low" | "none";
@@ -145,6 +146,7 @@ export default function WorkManagementPanel() {
     { id: "okrs", label: "OKRs" },
     { id: "risks", label: "Risks" },
     { id: "dashboard", label: "Dashboard" },
+    { id: "discussions", label: "Discussions" },
   ];
 
   return (
@@ -187,6 +189,11 @@ export default function WorkManagementPanel() {
         {tab === "okrs" && <OkrTab items={items} />}
         {tab === "risks" && <RisksTab items={items} />}
         {tab === "dashboard" && <DashboardTab items={items} />}
+        {tab === "discussions" && (
+          <Suspense fallback={<div style={{ padding: 16, color: "var(--text-secondary)" }}>Loading Discussions...</div>}>
+            <DiscussionModePanel />
+          </Suspense>
+        )}
       </div>
     </div>
   );

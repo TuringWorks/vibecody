@@ -67,12 +67,12 @@ interface SimulationResult {
 }
 
 interface OptimizationResult {
-  original_gate_count: number;
-  optimized_gate_count: number;
-  original_depth: number;
-  optimized_depth: number;
-  rules_applied: string[];
-  savings_percent: number;
+  originalGateCount: number;
+  optimizedGateCount: number;
+  originalDepth: number;
+  optimizedDepth: number;
+  rulesApplied: string[];
+  savingsPercent: number;
 }
 
 interface CostEstimate {
@@ -130,7 +130,7 @@ const TABS: { id: QuantumTab; label: string }[] = [
 // ── Algorithm Code Examples ─────────────────────────────────────────────────
 
 const ALGORITHM_EXAMPLES: Record<string, Record<string, string>> = {
-  "Grover's Search": {
+  "Grover's search": {
     Qiskit: `from qiskit import QuantumCircuit
 from qiskit_aer import AerSimulator
 
@@ -190,7 +190,7 @@ def grover():
 
 print(grover())  # |11⟩ dominant`,
   },
-  "Shor's Factoring": {
+  "Shor's factoring": {
     Qiskit: `from qiskit import QuantumCircuit
 from qiskit_aer import AerSimulator
 import numpy as np
@@ -358,7 +358,7 @@ def qaoa(params):
 
 print(qaoa([0.5, 0.5]))`,
   },
-  "Quantum Phase Estimation": {
+  "QPE": {
     Qiskit: `from qiskit import QuantumCircuit
 from qiskit_aer import AerSimulator
 import numpy as np
@@ -388,7 +388,7 @@ sim = AerSimulator()
 result = sim.run(qc, shots=1024).result()
 print(result.get_counts())`,
   },
-  "Deutsch-Jozsa": {
+  "Deutsch\u2013Jozsa": {
     Qiskit: `from qiskit import QuantumCircuit
 from qiskit_aer import AerSimulator
 
@@ -427,7 +427,7 @@ sim = cirq.Simulator()
 result = sim.run(circuit, repetitions=1024)
 print(result.histogram(key='result'))`,
   },
-  "Bernstein-Vazirani": {
+  "Bernstein\u2013Vazirani": {
     Qiskit: `from qiskit import QuantumCircuit
 from qiskit_aer import AerSimulator
 
@@ -465,7 +465,7 @@ circuit.append(cirq.measure(*qubits[:n], key='s'))
 result = cirq.Simulator().run(circuit, repetitions=1)
 print(f"Found secret: {result.measurements['s'][0]}")`,
   },
-  "HHL Algorithm": {
+  "HHL (linear systems)": {
     Qiskit: `# HHL solves Ax = b for quantum-encoded vectors
 # Qiskit provides a built-in HHL implementation
 from qiskit.algorithms.linear_solvers import HHL, NumPyLinearSolver
@@ -484,7 +484,7 @@ quantum_solution = hhl.solve(A, b)
 print(f"Classical: {classical.euclidean_norm:.4f}")
 print(f"HHL:      {quantum_solution.euclidean_norm:.4f}")`,
   },
-  "Quantum Walk": {
+  "Quantum walk": {
     Qiskit: `from qiskit import QuantumCircuit
 from qiskit_aer import AerSimulator
 import numpy as np
@@ -509,7 +509,7 @@ sim = AerSimulator()
 result = sim.run(qc, shots=1024).result()
 print(result.get_counts())`,
   },
-  "QSVM": {
+  "Quantum SVM": {
     PennyLane: `import pennylane as qml
 from pennylane import numpy as np
 
@@ -534,7 +534,7 @@ X = np.array([[0.1, 0.2], [0.5, 0.8], [1.0, 0.3]])
 K = np.array([[kernel(x1, x2) for x2 in X] for x1 in X])
 print("Kernel matrix:", K)`,
   },
-  "QNN": {
+  "Quantum Neural Network": {
     PennyLane: `import pennylane as qml
 from pennylane import numpy as np
 
@@ -558,6 +558,235 @@ weights = np.random.uniform(0, np.pi, (n_layers, n_qubits))
 inputs = np.array([0.1, 0.5, 0.3, 0.8])
 output = qnn(inputs, weights)
 print(f"QNN output: {output:.4f}")`,
+  },
+  "Simon's problem": {
+    Qiskit: `from qiskit import QuantumCircuit
+from qiskit_aer import AerSimulator
+import numpy as np
+
+n = 3  # bit-string length; secret s = 110
+qc = QuantumCircuit(2 * n, n)
+
+# Hadamard on input register
+qc.h(range(n))
+
+# Oracle for s = 110: f(x) = f(x XOR s)
+# Copy input to output, then XOR secret into output
+for i in range(n):
+    qc.cx(i, n + i)
+# Apply secret: XOR bits 1,2 of output (s=110)
+qc.cx(0, n + 1)
+qc.cx(0, n + 2)
+
+# Hadamard on input register
+qc.h(range(n))
+qc.measure(range(n), range(n))
+
+sim = AerSimulator()
+result = sim.run(qc, shots=1024).result()
+counts = result.get_counts()
+print("Measurements (orthogonal to s=110):", counts)
+# Solve linear system y·s = 0 mod 2 to recover s`,
+    Cirq: `import cirq
+import numpy as np
+
+n = 3  # secret s = 110
+qubits = cirq.LineQubit.range(2 * n)
+inp, out = qubits[:n], qubits[n:]
+
+circuit = cirq.Circuit()
+# Hadamard on input
+circuit.append(cirq.H.on_each(*inp))
+# Oracle: copy + XOR secret
+for i in range(n):
+    circuit.append(cirq.CNOT(inp[i], out[i]))
+circuit.append(cirq.CNOT(inp[0], out[1]))
+circuit.append(cirq.CNOT(inp[0], out[2]))
+# Hadamard on input
+circuit.append(cirq.H.on_each(*inp))
+circuit.append(cirq.measure(*inp, key='result'))
+
+sim = cirq.Simulator()
+result = sim.run(circuit, repetitions=1024)
+print(result.histogram(key='result'))`,
+  },
+  "Quantum Monte Carlo": {
+    Qiskit: `from qiskit import QuantumCircuit
+from qiskit_aer import AerSimulator
+import numpy as np
+
+# Quantum amplitude estimation for Monte Carlo integration
+# Estimate E[sin^2(x)] for x uniform in [0, pi/4]
+n_qubits = 5
+
+qc = QuantumCircuit(n_qubits + 1, n_qubits)
+
+# Prepare uniform superposition over x values
+qc.h(range(n_qubits))
+
+# Controlled rotation: encode f(x) = sin^2(x) into amplitude
+# Approximate with Ry rotations proportional to qubit index
+for i in range(n_qubits):
+    angle = np.pi / (2 ** (n_qubits - i))
+    qc.cry(angle, i, n_qubits)
+
+# Measure
+qc.measure(range(n_qubits), range(n_qubits))
+
+sim = AerSimulator()
+result = sim.run(qc, shots=4096).result()
+counts = result.get_counts()
+# Post-process: weighted average gives MC estimate
+total = sum(counts.values())
+estimate = sum(int(k, 2) * v for k, v in counts.items()) / (total * 2**n_qubits)
+print(f"Quantum MC estimate: {estimate:.4f}")`,
+    PennyLane: `import pennylane as qml
+from pennylane import numpy as np
+
+n_wires = 5
+dev = qml.device('default.qubit', wires=n_wires + 1)
+
+@qml.qnode(dev)
+def quantum_mc():
+    # Uniform superposition for sampling
+    for i in range(n_wires):
+        qml.Hadamard(wires=i)
+    # Encode function into ancilla amplitude
+    for i in range(n_wires):
+        angle = np.pi / (2 ** (n_wires - i))
+        qml.CRY(angle, wires=[i, n_wires])
+    return qml.probs(wires=n_wires)
+
+probs = quantum_mc()
+estimate = probs[1]  # probability of |1> on ancilla
+print(f"Quantum MC estimate: {estimate:.4f}")
+# Quadratic speedup: O(1/epsilon) vs classical O(1/epsilon^2)`,
+  },
+  "Quantum Boltzmann Machine": {
+    PennyLane: `import pennylane as qml
+from pennylane import numpy as np
+
+n_visible, n_hidden = 2, 2
+n_qubits = n_visible + n_hidden
+dev = qml.device('default.qubit', wires=n_qubits)
+
+@qml.qnode(dev)
+def qbm(weights, visible_bias, hidden_bias):
+    # Initialize in superposition
+    for i in range(n_qubits):
+        qml.Hadamard(wires=i)
+    # Apply parameterized Boltzmann-like interactions
+    # Visible-hidden couplings
+    idx = 0
+    for v in range(n_visible):
+        for h in range(n_visible, n_qubits):
+            qml.IsingZZ(weights[idx], wires=[v, h])
+            idx += 1
+    # Bias terms
+    for v in range(n_visible):
+        qml.RZ(visible_bias[v], wires=v)
+    for h in range(n_hidden):
+        qml.RZ(hidden_bias[h], wires=n_visible + h)
+    # Measure visible qubits
+    return [qml.expval(qml.PauliZ(i)) for i in range(n_visible)]
+
+# Random initialization
+weights = np.random.uniform(-1, 1, n_visible * n_hidden)
+v_bias = np.random.uniform(-0.5, 0.5, n_visible)
+h_bias = np.random.uniform(-0.5, 0.5, n_hidden)
+
+output = qbm(weights, v_bias, h_bias)
+print(f"QBM visible expectations: {[f'{v:.3f}' for v in output]}")`,
+    Qiskit: `from qiskit import QuantumCircuit
+from qiskit_aer import AerSimulator
+import numpy as np
+
+n_visible, n_hidden = 2, 2
+n = n_visible + n_hidden
+qc = QuantumCircuit(n, n_visible)
+
+# Superposition
+qc.h(range(n))
+
+# Ising-like couplings (visible-hidden)
+weights = np.random.uniform(-1, 1, n_visible * n_hidden)
+idx = 0
+for v in range(n_visible):
+    for h in range(n_visible, n):
+        qc.rzz(weights[idx], v, h)
+        idx += 1
+
+# Bias
+for i in range(n):
+    qc.rz(np.random.uniform(-0.5, 0.5), i)
+
+# Measure visible qubits
+qc.measure(range(n_visible), range(n_visible))
+
+sim = AerSimulator()
+result = sim.run(qc, shots=2048).result()
+print("QBM samples:", result.get_counts())`,
+  },
+  "DMRG / tensor-network": {
+    PennyLane: `import pennylane as qml
+from pennylane import numpy as np
+
+# Tree tensor network (TTN) ansatz — DMRG-inspired
+n_qubits = 8
+dev = qml.device('default.qubit', wires=n_qubits)
+
+@qml.qnode(dev)
+def ttn_circuit(params):
+    # Layer 1: pair-wise entanglement (mimics bond dimension)
+    for i in range(0, n_qubits, 2):
+        qml.RY(params[i], wires=i)
+        qml.RY(params[i+1], wires=i+1)
+        qml.CNOT(wires=[i, i+1])
+    # Layer 2: entangle pairs (tree structure)
+    for i in range(0, n_qubits, 4):
+        qml.RY(params[n_qubits + i//2], wires=i+1)
+        qml.RY(params[n_qubits + i//2 + 1], wires=i+3)
+        qml.CNOT(wires=[i+1, i+3])
+    # Layer 3: root
+    qml.RY(params[-2], wires=3)
+    qml.RY(params[-1], wires=7)
+    qml.CNOT(wires=[3, 7])
+    # Measure energy of Heisenberg chain
+    return qml.expval(
+        sum(qml.PauliZ(i) @ qml.PauliZ(i+1) for i in range(n_qubits - 1))
+    )
+
+n_params = n_qubits + n_qubits // 2 + 2
+params = np.random.uniform(0, np.pi, n_params)
+energy = ttn_circuit(params)
+print(f"TTN energy (Heisenberg chain, {n_qubits} sites): {energy:.4f}")`,
+    Qiskit: `from qiskit import QuantumCircuit
+from qiskit_aer import AerSimulator
+from qiskit.quantum_info import SparsePauliOp
+import numpy as np
+
+# Matrix Product State (MPS) inspired ansatz
+n = 8  # qubits (spin chain sites)
+qc = QuantumCircuit(n)
+
+# DMRG-inspired: sequential entanglement (bond dimension ~ 2)
+params = np.random.uniform(0, np.pi, 3 * n)
+for i in range(n):
+    qc.ry(params[3*i], i)
+    qc.rz(params[3*i+1], i)
+for i in range(n - 1):
+    qc.cx(i, i + 1)
+    qc.ry(params[3*i+2], i + 1)
+
+# Measure all qubits
+qc.measure_all()
+
+sim = AerSimulator(method='matrix_product_state')
+result = sim.run(qc, shots=2048).result()
+counts = result.get_counts()
+# Ground state approximation via MPS simulation
+top_states = sorted(counts.items(), key=lambda x: -x[1])[:5]
+print("Top MPS states:", top_states)`,
   },
 };
 
@@ -1924,35 +2153,35 @@ export function QuantumComputingPanel() {
                     <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8, color: "var(--text-secondary)" }}>Original</div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                       <div style={{ fontSize: 12 }}>
-                        Gates: <strong>{optResult.original_gate_count}</strong>
+                        Gates: <strong>{optResult.originalGateCount}</strong>
                       </div>
                       <div style={{ fontSize: 12 }}>
-                        Depth: <strong>{optResult.original_depth}</strong>
+                        Depth: <strong>{optResult.originalDepth}</strong>
                       </div>
                     </div>
                   </div>
                   {/* Optimized card */}
                   <div style={{ ...cardStyle, borderColor: "var(--accent-primary)" }}>
                     <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8, color: "var(--accent-primary)" }}>
-                      Optimized ({optResult.savings_percent.toFixed(1)}% savings)
+                      Optimized ({optResult.savingsPercent.toFixed(1)}% savings)
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                       <div style={{ fontSize: 12 }}>
-                        Gates: <strong>{optResult.optimized_gate_count}</strong>
+                        Gates: <strong>{optResult.optimizedGateCount}</strong>
                       </div>
                       <div style={{ fontSize: 12 }}>
-                        Depth: <strong>{optResult.optimized_depth}</strong>
+                        Depth: <strong>{optResult.optimizedDepth}</strong>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 {/* Rules applied */}
-                {optResult.rules_applied.length > 0 && (
+                {optResult.rulesApplied.length > 0 && (
                   <div style={cardStyle}>
                     <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Optimization Rules Applied</div>
                     <ul style={{ margin: 0, paddingLeft: 20, fontSize: 12, color: "var(--text-secondary)" }}>
-                      {optResult.rules_applied.map((r, i) => (
+                      {optResult.rulesApplied.map((r, i) => (
                         <li key={i} style={{ marginBottom: 3 }}>
                           {r}
                         </li>
