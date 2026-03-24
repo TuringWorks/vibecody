@@ -8,6 +8,53 @@ permalink: /changelog/
 All notable changes to VibeCody are documented here. This project follows [Semantic Versioning](https://semver.org/).
 
 
+## [0.5.0] - 2026-03-24
+
+### Added
+
+- **9 Quantum Computing Tools**:
+  - **Statevector Simulator** — pure Rust simulator supporting up to 16 qubits with all 14 quantum gates (H, X, Y, Z, S, T, Rx, Ry, Rz, CNOT, CZ, SWAP, Toffoli, Measure). Complex number arithmetic, probability extraction, amplitude readout, and shot-based sampling.
+  - **Visual Circuit Builder** — SVG-based editor with categorized gate palette, click-to-place on qubit wires, multi-qubit gate workflow (control then target), click-to-delete, and live metrics bar (gate count, depth, 2Q gates, circuit volume).
+  - **Circuit Optimizer** — multi-pass optimization: identity cancellation (HH, XX, YY, ZZ, CNOT pairs), gate merging (SS to Z, TT to S), rotation merging (adjacent Rx/Ry/Rz on same qubit), with savings percentage reporting.
+  - **Bloch Sphere Visualizer** — SVG rendering of single-qubit states with oblique projection, axis labels, state arrow, and theta/phi readout.
+  - **Cost Estimator** — pricing comparison for IBM Quantum ($1.60/sec), Amazon Braket ($0.30/task + per-shot), and IonQ (per-gate) with itemized breakdowns.
+  - **Project Scaffolding** — complete project generation for Qiskit, Cirq, PennyLane, and Q# with source, tests, requirements, CI config, and README.
+  - **Algorithm Templates** — 8 pre-built circuits: Bell State, GHZ(n), QFT(n), Grover 2-qubit, Deutsch-Jozsa, Bernstein-Vazirani, VQE ansatz, QAOA.
+  - **Hardware Topology Viewer** — SVG connectivity maps for IBM Eagle (127q), Google Sycamore (53q), IonQ Aria (25q), Rigetti Ankaa-2 (84q), Quantinuum H2 (32q).
+  - **Multi-language Code Examples** — 11 algorithms with implementations in Qiskit, Cirq, and PennyLane (Grover, Shor, VQE, QAOA, QPE, Deutsch-Jozsa, BV, HHL, Quantum Walk, QSVM, QNN).
+- **Panel Consolidation** (137 tabs to 36):
+  - 33 composite panels replacing 137 individual tabs, organized into 9 renamed groups (AI, Project, Code Quality, Source Control, Infrastructure, Data & APIs, Developer Tools, Toolkit, Settings).
+  - Reusable `TabbedPanel` component with keep-alive behavior for sub-tabs.
+  - `createComposite()` factory for one-liner composite panel definitions.
+  - Alias-based search — typing old panel names (e.g., "docker") still finds the consolidated tab ("Containers").
+- **Full-stack Resilience**:
+  - `ResilientProvider` wrapper — automatic retry with exponential backoff and jitter on all 21 AI providers.
+  - `retry_async()` generic utility for any async operation with configurable max attempts, backoff, and error classification.
+  - `is_retryable()` classifier covering 20+ transient error patterns (429, 503, timeouts, connection resets, decode errors).
+  - Agent loop: stream-level retry (5 attempts, 1-60s backoff), `RetryableError` event, frontend Retry button preserving completed work.
+  - Streaming chat: full retry loop with mid-stream error recovery.
+  - 30+ HTTP API calls wrapped with retry: JIRA, GitHub, Linear, Groq Whisper, ElevenLabs, Telegram, Discord, Slack, Signal, Matrix, Twilio, WhatsApp, Teams, OpenSandbox (all operations), BugBot.
+- 11 new Tauri commands for quantum operations (add/remove gate, simulate, optimize, cost estimate, templates, scaffold, circuit detail/delete/clear).
+- 105 quantum computing tests (32 new for simulator, optimizer, templates, cost, scaffold).
+
+### Fixed
+
+- Quantum circuit lookup uses `index` field instead of array position (circuits remained accessible after deletions).
+- Missing `gates` array in circuit detail for pre-existing circuits (defaults to empty).
+- Quantum simulator returns tuple arrays matching frontend TypeScript types.
+- `TabbedPanel` display:contents breaking child panel height.
+- `LazyPanels` props aligned with refactored `createComposite` pattern.
+
+### Changed
+
+- Quantum panel expanded from 6 tabs to 11 (Circuit Builder, Simulator, Optimizer, Cost, Templates, Scaffold, Topology, Languages, Quantum OS, Projects, Algorithms).
+- Version bumped to 0.5.0 across all manifests (Cargo.toml, package.json, tauri.conf.json).
+- VibeCLI crate now also builds as a library (`vibecli_cli`) for Tauri backend integration.
+- Canvas workflow panel properties sidebar added.
+- Tab labels corrected for Red Team, Blue Team, Purple Team.
+- AI/ML Workflow and Model Wizard added to tab groups.
+
+
 ## [0.4.0] - 2026-03-21
 
 ### Added

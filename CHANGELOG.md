@@ -5,6 +5,31 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.5.0] — 2026-03-24
+
+### Added
+
+- **9 Quantum Computing Tools**: statevector simulator (pure Rust, up to 16 qubits), visual SVG circuit builder with gate palette, circuit optimizer (identity cancellation, rotation merging), Bloch sphere visualizer, cost estimator (IBM/Braket/IonQ), project scaffolding (Qiskit/Cirq/PennyLane/Q#), 8 algorithm templates, hardware topology viewer (5 backends), multi-language code examples (11 algorithms in Qiskit/Cirq/PennyLane).
+- **Panel Consolidation**: 137 tabs consolidated into 36 composite panels with internal sub-tabs across 9 groups. Reusable `TabbedPanel` and `createComposite()` factory. Alias-based search for discoverability.
+- **Full-stack Resilience**: `ResilientProvider` wrapper with exponential backoff on all 21 AI providers. `retry_async()` utility for HTTP calls. Agent loop stream-level retry with frontend Retry button. 30+ HTTP API calls wrapped (JIRA, GitHub, Linear, Voice, Gateway, Sandbox, BugBot).
+- 11 new Tauri commands, 105 quantum tests, `vibecli_cli` library crate for Tauri integration.
+
+### Fixed
+
+- Quantum circuit lookup by index field (not array position).
+- Missing gates array in circuit detail for pre-existing circuits.
+- Simulator return format matching frontend TypeScript types.
+- TabbedPanel layout and LazyPanels prop alignment with createComposite pattern.
+
+### Changed
+
+- Quantum panel expanded from 6 to 11 tabs.
+- Version bumped to 0.5.0 across all manifests.
+- Canvas workflow panel properties sidebar.
+- Tab labels corrected for Red/Blue/Purple Team.
+
+---
+
 ## [0.4.0] — 2026-03-21
 
 ### Added
