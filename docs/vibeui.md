@@ -1128,7 +1128,7 @@ VibeUI implements WCAG 2.1 Level AA accessibility:
 | Crate | Tests | Key coverage areas |
 |-------|-------|--------------------|
 | vibecli | 5,262+ | session store, serve, config, review, workflow, REPL, redteam, gateway, transform, marketplace, background agents, TUI, tool executor, bugbot, vim editor, security scan, automations, legacy migration, batch builder, QA validation, RAG, GPU cluster, inference, training, counsel, superbrain, web client, open memory, auto research, blue/purple team, IDP, agent teams, cloud agents, workflow orchestration |
-| vibe-ai | 1,020+ | 18 providers, tools, trace, hooks, policy, skills, artifacts, planner, MCP, agent teams, multi-agent, SigV4, gemini |
+| vibe-ai | 1,020+ | 23 providers, tools, trace, hooks, policy, skills, artifacts, planner, MCP, agent teams, multi-agent, SigV4, gemini |
 | vibe-core | 293 | buffer, git, diff, context, file system, workspace, search, terminal, index/embeddings |
 | vibe-ui (Tauri) | 227 | Tauri commands, coverage, cost, flow, agent executor, shadow workspace |
 | vibe-lsp | 74 | LSP client, features, manager, language configs |

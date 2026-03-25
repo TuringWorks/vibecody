@@ -207,6 +207,19 @@ In REPL mode, the following slash commands are available:
 | `/ci-gates list\|validate\|add` | Source-controlled CI quality gates |
 | `/extension install\|list\|remove` | VS Code extension compatibility (TextMate grammars, snippets, themes) |
 | `/agentic fix-build\|gen-tests\|resolve-merge` | Agentic CI/CD — auto-fix builds, generate tests, resolve conflicts |
+| `/counsel new <topic>` | Create a multi-LLM deliberation session on a topic |
+| `/counsel run <id>` | Run a deliberation round (all participants respond) |
+| `/counsel inject <id> <msg>` | Inject a user interjection into a counsel session |
+| `/counsel synthesize <id>` | Generate moderator synthesis of all deliberation rounds |
+| `/counsel vote <id> <round> <participant> <+1\|-1>` | Vote on a participant's response |
+| `/counsel list` | List all counsel sessions |
+| `/counsel show <id>` | Show a counsel session's rounds and synthesis |
+| `/superbrain <query>` | Route a query to the best provider via keyword analysis (SmartRouter mode) |
+| `/superbrain consensus <query>` | All providers respond; synthesize majority view |
+| `/superbrain chain <query>` | Sequential refinement — each model builds on previous |
+| `/superbrain best <query>` | All providers respond; judge picks the best |
+| `/superbrain specialist <query>` | Decompose query into subtasks assigned to different models |
+| `/superbrain modes` | List available SuperBrain routing modes |
 | `/config` | Display current configuration |
 | `/help` | Show command reference |
 | `/exit` or `/quit` | Exit VibeCLI |
@@ -508,6 +521,91 @@ Endpoints:
 | POST | `/webhook/skill/:skill_name` | No | Trigger a skill by webhook name |
 | GET | `/pair` | No | Device pairing endpoint — generates a one-time pairing URL |
 
+## Counsel (Multi-LLM Deliberation)
+
+Counsel enables structured multi-round debates between multiple AI providers, each assigned a distinct role. A moderator synthesizes the final consensus.
+
+### Participant Roles
+
+| Role | System Prompt Focus |
+|------|-------------------|
+| **Expert** | Deep domain expertise, comprehensive analysis |
+| **Devil's Advocate** | Challenge assumptions, find weaknesses |
+| **Skeptic** | Demand evidence, question feasibility |
+| **Creative** | Novel approaches, outside-the-box thinking |
+| **Pragmatist** | Practical implementation, real-world constraints |
+| **Researcher** | Data-driven analysis, cite prior art |
+
+### Usage
+
+```text
+> /counsel new "Should we migrate from REST to GraphQL?"
+Session created: abc123
+
+> /counsel run abc123
+Round 1: Expert (Claude), Devil's Advocate (GPT-4o), Pragmatist (Gemini)
+... responses from each participant ...
+
+> /counsel inject abc123 "What about the migration cost for existing clients?"
+> /counsel run abc123
+Round 2: ... responses incorporating user feedback ...
+
+> /counsel synthesize abc123
+=== Moderator Synthesis ===
+Consensus: ...
+Disagreements: ...
+Recommendations: ...
+```
+
+Sessions are persisted at `~/.vibecli/counsel/sessions.json`.
+
+## SuperBrain (Multi-Provider Routing)
+
+SuperBrain intelligently routes queries to the best provider or combines responses from multiple providers.
+
+### Modes
+
+| Mode | Description |
+|------|-------------|
+| **SmartRouter** | Keyword-based routing to the best model for the task type (code, math, creative, analysis, factual) |
+| **Consensus** | All models respond; synthesizes the majority view |
+| **ChainRelay** | Sequential refinement — each model builds on the previous response |
+| **BestOfN** | All models respond; a judge picks the best |
+| **Specialist** | Decomposes complex queries into subtasks assigned to different models |
+
+### Usage
+
+```text
+> /superbrain "Write a binary search in Rust"
+[SmartRouter → code category → Claude]
+... response ...
+
+> /superbrain consensus "What's the best database for time-series data?"
+[Consensus → all providers → synthesis]
+... combined response ...
+
+> /superbrain chain "Design a microservices architecture for an e-commerce platform"
+[ChainRelay → Model 1 → Model 2 → Model 3 (refined)]
+... progressively refined response ...
+```
+
+## Web Client
+
+VibeCLI can serve a self-contained browser-based UI when running in server mode. No CDN dependencies — fully air-gap safe.
+
+```bash
+vibecli serve --port 7878
+# Open http://localhost:7878 in your browser
+```
+
+Features:
+- Chat and Agent modes with SSE streaming
+- Markdown rendering with syntax highlighting
+- Dark/light theme toggle
+- File upload support (configurable)
+- Responsive mobile-friendly design
+- Keyboard shortcuts (Enter to send, Shift+Enter for newline)
+
 ## Hooks System
 
 Hooks execute on agent events. Configure in `~/.vibecli/hooks.toml` or `.vibecli/hooks.toml`:
@@ -763,6 +861,9 @@ vibecli/
         ├── tailscale.rs    # Tailscale funnel
         ├── discovery.rs    # mDNS service discovery
         ├── scheduler.rs    # /remind and /schedule commands
+        ├── counsel.rs      # Multi-LLM deliberation engine
+        ├── superbrain.rs   # Multi-provider query routing and synthesis
+        ├── web_client.rs   # Browser-based zero-install web client
         └── tui/
             ├── mod.rs      # TUI run loop and event handling
             ├── app.rs      # TUI application state machine

@@ -13,7 +13,7 @@ All P0 gaps across all FIT-GAP analyses (v1-v6) and roadmaps (v1-v4) are **close
 
 ---
 
-## P1 — High Priority (3 items)
+## P1 — High Priority (2 items)
 
 ### 1. Hosted Plugin/Model Hub
 
@@ -23,13 +23,9 @@ All P0 gaps across all FIT-GAP analyses (v1-v6) and roadmaps (v1-v4) are **close
 - **Effort**: Medium (2-3 weeks infrastructure + hosting)
 - **Blocking**: Nothing — local marketplace works; this is a distribution/adoption concern
 
-### 2. Browser-Based Zero-Install Mode
+### ~~2. Browser-Based Zero-Install Mode~~ — **CLOSED**
 
-- **Source**: FIT-GAP v5 (line 61), ROADMAP v3 Phase 12.2 (P2), ROADMAP v4
-- **Current State**: VibeCody runs as desktop app (Tauri) or CLI. No browser-only mode like Bolt.new, v0, or Replit
-- **What's Needed**: WebAssembly build or thin web client that connects to `vibecli serve` backend
-- **Effort**: High (3-4 weeks — requires WASM porting or full web frontend)
-- **Note**: `browser_agent.rs` enables browser automation, but this gap is about VibeCody itself running _in_ a browser
+- **Closed by**: `web_client.rs` (1,048 lines) — self-contained SPA served from `vibecli serve`, zero CDN dependencies (air-gap safe), chat + agent modes with SSE streaming, dark/light theme, responsive design
 
 ### 3. SOC 2 Type II Certification
 
@@ -130,7 +126,7 @@ All 4 code-addressable gaps have been **CLOSED**:
 | ~~VS Code extension deeper compat~~ | `vscode_compat_ext.rs` (996 lines) | **CLOSED** |
 | ~~JetBrains agent hooks~~ | `jetbrains_hooks.rs` (1,017 lines, 57 tests) | **CLOSED** |
 
-**6 remaining items are non-code** (infrastructure, business process, or deferred by design):
+**5 remaining items are non-code** (infrastructure, business process, or deferred by design):
 
 | Priority | Items | Type |
 |----------|-------|------|

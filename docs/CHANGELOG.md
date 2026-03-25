@@ -8,6 +8,35 @@ permalink: /changelog/
 All notable changes to VibeCody are documented here. This project follows [Semantic Versioning](https://semver.org/).
 
 
+## [Unreleased]
+
+### Added
+
+- **Counsel — Multi-LLM Deliberation** (`counsel.rs`, 534 lines, 20+ tests):
+  - Structured multi-round debates between AI providers with 6 role-based personas (Expert, Devil's Advocate, Skeptic, Creative, Pragmatist, Researcher).
+  - User interjection between rounds, voting system, moderator-driven synthesis.
+  - Session persistence at `~/.vibecli/counsel/sessions.json`.
+  - 7 Tauri commands, CounselPanel.tsx with setup/rounds/synthesis tabs.
+  - REPL commands: `/counsel new|run|inject|synthesize|vote|list|show`.
+
+- **SuperBrain — Multi-Provider Query Routing** (`superbrain.rs`, 424 lines, 14+ tests):
+  - 5 routing modes: SmartRouter (keyword-based), Consensus, ChainRelay (sequential refinement), BestOfN (judge picks winner), Specialist (subtask decomposition).
+  - Keyword-based confidence scoring, configurable routing rules.
+  - 3 Tauri commands, REPL commands: `/superbrain`, `/superbrain consensus|chain|best|specialist|modes`.
+
+- **Web Client** (`web_client.rs`, 1,048 lines):
+  - Self-contained browser-based SPA served from `vibecli serve` — zero external CDN dependencies (air-gap safe).
+  - Chat and Agent modes with SSE streaming, markdown rendering, syntax highlighting.
+  - Dark/light theme, responsive design, file upload, keyboard shortcuts.
+
+### Changed
+
+- Documentation updated: panel listing expanded from 90 to 162 entries across 16 categories.
+- Provider count corrected to 23 across all documentation (added MiniMax, Perplexity, Together AI, Fireworks AI, SambaNova).
+- Test count updated to ~6,628+ across all documentation references.
+
+---
+
 ## [0.5.0] - 2026-03-24
 
 ### Added
