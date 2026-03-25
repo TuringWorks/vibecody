@@ -25410,6 +25410,526 @@ pub async fn quantum_clear_circuit_gates(index: usize) -> Result<serde_json::Val
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// Counsel — Multi-LLM Deliberation
+// ═══════════════════════════════════════════════════════════════════════════════
+
+fn counsel_data_dir() -> std::path::PathBuf {
+    let dir = dirs::home_dir().unwrap_or_default().join(".vibecli").join("counsel");
+    let _ = std::fs::create_dir_all(&dir);
+    dir
+}
+
+fn counsel_read_sessions() -> Vec<serde_json::Value> {
+    let path = counsel_data_dir().join("sessions.json");
+    std::fs::read_to_string(&path).ok()
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_default()
+}
+
+fn counsel_write_sessions(sessions: &[serde_json::Value]) -> Result<(), String> {
+    let path = counsel_data_dir().join("sessions.json");
+    let json = serde_json::to_string_pretty(sessions).map_err(|e| e.to_string())?;
+    std::fs::write(path, json).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn counsel_create_session(
+    topic: String,
+    participants: serde_json::Value,
+    moderator_idx: usize,
+) -> Result<serde_json::Value, String> {
+    use vibecli_cli::counsel::{CounselParticipant, CounselSession};
+
+    let parts: Vec<serde_json::Value> = participants.as_array()
+        .ok_or("participants must be an array")?.clone();
+
+    let parsed: Vec<CounselParticipant> = parts.iter().map(|p| {
+        CounselParticipant {
+            provider_name: p.get("provider").and_then(|v| v.as_str()).unwrap_or("ollama").to_string(),
+            model_name: p.get("model").and_then(|v| v.as_str()).unwrap_or("llama3.2").to_string(),
+            role: p.get("role").and_then(|v| v.as_str()).unwrap_or("Expert").to_string(),
+            persona: p.get("persona").and_then(|v| v.as_str()).map(|s| s.to_string()),
+        }
+    }).collect();
+
+    let session = CounselSession::new(topic, parsed, moderator_idx);
+    let session_json = serde_json::to_value(&session).map_err(|e| e.to_string())?;
+
+    let mut sessions = counsel_read_sessions();
+    sessions.push(session_json.clone());
+    counsel_write_sessions(&sessions)?;
+
+    Ok(session_json)
+}
+
+#[tauri::command]
+pub async fn counsel_list_sessions() -> Result<serde_json::Value, String> {
+    let sessions = counsel_read_sessions();
+    let summaries: Vec<serde_json::Value> = sessions.iter().map(|s| {
+        serde_json::json!({
+            "id": s.get("id").and_then(|v| v.as_str()).unwrap_or(""),
+            "topic": s.get("topic").and_then(|v| v.as_str()).unwrap_or(""),
+            "status": s.get("status").unwrap_or(&serde_json::json!("Idle")),
+            "round_count": s.get("rounds").and_then(|v| v.as_array()).map(|a| a.len()).unwrap_or(0),
+            "participant_count": s.get("participants").and_then(|v| v.as_array()).map(|a| a.len()).unwrap_or(0),
+        })
+    }).collect();
+    Ok(serde_json::json!(summaries))
+}
+
+#[tauri::command]
+pub async fn counsel_get_session(session_id: String) -> Result<serde_json::Value, String> {
+    let sessions = counsel_read_sessions();
+    sessions.iter()
+        .find(|s| s.get("id").and_then(|v| v.as_str()) == Some(&session_id))
+        .cloned()
+        .ok_or_else(|| format!("Session '{}' not found", session_id))
+}
+
+#[tauri::command]
+pub async fn counsel_run_round(
+    app: tauri::AppHandle,
+    session_id: String,
+) -> Result<serde_json::Value, String> {
+    use vibecli_cli::counsel::{CounselSession, CounselResponse};
+    use vibe_ai::provider::MessageRole;
+
+    let mut sessions = counsel_read_sessions();
+    let pos = sessions.iter().position(|s| {
+        s.get("id").and_then(|v| v.as_str()) == Some(&session_id)
+    }).ok_or("Session not found")?;
+
+    let mut session: CounselSession = serde_json::from_value(sessions[pos].clone())
+        .map_err(|e| e.to_string())?;
+
+    let round_number = session.current_round();
+    let mut responses = Vec::new();
+
+    for i in 0..session.participants.len() {
+        let messages = session.build_messages(i, round_number);
+        let participant = &session.participants[i];
+
+        let provider = build_temp_provider(&participant.provider_name, &participant.model_name);
+        let start = std::time::Instant::now();
+
+        let (content, tokens) = if let Some(prov) = provider {
+            let ai_messages: Vec<vibe_ai::provider::Message> = messages.iter().map(|m| {
+                vibe_ai::provider::Message {
+                    role: m.role.clone(),
+                    content: m.content.clone(),
+                }
+            }).collect();
+
+            let _ = app.emit("counsel:chunk", serde_json::json!({
+                "session_id": session_id,
+                "participant_index": i,
+                "status": "started",
+            }));
+
+            match prov.chat_response(&ai_messages, None).await {
+                Ok(resp) => (resp.text, resp.usage.map(|u| u.total() as usize)),
+                Err(e) => (format!("[Error: {}]", e), None),
+            }
+        } else {
+            (format!("[Provider '{}' not configured]", participant.provider_name), None)
+        };
+
+        let duration_ms = start.elapsed().as_millis() as u64;
+
+        let _ = app.emit("counsel:chunk", serde_json::json!({
+            "session_id": session_id,
+            "participant_index": i,
+            "status": "done",
+            "duration_ms": duration_ms,
+        }));
+
+        responses.push(CounselResponse {
+            participant_index: i,
+            content,
+            duration_ms,
+            tokens,
+            votes: 0,
+        });
+    }
+
+    session.add_round(responses);
+    let updated = serde_json::to_value(&session).map_err(|e| e.to_string())?;
+    sessions[pos] = updated.clone();
+    counsel_write_sessions(&sessions)?;
+
+    // Return just the latest round
+    let round_json = updated.get("rounds")
+        .and_then(|r| r.as_array())
+        .and_then(|arr| arr.last())
+        .cloned()
+        .unwrap_or(serde_json::json!(null));
+    Ok(round_json)
+}
+
+#[tauri::command]
+pub async fn counsel_synthesize(
+    app: tauri::AppHandle,
+    session_id: String,
+) -> Result<String, String> {
+    use vibecli_cli::counsel::CounselSession;
+
+    let mut sessions = counsel_read_sessions();
+    let pos = sessions.iter().position(|s| {
+        s.get("id").and_then(|v| v.as_str()) == Some(&session_id)
+    }).ok_or("Session not found")?;
+
+    let mut session: CounselSession = serde_json::from_value(sessions[pos].clone())
+        .map_err(|e| e.to_string())?;
+
+    let messages = session.build_synthesis_prompt();
+    let moderator = &session.participants[session.moderator_index];
+    let provider = build_temp_provider(&moderator.provider_name, &moderator.model_name)
+        .ok_or_else(|| format!("Moderator provider '{}' not configured", moderator.provider_name))?;
+
+    let _ = app.emit("counsel:chunk", serde_json::json!({
+        "session_id": session_id,
+        "status": "synthesizing",
+    }));
+
+    let ai_messages: Vec<vibe_ai::provider::Message> = messages.iter().map(|m| {
+        vibe_ai::provider::Message {
+            role: m.role.clone(),
+            content: m.content.clone(),
+        }
+    }).collect();
+
+    let resp = provider.chat_response(&ai_messages, None).await
+        .map_err(|e| e.to_string())?;
+
+    session.set_synthesis(resp.text.clone());
+    let updated = serde_json::to_value(&session).map_err(|e| e.to_string())?;
+    sessions[pos] = updated;
+    counsel_write_sessions(&sessions)?;
+
+    Ok(resp.text)
+}
+
+#[tauri::command]
+pub async fn counsel_inject_message(
+    session_id: String,
+    message: String,
+) -> Result<serde_json::Value, String> {
+    use vibecli_cli::counsel::CounselSession;
+
+    let mut sessions = counsel_read_sessions();
+    let pos = sessions.iter().position(|s| {
+        s.get("id").and_then(|v| v.as_str()) == Some(&session_id)
+    }).ok_or("Session not found")?;
+
+    let mut session: CounselSession = serde_json::from_value(sessions[pos].clone())
+        .map_err(|e| e.to_string())?;
+
+    session.inject_user_message(message);
+
+    let updated = serde_json::to_value(&session).map_err(|e| e.to_string())?;
+    sessions[pos] = updated.clone();
+    counsel_write_sessions(&sessions)?;
+
+    Ok(updated)
+}
+
+#[tauri::command]
+pub async fn counsel_vote(
+    session_id: String,
+    round_idx: usize,
+    participant_idx: usize,
+    delta: i32,
+) -> Result<serde_json::Value, String> {
+    use vibecli_cli::counsel::CounselSession;
+
+    let mut sessions = counsel_read_sessions();
+    let pos = sessions.iter().position(|s| {
+        s.get("id").and_then(|v| v.as_str()) == Some(&session_id)
+    }).ok_or("Session not found")?;
+
+    let mut session: CounselSession = serde_json::from_value(sessions[pos].clone())
+        .map_err(|e| e.to_string())?;
+
+    session.vote(round_idx, participant_idx, delta);
+
+    let updated = serde_json::to_value(&session).map_err(|e| e.to_string())?;
+    sessions[pos] = updated.clone();
+    counsel_write_sessions(&sessions)?;
+
+    Ok(updated)
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SuperBrain — Multi-Model Orchestration
+// ═══════════════════════════════════════════════════════════════════════════════
+
+#[tauri::command]
+pub async fn superbrain_route(prompt: String) -> Result<serde_json::Value, String> {
+    use vibecli_cli::superbrain::SmartRouter;
+
+    let rules = SmartRouter::default_rules();
+    let decision = SmartRouter::route(&prompt, &rules);
+    Ok(serde_json::to_value(&decision).map_err(|e| e.to_string())?)
+}
+
+#[tauri::command]
+pub async fn superbrain_query(
+    app: tauri::AppHandle,
+    prompt: String,
+    mode: String,
+    providers: serde_json::Value,
+) -> Result<serde_json::Value, String> {
+    use vibecli_cli::superbrain::*;
+    use vibe_ai::provider::{Message as AiMessage, MessageRole};
+
+    let provider_entries: Vec<ProviderEntry> = providers.get("list")
+        .and_then(|v| v.as_array())
+        .map(|arr| arr.iter().map(|p| ProviderEntry {
+            provider: p.get("provider").and_then(|v| v.as_str()).unwrap_or("ollama").to_string(),
+            model: p.get("model").and_then(|v| v.as_str()).unwrap_or("llama3.2").to_string(),
+        }).collect())
+        .unwrap_or_default();
+
+    let judge_entry: Option<ProviderEntry> = providers.get("judge")
+        .map(|j| ProviderEntry {
+            provider: j.get("provider").and_then(|v| v.as_str()).unwrap_or("claude").to_string(),
+            model: j.get("model").and_then(|v| v.as_str()).unwrap_or("claude-3.5-sonnet").to_string(),
+        });
+
+    let total_start = std::time::Instant::now();
+    let mut total_tokens: usize = 0;
+
+    match mode.as_str() {
+        "router" => {
+            let rules = SmartRouter::default_rules();
+            let decision = SmartRouter::route(&prompt, &rules);
+
+            let _ = app.emit("superbrain:progress", serde_json::json!({
+                "step": "routing", "provider": decision.provider, "model": decision.model,
+            }));
+
+            let resp = call_provider(&decision.provider, &decision.model, &prompt).await;
+            let tok = resp.tokens.unwrap_or(0) as usize;
+            total_tokens += tok;
+
+            let result = SuperBrainResult {
+                mode: "Smart Router".into(),
+                final_response: resp.content.clone(),
+                model_responses: vec![ModelContribution {
+                    provider: decision.provider.clone(),
+                    model: decision.model.clone(),
+                    role: "routed".into(),
+                    content: resp.content,
+                    duration_ms: resp.duration_ms,
+                    tokens: resp.tokens.map(|t| t as usize),
+                }],
+                routing_reason: Some(decision.reason),
+                total_duration_ms: total_start.elapsed().as_millis() as u64,
+                total_tokens,
+            };
+            Ok(serde_json::to_value(&result).map_err(|e| e.to_string())?)
+        },
+        "consensus" => {
+            let mut contributions: Vec<ModelContribution> = Vec::new();
+            for (i, entry) in provider_entries.iter().enumerate() {
+                let _ = app.emit("superbrain:progress", serde_json::json!({
+                    "step": "querying", "index": i, "provider": entry.provider, "model": entry.model,
+                }));
+                let resp = call_provider(&entry.provider, &entry.model, &prompt).await;
+                total_tokens += resp.tokens.unwrap_or(0) as usize;
+                contributions.push(ModelContribution {
+                    provider: entry.provider.clone(),
+                    model: entry.model.clone(),
+                    role: "participant".into(),
+                    content: resp.content,
+                    duration_ms: resp.duration_ms,
+                    tokens: resp.tokens.map(|t| t as usize),
+                });
+            }
+
+            // Synthesize with first provider
+            let synth_msgs = SuperBrainPrompts::consensus_prompt(&prompt, &contributions);
+            let synth_entry = provider_entries.first()
+                .ok_or("No providers configured")?;
+            let synth_prov = build_temp_provider(&synth_entry.provider, &synth_entry.model)
+                .ok_or("Synthesis provider not available")?;
+
+            let _ = app.emit("superbrain:progress", serde_json::json!({
+                "step": "synthesizing",
+            }));
+
+            let synth_resp = synth_prov.chat_response(&synth_msgs, None).await
+                .map_err(|e| e.to_string())?;
+            total_tokens += synth_resp.usage.map(|u| u.total() as usize).unwrap_or(0);
+
+            let result = SuperBrainResult {
+                mode: "Consensus".into(),
+                final_response: synth_resp.text,
+                model_responses: contributions,
+                routing_reason: None,
+                total_duration_ms: total_start.elapsed().as_millis() as u64,
+                total_tokens,
+            };
+            Ok(serde_json::to_value(&result).map_err(|e| e.to_string())?)
+        },
+        "chain" => {
+            let mut contributions: Vec<ModelContribution> = Vec::new();
+            let total_steps = provider_entries.len();
+            for (i, entry) in provider_entries.iter().enumerate() {
+                let msgs = SuperBrainPrompts::chain_relay_prompt(&prompt, &contributions, i, total_steps);
+                let prov = build_temp_provider(&entry.provider, &entry.model)
+                    .ok_or_else(|| format!("Provider '{}' not available", entry.provider))?;
+
+                let _ = app.emit("superbrain:progress", serde_json::json!({
+                    "step": "chain", "index": i, "total": total_steps, "provider": entry.provider,
+                }));
+
+                let start = std::time::Instant::now();
+                let resp = prov.chat_response(&msgs, None).await.map_err(|e| e.to_string())?;
+                let tok = resp.usage.map(|u| u.total() as usize);
+                total_tokens += tok.unwrap_or(0);
+
+                contributions.push(ModelContribution {
+                    provider: entry.provider.clone(),
+                    model: entry.model.clone(),
+                    role: if i == 0 { "Initial Analyst" } else if i == total_steps - 1 { "Final Synthesizer" } else { "Critical Reviewer" }.into(),
+                    content: resp.text,
+                    duration_ms: start.elapsed().as_millis() as u64,
+                    tokens: tok,
+                });
+            }
+
+            let final_text = contributions.last().map(|c| c.content.clone()).unwrap_or_default();
+            let result = SuperBrainResult {
+                mode: "Chain Relay".into(),
+                final_response: final_text,
+                model_responses: contributions,
+                routing_reason: None,
+                total_duration_ms: total_start.elapsed().as_millis() as u64,
+                total_tokens,
+            };
+            Ok(serde_json::to_value(&result).map_err(|e| e.to_string())?)
+        },
+        "bestofn" => {
+            let mut contributions: Vec<ModelContribution> = Vec::new();
+            for (i, entry) in provider_entries.iter().enumerate() {
+                let _ = app.emit("superbrain:progress", serde_json::json!({
+                    "step": "querying", "index": i, "provider": entry.provider,
+                }));
+                let resp = call_provider(&entry.provider, &entry.model, &prompt).await;
+                total_tokens += resp.tokens.unwrap_or(0) as usize;
+                contributions.push(ModelContribution {
+                    provider: entry.provider.clone(),
+                    model: entry.model.clone(),
+                    role: "candidate".into(),
+                    content: resp.content,
+                    duration_ms: resp.duration_ms,
+                    tokens: resp.tokens.map(|t| t as usize),
+                });
+            }
+
+            let judge = judge_entry.as_ref()
+                .or(provider_entries.first().map(|e| e))
+                .ok_or("No judge provider configured")?;
+            let judge_msgs = SuperBrainPrompts::best_of_n_judge_prompt(&prompt, &contributions);
+            let judge_prov = build_temp_provider(&judge.provider, &judge.model)
+                .ok_or("Judge provider not available")?;
+
+            let _ = app.emit("superbrain:progress", serde_json::json!({
+                "step": "judging", "provider": judge.provider,
+            }));
+
+            let judge_resp = judge_prov.chat_response(&judge_msgs, None).await
+                .map_err(|e| e.to_string())?;
+            total_tokens += judge_resp.usage.map(|u| u.total() as usize).unwrap_or(0);
+
+            let result = SuperBrainResult {
+                mode: "Best-of-N".into(),
+                final_response: judge_resp.text,
+                model_responses: contributions,
+                routing_reason: Some("Judge evaluation".into()),
+                total_duration_ms: total_start.elapsed().as_millis() as u64,
+                total_tokens,
+            };
+            Ok(serde_json::to_value(&result).map_err(|e| e.to_string())?)
+        },
+        "specialist" => {
+            // Step 1: Decompose
+            let decompose_msgs = SuperBrainPrompts::specialist_decompose_prompt(&prompt);
+            let first = provider_entries.first()
+                .ok_or("No providers configured")?;
+            let decompose_prov = build_temp_provider(&first.provider, &first.model)
+                .ok_or("Decompose provider not available")?;
+
+            let _ = app.emit("superbrain:progress", serde_json::json!({
+                "step": "decomposing",
+            }));
+
+            let decompose_resp = decompose_prov.chat_response(&decompose_msgs, None).await
+                .map_err(|e| e.to_string())?;
+            total_tokens += decompose_resp.usage.map(|u| u.total() as usize).unwrap_or(0);
+            let subtasks = vibecli_cli::superbrain::parse_subtasks(&decompose_resp.text);
+
+            // Step 2: Delegate subtasks round-robin
+            let mut subtask_results: Vec<(String, ModelContribution)> = Vec::new();
+            let mut contributions: Vec<ModelContribution> = Vec::new();
+            for (i, subtask) in subtasks.iter().enumerate() {
+                let entry = &provider_entries[i % provider_entries.len()];
+                let _ = app.emit("superbrain:progress", serde_json::json!({
+                    "step": "specialist", "subtask": subtask, "provider": entry.provider,
+                }));
+
+                let resp = call_provider(&entry.provider, &entry.model, subtask).await;
+                total_tokens += resp.tokens.unwrap_or(0) as usize;
+                let contrib = ModelContribution {
+                    provider: entry.provider.clone(),
+                    model: entry.model.clone(),
+                    role: format!("specialist-{}", i),
+                    content: resp.content,
+                    duration_ms: resp.duration_ms,
+                    tokens: resp.tokens.map(|t| t as usize),
+                };
+                subtask_results.push((subtask.clone(), contrib.clone()));
+                contributions.push(contrib);
+            }
+
+            // Step 3: Merge
+            let merge_msgs = SuperBrainPrompts::specialist_merge_prompt(&prompt, &subtask_results);
+            let merge_prov = build_temp_provider(&first.provider, &first.model)
+                .ok_or("Merge provider not available")?;
+
+            let _ = app.emit("superbrain:progress", serde_json::json!({
+                "step": "merging",
+            }));
+
+            let merge_resp = merge_prov.chat_response(&merge_msgs, None).await
+                .map_err(|e| e.to_string())?;
+            total_tokens += merge_resp.usage.map(|u| u.total() as usize).unwrap_or(0);
+
+            let result = SuperBrainResult {
+                mode: "Specialist".into(),
+                final_response: merge_resp.text,
+                model_responses: contributions,
+                routing_reason: Some(format!("Decomposed into {} subtasks", subtasks.len())),
+                total_duration_ms: total_start.elapsed().as_millis() as u64,
+                total_tokens,
+            };
+            Ok(serde_json::to_value(&result).map_err(|e| e.to_string())?)
+        },
+        _ => Err(format!("Unknown mode: '{}'. Use: router, consensus, chain, bestofn, specialist", mode)),
+    }
+}
+
+#[tauri::command]
+pub async fn superbrain_get_modes() -> Result<serde_json::Value, String> {
+    let modes = vibecli_cli::superbrain::available_modes();
+    let json: Vec<serde_json::Value> = modes.into_iter().map(|(name, desc)| {
+        serde_json::json!({ "name": name, "description": desc })
+    }).collect();
+    Ok(serde_json::json!(json))
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // Panel Settings Store — Encrypted SQLite with profile support
 // ═══════════════════════════════════════════════════════════════════════════════
 

@@ -749,6 +749,18 @@ pub fn run() {
             commands::quantum_scaffold_project,
             commands::quantum_delete_circuit,
             commands::quantum_clear_circuit_gates,
+            // Counsel
+            commands::counsel_create_session,
+            commands::counsel_list_sessions,
+            commands::counsel_get_session,
+            commands::counsel_run_round,
+            commands::counsel_synthesize,
+            commands::counsel_inject_message,
+            commands::counsel_vote,
+            // SuperBrain
+            commands::superbrain_route,
+            commands::superbrain_query,
+            commands::superbrain_get_modes,
             // Batch Builder
             commands::batch_create_run,
             commands::batch_list_runs,

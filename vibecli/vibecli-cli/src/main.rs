@@ -246,6 +246,10 @@ mod desktop_agent;
 mod web_client;
 mod counsel;
 mod superbrain;
+#[allow(dead_code)]
+mod vscode_compat_ext;
+mod large_codebase_bench;
+mod jetbrains_hooks;
 
 #[derive(Parser)]
 #[command(name = "vibecli")]
