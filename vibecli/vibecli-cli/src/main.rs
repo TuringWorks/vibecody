@@ -242,6 +242,10 @@ mod observe_act;
 #[allow(dead_code)]
 mod browser_agent;
 mod desktop_agent;
+#[allow(dead_code)]
+mod web_client;
+mod counsel;
+mod superbrain;
 
 #[derive(Parser)]
 #[command(name = "vibecli")]
