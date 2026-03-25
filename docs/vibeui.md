@@ -21,7 +21,7 @@ permalink: /vibeui/
                            │ Tauri IPC (invoke / events)
 ┌──────────────────────────▼───────────────────────────────────────┐
 │                   Tauri Rust Backend                             │
-│  commands.rs    — 60+ Tauri commands (files, git, AI, agent …)   │
+│  commands.rs    — 200+ Tauri commands (files, git, AI, agent …)  │
 │  agent_executor — ToolExecutorTrait for agent tool calls         │
 │  flow.rs        — Flow Awareness Engine (activity tracking)      │
 │  memory.rs      — Workspace + global AI rules (.vibeui.md)       │
@@ -90,7 +90,7 @@ The installer is placed in `src-tauri/target/release/bundle/`.
 
 ### AI Integration
 
-The AI chat panel supports all 22 providers via the shared `vibe-ai` crate:
+The AI chat panel supports all 18 providers via the shared `vibe-ai` crate:
 
 - **Local**: Ollama (default, no API key), LocalEdit
 - **Cloud**: Claude, OpenAI, Gemini, Grok, Groq, Mistral, Cerebras, DeepSeek, Zhipu
@@ -274,12 +274,15 @@ Press `Cmd+P` (macOS) / `Ctrl+P` (Windows/Linux) to open the Command Palette:
 
 ## AI Panel Tabs
 
-The AI panel (toggle with **AI Chat**in the header) has **107 tabs**across categories:
+The AI panel (toggle with **AI Chat** in the header) has **162 panel components** across categories:
+
+### Core AI & Chat
 
 | Tab | Component | Description |
 |-----|-----------|-------------|
-| **Chat** | `ChatTabManager` | Multiple independent chat tabs, each with per-tab provider selection; voice input () |
+| **Chat** | `ChatTabManager` | Multiple independent chat tabs, each with per-tab provider selection; voice input |
 | **Agent** | `AgentPanel` | Autonomous multi-step agent with step timeline, approval UI, Turbo mode, and plan mode |
+| **Agent Modes** | `AgentModesPanel` | Switch between Smart, Rush, and Deep agent modes |
 | **Memory** | `MemoryPanel` | Edit per-workspace `.vibeui.md` and global `~/.vibeui/rules.md` |
 | **History** | `HistoryPanel` | Audit log of past agent sessions; browse and expand trace entries |
 | **Checkpoints** | `CheckpointPanel` | Timeline of AI checkpoints with restore, auto-checkpoint |
@@ -288,31 +291,161 @@ The AI panel (toggle with **AI Chat**in the header) has **107 tabs**across categ
 | **Hooks** | `HooksPanel` | Configure event-driven hooks (PreToolUse, PostToolUse, etc.) |
 | **Jobs** | `BackgroundJobsPanel` | Submit tasks to VibeCLI daemon; live SSE stream; job persistence across restarts |
 | **Keys** | `SettingsPanel` | BYOK API key management for all cloud providers |
-| **Specs** | `SpecPanel` | Spec-driven development: AI-generated user stories, tasks, and acceptance criteria |
-| **Workflow** | `WorkflowPanel` | Code Complete 8-stage development pipeline with AI-generated checklists per stage |
-| **RedTeam** | `RedTeamPanel` | Autonomous 5-stage pentest pipeline with findings feed, CVSS scores, and report export |
-| **MCP** | `McpPanel` | MCP server management with OAuth 2.0 install flow and tool testing |
-| **Deploy** | `DeployPanel` | Deploy to 6 targets (Vercel/Netlify/Railway/GH Pages/GCP/Firebase) with custom domain support |
-| **BugBot** | `BugBotPanel` | AI code scanner with severity/category filter and fix snippets |
-| **Supabase** | `SupabasePanel` | Supabase connection, table browser, SQL editor, AI query |
-| **Auth** | `AuthPanel` | Auth scaffold generator (4 providers × 5 frameworks) |
-| **GH Sync** | `GitHubSyncPanel` | GitHub sync with ahead/behind status, push/pull, repo management |
-| **Steering** | `SteeringPanel` | Workspace/global steering files with templates |
-| **Tests** | `TestPanel` | Test runner with framework detection, live log stream, filter tabs, pass/fail badges |
-| **Collab** | `CollabPanel` | CRDT multiplayer collaboration: create/join rooms, peer list with color indicators, copy invite link |
-| **Arena** | `ArenaPanel` | Blind A/B model comparison: hidden identities, vote (A/B/Tie/Both bad), reveal, persistent leaderboard |
-| **Coverage** | `CoveragePanel` | Code coverage: auto-detect tool, run coverage, per-file % bars, uncovered lines, filter tabs, raw output |
+| **Counsel** | `CounselPanel` | Multi-LLM deliberation: structured debates between multiple AI providers with role-based personas, voting, and synthesis |
 | **Compare** | `MultiModelPanel` | Side-by-side dual-provider comparison: provider/model selectors, timing/tokens, Ctrl+Enter |
+| **Model Wizard** | `ModelWizardPanel` | Guided model selection wizard for optimal provider/model choice |
+| **Discussion** | `DiscussionModePanel` | Discussion and planning mode for exploring ideas before coding |
+| **Clarifying** | `ClarifyingQuestionsPanel` | AI-driven clarifying questions for ambiguous requests |
+
+### Development & Code
+
+| Tab | Component | Description |
+|-----|-----------|-------------|
+| **Specs** | `SpecPanel` | Spec-driven development: AI-generated user stories, tasks, and acceptance criteria |
+| **Spec Pipeline** | `SpecPipelinePanel` | End-to-end spec-to-code pipeline with validation |
+| **Workflow** | `WorkflowPanel` | Code Complete 8-stage development pipeline with AI-generated checklists per stage |
+| **Orchestrate** | `OrchestrationPanel` | Workflow orchestration with lessons and task tracking |
+| **Autofix** | `AutofixPanel` | Codemod auto-fix: detect linter (clippy/eslint/ruff/gofmt/prettier), run fix, diff preview, apply/revert |
+| **AST Edit** | `AstEditPanel` | AST-based code editing and structural transformations |
+| **Transform** | `TransformPanel` | Code transformation and refactoring tools |
+| **Edit Predict** | `EditPredictionPanel` | RL Q-learning next-edit prediction with confidence scoring |
+| **Full-Stack Gen** | `FullStackGenPanel` | Full-stack application generation from prompts |
+| **App Builder** | `AppBuilderPanel` | App scaffolding: quick start, templates, provisioning, managed backend |
+| **Scaffold** | `ScaffoldPanel` | Project scaffolding with framework templates |
+| **Build** | `BuildPanel` | Build system management and monitoring |
+| **Cascade** | `CascadePanel` | Cascade AI pipeline with multi-step reasoning |
+| **Self Review** | `SelfReviewPanel` | AI self-review of generated code |
+| **Automations** | `AutomationsPanel` | Automation rules and triggers |
+
+### Testing & Quality
+
+| Tab | Component | Description |
+|-----|-----------|-------------|
+| **Tests** | `TestPanel` | Test runner with framework detection, live log stream, filter tabs, pass/fail badges |
+| **Coverage** | `CoveragePanel` | Code coverage: auto-detect tool, run coverage, per-file % bars, uncovered lines, filter tabs, raw output |
+| **QA Validation** | `QaValidationPanel` | Multi-round QA validation pipeline with severity-weighted scoring |
+| **Batch Builder** | `BatchBuilderPanel` | Batch code generation: 10 agent roles, 3M+ line target, pause/resume |
+| **SWE-bench** | `SweBenchPanel` | SWE-bench benchmarking harness: run, compare, export |
+| **Arena** | `ArenaPanel` | Blind A/B model comparison: hidden identities, vote (A/B/Tie/Both bad), reveal, persistent leaderboard |
+| **BugBot** | `BugBotPanel` | AI code scanner with severity/category filter and fix snippets |
+| **Metrics** | `CodeMetricsPanel` | Code metrics: complexity, LOC, duplication analysis |
+| **Visual** | `VisualTestPanel` | Visual regression testing with screenshot comparison |
+| **Render Opt** | `RenderOptimizePanel` | React re-render optimization analysis (~74% reduction) |
+
+### Security
+
+| Tab | Component | Description |
+|-----|-----------|-------------|
+| **RedTeam** | `RedTeamPanel` | Autonomous 5-stage pentest pipeline with findings feed, CVSS scores, and report export |
+| **BlueTeam** | `BlueTeamPanel` | Defensive security: incident management, IOC tracking, SIEM integration, forensics, playbooks |
+| **PurpleTeam** | `PurpleTeamPanel` | ATT&CK exercises: attack simulation, detection validation, coverage gap analysis |
+| **Security Scan** | `SecurityScanPanel` | Security scanning with vulnerability detection |
+| **Compliance** | `CompliancePanel` | Compliance reporting and policy enforcement |
+
+### Agent Teams & Orchestration
+
+| Tab | Component | Description |
+|-----|-----------|-------------|
+| **Teams** | `AgentTeamPanel` | Multi-agent team orchestration with inter-agent messaging |
+| **Agent Teams** | `AgentTeamsPanel` | Agent team hierarchy with role-based composition |
+| **Sub-Agent** | `SubAgentPanel` | Sub-agent role management and delegation |
+| **Team Govern** | `TeamGovernancePanel` | Team plugin marketplace governance and policies |
+| **Branch Agent** | `BranchAgentPanel` | Branch-per-task agent execution with auto-merge |
+| **Cloud Autofix** | `CloudAutofixPanel` | Cloud-hosted BugBot autofix agents |
+| **GH Actions** | `GhActionsPanel` | GitHub Actions agent for CI/CD automation |
+| **CI Bot** | `CIReviewPanel` | CI review bot for automated PR analysis |
+| **Soul** | `SoulPanel` | AI personality and behavior configuration |
+
+### Context & Memory
+
+| Tab | Component | Description |
+|-----|-----------|-------------|
+| **Steering** | `SteeringPanel` | Workspace/global steering files with templates |
+| **Open Memory** | `OpenMemoryPanel` | Cognitive memory engine: 5 sectors, associative graph, HNSW index, AES-256-GCM encryption |
+| **Context Bundle** | `ContextBundlePanel` | Context bundles/spaces with priority ordering and TOML serialization |
+| **Fast Context** | `FastContextPanel` | Fast context retrieval and SWE-grep |
+| **Infinite Context** | `InfiniteContextPanel` | 5-level context hierarchy with token budget, eviction, and compression |
+| **Session Memory** | `SessionMemoryPanel` | Long-session memory profiling with leak detection |
+| **Session Browser** | `SessionBrowserPanel` | Browse and resume past sessions |
+| **Session Sharing** | `SessionSharingPanel` | Share sessions across users and devices |
+| **Project Context** | `ProjectContextPanel` | Project-level context and configuration |
+| **Org Context** | `OrgContextPanel` | Organization-wide context and policies |
+| **Plan Document** | `PlanDocumentPanel` | Plan documentation and tracking |
+
+### Infrastructure & DevOps
+
+| Tab | Component | Description |
+|-----|-----------|-------------|
+| **Docker** | `DockerPanel` | Docker container/image management with build, run, logs |
+| **K8s** | `K8sPanel` | Kubernetes cluster management: pods, services, deployments, scale, logs |
+| **CI/CD** | `CicdPanel` | CI/CD pipeline configuration and status monitoring |
+| **CI Gates** | `CiGatesPanel` | CI quality gates with automated pass/fail criteria |
+| **CI Status** | `CiStatusPanel` | CI pipeline status monitoring |
+| **Sandbox** | `SandboxPanel` | Container sandbox for safe code execution (Docker/Podman) |
+| **Cloud Sandbox** | `CloudSandboxPanel` | Cloud-hosted sandbox execution environments |
+| **Cloud** | `CloudAgentPanel` | Cloud-hosted agent execution with Docker backends |
+| **Cloud Provider** | `CloudProviderPanel` | AWS/GCP/Azure integration: service detection, IAM, Terraform/CloudFormation templates |
+| **VM Orchestrator** | `VmOrchestratorPanel` | Virtual machine orchestration and management |
+| **Channel Daemon** | `ChannelDaemonPanel` | Background channel daemon service management |
+| **Deploy** | `DeployPanel` | Deploy to 6 targets (Vercel/Netlify/Railway/GH Pages/GCP/Firebase) with custom domain support |
+| **Env** | `EnvPanel` | Environment variable manager with .env file support |
+| **SSH** | `SshPanel` | SSH connection manager with terminal sessions |
+| **Profiler** | `ProfilerPanel` | Performance profiling with flame graph visualization |
+| **Process** | `ProcessPanel` | System process monitor with kill capability |
+| **Health** | `HealthMonitorPanel` | Service health monitor with uptime tracking |
+| **Resilience** | `ResiliencePanel` | Resilience testing and chaos engineering |
+| **IDP** | `IdpPanel` | Internal Developer Platform: Backstage, Cycloid, Humanitec, Port, scorecards |
+
+### Data, AI & ML
+
+| Tab | Component | Description |
+|-----|-----------|-------------|
+| **Auto Research** | `AutoResearchPanel` | Autonomous iterative research: 5 strategies, 7 domains, cross-run learning |
+| **Training** | `TrainingPanel` | Distributed ML training: DeepSpeed, FSDP, LoRA configuration |
+| **Inference** | `InferencePanel` | ML inference server management: vLLM, TGI, Triton, llama.cpp |
+| **FineTune** | `FineTuningPanel` | Model fine-tuning configuration and monitoring |
+| **Vector DB** | `VectorDbPanel` | Vector database management: Qdrant, Pinecone, pgvector |
+| **Doc Ingest** | `DocumentIngestPanel` | Multi-format document ingestion for RAG pipelines |
+| **Web Crawler** | `WebCrawlerPanel` | Web crawler with robots.txt, sitemaps, rate limiting |
+| **Data Analysis** | `DataAnalysisPanel` | Data analysis and visualization |
+| **Image Gen** | `ImageGenPanel` | AI image generation |
+| **AI/ML Workflow** | `AiMlWorkflowPanel` | AI/ML workflow pipeline management |
+| **Quantum** | `QuantumComputingPanel` | Quantum computing simulation and algorithms |
+| **Knowledge** | `KnowledgeGraphPanel` | Knowledge graph visualization |
+| **Conversational Search** | `ConversationalSearchPanel` | Natural language code search with conversation context |
+
+### Git & Collaboration
+
+| Tab | Component | Description |
+|-----|-----------|-------------|
+| **Git** | `GitPanel` | Full Git workflow panel; PR review; AI commit message button |
+| **GH Sync** | `GitHubSyncPanel` | GitHub sync with ahead/behind status, push/pull, repo management |
+| **Collab** | `CollabPanel` | CRDT multiplayer collaboration: create/join rooms, peer list with color indicators, copy invite link |
+| **Review** | `ReviewPanel` | AI code review with issues, scores, and suggestions |
+| **Diff Review** | `DiffReviewPanel` | Diff review and commentary |
+| **Migrations** | `MigrationsPanel` | Database migration manager with up/down tracking |
+| **Agile** | `AgilePanel` | Agile project management with sprints and stories |
+| **Work Mgmt** | `WorkManagementPanel` | Work item tracking and management |
+
+### MCP & Extensions
+
+| Tab | Component | Description |
+|-----|-----------|-------------|
+| **MCP** | `McpPanel` | MCP server management with OAuth 2.0 install flow and tool testing |
+| **MCP Lazy** | `McpLazyPanel` | MCP lazy loading with tool search and LRU eviction |
+| **MCP Directory** | `McpDirectoryPanel` | MCP verified plugin directory: search, install, review |
+| **ACP** | `AcpPanel` | Agent Client Protocol: server/client modes, capability negotiation |
+| **Marketplace** | `MarketplacePanel` | Extension marketplace with install/update/ratings |
+| **Remote Control** | `RemoteControlPanel` | Remote control and session management |
+| **Usage Metering** | `UsageMeteringPanel` | Credit system: per-user/project/team budgets, alerts, chargeback |
+
+### Developer Toolbox
+
+| Tab | Component | Description |
+|-----|-----------|-------------|
 | **HTTP** | `HttpPlayground` | HTTP request builder: method/URL/headers/body, quick-launch localhost, route discovery, response viewer with JSON pretty-print |
 | **Cost** | `CostPanel` | AI cost observatory: per-provider breakdown, total spend, budget limit, cost history table, clear history |
-| **Autofix** | `AutofixPanel` | Codemod auto-fix: detect linter (clippy/eslint/ruff/gofmt/prettier), run fix, diff preview, apply/revert |
-| **Docker** | `DockerPanel` | Docker container/image management with build, run, logs |
 | **Deps** | `DepsPanel` | Dependency viewer with outdated detection, update, add/remove |
-| **Profiler** | `ProfilerPanel` | Performance profiling with flame graph visualization |
-| **Env** | `EnvPanel` | Environment variable manager with .env file support |
-| **CI/CD** | `CicdPanel` | CI/CD pipeline configuration and status monitoring |
-| **K8s** | `K8sPanel` | Kubernetes cluster management: pods, services, deployments, scale, logs |
-| **SSH** | `SshPanel` | SSH connection manager with terminal sessions |
 | **Scripts** | `ScriptPanel` | Script runner with task detection (npm, make, cargo) |
 | **Notebook** | `NotebookPanel` | Jupyter-style notebook with code cells and outputs |
 | **Bookmarks** | `BookmarkPanel` | Code bookmark manager with annotations |
@@ -320,53 +453,76 @@ The AI panel (toggle with **AI Chat**in the header) has **107 tabs**across categ
 | **Snippets** | `SnippetPanel` | Code snippet library with search and insertion |
 | **Mock** | `MockServerPanel` | Mock HTTP server for API development and testing |
 | **GraphQL** | `GraphQLPanel` | GraphQL playground with schema introspection |
-| **Metrics** | `CodeMetricsPanel` | Code metrics: complexity, LOC, duplication analysis |
 | **Load Test** | `LoadTestPanel` | Load testing with configurable concurrency and latency charts |
 | **API Docs** | `ApiDocsPanel` | OpenAPI/Swagger documentation viewer |
 | **Utilities** | `UtilitiesPanel` | Developer utilities: hash, UUID, lorem ipsum, timestamp |
-| **Process** | `ProcessPanel` | System process monitor with kill capability |
-| **Sandbox** | `SandboxPanel` | Container sandbox for safe code execution (Docker/Podman) |
-| **Teams** | `AgentTeamPanel` | Multi-agent team orchestration with inter-agent messaging |
-| **CI Bot** | `CIReviewPanel` | CI review bot for automated PR analysis |
-| **Traces** | `TraceDashboard` | OpenTelemetry trace viewer with span timeline |
-| **Marketplace** | `MarketplacePanel` | Extension marketplace with install/update/ratings |
-| **Transform** | `TransformPanel` | Code transformation and refactoring tools |
-| **Img2App** | `ScreenshotToApp` | Screenshot-to-code: upload image, generate UI code |
-| **Recording** | `AgentRecordingPanel` | Record and replay agent sessions |
-| **Cloud** | `CloudAgentPanel` | Cloud-hosted agent execution with Docker backends |
+| **Database** | `DatabasePanel` | SQLite/PostgreSQL browser with AI query generation |
+| **VibeSql** | `VibeSqlPanel` | SQL editor with syntax highlighting and results |
+| **Streaming** | `StreamingPanel` | Streaming data viewer (Kafka, NATS, Pulsar) |
+| **Webhooks** | `WebhookPanel` | Webhook endpoint manager with request logging |
+| **WebSocket** | `WebSocketPanel` | WebSocket client for testing real-time connections |
+| **Network** | `NetworkPanel` | Network tools: port scan, DNS lookup, TLS inspection |
+
+### UI & Design
+
+| Tab | Component | Description |
+|-----|-----------|-------------|
 | **Canvas** | `CanvasPanel` | Freeform drawing canvas for diagrams and wireframes |
+| **Design Canvas** | `DesignCanvasPanel` | Design canvas for UI prototyping |
+| **Design Import** | `DesignImportPanel` | Import from Figma and other design tools |
+| **Img2App** | `ScreenshotToApp` | Screenshot-to-code: upload image, generate UI code |
+| **Colors** | `ColorPalettePanel` | Color palette generator with design token export |
+| **ColorConv** | `ColorConverterPanel` | Color format converter (HEX/RGB/HSL/CMYK) |
 | **Diff** | `DiffToolPanel` | Visual diff comparison tool |
 | **Markdown** | `MarkdownPanel` | Markdown editor with live preview |
+
+### Converters & Utilities
+
+| Tab | Component | Description |
+|-----|-----------|-------------|
 | **Cron** | `CronPanel` | Cron expression builder with human-readable descriptions |
 | **Regex** | `RegexPanel` | Regex tester with match highlighting and group extraction |
 | **JWT** | `JwtPanel` | JWT decoder/encoder with claims inspection |
 | **Encoding** | `EncodingPanel` | Base64/URL/HTML encoding and decoding |
-| **#⃣ NumBase** | `NumberBasePanel` | Number base converter (binary, octal, decimal, hex) |
+| **NumBase** | `NumberBasePanel` | Number base converter (binary, octal, decimal, hex) |
 | **DataGen** | `DataGenPanel` | Test data generator with customizable schemas |
 | **Timestamp** | `TimestampPanel` | Unix timestamp converter with timezone support |
-| **Health** | `HealthMonitorPanel` | Service health monitor with uptime tracking |
-| **WebSocket** | `WebSocketPanel` | WebSocket client for testing real-time connections |
-| **Colors** | `ColorPalettePanel` | Color palette generator with design token export |
-| **Scaffold** | `ScaffoldPanel` | Project scaffolding with framework templates |
-| **Compliance** | `CompliancePanel` | Compliance reporting and policy enforcement |
-| **Webhooks** | `WebhookPanel` | Webhook endpoint manager with request logging |
-| **Admin** | `AdminPanel` | Admin panel with RBAC, audit log, user management |
-| **Dashboard** | `DashboardPanel` | Project overview dashboard with stats and activity |
-| **Orchestrate** | `OrchestrationPanel` | Workflow orchestration with lessons and task tracking |
-| **Log** | `LogPanel` | Structured log viewer with filtering and search |
-| **Network** | `NetworkPanel` | Network tools: port scan, DNS lookup, TLS inspection |
-| **Migrations** | `MigrationsPanel` | Database migration manager with up/down tracking |
 | **JSON** | `JsonToolsPanel` | JSON formatter, validator, and path query tool |
-| **ColorConv** | `ColorConverterPanel` | Color format converter (HEX/RGB/HSL/CMYK) |
 | **CIDR** | `CidrPanel` | CIDR/subnet calculator for network planning |
-| **Cascade** | `CascadePanel` | Cascade AI pipeline with multi-step reasoning |
-| **GPU** | `GpuTerminalPanel` | GPU-accelerated terminal with performance monitoring |
 | **Unicode** | `UnicodePanel` | Unicode character lookup and conversion |
 | **Units** | `UnitConverterPanel` | Unit converter (length, weight, temperature, etc.) |
 | **CSV** | `CsvPanel` | CSV viewer and editor with filtering |
-| **Knowledge** | `KnowledgeGraphPanel` | Knowledge graph visualization |
-| **FineTune** | `FineTuningPanel` | Model fine-tuning configuration and monitoring |
-| **Visual** | `VisualTestPanel` | Visual regression testing with screenshot comparison |
+
+### Monitoring & Admin
+
+| Tab | Component | Description |
+|-----|-----------|-------------|
+| **Dashboard** | `DashboardPanel` | Project overview dashboard with stats and activity |
+| **Admin** | `AdminPanel` | Admin panel with RBAC, audit log, user management |
+| **Log** | `LogPanel` | Structured log viewer with filtering and search |
+| **Traces** | `TraceDashboard` | OpenTelemetry trace viewer with span timeline |
+| **Recording** | `AgentRecordingPanel` | Record and replay agent sessions |
+| **GPU** | `GpuTerminalPanel` | GPU-accelerated terminal with performance monitoring |
+| **Audio Output** | `AudioOutputPanel` | Text-to-speech audio output |
+| **Debug Mode** | `DebugModePanel` | AI debug mode with step-through analysis |
+| **Demo** | `DemoPanel` | Demo and showcase mode |
+
+### Agents
+
+| Tab | Component | Description |
+|-----|-----------|-------------|
+| **Browser** | `BrowserPanel` | Embedded iframe browser with inspect mode, element selection |
+| **Browser Agent** | `BrowserAgentPanel` | Browser automation agent with CDP |
+| **Desktop Agent** | `DesktopAgentPanel` | Desktop automation agent |
+| **Observe-Act** | `ObserveActPanel` | Observe-act agent loop visualization |
+
+### Integration & Migration
+
+| Tab | Component | Description |
+|-----|-----------|-------------|
+| **Supabase** | `SupabasePanel` | Supabase connection, table browser, SQL editor, AI query |
+| **Auth** | `AuthPanel` | Auth scaffold generator (4 providers × 5 frameworks) |
+| **Legacy Migrate** | `MigrationsPanel` | Legacy migration engine: 18 source languages, 10 targets, 6 strategies |
 
 ## UI Components
 
@@ -700,6 +856,38 @@ After deploying, enter a custom domain in the **Custom Domain**field:
 | `write_terminal(id, data)` | Send input to terminal |
 | `resize_terminal(id, rows, cols)` | Resize terminal |
 
+### Counsel (Multi-LLM Deliberation)
+
+| Command | Description |
+|---------|-------------|
+| `counsel_create_session(topic, participants, moderator_idx)` | Create a multi-LLM deliberation session with role-based participants |
+| `counsel_list_sessions()` | List all counsel session summaries |
+| `counsel_get_session(session_id)` | Load a counsel session by ID |
+| `counsel_run_round(session_id)` | Execute a deliberation round across all participants |
+| `counsel_synthesize(session_id)` | Generate moderator synthesis of all rounds |
+| `counsel_inject_message(session_id, message)` | Inject a user interjection between rounds |
+| `counsel_vote(session_id, round_idx, participant_idx, delta)` | Vote on a participant's response |
+
+**Counsel events emitted:**
+
+| Event | Payload | Description |
+|-------|---------|-------------|
+| `counsel:chunk` | `String` | Streaming participant response text |
+
+### SuperBrain (Multi-Provider Routing)
+
+| Command | Description |
+|---------|-------------|
+| `superbrain_route(query)` | Route a query to the best provider using keyword-based analysis |
+| `superbrain_query(query, mode)` | Execute query in a specific mode (SmartRouter/Consensus/ChainRelay/BestOfN/Specialist) |
+| `superbrain_get_modes()` | List available SuperBrain modes with descriptions |
+
+**SuperBrain events emitted:**
+
+| Event | Payload | Description |
+|-------|---------|-------------|
+| `superbrain:chunk` | `String` | Streaming response from current model |
+
 ### Utility
 
 | Command | Description |
@@ -739,6 +927,18 @@ AI abstraction layer:
 | `providers/openai` | OpenAI Chat Completions API (streaming + vision) |
 | `providers/gemini` | Google Gemini API (streaming) |
 | `providers/grok` | xAI Grok API (streaming) |
+| `providers/groq` | Groq API (streaming) |
+| `providers/mistral` | Mistral API (streaming) |
+| `providers/cerebras` | Cerebras API (streaming) |
+| `providers/deepseek` | DeepSeek API (streaming) |
+| `providers/zhipu` | Zhipu GLM API (streaming) |
+| `providers/openrouter` | OpenRouter multi-model API |
+| `providers/azure_openai` | Azure OpenAI Service API |
+| `providers/bedrock` | AWS Bedrock with SigV4 auth |
+| `providers/copilot` | GitHub Copilot integration |
+| `providers/vercel_ai` | Vercel AI SDK API |
+| `providers/local_edit` | Local edit provider |
+| `providers/failover` | Automatic provider fallback chain |
 | `chat` | `ChatEngine` — session management |
 | `completion` | `CompletionEngine` — inline code completion |
 | `agent` | `AgentLoop` — plan→act→observe loop with approval tiers |
@@ -856,6 +1056,39 @@ Tracks developer activity in a 100-event ring buffer:
 | `save_workspace_rules(root, content)` | Save project rules |
 | `save_global_rules(content)` | Save global rules (creates `~/.vibeui/` if needed) |
 
+### `counsel.rs` — Multi-LLM Deliberation
+
+Structured multi-round debates between AI providers:
+
+| Struct | Description |
+|--------|-------------|
+| `CounselSession` | Manages deliberation with topic, participants, rounds, and synthesis |
+| `CounselParticipant` | AI provider assigned a role (Expert, Devil's Advocate, Skeptic, Creative, Pragmatist, Researcher) |
+| `CounselRound` | Collection of responses with optional user feedback per round |
+| `CounselResponse` | Individual model response with voting support |
+
+### `superbrain.rs` — Multi-Provider Query Routing
+
+Intelligent query routing and multi-model synthesis:
+
+| Mode | Description |
+|------|-------------|
+| `SmartRouter` | Keyword-based routing to best model per task type |
+| `Consensus` | All models respond; majority view synthesized |
+| `ChainRelay` | Sequential refinement — each model builds on previous |
+| `BestOfN` | All models respond; judge picks the best |
+| `Specialist` | Decomposes query into subtasks assigned to different models |
+
+### `web_client.rs` — Browser-Based Web Client
+
+Self-contained single-page web client for zero-install access (similar to Bolt.new/v0):
+
+- No external CDN dependencies (air-gap safe)
+- Chat and Agent modes with SSE streaming
+- Markdown rendering with syntax highlighting
+- Dark/light theme support, responsive design
+- Served from the VibeCLI `serve` command
+
 ## Keyboard Shortcuts
 
 | Shortcut | Action |
@@ -889,22 +1122,22 @@ VibeUI implements WCAG 2.1 Level AA accessibility:
 
 ## Testing
 
-**4,770 tests**pass across the workspace (as of 2026-03-09, 0 failures).
+**~6,628+ tests** pass across the workspace (as of 2026-03-25, 0 failures).
 
 | Crate | Tests | Key coverage areas |
 |-------|-------|--------------------|
-| vibecli | 3,224 | session store, serve, config, review, workflow, REPL, redteam, gateway, transform, marketplace, background agents, TUI, tool executor, bugbot, vim editor, security scan, automations, legacy migration, batch builder, QA validation, RAG, GPU cluster, inference, training |
-| vibe-ai | 1,020+ | 22 providers, tools, trace, hooks, policy, skills, artifacts, planner, MCP, agent teams, multi-agent, SigV4 |
+| vibecli | 5,262+ | session store, serve, config, review, workflow, REPL, redteam, gateway, transform, marketplace, background agents, TUI, tool executor, bugbot, vim editor, security scan, automations, legacy migration, batch builder, QA validation, RAG, GPU cluster, inference, training, counsel, superbrain, web client, open memory, auto research, blue/purple team, IDP, agent teams, cloud agents, workflow orchestration |
+| vibe-ai | 1,020+ | 18 providers, tools, trace, hooks, policy, skills, artifacts, planner, MCP, agent teams, multi-agent, SigV4, gemini |
 | vibe-core | 293 | buffer, git, diff, context, file system, workspace, search, terminal, index/embeddings |
 | vibe-ui (Tauri) | 227 | Tauri commands, coverage, cost, flow, agent executor, shadow workspace |
 | vibe-lsp | 74 | LSP client, features, manager, language configs |
 | vibe-collab | 53 | CRDT rooms, server registry, protocol sync, awareness |
 | vibe-extensions | 46 | loader, manifest, permissions, registry |
 
-**Benchmarks:**8 Criterion benchmarks covering cosine similarity (384d/1536d/batch), symbol extraction (50/500 fns), index build (100 files), symbol search, and relevance scoring.
+**Benchmarks:** 8 Criterion benchmarks covering cosine similarity (384d/1536d/batch), symbol extraction (50/500 fns), index build (100 files), symbol search, and relevance scoring.
 
 ```bash
-# Rust unit tests (all 2,810)
+# Rust unit tests
 cargo test --workspace
 
 # Specific crates

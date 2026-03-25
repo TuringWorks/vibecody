@@ -25492,7 +25492,6 @@ pub async fn counsel_run_round(
     session_id: String,
 ) -> Result<serde_json::Value, String> {
     use vibecli_cli::counsel::{CounselSession, CounselResponse};
-    use vibe_ai::provider::MessageRole;
 
     let mut sessions = counsel_read_sessions();
     let pos = sessions.iter().position(|s| {
@@ -25680,7 +25679,6 @@ pub async fn superbrain_query(
     providers: serde_json::Value,
 ) -> Result<serde_json::Value, String> {
     use vibecli_cli::superbrain::*;
-    use vibe_ai::provider::{Message as AiMessage, MessageRole};
 
     let provider_entries: Vec<ProviderEntry> = providers.get("list")
         .and_then(|v| v.as_array())
