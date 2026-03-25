@@ -36,7 +36,7 @@ Both tools are backed by a shared set of Rust library crates for AI provider int
 
 ## Key Features
 
-### Multi-Provider AI (22 Providers)
+### Multi-Provider AI (23 Providers)
 
 Both VibeCLI and VibeUI share the `vibe-ai` provider abstraction:
 
@@ -69,7 +69,7 @@ All providers support streaming. Local providers require no API key.
 ### VibeUI Highlights
 
 - Monaco Editor integration (same engine as VS Code)
-- 155+ AI panel tabs (Chat, Agent, Tests, Docker, K8s, Profiler, Design Canvas, and many more)
+- 162+ AI panel tabs (Chat, Agent, Counsel, Tests, Docker, K8s, Profiler, Design Canvas, and many more)
 - CSS variable theming across all panels with dark/light toggle
 - Multiplayer CRDT collaboration (real-time co-editing)
 - Agent teams with inter-agent messaging bus

@@ -13,7 +13,7 @@ Connect VibeCody to an AI model so you can start chatting, generating code, and 
 
 ## Choose a Provider
 
-VibeCody supports 22 AI providers. Here are the most common starting points:
+VibeCody supports 23 AI providers. Here are the most common starting points:
 
 | Provider | Type | Cost | API Key Required | Best For |
 |----------|------|------|-----------------|----------|

@@ -5,7 +5,7 @@ permalink: /providers/
 ---
 
 
-VibeCody supports 22 AI providers, covering cloud APIs, local models, inference platforms, and specialized services. This page provides a comparison and links to individual setup guides.
+VibeCody supports 23 AI providers, covering cloud APIs, local models, inference platforms, and specialized services. This page provides a comparison and links to individual setup guides.
 
 
 ## Quick Start

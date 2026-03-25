@@ -189,7 +189,7 @@ docs/architecture-diagram
 
 ### Larger Features
 
-- **Additional AI providers** — implement new `AIProvider` backends (22 providers exist today)
+- **Additional AI providers** — implement new `AIProvider` backends (23 providers exist today)
 - **WASM extensions** — develop plugins using the `vibe-extensions` WASM runtime
 - **CRDT collaboration** — enhance the `vibe-collab` real-time multiplayer editing
 - **Agent skills** — write new skill files in `vibecli/vibecli-cli/skills/` (543 skills exist today)

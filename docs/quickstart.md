@@ -10,7 +10,7 @@ permalink: /quickstart/
 
 ## What is VibeCody?
 
-VibeCody is an AI-powered developer toolchain built in Rust. It gives you two ways to work: **VibeCLI**, a terminal-first AI coding assistant with a rich TUI and REPL, and **VibeUI**, a full desktop code editor with Monaco and 139+ AI panels. Both share the same backend crates, supporting 22 AI providers (local and cloud), an autonomous agent loop, code review, multi-agent orchestration, MCP integration, and 500+ built-in skills. You can start with a local model and zero API keys.
+VibeCody is an AI-powered developer toolchain built in Rust. It gives you two ways to work: **VibeCLI**, a terminal-first AI coding assistant with a rich TUI and REPL, and **VibeUI**, a full desktop code editor with Monaco and 162+ AI panels. Both share the same backend crates, supporting 23 AI providers (local and cloud), an autonomous agent loop, code review, multi-agent orchestration, MCP integration, and 543+ built-in skills. You can start with a local model and zero API keys.
 
 
 ## Choose Your Surface
@@ -21,7 +21,7 @@ VibeCody is an AI-powered developer toolchain built in Rust. It gives you two wa
 | **Interface** | TUI (Ratatui) or REPL | Desktop app (Tauri + Monaco) |
 | **Setup time** | 2 minutes | 5 minutes (needs Node.js) |
 | **Works headless** | Yes | No |
-| **AI features** | All 22 providers, agent, review, skills | All CLI features + visual panels |
+| **AI features** | All 23 providers, agent, review, skills | All CLI features + visual panels |
 
 **Recommendation:** Start with VibeCLI. You can add VibeUI later -- they share the same config and crates.
 
@@ -209,7 +209,7 @@ Other providers use the same pattern:
 | Grok | `GROK_API_KEY` | `--provider grok` |
 | Ollama | *(none)* | `--provider ollama` |
 
-See the [Configuration Guide](/vibecody/configuration/) for all 22 providers.
+See the [Configuration Guide](/vibecody/configuration/) for all 23 providers.
 
 
 ## Your First Code Review

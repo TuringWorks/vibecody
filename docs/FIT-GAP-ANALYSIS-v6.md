@@ -290,7 +290,7 @@ VibeCody's v5 gaps are **all closed** (12/12, Phases 10-14 complete). This v6 id
 | Red/Blue/Purple team security | Yes | No | No | No | No | No | No | No | No | No |
 | WASM extension system | Yes | No | No | No | No | No | No | Yes | No | No |
 | Air-gapped Ollama deploy | Yes | No | No | No | No | No | No | No | No | No |
-| 139+ tool panels | Yes | N/A | ~10 | ~5 | ~3 | N/A | ~3 | ~3 | ~3 | ~5 |
+| 162+ tool panels | Yes | N/A | ~10 | ~5 | ~3 | N/A | ~3 | ~3 | ~3 | ~5 |
 | SWE-bench harness | Yes | No | No | No | Internal | No | No | No | No | No |
 | OpenTelemetry tracing | Yes | No | No | No | No | No | No | No | No | No |
 | IDP integration (12 platforms) | Yes | No | No | No | No | No | No | No | No | No |

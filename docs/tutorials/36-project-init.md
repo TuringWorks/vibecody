@@ -156,4 +156,4 @@ This sends the auto-detected profile to the AI and asks it to analyze:
 - Run `/init` once when you open a new project — it caches for 1 hour
 - The `.vibecli/project-profile.json` file is auto-generated; add it to `.gitignore`
 - For monorepos, `/init` detects the workspace structure and lists all members
-- The profile works with all 22 providers — the context is injected at the prompt level
+- The profile works with all 23 providers — the context is injected at the prompt level

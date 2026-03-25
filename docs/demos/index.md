@@ -18,7 +18,7 @@ Interactive walkthroughs covering VibeCody's major capabilities across CLI, Desk
 
 | Demo | Surface | Description |
 |------|---------|-------------|
-| [03 — Multi-Provider AI Chat](multi-provider-chat/) | CLI + UI | Switch between 22 AI providers, streaming responses |
+| [03 — Multi-Provider AI Chat](multi-provider-chat/) | CLI + UI | Switch between 23 AI providers, streaming responses |
 | [04 — Agent Loop & Tool Execution](agent-loop/) | CLI + UI | Autonomous coding with file edit, shell, search tools |
 | [05 — Model Arena](model-arena/) | UI | Side-by-side model comparison and ranking |
 | [06 — Cost Observatory](cost-observatory/) | CLI + UI | Track token usage and costs across providers |

@@ -90,11 +90,12 @@ The installer is placed in `src-tauri/target/release/bundle/`.
 
 ### AI Integration
 
-The AI chat panel supports all 18 providers via the shared `vibe-ai` crate:
+The AI chat panel supports all 23 providers via the shared `vibe-ai` crate:
 
 - **Local**: Ollama (default, no API key), LocalEdit
-- **Cloud**: Claude, OpenAI, Gemini, Grok, Groq, Mistral, Cerebras, DeepSeek, Zhipu
+- **Cloud**: Claude, OpenAI, Gemini, Grok, Groq, Mistral, Cerebras, DeepSeek, Zhipu, MiniMax
 - **Platform**: OpenRouter, Azure OpenAI, Bedrock, Copilot, Vercel AI
+- **Inference**: Perplexity, Together AI, Fireworks AI, SambaNova
 - **Meta**: Failover (automatic provider fallback chain)
 
 Select the provider from the dropdown in the header, or switch per chat tab in `ChatTabManager`. Provider configuration is handled through the **Keys**settings tab (BYOK), environment variables, or `~/.vibecli/config.toml`.

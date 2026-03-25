@@ -16,7 +16,7 @@ vibecody/                          ← Cargo workspace root
 │   └── vibecli-cli/               ← Binary: terminal assistant
 │       └── skills/                ← 543 skill files (25+ categories)
 ├── vibeui/
-│   ├── src/                       ← React + TypeScript frontend (155+ panel components)
+│   ├── src/                       ← React + TypeScript frontend (162+ panel components)
 │   ├── src-tauri/                 ← Binary: Tauri desktop app
 │   └── crates/
 │       ├── vibe-core/             ← Library: editor primitives
@@ -209,7 +209,7 @@ let config = ProviderConfig::new("claude".into(), "claude-3-5-sonnet-20241022".i
 
 ### Provider Implementations
 
-All 22 providers follow the same pattern:
+All 23 providers follow the same pattern:
 
 1. Send HTTP request to provider API using `reqwest`
 2. For `chat()`: wait for full response
@@ -516,12 +516,12 @@ async fn ai_chat(
 
 ## Testing Strategy
 
-**4,770 unit tests** across the workspace (0 failures).
+**~6,628+ unit tests** across the workspace (0 failures).
 
 | Crate | Tests | Key coverage areas |
 |-------|-------|--------------------|
-| `vibecli` | 5,600+ | session store, serve, config, review, workflow, REPL, redteam, gateway, channel daemon, branch agent, spec pipeline, VM orchestrator, transform, marketplace, background agents, TUI, security scan, automations, project init, all feature modules |
-| `vibe-ai` | 1,020+ | 22 providers, tools, trace, hooks, policy, skills, agent, multi-agent, MCP, agent teams |
+| `vibecli` | 5,262+ | session store, serve, config, review, workflow, REPL, redteam, gateway, channel daemon, branch agent, spec pipeline, VM orchestrator, transform, marketplace, background agents, TUI, security scan, automations, counsel, superbrain, web client, open memory, auto research, blue/purple team, IDP, all feature modules |
+| `vibe-ai` | 1,020+ | 23 providers, tools, trace, hooks, policy, skills, agent, multi-agent, MCP, agent teams |
 | `vibe-core` | 370+ | buffer, git, diff, context, file system, workspace, search, terminal, index/embeddings, executor |
 | `vibe-ui` | 230+ | Tauri commands, coverage, cost, flow, agent executor, shadow workspace |
 | `vibe-lsp` | 74 | LSP client, features, manager |

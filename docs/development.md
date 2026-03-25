@@ -43,13 +43,13 @@ vibecody/
 ├── vibeui/
 │   ├── src/                      # React + TypeScript frontend
 │   │   ├── App.tsx               # Root component, keyboard shortcuts
-│   │   └── components/           # 155+ panel components
+│   │   └── components/           # 162+ panel components
 │   ├── src-tauri/src/
 │   │   ├── lib.rs                # Tauri command registration (200+ commands)
 │   │   ├── commands.rs           # All Tauri command implementations
 │   │   └── agent_executor.rs     # Agent tool execution for VibeUI
 │   └── crates/
-│       ├── vibe-ai/              # AIProvider trait, agent loop, 22 providers
+│       ├── vibe-ai/              # AIProvider trait, agent loop, 23 providers
 │       ├── vibe-core/            # Text buffer, filesystem, git, search
 │       ├── vibe-lsp/             # LSP client
 │       ├── vibe-extensions/      # WASM extension system
@@ -180,7 +180,7 @@ mod tests {
 
 ### AI Provider Trait
 
-All 22 AI providers implement `AIProvider` (in `vibe-ai/src/provider.rs`):
+All 23 AI providers implement `AIProvider` (in `vibe-ai/src/provider.rs`):
 
 ```rust
 #[async_trait]

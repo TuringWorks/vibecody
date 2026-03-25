@@ -86,7 +86,7 @@ An alphabetical reference of terms used throughout VibeCody's documentation and 
 
 **Orchestration** — The workflow orchestration system that manages task tracking (`tasks/todo.md`), lessons learned (`tasks/lessons.md`), and complexity estimation. Context from orchestration is automatically injected into the agent loop.
 
-**Panel** — A UI component in VibeUI that provides a focused interface for a specific feature. VibeUI includes 139+ panels covering AI, security, DevOps, development tools, and more.
+**Panel** — A UI component in VibeUI that provides a focused interface for a specific feature. VibeUI includes 162+ panels covering AI, security, DevOps, development tools, and more.
 
 **Policy File** — A TOML configuration file (`.vibecli/policy.toml`) that enforces organizational restrictions such as allowed providers, blocked commands, and mandatory sandbox usage. Cannot be overridden by user configuration.
 
@@ -102,7 +102,7 @@ An alphabetical reference of terms used throughout VibeCody's documentation and 
 
 **Red Team** — The offensive security module for penetration testing simulation. Generates attack scenarios, tracks findings by severity, and produces remediation recommendations.
 
-**REPL (Read-Eval-Print Loop)** — VibeCLI's interactive command-line interface where you type prompts and commands. Supports 72+ slash commands (e.g., `/agent`, `/config`, `/session`) powered by Rustyline.
+**REPL (Read-Eval-Print Loop)** — VibeCLI's interactive command-line interface where you type prompts and commands. Supports 93+ slash commands (e.g., `/agent`, `/config`, `/session`, `/counsel`, `/superbrain`) powered by Rustyline.
 
 **Sandbox** — An isolated execution environment (Docker or Podman container) that restricts what the agent can access on the host system. Configured via the `[sandbox]` section in `config.toml`.
 
@@ -134,7 +134,7 @@ An alphabetical reference of terms used throughout VibeCody's documentation and 
 
 **VibeCLI** — The command-line interface for VibeCody, located in `vibecli/vibecli-cli/`. Provides a TUI, REPL, and HTTP daemon mode.
 
-**VibeUI** — The desktop application for VibeCody, located in `vibeui/`. Built with Tauri 2, React, and Monaco Editor. Provides a full graphical IDE experience with 139+ integrated panels.
+**VibeUI** — The desktop application for VibeCody, located in `vibeui/`. Built with Tauri 2, React, and Monaco Editor. Provides a full graphical IDE experience with 162+ integrated panels.
 
 **WASM (WebAssembly)** — A binary instruction format used for VibeCody's extension system. WASM extensions run in a sandboxed runtime, providing safe third-party plugin execution.
 

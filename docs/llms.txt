@@ -26,7 +26,7 @@ Monorepo with 9 Cargo workspace members and a React/Vite frontend:
     vibecli/vibecli-cli/    -- CLI binary (TUI + REPL + HTTP daemon)
     vibeui/                 -- Tauri desktop app (React frontend + Rust backend)
     vibeui/crates/vibe-core -- text buffer, FS, workspace, Git, terminal, search
-    vibeui/crates/vibe-ai   -- 22 AI providers, agent loop, hooks, planner, tools
+    vibeui/crates/vibe-ai   -- 23 AI providers, agent loop, hooks, planner, tools
     vibeui/crates/vibe-lsp  -- Language Server Protocol client
     vibeui/crates/vibe-extensions -- WASM plugin runtime (Wasmtime)
     vibeui/crates/vibe-collab     -- CRDT multiplayer collaboration
