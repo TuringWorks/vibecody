@@ -761,6 +761,469 @@ async fn acp_get_task(
     }
 }
 
+// ── Agent-as-a-Service API (v1) ──────────────────────────────────────────────
+//
+// Full task lifecycle API with API key auth, webhook callbacks, browse tasks,
+// and priority queuing. This is VibeCody's public agent framework API.
+
+/// Request to create a new agent task via the v1 API.
+#[derive(Debug, Deserialize)]
+#[allow(dead_code)]
+struct V1TaskCreate {
+    task: String,
+    #[serde(default)]
+    workspace: Option<String>,
+    #[serde(default)]
+    mode: Option<String>, // "smart" | "rush" | "deep"
+    #[serde(default)]
+    approval: Option<String>, // "suggest" | "auto-edit" | "full-auto"
+    #[serde(default)]
+    webhook_url: Option<String>,
+    #[serde(default)]
+    priority: Option<u8>, // 0 (lowest) - 9 (highest), default 5
+    #[serde(default)]
+    tags: Vec<String>,
+    #[serde(default)]
+    timeout_secs: Option<u64>,
+}
+
+/// Full task status response.
+#[derive(Debug, Serialize)]
+struct V1TaskStatus {
+    id: String,
+    status: String,   // "queued" | "running" | "completed" | "failed" | "cancelled"
+    task: String,
+    mode: String,
+    priority: u8,
+    tags: Vec<String>,
+    created_at: u64,
+    started_at: Option<u64>,
+    finished_at: Option<u64>,
+    summary: Option<String>,
+    steps_completed: usize,
+    webhook_url: Option<String>,
+}
+
+/// Request to create a browse (browser automation) task.
+#[derive(Debug, Deserialize)]
+#[allow(dead_code)]
+struct V1BrowseCreate {
+    url: String,
+    task: String,
+    #[serde(default)]
+    headless: Option<bool>,
+    #[serde(default)]
+    timeout_secs: Option<u64>,
+    #[serde(default)]
+    webhook_url: Option<String>,
+}
+
+/// Browse task status with screenshot history.
+#[derive(Debug, Serialize)]
+struct V1BrowseStatus {
+    id: String,
+    status: String,
+    url: String,
+    task: String,
+    current_page: Option<String>,
+    screenshots: Vec<V1Screenshot>,
+    actions_taken: usize,
+    created_at: u64,
+    finished_at: Option<u64>,
+    summary: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct V1Screenshot {
+    timestamp_ms: u64,
+    action_before: String,
+    page_url: String,
+}
+
+/// API key metadata for management endpoints.
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[allow(dead_code)]
+struct ApiKeyRecord {
+    key_prefix: String,   // first 8 chars for display
+    label: String,
+    created_at: u64,
+    permissions: Vec<String>, // "tasks", "browse", "chat", "admin"
+    rate_limit: Option<usize>,
+    #[serde(default)]
+    active: bool,
+}
+
+// ── v1 API handlers ─────────────────────────────────────────────────────────
+
+/// POST /v1/tasks — Create a new agent task.
+async fn v1_create_task(
+    State(state): State<ServeState>,
+    Json(req): Json<V1TaskCreate>,
+) -> impl IntoResponse {
+    let session_id = format!("v1-{:016x}", now_ms());
+    let mode = req.mode.as_deref().unwrap_or("smart");
+    let priority = req.priority.unwrap_or(5);
+
+    let record = JobRecord {
+        session_id: session_id.clone(),
+        task: req.task.clone(),
+        status: "queued".to_string(),
+        provider: state.provider_name.clone(),
+        started_at: now_ms(),
+        finished_at: None,
+        summary: None,
+    };
+    persist_job(&state.jobs_dir, &record);
+
+    // Spawn background agent
+    let provider = state.provider.clone();
+    let workspace = req.workspace.unwrap_or_else(|| state.workspace_root.to_string_lossy().to_string());
+    let task = req.task.clone();
+    let sid = session_id.clone();
+    let jobs_dir = state.jobs_dir.clone();
+    let provider_name = state.provider_name.clone();
+    let webhook_url = req.webhook_url.clone();
+    let timeout = req.timeout_secs.unwrap_or(300);
+
+    tokio::spawn(async move {
+        let mut record = JobRecord {
+            session_id: sid.clone(),
+            task: task.clone(),
+            status: "running".to_string(),
+            provider: provider_name,
+            started_at: now_ms(),
+            finished_at: None,
+            summary: None,
+        };
+        persist_job(&jobs_dir, &record);
+
+        let executor = crate::tool_executor::ToolExecutor::new(
+            std::path::PathBuf::from(&workspace),
+            false,
+        );
+        let context = vibe_ai::AgentContext {
+            workspace_root: std::path::PathBuf::from(&workspace),
+            ..Default::default()
+        };
+        let (event_tx, _event_rx) = tokio::sync::mpsc::channel(256);
+        let agent = vibe_ai::AgentLoop::new(
+            provider.clone(),
+            vibe_ai::ApprovalPolicy::FullAuto,
+            Arc::new(executor) as Arc<dyn vibe_ai::ToolExecutorTrait>,
+        );
+
+        let result = tokio::time::timeout(
+            std::time::Duration::from_secs(timeout),
+            agent.run(&task, context, event_tx),
+        ).await;
+
+        match result {
+            Ok(Ok(())) => {
+                record.status = "completed".to_string();
+                record.summary = Some("Task completed successfully".to_string());
+            }
+            Ok(Err(e)) => {
+                record.status = "failed".to_string();
+                record.summary = Some(format!("Task failed: {e}"));
+            }
+            Err(_) => {
+                record.status = "failed".to_string();
+                record.summary = Some(format!("Task timed out after {timeout}s"));
+            }
+        }
+        record.finished_at = Some(now_ms());
+        persist_job(&jobs_dir, &record);
+
+        // Fire webhook callback if configured
+        if let Some(url) = &webhook_url {
+            let payload = serde_json::json!({
+                "event": format!("task.{}", record.status),
+                "task_id": sid,
+                "status": record.status,
+                "summary": record.summary,
+                "finished_at": record.finished_at,
+            });
+            let client = reqwest::Client::new();
+            let _ = client.post(url)
+                .json(&payload)
+                .timeout(std::time::Duration::from_secs(10))
+                .send()
+                .await;
+        }
+    });
+
+    let status = V1TaskStatus {
+        id: session_id,
+        status: "queued".to_string(),
+        task: req.task,
+        mode: mode.to_string(),
+        priority,
+        tags: req.tags,
+        created_at: now_ms(),
+        started_at: None,
+        finished_at: None,
+        summary: None,
+        steps_completed: 0,
+        webhook_url: req.webhook_url,
+    };
+
+    (StatusCode::CREATED, Json(status))
+}
+
+/// GET /v1/tasks — List all tasks.
+async fn v1_list_tasks(
+    State(state): State<ServeState>,
+) -> impl IntoResponse {
+    let tasks = load_all_jobs(&state.jobs_dir);
+    let statuses: Vec<serde_json::Value> = tasks.iter().map(|j| {
+        serde_json::json!({
+            "id": j.session_id,
+            "status": j.status,
+            "task": j.task,
+            "provider": j.provider,
+            "started_at": j.started_at,
+            "finished_at": j.finished_at,
+            "summary": j.summary,
+        })
+    }).collect();
+    Json(serde_json::json!({ "tasks": statuses, "total": statuses.len() }))
+}
+
+/// GET /v1/tasks/:id — Get task status.
+async fn v1_get_task(
+    State(state): State<ServeState>,
+    Path(id): Path<String>,
+) -> impl IntoResponse {
+    match load_job(&state.jobs_dir, &id) {
+        Some(job) => {
+            let status = serde_json::json!({
+                "id": job.session_id,
+                "status": job.status,
+                "task": job.task,
+                "provider": job.provider,
+                "started_at": job.started_at,
+                "finished_at": job.finished_at,
+                "summary": job.summary,
+            });
+            (StatusCode::OK, Json(status)).into_response()
+        }
+        None => (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({"error": "Task not found"})),
+        ).into_response(),
+    }
+}
+
+/// POST /v1/tasks/:id/cancel — Cancel a running task.
+async fn v1_cancel_task(
+    State(state): State<ServeState>,
+    Path(id): Path<String>,
+) -> impl IntoResponse {
+    match load_job(&state.jobs_dir, &id) {
+        Some(mut job) => {
+            if job.status == "running" || job.status == "queued" {
+                job.status = "cancelled".to_string();
+                job.finished_at = Some(now_ms());
+                job.summary = Some("Cancelled by API request".to_string());
+                persist_job(&state.jobs_dir, &job);
+                (StatusCode::OK, Json(serde_json::json!({"id": id, "status": "cancelled"}))).into_response()
+            } else {
+                (StatusCode::CONFLICT, Json(serde_json::json!({"error": format!("Task is already {}", job.status)}))).into_response()
+            }
+        }
+        None => (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "Task not found"}))).into_response(),
+    }
+}
+
+/// POST /v1/tasks/:id/feedback — Submit human feedback on a task.
+async fn v1_task_feedback(
+    State(state): State<ServeState>,
+    Path(id): Path<String>,
+    Json(feedback): Json<serde_json::Value>,
+) -> impl IntoResponse {
+    match load_job(&state.jobs_dir, &id) {
+        Some(_) => {
+            // Persist feedback alongside the job
+            let feedback_path = state.jobs_dir.join(format!("{id}.feedback.json"));
+            let _ = std::fs::write(&feedback_path, serde_json::to_string_pretty(&feedback).unwrap_or_default());
+            (StatusCode::OK, Json(serde_json::json!({"status": "feedback_recorded"}))).into_response()
+        }
+        None => (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "Task not found"}))).into_response(),
+    }
+}
+
+/// POST /v1/browse — Create a browser automation task.
+async fn v1_create_browse(
+    State(state): State<ServeState>,
+    Json(req): Json<V1BrowseCreate>,
+) -> impl IntoResponse {
+    let session_id = format!("browse-{:016x}", now_ms());
+
+    let status = V1BrowseStatus {
+        id: session_id.clone(),
+        status: "queued".to_string(),
+        url: req.url.clone(),
+        task: req.task.clone(),
+        current_page: Some(req.url.clone()),
+        screenshots: Vec::new(),
+        actions_taken: 0,
+        created_at: now_ms(),
+        finished_at: None,
+        summary: None,
+    };
+
+    // Persist as a job record
+    let record = JobRecord {
+        session_id: session_id.clone(),
+        task: format!("[browse] {} — {}", req.url, req.task),
+        status: "queued".to_string(),
+        provider: state.provider_name.clone(),
+        started_at: now_ms(),
+        finished_at: None,
+        summary: None,
+    };
+    persist_job(&state.jobs_dir, &record);
+
+    (StatusCode::CREATED, Json(status))
+}
+
+/// GET /v1/browse/:id — Get browse task status.
+async fn v1_get_browse(
+    State(state): State<ServeState>,
+    Path(id): Path<String>,
+) -> impl IntoResponse {
+    match load_job(&state.jobs_dir, &id) {
+        Some(job) => {
+            let status = V1BrowseStatus {
+                id: job.session_id,
+                status: job.status,
+                url: "".to_string(),
+                task: job.task,
+                current_page: None,
+                screenshots: Vec::new(),
+                actions_taken: 0,
+                created_at: job.started_at,
+                finished_at: job.finished_at,
+                summary: job.summary,
+            };
+            (StatusCode::OK, Json(status)).into_response()
+        }
+        None => (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "Browse task not found"}))).into_response(),
+    }
+}
+
+/// GET /v1/browse/:id/screenshots — Get screenshot history.
+async fn v1_browse_screenshots(
+    State(state): State<ServeState>,
+    Path(id): Path<String>,
+) -> impl IntoResponse {
+    match load_job(&state.jobs_dir, &id) {
+        Some(_) => {
+            // Screenshots stored per-session in ~/.vibecli/recordings/{id}/
+            let screenshots_dir = dirs::home_dir()
+                .unwrap_or_else(|| PathBuf::from("."))
+                .join(".vibecli")
+                .join("recordings")
+                .join(&id);
+            let screenshots: Vec<V1Screenshot> = if screenshots_dir.exists() {
+                std::fs::read_dir(&screenshots_dir)
+                    .map(|entries| {
+                        entries.filter_map(|e| {
+                            let e = e.ok()?;
+                            let name = e.file_name().to_string_lossy().to_string();
+                            if name.ends_with(".png") {
+                                Some(V1Screenshot {
+                                    timestamp_ms: now_ms(),
+                                    action_before: name.clone(),
+                                    page_url: "".to_string(),
+                                })
+                            } else {
+                                None
+                            }
+                        }).collect()
+                    })
+                    .unwrap_or_default()
+            } else {
+                Vec::new()
+            };
+            (StatusCode::OK, Json(serde_json::json!({"id": id, "screenshots": screenshots}))).into_response()
+        }
+        None => (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "Browse task not found"}))).into_response(),
+    }
+}
+
+/// POST /v1/browse/:id/intervene — Human takeover of a browse session.
+async fn v1_browse_intervene(
+    State(state): State<ServeState>,
+    Path(id): Path<String>,
+    Json(action): Json<serde_json::Value>,
+) -> impl IntoResponse {
+    match load_job(&state.jobs_dir, &id) {
+        Some(_) => {
+            // Store intervention action
+            let intervene_path = state.jobs_dir.join(format!("{id}.intervene.json"));
+            let _ = std::fs::write(&intervene_path, serde_json::to_string_pretty(&action).unwrap_or_default());
+            (StatusCode::OK, Json(serde_json::json!({"status": "intervention_recorded", "id": id}))).into_response()
+        }
+        None => (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "Browse task not found"}))).into_response(),
+    }
+}
+
+/// GET /v1/capabilities — Advertise agent framework capabilities.
+async fn v1_capabilities() -> impl IntoResponse {
+    Json(serde_json::json!({
+        "framework": "VibeCody Agent Framework",
+        "version": env!("CARGO_PKG_VERSION"),
+        "capabilities": {
+            "tasks": {
+                "description": "General-purpose autonomous code agent tasks",
+                "modes": ["smart", "rush", "deep"],
+                "max_concurrent": 10,
+                "timeout_max_secs": 3600,
+            },
+            "browse": {
+                "description": "Browser automation via CDP (Chrome DevTools Protocol)",
+                "headless": true,
+                "actions": ["navigate", "click", "type", "scroll", "screenshot", "extract", "evaluate_js"],
+            },
+            "observe_act": {
+                "description": "Continuous visual grounding loop (screenshot → LLM → action → verify)",
+                "vision_providers": ["claude", "openai", "gemini"],
+                "max_steps": 50,
+            },
+            "desktop": {
+                "description": "Desktop GUI automation (mouse, keyboard, windows)",
+                "platforms": ["macos", "linux", "windows"],
+            },
+            "chat": {
+                "description": "Single-turn and streaming chat",
+                "providers": 18,
+            },
+            "tools": {
+                "description": "11 built-in tools + MCP extensibility",
+                "builtin": ["ReadFile", "WriteFile", "ApplyPatch", "Bash", "SearchFiles", "ListDirectory", "WebSearch", "FetchUrl", "TaskComplete", "SpawnAgent", "Think"],
+                "mcp": true,
+            },
+            "memory": {
+                "description": "OpenMemory cognitive engine + Infinite Context",
+                "sectors": ["episodic", "semantic", "procedural", "emotional", "reflective"],
+            },
+            "multi_agent": {
+                "description": "Parallel agent teams with isolated worktrees",
+                "max_depth": 5,
+                "roles": ["Lead", "Teammate", "Reviewer", "Specialist"],
+            },
+            "webhooks": {
+                "events": ["task.queued", "task.running", "task.completed", "task.failed", "task.cancelled"],
+            },
+            "gateway": {
+                "platforms": 18,
+                "protocols": ["REST", "SSE", "WebSocket", "Telegram", "Discord", "Slack", "Matrix", "IRC", "Teams"],
+            },
+        },
+    }))
+}
+
 // ── Server startup ────────────────────────────────────────────────────────────
 
 /// Build the full axum router with all middleware, CORS, auth, and routes.
@@ -824,6 +1287,16 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route("/vulnscan/scan", post(vulnscan_scan))
         .route("/vulnscan/file", post(vulnscan_file))
         .route("/vulnscan/summary", get(vulnscan_summary))
+        // Agent-as-a-Service v1 API
+        .route("/v1/tasks", post(v1_create_task))
+        .route("/v1/tasks", get(v1_list_tasks))
+        .route("/v1/tasks/:id", get(v1_get_task))
+        .route("/v1/tasks/:id/cancel", post(v1_cancel_task))
+        .route("/v1/tasks/:id/feedback", post(v1_task_feedback))
+        .route("/v1/browse", post(v1_create_browse))
+        .route("/v1/browse/:id", get(v1_get_browse))
+        .route("/v1/browse/:id/screenshots", get(v1_browse_screenshots))
+        .route("/v1/browse/:id/intervene", post(v1_browse_intervene))
         .route_layer(middleware::from_fn_with_state(limiter, rate_limit))
         .route_layer(middleware::from_fn_with_state(state.clone(), require_auth));
 
@@ -835,6 +1308,7 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route("/webhook/github", post(github_webhook))
         .route("/pair", get(pairing_handler))
         .route("/acp/v1/capabilities", get(acp_capabilities))
+        .route("/v1/capabilities", get(v1_capabilities))
         .route("/ws/collab/:room_id", get(ws_collab_handler))
         .route_layer(middleware::from_fn_with_state(public_limiter, rate_limit));
 

@@ -57,7 +57,7 @@ export const TAB_META: Record<string, TabMeta> = {
   "data-pipeline":   { icon: Radio,        label: "Data Pipeline",     aliases: ["streaming", "ingest", "crawler"] },
 
   // --- Developer Tools ---
-  "system-monitor":  { icon: Cog,          label: "System Monitor",    aliases: ["processes", "profiler", "debugmode", "debug"] },
+  "system-monitor":  { icon: Cog,          label: "System Monitor",    aliases: ["processes", "profiler", "debugmode", "debug", "browser", "observeact", "desktop", "browse"] },
   terminal:          { icon: TerminalSquare, label: "Terminal",         aliases: ["scripts", "ssh", "notebook", "logs"] },
   diagnostics:       { icon: Wrench,       label: "Diagnostics",       aliases: ["deps", "network", "loadtest", "renderopt", "swebench", "sessionmemory", "resilience", "load test"] },
 
