@@ -119,14 +119,24 @@ These docs are complete and superseded by newer versions. They can be archived b
 
 ---
 
-## Summary
+## Summary (Updated 2026-03-25)
 
-| Priority | Items | Code Addressable | Process/Infra Only |
-|----------|-------|------------------|--------------------|
-| **P0** | 0 | — | — |
-| **P1** | 3 | 1 (browser mode) | 2 (hub hosting, SOC 2) |
-| **P2** | 4 | 1 (benchmarking) | 3 (design canvas, 3D, hosting) |
-| **P3** | 3 | 2 (extensions, JetBrains) | 1 (proprietary model) |
-| **Total** | **10** | **4** | **6** |
+All 4 code-addressable gaps have been **CLOSED**:
 
-**Bottom line**: All critical code features are implemented. The 10 remaining items are either deferred by design (canvas, 3D), infrastructure/business concerns (hosting, certification, hub), or diminishing-returns completeness work (VS Code compat, benchmarking).
+| Item | Module | Status |
+|------|--------|--------|
+| ~~Browser-based zero-install mode~~ | `web_client.rs` (1,052 lines, 36 tests) | **CLOSED** |
+| ~~100M+ line benchmarking~~ | `large_codebase_bench.rs` (1,369 lines) | **CLOSED** |
+| ~~VS Code extension deeper compat~~ | `vscode_compat_ext.rs` (996 lines) | **CLOSED** |
+| ~~JetBrains agent hooks~~ | `jetbrains_hooks.rs` (1,017 lines, 57 tests) | **CLOSED** |
+
+**6 remaining items are non-code** (infrastructure, business process, or deferred by design):
+
+| Priority | Items | Type |
+|----------|-------|------|
+| **P1** | 2 | Hosted plugin hub (infra), SOC 2 certification (process) |
+| **P2** | 3 | Visual design canvas (deferred), Sketch-to-3D (deferred), Managed hosting domain (infra) |
+| **P3** | 1 | Proprietary frontier model (ML training) |
+| **Total** | **6** | All non-code |
+
+**Bottom line**: Every code-addressable feature is implemented. The 6 remaining items require infrastructure investment, business processes, or are explicitly deferred design decisions.
