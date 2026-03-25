@@ -237,6 +237,11 @@ pub mod extension_compat;
 pub mod context_streaming;
 pub mod model_marketplace;
 pub mod warp_features;
+#[allow(dead_code)]
+mod observe_act;
+#[allow(dead_code)]
+mod browser_agent;
+mod desktop_agent;
 
 #[derive(Parser)]
 #[command(name = "vibecli")]
@@ -1575,11 +1580,12 @@ async fn main() -> Result<()> {
                                     if !cmd.explanation.is_empty() {
                                         println!("  \x1b[2m{}\x1b[0m", cmd.explanation);
                                     }
-                                    print!("  Run? (y/N): ");
+                                    print!("  Run? (Y/n): ");
                                     io::stdout().flush()?;
                                     let mut confirm = String::new();
                                     io::stdin().read_line(&mut confirm)?;
-                                    if confirm.trim().to_lowercase() == "y" {
+                                    let answer = confirm.trim().to_lowercase();
+                                    if answer.is_empty() || answer == "y" || answer == "yes" {
                                         let start = std::time::Instant::now();
                                         let output = std::process::Command::new("sh").arg("-c").arg(&cmd.generated).output();
                                         let duration_ms = start.elapsed().as_millis() as u64;
@@ -1620,25 +1626,54 @@ async fn main() -> Result<()> {
                 if let Some(shell_cmd) = input.strip_prefix('!') {
                     let command = shell_cmd.trim();
                     if !command.is_empty() {
+                        // Handle `cd` as a built-in — subprocess cd doesn't persist
+                        if command == "cd" || command.starts_with("cd ") || command.starts_with("cd\t") {
+                            let dir = command.strip_prefix("cd").unwrap_or("").trim();
+                            let target = if dir.is_empty() || dir == "~" {
+                                dirs::home_dir().unwrap_or_else(|| std::path::PathBuf::from("/"))
+                            } else if dir.starts_with("~/") {
+                                dirs::home_dir()
+                                    .unwrap_or_else(|| std::path::PathBuf::from("/"))
+                                    .join(&dir[2..])
+                            } else if dir == "-" {
+                                std::env::var("OLDPWD")
+                                    .map(std::path::PathBuf::from)
+                                    .unwrap_or_else(|_| std::env::current_dir().unwrap_or_default())
+                            } else {
+                                std::path::PathBuf::from(dir)
+                            };
+                            let old_cwd = std::env::current_dir().unwrap_or_default();
+                            match std::env::set_current_dir(&target) {
+                                Ok(_) => {
+                                    std::env::set_var("OLDPWD", &old_cwd);
+                                    let new_cwd = std::env::current_dir().unwrap_or_default();
+                                    println!("  \x1b[32m│\x1b[0m {}", new_cwd.display());
+                                }
+                                Err(e) => eprintln!("  cd: {}: {}", target.display(), e),
+                            }
+                            continue;
+                        }
                         let require_approval = Config::load()
                             .map(|c| c.safety.require_approval_for_commands)
                             .unwrap_or(true);
                         let should_run = if require_approval {
-                            print!("  Execute: {}? (y/N): ", command);
+                            print!("  Execute: {}? (Y/n): ", command);
                             io::stdout().flush()?;
                             let mut confirm = String::new();
                             io::stdin().read_line(&mut confirm)?;
-                            confirm.trim().to_lowercase() == "y"
+                            let answer = confirm.trim().to_lowercase();
+                            answer.is_empty() || answer == "y" || answer == "yes"
                         } else {
                             true
                         };
                         if should_run {
                             let start = std::time::Instant::now();
                             use std::process::Command;
+                            let cwd = std::env::current_dir().unwrap_or_default();
                             let output = if cfg!(target_os = "windows") {
-                                Command::new("cmd").args(["/C", command]).output()
+                                Command::new("cmd").args(["/C", command]).current_dir(&cwd).output()
                             } else {
-                                Command::new("sh").arg("-c").arg(command).output()
+                                Command::new("sh").arg("-c").arg(command).current_dir(&cwd).output()
                             };
                             let duration_ms = start.elapsed().as_millis() as u64;
                             match output {
@@ -1647,11 +1682,15 @@ async fn main() -> Result<()> {
                                     let stdout = String::from_utf8_lossy(&out.stdout).to_string();
                                     let stderr = String::from_utf8_lossy(&out.stderr).to_string();
                                     let redactor = warp_features::SecretRedactor::new();
-                                    let cwd = std::env::current_dir().unwrap_or_default();
-                                    // Block-formatted output
+                                    // Combine stdout and stderr with separator if both non-empty
+                                    let combined = if !stdout.is_empty() && !stderr.is_empty() {
+                                        format!("{}\n{}", stdout.trim_end(), stderr.trim_end())
+                                    } else {
+                                        format!("{}{}", stdout, stderr)
+                                    };
                                     let block = warp_features::OutputBlock {
                                         command: command.to_string(),
-                                        output: redactor.redact(&format!("{}{}", stdout, stderr)),
+                                        output: redactor.redact(&combined),
                                         exit_code,
                                         duration_ms,
                                         cwd: cwd.display().to_string(),
@@ -8515,7 +8554,7 @@ fn show_help() {
     println!("  /config                  - Show current configuration");
     println!("  /help                    - Show this help message");
     println!("  /exit                    - Exit VibeCLI");
-    println!("  ! <command>              - Execute shell command directly (e.g. !ls)");
+    println!("  ! <command>              - Execute shell command (Enter=yes; disable prompt: safety.require_approval_for_commands=false)");
     println!("\n@ context references (in any message):");
     println!("  @file:<path>             - Inject file contents as context");
     println!("  @file:<path>:<N-M>       - Inject specific line range");
