@@ -2993,7 +2993,8 @@ mod tests {
         // Should have waypoints between similar memories
         let total_wps = store.total_waypoints();
         // At least some waypoints should be created between these similar texts
-        assert!(total_wps >= 0); // May be 0 if similarity < threshold with small vocab
+        // total_wps is usize (always >= 0); just verify the call succeeds
+        let _ = total_wps;
     }
 
     #[test]

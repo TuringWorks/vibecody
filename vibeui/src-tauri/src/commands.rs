@@ -25069,7 +25069,7 @@ fn recompute_quantum_metrics(circuit: &mut serde_json::Value) {
                 let controls = gate.get("controls").and_then(|c| c.as_array());
                 let tgt = gate.get("target").and_then(|t| t.as_u64()).unwrap_or(2) as usize;
                 if let Some(ctrls) = controls {
-                    let c1 = ctrls.get(0).and_then(|c| c.as_u64()).unwrap_or(0) as usize;
+                    let c1 = ctrls.first().and_then(|c| c.as_u64()).unwrap_or(0) as usize;
                     let c2 = ctrls.get(1).and_then(|c| c.as_u64()).unwrap_or(1) as usize;
                     if c1 < num_qubits && c2 < num_qubits && tgt < num_qubits {
                         let d = qubit_depth[c1].max(qubit_depth[c2]).max(qubit_depth[tgt]) + 1;
@@ -25133,7 +25133,7 @@ fn json_gates_to_quantum_circuit(circuit_json: &serde_json::Value) -> Result<vib
                     let ctrls = gate.get("controls").and_then(|c| c.as_array());
                     let t = get_target(gate);
                     if let Some(cs) = ctrls {
-                        let c1 = cs.get(0).and_then(|c| c.as_u64()).unwrap_or(0) as usize;
+                        let c1 = cs.first().and_then(|c| c.as_u64()).unwrap_or(0) as usize;
                         let c2 = cs.get(1).and_then(|c| c.as_u64()).unwrap_or(1) as usize;
                         Some(QuantumGate::Toffoli(c1, c2, t))
                     } else { None }

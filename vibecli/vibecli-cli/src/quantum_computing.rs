@@ -690,6 +690,10 @@ pub struct QuantumProject {
     pub description: String,
 }
 
+impl Default for QuantumComputingManager {
+    fn default() -> Self { Self::new() }
+}
+
 impl QuantumComputingManager {
     pub fn new() -> Self {
         Self {
@@ -1153,7 +1157,7 @@ impl CircuitOptimizer {
         let result = OptimizationResult {
             original_gate_count: original_count,
             optimized_gate_count: opt_count,
-            original_depth: original_depth,
+            original_depth,
             optimized_depth: optimized.depth(),
             rules_applied: rules,
             savings_percent: savings,
@@ -1250,7 +1254,7 @@ impl AlgorithmTemplates {
     }
 
     pub fn ghz_state(n: usize) -> QuantumCircuit {
-        let n = n.max(2).min(16);
+        let n = n.clamp(2, 16);
         let mut c = QuantumCircuit::new(&format!("GHZ-{}", n), n, n);
         c.add_gate(QuantumGate::H(0));
         for i in 0..n - 1 {
@@ -1261,7 +1265,7 @@ impl AlgorithmTemplates {
     }
 
     pub fn qft(n: usize) -> QuantumCircuit {
-        let n = n.max(2).min(16);
+        let n = n.clamp(2, 16);
         let mut c = QuantumCircuit::new(&format!("QFT-{}", n), n, 0);
         for i in 0..n {
             c.add_gate(QuantumGate::H(i));
@@ -1301,7 +1305,7 @@ impl AlgorithmTemplates {
     }
 
     pub fn deutsch_jozsa(n: usize) -> QuantumCircuit {
-        let n = n.max(1).min(15);
+        let n = n.clamp(1, 15);
         let mut c = QuantumCircuit::new(&format!("Deutsch-Jozsa {}", n), n + 1, n);
         // Prepare ancilla in |1⟩
         c.add_gate(QuantumGate::X(n));
@@ -1318,7 +1322,7 @@ impl AlgorithmTemplates {
 
     pub fn bernstein_vazirani(secret: &str) -> QuantumCircuit {
         let bits: Vec<bool> = secret.chars().rev().map(|ch| ch == '1').collect();
-        let n = bits.len().max(1).min(15);
+        let n = bits.len().clamp(1, 15);
         let mut c = QuantumCircuit::new(&format!("BV s={}", secret), n + 1, n);
         // Prepare ancilla
         c.add_gate(QuantumGate::X(n));
@@ -1336,8 +1340,8 @@ impl AlgorithmTemplates {
     }
 
     pub fn vqe_ansatz(n: usize, layers: usize) -> QuantumCircuit {
-        let n = n.max(2).min(16);
-        let layers = layers.max(1).min(10);
+        let n = n.clamp(2, 16);
+        let layers = layers.clamp(1, 10);
         let mut c = QuantumCircuit::new(&format!("VQE {}-qubit {}-layer", n, layers), n, n);
         for layer in 0..layers {
             // Ry rotation layer

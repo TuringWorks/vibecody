@@ -1833,7 +1833,7 @@ mod tests {
             "C".into(),
         );
 
-        let mut pool = BrowserPool::from_sessions(
+        let pool = BrowserPool::from_sessions(
             vec![s1, s2, s3],
             BrowserConfig::default(),
         );

@@ -1321,7 +1321,7 @@ mod tests {
         std::thread::sleep(std::time::Duration::from_millis(2));
         let id2 = mgr.create_agent("task b").unwrap();
         std::thread::sleep(std::time::Duration::from_millis(2));
-        let id3 = mgr.create_agent("task c").unwrap();
+        let _id3 = mgr.create_agent("task c").unwrap();
 
         mgr.record_commit(&id1, make_commit("a1", "c1", vec!["f1.rs"])).unwrap();
         mgr.record_commit(&id2, make_commit("b1", "c2", vec!["f2.rs"])).unwrap();

@@ -218,6 +218,19 @@ async fn health() -> impl IntoResponse {
     Json(serde_json::json!({ "status": "ok", "version": env!("CARGO_PKG_VERSION") }))
 }
 
+/// Serve the VibeCody Web client — browser-based zero-install mode.
+async fn web_client_page() -> impl IntoResponse {
+    let config = crate::web_client::WebClientConfig::default();
+    let html = crate::web_client::web_client_html(&config);
+    (StatusCode::OK, [("content-type", "text/html; charset=utf-8")], html)
+}
+
+/// Serve the favicon SVG for the web client.
+async fn web_favicon() -> impl IntoResponse {
+    let svg = crate::web_client::web_client_favicon_svg();
+    (StatusCode::OK, [("content-type", "image/svg+xml")], svg)
+}
+
 /// Skill webhook endpoint — triggers a skill by name via POST.
 /// Matches skills with a `webhook_trigger` field set to the given name.
 async fn skill_webhook_handler(
@@ -768,7 +781,7 @@ async fn acp_get_task(
 
 /// Request to create a new agent task via the v1 API.
 #[derive(Debug, Deserialize)]
-#[allow(dead_code)]
+#[allow(dead_code)] // Fields populated by serde deserialization
 struct V1TaskCreate {
     task: String,
     #[serde(default)]
@@ -806,7 +819,7 @@ struct V1TaskStatus {
 
 /// Request to create a browse (browser automation) task.
 #[derive(Debug, Deserialize)]
-#[allow(dead_code)]
+#[allow(dead_code)] // Fields populated by serde deserialization
 struct V1BrowseCreate {
     url: String,
     task: String,
@@ -842,7 +855,7 @@ struct V1Screenshot {
 
 /// API key metadata for management endpoints.
 #[derive(Debug, Serialize, Deserialize, Clone)]
-#[allow(dead_code)]
+#[allow(dead_code)] // Prepared for API key management endpoints
 struct ApiKeyRecord {
     key_prefix: String,   // first 8 chars for display
     label: String,
@@ -1305,6 +1318,8 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
 
     let public_routes = Router::new()
         .route("/health", get(health))
+        .route("/web", get(web_client_page))
+        .route("/favicon.svg", get(web_favicon))
         .route("/webhook/github", post(github_webhook))
         .route("/pair", get(pairing_handler))
         .route("/acp/v1/capabilities", get(acp_capabilities))
