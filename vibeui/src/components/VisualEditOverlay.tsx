@@ -117,7 +117,7 @@ export function VisualEditOverlay({ element, onClose, onApply }: VisualEditOverl
               style={{
                 padding: "2px 8px", fontSize: "10px", fontWeight: 600, borderRadius: "3px",
                 border: editMode === m ? "1px solid var(--accent-color)" : "1px solid var(--border-color)",
-                background: editMode === m ? "rgba(99,102,241,0.15)" : "transparent",
+                background: editMode === m ? "color-mix(in srgb, var(--accent-blue) 15%, transparent)" : "transparent",
                 color: "var(--text-primary)", cursor: "pointer",
               }}
             >
@@ -206,7 +206,7 @@ export function VisualEditOverlay({ element, onClose, onApply }: VisualEditOverl
       {result && (
         <div style={{
           marginTop: "6px", padding: "4px 8px", fontSize: "11px", borderRadius: "3px",
-          background: result.startsWith("Error") ? "rgba(243,139,168,0.1)" : "rgba(166,227,161,0.1)",
+          background: result.startsWith("Error") ? "color-mix(in srgb, var(--accent-rose) 10%, transparent)" : "color-mix(in srgb, var(--accent-green) 10%, transparent)",
           color: result.startsWith("Error") ? "var(--error-color)" : "var(--success-color)",
         }}>
           {result}

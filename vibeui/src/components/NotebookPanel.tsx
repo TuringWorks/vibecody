@@ -32,11 +32,11 @@ interface NotebookPanelProps {
 const LANGUAGES = ["bash", "python", "javascript", "ruby", "rust", "go"];
 
 const langColor: Record<string, string> = {
- bash: "#89b4fa",
- python: "#a6e3a1",
- javascript: "#f9e2af",
- ruby: "#f38ba8",
- rust: "#fab387",
+ bash: "var(--accent-blue)",
+ python: "var(--accent-green)",
+ javascript: "var(--accent-gold)",
+ ruby: "var(--accent-rose)",
+ rust: "var(--accent-gold)",
  go: "#74c7ec",
 };
 
@@ -198,7 +198,7 @@ export function NotebookPanel({ workspacePath }: NotebookPanelProps) {
  }}>
  <span style={{
  padding: "1px 6px", borderRadius: 4, fontWeight: 600, fontSize: 10,
- background: cell.type === "code" ? (langColor[cell.language] || "var(--text-muted)") : "#cba6f7",
+ background: cell.type === "code" ? (langColor[cell.language] || "var(--text-muted)") : "var(--accent-purple)",
  color: "var(--bg-tertiary)",
  }}>
  {cell.type === "code" ? cell.language.toUpperCase() : "MD"}
@@ -308,7 +308,7 @@ export function NotebookPanel({ workspacePath }: NotebookPanelProps) {
  borderTop: "1px solid var(--border-color)",
  padding: "6px 10px", fontSize: 11, fontFamily: "var(--font-mono)",
  maxHeight: 200, overflowY: "auto",
- background: cell.output.exit_code !== 0 ? "rgba(243,139,168,0.05)" : "rgba(166,227,161,0.05)",
+ background: cell.output.exit_code !== 0 ? "color-mix(in srgb, var(--accent-rose) 5%, transparent)" : "rgba(166,227,161,0.05)",
  }}>
  {/* Status bar */}
  <div style={{ display: "flex", gap: 8, marginBottom: 4, fontSize: 10, opacity: 0.6 }}>

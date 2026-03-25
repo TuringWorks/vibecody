@@ -148,7 +148,7 @@ export function WebhookPanel() {
                   <span style={{ fontWeight: 600 }}>{wh.name || 'Unnamed'}</span>
                   <span style={{
                     marginLeft: 8, padding: '1px 6px', borderRadius: 3, fontSize: 10,
-                    background: wh.enabled ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
+                    background: wh.enabled ? 'rgba(34,197,94,0.15)' : 'color-mix(in srgb, var(--accent-rose) 15%, transparent)',
                     color: wh.enabled ? 'var(--success-color)' : 'var(--error-color)',
                   }}>{wh.enabled ? 'Active' : 'Disabled'}</span>
                 </div>
@@ -165,7 +165,7 @@ export function WebhookPanel() {
                 {wh.events.map(ev => (
                   <span key={ev} style={{
                     padding: '1px 6px', borderRadius: 3, fontSize: 10,
-                    background: 'rgba(99,102,241,0.15)', color: 'var(--accent-color)',
+                    background: 'color-mix(in srgb, var(--accent-blue) 15%, transparent)', color: 'var(--accent-color)',
                   }}>{ev}</span>
                 ))}
               </div>
@@ -198,7 +198,7 @@ export function WebhookPanel() {
               {AVAILABLE_EVENTS.map(ev => (
                 <button key={ev} onClick={() => toggleEvent(ev)} style={{
                   padding: '3px 8px', fontSize: 11, borderRadius: 4, cursor: 'pointer',
-                  background: editing.events.includes(ev) ? 'rgba(99,102,241,0.25)' : 'var(--bg-tertiary)',
+                  background: editing.events.includes(ev) ? 'color-mix(in srgb, var(--accent-blue) 25%, transparent)' : 'var(--bg-tertiary)',
                   color: editing.events.includes(ev) ? 'var(--accent-color)' : 'var(--text-secondary)',
                   border: `1px solid ${editing.events.includes(ev) ? 'var(--accent-color)' : 'var(--border-color)'}`,
                 }}>{ev}</button>
@@ -243,7 +243,7 @@ export function WebhookPanel() {
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   <span style={{
                     padding: '1px 6px', borderRadius: 3, fontSize: 10, fontWeight: 600,
-                    background: log.status < 300 ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
+                    background: log.status < 300 ? 'rgba(34,197,94,0.15)' : 'color-mix(in srgb, var(--accent-rose) 15%, transparent)',
                     color: log.status < 300 ? 'var(--success-color)' : 'var(--error-color)',
                   }}>{log.status}</span>
                   <span style={{ fontWeight: 500 }}>{log.webhook_name}</span>

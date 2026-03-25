@@ -35,8 +35,8 @@ const markerColor: Record<string, string> = {
   FIXME: "var(--error-color)",
   HACK: "var(--warning-color)",
   BUG: "var(--error-color)",
-  NOTE: "#6c7086",
-  XXX: "#cba6f7",
+  NOTE: "var(--text-secondary)",
+  XXX: "var(--accent-purple)",
 };
 
 export function BookmarkPanel({ workspacePath }: BookmarkPanelProps) {
@@ -128,7 +128,7 @@ export function BookmarkPanel({ workspacePath }: BookmarkPanelProps) {
       </div>
 
       {error && (
-        <div style={{ padding: "6px 12px", fontSize: 11, color: "var(--text-danger)", background: "rgba(243,139,168,0.05)" }}>
+        <div style={{ padding: "6px 12px", fontSize: 11, color: "var(--text-danger)", background: "color-mix(in srgb, var(--accent-rose) 5%, transparent)" }}>
           {error}
         </div>
       )}
@@ -157,7 +157,7 @@ export function BookmarkPanel({ workspacePath }: BookmarkPanelProps) {
                 style={{
                   padding: "2px 8px", fontSize: 10, fontWeight: 600, borderRadius: 3, cursor: "pointer",
                   border: typeFilter === t ? "1px solid var(--accent)" : "1px solid var(--border-color)",
-                  background: typeFilter === t ? "rgba(99,102,241,0.2)" : "transparent",
+                  background: typeFilter === t ? "color-mix(in srgb, var(--accent-blue) 20%, transparent)" : "transparent",
                   color: t === "ALL" ? "var(--text-primary)" : (markerColor[t] || "var(--text-primary)"),
                 }}
               >
@@ -179,7 +179,7 @@ export function BookmarkPanel({ workspacePath }: BookmarkPanelProps) {
               >
                 <span style={{
                   padding: "1px 5px", borderRadius: 3, fontWeight: 600, fontSize: 9,
-                  background: markerColor[m.marker_type] || "#6c7086", color: "var(--bg-tertiary)",
+                  background: markerColor[m.marker_type] || "var(--text-secondary)", color: "var(--bg-tertiary)",
                   whiteSpace: "nowrap",
                 }}>
                   {m.marker_type}

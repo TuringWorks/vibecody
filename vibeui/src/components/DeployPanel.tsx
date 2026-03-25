@@ -207,7 +207,7 @@ export function DeployPanel({ workspacePath }: DeployPanelProps) {
 
  {/* Deployed URL */}
  {deployedUrl && (
- <div style={{ background: "rgba(166,227,161,0.1)", border: "1px solid var(--success-color)", borderRadius: 6, padding: 10 }}>
+ <div style={{ background: "color-mix(in srgb, var(--accent-green) 10%, transparent)", border: "1px solid var(--success-color)", borderRadius: 6, padding: 10 }}>
  <div style={{ fontSize: 12, color: "var(--text-success)", marginBottom: 4 }}>Live at</div>
  <a href={deployedUrl} target="_blank" rel="noopener noreferrer" style={{ color: "var(--text-info)", fontSize: 13, fontFamily: "var(--font-mono)" }}>
  {deployedUrl}

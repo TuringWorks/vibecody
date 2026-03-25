@@ -44,19 +44,19 @@ const KIND_COLORS: Record<string, string> = {
  struct: "var(--success-color)",
  trait: "var(--warning-color)",
  interface: "var(--warning-color)",
- class: "#cba6f7",
+ class: "var(--accent-purple)",
  module: "#89dceb",
  file: "#9399b2",
- repo: "#f38ba8",
- enum: "#a6e3a1",
+ repo: "var(--accent-rose)",
+ enum: "var(--accent-green)",
 };
 
 const REPO_COLORS: Record<string, string> = {
- "vibe-ai": "#89b4fa",
- "vibecli": "#a6e3a1",
- "vibe-core": "#fab387",
- "src": "#f9e2af",
- "crates": "#89b4fa",
+ "vibe-ai": "var(--accent-blue)",
+ "vibecli": "var(--accent-green)",
+ "vibe-core": "var(--accent-gold)",
+ "src": "var(--accent-gold)",
+ "crates": "var(--accent-blue)",
 };
 
 export default function KnowledgeGraphPanel() {

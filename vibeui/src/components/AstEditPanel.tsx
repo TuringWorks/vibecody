@@ -41,15 +41,15 @@ const kindColor: Record<NodeKind, string> = {
   struct: "var(--text-success)",
   enum: "var(--text-warning)",
   impl: "var(--text-muted)",
-  trait: "#cba6f7",
-  module: "#fab387",
+  trait: "var(--accent-purple)",
+  module: "var(--accent-gold)",
   const: "#94e2d5",
   type: "#f5c2e7",
 };
 
 const tabBtn = (active: boolean): React.CSSProperties => ({
   padding: "6px 14px", fontSize: 11, fontWeight: active ? 600 : 400,
-  background: active ? "var(--accent-bg, rgba(99,102,241,0.15))" : "transparent",
+  background: active ? "var(--accent-bg, color-mix(in srgb, var(--accent-blue) 15%, transparent))" : "transparent",
   border: "1px solid " + (active ? "var(--accent-primary)" : "var(--border-color)"),
   borderRadius: 4, color: active ? "var(--text-info)" : "var(--text-muted)", cursor: "pointer",
 });
@@ -168,9 +168,9 @@ export default function AstEditPanel() {
 
         {tab === "edits" && edits.map(e => (
           <div key={e.id} role="button" tabIndex={0} onClick={() => { setSelectedEdit(e.id); setTab("preview"); }} onKeyDown={ev => ev.key === "Enter" && (setSelectedEdit(e.id), setTab("preview"))}
-            style={{ padding: 10, background: selectedEdit === e.id ? "var(--accent-bg, rgba(99,102,241,0.15))" : "var(--bg-secondary)", borderRadius: 6, border: `1px solid ${selectedEdit === e.id ? "var(--accent-primary)" : "var(--border-color)"}`, cursor: "pointer" }}>
+            style={{ padding: 10, background: selectedEdit === e.id ? "var(--accent-bg, color-mix(in srgb, var(--accent-blue) 15%, transparent))" : "var(--bg-secondary)", borderRadius: 6, border: `1px solid ${selectedEdit === e.id ? "var(--accent-primary)" : "var(--border-color)"}`, cursor: "pointer" }}>
             <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
-              <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 3, background: "rgba(99,102,241,0.15)", color: "var(--text-info)", fontWeight: 600 }}>{e.operation}</span>
+              <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 3, background: "color-mix(in srgb, var(--accent-blue) 15%, transparent)", color: "var(--text-info)", fontWeight: 600 }}>{e.operation}</span>
               <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{e.target}</span>
               <span style={{ fontSize: 10, color: "var(--text-muted)", marginLeft: "auto" }}>{e.file}</span>
             </div>

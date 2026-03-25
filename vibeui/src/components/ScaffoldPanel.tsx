@@ -37,7 +37,7 @@ const LANG_COLORS: Record<string, string> = {
 };
 
 function LangBadge({ lang }: { lang: string }) {
- const color = LANG_COLORS[lang] ?? "#888";
+ const color = LANG_COLORS[lang] ?? "var(--text-secondary)";
  return (
  <span style={{ padding: "1px 7px", borderRadius: 10, background: color + "33", border: `1px solid ${color}`, color, fontSize: 10, fontWeight: 600 }}>
  {lang}
@@ -193,11 +193,11 @@ export function ScaffoldPanel({ workspacePath }: { workspacePath: string | null 
  </div>
 
  {error && (
- <div style={{ padding: "6px 12px", background: "rgba(243,139,168,0.1)", color: "var(--text-danger)", fontSize: 11, borderBottom: "1px solid var(--border-color)" }}> {error}</div>
+ <div style={{ padding: "6px 12px", background: "color-mix(in srgb, var(--accent-rose) 10%, transparent)", color: "var(--text-danger)", fontSize: 11, borderBottom: "1px solid var(--border-color)" }}> {error}</div>
  )}
 
  {written && (
- <div style={{ padding: "6px 12px", background: "rgba(166,227,161,0.1)", color: "var(--text-success)", fontSize: 11, borderBottom: "1px solid var(--border-color)" }}>
+ <div style={{ padding: "6px 12px", background: "color-mix(in srgb, var(--accent-green) 10%, transparent)", color: "var(--text-success)", fontSize: 11, borderBottom: "1px solid var(--border-color)" }}>
  Scaffold written to <code style={{ fontFamily: "var(--font-mono)" }}>{outputDir}</code>
  {preview?.install_command && <> — run <code style={{ fontFamily: "var(--font-mono)" }}>{preview.install_command}</code></>}
  </div>

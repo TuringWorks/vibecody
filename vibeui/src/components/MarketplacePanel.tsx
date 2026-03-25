@@ -101,7 +101,7 @@ export function MarketplacePanel() {
         <div style={{
           margin: "0 12px", padding: "4px 8px", fontSize: 11, borderRadius: 4,
           color: message.type === "ok" ? "var(--success-color)" : "var(--error-color)",
-          background: message.type === "ok" ? "rgba(166,227,161,0.05)" : "rgba(243,139,168,0.05)",
+          background: message.type === "ok" ? "rgba(166,227,161,0.05)" : "color-mix(in srgb, var(--accent-rose) 5%, transparent)",
         }}>
           {message.text}
         </div>
@@ -131,7 +131,7 @@ export function MarketplacePanel() {
                   {installed.has(p.name) ? (
                     <span style={{
                       ...chipStyle,
-                      background: "rgba(166,227,161,0.15)", border: "1px solid var(--success-color)",
+                      background: "color-mix(in srgb, var(--accent-green) 15%, transparent)", border: "1px solid var(--success-color)",
                       color: "var(--success-color)", cursor: "default",
                     }}>
                       ✓ Installed
@@ -142,7 +142,7 @@ export function MarketplacePanel() {
                       disabled={installing === p.name}
                       style={{
                         ...chipStyle, cursor: "pointer",
-                        background: "rgba(99,102,241,0.15)", border: "1px solid var(--accent-color)",
+                        background: "color-mix(in srgb, var(--accent-blue) 15%, transparent)", border: "1px solid var(--accent-color)",
                         opacity: installing === p.name ? 0.5 : 1,
                       }}
                     >
@@ -156,7 +156,7 @@ export function MarketplacePanel() {
                   {p.tags.slice(0, 4).map((tag) => (
                     <span key={tag} style={{
                       fontSize: 8, padding: "1px 5px", borderRadius: 3,
-                      background: "rgba(99,102,241,0.1)", color: "var(--text-info)",
+                      background: "color-mix(in srgb, var(--accent-blue) 10%, transparent)", color: "var(--text-info)",
                     }}>
                       {tag}
                     </span>

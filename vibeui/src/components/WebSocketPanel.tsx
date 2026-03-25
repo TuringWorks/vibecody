@@ -244,7 +244,7 @@ export function WebSocketPanel() {
  {/* Filter bar */}
  <div style={{ padding: "5px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 6, alignItems: "center" }}>
  {(["all", "sent", "received", "system", "error"] as const).map(d => (
- <button key={d} onClick={() => setFilterDir(d)} style={{ padding: "2px 10px", fontSize: 10, borderRadius: 10, background: filterDir === d ? "rgba(99,102,241,0.25)" : "var(--bg-primary)", border: `1px solid ${filterDir === d ? "var(--accent-color)" : "var(--border-color)"}`, color: d === "all" ? "var(--text-primary)" : DIR_COLORS[d as MsgDirection], cursor: "pointer", fontWeight: filterDir === d ? 700 : 400 }}>
+ <button key={d} onClick={() => setFilterDir(d)} style={{ padding: "2px 10px", fontSize: 10, borderRadius: 10, background: filterDir === d ? "color-mix(in srgb, var(--accent-blue) 25%, transparent)" : "var(--bg-primary)", border: `1px solid ${filterDir === d ? "var(--accent-color)" : "var(--border-color)"}`, color: d === "all" ? "var(--text-primary)" : DIR_COLORS[d as MsgDirection], cursor: "pointer", fontWeight: filterDir === d ? 700 : 400 }}>
  {d === "all" ? "All" : `${DIR_ICONS[d as MsgDirection]} ${d}`}
  </button>
  ))}
@@ -268,7 +268,7 @@ export function WebSocketPanel() {
  </div>
  )}
  {filtered.map(m => (
- <div key={m.id} style={{ padding: "4px 12px", display: "flex", gap: 10, alignItems: "flex-start", borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
+ <div key={m.id} style={{ padding: "4px 12px", display: "flex", gap: 10, alignItems: "flex-start", borderBottom: "1px solid var(--border-subtle)" }}>
  <span style={{ fontSize: 9, color: "var(--text-muted)", flexShrink: 0, paddingTop: 2, minWidth: 86 }}>{fmt(m.ts)}</span>
  <span style={{ fontSize: 11, fontWeight: 700, color: DIR_COLORS[m.direction], flexShrink: 0, width: 12 }}>{DIR_ICONS[m.direction]}</span>
  <pre style={{ margin: 0, fontSize: 11, color: "var(--text-primary)", whiteSpace: "pre-wrap", wordBreak: "break-word", flex: 1, lineHeight: 1.5 }}>

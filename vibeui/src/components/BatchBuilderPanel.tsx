@@ -206,7 +206,7 @@ const STATUS_COLORS: Record<RunStatus, string> = {
   Queued: "var(--text-muted)",
   Planning: "var(--info-color)",
   Generating: "var(--warning-color)",
-  Validating: "#9c27b0",
+  Validating: "var(--accent-purple)",
   Compiling: "#00bcd4",
   Testing: "var(--warning-color)",
   Completed: "var(--success-color)",

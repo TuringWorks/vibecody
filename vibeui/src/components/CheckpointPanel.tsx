@@ -145,7 +145,7 @@ export function CheckpointPanel({ workspacePath }: CheckpointPanelProps) {
         </div>
 
         {error && (
-          <div style={{ marginTop: "8px", padding: "6px 8px", background: "rgba(220,50,50,0.15)", borderRadius: "4px", fontSize: "12px", color: "var(--error-color)" }}>
+          <div style={{ marginTop: "8px", padding: "6px 8px", background: "color-mix(in srgb, var(--accent-rose) 15%, transparent)", borderRadius: "4px", fontSize: "12px", color: "var(--error-color)" }}>
             {error}
           </div>
         )}

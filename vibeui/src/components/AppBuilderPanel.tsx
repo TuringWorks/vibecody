@@ -151,9 +151,9 @@ const tagStyle: React.CSSProperties = {
 
 const categoryBadgeStyle = (cat: TemplateCategory): React.CSSProperties => {
   const colors: Record<TemplateCategory, string> = {
-    All: "#888",
+    All: "var(--text-secondary)",
     Web: "#3178c6",
-    Mobile: "#4caf50",
+    Mobile: "var(--accent-green)",
     API: "#f7a41d",
     FullStack: "#9c7ce1",
     Landing: "#e91e63",

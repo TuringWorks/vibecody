@@ -46,12 +46,12 @@ interface HistoryEntry {
 }
 
 const KIND_COLORS: Record<string, string> = {
- OBJECT: "#89b4fa",
- INPUT_OBJECT: "#cba6f7",
- ENUM: "#a6e3a1",
+ OBJECT: "var(--accent-blue)",
+ INPUT_OBJECT: "var(--accent-purple)",
+ ENUM: "var(--accent-green)",
  INTERFACE: "#89dceb",
- UNION: "#f9e2af",
- SCALAR: "#fab387",
+ UNION: "var(--accent-gold)",
+ SCALAR: "var(--accent-gold)",
 };
 
 const EXAMPLE_QUERIES: Record<string, string> = {
@@ -197,7 +197,7 @@ export function GraphQLPanel() {
  onClick={() => setTab(id as typeof tab)}
  style={{
  padding: "6px 14px", fontSize: 11, fontWeight: active ? 600 : 400,
- background: active ? "rgba(99,102,241,0.15)" : "transparent",
+ background: active ? "color-mix(in srgb, var(--accent-blue) 15%, transparent)" : "transparent",
  color: active ? "var(--accent-color)" : "var(--text-muted)",
  border: "none", borderBottom: active ? "2px solid var(--accent-color)" : "2px solid transparent",
  cursor: "pointer",
@@ -360,7 +360,7 @@ export function GraphQLPanel() {
  <>
  <span style={{
  fontSize: 10, fontWeight: 600, padding: "1px 6px", borderRadius: 10,
- background: result.errors ? "rgba(243,139,168,0.15)" : "rgba(166,227,161,0.15)",
+ background: result.errors ? "color-mix(in srgb, var(--accent-rose) 15%, transparent)" : "color-mix(in srgb, var(--accent-green) 15%, transparent)",
  color: result.errors ? "var(--error-color)" : "var(--success-color)",
  }}>
  {result.status} {result.errors ? "errors" : "OK"}

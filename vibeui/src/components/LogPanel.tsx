@@ -255,7 +255,7 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
 
       {/* Error */}
       {error && (
-        <div style={{ background: "rgba(243,139,168,0.15)", border: "1px solid var(--error-color)", borderRadius: 6, padding: 8, fontSize: 11, color: "var(--error-color)" }}>
+        <div style={{ background: "color-mix(in srgb, var(--accent-rose) 15%, transparent)", border: "1px solid var(--error-color)", borderRadius: 6, padding: 8, fontSize: 11, color: "var(--error-color)" }}>
           {error}
         </div>
       )}
@@ -324,7 +324,7 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
               key={entry.line_number}
               style={{
                 padding: "1px 6px", display: "flex", gap: 6,
-                background: entry.level === "error" ? "rgba(243,139,168,0.06)"
+                background: entry.level === "error" ? "color-mix(in srgb, var(--accent-rose) 6%, transparent)"
                   : entry.level === "warn" ? "rgba(250,179,135,0.04)"
                   : "transparent",
                 borderBottom: "1px solid var(--border-color)",

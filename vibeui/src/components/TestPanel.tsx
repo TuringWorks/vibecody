@@ -155,7 +155,7 @@ export function TestPanel({ workspacePath }: TestPanelProps) {
  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
  <span style={{ fontWeight: 700, fontSize: 14 }}>Test Runner</span>
  {framework && (
- <span style={{ fontSize: 10, padding: "2px 6px", background: "rgba(137,180,250,0.2)", color: "var(--text-info)", borderRadius: 3 }}>
+ <span style={{ fontSize: 10, padding: "2px 6px", background: "color-mix(in srgb, var(--accent-blue) 20%, transparent)", color: "var(--text-info)", borderRadius: 3 }}>
  {framework}
  </span>
  )}
@@ -248,7 +248,7 @@ export function TestPanel({ workspacePath }: TestPanelProps) {
  key={t.name}
  style={{
  borderRadius: 4, padding: "5px 8px",
- background: t.status === "failed" ? "rgba(243,139,168,0.08)" : "var(--bg-secondary)",
+ background: t.status === "failed" ? "color-mix(in srgb, var(--accent-rose) 8%, transparent)" : "var(--bg-secondary)",
  border: `1px solid ${t.status === "failed" ? "rgba(243,139,168,0.3)" : "var(--border-color)"}`,
  cursor: t.output ? "pointer" : "default",
  }}

@@ -176,7 +176,7 @@ export function MockServerPanel() {
         )}
         <span style={{
           fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 10,
-          background: running ? "rgba(166,227,161,0.15)" : "rgba(108,112,134,0.15)",
+          background: running ? "color-mix(in srgb, var(--accent-green) 15%, transparent)" : "color-mix(in srgb, var(--text-secondary) 15%, transparent)",
           color: running ? "var(--success-color)" : "var(--text-secondary)",
         }}>
           {running ? `Running :${port}` : "Stopped"}
@@ -194,7 +194,7 @@ export function MockServerPanel() {
             style={{
               padding: "3px 10px", fontSize: 10, fontWeight: 600, borderRadius: 4, cursor: "pointer",
               border: tab === t ? "1px solid var(--accent-color)" : "1px solid var(--border-color)",
-              background: tab === t ? "rgba(99,102,241,0.15)" : "transparent",
+              background: tab === t ? "color-mix(in srgb, var(--accent-blue) 15%, transparent)" : "transparent",
               color: "var(--text-primary)",
             }}
           >
@@ -204,7 +204,7 @@ export function MockServerPanel() {
       </div>
 
       {error && (
-        <div style={{ padding: "6px 12px", fontSize: 11, color: "var(--text-danger)", background: "rgba(243,139,168,0.05)" }}>
+        <div style={{ padding: "6px 12px", fontSize: 11, color: "var(--text-danger)", background: "color-mix(in srgb, var(--accent-rose) 5%, transparent)" }}>
           {error}
         </div>
       )}
@@ -292,7 +292,7 @@ export function MockServerPanel() {
                 <div style={{ flex: 1 }} />
                 <span style={{
                   fontSize: 9, padding: "1px 6px", borderRadius: 3,
-                  background: r.matched_route_id ? "rgba(166,227,161,0.15)" : "rgba(243,139,168,0.15)",
+                  background: r.matched_route_id ? "color-mix(in srgb, var(--accent-green) 15%, transparent)" : "color-mix(in srgb, var(--accent-rose) 15%, transparent)",
                   color: r.matched_route_id ? "var(--success-color)" : "var(--error-color)",
                 }}>
                   {r.matched_route_id ? "matched" : "no match"}

@@ -75,7 +75,7 @@ const FullStackGenPanel: React.FC = () => {
   const fieldGroup: React.CSSProperties = { marginBottom: "12px" };
 
   const layerColors: Record<string, string> = {
-    Frontend: "#1565c0", Backend: "#2e7d32", Database: "#6a1b9a",
+    Frontend: "#1565c0", Backend: "#2e7d32", Database: "var(--accent-purple)",
     Infra: "#e65100", Testing: "#c62828", Docs: "#757575",
   };
   const badgeStyle = (color: string): React.CSSProperties => ({
@@ -251,7 +251,7 @@ const FullStackGenPanel: React.FC = () => {
           <div style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: "8px",
             padding: "6px 0", fontWeight: 600 }} onClick={() => toggleLayer(layer)}>
             <span>{expandedLayers.has(layer) ? "\u25BC" : "\u25B6"}</span>
-            <span style={badgeStyle(layerColors[layer] || "#555")}>{layer}</span>
+            <span style={badgeStyle(layerColors[layer] || "var(--border-color)")}>{layer}</span>
             <span style={{ opacity: 0.6, fontSize: "12px" }}>({layerFiles.length} files)</span>
           </div>
           {expandedLayers.has(layer) && layerFiles.map(f => (
@@ -278,7 +278,7 @@ const FullStackGenPanel: React.FC = () => {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
             <div>
               <code style={{ fontSize: 12 }}>{selectedFile.path}</code>
-              <span style={{ ...badgeStyle(layerColors[selectedFile.layer] || "#555"), marginLeft: 8 }}>{selectedFile.layer}</span>
+              <span style={{ ...badgeStyle(layerColors[selectedFile.layer] || "var(--border-color)"), marginLeft: 8 }}>{selectedFile.layer}</span>
             </div>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               {saveMsg && <span style={{ fontSize: 11, color: saveMsg === "Saved" ? "var(--success-color)" : "var(--error-color)" }}>{saveMsg}</span>}

@@ -96,7 +96,7 @@ const inputStyle: React.CSSProperties = {
 const selectStyle: React.CSSProperties = { ...inputStyle, cursor: "pointer" };
 const btnStyle = (variant: "primary" | "default" | "danger" | "success" = "default"): React.CSSProperties => ({
   padding: "6px 16px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 500,
-  background: variant === "primary" ? "var(--accent)" : variant === "danger" ? "#e53935" : variant === "success" ? "#43a047" : "var(--bg-secondary)",
+  background: variant === "primary" ? "var(--accent)" : variant === "danger" ? "var(--accent-rose)" : variant === "success" ? "var(--accent-green)" : "var(--bg-secondary)",
   color: variant === "default" ? "var(--text-primary)" : "#fff",
   transition: "opacity 0.15s",
 });
@@ -150,8 +150,8 @@ const DOMAIN_METRICS: Record<ResearchDomain, MetricDef[]> = {
 };
 
 const STATUS_COLORS: Record<ExperimentStatus, string> = {
-  pending: "#9e9e9e", running: "#2196f3", completed: "#4caf50",
-  kept: "#43a047", discarded: "#ff9800", failed: "#e53935",
+  pending: "#9e9e9e", running: "#2196f3", completed: "var(--accent-green)",
+  kept: "var(--accent-green)", discarded: "var(--accent-gold)", failed: "var(--accent-rose)",
   timeout: "#ff5722", crashed: "#b71c1c",
 };
 
@@ -393,7 +393,7 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
                 <td style={{ padding: 6, ...monoStyle }}>{m.name}</td>
                 <td style={{ padding: 6 }}>{m.description}</td>
                 <td style={{ padding: 6, textAlign: "center" }}>
-                  <span style={tagStyle(m.direction === "lower" ? "#2196f3" : "#43a047")}>
+                  <span style={tagStyle(m.direction === "lower" ? "#2196f3" : "var(--accent-green)")}>
                     {m.direction === "lower" ? "lower is better" : "higher is better"}
                   </span>
                 </td>
@@ -405,7 +405,7 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
       </div>
 
       {error && (
-        <div style={{ ...cardStyle, borderColor: "#e53935", color: "var(--error-color)", fontSize: 12 }}>
+        <div style={{ ...cardStyle, borderColor: "var(--accent-rose)", color: "var(--error-color)", fontSize: 12 }}>
           {error}
         </div>
       )}
@@ -483,7 +483,7 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
             <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 6 }}>{exp.rationale}</div>
             <div style={{ display: "flex", gap: 16, fontSize: 12 }}>
               <span>Score: <b>{exp.compositeScore.toFixed(4)}</b></span>
-              <span style={{ color: exp.delta >= 0 ? "#43a047" : "#e53935" }}>
+              <span style={{ color: exp.delta >= 0 ? "var(--accent-green)" : "var(--accent-rose)" }}>
                 Delta: {exp.delta >= 0 ? "+" : ""}{exp.delta.toFixed(4)}
               </span>
               <span>Files: {exp.filesChanged}</span>
@@ -494,7 +494,7 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
             {exp.safetyViolations.length > 0 && (
               <div style={{ marginTop: 6 }}>
                 {exp.safetyViolations.map((v, i) => (
-                  <span key={i} style={tagStyle("#e53935")}>{v}</span>
+                  <span key={i} style={tagStyle("var(--accent-rose)")}>{v}</span>
                 ))}
               </div>
             )}
@@ -531,7 +531,7 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
             <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Baseline</div>
           </div>
           <div style={statStyle}>
-            <div style={{ fontSize: 18, fontWeight: 700, color: improvement > 0 ? "#43a047" : "#e53935" }}>
+            <div style={{ fontSize: 18, fontWeight: 700, color: improvement > 0 ? "var(--accent-green)" : "var(--accent-rose)" }}>
               {improvement > 0 ? "+" : ""}{improvement.toFixed(2)}%
             </div>
             <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Improvement</div>
@@ -547,14 +547,14 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
                 <div style={{
                   width: `${(exp.compositeScore / maxScore) * 100}%`,
                   height: "100%", borderRadius: 4,
-                  background: exp.status === "kept" ? "#43a047" : exp.status === "discarded" ? "#ff9800" : "#e53935",
+                  background: exp.status === "kept" ? "var(--accent-green)" : exp.status === "discarded" ? "var(--accent-gold)" : "var(--accent-rose)",
                   opacity: 0.7,
                 }} />
               </div>
               <span style={{ fontSize: 11, ...monoStyle, width: 50, textAlign: "right" }}>
                 {exp.compositeScore.toFixed(4)}
               </span>
-              <span style={{ fontSize: 11, color: exp.delta >= 0 ? "#43a047" : "#e53935", width: 60 }}>
+              <span style={{ fontSize: 11, color: exp.delta >= 0 ? "var(--accent-green)" : "var(--accent-rose)", width: 60 }}>
                 {exp.delta >= 0 ? "+" : ""}{exp.delta.toFixed(4)}
               </span>
             </div>
@@ -588,7 +588,7 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
               // Cohen's d approximation from delta/baseline
               const effectSize = baseline > 0 ? Math.abs(exp.delta / baseline) : 0;
               const esLabel = effectSize > 0.8 ? "Large" : effectSize > 0.5 ? "Medium" : effectSize > 0.2 ? "Small" : "Negligible";
-              const esColor = effectSize > 0.5 ? "#43a047" : effectSize > 0.2 ? "#ff9800" : "#9e9e9e";
+              const esColor = effectSize > 0.5 ? "var(--accent-green)" : effectSize > 0.2 ? "var(--accent-gold)" : "#9e9e9e";
               return (
                 <div key={exp.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "3px 0", fontSize: 12 }}>
                   <span style={monoStyle}>{exp.id}</span>
@@ -628,7 +628,7 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
         {lessons.map(l => (
           <div key={l.id} style={{ padding: "8px 0", borderBottom: "1px solid var(--border)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={tagStyle(l.confidence === "High" ? "#43a047" : l.confidence === "Medium" ? "#ff9800" : "#9e9e9e")}>
+              <span style={tagStyle(l.confidence === "High" ? "var(--accent-green)" : l.confidence === "Medium" ? "var(--accent-gold)" : "#9e9e9e")}>
                 {l.confidence}
               </span>
               <span>{l.description}</span>
@@ -650,7 +650,7 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
           <div style={{ fontWeight: 600, marginBottom: 8, color: "var(--success-color)" }}>Successful Patterns</div>
           {successPatterns.map((p, i) => (
             <div key={i} style={{ padding: "4px 0", fontSize: 12 }}>
-              <span style={tagStyle("#43a047")}>KEEP</span> {p}
+              <span style={tagStyle("var(--accent-green)")}>KEEP</span> {p}
             </div>
           ))}
           {successPatterns.length === 0 && <div style={{ color: "var(--text-secondary)", fontSize: 12 }}>None yet</div>}
@@ -659,7 +659,7 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
           <div style={{ fontWeight: 600, marginBottom: 8, color: "var(--error-color)" }}>Failed Patterns</div>
           {failPatterns.map((p, i) => (
             <div key={i} style={{ padding: "4px 0", fontSize: 12 }}>
-              <span style={tagStyle("#e53935")}>AVOID</span> {p}
+              <span style={tagStyle("var(--accent-rose)")}>AVOID</span> {p}
             </div>
           ))}
           {failPatterns.length === 0 && <div style={{ color: "var(--text-secondary)", fontSize: 12 }}>None yet</div>}

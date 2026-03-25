@@ -174,7 +174,7 @@ export function AutofixPanel({ workspacePath }: { workspacePath: string | null }
  )}
 
  {error && (
- <div style={{ background: "rgba(244,67,54,0.1)", color: "var(--error-color)", padding: "8px", borderRadius: "4px", marginBottom: "12px", whiteSpace: "pre-wrap", fontSize: "12px" }}>
+ <div style={{ background: "color-mix(in srgb, var(--accent-rose) 10%, transparent)", color: "var(--error-color)", padding: "8px", borderRadius: "4px", marginBottom: "12px", whiteSpace: "pre-wrap", fontSize: "12px" }}>
  {error}
  </div>
  )}
@@ -233,7 +233,7 @@ export function AutofixPanel({ workspacePath }: { workspacePath: string | null }
  <div style={{ background: "var(--bg-secondary)", borderRadius: "4px", overflow: "auto", maxHeight: "400px", fontSize: "11px" }}>
  {diffLines.map((line, i) => {
  const color = line.startsWith("+") && !line.startsWith("+++") ? "rgba(76,175,80,0.15)" :
- line.startsWith("-") && !line.startsWith("---") ? "rgba(244,67,54,0.15)" :
+ line.startsWith("-") && !line.startsWith("---") ? "color-mix(in srgb, var(--accent-rose) 15%, transparent)" :
  line.startsWith("@@") ? "rgba(33,150,243,0.15)" : "transparent";
  const textColor = line.startsWith("+") && !line.startsWith("+++") ? "var(--success-color)" :
  line.startsWith("-") && !line.startsWith("---") ? "var(--error-color)" :

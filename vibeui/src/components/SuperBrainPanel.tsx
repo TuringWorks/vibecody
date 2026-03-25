@@ -1,6 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import {
+  Compass, Handshake, Link, Trophy, BrainCircuit,
+  Play, Loader2, ToggleLeft, ToggleRight,
+  Clock, Zap, Hash, Layers, Gauge, ArrowDown, Sparkles,
+  type LucideIcon,
+} from "lucide-react";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -51,62 +57,186 @@ interface ModeInfo {
   id: string;
   name: string;
   description: string;
-  icon: string;
+  icon: LucideIcon;
+  color: string;
 }
 
 const MODES: ModeInfo[] = [
-  { id: "router", name: "Smart Router", description: "Routes to best model for the task", icon: "\u{1F9ED}" },
-  { id: "consensus", name: "Consensus", description: "Multiple models vote on the answer", icon: "\u{1F91D}" },
-  { id: "chain", name: "Chain Relay", description: "Models refine each other's thinking", icon: "\u{1F517}" },
-  { id: "bestofn", name: "Best-of-N", description: "A judge picks the best response", icon: "\u{1F3C6}" },
-  { id: "specialist", name: "Specialist", description: "Breaks problem into subtasks for experts", icon: "\u{1F9E0}" },
+  { id: "router", name: "Smart Router", description: "Routes to best model for the task", icon: Compass, color: "var(--accent-green)" },
+  { id: "consensus", name: "Consensus", description: "Multiple models vote on the answer", icon: Handshake, color: "var(--accent-blue)" },
+  { id: "chain", name: "Chain Relay", description: "Models refine each other's thinking", icon: Link, color: "var(--accent-gold)" },
+  { id: "bestofn", name: "Best-of-N", description: "A judge picks the best response", icon: Trophy, color: "var(--accent-rose)" },
+  { id: "specialist", name: "Specialist", description: "Breaks problem into subtasks for experts", icon: BrainCircuit, color: "var(--accent-purple)" },
 ];
+
+const CHAIN_STEP_COLORS = ["var(--accent-blue)", "var(--accent-gold)", "var(--accent-green)"];
 
 // ── Styles ───────────────────────────────────────────────────────────────────
 
 const S = {
-  container: { height: "100%", display: "flex", flexDirection: "column", fontFamily: "var(--font-family, sans-serif)", color: "var(--text-primary, #e0e0e0)", background: "var(--bg-primary, #1e1e1e)", overflow: "hidden" } as const,
-  scrollArea: { flex: 1, overflowY: "auto", padding: 20 } as const,
-  btn: { padding: "10px 20px", border: "none", borderRadius: 6, cursor: "pointer", fontSize: 14, fontWeight: 600, background: "var(--accent, #4a9eff)", color: "#fff" } as const,
-  btnSecondary: { padding: "6px 12px", border: "1px solid var(--border-color, #444)", borderRadius: 6, cursor: "pointer", fontSize: 12, background: "transparent", color: "var(--text-primary, #ccc)" } as const,
-  input: { width: "100%", padding: "8px 10px", borderRadius: 6, border: "1px solid var(--border-color, #444)", background: "var(--bg-secondary, #2a2a2a)", color: "var(--text-primary, #e0e0e0)", fontSize: 13, boxSizing: "border-box" } as const,
-  textarea: { width: "100%", padding: "12px 14px", borderRadius: 8, border: "1px solid var(--border-color, #444)", background: "var(--bg-secondary, #2a2a2a)", color: "var(--text-primary, #e0e0e0)", fontSize: 14, resize: "vertical", minHeight: 100, boxSizing: "border-box", fontFamily: "inherit" } as const,
-  card: { border: "1px solid var(--border-color, #333)", borderRadius: 8, padding: 14, marginBottom: 12, background: "var(--bg-secondary, #252525)" } as const,
-  modeCard: (active: boolean) => ({
-    border: active ? "2px solid var(--accent, #4a9eff)" : "1px solid var(--border-color, #444)",
-    borderRadius: 10,
-    padding: 16,
+  container: {
+    height: "100%", display: "flex", flexDirection: "column",
+    fontFamily: "var(--font-family, system-ui, sans-serif)",
+    color: "var(--text-primary)",
+    background: "var(--bg-primary)",
+    overflow: "hidden",
+  } as const,
+
+  scrollArea: {
+    flex: 1, overflowY: "auto", padding: 20,
+  } as const,
+
+  sectionTitle: {
+    fontSize: 11, fontWeight: 700, textTransform: "uppercase",
+    letterSpacing: "0.06em", color: "var(--text-secondary)",
+    margin: "0 0 12px 0",
+    display: "flex", alignItems: "center", gap: 6,
+  } as const,
+
+  modeGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))",
+    gap: 8, marginBottom: 24,
+  } as const,
+
+  modeCard: (active: boolean, color: string) => ({
+    border: active ? `1.5px solid ${color}` : "1px solid var(--border-color)",
+    borderRadius: "var(--radius-md)",
+    padding: "14px 12px",
     cursor: "pointer",
-    background: active ? "var(--accent, #4a9eff)11" : "var(--bg-secondary, #252525)",
+    background: active ? `color-mix(in srgb, ${color} 8%, var(--bg-secondary))` : "var(--bg-secondary)",
     textAlign: "center" as const,
-    transition: "border-color 0.15s",
-    minWidth: 120,
+    transition: "all var(--transition-fast)",
+    boxShadow: active ? `0 0 16px color-mix(in srgb, ${color} 12%, transparent)` : "none",
   }),
-  badge: (color: string) => ({ display: "inline-block", padding: "3px 10px", borderRadius: 10, fontSize: 11, fontWeight: 600, background: color + "22", color }),
-  h2: { fontSize: 16, fontWeight: 700, margin: "0 0 16px 0" } as const,
-  h3: { fontSize: 14, fontWeight: 600, margin: "16px 0 8px 0" } as const,
-  label: { fontSize: 12, color: "var(--text-secondary, #999)", marginBottom: 4, display: "block" } as const,
-  metricsBar: { display: "flex", gap: 20, padding: "10px 14px", borderRadius: 8, background: "var(--bg-secondary, #252525)", border: "1px solid var(--border-color, #333)", fontSize: 12, color: "var(--text-secondary, #aaa)" } as const,
-  winnerBadge: { display: "inline-block", padding: "4px 12px", borderRadius: 10, fontSize: 12, fontWeight: 700, background: "#ffd70033", color: "#ffd700", marginLeft: 8 } as const,
-  arrow: { textAlign: "center" as const, fontSize: 20, color: "var(--text-secondary, #666)", padding: "4px 0" } as const,
-  confidenceMeter: (_pct: number) => ({
-    height: 4,
-    borderRadius: 2,
-    background: "var(--border-color, #444)",
+
+  providerRow: (enabled: boolean) => ({
+    display: "flex", alignItems: "center", gap: 10,
+    padding: "8px 12px",
+    borderRadius: "var(--radius-sm)",
+    border: "1px solid var(--border-color)",
+    background: "var(--bg-secondary)",
+    opacity: enabled ? 1 : 0.45,
+    transition: "opacity var(--transition-fast)",
+  }),
+
+  btn: {
+    padding: "9px 20px", border: "none",
+    borderRadius: "var(--radius-sm)",
+    cursor: "pointer", fontSize: 13, fontWeight: 600,
+    background: "var(--accent-blue)", color: "#fff",
+    display: "inline-flex", alignItems: "center", gap: 6,
+    transition: "opacity var(--transition-fast)",
+  } as const,
+
+  input: {
+    width: "100%", padding: "7px 10px",
+    borderRadius: "var(--radius-sm)",
+    border: "1px solid var(--border-color)",
+    background: "var(--bg-secondary)",
+    color: "var(--text-primary)", fontSize: 13,
+    boxSizing: "border-box",
+  } as const,
+
+  textarea: {
+    width: "100%", padding: "12px 14px",
+    borderRadius: "var(--radius-md)",
+    border: "1px solid var(--border-color)",
+    background: "var(--bg-secondary)",
+    color: "var(--text-primary)", fontSize: 13,
+    resize: "vertical", minHeight: 90,
+    boxSizing: "border-box", fontFamily: "inherit",
+    lineHeight: 1.5,
+  } as const,
+
+  select: {
+    padding: "7px 10px",
+    borderRadius: "var(--radius-sm)",
+    border: "1px solid var(--border-color)",
+    background: "var(--bg-secondary)",
+    color: "var(--text-primary)", fontSize: 13,
+  } as const,
+
+  card: {
+    border: "1px solid var(--border-color)",
+    borderRadius: "var(--radius-md)",
+    padding: 14, marginBottom: 10,
+    background: "var(--bg-secondary)",
+  } as const,
+
+  metricsBar: {
+    display: "flex", gap: 16, flexWrap: "wrap",
+    padding: "10px 14px",
+    borderRadius: "var(--radius-md)",
+    background: "var(--bg-tertiary)",
+    border: "1px solid var(--border-color)",
+    fontSize: 12, color: "var(--text-secondary)",
+    marginBottom: 16,
+  } as const,
+
+  metricItem: {
+    display: "inline-flex", alignItems: "center", gap: 5,
+  } as const,
+
+  badge: (color: string) => ({
+    display: "inline-flex", alignItems: "center", gap: 4,
+    padding: "3px 10px", borderRadius: 10,
+    fontSize: 11, fontWeight: 600,
+    background: `color-mix(in srgb, ${color} 15%, transparent)`,
+    color,
+  }),
+
+  finalBox: {
+    border: "1.5px solid var(--accent-blue)",
+    borderRadius: "var(--radius-md)",
+    padding: 16,
+    background: "color-mix(in srgb, var(--accent-blue) 4%, var(--bg-secondary))",
+    marginTop: 16,
+  } as const,
+
+  finalLabel: {
+    fontSize: 11, fontWeight: 700, textTransform: "uppercase",
+    letterSpacing: "0.06em",
+    color: "var(--accent-blue)", marginBottom: 10,
+    display: "flex", alignItems: "center", gap: 5,
+  } as const,
+
+  responseText: {
+    fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap",
+  } as const,
+
+  confidenceBar: {
+    height: 4, borderRadius: 2,
+    background: "var(--border-color)",
     position: "relative" as const,
-    overflow: "hidden" as const,
-    marginTop: 4,
-  }),
+    overflow: "hidden" as const, marginTop: 4,
+  } as const,
+
   confidenceFill: (pct: number) => ({
     position: "absolute" as const,
-    left: 0,
-    top: 0,
-    height: "100%",
+    left: 0, top: 0, height: "100%",
     width: `${Math.round(pct * 100)}%`,
-    background: pct > 0.7 ? "#4aff7f" : pct > 0.4 ? "#ffaa33" : "#ff4a4a",
+    background: pct > 0.7 ? "var(--accent-green)" : pct > 0.4 ? "var(--accent-gold)" : "var(--accent-rose)",
     borderRadius: 2,
+    transition: "width var(--transition-smooth)",
   }),
-  progressMsg: { fontSize: 12, color: "var(--accent, #4a9eff)", padding: "8px 0", fontStyle: "italic" as const } as const,
+
+  progressMsg: {
+    fontSize: 12, color: "var(--accent-blue)",
+    display: "inline-flex", alignItems: "center", gap: 5,
+    fontStyle: "italic" as const,
+  } as const,
+
+  arrow: {
+    textAlign: "center" as const, padding: "2px 0",
+    color: "var(--text-secondary)",
+  } as const,
+
+  label: {
+    fontSize: 11, fontWeight: 600, textTransform: "uppercase",
+    letterSpacing: "0.04em",
+    color: "var(--text-secondary)", marginBottom: 6, display: "block",
+  } as const,
 };
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -124,15 +254,14 @@ export function SuperBrainPanel() {
   const [result, setResult] = useState<SuperBrainResult | null>(null);
   const [routingInfo, setRoutingInfo] = useState<RoutingDecision | null>(null);
 
-  // Listen for progress events
   useEffect(() => {
     const unlisten = listen("superbrain:progress", (event: any) => {
       const data = event.payload as Record<string, any>;
-      if (data.step === "routing") setProgress(`Routing to ${data.provider}/${data.model}...`);
-      else if (data.step === "querying") setProgress(`Querying ${data.provider} (${(data.index ?? 0) + 1})...`);
+      if (data.step === "routing") setProgress(`Routing to ${data.provider}/${data.model}`);
+      else if (data.step === "querying") setProgress(`Querying ${data.provider} (${(data.index ?? 0) + 1})`);
       else if (data.step === "synthesizing") setProgress("Synthesizing consensus...");
-      else if (data.step === "chain") setProgress(`Chain step ${(data.index ?? 0) + 1}/${data.total} (${data.provider})...`);
-      else if (data.step === "judging") setProgress(`Judge (${data.provider}) evaluating...`);
+      else if (data.step === "chain") setProgress(`Chain step ${(data.index ?? 0) + 1}/${data.total} (${data.provider})`);
+      else if (data.step === "judging") setProgress(`Judge evaluating (${data.provider})`);
       else if (data.step === "decomposing") setProgress("Decomposing into subtasks...");
       else if (data.step === "specialist") setProgress(`Specialist: ${data.subtask?.slice(0, 40)}...`);
       else if (data.step === "merging") setProgress("Merging specialist results...");
@@ -156,7 +285,6 @@ export function SuperBrainPanel() {
     setRoutingInfo(null);
 
     try {
-      // If router mode, also fetch routing decision
       if (mode === "router") {
         const rd = await invoke<RoutingDecision>("superbrain_route", { prompt: prompt.trim() });
         setRoutingInfo(rd);
@@ -191,36 +319,64 @@ export function SuperBrainPanel() {
     }
   }, [prompt, mode, providers, judgeProvider, judgeModel]);
 
-  // ── Render ───
+  const finalLabel = mode === "router" ? "Response"
+    : mode === "chain" ? "Final Output"
+    : mode === "bestofn" ? "Judge Decision"
+    : mode === "specialist" ? "Merged Result"
+    : "Synthesized Consensus";
 
   return (
     <div style={S.container}>
       <div style={S.scrollArea}>
-        {/* Mode selector */}
-        <h2 style={S.h2}>SuperBrain Mode</h2>
-        <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
-          {MODES.map(m => (
-            <div
-              key={m.id}
-              style={S.modeCard(mode === m.id)}
-              onClick={() => { setMode(m.id); setResult(null); }}
-            >
-              <div style={{ fontSize: 24, marginBottom: 6 }}>{m.icon}</div>
-              <div style={{ fontSize: 13, fontWeight: 700 }}>{m.name}</div>
-              <div style={{ fontSize: 11, color: "var(--text-secondary, #888)", marginTop: 4 }}>{m.description}</div>
-            </div>
-          ))}
+
+        {/* ── Mode Selector ──────────────────────────────────────────── */}
+        <div style={S.sectionTitle}>
+          <Layers size={12} strokeWidth={2} /> Mode
+        </div>
+        <div style={S.modeGrid}>
+          {MODES.map(m => {
+            const Icon = m.icon;
+            const active = mode === m.id;
+            return (
+              <div
+                key={m.id}
+                style={S.modeCard(active, m.color)}
+                onClick={() => { setMode(m.id); setResult(null); }}
+              >
+                <Icon
+                  size={22} strokeWidth={1.5}
+                  style={{ color: active ? m.color : "var(--text-secondary)", marginBottom: 6, transition: "color var(--transition-fast)" }}
+                />
+                <div style={{ fontSize: 12, fontWeight: 700, color: active ? "var(--text-primary)" : "var(--text-secondary)" }}>
+                  {m.name}
+                </div>
+                <div style={{ fontSize: 10, color: "var(--text-secondary)", marginTop: 4, lineHeight: 1.3 }}>
+                  {m.description}
+                </div>
+              </div>
+            );
+          })}
         </div>
 
-        {/* Provider config (not for router mode) */}
+        {/* ── Provider Config (non-router modes) ─────────────────────── */}
         {mode !== "router" && (
           <div style={{ marginBottom: 20 }}>
-            <h3 style={S.h3}>Providers</h3>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240, 1fr))", gap: 8 }}>
+            <div style={S.sectionTitle}>
+              <Zap size={12} strokeWidth={2} /> Providers
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 8 }}>
               {providers.map((p, i) => (
-                <div key={i} style={{ ...S.card, display: "flex", alignItems: "center", gap: 8, opacity: p.enabled ? 1 : 0.5 }}>
-                  <input type="checkbox" checked={p.enabled} onChange={() => toggleProvider(i)} />
-                  <span style={{ fontSize: 12, fontWeight: 600, minWidth: 50 }}>{p.provider}</span>
+                <div key={i} style={S.providerRow(p.enabled)}>
+                  <span
+                    style={{ cursor: "pointer", display: "flex" }}
+                    onClick={() => toggleProvider(i)}
+                  >
+                    {p.enabled
+                      ? <ToggleRight size={18} strokeWidth={1.5} style={{ color: "var(--accent-green)" }} />
+                      : <ToggleLeft size={18} strokeWidth={1.5} style={{ color: "var(--text-secondary)" }} />
+                    }
+                  </span>
+                  <span style={{ fontSize: 12, fontWeight: 600, minWidth: 52 }}>{p.provider}</span>
                   <input
                     style={{ ...S.input, flex: 1 }}
                     value={p.model}
@@ -233,10 +389,10 @@ export function SuperBrainPanel() {
 
             {mode === "bestofn" && (
               <div style={{ marginTop: 12 }}>
-                <label style={S.label}>Judge</label>
+                <span style={S.label}>Judge</span>
                 <div style={{ display: "flex", gap: 8 }}>
                   <select
-                    style={{ padding: "6px 8px", borderRadius: 6, border: "1px solid var(--border-color, #444)", background: "var(--bg-secondary, #2a2a2a)", color: "var(--text-primary, #e0e0e0)", fontSize: 13 }}
+                    style={S.select}
                     value={judgeProvider}
                     onChange={e => setJudgeProvider(e.target.value)}
                   >
@@ -256,156 +412,205 @@ export function SuperBrainPanel() {
           </div>
         )}
 
-        {/* Query input */}
-        <div style={{ marginBottom: 16 }}>
-          <label style={S.label}>Query</label>
+        {/* ── Query Input ────────────────────────────────────────────── */}
+        <div style={{ marginBottom: 14 }}>
+          <span style={S.label}>Query</span>
           <textarea
             style={S.textarea}
-            placeholder="Ask anything..."
+            placeholder="Ask anything — SuperBrain will orchestrate multiple models..."
             value={prompt}
             onChange={e => setPrompt(e.target.value)}
             onKeyDown={e => { if (e.key === "Enter" && e.metaKey) doQuery(); }}
           />
         </div>
 
-        <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 20 }}>
+        <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 24 }}>
           <button
-            style={{ ...S.btn, opacity: (thinking || !prompt.trim()) ? 0.5 : 1 }}
+            style={{ ...S.btn, opacity: (thinking || !prompt.trim()) ? 0.45 : 1 }}
             disabled={thinking || !prompt.trim()}
             onClick={doQuery}
           >
-            {thinking ? "Thinking..." : "Think"}
+            {thinking
+              ? <><Loader2 size={14} strokeWidth={2} className="spin" /> Thinking...</>
+              : <><Play size={14} strokeWidth={2} /> Think</>
+            }
           </button>
-          {progress && <span style={S.progressMsg}>{progress}</span>}
+          {progress && (
+            <span style={S.progressMsg}>
+              <Loader2 size={12} strokeWidth={2} className="spin" />
+              {progress}
+            </span>
+          )}
         </div>
 
-        {/* Results area */}
+        {/* ── Results ────────────────────────────────────────────────── */}
         {result && (
           <div>
             {/* Metrics bar */}
             <div style={S.metricsBar}>
-              <span>Mode: <strong>{result.mode}</strong></span>
-              <span>Time: <strong>{(result.total_duration_ms / 1000).toFixed(1)}s</strong></span>
-              <span>Tokens: <strong>{result.total_tokens.toLocaleString()}</strong></span>
-              <span>Models: <strong>{result.model_responses.length}</strong></span>
+              <span style={S.metricItem}>
+                <Layers size={12} strokeWidth={1.5} /> Mode: <strong>{result.mode}</strong>
+              </span>
+              <span style={S.metricItem}>
+                <Clock size={12} strokeWidth={1.5} /> Time: <strong>{(result.total_duration_ms / 1000).toFixed(1)}s</strong>
+              </span>
+              <span style={S.metricItem}>
+                <Hash size={12} strokeWidth={1.5} /> Tokens: <strong>{result.total_tokens.toLocaleString()}</strong>
+              </span>
+              <span style={S.metricItem}>
+                <BrainCircuit size={12} strokeWidth={1.5} /> Models: <strong>{result.model_responses.length}</strong>
+              </span>
             </div>
 
-            {/* Smart Router result */}
+            {/* Smart Router: routing info */}
             {mode === "router" && routingInfo && (
-              <div style={{ marginTop: 16 }}>
-                <div style={{ ...S.card, display: "flex", alignItems: "center", gap: 12 }}>
-                  <span style={S.badge("#4aff7f")}>{routingInfo.category}</span>
-                  <span style={{ fontSize: 12 }}>{routingInfo.reason}</span>
-                  <div style={{ marginLeft: "auto", width: 80 }}>
-                    <div style={{ fontSize: 10, textAlign: "right" }}>{Math.round(routingInfo.confidence * 100)}%</div>
-                    <div style={S.confidenceMeter(routingInfo.confidence)}>
-                      <div style={S.confidenceFill(routingInfo.confidence)} />
-                    </div>
+              <div style={{ ...S.card, display: "flex", alignItems: "center", gap: 12 }}>
+                <Compass size={16} strokeWidth={1.5} style={{ color: "var(--accent-green)", flexShrink: 0 }} />
+                <span style={S.badge("var(--accent-green)")}>{routingInfo.category}</span>
+                <span style={{ fontSize: 12, flex: 1 }}>{routingInfo.reason}</span>
+                <div style={{ width: 80, flexShrink: 0 }}>
+                  <div style={{ fontSize: 10, textAlign: "right", color: "var(--text-secondary)" }}>
+                    {Math.round(routingInfo.confidence * 100)}%
+                  </div>
+                  <div style={S.confidenceBar}>
+                    <div style={S.confidenceFill(routingInfo.confidence)} />
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Consensus result */}
+            {/* Consensus: individual responses */}
             {mode === "consensus" && (
-              <div style={{ marginTop: 16 }}>
-                <h3 style={S.h3}>Model Responses</h3>
-                <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(result.model_responses.length, 3)}, 1fr)`, gap: 10 }}>
+              <div>
+                <div style={{ ...S.sectionTitle, marginTop: 4 }}>
+                  <Handshake size={12} strokeWidth={2} /> Model Responses
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(result.model_responses.length, 3)}, 1fr)`, gap: 8 }}>
                   {result.model_responses.map((resp, i) => (
                     <div key={i} style={S.card}>
-                      <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>
-                        {resp.provider}/{resp.model}
-                        <span style={{ fontSize: 10, color: "var(--text-secondary, #888)", marginLeft: 6 }}>{resp.duration_ms}ms</span>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                        <span style={{ fontSize: 12, fontWeight: 600 }}>{resp.provider}/{resp.model}</span>
+                        <span style={{ fontSize: 10, color: "var(--text-secondary)", display: "inline-flex", alignItems: "center", gap: 3 }}>
+                          <Clock size={10} strokeWidth={1.5} /> {resp.duration_ms}ms
+                        </span>
                       </div>
-                      <div style={{ fontSize: 13, lineHeight: 1.5, whiteSpace: "pre-wrap", maxHeight: 250, overflowY: "auto" }}>
+                      <div style={{ ...S.responseText, maxHeight: 250, overflowY: "auto" }}>
                         {resp.content}
                       </div>
                     </div>
                   ))}
                 </div>
-                <h3 style={S.h3}>Consensus Synthesis</h3>
+                <div style={{ ...S.sectionTitle, marginTop: 16 }}>
+                  <Sparkles size={12} strokeWidth={2} /> Consensus Synthesis
+                </div>
               </div>
             )}
 
-            {/* Chain Relay result */}
+            {/* Chain Relay: step-by-step */}
             {mode === "chain" && (
-              <div style={{ marginTop: 16 }}>
-                <h3 style={S.h3}>Chain Steps</h3>
-                {result.model_responses.map((resp, i) => (
-                  <div key={i}>
-                    {i > 0 && <div style={S.arrow}>&#x2193;</div>}
-                    <div style={{ ...S.card, borderLeft: `3px solid ${i === result.model_responses.length - 1 ? "var(--accent, #4a9eff)" : "var(--border-color, #555)"}` }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                        <span style={{ fontSize: 12, fontWeight: 600 }}>
-                          Step {i + 1}: {resp.provider}/{resp.model}
-                        </span>
-                        <span style={S.badge(i === 0 ? "#4a9eff" : i === result.model_responses.length - 1 ? "#4aff7f" : "#ff9f43")}>
-                          {resp.role}
-                        </span>
-                      </div>
-                      <div style={{ fontSize: 13, lineHeight: 1.5, whiteSpace: "pre-wrap", maxHeight: 300, overflowY: "auto" }}>
-                        {resp.content}
-                      </div>
-                      <div style={{ fontSize: 10, color: "var(--text-secondary, #888)", marginTop: 6 }}>
-                        {resp.duration_ms}ms{resp.tokens != null ? ` | ${resp.tokens} tokens` : ""}
+              <div>
+                <div style={{ ...S.sectionTitle, marginTop: 4 }}>
+                  <Link size={12} strokeWidth={2} /> Chain Steps
+                </div>
+                {result.model_responses.map((resp, i) => {
+                  const isFinal = i === result.model_responses.length - 1;
+                  const stepColor = isFinal ? "var(--accent-green)" : CHAIN_STEP_COLORS[i % CHAIN_STEP_COLORS.length];
+                  return (
+                    <div key={i}>
+                      {i > 0 && (
+                        <div style={S.arrow}>
+                          <ArrowDown size={16} strokeWidth={1.5} />
+                        </div>
+                      )}
+                      <div style={{ ...S.card, borderLeft: `3px solid ${stepColor}` }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                          <span style={{ fontSize: 12, fontWeight: 600 }}>
+                            Step {i + 1}: {resp.provider}/{resp.model}
+                          </span>
+                          <span style={S.badge(stepColor)}>{resp.role}</span>
+                        </div>
+                        <div style={{ ...S.responseText, maxHeight: 300, overflowY: "auto" }}>
+                          {resp.content}
+                        </div>
+                        <div style={{ fontSize: 10, color: "var(--text-secondary)", marginTop: 8, display: "flex", alignItems: "center", gap: 8 }}>
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+                            <Clock size={10} strokeWidth={1.5} /> {resp.duration_ms}ms
+                          </span>
+                          {resp.tokens != null && (
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+                              <Hash size={10} strokeWidth={1.5} /> {resp.tokens} tokens
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
-            {/* Best-of-N result */}
+            {/* Best-of-N: candidate responses */}
             {mode === "bestofn" && (
-              <div style={{ marginTop: 16 }}>
-                <h3 style={S.h3}>Candidate Responses</h3>
-                <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(result.model_responses.length, 3)}, 1fr)`, gap: 10 }}>
+              <div>
+                <div style={{ ...S.sectionTitle, marginTop: 4 }}>
+                  <Trophy size={12} strokeWidth={2} /> Candidate Responses
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(result.model_responses.length, 3)}, 1fr)`, gap: 8 }}>
                   {result.model_responses.map((resp, i) => (
                     <div key={i} style={S.card}>
-                      <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>
-                        {resp.provider}/{resp.model}
-                        <span style={{ fontSize: 10, color: "var(--text-secondary, #888)", marginLeft: 6 }}>{resp.duration_ms}ms</span>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                        <span style={{ fontSize: 12, fontWeight: 600 }}>{resp.provider}/{resp.model}</span>
+                        <span style={{ fontSize: 10, color: "var(--text-secondary)", display: "inline-flex", alignItems: "center", gap: 3 }}>
+                          <Clock size={10} strokeWidth={1.5} /> {resp.duration_ms}ms
+                        </span>
                       </div>
-                      <div style={{ fontSize: 13, lineHeight: 1.5, whiteSpace: "pre-wrap", maxHeight: 200, overflowY: "auto" }}>
+                      <div style={{ ...S.responseText, maxHeight: 200, overflowY: "auto" }}>
                         {resp.content}
                       </div>
                     </div>
                   ))}
                 </div>
-                <h3 style={S.h3}>Judge Verdict</h3>
+                <div style={{ ...S.sectionTitle, marginTop: 16 }}>
+                  <Gauge size={12} strokeWidth={2} /> Judge Verdict
+                </div>
               </div>
             )}
 
-            {/* Specialist result */}
+            {/* Specialist: subtask results */}
             {mode === "specialist" && (
-              <div style={{ marginTop: 16 }}>
+              <div>
                 {result.routing_reason && (
-                  <div style={{ ...S.card, borderLeft: "3px solid #b94aff" }}>
-                    <span style={S.badge("#b94aff")}>{result.routing_reason}</span>
+                  <div style={{ ...S.card, borderLeft: "3px solid var(--accent-purple)", display: "flex", alignItems: "center", gap: 8 }}>
+                    <BrainCircuit size={14} strokeWidth={1.5} style={{ color: "var(--accent-purple)", flexShrink: 0 }} />
+                    <span style={S.badge("var(--accent-purple)")}>{result.routing_reason}</span>
                   </div>
                 )}
-                <h3 style={S.h3}>Specialist Results</h3>
+                <div style={{ ...S.sectionTitle, marginTop: 8 }}>
+                  <Sparkles size={12} strokeWidth={2} /> Specialist Results
+                </div>
                 {result.model_responses.map((resp, i) => (
                   <div key={i} style={S.card}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                       <span style={{ fontSize: 12, fontWeight: 600 }}>{resp.provider}/{resp.model}</span>
-                      <span style={S.badge("#b94aff")}>{resp.role}</span>
+                      <span style={S.badge("var(--accent-purple)")}>{resp.role}</span>
                     </div>
-                    <div style={{ fontSize: 13, lineHeight: 1.5, whiteSpace: "pre-wrap", maxHeight: 200, overflowY: "auto" }}>
+                    <div style={{ ...S.responseText, maxHeight: 200, overflowY: "auto" }}>
                       {resp.content}
                     </div>
                   </div>
                 ))}
-                <h3 style={S.h3}>Merged Response</h3>
+                <div style={{ ...S.sectionTitle, marginTop: 16 }}>
+                  <Sparkles size={12} strokeWidth={2} /> Merged Response
+                </div>
               </div>
             )}
 
-            {/* Final response (always shown) */}
-            <div style={{ border: "2px solid var(--accent, #4a9eff)", borderRadius: 8, padding: 16, background: "var(--accent, #4a9eff)08", marginTop: mode === "router" ? 16 : 0 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--accent, #4a9eff)", marginBottom: 8 }}>
-                {mode === "router" ? "Response" : mode === "chain" ? "Final Output" : mode === "bestofn" ? "Judge Decision" : mode === "specialist" ? "Merged Result" : "Synthesized Consensus"}
+            {/* ── Final Response (always shown) ──────────────────────── */}
+            <div style={S.finalBox}>
+              <div style={S.finalLabel}>
+                <Sparkles size={12} strokeWidth={2} /> {finalLabel}
               </div>
-              <div style={{ fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+              <div style={S.responseText}>
                 {result.final_response}
               </div>
             </div>

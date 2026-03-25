@@ -144,7 +144,7 @@ export default function CiStatusPanel() {
       </div>
 
       {error && (
-        <div style={{ padding: "6px 10px", fontSize: 11, color: "var(--text-danger)", background: "rgba(243,139,168,0.1)", borderBottom: "1px solid var(--border-color)" }}>
+        <div style={{ padding: "6px 10px", fontSize: 11, color: "var(--text-danger)", background: "color-mix(in srgb, var(--accent-rose) 10%, transparent)", borderBottom: "1px solid var(--border-color)" }}>
           {error}
         </div>
       )}
@@ -198,7 +198,7 @@ export default function CiStatusPanel() {
                   <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>{c.message}</div>
                 </div>
                 {c.annotations > 0 && (
-                  <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 10, background: "rgba(243,139,168,0.15)", color: "var(--text-danger)" }}>
+                  <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 10, background: "color-mix(in srgb, var(--accent-rose) 15%, transparent)", color: "var(--text-danger)" }}>
                     {c.annotations} annotations
                   </span>
                 )}

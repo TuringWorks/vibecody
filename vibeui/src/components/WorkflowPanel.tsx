@@ -229,7 +229,7 @@ export function WorkflowPanel({ workspacePath, provider = "ollama" }: WorkflowPa
 
  {/* Error */}
  {error && (
- <div style={{ padding: "8px 12px", background: "rgba(244,67,54,0.1)", color: "var(--error-color)", fontSize: "12px", display: "flex", alignItems: "center", gap: "6px" }}>
+ <div style={{ padding: "8px 12px", background: "color-mix(in srgb, var(--accent-rose) 10%, transparent)", color: "var(--error-color)", fontSize: "12px", display: "flex", alignItems: "center", gap: "6px" }}>
  <span>{error}</span>
  <button onClick={() => setError(null)} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "var(--error-color)" }}>
  ✕

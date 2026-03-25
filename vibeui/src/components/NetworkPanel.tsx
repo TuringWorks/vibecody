@@ -138,7 +138,7 @@ export function NetworkPanel() {
  onClick={() => setTool(id)}
  style={{
  padding: "6px 16px", fontSize: 11, fontWeight: tool === id ? 600 : 400,
- background: tool === id ? "rgba(99,102,241,0.15)" : "transparent",
+ background: tool === id ? "color-mix(in srgb, var(--accent-blue) 15%, transparent)" : "transparent",
  color: tool === id ? "var(--accent-color)" : "var(--text-muted)",
  border: "none", borderBottom: tool === id ? "2px solid var(--accent-color)" : "2px solid transparent",
  cursor: "pointer",
@@ -317,7 +317,7 @@ export function NetworkPanel() {
  {/* Status banner */}
  <div style={{
  padding: "10px 14px", borderRadius: 6, display: "flex", justifyContent: "space-between", alignItems: "center",
- background: tlsCert.valid ? "rgba(166,227,161,0.1)" : "rgba(243,139,168,0.1)",
+ background: tlsCert.valid ? "color-mix(in srgb, var(--accent-green) 10%, transparent)" : "color-mix(in srgb, var(--accent-rose) 10%, transparent)",
  border: `1px solid ${tlsCert.valid ? "var(--success-color)" : "var(--error-color)"}`,
  }}>
  <div>

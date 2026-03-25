@@ -64,10 +64,10 @@ function buildSegments(text: string, matches: MatchInfo[]): Segment[] {
 // ── Match colours (cycle through 6) ───────────────────────────────────────────
 
 const MATCH_COLOURS = [
- "rgba(137,180,250,0.25)", "rgba(166,227,161,0.25)", "rgba(250,179,135,0.25)",
+ "color-mix(in srgb, var(--accent-blue) 25%, transparent)", "rgba(166,227,161,0.25)", "rgba(250,179,135,0.25)",
  "rgba(203,166,247,0.25)", "rgba(249,226,175,0.25)", "rgba(243,139,168,0.25)",
 ];
-const MATCH_BORDERS = ["#89b4fa","#a6e3a1","#fab387","#cba6f7","#f9e2af","#f38ba8"];
+const MATCH_BORDERS = ["var(--accent-blue)","var(--accent-green)","var(--accent-gold)","var(--accent-purple)","var(--accent-gold)","var(--accent-rose)"];
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
@@ -151,7 +151,7 @@ export function RegexPanel() {
  <div style={{ padding: "8px 10px", fontSize: 10, fontWeight: 700, color: "var(--text-muted)", borderBottom: "1px solid var(--border-color)", letterSpacing: "0.05em" }}>COMMON PATTERNS</div>
  <div style={{ flex: 1, overflow: "auto" }}>
  {COMMON_PATTERNS.map((p, i) => (
- <button key={i} onClick={() => loadLibEntry(i)} style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 10px", fontSize: 11, background: activeLib === i ? "rgba(99,102,241,0.15)" : "transparent", color: activeLib === i ? "var(--text-info)" : "var(--text-primary)", border: "none", borderBottom: "1px solid rgba(255,255,255,0.04)", cursor: "pointer", lineHeight: 1.4 }}>
+ <button key={i} onClick={() => loadLibEntry(i)} style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 10px", fontSize: 11, background: activeLib === i ? "color-mix(in srgb, var(--accent-blue) 15%, transparent)" : "transparent", color: activeLib === i ? "var(--text-info)" : "var(--text-primary)", border: "none", borderBottom: "1px solid var(--border-subtle)", cursor: "pointer", lineHeight: 1.4 }}>
  <div style={{ fontWeight: 600 }}>{p.name}</div>
  <div style={{ fontSize: 9, color: "var(--text-muted)", marginTop: 1 }}>{p.description}</div>
  </button>
@@ -181,12 +181,12 @@ export function RegexPanel() {
  onChange={e => { setPattern(e.target.value); setActiveLib(null); }}
  placeholder="pattern"
  spellCheck={false}
- style={{ flex: 1, minWidth: 0, padding: "4px 8px", fontSize: 13, fontFamily: "var(--font-mono)", background: error ? "rgba(243,139,168,0.08)" : "var(--bg-primary)", border: `1px solid ${error ? "var(--text-danger)" : "var(--border-color)"}`, borderRadius: 4, color: "var(--text-primary)", outline: "none" }}
+ style={{ flex: 1, minWidth: 0, padding: "4px 8px", fontSize: 13, fontFamily: "var(--font-mono)", background: error ? "color-mix(in srgb, var(--accent-rose) 8%, transparent)" : "var(--bg-primary)", border: `1px solid ${error ? "var(--text-danger)" : "var(--border-color)"}`, borderRadius: 4, color: "var(--text-primary)", outline: "none" }}
  />
  <span style={{ fontSize: 16, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>/</span>
  {/* Flags */}
  {["g","i","m","s","u"].map(f => (
- <button key={f} onClick={() => toggleFlag(f)} style={{ padding: "2px 8px", fontSize: 11, fontFamily: "var(--font-mono)", fontWeight: 700, borderRadius: 4, border: `1px solid ${flags.includes(f) ? "var(--accent-primary)" : "var(--border-color)"}`, background: flags.includes(f) ? "rgba(99,102,241,0.2)" : "var(--bg-primary)", color: flags.includes(f) ? "var(--text-info)" : "var(--text-muted)", cursor: "pointer" }}>{f}</button>
+ <button key={f} onClick={() => toggleFlag(f)} style={{ padding: "2px 8px", fontSize: 11, fontFamily: "var(--font-mono)", fontWeight: 700, borderRadius: 4, border: `1px solid ${flags.includes(f) ? "var(--accent-primary)" : "var(--border-color)"}`, background: flags.includes(f) ? "color-mix(in srgb, var(--accent-blue) 20%, transparent)" : "var(--bg-primary)", color: flags.includes(f) ? "var(--text-info)" : "var(--text-muted)", cursor: "pointer" }}>{f}</button>
  ))}
  {/* Replace toggle */}
  <button onClick={() => setShowReplace(v => !v)} style={{ padding: "3px 10px", fontSize: 10, borderRadius: 4, border: `1px solid ${showReplace ? "var(--text-warning-alt)" : "var(--border-color)"}`, background: showReplace ? "rgba(250,179,135,0.1)" : "var(--bg-primary)", color: showReplace ? "var(--text-warning-alt)" : "var(--text-muted)", cursor: "pointer" }}>⇄ Replace</button>
@@ -249,7 +249,7 @@ export function RegexPanel() {
  <div>
  <div style={{ padding: "4px 12px", fontSize: 10, fontWeight: 700, color: "var(--text-muted)", background: "var(--bg-secondary)" }}>MATCHES ({matches.length})</div>
  {matches.map(m => (
- <div key={m.index} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)", padding: "6px 12px", display: "flex", gap: 10, alignItems: "flex-start", background: m.index % 2 === 0 ? "transparent" : "rgba(255,255,255,0.015)" }}>
+ <div key={m.index} style={{ borderBottom: "1px solid var(--border-subtle)", padding: "6px 12px", display: "flex", gap: 10, alignItems: "flex-start", background: m.index % 2 === 0 ? "transparent" : "rgba(255,255,255,0.015)" }}>
  {/* Index badge */}
  <span style={{ fontSize: 9, fontWeight: 700, color: MATCH_BORDERS[m.index % MATCH_BORDERS.length], background: MATCH_COLOURS[m.index % MATCH_COLOURS.length], border: `1px solid ${MATCH_BORDERS[m.index % MATCH_BORDERS.length]}`, borderRadius: 10, padding: "1px 6px", flexShrink: 0, minWidth: 20, textAlign: "center" }}>
  {m.index + 1}
@@ -273,7 +273,7 @@ export function RegexPanel() {
  {m.namedGroups && Object.keys(m.namedGroups).length > 0 && (
  <div style={{ marginTop: 4, display: "flex", flexWrap: "wrap", gap: 4 }}>
  {Object.entries(m.namedGroups).map(([k, v]) => (
- <span key={k} style={{ fontSize: 10, background: "rgba(99,102,241,0.08)", border: "1px solid var(--accent-primary)", borderRadius: 4, padding: "1px 6px" }}>
+ <span key={k} style={{ fontSize: 10, background: "color-mix(in srgb, var(--accent-blue) 8%, transparent)", border: "1px solid var(--accent-primary)", borderRadius: 4, padding: "1px 6px" }}>
  <span style={{ color: "var(--text-info)" }}>{k}</span> = <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{v ?? <em>undefined</em>}</span>
  </span>
  ))}

@@ -99,8 +99,8 @@ function Swatch({ token, onEdit, onRemove }: {
  return (
  <div style={{ borderRadius: 8, overflow: "hidden", border: "1px solid var(--border-color)", cursor: "pointer" }} onClick={copy}>
  <div style={{ background: token.value, height: 56, display: "flex", alignItems: "flex-end", justifyContent: "flex-end", padding: "4px 6px", gap: 4 }}>
- <button onClick={e => { e.stopPropagation(); onEdit(token); }} style={{ background: "rgba(0,0,0,0.4)", border: "none", borderRadius: 3, color: "var(--text-primary, #fff)", fontSize: 9, padding: "1px 5px", cursor: "pointer" }}></button>
- <button onClick={e => { e.stopPropagation(); onRemove(); }} style={{ background: "rgba(0,0,0,0.4)", border: "none", borderRadius: 3, color: "var(--text-danger, #f38ba8)", fontSize: 9, padding: "1px 5px", cursor: "pointer" }}>✕</button>
+ <button onClick={e => { e.stopPropagation(); onEdit(token); }} style={{ background: "rgba(0,0,0,0.4)", border: "none", borderRadius: 3, color: "var(--text-primary)", fontSize: 9, padding: "1px 5px", cursor: "pointer" }}></button>
+ <button onClick={e => { e.stopPropagation(); onRemove(); }} style={{ background: "rgba(0,0,0,0.4)", border: "none", borderRadius: 3, color: "var(--accent-rose)", fontSize: 9, padding: "1px 5px", cursor: "pointer" }}>✕</button>
  </div>
  <div style={{ padding: "5px 7px", background: "var(--bg-secondary)" }}>
  <div style={{ fontSize: 9, fontWeight: 700, fontFamily: "var(--font-mono)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{copied ? "Copied!" : token.value}</div>
@@ -222,7 +222,7 @@ export function ColorPalettePanel({ workspacePath }: { workspacePath: string | n
  <div
  key={p.id}
  onClick={() => setActiveId(p.id)}
- style={{ padding: "7px 10px", borderBottom: "1px solid var(--border-color)", cursor: "pointer", background: activeId === p.id ? "var(--accent-bg, rgba(99,102,241,0.15))" : "transparent", display: "flex", alignItems: "center", gap: 6 }}
+ style={{ padding: "7px 10px", borderBottom: "1px solid var(--border-color)", cursor: "pointer", background: activeId === p.id ? "var(--accent-bg, color-mix(in srgb, var(--accent-blue) 15%, transparent))" : "transparent", display: "flex", alignItems: "center", gap: 6 }}
  >
  {/* Mini swatch row */}
  <div style={{ display: "flex", gap: 2, flex: 1, minWidth: 0 }}>
@@ -231,7 +231,7 @@ export function ColorPalettePanel({ workspacePath }: { workspacePath: string | n
  ))}
  </div>
  <div style={{ fontSize: 10, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{p.name}</div>
- <button onClick={e => { e.stopPropagation(); removePalette(p.id); }} style={{ fontSize: 9, background: "none", border: "none", color: "var(--text-danger, #f38ba8)", cursor: "pointer", flexShrink: 0 }}>✕</button>
+ <button onClick={e => { e.stopPropagation(); removePalette(p.id); }} style={{ fontSize: 9, background: "none", border: "none", color: "var(--accent-rose)", cursor: "pointer", flexShrink: 0 }}>✕</button>
  </div>
  ))}
  </div>
@@ -267,7 +267,7 @@ export function ColorPalettePanel({ workspacePath }: { workspacePath: string | n
  <span style={{ fontSize: 13, fontWeight: 600, cursor: "pointer", flex: 1 }} onClick={() => setNewName(active.name)} title="Click to rename">{active.name}</span>
  )}
  <span style={{ fontSize: 10, color: "var(--text-muted)" }}>{active.tokens.length} tokens</span>
- <button onClick={addToken} style={{ padding: "3px 12px", fontSize: 11, fontWeight: 700, background: "var(--accent-primary, #6366f1)", border: "none", borderRadius: 4, color: "var(--text-primary, #fff)", cursor: "pointer" }}>+ Color</button>
+ <button onClick={addToken} style={{ padding: "3px 12px", fontSize: 11, fontWeight: 700, background: "var(--accent-primary, #6366f1)", border: "none", borderRadius: 4, color: "var(--text-primary)", cursor: "pointer" }}>+ Color</button>
  <select value={exportFmt} onChange={e => setExportFmt(e.target.value as ExportFormat)} style={{ fontSize: 10, padding: "3px 6px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)" }}>
  {EXPORT_FORMATS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
  </select>
@@ -276,7 +276,7 @@ export function ColorPalettePanel({ workspacePath }: { workspacePath: string | n
 
  {/* Token edit modal */}
  {editToken && editIdx !== null && (
- <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--border-color)", background: "rgba(99,102,241,0.08)", display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+ <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--border-color)", background: "color-mix(in srgb, var(--accent-blue) 8%, transparent)", display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
  <input type="color" value={editToken.value.startsWith("#") ? editToken.value.slice(0, 7) : "#6366f1"} onChange={e => setEditToken({ ...editToken, value: e.target.value })} style={{ width: 40, height: 32, border: "none", borderRadius: 4, cursor: "pointer" }} />
  <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
  <label style={{ fontSize: 9, color: "var(--text-muted)", fontWeight: 600 }}>Name</label>
@@ -287,7 +287,7 @@ export function ColorPalettePanel({ workspacePath }: { workspacePath: string | n
  <input value={editToken.value} onChange={e => setEditToken({ ...editToken, value: e.target.value })} style={{ padding: "3px 8px", fontSize: 11, fontFamily: "var(--font-mono)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none", width: 100 }} />
  </div>
  <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{hexToRgb(editToken.value)}</div>
- <button onClick={commitEdit} style={{ padding: "4px 14px", fontSize: 11, fontWeight: 700, background: "var(--accent-primary, #6366f1)", border: "none", borderRadius: 4, color: "var(--text-primary, #fff)", cursor: "pointer", marginLeft: "auto" }}>✓ Done</button>
+ <button onClick={commitEdit} style={{ padding: "4px 14px", fontSize: 11, fontWeight: 700, background: "var(--accent-primary, #6366f1)", border: "none", borderRadius: 4, color: "var(--text-primary)", cursor: "pointer", marginLeft: "auto" }}>✓ Done</button>
  </div>
  )}
 

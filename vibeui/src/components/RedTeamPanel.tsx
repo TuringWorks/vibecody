@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { CircleAlert, AlertTriangle, Info } from "lucide-react";
 
 // -- Types --------------------------------------------------------------------
 
@@ -47,13 +48,13 @@ function severityColor(sev: string): string {
   }
 }
 
-function severityIcon(sev: string): string {
+function severityIcon(sev: string): React.ReactNode {
   switch (sev.toLowerCase()) {
-    case "critical": return "\u{1F534}";
-    case "high": return "\u{1F7E0}";
-    case "medium": return "\u{1F7E1}";
-    case "low": return "\u{1F535}";
-    default: return "\u26AA";
+    case "critical": return <CircleAlert size={14} strokeWidth={1.5} style={{ color: "var(--accent-rose)" }} />;
+    case "high": return <CircleAlert size={14} strokeWidth={1.5} style={{ color: "var(--accent-gold)" }} />;
+    case "medium": return <AlertTriangle size={14} strokeWidth={1.5} style={{ color: "var(--accent-gold)" }} />;
+    case "low": return <Info size={14} strokeWidth={1.5} style={{ color: "var(--accent-blue)" }} />;
+    default: return <Info size={14} strokeWidth={1.5} style={{ color: "var(--text-muted)" }} />;
   }
 }
 
@@ -270,7 +271,7 @@ export function RedTeamPanel({ workspacePath, provider: _provider }: Props) {
       </div>
 
       {error && (
-        <div style={{ padding: 8, marginBottom: 12, background: "rgba(244,67,54,0.1)", color: "var(--error-color)", borderRadius: 4, fontSize: 12 }}>
+        <div style={{ padding: 8, marginBottom: 12, background: "color-mix(in srgb, var(--accent-rose) 10%, transparent)", color: "var(--error-color)", borderRadius: 4, fontSize: 12 }}>
           {error}
         </div>
       )}
@@ -316,7 +317,7 @@ export function RedTeamPanel({ workspacePath, provider: _provider }: Props) {
                 onClick={() => setExpandedFinding(expandedFinding === f.id ? null : f.id)}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span>{severityIcon(f.severity)}</span>
+                  <span style={{ display: "inline-flex", alignItems: "center" }}>{severityIcon(f.severity)}</span>
                   <span style={{ fontSize: 12, fontWeight: 600, flex: 1 }}>{f.title}</span>
                   <span style={{
                     fontSize: 10, padding: "2px 6px", borderRadius: 3,
@@ -392,7 +393,7 @@ export function RedTeamPanel({ workspacePath, provider: _provider }: Props) {
       {/* Empty state */}
       {!scanning && !activeSession && findings.length === 0 && sessions.length === 0 && (
         <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--text-secondary)" }}>
-          <div style={{ fontSize: 32, marginBottom: 12 }}>&#x1F6E1;&#xFE0F;</div>
+          <div style={{ fontSize: 32, marginBottom: 12, display: "flex", justifyContent: "center" }}><CircleAlert size={32} strokeWidth={1.5} style={{ color: "var(--text-secondary)" }} /></div>
           <p style={{ fontSize: 13, margin: "0 0 8px" }}>No security scans yet</p>
           <p style={{ fontSize: 12 }}>
             Enter a target URL above and click <strong>Start Scan</strong> to run

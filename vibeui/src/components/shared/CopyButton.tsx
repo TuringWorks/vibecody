@@ -30,7 +30,7 @@ export function CopyButton({ text, label = "", feedbackMs = 1500 }: CopyButtonPr
         fontSize: 10,
         padding: "2px 8px",
         cursor: "pointer",
-        background: copied ? "var(--accent-color)" : "var(--bg-tertiary, #333)",
+        background: copied ? "var(--accent-color)" : "var(--bg-tertiary)",
         color: copied ? "#fff" : "var(--text-secondary)",
         border: "1px solid var(--border-color)",
         borderRadius: 3,

@@ -258,12 +258,12 @@ export function LoadTestPanel() {
 
  {/* Success / failure */}
  <div style={{ display: "flex", gap: 6 }}>
- <div style={{ flex: 1, padding: "8px 10px", background: "rgba(166,227,161,0.1)", border: "1px solid var(--success-color)", borderRadius: 6, textAlign: "center" }}>
+ <div style={{ flex: 1, padding: "8px 10px", background: "color-mix(in srgb, var(--accent-green) 10%, transparent)", border: "1px solid var(--success-color)", borderRadius: 6, textAlign: "center" }}>
  <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--success-color)" }}>{result.success}</div>
  <div style={{ fontSize: 9, color: "var(--success-color)", fontWeight: 600 }}>SUCCESS ({successRate}%)</div>
  </div>
  {result.failed > 0 && (
- <div style={{ flex: 1, padding: "8px 10px", background: "rgba(243,139,168,0.1)", border: "1px solid var(--error-color)", borderRadius: 6, textAlign: "center" }}>
+ <div style={{ flex: 1, padding: "8px 10px", background: "color-mix(in srgb, var(--accent-rose) 10%, transparent)", border: "1px solid var(--error-color)", borderRadius: 6, textAlign: "center" }}>
  <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--error-color)" }}>{result.failed}</div>
  <div style={{ fontSize: 9, color: "var(--error-color)", fontWeight: 600 }}>FAILED ({100 - (successRate ?? 0)}%)</div>
  </div>

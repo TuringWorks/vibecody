@@ -170,13 +170,13 @@ function DirRulesTab({ workspacePath }: { workspacePath?: string | null }) {
  </div>
 
  {scope === "workspace" && !workspacePath && (
- <div style={{ fontSize: "12px", color: "var(--warning-color)", padding: "6px", background: "rgba(255,68,170,0.1)", borderRadius: "4px" }}>
+ <div style={{ fontSize: "12px", color: "var(--warning-color)", padding: "6px", background: "color-mix(in srgb, var(--accent-rose) 10%, transparent)", borderRadius: "4px" }}>
  Open a folder to manage project rules.
  </div>
  )}
 
  {error && (
- <div style={{ fontSize: "12px", color: "var(--error-color)", padding: "6px 8px", background: "rgba(220,50,50,0.15)", borderRadius: "4px" }}>
+ <div style={{ fontSize: "12px", color: "var(--error-color)", padding: "6px 8px", background: "color-mix(in srgb, var(--accent-rose) 15%, transparent)", borderRadius: "4px" }}>
  {error}
  </div>
  )}
@@ -460,7 +460,7 @@ function AutoFactsTab() {
  )}
 
  {error && (
- <div style={{ fontSize: 12, color: "var(--error-color)", padding: "4px 8px", background: "rgba(220,50,50,0.15)", borderRadius: 4 }}>
+ <div style={{ fontSize: 12, color: "var(--error-color)", padding: "4px 8px", background: "color-mix(in srgb, var(--accent-rose) 15%, transparent)", borderRadius: 4 }}>
  {error}
  </div>
  )}
@@ -629,7 +629,7 @@ export function MemoryPanel({ workspacePath }: MemoryPanelProps) {
  {activeTab !== "directory" && activeTab !== "auto" && (
  <>
  {activeTab === "workspace" && !workspacePath && (
- <div style={{ fontSize: "12px", color: "var(--warning-color)", padding: "6px", background: "rgba(255,68,170,0.1)", borderRadius: "4px" }}>
+ <div style={{ fontSize: "12px", color: "var(--warning-color)", padding: "6px", background: "color-mix(in srgb, var(--accent-rose) 10%, transparent)", borderRadius: "4px" }}>
  Open a folder to manage project rules.
  </div>
  )}

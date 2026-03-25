@@ -45,7 +45,7 @@ const LANG_COLORS: Record<string, string> = {
  Python: "#4584b6", Go: "#00add8", "C++": "#f34b7d", C: "#555555",
  Java: "#b07219", "C#": "#178600", Ruby: "#701516", Kotlin: "#a97bff",
  Swift: "#fa7343", Shell: "#89e051", SQL: "#e38c00", HTML: "#e34c26",
- CSS: "#563d7c", JSON: "#f9e2af", YAML: "#cb171e", TOML: "#9c4121",
+ CSS: "#563d7c", JSON: "var(--accent-gold)", YAML: "#cb171e", TOML: "#9c4121",
  Markdown: "#083fa1", Dart: "#00b4ab", Zig: "#ec915c", Lua: "#000080",
 };
 
@@ -116,7 +116,7 @@ export function CodeMetricsPanel({ workspacePath }: CodeMetricsPanelProps) {
  onClick={() => setView(id)}
  style={{
  padding: "5px 14px", fontSize: 11, fontWeight: view === id ? 600 : 400,
- background: view === id ? "rgba(99,102,241,0.15)" : "transparent",
+ background: view === id ? "color-mix(in srgb, var(--accent-blue) 15%, transparent)" : "transparent",
  color: view === id ? "var(--accent-blue)" : "var(--text-muted)",
  border: "none", borderBottom: view === id ? "2px solid var(--accent-blue)" : "2px solid transparent",
  cursor: "pointer",
@@ -209,7 +209,7 @@ export function CodeMetricsPanel({ workspacePath }: CodeMetricsPanelProps) {
  {metrics && view === "languages" && (
  <div style={{ padding: "8px 12px", display: "flex", flexDirection: "column", gap: 6 }}>
  {metrics.languages.map((lang) => {
- const color = LANG_COLORS[lang.language] ?? "#6366f1";
+ const color = LANG_COLORS[lang.language] ?? "var(--accent-blue)";
  return (
  <div key={lang.language} style={{ padding: "10px 12px", background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)" }}>
  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
@@ -243,7 +243,7 @@ export function CodeMetricsPanel({ workspacePath }: CodeMetricsPanelProps) {
  <span style={{ color: "var(--text-muted)", marginRight: 6 }}>{i + 1}.</span>{f.path}
  </span>
  <span style={{ textAlign: "right", fontFamily: "var(--font-mono)" }}>{fmt(f.lines)}</span>
- <span style={{ textAlign: "right", fontSize: 10, color: LANG_COLORS[f.language] ?? "#6366f1" }}>{f.language}</span>
+ <span style={{ textAlign: "right", fontSize: 10, color: LANG_COLORS[f.language] ?? "var(--accent-blue)" }}>{f.language}</span>
  </div>
  ))}
  </div>

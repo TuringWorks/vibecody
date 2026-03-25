@@ -257,7 +257,7 @@ export function JsonToolsPanel() {
  <span style={{ fontSize: 13, fontWeight: 600 }}>JSON Tools</span>
  <div style={{ display: "flex", gap: 4 }}>
  {(["format", "typescript", "yaml", "query"] as SubTab[]).map(t => (
- <button key={t} onClick={() => setSubTab(t)} style={{ padding: "2px 10px", fontSize: 10, borderRadius: 10, background: subTab === t ? "rgba(99,102,241,0.2)" : "var(--bg-primary)", border: `1px solid ${subTab === t ? "var(--accent-color)" : "var(--border-color)"}`, color: subTab === t ? "var(--accent-color)" : "var(--text-muted)", cursor: "pointer", fontWeight: subTab === t ? 700 : 400 }}>
+ <button key={t} onClick={() => setSubTab(t)} style={{ padding: "2px 10px", fontSize: 10, borderRadius: 10, background: subTab === t ? "color-mix(in srgb, var(--accent-blue) 20%, transparent)" : "var(--bg-primary)", border: `1px solid ${subTab === t ? "var(--accent-color)" : "var(--border-color)"}`, color: subTab === t ? "var(--accent-color)" : "var(--text-muted)", cursor: "pointer", fontWeight: subTab === t ? 700 : 400 }}>
  {t === "format" ? "Format" : t === "typescript" ? "TypeScript" : t === "yaml" ? "YAML" : "Query"}
  </button>
  ))}
@@ -281,22 +281,22 @@ export function JsonToolsPanel() {
  <div style={{ marginLeft: "auto", display: "flex", gap: 4, alignItems: "center" }}>
  <span style={{ fontSize: 9, color: "var(--text-muted)" }}>indent:</span>
  {INDENT_OPTIONS.map(n => (
- <button key={n} onClick={() => setIndent(n)} style={{ fontSize: 9, padding: "1px 6px", borderRadius: 4, background: indent === n ? "rgba(99,102,241,0.2)" : "var(--bg-primary)", border: `1px solid ${indent === n ? "var(--accent-color)" : "var(--border-color)"}`, color: indent === n ? "var(--accent-color)" : "var(--text-muted)", cursor: "pointer" }}>{n}</button>
+ <button key={n} onClick={() => setIndent(n)} style={{ fontSize: 9, padding: "1px 6px", borderRadius: 4, background: indent === n ? "color-mix(in srgb, var(--accent-blue) 20%, transparent)" : "var(--bg-primary)", border: `1px solid ${indent === n ? "var(--accent-color)" : "var(--border-color)"}`, color: indent === n ? "var(--accent-color)" : "var(--text-muted)", cursor: "pointer" }}>{n}</button>
  ))}
  </div>
  </div>
  <textarea value={input} onChange={e => setInput(e.target.value)} rows={7} spellCheck={false}
  style={{ resize: "vertical", padding: "8px 12px", fontSize: 12, fontFamily: "var(--font-mono)", lineHeight: 1.6, background: parseError && input.trim() ? "rgba(243,139,168,0.04)" : "var(--bg-primary)", color: "var(--text-primary)", border: "none", outline: "none", width: "100%", boxSizing: "border-box" }} />
- {parseError && input.trim() && <div style={{ padding: "3px 12px", fontSize: 10, color: "var(--text-danger)", background: "rgba(243,139,168,0.06)" }}>{parseError}</div>}
+ {parseError && input.trim() && <div style={{ padding: "3px 12px", fontSize: 10, color: "var(--text-danger)", background: "color-mix(in srgb, var(--accent-rose) 6%, transparent)" }}>{parseError}</div>}
  </div>
 
  {/* ── FORMAT TAB ── */}
  {subTab === "format" && (
  <div style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" }}>
  <div style={{ padding: "6px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 6 }}>
- <button onClick={prettify} disabled={!parsed} style={{ padding: "3px 12px", fontSize: 11, background: "rgba(166,227,161,0.1)", border: "1px solid var(--success-color)", borderRadius: 4, color: "var(--text-success)", cursor: "pointer" }}>✦ Prettify</button>
+ <button onClick={prettify} disabled={!parsed} style={{ padding: "3px 12px", fontSize: 11, background: "color-mix(in srgb, var(--accent-green) 10%, transparent)", border: "1px solid var(--success-color)", borderRadius: 4, color: "var(--text-success)", cursor: "pointer" }}>✦ Prettify</button>
  <button onClick={minify} disabled={!parsed} style={{ padding: "3px 12px", fontSize: 11, background: "rgba(250,179,135,0.1)", border: "1px solid var(--warning-color)", borderRadius: 4, color: "var(--text-warning-alt)", cursor: "pointer" }}>⇲ Minify</button>
- <button onClick={sortAndFmt} disabled={!parsed} style={{ padding: "3px 12px", fontSize: 11, background: "rgba(137,180,250,0.1)", border: "1px solid var(--accent-color)", borderRadius: 4, color: "var(--text-info)", cursor: "pointer" }}>⇅ Sort Keys</button>
+ <button onClick={sortAndFmt} disabled={!parsed} style={{ padding: "3px 12px", fontSize: 11, background: "color-mix(in srgb, var(--accent-blue) 10%, transparent)", border: "1px solid var(--accent-color)", borderRadius: 4, color: "var(--text-info)", cursor: "pointer" }}>⇅ Sort Keys</button>
  <div style={{ marginLeft: "auto" }}>
  <button onClick={() => copy(input, "fmt")} style={{ padding: "3px 10px", fontSize: 10, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-muted)", cursor: "pointer" }}>
  {copied === "fmt" ? "✓ Copied" : "Copy"}

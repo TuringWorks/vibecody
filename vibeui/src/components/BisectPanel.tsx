@@ -135,7 +135,7 @@ export function BisectPanel({ workspacePath }: BisectPanelProps) {
       </div>
 
       {error && (
-        <div style={{ padding: "6px 12px", fontSize: 11, color: "var(--text-danger)", background: "rgba(243,139,168,0.05)" }}>
+        <div style={{ padding: "6px 12px", fontSize: 11, color: "var(--text-danger)", background: "color-mix(in srgb, var(--accent-rose) 5%, transparent)" }}>
           {error}
         </div>
       )}
@@ -201,14 +201,14 @@ export function BisectPanel({ workspacePath }: BisectPanelProps) {
               <button
                 onClick={() => handleStep("good")}
                 disabled={loading}
-                style={{ ...btnStyle, flex: 1, background: "rgba(166,227,161,0.15)", color: "var(--text-success)", fontWeight: 700 }}
+                style={{ ...btnStyle, flex: 1, background: "color-mix(in srgb, var(--accent-green) 15%, transparent)", color: "var(--text-success)", fontWeight: 700 }}
               >
                 Good
               </button>
               <button
                 onClick={() => handleStep("bad")}
                 disabled={loading}
-                style={{ ...btnStyle, flex: 1, background: "rgba(243,139,168,0.15)", color: "var(--text-danger)", fontWeight: 700 }}
+                style={{ ...btnStyle, flex: 1, background: "color-mix(in srgb, var(--accent-rose) 15%, transparent)", color: "var(--text-danger)", fontWeight: 700 }}
               >
                 Bad
               </button>
@@ -242,7 +242,7 @@ export function BisectPanel({ workspacePath }: BisectPanelProps) {
             {analysis && (
               <div style={{
                 padding: 8, fontSize: 11, borderRadius: 4, lineHeight: 1.5,
-                background: "rgba(137,180,250,0.05)", border: "1px solid rgba(137,180,250,0.2)",
+                background: "rgba(137,180,250,0.05)", border: "1px solid color-mix(in srgb, var(--accent-blue) 20%, transparent)",
                 whiteSpace: "pre-wrap",
               }}>
                 {analysis}
@@ -256,7 +256,7 @@ export function BisectPanel({ workspacePath }: BisectPanelProps) {
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             <div style={{
               padding: "12px 14px", borderRadius: 6, textAlign: "center",
-              background: "rgba(243,139,168,0.1)", border: "1px solid rgba(243,139,168,0.3)",
+              background: "color-mix(in srgb, var(--accent-rose) 10%, transparent)", border: "1px solid rgba(243,139,168,0.3)",
             }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-danger)" }}>Culprit Found!</div>
               <div style={{ fontFamily: "var(--font-mono)", fontSize: 14, color: "var(--text-warning)", marginTop: 6 }}>
@@ -274,7 +274,7 @@ export function BisectPanel({ workspacePath }: BisectPanelProps) {
             {analysis && (
               <div style={{
                 padding: 8, fontSize: 11, borderRadius: 4, lineHeight: 1.5,
-                background: "rgba(137,180,250,0.05)", border: "1px solid rgba(137,180,250,0.2)",
+                background: "rgba(137,180,250,0.05)", border: "1px solid color-mix(in srgb, var(--accent-blue) 20%, transparent)",
                 whiteSpace: "pre-wrap",
               }}>
                 {analysis}

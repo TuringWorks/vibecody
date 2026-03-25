@@ -168,7 +168,7 @@ export function MigrationsPanel({ workspacePath }: MigrationsPanelProps) {
  disabled={!!actionLoading || status.applied.length === 0}
  style={{
  padding: "6px 12px", fontSize: 12,
- background: "rgba(244,67,54,0.15)", color: "var(--error-color)",
+ background: "color-mix(in srgb, var(--accent-rose) 15%, transparent)", color: "var(--error-color)",
  border: "1px solid var(--error-color)", borderRadius: 4,
  cursor: status.applied.length > 0 ? "pointer" : "default",
  opacity: actionLoading === "rollback" ? 0.7 : 1,

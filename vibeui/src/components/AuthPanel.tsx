@@ -354,7 +354,7 @@ export function AuthPanel({ workspacePath, provider }: { workspacePath: string |
           {loading ? "Generating..." : `Generate Auth for ${selectedFw?.label ?? config.framework}`}
         </button>
 
-        {error && <div style={{ color: "var(--error-color)", fontSize: 12, background: "rgba(244,67,54,0.1)", padding: 8, borderRadius: 4 }}>{error}</div>}
+        {error && <div style={{ color: "var(--error-color)", fontSize: 12, background: "color-mix(in srgb, var(--accent-rose) 10%, transparent)", padding: 8, borderRadius: 4 }}>{error}</div>}
 
         {generatedCode && (
           <>

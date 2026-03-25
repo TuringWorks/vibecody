@@ -173,7 +173,7 @@ export function MarkdownPanel({ workspacePath }: { workspacePath: string | null 
  style={{
  display: "block", width: "100%", textAlign: "left",
  padding: "7px 10px", cursor: "pointer", fontSize: 11,
- background: filePath === f.path ? "var(--accent-bg, rgba(99,102,241,0.15))" : "transparent",
+ background: filePath === f.path ? "var(--accent-bg, color-mix(in srgb, var(--accent-blue) 15%, transparent))" : "transparent",
  border: "none", borderBottom: "1px solid var(--border-color)",
  color: "var(--text-primary)",
  }}
@@ -198,7 +198,7 @@ export function MarkdownPanel({ workspacePath }: { workspacePath: string | null 
 
  {/* View toggle */}
  {(["split", "editor", "preview"] as View[]).map(v => (
- <button key={v} onClick={() => setView(v)} style={{ padding: "2px 10px", fontSize: 10, borderRadius: 10, background: view === v ? "rgba(99,102,241,0.25)" : "var(--bg-primary)", border: `1px solid ${view === v ? "var(--accent-color)" : "var(--border-color)"}`, color: view === v ? "var(--accent-color)" : "var(--text-muted)", cursor: "pointer", fontWeight: view === v ? 700 : 400 }}>
+ <button key={v} onClick={() => setView(v)} style={{ padding: "2px 10px", fontSize: 10, borderRadius: 10, background: view === v ? "color-mix(in srgb, var(--accent-blue) 25%, transparent)" : "var(--bg-primary)", border: `1px solid ${view === v ? "var(--accent-color)" : "var(--border-color)"}`, color: view === v ? "var(--accent-color)" : "var(--text-muted)", cursor: "pointer", fontWeight: view === v ? 700 : 400 }}>
  {v === "split" ? "Split" : v === "editor" ? "Edit" : "Preview"}
  </button>
  ))}
@@ -213,7 +213,7 @@ export function MarkdownPanel({ workspacePath }: { workspacePath: string | null 
 
  {/* Status bar */}
  {status && (
- <div style={{ padding: "3px 12px", fontSize: 10, background: status.startsWith("Error") ? "rgba(243,139,168,0.1)" : "rgba(166,227,161,0.1)", color: status.startsWith("Error") ? "var(--error-color)" : "var(--success-color)", borderBottom: "1px solid var(--border-color)" }}>
+ <div style={{ padding: "3px 12px", fontSize: 10, background: status.startsWith("Error") ? "color-mix(in srgb, var(--accent-rose) 10%, transparent)" : "color-mix(in srgb, var(--accent-green) 10%, transparent)", color: status.startsWith("Error") ? "var(--error-color)" : "var(--success-color)", borderBottom: "1px solid var(--border-color)" }}>
  {status}
  </div>
  )}

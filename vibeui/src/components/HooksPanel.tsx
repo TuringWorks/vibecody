@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
-// lucide-react icons removed — using emoji labels
+import { Webhook } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -87,7 +87,7 @@ function HookRow({
  userSelect: "none",
  }}
  >
- <span style={{ fontSize: "13px" }}></span>
+ <span style={{ fontSize: "13px", display: "inline-flex", alignItems: "center" }}><Webhook size={14} strokeWidth={1.5} /></span>
  <div style={{ flex: 1, minWidth: 0 }}>
  <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)" }}>
  {hook.event}
@@ -320,7 +320,7 @@ export function HooksPanel({ workspacePath }: HooksPanelProps) {
  gap: "8px",
  flexShrink: 0,
  }}>
- <span style={{ fontSize: "16px" }}></span>
+ <span style={{ display: "inline-flex", alignItems: "center" }}><Webhook size={18} strokeWidth={1.5} /></span>
  <div style={{ flex: 1 }}>
  <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>
  Hooks
@@ -369,7 +369,7 @@ export function HooksPanel({ workspacePath }: HooksPanelProps) {
  marginBottom: "8px",
  fontSize: "11px",
  color: saveMsg.startsWith("Error") ? "var(--error-color)" : "var(--success-color)",
- background: saveMsg.startsWith("Error") ? "rgba(243,139,168,0.1)" : "rgba(166,227,161,0.1)",
+ background: saveMsg.startsWith("Error") ? "color-mix(in srgb, var(--accent-rose) 10%, transparent)" : "color-mix(in srgb, var(--accent-green) 10%, transparent)",
  border: `1px solid ${saveMsg.startsWith("Error") ? "var(--error-color)" : "var(--success-color)"}`,
  borderRadius: "4px",
  }}>
@@ -379,7 +379,7 @@ export function HooksPanel({ workspacePath }: HooksPanelProps) {
 
  {hooks.length === 0 ? (
  <div style={{ padding: "24px 0", textAlign: "center", color: "var(--text-secondary)" }}>
- <div style={{ fontSize: "24px", marginBottom: "8px" }}></div>
+ <div style={{ fontSize: "24px", marginBottom: "8px", display: "flex", justifyContent: "center" }}><Webhook size={28} strokeWidth={1.5} /></div>
  <div style={{ fontSize: "13px" }}>No hooks configured.</div>
  <div style={{ fontSize: "11px", marginTop: "4px", opacity: 0.7 }}>
  Hooks run shell commands or LLM checks before/after agent tool calls.

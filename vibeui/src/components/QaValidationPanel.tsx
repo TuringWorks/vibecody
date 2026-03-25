@@ -204,7 +204,7 @@ export function QaValidationPanel() {
                             borderRadius: 10,
                             fontSize: 10,
                             fontWeight: 600,
-                            background: run.failed === 0 ? "rgba(76,175,80,0.15)" : "rgba(244,67,54,0.15)",
+                            background: run.failed === 0 ? "rgba(76,175,80,0.15)" : "color-mix(in srgb, var(--accent-rose) 15%, transparent)",
                             color: run.failed === 0 ? "var(--success-color)" : "var(--error-color)",
                           }}>
                             {run.failed === 0 ? "PASS" : "FAIL"}

@@ -4,7 +4,7 @@ type SubTab = "setup" | "monitor" | "history" | "safety";
 
 const card: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, border: "1px solid var(--border-color)" };
 const label: React.CSSProperties = { fontSize: 12, color: "var(--text-secondary)", marginBottom: 4, display: "block" };
-const input: React.CSSProperties = { width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary, #222)", color: "var(--text-primary)", fontSize: 12, fontFamily: "var(--font-mono)", boxSizing: "border-box" as const };
+const input: React.CSSProperties = { width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", fontSize: 12, fontFamily: "var(--font-mono)", boxSizing: "border-box" as const };
 const btn: React.CSSProperties = { padding: "6px 14px", borderRadius: 4, border: "none", background: "var(--accent-color)", color: "#fff", cursor: "pointer", fontSize: 12, fontWeight: 600 };
 
 interface Step {
@@ -69,7 +69,7 @@ export function ObserveActPanel() {
             </div>
             <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
               <button style={{ ...btn, opacity: !task ? 0.5 : 1 }} disabled={!task} onClick={() => setStatus("running")}>Start Observe-Act Loop</button>
-              {status === "running" && <button style={{ ...btn, background: "var(--error-color, #f44336)" }} onClick={() => setStatus("idle")}>Stop</button>}
+              {status === "running" && <button style={{ ...btn, background: "var(--accent-rose)" }} onClick={() => setStatus("idle")}>Stop</button>}
             </div>
           </div>
         </div>
@@ -80,10 +80,10 @@ export function ObserveActPanel() {
           <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Live Monitor</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8, marginBottom: 12 }}>
             {[
-              { label: "Status", value: status.toUpperCase(), color: status === "running" ? "#4caf50" : status === "completed" ? "#2196f3" : "var(--text-secondary)" },
+              { label: "Status", value: status.toUpperCase(), color: status === "running" ? "var(--accent-green)" : status === "completed" ? "#2196f3" : "var(--text-secondary)" },
               { label: "Steps", value: `${steps.length}/${maxSteps}`, color: "var(--text-primary)" },
               { label: "Actions", value: `${steps.reduce((a, s) => a + s.actions.length, 0)}`, color: "var(--text-primary)" },
-              { label: "Success Rate", value: `${steps.length > 0 ? Math.round(steps.filter(s => s.verified).length / steps.length * 100) : 0}%`, color: "#4caf50" },
+              { label: "Success Rate", value: `${steps.length > 0 ? Math.round(steps.filter(s => s.verified).length / steps.length * 100) : 0}%`, color: "var(--accent-green)" },
             ].map(m => (
               <div key={m.label} style={card}>
                 <div style={{ fontSize: 10, color: "var(--text-secondary)" }}>{m.label}</div>
@@ -93,7 +93,7 @@ export function ObserveActPanel() {
           </div>
           <div style={card}>
             <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Latest Screenshot</div>
-            <div style={{ background: "var(--bg-tertiary, #111)", borderRadius: 4, height: 200, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-secondary)", fontSize: 12 }}>
+            <div style={{ background: "var(--bg-tertiary)", borderRadius: 4, height: 200, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-secondary)", fontSize: 12 }}>
               {status === "running" ? "Capturing..." : "No active session"}
             </div>
           </div>
@@ -109,7 +109,7 @@ export function ObserveActPanel() {
                 <span style={{ fontWeight: 600 }}>Step {s.num}</span>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                   <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>{s.durationMs}ms</span>
-                  <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 3, background: s.verified ? "#4caf5022" : "#f4433622", color: s.verified ? "#4caf50" : "#f44336" }}>
+                  <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 3, background: s.verified ? "#4caf5022" : "#f4433622", color: s.verified ? "var(--accent-green)" : "var(--accent-rose)" }}>
                     {s.verified ? "Verified" : "Failed"}
                   </span>
                 </div>
@@ -117,7 +117,7 @@ export function ObserveActPanel() {
               <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 4 }}>{s.reasoning}</div>
               <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                 {s.actions.map((a, i) => (
-                  <span key={i} style={{ fontSize: 10, padding: "2px 6px", borderRadius: 3, background: "var(--bg-tertiary, #333)", fontFamily: "var(--font-mono)" }}>{a}</span>
+                  <span key={i} style={{ fontSize: 10, padding: "2px 6px", borderRadius: 3, background: "var(--bg-tertiary)", fontFamily: "var(--font-mono)" }}>{a}</span>
                 ))}
               </div>
             </div>

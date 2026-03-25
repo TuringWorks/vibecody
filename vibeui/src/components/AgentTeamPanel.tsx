@@ -116,7 +116,7 @@ export function AgentTeamPanel() {
           <>
             <span style={{
               fontSize: 10, padding: "2px 8px", borderRadius: 10, fontWeight: 600,
-              background: team.status === "working" ? "rgba(137,180,250,0.15)" : team.status === "complete" ? "rgba(52,211,153,0.15)" : "rgba(108,112,134,0.15)",
+              background: team.status === "working" ? "rgba(137,180,250,0.15)" : team.status === "complete" ? "rgba(52,211,153,0.15)" : "color-mix(in srgb, var(--text-secondary) 15%, transparent)",
               color: team.status === "working" ? "var(--info-color)" : team.status === "complete" ? "var(--success-color)" : "var(--text-secondary)",
             }}>
               {team.status}
@@ -160,7 +160,7 @@ export function AgentTeamPanel() {
             {loading ? "Creating Team..." : "Create Team"}
           </button>
           {error && (
-            <div style={{ fontSize: 11, color: "var(--text-danger)", padding: "4px 8px", background: "rgba(243,139,168,0.05)", borderRadius: 4 }}>
+            <div style={{ fontSize: 11, color: "var(--text-danger)", padding: "4px 8px", background: "color-mix(in srgb, var(--accent-rose) 5%, transparent)", borderRadius: 4 }}>
               {error}
             </div>
           )}
@@ -177,7 +177,7 @@ export function AgentTeamPanel() {
                 style={{
                   padding: "3px 10px", fontSize: 10, fontWeight: 600, borderRadius: 4, cursor: "pointer",
                   border: tab === t ? "1px solid var(--accent-color)" : "1px solid var(--border-color)",
-                  background: tab === t ? "rgba(99,102,241,0.15)" : "transparent",
+                  background: tab === t ? "color-mix(in srgb, var(--accent-blue) 15%, transparent)" : "transparent",
                   color: "var(--text-primary)",
                 }}
               >
@@ -199,7 +199,7 @@ export function AgentTeamPanel() {
                   {team.member_ids.map((id) => (
                     <div key={id} style={{
                       padding: "4px 8px", fontSize: 10, borderRadius: 4,
-                      background: id === team.lead_agent_id ? "rgba(99,102,241,0.15)" : "var(--bg-primary)",
+                      background: id === team.lead_agent_id ? "color-mix(in srgb, var(--accent-blue) 15%, transparent)" : "var(--bg-primary)",
                       border: id === team.lead_agent_id ? "1px solid var(--accent-color)" : "1px solid var(--border-color)",
                     }}>
                       {id === team.lead_agent_id ? "Lead: " : ""}{id.split("-").pop()}

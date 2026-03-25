@@ -32,7 +32,7 @@ const KIND_COLORS: Record<StepKind, string> = {
  prompt: "var(--accent-color)",
  tool_call: "var(--success-color)",
  file_edit: "var(--warning-color)",
- test: "#cba6f7",
+ test: "var(--accent-purple)",
  error: "var(--error-color)",
  other: "var(--text-muted)",
 };
@@ -101,7 +101,7 @@ export function TraceDashboard() {
  <div style={{ flex: 1 }} />
  {selectedSession && (
  <button onClick={() => { setSelectedSession(null); setSteps([]); }} style={{
- ...chipStyle, cursor: "pointer", background: "rgba(99,102,241,0.15)",
+ ...chipStyle, cursor: "pointer", background: "color-mix(in srgb, var(--accent-blue) 15%, transparent)",
  border: "1px solid var(--accent-color)",
  }}>
  Back to list
@@ -187,7 +187,7 @@ export function TraceDashboard() {
  <button key={k} onClick={() => setFilter(k)} style={{
  ...chipStyle, cursor: "pointer",
  border: filter === k ? "1px solid var(--accent-color)" : "1px solid var(--border-color)",
- background: filter === k ? "rgba(99,102,241,0.15)" : "transparent",
+ background: filter === k ? "color-mix(in srgb, var(--accent-blue) 15%, transparent)" : "transparent",
  }}>
  {k !== "all" && (
  <span style={{

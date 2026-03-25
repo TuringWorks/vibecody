@@ -78,7 +78,7 @@ export function CIReviewPanel() {
         <div style={{ flex: 1 }} />
         <span style={{
           fontSize: 10, padding: "2px 8px", borderRadius: 10, fontWeight: 600,
-          background: config.app_id > 0 ? "rgba(166,227,161,0.15)" : "rgba(108,112,134,0.15)",
+          background: config.app_id > 0 ? "color-mix(in srgb, var(--accent-green) 15%, transparent)" : "color-mix(in srgb, var(--text-secondary) 15%, transparent)",
           color: config.app_id > 0 ? "var(--success-color)" : "var(--text-muted)",
         }}>
           {config.app_id > 0 ? "Configured" : "Not configured"}
@@ -158,7 +158,7 @@ export function CIReviewPanel() {
             </button>
 
             {error && (
-              <div style={{ fontSize: 11, color: "var(--text-danger)", padding: "4px 8px", background: "rgba(243,139,168,0.05)", borderRadius: 4 }}>
+              <div style={{ fontSize: 11, color: "var(--text-danger)", padding: "4px 8px", background: "color-mix(in srgb, var(--accent-rose) 5%, transparent)", borderRadius: 4 }}>
                 {error}
               </div>
             )}

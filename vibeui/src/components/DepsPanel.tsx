@@ -231,7 +231,7 @@ export function DepsPanel({ workspacePath }: DepsPanelProps) {
                     display: "grid", gridTemplateColumns: "1fr 80px 80px 80px 90px 60px",
                     gap: 4, padding: "5px 8px", fontSize: 11,
                     borderBottom: "1px solid var(--border-color)",
-                    background: dep.is_vulnerable ? "rgba(243,139,168,0.05)" : "transparent",
+                    background: dep.is_vulnerable ? "color-mix(in srgb, var(--accent-rose) 5%, transparent)" : "transparent",
                   }}
                 >
                   <span style={{ fontFamily: "var(--font-mono)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={dep.name}>

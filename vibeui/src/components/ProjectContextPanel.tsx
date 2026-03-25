@@ -115,7 +115,7 @@ export function ProjectContextPanel({ workspacePath }: { workspacePath?: string 
     borderBottom: tab === t ? "2px solid var(--accent-color, #007acc)" : "2px solid transparent",
     background: "none",
     border: "none",
-    color: tab === t ? "var(--text-primary, #fff)" : "var(--text-secondary, #888)",
+    color: tab === t ? "var(--text-primary)" : "var(--text-secondary)",
     fontWeight: tab === t ? 600 : 400,
     fontSize: "13px",
   });
@@ -140,7 +140,7 @@ export function ProjectContextPanel({ workspacePath }: { workspacePath?: string 
   const cmdBtnStyle: React.CSSProperties = {
     padding: "4px 10px",
     cursor: "pointer",
-    background: "var(--button-bg, #0e639c)",
+    background: "var(--accent-blue)",
     color: "var(--button-fg, #fff)",
     border: "none",
     borderRadius: "4px",
@@ -173,13 +173,13 @@ export function ProjectContextPanel({ workspacePath }: { workspacePath?: string 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       {/* Tab bar */}
-      <div style={{ display: "flex", borderBottom: "1px solid var(--border-color, #333)", flexShrink: 0 }}>
+      <div style={{ display: "flex", borderBottom: "1px solid var(--border-color)", flexShrink: 0 }}>
         <button style={tabStyle("overview")} onClick={() => setTab("overview")}>Overview</button>
         <button style={tabStyle("commands")} onClick={() => setTab("commands")}>Commands</button>
         <button style={tabStyle("files")} onClick={() => setTab("files")}>Key Files</button>
         <button style={tabStyle("context")} onClick={() => setTab("context")}>AI Context</button>
         <div style={{ marginLeft: "auto", padding: "6px 12px" }}>
-          <button onClick={rescan} style={{ ...cmdBtnStyle, background: "transparent", color: "var(--text-secondary, #888)" }}>
+          <button onClick={rescan} style={{ ...cmdBtnStyle, background: "transparent", color: "var(--text-secondary)" }}>
             Rescan
           </button>
         </div>
@@ -190,7 +190,7 @@ export function ProjectContextPanel({ workspacePath }: { workspacePath?: string 
         {tab === "overview" && (
           <div>
             <h3 style={{ margin: "0 0 8px 0", fontSize: "16px" }}>{profile.name}</h3>
-            {profile.description && <p style={{ color: "var(--text-secondary, #aaa)", margin: "0 0 12px 0" }}>{profile.description}</p>}
+            {profile.description && <p style={{ color: "var(--text-secondary)", margin: "0 0 12px 0" }}>{profile.description}</p>}
 
             <div style={{ marginBottom: "12px" }}>
               <strong>Architecture:</strong> <span style={badgeStyle}>{profile.architecture}</span>
@@ -231,7 +231,7 @@ export function ProjectContextPanel({ workspacePath }: { workspacePath?: string 
               </div>
             )}
 
-            <div style={{ color: "var(--text-secondary, #666)", fontSize: "11px", marginTop: "16px" }}>
+            <div style={{ color: "var(--text-secondary)", fontSize: "11px", marginTop: "16px" }}>
               Last scanned: {scannedDate}
             </div>
           </div>
@@ -280,7 +280,7 @@ export function ProjectContextPanel({ workspacePath }: { workspacePath?: string 
               <div style={{ marginTop: "12px" }}>
                 <h4 style={{ margin: "0 0 4px 0" }}>Output</h4>
                 <pre style={{
-                  background: "var(--terminal-bg, #1e1e1e)",
+                  background: "var(--bg-primary)",
                   padding: "8px",
                   borderRadius: "4px",
                   fontSize: "12px",
@@ -305,7 +305,7 @@ export function ProjectContextPanel({ workspacePath }: { workspacePath?: string 
                     <span style={{ ...badgeStyle, marginLeft: "8px" }}>{kf.role}</span>
                   </div>
                   <pre style={{
-                    background: "var(--terminal-bg, #1e1e1e)",
+                    background: "var(--bg-primary)",
                     padding: "8px",
                     borderRadius: "4px",
                     fontSize: "11px",
@@ -323,12 +323,12 @@ export function ProjectContextPanel({ workspacePath }: { workspacePath?: string 
         {tab === "context" && (
           <div>
             <h4 style={{ margin: "0 0 8px 0" }}>AI System Prompt Context</h4>
-            <p style={{ color: "var(--text-secondary, #aaa)", fontSize: "12px", marginBottom: "12px" }}>
+            <p style={{ color: "var(--text-secondary)", fontSize: "12px", marginBottom: "12px" }}>
               This context is automatically injected into every AI agent conversation.
               It gives the AI deep understanding of your project without manual @-mentions.
             </p>
             <pre style={{
-              background: "var(--terminal-bg, #1e1e1e)",
+              background: "var(--bg-primary)",
               padding: "12px",
               borderRadius: "4px",
               fontSize: "12px",

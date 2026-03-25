@@ -58,11 +58,11 @@ const DEFAULT_PATTERNS: ScanPattern[] = [
 
 const severityColor = (s: Severity): string => {
   switch (s) {
-    case "Critical": return "#f38ba8";
-    case "High": return "#fab387";
-    case "Medium": return "#f9e2af";
+    case "Critical": return "var(--accent-rose)";
+    case "High": return "var(--accent-gold)";
+    case "Medium": return "var(--accent-gold)";
     case "Low": return "var(--info-color)";
-    case "Info": return "#6c7086";
+    case "Info": return "var(--text-secondary)";
   }
 };
 
@@ -215,7 +215,7 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
       </div>
 
       {error && (
-        <div style={{ padding: "6px 10px", background: "rgba(244,67,54,0.13)", color: "var(--error-color)", borderRadius: 5, fontSize: 12, display: "flex", justifyContent: "space-between" }}>
+        <div style={{ padding: "6px 10px", background: "color-mix(in srgb, var(--accent-rose) 13%, transparent)", color: "var(--error-color)", borderRadius: 5, fontSize: 12, display: "flex", justifyContent: "space-between" }}>
           <span>{error}</span>
           <button aria-label="Dismiss error" onClick={() => setError(null)} style={{ background: "none", border: "none", color: "var(--error-color)", cursor: "pointer" }}>×</button>
         </div>
@@ -502,7 +502,7 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
                   <span style={{
                     fontSize: 11, padding: "2px 8px", borderRadius: 10,
                     background: run.findingCount > 0 ? "#f38ba822" : "#a6e3a122",
-                    color: run.findingCount > 0 ? "#f38ba8" : "#a6e3a1",
+                    color: run.findingCount > 0 ? "var(--accent-rose)" : "var(--accent-green)",
                     fontWeight: 600,
                   }}>
                     {run.findingCount} findings

@@ -20,18 +20,18 @@ interface BugBotPanelProps {
 }
 
 const SEVERITY_COLOR: Record<string, string> = {
- critical: "#f38ba8",
- high: "#fab387",
- medium: "#f9e2af",
- low: "#a6e3a1",
+ critical: "var(--accent-rose)",
+ high: "var(--accent-gold)",
+ medium: "var(--accent-gold)",
+ low: "var(--accent-green)",
  info: "var(--info-color)",
 };
 
 const SEVERITY_ICON: Record<string, React.ReactNode> = {
- critical: <Circle size={10} strokeWidth={0} fill="#f38ba8" />,
- high: <Circle size={10} strokeWidth={0} fill="#fab387" />,
- medium: <Circle size={10} strokeWidth={0} fill="#f9e2af" />,
- low: <Circle size={10} strokeWidth={0} fill="#a6e3a1" />,
+ critical: <Circle size={10} strokeWidth={0} fill="var(--accent-rose)" />,
+ high: <Circle size={10} strokeWidth={0} fill="var(--accent-gold)" />,
+ medium: <Circle size={10} strokeWidth={0} fill="var(--accent-gold)" />,
+ low: <Circle size={10} strokeWidth={0} fill="var(--accent-green)" />,
  info: <Circle size={10} strokeWidth={0} fill="var(--info-color)" />,
 };
 
@@ -167,7 +167,7 @@ export function BugBotPanel({ workspacePath, onOpenFile }: BugBotPanelProps) {
  </div>
 
  {error && (
- <div style={{ background: "rgba(244,67,54,0.13)", color: "var(--error-color)", borderRadius: 5, padding: "6px 10px", fontSize: 12 }}>
+ <div style={{ background: "color-mix(in srgb, var(--accent-rose) 13%, transparent)", color: "var(--error-color)", borderRadius: 5, padding: "6px 10px", fontSize: 12 }}>
  {error}
  </div>
  )}

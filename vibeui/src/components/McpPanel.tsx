@@ -313,7 +313,7 @@ export function McpPanel() {
       </p>
 
       {error && (
-        <div style={{ fontSize: 12, color: "var(--error-color)", padding: "6px 8px", background: "rgba(220,50,50,0.15)", borderRadius: 4, marginBottom: 8 }}>
+        <div style={{ fontSize: 12, color: "var(--error-color)", padding: "6px 8px", background: "color-mix(in srgb, var(--accent-rose) 15%, transparent)", borderRadius: 4, marginBottom: 8 }}>
           {error} <button style={{ ...btnStyle, fontSize: 10, marginLeft: 8, padding: "2px 8px" }} onClick={() => setError(null)}>Dismiss</button>
         </div>
       )}
@@ -356,7 +356,7 @@ export function McpPanel() {
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={{ fontSize: 13, fontWeight: 600, flex: 1 }}>
                     {srv.name}
-                    {tokenStatus[srv.name] && <span style={{ marginLeft: 6, fontSize: 10, color: "var(--success-color)", background: "rgba(166,227,161,0.15)", padding: "1px 5px", borderRadius: 3 }}>OAuth</span>}
+                    {tokenStatus[srv.name] && <span style={{ marginLeft: 6, fontSize: 10, color: "var(--success-color)", background: "color-mix(in srgb, var(--accent-green) 15%, transparent)", padding: "1px 5px", borderRadius: 3 }}>OAuth</span>}
                   </span>
                   <button onClick={() => testServer(idx)} disabled={testing === idx} style={{ ...btnStyle, fontSize: 11, padding: "2px 8px" }}>{testing === idx ? "..." : "Test"}</button>
                   <button onClick={() => startOAuth(srv.name)} style={{ ...btnStyle, fontSize: 11, padding: "2px 8px" }}>OAuth</button>
@@ -876,7 +876,7 @@ export function McpPanel() {
             </>) : (
               <label style={{ fontSize: 12, display: "flex", flexDirection: "column", gap: 3 }}>Authorization Code<input autoFocus type="text" value={oauthForm.authCode} onChange={e => setOauthForm(f => f && { ...f, authCode: e.target.value })} style={inputStyle} /></label>
             )}
-            {oauthForm.msg && <div style={{ fontSize: 11, padding: "6px 8px", borderRadius: 4, background: oauthForm.msg.startsWith("Error") ? "rgba(220,50,50,0.15)" : "rgba(166,227,161,0.15)", color: oauthForm.msg.startsWith("Error") ? "var(--error-color)" : "var(--success-color)" }}>{oauthForm.msg}</div>}
+            {oauthForm.msg && <div style={{ fontSize: 11, padding: "6px 8px", borderRadius: 4, background: oauthForm.msg.startsWith("Error") ? "color-mix(in srgb, var(--accent-rose) 15%, transparent)" : "color-mix(in srgb, var(--accent-green) 15%, transparent)", color: oauthForm.msg.startsWith("Error") ? "var(--error-color)" : "var(--success-color)" }}>{oauthForm.msg}</div>}
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
               <button onClick={() => setOauthForm(null)} style={btnStyle}>Cancel</button>
               {oauthForm.step === "config" ? (

@@ -240,7 +240,7 @@ export function DatabasePanel({ workspacePath, provider }: DatabasePanelProps) {
  <div style={{ flex: 1, overflow: "auto", padding: 12 }}>
  {isLoading && <div style={{ opacity: 0.5 }}>Loading…</div>}
  {queryResult?.error && (
- <div style={{ color: "var(--error-color)", fontFamily: "var(--font-mono)", fontSize: 12, padding: 8, background: "rgba(243,139,168,0.1)", borderRadius: 4 }}>
+ <div style={{ color: "var(--error-color)", fontFamily: "var(--font-mono)", fontSize: 12, padding: 8, background: "color-mix(in srgb, var(--accent-rose) 10%, transparent)", borderRadius: 4 }}>
  {queryResult.error}
  </div>
  )}

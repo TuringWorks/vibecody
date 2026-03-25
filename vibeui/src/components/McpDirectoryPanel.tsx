@@ -239,29 +239,29 @@ export function McpDirectoryPanel() {
 
               {/* Plugin cards with status and config info */}
               {installedPlugins.map((p) => (
-                <div key={p.id} style={{ ...cardStyle, borderLeft: `3px solid ${p.updatable ? "var(--warning-color, #cca700)" : "var(--success-color, #4caf50)"}` }}>
+                <div key={p.id} style={{ ...cardStyle, borderLeft: `3px solid ${p.updatable ? "var(--warning-color, #cca700)" : "var(--accent-green)"}` }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <span style={{ fontWeight: 600 }}>{p.name}</span>
-                        <span style={{ fontSize: 10, color: "var(--text-secondary, #888)" }}>v{p.version}</span>
+                        <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>v{p.version}</span>
                         <span style={{
                           fontSize: 10, padding: "1px 6px", borderRadius: 8,
-                          background: p.updatable ? "var(--warning-color, #cca700)" : "var(--success-color, #4caf50)",
+                          background: p.updatable ? "var(--warning-color, #cca700)" : "var(--accent-green)",
                           color: "var(--btn-primary-fg)",
                         }}>
                           {p.updatable ? "Update available" : "Active"}
                         </span>
                       </div>
-                      <div style={{ fontSize: 11, color: "var(--text-secondary, #888)", marginTop: 3 }}>
+                      <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 3 }}>
                         by {p.author} | {p.category}
                       </div>
                       <div style={{ fontSize: 12, marginTop: 4 }}>{p.description}</div>
                       <div style={{ display: "flex", gap: 12, marginTop: 6, fontSize: 11 }}>
                         <span style={{ color: "var(--warning-color, #cca700)" }}>{renderStars(p.rating)} {p.rating.toFixed(1)}</span>
-                        <span style={{ color: "var(--text-secondary, #888)" }}>{formatDownloads(p.downloads)} downloads</span>
+                        <span style={{ color: "var(--text-secondary)" }}>{formatDownloads(p.downloads)} downloads</span>
                       </div>
-                      <div style={{ fontSize: 11, color: "var(--text-secondary, #888)", marginTop: 6, fontFamily: "var(--font-mono)" }}>
+                      <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 6, fontFamily: "var(--font-mono)" }}>
                         Config: ~/.vibecli/mcp/{p.id}/config.json
                       </div>
                     </div>
@@ -276,7 +276,7 @@ export function McpDirectoryPanel() {
                         </button>
                       )}
                       <button
-                        style={{ ...btnStyle, borderColor: "var(--error-color, #f44336)", color: "var(--error-color, #f44336)", fontSize: 11 }}
+                        style={{ ...btnStyle, borderColor: "var(--accent-rose)", color: "var(--accent-rose)", fontSize: 11 }}
                         onClick={() => handleUninstall(p.id)}
                         disabled={actionInProgress === p.id}
                       >

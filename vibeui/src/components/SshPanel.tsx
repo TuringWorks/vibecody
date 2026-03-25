@@ -227,7 +227,7 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  onClick={() => { setSelectedId(p.id); setEditingProfile(null); }}
  style={{
  padding: "9px 12px", borderRadius: 6, cursor: "pointer",
- background: selectedId === p.id ? "rgba(99,102,241,0.12)" : "var(--bg-secondary)",
+ background: selectedId === p.id ? "color-mix(in srgb, var(--accent-blue) 12%, transparent)" : "var(--bg-secondary)",
  border: `1px solid ${selectedId === p.id ? "var(--accent-color)" : "var(--border-color)"}`,
  display: "flex", alignItems: "center", gap: 10,
  }}
@@ -385,7 +385,7 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  {result && (
  <div style={{
  padding: "5px 10px", borderRadius: 4, fontSize: 11, fontWeight: 600,
- background: result.success ? "rgba(166,227,161,0.1)" : "rgba(243,139,168,0.1)",
+ background: result.success ? "color-mix(in srgb, var(--accent-green) 10%, transparent)" : "color-mix(in srgb, var(--accent-rose) 10%, transparent)",
  color: result.success ? "var(--success-color)" : "var(--error-color)",
  border: `1px solid ${result.success ? "var(--success-color)" : "var(--error-color)"}`,
  display: "flex", justifyContent: "space-between",

@@ -176,8 +176,8 @@ export function HealthMonitorPanel() {
 
  {checkedCount > 0 && (
  <div style={{ display: "flex", gap: 6 }}>
- {upCount > 0 && <span style={{ padding: "2px 8px", borderRadius: 10, background: "rgba(166,227,161,0.15)", border: "1px solid var(--text-success)", color: "var(--text-success)", fontSize: 10, fontWeight: 700 }}>↑ {upCount} UP</span>}
- {downCount > 0 && <span style={{ padding: "2px 8px", borderRadius: 10, background: "rgba(243,139,168,0.15)", border: "1px solid var(--text-danger)", color: "var(--text-danger)", fontSize: 10, fontWeight: 700 }}>↓ {downCount} DOWN</span>}
+ {upCount > 0 && <span style={{ padding: "2px 8px", borderRadius: 10, background: "color-mix(in srgb, var(--accent-green) 15%, transparent)", border: "1px solid var(--text-success)", color: "var(--text-success)", fontSize: 10, fontWeight: 700 }}>↑ {upCount} UP</span>}
+ {downCount > 0 && <span style={{ padding: "2px 8px", borderRadius: 10, background: "color-mix(in srgb, var(--accent-rose) 15%, transparent)", border: "1px solid var(--text-danger)", color: "var(--text-danger)", fontSize: 10, fontWeight: 700 }}>↓ {downCount} DOWN</span>}
  </div>
  )}
 
@@ -234,7 +234,7 @@ export function HealthMonitorPanel() {
  )}
 
  {error && (
- <div style={{ padding: "6px 12px", background: "rgba(243,139,168,0.1)", color: "var(--text-danger)", fontSize: 11, borderBottom: "1px solid var(--border-color)", flexShrink: 0 }}> {error}</div>
+ <div style={{ padding: "6px 12px", background: "color-mix(in srgb, var(--accent-rose) 10%, transparent)", color: "var(--text-danger)", fontSize: 11, borderBottom: "1px solid var(--border-color)", flexShrink: 0 }}> {error}</div>
  )}
 
  {/* Monitor list */}

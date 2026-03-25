@@ -247,7 +247,7 @@ export function AdminPanel() {
                 <span style={{
                   padding: '1px 6px', borderRadius: 3, fontSize: 10, fontWeight: 600,
                   background: entry.action.includes('delete') || entry.action.includes('remove')
-                    ? 'rgba(239,68,68,0.15)' : 'rgba(59,130,246,0.15)',
+                    ? 'color-mix(in srgb, var(--accent-rose) 15%, transparent)' : 'rgba(59,130,246,0.15)',
                   color: entry.action.includes('delete') || entry.action.includes('remove')
                     ? 'var(--error-color)' : 'var(--accent-color)',
                 }}>{entry.action}</span>
@@ -286,7 +286,7 @@ export function AdminPanel() {
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   <span style={{
                     padding: '2px 8px', borderRadius: 3, fontSize: 10, fontWeight: 600,
-                    background: p.action === 'allow' ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
+                    background: p.action === 'allow' ? 'rgba(34,197,94,0.15)' : 'color-mix(in srgb, var(--accent-rose) 15%, transparent)',
                     color: p.action === 'allow' ? 'var(--success-color)' : 'var(--error-color)',
                   }}>{p.action.toUpperCase()}</span>
                   <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>{p.resource}</span>

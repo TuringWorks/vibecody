@@ -56,7 +56,7 @@ const DEFAULT_MODEL: ModelStats = {
 
 const tabBtn = (active: boolean): React.CSSProperties => ({
   padding: "6px 14px", fontSize: 11, fontWeight: active ? 600 : 400,
-  background: active ? "var(--accent-bg, rgba(99,102,241,0.15))" : "transparent",
+  background: active ? "var(--accent-bg, color-mix(in srgb, var(--accent-blue) 15%, transparent))" : "transparent",
   border: "1px solid " + (active ? "var(--accent-primary)" : "var(--border-color)"),
   borderRadius: 4, color: active ? "var(--text-info)" : "var(--text-muted)", cursor: "pointer",
 });
@@ -153,7 +153,7 @@ export default function EditPredictionPanel() {
           <div key={p.id} style={{ padding: 10, background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)", opacity: p.state !== "pending" ? 0.6 : 1 }}>
             <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
               <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--text-info)" }}>{p.file}:{p.line}</span>
-              <span style={{ fontSize: 9, padding: "1px 5px", borderRadius: 3, background: "rgba(99,102,241,0.12)", color: "var(--text-muted)" }}>{p.pattern}</span>
+              <span style={{ fontSize: 9, padding: "1px 5px", borderRadius: 3, background: "color-mix(in srgb, var(--accent-blue) 12%, transparent)", color: "var(--text-muted)" }}>{p.pattern}</span>
               <span style={{ fontSize: 10, color: "var(--text-muted)", marginLeft: "auto" }}>{p.timestamp}</span>
             </div>
             <div style={{ fontSize: 11, color: "var(--text-primary)", marginBottom: 8 }}>{p.suggestion}</div>

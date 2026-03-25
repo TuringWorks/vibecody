@@ -262,7 +262,7 @@ export function ScreenshotToApp({ workspacePath }: { workspacePath: string | nul
       {/* Error display */}
       {error && (
         <div style={{
-          background: "rgba(244,67,54,0.1)", color: "var(--error-color)",
+          background: "color-mix(in srgb, var(--accent-rose) 10%, transparent)", color: "var(--error-color)",
           padding: "8px", borderRadius: "4px", marginBottom: "12px",
           whiteSpace: "pre-wrap", fontSize: "12px",
         }}>

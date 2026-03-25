@@ -267,7 +267,7 @@ export default function RemoteControlPanel() {
                 {c.permissions.join(", ")} | {c.lastSeen}
               </div>
             </div>
-            <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 10, background: c.connected ? "rgba(166,227,161,0.15)" : "rgba(243,139,168,0.15)", color: c.connected ? "var(--text-success)" : "var(--text-danger)" }}>
+            <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 10, background: c.connected ? "color-mix(in srgb, var(--accent-green) 15%, transparent)" : "color-mix(in srgb, var(--accent-rose) 15%, transparent)", color: c.connected ? "var(--text-success)" : "var(--text-danger)" }}>
               {c.connected ? "Online" : "Offline"}
             </span>
             {c.connected && (

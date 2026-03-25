@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { ThumbsUp, ThumbsDown, CheckCircle, HelpCircle, Flame } from "lucide-react";
 
 type MessageType = "Question" | "Suggestion" | "Concern" | "Decision" | "Action";
 
@@ -81,7 +82,7 @@ const DiscussionModePanel: React.FC = () => {
 
   const typeColors: Record<MessageType, string> = {
     Question: "#1565c0", Suggestion: "#2e7d32", Concern: "#e65100",
-    Decision: "#6a1b9a", Action: "#c62828",
+    Decision: "var(--accent-purple)", Action: "#c62828",
   };
   const badgeStyle = (color: string): React.CSSProperties => ({
     display: "inline-block", padding: "2px 8px", borderRadius: "10px",
@@ -94,7 +95,14 @@ const DiscussionModePanel: React.FC = () => {
   };
 
   const messageTypes: MessageType[] = ["Question", "Suggestion", "Concern", "Decision", "Action"];
-  const reactionEmojis = ["\u{1F44D}", "\u{1F44E}", "\u2705", "\u{1F914}", "\u{1F525}"];
+  const reactionKeys = ["thumbsup", "thumbsdown", "check", "thinking", "fire"];
+  const reactionIconMap: Record<string, React.ReactNode> = {
+    thumbsup: <ThumbsUp size={14} strokeWidth={1.5} />,
+    thumbsdown: <ThumbsDown size={14} strokeWidth={1.5} />,
+    check: <CheckCircle size={14} strokeWidth={1.5} />,
+    thinking: <HelpCircle size={14} strokeWidth={1.5} />,
+    fire: <Flame size={14} strokeWidth={1.5} />,
+  };
 
   const handleCreateThread = async () => {
     if (!newTopic.trim()) return;
@@ -184,20 +192,20 @@ const DiscussionModePanel: React.FC = () => {
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
         <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
           <strong>{m.author}</strong>
-          <span style={badgeStyle(typeColors[m.type] || "#888")}>{m.type}</span>
+          <span style={badgeStyle(typeColors[m.type] || "var(--text-secondary)")}>{m.type}</span>
         </div>
         <span style={{ fontSize: "11px", opacity: 0.6 }}>{m.timestamp}</span>
       </div>
       <div style={{ marginBottom: "6px" }}>{m.text}</div>
       <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
-        {Object.entries(m.reactions).map(([emoji, count]) => (
-          <button key={emoji} style={reactionBtnStyle} onClick={() => handleReaction(m.id, emoji)}>
-            {emoji} {count}
+        {Object.entries(m.reactions).map(([key, count]) => (
+          <button key={key} style={{ ...reactionBtnStyle, display: "inline-flex", alignItems: "center", gap: "4px" }} onClick={() => handleReaction(m.id, key)}>
+            {reactionIconMap[key] ?? key} {count}
           </button>
         ))}
-        {reactionEmojis.filter(e => !(e in m.reactions)).slice(0, 2).map(emoji => (
-          <button key={emoji} style={{ ...reactionBtnStyle, opacity: 0.5 }}
-            onClick={() => handleReaction(m.id, emoji)}>{emoji}</button>
+        {reactionKeys.filter(k => !(k in m.reactions)).slice(0, 2).map(key => (
+          <button key={key} style={{ ...reactionBtnStyle, opacity: 0.5, display: "inline-flex", alignItems: "center" }}
+            onClick={() => handleReaction(m.id, key)}>{reactionIconMap[key]}</button>
         ))}
       </div>
     </div>
@@ -272,7 +280,7 @@ const DiscussionModePanel: React.FC = () => {
     <div>
       <h3 style={{ margin: "0 0 12px" }}>Discussion Summary</h3>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px", marginBottom: "16px" }}>
-        {[["Decisions", decisionCount, "#6a1b9a"], ["Actions", actionCount, "#c62828"], ["Unresolved", unresolvedCount, "#e65100"]].map(([label, count, color]) => (
+        {[["Decisions", decisionCount, "var(--accent-purple)"], ["Actions", actionCount, "#c62828"], ["Unresolved", unresolvedCount, "#e65100"]].map(([label, count, color]) => (
           <div key={label as string} style={{ ...cardStyle, textAlign: "center" }}>
             <div style={{ fontSize: "24px", fontWeight: 700, color: color as string }}>{count as number}</div>
             <div style={{ fontSize: "12px", opacity: 0.7 }}>{label as string}</div>

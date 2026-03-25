@@ -130,7 +130,7 @@ export function SupabasePanel({ workspacePath, provider }: { workspacePath: stri
  <div style={s.header}>
  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
  <span style={{ fontSize: "14px", fontWeight: 600 }}>Supabase</span>
- <span style={{ fontSize: "11px", padding: "2px 6px", borderRadius: "10px", background: connected ? "rgba(76,175,80,0.15)" : "rgba(244,67,54,0.15)", color: connected ? "var(--success-color)" : "var(--error-color)" }}>
+ <span style={{ fontSize: "11px", padding: "2px 6px", borderRadius: "10px", background: connected ? "rgba(76,175,80,0.15)" : "color-mix(in srgb, var(--accent-rose) 15%, transparent)", color: connected ? "var(--success-color)" : "var(--error-color)" }}>
  {connected ? "Connected" : "Disconnected"}
  </span>
  </div>
@@ -143,7 +143,7 @@ export function SupabasePanel({ workspacePath, provider }: { workspacePath: stri
  )}
  </div>
 
- {error && <div style={{ padding: "8px 12px", background: "rgba(244,67,54,0.1)", color: "var(--error-color)", fontSize: "12px" }}>{error}</div>}
+ {error && <div style={{ padding: "8px 12px", background: "color-mix(in srgb, var(--accent-rose) 10%, transparent)", color: "var(--error-color)", fontSize: "12px" }}>{error}</div>}
 
  {connected && (
  <>

@@ -70,7 +70,7 @@ function BitGrid({ val, bits, onToggle }: { val: bigint; bits: BitWidth; onToggl
  width: bits > 32 ? 12 : 16, height: bits > 32 ? 18 : 22,
  display: "flex", alignItems: "center", justifyContent: "center",
  fontSize: bits > 32 ? 8 : 10, fontWeight: 700, fontFamily: "var(--font-mono)",
- background: isSet ? (isMsb ? "rgba(243,139,168,0.3)" : "rgba(137,180,250,0.25)") : "var(--bg-secondary)",
+ background: isSet ? (isMsb ? "rgba(243,139,168,0.3)" : "color-mix(in srgb, var(--accent-blue) 25%, transparent)") : "var(--bg-secondary)",
  border: `1px solid ${isSet ? (isMsb ? "var(--error-color)" : "var(--accent-color)") : "var(--border-color)"}`,
  borderRadius: 2, color: isSet ? (isMsb ? "var(--error-color)" : "var(--accent-color)") : "var(--text-muted)",
  cursor: "pointer", padding: 0,
@@ -95,7 +95,7 @@ function BaseInput({ label, prefix, value, onChange, valid, mono = true }: {
  <span style={{ width: 60, fontSize: 10, fontWeight: 700, color: "var(--text-muted)", flexShrink: 0 }}>{label}</span>
  <span style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)", flexShrink: 0 }}>{prefix}</span>
  <input value={value} onChange={e => onChange(e.target.value)} spellCheck={false}
- style={{ flex: 1, padding: "4px 8px", fontSize: 12, fontFamily: mono ? "var(--font-mono)" : "inherit", background: !valid && value ? "rgba(243,139,168,0.08)" : "var(--bg-primary)", border: `1px solid ${!valid && value ? "var(--error-color)" : "var(--border-color)"}`, borderRadius: 4, color: "var(--text-primary)", outline: "none" }} />
+ style={{ flex: 1, padding: "4px 8px", fontSize: 12, fontFamily: mono ? "var(--font-mono)" : "inherit", background: !valid && value ? "color-mix(in srgb, var(--accent-rose) 8%, transparent)" : "var(--bg-primary)", border: `1px solid ${!valid && value ? "var(--error-color)" : "var(--border-color)"}`, borderRadius: 4, color: "var(--text-primary)", outline: "none" }} />
  </div>
  );
 }
@@ -208,14 +208,14 @@ export function NumberBasePanel() {
  <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
  <span style={{ fontSize: 13, fontWeight: 600 }}>Number Bases</span>
  {(["convert","bitwise","float32"] as SubTab[]).map(t => (
- <button key={t} onClick={() => setSubTab(t)} style={{ padding: "2px 10px", fontSize: 10, borderRadius: 10, background: subTab === t ? "rgba(99,102,241,0.2)" : "var(--bg-primary)", border: `1px solid ${subTab === t ? "var(--accent-color)" : "var(--border-color)"}`, color: subTab === t ? "var(--info-color)" : "var(--text-muted)", cursor: "pointer", fontWeight: subTab === t ? 700 : 400 }}>
+ <button key={t} onClick={() => setSubTab(t)} style={{ padding: "2px 10px", fontSize: 10, borderRadius: 10, background: subTab === t ? "color-mix(in srgb, var(--accent-blue) 20%, transparent)" : "var(--bg-primary)", border: `1px solid ${subTab === t ? "var(--accent-color)" : "var(--border-color)"}`, color: subTab === t ? "var(--info-color)" : "var(--text-muted)", cursor: "pointer", fontWeight: subTab === t ? 700 : 400 }}>
  {t === "convert" ? "Convert" : t === "bitwise" ? "Bitwise" : "Float32"}
  </button>
  ))}
  <div style={{ marginLeft: "auto", display: "flex", gap: 6, alignItems: "center" }}>
  {/* Bit width */}
  {BIT_WIDTHS.map(w => (
- <button key={w} onClick={() => setBits(w)} style={{ padding: "2px 8px", fontSize: 10, borderRadius: 4, background: bits === w ? "rgba(99,102,241,0.2)" : "var(--bg-primary)", border: `1px solid ${bits === w ? "var(--accent-color)" : "var(--border-color)"}`, color: bits === w ? "var(--info-color)" : "var(--text-muted)", cursor: "pointer" }}>{w}-bit</button>
+ <button key={w} onClick={() => setBits(w)} style={{ padding: "2px 8px", fontSize: 10, borderRadius: 4, background: bits === w ? "color-mix(in srgb, var(--accent-blue) 20%, transparent)" : "var(--bg-primary)", border: `1px solid ${bits === w ? "var(--accent-color)" : "var(--border-color)"}`, color: bits === w ? "var(--info-color)" : "var(--text-muted)", cursor: "pointer" }}>{w}-bit</button>
  ))}
  <label style={{ fontSize: 10, color: "var(--text-muted)", display: "flex", gap: 4, alignItems: "center", cursor: "pointer" }}>
  <input type="checkbox" checked={signed} onChange={e => setSigned(e.target.checked)} style={{ accentColor: "var(--accent-color)" }} />

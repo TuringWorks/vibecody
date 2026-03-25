@@ -147,7 +147,7 @@ const SessionBrowserPanel: React.FC = () => {
     <div
       style={{
         padding: 12,
-        fontFamily: "var(--font-family, sans-serif)",
+        fontFamily: "var(--font-family, system-ui, sans-serif)",
         fontSize: 13,
         height: "100%",
         overflowY: "auto",

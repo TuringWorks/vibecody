@@ -49,13 +49,13 @@ const ROLES = ["Expert", "Devil's Advocate", "Skeptic", "Creative", "Pragmatist"
 const PROVIDERS = ["claude", "openai", "gemini", "grok", "groq", "ollama"];
 
 const ROLE_COLORS: Record<string, string> = {
-  Expert: "#4a9eff",
+  Expert: "var(--accent-blue)",
   "Devil's Advocate": "#ff4a4a",
   Skeptic: "#ff9f43",
   Creative: "#b94aff",
   Pragmatist: "#4aff7f",
   Researcher: "#4adcff",
-  Custom: "#aaa",
+  Custom: "var(--text-secondary)",
 };
 
 const DEFAULT_PARTICIPANTS: Participant[] = [
@@ -67,23 +67,23 @@ const DEFAULT_PARTICIPANTS: Participant[] = [
 // ── Styles ───────────────────────────────────────────────────────────────────
 
 const S = {
-  container: { display: "flex", height: "100%", fontFamily: "var(--font-family, sans-serif)", color: "var(--text-primary, #e0e0e0)", background: "var(--bg-primary, #1e1e1e)" } as const,
-  sidebar: { width: 220, borderRight: "1px solid var(--border-color, #333)", padding: 12, overflowY: "auto", flexShrink: 0 } as const,
+  container: { display: "flex", height: "100%", fontFamily: "var(--font-family, system-ui, sans-serif)", color: "var(--text-primary)", background: "var(--bg-primary)" } as const,
+  sidebar: { width: 220, borderRight: "1px solid var(--border-color)", padding: 12, overflowY: "auto", flexShrink: 0 } as const,
   main: { flex: 1, padding: 20, overflowY: "auto" } as const,
-  btn: { padding: "8px 16px", border: "none", borderRadius: 6, cursor: "pointer", fontSize: 13, fontWeight: 600, background: "var(--accent, #4a9eff)", color: "#fff" } as const,
-  btnSecondary: { padding: "6px 12px", border: "1px solid var(--border-color, #444)", borderRadius: 6, cursor: "pointer", fontSize: 12, background: "transparent", color: "var(--text-primary, #ccc)" } as const,
-  input: { width: "100%", padding: "8px 10px", borderRadius: 6, border: "1px solid var(--border-color, #444)", background: "var(--bg-secondary, #2a2a2a)", color: "var(--text-primary, #e0e0e0)", fontSize: 13, boxSizing: "border-box" } as const,
-  textarea: { width: "100%", padding: "10px 12px", borderRadius: 6, border: "1px solid var(--border-color, #444)", background: "var(--bg-secondary, #2a2a2a)", color: "var(--text-primary, #e0e0e0)", fontSize: 13, resize: "vertical", minHeight: 80, boxSizing: "border-box", fontFamily: "inherit" } as const,
-  select: { padding: "6px 8px", borderRadius: 6, border: "1px solid var(--border-color, #444)", background: "var(--bg-secondary, #2a2a2a)", color: "var(--text-primary, #e0e0e0)", fontSize: 13 } as const,
-  card: { border: "1px solid var(--border-color, #333)", borderRadius: 8, padding: 14, marginBottom: 12, background: "var(--bg-secondary, #252525)" } as const,
+  btn: { padding: "8px 16px", border: "none", borderRadius: 6, cursor: "pointer", fontSize: 13, fontWeight: 600, background: "var(--accent-blue)", color: "#fff" } as const,
+  btnSecondary: { padding: "6px 12px", border: "1px solid var(--border-color)", borderRadius: 6, cursor: "pointer", fontSize: 12, background: "transparent", color: "var(--text-primary)" } as const,
+  input: { width: "100%", padding: "8px 10px", borderRadius: 6, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: 13, boxSizing: "border-box" } as const,
+  textarea: { width: "100%", padding: "10px 12px", borderRadius: 6, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: 13, resize: "vertical", minHeight: 80, boxSizing: "border-box", fontFamily: "inherit" } as const,
+  select: { padding: "6px 8px", borderRadius: 6, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: 13 } as const,
+  card: { border: "1px solid var(--border-color)", borderRadius: 8, padding: 14, marginBottom: 12, background: "var(--bg-secondary)" } as const,
   badge: (color: string) => ({ display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 11, fontWeight: 600, background: color + "22", color, marginRight: 6 }),
-  sidebarItem: (active: boolean) => ({ padding: "8px 10px", borderRadius: 6, cursor: "pointer", fontSize: 12, marginBottom: 4, background: active ? "var(--accent, #4a9eff)22" : "transparent", color: active ? "var(--accent, #4a9eff)" : "var(--text-secondary, #999)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } as const),
+  sidebarItem: (active: boolean) => ({ padding: "8px 10px", borderRadius: 6, cursor: "pointer", fontSize: 12, marginBottom: 4, background: active ? "var(--accent-blue)22" : "transparent", color: active ? "var(--accent-blue)" : "var(--text-secondary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } as const),
   h2: { fontSize: 16, fontWeight: 700, margin: "0 0 16px 0" } as const,
   h3: { fontSize: 14, fontWeight: 600, margin: "16px 0 8px 0" } as const,
-  label: { fontSize: 12, color: "var(--text-secondary, #999)", marginBottom: 4, display: "block" } as const,
+  label: { fontSize: 12, color: "var(--text-secondary)", marginBottom: 4, display: "block" } as const,
   grid: { display: "grid", gap: 12 } as const,
-  voteBtn: { padding: "2px 6px", border: "1px solid var(--border-color, #444)", borderRadius: 4, cursor: "pointer", fontSize: 12, background: "transparent", color: "var(--text-secondary, #999)", lineHeight: 1 } as const,
-  synthesisCard: { border: "2px solid var(--accent, #4a9eff)", borderRadius: 8, padding: 16, background: "var(--accent, #4a9eff)08", marginBottom: 16 } as const,
+  voteBtn: { padding: "2px 6px", border: "1px solid var(--border-color)", borderRadius: 4, cursor: "pointer", fontSize: 12, background: "transparent", color: "var(--text-secondary)", lineHeight: 1 } as const,
+  synthesisCard: { border: "2px solid var(--accent-blue)", borderRadius: 8, padding: 16, background: "var(--accent-blue)08", marginBottom: 16 } as const,
 };
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -243,7 +243,7 @@ export function CounselPanel() {
           </div>
         ))}
         {sessionList.length === 0 && (
-          <div style={{ fontSize: 11, color: "var(--text-secondary, #666)", padding: 8 }}>
+          <div style={{ fontSize: 11, color: "var(--text-secondary)", padding: 8 }}>
             No sessions yet
           </div>
         )}
@@ -288,7 +288,7 @@ export function CounselPanel() {
                 <select style={S.select} value={p.role} onChange={e => updateParticipant(i, "role", e.target.value)}>
                   {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
                 </select>
-                <span style={S.badge(ROLE_COLORS[p.role] || "#aaa")}>{p.role}</span>
+                <span style={S.badge(ROLE_COLORS[p.role] || "var(--text-secondary)")}>{p.role}</span>
                 <button style={S.voteBtn} onClick={() => removeParticipant(i)} title="Remove">x</button>
               </div>
             ))}
@@ -308,13 +308,13 @@ export function CounselPanel() {
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
               <h2 style={{ ...S.h2, margin: 0 }}>{activeSession.topic}</h2>
-              <span style={S.badge("#4a9eff")}>{activeSession.status}</span>
+              <span style={S.badge("var(--accent-blue)")}>{activeSession.status}</span>
             </div>
 
             {/* Participant badges */}
             <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
               {activeSession.participants.map((p, i) => (
-                <span key={i} style={S.badge(ROLE_COLORS[p.role] || "#aaa")}>
+                <span key={i} style={S.badge(ROLE_COLORS[p.role] || "var(--text-secondary)")}>
                   {p.provider}/{p.model} ({p.role})
                   {i === activeSession.moderator_index ? " [Mod]" : ""}
                 </span>
@@ -324,7 +324,7 @@ export function CounselPanel() {
             {/* Synthesis */}
             {activeSession.synthesis && (
               <div style={S.synthesisCard}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--accent, #4a9eff)", marginBottom: 8 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--accent-blue)", marginBottom: 8 }}>
                   Synthesis by {activeSession.participants[activeSession.moderator_index]?.provider}/
                   {activeSession.participants[activeSession.moderator_index]?.model}
                 </div>
@@ -341,7 +341,7 @@ export function CounselPanel() {
                 <div style={{ ...S.grid, gridTemplateColumns: `repeat(${Math.min(activeSession.participants.length, 3)}, 1fr)` }}>
                   {round.responses.map((resp, rsi) => {
                     const participant = activeSession.participants[resp.participant_index];
-                    const roleColor = ROLE_COLORS[participant?.role] || "#aaa";
+                    const roleColor = ROLE_COLORS[participant?.role] || "var(--text-secondary)";
                     return (
                       <div key={rsi} style={{ ...S.card, borderTop: `3px solid ${roleColor}` }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
@@ -349,7 +349,7 @@ export function CounselPanel() {
                             <span style={{ fontSize: 12, fontWeight: 600 }}>{participant?.provider}/{participant?.model}</span>
                             <span style={S.badge(roleColor)}>{participant?.role}</span>
                           </div>
-                          <span style={{ fontSize: 10, color: "var(--text-secondary, #888)" }}>{resp.duration_ms}ms</span>
+                          <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>{resp.duration_ms}ms</span>
                         </div>
                         <div style={{ fontSize: 13, lineHeight: 1.5, whiteSpace: "pre-wrap", maxHeight: 300, overflowY: "auto", marginBottom: 8 }}>
                           {resp.content}
@@ -359,7 +359,7 @@ export function CounselPanel() {
                           <span style={{ fontSize: 13, fontWeight: 600, minWidth: 20, textAlign: "center" }}>{resp.votes}</span>
                           <button style={S.voteBtn} onClick={() => vote(ri, resp.participant_index, -1)}>&#9660;</button>
                           {resp.tokens != null && (
-                            <span style={{ fontSize: 10, color: "var(--text-secondary, #888)", marginLeft: 8 }}>{resp.tokens} tok</span>
+                            <span style={{ fontSize: 10, color: "var(--text-secondary)", marginLeft: 8 }}>{resp.tokens} tok</span>
                           )}
                         </div>
                       </div>
@@ -367,8 +367,8 @@ export function CounselPanel() {
                   })}
                 </div>
                 {round.user_interjection && (
-                  <div style={{ ...S.card, borderLeft: "3px solid var(--accent, #4a9eff)", marginTop: 8 }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: "var(--accent, #4a9eff)", marginBottom: 4 }}>User Context</div>
+                  <div style={{ ...S.card, borderLeft: "3px solid var(--accent-blue)", marginTop: 8 }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: "var(--accent-blue)", marginBottom: 4 }}>User Context</div>
                     <div style={{ fontSize: 13 }}>{round.user_interjection}</div>
                   </div>
                 )}

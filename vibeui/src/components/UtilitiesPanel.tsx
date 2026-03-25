@@ -107,7 +107,7 @@ function JwtTool() {
  {expiry && (
  <div style={{
  padding: "5px 10px", borderRadius: 4, fontSize: 11, fontWeight: 600,
- background: isExpired ? "rgba(243,139,168,0.1)" : "rgba(166,227,161,0.1)",
+ background: isExpired ? "color-mix(in srgb, var(--accent-rose) 10%, transparent)" : "color-mix(in srgb, var(--accent-green) 10%, transparent)",
  color: isExpired ? "var(--error-color)" : "var(--success-color)",
  border: `1px solid ${isExpired ? "var(--error-color)" : "var(--success-color)"}`,
  }}>
@@ -514,7 +514,7 @@ export function UtilitiesPanel() {
  onClick={() => setActiveTool(id)}
  style={{
  padding: "10px 4px", fontSize: 10, fontWeight: 600,
- background: activeTool === id ? "rgba(99,102,241,0.15)" : "transparent",
+ background: activeTool === id ? "color-mix(in srgb, var(--accent-blue) 15%, transparent)" : "transparent",
  border: "none",
  borderLeft: activeTool === id ? "3px solid var(--accent-color)" : "3px solid transparent",
  color: activeTool === id ? "var(--accent-color)" : "var(--text-muted)",

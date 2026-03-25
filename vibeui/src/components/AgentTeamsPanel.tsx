@@ -71,7 +71,7 @@ const msgTypeColor: Record<string, string> = {
 const statusBadge: Record<string, { bg: string; color: string }> = {
   working: { bg: "rgba(137,180,250,0.15)", color: "var(--info-color)" },
   complete: { bg: "rgba(52,211,153,0.15)", color: "var(--success-color)" },
-  failed: { bg: "rgba(239,68,68,0.15)", color: "var(--error-color)" },
+  failed: { bg: "color-mix(in srgb, var(--accent-rose) 15%, transparent)", color: "var(--error-color)" },
 };
 
 const AgentTeamsPanel: React.FC = () => {
@@ -312,7 +312,7 @@ const AgentTeamsPanel: React.FC = () => {
                   return (
                     <div key={id} style={{
                       padding: "6px 10px", borderRadius: 6, minWidth: 120,
-                      background: isLead ? "rgba(99,102,241,0.1)" : "var(--bg-secondary)",
+                      background: isLead ? "color-mix(in srgb, var(--accent-blue) 10%, transparent)" : "var(--bg-secondary)",
                       border: `1px solid ${isLead ? "var(--accent-color)" : "var(--border-color)"}`,
                     }}>
                       <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 2 }}>

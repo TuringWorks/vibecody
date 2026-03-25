@@ -1471,7 +1471,7 @@ export function QuantumComputingPanel() {
         {gates.map((g, gi) => {
           const col = gi;
           const cx = 80 + col * COL_WIDTH;
-          const color = GATE_COLORS[g.type] || "#666";
+          const color = GATE_COLORS[g.type] || "var(--text-secondary)";
 
           // CNOT / CZ
           if ((g.type === "CNOT" || g.type === "CZ") && g.control !== undefined && g.target !== undefined) {

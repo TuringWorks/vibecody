@@ -59,7 +59,7 @@ const DashboardPanel: React.FC = () => {
       </div>
 
       {error && (
-        <div style={{ padding: 8, background: "rgba(244,67,54,0.1)", borderRadius: 4, marginBottom: 12, fontSize: 12, color: "var(--error-color)" }}>
+        <div style={{ padding: 8, background: "color-mix(in srgb, var(--accent-rose) 10%, transparent)", borderRadius: 4, marginBottom: 12, fontSize: 12, color: "var(--error-color)" }}>
           {error}
         </div>
       )}
@@ -132,7 +132,7 @@ const Badge: React.FC<{ label: string; value: string; ok: boolean }> = ({ label,
     padding: "3px 10px",
     borderRadius: 12,
     fontSize: 11,
-    background: ok ? "rgba(76,175,80,0.15)" : "rgba(244,67,54,0.15)",
+    background: ok ? "rgba(76,175,80,0.15)" : "color-mix(in srgb, var(--accent-rose) 15%, transparent)",
     color: ok ? "var(--success-color)" : "var(--error-color)",
   }}>
     {ok ? "\u2713" : "\u2717"} {label}: {value}

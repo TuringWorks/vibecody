@@ -200,15 +200,15 @@ export function AiMlWorkflowPanel() {
   };
 
   const difficultyColor = (d: string) => {
-    if (d === "beginner") return "var(--success-color, #4caf50)";
+    if (d === "beginner") return "var(--accent-green)";
     if (d === "intermediate") return "var(--warning-color, #ff9800)";
-    return "var(--error-color, #f44336)";
+    return "var(--accent-rose)";
   };
 
   const categoryColor = (c: string) => {
     if (c === "cloud") return "var(--accent-primary, #7c6aef)";
     if (c === "edge") return "var(--warning-color, #ff9800)";
-    if (c === "iot") return "var(--success-color, #4caf50)";
+    if (c === "iot") return "var(--accent-green)";
     return "var(--text-secondary)";
   };
 

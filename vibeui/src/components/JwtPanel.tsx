@@ -184,7 +184,7 @@ export function JwtPanel() {
  <span style={{ fontSize: 13, fontWeight: 600 }}>JWT Debugger</span>
  <div style={{ display: "flex", gap: 4, marginLeft: "auto" }}>
  {(["decode", "sign", "claims"] as Tab[]).map(t => (
- <button key={t} onClick={() => setTab(t)} style={{ padding: "2px 10px", fontSize: 10, borderRadius: 10, background: tab === t ? "rgba(99,102,241,0.2)" : "var(--bg-primary)", border: `1px solid ${tab === t ? "var(--accent-primary)" : "var(--border-color)"}`, color: tab === t ? "var(--text-info)" : "var(--text-muted)", cursor: "pointer", fontWeight: tab === t ? 700 : 400 }}>
+ <button key={t} onClick={() => setTab(t)} style={{ padding: "2px 10px", fontSize: 10, borderRadius: 10, background: tab === t ? "color-mix(in srgb, var(--accent-blue) 20%, transparent)" : "var(--bg-primary)", border: `1px solid ${tab === t ? "var(--accent-primary)" : "var(--border-color)"}`, color: tab === t ? "var(--text-info)" : "var(--text-muted)", cursor: "pointer", fontWeight: tab === t ? 700 : 400 }}>
  {t === "decode" ? "Decode" : t === "sign" ? "Sign" : "Claims Ref"}
  </button>
  ))}
@@ -207,7 +207,7 @@ export function JwtPanel() {
  </div>
  <textarea value={rawJwt} onChange={e => setRawJwt(e.target.value)} rows={4} spellCheck={false} placeholder="Paste JWT here…"
  style={{ width: "100%", resize: "vertical", padding: "8px 12px", fontSize: 11, fontFamily: "var(--font-mono)", lineHeight: 1.6, background: "var(--bg-primary)", color: decodeError ? "var(--text-danger)" : "var(--text-accent)", border: "none", outline: "none", boxSizing: "border-box" }} />
- {decodeError && <div style={{ padding: "4px 12px", fontSize: 11, color: "var(--text-danger)", background: "rgba(243,139,168,0.06)" }}>{decodeError}</div>}
+ {decodeError && <div style={{ padding: "4px 12px", fontSize: 11, color: "var(--text-danger)", background: "color-mix(in srgb, var(--accent-rose) 6%, transparent)" }}>{decodeError}</div>}
  </div>
 
  {/* Header */}
@@ -228,7 +228,7 @@ export function JwtPanel() {
  <span>PAYLOAD</span>
  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
  {expiry && expiry.status !== "none" && (
- <span style={{ fontSize: 9, padding: "1px 6px", borderRadius: 10, fontWeight: 700, background: expiry.status === "expired" ? "rgba(243,139,168,0.15)" : "rgba(166,227,161,0.15)", border: `1px solid ${expiry.status === "expired" ? "var(--text-danger)" : "var(--text-success)"}`, color: expiry.status === "expired" ? "var(--text-danger)" : "var(--text-success)" }}>
+ <span style={{ fontSize: 9, padding: "1px 6px", borderRadius: 10, fontWeight: 700, background: expiry.status === "expired" ? "color-mix(in srgb, var(--accent-rose) 15%, transparent)" : "color-mix(in srgb, var(--accent-green) 15%, transparent)", border: `1px solid ${expiry.status === "expired" ? "var(--text-danger)" : "var(--text-success)"}`, color: expiry.status === "expired" ? "var(--text-danger)" : "var(--text-success)" }}>
  {expiry.status === "expired" ? "✕ EXPIRED" : "✓ VALID"} · {expiry.remaining}
  </span>
  )}
@@ -283,11 +283,11 @@ export function JwtPanel() {
  <input type={showSecret ? "text" : "password"} value={secret} onChange={e => setSecret(e.target.value)}
  style={{ flex: 1, padding: "4px 8px", fontSize: 12, fontFamily: "var(--font-mono)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none" }} />
  <button onClick={() => setShowSecret(v => !v)} style={{ fontSize: 10, padding: "3px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-muted)", cursor: "pointer" }}>{showSecret ? "Hide" : "Show"}</button>
- <button onClick={handleSign} disabled={signing} style={{ padding: "4px 14px", fontSize: 11, fontWeight: 700, background: "rgba(99,102,241,0.2)", border: "1px solid var(--accent-primary)", borderRadius: 4, color: "var(--text-info)", cursor: "pointer" }}>
+ <button onClick={handleSign} disabled={signing} style={{ padding: "4px 14px", fontSize: 11, fontWeight: 700, background: "color-mix(in srgb, var(--accent-blue) 20%, transparent)", border: "1px solid var(--accent-primary)", borderRadius: 4, color: "var(--text-info)", cursor: "pointer" }}>
  {signing ? "Signing…" : "Sign"}
  </button>
  </div>
- {signError && <div style={{ padding: "6px 12px", fontSize: 11, color: "var(--text-danger)", background: "rgba(243,139,168,0.06)", borderBottom: "1px solid var(--border-color)" }}>{signError}</div>}
+ {signError && <div style={{ padding: "6px 12px", fontSize: 11, color: "var(--text-danger)", background: "color-mix(in srgb, var(--accent-rose) 6%, transparent)", borderBottom: "1px solid var(--border-color)" }}>{signError}</div>}
  {/* Generated JWT */}
  {generated && (
  <div>
@@ -324,7 +324,7 @@ export function JwtPanel() {
  </thead>
  <tbody>
  {Object.entries(KNOWN_CLAIMS).map(([k, v], i) => (
- <tr key={k} style={{ background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.02)", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+ <tr key={k} style={{ background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.02)", borderBottom: "1px solid var(--border-subtle)" }}>
  <td style={{ padding: "6px 10px", fontFamily: "var(--font-mono)", color: "var(--text-info)", fontWeight: 700, whiteSpace: "nowrap" }}>{k}</td>
  <td style={{ padding: "6px 10px", color: "var(--text-primary)" }}>{v}</td>
  </tr>

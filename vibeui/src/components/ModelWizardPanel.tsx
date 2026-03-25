@@ -347,7 +347,7 @@ export function ModelWizardPanel() {
         {STEPS.map(s => (
           <button key={s.id} onClick={() => goTo(s.id)} style={{
             padding: "4px 10px", borderRadius: 12, border: "none", fontSize: 11, cursor: "pointer",
-            background: step === s.id ? "var(--accent-primary, #7c6aef)" : s.id < step ? "var(--success-color, #4caf50)" : "var(--bg-tertiary)",
+            background: step === s.id ? "var(--accent-primary, #7c6aef)" : s.id < step ? "var(--accent-green)" : "var(--bg-tertiary)",
             color: step === s.id || s.id < step ? "#fff" : "var(--text-secondary)",
             fontWeight: step === s.id ? 600 : 400, whiteSpace: "nowrap" as const,
           }}>
@@ -683,7 +683,7 @@ export function ModelWizardPanel() {
         {step < 7 ? (
           <button style={btnPrimary} onClick={next}>Next</button>
         ) : (
-          <button style={{ ...btnPrimary, background: "var(--success-color, #4caf50)" }} onClick={() => copyScript(generateFullScript())}>
+          <button style={{ ...btnPrimary, background: "var(--accent-green)" }} onClick={() => copyScript(generateFullScript())}>
             {copied ? "Copied!" : "Copy Script"}
           </button>
         )}

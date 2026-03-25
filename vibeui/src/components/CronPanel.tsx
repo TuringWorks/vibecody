@@ -7,7 +7,7 @@
  * Pure TypeScript — no Tauri commands needed.
  */
 import { useState, useMemo } from "react";
-// lucide-react icons removed — using emoji labels
+import { Copy, Check, CheckCircle, AlertCircle } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -206,7 +206,7 @@ export function CronPanel() {
  style={{
  display: "block", width: "100%", textAlign: "left",
  padding: "7px 10px", cursor: "pointer",
- background: expr === p.expr ? "var(--accent-bg, rgba(99,102,241,0.15))" : "transparent",
+ background: expr === p.expr ? "var(--accent-bg, color-mix(in srgb, var(--accent-blue) 15%, transparent))" : "transparent",
  border: "none", borderBottom: "1px solid var(--border-color)",
  color: "var(--text-primary)",
  }}
@@ -235,13 +235,13 @@ export function CronPanel() {
  borderRadius: 6, color: error ? "var(--text-danger)" : "var(--text-info)", outline: "none",
  }}
  />
- <button onClick={copy} style={{ padding: "8px 14px", fontSize: 11, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 6, color: "var(--text-muted)", cursor: "pointer" }}>
- {copied ? "✓" : ""}
+ <button onClick={copy} style={{ padding: "8px 14px", fontSize: 11, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 6, color: "var(--text-muted)", cursor: "pointer", display: "inline-flex", alignItems: "center" }}>
+ {copied ? <Check size={14} strokeWidth={1.5} /> : <Copy size={14} strokeWidth={1.5} />}
  </button>
  </div>
  {error
- ? <div style={{ fontSize: 11, color: "var(--text-danger)", marginTop: 5 }}> {error}</div>
- : <div style={{ fontSize: 11, color: "var(--text-success)", marginTop: 5 }}>✓ {desc}</div>
+ ? <div style={{ fontSize: 11, color: "var(--text-danger)", marginTop: 5, display: "flex", alignItems: "center", gap: 4 }}><AlertCircle size={14} strokeWidth={1.5} /> {error}</div>
+ : <div style={{ fontSize: 11, color: "var(--text-success)", marginTop: 5, display: "flex", alignItems: "center", gap: 4 }}><CheckCircle size={14} strokeWidth={1.5} /> {desc}</div>
  }
  </div>
 
@@ -272,7 +272,7 @@ export function CronPanel() {
  <button
  key={chip}
  onClick={() => setPart(i, chip)}
- style={{ padding: "1px 5px", fontSize: 9, borderRadius: 4, background: parts[i] === chip ? "rgba(99,102,241,0.25)" : "var(--bg-primary)", border: `1px solid ${parts[i] === chip ? "var(--accent-primary)" : "var(--border-color)"}`, color: parts[i] === chip ? "var(--text-info)" : "var(--text-muted)", cursor: "pointer" }}
+ style={{ padding: "1px 5px", fontSize: 9, borderRadius: 4, background: parts[i] === chip ? "color-mix(in srgb, var(--accent-blue) 25%, transparent)" : "var(--bg-primary)", border: `1px solid ${parts[i] === chip ? "var(--accent-primary)" : "var(--border-color)"}`, color: parts[i] === chip ? "var(--text-info)" : "var(--text-muted)", cursor: "pointer" }}
  >
  {chip}
  </button>
@@ -281,7 +281,7 @@ export function CronPanel() {
  <button
  key={name}
  onClick={() => setPart(i, String(f.min + ni))}
- style={{ padding: "1px 5px", fontSize: 9, borderRadius: 4, background: parts[i] === String(f.min + ni) ? "rgba(99,102,241,0.25)" : "var(--bg-primary)", border: `1px solid ${parts[i] === String(f.min + ni) ? "var(--accent-primary)" : "var(--border-color)"}`, color: parts[i] === String(f.min + ni) ? "var(--text-info)" : "var(--text-muted)", cursor: "pointer" }}
+ style={{ padding: "1px 5px", fontSize: 9, borderRadius: 4, background: parts[i] === String(f.min + ni) ? "color-mix(in srgb, var(--accent-blue) 25%, transparent)" : "var(--bg-primary)", border: `1px solid ${parts[i] === String(f.min + ni) ? "var(--accent-primary)" : "var(--border-color)"}`, color: parts[i] === String(f.min + ni) ? "var(--text-info)" : "var(--text-muted)", cursor: "pointer" }}
  >
  {name}
  </button>
@@ -317,7 +317,7 @@ export function CronPanel() {
  <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 8 }}>Next {runs.length} Scheduled Runs</div>
  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
  {runs.map((d, i) => (
- <div key={i} style={{ display: "flex", gap: 12, padding: "5px 10px", background: i === 0 ? "rgba(99,102,241,0.1)" : "var(--bg-secondary)", borderRadius: 4, border: `1px solid ${i === 0 ? "var(--accent-primary)" : "var(--border-color)"}`, fontSize: 12, fontFamily: "var(--font-mono)" }}>
+ <div key={i} style={{ display: "flex", gap: 12, padding: "5px 10px", background: i === 0 ? "color-mix(in srgb, var(--accent-blue) 10%, transparent)" : "var(--bg-secondary)", borderRadius: 4, border: `1px solid ${i === 0 ? "var(--accent-primary)" : "var(--border-color)"}`, fontSize: 12, fontFamily: "var(--font-mono)" }}>
  <span style={{ color: "var(--text-muted)", minWidth: 20 }}>#{i + 1}</span>
  <span style={{ color: i === 0 ? "var(--text-info)" : "var(--text-primary)", fontWeight: i === 0 ? 600 : 400 }}>
  {d.toLocaleString([], { weekday: "short", year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}

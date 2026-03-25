@@ -215,7 +215,7 @@ export function VisualTestPanel() {
           style={{
             padding: 8,
             borderRadius: 4,
-            background: "rgba(244,67,54,0.15)",
+            background: "color-mix(in srgb, var(--accent-rose) 15%, transparent)",
             color: "var(--error-color)",
             fontSize: 12,
           }}

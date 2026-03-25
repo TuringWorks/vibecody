@@ -237,7 +237,7 @@ export function DesignCanvasPanel() {
     borderBottom: tab === t ? "2px solid var(--accent-color, #007acc)" : "2px solid transparent",
     background: "none",
     border: "none",
-    color: tab === t ? "var(--text-primary, #fff)" : "var(--text-secondary, #888)",
+    color: tab === t ? "var(--text-primary)" : "var(--text-secondary)",
     fontWeight: tab === t ? 600 : 400,
     fontSize: "13px",
   });
@@ -246,7 +246,7 @@ export function DesignCanvasPanel() {
     padding: "6px 10px",
     cursor: "grab",
     borderRadius: "4px",
-    border: "1px solid var(--border-color, #444)",
+    border: "1px solid var(--border-color)",
     fontSize: "12px",
     textAlign: "center" as const,
     userSelect: "none" as const,
@@ -255,12 +255,12 @@ export function DesignCanvasPanel() {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       {/* Tab bar */}
-      <div style={{ display: "flex", borderBottom: "1px solid var(--border-color, #333)", flexShrink: 0 }}>
+      <div style={{ display: "flex", borderBottom: "1px solid var(--border-color)", flexShrink: 0 }}>
         <button style={tabStyle("canvas")} onClick={() => setTab("canvas")}>Canvas</button>
         <button style={tabStyle("code")} onClick={() => setTab("code")}>Code</button>
         <button style={tabStyle("ai")} onClick={() => setTab("ai")}>AI Generate</button>
         <button style={tabStyle("export")} onClick={() => setTab("export")}>Export</button>
-        <span style={{ marginLeft: "auto", padding: "6px 12px", fontSize: "11px", color: "var(--text-secondary, #666)" }}>
+        <span style={{ marginLeft: "auto", padding: "6px 12px", fontSize: "11px", color: "var(--text-secondary)" }}>
           {components.length} components
         </span>
       </div>
@@ -272,14 +272,14 @@ export function DesignCanvasPanel() {
             {/* Palette sidebar */}
             <div style={{
               width: "140px",
-              borderRight: "1px solid var(--border-color, #333)",
+              borderRight: "1px solid var(--border-color)",
               padding: "8px",
               overflowY: "auto",
               display: "flex",
               flexDirection: "column",
               gap: "4px",
             }}>
-              <div style={{ fontSize: "11px", fontWeight: 600, marginBottom: "4px", color: "var(--text-secondary, #888)" }}>
+              <div style={{ fontSize: "11px", fontWeight: 600, marginBottom: "4px", color: "var(--text-secondary)" }}>
                 COMPONENTS
               </div>
               {PALETTE.map((item) => (
@@ -303,7 +303,7 @@ export function DesignCanvasPanel() {
                 flex: 1,
                 position: "relative",
                 background: "var(--editor-bg, #1e1e1e)",
-                backgroundImage: "radial-gradient(circle, var(--border-color, #333) 1px, transparent 1px)",
+                backgroundImage: "radial-gradient(circle, var(--border-color) 1px, transparent 1px)",
                 backgroundSize: "20px 20px",
                 overflow: "auto",
               }}
@@ -328,7 +328,7 @@ export function DesignCanvasPanel() {
                     height: comp.height,
                     border: selectedId === comp.id
                       ? "2px solid var(--accent-color, #007acc)"
-                      : "1px solid var(--border-color, #555)",
+                      : "1px solid var(--border-color)",
                     borderRadius: "4px",
                     background: "var(--panel-bg, #252526)",
                     display: "flex",
@@ -336,7 +336,7 @@ export function DesignCanvasPanel() {
                     justifyContent: "center",
                     cursor: "pointer",
                     fontSize: "12px",
-                    color: "var(--text-secondary, #aaa)",
+                    color: "var(--text-secondary)",
                   }}
                   onClick={(e) => { e.stopPropagation(); setSelectedId(comp.id); }}
                 >
@@ -352,7 +352,7 @@ export function DesignCanvasPanel() {
                   left: "50%",
                   transform: "translate(-50%, -50%)",
                   textAlign: "center",
-                  color: "var(--text-secondary, #666)",
+                  color: "var(--text-secondary)",
                 }}>
                   <div style={{ fontSize: "16px", marginBottom: "8px" }}>Drag components here</div>
                   <div style={{ fontSize: "12px" }}>Or use AI Generate tab to describe your UI</div>
@@ -364,14 +364,14 @@ export function DesignCanvasPanel() {
             {selected && (
               <div style={{
                 width: "200px",
-                borderLeft: "1px solid var(--border-color, #333)",
+                borderLeft: "1px solid var(--border-color)",
                 padding: "12px",
                 overflowY: "auto",
               }}>
                 <div style={{ fontSize: "13px", fontWeight: 600, marginBottom: "8px" }}>
                   {selected.type}
                 </div>
-                <div style={{ fontSize: "11px", color: "var(--text-secondary, #888)", marginBottom: "12px" }}>
+                <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginBottom: "12px" }}>
                   {selected.id}
                 </div>
 
@@ -384,9 +384,9 @@ export function DesignCanvasPanel() {
                     width: "100%",
                     padding: "4px 8px",
                     fontSize: "12px",
-                    background: "var(--input-bg, #3c3c3c)",
-                    color: "var(--text-primary, #fff)",
-                    border: "1px solid var(--border-color, #555)",
+                    background: "var(--bg-secondary)",
+                    color: "var(--text-primary)",
+                    border: "1px solid var(--border-color)",
                     borderRadius: "3px",
                     marginBottom: "8px",
                   }}
@@ -402,9 +402,9 @@ export function DesignCanvasPanel() {
                         width: "100%",
                         padding: "4px",
                         fontSize: "12px",
-                        background: "var(--input-bg, #3c3c3c)",
-                        color: "var(--text-primary, #fff)",
-                        border: "1px solid var(--border-color, #555)",
+                        background: "var(--bg-secondary)",
+                        color: "var(--text-primary)",
+                        border: "1px solid var(--border-color)",
                         borderRadius: "3px",
                         marginBottom: "8px",
                       }}
@@ -446,7 +446,7 @@ export function DesignCanvasPanel() {
                 onClick={() => navigator.clipboard.writeText(generatedCode)}
                 style={{
                   padding: "2px 10px",
-                  background: "var(--button-bg, #0e639c)",
+                  background: "var(--accent-blue)",
                   color: "var(--btn-primary-fg)",
                   border: "none",
                   borderRadius: "3px",
@@ -477,7 +477,7 @@ export function DesignCanvasPanel() {
             <div style={{ fontSize: "13px", fontWeight: 600, marginBottom: "8px" }}>
               Describe Your UI
             </div>
-            <p style={{ fontSize: "12px", color: "var(--text-secondary, #888)", marginBottom: "12px" }}>
+            <p style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "12px" }}>
               Describe the page or component you want to build. The AI will generate
               the component layout for you.
             </p>
@@ -490,9 +490,9 @@ export function DesignCanvasPanel() {
                 maxHeight: "200px",
                 padding: "10px",
                 fontSize: "13px",
-                background: "var(--input-bg, #3c3c3c)",
-                color: "var(--text-primary, #fff)",
-                border: "1px solid var(--border-color, #555)",
+                background: "var(--bg-secondary)",
+                color: "var(--text-primary)",
+                border: "1px solid var(--border-color)",
                 borderRadius: "4px",
                 resize: "vertical",
                 fontFamily: "inherit",
@@ -557,7 +557,7 @@ export function DesignCanvasPanel() {
               style={{
                 marginTop: "12px",
                 padding: "8px 16px",
-                background: aiPrompt.trim() ? "var(--button-bg, #0e639c)" : "var(--disabled-bg, #555)",
+                background: aiPrompt.trim() ? "var(--accent-blue)" : "var(--disabled-bg, #555)",
                 color: "var(--btn-primary-fg)",
                 border: "none",
                 borderRadius: "4px",
@@ -581,7 +581,7 @@ export function DesignCanvasPanel() {
                 onClick={() => navigator.clipboard.writeText(generatedCode)}
                 style={{
                   padding: "8px 16px",
-                  background: "var(--button-bg, #0e639c)",
+                  background: "var(--accent-blue)",
                   color: "var(--btn-primary-fg)",
                   border: "none",
                   borderRadius: "4px",
@@ -596,8 +596,8 @@ export function DesignCanvasPanel() {
                 style={{
                   padding: "8px 16px",
                   background: "var(--button-secondary-bg, #3c3c3c)",
-                  color: "var(--text-primary, #fff)",
-                  border: "1px solid var(--border-color, #555)",
+                  color: "var(--text-primary)",
+                  border: "1px solid var(--border-color)",
                   borderRadius: "4px",
                   cursor: "pointer",
                   fontSize: "13px",
@@ -614,8 +614,8 @@ export function DesignCanvasPanel() {
                 style={{
                   padding: "8px 16px",
                   background: "transparent",
-                  color: "var(--text-secondary, #888)",
-                  border: "1px solid var(--border-color, #444)",
+                  color: "var(--text-secondary)",
+                  border: "1px solid var(--border-color)",
                   borderRadius: "4px",
                   cursor: "pointer",
                   fontSize: "13px",
@@ -625,7 +625,7 @@ export function DesignCanvasPanel() {
                 Clear Canvas
               </button>
             </div>
-            <div style={{ marginTop: "20px", fontSize: "12px", color: "var(--text-secondary, #888)" }}>
+            <div style={{ marginTop: "20px", fontSize: "12px", color: "var(--text-secondary)" }}>
               <p>Components: {components.length}</p>
               <p>Code lines: {generatedCode.split("\n").length}</p>
               <p>Framework: React + Tailwind CSS</p>

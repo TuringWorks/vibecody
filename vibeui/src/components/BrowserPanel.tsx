@@ -231,7 +231,7 @@ export function BrowserPanel() {
  title={inspectMode ? "Disable Inspect" : "Enable Inspect"}
  style={{
  ...navBtnStyle,
- background: inspectMode ? 'rgba(99,102,241,0.2)' : 'none',
+ background: inspectMode ? 'color-mix(in srgb, var(--accent-blue) 20%, transparent)' : 'none',
  borderColor: inspectMode ? 'var(--accent-color)' : 'var(--border-color)',
  color: inspectMode ? 'var(--accent-color)' : 'var(--text-primary)',
  }}

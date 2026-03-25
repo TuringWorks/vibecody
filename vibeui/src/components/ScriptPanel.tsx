@@ -48,7 +48,7 @@ const CATEGORY_COLORS: Record<string, string> = {
  make: "#6cb6ff",
  python: "#4584b6",
  go: "#00add8",
- just: "#a6e3a1",
+ just: "var(--accent-green)",
 };
 
 export function ScriptPanel({ workspacePath }: ScriptPanelProps) {
@@ -230,7 +230,7 @@ export function ScriptPanel({ workspacePath }: ScriptPanelProps) {
  style={{
  display: "flex", alignItems: "center", gap: 10,
  padding: "8px 10px", borderRadius: 6,
- background: isRunning ? "rgba(99,102,241,0.12)" : "var(--bg-secondary)",
+ background: isRunning ? "color-mix(in srgb, var(--accent-blue) 12%, transparent)" : "var(--bg-secondary)",
  border: `1px solid ${isRunning ? "var(--accent-color)" : "var(--border-color)"}`,
  transition: "border-color 0.15s",
  }}
@@ -327,7 +327,7 @@ export function ScriptPanel({ workspacePath }: ScriptPanelProps) {
  {result && (
  <div style={{
  padding: "6px 12px", fontSize: 11, fontWeight: 600,
- background: result.success ? "rgba(166,227,161,0.1)" : "rgba(243,139,168,0.1)",
+ background: result.success ? "color-mix(in srgb, var(--accent-green) 10%, transparent)" : "color-mix(in srgb, var(--accent-rose) 10%, transparent)",
  color: result.success ? "var(--success-color)" : "var(--error-color)",
  borderBottom: "1px solid var(--border-color)",
  display: "flex", justifyContent: "space-between",

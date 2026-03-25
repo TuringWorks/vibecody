@@ -4,7 +4,7 @@ type SubTab = "browse" | "sessions" | "config";
 
 const card: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, border: "1px solid var(--border-color)" };
 const label: React.CSSProperties = { fontSize: 12, color: "var(--text-secondary)", marginBottom: 4, display: "block" };
-const input: React.CSSProperties = { width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary, #222)", color: "var(--text-primary)", fontSize: 12, fontFamily: "var(--font-mono)", boxSizing: "border-box" as const };
+const input: React.CSSProperties = { width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-tertiary)", color: "var(--text-primary)", fontSize: 12, fontFamily: "var(--font-mono)", boxSizing: "border-box" as const };
 const btn: React.CSSProperties = { padding: "6px 14px", borderRadius: 4, border: "none", background: "var(--accent-color)", color: "#fff", cursor: "pointer", fontSize: 12, fontWeight: 600 };
 
 interface BrowseSession {
@@ -79,7 +79,7 @@ export function BrowserAgentPanel() {
                   <div style={{ fontWeight: 600, fontSize: 13 }}>{s.task}</div>
                   <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>{s.url}</div>
                 </div>
-                <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 4, background: s.status === "completed" ? "#4caf5022" : "#ff980022", color: s.status === "completed" ? "#4caf50" : "#ff9800" }}>{s.status}</span>
+                <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 4, background: s.status === "completed" ? "#4caf5022" : "#ff980022", color: s.status === "completed" ? "var(--accent-green)" : "var(--accent-gold)" }}>{s.status}</span>
               </div>
               <div style={{ marginTop: 6, fontSize: 11, color: "var(--text-secondary)" }}>
                 {s.actions} actions | {s.screenshots} screenshots

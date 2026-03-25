@@ -272,7 +272,7 @@ export function CsvPanel() {
  )}
  <tbody>
  {sortedRows.map((row, ri) => (
- <tr key={ri} style={{ background: ri % 2 === 0 ? "transparent" : "rgba(255,255,255,0.03)" }}>
+ <tr key={ri} style={{ background: ri % 2 === 0 ? "transparent" : "var(--border-subtle)" }}>
  <td style={{ padding: "3px 6px", color: "var(--text-secondary)", fontSize: 10 }}>{ri + 1}</td>
  {row.map((cell, ci) => (
  <td key={ci} onDoubleClick={() => { setEditCell({ r: ri, c: ci }); setEditVal(cell); }}
@@ -324,7 +324,7 @@ export function CsvPanel() {
  )}
  <tbody>
  {filteredRows.slice(0, 200).map((row, ri) => (
- <tr key={ri} style={{ background: ri % 2 === 0 ? "transparent" : "rgba(255,255,255,0.03)" }}>
+ <tr key={ri} style={{ background: ri % 2 === 0 ? "transparent" : "var(--border-subtle)" }}>
  {row.map((cell, ci) => {
  const highlighted = filterText && (filterCol === "all" || filterCol === ci) && cell.toLowerCase().includes(filterText.toLowerCase());
  return (
@@ -367,7 +367,7 @@ export function CsvPanel() {
  </thead>
  <tbody>
  {stats.map((s, i) => (
- <tr key={i} style={{ background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.03)" }}>
+ <tr key={i} style={{ background: i % 2 === 0 ? "transparent" : "var(--border-subtle)" }}>
  <td style={{ padding: "4px 8px", fontWeight: 600 }}>{s.header}</td>
  <td style={{ padding: "4px 8px" }}>{s.nonEmpty}</td>
  <td style={{ padding: "4px 8px" }}>{s.unique}</td>

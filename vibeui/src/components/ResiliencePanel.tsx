@@ -98,10 +98,10 @@ function badge(color: string): React.CSSProperties {
 }
 
 function HealthBar({ score }: { score: number }) {
-  const color = score > 0.8 ? "#4caf50" : score > 0.5 ? "#ff9800" : "#f44336";
+  const color = score > 0.8 ? "var(--accent-green)" : score > 0.5 ? "var(--accent-gold)" : "var(--accent-rose)";
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-      <div style={{ height: 6, borderRadius: 3, background: "var(--bg-tertiary, #333)", width: 80, overflow: "hidden" }}>
+      <div style={{ height: 6, borderRadius: 3, background: "var(--bg-tertiary)", width: 80, overflow: "hidden" }}>
         <div style={{ height: "100%", width: `${Math.round(score * 100)}%`, background: color, borderRadius: 3 }} />
       </div>
       <span style={{ fontSize: 12, fontWeight: 600, color }}>{(score * 100).toFixed(0)}%</span>
@@ -111,27 +111,27 @@ function HealthBar({ score }: { score: number }) {
 
 function StateBadge({ state }: { state: string }) {
   const colors: Record<string, string> = {
-    PROGRESS: "#4caf50",
-    STALLED: "#ff9800",
-    SPINNING: "#ff9800",
-    DEGRADED: "#f44336",
-    BLOCKED: "#f44336",
+    PROGRESS: "var(--accent-green)",
+    STALLED: "var(--accent-gold)",
+    SPINNING: "var(--accent-gold)",
+    DEGRADED: "var(--accent-rose)",
+    BLOCKED: "var(--accent-rose)",
   };
-  return <span style={badge(colors[state] || "#888")}>{state}</span>;
+  return <span style={badge(colors[state] || "var(--text-secondary)")}>{state}</span>;
 }
 
 function CategoryBadge({ category }: { category: string }) {
   const colors: Record<string, string> = {
-    RateLimit: "#ff9800",
-    Timeout: "#9c27b0",
-    ServerError: "#f44336",
+    RateLimit: "var(--accent-gold)",
+    Timeout: "var(--accent-purple)",
+    ServerError: "var(--accent-rose)",
     AuthError: "#e91e63",
     NetworkError: "#2196f3",
     InvalidResponse: "#795548",
     StreamInterrupted: "#607d8b",
-    Unknown: "#888",
+    Unknown: "var(--text-secondary)",
   };
-  return <span style={badge(colors[category] || "#888")}>{category}</span>;
+  return <span style={badge(colors[category] || "var(--text-secondary)")}>{category}</span>;
 }
 
 function timeAgo(ms: number): string {
@@ -230,7 +230,7 @@ export function ResiliencePanel() {
             <div style={{ display: "flex", gap: 24 }}>
               <div>
                 <span style={label}>Probing: </span>
-                <span style={badge(cb.recoveryProbing ? "#4caf50" : "#888")}>{cb.recoveryProbing ? "Active" : "Idle"}</span>
+                <span style={badge(cb.recoveryProbing ? "var(--accent-green)" : "var(--text-secondary)")}>{cb.recoveryProbing ? "Active" : "Idle"}</span>
               </div>
               <div>
                 <span style={label}>Cooldown: </span>{config.cbRecoveryCooldownSecs}s
@@ -256,7 +256,7 @@ export function ResiliencePanel() {
                   <CategoryBadge category={p.category} />
                   <span>{p.provider || "all"}</span>
                   <span style={{ fontWeight: 600 }}>×{p.count}</span>
-                  {p.isRecurring && <span style={badge("#f44336")}>recurring</span>}
+                  {p.isRecurring && <span style={badge("var(--accent-rose)")}>recurring</span>}
                 </div>
               ))}
             </div>

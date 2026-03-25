@@ -399,7 +399,7 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  </div>
 
  {!provider && (
- <div style={{ fontSize: "12px", color: "var(--warning-color)", padding: "6px", background: "rgba(255,68,170,0.1)", borderRadius: "4px" }}>
+ <div style={{ fontSize: "12px", color: "var(--warning-color)", padding: "6px", background: "color-mix(in srgb, var(--accent-rose) 10%, transparent)", borderRadius: "4px" }}>
  Select an AI provider in the header first.
  </div>
  )}

@@ -51,11 +51,11 @@ export function DesktopAgentPanel() {
               <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
                 <div>
                   <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>X</span>
-                  <input type="number" value={mouseX} onChange={e => setMouseX(+e.target.value)} style={{ ...mono, width: 60, padding: "3px 6px", border: "1px solid var(--border-color)", borderRadius: 3, background: "var(--bg-tertiary, #222)", color: "var(--text-primary)", marginLeft: 4 }} />
+                  <input type="number" value={mouseX} onChange={e => setMouseX(+e.target.value)} style={{ ...mono, width: 60, padding: "3px 6px", border: "1px solid var(--border-color)", borderRadius: 3, background: "var(--bg-tertiary)", color: "var(--text-primary)", marginLeft: 4 }} />
                 </div>
                 <div>
                   <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>Y</span>
-                  <input type="number" value={mouseY} onChange={e => setMouseY(+e.target.value)} style={{ ...mono, width: 60, padding: "3px 6px", border: "1px solid var(--border-color)", borderRadius: 3, background: "var(--bg-tertiary, #222)", color: "var(--text-primary)", marginLeft: 4 }} />
+                  <input type="number" value={mouseY} onChange={e => setMouseY(+e.target.value)} style={{ ...mono, width: 60, padding: "3px 6px", border: "1px solid var(--border-color)", borderRadius: 3, background: "var(--bg-tertiary)", color: "var(--text-primary)", marginLeft: 4 }} />
                 </div>
               </div>
               <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
@@ -69,13 +69,13 @@ export function DesktopAgentPanel() {
             <div style={card}>
               <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Keyboard</div>
               <div style={{ marginBottom: 8 }}>
-                <input style={{ ...mono, width: "100%", padding: "4px 8px", border: "1px solid var(--border-color)", borderRadius: 3, background: "var(--bg-tertiary, #222)", color: "var(--text-primary)" }} value={typeText} onChange={e => setTypeText(e.target.value)} placeholder="Text to type..." />
+                <input style={{ ...mono, width: "100%", padding: "4px 8px", border: "1px solid var(--border-color)", borderRadius: 3, background: "var(--bg-tertiary)", color: "var(--text-primary)" }} value={typeText} onChange={e => setTypeText(e.target.value)} placeholder="Text to type..." />
               </div>
               <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
                 <button style={{ ...btn, fontSize: 11, padding: "4px 10px" }}>Type Text</button>
               </div>
               <div style={{ marginBottom: 4 }}>
-                <input style={{ ...mono, width: "100%", padding: "4px 8px", border: "1px solid var(--border-color)", borderRadius: 3, background: "var(--bg-tertiary, #222)", color: "var(--text-primary)" }} value={keyCombo} onChange={e => setKeyCombo(e.target.value)} placeholder="e.g., ctrl+shift+p" />
+                <input style={{ ...mono, width: "100%", padding: "4px 8px", border: "1px solid var(--border-color)", borderRadius: 3, background: "var(--bg-tertiary)", color: "var(--text-primary)" }} value={keyCombo} onChange={e => setKeyCombo(e.target.value)} placeholder="e.g., ctrl+shift+p" />
               </div>
               <button style={{ ...btn, fontSize: 11, padding: "4px 10px" }}>Press Key Combo</button>
             </div>
@@ -85,7 +85,7 @@ export function DesktopAgentPanel() {
             <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Quick Actions</div>
             <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
               {["Screenshot", "Get Mouse Position", "Get Screen Size", "Get Active Window"].map(a => (
-                <button key={a} style={{ ...btn, fontSize: 11, padding: "4px 10px", background: "var(--bg-tertiary, #333)", color: "var(--text-primary)", border: "1px solid var(--border-color)" }}>{a}</button>
+                <button key={a} style={{ ...btn, fontSize: 11, padding: "4px 10px", background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-color)" }}>{a}</button>
               ))}
             </div>
           </div>
@@ -103,7 +103,7 @@ export function DesktopAgentPanel() {
                 <div style={{ fontSize: 10, color: "var(--text-secondary)" }}>{w.app}</div>
               </div>
               <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-                {w.focused && <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 3, background: "#4caf5022", color: "#4caf50" }}>Focused</span>}
+                {w.focused && <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 3, background: "#4caf5022", color: "var(--accent-green)" }}>Focused</span>}
                 <button style={{ ...btn, fontSize: 10, padding: "3px 8px" }}>Focus</button>
               </div>
             </div>
@@ -118,7 +118,7 @@ export function DesktopAgentPanel() {
           <div style={card}>
             <div style={{ display: "flex", gap: 8 }}>
               <button style={btn}>Record Macro</button>
-              <button style={{ ...btn, background: "var(--bg-tertiary, #333)", color: "var(--text-primary)", border: "1px solid var(--border-color)" }}>Import JSON</button>
+              <button style={{ ...btn, background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-color)" }}>Import JSON</button>
             </div>
           </div>
           <div style={{ ...card, marginTop: 8, color: "var(--text-secondary)", fontSize: 12, fontStyle: "italic" }}>No saved macros yet.</div>

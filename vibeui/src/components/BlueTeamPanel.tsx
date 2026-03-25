@@ -80,23 +80,23 @@ interface ThreatHunt {
 const TABS: BlueTeamTab[] = ["Incidents", "IOCs", "Detection Rules", "Forensics", "SIEM", "Playbooks", "Threat Hunt"];
 
 const SEVERITY_COLORS: Record<string, string> = {
-  P1: "#f38ba8",
-  P2: "#fab387",
-  P3: "#f9e2af",
-  P4: "#89b4fa",
+  P1: "var(--accent-rose)",
+  P2: "var(--accent-gold)",
+  P3: "var(--accent-gold)",
+  P4: "var(--accent-blue)",
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  Open: "#f38ba8",
-  Investigating: "#fab387",
-  Contained: "#f9e2af",
-  Resolved: "#a6e3a1",
-  Closed: "#6c7086",
-  Active: "#a6e3a1",
-  Completed: "#89b4fa",
-  Archived: "#6c7086",
-  Draft: "#6c7086",
-  Running: "#fab387",
+  Open: "var(--accent-rose)",
+  Investigating: "var(--accent-gold)",
+  Contained: "var(--accent-gold)",
+  Resolved: "var(--accent-green)",
+  Closed: "var(--text-secondary)",
+  Active: "var(--accent-green)",
+  Completed: "var(--accent-blue)",
+  Archived: "var(--text-secondary)",
+  Draft: "var(--text-secondary)",
+  Running: "var(--accent-gold)",
 };
 
 const containerStyle: React.CSSProperties = {
@@ -525,8 +525,8 @@ export function BlueTeamPanel() {
             )}
             {incidents.map((inc) => (
               <tr key={inc.id}>
-                <td style={tdStyle}><span style={badgeStyle(SEVERITY_COLORS[inc.severity] || "#6c7086")}>{inc.severity}</span></td>
-                <td style={tdStyle}><span style={badgeStyle(STATUS_COLORS[inc.status] || "#6c7086")}>{inc.status}</span></td>
+                <td style={tdStyle}><span style={badgeStyle(SEVERITY_COLORS[inc.severity] || "var(--text-secondary)")}>{inc.severity}</span></td>
+                <td style={tdStyle}><span style={badgeStyle(STATUS_COLORS[inc.status] || "var(--text-secondary)")}>{inc.status}</span></td>
                 <td style={tdStyle}>{inc.title}</td>
                 <td style={tdStyle}>{inc.category}</td>
                 <td style={tdStyle}>{inc.assignee || "—"}</td>
@@ -599,7 +599,7 @@ export function BlueTeamPanel() {
                 <td style={tdStyle}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <div style={{ flex: 1, height: 6, background: "var(--bg-tertiary)", borderRadius: 3, overflow: "hidden" }}>
-                      <div style={{ width: `${ioc.confidence}%`, height: "100%", background: ioc.confidence > 75 ? "#a6e3a1" : ioc.confidence > 40 ? "#f9e2af" : "#f38ba8", borderRadius: 3 }} />
+                      <div style={{ width: `${ioc.confidence}%`, height: "100%", background: ioc.confidence > 75 ? "var(--accent-green)" : ioc.confidence > 40 ? "var(--accent-gold)" : "var(--accent-rose)", borderRadius: 3 }} />
                     </div>
                     <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>{ioc.confidence}%</span>
                   </div>
@@ -660,7 +660,7 @@ export function BlueTeamPanel() {
                 <strong style={{ fontSize: 14 }}>{rule.name}</strong>
                 <span style={{ ...badgeStyle("var(--info-color)"), marginLeft: 8 }}>{rule.platform}</span>
                 {rule.mitre_ids.map((mid) => (
-                  <span key={mid} style={{ ...badgeStyle("#cba6f7"), marginLeft: 4, fontSize: 10 }}>{mid}</span>
+                  <span key={mid} style={{ ...badgeStyle("var(--accent-purple)"), marginLeft: 4, fontSize: 10 }}>{mid}</span>
                 ))}
               </div>
               <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 12 }}>
@@ -698,7 +698,7 @@ export function BlueTeamPanel() {
               <tr key={c.id}>
                 <td style={{ ...tdStyle, fontFamily: "inherit", fontSize: 11 }}>{c.id.slice(0, 8)}</td>
                 <td style={tdStyle}>{c.incident_title}</td>
-                <td style={tdStyle}><span style={badgeStyle(STATUS_COLORS[c.status] || "#6c7086")}>{c.status}</span></td>
+                <td style={tdStyle}><span style={badgeStyle(STATUS_COLORS[c.status] || "var(--text-secondary)")}>{c.status}</span></td>
                 <td style={tdStyle}>{c.artifact_count}</td>
                 <td style={tdStyle}>{c.finding_count}</td>
                 <td style={tdStyle}>{c.created}</td>
@@ -749,7 +749,7 @@ export function BlueTeamPanel() {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                 <strong style={{ fontSize: 14 }}>{conn.platform}</strong>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: conn.status === "connected" ? "#a6e3a1" : conn.status === "error" ? "#f38ba8" : "#6c7086" }} />
+                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: conn.status === "connected" ? "var(--accent-green)" : conn.status === "error" ? "var(--accent-rose)" : "var(--text-secondary)" }} />
                   <span style={{ fontSize: 11, color: "var(--text-secondary)", textTransform: "capitalize" }}>{conn.status}</span>
                 </div>
               </div>
@@ -837,7 +837,7 @@ export function BlueTeamPanel() {
           <div key={hunt.id} style={cardStyle}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
               <strong style={{ fontSize: 14 }}>{hunt.hypothesis.slice(0, 80)}{hunt.hypothesis.length > 80 ? "..." : ""}</strong>
-              <span style={badgeStyle(STATUS_COLORS[hunt.status] || "#6c7086")}>{hunt.status}</span>
+              <span style={badgeStyle(STATUS_COLORS[hunt.status] || "var(--text-secondary)")}>{hunt.status}</span>
             </div>
             <div style={{ display: "flex", gap: 6, marginBottom: 8, flexWrap: "wrap" }}>
               {hunt.data_sources.map((ds) => (

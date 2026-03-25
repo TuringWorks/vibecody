@@ -162,7 +162,7 @@ export function SnippetPanel({ workspacePath: _workspacePath }: SnippetPanelProp
               style={{
                 padding: "6px 8px", cursor: "pointer", fontSize: 11,
                 borderBottom: "1px solid var(--border-color)",
-                background: selected === s.name ? "rgba(99,102,241,0.1)" : "transparent",
+                background: selected === s.name ? "color-mix(in srgb, var(--accent-blue) 10%, transparent)" : "transparent",
               }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
@@ -203,7 +203,7 @@ export function SnippetPanel({ workspacePath: _workspacePath }: SnippetPanelProp
       {/* Right: detail or create */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
         {error && (
-          <div style={{ padding: "6px 8px", fontSize: 11, color: "var(--text-danger)", background: "rgba(243,139,168,0.05)" }}>
+          <div style={{ padding: "6px 8px", fontSize: 11, color: "var(--text-danger)", background: "color-mix(in srgb, var(--accent-rose) 5%, transparent)" }}>
             {error}
           </div>
         )}
