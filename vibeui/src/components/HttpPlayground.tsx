@@ -94,7 +94,7 @@ export function HttpPlayground({ workspacePath }: { workspacePath: string | null
  })();
 
  return (
- <div style={{ display: "flex", flexDirection: "column", height: "100%", padding: "12px", gap: "10px", fontFamily: "var(--font-mono)", fontSize: "13px" }}>
+ <div style={{ display: "flex", flexDirection: "column", height: "100%", padding: "12px", gap: "10px", fontSize: "13px" }}>
  <div style={{ fontWeight: "bold" }}>HTTP Playground</div>
 
  {/* URL bar */}

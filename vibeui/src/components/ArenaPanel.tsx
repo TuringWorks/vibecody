@@ -230,7 +230,7 @@ export function ArenaPanel() {
   const sortedStats = [...stats].sort((a, b) => b.win_rate - a.win_rate);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", padding: "12px", gap: "10px", fontFamily: "var(--font-mono)", fontSize: "13px" }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", padding: "12px", gap: "10px", fontSize: "13px" }}>
       {/* Header */}
       <div style={{ fontWeight: "bold", marginBottom: "2px", display: "flex", alignItems: "center", gap: "8px" }}>
         <span>Arena Mode</span>
