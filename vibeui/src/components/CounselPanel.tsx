@@ -268,28 +268,28 @@ export function CounselPanel() {
 
             <h3 style={S.h3}>Participants</h3>
             {participants.map((p, i) => (
-              <div key={i} style={{ ...S.card, display: "flex", gap: 8, alignItems: "center" }}>
+              <div key={i} style={{ ...S.card, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                 <input
                   type="radio"
                   name="moderator"
                   checked={moderatorIdx === i}
                   onChange={() => setModeratorIdx(i)}
                   title="Set as moderator"
+                  style={{ flexShrink: 0 }}
                 />
-                <select style={S.select} value={p.provider} onChange={e => updateParticipant(i, "provider", e.target.value)}>
+                <select style={{ ...S.select, flex: "1 1 100px", minWidth: 80 }} value={p.provider} onChange={e => updateParticipant(i, "provider", e.target.value)}>
                   {PROVIDERS.map(pr => <option key={pr} value={pr}>{pr}</option>)}
                 </select>
                 <input
-                  style={{ ...S.input, width: 160 }}
+                  style={{ ...S.input, flex: "2 1 120px", minWidth: 100 }}
                   placeholder="Model name"
                   value={p.model}
                   onChange={e => updateParticipant(i, "model", e.target.value)}
                 />
-                <select style={S.select} value={p.role} onChange={e => updateParticipant(i, "role", e.target.value)}>
+                <select style={{ ...S.select, flex: "1 1 90px", minWidth: 80 }} value={p.role} onChange={e => updateParticipant(i, "role", e.target.value)}>
                   {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
                 </select>
-                <span style={S.badge(ROLE_COLORS[p.role] || "var(--text-secondary)")}>{p.role}</span>
-                <button style={S.voteBtn} onClick={() => removeParticipant(i)} title="Remove">x</button>
+                <button style={{ ...S.voteBtn, flexShrink: 0 }} onClick={() => removeParticipant(i)} title="Remove">x</button>
               </div>
             ))}
             <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
