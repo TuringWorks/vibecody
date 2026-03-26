@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { useModelRegistry } from "../hooks/useModelRegistry";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -46,7 +47,7 @@ interface SessionSummary {
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const ROLES = ["Expert", "Devil's Advocate", "Skeptic", "Creative", "Pragmatist", "Researcher", "Custom"];
-const PROVIDERS = ["claude", "openai", "gemini", "grok", "groq", "ollama"];
+// PROVIDERS now loaded dynamically via useModelRegistry hook
 
 const ROLE_COLORS: Record<string, string> = {
   Expert: "var(--accent-blue)",
@@ -89,14 +90,30 @@ const S = {
 // ── Component ────────────────────────────────────────────────────────────────
 
 export function CounselPanel() {
+  const { providers, modelsForProvider } = useModelRegistry();
   const [sessionList, setSessionList] = useState<SessionSummary[]>([]);
   const [activeSession, setActiveSession] = useState<CounselSession | null>(null);
   const [showSetup, setShowSetup] = useState(true);
+  const [selectedParticipants, setSelectedParticipants] = useState<Set<number>>(new Set());
 
   // Setup state
   const [topic, setTopic] = useState("");
   const [participants, setParticipants] = useState<Participant[]>([...DEFAULT_PARTICIPANTS]);
   const [moderatorIdx, setModeratorIdx] = useState(0);
+
+  // Toggle participant selection
+  const toggleParticipantSelection = (idx: number) => {
+    setSelectedParticipants(prev => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx); else next.add(idx);
+      return next;
+    });
+  };
+  const removeSelectedParticipants = () => {
+    setParticipants(prev => prev.filter((_, i) => !selectedParticipants.has(i)));
+    setSelectedParticipants(new Set());
+    if (selectedParticipants.has(moderatorIdx)) setModeratorIdx(0);
+  };
 
   // Runtime state
   const [deliberating, setDeliberating] = useState(false);
@@ -266,9 +283,25 @@ export function CounselPanel() {
               />
             </div>
 
-            <h3 style={S.h3}>Participants</h3>
-            {participants.map((p, i) => (
-              <div key={i} style={{ ...S.card, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h3 style={S.h3}>Participants</h3>
+              {selectedParticipants.size > 0 && (
+                <button style={{ ...S.btnSecondary, fontSize: 11, padding: "3px 8px", color: "var(--accent-rose, #f44336)" }} onClick={removeSelectedParticipants}>
+                  Remove {selectedParticipants.size} selected
+                </button>
+              )}
+            </div>
+            {participants.map((p, i) => {
+              const models = modelsForProvider(p.provider);
+              return (
+              <div key={i} style={{ ...S.card, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", borderColor: selectedParticipants.has(i) ? "var(--accent-blue)" : undefined }}>
+                <input
+                  type="checkbox"
+                  checked={selectedParticipants.has(i)}
+                  onChange={() => toggleParticipantSelection(i)}
+                  title="Select participant"
+                  style={{ flexShrink: 0 }}
+                />
                 <input
                   type="radio"
                   name="moderator"
@@ -277,21 +310,27 @@ export function CounselPanel() {
                   title="Set as moderator"
                   style={{ flexShrink: 0 }}
                 />
-                <select style={{ ...S.select, flex: "1 1 100px", minWidth: 80 }} value={p.provider} onChange={e => updateParticipant(i, "provider", e.target.value)}>
-                  {PROVIDERS.map(pr => <option key={pr} value={pr}>{pr}</option>)}
+                <select style={{ ...S.select, flex: "1 1 100px", minWidth: 80 }} value={p.provider} onChange={e => {
+                  updateParticipant(i, "provider", e.target.value);
+                  const newModels = modelsForProvider(e.target.value);
+                  if (newModels.length > 0) updateParticipant(i, "model", newModels[0]);
+                }}>
+                  {providers.map(pr => <option key={pr} value={pr}>{pr}</option>)}
                 </select>
-                <input
-                  style={{ ...S.input, flex: "2 1 120px", minWidth: 100 }}
-                  placeholder="Model name"
-                  value={p.model}
-                  onChange={e => updateParticipant(i, "model", e.target.value)}
-                />
+                <select style={{ ...S.select, flex: "2 1 120px", minWidth: 100 }} value={p.model} onChange={e => updateParticipant(i, "model", e.target.value)}>
+                  {models.map(m => <option key={m} value={m}>{m}</option>)}
+                  {models.length === 0 && <option value="">No models available</option>}
+                  {models.length > 0 && !models.includes(p.model) && p.model && (
+                    <option value={p.model}>{p.model} (custom)</option>
+                  )}
+                </select>
                 <select style={{ ...S.select, flex: "1 1 90px", minWidth: 80 }} value={p.role} onChange={e => updateParticipant(i, "role", e.target.value)}>
                   {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
                 </select>
                 <button style={{ ...S.voteBtn, flexShrink: 0 }} onClick={() => removeParticipant(i)} title="Remove">x</button>
               </div>
-            ))}
+              );
+            })}
             <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
               <button style={S.btnSecondary} onClick={addParticipant}>+ Add Participant</button>
               <button
