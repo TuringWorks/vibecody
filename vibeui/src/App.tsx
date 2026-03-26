@@ -73,6 +73,7 @@ function App() {
   const [activeSidebarTab, setActiveSidebarTab] = useState<"explorer" | "search" | "git" | "debug" | "extensions" | "docker" | "ai" | "security">("explorer");
   const [showAIChat, setShowAIChat] = useState(false);
   const [aiPanelTab, setAiPanelTab] = useState("chat");
+  const [panelsMaximized, setPanelsMaximized] = useState(false);
   const [showFilterBar, setShowFilterBar] = useState(true);
   const [showTerminal, setShowTerminal] = useState(false);
   const [bottomTab, setBottomTab] = useState<"terminal" | "browser">("terminal");
@@ -765,6 +766,22 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentFile, editorContent]);
 
+  // Keyboard shortcut: Cmd/Ctrl+Shift+M to maximize/restore panels, Escape to restore
+  useEffect(() => {
+    const handleMaximize = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'M') {
+        e.preventDefault();
+        if (!showAIChat) { setShowAIChat(true); }
+        setPanelsMaximized(prev => !prev);
+      }
+      if (e.key === 'Escape' && panelsMaximized) {
+        setPanelsMaximized(false);
+      }
+    };
+    window.addEventListener('keydown', handleMaximize);
+    return () => window.removeEventListener('keydown', handleMaximize);
+  }, [showAIChat, panelsMaximized]);
+
   const handleNewFile = () => {
     if (!currentDirectory) {
       toast.warn("Please open a folder first.");
@@ -1027,6 +1044,7 @@ function App() {
         { label: showSidebar ? "Hide Sidebar" : "Show Sidebar", shortcut: modKey + "B", action: () => setShowSidebar(prev => !prev) },
         { label: showTerminal ? "Hide Terminal" : "Show Terminal", shortcut: modKey + "`", action: () => setShowTerminal(prev => !prev) },
         { label: showAIChat ? "Hide AI Toolkit" : "Show AI Toolkit", shortcut: modKey + "J", action: () => setShowAIChat(prev => !prev) },
+        { label: panelsMaximized ? "Restore Panels" : "Maximize Panels", shortcut: modKey + "⇧M", action: () => { if (!showAIChat) setShowAIChat(true); setPanelsMaximized(prev => !prev); } },
         { separator: true, label: "" },
         { label: "Command Palette...", shortcut: modKey + shiftMod + "P", action: () => setShowCommandPalette(true) },
       ],
@@ -1673,28 +1691,59 @@ function App() {
         {/* AI Panel — grouped sidebar + lazy-loaded panels */}
         {showAIChat && (
           <>
-            <div
-              className="resizer-vertical"
-              onMouseDown={(e) => { e.preventDefault(); startResizing('aipanel'); }}
-            />
-            <aside className="ai-chat-panel" style={{ display: "flex", flexDirection: "row", width: `${aiPanelWidth}px` }}>
+            {!panelsMaximized && (
+              <div
+                className="resizer-vertical"
+                onMouseDown={(e) => { e.preventDefault(); startResizing('aipanel'); }}
+              />
+            )}
+            <aside
+              className="ai-chat-panel"
+              style={panelsMaximized
+                ? { display: "flex", flexDirection: "row", position: "fixed", inset: 0, zIndex: 200, width: "100vw", height: "100vh", background: "var(--bg-primary)" }
+                : { display: "flex", flexDirection: "row", width: `${aiPanelWidth}px` }
+              }
+            >
               {showFilterBar && (
                 <GroupedTabBar activeTab={aiPanelTab} onTabChange={setAiPanelTab} onCollapse={() => setShowFilterBar(false)} />
               )}
               <div role="tabpanel" aria-labelledby={`ai-tab-${aiPanelTab}`} style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-                {!showFilterBar && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 8px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", fontSize: 12 }}>
+                {/* Panel header with maximize/restore button */}
+                <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 8px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", fontSize: 12, flexShrink: 0 }}>
+                  {!showFilterBar && (
+                    <>
+                      <button
+                        onClick={() => setShowFilterBar(true)}
+                        style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", fontSize: 12, padding: "2px 6px" }}
+                        title="Show filter panel"
+                      >
+                        ☰ Panels
+                      </button>
+                      <span style={{ color: "var(--text-secondary)", opacity: 0.5 }}>|</span>
+                    </>
+                  )}
+                  <span style={{ color: "var(--text-primary)", fontWeight: 500, flex: 1 }}>{(TAB_META[aiPanelTab] || DEFAULT_TAB_META).label}</span>
+                  <button
+                    onClick={() => setPanelsMaximized(prev => !prev)}
+                    title={panelsMaximized ? "Restore panel (Ctrl+Shift+M)" : "Maximize panel (Ctrl+Shift+M)"}
+                    style={{
+                      background: "none", border: "none", cursor: "pointer", padding: "2px 6px",
+                      color: panelsMaximized ? "var(--accent-color)" : "var(--text-secondary)",
+                      fontSize: 14, lineHeight: 1,
+                    }}
+                  >
+                    {panelsMaximized ? "⊡" : "⊞"}
+                  </button>
+                  {panelsMaximized && (
                     <button
-                      onClick={() => setShowFilterBar(true)}
-                      style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", fontSize: 12, padding: "2px 6px" }}
-                      title="Show filter panel"
+                      onClick={() => setPanelsMaximized(false)}
+                      title="Close maximized view (Escape)"
+                      style={{ background: "none", border: "none", cursor: "pointer", padding: "2px 6px", color: "var(--text-secondary)", fontSize: 14, lineHeight: 1 }}
                     >
-                      ☰ Panels
+                      ✕
                     </button>
-                    <span style={{ color: "var(--text-secondary)", opacity: 0.5 }}>|</span>
-                    <span style={{ color: "var(--text-primary)", fontWeight: 500 }}>{(TAB_META[aiPanelTab] || DEFAULT_TAB_META).label}</span>
-                  </div>
-                )}
+                  )}
+                </div>
                 <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
                   <PanelHost
                     tab={aiPanelTab}
