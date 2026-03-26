@@ -359,8 +359,8 @@ function ArtifactCard({
 
 // ── ArtifactsPanel ────────────────────────────────────────────────────────────
 
-export function ArtifactsPanel({ artifacts, onAnnotate }: ArtifactsPanelProps) {
- if (artifacts.length === 0) {
+export function ArtifactsPanel({ artifacts = [], onAnnotate }: Partial<ArtifactsPanelProps>) {
+ if (!artifacts || artifacts.length === 0) {
  return (
  <div style={{ padding: "24px 16px", color: "var(--text-secondary)", fontSize: "13px", textAlign: "center" }}>
  <div style={{ fontSize: "24px", marginBottom: "8px" }}></div>
