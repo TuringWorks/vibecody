@@ -7,7 +7,7 @@
  * - Compose: up/down/ps/logs/build/restart per service
  */
 import React, { useState, useEffect, useRef } from "react";
-import { Circle } from "lucide-react";
+import { CheckCircle2, XCircle, PauseCircle, MinusCircle, Package } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { EmptyState } from "./EmptyState";
 import { StatusMessage } from "./StatusMessage";
@@ -45,10 +45,10 @@ const statusColor = (status: string) => {
 
 const statusIcon = (status: string): React.ReactNode => {
  const s = status.toLowerCase();
- if (s.startsWith("up")) return <Circle size={10} strokeWidth={0} fill="var(--success-color)" />;
- if (s.startsWith("exited")) return <Circle size={10} strokeWidth={0} fill="var(--error-color)" />;
- if (s.startsWith("paused")) return <Circle size={10} strokeWidth={0} fill="var(--text-primary)" />;
- return <Circle size={10} strokeWidth={0} fill="var(--text-primary)" />;
+ if (s.startsWith("up")) return <CheckCircle2 size={12} strokeWidth={1.5} style={{ color: "var(--accent-green)" }} />;
+ if (s.startsWith("exited")) return <XCircle size={12} strokeWidth={1.5} style={{ color: "var(--accent-rose)" }} />;
+ if (s.startsWith("paused")) return <PauseCircle size={12} strokeWidth={1.5} style={{ color: "var(--text-secondary)" }} />;
+ return <MinusCircle size={12} strokeWidth={1.5} style={{ color: "var(--text-secondary)" }} />;
 };
 
 export function DockerPanel({ workspacePath }: DockerPanelProps) {
@@ -243,7 +243,7 @@ export function DockerPanel({ workspacePath }: DockerPanelProps) {
 
  {containers.length === 0 && !containersLoading ? (
  <EmptyState
-   icon="📦"
+   icon={<Package size={32} strokeWidth={1.5} />}
    title="No containers found"
    description="Start Docker Desktop or run docker run ..."
  />

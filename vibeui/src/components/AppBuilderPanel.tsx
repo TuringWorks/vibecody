@@ -27,7 +27,8 @@ import {
   Search,
   CreditCard,
   FileText,
-  Circle,
+  CheckCircle2,
+  XCircle,
   X,
 } from "lucide-react";
 
@@ -906,11 +907,10 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
                       background: "var(--bg-primary)",
                     }}
                   >
-                    <Circle
-                      size={10}
-                      strokeWidth={0}
-                      fill={svc.connected ? "var(--success)" : "var(--text-secondary)"}
-                    />
+                    {svc.connected
+                      ? <CheckCircle2 size={12} strokeWidth={1.5} style={{ color: "var(--accent-green)" }} />
+                      : <XCircle size={12} strokeWidth={1.5} style={{ color: "var(--text-secondary)" }} />
+                    }
                     <div>
                       <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>{svc.name}</div>
                       <div style={{ fontSize: 10, color: "var(--text-secondary)" }}>{svc.details}</div>

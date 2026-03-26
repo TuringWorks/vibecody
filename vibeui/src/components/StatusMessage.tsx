@@ -5,8 +5,10 @@
  * consistent look. Drop-in usage:
  *   <StatusMessage variant="error" message="Something broke" />
  *   <StatusMessage variant="loading" message="Analyzing…" detail="15–30 s" />
- *   <StatusMessage variant="empty" icon="🔍" message="No results" detail="Try adjusting filters" />
+ *   <StatusMessage variant="empty" icon={<Search size={20} />} message="No results" detail="Try adjusting filters" />
  */
+
+import React from "react";
 
 type Variant = "error" | "loading" | "empty" | "success" | "warning";
 
@@ -14,22 +16,32 @@ interface StatusMessageProps {
   variant: Variant;
   message: string;
   detail?: string;
-  icon?: string;
+  icon?: React.ReactNode;
   /** Render inline (no centering/padding) for tight layouts */
   inline?: boolean;
 }
 
-const STYLES: Record<Variant, { bg: string; fg: string; defaultIcon: string }> = {
-  error:   { bg: "var(--error-bg)", fg: "var(--text-danger)", defaultIcon: "⚠" },
-  warning: { bg: "var(--warning-bg)",  fg: "var(--text-warning)", defaultIcon: "⚠" },
-  loading: { bg: "transparent",            fg: "var(--text-secondary)",        defaultIcon: "⏳" },
-  empty:   { bg: "transparent",            fg: "var(--text-secondary)",        defaultIcon: "📭" },
-  success: { bg: "var(--success-bg)",    fg: "var(--text-success)", defaultIcon: "✓" },
+import { AlertTriangle, Loader2, Inbox, CheckCircle } from "lucide-react";
+
+const DEFAULT_ICONS: Record<Variant, React.ReactNode> = {
+  error:   <AlertTriangle size={20} strokeWidth={1.5} />,
+  warning: <AlertTriangle size={20} strokeWidth={1.5} />,
+  loading: <Loader2 size={20} strokeWidth={1.5} className="spin" />,
+  empty:   <Inbox size={20} strokeWidth={1.5} />,
+  success: <CheckCircle size={20} strokeWidth={1.5} />,
+};
+
+const STYLES: Record<Variant, { bg: string; fg: string }> = {
+  error:   { bg: "var(--error-bg)", fg: "var(--text-danger)" },
+  warning: { bg: "var(--warning-bg)",  fg: "var(--text-warning)" },
+  loading: { bg: "transparent",            fg: "var(--text-secondary)" },
+  empty:   { bg: "transparent",            fg: "var(--text-secondary)" },
+  success: { bg: "var(--success-bg)",    fg: "var(--text-success)" },
 };
 
 export function StatusMessage({ variant, message, detail, icon, inline }: StatusMessageProps) {
   const s = STYLES[variant];
-  const displayIcon = icon ?? s.defaultIcon;
+  const displayIcon = icon ?? DEFAULT_ICONS[variant];
 
   if (inline) {
     return (

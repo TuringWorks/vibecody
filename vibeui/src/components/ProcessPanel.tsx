@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Circle } from "lucide-react";
+import { Play, Moon, AlertOctagon, Square, MinusCircle } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -22,11 +22,11 @@ function fmtMem(kb: number): string {
 
 function statusBadge(status: string): React.ReactNode {
  const s = status.toUpperCase();
- if (s.startsWith("S")) return <Circle size={12} strokeWidth={0} fill="var(--warning-color)" />; // sleeping
- if (s.startsWith("R")) return <Circle size={12} strokeWidth={0} fill="var(--success-color)" />; // running
- if (s.startsWith("Z")) return <Circle size={12} strokeWidth={0} fill="var(--error-color)" />; // zombie
- if (s.startsWith("T")) return <Circle size={12} strokeWidth={0} fill="var(--accent-color)" />; // stopped
- return <Circle size={12} strokeWidth={0} fill="var(--text-primary)" />;
+ if (s.startsWith("S")) return <Moon size={12} strokeWidth={1.5} style={{ color: "var(--accent-gold)" }} />;
+ if (s.startsWith("R")) return <Play size={12} strokeWidth={1.5} style={{ color: "var(--accent-green)" }} />;
+ if (s.startsWith("Z")) return <AlertOctagon size={12} strokeWidth={1.5} style={{ color: "var(--accent-rose)" }} />;
+ if (s.startsWith("T")) return <Square size={12} strokeWidth={1.5} style={{ color: "var(--accent-blue)" }} />;
+ return <MinusCircle size={12} strokeWidth={1.5} style={{ color: "var(--text-secondary)" }} />;
 }
 
 // ── Main component ─────────────────────────────────────────────────────────────

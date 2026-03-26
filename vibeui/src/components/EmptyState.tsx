@@ -1,5 +1,7 @@
+import React from "react";
+
 interface EmptyStateProps {
-  icon?: string;
+  icon?: React.ReactNode;
   title: string;
   description?: string;
   action?: { label: string; onClick: () => void };
@@ -20,7 +22,7 @@ export function EmptyState({ icon, title, description, action }: EmptyStateProps
         height: '100%',
       }}
     >
-      {icon && <span style={{ fontSize: '32px' }}>{icon}</span>}
+      {icon && <span style={{ fontSize: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{icon}</span>}
       <div style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text-primary)' }}>{title}</div>
       {description && (
         <div style={{ fontSize: '13px', color: 'var(--text-secondary)', maxWidth: '280px' }}>{description}</div>

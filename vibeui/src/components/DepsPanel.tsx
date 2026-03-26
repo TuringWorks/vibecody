@@ -7,6 +7,7 @@
  */
 import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { Package } from "lucide-react";
 import { EmptyState } from "./EmptyState";
 import { StatusMessage } from "./StatusMessage";
 
@@ -61,7 +62,7 @@ export function DepsPanel({ workspacePath }: DepsPanelProps) {
   if (!workspacePath) {
     return (
       <EmptyState
-        icon="📦"
+        icon={<Package size={32} strokeWidth={1.5} />}
         title="No workspace open"
         description="Open a workspace folder to manage dependencies."
       />

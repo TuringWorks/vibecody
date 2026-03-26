@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import { Circle } from "lucide-react";
+import { AlertCircle, AlertTriangle, Info } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 
 interface BugReport {
@@ -28,11 +28,11 @@ const SEVERITY_COLOR: Record<string, string> = {
 };
 
 const SEVERITY_ICON: Record<string, React.ReactNode> = {
- critical: <Circle size={10} strokeWidth={0} fill="var(--accent-rose)" />,
- high: <Circle size={10} strokeWidth={0} fill="var(--accent-gold)" />,
- medium: <Circle size={10} strokeWidth={0} fill="var(--accent-gold)" />,
- low: <Circle size={10} strokeWidth={0} fill="var(--accent-green)" />,
- info: <Circle size={10} strokeWidth={0} fill="var(--info-color)" />,
+ critical: <AlertCircle size={12} strokeWidth={1.5} style={{ color: "var(--accent-rose)" }} />,
+ high: <AlertTriangle size={12} strokeWidth={1.5} style={{ color: "var(--accent-gold)" }} />,
+ medium: <AlertTriangle size={12} strokeWidth={1.5} style={{ color: "var(--accent-gold)" }} />,
+ low: <Info size={12} strokeWidth={1.5} style={{ color: "var(--accent-green)" }} />,
+ info: <Info size={12} strokeWidth={1.5} style={{ color: "var(--accent-blue)" }} />,
 };
 
 const CATEGORY_LABEL: Record<string, string> = {

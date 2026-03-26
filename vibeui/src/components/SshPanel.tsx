@@ -7,6 +7,7 @@
 import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { Monitor } from "lucide-react";
 import { EmptyState } from "./EmptyState";
 import { StatusMessage } from "./StatusMessage";
 
@@ -215,7 +216,7 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  {/* Profile list */}
  {profiles.length === 0 && !editingProfile ? (
  <EmptyState
-   icon="🖥"
+   icon={<Monitor size={32} strokeWidth={1.5} />}
    title="No SSH profiles yet"
    description='Click "+ New Profile" to add one.'
  />

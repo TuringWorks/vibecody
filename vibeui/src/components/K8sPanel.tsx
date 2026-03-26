@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { Ship } from "lucide-react";
 import { EmptyState } from "./EmptyState";
 import { StatusMessage } from "./StatusMessage";
 
@@ -504,7 +505,7 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
  {contexts.length === 0 ? (
  <EmptyState
-   icon="☸"
+   icon={<Ship size={32} strokeWidth={1.5} />}
    title="No kubectl contexts found"
    description="Install kubectl and configure your kubeconfig, or connect to a cluster."
  />
