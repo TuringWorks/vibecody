@@ -66,7 +66,7 @@ const ClarifyingQuestionsPanel: React.FC = () => {
     border: "none",
     background: active ? "var(--bg-secondary)" : "transparent",
     color: active ? "var(--text-primary)" : "var(--text-secondary)",
-    borderBottom: active ? "2px solid var(--accent-color)" : "2px solid transparent",
+    borderBottom: active ? "2px solid var(--accent-blue)" : "2px solid transparent",
     fontFamily: "inherit",
     fontSize: "inherit",
   });
@@ -103,10 +103,10 @@ const ClarifyingQuestionsPanel: React.FC = () => {
   };
 
   const priorityColor = (p: string) =>
-    p === "high" ? "var(--error-color)" : p === "medium" ? "var(--warning-color)" : "var(--text-muted)";
+    p === "high" ? "var(--error-color)" : p === "medium" ? "var(--warning-color)" : "var(--text-secondary)";
 
   const statusColor = (s: string) =>
-    s === "done" ? "var(--success-color)" : s === "in-progress" ? "var(--warning-color)" : "var(--text-muted)";
+    s === "done" ? "var(--success-color)" : s === "in-progress" ? "var(--warning-color)" : "var(--text-secondary)";
 
   const updateAnswer = (id: string, answer: string) => {
     setQuestions((prev) => prev.map((q) => (q.id === id ? { ...q, answer, skipped: false } : q)));
@@ -152,7 +152,7 @@ const ClarifyingQuestionsPanel: React.FC = () => {
               {!q.skipped ? (
                 <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
                   <input style={{ ...inputStyle, flex: 1 }} placeholder="Your answer..." value={q.answer} onChange={(e) => updateAnswer(q.id, e.target.value)} />
-                  <button style={{ ...btnStyle, background: "transparent", color: "var(--text-muted)" }} onClick={() => skipQuestion(q.id)}>Skip</button>
+                  <button style={{ ...btnStyle, background: "transparent", color: "var(--text-secondary)" }} onClick={() => skipQuestion(q.id)}>Skip</button>
                 </div>
               ) : (
                 <div style={{ fontSize: "12px", opacity: 0.6, fontStyle: "italic" }}>Skipped</div>
@@ -202,7 +202,7 @@ const ClarifyingQuestionsPanel: React.FC = () => {
                 <div style={{ fontSize: "11px", opacity: 0.6 }}>Unanswered</div>
               </div>
               <div>
-                <div style={{ fontSize: "24px", fontWeight: 700, color: "var(--text-muted)" }}>{skippedCount}</div>
+                <div style={{ fontSize: "24px", fontWeight: 700, color: "var(--text-secondary)" }}>{skippedCount}</div>
                 <div style={{ fontSize: "11px", opacity: 0.6 }}>Skipped</div>
               </div>
             </div>

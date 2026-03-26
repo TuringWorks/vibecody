@@ -152,7 +152,7 @@ export function MarkdownPanel({ workspacePath }: { workspacePath: string | null 
  <div style={{ padding: "8px 10px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", alignItems: "center", gap: 6 }}>
  <span style={{ fontSize: 11, fontWeight: 600, flex: 1 }}>Files</span>
  <button onClick={newFile} title="New file" style={{ fontSize: 13, background: "none", border: "none", color: "var(--accent-primary)", cursor: "pointer", fontWeight: 700, lineHeight: 1 }}>+</button>
- <button onClick={loadFiles} title="Refresh" style={{ fontSize: 11, background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer" }}>↺</button>
+ <button onClick={loadFiles} title="Refresh" style={{ fontSize: 11, background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer" }}>↺</button>
  </div>
  <div style={{ padding: "6px 8px", borderBottom: "1px solid var(--border-color)" }}>
  <input
@@ -164,7 +164,7 @@ export function MarkdownPanel({ workspacePath }: { workspacePath: string | null 
  </div>
  <div style={{ flex: 1, overflowY: "auto" }}>
  {!workspacePath && (
- <div style={{ padding: 12, fontSize: 10, color: "var(--text-muted)", textAlign: "center" }}>Open a workspace folder to browse files</div>
+ <div style={{ padding: 12, fontSize: 10, color: "var(--text-secondary)", textAlign: "center" }}>Open a workspace folder to browse files</div>
  )}
  {filtered.map(f => (
  <button
@@ -179,11 +179,11 @@ export function MarkdownPanel({ workspacePath }: { workspacePath: string | null 
  }}
  >
  <div style={{ fontWeight: filePath === f.path ? 600 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</div>
- <div style={{ fontSize: 9, color: "var(--text-muted)" }}>{(f.size_bytes / 1024).toFixed(1)} KB</div>
+ <div style={{ fontSize: 9, color: "var(--text-secondary)" }}>{(f.size_bytes / 1024).toFixed(1)} KB</div>
  </button>
  ))}
  {workspacePath && filtered.length === 0 && (
- <div style={{ padding: 12, fontSize: 10, color: "var(--text-muted)", textAlign: "center" }}>No .md files found</div>
+ <div style={{ padding: 12, fontSize: 10, color: "var(--text-secondary)", textAlign: "center" }}>No .md files found</div>
  )}
  </div>
  </div>
@@ -198,7 +198,7 @@ export function MarkdownPanel({ workspacePath }: { workspacePath: string | null 
 
  {/* View toggle */}
  {(["split", "editor", "preview"] as View[]).map(v => (
- <button key={v} onClick={() => setView(v)} style={{ padding: "2px 10px", fontSize: 10, borderRadius: 10, background: view === v ? "color-mix(in srgb, var(--accent-blue) 25%, transparent)" : "var(--bg-primary)", border: `1px solid ${view === v ? "var(--accent-color)" : "var(--border-color)"}`, color: view === v ? "var(--accent-color)" : "var(--text-muted)", cursor: "pointer", fontWeight: view === v ? 700 : 400 }}>
+ <button key={v} onClick={() => setView(v)} style={{ padding: "2px 10px", fontSize: 10, borderRadius: 10, background: view === v ? "color-mix(in srgb, var(--accent-blue) 25%, transparent)" : "var(--bg-primary)", border: `1px solid ${view === v ? "var(--accent-color)" : "var(--border-color)"}`, color: view === v ? "var(--accent-color)" : "var(--text-secondary)", cursor: "pointer", fontWeight: view === v ? 700 : 400 }}>
  {v === "split" ? "Split" : v === "editor" ? "Edit" : "Preview"}
  </button>
  ))}
@@ -206,7 +206,7 @@ export function MarkdownPanel({ workspacePath }: { workspacePath: string | null 
  <button onClick={save} disabled={saving} style={{ padding: "3px 12px", fontSize: 11, fontWeight: 700, background: "var(--accent-color)", border: "none", borderRadius: 4, color: "var(--text-primary)", cursor: saving ? "not-allowed" : "pointer" }}>
  {saving ? "" : "Save"}
  </button>
- <button onClick={exportHtml} style={{ padding: "3px 10px", fontSize: 11, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-muted)", cursor: "pointer" }}>
+ <button onClick={exportHtml} style={{ padding: "3px 10px", fontSize: 11, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-secondary)", cursor: "pointer" }}>
  ↗ HTML
  </button>
  </div>
@@ -249,7 +249,7 @@ export function MarkdownPanel({ workspacePath }: { workspacePath: string | null 
  }}
  />
  {/* Stats footer */}
- <div style={{ padding: "3px 14px", borderTop: "1px solid var(--border-color)", background: "var(--bg-secondary)", fontSize: 9, color: "var(--text-muted)", display: "flex", gap: 12 }}>
+ <div style={{ padding: "3px 14px", borderTop: "1px solid var(--border-color)", background: "var(--bg-secondary)", fontSize: 9, color: "var(--text-secondary)", display: "flex", gap: 12 }}>
  <span>{words} words</span>
  <span>{chars} chars</span>
  <span>{readingTime(words)}</span>
@@ -278,7 +278,7 @@ export function MarkdownPanel({ workspacePath }: { workspacePath: string | null 
  : <code style={{ background: "var(--bg-secondary)", padding: "1px 5px", borderRadius: 3, fontSize: "0.9em", fontFamily: "var(--font-mono)" }}>{children}</code>;
  },
  pre: ({ children }) => <>{children}</>,
- blockquote: ({ children }) => <blockquote style={{ borderLeft: "3px solid var(--accent-color)", margin: "16px 0", paddingLeft: 16, color: "var(--text-muted)", fontStyle: "italic" }}>{children}</blockquote>,
+ blockquote: ({ children }) => <blockquote style={{ borderLeft: "3px solid var(--accent-color)", margin: "16px 0", paddingLeft: 16, color: "var(--text-secondary)", fontStyle: "italic" }}>{children}</blockquote>,
  ul: ({ children }) => <ul style={{ paddingLeft: 24, margin: "10px 0" }}>{children}</ul>,
  ol: ({ children }) => <ol style={{ paddingLeft: 24, margin: "10px 0" }}>{children}</ol>,
  li: ({ children }) => <li style={{ marginBottom: 4 }}>{children}</li>,

@@ -32,17 +32,17 @@ interface Comment {
 }
 
 const statusColors: Record<PlanStatus, string> = {
-  draft: "var(--text-muted)",
+  draft: "var(--text-secondary)",
   review: "var(--text-warning)",
   approved: "var(--text-success)",
-  archived: "var(--text-muted)",
+  archived: "var(--text-secondary)",
 };
 
 const tabBtn = (active: boolean): React.CSSProperties => ({
   padding: "6px 14px", fontSize: 11, fontWeight: active ? 600 : 400,
   background: active ? "var(--accent-bg)" : "transparent",
   border: "1px solid " + (active ? "var(--accent-primary)" : "var(--border-color)"),
-  borderRadius: 4, color: active ? "var(--text-info)" : "var(--text-muted)", cursor: "pointer",
+  borderRadius: 4, color: active ? "var(--text-info)" : "var(--text-secondary)", cursor: "pointer",
 });
 
 export default function PlanDocumentPanel() {
@@ -151,7 +151,7 @@ export default function PlanDocumentPanel() {
   };
 
   if (loading) {
-    return <div style={{ padding: 20, color: "var(--text-muted)", fontSize: 12 }}>Loading plans...</div>;
+    return <div style={{ padding: 20, color: "var(--text-secondary)", fontSize: 12 }}>Loading plans...</div>;
   }
 
   return (
@@ -194,7 +194,7 @@ export default function PlanDocumentPanel() {
               </div>
             )}
             {plans.length === 0 && !showNewPlan && (
-              <div style={{ textAlign: "center", color: "var(--text-muted)", fontSize: 12, padding: 40 }}>No plans yet. Create one to get started.</div>
+              <div style={{ textAlign: "center", color: "var(--text-secondary)", fontSize: 12, padding: 40 }}>No plans yet. Create one to get started.</div>
             )}
             {plans.map(p => (
               <div key={p.id} role="button" tabIndex={0} onClick={() => { setSelectedPlan(p.id); setTab("editor"); }} onKeyDown={e => e.key === "Enter" && (setSelectedPlan(p.id), setTab("editor"))}
@@ -203,7 +203,7 @@ export default function PlanDocumentPanel() {
                   <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>{p.title}</span>
                   <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 10, background: `${statusColors[p.status]}22`, color: statusColors[p.status], fontWeight: 600 }}>{p.status}</span>
                 </div>
-                <div style={{ display: "flex", gap: 12, fontSize: 10, color: "var(--text-muted)" }}>
+                <div style={{ display: "flex", gap: 12, fontSize: 10, color: "var(--text-secondary)" }}>
                   <span>v{p.version}</span>
                   <span>{p.author}</span>
                   <span>{p.updatedAt}</span>
@@ -223,7 +223,7 @@ export default function PlanDocumentPanel() {
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{plan.title}</span>
               <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 10, background: `${statusColors[plan.status]}22`, color: statusColors[plan.status] }}>{plan.status}</span>
-              <span style={{ fontSize: 10, color: "var(--text-muted)", marginLeft: "auto" }}>v{plan.version} by {plan.author}</span>
+              <span style={{ fontSize: 10, color: "var(--text-secondary)", marginLeft: "auto" }}>v{plan.version} by {plan.author}</span>
             </div>
             <div style={{ display: "flex", gap: 4 }}>
               {(["draft", "review", "approved", "archived"] as PlanStatus[]).map(s => (
@@ -231,7 +231,7 @@ export default function PlanDocumentPanel() {
                   disabled={plan.status === s}
                   style={{ padding: "3px 8px", fontSize: 10, borderRadius: 4, border: "1px solid var(--border-color)",
                     background: plan.status === s ? statusColors[s] : "transparent",
-                    color: plan.status === s ? "var(--bg-primary)" : "var(--text-muted)", cursor: plan.status === s ? "default" : "pointer", opacity: plan.status === s ? 1 : 0.7 }}>
+                    color: plan.status === s ? "var(--bg-primary)" : "var(--text-secondary)", cursor: plan.status === s ? "default" : "pointer", opacity: plan.status === s ? 1 : 0.7 }}>
                   {s}
                 </button>
               ))}
@@ -261,13 +261,13 @@ export default function PlanDocumentPanel() {
         )}
 
         {tab === "editor" && !plan && (
-          <div style={{ textAlign: "center", color: "var(--text-muted)", fontSize: 12, padding: 40 }}>Select a plan from the Plans tab</div>
+          <div style={{ textAlign: "center", color: "var(--text-secondary)", fontSize: 12, padding: 40 }}>Select a plan from the Plans tab</div>
         )}
 
         {tab === "comments" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {allUnresolved.length === 0 && (
-              <div style={{ textAlign: "center", color: "var(--text-muted)", fontSize: 12, padding: 40 }}>All comments resolved</div>
+              <div style={{ textAlign: "center", color: "var(--text-secondary)", fontSize: 12, padding: 40 }}>All comments resolved</div>
             )}
             {allUnresolved.map(c => {
               const p = plans.find(pl => pl.id === c.planId);
@@ -275,8 +275,8 @@ export default function PlanDocumentPanel() {
                 <div key={c.id} style={{ padding: 10, background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)" }}>
                   <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
                     <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-primary)" }}>{c.author}</span>
-                    <span style={{ fontSize: 10, color: "var(--text-muted)" }}>{c.timestamp}</span>
-                    {c.line && <span style={{ fontSize: 10, color: "var(--text-muted)" }}>L{c.line}</span>}
+                    <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>{c.timestamp}</span>
+                    {c.line && <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>L{c.line}</span>}
                     <span style={{ fontSize: 10, color: "var(--accent-primary)", marginLeft: "auto" }}>{p?.title}</span>
                   </div>
                   <div style={{ fontSize: 11, color: "var(--text-primary)", marginBottom: 8 }}>{c.text}</div>

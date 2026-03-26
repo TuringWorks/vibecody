@@ -48,7 +48,7 @@ interface BuildResult {
 type Status = "idle" | "building" | "running" | "success" | "error";
 
 const STATUS_COLORS: Record<Status, string> = {
-  idle: "var(--text-muted)",
+  idle: "var(--text-secondary)",
   building: "var(--accent-color)",
   running: "var(--accent-color)",
   success: "var(--success-color)",
@@ -248,7 +248,7 @@ export function BuildPanel({ workspacePath, currentFile, onOpenFile }: BuildPane
     : "/";
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", color: "var(--text-primary)" }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden", color: "var(--text-primary)" }}>
       {/* Working directory selector */}
       <div style={{ padding: "4px 12px", borderBottom: "1px solid var(--border-color)", display: "flex", alignItems: "center", gap: 6, fontSize: 11, background: "var(--bg-secondary)" }}>
         <span style={{ color: "var(--text-secondary)", flexShrink: 0 }}>Working dir:</span>
@@ -298,7 +298,7 @@ export function BuildPanel({ workspacePath, currentFile, onOpenFile }: BuildPane
         {systems.length === 1 && selected && (
           <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>
             {SYSTEM_ICONS[selected.name] || selected.name}
-            {selected.project_path && <span style={{ color: "var(--text-muted)" }}> — {selected.project_path}/</span>}
+            {selected.project_path && <span style={{ color: "var(--text-secondary)" }}> — {selected.project_path}/</span>}
           </span>
         )}
 
@@ -322,14 +322,14 @@ export function BuildPanel({ workspacePath, currentFile, onOpenFile }: BuildPane
       {/* Custom command inputs */}
       {showCustom && (
         <div style={{ padding: "6px 12px", borderBottom: "1px solid var(--border-color)", display: "flex", gap: 6, alignItems: "center", fontSize: 11 }}>
-          <span style={{ color: "var(--text-muted)", flexShrink: 0 }}>Build:</span>
+          <span style={{ color: "var(--text-secondary)", flexShrink: 0 }}>Build:</span>
           <input
             style={inputS}
             value={customBuildCmd}
             onChange={e => setCustomBuildCmd(e.target.value)}
             placeholder={selected?.build_command || "auto-detect"}
           />
-          <span style={{ color: "var(--text-muted)", flexShrink: 0 }}>Run:</span>
+          <span style={{ color: "var(--text-secondary)", flexShrink: 0 }}>Run:</span>
           <input
             style={inputS}
             value={customRunCmd}
@@ -379,7 +379,7 @@ export function BuildPanel({ workspacePath, currentFile, onOpenFile }: BuildPane
       {showErrors && result && result.errors.length > 0 && (
         <div style={{ maxHeight: 150, overflowY: "auto", borderBottom: "1px solid var(--border-color)" }}>
           <div style={{ display: "flex", alignItems: "center", padding: "4px 12px", background: "var(--bg-tertiary)" }}>
-            <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", color: "var(--text-muted)", letterSpacing: "0.05em" }}>
+            <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", color: "var(--text-secondary)", letterSpacing: "0.05em" }}>
               Diagnostics ({result.errors.length})
             </span>
             <div style={{ flex: 1 }} />
@@ -422,7 +422,7 @@ export function BuildPanel({ workspacePath, currentFile, onOpenFile }: BuildPane
       {/* Output log */}
       <div style={{ flex: 1, overflowY: "auto", background: "var(--bg-primary)", padding: "8px 12px" }}>
         {log.length === 0 && !busy && (
-          <div style={{ textAlign: "center", color: "var(--text-muted)", padding: 24, fontSize: 12 }}>
+          <div style={{ textAlign: "center", color: "var(--text-secondary)", padding: 24, fontSize: 12 }}>
             {systems.length > 0 ? (
               `${SYSTEM_ICONS[systems[0]?.name] || systems[0]?.name} project detected. Click Build to compile.`
             ) : workspacePath ? (
@@ -456,7 +456,7 @@ export function BuildPanel({ workspacePath, currentFile, onOpenFile }: BuildPane
             ) : "Open a folder to start building."}
           </div>
         )}
-        <pre style={{ margin: 0, fontFamily: "var(--font-mono)", fontSize: 11, lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-all", color: "var(--text-primary)" }}>
+        <pre style={{ margin: 0, fontFamily: "var(--font-mono)", fontSize: 11, lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-all", overflow: "auto", color: "var(--text-primary)" }}>
           {log.join("\n")}
         </pre>
         <div ref={logEndRef} />

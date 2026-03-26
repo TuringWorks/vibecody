@@ -10,7 +10,7 @@ const TABS: Tab[] = ["Requirements", "Design", "Tasks"];
 
 const STATUS_COLORS: Record<string, string> = {
   Verified: "var(--success-color)", Implemented: "var(--info-color)",
-  Pending: "var(--warning-color)", Draft: "var(--text-muted)",
+  Pending: "var(--warning-color)", Draft: "var(--text-secondary)",
   "In Progress": "var(--info-color)", Done: "var(--success-color)",
   Blocked: "var(--error-color)", Accepted: "var(--success-color)",
 };
@@ -28,8 +28,8 @@ const tabBarStyle: React.CSSProperties = {
 const tabStyle = (active: boolean): React.CSSProperties => ({
   padding: "8px 14px", cursor: "pointer",
   background: active ? "var(--bg-primary)" : "transparent",
-  color: active ? "var(--accent-color)" : "var(--text-secondary)",
-  border: "none", borderBottom: active ? "2px solid var(--accent-color)" : "2px solid transparent",
+  color: active ? "var(--text-primary)" : "var(--text-secondary)",
+  border: "none", borderBottom: active ? "2px solid var(--accent-blue)" : "2px solid transparent",
   fontSize: 13, fontFamily: "inherit", whiteSpace: "nowrap",
 });
 const contentStyle: React.CSSProperties = { flex: 1, overflow: "auto", padding: 16 };
@@ -87,8 +87,8 @@ const SpecPipelinePanel: React.FC = () => {
         {tab === "Requirements" && REQS.map((r, i) => (
           <div key={i} style={cardStyle}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-              <span><strong>{r.id}</strong> <span style={{ fontSize: 11, color: "var(--text-muted)" }}>[{r.priority}]</span></span>
-              <span style={badgeStyle(STATUS_COLORS[r.status] || "var(--text-muted)")}>{r.status}</span>
+              <span><strong>{r.id}</strong> <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>[{r.priority}]</span></span>
+              <span style={badgeStyle(STATUS_COLORS[r.status] || "var(--text-secondary)")}>{r.status}</span>
             </div>
             <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{r.text}</div>
           </div>
@@ -97,23 +97,23 @@ const SpecPipelinePanel: React.FC = () => {
           <div key={i} style={cardStyle}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
               <strong>{d.id}: {d.title}</strong>
-              <span style={badgeStyle(STATUS_COLORS[d.status] || "var(--text-muted)")}>{d.status}</span>
+              <span style={badgeStyle(STATUS_COLORS[d.status] || "var(--text-secondary)")}>{d.status}</span>
             </div>
             <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Rationale: {d.rationale}</div>
-            <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>Links: {d.reqs.join(", ")}</div>
+            <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 4 }}>Links: {d.reqs.join(", ")}</div>
           </div>
         ))}
         {tab === "Tasks" && TASKS.map((t, i) => (
           <div key={i} style={cardStyle}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
               <strong>{t.id}: {t.title}</strong>
-              <span style={badgeStyle(STATUS_COLORS[t.status] || "var(--text-muted)")}>{t.status}</span>
+              <span style={badgeStyle(STATUS_COLORS[t.status] || "var(--text-secondary)")}>{t.status}</span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
               <div style={barBg}><div style={{ height: "100%", borderRadius: 4, background: "var(--accent-color)", width: `${t.progress}%` }} /></div>
               <span style={{ fontSize: 11 }}>{t.progress}%</span>
             </div>
-            {t.deps.length > 0 && <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>Depends on: {t.deps.join(", ")}</div>}
+            {t.deps.length > 0 && <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 4 }}>Depends on: {t.deps.join(", ")}</div>}
           </div>
         ))}
       </div>

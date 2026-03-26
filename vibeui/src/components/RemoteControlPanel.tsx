@@ -101,7 +101,7 @@ const tabBtn = (active: boolean): React.CSSProperties => ({
   background: active ? "var(--accent-bg)" : "transparent",
   border: "1px solid " + (active ? "var(--accent-color)" : "var(--border-color)"),
   borderRadius: 4,
-  color: active ? "var(--text-info)" : "var(--text-muted)",
+  color: active ? "var(--text-info)" : "var(--text-secondary)",
   cursor: "pointer",
 });
 
@@ -204,7 +204,7 @@ export default function RemoteControlPanel() {
             {t[0].toUpperCase() + t.slice(1)}
           </button>
         ))}
-        <span style={{ marginLeft: "auto", fontSize: 10, color: serverRunning ? "var(--text-success)" : "var(--text-muted)", alignSelf: "center" }}>
+        <span style={{ marginLeft: "auto", fontSize: 10, color: serverRunning ? "var(--text-success)" : "var(--text-secondary)", alignSelf: "center" }}>
           {serverRunning ? "Listening" : "Stopped"}
         </span>
       </div>
@@ -216,7 +216,7 @@ export default function RemoteControlPanel() {
             <div style={{ padding: 14, background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)" }}>
               <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 10 }}>Remote Server</div>
               <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 10 }}>
-                <label style={{ fontSize: 11, color: "var(--text-muted)" }}>Port:</label>
+                <label style={{ fontSize: 11, color: "var(--text-secondary)" }}>Port:</label>
                 <input type="number" value={port} onChange={e => setPort(Number(e.target.value))}
                   style={{ width: 80, padding: "4px 8px", fontSize: 12, fontFamily: "var(--font-mono)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)" }} />
                 <button onClick={handleToggleServer}
@@ -226,7 +226,7 @@ export default function RemoteControlPanel() {
                   {serverRunning ? "Stop Server" : "Start Server"}
                 </button>
               </div>
-              {serverRunning && <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Listening on 0.0.0.0:{port}</div>}
+              {serverRunning && <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Listening on 0.0.0.0:{port}</div>}
             </div>
 
             <div style={{ padding: 14, background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)", textAlign: "center" }}>
@@ -235,12 +235,12 @@ export default function RemoteControlPanel() {
                 <canvas ref={qrRef} width={240} height={240}
                   style={{ width: 120, height: 120, margin: "0 auto", borderRadius: 8, imageRendering: "pixelated" }} />
               ) : (
-                <div style={{ width: 120, height: 120, margin: "0 auto", border: "2px dashed var(--border-color)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", fontSize: 10 }}>
+                <div style={{ width: 120, height: 120, margin: "0 auto", border: "2px dashed var(--border-color)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-secondary)", fontSize: 10 }}>
                   Start server to generate
                 </div>
               )}
               {serverRunning && (
-                <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 6 }}>
+                <div style={{ fontSize: 10, color: "var(--text-secondary)", marginTop: 6 }}>
                   Scan with VibeCLI mobile app to pair
                 </div>
               )}
@@ -251,7 +251,7 @@ export default function RemoteControlPanel() {
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <code style={{ flex: 1, padding: "6px 10px", background: "var(--bg-primary)", borderRadius: 4, fontSize: 13, fontFamily: "var(--font-mono)", color: "var(--accent-color)", letterSpacing: 1 }}>{token || "---"}</code>
                 <button onClick={() => token && navigator.clipboard.writeText(token)}
-                  style={{ padding: "5px 12px", fontSize: 10, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-muted)", cursor: "pointer" }}>Copy</button>
+                  style={{ padding: "5px 12px", fontSize: 10, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-secondary)", cursor: "pointer" }}>Copy</button>
               </div>
             </div>
           </>
@@ -263,7 +263,7 @@ export default function RemoteControlPanel() {
             <span style={{ fontSize: 14 }}>[{typeIcon[c.type]}]</span>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>{c.name}</div>
-              <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>
+              <div style={{ fontSize: 10, color: "var(--text-secondary)", marginTop: 2 }}>
                 {c.permissions.join(", ")} | {c.lastSeen}
               </div>
             </div>
@@ -272,14 +272,14 @@ export default function RemoteControlPanel() {
             </span>
             {c.connected && (
               <button onClick={() => handleDisconnectClient(c.id)}
-                style={{ padding: "4px 10px", fontSize: 10, borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-muted)", cursor: "pointer" }}>
+                style={{ padding: "4px 10px", fontSize: 10, borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-secondary)", cursor: "pointer" }}>
                 Disconnect
               </button>
             )}
           </div>
         ))}
         {tab === "clients" && clients.length === 0 && (
-          <div style={{ textAlign: "center", padding: 24, color: "var(--text-muted)", fontSize: 12 }}>
+          <div style={{ textAlign: "center", padding: 24, color: "var(--text-secondary)", fontSize: 12 }}>
             No clients connected. Start the server and pair a device.
           </div>
         )}
@@ -289,14 +289,14 @@ export default function RemoteControlPanel() {
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             {events.map(e => (
               <div key={e.id} style={{ display: "flex", gap: 10, padding: "6px 10px", background: "var(--bg-secondary)", borderRadius: 4, border: "1px solid var(--border-color)", fontSize: 11, fontFamily: "var(--font-mono)" }}>
-                <span style={{ color: "var(--text-muted)", minWidth: 60 }}>{e.timestamp}</span>
+                <span style={{ color: "var(--text-secondary)", minWidth: 60 }}>{e.timestamp}</span>
                 <span style={{ color: "var(--accent-color)", minWidth: 80 }}>{e.action}</span>
                 <span style={{ color: "var(--text-primary)", flex: 1 }}>{e.detail}</span>
-                <span style={{ color: "var(--text-muted)", fontSize: 10 }}>{e.clientId}</span>
+                <span style={{ color: "var(--text-secondary)", fontSize: 10 }}>{e.clientId}</span>
               </div>
             ))}
             {events.length === 0 && (
-              <div style={{ textAlign: "center", padding: 24, color: "var(--text-muted)", fontSize: 12 }}>
+              <div style={{ textAlign: "center", padding: 24, color: "var(--text-secondary)", fontSize: 12 }}>
                 No events yet.
               </div>
             )}

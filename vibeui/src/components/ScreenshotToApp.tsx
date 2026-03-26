@@ -148,7 +148,7 @@ export function ScreenshotToApp({ workspacePath }: { workspacePath: string | nul
           cursor: "pointer",
           marginBottom: "12px",
           background: "var(--bg-secondary)",
-          color: "var(--text-muted)",
+          color: "var(--text-secondary)",
           transition: "border-color 0.2s",
         }}
         onDragEnter={(e) => { e.currentTarget.style.borderColor = "var(--accent-color)"; }}
@@ -178,7 +178,7 @@ export function ScreenshotToApp({ workspacePath }: { workspacePath: string | nul
           <>
             <div style={{ fontSize: "28px", marginBottom: "8px" }}>+</div>
             <div>Drag & drop an image here, or click to browse</div>
-            <div style={{ fontSize: "11px", marginTop: "4px", color: "var(--text-muted)" }}>
+            <div style={{ fontSize: "11px", marginTop: "4px", color: "var(--text-secondary)" }}>
               PNG, JPG, WEBP
             </div>
           </>
@@ -314,7 +314,7 @@ export function ScreenshotToApp({ workspacePath }: { workspacePath: string | nul
               >
                 <span style={{
                   fontSize: "10px", transform: expandedIdx === idx ? "rotate(90deg)" : "rotate(0deg)",
-                  transition: "transform 0.15s", color: "var(--text-muted)",
+                  transition: "transform 0.15s", color: "var(--text-secondary)",
                 }}>
                   &#9654;
                 </span>
@@ -367,7 +367,7 @@ export function ScreenshotToApp({ workspacePath }: { workspacePath: string | nul
       {!generating && files.length === 0 && !error && (
         <div style={{
           background: "var(--bg-secondary)", padding: "12px", borderRadius: "6px",
-          color: "var(--text-muted)", fontSize: "12px", lineHeight: "1.6",
+          color: "var(--text-secondary)", fontSize: "12px", lineHeight: "1.6",
         }}>
           <div style={{ marginBottom: "4px", fontWeight: "bold", color: "var(--text-secondary)" }}>
             How it works:

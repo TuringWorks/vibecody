@@ -44,7 +44,7 @@ function severityColor(sev: string): string {
     case "high": return "var(--warning-color)";
     case "medium": return "var(--warning-color)";
     case "low": return "var(--info-color)";
-    default: return "var(--text-muted)";
+    default: return "var(--text-secondary)";
   }
 }
 
@@ -54,7 +54,7 @@ function severityIcon(sev: string): React.ReactNode {
     case "high": return <CircleAlert size={14} strokeWidth={1.5} style={{ color: "var(--accent-gold)" }} />;
     case "medium": return <AlertTriangle size={14} strokeWidth={1.5} style={{ color: "var(--accent-gold)" }} />;
     case "low": return <Info size={14} strokeWidth={1.5} style={{ color: "var(--accent-blue)" }} />;
-    default: return <Info size={14} strokeWidth={1.5} style={{ color: "var(--text-muted)" }} />;
+    default: return <Info size={14} strokeWidth={1.5} style={{ color: "var(--text-secondary)" }} />;
   }
 }
 

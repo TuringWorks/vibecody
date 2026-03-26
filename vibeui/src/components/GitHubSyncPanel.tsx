@@ -118,7 +118,7 @@ export function GitHubSyncPanel({ workspacePath }: { workspacePath: string | nul
  const s = {
  panel: { display: "flex", flexDirection: "column", height: "100%", background: "var(--bg-primary)", color: "var(--text-primary)", fontSize: "13px" } as React.CSSProperties,
  header: { padding: "10px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" } as React.CSSProperties,
- tabs: { display: "flex", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" } as React.CSSProperties,
+ tabs: { display: "flex", gap: 2, borderBottom: "1px solid var(--border-color)", padding: "0 16px", flexShrink: 0 } as React.CSSProperties,
  tab: (active: boolean): React.CSSProperties => ({ padding: "6px 14px", border: "none", cursor: "pointer", fontSize: "12px", background: "none", borderBottom: active ? "2px solid var(--accent-blue)" : "2px solid transparent", color: active ? "var(--text-primary)" : "var(--text-secondary)" }),
  content: { flex: 1, overflow: "auto", padding: "12px", display: "flex", flexDirection: "column", gap: "10px" } as React.CSSProperties,
  input: { width: "100%", background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", color: "var(--text-primary)", padding: "6px 8px", borderRadius: "4px", fontSize: "12px", boxSizing: "border-box" as const } as React.CSSProperties,

@@ -29,12 +29,12 @@ export function ObserveActPanel() {
 
   return (
     <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 16, fontSize: 13, color: "var(--text-primary)" }}>
-      <div style={{ display: "flex", gap: 2, borderBottom: "1px solid var(--border-color)", marginBottom: 4 }}>
+      <div style={{ display: "flex", gap: 2, borderBottom: "1px solid var(--border-color)", padding: "0 16px", flexShrink: 0 }}>
         {(["setup", "monitor", "history", "safety"] as const).map(t => (
           <button key={t} onClick={() => setTab(t)} style={{
             padding: "6px 12px", border: "none", background: "transparent", cursor: "pointer",
-            borderBottom: tab === t ? "2px solid var(--accent-color)" : "2px solid transparent",
-            color: tab === t ? "var(--accent-color)" : "var(--text-secondary)", fontSize: 12, fontFamily: "inherit", textTransform: "capitalize",
+            borderBottom: tab === t ? "2px solid var(--accent-blue)" : "2px solid transparent",
+            color: tab === t ? "var(--text-primary)" : "var(--text-secondary)", fontSize: 12, fontFamily: "inherit", textTransform: "capitalize",
           }}>{t}</button>
         ))}
       </div>

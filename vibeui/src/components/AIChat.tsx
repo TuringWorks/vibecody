@@ -540,7 +540,7 @@ export function AIChat({ provider, context, fileTree, currentFile, onFileAction,
  style={{
  marginTop: 4,
  fontSize: 11,
- color: "var(--text-muted)",
+ color: "var(--text-secondary)",
  fontVariantNumeric: "tabular-nums",
  }}
  >

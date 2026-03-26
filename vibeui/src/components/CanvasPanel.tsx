@@ -255,12 +255,12 @@ export default function CanvasPanel() {
  <path
  d={`M ${from.x} ${from.y} Q ${midX} ${from.y} ${to.x} ${to.y}`}
  fill="none"
- stroke="var(--text-muted)"
+ stroke="var(--text-secondary)"
  strokeWidth={2}
  markerEnd="url(#arrowhead)"
  />
  {edge.label && (
- <text x={midX} y={midY - 5} fill="var(--text-muted)" fontSize={10} textAnchor="middle">
+ <text x={midX} y={midY - 5} fill="var(--text-secondary)" fontSize={10} textAnchor="middle">
  {edge.label}
  </text>
  )}
@@ -271,7 +271,7 @@ export default function CanvasPanel() {
  {/* Arrow marker */}
  <defs>
  <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
- <polygon points="0 0, 10 3.5, 0 7" fill="var(--text-muted)" />
+ <polygon points="0 0, 10 3.5, 0 7" fill="var(--text-secondary)" />
  </marker>
  </defs>
 
@@ -312,7 +312,7 @@ export default function CanvasPanel() {
  <text
  x={node.x + NODE_WIDTH - 16}
  y={node.y + 14}
- fill="var(--text-muted)"
+ fill="var(--text-secondary)"
  fontSize={12}
  style={{ cursor: "pointer" }}
  onClick={(e) => { e.stopPropagation(); deleteNode(node.id); }}
@@ -344,7 +344,7 @@ export default function CanvasPanel() {
   };
 
   const pInput: React.CSSProperties = { width: "100%", padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-secondary)", fontSize: 11, boxSizing: "border-box" as const };
-  const pLabel: React.CSSProperties = { fontSize: 10, color: "var(--text-muted)", marginBottom: 2, display: "block", marginTop: 8 };
+  const pLabel: React.CSSProperties = { fontSize: 10, color: "var(--text-secondary)", marginBottom: 2, display: "block", marginTop: 8 };
 
   const toNodes = currentWorkflow.edges.filter(e => e.from === selectedNode).map(e => currentWorkflow.nodes.find(n => n.id === e.to)?.label).filter(Boolean);
   const fromNodes = currentWorkflow.edges.filter(e => e.to === selectedNode).map(e => currentWorkflow.nodes.find(n => n.id === e.from)?.label).filter(Boolean);
@@ -353,7 +353,7 @@ export default function CanvasPanel() {
    <div style={{ width: 220, borderLeft: "1px solid var(--border-color)", padding: 12, overflowY: "auto", fontSize: 12 }}>
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
      <span style={{ fontWeight: 600, fontSize: 13 }}>Properties</span>
-     <button onClick={() => setSelectedNode(null)} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: 14 }}>x</button>
+     <button onClick={() => setSelectedNode(null)} style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", fontSize: 14 }}>x</button>
     </div>
 
     <div style={{ padding: "4px 8px", borderRadius: 4, background: NODE_COLORS[node.type] + "22", color: NODE_COLORS[node.type], fontSize: 11, fontWeight: 600, marginBottom: 8 }}>
@@ -425,7 +425,7 @@ export default function CanvasPanel() {
 
     {(fromNodes.length > 0 || toNodes.length > 0) && (
      <div style={{ marginTop: 12, padding: 8, background: "var(--bg-secondary)", borderRadius: 4 }}>
-      <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>CONNECTIONS</div>
+      <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 4 }}>CONNECTIONS</div>
       {fromNodes.length > 0 && <div style={{ fontSize: 11 }}>From: {fromNodes.join(", ")}</div>}
       {toNodes.length > 0 && <div style={{ fontSize: 11 }}>To: {toNodes.join(", ")}</div>}
      </div>

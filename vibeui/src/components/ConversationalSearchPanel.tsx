@@ -57,7 +57,7 @@ const ConversationalSearchPanel: React.FC = () => {
     border: "none",
     background: active ? "var(--bg-secondary)" : "transparent",
     color: active ? "var(--text-primary)" : "var(--text-secondary)",
-    borderBottom: active ? "2px solid var(--accent-color)" : "2px solid transparent",
+    borderBottom: active ? "2px solid var(--accent-blue)" : "2px solid transparent",
     fontFamily: "inherit",
     fontSize: "inherit",
   });
@@ -155,7 +155,7 @@ const ConversationalSearchPanel: React.FC = () => {
     width: `${score * 100}%`,
     height: "4px",
     borderRadius: "2px",
-    backgroundColor: score > 0.8 ? "var(--success-color)" : score > 0.6 ? "var(--warning-color)" : "var(--text-muted)",
+    backgroundColor: score > 0.8 ? "var(--success-color)" : score > 0.6 ? "var(--warning-color)" : "var(--text-secondary)",
   });
 
   const tabs = ["search", "history", "settings"];

@@ -47,8 +47,8 @@ const tabBtnStyle = (active: boolean): React.CSSProperties => ({ ...btnStyle, ba
 
 const inputStyle: React.CSSProperties = { width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: 12, fontFamily: "var(--font-mono)", boxSizing: "border-box" };
 const badgeStyle = (variant: string): React.CSSProperties => {
-  const colors: Record<string, string> = { tool: "var(--accent-color)", resource: "var(--accent-purple)", prompt: "var(--warning-color)", ok: "var(--success-color)", error: "var(--error-color)", pending: "var(--text-muted)", sent: "var(--accent-color)", received: "var(--accent-purple)" };
-  return { display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 600, color: "var(--btn-primary-fg)", background: colors[variant] || "var(--text-muted)" };
+  const colors: Record<string, string> = { tool: "var(--accent-color)", resource: "var(--accent-purple)", prompt: "var(--warning-color)", ok: "var(--success-color)", error: "var(--error-color)", pending: "var(--text-secondary)", sent: "var(--accent-color)", received: "var(--accent-purple)" };
+  return { display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 600, color: "var(--btn-primary-fg)", background: colors[variant] || "var(--text-secondary)" };
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────

@@ -103,7 +103,7 @@ export function CodeMetricsPanel({ workspacePath }: CodeMetricsPanelProps) {
 
  if (!workspacePath) {
  return (
- <div style={{ padding: 24, textAlign: "center", color: "var(--text-muted)", fontSize: 12 }}>
+ <div style={{ padding: 24, textAlign: "center", color: "var(--text-secondary)", fontSize: 12 }}>
  Open a workspace to analyze code metrics.
  </div>
  );
@@ -117,7 +117,7 @@ export function CodeMetricsPanel({ workspacePath }: CodeMetricsPanelProps) {
  style={{
  padding: "5px 14px", fontSize: 11, fontWeight: view === id ? 600 : 400,
  background: view === id ? "color-mix(in srgb, var(--accent-blue) 15%, transparent)" : "transparent",
- color: view === id ? "var(--accent-blue)" : "var(--text-muted)",
+ color: view === id ? "var(--accent-blue)" : "var(--text-secondary)",
  border: "none", borderBottom: view === id ? "2px solid var(--accent-blue)" : "2px solid transparent",
  cursor: "pointer",
  }}
@@ -134,7 +134,7 @@ export function CodeMetricsPanel({ workspacePath }: CodeMetricsPanelProps) {
  <div style={{ flex: 1 }}>
  <div style={{ fontSize: 13, fontWeight: 600 }}>Code Metrics</div>
  {metrics && (
- <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
+ <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
  {fmt(metrics.total_files)} files · {fmt(metrics.total_lines)} lines · {metrics.languages.length} languages
  </div>
  )}
@@ -182,8 +182,8 @@ export function CodeMetricsPanel({ workspacePath }: CodeMetricsPanelProps) {
  ].map(({ label, value, sub }) => (
  <div key={label} style={{ flex: 1, padding: "8px 10px", background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)", textAlign: "center" }}>
  <div style={{ fontSize: 16, fontWeight: 700 }}>{value}</div>
- <div style={{ fontSize: 9, color: "var(--text-muted)", fontWeight: 600, marginTop: 1 }}>{label}</div>
- <div style={{ fontSize: 9, color: "var(--text-muted)", opacity: 0.7 }}>{sub}</div>
+ <div style={{ fontSize: 9, color: "var(--text-secondary)", fontWeight: 600, marginTop: 1 }}>{label}</div>
+ <div style={{ fontSize: 9, color: "var(--text-secondary)", opacity: 0.7 }}>{sub}</div>
  </div>
  ))}
  </div>
@@ -200,7 +200,7 @@ export function CodeMetricsPanel({ workspacePath }: CodeMetricsPanelProps) {
 
  <div style={{ flex: 1, overflow: "auto" }}>
  {!metrics && !scanning && (
- <div style={{ textAlign: "center", padding: "40px 0", color: "var(--text-muted)", fontSize: 12 }}>
+ <div style={{ textAlign: "center", padding: "40px 0", color: "var(--text-secondary)", fontSize: 12 }}>
  Click Scan to analyse this workspace.
  </div>
  )}
@@ -215,12 +215,12 @@ export function CodeMetricsPanel({ workspacePath }: CodeMetricsPanelProps) {
  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
  <span style={{ width: 10, height: 10, borderRadius: "50%", background: color, flexShrink: 0, display: "inline-block" }} />
  <span style={{ fontSize: 12, fontWeight: 600, flex: 1 }}>{lang.language}</span>
- <span style={{ fontSize: 10, color: "var(--text-muted)" }}>{lang.file_count} files</span>
+ <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>{lang.file_count} files</span>
  <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", fontWeight: 600 }}>{fmt(lang.lines)} lines</span>
- <span style={{ fontSize: 10, color: "var(--text-muted)", width: 36, textAlign: "right" }}>{pct(lang.lines, metrics.total_lines)}%</span>
+ <span style={{ fontSize: 10, color: "var(--text-secondary)", width: 36, textAlign: "right" }}>{pct(lang.lines, metrics.total_lines)}%</span>
  </div>
  <Bar value={lang.lines} max={maxLines} color={color} />
- <div style={{ display: "flex", gap: 14, marginTop: 5, fontSize: 10, color: "var(--text-muted)" }}>
+ <div style={{ display: "flex", gap: 14, marginTop: 5, fontSize: 10, color: "var(--text-secondary)" }}>
  <span>Code: {fmt(lang.code_lines)} ({pct(lang.code_lines, lang.lines)}%)</span>
  <span>Comments: {fmt(lang.comment_lines)} ({pct(lang.comment_lines, lang.lines)}%)</span>
  <span>Blank: {fmt(lang.blank_lines)}</span>
@@ -234,13 +234,13 @@ export function CodeMetricsPanel({ workspacePath }: CodeMetricsPanelProps) {
  {/* Largest files view */}
  {metrics && view === "files" && (
  <div style={{ padding: "8px 12px", display: "flex", flexDirection: "column", gap: 3 }}>
- <div style={{ display: "grid", gridTemplateColumns: "1fr 70px 60px", gap: 8, padding: "4px 8px", fontSize: 10, fontWeight: 600, color: "var(--text-muted)", borderBottom: "1px solid var(--border-color)" }}>
+ <div style={{ display: "grid", gridTemplateColumns: "1fr 70px 60px", gap: 8, padding: "4px 8px", fontSize: 10, fontWeight: 600, color: "var(--text-secondary)", borderBottom: "1px solid var(--border-color)" }}>
  <span>File</span><span style={{ textAlign: "right" }}>Lines</span><span style={{ textAlign: "right" }}>Lang</span>
  </div>
  {metrics.largest_files.map((f, i) => (
  <div key={f.path} style={{ display: "grid", gridTemplateColumns: "1fr 70px 60px", gap: 8, padding: "5px 8px", fontSize: 11, borderBottom: "1px solid var(--border-color)", alignItems: "center" }}>
  <span style={{ fontFamily: "var(--font-mono)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={f.path}>
- <span style={{ color: "var(--text-muted)", marginRight: 6 }}>{i + 1}.</span>{f.path}
+ <span style={{ color: "var(--text-secondary)", marginRight: 6 }}>{i + 1}.</span>{f.path}
  </span>
  <span style={{ textAlign: "right", fontFamily: "var(--font-mono)" }}>{fmt(f.lines)}</span>
  <span style={{ textAlign: "right", fontSize: 10, color: LANG_COLORS[f.language] ?? "var(--accent-blue)" }}>{f.language}</span>
@@ -252,10 +252,10 @@ export function CodeMetricsPanel({ workspacePath }: CodeMetricsPanelProps) {
  {/* Most complex view */}
  {metrics && view === "complexity" && (
  <div style={{ padding: "8px 12px", display: "flex", flexDirection: "column", gap: 3 }}>
- <div style={{ fontSize: 10, color: "var(--text-muted)", padding: "4px 8px 8px", fontStyle: "italic" }}>
+ <div style={{ fontSize: 10, color: "var(--text-secondary)", padding: "4px 8px 8px", fontStyle: "italic" }}>
  Complexity = count of branch-inducing keywords (if/for/while/match/&&/||…)
  </div>
- <div style={{ display: "grid", gridTemplateColumns: "1fr 80px 80px", gap: 8, padding: "4px 8px", fontSize: 10, fontWeight: 600, color: "var(--text-muted)", borderBottom: "1px solid var(--border-color)" }}>
+ <div style={{ display: "grid", gridTemplateColumns: "1fr 80px 80px", gap: 8, padding: "4px 8px", fontSize: 10, fontWeight: 600, color: "var(--text-secondary)", borderBottom: "1px solid var(--border-color)" }}>
  <span>File</span><span style={{ textAlign: "right" }}>Complexity</span><span style={{ textAlign: "right" }}>Lines</span>
  </div>
  {metrics.most_complex.map((f, i) => {
@@ -266,10 +266,10 @@ export function CodeMetricsPanel({ workspacePath }: CodeMetricsPanelProps) {
  <div key={f.path} style={{ padding: "5px 8px", borderBottom: "1px solid var(--border-color)" }}>
  <div style={{ display: "grid", gridTemplateColumns: "1fr 80px 80px", gap: 8, fontSize: 11, alignItems: "center", marginBottom: 3 }}>
  <span style={{ fontFamily: "var(--font-mono)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={f.path}>
- <span style={{ color: "var(--text-muted)", marginRight: 6 }}>{i + 1}.</span>{f.path}
+ <span style={{ color: "var(--text-secondary)", marginRight: 6 }}>{i + 1}.</span>{f.path}
  </span>
  <span style={{ textAlign: "right", fontFamily: "var(--font-mono)", fontWeight: 600, color }}>{fmt(f.complexity)}</span>
- <span style={{ textAlign: "right", fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-muted)" }}>{fmt(f.lines)}</span>
+ <span style={{ textAlign: "right", fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-secondary)" }}>{fmt(f.lines)}</span>
  </div>
  <div style={{ height: 4, background: "var(--bg-primary)", borderRadius: 2, overflow: "hidden" }}>
  <div style={{ width: `${bar}%`, height: "100%", background: color, borderRadius: 2 }} />

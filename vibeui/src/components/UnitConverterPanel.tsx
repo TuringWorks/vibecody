@@ -305,7 +305,7 @@ export function UnitConverterPanel() {
  <thead>
  <tr>
  {["Unit", "Symbol", "Value"].map(h => (
- <th key={h} style={{ padding: "5px 10px", textAlign: "left", borderBottom: "2px solid var(--accent-color)", color: "var(--text-secondary)", fontSize: 11 }}>{h}</th>
+ <th key={h} style={{ padding: "5px 10px", textAlign: "left", borderBottom: "2px solid var(--accent-blue)", color: "var(--text-secondary)", fontSize: 11 }}>{h}</th>
  ))}
  <th style={{ width: 50 }} />
  </tr>

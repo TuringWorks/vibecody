@@ -79,7 +79,7 @@ export function CIReviewPanel() {
         <span style={{
           fontSize: 10, padding: "2px 8px", borderRadius: 10, fontWeight: 600,
           background: config.app_id > 0 ? "color-mix(in srgb, var(--accent-green) 15%, transparent)" : "color-mix(in srgb, var(--text-secondary) 15%, transparent)",
-          color: config.app_id > 0 ? "var(--success-color)" : "var(--text-muted)",
+          color: config.app_id > 0 ? "var(--success-color)" : "var(--text-secondary)",
         }}>
           {config.app_id > 0 ? "Configured" : "Not configured"}
         </span>
@@ -250,7 +250,7 @@ export function CIReviewPanel() {
                       </span>
                     )}
                     {r.severity_counts.low > 0 && (
-                      <span style={{ fontSize: 9, color: "var(--text-muted)" }}>
+                      <span style={{ fontSize: 9, color: "var(--text-secondary)" }}>
                         {r.severity_counts.low} low
                       </span>
                     )}

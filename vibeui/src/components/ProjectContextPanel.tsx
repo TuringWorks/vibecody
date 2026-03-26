@@ -112,7 +112,7 @@ export function ProjectContextPanel({ workspacePath }: { workspacePath?: string 
   const tabStyle = (t: Tab): React.CSSProperties => ({
     padding: "6px 14px",
     cursor: "pointer",
-    borderBottom: tab === t ? "2px solid var(--accent-color, #007acc)" : "2px solid transparent",
+    borderBottom: tab === t ? "2px solid var(--accent-blue)" : "2px solid transparent",
     background: "none",
     border: "none",
     color: tab === t ? "var(--text-primary)" : "var(--text-secondary)",

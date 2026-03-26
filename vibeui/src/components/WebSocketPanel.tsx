@@ -159,7 +159,7 @@ export function WebSocketPanel() {
  try { return JSON.stringify(JSON.parse(raw), null, 2); } catch { return raw; }
  };
 
- const statusColor = status === "open" ? "var(--success-color)" : status === "connecting" ? "var(--warning-color)" : status === "error" ? "var(--error-color)" : "var(--text-muted)";
+ const statusColor = status === "open" ? "var(--success-color)" : status === "connecting" ? "var(--warning-color)" : status === "error" ? "var(--error-color)" : "var(--text-secondary)";
 
  const filtered = filterDir === "all" ? messages : messages.filter(m => m.direction === filterDir);
 
@@ -179,7 +179,7 @@ export function WebSocketPanel() {
  >
  <div style={{ flex: 1, minWidth: 0 }}>
  <div style={{ fontSize: 11, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.label}</div>
- <div style={{ fontSize: 9, color: "var(--text-muted)", fontFamily: "var(--font-mono)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.url}</div>
+ <div style={{ fontSize: 9, color: "var(--text-secondary)", fontFamily: "var(--font-mono)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.url}</div>
  </div>
  <button
  onClick={e => { e.stopPropagation(); removeConfig(c.id); }}
@@ -222,7 +222,7 @@ export function WebSocketPanel() {
  value={protocols}
  onChange={e => setProtocols(e.target.value)}
  placeholder="subprotocols (comma-sep)"
- style={{ width: 160, padding: "5px 8px", fontSize: 11, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-muted)", outline: "none" }}
+ style={{ width: 160, padding: "5px 8px", fontSize: 11, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-secondary)", outline: "none" }}
  />
  {status !== "open" ? (
  <button
@@ -249,13 +249,13 @@ export function WebSocketPanel() {
  </button>
  ))}
  <div style={{ flex: 1 }} />
- <label style={{ fontSize: 10, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 4 }}>
+ <label style={{ fontSize: 10, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4 }}>
  <input type="checkbox" checked={prettyJson} onChange={e => setPrettyJson(e.target.checked)} />Pretty JSON
  </label>
- <label style={{ fontSize: 10, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 4 }}>
+ <label style={{ fontSize: 10, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4 }}>
  <input type="checkbox" checked={autoScroll} onChange={e => setAutoScroll(e.target.checked)} />Auto-scroll
  </label>
- <button onClick={() => setMessages([])} style={{ fontSize: 10, padding: "2px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-muted)", cursor: "pointer" }}>
+ <button onClick={() => setMessages([])} style={{ fontSize: 10, padding: "2px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-secondary)", cursor: "pointer" }}>
  Clear
  </button>
  </div>
@@ -263,13 +263,13 @@ export function WebSocketPanel() {
  {/* Message log */}
  <div ref={logRef} style={{ flex: 1, overflowY: "auto", padding: "6px 0", fontFamily: "var(--font-mono)" }}>
  {filtered.length === 0 && (
- <div style={{ padding: 24, textAlign: "center", color: "var(--text-muted)", fontSize: 12 }}>
+ <div style={{ padding: 24, textAlign: "center", color: "var(--text-secondary)", fontSize: 12 }}>
  {status === "idle" ? "Enter a WebSocket URL and click Connect" : "No messages yet"}
  </div>
  )}
  {filtered.map(m => (
  <div key={m.id} style={{ padding: "4px 12px", display: "flex", gap: 10, alignItems: "flex-start", borderBottom: "1px solid var(--border-subtle)" }}>
- <span style={{ fontSize: 9, color: "var(--text-muted)", flexShrink: 0, paddingTop: 2, minWidth: 86 }}>{fmt(m.ts)}</span>
+ <span style={{ fontSize: 9, color: "var(--text-secondary)", flexShrink: 0, paddingTop: 2, minWidth: 86 }}>{fmt(m.ts)}</span>
  <span style={{ fontSize: 11, fontWeight: 700, color: DIR_COLORS[m.direction], flexShrink: 0, width: 12 }}>{DIR_ICONS[m.direction]}</span>
  <pre style={{ margin: 0, fontSize: 11, color: "var(--text-primary)", whiteSpace: "pre-wrap", wordBreak: "break-word", flex: 1, lineHeight: 1.5 }}>
  {tryPretty(m.data)}
@@ -295,12 +295,12 @@ export function WebSocketPanel() {
  <button
  onClick={send}
  disabled={status !== "open" || !input.trim()}
- style={{ padding: "5px 16px", fontSize: 11, fontWeight: 700, background: status === "open" ? "var(--accent-color)" : "var(--bg-secondary)", border: "none", borderRadius: 4, color: status === "open" ? "var(--text-primary)" : "var(--text-muted)", cursor: status === "open" ? "pointer" : "not-allowed" }}
+ style={{ padding: "5px 16px", fontSize: 11, fontWeight: 700, background: status === "open" ? "var(--accent-color)" : "var(--bg-secondary)", border: "none", borderRadius: 4, color: status === "open" ? "var(--text-primary)" : "var(--text-secondary)", cursor: status === "open" ? "pointer" : "not-allowed" }}
  >↑ Send</button>
  <button
  onClick={sendPing}
  disabled={status !== "open"}
- style={{ padding: "5px 16px", fontSize: 11, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-muted)", cursor: status === "open" ? "pointer" : "not-allowed" }}
+ style={{ padding: "5px 16px", fontSize: 11, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-secondary)", cursor: status === "open" ? "pointer" : "not-allowed" }}
  >Ping</button>
  </div>
  </div>

@@ -91,7 +91,7 @@ const STATUS_COLORS: Record<string, string> = {
   Active: "var(--success-color)",
   Deprecated: "var(--error-color)",
   Incubating: "var(--info-color)",
-  Sunset: "var(--text-muted)",
+  Sunset: "var(--text-secondary)",
   Pending: "var(--warning-color)",
   Provisioning: "var(--info-color)",
   Completed: "var(--success-color)",
@@ -145,9 +145,9 @@ const tabStyle = (active: boolean): React.CSSProperties => ({
   padding: "8px 14px",
   cursor: "pointer",
   background: active ? "var(--bg-primary)" : "transparent",
-  color: active ? "var(--accent-color)" : "var(--text-secondary)",
+  color: active ? "var(--text-primary)" : "var(--text-secondary)",
   border: "none",
-  borderBottom: active ? "2px solid var(--accent-color)" : "2px solid transparent",
+  borderBottom: active ? "2px solid var(--accent-blue)" : "2px solid transparent",
   fontSize: 13,
   fontFamily: "inherit",
   whiteSpace: "nowrap",
@@ -609,8 +609,8 @@ spec:
               <tr key={svc.id}>
                 <td style={{ ...tdStyle, fontWeight: 500 }}>{svc.name}</td>
                 <td style={tdStyle}>{svc.owner}</td>
-                <td style={tdStyle}><span style={badgeStyle(TIER_COLORS[svc.tier] || "var(--text-muted)")}>{svc.tier}</span></td>
-                <td style={tdStyle}><span style={badgeStyle(STATUS_COLORS[svc.status] || "var(--text-muted)")}>{svc.status}</span></td>
+                <td style={tdStyle}><span style={badgeStyle(TIER_COLORS[svc.tier] || "var(--text-secondary)")}>{svc.tier}</span></td>
+                <td style={tdStyle}><span style={badgeStyle(STATUS_COLORS[svc.status] || "var(--text-secondary)")}>{svc.status}</span></td>
                 <td style={tdStyle}>{svc.language}</td>
                 <td style={tdStyle}>{svc.framework || "—"}</td>
                 <td style={tdStyle}>
@@ -718,7 +718,7 @@ spec:
                 {scorecard.metrics.map((metric) => (
                   <div key={metric.name} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
                     <span style={{ fontSize: 12, minWidth: 180, color: "var(--text-secondary)" }}>
-                      <span style={{ ...badgeStyle("var(--text-muted)"), fontSize: 9, marginRight: 4 }}>{metric.category}</span>
+                      <span style={{ ...badgeStyle("var(--text-secondary)"), fontSize: 9, marginRight: 4 }}>{metric.category}</span>
                       {metric.name}
                     </span>
                     <div style={{ flex: 1, height: 8, background: "var(--bg-tertiary)", borderRadius: 4, overflow: "hidden" }}>
@@ -831,7 +831,7 @@ spec:
               <tr key={req.id}>
                 <td style={{ ...tdStyle, fontFamily: "inherit", fontSize: 11 }}>{req.id}</td>
                 <td style={tdStyle}>{req.template}</td>
-                <td style={tdStyle}><span style={badgeStyle(STATUS_COLORS[req.status] || "var(--text-muted)")}>{req.status}</span></td>
+                <td style={tdStyle}><span style={badgeStyle(STATUS_COLORS[req.status] || "var(--text-secondary)")}>{req.status}</span></td>
                 <td style={tdStyle}>{req.config?.environment || "—"}</td>
                 <td style={tdStyle}>{req.config?.region || "—"}</td>
                 <td style={tdStyle}>{req.requested_by}</td>
@@ -935,7 +935,7 @@ spec:
               <p style={{ margin: "0 0 8px", fontSize: 12, color: "var(--text-secondary)" }}>{platform.description}</p>
               <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                 {platform.features.map((f) => (
-                  <span key={f} style={{ ...badgeStyle(platform.enabled ? "var(--success-color)" : "var(--text-muted)"), fontSize: 10 }}>{f}</span>
+                  <span key={f} style={{ ...badgeStyle(platform.enabled ? "var(--success-color)" : "var(--text-secondary)"), fontSize: 10 }}>{f}</span>
                 ))}
               </div>
             </div>
@@ -1018,7 +1018,7 @@ spec:
                     <td style={tdStyle}><span style={badgeStyle("var(--info-color)")}>Component</span></td>
                     <td style={tdStyle}>{svc.owner}</td>
                     <td style={tdStyle}>
-                      <span style={badgeStyle(svc.status === "Active" ? "var(--success-color)" : svc.status === "Incubating" ? "var(--warning-color)" : "var(--text-muted)")}>
+                      <span style={badgeStyle(svc.status === "Active" ? "var(--success-color)" : svc.status === "Incubating" ? "var(--warning-color)" : "var(--text-secondary)")}>
                         {svc.status === "Active" ? "production" : svc.status === "Incubating" ? "experimental" : "deprecated"}
                       </span>
                     </td>

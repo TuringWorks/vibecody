@@ -105,7 +105,7 @@ export function MigrationsPanel({ workspacePath }: MigrationsPanelProps) {
 
  if (!workspacePath) {
  return (
- <div style={{ padding: 24, textAlign: "center", color: "var(--text-muted)", fontSize: 12 }}>
+ <div style={{ padding: 24, textAlign: "center", color: "var(--text-secondary)", fontSize: 12 }}>
  Open a workspace folder to manage migrations.
  </div>
  );
@@ -125,7 +125,7 @@ export function MigrationsPanel({ workspacePath }: MigrationsPanelProps) {
  {tool === "unknown" ? "No migration tool detected" : tool.charAt(0).toUpperCase() + tool.slice(1)}
  </div>
  {status && (
- <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
+ <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
  {status.applied.length} applied · {status.pending.length} pending
  </div>
  )}
@@ -156,7 +156,7 @@ export function MigrationsPanel({ workspacePath }: MigrationsPanelProps) {
  style={{
  padding: "6px 12px", fontSize: 12, fontWeight: 600,
  background: status.pending.length > 0 ? "var(--accent-color)" : "var(--bg-secondary)",
- color: status.pending.length > 0 ? "var(--text-primary)" : "var(--text-muted)",
+ color: status.pending.length > 0 ? "var(--text-primary)" : "var(--text-secondary)",
  border: "none", borderRadius: 4, cursor: status.pending.length > 0 ? "pointer" : "default",
  opacity: actionLoading === "migrate" ? 0.7 : 1,
  }}
@@ -224,7 +224,7 @@ export function MigrationsPanel({ workspacePath }: MigrationsPanelProps) {
  {/* Migration list */}
  {allMigrations.length > 0 ? (
  <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
- <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 2, fontWeight: 600 }}>
+ <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 2, fontWeight: 600 }}>
  MIGRATIONS ({allMigrations.length})
  </div>
  {allMigrations.map((m) => (
@@ -243,7 +243,7 @@ export function MigrationsPanel({ workspacePath }: MigrationsPanelProps) {
  {m.state}
  </span>
  {m.applied_at && (
- <span style={{ fontSize: 10, color: "var(--text-muted)" }}>
+ <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>
  {new Date(m.applied_at).toLocaleDateString()}
  </span>
  )}
@@ -251,7 +251,7 @@ export function MigrationsPanel({ workspacePath }: MigrationsPanelProps) {
  ))}
  </div>
  ) : !loading && status && (
- <div style={{ textAlign: "center", padding: "20px 0", color: "var(--text-muted)", fontSize: 12 }}>
+ <div style={{ textAlign: "center", padding: "20px 0", color: "var(--text-secondary)", fontSize: 12 }}>
  {tool === "unknown"
  ? "No migration tool found. Add Prisma, Diesel, Alembic, Flyway, or golang-migrate."
  : "No migrations found. Generate one above."}
@@ -263,7 +263,7 @@ export function MigrationsPanel({ workspacePath }: MigrationsPanelProps) {
  <div>
  <button
  onClick={() => setShowRaw((p) => !p)}
- style={{ fontSize: 11, background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: 0, marginBottom: 4 }}
+ style={{ fontSize: 11, background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", padding: 0, marginBottom: 4 }}
  >
  {showRaw ? "Hide raw output" : "▼ Show raw output"}
  </button>
@@ -271,7 +271,7 @@ export function MigrationsPanel({ workspacePath }: MigrationsPanelProps) {
  <pre style={{
  margin: 0, padding: 8, background: "var(--bg-secondary)", border: "1px solid var(--border-color)",
  borderRadius: 4, fontSize: 10, lineHeight: 1.4,
- overflow: "auto", maxHeight: 200, whiteSpace: "pre-wrap", color: "var(--text-muted)",
+ overflow: "auto", maxHeight: 200, whiteSpace: "pre-wrap", color: "var(--text-secondary)",
  }}>
  {status.raw_output}
  </pre>

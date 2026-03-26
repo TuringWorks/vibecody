@@ -60,7 +60,7 @@ const thStyle: React.CSSProperties = { textAlign: "left", padding: "6px 10px", b
 const tdStyle: React.CSSProperties = { padding: "6px 10px", borderBottom: "1px solid var(--border-color)", fontSize: 12 };
 
 const severityColor: Record<string, string> = { info: "var(--info-color)", warning: "var(--warning-color)", critical: "var(--error-color)" };
-const badgeStyle = (severity: string): React.CSSProperties => ({ display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 600, color: "var(--btn-primary-fg)", background: severityColor[severity] || "var(--text-muted)" });
+const badgeStyle = (severity: string): React.CSSProperties => ({ display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 600, color: "var(--btn-primary-fg)", background: severityColor[severity] || "var(--text-secondary)" });
 
 const budgetBarColor = (pct: number) => pct >= 90 ? "var(--error-color)" : pct >= 70 ? "var(--warning-color)" : "var(--success-color)";
 const formatTokens = (n: number) => n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1_000 ? `${(n / 1_000).toFixed(0)}k` : String(n);

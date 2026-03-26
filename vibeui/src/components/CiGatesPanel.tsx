@@ -10,7 +10,7 @@ const TABS: Tab[] = ["Rules", "Reports", "GitHub Action"];
 
 const STATUS_COLORS: Record<string, string> = {
   Pass: "var(--success-color)", Fail: "var(--error-color)",
-  Warn: "var(--warning-color)", Skip: "var(--text-muted)",
+  Warn: "var(--warning-color)", Skip: "var(--text-secondary)",
 };
 
 const containerStyle: React.CSSProperties = {
@@ -26,8 +26,8 @@ const tabBarStyle: React.CSSProperties = {
 const tabStyle = (active: boolean): React.CSSProperties => ({
   padding: "8px 14px", cursor: "pointer",
   background: active ? "var(--bg-primary)" : "transparent",
-  color: active ? "var(--accent-color)" : "var(--text-secondary)",
-  border: "none", borderBottom: active ? "2px solid var(--accent-color)" : "2px solid transparent",
+  color: active ? "var(--text-primary)" : "var(--text-secondary)",
+  border: "none", borderBottom: active ? "2px solid var(--accent-blue)" : "2px solid transparent",
   fontSize: 13, fontFamily: "inherit", whiteSpace: "nowrap",
 });
 const contentStyle: React.CSSProperties = { flex: 1, overflow: "auto", padding: 16 };
@@ -101,11 +101,11 @@ const CiGatesPanel: React.FC = () => {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <strong>{r.name}</strong>
-                <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>Category: {r.category}</div>
+                <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }}>Category: {r.category}</div>
               </div>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <span style={badgeStyle(STATUS_COLORS[r.severity] || "var(--text-muted)")}>{r.severity}</span>
-                <span style={{ fontSize: 11, color: r.enabled ? "var(--success-color)" : "var(--text-muted)" }}>{r.enabled ? "ON" : "OFF"}</span>
+                <span style={badgeStyle(STATUS_COLORS[r.severity] || "var(--text-secondary)")}>{r.severity}</span>
+                <span style={{ fontSize: 11, color: r.enabled ? "var(--success-color)" : "var(--text-secondary)" }}>{r.enabled ? "ON" : "OFF"}</span>
               </div>
             </div>
           </div>
@@ -117,7 +117,7 @@ const CiGatesPanel: React.FC = () => {
               <div key={j} style={cardStyle}>
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
                   <span>{c.name}</span>
-                  <span style={badgeStyle(STATUS_COLORS[c.result] || "var(--text-muted)")}>{c.result}</span>
+                  <span style={badgeStyle(STATUS_COLORS[c.result] || "var(--text-secondary)")}>{c.result}</span>
                 </div>
                 <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 2 }}>{c.detail}</div>
               </div>

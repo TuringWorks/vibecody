@@ -22,7 +22,7 @@ interface SpecPanelProps {
 }
 
 const STATUS_COLORS: Record<string, string> = {
- draft: "var(--text-muted)",
+ draft: "var(--text-secondary)",
  approved: "var(--success-color)",
  "in-progress": "var(--warning-color)",
  done: "var(--info-color)",
@@ -201,14 +201,14 @@ export function SpecPanel({ workspacePath, provider = "ollama" }: SpecPanelProps
  )}
 
  {/* Sub-tabs */}
- <div style={{ display: "flex", borderBottom: "1px solid var(--border-color)" }}>
+ <div style={{ display: "flex", gap: 2, borderBottom: "1px solid var(--border-color)", padding: "0 16px", flexShrink: 0 }}>
  {(["list", "editor"] as const).map(tab => (
  <button
  key={tab}
  onClick={() => setActiveTab(tab)}
  style={{
  flex: 1, padding: "6px", fontSize: "11px", background: "none", border: "none",
- borderBottom: activeTab === tab ? "2px solid var(--accent-color)" : "2px solid transparent",
+ borderBottom: activeTab === tab ? "2px solid var(--accent-blue)" : "2px solid transparent",
  color: activeTab === tab ? "var(--text-primary)" : "var(--text-secondary)",
  cursor: "pointer", fontWeight: activeTab === tab ? 600 : 400,
  }}

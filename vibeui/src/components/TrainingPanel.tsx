@@ -592,7 +592,7 @@ export function TrainingPanel() {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "var(--bg-primary)", color: "var(--text-primary)" }}>
       {/* Tab bar */}
-      <div style={{ display: "flex", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
+      <div style={{ display: "flex", gap: 2, borderBottom: "1px solid var(--border-color)", padding: "0 16px", flexShrink: 0 }}>
         {([["config", "Config"], ["lora", "LoRA"], ["cluster", "Cluster"]] as [TabId, string][]).map(([id, label]) => (
           <button
             key={id}
@@ -600,8 +600,8 @@ export function TrainingPanel() {
             style={{
               flex: 1, padding: "8px 0", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600,
               background: tab === id ? "var(--bg-primary)" : "transparent",
-              color: tab === id ? "var(--accent-color)" : "var(--text-secondary)",
-              borderBottom: tab === id ? "2px solid var(--accent-color)" : "2px solid transparent",
+              color: tab === id ? "var(--text-primary)" : "var(--text-secondary)",
+              borderBottom: tab === id ? "2px solid var(--accent-blue)" : "2px solid transparent",
             }}
           >
             {label}

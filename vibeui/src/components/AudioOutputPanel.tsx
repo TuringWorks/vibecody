@@ -21,8 +21,8 @@ const tabBarStyle: React.CSSProperties = {
 const tabStyle = (active: boolean): React.CSSProperties => ({
   padding: "8px 14px", cursor: "pointer",
   background: active ? "var(--bg-primary)" : "transparent",
-  color: active ? "var(--accent-color)" : "var(--text-secondary)",
-  border: "none", borderBottom: active ? "2px solid var(--accent-color)" : "2px solid transparent",
+  color: active ? "var(--text-primary)" : "var(--text-secondary)",
+  border: "none", borderBottom: active ? "2px solid var(--accent-blue)" : "2px solid transparent",
   fontSize: 13, fontFamily: "inherit", whiteSpace: "nowrap",
 });
 const contentStyle: React.CSSProperties = { flex: 1, overflow: "auto", padding: 16 };
@@ -80,7 +80,7 @@ const AudioOutputPanel: React.FC = () => {
               ))}
             </div>
             <textarea style={{ ...inputStyle, height: 80, resize: "vertical" }} placeholder="Or enter custom text to narrate..." aria-label="Custom narration text" />
-            <div style={{ marginTop: 8, fontSize: 12, color: "var(--text-muted)" }}>
+            <div style={{ marginTop: 8, fontSize: 12, color: "var(--text-secondary)" }}>
               Select a narration type above or type custom text, then click Generate.
             </div>
           </div>

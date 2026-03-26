@@ -38,7 +38,7 @@ interface TeamInfo {
 type SubTab = "overview" | "messages" | "tasks";
 
 const statusColor: Record<string, string> = {
-  Pending: "var(--text-muted)",
+  Pending: "var(--text-secondary)",
   InProgress: "var(--accent-color)",
   Completed: "var(--success-color)",
   Failed: "var(--error-color)",
@@ -48,9 +48,9 @@ const msgTypeColor: Record<string, string> = {
   Finding: "var(--success-color)",
   Challenge: "var(--warning-color)",
   Request: "var(--accent-color)",
-  Status: "var(--text-muted)",
+  Status: "var(--text-secondary)",
   TaskAssignment: "var(--text-accent)",
-  Ack: "var(--text-muted)",
+  Ack: "var(--text-secondary)",
 };
 
 export function AgentTeamPanel() {
@@ -211,7 +211,7 @@ export function AgentTeamPanel() {
                   <div style={{ display: "flex", gap: 2, height: 8, borderRadius: 4, overflow: "hidden" }}>
                     {team.tasks.map((t) => (
                       <div key={t.id} style={{
-                        flex: 1, background: statusColor[t.status] || "var(--text-muted)",
+                        flex: 1, background: statusColor[t.status] || "var(--text-secondary)",
                         opacity: t.status === "Pending" ? 0.3 : 1,
                       }} title={`${t.description} (${t.status})`} />
                     ))}
@@ -234,7 +234,7 @@ export function AgentTeamPanel() {
                     <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4 }}>
                       <span style={{
                         fontSize: 9, padding: "1px 6px", borderRadius: 3, fontWeight: 700,
-                        background: statusColor[t.status] || "var(--text-muted)", color: "var(--bg-tertiary)",
+                        background: statusColor[t.status] || "var(--text-secondary)", color: "var(--bg-tertiary)",
                       }}>
                         {t.status}
                       </span>
@@ -262,11 +262,11 @@ export function AgentTeamPanel() {
                 {team.messages.map((m, i) => (
                   <div key={i} style={{
                     padding: "4px 8px", borderRadius: 4,
-                    borderLeft: `3px solid ${msgTypeColor[m.msg_type] || "var(--text-muted)"}`,
+                    borderLeft: `3px solid ${msgTypeColor[m.msg_type] || "var(--text-secondary)"}`,
                     background: "var(--bg-primary)",
                   }}>
                     <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 2 }}>
-                      <span style={{ fontSize: 9, fontWeight: 700, color: msgTypeColor[m.msg_type] || "var(--text-muted)" }}>
+                      <span style={{ fontSize: 9, fontWeight: 700, color: msgTypeColor[m.msg_type] || "var(--text-secondary)" }}>
                         {m.msg_type}
                       </span>
                       <span style={{ fontSize: 9, opacity: 0.5 }}>

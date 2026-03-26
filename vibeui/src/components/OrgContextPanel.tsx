@@ -26,8 +26,8 @@ const tabBarStyle: React.CSSProperties = {
 const tabStyle = (active: boolean): React.CSSProperties => ({
   padding: "8px 14px", cursor: "pointer",
   background: active ? "var(--bg-primary)" : "transparent",
-  color: active ? "var(--accent-color)" : "var(--text-secondary)",
-  border: "none", borderBottom: active ? "2px solid var(--accent-color)" : "2px solid transparent",
+  color: active ? "var(--text-primary)" : "var(--text-secondary)",
+  border: "none", borderBottom: active ? "2px solid var(--accent-blue)" : "2px solid transparent",
   fontSize: 13, fontFamily: "inherit", whiteSpace: "nowrap",
 });
 const contentStyle: React.CSSProperties = { flex: 1, overflow: "auto", padding: 16 };
@@ -95,7 +95,7 @@ const OrgContextPanel: React.FC = () => {
           <div key={i} style={cardStyle}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
               <strong>{r.name}</strong>
-              <span style={badgeStyle(STATUS_COLORS[r.status] || "var(--text-muted)")}>{r.status}</span>
+              <span style={badgeStyle(STATUS_COLORS[r.status] || "var(--text-secondary)")}>{r.status}</span>
             </div>
             <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{r.lang} &middot; {r.files} files &middot; Last indexed: {r.lastIndexed}</div>
           </div>
@@ -104,7 +104,7 @@ const OrgContextPanel: React.FC = () => {
           <div key={i} style={cardStyle}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
               <strong>{p.type}</strong>
-              <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{p.count} occurrences in {p.repos} repos</span>
+              <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>{p.count} occurrences in {p.repos} repos</span>
             </div>
             <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{p.desc}</div>
           </div>
@@ -123,7 +123,7 @@ const OrgContextPanel: React.FC = () => {
         ))}
         {tab === "Dependencies" && DEPS.map((d, i) => (
           <div key={i} style={cardStyle}>
-            <div style={{ fontSize: 13 }}><strong>{d.from}</strong> <span style={{ color: "var(--text-muted)" }}>&rarr;</span> <strong>{d.to}</strong></div>
+            <div style={{ fontSize: 13 }}><strong>{d.from}</strong> <span style={{ color: "var(--text-secondary)" }}>&rarr;</span> <strong>{d.to}</strong></div>
             <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>Type: {d.type} &middot; Version: {d.version}</div>
           </div>
         ))}

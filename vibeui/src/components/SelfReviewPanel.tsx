@@ -183,10 +183,10 @@ const SelfReviewPanel: React.FC = () => {
                         background: check.passed ? 'var(--success-color)' : 'var(--error-color)', color: 'var(--btn-primary-fg)',
                       }}>{checkIcons[check.kind] || check.kind[0].toUpperCase()}</span>
                       <span style={{ fontWeight: 600, fontSize: 13 }}>{check.kind}</span>
-                      <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 'auto' }}>{check.durationMs}ms</span>
+                      <span style={{ fontSize: 11, color: 'var(--text-secondary)', marginLeft: 'auto' }}>{check.durationMs}ms</span>
                     </div>
                     {check.command && (
-                      <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', marginTop: 4 }}>{check.command}</div>
+                      <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', marginTop: 4 }}>{check.command}</div>
                     )}
                     {check.findings.length > 0 && (
                       <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>
@@ -204,7 +204,7 @@ const SelfReviewPanel: React.FC = () => {
                     <div key={i} style={{ display: 'flex', gap: 6, padding: '3px 0', borderBottom: '1px solid var(--border-color)' }}>
                       <span style={{ color: severityColors[f.severity], fontWeight: 600, fontSize: 11, minWidth: 55 }}>{f.severity}</span>
                       <span style={{ color: 'var(--text-primary)' }}>{f.message}</span>
-                      {f.file && <span style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginLeft: 'auto', fontSize: 11 }}>{f.file}{f.line ? `:${f.line}` : ''}</span>}
+                      {f.file && <span style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', marginLeft: 'auto', fontSize: 11 }}>{f.file}{f.line ? `:${f.line}` : ''}</span>}
                     </div>
                   ))}
                 </div>

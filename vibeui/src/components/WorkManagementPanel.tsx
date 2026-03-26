@@ -73,13 +73,13 @@ const badge = (bg: string, fg = "var(--text-primary)"): React.CSSProperties => (
 const TYPE_COLORS: Record<string, string> = {
   initiative: "var(--accent-purple)", okr: "var(--accent-gold)", epic: "var(--accent-blue)",
   feature: "var(--accent-green)", story: "var(--accent-blue)", task: "var(--text-secondary)",
-  subtask: "var(--text-muted)", bug: "var(--error-color)", risk: "var(--warning-color)",
+  subtask: "var(--text-secondary)", bug: "var(--error-color)", risk: "var(--warning-color)",
   decision: "var(--info-color)", milestone: "var(--accent-rose)", spike: "var(--accent-purple)",
 };
 
 const PRIORITY_COLORS: Record<string, string> = {
   critical: "var(--error-color)", high: "var(--warning-color)", medium: "var(--accent-blue)",
-  low: "var(--text-secondary)", none: "var(--text-muted)",
+  low: "var(--text-secondary)", none: "var(--text-secondary)",
 };
 
 const genId = () => Math.random().toString(36).slice(2, 10);
@@ -154,7 +154,7 @@ export default function WorkManagementPanel() {
       {/* Header */}
       <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-color)", display: "flex", alignItems: "center", gap: 8 }}>
         <span style={{ fontSize: 14, fontWeight: 700 }}>Work Management</span>
-        {scope.orgId && <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+        {scope.orgId && <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>
           {orgs.find(o => o.id === scope.orgId)?.name}
           {scope.groupId && ` / ${groups.find(g => g.id === scope.groupId)?.name || ""}`}
           {scope.teamId && ` / ${teams.find(t => t.id === scope.teamId)?.name || ""}`}
@@ -164,12 +164,12 @@ export default function WorkManagementPanel() {
       </div>
 
       {/* Tabs */}
-      <div style={{ display: "flex", borderBottom: "1px solid var(--border-color)" }}>
+      <div style={{ display: "flex", gap: 2, borderBottom: "1px solid var(--border-color)", padding: "0 16px", flexShrink: 0 }}>
         {tabs.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)} style={{
             padding: "6px 14px", fontSize: 12, border: "none", background: "none", cursor: "pointer",
-            borderBottom: tab === t.id ? "2px solid var(--accent-color)" : "2px solid transparent",
-            color: tab === t.id ? "var(--accent-color)" : "var(--text-secondary)",
+            borderBottom: tab === t.id ? "2px solid var(--accent-blue)" : "2px solid transparent",
+            color: tab === t.id ? "var(--text-primary)" : "var(--text-secondary)",
           }}>{t.label}</button>
         ))}
       </div>
@@ -268,7 +268,7 @@ function HierarchyTab({ orgs, groups, teams, workspaces, scope, setScope, onRefr
   const renderLevel = (label: string, items: { id: string; name: string; description: string }[], onSelect: (id: string) => void, selectedId?: string, createType?: "org" | "group" | "team" | "workspace") => (
     <div style={{ marginBottom: 16 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-        <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)" }}>{label} ({items.length})</span>
+        <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-secondary)" }}>{label} ({items.length})</span>
         {createType && <button style={{ ...btnS, fontSize: 10, padding: "2px 8px" }} onClick={() => setCreating(createType)}>+</button>}
       </div>
       {items.map(item => (
@@ -302,7 +302,7 @@ function HierarchyTab({ orgs, groups, teams, workspaces, scope, setScope, onRefr
           )}
         </div>
       ))}
-      {items.length === 0 && <div style={{ fontSize: 11, color: "var(--text-muted)", padding: 8 }}>No {label.toLowerCase()} yet. Click + to create one.</div>}
+      {items.length === 0 && <div style={{ fontSize: 11, color: "var(--text-secondary)", padding: 8 }}>No {label.toLowerCase()} yet. Click + to create one.</div>}
     </div>
   );
 
@@ -348,14 +348,14 @@ function HierarchyTab({ orgs, groups, teams, workspaces, scope, setScope, onRefr
 
       {/* Breadcrumb flow */}
       {orgs.length > 0 && (
-        <div style={{ display: "flex", gap: 6, marginBottom: 12, fontSize: 11, color: "var(--text-muted)", alignItems: "center", flexWrap: "wrap" }}>
-          <span style={{ fontWeight: scope.orgId ? 600 : 400, color: scope.orgId ? "var(--accent-color)" : "var(--text-muted)", cursor: "pointer" }}
+        <div style={{ display: "flex", gap: 6, marginBottom: 12, fontSize: 11, color: "var(--text-secondary)", alignItems: "center", flexWrap: "wrap" }}>
+          <span style={{ fontWeight: scope.orgId ? 600 : 400, color: scope.orgId ? "var(--accent-color)" : "var(--text-secondary)", cursor: "pointer" }}
             onClick={() => setScope({})}>
             Organizations
           </span>
-          {scope.orgId && <>&rarr; <span style={{ fontWeight: scope.groupId ? 600 : 400, color: scope.groupId ? "var(--accent-color)" : "var(--text-muted)" }}>Groups</span></>}
-          {scope.groupId && <>&rarr; <span style={{ fontWeight: scope.teamId ? 600 : 400, color: scope.teamId ? "var(--accent-color)" : "var(--text-muted)" }}>Teams</span></>}
-          {scope.teamId && <>&rarr; <span style={{ fontWeight: scope.workspaceId ? 600 : 400, color: scope.workspaceId ? "var(--accent-color)" : "var(--text-muted)" }}>Workspaces</span></>}
+          {scope.orgId && <>&rarr; <span style={{ fontWeight: scope.groupId ? 600 : 400, color: scope.groupId ? "var(--accent-color)" : "var(--text-secondary)" }}>Groups</span></>}
+          {scope.groupId && <>&rarr; <span style={{ fontWeight: scope.teamId ? 600 : 400, color: scope.teamId ? "var(--accent-color)" : "var(--text-secondary)" }}>Teams</span></>}
+          {scope.teamId && <>&rarr; <span style={{ fontWeight: scope.workspaceId ? 600 : 400, color: scope.workspaceId ? "var(--accent-color)" : "var(--text-secondary)" }}>Workspaces</span></>}
         </div>
       )}
 
@@ -534,7 +534,7 @@ function ItemsTab({ items, scope, onRefresh, setError }: {
           <option value="">All Statuses</option>
           {allStatuses.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
-        <span style={{ fontSize: 11, color: "var(--text-muted)", marginLeft: "auto" }}>{filtered.length} items</span>
+        <span style={{ fontSize: 11, color: "var(--text-secondary)", marginLeft: "auto" }}>{filtered.length} items</span>
       </div>
 
       {/* Item list */}
@@ -545,8 +545,8 @@ function ItemsTab({ items, scope, onRefresh, setError }: {
             <span style={badge(TYPE_COLORS[item.type] || "var(--bg-tertiary)", "var(--btn-primary-fg)")}>{item.type}</span>
             <span style={badge(PRIORITY_COLORS[item.priority] || "var(--bg-tertiary)", "var(--btn-primary-fg)")}>{item.priority}</span>
             <span style={badge("var(--bg-tertiary)", "var(--text-secondary)")}>{item.status}</span>
-            {item.storyPoints !== undefined && item.storyPoints > 0 && <span style={{ fontSize: 10, color: "var(--text-muted)" }}>{item.storyPoints} pts</span>}
-            {item.parentId && <span style={{ fontSize: 10, color: "var(--text-muted)" }}>parent: {item.parentId}</span>}
+            {item.storyPoints !== undefined && item.storyPoints > 0 && <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>{item.storyPoints} pts</span>}
+            {item.parentId && <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>parent: {item.parentId}</span>}
             <div style={{ flex: 1 }} />
             <button style={{ ...btnS, fontSize: 10, padding: "2px 6px" }} onClick={() => setEditingItem(item)}>Edit</button>
             {["initiative", "epic", "feature", "story"].includes(item.type) && (
@@ -566,7 +566,7 @@ function ItemsTab({ items, scope, onRefresh, setError }: {
           {item.relationships.length > 0 && (
             <div style={{ display: "flex", gap: 4, marginTop: 4, flexWrap: "wrap" }}>
               {item.relationships.map((r, i) => (
-                <span key={i} style={{ fontSize: 10, color: "var(--text-muted)" }}>{r.type}: <strong>{r.targetId}</strong></span>
+                <span key={i} style={{ fontSize: 10, color: "var(--text-secondary)" }}>{r.type}: <strong>{r.targetId}</strong></span>
               ))}
             </div>
           )}
@@ -578,7 +578,7 @@ function ItemsTab({ items, scope, onRefresh, setError }: {
         </div>
       ))}
       {filtered.length === 0 && (
-        <div style={{ textAlign: "center", padding: 24, color: "var(--text-muted)", fontSize: 12 }}>
+        <div style={{ textAlign: "center", padding: 24, color: "var(--text-secondary)", fontSize: 12 }}>
           {scope.orgId
             ? "No work items in this scope. Click + Create Item to get started."
             : "Select an organization from the Hierarchy tab first, then create work items here."}
@@ -586,7 +586,7 @@ function ItemsTab({ items, scope, onRefresh, setError }: {
             {ITEM_TYPES.slice(0, 6).map(t => (
               <span key={t} style={{ ...badge(TYPE_COLORS[t] || "var(--bg-tertiary)", "var(--btn-primary-fg)"), fontSize: 10 }}>{t}</span>
             ))}
-            <span style={{ fontSize: 10, color: "var(--text-muted)" }}>+{ITEM_TYPES.length - 6} more types</span>
+            <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>+{ITEM_TYPES.length - 6} more types</span>
           </div>
         </div>
       )}
@@ -619,7 +619,7 @@ function BoardTab({ items, onRefresh, setError }: {
         const colItems = items.filter(i => i.status === col);
         return (
           <div key={col} style={{ minWidth: 200, flex: 1, background: "var(--bg-secondary)", borderRadius: 8, padding: 8, border: "1px solid var(--border-color)" }}>
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 8, letterSpacing: "0.05em" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "var(--text-secondary)", marginBottom: 8, letterSpacing: "0.05em" }}>
               {col} ({colItems.length})
             </div>
             {colItems.map(item => (
@@ -691,7 +691,7 @@ function RelationshipsTab({ items, onRefresh, setError }: { items: WorkItem[]; o
           ))}
         </div>
       ))}
-      {linked.length === 0 && <div style={{ textAlign: "center", padding: 24, color: "var(--text-muted)", fontSize: 12 }}>No linked items yet. Use the form above to create relationships.</div>}
+      {linked.length === 0 && <div style={{ textAlign: "center", padding: 24, color: "var(--text-secondary)", fontSize: 12 }}>No linked items yet. Use the form above to create relationships.</div>}
     </div>
   );
 }
@@ -723,20 +723,20 @@ function OkrTab({ items }: { items: WorkItem[] }) {
                 <div style={{ height: 6, background: "var(--bg-tertiary)", borderRadius: 3, overflow: "hidden" }}>
                   <div style={{ width: `${Math.min(pct, 100)}%`, height: "100%", background: pct >= 100 ? "var(--success-color)" : "var(--accent-color)", borderRadius: 3, transition: "width 0.3s" }} />
                 </div>
-                <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 1 }}>{kr.current} / {kr.target}</div>
+                <div style={{ fontSize: 10, color: "var(--text-secondary)", marginTop: 1 }}>{kr.current} / {kr.target}</div>
               </div>
             );
           })}
 
           {/* Linked items */}
           {okr.relationships.filter(r => r.type === "implemented_by" || r.type === "child").length > 0 && (
-            <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>
+            <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 4 }}>
               Linked: {okr.relationships.filter(r => r.type === "implemented_by" || r.type === "child").map(r => r.targetId).join(", ")}
             </div>
           )}
         </div>
       ))}
-      {okrs.length === 0 && <div style={{ textAlign: "center", padding: 24, color: "var(--text-muted)", fontSize: 12 }}>No OKRs. Create one from the Items tab with type "okr".</div>}
+      {okrs.length === 0 && <div style={{ textAlign: "center", padding: 24, color: "var(--text-secondary)", fontSize: 12 }}>No OKRs. Create one from the Items tab with type "okr".</div>}
     </div>
   );
 }
@@ -767,14 +767,14 @@ function RisksTab({ items }: { items: WorkItem[] }) {
       <table style={{ borderCollapse: "collapse", marginBottom: 16, width: "100%", maxWidth: 500 }}>
         <thead>
           <tr>
-            <th style={{ padding: 6, fontSize: 10, color: "var(--text-muted)" }}></th>
-            {["high", "medium", "low"].map(i => <th key={i} style={{ padding: 6, fontSize: 10, textTransform: "uppercase", color: "var(--text-muted)" }}>Impact: {i}</th>)}
+            <th style={{ padding: 6, fontSize: 10, color: "var(--text-secondary)" }}></th>
+            {["high", "medium", "low"].map(i => <th key={i} style={{ padding: 6, fontSize: 10, textTransform: "uppercase", color: "var(--text-secondary)" }}>Impact: {i}</th>)}
           </tr>
         </thead>
         <tbody>
           {(["high", "medium", "low"] as const).map(l => (
             <tr key={l}>
-              <td style={{ padding: 6, fontSize: 10, textTransform: "uppercase", color: "var(--text-muted)", fontWeight: 600 }}>Likelihood: {l}</td>
+              <td style={{ padding: 6, fontSize: 10, textTransform: "uppercase", color: "var(--text-secondary)", fontWeight: 600 }}>Likelihood: {l}</td>
               {(["high", "medium", "low"] as const).map(i => (
                 <td key={i} style={{ padding: 6, background: matrixColor(l, i), border: "1px solid var(--border-color)", textAlign: "center", minWidth: 80 }}>
                   {riskMatrix[l][i].map(r => (
@@ -782,7 +782,7 @@ function RisksTab({ items }: { items: WorkItem[] }) {
                       <span style={{ fontFamily: "var(--font-mono)", color: "var(--accent-color)" }}>{r.displayId}</span>
                     </div>
                   ))}
-                  {riskMatrix[l][i].length === 0 && <span style={{ fontSize: 10, color: "var(--text-muted)" }}>-</span>}
+                  {riskMatrix[l][i].length === 0 && <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>-</span>}
                 </td>
               ))}
             </tr>
@@ -796,8 +796,8 @@ function RisksTab({ items }: { items: WorkItem[] }) {
           <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4 }}>
             <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--accent-color)" }}>{r.displayId}</span>
             <span style={badge("var(--warning-bg)", "var(--warning-color)")}>{r.status}</span>
-            {r.riskLikelihood && <span style={{ fontSize: 10, color: "var(--text-muted)" }}>L:{r.riskLikelihood}</span>}
-            {r.riskImpact && <span style={{ fontSize: 10, color: "var(--text-muted)" }}>I:{r.riskImpact}</span>}
+            {r.riskLikelihood && <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>L:{r.riskLikelihood}</span>}
+            {r.riskImpact && <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>I:{r.riskImpact}</span>}
           </div>
           <div style={{ fontWeight: 500, fontSize: 13 }}>{r.title}</div>
           {r.riskMitigation && <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 4 }}>Mitigation: {r.riskMitigation}</div>}
@@ -821,7 +821,7 @@ function RisksTab({ items }: { items: WorkItem[] }) {
         </div>
       )}
 
-      {risks.length === 0 && decisions.length === 0 && <div style={{ textAlign: "center", padding: 24, color: "var(--text-muted)", fontSize: 12 }}>No risks or decisions tracked yet.</div>}
+      {risks.length === 0 && decisions.length === 0 && <div style={{ textAlign: "center", padding: 24, color: "var(--text-secondary)", fontSize: 12 }}>No risks or decisions tracked yet.</div>}
     </div>
   );
 }
@@ -866,7 +866,7 @@ function DashboardTab({ items }: { items: WorkItem[] }) {
           { label: "Open Bugs", value: items.filter(i => i.type === "bug" && !["Closed", "Wont Fix", "Verified"].includes(i.status)).length },
         ].map(({ label, value }) => (
           <div key={label} style={{ background: "var(--bg-secondary)", borderRadius: 6, padding: "10px 12px", border: "1px solid var(--border-color)" }}>
-            <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</div>
+            <div style={{ fontSize: 10, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</div>
             <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{value}</div>
           </div>
         ))}

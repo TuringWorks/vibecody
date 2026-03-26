@@ -245,7 +245,7 @@ export function DataGenPanel() {
  padding: "3px 14px", fontSize: 11, fontWeight: 700 as const,
  background: active ? "color-mix(in srgb, var(--accent-blue) 20%, transparent)" : "var(--bg-primary)",
  border: `1px solid ${active ? "var(--accent-color)" : "var(--border-color)"}`,
- borderRadius: 4, color: active ? "var(--info-color)" : "var(--text-muted)", cursor: "pointer" as const,
+ borderRadius: 4, color: active ? "var(--info-color)" : "var(--text-secondary)", cursor: "pointer" as const,
  });
 
  return (
@@ -256,7 +256,7 @@ export function DataGenPanel() {
  <span style={{ fontSize: 13, fontWeight: 600 }}>Data Generator</span>
  <div style={{ display: "flex", gap: 4 }}>
  {TABS.map(t => (
- <button key={t.id} onClick={() => setSubTab(t.id)} style={{ padding: "2px 10px", fontSize: 10, borderRadius: 10, background: subTab === t.id ? "color-mix(in srgb, var(--accent-blue) 20%, transparent)" : "var(--bg-primary)", border: `1px solid ${subTab === t.id ? "var(--accent-color)" : "var(--border-color)"}`, color: subTab === t.id ? "var(--info-color)" : "var(--text-muted)", cursor: "pointer", fontWeight: subTab === t.id ? 700 : 400 }}>{t.label}</button>
+ <button key={t.id} onClick={() => setSubTab(t.id)} style={{ padding: "2px 10px", fontSize: 10, borderRadius: 10, background: subTab === t.id ? "color-mix(in srgb, var(--accent-blue) 20%, transparent)" : "var(--bg-primary)", border: `1px solid ${subTab === t.id ? "var(--accent-color)" : "var(--border-color)"}`, color: subTab === t.id ? "var(--info-color)" : "var(--text-secondary)", cursor: "pointer", fontWeight: subTab === t.id ? 700 : 400 }}>{t.label}</button>
  ))}
  </div>
  </div>
@@ -268,28 +268,28 @@ export function DataGenPanel() {
  <div style={{ display: "flex", height: "100%" }}>
  {/* Schema builder */}
  <div style={{ width: 260, flexShrink: 0, borderRight: "1px solid var(--border-color)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
- <div style={{ padding: "6px 10px", fontSize: 10, fontWeight: 700, color: "var(--text-muted)", background: "var(--bg-secondary)", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+ <div style={{ padding: "6px 10px", fontSize: 10, fontWeight: 700, color: "var(--text-secondary)", background: "var(--bg-secondary)", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
  <span>SCHEMA FIELDS</span>
  <button onClick={addField} style={{ fontSize: 9, padding: "1px 6px", background: "color-mix(in srgb, var(--accent-blue) 15%, transparent)", border: "1px solid var(--accent-primary)", borderRadius: 4, color: "var(--text-info)", cursor: "pointer" }}>+ Add</button>
  </div>
  <div style={{ flex: 1, overflow: "auto" }}>
  {schema.map((f, i) => (
  <div key={f.id} style={{ padding: "5px 8px", borderBottom: "1px solid var(--border-subtle)", display: "flex", gap: 5, alignItems: "center" }}>
- <span style={{ fontSize: 10, color: "var(--text-muted)", width: 14, flexShrink: 0 }}>{i+1}.</span>
+ <span style={{ fontSize: 10, color: "var(--text-secondary)", width: 14, flexShrink: 0 }}>{i+1}.</span>
  <input value={f.name} onChange={e => updateField(f.id, { name: e.target.value })} placeholder="field name"
  style={{ width: 72, padding: "2px 5px", fontSize: 10, fontFamily: "var(--font-mono)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 3, color: "var(--text-primary)", outline: "none" }} />
  <select value={f.type} onChange={e => updateField(f.id, { type: e.target.value as FakeType })}
  style={{ flex: 1, padding: "2px 4px", fontSize: 10, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 3, color: "var(--text-primary)", outline: "none" }}>
  {FAKE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
  </select>
- <button onClick={() => removeField(f.id)} style={{ fontSize: 10, background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: "0 2px" }}>✕</button>
+ <button onClick={() => removeField(f.id)} style={{ fontSize: 10, background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", padding: "0 2px" }}>✕</button>
  </div>
  ))}
  </div>
  {/* Options */}
  <div style={{ padding: "8px", borderTop: "1px solid var(--border-color)", display: "flex", flexDirection: "column", gap: 6 }}>
  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
- <span style={{ fontSize: 10, color: "var(--text-muted)", flex: 1 }}>Rows:</span>
+ <span style={{ fontSize: 10, color: "var(--text-secondary)", flex: 1 }}>Rows:</span>
  <input type="number" value={rowCount} min={1} max={500} onChange={e => setRowCount(Math.min(500, Math.max(1, +e.target.value)))}
  style={{ width: 60, padding: "2px 6px", fontSize: 11, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none" }} />
  </div>
@@ -305,12 +305,12 @@ export function DataGenPanel() {
  </div>
  {/* Output */}
  <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
- <div style={{ padding: "4px 10px", fontSize: 10, fontWeight: 700, color: "var(--text-muted)", background: "var(--bg-secondary)", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+ <div style={{ padding: "4px 10px", fontSize: 10, fontWeight: 700, color: "var(--text-secondary)", background: "var(--bg-secondary)", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
  <span>OUTPUT</span>
  {fakeOutput && <CopyBtn text={fakeOutput} label="Copy all" />}
  </div>
  <pre style={{ flex: 1, margin: 0, padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: 11, lineHeight: 1.6, overflow: "auto", whiteSpace: "pre-wrap", wordBreak: "break-all", color: "var(--text-primary)", background: "var(--bg-primary)" }}>
- {fakeOutput || <span style={{ color: "var(--text-muted)", fontStyle: "italic" }}>Configure schema and click Generate </span>}
+ {fakeOutput || <span style={{ color: "var(--text-secondary)", fontStyle: "italic" }}>Configure schema and click Generate </span>}
  </pre>
  </div>
  </div>
@@ -330,7 +330,7 @@ export function DataGenPanel() {
  {loremOutput && <CopyBtn text={loremOutput} label="Copy" />}
  </div>
  <div style={{ padding: "12px", fontSize: 13, lineHeight: 1.8, color: "var(--text-primary)", whiteSpace: "pre-wrap" }}>
- {loremOutput || <span style={{ color: "var(--text-muted)", fontStyle: "italic" }}>Click Generate to produce lorem ipsum text.</span>}
+ {loremOutput || <span style={{ color: "var(--text-secondary)", fontStyle: "italic" }}>Click Generate to produce lorem ipsum text.</span>}
  </div>
  </div>
  )}
@@ -347,10 +347,10 @@ export function DataGenPanel() {
  </div>
  <div style={{ padding: "8px 12px" }}>
  {uuids.length === 0
- ? <span style={{ color: "var(--text-muted)", fontSize: 12, fontStyle: "italic" }}>Click Generate to produce UUIDs.</span>
+ ? <span style={{ color: "var(--text-secondary)", fontSize: 12, fontStyle: "italic" }}>Click Generate to produce UUIDs.</span>
  : uuids.map((u, i) => (
  <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", borderBottom: "1px solid var(--border-subtle)" }}>
- <span style={{ fontSize: 9, color: "var(--text-muted)", width: 24, textAlign: "right", flexShrink: 0, fontFamily: "var(--font-mono)" }}>{i+1}</span>
+ <span style={{ fontSize: 9, color: "var(--text-secondary)", width: 24, textAlign: "right", flexShrink: 0, fontFamily: "var(--font-mono)" }}>{i+1}</span>
  <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-info)", flex: 1, letterSpacing: "0.03em" }}>{u}</span>
  <CopyBtn text={u} />
  </div>
@@ -366,20 +366,20 @@ export function DataGenPanel() {
  {/* Options */}
  <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", flexDirection: "column", gap: 8 }}>
  <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
- <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Length:</span>
+ <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>Length:</span>
  <input type="range" min={6} max={128} value={pwLen} onChange={e => setPwLen(+e.target.value)} style={{ flex: 1, minWidth: 80, accentColor: "var(--accent-color)" }} />
  <span style={{ fontSize: 12, fontFamily: "var(--font-mono)", color: "var(--text-primary)", width: 30 }}>{pwLen}</span>
  </div>
  <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
  {([["upper","A–Z"],["lower","a–z"],["digits","0–9"],["symbols","!@#"]] as [keyof typeof pwOpts, string][]).map(([k, label]) => (
- <label key={k} style={{ fontSize: 11, color: "var(--text-muted)", display: "flex", gap: 4, alignItems: "center", cursor: "pointer" }}>
+ <label key={k} style={{ fontSize: 11, color: "var(--text-secondary)", display: "flex", gap: 4, alignItems: "center", cursor: "pointer" }}>
  <input type="checkbox" checked={pwOpts[k]} onChange={e => setPwOpts(o => ({...o, [k]: e.target.checked}))} style={{ accentColor: "var(--accent-color)" }} />
  {label}
  </label>
  ))}
  </div>
  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
- <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Count:</span>
+ <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>Count:</span>
  <input type="number" value={pwCount} min={1} max={50} onChange={e => setPwCount(Math.min(50, Math.max(1, +e.target.value)))}
  style={{ width: 55, padding: "3px 6px", fontSize: 11, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none" }} />
  <button onClick={genPasswords} style={{ padding: "3px 14px", fontSize: 11, fontWeight: 700, background: "color-mix(in srgb, var(--accent-green) 15%, transparent)", border: "1px solid var(--success-color)", borderRadius: 4, color: "var(--text-success)", cursor: "pointer" }}>Generate</button>
@@ -389,7 +389,7 @@ export function DataGenPanel() {
  {/* Results */}
  <div style={{ padding: "8px 12px" }}>
  {passwords.length === 0
- ? <span style={{ color: "var(--text-muted)", fontSize: 12, fontStyle: "italic" }}>Configure options and click Generate.</span>
+ ? <span style={{ color: "var(--text-secondary)", fontSize: 12, fontStyle: "italic" }}>Configure options and click Generate.</span>
  : passwords.map((pw, i) => {
  const str = passwordStrength(pw);
  return (

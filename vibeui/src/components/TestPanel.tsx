@@ -150,7 +150,8 @@ export function TestPanel({ workspacePath }: TestPanelProps) {
  }
 
  return (
- <div style={{ display: "flex", flexDirection: "column", height: "100%", padding: "12px", gap: "10px", fontFamily: "var(--font-mono, monospace)", fontSize: 12 }}>
+ <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden", fontFamily: "var(--font-mono, monospace)", fontSize: 12 }}>
+ <div style={{ flex: 1, overflowY: "auto", padding: "12px", display: "flex", flexDirection: "column", gap: "10px" }}>
  {/* Header */}
  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
  <span style={{ fontWeight: 700, fontSize: 14 }}>Test Runner</span>
@@ -298,6 +299,7 @@ export function TestPanel({ workspacePath }: TestPanelProps) {
  Click Run Tests to start.
  </div>
  )}
+ </div>
  </div>
  </div>
  );

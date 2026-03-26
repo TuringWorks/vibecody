@@ -234,7 +234,7 @@ export function DesignCanvasPanel() {
   const tabStyle = (t: Tab): React.CSSProperties => ({
     padding: "6px 14px",
     cursor: "pointer",
-    borderBottom: tab === t ? "2px solid var(--accent-color, #007acc)" : "2px solid transparent",
+    borderBottom: tab === t ? "2px solid var(--accent-blue)" : "2px solid transparent",
     background: "none",
     border: "none",
     color: tab === t ? "var(--text-primary)" : "var(--text-secondary)",
@@ -389,6 +389,7 @@ export function DesignCanvasPanel() {
                     border: "1px solid var(--border-color)",
                     borderRadius: "3px",
                     marginBottom: "8px",
+                    boxSizing: "border-box",
                   }}
                 />
 
@@ -407,6 +408,7 @@ export function DesignCanvasPanel() {
                         border: "1px solid var(--border-color)",
                         borderRadius: "3px",
                         marginBottom: "8px",
+                        boxSizing: "border-box",
                       }}
                     >
                       <option value="primary">Primary</option>

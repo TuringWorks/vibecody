@@ -153,9 +153,9 @@ export default function CicdPanel({ workspacePath }: CicdPanelProps) {
  padding: "6px 14px",
  fontSize: "12px",
  background: subTab === t ? "var(--bg-primary)" : "transparent",
- color: subTab === t ? "var(--text-primary)" : "var(--text-muted)",
+ color: subTab === t ? "var(--text-primary)" : "var(--text-secondary)",
  border: "none",
- borderBottom: subTab === t ? "2px solid var(--accent-color)" : "2px solid transparent",
+ borderBottom: subTab === t ? "2px solid var(--accent-blue)" : "2px solid transparent",
  cursor: "pointer",
  fontWeight: subTab === t ? 600 : 400,
  }}
@@ -177,7 +177,7 @@ export default function CicdPanel({ workspacePath }: CicdPanelProps) {
  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
  {/* Build type */}
  <div>
- <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 6 }}>BUILD TYPE</div>
+ <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 6 }}>BUILD TYPE</div>
  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
  {BUILD_TYPES.map((bt) => (
  <button
@@ -202,7 +202,7 @@ export default function CicdPanel({ workspacePath }: CicdPanelProps) {
 
  {/* Platform selector */}
  <div>
- <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 6 }}>CI/CD PLATFORM</div>
+ <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 6 }}>CI/CD PLATFORM</div>
  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
  {PLATFORMS.map((p) => (
  <button
@@ -276,7 +276,8 @@ export default function CicdPanel({ workspacePath }: CicdPanelProps) {
  overflowX: "auto",
  maxHeight: 400,
  overflowY: "auto",
- whiteSpace: "pre",
+ whiteSpace: "pre-wrap",
+ wordBreak: "break-word",
  color: "var(--text-primary)",
  }}>
  {preview}
@@ -296,7 +297,7 @@ export default function CicdPanel({ workspacePath }: CicdPanelProps) {
 
  {/* Build type (re-use from state) */}
  <div>
- <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 6 }}>BUILD TYPE</div>
+ <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 6 }}>BUILD TYPE</div>
  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
  {BUILD_TYPES.filter(bt => bt.id !== "unknown").map((bt) => (
  <button
@@ -316,7 +317,7 @@ export default function CicdPanel({ workspacePath }: CicdPanelProps) {
 
  {/* Target checkboxes */}
  <div>
- <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 6 }}>TARGET PLATFORMS</div>
+ <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 6 }}>TARGET PLATFORMS</div>
  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
  {RELEASE_TARGETS.map((t) => (
  <label key={t.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
@@ -355,7 +356,7 @@ export default function CicdPanel({ workspacePath }: CicdPanelProps) {
  background: "var(--bg-secondary)", border: "1px solid var(--border-color)",
  borderRadius: 6, fontSize: 11, lineHeight: 1.5,
  overflowX: "auto", maxHeight: 400, overflowY: "auto",
- whiteSpace: "pre", color: "var(--text-primary)",
+ whiteSpace: "pre-wrap", wordBreak: "break-word", color: "var(--text-primary)",
  }}>
  {releasePreview}
  </pre>
@@ -371,7 +372,7 @@ export default function CicdPanel({ workspacePath }: CicdPanelProps) {
  </div>
 
  <div>
- <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 6 }}>PLATFORM</div>
+ <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 6 }}>PLATFORM</div>
  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
  {PLATFORMS.map((p) => (
  <button key={p.id} onClick={() => setPlatform(p.id)} style={{
@@ -409,7 +410,7 @@ export default function CicdPanel({ workspacePath }: CicdPanelProps) {
  ))}
  </div>
 
- <div style={{ marginTop: 8, padding: "10px 12px", background: "var(--bg-secondary)", borderRadius: 6, fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6 }}>
+ <div style={{ marginTop: 8, padding: "10px 12px", background: "var(--bg-secondary)", borderRadius: 6, fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.6 }}>
  <strong>How to add secrets:</strong><br />
  • <strong>GitHub</strong>: Settings → Secrets and variables → Actions → New repository secret<br />
  • <strong>GitLab</strong>: Settings → CI/CD → Variables → Add variable<br />

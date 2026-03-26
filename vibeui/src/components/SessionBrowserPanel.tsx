@@ -212,9 +212,9 @@ const SessionBrowserPanel: React.FC = () => {
               border: "none",
               borderBottom:
                 tab === t
-                  ? "2px solid var(--accent-color)"
+                  ? "2px solid var(--accent-blue)"
                   : "2px solid transparent",
-              color: tab === t ? "var(--text-primary)" : "var(--text-muted)",
+              color: tab === t ? "var(--text-primary)" : "var(--text-secondary)",
               cursor: "pointer",
               fontWeight: tab === t ? 600 : 400,
             }}
@@ -244,7 +244,7 @@ const SessionBrowserPanel: React.FC = () => {
             style={{
               background: "none",
               border: "none",
-              color: "var(--text-muted)",
+              color: "var(--text-secondary)",
               cursor: "pointer",
               fontSize: 14,
             }}
@@ -279,7 +279,7 @@ const SessionBrowserPanel: React.FC = () => {
               style={{
                 textAlign: "center",
                 padding: 30,
-                color: "var(--text-muted)",
+                color: "var(--text-secondary)",
               }}
             >
               Loading sessions...
@@ -359,7 +359,7 @@ const SessionBrowserPanel: React.FC = () => {
                     gap: 12,
                     marginTop: 4,
                     fontSize: 11,
-                    color: "var(--text-muted)",
+                    color: "var(--text-secondary)",
                   }}
                   onClick={() => {
                     setSelectedSession(s);
@@ -391,7 +391,7 @@ const SessionBrowserPanel: React.FC = () => {
                 style={{
                   textAlign: "center",
                   padding: 30,
-                  color: "var(--text-muted)",
+                  color: "var(--text-secondary)",
                 }}
               >
                 {sessions.length === 0
@@ -411,7 +411,7 @@ const SessionBrowserPanel: React.FC = () => {
                 style={{
                   marginBottom: 10,
                   fontSize: 12,
-                  color: "var(--text-muted)",
+                  color: "var(--text-secondary)",
                 }}
               >
                 Replaying:{" "}
@@ -427,7 +427,7 @@ const SessionBrowserPanel: React.FC = () => {
                   style={{
                     textAlign: "center",
                     padding: 30,
-                    color: "var(--text-muted)",
+                    color: "var(--text-secondary)",
                   }}
                 >
                   Loading messages...
@@ -495,7 +495,7 @@ const SessionBrowserPanel: React.FC = () => {
                     <span
                       style={{
                         fontSize: 11,
-                        color: "var(--text-muted)",
+                        color: "var(--text-secondary)",
                         lineHeight: "28px",
                       }}
                     >
@@ -557,7 +557,7 @@ const SessionBrowserPanel: React.FC = () => {
                     style={{
                       textAlign: "center",
                       padding: 30,
-                      color: "var(--text-muted)",
+                      color: "var(--text-secondary)",
                     }}
                   >
                     No messages found for this session.
@@ -569,7 +569,7 @@ const SessionBrowserPanel: React.FC = () => {
               style={{
                 textAlign: "center",
                 padding: 30,
-                color: "var(--text-muted)",
+                color: "var(--text-secondary)",
               }}
             >
               Select a session from the Sessions tab to replay it.
@@ -616,7 +616,7 @@ const SessionBrowserPanel: React.FC = () => {
                 <div
                   style={{
                     fontSize: 11,
-                    color: "var(--text-muted)",
+                    color: "var(--text-secondary)",
                     marginTop: 2,
                   }}
                 >
@@ -634,7 +634,7 @@ const SessionBrowserPanel: React.FC = () => {
               style={{
                 textAlign: "center",
                 padding: 20,
-                color: "var(--text-muted)",
+                color: "var(--text-secondary)",
               }}
             >
               No sessions to display.
@@ -691,7 +691,7 @@ const SessionBrowserPanel: React.FC = () => {
                       minWidth: 50,
                       textAlign: "right",
                       fontSize: 11,
-                      color: "var(--text-muted)",
+                      color: "var(--text-secondary)",
                     }}
                   >
                     {formatFileSize(s.file_size)}
@@ -701,7 +701,7 @@ const SessionBrowserPanel: React.FC = () => {
                       minWidth: 40,
                       textAlign: "right",
                       fontSize: 11,
-                      color: "var(--text-muted)",
+                      color: "var(--text-secondary)",
                     }}
                   >
                     {s.message_count} msgs

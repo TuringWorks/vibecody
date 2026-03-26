@@ -198,8 +198,8 @@ export function GraphQLPanel() {
  style={{
  padding: "6px 14px", fontSize: 11, fontWeight: active ? 600 : 400,
  background: active ? "color-mix(in srgb, var(--accent-blue) 15%, transparent)" : "transparent",
- color: active ? "var(--accent-color)" : "var(--text-muted)",
- border: "none", borderBottom: active ? "2px solid var(--accent-color)" : "2px solid transparent",
+ color: active ? "var(--text-primary)" : "var(--text-secondary)",
+ border: "none", borderBottom: active ? "2px solid var(--accent-blue)" : "2px solid transparent",
  cursor: "pointer",
  }}
  >
@@ -247,7 +247,7 @@ export function GraphQLPanel() {
  style={{
  padding: "5px 14px", fontSize: 11, fontWeight: 600, cursor: "pointer",
  background: running ? "var(--bg-secondary)" : "var(--accent-color)",
- color: running ? "var(--text-muted)" : "var(--text-primary)",
+ color: running ? "var(--text-secondary)" : "var(--text-primary)",
  border: "none", borderRadius: 4,
  }}
  >
@@ -264,7 +264,7 @@ export function GraphQLPanel() {
  style={{
  padding: "2px 8px", fontSize: 10, borderRadius: 10,
  background: "var(--bg-primary)", border: "1px solid var(--border-color)",
- color: "var(--text-muted)", cursor: "pointer",
+ color: "var(--text-secondary)", cursor: "pointer",
  }}
  >
  {label}
@@ -291,7 +291,7 @@ export function GraphQLPanel() {
  <div style={{ flex: 1, overflow: "hidden", display: "flex", gap: 0 }}>
  {/* Left: editor pane */}
  <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", borderRight: "1px solid var(--border-color)" }}>
- <div style={{ padding: "4px 10px", fontSize: 10, fontWeight: 600, color: "var(--text-muted)", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
+ <div style={{ padding: "4px 10px", fontSize: 10, fontWeight: 600, color: "var(--text-secondary)", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
  QUERY / MUTATION
  </div>
  <textarea
@@ -308,14 +308,14 @@ export function GraphQLPanel() {
 
  {/* Variables */}
  <div style={{ borderTop: "1px solid var(--border-color)" }}>
- <div style={{ padding: "3px 10px", fontSize: 10, fontWeight: 600, color: "var(--text-muted)", background: "var(--bg-secondary)", display: "flex", gap: 8, alignItems: "center" }}>
+ <div style={{ padding: "3px 10px", fontSize: 10, fontWeight: 600, color: "var(--text-secondary)", background: "var(--bg-secondary)", display: "flex", gap: 8, alignItems: "center" }}>
  <span>VARIABLES</span>
  {operationName !== undefined && (
  <input
  value={operationName}
  onChange={(e) => setOperationName(e.target.value)}
  placeholder="operationName (optional)"
- style={{ marginLeft: "auto", padding: "2px 6px", fontSize: 10, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 3, color: "var(--text-muted)", width: 180, outline: "none" }}
+ style={{ marginLeft: "auto", padding: "2px 6px", fontSize: 10, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 3, color: "var(--text-secondary)", width: 180, outline: "none" }}
  />
  )}
  </div>
@@ -327,14 +327,14 @@ export function GraphQLPanel() {
  width: "100%", boxSizing: "border-box",
  padding: "6px 10px", fontSize: 11, fontFamily: "var(--font-mono)",
  background: "var(--bg-secondary)", border: "none",
- color: "var(--text-muted)", outline: "none", resize: "none",
+ color: "var(--text-secondary)", outline: "none", resize: "none",
  }}
  />
  </div>
 
  {/* Headers */}
  <div style={{ borderTop: "1px solid var(--border-color)" }}>
- <div style={{ padding: "3px 10px", fontSize: 10, fontWeight: 600, color: "var(--text-muted)", background: "var(--bg-secondary)" }}>
+ <div style={{ padding: "3px 10px", fontSize: 10, fontWeight: 600, color: "var(--text-secondary)", background: "var(--bg-secondary)" }}>
  HEADERS (JSON)
  </div>
  <textarea
@@ -346,7 +346,7 @@ export function GraphQLPanel() {
  width: "100%", boxSizing: "border-box",
  padding: "6px 10px", fontSize: 11, fontFamily: "var(--font-mono)",
  background: "var(--bg-secondary)", border: "none",
- color: "var(--text-muted)", outline: "none", resize: "none",
+ color: "var(--text-secondary)", outline: "none", resize: "none",
  }}
  />
  </div>
@@ -355,7 +355,7 @@ export function GraphQLPanel() {
  {/* Right: result pane */}
  <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
  <div style={{ display: "flex", alignItems: "center", padding: "4px 10px", background: "var(--bg-secondary)", borderBottom: "1px solid var(--border-color)", gap: 6 }}>
- <span style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", marginRight: 4 }}>RESPONSE</span>
+ <span style={{ fontSize: 10, fontWeight: 600, color: "var(--text-secondary)", marginRight: 4 }}>RESPONSE</span>
  {result && (
  <>
  <span style={{
@@ -365,7 +365,7 @@ export function GraphQLPanel() {
  }}>
  {result.status} {result.errors ? "errors" : "OK"}
  </span>
- <span style={{ fontSize: 10, color: "var(--text-muted)" }}>{result.duration_ms}ms</span>
+ <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>{result.duration_ms}ms</span>
  </>
  )}
  <div style={{ marginLeft: "auto", display: "flex", gap: 4 }}>
@@ -376,14 +376,14 @@ export function GraphQLPanel() {
  style={{
  padding: "2px 8px", fontSize: 10, borderRadius: 3,
  background: viewTab === v ? "var(--accent-color)" : "var(--bg-secondary)",
- color: viewTab === v ? "var(--text-primary)" : "var(--text-muted)",
+ color: viewTab === v ? "var(--text-primary)" : "var(--text-secondary)",
  border: "1px solid var(--border-color)", cursor: "pointer",
  }}
  >
  {v}
  </button>
  ))}
- {result && <button onClick={() => navigator.clipboard.writeText(result.raw).catch(() => {})} style={{ padding: "2px 8px", fontSize: 10, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 3, color: "var(--text-muted)", cursor: "pointer" }}>Copy</button>}
+ {result && <button onClick={() => navigator.clipboard.writeText(result.raw).catch(() => {})} style={{ padding: "2px 8px", fontSize: 10, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 3, color: "var(--text-secondary)", cursor: "pointer" }}>Copy</button>}
  </div>
  </div>
 
@@ -421,7 +421,7 @@ export function GraphQLPanel() {
  {tab === "schema" && (
  <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
  {!schema ? (
- <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", fontSize: 12 }}>
+ <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-secondary)", fontSize: 12 }}>
  Click "Schema" to introspect the API.
  </div>
  ) : (
@@ -430,7 +430,7 @@ export function GraphQLPanel() {
  <div style={{ padding: "8px 12px", background: "var(--bg-secondary)", borderBottom: "1px solid var(--border-color)", display: "flex", gap: 12, fontSize: 11 }}>
  {[["Query", schema.query_type], ["Mutation", schema.mutation_type], ["Subscription", schema.subscription_type]].map(([label, name]) => name && (
  <span key={label} style={{ display: "flex", gap: 5, alignItems: "center" }}>
- <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>{label}:</span>
+ <span style={{ color: "var(--text-secondary)", fontWeight: 600 }}>{label}:</span>
  <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-info)" }}>{name}</span>
  </span>
  ))}
@@ -453,20 +453,20 @@ export function GraphQLPanel() {
  background: "var(--bg-secondary)", cursor: "pointer",
  }}
  >
- <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 5px", borderRadius: 3, background: KIND_COLORS[t.kind] ? `${KIND_COLORS[t.kind]}22` : "transparent", color: KIND_COLORS[t.kind] ?? "var(--text-muted)" }}>
+ <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 5px", borderRadius: 3, background: KIND_COLORS[t.kind] ? `${KIND_COLORS[t.kind]}22` : "transparent", color: KIND_COLORS[t.kind] ?? "var(--text-secondary)" }}>
  {t.kind}
  </span>
  <span style={{ fontSize: 12, fontFamily: "var(--font-mono)", fontWeight: 600 }}>{t.name}</span>
- {t.description && <span style={{ fontSize: 10, color: "var(--text-muted)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.description}</span>}
- <span style={{ fontSize: 10, color: "var(--text-muted)", marginLeft: "auto" }}>{t.fields.length} fields {expandedType === t.name ? "" : "▼"}</span>
+ {t.description && <span style={{ fontSize: 10, color: "var(--text-secondary)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.description}</span>}
+ <span style={{ fontSize: 10, color: "var(--text-secondary)", marginLeft: "auto" }}>{t.fields.length} fields {expandedType === t.name ? "" : "▼"}</span>
  </div>
  {expandedType === t.name && t.fields.length > 0 && (
  <div style={{ padding: "4px 0", background: "var(--bg-primary)" }}>
  {t.fields.map((f) => (
  <div key={f.name} style={{ padding: "3px 20px", display: "flex", gap: 10, fontSize: 11, borderBottom: "1px solid var(--border-color)" }}>
  <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-info)", width: 180, flexShrink: 0 }}>{f.name}</span>
- <span style={{ fontSize: 10, color: "var(--text-muted)", fontWeight: 600 }}>{f.kind}</span>
- {f.description && <span style={{ fontSize: 10, color: "var(--text-muted)" }}>{f.description}</span>}
+ <span style={{ fontSize: 10, color: "var(--text-secondary)", fontWeight: 600 }}>{f.kind}</span>
+ {f.description && <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>{f.description}</span>}
  </div>
  ))}
  </div>
@@ -483,13 +483,13 @@ export function GraphQLPanel() {
  {tab === "history" && (
  <div style={{ flex: 1, overflow: "auto", padding: "8px 12px", display: "flex", flexDirection: "column", gap: 5 }}>
  {history.length === 0 && (
- <div style={{ textAlign: "center", padding: "30px 0", color: "var(--text-muted)", fontSize: 12 }}>
+ <div style={{ textAlign: "center", padding: "30px 0", color: "var(--text-secondary)", fontSize: 12 }}>
  No query history yet. Run a query first.
  </div>
  )}
  {history.length > 0 && (
  <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 4 }}>
- <button onClick={() => saveHistory([])} style={{ fontSize: 10, background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer" }}>Clear all</button>
+ <button onClick={() => saveHistory([])} style={{ fontSize: 10, background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer" }}>Clear all</button>
  </div>
  )}
  {history.map((entry, i) => (
@@ -503,10 +503,10 @@ export function GraphQLPanel() {
  >
  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
  <span style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--text-info)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{entry.url}</span>
- <span style={{ fontSize: 10, color: "var(--text-muted)", flexShrink: 0, marginLeft: 8 }}>{new Date(entry.timestamp).toLocaleTimeString()} · {entry.duration_ms}ms</span>
+ <span style={{ fontSize: 10, color: "var(--text-secondary)", flexShrink: 0, marginLeft: 8 }}>{new Date(entry.timestamp).toLocaleTimeString()} · {entry.duration_ms}ms</span>
  <span style={{ marginLeft: 6, fontSize: 10, color: entry.success ? "var(--success-color)" : "var(--error-color)" }}>{entry.success ? "" : ""}</span>
  </div>
- <pre style={{ margin: 0, fontSize: 10, color: "var(--text-muted)", overflow: "hidden", maxHeight: 40, fontFamily: "var(--font-mono)", whiteSpace: "pre-wrap" }}>
+ <pre style={{ margin: 0, fontSize: 10, color: "var(--text-secondary)", overflow: "hidden", maxHeight: 40, fontFamily: "var(--font-mono)", whiteSpace: "pre-wrap" }}>
  {entry.query.slice(0, 120)}{entry.query.length > 120 ? "…" : ""}
  </pre>
  </div>

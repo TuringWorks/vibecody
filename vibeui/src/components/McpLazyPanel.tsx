@@ -50,7 +50,7 @@ const btnStyle: React.CSSProperties = { padding: "6px 14px", borderRadius: 4, bo
 const tabBtnStyle = (active: boolean): React.CSSProperties => ({ ...btnStyle, background: active ? "var(--accent-primary)" : "var(--bg-tertiary)", color: active ? "var(--btn-primary-fg)" : "var(--text-primary)", marginRight: 4 });
 
 const inputStyle: React.CSSProperties = { width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: 12, fontFamily: "var(--font-family)", boxSizing: "border-box" };
-const badgeStyle = (variant: string): React.CSSProperties => ({ display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 600, color: "var(--btn-primary-fg)", background: variant === "loaded" ? "var(--success-color)" : variant === "loading" ? "var(--warning-color)" : "var(--text-muted)" });
+const badgeStyle = (variant: string): React.CSSProperties => ({ display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 600, color: "var(--btn-primary-fg)", background: variant === "loaded" ? "var(--success-color)" : variant === "loading" ? "var(--warning-color)" : "var(--text-secondary)" });
 const barBg: React.CSSProperties = { height: 8, borderRadius: 4, background: "var(--bg-tertiary)", overflow: "hidden" };
 const barFill = (pct: number, color: string): React.CSSProperties => ({ height: "100%", width: `${Math.min(pct, 100)}%`, borderRadius: 4, background: color });
 const errorStyle: React.CSSProperties = { padding: 12, background: "var(--bg-secondary)", border: "1px solid var(--error-color)", borderRadius: 6, color: "var(--error-color)", marginBottom: 10 };

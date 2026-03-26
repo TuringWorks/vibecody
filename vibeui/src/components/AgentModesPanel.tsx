@@ -133,7 +133,7 @@ const AgentModesPanel: React.FC = () => {
     border: "none",
     background: active ? "var(--bg-secondary)" : "transparent",
     color: active ? "var(--text-primary)" : "var(--text-secondary)",
-    borderBottom: active ? "2px solid var(--accent-color)" : "2px solid transparent",
+    borderBottom: active ? "2px solid var(--accent-blue)" : "2px solid transparent",
     fontFamily: "inherit",
     fontSize: "inherit",
   });

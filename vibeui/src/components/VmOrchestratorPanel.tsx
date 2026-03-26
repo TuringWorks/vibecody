@@ -9,9 +9,9 @@ type Tab = "Environments" | "Pull Requests" | "Conflicts" | "Config";
 const TABS: Tab[] = ["Environments", "Pull Requests", "Conflicts", "Config"];
 
 const STATUS_COLORS: Record<string, string> = {
-  Running: "var(--success-color)", Stopped: "var(--text-muted)",
+  Running: "var(--success-color)", Stopped: "var(--text-secondary)",
   Provisioning: "var(--info-color)", Error: "var(--error-color)",
-  Open: "var(--info-color)", Merged: "var(--success-color)", Closed: "var(--text-muted)",
+  Open: "var(--info-color)", Merged: "var(--success-color)", Closed: "var(--text-secondary)",
   Resolved: "var(--success-color)", Pending: "var(--warning-color)",
 };
 
@@ -28,8 +28,8 @@ const tabBarStyle: React.CSSProperties = {
 const tabStyle = (active: boolean): React.CSSProperties => ({
   padding: "8px 14px", cursor: "pointer",
   background: active ? "var(--bg-primary)" : "transparent",
-  color: active ? "var(--accent-color)" : "var(--text-secondary)",
-  border: "none", borderBottom: active ? "2px solid var(--accent-color)" : "2px solid transparent",
+  color: active ? "var(--text-primary)" : "var(--text-secondary)",
+  border: "none", borderBottom: active ? "2px solid var(--accent-blue)" : "2px solid transparent",
   fontSize: 13, fontFamily: "inherit", whiteSpace: "nowrap",
 });
 const contentStyle: React.CSSProperties = { flex: 1, overflow: "auto", padding: 16 };
@@ -72,7 +72,7 @@ const VmOrchestratorPanel: React.FC = () => {
           <div key={i} style={cardStyle}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
               <strong>{e.name}</strong>
-              <span style={badgeStyle(STATUS_COLORS[e.status] || "var(--text-muted)")}>{e.status}</span>
+              <span style={badgeStyle(STATUS_COLORS[e.status] || "var(--text-secondary)")}>{e.status}</span>
             </div>
             <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
               Branch: <code>{e.branch}</code> &middot; {e.cpu} / {e.mem} &middot; Uptime: {e.uptime}
@@ -83,7 +83,7 @@ const VmOrchestratorPanel: React.FC = () => {
           <div key={i} style={cardStyle}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
               <strong>{pr.title}</strong>
-              <span style={badgeStyle(STATUS_COLORS[pr.status] || "var(--text-muted)")}>{pr.status}</span>
+              <span style={badgeStyle(STATUS_COLORS[pr.status] || "var(--text-secondary)")}>{pr.status}</span>
             </div>
             <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
               {pr.branch} &middot; {pr.author} &middot; Checks: {pr.checks}
@@ -94,7 +94,7 @@ const VmOrchestratorPanel: React.FC = () => {
           <div key={i} style={cardStyle}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
               <strong>{c.file}</strong>
-              <span style={badgeStyle(STATUS_COLORS[c.status] || "var(--text-muted)")}>{c.status}</span>
+              <span style={badgeStyle(STATUS_COLORS[c.status] || "var(--text-secondary)")}>{c.status}</span>
             </div>
             <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
               {c.branch1} vs {c.branch2}

@@ -146,13 +146,13 @@ export function OrchestrationPanel({ workspacePath: _workspacePath }: Orchestrat
   const tabStyle = (active: boolean): React.CSSProperties => ({
     padding: "6px 16px",
     cursor: "pointer",
-    borderBottom: active ? "2px solid var(--accent-color)" : "2px solid transparent",
-    color: active ? "var(--text-primary)" : "var(--text-muted)",
+    borderBottom: active ? "2px solid var(--accent-blue)" : "2px solid transparent",
+    color: active ? "var(--text-primary)" : "var(--text-secondary)",
     background: "none",
     border: "none",
     borderBottomWidth: "2px",
     borderBottomStyle: "solid",
-    borderBottomColor: active ? "var(--accent-color)" : "transparent",
+    borderBottomColor: active ? "var(--accent-blue)" : "transparent",
     fontSize: "13px",
     fontWeight: active ? 600 : 400,
   });
@@ -160,7 +160,7 @@ export function OrchestrationPanel({ workspacePath: _workspacePath }: Orchestrat
   return (
     <div style={{ padding: "12px", fontFamily: "var(--font-family)", color: "var(--text-primary)", height: "100%", overflow: "auto" }}>
       {/* Tabs */}
-      <div style={{ display: "flex", gap: "4px", borderBottom: "1px solid var(--border-color)", marginBottom: "12px" }}>
+      <div style={{ display: "flex", gap: 2, borderBottom: "1px solid var(--border-color)", padding: "0 16px", flexShrink: 0 }}>
         <button style={tabStyle(activeTab === "tasks")} onClick={() => setActiveTab("tasks")}>Tasks</button>
         <button style={tabStyle(activeTab === "lessons")} onClick={() => setActiveTab("lessons")}>Lessons</button>
         <button style={tabStyle(activeTab === "rules")} onClick={() => setActiveTab("rules")}>Rules</button>
@@ -189,7 +189,7 @@ export function OrchestrationPanel({ workspacePath: _workspacePath }: Orchestrat
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
                 <div>
                   <h3 style={{ margin: 0, fontSize: "14px" }}>{state.goal}</h3>
-                  <div style={{ display: "flex", gap: "12px", fontSize: "12px", color: "var(--text-muted)", marginTop: "4px" }}>
+                  <div style={{ display: "flex", gap: "12px", fontSize: "12px", color: "var(--text-secondary)", marginTop: "4px" }}>
                     <span style={{ color: COMPLEXITY_COLORS[state.complexity] }}>{state.complexity}</span>
                     <span>{state.planned ? "Planned" : "Not planned"}</span>
                     <span>{state.verified ? "Verified" : "Not verified"}</span>
@@ -206,7 +206,7 @@ export function OrchestrationPanel({ workspacePath: _workspacePath }: Orchestrat
               <div style={{ background: "var(--bg-primary)", borderRadius: "4px", height: "6px", marginBottom: "12px" }}>
                 <div style={{ background: readyToClose ? "var(--success-color)" : "var(--accent-color)", width: `${pct}%`, height: "100%", borderRadius: "4px", transition: "width 0.2s" }} />
               </div>
-              <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "12px" }}>
+              <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginBottom: "12px" }}>
                 {completed}/{total} tasks ({pct}%)
                 {readyToClose && <span style={{ color: "var(--success-color)", marginLeft: "8px" }}>Ready to close</span>}
               </div>
@@ -217,7 +217,7 @@ export function OrchestrationPanel({ workspacePath: _workspacePath }: Orchestrat
                   <span style={{ width: "16px", height: "16px", border: "1px solid var(--border-color)", borderRadius: "3px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", background: todo.done ? "var(--success-color)" : "transparent", color: "var(--btn-primary-fg)" }}>
                     {todo.done ? "x" : ""}
                   </span>
-                  <span style={{ fontSize: "10px", padding: "1px 4px", background: "var(--bg-primary)", borderRadius: "2px", color: "var(--text-muted)" }}>
+                  <span style={{ fontSize: "10px", padding: "1px 4px", background: "var(--bg-primary)", borderRadius: "2px", color: "var(--text-secondary)" }}>
                     {STEP_ICONS[todo.stepType] || "B"}
                   </span>
                   <span style={{ fontSize: "13px", textDecoration: todo.done ? "line-through" : "none" }}>{todo.description}</span>
@@ -246,18 +246,18 @@ export function OrchestrationPanel({ workspacePath: _workspacePath }: Orchestrat
           <h3 style={{ margin: "0 0 8px", fontSize: "14px" }}>Lessons Learned ({lessons.length})</h3>
 
           {lessons.length === 0 && (
-            <p style={{ color: "var(--text-muted)", fontSize: "13px" }}>No lessons yet. Record patterns to prevent repeated mistakes.</p>
+            <p style={{ color: "var(--text-secondary)", fontSize: "13px" }}>No lessons yet. Record patterns to prevent repeated mistakes.</p>
           )}
 
           {lessons.map(lesson => (
             <div key={lesson.id} style={{ padding: "8px", marginBottom: "6px", background: "var(--bg-primary)", borderRadius: "4px", border: "1px solid var(--border-color)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: "11px", padding: "1px 6px", background: "var(--border-color)", borderRadius: "2px", color: "var(--text-muted)" }}>{lesson.category}</span>
-                <button onClick={() => deleteLesson(lesson.id)} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "11px" }}>x</button>
+                <span style={{ fontSize: "11px", padding: "1px 6px", background: "var(--border-color)", borderRadius: "2px", color: "var(--text-secondary)" }}>{lesson.category}</span>
+                <button onClick={() => deleteLesson(lesson.id)} style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", fontSize: "11px" }}>x</button>
               </div>
               <div style={{ fontSize: "13px", marginTop: "4px" }}>
                 <span style={{ color: "var(--warning-color)" }}>{lesson.pattern}</span>
-                {lesson.rule && <span style={{ color: "var(--text-muted)" }}> &rarr; </span>}
+                {lesson.rule && <span style={{ color: "var(--text-secondary)" }}> &rarr; </span>}
                 {lesson.rule && <span style={{ color: "var(--success-color)" }}>{lesson.rule}</span>}
               </div>
             </div>

@@ -12,7 +12,7 @@ const STATUS_COLORS: Record<string, string> = {
   Connected: "var(--success-color)",
   Disconnected: "var(--error-color)",
   Reconnecting: "var(--warning-color)",
-  Idle: "var(--text-muted)",
+  Idle: "var(--text-secondary)",
 };
 
 const containerStyle: React.CSSProperties = {
@@ -28,8 +28,8 @@ const tabBarStyle: React.CSSProperties = {
 const tabStyle = (active: boolean): React.CSSProperties => ({
   padding: "8px 14px", cursor: "pointer",
   background: active ? "var(--bg-primary)" : "transparent",
-  color: active ? "var(--accent-color)" : "var(--text-secondary)",
-  border: "none", borderBottom: active ? "2px solid var(--accent-color)" : "2px solid transparent",
+  color: active ? "var(--text-primary)" : "var(--text-secondary)",
+  border: "none", borderBottom: active ? "2px solid var(--accent-blue)" : "2px solid transparent",
   fontSize: 13, fontFamily: "inherit", whiteSpace: "nowrap",
 });
 const contentStyle: React.CSSProperties = { flex: 1, overflow: "auto", padding: 16 };
@@ -82,7 +82,7 @@ const ChannelDaemonPanel: React.FC = () => {
           <div key={i} style={cardStyle}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
               <strong>{ch.name}</strong>
-              <span style={badgeStyle(STATUS_COLORS[ch.status] || "var(--text-muted)")}>{ch.status}</span>
+              <span style={badgeStyle(STATUS_COLORS[ch.status] || "var(--text-secondary)")}>{ch.status}</span>
             </div>
             <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Type: {ch.type} &middot; Events processed: {ch.events}</div>
           </div>
@@ -100,7 +100,7 @@ const ChannelDaemonPanel: React.FC = () => {
           <div key={i} style={cardStyle}>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
               <strong>{s.id}</strong>
-              <span style={badgeStyle(s.status === "Active" ? "var(--success-color)" : "var(--text-muted)")}>{s.status}</span>
+              <span style={badgeStyle(s.status === "Active" ? "var(--success-color)" : "var(--text-secondary)")}>{s.status}</span>
             </div>
             <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Channel: {s.channel} &middot; User: {s.user} &middot; Started: {s.started}</div>
           </div>

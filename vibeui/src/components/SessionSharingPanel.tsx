@@ -10,7 +10,7 @@ const TABS: Tab[] = ["Shared Sessions", "Annotations", "Export"];
 
 const VIS_COLORS: Record<string, string> = {
   Public: "var(--success-color)", Team: "var(--info-color)",
-  Private: "var(--text-muted)", "Link Only": "var(--warning-color)",
+  Private: "var(--text-secondary)", "Link Only": "var(--warning-color)",
 };
 
 const containerStyle: React.CSSProperties = {
@@ -26,8 +26,8 @@ const tabBarStyle: React.CSSProperties = {
 const tabStyle = (active: boolean): React.CSSProperties => ({
   padding: "8px 14px", cursor: "pointer",
   background: active ? "var(--bg-primary)" : "transparent",
-  color: active ? "var(--accent-color)" : "var(--text-secondary)",
-  border: "none", borderBottom: active ? "2px solid var(--accent-color)" : "2px solid transparent",
+  color: active ? "var(--text-primary)" : "var(--text-secondary)",
+  border: "none", borderBottom: active ? "2px solid var(--accent-blue)" : "2px solid transparent",
   fontSize: 13, fontFamily: "inherit", whiteSpace: "nowrap",
 });
 const contentStyle: React.CSSProperties = { flex: 1, overflow: "auto", padding: 16 };
@@ -80,7 +80,7 @@ const SessionSharingPanel: React.FC = () => {
           <div key={i} style={cardStyle}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
               <strong>{s.title}</strong>
-              <span style={badgeStyle(VIS_COLORS[s.visibility] || "var(--text-muted)")}>{s.visibility}</span>
+              <span style={badgeStyle(VIS_COLORS[s.visibility] || "var(--text-secondary)")}>{s.visibility}</span>
             </div>
             <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
               {s.owner} &middot; {s.messages} messages &middot; {s.views} views &middot; {s.date}
@@ -91,10 +91,10 @@ const SessionSharingPanel: React.FC = () => {
           <div key={i} style={cardStyle}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
               <strong>{a.author}</strong>
-              <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{a.session} line {a.line}</span>
+              <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>{a.session} line {a.line}</span>
             </div>
             <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{a.text}</div>
-            <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>{a.date}</div>
+            <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 4 }}>{a.date}</div>
           </div>
         ))}
         {tab === "Export" && (

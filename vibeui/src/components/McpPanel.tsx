@@ -46,7 +46,7 @@ interface McpPlugin {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-const panelStyle: React.CSSProperties = { padding: 16, color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, height: "100%", overflow: "auto", background: "var(--bg-primary)" };
+const panelStyle: React.CSSProperties = { display: "flex", flexDirection: "column", color: "var(--text-primary)", fontFamily: "var(--font-family)", fontSize: 13, height: "100%", overflow: "hidden", background: "var(--bg-primary)" };
 const headingStyle: React.CSSProperties = { margin: "0 0 4px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" };
 const cardStyle: React.CSSProperties = { background: "var(--bg-secondary)", borderRadius: 6, padding: 12, marginBottom: 10, border: "1px solid var(--border-color)" };
 const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 };
@@ -55,7 +55,7 @@ const tabBtnStyle = (active: boolean): React.CSSProperties => ({ ...btnStyle, ba
 const inputStyle: React.CSSProperties = { padding: "5px 8px", fontSize: "12px", background: "var(--bg-input, var(--bg-primary))", border: "1px solid var(--border-color)", borderRadius: "4px", color: "var(--text-primary)", outline: "none", fontFamily: "var(--font-mono)", width: "100%", boxSizing: "border-box" };
 const barBg: React.CSSProperties = { height: 8, borderRadius: 4, background: "var(--bg-tertiary)", overflow: "hidden" };
 const barFill = (pct: number, color: string): React.CSSProperties => ({ height: "100%", width: `${Math.min(pct, 100)}%`, borderRadius: 4, background: color });
-const badgeStyle = (v: string): React.CSSProperties => ({ display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 600, color: "var(--btn-primary-fg)", background: v === "loaded" ? "var(--success-color)" : v === "loading" ? "var(--warning-color)" : "var(--text-muted)" });
+const badgeStyle = (v: string): React.CSSProperties => ({ display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 600, color: "var(--btn-primary-fg)", background: v === "loaded" ? "var(--success-color)" : v === "loading" ? "var(--warning-color)" : "var(--text-secondary)" });
 
 const EMPTY_SERVER: McpServer = { name: "", command: "", args: [], env: {} };
 const CATEGORIES = ["All", "File Systems", "Git", "Databases", "Cloud", "AI/ML", "Testing", "DevOps", "Communication", "Security", "Code Quality", "Finance", "Design", "Utilities"];
@@ -307,19 +307,20 @@ export function McpPanel() {
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div style={panelStyle}>
-      <h2 style={headingStyle}>MCP</h2>
-      <p style={{ fontSize: 11, color: "var(--text-secondary)", margin: "0 0 10px" }}>
-        Model Context Protocol — servers, tools, and plugins
-      </p>
+      <div style={{ padding: "16px 16px 0", flexShrink: 0 }}>
+        <h2 style={headingStyle}>MCP</h2>
+        <p style={{ fontSize: 11, color: "var(--text-secondary)", margin: "0 0 10px" }}>
+          Model Context Protocol — servers, tools, and plugins
+        </p>
 
-      {error && (
-        <div style={{ fontSize: 12, color: "var(--error-color)", padding: "6px 8px", background: "color-mix(in srgb, var(--accent-rose) 15%, transparent)", borderRadius: 4, marginBottom: 8 }}>
-          {error} <button style={{ ...btnStyle, fontSize: 10, marginLeft: 8, padding: "2px 8px" }} onClick={() => setError(null)}>Dismiss</button>
-        </div>
-      )}
+        {error && (
+          <div style={{ fontSize: 12, color: "var(--error-color)", padding: "6px 8px", background: "color-mix(in srgb, var(--accent-rose) 15%, transparent)", borderRadius: 4, marginBottom: 8 }}>
+            {error} <button style={{ ...btnStyle, fontSize: 10, marginLeft: 8, padding: "2px 8px" }} onClick={() => setError(null)}>Dismiss</button>
+          </div>
+        )}
 
-      {/* Tab bar */}
-      <div style={{ marginBottom: 12, display: "flex", flexWrap: "wrap", gap: 2 }} role="tablist">
+        {/* Tab bar */}
+        <div style={{ marginBottom: 0, display: "flex", flexWrap: "wrap", gap: 2 }} role="tablist">
         {(["servers", "tools", "directory", "installed", "metrics"] as Tab[]).map(t => {
           const allToolsCount = BUILTIN_TOOLS.length + Object.values(serverTools).flat().length + manifests.length;
           const installedCount = plugins.filter(p => p.installed).length;
@@ -334,8 +335,10 @@ export function McpPanel() {
             </button>
           );
         })}
+        </div>
       </div>
 
+      <div style={{ flex: 1, overflowY: "auto", padding: "12px 16px" }}>
       {/* ── SERVERS TAB ──────────────────────────────────────────────────────── */}
       {tab === "servers" && (
         <div>
@@ -901,6 +904,7 @@ export function McpPanel() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

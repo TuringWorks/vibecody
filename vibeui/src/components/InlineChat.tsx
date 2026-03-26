@@ -148,7 +148,7 @@ export function InlineChat({ selection, position, provider, fileContent, onAccep
       : `Lines ${selection.startLine + 1}–${selection.endLine + 1} · ${selection.language}`}
     </span>
     {selection.filePath && (
-     <span style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)", fontSize: 10, marginLeft: "auto" }}>
+     <span style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono)", fontSize: 10, marginLeft: "auto" }}>
       {selection.filePath.split("/").pop()}
      </span>
     )}

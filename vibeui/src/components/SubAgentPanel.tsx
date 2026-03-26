@@ -45,7 +45,7 @@ const statusColor = (s: string): string => {
     case "working": return "var(--warning-color)";
     case "completed": return "var(--success-color)";
     case "failed": return "var(--error-color)";
-    default: return "var(--text-muted)";
+    default: return "var(--text-secondary)";
   }
 };
 
@@ -236,8 +236,8 @@ const SubAgentPanel: React.FC<SubAgentPanelProps> = ({ provider }) => {
               fontSize: 12,
               background: "none",
               border: "none",
-              borderBottom: tab === t ? "2px solid var(--accent-color)" : "2px solid transparent",
-              color: tab === t ? "var(--text-primary)" : "var(--text-muted)",
+              borderBottom: tab === t ? "2px solid var(--accent-blue)" : "2px solid transparent",
+              color: tab === t ? "var(--text-primary)" : "var(--text-secondary)",
               cursor: "pointer",
               fontWeight: tab === t ? 600 : 400,
             }}
@@ -259,7 +259,7 @@ const SubAgentPanel: React.FC<SubAgentPanelProps> = ({ provider }) => {
         <div>
           {/* Clear completed button */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+            <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>
               {agents.length} agent{agents.length !== 1 ? "s" : ""}
               {loading ? " (refreshing...)" : ""}
             </span>
@@ -274,7 +274,7 @@ const SubAgentPanel: React.FC<SubAgentPanelProps> = ({ provider }) => {
           </div>
 
           {agents.length === 0 && !loading && (
-            <div style={{ padding: 20, textAlign: "center", color: "var(--text-muted)", fontSize: 12 }}>
+            <div style={{ padding: 20, textAlign: "center", color: "var(--text-secondary)", fontSize: 12 }}>
               No sub-agents running. Go to the Spawn tab to create one.
             </div>
           )}
@@ -288,7 +288,7 @@ const SubAgentPanel: React.FC<SubAgentPanelProps> = ({ provider }) => {
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span style={{ fontWeight: 600, fontSize: 12, color: "var(--text-primary)" }}>{agent.role}</span>
                 <span style={badgeStyle(statusColor(agent.status))}>{statusLabel(agent.status)}</span>
-                <span style={{ marginLeft: "auto", fontSize: 10, color: "var(--text-muted)" }}>{agent.provider}</span>
+                <span style={{ marginLeft: "auto", fontSize: 10, color: "var(--text-secondary)" }}>{agent.provider}</span>
               </div>
 
               {agent.task_description && (
@@ -297,18 +297,18 @@ const SubAgentPanel: React.FC<SubAgentPanelProps> = ({ provider }) => {
                 </div>
               )}
 
-              <div style={{ display: "flex", gap: 12, marginTop: 4, fontSize: 10, color: "var(--text-muted)" }}>
+              <div style={{ display: "flex", gap: 12, marginTop: 4, fontSize: 10, color: "var(--text-secondary)" }}>
                 <span>Created: {formatTimestamp(agent.created_at)}</span>
                 {agent.completed_at && <span>Completed: {formatTimestamp(agent.completed_at)}</span>}
               </div>
 
               {expandedAgent === agent.id && (
                 <div style={{ marginTop: 8 }}>
-                  <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 2 }}>ID: {agent.id}</div>
+                  <div style={{ fontSize: 10, color: "var(--text-secondary)", marginBottom: 2 }}>ID: {agent.id}</div>
 
                   {agent.context_files.length > 0 && (
                     <>
-                      <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 6, marginBottom: 4 }}>Context Files:</div>
+                      <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 6, marginBottom: 4 }}>Context Files:</div>
                       {agent.context_files.map((f) => (
                         <div key={f} style={{ fontSize: 11, fontFamily: "var(--font-mono)", padding: "2px 6px", marginBottom: 2, background: "var(--bg-primary)", borderRadius: 3 }}>{f}</div>
                       ))}
@@ -340,7 +340,7 @@ const SubAgentPanel: React.FC<SubAgentPanelProps> = ({ provider }) => {
       {tab === "Results" && (
         <div>
           {completedOrFailed.length === 0 && (
-            <div style={{ padding: 20, textAlign: "center", color: "var(--text-muted)", fontSize: 12 }}>
+            <div style={{ padding: 20, textAlign: "center", color: "var(--text-secondary)", fontSize: 12 }}>
               No completed or failed agents yet.
             </div>
           )}
@@ -354,7 +354,7 @@ const SubAgentPanel: React.FC<SubAgentPanelProps> = ({ provider }) => {
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                   <span style={{ fontWeight: 600, fontSize: 12, color: "var(--text-primary)" }}>{agent.role}</span>
                   <span style={badgeStyle(borderColor)}>{isSuccess ? "Completed" : "Failed"}</span>
-                  <span style={{ marginLeft: "auto", fontSize: 10, color: "var(--text-muted)" }}>
+                  <span style={{ marginLeft: "auto", fontSize: 10, color: "var(--text-secondary)" }}>
                     {agent.completed_at ? formatTimestamp(agent.completed_at) : ""}
                   </span>
                 </div>
@@ -373,7 +373,7 @@ const SubAgentPanel: React.FC<SubAgentPanelProps> = ({ provider }) => {
 
                 {agent.findings.length > 0 && (
                   <>
-                    <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>Findings:</div>
+                    <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 }}>Findings:</div>
                     <ul style={{ margin: 0, paddingLeft: 16, fontSize: 11, lineHeight: 1.6, color: "var(--text-secondary)" }}>
                       {agent.findings.map((f, i) => (
                         <li key={i}>{f}</li>
@@ -384,7 +384,7 @@ const SubAgentPanel: React.FC<SubAgentPanelProps> = ({ provider }) => {
 
                 {agent.files_modified.length > 0 && (
                   <div style={{ marginTop: 6 }}>
-                    <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Modified: </span>
+                    <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>Modified: </span>
                     {agent.files_modified.map((f) => (
                       <span key={f} style={{ fontSize: 10, fontFamily: "var(--font-mono)", padding: "1px 5px", borderRadius: 3, background: "var(--bg-primary)", marginLeft: 4 }}>{f}</span>
                     ))}
@@ -412,7 +412,7 @@ const SubAgentPanel: React.FC<SubAgentPanelProps> = ({ provider }) => {
 
           {/* Role */}
           <div style={{ marginBottom: 10 }}>
-            <label style={{ fontSize: 11, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>Role</label>
+            <label style={{ fontSize: 11, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Role</label>
             <select
               value={spawnRole}
               onChange={(e) => setSpawnRole(e.target.value)}
@@ -423,7 +423,7 @@ const SubAgentPanel: React.FC<SubAgentPanelProps> = ({ provider }) => {
               ))}
             </select>
             {selectedRoleDesc && (
-              <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4, fontStyle: "italic" }}>
+              <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 4, fontStyle: "italic" }}>
                 {selectedRoleDesc}
               </div>
             )}
@@ -431,7 +431,7 @@ const SubAgentPanel: React.FC<SubAgentPanelProps> = ({ provider }) => {
 
           {/* Task */}
           <div style={{ marginBottom: 10 }}>
-            <label style={{ fontSize: 11, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>Task Description</label>
+            <label style={{ fontSize: 11, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Task Description</label>
             <textarea
               value={spawnTask}
               onChange={(e) => setSpawnTask(e.target.value)}
@@ -443,7 +443,7 @@ const SubAgentPanel: React.FC<SubAgentPanelProps> = ({ provider }) => {
 
           {/* Context files */}
           <div style={{ marginBottom: 10 }}>
-            <label style={{ fontSize: 11, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>Context Files (comma-separated or one per line)</label>
+            <label style={{ fontSize: 11, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Context Files (comma-separated or one per line)</label>
             <textarea
               value={spawnContextFiles}
               onChange={(e) => setSpawnContextFiles(e.target.value)}
@@ -455,7 +455,7 @@ const SubAgentPanel: React.FC<SubAgentPanelProps> = ({ provider }) => {
 
           {/* Provider */}
           <div style={{ marginBottom: 14 }}>
-            <label style={{ fontSize: 11, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>Provider</label>
+            <label style={{ fontSize: 11, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Provider</label>
             <input
               type="text"
               value={spawnProvider}

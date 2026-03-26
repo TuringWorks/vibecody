@@ -632,7 +632,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: 8 }}>
  {/* Branch Name Suggester */}
  <div style={{ marginBottom: 10 }}>
- <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>AI Branch Name</div>
+ <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>AI Branch Name</div>
  <div style={{ display: 'flex', gap: 6 }}>
  <input
  value={branchTask}
@@ -654,7 +654,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  <code style={{ flex: 1, fontSize: 11, color: 'var(--info-color)' }}>{suggestedBranch}</code>
  <button
  onClick={() => { navigator.clipboard.writeText(suggestedBranch).then(() => toast.success('Copied!')).catch(() => {}); }}
- style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 10 }}
+ style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: 10 }}
  >
  
  </button>
@@ -698,7 +698,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  />
  <button
  onClick={() => { navigator.clipboard.writeText(changelog).then(() => toast.success('Copied!')).catch(() => {}); }}
- style={{ position: 'absolute', top: 4, right: 4, background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 3, padding: '2px 6px', cursor: 'pointer', fontSize: 10, color: 'var(--text-muted)' }}
+ style={{ position: 'absolute', top: 4, right: 4, background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 3, padding: '2px 6px', cursor: 'pointer', fontSize: 10, color: 'var(--text-secondary)' }}
  >
  
  </button>
@@ -749,7 +749,7 @@ export function GitPanel({ workspacePath, onCompareFile }: GitPanelProps) {
  />
  <button
  onClick={() => { navigator.clipboard.writeText(conflictResolution).then(() => toast.success('Copied!')).catch(() => {}); }}
- style={{ position: 'absolute', top: 4, right: 4, background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 3, padding: '2px 6px', cursor: 'pointer', fontSize: 10, color: 'var(--text-muted)' }}
+ style={{ position: 'absolute', top: 4, right: 4, background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 3, padding: '2px 6px', cursor: 'pointer', fontSize: 10, color: 'var(--text-secondary)' }}
  >
  Copy resolution
  </button>

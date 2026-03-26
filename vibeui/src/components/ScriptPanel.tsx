@@ -124,7 +124,7 @@ export function ScriptPanel({ workspacePath }: ScriptPanelProps) {
 
  if (!workspacePath) {
  return (
- <div style={{ padding: 24, textAlign: "center", color: "var(--text-muted)", fontSize: 12 }}>
+ <div style={{ padding: 24, textAlign: "center", color: "var(--text-secondary)", fontSize: 12 }}>
  Open a workspace to view available scripts.
  </div>
  );
@@ -155,7 +155,7 @@ export function ScriptPanel({ workspacePath }: ScriptPanelProps) {
  <div style={{ flex: 1 }}>
  <div style={{ fontSize: 13, fontWeight: 600 }}>Script Runner</div>
  {data && (
- <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
+ <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
  {data.scripts.length} scripts · {data.detected_tools.join(", ")}
  </div>
  )}
@@ -217,7 +217,7 @@ export function ScriptPanel({ workspacePath }: ScriptPanelProps) {
  {/* Script list */}
  <div style={{ flex: 1, overflow: "auto", padding: "8px 12px", display: "flex", flexDirection: "column", gap: 4 }}>
  {filtered.length === 0 && !loading && (
- <div style={{ textAlign: "center", padding: "30px 0", color: "var(--text-muted)", fontSize: 12 }}>
+ <div style={{ textAlign: "center", padding: "30px 0", color: "var(--text-secondary)", fontSize: 12 }}>
  {data ? "No scripts match your filter." : "No scripts detected in this workspace."}
  </div>
  )}
@@ -251,11 +251,11 @@ export function ScriptPanel({ workspacePath }: ScriptPanelProps) {
  {script.name}
  </div>
  {script.description && (
- <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+ <div style={{ fontSize: 10, color: "var(--text-secondary)", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
  {script.description}
  </div>
  )}
- <div style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "var(--font-mono)", opacity: 0.7, marginTop: 1 }}>
+ <div style={{ fontSize: 10, color: "var(--text-secondary)", fontFamily: "var(--font-mono)", opacity: 0.7, marginTop: 1 }}>
  {script.command}
  </div>
  </div>

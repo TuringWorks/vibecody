@@ -128,7 +128,7 @@ export function HttpPlayground({ workspacePath }: { workspacePath: string | null
  <button
  key={h}
  onClick={() => setUrl(`http://${h}/`)}
- style={{ background: "var(--bg-secondary)", color: "var(--text-muted)", border: "1px solid var(--border-color)", borderRadius: "4px", padding: "2px 8px", cursor: "pointer", fontSize: "11px" }}
+ style={{ background: "var(--bg-secondary)", color: "var(--text-secondary)", border: "1px solid var(--border-color)", borderRadius: "4px", padding: "2px 8px", cursor: "pointer", fontSize: "11px" }}
  >
  {h}
  </button>
@@ -137,7 +137,7 @@ export function HttpPlayground({ workspacePath }: { workspacePath: string | null
  <button
  onClick={handleDiscover}
  disabled={endpointsLoading}
- style={{ marginLeft: "auto", background: "var(--bg-secondary)", color: "var(--text-muted)", border: "1px solid var(--border-color)", borderRadius: "4px", padding: "2px 8px", cursor: "pointer", fontSize: "11px" }}
+ style={{ marginLeft: "auto", background: "var(--bg-secondary)", color: "var(--text-secondary)", border: "1px solid var(--border-color)", borderRadius: "4px", padding: "2px 8px", cursor: "pointer", fontSize: "11px" }}
  >
  {endpointsLoading ? "…" : "Discover routes"}
  </button>
@@ -147,7 +147,7 @@ export function HttpPlayground({ workspacePath }: { workspacePath: string | null
  {/* Discovered routes */}
  {endpoints.length > 0 && (
  <div style={{ background: "var(--bg-secondary)", borderRadius: "4px", padding: "8px", maxHeight: "100px", overflowY: "auto" }}>
- <div style={{ color: "var(--text-muted)", fontSize: "11px", marginBottom: "4px" }}>Discovered routes ({endpoints.length})</div>
+ <div style={{ color: "var(--text-secondary)", fontSize: "11px", marginBottom: "4px" }}>Discovered routes ({endpoints.length})</div>
  {endpoints.map((ep, i) => (
  <div
  key={i}
@@ -164,7 +164,7 @@ export function HttpPlayground({ workspacePath }: { workspacePath: string | null
  {/* Headers */}
  <div>
  <div style={{ display: "flex", alignItems: "center", marginBottom: "4px" }}>
- <span style={{ color: "var(--text-muted)", fontSize: "11px" }}>Headers</span>
+ <span style={{ color: "var(--text-secondary)", fontSize: "11px" }}>Headers</span>
  <button onClick={addHeader} style={{ marginLeft: "8px", background: "none", color: "var(--accent-color)", border: "none", cursor: "pointer", fontSize: "12px", padding: "0 4px" }}>+</button>
  </div>
  <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
@@ -212,7 +212,7 @@ export function HttpPlayground({ workspacePath }: { workspacePath: string | null
  {response.status}
  </span>
  <span style={{ color: "var(--text-secondary)" }}>{response.status_text}</span>
- <span style={{ marginLeft: "auto", color: "var(--text-muted)", fontSize: "11px" }}>
+ <span style={{ marginLeft: "auto", color: "var(--text-secondary)", fontSize: "11px" }}>
  {response.duration_ms}ms
  </span>
  {/* Tabs */}
@@ -223,7 +223,7 @@ export function HttpPlayground({ workspacePath }: { workspacePath: string | null
  onClick={() => setResTab(t)}
  style={{
  background: resTab === t ? "var(--accent-color)" : "transparent",
- color: resTab === t ? "var(--text-primary)" : "var(--text-muted)",
+ color: resTab === t ? "var(--text-primary)" : "var(--text-secondary)",
  border: "none", borderRadius: "4px", padding: "2px 8px", cursor: "pointer", fontSize: "11px",
  }}
  >
@@ -233,7 +233,7 @@ export function HttpPlayground({ workspacePath }: { workspacePath: string | null
  {resTab === "body" && isJsonLike(response.body) && (
  <button
  onClick={() => setPrettyBody(p => !p)}
- style={{ background: prettyBody ? "rgba(255,255,255,0.08)" : "transparent", color: "var(--text-muted)", border: "none", borderRadius: "4px", padding: "2px 6px", cursor: "pointer", fontSize: "11px" }}
+ style={{ background: prettyBody ? "rgba(255,255,255,0.08)" : "transparent", color: "var(--text-secondary)", border: "none", borderRadius: "4px", padding: "2px 6px", cursor: "pointer", fontSize: "11px" }}
  >
  {prettyBody ? "Raw" : "Pretty"}
  </button>
@@ -244,14 +244,14 @@ export function HttpPlayground({ workspacePath }: { workspacePath: string | null
  <div style={{ flex: 1, overflowY: "auto", padding: "8px 12px" }}>
  {resTab === "body" ? (
  <pre style={{ margin: 0, whiteSpace: "pre-wrap", fontSize: "12px", fontFamily: "inherit" }}>
- {displayBody || <span style={{ color: "var(--text-muted)" }}>(empty body)</span>}
+ {displayBody || <span style={{ color: "var(--text-secondary)" }}>(empty body)</span>}
  </pre>
  ) : (
  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
  <tbody>
  {response.headers.map((h, i) => (
  <tr key={i} style={{ borderBottom: "1px solid var(--bg-secondary)" }}>
- <td style={{ padding: "3px 8px 3px 0", color: "var(--text-muted)", whiteSpace: "nowrap", verticalAlign: "top" }}>{h.key}</td>
+ <td style={{ padding: "3px 8px 3px 0", color: "var(--text-secondary)", whiteSpace: "nowrap", verticalAlign: "top" }}>{h.key}</td>
  <td style={{ padding: "3px 0", color: "var(--text-secondary)", wordBreak: "break-all" }}>{h.value}</td>
  </tr>
  ))}
@@ -263,7 +263,7 @@ export function HttpPlayground({ workspacePath }: { workspacePath: string | null
  )}
 
  {!response && !loading && (
- <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", textAlign: "center" }}>
+ <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-secondary)", textAlign: "center" }}>
  Build a request above and click Send<br />(Ctrl+Enter also works)
  </div>
  )}

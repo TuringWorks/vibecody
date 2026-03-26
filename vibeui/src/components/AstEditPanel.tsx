@@ -40,7 +40,7 @@ const kindColor: Record<NodeKind, string> = {
   function: "var(--text-info)",
   struct: "var(--text-success)",
   enum: "var(--text-warning)",
-  impl: "var(--text-muted)",
+  impl: "var(--text-secondary)",
   trait: "var(--accent-purple)",
   module: "var(--accent-gold)",
   const: "#94e2d5",
@@ -51,7 +51,7 @@ const tabBtn = (active: boolean): React.CSSProperties => ({
   padding: "6px 14px", fontSize: 11, fontWeight: active ? 600 : 400,
   background: active ? "var(--accent-bg, color-mix(in srgb, var(--accent-blue) 15%, transparent))" : "transparent",
   border: "1px solid " + (active ? "var(--accent-primary)" : "var(--border-color)"),
-  borderRadius: 4, color: active ? "var(--text-info)" : "var(--text-muted)", cursor: "pointer",
+  borderRadius: 4, color: active ? "var(--text-info)" : "var(--text-secondary)", cursor: "pointer",
 });
 
 function NodeTree({ nodes, depth = 0 }: { nodes: AstNode[]; depth?: number }) {
@@ -62,7 +62,7 @@ function NodeTree({ nodes, depth = 0 }: { nodes: AstNode[]; depth?: number }) {
           <div style={{ display: "flex", gap: 8, padding: "3px 8px", paddingLeft: 8 + depth * 16, fontSize: 11, alignItems: "center" }}>
             <span style={{ color: kindColor[n.kind], fontSize: 9, fontWeight: 600, minWidth: 50 }}>{n.kind}</span>
             <span style={{ color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}>{n.name}</span>
-            <span style={{ color: "var(--text-muted)", fontSize: 10, marginLeft: "auto" }}>L{n.line}</span>
+            <span style={{ color: "var(--text-secondary)", fontSize: 10, marginLeft: "auto" }}>L{n.line}</span>
           </div>
           {n.children && <NodeTree nodes={n.children} depth={depth + 1} />}
         </div>
@@ -140,14 +140,14 @@ export default function AstEditPanel() {
             {t[0].toUpperCase() + t.slice(1)}
           </button>
         ))}
-        <span style={{ marginLeft: "auto", fontSize: 10, color: "var(--text-muted)", alignSelf: "center" }}>
+        <span style={{ marginLeft: "auto", fontSize: 10, color: "var(--text-secondary)", alignSelf: "center" }}>
           {edits.length} pending
         </span>
       </div>
 
       <div style={{ flex: 1, overflowY: "auto", padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
         {loading && (
-          <div style={{ textAlign: "center", color: "var(--text-muted)", fontSize: 12, padding: 40 }}>Loading...</div>
+          <div style={{ textAlign: "center", color: "var(--text-secondary)", fontSize: 12, padding: 40 }}>Loading...</div>
         )}
         {error && (
           <div style={{ textAlign: "center", color: "var(--text-danger)", fontSize: 12, padding: 20 }}>{error}</div>
@@ -157,13 +157,13 @@ export default function AstEditPanel() {
           <div key={f.path} style={{ background: "var(--bg-secondary)", borderRadius: 6, border: "1px solid var(--border-color)", overflow: "hidden" }}>
             <div style={{ padding: "6px 10px", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <span style={{ fontSize: 12, fontWeight: 600, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{f.path}</span>
-              <span style={{ fontSize: 10, color: "var(--text-muted)" }}>{f.language} | {f.nodes.length} top-level</span>
+              <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>{f.language} | {f.nodes.length} top-level</span>
             </div>
             <NodeTree nodes={f.nodes} />
           </div>
         ))}
         {tab === "files" && !loading && files.length === 0 && !error && (
-          <div style={{ textAlign: "center", color: "var(--text-muted)", fontSize: 12, padding: 40 }}>No source files found in workspace</div>
+          <div style={{ textAlign: "center", color: "var(--text-secondary)", fontSize: 12, padding: 40 }}>No source files found in workspace</div>
         )}
 
         {tab === "edits" && edits.map(e => (
@@ -172,14 +172,14 @@ export default function AstEditPanel() {
             <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
               <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 3, background: "color-mix(in srgb, var(--accent-blue) 15%, transparent)", color: "var(--text-info)", fontWeight: 600 }}>{e.operation}</span>
               <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{e.target}</span>
-              <span style={{ fontSize: 10, color: "var(--text-muted)", marginLeft: "auto" }}>{e.file}</span>
+              <span style={{ fontSize: 10, color: "var(--text-secondary)", marginLeft: "auto" }}>{e.file}</span>
             </div>
-            <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 6 }}>{e.description}</div>
+            <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 6 }}>{e.description}</div>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <div style={{ flex: 1, height: 4, background: "var(--bg-primary)", borderRadius: 2, overflow: "hidden" }}>
                 <div style={{ width: `${e.confidence * 100}%`, height: "100%", background: e.confidence > 0.85 ? "var(--text-success)" : e.confidence > 0.7 ? "var(--text-warning)" : "var(--text-danger)", borderRadius: 2 }} />
               </div>
-              <span style={{ fontSize: 10, color: "var(--text-muted)", minWidth: 30 }}>{(e.confidence * 100).toFixed(0)}%</span>
+              <span style={{ fontSize: 10, color: "var(--text-secondary)", minWidth: 30 }}>{(e.confidence * 100).toFixed(0)}%</span>
               <button onClick={(ev) => { ev.stopPropagation(); dismissEdit(e.id); }}
                 style={{ padding: "3px 8px", fontSize: 10, borderRadius: 3, border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-danger)", cursor: "pointer" }}>Reject</button>
               <button onClick={(ev) => { ev.stopPropagation(); applyEdit(e.id); }}
@@ -188,13 +188,13 @@ export default function AstEditPanel() {
           </div>
         ))}
         {tab === "edits" && edits.length === 0 && (
-          <div style={{ textAlign: "center", color: "var(--text-muted)", fontSize: 12, padding: 40 }}>No pending AST edits</div>
+          <div style={{ textAlign: "center", color: "var(--text-secondary)", fontSize: 12, padding: 40 }}>No pending AST edits</div>
         )}
 
         {tab === "preview" && selected && (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>{selected.operation}: {selected.target}</div>
-            <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{selected.description}</div>
+            <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>{selected.description}</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <div>
                 <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-danger)", marginBottom: 4 }}>Before</div>
@@ -208,7 +208,7 @@ export default function AstEditPanel() {
           </div>
         )}
         {tab === "preview" && !selected && (
-          <div style={{ textAlign: "center", color: "var(--text-muted)", fontSize: 12, padding: 40 }}>Select an edit from the Edits tab to preview</div>
+          <div style={{ textAlign: "center", color: "var(--text-secondary)", fontSize: 12, padding: 40 }}>Select an edit from the Edits tab to preview</div>
         )}
       </div>
     </div>

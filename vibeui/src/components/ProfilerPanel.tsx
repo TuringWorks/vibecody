@@ -99,7 +99,8 @@ export function ProfilerPanel({ workspacePath }: ProfilerPanelProps) {
   };
 
   return (
-    <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 12, height: "100%", overflowY: "auto" }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+    <div style={{ flex: 1, overflowY: "auto", padding: "12px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
       {/* Tool badge */}
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <div style={{
@@ -271,6 +272,7 @@ export function ProfilerPanel({ workspacePath }: ProfilerPanelProps) {
           {tool ? "Click Profile to start profiling your application." : "No profiling tool detected for this workspace."}
         </div>
       )}
+    </div>
     </div>
   );
 }

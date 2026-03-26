@@ -104,7 +104,7 @@ function Swatch({ token, onEdit, onRemove }: {
  </div>
  <div style={{ padding: "5px 7px", background: "var(--bg-secondary)" }}>
  <div style={{ fontSize: 9, fontWeight: 700, fontFamily: "var(--font-mono)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{copied ? "Copied!" : token.value}</div>
- <div style={{ fontSize: 9, color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>--{token.name}</div>
+ <div style={{ fontSize: 9, color: "var(--text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>--{token.name}</div>
  </div>
  </div>
  );
@@ -237,7 +237,7 @@ export function ColorPalettePanel({ workspacePath }: { workspacePath: string | n
  </div>
  <div style={{ padding: "8px 10px", borderTop: "1px solid var(--border-color)", display: "flex", flexDirection: "column", gap: 5 }}>
  {workspacePath && (
- <button onClick={handleScan} disabled={scanning} style={{ padding: "4px 8px", fontSize: 10, fontWeight: 600, background: scanning ? "var(--bg-secondary)" : "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-muted)", cursor: scanning ? "not-allowed" : "pointer" }}>
+ <button onClick={handleScan} disabled={scanning} style={{ padding: "4px 8px", fontSize: 10, fontWeight: 600, background: scanning ? "var(--bg-secondary)" : "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-secondary)", cursor: scanning ? "not-allowed" : "pointer" }}>
  {scanning ? "Scanning…" : "Scan CSS vars"}
  </button>
  )}
@@ -247,7 +247,7 @@ export function ColorPalettePanel({ workspacePath }: { workspacePath: string | n
  {/* Main area */}
  <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
  {!active ? (
- <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", fontSize: 13 }}>
+ <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-secondary)", fontSize: 13 }}>
  ← Select or create a palette
  </div>
  ) : (
@@ -266,12 +266,12 @@ export function ColorPalettePanel({ workspacePath }: { workspacePath: string | n
  ) : (
  <span style={{ fontSize: 13, fontWeight: 600, cursor: "pointer", flex: 1 }} onClick={() => setNewName(active.name)} title="Click to rename">{active.name}</span>
  )}
- <span style={{ fontSize: 10, color: "var(--text-muted)" }}>{active.tokens.length} tokens</span>
+ <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>{active.tokens.length} tokens</span>
  <button onClick={addToken} style={{ padding: "3px 12px", fontSize: 11, fontWeight: 700, background: "var(--accent-primary, #6366f1)", border: "none", borderRadius: 4, color: "var(--text-primary)", cursor: "pointer" }}>+ Color</button>
  <select value={exportFmt} onChange={e => setExportFmt(e.target.value as ExportFormat)} style={{ fontSize: 10, padding: "3px 6px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)" }}>
  {EXPORT_FORMATS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
  </select>
- <button onClick={handleExport} style={{ padding: "3px 12px", fontSize: 11, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-muted)", cursor: "pointer" }}>↗ Export</button>
+ <button onClick={handleExport} style={{ padding: "3px 12px", fontSize: 11, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-secondary)", cursor: "pointer" }}>↗ Export</button>
  </div>
 
  {/* Token edit modal */}
@@ -279,14 +279,14 @@ export function ColorPalettePanel({ workspacePath }: { workspacePath: string | n
  <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--border-color)", background: "color-mix(in srgb, var(--accent-blue) 8%, transparent)", display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
  <input type="color" value={editToken.value.startsWith("#") ? editToken.value.slice(0, 7) : "#6366f1"} onChange={e => setEditToken({ ...editToken, value: e.target.value })} style={{ width: 40, height: 32, border: "none", borderRadius: 4, cursor: "pointer" }} />
  <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
- <label style={{ fontSize: 9, color: "var(--text-muted)", fontWeight: 600 }}>Name</label>
+ <label style={{ fontSize: 9, color: "var(--text-secondary)", fontWeight: 600 }}>Name</label>
  <input value={editToken.name} onChange={e => setEditToken({ ...editToken, name: e.target.value })} style={{ padding: "3px 8px", fontSize: 11, fontFamily: "var(--font-mono)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none", width: 160 }} />
  </div>
  <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
- <label style={{ fontSize: 9, color: "var(--text-muted)", fontWeight: 600 }}>Hex</label>
+ <label style={{ fontSize: 9, color: "var(--text-secondary)", fontWeight: 600 }}>Hex</label>
  <input value={editToken.value} onChange={e => setEditToken({ ...editToken, value: e.target.value })} style={{ padding: "3px 8px", fontSize: 11, fontFamily: "var(--font-mono)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none", width: 100 }} />
  </div>
- <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{hexToRgb(editToken.value)}</div>
+ <div style={{ fontSize: 10, color: "var(--text-secondary)" }}>{hexToRgb(editToken.value)}</div>
  <button onClick={commitEdit} style={{ padding: "4px 14px", fontSize: 11, fontWeight: 700, background: "var(--accent-primary, #6366f1)", border: "none", borderRadius: 4, color: "var(--text-primary)", cursor: "pointer", marginLeft: "auto" }}>✓ Done</button>
  </div>
  )}
@@ -294,7 +294,7 @@ export function ColorPalettePanel({ workspacePath }: { workspacePath: string | n
  {/* Swatch grid */}
  <div style={{ flex: 1, overflow: "auto", padding: 14 }}>
  {active.tokens.length === 0 ? (
- <div style={{ textAlign: "center", color: "var(--text-muted)", fontSize: 12, paddingTop: 40 }}>
+ <div style={{ textAlign: "center", color: "var(--text-secondary)", fontSize: 12, paddingTop: 40 }}>
  No colors yet — click <b>+ Color</b> or scan CSS variables
  </div>
  ) : (
@@ -312,8 +312,8 @@ export function ColorPalettePanel({ workspacePath }: { workspacePath: string | n
  <div style={{ padding: "5px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
  <span style={{ fontSize: 11, fontWeight: 600 }}>{EXPORT_FORMATS.find(f => f.value === exportFmt)?.label} output</span>
  <div style={{ display: "flex", gap: 6 }}>
- <button onClick={copyExport} style={{ fontSize: 10, padding: "2px 10px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-muted)", cursor: "pointer" }}>Copy</button>
- <button onClick={() => setShowExport(false)} style={{ fontSize: 10, padding: "2px 8px", background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer" }}>✕</button>
+ <button onClick={copyExport} style={{ fontSize: 10, padding: "2px 10px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-secondary)", cursor: "pointer" }}>Copy</button>
+ <button onClick={() => setShowExport(false)} style={{ fontSize: 10, padding: "2px 8px", background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer" }}>✕</button>
  </div>
  </div>
  <pre style={{ flex: 1, overflowY: "auto", margin: 0, padding: "10px 14px", fontSize: 11, fontFamily: "var(--font-mono)", lineHeight: 1.6, color: "var(--text-primary)", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>

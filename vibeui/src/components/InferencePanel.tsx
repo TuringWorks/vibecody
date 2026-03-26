@@ -389,7 +389,7 @@ export function InferencePanel() {
             style={{
               background: "none",
               border: "none",
-              borderBottom: tab === t.key ? "2px solid var(--accent-color)" : "2px solid transparent",
+              borderBottom: tab === t.key ? "2px solid var(--accent-blue)" : "2px solid transparent",
               padding: "8px 16px",
               cursor: "pointer",
               fontSize: 12,

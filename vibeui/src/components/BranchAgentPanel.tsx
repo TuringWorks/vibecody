@@ -9,9 +9,9 @@ type Tab = "Active Agents" | "Pull Requests" | "Conflicts";
 const TABS: Tab[] = ["Active Agents", "Pull Requests", "Conflicts"];
 
 const STATUS_COLORS: Record<string, string> = {
-  Running: "var(--success-color)", Idle: "var(--text-muted)",
+  Running: "var(--success-color)", Idle: "var(--text-secondary)",
   Errored: "var(--error-color)", Open: "var(--info-color)",
-  Merged: "var(--success-color)", Closed: "var(--text-muted)",
+  Merged: "var(--success-color)", Closed: "var(--text-secondary)",
   Critical: "var(--error-color)", Warning: "var(--warning-color)",
 };
 
@@ -28,8 +28,8 @@ const tabBarStyle: React.CSSProperties = {
 const tabStyle = (active: boolean): React.CSSProperties => ({
   padding: "8px 14px", cursor: "pointer",
   background: active ? "var(--bg-primary)" : "transparent",
-  color: active ? "var(--accent-color)" : "var(--text-secondary)",
-  border: "none", borderBottom: active ? "2px solid var(--accent-color)" : "2px solid transparent",
+  color: active ? "var(--text-primary)" : "var(--text-secondary)",
+  border: "none", borderBottom: active ? "2px solid var(--accent-blue)" : "2px solid transparent",
   fontSize: 13, fontFamily: "inherit", whiteSpace: "nowrap",
 });
 const contentStyle: React.CSSProperties = { flex: 1, overflow: "auto", padding: 16 };
@@ -69,10 +69,10 @@ const VmOrchestratorPanel: React.FC = () => {
   return (
     <div style={containerStyle} role="region" aria-label="Branch Agent Panel">
       <div style={statsBarStyle}>
-        <div style={statStyle}><strong style={{ fontSize: 18 }}>{AGENTS.length}</strong><span style={{ color: "var(--text-muted)" }}>Agents</span></div>
-        <div style={statStyle}><strong style={{ fontSize: 18, color: "var(--success-color)" }}>{running}</strong><span style={{ color: "var(--text-muted)" }}>Running</span></div>
-        <div style={statStyle}><strong style={{ fontSize: 18 }}>{PRS.filter(p => p.status === "Open").length}</strong><span style={{ color: "var(--text-muted)" }}>Open PRs</span></div>
-        <div style={statStyle}><strong style={{ fontSize: 18, color: "var(--error-color)" }}>{CONFLICTS.length}</strong><span style={{ color: "var(--text-muted)" }}>Conflicts</span></div>
+        <div style={statStyle}><strong style={{ fontSize: 18 }}>{AGENTS.length}</strong><span style={{ color: "var(--text-secondary)" }}>Agents</span></div>
+        <div style={statStyle}><strong style={{ fontSize: 18, color: "var(--success-color)" }}>{running}</strong><span style={{ color: "var(--text-secondary)" }}>Running</span></div>
+        <div style={statStyle}><strong style={{ fontSize: 18 }}>{PRS.filter(p => p.status === "Open").length}</strong><span style={{ color: "var(--text-secondary)" }}>Open PRs</span></div>
+        <div style={statStyle}><strong style={{ fontSize: 18, color: "var(--error-color)" }}>{CONFLICTS.length}</strong><span style={{ color: "var(--text-secondary)" }}>Conflicts</span></div>
       </div>
       <div style={tabBarStyle} role="tablist" aria-label="Branch Agent tabs">
         {TABS.map(t => (
@@ -84,7 +84,7 @@ const VmOrchestratorPanel: React.FC = () => {
           <div key={i} style={cardStyle}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
               <strong>{a.id}</strong>
-              <span style={badgeStyle(STATUS_COLORS[a.status] || "var(--text-muted)")}>{a.status}</span>
+              <span style={badgeStyle(STATUS_COLORS[a.status] || "var(--text-secondary)")}>{a.status}</span>
             </div>
             <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Branch: <code>{a.branch}</code> &middot; {a.duration}</div>
             <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 2 }}>{a.task}</div>
@@ -94,7 +94,7 @@ const VmOrchestratorPanel: React.FC = () => {
           <div key={i} style={cardStyle}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
               <strong>{pr.title}</strong>
-              <span style={badgeStyle(STATUS_COLORS[pr.status] || "var(--text-muted)")}>{pr.status}</span>
+              <span style={badgeStyle(STATUS_COLORS[pr.status] || "var(--text-secondary)")}>{pr.status}</span>
             </div>
             <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
               {pr.agent} &middot; {pr.files} files &middot; <span style={{ color: "var(--success-color)" }}>+{pr.additions}</span> <span style={{ color: "var(--error-color)" }}>-{pr.deletions}</span>
@@ -105,7 +105,7 @@ const VmOrchestratorPanel: React.FC = () => {
           <div key={i} style={cardStyle}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
               <strong>{c.branch} &rarr; {c.target}</strong>
-              <span style={badgeStyle(STATUS_COLORS[c.severity] || "var(--text-muted)")}>{c.severity}</span>
+              <span style={badgeStyle(STATUS_COLORS[c.severity] || "var(--text-secondary)")}>{c.severity}</span>
             </div>
             <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Files: {c.files.join(", ")}</div>
             <div style={{ fontSize: 12, color: "var(--accent-color)", marginTop: 4 }}>{c.suggestion}</div>

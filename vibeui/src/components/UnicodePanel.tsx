@@ -228,7 +228,7 @@ export function UnicodePanel() {
       <div style={{ display: "flex", gap: 4, padding: "6px 12px 0", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", flexShrink: 0 }}>
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            style={{ padding: "4px 10px", fontSize: 12, border: "none", borderBottom: tab === t.id ? "2px solid var(--accent-color)" : "2px solid transparent", background: "none", color: tab === t.id ? "var(--accent-color)" : "var(--text-secondary)", cursor: "pointer" }}>
+            style={{ padding: "4px 10px", fontSize: 12, border: "none", borderBottom: tab === t.id ? "2px solid var(--accent-blue)" : "2px solid transparent", background: "none", color: tab === t.id ? "var(--text-primary)" : "var(--text-secondary)", cursor: "pointer" }}>
             {t.label}
           </button>
         ))}
@@ -262,7 +262,7 @@ export function UnicodePanel() {
           <div style={{ padding: 12, borderBottom: "1px solid var(--border-color)", flexShrink: 0 }}>
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Name (e.g. ARROW), U+2192, or hex 2192"
               autoFocus
-              style={{ width: "100%", padding: "6px 10px", background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4, fontSize: 13 }} />
+              style={{ width: "100%", padding: "6px 10px", background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4, fontSize: 13, boxSizing: "border-box" }} />
             {search && <div style={{ marginTop: 6, fontSize: 11, color: "var(--text-secondary)" }}>{searchResults.length} results</div>}
           </div>
           <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
@@ -311,7 +311,7 @@ export function UnicodePanel() {
         <div style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" }}>
           <div style={{ padding: 12, borderBottom: "1px solid var(--border-color)", flexShrink: 0 }}>
             <textarea value={inputText} onChange={e => setInputText(e.target.value)} placeholder="Paste or type text to analyze each character…"
-              style={{ width: "100%", height: 72, padding: "6px 10px", background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4, fontSize: 13, resize: "none" }} />
+              style={{ width: "100%", height: 72, padding: "6px 10px", background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 4, fontSize: 13, resize: "none", boxSizing: "border-box" }} />
             {inputText && <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 4 }}>{[...inputText].length} code points · {new TextEncoder().encode(inputText).length} UTF-8 bytes</div>}
           </div>
           <div style={{ flex: 1, overflowY: "auto" }}>
@@ -320,7 +320,7 @@ export function UnicodePanel() {
                 <thead>
                   <tr>
                     {["Char", "Code Point", "Name", "HTML Entity", "UTF-8"].map(h => (
-                      <th key={h} style={{ padding: "5px 10px", textAlign: "left", borderBottom: "2px solid var(--accent-color)", color: "var(--text-secondary)", fontSize: 11 }}>{h}</th>
+                      <th key={h} style={{ padding: "5px 10px", textAlign: "left", borderBottom: "2px solid var(--accent-blue)", color: "var(--text-secondary)", fontSize: 11 }}>{h}</th>
                     ))}
                   </tr>
                 </thead>

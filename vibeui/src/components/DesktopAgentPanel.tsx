@@ -29,12 +29,12 @@ export function DesktopAgentPanel() {
 
   return (
     <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 16, fontSize: 13, color: "var(--text-primary)" }}>
-      <div style={{ display: "flex", gap: 2, borderBottom: "1px solid var(--border-color)", marginBottom: 4 }}>
+      <div style={{ display: "flex", gap: 2, borderBottom: "1px solid var(--border-color)", padding: "0 16px", flexShrink: 0 }}>
         {(["actions", "windows", "macros", "config"] as const).map(t => (
           <button key={t} onClick={() => setTab(t)} style={{
             padding: "6px 12px", border: "none", background: "transparent", cursor: "pointer",
-            borderBottom: tab === t ? "2px solid var(--accent-color)" : "2px solid transparent",
-            color: tab === t ? "var(--accent-color)" : "var(--text-secondary)", fontSize: 12, fontFamily: "inherit", textTransform: "capitalize",
+            borderBottom: tab === t ? "2px solid var(--accent-blue)" : "2px solid transparent",
+            color: tab === t ? "var(--text-primary)" : "var(--text-secondary)", fontSize: 12, fontFamily: "inherit", textTransform: "capitalize",
           }}>{t}</button>
         ))}
       </div>
@@ -69,13 +69,13 @@ export function DesktopAgentPanel() {
             <div style={card}>
               <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Keyboard</div>
               <div style={{ marginBottom: 8 }}>
-                <input style={{ ...mono, width: "100%", padding: "4px 8px", border: "1px solid var(--border-color)", borderRadius: 3, background: "var(--bg-tertiary)", color: "var(--text-primary)" }} value={typeText} onChange={e => setTypeText(e.target.value)} placeholder="Text to type..." />
+                <input style={{ ...mono, width: "100%", padding: "4px 8px", border: "1px solid var(--border-color)", borderRadius: 3, background: "var(--bg-tertiary)", color: "var(--text-primary)", boxSizing: "border-box" }} value={typeText} onChange={e => setTypeText(e.target.value)} placeholder="Text to type..." />
               </div>
               <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
                 <button style={{ ...btn, fontSize: 11, padding: "4px 10px" }}>Type Text</button>
               </div>
               <div style={{ marginBottom: 4 }}>
-                <input style={{ ...mono, width: "100%", padding: "4px 8px", border: "1px solid var(--border-color)", borderRadius: 3, background: "var(--bg-tertiary)", color: "var(--text-primary)" }} value={keyCombo} onChange={e => setKeyCombo(e.target.value)} placeholder="e.g., ctrl+shift+p" />
+                <input style={{ ...mono, width: "100%", padding: "4px 8px", border: "1px solid var(--border-color)", borderRadius: 3, background: "var(--bg-tertiary)", color: "var(--text-primary)", boxSizing: "border-box" }} value={keyCombo} onChange={e => setKeyCombo(e.target.value)} placeholder="e.g., ctrl+shift+p" />
               </div>
               <button style={{ ...btn, fontSize: 11, padding: "4px 10px" }}>Press Key Combo</button>
             </div>

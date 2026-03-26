@@ -162,7 +162,7 @@ const DebugModePanel: React.FC = () => {
     border: "none",
     background: active ? "var(--bg-secondary)" : "transparent",
     color: active ? "var(--text-primary)" : "var(--text-secondary)",
-    borderBottom: active ? "2px solid var(--accent-color)" : "2px solid transparent",
+    borderBottom: active ? "2px solid var(--accent-blue)" : "2px solid transparent",
     fontFamily: "inherit",
     fontSize: "inherit",
   });
@@ -172,7 +172,7 @@ const DebugModePanel: React.FC = () => {
     borderRadius: "10px",
     fontSize: "11px",
     fontWeight: 600,
-    backgroundColor: status === "running" ? "var(--success-color)" : status === "paused" ? "var(--warning-color)" : "var(--text-muted)",
+    backgroundColor: status === "running" ? "var(--success-color)" : status === "paused" ? "var(--warning-color)" : "var(--text-secondary)",
     color: "var(--bg-primary)",
   });
 
@@ -311,7 +311,7 @@ const DebugModePanel: React.FC = () => {
                     {bp.condition && <div style={{ fontSize: "12px", opacity: 0.6 }}>Condition: {bp.condition}</div>}
                   </div>
                   <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                    <span style={{ fontSize: "12px", color: bp.enabled ? "var(--success-color)" : "var(--text-muted)" }}>
+                    <span style={{ fontSize: "12px", color: bp.enabled ? "var(--success-color)" : "var(--text-secondary)" }}>
                       {bp.enabled ? "Enabled" : "Disabled"}
                     </span>
                     <button style={btnStyle} onClick={() => removeBreakpoint(bp.id)}>Remove</button>

@@ -30,10 +30,10 @@ interface WorkflowPanelProps {
 }
 
 const STATUS_COLORS: Record<string, string> = {
- "not-started": "var(--text-muted)",
+ "not-started": "var(--text-secondary)",
  "in-progress": "var(--warning-color)",
  complete: "var(--success-color)",
- skipped: "var(--text-muted)",
+ skipped: "var(--text-secondary)",
 };
 
 const STAGE_ICONS = ["", "", "", "", "", "", "", ""];
@@ -310,7 +310,7 @@ export function WorkflowPanel({ workspacePath, provider = "ollama" }: WorkflowPa
  const isActive = i === activeStage;
  const bg = s.status === "complete" ? "var(--success-color)"
  : s.status === "in-progress" ? "var(--warning-color)"
- : s.status === "skipped" ? "var(--text-muted)"
+ : s.status === "skipped" ? "var(--text-secondary)"
  : "var(--bg-secondary)";
  const border = isActive ? "2px solid var(--accent-color)" : `2px solid ${s.status === "not-started" ? "var(--border-color)" : bg}`;
  return (
@@ -340,11 +340,11 @@ export function WorkflowPanel({ workspacePath, provider = "ollama" }: WorkflowPa
 
  {/* Stage detail */}
  {stage && (
- <div style={{ background: "var(--bg-secondary)", borderRadius: "6px", padding: "12px", borderLeft: `3px solid ${STATUS_COLORS[stage.status] || "var(--text-muted)"}` }}>
+ <div style={{ background: "var(--bg-secondary)", borderRadius: "6px", padding: "12px", borderLeft: `3px solid ${STATUS_COLORS[stage.status] || "var(--text-secondary)"}` }}>
  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
  <span style={{ fontSize: "16px" }}>{STAGE_ICONS[activeStage]}</span>
  <span style={{ fontWeight: 600, fontSize: "13px" }}>{stage.label}</span>
- <span style={{ padding: "2px 6px", borderRadius: "10px", fontSize: "10px", background: (STATUS_COLORS[stage.status] || "var(--text-muted)") + "33", color: STATUS_COLORS[stage.status] || "var(--text-muted)" }}>
+ <span style={{ padding: "2px 6px", borderRadius: "10px", fontSize: "10px", background: (STATUS_COLORS[stage.status] || "var(--text-secondary)") + "33", color: STATUS_COLORS[stage.status] || "var(--text-secondary)" }}>
  {stage.status}
  </span>
  {stageTotal > 0 && (

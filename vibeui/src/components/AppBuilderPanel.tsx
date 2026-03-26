@@ -116,6 +116,7 @@ const inputStyle: React.CSSProperties = {
   color: "var(--text-primary)",
   outline: "none",
   width: "100%",
+  boxSizing: "border-box",
 };
 
 const selectStyle: React.CSSProperties = {

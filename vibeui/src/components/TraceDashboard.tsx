@@ -34,7 +34,7 @@ const KIND_COLORS: Record<StepKind, string> = {
  file_edit: "var(--warning-color)",
  test: "var(--accent-purple)",
  error: "var(--error-color)",
- other: "var(--text-muted)",
+ other: "var(--text-secondary)",
 };
 
 function classifyStep(tool: string, success: boolean): StepKind {

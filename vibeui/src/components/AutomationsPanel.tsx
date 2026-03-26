@@ -133,7 +133,7 @@ const triggerIcons: Record<TriggerSource, string> = {
 const statusColors: Record<string, string> = {
   queued: 'var(--text-secondary)', running: 'var(--accent-color)',
   completed: 'var(--success-color)', failed: 'var(--error-color)',
-  cancelled: 'var(--text-muted)',
+  cancelled: 'var(--text-secondary)',
 };
 
 // ---------------------------------------------------------------------------
@@ -240,7 +240,7 @@ const AutomationsPanel: React.FC = () => {
           {rules.map((rule) => (
             <div key={rule.id} style={{
               background: 'var(--bg-secondary)', padding: 12, borderRadius: 8,
-              border: `1px solid ${rule.enabled ? 'var(--border-color)' : 'var(--text-muted)'}`,
+              border: `1px solid ${rule.enabled ? 'var(--border-color)' : 'var(--text-secondary)'}`,
               opacity: rule.enabled ? 1 : 0.6,
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
@@ -249,12 +249,12 @@ const AutomationsPanel: React.FC = () => {
                   fontWeight: 700, background: 'var(--accent-color)', color: 'var(--text-primary)',
                 }}>{triggerIcons[rule.trigger]}</span>
                 <strong>{rule.name}</strong>
-                <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 'auto' }}>
+                <span style={{ fontSize: 11, color: 'var(--text-secondary)', marginLeft: 'auto' }}>
                   {rule.fireCount} runs {rule.lastFired ? `· last ${rule.lastFired}` : ''}
                 </span>
               </div>
               <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 4 }}>{rule.description}</div>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+              <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
                 Events: {rule.events.join(', ')} · Provider: {rule.provider} · Max turns: {rule.maxTurns}
                 {rule.sandbox && ' · Sandbox'}
               </div>
@@ -279,8 +279,8 @@ const AutomationsPanel: React.FC = () => {
                   fontSize: 11, padding: '1px 6px', borderRadius: 3,
                   background: statusColors[task.status], color: 'var(--text-primary)', fontWeight: 600,
                 }}>{task.status}</span>
-                <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>{task.taskId}</span>
-                <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 'auto' }}>{task.createdAt}</span>
+                <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>{task.taskId}</span>
+                <span style={{ fontSize: 11, color: 'var(--text-secondary)', marginLeft: 'auto' }}>{task.createdAt}</span>
               </div>
               <div style={{ fontSize: 12, color: 'var(--text-primary)' }}>{task.prompt}</div>
               {task.output && (

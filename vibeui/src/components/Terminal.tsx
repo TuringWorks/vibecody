@@ -104,7 +104,7 @@ export function Terminal({ onClose }: TerminalProps) {
                     zIndex: 10,
                     background: 'transparent',
                     border: 'none',
-                    color: 'var(--text-muted)',
+                    color: 'var(--text-secondary)',
                     cursor: 'pointer',
                     fontSize: '16px'
                 }}

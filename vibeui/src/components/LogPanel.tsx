@@ -42,7 +42,7 @@ const levelColor: Record<string, string> = {
   info: "var(--accent-color)",
   debug: "var(--text-secondary)",
   trace: "var(--text-secondary)",
-  unknown: "var(--text-muted)",
+  unknown: "var(--text-secondary)",
 };
 
 const levelBadge: Record<string, string> = {

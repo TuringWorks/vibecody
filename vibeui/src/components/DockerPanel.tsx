@@ -211,9 +211,9 @@ export function DockerPanel({ workspacePath }: DockerPanelProps) {
  onClick={() => setSubTab(t)}
  style={{
  padding: "6px 14px", fontSize: 12, background: "transparent",
- color: subTab === t ? "var(--text-primary)" : "var(--text-muted)",
+ color: subTab === t ? "var(--text-primary)" : "var(--text-secondary)",
  border: "none",
- borderBottom: subTab === t ? "2px solid var(--accent-color)" : "2px solid transparent",
+ borderBottom: subTab === t ? "2px solid var(--accent-blue)" : "2px solid transparent",
  cursor: "pointer", fontWeight: subTab === t ? 600 : 400,
  }}
  >
@@ -233,7 +233,7 @@ export function DockerPanel({ workspacePath }: DockerPanelProps) {
  {subTab === "containers" && (
  <>
  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
- <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+ <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
  {containers.length} container{containers.length !== 1 ? "s" : ""}
  </span>
  <button onClick={loadContainers} disabled={containersLoading} style={btnStyle()}>
@@ -263,11 +263,11 @@ export function DockerPanel({ workspacePath }: DockerPanelProps) {
  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
  <span>{statusIcon(c.status)}</span>
  <span style={{ fontWeight: 600, fontSize: 12, flex: 1, fontFamily: "var(--font-mono)" }}>{c.name}</span>
- <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{c.image}</span>
+ <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>{c.image}</span>
  <span style={{ fontSize: 11, color: statusColor(c.status) }}>{c.status.split(" ")[0]}</span>
  </div>
  {c.ports && (
- <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 3, fontFamily: "var(--font-mono)" }}>
+ <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 3, fontFamily: "var(--font-mono)" }}>
  {c.ports}
  </div>
  )}
@@ -344,8 +344,8 @@ export function DockerPanel({ workspacePath }: DockerPanelProps) {
  <span style={{ fontFamily: "var(--font-mono)", flex: 1 }}>
  {img.repository}:{img.tag}
  </span>
- <span style={{ color: "var(--text-muted)", fontSize: 11 }}>{img.size}</span>
- <span style={{ color: "var(--text-muted)", fontSize: 10, fontFamily: "var(--font-mono)" }}>{img.id.slice(0, 12)}</span>
+ <span style={{ color: "var(--text-secondary)", fontSize: 11 }}>{img.size}</span>
+ <span style={{ color: "var(--text-secondary)", fontSize: 10, fontFamily: "var(--font-mono)" }}>{img.id.slice(0, 12)}</span>
  </div>
  ))}
  </div>

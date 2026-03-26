@@ -56,12 +56,12 @@ const RenderOptimizePanel: React.FC = () => {
     fontFamily: "inherit", fontSize: "13px",
     height: "100%", overflow: "auto",
   };
-  const tabBar: React.CSSProperties = { display: "flex", gap: "4px", marginBottom: "16px", borderBottom: "1px solid var(--border-color)" };
+  const tabBar: React.CSSProperties = { display: "flex", gap: 2, borderBottom: "1px solid var(--border-color)", padding: "0 16px", flexShrink: 0 };
   const tab = (active: boolean): React.CSSProperties => ({
     padding: "8px 16px", cursor: "pointer", border: "none",
     backgroundColor: active ? "var(--bg-secondary)" : "transparent",
     color: active ? "var(--text-primary)" : "var(--text-secondary)",
-    borderBottom: active ? "2px solid var(--accent-color)" : "2px solid transparent",
+    borderBottom: active ? "2px solid var(--accent-blue)" : "2px solid transparent",
   });
   const btn: React.CSSProperties = {
     padding: "6px 14px", border: "none", borderRadius: "4px", cursor: "pointer",

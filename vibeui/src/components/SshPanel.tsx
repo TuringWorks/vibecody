@@ -143,9 +143,9 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
 
  const TAB_STYLE = (active: boolean) => ({
  padding: "6px 14px", fontSize: 12, cursor: "pointer",
- background: active ? "var(--accent-color)" : "transparent",
+ background: active ? "transparent" : "transparent",
  color: active ? "var(--text-primary)" : "var(--text-secondary)",
- border: "none", borderBottom: active ? "2px solid var(--accent-color)" : "2px solid transparent",
+ border: "none", borderBottom: active ? "2px solid var(--accent-blue)" : "2px solid transparent",
  fontWeight: active ? 600 : 400,
  });
 
@@ -160,14 +160,14 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  <span style={{ fontSize: 16 }}></span>
  <div>
  <div style={{ fontSize: 13, fontWeight: 600 }}>SSH Remote Manager</div>
- <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
+ <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
  {profiles.length} profile{profiles.length !== 1 ? "s" : ""}
  </div>
  </div>
  </div>
 
  {/* Sub-tabs */}
- <div style={{ display: "flex", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
+ <div style={{ display: "flex", gap: 2, borderBottom: "1px solid var(--border-color)", padding: "0 16px", flexShrink: 0 }}>
  <button onClick={() => setTab("profiles")} style={TAB_STYLE(tab === "profiles")}>Profiles</button>
  <button onClick={() => setTab("run")} style={TAB_STYLE(tab === "run")}>Run Command</button>
  </div>
@@ -235,7 +235,7 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  <span style={{ fontSize: 18 }}></span>
  <div style={{ flex: 1 }}>
  <div style={{ fontSize: 12, fontWeight: 600 }}>{p.name}</div>
- <div style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
+ <div style={{ fontSize: 11, color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>
  {p.user}@{p.host}:{p.port}
  {p.key_path && <span style={{ marginLeft: 6, color: "var(--success-color)" }}></span>}
  </div>
@@ -269,7 +269,7 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  { label: "Notes", key: "notes", placeholder: "" },
  ].map(({ label, key, placeholder }) => (
  <div key={key} style={{ display: "flex", flexDirection: "column", gap: 3 }}>
- <label style={{ fontSize: 10, color: "var(--text-muted)", fontWeight: 600 }}>{label}</label>
+ <label style={{ fontSize: 10, color: "var(--text-secondary)", fontWeight: 600 }}>{label}</label>
  <input
  type={key === "port" ? "number" : "text"}
  value={(editingProfile[key as keyof SshProfile] ?? "") as string}
@@ -310,7 +310,7 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
  {/* Connection selector */}
  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
- <label style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600, flexShrink: 0 }}>Connect to:</label>
+ <label style={{ fontSize: 11, color: "var(--text-secondary)", fontWeight: 600, flexShrink: 0 }}>Connect to:</label>
  <select
  value={selectedId ?? ""}
  onChange={(e) => setSelectedId(e.target.value)}
@@ -328,7 +328,7 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  </div>
 
  {selected && (
- <div style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)", padding: "4px 8px", background: "var(--bg-secondary)", borderRadius: 4, border: "1px solid var(--border-color)" }}>
+ <div style={{ fontSize: 11, color: "var(--text-secondary)", fontFamily: "var(--font-mono)", padding: "4px 8px", background: "var(--bg-secondary)", borderRadius: 4, border: "1px solid var(--border-color)" }}>
  {selected.user}@{selected.host}:{selected.port}
  {selected.key_path && ` (-i ${selected.key_path})`}
  </div>
@@ -343,7 +343,7 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  style={{
  padding: "3px 8px", fontSize: 10, borderRadius: 12,
  background: "var(--bg-secondary)", border: "1px solid var(--border-color)",
- color: "var(--text-muted)", cursor: "pointer",
+ color: "var(--text-secondary)", cursor: "pointer",
  }}
  >
  {cmd}
@@ -372,7 +372,7 @@ export function SshPanel({ workspacePath: _ }: SshPanelProps) {
  style={{
  padding: "6px 16px", fontSize: 12, fontWeight: 600,
  background: running ? "var(--bg-secondary)" : "var(--accent-color)",
- color: running ? "var(--text-muted)" : "var(--text-primary)",
+ color: running ? "var(--text-secondary)" : "var(--text-primary)",
  border: "none", borderRadius: 4,
  cursor: running || !selectedId ? "not-allowed" : "pointer",
  }}

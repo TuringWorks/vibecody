@@ -71,8 +71,8 @@ function SchemaView({ schema, depth = 0 }: { schema: Record<string, unknown>; de
  {Object.entries(props).map(([key, val]) => (
  <div key={key} style={{ fontSize: 11, lineHeight: 1.6 }}>
  <span style={{ color: "var(--text-accent)" }}>{key}</span>
- <span style={{ color: "var(--text-muted)", marginLeft: 4 }}>{String(val.type ?? "any")}</span>
- {Boolean(val.description) && <span style={{ color: "var(--text-muted)", marginLeft: 6, fontStyle: "italic" }}>— {String(val.description)}</span>}
+ <span style={{ color: "var(--text-secondary)", marginLeft: 4 }}>{String(val.type ?? "any")}</span>
+ {Boolean(val.description) && <span style={{ color: "var(--text-secondary)", marginLeft: 6, fontStyle: "italic" }}>— {String(val.description)}</span>}
  {val.type === "object" && Boolean(val.properties) && (
  <SchemaView schema={val as Record<string, unknown>} depth={depth + 1} />
  )}
@@ -90,7 +90,7 @@ function SchemaView({ schema, depth = 0 }: { schema: Record<string, unknown>; de
  );
  }
  return (
- <div style={{ marginLeft: indent, fontSize: 11, color: "var(--text-muted)" }}>
+ <div style={{ marginLeft: indent, fontSize: 11, color: "var(--text-secondary)" }}>
  {String(schema.type ?? "any")}
  {Boolean(schema.enum) && <span> [{(schema.enum as unknown[]).map(String).join(", ")}]</span>}
  </div>
@@ -131,7 +131,7 @@ function TryIt({ endpoint, serverUrl }: { endpoint: Endpoint; serverUrl: string 
  <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
  {hasBody && (
  <div>
- <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 3 }}>REQUEST BODY (JSON)</div>
+ <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 3 }}>REQUEST BODY (JSON)</div>
  <textarea
  value={body}
  onChange={(e) => setBody(e.target.value)}
@@ -145,7 +145,7 @@ function TryIt({ endpoint, serverUrl }: { endpoint: Endpoint; serverUrl: string 
  </div>
  )}
  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
- <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+ <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>
  {serverUrl.replace(/\/$/, "")}{endpoint.path}
  </span>
  <button
@@ -196,8 +196,8 @@ function EndpointRow({ endpoint, serverUrl }: { endpoint: Endpoint; serverUrl: s
  >
  <span style={methodStyle(endpoint.method)}>{endpoint.method.toUpperCase()}</span>
  <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, flex: 1 }}>{endpoint.path}</span>
- {op.summary && <span style={{ fontSize: 11, color: "var(--text-muted)", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{op.summary}</span>}
- <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{open ? "" : "▼"}</span>
+ {op.summary && <span style={{ fontSize: 11, color: "var(--text-secondary)", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{op.summary}</span>}
+ <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>{open ? "" : "▼"}</span>
  </div>
 
  {open && (
@@ -207,11 +207,11 @@ function EndpointRow({ endpoint, serverUrl }: { endpoint: Endpoint; serverUrl: s
  {/* Parameters */}
  {op.parameters && op.parameters.length > 0 && (
  <div>
- <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", marginBottom: 4 }}>PARAMETERS</div>
+ <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-secondary)", marginBottom: 4 }}>PARAMETERS</div>
  {op.parameters.map((p) => (
  <div key={p.name} style={{ display: "flex", gap: 8, fontSize: 11, lineHeight: 1.7 }}>
  <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-accent)", minWidth: 120 }}>{p.name}</span>
- <span style={{ color: "var(--text-muted)", minWidth: 60 }}>{p.in}</span>
+ <span style={{ color: "var(--text-secondary)", minWidth: 60 }}>{p.in}</span>
  {p.required && <span style={{ color: "var(--text-danger)", fontSize: 10 }}>required</span>}
  {p.description && <span style={{ color: "var(--text-secondary)" }}>{p.description}</span>}
  </div>
@@ -222,10 +222,10 @@ function EndpointRow({ endpoint, serverUrl }: { endpoint: Endpoint; serverUrl: s
  {/* Request body */}
  {op.requestBody?.content && (
  <div>
- <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", marginBottom: 4 }}>REQUEST BODY</div>
+ <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-secondary)", marginBottom: 4 }}>REQUEST BODY</div>
  {Object.entries(op.requestBody.content).map(([ct, body]) => (
  <div key={ct}>
- <span style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>{ct}</span>
+ <span style={{ fontSize: 10, color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>{ct}</span>
  {body.schema && <SchemaView schema={body.schema} />}
  </div>
  ))}
@@ -235,7 +235,7 @@ function EndpointRow({ endpoint, serverUrl }: { endpoint: Endpoint; serverUrl: s
  {/* Responses */}
  {op.responses && (
  <div>
- <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", marginBottom: 4 }}>RESPONSES</div>
+ <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-secondary)", marginBottom: 4 }}>RESPONSES</div>
  {Object.entries(op.responses).map(([code, resp]) => (
  <div key={code} style={{ display: "flex", gap: 8, fontSize: 11, lineHeight: 1.7 }}>
  <span style={{
@@ -410,7 +410,7 @@ export function ApiDocsPanel({ workspacePath }: ApiDocsPanelProps) {
  style={{
  padding: "3px 10px", fontSize: 11, borderRadius: 12,
  background: source === s ? "var(--accent-color)" : "transparent",
- color: source === s ? "var(--text-primary)" : "var(--text-muted)",
+ color: source === s ? "var(--text-primary)" : "var(--text-secondary)",
  border: `1px solid ${source === s ? "var(--accent-color)" : "var(--border-color)"}`,
  cursor: "pointer",
  }}
@@ -469,13 +469,13 @@ export function ApiDocsPanel({ workspacePath }: ApiDocsPanelProps) {
  {/* Spec info bar */}
  <div style={{ padding: "6px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", flexShrink: 0, display: "flex", alignItems: "center", gap: 10 }}>
  <strong style={{ fontSize: 13 }}>{spec.info.title}</strong>
- <span style={{ fontSize: 11, color: "var(--text-muted)" }}>v{spec.info.version}</span>
- <span style={{ fontSize: 11, color: "var(--text-muted)", marginLeft: "auto" }}>{endpoints.length} endpoints</span>
+ <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>v{spec.info.version}</span>
+ <span style={{ fontSize: 11, color: "var(--text-secondary)", marginLeft: "auto" }}>{endpoints.length} endpoints</span>
  </div>
 
  {/* Server URL */}
  <div style={{ padding: "6px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", flexShrink: 0, display: "flex", gap: 6, alignItems: "center" }}>
- <span style={{ fontSize: 11, color: "var(--text-muted)", flexShrink: 0 }}>Base URL</span>
+ <span style={{ fontSize: 11, color: "var(--text-secondary)", flexShrink: 0 }}>Base URL</span>
  <input
  style={{ ...inputStyle, flex: 1, fontSize: 11 }}
  value={serverUrl}
@@ -501,8 +501,8 @@ export function ApiDocsPanel({ workspacePath }: ApiDocsPanelProps) {
  border: "none", cursor: "pointer",
  fontWeight: 700,
  ...(m === "ALL"
- ? { background: methodFilter === "ALL" ? "var(--accent-color)" : "var(--bg-secondary)", color: methodFilter === "ALL" ? "var(--text-primary)" : "var(--text-muted)" }
- : { ...(methodFilter === m ? METHOD_COLORS[m] : { background: "var(--bg-secondary)", color: "var(--text-muted)" }) }),
+ ? { background: methodFilter === "ALL" ? "var(--accent-color)" : "var(--bg-secondary)", color: methodFilter === "ALL" ? "var(--text-primary)" : "var(--text-secondary)" }
+ : { ...(methodFilter === m ? METHOD_COLORS[m] : { background: "var(--bg-secondary)", color: "var(--text-secondary)" }) }),
  }}
  >
  {m}
@@ -515,7 +515,7 @@ export function ApiDocsPanel({ workspacePath }: ApiDocsPanelProps) {
  <div style={{ flex: 1, overflow: "auto", padding: "8px 12px" }}>
  {Object.entries(grouped).map(([tag, eps]) => (
  <div key={tag} style={{ marginBottom: 16 }}>
- <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>
+ <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>
  {tag}
  </div>
  {eps.map((ep, i) => (
@@ -524,7 +524,7 @@ export function ApiDocsPanel({ workspacePath }: ApiDocsPanelProps) {
  </div>
  ))}
  {filtered.length === 0 && (
- <div style={{ textAlign: "center", padding: "30px 0", color: "var(--text-muted)", fontSize: 12 }}>
+ <div style={{ textAlign: "center", padding: "30px 0", color: "var(--text-secondary)", fontSize: 12 }}>
  No endpoints match your filter.
  </div>
  )}
@@ -533,7 +533,7 @@ export function ApiDocsPanel({ workspacePath }: ApiDocsPanelProps) {
  )}
 
  {!spec && !loading && (
- <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", gap: 10 }}>
+ <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "var(--text-secondary)", gap: 10 }}>
  <div style={{ fontSize: 36 }}></div>
  <div style={{ fontSize: 13 }}>Load an OpenAPI / Swagger spec to get started.</div>
  <div style={{ fontSize: 11, textAlign: "center", lineHeight: 1.6, maxWidth: 280 }}>

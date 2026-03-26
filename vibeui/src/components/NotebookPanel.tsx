@@ -198,7 +198,7 @@ export function NotebookPanel({ workspacePath }: NotebookPanelProps) {
  }}>
  <span style={{
  padding: "1px 6px", borderRadius: 4, fontWeight: 600, fontSize: 10,
- background: cell.type === "code" ? (langColor[cell.language] || "var(--text-muted)") : "var(--accent-purple)",
+ background: cell.type === "code" ? (langColor[cell.language] || "var(--text-secondary)") : "var(--accent-purple)",
  color: "var(--bg-tertiary)",
  }}>
  {cell.type === "code" ? cell.language.toUpperCase() : "MD"}

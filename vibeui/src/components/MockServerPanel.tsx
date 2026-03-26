@@ -36,8 +36,8 @@ const methodColor: Record<string, string> = {
   PUT: "var(--warning-color)",
   DELETE: "var(--error-color)",
   PATCH: "var(--text-accent)",
-  HEAD: "var(--text-muted)",
-  OPTIONS: "var(--text-muted)",
+  HEAD: "var(--text-secondary)",
+  OPTIONS: "var(--text-secondary)",
 };
 
 export function MockServerPanel() {
@@ -240,7 +240,7 @@ export function MockServerPanel() {
               }}>
                 <span style={{
                   padding: "1px 6px", borderRadius: 3, fontWeight: 700, fontSize: 10,
-                  color: "var(--bg-tertiary)", background: methodColor[r.method] || "var(--text-muted)",
+                  color: "var(--bg-tertiary)", background: methodColor[r.method] || "var(--text-secondary)",
                 }}>
                   {r.method}
                 </span>
@@ -284,7 +284,7 @@ export function MockServerPanel() {
                 </span>
                 <span style={{
                   padding: "1px 5px", borderRadius: 3, fontWeight: 700, fontSize: 9,
-                  color: "var(--bg-tertiary)", background: methodColor[r.method] || "var(--text-muted)",
+                  color: "var(--bg-tertiary)", background: methodColor[r.method] || "var(--text-secondary)",
                 }}>
                   {r.method}
                 </span>
@@ -326,7 +326,7 @@ export function MockServerPanel() {
                 </div>
                 {importResult.map((r) => (
                   <div key={r.id} style={{ fontSize: 10, padding: "2px 0", fontFamily: "var(--font-mono)" }}>
-                    <span style={{ color: methodColor[r.method] || "var(--text-muted)" }}>{r.method}</span>{" "}
+                    <span style={{ color: methodColor[r.method] || "var(--text-secondary)" }}>{r.method}</span>{" "}
                     <span style={{ color: "var(--text-info)" }}>{r.path}</span>{" "}
                     <span style={{ opacity: 0.5 }}>{r.status}</span>
                   </div>

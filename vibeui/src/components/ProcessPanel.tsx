@@ -151,7 +151,7 @@ const ProcessPanel: React.FC = () => {
  <tbody>
  {filtered.length === 0 && !loading && (
  <tr>
- <td colSpan={6} style={{ textAlign: "center", padding: 24, color: "var(--text-muted)" }}>
+ <td colSpan={6} style={{ textAlign: "center", padding: 24, color: "var(--text-secondary)" }}>
  {filter ? "No matching processes" : "No processes found"}
  </td>
  </tr>
@@ -198,7 +198,7 @@ const ProcessPanel: React.FC = () => {
  </div>
 
  {/* Footer */}
- <div style={{ padding: "4px 12px", fontSize: 11, color: "var(--text-muted)", borderTop: "1px solid var(--border)" }}>
+ <div style={{ padding: "4px 12px", fontSize: 11, color: "var(--text-secondary)", borderTop: "1px solid var(--border)" }}>
  {filtered.length} / {processes.length} processes shown · auto-refreshes every 5 s
  </div>
  </div>
@@ -212,7 +212,7 @@ const thStyle: React.CSSProperties = {
  fontWeight: 600,
  textAlign: "right",
  fontSize: 11,
- color: "var(--text-muted)",
+ color: "var(--text-secondary)",
  whiteSpace: "nowrap",
 };
 

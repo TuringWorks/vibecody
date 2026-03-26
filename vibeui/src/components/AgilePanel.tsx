@@ -190,7 +190,7 @@ const PRIORITY_COLORS: Record<Priority, string> = {
   P0: "var(--error-color)",
   P1: "var(--warning-color)",
   P2: "var(--info-color)",
-  P3: "var(--text-muted)",
+  P3: "var(--text-secondary)",
 };
 
 const riskColor = (r: RiskLevel) =>
@@ -1275,7 +1275,7 @@ function BacklogTab() {
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
-                            <span style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>#{idx + 1}</span>
+                            <span style={{ fontSize: 10, color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>#{idx + 1}</span>
                             <span style={{ fontWeight: 600, fontSize: 13, color: "var(--text-primary)" }}>{s.title}</span>
                           </div>
                           <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 4, lineHeight: 1.4 }}>{s.description}</div>
@@ -1285,14 +1285,14 @@ function BacklogTab() {
                             {s.epic && <span style={badgeStyle("var(--accent-bg)", "var(--accent-color)")}>{s.epic}</span>}
                             {s.labels.map(l => <span key={l} style={badgeStyle("var(--bg-tertiary)", "var(--text-secondary)")}>{l}</span>)}
                             {deps.length > 0 && (
-                              <span style={{ fontSize: 10, color: "var(--text-muted)" }}>
+                              <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>
                                 depends on: {deps.join(", ")}
                               </span>
                             )}
                           </div>
                           {s.acceptanceCriteria.length > 0 && (
                             <details style={{ marginTop: 4 }}>
-                              <summary style={{ fontSize: 11, color: "var(--text-muted)", cursor: "pointer" }}>
+                              <summary style={{ fontSize: 11, color: "var(--text-secondary)", cursor: "pointer" }}>
                                 {s.acceptanceCriteria.length} acceptance criteria
                               </summary>
                               <ul style={{ margin: "4px 0 0 16px", fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.6 }}>
@@ -1698,7 +1698,7 @@ function MetricsTab() {
             <div key={row.date} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
               <span style={{ width: 60, fontSize: 11, color: "var(--text-secondary)" }}>{row.date}</span>
               <div style={{ flex: 1, display: "flex", height: 18, borderRadius: "var(--radius-sm)", overflow: "hidden" }}>
-                <div style={{ width: pct(row.backlog), background: "var(--text-muted)", transition: "var(--transition-smooth)" }} title={`Backlog: ${row.backlog}`} />
+                <div style={{ width: pct(row.backlog), background: "var(--text-secondary)", transition: "var(--transition-smooth)" }} title={`Backlog: ${row.backlog}`} />
                 <div style={{ width: pct(row.todo), background: "var(--info-color)", transition: "var(--transition-smooth)" }} title={`To Do: ${row.todo}`} />
                 <div style={{ width: pct(row.inProgress), background: "var(--warning-color)", transition: "var(--transition-smooth)" }} title={`In Progress: ${row.inProgress}`} />
                 <div style={{ width: pct(row.inReview), background: "var(--accent-purple)", transition: "var(--transition-smooth)" }} title={`In Review: ${row.inReview}`} />
@@ -1709,7 +1709,7 @@ function MetricsTab() {
         })}
         <div style={{ display: "flex", gap: 12, marginTop: 6, fontSize: 11 }}>
           {[
-            { label: "Backlog", color: "var(--text-muted)" },
+            { label: "Backlog", color: "var(--text-secondary)" },
             { label: "To Do", color: "var(--info-color)" },
             { label: "In Progress", color: "var(--warning-color)" },
             { label: "In Review", color: "var(--accent-purple)" },

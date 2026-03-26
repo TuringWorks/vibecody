@@ -526,7 +526,7 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  display: "inline-flex",
  gap: 10,
  fontSize: 11,
- color: "var(--text-muted)",
+ color: "var(--text-secondary)",
  padding: "2px 6px",
  background: "var(--bg-secondary)",
  borderRadius: 4,

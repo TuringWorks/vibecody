@@ -23,8 +23,8 @@ const tabBarStyle: React.CSSProperties = {
 const tabStyle = (active: boolean): React.CSSProperties => ({
   padding: "8px 14px", cursor: "pointer",
   background: active ? "var(--bg-primary)" : "transparent",
-  color: active ? "var(--accent-color)" : "var(--text-secondary)",
-  border: "none", borderBottom: active ? "2px solid var(--accent-color)" : "2px solid transparent",
+  color: active ? "var(--text-primary)" : "var(--text-secondary)",
+  border: "none", borderBottom: active ? "2px solid var(--accent-blue)" : "2px solid transparent",
   fontSize: 13, fontFamily: "inherit", whiteSpace: "nowrap",
 });
 const contentStyle: React.CSSProperties = { flex: 1, overflow: "auto", padding: 16 };
@@ -43,7 +43,7 @@ const inputStyle: React.CSSProperties = {
 };
 const dropZoneStyle: React.CSSProperties = {
   border: "2px dashed var(--border-color)", borderRadius: 8, padding: 40, textAlign: "center",
-  color: "var(--text-muted)", cursor: "pointer", marginBottom: 12,
+  color: "var(--text-secondary)", cursor: "pointer", marginBottom: 12,
 };
 const selectStyle: React.CSSProperties = {
   ...inputStyle, width: "auto", minWidth: 140,
@@ -92,7 +92,7 @@ const DesignImportPanel: React.FC = () => {
           </div>
         )}
         {tab === "Preview" && (
-          <div style={{ textAlign: "center", padding: 40, color: "var(--text-muted)" }}>
+          <div style={{ textAlign: "center", padding: 40, color: "var(--text-secondary)" }}>
             <div style={{ fontSize: 16, marginBottom: 8 }}>No active preview</div>
             <div style={{ fontSize: 12 }}>Import a design to see the generated component preview here</div>
           </div>

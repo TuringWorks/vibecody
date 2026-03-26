@@ -127,7 +127,7 @@ export function SandboxPanel() {
     if (status.toLowerCase().includes("up") || status === "running") return "var(--success-color)";
     if (status.toLowerCase().includes("paused")) return "var(--warning-color)";
     if (status.toLowerCase().includes("exited")) return "var(--error-color)";
-    return "var(--text-muted)";
+    return "var(--text-secondary)";
   };
 
   return (
@@ -146,7 +146,7 @@ export function SandboxPanel() {
             <RuntimeBadge name="OpenSandbox" version={runtimes.opensandbox} active={runtimes.active === "opensandbox"} />
           </div>
         ) : (
-          <span style={{ color: "var(--text-muted)" }}>Detecting...</span>
+          <span style={{ color: "var(--text-secondary)" }}>Detecting...</span>
         )}
         <button onClick={detectRuntimes} style={btnStyle} title="Refresh">Refresh</button>
       </div>
@@ -188,7 +188,7 @@ export function SandboxPanel() {
           <button onClick={refreshInstances} style={btnStyle}>Refresh</button>
         </div>
         {instances.length === 0 ? (
-          <div style={{ color: "var(--text-muted)", fontStyle: "italic" }}>No sandbox containers running.</div>
+          <div style={{ color: "var(--text-secondary)", fontStyle: "italic" }}>No sandbox containers running.</div>
         ) : (
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
             <thead>
@@ -263,7 +263,7 @@ export function SandboxPanel() {
             )}
           </>
         ) : (
-          <div style={{ color: "var(--text-muted)", fontStyle: "italic" }}>Start a sandbox to use the exec console.</div>
+          <div style={{ color: "var(--text-secondary)", fontStyle: "italic" }}>Start a sandbox to use the exec console.</div>
         )}
       </div>
     </div>
@@ -281,11 +281,11 @@ function RuntimeBadge({ name, version, active }: { name: string; version: string
       fontSize: 12,
       background: version ? (active ? "rgba(14,99,156,0.2)" : "var(--bg-primary)") : "var(--bg-secondary)",
       border: `1px solid ${version ? (active ? "var(--accent-color)" : "var(--border-color)") : "var(--border-color)"}`,
-      color: version ? (active ? "var(--success-color)" : "var(--text-secondary)") : "var(--text-muted)",
+      color: version ? (active ? "var(--success-color)" : "var(--text-secondary)") : "var(--text-secondary)",
     }}>
-      <span style={{ width: 6, height: 6, borderRadius: "50%", background: version ? "var(--success-color)" : "var(--text-muted)" }} />
+      <span style={{ width: 6, height: 6, borderRadius: "50%", background: version ? "var(--success-color)" : "var(--text-secondary)" }} />
       {name}
-      {version && <span style={{ color: "var(--text-muted)", marginLeft: 4 }}>v{version}</span>}
+      {version && <span style={{ color: "var(--text-secondary)", marginLeft: 4 }}>v{version}</span>}
       {active && <span style={{ color: "var(--success-color)", fontWeight: 600 }}>(active)</span>}
     </span>
   );
@@ -326,12 +326,12 @@ const labelStyle: React.CSSProperties = {
   flexDirection: "column",
   gap: 2,
   fontSize: 11,
-  color: "var(--text-muted)",
+  color: "var(--text-secondary)",
 };
 
 const thStyle: React.CSSProperties = {
   padding: "4px 8px",
-  color: "var(--text-muted)",
+  color: "var(--text-secondary)",
   fontWeight: 500,
   fontSize: 11,
 };

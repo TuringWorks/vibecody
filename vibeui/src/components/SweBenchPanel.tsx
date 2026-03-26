@@ -69,8 +69,8 @@ const barFill = (pct: number, color: string): React.CSSProperties => ({ height: 
 const thStyle: React.CSSProperties = { textAlign: "left", padding: "6px 10px", borderBottom: "1px solid var(--border-color)", fontSize: 11, color: "var(--text-secondary)" };
 const tdStyle: React.CSSProperties = { padding: "6px 10px", borderBottom: "1px solid var(--border-color)", fontSize: 12 };
 
-const statusColor: Record<string, string> = { pass: "var(--success-color)", fail: "var(--error-color)", error: "var(--warning-color)", completed: "var(--success-color)", running: "var(--info-color)", pending: "var(--text-muted)", failed: "var(--error-color)" };
-const badgeStyle = (status: string): React.CSSProperties => ({ display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 600, color: "var(--text-primary)", background: statusColor[status] || "var(--text-muted)" });
+const statusColor: Record<string, string> = { pass: "var(--success-color)", fail: "var(--error-color)", error: "var(--warning-color)", completed: "var(--success-color)", running: "var(--info-color)", pending: "var(--text-secondary)", failed: "var(--error-color)" };
+const badgeStyle = (status: string): React.CSSProperties => ({ display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 600, color: "var(--text-primary)", background: statusColor[status] || "var(--text-secondary)" });
 
 // ── Component ─────────────────────────────────────────────────────────────────
 

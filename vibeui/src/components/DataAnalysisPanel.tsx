@@ -26,8 +26,8 @@ const tabBarStyle: React.CSSProperties = {
 const tabStyle = (active: boolean): React.CSSProperties => ({
   padding: "8px 14px", cursor: "pointer",
   background: active ? "var(--bg-primary)" : "transparent",
-  color: active ? "var(--accent-color)" : "var(--text-secondary)",
-  border: "none", borderBottom: active ? "2px solid var(--accent-color)" : "2px solid transparent",
+  color: active ? "var(--text-primary)" : "var(--text-secondary)",
+  border: "none", borderBottom: active ? "2px solid var(--accent-blue)" : "2px solid transparent",
   fontSize: 13, fontFamily: "inherit", whiteSpace: "nowrap",
 });
 const contentStyle: React.CSSProperties = { flex: 1, overflow: "auto", padding: 16 };
@@ -90,7 +90,7 @@ const DataAnalysisPanel: React.FC = () => {
           <div key={i} style={cardStyle}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
               <strong>{d.name}</strong>
-              <span style={badgeStyle(STATUS_COLORS[d.status] || "var(--text-muted)")}>{d.status}</span>
+              <span style={badgeStyle(STATUS_COLORS[d.status] || "var(--text-secondary)")}>{d.status}</span>
             </div>
             <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
               {d.rows.toLocaleString()} rows x {d.cols} cols &middot; {d.size} &middot; Source: {d.source}
@@ -104,7 +104,7 @@ const DataAnalysisPanel: React.FC = () => {
               <span style={badgeStyle("var(--info-color)")}>{c.type}</span>
             </div>
             <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Dataset: {c.dataset} &middot; {c.created}</div>
-            <div style={{ height: 40, background: "var(--bg-tertiary)", borderRadius: 4, marginTop: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "var(--text-muted)" }}>
+            <div style={{ height: 40, background: "var(--bg-tertiary)", borderRadius: 4, marginTop: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "var(--text-secondary)" }}>
               [Chart visualization]
             </div>
           </div>
@@ -113,10 +113,10 @@ const DataAnalysisPanel: React.FC = () => {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 8 }}>
             {WIDGETS.map((w, i) => (
               <div key={i} style={cardStyle}>
-                <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>{w.type}</div>
+                <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 }}>{w.type}</div>
                 <strong>{w.title}</strong>
                 {w.value && <div style={{ fontSize: 20, fontWeight: 700, marginTop: 4, color: "var(--accent-color)" }}>{w.value}</div>}
-                {w.type === "Chart" && <div style={{ height: 30, background: "var(--bg-tertiary)", borderRadius: 4, marginTop: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "var(--text-muted)" }}>[chart]</div>}
+                {w.type === "Chart" && <div style={{ height: 30, background: "var(--bg-tertiary)", borderRadius: 4, marginTop: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "var(--text-secondary)" }}>[chart]</div>}
               </div>
             ))}
           </div>
@@ -127,7 +127,7 @@ const DataAnalysisPanel: React.FC = () => {
               <input style={{ ...inputStyle, flex: 1 }} placeholder="Ask a question about your data..." value={query} onChange={e => setQuery(e.target.value)} aria-label="Natural language query" />
               <button style={btnStyle} aria-label="Run query">Ask</button>
             </div>
-            <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 12 }}>Recent queries:</div>
+            <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 12 }}>Recent queries:</div>
             {QUERIES.map((q, i) => (
               <div key={i} style={cardStyle}>
                 <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>{q.query}</div>

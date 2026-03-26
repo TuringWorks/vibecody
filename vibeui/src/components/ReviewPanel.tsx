@@ -151,7 +151,7 @@ export function ReviewPanel({ workspacePath, onOpenFile }: ReviewPanelProps) {
  {isLoading && (
  <div style={{ textAlign: 'center', color: 'var(--text-secondary)', paddingTop: 32, fontSize: 13 }}>
  Analyzing diff…<br />
- <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>This may take 15–30 seconds depending on diff size</span>
+ <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>This may take 15–30 seconds depending on diff size</span>
  </div>
  )}
 
@@ -170,7 +170,7 @@ export function ReviewPanel({ workspacePath, onOpenFile }: ReviewPanelProps) {
  </div>
  <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>{report.summary}</p>
  {report.files_reviewed.length > 0 && (
- <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text-muted)' }}>
+ <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text-secondary)' }}>
  {report.files_reviewed.length} file{report.files_reviewed.length !== 1 ? 's' : ''} reviewed
  </div>
  )}
@@ -269,7 +269,7 @@ export function ReviewPanel({ workspacePath, onOpenFile }: ReviewPanelProps) {
  </button>
  )}
  </div>
- <span style={{ color: 'var(--text-muted)', fontSize: 11, flexShrink: 0 }}>{isOpen ? '' : '▼'}</span>
+ <span style={{ color: 'var(--text-secondary)', fontSize: 11, flexShrink: 0 }}>{isOpen ? '' : '▼'}</span>
  </div>
 
  {isOpen && issue.suggested_fix && (
@@ -312,7 +312,7 @@ export function ReviewPanel({ workspacePath, onOpenFile }: ReviewPanelProps) {
 
  {/* ── Empty state ── */}
  {!report && !isLoading && !error && (
- <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8, color: 'var(--text-muted)' }}>
+ <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8, color: 'var(--text-secondary)' }}>
  <div style={{ fontSize: 32 }}></div>
  <div style={{ fontSize: 13 }}>Run a code review to see issues</div>
  <div style={{ fontSize: 11 }}>Analyzes your uncommitted changes or compares branches</div>

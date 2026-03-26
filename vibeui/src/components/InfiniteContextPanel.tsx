@@ -291,7 +291,7 @@ export function InfiniteContextPanel({ workspacePath }: { workspacePath: string 
     background: "none",
     border: "none",
     borderBottom: "2px solid",
-    borderBottomColor: active ? "var(--accent-color)" : "transparent",
+    borderBottomColor: active ? "var(--accent-blue)" : "transparent",
     color: active ? "var(--text-primary)" : "var(--text-secondary)",
     fontSize: "13px",
     fontWeight: active ? 600 : 400,

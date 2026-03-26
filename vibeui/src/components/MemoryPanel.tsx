@@ -515,7 +515,7 @@ function AutoFactsTab() {
  <button
  onClick={() => deleteFact(f.id)}
  title="Delete"
- style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: "var(--text-muted)", flexShrink: 0, padding: "0 2px", lineHeight: 1 }}
+ style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: "var(--text-secondary)", flexShrink: 0, padding: "0 2px", lineHeight: 1 }}
  >
  ✕
  </button>

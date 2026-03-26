@@ -50,13 +50,13 @@ const COVERAGE_COLORS: Record<string, string> = {
   Detected: "var(--success-color)",
   Partial: "var(--warning-color)",
   Missed: "var(--error-color)",
-  NotTested: "var(--text-muted)",
+  NotTested: "var(--text-secondary)",
 };
 
 const STATUS_COLORS: Record<string, string> = {
   Planned: "var(--accent-blue)",
   Active: "var(--success-color)",
-  Completed: "var(--text-muted)",
+  Completed: "var(--text-secondary)",
   Cancelled: "var(--error-color)",
 };
 
@@ -430,7 +430,7 @@ export function PurpleTeamPanel() {
                 {aiPlan.threat_scenario && <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8 }}>{aiPlan.threat_scenario}</div>}
                 {aiPlan.objectives?.length > 0 && (
                   <div style={{ marginBottom: 8 }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 4 }}>Objectives</div>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", marginBottom: 4 }}>Objectives</div>
                     <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12 }}>
                       {aiPlan.objectives.map((o: string, i: number) => <li key={i}>{o}</li>)}
                     </ul>
@@ -438,7 +438,7 @@ export function PurpleTeamPanel() {
                 )}
                 {aiPlan.simulations?.length > 0 && (
                   <div style={{ marginBottom: 8 }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 4 }}>Attack Simulations ({aiPlan.simulations.length})</div>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", marginBottom: 4 }}>Attack Simulations ({aiPlan.simulations.length})</div>
                     {aiPlan.simulations.map((sim: any, i: number) => (
                       <div key={i} style={{ padding: "6px 10px", marginBottom: 4, borderRadius: 4, background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
                         <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 2 }}>
@@ -450,7 +450,7 @@ export function PurpleTeamPanel() {
                         {sim.expected_detection && <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Expected: {sim.expected_detection}</div>}
                         {sim.steps?.length > 0 && (
                           <details style={{ marginTop: 2 }}>
-                            <summary style={{ fontSize: 10, color: "var(--text-muted)", cursor: "pointer" }}>{sim.steps.length} steps</summary>
+                            <summary style={{ fontSize: 10, color: "var(--text-secondary)", cursor: "pointer" }}>{sim.steps.length} steps</summary>
                             <ol style={{ margin: "4px 0 0 16px", fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.5 }}>
                               {sim.steps.map((s: string, j: number) => <li key={j}>{s}</li>)}
                             </ol>
@@ -462,7 +462,7 @@ export function PurpleTeamPanel() {
                 )}
                 {aiPlan.success_criteria?.length > 0 && (
                   <div style={{ marginBottom: 8 }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 4 }}>Success Criteria</div>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", marginBottom: 4 }}>Success Criteria</div>
                     <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12 }}>
                       {aiPlan.success_criteria.map((c: string, i: number) => <li key={i}>{c}</li>)}
                     </ul>
@@ -470,13 +470,13 @@ export function PurpleTeamPanel() {
                 )}
                 {aiPlan.required_resources?.length > 0 && (
                   <div>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 4 }}>Required Resources</div>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", marginBottom: 4 }}>Required Resources</div>
                     <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                       {aiPlan.required_resources.map((r: string, i: number) => <span key={i} style={badgeStyle("var(--bg-tertiary)")}>{r}</span>)}
                     </div>
                   </div>
                 )}
-                {aiPlan.duration_hours && <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 8 }}>Duration: {aiPlan.duration_hours} hours</div>}
+                {aiPlan.duration_hours && <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 8 }}>Duration: {aiPlan.duration_hours} hours</div>}
               </div>
             )}
           </div>
@@ -506,7 +506,7 @@ export function PurpleTeamPanel() {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <strong style={{ fontSize: 14 }}>{ex.name}</strong>
-                <span style={{ ...badgeStyle(STATUS_COLORS[ex.status] || "var(--text-muted)"), marginLeft: 8 }}>{ex.status}</span>
+                <span style={{ ...badgeStyle(STATUS_COLORS[ex.status] || "var(--text-secondary)"), marginLeft: 8 }}>{ex.status}</span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <div style={{ textAlign: "right" }}>
@@ -745,11 +745,11 @@ export function PurpleTeamPanel() {
                 </td>
                 <td style={tdStyle}>{gap.tactic}</td>
                 <td style={tdStyle}>
-                  <span style={badgeStyle(COVERAGE_COLORS[gap.current_coverage] || "var(--text-muted)")}>{gap.current_coverage}</span>
+                  <span style={badgeStyle(COVERAGE_COLORS[gap.current_coverage] || "var(--text-secondary)")}>{gap.current_coverage}</span>
                 </td>
                 <td style={{ ...tdStyle, fontSize: 12 }}>{gap.recommendation}</td>
                 <td style={tdStyle}>
-                  <span style={badgeStyle(EFFORT_COLORS[gap.effort] || "var(--text-muted)")}>{gap.effort}</span>
+                  <span style={badgeStyle(EFFORT_COLORS[gap.effort] || "var(--text-secondary)")}>{gap.effort}</span>
                 </td>
               </tr>
             ))}

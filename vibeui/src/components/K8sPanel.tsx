@@ -198,7 +198,7 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
 
  const labelStyle: React.CSSProperties = {
  fontSize: 11,
- color: "var(--text-muted)",
+ color: "var(--text-secondary)",
  marginBottom: 3,
  display: "block",
  };
@@ -215,9 +215,9 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
  padding: "6px 14px",
  fontSize: 12,
  background: subTab === t.id ? "var(--bg-primary)" : "transparent",
- color: subTab === t.id ? "var(--text-primary)" : "var(--text-muted)",
+ color: subTab === t.id ? "var(--text-primary)" : "var(--text-secondary)",
  border: "none",
- borderBottom: subTab === t.id ? "2px solid var(--accent-color)" : "2px solid transparent",
+ borderBottom: subTab === t.id ? "2px solid var(--accent-blue)" : "2px solid transparent",
  cursor: "pointer",
  fontWeight: subTab === t.id ? 600 : 400,
  whiteSpace: "nowrap",
@@ -302,8 +302,8 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
  margin: 0, padding: 12,
  background: "var(--bg-secondary)", border: "1px solid var(--border-color)",
  borderRadius: 6, fontSize: 11, lineHeight: 1.5,
- overflow: "auto", maxHeight: 400, whiteSpace: "pre",
- color: "var(--text-primary)",
+ overflow: "auto", maxHeight: 400, whiteSpace: "pre-wrap",
+ wordBreak: "break-word", color: "var(--text-primary)",
  }}>
  {manifestYaml}
  </pre>
@@ -345,7 +345,7 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
 
  {/* Quick-action chips */}
  <div>
- <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 6 }}>QUICK ACTIONS</div>
+ <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 6 }}>QUICK ACTIONS</div>
  <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
  {QUICK_CMDS.map((cmd) => (
  <button
@@ -490,8 +490,8 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
  margin: 0, padding: 12,
  background: "var(--bg-secondary)", border: "1px solid var(--border-color)",
  borderRadius: 6, fontSize: 11, lineHeight: 1.5,
- overflow: "auto", maxHeight: 360, whiteSpace: "pre",
- color: "var(--text-primary)",
+ overflow: "auto", maxHeight: 360, whiteSpace: "pre-wrap",
+ wordBreak: "break-word", color: "var(--text-primary)",
  }}>
  {argoYaml}
  </pre>
@@ -538,7 +538,7 @@ export default function K8sPanel({ workspacePath }: K8sPanelProps) {
  </div>
  ))}
  </div>
- <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+ <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
  Click a context to select it and switch to the Deploy tab.
  </div>
  </>

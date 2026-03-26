@@ -77,8 +77,8 @@ export function SoulPanel({ workspacePath }: { workspacePath?: string | null }) 
     border: "none",
     cursor: "pointer",
     background: tab === t ? "var(--bg-primary)" : "transparent",
-    color: tab === t ? "var(--text-primary)" : "var(--text-muted)",
-    borderBottom: tab === t ? "2px solid var(--accent-color)" : "2px solid transparent",
+    color: tab === t ? "var(--text-primary)" : "var(--text-secondary)",
+    borderBottom: tab === t ? "2px solid var(--accent-blue)" : "2px solid transparent",
   });
 
   const cardStyle: React.CSSProperties = {
@@ -132,7 +132,7 @@ export function SoulPanel({ workspacePath }: { workspacePath?: string | null }) 
                 </pre>
               </div>
             ) : (
-              <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--text-muted)" }}>
+              <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--text-secondary)" }}>
                 <div style={{ fontSize: "14px", marginBottom: "12px" }}>No SOUL.md found in this project.</div>
                 <button style={btnStyle("primary")} onClick={() => setTab("generate")}>
                   Generate One
@@ -155,7 +155,7 @@ export function SoulPanel({ workspacePath }: { workspacePath?: string | null }) 
               <div style={{ fontWeight: 600, fontSize: "14px", marginBottom: "8px", color: "var(--text-primary)" }}>
                 Generate SOUL.md
               </div>
-              <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "16px" }}>
+              <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "16px" }}>
                 VibeCody will scan your project structure, detect languages, frameworks, license, and
                 testing patterns, then generate a SOUL.md that captures your project's philosophy and design principles.
               </div>
@@ -200,7 +200,7 @@ export function SoulPanel({ workspacePath }: { workspacePath?: string | null }) 
               <div style={{ fontWeight: 600, fontSize: "13px", marginBottom: "8px", color: "var(--text-primary)" }}>
                 What gets generated
               </div>
-              <ul style={{ fontSize: "12px", color: "var(--text-muted)", margin: 0, paddingLeft: "20px", lineHeight: "1.8" }}>
+              <ul style={{ fontSize: "12px", color: "var(--text-secondary)", margin: 0, paddingLeft: "20px", lineHeight: "1.8" }}>
                 <li><strong>Why This Project Exists</strong> — The problem and motivation</li>
                 <li><strong>Core Beliefs</strong> — 3-6 principles that guide decisions</li>
                 <li><strong>Design Principles</strong> — Technical philosophy and patterns</li>
@@ -236,7 +236,7 @@ export function SoulPanel({ workspacePath }: { workspacePath?: string | null }) 
                     ].map(([label, value]) => (
                       <tr key={label} style={{ borderBottom: "1px solid var(--border-color)" }}>
                         <td style={{ padding: "6px 12px 6px 0", fontWeight: 600, color: "var(--text-primary)", whiteSpace: "nowrap" }}>{label}</td>
-                        <td style={{ padding: "6px 0", color: "var(--text-muted)" }}>{value}</td>
+                        <td style={{ padding: "6px 0", color: "var(--text-secondary)" }}>{value}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -248,7 +248,7 @@ export function SoulPanel({ workspacePath }: { workspacePath?: string | null }) 
                 </div>
               </div>
             ) : (
-              <div style={{ textAlign: "center", padding: "40px", color: "var(--text-muted)" }}>
+              <div style={{ textAlign: "center", padding: "40px", color: "var(--text-secondary)" }}>
                 {loading ? "Scanning project..." : "Click to scan project signals."}
               </div>
             )}

@@ -55,7 +55,7 @@ const S = {
  border: variant === "danger" ? "1px solid var(--error-color)" : "1px solid var(--border-color)",
  borderRadius: 4, cursor: "pointer",
  }),
- label: { fontSize: 10, fontWeight: 600 as const, color: "var(--text-muted)", marginBottom: 3, display: "block" as const },
+ label: { fontSize: 10, fontWeight: 600 as const, color: "var(--text-secondary)", marginBottom: 3, display: "block" as const },
  result: {
  padding: "8px 10px", background: "var(--bg-primary)", borderRadius: 4, fontFamily: "var(--font-mono)",
  fontSize: 11, lineHeight: 1.6, whiteSpace: "pre-wrap" as const,
@@ -327,7 +327,7 @@ function TimestampTool() {
  })()],
  ].map(([k, v]) => (
  <div key={k} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 8px", background: "var(--bg-secondary)", borderRadius: 4, border: "1px solid var(--border-color)" }}>
- <span style={{ fontSize: 10, color: "var(--text-muted)", fontWeight: 600, width: 90 }}>{k}</span>
+ <span style={{ fontSize: 10, color: "var(--text-secondary)", fontWeight: 600, width: 90 }}>{k}</span>
  <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, flex: 1 }}>{v}</span>
  <button onClick={() => copyText(v)} style={{ ...S.btn(), fontSize: 10, padding: "2px 6px" }}>Copy</button>
  </div>
@@ -390,7 +390,7 @@ function Base64Tool() {
  <span style={S.label}>Decoded</span>
  <button onClick={() => copyText(decoded ?? "")} style={{ ...S.btn(), fontSize: 10, padding: "2px 6px" }}>Copy</button>
  </div>
- <div style={{ ...S.result, minHeight: 48, color: decoded ? "var(--text-primary)" : "var(--text-muted)" }}>
+ <div style={{ ...S.result, minHeight: 48, color: decoded ? "var(--text-primary)" : "var(--text-secondary)" }}>
  {decoded ?? "Invalid base64"}
  </div>
  </div>
@@ -433,7 +433,7 @@ function HashTool() {
  </button>
  {Object.entries(hashes).map(([label, hash]) => (
  <div key={label} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 8px", background: "var(--bg-secondary)", borderRadius: 4, border: "1px solid var(--border-color)" }}>
- <span style={{ fontSize: 10, color: "var(--text-muted)", fontWeight: 600, width: 65 }}>{label}</span>
+ <span style={{ fontSize: 10, color: "var(--text-secondary)", fontWeight: 600, width: 65 }}>{label}</span>
  <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{hash}</span>
  <button onClick={() => copyText(hash)} style={{ ...S.btn(), fontSize: 10, padding: "2px 6px", flexShrink: 0 }}>Copy</button>
  </div>
@@ -483,7 +483,7 @@ function UrlTool() {
  {params.map(([k, v]) => (
  <div key={k} style={{ display: "flex", gap: 8, padding: "4px 8px", background: "var(--bg-secondary)", borderRadius: 4, border: "1px solid var(--border-color)", fontSize: 11, fontFamily: "var(--font-mono)" }}>
  <span style={{ color: "var(--text-info)", fontWeight: 600 }}>{k}</span>
- <span style={{ color: "var(--text-muted)" }}>=</span>
+ <span style={{ color: "var(--text-secondary)" }}>=</span>
  <span style={{ flex: 1 }}>{v}</span>
  <button onClick={() => copyText(v)} style={{ ...S.btn(), fontSize: 10, padding: "2px 6px" }}>Copy</button>
  </div>
@@ -517,7 +517,7 @@ export function UtilitiesPanel() {
  background: activeTool === id ? "color-mix(in srgb, var(--accent-blue) 15%, transparent)" : "transparent",
  border: "none",
  borderLeft: activeTool === id ? "3px solid var(--accent-color)" : "3px solid transparent",
- color: activeTool === id ? "var(--accent-color)" : "var(--text-muted)",
+ color: activeTool === id ? "var(--accent-color)" : "var(--text-secondary)",
  cursor: "pointer", display: "flex", flexDirection: "column",
  alignItems: "center", gap: 3, width: "100%",
  }}

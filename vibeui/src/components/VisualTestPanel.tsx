@@ -21,7 +21,7 @@ type SessionStatus = "idle" | "running" | "passed" | "failed";
 
 const statusBadge = (status: SessionStatus) => {
   const map: Record<SessionStatus, { bg: string; label: string }> = {
-    idle: { bg: "var(--text-muted)", label: "Idle" },
+    idle: { bg: "var(--text-secondary)", label: "Idle" },
     running: { bg: "var(--info-color)", label: "Running..." },
     passed: { bg: "var(--success-color)", label: "Passed" },
     failed: { bg: "var(--error-color)", label: "Failed" },

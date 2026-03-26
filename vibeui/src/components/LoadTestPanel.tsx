@@ -40,7 +40,7 @@ function StatCard({ label, value, unit, color }: { label: string; value: string 
  {typeof value === "number" ? value.toFixed(value < 10 ? 1 : 0) : value}
  {unit && <span style={{ fontSize: 11, fontWeight: 400, marginLeft: 2 }}>{unit}</span>}
  </div>
- <div style={{ fontSize: 9, color: "var(--text-muted)", fontWeight: 600, marginTop: 2 }}>{label}</div>
+ <div style={{ fontSize: 9, color: "var(--text-secondary)", fontWeight: 600, marginTop: 2 }}>{label}</div>
  </div>
  );
 }
@@ -153,7 +153,7 @@ export function LoadTestPanel() {
  <button
  key={p.label}
  onClick={() => { setTotal(p.total); setConcurrency(p.concurrency); }}
- style={{ padding: "3px 9px", fontSize: 10, borderRadius: 10, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", color: "var(--text-muted)", cursor: "pointer" }}
+ style={{ padding: "3px 9px", fontSize: 10, borderRadius: 10, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", color: "var(--text-secondary)", cursor: "pointer" }}
  >
  {p.label}
  </button>
@@ -167,7 +167,7 @@ export function LoadTestPanel() {
  { label: "Concurrency", value: concurrency, setter: setConcurrency, min: 1, max: 200 },
  ].map(({ label, value, setter, min, max }) => (
  <div key={label} style={{ display: "flex", flexDirection: "column", gap: 3, flex: 1 }}>
- <label style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)" }}>{label}</label>
+ <label style={{ fontSize: 10, fontWeight: 600, color: "var(--text-secondary)" }}>{label}</label>
  <input
  type="number" min={min} max={max} value={value}
  onChange={(e) => setter(Math.max(min, Math.min(max, Number(e.target.value))))}
@@ -209,7 +209,7 @@ export function LoadTestPanel() {
  {/* Optional body + headers */}
  {(method === "POST" || method === "PUT" || method === "PATCH") && (
  <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
- <label style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)" }}>Request Body</label>
+ <label style={{ fontSize: 10, fontWeight: 600, color: "var(--text-secondary)" }}>Request Body</label>
  <textarea
  value={body}
  onChange={(e) => setBody(e.target.value)}
@@ -221,19 +221,19 @@ export function LoadTestPanel() {
  )}
 
  <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
- <label style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)" }}>Headers (JSON)</label>
+ <label style={{ fontSize: 10, fontWeight: 600, color: "var(--text-secondary)" }}>Headers (JSON)</label>
  <input
  value={headersText}
  onChange={(e) => setHeadersText(e.target.value)}
  placeholder='{"Authorization": "Bearer TOKEN"}'
- style={{ padding: "5px 10px", fontSize: 11, fontFamily: "var(--font-mono)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-muted)", outline: "none" }}
+ style={{ padding: "5px 10px", fontSize: 11, fontFamily: "var(--font-mono)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-secondary)", outline: "none" }}
  />
  </div>
 
  {/* Progress bar */}
  {running && (
  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
- <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--text-muted)" }}>
+ <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--text-secondary)" }}>
  <span>Running… {progress}/{total}</span>
  <span>{progressPct}%</span>
  </div>
@@ -270,7 +270,7 @@ export function LoadTestPanel() {
  )}
  <div style={{ flex: 1, padding: "8px 10px", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 6, textAlign: "center" }}>
  <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{(result.duration_ms / 1000).toFixed(2)}s</div>
- <div style={{ fontSize: 9, color: "var(--text-muted)", fontWeight: 600 }}>TOTAL TIME</div>
+ <div style={{ fontSize: 9, color: "var(--text-secondary)", fontWeight: 600 }}>TOTAL TIME</div>
  </div>
  </div>
 
@@ -290,9 +290,9 @@ export function LoadTestPanel() {
  : label === "p90" ? "var(--warning-color)" : "var(--accent-color)";
  return (
  <div key={label} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
- <span style={{ fontSize: 9, color: "var(--text-muted)" }}>{val}ms</span>
+ <span style={{ fontSize: 9, color: "var(--text-secondary)" }}>{val}ms</span>
  <div style={{ width: "70%", height: h, background: color, borderRadius: "2px 2px 0 0" }} />
- <span style={{ fontSize: 9, color: "var(--text-muted)", fontWeight: 600 }}>{label}</span>
+ <span style={{ fontSize: 9, color: "var(--text-secondary)", fontWeight: 600 }}>{label}</span>
  </div>
  );
  })}
@@ -311,7 +311,7 @@ export function LoadTestPanel() {
  return (
  <div key={code} style={{ padding: "5px 12px", borderRadius: 20, border: `1px solid ${color}`, background: `${color}22`, fontSize: 11 }}>
  <span style={{ color, fontWeight: 700 }}>{code === "0" ? "ERR" : code}</span>
- <span style={{ color: "var(--text-muted)", marginLeft: 6 }}>×{count}</span>
+ <span style={{ color: "var(--text-secondary)", marginLeft: 6 }}>×{count}</span>
  </div>
  );
  })}

@@ -33,7 +33,7 @@ const tabStyle = (active: boolean): React.CSSProperties => ({
   fontWeight: active ? 600 : 400,
   cursor: "pointer",
   border: "none",
-  borderBottom: active ? "2px solid var(--accent-color)" : "2px solid transparent",
+  borderBottom: active ? "2px solid var(--accent-blue)" : "2px solid transparent",
   background: "transparent",
   color: active ? "var(--text-primary)" : "var(--text-secondary)",
   transition: "color 0.15s, border-color 0.15s",

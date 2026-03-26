@@ -257,7 +257,7 @@ export function JsonToolsPanel() {
  <span style={{ fontSize: 13, fontWeight: 600 }}>JSON Tools</span>
  <div style={{ display: "flex", gap: 4 }}>
  {(["format", "typescript", "yaml", "query"] as SubTab[]).map(t => (
- <button key={t} onClick={() => setSubTab(t)} style={{ padding: "2px 10px", fontSize: 10, borderRadius: 10, background: subTab === t ? "color-mix(in srgb, var(--accent-blue) 20%, transparent)" : "var(--bg-primary)", border: `1px solid ${subTab === t ? "var(--accent-color)" : "var(--border-color)"}`, color: subTab === t ? "var(--accent-color)" : "var(--text-muted)", cursor: "pointer", fontWeight: subTab === t ? 700 : 400 }}>
+ <button key={t} onClick={() => setSubTab(t)} style={{ padding: "2px 10px", fontSize: 10, borderRadius: 10, background: subTab === t ? "color-mix(in srgb, var(--accent-blue) 20%, transparent)" : "var(--bg-primary)", border: `1px solid ${subTab === t ? "var(--accent-color)" : "var(--border-color)"}`, color: subTab === t ? "var(--accent-color)" : "var(--text-secondary)", cursor: "pointer", fontWeight: subTab === t ? 700 : 400 }}>
  {t === "format" ? "Format" : t === "typescript" ? "TypeScript" : t === "yaml" ? "YAML" : "Query"}
  </button>
  ))}
@@ -272,16 +272,16 @@ export function JsonToolsPanel() {
 
  {/* Input area (always visible) */}
  <div style={{ display: "flex", flexDirection: "column", borderBottom: "1px solid var(--border-color)" }}>
- <div style={{ padding: "4px 12px", fontSize: 10, fontWeight: 700, color: "var(--text-muted)", background: "var(--bg-secondary)", display: "flex", gap: 8, alignItems: "center" }}>
+ <div style={{ padding: "4px 12px", fontSize: 10, fontWeight: 700, color: "var(--text-secondary)", background: "var(--bg-secondary)", display: "flex", gap: 8, alignItems: "center" }}>
  <span>INPUT</span>
- <button onClick={() => setInput(SAMPLE)} style={{ fontSize: 9, background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer" }}>Load sample</button>
- <button onClick={() => { navigator.clipboard.readText().then(t => setInput(t)).catch(() => {}); }} style={{ fontSize: 9, background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer" }}>Paste</button>
- <button onClick={() => setInput("")} style={{ fontSize: 9, background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer" }}>✕ Clear</button>
+ <button onClick={() => setInput(SAMPLE)} style={{ fontSize: 9, background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer" }}>Load sample</button>
+ <button onClick={() => { navigator.clipboard.readText().then(t => setInput(t)).catch(() => {}); }} style={{ fontSize: 9, background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer" }}>Paste</button>
+ <button onClick={() => setInput("")} style={{ fontSize: 9, background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer" }}>✕ Clear</button>
  {/* Indent selector */}
  <div style={{ marginLeft: "auto", display: "flex", gap: 4, alignItems: "center" }}>
- <span style={{ fontSize: 9, color: "var(--text-muted)" }}>indent:</span>
+ <span style={{ fontSize: 9, color: "var(--text-secondary)" }}>indent:</span>
  {INDENT_OPTIONS.map(n => (
- <button key={n} onClick={() => setIndent(n)} style={{ fontSize: 9, padding: "1px 6px", borderRadius: 4, background: indent === n ? "color-mix(in srgb, var(--accent-blue) 20%, transparent)" : "var(--bg-primary)", border: `1px solid ${indent === n ? "var(--accent-color)" : "var(--border-color)"}`, color: indent === n ? "var(--accent-color)" : "var(--text-muted)", cursor: "pointer" }}>{n}</button>
+ <button key={n} onClick={() => setIndent(n)} style={{ fontSize: 9, padding: "1px 6px", borderRadius: 4, background: indent === n ? "color-mix(in srgb, var(--accent-blue) 20%, transparent)" : "var(--bg-primary)", border: `1px solid ${indent === n ? "var(--accent-color)" : "var(--border-color)"}`, color: indent === n ? "var(--accent-color)" : "var(--text-secondary)", cursor: "pointer" }}>{n}</button>
  ))}
  </div>
  </div>
@@ -298,7 +298,7 @@ export function JsonToolsPanel() {
  <button onClick={minify} disabled={!parsed} style={{ padding: "3px 12px", fontSize: 11, background: "rgba(250,179,135,0.1)", border: "1px solid var(--warning-color)", borderRadius: 4, color: "var(--text-warning-alt)", cursor: "pointer" }}>⇲ Minify</button>
  <button onClick={sortAndFmt} disabled={!parsed} style={{ padding: "3px 12px", fontSize: 11, background: "color-mix(in srgb, var(--accent-blue) 10%, transparent)", border: "1px solid var(--accent-color)", borderRadius: 4, color: "var(--text-info)", cursor: "pointer" }}>⇅ Sort Keys</button>
  <div style={{ marginLeft: "auto" }}>
- <button onClick={() => copy(input, "fmt")} style={{ padding: "3px 10px", fontSize: 10, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-muted)", cursor: "pointer" }}>
+ <button onClick={() => copy(input, "fmt")} style={{ padding: "3px 10px", fontSize: 10, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-secondary)", cursor: "pointer" }}>
  {copied === "fmt" ? "✓ Copied" : "Copy"}
  </button>
  </div>
@@ -315,7 +315,7 @@ export function JsonToolsPanel() {
  : []),
  ...(Array.isArray(parsed) ? [["items", String(parsed.length)]] : []),
  ].map(([k, v]) => (
- <span key={String(k)} style={{ fontSize: 10, padding: "1px 8px", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 10, color: "var(--text-muted)" }}>
+ <span key={String(k)} style={{ fontSize: 10, padding: "1px 8px", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 10, color: "var(--text-secondary)" }}>
  <span style={{ color: "var(--text-info)" }}>{String(k)}</span>: {String(v)}
  </span>
  ))}
@@ -333,12 +333,12 @@ export function JsonToolsPanel() {
  <div style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" }}>
  <div style={{ padding: "4px 12px", fontSize: 10, fontWeight: 700, color: "var(--text-info)", background: "var(--bg-secondary)", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-color)" }}>
  <span>GENERATED INTERFACES</span>
- <button onClick={() => copy(tsOutput, "ts")} style={{ fontSize: 9, padding: "2px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-muted)", cursor: "pointer" }}>{copied === "ts" ? "✓ Copied" : "Copy"}</button>
+ <button onClick={() => copy(tsOutput, "ts")} style={{ fontSize: 9, padding: "2px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-secondary)", cursor: "pointer" }}>{copied === "ts" ? "✓ Copied" : "Copy"}</button>
  </div>
  {!parsed
- ? <div style={{ padding: 16, color: "var(--text-muted)", fontSize: 12 }}>Fix JSON errors above to generate TypeScript interfaces.</div>
+ ? <div style={{ padding: 16, color: "var(--text-secondary)", fontSize: 12 }}>Fix JSON errors above to generate TypeScript interfaces.</div>
  : typeof parsed !== "object" || parsed === null
- ? <div style={{ padding: 16, color: "var(--text-muted)", fontSize: 12 }}>Paste a JSON object or array to generate interfaces.</div>
+ ? <div style={{ padding: 16, color: "var(--text-secondary)", fontSize: 12 }}>Paste a JSON object or array to generate interfaces.</div>
  : <pre style={outputStyle}>{tsOutput}</pre>
  }
  </div>
@@ -349,10 +349,10 @@ export function JsonToolsPanel() {
  <div style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" }}>
  <div style={{ padding: "4px 12px", fontSize: 10, fontWeight: 700, color: "var(--text-success)", background: "var(--bg-secondary)", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-color)" }}>
  <span>YAML OUTPUT</span>
- <button onClick={() => copy(yamlOutput, "yaml")} style={{ fontSize: 9, padding: "2px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-muted)", cursor: "pointer" }}>{copied === "yaml" ? "✓ Copied" : "Copy"}</button>
+ <button onClick={() => copy(yamlOutput, "yaml")} style={{ fontSize: 9, padding: "2px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-secondary)", cursor: "pointer" }}>{copied === "yaml" ? "✓ Copied" : "Copy"}</button>
  </div>
  {!parsed
- ? <div style={{ padding: 16, color: "var(--text-muted)", fontSize: 12 }}>Fix JSON errors above to convert to YAML.</div>
+ ? <div style={{ padding: 16, color: "var(--text-secondary)", fontSize: 12 }}>Fix JSON errors above to convert to YAML.</div>
  : <pre style={outputStyle}>{yamlOutput}</pre>
  }
  </div>
@@ -363,15 +363,15 @@ export function JsonToolsPanel() {
  <div style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" }}>
  {/* Path input */}
  <div style={{ padding: "6px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 8, alignItems: "center" }}>
- <span style={{ fontSize: 11, color: "var(--text-muted)", flexShrink: 0 }}>Path:</span>
+ <span style={{ fontSize: 11, color: "var(--text-secondary)", flexShrink: 0 }}>Path:</span>
  <input value={queryPath_} onChange={e => setQueryPath(e.target.value)} placeholder="user.address.city or [0].name"
  style={{ flex: 1, padding: "4px 8px", fontSize: 12, fontFamily: "var(--font-mono)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-primary)", outline: "none" }} />
- <button onClick={() => setQueryPath("")} style={{ fontSize: 10, background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer" }}>✕</button>
+ <button onClick={() => setQueryPath("")} style={{ fontSize: 10, background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer" }}>✕</button>
  </div>
  {/* Suggestions */}
  <div style={{ padding: "4px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 4, flexWrap: "wrap" }}>
  {suggestions.slice(0, 12).map(s => (
- <button key={s} onClick={() => setQueryPath(s)} style={{ fontSize: 9, fontFamily: "var(--font-mono)", padding: "1px 6px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: queryPath_ === s ? "var(--accent-color)" : "var(--text-muted)", cursor: "pointer" }}>{s}</button>
+ <button key={s} onClick={() => setQueryPath(s)} style={{ fontSize: 9, fontFamily: "var(--font-mono)", padding: "1px 6px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: queryPath_ === s ? "var(--accent-color)" : "var(--text-secondary)", cursor: "pointer" }}>{s}</button>
  ))}
  </div>
  {/* Result */}
@@ -379,13 +379,13 @@ export function JsonToolsPanel() {
  <div style={{ padding: "4px 12px", fontSize: 10, fontWeight: 700, color: queryResult.error ? "var(--error-color)" : "var(--warning-color)", background: "var(--bg-secondary)", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-color)" }}>
  <span>RESULT</span>
  {queryResult.result !== undefined && !queryResult.error && (
- <button onClick={() => copy(JSON.stringify(queryResult.result, null, indent), "qr")} style={{ fontSize: 9, padding: "2px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-muted)", cursor: "pointer" }}>{copied === "qr" ? "✓" : ""}</button>
+ <button onClick={() => copy(JSON.stringify(queryResult.result, null, indent), "qr")} style={{ fontSize: 9, padding: "2px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 4, color: "var(--text-secondary)", cursor: "pointer" }}>{copied === "qr" ? "✓" : ""}</button>
  )}
  </div>
  {queryResult.error
  ? <div style={{ padding: "10px 12px", fontSize: 12, color: "var(--text-danger)" }}>{queryResult.error}</div>
  : queryResult.result === undefined
- ? <div style={{ padding: "10px 12px", fontSize: 12, color: "var(--text-muted)", fontStyle: "italic" }}>undefined</div>
+ ? <div style={{ padding: "10px 12px", fontSize: 12, color: "var(--text-secondary)", fontStyle: "italic" }}>undefined</div>
  : <pre style={outputStyle}>{JSON.stringify(queryResult.result, null, indent)}</pre>
  }
  </div>

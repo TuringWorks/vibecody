@@ -178,7 +178,7 @@ export function CsvPanel() {
  ];
 
  const panelStyle: React.CSSProperties = { display: "flex", flexDirection: "column", height: "100%", fontSize: 13, color: "var(--text-primary)", overflow: "hidden" };
- const tabBarStyle: React.CSSProperties = { display: "flex", gap: 4, padding: "8px 12px 0", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" };
+ const tabBarStyle: React.CSSProperties = { display: "flex", gap: 2, borderBottom: "1px solid var(--border-color)", padding: "0 16px", flexShrink: 0 };
 
  return (
  <div style={panelStyle}>
@@ -223,7 +223,7 @@ export function CsvPanel() {
  <div style={{ color: "var(--text-secondary)", textAlign: "center" }}>Open a CSV / TSV file or paste data below</div>
  <textarea
  placeholder="Paste CSV data here..."
- style={{ width: "100%", maxWidth: 500, height: 180, background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 6, padding: 8, fontSize: 12, resize: "vertical" }}
+ style={{ width: "100%", maxWidth: 500, height: 180, background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: 6, padding: 8, fontSize: 12, resize: "vertical", boxSizing: "border-box" }}
  onChange={e => { if (e.target.value) loadText(e.target.value); }}
  />
  <div style={{ display: "flex", gap: 8 }}>
@@ -246,7 +246,7 @@ export function CsvPanel() {
  <div style={tabBarStyle}>
  {TABS.map(t => (
  <button key={t.id} onClick={() => setTab(t.id)}
- style={{ padding: "4px 10px", fontSize: 12, border: "none", borderBottom: tab === t.id ? "2px solid var(--accent-color)" : "2px solid transparent", background: "none", color: tab === t.id ? "var(--accent-color)" : "var(--text-secondary)", cursor: "pointer" }}>
+ style={{ padding: "4px 10px", fontSize: 12, border: "none", borderBottom: tab === t.id ? "2px solid var(--accent-blue)" : "2px solid transparent", background: "none", color: tab === t.id ? "var(--text-primary)" : "var(--text-secondary)", cursor: "pointer" }}>
  {t.label}
  </button>
  ))}
@@ -259,10 +259,10 @@ export function CsvPanel() {
  {hasHeader && headers.length > 0 && (
  <thead>
  <tr>
- <th style={{ padding: "4px 6px", borderBottom: "2px solid var(--accent-color)", color: "var(--text-secondary)", fontSize: 11, textAlign: "left", width: 32 }}>#</th>
+ <th style={{ padding: "4px 6px", borderBottom: "2px solid var(--accent-blue)", color: "var(--text-secondary)", fontSize: 11, textAlign: "left", width: 32 }}>#</th>
  {headers.map((h, ci) => (
  <th key={ci} onClick={() => handleSort(ci)}
- style={{ padding: "4px 8px", borderBottom: "2px solid var(--accent-color)", color: "var(--text-primary)", textAlign: "left", cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" }}>
+ style={{ padding: "4px 8px", borderBottom: "2px solid var(--accent-blue)", color: "var(--text-primary)", textAlign: "left", cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" }}>
  {h} {sortCol === ci ? (sortDir === "asc" ? "" : "▼") : ""}
  </th>
  ))}
@@ -280,7 +280,7 @@ export function CsvPanel() {
  {editCell?.r === ri && editCell?.c === ci ? (
  <input autoFocus value={editVal} onChange={e => setEditVal(e.target.value)}
  onBlur={commitEdit} onKeyDown={e => { if (e.key === "Enter") commitEdit(); if (e.key === "Escape") setEditCell(null); }}
- style={{ width: "100%", background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--accent-color)", borderRadius: 2, padding: "1px 4px", fontSize: 12 }} />
+ style={{ width: "100%", background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--accent-color)", borderRadius: 2, padding: "1px 4px", fontSize: 12, boxSizing: "border-box" }} />
  ) : cell}
  </td>
  ))}
@@ -317,7 +317,7 @@ export function CsvPanel() {
  <thead>
  <tr>
  {headers.map((h, ci) => (
- <th key={ci} style={{ padding: "4px 8px", borderBottom: "2px solid var(--accent-color)", color: "var(--text-primary)", textAlign: "left" }}>{h}</th>
+ <th key={ci} style={{ padding: "4px 8px", borderBottom: "2px solid var(--accent-blue)", color: "var(--text-primary)", textAlign: "left" }}>{h}</th>
  ))}
  </tr>
  </thead>
@@ -361,7 +361,7 @@ export function CsvPanel() {
  <thead>
  <tr>
  {["Column", "Non-empty", "Unique", "Type", "Min", "Max", "Avg"].map(h => (
- <th key={h} style={{ padding: "5px 8px", borderBottom: "2px solid var(--accent-color)", color: "var(--text-secondary)", textAlign: "left", fontSize: 11 }}>{h}</th>
+ <th key={h} style={{ padding: "5px 8px", borderBottom: "2px solid var(--accent-blue)", color: "var(--text-secondary)", textAlign: "left", fontSize: 11 }}>{h}</th>
  ))}
  </tr>
  </thead>
