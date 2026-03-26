@@ -251,6 +251,8 @@ pub fn run() {
             // BYOK Settings
             commands::get_provider_api_keys,
             commands::save_provider_api_keys,
+            commands::validate_api_key,
+            commands::validate_all_api_keys,
             // Rules directory
             commands::list_rule_files,
             commands::get_rule_file,

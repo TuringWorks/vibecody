@@ -5590,6 +5590,12 @@ pub struct ApiKeySettings {
     pub grok_api_key: String,
     #[serde(default)]
     pub openrouter_api_key: String,
+    /// Ollama API key. If empty, a device key derived from hostname+username is used.
+    #[serde(default)]
+    pub ollama_api_key: String,
+    /// Ollama API URL. Defaults to `http://localhost:11434`.
+    #[serde(default)]
+    pub ollama_api_url: String,
     #[serde(default)]
     pub claude_model: String,
     #[serde(default)]
@@ -5730,6 +5736,31 @@ pub fn register_cloud_providers(engine: &mut ChatEngine, settings: &ApiKeySettin
         engine.add_provider(Arc::new(provider));
     }
 
+    // Ollama — always registered; uses explicit key, env var, or device key fallback.
+    {
+        let api_url = if settings.ollama_api_url.is_empty() {
+            None
+        } else {
+            Some(settings.ollama_api_url.clone())
+        };
+        let api_key = if settings.ollama_api_key.is_empty() {
+            None
+        } else {
+            Some(settings.ollama_api_key.clone())
+        };
+        let config = vibe_ai::provider::ProviderConfig {
+            provider_type: "ollama".to_string(),
+            api_key,
+            model: "llama3.1".to_string(),
+            api_url,
+            max_tokens: None,
+            temperature: None,
+            ..Default::default()
+        };
+        let provider = vibe_ai::providers::ollama::OllamaProvider::new(config);
+        engine.add_provider(Arc::new(provider));
+    }
+
 }
 
 /// Save API key settings and re-register cloud providers in the chat engine.
@@ -5758,6 +5789,145 @@ pub async fn save_provider_api_keys(
     let mut engine = state.chat_engine.lock().await;
     register_cloud_providers(&mut engine, &settings);
     Ok(engine.get_provider_names())
+}
+
+/// Validate a single provider API key by sending a minimal request.
+/// Returns `{ valid: bool, error: Option<String>, latency_ms: u64 }`.
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ApiKeyValidation {
+    pub provider: String,
+    pub valid: bool,
+    pub error: Option<String>,
+    pub latency_ms: u64,
+}
+
+#[tauri::command]
+pub async fn validate_api_key(provider: String, api_key: String, api_url: Option<String>) -> Result<ApiKeyValidation, String> {
+    let start = std::time::Instant::now();
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let result: Result<(), String> = match provider.as_str() {
+        "anthropic" | "claude" => {
+            let resp = client
+                .post("https://api.anthropic.com/v1/messages")
+                .header("x-api-key", &api_key)
+                .header("anthropic-version", "2023-06-01")
+                .header("content-type", "application/json")
+                .body(r#"{"model":"claude-haiku-4-5-20251001","max_tokens":1,"messages":[{"role":"user","content":"hi"}]}"#)
+                .send()
+                .await
+                .map_err(|e| e.to_string())?;
+            if resp.status().is_success() || resp.status().as_u16() == 200 {
+                Ok(())
+            } else if resp.status().as_u16() == 401 {
+                Err("Invalid API key".into())
+            } else {
+                let status = resp.status().as_u16();
+                let body = resp.text().await.unwrap_or_default();
+                // 400 with a model error still means the key is valid
+                if status == 400 { Ok(()) } else { Err(format!("HTTP {}: {}", status, &body[..body.len().min(200)])) }
+            }
+        }
+        "openai" => {
+            let resp = client
+                .get("https://api.openai.com/v1/models")
+                .bearer_auth(&api_key)
+                .send()
+                .await
+                .map_err(|e| e.to_string())?;
+            if resp.status().is_success() { Ok(()) }
+            else if resp.status().as_u16() == 401 { Err("Invalid API key".into()) }
+            else { Err(format!("HTTP {}", resp.status().as_u16())) }
+        }
+        "gemini" => {
+            let url = format!("https://generativelanguage.googleapis.com/v1beta/models?key={}", api_key);
+            let resp = client.get(&url).send().await.map_err(|e| e.to_string())?;
+            if resp.status().is_success() { Ok(()) }
+            else if resp.status().as_u16() == 400 || resp.status().as_u16() == 403 { Err("Invalid API key".into()) }
+            else { Err(format!("HTTP {}", resp.status().as_u16())) }
+        }
+        "grok" | "xai" => {
+            let resp = client
+                .get("https://api.x.ai/v1/models")
+                .bearer_auth(&api_key)
+                .send()
+                .await
+                .map_err(|e| e.to_string())?;
+            if resp.status().is_success() { Ok(()) }
+            else if resp.status().as_u16() == 401 { Err("Invalid API key".into()) }
+            else { Err(format!("HTTP {}", resp.status().as_u16())) }
+        }
+        "openrouter" => {
+            let resp = client
+                .get("https://openrouter.ai/api/v1/models")
+                .bearer_auth(&api_key)
+                .send()
+                .await
+                .map_err(|e| e.to_string())?;
+            if resp.status().is_success() { Ok(()) }
+            else if resp.status().as_u16() == 401 { Err("Invalid API key".into()) }
+            else { Err(format!("HTTP {}", resp.status().as_u16())) }
+        }
+        "ollama" => {
+            let base = api_url.unwrap_or_else(|| "http://localhost:11434".into());
+            let resp = client
+                .get(format!("{}/api/tags", base))
+                .send()
+                .await
+                .map_err(|e| format!("Connection failed: {}", e))?;
+            if resp.status().is_success() { Ok(()) }
+            else { Err(format!("HTTP {}", resp.status().as_u16())) }
+        }
+        _ => Err(format!("Unknown provider: {}", provider)),
+    };
+
+    let latency_ms = start.elapsed().as_millis() as u64;
+    match result {
+        Ok(()) => Ok(ApiKeyValidation { provider, valid: true, error: None, latency_ms }),
+        Err(e) => Ok(ApiKeyValidation { provider, valid: false, error: Some(e), latency_ms }),
+    }
+}
+
+/// Validate all configured API keys at once.
+#[tauri::command]
+pub async fn validate_all_api_keys() -> Result<Vec<ApiKeyValidation>, String> {
+    let settings = get_provider_api_keys().await?;
+    let mut results = Vec::new();
+
+    let checks: Vec<(&str, &str, Option<String>)> = vec![
+        ("anthropic", &settings.anthropic_api_key, None),
+        ("openai", &settings.openai_api_key, None),
+        ("gemini", &settings.gemini_api_key, None),
+        ("grok", &settings.grok_api_key, None),
+        ("openrouter", &settings.openrouter_api_key, None),
+        ("ollama", &settings.ollama_api_key, Some(settings.ollama_api_url.clone())),
+    ];
+
+    for (provider, key, url) in checks {
+        if key.is_empty() && provider != "ollama" {
+            results.push(ApiKeyValidation {
+                provider: provider.to_string(),
+                valid: false,
+                error: Some("No key configured".into()),
+                latency_ms: 0,
+            });
+            continue;
+        }
+        match validate_api_key(provider.to_string(), key.to_string(), url).await {
+            Ok(v) => results.push(v),
+            Err(e) => results.push(ApiKeyValidation {
+                provider: provider.to_string(),
+                valid: false,
+                error: Some(e),
+                latency_ms: 0,
+            }),
+        }
+    }
+
+    Ok(results)
 }
 
 // ── Spec commands ─────────────────────────────────────────────────────────────

@@ -12,7 +12,8 @@ import React, { useEffect, useState, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import {
   User, Palette, LogIn, Save, Key, X, Check, Upload, Download, RotateCcw,
-  Sun, Moon, Eye, EyeOff, ChevronRight,
+  Sun, Moon, Eye, EyeOff, ChevronRight, CheckCircle, MinusCircle, AlertCircle,
+  Loader2, Zap,
 } from "lucide-react";
 
 /* ── Types ──────────────────────────────────────────────────────────── */
@@ -61,6 +62,8 @@ interface ApiKeySettings {
   gemini_api_key: string;
   grok_api_key: string;
   openrouter_api_key: string;
+  ollama_api_key: string;
+  ollama_api_url: string;
   claude_model: string;
   openai_model: string;
   openrouter_model: string;
@@ -2401,15 +2404,26 @@ function CustomizationsSection() {
   );
 }
 
+interface ApiKeyValidation {
+  provider: string;
+  valid: boolean;
+  error: string | null;
+  latency_ms: number;
+}
+
 function ApiKeysSection() {
   const [settings, setSettings] = useState<ApiKeySettings>({
     anthropic_api_key: "", openai_api_key: "", gemini_api_key: "", grok_api_key: "", openrouter_api_key: "",
+    ollama_api_key: "", ollama_api_url: "",
     claude_model: "claude-3-5-sonnet-latest", openai_model: "gpt-4o", openrouter_model: "",
   });
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [showKey, setShowKey] = useState<Record<string, boolean>>({});
+  const [validations, setValidations] = useState<Record<string, ApiKeyValidation>>({});
+  const [validating, setValidating] = useState<Record<string, boolean>>({});
 
+  // Load keys on mount
   useEffect(() => {
     let cancelled = false;
     invoke<ApiKeySettings>("get_provider_api_keys")
@@ -2417,6 +2431,40 @@ function ApiKeysSection() {
       .catch(() => {});
     return () => { cancelled = true; };
   }, []);
+
+  // Periodic validation every 60s
+  useEffect(() => {
+    const runValidation = () => {
+      invoke<ApiKeyValidation[]>("validate_all_api_keys")
+        .then(results => {
+          const map: Record<string, ApiKeyValidation> = {};
+          results.forEach(r => { map[r.provider] = r; });
+          setValidations(map);
+        })
+        .catch(() => {});
+    };
+    // Initial validation after 2s (let keys load first)
+    const initial = setTimeout(runValidation, 2000);
+    const interval = setInterval(runValidation, 60000);
+    return () => { clearTimeout(initial); clearInterval(interval); };
+  }, []);
+
+  const validateSingle = async (provider: string, key: string, url?: string) => {
+    setValidating(prev => ({ ...prev, [provider]: true }));
+    try {
+      const result = await invoke<ApiKeyValidation>("validate_api_key", {
+        provider, apiKey: key, apiUrl: url ?? null,
+      });
+      setValidations(prev => ({ ...prev, [provider]: result }));
+    } catch {
+      setValidations(prev => ({
+        ...prev,
+        [provider]: { provider, valid: false, error: "Validation failed", latency_ms: 0 },
+      }));
+    } finally {
+      setValidating(prev => ({ ...prev, [provider]: false }));
+    }
+  };
 
   const handleSave = async () => {
     setSaving(true); setMessage(null);
@@ -2430,23 +2478,52 @@ function ApiKeysSection() {
     } finally { setSaving(false); }
   };
 
-  const renderSecretField = (label: string, fieldKey: keyof ApiKeySettings, placeholder: string) => (
-    <div style={{ marginBottom: 12 }}>
-      <label style={labelStyle}>{label}</label>
-      <div style={{ display: "flex", gap: 6 }}>
-        <input
-          type={showKey[fieldKey] ? "text" : "password"}
-          value={settings[fieldKey]}
-          onChange={e => setSettings({ ...settings, [fieldKey]: e.target.value })}
-          placeholder={placeholder}
-          style={{ ...fieldStyle, flex: 1, fontFamily: "var(--font-mono)" }}
-        />
-        <button onClick={() => setShowKey({ ...showKey, [fieldKey]: !showKey[fieldKey] })} style={{ ...btnStyle, padding: "4px 8px", display: "flex", alignItems: "center" }}>
-          {showKey[fieldKey] ? <EyeOff size={14} /> : <Eye size={14} />}
-        </button>
+  const renderSecretField = (label: string, fieldKey: keyof ApiKeySettings, placeholder: string, provider?: string) => {
+    const v = provider ? validations[provider] : undefined;
+    const isValidating = provider ? validating[provider] : false;
+    return (
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <label style={labelStyle}>{label}</label>
+          {v && (
+            <span style={{
+              fontSize: 10, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 4,
+              color: v.valid ? "var(--accent-green)" : (v.error === "No key configured" ? "var(--text-secondary)" : "var(--accent-rose)"),
+            }}>
+              {v.valid
+                ? <><CheckCircle size={10} strokeWidth={2} /> OK ({v.latency_ms}ms)</>
+                : v.error === "No key configured"
+                  ? <><MinusCircle size={10} strokeWidth={2} /> Not set</>
+                  : <><AlertCircle size={10} strokeWidth={2} /> {v.error}</>
+              }
+            </span>
+          )}
+        </div>
+        <div style={{ display: "flex", gap: 6 }}>
+          <input
+            type={showKey[fieldKey] ? "text" : "password"}
+            value={settings[fieldKey]}
+            onChange={e => setSettings({ ...settings, [fieldKey]: e.target.value })}
+            placeholder={placeholder}
+            style={{ ...fieldStyle, flex: 1, fontFamily: "var(--font-mono)" }}
+          />
+          <button onClick={() => setShowKey({ ...showKey, [fieldKey]: !showKey[fieldKey] })} style={{ ...btnStyle, padding: "4px 8px", display: "flex", alignItems: "center" }}>
+            {showKey[fieldKey] ? <EyeOff size={14} /> : <Eye size={14} />}
+          </button>
+          {provider && settings[fieldKey] && (
+            <button
+              onClick={() => validateSingle(provider, settings[fieldKey], provider === "ollama" ? settings.ollama_api_url : undefined)}
+              disabled={isValidating}
+              style={{ ...btnStyle, padding: "4px 8px", display: "flex", alignItems: "center", gap: 4, fontSize: 11, opacity: isValidating ? 0.5 : 1 }}
+            >
+              {isValidating ? <Loader2 size={12} strokeWidth={2} className="spin" /> : <Zap size={12} strokeWidth={2} />}
+              Test
+            </button>
+          )}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderSectionHeader = (title: string) => (
     <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 10, borderBottom: "1px solid var(--border-color)", paddingBottom: 4 }}>
@@ -2463,7 +2540,7 @@ function ApiKeysSection() {
 
       <div style={{ marginBottom: 20 }}>
         {renderSectionHeader("Anthropic (Claude)")}
-        {renderSecretField("API Key", "anthropic_api_key", "sk-ant-api03-...")}
+        {renderSecretField("API Key", "anthropic_api_key", "sk-ant-api03-...", "anthropic")}
         <p style={modelsHintStyle}>
           Models: Opus 4.6, Sonnet 4.6, Haiku 4.5, 3.5 Sonnet, 3.5 Haiku, 3 Opus
         </p>
@@ -2471,7 +2548,7 @@ function ApiKeysSection() {
 
       <div style={{ marginBottom: 20 }}>
         {renderSectionHeader("OpenAI")}
-        {renderSecretField("API Key", "openai_api_key", "sk-proj-...")}
+        {renderSecretField("API Key", "openai_api_key", "sk-proj-...", "openai")}
         <p style={modelsHintStyle}>
           Models: GPT-4o, GPT-4o mini, GPT-4 Turbo, GPT-4, GPT-3.5 Turbo, o1, o1-mini, o1-preview, o3-mini
         </p>
@@ -2479,7 +2556,7 @@ function ApiKeysSection() {
 
       <div style={{ marginBottom: 20 }}>
         {renderSectionHeader("Google (Gemini)")}
-        {renderSecretField("API Key", "gemini_api_key", "AIzaSy...")}
+        {renderSecretField("API Key", "gemini_api_key", "AIzaSy...", "gemini")}
         <p style={modelsHintStyle}>
           Models: 2.5 Pro, 2.5 Flash, 2.0 Flash, 2.0 Flash Lite, 1.5 Pro, 1.5 Flash
         </p>
@@ -2487,7 +2564,7 @@ function ApiKeysSection() {
 
       <div style={{ marginBottom: 20 }}>
         {renderSectionHeader("xAI (Grok)")}
-        {renderSecretField("API Key", "grok_api_key", "xai-...")}
+        {renderSecretField("API Key", "grok_api_key", "xai-...", "grok")}
         <p style={modelsHintStyle}>
           Models: Grok-3, Grok-3 mini, Grok-2, Grok-2 mini
         </p>
@@ -2495,7 +2572,7 @@ function ApiKeysSection() {
 
       <div style={{ marginBottom: 20 }}>
         {renderSectionHeader("OpenRouter")}
-        {renderSecretField("API Key", "openrouter_api_key", "sk-or-v1-...")}
+        {renderSecretField("API Key", "openrouter_api_key", "sk-or-v1-...", "openrouter")}
         <div style={{ marginBottom: 12 }}>
           <label style={labelStyle}>Model</label>
           <input style={fieldStyle} value={settings.openrouter_model} onChange={e => setSettings({ ...settings, openrouter_model: e.target.value })} placeholder="anthropic/claude-3.5-sonnet" />
@@ -2522,8 +2599,13 @@ function ApiKeysSection() {
 
       <div style={{ marginTop: 24, borderTop: "1px solid var(--border-color)", paddingTop: 16 }}>
         {renderSectionHeader("Local Models (Ollama)")}
+        {renderSecretField("API Key", "ollama_api_key", "Optional — leave empty to use device key", "ollama")}
+        <div style={{ marginBottom: 12 }}>
+          <label style={labelStyle}>API URL</label>
+          <input style={fieldStyle} value={settings.ollama_api_url} onChange={e => setSettings({ ...settings, ollama_api_url: e.target.value })} placeholder="http://localhost:11434" />
+        </div>
         <p style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5 }}>
-          Ollama auto-detected at <code style={{ background: "var(--bg-tertiary)", padding: "1px 4px", borderRadius: 3 }}>http://localhost:11434</code>. Start Ollama and models appear automatically.
+          If no API key is set, a device key derived from your hostname and username is used automatically. Set a key when connecting to a remote or secured Ollama instance.
         </p>
       </div>
     </div>
