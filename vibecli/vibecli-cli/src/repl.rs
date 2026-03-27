@@ -107,6 +107,27 @@ pub static COMMANDS: &[&str] = &[
     "/dispatch",
     "/wizard",
     "/resources",
+    "/a2a",
+    "/skills",
+    "/worktree",
+    "/host",
+    "/proactive",
+    "/triage",
+    "/search",
+    "/semindex",
+    "/mcp-http",
+    "/repair",
+    "/route",
+    "/vverify",
+    "/nexttask",
+    "/docsync",
+    "/connect",
+    "/analytics",
+    "/trust",
+    "/smartdeps",
+    "/rlcef",
+    "/langgraph",
+    "/sketch",
 ];
 
 // ── Sub-command tables ────────────────────────────────────────────────────────
@@ -215,6 +236,69 @@ static DISPATCH_SUBS: &[&str] = &["register", "unregister", "machines", "pair", 
 
 /// Sub-commands for `/resources <sub>`
 static RESOURCES_SUBS: &[&str] = &["status", "export", "verify", "path"];
+
+/// Sub-commands for `/a2a <sub>`
+static A2A_SUBS: &[&str] = &["card", "serve", "discover", "call", "tasks", "status"];
+
+/// Sub-commands for `/skills <sub>`
+static SKILLS_SUBS: &[&str] = &["import", "export", "search", "validate", "publish"];
+
+/// Sub-commands for `/worktree <sub>`
+static WORKTREE_SUBS: &[&str] = &["spawn", "list", "merge", "cleanup", "config"];
+
+/// Sub-commands for `/host <sub>`
+static HOST_SUBS: &[&str] = &["add", "list", "route", "remove", "ask"];
+
+/// Sub-commands for `/proactive <sub>`
+static PROACTIVE_SUBS: &[&str] = &["scan", "config", "accept", "reject", "history", "digest"];
+
+/// Sub-commands for `/triage <sub>`
+static TRIAGE_SUBS: &[&str] = &["run", "rules", "labels", "history", "batch"];
+
+/// Sub-commands for `/search <sub>`
+static SEARCH_SUBS: &[&str] = &["web", "cache", "providers", "config"];
+
+/// Sub-commands for `/semindex <sub>`
+static SEMINDEX_SUBS: &[&str] = &["build", "query", "callers", "callees", "hierarchy", "deps", "stats"];
+
+/// Sub-commands for `/mcp-http <sub>`
+static MCPHTTP_SUBS: &[&str] = &["serve", "oauth", "tokens", "remote"];
+
+/// Sub-commands for `/repair <sub>`
+static REPAIR_SUBS: &[&str] = &["mcts", "agentless", "compare", "config"];
+
+/// Sub-commands for `/route <sub>`
+static ROUTE_SUBS: &[&str] = &["cost", "budget", "model", "stats", "compare"];
+
+/// Sub-commands for `/vverify <sub>`
+static VVERIFY_SUBS: &[&str] = &["screenshot", "diff", "baseline", "ci"];
+
+/// Sub-commands for `/nexttask <sub>`
+static NEXTTASK_SUBS: &[&str] = &["suggest", "accept", "reject", "learn", "stats"];
+
+/// Sub-commands for `/docsync <sub>`
+static DOCSYNC_SUBS: &[&str] = &["status", "reconcile", "watch", "freshness"];
+
+/// Sub-commands for `/connect <sub>`
+static CONNECT_SUBS: &[&str] = &["list", "add", "test", "remove", "webhook"];
+
+/// Sub-commands for `/analytics <sub>`
+static ANALYTICS_SUBS: &[&str] = &["dashboard", "export", "roi", "compare"];
+
+/// Sub-commands for `/trust <sub>`
+static TRUST_SUBS: &[&str] = &["scores", "history", "config", "explain"];
+
+/// Sub-commands for `/smartdeps <sub>`
+static SMARTDEPS_SUBS: &[&str] = &["resolve", "compare", "patch", "audit", "graph"];
+
+/// Sub-commands for `/rlcef <sub>`
+static RLCEF_SUBS: &[&str] = &["train", "eval", "mistakes", "patterns", "reset", "export"];
+
+/// Sub-commands for `/langgraph <sub>`
+static LANGGRAPH_SUBS: &[&str] = &["serve", "connect", "status", "checkpoint"];
+
+/// Sub-commands for `/sketch <sub>`
+static SKETCH_SUBS: &[&str] = &["new", "recognize", "generate", "export"];
 
 /// Sub-commands for `/arena <sub>`
 static ARENA_SUBS: &[&str] = &["compare", "stats", "history"];
@@ -337,6 +421,27 @@ fn command_hint(cmd: &str) -> Option<&'static str> {
         "/quantum" => Some("[languages|os|hardware|algorithms|circuits|projects|create|export|compat|status]  — quantum computing"),
         "/autoresearch" => Some("[new|start|stop|pause|status|list|analyze|export|suggest|lessons|config]  — autonomous iterative research agent"),
         "/dispatch" => Some("[register|unregister|machines|pair|unpair|devices|send|cancel|status|stats|heartbeat]  — mobile gateway & dispatch"),
+        "/a2a" => Some("[card|serve|discover|call|tasks|status]  — A2A agent-to-agent protocol"),
+        "/skills" => Some("[import|export|search|validate|publish]  — cross-tool agent skills standard"),
+        "/worktree" => Some("[spawn|list|merge|cleanup|config]  — parallel worktree agent execution"),
+        "/host" => Some("[add|list|route|remove|ask]  — multi-agent terminal hosting"),
+        "/proactive" => Some("[scan|config|accept|reject|history|digest]  — proactive agent intelligence"),
+        "/triage" => Some("[run|rules|labels|history|batch]  — autonomous issue triage"),
+        "/search" => Some("[web|cache|providers|config]  — web search grounding"),
+        "/semindex" => Some("[build|query|callers|callees|hierarchy|deps|stats]  — deep semantic codebase index"),
+        "/mcp-http" => Some("[serve|oauth|tokens|remote]  — MCP streamable HTTP + OAuth 2.1"),
+        "/repair" => Some("[mcts|agentless|compare|config]  — MCTS code repair"),
+        "/route" => Some("[cost|budget|model|stats|compare]  — cost-optimized agent routing"),
+        "/vverify" => Some("[screenshot|diff|baseline|ci]  — visual verification via screenshots"),
+        "/nexttask" => Some("[suggest|accept|reject|learn|stats]  — next-task prediction"),
+        "/docsync" => Some("[status|reconcile|watch|freshness]  — living documentation sync"),
+        "/connect" => Some("[list|add|test|remove|webhook]  — native integration connectors"),
+        "/analytics" => Some("[dashboard|export|roi|compare]  — enterprise agent analytics"),
+        "/trust" => Some("[scores|history|config|explain]  — agent trust scoring"),
+        "/smartdeps" => Some("[resolve|compare|patch|audit|graph]  — agentic package manager"),
+        "/rlcef" => Some("[train|eval|mistakes|patterns|reset|export]  — RLCEF training loop"),
+        "/langgraph" => Some("[serve|connect|status|checkpoint]  — LangGraph pipeline bridge"),
+        "/sketch" => Some("[new|recognize|generate|export]  — sketch canvas to code"),
         _ => None,
     }
 }
@@ -444,6 +549,27 @@ fn complete_slash(line: &str) -> Option<(usize, Vec<Pair>)> {
                 "/quantum" => Some(QUANTUM_SUBS),
                 "/autoresearch" => Some(AUTORESEARCH_SUBS),
                 "/dispatch" => Some(DISPATCH_SUBS),
+                "/a2a" => Some(A2A_SUBS),
+                "/skills" => Some(SKILLS_SUBS),
+                "/worktree" => Some(WORKTREE_SUBS),
+                "/host" => Some(HOST_SUBS),
+                "/proactive" => Some(PROACTIVE_SUBS),
+                "/triage" => Some(TRIAGE_SUBS),
+                "/search" => Some(SEARCH_SUBS),
+                "/semindex" => Some(SEMINDEX_SUBS),
+                "/mcp-http" => Some(MCPHTTP_SUBS),
+                "/repair" => Some(REPAIR_SUBS),
+                "/route" => Some(ROUTE_SUBS),
+                "/vverify" => Some(VVERIFY_SUBS),
+                "/nexttask" => Some(NEXTTASK_SUBS),
+                "/docsync" => Some(DOCSYNC_SUBS),
+                "/connect" => Some(CONNECT_SUBS),
+                "/analytics" => Some(ANALYTICS_SUBS),
+                "/trust" => Some(TRUST_SUBS),
+                "/smartdeps" => Some(SMARTDEPS_SUBS),
+                "/rlcef" => Some(RLCEF_SUBS),
+                "/langgraph" => Some(LANGGRAPH_SUBS),
+                "/sketch" => Some(SKETCH_SUBS),
                 _ => None,
             };
 
