@@ -112,7 +112,7 @@ interface PanelHostProps {
  * can use the `usePersistentState` hook or `usePanelSettings`.
  */
 export function PanelHost(props: PanelHostProps) {
-  const { tab, selectedProvider, availableProviders, editorContent, fileTree, currentFile, workspacePath, onPendingWrite } = props;
+  const { tab, selectedProvider, availableProviders, editorContent, fileTree, currentFile, workspacePath, onPendingWrite, onOpenFile } = props;
   const wp = workspacePath;
 
   // Track which tabs have been visited so we only mount them once they're first opened.
@@ -153,23 +153,23 @@ export function PanelHost(props: PanelHostProps) {
       {panel("marketplace", <LazyPanel Component={MarketplacePanel} props={{}} />)}
 
       {/* --- Project --- */}
-      {panel("project-hub", <LazyPanel Component={ProjectHubComposite} props={{ workspacePath: wp, provider: selectedProvider }} />)}
-      {panel("planning", <LazyPanel Component={PlanningComposite} props={{ workspacePath: wp, provider: selectedProvider }} />)}
+      {panel("project-hub", <LazyPanel Component={ProjectHubComposite} props={{ workspacePath: wp, provider: selectedProvider, onOpenFile }} />)}
+      {panel("planning", <LazyPanel Component={PlanningComposite} props={{ workspacePath: wp, provider: selectedProvider, onOpenFile }} />)}
       {panel("observability", <LazyPanel Component={ObservabilityComposite} props={{ provider: selectedProvider }} />)}
       {panel("design", <LazyPanel Component={DesignComposite} props={{ workspacePath: wp, provider: selectedProvider }} />)}
 
       {/* --- Code Quality --- */}
-      {panel("security", <LazyPanel Component={SecurityComposite} props={{ workspacePath: wp, provider: selectedProvider }} />)}
-      {panel("testing", <LazyPanel Component={TestingComposite} props={{ workspacePath: wp, provider: selectedProvider }} />)}
-      {panel("code-analysis", <LazyPanel Component={CodeAnalysisComposite} props={{ workspacePath: wp, provider: selectedProvider }} />)}
+      {panel("security", <LazyPanel Component={SecurityComposite} props={{ workspacePath: wp, provider: selectedProvider, onOpenFile }} />)}
+      {panel("testing", <LazyPanel Component={TestingComposite} props={{ workspacePath: wp, provider: selectedProvider, onOpenFile }} />)}
+      {panel("code-analysis", <LazyPanel Component={CodeAnalysisComposite} props={{ workspacePath: wp, provider: selectedProvider, onOpenFile }} />)}
 
       {/* --- Source Control --- */}
-      {panel("version-control", <LazyPanel Component={VersionControlComposite} props={{ workspacePath: wp }} />)}
-      {panel("github", <LazyPanel Component={GitHubComposite} props={{ workspacePath: wp, provider: selectedProvider }} />)}
+      {panel("version-control", <LazyPanel Component={VersionControlComposite} props={{ workspacePath: wp, onOpenFile }} />)}
+      {panel("github", <LazyPanel Component={GitHubComposite} props={{ workspacePath: wp, provider: selectedProvider, onOpenFile }} />)}
       {panel("collaboration", <LazyPanel Component={CollaborationComposite} props={{ workspacePath: wp, provider: selectedProvider }} />)}
 
       {/* --- Infrastructure --- */}
-      {panel("build-deploy", <LazyPanel Component={BuildDeployComposite} props={{ workspacePath: wp, provider: selectedProvider }} />)}
+      {panel("build-deploy", <LazyPanel Component={BuildDeployComposite} props={{ workspacePath: wp, provider: selectedProvider, onOpenFile }} />)}
       {panel("containers", <LazyPanel Component={ContainersComposite} props={{ workspacePath: wp, provider: selectedProvider }} />)}
       {panel("ci-cd", <LazyPanel Component={CiCdComposite} props={{ workspacePath: wp, provider: selectedProvider }} />)}
       {panel("cloud-platform", <LazyPanel Component={CloudPlatformComposite} props={{ workspacePath: wp, provider: selectedProvider }} />)}
@@ -183,7 +183,7 @@ export function PanelHost(props: PanelHostProps) {
       {/* --- Developer Tools --- */}
       {panel("system-monitor", <LazyPanel Component={SystemMonitorComposite} props={{ workspacePath: wp }} />)}
       {panel("terminal", <LazyPanel Component={TerminalComposite} props={{ workspacePath: wp, provider: selectedProvider }} />)}
-      {panel("diagnostics", <LazyPanel Component={DiagnosticsComposite} props={{ workspacePath: wp, provider: selectedProvider }} />)}
+      {panel("diagnostics", <LazyPanel Component={DiagnosticsComposite} props={{ workspacePath: wp, provider: selectedProvider, onOpenFile }} />)}
 
       {/* --- Toolkit --- */}
       {panel("converters", <LazyPanel Component={ConvertersComposite} props={{}} />)}

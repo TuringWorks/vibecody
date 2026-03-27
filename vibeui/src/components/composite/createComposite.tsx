@@ -21,6 +21,7 @@ export interface TabDef {
 export interface CompositeProps {
   workspacePath?: string | null;
   provider?: string;
+  onOpenFile?: (path: string, line?: number) => void;
 }
 
 /**
@@ -65,6 +66,7 @@ export function createComposite(tabs: TabDef[]) {
               <t.LazyComp
                 workspacePath={wp}
                 provider={props.provider}
+                onOpenFile={props.onOpenFile}
                 {...(t.extraProps || {})}
               />
             </Suspense>

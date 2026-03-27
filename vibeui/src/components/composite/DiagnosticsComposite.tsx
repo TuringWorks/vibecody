@@ -13,18 +13,19 @@ const Loading = () => <div style={{ padding: 16, color: "var(--text-secondary)",
 interface Props {
   workspacePath: string | null;
   provider: string;
+  onOpenFile?: (path: string, line?: number) => void;
 }
 
-export function DiagnosticsComposite({ workspacePath, provider }: Props) {
+export function DiagnosticsComposite({ workspacePath, provider, onOpenFile }: Props) {
   const wp = workspacePath;
   return (
     <TabbedPanel tabs={[
-      { id: "deps", label: "Deps", content: <Suspense fallback={<Loading />}><DepsPanel workspacePath={wp} /></Suspense> },
+      { id: "deps", label: "Deps", content: <Suspense fallback={<Loading />}><DepsPanel workspacePath={wp} onOpenFile={onOpenFile} /></Suspense> },
       { id: "network", label: "Network", content: <Suspense fallback={<Loading />}><NetworkPanel /></Suspense> },
       { id: "loadtest", label: "Load Test", content: <Suspense fallback={<Loading />}><LoadTestPanel provider={provider} /></Suspense> },
       { id: "renderopt", label: "Render", content: <Suspense fallback={<Loading />}><RenderOptimizePanel /></Suspense> },
       { id: "resilience", label: "Resilience", content: <Suspense fallback={<Loading />}><ResiliencePanel /></Suspense> },
-      { id: "smartdeps", label: "Smart Deps", content: <Suspense fallback={<Loading />}><SmartDepsPanel /></Suspense> },
+      { id: "smartdeps", label: "Smart Deps", content: <Suspense fallback={<Loading />}><SmartDepsPanel onOpenFile={onOpenFile} /></Suspense> },
     ]} />
   );
 }
