@@ -145,6 +145,8 @@ mod security_scanning;
 #[allow(dead_code)]
 mod sub_agent_roles;
 #[allow(dead_code)]
+mod agent_host;
+#[allow(dead_code)]
 mod cloud_ide;
 #[allow(dead_code)]
 mod security_scan;
@@ -158,6 +160,8 @@ mod edit_prediction;
 mod conversational_search;
 #[allow(dead_code)]
 mod agent_modes;
+#[allow(dead_code)]
+mod agent_skills_compat;
 #[allow(dead_code)]
 mod debug_mode;
 #[allow(dead_code)]
@@ -236,6 +240,8 @@ pub mod cross_surface_routing;
 pub mod extension_compat;
 pub mod context_streaming;
 pub mod model_marketplace;
+#[allow(dead_code)]
+mod issue_triage;
 pub mod warp_features;
 #[allow(dead_code)]
 mod observe_act;
@@ -250,6 +256,41 @@ mod superbrain;
 mod vscode_compat_ext;
 mod large_codebase_bench;
 mod jetbrains_hooks;
+mod spawn_agent;
+mod web_grounding;
+#[allow(dead_code)]
+mod worktree_pool;
+mod mobile_gateway;
+mod proactive_agent;
+mod a2a_protocol;
+#[allow(dead_code)]
+mod semantic_index;
+#[allow(dead_code)]
+mod visual_verify;
+#[allow(dead_code)]
+mod mcp_streamable;
+#[allow(dead_code)]
+mod doc_sync;
+#[allow(dead_code)]
+mod next_task;
+#[allow(dead_code)]
+mod voice_local;
+#[allow(dead_code)]
+mod native_connectors;
+#[allow(dead_code)]
+mod agent_analytics;
+#[allow(dead_code)]
+mod agent_trust;
+#[allow(dead_code)]
+mod smart_deps;
+#[allow(dead_code)]
+mod rlcef_loop;
+#[allow(dead_code)]
+mod sketch_canvas;
+#[allow(dead_code)]
+mod mcts_repair;
+#[allow(dead_code)]
+mod langgraph_bridge;
 
 #[derive(Parser)]
 #[command(name = "vibecli")]
@@ -3603,6 +3644,247 @@ async fn main() -> Result<()> {
                                     }
                                 }
                                 _ => println!("Usage: /agents [list|status|new <name> <task>]\n"),
+                            }
+                        }
+
+                        // ── /spawn — parallel agent spawning ─────────────────────────
+                        "/spawn" => {
+                            use crate::spawn_agent::{self, SpawnConfig, DecomposeStrategy};
+                            let pool = spawn_agent::global_pool();
+                            let parts: Vec<&str> = if args.is_empty() {
+                                vec!["help"]
+                            } else {
+                                args.splitn(3, ' ').collect()
+                            };
+                            match parts[0] {
+                                "new" | "run" => {
+                                    let task = parts.get(1..).map(|p| p.join(" ")).unwrap_or_default();
+                                    if task.trim().is_empty() {
+                                        println!("Usage: /spawn new <task description>\n");
+                                        continue;
+                                    }
+                                    let cfg = SpawnConfig::new(task.trim());
+                                    match pool.spawn(cfg) {
+                                        Ok(id) => {
+                                            let agent = pool.get(&id).unwrap();
+                                            println!("🚀 Agent spawned: {} ({})", agent.name, id);
+                                            println!("   Status: {} | Branch: {} | Priority: {}",
+                                                agent.status,
+                                                agent.branch.as_deref().unwrap_or("—"),
+                                                agent.config.priority);
+                                            println!("   Use '/spawn status {}' to check progress\n", id);
+                                        }
+                                        Err(e) => eprintln!("❌ {}\n", e),
+                                    }
+                                }
+                                "list" | "ls" => {
+                                    let filter = parts.get(1).and_then(|s| match *s {
+                                        "running" => Some(spawn_agent::SpawnStatus::Running),
+                                        "queued" => Some(spawn_agent::SpawnStatus::Queued),
+                                        "paused" => Some(spawn_agent::SpawnStatus::Paused),
+                                        "completed" | "done" => Some(spawn_agent::SpawnStatus::Completed),
+                                        "failed" => Some(spawn_agent::SpawnStatus::Failed),
+                                        _ => None,
+                                    });
+                                    let agents = pool.list(filter.as_ref());
+                                    if agents.is_empty() {
+                                        println!("No spawned agents{}.\n",
+                                            if filter.is_some() { " matching filter" } else { "" });
+                                    } else {
+                                        println!("Spawned agents ({}):", agents.len());
+                                        for a in &agents {
+                                            let dur = a.duration_human();
+                                            let branch = a.branch.as_deref().unwrap_or("—");
+                                            println!("  [{}] {} — {} | {}% | {} | branch: {} | {} turns",
+                                                a.id, a.name, a.status,
+                                                a.progress.percent_complete,
+                                                dur, branch,
+                                                a.progress.turns_completed);
+                                        }
+                                        println!();
+                                    }
+                                }
+                                "status" | "info" => {
+                                    let id = parts.get(1).unwrap_or(&"").trim();
+                                    if id.is_empty() {
+                                        let stats = pool.stats();
+                                        println!("{}\n", stats);
+                                    } else {
+                                        match pool.get(id) {
+                                            Some(a) => {
+                                                println!("Agent: {} ({})", a.name, a.id);
+                                                println!("  Task: {}", a.task);
+                                                println!("  Status: {} | Priority: {}", a.status, a.config.priority);
+                                                println!("  Progress: {}% ({}/{} turns)",
+                                                    a.progress.percent_complete,
+                                                    a.progress.turns_completed,
+                                                    a.progress.turns_limit);
+                                                println!("  Duration: {} | Tokens: {} | Tools: {}",
+                                                    a.duration_human(),
+                                                    a.progress.tokens_used,
+                                                    a.progress.tool_calls);
+                                                if !a.progress.files_modified.is_empty() {
+                                                    println!("  Files ({}):", a.progress.files_modified.len());
+                                                    for f in &a.progress.files_modified {
+                                                        println!("    {}", f);
+                                                    }
+                                                }
+                                                if let Some(branch) = &a.branch {
+                                                    println!("  Branch: {}", branch);
+                                                }
+                                                if let Some(msg) = &a.progress.last_message {
+                                                    println!("  Last: {}", msg);
+                                                }
+                                                if let Some(err) = &a.error {
+                                                    println!("  Error: {}", err);
+                                                }
+                                                if let Some(summary) = &a.result_summary {
+                                                    println!("  Result: {}", summary);
+                                                }
+                                                if !a.child_ids.is_empty() {
+                                                    println!("  Subtasks: {}", a.child_ids.join(", "));
+                                                }
+                                                if !a.inbox.is_empty() {
+                                                    println!("  Messages: {} in inbox", a.inbox.len());
+                                                }
+                                                println!();
+                                            }
+                                            None => println!("Agent not found: {}\n", id),
+                                        }
+                                    }
+                                }
+                                "stop" | "cancel" => {
+                                    let id = parts.get(1).unwrap_or(&"").trim();
+                                    if id.is_empty() {
+                                        println!("Usage: /spawn stop <agent-id>\n");
+                                        continue;
+                                    }
+                                    match pool.cancel(id) {
+                                        Ok(()) => println!("⏹  Agent {} cancelled.\n", id),
+                                        Err(e) => eprintln!("❌ {}\n", e),
+                                    }
+                                }
+                                "pause" => {
+                                    let id = parts.get(1).unwrap_or(&"").trim();
+                                    if id.is_empty() {
+                                        println!("Usage: /spawn pause <agent-id>\n");
+                                        continue;
+                                    }
+                                    match pool.pause(id) {
+                                        Ok(()) => println!("⏸  Agent {} paused.\n", id),
+                                        Err(e) => eprintln!("❌ {}\n", e),
+                                    }
+                                }
+                                "resume" => {
+                                    let id = parts.get(1).unwrap_or(&"").trim();
+                                    if id.is_empty() {
+                                        println!("Usage: /spawn resume <agent-id>\n");
+                                        continue;
+                                    }
+                                    match pool.resume(id) {
+                                        Ok(()) => println!("▶  Agent {} resumed.\n", id),
+                                        Err(e) => eprintln!("❌ {}\n", e),
+                                    }
+                                }
+                                "result" | "merge" => {
+                                    let id = parts.get(1).unwrap_or(&"").trim();
+                                    if id.is_empty() {
+                                        println!("Usage: /spawn result <parent-agent-id>\n");
+                                        continue;
+                                    }
+                                    match pool.aggregate_results(id) {
+                                        Ok(result) => {
+                                            println!("Aggregated Results for {}:", id);
+                                            println!("  Strategy: {:?}", result.strategy);
+                                            println!("  Agents: {}/{} successful ({} failed)",
+                                                result.successful_agents, result.total_agents, result.failed_agents);
+                                            println!("  Files modified: {} | Tokens: {} | Duration: {}ms",
+                                                result.total_files_modified, result.total_tokens_used, result.total_duration_ms);
+                                            if let Some(best) = &result.best_agent_id {
+                                                println!("  Best agent: {}", best);
+                                            }
+                                            if !result.conflicts.is_empty() {
+                                                println!("  ⚠ Conflicts ({}):", result.conflicts.len());
+                                                for c in &result.conflicts {
+                                                    println!("    {} — {}", c.file, c.description);
+                                                }
+                                            }
+                                            println!();
+                                            for s in &result.summaries {
+                                                println!("  [{}] {} — {} | {} files | {} turns | {}ms",
+                                                    s.agent_id, s.agent_name, s.status,
+                                                    s.files_modified, s.turns_taken, s.duration_ms);
+                                                if let Some(summary) = &s.summary {
+                                                    println!("    → {}", summary);
+                                                }
+                                            }
+                                            println!();
+                                        }
+                                        Err(e) => eprintln!("❌ {}\n", e),
+                                    }
+                                }
+                                "decompose" => {
+                                    let rest = parts.get(1..).map(|p| p.join(" ")).unwrap_or_default();
+                                    if rest.trim().is_empty() {
+                                        println!("Usage: /spawn decompose <task description>\n");
+                                        println!("  Splits task into parallel subtasks (by concern: implement, test, docs).\n");
+                                        continue;
+                                    }
+                                    let base = SpawnConfig::new("");
+                                    match pool.spawn_decomposed(rest.trim(), &DecomposeStrategy::ByConcern, &[], &base) {
+                                        Ok((parent_id, child_ids)) => {
+                                            println!("🔀 Task decomposed into {} subtasks:", child_ids.len());
+                                            println!("  Coordinator: {}", parent_id);
+                                            for cid in &child_ids {
+                                                if let Some(a) = pool.get(cid) {
+                                                    println!("  [{}] {} — {}", a.id, a.name, a.status);
+                                                }
+                                            }
+                                            println!("\n  Use '/spawn result {}' to aggregate when done.\n", parent_id);
+                                        }
+                                        Err(e) => eprintln!("❌ {}\n", e),
+                                    }
+                                }
+                                "send" => {
+                                    // /spawn send <from-id> <to-id> <message>
+                                    let rest = parts.get(1..).map(|p| p.join(" ")).unwrap_or_default();
+                                    let msg_parts: Vec<&str> = rest.splitn(3, ' ').collect();
+                                    if msg_parts.len() < 3 {
+                                        println!("Usage: /spawn send <from-id> <to-id> <message>\n");
+                                        continue;
+                                    }
+                                    let msg = spawn_agent::AgentMessage::new(
+                                        msg_parts[0], msg_parts[1],
+                                        spawn_agent::MessageType::Status,
+                                        msg_parts[2],
+                                    );
+                                    match pool.send_message(msg) {
+                                        Ok(()) => println!("📨 Message sent from {} to {}.\n", msg_parts[0], msg_parts[1]),
+                                        Err(e) => eprintln!("❌ {}\n", e),
+                                    }
+                                }
+                                "cleanup" => {
+                                    let max_age_ms = parts.get(1)
+                                        .and_then(|s| s.parse::<u64>().ok())
+                                        .unwrap_or(3_600_000); // default 1hr
+                                    let removed = pool.cleanup(max_age_ms);
+                                    println!("🧹 Cleaned up {} completed agents.\n", removed);
+                                }
+                                _ => {
+                                    println!("Usage: /spawn <command> [args]\n");
+                                    println!("Commands:");
+                                    println!("  new <task>              Spawn a new agent with a task");
+                                    println!("  list [status]           List agents (filter: running/queued/paused/done/failed)");
+                                    println!("  status [agent-id]       Pool stats or agent details");
+                                    println!("  stop <agent-id>         Cancel a running agent");
+                                    println!("  pause <agent-id>        Pause a running agent");
+                                    println!("  resume <agent-id>       Resume a paused agent");
+                                    println!("  result <parent-id>      Aggregate results from decomposed subtasks");
+                                    println!("  decompose <task>        Split task into parallel subtasks");
+                                    println!("  send <from> <to> <msg>  Send message between agents");
+                                    println!("  cleanup [age-ms]        Remove old completed agents");
+                                    println!();
+                                }
                             }
                         }
 
@@ -7069,6 +7351,96 @@ async fn main() -> Result<()> {
                                     println!("  /vulnscan db-update           — Download full OSV database (~60K advisories)");
                                     println!("  /vulnscan db-status           — Show local snapshot status");
                                     println!("  /vulnscan cache-clear         — Clear advisory cache\n");
+                                }
+                            }
+                        }
+
+                        "/dispatch" => {
+                            let sub = args.split_whitespace().next().unwrap_or("help");
+                            let rest = args.trim().strip_prefix(sub).unwrap_or("").trim();
+                            let mut gw = mobile_gateway::MobileGateway::new();
+                            match sub {
+                                "register" => {
+                                    let port: u16 = rest.parse().unwrap_or(7878);
+                                    let cwd = std::env::current_dir().unwrap_or_default();
+                                    let machine = gw.register_self(port, &cwd.to_string_lossy(), "repl-token");
+                                    println!("Registered machine: {}\n  ID: {}\n  OS: {} ({})\n  Port: {}\n",
+                                        machine.name, machine.machine_id, machine.os, machine.arch, machine.daemon_port);
+                                }
+                                "machines" => {
+                                    let machines = gw.list_machines();
+                                    if machines.is_empty() {
+                                        println!("No machines registered. Use /dispatch register <port>\n");
+                                    } else {
+                                        println!("Registered machines ({}):\n", machines.len());
+                                        for m in &machines {
+                                            println!("  {} — {} ({}) [{}] port:{}",
+                                                m.machine_id, m.name, m.os, m.status, m.daemon_port);
+                                        }
+                                        println!();
+                                    }
+                                }
+                                "pair" => {
+                                    if rest.is_empty() {
+                                        println!("Usage: /dispatch pair <machine_id>\n");
+                                    } else {
+                                        match gw.create_pairing(rest, mobile_gateway::PairingMethod::QrCode) {
+                                            Ok(p) => {
+                                                println!("Pairing created:");
+                                                if let Some(pin) = &p.pin {
+                                                    println!("  PIN: {}", pin);
+                                                }
+                                                if let Some(qr) = &p.qr_data {
+                                                    println!("  QR: {}", qr);
+                                                }
+                                                println!("  Expires in {} minutes\n", gw.config.pairing_ttl_minutes);
+                                            }
+                                            Err(e) => println!("Error: {}\n", e),
+                                        }
+                                    }
+                                }
+                                "devices" => {
+                                    let devices: Vec<_> = gw.devices.values().collect();
+                                    if devices.is_empty() {
+                                        println!("No devices paired.\n");
+                                    } else {
+                                        println!("Paired devices ({}):\n", devices.len());
+                                        for d in &devices {
+                                            println!("  {} — {} ({}) machines:{}",
+                                                d.device_id, d.device_name, d.platform, d.paired_machines.len());
+                                        }
+                                        println!();
+                                    }
+                                }
+                                "stats" => {
+                                    let s = gw.stats();
+                                    println!("Mobile Gateway Stats\n");
+                                    println!("  Machines: {} total, {} online", s.total_machines, s.online_machines);
+                                    println!("  Devices: {}", s.total_devices);
+                                    println!("  Dispatches: {} total, {} active, {} completed, {} failed",
+                                        s.total_dispatches, s.active_dispatches, s.completed_dispatches, s.failed_dispatches);
+                                    println!("  Pending notifications: {}", s.pending_notifications);
+                                    println!("  Pending pairings: {}\n", s.pending_pairings);
+                                }
+                                "status" => {
+                                    let stale = gw.check_stale_machines();
+                                    let timed_out = gw.check_timeouts();
+                                    println!("Gateway health check:\n  Stale machines: {}\n  Timed-out dispatches: {}\n",
+                                        stale.len(), timed_out.len());
+                                }
+                                _ => {
+                                    println!("VibeCody Mobile Gateway — Remote dispatch for iOS/Android\n");
+                                    println!("  /dispatch register [port]    — Register this machine (default port 7878)");
+                                    println!("  /dispatch unregister <id>    — Unregister a machine");
+                                    println!("  /dispatch machines           — List registered machines");
+                                    println!("  /dispatch pair <machine_id>  — Create pairing QR/PIN for mobile");
+                                    println!("  /dispatch unpair <dev> <mac> — Unpair device from machine");
+                                    println!("  /dispatch devices            — List paired mobile devices");
+                                    println!("  /dispatch send <id> <msg>    — Send a dispatch to machine");
+                                    println!("  /dispatch cancel <task_id>   — Cancel a dispatch");
+                                    println!("  /dispatch status             — Health check (stale machines, timeouts)");
+                                    println!("  /dispatch stats              — Show gateway statistics");
+                                    println!("  /dispatch heartbeat <id>     — Trigger heartbeat for machine\n");
                                 }
                             }
                         }
